@@ -4316,9 +4316,8 @@ algorithm
       Ident id;
       list<Subscript> sub;
       ComponentRef cr2,cr_1,cr;
+    case (CREF_IDENT(),CREF_FULLYQUALIFIED()) then fail();
     case (CREF_IDENT(name = id,subscripts = sub),cr2)
-      equation
-        failure(CREF_FULLYQUALIFIED() = cr2);
       then CREF_QUAL(id,sub,cr2);
     case (CREF_QUAL(name = id,subscripts = sub,componentRef = cr),cr2)
       equation

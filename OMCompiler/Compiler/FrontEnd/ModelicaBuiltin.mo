@@ -4161,6 +4161,11 @@ annotation(
 </html>"), preferredView="text");
 end relocateFunctions;
 
+function toJulia
+  output String res;
+external "builtin";
+end toJulia;
+
 end Experimental;
 
 end Scripting;

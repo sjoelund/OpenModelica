@@ -371,6 +371,7 @@ if true then /* Suppress output */
     "../Script/Binding.mo",
     "../Script/OpenModelicaScriptingAPI.mo",
     "../Script/CevalScriptBackend.mo",
+    "../Script/MMToJuliaUtil.mo",
 
     "../SimCode/HpcOmSimCodeMain.mo",
     "../SimCode/SerializeInitXML.mo",
@@ -406,6 +407,7 @@ if true then /* Suppress output */
     "../Template/CodegenXML.mo",
     "../Template/GraphvizDump.mo",
     "../Template/GraphMLDumpTpl.mo",
+    "../Template/MMToJulia.mo",
     "../Template/NFInstDumpTpl.mo",
     "../Template/SimCodeDump.mo",
     "../Template/TaskSystemDump.mo",

@@ -912,6 +912,11 @@ algorithm
     case Absyn.ALG_BREAK() then SCode.ALG_BREAK(comment, info);
     case Absyn.ALG_CONTINUE() then SCode.ALG_CONTINUE(comment, info);
 
+    else
+      algorithm
+        Error.addInternalError("Failed to translate to SCode for AlgorithmItem: " + anyString(inAlgorithm), sourceInfo());
+      then fail();
+
   end match;
 end translateClassdefAlgorithmItem;
 
@@ -966,7 +971,7 @@ public function translateEitemlist
   The boolean argument flags whether the elements are protected.
   Annotations are not translated, i.e. they are removed when converting to SCode."
   input list<Absyn.ElementItem> inAbsynElementItemLst;
-  input SCode.Visibility inVisibility;
+  input SCode.Visibility inVisibility = SCode.PUBLIC();
   output list<SCode.Element> outElementLst;
 protected
   list<SCode.Element> l = {};
@@ -1418,7 +1423,7 @@ algorithm
   end match;
 end translateVariability;
 
-protected function translateEquations
+public function translateEquations
 "This function transforms a list of Absyn.Equation to a list of
   SCode.Equation, by applying the translateEquation function to each
   equation."
@@ -1688,6 +1693,11 @@ algorithm
     case Absyn.EQ_NORETCALL()
       then SCode.EQ_NORETCALL(Absyn.CALL(inEquation.functionName, inEquation.functionArgs),
         inComment, inInfo);
+
+    else
+      algorithm
+        Error.addInternalError("Failed to translate equation to SCode (is it a MetaModelica construct that should be in an algorithm?)", inInfo);
+      then fail();
 
   end match;
 end translateEquation;

@@ -2186,6 +2186,23 @@ algorithm
   end match;
 end isClass;
 
+public function isFunctionOutput
+  input Element inElement;
+  output Boolean isOutput;
+algorithm
+  isOutput := match inElement
+    case COMPONENT(attributes=ATTR(direction=Absyn.OUTPUT(__))) then true;
+    else false;
+  end match;
+end isFunctionOutput;
+
+public function getOutputElements
+  input list<Element> inElements;
+  output list<Element> outElements;
+algorithm
+  outElements := List.filterOnTrue(inElements, isFunctionOutput);
+end getOutputElements;
+
 public function foldEEquations<ArgT>
   "Calls the given function on the equation and all its subequations, and
    updates the argument for each call."

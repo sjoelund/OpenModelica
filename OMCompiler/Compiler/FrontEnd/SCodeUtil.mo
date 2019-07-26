@@ -37,7 +37,6 @@ encapsulated package SCodeUtil
 import SCode;
 
 protected
-
 import Absyn;
 import AbsynUtil;
 import Error;
@@ -45,6 +44,8 @@ import List;
 import Util;
 
 public
+
+replaceable type Argument subtypeof Any;
 
 function stripSubmod
   "Removes all submodifiers from the Mod."
@@ -1845,8 +1846,6 @@ public function traverseEEquationsList
   input tuple<TraverseFunc, Argument> inTuple;
   output list<SCode.EEquation> outEEquations;
   output tuple<TraverseFunc, Argument> outTuple;
-
-  replaceable type Argument subtypeof Any;
 
   partial function TraverseFunc
     input tuple<SCode.EEquation, Argument> inTuple;

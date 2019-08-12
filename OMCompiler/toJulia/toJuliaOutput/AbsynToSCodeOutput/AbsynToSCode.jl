@@ -1064,7 +1064,7 @@
                   Absyn.ALG_BREAK(__)  => begin
                     SCode.ALG_BREAK(comment, info)
                   end
-                  
+
                   Absyn.ALG_CONTINUE(__)  => begin
                     SCode.ALG_CONTINUE(comment, info)
                   end
@@ -1731,7 +1731,7 @@
                   ( nil(), _)  => begin
                     nil
                   end
-                  
+
                   (Absyn.EQUATIONITEM(equation_ = e, comment = acom, info = info) <| es, _)  => begin
                       (com, info) = translateCommentWithLineInfoChanges(acom, info)
                       e_1 = translateEquation(e, com, info, inIsInitial)

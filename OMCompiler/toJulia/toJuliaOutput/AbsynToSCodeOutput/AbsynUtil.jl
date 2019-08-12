@@ -568,7 +568,7 @@
 
          #= Helper function to traverseExpBidir. Traverses the subexpressions of an
           expression and calls traverseExpBidir on them. =#
-        function traverseExpBidirSubExps(inExp::Exp, enterFunc::FuncType, exitFunc::FuncType, inArg::Argument) ::Tuple{Exp, Argument} 
+        function traverseExpBidirSubExps(inExp::Exp, enterFunc::FuncType, exitFunc::FuncType, inArg::Argument) ::Tuple{Exp, Argument}
               local arg::Argument
               local e::Exp
 
@@ -2896,7 +2896,7 @@
                   (END(__), _, _)  => begin
                     nil
                   end
-                  
+
                   (TUPLE(expressions = expl), _, _)  => begin
                       crefll = ListUtil.map2(expl, getCrefFromExp, includeSubs, includeFunctions)
                       res = ListUtil.flatten(crefll)
@@ -4839,7 +4839,7 @@
           outIsQualified
         end
 
-        function pathIsIdent(inPath::Path) ::Bool 
+        function pathIsIdent(inPath::Path) ::Bool
               local outIsIdent::Bool
 
               outIsIdent = begin
@@ -5430,7 +5430,7 @@
           o
         end
 
-        function getFunctionInterfaceParts(part::ClassPart, elts::List{<:ElementItem}) ::List{ElementItem} 
+        function getFunctionInterfaceParts(part::ClassPart, elts::List{<:ElementItem}) ::List{ElementItem}
               local oelts::List{ElementItem}
 
               oelts = begin

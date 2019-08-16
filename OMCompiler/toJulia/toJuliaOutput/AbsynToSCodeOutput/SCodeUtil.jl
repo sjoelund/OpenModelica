@@ -3475,17 +3475,7 @@
         function boolFinal(inBoolFinal::Bool) ::SCode.Final
               local outFinal::SCode.Final
 
-              outFinal = begin
-                @match inBoolFinal begin
-                  true  => begin
-                    SCode.FINAL()
-                  end
-
-                  false  => begin
-                    SCode.NOT_FINAL()
-                  end
-                end
-              end
+              outFinal = inBoolFinal ? SCode.FINAL() : SCode.NOT_FINAL()
           outFinal
         end
 

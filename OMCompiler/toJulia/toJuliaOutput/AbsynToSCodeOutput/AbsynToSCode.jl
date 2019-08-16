@@ -856,7 +856,6 @@
                   end
 
                   cp <| rest  => begin
-                      @shouldFail @match Absyn.ALGORITHMS() = cp
                       als = translateClassdefAlgorithms(rest)
                     als
                   end
@@ -894,7 +893,6 @@
                   end
 
                   cp <| rest  => begin
-                      @shouldFail @match Absyn.CONSTRAINTS() = cp
                       cos = translateClassdefConstraints(rest)
                     cos
                   end

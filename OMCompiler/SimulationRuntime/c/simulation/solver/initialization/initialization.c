@@ -69,12 +69,14 @@
 #include "../delay.h"
 #include "../synchronous.h"
 
+#include "../../results/simulation_result.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
 
-extern int init_lambda_steps = 3;
+int init_lambda_steps = 3;
 
 /*! \fn void dumpInitializationStatus(DATA *data)
  *
@@ -190,6 +192,7 @@ static int symbolic_initialization(DATA *data, threadData_t *threadData)
   int solveWithGlobalHomotopy;
   int adaptiveGlobal;
   int kinsol = 0;
+  simulation_result sim_result_lambda;
 
 #if !defined(OMC_MINIMAL_RUNTIME)
   kinsol = (data->simulationInfo->nlsMethod == NLS_KINSOL);
@@ -306,6 +309,12 @@ static int symbolic_initialization(DATA *data, threadData_t *threadData)
 
     infoStreamPrint(LOG_INIT_HOMOTOPY, 1, "homotopy process\n---------------------------");
     /* try */
+    sim_result_lambda = sim_result;
+    sim_result_lambda.filename = "test.mat";
+    sim_result_lambda.storage = NULL;
+    sim_result_lambda.mode = OMC_SIM_RESULT_LAMBDA;
+    sim_result_lambda.init(&sim_result_lambda, data, threadData);
+    sim_result_lambda.writeParameterData(&sim_result_lambda, data, threadData);
 #ifndef OMC_EMCC
   MMC_TRY_INTERNAL(simulationJumpBuffer)
 #endif
@@ -351,12 +360,14 @@ static int symbolic_initialization(DATA *data, threadData_t *threadData)
         fprintf(pFile, "\n");
       }
 #endif
+      sim_result_lambda.emit(&sim_result_lambda,data,threadData);
     }
     success = 1;
     /* catch */
 #ifndef OMC_EMCC
   MMC_CATCH_INTERNAL(simulationJumpBuffer)
 #endif
+    sim_result_lambda.free(&sim_result_lambda,data,threadData);
     /* Error handling in case an assert was thrown */
     if (!success)
     {

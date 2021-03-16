@@ -41,6 +41,7 @@ simulation_result sim_result = {
   NULL, /* filename */
   0, /* numpoints */
   0, /* cpuTime */
+  OMC_SIM_RESULT_REGULAR, /* mode */
   NULL, /* extra data */
   sim_result_doNothing, /* init */
   sim_result_doNothing, /* emit */

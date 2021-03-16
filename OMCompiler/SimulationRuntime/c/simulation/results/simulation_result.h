@@ -37,11 +37,14 @@
 extern "C" {
 #endif /* cplusplus */
 
+enum OMC_SIM_RESULT_MODE{OMC_SIM_RESULT_REGULAR, OMC_SIM_RESULT_LAMBDA, OMC_SIM_RESULT_NLS};
+
 /* A prototype for the simulation result interface. */
 typedef struct simulation_result {
   const char *filename;
   long numpoints;
   int cpuTime;
+  int mode;
   void *storage; /* Internal data used for each storage scheme */
   void (*init)(struct simulation_result*,DATA*,threadData_t *threadData);
   void (*emit)(struct simulation_result*,DATA*,threadData_t *threadData);

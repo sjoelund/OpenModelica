@@ -726,8 +726,13 @@ void mat4_emit4(simulation_result *self, DATA *data, threadData_t *threadData)
   rt_tick(SIM_TIMER_TOTAL);
 
   size_t cur = 0;
-  /* time */
-  WRITE_REAL_VALUE(matData->data_2, cur++, data->localData[0]->timeValue);
+  if (self->mode == OMC_SIM_RESULT_LAMBDA) {
+    WRITE_REAL_VALUE(matData->data_2, cur++, data->simulationInfo->lambda);
+    fprintf(stderr, "OMC_SIM_RESULT_LAMBDA: %g\n", data->simulationInfo->lambda);
+  } else {
+    /* time */
+    WRITE_REAL_VALUE(matData->data_2, cur++, data->localData[0]->timeValue);
+  }
 
   if (self->cpuTime)
     WRITE_REAL_VALUE(matData->data_2, cur++, cpuTimeValue);

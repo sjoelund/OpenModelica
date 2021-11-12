@@ -310,6 +310,11 @@ algorithm
         (cache,patternTail) = elabPattern(cache,env,tail,tyTail,info);
       then (cache,DAE.PAT_CONS(patternHead,patternTail));
 
+    case (cache,_,Absyn.TUPLE({exp}),_,_,_)
+      algorithm
+        (cache,pattern) := elabPattern2(cache,env,exp,ty,info,numError);
+      then (cache,pattern);
+
     case (cache,_,Absyn.TUPLE(exps),DAE.T_METATUPLE(types = tys),_,_)
       equation
         tys = List.map(tys, Types.boxIfUnboxedType);
@@ -3087,6 +3092,9 @@ protected function convertExpToPatterns
   output list<Absyn.Exp> outInputs;
 algorithm
   outInputs := match inExp
+    local
+      Absyn.Exp exp;
+    case Absyn.TUPLE({exp}) then convertExpToPatterns(exp);
     case Absyn.TUPLE() then inExp.expressions;
     else {inExp};
   end match;

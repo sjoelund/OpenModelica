@@ -561,7 +561,7 @@ public constant ErrorTypes.Message GUARD_EXPRESSION_TYPE_MISMATCH = ErrorTypes.M
 public constant ErrorTypes.Message FUNCTION_RETURNS_META_ARRAY = ErrorTypes.MESSAGE(243, ErrorTypes.TRANSLATION(), ErrorTypes.ERROR(),
   Gettext.gettext("User-defined function calls that return Array<...> are not supported: %s."));
 public constant ErrorTypes.Message ASSIGN_UNKNOWN_ERROR = ErrorTypes.MESSAGE(244, ErrorTypes.TRANSLATION(), ErrorTypes.ERROR(),
-  Gettext.gettext("Failed elaborate assignment for some unknown reason: %1 := %2. File a bug report and we will make sure this error gets a better message in the future."));
+  Gettext.gettext("Failed to elaborate assignment for some unknown reason: %1 := %2. File a bug report and we will make sure this error gets a better message in the future."));
 public constant ErrorTypes.Message WARNING_DEF_USE = ErrorTypes.MESSAGE(245, ErrorTypes.TRANSLATION(), ErrorTypes.WARNING(),
   Gettext.gettext("%s was used before it was defined (given a value). Additional such uses may exist for the variable, but some messages were suppressed."));
 public constant ErrorTypes.Message EXP_TYPE_MISMATCH = ErrorTypes.MESSAGE(246, ErrorTypes.TRANSLATION(), ErrorTypes.ERROR(),

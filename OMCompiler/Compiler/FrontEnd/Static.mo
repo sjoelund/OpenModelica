@@ -640,6 +640,10 @@ protected
   list<DAE.TupleConst> consts;
 algorithm
   Absyn.TUPLE(expressions = el) := inExp;
+  if listLength(el) == 1 then
+    (outCache, outExp, outProperties) := elabExp(outCache, inEnv, listGet(el,1), inImplicit, inDoVect, inPrefix, inInfo);
+    return;
+  end if;
   (outCache, expl, props) := elabTuple(outCache, inEnv, el, inImplicit,
     inDoVect, inPrefix, inInfo, isLhs);
   (types, consts) := splitProps(props);

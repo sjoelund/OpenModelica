@@ -2521,6 +2521,7 @@ algorithm
       Operator op;
       list<Expression> expl;
       list<list<Expression>> expll;
+      Absyn.Exp absynExp1;
 
     case Absyn.Exp.INTEGER() then Expression.INTEGER(absynExp.value);
     case Absyn.Exp.REAL() then Expression.REAL(stringReal(absynExp.value));
@@ -2549,6 +2550,8 @@ algorithm
         e3 := instExp(absynExp.stop, scope, context, info);
       then
         Expression.RANGE(Type.UNKNOWN(), e1, oe, e3);
+
+    case Absyn.Exp.TUPLE(expressions={absynExp1}) then instExp(absynExp1, scope, context, info);
 
     case Absyn.Exp.TUPLE()
       algorithm

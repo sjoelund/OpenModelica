@@ -848,9 +848,9 @@ end dumpLhsExp;
 template dumpOperand(Absyn.Exp operand, Absyn.Exp operation, Boolean lhs)
 ::=
   let op_str = dumpExp(operand)
-  if shouldParenthesize(operand, operation, lhs) then
+  /* if shouldParenthesize(operand, operation, lhs) then
     '(<%op_str%>)'
-  else
+  else */
     op_str
 end dumpOperand;
 

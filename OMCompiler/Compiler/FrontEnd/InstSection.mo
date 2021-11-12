@@ -1011,6 +1011,8 @@ algorithm
       list<Absyn.Exp> crefs;
       String left_str, right_str;
 
+    case (Absyn.TUPLE({_}), _) then ();
+
     case (Absyn.TUPLE(crefs), Absyn.CALL())
       algorithm
         if not List.all(crefs, AbsynUtil.isCref) then
@@ -5029,6 +5031,16 @@ protected function instAssignment2
   output FCore.Cache outCache;
   output list<DAE.Statement> stmts "more statements due to loop unrolling";
 algorithm
+  _ := match var
+    local
+      Absyn.Exp lhs;
+    case Absyn.TUPLE({lhs})
+      algorithm
+        (outCache,stmts) := instAssignment2(inCache,inEnv,inIH,inPre,lhs,inRhs,value,props,info,inSource,initial_,inImpl,unrollForLoops,numError);
+        return;
+      then ();
+    else ();
+  end match;
   (outCache,stmts) := matchcontinue (inCache,var,value,props)
     local
       DAE.ComponentRef ce,ce_1;

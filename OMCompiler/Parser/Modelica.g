@@ -1612,7 +1612,12 @@ primary returns [void* ast]
   | DER el=function_call { $ast = Absyn__CALL(Absyn__CREF_5fIDENT(mmc_mk_scon("der"), mmc_mk_nil()),el,mmc_mk_nil()); }
   | LPAR el=output_expression_list[&tupleExpressionIsTuple]
     {
-      $ast = tupleExpressionIsTuple ? Absyn__TUPLE(el) : el;
+      $ast = tupleExpressionIsTuple ? Absyn__TUPLE(el) :
+#if defined(OMC_BOOTSTRAPPING)
+      el;
+#else
+      Absyn__TUPLE(mmc_mk_cons(el, mmc_mk_nil()));
+#endif
     }
   | LBRACK el=matrix_expression_list RBRACK { $ast = Absyn__MATRIX(el); }
   | LBRACE for_or_el=for_or_expression_list RBRACE

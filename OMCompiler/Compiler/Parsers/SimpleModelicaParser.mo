@@ -1018,6 +1018,7 @@ algorithm
   (tokens, tree, b) := LA1(tokens, tree, {TokenId.CONSTRAINEDBY});
   if b then
     (tokens, tree) := constraining_clause(tokens, tree);
+    (tokens, tree) := comment(tokens, tree); // Not standard Modelica, but some libraries have this
   end if;
   outTree := makeNodePrependTree(listReverse(tree), inTree);
 end element_replaceable;

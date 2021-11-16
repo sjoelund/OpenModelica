@@ -537,6 +537,8 @@ algorithm
         Error.addSourceMessage(Error.NOT_ARRAY_TYPE_IN_FOR_STATEMENT, {estr}, info);
       then fail();
 
+    case Absyn.ALGORITHMITEMCOMMENT() then "";
+
   end matchcontinue;
 end evaluateAlgStmt;
 

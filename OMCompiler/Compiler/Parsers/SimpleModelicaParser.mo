@@ -2190,28 +2190,19 @@ algorithm
   firstIter := true;
   while not listEmpty(diffLocal) loop
     diffLocal := match diffLocal
-      // ( ... ) is similar to whitespace, and there are some edge cases we can handle here...
-      case ((Diff.Equal,tree1) :: (Diff.Delete, tree2) :: (Diff.Equal,tree3) :: diffLocal)
-        guard min(parseTreeIsWhitespaceOrPar(t) for t in tree1) and
-              min(parseTreeIsWhitespaceOrPar(t) for t in tree3) and
-              1==sum(if parseTreeIsLPar(t) then 1 else 0 for t in tree1) and
-              1==sum(if parseTreeIsRPar(t) then 1 else 0 for t in tree3)
-        algorithm
-          diff := (Diff.Delete, listAppend(tree1, listAppend(tree2, tree3)))::diff;
-        then diffLocal;
       // Do not delete whitespace in-between two tokens
       case ((Diff.Delete, tree)::(diffLocal as ((Diff.Equal,_)::_)))
-        guard if firstIter then min(parseTreeIsWhitespaceOrParNotComment(t) for t in tree) else false
+        guard if firstIter then min(parseTreeIsWhitespaceNotComment(t) for t in tree) else false
         algorithm
           diff := (Diff.Equal, tree)::diff;
         then diffLocal;
       case ((diff1 as (Diff.Equal,_))::(Diff.Delete, tree)::(diffLocal as ((Diff.Equal,_)::_)))
-        guard min(parseTreeIsWhitespaceOrParNotComment(t) for t in tree)
+        guard min(parseTreeIsWhitespaceNotComment(t) for t in tree)
         algorithm
           diff := (Diff.Equal, tree)::diff1::diff;
         then diffLocal;
       case ((diff1 as (Diff.Equal,_))::(Diff.Delete, tree)::{})
-        guard min(parseTreeIsWhitespaceOrParNotComment(t) for t in tree)
+        guard min(parseTreeIsWhitespaceNotComment(t) for t in tree)
         algorithm
           diff := (Diff.Equal, tree)::diff1::diff;
         then {};
@@ -2226,10 +2217,10 @@ algorithm
         then (Diff.Delete, tree)::diffLocal;
       // Do not add whitespace for no good reason. Do add whitespace.
       case ((Diff.Add, tree)::(diffLocal as ((Diff.Equal,_)::_)))
-        guard if firstIter then min(parseTreeIsWhitespaceOrParNotComment(t) for t in tree) else false
+        guard if firstIter then min(parseTreeIsWhitespaceNotComment(t) for t in tree) else false
         then diffLocal;
       case ((diff1 as (Diff.Equal,_))::(Diff.Add, tree)::(diffLocal as ((Diff.Equal,_)::_)))
-        guard min(parseTreeIsWhitespaceOrParNotComment(t) for t in tree)
+        guard min(parseTreeIsWhitespaceNotComment(t) for t in tree)
         algorithm
           diff := diff1::diff;
         then diffLocal;
@@ -2467,7 +2458,7 @@ algorithm
     arrayUpdate(work, arrayLength(work)-commentCount, firstTokenInTree(t));
     commentCount := commentCount + 1;
     return;
-  elseif parseTreeIsWhitespaceOrPar(t) then
+  elseif parseTreeIsWhitespace(t) then
     return;
   end if;
   _ := match t
@@ -2719,8 +2710,6 @@ algorithm
               acc := {tree}::acc;
             elseif parseTreeIsWhitespace(tree) then
               acc := acc;
-            elseif parseTreeIsWhitespaceOrPar(tree) then
-              acc := {tree}::acc;
             else
               if foundAdded then
                 Error.addInternalError("Found multiple Add subtrees", sourceInfo());
@@ -2741,7 +2730,7 @@ algorithm
       case (Diff.Delete, lst)
         algorithm
           for tree in lst loop
-            if parseTreeIsWhitespaceOrPar(tree) then
+            if parseTreeIsWhitespace(tree) then
               acc := {tree}::acc;
             else
               if foundDeleted then
@@ -2811,9 +2800,9 @@ algorithm
     (d,l) := diff;
     if d == Diff.Add then
       // We treat parenthesis similar to whitespace because we need to keep them as before since unparsing adds or removes parentheses
-      nadd := nadd+sum(if parseTreeIsWhitespaceOrPar(t) then 0 else 1 for t in l);
+      nadd := nadd+sum(if parseTreeIsWhitespace(t) then 0 else 1 for t in l);
     elseif d == Diff.Delete then
-      ndel := ndel+sum(if parseTreeIsWhitespaceOrPar(t) then 0 else 1 for t in l);
+      ndel := ndel+sum(if parseTreeIsWhitespace(t) then 0 else 1 for t in l);
     end if;
   end for;
 end countDiffAddDelete;
@@ -2865,54 +2854,6 @@ algorithm
     else false;
   end match;
 end parseTreeIsNewLine;
-
-function parseTreeIsLPar
-  input ParseTree t1;
-  output Boolean b;
-protected
-  TokenId id;
-algorithm
-  b := match t1
-    case LEAF() then t1.token.id == TokenId.LPAR;
-    else false;
-  end match;
-end parseTreeIsLPar;
-
-function parseTreeIsRPar
-  input ParseTree t1;
-  output Boolean b;
-protected
-  TokenId id;
-algorithm
-  b := match t1
-    case LEAF() then t1.token.id == TokenId.RPAR;
-    else false;
-  end match;
-end parseTreeIsRPar;
-
-function parseTreeIsWhitespaceOrPar
-  input ParseTree t1;
-  output Boolean b;
-protected
-  TokenId id;
-algorithm
-  b := match t1
-    case LEAF() then listMember(t1.token.id, TokenId.LPAR::TokenId.RPAR::whiteSpaceTokenIds);
-    else false;
-  end match;
-end parseTreeIsWhitespaceOrPar;
-
-function parseTreeIsWhitespaceOrParNotComment
-  input ParseTree t1;
-  output Boolean b;
-protected
-  TokenId id;
-algorithm
-  b := match t1
-    case LEAF() then listMember(t1.token.id, TokenId.LPAR::TokenId.RPAR::whiteSpaceTokenIdsNotComment);
-    else false;
-  end match;
-end parseTreeIsWhitespaceOrParNotComment;
 
 function parseTreeIsWhitespaceNotComment
   input ParseTree t1;

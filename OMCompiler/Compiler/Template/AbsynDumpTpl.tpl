@@ -68,14 +68,14 @@ match cdef
     let attr_str = dumpElementAttr(attributes)
     let ty_str = dumpTypeSpec(typeSpec)
     let mod_str = if arguments then
-      '(<%(arguments |> arg => dumpElementArg(arg) ;separator=", ")%>)'
+      '(<%dumpElementArgList(arguments, ', ')%>)'
     let cmt_str = dumpCommentOpt(comment)
     '<%cls_name%> = <%attr_str%><%ty_str%><%mod_str%><%cmt_str%>'
   case CLASS_EXTENDS(__) then
     let body_str = (parts |> class_part hasindex idx =>
       dumpClassPart(class_part, idx, options) ;separator="\n")
     let mod_str = if modifications then
-      '(<%(modifications |> mod => dumpElementArg(mod) ;separator=", ")%>)'
+      '(<%dumpElementArgList(modifications, ', ')%>)'
     let cmt_str = dumpStringCommentOption(comment)
     let ann_str = (listReverse(ann) |> a => dumpAnnotation(a) ;separator=";\n")
     <<
@@ -296,7 +296,7 @@ match ann
   case ANNOTATION(__) then
     <<
     annotation(
-      <%(elementArgs |> earg => dumpElementArg(earg) ;separator=',<%\n%>')%>)
+      <%dumpElementArgList(elementArgs, ',<%\n%>')%>)
     >>
 end dumpAnnotation;
 
@@ -319,9 +319,14 @@ template dumpCommentOpt(Option<Absyn.Comment> ocmt)
 ::= match ocmt case SOME(cmt) then dumpComment(cmt)
 end dumpCommentOpt;
 
+template dumpElementArgList(list<Absyn.ElementArg> elementArgs, Text separator)
+::=
+  shouldSeparateAfterElementArg(elementArgs) |> (earg,b) => (dumpElementArg(earg) + (if b then separator))
+end dumpElementArgList;
+
 template dumpElementArg(Absyn.ElementArg earg)
 ::=
-match earg
+  match earg
   case MODIFICATION(__) then
     let each_str = dumpEach(eachPrefix)
     let final_str = dumpFinal(finalPrefix)
@@ -338,6 +343,7 @@ match earg
     let elem_str = dumpElementSpec(elementSpec, final_str, eredecl_str, repl_str, "", defaultDumpOptions)
     let cc_str = match constrainClass case SOME(cc) then dumpConstrainClass(cc)
     '<%elem_str%><%cc_str%>'
+  case ELEMENTARGCOMMENT(__) then (" " + comment ; absIndent=0)
 end dumpElementArg;
 
 template dumpEach(Absyn.Each each)
@@ -375,7 +381,7 @@ template dumpModification(Absyn.Modification mod)
 match mod
   case CLASSMOD(__) then
     let arg_str = if elementArgLst then
-      '(<%(elementArgLst |> earg => dumpElementArg(earg) ;separator=", ")%>)'
+      '(<%dumpElementArgList(elementArgLst, ", ")%>)'
     let eq_str = dumpEqMod(eqMod)
     '<%arg_str%><%eq_str%>'
 end dumpModification;
@@ -391,7 +397,7 @@ match elem
   case CLASSDEF(__) then dumpClassElement(class_, final, redecl, repl, io, options)
   case EXTENDS(__) then
     let bc_str = dumpPath(path)
-    let args_str = (elementArg |> earg => dumpElementArg(earg) ;separator=", ")
+    let args_str = dumpElementArgList(elementArg, ', ')
     let mod_str = if args_str then '(<%args_str%>)'
     let ann_str = dumpAnnotationOptSpace(annotationOpt)
     'extends <%bc_str%><%mod_str%><%ann_str%>'
@@ -462,7 +468,7 @@ template dumpConstrainClass(Absyn.ConstrainClass cc)
 match cc
   case CONSTRAINCLASS(elementSpec = Absyn.EXTENDS(path = p, elementArg = el)) then
     let path_str = dumpPath(p)
-    let el_str = if el then '(<%(el |> e => dumpElementArg(e) ;separator=", ")%>)'
+    let el_str = if el then '(<%dumpElementArgList(el, ', ')%>)'
     let cmt_str = dumpCommentOpt(comment)
     ' constrainedby <%path_str%><%el_str%><%cmt_str%>'
 end dumpConstrainClass;

@@ -1809,6 +1809,7 @@ algorithm
               elem));
         then
           sub :: subMods;
+      case Absyn.ELEMENTARGCOMMENT() then subMods;
     end match;
   end for;
 

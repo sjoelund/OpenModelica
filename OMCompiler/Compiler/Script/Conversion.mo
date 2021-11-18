@@ -1055,6 +1055,9 @@ protected
         then
           ();
 
+      case Absyn.ElementArg.ELEMENTARGCOMMENT()
+        then ();
+
     end match;
   end convertElementArg;
 

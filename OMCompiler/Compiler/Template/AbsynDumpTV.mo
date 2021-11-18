@@ -24,6 +24,11 @@ package builtin
     output Boolean nb;
   end boolNot;
 
+  function stringEmpty
+    input String s;
+    output Boolean b;
+  end stringEmpty;
+
   uniontype SourceInfo
     record SOURCEINFO
       String fileName;
@@ -447,6 +452,10 @@ package Absyn
       Option<ConstrainClass> constrainClass;
       builtin.SourceInfo info;
     end REDECLARATION;
+
+    record ELEMENTARGCOMMENT
+      String comment;
+    end ELEMENTARGCOMMENT;
   end ElementArg;
 
   uniontype RedeclareKeywords
@@ -902,6 +911,11 @@ package Dump
     input Boolean inLhs;
     output Boolean outShouldParenthesize;
   end shouldParenthesize;
+
+  function shouldSeparateAfterElementArg
+    input list<Absyn.ElementArg> args;
+    output list<tuple<Absyn.ElementArg,Boolean>> outArgs;
+  end shouldSeparateAfterElementArg;
 
   uniontype DumpOptions
     record DUMPOPTIONS

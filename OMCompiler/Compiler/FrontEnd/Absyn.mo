@@ -605,6 +605,10 @@ uniontype ElementArg "Wrapper for things that modify elements, modifications and
     Info info "needed because ElementSpec does not contain this info; Element does";
   end REDECLARATION;
 
+  record ELEMENTARGCOMMENT "A lexer comment"
+    String comment;
+  end ELEMENTARGCOMMENT;
+
 end ElementArg;
 
 public

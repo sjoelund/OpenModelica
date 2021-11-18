@@ -790,14 +790,41 @@ class_modification returns [void* ast]
   finally{ OM_POP(2); }
 
 argument_list returns [void* ast]
-@init { OM_PUSHZ3(a, as, ast); } :
+@init {
+  int first, last;
+  void *commentAst;
+  OM_PUSHZ4(a, as, ast, commentAst);
+  ast = mmc_mk_nil();
+  commentAst = mmc_mk_nil();
+
+  first = omc_first_comment;
+  last = LT(1)->getTokenIndex(LT(1));
+  omc_first_comment = last;
+  for (;first<last;last--) {
+    pANTLR3_COMMON_TOKEN tok = INPUT->get(INPUT,last-1);
+    if (tok->getChannel(tok) == HIDDEN && (tok->type == LINE_COMMENT || tok->type == ML_COMMENT)) {
+#if !defined(OMC_BOOTSTRAPPING)
+      commentAst = mmc_mk_cons_typed(Absyn_ElementArg, Absyn__ELEMENTARGCOMMENT(mmc_mk_scon((char*)tok->getText(tok)->chars)),commentAst);
+#endif
+    }
+  }
+} :
   a=argument ( COMMA as=argument_list )?
   {
-    if (!a)
-    {
-       fprintf(stderr, "crap!\n");
+    first = omc_first_comment;
+    last = LT(1)->getTokenIndex(LT(1));
+    omc_first_comment = last;
+    for (;first<last;last--) {
+      pANTLR3_COMMON_TOKEN tok = INPUT->get(INPUT,last-1);
+      if (tok->getChannel(tok) == HIDDEN && (tok->type == LINE_COMMENT || tok->type == ML_COMMENT)) {
+#if !defined(OMC_BOOTSTRAPPING)
+        ast = mmc_mk_cons_typed(Absyn_ElementArg, Absyn__ELEMENTARGCOMMENT(mmc_mk_scon((char*)tok->getText(tok)->chars)),ast);
+#endif
+      }
     }
-    ast = mmc_mk_cons_typed(Absyn_ElementArg, a, or_nil(as));
+    ast = listAppend(or_nil(as), ast);
+    ast = mmc_mk_cons_typed(Absyn_ElementArg, a, ast);
+    ast = listAppend(commentAst, ast);
   }
   ;
   finally{ OM_POP(3); }
@@ -980,6 +1007,7 @@ algorithm_annotation_list [ void **ann, int matchCase] returns [void* ast]
       $ast = mmc_mk_cons_typed(Absyn_AlgorithmItem, Absyn__ALGORITHMITEMCOMMENT(mmc_mk_scon((char*)tok->getText(tok)->chars)),$ast);
     }
   }
+  omc_first_comment = last;
 } :
   (
     { matchCase ? LA(1) != THEN : (LA(1) != END_IDENT && LA(1) != EQUATION && LA(1) != T_ALGORITHM && LA(1)!=INITIAL && LA(1) != PROTECTED && LA(1) != PUBLIC) }?=>

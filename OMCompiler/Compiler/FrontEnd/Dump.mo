@@ -816,6 +816,34 @@ algorithm
   FlagsUtil.setConfigBool(Flags.MODELICA_OUTPUT, status);
 end unparseElementArgStr;
 
+public function shouldSeparateAfterElementArg
+  input list<Absyn.ElementArg> args;
+  output list<tuple<Absyn.ElementArg,Boolean>> outArgs;
+protected
+  Integer numNonComment=0, cur=0;
+  Boolean b;
+algorithm
+  for arg in args loop
+    numNonComment := match arg
+      case Absyn.ELEMENTARGCOMMENT() then numNonComment;
+      else numNonComment + 1;
+    end match;
+  end for;
+  outArgs := {};
+  for arg in args loop
+    b := match arg
+      case Absyn.ELEMENTARGCOMMENT() then false;
+      else
+        algorithm
+          cur := cur + 1;
+        then cur < numNonComment;
+    end match;
+    outArgs := (arg,b)::outArgs;
+  end for;
+  outArgs := listReverse(outArgs);
+end shouldSeparateAfterElementArg;
+
+
 public function unparseElementItemStr
   "Prettyprints and ElementItem."
   input Absyn.ElementItem inElementItem;

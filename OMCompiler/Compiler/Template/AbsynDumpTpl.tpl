@@ -841,6 +841,8 @@ match exp
     '{<%list_str%>}'
   case DOT(__) then
     '<%dumpExp(exp)%>.<%dumpExp(index)%>'
+  case EXPRESSIONCOMMENT(__) then
+    ((commentsBefore |> cmt => cmt ; absIndent=0) + dumpExp(exp) + (commentsAfter |> cmt => cmt ; absIndent=0))
   case _ then '/* AbsynDumpTpl.dumpExp: UNHANDLED Abyn.Exp */'
 end dumpExp;
 

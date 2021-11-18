@@ -641,6 +641,12 @@ package Absyn
       Exp index;
     end DOT;
 
+    record EXPRESSIONCOMMENT
+      list<String> commentsBefore;
+      Exp exp;
+      list<String> commentsAfter;
+    end EXPRESSIONCOMMENT;
+
   end Exp;
 
   uniontype Case

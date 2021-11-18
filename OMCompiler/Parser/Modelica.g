@@ -1424,7 +1424,21 @@ connector_ref_2 returns [void* ast]
  * 2.2.7 Expressions
  */
 expression[int allowPartEvalFunc] returns [void* ast]
-@init { OM_PUSHZ1(e); } :
+@init {
+  void *commentBefore, *commentAfter;
+  OM_PUSHZ3(e, commentBefore, commentAfter);
+  commentBefore = mmc_mk_nil();
+  commentAfter = mmc_mk_nil();
+  int last = LT(1)->getTokenIndex(LT(1));
+  for (;omc_first_comment<last;omc_first_comment++) {
+    pANTLR3_COMMON_TOKEN tok = INPUT->get(INPUT,omc_first_comment);
+    if (tok->getChannel(tok) == HIDDEN && (tok->type == LINE_COMMENT || tok->type == ML_COMMENT)) {
+#if !defined(OMC_BOOTSTRAPPING)
+      commentBefore = mmc_mk_cons_typed(Absyn_Exp, mmc_mk_scon((char*)tok->getText(tok)->chars), commentBefore);
+#endif
+    }
+  }
+} :
   ( e=if_expression { $ast = e; }
   | e=simple_expression { $ast = e; }
   | e=code_expression { $ast = e; }
@@ -1438,6 +1452,22 @@ expression[int allowPartEvalFunc] returns [void* ast]
       $ast = e;
     }
   )
+  {
+    int last = LT(1)->getTokenIndex(LT(1));
+    for (;omc_first_comment<last;omc_first_comment++) {
+      pANTLR3_COMMON_TOKEN tok = INPUT->get(INPUT,omc_first_comment);
+      if (tok->getChannel(tok) == HIDDEN && (tok->type == LINE_COMMENT || tok->type == ML_COMMENT)) {
+  #if !defined(OMC_BOOTSTRAPPING)
+        commentAfter = mmc_mk_cons_typed(Absyn_Exp, mmc_mk_scon((char*)tok->getText(tok)->chars), commentAfter);
+  #endif
+      }
+    }
+  #if !defined(OMC_BOOTSTRAPPING)
+    if (!(listEmpty(commentBefore) && listEmpty(commentAfter))) {
+      $ast = Absyn__EXPRESSIONCOMMENT(commentBefore, $ast, commentAfter);
+    }
+  #endif
+  }
   ;
   finally{ OM_POP(1); }
 

@@ -2032,6 +2032,12 @@ protected
         then
           ();
 
+      case Absyn.Exp.EXPRESSIONCOMMENT()
+        algorithm
+          exp.exp := convertExp(exp.exp, localRules, rules, env, info);
+        then
+          ();
+
       else ();
     end match;
   end convertExp;

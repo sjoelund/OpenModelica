@@ -814,6 +814,12 @@ uniontype Exp "The Exp uniontype is the container of a Modelica expression.
     Exp index;
   end DOT;
 
+  record EXPRESSIONCOMMENT
+    list<String> commentsBefore;
+    Exp exp;
+    list<String> commentsAfter;
+  end EXPRESSIONCOMMENT;
+
 end Exp;
 
 uniontype Case "case in match or matchcontinue"

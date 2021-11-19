@@ -1172,7 +1172,8 @@ public constant ErrorTypes.Message CONVERSION_MISSING_FROM_VERSION = ErrorTypes.
   Gettext.gettext("Conversion-annotation is missing version for from-conversion: %s."));
 public constant ErrorTypes.Message CONVERSION_UNKNOWN_ANNOTATION = ErrorTypes.MESSAGE(5049, ErrorTypes.SCRIPTING(), ErrorTypes.WARNING(),
   Gettext.gettext("Conversion-annotation contains unknown element: %s."));
-
+public constant ErrorTypes.Message CONVERSION_MISSING_NONE_FROM_VERSION = ErrorTypes.MESSAGE(5048, ErrorTypes.SCRIPTING(), ErrorTypes.WARNING(),
+  Gettext.gettext("Conversion-annotation is missing version for noneFromVersion: %s."));
 
 public constant ErrorTypes.Message COMPILER_ERROR = ErrorTypes.MESSAGE(5999, ErrorTypes.TRANSLATION(), ErrorTypes.ERROR(),
   Gettext.notrans("%s"));

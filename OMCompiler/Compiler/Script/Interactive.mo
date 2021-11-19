@@ -11479,30 +11479,25 @@ algorithm
       String name,  version;
       list<tuple<Absyn.Path,String,list<String>,Boolean>> ss;
       Absyn.Info info;
+      Option<Absyn.Modification> omod;
 
     case ({}) then {};
 
     case (Absyn.MODIFICATION(path = Absyn.IDENT(name = name),
       modification=SOME(Absyn.CLASSMOD(elementArgLst={
-        Absyn.MODIFICATION(path = Absyn.IDENT(name="version"),modification = SOME(Absyn.CLASSMOD(eqMod=Absyn.EQMOD(exp=Absyn.EXPRESSIONCOMMENT(exp=Absyn.STRING(version))))))
-      })))::xs)
+        Absyn.MODIFICATION(path = Absyn.IDENT(name="version"),modification = omod)
+      })), info=info)::xs)
       equation
+        version = match omod
+          case SOME(Absyn.CLASSMOD(eqMod=Absyn.EQMOD(exp=Absyn.EXPRESSIONCOMMENT(exp=Absyn.STRING(version))))) then version;
+          case SOME(Absyn.CLASSMOD(eqMod=Absyn.EQMOD(exp=Absyn.STRING(version)))) then version;
+          else
+            algorithm
+              Error.addSourceMessage(Error.USES_MISSING_VERSION, {name}, info);
+            then "default";
+        end match;
         ss = getUsesAnnotationString2(xs, classOrigin);
       then (Absyn.IDENT(name),classOrigin,{version},false)::ss;
-
-    case (Absyn.MODIFICATION(path = Absyn.IDENT(name = name),
-      modification=SOME(Absyn.CLASSMOD(elementArgLst={
-        Absyn.MODIFICATION(path = Absyn.IDENT(name="version"),modification = SOME(Absyn.CLASSMOD(eqMod=Absyn.EQMOD(exp=Absyn.STRING(version)))))
-      })))::xs)
-      equation
-        ss = getUsesAnnotationString2(xs, classOrigin);
-      then (Absyn.IDENT(name),classOrigin,{version},false)::ss;
-
-    case (Absyn.MODIFICATION(info = info, path = Absyn.IDENT(name = name))::xs)
-      equation
-        Error.addSourceMessage(Error.USES_MISSING_VERSION, {name}, info);
-        ss = getUsesAnnotationString2(xs, classOrigin);
-      then (Absyn.IDENT(name),classOrigin,{"default"},false)::ss;
 
     case (_::xs)
       equation
@@ -11536,15 +11531,23 @@ protected
   list<Absyn.Exp> exps;
   String version, name;
   SourceInfo info;
+  Absyn.Exp exp;
 algorithm
   SOME(Absyn.CLASSMOD(elementArgLst = arglst)) := mod;
   for arg in arglst loop
     _ := match arg
 
     case Absyn.MODIFICATION(path = Absyn.IDENT(name = "noneFromVersion"),
-      modification=SOME(Absyn.CLASSMOD(eqMod=Absyn.EQMOD(exp=Absyn.STRING(version)))))
+      modification=SOME(Absyn.CLASSMOD(eqMod=Absyn.EQMOD(exp=exp))), info=info)
       algorithm
-        without := version :: without;
+        without := match exp
+          case Absyn.STRING(version) then version :: without;
+          case Absyn.EXPRESSIONCOMMENT(exp=Absyn.STRING(version)) then version :: without;
+          else
+            algorithm
+              Error.addSourceMessage(Error.CONVERSION_MISSING_NONE_FROM_VERSION, {Dump.printExpStr(exp)}, info);
+            then without;
+        end match;
       then ();
 
     case Absyn.MODIFICATION(path = Absyn.IDENT(name = "from"),
@@ -11559,8 +11562,10 @@ algorithm
           case {Absyn.MODIFICATION(modification=SOME(Absyn.CLASSMOD(eqMod=Absyn.EQMOD(exp=Absyn.ARRAY(exps)))))}
             algorithm
               for exp in exps loop
-                Absyn.STRING(version) := exp;
-                with := version :: with;
+                with := match exp
+                  case Absyn.STRING(version) then version :: with;
+                  case Absyn.EXPRESSIONCOMMENT(exp=Absyn.STRING(version)) then version :: with;
+                end match;
               end for;
             then ();
           else

@@ -1898,6 +1898,9 @@ algorithm
       // inExp.index is only allowed to contain names to index the function call; not crefs that are evaluated in any way
       then getCrefFromExp(inExp.exp,includeSubs,includeFunctions);
 
+    case (Absyn.EXPRESSIONCOMMENT(),_,_)
+      then getCrefFromExp(inExp.exp,includeSubs,includeFunctions);
+
     else
       equation
         Error.addInternalError(getInstanceName() + " failed " + Dump.printExpStr(inExp), sourceInfo());

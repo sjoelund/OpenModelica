@@ -403,6 +403,11 @@ algorithm
 
     case (cache,_,Absyn.CREF(Absyn.WILD()),_,_,_) then (cache,DAE.PAT_WILD());
 
+    case (cache,_,Absyn.EXPRESSIONCOMMENT(),_,_,_)
+      equation
+        (cache,pattern) = elabPattern(cache,env,inLhs.exp,ty,info);
+      then (cache,pattern);
+
     case (_,_,lhs,_,_,_)
       equation
         true = numError == Error.getNumErrorMessages();
@@ -3094,6 +3099,7 @@ algorithm
   outInputs := match inExp
     local
       Absyn.Exp exp;
+    case Absyn.EXPRESSIONCOMMENT(exp=exp) then convertExpToPatterns(exp);
     case Absyn.TUPLE({exp}) then convertExpToPatterns(exp);
     case Absyn.TUPLE() then inExp.expressions;
     else {inExp};

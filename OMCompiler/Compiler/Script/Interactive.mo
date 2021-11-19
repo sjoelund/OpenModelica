@@ -11482,7 +11482,6 @@ algorithm
 
     case ({}) then {};
 
-/*
     case (Absyn.MODIFICATION(path = Absyn.IDENT(name = name),
       modification=SOME(Absyn.CLASSMOD(elementArgLst={
         Absyn.MODIFICATION(path = Absyn.IDENT(name="version"),modification = SOME(Absyn.CLASSMOD(eqMod=Absyn.EQMOD(exp=Absyn.EXPRESSIONCOMMENT(exp=Absyn.STRING(version))))))
@@ -11490,7 +11489,7 @@ algorithm
       equation
         ss = getUsesAnnotationString2(xs, classOrigin);
       then (Absyn.IDENT(name),classOrigin,{version},false)::ss;
-*/
+
     case (Absyn.MODIFICATION(path = Absyn.IDENT(name = name),
       modification=SOME(Absyn.CLASSMOD(elementArgLst={
         Absyn.MODIFICATION(path = Absyn.IDENT(name="version"),modification = SOME(Absyn.CLASSMOD(eqMod=Absyn.EQMOD(exp=Absyn.STRING(version)))))

@@ -322,6 +322,12 @@ algorithm
       then
         (if referenceEq(exp.exp,e1) and referenceEq(exp.index,e2) then exp else Absyn.DOT(e1, e2), arg);
 
+    case Absyn.EXPRESSIONCOMMENT()
+      equation
+        (e1, arg) = traverseExpBidir(exp.exp, enterFunc, exitFunc, arg);
+      then
+        (if referenceEq(exp.exp,e1) then exp else Absyn.EXPRESSIONCOMMENT(exp.commentsBefore, e1, exp.commentsAfter), arg);
+
     else
       algorithm
         (,,enterName) := System.dladdr(enterFunc);

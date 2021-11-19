@@ -2620,6 +2620,8 @@ algorithm
 
     case Absyn.Exp.END() then Expression.END();
 
+    case Absyn.Exp.EXPRESSIONCOMMENT() then instExp(absynExp.exp, scope, context, info);
+
     else
       algorithm
         Error.assertion(false, getInstanceName() + " got unknown expression: " + Dump.printExpStr(absynExp), sourceInfo());

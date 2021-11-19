@@ -327,6 +327,7 @@ algorithm
       case Absyn.LIST() then elabExp_List;
       case Absyn.MATCHEXP() then Patternm.elabMatchExpression;
       case Absyn.DOT() then elabExp_Dot;
+      case Absyn.EXPRESSIONCOMMENT() then elabExp_Comment;
       else elabExp_BuiltinType;
     end match;
 
@@ -581,6 +582,15 @@ algorithm
 
   end match;
 end elabExp_Dot;
+
+protected function elabExp_Comment
+  extends PartialElabExpFunc;
+protected
+  Absyn.Exp exp;
+algorithm
+  Absyn.EXPRESSIONCOMMENT(exp=exp) := inExp;
+  (outCache, outExp, outProperties) := elabExp(inCache,inEnv,exp,inImplicit,inDoVect, inPrefix, inInfo);
+end elabExp_Comment;
 
 protected function elabExp_PartEvalFunction
   "turns an Absyn.PARTEVALFUNCTION into an DAE.PARTEVALFUNCTION"

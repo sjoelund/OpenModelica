@@ -12451,6 +12451,12 @@ algorithm
       then
         (cache, dim);
 
+    case (_, _, _, Absyn.SUBSCRIPT(subscript = Absyn.EXPRESSIONCOMMENT(exp=sub)), _)
+      algorithm
+        (cache, dim) := elabArrayDim(inCache, inEnv, inCref, Absyn.SUBSCRIPT(sub), inImpl, inDoVect, inPrefix, inInfo);
+      then
+        (cache, dim);
+
     // For all other cases we need to elaborate the subscript expression, so the
     // expression is elaborated and passed on to elabArrayDim2 to avoid doing
     // the elaboration several times.

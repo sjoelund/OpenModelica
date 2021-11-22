@@ -2363,6 +2363,33 @@ algorithm
   end match;
 end getSubsFromCref;
 
+public function getString
+  input Absyn.Exp exp;
+  output String str;
+algorithm
+  str := match exp
+    case Absyn.EXPRESSIONCOMMENT() then getString(exp.exp);
+    case Absyn.STRING(str) then str;
+  end match;
+end getString;
+
+public function stripCommentExpressions
+  input output Absyn.Exp exp;
+algorithm
+  (exp,_) := traverseExp(exp, stripCommentExpressionsHelper, true);
+end stripCommentExpressions;
+
+protected function stripCommentExpressionsHelper<T>
+  input output Absyn.Exp exp;
+  input output T extra;
+algorithm
+  exp := match exp
+    case Absyn.TUPLE({exp}) then exp;
+    case Absyn.EXPRESSIONCOMMENT() then exp.exp;
+    else exp;
+  end match;
+end stripCommentExpressionsHelper;
+
 public function crefGetLastIdent
   "Gets the last ident in a Absyn.ComponentRef"
   input Absyn.ComponentRef cref;

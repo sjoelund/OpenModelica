@@ -93,16 +93,21 @@ protected
 algorithm
   within1 := findWithin(t1);
   within2 := findWithin(t2);
+print("treeDiff 1\n");
   // If the new file lacks a within that was in the first file, pretend it is there
   // The other option is to preserve within in OMEdit...
   (t1_updated, t2_updated) := match (within1,within2)
     case (EMPTY(), EMPTY()) then (t1,t2);
-    case (_, EMPTY()) then (t1, within1::t2);
+    case (_, EMPTY()) then (t1, within1::LEAF(newlineToken)::t2);
     case (EMPTY(), _) then (within2::LEAF(newlineToken)::LEAF(newlineToken)::t1, t2);
     else (t1,t2);
   end match;
+print("treeDiff 2\n");
+print(parseTreeStr(t1_updated)+"\n");
+print(parseTreeStr(t2_updated)+"\n");
   // t2_updated := moveComments(t1_updated, t2_updated);
   res := treeDiffWork1(t1_updated, t2_updated, nTokens);
+print("treeDiff 3\n");
   // res := moveCommentsAfterDiff(res);
 end treeDiff;
 
@@ -2190,7 +2195,9 @@ protected
 algorithm
   diff := {};
   firstIter := true;
+print("filter WS 1\n");
   while not listEmpty(diffLocal) loop
+print("filter WS 2\n");
     diffLocal := match diffLocal
       // Do not delete whitespace in-between two tokens
       case ((Diff.Delete, tree)::(diffLocal as ((Diff.Equal,_)::_)))
@@ -2242,12 +2249,14 @@ algorithm
     end match;
     firstIter := false;
   end while;
+print("filter WS 3\n");
 
   diff := listReverseInPlace(diff);
   // Look for indentation levels, try to fix added \n+WS to indent at the same level
   lastTokenNewline := false;
   indentation := {};
   hasAddedWS := false;
+print("filter WS 4\n");
   for d in diff loop
     _ := match d
       case (Diff.Add,_)
@@ -2293,6 +2302,7 @@ algorithm
         then ();
     end match;
   end for;
+print("filter WS 5\n");
   if listEmpty(indentation) or (not hasAddedWS) then
     if debug then
       print("Skipping indentation as we could not auto-detect suitable indentation levels\n");
@@ -2303,7 +2313,9 @@ algorithm
   level := min(l for l in indentation);
   indentationStr := StringUtil.repeat(" ", level);
   diffLocal := {};
+print("filter WS 6\n");
   for d in diff loop
+print("filter WS 7\n");
     _ := match d
       case (Diff.Delete,tree)
         algorithm
@@ -2338,7 +2350,9 @@ algorithm
           diffLocal := if hasAddedWS then ((diffEnum, listReverse(treeLocal))::diffLocal) else (d::diffLocal);
         then ();
     end match;
+print("filter WS 8\n");
   end for;
+print("filter WS 9\n");
   diff := listReverseInPlace(diffLocal);
 end filterDiffWhitespace;
 

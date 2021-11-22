@@ -870,7 +870,7 @@ algorithm
       list<Absyn.Exp> args;
 
     case GlobalScript.IEXP(exp = Absyn.CALL(functionArgs =
-      Absyn.FUNCTIONARGS(args = args))) then args;
+      Absyn.FUNCTIONARGS(args = args))) then list(AbsynUtil.stripCommentExpressions(arg) for arg in args);
     else {};
   end match;
 end getApiFunctionArgs;
@@ -12471,9 +12471,8 @@ public function getAnnotationStringValueOrFail
 algorithm
   str := match (mod)
     local
-      String s;
-
-    case (SOME(Absyn.CLASSMOD(elementArgLst = {}, eqMod=Absyn.EQMOD(exp=Absyn.STRING(s))))) then s;
+      Absyn.Exp exp;
+    case (SOME(Absyn.CLASSMOD(elementArgLst = {}, eqMod=Absyn.EQMOD(exp=exp)))) then AbsynUtil.getString(exp);
   end match;
 end getAnnotationStringValueOrFail;
 

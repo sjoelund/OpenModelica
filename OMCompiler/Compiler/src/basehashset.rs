@@ -51,7 +51,7 @@ impl<K: Clone + Debug + Send + Sync + 'static> FuncHash<K> {
             inner: Arc::new(f),
         }
     }
-    fn call(&self, k: &K) -> i32 {
+    pub fn call(&self, k: &K) -> i32 {
         (self.inner)(k)
     }
 }
@@ -75,7 +75,7 @@ impl<K: Clone + Debug + Send + Sync + 'static> FuncEq<K> {
             inner: Arc::new(f),
         }
     }
-    fn call(&self, a: &K, b: &K) -> bool {
+    pub fn call(&self, a: &K, b: &K) -> bool {
         (self.inner)(a, b)
     }
 }
@@ -99,7 +99,7 @@ impl<K: Clone + Debug + Send + Sync + 'static> FuncKeyString<K> {
             inner: Arc::new(f),
         }
     }
-    fn call(&self, k: &K) -> String {
+    pub fn call(&self, k: &K) -> String {
         (self.inner)(k)
     }
 }
@@ -118,6 +118,104 @@ impl<K: Clone + Debug + Send + Sync + 'static> Clone for FuncsTuple<K> {
             eq: self.eq.clone(),
             key_string: self.key_string.clone(),
         }
+    }
+}
+
+// ============================================================================
+// BaseHashTable 4-tuple support (FuncValString + FuncsTuple4 + BaseHashTable)
+// ============================================================================
+
+/// A boxed, Clone-able function type for converting a Value to a String.
+/// Used by BaseHashTable's 4-field FuncsTuple.
+/// Note: V does not require Send + Sync since Value types like Program may not be Send.
+pub struct FuncValString<V> {
+    inner: Arc<dyn Fn(&V) -> String + 'static>,
+}
+
+impl<V: Clone + Debug + 'static> Clone for FuncValString<V> {
+    fn clone(&self) -> Self {
+        FuncValString {
+            inner: Arc::clone(&self.inner),
+        }
+    }
+}
+
+impl<V: Clone + Debug + 'static> FuncValString<V> {
+    pub fn new(f: impl Fn(&V) -> String + 'static) -> Self {
+        FuncValString {
+            inner: Arc::new(f),
+        }
+    }
+    pub fn call(&self, val: &V) -> String {
+        (self.inner)(val)
+    }
+}
+
+/// The 4-field functions tuple for BaseHashTable: (hash, eq, key_string, val_string).
+/// K requires Send + Sync for the hash/equal functions used in concurrent contexts.
+/// V does not require Send + Sync since Value types like Program may not be Send.
+pub struct FuncsTuple4<K: Clone + Debug + Send + Sync + 'static, V: Clone + Debug + 'static> {
+    pub hash: FuncHash<K>,
+    pub eq: FuncEq<K>,
+    pub key_string: FuncKeyString<K>,
+    pub val_string: FuncValString<V>,
+}
+
+impl<K: Clone + Debug + Send + Sync + 'static, V: Clone + Debug + 'static> Clone
+    for FuncsTuple4<K, V>
+{
+    fn clone(&self) -> Self {
+        FuncsTuple4 {
+            hash: self.hash.clone(),
+            eq: self.eq.clone(),
+            key_string: self.key_string.clone(),
+            val_string: self.val_string.clone(),
+        }
+    }
+}
+
+/// The BaseHashTable struct (4-field funcs tuple, matching BaseHashTable.mo).
+pub struct BaseHashTable<K: Clone + Debug + Send + Sync + 'static, V: Clone + Debug + 'static> {
+    pub hash_vec: HashVector<K>,
+    pub value_arr: ValueArray<(K, V)>,
+    pub bucket_size: i32,
+    pub n: i32,
+    pub funcs: FuncsTuple4<K, V>,
+}
+
+impl<K: Clone + Debug + Send + Sync + 'static, V: Clone + Debug + 'static> Clone
+    for BaseHashTable<K, V>
+{
+    fn clone(&self) -> Self {
+        BaseHashTable {
+            hash_vec: self.hash_vec.clone(),
+            value_arr: (
+                self.value_arr.0,
+                self.value_arr.1,
+                self.value_arr.2.to_vec(),
+            ),
+            bucket_size: self.bucket_size,
+            n: self.n,
+            funcs: self.funcs.clone(),
+        }
+    }
+}
+
+/// Create an empty BaseHashTable with the given bucket size and 4-field funcs tuple.
+pub fn empty_base_hash_table_work<K: Clone + Debug + Send + Sync + 'static, V: Clone + Debug + 'static>(
+    sz_bucket: i32,
+    funcs: FuncsTuple4<K, V>,
+) -> BaseHashTable<K, V> {
+    let arr: HashVector<K> = (0..sz_bucket).map(|_| List::new()).collect();
+    let sz_arr = bucket_to_values_size(sz_bucket);
+    let empty_arr: Vec<Option<(K, V)>> = vec![None; sz_arr as usize];
+    let varr = (0, sz_arr, empty_arr);
+    BaseHashTable {
+        hash_vec: arr,
+        value_arr: varr,
+        bucket_size: sz_bucket,
+        n: 0,
+        funcs,
     }
 }
 

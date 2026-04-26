@@ -1,6 +1,6 @@
 .PHONY : all check_tabs
 
-GENERATED_FILES_BOOT_STAGE2=AbsynDumpTpl.mo CodegenUtil.mo DAEDumpTpl.mo ExpressionDumpTpl.mo Unparsing.mo SCodeDumpTpl.mo GenerateAPIFunctionsTpl.mo CodegenCFunctions.mo AbsynToJulia.mo AbsynJLDumpTpl.mo
+GENERATED_FILES_BOOT_STAGE2=AbsynDumpTpl.mo CodegenUtil.mo DAEDumpTpl.mo ExpressionDumpTpl.mo Unparsing.mo SCodeDumpTpl.mo GenerateAPIFunctionsTpl.mo CodegenCFunctions.mo AbsynToJulia.mo AbsynToRust.mo AbsynJLDumpTpl.mo
 GENERATED_FILES=$(GENERATED_FILES_BOOT_STAGE2) CodegenC.mo CodegenUtilSimulation.mo CodegenEmbeddedC.mo CodegenFMUCommon.mo \
 CodegenFMU.mo CodegenFMU1.mo CodegenFMU2.mo CodegenCppCommon.mo CodegenCpp.mo CodegenCppHpcom.mo CodegenFMUCpp.mo \
 CodegenOMSI_common.mo CodegenOMSIC.mo CodegenOMSICpp.mo CodegenOMSIC_Equations.mo CodegenFMUCppHpcom.mo CodegenCppInit.mo \
@@ -203,6 +203,11 @@ VisualXMLTpl.mo : VisualXMLTpl.tpl VisualXMLTplTV.mo
 
 AbsynToJulia.mo : AbsynToJulia.tpl AbsynToJuliaTV.mo
 	@echo " ** AbsynToJulia template compilation ** "
+	$(OMC) $< > $@.log || (cat $@.log && false)
+	@echo " " && ($(UNUSED) "$@" || true)
+
+AbsynToRust.mo : AbsynToRust.tpl AbsynToRustTV.mo
+	@echo " ** AbsynToRust template compilation ** "
 	$(OMC) $< > $@.log || (cat $@.log && false)
 	@echo " " && ($(UNUSED) "$@" || true)
 

@@ -59,6 +59,7 @@ import UnitAbsyn;
 // protected imports
 protected
 import AbsynToJulia;
+import AbsynToRust;
 import AbsynToSCode;
 import Autoconf;
 import BackendDAECreate;
@@ -3120,6 +3121,16 @@ algorithm
         str := Tpl.tplString(AbsynToJulia.dumpProgram, SymbolTable.getAbsyn());
       then
         Values.STRING(str);
+
+    case ("toRust",{})
+      algorithm
+        str := Tpl.tplString(AbsynToRust.dumpProgram, SymbolTable.getAbsyn());
+      then
+        Values.STRING(str);
+
+    case ("toRust",_)
+      then
+        Values.STRING("");
 
     case ("interactiveDumpAbsynToJL",{})
       algorithm

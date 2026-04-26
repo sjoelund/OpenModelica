@@ -6560,6 +6560,12 @@ function toJulia
 external "builtin";
 end toJulia;
 
+function toRust
+  "Translates Absyn to Rust."
+  output String res;
+external "builtin";
+end toRust;
+
 function interactiveDumpAbsynToJL
   "Dumps the AST into a Julia representation."
   output String res;

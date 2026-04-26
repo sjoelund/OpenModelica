@@ -191,6 +191,27 @@ public function isAlpha
                                (inChar >= 97 and inChar <= 122);
 end isAlpha;
 
+public function isAsciiUpper
+  "Returns true if the given character represented by its ASCII decimal number
+   is an alphabetic upper-case character."
+  input Integer inChar;
+  output Boolean outIsUpper = (inChar >= 65 and inChar <= 90);
+end isAsciiUpper;
+
+public function isAsciiLower
+  "Returns true if the given character represented by its ASCII decimal number
+   is an alphabetic lower-case character."
+  input Integer inChar;
+  output Boolean outIsLower = (inChar >= 97 and inChar <= 122);
+end isAsciiLower;
+
+public function toAsciiLower
+  "Returns the given character represented by its ASCII decimal number
+   as the lower-case character (if it was an upper-case character)."
+  input Integer inChar;
+  output Integer outChar = if isAsciiUpper(inChar) then inChar+32 else inChar;
+end toAsciiLower;
+
 public function wordWrap
   "Breaks the given string into lines which are no longer than the given wrap
    length. The function tries to break lines at word boundaries, i.e. at spaces,

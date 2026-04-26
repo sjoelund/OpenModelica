@@ -750,55 +750,28 @@ fn find_rule(
         return (0, curr_st, pos, s_pos, linenr, buffer, bk_buffer, states);
     }
 
-    // Get the state from the head of the states list.
-    // If empty, there's nowhere to backtrack to - accept current.
-    let top_st = match states.front() {
-        Some(&st) => st,
-        None => {
-            // No more states to backtrack to, accept current state
-            let lp = lex_table::YY_ACCEPT[curr_st as usize];
-            if lp > 0 {
-                let act = lex_table::YY_ACCLIST[lp as usize];
-                return (act, curr_st, pos, s_pos, linenr, buffer, bk_buffer, states);
-            } else {
-                return (0, curr_st, pos, s_pos, linenr, buffer, bk_buffer, states);
-            }
+    // Iteratively process states from the stack to find longest match.
+    // Matches the C code findRule loop.
+    let mut act: i32 = 0;
+    let mut lp1: i32 = 0;
+    let mut tmp_states = states;
+
+    while let Some(st) = tmp_states.front().copied() {
+        let lp = lex_table::YY_ACCEPT[st as usize];
+        if lp > 0 && lp < lp1 {
+            act = lex_table::YY_ACCLIST[lp as usize];
         }
-    };
-
-    let st_cmp = top_st;
-    let lp = lex_table::YY_ACCEPT[st_cmp as usize];
-
-    // Compare with next state's accept value
-    let next_idx = (st_cmp + 1) as usize;
-    let lp1 = if next_idx < lex_table::YY_ACCEPT.len() {
-        lex_table::YY_ACCEPT[next_idx]
-    } else {
-        // Beyond accept table - treat as infinity (will never be less)
-        i32::MAX
-    };
-
-    // Accept if lp > 0 and lp < lp1 (C code: lp > 0 && lp < lp1)
-    if lp > 0 && lp < lp1 {
-        let act = lex_table::YY_ACCLIST[lp as usize];
-        (act, curr_st, pos, s_pos, linenr, buffer, bk_buffer, states)
-    } else {
-        // Backtrack: consume one character back
-        buffer -= 1;
-        bk_buffer += 1;
-        pos -= 1;
-        s_pos -= 1;
-        let cp = string_get(file_contents, pos);
-        if cp == 10 {
-            s_pos = e_pos;
-            linenr -= 1;
-        }
-        states.pop_front();
-        states.push_front(curr_st);
-        find_rule(
-            file_contents, curr_st, pos, s_pos, e_pos, linenr, buffer, bk_buffer, states,
-        )
+        lp1 = st;
+        tmp_states.pop_front();
     }
+
+    if lp1 > 0 {
+        act = lex_table::YY_ACCLIST[lp1 as usize];
+    } else if buffer <= 0 {
+        return (0, curr_st, pos, s_pos, linenr, buffer, bk_buffer, tmp_states);
+    }
+
+    (act, curr_st, pos, s_pos, linenr, buffer, bk_buffer, tmp_states)
 }
 
 // ============================================================================

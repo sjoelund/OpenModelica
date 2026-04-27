@@ -286,6 +286,8 @@ algorithm
     case "mod" then "r#mod";
     case "static" then "r#static";
     case "typeof" then "r#typeof";
+    case "const" then "r#const";
+    case "fn" then "r#fn";
     else inName;
   end match;
 end fixKeywords;

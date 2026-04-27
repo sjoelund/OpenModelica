@@ -683,7 +683,7 @@ match comp
   case COMPONENT(__) then
     let dim_str = dumpSubscripts(arrayDim, context)
     let mod_str = match modification case SOME(mod) then dumpModification(mod, context)
-    let component_name = '<%name%>'
+    let component_name = fixKeywords(name)
     match context
       case FUNCTION_RETURN_CONTEXT(__) then '<%component_name%>: <%ty_str%><%dim_str%><%mod_str%>;'
       case FUNCTION(__) then '<%component_name%>'
@@ -742,7 +742,7 @@ match alg
     let alg_str = dumpAlgorithm(algorithm_, context)
     let cmt_str = dumpCommentOpt(comment, context)
     '<%alg_str%><%cmt_str%>'
-  case ALGORITHMITEMCOMMENT(__) then dumpCommentStr(comment)
+  case ALGORITHMITEMCOMMENT(__) then comment
 end dumpAlgorithmItem;
 
 template dumpAlgorithm(Absyn.Algorithm alg, Context context)
@@ -1072,19 +1072,10 @@ match exp
     'None'
   case CALL(function_=Absyn.CREF_IDENT(name="SOME"), functionArgs=FUNCTIONARGS(args={exp})) then
     'Some(<%dumpPattern(exp, context, as_str)%>)'
-  case CALL(function_=function_ as CREF_IDENT(name=id)) then
-    let args_str = dumpFunctionArgsPattern(functionArgs)
-    let func_str = (match id
-      case "list" then "List"
-      else dumpCref(function_, functionContext))
-      '<%func_str%>{<%args_str%>}'
   case CALL(__) then
     let func_str = dumpCref(function_, functionContext)
     let args_str = dumpFunctionArgsPattern(functionArgs)
-    // if args_str then
       '<%func_str%>{<%args_str%>}'
-    //else
-    //  '_<%func_str%>'
   case TUPLE(__) then
     let tuple_str = (expressions |> e => dumpPattern(e, context, &as_str); separator=", " ;empty)
     '(<%tuple_str%>)'
@@ -1093,26 +1084,32 @@ match exp
     let id_str = '<%id%>'
     '<%id_str%> @ <%exp_str%>'
   case CONS(__) then
-    let consOp = dumpCons(dumpPattern(head, context, &as_str), dumpPattern(rest, context, &as_str))
-    '<%consOp%>'
+    "[" + dumpCons(head, rest, context, &as_str)
   case EXPRESSIONCOMMENT(__) then
     let exp_str = dumpPattern(exp, context, &as_str)
     '<%commentsBefore |> cmt => cmt ; separator="\n"%><%exp_str%><%commentsAfter |> cmt => cmt ; separator="\n"%>'
   case _ then '/* AbsynDumpTpl.dumpPattern: UNHANDLED: <%AbsynDumpTpl.dumpExp(exp)%> */'
 end dumpPattern;
 
-template dumpCons(String headString, String tailString)
+template dumpCons(Absyn.Exp head, Absyn.Exp tail, Context context, Text &as_str)
 ::=
-  match tailString
-    case "_" then '[<%headString%>, ..]'
-    else '[<%headString%>, <%tailString%> @ ..]'
+  let headString = dumpPattern(head, context, &as_str)
+  match tail
+    case CONS(__) then headString + ", " + dumpCons(head, rest, context, &as_str)
+    case CALL(function_=Absyn.CREF_IDENT(name="list"), functionArgs=FUNCTIONARGS(args=exps))
+    case CALL(function_=Absyn.CREF_IDENT(name="$array"), functionArgs=FUNCTIONARGS(args=exps))
+    case LIST(exps=exps)
+    case ARRAY(arrayExp=exps) then (exps |> e => (dumpPattern(e, context, &as_str) ;separator=", ")) + "]"
+    case CREF(componentRef=WILD(__)) then headString + ", ..]"
+    case CREF(__) then <<<%headString%>, <%dumpPattern(tail, context, as_str)%> @ ..]>>
+    else '[<%headString%>, <%dumpPattern(tail, context, as_str)%> @ ..]'
 end dumpCons;
 
 template dumpFunctionArgsPattern(Absyn.FunctionArgs args)
 ::=
 match args
   case FUNCTIONARGS(__) then
-    let args_str = (args |> arg => dumpPattern(arg, functionContext, emptyTxt) ;separator=", ")
+    let args_str = (args |> arg hasindex i1 => 'postionalArg<%i1%>: <%dumpPattern(arg, functionContext, emptyTxt)%>' ;separator=", ")
     let namedargs_str = (argNames |> narg => dumpNamedArgPattern(narg) ;separator=", ")
     let separator = if args_str then if argNames then ', '
     '<%args_str%><%separator%><%namedargs_str%>'

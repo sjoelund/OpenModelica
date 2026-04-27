@@ -285,6 +285,7 @@ algorithm
     case "Self" then "r#self";
     case "mod" then "r#mod";
     case "static" then "r#static";
+    case "typeof" then "r#typeof";
     else inName;
   end match;
 end fixKeywords;

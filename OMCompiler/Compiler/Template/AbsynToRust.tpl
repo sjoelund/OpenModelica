@@ -749,16 +749,19 @@ template dumpAlgorithm(Absyn.Algorithm alg, Context context)
 ::=
 match alg
   case ALG_ASSIGN(__) then
-    let lhs_str = dumpLhsExp(assignComponent, makeFunctionContext("listMatchAssign"))
-    let rhs_str = dumpExp(value, context)
     if AbsynUtil.complexIsCref(assignComponent) then
-      match assignComponent
-      case CONS(__) then
-        'match <%rhs_str%> { <%lhs_str%> => {} }'
-      else
-        '<%lhs_str%> = <%rhs_str%>;'
+      let lhs_str = dumpExp(assignComponent, context)
+      let rhs_str = dumpExp(value, context)
+      '<%lhs_str%> = <%rhs_str%>;'
     else
-      'match <%rhs_str%> { <%lhs_str%> => {} }'
+      let &as_str = buffer ""
+      let lhs_str = dumpPattern(assignComponent, makeFunctionContext("listMatchAssign"), as_str)
+      let rhs_str = dumpExp(value, context)
+      <<
+      match <%rhs_str%> {
+        <%lhs_str%> => {<%as_str%>}
+      }
+      >>
   case ALG_IF(__) then
     let if_str = dumpAlgorithmBranch(ifExp, trueBranch, "if", context)
     let elseif_str = (elseIfAlgorithmBranch |> (c, b) =>
@@ -1064,29 +1067,24 @@ match exp
   case LIST(__)
   case CALL(function_=Absyn.CREF_IDENT(name="list"), functionArgs=FUNCTIONARGS(args=exps))
   case CALL(function_=Absyn.CREF_IDENT(name="$array"), functionArgs=FUNCTIONARGS(args=exps)) then
-    '<%exps |> e => '<%dumpPattern(e, context, &as_str)%> | '%> None'
+    '[<%exps |> e => '<%dumpPattern(e, context, &as_str)%>'; separator=", " %>]'
+  case CALL(function_=Absyn.CREF_IDENT(name="NONE"), functionArgs=FUNCTIONARGS(args={})) then
+    'None'
+  case CALL(function_=Absyn.CREF_IDENT(name="SOME"), functionArgs=FUNCTIONARGS(args={exp})) then
+    'Some(<%dumpPattern(exp, context, as_str)%>)'
   case CALL(function_=function_ as CREF_IDENT(name=id)) then
     let args_str = dumpFunctionArgsPattern(functionArgs)
     let func_str = (match id
       case "list" then "List"
       else dumpCref(function_, functionContext))
-    if args_str then
       '<%func_str%>{<%args_str%>}'
-    else
-      let isNone = match func_str
-        case "NONE" then "None"
-        else ""
-      if isNone then
-       '<%func_str%>'
-      else
-        '_<%func_str%>'
   case CALL(__) then
     let func_str = dumpCref(function_, functionContext)
     let args_str = dumpFunctionArgsPattern(functionArgs)
-    if args_str then
+    // if args_str then
       '<%func_str%>{<%args_str%>}'
-    else
-      '_<%func_str%>'
+    //else
+    //  '_<%func_str%>'
   case TUPLE(__) then
     let tuple_str = (expressions |> e => dumpPattern(e, context, &as_str); separator=", " ;empty)
     '(<%tuple_str%>)'
@@ -1168,7 +1166,7 @@ match if_exp
     let true_branch_str = dumpExp(trueBranch, context)
     let else_branch_str = dumpExp(elseBranch, context)
     let else_if_str = dumpElseIfExp(elseIfBranch, context)
-    'if <%cond_str%> { <%true_branch_str%> } <%else_if_str%> else { <%else_branch_str%> }'
+    'if <%cond_str%> { <%true_branch_str%> }<%else_if_str%> else { <%else_branch_str%> }'
 end dumpIfExp;
 
 template dumpElseIfExp(list<tuple<Absyn.Exp, Absyn.Exp>> else_if, Context context)
@@ -1176,7 +1174,7 @@ template dumpElseIfExp(list<tuple<Absyn.Exp, Absyn.Exp>> else_if, Context contex
   else_if |> eib as (cond, branch) =>
     let cond_str = dumpExp(cond, context)
     let branch_str = dumpExp(branch, context)
-    '} else if (<%cond_str%>) { <%branch_str%> }' ; separator=""
+    ' else if (<%cond_str%>) { <%branch_str%> }' ; separator=""
 end dumpElseIfExp;
 
 /*

@@ -295,8 +295,13 @@ algorithm
     case "final" then "r#final";
     case "pub" then "r#pub";
     case "box" then "r#box";
+    case "else" then "r#else";
+    case "impl" then "r#impl";
     else inName;
   end match;
+  if System.unquoteIdentifier(res) <> res then
+    res := "_" + System.stringReplace(System.stringReplace(System.unescapedString(res), "'", ""), ".", "_");
+  end if;
 end fixKeywords;
 
 function toSnakeCase
@@ -311,7 +316,8 @@ protected
   String name = inName;
 algorithm
   name := fixKeywords(inName);
-  name := match name
+  res := name;
+  /*name := match name
     case "SCode" then "scode";
     case "SimCode" then "simcode";
     case "Static" then "r#static";
@@ -358,7 +364,7 @@ algorithm
   if listGet(result,1) == "_" then
     result := listRest(result);
   end if;
-  res := fixKeywords(stringAppendList(result));
+  res := fixKeywords(stringAppendList(result));*/
 end toSnakeCase;
 
 function getImports

@@ -954,18 +954,6 @@ pub fn string_get_no_bounds_checking(str: &str, index: i32) -> i32 {
     unsafe { (*str.as_bytes().get_unchecked(idx)) as i32 }
 }
 
-pub fn r#mod(x: f64, y: f64) -> f64
-{
-  x-floor(x/y)*y;
-}
-
-pub fn r#mod(x: i32, y: i32) -> i32
-{
-  let res = x % y;
-  ((y > 0 && res < 0) || (y < 0 && res > 0)) ? (res + y) : res;
-}
-
-
 // ============================================================================
 // Tests
 // ============================================================================

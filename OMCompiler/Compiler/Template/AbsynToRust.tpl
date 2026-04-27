@@ -47,11 +47,14 @@ template dumpProgram(Absyn.Program program)
 match program
   case PROGRAM(classes = {}) then ""
   case PROGRAM(__) then
-    let allModules = classes |> cls as CLASS(__) => 'mod <%toSnakeCase(name)%>;' ; separator="\n" ; empty
+    let &mainFile = buffer ""
+    let &mainFile += redirectToFile('src/main.rs')
+    let &mainFile += classes |> cls as CLASS(__) => 'mod <%toSnakeCase(name)%>;' ; separator="\n" ; empty
+    let &mainFile += 'mod metamodelica;<%\n%>'
     (classes |> cls as CLASS(__) =>
       let &classFile = buffer ""
       let &classFile += redirectToFile('src/<%toSnakeCase(name)%>.rs')
-      let &classFile += dumpClass(cls, defaultDumpOptions, allModules)
+      let &classFile += dumpClass(cls, defaultDumpOptions)
       let &classFile += closeFile()
       "")
 end dumpProgram;
@@ -81,7 +84,7 @@ template dumpSCodeElements2(list<SCode.Element> elements)
   else ''
 end dumpSCodeElements2;
 
-template dumpClass(Absyn.Class cls, DumpOptions options, Text allModules)
+template dumpClass(Absyn.Class cls, DumpOptions options)
 /*We do not yet know our context in Absyn */
 ::=
   let &functionBuffer = buffer ""
@@ -90,9 +93,8 @@ template dumpClass(Absyn.Class cls, DumpOptions options, Text allModules)
   /// Translation of MetaModelica to Rust
   ///
   /// This module provides code generation from Absyn to Rust.
-  <% match cls case CLASS(name="Main") then allModules %>
 
-  use metamodelica::*;
+  use crate::metamodelica::*;
   use std::fmt;
   use list_comprehension_macro::comp;
   use anyhow::Result;
@@ -118,7 +120,7 @@ match class
     let commentStr = dumpCommentStrOpt(parts.comment)
     let &functionsBuffer = buffer ""
     let class_def_str = dumpClassDef(parts, makeUniontypeContext(name), options, functionsBuffer)
-      <<
+    let res = <<
       <%commentStr%>/// Uniontype <%name%>
       #[derive(Debug, Clone, PartialEq)]
       #[allow(non_camel_case_types)]
@@ -127,6 +129,11 @@ match class
       }
       <% functionsBuffer %>
       >>
+    match context
+      case UNIONTYPE(__) then
+        let &functionBuffer += res + "\n"
+        ""
+      else res
   /* We need to forward declare partial functions in Rust */
   case CLASS(partialPrefix=true, restriction=R_FUNCTION(__)) then ''
   case CLASS(partialPrefix=false, body=parts as PARTS(__), restriction=R_FUNCTION(__)) then
@@ -704,19 +711,14 @@ template dumpImport(Absyn.Import imp)
 ::=
 match imp
   case NAMED_IMPORT(__) then
-    'use <%dumpPathRust(path)%> as <%name%>;'
-  case QUAL_IMPORT(__) then
-    let path_str = dumpPathRust(path)
-    match path_str
-      case "Array" then 'use ArrayUtil;'
-      case "List" then  'use ListUtil;'
-      else 'use <%path_str%>;'
-  case UNQUAL_IMPORT(__) then 'use <%dumpPathRust(path)%>;'
+    'use crate::<%dumpPathRust(path)%> as <%name%>;'
+  case QUAL_IMPORT(__)
+  case UNQUAL_IMPORT(__) then 'use crate::<%dumpPathRust(path)%>;'
   case GROUP_IMPORT(__) then
     let prefix_str = dumpPathRust(prefix)
     let groups_str = (groups |> group => dumpGroupImport(group) ;separator=", ")
     <<
-    use <%prefix_str%>::{<%groups_str%>};
+    use crate::<%prefix_str%>::{<%groups_str%>};
     >>
 end dumpImport;
 
@@ -864,7 +866,7 @@ match path
       case "Real" then 'f64'
       case "Integer" then 'i32'
       case "Boolean" then 'bool'
-      case "String" then '&str'
+      case "String" then 'String'
       case "list" then 'List'
       case "array" then 'Array'
       case "tuple" then 'Tuple'
@@ -1083,7 +1085,7 @@ match exp
     '(<%tuple_str%>)'
   case AS(__) then
     let exp_str = dumpPattern(exp, context, &as_str)
-    let id_str = '<%id%>'
+    let id_str = fixKeywords(id)
     '<%id_str%> @ <%exp_str%>'
   case CONS(__) then
     "[" + dumpCons(head, rest, context, &as_str)
@@ -1324,12 +1326,9 @@ template dumpCref(Absyn.ComponentRef cref, Context context)
 ::=
 match cref
   case CREF_QUAL(__) then
-     let ss_str = dumpSubscripts(subscripts, context)
-     let c_str = dumpCref(componentRef, context)
-    match name
-      case "List" then 'ListUtil<%ss_str%>::<%c_str%>'
-      case "Array" then 'ArrayUtil<%ss_str%>::<%c_str%>'
-      else '<%toSnakeCase(name)%>::<%c_str%>'
+    let ss_str = dumpSubscripts(subscripts, context)
+    let c_str = dumpCref(componentRef, context)
+    '<%toSnakeCase(name)%>::<%c_str%>'
   case CREF_IDENT(__) then
     '<%fixKeywords(name)%><%dumpSubscripts(subscripts, context)%>'
   case CREF_FULLYQUALIFIED(__) then '::<%dumpCref(componentRef, context)%>'

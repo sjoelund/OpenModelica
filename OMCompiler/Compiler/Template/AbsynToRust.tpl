@@ -254,7 +254,7 @@ match restriction
   case R_UNIONTYPE(__) then
     ''
   case R_FUNCTION(__) then
-    (if typeVars then 'where <%((typeVars |> tv => tv ; separator=", "))%>')
+    (if typeVars then 'where <%((typeVars |> tv => <<<%tv%>:Any>> ; separator=", "))%>')
   else ""
 end dumpClassTypeTypeVars;
 
@@ -579,7 +579,7 @@ match specification
     let args_str = (elementArg |> earg => dumpElementArg(earg, context, functionBuffer) ;separator=", ")
     let mod_str = if args_str then '(<%args_str%>)'
     let ann_str = dumpAnnotationOptSpace(annotationOpt, context)
-    'extends <%bc_str%><%mod_str%><%ann_str%>'
+    '/* TODO: extends <%bc_str%><%mod_str%><%ann_str%> */'
   case COMPONENTS(__) then
     let attr_str = dumpElementAttr(attributes)
     let ty_str = dumpTypeSpec(typeSpec, context)
@@ -980,6 +980,18 @@ match exp
   case CALL(function_=Absyn.CREF_IDENT(name="list"), functionArgs=FOR_ITER_FARG(__)) then
     let args_str = dumpFunctionArgs(functionArgs, context)
     'comp![<%args_str%>]'
+  case CALL(function_=Absyn.CREF_IDENT(name="min"), functionArgs=FOR_ITER_FARG(__)) then
+    let args_str = dumpFunctionArgs(functionArgs, context)
+    'min(comp![<%args_str%>])'
+  case CALL(functionArgs=FOR_ITER_FARG(iterators=_::_::_, iterType=THREAD(__))) then
+    'TODO: Threaded iteration is not fully supported yet.'
+  case CALL(function_=function_, functionArgs=functionArgs as FOR_ITER_FARG(exp=exp, iterators=iterators)) then
+    let func_str = dumpCref(function_, context)
+    let exp_str = dumpExp(exp, context)
+    let iter_str = (iterators |> i => dumpForIterator(i, context) ;separator=", ")
+    // let iter_names = (iterators |> i => dumpForIteratorName(i, context) ;separator=", ")
+    // let iter_ranges = (iterators |> i => dumpForIteratorRanges(i, context) ;separator=", ")
+    '<%func_str%>(comp![<%exp_str%> for <%iter_str%>])'
   case CALL(__) then
     let func_str = dumpCref(function_, context)
     let args_str = dumpFunctionArgs(functionArgs, context)
@@ -1040,8 +1052,11 @@ end dumpExp;
 template dumpPattern(Absyn.Exp exp, Context context, Text &as_str)
 ::=
 match exp
+  case UNARY(__) then '-<%dumpPattern(exp, context, as_str)%>'
   case INTEGER(__) then value
   case REAL(__) then value
+  case CREF(componentRef=WILD(__)) then 'ignore<%tmpTick()%>'
+  case CREF(componentRef=ALLWILD(__)) then '..'
   case CREF(__) then dumpCref(componentRef, functionContext)
   case STRING(__) then '"<%stringReplace(value,"\$","\\$"); absIndent=0%>"'
   case BOOL(__) then value
@@ -1056,7 +1071,7 @@ match exp
       case "list" then "List"
       else dumpCref(function_, functionContext))
     if args_str then
-      '<%func_str%>(<%args_str%>)'
+      '<%func_str%>{<%args_str%>}'
     else
       let isNone = match func_str
         case "NONE" then "None"
@@ -1085,7 +1100,7 @@ match exp
   case EXPRESSIONCOMMENT(__) then
     let exp_str = dumpPattern(exp, context, &as_str)
     '<%commentsBefore |> cmt => cmt ; separator="\n"%><%exp_str%><%commentsAfter |> cmt => cmt ; separator="\n"%>'
-  case _ then '/* AbsynDumpTpl.dumpPattern: UNHANDLED Absyn.Exp: <%AbsynDumpTpl.dumpExp(exp)%> */'
+  case _ then '/* AbsynDumpTpl.dumpPattern: UNHANDLED: <%AbsynDumpTpl.dumpExp(exp)%> */'
 end dumpPattern;
 
 template dumpCons(String headString, String tailString)
@@ -1316,13 +1331,13 @@ match args
   case FOR_ITER_FARG(__) then
     let exp_str = dumpExp(exp, context)
     let iter_str = (iterators |> i => dumpForIterator(i, context) ;separator=", ")
-    let iter_names = (iterators |> i => dumpForIteratorName(i, context) ;separator=", ")
-    let iter_ranges = (iterators |> i => dumpForIteratorRanges(i, context) ;separator=", ")
-   match iterType
+    // let iter_names = (iterators |> i => dumpForIteratorName(i, context) ;separator=", ")
+    // let iter_ranges = (iterators |> i => dumpForIteratorRanges(i, context) ;separator=", ")
+    let res = '<%exp_str%> for <%iter_str%>'
+    match iterType
       case THREAD(__) then
-          '<%exp_str%> // threaded iteration'
-      else
-          '<%exp_str%> for <%iter_str%>'
+        if intGt(listLength(iterators),1) then '<%exp_str%> /* threaded iteration */' else res
+      else res
 end dumpFunctionArgs;
 
 template dumpNamedArg(Absyn.NamedArg narg, Context context)

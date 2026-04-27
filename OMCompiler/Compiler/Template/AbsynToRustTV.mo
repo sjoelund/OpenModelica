@@ -37,6 +37,12 @@ interface package AbsynToRustTV
 
 package builtin
 
+  function listLength
+    input list<T> lst;
+    output Integer len;
+    replaceable type T subtypeof Any;
+  end listLength;
+
   function listHead
     input list<T> lst;
     output T head;
@@ -78,6 +84,12 @@ package builtin
     input String s2;
     output Boolean b;
   end stringEqual;
+
+  function intGt
+    input Integer i1;
+    input Integer i2;
+    output Boolean b;
+  end intGt;
 
   uniontype SourceInfo
     record SOURCEINFO
@@ -989,12 +1001,6 @@ package Tpl
   function addTemplateError
     input String inErrMsg;
   end addTemplateError;
-
-  function writeText
-    input Text inText;
-    input Text inTextToWrite;
-    output Text outText;
-  end writeText;
 
 uniontype Text
   record MEM_TEXT

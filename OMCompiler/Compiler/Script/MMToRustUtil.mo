@@ -39,6 +39,7 @@ import Absyn;
 import AbsynUtil;
 import Util;
 protected
+import CevalScript;
 import StringUtil;
 import System;
 
@@ -68,9 +69,19 @@ uniontype Context
     String ty_str;
   end INPUT_CONTEXT;
 
+  record CONSTANT_CONTEXT
+    String ty_str;
+  end CONSTANT_CONTEXT;
+
   record MATCH_CONTEXT
     Absyn.Exp inputExp;
   end MATCH_CONTEXT;
+
+  record STRUCT_CONTEXT
+  end STRUCT_CONTEXT;
+
+  record TOP_CONTEXT
+  end TOP_CONTEXT;
 
 end Context;
 
@@ -79,6 +90,8 @@ constant Context noContext = NO_CONTEXT();
 constant Context functionContext = FUNCTION("");
 constant Context returnContext = FUNCTION_RETURN_CONTEXT("","");
 constant Context inputContext = INPUT_CONTEXT("");
+constant Context structContext = STRUCT_CONTEXT();
+constant Context topContext = TOP_CONTEXT();
 
 function makeUniontypeContext
   input String name;
@@ -93,6 +106,13 @@ function makeInputContext
 algorithm
   context := INPUT_CONTEXT(ty_str);
 end makeInputContext;
+
+function makeConstantContext
+  input String ty_str;
+  output Context context;
+algorithm
+  context := CONSTANT_CONTEXT(ty_str);
+end makeConstantContext;
 
 function makeFunctionContext
   input String returnValuesStr;
@@ -254,6 +274,20 @@ algorithm
   end for;
 end algorithmItemsContainsReturn;
 
+function fixKeywords
+  input String inName;
+  output String res;
+algorithm
+  res := match inName
+    case "type" then "r#type";
+    case "ref" then "r#ref";
+    case "Self" then "r#self";
+    case "mod" then "r#mod";
+    case "static" then "r#static";
+    else inName;
+  end match;
+end fixKeywords;
+
 function toSnakeCase
   input String inName;
   output String res;
@@ -265,8 +299,14 @@ protected
   list<String> result;
   String name = inName;
 algorithm
-  name := System.stringReplace(name, "SCode", "scode");
-  name := System.stringReplace(name, "SimCode", "simcode");
+  name := fixKeywords(inName);
+  name := match name
+    case "SCode" then "scode";
+    case "SimCode" then "simcode";
+    case "Static" then "r#static";
+    case "Mod" then "modification";
+    else inName;
+  end match;
   result := {};
 
   for i in 1:stringLength(name) loop
@@ -309,6 +349,16 @@ algorithm
   end if;
   res := stringAppendList(result);
 end toSnakeCase;
+
+function getImports
+  input Absyn.Class _class;
+  output list<Absyn.Import> imports;
+protected
+  list<Absyn.Import> pub,pro;
+algorithm
+  (pub,pro) := CevalScript.getImportList(_class);
+  imports := listAppend(pub, pro);
+end getImports;
 
 annotation(__OpenModelica_Interface="backend");
 end MMToRustUtil;

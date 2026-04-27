@@ -975,6 +975,9 @@ package System
     input Boolean unescapeNewline;
     output String escapedString;
   end escapedString;
+  function tmpTick
+    output Integer tickNo;
+  end tmpTick;
 end System;
 
 package Tpl
@@ -1091,16 +1094,25 @@ package MMToRustUtil
     record INPUT_CONTEXT
       String ty_str;
     end INPUT_CONTEXT;
+    record CONSTANT_CONTEXT
+      String ty_str;
+    end CONSTANT_CONTEXT;
     record NO_CONTEXT
     end NO_CONTEXT;
     record MATCH_CONTEXT
       Absyn.Exp inputExp;
     end MATCH_CONTEXT;
+    record STRUCT_CONTEXT
+    end STRUCT_CONTEXT;
+    record TOP_CONTEXT
+    end TOP_CONTEXT;
   end Context;
   constant Context packageContext;
   constant Context functionContext;
   constant Context noContext;
   constant Context inputContext;
+  constant Context structContext;
+  constant Context topContext;
   function makeUniontypeContext
     input String name;
     output Context context;
@@ -1118,6 +1130,10 @@ package MMToRustUtil
     input String ty_str;
     output Context context;
   end makeInputContext;
+  function makeConstantContext
+    input String ty_str;
+    output Context context;
+  end makeConstantContext;
   function makeMatchContext
     input Absyn.Exp iExp;
     output Context context;
@@ -1165,6 +1181,14 @@ package MMToRustUtil
     input list<Absyn.ClassPart> classParts;
     output list<Absyn.ElementItem> outputs;
   end allPublicElementItems;
+  function getImports
+    input Absyn.Class _class;
+    output list<Absyn.Import> imports;
+  end getImports;
+  function fixKeywords
+    input String inName;
+    output String res;
+  end fixKeywords;
 end MMToRustUtil;
 
 package AbsynUtil

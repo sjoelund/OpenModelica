@@ -8,6 +8,9 @@ The MetaModelica compiler could become a separate binary that is not part of omc
 The mos-scripting needs to use the NF if it does not already.
 Then the old frontend should be able to be removed...
 
+You cannot pattern-match lists straight off. Might need to implement List as CONS/EMPTY to make the compiler work
+as expected. And then rewrite this later.
+
 # Function calling
 
 Rust does not have default arguments (for functions; it does for structs)

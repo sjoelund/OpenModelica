@@ -228,7 +228,7 @@ match class
     <<
       <%comment%>
       /// Type alias for function redefinition
-      pub type <%name_of_new_function%> = <%spec%>(<%args%>)
+      pub type <%name_of_new_function%> = <%spec%>(<%args%>);
     >>
   /*PDER. Should not occur. Derived Enumeration and Overload might?*/
 end dumpClassElement;
@@ -685,10 +685,10 @@ match comp
     let mod_str = match modification case SOME(mod) then dumpModification(mod, context)
     let component_name = fixKeywords(name)
     match context
-      case FUNCTION_RETURN_CONTEXT(__) then '<%component_name%>: <%ty_str%><%dim_str%><%mod_str%>;'
+      case FUNCTION_RETURN_CONTEXT(__) then '<%component_name%>: <%if dim_str then 'Vec<<%ty_str%>>' else ty_str%><%mod_str%>;'
       case FUNCTION(__) then '<%component_name%>'
-      case INPUT_CONTEXT(__) then '<%component_name%>: <%ty_str%><%dim_str%>/* Not allowed: <%mod_str%> */'
-      case CONSTANT_CONTEXT(__) then '<%component_name%>: <%ty_str%><%dim_str%><%mod_str%>'
+      case INPUT_CONTEXT(__) then '<%component_name%>: <%if dim_str then 'Vec<<%ty_str%>>' else ty_str%><%if mod_str then '/* Not allowed: <%mod_str%>*/'%>'
+      case CONSTANT_CONTEXT(__) then '<%component_name%>: <%if dim_str then 'Vec<<%ty_str%>>' else ty_str%><%mod_str%>'
       else '<%component_name%><%dim_str%><%mod_str%>'
 end dumpComponent;
 
@@ -739,13 +739,13 @@ template dumpAlgorithmItem(Absyn.AlgorithmItem alg, Context context)
 ::=
 match alg
   case ALGORITHMITEM(__) then
-    let alg_str = dumpAlgorithm(algorithm_, context)
+    let alg_str = dumpAlgorithm(algorithm_, info, context)
     let cmt_str = dumpCommentOpt(comment, context)
     '<%alg_str%><%cmt_str%>'
   case ALGORITHMITEMCOMMENT(__) then comment
 end dumpAlgorithmItem;
 
-template dumpAlgorithm(Absyn.Algorithm alg, Context context)
+template dumpAlgorithm(Absyn.Algorithm alg, SourceInfo info, Context context)
 ::=
 match alg
   case ALG_ASSIGN(__) then
@@ -792,6 +792,8 @@ match alg
     }
     >>
   case ALG_WHEN_A(__) then  AbsynDumpTpl.errorMsg("When statements are not allowed!.")
+  case ALG_NORETCALL(functionArgs=FOR_ITER_FARG(__)) then
+    AbsynDumpTpl.errorMsg(infoStr(info) + ': ALG_NORETCALL with for iterators is not supported. Use a for loop instead if you want to ignore the output anyway: <%AbsynDumpTpl.dumpAlgorithm(alg)%>')
   case ALG_NORETCALL(__) then
     let name_str = dumpCref(functionCall, context)
     let args_str = dumpFunctionArgs(functionArgs, context)
@@ -894,7 +896,7 @@ match typeSpec
   case TPATH(__) then
     let path_str = dumpPathRust(path)
     let arraydim_str = dumpArrayDimOpt(arrayDim, context)
-    '<%path_str%><%arraydim_str%>'
+    '<%if arraydim_str then 'Vec<<%path_str%>>' else path_str%><%arraydim_str%>'
   case TCOMPLEX(__) then
     let path_str = dumpPathRust(path)
     let ty_str = (typeSpecs |> ty => dumpTypeSpec(ty, context) ;separator=", ")
@@ -906,12 +908,12 @@ match typeSpec
                        case PACKAGE(__) then "package"
                        else ""
     if isFunc then
-      '<%path_str%><<%ty_str%>><%arraydim_str%>'
+      (if arraydim_str then 'Vec<<%path_str%><<%ty_str%>>>' else '<%path_str%><<%ty_str%>>')
     else
       if isPackage then
         '<%path_str%>'
       else
-        '<%path_str%><<%ty_str%>><%arraydim_str%>'
+        (if arraydim_str then 'Vec<<%path_str%><<%ty_str%>>>' else '<%path_str%><<%ty_str%>>')
 end dumpTypeSpec;
 
 template dumpArrayDimOptTypeSpec(Option<Absyn.ArrayDim> arraydim, Context context)
@@ -1095,6 +1097,7 @@ template dumpCons(Absyn.Exp head, Absyn.Exp tail, Context context, Text &as_str)
 ::=
   let headString = dumpPattern(head, context, &as_str)
   match tail
+    case TUPLE(expressions={exp}) then dumpCons(head, exp, context, &as_str)
     case CONS(__) then headString + ", " + dumpCons(head, rest, context, &as_str)
     case CALL(function_=Absyn.CREF_IDENT(name="list"), functionArgs=FUNCTIONARGS(args=exps))
     case CALL(function_=Absyn.CREF_IDENT(name="$array"), functionArgs=FUNCTIONARGS(args=exps))
@@ -1102,7 +1105,23 @@ template dumpCons(Absyn.Exp head, Absyn.Exp tail, Context context, Text &as_str)
     case ARRAY(arrayExp=exps) then (exps |> e => (dumpPattern(e, context, &as_str) ;separator=", ")) + "]"
     case CREF(componentRef=WILD(__)) then headString + ", ..]"
     case CREF(__) then <<<%headString%>, <%dumpPattern(tail, context, as_str)%> @ ..]>>
-    else '[<%headString%>, <%dumpPattern(tail, context, as_str)%> @ ..]'
+
+    case AS(id=id, exp=TUPLE(expressions={LIST(exps={exp})}))
+    case AS(id=id, exp=ARRAY(arrayExp={exp}))
+    case AS(id=id, exp=LIST(exps={exp}))
+    then <<<%headString%>, <%id%> @ <%dumpPattern(exp, context, &as_str)%>]>>
+
+    case AS(id=id, exp=TUPLE(expressions={LIST(exps=exps)}))
+    case AS(id=id, exp=ARRAY(arrayExp=exps))
+    case AS(id=id, exp=LIST(exps=exps)) // then headString + "," + (exps |> e => (dumpPattern(e, context, &as_str) ;separator=", ")) + "]"
+    then
+      AbsynDumpTpl.errorMsg('dumpCons: AS+LIST tail unsupported for cons pattern: <%AbsynDumpTpl.dumpExp(tail)%>')
+
+    case AS(exp=AS(exp=CONS(__)))
+    case AS(exp=TUPLE(expressions={CONS(__)}))
+    case AS(exp=CALL(function_=Absyn.CREF_IDENT(name="list")))
+    case AS(exp=CONS(__)) then headString + ", " + dumpCons(head, exp, context, &as_str)
+    else AbsynDumpTpl.errorMsg('dumpCons: Unsupported tail in cons pattern: <%AbsynDumpTpl.dumpExp(tail)%>')
 end dumpCons;
 
 template dumpFunctionArgsPattern(Absyn.FunctionArgs args)
@@ -1120,7 +1139,7 @@ template dumpNamedArgPattern(Absyn.NamedArg narg)
 ::=
 match narg
   case NAMEDARG(__) then
-    '<%argName%>: <%dumpPattern(argValue, functionContext, emptyTxt)%>'
+    '<%fixKeywords(argName)%>: <%dumpPattern(argValue, functionContext, emptyTxt)%>'
 end dumpNamedArgPattern;
 
 template dumpNamedArgPattern2(Absyn.NamedArg narg)
@@ -1255,7 +1274,10 @@ match c
   case CASE(__) then
     let &as_str = buffer ""
     let pattern_str = dumpPattern(pattern, context, &as_str)
-    let guard_str = match patternGuard case SOME(g) then ' if <%dumpExp(g, context)%>'
+    let guard_str = match patternGuard case SOME(g) then
+      <<<%\n%>
+        if (<%dumpExp(g, context)%>)
+      >>
     let eql_str = dumpMatchContents(classPart)
     let result_str = dumpExp(result, context)
     let cmt_str = dumpCommentStrOpt(comment)
@@ -1312,7 +1334,7 @@ match cref
     '<%fixKeywords(name)%><%dumpSubscripts(subscripts, context)%>'
   case CREF_FULLYQUALIFIED(__) then '::<%dumpCref(componentRef, context)%>'
   case WILD(__) then if Config.acceptMetaModelicaGrammar() then "_" else ""
-  case ALLWILD(__) then '_ ..'
+  case ALLWILD(__) then '..'
 end dumpCref;
 
 template dumpFunctionArgs(Absyn.FunctionArgs args, Context context)
@@ -1352,7 +1374,7 @@ match iterator
   case ITERATOR(__) then
     let range_str = match range case SOME(r) then ' in <%dumpExp(r, context)%>'
     let guard_str = match guardExp case SOME(g) then ' if <%dumpExp(g, context)%>'
-    '<%name%><%range_str%><%guard_str%>'
+    '<%fixKeywords(name)%><%range_str%><%guard_str%>'
 end dumpForIterator;
 
 template dumpForIteratorRanges(Absyn.ForIterator iterator, Context context)

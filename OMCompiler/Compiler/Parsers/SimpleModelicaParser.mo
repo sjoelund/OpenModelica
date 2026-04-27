@@ -2048,7 +2048,8 @@ function treeDiffWork
   input list<ParseTree> t1, t2;
   input Integer depth;
   input CmpParseTreeFunc compare;
-  output list<tuple<Diff,list<ParseTree>>> res, resLocal;
+  output list<tuple<Diff,list<ParseTree>>> res;
+  output list<tuple<Diff,list<ParseTree>>> resLocal;
 protected
   list<ParseTree> t2_strip, before, middle, after, addedTrees, deletedTrees, ts;
   list<String> addList, delList;
@@ -3052,7 +3053,8 @@ end extractSingleAddDiffBeforeAndAfter;
 
 function extractAdditionsDeletions
   input list<tuple<Diff,list<ParseTree>>> diffs;
-  output list<ParseTree> addedTrees, deletedTrees;
+  output list<ParseTree> addedTrees;
+  output list<ParseTree> deletedTrees;
 protected
   list<list<ParseTree>> addedTreesAcc={}, deletedTreesAcc={};
   list<ParseTree> lst;

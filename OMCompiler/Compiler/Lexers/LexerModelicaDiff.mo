@@ -712,8 +712,8 @@ function tokenSourceInfo
   input Token token;
   output SourceInfo info;
 algorithm
-  info := match t as token
-    case TOKEN() then SOURCEINFO(t.fileName, false, t.lineNumberStart, t.columnNumberStart, t.lineNumberEnd, t.columnNumberEnd, 0.0);
+  info := match token
+    case TOKEN() then SOURCEINFO(token.fileName, false, token.lineNumberStart, token.columnNumberStart, token.lineNumberEnd, token.columnNumberEnd, 0.0);
   end match;
 end tokenSourceInfo;
 

@@ -288,6 +288,13 @@ algorithm
     case "typeof" then "r#typeof";
     case "const" then "r#const";
     case "fn" then "r#fn";
+    case "use" then "r#use";
+    case "let" then "r#let";
+    case "match" then "r#match";
+    case "enum" then "r#enum";
+    case "final" then "r#final";
+    case "pub" then "r#pub";
+    case "box" then "r#box";
     else inName;
   end match;
 end fixKeywords;
@@ -351,7 +358,7 @@ algorithm
   if listGet(result,1) == "_" then
     result := listRest(result);
   end if;
-  res := stringAppendList(result);
+  res := fixKeywords(stringAppendList(result));
 end toSnakeCase;
 
 function getImports

@@ -378,6 +378,7 @@ package Absyn
   uniontype AlgorithmItem
     record ALGORITHMITEM
       Algorithm algorithm_;
+      builtin.SourceInfo info;
       Option<Comment> comment;
     end ALGORITHMITEM;
 
@@ -1333,5 +1334,12 @@ package SCodeDump
     output list<SCode.Element> outElements;
   end filterElements;
 end SCodeDump;
+
+package Error
+  function infoStr
+    input builtin.SourceInfo info;
+    output String str;
+  end infoStr;
+end Error;
 
 end AbsynToRustTV;

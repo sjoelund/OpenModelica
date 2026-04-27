@@ -1238,8 +1238,10 @@ function makeTypeVars
 protected
   Component comp;
   DAE.Var type_var;
+  Class cls;
 algorithm
-  typeVars := match cls as InstNode.getClass(complexCls)
+  cls := InstNode.getClass(complexCls);
+  typeVars := match cls
     case Class.INSTANCED_CLASS(restriction = Restriction.RECORD())
       then list(makeTypeRecordVar(c) for c in ClassTree.getComponents(cls.elements));
 

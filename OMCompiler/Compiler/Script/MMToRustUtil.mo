@@ -37,6 +37,7 @@ encapsulated package MMToRustUtil
 protected
 import Absyn;
 import AbsynUtil;
+import Tpl;
 import Util;
 protected
 import CevalScript;

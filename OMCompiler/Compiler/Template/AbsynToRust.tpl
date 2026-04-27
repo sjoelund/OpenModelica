@@ -47,7 +47,7 @@ template dumpProgram(Absyn.Program program)
 match program
   case PROGRAM(classes = {}) then ""
   case PROGRAM(__) then
-    let allModules = classes |> cls as CLASS(__) => 'mod <%toSnakeCase(name)%>;' ; separator="\n"
+    let allModules = classes |> cls as CLASS(__) => 'mod <%toSnakeCase(name)%>;' ; separator="\n" ; empty
     (classes |> cls as CLASS(__) =>
       let &classFile = buffer ""
       let &classFile += redirectToFile('src/<%toSnakeCase(name)%>.rs')
@@ -84,7 +84,8 @@ end dumpSCodeElements2;
 template dumpClass(Absyn.Class cls, DumpOptions options, Text allModules)
 /*We do not yet know our context in Absyn */
 ::=
-  <<
+  let &functionBuffer = buffer ""
+  let res = <<
   #![ allow( unused_parens, while_true, unused_import ) ]
   /// Translation of MetaModelica to Rust
   ///
@@ -96,13 +97,14 @@ template dumpClass(Absyn.Class cls, DumpOptions options, Text allModules)
   use list_comprehension_macro::comp;
   use anyhow::Result;
   use anyhow::bail;
-  <% getImports(cls) |> imp => dumpImport(imp) ; separator="\n" %>
+  <% getImports(cls) |> imp => dumpImport(imp) ; separator="\n" ; empty %>
 
-  <% dumpClassElement(cls, options, topContext) %>
+  <% dumpClassElement(cls, options, topContext, functionBuffer) %>
   >>
+  res + functionBuffer
 end dumpClass;
 
-template dumpClassElement(Absyn.Class class, DumpOptions options, Context context)
+template dumpClassElement(Absyn.Class class, DumpOptions options, Context context, Text &functionBuffer)
 "
   Note that partial functions are not handled here. They cannot really be translated to Rust in the way they are used in MetaModelica
   they are dumped as forward decls along with Uniontypes within the packages they occur.
@@ -114,24 +116,17 @@ let elementSeparator = match context
 match class
   case CLASS(body=parts as PARTS(__), restriction=R_UNIONTYPE(__)) then
     let commentStr = dumpCommentStrOpt(parts.comment)
-    let class_def_str = dumpClassDef(parts, makeUniontypeContext(name), options)
-    match context
-      case TOP_CONTEXT(__) then
-        <<
-        <%commentStr%>
-        /// Uniontype <%name%>
-        <%dumpClassDef(parts, noContext, options) /* Ugly, but name isn't bound down here later... */%>
-        >>
-      else
-        <<
-        <%commentStr%>
-        /// Uniontype <%name%>
-        #[derive(Debug, Clone, PartialEq)]
-        #[allow(non_camel_case_types)]
-        pub enum <%name%> {
-          <%class_def_str%>
-        }
-        >>
+    let &functionsBuffer = buffer ""
+    let class_def_str = dumpClassDef(parts, makeUniontypeContext(name), options, functionsBuffer)
+      <<
+      <%commentStr%>/// Uniontype <%name%>
+      #[derive(Debug, Clone, PartialEq)]
+      #[allow(non_camel_case_types)]
+      pub enum <%name%> {
+        <%class_def_str%>
+      }
+      <% functionsBuffer %>
+      >>
   /* We need to forward declare partial functions in Rust */
   case CLASS(partialPrefix=true, restriction=R_FUNCTION(__)) then ''
   case CLASS(partialPrefix=false, body=parts as PARTS(__), restriction=R_FUNCTION(__)) then
@@ -140,19 +135,24 @@ match class
     let return_str = '<%(parts.classParts |> cp => dumpReturnStrRust(getElementItemsInClassPart(cp), functionContext))%>'
     let inputs_str = (parts.classParts |> cp => dumpInputsRust(getElementItemsInClassPart(cp), inputContext))
     let header = dumpClassHeader(parts, restriction)
-    let functionBodyStr = dumpClassDef(parts, makeFunctionContext(return_str), options)
+    let functionBodyStr = dumpClassDef(parts, makeFunctionContext(return_str), options, functionBuffer)
     /*
       Input output variables are treated as parameters
       output variables occur as local variables in Rust
     */
-    <<
-    <%commentStr%>
-    /// Function: <%name%>
+    let res = <<
+    <%commentStr%>/// Function: <%name%>
     pub fn <%toSnakeCase(name)%>(<%inputs_str%>) -> <%returnType%> <%header%> {
       <%functionBodyStr%>
       <%return_str%>
-    }<%elementSeparator%>
+    }
     >>
+    match context
+      case UNIONTYPE(__) then
+        let &functionBuffer += res + "\n"
+        ""
+      else res
+
   case CLASS(body=parts as PARTS(__)) then
     let enc_str = if encapsulatedPrefix then "" else ""
     let partial_str = if partialPrefix then "/// Originally partial\n" else ""
@@ -161,11 +161,11 @@ match class
       else dumpClassType(restriction, context))
     let cdef_str1 = match restriction
       case R_PACKAGE(__) then
-        dumpClassDef(parts, packageContext, options)
+        dumpClassDef(parts, packageContext, options, functionBuffer)
       case R_RECORD(__) then
-        dumpClassDef(parts, structContext, options)
+        dumpClassDef(parts, structContext, options, functionBuffer)
       else
-       dumpClassDef(parts, context, options)
+       dumpClassDef(parts, context, options, functionBuffer)
     let forwardDeclarations = dumpSCodeElements(AbsynToSCode.translateClassdefElements(parts.classParts))
     let inform  = if forwardDeclarations then
                     '/// Forward declarations needed for Rust enum variants'
@@ -210,10 +210,10 @@ match class
   case CLASS(body=parts as DERIVED(__), restriction=R_TYPE(__)) then
     let comment = dumpCommentOpt(parts.comment, context)
     let spec = dumpTypeSpec(parts.typeSpec, context)
-    let args = (parts.arguments |> earg => dumpElementArg(earg, context) ;separator=', ')
+    let args = (parts.arguments |> earg => dumpElementArg(earg, context, functionBuffer) ;separator=', ')
     let attr = dumpElementAttr(parts.attributes)
     <<
-    type <%name%> = <%spec%> <%attr%><%comment%>;
+    type <%name%> = <%spec%><%attr%><%comment%>;
     >>
   /*
     Modelica style function redefinition - not directly supported in Rust.
@@ -222,7 +222,7 @@ match class
   case CLASS(body=parts as DERIVED(__), restriction=R_FUNCTION(__)) then
     let comment = dumpCommentOpt(parts.comment, context)
     let spec = dumpTypeSpec(parts.typeSpec, context)
-    let args = (parts.arguments |> earg => dumpElementArg(earg, context) ;separator=', ')
+    let args = (parts.arguments |> earg => dumpElementArg(earg, context, functionBuffer) ;separator=', ')
     let attr = dumpElementAttr(parts.attributes)
     let name_of_new_function = '<%name%>'
     <<
@@ -280,7 +280,9 @@ template dumpInputsRust(list<ElementItem> inputs, Context context)
 ::=
   let inputStr = (listReverse((MMToRustUtil.filterOnDirection(inputs, MMToRustUtil.makeInputDirection())))
     |> ei
-      => '<%dumpComponentItems(getComponentItemsFromElementItem(ei), makeInputContext(dumpTypeSpecOpt(getTypeSpecFromElementItemOpt(ei), inputContext)))%>'
+      =>
+      let res = dumpTypeSpecOpt(getTypeSpecFromElementItemOpt(ei), inputContext)
+      '<%dumpComponentItems(getComponentItemsFromElementItem(ei), makeInputContext(res))%>'
       ;separator=", ")
  '<%inputStr%>'
 end dumpInputsRust;
@@ -305,15 +307,15 @@ match listReverse(MMToRustUtil.filterOnDirection(outputs, MMToRustUtil.makeOutpu
   >>
 end dumpReturnStrRust;
 
-template dumpClassDef(Absyn.ClassDef cdef, Context context, DumpOptions options)
+template dumpClassDef(Absyn.ClassDef cdef, Context context, DumpOptions options, Text &functionBuffer)
 ::=
 match cdef
   case PARTS(__) then
     let body_str = (classParts |> class_part hasindex idx =>
-        dumpClassPart(class_part, idx, context, options) ;separator="\n")
-    <<
+        dumpClassPart(class_part, idx, context, options, functionBuffer) ;separator="\n";empty)
+    if body_str then <<
       <%body_str%>
-    >>
+    >> else ""
   case DERIVED(__) then
     AbsynDumpTpl.errorMsg("AbsynToRust.dumpClassDef: Derived not yet supported.")
   case CLASS_EXTENDS(__) then
@@ -351,22 +353,22 @@ match context
   else AbsynDumpTpl.errorMsg("AbsynToRust.dumpClassType: Unknown restriction for class:" + AbsynDumpTpl.dumpRestriction(restriction)))
 end dumpClassType;
 
-template dumpClassPart(Absyn.ClassPart class_part, Integer idx, Context context, DumpOptions options)
+template dumpClassPart(Absyn.ClassPart class_part, Integer idx, Context context, DumpOptions options, Text &functionBuffer)
 ::=
 match class_part
   case PUBLIC(__) then
-        let el_str = if isFunctionContext(context) then
-                       dumpElementItems(filterOnDirection(contents, makeOutputDirection()), context, "", true, options)
+      let el_str = if isFunctionContext(context) then
+                       dumpElementItems(filterOnDirection(contents, makeOutputDirection()), context, "", true, options, functionBuffer)
                      else
-                       dumpElementItems(contents, context,"", true, options)
-      <<
+                       dumpElementItems(contents, context,"", true, options, functionBuffer)
+      if el_str then <<
         <%el_str%>
-      >>
+      >> else ""
   case PROTECTED(__) then
-    let el_str = dumpElementItems(contents, context, "", true, options)
-    <<
-      <%el_str%>
-    >>
+    let el_str = dumpElementItems(contents, context, "", true, options, functionBuffer)
+    if el_str then <<
+        <%el_str%>
+      >> else ""
   case CONSTRAINTS(__) then
     AbsynDumpTpl.errorMsg("AbsynToRust.dumpClassPart: CONSTRAINTS(__) not supported.")
   case EQUATIONS(__) then
@@ -375,7 +377,7 @@ match class_part
     AbsynDumpTpl.errorMsg("AbsynToRust.dumpClassPart: INITIALEQUATIONS() not supported.")
   case ALGORITHMS(__) then
     <<
-      <%(contents |> eq => dumpAlgorithmItem(eq, context) ;separator="\n")%>
+      <%(contents |> eq => dumpAlgorithmItem(eq, context) ;separator="\n";empty)%>
     >>
   case INITIALALGORITHMS(__) then
     "@todo: AbsynToRust.dumpClassPart: INITIALALGORITHMS() not supported."
@@ -386,21 +388,17 @@ match class_part
         '// TODO: Defined in the runtime'
 end dumpClassPart;
 
-template dumpElementItems(list<Absyn.ElementItem> items, Context context, String prevSpacing, Boolean first, DumpOptions options)
+template dumpElementItems(list<Absyn.ElementItem> items, Context context, String prevSpacing, Boolean first, DumpOptions options, Text &functionBuffer)
 ::=
 match items
   case item :: rest_items then
     let spacing = dumpElementItemSpacing(item)
     let pre_spacing = if not first then
       dumpElementItemPreSpacing(spacing, prevSpacing)
-    let item_str = dumpElementItem(item, options, context)
-    let rest_str = dumpElementItems(rest_items, context, spacing, false, options)
-    let post_spacing = if rest_str then spacing
-    <<
-    <%pre_spacing%>
-    <%item_str%><%post_spacing%><%"\n"%>
-    <%if rest_str then rest_str%>
-    >>
+    let item_str = dumpElementItem(item, options, context, functionBuffer)
+    let rest_str = dumpElementItems(rest_items, context, spacing, false, options, functionBuffer)
+    let post_spacing = if rest_str then spacing else ""
+    <<<%if item_str then '<%pre_spacing%><%item_str%><%post_spacing%>' else ''%><%if rest_str then "\n" + rest_str%>>>
 end dumpElementItems;
 
 template dumpElementItemPreSpacing(String curSpacing, String prevSpacing)
@@ -421,11 +419,11 @@ match cdef
   case CLASS_EXTENDS(__) then '<%"\n"%>'
 end dumpClassDefSpacing;
 
-template dumpElementItem(Absyn.ElementItem eitem, DumpOptions options, Context context)
+template dumpElementItem(Absyn.ElementItem eitem, DumpOptions options, Context context, Text &functionBuffer)
 ::=
 match eitem
-  case ELEMENTITEM(__) then '<%dumpElement(element, options, context)%>'
-  case LEXER_COMMENT(__) then dumpCommentStr(comment)
+  case ELEMENTITEM(__) then '<%dumpElement(element, options, context, functionBuffer)%>'
+  case LEXER_COMMENT(__) then comment
 end dumpElementItem;
 
 template dumpElementItemRaw(Absyn.ElementItem eitem, DumpOptions options, Context context)
@@ -443,10 +441,10 @@ match eitem
             AbsynDumpTpl.errorMsg("AbsynToRust.dumpElementItem: on none component type")
       else
         AbsynDumpTpl.errorMsg("AbsynToRust.dumpElementItem: on none component type")
-  case LEXER_COMMENT(__) then dumpCommentStr(comment)
+  case LEXER_COMMENT(__) then comment
 end dumpElementItemRaw;
 
-template dumpElement(Absyn.Element elem, DumpOptions options, Context context)
+template dumpElement(Absyn.Element elem, DumpOptions options, Context context, Text &functionBuffer)
 ::=
 match elem
   case ELEMENT(__) then
@@ -454,8 +452,8 @@ match elem
     let final_str = dumpFinal(finalPrefix)
     let redecl_str = match redeclareKeywords case SOME(re) then dumpRedeclare(re)
     let repl_str = match redeclareKeywords case SOME(re) then dumpReplaceable(re)
-    let elementSpec_str = dumpElementSpec(specification, options, context)
-    let constrainClass_str = match constrainClass case SOME(cc) then dumpConstrainClass(cc, context)
+    let elementSpec_str = dumpElementSpec(specification, options, context, functionBuffer)
+    let constrainClass_str = match constrainClass case SOME(cc) then dumpConstrainClass(cc, context, functionBuffer)
     '<%elementSpec_str%><%constrainClass_str%>'
   case DEFINEUNIT(__) then AbsynDumpTpl.errorMsg("AbsynToRust.dumpElement: DEFINEUNIT(__) not supported")
   case TEXT(__) then
@@ -478,9 +476,10 @@ template dumpAnnotation(Absyn.Annotation ann, Context context)
 match ann
   case ANNOTATION(elementArgs={}) then "/// annotation()"
   case ANNOTATION(__) then
+    let &functionBuffer = buffer ""
     <<
     /* annotation(
-      <%(elementArgs |> earg => dumpElementArg(earg, context) ;separator=',<%"\n"%>')%>)
+      <%(elementArgs |> earg => dumpElementArg(earg, context, functionBuffer) ;separator=',<%"\n"%>')%>)
     */
     >>
 end dumpAnnotation;
@@ -510,10 +509,10 @@ end dumpCommentStrOpt;
 
 template dumpCommentStr(String comment)
 ::=
-'/* <%comment%> */'
+  <</* <%comment%> */<%\n%>>>
 end dumpCommentStr;
 
-template dumpElementArg(Absyn.ElementArg earg, Context context)
+template dumpElementArg(Absyn.ElementArg earg, Context context, Text &functionBuffer)
 ::=
 match earg
   case MODIFICATION(__) then
@@ -529,8 +528,8 @@ match earg
     let redecl_str = dumpRedeclare(redeclareKeywords)
     let repl_str = dumpReplaceable(redeclareKeywords)
     let eredecl_str = '<%redecl_str%><%each_str%>'
-    let elem_str = dumpElementSpec(elementSpec, defaultDumpOptions, context)
-    let cc_str = match constrainClass case SOME(cc) then dumpConstrainClass(cc, context)
+    let elem_str = dumpElementSpec(elementSpec, defaultDumpOptions, context, functionBuffer)
+    let cc_str = match constrainClass case SOME(cc) then dumpConstrainClass(cc, context, functionBuffer)
     '<%elem_str%><%cc_str%>'
 end dumpElementArg;
 
@@ -561,7 +560,8 @@ template dumpModification(Absyn.Modification mod, Context context)
 match mod
   case CLASSMOD(__) then
     let arg_str = if elementArgLst then
-      '(<%(elementArgLst |> earg => dumpElementArg(earg, context) ;separator=", ")%>)'
+      let &functionBuffer = buffer ""
+      '(<%(elementArgLst |> earg => dumpElementArg(earg, context, functionBuffer) ;separator=", ")%>)'
     let eq_str = dumpEqMod(eqMod, context)
     '<%arg_str%><%eq_str%>'
 end dumpModification;
@@ -570,13 +570,13 @@ template dumpEqMod(Absyn.EqMod eqmod, Context context)
 ::= match eqmod case EQMOD(__) then ' = <%dumpExp(exp, context)%>'
 end dumpEqMod;
 
-template dumpElementSpec(ElementSpec specification, DumpOptions options, Context context)
+template dumpElementSpec(ElementSpec specification, DumpOptions options, Context context, Text &functionBuffer)
 ::=
 match specification
-  case CLASSDEF(__) then dumpClassElement(class_, options, context)
+  case CLASSDEF(__) then dumpClassElement(class_, options, context, functionBuffer)
   case EXTENDS(__) then
     let bc_str = dumpPathRust(path)
-    let args_str = (elementArg |> earg => dumpElementArg(earg, context) ;separator=", ")
+    let args_str = (elementArg |> earg => dumpElementArg(earg, context, functionBuffer) ;separator=", ")
     let mod_str = if args_str then '(<%args_str%>)'
     let ann_str = dumpAnnotationOptSpace(annotationOpt, context)
     'extends <%bc_str%><%mod_str%><%ann_str%>'
@@ -587,7 +587,7 @@ match specification
                       (components |> comp =>
                         let comp_str = dumpComponentItem(comp, makeFunctionReturnContext("",ty_str))
                           'let <%comp_str%>'
-                      ;separator="\n")
+                      ;separator="\n";empty)
                     else ''
     let comps_str_no_local = if elementSpecIsOUTPUT_OR_BIDIR(specification) then
                       (components |> comp =>
@@ -597,7 +597,7 @@ match specification
                               case STRUCT_CONTEXT(__) then ","
                               else ";"
                             %>'
-                      ;separator="\n")
+                      ;separator="\n";empty)
                     else ''
    let rStr = match context
      case FUNCTION(__) then
@@ -643,12 +643,12 @@ match var
   else AbsynDumpTpl.errorMsg("AbsynToRust.dumpVariability: Only const and var are supported")
 end dumpVariability;
 
-template dumpConstrainClass(Absyn.ConstrainClass cc, Context context)
+template dumpConstrainClass(Absyn.ConstrainClass cc, Context context, Text &functionBuffer)
 ::=
 match cc
   case CONSTRAINCLASS(elementSpec = Absyn.EXTENDS(path = p, elementArg = el)) then
     let path_str = dumpPathRust(p)
-    let el_str = if el then '(<%(el |> e => dumpElementArg(e, context) ;separator=", ")%>)'
+    let el_str = if el then '(<%(el |> e => dumpElementArg(e, context, functionBuffer) ;separator=", ")%>)'
     let cmt_str = dumpCommentOpt(comment, context)
     ' constrainedby <%path_str%><%el_str%><%cmt_str%>'
 end dumpConstrainClass;
@@ -1017,7 +1017,7 @@ match exp
     if tuple_str then '(<%tuple_str%>)'
     else '()'
   case END(__) then '/* END */'
-  case CODE(__) then 'CodeNode::<%dumpCodeNode(code, context)%>'
+  case CODE(__) then '@todo: CodeNode'
   case AS(__) then
     let exp_str = dumpExp(exp, context)
     '<%id%>: <%exp_str%>'
@@ -1164,7 +1164,8 @@ template dumpElseIfExp(list<tuple<Absyn.Exp, Absyn.Exp>> else_if, Context contex
     '} else if (<%cond_str%>) { <%branch_str%> }' ; separator=""
 end dumpElseIfExp;
 
-template dumpCodeNode(Absyn.CodeNode code, Context context)
+/*
+template dumpCodeNode(Absyn.CodeNode code, Context context, Text &functionBuffer)
 ::=
 match code
   case C_TYPENAME(__) then dumpPathRust(path)
@@ -1175,10 +1176,11 @@ match code
     AbsynDumpTpl.errorMsg("AbsynToRust.dumpCodeNode: C_CONSTRAINTSECTION not supported")
   case C_ALGORITHMSECTION(__) then
     AbsynDumpTpl.errorMsg("AbsynToRust.dumpCodeNode: C_ALGORITHMSECTION not supported")
-  case C_ELEMENT(__) then dumpElement(element, Dump.defaultDumpOptions, context)
+  case C_ELEMENT(__) then dumpElement(element, Dump.defaultDumpOptions, context, functionBuffer)
   case C_EXPRESSION(__) then dumpExp(exp, context)
   case C_MODIFICATION(__) then dumpModification(modification, context)
 end dumpCodeNode;
+*/
 
 template dumpMatchExp(Absyn.Exp match_exp, Context context)
 ::=
@@ -1231,8 +1233,9 @@ end dumpMatchContents;
 
 template dumpMatchLocals(list<ElementItem> locals)
 ::= if locals then
+  let &functionBuffer = buffer ""
   <<
-    <%(locals |> decl => dumpElementItem(decl, defaultDumpOptions, functionContext) ;separator="\n")%>
+    <%(locals |> decl => dumpElementItem(decl, defaultDumpOptions, functionContext, functionBuffer) ;separator="\n")%>
   >>
 end dumpMatchLocals;
 
@@ -1360,8 +1363,8 @@ end dumpForIteratorName;
 
 template dumpOutputsRust(list<ElementItem> elements)
 ::=
-  let outputStr = (listReverse(elements) |> e => dumpTypeSpecOpt(AbsynUtil.getTypeSpecFromElementItemOpt(e), functionContext) ;separator=", ")
-  '<%outputStr%>'
+  listReverse(elements) |> e =>
+    dumpTypeSpecOpt(AbsynUtil.getTypeSpecFromElementItemOpt(e), functionContext) ; separator=", "
 end dumpOutputsRust;
 
 annotation(__OpenModelica_Interface="backend");

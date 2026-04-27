@@ -990,6 +990,12 @@ package Tpl
     input String inErrMsg;
   end addTemplateError;
 
+  function writeText
+    input Text inText;
+    input Text inTextToWrite;
+    output Text outText;
+  end writeText;
+
 uniontype Text
   record MEM_TEXT
   end MEM_TEXT;
@@ -1090,6 +1096,7 @@ package MMToRustUtil
     end PACKAGE;
     record UNIONTYPE
       String name;
+      Text functionsBuffer;
     end UNIONTYPE;
     record INPUT_CONTEXT
       String ty_str;

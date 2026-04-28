@@ -18,6 +18,7 @@
 
 use std::rc::Rc;
 use anyhow::Result;
+use anyhow::bail;
 
 // ============================================================================
 // SourceInfo - Location information for elements and classes
@@ -613,7 +614,11 @@ pub enum List<T> {
 }
 use List::{Cons, Nil};
 
-pub struct ListIterator<'a, T> {
+pub fn cons<T>(head: T, tail: List<T>) -> List<T> {
+    Cons{head: head, tail: Rc::new(tail)}
+}
+
+pub struct ListIterator<'a, T: Clone> {
     curr: &'a List<T>,
 }
 
@@ -643,97 +648,112 @@ impl<'a, T: Clone> Iterator for ListIterator<'a, T> {
     }
 }
 
-pub fn cons<T>(head: T, tail: List<T>) -> List<T> {
-    Cons{head: head, tail: Rc::new(tail)}
-}
-
-/// Returns true if the list is empty. O(1).
-pub fn list_empty<A: Clone>(lst: &List<A>) -> bool {
-    match lst {
-        Nil() => true,
-        _ => false
+impl<T: Clone> List<T> {
+    /// Appends lst2 to lst1. O(length(lst1)), O(1) if either list is empty.
+    pub fn append(self: &List<T>, lst2: &List<T>) -> List<T> {
+        if self.is_empty() {
+            return lst2.clone();
+        }
+        if lst2.is_empty() {
+            return self.clone();
+        }
+        let mut result = lst2.clone();
+        for item in &self.reverse() {
+            result = cons(item, result);
+        }
+        result
+    }
+    /// Returns the length of a list. O(n).
+    pub fn len(&self) -> i32 {
+        self.into_iter().count() as i32
+    }
+    /// Reverses the elements in a list. O(n).
+    pub fn reverse(self: &List<T>) -> List<T> {
+        let mut result: List<T> = Nil();
+        for e in self {
+            result = cons(e, result);
+        }
+        result
+    }
+    /// Gets the element at the given 1-based index. O(index).
+    pub fn get(self: &List<T>, index: i32) -> Result<T> {
+        self.into_iter().nth((index - 1) as usize)
+            .ok_or_else(|| anyhow::anyhow!("Index {} out of bounds for list of length {}", index, self.len()))
+    }
+    pub fn prepend_reverse(self: List<T>, prefix: &List<T>) -> List<T> {
+        let mut result = self;
+        for item in prefix {
+            result = cons(item, result);
+        }
+        result
+    }
+    /// Deletes the element at the given 1-based index. O(index).
+    pub fn delete(self: &List<T>, index: i32) -> Result<List<T>> {
+        if index < 1 {
+            bail!("Index must be positive, got {}", index);
+        }
+        if index == 1 {
+            return self.rest().cloned();
+        }
+        let mut result = Nil();
+        let mut iter: &List<T> = self;
+        let mut cur_index = index;
+        loop {
+            cur_index -= 1;
+            let (head,tail) = match iter {
+                Nil() => bail!("Index {} out of bounds for list", index),
+                Cons{head, tail} => (head, tail)
+            };
+            iter = tail;
+            if cur_index == 1 {
+                return Ok(iter.clone().prepend_reverse(&result));
+            }
+            result = cons(head.clone(), result);
+        }
     }
 }
 
-/// Appends lst2 to lst1. O(length(lst1)), O(1) if either list is empty.
-pub fn list_append<A: Clone>(lst1: &List<A>, lst2: &List<A>) -> List<A> {
-    if list_empty(lst1) {
-        return lst2.clone();
+impl<T> List<T> {
+    pub fn cons(self: List<T>, item: T) -> List<T> {
+        Cons{head: item, tail: Rc::new(self)}
     }
-    if list_empty(&lst2) {
-        return lst1.clone();
+    /// Gets the first element. O(1).
+    /// Fails if the list is empty.
+    pub fn head(self: &List<T>) -> Result<&T> {
+        match self {
+            Nil() => bail!("Cannot get rest of empty list"),
+            Cons{head, ..} => Ok(head),
+        }
     }
-    let mut result = lst2.clone();
-    for item in &list_reverse(lst1) {
-        result = cons(item, result);
+    /// Returns all elements except the first. O(1).
+    /// Fails if the list is empty.
+    pub fn rest(self: &List<T>) -> Result<&List<T>> {
+        match self {
+            Nil() => bail!("Cannot get rest of empty list"),
+            Cons{tail, ..} => Ok(tail),
+        }
     }
-    result
+    /// Returns true if the list is empty. O(1).
+    pub fn is_empty(self: &List<T>) -> bool {
+        match self {
+            Nil() => true,
+            _ => false
+        }
+    }
 }
 
-/// Reverses the elements in a list. O(n).
-pub fn list_reverse<A: Clone>(lst: &List<A>) -> List<A> {
-    let mut result: List<A> = Nil();
-    for e in lst {
-        result = cons(e, result);
+impl<T: PartialEq + Clone> List<T> {
+    /// Checks if an element is a member of the list. O(n).
+    /// Uses PartialEq for comparison.
+    pub fn contains(self: &List<T>, element: &T) -> bool {
+        for item in self {
+            if element.eq(&item) { return true; }
+        }
+        return false;
     }
-    result
-}
-
-/// Returns the length of a list. O(n).
-pub fn list_length<A: Clone>(lst: &List<A>) -> i32 {
-    lst.into_iter().count() as i32
-}
-
-/// Checks if an element is a member of the list. O(n).
-/// Uses PartialEq for comparison.
-pub fn list_member<A: PartialEq + Clone>(element: &A, lst: &List<A>) -> bool {
-    for item in lst {
-        if element.eq(&item) { return true; }
-    }
-    return false;
 }
 
 /*
-/// Gets the element at the given 1-based index. O(index).
-pub fn list_get<A: Clone>(lst: &List<A>, index: i32) -> Result<A> {
-    let idx = (index - 1) as usize; // 1-based to 0-based
-    lst.get(idx)
-        .cloned()
-        .ok_or_else(|| anyhow::anyhow!("Index {} out of bounds for list of length {}", index, lst.len()))
-}
-
-/// Returns all elements except the first. O(1).
-pub fn list_rest<A: Clone>(lst: &List<A>) -> List<A> {
-    if lst.is_empty() {
-        return im::Vector::new();
-    }
-    let mut result: List<A> = im::Vector::new();
-    let iter = lst.iter();
-    for item in iter.skip(1) {
-        result.push_back(item.clone());
-    }
-    result
-}
-
-/// Returns the first element of the list. O(1).
-/// Fails if the list is empty.
-pub fn list_head<A: Clone>(lst: &List<A>) -> Result<A> {
-    lst.front()
-        .cloned()
-        .ok_or_else(|| anyhow::anyhow!("Cannot get head of empty list"))
-}
-
-/// Deletes the element at the given 1-based index. O(index).
-pub fn list_delete<A: Clone>(in_lst: &List<A>, index: i32) -> List<A> {
-    let idx = (index - 1) as usize; // 1-based to 0-based
-    let mut result: List<A> = im::Vector::new();
-    for (i, item) in in_lst.iter().enumerate() {
-        if i != idx {
-            result.push_back(item.clone());
-        }
-    }
-    result
-}
 
 // ============================================================================
 // Array functions
@@ -2043,15 +2063,15 @@ fn test_list_reverse1() -> () {
     let a = Rc::new(1);
     let lst1 = Cons{head: Rc::clone(&a), tail: Rc::new(Cons{head: Rc::clone(&a), tail: Rc::new(Nil())})};
     assert_eq!(3, Rc::strong_count(&a));
-    let lst2 = list_reverse(&lst1);
+    let lst2 = lst1.reverse();
     assert_eq!(5, Rc::strong_count(&a));
-    let _lst3 = list_reverse(&lst2);
+    let _lst3 = lst2.reverse();
     assert_eq!(7, Rc::strong_count(&a));
 }
 
 #[test]
 fn test_list_reverse2() -> () {
     let lst1 = Cons{head: 1, tail: Rc::new(Cons{head: 1, tail: Rc::new(Nil())})};
-    let lst2 = list_reverse(&lst1);
-    let _lst3 = list_reverse(&lst2);
+    let lst2 = lst1.reverse();
+    let _lst3 = lst2.reverse();
 }

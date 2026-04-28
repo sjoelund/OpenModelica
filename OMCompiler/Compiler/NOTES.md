@@ -21,6 +21,11 @@ as expected. And then rewrite this later.
 * There are Julia bindings for Rust. I wonder if it could be optionally
   loaded (in case people do not have Julia).
 
+# Exceptions
+
+Use anyhow to return a Result (basically Some/None) for all functions?
+Or use stack unwinding (slow exceptions) for a first release?
+
 # Function calling
 
 Rust does not have default arguments (for functions; it does for structs)

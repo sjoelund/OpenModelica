@@ -613,38 +613,33 @@ pub fn string_char_list_string(strs: &List<String>) -> String {
 // List functions
 // ============================================================================
 
-struct ListIterator<T> {
+pub struct ListIterator<T> {
     curr: Rc<List<T>>,
 }
 
-impl<T> IntoIterator for Rc<List<T>> {
-    type Item = ListIterator<T>;
-    type IntoIter: Iterator<Item = Self::Item>;
+impl<T: Clone> IntoIterator for List<T> {
+    type Item = T;
+    type IntoIter = ListIterator<T>;
 
     // Required method
-    fn into_iter(&self) -> Self::IntoIter {
-        ListIterator { curr: self.clone() }
+    fn into_iter(self) -> Self::IntoIter {
+        ListIterator { curr: Rc::new(self) }
     }
 }
 
-impl<T> Iterator for ListIterator<T> {
+impl<T: Clone> Iterator for ListIterator<T> {
     // We can refer to this type using Self::Item
     type Item = T;
 
-    // Here, we define the sequence using `.curr` and `.next`.
-    // The return type is `Option<T>`:
-    //     * When the `Iterator` is finished, `None` is returned.
-    //     * Otherwise, the next value is wrapped in `Some` and returned.
-    // We use Self::Item in the return type, so we can change
-    // the type without having to update the function signatures.
     fn next(&mut self) -> Option<Self::Item> {
-        match self {
-            Nil() => None,
+        let res;
+        (res,self.curr) = match *self.curr {
+            Nil() => (None, self.curr.clone()),
             Cons{ref head, ref tail} => {
-                self.curr = (*tail).clone();
-                Some(head.clone())
+                (Some((*head).clone()), tail.clone())
             }
-        }
+        };
+        res
     }
 }
 
@@ -665,18 +660,15 @@ pub fn list_append<A: Clone>(lst1: &List<A>, lst2: &List<A>) -> List<A> {
 }
 */
 
+pub fn cons<T>(head: T, tail: List<T>) -> List<T> {
+    Cons{head: head, tail: Rc::new(tail)}
+}
+
 /// Reverses the elements in a list. O(n).
-pub fn listReverse<A: Clone>(in_lst: Rc<List<A>>) -> Rc<List<A>> {
-    let mut result: Rc<List<A>> = Rc::new(Nil());
-    let mut l = in_lst;
-    loop {
-        match *l {
-            Nil() => break,
-            Cons{ref head, ref tail} => {
-                result = Rc::new(Cons{head: head.clone(), tail: result});
-                l = Rc::clone(tail);
-            }
-        }
+pub fn listReverse<A: Clone>(in_lst: List<A>) -> List<A> {
+    let mut result: List<A> = Nil();
+    for e in in_lst.into_iter() {
+        result = cons(e, result);
     }
     result
 }
@@ -2057,7 +2049,7 @@ mod tests {
 #[test]
 fn test_list_reverse1() -> () {
     let a = Rc::new(1);
-    let lst1 = Rc::new(Cons{head: Rc::clone(&a), tail: Rc::new(Cons{head: Rc::clone(&a), tail: Rc::new(Nil())})});
+    let lst1 = Cons{head: Rc::clone(&a), tail: Rc::new(Cons{head: Rc::clone(&a), tail: Rc::new(Nil())})};
     assert_eq!(3, Rc::strong_count(&a));
     let lst2 = listReverse(lst1);
     assert_eq!(3, Rc::strong_count(&a));
@@ -2067,7 +2059,7 @@ fn test_list_reverse1() -> () {
 
 #[test]
 fn test_list_reverse2() -> () {
-    let lst1 = Rc::new(Cons{head: 1, tail: Rc::new(Cons{head: 1, tail: Rc::new(Nil())})});
+    let lst1 = Cons{head: 1, tail: Rc::new(Cons{head: 1, tail: Rc::new(Nil())})};
     let lst2 = listReverse(lst1);
     let _lst3 = listReverse(lst2.clone());
 }

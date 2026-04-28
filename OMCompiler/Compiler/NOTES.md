@@ -11,6 +11,16 @@ Then the old frontend should be able to be removed...
 You cannot pattern-match lists straight off. Might need to implement List as CONS/EMPTY to make the compiler work
 as expected. And then rewrite this later.
 
+* Write Parser first, then AbsynToRust.rs?
+
+* Add a new option for LoadCompilerSources to mark Old Frontend packages.
+  Then make sure we _can_ compile an OMC version without it. And perhaps
+  test that to see what breaks other than MetaModelica. Perhaps port those
+  to NF?
+
+* There are Julia bindings for Rust. I wonder if it could be optionally
+  loaded (in case people do not have Julia).
+
 # Function calling
 
 Rust does not have default arguments (for functions; it does for structs)

@@ -19,13 +19,6 @@
 use std::rc::Rc;
 use anyhow::Result;
 
-#[derive(Debug, Clone)]
-pub enum List<T> {
-    Cons{head: T, tail: Rc<List<T>>},
-    Nil(),
-}
-use List::{Cons, Nil};
-
 // ============================================================================
 // SourceInfo - Location information for elements and classes
 // ============================================================================
@@ -613,79 +606,94 @@ pub fn string_char_list_string(strs: &List<String>) -> String {
 // List functions
 // ============================================================================
 
-pub struct ListIterator<T> {
-    curr: Rc<List<T>>,
+#[derive(Debug, Clone)]
+pub enum List<T> {
+    Cons{head: T, tail: Rc<List<T>>},
+    Nil(),
+}
+use List::{Cons, Nil};
+
+pub struct ListIterator<'a, T> {
+    curr: &'a List<T>,
 }
 
-impl<T: Clone> IntoIterator for List<T> {
+impl<'a, T: Clone> IntoIterator for &'a List<T> {
     type Item = T;
-    type IntoIter = ListIterator<T>;
+    type IntoIter = ListIterator<'a, T>;
 
     // Required method
     fn into_iter(self) -> Self::IntoIter {
-        ListIterator { curr: Rc::new(self) }
+        ListIterator { curr: self }
     }
 }
 
-impl<T: Clone> Iterator for ListIterator<T> {
+impl<'a, T: Clone> Iterator for ListIterator<'a, T> {
     // We can refer to this type using Self::Item
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
         let res;
         (res,self.curr) = match *self.curr {
-            Nil() => (None, self.curr.clone()),
+            Nil() => (None, self.curr),
             Cons{ref head, ref tail} => {
-                (Some((*head).clone()), tail.clone())
+                (Some((*head).clone()), &**tail)
             }
         };
         res
     }
 }
 
-/// Appends lst2 to lst1. O(length(lst1)), O(1) if either list is empty.
-/*
-pub fn list_append<A: Clone>(lst1: &List<A>, lst2: &List<A>) -> List<A> {
-    if lst1.is_empty() {
-        return lst2.clone();
-    }
-    if lst2.is_empty() {
-        return lst1.clone();
-    }
-    let mut result = lst1.clone();
-    for item in lst2.iter().cloned() {
-        result.push_back(item);
-    }
-    result
-}
-*/
-
 pub fn cons<T>(head: T, tail: List<T>) -> List<T> {
     Cons{head: head, tail: Rc::new(tail)}
 }
 
+/// Returns true if the list is empty. O(1).
+pub fn list_empty<A: Clone>(lst: &List<A>) -> bool {
+    match lst {
+        Nil() => true,
+        _ => false
+    }
+}
+
+/// Appends lst2 to lst1. O(length(lst1)), O(1) if either list is empty.
+pub fn list_append<A: Clone>(lst1: &List<A>, lst2: &List<A>) -> List<A> {
+    if list_empty(lst1) {
+        return lst2.clone();
+    }
+    if list_empty(&lst2) {
+        return lst1.clone();
+    }
+    let mut result = lst2.clone();
+    for item in &list_reverse(lst1) {
+        result = cons(item, result);
+    }
+    result
+}
+
 /// Reverses the elements in a list. O(n).
-pub fn listReverse<A: Clone>(in_lst: List<A>) -> List<A> {
+pub fn list_reverse<A: Clone>(lst: &List<A>) -> List<A> {
     let mut result: List<A> = Nil();
-    for e in in_lst.into_iter() {
+    for e in lst {
         result = cons(e, result);
     }
     result
 }
 
-/*
-
-/// Returns the length of a list. O(n) for im::Vector.
+/// Returns the length of a list. O(n).
 pub fn list_length<A: Clone>(lst: &List<A>) -> i32 {
-    lst.len() as i32
+    lst.into_iter().count() as i32
 }
 
 /// Checks if an element is a member of the list. O(n).
 /// Uses PartialEq for comparison.
 pub fn list_member<A: PartialEq + Clone>(element: &A, lst: &List<A>) -> bool {
-    lst.contains(element)
+    for item in lst {
+        if element.eq(&item) { return true; }
+    }
+    return false;
 }
 
+/*
 /// Gets the element at the given 1-based index. O(index).
 pub fn list_get<A: Clone>(lst: &List<A>, index: i32) -> Result<A> {
     let idx = (index - 1) as usize; // 1-based to 0-based
@@ -723,22 +731,6 @@ pub fn list_delete<A: Clone>(in_lst: &List<A>, index: i32) -> List<A> {
         if i != idx {
             result.push_back(item.clone());
         }
-    }
-    result
-}
-
-/// Returns true if the list is empty. O(1).
-pub fn list_empty<A: Clone>(lst: &List<A>) -> bool {
-    lst.is_empty()
-}
-
-/// Prepends an element to a list. O(1).
-#[deprecated = "Use `im::vector![element].extend(lst.iter().cloned())` or the `::` operator pattern. Refactor to remove this wrapper."]
-pub fn cons<A: Clone>(element: A, in_lst: &List<A>) -> List<A> {
-    let mut result: List<A> = im::Vector::new();
-    result.push_back(element);
-    for item in in_lst.iter().cloned() {
-        result.push_back(item);
     }
     result
 }
@@ -2051,15 +2043,15 @@ fn test_list_reverse1() -> () {
     let a = Rc::new(1);
     let lst1 = Cons{head: Rc::clone(&a), tail: Rc::new(Cons{head: Rc::clone(&a), tail: Rc::new(Nil())})};
     assert_eq!(3, Rc::strong_count(&a));
-    let lst2 = listReverse(lst1);
-    assert_eq!(3, Rc::strong_count(&a));
-    let _lst3 = listReverse(lst2.clone());
+    let lst2 = list_reverse(&lst1);
     assert_eq!(5, Rc::strong_count(&a));
+    let _lst3 = list_reverse(&lst2);
+    assert_eq!(7, Rc::strong_count(&a));
 }
 
 #[test]
 fn test_list_reverse2() -> () {
     let lst1 = Cons{head: 1, tail: Rc::new(Cons{head: 1, tail: Rc::new(Nil())})};
-    let lst2 = listReverse(lst1);
-    let _lst3 = listReverse(lst2.clone());
+    let lst2 = list_reverse(&lst1);
+    let _lst3 = list_reverse(&lst2);
 }

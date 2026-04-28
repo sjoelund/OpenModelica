@@ -1,3 +1,4 @@
+#![allow(non_snake_case, dead_code, unused_macros)]
 //! Translation of FrontEnd/MetaModelicaBuiltin.mo
 //!
 //! Built-in MetaModelica declarations translated to Rust.
@@ -15,14 +16,9 @@
 //! Note: MetaModelica uses 1-based indexing; Rust uses 0-based.
 //! Functions that take indices expect 1-based indexing to match MetaModelica semantics.
 
-#![allow(dead_code)]
-
+use std::rc::Rc;
 use anyhow::Result;
 use anyhow::bail;
-
-
-// Persistent list type (mapped to im::Vector since im 15.x has no List)
-pub type List<T> = im::Vector<T>;
 
 // ============================================================================
 // SourceInfo - Location information for elements and classes
@@ -64,28 +60,24 @@ pub enum OptionValue<A> {
 // ============================================================================
 
 /// Logically combine two Booleans with 'and' operator.
-#[deprecated = "Use Rust built-in `&&` operator directly. Refactor to remove this wrapper."]
 #[inline(always)]
 pub fn bool_and(b1: bool, b2: bool) -> bool {
     b1 && b2
 }
 
 /// Logically combine two Booleans with 'or' operator.
-#[deprecated = "Use Rust built-in `||` operator directly. Refactor to remove this wrapper."]
 #[inline(always)]
 pub fn bool_or(b1: bool, b2: bool) -> bool {
     b1 || b2
 }
 
 /// Logically invert Boolean value using 'not' operator.
-#[deprecated = "Use Rust built-in `!` operator directly. Refactor to remove this wrapper."]
 #[inline(always)]
 pub fn bool_not(b: bool) -> bool {
     !b
 }
 
 /// Compares two Booleans for equality.
-#[deprecated = "Use Rust built-in `==` operator directly. Refactor to remove this wrapper."]
 #[inline(always)]
 pub fn bool_eq(b1: bool, b2: bool) -> bool {
     b1 == b2
@@ -101,21 +93,18 @@ pub fn bool_string(b: bool) -> String {
 // ============================================================================
 
 /// Adds two Integer values.
-#[deprecated = "Use Rust built-in `+` operator directly. Refactor to remove this wrapper."]
 #[inline(always)]
 pub fn int_add(i1: i32, i2: i32) -> i32 {
     i1 + i2
 }
 
 /// Subtracts two Integer values.
-#[deprecated = "Use Rust built-in `-` operator directly. Refactor to remove this wrapper."]
 #[inline(always)]
 pub fn int_sub(i1: i32, i2: i32) -> i32 {
     i1 - i2
 }
 
 /// Multiplies two Integer values.
-#[deprecated = "Use Rust built-in `*` operator directly. Refactor to remove this wrapper."]
 #[inline(always)]
 pub fn int_mul(i1: i32, i2: i32) -> i32 {
     i1 * i2
@@ -149,7 +138,6 @@ pub fn int_abs(i: i32) -> i32 {
 }
 
 /// Returns negative value of Integer i.
-#[deprecated = "Use Rust built-in negation `-i` directly. Refactor to remove this wrapper."]
 #[inline(always)]
 pub fn int_neg(i: i32) -> i32 {
     -i
@@ -160,42 +148,36 @@ pub fn int_neg(i: i32) -> i32 {
 // ============================================================================
 
 /// Returns whether Integer i1 is smaller than Integer i2.
-#[deprecated = "Use Rust built-in `<` operator directly. Refactor to remove this wrapper."]
 #[inline(always)]
 pub fn int_lt(i1: i32, i2: i32) -> bool {
     i1 < i2
 }
 
 /// Returns whether Integer i1 is smaller than or equal to Integer i2.
-#[deprecated = "Use Rust built-in `<=` operator directly. Refactor to remove this wrapper."]
 #[inline(always)]
 pub fn int_le(i1: i32, i2: i32) -> bool {
     i1 <= i2
 }
 
 /// Returns whether Integer i1 is equal to Integer i2.
-#[deprecated = "Use Rust built-in `==` operator directly. Refactor to remove this wrapper."]
 #[inline(always)]
 pub fn int_eq(i1: i32, i2: i32) -> bool {
     i1 == i2
 }
 
 /// Returns whether Integer i1 is not equal to Integer i2.
-#[deprecated = "Use Rust built-in `!=` operator directly. Refactor to remove this wrapper."]
 #[inline(always)]
 pub fn int_ne(i1: i32, i2: i32) -> bool {
     i1 != i2
 }
 
 /// Returns whether Integer i1 is greater than or equal to Integer i2.
-#[deprecated = "Use Rust built-in `>=` operator directly. Refactor to remove this wrapper."]
 #[inline(always)]
 pub fn int_ge(i1: i32, i2: i32) -> bool {
     i1 >= i2
 }
 
 /// Returns whether Integer i1 is greater than Integer i2.
-#[deprecated = "Use Rust built-in `>` operator directly. Refactor to remove this wrapper."]
 #[inline(always)]
 pub fn int_gt(i1: i32, i2: i32) -> bool {
     i1 > i2
@@ -206,42 +188,36 @@ pub fn int_gt(i1: i32, i2: i32) -> bool {
 // ============================================================================
 
 /// Returns bitwise inverted Integer number of i (~i in C).
-#[deprecated = "Use Rust built-in `!i` operator directly. Refactor to remove this wrapper."]
 #[inline(always)]
 pub fn int_bit_not(i: i32) -> i32 {
     !i
 }
 
 /// Returns bitwise 'and' of Integers i1 and i2 (i1 & i2 in C).
-#[deprecated = "Use Rust built-in `i1 & i2` operator directly. Refactor to remove this wrapper."]
 #[inline(always)]
 pub fn int_bit_and(i1: i32, i2: i32) -> i32 {
     i1 & i2
 }
 
 /// Returns bitwise 'or' of Integers i1 and i2 (i1 | i2 in C).
-#[deprecated = "Use Rust built-in `i1 | i2` operator directly. Refactor to remove this wrapper."]
 #[inline(always)]
 pub fn int_bit_or(i1: i32, i2: i32) -> i32 {
     i1 | i2
 }
 
 /// Returns bitwise 'xor' of Integers i1 and i2 (i1 ^ i2 in C).
-#[deprecated = "Use Rust built-in `i1 ^ i2` operator directly. Refactor to remove this wrapper."]
 #[inline(always)]
 pub fn int_bit_xor(i1: i32, i2: i32) -> i32 {
     i1 ^ i2
 }
 
 /// Returns bitwise left shift of Integer i by s bits (i << s in C).
-#[deprecated = "Use Rust built-in `i << s` operator directly. Refactor to remove this wrapper."]
 #[inline(always)]
 pub fn int_bit_l_shift(i: i32, s: i32) -> i32 {
     i << s
 }
 
 /// Returns bitwise right shift of Integer i by s bits (i >> s in C).
-#[deprecated = "Use Rust built-in `i >> s` operator directly. Refactor to remove this wrapper."]
 #[inline(always)]
 pub fn int_bit_r_shift(i: i32, s: i32) -> i32 {
     i >> s
@@ -252,7 +228,6 @@ pub fn int_bit_r_shift(i: i32, s: i32) -> i32 {
 // ============================================================================
 
 /// Converts Integer to Real.
-#[deprecated = "Use Rust built-in `as f64` cast directly. Refactor to remove this wrapper."]
 #[inline(always)]
 pub fn int_real(i: i32) -> f64 {
     i as f64
@@ -268,28 +243,24 @@ pub fn int_string(i: i32) -> String {
 // ============================================================================
 
 /// Adds two Real values.
-#[deprecated = "Use Rust built-in `+` operator directly. Refactor to remove this wrapper."]
 #[inline(always)]
 pub fn real_add(r1: f64, r2: f64) -> f64 {
     r1 + r2
 }
 
 /// Subtracts two Real values.
-#[deprecated = "Use Rust built-in `-` operator directly. Refactor to remove this wrapper."]
 #[inline(always)]
 pub fn real_sub(r1: f64, r2: f64) -> f64 {
     r1 - r2
 }
 
 /// Multiplies two Real values.
-#[deprecated = "Use Rust built-in `*` operator directly. Refactor to remove this wrapper."]
 #[inline(always)]
 pub fn real_mul(r1: f64, r2: f64) -> f64 {
     r1 * r2
 }
 
 /// Divides two Real values.
-#[deprecated = "Use Rust built-in `/` operator directly. Refactor to remove this wrapper."]
 #[inline(always)]
 pub fn real_div(r1: f64, r2: f64) -> f64 {
     r1 / r2
@@ -306,21 +277,18 @@ pub fn real_pow(r1: f64, r2: f64) -> f64 {
 }
 
 /// Returns the bigger one of two Real values.
-#[deprecated = "Use Rust built-in `.max()` method directly. Refactor to remove this wrapper."]
 #[inline(always)]
 pub fn real_max(r1: f64, r2: f64) -> f64 {
     r1.max(r2)
 }
 
 /// Returns the smaller one of two Real values.
-#[deprecated = "Use Rust built-in `.min()` method directly. Refactor to remove this wrapper."]
 #[inline(always)]
 pub fn real_min(r1: f64, r2: f64) -> f64 {
     r1.min(r2)
 }
 
 /// Returns the absolute value of Real x.
-#[deprecated = "Use Rust built-in `.abs()` method directly. Refactor to remove this wrapper."]
 #[inline(always)]
 pub fn real_abs(x: f64) -> f64 {
     x.abs()
@@ -332,7 +300,6 @@ pub fn real_almost_eq(a: f64, b: f64, abs_tol: f64) -> bool {
 }
 
 /// Returns negative value of Real x.
-#[deprecated = "Use Rust built-in `-x` directly. Refactor to remove this wrapper."]
 #[inline(always)]
 pub fn real_neg(x: f64) -> f64 {
     -x
@@ -343,42 +310,36 @@ pub fn real_neg(x: f64) -> f64 {
 // ============================================================================
 
 /// Returns whether Real x1 is smaller than Real x2.
-#[deprecated = "Use Rust built-in `<` operator directly. Refactor to remove this wrapper."]
 #[inline(always)]
 pub fn real_lt(x1: f64, x2: f64) -> bool {
     x1 < x2
 }
 
 /// Returns whether Real x1 is smaller than or equal to Real x2.
-#[deprecated = "Use Rust built-in `<=` operator directly. Refactor to remove this wrapper."]
 #[inline(always)]
 pub fn real_le(x1: f64, x2: f64) -> bool {
     x1 <= x2
 }
 
 /// Returns whether Real x1 is equal to Real x2.
-#[deprecated = "Use Rust built-in `==` operator directly. Refactor to remove this wrapper."]
 #[inline(always)]
 pub fn real_eq(x1: f64, x2: f64) -> bool {
     x1 == x2
 }
 
 /// Returns whether Real x1 is not equal to Real x2.
-#[deprecated = "Use Rust built-in `!=` operator directly. Refactor to remove this wrapper."]
 #[inline(always)]
 pub fn real_ne(x1: f64, x2: f64) -> bool {
     x1 != x2
 }
 
 /// Returns whether Real x1 is greater than or equal to Real x2.
-#[deprecated = "Use Rust built-in `>=` operator directly. Refactor to remove this wrapper."]
 #[inline(always)]
 pub fn real_ge(x1: f64, x2: f64) -> bool {
     x1 >= x2
 }
 
 /// Returns whether Real x1 is greater than Real x2.
-#[deprecated = "Use Rust built-in `>` operator directly. Refactor to remove this wrapper."]
 #[inline(always)]
 pub fn real_gt(x1: f64, x2: f64) -> bool {
     x1 > x2
@@ -434,13 +395,13 @@ pub fn string_list_string_char(str: &str) -> List<String> {
 
 /// Appends a list of strings into a single string.
 pub fn string_append_list(strs: &List<String>) -> String {
-    strs.iter().cloned().collect()
+    strs.into_iter().collect()
 }
 
 /// Takes a list of strings and a delimiter and joins them with the delimiter inserted between elements.
 /// Example: stringDelimitList({"x","y","z"}, ", ") => "x, y, z"
 pub fn string_delimit_list(strs: &List<String>, delimiter: &str) -> String {
-    strs.iter().cloned().collect::<Vec<String>>().join(delimiter)
+    strs.into_iter().collect::<Vec<String>>().join(delimiter)
 }
 
 /// Returns the length of the string (number of bytes).
@@ -486,20 +447,15 @@ pub fn string_update_string_char(str: &str, newch: &str, index: i32) -> Result<S
 }
 
 /// Concatenates two strings (s1 + s2).
-#[deprecated = "Use Rust built-in string concatenation `format!(\"{}{}\", s1, s2)` directly. Refactor to remove this wrapper."]
 pub fn string_append(s1: &str, s2: &str) -> String {
     format!("{}{}", s1, s2)
 }
 
 /// Compares two strings for equality.
-#[deprecated = "Use Rust built-in `==` operator directly. Refactor to remove this wrapper."]
 #[inline(always)]
 pub fn string_eq(s1: &str, s2: &str) -> bool {
     s1 == s2
 }
-
-/// Compares two strings for equality (alias for string_eq).
-#[deprecated = "Use Rust built-in `==` operator directly. Refactor to remove this wrapper."]
 #[inline(always)]
 pub fn string_equal(s1: &str, s2: &str) -> bool {
     s1 == s2
@@ -609,96 +565,190 @@ pub fn string_char_list_string(strs: &List<String>) -> String {
 // List functions
 // ============================================================================
 
-/// Appends lst2 to lst1. O(length(lst1)), O(1) if either list is empty.
-pub fn list_append<A: Clone>(lst1: &List<A>, lst2: &List<A>) -> List<A> {
-    if lst1.is_empty() {
-        return lst2.clone();
+#[derive(Debug, Clone, PartialEq)]
+pub enum List<T> {
+    Cons{head: T, tail: Rc<List<T>>},
+    Nil(),
+}
+use List::{Cons, Nil};
+
+macro_rules! list {
+    () => { $crate::metamodelica::List::Nil() };
+
+    ( $($x:expr),* ) => {{
+        let mut l = $crate::metamodelica::List::Nil();
+        $(
+            l = cons($x, l);
+        )*
+            l
+    }};
+
+    ( $($x:expr ,)* ) => {{
+        let mut l = $crate::metamodelica::List::Nil();
+        $(
+            l = cons($x, l);
+        )*
+            l
+    }};
+}
+
+pub fn cons<T>(head: T, tail: List<T>) -> List<T> {
+    Cons{head: head, tail: Rc::new(tail)}
+}
+
+impl<T> Default for List<T> {
+    fn default() -> List<T> {
+        Nil()
     }
-    if lst2.is_empty() {
-        return lst1.clone();
+}
+pub struct ListIterator<'a, T: Clone> {
+    curr: &'a List<T>,
+}
+
+impl<T: Clone> FromIterator<T> for List<T> {
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> List<T> {
+        let mut buf = Nil();
+        for item in iter {
+            buf = cons(item, buf);
+        }
+        buf.reverse()
     }
-    let mut result = lst1.clone();
-    for item in lst2.iter().cloned() {
-        result.push_back(item);
+}
+
+impl<'a, T: Clone> IntoIterator for &'a List<T> {
+    type Item = T;
+    type IntoIter = ListIterator<'a, T>;
+
+    // Required method
+    fn into_iter(self) -> Self::IntoIter {
+        ListIterator { curr: self }
     }
-    result
 }
 
-/// Reverses the elements in a list. O(n).
-pub fn list_reverse<A: Clone>(in_lst: &List<A>) -> List<A> {
-    let mut result: List<A> = im::Vector::new();
-    for item in in_lst.iter().cloned() {
-        result.push_front(item);
+impl<'a, T: Clone> Iterator for ListIterator<'a, T> {
+    // We can refer to this type using Self::Item
+    type Item = T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let res;
+        (res,self.curr) = match *self.curr {
+            Nil() => (None, self.curr),
+            Cons{ref head, ref tail} => {
+                (Some((*head).clone()), &**tail)
+            }
+        };
+        res
     }
-    result
 }
 
-/// Returns the length of a list. O(n) for im::Vector.
-pub fn list_length<A: Clone>(lst: &List<A>) -> i32 {
-    lst.len() as i32
-}
-
-/// Checks if an element is a member of the list. O(n).
-/// Uses PartialEq for comparison.
-pub fn list_member<A: PartialEq + Clone>(element: &A, lst: &List<A>) -> bool {
-    lst.contains(element)
-}
-
-/// Gets the element at the given 1-based index. O(index).
-pub fn list_get<A: Clone>(lst: &List<A>, index: i32) -> Result<A> {
-    let idx = (index - 1) as usize; // 1-based to 0-based
-    lst.get(idx)
-        .cloned()
-        .ok_or_else(|| anyhow::anyhow!("Index {} out of bounds for list of length {}", index, lst.len()))
-}
-
-/// Returns all elements except the first. O(1).
-pub fn list_rest<A: Clone>(lst: &List<A>) -> List<A> {
-    if lst.is_empty() {
-        return im::Vector::new();
+impl<T: Clone> List<T> {
+    /// Appends lst2 to lst1. O(length(lst1)), O(1) if either list is empty.
+    pub fn append(self: &List<T>, lst2: &List<T>) -> List<T> {
+        if self.is_empty() {
+            return lst2.clone();
+        }
+        if lst2.is_empty() {
+            return self.clone();
+        }
+        let mut result = lst2.clone();
+        for item in &self.reverse() {
+            result = cons(item, result);
+        }
+        result
     }
-    let mut result: List<A> = im::Vector::new();
-    let iter = lst.iter();
-    for item in iter.skip(1) {
-        result.push_back(item.clone());
+    /// Returns the length of a list. O(n).
+    pub fn len(&self) -> i32 {
+        self.into_iter().count() as i32
     }
-    result
-}
-
-/// Returns the first element of the list. O(1).
-/// Fails if the list is empty.
-pub fn list_head<A: Clone>(lst: &List<A>) -> Result<A> {
-    lst.front()
-        .cloned()
-        .ok_or_else(|| anyhow::anyhow!("Cannot get head of empty list"))
-}
-
-/// Deletes the element at the given 1-based index. O(index).
-pub fn list_delete<A: Clone>(in_lst: &List<A>, index: i32) -> List<A> {
-    let idx = (index - 1) as usize; // 1-based to 0-based
-    let mut result: List<A> = im::Vector::new();
-    for (i, item) in in_lst.iter().enumerate() {
-        if i != idx {
-            result.push_back(item.clone());
+    /// Reverses the elements in a list. O(n).
+    pub fn reverse(self: &List<T>) -> List<T> {
+        let mut result: List<T> = Nil();
+        for e in self {
+            result = cons(e, result);
+        }
+        result
+    }
+    /// Gets the element at the given 1-based index. O(index).
+    pub fn get(self: &List<T>, index: i32) -> Result<T> {
+        self.into_iter().nth((index - 1) as usize)
+            .ok_or_else(|| anyhow::anyhow!("Index {} out of bounds for list of length {}", index, self.len()))
+    }
+    pub fn prepend_reverse(self: List<T>, prefix: &List<T>) -> List<T> {
+        let mut result = self;
+        for item in prefix {
+            result = cons(item, result);
+        }
+        result
+    }
+    /// Deletes the element at the given 1-based index. O(index).
+    pub fn delete(self: &List<T>, index: i32) -> Result<List<T>> {
+        if index < 1 {
+            bail!("Index must be positive, got {}", index);
+        }
+        if index == 1 {
+            return self.rest().cloned();
+        }
+        let mut result = Nil();
+        let mut iter: &List<T> = self;
+        let mut cur_index = index;
+        loop {
+            cur_index -= 1;
+            let (head,tail) = match iter {
+                Nil() => bail!("Index {} out of bounds for list", index),
+                Cons{head, tail} => (head, tail)
+            };
+            iter = tail;
+            if cur_index == 1 {
+                return Ok(iter.clone().prepend_reverse(&result));
+            }
+            result = cons(head.clone(), result);
         }
     }
-    result
 }
 
-/// Returns true if the list is empty. O(1).
-pub fn list_empty<A: Clone>(lst: &List<A>) -> bool {
-    lst.is_empty()
-}
-
-/// Prepends an element to a list. O(1).
-#[deprecated = "Use `im::vector![element].extend(lst.iter().cloned())` or the `::` operator pattern. Refactor to remove this wrapper."]
-pub fn cons<A: Clone>(element: A, in_lst: &List<A>) -> List<A> {
-    let mut result: List<A> = im::Vector::new();
-    result.push_back(element);
-    for item in in_lst.iter().cloned() {
-        result.push_back(item);
+impl<T> List<T> {
+    pub fn new(item: T) -> List<T> {
+        Cons{head: item, tail: Rc::new(Nil())}
     }
-    result
+    pub fn cons(self: List<T>, item: T) -> List<T> {
+        Cons{head: item, tail: Rc::new(self)}
+    }
+    /// Gets the first element. O(1).
+    /// Fails if the list is empty.
+    pub fn head(self: &List<T>) -> Result<&T> {
+        match self {
+            Nil() => bail!("Cannot get rest of empty list"),
+            Cons{head, ..} => Ok(head),
+        }
+    }
+    /// Returns all elements except the first. O(1).
+    /// Fails if the list is empty.
+    pub fn rest(self: &List<T>) -> Result<&List<T>> {
+        match self {
+            Nil() => bail!("Cannot get rest of empty list"),
+            Cons{tail, ..} => Ok(tail),
+        }
+    }
+    /// Returns true if the list is empty. O(1).
+    pub fn is_empty(self: &List<T>) -> bool {
+        match self {
+            Nil() => true,
+            _ => false
+        }
+    }
+}
+
+
+
+impl<T: PartialEq + Clone> List<T> {
+    /// Checks if an element is a member of the list. O(n).
+    /// Uses PartialEq for comparison.
+    pub fn contains(self: &List<T>, element: &T) -> bool {
+        for item in self {
+            if element.eq(&item) { return true; }
+        }
+        return false;
+    }
 }
 
 // ============================================================================
@@ -738,7 +788,7 @@ pub fn array_list<A: Clone>(arr: &[A]) -> List<A> {
 
 /// Converts a list to an array. O(n).
 pub fn list_array<A: Clone>(lst: &List<A>) -> Vec<A> {
-    lst.iter().cloned().collect()
+    lst.into_iter().collect()
 }
 
 /// Updates the value at the given 1-based index. O(1).
@@ -847,23 +897,6 @@ pub fn value_constructor<A>() -> i32 {
         hash = hash.wrapping_mul(33).wrapping_add(byte as i32);
     }
     hash
-}
-
-/// Returns the number of slots a value has (approximated by size in bytes).
-pub fn value_slots<A>() -> i32 {
-    std::mem::size_of::<A>() as i32
-}
-
-/// Computes a hash modulo for any Hash value.
-pub fn value_hash_mod<A: std::hash::Hash>(value: &A, mod_val: i32) -> i32 {
-    if mod_val == 0 {
-        return 0;
-    }
-    use std::collections::hash_map::DefaultHasher;
-    use std::hash::Hasher;
-    let mut hasher = DefaultHasher::new();
-    value.hash(&mut hasher);
-    (hasher.finish() % mod_val as u64) as i32
 }
 
 /// Returns the current time in seconds relative to process start.
@@ -1381,18 +1414,18 @@ mod tests {
         #[test]
         fn test_string_list_string_char() {
             let result = string_list_string_char("abc");
-            assert_eq!(result, im::vector!["a".to_string(), "b".to_string(), "c".to_string()]);
+            assert_eq!(result, List::from_iter(["a".to_string(), "b".to_string(), "c".to_string()]));
         }
 
         #[test]
         fn test_string_append_list() {
-            let strs = im::vector!["hello".to_string(), " ".to_string(), "world".to_string()];
+            let strs = list!["hello".to_string(), " ".to_string(), "world".to_string()];
             assert_eq!(string_append_list(&strs), "hello world");
         }
 
         #[test]
         fn test_string_delimit_list() {
-            let strs = im::vector!["x".to_string(), "y".to_string(), "z".to_string()];
+            let strs = list!["x".to_string(), "y".to_string(), "z".to_string()];
             assert_eq!(string_delimit_list(&strs, ", "), "x, y, z");
         }
     }
@@ -1575,13 +1608,13 @@ mod tests {
 
         #[test]
         fn test_list_string_char_string() {
-            let strs = im::vector!["a".to_string(), "b".to_string(), "c".to_string()];
+            let strs = list!["a".to_string(), "b".to_string(), "c".to_string()];
             assert_eq!(list_string_char_string(&strs), "abc");
         }
 
         #[test]
         fn test_string_char_list_string() {
-            let strs = im::vector!["a".to_string(), "b".to_string(), "c".to_string()];
+            let strs = list!["a".to_string(), "b".to_string(), "c".to_string()];
             assert_eq!(string_char_list_string(&strs), "abc");
         }
     }
@@ -1595,100 +1628,118 @@ mod tests {
 
         #[test]
         fn test_list_append() {
-            let a = im::vector![1, 2, 3];
-            let b = im::vector![4, 5];
-            let result = list_append(&a, &b);
-            assert_eq!(result, im::vector![1, 2, 3, 4, 5]);
+            let a = list![1, 2, 3];
+            let b = list![4, 5];
+            let result = a.append(&b);
+            assert_eq!(result, list![1, 2, 3, 4, 5]);
 
             // Empty list cases
-            let empty: List<i32> = im::Vector::new();
-            assert_eq!(list_append(&empty, &b), b);
-            assert_eq!(list_append(&a, &empty), a);
+            let empty: List<i32> = Nil();
+            assert_eq!(empty.append(&b), b);
+            assert_eq!(a.append(&empty), a);
         }
 
         #[test]
         fn test_list_reverse() {
-            let lst = im::vector![1, 2, 3, 4, 5];
-            let result = list_reverse(&lst);
-            assert_eq!(result, im::vector![5, 4, 3, 2, 1]);
+            let lst = list![1, 2, 3, 4, 5];
+            let result = lst.reverse();
+            assert_eq!(result, list![5, 4, 3, 2, 1]);
 
-            let empty: List<i32> = im::Vector::new();
-            assert_eq!(list_reverse(&empty), im::Vector::new());
+            let empty: List<i32> = Nil();
+            assert_eq!(empty.reverse(), Nil());
         }
 
         #[test]
         fn test_list_length() {
-            let lst = im::vector![1, 2, 3];
-            assert_eq!(list_length(&lst), 3);
-            let empty: List<i32> = im::Vector::new();
-            assert_eq!(list_length(&empty), 0);
+            let lst = list![1, 2, 3];
+            assert_eq!(lst.len(), 3);
+            let empty: List<i32> = Nil();
+            assert_eq!(empty.len(), 0);
         }
 
         #[test]
         fn test_list_member() {
-            let lst = im::vector![1, 2, 3];
-            assert!(list_member(&2, &lst));
-            assert!(!list_member(&4, &lst));
+            let lst = list![1, 2, 3];
+            assert!(lst.contains(&2));
+            assert!(!lst.contains(&4));
         }
 
         #[test]
         fn test_list_get() {
-            let lst = im::vector![10, 20, 30];
-            assert_eq!(list_get(&lst, 1).unwrap(), 10);
-            assert_eq!(list_get(&lst, 2).unwrap(), 20);
-            assert_eq!(list_get(&lst, 3).unwrap(), 30);
-            assert!(list_get(&lst, 0).is_err());
-            assert!(list_get(&lst, 4).is_err());
+            let lst = list![10, 20, 30];
+            assert_eq!(lst.get(1).unwrap(), 10);
+            assert_eq!(lst.get(2).unwrap(), 20);
+            assert_eq!(lst.get(3).unwrap(), 30);
+            assert!(lst.get(0).is_err());
+            assert!(lst.get(4).is_err());
         }
 
         #[test]
         fn test_list_rest() {
-            let lst = im::vector![1, 2, 3];
-            let result = list_rest(&lst);
-            assert_eq!(result, im::vector![2, 3]);
+            let lst = list![1, 2, 3];
+            let result = lst.rest().unwrap().clone();
+            assert_eq!(result, list![2, 3]);
 
-            let single = im::vector![1];
-            assert!(list_rest(&single).is_empty());
+            let single = list![1];
+            assert!(single.rest().unwrap().is_empty());
 
-            let empty: List<i32> = im::Vector::new();
-            assert!(list_rest(&empty).is_empty());
+            let empty: List<i32> = Nil();
+            assert!(empty.rest().is_err());
         }
 
         #[test]
         fn test_list_head() {
-            let lst = im::vector![1, 2, 3];
-            assert_eq!(list_head(&lst).unwrap(), 1);
+            let lst = list![1, 2, 3];
+            assert_eq!(lst.head().unwrap().clone(), 1);
 
-            let empty: List<i32> = im::Vector::new();
-            assert!(list_head(&empty).is_err());
+            let empty: List<i32> = Nil();
+            assert!(empty.head().is_err());
         }
 
         #[test]
         fn test_list_delete() {
-            let lst = im::vector![1, 2, 3, 4];
-            assert_eq!(list_delete(&lst, 1), im::vector![2, 3, 4]);
-            assert_eq!(list_delete(&lst, 2), im::vector![1, 3, 4]);
-            assert_eq!(list_delete(&lst, 4), im::vector![1, 2, 3]);
+            let lst = list![1, 2, 3, 4];
+            assert_eq!(lst.delete(1).unwrap(), list![2, 3, 4]);
+            assert_eq!(lst.delete(2).unwrap(), list![1, 3, 4]);
+            assert_eq!(lst.delete(4).unwrap(), list![1, 2, 3]);
         }
 
         #[test]
         fn test_list_empty() {
-            let lst = im::vector![1, 2, 3];
-            assert!(!list_empty(&lst));
+            let lst = list![1, 2, 3];
+            assert!(!lst.is_empty());
 
-            let empty: List<i32> = im::Vector::new();
-            assert!(list_empty(&empty));
+            let empty: List<i32> = Nil();
+            assert!(empty.is_empty());
         }
 
         #[test]
         fn test_cons() {
-            let lst = im::vector![2, 3];
-            let result = cons(1, &lst);
-            assert_eq!(result, im::vector![1, 2, 3]);
+            let lst = list![2, 3];
+            let result = cons(1, lst);
+            assert_eq!(result, list![1, 2, 3]);
 
-            let empty: List<i32> = im::Vector::new();
-            let result = cons(42, &empty);
-            assert_eq!(result, im::vector![42]);
+            let empty: List<i32> = Nil();
+            let result = cons(42, empty);
+            assert_eq!(result, List::new(42));
+        }
+
+        #[test]
+        fn test_list_reverse1() -> () {
+            let a = Rc::new(1);
+            let lst1 = Cons{head: Rc::clone(&a), tail: Rc::new(Cons{head: Rc::clone(&a), tail: Rc::new(Nil())})};
+            assert_eq!(3, Rc::strong_count(&a));
+            let lst2 = lst1.reverse();
+            assert_eq!(5, Rc::strong_count(&a));
+            let _lst3 = lst2.reverse();
+            assert_eq!(7, Rc::strong_count(&a));
+        }
+
+        #[test]
+        fn test_list_reverse2() -> () {
+            let lst1 = Cons{head: 1, tail: Rc::new(Cons{head: 1, tail: Rc::new(Nil())})};
+            let lst2 = lst1.reverse();
+            let _lst3 = lst2.reverse();
         }
     }
 
@@ -1737,12 +1788,12 @@ mod tests {
         fn test_array_list() {
             let arr = vec![1, 2, 3];
             let lst = array_list(&arr);
-            assert_eq!(lst, im::vector![1, 2, 3]);
+            assert_eq!(lst, list![1, 2, 3]);
         }
 
         #[test]
         fn test_list_array() {
-            let lst = im::vector![1, 2, 3];
+            let lst = list![1, 2, 3];
             let arr = list_array(&lst);
             assert_eq!(arr, vec![1, 2, 3]);
         }
@@ -1870,21 +1921,6 @@ mod tests {
             // Different types should likely have different constructors
             let c3 = value_constructor::<String>();
             assert_ne!(c1, c3);
-        }
-
-        #[test]
-        fn test_value_slots() {
-            assert_eq!(value_slots::<i32>(), std::mem::size_of::<i32>() as i32);
-            assert_eq!(value_slots::<f64>(), std::mem::size_of::<f64>() as i32);
-            assert_eq!(value_slots::<bool>(), std::mem::size_of::<bool>() as i32);
-        }
-
-        #[test]
-        fn test_value_hash_mod() {
-            let val = 42i32;
-            let h = value_hash_mod(&val, 100);
-            assert!(h >= 0 && h < 100);
-            assert_eq!(value_hash_mod(&val, 0), 0);
         }
 
         #[test]

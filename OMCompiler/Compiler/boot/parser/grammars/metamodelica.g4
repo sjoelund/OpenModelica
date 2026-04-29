@@ -921,7 +921,7 @@ fragment SESCAPE
  * String literals.  SCHAR covers everything except backslash, double-quote,
  * and bare CR/LF (which must go through SESCAPE or the NL alternative).
  */
-fragment SCHAR : [\r\n] | ~[\r\n\\'"];
+fragment SCHAR : ~ ["\\];
 
 STRING : '"' (SCHAR | SESCAPE)* '"';
 

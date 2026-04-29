@@ -1,61 +1,3 @@
-/*
- * This file is part of OpenModelica.
- *
- * Copyright (c) 1998-2026, Open Source Modelica Consortium (OSMC),
- * c/o Linköpings universitet, Department of Computer and Information Science,
- * SE-58183 Linköping, Sweden.
- *
- * All rights reserved.
- *
- * THIS PROGRAM IS PROVIDED UNDER THE TERMS OF AGPL VERSION 3 LICENSE OR
- * THIS OSMC PUBLIC LICENSE (OSMC-PL) VERSION 1.8.
- * ANY USE, REPRODUCTION OR DISTRIBUTION OF THIS PROGRAM CONSTITUTES
- * RECIPIENT'S ACCEPTANCE OF THE OSMC PUBLIC LICENSE OR THE GNU AGPL
- * VERSION 3, ACCORDING TO RECIPIENTS CHOICE.
- *
- * The OpenModelica software and the OSMC (Open Source Modelica Consortium)
- * Public License (OSMC-PL) are obtained from OSMC, either from the above
- * address, from the URLs:
- * http://www.openmodelica.org or
- * https://github.com/OpenModelica/ or
- * http://www.ida.liu.se/projects/OpenModelica,
- * and in the OpenModelica distribution.
- *
- * GNU AGPL version 3 is obtained from:
- * https://www.gnu.org/licenses/licenses.html#GPL
- *
- * This program is distributed WITHOUT ANY WARRANTY; without
- * even the implied warranty of MERCHANTABILITY or FITNESS
- * FOR A PARTICULAR PURPOSE, EXCEPT AS EXPRESSLY SET FORTH
- * IN THE BY RECIPIENT SELECTED SUBSIDIARY LICENSE CONDITIONS OF OSMC-PL.
- *
- * See the full OSMC Public License conditions for more details.
- *
- */
-
-/*
- * ANTLR4 combined grammar for MetaModelica.
- *
- * Translated from the ANTLRv3 grammar:
- *   OMCompiler/Parser/Modelica.g          (parser rules)
- *   OMCompiler/Parser/MetaModelica_Lexer.g (lexer, imports BaseModelica_Lexer.g)
- *
- * Translation assumptions:
- *   metamodelica_enabled() = true  (all MetaModelica branches included)
- *   optimica_enabled()     = false (Optimica-only class_specifier2 branch omitted)
- *   pdemodelica_enabled()  = false (FIELD/NONFIELD/INDOMAIN tokens kept but
- *                                   treated as regular keywords)
- *
- * All ANTLRv3 action blocks, return-type annotations, @init/@declarations
- * blocks, OM_PUSHZ* / OM_POP calls, and finally{} blocks have been removed.
- * The grammar is pure structure — no semantic actions.
- *
- * Multi-word end-tokens (END_IF, END_FOR, END_WHEN, END_WHILE, END_PARFOR,
- * END_TRY, END_MATCH, END_MATCHCONTINUE, END_IDENT) from the ANTLRv3 lexer
- * are replaced in parser rules by two-token sequences such as END 'if',
- * END 'for', END MATCH, END (IDENT|CODE), etc.
- */
-
 grammar metamodelica;
 
 /*------------------------------------------------------------------
@@ -80,11 +22,7 @@ class_definition
 
 class_type
     : CLASS
-    // | OPTIMIZATION
-    // | MODEL
     | RECORD
-    // | BLOCK
-    // | EXPANDABLE? CONNECTOR
     | TYPE
     | T_PACKAGE
     | (PURE | IMPURE)? /*(OPERATOR | T_PARALLEL | T_KERNEL)?*/ FUNCTION
@@ -98,30 +36,18 @@ identifier
 
 class_specifier
     : identifier class_specifier2
-    | EXTENDS identifier class_modification? string_comment composition END (IDENT | CODE)
+    | EXTENDS identifier class_modification? string_comment composition END IDENT
     ;
 
 class_specifier2
-    : (LESS ident_list GREATER)? string_comment composition END (IDENT | CODE)
+    : (LESS ident_list GREATER)? string_comment composition END IDENT
     | EQUALS base_prefix type_specifier class_modification? comment
     | EQUALS enumeration
-    // | EQUALS pder
-    | EQUALS overloading
     | SUBTYPEOF type_specifier
     ;
 
-/*
-pder
-    : DER LPAR name_path COMMA ident_list RPAR comment
-    ;
-*/
-
 ident_list
     : IDENT (COMMA ident_list)?
-    ;
-
-overloading
-    : OVERLOAD LPAR name_list RPAR comment
     ;
 
 base_prefix
@@ -153,7 +79,6 @@ composition2
     | (  public_element_list
        | protected_element_list
        | equation_clause
-       // | constraint_clause
        | algorithm_clause
        ) composition2
     ;
@@ -194,7 +119,7 @@ import_clause
     ;
 
 explicit_import_name
-    : (IDENT | CODE) EQUALS name_path
+    : IDENT EQUALS name_path
     ;
 
 implicit_import_name
@@ -219,7 +144,7 @@ component_clause
     ;
 
 type_prefix
-    : /* (FLOW | STREAM)? (T_LOCAL | T_GLOBAL)? */ (DISCRETE | PARAMETER | CONSTANT)?
+    : (DISCRETE | PARAMETER | CONSTANT)?
       T_INPUT? T_OUTPUT? // (FIELD | NONFIELD)?
     ;
 
@@ -248,7 +173,7 @@ conditional_attribute
     ;
 
 declaration
-    : (IDENT /*| OPERATOR*/) array_subscripts? modification?
+    : array_subscripts? modification?
     ;
 
 modification
@@ -316,21 +241,10 @@ equation_clause
     : EQUATION equation_annotation_list
     ;
 
-/*
-constraint_clause
-    : CONSTRAINT constraint_annotation_list
-    ;
-*/
-
 equation_annotation_list
     : ((equation | annotation) SEMICOLON)*
     ;
 
-/*
-constraint_annotation_list
-    : ((constraint_item | annotation) SEMICOLON)*
-    ;
-*/
 algorithm_clause
     : T_ALGORITHM algorithm_annotation_list
     ;
@@ -343,7 +257,6 @@ equation
     : equality_or_noretcall_equation comment
     | conditional_equation_e comment
     | for_clause_e comment
-    // | parfor_clause_e comment
     | connect_clause comment
     | when_clause_e comment
     | FAILURE LPAR equation RPAR comment
@@ -354,7 +267,6 @@ constraint_item
     : simple_expr comment
     | conditional_equation_a comment
     | for_clause_a comment
-    // | parfor_clause_a comment
     | while_clause comment
     | when_clause_a comment
     | BREAK comment
@@ -368,7 +280,6 @@ algorithm
     : assign_clause_a comment
     | conditional_equation_a comment
     | for_clause_a comment
-    // | parfor_clause_a comment
     | while_clause comment
     | try_clause comment
     | when_clause_a comment
@@ -467,7 +378,6 @@ connect_clause
 expression
     : if_expression
     | simple_expression
-    // | code_expression
     | match_expression
     | part_eval_function_expression
     ;
@@ -545,7 +455,6 @@ primary
     | T_FALSE
     | T_TRUE
     | component_reference__function_call
-    // | DER function_call
     | PURE function_call
     | LPAR output_expression_list array_subscripts? RPAR
     | LBRACK matrix_expression_list RBRACK
@@ -560,7 +469,6 @@ matrix_expression_list
 component_reference__function_call
     : component_reference LESS name_list GREATER function_call
     | component_reference function_call? (DOT expression)?
-    // | INITIAL LPAR RPAR
     ;
 
 name_path_end
@@ -572,15 +480,15 @@ name_path
     ;
 
 name_path2
-    : (IDENT | CODE) (DOT name_path2)?
+    : IDENT (DOT name_path2)?
     ;
 
 name_path_star
-    : (IDENT | CODE) (STAR_EW | DOT LBRACE name_path_group RBRACE | DOT name_path_star)?
+    : IDENT (STAR_EW | DOT LBRACE name_path_group RBRACE | DOT name_path_star)?
     ;
 
 name_path_group
-    : (IDENT | CODE) (EQUALS (IDENT | CODE))? (COMMA name_path_group)?
+    : IDENT (EQUALS IDENT)? (COMMA name_path_group)?
     ;
 
 component_reference_end
@@ -594,7 +502,7 @@ component_reference
     ;
 
 component_reference2
-    : (IDENT /*| OPERATOR*/) array_subscripts? (DOT component_reference2)?
+    : IDENT array_subscripts? (DOT component_reference2)?
     ;
 
 function_call
@@ -615,7 +523,7 @@ named_arguments
     ;
 
 named_argument
-    : (IDENT /*| OPERATOR*/) EQUALS expression
+    : IDENT EQUALS expression
     ;
 
 output_expression_list
@@ -647,32 +555,6 @@ annotation
     : T_ANNOTATION class_modification
     ;
 
-/*
-code_expression
-    : CODE LPAR
-        ( INITIAL? ((EQUATION code_equation_clause) | (CONSTRAINT code_constraint_clause) | (T_ALGORITHM code_algorithm_clause))
-        | modification
-        | expression
-        | element SEMICOLON?
-        ) RPAR
-    | CODE_NAME LPAR name_path RPAR
-    | CODE_ANNOTATION class_modification
-    | CODE_EXP LPAR expression RPAR
-    | CODE_VAR LPAR component_reference RPAR
-    ;
-
-code_equation_clause
-    : (equation SEMICOLON)*
-    ;
-
-code_constraint_clause
-    : (equation SEMICOLON)*
-    ;
-
-code_algorithm_clause
-    : (algorithm SEMICOLON)*
-    ;
-*/
 match_expression
     : MATCHCONTINUE expression string_comment local_clause cases END MATCHCONTINUE
     | MATCH expression string_comment local_clause cases END MATCH
@@ -708,32 +590,6 @@ pattern
     : expression
     ;
 
-/*
-top_algorithm
-    : expression SEMICOLON?
-    | (  top_assign_clause_a
-       | conditional_equation_a
-       | for_clause_a
-       // | parfor_clause_a
-       | while_clause
-       | try_clause
-       ) comment
-    ;
-
-top_assign_clause_a
-    : simple_expression ASSIGN expression
-    ;
-*/
-/*
-interactive_stmt
-    : BOM? interactive_stmt_list SEMICOLON? EOF
-    ;
-
-interactive_stmt_list
-    : top_algorithm (SEMICOLON top_algorithm)*
-    ;
-*/
-
 /*------------------------------------------------------------------
  * LEXER RULES
  *------------------------------------------------------------------*/
@@ -747,7 +603,6 @@ T_ALGORITHM   : 'algorithm';
 T_AND         : 'and';
 T_ANNOTATION  : 'annotation';
 AS            : 'as';
-BLOCK         : 'block';
 BREAK         : 'break';
 CASE          : 'case';
 CLASS         : 'class';
@@ -758,7 +613,6 @@ CONSTRAINT    : 'constraint';
 CONSTRAINEDBY : 'constrainedby';
 CONTINUE      : 'continue';
 DISCRETE      : 'discrete';
-// DER           : 'der';
 EACH          : 'each';
 ELSE          : 'else';
 ELSEIF        : 'elseif';
@@ -783,28 +637,18 @@ IF            : 'if';
 IMPORT        : 'import';
 IMPURE        : 'impure';
 T_IN          : 'in';
-// INDOMAIN      : 'indomain';
-// INITIAL       : 'initial';
 INNER         : 'inner';
 T_INPUT       : 'input';
 LOCAL         : 'local';
 LOOP          : 'loop';
 MATCH         : 'match';
 MATCHCONTINUE : 'matchcontinue';
-MODEL         : 'model';
 T_NOT         : 'not';
-// NONFIELD      : 'nonfield';
-// OPERATOR      : 'operator';
-// OPTIMIZATION  : 'optimization';
 T_OR          : 'or';
 T_OUTER       : 'outer';
 T_OUTPUT      : 'output';
 T_PACKAGE     : 'package';
-// PARFOR        : 'parfor';
 T_PARALLEL    : 'parallel';
-// T_LOCAL       : 'parlocal';
-// T_GLOBAL      : 'parglobal';
-// T_KERNEL      : 'parkernel';
 PARAMETER     : 'parameter';
 PARTIAL       : 'partial';
 PROTECTED     : 'protected';
@@ -825,18 +669,6 @@ UNIONTYPE     : 'uniontype';
 WHEN          : 'when';
 WHILE         : 'while';
 WITHIN        : 'within';
-
-/*
- * OpenModelica MetaModelica extensions — start with '$' so they must come
- * before IDENT (which also allows '$' in its body via NONDIGIT or the
- * literal '$cpuTime' alternative).
- */
-OVERLOAD         : '$overload';
-CODE             : '$Code';
-CODE_NAME        : '$TypeName';
-CODE_EXP         : '$Expression';
-CODE_ANNOTATION  : '$annotation';
-CODE_VAR         : '$Var';
 
 /*
  * Multi-character operators — longer alternatives listed first so that ANTLR4

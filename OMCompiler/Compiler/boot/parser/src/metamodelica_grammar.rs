@@ -1,4 +1,4 @@
-use crate::metamodelica_grammar_trait::MetaModelicaGrammarTrait;
+use crate::generated::metamodelica_grammar_trait::MetaModelicaGrammarTrait;
 
 pub struct MetaModelicaGrammar<'t> {
     pub class_names: Vec<&'t str>,

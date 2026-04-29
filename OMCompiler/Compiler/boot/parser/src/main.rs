@@ -1,6 +1,8 @@
 mod metamodelica_grammar;
-mod metamodelica_grammar_trait;
-mod metamodelica_parser;
+pub mod generated {
+    pub mod metamodelica_grammar_trait;
+    pub mod metamodelica_parser;
+}
 
 use anyhow::Result;
 use metamodelica_grammar::MetaModelicaGrammar;
@@ -9,7 +11,7 @@ use std::io::{self, BufRead};
 
 fn parse_modelica<'t>(input: &'t str, file_name: &str) -> Result<MetaModelicaGrammar<'t>> {
     let mut grammar = MetaModelicaGrammar::new();
-    metamodelica_parser::parse(input, file_name, &mut grammar)
+    generated::metamodelica_parser::parse(input, file_name, &mut grammar)
         .map_err(|e| anyhow::anyhow!("{:?}", e))?;
     Ok(grammar)
 }

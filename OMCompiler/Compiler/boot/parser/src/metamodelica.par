@@ -188,7 +188,7 @@ ConditionalAttribute
     ;
 
 Declaration
-    : [ ArraySubscripts ] [ Modification ]
+    : Identifier [ ArraySubscripts ] [ Modification ]
     ;
 
 Modification

@@ -80,8 +80,11 @@ fn parse_mm_files() -> Result<(), Box<dyn std::error::Error>> {
         let path = line?;
         if path.ends_with(".mo") {
             let content = std::fs::read_to_string(&path)?;
-            println!("Parsing {}... ", &path);
-            _ = analyze(&content);
+            let t0 = std::time::Instant::now();
+            println!("Parsing {}...", &path);
+            let result = analyze(&content);
+            println!("Parsed {}... {:.3}s", &path, t0.elapsed().as_secs_f64());
+            _ = result;
         }
     }
     Ok(())
@@ -89,11 +92,9 @@ fn parse_mm_files() -> Result<(), Box<dyn std::error::Error>> {
 
 fn main() {
     let metamodelica_code = r#"
-        model SimpleSystem "Returns the index of the set the entry belongs to, or fails if the
+        package SimpleSystem "Returns the index of the set the entry belongs to, or fails if the
    entry doesn't."
             Real x(start=0);
-        equation
-            der(x) = -x;
         end SimpleSystem;
     "#;
 

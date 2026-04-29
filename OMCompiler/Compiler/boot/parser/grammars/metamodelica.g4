@@ -80,20 +80,20 @@ class_definition
 
 class_type
     : CLASS
-    | OPTIMIZATION
-    | MODEL
+    // | OPTIMIZATION
+    // | MODEL
     | RECORD
-    | BLOCK
-    | EXPANDABLE? CONNECTOR
+    // | BLOCK
+    // | EXPANDABLE? CONNECTOR
     | TYPE
     | T_PACKAGE
-    | (PURE | IMPURE)? (OPERATOR | T_PARALLEL | T_KERNEL)? FUNCTION
+    | (PURE | IMPURE)? /*(OPERATOR | T_PARALLEL | T_KERNEL)?*/ FUNCTION
     | UNIONTYPE
-    | OPERATOR RECORD?
+    | /*OPERATOR*/ RECORD?
     ;
 
 identifier
-    : IDENT | DER | CODE | EQUALITY | INITIAL
+    : IDENT | EQUALITY // | DER | CODE | INITIAL
     ;
 
 class_specifier
@@ -105,14 +105,16 @@ class_specifier2
     : (LESS ident_list GREATER)? string_comment composition END (IDENT | CODE)
     | EQUALS base_prefix type_specifier class_modification? comment
     | EQUALS enumeration
-    | EQUALS pder
+    // | EQUALS pder
     | EQUALS overloading
     | SUBTYPEOF type_specifier
     ;
 
+/*
 pder
     : DER LPAR name_path COMMA ident_list RPAR comment
     ;
+*/
 
 ident_list
     : IDENT (COMMA ident_list)?
@@ -127,7 +129,7 @@ base_prefix
     ;
 
 name_list
-    : name_path (COMMA name_list)?
+    : name_path (COMMA name_path)*
     ;
 
 enumeration
@@ -135,7 +137,7 @@ enumeration
     ;
 
 enum_list
-    : enumeration_literal (COMMA enum_list)?
+    : enumeration_literal (COMMA enumeration_literal)*
     ;
 
 enumeration_literal
@@ -151,7 +153,7 @@ composition2
     | (  public_element_list
        | protected_element_list
        | equation_clause
-       | constraint_clause
+       // | constraint_clause
        | algorithm_clause
        ) composition2
     ;
@@ -217,8 +219,8 @@ component_clause
     ;
 
 type_prefix
-    : (FLOW | STREAM)? (T_LOCAL | T_GLOBAL)? (DISCRETE | PARAMETER | CONSTANT)?
-      T_INPUT? T_OUTPUT? (FIELD | NONFIELD)?
+    : /* (FLOW | STREAM)? (T_LOCAL | T_GLOBAL)? */ (DISCRETE | PARAMETER | CONSTANT)?
+      T_INPUT? T_OUTPUT? // (FIELD | NONFIELD)?
     ;
 
 type_specifier
@@ -246,7 +248,7 @@ conditional_attribute
     ;
 
 declaration
-    : (IDENT | OPERATOR) array_subscripts? modification?
+    : (IDENT /*| OPERATOR*/) array_subscripts? modification?
     ;
 
 modification
@@ -269,11 +271,11 @@ class_or_inheritance_modification
     ;
 
 argument_list
-    : argument (COMMA argument_list)?
+    : argument (COMMA argument_list)*
     ;
 
 argument_list_inh
-    : (argument | inheritance_modification) (COMMA argument_list_inh)?
+    : (argument | inheritance_modification) (COMMA argument_list_inh)*
     ;
 
 inheritance_modification
@@ -314,18 +316,21 @@ equation_clause
     : EQUATION equation_annotation_list
     ;
 
+/*
 constraint_clause
     : CONSTRAINT constraint_annotation_list
     ;
+*/
 
 equation_annotation_list
     : ((equation | annotation) SEMICOLON)*
     ;
 
+/*
 constraint_annotation_list
     : ((constraint_item | annotation) SEMICOLON)*
     ;
-
+*/
 algorithm_clause
     : T_ALGORITHM algorithm_annotation_list
     ;
@@ -338,7 +343,7 @@ equation
     : equality_or_noretcall_equation comment
     | conditional_equation_e comment
     | for_clause_e comment
-    | parfor_clause_e comment
+    // | parfor_clause_e comment
     | connect_clause comment
     | when_clause_e comment
     | FAILURE LPAR equation RPAR comment
@@ -349,7 +354,7 @@ constraint_item
     : simple_expr comment
     | conditional_equation_a comment
     | for_clause_a comment
-    | parfor_clause_a comment
+    // | parfor_clause_a comment
     | while_clause comment
     | when_clause_a comment
     | BREAK comment
@@ -363,7 +368,7 @@ algorithm
     : assign_clause_a comment
     | conditional_equation_a comment
     | for_clause_a comment
-    | parfor_clause_a comment
+    // | parfor_clause_a comment
     | while_clause comment
     | try_clause comment
     | when_clause_a comment
@@ -379,7 +384,7 @@ assign_clause_a
     ;
 
 equality_or_noretcall_equation
-    : simple_expression ((EQUALS | ASSIGN) expression (INDOMAIN component_reference)?)?
+    : simple_expression ((EQUALS | ASSIGN) expression /*(INDOMAIN component_reference)?*/)?
     ;
 
 conditional_equation_e
@@ -398,6 +403,7 @@ for_clause_a
     : FOR for_indices LOOP algorithm_list END 'for'
     ;
 
+/*
 parfor_clause_e
     : PARFOR for_indices LOOP equation_list END 'parfor'
     ;
@@ -405,7 +411,7 @@ parfor_clause_e
 parfor_clause_a
     : PARFOR for_indices LOOP algorithm_list END 'parfor'
     ;
-
+*/
 while_clause
     : WHILE expression LOOP algorithm_list END 'while'
     ;
@@ -461,7 +467,7 @@ connect_clause
 expression
     : if_expression
     | simple_expression
-    | code_expression
+    // | code_expression
     | match_expression
     | part_eval_function_expression
     ;
@@ -539,7 +545,7 @@ primary
     | T_FALSE
     | T_TRUE
     | component_reference__function_call
-    | DER function_call
+    // | DER function_call
     | PURE function_call
     | LPAR output_expression_list array_subscripts? RPAR
     | LBRACK matrix_expression_list RBRACK
@@ -554,7 +560,7 @@ matrix_expression_list
 component_reference__function_call
     : component_reference LESS name_list GREATER function_call
     | component_reference function_call? (DOT expression)?
-    | INITIAL LPAR RPAR
+    // | INITIAL LPAR RPAR
     ;
 
 name_path_end
@@ -588,7 +594,7 @@ component_reference
     ;
 
 component_reference2
-    : (IDENT | OPERATOR) array_subscripts? (DOT component_reference2)?
+    : (IDENT /*| OPERATOR*/) array_subscripts? (DOT component_reference2)?
     ;
 
 function_call
@@ -609,7 +615,7 @@ named_arguments
     ;
 
 named_argument
-    : (IDENT | OPERATOR) EQUALS expression
+    : (IDENT /*| OPERATOR*/) EQUALS expression
     ;
 
 output_expression_list
@@ -641,6 +647,7 @@ annotation
     : T_ANNOTATION class_modification
     ;
 
+/*
 code_expression
     : CODE LPAR
         ( INITIAL? ((EQUATION code_equation_clause) | (CONSTRAINT code_constraint_clause) | (T_ALGORITHM code_algorithm_clause))
@@ -665,7 +672,7 @@ code_constraint_clause
 code_algorithm_clause
     : (algorithm SEMICOLON)*
     ;
-
+*/
 match_expression
     : MATCHCONTINUE expression string_comment local_clause cases END MATCHCONTINUE
     | MATCH expression string_comment local_clause cases END MATCH
@@ -701,12 +708,13 @@ pattern
     : expression
     ;
 
+/*
 top_algorithm
     : expression SEMICOLON?
     | (  top_assign_clause_a
        | conditional_equation_a
        | for_clause_a
-       | parfor_clause_a
+       // | parfor_clause_a
        | while_clause
        | try_clause
        ) comment
@@ -715,7 +723,8 @@ top_algorithm
 top_assign_clause_a
     : simple_expression ASSIGN expression
     ;
-
+*/
+/*
 interactive_stmt
     : BOM? interactive_stmt_list SEMICOLON? EOF
     ;
@@ -723,7 +732,7 @@ interactive_stmt
 interactive_stmt_list
     : top_algorithm (SEMICOLON top_algorithm)*
     ;
-
+*/
 
 /*------------------------------------------------------------------
  * LEXER RULES
@@ -749,7 +758,7 @@ CONSTRAINT    : 'constraint';
 CONSTRAINEDBY : 'constrainedby';
 CONTINUE      : 'continue';
 DISCRETE      : 'discrete';
-DER           : 'der';
+// DER           : 'der';
 EACH          : 'each';
 ELSE          : 'else';
 ELSEIF        : 'elseif';
@@ -774,8 +783,8 @@ IF            : 'if';
 IMPORT        : 'import';
 IMPURE        : 'impure';
 T_IN          : 'in';
-INDOMAIN      : 'indomain';
-INITIAL       : 'initial';
+// INDOMAIN      : 'indomain';
+// INITIAL       : 'initial';
 INNER         : 'inner';
 T_INPUT       : 'input';
 LOCAL         : 'local';
@@ -784,18 +793,18 @@ MATCH         : 'match';
 MATCHCONTINUE : 'matchcontinue';
 MODEL         : 'model';
 T_NOT         : 'not';
-NONFIELD      : 'nonfield';
-OPERATOR      : 'operator';
-OPTIMIZATION  : 'optimization';
+// NONFIELD      : 'nonfield';
+// OPERATOR      : 'operator';
+// OPTIMIZATION  : 'optimization';
 T_OR          : 'or';
 T_OUTER       : 'outer';
 T_OUTPUT      : 'output';
 T_PACKAGE     : 'package';
-PARFOR        : 'parfor';
+// PARFOR        : 'parfor';
 T_PARALLEL    : 'parallel';
-T_LOCAL       : 'parlocal';
-T_GLOBAL      : 'parglobal';
-T_KERNEL      : 'parkernel';
+// T_LOCAL       : 'parlocal';
+// T_GLOBAL      : 'parglobal';
+// T_KERNEL      : 'parkernel';
 PARAMETER     : 'parameter';
 PARTIAL       : 'partial';
 PROTECTED     : 'protected';

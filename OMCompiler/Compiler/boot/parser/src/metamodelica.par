@@ -3,6 +3,7 @@
 %comment "Translated from metamodelica.g4 (ANTLR4) to Parol format"
 %line_comment "//"
 %block_comment "/*" "*/"
+%grammar_type 'LALR(1)'
 
 %%
 
@@ -11,7 +12,7 @@
 // =============================================================================
 
 StoredDefinition
-    : [ BOM ] [ WithinClause ";" ] ClassDefinitionList
+    : [ Bom ] [ WithinClause ";" ] ClassDefinitionList
     ;
 
 WithinClause
@@ -19,7 +20,7 @@ WithinClause
     ;
 
 ClassDefinitionList
-    : { ("final"^ ClassDefinition ";" ) }
+    : { [ "final" ] ClassDefinition ";" }
     ;
 
 // =============================================================================
@@ -93,13 +94,15 @@ Composition
     ;
 
 Composition2
-    : [ ExternalClause ]
+    : ExternalClause
     | ( PublicElementList | ProtectedElementList | EquationClause | AlgorithmClause ) Composition2
+    |
     ;
 
 ExternalClause
     : "external" [ LanguageSpecification ]
-      [ [ ComponentReference "=" ] Ident "(" [ ExpressionList ] ")" [ Annotation ] ";" ]
+      [ [ ComponentReference "=" ] Ident "(" [ ExpressionList ] ")" ]
+      [ Annotation ] ";"
     ;
 
 PublicElementList
@@ -121,11 +124,10 @@ ElementList
 Element
     : ImportClause
     | ExtendsClause
-    | ("redeclare"^ "final"^ "inner"^ "outer"
-       ( ( ClassDefinition | ComponentClause )
-       | "replaceable" ( ClassDefinition | ComponentClause ) [ ConstrainingClause Comment ]
-       )
-     )
+    | [ "redeclare" ] [ "final" ] [ "inner" ] [ "outer" ]
+      ( ( ClassDefinition | ComponentClause )
+      | "replaceable" ( ClassDefinition | ComponentClause ) [ ConstrainingClauseComment ]
+      )
     ;
 
 ImportClause
@@ -239,7 +241,7 @@ ElementRedeclaration
     ;
 
 ElementReplaceable
-    : "replaceable" ( ClassDefinition | ComponentClause1 ) [ ConstrainingClause Comment ]
+    : "replaceable" ( ClassDefinition | ComponentClause1 ) [ ConstrainingClauseComment ]
     ;
 
 ComponentClause1
@@ -280,7 +282,7 @@ Equation
       Comment
     ;
 
-EquationOrNoretcallEquation
+EqualityOrNoretcallEquation
     : SimpleExpression [ ("=" | ":=") Expression ]
     ;
 
@@ -426,7 +428,7 @@ LogicalFactor
 
 Relation
     : ArithmeticExpression
-      [ ( Less | LessEq | Greater | GreaterEq | EqEq | LessGt ) ArithmeticExpression ]
+      [ ( "<" | "<=" | ">" | ">=" | "==" | "<>" ) ArithmeticExpression ]
     ;
 
 ArithmeticExpression
@@ -473,10 +475,6 @@ ComponentReference__FunctionCall
 // NAME PATHS
 // =============================================================================
 
-NamePathEnd
-    : NamePath
-    ;
-
 NamePath
     : [ "." ] NamePath2
     ;
@@ -491,10 +489,6 @@ NamePathStar
 
 NamePathGroup
     : Ident [ "=" Ident ] [ "," NamePathGroup ]
-    ;
-
-ComponentReferenceEnd
-    : ComponentReference
     ;
 
 ComponentReference
@@ -516,7 +510,7 @@ FunctionArguments
     ;
 
 ForOrExpressionList
-    : [ Expression { "," Expression } [ "threaded" ForIndices ] ]
+    : [ Expression { "," Expression } [ [ "threaded" ] "for" ForIndices ] ]
     ;
 
 NamedArguments
@@ -574,7 +568,7 @@ MatchExpression
     ;
 
 LocalClause
-    : [ "local" ElementList ]
+    : "local" ElementList
     ;
 
 Cases
@@ -602,128 +596,8 @@ Pattern
 // =============================================================================
 // TERMINALS (Lexer Rules)
 // =============================================================================
-//
-// Order matters: keywords defined before Ident so that same-length matches
-// prioritize keywords over the general identifier pattern (longest-match first,
-// then declaration-order for ties).
-// Multi-character operators defined before single-character ones.
-//
 
-// --- Multi-character operators (longest first) ---
-
-Assign     : ":="     ;
-ColonColon : "::"     ;
-LessEq     : "<="     ;
-LessGt     : "<>"     ;
-GreaterEq  : ">="     ;
-EqEq       : "=="     ;
-PlusEw     : ".+"     ;
-MinusEw    : ".-"     ;
-StarEw     : ".*"     ;
-SlashEw    : "./"     ;
-PowerEw    : ".^"     ;
-
-// --- Single-character operators / punctuation ---
-
-Dot     : "."  ;
-Lparen  : "("  ;
-Rparen  : ")"  ;
-Lbrack  : "["  ;
-Rbrack  : "]"  ;
-Lbrace  : "{"  ;
-Rbrace  : "}"  ;
-Equals  : "="  ;
-Comma   : ","  ;
-Colon   : ":"  ;
-Semicolon: ";" ;
-Mod     : "%"  ;
-Star    : "*"  ;
-Minus   : "-"  ;
-Plus    : "+"  ;
-Less    : "<"  ;
-Greater : ">"  ;
-Power   : "^"  ;
-Slash   : "/"  ;
-
-// --- Wildcards (before Ident for same-length priority) ---
-
-AllWild : "__" ;
-Wild    : "_"  ;
-
-// --- Keywords (before Ident for same-length priority) ---
-
-T_Algorithm   : "algorithm"   ;
-T_And         : "and"         ;
-T_Annotation  : "annotation"  ;
-T_As          : "as"          ;
-T_Break       : "break"       ;
-T_Case        : "case"        ;
-T_Class       : "class"       ;
-T_Connect     : "connect"     ;
-T_Connector   : "connector"   ;
-T_Constant    : "constant"    ;
-T_Constraint  : "constraint"  ;
-T_Constrainedby : "constrainedby" ;
-T_Continue    : "continue"    ;
-T_Discrete    : "discrete"    ;
-T_Each        : "each"        ;
-T_Else        : "else"        ;
-T_Elseif      : "elseif"      ;
-T_Elsewhen    : "elsewhen"    ;
-T_Encapsulated: "encapsulated";
-T_End         : "end"         ;
-T_Enumeration : "enumeration" ;
-T_Equation    : "equation"    ;
-T_Equality    : "equality"    ;
-T_Expandable  : "expandable"  ;
-T_Extends     : "extends"     ;
-T_External    : "external"    ;
-T_False       : "false"       ;
-T_Failure     : "failure"     ;
-T_Final       : "final"       ;
-T_Field       : "field"       ;
-T_Flow        : "flow"        ;
-T_For         : "for"         ;
-T_Function    : "function"    ;
-T_Guard       : "guard"       ;
-T_If          : "if"          ;
-T_Import      : "import"      ;
-T_Impure      : "impure"      ;
-T_In          : "in"          ;
-T_Inner       : "inner"       ;
-T_Input       : "input"       ;
-T_Local       : "local"       ;
-T_Loop        : "loop"        ;
-T_Match       : "match"       ;
-T_Matchcontinue: "matchcontinue";
-T_Not         : "not"         ;
-T_Or          : "or"          ;
-T_Outer       : "outer"       ;
-T_Output      : "output"      ;
-T_Package     : "package"     ;
-T_Parallel    : "parallel"    ;
-T_Parameter   : "parameter"   ;
-T_Partial     : "partial"     ;
-T_Protected   : "protected"   ;
-T_Public      : "public"      ;
-T_Pure        : "pure"        ;
-T_Record      : "record"      ;
-T_Redecare    : "redeclare"   ;
-T_Replaceable : "replaceable" ;
-T_Return      : "return"      ;
-T_Stream      : "stream"      ;
-T_Subtypeof   : "subtypeof"   ;
-T_Then        : "then"        ;
-T_Threaded    : "threaded"    ;
-T_True        : "true"        ;
-T_Try         : "try"         ;
-T_Type        : "type"        ;
-T_Uniontype   : "uniontype"   ;
-T_When        : "when"        ;
-T_While       : "while"       ;
-T_Within      : "within"      ;
-
-// --- Data tokens ---
+// --- Data tokens (regex-based, cannot be expressed as string literals) ---
 
 Bom
     : /\xEF\xBB\xBF/

@@ -1,0 +1,618 @@
+%start StoredDefinition
+%title "MetaModelica Grammar"
+%comment "Translated from metamodelica.g4 (ANTLR4) to Parol format"
+%line_comment "//"
+%block_comment "/*" "*/"
+
+%%
+
+// =============================================================================
+// START SYMBOL
+// =============================================================================
+
+StoredDefinition
+    : [ Bom ] [ WithinClause ";" ] ClassDefinitionList
+    ;
+
+WithinClause
+    : "within" [ NamePath ]
+    ;
+
+ClassDefinitionList
+    : { ("final"^ ClassDefinition ";" ) }
+    ;
+
+// =============================================================================
+// CLASS DEFINITION
+// =============================================================================
+
+ClassDefinition
+    : [ "encapsulated" ] [ "partial" ] ClassType ClassSpecifier
+    ;
+
+ClassType
+    : "class"
+    | "record"
+    | "type"
+    | "package"
+    | [ "pure" | "impure" ] "function"
+    | "uniontype"
+    ;
+
+Identifier
+    : Ident
+    | "equality"
+    ;
+
+ClassSpecifier
+    : Identifier ClassSpecifier2
+    | "extends" Identifier [ ClassModification ] StringComment Composition "end" Ident
+    ;
+
+ClassSpecifier2
+    : [ "<"^ IdentList ">"^ ] StringComment Composition "end"^ Ident
+    | "=" BasePrefix TypeSpecifier [ ClassModification ] Comment
+    | "=" Enumeration
+    | "subtypeof" TypeSpecifier
+    ;
+
+IdentList
+    : Ident { "," Ident }
+    ;
+
+BasePrefix
+    : TypePrefix
+    ;
+
+NameList
+    : NamePath { "," NamePath }
+    ;
+
+// =============================================================================
+// ENUMERATION
+// =============================================================================
+
+Enumeration
+    : "enumeration" "(" [ EnumList | ":" ] ")" Comment
+    ;
+
+EnumList
+    : EnumerationLiteral { "," EnumerationLiteral }
+    ;
+
+EnumerationLiteral
+    : Ident Comment
+    ;
+
+// =============================================================================
+// COMPOSITION
+// =============================================================================
+
+Composition
+    : ElementList Composition2 [ "annotation" ";" ]
+    ;
+
+Composition2
+    : [ ExternalClause ]
+    | ( PublicElementList | ProtectedElementList | EquationClause | AlgorithmClause ) Composition2
+    ;
+
+ExternalClause
+    : "external" [ LanguageSpecification ]
+      [ [ ComponentReference "=" ] Ident "(" [ ExpressionList ] ")" [ Annotation ] ";" ]
+    ;
+
+PublicElementList
+    : "public" ElementList
+    ;
+
+ProtectedElementList
+    : "protected" ElementList
+    ;
+
+LanguageSpecification
+    : String
+    ;
+
+ElementList
+    : { ( Element | Annotation ) ";" }
+    ;
+
+Element
+    : ImportClause
+    | ExtendsClause
+    | [ "redeclare" ] [ "final" ] [ "inner" ] [ "outer" ]
+      ( ( ClassDefinition | ComponentClause )
+      | "replaceable" ( ClassDefinition | ComponentClause ) [ ConstrainingClauseComment ]
+      )
+    ;
+
+ImportClause
+    : "import" ( ExplicitImportName | ImplicitImportName ) Comment
+    ;
+
+ExplicitImportName
+    : Ident "=" NamePath
+    ;
+
+ImplicitImportName
+    : NamePathStar
+    ;
+
+ExtendsClause
+    : "extends" NamePath [ ClassOrInheritanceModification ] [ Annotation ]
+    ;
+
+ConstrainingClauseComment
+    : ConstrainingClause Comment
+    ;
+
+ConstrainingClause
+    : "extends" NamePath [ ClassModification ]
+    | "constrainedby" NamePath [ ClassModification ]
+    ;
+
+ComponentClause
+    : TypePrefix TypeSpecifier ComponentList
+    ;
+
+TypePrefix
+    : [ "discrete" | "parameter" | "constant" ] [ "input" ] [ "output" ]
+    ;
+
+TypeSpecifier
+    : NamePath [ "<"^ TypeSpecifierList ">"^ ] [ ArraySubscripts ]
+    ;
+
+TypeSpecifierNoDims
+    : NamePath [ "<"^ TypeSpecifierList ">"^ ]
+    ;
+
+TypeSpecifierList
+    : TypeSpecifier { "," TypeSpecifier }
+    ;
+
+ComponentList
+    : ComponentDeclaration { "," ComponentList }
+    ;
+
+ComponentDeclaration
+    : Declaration [ ConditionalAttribute ] Comment
+    ;
+
+ConditionalAttribute
+    : "if" Expression
+    ;
+
+Declaration
+    : [ ArraySubscripts ] [ Modification ]
+    ;
+
+Modification
+    : ClassModification [ "=" ModificationExpression ]
+    | "=" ModificationExpression
+    | ":=" ModificationExpression
+    ;
+
+ModificationExpression
+    : Expression
+    | "break"
+    ;
+
+ClassModification
+    : "(" [ ArgumentList ] ")"
+    ;
+
+ClassOrInheritanceModification
+    : "(" [ ArgumentListInh ] ")"
+    ;
+
+ArgumentList
+    : Argument { "," ArgumentList }
+    ;
+
+ArgumentListInh
+    : ( Argument | InheritanceModification ) { "," ArgumentListInh }
+    ;
+
+InheritanceModification
+    : "break" ( ConnectClause | Ident )
+    ;
+
+Argument
+    : ElementModificationOrReplaceable
+    | ElementRedeclaration
+    ;
+
+ElementModificationOrReplaceable
+    : [ "each" ] [ "final" ] ( ElementModification | ElementReplaceable )
+    ;
+
+ElementModification
+    : NamePath2 [ Modification ] StringComment
+    ;
+
+ElementRedeclaration
+    : "redeclare" [ "each" ] [ "final" ]
+      ( ( ClassDefinition | ComponentClause1 ) | ElementReplaceable )
+    ;
+
+ElementReplaceable
+    : "replaceable" ( ClassDefinition | ComponentClause1 ) [ ConstrainingClauseComment ]
+    ;
+
+ComponentClause1
+    : BasePrefix TypeSpecifierNoDims ComponentDeclaration1
+    ;
+
+ComponentDeclaration1
+    : Declaration Comment
+    ;
+
+// =============================================================================
+// EQUATION / ALGORITHM CLAUSES
+// =============================================================================
+
+EquationClause
+    : "equation" EquationAnnotationList
+    ;
+
+EquationAnnotationList
+    : { ( Equation | Annotation ) ";" }
+    ;
+
+AlgorithmClause
+    : "algorithm" AlgorithmAnnotationList
+    ;
+
+AlgorithmAnnotationList
+    : { ( Algorithm | Annotation ) ";" }
+    ;
+
+// =============================================================================
+// EQUATIONS
+// =============================================================================
+
+Equation
+    : ( EqualityOrNoretcallEquation | ConditionalEquationE | ForClauseE | ConnectClause
+      | WhenClauseE | "failure" "(" Equation ")" | "equality" "(" Expression "=" Expression )
+      Comment
+    ;
+
+EqualityOrNoretcallEquation
+    : SimpleExpression [ ("=" | ":=") Expression ]
+    ;
+
+ConditionalEquationE
+    : "if" Expression "then" EquationList [ EquationElseifList ] [ "else" EquationList ] "end" "if"
+    ;
+
+ForClauseE
+    : "for" ForIndices "loop" EquationList "end" "for"
+    ;
+
+EquationList
+    : { Equation ";" }
+    ;
+
+EquationElseifList
+    : EquationElseif { EquationElseif }
+    ;
+
+EquationElseif
+    : "elseif" Expression "then" EquationList
+    ;
+
+EquationListThen
+    : { Equation ";" }
+    ;
+
+// =============================================================================
+// ALGORITHMS
+// =============================================================================
+
+Algorithm
+    : ( AssignClauseA | ConditionalEquationA | ForClauseA | WhileClause
+      | TryClause | WhenClauseA | "break" | "return" | "continue"
+      | "failure" "(" Algorithm ")" | "equality" "(" Expression ":=" Expression )
+      Comment
+    ;
+
+AssignClauseA
+    : SimpleExpression [ ("=" | ":=") Expression ]
+    ;
+
+ConditionalEquationA
+    : "if" Expression "then" AlgorithmList [ AlgorithmElseifList ] [ "else" AlgorithmList ] "end" "if"
+    ;
+
+ForClauseA
+    : "for" ForIndices "loop" AlgorithmList "end" "for"
+    ;
+
+AlgorithmList
+    : { Algorithm ";" }
+    ;
+
+AlgorithmElseifList
+    : AlgorithmElseif { AlgorithmElseif }
+    ;
+
+AlgorithmElseif
+    : "elseif" Expression "then" AlgorithmList
+    ;
+
+WhileClause
+    : "while" Expression "loop" AlgorithmList "end" "while"
+    ;
+
+TryClause
+    : "try" AlgorithmList "else" AlgorithmList "end" "try"
+    ;
+
+WhenClauseE
+    : "when" Expression "then" EquationList { ElseWhenE } "end" "when"
+    ;
+
+ElseWhenE
+    : "elsewhen" Expression "then" EquationList
+    ;
+
+WhenClauseA
+    : "when" Expression "then" AlgorithmList { ElseWhenA } "end" "when"
+    ;
+
+ElseWhenA
+    : "elsewhen" Expression "then" AlgorithmList
+    ;
+
+ConnectClause
+    : "connect" "(" ComponentReference "," ComponentReference ")"
+    ;
+
+// =============================================================================
+// EXPRESSIONS
+// =============================================================================
+
+Expression
+    : IfExpression
+    | SimpleExpression
+    | MatchExpression
+    | PartEvalFunctionExpression
+    ;
+
+PartEvalFunctionExpression
+    : "pure" FunctionCall
+    | "function" ComponentReference "(" [ NamedArguments ] ")"
+    ;
+
+IfExpression
+    : "if" Expression "then" Expression { ElseifExpression } "else" Expression
+    ;
+
+ElseifExpression
+    : "elseif" Expression "then" Expression
+    ;
+
+ForIndices
+    : ForIndex { "," ForIndex }
+    ;
+
+ForIndex
+    : Ident [ ("if" | "guard") Expression ] [ "in" Expression ]
+    ;
+
+SimpleExpression
+    : SimpleExpr [ "::" SimpleExpression ]
+    | Ident "as" SimpleExpression
+    ;
+
+SimpleExpr
+    : LogicalExpression [ ":" LogicalExpression [ ":" LogicalExpression ] ]
+    ;
+
+LogicalExpression
+    : LogicalTerm { "or" LogicalTerm }
+    ;
+
+LogicalTerm
+    : LogicalFactor { "and" LogicalFactor }
+    ;
+
+LogicalFactor
+    : [ "not" ] Relation
+    ;
+
+Relation
+    : ArithmeticExpression
+      [ ( "<" | "<=" | ">" | ">=" | "==" | "<>" ) ArithmeticExpression ]
+    ;
+
+ArithmeticExpression
+    : UnaryArithmeticExpression { ("+" | "-" | ".+" | ".-") Term }
+    ;
+
+UnaryArithmeticExpression
+    : ("+" | "-" | ".+" | ".-") Term
+    | Term
+    ;
+
+Term
+    : Factor { ("*" | "/" | ".*" | "./") Factor }
+    ;
+
+Factor
+    : Primary [ ("^" | ".^") Primary ]
+    ;
+
+Primary
+    : UnsignedInteger
+    | UnsignedReal
+    | String
+    | "false"
+    | "true"
+    | ComponentReference__FunctionCall
+    | "pure" FunctionCall
+    | "(" [ OutputExpressionList ] [ ArraySubscripts ] ")"
+    | "[" MatrixExpressionList "]"
+    | "{" ForOrExpressionList "}"
+    | "end"
+    ;
+
+MatrixExpressionList
+    : ExpressionList { ";" ExpressionList }
+    ;
+
+ComponentReference__FunctionCall
+    : ComponentReference "<"^ NameList ">" FunctionCall
+    | ComponentReference [ FunctionCall ] [ "."^ Expression ]
+    ;
+
+// =============================================================================
+// NAME PATHS
+// =============================================================================
+
+NamePath
+    : [ "." ] NamePath2
+    ;
+
+NamePath2
+    : Ident [ "." NamePath2 ]
+    ;
+
+NamePathStar
+    : Ident [ ".*" | "." "{" NamePathGroup "}" | "." NamePathStar ]
+    ;
+
+NamePathGroup
+    : Ident [ "=" Ident ] [ "," NamePathGroup ]
+    ;
+
+ComponentReference
+    : [ "." ] ComponentReference2
+    | "__"
+    | "_"
+    ;
+
+ComponentReference2
+    : Ident [ ArraySubscripts ] [ "." ComponentReference2 ]
+    ;
+
+FunctionCall
+    : "(" FunctionArguments ")"
+    ;
+
+FunctionArguments
+    : ForOrExpressionList [ NamedArguments ]
+    ;
+
+ForOrExpressionList
+    : [ Expression { "," Expression } [ [ "threaded" ] "for" ForIndices ] ]
+    ;
+
+NamedArguments
+    : NamedArgument { "," NamedArgument }
+    ;
+
+NamedArgument
+    : Ident "=" Expression
+    ;
+
+OutputExpressionList
+    : [ Expression ] { "," [ Expression ] }
+    ;
+
+ExpressionList
+    : Expression { "," Expression }
+    ;
+
+// =============================================================================
+// ARRAY SUBSCRIPTS
+// =============================================================================
+
+ArraySubscripts
+    : "[" Subscript { "," Subscript } "]"
+    ;
+
+Subscript
+    : Expression
+    | ":"
+    ;
+
+// =============================================================================
+// COMMENTS / ANNOTATIONS
+// =============================================================================
+
+Comment
+    : StringComment [ Annotation ]
+    ;
+
+StringComment
+    : [ String { "+" String } ]
+    ;
+
+Annotation
+    : "annotation" ClassModification
+    ;
+
+// =============================================================================
+// MATCH EXPRESSIONS
+// =============================================================================
+
+MatchExpression
+    : "matchcontinue" Expression StringComment [ LocalClause ] Cases "end" "matchcontinue"
+    | "match" Expression StringComment [ LocalClause ] Cases "end" "match"
+    ;
+
+LocalClause
+    : [ "local" ElementList ]
+    ;
+
+Cases
+    : OneCase Cases2
+    ;
+
+Cases2
+    : OneCase Cases2
+    | "else" StringComment [ LocalClause ]
+      [ "equation" EquationListThen | "algorithm" AlgorithmAnnotationList ]
+      "then" Expression ";"
+    |
+    ;
+
+OneCase
+    : "case" Pattern [ ("if" | "guard") Expression ] StringComment [ LocalClause ]
+      [ "equation" EquationListThen | "algorithm" AlgorithmAnnotationList ]
+      "then" Expression ";"
+    ;
+
+Pattern
+    : Expression
+    ;
+
+// =============================================================================
+// TERMINALS (Lexer Rules)
+// =============================================================================
+
+// --- Data tokens (regex-based, cannot be expressed as string literals) ---
+
+Bom
+    : /\xEF\xBB\xBF/
+    ;
+
+Ident
+    : /(?:[\$_a-zA-Z][\$_a-zA-Z0-9]*|\$cpuTime|'(?:[^'\\]|\\.)*')/
+    ;
+
+String
+    : /"(?:[^"\\]|\\['"\\?abfnrtv])*"/
+    ;
+
+UnsignedReal
+    : /[0-9]+\.[0-9]*([eE][+-]?[0-9]+)?|[0-9]+([eE][+-]?[0-9]+)|\.[0-9]+([eE][+-]?[0-9]+)?/
+    ;
+
+UnsignedInteger
+    : /[0-9]+/
+    ;
+

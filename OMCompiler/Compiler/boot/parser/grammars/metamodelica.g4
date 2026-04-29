@@ -63,7 +63,7 @@ grammar metamodelica;
  *------------------------------------------------------------------*/
 
 stored_definition
-    : BOM? (within_clause SEMICOLON)? class_definition_list? EOF
+    : BOM? (within_clause SEMICOLON)? class_definition_list EOF
     ;
 
 within_clause
@@ -71,7 +71,7 @@ within_clause
     ;
 
 class_definition_list
-    : (FINAL? class_definition SEMICOLON) class_definition_list?
+    : (FINAL? class_definition SEMICOLON)*
     ;
 
 class_definition
@@ -150,8 +150,6 @@ composition2
     : external_clause?
     | (  public_element_list
        | protected_element_list
-       | initial_equation_clause
-       | initial_algorithm_clause
        | equation_clause
        | constraint_clause
        | algorithm_clause
@@ -312,16 +310,6 @@ component_declaration1
     : declaration comment
     ;
 
-/*
- * initial_equation_clause and initial_algorithm_clause use a semantic
- * predicate to distinguish INITIAL EQUATION from INITIAL used as an
- * expression (e.g. initial()).  The ANTLRv3 grammar used LA(2) to
- * look ahead one token past INITIAL.
- */
-initial_equation_clause
-    : {_input.LT(2).getType()==EQUATION}? INITIAL EQUATION equation_annotation_list
-    ;
-
 equation_clause
     : EQUATION equation_annotation_list
     ;
@@ -340,10 +328,6 @@ constraint_annotation_list
 
 algorithm_clause
     : T_ALGORITHM algorithm_annotation_list
-    ;
-
-initial_algorithm_clause
-    : {_input.LT(2).getType()==T_ALGORITHM}? INITIAL T_ALGORITHM algorithm_annotation_list
     ;
 
 algorithm_annotation_list

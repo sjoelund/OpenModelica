@@ -3,7 +3,7 @@
 //! Lexer combinators are embedded in the parser — no separate tokenizer.
 //! AST types mirror the ANTLR3 grammar structure from `grammars/Modelica.g`.
 
-use winnow::{Parser, ModalResult, error::{ContextError, ErrMode}};
+use winnow::{Parser, ModalResult, combinator::opt, error::{ContextError, ErrMode}};
 use winnow::token::*;
 use winnow::ascii;
 
@@ -582,11 +582,6 @@ fn ident_or_fail<'a>(input: &mut &'a str) -> ModalResult<&'a str> {
     tok_as_ident(tok)
 }
 
-fn skip_type_prefix<'a>(input: &mut &'a str) -> ModalResult<&'a str> {
-    let tok = keyword_or_ident(input)?;
-    tok_as_ident(tok)
-}
-
 /// Parse a class name - accepts any keyword or identifier as a class name
 fn class_name<'a>(input: &mut &'a str) -> ModalResult<&'a str> {
     skip_trivia(input)?;
@@ -654,30 +649,17 @@ fn class_definition_list<'a>(input: &mut &'a str) -> ModalResult<Vec<ClassDef<'a
     let mut defs = Vec::new();
     loop {
         skip_trivia(input)?;
-        if input.is_empty() {
-            break;
-        }
         // Stop if we hit END (closes the enclosing class)
-        if input.starts_with("end") || input.starts_with("END") {
+        if input.is_empty() || input.starts_with("end") {
             break;
         }
-        // FINAL?
-        if input.starts_with("final") || input.starts_with("FINAL") {
-            take_while(0.., |c: char| !c.is_whitespace() && c != ';').parse_next(input)?;
-        }
-        let def = class_definition(input)?;
-        skip_trivia(input)?;
-        // Check if we hit END (closing the enclosing class) before semicolon
-        if input.starts_with("end") || input.starts_with("END") {
-            defs.push(def);
-            continue;
-        }
+        let _final = opt("final").parse_next(input)?.is_some();
+        let def= match class_definition(input) {
+            Ok(d) => d,
+            _ => return Ok(defs)
+        };
         ";".parse_next(input)?;
         defs.push(def);
-        skip_trivia(input)?;
-        if input.is_empty() {
-            break;
-        }
     }
     Ok(defs)
 }
@@ -698,14 +680,8 @@ fn class_definition<'a>(input: &mut &'a str) -> ModalResult<ClassDef<'a>> {
             return Err(ErrMode::Backtrack(ContextError::default()));
         }
     }
-    let enc = input.starts_with("encapsulated") || input.starts_with("ENCAPSULATED");
-    if enc {
-        take_while(0.., |c: char| !c.is_whitespace() && c != ';').parse_next(input)?;
-    }
-    let partial = input.starts_with("partial") || input.starts_with("PARTIAL");
-    if partial {
-        take_while(0.., |c: char| !c.is_whitespace() && c != ';').parse_next(input)?;
-    }
+    let enc = opt("encapsulated").parse_next(input)?.is_some();
+    let partial = opt("partial").parse_next(input)?.is_some();
 
     let kind = class_type(input)?;
     let specifier = class_specifier(input)?;

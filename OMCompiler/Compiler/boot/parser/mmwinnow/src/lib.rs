@@ -588,15 +588,9 @@ fn skip_type_prefix<'a>(input: &mut &'a str) -> ModalResult<&'a str> {
 }
 
 /// Parse a class name - accepts any keyword or identifier as a class name
-/// (except reserved keywords like 'end')
 fn class_name<'a>(input: &mut &'a str) -> ModalResult<&'a str> {
     skip_trivia(input)?;
     let word: &str = take_while(1.., |c: char| c.is_alphanumeric() || c == '_').parse_next(input)?;
-    let w = word.to_ascii_lowercase();
-    // Don't allow 'end' as a class name
-    if w == "end" {
-        return Err(ErrMode::Backtrack(ContextError::default()));
-    }
     Ok(word)
 }
 
@@ -632,9 +626,15 @@ pub fn stored_definition<'a>(input: &mut &'a str) -> ModalResult<StoredDefinitio
     let classes = class_definition_list(input)?;
 
     // Consume any trailing END tokens left by nested class definitions
+    // Also consume the optional class name after "end" and trailing semicolons
     skip_trivia(input)?;
     while input.starts_with("end") || input.starts_with("END") {
         take_while(0.., |c: char| !c.is_whitespace() && c != ';').parse_next(input)?;
+        skip_trivia(input)?;
+        // Consume optional class name after "end"
+        if input.starts_with(|c: char| c.is_alphabetic() || c == '_') {
+            take_while(0.., |c: char| !c.is_whitespace() && c != ';').parse_next(input)?;
+        }
         skip_trivia(input)?;
         if input.starts_with(';') {
             ";".parse_next(input)?;
@@ -667,8 +667,7 @@ fn class_definition_list<'a>(input: &mut &'a str) -> ModalResult<Vec<ClassDef<'a
         }
         let def = class_definition(input)?;
         skip_trivia(input)?;
-        // After parsing a class definition, the remaining input should end with ";"
-        // But if we hit the closing "end" keyword, don't expect a semicolon
+        // Check if we hit END (closing the enclosing class) before semicolon
         if input.starts_with("end") || input.starts_with("END") {
             defs.push(def);
             continue;
@@ -984,7 +983,6 @@ fn composition<'a>(input: &mut &'a str) -> ModalResult<Vec<ClassPart<'a>>> {
         ";".parse_next(input)?;
         parts.push(ClassPart::Annotation(ann));
     }
-
     Ok(parts)
 }
 
@@ -1558,7 +1556,6 @@ mod error_debug {
 
         // Test the full parse
         let input = "uniontype Within \"comment\"\n  record R\n  end R;\nend Within;";
-        eprintln!("Full input: {:?}", input);
         let result = stored_definition.parse(input);
         match &result {
             Ok(d) => eprintln!("Full parse succeeded, {} classes", d.classes.len()),
@@ -1581,9 +1578,21 @@ mod error_debug {
 
         // Test full Absyn.mo parse
         let result = stored_definition.parse(&*code);
-        if let Err(e) = result {
-            let range = e.char_span();
-            eprintln!("Absyn parse error at byte {}, line {}", range.end, code[..range.end].matches('\n').count() + 1);
+        match &result {
+            Ok(d) => eprintln!("Full Absyn parse succeeded, {} classes", d.classes.len()),
+            Err(e) => {
+                let range = e.char_span();
+                let offset = range.end;
+                let remaining_str = if offset < code.len() {
+                    format!("{:?}", &code[offset..(offset+100).min(code.len())])
+                } else {
+                    "<EOF>".to_string()
+                };
+                eprintln!("Absyn parse error at byte {} (file len {}), remaining: {}",
+                    offset,
+                    code.len(),
+                    remaining_str);
+            }
         }
     }
 }

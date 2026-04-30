@@ -1,0 +1,5 @@
+loadModel(Modelica);
+setCommandLineOptions("-g=MetaModelica");
+s:=stringDelimitList(list(s for s in OpenModelica.Scripting.getSourceFile(OpenModelica.Scripting.getClassNames(recursive=true))),"\n");
+OpenModelica.Scripting.writeFile("compilerSources.txt.1", s);
+system("sort -u compilerSources.txt.1 > compilerSources.txt")

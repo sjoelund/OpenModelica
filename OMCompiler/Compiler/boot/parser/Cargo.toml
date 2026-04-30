@@ -1,12 +1,3 @@
-[package]
-name = "parser"
-version = "0.1.0"
-edition = "2024"
-
-[dependencies]
-anyhow = "1.0.102"
-parol_runtime = "4.3.0"
-scnr2 = "0.5.2"
-
-[build-dependencies]
-parol = "4.4.0"
+[workspace]
+resolver = "3"
+members = ["parser", "mmwinnow"]

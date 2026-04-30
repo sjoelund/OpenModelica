@@ -578,7 +578,7 @@ fn tok_as_ident<'a>(tok: Token<'a>) -> ModalResult<&'a str> {
 
 fn name_path<'a>(input: &mut &'a str) -> ModalResult<String> {
     let mut parts = Vec::new();
-    parts.push(opt(".").parse_next(input)?.unwrap_or("").clone()); // allow leading dot for absolute paths
+    parts.push(opt(".").parse_next(input)?.unwrap_or("")); // allow leading dot for absolute paths
     loop {
         let tok = keyword_or_ident(input)?;
         parts.push(tok_as_ident(tok)?);
@@ -702,24 +702,16 @@ fn class_type<'a>(input: &mut &'a str) -> ModalResult<ClassKind> {
 fn class_specifier<'a>(input: &mut &'a str) -> ModalResult<ClassSpecifier> {
     if opt("extends").parse_next(input)?.is_some() {
         let name = name_path(input)?;
-        let modification = class_modification(input)?;
+        let modification = opt(class_modification).parse_next(input)?;
         string_comments(input)?;
         let composition = composition(input)?;
         skip_trivia(input)?;
-        let end_tok = keyword_or_ident(input)?;
-        if !matches!(end_tok, Token::End) {
+        "end".parse_next(input)?;
+        if ident_or_fail(input)? != name {
             return Err(ErrMode::Backtrack(ContextError::default()));
         }
-        skip_trivia(input)?;
-        let end_name = if !input.is_empty()
-            && input.starts_with(|c: char| c.is_alphabetic() || c == '_')
-        {
-            ident_or_fail(input)?
-        } else {
-            ""
-        };
         Ok(ClassSpecifier::Extends {
-            name,
+            name: name.to_string(),
             modification,
             composition
         })
@@ -727,7 +719,7 @@ fn class_specifier<'a>(input: &mut &'a str) -> ModalResult<ClassSpecifier> {
         // Accept any keyword or identifier as a class name
         let name = class_name(input)?;
         let spec2 = class_specifier2(input)?;
-        Ok(ClassSpecifier::Normal { name, spec2 })
+        Ok(ClassSpecifier::Normal { name: name.to_string(), spec2 })
     }
 }
 
@@ -767,7 +759,7 @@ fn class_specifier2<'a>(input: &mut &'a str) -> ModalResult<ClassSpecifier2> {
 
         // TODO: base_prefix is missing
         let typ = type_spec(input)?;
-        let modification = class_modification(input)?;
+        let modification = opt(class_modification).parse_next(input)?;
         let comment = string_comments(input)?;
 
         return Ok(ClassSpecifier2::TypeAlias {
@@ -1060,33 +1052,23 @@ fn path<'a>(input: &mut &'a str) -> ModalResult<Path> {
     Ok(Path(parts))
 }
 
-fn class_modification<'a>(
-    input: &mut &'a str,
-) -> ModalResult<Option<ClassModification>> {
-    skip_trivia(input)?;
-    if !input.starts_with('(') {
-        return Ok(None);
-    }
+fn class_modification<'a>(input: &mut &'a str,) -> ModalResult<ClassModification> {
     "(".parse_next(input)?;
 
     let mut arguments = Vec::new();
-    if !input.starts_with(')') {
-        loop {
-            skip_trivia(input)?;
-            if input.starts_with(')') {
-                break;
-            }
-            let m = modification(input)?;
-            arguments.push(m);
-            skip_trivia(input)?;
-            if input.starts_with(',') {
-                ",".parse_next(input)?;
-            }
+    loop {
+        if input.starts_with(")") {
+            break;
+        }
+        let m = modification(input)?;
+        arguments.push(m);
+        if opt(",").parse_next(input)?.is_none() {
+            break;
         }
     }
-
     ")".parse_next(input)?;
-    Ok(Some(ClassModification { arguments }))
+
+    Ok(ClassModification { arguments })
 }
 
 fn modification<'a>(input: &mut &'a str) -> ModalResult<Modification> {

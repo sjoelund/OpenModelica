@@ -261,16 +261,16 @@ impl std::fmt::Display for Token<'_> {
 // ---------------------------------------------------------------------------
 
 #[derive(Debug, Clone)]
-pub struct StoredDefinition<'a> {
-    pub classes: Vec<ClassDef<'a>>,
+pub struct StoredDefinition {
+    pub classes: Vec<ClassDef>,
 }
 
 #[derive(Debug, Clone)]
-pub struct ClassDef<'a> {
+pub struct ClassDef {
     pub encapsulated: bool,
     pub partial: bool,
     pub kind: ClassKind,
-    pub specifier: ClassSpecifier<'a>,
+    pub specifier: ClassSpecifier,
 }
 
 #[derive(Debug, Clone)]
@@ -292,47 +292,46 @@ pub enum ClassKind {
 
 /// class_specifier
 #[derive(Debug, Clone)]
-pub enum ClassSpecifier<'a> {
+pub enum ClassSpecifier {
     /// identifier class_specifier2
     Normal {
-        name: &'a str,
-        spec2: ClassSpecifier2<'a>,
+        name: String,
+        spec2: ClassSpecifier2
     },
     /// EXTENDS identifier class_modification? string_comment composition END IDENT
     Extends {
-        base_name: &'a str,
-        modification: Option<ClassModification<'a>>,
-        composition: Vec<ClassPart<'a>>,
-        end_name: &'a str,
+        name: String,
+        modification: Option<ClassModification>,
+        composition: Vec<ClassPart>,
     },
 }
 
 /// class_specifier2
 #[derive(Debug, Clone)]
-pub enum ClassSpecifier2<'a> {
+pub enum ClassSpecifier2 {
     /// (LESS ident_list GREATER)? string_comment composition END IDENT
     Composition {
-        type_vars: Vec<&'a str>,
+        type_vars: Vec<String>,
         comment: Option<String>,
-        parts: Vec<ClassPart<'a>>,
-        end_name: &'a str,
+        parts: Vec<ClassPart>,
+        end_name: String,
     },
     /// EQUALS base_prefix type_specifier class_modification? comment
     TypeAlias {
-        base_type: &'a str,
-        typ: TypeSpec<'a>,
-        modification: Option<ClassModification<'a>>,
+        base_type: String,
+        typ: TypeSpec,
+        modification: Option<ClassModification>,
         comment: Option<String>,
     },
     /// EQUALS enumeration
-    Enumeration(Vec<EnumLiteral<'a>>),
+    Enumeration(Vec<EnumLiteral>),
     /// SUBTYPEOF type_specifier
-    SubTypeOf(TypeSpec<'a>),
+    SubTypeOf(TypeSpec),
 }
 
 /// A class part (public, protected, equation, algorithm, external, etc.)
 #[derive(Debug, Clone)]
-pub enum ClassPart<'a> {
+pub enum ClassPart {
     Public,
     Protected,
     Equations,
@@ -340,53 +339,53 @@ pub enum ClassPart<'a> {
     Algorithms,
     InitialAlgorithms,
     External {
-        language: Option<&'a str>,
+        language: Option<String>,
         body: String,
     },
-    Element(Element<'a>),
-    Annotation(Annotation<'a>),
-    NestedClass(ClassDef<'a>),
+    Element(Element),
+    Annotation(Annotation),
+    NestedClass(ClassDef),
 }
 
 /// An element in a class body.
 #[derive(Debug, Clone)]
-pub enum Element<'a> {
-    Component(ComponentDecl<'a>),
+pub enum Element {
+    Component(ComponentDecl),
 }
 
 /// component_declaration
 #[derive(Debug, Clone)]
-pub struct ComponentDecl<'a> {
-    pub typ: TypeSpec<'a>,
-    pub name: &'a str,
-    pub attributes: Option<ComponentAttributes<'a>>,
+pub struct ComponentDecl {
+    pub typ: TypeSpec,
+    pub name: String,
+    pub attributes: Option<ComponentAttributes>,
 }
 
 #[derive(Debug, Clone)]
-pub struct ComponentAttributes<'a> {
-    pub items: Vec<ComponentItem<'a>>,
+pub struct ComponentAttributes {
+    pub items: Vec<ComponentItem>,
 }
 
 #[derive(Debug, Clone)]
-pub enum ComponentItem<'a> {
-    ComponentReference(Path<'a>),
+pub enum ComponentItem {
+    ComponentReference(Path),
 }
 
 /// type_prefix type_specifier_no_dims component_declaration1
 #[derive(Debug, Clone)]
-pub enum TypeSpec<'a> {
-    Builtin(&'a str),
-    Path(Path<'a>),
-    List(Box<TypeSpec<'a>>),
-    Option(Box<TypeSpec<'a>>),
+pub enum TypeSpec {
+    Builtin(String),
+    Path(Path),
+    List(Box<TypeSpec>),
+    Option(Box<TypeSpec>),
     Extension {
-        base: Box<TypeSpec<'a>>,
+        base: Box<TypeSpec>,
         dims: Vec<Subscript>,
     },
 }
 
 #[derive(Debug, Clone)]
-pub struct Path<'a>(pub Vec<&'a str>);
+pub struct Path(pub Vec<String>);
 
 #[derive(Debug, Clone)]
 pub enum Subscript {
@@ -395,45 +394,45 @@ pub enum Subscript {
 
 /// class_modification: ( modification (COMMA modification)* )?
 #[derive(Debug, Clone)]
-pub struct ClassModification<'a> {
-    pub arguments: Vec<Modification<'a>>,
+pub struct ClassModification {
+    pub arguments: Vec<Modification>,
 }
 
 #[derive(Debug, Clone)]
-pub struct Modification<'a> {
-    pub name: &'a str,
-    pub value: Option<ModificationValue<'a>>,
+pub struct Modification {
+    pub name: String,
+    pub value: Option<ModificationValue>,
 }
 
 #[derive(Debug, Clone)]
-pub enum ModificationValue<'a> {
+pub enum ModificationValue {
     Simple,
-    Equals(Vec<AnnotationValue<'a>>),
+    Equals(Vec<AnnotationValue>),
 }
 
 #[derive(Debug, Clone)]
-pub enum AnnotationValue<'a> {
-    Ident(&'a str),
-    StringLit(&'a str),
-    Call(&'a str, Vec<AnnotationValue<'a>>),
+pub enum AnnotationValue {
+    Ident(String),
+    StringLit(String),
+    Call(String, Vec<AnnotationValue>),
 }
 
 /// annotation: annotation modification
 #[derive(Debug, Clone)]
-pub struct Annotation<'a> {
-    pub attrs: Vec<AnnotationAttr<'a>>,
+pub struct Annotation {
+    pub attrs: Vec<AnnotationAttr>,
 }
 
 #[derive(Debug, Clone)]
-pub struct AnnotationAttr<'a> {
-    pub name: &'a str,
-    pub value: Option<AnnotationValue<'a>>,
+pub struct AnnotationAttr {
+    pub name: String,
+    pub value: Option<AnnotationValue>,
 }
 
 /// enumeration: ENUMERATION LPAR (enum_list | COLON) RPAR comment
 #[derive(Debug, Clone)]
-pub struct EnumLiteral<'a> {
-    pub name: &'a str,
+pub struct EnumLiteral {
+    pub name: String,
     pub value: Option<i64>,
 }
 
@@ -577,16 +576,30 @@ fn tok_as_ident<'a>(tok: Token<'a>) -> ModalResult<&'a str> {
     }
 }
 
+fn name_path<'a>(input: &mut &'a str) -> ModalResult<String> {
+    let mut parts = Vec::new();
+    parts.push(opt(".").parse_next(input)?.unwrap_or("").clone()); // allow leading dot for absolute paths
+    loop {
+        let tok = keyword_or_ident(input)?;
+        parts.push(tok_as_ident(tok)?);
+        skip_trivia(input)?;
+        if opt(".").parse_next(input)?.is_none() {
+            break;
+        }
+    }
+    Ok(parts.join("."))
+}
+
 fn ident_or_fail<'a>(input: &mut &'a str) -> ModalResult<&'a str> {
     let tok = keyword_or_ident(input)?;
     tok_as_ident(tok)
 }
 
 /// Parse a class name - accepts any keyword or identifier as a class name
-fn class_name<'a>(input: &mut &'a str) -> ModalResult<&'a str> {
+fn class_name<'a>(input: &mut &'a str) -> ModalResult<String> {
     skip_trivia(input)?;
     let word: &str = take_while(1.., |c: char| c.is_alphanumeric() || c == '_').parse_next(input)?;
-    Ok(word)
+    Ok(word.to_string())
 }
 
 /// Check if the input (after skipping trivia) starts with a class type keyword.
@@ -606,7 +619,7 @@ fn starts_with_class_type(input: &str) -> bool {
 // ---------------------------------------------------------------------------
 
 /// stored_definition: BOM? (within_clause SEMICOLON)? class_definition_list EOF
-pub fn stored_definition<'a>(input: &mut &'a str) -> ModalResult<StoredDefinition<'a>> {
+pub fn stored_definition<'a>(input: &mut &'a str) -> ModalResult<StoredDefinition> {
     // BOM is optional - only consume if present
     if input.starts_with('\u{feff}') {
         let _: &str = "\u{feff}".parse_next(input)?;
@@ -620,23 +633,6 @@ pub fn stored_definition<'a>(input: &mut &'a str) -> ModalResult<StoredDefinitio
 
     let classes = class_definition_list(input)?;
 
-    // Consume any trailing END tokens left by nested class definitions
-    // Also consume the optional class name after "end" and trailing semicolons
-    skip_trivia(input)?;
-    while input.starts_with("end") || input.starts_with("END") {
-        take_while(0.., |c: char| !c.is_whitespace() && c != ';').parse_next(input)?;
-        skip_trivia(input)?;
-        // Consume optional class name after "end"
-        if input.starts_with(|c: char| c.is_alphabetic() || c == '_') {
-            take_while(0.., |c: char| !c.is_whitespace() && c != ';').parse_next(input)?;
-        }
-        skip_trivia(input)?;
-        if input.starts_with(';') {
-            ";".parse_next(input)?;
-        }
-        skip_trivia(input)?;
-    }
-
     if !input.is_empty() {
         return Err(ErrMode::Backtrack(ContextError::default()));
     }
@@ -645,12 +641,12 @@ pub fn stored_definition<'a>(input: &mut &'a str) -> ModalResult<StoredDefinitio
 }
 
 /// class_definition_list: (FINAL? class_definition SEMICOLON)*
-fn class_definition_list<'a>(input: &mut &'a str) -> ModalResult<Vec<ClassDef<'a>>> {
+fn class_definition_list<'a>(input: &mut &'a str) -> ModalResult<Vec<ClassDef>> {
     let mut defs = Vec::new();
     loop {
         skip_trivia(input)?;
         // Stop if we hit END (closes the enclosing class)
-        if input.is_empty() || input.starts_with("end") {
+        if input.is_empty() {
             break;
         }
         let _final = opt("final").parse_next(input)?.is_some();
@@ -665,21 +661,7 @@ fn class_definition_list<'a>(input: &mut &'a str) -> ModalResult<Vec<ClassDef<'a
 }
 
 /// class_definition: ENCAPSULATED? PARTIAL? class_type class_specifier
-fn class_definition<'a>(input: &mut &'a str) -> ModalResult<ClassDef<'a>> {
-    // Don't parse 'end' followed by identifier or semicolon as a class definition
-    // (it's the closing keyword of the enclosing class)
-    let lower = input.to_lowercase();
-    if lower.starts_with("end") {
-        // Check if followed by identifier/end/semicolon (closing pattern)
-        let rest = &input[3..];
-        let rest = rest.trim_start();
-        if rest.is_empty()
-            || rest.starts_with(|c: char| c.is_alphabetic() || c == '_')
-            || rest.starts_with(';')
-        {
-            return Err(ErrMode::Backtrack(ContextError::default()));
-        }
-    }
+fn class_definition<'a>(input: &mut &'a str) -> ModalResult<ClassDef> {
     let enc = opt("encapsulated").parse_next(input)?.is_some();
     let partial = opt("partial").parse_next(input)?.is_some();
 
@@ -717,11 +699,9 @@ fn class_type<'a>(input: &mut &'a str) -> ModalResult<ClassKind> {
 
 /// class_specifier: identifier class_specifier2
 ///                 | EXTENDS identifier class_modification? composition END IDENT
-fn class_specifier<'a>(input: &mut &'a str) -> ModalResult<ClassSpecifier<'a>> {
-    let lower = input.to_lowercase();
-    if lower.starts_with("extends") {
-        let _: &str = take_while(0.., |c: char| !c.is_whitespace()).parse_next(input)?;
-        let base_name = ident_or_fail(input)?;
+fn class_specifier<'a>(input: &mut &'a str) -> ModalResult<ClassSpecifier> {
+    if opt("extends").parse_next(input)?.is_some() {
+        let name = name_path(input)?;
         let modification = class_modification(input)?;
         string_comments(input)?;
         let composition = composition(input)?;
@@ -739,10 +719,9 @@ fn class_specifier<'a>(input: &mut &'a str) -> ModalResult<ClassSpecifier<'a>> {
             ""
         };
         Ok(ClassSpecifier::Extends {
-            base_name,
+            name,
             modification,
-            composition,
-            end_name,
+            composition
         })
     } else {
         // Accept any keyword or identifier as a class name
@@ -756,24 +735,14 @@ fn class_specifier<'a>(input: &mut &'a str) -> ModalResult<ClassSpecifier<'a>> {
 ///                 | EQUALS base_prefix type_specifier class_modification? comment
 ///                 | EQUALS enumeration
 ///                 | SUBTYPEOF type_specifier
-fn class_specifier2<'a>(input: &mut &'a str) -> ModalResult<ClassSpecifier2<'a>> {
-    skip_trivia(input)?;
-
-    if input.starts_with("subtypeof") || input.starts_with("SUBTYPEOF") {
-        take_while(0.., |c: char| !c.is_whitespace()).parse_next(input)?;
+fn class_specifier2<'a>(input: &mut &'a str) -> ModalResult<ClassSpecifier2> {
+    if opt("subtypeof").parse_next(input)?.is_some() {
         let typ = type_spec(input)?;
         return Ok(ClassSpecifier2::SubTypeOf(typ));
     }
 
-    if input.starts_with('=') {
-        if input.starts_with("==") {
-            "==".parse_next(input)?;
-        } else {
-            "=".parse_next(input)?;
-        }
-
-        if input.starts_with("enumeration") || input.starts_with("ENUMERATION") {
-            let _: &str = take_while(0.., |c: char| !c.is_whitespace()).parse_next(input)?;
+    if opt("=").parse_next(input)?.is_some() {
+        if opt("enumeration").parse_next(input)?.is_some() {
             let mut literals = Vec::new();
             loop {
                 skip_trivia(input)?;
@@ -796,45 +765,31 @@ fn class_specifier2<'a>(input: &mut &'a str) -> ModalResult<ClassSpecifier2<'a>>
             return Ok(ClassSpecifier2::Enumeration(literals));
         }
 
+        // TODO: base_prefix is missing
         let typ = type_spec(input)?;
-        let base_type = match &typ {
-            TypeSpec::Path(p) => p.0.first().cloned().unwrap_or(""),
-            TypeSpec::Builtin(s) => s,
-            TypeSpec::List(_) => "list",
-            TypeSpec::Option(_) => "option",
-            TypeSpec::Extension { base, .. } => match base.as_ref() {
-                TypeSpec::Path(p) => p.0.first().cloned().unwrap_or(""),
-                TypeSpec::Builtin(s) => s,
-                _ => "unknown",
-            },
-        };
         let modification = class_modification(input)?;
         let comment = string_comments(input)?;
 
         return Ok(ClassSpecifier2::TypeAlias {
-            base_type,
+            base_type: "TODO".to_string(),
             typ,
             modification,
             comment,
         });
     }
 
-    let type_vars = if input.starts_with('<') {
-        "<".parse_next(input)?;
+    let type_vars = if opt("<").parse_next(input)?.is_some() {
         let mut vars = Vec::new();
         loop {
             skip_trivia(input)?;
-            if input.starts_with('>') {
+            let tok = keyword_or_ident(input)?;
+            vars.push(tok_as_ident(tok)?.to_string());
+            skip_trivia(input)?;
+            if opt(">").parse_next(input)?.is_some() {
                 break;
             }
-            let tok = keyword_or_ident(input)?;
-            vars.push(tok_as_ident(tok)?);
-            skip_trivia(input)?;
-            if input.starts_with(',') {
-                ",".parse_next(input)?;
-            }
+            ",".parse_next(input)?;
         }
-        ">".parse_next(input)?;
         vars
     } else {
         Vec::new()
@@ -865,11 +820,11 @@ fn class_specifier2<'a>(input: &mut &'a str) -> ModalResult<ClassSpecifier2<'a>>
         type_vars,
         comment: None,
         parts,
-        end_name,
+        end_name: end_name.to_string(),
     })
 }
 
-fn composition<'a>(input: &mut &'a str) -> ModalResult<Vec<ClassPart<'a>>> {
+fn composition<'a>(input: &mut &'a str) -> ModalResult<Vec<ClassPart>> {
     let mut parts = element_list(input)?;
     let mut loop_count = 0u32;
 
@@ -962,7 +917,7 @@ fn composition<'a>(input: &mut &'a str) -> ModalResult<Vec<ClassPart<'a>>> {
     Ok(parts)
 }
 
-fn element_list<'a>(input: &mut &'a str) -> ModalResult<Vec<ClassPart<'a>>> {
+fn element_list<'a>(input: &mut &'a str) -> ModalResult<Vec<ClassPart>> {
     let mut parts = Vec::new();
     let mut loop_count = 0u32;
     loop {
@@ -1032,7 +987,7 @@ fn element_list<'a>(input: &mut &'a str) -> ModalResult<Vec<ClassPart<'a>>> {
     Ok(parts)
 }
 
-fn component_declaration<'a>(input: &mut &'a str) -> ModalResult<Element<'a>> {
+fn component_declaration<'a>(input: &mut &'a str) -> ModalResult<Element> {
     let typ = type_spec(input)?;
     skip_trivia(input)?;
     let name = if input.starts_with(|c: char| c.is_alphabetic() || c == '_') {
@@ -1050,12 +1005,12 @@ fn component_declaration<'a>(input: &mut &'a str) -> ModalResult<Element<'a>> {
 
     Ok(Element::Component(ComponentDecl {
         typ,
-        name,
+        name: name.to_string(),
         attributes,
     }))
 }
 
-fn component_attributes<'a>(input: &mut &'a str) -> ModalResult<ComponentAttributes<'a>> {
+fn component_attributes<'a>(input: &mut &'a str) -> ModalResult<ComponentAttributes> {
     "(".parse_next(input)?;
     let mut items = Vec::new();
     if !input.starts_with(')') {
@@ -1076,19 +1031,19 @@ fn component_attributes<'a>(input: &mut &'a str) -> ModalResult<ComponentAttribu
     Ok(ComponentAttributes { items })
 }
 
-fn component_item<'a>(input: &mut &'a str) -> ModalResult<ComponentItem<'a>> {
+fn component_item<'a>(input: &mut &'a str) -> ModalResult<ComponentItem> {
     let path = path(input)?;
     Ok(ComponentItem::ComponentReference(path))
 }
 
-fn path<'a>(input: &mut &'a str) -> ModalResult<Path<'a>> {
+fn path<'a>(input: &mut &'a str) -> ModalResult<Path> {
     let mut parts = Vec::new();
     if input.starts_with('.') {
         ".".parse_next(input)?;
     }
     loop {
         let tok = keyword_or_ident(input)?;
-        parts.push(tok_as_ident(tok)?);
+        parts.push(tok_as_ident(tok)?.to_string());
         skip_trivia(input)?;
         if input.starts_with('.') {
             if input.starts_with("..") {
@@ -1107,7 +1062,7 @@ fn path<'a>(input: &mut &'a str) -> ModalResult<Path<'a>> {
 
 fn class_modification<'a>(
     input: &mut &'a str,
-) -> ModalResult<Option<ClassModification<'a>>> {
+) -> ModalResult<Option<ClassModification>> {
     skip_trivia(input)?;
     if !input.starts_with('(') {
         return Ok(None);
@@ -1134,7 +1089,7 @@ fn class_modification<'a>(
     Ok(Some(ClassModification { arguments }))
 }
 
-fn modification<'a>(input: &mut &'a str) -> ModalResult<Modification<'a>> {
+fn modification<'a>(input: &mut &'a str) -> ModalResult<Modification> {
     let tok = keyword_or_ident(input)?;
     let name = tok_as_ident(tok)?;
     skip_trivia(input)?;
@@ -1146,15 +1101,15 @@ fn modification<'a>(input: &mut &'a str) -> ModalResult<Modification<'a>> {
         None
     };
 
-    Ok(Modification { name, value })
+    Ok(Modification { name: name.to_string(), value })
 }
 
-fn modification_value<'a>(input: &mut &'a str) -> ModalResult<ModificationValue<'a>> {
+fn modification_value<'a>(input: &mut &'a str) -> ModalResult<ModificationValue> {
     let _: &str = take_while(0.., |c: char| !",);".contains(c)).parse_next(input)?;
     Ok(ModificationValue::Simple)
 }
 
-fn annotation<'a>(input: &mut &'a str) -> ModalResult<Annotation<'a>> {
+fn annotation<'a>(input: &mut &'a str) -> ModalResult<Annotation> {
     let _: &str = take_while(0.., |c: char| !c.is_whitespace()).parse_next(input)?;
     let mut attrs = Vec::new();
 
@@ -1174,7 +1129,7 @@ fn annotation<'a>(input: &mut &'a str) -> ModalResult<Annotation<'a>> {
     Ok(Annotation { attrs })
 }
 
-fn annotation_attr<'a>(input: &mut &'a str) -> ModalResult<AnnotationAttr<'a>> {
+fn annotation_attr<'a>(input: &mut &'a str) -> ModalResult<AnnotationAttr> {
     let tok = keyword_or_ident(input)?;
     let name = tok_as_ident(tok)?;
     skip_trivia(input)?;
@@ -1186,27 +1141,27 @@ fn annotation_attr<'a>(input: &mut &'a str) -> ModalResult<AnnotationAttr<'a>> {
         None
     };
 
-    Ok(AnnotationAttr { name, value })
+    Ok(AnnotationAttr { name: name.to_string(), value })
 }
 
-fn annotation_value<'a>(input: &mut &'a str) -> ModalResult<AnnotationValue<'a>> {
+fn annotation_value<'a>(input: &mut &'a str) -> ModalResult<AnnotationValue> {
     skip_trivia(input)?;
     if input.starts_with('"') {
         let _: &str = "\"".parse_next(input)?;
         let lit: &str = take_while(0.., |c: char| c != '"').parse_next(input)?;
         "\"".parse_next(input)?;
-        return Ok(AnnotationValue::StringLit(lit));
+        return Ok(AnnotationValue::StringLit(lit.to_string()));
     }
     if input.starts_with('(') {
         return parse_annotation_call(input);
     }
     let tok = keyword_or_ident(input)?;
-    Ok(AnnotationValue::Ident(tok_as_ident(tok)?))
+    Ok(AnnotationValue::Ident(tok_as_ident(tok)?.to_string()))
 }
 
 fn parse_annotation_call<'a>(
     input: &mut &'a str,
-) -> ModalResult<AnnotationValue<'a>> {
+) -> ModalResult<AnnotationValue> {
     "(".parse_next(input)?;
     let tok = keyword_or_ident(input)?;
     let name = tok_as_ident(tok)?;
@@ -1225,10 +1180,10 @@ fn parse_annotation_call<'a>(
         }
     }
     ")".parse_next(input)?;
-    Ok(AnnotationValue::Call(name, inner))
+    Ok(AnnotationValue::Call(name.to_string(), inner))
 }
 
-fn external_part<'a>(input: &mut &'a str) -> ModalResult<ClassPart<'a>> {
+fn external_part<'a>(input: &mut &'a str) -> ModalResult<ClassPart> {
     // Consume the "external" keyword
     let _: &str = take_while(0.., |c: char| !c.is_whitespace()).parse_next(input)?;
     // Collect body: everything until ';'
@@ -1294,7 +1249,7 @@ fn skip_string_comment_text(input: &mut &str) -> ModalResult<String> {
     }
 }
 
-fn type_spec<'a>(input: &mut &'a str) -> ModalResult<TypeSpec<'a>> {
+fn type_spec<'a>(input: &mut &'a str) -> ModalResult<TypeSpec> {
     skip_trivia(input)?;
 
     let tok = keyword_or_ident(input)?;
@@ -1318,7 +1273,7 @@ fn type_spec<'a>(input: &mut &'a str) -> ModalResult<TypeSpec<'a>> {
 
     let name = tok_as_ident(tok.clone()).unwrap_or("unknown");
 
-    let mut path = vec![name];
+    let mut path = vec![name.to_string()];
     loop {
         skip_trivia(input)?;
         if !input.starts_with('.') || input.starts_with("..") {
@@ -1327,26 +1282,13 @@ fn type_spec<'a>(input: &mut &'a str) -> ModalResult<TypeSpec<'a>> {
         ".".parse_next(input)?;
         let tok = keyword_or_ident(input)?;
         let s = tok_as_ident(tok).unwrap_or("unknown");
-        path.push(s);
+        path.push(s.to_string());
     }
 
-    if path.len() == 1 {
-        match path[0] {
-            "real" => Ok(TypeSpec::Builtin("REAL")),
-            "integer" => Ok(TypeSpec::Builtin("INTEGER")),
-            "boolean" => Ok(TypeSpec::Builtin("BOOLEAN")),
-            "string" => Ok(TypeSpec::Builtin("STRING")),
-            _ => {
-                // Unknown type — treat as builtin with the name as-is
-                Ok(TypeSpec::Builtin(path[0]))
-            }
-        }
-    } else {
-        Ok(TypeSpec::Path(Path(path)))
-    }
+    Ok(TypeSpec::Path(Path(path)))
 }
 
-fn enum_literal<'a>(input: &mut &'a str) -> ModalResult<EnumLiteral<'a>> {
+fn enum_literal<'a>(input: &mut &'a str) -> ModalResult<EnumLiteral> {
     let tok = keyword_or_ident(input)?;
     let name = tok_as_ident(tok)?;
     skip_trivia(input)?;
@@ -1358,7 +1300,7 @@ fn enum_literal<'a>(input: &mut &'a str) -> ModalResult<EnumLiteral<'a>> {
     } else {
         None
     };
-    Ok(EnumLiteral { name, value })
+    Ok(EnumLiteral { name: name.to_string(), value })
 }
 
 // ---------------------------------------------------------------------------
@@ -1438,11 +1380,11 @@ mod tests {
 // Convenience helpers
 // ---------------------------------------------------------------------------
 
-impl<'a> ClassSpecifier<'a> {
-    pub fn name(&self) -> &'a str {
+impl ClassSpecifier {
+    pub fn name(&self) -> &String {
         match self {
-            ClassSpecifier::Normal { name, .. } => *name,
-            ClassSpecifier::Extends { base_name, .. } => *base_name,
+            ClassSpecifier::Normal { name, .. } => name,
+            ClassSpecifier::Extends { name, .. } => name,
         }
     }
 }

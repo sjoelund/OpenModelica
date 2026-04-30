@@ -7,6 +7,110 @@ use winnow::{Parser, ModalResult, error::{ContextError, ErrMode}};
 use winnow::token::*;
 use winnow::ascii;
 
+/// Custom error type with line, column, and context display.
+#[derive(Debug)]
+pub struct ParserError<'a> {
+    /// Byte offset where parsing failed
+    pub offset: usize,
+    /// Remaining input at the failure point
+    pub remaining: &'a str,
+    /// Inner error context
+    pub inner: ContextError,
+    /// Full original input for context display
+    _original: &'a str,
+}
+
+impl<'a> ParserError<'a> {
+    /// Create a ParserError from a winnow parse error.
+    pub fn from_parse_error(err: winnow::error::ParseError<&'a str, ContextError>, original: &'a str) -> Self {
+        let range = err.char_span();
+        let offset = range.end;  // end is the failure position
+        let remaining = &original[offset..];
+        let inner = err.inner().clone();
+        ParserError {
+            offset,
+            remaining,
+            inner,
+            _original: original,
+        }
+    }
+
+    /// Convert to a human-readable error string with line, column, and context.
+    pub fn display(&self) -> String {
+        let mut output = String::new();
+        output.push_str("error: parsing failed\n");
+
+        // Calculate line and column from byte offset
+        let line = self._original[..self.offset].matches('\n').count() + 1;
+        let col_offset = self._original[..self.offset]
+            .rfind('\n')
+            .map(|i| self.offset - i - 1)
+            .unwrap_or(self.offset);
+        let col = col_offset + 1;
+
+        output.push_str(&format!("  --> line {}:{}\n", line, col));
+
+        // Show the context: 2 lines before up to the error + 1 line after
+        let context_start = if self.offset >= 200 {
+            self.offset - 200
+        } else {
+            0
+        };
+        let ctx_end = (self.offset + 100).min(self._original.len());
+        let ctx = &self._original[context_start..ctx_end];
+
+        // Find the line containing the error within context
+        let ctx_line_start = context_start
+            + ctx[..].rfind('\n')
+                .map(|i| i + 1)
+                .unwrap_or(context_start);
+        let ctx_line_end = ctx[ctx_line_start - context_start..].find('\n')
+            .map(|i| ctx_line_start + i)
+            .unwrap_or(self._original.len().min(ctx_end + 100));
+
+        // Build the context snippet
+        let context_line = &self._original[ctx_line_start..ctx_line_end.min(self._original.len())];
+        let arrow_offset = self.offset - ctx_line_start;
+
+        output.push_str(&format!(
+            "    |\n  {} | {}\n",
+            " ".repeat(line.saturating_sub(1).to_string().len()),
+            context_line
+        ));
+        output.push_str(&format!(
+            "    | {}\n",
+            " ".repeat(arrow_offset) + "^"
+        ));
+
+        // Show the error message
+        output.push_str(&format!("  --> remaining input: {:?}\n", self.remaining));
+
+        // Show what was expected (from context)
+        let ctx_str = format!("{:?}", self.inner);
+        if !ctx_str.is_empty() && ctx_str != "ContextError { context: [], cause: None }" {
+            output.push_str(&format!("  --> reason: {}\n", ctx_str));
+        }
+
+        output
+    }
+}
+
+/// Display a parse error for debugging.
+pub fn print_error<'a>(
+    result: Result<ParserError<'a>, winnow::error::ParseError<&'a str, ContextError>>,
+) {
+    match result {
+        Ok(_) => println!("Parsing succeeded."),
+        Err(e) => {
+            let range = e.char_span();
+            // We don't have the full original input here without passing it separately
+            eprintln!("Parse error: char offset {}", range.end);
+            eprintln!("  remaining: {:?}", &e.input()[..e.input().len().min(100)]);
+            eprintln!("  inner: {:?}", e.inner());
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Token types — mirrors the ANTLR3 token set from Modelica.g / MetaModelica_Lexer
 // ---------------------------------------------------------------------------
@@ -241,6 +345,7 @@ pub enum ClassPart<'a> {
     },
     Element(Element<'a>),
     Annotation(Annotation<'a>),
+    NestedClass(ClassDef<'a>),
 }
 
 /// An element in a class body.
@@ -482,13 +587,41 @@ fn skip_type_prefix<'a>(input: &mut &'a str) -> ModalResult<&'a str> {
     tok_as_ident(tok)
 }
 
+/// Parse a class name - accepts any keyword or identifier as a class name
+/// (except reserved keywords like 'end')
+fn class_name<'a>(input: &mut &'a str) -> ModalResult<&'a str> {
+    skip_trivia(input)?;
+    let word: &str = take_while(1.., |c: char| c.is_alphanumeric() || c == '_').parse_next(input)?;
+    let w = word.to_ascii_lowercase();
+    // Don't allow 'end' as a class name
+    if w == "end" {
+        return Err(ErrMode::Backtrack(ContextError::default()));
+    }
+    Ok(word)
+}
+
+/// Check if the input (after skipping trivia) starts with a class type keyword.
+/// These indicate a nested class definition rather than a component declaration.
+fn starts_with_class_type(input: &str) -> bool {
+    let lower = input.to_lowercase();
+    let keywords = [
+        "package", "class", "record", "type", "function", "connector",
+        "uniontype", "model", "operator", "parallel", "kernel",
+        "expandable", "optimization", "enumeration",
+    ];
+    keywords.iter().any(|&kw| lower.starts_with(kw))
+}
+
 // ---------------------------------------------------------------------------
 // Parser rules — mirror the grammar structure
 // ---------------------------------------------------------------------------
 
 /// stored_definition: BOM? (within_clause SEMICOLON)? class_definition_list EOF
 pub fn stored_definition<'a>(input: &mut &'a str) -> ModalResult<StoredDefinition<'a>> {
-    let _: ModalResult<&str> = "\u{feff}".parse_next(input);
+    // BOM is optional - only consume if present
+    if input.starts_with('\u{feff}') {
+        let _: &str = "\u{feff}".parse_next(input)?;
+    }
 
     // (within_clause SEMICOLON)?
     if input.starts_with("within") || input.starts_with("WITHIN") {
@@ -497,6 +630,17 @@ pub fn stored_definition<'a>(input: &mut &'a str) -> ModalResult<StoredDefinitio
     }
 
     let classes = class_definition_list(input)?;
+
+    // Consume any trailing END tokens left by nested class definitions
+    skip_trivia(input)?;
+    while input.starts_with("end") || input.starts_with("END") {
+        take_while(0.., |c: char| !c.is_whitespace() && c != ';').parse_next(input)?;
+        skip_trivia(input)?;
+        if input.starts_with(';') {
+            ";".parse_next(input)?;
+        }
+        skip_trivia(input)?;
+    }
 
     if !input.is_empty() {
         return Err(ErrMode::Backtrack(ContextError::default()));
@@ -513,12 +657,22 @@ fn class_definition_list<'a>(input: &mut &'a str) -> ModalResult<Vec<ClassDef<'a
         if input.is_empty() {
             break;
         }
+        // Stop if we hit END (closes the enclosing class)
+        if input.starts_with("end") || input.starts_with("END") {
+            break;
+        }
         // FINAL?
         if input.starts_with("final") || input.starts_with("FINAL") {
             take_while(0.., |c: char| !c.is_whitespace() && c != ';').parse_next(input)?;
         }
         let def = class_definition(input)?;
         skip_trivia(input)?;
+        // After parsing a class definition, the remaining input should end with ";"
+        // But if we hit the closing "end" keyword, don't expect a semicolon
+        if input.starts_with("end") || input.starts_with("END") {
+            defs.push(def);
+            continue;
+        }
         ";".parse_next(input)?;
         defs.push(def);
         skip_trivia(input)?;
@@ -531,6 +685,20 @@ fn class_definition_list<'a>(input: &mut &'a str) -> ModalResult<Vec<ClassDef<'a
 
 /// class_definition: ENCAPSULATED? PARTIAL? class_type class_specifier
 fn class_definition<'a>(input: &mut &'a str) -> ModalResult<ClassDef<'a>> {
+    // Don't parse 'end' followed by identifier or semicolon as a class definition
+    // (it's the closing keyword of the enclosing class)
+    let lower = input.to_lowercase();
+    if lower.starts_with("end") {
+        // Check if followed by identifier/end/semicolon (closing pattern)
+        let rest = &input[3..];
+        let rest = rest.trim_start();
+        if rest.is_empty()
+            || rest.starts_with(|c: char| c.is_alphabetic() || c == '_')
+            || rest.starts_with(';')
+        {
+            return Err(ErrMode::Backtrack(ContextError::default()));
+        }
+    }
     let enc = input.starts_with("encapsulated") || input.starts_with("ENCAPSULATED");
     if enc {
         take_while(0.., |c: char| !c.is_whitespace() && c != ';').parse_next(input)?;
@@ -602,7 +770,8 @@ fn class_specifier<'a>(input: &mut &'a str) -> ModalResult<ClassSpecifier<'a>> {
             end_name,
         })
     } else {
-        let name = ident_or_fail(input)?;
+        // Accept any keyword or identifier as a class name
+        let name = class_name(input)?;
         let spec2 = class_specifier2(input)?;
         Ok(ClassSpecifier::Normal { name, spec2 })
     }
@@ -652,8 +821,18 @@ fn class_specifier2<'a>(input: &mut &'a str) -> ModalResult<ClassSpecifier2<'a>>
             return Ok(ClassSpecifier2::Enumeration(literals));
         }
 
-        let base_type = skip_type_prefix(input)?;
         let typ = type_spec(input)?;
+        let base_type = match &typ {
+            TypeSpec::Path(p) => p.0.first().cloned().unwrap_or(""),
+            TypeSpec::Builtin(s) => s,
+            TypeSpec::List(_) => "list",
+            TypeSpec::Option(_) => "option",
+            TypeSpec::Extension { base, .. } => match base.as_ref() {
+                TypeSpec::Path(p) => p.0.first().cloned().unwrap_or(""),
+                TypeSpec::Builtin(s) => s,
+                _ => "unknown",
+            },
+        };
         let modification = class_modification(input)?;
         let comment = string_comments(input)?;
 
@@ -699,10 +878,13 @@ fn class_specifier2<'a>(input: &mut &'a str) -> ModalResult<ClassSpecifier2<'a>>
     let end_name = if !input.is_empty()
         && input.starts_with(|c: char| c.is_alphabetic() || c == '_')
     {
-        ident_or_fail(input)?
+        // Accept any keyword or identifier as end name
+        skip_trivia(input)?;
+        let word: &str = take_while(1.., |c: char| c.is_alphanumeric() || c == '_').parse_next(input)?;
+        Ok(word)
     } else {
-        ""
-    };
+        Ok("")
+    }?;
 
     Ok(ClassSpecifier2::Composition {
         type_vars,
@@ -756,6 +938,17 @@ fn composition<'a>(input: &mut &'a str) -> ModalResult<Vec<ClassPart<'a>>> {
         if lower.starts_with("end") {
             break;
         }
+        // Parse nested class definitions (record, type, function, etc. inside a class body)
+        if starts_with_class_type(input) {
+            let def = class_definition(input)?;
+            skip_trivia(input)?;
+            // Consume optional semicolon after nested class definition
+            if input.starts_with(';') {
+                ";".parse_next(input)?;
+            }
+            parts.push(ClassPart::NestedClass(def));
+            continue;
+        }
 
         let before = *input;
         // Try to parse a component
@@ -804,6 +997,10 @@ fn element_list<'a>(input: &mut &'a str) -> ModalResult<Vec<ClassPart<'a>>> {
             break;
         }
         if input.starts_with("end") || input.starts_with("END") {
+            break;
+        }
+        // Don't try to parse nested class definitions as components
+        if starts_with_class_type(input) {
             break;
         }
 
@@ -1113,7 +1310,7 @@ fn skip_string_comment_text(input: &mut &str) -> ModalResult<String> {
             result.push(c);
             continue;
         }
-        let ch: &str = take_while(1.., |c: char| c != '"' && c != '\n')
+        let ch: &str = take_while(0.., |c: char| c != '"' && c != '\n')
             .parse_next(input)?;
         result.push_str(ch);
         if input.starts_with('\n') {
@@ -1343,5 +1540,50 @@ mod hang_debug2 {
                     end SimpleSystem;";
         let result = stored_definition.parse(code);
         assert!(result.is_ok());
+    }
+}
+
+#[cfg(test)]
+mod error_debug {
+    use super::*;
+
+    #[test]
+    fn debug_trace_end() {
+        // Test what happens when parsing "end Within"
+        let mut inp = "end Within";
+        match class_definition(&mut inp) {
+            Ok(def) => eprintln!("class_definition('end Within') = {:?}", def),
+            Err(e) => eprintln!("class_definition('end Within') failed: {:?}", e),
+        }
+
+        // Test the full parse
+        let input = "uniontype Within \"comment\"\n  record R\n  end R;\nend Within;";
+        eprintln!("Full input: {:?}", input);
+        let result = stored_definition.parse(input);
+        match &result {
+            Ok(d) => eprintln!("Full parse succeeded, {} classes", d.classes.len()),
+            Err(e) => {
+                let range = e.char_span();
+                eprintln!("Full parse failed at {:?}, remaining: {:?}", range, &input[range.end.min(input.len())..]);
+            }
+        }
+
+        // Also test string_comments
+        let code = std::fs::read_to_string("tests/data/Absyn.mo")
+            .expect("Absyn.mo not found");
+        let absyn_pos = code.find("encapsulated package Absyn").unwrap();
+        let after_keyword = code[absyn_pos + "encapsulated package Absyn".len()..].trim_start();
+        let mut input2 = after_keyword;
+        match string_comments(&mut input2) {
+            Ok(result) => eprintln!("string_comments: OK ({} chars)", result.as_ref().map(|s| s.len()).unwrap_or(0)),
+            Err(e) => eprintln!("string_comments failed: {:?}", e),
+        }
+
+        // Test full Absyn.mo parse
+        let result = stored_definition.parse(&*code);
+        if let Err(e) = result {
+            let range = e.char_span();
+            eprintln!("Absyn parse error at byte {}, line {}", range.end, code[..range.end].matches('\n').count() + 1);
+        }
     }
 }

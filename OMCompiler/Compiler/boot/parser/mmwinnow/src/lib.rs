@@ -7,6 +7,17 @@ use winnow::{Parser, ModalResult, combinator::opt, error::{ContextError, ErrMode
 use winnow::token::*;
 use winnow::ascii;
 
+pub struct ParserConfig {
+    pub filename: String,
+    pub grammar: Grammar,
+}
+
+enum Grammar {
+    Modelica2,
+    Modelica3,
+    MetaModelica,
+}
+
 /// Custom error type with line, column, and context display.
 #[derive(Debug)]
 pub struct ParserError<'a> {
@@ -83,7 +94,7 @@ impl<'a> ParserError<'a> {
         ));
 
         // Show the error message
-        output.push_str(&format!("  --> remaining input: {:?}\n", self.remaining));
+        output.push_str(&format!("  --> remaining input: {:?}\n", self.remaining[0..(100).min(self.remaining.len())].to_string()));
 
         // Show what was expected (from context)
         let ctx_str = format!("{:?}", self.inner);
@@ -818,48 +829,23 @@ fn class_specifier2<'a>(input: &mut &'a str) -> ModalResult<ClassSpecifier2> {
 
 fn composition<'a>(input: &mut &'a str) -> ModalResult<Vec<ClassPart>> {
     let mut parts = element_list(input)?;
-    let mut loop_count = 0u32;
 
     loop {
         skip_trivia(input)?;
-        if input.is_empty() {
-            break;
-        }
-        if input.starts_with("end") || input.starts_with("END") {
+        if input.is_empty() || input.starts_with("end") {
             break;
         }
 
-        let lower = input.to_lowercase();
-        if lower.starts_with("public") {
-            parts.push(ClassPart::Public);
-            take_while(0.., |c: char| !c.is_whitespace() && c != ';').parse_next(input)?;
-            continue;
-        }
-        if lower.starts_with("protected") {
-            parts.push(ClassPart::Protected);
-            take_while(0.., |c: char| !c.is_whitespace() && c != ';').parse_next(input)?;
-            continue;
-        }
-        if lower.starts_with("equation") {
-            parts.push(ClassPart::Equations);
-            take_while(0.., |c: char| !c.is_whitespace() && c != ';').parse_next(input)?;
-            continue;
-        }
-        if lower.starts_with("algorithm") {
-            parts.push(ClassPart::Algorithms);
-            take_while(0.., |c: char| !c.is_whitespace() && c != ';').parse_next(input)?;
-            continue;
-        }
-        if lower.starts_with("external") {
-            let part = external_part(input)?;
-            parts.push(part);
-            continue;
-        }
-
-        // If we hit END, break out (class_specifier2 will consume it)
-        if lower.starts_with("end") {
+        if input.starts_with("public") ||
+           input.starts_with("protected") ||
+           input.starts_with("equation") ||
+           input.starts_with("algorithm") ||
+           input.starts_with("external") ||
+           input.starts_with("initial") {
+            parts.extend(composition2(input)?);
             break;
         }
+
         // Parse nested class definitions (record, type, function, etc. inside a class body)
         if starts_with_class_type(input) {
             let def = class_definition(input)?;
@@ -872,7 +858,6 @@ fn composition<'a>(input: &mut &'a str) -> ModalResult<Vec<ClassPart>> {
             continue;
         }
 
-        let before = *input;
         // Try to parse a component
         if let Ok(elem) = component_declaration(input) {
             parts.push(ClassPart::Element(elem));
@@ -882,14 +867,6 @@ fn composition<'a>(input: &mut &'a str) -> ModalResult<Vec<ClassPart>> {
             if input.starts_with(';') {
                 ";".parse_next(input)?;
             }
-        }
-
-        loop_count += 1;
-        if loop_count > 100 {
-            break;
-        }
-        if *input == before {
-            break;
         }
 
         skip_trivia(input)?;
@@ -909,22 +886,44 @@ fn composition<'a>(input: &mut &'a str) -> ModalResult<Vec<ClassPart>> {
     Ok(parts)
 }
 
+//   external_clause?
+// | ( public_element_list
+//   | protected_element_list
+//   | initial_equation_clause
+//   | initial_algorithm_clause
+//   | equation_clause
+//   | constraint_clause
+//   | algorithm_clause
+//   )*
+fn composition2<'a>(input: &mut &'a str) -> ModalResult<Vec<ClassPart>> {
+    let mut parts = Vec::new();
+    loop {
+        if let Some(ext) = opt(external_part).parse_next(input)? {
+            parts.push(ext);
+            return Ok(parts);
+        } else if opt("public").parse_next(input)?.is_some() {
+            let _elts = element_list(input)?;
+            parts.push(ClassPart::Public);
+        } else if opt("protected").parse_next(input)?.is_some() {
+            let _elts = element_list(input)?;
+            parts.push(ClassPart::Protected);
+        } else if opt("equation").parse_next(input)?.is_some() {
+            // TODO: parse the equations
+        } else if opt("initial").parse_next(input)?.is_some() {
+            // TODO: parse the equations/algorithms
+        } else if opt("algorithm").parse_next(input)?.is_some() {
+            // TODO: parse the algorithms
+        } else {
+            return Err(ErrMode::Backtrack(ContextError::default()));
+        }
+        break;
+    }
+    Ok(parts)
+}
+
 fn element_list<'a>(input: &mut &'a str) -> ModalResult<Vec<ClassPart>> {
     let mut parts = Vec::new();
-    let mut loop_count = 0u32;
     loop {
-        skip_trivia(input)?;
-        if input.is_empty() {
-            break;
-        }
-        if input.starts_with("end") || input.starts_with("END") {
-            break;
-        }
-        // Don't try to parse nested class definitions as components
-        if starts_with_class_type(input) {
-            break;
-        }
-
         let lower = input.to_lowercase();
         if lower.starts_with("public") {
             parts.push(ClassPart::Public);
@@ -961,20 +960,7 @@ fn element_list<'a>(input: &mut &'a str) -> ModalResult<Vec<ClassPart>> {
             parts.push(ClassPart::Element(elem));
             continue;
         }
-
-        let before = *input;
-        let _: &str = take_while(0.., |c: char| !";\n".contains(c)).parse_next(input)?;
-        if input.starts_with(';') {
-            ";".parse_next(input)?;
-        }
-
-        loop_count += 1;
-        if loop_count > 100 {
-            break;
-        }
-        if *input == before {
-            break;
-        }
+        // TODO: this whole function is just... wrong
     }
     Ok(parts)
 }
@@ -1354,7 +1340,9 @@ mod tests {
         let code = std::fs::read_to_string("tests/data/Absyn.mo")
             .expect("Absyn.mo not found");
         let result = stored_definition.parse(&*code);
-        assert!(result.is_ok(), "expected Absyn.mo to parse, got: {:?}", result);
+        if let Some(err) = &result.err() {
+            assert!(false, "expected Absyn.mo to parse, got: {}", err);
+        }
     }
 }
 

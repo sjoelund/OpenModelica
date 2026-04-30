@@ -1,17 +1,17 @@
-mod metamodelica_grammar;
-pub mod generated {
+pub mod grammar {
+    pub mod metamodelica_grammar;
     pub mod metamodelica_grammar_trait;
     pub mod metamodelica_parser;
 }
 
 use anyhow::Result;
-use metamodelica_grammar::MetaModelicaGrammar;
+use grammar::metamodelica_grammar::MetaModelicaGrammar;
 use std::fs::File;
 use std::io::{self, BufRead};
 
 fn parse_modelica<'t>(input: &'t str, file_name: &str) -> Result<MetaModelicaGrammar<'t>> {
     let mut grammar = MetaModelicaGrammar::new();
-    generated::metamodelica_parser::parse(input, file_name, &mut grammar)
+    grammar::metamodelica_parser::parse(input, file_name, &mut grammar)
         .map_err(|e| anyhow::anyhow!("{:?}", e))?;
     Ok(grammar)
 }
@@ -39,9 +39,12 @@ fn main() {
     let metamodelica_code = r#"
         package SimpleSystem "Returns the index of the set the entry belongs to, or fails if the
    entry doesn't."
+            /* ... */
             Real x(start=0);
         end SimpleSystem;
     "#;
+
+    return;
 
     match parse_modelica(metamodelica_code, "<inline>") {
         Ok(_) => println!("Parse succeeded."),

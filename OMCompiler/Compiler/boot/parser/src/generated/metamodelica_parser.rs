@@ -12,8 +12,8 @@ use parol_runtime::{
 use scnr2::scanner;
 use std::path::Path;
 
-use crate::metamodelica_grammar::MetaModelicaGrammar;
-use crate::generated::metamodelica_grammar_trait::MetaModelicaGrammarAuto;
+use crate::generated::metamodelica_grammar::MetaModelicaGrammarAuto;
+use crate::generated::metamodelica_grammar_trait::MetaModelicaGrammarAutoAuto;
 
 pub const TERMINAL_NAMES: &[&str; 105] = &[
     /*   0 */ "EndOfInput",
@@ -124,7 +124,7 @@ pub const TERMINAL_NAMES: &[&str; 105] = &[
 ];
 
 scanner! {
-    MetaModelicaGrammarScanner {
+    MetaModelicaGrammarAutoScanner {
         mode INITIAL {
             token r"\r\n|\r|\n" => 1; // "Newline"
             token r"[\s--\r\n]+" => 2; // "Whitespace"
@@ -16271,7 +16271,7 @@ pub const PRODUCTIONS: &[LRProduction; 491] = &[
 pub fn parse<'t, T>(
     input: &'t str,
     file_name: T,
-    user_actions: &mut MetaModelicaGrammar<'t>,
+    user_actions: &mut MetaModelicaGrammarAuto<'t>,
 ) -> Result<ParseTree, ParolError>
 where
     T: AsRef<Path>,
@@ -16289,12 +16289,12 @@ pub fn parse_into<'t, T: TreeConstruct<'t>>(
     input: &'t str,
     tree_builder: &mut T,
     file_name: impl AsRef<Path>,
-    user_actions: &mut MetaModelicaGrammar<'t>,
+    user_actions: &mut MetaModelicaGrammarAuto<'t>,
 ) -> Result<(), ParolError>
 where
     ParolError: From<T::Error>,
 {
-    use meta_modelica_grammar_scanner::MetaModelicaGrammarScanner;
+    use meta_modelica_grammar_auto_scanner::MetaModelicaGrammarAutoScanner;
     let mut lr_parser = LRParser::new(
         238,
         &PARSE_TABLE,
@@ -16303,15 +16303,15 @@ where
         NON_TERMINALS,
     );
     // Initialize wrapper
-    let mut user_actions = MetaModelicaGrammarAuto::new(user_actions);
-    let scanner = MetaModelicaGrammarScanner::new();
+    let mut user_actions = MetaModelicaGrammarAutoAuto::new(user_actions);
+    let scanner = MetaModelicaGrammarAutoScanner::new();
     lr_parser.parse_into(
         tree_builder,
         TokenStream::new(
             input,
             file_name,
             scanner.scanner_impl.clone(),
-            &MetaModelicaGrammarScanner::match_function,
+            &MetaModelicaGrammarAutoScanner::match_function,
             1,
         )
         .unwrap(),

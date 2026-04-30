@@ -2,11 +2,12 @@ use std::fs;
 use std::path::PathBuf;
 
 fn main() {
-    let grammar_file = "src/metamodelica.par";
-    let out_dir = PathBuf::from("src/generated");
+    let grammar_file = "src/grammar/metamodelica.par";
+    let out_dir = PathBuf::from("src/grammar");
     let parser_file = out_dir.join("metamodelica_parser.rs");
 
     println!("cargo:rerun-if-changed={}", grammar_file);
+    println!("cargo:rerun-if-changed={}", "build.rs");
 
     fs::create_dir_all(&out_dir).unwrap();
 
@@ -15,7 +16,7 @@ fn main() {
         .parser_output_file("metamodelica_parser.rs")
         .actions_output_file("metamodelica_grammar_trait.rs")
         .user_type_name("MetaModelicaGrammar")
-        .user_trait_module_name("metamodelica_grammar")
+        .user_trait_module_name("grammar::metamodelica_grammar")
         .generate_parser()
         .unwrap();
 
@@ -23,11 +24,6 @@ fn main() {
     // Special regex chars in literal token patterns must be escaped.
     let content = fs::read_to_string(&parser_file).unwrap();
     let content = fix_scanner_regexes(&content);
-    // The trait file moved to src/generated/; update the import path.
-    let content = content.replace(
-        "use crate::metamodelica_grammar_trait::",
-        "use crate::generated::metamodelica_grammar_trait::",
-    );
     fs::write(&parser_file, content).unwrap();
 }
 

@@ -17,7 +17,7 @@ use parol_runtime::{ParserError, Result, Token};
 
 /// Semantic actions trait generated for the user grammar
 /// All functions have default implementations.
-pub trait MetaModelicaGrammarTrait<'t> {
+pub trait MetaModelicaGrammarAutoTrait<'t> {
     /// Semantic action for non-terminal 'StoredDefinition'
     fn stored_definition(&mut self, _arg: &StoredDefinition<'t>) -> Result<()> {
         Ok(())
@@ -5561,22 +5561,22 @@ pub enum ASTType<'t> {
 /// The lifetime parameter `'u` refers to the lifetime of user grammar object.
 ///
 #[allow(dead_code)]
-pub struct MetaModelicaGrammarAuto<'t, 'u>
+pub struct MetaModelicaGrammarAutoAuto<'t, 'u>
 where
     't: 'u,
 {
     // Mutable reference of the actual user grammar to be able to call the semantic actions on it
-    user_grammar: &'u mut dyn MetaModelicaGrammarTrait<'t>,
+    user_grammar: &'u mut dyn MetaModelicaGrammarAutoTrait<'t>,
     // Stack to construct the AST on it
     item_stack: Vec<ASTType<'t>>,
 }
 
 ///
-/// The `MetaModelicaGrammarAuto` impl is automatically generated for the
+/// The `MetaModelicaGrammarAutoAuto` impl is automatically generated for the
 /// given grammar.
 ///
-impl<'t, 'u> MetaModelicaGrammarAuto<'t, 'u> {
-    pub fn new(user_grammar: &'u mut dyn MetaModelicaGrammarTrait<'t>) -> Self {
+impl<'t, 'u> MetaModelicaGrammarAutoAuto<'t, 'u> {
+    pub fn new(user_grammar: &'u mut dyn MetaModelicaGrammarAutoTrait<'t>) -> Self {
         Self {
             user_grammar,
             item_stack: Vec::new(),
@@ -16488,9 +16488,9 @@ impl<'t, 'u> MetaModelicaGrammarAuto<'t, 'u> {
     }
 }
 
-impl<'t> UserActionsTrait<'t> for MetaModelicaGrammarAuto<'t, '_> {
+impl<'t> UserActionsTrait<'t> for MetaModelicaGrammarAutoAuto<'t, '_> {
     ///
-    /// This function is implemented automatically for the user's item MetaModelicaGrammar.
+    /// This function is implemented automatically for the user's item MetaModelicaGrammarAuto.
     ///
     fn call_semantic_action_for_production_number(
         &mut self,

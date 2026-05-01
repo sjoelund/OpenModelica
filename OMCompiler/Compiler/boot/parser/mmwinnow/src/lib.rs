@@ -127,11 +127,13 @@ pub enum Token<'a> {
     Equation, Algorithm,
     Model, Operator, Parallel, Kernel, Expandable, Optimization,
     Within, Der, Code, Equality, Initial,
-    Else, If, For, While, Try, Elseif, ElseWhen, Return,
+    Else, If, Then, For, While, Try, Elseif, ElseWhen, Return,
     Break, Continue, Match, Matchcontinue, Case,
     Each, Replaceable, Declareunit, Constraint, Assert,
     Enumeration, Subtypeof, Pder, Overload,
     Flow, Stream,
+    And, Or, Not, In, When, BoolTrue, BoolFalse,
+    Local, As, Guard, Threaded,
     Ident(&'a str),
     StringLit(&'a str),
     IntLit(&'a str),
@@ -203,6 +205,18 @@ impl std::fmt::Display for Token<'_> {
             Token::Overload => "OVERLOAD",
             Token::Flow => "flow",
             Token::Stream => "stream",
+            Token::Then => "then",
+            Token::And => "and",
+            Token::Or => "or",
+            Token::Not => "not",
+            Token::In => "in",
+            Token::When => "when",
+            Token::BoolTrue => "true",
+            Token::BoolFalse => "false",
+            Token::Local => "local",
+            Token::As => "as",
+            Token::Guard => "guard",
+            Token::Threaded => "threaded",
             Token::Ident(s) => return write!(f, "IDENT({s:?})"),
             Token::StringLit(s) => return write!(f, "STRING({s:?})"),
             Token::IntLit(s) => return write!(f, "INT({s:?})"),
@@ -510,7 +524,19 @@ fn token_from_word<'a>(word: &'a str) -> Token<'a> {
         "return" => Token::Return,
         "stream" => Token::Stream,
         "subtypeof" => Token::Subtypeof,
+        "then" => Token::Then,
+        "threaded" => Token::Threaded,
+        "true" => Token::BoolTrue,
         "try" => Token::Try,
+        "and" => Token::And,
+        "or" => Token::Or,
+        "not" => Token::Not,
+        "in" => Token::In,
+        "when" => Token::When,
+        "false" => Token::BoolFalse,
+        "local" => Token::Local,
+        "as" => Token::As,
+        "guard" => Token::Guard,
         "type" => Token::Type,
         "uniontype" => Token::Uniontype,
         "while" => Token::While,
@@ -1300,8 +1326,11 @@ fn component_reference2<'a>(input: &mut &'a str) -> ModalResult<Absyn::Component
     let raw_subs = opt(array_subscripts).parse_next(input)?.unwrap_or(List::Nil());
     let mut subscripts: List<Rc<Absyn::Subscript>> = List::Nil();
     for s in &raw_subs.reverse() { subscripts = cons(Rc::new(s), subscripts); }
-    let inner = opt(".").parse_next(input)?;
-    if inner.is_some() {
+    // Only consume '.' if followed by an identifier char (not element-wise ops or '..')
+    let is_qual_dot = input.starts_with('.') && input.chars().nth(1)
+        .map_or(false, |c| c.is_alphanumeric() || c == '_');
+    if is_qual_dot {
+        ".".parse_next(input)?;
         let rest = component_reference2(input)?;
         Ok(Absyn::ComponentRef::CREF_QUAL { name, subscripts, componentRef: Rc::new(rest) })
     } else {
@@ -1345,19 +1374,863 @@ fn part_eval_function_expression<'a>(input: &mut &'a str) -> ModalResult<Absyn::
     })
 }
 
+// ============================================================================
+// Expression parser — follows the ANTLR grammar structure
+// ============================================================================
+
+/// primary: literal | cref/call | parenthesised | array | matrix | end
+fn primary<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
+    skip_trivia(input)?;
+
+    // end
+    if let Token::End = peek(keyword_or_ident).parse_next(input)? {
+        keyword_or_ident.parse_next(input)?;
+        return Ok(Absyn::Exp::END {});
+    }
+
+    // true / false
+    let tok = peek(keyword_or_ident).parse_next(input)?;
+    if matches!(tok, Token::BoolTrue | Token::BoolFalse) {
+        keyword_or_ident.parse_next(input)?;
+        return Ok(Absyn::Exp::BOOL { value: tok == Token::BoolTrue });
+    }
+
+    // String literal
+    if input.starts_with('"') {
+        let s = string_token(input)?;
+        return Ok(Absyn::Exp::STRING { value: s });
+    }
+
+    // Numeric literal (real before integer by trying decimal/exponent)
+    if input.starts_with(|c: char| c.is_ascii_digit()) || input.starts_with('.') {
+        if let Ok(e) = number_literal(input) {
+            return Ok(e);
+        }
+    }
+
+    // ( output_expression_list array_subscripts? )
+    if input.starts_with('(') {
+        "(".parse_next(input)?;
+        let (exprs, is_tuple) = output_expression_list(input)?;
+        // output_expression_list already consumed ')'
+        let raw_subs = opt(array_subscripts).parse_next(input)?;
+        if let Some(subs) = raw_subs {
+            // Wrap subscripts in Rc
+            let mut rc_subs: List<Rc<Subscript>> = List::Nil();
+            for s in &subs.reverse() { rc_subs = cons(Rc::new(s), rc_subs); }
+            return Ok(Absyn::Exp::SUBSCRIPTED_EXP { exp: Rc::new(to_tuple_or_exp(exprs, is_tuple)), subscripts: rc_subs });
+        }
+        return Ok(to_tuple_or_exp(exprs, is_tuple));
+    }
+
+    // [ matrix_expression_list ]
+    if input.starts_with('[') {
+        "[".parse_next(input)?;
+        let rows = matrix_expression_list(input)?;
+        "]".parse_next(input)?;
+        return Ok(Absyn::Exp::MATRIX { matrix: rows });
+    }
+
+    // { for_or_expression_list }
+    if input.starts_with('{') {
+        "{".parse_next(input)?;
+        let fa = for_or_expression_list(input)?;
+        "}".parse_next(input)?;
+        return match fa {
+            Absyn::FunctionArgs::FOR_ITER_FARG { exp, iterType, iterators } => {
+                let cr = Absyn::ComponentRef::CREF_IDENT {
+                    name: "$array".to_string(), subscripts: List::Nil() };
+                Ok(Absyn::Exp::CALL {
+                    function_: Rc::new(cr),
+                    functionArgs: Absyn::FunctionArgs::FOR_ITER_FARG { exp, iterType, iterators },
+                    typeVars: List::Nil(),
+                })
+            }
+            Absyn::FunctionArgs::FUNCTIONARGS { args, argNames } =>
+                Ok(Absyn::Exp::ARRAY { arrayExp: args }),
+        };
+    }
+
+    // der function_call
+    if let Token::Der = peek(keyword_or_ident).parse_next(input)? {
+        keyword_or_ident.parse_next(input)?;
+        let fa = function_call(input)?;
+        let cr = Absyn::ComponentRef::CREF_IDENT { name: "der".to_string(), subscripts: List::Nil() };
+        return Ok(Absyn::Exp::CALL { function_: Rc::new(cr), functionArgs: fa, typeVars: List::Nil() });
+    }
+
+    // pure function_call
+    if let Token::Pure = peek(keyword_or_ident).parse_next(input)? {
+        keyword_or_ident.parse_next(input)?;
+        let fa = function_call(input)?;
+        let cr = Absyn::ComponentRef::CREF_IDENT { name: "pure".to_string(), subscripts: List::Nil() };
+        return Ok(Absyn::Exp::CALL { function_: Rc::new(cr), functionArgs: fa, typeVars: List::Nil() });
+    }
+
+    // component_reference__function_call
+    component_reference__function_call(input)
+}
+
+fn to_tuple_or_exp(exprs: List<Rc<Absyn::Exp>>, is_tuple: bool) -> Absyn::Exp {
+    if is_tuple {
+        Absyn::Exp::TUPLE { expressions: exprs }
+    } else {
+        match exprs {
+            List::Cons { ref head, .. } => (**head).clone(),
+            List::Nil() => Absyn::Exp::TUPLE { expressions: List::Nil() },
+        }
+    }
+}
+
+/// number_literal: UNSIGNED_REAL | UNSIGNED_INTEGER
+fn number_literal<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
+    let start = *input;
+    let has_int = take_while::<_, _, ContextError>(1.., |c: char| c.is_ascii_digit()).parse_next(input).is_ok();
+    let mut is_real = false;
+
+    if has_int {
+        // decimal point (but not '..' or element-wise operators)
+        if input.starts_with('.') && !input.starts_with("..") &&
+           !matches!(input.chars().nth(1), Some('+'|'-'|'*'|'/'|'^')) {
+            ".".parse_next(input)?;
+            take_while(0.., |c: char| c.is_ascii_digit()).parse_next(input)?;
+            is_real = true;
+        }
+    } else if input.starts_with('.') && !input.starts_with("..") {
+        ".".parse_next(input)?;
+        take_while(1.., |c: char| c.is_ascii_digit()).parse_next(input)?;
+        is_real = true;
+    } else {
+        return Err(ErrMode::Backtrack(ContextError::default()));
+    }
+
+    // optional exponent (only if followed by sign or digit)
+    if (input.starts_with('e') || input.starts_with('E')) &&
+       input.chars().nth(1).map_or(false, |c| c.is_ascii_digit() || c == '+' || c == '-') {
+        take_while(1.., |c: char| c == 'e' || c == 'E').parse_next(input)?;
+        opt(alt(('+', '-'))).parse_next(input)?;
+        take_while(1.., |c: char| c.is_ascii_digit()).parse_next(input)?;
+        is_real = true;
+    }
+
+    let len = start.len() - input.len();
+    let s = &start[..len];
+    if is_real {
+        Ok(Absyn::Exp::REAL { value: s.to_string() })
+    } else {
+        Ok(Absyn::Exp::INTEGER { value: s.parse().unwrap_or(i32::MAX) })
+    }
+}
+
+/// component_reference__function_call: cref (<type_vars> fc)? | cref fc? | initial()
+fn component_reference__function_call<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
+    // initial()
+    if let Token::Initial = peek(keyword_or_ident).parse_next(input)? {
+        keyword_or_ident.parse_next(input)?;
+        skip_trivia(input)?;
+        if input.starts_with('(') {
+            "(".parse_next(input)?;
+            ")".parse_next(input)?;
+            let cr = Absyn::ComponentRef::CREF_IDENT { name: "initial".to_string(), subscripts: List::Nil() };
+            return Ok(Absyn::Exp::CALL {
+                function_: Rc::new(cr),
+                functionArgs: Absyn::FunctionArgs::FUNCTIONARGS { args: List::Nil(), argNames: List::Nil() },
+                typeVars: List::Nil(),
+            });
+        }
+    }
+
+    let cr = component_reference(input)?;
+    skip_trivia(input)?;
+
+    // polymorphic call: cr < type_vars > function_call  (MetaModelica)
+    if input.starts_with('<') {
+        let saved = *input;
+        if let Ok(type_vars) = (|| -> ModalResult<List<Path>> {
+            "<".parse_next(input)?;
+            let mut vars: List<Path> = List::Nil();
+            loop {
+                skip_trivia(input)?;
+                if input.starts_with('>') { break; }
+                vars = cons(name_path(input)?, vars);
+                skip_trivia(input)?;
+                if opt(",").parse_next(input)?.is_none() { break; }
+            }
+            ">".parse_next(input)?;
+            Ok(vars.reverse())
+        })() {
+            skip_trivia(input)?;
+            if input.starts_with('(') {
+                let fa = function_call(input)?;
+                return Ok(Absyn::Exp::CALL { function_: Rc::new(cr), functionArgs: fa, typeVars: type_vars });
+            }
+            *input = saved;
+        } else {
+            *input = saved;
+        }
+    }
+
+    // optional function call
+    if input.starts_with('(') {
+        let fa = function_call(input)?;
+        // optional .field access after call (MetaModelica dot operator)
+        skip_trivia(input)?;
+        if input.starts_with('.') && input.chars().nth(1).map_or(false, |c| c.is_alphanumeric() || c == '_') {
+            ".".parse_next(input)?;
+            let field = expression(input)?;
+            return Ok(Absyn::Exp::DOT {
+                exp: Rc::new(Absyn::Exp::CALL { function_: Rc::new(cr), functionArgs: fa, typeVars: List::Nil() }),
+                index: Rc::new(field),
+            });
+        }
+        return Ok(Absyn::Exp::CALL { function_: Rc::new(cr), functionArgs: fa, typeVars: List::Nil() });
+    }
+
+    Ok(Absyn::Exp::CREF { componentRef: Rc::new(cr) })
+}
+
+/// function_call: LPAR function_arguments RPAR
+fn function_call<'a>(input: &mut &'a str) -> ModalResult<Absyn::FunctionArgs> {
+    "(".parse_next(input)?;
+    let fa = function_arguments(input)?;
+    ")".parse_next(input)?;
+    Ok(fa)
+}
+
+/// function_arguments: for_or_expression_list named_arguments?
+fn function_arguments<'a>(input: &mut &'a str) -> ModalResult<Absyn::FunctionArgs> {
+    let fa = for_or_expression_list(input)?;
+    match fa {
+        Absyn::FunctionArgs::FOR_ITER_FARG { .. } => Ok(fa),
+        Absyn::FunctionArgs::FUNCTIONARGS { args, argNames: _ } => {
+            // Try named_arguments (they follow positional args or are the only args)
+            let argNames = opt(named_arguments).parse_next(input)?.unwrap_or(List::Nil());
+            Ok(Absyn::FunctionArgs::FUNCTIONARGS { args, argNames })
+        }
+    }
+}
+
+/// for_or_expression_list: empty | for-iterator | expression list
+fn for_or_expression_list<'a>(input: &mut &'a str) -> ModalResult<Absyn::FunctionArgs> {
+    skip_trivia(input)?;
+
+    // Empty: next is ) or }
+    if input.starts_with(')') || input.starts_with('}') {
+        return Ok(Absyn::FunctionArgs::FUNCTIONARGS { args: List::Nil(), argNames: List::Nil() });
+    }
+
+    // Named arg start: ident = (not ==)
+    {
+        let saved = *input;
+        let is_named = (|| {
+            if let Ok(Token::Ident(_)) = keyword_or_ident.parse_next(input) {
+                skip_trivia(input).ok();
+                input.starts_with('=') && !input.starts_with("==")
+            } else { false }
+        })();
+        *input = saved;
+        if is_named {
+            return Ok(Absyn::FunctionArgs::FUNCTIONARGS { args: List::Nil(), argNames: List::Nil() });
+        }
+    }
+
+    // Parse first expression
+    let e1 = expression(input)?;
+    skip_trivia(input)?;
+
+    // for-iterator: expr [threaded] for indices
+    if matches!(peek(keyword_or_ident).parse_next(input)?, Token::For | Token::Threaded) {
+        let threaded = if matches!(peek(keyword_or_ident).parse_next(input)?, Token::Threaded) {
+            keyword_or_ident.parse_next(input)?;
+            true
+        } else { false };
+        match keyword_or_ident(input)? {
+            Token::For => {}
+            _ => return Err(ErrMode::Backtrack(ContextError::default())),
+        }
+        let iterators = for_indices(input)?;
+        return Ok(Absyn::FunctionArgs::FOR_ITER_FARG {
+            exp: Rc::new(e1),
+            iterType: if threaded { Absyn::ReductionIterType::THREAD {} } else { Absyn::ReductionIterType::COMBINE {} },
+            iterators,
+        });
+    }
+
+    // Expression list: e1 (, e2)*
+    let mut args: List<Rc<Absyn::Exp>> = cons(Rc::new(e1), List::Nil());
+    loop {
+        skip_trivia(input)?;
+        if opt(",").parse_next(input)?.is_none() { break; }
+        skip_trivia(input)?;
+        // Stop if next is named arg start
+        let saved = *input;
+        let is_named = (|| {
+            if let Ok(Token::Ident(_)) = keyword_or_ident.parse_next(input) {
+                skip_trivia(input).ok();
+                input.starts_with('=') && !input.starts_with("==")
+            } else { false }
+        })();
+        *input = saved;
+        if is_named { break; }
+        if input.starts_with(')') || input.starts_with('}') { break; }
+        match expression(input) {
+            Ok(e) => args = cons(Rc::new(e), args),
+            Err(_) => break,
+        }
+    }
+    Ok(Absyn::FunctionArgs::FUNCTIONARGS { args: args.reverse(), argNames: List::Nil() })
+}
+
+/// for_indices: for_index (, for_index)*
+fn for_indices<'a>(input: &mut &'a str) -> ModalResult<Absyn::ForIterators> {
+    let first = for_index(input)?;
+    let mut result: List<Absyn::ForIterator> = cons(first, List::Nil());
+    loop {
+        skip_trivia(input)?;
+        if opt(",").parse_next(input)?.is_none() { break; }
+        match for_index(input) {
+            Ok(fi) => result = cons(fi, result),
+            Err(_) => break,
+        }
+    }
+    Ok(result.reverse())
+}
+
+/// for_index: IDENT ((IF|GUARD) guard_expr)? IN range_expr
+fn for_index<'a>(input: &mut &'a str) -> ModalResult<Absyn::ForIterator> {
+    let name = ident(input)?;
+    skip_trivia(input)?;
+    let guardExp = match peek(keyword_or_ident).parse_next(input)? {
+        Token::If | Token::Guard => {
+            keyword_or_ident.parse_next(input)?;
+            Some(Rc::new(expression(input)?))
+        }
+        _ => None,
+    };
+    skip_trivia(input)?;
+    let range = match peek(keyword_or_ident).parse_next(input)? {
+        Token::In => {
+            keyword_or_ident.parse_next(input)?;
+            Some(Rc::new(expression(input)?))
+        }
+        _ => None,
+    };
+    Ok(Absyn::ForIterator::ITERATOR { name, guardExp, range })
+}
+
+/// expression_list: expr (, expr)*
+fn expression_list<'a>(input: &mut &'a str) -> ModalResult<List<Rc<Absyn::Exp>>> {
+    let e = expression(input)?;
+    let mut result: List<Rc<Absyn::Exp>> = cons(Rc::new(e), List::Nil());
+    loop {
+        skip_trivia(input)?;
+        if opt(",").parse_next(input)?.is_none() { break; }
+        match expression(input) {
+            Ok(e) => result = cons(Rc::new(e), result),
+            Err(_) => break,
+        }
+    }
+    Ok(result.reverse())
+}
+
+/// output_expression_list: consumes up to and including ')'
+/// Returns (expressions, isTuple)
+fn output_expression_list<'a>(input: &mut &'a str) -> ModalResult<(List<Rc<Absyn::Exp>>, bool)> {
+    skip_trivia(input)?;
+    // () case
+    if input.starts_with(')') {
+        ")".parse_next(input)?;
+        return Ok((List::Nil(), true));
+    }
+    // Leading comma: (,b) → WILD, b
+    if input.starts_with(',') {
+        ",".parse_next(input)?;
+        let (rest, _) = output_expression_list(input)?;
+        let wild = Absyn::ComponentRef::WILD {};
+        let wild_exp = Rc::new(Absyn::Exp::CREF { componentRef: Rc::new(wild) });
+        return Ok((cons(wild_exp, rest), true));
+    }
+    let e1 = expression(input)?;
+    skip_trivia(input)?;
+    if input.starts_with(',') {
+        ",".parse_next(input)?;
+        let (rest, _) = output_expression_list(input)?;
+        let mut result = rest;
+        // If rest is nil, add trailing WILD for (a,) pattern
+        if result.is_empty() {
+            let wild = Rc::new(Absyn::Exp::CREF { componentRef: Rc::new(Absyn::ComponentRef::WILD {}) });
+            result = cons(wild, result);
+        }
+        return Ok((cons(Rc::new(e1), result), true));
+    }
+    ")".parse_next(input)?;
+    Ok((cons(Rc::new(e1), List::Nil()), false))
+}
+
+/// matrix_expression_list: expression_list (; expression_list)*
+fn matrix_expression_list<'a>(input: &mut &'a str) -> ModalResult<List<List<Rc<Absyn::Exp>>>> {
+    let row = expression_list(input)?;
+    let mut rows: List<List<Rc<Absyn::Exp>>> = cons(row, List::Nil());
+    loop {
+        skip_trivia(input)?;
+        if input.starts_with(';') && !input.starts_with(";;") {
+            ";".parse_next(input)?;
+            skip_trivia(input)?;
+            if input.starts_with(']') { break; }
+            match expression_list(input) {
+                Ok(r) => rows = cons(r, rows),
+                Err(_) => break,
+            }
+        } else {
+            break;
+        }
+    }
+    Ok(rows.reverse())
+}
+
+/// factor: primary ((^ | .^) primary)?
+fn factor<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
+    let e1 = primary(input)?;
+    skip_trivia(input)?;
+    let op = if input.starts_with(".^") {
+        ".^".parse_next(input)?;
+        Some(Absyn::Operator::POW_EW {})
+    } else if input.starts_with('^') {
+        "^".parse_next(input)?;
+        Some(Absyn::Operator::POW {})
+    } else {
+        None
+    };
+    if let Some(op) = op {
+        let e2 = primary(input)?;
+        Ok(Absyn::Exp::BINARY { exp1: Rc::new(e1), op, exp2: Rc::new(e2) })
+    } else {
+        Ok(e1)
+    }
+}
+
+/// term: factor ((* | / | .* | ./) factor)*
+fn term<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
+    let mut e = factor(input)?;
+    loop {
+        skip_trivia(input)?;
+        let op = if input.starts_with(".*") {
+            ".*".parse_next(input)?; Some(Absyn::Operator::MUL_EW {})
+        } else if input.starts_with("./") {
+            "./".parse_next(input)?; Some(Absyn::Operator::DIV_EW {})
+        } else if input.starts_with('*') {
+            "*".parse_next(input)?; Some(Absyn::Operator::MUL {})
+        } else if input.starts_with('/') {
+            "/".parse_next(input)?; Some(Absyn::Operator::DIV {})
+        } else { None };
+        match op {
+            Some(op) => {
+                let e2 = factor(input)?;
+                e = Absyn::Exp::BINARY { exp1: Rc::new(e), op, exp2: Rc::new(e2) };
+            }
+            None => break,
+        }
+    }
+    Ok(e)
+}
+
+/// unary_arithmetic_expression: (+ | - | .+ | .-) term | term
+fn unary_arithmetic_expression<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
+    skip_trivia(input)?;
+    let op = if input.starts_with(".+") {
+        ".+".parse_next(input)?; Some(Absyn::Operator::UPLUS_EW {})
+    } else if input.starts_with(".-") {
+        ".-".parse_next(input)?; Some(Absyn::Operator::UMINUS_EW {})
+    } else if input.starts_with('+') {
+        "+".parse_next(input)?; Some(Absyn::Operator::UPLUS {})
+    } else if input.starts_with('-') {
+        "-".parse_next(input)?; Some(Absyn::Operator::UMINUS {})
+    } else { None };
+    let t = term(input)?;
+    match op {
+        Some(op) => Ok(Absyn::Exp::UNARY { op, exp: Rc::new(t) }),
+        None => Ok(t),
+    }
+}
+
+/// arithmetic_expression: unary ((+ | - | .+ | .-) term)*
+fn arithmetic_expression<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
+    let mut e = unary_arithmetic_expression(input)?;
+    loop {
+        skip_trivia(input)?;
+        let op = if input.starts_with(".+") {
+            ".+".parse_next(input)?; Some(Absyn::Operator::ADD_EW {})
+        } else if input.starts_with(".-") {
+            ".-".parse_next(input)?; Some(Absyn::Operator::SUB_EW {})
+        } else if input.starts_with('+') {
+            "+".parse_next(input)?; Some(Absyn::Operator::ADD {})
+        } else if input.starts_with('-') {
+            "-".parse_next(input)?; Some(Absyn::Operator::SUB {})
+        } else { None };
+        match op {
+            Some(op) => {
+                let e2 = term(input)?;
+                e = Absyn::Exp::BINARY { exp1: Rc::new(e), op, exp2: Rc::new(e2) };
+            }
+            None => break,
+        }
+    }
+    Ok(e)
+}
+
+/// relation: arithmetic_expression ((< | <= | > | >= | == | <>) arithmetic_expression)?
+fn relation<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
+    let e1 = arithmetic_expression(input)?;
+    skip_trivia(input)?;
+    let op = if input.starts_with("<=") {
+        "<=".parse_next(input)?; Some(Absyn::Operator::LESSEQ {})
+    } else if input.starts_with(">=") {
+        ">=".parse_next(input)?; Some(Absyn::Operator::GREATEREQ {})
+    } else if input.starts_with("<>") {
+        "<>".parse_next(input)?; Some(Absyn::Operator::NEQUAL {})
+    } else if input.starts_with("==") {
+        "==".parse_next(input)?; Some(Absyn::Operator::EQUAL {})
+    } else if input.starts_with('<') {
+        "<".parse_next(input)?; Some(Absyn::Operator::LESS {})
+    } else if input.starts_with('>') {
+        ">".parse_next(input)?; Some(Absyn::Operator::GREATER {})
+    } else { None };
+    match op {
+        Some(op) => {
+            let e2 = arithmetic_expression(input)?;
+            Ok(Absyn::Exp::RELATION { exp1: Rc::new(e1), op, exp2: Rc::new(e2) })
+        }
+        None => Ok(e1),
+    }
+}
+
+/// logical_factor: not? relation
+fn logical_factor<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
+    let has_not = matches!(peek(keyword_or_ident).parse_next(input)?, Token::Not);
+    if has_not { keyword_or_ident.parse_next(input)?; }
+    let e = relation(input)?;
+    if has_not {
+        Ok(Absyn::Exp::LUNARY { op: Absyn::Operator::NOT {}, exp: Rc::new(e) })
+    } else {
+        Ok(e)
+    }
+}
+
+/// logical_term: logical_factor (and logical_factor)*
+fn logical_term<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
+    let mut e = logical_factor(input)?;
+    loop {
+        if !matches!(peek(keyword_or_ident).parse_next(input)?, Token::And) { break; }
+        keyword_or_ident.parse_next(input)?;
+        let e2 = logical_factor(input)?;
+        e = Absyn::Exp::LBINARY { exp1: Rc::new(e), op: Absyn::Operator::AND {}, exp2: Rc::new(e2) };
+    }
+    Ok(e)
+}
+
+/// logical_expression: logical_term (or logical_term)*
+fn logical_expression<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
+    let mut e = logical_term(input)?;
+    loop {
+        if !matches!(peek(keyword_or_ident).parse_next(input)?, Token::Or) { break; }
+        keyword_or_ident.parse_next(input)?;
+        let e2 = logical_term(input)?;
+        e = Absyn::Exp::LBINARY { exp1: Rc::new(e), op: Absyn::Operator::OR {}, exp2: Rc::new(e2) };
+    }
+    Ok(e)
+}
+
+/// simple_expr: logical_expression (: logical_expression (: logical_expression)?)?
+fn simple_expr<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
+    let e1 = logical_expression(input)?;
+    skip_trivia(input)?;
+    if !input.starts_with(':') || input.starts_with(":=") || input.starts_with("::") {
+        return Ok(e1);
+    }
+    ":".parse_next(input)?;
+    let e2 = logical_expression(input)?;
+    skip_trivia(input)?;
+    if input.starts_with(':') && !input.starts_with(":=") && !input.starts_with("::") {
+        ":".parse_next(input)?;
+        let e3 = logical_expression(input)?;
+        Ok(Absyn::Exp::RANGE { start: Rc::new(e1), step: Some(Rc::new(e2)), stop: Rc::new(e3) })
+    } else {
+        Ok(Absyn::Exp::RANGE { start: Rc::new(e1), step: None, stop: Rc::new(e2) })
+    }
+}
+
+/// simple_expression: (ident AS simple_expression) | (simple_expr (:: simple_expression)?)
+fn simple_expression<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
+    // Check for ident AS pattern (MetaModelica)
+    {
+        let saved = *input;
+        let as_pattern = (|| {
+            match keyword_or_ident.parse_next(input)? {
+                Token::Ident(s) => {
+                    let id = s.to_string();
+                    skip_trivia(input).ok();
+                    if matches!(keyword_or_ident.parse_next(input)?, Token::As) {
+                        return Ok(Some(id));
+                    }
+                    Err(ErrMode::Backtrack(ContextError::default()))
+                }
+                _ => Err(ErrMode::Backtrack(ContextError::default())),
+            }
+        })();
+        match as_pattern {
+            Ok(Some(id)) => {
+                // Consumed ident and AS, now parse the rest
+                let e = simple_expression(input)?;
+                return Ok(Absyn::Exp::AS { id, exp: Rc::new(e) });
+            }
+            _ => { *input = saved; }
+        }
+    }
+
+    let e1 = simple_expr(input)?;
+    skip_trivia(input)?;
+    if input.starts_with("::") {
+        "::".parse_next(input)?;
+        let e2 = simple_expression(input)?;
+        Ok(Absyn::Exp::CONS { head: Rc::new(e1), rest: Rc::new(e2) })
+    } else {
+        Ok(e1)
+    }
+}
+
+/// if_expression: IF cond THEN e1 (ELSEIF cond THEN e)* ELSE e2
+fn if_expression<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
+    match keyword_or_ident(input)? {
+        Token::If => {}
+        _ => return Err(ErrMode::Backtrack(ContextError::default())),
+    }
+    let cond = expression(input)?;
+    match keyword_or_ident(input)? {
+        Token::Then => {}
+        _ => return Err(ErrMode::Backtrack(ContextError::default())),
+    }
+    let true_br = expression(input)?;
+    let mut elseif: List<(Rc<Absyn::Exp>, Rc<Absyn::Exp>)> = List::Nil();
+    loop {
+        if !matches!(peek(keyword_or_ident).parse_next(input)?, Token::Elseif) { break; }
+        keyword_or_ident.parse_next(input)?;
+        let ec = expression(input)?;
+        match keyword_or_ident(input)? {
+            Token::Then => {}
+            _ => return Err(ErrMode::Backtrack(ContextError::default())),
+        }
+        let et = expression(input)?;
+        elseif = cons((Rc::new(ec), Rc::new(et)), elseif);
+    }
+    match keyword_or_ident(input)? {
+        Token::Else => {}
+        _ => return Err(ErrMode::Backtrack(ContextError::default())),
+    }
+    let false_br = expression(input)?;
+    Ok(Absyn::Exp::IFEXP {
+        ifExp: Rc::new(cond),
+        trueBranch: Rc::new(true_br),
+        elseBranch: Rc::new(false_br),
+        elseIfBranch: elseif.reverse(),
+    })
+}
+
+/// code_expression: code ( ... ) quotations — basic form
+fn code_expression<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
+    match keyword_or_ident(input)? {
+        Token::Code => {}
+        _ => return Err(ErrMode::Backtrack(ContextError::default())),
+    }
+    "(".parse_next(input)?;
+    // TODO: full code expression support (equations, algorithms, elements, modifications)
+    let e = expression(input)?;
+    ")".parse_next(input)?;
+    Ok(Absyn::Exp::CODE { code: Absyn::CodeNode::C_EXPRESSION { exp: Rc::new(e) } })
+}
+
+/// local_clause: (local element_list)?  — returns Rc-wrapped ElementItems
+fn local_clause<'a>(input: &mut &'a str) -> ModalResult<List<Rc<Absyn::ElementItem>>> {
+    if !matches!(peek(keyword_or_ident).parse_next(input)?, Token::Local) {
+        return Ok(List::Nil());
+    }
+    keyword_or_ident.parse_next(input)?;
+    let items = element_list(input)?;
+    let mut result: List<Rc<Absyn::ElementItem>> = List::Nil();
+    for item in &items {
+        let ei = match item {
+            ClassBodyItem::Element(elem) => Absyn::ElementItem::ELEMENTITEM { element: elem },
+            ClassBodyItem::Annotation(ann) => Absyn::ElementItem::LEXER_COMMENT { comment: format!("{ann:?}") },
+            _ => continue,
+        };
+        result = cons(Rc::new(ei), result);
+    }
+    Ok(result.reverse())
+}
+
+/// equation_list_then: equations up to THEN keyword
+fn equation_list_then<'a>(input: &mut &'a str) -> ModalResult<List<Absyn::EquationItem>> {
+    let mut items: List<Absyn::EquationItem> = List::Nil();
+    loop {
+        skip_trivia(input)?;
+        if matches!(peek(keyword_or_ident).parse_next(input)?, Token::Then | Token::End | Token::Else) { break; }
+        if input.is_empty() { break; }
+        let item_text: &str = take_while(0.., |c: char| c != ';').parse_next(input)?;
+        let trimmed = item_text.trim().to_string();
+        if !trimmed.is_empty() {
+            items = cons(Absyn::EquationItem::EQUATIONITEMCOMMENT { comment: trimmed }, items);
+        }
+        skip_trivia(input)?;
+        if opt(";").parse_next(input)?.is_none() { break; }
+    }
+    Ok(items.reverse())
+}
+
+/// algorithm_list_then: algorithms up to THEN keyword
+fn algorithm_list_then<'a>(input: &mut &'a str) -> ModalResult<List<Absyn::AlgorithmItem>> {
+    let mut items: List<Absyn::AlgorithmItem> = List::Nil();
+    loop {
+        skip_trivia(input)?;
+        if matches!(peek(keyword_or_ident).parse_next(input)?, Token::Then | Token::End | Token::Else) { break; }
+        if input.is_empty() { break; }
+        let item_text: &str = take_while(0.., |c: char| c != ';').parse_next(input)?;
+        let trimmed = item_text.trim().to_string();
+        if !trimmed.is_empty() {
+            items = cons(Absyn::AlgorithmItem::ALGORITHMITEMCOMMENT { comment: trimmed }, items);
+        }
+        skip_trivia(input)?;
+        if opt(";").parse_next(input)?.is_none() { break; }
+    }
+    Ok(items.reverse())
+}
+
+/// match_case_body: (equation eq_list | algorithm alg_list)?
+fn match_case_body<'a>(input: &mut &'a str) -> ModalResult<Absyn::ClassPart> {
+    match peek(keyword_or_ident).parse_next(input)? {
+        Token::Equation => {
+            keyword_or_ident.parse_next(input)?;
+            let eqs = equation_list_then(input)?;
+            Ok(Absyn::ClassPart::EQUATIONS { contents: eqs })
+        }
+        Token::Algorithm => {
+            keyword_or_ident.parse_next(input)?;
+            let algs = algorithm_list_then(input)?;
+            Ok(Absyn::ClassPart::ALGORITHMS { contents: algs })
+        }
+        _ => Ok(Absyn::ClassPart::EQUATIONS { contents: List::Nil() }),
+    }
+}
+
+/// onecase: CASE pattern (IF|GUARD guard)? string_comment local_clause body THEN result ;
+fn match_onecase<'a>(input: &mut &'a str) -> ModalResult<Absyn::Case> {
+    match keyword_or_ident(input)? {
+        Token::Case => {}
+        _ => return Err(ErrMode::Backtrack(ContextError::default())),
+    }
+    let pattern = expression(input)?;
+    let patternGuard = match peek(keyword_or_ident).parse_next(input)? {
+        Token::If | Token::Guard => {
+            keyword_or_ident.parse_next(input)?;
+            Some(Rc::new(expression(input)?))
+        }
+        _ => None,
+    };
+    let comment = string_comment(input)?;
+    let localDecls = local_clause(input)?;
+    let classPart = match_case_body(input)?;
+    match keyword_or_ident(input)? {
+        Token::Then => {}
+        _ => return Err(ErrMode::Backtrack(ContextError::default())),
+    }
+    let result = expression(input)?;
+    ";".parse_next(input)?;
+    Ok(Absyn::Case::CASE {
+        pattern: Rc::new(pattern),
+        patternGuard,
+        patternInfo: dummy_info(),
+        localDecls,
+        classPart,
+        result: Rc::new(result),
+        resultInfo: dummy_info(),
+        comment,
+        info: dummy_info(),
+    })
+}
+
+/// match_cases: onecase* else_case?
+fn match_cases<'a>(input: &mut &'a str) -> ModalResult<List<Absyn::Case>> {
+    let mut cases: List<Absyn::Case> = List::Nil();
+    loop {
+        skip_trivia(input)?;
+        match peek(keyword_or_ident).parse_next(input)? {
+            Token::Case => {
+                cases = cons(match_onecase(input)?, cases);
+            }
+            Token::Else => {
+                keyword_or_ident.parse_next(input)?;
+                let comment = string_comment(input)?;
+                let localDecls = local_clause(input)?;
+                let classPart = match_case_body(input)?;
+                match keyword_or_ident(input)? {
+                    Token::Then => {}
+                    _ => return Err(ErrMode::Backtrack(ContextError::default())),
+                }
+                let result = expression(input)?;
+                ";".parse_next(input)?;
+                cases = cons(Absyn::Case::ELSE {
+                    localDecls,
+                    classPart,
+                    result: Rc::new(result),
+                    resultInfo: dummy_info(),
+                    comment,
+                    info: dummy_info(),
+                }, cases);
+                break;
+            }
+            _ => break,
+        }
+    }
+    Ok(cases.reverse())
+}
+
+/// match_expression: (match | matchcontinue) expr string_comment local_clause cases end match/matchcontinue
+fn match_expression<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
+    let matchTy = match keyword_or_ident(input)? {
+        Token::Match => Absyn::MatchType::MATCH {},
+        Token::Matchcontinue => Absyn::MatchType::MATCHCONTINUE {},
+        _ => return Err(ErrMode::Backtrack(ContextError::default())),
+    };
+    let inputExp = expression(input)?;
+    let comment = string_comment(input)?;
+    let localDecls = local_clause(input)?;
+    let cases = match_cases(input)?;
+    // end match / end matchcontinue
+    match keyword_or_ident(input)? {
+        Token::End => {}
+        _ => return Err(ErrMode::Backtrack(ContextError::default())),
+    }
+    match keyword_or_ident(input)? {
+        Token::Match | Token::Matchcontinue => {}
+        _ => return Err(ErrMode::Backtrack(ContextError::default())),
+    }
+    Ok(Absyn::Exp::MATCHEXP {
+        matchTy,
+        inputExp: Rc::new(inputExp),
+        localDecls,
+        cases,
+        comment,
+    })
+}
+
 fn expression<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
-    if let Some(e) = opt(part_eval_function_expression).parse_next(input)? {
-        return Ok(e);
+    skip_trivia(input)?;
+    match peek(keyword_or_ident).parse_next(input)? {
+        Token::If => return if_expression(input),
+        Token::Match | Token::Matchcontinue => return match_expression(input),
+        Token::Function => return part_eval_function_expression(input),
+        Token::Code => return code_expression(input),
+        _ => {}
     }
-    // TODO: if_expression
-    // TODO: simple_expression
-    // TODO: code_expression
-    // TODO: match_expression
-    if let Some(s) = opt(take_while(1.., '0'..='9')).parse_next(input)? {
-        return Ok(Absyn::Exp::INTEGER{value: s.parse::<i32>().unwrap()})
-    }
-    println!("TODO: handle expressions");
-    Err(ErrMode::Backtrack(ContextError::default()))
+    simple_expression(input)
 }
 
 fn type_specifier<'a>(input: &mut &'a str) -> ModalResult<TypeSpec> {
@@ -1393,15 +2266,22 @@ println!("Got ts {:?}", ts);
     }
 }
 
+fn subscript<'a>(input: &mut &'a str) -> ModalResult<Subscript> {
+    skip_trivia(input)?;
+    if input.starts_with(':') && !input.starts_with(":=") && !input.starts_with("::") {
+        ":".parse_next(input)?;
+        return Ok(Subscript::NOSUB {});
+    }
+    Ok(Subscript::SUBSCRIPT { subscript: Rc::new(expression(input)?) })
+}
+
 fn array_subscripts<'a>(input: &mut &'a str) -> ModalResult<ArrayDim> {
     "[".parse_next(input)?;
     let mut subs: List<Subscript> = List::Nil();
     loop {
         skip_trivia(input)?;
         if input.starts_with(']') || input.is_empty() { break; }
-        subs = cons(Subscript::SUBSCRIPT {
-            subscript: Rc::new(Exp::END {}), // TODO: parse subscript expr
-        }, subs);
+        subs = cons(subscript(input)?, subs);
         skip_trivia(input)?;
         if opt(",").parse_next(input)?.is_none() { break; }
     }

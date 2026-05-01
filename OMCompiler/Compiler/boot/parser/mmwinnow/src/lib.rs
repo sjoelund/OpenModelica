@@ -131,7 +131,8 @@ pub enum Token<'a> {
     // Keywords — class types
     Package, Class, Record, Type, Function, Connector, Uniontype,
     Encapsulated, Partial, Final, Extends, End, Annotation, Import,
-    Public, Protected, Pure, Impure,
+    Public, Protected, Pure, Impure, External,
+    Equation, Algorithm,
     // Class type modifiers
     Model, Operator, Parallel, Kernel, Expandable, Optimization,
     // Structure
@@ -140,13 +141,9 @@ pub enum Token<'a> {
     Else, If, For, While, Try, Elseif, ElseWhen, Return,
     Break, Continue, Match, Matchcontinue, Case,
     // Redeclaration
-    Each, Replaceable, Declareunit, Constraint, Assume, Assert,
-    // MetaModelica extensions
-    Println, Printerr, Print, Readln, Read,
-    Throw, Throwmsg, Throwfmt,
-    Matchcase,
+    Each, Replaceable, Declareunit, Constraint, Assert,
     // Enumeration
-    Enum, Subtypeof, Pder, Overload, Enumerations,
+    Enumeration, Subtypeof, Pder, Overload,
     // Connector
     Flow, Stream,
     // Literals
@@ -168,6 +165,10 @@ pub enum Token<'a> {
 impl std::fmt::Display for Token<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let s = match self {
+            Token::Algorithm => "algorithm",
+            Token::Equation => "equation",
+            Token::External => "external",
+            Token::Enumeration => "enumeration",
             Token::Package => "PACKAGE",
             Token::Class => "CLASS",
             Token::Record => "RECORD",
@@ -214,24 +215,12 @@ impl std::fmt::Display for Token<'_> {
             Token::Replaceable => "REPLACEABLE",
             Token::Declareunit => "DECLAREUNIT",
             Token::Constraint => "CONSTRAINT",
-            Token::Assume => "ASSUME",
             Token::Assert => "ASSERT",
-            Token::Println => "PRINTLN",
-            Token::Printerr => "PRINTERR",
-            Token::Print => "PRINT",
-            Token::Readln => "READLN",
-            Token::Read => "READ",
-            Token::Throw => "THROW",
-            Token::Throwmsg => "THROWMSG",
-            Token::Throwfmt => "THROWFMT",
-            Token::Matchcase => "MATCHCASE",
-            Token::Enum => "ENUM",
             Token::Subtypeof => "SUBTYPEOF",
             Token::Pder => "PDER",
             Token::Overload => "OVERLOAD",
-            Token::Enumerations => "ENUMERATIONS",
-            Token::Flow => "FLOW",
-            Token::Stream => "STREAM",
+            Token::Flow => "flow",
+            Token::Stream => "stream",
             Token::Ident(s) => return write!(f, "IDENT({s:?})"),
             Token::StringLit(s) => return write!(f, "STRING({s:?})"),
             Token::IntLit(s) => return write!(f, "INT({s:?})"),
@@ -503,70 +492,61 @@ fn keyword_or_ident<'a>(input: &mut &'a str) -> ModalResult<Token<'a>> {
 fn token_from_word<'a>(word: &'a str) -> Token<'a> {
     let w = word.to_ascii_lowercase();
     match w.as_str() {
-        "package" => Token::Package,
-        "class" => Token::Class,
-        "record" => Token::Record,
-        "type" => Token::Type,
-        "function" => Token::Function,
-        "connector" => Token::Connector,
-        "uniontype" => Token::Uniontype,
-        "encapsulated" => Token::Encapsulated,
-        "partial" => Token::Partial,
-        "final" => Token::Final,
-        "extends" => Token::Extends,
-        "end" => Token::End,
+        "algorithm" => Token::Algorithm,
         "annotation" => Token::Annotation,
-        "import" => Token::Import,
-        "public" => Token::Public,
-        "protected" => Token::Protected,
-        "pure" => Token::Pure,
-        "impure" => Token::Impure,
-        "model" => Token::Model,
-        "operator" => Token::Operator,
-        "parallel" => Token::Parallel,
-        "kernel" => Token::Kernel,
-        "expandable" => Token::Expandable,
-        "optimization" => Token::Optimization,
-        "within" => Token::Within,
-        "der" => Token::Der,
+        "assert" => Token::Assert,
+        "break" => Token::Break,
+        "case" => Token::Case,
+        "class" => Token::Class,
         "code" => Token::Code,
-        "equality" => Token::Equality,
-        "initial" => Token::Initial,
+        "connector" => Token::Connector,
+        "constraint" => Token::Constraint,
+        "continue" => Token::Continue,
+        "declareunit" => Token::Declareunit,
+        "der" => Token::Der,
+        "each" => Token::Each,
         "else" => Token::Else,
-        "if" => Token::If,
-        "for" => Token::For,
-        "while" => Token::While,
-        "try" => Token::Try,
         "elseif" => Token::Elseif,
         "elsewhen" => Token::ElseWhen,
-        "return" => Token::Return,
-        "break" => Token::Break,
-        "continue" => Token::Continue,
+        "encapsulated" => Token::Encapsulated,
+        "end" => Token::End,
+        "enumeration" => Token::Enumeration,
+        "equation" => Token::Equation,
+        "equality" => Token::Equality,
+        "expandable" => Token::Expandable,
+        "extends" => Token::Extends,
+        "final" => Token::Final,
+        "flow" => Token::Flow,
+        "for" => Token::For,
+        "function" => Token::Function,
+        "if" => Token::If,
+        "import" => Token::Import,
+        "impure" => Token::Impure,
+        "initial" => Token::Initial,
+        "kernel" => Token::Kernel,
         "match" => Token::Match,
         "matchcontinue" => Token::Matchcontinue,
-        "case" => Token::Case,
-        "each" => Token::Each,
-        "replaceable" => Token::Replaceable,
-        "declareunit" => Token::Declareunit,
-        "constraint" => Token::Constraint,
-        "assume" => Token::Assume,
-        "assert" => Token::Assert,
-        "println" => Token::Println,
-        "printerr" => Token::Printerr,
-        "print" => Token::Print,
-        "readln" => Token::Readln,
-        "read" => Token::Read,
-        "throw" => Token::Throw,
-        "throwmsg" => Token::Throwmsg,
-        "throwfmt" => Token::Throwfmt,
-        "matchcase" => Token::Matchcase,
-        "enumeration" => Token::Enum,
-        "subtypeof" => Token::Subtypeof,
-        "pder" => Token::Pder,
+        "model" => Token::Model,
+        "operator" => Token::Operator,
+        "optimization" => Token::Optimization,
         "overload" => Token::Overload,
-        "enumerations" => Token::Enumerations,
-        "flow" => Token::Flow,
+        "package" => Token::Package,
+        "parallel" => Token::Parallel,
+        "partial" => Token::Partial,
+        "pder" => Token::Pder,
+        "protected" => Token::Protected,
+        "public" => Token::Public,
+        "pure" => Token::Pure,
+        "record" => Token::Record,
+        "replaceable" => Token::Replaceable,
+        "return" => Token::Return,
         "stream" => Token::Stream,
+        "subtypeof" => Token::Subtypeof,
+        "try" => Token::Try,
+        "type" => Token::Type,
+        "uniontype" => Token::Uniontype,
+        "while" => Token::While,
+        "within" => Token::Within,
         "=" => Token::Equal,
         ":=" => Token::Assign,
         "==" => Token::EqEq,
@@ -1279,13 +1259,13 @@ fn algorithm_section_items<'a>(input: &mut &'a str) -> ModalResult<Vec<String>> 
             break;
         }
         // Stop at section keywords or end
-        if opt("public").parse_next(input)?.is_some() { break; }
-        if opt("protected").parse_next(input)?.is_some() { break; }
-        if opt("equation").parse_next(input)?.is_some() { break; }
-        if opt("algorithm").parse_next(input)?.is_some() { break; }
-        if opt("initial").parse_next(input)?.is_some() { break; }
-        if opt("end").parse_next(input)?.is_some() { break; }
-        if opt("external").parse_next(input)?.is_some() { break; }
+        if let Ok(tok) = peek(keyword_or_ident).parse_next(input) {
+            match tok {
+                Token::Public | Token::Protected | Token::Equation | Token::Algorithm |
+                Token::Initial | Token::End | Token::External => break,
+                _ => (),
+            }
+        };
 
         // Consume one algorithm item until ';'
         let item: &str = take_while(0.., |c: char| c != ';').parse_next(input)?;
@@ -1452,11 +1432,16 @@ mod tests {
                     Real x(start=0);\n\
                     end SimpleSystem;";
         let result = stored_definition.parse(code);
-        assert!(result.is_ok(), "expected parse success, got: {:?}", result);
-        let def = result.unwrap();
-        assert_eq!(def.classes.len(), 1);
-        let class = &def.classes[0];
-        assert_eq!(class.specifier.name(), "SimpleSystem");
+        match &result {
+            Ok(def) => {
+                assert_eq!(def.classes.len(), 1);
+                let class = &def.classes[0];
+                assert_eq!(class.specifier.name(), "SimpleSystem");
+            }
+            Err(err) => {
+                assert!(false, "expected parse success, got: {}", err);
+            }
+        }
     }
 
     #[test]

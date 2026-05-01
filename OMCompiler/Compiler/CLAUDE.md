@@ -1,12 +1,12 @@
 We are writing a grammar for MetaModelica in Rust.
 
-ANTLR3 grammar we are basing it on: boot/parser/grammars/Modelica.g
+ANTLR3 grammar we are basing it on: grammars/Modelica.g
 
 Use idiomatic winnow expressions, such as:
 `opt("class").parse_next(input)`
 `peek(keyword_or_ident).parse_next(input)`
-`"class".parse_next(input)`
-rather than trying to manipulate the input string directly
+
+Note that using `"class".parse_next(input)` requires `skip_trivia` first (it does not handle comments and whitespace)
 
 MetaModelica keywords are case-sensitive. You can even check the lexers if you want to see the exact tokens.
 

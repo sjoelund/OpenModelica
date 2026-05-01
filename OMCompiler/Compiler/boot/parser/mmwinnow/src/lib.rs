@@ -1120,7 +1120,7 @@ fn component_declaration<'a>(input: &mut &'a str) -> ModalResult<ComponentItem> 
 fn modification<'a>(input: &mut &'a str) -> ModalResult<Modification> {
     let cm = opt(class_modification).parse_next(input)?.unwrap_or(List::Nil());
     let eq = if opt(alt((":=", "="))).parse_next(input)?.is_some() {
-        Absyn::EqMod::EQMOD{exp: Rc::new(modification_expression.parse_next(input)?), info: dummy_info()}
+        Absyn::EqMod::EQMOD{exp: Rc::new(cut_err(modification_expression).context(StrContext::Label("Modification with =")).parse_next(input)?), info: dummy_info()}
     } else {
         Absyn::EqMod::NOMOD{}
     };
@@ -1128,6 +1128,7 @@ fn modification<'a>(input: &mut &'a str) -> ModalResult<Modification> {
 }
 
 fn modification_expression<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
+    skip_trivia(input)?;
     if opt("break").parse_next(input)?.is_some() {
         return Ok(Absyn::Exp::BREAK{});
     };

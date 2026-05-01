@@ -10,7 +10,7 @@ mod metamodelica;
 pub use Absyn::*;
 use metamodelica::{List, cons, SourceInfo};
 
-use winnow::{Parser, ModalResult, combinator::{opt, alt, peek}, error::{ContextError, StrContext, ErrMode}};
+use winnow::{Parser, ModalResult, combinator::{opt, alt, peek, cut_err}, error::{ContextError, StrContext, StrContextValue, ErrMode}};
 use winnow::token::*;
 use winnow::ascii;
 use std::rc::Rc;
@@ -52,6 +52,8 @@ impl<'a> ParserError<'a> {
             .rfind('\n').map(|i| self.offset - i - 1).unwrap_or(self.offset);
         let col = col_offset + 1;
         output.push_str(&format!("  --> line {}:{}\n", line, col));
+
+        // Find the source line containing the error offset
         let context_start = if self.offset >= 200 { self.offset - 200 } else { 0 };
         let ctx_end = (self.offset + 100).min(self._original.len());
         let ctx = &self._original[context_start..ctx_end];
@@ -62,16 +64,38 @@ impl<'a> ParserError<'a> {
             .unwrap_or(self._original.len().min(ctx_end + 100));
         let context_line = &self._original[ctx_line_start..ctx_line_end.min(self._original.len())];
         let arrow_offset = self.offset - ctx_line_start;
+        let line_num_str = line.to_string();
         output.push_str(&format!(
-            "    |\n  {} | {}\n",
-            " ".repeat(line.saturating_sub(1).to_string().len()),
+            "    |\n{:>4} | {}\n",
+            line_num_str,
             context_line
         ));
         output.push_str(&format!("    | {}\n", " ".repeat(arrow_offset) + "^"));
-        output.push_str(&format!("  --> remaining input: {:?}\n", self.remaining[0..(100).min(self.remaining.len())].to_string()));
-        let ctx_str = format!("{:?}", self.inner);
-        if !ctx_str.is_empty() && ctx_str != "ContextError { context: [], cause: None }" {
-            output.push_str(&format!("  --> reason: {}\n", ctx_str));
+
+        // Winnow context chain: show labels and expected tokens from innermost to outermost
+        let mut labels: Vec<String> = Vec::new();
+        let mut expected: Vec<String> = Vec::new();
+        for ctx_item in self.inner.context() {
+            match ctx_item {
+                StrContext::Label(l) => labels.push(l.to_string()),
+                StrContext::Expected(StrContextValue::StringLiteral(s)) => {
+                    expected.push(format!("{:?}", s));
+                }
+                StrContext::Expected(StrContextValue::CharLiteral(c)) => {
+                    expected.push(format!("{:?}", c));
+                }
+                StrContext::Expected(e) => expected.push(e.to_string()),
+                _ => {}
+            }
+        }
+        if !expected.is_empty() {
+            output.push_str(&format!("  expected: {}\n", expected.join(", ")));
+        }
+        if !labels.is_empty() {
+            output.push_str(&format!("  while parsing: {}\n", labels.join(" > ")));
+        }
+        if let Some(cause) = self.inner.cause() {
+            output.push_str(&format!("  caused by: {}\n", cause));
         }
         output
     }
@@ -285,6 +309,14 @@ struct ExtendsClause {
     path: Path,
     modification: Option<List<Rc<ElementArg>>>,
     annotation_opt: Option<Annotation>,
+}
+
+/// Intermediate result of component_clause rule.
+#[derive(Debug, Clone)]
+struct ComponentClause {
+    typePrefix: ElementAttributes,
+    typeSpec: TypeSpec,
+    components: List<Rc<ComponentItem>>,
 }
 
 /// A dummy SourceInfo placeholder until line/column tracking is added.
@@ -562,7 +594,9 @@ pub fn stored_definition<'a>(input: &mut &'a str) -> ModalResult<Program> {
     skip_trivia(input)?;
     let within_ = if opt("within").parse_next(input)?.is_some() {
         let path = opt(name_path).parse_next(input)?;
-        ";".parse_next(input)?;
+        cut_err(";")
+            .context(StrContext::Label("';' after within clause"))
+            .parse_next(input)?;
         match path {
             Some(path) => Within::WITHIN { path },
             None => Within::TOP {},
@@ -571,12 +605,11 @@ pub fn stored_definition<'a>(input: &mut &'a str) -> ModalResult<Program> {
         Within::TOP {}
     };
 
-    println!("Before cd_list");
     let classes = class_definition_list(input)?;
-    println!("After cd_list");
 
     skip_trivia(input)?;
     if !input.is_empty() {
+        eprintln!("stored_definition: remaining input: {:?}", &input[..input.len().min(200)]);
         return Err(ErrMode::Backtrack(ContextError::default()));
     }
 
@@ -592,6 +625,7 @@ fn class_definition_list<'a>(input: &mut &'a str) -> ModalResult<List<Class>> {
         let _final = opt("final").parse_next(input)?.is_some();
         if let Some(def) = opt(class_definition).parse_next(input)? {
             defs = cons(def, defs);
+            skip_trivia(input)?;
             ";".parse_next(input)?;
         } else {
             break;
@@ -606,10 +640,11 @@ fn class_definition<'a>(input: &mut &'a str) -> ModalResult<Class> {
     let partialPrefix = opt("partial").parse_next(input)?.is_some();
     let finalPrefix = opt("final").parse_next(input)?.is_some();
 
-    println!("Before restriction {}", input[0..input.len().min(20)].to_string());
     let restriction = class_type(input)?;
-    println!("After restriction {:?}", restriction);
-    let specifier = class_specifier(input)?;
+    // Once we have a restriction keyword, commit — errors below report at the actual failure point
+    let specifier = cut_err(class_specifier)
+        .context(StrContext::Label("class specifier"))
+        .parse_next(input)?;
 
     Ok(Class::CLASS {
         name: specifier.name(),
@@ -631,49 +666,47 @@ fn class_type<'a>(input: &mut &'a str) -> ModalResult<Restriction> {
 }
 
 fn class_type2<'a>(input: &mut &'a str) -> ModalResult<Restriction> {
-    let res = match alt((
-        "class",
-        "optimization",
-        "model",
-        "record",
-        "block",
-        "expandable",
-        "connector",
-        "type",
-        "package",
-        "uniontype",
-        "operator")).parse_next(input)? {
-        "class" => Restriction::R_CLASS{},
-        "optimization" => Restriction::R_OPTIMIZATION{},
-        "model" => Restriction::R_MODEL{},
-        "record" => Restriction::R_RECORD{},
-        "block" => Restriction::R_BLOCK{},
-        "expandable" => {
-            "connector".parse_next(input)?;
-            Restriction::R_EXP_CONNECTOR{}
+    let res = match keyword_or_ident(input)? {
+        Token::Class => Restriction::R_CLASS{},
+        Token::Ident("optimization") => Restriction::R_OPTIMIZATION{},
+        Token::Model => Restriction::R_MODEL{},
+        Token::Record => Restriction::R_RECORD{},
+        Token::Ident("block") => Restriction::R_BLOCK{},
+        Token::Expandable => {
+            // must be followed by "connector"
+            match keyword_or_ident(input)? {
+                Token::Connector => Restriction::R_EXP_CONNECTOR{},
+                _ => return Err(ErrMode::Backtrack(ContextError::default())),
+            }
         },
-        "connector" => Restriction::R_CONNECTOR{},
-        "type" => Restriction::R_TYPE{},
-        "package" => Restriction::R_PACKAGE{},
-        "uniontype" => Restriction::R_UNIONTYPE{},
+        Token::Connector => Restriction::R_CONNECTOR{},
+        Token::Type => Restriction::R_TYPE{},
+        Token::Package => Restriction::R_PACKAGE{},
+        Token::Uniontype => Restriction::R_UNIONTYPE{},
+        Token::Operator => Restriction::R_OPERATOR_RECORD{},
         _ => return Err(ErrMode::Backtrack(ContextError::default())),
     };
     Ok(res)
 }
 
 fn class_type_function<'a>(input: &mut &'a str) -> ModalResult<Restriction> {
-    let purity = match opt(alt(("pure","impure"))).parse_next(input)? {
-        Some("pure") => Absyn::FunctionPurity::PURE{},
-        Some("impure") => Absyn::FunctionPurity::IMPURE{},
-        _ => Absyn::FunctionPurity::NO_PURITY{},
-    };
-    let functionRestriction = match opt(alt(("operator","parallel","parkernel"))).parse_next(input)? {
-        Some("operator") => Absyn::FunctionRestriction::FR_OPERATOR_FUNCTION{},
-        Some("parallel") => Absyn::FunctionRestriction::FR_PARALLEL_FUNCTION{},
-        Some("parkernel") => Absyn::FunctionRestriction::FR_KERNEL_FUNCTION{},
-        _ => Absyn::FunctionRestriction::FR_NORMAL_FUNCTION{purity},
-    };
-    "function".parse_next(input)?;
+    let purity = try_tok(input, |t| match t {
+        Token::Pure => Some(Absyn::FunctionPurity::PURE{}),
+        Token::Impure => Some(Absyn::FunctionPurity::IMPURE{}),
+        _ => None,
+    }).unwrap_or(Absyn::FunctionPurity::NO_PURITY{});
+
+    let functionRestriction = try_tok(input, |t| match t {
+        Token::Operator => Some(Absyn::FunctionRestriction::FR_OPERATOR_FUNCTION{}),
+        Token::Parallel => Some(Absyn::FunctionRestriction::FR_PARALLEL_FUNCTION{}),
+        Token::Ident("parkernel") => Some(Absyn::FunctionRestriction::FR_KERNEL_FUNCTION{}),
+        _ => None,
+    }).unwrap_or(Absyn::FunctionRestriction::FR_NORMAL_FUNCTION{purity});
+
+    match keyword_or_ident(input)? {
+        Token::Function => {}
+        _ => return Err(ErrMode::Backtrack(ContextError::default())),
+    }
     Ok(Absyn::Restriction::R_FUNCTION{functionRestriction})
 }
 
@@ -681,14 +714,20 @@ fn class_type_function<'a>(input: &mut &'a str) -> ModalResult<Restriction> {
 ///                 | EXTENDS identifier class_modification? composition END IDENT
 fn class_specifier<'a>(input: &mut &'a str) -> ModalResult<ClassSpecifier> {
     if opt("extends").parse_next(input)?.is_some() {
-        let name = ident(input)?;
+        let name = cut_err(ident)
+            .context(StrContext::Label("class name after 'extends'"))
+            .parse_next(input)?;
         let modifications = opt(class_modification).parse_next(input)?
             .unwrap_or(List::Nil());
         let comment = string_comment(input)?;
-        let parts = composition(input)?;
+        let parts = cut_err(composition)
+            .context(StrContext::Label("class-extends body"))
+            .parse_next(input)?;
         let classParts = body_items_to_classparts(parts);
         skip_trivia(input)?;
-        "end".parse_next(input)?;
+        cut_err("end")
+            .context(StrContext::Label("'end' closing class-extends"))
+            .parse_next(input)?;
         if ident(input)? != name {
             return Err(ErrMode::Backtrack(ContextError::default()));
         }
@@ -705,7 +744,6 @@ fn class_specifier<'a>(input: &mut &'a str) -> ModalResult<ClassSpecifier> {
         })
     } else {
         let name = class_name(input)?;
-        println!("enter class_spec2 {}", name);
         let body = class_specifier2(input)?;
         Ok(ClassSpecifier::Normal { name, body })
     }
@@ -713,6 +751,7 @@ fn class_specifier<'a>(input: &mut &'a str) -> ModalResult<ClassSpecifier> {
 
 /// class_specifier2
 fn class_specifier2<'a>(input: &mut &'a str) -> ModalResult<Rc<ClassDef>> {
+    skip_trivia(input)?;
     if opt("subtypeof").parse_next(input)?.is_some() {
         let typeSpec = type_spec(input)?;
         return Ok(Rc::new(ClassDef::DERIVED {
@@ -725,14 +764,18 @@ fn class_specifier2<'a>(input: &mut &'a str) -> ModalResult<Rc<ClassDef>> {
 
     if opt("=").parse_next(input)?.is_some() {
         if opt("enumeration").parse_next(input)?.is_some() {
-            let literals = enum_list(input)?;
+            let literals = cut_err(enum_list)
+                .context(StrContext::Label("enumeration literal list"))
+                .parse_next(input)?;
             return Ok(Rc::new(ClassDef::ENUMERATION {
                 enumLiterals: EnumDef::ENUMLITERALS { enumLiterals: literals },
                 comment: None,
             }));
         }
 
-        let typeSpec = type_spec(input)?;
+        let typeSpec = cut_err(type_spec)
+            .context(StrContext::Label("type specifier after '='"))
+            .parse_next(input)?;
         let arguments: List<Rc<ElementArg>> = opt(class_modification).parse_next(input)?
             .unwrap_or_default();
         let comment = opt(string_comment).parse_next(input)?.map(|c| Comment::COMMENT {
@@ -762,14 +805,18 @@ fn class_specifier2<'a>(input: &mut &'a str) -> ModalResult<Rc<ClassDef>> {
         return Err(ErrMode::Backtrack(ContextError::default()));
     };
 
-    println!("String comment? {}", input[0..input.len().min(20)].to_string());
     let comment = string_comment.parse_next(input)?;
-    println!("After string comment? {}", input[0..input.len().min(20)].to_string());
-    let parts = composition(input)?;
+    let parts = cut_err(composition)
+        .context(StrContext::Label("class body"))
+        .parse_next(input)?;
     let classParts = body_items_to_classparts(parts);
 
-    "end".parse_next(input)?;
-    let _end_name = ident.parse_next(input)?;
+    cut_err("end")
+        .context(StrContext::Label("'end' closing class body"))
+        .parse_next(input)?;
+    let _end_name = cut_err(ident)
+        .context(StrContext::Label("class name after 'end'"))
+        .parse_next(input)?;
     // TODO: Check that the names match up...
 
     Ok(Rc::new(ClassDef::PARTS {
@@ -881,14 +928,17 @@ fn composition2<'a>(input: &mut &'a str) -> ModalResult<List<ClassBodyItem>> {
 fn element_list<'a>(input: &mut &'a str) -> ModalResult<List<ClassBodyItem>> {
     let mut items: List<ClassBodyItem> = List::Nil();
     loop {
-        // Stop at section keywords
-        if peek(alt(("public","protected","equation","algorithm","external","end","initial")))
-          .parse_next(input).is_ok() {
-            break;
+        // Stop at section keywords or end of input
+        match peek(keyword_or_ident).parse_next(input) {
+            Ok(Token::Public) | Ok(Token::Protected) | Ok(Token::Equation) | Ok(Token::Algorithm)
+            | Ok(Token::External) | Ok(Token::End) | Ok(Token::Initial) => break,
+            Err(_) => break,
+            _ => (),
         };
 
         // annotation SEMICOLON
         if let Some(ann) = opt(annotation).parse_next(input)? {
+            skip_trivia(input)?;
             ";".parse_next(input)?;
             items = cons(ClassBodyItem::Annotation(ann), items);
             continue;
@@ -896,6 +946,7 @@ fn element_list<'a>(input: &mut &'a str) -> ModalResult<List<ClassBodyItem>> {
 
         // import_clause SEMICOLON
         if let Some(imp) = opt(import_clause).parse_next(input)? {
+            skip_trivia(input)?;
             ";".parse_next(input)?;
             let elem = mk_element(
                 ElementSpec::IMPORT { import_: imp, comment: None, info: dummy_info() },
@@ -906,6 +957,7 @@ fn element_list<'a>(input: &mut &'a str) -> ModalResult<List<ClassBodyItem>> {
 
         // extends_clause SEMICOLON
         if let Some(ext) = opt(extends_clause).parse_next(input)? {
+            skip_trivia(input)?;
             ";".parse_next(input)?;
             let elem = mk_element(
                 ElementSpec::EXTENDS {
@@ -920,6 +972,7 @@ fn element_list<'a>(input: &mut &'a str) -> ModalResult<List<ClassBodyItem>> {
 
         // Nested class_definition SEMICOLON
         if let Some(cls) = opt(class_definition).parse_next(input)? {
+            skip_trivia(input)?;
             ";".parse_next(input)?;
             let elem = mk_element(
                 ElementSpec::CLASSDEF { replaceable_: false, class_: Rc::new(cls) },
@@ -931,7 +984,7 @@ fn element_list<'a>(input: &mut &'a str) -> ModalResult<List<ClassBodyItem>> {
         // component_clause
         if let Some(cc) = opt(component_clause).parse_next(input)? {
             let elem = mk_element(ElementSpec::COMPONENTS {
-                attributes: default_element_attrs(),
+                attributes: cc.typePrefix,
                 typeSpec: cc.typeSpec,
                 components: cc.components,
             });
@@ -955,63 +1008,111 @@ fn mk_element(specification: ElementSpec) -> Absyn::Element {
     }
 }
 
-fn component_clause<'a>(input: &mut &'a str) -> ModalResult<ComponentClause> {
-    let tp = type_prefix.parse_next(input)?;
-    let ts = type_spec.parse_next(input)?;
-    let components = component_list.parse_next(input)?;
-    Ok(ComponentClause { typePrefix: tp, typeSpec: ts, components })
+/// Consume a keyword via keyword_or_ident if it matches the predicate; otherwise restore input.
+fn try_tok<'a, F, T>(input: &mut &'a str, f: F) -> Option<T>
+where
+    F: Fn(Token<'a>) -> Option<T>,
+{
+    let saved = *input;
+    match keyword_or_ident(input) {
+        Ok(tok) => match f(tok) {
+            Some(v) => Some(v),
+            None => { *input = saved; None }
+        },
+        Err(_) => { *input = saved; None }
+    }
 }
 
-fn component_declaration<'a>(input: &mut &'a str) -> ModalResult<Absyn::Element> {
-println!("Before typeSpec {}", input[0..input.len().min(20)].to_string());
-    let typeSpec = type_spec(input)?;
-println!("After typeSpec {}", input[0..input.len().min(20)].to_string());
+/// type_prefix: (flow|stream)? (parlocal|parglobal)? (discrete|parameter|constant)? input? output? (field|nonfield)?
+fn type_prefix<'a>(input: &mut &'a str) -> ModalResult<ElementAttributes> {
+    let flow = try_tok(input, |t| matches!(t, Token::Flow).then_some(())).is_some();
+    let stream = !flow && try_tok(input, |t| matches!(t, Token::Stream).then_some(())).is_some();
+
+    let parallelism = try_tok(input, |t| match t {
+        Token::Ident("parlocal") => Some(Parallelism::PARLOCAL {}),
+        Token::Ident("parglobal") => Some(Parallelism::PARGLOBAL {}),
+        _ => None,
+    }).unwrap_or(Parallelism::NON_PARALLEL {});
+
+    let variability = try_tok(input, |t| match t {
+        Token::Ident("discrete") => Some(Variability::DISCRETE {}),
+        Token::Ident("parameter") => Some(Variability::PARAM {}),
+        Token::Ident("constant") => Some(Variability::CONST {}),
+        _ => None,
+    }).unwrap_or(Variability::VAR {});
+
+    let has_input = try_tok(input, |t| matches!(t, Token::Ident("input")).then_some(())).is_some();
+    let has_output = try_tok(input, |t| matches!(t, Token::Ident("output")).then_some(())).is_some();
+    let direction = match (has_input, has_output) {
+        (true, true) => Direction::INPUT_OUTPUT {},
+        (true, false) => Direction::INPUT {},
+        (false, true) => Direction::OUTPUT {},
+        (false, false) => Direction::BIDIR {},
+    };
+
+    let is_field = try_tok(input, |t| match t {
+        Token::Ident("field") => Some(IsField::FIELD {}),
+        Token::Ident("nonfield") => Some(IsField::NONFIELD {}),
+        _ => None,
+    }).unwrap_or(IsField::NONFIELD {});
+
+    Ok(ElementAttributes::ATTR {
+        flowPrefix: flow,
+        streamPrefix: stream,
+        parallelism,
+        variability,
+        direction,
+        isField: is_field,
+        arrayDim: ArrayDim::Nil(),
+    })
+}
+
+fn component_clause<'a>(input: &mut &'a str) -> ModalResult<ComponentClause> {
+    let typePrefix = type_prefix.parse_next(input)?;
+    let typeSpec = type_spec.parse_next(input)?;
+    let components = cut_err(component_list)
+        .context(StrContext::Label("component list"))
+        .parse_next(input)?;
+    skip_trivia(input)?;
+    cut_err(";")
+        .context(StrContext::Label("';' after component list"))
+        .parse_next(input)?;
+    Ok(ComponentClause { typePrefix, typeSpec, components })
+}
+
+/// component_list: component_declaration (COMMA component_declaration)*
+fn component_list<'a>(input: &mut &'a str) -> ModalResult<List<Rc<ComponentItem>>> {
+    let first = component_declaration.parse_next(input)?;
+    let mut items = List::new(Rc::new(first));
+    loop {
+        skip_trivia(input)?;
+        if opt(",").parse_next(input)?.is_none() { break; }
+        items = cons(Rc::new(component_declaration.parse_next(input)?), items);
+    }
+    Ok(items.reverse())
+}
+
+/// component_declaration: declaration (IF expression)? string_comment annotation?
+/// declaration: (IDENT | OPERATOR) (array_subscripts)? (modification)?
+fn component_declaration<'a>(input: &mut &'a str) -> ModalResult<ComponentItem> {
     let name = match keyword_or_ident.parse_next(input)? {
-        Token::Ident(n) => n,
-        Token::Operator => "operator",
+        Token::Ident(n) => n.to_string(),
+        Token::Operator => "operator".to_string(),
         _ => return Err(ErrMode::Backtrack(ContextError::default())),
     };
     let arrayDim = opt(array_subscripts).parse_next(input)?.unwrap_or_else(|| ArrayDim::Nil());
     let m = opt(modification).parse_next(input)?;
-    let first_component = Component::COMPONENT {
-        name: name.to_string(),
-        arrayDim,
-        modification: m,
+    let condition = if opt("if").parse_next(input)?.is_some() {
+        Some(expression.parse_next(input)?)
+    } else {
+        None
     };
-
-    let mut components: List<Rc<ComponentItem>> = cons(Rc::new(ComponentItem::COMPONENTITEM {
-        component: first_component,
-        condition: None,
+    let _comment = string_comment.parse_next(input)?;
+    let _ann = opt(annotation).parse_next(input)?;
+    Ok(ComponentItem::COMPONENTITEM {
+        component: Component::COMPONENT { name, arrayDim, modification: m },
+        condition,
         comment: None,
-    }), List::Nil());
-
-    loop {
-        skip_trivia(input)?;
-        if opt(",").parse_next(input)?.is_none() { break; }
-        let comp = match keyword_or_ident.parse_next(input)? {
-            Token::Ident(name) => {
-                let arrayDim = opt(array_subscripts).parse_next(input)?.unwrap_or_else(|| ArrayDim::Nil());
-                let m = opt(modification).parse_next(input)?;
-                Component::COMPONENT { name: name.to_string(), arrayDim, modification: m }
-            }
-            _ => return Err(ErrMode::Backtrack(ContextError::default())),
-        };
-        components = cons(Rc::new(ComponentItem::COMPONENTITEM {
-            component: comp, condition: None, comment: None,
-        }), components);
-    }
-
-    Ok(Absyn::Element::ELEMENT {
-        finalPrefix: false,
-        redeclareKeywords: None,
-        innerOuter: InnerOuter::NOT_INNER_OUTER {},
-        specification: ElementSpec::COMPONENTS {
-            attributes: default_element_attrs(),
-            typeSpec,
-            components: components.reverse(),
-        },
-        info: dummy_info(),
-        constrainClass: None,
     })
 }
 
@@ -1035,7 +1136,9 @@ fn modification_expression<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
 fn class_modification<'a>(input: &mut &'a str) -> ModalResult<List<Rc<ElementArg>>> {
     "(".parse_next(input)?;
     let arguments = opt(argument_list).parse_next(input)?.unwrap_or(List::Nil());
-    ")".parse_next(input)?;
+    cut_err(")")
+        .context(StrContext::Label("')' closing modification list"))
+        .parse_next(input)?;
     Ok(arguments)
 }
 
@@ -1096,7 +1199,11 @@ fn element_replaceable<'a>(input: &mut &'a str) -> ModalResult<ElementArg> {
 
 fn annotation<'a>(input: &mut &'a str) -> ModalResult<Annotation> {
     "annotation".parse_next(input)?;
-    Ok(Absyn::Annotation::ANNOTATION{elementArgs: class_modification(input)?})
+    Ok(Absyn::Annotation::ANNOTATION{
+        elementArgs: cut_err(class_modification)
+            .context(StrContext::Label("annotation body"))
+            .parse_next(input)?,
+    })
 }
 
 fn import_clause<'a>(input: &mut &'a str) -> ModalResult<Import> {
@@ -1262,18 +1369,18 @@ fn enum_literal<'a>(input: &mut &'a str) -> ModalResult<EnumLiteral> {
 }
 
 fn external_part<'a>(input: &mut &'a str) -> ModalResult<ClassBodyItem> {
-    skip_trivia(input)?;
-    let _: &str = take_while(0.., |c: char| !c.is_whitespace()).parse_next(input)?;
+    // TODO: implement properly per grammar: external (STRING_COMMENT)? (IDENT = )? IDENT ( external_function_call_args )? annotation? SEMICOLON
+    match peek(keyword_or_ident).parse_next(input) {
+        Ok(Token::External) => {}
+        _ => return Err(ErrMode::Backtrack(ContextError::default())),
+    }
+    // consume "external" keyword
+    keyword_or_ident(input)?;
     let mut body = String::new();
     loop {
         skip_trivia(input)?;
         if input.is_empty() || input.starts_with(';') { break; }
-        if input.starts_with('\n') {
-            body.push('\n');
-            "\n".parse_next(input)?;
-            continue;
-        }
-        let line: &str = take_while(1.., |c: char| c != ';' && c != '\n').parse_next(input)?;
+        let line: &str = take_while(1.., |c: char| c != ';').parse_next(input)?;
         body.push_str(line);
     }
     ";".parse_next(input)?;
@@ -1296,21 +1403,21 @@ fn string_comment<'a>(input: &mut &'a str) -> ModalResult<Option<String>> {
 
 fn string_token<'a>(input: &mut &'a str) -> ModalResult<String> {
     skip_trivia(input)?;
-    println!("At start of string? {}", input[0..input.len().min(40)].to_string());
-    if input.starts_with('"') {
-        println!("Should be start of string");
-    }
     '"'.parse_next(input)?;
-    println!("Got start of string: {}", input[0..input.len().min(40)].to_string());
     let orig_in = *input;
-    while !input.starts_with("\"") && !input.is_empty() {
-        take_till(1, ['"', '\\']).parse_next(input)?;
-  println!("Took some of string: {}", input[0..input.len().min(40)].to_string());
-        if opt("\\").parse_next(input)?.is_some() {
-            alt(('\\', '"', '\'', '?', 'a', 'b', 'f', 'n', 'r', 't', 'v')).parse_next(input)?;
+    while !input.starts_with('"') && !input.is_empty() {
+        if input.starts_with('\\') {
+            "\\".parse_next(input)?;
+            cut_err(alt(('\\', '"', '\'', '?', 'a', 'b', 'f', 'n', 'r', 't', 'v')))
+                .context(StrContext::Label("string escape sequence"))
+                .parse_next(input)?;
+        } else {
+            take_while(1.., |c: char| c != '"' && c != '\\').parse_next(input)?;
         }
     }
-    '"'.parse_next(input)?;
+    cut_err('"')
+        .context(StrContext::Label("closing '\"' of string literal"))
+        .parse_next(input)?;
     Ok(orig_in[0..orig_in.len()-input.len()-1].to_string())
 }
 

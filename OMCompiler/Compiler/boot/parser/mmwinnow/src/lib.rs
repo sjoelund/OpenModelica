@@ -1285,7 +1285,74 @@ fn algorithm_section_items<'a>(input: &mut &'a str) -> ModalResult<List<Algorith
     Ok(items.reverse())
 }
 
+fn component_reference<'a>(input: &mut &'a str) -> ModalResult<Absyn::ComponentRef> {
+    let fq = opt(".").parse_next(input)?.is_some();
+    let cr = component_reference2(input)?;
+    if fq {
+        Ok(Absyn::ComponentRef::CREF_FULLYQUALIFIED { componentRef: Rc::new(cr) })
+    } else {
+        Ok(cr)
+    }
+}
+
+fn component_reference2<'a>(input: &mut &'a str) -> ModalResult<Absyn::ComponentRef> {
+    let name = ident(input)?;
+    let raw_subs = opt(array_subscripts).parse_next(input)?.unwrap_or(List::Nil());
+    let mut subscripts: List<Rc<Absyn::Subscript>> = List::Nil();
+    for s in &raw_subs.reverse() { subscripts = cons(Rc::new(s), subscripts); }
+    let inner = opt(".").parse_next(input)?;
+    if inner.is_some() {
+        let rest = component_reference2(input)?;
+        Ok(Absyn::ComponentRef::CREF_QUAL { name, subscripts, componentRef: Rc::new(rest) })
+    } else {
+        Ok(Absyn::ComponentRef::CREF_IDENT { name, subscripts })
+    }
+}
+
+fn named_argument<'a>(input: &mut &'a str) -> ModalResult<Absyn::NamedArg> {
+    let argName = ident(input)?;
+    "=".parse_next(input)?;
+    let argValue = Rc::new(expression(input)?);
+    Ok(Absyn::NamedArg::NAMEDARG { argName, argValue })
+}
+
+fn named_arguments<'a>(input: &mut &'a str) -> ModalResult<List<Rc<Absyn::NamedArg>>> {
+    let first = named_argument(input)?;
+    let mut args: List<Rc<Absyn::NamedArg>> = cons(Rc::new(first), List::Nil());
+    loop {
+        if opt(",").parse_next(input)?.is_none() { break; }
+        match named_argument(input) {
+            Ok(arg) => args = cons(Rc::new(arg), args),
+            Err(_) => break,
+        }
+    }
+    Ok(args.reverse())
+}
+
+/// part_eval_function_expression: FUNCTION component_reference LPAR named_arguments? RPAR
+fn part_eval_function_expression<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
+    "function".parse_next(input)?;
+    let cr = component_reference(input)?;
+    "(".parse_next(input)?;
+    let argNames = opt(named_arguments).parse_next(input)?.unwrap_or(List::Nil());
+    ")".parse_next(input)?;
+    Ok(Absyn::Exp::PARTEVALFUNCTION {
+        function_: Rc::new(cr),
+        functionArgs: Absyn::FunctionArgs::FUNCTIONARGS {
+            args: List::Nil(),
+            argNames,
+        },
+    })
+}
+
 fn expression<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
+    if let Some(e) = opt(part_eval_function_expression).parse_next(input)? {
+        return Ok(e);
+    }
+    // TODO: if_expression
+    // TODO: simple_expression
+    // TODO: code_expression
+    // TODO: match_expression
     if let Some(s) = opt(take_while(1.., '0'..='9')).parse_next(input)? {
         return Ok(Absyn::Exp::INTEGER{value: s.parse::<i32>().unwrap()})
     }

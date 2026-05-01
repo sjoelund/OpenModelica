@@ -179,7 +179,7 @@ impl std::fmt::Display for Token<'_> {
             Token::Optimization => "OPTIMIZATION",
             Token::Within => "WITHIN",
             Token::Der => "DER",
-            Token::Code => "CODE",
+            Token::Code => "$Code",
             Token::Equality => "EQUALITY",
             Token::Initial => "INITIAL",
             Token::Else => "ELSE",
@@ -480,7 +480,7 @@ fn token_from_word<'a>(word: &'a str) -> Token<'a> {
         "break" => Token::Break,
         "case" => Token::Case,
         "class" => Token::Class,
-        "code" => Token::Code,
+        "$code" => Token::Code,
         "connector" => Token::Connector,
         "constraint" => Token::Constraint,
         "continue" => Token::Continue,
@@ -838,6 +838,7 @@ fn class_specifier2<'a>(input: &mut &'a str) -> ModalResult<Rc<ClassDef>> {
         .parse_next(input)?;
     let classParts = body_items_to_classparts(parts);
 
+    skip_trivia(input)?;
     cut_err("end")
         .context(StrContext::Label("'end' closing class body"))
         .parse_next(input)?;
@@ -1122,13 +1123,18 @@ fn component_list<'a>(input: &mut &'a str) -> ModalResult<List<Rc<ComponentItem>
 /// component_declaration: declaration (IF expression)? string_comment annotation?
 /// declaration: (IDENT | OPERATOR) (array_subscripts)? (modification)?
 fn component_declaration<'a>(input: &mut &'a str) -> ModalResult<ComponentItem> {
+    skip_trivia(input)?;
+println!("comp_decl 1 {:?}", &input[0..input.len().min(20)]);
     let name = match keyword_or_ident.parse_next(input)? {
         Token::Ident(n) => n.to_string(),
         Token::Operator => "operator".to_string(),
         _ => return Err(ErrMode::Backtrack(ContextError::default())),
     };
+println!("comp_decl 2 {:?}", &input[0..input.len().min(20)]);
     let arrayDim = opt(array_subscripts).parse_next(input)?.unwrap_or_else(|| ArrayDim::Nil());
+println!("comp_decl {} {} {:?}", name, &input[0..input.len().min(20)], arrayDim);
     let m = opt(modification).parse_next(input)?;
+println!("comp_decl {} {} {:?}", name, &input[0..input.len().min(20)], m);
     let condition = if opt("if").parse_next(input)?.is_some() {
         Some(expression.parse_next(input)?)
     } else {

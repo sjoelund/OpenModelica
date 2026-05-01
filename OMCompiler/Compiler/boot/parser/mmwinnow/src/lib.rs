@@ -3,6 +3,10 @@
 //! Lexer combinators are embedded in the parser — no separate tokenizer.
 //! AST types mirror the ANTLR3 grammar structure from `grammars/Modelica.g`.
 
+#[allow(non_snake_case)]
+mod Absyn;
+mod metamodelica;
+
 use winnow::{Parser, ModalResult, combinator::{opt, peek}, error::{ContextError, ErrMode}};
 use winnow::token::*;
 use winnow::ascii;

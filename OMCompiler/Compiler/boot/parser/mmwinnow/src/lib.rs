@@ -1392,16 +1392,18 @@ fn primary<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
     skip_trivia(input)?;
 println!("in primary {}", &input[0..input.len().min(20)]);
     // end
-    if let Token::End = peek(keyword_or_ident).parse_next(input)? {
+    let tok = peek(opt(keyword_or_ident)).parse_next(input)?;
+    if let Some(Token::End) = tok {
         keyword_or_ident.parse_next(input)?;
         return Ok(Absyn::Exp::END {});
     }
 
     // true / false
-    let tok = peek(keyword_or_ident).parse_next(input)?;
-    if matches!(tok, Token::BoolTrue | Token::BoolFalse) {
-        keyword_or_ident.parse_next(input)?;
-        return Ok(Absyn::Exp::BOOL { value: tok == Token::BoolTrue });
+    if let Some(Token::BoolTrue) = tok {
+        return Ok(Absyn::Exp::BOOL{value: true});
+    }
+    if let Some(Token::BoolFalse) = tok {
+        return Ok(Absyn::Exp::BOOL{value: false});
     }
 
     // String literal
@@ -1463,7 +1465,7 @@ println!("start for_or_exp_list {}", &input[0..input.len().min(20)]);
     }
 
     // der function_call
-    if let Token::Der = tok {
+    if let Some(Token::Der) = tok {
         keyword_or_ident.parse_next(input)?;
         let fa = function_call(input)?;
         let cr = Absyn::ComponentRef::CREF_IDENT { name: "der".to_string(), subscripts: List::Nil() };
@@ -1471,7 +1473,7 @@ println!("start for_or_exp_list {}", &input[0..input.len().min(20)]);
     }
 
     // pure function_call
-    if let Token::Pure = tok {
+    if let Some(Token::Pure) = tok {
         keyword_or_ident.parse_next(input)?;
         let fa = function_call(input)?;
         let cr = Absyn::ComponentRef::CREF_IDENT { name: "pure".to_string(), subscripts: List::Nil() };
@@ -1642,13 +1644,14 @@ println!("f_o_el {}", &input[0..input.len().min(20)]);
     // Named arg start: ident = (not ==)
     {
         let saved = *input;
-        let is_named = (|| {
-            if let Ok(Token::Ident(_)) = keyword_or_ident.parse_next(input) {
-                skip_trivia(input).ok();
-                input.starts_with('=') && !input.starts_with("==")
-            } else { false }
-        })();
+        let is_named = if let Some(Token::Ident(_)) = opt(keyword_or_ident).parse_next(input)? {
+            skip_trivia(input)?;
+            input.starts_with('=') && !input.starts_with("==")
+        } else {
+            false
+        };
         *input = saved;
+        // TODO: Actually parse the named args...
         if is_named {
             return Ok(Absyn::FunctionArgs::FUNCTIONARGS { args: List::Nil(), argNames: List::Nil() });
         }
@@ -1661,7 +1664,7 @@ println!("e1 {}", &input[0..input.len().min(20)]);
     skip_trivia(input)?;
 
     // for-iterator: expr [threaded] for indices
-    if matches!(peek(keyword_or_ident).parse_next(input)?, Token::For | Token::Threaded) {
+    if matches!(peek(opt(keyword_or_ident)).parse_next(input)?, Some(Token::For) | Some(Token::Threaded)) {
         let threaded = if matches!(peek(keyword_or_ident).parse_next(input)?, Token::Threaded) {
             keyword_or_ident.parse_next(input)?;
             true
@@ -1693,12 +1696,9 @@ println!("e1 {}", &input[0..input.len().min(20)]);
             } else { false }
         })();
         *input = saved;
-        if is_named { break; }
+        if is_named { /* TODO: Handle named arguments */ break; }
         if input.starts_with(')') || input.starts_with('}') { break; }
-        match expression(input) {
-            Ok(e) => args = cons(Rc::new(e), args),
-            Err(_) => break,
-        }
+        args = cons(Rc::new(expression.parse_next(input)?), args);
     }
     Ok(Absyn::FunctionArgs::FUNCTIONARGS { args: args.reverse(), argNames: List::Nil() })
 }
@@ -1928,7 +1928,7 @@ fn relation<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
 
 /// logical_factor: not? relation
 fn logical_factor<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
-    let has_not = matches!(peek(keyword_or_ident).parse_next(input)?, Token::Not);
+    let has_not = matches!(opt(peek(keyword_or_ident)).parse_next(input)?, Some(Token::Not));
     if has_not { keyword_or_ident.parse_next(input)?; }
     let e = relation(input)?;
     if has_not {
@@ -2045,8 +2045,8 @@ fn if_expression<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
     let true_br = expression(input)?;
     let mut elseif: List<(Rc<Absyn::Exp>, Rc<Absyn::Exp>)> = List::Nil();
     loop {
-        if !matches!(peek(keyword_or_ident).parse_next(input)?, Token::Elseif) { break; }
-        keyword_or_ident.parse_next(input)?;
+        skip_trivia(input)?;
+        if !opt("elseif").parse_next(input)?.is_some() { break; }
         let ec = expression(input)?;
         match keyword_or_ident(input)? {
             Token::Then => {}
@@ -2138,13 +2138,13 @@ fn algorithm_list_then<'a>(input: &mut &'a str) -> ModalResult<List<Absyn::Algor
 
 /// match_case_body: (equation eq_list | algorithm alg_list)?
 fn match_case_body<'a>(input: &mut &'a str) -> ModalResult<Absyn::ClassPart> {
-    match peek(keyword_or_ident).parse_next(input)? {
-        Token::Equation => {
+    match peek(opt(keyword_or_ident)).parse_next(input)? {
+        Some(Token::Equation) => {
             keyword_or_ident.parse_next(input)?;
             let eqs = equation_list_then(input)?;
             Ok(Absyn::ClassPart::EQUATIONS { contents: eqs })
         }
-        Token::Algorithm => {
+        Some(Token::Algorithm) => {
             keyword_or_ident.parse_next(input)?;
             let algs = algorithm_list_then(input)?;
             Ok(Absyn::ClassPart::ALGORITHMS { contents: algs })
@@ -2256,11 +2256,11 @@ fn match_expression<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
 
 fn expression<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
     skip_trivia(input)?;
-    match peek(keyword_or_ident).parse_next(input)? {
-        Token::If => return if_expression(input),
-        Token::Match | Token::Matchcontinue => return match_expression(input),
-        Token::Function => return part_eval_function_expression(input),
-        Token::Code => return code_expression(input),
+    match peek(opt(keyword_or_ident)).parse_next(input)? {
+        Some(Token::If) => return if_expression(input),
+        Some(Token::Match) | Some(Token::Matchcontinue) => return match_expression(input),
+        Some(Token::Function) => return part_eval_function_expression(input),
+        Some(Token::Code) => return code_expression(input),
         _ => {}
     }
     simple_expression(input)

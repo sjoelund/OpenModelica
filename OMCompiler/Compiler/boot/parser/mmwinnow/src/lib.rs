@@ -6,6 +6,7 @@
 use winnow::{Parser, ModalResult, combinator::{opt, peek}, error::{ContextError, ErrMode}};
 use winnow::token::*;
 use winnow::ascii;
+use std::rc::Rc;
 
 pub struct ParserConfig {
     pub filename: String,
@@ -375,18 +376,18 @@ pub enum ComponentItem {
 /// type_prefix type_specifier_no_dims component_declaration1
 #[derive(Debug, Clone)]
 pub enum TypeSpec {
-    Builtin(String),
-    Path(Path),
-    List(Box<TypeSpec>),
-    Option(Box<TypeSpec>),
-    Extension {
-        base: Box<TypeSpec>,
-        dims: Vec<Subscript>,
-    },
+    TPATH(Path,Option<ArrayDim>),
+    TCOMPLEX(Path,Vec<TypeSpec>,Option<ArrayDim>),
 }
 
+type ArrayDim = Vec<Subscript>;
+
 #[derive(Debug, Clone)]
-pub struct Path(pub Vec<String>);
+pub enum Path {
+    IDENT{name: String},
+    QUALIFIED{name: String, path: Rc<Path>},
+    FULLYQUALIFIED{path: Rc<Path>},
+}
 
 #[derive(Debug, Clone)]
 pub enum Subscript {
@@ -480,6 +481,14 @@ fn skip_trivia<'a>(input: &mut &'a str) -> ModalResult<()> {
         }
     }
     Ok(())
+}
+
+fn ident<'a>(input: &mut &'a str) -> ModalResult<String> {
+    if let Token::Ident(s) = keyword_or_ident(input)? {
+        Ok(s.to_string())
+    } else {
+        Err(ErrMode::Backtrack(ContextError::default()))
+    }
 }
 
 fn keyword_or_ident<'a>(input: &mut &'a str) -> ModalResult<Token<'a>> {
@@ -583,23 +592,29 @@ fn tok_as_ident<'a>(tok: Token<'a>) -> ModalResult<&'a str> {
     }
 }
 
-fn name_path<'a>(input: &mut &'a str) -> ModalResult<String> {
+fn name_path<'a>(input: &mut &'a str) -> ModalResult<Path> {
     let mut parts = Vec::new();
-    parts.push(opt(".").parse_next(input)?.unwrap_or("")); // allow leading dot for absolute paths
+    let fq = opt(".").parse_next(input)?.is_some(); // allow leading dot for absolute paths
+    let mut last_id = ident(input)?;
     loop {
-        let tok = keyword_or_ident(input)?;
-        parts.push(tok_as_ident(tok)?);
-        skip_trivia(input)?;
         if opt(".").parse_next(input)?.is_none() {
             break;
         }
+        parts.push(last_id);
+        last_id = ident(input)?;
     }
-    Ok(parts.join("."))
-}
-
-fn ident_or_fail<'a>(input: &mut &'a str) -> ModalResult<&'a str> {
-    let tok = keyword_or_ident(input)?;
-    tok_as_ident(tok)
+    let mut res = Path::IDENT { name: last_id };
+    for id in parts.iter().rev() {
+        res = Path::QUALIFIED {
+            name: id.to_string(),
+            path: Rc::new(res),
+        };
+    }
+    if fq {
+        Ok(Path::FULLYQUALIFIED { path: Rc::new(res) })
+    } else {
+        Ok(res)
+    }
 }
 
 /// Parse a class name - accepts any keyword or identifier as a class name
@@ -707,17 +722,17 @@ fn class_type<'a>(input: &mut &'a str) -> ModalResult<ClassKind> {
 ///                 | EXTENDS identifier class_modification? composition END IDENT
 fn class_specifier<'a>(input: &mut &'a str) -> ModalResult<ClassSpecifier> {
     if opt("extends").parse_next(input)?.is_some() {
-        let name = name_path(input)?;
+        let name = ident(input)?;
         let modification = opt(class_modification).parse_next(input)?;
         string_comments(input)?;
         let composition = composition(input)?;
         skip_trivia(input)?;
         "end".parse_next(input)?;
-        if ident_or_fail(input)? != name {
+        if ident(input)? != name {
             return Err(ErrMode::Backtrack(ContextError::default()));
         }
         Ok(ClassSpecifier::Extends {
-            name: name.to_string(),
+            name,
             modification,
             composition
         })
@@ -956,19 +971,12 @@ fn element_list<'a>(input: &mut &'a str) -> ModalResult<Vec<ClassPart>> {
 
 fn component_declaration<'a>(input: &mut &'a str) -> ModalResult<Element> {
     let typ = type_spec(input)?;
-    skip_trivia(input)?;
-    let name = if input.starts_with(|c: char| c.is_alphabetic() || c == '_') {
-        Some(ident_or_fail(input)?)
-    } else {
-        None
+    let name = match keyword_or_ident.parse_next(input)? {
+        Token::Ident(name) => name,
+        Token::Operator => "operator",
+        _ => return Err(ErrMode::Backtrack(ContextError::default())),
     };
-    let name = name.unwrap_or("unnamed");
-    skip_trivia(input)?;
-    let attributes = if input.starts_with('(') {
-        Some(component_attributes(input)?)
-    } else {
-        None
-    };
+    let attributes = opt(component_attributes).parse_next(input)?;
 
     Ok(Element::Component(ComponentDecl {
         typ,
@@ -999,32 +1007,8 @@ fn component_attributes<'a>(input: &mut &'a str) -> ModalResult<ComponentAttribu
 }
 
 fn component_item<'a>(input: &mut &'a str) -> ModalResult<ComponentItem> {
-    let path = path(input)?;
+    let path = name_path(input)?;
     Ok(ComponentItem::ComponentReference(path))
-}
-
-fn path<'a>(input: &mut &'a str) -> ModalResult<Path> {
-    let mut parts = Vec::new();
-    if input.starts_with('.') {
-        ".".parse_next(input)?;
-    }
-    loop {
-        let tok = keyword_or_ident(input)?;
-        parts.push(tok_as_ident(tok)?.to_string());
-        skip_trivia(input)?;
-        if input.starts_with('.') {
-            if input.starts_with("..") {
-                break;
-            }
-            if input.starts_with(".*") || input.starts_with(".(") {
-                break;
-            }
-            ".".parse_next(input)?;
-            continue;
-        }
-        break;
-    }
-    Ok(Path(parts))
 }
 
 fn class_modification<'a>(input: &mut &'a str,) -> ModalResult<ClassModification> {
@@ -1168,52 +1152,31 @@ fn external_part<'a>(input: &mut &'a str) -> ModalResult<ClassPart> {
 
 /// import_clause: IMPORT (explicit_import_name | implicit_import_name) comment
 fn import_clause<'a>(input: &mut &'a str) -> ModalResult<ImportClause> {
-    skip_trivia(input)?;
-    // Try explicit_import_name: IDENT EQUALS name_path
-    let tok = keyword_or_ident(input)?;
-    let id = match tok {
-        Token::Ident(s) => s,
-        _ => tok_as_ident(tok)?,
-    };
-    skip_trivia(input)?;
-    if input.starts_with('=') && !input.starts_with("==") {
-        "=".parse_next(input)?;
-        let path = path(input)?;
-        return Ok(ImportClause::Named {
-            id: id.to_string(),
-            path,
-        });
-    }
-    // Otherwise treat as implicit import: name_path
-    // (id was already consumed as the first path part)
-    let mut parts = vec![id.to_string()];
-    skip_trivia(input)?;
-    while input.starts_with('.') {
-        if input.starts_with(".*") {
-            ".*".parse_next(input)?;
-            // Group import with wildcards - simplified
-            return Ok(ImportClause::Group {
-                path: Path(parts),
-                imports: Vec::new(),
-            });
+    "import".parse_next(input)?;
+    let path = name_path(input)?; // TODO: Need to catch .*=UNQUALIFIED and {.., ..}=GROUP
+    match path {
+        Path::IDENT { name } => {
+            if opt("=").parse_next(input)?.is_some() {
+                let path = name_path(input)?;
+                return Ok(ImportClause::Named { id: name, path });
+            } else {
+                // TODO: This is not right. We need name_path_star to return a tuple, or the import clause directly
+                return Ok(ImportClause::Qualified(Path::IDENT { name }));
+            }
         }
-        ".".parse_next(input)?;
-        let tok = keyword_or_ident(input)?;
-        parts.push(tok_as_ident(tok)?.to_string());
-        skip_trivia(input)?;
+        _ => Ok(ImportClause::Qualified(path)),
     }
-    Ok(ImportClause::Qualified(Path(parts)))
 }
 
 /// extends_clause: EXTENDS name_path (class_modification)? (annotation)?
 fn extends_clause<'a>(input: &mut &'a str) -> ModalResult<ExtendsClause> {
     skip_trivia(input)?;
-    let np = name_path(input)?;
-    let modif = opt(class_modification).parse_next(input)?;
+    let path = name_path(input)?;
+    let modification = opt(class_modification).parse_next(input)?;
     // (annotation)? - skip for now
     Ok(ExtendsClause {
-        path: Path(np.split('.').map(|s| s.to_string()).collect()),
-        modification: modif,
+        path,
+        modification,
     })
 }
 
@@ -1329,42 +1292,32 @@ fn skip_string_comment_text(input: &mut &str) -> ModalResult<String> {
 }
 
 fn type_spec<'a>(input: &mut &'a str) -> ModalResult<TypeSpec> {
-    skip_trivia(input)?;
+    let name = name_path(input)?;
 
-    let tok = keyword_or_ident(input)?;
-    match tok {
-        Token::Ident(name) if name == "list" => {
-            "<".parse_next(input)?;
-            let inner = type_spec(input)?;
-            skip_trivia(input)?;
-            ">".parse_next(input)?;
-            return Ok(TypeSpec::List(Box::new(inner)));
-        }
-        Token::Ident(name) if name == "option" => {
-            "<".parse_next(input)?;
-            let inner = type_spec(input)?;
-            skip_trivia(input)?;
-            ">".parse_next(input)?;
-            return Ok(TypeSpec::Option(Box::new(inner)));
-        }
-        _ => {}
-    }
-
-    let name = tok_as_ident(tok.clone()).unwrap_or("unknown");
-
-    let mut path = vec![name.to_string()];
-    loop {
-        skip_trivia(input)?;
-        if !input.starts_with('.') || input.starts_with("..") {
+    let mut ts = Vec::new();
+    if opt("<").parse_next(input)?.is_some() {
+        loop {
+          if let Some(t) = opt(type_spec).parse_next(input)? {
+            ts.push(t);
+          } else {
             break;
-        }
-        ".".parse_next(input)?;
-        let tok = keyword_or_ident(input)?;
-        let s = tok_as_ident(tok).unwrap_or("unknown");
-        path.push(s.to_string());
+          }
+        };
+        ">".parse_next(input)?;
+    };
+    let subscripts = opt(array_subscripts).parse_next(input)?;
+    if ts.is_empty() {
+        Ok(TypeSpec::TPATH(name,subscripts))
+    } else {
+        Ok(TypeSpec::TCOMPLEX(name, ts, subscripts))
     }
+}
 
-    Ok(TypeSpec::Path(Path(path)))
+fn array_subscripts<'a>(input: &mut &'a str) -> ModalResult<Vec<Subscript>> {
+    "[".parse_next(input)?;
+    // TODO: handle the subscripts properly
+    "]".parse_next(input)?;
+    Ok(Vec::new())
 }
 
 fn enum_literal<'a>(input: &mut &'a str) -> ModalResult<EnumLiteral> {

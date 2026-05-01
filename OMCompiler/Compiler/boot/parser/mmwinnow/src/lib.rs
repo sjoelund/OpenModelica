@@ -1145,11 +1145,13 @@ fn component_declaration<'a>(input: &mut &'a str) -> ModalResult<ComponentItem> 
 
 fn modification<'a>(input: &mut &'a str) -> ModalResult<Modification> {
     let cm = opt(class_modification).parse_next(input)?.unwrap_or(List::Nil());
+    println!("Before EqMod {}", &input[0..input.len().min(20)]);
     let eq = if opt(alt((":=", "="))).parse_next(input)?.is_some() {
         Absyn::EqMod::EQMOD{exp: Rc::new(cut_err(modification_expression).context(StrContext::Label("Modification with =")).parse_next(input)?), info: dummy_info()}
     } else {
         Absyn::EqMod::NOMOD{}
     };
+    println!("After EqMod {}", &input[0..input.len().min(20)]);
     Ok(Modification::CLASSMOD { elementArgLst: cm, eqMod: eq })
 }
 
@@ -1158,7 +1160,10 @@ fn modification_expression<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
     if opt("break").parse_next(input)?.is_some() {
         return Ok(Absyn::Exp::BREAK{});
     };
-    expression.parse_next(input)
+    println!("Before expression {}", &input[0..input.len().min(20)]);
+    let res = expression.parse_next(input);
+    println!("After expression {:?} {}", res, &input[0..input.len().min(20)]);
+    res
 }
 
 fn class_modification<'a>(input: &mut &'a str) -> ModalResult<List<Rc<ElementArg>>> {
@@ -1404,6 +1409,7 @@ fn primary<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
     // Numeric literal (real before integer by trying decimal/exponent)
     if input.starts_with(|c: char| c.is_ascii_digit()) || input.starts_with('.') {
         if let Ok(e) = number_literal(input) {
+    println!("Returning {:?}", e);
             return Ok(e);
         }
     }
@@ -1484,10 +1490,13 @@ fn to_tuple_or_exp(exprs: List<Rc<Absyn::Exp>>, is_tuple: bool) -> Absyn::Exp {
 
 /// number_literal: UNSIGNED_REAL | UNSIGNED_INTEGER
 fn number_literal<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
+    skip_trivia(input)?;
+    println!("Before number_literal {}", &input[0..input.len().min(20)]);
     let start = *input;
     let has_int = take_while::<_, _, ContextError>(1.., |c: char| c.is_ascii_digit()).parse_next(input).is_ok();
     let mut is_real = false;
 
+    println!("After has_int {}", &input[0..input.len().min(20)]);
     if has_int {
         // decimal point (but not '..' or element-wise operators)
         if input.starts_with('.') && !input.starts_with("..") &&
@@ -1513,11 +1522,13 @@ fn number_literal<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
         is_real = true;
     }
 
+    println!("is_real {} {}", is_real, &input[0..input.len().min(20)]);
     let len = start.len() - input.len();
     let s = &start[..len];
     if is_real {
         Ok(Absyn::Exp::REAL { value: s.to_string() })
     } else {
+    println!("After has_int {:?}", s.parse::<i32>());
         Ok(Absyn::Exp::INTEGER { value: s.parse().unwrap_or(i32::MAX) })
     }
 }
@@ -1919,11 +1930,15 @@ fn logical_factor<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
 /// logical_term: logical_factor (and logical_factor)*
 fn logical_term<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
     let mut e = logical_factor(input)?;
+println!("After logical_factor {}", &input[0..input.len().min(20)]);
     loop {
-        if !matches!(peek(keyword_or_ident).parse_next(input)?, Token::And) { break; }
-        keyword_or_ident.parse_next(input)?;
-        let e2 = logical_factor(input)?;
-        e = Absyn::Exp::LBINARY { exp1: Rc::new(e), op: Absyn::Operator::AND {}, exp2: Rc::new(e2) };
+        skip_trivia(input)?;
+        if opt("and").parse_next(input)?.is_some() {
+            let e2 = logical_factor(input)?;
+            e = Absyn::Exp::LBINARY { exp1: Rc::new(e), op: Absyn::Operator::AND {}, exp2: Rc::new(e2) };
+        } else {
+            break;
+        }
     }
     Ok(e)
 }
@@ -1931,11 +1946,15 @@ fn logical_term<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
 /// logical_expression: logical_term (or logical_term)*
 fn logical_expression<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
     let mut e = logical_term(input)?;
+println!("After logical_term {}", &input[0..input.len().min(20)]);
     loop {
-        if !matches!(peek(keyword_or_ident).parse_next(input)?, Token::Or) { break; }
-        keyword_or_ident.parse_next(input)?;
-        let e2 = logical_term(input)?;
-        e = Absyn::Exp::LBINARY { exp1: Rc::new(e), op: Absyn::Operator::OR {}, exp2: Rc::new(e2) };
+        skip_trivia(input)?;
+        if opt("or").parse_next(input)?.is_some() {
+            let e2 = logical_term(input)?;
+            e = Absyn::Exp::LBINARY { exp1: Rc::new(e), op: Absyn::Operator::OR {}, exp2: Rc::new(e2) };
+        } else {
+            break;
+        };
     }
     Ok(e)
 }
@@ -1943,6 +1962,7 @@ fn logical_expression<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
 /// simple_expr: logical_expression (: logical_expression (: logical_expression)?)?
 fn simple_expr<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
     let e1 = logical_expression(input)?;
+println!("After logical_expression {}", &input[0..input.len().min(20)]);
     skip_trivia(input)?;
     if !input.starts_with(':') || input.starts_with(":=") || input.starts_with("::") {
         return Ok(e1);
@@ -1988,6 +2008,8 @@ fn simple_expression<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
     }
 
     let e1 = simple_expr(input)?;
+println!("After simple_expr {}", &input[0..input.len().min(20)]);
+
     skip_trivia(input)?;
     if input.starts_with("::") {
         "::".parse_next(input)?;

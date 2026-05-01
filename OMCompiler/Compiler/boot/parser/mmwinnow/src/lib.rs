@@ -2511,4 +2511,14 @@ mod tests {
             assert!(false, "expected Absyn.mo to parse, got: {}", err);
         }
     }
+
+    #[test]
+    fn parse_codegen_c() {
+        let code = std::fs::read_to_string("tests/data/CodegenC.mo")
+            .expect("CodegenC.mo not found");
+        let result = stored_definition.parse(&*code);
+        if let Some(err) = &result.err() {
+            assert!(false, "expected CodegenC.mo to parse, got: {}", err);
+        }
+    }
 }

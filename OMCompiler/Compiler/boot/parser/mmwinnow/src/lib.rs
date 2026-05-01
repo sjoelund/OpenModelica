@@ -459,8 +459,7 @@ fn keyword_or_ident<'a>(input: &mut &'a str) -> ModalResult<Token<'a>> {
 }
 
 fn token_from_word<'a>(word: &'a str) -> Token<'a> {
-    let w = word.to_ascii_lowercase();
-    match w.as_str() {
+    match word {
         "algorithm" => Token::Algorithm,
         "annotation" => Token::Annotation,
         "assert" => Token::Assert,
@@ -553,6 +552,7 @@ fn tok_as_ident<'a>(tok: Token<'a>) -> ModalResult<&'a str> {
 }
 
 fn name_path<'a>(input: &mut &'a str) -> ModalResult<Path> {
+    skip_trivia(input)?;
     let fq = opt(".").parse_next(input)?.is_some();
     let res = name_path2.parse_next(input)?;
     if fq {
@@ -566,6 +566,7 @@ fn name_path2<'a>(input: &mut &'a str) -> ModalResult<Path> {
     let mut parts = Vec::new();
     let mut last_id = ident(input)?;
     loop {
+        skip_trivia(input)?;
         if opt(".").parse_next(input)?.is_none() { break; }
         parts.push(last_id);
         last_id = ident(input)?;
@@ -753,7 +754,7 @@ fn class_specifier<'a>(input: &mut &'a str) -> ModalResult<ClassSpecifier> {
 fn class_specifier2<'a>(input: &mut &'a str) -> ModalResult<Rc<ClassDef>> {
     skip_trivia(input)?;
     if opt("subtypeof").parse_next(input)?.is_some() {
-        let typeSpec = type_spec(input)?;
+        let typeSpec = type_specifier(input)?;
         return Ok(Rc::new(ClassDef::DERIVED {
             typeSpec,
             attributes: default_element_attrs(),
@@ -773,7 +774,7 @@ fn class_specifier2<'a>(input: &mut &'a str) -> ModalResult<Rc<ClassDef>> {
             }));
         }
 
-        let typeSpec = cut_err(type_spec)
+        let typeSpec = cut_err(type_specifier)
             .context(StrContext::Label("type specifier after '='"))
             .parse_next(input)?;
         let arguments: List<Rc<ElementArg>> = opt(class_modification).parse_next(input)?
@@ -1069,7 +1070,7 @@ fn type_prefix<'a>(input: &mut &'a str) -> ModalResult<ElementAttributes> {
 
 fn component_clause<'a>(input: &mut &'a str) -> ModalResult<ComponentClause> {
     let typePrefix = type_prefix.parse_next(input)?;
-    let typeSpec = type_spec.parse_next(input)?;
+    let typeSpec = type_specifier.parse_next(input)?;
     let components = cut_err(component_list)
         .context(StrContext::Label("component list"))
         .parse_next(input)?;
@@ -1291,27 +1292,30 @@ fn expression<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
     Err(ErrMode::Backtrack(ContextError::default()))
 }
 
-fn type_spec<'a>(input: &mut &'a str) -> ModalResult<TypeSpec> {
+fn type_specifier<'a>(input: &mut &'a str) -> ModalResult<TypeSpec> {
     let path = name_path(input)?;
+println!("Got path {:?}", path);
     let mut ts: List<Rc<TypeSpec>> = List::Nil();
+    skip_trivia(input)?;
     if opt("<").parse_next(input)?.is_some() {
+println!("Entered <");
         // Parse inner types as simple paths to avoid infinite recursion
         loop {
             skip_trivia(input)?;
             if input.starts_with('>') || input.is_empty() { break; }
-            let inner_path = name_path(input)?;
-            let inner_array = opt(array_subscripts).parse_next(input)?;
-            ts = cons(Rc::new(TypeSpec::TPATH {
-                path: inner_path,
-                arrayDim: inner_array,
-            }), ts);
+println!("Input before name_path: {}", &input[0..input.len().min(20)]);
+            let inner_ts = type_specifier.parse_next(input)?;
+println!("Got inner_ts {:?}", inner_ts);
+            ts = cons(Rc::new(inner_ts), ts);
             skip_trivia(input)?;
             if opt(",").parse_next(input)?.is_some() { continue; }
             break;
         }
         ts = ts.reverse();
+        skip_trivia(input)?;
         ">".parse_next(input)?;
     };
+println!("Got ts {:?}", ts);
     let arrayDim = opt(array_subscripts).parse_next(input)?;
     ts = ts.reverse();
     if ts.is_empty() {

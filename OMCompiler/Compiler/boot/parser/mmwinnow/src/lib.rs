@@ -2,16 +2,15 @@
 //!
 //! Lexer combinators are embedded in the parser — no separate tokenizer.
 //! AST types come from `Absyn` module, matching the ANTLR3 grammar from `grammars/Modelica.g`.
+#![allow(non_snake_case)]
 
-#[allow(non_snake_case)]
 mod Absyn;
 mod metamodelica;
 
 pub use Absyn::*;
 use metamodelica::{List, cons, SourceInfo};
-use metamodelica::List::Cons;
 
-use winnow::{Parser, ModalResult, combinator::{opt, peek}, error::{ContextError, ErrMode}};
+use winnow::{Parser, ModalResult, combinator::{opt, alt, peek}, error::{ContextError, ErrMode}};
 use winnow::token::*;
 use winnow::ascii;
 use std::rc::Rc;
@@ -21,7 +20,7 @@ pub struct ParserConfig {
     pub grammar: Grammar,
 }
 
-enum Grammar {
+pub enum Grammar {
     Modelica2,
     Modelica3,
     MetaModelica,
@@ -30,92 +29,54 @@ enum Grammar {
 /// Custom error type with line, column, and context display.
 #[derive(Debug)]
 pub struct ParserError<'a> {
-    /// Byte offset where parsing failed
     pub offset: usize,
-    /// Remaining input at the failure point
     pub remaining: &'a str,
-    /// Inner error context
     pub inner: ContextError,
-    /// Full original input for context display
     _original: &'a str,
 }
 
 impl<'a> ParserError<'a> {
-    /// Create a ParserError from a winnow parse error.
     pub fn from_parse_error(err: winnow::error::ParseError<&'a str, ContextError>, original: &'a str) -> Self {
         let range = err.char_span();
-        let offset = range.end;  // end is the failure position
+        let offset = range.end;
         let remaining = &original[offset..];
         let inner = err.inner().clone();
-        ParserError {
-            offset,
-            remaining,
-            inner,
-            _original: original,
-        }
+        ParserError { offset, remaining, inner, _original: original }
     }
 
-    /// Convert to a human-readable error string with line, column, and context.
     pub fn display(&self) -> String {
         let mut output = String::new();
         output.push_str("error: parsing failed\n");
-
-        // Calculate line and column from byte offset
         let line = self._original[..self.offset].matches('\n').count() + 1;
         let col_offset = self._original[..self.offset]
-            .rfind('\n')
-            .map(|i| self.offset - i - 1)
-            .unwrap_or(self.offset);
+            .rfind('\n').map(|i| self.offset - i - 1).unwrap_or(self.offset);
         let col = col_offset + 1;
-
         output.push_str(&format!("  --> line {}:{}\n", line, col));
-
-        // Show the context: 2 lines before up to the error + 1 line after
-        let context_start = if self.offset >= 200 {
-            self.offset - 200
-        } else {
-            0
-        };
+        let context_start = if self.offset >= 200 { self.offset - 200 } else { 0 };
         let ctx_end = (self.offset + 100).min(self._original.len());
         let ctx = &self._original[context_start..ctx_end];
-
-        // Find the line containing the error within context
         let ctx_line_start = context_start
-            + ctx[..].rfind('\n')
-                .map(|i| i + 1)
-                .unwrap_or(context_start);
+            + ctx[..].rfind('\n').map(|i| i + 1).unwrap_or(context_start);
         let ctx_line_end = ctx[ctx_line_start - context_start..].find('\n')
             .map(|i| ctx_line_start + i)
             .unwrap_or(self._original.len().min(ctx_end + 100));
-
-        // Build the context snippet
         let context_line = &self._original[ctx_line_start..ctx_line_end.min(self._original.len())];
         let arrow_offset = self.offset - ctx_line_start;
-
         output.push_str(&format!(
             "    |\n  {} | {}\n",
             " ".repeat(line.saturating_sub(1).to_string().len()),
             context_line
         ));
-        output.push_str(&format!(
-            "    | {}\n",
-            " ".repeat(arrow_offset) + "^"
-        ));
-
-        // Show the error message
+        output.push_str(&format!("    | {}\n", " ".repeat(arrow_offset) + "^"));
         output.push_str(&format!("  --> remaining input: {:?}\n", self.remaining[0..(100).min(self.remaining.len())].to_string()));
-
-        // Show what was expected (from context)
         let ctx_str = format!("{:?}", self.inner);
         if !ctx_str.is_empty() && ctx_str != "ContextError { context: [], cause: None }" {
             output.push_str(&format!("  --> reason: {}\n", ctx_str));
         }
-
         output
     }
 }
 
-/// Display a parse error for debugging.
 pub fn print_error<'a>(
     result: Result<ParserError<'a>, winnow::error::ParseError<&'a str, ContextError>>,
 ) {
@@ -131,42 +92,31 @@ pub fn print_error<'a>(
 }
 
 // ---------------------------------------------------------------------------
-// Token types — mirrors the ANTLR3 token set from Modelica.g / MetaModelica_Lexer
+// Token types
 // ---------------------------------------------------------------------------
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Token<'a> {
-    // Keywords — class types
     Package, Class, Record, Type, Function, Connector, Uniontype,
     Encapsulated, Partial, Final, Extends, End, Annotation, Import,
     Public, Protected, Pure, Impure, External,
     Equation, Algorithm,
-    // Class type modifiers
     Model, Operator, Parallel, Kernel, Expandable, Optimization,
-    // Structure
     Within, Der, Code, Equality, Initial,
-    // Control flow
     Else, If, For, While, Try, Elseif, ElseWhen, Return,
     Break, Continue, Match, Matchcontinue, Case,
-    // Redeclaration
     Each, Replaceable, Declareunit, Constraint, Assert,
-    // Enumeration
     Enumeration, Subtypeof, Pder, Overload,
-    // Connector
     Flow, Stream,
-    // Literals
     Ident(&'a str),
     StringLit(&'a str),
     IntLit(&'a str),
     RealLit(&'a str),
-    // Operators
     Equal, Assign, EqEq,
     Less, Leq, Greater, Geq, NotEq,
-    // Delimiters
     LParen, RParen, LBracket, RBracket, LBrace, RBrace,
     Dot, DotDot, Colon, Semi, Comma,
     Star, Plus, Minus, Slash, Power, Pipe,
-    // Special
     BOM,
 }
 
@@ -265,25 +215,174 @@ impl std::fmt::Display for Token<'_> {
 }
 
 // ---------------------------------------------------------------------------
-// Intermediate representation for class_specifier
+// Intermediate types for parser rules (converted to Absyn at boundaries)
 // ---------------------------------------------------------------------------
 
+/// Items that appear in element_list / composition before conversion to Absyn::ClassPart.
+#[derive(Debug, Clone)]
+pub enum ClassBodyItem {
+    /// A public or protected section header with its content
+    Section { section: SectionKind, items: Rc<List<ClassBodyItem>> },
+    /// An element (component, import, extends, nested class)
+    Element(Absyn::Element),
+    /// An annotation
+    Annotation(Absyn::Annotation),
+    /// An equation section with raw items
+    Equations(List<EquationItem>),
+    /// An initial equation section
+    InitialEquations(List<EquationItem>),
+    /// An algorithm section
+    Algorithms(List<AlgorithmItem>),
+    /// An initial algorithm section
+    InitialAlgorithms(List<AlgorithmItem>),
+    /// An equation constraint section
+    Constraints, // TODO
+    /// An external declaration
+    External {
+        funcName: Option<String>,
+        annotation_opt: Option<Absyn::Annotation>,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum SectionKind {
+    Public,
+    Protected,
+}
+
 /// Intermediate result of class_specifier rule.
-/// The caller (class_definition) converts this to Absyn::Class.
 #[derive(Debug, Clone)]
 pub enum ClassSpecifier {
-    /// identifier class_specifier2
     Normal {
         name: Ident,
-        /// body of the class (type_vars, class_parts, annotation, etc.)
         body: Rc<ClassDef>,
     },
-    /// EXTENDS identifier class_modification? composition END IDENT
     Extends {
         name: Ident,
-        /// body built from class_modification + composition
         body: Rc<ClassDef>,
     },
+}
+
+impl ClassSpecifier {
+    pub fn name(&self) -> Ident {
+        match self {
+            ClassSpecifier::Normal { name, .. } => name.clone(),
+            ClassSpecifier::Extends { name, .. } => name.clone(),
+        }
+    }
+
+    pub fn body(&self) -> Rc<ClassDef> {
+        match self {
+            ClassSpecifier::Normal { body, .. } => body.clone(),
+            ClassSpecifier::Extends { body, .. } => body.clone(),
+        }
+    }
+}
+
+/// An extends clause from element_list context.
+#[derive(Debug, Clone)]
+struct ExtendsClause {
+    path: Path,
+    modification: Option<List<Rc<ElementArg>>>,
+    annotation_opt: Option<Annotation>,
+}
+
+/// A dummy SourceInfo placeholder until line/column tracking is added.
+fn dummy_info() -> SourceInfo {
+    SourceInfo {
+        file_name: String::new(),
+        is_read_only: false,
+        line_number_start: 0,
+        column_number_start: 0,
+        line_number_end: 0,
+        column_number_end: 0,
+        last_modification: 0.0,
+    }
+}
+
+/// Convert ClassBodyItem list to Absyn::ClassPart list.
+fn body_items_to_classparts(items: List<ClassBodyItem>) -> List<ClassPart> {
+    match items {
+        List::Nil() => List::Nil(),
+        List::Cons { head, tail } => {
+            let converted = match head {
+                ClassBodyItem::Section { section, items } => {
+                    let content = body_items_to_element_items((*items).clone());
+                    match section {
+                        SectionKind::Public => ClassPart::PUBLIC { contents: content },
+                        SectionKind::Protected => ClassPart::PROTECTED { contents: content },
+                    }
+                }
+                ClassBodyItem::Element(elem) => {
+                    // Wrap element as an ElementItem, then as a ClassPart
+                    // We need to store it somehow. Use a local representation.
+                    // For now, store in the composition's parts directly via PARTS.classParts
+                    // Since Absyn doesn't have a direct ClassPart for elements,
+                    // we embed them in the PARTS node.
+                    // Workaround: use PUBLIC section with single element
+                    let ei = ElementItem::ELEMENTITEM { element: elem };
+                    ClassPart::PUBLIC { contents: cons(ei, List::Nil()) }
+                }
+                ClassBodyItem::Annotation(ann) => {
+                    // Store annotation as EXTERNAL with annotation_ field
+                    // TODO: annotations should go to ClassDef::PARTS.ann
+                    ClassPart::EXTERNAL {
+                        externalDecl: ExternalDecl::EXTERNALDECL {
+                            funcName: None,
+                            lang: None,
+                            output_: None,
+                            args: List::Nil(),
+                            annotation_: Some(ann),
+                        },
+                        annotation_: None,
+                    }
+                }
+                ClassBodyItem::Equations(items) => ClassPart::EQUATIONS { contents: items },
+                ClassBodyItem::InitialEquations(items) => ClassPart::INITIALEQUATIONS { contents: items },
+                ClassBodyItem::Algorithms(items) => ClassPart::ALGORITHMS { contents: items },
+                ClassBodyItem::InitialAlgorithms(items) => ClassPart::INITIALALGORITHMS { contents: items },
+                ClassBodyItem::Constraints => {
+                    // TODO
+                    ClassPart::CONSTRAINTS { contents: List::Nil() }
+                }
+                ClassBodyItem::External { funcName, annotation_opt } => ClassPart::EXTERNAL {
+                    externalDecl: ExternalDecl::EXTERNALDECL {
+                        funcName,
+                        lang: None,
+                        output_: None,
+                        args: List::Nil(),
+                        annotation_: annotation_opt,
+                    },
+                    annotation_: None,
+                },
+            };
+            let rest = body_items_to_classparts((*tail).clone());
+            cons(converted, rest)
+        }
+    }
+}
+
+/// Convert ClassBodyItem items for use inside PUBLIC/PROTECTED sections.
+fn body_items_to_element_items(items: List<ClassBodyItem>) -> List<ElementItem> {
+    match items {
+        List::Nil() => List::Nil(),
+        List::Cons { head, tail } => {
+            let converted = match head {
+                ClassBodyItem::Element(elem) => ElementItem::ELEMENTITEM { element: elem },
+                ClassBodyItem::Annotation(ann) => ElementItem::LEXER_COMMENT {
+                    comment: format!("{:?}", ann),
+                },
+                ClassBodyItem::External { funcName, .. } => ElementItem::LEXER_COMMENT {
+                    comment: format!("external {:?}", funcName),
+                },
+                _ => ElementItem::LEXER_COMMENT {
+                    comment: "unclassified body item".to_string(),
+                },
+            };
+            let rest = body_items_to_element_items((*tail).clone());
+            cons(converted, rest)
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -298,9 +397,7 @@ fn skip_ws<'a>(input: &mut &'a str) -> ModalResult<()> {
 fn skip_trivia<'a>(input: &mut &'a str) -> ModalResult<()> {
     loop {
         skip_ws(input)?;
-        if input.is_empty() {
-            break;
-        }
+        if input.is_empty() { break; }
         let before = *input;
         if input.starts_with("//") {
             take_while(0.., |c: char| c != '\n' && c != '\r').parse_next(input)?;
@@ -309,9 +406,7 @@ fn skip_trivia<'a>(input: &mut &'a str) -> ModalResult<()> {
             take_until(0.., "*/").parse_next(input)?;
             "*/".parse_next(input)?;
         }
-        if *input == before {
-            break;
-        }
+        if *input == before { break; }
     }
     Ok(())
 }
@@ -425,36 +520,18 @@ fn tok_as_ident<'a>(tok: Token<'a>) -> ModalResult<&'a str> {
     }
 }
 
-/// A dummy SourceInfo placeholder until line/column tracking is added.
-fn dummy_info() -> SourceInfo {
-    SourceInfo {
-        file_name: String::new(),
-        is_read_only: false,
-        line_number_start: 0,
-        column_number_start: 0,
-        line_number_end: 0,
-        column_number_end: 0,
-        last_modification: 0.0,
-    }
-}
-
 fn name_path<'a>(input: &mut &'a str) -> ModalResult<Path> {
     let mut parts = Vec::new();
     let fq = opt(".").parse_next(input)?.is_some();
     let mut last_id = ident(input)?;
     loop {
-        if opt(".").parse_next(input)?.is_none() {
-            break;
-        }
+        if opt(".").parse_next(input)?.is_none() { break; }
         parts.push(last_id);
         last_id = ident(input)?;
     }
     let mut res = Path::IDENT { name: last_id };
     for id in parts.iter().rev() {
-        res = Path::QUALIFIED {
-            name: id.to_string(),
-            path: Rc::new(res),
-        };
+        res = Path::QUALIFIED { name: id.to_string(), path: Rc::new(res) };
     }
     if fq {
         Ok(Path::FULLYQUALIFIED { path: Rc::new(res) })
@@ -463,7 +540,6 @@ fn name_path<'a>(input: &mut &'a str) -> ModalResult<Path> {
     }
 }
 
-/// Parse a class name - accepts any keyword or identifier as a class name
 fn class_name<'a>(input: &mut &'a str) -> ModalResult<String> {
     skip_trivia(input)?;
     let word: &str = take_while(1.., |c: char| c.is_alphanumeric() || c == '_').parse_next(input)?;
@@ -474,26 +550,12 @@ fn class_name<'a>(input: &mut &'a str) -> ModalResult<String> {
 // Parser rules — mirror the grammar structure, return Absyn AST
 // ---------------------------------------------------------------------------
 
-/// within_clause: WITHIN (name_path)?
-fn within_clause<'a>(input: &mut &'a str) -> ModalResult<Within> {
-    "within".parse_next(input)?;
-    skip_trivia(input)?;
-    match opt(name_path).parse_next(input)? {
-        Some(path) => Ok(Within::WITHIN { path }),
-        None => Ok(Within::TOP {}),
-    }
-}
-
 /// stored_definition: BOM? (within_clause SEMICOLON)? class_definition_list EOF
 pub fn stored_definition<'a>(input: &mut &'a str) -> ModalResult<Program> {
     opt("\u{feff}").parse_next(input)?;
 
-    // (within_clause SEMICOLON)?
     skip_trivia(input)?;
     let within_ = if opt("within").parse_next(input)?.is_some() {
-        // Rewind: we already consumed "within", so just parse the path part
-        // within_clause expects to consume "within" itself, so we need a different approach.
-        // Parse the path directly here since we've already matched the keyword.
         let path = opt(name_path).parse_next(input)?;
         ";".parse_next(input)?;
         match path {
@@ -519,9 +581,7 @@ fn class_definition_list<'a>(input: &mut &'a str) -> ModalResult<List<Class>> {
     let mut defs: List<Class> = List::Nil();
     loop {
         skip_trivia(input)?;
-        if input.is_empty() {
-            break;
-        }
+        if input.is_empty() { break; }
         let _final = opt("final").parse_next(input)?.is_some();
         let def = match class_definition(input) {
             Ok(d) => d,
@@ -535,18 +595,18 @@ fn class_definition_list<'a>(input: &mut &'a str) -> ModalResult<List<Class>> {
 
 /// class_definition: ENCAPSULATED? PARTIAL? class_type class_specifier
 fn class_definition<'a>(input: &mut &'a str) -> ModalResult<Class> {
-    let enc = opt("encapsulated").parse_next(input)?.is_some();
-    let partial = opt("partial").parse_next(input)?.is_some();
-    let _final = opt("final").parse_next(input)?.is_some(); // handled by caller too
+    let encapsulatedPrefix = opt("encapsulated").parse_next(input)?.is_some();
+    let partialPrefix = opt("partial").parse_next(input)?.is_some();
+    let finalPrefix = opt("final").parse_next(input)?.is_some();
 
     let restriction = class_type(input)?;
     let specifier = class_specifier(input)?;
 
     Ok(Class::CLASS {
         name: specifier.name(),
-        partialPrefix: partial,
-        finalPrefix: _final,
-        encapsulatedPrefix: enc,
+        partialPrefix: partialPrefix,
+        finalPrefix: finalPrefix,
+        encapsulatedPrefix: encapsulatedPrefix,
         restriction,
         body: specifier.body(),
         commentsBeforeClass: List::Nil(),
@@ -573,8 +633,8 @@ fn class_type<'a>(input: &mut &'a str) -> ModalResult<Restriction> {
         Token::Uniontype => Restriction::R_UNIONTYPE {},
         Token::Model => Restriction::R_MODEL {},
         Token::Operator => Restriction::R_OPERATOR {},
-        Token::Parallel => Restriction::R_OPERATOR {}, // TODO: proper parallel restriction
-        Token::Kernel => Restriction::R_OPERATOR {},   // TODO: proper kernel restriction
+        Token::Parallel => Restriction::R_OPERATOR {}, // TODO
+        Token::Kernel => Restriction::R_OPERATOR {},   // TODO
         Token::Optimization => Restriction::R_OPTIMIZATION {},
         _ => Restriction::R_CLASS {},
     };
@@ -586,19 +646,21 @@ fn class_type<'a>(input: &mut &'a str) -> ModalResult<Restriction> {
 fn class_specifier<'a>(input: &mut &'a str) -> ModalResult<ClassSpecifier> {
     if opt("extends").parse_next(input)?.is_some() {
         let name = ident(input)?;
-        let modifications = opt(class_modification_list).parse_next(input)?.unwrap_or_else(|| List::Nil());
+        let modifications = opt(class_modification).parse_next(input)?
+            .unwrap_or(List::Nil());
         string_comments(input)?;
-        let classParts = composition(input)?;
+        let parts = composition(input)?;
+        let classParts = body_items_to_classparts(parts);
         skip_trivia(input)?;
         "end".parse_next(input)?;
         if ident(input)? != name {
             return Err(ErrMode::Backtrack(ContextError::default()));
         }
-        let ann: List<Annotation> = List::Nil(); // TODO: parse annotation
+        let ann: List<Annotation> = List::Nil();
         Ok(ClassSpecifier::Extends {
-            name,
+            name: name.clone(),
             body: Rc::new(ClassDef::CLASS_EXTENDS {
-                baseClassName: name.clone(),
+                baseClassName: name,
                 modifications,
                 comment: None,
                 parts: classParts,
@@ -612,25 +674,13 @@ fn class_specifier<'a>(input: &mut &'a str) -> ModalResult<ClassSpecifier> {
     }
 }
 
-/// class_specifier2: (LESS ident_list GREATER)? composition END IDENT
-///                 | EQUALS base_prefix type_specifier class_modification? comment
-///                 | EQUALS enumeration
-///                 | SUBTYPEOF type_specifier
+/// class_specifier2
 fn class_specifier2<'a>(input: &mut &'a str) -> ModalResult<Rc<ClassDef>> {
     if opt("subtypeof").parse_next(input)?.is_some() {
         let typeSpec = type_spec(input)?;
-        let attributes = ElementAttributes::ATTR {
-            flowPrefix: false,
-            streamPrefix: false,
-            parallelism: Parallelism::NON_PARALLEL {},
-            variability: Variability::VAR {},
-            direction: Direction::INPUT {}, // TODO
-            isField: IsField::NONFIELD {},
-            arrayDim: ArrayDim::Nil(),
-        };
         return Ok(Rc::new(ClassDef::DERIVED {
             typeSpec,
-            attributes,
+            attributes: default_element_attrs(),
             arguments: List::Nil(),
             comment: None,
         }));
@@ -645,9 +695,9 @@ fn class_specifier2<'a>(input: &mut &'a str) -> ModalResult<Rc<ClassDef>> {
             }));
         }
 
-        // TODO: base_prefix is missing
         let typeSpec = type_spec(input)?;
-        let arguments = opt(class_modification_list).parse_next(input)?.unwrap_or_else(|| List::Nil());
+        let arguments: List<Rc<ElementArg>> = opt(class_modification).parse_next(input)?
+            .unwrap_or_default();
         let comment = string_comments(input)?.map(|c| Comment::COMMENT {
             annotation_: None,
             comment: Some(c),
@@ -655,32 +705,18 @@ fn class_specifier2<'a>(input: &mut &'a str) -> ModalResult<Rc<ClassDef>> {
 
         return Ok(Rc::new(ClassDef::DERIVED {
             typeSpec,
-            attributes: ElementAttributes::ATTR {
-                flowPrefix: false,
-                streamPrefix: false,
-                parallelism: Parallelism::NON_PARALLEL {},
-                variability: Variability::VAR {},
-                direction: Direction::INPUT {},
-                isField: IsField::NONFIELD {},
-                arrayDim: ArrayDim::Nil(),
-            },
+            attributes: default_element_attrs(),
             arguments,
             comment,
         }));
     }
 
-    // (LESS ident_list GREATER)?
-    let type_vars: List<String> = if opt("<").parse_next(input)?.is_some() {
+    let typeVars: List<String> = if opt("<").parse_next(input)?.is_some() {
         let mut vars: List<String> = List::Nil();
         loop {
-            skip_trivia(input)?;
-            let tok = keyword_or_ident(input)?;
-            let id = tok_as_ident(tok)?.to_string();
+            let id = ident(input)?;
             vars = cons(id, vars);
-            skip_trivia(input)?;
-            if opt(">").parse_next(input)?.is_some() {
-                break;
-            }
+            if opt(">").parse_next(input)?.is_some() { break; }
             ",".parse_next(input)?;
         }
         vars.reverse()
@@ -689,8 +725,8 @@ fn class_specifier2<'a>(input: &mut &'a str) -> ModalResult<Rc<ClassDef>> {
     };
 
     string_comments(input)?;
-
-    let classParts = composition(input)?;
+    let parts = composition(input)?;
+    let classParts = body_items_to_classparts(parts);
 
     skip_trivia(input)?;
     let end_tok = keyword_or_ident(input)?;
@@ -698,258 +734,177 @@ fn class_specifier2<'a>(input: &mut &'a str) -> ModalResult<Rc<ClassDef>> {
         return Err(ErrMode::Backtrack(ContextError::default()));
     }
     skip_trivia(input)?;
-    let _end_name = if !input.is_empty()
-        && input.starts_with(|c: char| c.is_alphabetic() || c == '_')
-    {
+    let _end_name = if !input.is_empty() && input.starts_with(|c: char| c.is_alphabetic() || c == '_') {
         let word: &str = take_while(1.., |c: char| c.is_alphanumeric() || c == '_').parse_next(input)?;
         word.to_string()
     } else {
         String::new()
     };
 
-    let ann: List<Annotation> = List::Nil(); // annotation is parsed in composition
-    let classAttrs: List<NamedArg> = List::Nil();
-
     Ok(Rc::new(ClassDef::PARTS {
-        typeVars: type_vars,
-        classAttrs,
+        typeVars,
+        classAttrs: List::Nil(),
         classParts,
-        ann,
-        comment: None, // TODO
+        ann: List::Nil(),
+        comment: None,
     }))
 }
 
-/// composition: element_list composition2 (annotation SEMICOLON)?
-fn composition<'a>(input: &mut &'a str) -> ModalResult<List<ClassPart>> {
-    let mut parts = element_list(input)?;
-    let mut comp2 = composition2(input)?;
-
-    // Append composition2 results
-    while let Cons { head, tail } = &comp2 {
-        parts = cons(head.clone(), parts);
-        comp2 = tail.clone();
+fn default_element_attrs() -> ElementAttributes {
+    ElementAttributes::ATTR {
+        flowPrefix: false,
+        streamPrefix: false,
+        parallelism: Parallelism::NON_PARALLEL {},
+        variability: Variability::VAR {},
+        direction: Direction::INPUT {},
+        isField: IsField::NONFIELD {},
+        arrayDim: ArrayDim::Nil(),
     }
-    parts = parts.reverse();
-    comp2 = comp2.reverse();
-    // Concatenate
-    parts = parts.append(&comp2);
+}
+
+/// composition: element_list composition2 (annotation SEMICOLON)?
+fn composition<'a>(input: &mut &'a str) -> ModalResult<List<ClassBodyItem>> {
+    let el_items = element_list(input)?;
+    let c2_items = composition2(input)?;
+
+    // Concatenate el_items + c2_items
+    let combined = el_items.append(&c2_items);
 
     // (annotation SEMICOLON)?
     skip_trivia(input)?;
-    if let Some(ann) = opt(parse_annotation).parse_next(input)? {
+    if let Some(ann) = opt(annotation).parse_next(input)? {
         ";".parse_next(input)?;
-        parts = cons(ClassPart::EXTERNAL {
-            externalDecl: ExternalDecl::EXTERNALDECL {
-                funcName: None,
-                lang: None,
-                output_: None,
-                args: List::Nil(),
-                annotation_: Some(ann),
-            },
-            annotation_: None,
-        }, parts);
-        // TODO: class-annotation should be tracked separately in ClassDef::PARTS.ann field
+        // TODO: class-level annotations should go to ClassDef::PARTS.ann
+        let mut result = combined;
+        result = cons(ClassBodyItem::Annotation(ann), result);
+        Ok(result)
+    } else {
+        Ok(combined)
     }
-    Ok(parts)
 }
 
-/// composition2: (public_element_list | protected_element_list |
-///    initial_equation_clause | initial_algorithm_clause |
-///    equation_clause | algorithm_clause | external_clause)*
-fn composition2<'a>(input: &mut &'a str) -> ModalResult<List<ClassPart>> {
+/// composition2
+fn composition2<'a>(input: &mut &'a str) -> ModalResult<List<ClassBodyItem>> {
     skip_trivia(input)?;
-    if input.is_empty() {
-        return Ok(List::Nil());
-    }
-    let mut parts: List<ClassPart> = List::Nil();
+    if input.is_empty() { return Ok(List::Nil()); }
+    let mut parts: List<ClassBodyItem> = List::Nil();
     loop {
         skip_trivia(input)?;
-        if input.is_empty() {
-            break;
-        }
+        if input.is_empty() { break; }
 
-        // external_clause?
         if let Some(ext) = opt(external_part).parse_next(input)? {
             parts = cons(ext, parts);
             continue;
         }
-
-        // public_element_list
         if opt("public").parse_next(input)?.is_some() {
-            let contents = element_list(input)?;
+            let items = element_list(input)?;
             let tail = composition2(input)?;
-            parts = cons(ClassPart::PUBLIC { contents }, parts);
-            // append tail
-            let mut t = tail;
-            while let Cons { head, tail: rest } = &t {
-                parts = cons(head.clone(), parts);
-                t = rest.clone();
-            }
+            parts = cons(ClassBodyItem::Section { section: SectionKind::Public, items: Rc::new(items) }, parts);
+            parts = parts.append(&tail);
             continue;
         }
-
-        // protected_element_list
         if opt("protected").parse_next(input)?.is_some() {
-            let contents = element_list(input)?;
+            let items = element_list(input)?;
             let tail = composition2(input)?;
-            parts = cons(ClassPart::PROTECTED { contents }, parts);
-            let mut t = tail;
-            while let Cons { head, tail: rest } = &t {
-                parts = cons(head.clone(), parts);
-                t = rest.clone();
-            }
+            parts = cons(ClassBodyItem::Section { section: SectionKind::Protected, items: Rc::new(items) }, parts);
+            parts = parts.append(&tail);
             continue;
         }
-
-        // initial equation/algorithm
         if opt("initial").parse_next(input)?.is_some() {
             skip_trivia(input)?;
             if opt("equation").parse_next(input)?.is_some() {
                 let items = equation_section_items(input)?;
                 let tail = composition2(input)?;
-                parts = cons(ClassPart::INITIALEQUATIONS { contents: items }, parts);
-                let mut t = tail;
-                while let Cons { head, tail: rest } = &t {
-                    parts = cons(head.clone(), parts);
-                    t = rest.clone();
-                }
+                parts = cons(ClassBodyItem::InitialEquations(items), parts);
+                parts = parts.append(&tail);
             } else if opt("algorithm").parse_next(input)?.is_some() {
                 let items = algorithm_section_items(input)?;
                 let tail = composition2(input)?;
-                parts = cons(ClassPart::INITIALALGORITHMS { contents: items }, parts);
-                let mut t = tail;
-                while let Cons { head, tail: rest } = &t {
-                    parts = cons(head.clone(), parts);
-                    t = rest.clone();
-                }
+                parts = cons(ClassBodyItem::InitialAlgorithms(items), parts);
+                parts = parts.append(&tail);
             } else {
                 return Err(ErrMode::Backtrack(ContextError::default()));
             }
             continue;
         }
-
-        // equation_clause
         if opt("equation").parse_next(input)?.is_some() {
             let items = equation_section_items(input)?;
             let tail = composition2(input)?;
-            parts = cons(ClassPart::EQUATIONS { contents: items }, parts);
-            let mut t = tail;
-            while let Cons { head, tail: rest } = &t {
-                parts = cons(head.clone(), parts);
-                t = rest.clone();
-            }
+            parts = cons(ClassBodyItem::Equations(items), parts);
+            parts = parts.append(&tail);
             continue;
         }
-
-        // algorithm_clause
         if opt("algorithm").parse_next(input)?.is_some() {
             let items = algorithm_section_items(input)?;
             let tail = composition2(input)?;
-            parts = cons(ClassPart::ALGORITHMS { contents: items }, parts);
-            let mut t = tail;
-            while let Cons { head, tail: rest } = &t {
-                parts = cons(head.clone(), parts);
-                t = rest.clone();
-            }
+            parts = cons(ClassBodyItem::Algorithms(items), parts);
+            parts = parts.append(&tail);
             continue;
         }
-
         break;
     }
     Ok(parts.reverse())
 }
 
-/// element_list: ((element | annotation | class_definition) SEMICOLON)*
-fn element_list<'a>(input: &mut &'a str) -> ModalResult<List<ElementItem>> {
-    let mut items: List<ElementItem> = List::Nil();
+/// element_list: ((element | annotation) SEMICOLON)*
+fn element_list<'a>(input: &mut &'a str) -> ModalResult<List<ClassBodyItem>> {
+    let mut items: List<ClassBodyItem> = List::Nil();
     loop {
         skip_trivia(input)?;
-        if input.is_empty() {
-            break;
-        }
+        if input.is_empty() { break; }
 
         // Stop at section keywords
-        if opt("public").parse_next(input)?.is_some() { break; }
-        if opt("protected").parse_next(input)?.is_some() { break; }
-        if opt("equation").parse_next(input)?.is_some() { break; }
-        if opt("algorithm").parse_next(input)?.is_some() { break; }
-        if opt("external").parse_next(input)?.is_some() { break; }
-        if opt("end").parse_next(input)?.is_some() { break; }
-        if opt("initial").parse_next(input)?.is_some() { break; }
+        match peek(keyword_or_ident).parse_next(input) {
+            Ok(Token::Public) | Ok(Token::Protected) | Ok(Token::Equation) | Ok(Token::Algorithm)
+            | Ok(Token::External) | Ok(Token::End) | Ok(Token::Initial) => break,
+            _ => ()
+        };
 
         // annotation SEMICOLON
-        if let Some(ann) = opt(parse_annotation).parse_next(input)? {
+        if let Some(ann) = opt(annotation).parse_next(input)? {
             ";".parse_next(input)?;
-            // Store annotation as a comment element item for now
-            // TODO: annotations in element_list should probably be handled differently
-            items = cons(ElementItem::LEXER_COMMENT {
-                comment: format!("{:?}", ann),
-            }, items);
+            items = cons(ClassBodyItem::Annotation(ann), items);
             continue;
         }
 
         // import_clause SEMICOLON
         if let Some(imp) = opt(import_clause).parse_next(input)? {
             ";".parse_next(input)?;
-            let elem = Element::ELEMENT {
-                finalPrefix: false,
-                redeclareKeywords: None,
-                innerOuter: InnerOuter::INNER_OUTER {},
-                specification: ElementSpec::IMPORT {
-                    import_: imp,
-                    comment: None,
-                    info: dummy_info(),
-                },
-                info: dummy_info(),
-                constrainClass: None,
-            };
-            items = cons(ElementItem::ELEMENTITEM { element: elem }, items);
+            let elem = mk_element(
+                ElementSpec::IMPORT { import_: imp, comment: None, info: dummy_info() },
+            );
+            items = cons(ClassBodyItem::Element(elem), items);
             continue;
         }
 
         // extends_clause SEMICOLON
         if let Some(ext) = opt(extends_clause).parse_next(input)? {
             ";".parse_next(input)?;
-            let elem = Element::ELEMENT {
-                finalPrefix: false,
-                redeclareKeywords: None,
-                innerOuter: InnerOuter::INNER_OUTER {},
-                specification: ElementSpec::EXTENDS {
+            let elem = mk_element(
+                ElementSpec::EXTENDS {
                     path: ext.path,
-                    elementArg: ext.modification
-                        .map(|m| m.arguments.into_iter().map(|m| Rc::new(m.into())).collect())
-                        .unwrap_or_else(|| List::Nil()),
+                    elementArg: ext.modification.unwrap_or_else(|| List::Nil()),
                     annotationOpt: ext.annotation_opt,
                 },
-                info: dummy_info(),
-                constrainClass: None,
-            };
-            items = cons(ElementItem::ELEMENTITEM { element: elem }, items);
+            );
+            items = cons(ClassBodyItem::Element(elem), items);
             continue;
         }
 
         // Nested class_definition SEMICOLON
         if let Some(cls) = opt(class_definition).parse_next(input)? {
             ";".parse_next(input)?;
-            let elem = Element::ELEMENT {
-                finalPrefix: false,
-                redeclareKeywords: None,
-                innerOuter: InnerOuter::INNER_OUTER {},
-                specification: ElementSpec::CLASSDEF {
-                    replaceable_: false,
-                    class_: Rc::new(cls),
-                },
-                info: dummy_info(),
-                constrainClass: None,
-            };
-            items = cons(ElementItem::ELEMENTITEM { element: elem }, items);
+            let elem = mk_element(
+                ElementSpec::CLASSDEF { replaceable_: false, class_: Rc::new(cls) },
+            );
+            items = cons(ClassBodyItem::Element(elem), items);
             continue;
         }
 
         // component_clause
         match component_declaration(input) {
             Ok(elem) => {
-                items = cons(ElementItem::ELEMENTITEM { element: elem }, items);
+                items = cons(ClassBodyItem::Element(elem), items);
                 skip_trivia(input)?;
                 let _: Option<&str> = opt(";").parse_next(input)?;
             }
@@ -959,14 +914,24 @@ fn element_list<'a>(input: &mut &'a str) -> ModalResult<List<ElementItem>> {
     Ok(items.reverse())
 }
 
-fn component_declaration<'a>(input: &mut &'a str) -> ModalResult<Element> {
-    // TODO: parse inner/outer/replaceable/redeclare/each/final prefixes
-    // TODO: parse flow/stream/parallelism/variability/direction type_prefix
+/// Build an Absyn::Element with default attributes.
+fn mk_element(specification: ElementSpec) -> Absyn::Element {
+    Absyn::Element::ELEMENT {
+        finalPrefix: false,
+        redeclareKeywords: None,
+        innerOuter: InnerOuter::NOT_INNER_OUTER {},
+        specification,
+        info: dummy_info(),
+        constrainClass: None,
+    }
+}
+
+fn component_declaration<'a>(input: &mut &'a str) -> ModalResult<Absyn::Element> {
     let typeSpec = type_spec(input)?;
     let first_component = match keyword_or_ident.parse_next(input)? {
         Token::Ident(name) => {
             let arrayDim = opt(array_subscripts).parse_next(input)?.unwrap_or_else(|| ArrayDim::Nil());
-            let modification = opt(modification_parens).parse_next(input)?;
+            let modification = opt(modification).parse_next(input)?;
             Component::COMPONENT {
                 name: name.to_string(),
                 arrayDim,
@@ -974,9 +939,8 @@ fn component_declaration<'a>(input: &mut &'a str) -> ModalResult<Element> {
             }
         }
         Token::Operator => {
-            // "operator" as identifier
             let arrayDim = opt(array_subscripts).parse_next(input)?.unwrap_or_else(|| ArrayDim::Nil());
-            let modification = opt(modification_parens).parse_next(input)?;
+            let modification = opt(modification).parse_next(input)?;
             Component::COMPONENT {
                 name: "operator".to_string(),
                 arrayDim,
@@ -986,54 +950,34 @@ fn component_declaration<'a>(input: &mut &'a str) -> ModalResult<Element> {
         _ => return Err(ErrMode::Backtrack(ContextError::default())),
     };
 
-    let mut components: List<Rc<ComponentItem>> = List::Nil();
-    components = cons(Rc::new(ComponentItem::COMPONENTITEM {
+    let mut components: List<Rc<ComponentItem>> = cons(Rc::new(ComponentItem::COMPONENTITEM {
         component: first_component,
         condition: None,
         comment: None,
-    }), components);
+    }), List::Nil());
 
-    // Handle comma-separated additional components
     loop {
         skip_trivia(input)?;
-        if opt(",").parse_next(input)?.is_none() {
-            break;
-        }
+        if opt(",").parse_next(input)?.is_none() { break; }
         let comp = match keyword_or_ident.parse_next(input)? {
             Token::Ident(name) => {
                 let arrayDim = opt(array_subscripts).parse_next(input)?.unwrap_or_else(|| ArrayDim::Nil());
-                let modification = opt(modification_parens).parse_next(input)?;
-                Component::COMPONENT {
-                    name: name.to_string(),
-                    arrayDim,
-                    modification,
-                }
+                let modification = opt(modification).parse_next(input)?;
+                Component::COMPONENT { name: name.to_string(), arrayDim, modification }
             }
             _ => return Err(ErrMode::Backtrack(ContextError::default())),
         };
         components = cons(Rc::new(ComponentItem::COMPONENTITEM {
-            component: comp,
-            condition: None,
-            comment: None,
+            component: comp, condition: None, comment: None,
         }), components);
     }
 
-    let attributes = ElementAttributes::ATTR {
-        flowPrefix: false,
-        streamPrefix: false,
-        parallelism: Parallelism::NON_PARALLEL {},
-        variability: Variability::VAR {},
-        direction: Direction::INPUT {}, // TODO
-        isField: IsField::NONFIELD {},
-        arrayDim: ArrayDim::Nil(),
-    };
-
-    Ok(Element::ELEMENT {
+    Ok(Absyn::Element::ELEMENT {
         finalPrefix: false,
         redeclareKeywords: None,
-        innerOuter: InnerOuter::INNER_OUTER {},
+        innerOuter: InnerOuter::NOT_INNER_OUTER {},
         specification: ElementSpec::COMPONENTS {
-            attributes,
+            attributes: default_element_attrs(),
             typeSpec,
             components: components.reverse(),
         },
@@ -1042,95 +986,62 @@ fn component_declaration<'a>(input: &mut &'a str) -> ModalResult<Element> {
     })
 }
 
-fn modification_parens<'a>(input: &mut &'a str) -> ModalResult<Modification> {
-    "(".parse_next(input)?;
-    let elementArgLst = modification_list(input)?;
-    let eqMod = if opt("=").parse_next(input)?.is_some() {
-        // TODO: parse eqMod exp
-        EqMod::NOMOD {}
+fn modification<'a>(input: &mut &'a str) -> ModalResult<Modification> {
+    let cm = opt(class_modification).parse_next(input)?.unwrap_or(List::Nil());
+    let eq = if opt(alt((":=", "="))).parse_next(input)?.is_some() {
+        Absyn::EqMod::EQMOD{exp: Rc::new(modification_expression.parse_next(input)?), info: dummy_info()}
     } else {
-        EqMod::NOMOD {}
+        Absyn::EqMod::NOMOD{}
     };
-    ")".parse_next(input)?;
-    Ok(Modification::CLASSMOD { elementArgLst, eqMod })
+    Ok(Modification::CLASSMOD { elementArgLst: cm, eqMod: eq })
 }
 
-fn modification_list<'a>(input: &mut &'a str) -> ModalResult<List<Rc<ElementArg>>> {
-    let mut args: List<Rc<ElementArg>> = List::Nil();
-    loop {
-        skip_trivia(input)?;
-        if input.starts_with(')') || input.is_empty() {
-            break;
-        }
-        let arg = modification_arg(input)?;
-        args = cons(Rc::new(arg), args);
-        skip_trivia(input)?;
-        if opt(",").parse_next(input)?.is_none() {
-            break;
-        }
-    }
-    Ok(args.reverse())
-}
-
-fn modification_arg<'a>(input: &mut &'a str) -> ModalResult<ElementArg> {
-    let tok = keyword_or_ident(input)?;
-    let name = tok_as_ident(tok)?;
-    let path = Path::IDENT { name: name.to_string() };
-    skip_trivia(input)?;
-
-    let modification = if input.starts_with('=') && !input.starts_with("==") {
-        "=".parse_next(input)?;
-        // TODO: parse proper modification value
-        Some(Modification::CLASSMOD {
-            elementArgLst: List::Nil(),
-            eqMod: EqMod::NOMOD {},
-        })
-    } else {
-        None
+fn modification_expression<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
+    if opt("break").parse_next(input)?.is_some() {
+        return Ok(Absyn::Exp::BREAK{});
     };
-
-    Ok(ElementArg::MODIFICATION {
-        finalPrefix: false,
-        eachPrefix: Each::NON_EACH {},
-        path,
-        modification,
-        comment: None,
-        info: dummy_info(),
-    })
+    expression.parse_next(input)
 }
 
-/// class_modification: LPAR (modification (COMMA modification)*)? RPAR
-fn class_modification_list<'a>(input: &mut &'a str) -> ModalResult<List<ElementArg>> {
+fn class_modification<'a>(input: &mut &'a str) -> ModalResult<List<Rc<ElementArg>>> {
     "(".parse_next(input)?;
-    let mut arguments: List<ElementArg> = List::Nil();
-    loop {
-        skip_trivia(input)?;
-        if input.starts_with(')') || input.is_empty() {
-            break;
-        }
-        let m = modification_arg(input)?;
-        arguments = cons(m, arguments);
-        skip_trivia(input)?;
-        if opt(",").parse_next(input)?.is_none() {
-            break;
-        }
-    }
+    let arguments = opt(argument_list).parse_next(input)?.unwrap_or(List::Nil());
     ")".parse_next(input)?;
-    Ok(arguments.reverse())
+    Ok(arguments)
 }
 
-fn parse_annotation<'a>(input: &mut &'a str) -> ModalResult<Annotation> {
+fn argument_list<'a>(input: &mut &'a str) -> ModalResult<List<Rc<ElementArg>>> {
+    let mut res = List::new(Rc::new(argument.parse_next(input)?));
+
+    loop {
+        if opt(",").parse_next(input)?.is_none() { break; }
+        res = cons(Rc::new(argument.parse_next(input)?), res);
+    }
+    Ok(res.reverse())
+}
+
+fn argument<'a>(input: &mut &'a str) -> ModalResult<ElementArg> {
+    if let Some(r) = opt(element_redeclaration).parse_next(input)? {
+        return Ok(r);
+    }
+    println!("TODO: handle modification arguments");
+    Err(ErrMode::Backtrack(ContextError::default()))
+}
+
+fn element_redeclaration<'a>(input: &mut &'a str) -> ModalResult<ElementArg> {
+    "redeclare".parse_next(input)?;
+    let eachPrefix = opt("each").parse_next(input)?.is_some();
+    let finalPrefix = opt("final").parse_next(input)?.is_some();
+    println!("TODO: handle modification arguments");
+    Err(ErrMode::Backtrack(ContextError::default()))
+}
+
+
+fn annotation<'a>(input: &mut &'a str) -> ModalResult<Annotation> {
     "annotation".parse_next(input)?;
-    // annotation contains a class_modification
-    let elementArgs = opt(class_modification_list).parse_next(input)?;
-    Ok(Annotation::ANNOTATION {
-        elementArgs: elementArgs
-            .map(|l| l.into_iter().map(|a| Rc::new(a)).collect())
-            .unwrap_or_else(|| List::Nil()),
-    })
+    Ok(Absyn::Annotation::ANNOTATION{elementArgs: class_modification(input)?})
 }
 
-/// import_clause: IMPORT (explicit_import_name | implicit_import_name) comment
 fn import_clause<'a>(input: &mut &'a str) -> ModalResult<Import> {
     "import".parse_next(input)?;
     let path = name_path(input)?;
@@ -1138,86 +1049,55 @@ fn import_clause<'a>(input: &mut &'a str) -> ModalResult<Import> {
         Path::IDENT { name } => {
             if opt("=").parse_next(input)?.is_some() {
                 let path = name_path(input)?;
-                return Ok(Import::NAMED_IMPORT {
-                    name,
-                    path,
-                });
+                Ok(Import::NAMED_IMPORT { name, path })
             } else {
-                return Ok(Import::QUAL_IMPORT {
-                    path: Path::IDENT { name },
-                });
+                Ok(Import::QUAL_IMPORT { path: Path::IDENT { name } })
             }
         }
         _ => Ok(Import::QUAL_IMPORT { path }),
     }
 }
 
-/// extends_clause: EXTENDS name_path (class_modification)? (annotation)?
 fn extends_clause<'a>(input: &mut &'a str) -> ModalResult<ExtendsClause> {
-    skip_trivia(input)?;
+    "extends".parse_next(input)?;
     let path = name_path(input)?;
-    let modification = opt(class_modification_list).parse_next(input)?;
-    let annotation_opt = opt(parse_annotation).parse_next(input)?;
-    Ok(ExtendsClause {
-        path,
-        modification,
-        annotation_opt,
-    })
+    // TODO: should not allow BREAK, which needs to be passed down the parser, or use 2 different rules
+    let modification = opt(class_modification).parse_next(input)?;
+    let annotation_opt = opt(annotation).parse_next(input)?;
+    Ok(ExtendsClause { path, modification, annotation_opt })
 }
 
-/// extends_clause intermediate
-#[derive(Debug, Clone)]
-struct ExtendsClause {
-    path: Path,
-    modification: Option<List<ElementArg>>,
-    annotation_opt: Option<Annotation>,
-}
-
-/// Parse equation section items until section keyword or end
 fn equation_section_items<'a>(input: &mut &'a str) -> ModalResult<List<EquationItem>> {
     let mut items: List<EquationItem> = List::Nil();
     loop {
         skip_trivia(input)?;
-        if input.is_empty() {
-            break;
-        }
-        // Stop at section keywords or end
-        if opt("public").parse_next(input)?.is_some() { break; }
-        if opt("protected").parse_next(input)?.is_some() { break; }
-        if opt("equation").parse_next(input)?.is_some() { break; }
-        if opt("algorithm").parse_next(input)?.is_some() { break; }
-        if opt("initial").parse_next(input)?.is_some() { break; }
-        if opt("end").parse_next(input)?.is_some() { break; }
-        if opt("external").parse_next(input)?.is_some() { break; }
+        if input.is_empty() { break; }
+        match peek(keyword_or_ident).parse_next(input) {
+            Ok(Token::Public) | Ok(Token::Protected) | Ok(Token::Equation) | Ok(Token::Algorithm)
+            | Ok(Token::External) | Ok(Token::End) | Ok(Token::Initial) => break,
+            _ => ()
+        };
 
-        // TODO: parse actual equation items
-        // For now, consume until ';' and store as a placeholder
+        // TODO: Handle equation properly
+
         let item_text: &str = take_while(0.., |c: char| c != ';').parse_next(input)?;
         let trimmed = item_text.trim().to_string();
         if !trimmed.is_empty() {
-            // Store as an equation item with a placeholder equation
-            // TODO: parse the equation properly
             items = cons(EquationItem::EQUATIONITEMCOMMENT { comment: trimmed }, items);
         }
         skip_trivia(input)?;
         if input.starts_with(';') {
             ";".parse_next(input)?;
-        } else {
-            break;
-        }
+        } else { break; }
     }
     Ok(items.reverse())
 }
 
-/// Parse algorithm section items until section keyword or end
 fn algorithm_section_items<'a>(input: &mut &'a str) -> ModalResult<List<AlgorithmItem>> {
     let mut items: List<AlgorithmItem> = List::Nil();
     loop {
         skip_trivia(input)?;
-        if input.is_empty() {
-            break;
-        }
-        // Stop at section keywords or end
+        if input.is_empty() { break; }
         if let Ok(tok) = peek(keyword_or_ident).parse_next(input) {
             match tok {
                 Token::Public | Token::Protected | Token::Equation | Token::Algorithm |
@@ -1226,7 +1106,6 @@ fn algorithm_section_items<'a>(input: &mut &'a str) -> ModalResult<List<Algorith
             }
         };
 
-        // TODO: parse actual algorithm items
         let item_text: &str = take_while(0.., |c: char| c != ';').parse_next(input)?;
         let trimmed = item_text.trim().to_string();
         if !trimmed.is_empty() {
@@ -1235,28 +1114,25 @@ fn algorithm_section_items<'a>(input: &mut &'a str) -> ModalResult<List<Algorith
         skip_trivia(input)?;
         if input.starts_with(';') {
             ";".parse_next(input)?;
-        } else {
-            break;
-        }
+        } else { break; }
     }
     Ok(items.reverse())
+}
+
+fn expression<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
+    println!("TODO: handle modification arguments");
+    Err(ErrMode::Backtrack(ContextError::default()))
 }
 
 fn string_comments<'a>(input: &mut &'a str) -> ModalResult<Option<String>> {
     let mut parts = Vec::new();
     loop {
         skip_trivia(input)?;
-        if !input.starts_with('"') {
-            break;
-        }
+        if !input.starts_with('"') { break; }
         let text = skip_string_comment_text(input)?;
         parts.push(text);
     }
-    if parts.is_empty() {
-        Ok(None)
-    } else {
-        Ok(Some(parts.join(" ")))
-    }
+    if parts.is_empty() { Ok(None) } else { Ok(Some(parts.join(" "))) }
 }
 
 fn skip_string_comment_text(input: &mut &str) -> ModalResult<String> {
@@ -1264,21 +1140,17 @@ fn skip_string_comment_text(input: &mut &str) -> ModalResult<String> {
     let mut result = String::new();
     loop {
         let r: ModalResult<&str> = "\"".parse_next(input);
-        if r.is_ok() {
-            return Ok(result);
-        }
+        if r.is_ok() { return Ok(result); }
         if input.starts_with("\\\"") {
             "\"".parse_next(input)?;
-            let ch: &str =
-                take_while(1..4, |c: char| c.is_alphabetic() || c.is_ascii_digit())
-                    .parse_next(input)?;
+            let ch: &str = take_while(1..4, |c: char| c.is_alphabetic() || c.is_ascii_digit())
+                .parse_next(input)?;
             let _: &str = ";".parse_next(input)?;
             let c = ch.chars().next().unwrap_or('?');
             result.push(c);
             continue;
         }
-        let ch: &str = take_while(0.., |c: char| c != '"' && c != '\n')
-            .parse_next(input)?;
+        let ch: &str = take_while(0.., |c: char| c != '"' && c != '\n').parse_next(input)?;
         result.push_str(ch);
         if input.starts_with('\n') {
             result.push('\n');
@@ -1289,16 +1161,23 @@ fn skip_string_comment_text(input: &mut &str) -> ModalResult<String> {
 
 fn type_spec<'a>(input: &mut &'a str) -> ModalResult<TypeSpec> {
     let path = name_path(input)?;
-
     let mut ts: List<Rc<TypeSpec>> = List::Nil();
     if opt("<").parse_next(input)?.is_some() {
+        // Parse inner types as simple paths to avoid infinite recursion
         loop {
-            if let Some(t) = opt(type_spec).parse_next(input)? {
-                ts = cons(Rc::new(t), ts);
-            } else {
-                break;
-            }
-        };
+            skip_trivia(input)?;
+            if input.starts_with('>') || input.is_empty() { break; }
+            let inner_path = name_path(input)?;
+            let inner_array = opt(array_subscripts).parse_next(input)?;
+            ts = cons(Rc::new(TypeSpec::TPATH {
+                path: inner_path,
+                arrayDim: inner_array,
+            }), ts);
+            skip_trivia(input)?;
+            if opt(",").parse_next(input)?.is_some() { continue; }
+            break;
+        }
+        ts = ts.reverse();
         ">".parse_next(input)?;
     };
     let arrayDim = opt(array_subscripts).parse_next(input)?;
@@ -1306,30 +1185,21 @@ fn type_spec<'a>(input: &mut &'a str) -> ModalResult<TypeSpec> {
     if ts.is_empty() {
         Ok(TypeSpec::TPATH { path, arrayDim })
     } else {
-        Ok(TypeSpec::TCOMPLEX {
-            path,
-            typeSpecs: ts,
-            arrayDim,
-        })
+        Ok(TypeSpec::TCOMPLEX { path, typeSpecs: ts, arrayDim })
     }
 }
 
 fn array_subscripts<'a>(input: &mut &'a str) -> ModalResult<ArrayDim> {
     "[".parse_next(input)?;
     let mut subs: List<Subscript> = List::Nil();
-    // TODO: handle subscripts properly
     loop {
         skip_trivia(input)?;
-        if input.starts_with(']') || input.is_empty() {
-            break;
-        }
+        if input.starts_with(']') || input.is_empty() { break; }
         subs = cons(Subscript::SUBSCRIPT {
             subscript: Rc::new(Exp::END {}), // TODO: parse subscript expr
         }, subs);
         skip_trivia(input)?;
-        if opt(",").parse_next(input)?.is_none() {
-            break;
-        }
+        if opt(",").parse_next(input)?.is_none() { break; }
     }
     "]".parse_next(input)?;
     Ok(subs.reverse())
@@ -1340,24 +1210,16 @@ fn enum_list<'a>(input: &mut &'a str) -> ModalResult<List<EnumLiteral>> {
     loop {
         skip_trivia(input)?;
         if input.is_empty()
-            || input.starts_with('|')
-            || input.starts_with(',')
-            || input.starts_with(';')
-            || input.starts_with('"')
+            || input.starts_with('|') || input.starts_with(',')
+            || input.starts_with(';') || input.starts_with('"')
             || input.starts_with(')')
-        {
-            break;
-        }
+        { break; }
         match enum_literal(input) {
-            Ok(lit) => {
-                literals = cons(lit, literals);
-            }
+            Ok(lit) => { literals = cons(lit, literals); }
             Err(_) => break,
         }
         skip_trivia(input)?;
-        if opt(",").parse_next(input)?.is_some() {
-            continue;
-        }
+        if opt(",").parse_next(input)?.is_some() { continue; }
         break;
     }
     Ok(literals.reverse())
@@ -1367,31 +1229,20 @@ fn enum_literal<'a>(input: &mut &'a str) -> ModalResult<EnumLiteral> {
     let tok = keyword_or_ident(input)?;
     let name = tok_as_ident(tok)?;
     skip_trivia(input)?;
-    let _value = if input.starts_with('=') {
+    if input.starts_with('=') {
         "=".parse_next(input)?;
-        let n: &str =
-            take_while(0.., |c: char| !c.is_whitespace() && c != ',').parse_next(input)?;
-        n.parse::<i32>().ok()
-    } else {
-        None
-    };
-    Ok(EnumLiteral::ENUMLITERAL {
-        literal: name.to_string(),
-        comment: None, // TODO
-    })
+        let _n: &str = take_while(0.., |c: char| !c.is_whitespace() && c != ',').parse_next(input)?;
+    }
+    Ok(EnumLiteral::ENUMLITERAL { literal: name.to_string(), comment: None })
 }
 
-fn external_part<'a>(input: &mut &'a str) -> ModalResult<ClassPart> {
+fn external_part<'a>(input: &mut &'a str) -> ModalResult<ClassBodyItem> {
     skip_trivia(input)?;
-    // Consume the "external" keyword
     let _: &str = take_while(0.., |c: char| !c.is_whitespace()).parse_next(input)?;
-    // Collect body: everything until ';'
     let mut body = String::new();
     loop {
         skip_trivia(input)?;
-        if input.is_empty() || input.starts_with(';') {
-            break;
-        }
+        if input.is_empty() || input.starts_with(';') { break; }
         if input.starts_with('\n') {
             body.push('\n');
             "\n".parse_next(input)?;
@@ -1401,15 +1252,9 @@ fn external_part<'a>(input: &mut &'a str) -> ModalResult<ClassPart> {
         body.push_str(line);
     }
     ";".parse_next(input)?;
-    Ok(ClassPart::EXTERNAL {
-        externalDecl: ExternalDecl::EXTERNALDECL {
-            funcName: Some(body),
-            lang: None,
-            output_: None,
-            args: List::Nil(),
-            annotation_: None,
-        },
-        annotation_: None,
+    Ok(ClassBodyItem::External {
+        funcName: Some(body),
+        annotation_opt: None,
     })
 }
 
@@ -1465,9 +1310,8 @@ mod tests {
         let result = stored_definition.parse(code);
         match &result {
             Ok(Program::PROGRAM { classes, .. }) => {
-                // classes is a List<Class>
                 assert!(!classes.is_empty());
-                if let Cons { head: class, .. } = classes {
+                if let List::Cons { head: class, .. } = classes {
                     if let Class::CLASS { name, .. } = &*class {
                         assert_eq!(name, "SimpleSystem");
                     } else {
@@ -1495,26 +1339,6 @@ mod tests {
         let result = stored_definition.parse(&*code);
         if let Some(err) = &result.err() {
             assert!(false, "expected Absyn.mo to parse, got: {}", err);
-        }
-    }
-}
-
-// ---------------------------------------------------------------------------
-// Convenience helpers
-// ---------------------------------------------------------------------------
-
-impl ClassSpecifier {
-    pub fn name(&self) -> Ident {
-        match self {
-            ClassSpecifier::Normal { name, .. } => name.clone(),
-            ClassSpecifier::Extends { name, .. } => name.clone(),
-        }
-    }
-
-    pub fn body(&self) -> Rc<ClassDef> {
-        match self {
-            ClassSpecifier::Normal { body, .. } => body.clone(),
-            ClassSpecifier::Extends { body, .. } => body.clone(),
         }
     }
 }

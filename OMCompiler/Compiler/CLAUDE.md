@@ -5,6 +5,9 @@ ANTLR3 grammar we are basing it on: boot/parser/grammars/Modelica.g
 Use idiomatic winnow expressions, such as:
 `opt("class").parse_next(input)`
 `peek(keyword_or_ident).parse_next(input)`
+`"class".parse_next(input)`
+
+MetaModelica keywords are case-sensitive. You can even check the lexers if you want to see the exact tokens.
 
 Do not check input.startswith() - it does not know about whitespace and comments.
 

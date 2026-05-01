@@ -1,4 +1,4 @@
-#![ allow( unused_parens, while_true, unused_import ) ]
+#![ allow( unused_parens, while_true, non_snake_case, nonstandard_style, unused ) ]
 /// Translation of MetaModelica to Rust
 ///
 /// This module provides code generation from Absyn to Rust.
@@ -192,7 +192,7 @@ use std::rc::Rc;
                    typeSpec: TypeSpec/* typeSpec specification includes array dimensions */
                    ,
                    attributes: ElementAttributes,
-                   arguments: List<ElementArg>,
+                   arguments: List<Rc<ElementArg>>,
                    comment: Option<Comment>,
             },
 
@@ -212,7 +212,7 @@ use std::rc::Rc;
 
                    baseClassName: Ident/* name of class to extend */
                    ,
-                   modifications: List<ElementArg>/* modifications to be applied to the base class */
+                   modifications: List<Rc<ElementArg>>/* modifications to be applied to the base class */
                    ,
                    comment: Option<String>/* comment */
                    ,

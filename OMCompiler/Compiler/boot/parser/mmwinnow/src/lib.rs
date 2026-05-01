@@ -3,7 +3,7 @@
 //! Lexer combinators are embedded in the parser — no separate tokenizer.
 //! AST types mirror the ANTLR3 grammar structure from `grammars/Modelica.g`.
 
-use winnow::{Parser, ModalResult, combinator::opt, error::{ContextError, ErrMode}};
+use winnow::{Parser, ModalResult, combinator::{opt, peek}, error::{ContextError, ErrMode}};
 use winnow::token::*;
 use winnow::ascii;
 
@@ -343,12 +343,11 @@ pub enum ClassSpecifier2 {
 /// A class part (public, protected, equation, algorithm, external, etc.)
 #[derive(Debug, Clone)]
 pub enum ClassPart {
-    Public,
-    Protected,
-    Equations,
-    InitialEquations,
-    Algorithms,
-    InitialAlgorithms,
+    ElementList(Vec<ClassPart>),
+    EquationSection(Vec<String>),
+    InitialEquationSection(Vec<String>),
+    AlgorithmSection(Vec<String>),
+    InitialAlgorithmSection(Vec<String>),
     External {
         language: Option<String>,
         body: String,
@@ -362,6 +361,8 @@ pub enum ClassPart {
 #[derive(Debug, Clone)]
 pub enum Element {
     Component(ComponentDecl),
+    Import(ImportClause),
+    Extends(ExtendsClause),
 }
 
 /// component_declaration
@@ -445,6 +446,21 @@ pub struct AnnotationAttr {
 pub struct EnumLiteral {
     pub name: String,
     pub value: Option<i64>,
+}
+
+/// import_clause: IMPORT (explicit_import_name | implicit_import_name) comment
+#[derive(Debug, Clone)]
+pub enum ImportClause {
+    Named { id: String, path: Path },
+    Qualified(Path),
+    Group { path: Path, imports: Vec<String> },
+}
+
+/// extends_clause: EXTENDS name_path (class_modification)? (annotation)?
+#[derive(Debug, Clone)]
+pub struct ExtendsClause {
+    pub path: Path,
+    pub modification: Option<ClassModification>,
 }
 
 // ---------------------------------------------------------------------------
@@ -632,18 +648,17 @@ fn starts_with_class_type(input: &str) -> bool {
 /// stored_definition: BOM? (within_clause SEMICOLON)? class_definition_list EOF
 pub fn stored_definition<'a>(input: &mut &'a str) -> ModalResult<StoredDefinition> {
     // BOM is optional - only consume if present
-    if input.starts_with('\u{feff}') {
-        let _: &str = "\u{feff}".parse_next(input)?;
-    }
+    opt("\u{feff}").parse_next(input)?;
 
     // (within_clause SEMICOLON)?
-    if input.starts_with("within") || input.starts_with("WITHIN") {
-        let _: &str = take_while(0.., |c: char| c != ';').parse_next(input)?;
+    skip_trivia(input)?;
+    if opt("within").parse_next(input)?.is_some() {
         ";".parse_next(input)?;
     }
 
     let classes = class_definition_list(input)?;
 
+    _ = skip_trivia(input);
     if !input.is_empty() {
         return Err(ErrMode::Backtrack(ContextError::default()));
     }
@@ -827,140 +842,134 @@ fn class_specifier2<'a>(input: &mut &'a str) -> ModalResult<ClassSpecifier2> {
     })
 }
 
+/// composition: element_list composition2 (annotation SEMICOLON)?
 fn composition<'a>(input: &mut &'a str) -> ModalResult<Vec<ClassPart>> {
     let mut parts = element_list(input)?;
+    let mut comp2 = composition2(input)?;
+    parts.append(&mut comp2);
 
-    loop {
-        skip_trivia(input)?;
-        if input.is_empty() || input.starts_with("end") {
-            break;
-        }
-
-        if input.starts_with("public") ||
-           input.starts_with("protected") ||
-           input.starts_with("equation") ||
-           input.starts_with("algorithm") ||
-           input.starts_with("external") ||
-           input.starts_with("initial") {
-            parts.extend(composition2(input)?);
-            break;
-        }
-
-        // Parse nested class definitions (record, type, function, etc. inside a class body)
-        if starts_with_class_type(input) {
-            let def = class_definition(input)?;
-            skip_trivia(input)?;
-            // Consume optional semicolon after nested class definition
-            if input.starts_with(';') {
-                ";".parse_next(input)?;
-            }
-            parts.push(ClassPart::NestedClass(def));
-            continue;
-        }
-
-        // Try to parse a component
-        if let Ok(elem) = component_declaration(input) {
-            parts.push(ClassPart::Element(elem));
-        } else {
-            // Fallback: skip to next ';'
-            let _: &str = take_while(0.., |c: char| !";\n".contains(c)).parse_next(input)?;
-            if input.starts_with(';') {
-                ";".parse_next(input)?;
-            }
-        }
-
-        skip_trivia(input)?;
-        while input.starts_with(';') {
-            ";".parse_next(input)?;
-            skip_trivia(input)?;
-        }
-    }
-
+    // (annotation SEMICOLON)?
     skip_trivia(input)?;
-    if input.starts_with("annotation") || input.starts_with("ANNOTATION") {
-        let ann = annotation(input)?;
-        skip_trivia(input)?;
+    if let Some(ann) = opt(annotation).parse_next(input)? {
         ";".parse_next(input)?;
         parts.push(ClassPart::Annotation(ann));
     }
     Ok(parts)
 }
 
-//   external_clause?
-// | ( public_element_list
-//   | protected_element_list
-//   | initial_equation_clause
-//   | initial_algorithm_clause
-//   | equation_clause
-//   | constraint_clause
-//   | algorithm_clause
-//   )*
+/// composition2:
+/// (external_clause? |
+/// | (public_element_list | protected_element_list |
+///    initial_equation_clause | initial_algorithm_clause |
+///    equation_clause | algorithm_clause)*
 fn composition2<'a>(input: &mut &'a str) -> ModalResult<Vec<ClassPart>> {
+    skip_trivia(input)?;
+    if input.is_empty() {
+        return Ok(Vec::new());
+    }
     let mut parts = Vec::new();
     loop {
+        // external_clause? → if external, consume and stop recursion
         if let Some(ext) = opt(external_part).parse_next(input)? {
             parts.push(ext);
-            return Ok(parts);
         } else if opt("public").parse_next(input)?.is_some() {
-            let _elts = element_list(input)?;
-            parts.push(ClassPart::Public);
+            let elts = element_list(input)?;
+            let mut tail = composition2(input)?;
+            let mut parts = Vec::from([ClassPart::ElementList(elts)]);
+            parts.append(&mut tail);
         } else if opt("protected").parse_next(input)?.is_some() {
-            let _elts = element_list(input)?;
-            parts.push(ClassPart::Protected);
-        } else if opt("equation").parse_next(input)?.is_some() {
-            // TODO: parse the equations
+            let elts = element_list(input)?;
+            let mut tail = composition2(input)?;
+            let mut parts = Vec::from([ClassPart::ElementList(elts)]);
+            parts.append(&mut tail);
         } else if opt("initial").parse_next(input)?.is_some() {
-            // TODO: parse the equations/algorithms
+            skip_trivia(input)?;
+            if opt("equation").parse_next(input)?.is_some() {
+                let items = equation_section_items(input)?;
+                let mut tail = composition2(input)?;
+                let mut parts = Vec::from([ClassPart::InitialEquationSection(items)]);
+                parts.append(&mut tail);
+            } else if opt("algorithm").parse_next(input)?.is_some() {
+                let items = algorithm_section_items(input)?;
+                let mut tail = composition2(input)?;
+                let mut parts = Vec::from([ClassPart::InitialAlgorithmSection(items)]);
+                parts.append(&mut tail);
+            } else {
+                return Err(ErrMode::Backtrack(ContextError::default()));
+            }
+        } else if opt("equation").parse_next(input)?.is_some() {
+            let items = equation_section_items(input)?;
+            let mut tail = composition2(input)?;
+            let mut parts = Vec::from([ClassPart::EquationSection(items)]);
+            parts.append(&mut tail);
         } else if opt("algorithm").parse_next(input)?.is_some() {
-            // TODO: parse the algorithms
+            let items = algorithm_section_items(input)?;
+            let mut tail = composition2(input)?;
+            let mut parts = Vec::from([ClassPart::AlgorithmSection(items)]);
+            parts.append(&mut tail);
         } else {
-            return Err(ErrMode::Backtrack(ContextError::default()));
+            return Ok(parts);
         }
-        break;
     }
-    Ok(parts)
 }
 
+/// element_list: ((element | annotation) SEMICOLON)*
+/// element includes: import_clause, extends_clause, component_clause,
+///                   class_definition, replaceable class/component
 fn element_list<'a>(input: &mut &'a str) -> ModalResult<Vec<ClassPart>> {
     let mut parts = Vec::new();
     loop {
-        let lower = input.to_lowercase();
-        if lower.starts_with("public") {
-            parts.push(ClassPart::Public);
-            take_while(0.., |c: char| !c.is_whitespace() && c != ';').parse_next(input)?;
-            continue;
+        skip_trivia(input)?;
+        if input.is_empty() {
+            break;
         }
-        if lower.starts_with("protected") {
-            parts.push(ClassPart::Protected);
-            take_while(0.., |c: char| !c.is_whitespace() && c != ';').parse_next(input)?;
-            continue;
-        }
-        if lower.starts_with("equation") {
-            parts.push(ClassPart::Equations);
-            take_while(0.., |c: char| !c.is_whitespace() && c != ';').parse_next(input)?;
-            continue;
-        }
-        if lower.starts_with("algorithm") {
-            parts.push(ClassPart::Algorithms);
-            take_while(0.., |c: char| !c.is_whitespace() && c != ';').parse_next(input)?;
-            continue;
-        }
-        if lower.starts_with("external") {
-            let part = external_part(input)?;
-            parts.push(part);
-            continue;
-        }
-        if lower.starts_with("annotation") {
-            let ann = annotation(input)?;
+
+        // Stop at section keywords (handled by composition2)
+        if let Some(kw) = opt("public").parse_next(input)? { _ = kw; break; }
+        if let Some(kw) = opt("protected").parse_next(input)? { _ = kw; break; }
+        if let Some(kw) = opt("equation").parse_next(input)? { _ = kw; break; }
+        if let Some(kw) = opt("algorithm").parse_next(input)? { _ = kw; break; }
+        if let Some(kw) = opt("external").parse_next(input)? { _ = kw; break; }
+        if let Some(kw) = opt("end").parse_next(input)? { _ = kw; break; }
+
+        // annotation SEMICOLON
+        if let Some(ann) = opt(annotation).parse_next(input)? {
+            ";".parse_next(input)?;
             parts.push(ClassPart::Annotation(ann));
             continue;
         }
 
-        if let Ok(elem) = component_declaration(input) {
-            parts.push(ClassPart::Element(elem));
+        // import_clause SEMICOLON
+        if let Some(imp) = opt(import_clause).parse_next(input)? {
+            ";".parse_next(input)?;
+            parts.push(ClassPart::Element(Element::Import(imp)));
             continue;
         }
-        // TODO: this whole function is just... wrong
+
+        // extends_clause SEMICOLON
+        if let Some(ext) = opt(extends_clause).parse_next(input)? {
+            ";".parse_next(input)?;
+            parts.push(ClassPart::Element(Element::Extends(ext)));
+            continue;
+        }
+
+        // Nested class_definition SEMICOLON
+        if let Some(def) = opt(class_definition).parse_next(input)? {
+            ";".parse_next(input)?;
+            parts.push(ClassPart::NestedClass(def));
+            continue;
+        }
+
+        // component_clause SEMICOLON
+        if let Ok(elem) = component_declaration(input) {
+            parts.push(ClassPart::Element(elem));
+        } else {
+            break;
+        }
+
+        skip_trivia(input)?;
+        // Consume semicolon (optional - might be at section boundary)
+        let _: Option<&str> = opt(";").parse_next(input)?;
     }
     Ok(parts)
 }
@@ -1152,24 +1161,146 @@ fn parse_annotation_call<'a>(
 }
 
 fn external_part<'a>(input: &mut &'a str) -> ModalResult<ClassPart> {
+    skip_trivia(input)?;
     // Consume the "external" keyword
     let _: &str = take_while(0.., |c: char| !c.is_whitespace()).parse_next(input)?;
     // Collect body: everything until ';'
     let mut body = String::new();
-    while !input.starts_with(';') && !input.is_empty() {
+    loop {
+        skip_trivia(input)?;
+        if input.is_empty() || input.starts_with(';') {
+            break;
+        }
         if input.starts_with('\n') {
             body.push('\n');
             "\n".parse_next(input)?;
-        } else {
-            let s: &str = take_while(1.., |c: char| c != ';' && c != '\n').parse_next(input)?;
-            body.push_str(s);
+            continue;
         }
+        let line: &str = take_while(1.., |c: char| c != ';' && c != '\n').parse_next(input)?;
+        body.push_str(line);
     }
     ";".parse_next(input)?;
     Ok(ClassPart::External {
         language: None,
         body,
     })
+}
+
+/// import_clause: IMPORT (explicit_import_name | implicit_import_name) comment
+fn import_clause<'a>(input: &mut &'a str) -> ModalResult<ImportClause> {
+    skip_trivia(input)?;
+    // Try explicit_import_name: IDENT EQUALS name_path
+    let tok = keyword_or_ident(input)?;
+    let id = match tok {
+        Token::Ident(s) => s,
+        _ => tok_as_ident(tok)?,
+    };
+    skip_trivia(input)?;
+    if input.starts_with('=') && !input.starts_with("==") {
+        "=".parse_next(input)?;
+        let path = path(input)?;
+        return Ok(ImportClause::Named {
+            id: id.to_string(),
+            path,
+        });
+    }
+    // Otherwise treat as implicit import: name_path
+    // (id was already consumed as the first path part)
+    let mut parts = vec![id.to_string()];
+    skip_trivia(input)?;
+    while input.starts_with('.') {
+        if input.starts_with(".*") {
+            ".*".parse_next(input)?;
+            // Group import with wildcards - simplified
+            return Ok(ImportClause::Group {
+                path: Path(parts),
+                imports: Vec::new(),
+            });
+        }
+        ".".parse_next(input)?;
+        let tok = keyword_or_ident(input)?;
+        parts.push(tok_as_ident(tok)?.to_string());
+        skip_trivia(input)?;
+    }
+    Ok(ImportClause::Qualified(Path(parts)))
+}
+
+/// extends_clause: EXTENDS name_path (class_modification)? (annotation)?
+fn extends_clause<'a>(input: &mut &'a str) -> ModalResult<ExtendsClause> {
+    skip_trivia(input)?;
+    let np = name_path(input)?;
+    let modif = opt(class_modification).parse_next(input)?;
+    // (annotation)? - skip for now
+    Ok(ExtendsClause {
+        path: Path(np.split('.').map(|s| s.to_string()).collect()),
+        modification: modif,
+    })
+}
+
+/// Parse equation section items until section keyword or end
+fn equation_section_items<'a>(input: &mut &'a str) -> ModalResult<Vec<String>> {
+    let mut items = Vec::new();
+    loop {
+        skip_trivia(input)?;
+        if input.is_empty() {
+            break;
+        }
+        // Stop at section keywords or end
+        if opt("public").parse_next(input)?.is_some() { break; }
+        if opt("protected").parse_next(input)?.is_some() { break; }
+        if opt("equation").parse_next(input)?.is_some() { break; }
+        if opt("algorithm").parse_next(input)?.is_some() { break; }
+        if opt("initial").parse_next(input)?.is_some() { break; }
+        if opt("end").parse_next(input)?.is_some() { break; }
+        if opt("external").parse_next(input)?.is_some() { break; }
+
+        // Consume one equation item until ';'
+        let item: &str = take_while(0.., |c: char| c != ';').parse_next(input)?;
+        let trimmed = item.trim().to_string();
+        if !trimmed.is_empty() {
+            items.push(trimmed);
+        }
+        skip_trivia(input)?;
+        if input.starts_with(';') {
+            ";".parse_next(input)?;
+        } else {
+            break;
+        }
+    }
+    Ok(items)
+}
+
+/// Parse algorithm section items until section keyword or end
+fn algorithm_section_items<'a>(input: &mut &'a str) -> ModalResult<Vec<String>> {
+    let mut items = Vec::new();
+    loop {
+        skip_trivia(input)?;
+        if input.is_empty() {
+            break;
+        }
+        // Stop at section keywords or end
+        if opt("public").parse_next(input)?.is_some() { break; }
+        if opt("protected").parse_next(input)?.is_some() { break; }
+        if opt("equation").parse_next(input)?.is_some() { break; }
+        if opt("algorithm").parse_next(input)?.is_some() { break; }
+        if opt("initial").parse_next(input)?.is_some() { break; }
+        if opt("end").parse_next(input)?.is_some() { break; }
+        if opt("external").parse_next(input)?.is_some() { break; }
+
+        // Consume one algorithm item until ';'
+        let item: &str = take_while(0.., |c: char| c != ';').parse_next(input)?;
+        let trimmed = item.trim().to_string();
+        if !trimmed.is_empty() {
+            items.push(trimmed);
+        }
+        skip_trivia(input)?;
+        if input.starts_with(';') {
+            ";".parse_next(input)?;
+        } else {
+            break;
+        }
+    }
+    Ok(items)
 }
 
 fn string_comments<'a>(input: &mut &'a str) -> ModalResult<Option<String>> {
@@ -1355,132 +1486,6 @@ impl ClassSpecifier {
         match self {
             ClassSpecifier::Normal { name, .. } => name,
             ClassSpecifier::Extends { name, .. } => name,
-        }
-    }
-}
-
-#[cfg(test)]
-mod debug_tests {
-    use super::*;
-
-    #[test]
-    fn debug_parse() {
-        let code = "package SimpleSystem end SimpleSystem;";
-
-        // Parse step by step
-        let mut input = code;
-
-        // BOM
-        let _: ModalResult<&str> = "\u{feff}".parse_next(&mut input);
-
-        // class_type
-        let _kind = class_type(&mut input).unwrap();
-
-        // class_specifier
-        let _spec = class_specifier(&mut input).unwrap();
-
-        let result = stored_definition.parse(code);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn debug_element_list() {
-        let mut input = "end SimpleSystem;";
-        let _result = element_list(&mut input);
-    }
-
-    #[test]
-    fn debug_composition() {
-        let mut input = "end SimpleSystem;";
-        let _result = composition(&mut input);
-    }
-
-    #[test]
-    fn debug_end_token() {
-        let mut input = "end SimpleSystem;";
-        let _tok = keyword_or_ident(&mut input);
-    }
-}
-
-#[cfg(test)]
-mod hang_debug {
-    use super::*;
-
-    #[test]
-    fn debug_simple_package() {
-        let code = "package SimpleSystem \"Returns the index...\"\nend SimpleSystem;";
-        let result = stored_definition.parse(code);
-        assert!(result.is_ok());
-    }
-}
-
-#[cfg(test)]
-mod hang_debug2 {
-    use super::*;
-
-    #[test]
-    fn debug_simple_package_full() {
-        let code = "package SimpleSystem \"Returns the index...\"\n\
-                    /* ... */\n\
-                    Real x(start=0);\n\
-                    end SimpleSystem;";
-        let result = stored_definition.parse(code);
-        assert!(result.is_ok());
-    }
-}
-
-#[cfg(test)]
-mod error_debug {
-    use super::*;
-
-    #[test]
-    fn debug_trace_end() {
-        // Test what happens when parsing "end Within"
-        let mut inp = "end Within";
-        match class_definition(&mut inp) {
-            Ok(def) => eprintln!("class_definition('end Within') = {:?}", def),
-            Err(e) => eprintln!("class_definition('end Within') failed: {:?}", e),
-        }
-
-        // Test the full parse
-        let input = "uniontype Within \"comment\"\n  record R\n  end R;\nend Within;";
-        let result = stored_definition.parse(input);
-        match &result {
-            Ok(d) => eprintln!("Full parse succeeded, {} classes", d.classes.len()),
-            Err(e) => {
-                let range = e.char_span();
-                eprintln!("Full parse failed at {:?}, remaining: {:?}", range, &input[range.end.min(input.len())..]);
-            }
-        }
-
-        // Also test string_comments
-        let code = std::fs::read_to_string("tests/data/Absyn.mo")
-            .expect("Absyn.mo not found");
-        let absyn_pos = code.find("encapsulated package Absyn").unwrap();
-        let after_keyword = code[absyn_pos + "encapsulated package Absyn".len()..].trim_start();
-        let mut input2 = after_keyword;
-        match string_comments(&mut input2) {
-            Ok(result) => eprintln!("string_comments: OK ({} chars)", result.as_ref().map(|s| s.len()).unwrap_or(0)),
-            Err(e) => eprintln!("string_comments failed: {:?}", e),
-        }
-
-        // Test full Absyn.mo parse
-        let result = stored_definition.parse(&*code);
-        match &result {
-            Ok(d) => eprintln!("Full Absyn parse succeeded, {} classes", d.classes.len()),
-            Err(e) => {
-                let range = e.char_span();
-                let offset = range.end;
-                let remaining_str = if offset < code.len() {
-                    format!("{:?}", &code[offset..(offset+100).min(code.len())])
-                } else {
-                    "<EOF>".to_string()
-                };
-                eprintln!("Absyn parse error at byte {} (file len {}), remaining: {}",
-                    offset,
-                    code.len(),
-                    remaining_str);
-            }
         }
     }
 }

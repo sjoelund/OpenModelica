@@ -65,7 +65,7 @@ use std::rc::Rc;
 /// Forward declaration of uniontype Msg
 
 
-    type Ident = String/* An identifier, for example a variable name */
+    pub type Ident = String/* An identifier, for example a variable name */
     ;
       /* For Iterator - these are used in:
          * for loops where the expression part can be NONE() and then the range
@@ -87,7 +87,7 @@ use std::rc::Rc;
             },
       }
 
-    type ForIterators = List<ForIterator>/* For Iterators -
+    pub type ForIterators = List<ForIterator>/* For Iterators -
        these are used in:
        * for loops where the expression part can be NONE() and then the range
          is taken from an array variable that the iterator is used to index,
@@ -130,7 +130,7 @@ use std::rc::Rc;
       }
 
 
-    type Info = SourceInfo;
+    pub type Info = SourceInfo;
       /* A class definition consists of a name, a flag to indicate
         if this class is declared as partial, the declared class restriction,
         and the body of the declaration. */
@@ -231,7 +231,7 @@ use std::rc::Rc;
             },
       }
 
-    type ArrayDim = List<Subscript>/* Component attributes are
+    pub type ArrayDim = List<Subscript>/* Component attributes are
       properties of components which are applied by type prefixes.
       As an example, declaring a component as `input Real x;\' will
       give the attributes `ATTR({},false,VAR,INPUT)\'.
@@ -542,7 +542,7 @@ use std::rc::Rc;
             },
       }
 
-    type ComponentCondition = Exp/* A componentItem can have a condition that must be fulfilled if
+    pub type ComponentCondition = Exp/* A componentItem can have a condition that must be fulfilled if
       the component should be instantiated.
      */
     ;

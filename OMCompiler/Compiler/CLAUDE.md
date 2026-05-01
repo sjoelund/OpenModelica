@@ -17,7 +17,6 @@ Mark cases not covered with TODO, and try to add those when you are done with yo
 Please follow the structure of the ANTLR grammar to keep code duplication to a minimum.
 Note that ANTLR3 uses recursion a lot - favor repetition instead.
 
-Skip creating the AST for now, focusing only on parsing.
-We will later mimic the AST listed in Modelica.g (which is the same as mmwinnow/tests/data/Absyn.mo)
+mmwinnow/src/Absyn.rs contains the declaration of the AST to return
 
 You can check the code using `cd boot/parser/ && cargo check -p mmwinnow`

@@ -1136,6 +1136,7 @@ fn component_declaration<'a>(input: &mut &'a str) -> ModalResult<ComponentItem> 
     };
     let _comment = string_comment.parse_next(input)?;
     let _ann = opt(annotation).parse_next(input)?;
+println!("Parsed comp_decl {} {} {:?}", name, &input[0..input.len().min(20)], m);
     Ok(ComponentItem::COMPONENTITEM {
         component: Component::COMPONENT { name, arrayDim, modification: m },
         condition,
@@ -1146,6 +1147,7 @@ fn component_declaration<'a>(input: &mut &'a str) -> ModalResult<ComponentItem> 
 fn modification<'a>(input: &mut &'a str) -> ModalResult<Modification> {
     let cm = opt(class_modification).parse_next(input)?.unwrap_or(List::Nil());
     println!("Before EqMod {}", &input[0..input.len().min(20)]);
+    skip_trivia(input)?;
     let eq = if opt(alt((":=", "="))).parse_next(input)?.is_some() {
         Absyn::EqMod::EQMOD{exp: Rc::new(cut_err(modification_expression).context(StrContext::Label("Modification with =")).parse_next(input)?), info: dummy_info()}
     } else {
@@ -1317,8 +1319,10 @@ fn algorithm_section_items<'a>(input: &mut &'a str) -> ModalResult<List<Algorith
 }
 
 fn component_reference<'a>(input: &mut &'a str) -> ModalResult<Absyn::ComponentRef> {
+println!("before cref {}", &input[0..input.len().min(20)]);
     let fq = opt(".").parse_next(input)?.is_some();
     let cr = component_reference2(input)?;
+println!("after cref2 {}", &input[0..input.len().min(20)]);
     if fq {
         Ok(Absyn::ComponentRef::CREF_FULLYQUALIFIED { componentRef: Rc::new(cr) })
     } else {
@@ -1386,7 +1390,7 @@ fn part_eval_function_expression<'a>(input: &mut &'a str) -> ModalResult<Absyn::
 /// primary: literal | cref/call | parenthesised | array | matrix | end
 fn primary<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
     skip_trivia(input)?;
-
+println!("in primary {}", &input[0..input.len().min(20)]);
     // end
     if let Token::End = peek(keyword_or_ident).parse_next(input)? {
         keyword_or_ident.parse_next(input)?;
@@ -1440,6 +1444,7 @@ fn primary<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
     // { for_or_expression_list }
     if input.starts_with('{') {
         "{".parse_next(input)?;
+println!("start for_or_exp_list {}", &input[0..input.len().min(20)]);
         let fa = for_or_expression_list(input)?;
         "}".parse_next(input)?;
         return match fa {
@@ -1458,7 +1463,7 @@ fn primary<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
     }
 
     // der function_call
-    if let Token::Der = peek(keyword_or_ident).parse_next(input)? {
+    if let Token::Der = tok {
         keyword_or_ident.parse_next(input)?;
         let fa = function_call(input)?;
         let cr = Absyn::ComponentRef::CREF_IDENT { name: "der".to_string(), subscripts: List::Nil() };
@@ -1466,7 +1471,7 @@ fn primary<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
     }
 
     // pure function_call
-    if let Token::Pure = peek(keyword_or_ident).parse_next(input)? {
+    if let Token::Pure = tok {
         keyword_or_ident.parse_next(input)?;
         let fa = function_call(input)?;
         let cr = Absyn::ComponentRef::CREF_IDENT { name: "pure".to_string(), subscripts: List::Nil() };
@@ -1553,6 +1558,7 @@ fn component_reference__function_call<'a>(input: &mut &'a str) -> ModalResult<Ab
 
     let cr = component_reference(input)?;
     skip_trivia(input)?;
+println!("got cr {:?}", cr);
 
     // polymorphic call: cr < type_vars > function_call  (MetaModelica)
     if input.starts_with('<') {
@@ -1583,7 +1589,9 @@ fn component_reference__function_call<'a>(input: &mut &'a str) -> ModalResult<Ab
 
     // optional function call
     if input.starts_with('(') {
+println!("before function_call {}", &input[0..input.len().min(20)]);
         let fa = function_call(input)?;
+println!("after function_call {}", &input[0..input.len().min(20)]);
         // optional .field access after call (MetaModelica dot operator)
         skip_trivia(input)?;
         if input.starts_with('.') && input.chars().nth(1).map_or(false, |c| c.is_alphanumeric() || c == '_') {
@@ -1630,6 +1638,7 @@ fn for_or_expression_list<'a>(input: &mut &'a str) -> ModalResult<Absyn::Functio
         return Ok(Absyn::FunctionArgs::FUNCTIONARGS { args: List::Nil(), argNames: List::Nil() });
     }
 
+println!("f_o_el {}", &input[0..input.len().min(20)]);
     // Named arg start: ident = (not ==)
     {
         let saved = *input;
@@ -1646,7 +1655,9 @@ fn for_or_expression_list<'a>(input: &mut &'a str) -> ModalResult<Absyn::Functio
     }
 
     // Parse first expression
+println!("e1 {}", &input[0..input.len().min(20)]);
     let e1 = expression(input)?;
+println!("e1 {}", &input[0..input.len().min(20)]);
     skip_trivia(input)?;
 
     // for-iterator: expr [threaded] for indices
@@ -2429,6 +2440,22 @@ mod tests {
         let mut input = "package Foo";
         let tok = super::keyword_or_ident(&mut input).unwrap();
         assert_eq!(tok, Token::Package);
+    }
+
+    #[test]
+    fn empty_array() {
+        let mut input = "{};";
+        let exp = super::expression(&mut input).unwrap();
+        assert_eq!(exp, Exp::ARRAY{arrayExp: List::Nil()});
+    }
+
+    #[test]
+    fn array_of_3() {
+        let mut input = "{1,2,3};";
+        match super::expression(&mut input).unwrap() {
+           Exp::ARRAY{arrayExp: lst} => assert_eq!(3, lst.len()),
+           _ => assert!(false)
+        };
     }
 
     #[test]

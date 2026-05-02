@@ -1272,7 +1272,6 @@ fn extends_clause<'a>(input: &mut &'a str) -> ModalResult<ExtendsClause> {
 
 fn equation_section_items<'a>(input: &mut &'a str) -> ModalResult<List<EquationItem>> {
     let mut items: List<EquationItem> = List::Nil();
-println!("Parsing eq section, next input {}", &input[0..input.len().min(200)]);
     loop {
         skip_trivia(input)?;
         if input.is_empty() { break; }
@@ -1281,18 +1280,9 @@ println!("Parsing eq section, next input {}", &input[0..input.len().min(200)]);
             | Ok(Token::External) | Ok(Token::End) | Ok(Token::Initial) => break,
             _ => ()
         };
-
-        // TODO: Handle equation properly
-
-        let item_text: &str = take_while(0.., |c: char| c != ';').parse_next(input)?;
-        let trimmed = item_text.trim().to_string();
-        if !trimmed.is_empty() {
-            items = cons(EquationItem::EQUATIONITEMCOMMENT { comment: trimmed }, items);
-        }
+        items = cons(equation_item(input)?, items);
         skip_trivia(input)?;
-        if input.starts_with(';') {
-            cut_err(";").context(StrContext::Label("';' after equation item")).parse_next(input)?;
-        } else { break; }
+        cut_err(";").context(StrContext::Label("';' after equation")).parse_next(input)?;
     }
     Ok(items.reverse())
 }
@@ -1305,92 +1295,353 @@ fn algorithm_section_items<'a>(input: &mut &'a str) -> ModalResult<List<Algorith
         match peek(keyword_or_ident).parse_next(input) {
             Ok(Token::Public) | Ok(Token::Protected) | Ok(Token::Equation) | Ok(Token::Algorithm)
             | Ok(Token::Initial) | Ok(Token::End) | Ok(Token::External) => break,
-            Err(_) => break,
             _ => (),
         };
-
-        // Control flow keywords → TODO placeholder
-        match peek(keyword_or_ident).parse_next(input) {
-            Ok(Token::If) | Ok(Token::For) | Ok(Token::While) | Ok(Token::When)
-            | Ok(Token::Try) => {
-                // TODO: parse if/for/while/when/try/parfor algorithm statements
-                let item_text: &str = take_while(0.., |c: char| c == ';' || c == '\n').parse_next(input)?;
-                let trimmed = item_text.trim().to_string();
-                if !trimmed.is_empty() {
-                    items = cons(AlgorithmItem::ALGORITHMITEMCOMMENT { comment: trimmed }, items);
-                }
-                skip_trivia(input)?;
-                if opt(";").parse_next(input)?.is_none() { break; }
-                continue;
-            }
-            Ok(Token::Return) => {
-                keyword_or_ident.parse_next(input)?;
-                items = cons(AlgorithmItem::ALGORITHMITEM {
-                    algorithm_: Rc::new(Algorithm::ALG_RETURN {}),
-                    comment: None,
-                    info: dummy_info(),
-                }, items);
-                continue;
-            }
-            Ok(Token::Break) => {
-                keyword_or_ident.parse_next(input)?;
-                items = cons(AlgorithmItem::ALGORITHMITEM {
-                    algorithm_: Rc::new(Algorithm::ALG_BREAK {}),
-                    comment: None,
-                    info: dummy_info(),
-                }, items);
-                continue;
-            }
-            Ok(Token::Continue) => {
-                keyword_or_ident.parse_next(input)?;
-                items = cons(AlgorithmItem::ALGORITHMITEM {
-                    algorithm_: Rc::new(Algorithm::ALG_CONTINUE {}),
-                    comment: None,
-                    info: dummy_info(),
-                }, items);
-                continue;
-            }
-            _ => (),
-        };
-
-        // Assignment clause: simple_expression (ASSIGN expression)?
-        let lhs = simple_expression(input)?;
-        skip_trivia(input)?;
-
-        if opt(":=").parse_next(input)?.is_some() {
-            let value = expression(input)?;
-            let alg = Algorithm::ALG_ASSIGN {
-                assignComponent: lhs,
-                value,
-            };
-            items = cons(AlgorithmItem::ALGORITHMITEM {
-                algorithm_: Rc::new(alg),
-                comment: None,
-                info: dummy_info(),
-            }, items);
-        } else {
-            // No-return-value call
-            // TODO: parse as ALG_NORETCALL properly
-            items = cons(AlgorithmItem::ALGORITHMITEM {
-                algorithm_: Rc::new(Algorithm::ALG_NORETCALL {
-                    functionCall: Absyn::ComponentRef::CREF_IDENT {
-                        name: "call".to_string(),
-                        subscripts: List::Nil(),
-                    },
-                    functionArgs: FunctionArgs::FUNCTIONARGS {
-                        args: List::Nil(),
-                        argNames: List::Nil(),
-                    },
-                }),
-                comment: None,
-                info: dummy_info(),
-            }, items);
-        }
-
+        items = cons(algorithm_item(input)?, items);
         skip_trivia(input)?;
         cut_err(";").context(StrContext::Label("';' after statement")).parse_next(input)?;
     }
     Ok(items.reverse())
+}
+
+fn to_rc_list<T: Clone>(lst: List<T>) -> List<Rc<T>> {
+    let mut result: List<Rc<T>> = List::Nil();
+    for item in &lst.reverse() {
+        result = cons(Rc::new(item.clone()), result);
+    }
+    result
+}
+
+/// Parse one equation (without trailing `;`), per ANTLR3 `equation` rule.
+fn equation_item<'a>(input: &mut &'a str) -> ModalResult<EquationItem> {
+    skip_trivia(input)?;
+    let eq = match peek(opt(keyword_or_ident)).parse_next(input)? {
+        Some(Token::If)   => if_equation_e(input)?,
+        Some(Token::For)  => for_equation_e(input)?,
+        Some(Token::When) => when_equation_e(input)?,
+        _                 => equality_or_noretcall_equation(input)?,
+    };
+    let comment = string_comment(input)?;
+    Ok(EquationItem::EQUATIONITEM {
+        equation_: Rc::new(eq),
+        comment: comment.map(|c| Comment::COMMENT { annotation_: None, comment: Some(c) }),
+        info: dummy_info(),
+    })
+}
+
+fn equality_or_noretcall_equation<'a>(input: &mut &'a str) -> ModalResult<Equation> {
+    let lhs = simple_expression(input)?;
+    skip_trivia(input)?;
+    if opt("=").parse_next(input)?.is_some() {
+        let rhs = cut_err(expression).context(StrContext::Label("right-hand side of equation")).parse_next(input)?;
+        Ok(Equation::EQ_EQUALS { leftSide: lhs, rightSide: rhs })
+    } else {
+        match lhs {
+            Absyn::Exp::CALL { function_, functionArgs, .. } =>
+                Ok(Equation::EQ_NORETCALL { functionName: (*function_).clone(), functionArgs }),
+            _ => Err(ErrMode::Backtrack(ContextError::default())),
+        }
+    }
+}
+
+/// Equations stopping at Then / Else / Elseif / ElseWhen / End.
+fn equation_list<'a>(input: &mut &'a str) -> ModalResult<List<EquationItem>> {
+    let mut items: List<EquationItem> = List::Nil();
+    loop {
+        skip_trivia(input)?;
+        if input.is_empty() { break; }
+        match peek(opt(keyword_or_ident)).parse_next(input)? {
+            Some(Token::Then) | Some(Token::Else) | Some(Token::Elseif)
+            | Some(Token::ElseWhen) | Some(Token::End) => break,
+            _ => {}
+        }
+        items = cons(equation_item(input)?, items);
+        skip_trivia(input)?;
+        cut_err(";").context(StrContext::Label("';' after equation")).parse_next(input)?;
+    }
+    Ok(items.reverse())
+}
+
+fn if_equation_e<'a>(input: &mut &'a str) -> ModalResult<Equation> {
+    keyword_or_ident.parse_next(input)?; // Token::If
+    let cond = cut_err(expression).parse_next(input)?;
+    skip_trivia(input)?;
+    match cut_err(keyword_or_ident).context(StrContext::Label("'then' in if-equation")).parse_next(input)? {
+        Token::Then => {}
+        _ => return Err(ErrMode::Cut(ContextError::default())),
+    }
+    let true_items = equation_list(input)?;
+    let mut else_if_branches: Vec<(Absyn::Exp, List<Rc<EquationItem>>)> = Vec::new();
+    loop {
+        skip_trivia(input)?;
+        if !matches!(peek(opt(keyword_or_ident)).parse_next(input)?, Some(Token::Elseif)) { break; }
+        keyword_or_ident.parse_next(input)?;
+        let elif_cond = cut_err(expression).parse_next(input)?;
+        skip_trivia(input)?;
+        match cut_err(keyword_or_ident).parse_next(input)? {
+            Token::Then => {}
+            _ => return Err(ErrMode::Cut(ContextError::default())),
+        }
+        else_if_branches.push((elif_cond, to_rc_list(equation_list(input)?)));
+    }
+    skip_trivia(input)?;
+    let else_items = if matches!(peek(opt(keyword_or_ident)).parse_next(input)?, Some(Token::Else)) {
+        keyword_or_ident.parse_next(input)?;
+        equation_list(input)?
+    } else { List::Nil() };
+    skip_trivia(input)?;
+    match cut_err(keyword_or_ident).context(StrContext::Label("'end' closing if-equation")).parse_next(input)? {
+        Token::End => {}
+        _ => return Err(ErrMode::Cut(ContextError::default())),
+    }
+    skip_trivia(input)?;
+    keyword_or_ident.parse_next(input)?; // "if" or end-ident
+    let mut elseif_list: List<(Absyn::Exp, List<Rc<EquationItem>>)> = List::Nil();
+    for branch in else_if_branches.into_iter().rev() { elseif_list = cons(branch, elseif_list); }
+    Ok(Equation::EQ_IF {
+        ifExp: cond,
+        equationTrueItems: to_rc_list(true_items),
+        elseIfBranches: elseif_list,
+        equationElseItems: to_rc_list(else_items),
+    })
+}
+
+fn for_equation_e<'a>(input: &mut &'a str) -> ModalResult<Equation> {
+    keyword_or_ident.parse_next(input)?; // Token::For
+    let iterators = cut_err(for_indices).parse_next(input)?;
+    skip_trivia(input)?;
+    match cut_err(keyword_or_ident).context(StrContext::Label("'loop' in for-equation")).parse_next(input)? {
+        Token::Ident("loop") => {}
+        _ => return Err(ErrMode::Cut(ContextError::default())),
+    }
+    let body = equation_list(input)?;
+    skip_trivia(input)?;
+    match cut_err(keyword_or_ident).context(StrContext::Label("'end' closing for-equation")).parse_next(input)? {
+        Token::End => {}
+        _ => return Err(ErrMode::Cut(ContextError::default())),
+    }
+    skip_trivia(input)?;
+    keyword_or_ident.parse_next(input)?; // "for"
+    Ok(Equation::EQ_FOR { iterators, forEquations: to_rc_list(body) })
+}
+
+fn when_equation_e<'a>(input: &mut &'a str) -> ModalResult<Equation> {
+    keyword_or_ident.parse_next(input)?; // Token::When
+    let when_cond = cut_err(expression).parse_next(input)?;
+    skip_trivia(input)?;
+    match cut_err(keyword_or_ident).context(StrContext::Label("'then' in when-equation")).parse_next(input)? {
+        Token::Then => {}
+        _ => return Err(ErrMode::Cut(ContextError::default())),
+    }
+    let when_body = equation_list(input)?;
+    let mut else_when: Vec<(Absyn::Exp, List<Rc<EquationItem>>)> = Vec::new();
+    loop {
+        skip_trivia(input)?;
+        if !matches!(peek(opt(keyword_or_ident)).parse_next(input)?, Some(Token::ElseWhen)) { break; }
+        keyword_or_ident.parse_next(input)?;
+        let ew_cond = cut_err(expression).parse_next(input)?;
+        skip_trivia(input)?;
+        match cut_err(keyword_or_ident).parse_next(input)? {
+            Token::Then => {}
+            _ => return Err(ErrMode::Cut(ContextError::default())),
+        }
+        else_when.push((ew_cond, to_rc_list(equation_list(input)?)));
+    }
+    skip_trivia(input)?;
+    match cut_err(keyword_or_ident).context(StrContext::Label("'end' closing when-equation")).parse_next(input)? {
+        Token::End => {}
+        _ => return Err(ErrMode::Cut(ContextError::default())),
+    }
+    skip_trivia(input)?;
+    keyword_or_ident.parse_next(input)?; // "when"
+    let mut ew_list: List<(Absyn::Exp, List<Rc<EquationItem>>)> = List::Nil();
+    for branch in else_when.into_iter().rev() { ew_list = cons(branch, ew_list); }
+    Ok(Equation::EQ_WHEN_E { whenExp: when_cond, whenEquations: to_rc_list(when_body), elseWhenEquations: ew_list })
+}
+
+/// Parse one algorithm statement (without trailing `;`), per ANTLR3 `algorithm` rule.
+fn algorithm_item<'a>(input: &mut &'a str) -> ModalResult<AlgorithmItem> {
+    skip_trivia(input)?;
+    let alg = match peek(opt(keyword_or_ident)).parse_next(input)? {
+        Some(Token::If)       => if_algorithm(input)?,
+        Some(Token::For)      => for_algorithm(input)?,
+        Some(Token::While)    => while_algorithm(input)?,
+        Some(Token::When)     => when_algorithm(input)?,
+        Some(Token::Try)      => try_algorithm(input)?,
+        Some(Token::Return)   => { keyword_or_ident.parse_next(input)?; Algorithm::ALG_RETURN {} }
+        Some(Token::Break)    => { keyword_or_ident.parse_next(input)?; Algorithm::ALG_BREAK {} }
+        Some(Token::Continue) => { keyword_or_ident.parse_next(input)?; Algorithm::ALG_CONTINUE {} }
+        _                     => assign_clause_a(input)?,
+    };
+    let comment = string_comment(input)?;
+    Ok(AlgorithmItem::ALGORITHMITEM {
+        algorithm_: Rc::new(alg),
+        comment: comment.map(|c| Comment::COMMENT { annotation_: None, comment: Some(c) }),
+        info: dummy_info(),
+    })
+}
+
+fn assign_clause_a<'a>(input: &mut &'a str) -> ModalResult<Algorithm> {
+    let lhs = simple_expression(input)?;
+    skip_trivia(input)?;
+    if opt(":=").parse_next(input)?.is_some() || opt("=").parse_next(input)?.is_some() {
+        let value = cut_err(expression).context(StrContext::Label("right-hand side of assignment")).parse_next(input)?;
+        Ok(Algorithm::ALG_ASSIGN { assignComponent: lhs, value })
+    } else {
+        match lhs {
+            Absyn::Exp::CALL { function_, functionArgs, .. } =>
+                Ok(Algorithm::ALG_NORETCALL { functionCall: (*function_).clone(), functionArgs }),
+            _ => Err(ErrMode::Backtrack(ContextError::default())),
+        }
+    }
+}
+
+/// Algorithm statements stopping at Then / Else / Elseif / ElseWhen / End.
+fn algorithm_list<'a>(input: &mut &'a str) -> ModalResult<List<AlgorithmItem>> {
+    let mut items: List<AlgorithmItem> = List::Nil();
+    loop {
+        skip_trivia(input)?;
+        if input.is_empty() { break; }
+        match peek(opt(keyword_or_ident)).parse_next(input)? {
+            Some(Token::Then) | Some(Token::Else) | Some(Token::Elseif)
+            | Some(Token::ElseWhen) | Some(Token::End) => break,
+            _ => {}
+        }
+        items = cons(algorithm_item(input)?, items);
+        skip_trivia(input)?;
+        cut_err(";").context(StrContext::Label("';' after statement")).parse_next(input)?;
+    }
+    Ok(items.reverse())
+}
+
+fn if_algorithm<'a>(input: &mut &'a str) -> ModalResult<Algorithm> {
+    keyword_or_ident.parse_next(input)?; // Token::If
+    let cond = cut_err(expression).parse_next(input)?;
+    skip_trivia(input)?;
+    match cut_err(keyword_or_ident).context(StrContext::Label("'then' in if-algorithm")).parse_next(input)? {
+        Token::Then => {}
+        _ => return Err(ErrMode::Cut(ContextError::default())),
+    }
+    let true_items = algorithm_list(input)?;
+    let mut else_if_branches: Vec<(Absyn::Exp, List<AlgorithmItem>)> = Vec::new();
+    loop {
+        skip_trivia(input)?;
+        if !matches!(peek(opt(keyword_or_ident)).parse_next(input)?, Some(Token::Elseif)) { break; }
+        keyword_or_ident.parse_next(input)?;
+        let elif_cond = cut_err(expression).parse_next(input)?;
+        skip_trivia(input)?;
+        match cut_err(keyword_or_ident).parse_next(input)? {
+            Token::Then => {}
+            _ => return Err(ErrMode::Cut(ContextError::default())),
+        }
+        else_if_branches.push((elif_cond, algorithm_list(input)?));
+    }
+    skip_trivia(input)?;
+    let else_items = if matches!(peek(opt(keyword_or_ident)).parse_next(input)?, Some(Token::Else)) {
+        keyword_or_ident.parse_next(input)?;
+        algorithm_list(input)?
+    } else { List::Nil() };
+    skip_trivia(input)?;
+    match cut_err(keyword_or_ident).context(StrContext::Label("'end' closing if-algorithm")).parse_next(input)? {
+        Token::End => {}
+        _ => return Err(ErrMode::Cut(ContextError::default())),
+    }
+    skip_trivia(input)?;
+    keyword_or_ident.parse_next(input)?;
+    let mut elseif_list: List<(Absyn::Exp, List<AlgorithmItem>)> = List::Nil();
+    for branch in else_if_branches.into_iter().rev() { elseif_list = cons(branch, elseif_list); }
+    Ok(Algorithm::ALG_IF { ifExp: cond, trueBranch: true_items, elseIfAlgorithmBranch: elseif_list, elseBranch: else_items })
+}
+
+fn for_algorithm<'a>(input: &mut &'a str) -> ModalResult<Algorithm> {
+    keyword_or_ident.parse_next(input)?; // Token::For
+    let iterators = cut_err(for_indices).parse_next(input)?;
+    skip_trivia(input)?;
+    match cut_err(keyword_or_ident).context(StrContext::Label("'loop' in for-algorithm")).parse_next(input)? {
+        Token::Ident("loop") => {}
+        _ => return Err(ErrMode::Cut(ContextError::default())),
+    }
+    let body = algorithm_list(input)?;
+    skip_trivia(input)?;
+    match cut_err(keyword_or_ident).context(StrContext::Label("'end' closing for-algorithm")).parse_next(input)? {
+        Token::End => {}
+        _ => return Err(ErrMode::Cut(ContextError::default())),
+    }
+    skip_trivia(input)?;
+    keyword_or_ident.parse_next(input)?;
+    Ok(Algorithm::ALG_FOR { iterators, forBody: body })
+}
+
+fn while_algorithm<'a>(input: &mut &'a str) -> ModalResult<Algorithm> {
+    keyword_or_ident.parse_next(input)?; // Token::While
+    let cond = cut_err(expression).parse_next(input)?;
+    skip_trivia(input)?;
+    match cut_err(keyword_or_ident).context(StrContext::Label("'loop' in while-algorithm")).parse_next(input)? {
+        Token::Ident("loop") => {}
+        _ => return Err(ErrMode::Cut(ContextError::default())),
+    }
+    let body = algorithm_list(input)?;
+    skip_trivia(input)?;
+    match cut_err(keyword_or_ident).context(StrContext::Label("'end' closing while-algorithm")).parse_next(input)? {
+        Token::End => {}
+        _ => return Err(ErrMode::Cut(ContextError::default())),
+    }
+    skip_trivia(input)?;
+    keyword_or_ident.parse_next(input)?;
+    Ok(Algorithm::ALG_WHILE { boolExpr: cond, whileBody: body })
+}
+
+fn when_algorithm<'a>(input: &mut &'a str) -> ModalResult<Algorithm> {
+    keyword_or_ident.parse_next(input)?; // Token::When
+    let when_cond = cut_err(expression).parse_next(input)?;
+    skip_trivia(input)?;
+    match cut_err(keyword_or_ident).context(StrContext::Label("'then' in when-algorithm")).parse_next(input)? {
+        Token::Then => {}
+        _ => return Err(ErrMode::Cut(ContextError::default())),
+    }
+    let when_body = algorithm_list(input)?;
+    let mut else_when: Vec<(Absyn::Exp, List<AlgorithmItem>)> = Vec::new();
+    loop {
+        skip_trivia(input)?;
+        if !matches!(peek(opt(keyword_or_ident)).parse_next(input)?, Some(Token::ElseWhen)) { break; }
+        keyword_or_ident.parse_next(input)?;
+        let ew_cond = cut_err(expression).parse_next(input)?;
+        skip_trivia(input)?;
+        match cut_err(keyword_or_ident).parse_next(input)? {
+            Token::Then => {}
+            _ => return Err(ErrMode::Cut(ContextError::default())),
+        }
+        else_when.push((ew_cond, algorithm_list(input)?));
+    }
+    skip_trivia(input)?;
+    match cut_err(keyword_or_ident).context(StrContext::Label("'end' closing when-algorithm")).parse_next(input)? {
+        Token::End => {}
+        _ => return Err(ErrMode::Cut(ContextError::default())),
+    }
+    skip_trivia(input)?;
+    keyword_or_ident.parse_next(input)?;
+    let mut ew_list: List<(Absyn::Exp, List<AlgorithmItem>)> = List::Nil();
+    for branch in else_when.into_iter().rev() { ew_list = cons(branch, ew_list); }
+    Ok(Algorithm::ALG_WHEN_A { boolExpr: when_cond, whenBody: when_body, elseWhenAlgorithmBranch: ew_list })
+}
+
+fn try_algorithm<'a>(input: &mut &'a str) -> ModalResult<Algorithm> {
+    keyword_or_ident.parse_next(input)?; // Token::Try
+    let body = algorithm_list(input)?;
+    skip_trivia(input)?;
+    match cut_err(keyword_or_ident).context(StrContext::Label("'else' in try-algorithm")).parse_next(input)? {
+        Token::Else => {}
+        _ => return Err(ErrMode::Cut(ContextError::default())),
+    }
+    let else_body = algorithm_list(input)?;
+    skip_trivia(input)?;
+    match cut_err(keyword_or_ident).context(StrContext::Label("'end' closing try-algorithm")).parse_next(input)? {
+        Token::End => {}
+        _ => return Err(ErrMode::Cut(ContextError::default())),
+    }
+    skip_trivia(input)?;
+    keyword_or_ident.parse_next(input)?;
+    Ok(Algorithm::ALG_TRY { body, elseBody: else_body })
 }
 
 fn component_reference<'a>(input: &mut &'a str) -> ModalResult<Absyn::ComponentRef> {
@@ -1743,14 +1994,15 @@ fn for_or_expression_list<'a>(input: &mut &'a str) -> ModalResult<Absyn::Functio
     let mut args = List::Nil();
     let mut arg_names = List::Nil();
     loop {
-        match exp {
-            Exp::CREF{componentRef} if match &*componentRef { ComponentRef::CREF_IDENT{subscripts, ..} => subscripts.is_empty(), _ => false } => {
-                input.reset(&checkpoint);
-                arg_names = named_arguments.parse_next(input)?;
-                break;
+        let is_plain_ident = matches!(&exp, Exp::CREF { componentRef } if matches!(&**componentRef, ComponentRef::CREF_IDENT { subscripts, .. } if subscripts.is_empty()));
+        if is_plain_ident {
+            let saved = *input;
+            input.reset(&checkpoint);
+            match named_arguments.parse_next(input) {
+                Ok(na) => { arg_names = na; break; }
+                Err(_) => { *input = saved; }
             }
-            _ => {}
-        };
+        }
         args = cons(Rc::new(exp), args);
         skip_trivia(input)?;
         if opt(",").parse_next(input)?.is_none() { break; }
@@ -2223,38 +2475,12 @@ fn local_clause<'a>(input: &mut &'a str) -> ModalResult<List<Rc<Absyn::ElementIt
 
 /// equation_list_then: equations up to THEN keyword
 fn equation_list_then<'a>(input: &mut &'a str) -> ModalResult<List<Absyn::EquationItem>> {
-    let mut items: List<Absyn::EquationItem> = List::Nil();
-    loop {
-        skip_trivia(input)?;
-        if matches!(peek(keyword_or_ident).parse_next(input)?, Token::Then | Token::End | Token::Else) { break; }
-        if input.is_empty() { break; }
-        let item_text: &str = take_while(0.., |c: char| c != ';').parse_next(input)?;
-        let trimmed = item_text.trim().to_string();
-        if !trimmed.is_empty() {
-            items = cons(Absyn::EquationItem::EQUATIONITEMCOMMENT { comment: trimmed }, items);
-        }
-        skip_trivia(input)?;
-        cut_err(";").context(StrContext::Label("';' after equation item")).parse_next(input)?;
-    }
-    Ok(items.reverse())
+    equation_list(input)
 }
 
 /// algorithm_list_then: algorithms up to THEN keyword
 fn algorithm_list_then<'a>(input: &mut &'a str) -> ModalResult<List<Absyn::AlgorithmItem>> {
-    let mut items: List<Absyn::AlgorithmItem> = List::Nil();
-    loop {
-        skip_trivia(input)?;
-        if matches!(peek(keyword_or_ident).parse_next(input)?, Token::Then | Token::End | Token::Else) { break; }
-        if input.is_empty() { break; }
-        let item_text: &str = take_while(0.., |c: char| c != ';').parse_next(input)?;
-        let trimmed = item_text.trim().to_string();
-        if !trimmed.is_empty() {
-            items = cons(Absyn::AlgorithmItem::ALGORITHMITEMCOMMENT { comment: trimmed }, items);
-        }
-        skip_trivia(input)?;
-        cut_err(";").context(StrContext::Label("';' after algorithm item")).parse_next(input)?;
-    }
-    Ok(items.reverse())
+    algorithm_list(input)
 }
 
 /// match_case_body: (equation eq_list | algorithm alg_list)?

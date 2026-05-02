@@ -10,6 +10,7 @@ mod metamodelica;
 pub use Absyn::*;
 use metamodelica::{List, cons, SourceInfo};
 
+use winnow::stream::Stream;
 use winnow::{Parser, ModalResult, combinator::{opt, alt, peek, cut_err}, error::{ContextError, StrContext, StrContextValue, ErrMode}};
 use winnow::token::*;
 use winnow::ascii;
@@ -764,7 +765,7 @@ fn class_specifier<'a>(input: &mut &'a str) -> ModalResult<ClassSpecifier> {
             body: Rc::new(ClassDef::CLASS_EXTENDS {
                 baseClassName: name,
                 modifications,
-                comment: None,
+                comment,
                 parts: classParts,
                 ann,
             }),
@@ -959,10 +960,13 @@ fn element_list<'a>(input: &mut &'a str) -> ModalResult<List<ClassBodyItem>> {
         // Stop at section keywords or end of input
         match peek(keyword_or_ident).parse_next(input) {
             Ok(Token::Public) | Ok(Token::Protected) | Ok(Token::Equation) | Ok(Token::Algorithm)
-            | Ok(Token::External) | Ok(Token::End) | Ok(Token::Initial) => break,
+            | Ok(Token::External) | Ok(Token::End) | Ok(Token::Initial) | Ok(Token::Case)
+            | Ok(Token::Else) | Ok(Token::Then) => break,
             Err(_) => break,
             _ => (),
         };
+
+        skip_trivia(input)?;
 
         // annotation SEMICOLON
         if let Some(ann) = opt(annotation).parse_next(input)? {
@@ -1124,17 +1128,17 @@ fn component_list<'a>(input: &mut &'a str) -> ModalResult<List<Rc<ComponentItem>
 /// declaration: (IDENT | OPERATOR) (array_subscripts)? (modification)?
 fn component_declaration<'a>(input: &mut &'a str) -> ModalResult<ComponentItem> {
     skip_trivia(input)?;
-println!("comp_decl 1 {:?}", &input[0..input.len().min(20)]);
+
     let name = match keyword_or_ident.parse_next(input)? {
         Token::Ident(n) => n.to_string(),
         Token::Operator => "operator".to_string(),
         _ => return Err(ErrMode::Backtrack(ContextError::default())),
     };
-println!("comp_decl 2 {:?}", &input[0..input.len().min(20)]);
+
     let arrayDim = opt(array_subscripts).parse_next(input)?.unwrap_or_else(|| ArrayDim::Nil());
-println!("comp_decl {} {} {:?}", name, &input[0..input.len().min(20)], arrayDim);
+
     let m = opt(modification).parse_next(input)?;
-println!("comp_decl {} {} {:?}", name, &input[0..input.len().min(20)], m);
+
     let condition = if opt("if").parse_next(input)?.is_some() {
         Some(expression.parse_next(input)?)
     } else {
@@ -1142,7 +1146,7 @@ println!("comp_decl {} {} {:?}", name, &input[0..input.len().min(20)], m);
     };
     let _comment = string_comment.parse_next(input)?;
     let _ann = opt(annotation).parse_next(input)?;
-println!("Parsed comp_decl {} {} {:?}", name, &input[0..input.len().min(20)], m);
+
     Ok(ComponentItem::COMPONENTITEM {
         component: Component::COMPONENT { name, arrayDim, modification: m },
         condition,
@@ -1152,14 +1156,12 @@ println!("Parsed comp_decl {} {} {:?}", name, &input[0..input.len().min(20)], m)
 
 fn modification<'a>(input: &mut &'a str) -> ModalResult<Modification> {
     let cm = opt(class_modification).parse_next(input)?.unwrap_or(List::Nil());
-    println!("Before EqMod {}", &input[0..input.len().min(20)]);
     skip_trivia(input)?;
     let eq = if opt(alt((":=", "="))).parse_next(input)?.is_some() {
         Absyn::EqMod::EQMOD{exp: Rc::new(cut_err(modification_expression).context(StrContext::Label("Modification with =")).parse_next(input)?), info: dummy_info()}
     } else {
         Absyn::EqMod::NOMOD{}
     };
-    println!("After EqMod {}", &input[0..input.len().min(20)]);
     Ok(Modification::CLASSMOD { elementArgLst: cm, eqMod: eq })
 }
 
@@ -1168,9 +1170,7 @@ fn modification_expression<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
     if opt("break").parse_next(input)?.is_some() {
         return Ok(Absyn::Exp::BREAK{});
     };
-    println!("Before expression {}", &input[0..input.len().min(20)]);
     let res = expression.parse_next(input);
-    println!("After expression {:?} {}", res, &input[0..input.len().min(20)]);
     res
 }
 
@@ -1218,7 +1218,6 @@ fn element_redeclaration<'a>(input: &mut &'a str) -> ModalResult<ElementArg> {
     "redeclare".parse_next(input)?;
     let eachPrefix = opt("each").parse_next(input)?.is_some();
     let finalPrefix = opt("final").parse_next(input)?.is_some();
-    println!("TODO: handle element_redeclaration");
     Err(ErrMode::Backtrack(ContextError::default()))
 }
 
@@ -1233,7 +1232,6 @@ fn element_modification<'a>(input: &mut &'a str) -> ModalResult<ElementArg> {
 }
 
 fn element_replaceable<'a>(input: &mut &'a str) -> ModalResult<ElementArg> {
-    println!("TODO: handle element_replaceable");
     Err(ErrMode::Backtrack(ContextError::default()))
 }
 
@@ -1303,32 +1301,100 @@ fn algorithm_section_items<'a>(input: &mut &'a str) -> ModalResult<List<Algorith
     loop {
         skip_trivia(input)?;
         if input.is_empty() { break; }
-        if let Ok(tok) = peek(keyword_or_ident).parse_next(input) {
-            match tok {
-                Token::Public | Token::Protected | Token::Equation | Token::Algorithm |
-                Token::Initial | Token::End | Token::External => break,
-                _ => (),
-            }
+        match peek(keyword_or_ident).parse_next(input) {
+            Ok(Token::Public) | Ok(Token::Protected) | Ok(Token::Equation) | Ok(Token::Algorithm)
+            | Ok(Token::Initial) | Ok(Token::End) | Ok(Token::External) => break,
+            Err(_) => break,
+            _ => (),
         };
 
-        let item_text: &str = take_while(0.., |c: char| c != ';').parse_next(input)?;
-        let trimmed = item_text.trim().to_string();
-        if !trimmed.is_empty() {
-            items = cons(AlgorithmItem::ALGORITHMITEMCOMMENT { comment: trimmed }, items);
-        }
+        // Control flow keywords → TODO placeholder
+        match peek(keyword_or_ident).parse_next(input) {
+            Ok(Token::If) | Ok(Token::For) | Ok(Token::While) | Ok(Token::When)
+            | Ok(Token::Try) => {
+                // TODO: parse if/for/while/when/try/parfor algorithm statements
+                let item_text: &str = take_while(0.., |c: char| c == ';' || c == '\n').parse_next(input)?;
+                let trimmed = item_text.trim().to_string();
+                if !trimmed.is_empty() {
+                    items = cons(AlgorithmItem::ALGORITHMITEMCOMMENT { comment: trimmed }, items);
+                }
+                skip_trivia(input)?;
+                if opt(";").parse_next(input)?.is_none() { break; }
+                continue;
+            }
+            Ok(Token::Return) => {
+                keyword_or_ident.parse_next(input)?;
+                items = cons(AlgorithmItem::ALGORITHMITEM {
+                    algorithm_: Rc::new(Algorithm::ALG_RETURN {}),
+                    comment: None,
+                    info: dummy_info(),
+                }, items);
+                continue;
+            }
+            Ok(Token::Break) => {
+                keyword_or_ident.parse_next(input)?;
+                items = cons(AlgorithmItem::ALGORITHMITEM {
+                    algorithm_: Rc::new(Algorithm::ALG_BREAK {}),
+                    comment: None,
+                    info: dummy_info(),
+                }, items);
+                continue;
+            }
+            Ok(Token::Continue) => {
+                keyword_or_ident.parse_next(input)?;
+                items = cons(AlgorithmItem::ALGORITHMITEM {
+                    algorithm_: Rc::new(Algorithm::ALG_CONTINUE {}),
+                    comment: None,
+                    info: dummy_info(),
+                }, items);
+                continue;
+            }
+            _ => (),
+        };
+
+        // Assignment clause: simple_expression (ASSIGN expression)?
+        let lhs = simple_expression(input)?;
         skip_trivia(input)?;
-        if input.starts_with(';') {
-            ";".parse_next(input)?;
-        } else { break; }
+
+        if opt(":=").parse_next(input)?.is_some() {
+            let value = expression(input)?;
+            let alg = Algorithm::ALG_ASSIGN {
+                assignComponent: lhs,
+                value,
+            };
+            items = cons(AlgorithmItem::ALGORITHMITEM {
+                algorithm_: Rc::new(alg),
+                comment: None,
+                info: dummy_info(),
+            }, items);
+        } else {
+            // No-return-value call
+            // TODO: parse as ALG_NORETCALL properly
+            items = cons(AlgorithmItem::ALGORITHMITEM {
+                algorithm_: Rc::new(Algorithm::ALG_NORETCALL {
+                    functionCall: Absyn::ComponentRef::CREF_IDENT {
+                        name: "call".to_string(),
+                        subscripts: List::Nil(),
+                    },
+                    functionArgs: FunctionArgs::FUNCTIONARGS {
+                        args: List::Nil(),
+                        argNames: List::Nil(),
+                    },
+                }),
+                comment: None,
+                info: dummy_info(),
+            }, items);
+        }
+
+        skip_trivia(input)?;
+        if opt(";").parse_next(input)?.is_none() { break; }
     }
     Ok(items.reverse())
 }
 
 fn component_reference<'a>(input: &mut &'a str) -> ModalResult<Absyn::ComponentRef> {
-println!("before cref {}", &input[0..input.len().min(20)]);
     let fq = opt(".").parse_next(input)?.is_some();
     let cr = component_reference2(input)?;
-println!("after cref2 {}", &input[0..input.len().min(20)]);
     if fq {
         Ok(Absyn::ComponentRef::CREF_FULLYQUALIFIED { componentRef: Rc::new(cr) })
     } else {
@@ -1396,7 +1462,6 @@ fn part_eval_function_expression<'a>(input: &mut &'a str) -> ModalResult<Absyn::
 /// primary: literal | cref/call | parenthesised | array | matrix | end
 fn primary<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
     skip_trivia(input)?;
-println!("in primary {}", &input[0..input.len().min(20)]);
     // end
     let tok = peek(opt(keyword_or_ident)).parse_next(input)?;
     if let Some(Token::End) = tok {
@@ -1406,9 +1471,11 @@ println!("in primary {}", &input[0..input.len().min(20)]);
 
     // true / false
     if let Some(Token::BoolTrue) = tok {
+        keyword_or_ident.parse_next(input)?;
         return Ok(Absyn::Exp::BOOL{value: true});
     }
     if let Some(Token::BoolFalse) = tok {
+        keyword_or_ident.parse_next(input)?;
         return Ok(Absyn::Exp::BOOL{value: false});
     }
 
@@ -1421,7 +1488,6 @@ println!("in primary {}", &input[0..input.len().min(20)]);
     // Numeric literal (real before integer by trying decimal/exponent)
     if input.starts_with(|c: char| c.is_ascii_digit()) || input.starts_with('.') {
         if let Ok(e) = number_literal(input) {
-    println!("Returning {:?}", e);
             return Ok(e);
         }
     }
@@ -1449,11 +1515,13 @@ println!("in primary {}", &input[0..input.len().min(20)]);
         return Ok(Absyn::Exp::MATRIX { matrix: rows });
     }
 
+println!("array? {}", &input[0..input.len().min(20)]);
     // { for_or_expression_list }
     if input.starts_with('{') {
         "{".parse_next(input)?;
-println!("start for_or_exp_list {}", &input[0..input.len().min(20)]);
+println!("array? {}", &input[0..input.len().min(20)]);
         let fa = for_or_expression_list(input)?;
+println!("array for {:?} {}", fa, &input[0..input.len().min(20)]);
         "}".parse_next(input)?;
         return match fa {
             Absyn::FunctionArgs::FOR_ITER_FARG { exp, iterType, iterators } => {
@@ -1465,8 +1533,9 @@ println!("start for_or_exp_list {}", &input[0..input.len().min(20)]);
                     typeVars: List::Nil(),
                 })
             }
-            Absyn::FunctionArgs::FUNCTIONARGS { args, argNames } =>
-                Ok(Absyn::Exp::ARRAY { arrayExp: args }),
+            Absyn::FunctionArgs::FUNCTIONARGS { args, argNames: List::Nil() } =>
+                Ok(Absyn::Exp::ARRAY{ arrayExp: args }),
+            _ => Err(ErrMode::Backtrack(ContextError::default())), // TODO: Custom error-message here?
         };
     }
 
@@ -1504,12 +1573,10 @@ fn to_tuple_or_exp(exprs: List<Rc<Absyn::Exp>>, is_tuple: bool) -> Absyn::Exp {
 /// number_literal: UNSIGNED_REAL | UNSIGNED_INTEGER
 fn number_literal<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
     skip_trivia(input)?;
-    println!("Before number_literal {}", &input[0..input.len().min(20)]);
     let start = *input;
     let has_int = take_while::<_, _, ContextError>(1.., |c: char| c.is_ascii_digit()).parse_next(input).is_ok();
     let mut is_real = false;
 
-    println!("After has_int {}", &input[0..input.len().min(20)]);
     if has_int {
         // decimal point (but not '..' or element-wise operators)
         if input.starts_with('.') && !input.starts_with("..") &&
@@ -1535,13 +1602,11 @@ fn number_literal<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
         is_real = true;
     }
 
-    println!("is_real {} {}", is_real, &input[0..input.len().min(20)]);
     let len = start.len() - input.len();
     let s = &start[..len];
     if is_real {
         Ok(Absyn::Exp::REAL { value: s.to_string() })
     } else {
-    println!("After has_int {:?}", s.parse::<i32>());
         Ok(Absyn::Exp::INTEGER { value: s.parse().unwrap_or(i32::MAX) })
     }
 }
@@ -1566,7 +1631,6 @@ fn component_reference__function_call<'a>(input: &mut &'a str) -> ModalResult<Ab
 
     let cr = component_reference(input)?;
     skip_trivia(input)?;
-println!("got cr {:?}", cr);
 
     // polymorphic call: cr < type_vars > function_call  (MetaModelica)
     if input.starts_with('<') {
@@ -1597,9 +1661,7 @@ println!("got cr {:?}", cr);
 
     // optional function call
     if input.starts_with('(') {
-println!("before function_call {}", &input[0..input.len().min(20)]);
         let fa = function_call(input)?;
-println!("after function_call {}", &input[0..input.len().min(20)]);
         // optional .field access after call (MetaModelica dot operator)
         skip_trivia(input)?;
         if input.starts_with('.') && input.chars().nth(1).map_or(false, |c| c.is_alphanumeric() || c == '_') {
@@ -1646,27 +1708,9 @@ fn for_or_expression_list<'a>(input: &mut &'a str) -> ModalResult<Absyn::Functio
         return Ok(Absyn::FunctionArgs::FUNCTIONARGS { args: List::Nil(), argNames: List::Nil() });
     }
 
-println!("f_o_el {}", &input[0..input.len().min(20)]);
-    // Named arg start: ident = (not ==)
-    {
-        let saved = *input;
-        let is_named = if let Some(Token::Ident(_)) = opt(keyword_or_ident).parse_next(input)? {
-            skip_trivia(input)?;
-            input.starts_with('=') && !input.starts_with("==")
-        } else {
-            false
-        };
-        *input = saved;
-        // TODO: Actually parse the named args...
-        if is_named {
-            return Ok(Absyn::FunctionArgs::FUNCTIONARGS { args: List::Nil(), argNames: List::Nil() });
-        }
-    }
-
     // Parse first expression
-println!("e1 {}", &input[0..input.len().min(20)]);
-    let e1 = expression(input)?;
-println!("e1 {}", &input[0..input.len().min(20)]);
+    let mut checkpoint = input.checkpoint();
+    let mut exp = expression(input)?;
     skip_trivia(input)?;
 
     // for-iterator: expr [threaded] for indices
@@ -1681,32 +1725,33 @@ println!("e1 {}", &input[0..input.len().min(20)]);
         }
         let iterators = for_indices(input)?;
         return Ok(Absyn::FunctionArgs::FOR_ITER_FARG {
-            exp: Rc::new(e1),
+            exp: Rc::new(exp),
             iterType: if threaded { Absyn::ReductionIterType::THREAD {} } else { Absyn::ReductionIterType::COMBINE {} },
             iterators,
         });
     }
 
-    // Expression list: e1 (, e2)*
-    let mut args: List<Rc<Absyn::Exp>> = cons(Rc::new(e1), List::Nil());
+    // Expression list: e1 (, e2)*, with optional named args at the end
+    let mut args = List::Nil();
+    let mut arg_names = List::Nil();
     loop {
+        match exp {
+            Exp::CREF{componentRef} if matches!(*componentRef, ComponentRef::CREF_IDENT{..}) => {
+                input.reset(&checkpoint);
+                arg_names = named_arguments.parse_next(input)?;
+                break;
+            }
+            _ => {}
+        };
+        args = cons(Rc::new(exp), args);
         skip_trivia(input)?;
         if opt(",").parse_next(input)?.is_none() { break; }
         skip_trivia(input)?;
-        // Stop if next is named arg start
-        let saved = *input;
-        let is_named = (|| {
-            if let Ok(Token::Ident(_)) = keyword_or_ident.parse_next(input) {
-                skip_trivia(input).ok();
-                input.starts_with('=') && !input.starts_with("==")
-            } else { false }
-        })();
-        *input = saved;
-        if is_named { /* TODO: Handle named arguments */ break; }
-        if input.starts_with(')') || input.starts_with('}') { break; }
-        args = cons(Rc::new(expression.parse_next(input)?), args);
-    }
-    Ok(Absyn::FunctionArgs::FUNCTIONARGS { args: args.reverse(), argNames: List::Nil() })
+        checkpoint = input.checkpoint();
+        exp = expression.parse_next(input)?;
+    };
+
+    Ok(Absyn::FunctionArgs::FUNCTIONARGS { args: args.reverse(), argNames: arg_names.reverse() })
 }
 
 /// for_indices: for_index (, for_index)*
@@ -1778,6 +1823,25 @@ fn output_expression_list<'a>(input: &mut &'a str) -> ModalResult<(List<Rc<Absyn
         let wild_exp = Rc::new(Absyn::Exp::CREF { componentRef: Rc::new(wild) });
         return Ok((cons(wild_exp, rest), true));
     }
+
+    // Check if first token is a named argument (ident = not ==)
+    let saved = *input;
+    let is_named = if let Ok(Token::Ident(_)) = peek(keyword_or_ident).parse_next(input) {
+        skip_trivia(input)?;
+        input.starts_with('=') && !input.starts_with("==")
+    } else {
+        false
+    };
+    *input = saved;
+
+    if is_named {
+        // TODO: parse named arguments properly
+        // For now, consume everything up to the matching ) by finding the balance
+        let content = consume_inside_parens(input)?;
+        let expr = Absyn::Exp::STRING { value: content };
+        return Ok((cons(Rc::new(expr), List::Nil()), true));
+    }
+
     let e1 = expression(input)?;
     skip_trivia(input)?;
     if input.starts_with(',') {
@@ -1793,6 +1857,53 @@ fn output_expression_list<'a>(input: &mut &'a str) -> ModalResult<(List<Rc<Absyn
     }
     ")".parse_next(input)?;
     Ok((cons(Rc::new(e1), List::Nil()), false))
+}
+
+/// Consume content inside parentheses when already inside (opening paren already consumed).
+/// Returns content without the parens.
+fn consume_inside_parens<'a>(input: &mut &'a str) -> ModalResult<String> {
+    let mut depth = 1i32;
+    let mut in_string = false;
+    let mut escape_next = false;
+    let mut pos = 0;
+    let bytes = input.as_bytes();
+
+    while pos < bytes.len() && depth > 0 {
+        let ch = bytes[pos] as char;
+        if escape_next {
+            escape_next = false;
+            pos += 1;
+            continue;
+        }
+        match ch {
+            '\\' if in_string => {
+                escape_next = true;
+                pos += 1;
+            }
+            '"' => {
+                in_string = !in_string;
+                pos += 1;
+            }
+            '(' if !in_string => {
+                depth += 1;
+                pos += 1;
+            }
+            ')' if !in_string => {
+                depth -= 1;
+                if depth == 0 {
+                    let content = input[..pos].to_string();
+                    *input = &input[pos + 1..];
+                    return Ok(content);
+                }
+                pos += 1;
+            }
+            _ => {
+                pos += 1;
+            }
+        }
+    }
+
+    Err(ErrMode::Cut(ContextError::default()))
 }
 
 /// matrix_expression_list: expression_list (; expression_list)*
@@ -1947,7 +2058,6 @@ fn logical_factor<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
 /// logical_term: logical_factor (and logical_factor)*
 fn logical_term<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
     let mut e = logical_factor(input)?;
-println!("After logical_factor {}", &input[0..input.len().min(20)]);
     loop {
         skip_trivia(input)?;
         if opt("and").parse_next(input)?.is_some() {
@@ -1963,7 +2073,6 @@ println!("After logical_factor {}", &input[0..input.len().min(20)]);
 /// logical_expression: logical_term (or logical_term)*
 fn logical_expression<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
     let mut e = logical_term(input)?;
-println!("After logical_term {}", &input[0..input.len().min(20)]);
     loop {
         skip_trivia(input)?;
         if opt("or").parse_next(input)?.is_some() {
@@ -1979,7 +2088,6 @@ println!("After logical_term {}", &input[0..input.len().min(20)]);
 /// simple_expr: logical_expression (: logical_expression (: logical_expression)?)?
 fn simple_expr<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
     let e1 = logical_expression(input)?;
-println!("After logical_expression {}", &input[0..input.len().min(20)]);
     skip_trivia(input)?;
     if !input.starts_with(':') || input.starts_with(":=") || input.starts_with("::") {
         return Ok(e1);
@@ -2025,7 +2133,6 @@ fn simple_expression<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
     }
 
     let e1 = simple_expr(input)?;
-println!("After simple_expr {}", &input[0..input.len().min(20)]);
 
     skip_trivia(input)?;
     if input.starts_with("::") {
@@ -2274,18 +2381,14 @@ fn expression<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
 
 fn type_specifier<'a>(input: &mut &'a str) -> ModalResult<TypeSpec> {
     let path = name_path(input)?;
-println!("Got path {:?}", path);
     let mut ts: List<Rc<TypeSpec>> = List::Nil();
     skip_trivia(input)?;
     if opt("<").parse_next(input)?.is_some() {
-println!("Entered <");
         // Parse inner types as simple paths to avoid infinite recursion
         loop {
             skip_trivia(input)?;
             if input.starts_with('>') || input.is_empty() { break; }
-println!("Input before name_path: {}", &input[0..input.len().min(20)]);
             let inner_ts = type_specifier.parse_next(input)?;
-println!("Got inner_ts {:?}", inner_ts);
             ts = cons(Rc::new(inner_ts), ts);
             skip_trivia(input)?;
             if opt(",").parse_next(input)?.is_some() { continue; }
@@ -2295,7 +2398,6 @@ println!("Got inner_ts {:?}", inner_ts);
         skip_trivia(input)?;
         ">".parse_next(input)?;
     };
-println!("Got ts {:?}", ts);
     let arrayDim = opt(array_subscripts).parse_next(input)?;
     ts = ts.reverse();
     if ts.is_empty() {
@@ -2383,7 +2485,7 @@ fn external_part<'a>(input: &mut &'a str) -> ModalResult<ClassBodyItem> {
 
 fn string_comment<'a>(input: &mut &'a str) -> ModalResult<Option<String>> {
     let mut res = match opt(string_token).parse_next(input)? {
-        Some(mut s) => s,
+        Some(s) => s,
         None => return Ok(None),
     };
     while opt("+").parse_next(input)?.is_some() {
@@ -2482,11 +2584,8 @@ mod tests {
             Ok(Program::PROGRAM { classes, .. }) => {
                 assert!(!classes.is_empty(), "Expected some class parsed: {:?}", result);
                 if let List::Cons { head: class, .. } = classes {
-                    if let Class::CLASS { name, .. } = &*class {
-                        assert_eq!(name, "SimpleSystem");
-                    } else {
-                        panic!("expected CLASS variant");
-                    }
+                    let Class::CLASS { name, .. } = &*class;
+                    assert_eq!(name, "SimpleSystem");
                 }
             }
             Err(err) => {

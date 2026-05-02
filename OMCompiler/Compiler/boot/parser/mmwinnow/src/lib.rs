@@ -1710,6 +1710,7 @@ fn for_or_expression_list<'a>(input: &mut &'a str) -> ModalResult<Absyn::Functio
 
     // Parse first expression
     let mut checkpoint = input.checkpoint();
+    // Handle the ambiguity by parsing as an expression - if it is a named argument, detect that later
     let mut exp = expression(input)?;
     skip_trivia(input)?;
 
@@ -1736,7 +1737,7 @@ fn for_or_expression_list<'a>(input: &mut &'a str) -> ModalResult<Absyn::Functio
     let mut arg_names = List::Nil();
     loop {
         match exp {
-            Exp::CREF{componentRef} if matches!(*componentRef, ComponentRef::CREF_IDENT{..}) => {
+            Exp::CREF{componentRef} if matches!(*componentRef, ComponentRef::CREF_IDENT{subscripts=List::Nil()}) => {
                 input.reset(&checkpoint);
                 arg_names = named_arguments.parse_next(input)?;
                 break;

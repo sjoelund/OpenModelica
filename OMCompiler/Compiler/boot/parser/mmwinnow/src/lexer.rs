@@ -746,4 +746,14 @@ mod tests {
             &TokenKind::CodeVar, &TokenKind::Overload,
         ]);
     }
+
+    #[test]
+    fn lex_codegen_c() {
+        let code = std::fs::read_to_string("tests/data/CodegenC.mo")
+            .expect("CodegenC.mo not found");
+        let result = lex(&code, Grammar::MetaModelica);
+        if let Some(err) = &result.err() {
+            assert!(false, "expected CodegenC.mo to lex, got: {}", err);
+        }
+    }
 }

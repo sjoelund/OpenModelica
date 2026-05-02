@@ -8,6 +8,7 @@ use anyhow::Result;
 use grammar::metamodelica_grammar::MetaModelicaGrammar;
 use std::fs::File;
 use std::io::{self, BufRead};
+use mmwinnow::parser::stored_definition;
 
 fn parse_modelica<'t>(input: &'t str, file_name: &str) -> Result<MetaModelicaGrammar<'t>> {
     let mut grammar = MetaModelicaGrammar::new();
@@ -36,26 +37,12 @@ fn parse_mm_files() -> Result<()> {
 }
 
 fn main() {
-    let metamodelica_code = r#"
-        package SimpleSystem "Returns the index of the set the entry belongs to, or fails if the
-   entry doesn't."
-            /* ... */
-            Real x(start=0);
-        end SimpleSystem;
-    "#;
+   let code = std::fs::read_to_string("/home/martin/OpenModelica/OMCompiler/Compiler/Template/CodegenC.mo").
+            expect("CodegenC.mo not found");
+    let result = stored_definition.parse(&*code);
+    if let Some(err) = &result.err() {
+        assert!(false, "expected CodegenC.mo to parse, got: {}", err);
+    }
 
     return;
-
-    match parse_modelica(metamodelica_code, "<inline>") {
-        Ok(_) => println!("Parse succeeded."),
-        Err(e) => {
-            eprintln!("Parse failed: {}", e);
-            return;
-        }
-    }
-
-    match parse_mm_files() {
-        Ok(_) => println!("All files parsed successfully."),
-        Err(e) => eprintln!("Error parsing files: {}", e),
-    }
 }

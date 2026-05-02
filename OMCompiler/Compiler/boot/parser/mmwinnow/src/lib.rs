@@ -55,11 +55,11 @@ impl ParserError {
         err: winnow::error::ParseError<&[LexToken], ContextError>,
         all_tokens: &[LexToken],
     ) -> Self {
-        let remaining = err.input();
-        let (line, col) = remaining
-            .first()
+        let offset = err.offset();
+        let (line, col) = all_tokens
+            .get(offset)
             .or_else(|| all_tokens.last())
-            .map(|t| (t.line, t.col + 1))
+            .map(|t| (t.line, t.col))
             .unwrap_or((0, 0));
         ParserError { line, col, inner: err.inner().clone() }
     }
@@ -1596,6 +1596,14 @@ fn primary(input: &mut TokenInput) -> ModalResult<Absyn::Exp> {
             let cr = Absyn::ComponentRef::CREF_IDENT { name: "pure".into(), subscripts: List::Nil() };
             return Ok(Absyn::Exp::CALL { function_: Rc::new(cr), functionArgs: fa, typeVars: List::Nil() });
         }
+        Some(TK::Wild) => {
+            next_tok(input)?;
+            return Ok(Absyn::Exp::CREF { componentRef: Rc::new(Absyn::ComponentRef::WILD {}) });
+        }
+        Some(TK::Allwild) => {
+            next_tok(input)?;
+            return Ok(Absyn::Exp::CREF { componentRef: Rc::new(Absyn::ComponentRef::ALLWILD {}) });
+        }
         _ => {}
     }
     component_reference__function_call(input)
@@ -1986,9 +1994,10 @@ mod tests {
 
     #[test]
     fn empty_array() {
-        let prog = parse_ok("package P equation; end P;");
-        // Smoke-test: we got a program back.
-        assert!(matches!(prog, Program::PROGRAM { .. }));
+        let tokens = lexer::lex("{};", Grammar::Modelica3).unwrap();
+        let mut ts = tokens.as_slice();
+        let exp = expression(&mut ts).unwrap();
+        assert!(matches!(exp, Exp::ARRAY { arrayExp } if arrayExp.is_empty()));
     }
 
     #[test]

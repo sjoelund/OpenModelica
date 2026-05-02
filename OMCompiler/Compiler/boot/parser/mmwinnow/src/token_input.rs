@@ -1,0 +1,151 @@
+/*
+ * This file is part of OpenModelica.
+ *
+ * Copyright (c) 1998-2026, Open Source Modelica Consortium (OSMC),
+ * c/o Linköpings universitet, Department of Computer and Information Science,
+ * SE-58183 Linköping, Sweden.
+ *
+ * All rights reserved.
+ *
+ * THIS PROGRAM IS PROVIDED UNDER THE TERMS OF AGPL VERSION 3 LICENSE OR
+ * THIS OSMC PUBLIC LICENSE (OSMC-PL) VERSION 1.8.
+ * ANY USE, REPRODUCTION OR DISTRIBUTION OF THIS PROGRAM CONSTITUTES
+ * RECIPIENT'S ACCEPTANCE OF THE OSMC PUBLIC LICENSE OR THE GNU AGPL
+ * VERSION 3, ACCORDING TO RECIPIENTS CHOICE.
+ *
+ * The OpenModelica software and the OSMC (Open Source Modelica Consortium)
+ * Public License (OSMC-PL) are obtained from OSMC, either from the above
+ * address, from the URLs:
+ * http://www.openmodelica.org or
+ * https://github.com/OpenModelica/ or
+ * http://www.ida.liu.se/projects/OpenModelica,
+ * and in the OpenModelica distribution.
+ *
+ * GNU AGPL version 3 is obtained from:
+ * https://www.gnu.org/licenses/licenses.html#GPL
+ *
+ * This program is distributed WITHOUT ANY WARRANTY; without
+ * even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE, EXCEPT AS EXPRESSLY SET FORTH
+ * IN THE BY RECIPIENT SELECTED SUBSIDIARY LICENSE CONDITIONS OF OSMC-PL.
+ *
+ * See the full OSMC Public License conditions for more details.
+ *
+ */
+
+//! Helpers for driving winnow parsers from a slice of [`lexer::Token`]s.
+//!
+//! [`&\[Token\]`] already implements [`winnow::stream::Stream`] for `Token: Clone + Debug`,
+//! so all winnow combinators (`opt`, `alt`, `cut_err`, `peek`, …) work out of
+//! the box.  This module adds typed helper combinators on top.
+
+use crate::lexer::{Token as LexToken, TokenKind as TK};
+use winnow::{ModalResult, error::{ContextError, ErrMode}};
+
+/// The parser input type: a slice of already-lexed tokens.
+pub type TokenInput<'a> = &'a [LexToken];
+
+// ---------------------------------------------------------------------------
+// Primitive token consumers
+// ---------------------------------------------------------------------------
+
+/// Consume the next token if its kind equals `kind`; otherwise backtrack.
+#[inline]
+pub fn t(kind: TK) -> impl Fn(&mut &[LexToken]) -> ModalResult<()> {
+    move |input: &mut &[LexToken]| {
+        match input.first() {
+            Some(tok) if tok.kind == kind => { *input = &input[1..]; Ok(()) }
+            _ => Err(ErrMode::Backtrack(ContextError::default())),
+        }
+    }
+}
+
+/// Consume the next token unconditionally, returning its kind.  Backtrack on
+/// EOF.
+#[inline]
+pub fn next_tok(input: &mut &[LexToken]) -> ModalResult<TK> {
+    match input.first() {
+        Some(tok) => { let k = tok.kind.clone(); *input = &input[1..]; Ok(k) }
+        None => Err(ErrMode::Backtrack(ContextError::default())),
+    }
+}
+
+/// Peek at the next token's kind without consuming it.
+#[inline]
+pub fn peek_kind<'a>(input: &'a &[LexToken]) -> Option<&'a TK> {
+    input.first().map(|t| &t.kind)
+}
+
+/// Consume the next token only if `f` returns `Some`; otherwise leave the
+/// input unchanged.  Returns the mapped value.
+#[inline]
+pub fn try_tok<F, T>(input: &mut &[LexToken], f: F) -> Option<T>
+where
+    F: Fn(&TK) -> Option<T>,
+{
+    match input.first() {
+        Some(tok) => match f(&tok.kind) {
+            Some(v) => { *input = &input[1..]; Some(v) }
+            None => None,
+        },
+        None => None,
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Typed literal consumers
+// ---------------------------------------------------------------------------
+
+/// Consume an `Ident` token and return its string value.
+#[inline]
+pub fn t_ident(input: &mut &[LexToken]) -> ModalResult<String> {
+    match input.first() {
+        Some(LexToken { kind: TK::Ident(s), .. }) => {
+            let s = s.clone(); *input = &input[1..]; Ok(s)
+        }
+        _ => Err(ErrMode::Backtrack(ContextError::default())),
+    }
+}
+
+/// Consume a `Str` token and return its raw content (escape sequences preserved).
+#[inline]
+pub fn t_str_token(input: &mut &[LexToken]) -> ModalResult<String> {
+    match input.first() {
+        Some(LexToken { kind: TK::Str(s), .. }) => {
+            let s = s.clone(); *input = &input[1..]; Ok(s)
+        }
+        _ => Err(ErrMode::Backtrack(ContextError::default())),
+    }
+}
+
+/// Consume an `Int` token and return its value.
+#[inline]
+pub fn t_int(input: &mut &[LexToken]) -> ModalResult<i32> {
+    match input.first() {
+        Some(LexToken { kind: TK::Int(n), .. }) => {
+            let n = *n; *input = &input[1..]; Ok(n)
+        }
+        _ => Err(ErrMode::Backtrack(ContextError::default())),
+    }
+}
+
+/// Consume a `Real` token and return its value.
+#[inline]
+pub fn t_real(input: &mut &[LexToken]) -> ModalResult<f64> {
+    match input.first() {
+        Some(LexToken { kind: TK::Real(f), .. }) => {
+            let f = *f; *input = &input[1..]; Ok(f)
+        }
+        _ => Err(ErrMode::Backtrack(ContextError::default())),
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Position helper
+// ---------------------------------------------------------------------------
+
+/// Return the source position (line, col) of the next token, or (0,0) at EOF.
+#[inline]
+pub fn current_pos(input: &&[LexToken]) -> (u32, u32) {
+    input.first().map(|t| (t.line, t.col)).unwrap_or((0, 0))
+}

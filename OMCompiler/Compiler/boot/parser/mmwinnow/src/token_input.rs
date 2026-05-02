@@ -39,7 +39,7 @@
 //! so all winnow combinators (`opt`, `alt`, `cut_err`, `peek`, …) work out of
 //! the box.  This module adds typed helper combinators on top.
 
-use crate::lexer::{Token as LexToken, TokenKind as TK};
+use crate::lexer::{Token as LexToken, TokenKind as TK, keyword_as_str};
 use winnow::{ModalResult, error::{ContextError, ErrMode}};
 
 /// The parser input type: a slice of already-lexed tokens.
@@ -104,6 +104,26 @@ pub fn t_ident(input: &mut &[LexToken]) -> ModalResult<String> {
             let s = s.clone(); *input = &input[1..]; Ok(s)
         }
         _ => Err(ErrMode::Backtrack(ContextError::default())),
+    }
+}
+
+/// Consume an `Ident` *or* any keyword token, returning the source spelling.
+/// Used where keywords may appear as field/record names (e.g. named arguments).
+#[inline]
+pub fn t_any_ident(input: &mut &[LexToken]) -> ModalResult<String> {
+    match input.first() {
+        Some(LexToken { kind: TK::Ident(s), .. }) => {
+            let s = s.clone(); *input = &input[1..]; Ok(s)
+        }
+        Some(LexToken { kind, .. }) => {
+            if let Some(spelling) = keyword_as_str(kind) {
+                *input = &input[1..];
+                Ok(spelling.to_string())
+            } else {
+                Err(ErrMode::Backtrack(ContextError::default()))
+            }
+        }
+        None => Err(ErrMode::Backtrack(ContextError::default())),
     }
 }
 

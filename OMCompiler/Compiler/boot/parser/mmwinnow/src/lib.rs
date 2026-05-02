@@ -15,7 +15,7 @@ pub use lexer::{Token as LexToken, TokenKind, LexError};
 pub use token_input::TokenInput;
 
 use lexer::TokenKind as TK;
-use token_input::{t, next_tok, peek_kind, try_tok, t_ident, t_str_token};
+use token_input::{t, next_tok, peek_kind, try_tok, t_ident, t_any_ident, t_str_token};
 use winnow::stream::Stream;
 use metamodelica::{List, cons, SourceInfo};
 
@@ -1720,8 +1720,21 @@ fn for_or_expression_list(input: &mut TokenInput) -> ModalResult<Absyn::Function
         return Ok(Absyn::FunctionArgs::FUNCTIONARGS { args: List::Nil(), argNames: List::Nil() });
     }
 
+    // If the first token cannot start an expression (e.g. a keyword used as a record
+    // field name like `constraint = value`), try all-named-arguments directly.
     let mut checkpoint = input.checkpoint();
-    let mut exp = expression(input)?;
+    let mut exp = match expression(input) {
+        Ok(e) => e,
+        Err(ErrMode::Backtrack(_)) => {
+            input.reset(&checkpoint);
+            let arg_names = named_arguments(input)?;
+            return Ok(Absyn::FunctionArgs::FUNCTIONARGS {
+                args: List::Nil(),
+                argNames: arg_names,
+            });
+        }
+        Err(e) => return Err(e),
+    };
 
     // For-iterator.
     if matches!(peek_kind(input), Some(TK::For) | Some(TK::Threaded)) {
@@ -1763,7 +1776,7 @@ fn for_or_expression_list(input: &mut TokenInput) -> ModalResult<Absyn::Function
 }
 
 fn named_argument(input: &mut TokenInput) -> ModalResult<Absyn::NamedArg> {
-    let argName  = t_ident(input)?;
+    let argName  = t_any_ident(input)?;
     t(TK::Equal).parse_next(input)?;
     let argValue = Rc::new(expression(input)?);
     Ok(Absyn::NamedArg::NAMEDARG { argName, argValue })

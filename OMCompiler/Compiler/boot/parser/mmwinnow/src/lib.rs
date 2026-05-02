@@ -6,8 +6,10 @@
 
 mod Absyn;
 mod metamodelica;
+pub mod lexer;
 
 pub use Absyn::*;
+pub use lexer::{Token as LexToken, TokenKind, LexError};
 use metamodelica::{List, cons, SourceInfo};
 
 use winnow::stream::Stream;
@@ -348,64 +350,62 @@ fn dummy_info() -> SourceInfo {
 
 /// Convert ClassBodyItem list to Absyn::ClassPart list.
 fn body_items_to_classparts(items: List<ClassBodyItem>) -> List<ClassPart> {
-    match items {
-        List::Nil() => List::Nil(),
-        List::Cons { head, tail } => {
-            let converted = match head {
-                ClassBodyItem::Section { section, items } => {
-                    let content = body_items_to_element_items((*items).clone());
-                    match section {
-                        SectionKind::Public => ClassPart::PUBLIC { contents: content },
-                        SectionKind::Protected => ClassPart::PROTECTED { contents: content },
-                    }
+    let mut res = List::Nil();
+    for item in items.into_iter() {
+        let converted = match item {
+            ClassBodyItem::Section { section, items } => {
+                let content = body_items_to_element_items((*items).clone());
+                match section {
+                    SectionKind::Public => ClassPart::PUBLIC { contents: content },
+                    SectionKind::Protected => ClassPart::PROTECTED { contents: content },
                 }
-                ClassBodyItem::Element(elem) => {
-                    // Wrap element as an ElementItem, then as a ClassPart
-                    // We need to store it somehow. Use a local representation.
-                    // For now, store in the composition's parts directly via PARTS.classParts
-                    // Since Absyn doesn't have a direct ClassPart for elements,
-                    // we embed them in the PARTS node.
-                    // Workaround: use PUBLIC section with single element
-                    let ei = ElementItem::ELEMENTITEM { element: elem };
-                    ClassPart::PUBLIC { contents: cons(ei, List::Nil()) }
-                }
-                ClassBodyItem::Annotation(ann) => {
-                    // Store annotation as EXTERNAL with annotation_ field
-                    // TODO: annotations should go to ClassDef::PARTS.ann
-                    ClassPart::EXTERNAL {
-                        externalDecl: ExternalDecl::EXTERNALDECL {
-                            funcName: None,
-                            lang: None,
-                            output_: None,
-                            args: List::Nil(),
-                            annotation_: Some(ann),
-                        },
-                        annotation_: None,
-                    }
-                }
-                ClassBodyItem::Equations(items) => ClassPart::EQUATIONS { contents: items },
-                ClassBodyItem::InitialEquations(items) => ClassPart::INITIALEQUATIONS { contents: items },
-                ClassBodyItem::Algorithms(items) => ClassPart::ALGORITHMS { contents: items },
-                ClassBodyItem::InitialAlgorithms(items) => ClassPart::INITIALALGORITHMS { contents: items },
-                ClassBodyItem::Constraints => {
-                    // TODO
-                    ClassPart::CONSTRAINTS { contents: List::Nil() }
-                }
-                ClassBodyItem::External { funcName, annotation_opt } => ClassPart::EXTERNAL {
+            }
+            ClassBodyItem::Element(elem) => {
+                // Wrap element as an ElementItem, then as a ClassPart
+                // We need to store it somehow. Use a local representation.
+                // For now, store in the composition's parts directly via PARTS.classParts
+                // Since Absyn doesn't have a direct ClassPart for elements,
+                // we embed them in the PARTS node.
+                // Workaround: use PUBLIC section with single element
+                let ei = ElementItem::ELEMENTITEM { element: elem };
+                ClassPart::PUBLIC { contents: cons(ei, List::Nil()) }
+            }
+            ClassBodyItem::Annotation(ann) => {
+                // Store annotation as EXTERNAL with annotation_ field
+                // TODO: annotations should go to ClassDef::PARTS.ann
+                ClassPart::EXTERNAL {
                     externalDecl: ExternalDecl::EXTERNALDECL {
-                        funcName,
+                        funcName: None,
                         lang: None,
                         output_: None,
                         args: List::Nil(),
-                        annotation_: annotation_opt,
+                        annotation_: Some(ann),
                     },
                     annotation_: None,
+                }
+            }
+            ClassBodyItem::Equations(items) => ClassPart::EQUATIONS { contents: items },
+            ClassBodyItem::InitialEquations(items) => ClassPart::INITIALEQUATIONS { contents: items },
+            ClassBodyItem::Algorithms(items) => ClassPart::ALGORITHMS { contents: items },
+            ClassBodyItem::InitialAlgorithms(items) => ClassPart::INITIALALGORITHMS { contents: items },
+            ClassBodyItem::Constraints => {
+                // TODO
+                ClassPart::CONSTRAINTS { contents: List::Nil() }
+            }
+            ClassBodyItem::External { funcName, annotation_opt } => ClassPart::EXTERNAL {
+                externalDecl: ExternalDecl::EXTERNALDECL {
+                    funcName,
+                    lang: None,
+                    output_: None,
+                    args: List::Nil(),
+                    annotation_: annotation_opt,
                 },
-            };
-            let rest = body_items_to_classparts((*tail).clone());
-            cons(converted, rest)
-        }
+                annotation_: None,
+            },
+        };
+        res =cons(converted, res)
     }
+    res.reverse()
 }
 
 /// Convert ClassBodyItem items for use inside PUBLIC/PROTECTED sections.
@@ -482,7 +482,7 @@ fn token_from_word<'a>(word: &'a str) -> Token<'a> {
         "class" => Token::Class,
         "$code" => Token::Code,
         "connector" => Token::Connector,
-        "constraint" => Token::Constraint,
+        // "constraint" => Token::Constraint,
         "continue" => Token::Continue,
         "declareunit" => Token::Declareunit,
         "der" => Token::Der,
@@ -509,7 +509,7 @@ fn token_from_word<'a>(word: &'a str) -> Token<'a> {
         "match" => Token::Match,
         "matchcontinue" => Token::Matchcontinue,
         "model" => Token::Model,
-        "operator" => Token::Operator,
+        // "operator" => Token::Operator,
         "optimization" => Token::Optimization,
         "overload" => Token::Overload,
         "package" => Token::Package,
@@ -903,32 +903,23 @@ fn composition2<'a>(input: &mut &'a str) -> ModalResult<List<ClassBodyItem>> {
             continue;
         }
         if opt("public").parse_next(input)?.is_some() {
-            println!("Parsing public section, next input {}", &input[0..input.len().min(20)]);
             let items = element_list(input)?;
-            let tail = composition2(input)?;
             parts = cons(ClassBodyItem::Section { section: SectionKind::Public, items: Rc::new(items) }, parts);
-            parts = parts.append(&tail);
             continue;
         }
         if opt("protected").parse_next(input)?.is_some() {
             let items = element_list(input)?;
-            let tail = composition2(input)?;
             parts = cons(ClassBodyItem::Section { section: SectionKind::Protected, items: Rc::new(items) }, parts);
-            parts = parts.append(&tail);
             continue;
         }
         if opt("initial").parse_next(input)?.is_some() {
             skip_trivia(input)?;
             if opt("equation").parse_next(input)?.is_some() {
                 let items = cut_err(equation_section_items).context(StrContext::Label("initial equation section")).parse_next(input)?;
-                let tail = composition2(input)?;
                 parts = cons(ClassBodyItem::InitialEquations(items), parts);
-                parts = parts.append(&tail);
             } else if opt("algorithm").parse_next(input)?.is_some() {
                 let items = cut_err(algorithm_section_items).context(StrContext::Label("initial algorithm section")).parse_next(input)?;
-                let tail = composition2(input)?;
                 parts = cons(ClassBodyItem::InitialAlgorithms(items), parts);
-                parts = parts.append(&tail);
             } else {
                 return Err(ErrMode::Backtrack(ContextError::default()));
             }
@@ -936,16 +927,12 @@ fn composition2<'a>(input: &mut &'a str) -> ModalResult<List<ClassBodyItem>> {
         }
         if opt("equation").parse_next(input)?.is_some() {
             let items = cut_err(equation_section_items).context(StrContext::Label("equation section")).parse_next(input)?;
-            let tail = composition2(input)?;
             parts = cons(ClassBodyItem::Equations(items), parts);
-            parts = parts.append(&tail);
             continue;
         }
         if opt("algorithm").parse_next(input)?.is_some() {
             let items = cut_err(algorithm_section_items).context(StrContext::Label("algorithm section")).parse_next(input)?;
-            let tail = composition2(input)?;
             parts = cons(ClassBodyItem::Algorithms(items), parts);
-            parts = parts.append(&tail);
             continue;
         }
         break;
@@ -1735,9 +1722,7 @@ fn primary<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
 
     // String literal
     if input.starts_with('"') {
-println!("Parsing string literal, next input {}", &input[0..input.len().min(20)]);
         let s = string_token(input)?;
-println!("Got string literal {}, next input {}", s, &input[0..input.len().min(20)]);
         return Ok(Absyn::Exp::STRING { value: s });
     }
 
@@ -2603,7 +2588,6 @@ fn match_expression<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
 
 fn expression<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
     skip_trivia(input)?;
-println!("Parsing expression, next input {}", &input[0..input.len().min(200)]);
     match peek(opt(keyword_or_ident)).parse_next(input)? {
         Some(Token::If) => return if_expression(input),
         Some(Token::Match) | Some(Token::Matchcontinue) => return match_expression(input),

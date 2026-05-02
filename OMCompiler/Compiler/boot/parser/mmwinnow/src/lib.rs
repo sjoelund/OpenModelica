@@ -38,9 +38,8 @@ pub struct ParserError<'a> {
 
 impl<'a> ParserError<'a> {
     pub fn from_parse_error(err: winnow::error::ParseError<&'a str, ContextError>, original: &'a str) -> Self {
-        let range = err.char_span();
-        let offset = range.end;
-        let remaining = &original[offset..];
+        let remaining = err.input();
+        let offset = original.len() - remaining.len();
         let inner = err.inner().clone();
         ParserError { offset, remaining, inner, _original: original }
     }
@@ -880,7 +879,7 @@ fn composition<'a>(input: &mut &'a str) -> ModalResult<List<ClassBodyItem>> {
     // (annotation SEMICOLON)?
     skip_trivia(input)?;
     if let Some(ann) = opt(annotation).parse_next(input)? {
-        ";".parse_next(input)?;
+        cut_err(";").context(StrContext::Label("';' after annotation")).parse_next(input)?;
         // TODO: class-level annotations should go to ClassDef::PARTS.ann
         let mut result = combined;
         result = cons(ClassBodyItem::Annotation(ann), result);
@@ -921,12 +920,12 @@ fn composition2<'a>(input: &mut &'a str) -> ModalResult<List<ClassBodyItem>> {
         if opt("initial").parse_next(input)?.is_some() {
             skip_trivia(input)?;
             if opt("equation").parse_next(input)?.is_some() {
-                let items = equation_section_items(input)?;
+                let items = cut_err(equation_section_items).context(StrContext::Label("initial equation section")).parse_next(input)?;
                 let tail = composition2(input)?;
                 parts = cons(ClassBodyItem::InitialEquations(items), parts);
                 parts = parts.append(&tail);
             } else if opt("algorithm").parse_next(input)?.is_some() {
-                let items = algorithm_section_items(input)?;
+                let items = cut_err(algorithm_section_items).context(StrContext::Label("initial algorithm section")).parse_next(input)?;
                 let tail = composition2(input)?;
                 parts = cons(ClassBodyItem::InitialAlgorithms(items), parts);
                 parts = parts.append(&tail);
@@ -936,14 +935,14 @@ fn composition2<'a>(input: &mut &'a str) -> ModalResult<List<ClassBodyItem>> {
             continue;
         }
         if opt("equation").parse_next(input)?.is_some() {
-            let items = equation_section_items(input)?;
+            let items = cut_err(equation_section_items).context(StrContext::Label("equation section")).parse_next(input)?;
             let tail = composition2(input)?;
             parts = cons(ClassBodyItem::Equations(items), parts);
             parts = parts.append(&tail);
             continue;
         }
         if opt("algorithm").parse_next(input)?.is_some() {
-            let items = algorithm_section_items(input)?;
+            let items = cut_err(algorithm_section_items).context(StrContext::Label("algorithm section")).parse_next(input)?;
             let tail = composition2(input)?;
             parts = cons(ClassBodyItem::Algorithms(items), parts);
             parts = parts.append(&tail);
@@ -972,7 +971,7 @@ fn element_list<'a>(input: &mut &'a str) -> ModalResult<List<ClassBodyItem>> {
         // annotation SEMICOLON
         if let Some(ann) = opt(annotation).parse_next(input)? {
             skip_trivia(input)?;
-            ";".parse_next(input)?;
+            cut_err(";").context(StrContext::Label("';' after annotation")).parse_next(input)?;
             items = cons(ClassBodyItem::Annotation(ann), items);
             continue;
         }
@@ -980,7 +979,7 @@ fn element_list<'a>(input: &mut &'a str) -> ModalResult<List<ClassBodyItem>> {
         // import_clause SEMICOLON
         if let Some(imp) = opt(import_clause).parse_next(input)? {
             skip_trivia(input)?;
-            ";".parse_next(input)?;
+            cut_err(";").context(StrContext::Label("';' after import clause")).parse_next(input)?;
             let elem = mk_element(
                 ElementSpec::IMPORT { import_: imp, comment: None, info: dummy_info() },
             );
@@ -991,7 +990,7 @@ fn element_list<'a>(input: &mut &'a str) -> ModalResult<List<ClassBodyItem>> {
         // extends_clause SEMICOLON
         if let Some(ext) = opt(extends_clause).parse_next(input)? {
             skip_trivia(input)?;
-            ";".parse_next(input)?;
+            cut_err(";").context(StrContext::Label("';' after extends clause")).parse_next(input)?;
             let elem = mk_element(
                 ElementSpec::EXTENDS {
                     path: ext.path,
@@ -1006,7 +1005,7 @@ fn element_list<'a>(input: &mut &'a str) -> ModalResult<List<ClassBodyItem>> {
         // Nested class_definition SEMICOLON
         if let Some(cls) = opt(class_definition).parse_next(input)? {
             skip_trivia(input)?;
-            ";".parse_next(input)?;
+            cut_err(";").context(StrContext::Label("';' after class definition")).parse_next(input)?;
             let elem = mk_element(
                 ElementSpec::CLASSDEF { replaceable_: false, class_: Rc::new(cls) },
             );
@@ -1273,6 +1272,7 @@ fn extends_clause<'a>(input: &mut &'a str) -> ModalResult<ExtendsClause> {
 
 fn equation_section_items<'a>(input: &mut &'a str) -> ModalResult<List<EquationItem>> {
     let mut items: List<EquationItem> = List::Nil();
+println!("Parsing eq section, next input {}", &input[0..input.len().min(200)]);
     loop {
         skip_trivia(input)?;
         if input.is_empty() { break; }
@@ -1291,7 +1291,7 @@ fn equation_section_items<'a>(input: &mut &'a str) -> ModalResult<List<EquationI
         }
         skip_trivia(input)?;
         if input.starts_with(';') {
-            ";".parse_next(input)?;
+            cut_err(";").context(StrContext::Label("';' after equation item")).parse_next(input)?;
         } else { break; }
     }
     Ok(items.reverse())
@@ -1388,7 +1388,7 @@ fn algorithm_section_items<'a>(input: &mut &'a str) -> ModalResult<List<Algorith
         }
 
         skip_trivia(input)?;
-        if opt(";").parse_next(input)?.is_none() { break; }
+        cut_err(";").context(StrContext::Label("';' after statement")).parse_next(input)?;
     }
     Ok(items.reverse())
 }
@@ -2113,9 +2113,6 @@ fn simple_expr<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
 }
 
 /// simple_expression: (ident AS simple_expression) | (simple_expr (:: simple_expression)?)
-thread_local! { static SIMPLE_EXPR_DEPTH: std::cell::Cell<usize> = const { std::cell::Cell::new(0) }; }
-thread_local! { static EXPR_DEPTH: std::cell::Cell<usize> = const { std::cell::Cell::new(0) }; }
-
 fn simple_expression<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
     // Check for ident AS pattern (MetaModelica)
     {
@@ -2237,7 +2234,7 @@ fn equation_list_then<'a>(input: &mut &'a str) -> ModalResult<List<Absyn::Equati
             items = cons(Absyn::EquationItem::EQUATIONITEMCOMMENT { comment: trimmed }, items);
         }
         skip_trivia(input)?;
-        if opt(";").parse_next(input)?.is_none() { break; }
+        cut_err(";").context(StrContext::Label("';' after equation item")).parse_next(input)?;
     }
     Ok(items.reverse())
 }
@@ -2255,7 +2252,7 @@ fn algorithm_list_then<'a>(input: &mut &'a str) -> ModalResult<List<Absyn::Algor
             items = cons(Absyn::AlgorithmItem::ALGORITHMITEMCOMMENT { comment: trimmed }, items);
         }
         skip_trivia(input)?;
-        if opt(";").parse_next(input)?.is_none() { break; }
+        cut_err(";").context(StrContext::Label("';' after algorithm item")).parse_next(input)?;
     }
     Ok(items.reverse())
 }
@@ -2265,12 +2262,12 @@ fn match_case_body<'a>(input: &mut &'a str) -> ModalResult<Absyn::ClassPart> {
     match peek(opt(keyword_or_ident)).parse_next(input)? {
         Some(Token::Equation) => {
             keyword_or_ident.parse_next(input)?;
-            let eqs = equation_list_then(input)?;
+            let eqs = cut_err(equation_list_then).context(StrContext::Label("equation list in match case")).parse_next(input)?;
             Ok(Absyn::ClassPart::EQUATIONS { contents: eqs })
         }
         Some(Token::Algorithm) => {
             keyword_or_ident.parse_next(input)?;
-            let algs = algorithm_list_then(input)?;
+            let algs = cut_err(algorithm_list_then).context(StrContext::Label("algorithm list in match case")).parse_next(input)?;
             Ok(Absyn::ClassPart::ALGORITHMS { contents: algs })
         }
         _ => Ok(Absyn::ClassPart::EQUATIONS { contents: List::Nil() }),

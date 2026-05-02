@@ -174,6 +174,8 @@ impl std::fmt::Display for LexError {
     }
 }
 
+impl std::error::Error for LexError {}
+
 // ---------------------------------------------------------------------------
 // Lexer internals
 // ---------------------------------------------------------------------------
@@ -507,7 +509,6 @@ impl<'s> Lexer<'s> {
             '}' => TokenKind::RBrace,
             ',' => TokenKind::Comma,
             ';' => TokenKind::Semi,
-            '|' => TokenKind::Pipe,
             '%' => TokenKind::Percent,
             '+' => TokenKind::Plus,
             '-' => TokenKind::Minus,
@@ -590,6 +591,7 @@ impl<'s> Lexer<'s> {
             // '&&' → And, '||' → Or, '!' → Not.
             '&' if self.peek() == Some('&') => { self.advance(); TokenKind::And }
             '|' if self.peek() == Some('|') => { self.advance(); TokenKind::Or }
+            '|' => TokenKind::Pipe,
             '!' => TokenKind::Not,
 
             other => {

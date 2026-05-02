@@ -904,6 +904,7 @@ fn composition2<'a>(input: &mut &'a str) -> ModalResult<List<ClassBodyItem>> {
             continue;
         }
         if opt("public").parse_next(input)?.is_some() {
+            println!("Parsing public section, next input {}", &input[0..input.len().min(20)]);
             let items = element_list(input)?;
             let tail = composition2(input)?;
             parts = cons(ClassBodyItem::Section { section: SectionKind::Public, items: Rc::new(items) }, parts);
@@ -1420,7 +1421,9 @@ fn component_reference2<'a>(input: &mut &'a str) -> ModalResult<Absyn::Component
 }
 
 fn named_argument<'a>(input: &mut &'a str) -> ModalResult<Absyn::NamedArg> {
+    skip_trivia(input)?;
     let argName = ident(input)?;
+    skip_trivia(input)?;
     "=".parse_next(input)?;
     let argValue = Rc::new(expression(input)?);
     Ok(Absyn::NamedArg::NAMEDARG { argName, argValue })
@@ -1481,7 +1484,9 @@ fn primary<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
 
     // String literal
     if input.starts_with('"') {
+println!("Parsing string literal, next input {}", &input[0..input.len().min(20)]);
         let s = string_token(input)?;
+println!("Got string literal {}, next input {}", s, &input[0..input.len().min(20)]);
         return Ok(Absyn::Exp::STRING { value: s });
     }
 
@@ -1515,13 +1520,10 @@ fn primary<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
         return Ok(Absyn::Exp::MATRIX { matrix: rows });
     }
 
-println!("array? {}", &input[0..input.len().min(20)]);
     // { for_or_expression_list }
     if input.starts_with('{') {
         "{".parse_next(input)?;
-println!("array? {}", &input[0..input.len().min(20)]);
         let fa = for_or_expression_list(input)?;
-println!("array for {:?} {}", fa, &input[0..input.len().min(20)]);
         "}".parse_next(input)?;
         return match fa {
             Absyn::FunctionArgs::FOR_ITER_FARG { exp, iterType, iterators } => {
@@ -1555,7 +1557,12 @@ println!("array for {:?} {}", fa, &input[0..input.len().min(20)]);
         return Ok(Absyn::Exp::CALL { function_: Rc::new(cr), functionArgs: fa, typeVars: List::Nil() });
     }
 
-    // component_reference__function_call
+    if let Some(Token::End) = tok {
+        keyword_or_ident.parse_next(input)?;
+        return Ok(Absyn::Exp::END {});
+    }
+
+        // component_reference__function_call
     component_reference__function_call(input)
 }
 
@@ -1737,7 +1744,7 @@ fn for_or_expression_list<'a>(input: &mut &'a str) -> ModalResult<Absyn::Functio
     let mut arg_names = List::Nil();
     loop {
         match exp {
-            Exp::CREF{componentRef} if matches!(*componentRef, ComponentRef::CREF_IDENT{subscripts=List::Nil()}) => {
+            Exp::CREF{componentRef} if match &*componentRef { ComponentRef::CREF_IDENT{subscripts, ..} => subscripts.is_empty(), _ => false } => {
                 input.reset(&checkpoint);
                 arg_names = named_arguments.parse_next(input)?;
                 break;
@@ -2106,6 +2113,9 @@ fn simple_expr<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
 }
 
 /// simple_expression: (ident AS simple_expression) | (simple_expr (:: simple_expression)?)
+thread_local! { static SIMPLE_EXPR_DEPTH: std::cell::Cell<usize> = const { std::cell::Cell::new(0) }; }
+thread_local! { static EXPR_DEPTH: std::cell::Cell<usize> = const { std::cell::Cell::new(0) }; }
+
 fn simple_expression<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
     // Check for ident AS pattern (MetaModelica)
     {
@@ -2370,6 +2380,7 @@ fn match_expression<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
 
 fn expression<'a>(input: &mut &'a str) -> ModalResult<Absyn::Exp> {
     skip_trivia(input)?;
+println!("Parsing expression, next input {}", &input[0..input.len().min(200)]);
     match peek(opt(keyword_or_ident)).parse_next(input)? {
         Some(Token::If) => return if_expression(input),
         Some(Token::Match) | Some(Token::Matchcontinue) => return match_expression(input),
@@ -2604,6 +2615,7 @@ mod tests {
 
     #[test]
     fn parse_absyn() {
+        // unsafe { backtrace_on_stack_overflow::enable() };
         let code = std::fs::read_to_string("tests/data/Absyn.mo")
             .expect("Absyn.mo not found");
         let result = stored_definition.parse(&*code);
@@ -2614,6 +2626,7 @@ mod tests {
 
     #[test]
     fn parse_codegen_c() {
+        // unsafe { backtrace_on_stack_overflow::enable() };
         let code = std::fs::read_to_string("tests/data/CodegenC.mo")
             .expect("CodegenC.mo not found");
         let result = stored_definition.parse(&*code);

@@ -387,7 +387,13 @@ fn class_specifier(input: &mut TokenInput) -> ModalResult<ClassSpecifier> {
             .context(StrContext::Label("'end' closing class-extends"))
             .parse_next(input)?;
         let _end_name = t_ident(input)?;
-        let ann: List<Annotation> = List::Nil();
+        let ann = match opt(annotation).parse_next(input)? {
+            Some(ann) => {
+                t(TK::Semi).parse_next(input)?;
+                List::new(ann)
+            },
+            None => List::Nil()
+        };
         Ok(ClassSpecifier::Extends {
             name: name.clone(),
             body: Rc::new(ClassDef::CLASS_EXTENDS {
@@ -464,8 +470,16 @@ fn class_specifier2(input: &mut TokenInput) -> ModalResult<Rc<ClassDef>> {
         .context(StrContext::Label("class name after 'end'"))
         .parse_next(input)?;
 
+    let ann = match opt(annotation).parse_next(input)? {
+        Some(ann) => {
+            cut_err(t(TK::Semi)).context(StrContext::Label("';' after annotation")).parse_next(input)?;
+            List::new(ann)
+        },
+        None => List::Nil()
+    };
+
     Ok(Rc::new(ClassDef::PARTS {
-        typeVars, classAttrs: List::Nil(), classParts, ann: List::Nil(), comment,
+        typeVars, classAttrs: List::Nil(), classParts, ann, comment,
     }))
 }
 
@@ -487,7 +501,6 @@ fn composition2(input: &mut TokenInput) -> ModalResult<List<ClassBodyItem>> {
     let mut parts: List<ClassBodyItem> = List::Nil();
     loop {
         if input.is_empty() { break; }
-
         if let Some(ext) = opt(external_part).parse_next(input)? {
             parts = cons(ext, parts); continue;
         }
@@ -798,7 +811,7 @@ fn equation_section_items(input: &mut TokenInput) -> ModalResult<List<EquationIt
         if input.is_empty() { break; }
         match peek_kind(input) {
             Some(TK::Public) | Some(TK::Protected) | Some(TK::Equation) | Some(TK::Algorithm)
-            | Some(TK::External) | Some(TK::End) | Some(TK::Initial) => break,
+            | Some(TK::External) | Some(TK::End) | Some(TK::Initial) | Some(TK::Annotation) => break,
             _ => {}
         }
         items = cons(equation_item(input)?, items);
@@ -813,7 +826,7 @@ fn algorithm_section_items(input: &mut TokenInput) -> ModalResult<List<Algorithm
         if input.is_empty() { break; }
         match peek_kind(input) {
             Some(TK::Public) | Some(TK::Protected) | Some(TK::Equation) | Some(TK::Algorithm)
-            | Some(TK::Initial) | Some(TK::End) | Some(TK::External) => break,
+            | Some(TK::Initial) | Some(TK::End) | Some(TK::External) | Some(TK::Annotation) => break,
             _ => {}
         }
         items = cons(algorithm_item(input)?, items);

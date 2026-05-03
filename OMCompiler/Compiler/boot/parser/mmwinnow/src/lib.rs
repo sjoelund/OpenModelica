@@ -36,6 +36,7 @@ pub enum Grammar {
     Modelica2,
     Modelica3,
     MetaModelica,
+    Optimica,
 }
 
 // ---------------------------------------------------------------------------
@@ -1000,6 +1001,7 @@ fn equation_item(input: &mut TokenInput) -> ModalResult<EquationItem> {
         Some(TK::If)   => if_equation_e(input)?,
         Some(TK::For)  => for_equation_e(input)?,
         Some(TK::When) => when_equation_e(input)?,
+        Some(TK::Failure)  => failure_equation(input)?,
         _              => equality_or_noretcall_equation(input)?,
     };
     let comment = comment(input)?;
@@ -1129,6 +1131,14 @@ fn when_equation_e(input: &mut TokenInput) -> ModalResult<Equation> {
         whenEquations: to_rc_list(when_body),
         elseWhenEquations: ew_list,
     })
+}
+
+fn failure_equation(input: &mut TokenInput) -> ModalResult<Equation> {
+    next_tok(input)?; // Failure
+    t(TK::LParen).parse_next(input)?;
+    let body = equation_item(input)?;
+    t(TK::RParen).parse_next(input)?;
+    Ok(Equation::EQ_FAILURE { equ: body })
 }
 
 /// Algorithm statements stopping at Then / Else / Elseif / Elsewhen / End.

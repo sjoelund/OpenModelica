@@ -361,6 +361,7 @@ impl<'s> Lexer<'s> {
     fn keyword_or_ident(&self, word: &str) -> TokenKind {
         let meta = matches!(self.grammar, Grammar::MetaModelica);
         let not_m2 = !matches!(self.grammar, Grammar::Modelica2);
+        let optimica = matches!(self.grammar, Grammar::Optimica);
 
         match word {
             // ---- base keywords ----
@@ -401,7 +402,7 @@ impl<'s> Lexer<'s> {
             "loop"          => TokenKind::Loop,
             "model"         => TokenKind::Model,
             "not"           => TokenKind::Not,
-            "operator"      => TokenKind::Operator,
+            "operator"      if !meta => TokenKind::Operator,
             "or"            => TokenKind::Or,
             "outer"         => TokenKind::Outer,
             "output"        => TokenKind::Output,
@@ -451,8 +452,8 @@ impl<'s> Lexer<'s> {
             "impure"  if not_m2 => TokenKind::Impure,
 
             // ---- Optimica extensions (always enabled for now) ----
-            "optimization" => TokenKind::Optimization,
-            "constraint"   => TokenKind::Constraint,
+            "optimization" if optimica => TokenKind::Optimization,
+            "constraint"   if optimica => TokenKind::Constraint,
 
             _ => TokenKind::Ident(word.to_string()),
         }

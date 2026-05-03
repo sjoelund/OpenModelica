@@ -1173,6 +1173,7 @@ fn match_case_body(input: &mut TokenInput) -> ModalResult<Absyn::ClassPart> {
             let eqs = cut_err(equation_list_then)
                 .context(StrContext::Label("equation list in match case"))
                 .parse_next(input)?;
+            t(TK::Then).parse_next(input)?;
             Ok(Absyn::ClassPart::EQUATIONS { contents: eqs })
         }
         Some(TK::Algorithm) => {
@@ -1180,9 +1181,10 @@ fn match_case_body(input: &mut TokenInput) -> ModalResult<Absyn::ClassPart> {
             let algs = cut_err(algorithm_list_then)
                 .context(StrContext::Label("algorithm list in match case"))
                 .parse_next(input)?;
+            t(TK::Then).parse_next(input)?;
             Ok(Absyn::ClassPart::ALGORITHMS { contents: algs })
         }
-        _ => Ok(Absyn::ClassPart::EQUATIONS { contents: List::Nil() }),
+        _ => Ok(Absyn::ClassPart::ALGORITHMS { contents: List::Nil() }),
     }
 }
 
@@ -1218,10 +1220,6 @@ fn match_onecase(input: &mut TokenInput) -> ModalResult<Absyn::Case> {
     let comment    = string_comment(input)?;
     let localDecls = local_clause(input)?;
     let classPart  = match_case_body(input)?;
-    match next_tok(input)? {
-        TK::Then => {}
-        _        => return Err(ErrMode::Backtrack(ContextError::default())),
-    }
     let result = expression(input)?;
     t(TK::Semi).parse_next(input)?;
     Ok(Absyn::Case::CASE {
@@ -1241,10 +1239,6 @@ fn match_cases(input: &mut TokenInput) -> ModalResult<List<Absyn::Case>> {
                 let comment    = string_comment(input)?;
                 let localDecls = local_clause(input)?;
                 let classPart  = match_case_body(input)?;
-                match next_tok(input)? {
-                    TK::Then => {}
-                    _        => return Err(ErrMode::Backtrack(ContextError::default())),
-                }
                 let result = expression(input)?;
                 t(TK::Semi).parse_next(input)?;
                 cases = cons(Absyn::Case::ELSE {
@@ -1565,7 +1559,7 @@ fn primary(input: &mut TokenInput) -> ModalResult<Absyn::Exp> {
         Some(TK::End)   => { next_tok(input)?; return Ok(Absyn::Exp::END {}); }
         Some(TK::True)  => { next_tok(input)?; return Ok(Absyn::Exp::BOOL { value: true  }); }
         Some(TK::False) => { next_tok(input)?; return Ok(Absyn::Exp::BOOL { value: false }); }
-        Some(TK::Str(_))=> { return Ok(Absyn::Exp::STRING { value: string_comment(input)?.unwrap_or_default() }); }
+        Some(TK::Str(s))=> { let value = s.clone(); next_tok(input)?; return Ok(Absyn::Exp::STRING { value }); }
         Some(TK::Int(_)) | Some(TK::Real(_)) => { return number_literal(input); }
         Some(TK::LParen) => {
             next_tok(input)?;

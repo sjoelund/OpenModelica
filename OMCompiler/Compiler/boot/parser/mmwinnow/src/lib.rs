@@ -349,18 +349,24 @@ fn class_type2(input: &mut TokenInput) -> ModalResult<Restriction> {
         TK::Type         => Restriction::R_TYPE {},
         TK::Package      => Restriction::R_PACKAGE {},
         TK::Uniontype    => Restriction::R_UNIONTYPE {},
-        TK::Operator     => Restriction::R_OPERATOR_RECORD {},
+        TK::Operator     => {
+            if opt(t(TK::Record)).parse_next(input)?.is_some() {
+                Restriction::R_OPERATOR_RECORD {}
+            } else {
+                Restriction::R_OPERATOR {}
+            }
+        },
         _                => return Err(ErrMode::Backtrack(ContextError::default())),
     };
     Ok(res)
 }
 
 fn class_type_function(input: &mut TokenInput) -> ModalResult<Restriction> {
-    let purity = try_tok(input, |k| match k {
-        TK::Pure   => Some(Absyn::FunctionPurity::PURE {}),
-        TK::Impure => Some(Absyn::FunctionPurity::IMPURE {}),
-        _          => None,
-    }).unwrap_or(Absyn::FunctionPurity::NO_PURITY {});
+    let purity = match opt(alt((t(TK::Pure), t(TK::Impure)))).parse_next(input)? {
+        Some(TK::Pure)   => Absyn::FunctionPurity::PURE {},
+        Some(TK::Impure) => Absyn::FunctionPurity::IMPURE {},
+        _ => Absyn::FunctionPurity::NO_PURITY {},
+    };
 
     let functionRestriction = try_tok(input, |k| match k {
         TK::Operator  => Some(Absyn::FunctionRestriction::FR_OPERATOR_FUNCTION {}),

@@ -448,7 +448,7 @@ impl<'s> Lexer<'s> {
 
             // ---- Modelica 3.x keywords ----
             "stream"  if not_m2 => TokenKind::Stream,
-            "pure"    if not_m2 => TokenKind::Pure,
+            "pure"    if not_m2 && !meta => TokenKind::Pure,
             "impure"  if not_m2 => TokenKind::Impure,
 
             // ---- Optimica extensions (always enabled for now) ----

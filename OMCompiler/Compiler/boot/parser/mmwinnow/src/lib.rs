@@ -575,16 +575,73 @@ fn element_list(input: &mut TokenInput) -> ModalResult<List<ClassBodyItem>> {
             });
             items = cons(ClassBodyItem::Element(elem), items); continue;
         }
+        // element prefixes: [ redeclare ] [ final ] [ inner ] [ outer ]
+        //   then ( [replaceable] class_definition | [replaceable] component_clause )
+        //   with optional constrainedby clause if replaceable
+        let redeclare_  = opt(t(TK::Redeclare)).parse_next(input)?.is_some();
+        let final_      = opt(t(TK::Final)).parse_next(input)?.is_some();
+        let inner_      = opt(t(TK::Inner)).parse_next(input)?.is_some();
+        let outer_      = opt(t(TK::Outer)).parse_next(input)?.is_some();
+        let replaceable_ = opt(t(TK::Replaceable)).parse_next(input)?.is_some();
+
+        let redeclareKeywords: Option<RedeclareKeywords> = match (redeclare_, replaceable_) {
+            (true,  true)  => Some(RedeclareKeywords::REDECLARE_REPLACEABLE {}),
+            (true,  false) => Some(RedeclareKeywords::REDECLARE {}),
+            (false, true)  => Some(RedeclareKeywords::REPLACEABLE {}),
+            (false, false) => None,
+        };
+        let innerOuter = match (inner_, outer_) {
+            (true,  true)  => InnerOuter::INNER_OUTER {},
+            (true,  false) => InnerOuter::INNER {},
+            (false, true)  => InnerOuter::OUTER {},
+            (false, false) => InnerOuter::NOT_INNER_OUTER {},
+        };
+
+        let had_prefixes = redeclare_ || final_ || inner_ || outer_ || replaceable_;
+
         if let Some(cls) = opt(class_definition).parse_next(input)? {
+            let constrainClass = if replaceable_ && opt(t(TK::Constrainedby)).parse_next(input)?.is_some() {
+                let path       = cut_err(name_path).context(StrContext::Label("path in constrainedby")).parse_next(input)?;
+                let elementArg = opt(class_modification).parse_next(input)?.unwrap_or_else(List::Nil);
+                let cmt        = comment(input)?;
+                Some(ConstrainClass::CONSTRAINCLASS {
+                    elementSpec: ElementSpec::EXTENDS { path, elementArg, annotationOpt: None },
+                    comment: cmt,
+                })
+            } else { None };
             cut_err(t(TK::Semi)).context(StrContext::Label("';' after class definition")).parse_next(input)?;
-            let elem = mk_element(ElementSpec::CLASSDEF { replaceable_: false, class_: Rc::new(cls) });
+            let elem = Absyn::Element::ELEMENT {
+                finalPrefix: final_, redeclareKeywords, innerOuter,
+                specification: ElementSpec::CLASSDEF { replaceable_: replaceable_, class_: Rc::new(cls) },
+                info: dummy_info(), constrainClass,
+            };
             items = cons(ClassBodyItem::Element(elem), items); continue;
         }
         if let Some(cc) = opt(component_clause).parse_next(input)? {
-            let elem = mk_element(ElementSpec::COMPONENTS {
-                attributes: cc.typePrefix, typeSpec: cc.typeSpec, components: cc.components,
-            });
+            let constrainClass = if replaceable_ && opt(t(TK::Constrainedby)).parse_next(input)?.is_some() {
+                let path       = cut_err(name_path).context(StrContext::Label("path in constrainedby")).parse_next(input)?;
+                let elementArg = opt(class_modification).parse_next(input)?.unwrap_or_else(List::Nil);
+                let cmt        = comment(input)?;
+                Some(ConstrainClass::CONSTRAINCLASS {
+                    elementSpec: ElementSpec::EXTENDS { path, elementArg, annotationOpt: None },
+                    comment: cmt,
+                })
+            } else { None };
+            let elem = Absyn::Element::ELEMENT {
+                finalPrefix: final_, redeclareKeywords, innerOuter,
+                specification: ElementSpec::COMPONENTS {
+                    attributes: cc.typePrefix, typeSpec: cc.typeSpec, components: cc.components,
+                },
+                info: dummy_info(), constrainClass,
+            };
             items = cons(ClassBodyItem::Element(elem), items); continue;
+        }
+
+        if had_prefixes {
+            return Err(ErrMode::Cut(ContextError::new().add_context(
+                input, &input.checkpoint(),
+                StrContext::Label("class definition or component clause after element prefixes"),
+            )));
         }
         break;
     }

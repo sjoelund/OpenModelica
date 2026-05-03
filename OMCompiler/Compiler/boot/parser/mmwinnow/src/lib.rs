@@ -14,7 +14,7 @@ pub use Absyn::*;
 pub use lexer::{Token as LexToken, TokenKind, LexError};
 pub use token_input::TokenInput;
 
-use lexer::TokenKind as TK;
+use lexer::{Token, TokenKind as TK};
 use token_input::{t, next_tok, peek_kind, try_tok, t_ident, t_any_ident, t_str_token};
 use winnow::stream::Stream;
 use metamodelica::{List, cons, SourceInfo};
@@ -170,14 +170,15 @@ struct ComponentClause {
     components: List<Rc<ComponentItem>>,
 }
 
-fn dummy_info() -> SourceInfo {
+fn source_info(tok1: &Token, tok2: &Token) -> SourceInfo {
+    let (end_line, end_col) = tok2.end_pos();
     SourceInfo {
         file_name: String::new(),
         is_read_only: false,
-        line_number_start: 0,
-        column_number_start: 0,
-        line_number_end: 0,
-        column_number_end: 0,
+        line_number_start: tok1.line as i32,
+        column_number_start: tok1.col as i32,
+        line_number_end: end_line as i32,
+        column_number_end: end_col as i32,
         last_modification: 0.0,
     }
 }
@@ -238,14 +239,6 @@ fn body_items_to_element_items(items: List<ClassBodyItem>) -> List<ElementItem> 
             };
             cons(converted, body_items_to_element_items((*tail).clone()))
         }
-    }
-}
-
-fn mk_element(specification: ElementSpec) -> Absyn::Element {
-    Absyn::Element::ELEMENT {
-        finalPrefix: false, redeclareKeywords: None,
-        innerOuter: InnerOuter::NOT_INNER_OUTER {}, specification,
-        info: dummy_info(), constrainClass: None,
     }
 }
 
@@ -315,6 +308,7 @@ fn class_definition_list(input: &mut TokenInput) -> ModalResult<List<Class>> {
 
 /// class_definition: ENCAPSULATED? PARTIAL? FINAL? class_type class_specifier
 fn class_definition(input: &mut TokenInput) -> ModalResult<Class> {
+    let start = *input;
     let encapsulatedPrefix = opt(t(TK::Encapsulated)).parse_next(input)?.is_some();
     let partialPrefix      = opt(t(TK::Partial)).parse_next(input)?.is_some();
     let finalPrefix        = opt(t(TK::Final)).parse_next(input)?.is_some();
@@ -326,7 +320,7 @@ fn class_definition(input: &mut TokenInput) -> ModalResult<Class> {
         name: specifier.name(), partialPrefix, finalPrefix, encapsulatedPrefix,
         restriction, body: specifier.body(),
         commentsBeforeClass: List::Nil(), commentsBeforeEnd: List::Nil(),
-        commentsAfterEnd: List::Nil(), info: dummy_info(),
+        commentsAfterEnd: List::Nil(), info: source_info(&start[0], &start[start.len() - input.len() - 1]),
     })
 }
 
@@ -558,6 +552,7 @@ fn composition2(input: &mut TokenInput) -> ModalResult<List<ClassBodyItem>> {
 fn element_list(input: &mut TokenInput) -> ModalResult<List<ClassBodyItem>> {
     let mut items: List<ClassBodyItem> = List::Nil();
     loop {
+        let first_tok = &input[0];
         match peek_kind(input) {
             Some(TK::Public) | Some(TK::Protected) | Some(TK::Equation) | Some(TK::Algorithm)
             | Some(TK::External) | Some(TK::End) | Some(TK::Initial) | Some(TK::Case)
@@ -571,17 +566,32 @@ fn element_list(input: &mut TokenInput) -> ModalResult<List<ClassBodyItem>> {
         }
         if let Some(imp) = opt(import_clause).parse_next(input)? {
             let comment = comment.parse_next(input)?;
+            let last_tok = &input[0];
             cut_err(t(TK::Semi)).context(StrContext::Label("';' after import clause")).parse_next(input)?;
-            let elem = mk_element(ElementSpec::IMPORT { import_: imp, comment, info: dummy_info() });
+            let info = source_info(first_tok, last_tok);
+            let elem = Absyn::Element::ELEMENT {
+                finalPrefix: false, redeclareKeywords: None,
+                innerOuter: InnerOuter::NOT_INNER_OUTER {}, specification: ElementSpec::IMPORT { import_: imp, comment, info: info.clone() },
+                info: info, constrainClass: None,
+            };
             items = cons(ClassBodyItem::Element(elem), items); continue;
         }
         if let Some(ext) = opt(extends_clause).parse_next(input)? {
+            let last_tok = &input[0];;
             cut_err(t(TK::Semi)).context(StrContext::Label("';' after extends clause")).parse_next(input)?;
-            let elem = mk_element(ElementSpec::EXTENDS {
-                path: ext.path,
-                elementArg: ext.modification.unwrap_or_else(List::Nil),
-                annotationOpt: ext.annotation_opt,
-            });
+            let info = source_info(first_tok, last_tok);
+            let elem = Absyn::Element::ELEMENT {
+                finalPrefix: false,
+                redeclareKeywords: None,
+                innerOuter: InnerOuter::NOT_INNER_OUTER {},
+                specification: ElementSpec::EXTENDS {
+                    path: ext.path,
+                    elementArg: ext.modification.unwrap_or_else(List::Nil),
+                    annotationOpt: ext.annotation_opt,
+                },
+                info,
+                constrainClass: None,
+            };
             items = cons(ClassBodyItem::Element(elem), items); continue;
         }
         // element prefixes: [ redeclare ] [ final ] [ inner ] [ outer ]
@@ -618,11 +628,12 @@ fn element_list(input: &mut TokenInput) -> ModalResult<List<ClassBodyItem>> {
                     comment: cmt,
                 })
             } else { None };
+            let last_tok = &input[0];
             cut_err(t(TK::Semi)).context(StrContext::Label("';' after class definition")).parse_next(input)?;
             let elem = Absyn::Element::ELEMENT {
                 finalPrefix: final_, redeclareKeywords, innerOuter,
                 specification: ElementSpec::CLASSDEF { replaceable_: replaceable_, class_: Rc::new(cls) },
-                info: dummy_info(), constrainClass,
+                info: source_info(first_tok, last_tok), constrainClass,
             };
             items = cons(ClassBodyItem::Element(elem), items); continue;
         }
@@ -636,12 +647,13 @@ fn element_list(input: &mut TokenInput) -> ModalResult<List<ClassBodyItem>> {
                     comment: cmt,
                 })
             } else { None };
+            let last_tok = &input[0];
             let elem = Absyn::Element::ELEMENT {
                 finalPrefix: final_, redeclareKeywords, innerOuter,
                 specification: ElementSpec::COMPONENTS {
                     attributes: cc.typePrefix, typeSpec: cc.typeSpec, components: cc.components,
                 },
-                info: dummy_info(), constrainClass,
+                info: source_info(first_tok, last_tok), constrainClass,
             };
             cut_err(t(TK::Semi))
                 .context(StrContext::Label("';' after component list"))
@@ -737,13 +749,15 @@ fn component_declaration(input: &mut TokenInput) -> ModalResult<ComponentItem> {
 }
 
 fn modification(input: &mut TokenInput) -> ModalResult<Modification> {
+    let start = *input;
     let cm = opt(class_modification).parse_next(input)?.unwrap_or(List::Nil());
     let eq = if opt(alt((t(TK::Assign), t(TK::Equal)))).parse_next(input)?.is_some() {
-        Absyn::EqMod::EQMOD {
-            exp: Rc::new(cut_err(modification_expression)
+        let exp = cut_err(modification_expression)
                 .context(StrContext::Label("modification expression"))
-                .parse_next(input)?),
-            info: dummy_info(),
+                .parse_next(input)?;
+        Absyn::EqMod::EQMOD {
+            exp: Rc::new(exp),
+            info: source_info(&start[0], &start[start.len() - input.len() - 1]),
         }
     } else {
         Absyn::EqMod::NOMOD {}
@@ -824,6 +838,7 @@ fn parse_replaceable_spec(input: &mut TokenInput) -> ModalResult<(ElementSpec, O
 }
 
 fn element_redeclaration(input: &mut TokenInput) -> ModalResult<ElementArg> {
+    let start = *input;
     t(TK::Redeclare).parse_next(input)?;
     let each_  = opt(t(TK::Each)).parse_next(input)?.is_some();
     let final_ = opt(t(TK::Final)).parse_next(input)?.is_some();
@@ -850,11 +865,12 @@ fn element_redeclaration(input: &mut TokenInput) -> ModalResult<ElementArg> {
     Ok(ElementArg::REDECLARATION {
         finalPrefix: final_,
         eachPrefix: if each_ { Each::EACH {} } else { Each::NON_EACH {} },
-        redeclareKeywords, elementSpec, constrainClass, info: dummy_info(),
+        redeclareKeywords, elementSpec, constrainClass, info: source_info(&start[0], &start[start.len() - input.len() - 1]),
     })
 }
 
 fn element_modification(input: &mut TokenInput) -> ModalResult<ElementArg> {
+    let start = *input;
     let path = name_path(input)?;
     if opt(t(TK::LBracket))
         .context(StrContext::Label("subscripting modifiers not allowed"))
@@ -866,17 +882,18 @@ fn element_modification(input: &mut TokenInput) -> ModalResult<ElementArg> {
     let comment      = string_comment(input)?;
     Ok(Absyn::ElementArg::MODIFICATION {
         eachPrefix: Each::NON_EACH {}, finalPrefix: false,
-        modification, comment, path, info: dummy_info(),
+        modification, comment, path, info: source_info(&start[0], &start[start.len() - input.len() - 1]),
     })
 }
 
 fn element_replaceable(input: &mut TokenInput) -> ModalResult<ElementArg> {
+    let start = *input;
     t(TK::Replaceable).parse_next(input)?;
     let (elementSpec, constrainClass) = parse_replaceable_spec(input)?;
     Ok(ElementArg::REDECLARATION {
         finalPrefix: false, eachPrefix: Each::NON_EACH {},
         redeclareKeywords: RedeclareKeywords::REPLACEABLE {},
-        elementSpec, constrainClass, info: dummy_info(),
+        elementSpec, constrainClass, info: source_info(&start[0], &start[start.len() - input.len() - 1]),
     })
 }
 
@@ -1013,6 +1030,7 @@ fn equation_list_then(input: &mut TokenInput) -> ModalResult<List<Absyn::Equatio
 }
 
 fn equation_item(input: &mut TokenInput) -> ModalResult<EquationItem> {
+    let start = *input;
     let eq = match peek_kind(input) {
         Some(TK::If)   => if_equation_e(input)?,
         Some(TK::For)  => for_equation_e(input)?,
@@ -1025,7 +1043,7 @@ fn equation_item(input: &mut TokenInput) -> ModalResult<EquationItem> {
     Ok(EquationItem::EQUATIONITEM {
         equation_: Rc::new(eq),
         comment,
-        info: dummy_info(),
+        info: source_info(&start[0], &start[start.len() - input.len() - 1]),
     })
 }
 
@@ -1193,6 +1211,7 @@ fn algorithm_list_then(input: &mut TokenInput) -> ModalResult<List<Absyn::Algori
 }
 
 fn algorithm_item(input: &mut TokenInput) -> ModalResult<AlgorithmItem> {
+    let start = *input;
     let alg = match peek_kind(input) {
         Some(TK::If)       => if_algorithm(input)?,
         Some(TK::For)      => for_algorithm(input)?,
@@ -1209,7 +1228,7 @@ fn algorithm_item(input: &mut TokenInput) -> ModalResult<AlgorithmItem> {
     Ok(AlgorithmItem::ALGORITHMITEM {
         algorithm_: Rc::new(alg),
         comment,
-        info: dummy_info(),
+        info: source_info(&start[0], &start[start.len() - input.len() - 1]),
     })
 }
 
@@ -1402,28 +1421,31 @@ fn local_clause(input: &mut TokenInput) -> ModalResult<List<Rc<Absyn::ElementIte
 }
 
 fn match_onecase(input: &mut TokenInput) -> ModalResult<Absyn::Case> {
+    let start_token = &input[0];
     match next_tok(input)? {
         TK::Case => {}
         _        => return Err(ErrMode::Backtrack(ContextError::default())),
     }
+    let start_pattern = *input;
     let pattern = expression(input)?;
-    let patternGuard = match peek_kind(input) {
-        Some(TK::If) | Some(TK::Guard) => {
-            next_tok(input)?;
-            Some(Rc::new(expression(input)?))
-        }
-        _ => None,
+    let end_pattern = &start_pattern[start_pattern.len() - input.len() - 1];
+    let patternGuard = if opt(alt((t(TK::If),t(TK::Guard)))).parse_next(input)?.is_some() {
+        Some(Rc::new(expression(input)?))
+    } else {
+        None
     };
     let comment    = None; // string_comment(input)?;
     let localDecls = local_clause(input)?;
     let classPart  = match_case_body(input)?;
     t(TK::Then).parse_next(input)?;
+    let start_exp = &input[0];
     let result = expression(input)?;
+    let end_exp = &input[0];
     t(TK::Semi).parse_next(input)?;
     Ok(Absyn::Case::CASE {
-        pattern: Rc::new(pattern), patternGuard, patternInfo: dummy_info(),
-        localDecls, classPart, result: Rc::new(result), resultInfo: dummy_info(),
-        comment, info: dummy_info(),
+        pattern: Rc::new(pattern), patternGuard, patternInfo: source_info(&start_pattern[0], end_pattern),
+        localDecls, classPart, result: Rc::new(result), resultInfo: source_info(start_exp, end_exp),
+        comment, info: source_info(start_token, end_exp),
     })
 }
 
@@ -1433,6 +1455,7 @@ fn match_cases(input: &mut TokenInput) -> ModalResult<List<Absyn::Case>> {
         match peek_kind(input) {
             Some(TK::Case) => { cases = cons(match_onecase(input)?, cases); }
             Some(TK::Else) => {
+                let start_else = &input[0];
                 cut_err(t(TK::Else)).context(StrContext::Label("else")).parse_next(input)?;
                 let comment    = None; // string_comment(input)?;
                 let localDecls = local_clause(input)?;
@@ -1452,11 +1475,13 @@ fn match_cases(input: &mut TokenInput) -> ModalResult<List<Absyn::Case>> {
                         Absyn::ClassPart::ALGORITHMS { contents: List::Nil() }
                     },
                 };
+                let start_exp = &input[0];
                 let result = expression(input)?;
+                let end_exp = &input[0];
                 opt(t(TK::Semi)).parse_next(input)?;
                 cases = cons(Absyn::Case::ELSE {
                     localDecls, classPart, result: Rc::new(result),
-                    resultInfo: dummy_info(), comment, info: dummy_info(),
+                    resultInfo: source_info(start_exp, end_exp), comment, info: source_info(start_else, end_exp),
                 }, cases);
                 break;
             }

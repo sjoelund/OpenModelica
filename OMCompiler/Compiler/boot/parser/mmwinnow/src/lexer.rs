@@ -158,6 +158,84 @@ pub enum TokenKind {
 }
 
 // ---------------------------------------------------------------------------
+// Token end-position helpers
+// ---------------------------------------------------------------------------
+
+impl TokenKind {
+    /// Number of source characters spanned by this token kind.
+    ///
+    /// Limitations:
+    /// - `Ident` produced from a quoted identifier (`'...'`) is
+    ///   indistinguishable from a plain one; returns content length, not `+2`.
+    /// - `And` from `&&` and `Not` from `!` return the keyword spelling length
+    ///   (`"and"` = 3, `"not"` = 3) rather than 2 or 1.
+    pub fn source_char_len(&self) -> u32 {
+        match self {
+            TokenKind::Ident(s)     => s.chars().count() as u32,
+            TokenKind::Int(n)       => n.to_string().len() as u32,
+            TokenKind::Real(_, s)   => s.chars().count() as u32,
+            // Content has escape sequences preserved (e.g. `\n` → `\` + `n`,
+            // 2 chars in both raw string and source), so char count + 2 quotes
+            // gives the correct source length for single-line strings.
+            TokenKind::Str(s)       => s.chars().count() as u32 + 2,
+
+            TokenKind::Wild         => 1,  // `_`
+            TokenKind::Allwild      => 2,  // `__`
+            TokenKind::Operator     => 8,  // "operator" (absent from keyword_as_str)
+
+            // Single-char punctuation / operators
+            TokenKind::Plus | TokenKind::Minus | TokenKind::Star | TokenKind::Slash |
+            TokenKind::Power | TokenKind::Percent | TokenKind::Less | TokenKind::Greater |
+            TokenKind::LParen | TokenKind::RParen | TokenKind::LBracket |
+            TokenKind::RBracket | TokenKind::LBrace | TokenKind::RBrace |
+            TokenKind::Equal | TokenKind::Comma | TokenKind::Colon |
+            TokenKind::Semi | TokenKind::Dot | TokenKind::Pipe | TokenKind::BOM => 1,
+
+            // Two-char operators
+            TokenKind::EqEq | TokenKind::NotEq | TokenKind::Leq | TokenKind::Geq |
+            TokenKind::Assign | TokenKind::ColonColon |
+            TokenKind::PlusEw | TokenKind::MinusEw | TokenKind::StarEw |
+            TokenKind::SlashEw | TokenKind::PowerEw => 2,
+
+            // $-prefixed OpenModelica extensions
+            TokenKind::Code     => 5,   // "$Code"
+            TokenKind::CodeName => 9,   // "$TypeName"
+            TokenKind::CodeExp  => 11,  // "$Expression"
+            TokenKind::CodeVar  => 4,   // "$Var"
+            TokenKind::Overload => 9,   // "$overload"
+
+            // All remaining variants are keywords covered by keyword_as_str.
+            // All keywords are ASCII so .len() == char count.
+            _ => keyword_as_str(self).unwrap().len() as u32,
+        }
+    }
+}
+
+impl Token {
+    /// Compute the 1-based `(end_line, end_col)` of the last character of this token.
+    ///
+    /// String literals may contain embedded newlines; those are scanned to
+    /// determine the correct end position.  All other tokens are assumed
+    /// single-line and end at `(line, col + source_char_len - 1)`.
+    pub fn end_pos(&self) -> (u32, u32) {
+        if let TokenKind::Str(s) = &self.kind {
+            let mut line = self.line;
+            let mut col = self.col + 1; // step past opening `"`
+            for ch in s.chars() {
+                if ch == '\n' {
+                    line += 1;
+                    col = 1;
+                } else {
+                    col += 1;
+                }
+            }
+            return (line, col); // col is now on the closing `"`
+        }
+        (self.line, self.col + self.kind.source_char_len() - 1)
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Keyword-to-string helper
 // ---------------------------------------------------------------------------
 
@@ -804,6 +882,46 @@ mod tests {
         let toks = lex("a\nb", Grammar::Modelica3).unwrap();
         assert_eq!((toks[0].line, toks[0].col), (1, 1));
         assert_eq!((toks[1].line, toks[1].col), (2, 1));
+    }
+
+    #[test]
+    fn test_end_pos() {
+        // Single-char token
+        let toks = lex("+", Grammar::Modelica3).unwrap();
+        assert_eq!(toks[0].end_pos(), (1, 1));
+
+        // Two-char token
+        let toks = lex(":=", Grammar::Modelica3).unwrap();
+        assert_eq!(toks[0].end_pos(), (1, 2));
+
+        // Keyword
+        let toks = lex("algorithm", Grammar::Modelica3).unwrap();
+        assert_eq!(toks[0].end_pos(), (1, 9));
+
+        // Identifier
+        let toks = lex("foo", Grammar::Modelica3).unwrap();
+        assert_eq!(toks[0].end_pos(), (1, 3));
+
+        // Integer literal
+        let toks = lex("42", Grammar::Modelica3).unwrap();
+        assert_eq!(toks[0].end_pos(), (1, 2));
+
+        // Real literal
+        let toks = lex("3.14", Grammar::Modelica3).unwrap();
+        assert_eq!(toks[0].end_pos(), (1, 4));
+
+        // String literal (single-line)
+        let toks = lex(r#""hello""#, Grammar::Modelica3).unwrap();
+        assert_eq!(toks[0].end_pos(), (1, 7));
+
+        // String literal with embedded newline
+        let toks = lex("\"a\nb\"", Grammar::Modelica3).unwrap();
+        assert_eq!(toks[0].end_pos(), (2, 2));
+
+        // Token not at column 1
+        let toks = lex("ab cd", Grammar::Modelica3).unwrap();
+        assert_eq!(toks[0].end_pos(), (1, 2));
+        assert_eq!(toks[1].end_pos(), (1, 5));
     }
 
     #[test]

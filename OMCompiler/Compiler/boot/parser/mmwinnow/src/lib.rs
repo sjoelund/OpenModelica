@@ -411,9 +411,18 @@ fn class_specifier2(input: &mut TokenInput) -> ModalResult<Rc<ClassDef>> {
 
     if opt(t(TK::Equal)).parse_next(input)?.is_some() {
         if opt(t(TK::Enumeration)).parse_next(input)?.is_some() {
+            t(TK::LParen).parse_next(input)?;
+            if opt(t(TK::Colon)).parse_next(input)?.is_some() {
+                t(TK::RParen).parse_next(input)?;
+                return Ok(Rc::new(ClassDef::ENUMERATION {
+                    enumLiterals: EnumDef::ENUM_COLON {},
+                    comment: None,
+                }));
+            }
             let literals = cut_err(enum_list)
                 .context(StrContext::Label("enumeration literal list"))
                 .parse_next(input)?;
+            t(TK::RParen).parse_next(input)?;
             return Ok(Rc::new(ClassDef::ENUMERATION {
                 enumLiterals: EnumDef::ENUMLITERALS { enumLiterals: literals },
                 comment: None,
@@ -423,9 +432,7 @@ fn class_specifier2(input: &mut TokenInput) -> ModalResult<Rc<ClassDef>> {
             .context(StrContext::Label("type specifier after '='"))
             .parse_next(input)?;
         let arguments: List<Rc<ElementArg>> = opt(class_modification).parse_next(input)?.unwrap_or_default();
-        let comment = opt(string_comment).parse_next(input)?.flatten().map(|c| Comment::COMMENT {
-            annotation_: None, comment: Some(c),
-        });
+        let comment = comment.parse_next(input)?;
         return Ok(Rc::new(ClassDef::DERIVED {
             typeSpec, attributes: default_element_attrs(), arguments, comment,
         }));
@@ -842,10 +849,10 @@ fn equation_item(input: &mut TokenInput) -> ModalResult<EquationItem> {
         Some(TK::When) => when_equation_e(input)?,
         _              => equality_or_noretcall_equation(input)?,
     };
-    let comment = string_comment(input)?;
+    let comment = comment(input)?;
     Ok(EquationItem::EQUATIONITEM {
         equation_: Rc::new(eq),
-        comment: comment.map(|c| Comment::COMMENT { annotation_: None, comment: Some(c) }),
+        comment,
         info: dummy_info(),
     })
 }
@@ -1003,10 +1010,10 @@ fn algorithm_item(input: &mut TokenInput) -> ModalResult<AlgorithmItem> {
         Some(TK::Continue) => { next_tok(input)?; Algorithm::ALG_CONTINUE {} }
         _                  => assign_clause_a(input)?,
     };
-    let comment = string_comment(input)?;
+    let comment = comment(input)?;
     Ok(AlgorithmItem::ALGORITHMITEM {
         algorithm_: Rc::new(alg),
-        comment: comment.map(|c| Comment::COMMENT { annotation_: None, comment: Some(c) }),
+        comment,
         info: dummy_info(),
     })
 }
@@ -1924,6 +1931,12 @@ fn string_comment(input: &mut TokenInput) -> ModalResult<Option<String>> {
     Ok(Some(res))
 }
 
+fn comment(input: &mut TokenInput) -> ModalResult<Option<Comment>> {
+    let comment = string_comment.parse_next(input)?;
+    let annotation_ = opt(annotation).parse_next(input)?;
+    Ok(Some(Comment::COMMENT { comment, annotation_ }))
+}
+
 fn type_specifier(input: &mut TokenInput) -> ModalResult<TypeSpec> {
     let path = name_path(input)?;
     let mut ts: List<Rc<TypeSpec>> = List::Nil();
@@ -1986,11 +1999,9 @@ fn enum_list(input: &mut TokenInput) -> ModalResult<List<EnumLiteral>> {
 }
 
 fn enum_literal(input: &mut TokenInput) -> ModalResult<EnumLiteral> {
-    let name = t_ident(input)?;
-    if opt(t(TK::Equal)).parse_next(input)?.is_some() {
-        expression(input)?; // skip value
-    }
-    Ok(EnumLiteral::ENUMLITERAL { literal: name, comment: None })
+    let literal = t_ident(input)?;
+    let comment = comment.parse_next(input)?;
+    Ok(EnumLiteral::ENUMLITERAL { literal, comment })
 }
 
 // ---------------------------------------------------------------------------

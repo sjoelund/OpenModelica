@@ -606,6 +606,7 @@ dependencies = [
  "anyhow",
  "backtrace-on-stack-overflow",
  "list_comprehension_macro",
+ "rayon",
  "winnow",
 ]
 

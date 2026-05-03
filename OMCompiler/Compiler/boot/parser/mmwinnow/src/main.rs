@@ -1,13 +1,35 @@
-use mmwinnow::lexer::lex;
+use mmwinnow::parse;
 use mmwinnow::Grammar;
+use rayon::prelude::*;
 
 fn main() {
-   let code = std::fs::read_to_string("/home/martin/OpenModelica/OMCompiler/Compiler/Template/CodegenC.mo").
-            expect("CodegenC.mo not found");
-    /*let result = lex(&code, Grammar::MetaModelica);
-    if let Some(err) = &result.err() {
-        assert!(false, "expected CodegenC.mo to lex, got: {}", err);
-    }*/
+    let sources_path = "/home/martin/dev/OpenModelica-rust/OMCompiler/Compiler/boot/parser/compilerSources.txt";
+    let sources = std::fs::read_to_string(sources_path).expect("compilerSources.txt not found");
+    let files: Vec<&str> = sources.lines().filter(|l| !l.trim().is_empty()).collect();
 
-    return;
+    let results: Vec<(&str, Result<(), String>)> = files
+        .par_iter()
+        .map(|path| {
+            let result = std::fs::read_to_string(path)
+                .map_err(|e| format!("read error: {e}"))
+                .and_then(|code| parse(&code, Grammar::MetaModelica).map(|_| ()).map_err(|e| format!("{e}")));
+            (*path, result)
+        })
+        .collect();
+
+    let mut failures = 0;
+    for (path, result) in &results {
+        match result {
+            Ok(()) => println!("OK  {path}"),
+            Err(e) => {
+                eprintln!("ERR {path}: {e}");
+                failures += 1;
+            }
+        }
+    }
+
+    println!("\n{} files, {} failures", results.len(), failures);
+    if failures > 0 {
+        std::process::exit(1);
+    }
 }

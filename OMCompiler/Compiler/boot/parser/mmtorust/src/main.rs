@@ -1,14 +1,22 @@
 use mmwinnow::parse;
 use mmwinnow::Grammar;
 use mmwinnow::Absyn;
+
+mod MM;
 use rayon::prelude::*;
 
 fn start_compilation(results: Vec<(&str, Absyn::Program)>) {
-    for (path, program) in results {
-        if path.ends_with("/Absyn.mo") {
-            println!("{:?}", program);
+    let mut failures = 0;
+    for (path, program) in &results {
+        match MM::from_program(program) {
+            Ok(_) => (),
+            Err(e) => {
+                eprintln!("MM ERR {path}: {e}");
+                failures += 1;
+            }
         }
     }
+    println!("MM conversion: {} files, {} failures", results.len(), failures);
 }
 
 fn main() {

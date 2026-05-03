@@ -11,13 +11,14 @@ pub mod lexer;
 pub mod token_input;
 
 pub use Absyn::*;
+pub use metamodelica::List;
 pub use lexer::{Token as LexToken, TokenKind, LexError};
 pub use token_input::TokenInput;
 
 use lexer::{Token, TokenKind as TK};
 use token_input::{t, next_tok, peek_kind, try_tok, t_ident, t_any_ident, t_str_token};
 use winnow::stream::Stream;
-use metamodelica::{List, cons, SourceInfo};
+use metamodelica::{cons, SourceInfo};
 
 use winnow::{Parser, ModalResult, combinator::{opt, alt, cut_err}, error::{AddContext, ContextError, StrContext, StrContextValue, ErrMode}};
 use std::sync::Arc;

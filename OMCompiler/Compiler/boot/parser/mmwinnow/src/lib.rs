@@ -748,8 +748,46 @@ fn element_modification(input: &mut TokenInput) -> ModalResult<ElementArg> {
     })
 }
 
-fn element_replaceable(_input: &mut TokenInput) -> ModalResult<ElementArg> {
-    Err(ErrMode::Backtrack(ContextError::default()))
+fn element_replaceable(input: &mut TokenInput) -> ModalResult<ElementArg> {
+    t(TK::Replaceable).parse_next(input)?;
+
+    // Try component first (type_prefix + type_specifier + single declaration, no semicolon),
+    // then fall back to a class definition.
+    let elementSpec = if let Some(cls) = opt(class_definition).parse_next(input)? {
+        ElementSpec::CLASSDEF { replaceable_: true, class_: Rc::new(cls) }
+    } else {
+        let typePrefix  = type_prefix(input)?;
+        let typeSpec    = cut_err(type_specifier)
+            .context(StrContext::Label("type specifier in replaceable"))
+            .parse_next(input)?;
+        let comp        = cut_err(component_declaration)
+            .context(StrContext::Label("component declaration in replaceable"))
+            .parse_next(input)?;
+        ElementSpec::COMPONENTS {
+            attributes: typePrefix, typeSpec,
+            components: List::new(Rc::new(comp)),
+        }
+    };
+
+    let constrainClass = if opt(t(TK::Constrainedby)).parse_next(input)?.is_some() {
+        let path         = cut_err(name_path)
+            .context(StrContext::Label("path in constrainedby clause"))
+            .parse_next(input)?;
+        let elementArg   = opt(class_modification).parse_next(input)?.unwrap_or_else(List::Nil);
+        let comment      = comment(input)?;
+        Some(ConstrainClass::CONSTRAINCLASS {
+            elementSpec: ElementSpec::EXTENDS { path, elementArg, annotationOpt: None },
+            comment,
+        })
+    } else {
+        None
+    };
+
+    Ok(ElementArg::REDECLARATION {
+        finalPrefix: false, eachPrefix: Each::NON_EACH {},
+        redeclareKeywords: RedeclareKeywords::REPLACEABLE {},
+        elementSpec, constrainClass, info: dummy_info(),
+    })
 }
 
 fn annotation(input: &mut TokenInput) -> ModalResult<Annotation> {

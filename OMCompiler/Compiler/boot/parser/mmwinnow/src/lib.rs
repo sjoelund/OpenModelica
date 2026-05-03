@@ -1173,7 +1173,6 @@ fn match_case_body(input: &mut TokenInput) -> ModalResult<Absyn::ClassPart> {
             let eqs = cut_err(equation_list_then)
                 .context(StrContext::Label("equation list in match case"))
                 .parse_next(input)?;
-            t(TK::Then).parse_next(input)?;
             Ok(Absyn::ClassPart::EQUATIONS { contents: eqs })
         }
         Some(TK::Algorithm) => {
@@ -1181,7 +1180,6 @@ fn match_case_body(input: &mut TokenInput) -> ModalResult<Absyn::ClassPart> {
             let algs = cut_err(algorithm_list_then)
                 .context(StrContext::Label("algorithm list in match case"))
                 .parse_next(input)?;
-            t(TK::Then).parse_next(input)?;
             Ok(Absyn::ClassPart::ALGORITHMS { contents: algs })
         }
         _ => Ok(Absyn::ClassPart::ALGORITHMS { contents: List::Nil() }),
@@ -1220,6 +1218,7 @@ fn match_onecase(input: &mut TokenInput) -> ModalResult<Absyn::Case> {
     let comment    = string_comment(input)?;
     let localDecls = local_clause(input)?;
     let classPart  = match_case_body(input)?;
+    t(TK::Then).parse_next(input)?;
     let result = expression(input)?;
     t(TK::Semi).parse_next(input)?;
     Ok(Absyn::Case::CASE {
@@ -1238,7 +1237,19 @@ fn match_cases(input: &mut TokenInput) -> ModalResult<List<Absyn::Case>> {
                 next_tok(input)?;
                 let comment    = string_comment(input)?;
                 let localDecls = local_clause(input)?;
-                let classPart  = match_case_body(input)?;
+                let classPart  = match peek_kind(input) {
+                    Some(TK::Equation) => {
+                        let cp = match_case_body(input)?;
+                        t(TK::Then).parse_next(input)?;
+                        cp
+                    },
+                    Some(TK::Algorithm) => {
+                        let cp = match_case_body(input)?;
+                        t(TK::Then).parse_next(input)?;
+                        cp
+                    },
+                    _ => Absyn::ClassPart::ALGORITHMS { contents: List::Nil() },
+                };
                 let result = expression(input)?;
                 t(TK::Semi).parse_next(input)?;
                 cases = cons(Absyn::Case::ELSE {

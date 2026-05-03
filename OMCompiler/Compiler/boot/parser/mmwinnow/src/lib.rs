@@ -570,8 +570,8 @@ fn element_list(input: &mut TokenInput) -> ModalResult<List<ClassBodyItem>> {
             items = cons(ClassBodyItem::Annotation(ann), items); continue;
         }
         if let Some(imp) = opt(import_clause).parse_next(input)? {
-            cut_err(t(TK::Semi)).context(StrContext::Label("';' after import clause")).parse_next(input)?;
             let comment = comment.parse_next(input)?;
+            cut_err(t(TK::Semi)).context(StrContext::Label("';' after import clause")).parse_next(input)?;
             let elem = mk_element(ElementSpec::IMPORT { import_: imp, comment, info: dummy_info() });
             items = cons(ClassBodyItem::Element(elem), items); continue;
         }

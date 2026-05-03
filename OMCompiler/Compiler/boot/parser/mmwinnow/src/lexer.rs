@@ -360,7 +360,7 @@ impl<'s> Lexer<'s> {
     /// taking the active grammar into account.
     fn keyword_or_ident(&self, word: &str) -> TokenKind {
         let meta = matches!(self.grammar, Grammar::MetaModelica);
-        let m3 = !matches!(self.grammar, Grammar::Modelica3);
+        let m3 = matches!(self.grammar, Grammar::Modelica3);
         let optimica = matches!(self.grammar, Grammar::Optimica);
 
         match word {

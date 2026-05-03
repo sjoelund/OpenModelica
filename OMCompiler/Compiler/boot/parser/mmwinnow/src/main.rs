@@ -2,22 +2,21 @@ use mmwinnow::parse;
 use mmwinnow::Grammar;
 use rayon::prelude::*;
 
-fn main() {
-    rayon::ThreadPoolBuilder::new().num_threads(12).build_global().unwrap();
-
-    let sources_path = "/home/martin/dev/OpenModelica-rust/OMCompiler/Compiler/boot/parser/compilerSources.txt";
+fn parse_file_with_list(sources_path: &str, grammar: Grammar, test_name: &str) -> () {
     let sources = std::fs::read_to_string(sources_path).expect("compilerSources.txt not found");
     let files: Vec<&str> = sources.lines().filter(|l| !l.trim().is_empty()).collect();
 
+    let t0 = std::time::Instant::now();
     let results: Vec<(&str, Result<(), String>)> = files
         .par_iter()
         .map(|path| {
             let result = std::fs::read_to_string(path)
                 .map_err(|e| format!("read error: {e}"))
-                .and_then(|code| parse(&code, Grammar::MetaModelica).map(|_| ()).map_err(|e| format!("{e}")));
+                .and_then(|code: String| parse(&code, grammar.clone()).map(|_| ()).map_err(|e| format!("{e}")));
             (*path, result)
         })
         .collect();
+    let elapsed = t0.elapsed();
 
     let mut failures = 0;
     for (path, result) in &results {
@@ -30,8 +29,14 @@ fn main() {
         }
     }
 
-    println!("\n{} files, {} failures", results.len(), failures);
+    println!("{test_name}: {} files, {} failures, {:.2}s", results.len(), failures, elapsed.as_secs_f64());
     if failures > 0 {
         std::process::exit(1);
-    }
+    };
+}
+
+fn main() {
+    rayon::ThreadPoolBuilder::new().num_threads(12).build_global().unwrap();
+    parse_file_with_list("/home/martin/dev/OpenModelica-rust/OMCompiler/Compiler/boot/parser/compilerSources.txt", Grammar::MetaModelica, "OpenModelica full sources");
+    parse_file_with_list("/home/martin/dev/OpenModelica-rust/OMCompiler/Compiler/boot/parser/mslSources.txt", Grammar::Modelica3, "Modelica Standard Library");
 }

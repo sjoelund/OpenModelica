@@ -31,7 +31,7 @@ pub struct ParserConfig {
     pub grammar: Grammar,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub enum Grammar {
     Modelica2,
     Modelica3,
@@ -350,10 +350,10 @@ fn class_type2(input: &mut TokenInput) -> ModalResult<Restriction> {
         TK::Package      => Restriction::R_PACKAGE {},
         TK::Uniontype    => Restriction::R_UNIONTYPE {},
         TK::Operator     => {
-            if opt(t(TK::Record)).parse_next(input)?.is_some() {
-                Restriction::R_OPERATOR_RECORD {}
-            } else {
-                Restriction::R_OPERATOR {}
+            match opt(alt((t(TK::Record),t(TK::Function)))).parse_next(input)? {
+                Some(TK::Function) => Restriction::R_FUNCTION {functionRestriction: FunctionRestriction::FR_OPERATOR_FUNCTION {} },
+                Some(TK::Record)   => Restriction::R_OPERATOR_RECORD {},
+                _                  => Restriction::R_OPERATOR {},
             }
         },
         _                => return Err(ErrMode::Backtrack(ContextError::default())),
@@ -367,7 +367,6 @@ fn class_type_function(input: &mut TokenInput) -> ModalResult<Restriction> {
         Some(TK::Impure) => Absyn::FunctionPurity::IMPURE {},
         _ => Absyn::FunctionPurity::NO_PURITY {},
     };
-
     let functionRestriction = try_tok(input, |k| match k {
         TK::Operator  => Some(Absyn::FunctionRestriction::FR_OPERATOR_FUNCTION {}),
         TK::Parallel  => Some(Absyn::FunctionRestriction::FR_PARALLEL_FUNCTION {}),

@@ -643,6 +643,9 @@ fn element_list(input: &mut TokenInput) -> ModalResult<List<ClassBodyItem>> {
                 },
                 info: dummy_info(), constrainClass,
             };
+            cut_err(t(TK::Semi))
+                .context(StrContext::Label("';' after component list"))
+                .parse_next(input)?;
             items = cons(ClassBodyItem::Element(elem), items); continue;
         }
 
@@ -700,9 +703,6 @@ fn component_clause(input: &mut TokenInput) -> ModalResult<ComponentClause> {
     let typeSpec   = type_specifier(input)?;
     let components = cut_err(component_list)
         .context(StrContext::Label("component list"))
-        .parse_next(input)?;
-    cut_err(t(TK::Semi))
-        .context(StrContext::Label("';' after component list"))
         .parse_next(input)?;
     Ok(ComponentClause { typePrefix, typeSpec, components })
 }

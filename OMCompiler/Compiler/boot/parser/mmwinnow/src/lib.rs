@@ -725,11 +725,67 @@ fn argument(input: &mut TokenInput) -> ModalResult<ElementArg> {
     Ok(res)
 }
 
+// Shared body for the 'replaceable' branch: parses the class-or-component spec
+// and the optional 'constrainedby' clause.  Called by both element_replaceable
+// and the REDECLARE_REPLACEABLE branch of element_redeclaration.
+fn parse_replaceable_spec(input: &mut TokenInput) -> ModalResult<(ElementSpec, Option<ConstrainClass>)> {
+    let elementSpec = if let Some(cls) = opt(class_definition).parse_next(input)? {
+        ElementSpec::CLASSDEF { replaceable_: true, class_: Rc::new(cls) }
+    } else {
+        let typePrefix = type_prefix(input)?;
+        let typeSpec   = cut_err(type_specifier)
+            .context(StrContext::Label("type specifier in replaceable"))
+            .parse_next(input)?;
+        let comp       = cut_err(component_declaration)
+            .context(StrContext::Label("component declaration in replaceable"))
+            .parse_next(input)?;
+        ElementSpec::COMPONENTS { attributes: typePrefix, typeSpec, components: List::new(Rc::new(comp)) }
+    };
+    let constrainClass = if opt(t(TK::Constrainedby)).parse_next(input)?.is_some() {
+        let path       = cut_err(name_path)
+            .context(StrContext::Label("path in constrainedby clause"))
+            .parse_next(input)?;
+        let elementArg = opt(class_modification).parse_next(input)?.unwrap_or_else(List::Nil);
+        let comment    = comment(input)?;
+        Some(ConstrainClass::CONSTRAINCLASS {
+            elementSpec: ElementSpec::EXTENDS { path, elementArg, annotationOpt: None },
+            comment,
+        })
+    } else {
+        None
+    };
+    Ok((elementSpec, constrainClass))
+}
+
 fn element_redeclaration(input: &mut TokenInput) -> ModalResult<ElementArg> {
     t(TK::Redeclare).parse_next(input)?;
-    let _each  = opt(t(TK::Each)).parse_next(input)?.is_some();
-    let _final = opt(t(TK::Final)).parse_next(input)?.is_some();
-    Err(ErrMode::Backtrack(ContextError::default()))
+    let each_  = opt(t(TK::Each)).parse_next(input)?.is_some();
+    let final_ = opt(t(TK::Final)).parse_next(input)?.is_some();
+
+    let (redeclareKeywords, elementSpec, constrainClass) =
+        if opt(t(TK::Replaceable)).parse_next(input)?.is_some() {
+            let (es, cc) = parse_replaceable_spec(input)?;
+            (RedeclareKeywords::REDECLARE_REPLACEABLE {}, es, cc)
+        } else if let Some(cls) = opt(class_definition).parse_next(input)? {
+            (RedeclareKeywords::REDECLARE {}, ElementSpec::CLASSDEF { replaceable_: false, class_: Rc::new(cls) }, None)
+        } else {
+            let typePrefix = type_prefix(input)?;
+            let typeSpec   = cut_err(type_specifier)
+                .context(StrContext::Label("type specifier in redeclaration"))
+                .parse_next(input)?;
+            let comp       = cut_err(component_declaration)
+                .context(StrContext::Label("component declaration in redeclaration"))
+                .parse_next(input)?;
+            (RedeclareKeywords::REDECLARE {}, ElementSpec::COMPONENTS {
+                attributes: typePrefix, typeSpec, components: List::new(Rc::new(comp)),
+            }, None)
+        };
+
+    Ok(ElementArg::REDECLARATION {
+        finalPrefix: final_,
+        eachPrefix: if each_ { Each::EACH {} } else { Each::NON_EACH {} },
+        redeclareKeywords, elementSpec, constrainClass, info: dummy_info(),
+    })
 }
 
 fn element_modification(input: &mut TokenInput) -> ModalResult<ElementArg> {
@@ -750,39 +806,7 @@ fn element_modification(input: &mut TokenInput) -> ModalResult<ElementArg> {
 
 fn element_replaceable(input: &mut TokenInput) -> ModalResult<ElementArg> {
     t(TK::Replaceable).parse_next(input)?;
-
-    // Try component first (type_prefix + type_specifier + single declaration, no semicolon),
-    // then fall back to a class definition.
-    let elementSpec = if let Some(cls) = opt(class_definition).parse_next(input)? {
-        ElementSpec::CLASSDEF { replaceable_: true, class_: Rc::new(cls) }
-    } else {
-        let typePrefix  = type_prefix(input)?;
-        let typeSpec    = cut_err(type_specifier)
-            .context(StrContext::Label("type specifier in replaceable"))
-            .parse_next(input)?;
-        let comp        = cut_err(component_declaration)
-            .context(StrContext::Label("component declaration in replaceable"))
-            .parse_next(input)?;
-        ElementSpec::COMPONENTS {
-            attributes: typePrefix, typeSpec,
-            components: List::new(Rc::new(comp)),
-        }
-    };
-
-    let constrainClass = if opt(t(TK::Constrainedby)).parse_next(input)?.is_some() {
-        let path         = cut_err(name_path)
-            .context(StrContext::Label("path in constrainedby clause"))
-            .parse_next(input)?;
-        let elementArg   = opt(class_modification).parse_next(input)?.unwrap_or_else(List::Nil);
-        let comment      = comment(input)?;
-        Some(ConstrainClass::CONSTRAINCLASS {
-            elementSpec: ElementSpec::EXTENDS { path, elementArg, annotationOpt: None },
-            comment,
-        })
-    } else {
-        None
-    };
-
+    let (elementSpec, constrainClass) = parse_replaceable_spec(input)?;
     Ok(ElementArg::REDECLARATION {
         finalPrefix: false, eachPrefix: Each::NON_EACH {},
         redeclareKeywords: RedeclareKeywords::REPLACEABLE {},

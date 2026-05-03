@@ -1233,7 +1233,7 @@ fn match_onecase(input: &mut TokenInput) -> ModalResult<Absyn::Case> {
         }
         _ => None,
     };
-    let comment    = string_comment(input)?;
+    let comment    = None; // string_comment(input)?;
     let localDecls = local_clause(input)?;
     let classPart  = match_case_body(input)?;
     t(TK::Then).parse_next(input)?;
@@ -1253,7 +1253,7 @@ fn match_cases(input: &mut TokenInput) -> ModalResult<List<Absyn::Case>> {
             Some(TK::Case) => { cases = cons(match_onecase(input)?, cases); }
             Some(TK::Else) => {
                 cut_err(t(TK::Else)).context(StrContext::Label("else")).parse_next(input)?;
-                let comment    = string_comment(input)?;
+                let comment    = None; // string_comment(input)?;
                 let localDecls = local_clause(input)?;
                 let classPart  = match peek_kind(input) {
                     Some(TK::Equation) => {
@@ -1266,10 +1266,13 @@ fn match_cases(input: &mut TokenInput) -> ModalResult<List<Absyn::Case>> {
                         t(TK::Then).parse_next(input)?;
                         cp
                     },
-                    _ => Absyn::ClassPart::ALGORITHMS { contents: List::Nil() },
+                    _ => {
+                        opt(t(TK::Then)).parse_next(input)?;
+                        Absyn::ClassPart::ALGORITHMS { contents: List::Nil() }
+                    },
                 };
                 let result = expression(input)?;
-                t(TK::Semi).parse_next(input)?;
+                opt(t(TK::Semi)).parse_next(input)?;
                 cases = cons(Absyn::Case::ELSE {
                     localDecls, classPart, result: Rc::new(result),
                     resultInfo: dummy_info(), comment, info: dummy_info(),
@@ -1289,7 +1292,7 @@ fn match_expression(input: &mut TokenInput) -> ModalResult<Absyn::Exp> {
         _                 => return Err(ErrMode::Backtrack(ContextError::default())),
     };
     let inputExp   = expression(input)?;
-    let comment    = string_comment(input)?;
+    let comment    = None; // string_comment(input)?;
     let localDecls = local_clause(input)?;
     let cases      = cut_err(match_cases).
         context(StrContext::Label(match matchTy {MatchType::MATCH{} => "match", MatchType::MATCHCONTINUE{} => "matchcontinue" })).parse_next(input)?;

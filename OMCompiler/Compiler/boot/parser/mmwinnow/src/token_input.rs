@@ -138,28 +138,6 @@ pub fn t_str_token(input: &mut &[LexToken]) -> ModalResult<String> {
     }
 }
 
-/// Consume an `Int` token and return its value.
-#[inline]
-pub fn t_int(input: &mut &[LexToken]) -> ModalResult<i32> {
-    match input.first() {
-        Some(LexToken { kind: TK::Int(n), .. }) => {
-            let n = *n; *input = &input[1..]; Ok(n)
-        }
-        _ => Err(ErrMode::Backtrack(ContextError::default())),
-    }
-}
-
-/// Consume a `Real` token and return its value.
-#[inline]
-pub fn t_real(input: &mut &[LexToken]) -> ModalResult<f64> {
-    match input.first() {
-        Some(LexToken { kind: TK::Real(f), .. }) => {
-            let f = *f; *input = &input[1..]; Ok(f)
-        }
-        _ => Err(ErrMode::Backtrack(ContextError::default())),
-    }
-}
-
 // ---------------------------------------------------------------------------
 // Position helper
 // ---------------------------------------------------------------------------

@@ -60,8 +60,8 @@ pub enum TokenKind {
     Ident(String),
     /// Integer literal, stored as i32.
     Int(i32),
-    /// Real literal, stored as f64.
-    Real(f64),
+    /// Real literal, stored as f64 and original string.
+    Real(f64, String),
     /// String literal: raw content between the double-quote delimiters.
     /// Escape sequences are preserved as written (e.g. `\n` stays `\n`).
     Str(String),
@@ -543,12 +543,14 @@ impl<'s> Lexer<'s> {
         }
 
         if is_real {
-            s.parse::<f64>()
-                .map(TokenKind::Real)
-                .map_err(|e| self.err(format!("invalid real literal '{}': {}", s, e)))
+            match s.parse::<f64>() {
+                Ok(n) if n.is_finite() => Ok(TokenKind::Real(n, s)),
+                Ok(_) => Err(self.err(format!("real literal '{}' is infinite or NaN, which is not allowed", s))),
+                Err(e) => Err(self.err(format!("invalid real literal '{}': {}", s, e))),
+            }
         } else {
             s.parse::<i32>()
-                .map(TokenKind::Int)
+                .map(|n| TokenKind::Int(n))
                 .map_err(|e| self.err(format!("integer literal '{}' out of i32 range: {}", s, e)))
         }
     }
@@ -572,9 +574,11 @@ impl<'s> Lexer<'s> {
                 s.push(self.advance().unwrap());
             }
         }
-        s.parse::<f64>()
-            .map(TokenKind::Real)
-            .map_err(|e| self.err(format!("invalid real literal '{}': {}", s, e)))
+        match s.parse::<f64>() {
+            Ok(n) if n.is_finite() => Ok(TokenKind::Real(n, s[1..].to_string())),
+            Ok(_) => Err(self.err(format!("real literal '{}' is infinite or NaN, which is not allowed", s))),
+            Err(e) => Err(self.err(format!("invalid real literal '{}': {}", s, e))),
+        }
     }
 
     fn next_token(&mut self) -> Result<Option<Token>, LexError> {
@@ -777,9 +781,9 @@ mod tests {
     fn test_literals() {
         let toks = lex(r#"42 3.14 1.0e5 .5 "hello\nworld" 'quoted ident'"#, Grammar::Modelica3).unwrap();
         assert_eq!(toks[0].kind, TokenKind::Int(42));
-        assert_eq!(toks[1].kind, TokenKind::Real(3.14));
-        assert_eq!(toks[2].kind, TokenKind::Real(1.0e5));
-        assert_eq!(toks[3].kind, TokenKind::Real(0.5));
+        assert_eq!(toks[1].kind, TokenKind::Real(3.14, "3.14".into()));
+        assert_eq!(toks[2].kind, TokenKind::Real(1.0e5, "1.0e5".into()));
+        assert_eq!(toks[3], Token{kind:TokenKind::Real(0.5, ".5".into()), line:1, col:15});
         assert_eq!(toks[4].kind, TokenKind::Str("hello\\nworld".into()));
         assert_eq!(toks[5].kind, TokenKind::Ident("quoted ident".into()));
     }
@@ -805,7 +809,7 @@ mod tests {
     fn test_real_then_plus() {
         // '1.+2' → Real(1.0) Plus Int(2), matching ANTLR greedy behaviour.
         let toks = lex("1.+2", Grammar::Modelica3).unwrap();
-        assert_eq!(toks[0].kind, TokenKind::Real(1.0));
+        assert_eq!(toks[0].kind, TokenKind::Real(1.0, "1.".into()));
         assert_eq!(toks[1].kind, TokenKind::Plus);
         assert_eq!(toks[2].kind, TokenKind::Int(2));
     }

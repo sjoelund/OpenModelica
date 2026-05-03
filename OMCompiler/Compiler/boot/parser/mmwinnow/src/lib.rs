@@ -1252,7 +1252,7 @@ fn match_cases(input: &mut TokenInput) -> ModalResult<List<Absyn::Case>> {
         match peek_kind(input) {
             Some(TK::Case) => { cases = cons(match_onecase(input)?, cases); }
             Some(TK::Else) => {
-                next_tok(input)?;
+                cut_err(t(TK::Else)).context(StrContext::Label("else")).parse_next(input)?;
                 let comment    = string_comment(input)?;
                 let localDecls = local_clause(input)?;
                 let classPart  = match peek_kind(input) {
@@ -1291,7 +1291,8 @@ fn match_expression(input: &mut TokenInput) -> ModalResult<Absyn::Exp> {
     let inputExp   = expression(input)?;
     let comment    = string_comment(input)?;
     let localDecls = local_clause(input)?;
-    let cases      = match_cases(input)?;
+    let cases      = cut_err(match_cases).
+        context(StrContext::Label(match matchTy {MatchType::MATCH{} => "match", MatchType::MATCHCONTINUE{} => "matchcontinue" })).parse_next(input)?;
     match next_tok(input)? {
         TK::End => {}
         _       => return Err(ErrMode::Backtrack(ContextError::default())),
@@ -1589,7 +1590,7 @@ fn primary(input: &mut TokenInput) -> ModalResult<Absyn::Exp> {
         Some(TK::True)  => { next_tok(input)?; return Ok(Absyn::Exp::BOOL { value: true  }); }
         Some(TK::False) => { next_tok(input)?; return Ok(Absyn::Exp::BOOL { value: false }); }
         Some(TK::Str(s))=> { let value = s.clone(); next_tok(input)?; return Ok(Absyn::Exp::STRING { value }); }
-        Some(TK::Int(_)) | Some(TK::Real(_)) => { return number_literal(input); }
+        Some(TK::Int(_)) | Some(TK::Real(..)) => { return number_literal(input); }
         Some(TK::LParen) => {
             next_tok(input)?;
             let (exprs, is_tuple) = output_expression_list(input)?;
@@ -1666,7 +1667,7 @@ fn to_tuple_or_exp(exprs: List<Rc<Absyn::Exp>>, is_tuple: bool) -> Absyn::Exp {
 fn number_literal(input: &mut TokenInput) -> ModalResult<Absyn::Exp> {
     match next_tok(input)? {
         TK::Int(n)  => Ok(Absyn::Exp::INTEGER { value: n }),
-        TK::Real(f) => Ok(Absyn::Exp::REAL    { value: f.to_string() }),
+        TK::Real(_, s) => Ok(Absyn::Exp::REAL    { value: s }),
         _           => Err(ErrMode::Backtrack(ContextError::default())),
     }
 }

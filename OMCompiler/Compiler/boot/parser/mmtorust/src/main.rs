@@ -3,9 +3,11 @@ use mmwinnow::Grammar;
 use mmwinnow::Absyn;
 use rayon::prelude::*;
 
-fn start_compilation(results: Vec<(&str, Result<Absyn::Program, String>)>) {
-    for r in results {
-        println!("XXX");
+fn start_compilation(results: Vec<(&str, Absyn::Program)>) {
+    for (path, program) in results {
+        if path.ends_with("/Absyn.mo") {
+            println!("{:?}", program);
+        }
     }
 }
 
@@ -47,5 +49,5 @@ fn main() {
     if failures > 0 {
         std::process::exit(1);
     };
-    start_compilation(results);
+    start_compilation(results.into_iter().map(|(p, r)| (p, r.unwrap())).collect());
 }

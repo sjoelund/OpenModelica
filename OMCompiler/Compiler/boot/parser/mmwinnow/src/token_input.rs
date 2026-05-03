@@ -51,10 +51,10 @@ pub type TokenInput<'a> = &'a [LexToken];
 
 /// Consume the next token if its kind equals `kind`; otherwise backtrack.
 #[inline]
-pub fn t(kind: TK) -> impl Fn(&mut &[LexToken]) -> ModalResult<()> {
+pub fn t(kind: TK) -> impl Fn(&mut &[LexToken]) -> ModalResult<TK> {
     move |input: &mut &[LexToken]| {
         match input.first() {
-            Some(tok) if tok.kind == kind => { *input = &input[1..]; Ok(()) }
+            Some(tok) if tok.kind == kind => { let k = tok.kind.clone(); *input = &input[1..]; Ok(k) }
             _ => Err(ErrMode::Backtrack(ContextError::default())),
         }
     }

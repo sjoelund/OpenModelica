@@ -447,7 +447,7 @@ if true then /* Suppress output */
     "../Script/Figaro.mo",
     "../Script/MMToJuliaKeywords.mo",
     "../Script/MMToJuliaUtil.mo",
-    "../Script/MMToRustUtil.mo",
+//  "../Script/MMToRustUtil.mo",
     "../Script/NFApi.mo",
     "../Script/Obfuscate.mo",
     "../Script/OpenModelicaScriptingAPI.mo",
@@ -468,7 +468,7 @@ if true then /* Suppress output */
     "../SimCode/ReduceDAE.mo",
 
     "../Template/AbsynToJulia.mo",
-    "../Template/AbsynToRust.mo",
+//  "../Template/AbsynToRust.mo",
     "../Template/AbsynJLDumpTpl.mo",
     "../Template/CodegenC.mo",
     "../Template/CodegenEmbeddedC.mo",

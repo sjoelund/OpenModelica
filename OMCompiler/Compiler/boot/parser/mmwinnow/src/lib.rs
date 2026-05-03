@@ -19,7 +19,7 @@ use token_input::{t, next_tok, peek_kind, try_tok, t_ident, t_any_ident, t_str_t
 use winnow::stream::Stream;
 use metamodelica::{List, cons, SourceInfo};
 
-use winnow::{Parser, ModalResult, combinator::{opt, alt, cut_err}, error::{ContextError, StrContext, StrContextValue, ErrMode}};
+use winnow::{Parser, ModalResult, combinator::{opt, alt, cut_err}, error::{AddContext, ContextError, StrContext, StrContextValue, ErrMode}};
 use std::rc::Rc;
 
 // ---------------------------------------------------------------------------
@@ -1168,19 +1168,28 @@ fn try_algorithm(input: &mut TokenInput) -> ModalResult<Algorithm> {
 
 fn match_case_body(input: &mut TokenInput) -> ModalResult<Absyn::ClassPart> {
     match peek_kind(input) {
+        /*
+        Some(TK::Equation) => {
+            return Err(ErrMode::Cut(ContextError::new().add_context(
+                input,
+                &input.checkpoint(),
+                StrContext::Label("equation in match is no longer supported - use algorithm instead"),
+            )));
+        },
+        */
         Some(TK::Equation) => {
             next_tok(input)?;
-            let eqs = cut_err(equation_list_then)
+            let contents = cut_err(equation_list_then)
                 .context(StrContext::Label("equation list in match case"))
                 .parse_next(input)?;
-            Ok(Absyn::ClassPart::EQUATIONS { contents: eqs })
-        }
+            Ok(Absyn::ClassPart::EQUATIONS { contents })
+        },
         Some(TK::Algorithm) => {
             next_tok(input)?;
-            let algs = cut_err(algorithm_list_then)
+            let contents = cut_err(algorithm_list_then)
                 .context(StrContext::Label("algorithm list in match case"))
                 .parse_next(input)?;
-            Ok(Absyn::ClassPart::ALGORITHMS { contents: algs })
+            Ok(Absyn::ClassPart::ALGORITHMS { contents })
         }
         _ => Ok(Absyn::ClassPart::ALGORITHMS { contents: List::Nil() }),
     }
@@ -1882,6 +1891,7 @@ fn output_expression_list(input: &mut TokenInput) -> ModalResult<(List<Rc<Absyn:
         && input[1].kind == TK::Equal
         && input.get(2).map(|t| t.kind != TK::Equal).unwrap_or(true);
     if is_named {
+        // TODO: This can't possibly be right
         // Consume all tokens until the matching ')'.
         let mut content = Vec::new();
         let mut depth = 1u32;

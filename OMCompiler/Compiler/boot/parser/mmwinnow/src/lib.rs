@@ -442,13 +442,14 @@ fn class_specifier2(input: &mut TokenInput) -> ModalResult<Rc<ClassDef>> {
                 comment,
             }));
         }
+        let attributes = type_prefix.parse_next(input)?;
         let typeSpec = cut_err(type_specifier)
             .context(StrContext::Label("type specifier after '='"))
             .parse_next(input)?;
         let arguments: List<Rc<ElementArg>> = opt(class_modification).parse_next(input)?.unwrap_or_default();
         let comment = comment.parse_next(input)?;
         return Ok(Rc::new(ClassDef::DERIVED {
-            typeSpec, attributes: default_element_attrs(), arguments, comment,
+            typeSpec, attributes, arguments, comment,
         }));
     }
 
@@ -677,8 +678,8 @@ fn type_prefix(input: &mut TokenInput) -> ModalResult<ElementAttributes> {
         _             => None,
     }).unwrap_or(Variability::VAR {});
 
-    let has_input  = try_tok(input, |k| matches!(k, TK::Input).then_some(())).is_some();
-    let has_output = try_tok(input, |k| matches!(k, TK::Output).then_some(())).is_some();
+    let has_input  = opt(t(TK::Input)).parse_next(input)?.is_some();
+    let has_output = opt(t(TK::Output)).parse_next(input)?.is_some();
     let direction  = match (has_input, has_output) {
         (true,  true)  => Direction::INPUT_OUTPUT {},
         (true,  false) => Direction::INPUT {},

@@ -571,7 +571,8 @@ fn element_list(input: &mut TokenInput) -> ModalResult<List<ClassBodyItem>> {
         }
         if let Some(imp) = opt(import_clause).parse_next(input)? {
             cut_err(t(TK::Semi)).context(StrContext::Label("';' after import clause")).parse_next(input)?;
-            let elem = mk_element(ElementSpec::IMPORT { import_: imp, comment: None, info: dummy_info() });
+            let comment = comment.parse_next(input)?;
+            let elem = mk_element(ElementSpec::IMPORT { import_: imp, comment, info: dummy_info() });
             items = cons(ClassBodyItem::Element(elem), items); continue;
         }
         if let Some(ext) = opt(extends_clause).parse_next(input)? {
@@ -1017,6 +1018,7 @@ fn equation_item(input: &mut TokenInput) -> ModalResult<EquationItem> {
         Some(TK::For)  => for_equation_e(input)?,
         Some(TK::When) => when_equation_e(input)?,
         Some(TK::Failure)  => failure_equation(input)?,
+        Some(TK::Connect)  => connect_equation(input)?,
         _              => equality_or_noretcall_equation(input)?,
     };
     let comment = comment(input)?;
@@ -1154,6 +1156,20 @@ fn failure_equation(input: &mut TokenInput) -> ModalResult<Equation> {
     let body = equation_item(input)?;
     t(TK::RParen).parse_next(input)?;
     Ok(Equation::EQ_FAILURE { equ: body })
+}
+
+fn connect_equation(input: &mut TokenInput) -> ModalResult<Equation> {
+    next_tok(input)?; // Connect
+    t(TK::LParen).parse_next(input)?;
+    let connector1 = cut_err(component_reference)
+        .context(StrContext::Label("first connector in connect equation"))
+        .parse_next(input)?;
+    t(TK::Comma).parse_next(input)?;
+    let connector2 = cut_err(component_reference)
+        .context(StrContext::Label("second connector in connect equation"))
+        .parse_next(input)?;
+    t(TK::RParen).parse_next(input)?;
+    Ok(Equation::EQ_CONNECT { connector1, connector2 })
 }
 
 /// Algorithm statements stopping at Then / Else / Elseif / Elsewhen / End.

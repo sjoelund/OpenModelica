@@ -883,6 +883,27 @@ fn annotation(input: &mut TokenInput) -> ModalResult<Annotation> {
 fn import_clause(input: &mut TokenInput) -> ModalResult<Import> {
     t(TK::Import).parse_next(input)?;
     let path = name_path(input)?;
+    // Group import: import Path.{Name, NewName = OldName, ...}
+    // The dot before '{' is not consumed by name_path (it only follows dots to idents).
+    if opt(t(TK::Dot)).parse_next(input)?.is_some() {
+        t(TK::LBrace).parse_next(input)?;
+        let mut groups: List<GroupImport> = List::Nil();
+        loop {
+            let first = t_any_ident(input)?;
+            let gi = if opt(t(TK::Equal)).parse_next(input)?.is_some() {
+                GroupImport::GROUP_IMPORT_RENAME { rename: first, name: t_any_ident(input)? }
+            } else {
+                GroupImport::GROUP_IMPORT_NAME { name: first }
+            };
+            groups = cons(gi, groups);
+            if opt(t(TK::Comma)).parse_next(input)?.is_none() { break; }
+        }
+        cut_err(t(TK::RBrace))
+            .context(StrContext::Label("'}' closing group import"))
+            .parse_next(input)?;
+        return Ok(Import::GROUP_IMPORT { prefix: path, groups: groups.reverse() });
+    };
+    // Not a group import
     match path {
         Path::IDENT { name } => {
             if opt(t(TK::Equal)).parse_next(input)?.is_some() {

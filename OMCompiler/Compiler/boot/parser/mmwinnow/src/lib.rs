@@ -583,7 +583,7 @@ fn element_list(input: &mut TokenInput) -> ModalResult<List<ClassBodyItem>> {
             items = cons(ClassBodyItem::Element(elem), items); continue;
         }
         if let Some(ext) = opt(extends_clause).parse_next(input)? {
-            let last_tok = &input[0];;
+            let last_tok = &input[0];
             cut_err(t(TK::Semi)).context(StrContext::Label("';' after extends clause")).parse_next(input)?;
             let info = source_info(first_tok, last_tok);
             let elem = Absyn::Element::ELEMENT {
@@ -2264,10 +2264,6 @@ fn enum_literal(input: &mut TokenInput) -> ModalResult<EnumLiteral> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn parse_ok(src: &str) -> Program {
-        parse(src, "", Grammar::MetaModelica).expect("parse should succeed")
-    }
 
     #[test]
     fn empty_array() {

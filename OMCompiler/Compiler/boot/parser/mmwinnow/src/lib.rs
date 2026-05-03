@@ -1018,6 +1018,7 @@ fn algorithm_item(input: &mut TokenInput) -> ModalResult<AlgorithmItem> {
         Some(TK::While)    => while_algorithm(input)?,
         Some(TK::When)     => when_algorithm(input)?,
         Some(TK::Try)      => try_algorithm(input)?,
+        Some(TK::Failure)  => { failure_algorithm(input)? }
         Some(TK::Return)   => { next_tok(input)?; Algorithm::ALG_RETURN {} }
         Some(TK::Break)    => { next_tok(input)?; Algorithm::ALG_BREAK {} }
         Some(TK::Continue) => { next_tok(input)?; Algorithm::ALG_CONTINUE {} }
@@ -1160,6 +1161,14 @@ fn try_algorithm(input: &mut TokenInput) -> ModalResult<Algorithm> {
     }
     next_tok(input)?; // "try"
     Ok(Algorithm::ALG_TRY { body, elseBody: else_body })
+}
+
+fn failure_algorithm(input: &mut TokenInput) -> ModalResult<Algorithm> {
+    next_tok(input)?; // Failure
+    t(TK::LParen).parse_next(input)?;
+    let equ = List::new(algorithm_item.parse_next(input)?);
+    t(TK::RParen).parse_next(input)?;
+    Ok(Algorithm::ALG_FAILURE{equ})
 }
 
 // ---------------------------------------------------------------------------

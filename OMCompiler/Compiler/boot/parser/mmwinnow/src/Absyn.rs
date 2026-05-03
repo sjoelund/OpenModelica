@@ -4,7 +4,7 @@
 /// This module provides code generation from Absyn to Rust.
 
 use crate::metamodelica::*;
-use std::rc::Rc;
+use std::sync::Arc;
 
 // mod Absyn
 
@@ -82,8 +82,8 @@ use std::rc::Rc;
              ITERATOR{
 
                    name: String,
-                   guardExp: Option<Rc<Exp>>,
-                   range: Option<Rc<Exp>>,
+                   guardExp: Option<Arc<Exp>>,
+                   range: Option<Arc<Exp>>,
             },
       }
 
@@ -149,7 +149,7 @@ use std::rc::Rc;
                    ,
                    restriction: Restriction/* Restriction */
                    ,
-                   body: Rc<ClassDef>,
+                   body: Arc<ClassDef>,
                    commentsBeforeClass: List<String>/* when a class is the first one in the file and has a comment before it */
                    ,
                    commentsBeforeEnd: List<String>/* when a class has comments before its end */
@@ -192,7 +192,7 @@ use std::rc::Rc;
                    typeSpec: TypeSpec/* typeSpec specification includes array dimensions */
                    ,
                    attributes: ElementAttributes,
-                   arguments: List<Rc<ElementArg>>,
+                   arguments: List<Arc<ElementArg>>,
                    comment: Option<Comment>,
             },
 
@@ -212,7 +212,7 @@ use std::rc::Rc;
 
                    baseClassName: Ident/* name of class to extend */
                    ,
-                   modifications: List<Rc<ElementArg>>/* modifications to be applied to the base class */
+                   modifications: List<Arc<ElementArg>>/* modifications to be applied to the base class */
                    ,
                    comment: Option<String>/* comment */
                    ,
@@ -254,7 +254,7 @@ use std::rc::Rc;
              TCOMPLEX{
 
                    path: Path,
-                   typeSpecs: List<Rc<TypeSpec>>,
+                   typeSpecs: List<Arc<TypeSpec>>,
                    arrayDim: Option<ArrayDim>,
             },
       }
@@ -310,7 +310,7 @@ use std::rc::Rc;
 
              CONSTRAINTS{
 
-                   contents: List<Rc<Exp>>,
+                   contents: List<Arc<Exp>>,
             },
 
              EQUATIONS{
@@ -428,7 +428,7 @@ use std::rc::Rc;
 
                    replaceable_: bool/* replaceable */
                    ,
-                   class_: Rc<Class>/* class */
+                   class_: Arc<Class>/* class */
                    ,
             },
 
@@ -436,7 +436,7 @@ use std::rc::Rc;
 
                    path: Path/* path */
                    ,
-                   elementArg: List<Rc<ElementArg>>/* elementArg */
+                   elementArg: List<Arc<ElementArg>>/* elementArg */
                    ,
                    annotationOpt: Option<Annotation>/* optional annotation */
                    ,
@@ -457,7 +457,7 @@ use std::rc::Rc;
                    ,
                    typeSpec: TypeSpec/* typeSpec */
                    ,
-                   components: List<Rc<ComponentItem>>/* components */
+                   components: List<Arc<ComponentItem>>/* components */
                    ,
             },
       }
@@ -587,7 +587,7 @@ use std::rc::Rc;
       pub enum EquationItem {
              EQUATIONITEM{
 
-                   equation_: Rc<Equation>/* equation */
+                   equation_: Arc<Equation>/* equation */
                    ,
                    comment: Option<Comment>/* comment */
                    ,
@@ -608,7 +608,7 @@ use std::rc::Rc;
       pub enum AlgorithmItem {
              ALGORITHMITEM{
 
-                   algorithm_: Rc<Algorithm>/* algorithm */
+                   algorithm_: Arc<Algorithm>/* algorithm */
                    ,
                    comment: Option<Comment>/* comment */
                    ,
@@ -632,11 +632,11 @@ use std::rc::Rc;
 
                    ifExp: Exp/* Conditional expression */
                    ,
-                   equationTrueItems: List<Rc<EquationItem>>/* true branch */
+                   equationTrueItems: List<Arc<EquationItem>>/* true branch */
                    ,
-                   elseIfBranches: List<(Exp, List<Rc<EquationItem>>)>/* elseIfBranches */
+                   elseIfBranches: List<(Exp, List<Arc<EquationItem>>)>/* elseIfBranches */
                    ,
-                   equationElseItems: List<Rc<EquationItem>>/* equationElseItems Standard 2-side eqn */
+                   equationElseItems: List<Arc<EquationItem>>/* equationElseItems Standard 2-side eqn */
                    ,
             },
 
@@ -669,7 +669,7 @@ use std::rc::Rc;
              EQ_FOR{
 
                    iterators: ForIterators,
-                   forEquations: List<Rc<EquationItem>>/* forEquations */
+                   forEquations: List<Arc<EquationItem>>/* forEquations */
                    ,
             },
 
@@ -677,9 +677,9 @@ use std::rc::Rc;
 
                    whenExp: Exp/* whenExp */
                    ,
-                   whenEquations: List<Rc<EquationItem>>/* whenEquations */
+                   whenEquations: List<Arc<EquationItem>>/* whenEquations */
                    ,
-                   elseWhenEquations: List<(Exp, List<Rc<EquationItem>>)>/* elseWhenEquations */
+                   elseWhenEquations: List<(Exp, List<Arc<EquationItem>>)>/* elseWhenEquations */
                    ,
             },
 
@@ -807,7 +807,7 @@ use std::rc::Rc;
       pub enum Modification {
              CLASSMOD{
 
-                   elementArgLst: List<Rc<ElementArg>>,
+                   elementArgLst: List<Arc<ElementArg>>,
                    eqMod: EqMod,
             },
       }
@@ -823,7 +823,7 @@ use std::rc::Rc;
 
              EQMOD{
 
-                   exp: Rc<Exp>,
+                   exp: Arc<Exp>,
                    info: Info,
             },
       }
@@ -1065,7 +1065,7 @@ use std::rc::Rc;
 
              CREF{
 
-                   componentRef: Rc<ComponentRef>,
+                   componentRef: Arc<ComponentRef>,
             },
 
              STRING{
@@ -1080,60 +1080,60 @@ use std::rc::Rc;
 
              BINARY{
 
-                   exp1: Rc<Exp>,
+                   exp1: Arc<Exp>,
                    op: Operator,
-                   exp2: Rc<Exp>,
+                   exp2: Arc<Exp>,
             },
 
              UNARY{
 
                    op: Operator/* op */
                    ,
-                   exp: Rc<Exp>/* exp - any arithmetic expression */
+                   exp: Arc<Exp>/* exp - any arithmetic expression */
                    ,
             },
 
              LBINARY{
 
-                   exp1: Rc<Exp>/* exp1 */
+                   exp1: Arc<Exp>/* exp1 */
                    ,
                    op: Operator/* op */
                    ,
-                   exp2: Rc<Exp>,
+                   exp2: Arc<Exp>,
             },
 
              LUNARY{
 
                    op: Operator/* op */
                    ,
-                   exp: Rc<Exp>/* exp - any logical or relation expression */
+                   exp: Arc<Exp>/* exp - any logical or relation expression */
                    ,
             },
 
              RELATION{
 
-                   exp1: Rc<Exp>/* exp1 */
+                   exp1: Arc<Exp>/* exp1 */
                    ,
                    op: Operator/* op */
                    ,
-                   exp2: Rc<Exp>,
+                   exp2: Arc<Exp>,
             },
 
              IFEXP{
 
-                   ifExp: Rc<Exp>/* ifExp */
+                   ifExp: Arc<Exp>/* ifExp */
                    ,
-                   trueBranch: Rc<Exp>/* trueBranch */
+                   trueBranch: Arc<Exp>/* trueBranch */
                    ,
-                   elseBranch: Rc<Exp>/* elseBranch */
+                   elseBranch: Arc<Exp>/* elseBranch */
                    ,
-                   elseIfBranch: List<(Rc<Exp>, Rc<Exp>)>/* elseIfBranch Function calls */
+                   elseIfBranch: List<(Arc<Exp>, Arc<Exp>)>/* elseIfBranch Function calls */
                    ,
             },
 
              CALL{
 
-                   function_: Rc<ComponentRef>/* function */
+                   function_: Arc<ComponentRef>/* function */
                    ,
                    functionArgs: FunctionArgs,
                    typeVars: List<Path>,
@@ -1144,34 +1144,34 @@ use std::rc::Rc;
 
              PARTEVALFUNCTION{
 
-                   function_: Rc<ComponentRef>/* function */
+                   function_: Arc<ComponentRef>/* function */
                    ,
                    functionArgs: FunctionArgs,
             },
 
              ARRAY{
 
-                   arrayExp: List<Rc<Exp>>,
+                   arrayExp: List<Arc<Exp>>,
             },
 
              MATRIX{
 
-                   matrix: List<List<Rc<Exp>>>,
+                   matrix: List<List<Arc<Exp>>>,
             },
 
              RANGE{
 
-                   start: Rc<Exp>/* start */
+                   start: Arc<Exp>/* start */
                    ,
-                   step: Option<Rc<Exp>>/* step */
+                   step: Option<Arc<Exp>>/* step */
                    ,
-                   stop: Rc<Exp>/* stop */
+                   stop: Arc<Exp>/* stop */
                    ,
             },
 
              TUPLE{
 
-                   expressions: List<Rc<Exp>>/* comma-separated expressions */
+                   expressions: List<Arc<Exp>>/* comma-separated expressions */
                    ,
             },
 
@@ -1192,15 +1192,15 @@ use std::rc::Rc;
 
                    id: Ident/*  only an id  */
                    ,
-                   exp: Rc<Exp>/*  expression to bind to the id  */
+                   exp: Arc<Exp>/*  expression to bind to the id  */
                    ,
             },
 
              CONS{
 
-                   head: Rc<Exp>/*  head of the list  */
+                   head: Arc<Exp>/*  head of the list  */
                    ,
-                   rest: Rc<Exp>/*  rest of the list  */
+                   rest: Arc<Exp>/*  rest of the list  */
                    ,
             },
 
@@ -1208,9 +1208,9 @@ use std::rc::Rc;
 
                    matchTy: MatchType/*  match or matchcontinue       */
                    ,
-                   inputExp: Rc<Exp>/*  match expression of          */
+                   inputExp: Arc<Exp>/*  match expression of          */
                    ,
-                   localDecls: List<Rc<ElementItem>>/*  local declarations           */
+                   localDecls: List<Arc<ElementItem>>/*  local declarations           */
                    ,
                    cases: List<Case>/*  case list + else in the end  */
                    ,
@@ -1223,26 +1223,26 @@ use std::rc::Rc;
 
              LIST{
 
-                   exps: List<Rc<Exp>>,
+                   exps: List<Arc<Exp>>,
             },
 
              DOT{
 
-                   exp: Rc<Exp>,
-                   index: Rc<Exp>,
+                   exp: Arc<Exp>,
+                   index: Arc<Exp>,
             },
 
              EXPRESSIONCOMMENT{
 
                    commentsBefore: List<String>,
-                   exp: Rc<Exp>,
+                   exp: Arc<Exp>,
                    commentsAfter: List<String>,
             },
 
              SUBSCRIPTED_EXP{
 
-                   exp: Rc<Exp>,
-                   subscripts: List<Rc<Subscript>>,
+                   exp: Arc<Exp>,
+                   subscripts: List<Arc<Subscript>>,
             },
 
              BREAK{
@@ -1259,16 +1259,16 @@ use std::rc::Rc;
       pub enum Case {
              CASE{
 
-                   pattern: Rc<Exp>/*  patterns to be matched  */
+                   pattern: Arc<Exp>/*  patterns to be matched  */
                    ,
-                   patternGuard: Option<Rc<Exp>>,
+                   patternGuard: Option<Arc<Exp>>,
                    patternInfo: Info/* file information of the pattern */
                    ,
-                   localDecls: List<Rc<ElementItem>>/*  local decls  */
+                   localDecls: List<Arc<ElementItem>>/*  local decls  */
                    ,
                    classPart: ClassPart/*  equation or algorithm section  */
                    ,
-                   result: Rc<Exp>/*  result  */
+                   result: Arc<Exp>/*  result  */
                    ,
                    resultInfo: Info/* file information of the result-exp */
                    ,
@@ -1280,11 +1280,11 @@ use std::rc::Rc;
 
              ELSE{
 
-                   localDecls: List<Rc<ElementItem>>/*  local decls  */
+                   localDecls: List<Arc<ElementItem>>/*  local decls  */
                    ,
                    classPart: ClassPart/*  equation or algorithm section  */
                    ,
-                   result: Rc<Exp>/*  result  */
+                   result: Arc<Exp>/*  result  */
                    ,
                    resultInfo: Info/* file information of the result-exp */
                    ,
@@ -1324,25 +1324,25 @@ use std::rc::Rc;
 
              C_VARIABLENAME{
 
-                   componentRef: Rc<ComponentRef>,
+                   componentRef: Arc<ComponentRef>,
             },
 
              C_CONSTRAINTSECTION{
 
                    boolean: bool,
-                   equationItemLst: List<Rc<EquationItem>>,
+                   equationItemLst: List<Arc<EquationItem>>,
             },
 
              C_EQUATIONSECTION{
 
                    boolean: bool,
-                   equationItemLst: List<Rc<EquationItem>>,
+                   equationItemLst: List<Arc<EquationItem>>,
             },
 
              C_ALGORITHMSECTION{
 
                    boolean: bool,
-                   algorithmItemLst: List<Rc<AlgorithmItem>>,
+                   algorithmItemLst: List<Arc<AlgorithmItem>>,
             },
 
              C_ELEMENT{
@@ -1351,7 +1351,7 @@ use std::rc::Rc;
             },
 
              C_EXPRESSION{
-                   exp: Rc<Exp>,
+                   exp: Arc<Exp>,
             },
 
              C_MODIFICATION{
@@ -1369,15 +1369,15 @@ use std::rc::Rc;
       pub enum FunctionArgs {
              FUNCTIONARGS{
 
-                   args: List<Rc<Exp>>/* args */
+                   args: List<Arc<Exp>>/* args */
                    ,
-                   argNames: List<Rc<NamedArg>>/* argNames */
+                   argNames: List<Arc<NamedArg>>/* argNames */
                    ,
             },
 
              FOR_ITER_FARG{
 
-                   exp: Rc<Exp>/* iterator expression */
+                   exp: Arc<Exp>/* iterator expression */
                    ,
                    iterType: ReductionIterType,
                    iterators: ForIterators,
@@ -1413,7 +1413,7 @@ use std::rc::Rc;
 
                    argName: Ident/* argName */
                    ,
-                   argValue: Rc<Exp>/* argValue */
+                   argValue: Arc<Exp>/* argValue */
                    ,
             },
       }
@@ -1567,7 +1567,7 @@ use std::rc::Rc;
 
              SUBSCRIPT{
 
-                   subscript: Rc<Exp>/* subscript */
+                   subscript: Arc<Exp>/* subscript */
                    ,
             },
       }
@@ -1583,16 +1583,16 @@ use std::rc::Rc;
       pub enum ComponentRef {
              CREF_FULLYQUALIFIED{
 
-                   componentRef: Rc<ComponentRef>,
+                   componentRef: Arc<ComponentRef>,
             },
 
              CREF_QUAL{
 
                    name: Ident/* name */
                    ,
-                   subscripts: List<Rc<Subscript>>/* subscripts */
+                   subscripts: List<Arc<Subscript>>/* subscripts */
                    ,
-                   componentRef: Rc<ComponentRef>/* componentRef */
+                   componentRef: Arc<ComponentRef>/* componentRef */
                    ,
             },
 
@@ -1600,7 +1600,7 @@ use std::rc::Rc;
 
                    name: Ident/* name */
                    ,
-                   subscripts: List<Rc<Subscript>>/* subscripts */
+                   subscripts: List<Arc<Subscript>>/* subscripts */
                    ,
             },
 
@@ -1627,7 +1627,7 @@ use std::rc::Rc;
 
                    name: Ident/* name */
                    ,
-                   path: Rc<Path>/* path */
+                   path: Arc<Path>/* path */
                    ,
             },
 
@@ -1639,7 +1639,7 @@ use std::rc::Rc;
 
              FULLYQUALIFIED{
 
-                   path: Rc<Path>,
+                   path: Arc<Path>,
             },
       }
 
@@ -1842,7 +1842,7 @@ use std::rc::Rc;
       pub enum Annotation {
              ANNOTATION{
 
-                   elementArgs: List<Rc<ElementArg>>/* elementArgs */
+                   elementArgs: List<Arc<ElementArg>>/* elementArgs */
                    ,
             },
       }
@@ -1874,7 +1874,7 @@ use std::rc::Rc;
                    ,
                    output_: Option<ComponentRef>/* output parameter as return value */
                    ,
-                   args: List<Rc<Exp>>/* only positional arguments, i.e. expression list */
+                   args: List<Arc<Exp>>/* only positional arguments, i.e. expression list */
                    ,
                    annotation_: Option<Annotation>,
             },

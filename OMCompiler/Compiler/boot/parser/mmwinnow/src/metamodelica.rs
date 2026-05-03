@@ -16,7 +16,7 @@
 //! Note: MetaModelica uses 1-based indexing; Rust uses 0-based.
 //! Functions that take indices expect 1-based indexing to match MetaModelica semantics.
 
-use std::rc::Rc;
+use std::sync::Arc;
 use anyhow::Result;
 use anyhow::bail;
 
@@ -29,7 +29,7 @@ use anyhow::bail;
 #[derive(Debug, Clone, PartialEq)]
 pub struct SourceInfo {
     /// File name where the class is defined in.
-    pub file_name: Rc<String>,
+    pub file_name: Arc<String>,
     /// Should be true for libraries.
     pub is_read_only: bool,
     /// Start line number (1-based).
@@ -567,7 +567,7 @@ pub fn string_char_list_string(strs: &List<String>) -> String {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum List<T> {
-    Cons{head: T, tail: Rc<List<T>>},
+    Cons{head: T, tail: Arc<List<T>>},
     Nil(),
 }
 use List::{Cons, Nil};
@@ -592,7 +592,7 @@ macro_rules! list {
 }
 
 pub fn cons<T>(head: T, tail: List<T>) -> List<T> {
-    Cons{head: head, tail: Rc::new(tail)}
+    Cons{head: head, tail: Arc::new(tail)}
 }
 
 impl<T> Default for List<T> {
@@ -707,10 +707,10 @@ impl<T: Clone> List<T> {
 
 impl<T> List<T> {
     pub fn new(item: T) -> List<T> {
-        Cons{head: item, tail: Rc::new(Nil())}
+        Cons{head: item, tail: Arc::new(Nil())}
     }
     pub fn cons(self: List<T>, item: T) -> List<T> {
-        Cons{head: item, tail: Rc::new(self)}
+        Cons{head: item, tail: Arc::new(self)}
     }
     /// Gets the first element. O(1).
     /// Fails if the list is empty.
@@ -1976,7 +1976,7 @@ mod tests {
         #[test]
         fn test_source_info() {
             let info = SourceInfo {
-                file_name: Rc::new("test.mo".to_string()),
+                file_name: Arc::new("test.mo".to_string()),
                 is_read_only: true,
                 line_number_start: 1,
                 column_number_start: 1,

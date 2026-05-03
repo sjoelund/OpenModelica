@@ -1,0 +1,8 @@
+[package]
+name = "mmtorust"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+mmwinnow = { path = "../mmwinnow" }
+rayon = "1.12.0"

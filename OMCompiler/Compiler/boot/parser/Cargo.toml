@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["parser", "mmwinnow"]
+members = ["parser", "mmwinnow", "mmtorust"]
 
 #[profile.release]
 #debug = true

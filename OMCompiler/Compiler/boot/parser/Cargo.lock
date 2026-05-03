@@ -600,6 +600,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "mmtorust"
+version = "0.1.0"
+dependencies = [
+ "mmwinnow",
+ "rayon",
+]
+
+[[package]]
 name = "mmwinnow"
 version = "0.1.0"
 dependencies = [

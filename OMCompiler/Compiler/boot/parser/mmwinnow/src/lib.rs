@@ -21,6 +21,11 @@ use metamodelica::{List, cons, SourceInfo};
 
 use winnow::{Parser, ModalResult, combinator::{opt, alt, cut_err}, error::{AddContext, ContextError, StrContext, StrContextValue, ErrMode}};
 use std::rc::Rc;
+use std::cell::RefCell;
+
+thread_local! {
+    static CURRENT_FILE: RefCell<Rc<String>> = RefCell::new(Rc::new(String::new()));
+}
 
 // ---------------------------------------------------------------------------
 // Grammar selector
@@ -108,7 +113,8 @@ impl std::error::Error for ParserError {}
 // ---------------------------------------------------------------------------
 
 /// Lex then parse `src`.  Returns the AST or the first error encountered.
-pub fn parse(src: &str, grammar: Grammar) -> Result<Program, Box<dyn std::error::Error>> {
+pub fn parse(src: &str, filename: &str, grammar: Grammar) -> Result<Program, Box<dyn std::error::Error>> {
+    CURRENT_FILE.with(|f| *f.borrow_mut() = Rc::new(filename.to_owned()));
     let tokens = lexer::lex(src, grammar)?;
     stored_definition
         .parse(tokens.as_slice())
@@ -173,7 +179,7 @@ struct ComponentClause {
 fn source_info(tok1: &Token, tok2: &Token) -> SourceInfo {
     let (end_line, end_col) = tok2.end_pos();
     SourceInfo {
-        file_name: String::new(),
+        file_name: CURRENT_FILE.with(|f| Rc::clone(&f.borrow())),
         is_read_only: false,
         line_number_start: tok1.line as i32,
         column_number_start: tok1.col as i32,
@@ -2260,7 +2266,7 @@ mod tests {
     use super::*;
 
     fn parse_ok(src: &str) -> Program {
-        parse(src, Grammar::MetaModelica).expect("parse should succeed")
+        parse(src, "", Grammar::MetaModelica).expect("parse should succeed")
     }
 
     #[test]
@@ -2285,7 +2291,7 @@ mod tests {
                     /* ... */\n\
                     Real x(start=0);\n\
                     end SimpleSystem;";
-        match parse(code, Grammar::MetaModelica).unwrap() {
+        match parse(code, "", Grammar::MetaModelica).unwrap() {
             Program::PROGRAM { classes, .. } => {
                 assert!(!classes.is_empty());
                 if let List::Cons { head: class, .. } = classes {
@@ -2299,13 +2305,13 @@ mod tests {
     #[test]
     fn parse_first_token() {
         let code = "package SimpleSystem \"Returns the index...\"\nend SimpleSystem;";
-        parse(code, Grammar::MetaModelica).expect("expected parse success");
+        parse(code, "", Grammar::MetaModelica).expect("expected parse success");
     }
 
     #[test]
     fn parse_absyn() {
         let code = std::fs::read_to_string("tests/data/Absyn.mo").expect("Absyn.mo not found");
-        if let Err(e) = parse(&code, Grammar::MetaModelica) {
+        if let Err(e) = parse(&code, "Absyn.mo", Grammar::MetaModelica) {
             panic!("expected Absyn.mo to parse: {e}");
         }
     }
@@ -2313,7 +2319,7 @@ mod tests {
     #[test]
     fn parse_codegen_c() {
         let code = std::fs::read_to_string("tests/data/CodegenC.mo").expect("CodegenC.mo not found");
-        if let Err(e) = parse(&code, Grammar::MetaModelica) {
+        if let Err(e) = parse(&code, "CodegenC.mo", Grammar::MetaModelica) {
             panic!("expected CodegenC.mo to parse: {e}");
         }
     }

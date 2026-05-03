@@ -29,7 +29,7 @@ use anyhow::bail;
 #[derive(Debug, Clone, PartialEq)]
 pub struct SourceInfo {
     /// File name where the class is defined in.
-    pub file_name: String,
+    pub file_name: Rc<String>,
     /// Should be true for libraries.
     pub is_read_only: bool,
     /// Start line number (1-based).
@@ -1976,7 +1976,7 @@ mod tests {
         #[test]
         fn test_source_info() {
             let info = SourceInfo {
-                file_name: "test.mo".to_string(),
+                file_name: Rc::new("test.mo".to_string()),
                 is_read_only: true,
                 line_number_start: 1,
                 column_number_start: 1,
@@ -1984,7 +1984,7 @@ mod tests {
                 column_number_end: 50,
                 last_modification: 1234567890.0,
             };
-            assert_eq!(info.file_name, "test.mo");
+            assert_eq!(*info.file_name, "test.mo");
             assert!(info.is_read_only);
             assert_eq!(info.line_number_start, 1);
         }

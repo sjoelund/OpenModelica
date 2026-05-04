@@ -634,7 +634,11 @@ fn fmt_node(
         NodeKind::EnumLiteral => {}
     }
 
+    let has_no_type = matches!(&node.kind, NodeKind::Import(_))
+        || matches!(&node.kind, NodeKind::Class(c) if matches!(c.restriction, Absyn::Restriction::R_PACKAGE));
+
     match &node.ty {
+        Ty::Unknown if has_no_type => writeln!(f)?,
         Ty::Unknown => writeln!(f, "  [?]")?,
         Ty::RustStruct(_) => {
             // Show fields inline in declaration order; fall back to the name if no body.

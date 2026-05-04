@@ -49,6 +49,8 @@ pub enum Ty {
     /// A single-record uniontype — transparent alias to the sole record.
     /// Carries the simple name of that record.
     AliasTo(String),
+    /// A user-defined parameterized type with resolved type arguments, e.g. `ExpandableArray<T>`.
+    Generic(String, Vec<Ty>),
 }
 
 impl fmt::Display for Ty {
@@ -88,6 +90,14 @@ impl fmt::Display for Ty {
             Ty::RustUnitVariant => f.write_str("unit variant"),
             Ty::RustEnum(name) => f.write_str(&name.replace('.', "::")),
             Ty::AliasTo(name) => write!(f, "= {name}"),
+            Ty::Generic(name, args) => {
+                write!(f, "{name}<")?;
+                for (i, ty) in args.iter().enumerate() {
+                    if i > 0 { write!(f, ", ")?; }
+                    write!(f, "{ty}")?;
+                }
+                write!(f, ">")
+            }
         }
     }
 }
@@ -468,23 +478,34 @@ fn resolve_type_spec(ts: &Absyn::TypeSpec, known: &HashMap<String, Ty>, type_var
         Absyn::TypeSpec::TPATH { path, .. } => resolve_path(path, known, type_vars),
         Absyn::TypeSpec::TCOMPLEX { path, typeSpecs, .. } => {
             let args: Vec<_> = typeSpecs.into_iter().collect();
-            match path_last(path) {
+            let ctor = path_last(path);
+            match ctor {
                 "tuple" => {
                     let tys: Option<Vec<Ty>> = args.iter()
                         .map(|a| resolve_type_spec(a, known, type_vars))
                         .collect();
                     Some(Ty::Tuple(tys?))
                 }
-                ctor if args.len() == 1 => {
-                    let inner = resolve_type_spec(&args[0], known, type_vars)?;
-                    match ctor {
-                        "Option" => Some(Ty::Option(Box::new(inner))),
-                        "list" | "List" => Some(Ty::List(Box::new(inner))),
-                        "array" | "Array" => Some(Ty::Array(Box::new(inner))),
-                        _ => None,
-                    }
+                "Option" if args.len() == 1 => {
+                    Some(Ty::Option(Box::new(resolve_type_spec(&args[0], known, type_vars)?)))
                 }
-                _ => None,
+                "list" | "List" if args.len() == 1 => {
+                    Some(Ty::List(Box::new(resolve_type_spec(&args[0], known, type_vars)?)))
+                }
+                "array" | "Array" if args.len() == 1 => {
+                    Some(Ty::Array(Box::new(resolve_type_spec(&args[0], known, type_vars)?)))
+                }
+                _ => {
+                    // User-defined generic: base type must be known, all args must resolve.
+                    let full = fmt_path(path);
+                    let lookup = full.trim_start_matches('.');
+                    let base_ty = known.get(lookup).or_else(|| known.get(ctor))?;
+                    let base_name = ty_rust_name(base_ty).unwrap_or_else(|| ctor.to_owned());
+                    let resolved: Option<Vec<Ty>> = args.iter()
+                        .map(|a| resolve_type_spec(a, known, type_vars))
+                        .collect();
+                    Some(Ty::Generic(base_name, resolved?))
+                }
             }
         }
     }
@@ -506,6 +527,14 @@ fn resolve_path(path: &Absyn::Path, known: &HashMap<String, Ty>, type_vars: &[St
 }
 
 // ── Display helpers ───────────────────────────────────────────────────────────
+
+/// Extract the Rust-style name from a resolved type, for use as a generic base.
+fn ty_rust_name(ty: &Ty) -> Option<String> {
+    match ty {
+        Ty::AliasTo(n) | Ty::RustEnum(n) | Ty::RustStruct(n) | Ty::Enumeration(n) => Some(n.replace('.', "::")),
+        _ => None,
+    }
+}
 
 fn qualify(prefix: &str, name: &str) -> String {
     if prefix.is_empty() { name.to_owned() } else { format!("{prefix}.{name}") }

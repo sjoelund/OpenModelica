@@ -3,19 +3,25 @@ use mmwinnow::Grammar;
 use mmwinnow::Absyn;
 
 mod MM;
+mod hierarchy;
 use rayon::prelude::*;
 
 fn start_compilation(results: Vec<(&str, Absyn::Program)>) {
     let mut failures = 0;
+    let mut all_classes: Vec<MM::Class> = Vec::new();
     for (path, program) in &results {
         match MM::from_program(program) {
-            Ok(_) => (),
+            Ok(mm_program) => {
+                all_classes.extend(mm_program);
+            }
             Err(e) => {
                 eprintln!("MM ERR {path}: {e}");
                 failures += 1;
             }
         }
     }
+    let hier = hierarchy::InstanceHierarchy::from_program(&all_classes);
+    println!("{hier}");
     println!("MM conversion: {} files, {} failures", results.len(), failures);
 }
 

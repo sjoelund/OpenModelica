@@ -437,12 +437,39 @@ fn try_resolve_uniontype(node: &NameNode<'_>, qname: &str) -> Option<Ty> {
 }
 
 fn try_resolve_function(c: &MM::Class, node: &NameNode<'_>, known: &HashMap<String, Ty>) -> Option<Ty> {
-    let type_vars = class_type_vars(c);
+    resolve_function_type(c, node, known, &[])
+}
+
+/// Resolve a function's type, threading `outer_type_vars` into nested partial functions.
+fn resolve_function_type(
+    c: &MM::Class,
+    node: &NameNode<'_>,
+    known: &HashMap<String, Ty>,
+    outer_type_vars: &[String],
+) -> Option<Ty> {
+    let mut type_vars = class_type_vars(c);
+    for v in outer_type_vars {
+        if !type_vars.contains(v) { type_vars.push(v.clone()); }
+    }
+
     let members: &[MM::ClassMember] = match &c.body {
         MM::ClassDef::Parts { members, .. } => members,
         MM::ClassDef::ClassExtends { members, .. } => members,
         _ => return None,
     };
+
+    // Resolve nested partial function children with the combined type vars so they
+    // can reference type variables declared in the outer function.
+    let mut local_fns: HashMap<String, Ty> = HashMap::new();
+    for (child_name, child_node) in &node.children {
+        if let NodeKind::Class(fn_class) = &child_node.kind {
+            if is_function_class(&fn_class.restriction) {
+                if let Some(fn_ty) = resolve_function_type(fn_class, child_node, known, &type_vars) {
+                    local_fns.insert(child_name.clone(), fn_ty);
+                }
+            }
+        }
+    }
 
     let mut inputs: Vec<Ty> = Vec::new();
     let mut outputs: Vec<Ty> = Vec::new();
@@ -453,8 +480,13 @@ fn try_resolve_function(c: &MM::Class, node: &NameNode<'_>, known: &HashMap<Stri
         let ty = if child.ty != Ty::Unknown {
             child.ty.clone()
         } else {
-            // Type vars are resolved locally; everything else goes through the known map.
-            resolve_type_spec(&m.type_spec, known, &type_vars)?
+            // Check local partial functions first (higher-order function args).
+            let type_name = path_last(type_spec_path(&m.type_spec));
+            if let Some(fn_ty) = local_fns.get(type_name).cloned() {
+                fn_ty
+            } else {
+                resolve_type_spec(&m.type_spec, known, &type_vars)?
+            }
         };
         match m.direction {
             Absyn::Direction::INPUT => inputs.push(ty),
@@ -469,7 +501,9 @@ fn try_resolve_function(c: &MM::Class, node: &NameNode<'_>, known: &HashMap<Stri
         1 => outputs.into_iter().next().unwrap(),
         _ => Ty::Tuple(outputs),
     };
-    Some(Ty::Function { type_vars, inputs, output: Box::new(output) })
+    // Only report the type vars that belong to this function (not inherited outer ones).
+    let own_type_vars = class_type_vars(c);
+    Some(Ty::Function { type_vars: own_type_vars, inputs, output: Box::new(output) })
 }
 
 /// Resolve a TypeSpec to a Ty.

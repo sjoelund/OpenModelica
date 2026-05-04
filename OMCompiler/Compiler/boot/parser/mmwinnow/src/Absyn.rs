@@ -123,10 +123,7 @@ use std::sync::Arc;
                    ,
             },
 
-             TOP{
-
-
-            },
+             TOP,
       }
 
 
@@ -270,10 +267,7 @@ use std::sync::Arc;
                    enumLiterals: List<EnumLiteral>,
             },
 
-             ENUM_COLON{
-
-
-            },
+             ENUM_COLON,
       }
 
       /* EnumLiteral, which is a name in an enumeration and an optional
@@ -468,25 +462,10 @@ use std::sync::Arc;
       #[derive(Debug, Clone, PartialEq)]
       #[allow(non_camel_case_types)]
       pub enum InnerOuter {
-             INNER{
-
-
-            },
-
-             OUTER{
-
-
-            },
-
-             INNER_OUTER{
-
-
-            },
-
-             NOT_INNER_OUTER{
-
-
-            },
+             INNER,
+             OUTER,
+             INNER_OUTER,
+             NOT_INNER_OUTER,
       }
 
       /* Import statements, different kinds */
@@ -765,15 +744,9 @@ use std::sync::Arc;
                    ,
             },
 
-             ALG_RETURN{
+             ALG_RETURN,
 
-
-            },
-
-             ALG_BREAK{
-
-
-            },
+             ALG_BREAK,
 
             // MetaModelica extensions
 
@@ -789,10 +762,7 @@ use std::sync::Arc;
                    elseBody: List<AlgorithmItem>,
             },
 
-             ALG_CONTINUE{
-
-
-            },
+             ALG_CONTINUE,
       }
 
      const emptyMod: Modification = Modification::CLASSMOD{elementArgLst: List::Nil(), eqMod: EqMod::NOMOD{}};
@@ -816,10 +786,7 @@ use std::sync::Arc;
       #[derive(Debug, Clone, PartialEq)]
       #[allow(non_camel_case_types)]
       pub enum EqMod {
-             NOMOD{
-
-
-            },
+             NOMOD,
 
              EQMOD{
 
@@ -880,20 +847,9 @@ use std::sync::Arc;
       #[derive(Debug, Clone, PartialEq)]
       #[allow(non_camel_case_types)]
       pub enum RedeclareKeywords {
-             REDECLARE{
-
-
-            },
-
-             REPLACEABLE{
-
-
-            },
-
-             REDECLARE_REPLACEABLE{
-
-
-            },
+             REDECLARE,
+             REPLACEABLE,
+             REDECLARE_REPLACEABLE,
       }
 
       /* The each keyword can be present in both MODIFICATION\'s and REDECLARATION\'s.
@@ -902,15 +858,8 @@ use std::sync::Arc;
       #[derive(Debug, Clone, PartialEq)]
       #[allow(non_camel_case_types)]
       pub enum Each {
-             EACH{
-
-
-            },
-
-             NON_EACH{
-
-
-            },
+             EACH,
+             NON_EACH,
       }
 
       /* Element attributes */
@@ -942,15 +891,8 @@ use std::sync::Arc;
       #[derive(Debug, Clone, PartialEq)]
       #[allow(non_camel_case_types)]
       pub enum IsField {
-             NONFIELD{
-
-
-            },
-
-             FIELD{
-
-
-            },
+             NONFIELD,
+             FIELD,
       }
 
       /* Parallelism */
@@ -958,40 +900,18 @@ use std::sync::Arc;
       #[derive(Debug, Clone, PartialEq)]
       #[allow(non_camel_case_types)]
       pub enum Parallelism {
-             PARGLOBAL{
-
-
-            },
-
-             PARLOCAL{
-
-
-            },
-
-             NON_PARALLEL{
-
-
-            },
+             PARGLOBAL,
+             PARLOCAL,
+             NON_PARALLEL,
       }
 
       /// Uniontype FlowStream
       #[derive(Debug, Clone, PartialEq)]
       #[allow(non_camel_case_types)]
       pub enum FlowStream {
-             FLOW{
-
-
-            },
-
-             STREAM{
-
-
-            },
-
-             NOT_FLOW_STREAM{
-
-
-            },
+             FLOW,
+             STREAM,
+             NOT_FLOW_STREAM,
       }
 
       /* Variability */
@@ -999,25 +919,10 @@ use std::sync::Arc;
       #[derive(Debug, Clone, PartialEq)]
       #[allow(non_camel_case_types)]
       pub enum Variability {
-             VAR{
-
-
-            },
-
-             DISCRETE{
-
-
-            },
-
-             PARAM{
-
-
-            },
-
-             CONST{
-
-
-            },
+             VAR,
+             DISCRETE,
+             PARAM,
+             CONST,
       }
 
       /* Direction */
@@ -1025,25 +930,10 @@ use std::sync::Arc;
       #[derive(Debug, Clone, PartialEq)]
       #[allow(non_camel_case_types)]
       pub enum Direction {
-             INPUT{
-
-
-            },
-
-             OUTPUT{
-
-
-            },
-
-             BIDIR{
-
-
-            },
-
-             INPUT_OUTPUT{
-
-
-            },
+             INPUT,
+             OUTPUT,
+             BIDIR,
+             INPUT_OUTPUT,
       }
 
       /* The Exp uniontype is the container of a Modelica expression.
@@ -1175,10 +1065,7 @@ use std::sync::Arc;
                    ,
             },
 
-             END{
-
-
-            },
+            END,
 
              CODE{
 
@@ -1245,10 +1132,7 @@ use std::sync::Arc;
                    subscripts: List<Arc<Subscript>>,
             },
 
-             BREAK{
-
-
-            },
+            BREAK,
       }
 
 
@@ -1300,15 +1184,8 @@ use std::sync::Arc;
       #[derive(Debug, Clone, PartialEq)]
       #[allow(non_camel_case_types)]
       pub enum MatchType {
-             MATCH{
-
-
-            },
-
-             MATCHCONTINUE{
-
-
-            },
+             MATCH,
+             MATCHCONTINUE,
       }
 
 
@@ -1391,15 +1268,8 @@ use std::sync::Arc;
       #[derive(Debug, Clone, PartialEq)]
       #[allow(non_camel_case_types)]
       pub enum ReductionIterType {
-             COMBINE{
-
-
-            },
-
-             THREAD{
-
-
-            },
+             COMBINE,
+             THREAD,
       }
 
 
@@ -1425,127 +1295,37 @@ use std::sync::Arc;
       #[allow(non_camel_case_types)]
       pub enum Operator {
             /* arithmetic operators */
-
-             ADD{
-
-
-            },
-
-             SUB{
-
-
-            },
-
-             MUL{
-
-
-            },
-
-             DIV{
-
-
-            },
-
-             POW{
-
-
-            },
-
-             UPLUS{
-
-
-            },
-
-             UMINUS{
-
-
-            },
-
+             ADD,
+             SUB,
+             MUL,
+             DIV,
+             POW,
+             UPLUS,
+             UMINUS,
             /* element-wise arithmetic operators */
-
-             ADD_EW{
-
-
-            },
-
-             SUB_EW{
-
-
-            },
-
-             MUL_EW{
-
-
-            },
-
-             DIV_EW{
-
-
-            },
-
-             POW_EW{
-
-
-            },
-
-             UPLUS_EW{
-
-
-            },
-
-             UMINUS_EW{
-
-
-            },
+             ADD_EW,
+             SUB_EW,
+             MUL_EW,
+             DIV_EW,
+             POW_EW,
+             UPLUS_EW,
+             UMINUS_EW,
 
             /* logical operators */
 
-             AND{
-
-
-            },
-
-             OR{
-
-
-            },
-
-             NOT{
-
-
-            },
+             AND,
+             OR,
+             NOT,
 
             /* relational operators */
 
-             LESS{
+             LESS,
+             LESSEQ,
+             GREATER,
 
-
-            },
-
-             LESSEQ{
-
-
-            },
-
-             GREATER{
-
-
-            },
-
-             GREATEREQ{
-
-
-            },
-
-             EQUAL{
-
-
-            },
-
-             NEQUAL{
-
-
-            },
+             GREATEREQ,
+             EQUAL,
+             NEQUAL,
       }
 
 
@@ -1560,10 +1340,7 @@ use std::sync::Arc;
       #[derive(Debug, Clone, PartialEq)]
       #[allow(non_camel_case_types)]
       pub enum Subscript {
-             NOSUB{
-
-
-            },
+             NOSUB,
 
              SUBSCRIPT{
 
@@ -1604,15 +1381,8 @@ use std::sync::Arc;
                    ,
             },
 
-             WILD{
-
-
-            },
-
-             ALLWILD{
-
-
-            },
+             WILD,
+             ALLWILD,
       }
 
 
@@ -1656,112 +1426,37 @@ use std::sync::Arc;
       #[derive(Debug, Clone, PartialEq)]
       #[allow(non_camel_case_types)]
       pub enum Restriction {
-             R_CLASS{
-
-
-            },
-
-             R_OPTIMIZATION{
-
-
-            },
-
-             R_MODEL{
-
-
-            },
-
-             R_RECORD{
-
-
-            },
-
-             R_BLOCK{
-
-
-            },
-
-             R_CONNECTOR{
-
-
-            },
-
-             R_EXP_CONNECTOR{
-
-
-            },
-
-             R_TYPE{
-
-
-            },
-
-             R_PACKAGE{
-
-
-            },
-
+             R_CLASS,
+             R_OPTIMIZATION,
+             R_MODEL,
+             R_RECORD,
+             R_BLOCK,
+             R_CONNECTOR,
+             R_EXP_CONNECTOR,
+             R_TYPE,
+             R_PACKAGE,
              R_FUNCTION{
 
                    functionRestriction: FunctionRestriction,
             },
-
-             R_OPERATOR{
-
-
-            },
-
-             R_OPERATOR_RECORD{
-
-
-            },
-
-             R_ENUMERATION{
-
-
-            },
-
-             R_PREDEFINED_INTEGER{
-
-
-            },
-
-             R_PREDEFINED_REAL{
-
-
-            },
-
-             R_PREDEFINED_STRING{
-
-
-            },
-
-             R_PREDEFINED_BOOLEAN{
-
-
-            },
-
-             R_PREDEFINED_ENUMERATION{
-
-
-            },
+             R_OPERATOR,
+             R_OPERATOR_RECORD,
+             R_ENUMERATION,
+             R_PREDEFINED_INTEGER,
+             R_PREDEFINED_REAL,
+             R_PREDEFINED_STRING,
+             R_PREDEFINED_BOOLEAN,
+             R_PREDEFINED_ENUMERATION,
 
             // BTH
 
 
-             R_PREDEFINED_CLOCK{
-
-
-            },
+             R_PREDEFINED_CLOCK,
 
             // MetaModelica
 
 
-             R_UNIONTYPE{
-
-
-            },
-
+             R_UNIONTYPE,
              R_METARECORD{
 
                   //MetaModelica extension, added by simbj
@@ -1779,10 +1474,7 @@ use std::sync::Arc;
                    typeVars: List<String>,
             },
 
-             R_UNKNOWN{
-
-
-            },
+             R_UNKNOWN,
 
             /* added by simbj */
       }
@@ -1792,20 +1484,9 @@ use std::sync::Arc;
       #[derive(Debug, Clone, PartialEq)]
       #[allow(non_camel_case_types)]
       pub enum FunctionPurity {
-             PURE{
-
-
-            },
-
-             IMPURE{
-
-
-            },
-
-             NO_PURITY{
-
-
-            },
+             PURE,
+             IMPURE,
+             NO_PURITY,
       }
 
       /// Uniontype FunctionRestriction
@@ -1818,20 +1499,9 @@ use std::sync::Arc;
                    ,
             },
 
-             FR_OPERATOR_FUNCTION{
-
-
-            },
-
-             FR_PARALLEL_FUNCTION{
-
-
-            },
-
-             FR_KERNEL_FUNCTION{
-
-
-            },
+             FR_OPERATOR_FUNCTION,
+             FR_PARALLEL_FUNCTION,
+             FR_KERNEL_FUNCTION,
       }
 
       /* An Annotation is a class_modification.
@@ -1910,8 +1580,5 @@ use std::sync::Arc;
                    info: Info,
             },
 
-             NO_MSG{
-
-
-            },
+             NO_MSG,
       }

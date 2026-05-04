@@ -337,24 +337,24 @@ fn class_type(input: &mut TokenInput) -> ModalResult<Restriction> {
 
 fn class_type2(input: &mut TokenInput) -> ModalResult<Restriction> {
     let res = match next_tok(input)? {
-        TK::Class        => Restriction::R_CLASS {},
-        TK::Optimization => Restriction::R_OPTIMIZATION {},
-        TK::Model        => Restriction::R_MODEL {},
-        TK::Record       => Restriction::R_RECORD {},
-        TK::Block        => Restriction::R_BLOCK {},
+        TK::Class        => Restriction::R_CLASS,
+        TK::Optimization => Restriction::R_OPTIMIZATION,
+        TK::Model        => Restriction::R_MODEL,
+        TK::Record       => Restriction::R_RECORD,
+        TK::Block        => Restriction::R_BLOCK,
         TK::Expandable   => match next_tok(input)? {
-            TK::Connector => Restriction::R_EXP_CONNECTOR {},
+            TK::Connector => Restriction::R_EXP_CONNECTOR,
             _             => return Err(ErrMode::Backtrack(ContextError::default())),
         },
-        TK::Connector    => Restriction::R_CONNECTOR {},
-        TK::Type         => Restriction::R_TYPE {},
-        TK::Package      => Restriction::R_PACKAGE {},
-        TK::Uniontype    => Restriction::R_UNIONTYPE {},
+        TK::Connector    => Restriction::R_CONNECTOR,
+        TK::Type         => Restriction::R_TYPE,
+        TK::Package      => Restriction::R_PACKAGE,
+        TK::Uniontype    => Restriction::R_UNIONTYPE,
         TK::Operator     => {
             match opt(alt((t(TK::Record),t(TK::Function)))).parse_next(input)? {
-                Some(TK::Function) => Restriction::R_FUNCTION {functionRestriction: FunctionRestriction::FR_OPERATOR_FUNCTION {} },
-                Some(TK::Record)   => Restriction::R_OPERATOR_RECORD {},
-                _                  => Restriction::R_OPERATOR {},
+                Some(TK::Function) => Restriction::R_FUNCTION {functionRestriction: FunctionRestriction::FR_OPERATOR_FUNCTION },
+                Some(TK::Record)   => Restriction::R_OPERATOR_RECORD,
+                _                  => Restriction::R_OPERATOR,
             }
         },
         _                => return Err(ErrMode::Backtrack(ContextError::default())),
@@ -364,14 +364,14 @@ fn class_type2(input: &mut TokenInput) -> ModalResult<Restriction> {
 
 fn class_type_function(input: &mut TokenInput) -> ModalResult<Restriction> {
     let purity = match opt(alt((t(TK::Pure), t(TK::Impure)))).parse_next(input)? {
-        Some(TK::Pure)   => Absyn::FunctionPurity::PURE {},
-        Some(TK::Impure) => Absyn::FunctionPurity::IMPURE {},
-        _ => Absyn::FunctionPurity::NO_PURITY {},
+        Some(TK::Pure)   => Absyn::FunctionPurity::PURE,
+        Some(TK::Impure) => Absyn::FunctionPurity::IMPURE,
+        _ => Absyn::FunctionPurity::NO_PURITY,
     };
     let functionRestriction = try_tok(input, |k| match k {
-        TK::Operator  => Some(Absyn::FunctionRestriction::FR_OPERATOR_FUNCTION {}),
-        TK::Parallel  => Some(Absyn::FunctionRestriction::FR_PARALLEL_FUNCTION {}),
-        TK::Parkernel => Some(Absyn::FunctionRestriction::FR_KERNEL_FUNCTION {}),
+        TK::Operator  => Some(Absyn::FunctionRestriction::FR_OPERATOR_FUNCTION),
+        TK::Parallel  => Some(Absyn::FunctionRestriction::FR_PARALLEL_FUNCTION),
+        TK::Parkernel => Some(Absyn::FunctionRestriction::FR_KERNEL_FUNCTION),
         _             => None,
     }).unwrap_or(Absyn::FunctionRestriction::FR_NORMAL_FUNCTION { purity });
 
@@ -578,7 +578,7 @@ fn element_list(input: &mut TokenInput) -> ModalResult<List<ClassBodyItem>> {
             let info = source_info(first_tok, last_tok);
             let elem = Absyn::Element::ELEMENT {
                 finalPrefix: false, redeclareKeywords: None,
-                innerOuter: InnerOuter::NOT_INNER_OUTER {}, specification: ElementSpec::IMPORT { import_: imp, comment, info: info.clone() },
+                innerOuter: InnerOuter::NOT_INNER_OUTER, specification: ElementSpec::IMPORT { import_: imp, comment, info: info.clone() },
                 info: info, constrainClass: None,
             };
             items = cons(ClassBodyItem::Element(elem), items); continue;
@@ -611,16 +611,16 @@ fn element_list(input: &mut TokenInput) -> ModalResult<List<ClassBodyItem>> {
         let replaceable_ = opt(t(TK::Replaceable)).parse_next(input)?.is_some();
 
         let redeclareKeywords: Option<RedeclareKeywords> = match (redeclare_, replaceable_) {
-            (true,  true)  => Some(RedeclareKeywords::REDECLARE_REPLACEABLE {}),
-            (true,  false) => Some(RedeclareKeywords::REDECLARE {}),
-            (false, true)  => Some(RedeclareKeywords::REPLACEABLE {}),
+            (true,  true)  => Some(RedeclareKeywords::REDECLARE_REPLACEABLE),
+            (true,  false) => Some(RedeclareKeywords::REDECLARE),
+            (false, true)  => Some(RedeclareKeywords::REPLACEABLE),
             (false, false) => None,
         };
         let innerOuter = match (inner_, outer_) {
-            (true,  true)  => InnerOuter::INNER_OUTER {},
-            (true,  false) => InnerOuter::INNER {},
-            (false, true)  => InnerOuter::OUTER {},
-            (false, false) => InnerOuter::NOT_INNER_OUTER {},
+            (true,  true)  => InnerOuter::INNER_OUTER,
+            (true,  false) => InnerOuter::INNER,
+            (false, true)  => InnerOuter::OUTER,
+            (false, false) => InnerOuter::NOT_INNER_OUTER,
         };
 
         let had_prefixes = redeclare_ || final_ || inner_ || outer_ || replaceable_;
@@ -684,32 +684,32 @@ fn type_prefix(input: &mut TokenInput) -> ModalResult<ElementAttributes> {
     let stream = !flow && try_tok(input, |k| matches!(k, TK::Stream).then_some(())).is_some();
 
     let parallelism = try_tok(input, |k| match k {
-        TK::Parlocal  => Some(Parallelism::PARLOCAL {}),
-        TK::Parglobal => Some(Parallelism::PARGLOBAL {}),
+        TK::Parlocal  => Some(Parallelism::PARLOCAL),
+        TK::Parglobal => Some(Parallelism::PARGLOBAL),
         _             => None,
-    }).unwrap_or(Parallelism::NON_PARALLEL {});
+    }).unwrap_or(Parallelism::NON_PARALLEL);
 
     let variability = try_tok(input, |k| match k {
-        TK::Discrete  => Some(Variability::DISCRETE {}),
-        TK::Parameter => Some(Variability::PARAM {}),
-        TK::Constant  => Some(Variability::CONST {}),
+        TK::Discrete  => Some(Variability::DISCRETE),
+        TK::Parameter => Some(Variability::PARAM),
+        TK::Constant  => Some(Variability::CONST),
         _             => None,
-    }).unwrap_or(Variability::VAR {});
+    }).unwrap_or(Variability::VAR);
 
     let has_input  = opt(t(TK::Input)).parse_next(input)?.is_some();
     let has_output = opt(t(TK::Output)).parse_next(input)?.is_some();
     let direction  = match (has_input, has_output) {
-        (true,  true)  => Direction::INPUT_OUTPUT {},
-        (true,  false) => Direction::INPUT {},
-        (false, true)  => Direction::OUTPUT {},
-        (false, false) => Direction::BIDIR {},
+        (true,  true)  => Direction::INPUT_OUTPUT,
+        (true,  false) => Direction::INPUT,
+        (false, true)  => Direction::OUTPUT,
+        (false, false) => Direction::BIDIR,
     };
 
     let is_field = try_tok(input, |k| match k {
-        TK::Ident(s) if s == "field"    => Some(IsField::FIELD {}),
-        TK::Ident(s) if s == "nonfield" => Some(IsField::NONFIELD {}),
+        TK::Ident(s) if s == "field"    => Some(IsField::FIELD),
+        TK::Ident(s) if s == "nonfield" => Some(IsField::NONFIELD),
         _                                => None,
-    }).unwrap_or(IsField::NONFIELD {});
+    }).unwrap_or(IsField::NONFIELD);
 
     Ok(ElementAttributes::ATTR {
         flowPrefix: flow, streamPrefix: stream, parallelism, variability, direction,
@@ -767,7 +767,7 @@ fn modification(input: &mut TokenInput) -> ModalResult<Modification> {
             info: source_info(&start[0], &start[start.len() - input.len() - 1]),
         }
     } else {
-        Absyn::EqMod::NOMOD {}
+        Absyn::EqMod::NOMOD
     };
     Ok(Modification::CLASSMOD { elementArgLst: cm, eqMod: eq })
 }
@@ -804,7 +804,7 @@ fn argument(input: &mut TokenInput) -> ModalResult<ElementArg> {
     let mut res = alt((element_replaceable, element_modification)).parse_next(input)?;
     match res {
         ElementArg::MODIFICATION { ref mut eachPrefix, ref mut finalPrefix, .. } => {
-            *eachPrefix  = if eachPrefix_  { Each::EACH {} } else { Each::NON_EACH {} };
+            *eachPrefix  = if eachPrefix_  { Each::EACH } else { Each::NON_EACH };
             *finalPrefix = finalPrefix_;
         }
         _ => return Err(ErrMode::Backtrack(ContextError::default())),
@@ -855,7 +855,7 @@ fn element_redeclaration(input: &mut TokenInput) -> ModalResult<ElementArg> {
             let (es, cc) = parse_replaceable_spec(input)?;
             (RedeclareKeywords::REDECLARE_REPLACEABLE {}, es, cc)
         } else if let Some(cls) = opt(class_definition).parse_next(input)? {
-            (RedeclareKeywords::REDECLARE {}, ElementSpec::CLASSDEF { replaceable_: false, class_: Arc::new(cls) }, None)
+            (RedeclareKeywords::REDECLARE, ElementSpec::CLASSDEF { replaceable_: false, class_: Arc::new(cls) }, None)
         } else {
             let typePrefix = type_prefix(input)?;
             let typeSpec   = cut_err(type_specifier)
@@ -864,14 +864,14 @@ fn element_redeclaration(input: &mut TokenInput) -> ModalResult<ElementArg> {
             let comp       = cut_err(component_declaration)
                 .context(StrContext::Label("component declaration in redeclaration"))
                 .parse_next(input)?;
-            (RedeclareKeywords::REDECLARE {}, ElementSpec::COMPONENTS {
+            (RedeclareKeywords::REDECLARE, ElementSpec::COMPONENTS {
                 attributes: typePrefix, typeSpec, components: List::new(Arc::new(comp)),
             }, None)
         };
 
     Ok(ElementArg::REDECLARATION {
         finalPrefix: final_,
-        eachPrefix: if each_ { Each::EACH {} } else { Each::NON_EACH {} },
+        eachPrefix: if each_ { Each::EACH } else { Each::NON_EACH },
         redeclareKeywords, elementSpec, constrainClass, info: source_info(&start[0], &start[start.len() - input.len() - 1]),
     })
 }

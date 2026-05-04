@@ -40,12 +40,12 @@ pub enum Ty {
         inputs: Vec<Ty>,
         output: Box<Ty>,
     },
-    /// A metarecord whose records all have fields — maps to a Rust struct.
-    RustStruct,
+    /// A metarecord with fields — maps to a Rust struct. Carries its qualified name.
+    RustStruct(String),
     /// A metarecord with no fields — maps to a unit enum variant, not a struct.
     RustUnitVariant,
-    /// A uniontype with ≥2 records — maps to a Rust enum.
-    RustEnum,
+    /// A uniontype with ≥2 records — maps to a Rust enum. Carries its qualified name.
+    RustEnum(String),
     /// A single-record uniontype — transparent alias to the sole record.
     /// Carries the simple name of that record.
     AliasTo(String),
@@ -59,7 +59,7 @@ impl fmt::Display for Ty {
             Ty::F64 => f.write_str("f64"),
             Ty::Bool => f.write_str("bool"),
             Ty::Str => f.write_str("String"),
-            Ty::Enumeration(name) => write!(f, "{name}"),
+            Ty::Enumeration(name) => f.write_str(&name.replace('.', "::")),
             Ty::TypeVar(name) => write!(f, "{name}"),
             Ty::Option(inner) => write!(f, "Option<{inner}>"),
             Ty::List(inner) => write!(f, "Vec<{inner}>"),
@@ -84,9 +84,9 @@ impl fmt::Display for Ty {
                 }
                 write!(f, ") -> {output}")
             }
-            Ty::RustStruct => f.write_str("struct"),
+            Ty::RustStruct(name) => f.write_str(&name.replace('.', "::")),
             Ty::RustUnitVariant => f.write_str("unit variant"),
-            Ty::RustEnum => f.write_str("enum"),
+            Ty::RustEnum(name) => f.write_str(&name.replace('.', "::")),
             Ty::AliasTo(name) => write!(f, "= {name}"),
         }
     }
@@ -271,12 +271,12 @@ fn has_component_children(node: &NameNode<'_>) -> bool {
 pub fn resolve_pass(hier: &mut InstanceHierarchy<'_>) -> bool {
     let mut changed = false;
     seed_enumerations(&mut hier.top_level, "", &mut changed);
-    seed_metarecords(&mut hier.top_level, &mut changed);
+    seed_metarecords(&mut hier.top_level, "", &mut changed);
     seed_type_vars(&mut hier.top_level, &mut changed);
     let mut known: HashMap<String, Ty> = HashMap::new();
     seed_builtins(&mut known);
     collect_known(&hier.top_level, "", &mut known);
-    resolve_nodes(&mut hier.top_level, &known, &mut changed);
+    resolve_nodes(&mut hier.top_level, "", &known, &mut changed);
     changed
 }
 
@@ -289,7 +289,7 @@ fn seed_builtins(known: &mut HashMap<String, Ty>) {
     //     Integer lineNumberStart, columnNumberStart, lineNumberEnd, columnNumberEnd;
     //     Real lastModification;
     //   end SOURCEINFO;
-    known.entry("SOURCEINFO".into()).or_insert(Ty::RustStruct);
+    known.entry("SOURCEINFO".into()).or_insert(Ty::RustStruct("SOURCEINFO".into()));
     known.entry("SourceInfo".into()).or_insert(Ty::AliasTo("SOURCEINFO".into()));
 }
 
@@ -322,16 +322,18 @@ fn seed_enumerations(nodes: &mut HashMap<String, NameNode<'_>>, prefix: &str, ch
 /// Records with fields → RustStruct; records with no fields → RustUnitVariant.
 /// We seed by context (record inside a uniontype) rather than by restriction because
 /// the mmwinnow parser assigns R_RECORD (not R_METARECORD) to all record declarations.
-fn seed_metarecords(nodes: &mut HashMap<String, NameNode<'_>>, changed: &mut bool) {
-    for node in nodes.values_mut() {
+fn seed_metarecords(nodes: &mut HashMap<String, NameNode<'_>>, prefix: &str, changed: &mut bool) {
+    for (name, node) in nodes.iter_mut() {
+        let qname = qualify(prefix, name);
         if let NodeKind::Class(c) = &node.kind {
             if matches!(c.restriction, Absyn::Restriction::R_UNIONTYPE) {
-                let names: Vec<String> = record_child_names(node);
-                for name in names {
-                    let child = node.children.get_mut(&name).unwrap();
+                let rec_names: Vec<String> = record_child_names(node);
+                for rec_name in rec_names {
+                    let rec_qname = qualify(&qname, &rec_name);
+                    let child = node.children.get_mut(&rec_name).unwrap();
                     if child.ty == Ty::Unknown {
                         child.ty = if has_component_children(child) {
-                            Ty::RustStruct
+                            Ty::RustStruct(rec_qname)
                         } else {
                             Ty::RustUnitVariant
                         };
@@ -340,7 +342,7 @@ fn seed_metarecords(nodes: &mut HashMap<String, NameNode<'_>>, changed: &mut boo
                 }
             }
         }
-        seed_metarecords(&mut node.children, changed);
+        seed_metarecords(&mut node.children, &qname, changed);
     }
 }
 
@@ -376,25 +378,26 @@ fn collect_known(nodes: &HashMap<String, NameNode<'_>>, prefix: &str, known: &mu
     }
 }
 
-fn resolve_nodes(nodes: &mut HashMap<String, NameNode<'_>>, known: &HashMap<String, Ty>, changed: &mut bool) {
-    for node in nodes.values_mut() {
+fn resolve_nodes(nodes: &mut HashMap<String, NameNode<'_>>, prefix: &str, known: &HashMap<String, Ty>, changed: &mut bool) {
+    for (name, node) in nodes.iter_mut() {
+        let qname = qualify(prefix, name);
         if node.ty == Ty::Unknown {
-            if let Some(ty) = try_resolve(node, known) {
+            if let Some(ty) = try_resolve(node, &qname, known) {
                 node.ty = ty;
                 *changed = true;
             }
         }
-        resolve_nodes(&mut node.children, known, changed);
+        resolve_nodes(&mut node.children, &qname, known, changed);
     }
 }
 
-fn try_resolve(node: &NameNode<'_>, known: &HashMap<String, Ty>) -> Option<Ty> {
+fn try_resolve(node: &NameNode<'_>, qname: &str, known: &HashMap<String, Ty>) -> Option<Ty> {
     match &node.kind {
         NodeKind::Class(c) if is_function_class(&c.restriction) => {
             try_resolve_function(c, node, known)
         }
         NodeKind::Class(c) if matches!(c.restriction, Absyn::Restriction::R_UNIONTYPE) => {
-            try_resolve_uniontype(node)
+            try_resolve_uniontype(node, qname)
         }
         NodeKind::Class(c) => match &c.body {
             MM::ClassDef::Derived { type_spec, .. } => resolve_type_spec(type_spec, known, &[]),
@@ -405,13 +408,10 @@ fn try_resolve(node: &NameNode<'_>, known: &HashMap<String, Ty>) -> Option<Ty> {
     }
 }
 
-fn try_resolve_uniontype(node: &NameNode<'_>) -> Option<Ty> {
-    // Collect the names of all direct R_METARECORD children.
-    // We require every child metarecord to already be seeded so that we are not
-    // mistaking an import or nested class for a record variant.
+fn try_resolve_uniontype(node: &NameNode<'_>, qname: &str) -> Option<Ty> {
     let mut record_names: Vec<String> = record_child_names(node);
 
-    // Defer if any metarecord child is still Unknown (seeding hasn't run yet).
+    // Defer if any record child is still Unknown (seeding hasn't run yet).
     for name in &record_names {
         if node.children.get(name).map_or(true, |c| c.ty == Ty::Unknown) {
             return None;
@@ -422,7 +422,7 @@ fn try_resolve_uniontype(node: &NameNode<'_>) -> Option<Ty> {
     match record_names.len() {
         0 => None,
         1 => Some(Ty::AliasTo(record_names.into_iter().next().unwrap())),
-        _ => Some(Ty::RustEnum),
+        _ => Some(Ty::RustEnum(qname.to_owned())),
     }
 }
 

@@ -29,6 +29,7 @@ fn start_compilation(results: Vec<(&str, Absyn::Program)>) {
 fn main() {
     rayon::ThreadPoolBuilder::new()
     .stack_size(16 * 1024 * 1024) // 16 MiB stack size, to avoid "thread stack overflow" on large files, especially on debug builds
+    .num_threads(12)
     .build_global()
     .unwrap();
 

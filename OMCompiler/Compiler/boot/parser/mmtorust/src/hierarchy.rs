@@ -479,8 +479,8 @@ fn resolve_type_spec(ts: &Absyn::TypeSpec, known: &HashMap<String, Ty>, type_var
                     let inner = resolve_type_spec(&args[0], known, type_vars)?;
                     match ctor {
                         "Option" => Some(Ty::Option(Box::new(inner))),
-                        "list" => Some(Ty::List(Box::new(inner))),
-                        "array" => Some(Ty::Array(Box::new(inner))),
+                        "list" | "List" => Some(Ty::List(Box::new(inner))),
+                        "array" | "Array" => Some(Ty::Array(Box::new(inner))),
                         _ => None,
                     }
                 }
@@ -588,6 +588,30 @@ impl fmt::Display for InstanceHierarchy<'_> {
     }
 }
 
+/// Write `{ field1: Type1, field2: Type2 }` for a struct node, in declaration order.
+fn fmt_struct_fields(
+    f: &mut fmt::Formatter<'_>,
+    c: &MM::Class,
+    children: &HashMap<String, NameNode<'_>>,
+) -> fmt::Result {
+    let members: &[MM::ClassMember] = match &c.body {
+        MM::ClassDef::Parts { members, .. } => members,
+        MM::ClassDef::ClassExtends { members, .. } => members,
+        _ => return write!(f, "{{}}"),
+    };
+    write!(f, "{{ ")?;
+    let mut first = true;
+    for member in members {
+        if let MM::ClassMember::Component(m) = member {
+            if !first { write!(f, ", ")?; }
+            let ty = children.get(&m.name).map(|n| &n.ty).unwrap_or(&Ty::Unknown);
+            write!(f, "{}: {ty}", m.name)?;
+            first = false;
+        }
+    }
+    write!(f, " }}")
+}
+
 fn fmt_node(
     f: &mut fmt::Formatter<'_>,
     name: &str,
@@ -612,6 +636,16 @@ fn fmt_node(
 
     match &node.ty {
         Ty::Unknown => writeln!(f, "  [?]")?,
+        Ty::RustStruct(_) => {
+            // Show fields inline in declaration order; fall back to the name if no body.
+            if let NodeKind::Class(c) = &node.kind {
+                write!(f, "  ")?;
+                fmt_struct_fields(f, c, &node.children)?;
+                writeln!(f)?;
+            } else {
+                writeln!(f, "  [{}]", node.ty)?;
+            }
+        }
         ty => writeln!(f, "  [{ty}]")?,
     }
 

@@ -459,6 +459,7 @@ fn try_resolve_function(c: &MM::Class, node: &NameNode<'_>, known: &HashMap<Stri
         match m.direction {
             Absyn::Direction::INPUT => inputs.push(ty),
             Absyn::Direction::OUTPUT => outputs.push(ty),
+            Absyn::Direction::INPUT_OUTPUT => { inputs.push(ty.clone()); outputs.push(ty); }
             _ => {}
         }
     }

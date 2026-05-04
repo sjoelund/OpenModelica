@@ -530,6 +530,10 @@ fn resolve_type_spec(ts: &Absyn::TypeSpec, known: &HashMap<String, Ty>, type_var
                 "array" | "Array" if args.len() == 1 => {
                     Some(Ty::Array(Box::new(resolve_type_spec(&args[0], known, type_vars)?)))
                 }
+                "Mutable" if args.len() == 1 => {
+                    let inner = resolve_type_spec(&args[0], known, type_vars)?;
+                    Some(Ty::Generic("Mutable".to_owned(), vec![inner]))
+                }
                 _ => {
                     // User-defined generic: base type must be known, all args must resolve.
                     let full = fmt_path(path);

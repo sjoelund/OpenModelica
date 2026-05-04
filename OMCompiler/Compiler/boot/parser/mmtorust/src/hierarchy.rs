@@ -40,6 +40,15 @@ pub enum Ty {
         inputs: Vec<Ty>,
         output: Box<Ty>,
     },
+    /// A metarecord whose records all have fields — maps to a Rust struct.
+    RustStruct,
+    /// A metarecord with no fields — maps to a unit enum variant, not a struct.
+    RustUnitVariant,
+    /// A uniontype with ≥2 records — maps to a Rust enum.
+    RustEnum,
+    /// A single-record uniontype — transparent alias to the sole record.
+    /// Carries the simple name of that record.
+    AliasTo(String),
 }
 
 impl fmt::Display for Ty {
@@ -75,6 +84,10 @@ impl fmt::Display for Ty {
                 }
                 write!(f, ") -> {output}")
             }
+            Ty::RustStruct => f.write_str("struct"),
+            Ty::RustUnitVariant => f.write_str("unit variant"),
+            Ty::RustEnum => f.write_str("enum"),
+            Ty::AliasTo(name) => write!(f, "= {name}"),
         }
     }
 }
@@ -232,11 +245,33 @@ fn is_function_class(r: &Absyn::Restriction) -> bool {
     matches!(r, Absyn::Restriction::R_FUNCTION { .. })
 }
 
+/// Returns the simple names of all direct record children of a uniontype node.
+/// The mmwinnow parser assigns `R_RECORD` (not `R_METARECORD`) to every `record`
+/// declaration, so we identify records by restriction and by being a direct class child.
+fn record_child_names(node: &NameNode<'_>) -> Vec<String> {
+    node.children
+        .iter()
+        .filter_map(|(name, child)| {
+            if let NodeKind::Class(c) = &child.kind {
+                if matches!(c.restriction, Absyn::Restriction::R_RECORD | Absyn::Restriction::R_METARECORD { .. }) {
+                    return Some(name.clone());
+                }
+            }
+            None
+        })
+        .collect()
+}
+
+fn has_component_children(node: &NameNode<'_>) -> bool {
+    node.children.values().any(|c| matches!(c.kind, NodeKind::Component(_)))
+}
+
 // ── Type resolution ───────────────────────────────────────────────────────────
 
 pub fn resolve_pass(hier: &mut InstanceHierarchy<'_>) -> bool {
     let mut changed = false;
     seed_enumerations(&mut hier.top_level, "", &mut changed);
+    seed_metarecords(&mut hier.top_level, &mut changed);
     seed_type_vars(&mut hier.top_level, &mut changed);
     let mut known: HashMap<String, Ty> = HashMap::new();
     collect_known(&hier.top_level, "", &mut known);
@@ -266,6 +301,32 @@ fn seed_enumerations(nodes: &mut HashMap<String, NameNode<'_>>, prefix: &str, ch
             }
         }
         seed_enumerations(&mut node.children, &qname, changed);
+    }
+}
+
+/// Seed the record children of every R_UNIONTYPE node.
+/// Records with fields → RustStruct; records with no fields → RustUnitVariant.
+/// We seed by context (record inside a uniontype) rather than by restriction because
+/// the mmwinnow parser assigns R_RECORD (not R_METARECORD) to all record declarations.
+fn seed_metarecords(nodes: &mut HashMap<String, NameNode<'_>>, changed: &mut bool) {
+    for node in nodes.values_mut() {
+        if let NodeKind::Class(c) = &node.kind {
+            if matches!(c.restriction, Absyn::Restriction::R_UNIONTYPE) {
+                let names: Vec<String> = record_child_names(node);
+                for name in names {
+                    let child = node.children.get_mut(&name).unwrap();
+                    if child.ty == Ty::Unknown {
+                        child.ty = if has_component_children(child) {
+                            Ty::RustStruct
+                        } else {
+                            Ty::RustUnitVariant
+                        };
+                        *changed = true;
+                    }
+                }
+            }
+        }
+        seed_metarecords(&mut node.children, changed);
     }
 }
 
@@ -318,12 +379,36 @@ fn try_resolve(node: &NameNode<'_>, known: &HashMap<String, Ty>) -> Option<Ty> {
         NodeKind::Class(c) if is_function_class(&c.restriction) => {
             try_resolve_function(c, node, known)
         }
+        NodeKind::Class(c) if matches!(c.restriction, Absyn::Restriction::R_UNIONTYPE) => {
+            try_resolve_uniontype(node)
+        }
         NodeKind::Class(c) => match &c.body {
             MM::ClassDef::Derived { type_spec, .. } => resolve_type_spec(type_spec, known, &[]),
             _ => None,
         },
         NodeKind::Component(m) => resolve_type_spec(&m.type_spec, known, &[]),
         NodeKind::Import(_) | NodeKind::EnumLiteral => None,
+    }
+}
+
+fn try_resolve_uniontype(node: &NameNode<'_>) -> Option<Ty> {
+    // Collect the names of all direct R_METARECORD children.
+    // We require every child metarecord to already be seeded so that we are not
+    // mistaking an import or nested class for a record variant.
+    let mut record_names: Vec<String> = record_child_names(node);
+
+    // Defer if any metarecord child is still Unknown (seeding hasn't run yet).
+    for name in &record_names {
+        if node.children.get(name).map_or(true, |c| c.ty == Ty::Unknown) {
+            return None;
+        }
+    }
+
+    record_names.sort(); // deterministic order for AliasTo
+    match record_names.len() {
+        0 => None,
+        1 => Some(Ty::AliasTo(record_names.into_iter().next().unwrap())),
+        _ => Some(Ty::RustEnum),
     }
 }
 

@@ -274,9 +274,23 @@ pub fn resolve_pass(hier: &mut InstanceHierarchy<'_>) -> bool {
     seed_metarecords(&mut hier.top_level, &mut changed);
     seed_type_vars(&mut hier.top_level, &mut changed);
     let mut known: HashMap<String, Ty> = HashMap::new();
+    seed_builtins(&mut known);
     collect_known(&hier.top_level, "", &mut known);
     resolve_nodes(&mut hier.top_level, &known, &mut changed);
     changed
+}
+
+/// Pre-populate the known map with MM builtin types that are defined in the runtime
+/// rather than in any source file and therefore never appear in the hierarchy.
+fn seed_builtins(known: &mut HashMap<String, Ty>) {
+    // SourceInfo — builtin single-record uniontype; fields are all primitives.
+    //   record SOURCEINFO
+    //     String fileName; Boolean isReadOnly;
+    //     Integer lineNumberStart, columnNumberStart, lineNumberEnd, columnNumberEnd;
+    //     Real lastModification;
+    //   end SOURCEINFO;
+    known.entry("SOURCEINFO".into()).or_insert(Ty::RustStruct);
+    known.entry("SourceInfo".into()).or_insert(Ty::AliasTo("SOURCEINFO".into()));
 }
 
 fn seed_enumerations(nodes: &mut HashMap<String, NameNode<'_>>, prefix: &str, changed: &mut bool) {
@@ -454,14 +468,22 @@ fn resolve_type_spec(ts: &Absyn::TypeSpec, known: &HashMap<String, Ty>, type_var
         Absyn::TypeSpec::TPATH { path, .. } => resolve_path(path, known, type_vars),
         Absyn::TypeSpec::TCOMPLEX { path, typeSpecs, .. } => {
             let args: Vec<_> = typeSpecs.into_iter().collect();
-            if args.len() != 1 {
-                return None;
-            }
-            let inner = resolve_type_spec(&args[0], known, type_vars)?;
             match path_last(path) {
-                "Option" => Some(Ty::Option(Box::new(inner))),
-                "list" => Some(Ty::List(Box::new(inner))),
-                "array" => Some(Ty::Array(Box::new(inner))),
+                "tuple" => {
+                    let tys: Option<Vec<Ty>> = args.iter()
+                        .map(|a| resolve_type_spec(a, known, type_vars))
+                        .collect();
+                    Some(Ty::Tuple(tys?))
+                }
+                ctor if args.len() == 1 => {
+                    let inner = resolve_type_spec(&args[0], known, type_vars)?;
+                    match ctor {
+                        "Option" => Some(Ty::Option(Box::new(inner))),
+                        "list" => Some(Ty::List(Box::new(inner))),
+                        "array" => Some(Ty::Array(Box::new(inner))),
+                        _ => None,
+                    }
+                }
                 _ => None,
             }
         }

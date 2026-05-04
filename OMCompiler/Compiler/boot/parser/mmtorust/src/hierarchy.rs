@@ -22,12 +22,24 @@ pub enum Ty {
     Str,
     /// An enumeration type; carries its qualified class name.
     Enumeration(String),
-    /// `Option<T>` — already present in both Modelica and Rust.
+    /// A polymorphic type parameter declared with `replaceable type T subtypeof Any`.
+    TypeVar(String),
+    /// `Option<T>`
     Option(Box<Ty>),
     /// Modelica `list<T>` → Rust `Vec<T>`
     List(Box<Ty>),
     /// Modelica `array<T>`
     Array(Box<Ty>),
+    /// Multiple values (multiple output components of a function).
+    Tuple(Vec<Ty>),
+    /// No output.
+    Unit,
+    /// A resolved function type.
+    Function {
+        type_vars: Vec<String>,
+        inputs: Vec<Ty>,
+        output: Box<Ty>,
+    },
 }
 
 impl fmt::Display for Ty {
@@ -39,16 +51,36 @@ impl fmt::Display for Ty {
             Ty::Bool => f.write_str("bool"),
             Ty::Str => f.write_str("String"),
             Ty::Enumeration(name) => write!(f, "{name}"),
+            Ty::TypeVar(name) => write!(f, "{name}"),
             Ty::Option(inner) => write!(f, "Option<{inner}>"),
             Ty::List(inner) => write!(f, "Vec<{inner}>"),
             Ty::Array(inner) => write!(f, "Array<{inner}>"),
+            Ty::Unit => f.write_str("()"),
+            Ty::Tuple(tys) => {
+                f.write_str("(")?;
+                for (i, ty) in tys.iter().enumerate() {
+                    if i > 0 { f.write_str(", ")?; }
+                    write!(f, "{ty}")?;
+                }
+                f.write_str(")")
+            }
+            Ty::Function { type_vars, inputs, output } => {
+                if !type_vars.is_empty() {
+                    write!(f, "<{}>", type_vars.join(", "))?;
+                }
+                f.write_str("fn(")?;
+                for (i, ty) in inputs.iter().enumerate() {
+                    if i > 0 { f.write_str(", ")?; }
+                    write!(f, "{ty}")?;
+                }
+                write!(f, ") -> {output}")
+            }
         }
     }
 }
 
 // ── NodeKind ──────────────────────────────────────────────────────────────────
 
-/// What kind of AST node a name refers to.
 #[derive(Debug)]
 pub enum NodeKind<'a> {
     Class(&'a MM::Class),
@@ -61,12 +93,10 @@ pub enum NodeKind<'a> {
 
 // ── NameNode ──────────────────────────────────────────────────────────────────
 
-/// A single named entry in the instance hierarchy.
 #[derive(Debug)]
 pub struct NameNode<'a> {
     pub kind: NodeKind<'a>,
     pub ty: Ty,
-    /// Named members: nested classes, components, imports, enum literals.
     pub children: HashMap<String, NameNode<'a>>,
     /// Extends clauses — no local name, but must be followed during lookup.
     pub extends: Vec<&'a MM::ExtendsMember>,
@@ -80,7 +110,6 @@ impl<'a> NameNode<'a> {
 
 // ── InstanceHierarchy ─────────────────────────────────────────────────────────
 
-/// The full name hierarchy for a parsed MM program.
 #[derive(Debug)]
 pub struct InstanceHierarchy<'a> {
     pub top_level: HashMap<String, NameNode<'a>>,
@@ -160,24 +189,61 @@ fn import_nodes(m: &MM::ImportMember) -> Vec<(String, NameNode<'_>)> {
     }
 }
 
+// ── Type-variable helpers ─────────────────────────────────────────────────────
+
+fn type_spec_path(ts: &Absyn::TypeSpec) -> &Absyn::Path {
+    match ts {
+        Absyn::TypeSpec::TPATH { path, .. } => path,
+        Absyn::TypeSpec::TCOMPLEX { path, .. } => path,
+    }
+}
+
+/// `replaceable type T subtypeof Any` — the defining pattern for a type variable.
+fn is_subtype_of_any(class: &MM::Class) -> bool {
+    if !matches!(class.restriction, Absyn::Restriction::R_TYPE) {
+        return false;
+    }
+    match &class.body {
+        MM::ClassDef::Derived { type_spec, .. } => path_last(type_spec_path(type_spec)) == "Any",
+        _ => false,
+    }
+}
+
+/// Collect all type-variable names declared in a class:
+/// from `<T, U>` (typeVars list) and from `replaceable type T subtypeof Any` members.
+fn class_type_vars(c: &MM::Class) -> Vec<String> {
+    match &c.body {
+        MM::ClassDef::Parts { type_vars, members, .. } => {
+            let mut vars: Vec<String> = type_vars.clone();
+            for m in members {
+                if let MM::ClassMember::ClassDef(cdm) = m {
+                    if cdm.replaceable && is_subtype_of_any(&cdm.class_def) {
+                        vars.push(cdm.class_def.name.clone());
+                    }
+                }
+            }
+            vars
+        }
+        _ => vec![],
+    }
+}
+
+fn is_function_class(r: &Absyn::Restriction) -> bool {
+    matches!(r, Absyn::Restriction::R_FUNCTION { .. })
+}
+
 // ── Type resolution ───────────────────────────────────────────────────────────
 
-/// Run one resolution pass over the hierarchy.
-/// Returns `true` if any node's type was updated; call in a loop until `false`.
 pub fn resolve_pass(hier: &mut InstanceHierarchy<'_>) -> bool {
     let mut changed = false;
-    // Seed enumeration types first (they are always known regardless of other passes).
     seed_enumerations(&mut hier.top_level, "", &mut changed);
-    // Snapshot all currently resolved types for use as a lookup table.
+    seed_type_vars(&mut hier.top_level, &mut changed);
     let mut known: HashMap<String, Ty> = HashMap::new();
     collect_known(&hier.top_level, "", &mut known);
-    // Resolve Unknown nodes that can now be determined.
     resolve_nodes(&mut hier.top_level, &known, &mut changed);
     changed
 }
 
-/// Set `Ty::Enumeration` on every enumeration class and its literals.
-/// Uses the qualified name so that `Ty::Enumeration("Absyn.Restriction")` is accurate.
 fn seed_enumerations(nodes: &mut HashMap<String, NameNode<'_>>, prefix: &str, changed: &mut bool) {
     for (name, node) in nodes.iter_mut() {
         let qname = qualify(prefix, name);
@@ -203,12 +269,31 @@ fn seed_enumerations(nodes: &mut HashMap<String, NameNode<'_>>, prefix: &str, ch
     }
 }
 
-/// Walk the tree and record every resolved type under both its qualified name
-/// (`Absyn.Restriction`) and its simple name (`Restriction`, first occurrence wins).
+/// Mark `replaceable type T subtypeof Any` class members as `Ty::TypeVar`.
+fn seed_type_vars(nodes: &mut HashMap<String, NameNode<'_>>, changed: &mut bool) {
+    for node in nodes.values_mut() {
+        if let NodeKind::Class(c) = &node.kind {
+            let vars = class_type_vars(c);
+            for var_name in vars {
+                if let Some(child) = node.children.get_mut(&var_name) {
+                    if child.ty == Ty::Unknown {
+                        child.ty = Ty::TypeVar(var_name.clone());
+                        *changed = true;
+                    }
+                }
+            }
+        }
+        seed_type_vars(&mut node.children, changed);
+    }
+}
+
+/// Snapshot all resolved types into a lookup map.
+/// TypeVars are intentionally excluded — they are local to their enclosing class
+/// and must not resolve names in sibling scopes.
 fn collect_known(nodes: &HashMap<String, NameNode<'_>>, prefix: &str, known: &mut HashMap<String, Ty>) {
     for (name, node) in nodes {
         let qname = qualify(prefix, name);
-        if node.ty != Ty::Unknown {
+        if node.ty != Ty::Unknown && !matches!(node.ty, Ty::TypeVar(_)) {
             known.insert(qname.clone(), node.ty.clone());
             known.entry(name.clone()).or_insert_with(|| node.ty.clone());
         }
@@ -216,7 +301,6 @@ fn collect_known(nodes: &HashMap<String, NameNode<'_>>, prefix: &str, known: &mu
     }
 }
 
-/// Walk the tree mutably and resolve any Unknown node whose type can now be inferred.
 fn resolve_nodes(nodes: &mut HashMap<String, NameNode<'_>>, known: &HashMap<String, Ty>, changed: &mut bool) {
     for node in nodes.values_mut() {
         if node.ty == Ty::Unknown {
@@ -231,24 +315,64 @@ fn resolve_nodes(nodes: &mut HashMap<String, NameNode<'_>>, known: &HashMap<Stri
 
 fn try_resolve(node: &NameNode<'_>, known: &HashMap<String, Ty>) -> Option<Ty> {
     match &node.kind {
+        NodeKind::Class(c) if is_function_class(&c.restriction) => {
+            try_resolve_function(c, node, known)
+        }
         NodeKind::Class(c) => match &c.body {
-            MM::ClassDef::Derived { type_spec, .. } => resolve_type_spec(type_spec, known),
+            MM::ClassDef::Derived { type_spec, .. } => resolve_type_spec(type_spec, known, &[]),
             _ => None,
         },
-        NodeKind::Component(m) => resolve_type_spec(&m.type_spec, known),
+        NodeKind::Component(m) => resolve_type_spec(&m.type_spec, known, &[]),
         NodeKind::Import(_) | NodeKind::EnumLiteral => None,
     }
 }
 
-fn resolve_type_spec(ts: &Absyn::TypeSpec, known: &HashMap<String, Ty>) -> Option<Ty> {
+fn try_resolve_function(c: &MM::Class, node: &NameNode<'_>, known: &HashMap<String, Ty>) -> Option<Ty> {
+    let type_vars = class_type_vars(c);
+    let members: &[MM::ClassMember] = match &c.body {
+        MM::ClassDef::Parts { members, .. } => members,
+        MM::ClassDef::ClassExtends { members, .. } => members,
+        _ => return None,
+    };
+
+    let mut inputs: Vec<Ty> = Vec::new();
+    let mut outputs: Vec<Ty> = Vec::new();
+
+    for member in members {
+        let MM::ClassMember::Component(m) = member else { continue };
+        let child = node.children.get(&m.name)?;
+        let ty = if child.ty != Ty::Unknown {
+            child.ty.clone()
+        } else {
+            // Type vars are resolved locally; everything else goes through the known map.
+            resolve_type_spec(&m.type_spec, known, &type_vars)?
+        };
+        match m.direction {
+            Absyn::Direction::INPUT => inputs.push(ty),
+            Absyn::Direction::OUTPUT => outputs.push(ty),
+            _ => {}
+        }
+    }
+
+    let output = match outputs.len() {
+        0 => Ty::Unit,
+        1 => outputs.into_iter().next().unwrap(),
+        _ => Ty::Tuple(outputs),
+    };
+    Some(Ty::Function { type_vars, inputs, output: Box::new(output) })
+}
+
+/// Resolve a TypeSpec to a Ty.
+/// `type_vars` is the list of type-variable names in scope; they resolve to `Ty::TypeVar`.
+fn resolve_type_spec(ts: &Absyn::TypeSpec, known: &HashMap<String, Ty>, type_vars: &[String]) -> Option<Ty> {
     match ts {
-        Absyn::TypeSpec::TPATH { path, .. } => resolve_path(path, known),
+        Absyn::TypeSpec::TPATH { path, .. } => resolve_path(path, known, type_vars),
         Absyn::TypeSpec::TCOMPLEX { path, typeSpecs, .. } => {
             let args: Vec<_> = typeSpecs.into_iter().collect();
             if args.len() != 1 {
                 return None;
             }
-            let inner = resolve_type_spec(&args[0], known)?;
+            let inner = resolve_type_spec(&args[0], known, type_vars)?;
             match path_last(path) {
                 "Option" => Some(Ty::Option(Box::new(inner))),
                 "list" => Some(Ty::List(Box::new(inner))),
@@ -259,12 +383,14 @@ fn resolve_type_spec(ts: &Absyn::TypeSpec, known: &HashMap<String, Ty>) -> Optio
     }
 }
 
-fn resolve_path(path: &Absyn::Path, known: &HashMap<String, Ty>) -> Option<Ty> {
-    match path_last(path) {
+fn resolve_path(path: &Absyn::Path, known: &HashMap<String, Ty>, type_vars: &[String]) -> Option<Ty> {
+    let last = path_last(path);
+    match last {
         "Integer" => return Some(Ty::I32),
         "Real" => return Some(Ty::F64),
         "Boolean" => return Some(Ty::Bool),
         "String" => return Some(Ty::Str),
+        name if type_vars.iter().any(|v| v == name) => return Some(Ty::TypeVar(name.to_owned())),
         _ => {}
     }
     let qname = fmt_path(path);
@@ -377,7 +503,6 @@ fn fmt_node(
         NodeKind::EnumLiteral => {}
     }
 
-    // Append the resolved type when known; always show [?] when not.
     match &node.ty {
         Ty::Unknown => writeln!(f, "  [?]")?,
         ty => writeln!(f, "  [{ty}]")?,

@@ -5,19 +5,43 @@ use std::fmt;
 use mmwinnow::Absyn;
 use crate::MM;
 
-// ── Types ─────────────────────────────────────────────────────────────────────
+// ── Ty ───────────────────────────────────────────────────────────────────────
 
-/// The resolved type of a named entity, populated during type-checking.
-#[derive(Debug, Clone, Default)]
+/// The resolved type of a named entity, populated during type-checking passes.
+#[derive(Debug, Clone, PartialEq, Default)]
 pub enum Ty {
     #[default]
     Unknown,
+    /// Modelica `Integer` → Rust `i32`
+    I32,
+    /// Modelica `Real` → Rust `f64`
+    F64,
+    /// Modelica `Boolean` → Rust `bool`
+    Bool,
+    /// Modelica `String` → Rust `String`
+    Str,
+    /// An enumeration type; carries its qualified class name.
+    Enumeration(String),
+    /// `Option<T>` — already present in both Modelica and Rust.
+    Option(Box<Ty>),
+    /// Modelica `list<T>` → Rust `Vec<T>`
+    List(Box<Ty>),
+    /// Modelica `array<T>`
+    Array(Box<Ty>),
 }
 
 impl fmt::Display for Ty {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Ty::Unknown => f.write_str("?"),
+            Ty::I32 => f.write_str("i32"),
+            Ty::F64 => f.write_str("f64"),
+            Ty::Bool => f.write_str("bool"),
+            Ty::Str => f.write_str("String"),
+            Ty::Enumeration(name) => write!(f, "{name}"),
+            Ty::Option(inner) => write!(f, "Option<{inner}>"),
+            Ty::List(inner) => write!(f, "Vec<{inner}>"),
+            Ty::Array(inner) => write!(f, "Array<{inner}>"),
         }
     }
 }
@@ -117,8 +141,6 @@ fn populate_from_class_def<'a>(def: &'a MM::ClassDef, node: &mut NameNode<'a>) {
     }
 }
 
-/// Expand one import member into (local_name, node) pairs.
-/// A group import like `import A.{B, C as D}` yields two entries.
 fn import_nodes(m: &MM::ImportMember) -> Vec<(String, NameNode<'_>)> {
     let node = || NameNode::new(NodeKind::Import(m));
     match &m.import {
@@ -138,7 +160,123 @@ fn import_nodes(m: &MM::ImportMember) -> Vec<(String, NameNode<'_>)> {
     }
 }
 
+// ── Type resolution ───────────────────────────────────────────────────────────
+
+/// Run one resolution pass over the hierarchy.
+/// Returns `true` if any node's type was updated; call in a loop until `false`.
+pub fn resolve_pass(hier: &mut InstanceHierarchy<'_>) -> bool {
+    let mut changed = false;
+    // Seed enumeration types first (they are always known regardless of other passes).
+    seed_enumerations(&mut hier.top_level, "", &mut changed);
+    // Snapshot all currently resolved types for use as a lookup table.
+    let mut known: HashMap<String, Ty> = HashMap::new();
+    collect_known(&hier.top_level, "", &mut known);
+    // Resolve Unknown nodes that can now be determined.
+    resolve_nodes(&mut hier.top_level, &known, &mut changed);
+    changed
+}
+
+/// Set `Ty::Enumeration` on every enumeration class and its literals.
+/// Uses the qualified name so that `Ty::Enumeration("Absyn.Restriction")` is accurate.
+fn seed_enumerations(nodes: &mut HashMap<String, NameNode<'_>>, prefix: &str, changed: &mut bool) {
+    for (name, node) in nodes.iter_mut() {
+        let qname = qualify(prefix, name);
+        if node.ty == Ty::Unknown {
+            if let NodeKind::Class(c) = &node.kind {
+                let is_enum = matches!(c.restriction, Absyn::Restriction::R_ENUMERATION)
+                    || (matches!(c.restriction, Absyn::Restriction::R_TYPE)
+                        && matches!(c.body, MM::ClassDef::Enumeration { .. }));
+                if is_enum {
+                    let ty = Ty::Enumeration(qname.clone());
+                    for child in node.children.values_mut() {
+                        if matches!(child.kind, NodeKind::EnumLiteral) && child.ty == Ty::Unknown {
+                            child.ty = ty.clone();
+                            *changed = true;
+                        }
+                    }
+                    node.ty = ty;
+                    *changed = true;
+                }
+            }
+        }
+        seed_enumerations(&mut node.children, &qname, changed);
+    }
+}
+
+/// Walk the tree and record every resolved type under both its qualified name
+/// (`Absyn.Restriction`) and its simple name (`Restriction`, first occurrence wins).
+fn collect_known(nodes: &HashMap<String, NameNode<'_>>, prefix: &str, known: &mut HashMap<String, Ty>) {
+    for (name, node) in nodes {
+        let qname = qualify(prefix, name);
+        if node.ty != Ty::Unknown {
+            known.insert(qname.clone(), node.ty.clone());
+            known.entry(name.clone()).or_insert_with(|| node.ty.clone());
+        }
+        collect_known(&node.children, &qname, known);
+    }
+}
+
+/// Walk the tree mutably and resolve any Unknown node whose type can now be inferred.
+fn resolve_nodes(nodes: &mut HashMap<String, NameNode<'_>>, known: &HashMap<String, Ty>, changed: &mut bool) {
+    for node in nodes.values_mut() {
+        if node.ty == Ty::Unknown {
+            if let Some(ty) = try_resolve(node, known) {
+                node.ty = ty;
+                *changed = true;
+            }
+        }
+        resolve_nodes(&mut node.children, known, changed);
+    }
+}
+
+fn try_resolve(node: &NameNode<'_>, known: &HashMap<String, Ty>) -> Option<Ty> {
+    match &node.kind {
+        NodeKind::Class(c) => match &c.body {
+            MM::ClassDef::Derived { type_spec, .. } => resolve_type_spec(type_spec, known),
+            _ => None,
+        },
+        NodeKind::Component(m) => resolve_type_spec(&m.type_spec, known),
+        NodeKind::Import(_) | NodeKind::EnumLiteral => None,
+    }
+}
+
+fn resolve_type_spec(ts: &Absyn::TypeSpec, known: &HashMap<String, Ty>) -> Option<Ty> {
+    match ts {
+        Absyn::TypeSpec::TPATH { path, .. } => resolve_path(path, known),
+        Absyn::TypeSpec::TCOMPLEX { path, typeSpecs, .. } => {
+            let args: Vec<_> = typeSpecs.into_iter().collect();
+            if args.len() != 1 {
+                return None;
+            }
+            let inner = resolve_type_spec(&args[0], known)?;
+            match path_last(path) {
+                "Option" => Some(Ty::Option(Box::new(inner))),
+                "list" => Some(Ty::List(Box::new(inner))),
+                "array" => Some(Ty::Array(Box::new(inner))),
+                _ => None,
+            }
+        }
+    }
+}
+
+fn resolve_path(path: &Absyn::Path, known: &HashMap<String, Ty>) -> Option<Ty> {
+    match path_last(path) {
+        "Integer" => return Some(Ty::I32),
+        "Real" => return Some(Ty::F64),
+        "Boolean" => return Some(Ty::Bool),
+        "String" => return Some(Ty::Str),
+        _ => {}
+    }
+    let qname = fmt_path(path);
+    let qname = qname.trim_start_matches('.');
+    known.get(qname).cloned()
+}
+
 // ── Display helpers ───────────────────────────────────────────────────────────
+
+fn qualify(prefix: &str, name: &str) -> String {
+    if prefix.is_empty() { name.to_owned() } else { format!("{prefix}.{name}") }
+}
 
 fn path_last(path: &Absyn::Path) -> &str {
     match path {
@@ -209,11 +347,9 @@ impl fmt::Display for InstanceHierarchy<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut names: Vec<_> = self.top_level.iter().collect();
         names.sort_by_key(|(n, _)| n.as_str());
-        let count = names.len();
-        writeln!(f, "Hierarchy ({count} top-level classes):")?;
+        writeln!(f, "Hierarchy ({} top-level classes):", names.len())?;
         for (i, (name, node)) in names.iter().enumerate() {
-            let last = i + 1 == count;
-            fmt_node(f, name, node, "", last)?;
+            fmt_node(f, name, node, "", i + 1 == names.len())?;
         }
         Ok(())
     }
@@ -232,32 +368,31 @@ fn fmt_node(
     match &node.kind {
         NodeKind::Class(c) => {
             write!(f, " [{}]", fmt_restriction(&c.restriction))?;
-            if matches!(c.body, MM::ClassDef::Derived { ref type_spec, .. } if true) {
-                if let MM::ClassDef::Derived { type_spec, .. } = &c.body {
-                    write!(f, " = {}", fmt_type_spec(type_spec))?;
-                }
+            if let MM::ClassDef::Derived { type_spec, .. } = &c.body {
+                write!(f, " = {}", fmt_type_spec(type_spec))?;
             }
         }
         NodeKind::Component(m) => write!(f, " : {}", fmt_type_spec(&m.type_spec))?,
         NodeKind::Import(m) => write!(f, "  // {}", fmt_import(m))?,
-        NodeKind::EnumLiteral => write!(f, " [enum literal]")?,
+        NodeKind::EnumLiteral => {}
     }
-    writeln!(f, "  [{}]", node.ty)?;
+
+    // Append the resolved type when known; always show [?] when not.
+    match &node.ty {
+        Ty::Unknown => writeln!(f, "  [?]")?,
+        ty => writeln!(f, "  [{ty}]")?,
+    }
 
     let child_prefix = format!("{}{}", prefix, if is_last { "   " } else { "│  " });
-
     let mut children: Vec<_> = node.children.iter().collect();
     children.sort_by_key(|(n, _)| n.as_str());
-    let n_children = children.len();
-    let n_extends = node.extends.len();
-    let total = n_children + n_extends;
+    let total = children.len() + node.extends.len();
 
     for (i, (child_name, child_node)) in children.iter().enumerate() {
-        let child_last = i + 1 == total;
-        fmt_node(f, child_name, child_node, &child_prefix, child_last)?;
+        fmt_node(f, child_name, child_node, &child_prefix, i + 1 == total)?;
     }
     for (i, ext) in node.extends.iter().enumerate() {
-        let ext_last = n_children + i + 1 == total;
+        let ext_last = children.len() + i + 1 == total;
         let conn = if ext_last { "└─ " } else { "├─ " };
         writeln!(f, "{child_prefix}{conn}extends {}", fmt_path(&ext.path))?;
     }

@@ -20,7 +20,8 @@ fn start_compilation(results: Vec<(&str, Absyn::Program)>) {
             }
         }
     }
-    let hier = hierarchy::InstanceHierarchy::from_program(&all_classes);
+    let mut hier = hierarchy::InstanceHierarchy::from_program(&all_classes);
+    while hierarchy::resolve_pass(&mut hier) {}
     println!("{hier}");
     println!("MM conversion: {} files, {} failures", results.len(), failures);
 }

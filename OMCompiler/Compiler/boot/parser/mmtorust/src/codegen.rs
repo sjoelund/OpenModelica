@@ -216,6 +216,7 @@ fn emit_uniontype(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Cla
                 }
             }
             writeln!(out, "{indent}}}").unwrap();
+            writeln!(out, "pub use {name}::*;").unwrap();
             writeln!(out).unwrap();
         }
         Ty::AliasTo(_) => {

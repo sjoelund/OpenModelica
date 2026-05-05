@@ -55,6 +55,9 @@ pub enum Ty {
     UnionTypeVariant(String, String),
     /// A user-defined parameterized type with resolved type arguments, e.g. `ExpandableArray<T>`.
     Generic(String, Vec<Ty>),
+    /// An external object class — a class with R_CLASS that extends ExternalObject.
+    /// Treated as an opaque nominal type in Rust; the qualified path is significant.
+    ExternalObject(String),
 }
 
 impl fmt::Display for Ty {
@@ -105,6 +108,7 @@ impl fmt::Display for Ty {
                 }
                 write!(f, ">")
             }
+            Ty::ExternalObject(name) => write!(f, "ExternalObject<{}>", name.replace('.', "::")),
         }
     }
 }
@@ -283,18 +287,42 @@ fn has_component_children(node: &NameNode<'_>) -> bool {
     node.children.values().any(|c| matches!(c.kind, NodeKind::Component(_)))
 }
 
+/// Check if a class is an external object: has R_CLASS restriction and extends ExternalObject.
+fn is_external_object_class(node: &NameNode<'_>) -> bool {
+    let NodeKind::Class(c) = &node.kind else { return false };
+    if !matches!(c.restriction, Absyn::Restriction::R_CLASS) {
+        return false;
+    }
+    node.extends.iter().any(|ext| path_last(&ext.path) == "ExternalObject")
+}
+
 // ── Type resolution ───────────────────────────────────────────────────────────
 
 pub fn resolve_pass(hier: &mut InstanceHierarchy<'_>) -> bool {
     let mut changed = false;
     seed_enumerations(&mut hier.top_level, "", &mut changed);
     seed_metarecords(&mut hier.top_level, "", &mut changed);
+    seed_external_objects(&mut hier.top_level, "", &mut changed);
     seed_type_vars(&mut hier.top_level, &mut changed);
     let mut known: HashMap<String, Ty> = HashMap::new();
     seed_builtins(&mut known);
     collect_known(&hier.top_level, "", &mut known);
     resolve_nodes(&mut hier.top_level, "", &known, &mut changed);
     changed
+}
+
+/// Seed classes with R_CLASS that extend ExternalObject as `Ty::ExternalObject(qname)`.
+/// These are opaque nominal types — the qualified path matters and they never match
+/// other external objects even with the same simple name.
+fn seed_external_objects(nodes: &mut HashMap<String, NameNode<'_>>, prefix: &str, changed: &mut bool) {
+    for (name, node) in nodes.iter_mut() {
+        let qname = qualify(prefix, name);
+        if node.ty == Ty::Unknown && is_external_object_class(node) {
+            node.ty = Ty::ExternalObject(qname.clone());
+            *changed = true;
+        }
+        seed_external_objects(&mut node.children, &qname, changed);
+    }
 }
 
 /// Pre-populate the known map with MM builtin types that are defined in the runtime
@@ -633,6 +661,7 @@ fn resolve_path(path: &Absyn::Path, known: &HashMap<String, Ty>, type_vars: &[St
 fn ty_rust_name(ty: &Ty) -> Option<String> {
     match ty {
         Ty::AliasTo(n) | Ty::RustEnum(n) | Ty::RustStruct(n) | Ty::Enumeration(n) => Some(n.replace('.', "::")),
+        Ty::ExternalObject(n) => Some(n.replace('.', "::")),
         _ => None,
     }
 }

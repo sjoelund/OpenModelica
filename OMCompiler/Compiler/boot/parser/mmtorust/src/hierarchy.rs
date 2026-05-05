@@ -64,7 +64,7 @@ impl fmt::Display for Ty {
             Ty::Enumeration(name) => f.write_str(&name.replace('.', "::")),
             Ty::TypeVar(name) => write!(f, "{name}"),
             Ty::Option(inner) => write!(f, "Option<{inner}>"),
-            Ty::List(inner) => write!(f, "Vec<{inner}>"),
+            Ty::List(inner) => write!(f, "List<{inner}>"),
             Ty::Array(inner) => write!(f, "Array<{inner}>"),
             Ty::Unit => f.write_str("()"),
             Ty::Tuple(tys) => {
@@ -89,7 +89,7 @@ impl fmt::Display for Ty {
             Ty::RustStruct(name) => f.write_str(&name.replace('.', "::")),
             Ty::RustUnitVariant => f.write_str("unit variant"),
             Ty::RustEnum(name) => f.write_str(&name.replace('.', "::")),
-            Ty::AliasTo(name) => write!(f, "= {name}"),
+            Ty::AliasTo(name) => write!(f, "= {}", name.replace('.', "::")),
             Ty::Generic(name, args) => {
                 write!(f, "{name}<")?;
                 for (i, ty) in args.iter().enumerate() {
@@ -300,7 +300,7 @@ fn seed_builtins(known: &mut HashMap<String, Ty>) {
     //     Real lastModification;
     //   end SOURCEINFO;
     known.entry("SOURCEINFO".into()).or_insert(Ty::RustStruct("SOURCEINFO".into()));
-    known.entry("SourceInfo".into()).or_insert(Ty::AliasTo("SOURCEINFO".into()));
+    known.entry("SourceInfo".into()).or_insert(Ty::AliasTo("SourceInfo".into()));
 }
 
 fn seed_enumerations(nodes: &mut HashMap<String, NameNode<'_>>, prefix: &str, changed: &mut bool) {
@@ -431,7 +431,7 @@ fn try_resolve_uniontype(node: &NameNode<'_>, qname: &str) -> Option<Ty> {
     record_names.sort(); // deterministic order for AliasTo
     match record_names.len() {
         0 => None,
-        1 => Some(Ty::AliasTo(record_names.into_iter().next().unwrap())),
+        1 => Some(Ty::AliasTo(qname.to_owned())),
         _ => Some(Ty::RustEnum(qname.to_owned())),
     }
 }

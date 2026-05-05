@@ -1,10 +1,108 @@
 #![allow(unused)]
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt::Write;
 use mmwinnow::Absyn;
 use crate::MM;
 use crate::hierarchy::{InstanceHierarchy, NameNode, NodeKind, Ty};
+
+// ── Import-aware generation context ──────────────────────────────────────────
+
+struct GenCtx {
+    /// Name of the top-level class being generated (e.g. "Absyn").
+    top_name: String,
+    /// Modules imported with `.*`; their types are referenced by bare name.
+    unqual_modules: HashSet<String>,
+    /// Explicit imports: dotted qualified path → local name.
+    named: HashMap<String, String>,
+}
+
+impl GenCtx {
+    fn new(top_name: &str) -> Self {
+        Self {
+            top_name: top_name.to_owned(),
+            unqual_modules: HashSet::new(),
+            named: HashMap::new(),
+        }
+    }
+
+    /// Shorten a dot-separated qualified name to the shortest valid reference
+    /// for this file, based on the collected imports.
+    fn shorten(&self, dotted: &str) -> String {
+        // Same-module: strip the prefix, keep only the last segment (all types
+        // in one package are emitted flat in the same file).
+        if let Some(rest) = dotted.strip_prefix(&format!("{}.", self.top_name)) {
+            return rest.rsplit('.').next().unwrap_or(rest).to_owned();
+        }
+        // Named / qualified import.
+        if let Some(local) = self.named.get(dotted) {
+            return local.clone();
+        }
+        // Wildcard import: if a module prefix matches, keep only the last segment.
+        for module in &self.unqual_modules {
+            if let Some(rest) = dotted.strip_prefix(&format!("{module}.")) {
+                return rest.rsplit('.').next().unwrap_or(rest).to_owned();
+            }
+        }
+        // Fully-qualified Rust path.
+        dotted.replace('.', "::")
+    }
+
+    /// Sorted `use` lines to emit at the top of the file.
+    fn use_lines(&self) -> Vec<String> {
+        let mut lines: Vec<String> = Vec::new();
+        for module in &self.unqual_modules {
+            let rust = module.replace('.', "::");
+            lines.push(format!("use crate::{rust}::*;"));
+        }
+        for (dotted, local) in &self.named {
+            let rust = dotted.replace('.', "::");
+            let last = dotted.rsplit('.').next().unwrap_or(dotted);
+            if local == last {
+                lines.push(format!("use crate::{rust};"));
+            } else {
+                lines.push(format!("use crate::{rust} as {local};"));
+            }
+        }
+        lines.sort();
+        lines.dedup();
+        lines
+    }
+}
+
+/// Walk the entire subtree collecting import nodes into `ctx`.
+fn collect_imports(node: &NameNode<'_>, ctx: &mut GenCtx) {
+    for child in node.children.values() {
+        match &child.kind {
+            NodeKind::Import(m) => match &m.import {
+                Absyn::Import::UNQUAL_IMPORT { path } => {
+                    ctx.unqual_modules.insert(path_to_dotted(path));
+                }
+                Absyn::Import::QUAL_IMPORT { path } => {
+                    let dotted = path_to_dotted(path);
+                    let last = dotted.rsplit('.').next().unwrap_or(&dotted).to_owned();
+                    ctx.named.insert(dotted, last);
+                }
+                Absyn::Import::NAMED_IMPORT { name, path } => {
+                    ctx.named.insert(path_to_dotted(path), name.clone());
+                }
+                Absyn::Import::GROUP_IMPORT { prefix, groups } => {
+                    let prefix_str = path_to_dotted(prefix);
+                    for g in groups.into_iter() {
+                        let (local, orig) = match g {
+                            Absyn::GroupImport::GROUP_IMPORT_NAME { name } => (name.clone(), name.clone()),
+                            Absyn::GroupImport::GROUP_IMPORT_RENAME { rename, name } => (rename.clone(), name.clone()),
+                        };
+                        ctx.named.insert(format!("{prefix_str}.{orig}"), local);
+                    }
+                }
+            },
+            _ => collect_imports(child, ctx),
+        }
+    }
+}
+
+// ── Public entry point ────────────────────────────────────────────────────────
 
 pub fn generate_all(hier: &InstanceHierarchy<'_>, output_dir: &str) -> std::io::Result<()> {
     std::fs::create_dir_all(output_dir)?;
@@ -16,15 +114,26 @@ pub fn generate_all(hier: &InstanceHierarchy<'_>, output_dir: &str) -> std::io::
 }
 
 fn generate_file(top_name: &str, node: &NameNode<'_>) -> String {
+    let mut ctx = GenCtx::new(top_name);
+    collect_imports(node, &mut ctx);
+
     let mut out = String::new();
     writeln!(out, "// Auto-generated from MetaModelica source").unwrap();
     writeln!(out, "#![allow(non_camel_case_types, non_snake_case, dead_code)]").unwrap();
     writeln!(out).unwrap();
-    emit_node(&mut out, top_name, node, "");
+    for line in ctx.use_lines() {
+        writeln!(out, "{line}").unwrap();
+    }
+    if !ctx.unqual_modules.is_empty() || !ctx.named.is_empty() {
+        writeln!(out).unwrap();
+    }
+    emit_node(&mut out, top_name, node, "", &ctx);
     out
 }
 
-fn emit_node(out: &mut String, name: &str, node: &NameNode<'_>, indent: &str) {
+// ── Node emission ─────────────────────────────────────────────────────────────
+
+fn emit_node(out: &mut String, name: &str, node: &NameNode<'_>, indent: &str, ctx: &GenCtx) {
     let NodeKind::Class(c) = &node.kind else { return };
     use Absyn::Restriction::*;
     match &c.restriction {
@@ -32,17 +141,17 @@ fn emit_node(out: &mut String, name: &str, node: &NameNode<'_>, indent: &str) {
             let mut children: Vec<_> = node.children.iter().collect();
             children.sort_by_key(|(n, _)| n.as_str());
             for (child_name, child_node) in children {
-                emit_node(out, child_name, child_node, indent);
+                emit_node(out, child_name, child_node, indent, ctx);
             }
         }
-        R_UNIONTYPE => emit_uniontype(out, name, node, c, indent),
-        R_TYPE => emit_type_item(out, name, node, c, indent),
-        R_RECORD | R_METARECORD { .. } => emit_struct(out, name, node, c, indent),
+        R_UNIONTYPE => emit_uniontype(out, name, node, c, indent, ctx),
+        R_TYPE => emit_type_item(out, name, node, c, indent, ctx),
+        R_RECORD | R_METARECORD { .. } => emit_struct(out, name, node, c, indent, ctx),
         _ => {}
     }
 }
 
-fn emit_uniontype(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Class, indent: &str) {
+fn emit_uniontype(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Class, indent: &str, ctx: &GenCtx) {
     match &node.ty {
         Ty::RustEnum(_) => {
             writeln!(out, "{indent}pub enum {name} {{").unwrap();
@@ -60,7 +169,7 @@ fn emit_uniontype(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Cla
                         } else {
                             writeln!(out, "{indent}    {rec_name} {{").unwrap();
                             for (fname, fty) in &fields {
-                                writeln!(out, "{indent}        {fname}: {},", fmt_ty(fty)).unwrap();
+                                writeln!(out, "{indent}        {fname}: {},", fmt_ty(fty, ctx)).unwrap();
                             }
                             writeln!(out, "{indent}    }},").unwrap();
                         }
@@ -71,11 +180,15 @@ fn emit_uniontype(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Cla
             writeln!(out, "{indent}}}").unwrap();
             writeln!(out).unwrap();
         }
-        Ty::AliasTo(rec_name) => {
-            let rec_name = rec_name.clone();
+        Ty::AliasTo(_) => {
+            // Single-record uniontype: emit the struct, then a type alias.
+            // Derive the struct name from the class definition (AliasTo now carries
+            // the alias qname, not the struct name).
+            let recs = records_in_order(c);
+            let rec_name = recs.into_iter().next().unwrap_or_default();
             if let Some(rec_node) = node.children.get(&rec_name) {
                 if let NodeKind::Class(rc) = &rec_node.kind {
-                    emit_struct(out, &rec_name, rec_node, rc, indent);
+                    emit_struct(out, &rec_name, rec_node, rc, indent, ctx);
                 }
             }
             writeln!(out, "{indent}pub type {name} = {rec_name};").unwrap();
@@ -85,25 +198,25 @@ fn emit_uniontype(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Cla
     }
 }
 
-fn emit_struct(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Class, indent: &str) {
+fn emit_struct(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Class, indent: &str, ctx: &GenCtx) {
     let fields = component_fields(c, &node.children);
     if fields.is_empty() {
         writeln!(out, "{indent}pub struct {name};").unwrap();
     } else {
         writeln!(out, "{indent}pub struct {name} {{").unwrap();
         for (fname, fty) in &fields {
-            writeln!(out, "{indent}    pub {fname}: {},", fmt_ty(fty)).unwrap();
+            writeln!(out, "{indent}    pub {fname}: {},", fmt_ty(fty, ctx)).unwrap();
         }
         writeln!(out, "{indent}}}").unwrap();
     }
     writeln!(out).unwrap();
 }
 
-fn emit_type_item(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Class, indent: &str) {
+fn emit_type_item(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Class, indent: &str, ctx: &GenCtx) {
     match &c.body {
         MM::ClassDef::Derived { .. } => {
             if !matches!(node.ty, Ty::Unknown) {
-                writeln!(out, "{indent}pub type {name} = {};", fmt_ty(&node.ty)).unwrap();
+                writeln!(out, "{indent}pub type {name} = {};", fmt_ty(&node.ty, ctx)).unwrap();
                 writeln!(out).unwrap();
             }
         }
@@ -119,6 +232,42 @@ fn emit_type_item(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Cla
             }
         }
         _ => {}
+    }
+}
+
+// ── Type formatting ───────────────────────────────────────────────────────────
+
+fn fmt_ty(ty: &Ty, ctx: &GenCtx) -> String {
+    match ty {
+        Ty::Unknown => "/* ? */".to_owned(),
+        Ty::I32 => "i32".to_owned(),
+        Ty::F64 => "f64".to_owned(),
+        Ty::Bool => "bool".to_owned(),
+        Ty::Str => "String".to_owned(),
+        Ty::Unit => "()".to_owned(),
+        Ty::TypeVar(name) => name.clone(),
+        Ty::RustUnitVariant => "()".to_owned(),
+        Ty::Enumeration(name) | Ty::RustEnum(name) | Ty::RustStruct(name) | Ty::AliasTo(name) => {
+            ctx.shorten(name)
+        }
+        Ty::Option(inner) => format!("Option<{}>", fmt_ty(inner, ctx)),
+        Ty::List(inner) => format!("List<{}>", fmt_ty(inner, ctx)),
+        Ty::Array(inner) => format!("Array<{}>", fmt_ty(inner, ctx)),
+        Ty::Tuple(tys) => {
+            format!("({})", tys.iter().map(|t| fmt_ty(t, ctx)).collect::<Vec<_>>().join(", "))
+        }
+        Ty::Function { type_vars, inputs, output } => {
+            let tvs = if type_vars.is_empty() {
+                String::new()
+            } else {
+                format!("<{}>", type_vars.join(", "))
+            };
+            let ins = inputs.iter().map(|t| fmt_ty(t, ctx)).collect::<Vec<_>>().join(", ");
+            format!("{tvs}fn({ins}) -> {}", fmt_ty(output, ctx))
+        }
+        Ty::Generic(name, args) => {
+            format!("{name}<{}>", args.iter().map(|t| fmt_ty(t, ctx)).collect::<Vec<_>>().join(", "))
+        }
     }
 }
 
@@ -160,35 +309,10 @@ fn component_fields<'a>(c: &'a MM::Class, children: &'a HashMap<String, NameNode
         .collect()
 }
 
-fn fmt_ty(ty: &Ty) -> String {
-    match ty {
-        Ty::Unknown => "/* ? */".to_owned(),
-        Ty::I32 => "i32".to_owned(),
-        Ty::F64 => "f64".to_owned(),
-        Ty::Bool => "bool".to_owned(),
-        Ty::Str => "String".to_owned(),
-        Ty::Unit => "()".to_owned(),
-        Ty::TypeVar(name) => name.clone(),
-        Ty::Enumeration(name) | Ty::RustEnum(name) | Ty::RustStruct(name) => name.replace('.', "::"),
-        Ty::AliasTo(name) => name.clone(),
-        Ty::RustUnitVariant => "()".to_owned(),
-        Ty::Option(inner) => format!("Option<{}>", fmt_ty(inner)),
-        Ty::List(inner) => format!("Vec<{}>", fmt_ty(inner)),
-        Ty::Array(inner) => format!("Array<{}>", fmt_ty(inner)),
-        Ty::Tuple(tys) => {
-            format!("({})", tys.iter().map(fmt_ty).collect::<Vec<_>>().join(", "))
-        }
-        Ty::Function { type_vars, inputs, output } => {
-            let tvs = if type_vars.is_empty() {
-                String::new()
-            } else {
-                format!("<{}>", type_vars.join(", "))
-            };
-            let ins = inputs.iter().map(fmt_ty).collect::<Vec<_>>().join(", ");
-            format!("{tvs}fn({ins}) -> {}", fmt_ty(output))
-        }
-        Ty::Generic(name, args) => {
-            format!("{name}<{}>", args.iter().map(fmt_ty).collect::<Vec<_>>().join(", "))
-        }
+fn path_to_dotted(path: &Absyn::Path) -> String {
+    match path {
+        Absyn::Path::IDENT { name } => name.clone(),
+        Absyn::Path::QUALIFIED { name, path } => format!("{name}.{}", path_to_dotted(path)),
+        Absyn::Path::FULLYQUALIFIED { path } => path_to_dotted(path),
     }
 }

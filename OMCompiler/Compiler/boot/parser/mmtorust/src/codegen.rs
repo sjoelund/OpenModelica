@@ -52,16 +52,16 @@ impl GenCtx {
     fn use_lines(&self) -> Vec<String> {
         let mut lines: Vec<String> = Vec::new();
         for module in &self.unqual_modules {
-            let rust = module.replace('.', "::");
-            lines.push(format!("use crate::{rust}::*;"));
+            let rust = module_rust_prefix(module);
+            lines.push(format!("use {rust}::*;"));
         }
         for (dotted, local) in &self.named {
-            let rust = dotted.replace('.', "::");
+            let rust = dotted_to_rust_path(dotted);
             let last = dotted.rsplit('.').next().unwrap_or(dotted);
             if local == last {
-                lines.push(format!("use crate::{rust};"));
+                lines.push(format!("use {rust};"));
             } else {
-                lines.push(format!("use crate::{rust} as {local};"));
+                lines.push(format!("use {rust} as {local};"));
             }
         }
         lines.sort();
@@ -135,7 +135,9 @@ fn generate_file(top_name: &str, node: &NameNode<'_>) -> String {
     let mut out = String::new();
     writeln!(out, "// Auto-generated from MetaModelica source").unwrap();
     writeln!(out, "#![allow(non_camel_case_types, non_snake_case, dead_code, unused_imports)]").unwrap();
-    writeln!(out).unwrap();
+    writeln!(out, "{}", "
+use mmwinnow::metamodelica::*; // Built-in types and functions
+").unwrap();
     for line in ctx.use_lines() {
         writeln!(out, "{line}").unwrap();
     }
@@ -170,7 +172,7 @@ fn emit_node(out: &mut String, name: &str, node: &NameNode<'_>, indent: &str, ct
 fn emit_uniontype(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Class, indent: &str, ctx: &GenCtx) {
     match &node.ty {
         Ty::RustEnum(_) => {
-            writeln!(out, "{indent}pub enum {name} {{").unwrap();
+            writeln!(out, "{indent}pub enum {} {{", escape_ident(name)).unwrap();
             for rec_name in &records_in_order(c) {
                 let Some(rec_node) = node.children.get(rec_name) else { continue };
                 let NodeKind::Class(rc) = &rec_node.kind else { continue };
@@ -185,7 +187,7 @@ fn emit_uniontype(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Cla
                         } else {
                             writeln!(out, "{indent}    {rec_name} {{").unwrap();
                             for (fname, fty) in &fields {
-                                writeln!(out, "{indent}        {fname}: {},", fmt_ty(fty, ctx)).unwrap();
+                                writeln!(out, "{indent}        {}: {},", escape_ident(fname), fmt_ty(fty, ctx)).unwrap();
                             }
                             writeln!(out, "{indent}    }},").unwrap();
                         }
@@ -207,7 +209,7 @@ fn emit_uniontype(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Cla
                     emit_struct(out, &rec_name, rec_node, rc, indent, ctx);
                 }
             }
-            writeln!(out, "{indent}pub type {name} = {rec_name};").unwrap();
+            writeln!(out, "{indent}pub type {} = {};", escape_ident(name), escape_ident(&rec_name)).unwrap();
             writeln!(out).unwrap();
         }
         _ => {}
@@ -216,12 +218,13 @@ fn emit_uniontype(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Cla
 
 fn emit_struct(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Class, indent: &str, ctx: &GenCtx) {
     let fields = component_fields(c, &node.children);
+    let ename = escape_ident(name);
     if fields.is_empty() {
-        writeln!(out, "{indent}pub struct {name};").unwrap();
+        writeln!(out, "{indent}pub struct {ename};").unwrap();
     } else {
-        writeln!(out, "{indent}pub struct {name} {{").unwrap();
+        writeln!(out, "{indent}pub struct {ename} {{").unwrap();
         for (fname, fty) in &fields {
-            writeln!(out, "{indent}    pub {fname}: {},", fmt_ty(fty, ctx)).unwrap();
+            writeln!(out, "{indent}    pub {}: {},", escape_ident(fname), fmt_ty(fty, ctx)).unwrap();
         }
         writeln!(out, "{indent}}}").unwrap();
     }
@@ -232,15 +235,15 @@ fn emit_type_item(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Cla
     match &c.body {
         MM::ClassDef::Derived { type_spec: Absyn::TypeSpec::TCOMPLEX { path: Absyn::Path::IDENT { name }, .. }, .. } if name == "polymorphic" => (),
         MM::ClassDef::Derived { .. } => {
-            writeln!(out, "{indent}pub type {name} = {};", fmt_ty(&node.ty, ctx)).unwrap();
+            writeln!(out, "{indent}pub type {} = {};", escape_ident(name), fmt_ty(&node.ty, ctx)).unwrap();
             writeln!(out).unwrap();
         }
         MM::ClassDef::Enumeration { enum_literals, .. } => {
             if let Absyn::EnumDef::ENUMLITERALS { enumLiterals } = enum_literals {
-                writeln!(out, "{indent}pub enum {name} {{").unwrap();
+                writeln!(out, "{indent}pub enum {} {{", escape_ident(name)).unwrap();
                 for lit in enumLiterals {
                     let Absyn::EnumLiteral::ENUMLITERAL { literal, .. } = lit;
-                    writeln!(out, "{indent}    {literal},").unwrap();
+                    writeln!(out, "{indent}    {},", escape_ident(literal.as_str())).unwrap();
                 }
                 writeln!(out, "{indent}}}").unwrap();
                 writeln!(out).unwrap();
@@ -277,20 +280,21 @@ fn emit_function(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Clas
 
     let params = input_names.iter()
         .zip(fn_inputs.iter())
-        .map(|(pname, pty)| format!("{pname}: {}", fmt_ty(pty, ctx)))
+        .map(|(pname, pty)| format!("{}: {}", escape_ident(pname), fmt_ty(pty, ctx)))
         .collect::<Vec<_>>()
         .join(", ");
 
     let ret = fmt_ty(fn_output, ctx);
+    let ename = escape_ident(name);
 
     if c.partial_prefix {
         let type_only_params = fn_inputs.iter()
             .map(|t| fmt_ty(t, ctx))
             .collect::<Vec<_>>()
             .join(", ");
-        writeln!(out, "{indent}pub type {name} = fn({type_only_params}) -> {ret};").unwrap();
+        writeln!(out, "{indent}pub type {ename} = fn({type_only_params}) -> {ret};").unwrap();
     } else {
-        writeln!(out, "{indent}pub fn {name}{type_params}({params}) -> {ret} {{").unwrap();
+        writeln!(out, "{indent}pub fn {ename}{type_params}({params}) -> {ret} {{").unwrap();
         writeln!(out, "{indent}    todo!()").unwrap();
         writeln!(out, "{indent}}}").unwrap();
     }
@@ -369,6 +373,44 @@ fn component_fields<'a>(c: &'a MM::Class, children: &'a HashMap<String, NameNode
             }
         })
         .collect()
+}
+
+/// Prefix Rust keywords with `r#` so they are valid identifiers.
+/// `self`, `super`, `crate`, and `Self` cannot be raw identifiers and are left as-is.
+fn escape_ident(name: &str) -> String {
+    match name {
+        // strict keywords (edition-independent)
+        "as" | "break" | "const" | "continue" | "else" | "enum" | "extern" |
+        "false" | "fn" | "for" | "if" | "impl" | "in" | "let" | "loop" |
+        "match" | "mod" | "move" | "mut" | "pub" | "ref" | "return" |
+        "static" | "struct" | "trait" | "true" | "type" | "unsafe" | "use" |
+        "where" | "while" |
+        // reserved keywords
+        "abstract" | "async" | "await" | "become" | "box" | "do" | "dyn" |
+        "final" | "macro" | "override" | "priv" | "try" | "typeof" |
+        "unsized" | "virtual" | "yield" => format!("r#{name}"),
+        _ => name.to_owned(),
+    }
+}
+
+/// Map a top-level dotted module name to the Rust path prefix for `use` statements.
+/// Known external modules are mapped to their crate paths; everything else is `crate::`.
+fn module_rust_prefix(dotted_module: &str) -> String {
+    match dotted_module {
+        "MetaModelica" => "mmwinnow::metamodelica".to_owned(),
+        "MetaModelica.Dangerous" => "mmwinnow::metamodelica::Dangerous".to_owned(),
+        _ => format!("crate::{}", dotted_module.replace('.', "::")),
+    }
+}
+
+/// Convert a fully-dotted import path (e.g. `MetaModelica.List`) to a Rust path.
+fn dotted_to_rust_path(dotted: &str) -> String {
+    // Find the top-level segment and reroute known external modules.
+    let top = dotted.split('.').next().unwrap_or(dotted);
+    match top {
+        "MetaModelica" => format!("mmwinnow::metamodelica{}", &dotted[top.len()..].replace('.', "::")),
+        _ => format!("crate::{}", dotted.replace('.', "::")),
+    }
 }
 
 fn path_to_dotted(path: &Absyn::Path) -> String {

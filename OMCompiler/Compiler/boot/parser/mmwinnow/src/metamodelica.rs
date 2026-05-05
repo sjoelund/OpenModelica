@@ -950,40 +950,46 @@ pub fn fail() -> Result<()> {
 // MetaModelica::Dangerous - Functions that skip bounds checking
 // ============================================================================
 
-/// Unsafe array get without bounds checking.
-/// Panics in debug mode if index is out of bounds due to Rust's bounds checking on indexing.
-pub fn array_get_no_bounds_checking<A: Clone>(arr: &[A], index: i32) -> A {
-    let idx = (index - 1) as usize; // 1-based to 0-based
-    // SAFETY: Caller must ensure index is in bounds.
-    // Rust does not have true unchecked indexing, but unsafe::get_unchecked avoids bounds check.
-    unsafe { arr.get_unchecked(idx).clone() }
-}
-
-/// Unsafe array update without bounds checking.
-/// Mutates the array in place.
-pub fn array_update_no_bounds_checking<A: Clone>(arr: &mut Vec<A>, index: i32, new_value: A) {
-    let idx = (index - 1) as usize; // 1-based to 0-based
-    // SAFETY: Caller must ensure index is in bounds.
-    unsafe { *arr.get_unchecked_mut(idx) = new_value }
-}
-
-/// Creates a new array with uninitialized elements.
-/// The dummy parameter is used to fix the type of the array.
-/// Elements are set to a clone of dummy.
-pub fn array_create_no_init<A: Clone>(size: i32, dummy: A) -> Vec<A> {
-    if size <= 0 {
-        return Vec::new();
+pub mod Dangerous {
+    use super::*;
+    /// Unsafe array get without bounds checking.
+    /// Panics in debug mode if index is out of bounds due to Rust's bounds checking on indexing.
+    pub fn arrayGetNoBoundsChecking<A: Clone>(arr: &[A], index: i32) -> A {
+        let idx = (index - 1) as usize; // 1-based to 0-based
+        // SAFETY: Caller must ensure index is in bounds.
+        // Rust does not have true unchecked indexing, but unsafe::get_unchecked avoids bounds check.
+        unsafe { arr.get_unchecked(idx).clone() }
     }
-    // SAFETY: We immediately fill with cloned values so the array is never used uninitialized.
-    // In a true unsafe translation we could use MaybeUninit, but for safety we fill with dummy.
-    vec![dummy; size as usize]
-}
 
-/// Unsafe string get without bounds checking.
-pub fn string_get_no_bounds_checking(str: &str, index: i32) -> i32 {
-    let idx = (index - 1) as usize; // 1-based to 0-based
-    // SAFETY: Caller must ensure index is in bounds.
-    unsafe { (*str.as_bytes().get_unchecked(idx)) as i32 }
+    /// Unsafe array update without bounds checking.
+    /// Mutates the array in place.
+    pub fn arrayUpdateNoBoundsChecking<A: Clone>(arr: &mut Vec<A>, index: i32, new_value: A) {
+        let idx = (index - 1) as usize; // 1-based to 0-based
+        // SAFETY: Caller must ensure index is in bounds.
+        unsafe { *arr.get_unchecked_mut(idx) = new_value }
+    }
+
+    /// Creates a new array with uninitialized elements.
+    /// The dummy parameter is used to fix the type of the array.
+    /// Elements are set to a clone of dummy.
+    pub fn arrayCreateNoInit<A: Clone>(size: i32, dummy: A) -> Vec<A> {
+        if size <= 0 {
+            return Vec::new();
+        }
+        // SAFETY: We immediately fill with cloned values so the array is never used uninitialized.
+        // In a true unsafe translation we could use MaybeUninit, but for safety we fill with dummy.
+        vec![dummy; size as usize]
+    }
+    /// Unsafe string get without bounds checking.
+    pub fn stringGetNoBoundsChecking(str: &str, index: i32) -> i32 {
+        let idx = (index - 1) as usize; // 1-based to 0-based
+        // SAFETY: Caller must ensure index is in bounds.
+        unsafe { (*str.as_bytes().get_unchecked(idx)) as i32 }
+    }
+    /// Reverses a list in place.
+    pub fn listReverseInPlace<T: Clone>(list: &List<T>) -> List<T>{
+        list.reverse()
+    }
 }
 
 // ============================================================================
@@ -1995,35 +2001,35 @@ mod tests {
     // =========================================================================
 
     mod dangerous_tests {
-        use super::*;
+        use super::Dangerous::*;
 
         #[test]
         fn test_array_get_no_bounds_checking() {
             let arr = vec![10, 20, 30];
             // Valid 1-based indices
-            assert_eq!(array_get_no_bounds_checking(&arr, 1), 10);
-            assert_eq!(array_get_no_bounds_checking(&arr, 2), 20);
-            assert_eq!(array_get_no_bounds_checking(&arr, 3), 30);
+            assert_eq!(arrayGetNoBoundsChecking(&arr, 1), 10);
+            assert_eq!(arrayGetNoBoundsChecking(&arr, 2), 20);
+            assert_eq!(arrayGetNoBoundsChecking(&arr, 3), 30);
         }
 
         #[test]
         fn test_array_update_no_bounds_checking() {
             let mut arr = vec![1, 2, 3];
-            array_update_no_bounds_checking(&mut arr, 2, 99);
+            arrayUpdateNoBoundsChecking(&mut arr, 2, 99);
             assert_eq!(arr, vec![1, 99, 3]);
         }
 
         #[test]
         fn test_array_create_no_init() {
-            let arr = array_create_no_init(5, 0i32);
+            let arr = arrayCreateNoInit(5, 0i32);
             assert_eq!(arr.len(), 5);
         }
 
         #[test]
         fn test_string_get_no_bounds_checking() {
             let s = "hello";
-            assert_eq!(string_get_no_bounds_checking(s, 1), b'h' as i32);
-            assert_eq!(string_get_no_bounds_checking(s, 5), b'o' as i32);
+            assert_eq!(stringGetNoBoundsChecking(s, 1), b'h' as i32);
+            assert_eq!(stringGetNoBoundsChecking(s, 5), b'o' as i32);
         }
     }
 }

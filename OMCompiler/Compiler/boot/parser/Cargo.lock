@@ -200,6 +200,9 @@ dependencies = [
 [[package]]
 name = "openmodelica"
 version = "0.1.0"
+dependencies = [
+ "mmwinnow",
+]
 
 [[package]]
 name = "rayon"

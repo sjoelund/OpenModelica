@@ -919,9 +919,9 @@ fn import_clause(input: &mut TokenInput) -> ModalResult<Import> {
     // Group import: import Path.{Name, NewName = OldName, ...}
     // The dot before '{' is not consumed by name_path (it only follows dots to idents).
     match opt(alt((t(TK::StarEw), t(TK::Dot), t(TK::Equal)))).parse_next(input)? {
-        Some(TK::StarEw) => Ok(Import::QUAL_IMPORT { path }),
+        Some(TK::StarEw) => Ok(Import::UNQUAL_IMPORT { path }),
         Some(TK::Dot) => match alt((t(TK::LBrace),t(TK::Star))).parse_next(input)? {
-            TK::Star => Ok(Import::QUAL_IMPORT { path }), // Modelica 2 where .* is not a separate token
+            TK::Star => Ok(Import::UNQUAL_IMPORT { path }), // Modelica 2 where .* is not a separate token
             TK::LBrace => {
                 let mut groups: List<GroupImport> = List::Nil();
                 loop {
@@ -953,7 +953,7 @@ fn import_clause(input: &mut TokenInput) -> ModalResult<Import> {
             let path = name_path.parse_next(input)?;
             return Ok(Import::NAMED_IMPORT { name, path });
         }
-        _ => Ok(Import::UNQUAL_IMPORT { path }),
+        _ => Ok(Import::QUAL_IMPORT { path }),
     }
 }
 

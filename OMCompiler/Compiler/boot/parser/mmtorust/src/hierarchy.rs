@@ -389,22 +389,32 @@ fn collect_known(nodes: &HashMap<String, NameNode<'_>>, prefix: &str, known: &mu
 }
 
 fn resolve_nodes(nodes: &mut HashMap<String, NameNode<'_>>, prefix: &str, known: &HashMap<String, Ty>, changed: &mut bool) {
+    resolve_nodes_inner(nodes, prefix, known, &[], changed);
+}
+
+fn resolve_nodes_inner(nodes: &mut HashMap<String, NameNode<'_>>, prefix: &str, known: &HashMap<String, Ty>, outer_type_vars: &[String], changed: &mut bool) {
     for (name, node) in nodes.iter_mut() {
         let qname = qualify(prefix, name);
         if node.ty == Ty::Unknown {
-            if let Some(ty) = try_resolve(node, &qname, known) {
+            if let Some(ty) = try_resolve(node, &qname, known, outer_type_vars) {
                 node.ty = ty;
                 *changed = true;
             }
         }
-        resolve_nodes(&mut node.children, &qname, known, changed);
+        // Pass this node's type vars into its children so functions can see parent type params.
+        let child_outer: Vec<String> = if let NodeKind::Class(c) = &node.kind {
+            class_type_vars(c)
+        } else {
+            vec![]
+        };
+        resolve_nodes_inner(&mut node.children, &qname, known, &child_outer, changed);
     }
 }
 
-fn try_resolve(node: &NameNode<'_>, qname: &str, known: &HashMap<String, Ty>) -> Option<Ty> {
+fn try_resolve(node: &NameNode<'_>, qname: &str, known: &HashMap<String, Ty>, outer_type_vars: &[String]) -> Option<Ty> {
     match &node.kind {
         NodeKind::Class(c) if is_function_class(&c.restriction) => {
-            try_resolve_function(c, node, known)
+            resolve_function_type(c, node, known, outer_type_vars)
         }
         NodeKind::Class(c) if matches!(c.restriction, Absyn::Restriction::R_UNIONTYPE) => {
             try_resolve_uniontype(node, qname)
@@ -414,7 +424,40 @@ fn try_resolve(node: &NameNode<'_>, qname: &str, known: &HashMap<String, Ty>) ->
             _ => None,
         },
         NodeKind::Component(m) => resolve_type_spec(&m.type_spec, known, &[]),
-        NodeKind::Import(_) | NodeKind::EnumLiteral => None,
+        NodeKind::Import(m) => try_resolve_import(m, qname, known),
+        NodeKind::EnumLiteral => None,
+    }
+}
+
+/// Resolve an import node to the type of the thing it imports.
+/// `qname` is used to extract the local alias (its last segment) for GROUP_IMPORT disambiguation.
+fn try_resolve_import(m: &MM::ImportMember, qname: &str, known: &HashMap<String, Ty>) -> Option<Ty> {
+    let local = qname.rsplit('.').next().unwrap_or(qname);
+    match &m.import {
+        Absyn::Import::NAMED_IMPORT { path, .. } | Absyn::Import::QUAL_IMPORT { path } => {
+            let dotted = fmt_path(path);
+            let dotted = dotted.trim_start_matches('.');
+            known.get(dotted).cloned()
+                .or_else(|| known.get(path_last(path)).cloned())
+        }
+        Absyn::Import::GROUP_IMPORT { prefix, groups } => {
+            let prefix_str = fmt_path(prefix);
+            let prefix_str = prefix_str.trim_start_matches('.');
+            for g in groups {
+                let (is_match, orig) = match g {
+                    Absyn::GroupImport::GROUP_IMPORT_NAME { name } => (name == local, name),
+                    Absyn::GroupImport::GROUP_IMPORT_RENAME { rename, name } => (rename == local, name),
+                };
+                if is_match {
+                    let full = format!("{prefix_str}.{orig}");
+                    return known.get(&full).cloned()
+                        .or_else(|| known.get(orig.as_str()).cloned());
+                }
+            }
+            None
+        }
+        // Wildcard imports don't map to a single type.
+        Absyn::Import::UNQUAL_IMPORT { .. } => None,
     }
 }
 
@@ -430,14 +473,10 @@ fn try_resolve_uniontype(node: &NameNode<'_>, qname: &str) -> Option<Ty> {
 
     record_names.sort(); // deterministic order for AliasTo
     match record_names.len() {
-        0 => None,
+        0 => Some(Ty::RustStruct(qname.to_owned())), // function-only (e.g. Mutable<T>)
         1 => Some(Ty::AliasTo(qname.to_owned())),
         _ => Some(Ty::RustEnum(qname.to_owned())),
     }
-}
-
-fn try_resolve_function(c: &MM::Class, node: &NameNode<'_>, known: &HashMap<String, Ty>) -> Option<Ty> {
-    resolve_function_type(c, node, known, &[])
 }
 
 /// Resolve a function's type, threading `outer_type_vars` into nested partial functions.

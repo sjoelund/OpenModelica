@@ -123,7 +123,15 @@ fn generate_main_file(hier: &InstanceHierarchy<'_>) -> String {
     let mut out = String::new();
     writeln!(out, "// Auto-generated main file").unwrap();
     for name in hier.top_level.keys() {
-        writeln!(out, "mod {name};").unwrap();
+        match hier.top_level[name].kind {
+            NodeKind::Class(MM::Class{restriction: Absyn::Restriction::R_PACKAGE, ..}) => {
+                writeln!(out, "mod {name};").unwrap();
+            },
+            NodeKind::Class(MM::Class{restriction: Absyn::Restriction::R_UNIONTYPE, ..}) => {
+                writeln!(out, "include!(\"{name}.rs\");").unwrap();
+            },
+            _ => continue,
+        }
     }
     writeln!(out).unwrap();
     out = out + r#"fn main() {
@@ -216,7 +224,26 @@ fn emit_uniontype(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Cla
             writeln!(out, "{indent}pub type {} = {};", escape_ident(name), escape_ident(&rec_name)).unwrap();
             writeln!(out).unwrap();
         }
-        _ => {}
+        _ => {
+            // No records — emit an opaque struct, with PhantomData to hold any type params.
+            let type_vars: Vec<String> = match &c.body {
+                MM::ClassDef::Parts { type_vars, .. } => type_vars.clone(),
+                _ => vec![],
+            };
+            let ename = escape_ident(name);
+            if type_vars.is_empty() {
+                writeln!(out, "{indent}pub struct {ename};").unwrap();
+            } else {
+                let params = type_vars.join(", ");
+                let phantom = if type_vars.len() == 1 {
+                    type_vars[0].clone()
+                } else {
+                    format!("({})", params)
+                };
+                writeln!(out, "{indent}pub struct {ename}<{params}>(std::marker::PhantomData<{phantom}>);").unwrap();
+            }
+            writeln!(out).unwrap();
+        }
     }
 }
 

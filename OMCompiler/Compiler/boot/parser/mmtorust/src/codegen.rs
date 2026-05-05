@@ -13,7 +13,7 @@ struct GenCtx {
     top_name: String,
     /// Modules imported with `.*`; their types are referenced by bare name.
     unqual_modules: HashSet<String>,
-    /// Explicit imports: dotted qualified path → local name.
+    /// Explicit imports: dotted qualified name → local name.
     named: HashMap<String, String>,
 }
 
@@ -124,11 +124,9 @@ fn generate_main_file(hier: &InstanceHierarchy<'_>) -> String {
     writeln!(out, "// Auto-generated main file").unwrap();
     for name in hier.top_level.keys() {
         match hier.top_level[name].kind {
-            NodeKind::Class(MM::Class{restriction: Absyn::Restriction::R_PACKAGE, ..}) => {
-                writeln!(out, "mod {name};").unwrap();
-            },
+            NodeKind::Class(MM::Class{restriction: Absyn::Restriction::R_PACKAGE, ..}) |
             NodeKind::Class(MM::Class{restriction: Absyn::Restriction::R_UNIONTYPE, ..}) => {
-                writeln!(out, "include!(\"{name}.rs\");").unwrap();
+                writeln!(out, "mod {name};").unwrap();
             },
             _ => continue,
         }
@@ -243,6 +241,35 @@ fn emit_uniontype(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Cla
                 writeln!(out, "{indent}pub struct {ename}<{params}>(std::marker::PhantomData<{phantom}>);").unwrap();
             }
             writeln!(out).unwrap();
+        }
+    }
+    // Emit function children of the uniontype
+    emit_uniontype_functions(out, name, node, c, indent, ctx);
+}
+
+/// Emit functions that are direct children of a uniontype.
+/// These are sorted alphabetically to match the pattern used for other children.
+fn emit_uniontype_functions(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Class, indent: &str, ctx: &GenCtx) {
+    let members: &[MM::ClassMember] = match &c.body {
+        MM::ClassDef::Parts { members, .. } | MM::ClassDef::ClassExtends { members, .. } => members,
+        _ => return,
+    };
+
+    // Collect function children in declaration order
+    let mut fns: Vec<(&str, &NameNode<'_>)> = Vec::new();
+    for member in members {
+        if let MM::ClassMember::ClassDef(cdm) = member {
+            if matches!(cdm.class_def.restriction, Absyn::Restriction::R_FUNCTION { .. }) {
+                if let Some(child_node) = node.children.get(&cdm.class_def.name) {
+                    fns.push((cdm.class_def.name.as_str(), child_node));
+                }
+            }
+        }
+    }
+
+    for (fn_name, fn_node) in fns {
+        if let NodeKind::Class(fn_class) = &fn_node.kind {
+            emit_function(out, fn_name, fn_node, fn_class, indent, ctx);
         }
     }
 }

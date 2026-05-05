@@ -256,29 +256,16 @@ fn emit_function(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Clas
         _ => return,
     };
 
-    let type_vars: Vec<String> = match &node.ty {
-        Ty::Function { type_vars, .. } => type_vars.clone(),
-        _ => vec![],
-    };
+    // Use types from the resolved Ty::Function — those were computed by resolve_function_type
+    // with the correct type_vars in scope, so type-variable parameters resolve correctly.
+    // Child node .ty values are resolved without that context and may be Unknown for ArgT etc.
+    let Ty::Function { type_vars, inputs: fn_inputs, output: fn_output } = &node.ty else { return };
 
-    let inputs: Vec<(&str, &Ty)> = members.iter()
+    let input_names: Vec<&str> = members.iter()
         .filter_map(|m| {
             let MM::ClassMember::Component(comp) = m else { return None };
-            if !matches!(comp.direction, Absyn::Direction::INPUT | Absyn::Direction::INPUT_OUTPUT) {
-                return None;
-            }
-            let ty = node.children.get(&comp.name).map(|n| &n.ty)?;
-            Some((comp.name.as_str(), ty))
-        })
-        .collect();
-
-    let outputs: Vec<&Ty> = members.iter()
-        .filter_map(|m| {
-            let MM::ClassMember::Component(comp) = m else { return None };
-            if !matches!(comp.direction, Absyn::Direction::OUTPUT | Absyn::Direction::INPUT_OUTPUT) {
-                return None;
-            }
-            node.children.get(&comp.name).map(|n| &n.ty)
+            matches!(comp.direction, Absyn::Direction::INPUT | Absyn::Direction::INPUT_OUTPUT)
+                .then_some(comp.name.as_str())
         })
         .collect();
 
@@ -288,19 +275,20 @@ fn emit_function(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Clas
         format!("<{}>", type_vars.join(", "))
     };
 
-    let params = inputs.iter()
+    let params = input_names.iter()
+        .zip(fn_inputs.iter())
         .map(|(pname, pty)| format!("{pname}: {}", fmt_ty(pty, ctx)))
         .collect::<Vec<_>>()
         .join(", ");
 
-    let ret = match outputs.len() {
-        0 => "()".to_owned(),
-        1 => fmt_ty(outputs[0], ctx),
-        _ => format!("({})", outputs.iter().map(|t| fmt_ty(t, ctx)).collect::<Vec<_>>().join(", ")),
-    };
+    let ret = fmt_ty(fn_output, ctx);
 
     if c.partial_prefix {
-        writeln!(out, "{indent}pub type {name} = fn({params}) -> {ret};").unwrap();
+        let type_only_params = fn_inputs.iter()
+            .map(|t| fmt_ty(t, ctx))
+            .collect::<Vec<_>>()
+            .join(", ");
+        writeln!(out, "{indent}pub type {name} = fn({type_only_params}) -> {ret};").unwrap();
     } else {
         writeln!(out, "{indent}pub fn {name}{type_params}({params}) -> {ret} {{").unwrap();
         writeln!(out, "{indent}    todo!()").unwrap();

@@ -162,6 +162,7 @@ fn emit_node(out: &mut String, name: &str, node: &NameNode<'_>, indent: &str, ct
         R_UNIONTYPE => emit_uniontype(out, name, node, c, indent, ctx),
         R_TYPE => emit_type_item(out, name, node, c, indent, ctx),
         R_RECORD | R_METARECORD { .. } => emit_struct(out, name, node, c, indent, ctx),
+        R_FUNCTION { .. } => emit_function(out, name, node, c, indent, ctx),
         _ => {}
     }
 }
@@ -247,6 +248,65 @@ fn emit_type_item(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Cla
         }
         _ => {}
     }
+}
+
+fn emit_function(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Class, indent: &str, ctx: &GenCtx) {
+    let members: &[MM::ClassMember] = match &c.body {
+        MM::ClassDef::Parts { members, .. } | MM::ClassDef::ClassExtends { members, .. } => members,
+        _ => return,
+    };
+
+    let type_vars: Vec<String> = match &node.ty {
+        Ty::Function { type_vars, .. } => type_vars.clone(),
+        _ => vec![],
+    };
+
+    let inputs: Vec<(&str, &Ty)> = members.iter()
+        .filter_map(|m| {
+            let MM::ClassMember::Component(comp) = m else { return None };
+            if !matches!(comp.direction, Absyn::Direction::INPUT | Absyn::Direction::INPUT_OUTPUT) {
+                return None;
+            }
+            let ty = node.children.get(&comp.name).map(|n| &n.ty)?;
+            Some((comp.name.as_str(), ty))
+        })
+        .collect();
+
+    let outputs: Vec<&Ty> = members.iter()
+        .filter_map(|m| {
+            let MM::ClassMember::Component(comp) = m else { return None };
+            if !matches!(comp.direction, Absyn::Direction::OUTPUT | Absyn::Direction::INPUT_OUTPUT) {
+                return None;
+            }
+            node.children.get(&comp.name).map(|n| &n.ty)
+        })
+        .collect();
+
+    let type_params = if type_vars.is_empty() {
+        String::new()
+    } else {
+        format!("<{}>", type_vars.join(", "))
+    };
+
+    let params = inputs.iter()
+        .map(|(pname, pty)| format!("{pname}: {}", fmt_ty(pty, ctx)))
+        .collect::<Vec<_>>()
+        .join(", ");
+
+    let ret = match outputs.len() {
+        0 => "()".to_owned(),
+        1 => fmt_ty(outputs[0], ctx),
+        _ => format!("({})", outputs.iter().map(|t| fmt_ty(t, ctx)).collect::<Vec<_>>().join(", ")),
+    };
+
+    if c.partial_prefix {
+        writeln!(out, "{indent}pub type {name} = fn({params}) -> {ret};").unwrap();
+    } else {
+        writeln!(out, "{indent}pub fn {name}{type_params}({params}) -> {ret} {{").unwrap();
+        writeln!(out, "{indent}    todo!()").unwrap();
+        writeln!(out, "{indent}}}").unwrap();
+    }
+    writeln!(out).unwrap();
 }
 
 // ── Type formatting ───────────────────────────────────────────────────────────

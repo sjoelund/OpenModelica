@@ -151,10 +151,10 @@ pub fn from_program(prog: &Absyn::Program) -> Result<Program, Error> {
     if let Absyn::Within::WITHIN { path } = within_ {
         return Err(Error::WithinNotAllowed { path: path.clone() });
     }
-    classes.into_iter().map(convert_class).collect()
+    classes.into_iter().map(convert_class).filter_map(|r| r.transpose()).collect()
 }
 
-fn convert_class(class: Absyn::Class) -> Result<Class, Error> {
+fn convert_class(class: Absyn::Class) -> Result<Option<Class>, Error> {
     let Absyn::Class::CLASS {
         name,
         partialPrefix,
@@ -167,8 +167,12 @@ fn convert_class(class: Absyn::Class) -> Result<Class, Error> {
         commentsAfterEnd,
         info,
     } = class;
+    match restriction {
+        Absyn::Restriction::R_MODEL{} => return Ok(None),
+        _ => (),
+    };
     let converted_body = convert_class_def(body.as_ref(), &info)?;
-    Ok(Class {
+    Ok(Some(Class {
         name,
         partial_prefix: partialPrefix,
         final_prefix: finalPrefix,
@@ -179,7 +183,7 @@ fn convert_class(class: Absyn::Class) -> Result<Class, Error> {
         comments_before_end: commentsBeforeEnd.into_iter().collect(),
         comments_after_end: commentsAfterEnd.into_iter().collect(),
         info,
-    })
+    }))
 }
 
 fn convert_class_def(def: &Absyn::ClassDef, class_info: &Info) -> Result<ClassDef, Error> {
@@ -310,15 +314,16 @@ fn convert_element(
         Absyn::Element::ELEMENT { finalPrefix, redeclareKeywords, innerOuter, specification, info, constrainClass } => {
             match specification {
                 Absyn::ElementSpec::CLASSDEF { replaceable_, class_ } => {
-                    let converted = convert_class(class_.as_ref().clone())?;
-                    members.push(ClassMember::ClassDef(ClassDefMember {
-                        visibility,
-                        final_prefix: finalPrefix,
-                        redeclare_keywords: redeclareKeywords,
-                        info,
-                        replaceable: replaceable_,
-                        class_def: Box::new(converted),
-                    }));
+                    if let Some(converted) = convert_class(class_.as_ref().clone())? {
+                        members.push(ClassMember::ClassDef(ClassDefMember {
+                            visibility,
+                            final_prefix: finalPrefix,
+                            redeclare_keywords: redeclareKeywords,
+                            info,
+                            replaceable: replaceable_,
+                            class_def: Box::new(converted),
+                        }));
+                    }
                 }
                 Absyn::ElementSpec::EXTENDS { path, elementArg, annotationOpt } => {
                     members.push(ClassMember::Extends(ExtendsMember {

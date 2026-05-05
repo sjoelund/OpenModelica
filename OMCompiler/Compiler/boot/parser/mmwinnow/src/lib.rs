@@ -6,7 +6,7 @@
 #![allow(non_snake_case)]
 
 pub mod Absyn;
-mod metamodelica;
+pub mod metamodelica;
 pub mod lexer;
 pub mod token_input;
 

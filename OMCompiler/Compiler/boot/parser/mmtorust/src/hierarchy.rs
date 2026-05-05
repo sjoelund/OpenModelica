@@ -49,6 +49,10 @@ pub enum Ty {
     /// A single-record uniontype — transparent alias to the sole record.
     /// Carries the simple name of that record.
     AliasTo(String),
+    /// A record/variant inside a multi-record uniontype (Rust enum).
+    /// Rust cannot import through enums, so we emit `UnionType::VariantName`.
+    /// Carries (uniontype_qualified_name, variant_simple_name).
+    UnionTypeVariant(String, String),
     /// A user-defined parameterized type with resolved type arguments, e.g. `ExpandableArray<T>`.
     Generic(String, Vec<Ty>),
 }
@@ -90,6 +94,9 @@ impl fmt::Display for Ty {
             Ty::RustUnitVariant => f.write_str("unit variant"),
             Ty::RustEnum(name) => f.write_str(&name.replace('.', "::")),
             Ty::AliasTo(name) => write!(f, "= {}", name.replace('.', "::")),
+            Ty::UnionTypeVariant(union_qname, variant) => {
+                write!(f, "{}::{}", union_qname.replace('.', "::"), variant)
+            }
             Ty::Generic(name, args) => {
                 write!(f, "{name}<")?;
                 for (i, ty) in args.iter().enumerate() {
@@ -601,7 +608,23 @@ fn resolve_path(path: &Absyn::Path, known: &HashMap<String, Ty>, type_vars: &[St
     }
     let qname = fmt_path(path);
     let qname = qname.trim_start_matches('.');
-    known.get(qname).cloned()
+    let ty = known.get(qname).cloned()?;
+
+    // If this resolves to a record/variant inside a multi-record uniontype (Rust enum),
+    // we need UnionTypeVariant instead — Rust cannot import through enums.
+    // Check: strip the last segment from qname to get the parent; if parent is a RustEnum,
+    // return UnionTypeVariant(parent_qname, last_segment).
+    if let Some(dot_pos) = qname.rfind('.') {
+        let parent_qname = &qname[..dot_pos];
+        if let Some(parent_ty) = known.get(parent_qname) {
+            if matches!(parent_ty, Ty::RustEnum(_)) {
+                let variant_name = last.to_owned();
+                return Some(Ty::UnionTypeVariant(parent_qname.to_owned(), variant_name));
+            }
+        }
+    }
+
+    Some(ty)
 }
 
 // ── Display helpers ───────────────────────────────────────────────────────────

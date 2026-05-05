@@ -15,6 +15,9 @@ struct GenCtx {
     unqual_modules: HashSet<String>,
     /// Explicit imports: dotted qualified name → local name.
     named: HashMap<String, String>,
+    /// Uniontypes (Rust enums) whose variants are referenced via UnionTypeVariant.
+    /// Their qualified names need to be imported so the generated code can use `UnionType::Variant`.
+    uniontype_imports: HashSet<String>,
 }
 
 impl GenCtx {
@@ -23,6 +26,7 @@ impl GenCtx {
             top_name: top_name.to_owned(),
             unqual_modules: HashSet::new(),
             named: HashMap::new(),
+            uniontype_imports: HashSet::new(),
         }
     }
 
@@ -63,6 +67,12 @@ impl GenCtx {
             } else {
                 lines.push(format!("use {rust} as {local};"));
             }
+        }
+        // Import uniontypes that are referenced via UnionTypeVariant syntax.
+        for uniontype_qname in &self.uniontype_imports {
+            let rust = dotted_to_rust_path(uniontype_qname);
+            let last = uniontype_qname.rsplit('.').next().unwrap_or(uniontype_qname);
+            lines.push(format!("use {rust};"));
         }
         lines.sort();
         lines.dedup();
@@ -154,13 +164,13 @@ use mmwinnow::metamodelica::*; // Built-in types and functions
     if !ctx.unqual_modules.is_empty() || !ctx.named.is_empty() {
         writeln!(out).unwrap();
     }
-    emit_node(&mut out, top_name, node, "", &ctx);
+    emit_node(&mut out, top_name, node, "", &mut ctx);
     out
 }
 
 // ── Node emission ─────────────────────────────────────────────────────────────
 
-fn emit_node(out: &mut String, name: &str, node: &NameNode<'_>, indent: &str, ctx: &GenCtx) {
+fn emit_node(out: &mut String, name: &str, node: &NameNode<'_>, indent: &str, ctx: &mut GenCtx) {
     let NodeKind::Class(c) = &node.kind else { return };
     use Absyn::Restriction::*;
     match &c.restriction {
@@ -168,18 +178,18 @@ fn emit_node(out: &mut String, name: &str, node: &NameNode<'_>, indent: &str, ct
             let mut children: Vec<_> = node.children.iter().collect();
             children.sort_by_key(|(n, _)| n.as_str());
             for (child_name, child_node) in children {
-                emit_node(out, child_name, child_node, indent, ctx);
+                emit_node(out, child_name, child_node, indent, &mut *ctx);
             }
         }
-        R_UNIONTYPE => emit_uniontype(out, name, node, c, indent, ctx),
-        R_TYPE => emit_type_item(out, name, node, c, indent, ctx),
-        R_RECORD | R_METARECORD { .. } => emit_struct(out, name, node, c, indent, ctx),
-        R_FUNCTION { .. } => emit_function(out, name, node, c, indent, ctx),
+        R_UNIONTYPE => emit_uniontype(out, name, node, c, indent, &mut *ctx),
+        R_TYPE => emit_type_item(out, name, node, c, indent, &mut *ctx),
+        R_RECORD | R_METARECORD { .. } => emit_struct(out, name, node, c, indent, &mut *ctx),
+        R_FUNCTION { .. } => emit_function(out, name, node, c, indent, &mut *ctx),
         _ => {}
     }
 }
 
-fn emit_uniontype(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Class, indent: &str, ctx: &GenCtx) {
+fn emit_uniontype(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Class, indent: &str, ctx: &mut GenCtx) {
     match &node.ty {
         Ty::RustEnum(_) => {
             writeln!(out, "{indent}pub enum {} {{", escape_ident(name)).unwrap();
@@ -197,7 +207,7 @@ fn emit_uniontype(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Cla
                         } else {
                             writeln!(out, "{indent}    {rec_name} {{").unwrap();
                             for (fname, fty) in &fields {
-                                writeln!(out, "{indent}        {}: {},", escape_ident(fname), fmt_ty(fty, ctx)).unwrap();
+                                writeln!(out, "{indent}        {}: {},", escape_ident(fname), fmt_ty(fty, &mut *ctx)).unwrap();
                             }
                             writeln!(out, "{indent}    }},").unwrap();
                         }
@@ -216,7 +226,7 @@ fn emit_uniontype(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Cla
             let rec_name = recs.into_iter().next().unwrap_or_default();
             if let Some(rec_node) = node.children.get(&rec_name) {
                 if let NodeKind::Class(rc) = &rec_node.kind {
-                    emit_struct(out, &rec_name, rec_node, rc, indent, ctx);
+                    emit_struct(out, &rec_name, rec_node, rc, indent, &mut *ctx);
                 }
             }
             writeln!(out, "{indent}pub type {} = {};", escape_ident(name), escape_ident(&rec_name)).unwrap();
@@ -244,12 +254,12 @@ fn emit_uniontype(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Cla
         }
     }
     // Emit function children of the uniontype
-    emit_uniontype_functions(out, name, node, c, indent, ctx);
+    emit_uniontype_functions(out, name, node, c, indent, &mut *ctx);
 }
 
 /// Emit functions that are direct children of a uniontype.
 /// These are sorted alphabetically to match the pattern used for other children.
-fn emit_uniontype_functions(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Class, indent: &str, ctx: &GenCtx) {
+fn emit_uniontype_functions(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Class, indent: &str, ctx: &mut GenCtx) {
     let members: &[MM::ClassMember] = match &c.body {
         MM::ClassDef::Parts { members, .. } | MM::ClassDef::ClassExtends { members, .. } => members,
         _ => return,
@@ -269,12 +279,12 @@ fn emit_uniontype_functions(out: &mut String, name: &str, node: &NameNode<'_>, c
 
     for (fn_name, fn_node) in fns {
         if let NodeKind::Class(fn_class) = &fn_node.kind {
-            emit_function(out, fn_name, fn_node, fn_class, indent, ctx);
+            emit_function(out, fn_name, fn_node, fn_class, indent, &mut *ctx);
         }
     }
 }
 
-fn emit_struct(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Class, indent: &str, ctx: &GenCtx) {
+fn emit_struct(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Class, indent: &str, ctx: &mut GenCtx) {
     let fields = component_fields(c, &node.children);
     let ename = escape_ident(name);
     if fields.is_empty() {
@@ -282,18 +292,18 @@ fn emit_struct(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Class,
     } else {
         writeln!(out, "{indent}pub struct {ename} {{").unwrap();
         for (fname, fty) in &fields {
-            writeln!(out, "{indent}    pub {}: {},", escape_ident(fname), fmt_ty(fty, ctx)).unwrap();
+            writeln!(out, "{indent}    pub {}: {},", escape_ident(fname), fmt_ty(fty, &mut *ctx)).unwrap();
         }
         writeln!(out, "{indent}}}").unwrap();
     }
     writeln!(out).unwrap();
 }
 
-fn emit_type_item(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Class, indent: &str, ctx: &GenCtx) {
+fn emit_type_item(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Class, indent: &str, ctx: &mut GenCtx) {
     match &c.body {
         MM::ClassDef::Derived { type_spec: Absyn::TypeSpec::TCOMPLEX { path: Absyn::Path::IDENT { name }, .. }, .. } if name == "polymorphic" => (),
         MM::ClassDef::Derived { .. } => {
-            writeln!(out, "{indent}pub type {} = {};", escape_ident(name), fmt_ty(&node.ty, ctx)).unwrap();
+            writeln!(out, "{indent}pub type {} = {};", escape_ident(name), fmt_ty(&node.ty, &mut *ctx)).unwrap();
             writeln!(out).unwrap();
         }
         MM::ClassDef::Enumeration { enum_literals, .. } => {
@@ -311,7 +321,7 @@ fn emit_type_item(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Cla
     }
 }
 
-fn emit_function(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Class, indent: &str, ctx: &GenCtx) {
+fn emit_function(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Class, indent: &str, ctx: &mut GenCtx) {
     let members: &[MM::ClassMember] = match &c.body {
         MM::ClassDef::Parts { members, .. } | MM::ClassDef::ClassExtends { members, .. } => members,
         _ => return,
@@ -361,7 +371,7 @@ fn emit_function(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Clas
 
 // ── Type formatting ───────────────────────────────────────────────────────────
 
-fn fmt_ty(ty: &Ty, ctx: &GenCtx) -> String {
+fn fmt_ty(ty: &Ty, ctx: &mut GenCtx) -> String {
     match ty {
         Ty::Unknown => "/* ? */".to_owned(),
         Ty::I32 => "i32".to_owned(),
@@ -373,6 +383,13 @@ fn fmt_ty(ty: &Ty, ctx: &GenCtx) -> String {
         Ty::RustUnitVariant => "()".to_owned(),
         Ty::Enumeration(name) | Ty::RustEnum(name) | Ty::RustStruct(name) | Ty::AliasTo(name) => {
             ctx.shorten(name)
+        }
+        Ty::UnionTypeVariant(union_qname, variant) => {
+            // Rust cannot import through enums, so we emit `ShortenedUnionType::VariantName`.
+            // The uniontype itself is shortened (or fully qualified) and the variant is appended.
+            let union_short = ctx.shorten(union_qname);
+            ctx.uniontype_imports.insert(union_qname.to_owned());
+            format!("{union_short}::{variant}")
         }
         Ty::Option(inner) => format!("Option<{}>", fmt_ty(inner, ctx)),
         Ty::List(inner) => format!("List<{}>", fmt_ty(inner, ctx)),

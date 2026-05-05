@@ -410,9 +410,9 @@ fn fmt_ty(ty: &Ty, ctx: &mut GenCtx) -> String {
         Ty::Generic(name, args) => {
             format!("{name}<{}>", args.iter().map(|t| fmt_ty(t, ctx)).collect::<Vec<_>>().join(", "))
         }
-        Ty::ExternalObject(name) => {
-            // External objects are opaque nominal types - use the qualified Rust path.
-            ctx.shorten(name)
+        Ty::ExternalObject(_) => {
+            // External objects are opaque C handles in Rust.
+            "std::ffi::c_void".to_owned()
         }
     }
 }

@@ -7,7 +7,6 @@ mod MM;
 mod hierarchy;
 mod codegen;
 use rayon::prelude::*;
-use std::sync::Arc;
 
 fn start_compilation(results: Vec<Absyn::Program>) {
     let mut failures = 0;
@@ -26,7 +25,7 @@ fn start_compilation(results: Vec<Absyn::Program>) {
     let mut hier = hierarchy::InstanceHierarchy::from_program(&all_classes);
     while hierarchy::resolve_pass(&mut hier) {}
     println!("{hier}");
-    codegen::generate_all(&hier, "output").expect("code generation failed");
+    codegen::generate_all(&hier, "openmodelica/src").expect("code generation failed");
     println!("MM conversion: {} files, {} failures", results.len(), failures);
 }
 

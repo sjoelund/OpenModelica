@@ -110,7 +110,22 @@ pub fn generate_all(hier: &InstanceHierarchy<'_>, output_dir: &str) -> std::io::
         let content = generate_file(name, node);
         std::fs::write(format!("{output_dir}/{name}.rs"), content)?;
     }
+    let main_content = generate_main_file(hier);
+    std::fs::write(format!("{output_dir}/main.rs"), main_content)?;
     Ok(())
+}
+
+fn generate_main_file(hier: &InstanceHierarchy<'_>) -> String {
+    let mut out = String::new();
+    writeln!(out, "// Auto-generated main file").unwrap();
+    for name in hier.top_level.keys() {
+        writeln!(out, "mod {name};").unwrap();
+    }
+    writeln!(out).unwrap();
+    out = out + r#"fn main() {
+    Main.main()
+}"#;
+    out
 }
 
 fn generate_file(top_name: &str, node: &NameNode<'_>) -> String {
@@ -119,7 +134,7 @@ fn generate_file(top_name: &str, node: &NameNode<'_>) -> String {
 
     let mut out = String::new();
     writeln!(out, "// Auto-generated from MetaModelica source").unwrap();
-    writeln!(out, "#![allow(non_camel_case_types, non_snake_case, dead_code)]").unwrap();
+    writeln!(out, "#![allow(non_camel_case_types, non_snake_case, dead_code, unused_imports)]").unwrap();
     writeln!(out).unwrap();
     for line in ctx.use_lines() {
         writeln!(out, "{line}").unwrap();
@@ -214,11 +229,10 @@ fn emit_struct(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Class,
 
 fn emit_type_item(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Class, indent: &str, ctx: &GenCtx) {
     match &c.body {
+        MM::ClassDef::Derived { type_spec: Absyn::TypeSpec::TCOMPLEX { path: Absyn::Path::IDENT { name }, .. }, .. } if name == "polymorphic" => (),
         MM::ClassDef::Derived { .. } => {
-            if !matches!(node.ty, Ty::Unknown) {
-                writeln!(out, "{indent}pub type {name} = {};", fmt_ty(&node.ty, ctx)).unwrap();
-                writeln!(out).unwrap();
-            }
+            writeln!(out, "{indent}pub type {name} = {};", fmt_ty(&node.ty, ctx)).unwrap();
+            writeln!(out).unwrap();
         }
         MM::ClassDef::Enumeration { enum_literals, .. } => {
             if let Absyn::EnumDef::ENUMLITERALS { enumLiterals } = enum_literals {

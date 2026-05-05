@@ -416,9 +416,9 @@ fn class_specifier(input: &mut TokenInput) -> ModalResult<ClassSpecifier> {
 
 fn class_specifier2(input: &mut TokenInput) -> ModalResult<Arc<ClassDef>> {
     if opt(t(TK::Subtypeof)).parse_next(input)?.is_some() {
-        let typeSpec = type_specifier(input)?;
+        let ts = type_specifier(input)?;
         return Ok(Arc::new(ClassDef::DERIVED {
-            typeSpec, attributes: default_element_attrs(), arguments: List::Nil(), comment: None,
+            typeSpec: TypeSpec::TCOMPLEX { path: Path::IDENT{name: "polymorphic".to_string()}, typeSpecs: List::new(Arc::new(ts)), arrayDim: None }, attributes: default_element_attrs(), arguments: List::Nil(), comment: None,
         }));
     }
 

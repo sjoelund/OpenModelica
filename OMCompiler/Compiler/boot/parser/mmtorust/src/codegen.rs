@@ -70,7 +70,8 @@ impl GenCtx {
     }
 }
 
-/// Walk the entire subtree collecting import nodes into `ctx`.
+/// Walk the subtree collecting file-level import nodes into `ctx`.
+/// Stops at function boundaries — imports inside a function body are local to that function.
 fn collect_imports(node: &NameNode<'_>, ctx: &mut GenCtx) {
     for child in node.children.values() {
         match &child.kind {
@@ -97,6 +98,9 @@ fn collect_imports(node: &NameNode<'_>, ctx: &mut GenCtx) {
                     }
                 }
             },
+            NodeKind::Class(c) if matches!(c.restriction, Absyn::Restriction::R_FUNCTION { .. }) => {
+                // Don't recurse into functions — their imports are local to that function.
+            }
             _ => collect_imports(child, ctx),
         }
     }

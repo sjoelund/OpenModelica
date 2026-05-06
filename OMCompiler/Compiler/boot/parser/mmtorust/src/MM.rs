@@ -152,7 +152,7 @@ pub fn from_program(prog: &Absyn::Program) -> Result<Program, Error> {
         return Err(Error::WithinNotAllowed { path: path.clone() });
     }
     classes.into_iter().map(|class| {
-        let is_nf_builtin = matches!(&class, Absyn::Class::CLASS { info, .. } if info.file_name.ends_with("NFModelicaBuiltin.mo"));
+        let is_nf_builtin = matches!(&class, Absyn::Class::CLASS { info, .. } if is_nf_builtin(info));
         let result = convert_class(class);
         if is_nf_builtin { Ok(result.ok().flatten()) } else { result }
     }).filter_map(|r| r.transpose()).collect()
@@ -196,8 +196,12 @@ fn convert_class_def(def: &Absyn::ClassDef, class_info: &Info) -> Result<ClassDe
             let mut members = Vec::new();
             let mut algorithms = Vec::new();
             let mut external = None;
+            let lenient = is_nf_builtin(class_info);
             for part in classParts {
-                convert_class_part(part, class_info, &mut members, &mut algorithms, &mut external)?;
+                let result = convert_class_part(part, class_info, &mut members, &mut algorithms, &mut external);
+                if !lenient {
+                    result?;
+                }
             }
             Ok(ClassDef::Parts {
                 type_vars: typeVars.into_iter().collect(),
@@ -283,19 +287,27 @@ fn convert_class_part(
     Ok(())
 }
 
+fn is_nf_builtin(info: &Info) -> bool {
+    info.file_name.ends_with("NFModelicaBuiltin.mo")
+}
+
 fn convert_element_items(
     items: mmwinnow::List<Absyn::ElementItem>,
     visibility: Visibility,
     class_info: &Info,
     members: &mut Vec<ClassMember>,
 ) -> Result<(), Error> {
+    let lenient = is_nf_builtin(class_info);
     for item in &items {
         match item {
             Absyn::ElementItem::LEXER_COMMENT { comment } => {
                 members.push(ClassMember::LexerComment(comment));
             }
             Absyn::ElementItem::ELEMENTITEM { element } => {
-                convert_element(element, visibility.clone(), class_info, members)?;
+                let result = convert_element(element, visibility.clone(), class_info, members);
+                if result.is_err() && !lenient {
+                    return result;
+                }
             }
         }
     }

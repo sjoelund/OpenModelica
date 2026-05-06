@@ -442,6 +442,17 @@ fn class_specifier2(input: &mut TokenInput) -> ModalResult<Arc<ClassDef>> {
                 comment,
             }));
         }
+        if opt(t(TK::Overload)).parse_next(input)?.is_some() {
+            // function div = $overload(OpenModelica.Internal.intDiv,OpenModelica.Internal.realDiv)
+            t(TK::LParen).parse_next(input)?;
+            let mut functionNames = List::new(name_path.parse_next(input)?);
+            while opt(t(TK::Comma)).parse_next(input)?.is_some() {
+                functionNames = cons(name_path.parse_next(input)?, functionNames);
+            };
+            t(TK::RParen).parse_next(input)?;
+            let comment = comment.parse_next(input)?;
+            return Ok(Arc::new(ClassDef::OVERLOAD { functionNames, comment }));
+        }
         let attributes = type_prefix.parse_next(input)?;
         let typeSpec = cut_err(type_specifier)
             .context(StrContext::Label("type specifier after '='"))
@@ -1537,7 +1548,7 @@ fn name_path2(input: &mut TokenInput) -> ModalResult<Path> {
         // Only treat Dot as separator if the next token after it is an Ident.
         if input.len() >= 2
             && input[0].kind == TK::Dot
-            && matches!(&input[1].kind, TK::Ident(_))
+            && matches!(&input[1].kind, TK::Ident(_) | TK::Code)
         {
             *input = &input[1..]; // consume Dot
             parts.push(last_id);

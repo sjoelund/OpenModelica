@@ -102,6 +102,7 @@ pub fn t_ident(input: &mut &[LexToken]) -> ModalResult<String> {
     let s = match input.first() {
         Some(LexToken { kind: TK::Der, .. }) => "der".to_owned(),
         Some(LexToken { kind: TK::Initial, .. }) => "initial".to_owned(),
+        Some(LexToken { kind: TK::Code, .. }) => "$Code".to_owned(),
         Some(LexToken { kind: TK::Ident(s), .. })
         => s.clone(),
         _ => return Err(ErrMode::Backtrack(ContextError::default())),

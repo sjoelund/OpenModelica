@@ -339,7 +339,7 @@ pub fn resolve_pass(hier: &mut InstanceHierarchy<'_>) -> bool {
     collect_known(&hier.top_level, "", &mut known);
     collect_extends_known(&hier.top_level, "", &hier.top_level, &mut known);
     let mut aliases: HashMap<String, String> = HashMap::new();
-    collect_package_aliases(&hier.top_level, &known, &mut aliases);
+    collect_package_aliases(&hier.top_level, &mut aliases);
     resolve_nodes(&mut hier.top_level, "", &known, &aliases, &mut changed);
     changed
 }
@@ -504,28 +504,24 @@ fn collect_extends_known<'a>(
 /// Collect package-level import aliases: QUAL_IMPORT and NAMED_IMPORT where the target path
 /// has no type in `known` (i.e., it's a package, not a type). Maps local_name → full_qualified_path.
 /// Scoping is flattened to global; conflicts are resolved by first-one-wins.
-fn collect_package_aliases(nodes: &HashMap<String, NameNode<'_>>, known: &HashMap<String, Ty>, aliases: &mut HashMap<String, String>) {
+fn collect_package_aliases(nodes: &HashMap<String, NameNode<'_>>, aliases: &mut HashMap<String, String>) {
     for (name, node) in nodes {
         if let NodeKind::Import(m) = &node.kind {
             match &m.import {
                 Absyn::Import::QUAL_IMPORT { path } => {
                     let full = fmt_path(path);
                     let full = full.trim_start_matches('.');
-                    if known.get(full).is_none() {
-                        aliases.entry(name.clone()).or_insert_with(|| full.to_owned());
-                    }
+                    aliases.entry(name.clone()).or_insert_with(|| full.to_owned());
                 }
                 Absyn::Import::NAMED_IMPORT { name: alias_name, path } => {
                     let full = fmt_path(path);
                     let full = full.trim_start_matches('.');
-                    if known.get(full).is_none() {
-                        aliases.entry(alias_name.clone()).or_insert_with(|| full.to_owned());
-                    }
+                    aliases.entry(alias_name.clone()).or_insert_with(|| full.to_owned());
                 }
                 _ => {}
             }
         }
-        collect_package_aliases(&node.children, known, aliases);
+        collect_package_aliases(&node.children, aliases);
     }
 }
 

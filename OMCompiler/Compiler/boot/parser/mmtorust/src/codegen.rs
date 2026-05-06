@@ -333,23 +333,14 @@ fn emit_function(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Clas
     // Child node .ty values are resolved without that context and may be Unknown for ArgT etc.
     let Ty::Function { type_vars, inputs: fn_inputs, output: fn_output } = &node.ty else { return };
 
-    let input_names: Vec<&str> = members.iter()
-        .filter_map(|m| {
-            let MM::ClassMember::Component(comp) = m else { return None };
-            matches!(comp.direction, Absyn::Direction::INPUT | Absyn::Direction::INPUT_OUTPUT)
-                .then_some(comp.name.as_str())
-        })
-        .collect();
-
     let type_params = if type_vars.is_empty() {
         String::new()
     } else {
         format!("<{}>", type_vars.join(", "))
     };
 
-    let params = input_names.iter()
-        .zip(fn_inputs.iter())
-        .map(|(pname, pty)| format!("{}: {}", escape_ident(pname), fmt_ty(pty, ctx)))
+    let params = fn_inputs.iter()
+        .map(|inp| format!("{}: {}", escape_ident(&inp.name), fmt_ty(&inp.ty, ctx)))
         .collect::<Vec<_>>()
         .join(", ");
 
@@ -358,7 +349,7 @@ fn emit_function(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Clas
 
     if c.partial_prefix {
         let type_only_params = fn_inputs.iter()
-            .map(|t| fmt_ty(t, ctx))
+            .map(|inp| fmt_ty(&inp.ty, ctx))
             .collect::<Vec<_>>()
             .join(", ");
         writeln!(out, "{indent}pub type {ename} = fn({type_only_params}) -> {ret};").unwrap();
@@ -404,9 +395,10 @@ fn fmt_ty(ty: &Ty, ctx: &mut GenCtx) -> String {
             } else {
                 format!("<{}>", type_vars.join(", "))
             };
-            let ins = inputs.iter().map(|t| fmt_ty(t, ctx)).collect::<Vec<_>>().join(", ");
+            let ins = inputs.iter().map(|inp| fmt_ty(&inp.ty, ctx)).collect::<Vec<_>>().join(", ");
             format!("{tvs}fn({ins}) -> {}", fmt_ty(output, ctx))
         }
+        Ty::FunctionAlias { base, .. } => ctx.shorten(base),
         Ty::Generic(name, args) => {
             format!("{name}<{}>", args.iter().map(|t| fmt_ty(t, ctx)).collect::<Vec<_>>().join(", "))
         }

@@ -7,6 +7,14 @@ use crate::MM;
 
 // ── Ty ───────────────────────────────────────────────────────────────────────
 
+/// One input parameter of a function: name, resolved type, and optional default expression.
+#[derive(Debug, Clone, PartialEq)]
+pub struct FunctionInput {
+    pub name: String,
+    pub ty: Ty,
+    pub default: Option<String>,
+}
+
 /// The resolved type of a named entity, populated during type-checking passes.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub enum Ty {
@@ -34,11 +42,17 @@ pub enum Ty {
     Tuple(Vec<Ty>),
     /// No output.
     Unit,
-    /// A resolved function type.
+    /// A resolved function type. `inputs` carries names and optional defaults.
     Function {
         type_vars: Vec<String>,
-        inputs: Vec<Ty>,
+        inputs: Vec<FunctionInput>,
         output: Box<Ty>,
+    },
+    /// `function Foo = Bar(param=default)` — a named alias of another function with optional
+    /// default-argument overrides. `modifications` is `(param_name, expr_string)` pairs.
+    FunctionAlias {
+        base: String,
+        modifications: Vec<(String, String)>,
     },
     /// A metarecord with fields — maps to a Rust struct. Carries its qualified name.
     RustStruct(String),
@@ -87,11 +101,23 @@ impl fmt::Display for Ty {
                     write!(f, "<{}>", type_vars.join(", "))?;
                 }
                 f.write_str("fn(")?;
-                for (i, ty) in inputs.iter().enumerate() {
+                for (i, inp) in inputs.iter().enumerate() {
                     if i > 0 { f.write_str(", ")?; }
-                    write!(f, "{ty}")?;
+                    write!(f, "{}", inp.ty)?;
                 }
                 write!(f, ") -> {output}")
+            }
+            Ty::FunctionAlias { base, modifications } => {
+                write!(f, "= {base}")?;
+                if !modifications.is_empty() {
+                    write!(f, "(")?;
+                    for (i, (k, v)) in modifications.iter().enumerate() {
+                        if i > 0 { write!(f, ", ")?; }
+                        write!(f, "{k}={v}")?;
+                    }
+                    write!(f, ")")?;
+                }
+                Ok(())
             }
             Ty::RustStruct(name) => f.write_str(&name.replace('.', "::")),
             Ty::RustUnitVariant => f.write_str("unit variant"),
@@ -582,6 +608,19 @@ fn resolve_function_type(
         if !type_vars.contains(v) { type_vars.push(v.clone()); }
     }
 
+    // Function alias: `function Foo = Bar(param=default)`
+    if let MM::ClassDef::Derived { type_spec, arguments, .. } = &c.body {
+        let base = fmt_path(type_spec_path(type_spec)).trim_start_matches('.').to_owned();
+        let modifications = arguments.iter()
+            .filter_map(|arg| {
+                let Absyn::ElementArg::MODIFICATION { path, modification: Some(m), .. } = arg else { return None };
+                let Absyn::Modification::CLASSMOD { eqMod: Absyn::EqMod::EQMOD { exp, .. }, .. } = m else { return None };
+                Some((fmt_path(path), fmt_exp(exp)))
+            })
+            .collect();
+        return Some(Ty::FunctionAlias { base, modifications });
+    }
+
     let members: &[MM::ClassMember] = match &c.body {
         MM::ClassDef::Parts { members, .. } => members,
         MM::ClassDef::ClassExtends { members, .. } => members,
@@ -601,7 +640,7 @@ fn resolve_function_type(
         }
     }
 
-    let mut inputs: Vec<Ty> = Vec::new();
+    let mut inputs: Vec<FunctionInput> = Vec::new();
     let mut outputs: Vec<Ty> = Vec::new();
 
     for member in members {
@@ -618,10 +657,14 @@ fn resolve_function_type(
                 resolve_type_spec(&m.type_spec, known, &type_vars)?
             }
         };
+        let default = extract_default(&m.modification);
         match m.direction {
-            Absyn::Direction::INPUT => inputs.push(ty),
+            Absyn::Direction::INPUT => inputs.push(FunctionInput { name: m.name.clone(), ty, default }),
             Absyn::Direction::OUTPUT => outputs.push(ty),
-            Absyn::Direction::INPUT_OUTPUT => { inputs.push(ty.clone()); outputs.push(ty); }
+            Absyn::Direction::INPUT_OUTPUT => {
+                outputs.push(ty.clone());
+                inputs.push(FunctionInput { name: m.name.clone(), ty, default });
+            }
             _ => {}
         }
     }
@@ -709,6 +752,78 @@ fn resolve_path(path: &Absyn::Path, known: &HashMap<String, Ty>, type_vars: &[St
     }
 
     Some(ty)
+}
+
+// ── Expression helpers ────────────────────────────────────────────────────────
+
+fn extract_default(modification: &Option<Absyn::Modification>) -> Option<String> {
+    match modification {
+        Some(Absyn::Modification::CLASSMOD { eqMod: Absyn::EqMod::EQMOD { exp, .. }, .. }) => {
+            Some(fmt_exp(exp))
+        }
+        _ => None,
+    }
+}
+
+fn fmt_exp(exp: &Absyn::Exp) -> String {
+    match exp {
+        Absyn::Exp::INTEGER { value } => value.to_string(),
+        Absyn::Exp::REAL { value } => value.clone(),
+        Absyn::Exp::STRING { value } => format!("\"{value}\""),
+        Absyn::Exp::BOOL { value } => value.to_string(),
+        Absyn::Exp::CREF { componentRef } => fmt_cref(componentRef),
+        Absyn::Exp::UNARY { op, exp } => {
+            let s = match op {
+                Absyn::Operator::UMINUS | Absyn::Operator::UMINUS_EW => "-",
+                Absyn::Operator::NOT => "!",
+                _ => "+",
+            };
+            format!("{s}{}", fmt_exp(exp))
+        }
+        Absyn::Exp::BINARY { exp1, op, exp2 } => {
+            let s = match op {
+                Absyn::Operator::ADD | Absyn::Operator::ADD_EW => "+",
+                Absyn::Operator::SUB | Absyn::Operator::SUB_EW => "-",
+                Absyn::Operator::MUL | Absyn::Operator::MUL_EW => "*",
+                Absyn::Operator::DIV | Absyn::Operator::DIV_EW => "/",
+                Absyn::Operator::LESS => "<",
+                Absyn::Operator::LESSEQ => "<=",
+                Absyn::Operator::GREATER => ">",
+                Absyn::Operator::GREATEREQ => ">=",
+                Absyn::Operator::EQUAL => "==",
+                Absyn::Operator::NEQUAL => "!=",
+                _ => "?",
+            };
+            format!("{} {s} {}", fmt_exp(exp1), fmt_exp(exp2))
+        }
+        Absyn::Exp::CALL { function_, functionArgs: Absyn::FunctionArgs::FUNCTIONARGS { args, argNames }, .. } => {
+            let mut parts: Vec<String> = args.into_iter().map(|a| fmt_exp(a.as_ref())).collect();
+            for named in argNames {
+                let Absyn::NamedArg::NAMEDARG { argName, argValue } = named.as_ref();
+                parts.push(format!("{argName}={}", fmt_exp(argValue)));
+            }
+            format!("{}({})", fmt_cref(function_), parts.join(", "))
+        }
+        Absyn::Exp::ARRAY { arrayExp } => {
+            let items: Vec<_> = arrayExp.into_iter().map(|e| fmt_exp(e.as_ref())).collect();
+            format!("{{{}}}", items.join(", "))
+        }
+        _ => "...".to_owned(),
+    }
+}
+
+fn fmt_cref(cref: &Absyn::ComponentRef) -> String {
+    match cref {
+        Absyn::ComponentRef::CREF_IDENT { name, .. } => name.clone(),
+        Absyn::ComponentRef::CREF_QUAL { name, componentRef, .. } => {
+            format!("{name}.{}", fmt_cref(componentRef))
+        }
+        Absyn::ComponentRef::CREF_FULLYQUALIFIED { componentRef } => {
+            format!(".{}", fmt_cref(componentRef))
+        }
+        Absyn::ComponentRef::WILD => "_".to_owned(),
+        Absyn::ComponentRef::ALLWILD => "__".to_owned(),
+    }
 }
 
 // ── Display helpers ───────────────────────────────────────────────────────────
@@ -844,7 +959,12 @@ fn fmt_node(
                 write!(f, " = {}", fmt_type_spec(type_spec))?;
             }
         }
-        NodeKind::Component(m) => write!(f, " : {}", fmt_type_spec(&m.type_spec))?,
+        NodeKind::Component(m) => {
+            write!(f, " : {}", fmt_type_spec(&m.type_spec))?;
+            if let Some(default) = extract_default(&m.modification) {
+                write!(f, " = {default}")?;
+            }
+        }
         NodeKind::Import(m) => write!(f, "  // {}", fmt_import(m))?,
         NodeKind::EnumLiteral => {}
     }

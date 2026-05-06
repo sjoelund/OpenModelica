@@ -766,14 +766,30 @@ fn resolve_path(path: &Absyn::Path, known: &HashMap<String, Ty>, aliases: &HashM
     }
     let qname = fmt_path(path);
     let qname = qname.trim_start_matches('.');
-    let ty = known.get(qname).cloned()?;
+
+    // Expand a package alias in the leading segment when the direct path is unknown.
+    // e.g. `import Unit = NFUnit` adds "Unit" → "NFUnit" in aliases, so "Unit.Unit"
+    // should be looked up as "NFUnit.Unit".
+    let expanded: Option<String> = if !known.contains_key(qname) {
+        if let Some(dot) = qname.find('.') {
+            let (first, rest) = qname.split_at(dot); // rest starts with '.'
+            aliases.get(first).map(|target| format!("{target}{rest}"))
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+    let effective = expanded.as_deref().unwrap_or(qname);
+
+    let ty = known.get(effective).cloned()?;
 
     // If this resolves to a record/variant inside a multi-record uniontype (Rust enum),
     // we need UnionTypeVariant instead — Rust cannot import through enums.
-    // Check: strip the last segment from qname to get the parent; if parent is a RustEnum,
+    // Check: strip the last segment from effective to get the parent; if parent is a RustEnum,
     // return UnionTypeVariant(parent_qname, last_segment).
-    if let Some(dot_pos) = qname.rfind('.') {
-        let parent_qname = &qname[..dot_pos];
+    if let Some(dot_pos) = effective.rfind('.') {
+        let parent_qname = &effective[..dot_pos];
         if let Some(parent_ty) = known.get(parent_qname) {
             if matches!(parent_ty, Ty::RustEnum(_)) {
                 let variant_name = last.to_owned();

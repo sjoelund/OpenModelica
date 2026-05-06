@@ -151,7 +151,11 @@ pub fn from_program(prog: &Absyn::Program) -> Result<Program, Error> {
     if let Absyn::Within::WITHIN { path } = within_ {
         return Err(Error::WithinNotAllowed { path: path.clone() });
     }
-    classes.into_iter().map(convert_class).filter_map(|r| r.transpose()).collect()
+    classes.into_iter().map(|class| {
+        let is_nf_builtin = matches!(&class, Absyn::Class::CLASS { info, .. } if info.file_name.ends_with("NFModelicaBuiltin.mo"));
+        let result = convert_class(class);
+        if is_nf_builtin { Ok(result.ok().flatten()) } else { result }
+    }).filter_map(|r| r.transpose()).collect()
 }
 
 fn convert_class(class: Absyn::Class) -> Result<Option<Class>, Error> {

@@ -1,6 +1,6 @@
 #![allow(unused)]
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashSet};
 use std::fmt::Write;
 use mmwinnow::Absyn;
 use crate::MM;
@@ -14,7 +14,7 @@ struct GenCtx {
     /// Modules imported with `.*`; their types are referenced by bare name.
     unqual_modules: HashSet<String>,
     /// Explicit imports: dotted qualified name → local name.
-    named: HashMap<String, String>,
+    named: BTreeMap<String, String>,
     /// Uniontypes (Rust enums) whose variants are referenced via UnionTypeVariant.
     /// Their qualified names need to be imported so the generated code can use `UnionType::Variant`.
     uniontype_imports: HashSet<String>,
@@ -25,7 +25,7 @@ impl GenCtx {
         Self {
             top_name: top_name.to_owned(),
             unqual_modules: HashSet::new(),
-            named: HashMap::new(),
+            named: BTreeMap::new(),
             uniontype_imports: HashSet::new(),
         }
     }
@@ -430,7 +430,7 @@ fn records_in_order(c: &MM::Class) -> Vec<String> {
         .collect()
 }
 
-fn component_fields<'a>(c: &'a MM::Class, children: &'a HashMap<String, NameNode<'_>>) -> Vec<(&'a str, &'a Ty)> {
+fn component_fields<'a>(c: &'a MM::Class, children: &'a BTreeMap<String, NameNode<'_>>) -> Vec<(&'a str, &'a Ty)> {
     let members: &[MM::ClassMember] = match &c.body {
         MM::ClassDef::Parts { members, .. } | MM::ClassDef::ClassExtends { members, .. } => members,
         _ => return vec![],

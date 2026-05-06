@@ -1,6 +1,6 @@
 #![allow(unused)]
 
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::fmt;
 use mmwinnow::Absyn;
 use crate::MM;
@@ -157,14 +157,14 @@ pub enum NodeKind<'a> {
 pub struct NameNode<'a> {
     pub kind: NodeKind<'a>,
     pub ty: Ty,
-    pub children: HashMap<String, NameNode<'a>>,
+    pub children: BTreeMap<String, NameNode<'a>>,
     /// Extends clauses — no local name, but must be followed during lookup.
     pub extends: Vec<&'a MM::ExtendsMember>,
 }
 
 impl<'a> NameNode<'a> {
     fn new(kind: NodeKind<'a>) -> Self {
-        Self { kind, ty: Ty::default(), children: HashMap::new(), extends: Vec::new() }
+        Self { kind, ty: Ty::default(), children: BTreeMap::new(), extends: Vec::new() }
     }
 }
 
@@ -172,7 +172,7 @@ impl<'a> NameNode<'a> {
 
 #[derive(Debug)]
 pub struct InstanceHierarchy<'a> {
-    pub top_level: HashMap<String, NameNode<'a>>,
+    pub top_level: BTreeMap<String, NameNode<'a>>,
 }
 
 impl<'a> InstanceHierarchy<'a> {
@@ -334,11 +334,11 @@ pub fn resolve_pass(hier: &mut InstanceHierarchy<'_>) -> bool {
     seed_metarecords(&mut hier.top_level, "", &mut changed);
     seed_external_objects(&mut hier.top_level, "", &mut changed);
     seed_type_vars(&mut hier.top_level, &mut changed);
-    let mut known: HashMap<String, Ty> = HashMap::new();
+    let mut known: BTreeMap<String, Ty> = BTreeMap::new();
     seed_builtins(&mut known);
     collect_known(&hier.top_level, "", &mut known);
     collect_extends_known(&hier.top_level, "", &hier.top_level, &mut known);
-    let mut aliases: HashMap<String, String> = HashMap::new();
+    let mut aliases: BTreeMap<String, String> = BTreeMap::new();
     collect_package_aliases(&hier.top_level, &mut aliases);
     resolve_nodes(&mut hier.top_level, "", &known, &aliases, &mut changed);
     changed
@@ -347,7 +347,7 @@ pub fn resolve_pass(hier: &mut InstanceHierarchy<'_>) -> bool {
 /// Seed classes with R_CLASS that extend ExternalObject as `Ty::ExternalObject(qname)`.
 /// These are opaque nominal types — the qualified path matters and they never match
 /// other external objects even with the same simple name.
-fn seed_external_objects(nodes: &mut HashMap<String, NameNode<'_>>, prefix: &str, changed: &mut bool) {
+fn seed_external_objects(nodes: &mut BTreeMap<String, NameNode<'_>>, prefix: &str, changed: &mut bool) {
     for (name, node) in nodes.iter_mut() {
         let qname = qualify(prefix, name);
         if node.ty == Ty::Unknown && is_external_object_class(node) {
@@ -360,7 +360,7 @@ fn seed_external_objects(nodes: &mut HashMap<String, NameNode<'_>>, prefix: &str
 
 /// Pre-populate the known map with MM builtin types that are defined in the runtime
 /// rather than in any source file and therefore never appear in the hierarchy.
-fn seed_builtins(known: &mut HashMap<String, Ty>) {
+fn seed_builtins(known: &mut BTreeMap<String, Ty>) {
     // SourceInfo — builtin single-record uniontype; fields are all primitives.
     //   record SOURCEINFO
     //     String fileName; Boolean isReadOnly;
@@ -371,7 +371,7 @@ fn seed_builtins(known: &mut HashMap<String, Ty>) {
     known.entry("SourceInfo".into()).or_insert(Ty::AliasTo("SourceInfo".into()));
 }
 
-fn seed_enumerations(nodes: &mut HashMap<String, NameNode<'_>>, prefix: &str, changed: &mut bool) {
+fn seed_enumerations(nodes: &mut BTreeMap<String, NameNode<'_>>, prefix: &str, changed: &mut bool) {
     for (name, node) in nodes.iter_mut() {
         let qname = qualify(prefix, name);
         if node.ty == Ty::Unknown {
@@ -400,7 +400,7 @@ fn seed_enumerations(nodes: &mut HashMap<String, NameNode<'_>>, prefix: &str, ch
 /// Records with fields → RustStruct; records with no fields → RustUnitVariant.
 /// We seed by context (record inside a uniontype) rather than by restriction because
 /// the mmwinnow parser assigns R_RECORD (not R_METARECORD) to all record declarations.
-fn seed_metarecords(nodes: &mut HashMap<String, NameNode<'_>>, prefix: &str, changed: &mut bool) {
+fn seed_metarecords(nodes: &mut BTreeMap<String, NameNode<'_>>, prefix: &str, changed: &mut bool) {
     for (name, node) in nodes.iter_mut() {
         let qname = qualify(prefix, name);
         if let NodeKind::Class(c) = &node.kind {
@@ -425,7 +425,7 @@ fn seed_metarecords(nodes: &mut HashMap<String, NameNode<'_>>, prefix: &str, cha
 }
 
 /// Mark `replaceable type T subtypeof Any` class members as `Ty::TypeVar`.
-fn seed_type_vars(nodes: &mut HashMap<String, NameNode<'_>>, changed: &mut bool) {
+fn seed_type_vars(nodes: &mut BTreeMap<String, NameNode<'_>>, changed: &mut bool) {
     for node in nodes.values_mut() {
         if let NodeKind::Class(c) = &node.kind {
             let vars = class_type_vars(c);
@@ -445,7 +445,7 @@ fn seed_type_vars(nodes: &mut HashMap<String, NameNode<'_>>, changed: &mut bool)
 /// Snapshot all resolved types into a lookup map.
 /// TypeVars are intentionally excluded — they are local to their enclosing class
 /// and must not resolve names in sibling scopes.
-fn collect_known(nodes: &HashMap<String, NameNode<'_>>, prefix: &str, known: &mut HashMap<String, Ty>) {
+fn collect_known(nodes: &BTreeMap<String, NameNode<'_>>, prefix: &str, known: &mut BTreeMap<String, Ty>) {
     for (name, node) in nodes {
         let qname = qualify(prefix, name);
         if node.ty != Ty::Unknown && !matches!(node.ty, Ty::TypeVar(_)) {
@@ -457,7 +457,7 @@ fn collect_known(nodes: &HashMap<String, NameNode<'_>>, prefix: &str, known: &mu
 }
 
 /// Navigate the top-level hierarchy following a dot-separated path.
-fn find_node_by_path<'h>(top_level: &'h HashMap<String, NameNode<'h>>, path: &str) -> Option<&'h NameNode<'h>> {
+fn find_node_by_path<'h>(top_level: &'h BTreeMap<String, NameNode<'h>>, path: &str) -> Option<&'h NameNode<'h>> {
     let mut parts = path.split('.');
     let first = parts.next()?;
     let mut current = top_level.get(first)?;
@@ -472,10 +472,10 @@ fn find_node_by_path<'h>(top_level: &'h HashMap<String, NameNode<'h>>, path: &st
 /// and add its resolved direct children under the derived node's qualified name.
 /// This lets `ZeroCrossingTree.Tree` resolve even though Tree is only defined in BaseAvlTree.
 fn collect_extends_known<'a>(
-    nodes: &HashMap<String, NameNode<'a>>,
+    nodes: &BTreeMap<String, NameNode<'a>>,
     prefix: &str,
-    top_level: &HashMap<String, NameNode<'a>>,
-    known: &mut HashMap<String, Ty>,
+    top_level: &BTreeMap<String, NameNode<'a>>,
+    known: &mut BTreeMap<String, Ty>,
 ) {
     for (name, node) in nodes {
         let qname = qualify(prefix, name);
@@ -499,7 +499,7 @@ fn collect_extends_known<'a>(
             // Process `redeclare type X = Y` modifications in the extends clause.
             // These override TypeVar placeholders from the base class (e.g. BaseAvlTree.Key).
             // aliases aren't available yet at this stage, but built-in types (String, Integer, …) resolve fine.
-            let empty_aliases: HashMap<String, String> = HashMap::new();
+            let empty_aliases: BTreeMap<String, String> = BTreeMap::new();
             for arg in &ext.element_args {
                 if let Absyn::ElementArg::REDECLARATION {
                     elementSpec: Absyn::ElementSpec::CLASSDEF { class_, .. }, ..
@@ -523,7 +523,7 @@ fn collect_extends_known<'a>(
 /// Collect package-level import aliases: QUAL_IMPORT and NAMED_IMPORT where the target path
 /// has no type in `known` (i.e., it's a package, not a type). Maps local_name → full_qualified_path.
 /// Scoping is flattened to global; conflicts are resolved by first-one-wins.
-fn collect_package_aliases(nodes: &HashMap<String, NameNode<'_>>, aliases: &mut HashMap<String, String>) {
+fn collect_package_aliases(nodes: &BTreeMap<String, NameNode<'_>>, aliases: &mut BTreeMap<String, String>) {
     for (name, node) in nodes {
         if let NodeKind::Import(m) = &node.kind {
             match &m.import {
@@ -549,11 +549,11 @@ fn collect_package_aliases(nodes: &HashMap<String, NameNode<'_>>, aliases: &mut 
     }
 }
 
-fn resolve_nodes(nodes: &mut HashMap<String, NameNode<'_>>, prefix: &str, known: &HashMap<String, Ty>, aliases: &HashMap<String, String>, changed: &mut bool) {
+fn resolve_nodes(nodes: &mut BTreeMap<String, NameNode<'_>>, prefix: &str, known: &BTreeMap<String, Ty>, aliases: &BTreeMap<String, String>, changed: &mut bool) {
     resolve_nodes_inner(nodes, prefix, known, aliases, &[], changed);
 }
 
-fn resolve_nodes_inner(nodes: &mut HashMap<String, NameNode<'_>>, prefix: &str, known: &HashMap<String, Ty>, aliases: &HashMap<String, String>, outer_type_vars: &[String], changed: &mut bool) {
+fn resolve_nodes_inner(nodes: &mut BTreeMap<String, NameNode<'_>>, prefix: &str, known: &BTreeMap<String, Ty>, aliases: &BTreeMap<String, String>, outer_type_vars: &[String], changed: &mut bool) {
     for (name, node) in nodes.iter_mut() {
         let qname = qualify(prefix, name);
         if node.ty == Ty::Unknown {
@@ -578,7 +578,7 @@ fn resolve_nodes_inner(nodes: &mut HashMap<String, NameNode<'_>>, prefix: &str, 
     }
 }
 
-fn try_resolve(node: &NameNode<'_>, qname: &str, known: &HashMap<String, Ty>, aliases: &HashMap<String, String>, outer_type_vars: &[String]) -> Option<Ty> {
+fn try_resolve(node: &NameNode<'_>, qname: &str, known: &BTreeMap<String, Ty>, aliases: &BTreeMap<String, String>, outer_type_vars: &[String]) -> Option<Ty> {
     match &node.kind {
         NodeKind::Class(c) if is_function_class(&c.restriction) => {
             resolve_function_type(c, node, known, aliases, outer_type_vars)
@@ -598,7 +598,7 @@ fn try_resolve(node: &NameNode<'_>, qname: &str, known: &HashMap<String, Ty>, al
 
 /// Resolve an import node to the type of the thing it imports.
 /// `qname` is used to extract the local alias (its last segment) for GROUP_IMPORT disambiguation.
-fn try_resolve_import(m: &MM::ImportMember, qname: &str, known: &HashMap<String, Ty>) -> Option<Ty> {
+fn try_resolve_import(m: &MM::ImportMember, qname: &str, known: &BTreeMap<String, Ty>) -> Option<Ty> {
     let local = qname.rsplit('.').next().unwrap_or(qname);
     match &m.import {
         Absyn::Import::NAMED_IMPORT { path, .. } | Absyn::Import::QUAL_IMPORT { path } => {
@@ -650,8 +650,8 @@ fn try_resolve_uniontype(node: &NameNode<'_>, qname: &str) -> Option<Ty> {
 fn resolve_function_type(
     c: &MM::Class,
     node: &NameNode<'_>,
-    known: &HashMap<String, Ty>,
-    aliases: &HashMap<String, String>,
+    known: &BTreeMap<String, Ty>,
+    aliases: &BTreeMap<String, String>,
     outer_type_vars: &[String],
 ) -> Option<Ty> {
     let mut type_vars = class_type_vars(c);
@@ -680,7 +680,7 @@ fn resolve_function_type(
 
     // Resolve nested partial function children with the combined type vars so they
     // can reference type variables declared in the outer function.
-    let mut local_fns: HashMap<String, Ty> = HashMap::new();
+    let mut local_fns: BTreeMap<String, Ty> = BTreeMap::new();
     for (child_name, child_node) in &node.children {
         if let NodeKind::Class(fn_class) = &child_node.kind {
             if is_function_class(&fn_class.restriction) {
@@ -732,7 +732,7 @@ fn resolve_function_type(
 
 /// Resolve a TypeSpec to a Ty.
 /// `type_vars` is the list of type-variable names in scope; they resolve to `Ty::TypeVar`.
-fn resolve_type_spec(ts: &Absyn::TypeSpec, known: &HashMap<String, Ty>, aliases: &HashMap<String, String>, type_vars: &[String]) -> Option<Ty> {
+fn resolve_type_spec(ts: &Absyn::TypeSpec, known: &BTreeMap<String, Ty>, aliases: &BTreeMap<String, String>, type_vars: &[String]) -> Option<Ty> {
     match ts {
         Absyn::TypeSpec::TPATH { path, .. } => resolve_path(path, known, aliases, type_vars),
         Absyn::TypeSpec::TCOMPLEX { path, typeSpecs, .. } => {
@@ -774,7 +774,7 @@ fn resolve_type_spec(ts: &Absyn::TypeSpec, known: &HashMap<String, Ty>, aliases:
     }
 }
 
-fn resolve_path(path: &Absyn::Path, known: &HashMap<String, Ty>, aliases: &HashMap<String, String>, type_vars: &[String]) -> Option<Ty> {
+fn resolve_path(path: &Absyn::Path, known: &BTreeMap<String, Ty>, aliases: &BTreeMap<String, String>, type_vars: &[String]) -> Option<Ty> {
     let last = path_last(path);
     match last {
         "Integer" => return Some(Ty::I32),
@@ -989,7 +989,7 @@ impl fmt::Display for InstanceHierarchy<'_> {
 fn fmt_struct_fields(
     f: &mut fmt::Formatter<'_>,
     c: &MM::Class,
-    children: &HashMap<String, NameNode<'_>>,
+    children: &BTreeMap<String, NameNode<'_>>,
 ) -> fmt::Result {
     let members: &[MM::ClassMember] = match &c.body {
         MM::ClassDef::Parts { members, .. } => members,

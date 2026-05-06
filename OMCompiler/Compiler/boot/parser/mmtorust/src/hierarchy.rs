@@ -482,11 +482,17 @@ fn resolve_nodes_inner(nodes: &mut HashMap<String, NameNode<'_>>, prefix: &str, 
                 *changed = true;
             }
         }
-        // Pass this node's type vars into its children so functions can see parent type params.
-        let child_outer: Vec<String> = if let NodeKind::Class(c) = &node.kind {
-            class_type_vars(c)
-        } else {
-            vec![]
+        // Collect this node's own type vars and merge with inherited outer ones.
+        let child_outer: Vec<String> = {
+            let mut vars: Vec<String> = if let NodeKind::Class(c) = &node.kind {
+                class_type_vars(c)
+            } else {
+                vec![]
+            };
+            for v in outer_type_vars {
+                if !vars.contains(v) { vars.push(v.clone()); }
+            }
+            vars
         };
         resolve_nodes_inner(&mut node.children, &qname, known, &child_outer, changed);
     }
@@ -501,10 +507,10 @@ fn try_resolve(node: &NameNode<'_>, qname: &str, known: &HashMap<String, Ty>, ou
             try_resolve_uniontype(node, qname)
         }
         NodeKind::Class(c) => match &c.body {
-            MM::ClassDef::Derived { type_spec, .. } => resolve_type_spec(type_spec, known, &[]),
+            MM::ClassDef::Derived { type_spec, .. } => resolve_type_spec(type_spec, known, outer_type_vars),
             _ => None,
         },
-        NodeKind::Component(m) => resolve_type_spec(&m.type_spec, known, &[]),
+        NodeKind::Component(m) => resolve_type_spec(&m.type_spec, known, outer_type_vars),
         NodeKind::Import(m) => try_resolve_import(m, qname, known),
         NodeKind::EnumLiteral => None,
     }

@@ -496,6 +496,25 @@ fn collect_extends_known<'a>(
                     known.entry(rel_key).or_insert_with(|| child_node.ty.clone());
                 }
             }
+            // Process `redeclare type X = Y` modifications in the extends clause.
+            // These override TypeVar placeholders from the base class (e.g. BaseAvlTree.Key).
+            // aliases aren't available yet at this stage, but built-in types (String, Integer, …) resolve fine.
+            let empty_aliases: HashMap<String, String> = HashMap::new();
+            for arg in &ext.element_args {
+                if let Absyn::ElementArg::REDECLARATION {
+                    elementSpec: Absyn::ElementSpec::CLASSDEF { class_, .. }, ..
+                } = arg {
+                    let Absyn::Class::CLASS { name: child_name, body, .. } = class_.as_ref();
+                    if let Absyn::ClassDef::DERIVED { typeSpec, .. } = body.as_ref() {
+                        if let Some(ty) = resolve_type_spec(typeSpec, known, &empty_aliases, &[]) {
+                            let full_key = qualify(&qname, child_name);
+                            known.entry(full_key).or_insert_with(|| ty.clone());
+                            let rel_key = qualify(name, child_name);
+                            known.entry(rel_key).or_insert_with(|| ty.clone());
+                        }
+                    }
+                }
+            }
         }
         collect_extends_known(&node.children, &qname, top_level, known);
     }

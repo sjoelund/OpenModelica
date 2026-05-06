@@ -338,7 +338,9 @@ pub fn resolve_pass(hier: &mut InstanceHierarchy<'_>) -> bool {
     seed_builtins(&mut known);
     collect_known(&hier.top_level, "", &mut known);
     collect_extends_known(&hier.top_level, "", &hier.top_level, &mut known);
-    resolve_nodes(&mut hier.top_level, "", &known, &mut changed);
+    let mut aliases: HashMap<String, String> = HashMap::new();
+    collect_package_aliases(&hier.top_level, &known, &mut aliases);
+    resolve_nodes(&mut hier.top_level, "", &known, &aliases, &mut changed);
     changed
 }
 
@@ -499,15 +501,43 @@ fn collect_extends_known<'a>(
     }
 }
 
-fn resolve_nodes(nodes: &mut HashMap<String, NameNode<'_>>, prefix: &str, known: &HashMap<String, Ty>, changed: &mut bool) {
-    resolve_nodes_inner(nodes, prefix, known, &[], changed);
+/// Collect package-level import aliases: QUAL_IMPORT and NAMED_IMPORT where the target path
+/// has no type in `known` (i.e., it's a package, not a type). Maps local_name → full_qualified_path.
+/// Scoping is flattened to global; conflicts are resolved by first-one-wins.
+fn collect_package_aliases(nodes: &HashMap<String, NameNode<'_>>, known: &HashMap<String, Ty>, aliases: &mut HashMap<String, String>) {
+    for (name, node) in nodes {
+        if let NodeKind::Import(m) = &node.kind {
+            match &m.import {
+                Absyn::Import::QUAL_IMPORT { path } => {
+                    let full = fmt_path(path);
+                    let full = full.trim_start_matches('.');
+                    if known.get(full).is_none() {
+                        aliases.entry(name.clone()).or_insert_with(|| full.to_owned());
+                    }
+                }
+                Absyn::Import::NAMED_IMPORT { name: alias_name, path } => {
+                    let full = fmt_path(path);
+                    let full = full.trim_start_matches('.');
+                    if known.get(full).is_none() {
+                        aliases.entry(alias_name.clone()).or_insert_with(|| full.to_owned());
+                    }
+                }
+                _ => {}
+            }
+        }
+        collect_package_aliases(&node.children, known, aliases);
+    }
 }
 
-fn resolve_nodes_inner(nodes: &mut HashMap<String, NameNode<'_>>, prefix: &str, known: &HashMap<String, Ty>, outer_type_vars: &[String], changed: &mut bool) {
+fn resolve_nodes(nodes: &mut HashMap<String, NameNode<'_>>, prefix: &str, known: &HashMap<String, Ty>, aliases: &HashMap<String, String>, changed: &mut bool) {
+    resolve_nodes_inner(nodes, prefix, known, aliases, &[], changed);
+}
+
+fn resolve_nodes_inner(nodes: &mut HashMap<String, NameNode<'_>>, prefix: &str, known: &HashMap<String, Ty>, aliases: &HashMap<String, String>, outer_type_vars: &[String], changed: &mut bool) {
     for (name, node) in nodes.iter_mut() {
         let qname = qualify(prefix, name);
         if node.ty == Ty::Unknown {
-            if let Some(ty) = try_resolve(node, &qname, known, outer_type_vars) {
+            if let Some(ty) = try_resolve(node, &qname, known, aliases, outer_type_vars) {
                 node.ty = ty;
                 *changed = true;
             }
@@ -524,23 +554,23 @@ fn resolve_nodes_inner(nodes: &mut HashMap<String, NameNode<'_>>, prefix: &str, 
             }
             vars
         };
-        resolve_nodes_inner(&mut node.children, &qname, known, &child_outer, changed);
+        resolve_nodes_inner(&mut node.children, &qname, known, aliases, &child_outer, changed);
     }
 }
 
-fn try_resolve(node: &NameNode<'_>, qname: &str, known: &HashMap<String, Ty>, outer_type_vars: &[String]) -> Option<Ty> {
+fn try_resolve(node: &NameNode<'_>, qname: &str, known: &HashMap<String, Ty>, aliases: &HashMap<String, String>, outer_type_vars: &[String]) -> Option<Ty> {
     match &node.kind {
         NodeKind::Class(c) if is_function_class(&c.restriction) => {
-            resolve_function_type(c, node, known, outer_type_vars)
+            resolve_function_type(c, node, known, aliases, outer_type_vars)
         }
         NodeKind::Class(c) if matches!(c.restriction, Absyn::Restriction::R_UNIONTYPE) => {
             try_resolve_uniontype(node, qname)
         }
         NodeKind::Class(c) => match &c.body {
-            MM::ClassDef::Derived { type_spec, .. } => resolve_type_spec(type_spec, known, outer_type_vars),
+            MM::ClassDef::Derived { type_spec, .. } => resolve_type_spec(type_spec, known, aliases, outer_type_vars),
             _ => None,
         },
-        NodeKind::Component(m) => resolve_type_spec(&m.type_spec, known, outer_type_vars),
+        NodeKind::Component(m) => resolve_type_spec(&m.type_spec, known, aliases, outer_type_vars),
         NodeKind::Import(m) => try_resolve_import(m, qname, known),
         NodeKind::EnumLiteral => None,
     }
@@ -601,6 +631,7 @@ fn resolve_function_type(
     c: &MM::Class,
     node: &NameNode<'_>,
     known: &HashMap<String, Ty>,
+    aliases: &HashMap<String, String>,
     outer_type_vars: &[String],
 ) -> Option<Ty> {
     let mut type_vars = class_type_vars(c);
@@ -633,7 +664,7 @@ fn resolve_function_type(
     for (child_name, child_node) in &node.children {
         if let NodeKind::Class(fn_class) = &child_node.kind {
             if is_function_class(&fn_class.restriction) {
-                if let Some(fn_ty) = resolve_function_type(fn_class, child_node, known, &type_vars) {
+                if let Some(fn_ty) = resolve_function_type(fn_class, child_node, known, aliases, &type_vars) {
                     local_fns.insert(child_name.clone(), fn_ty);
                 }
             }
@@ -654,7 +685,7 @@ fn resolve_function_type(
             if let Some(fn_ty) = local_fns.get(type_name).cloned() {
                 fn_ty
             } else {
-                resolve_type_spec(&m.type_spec, known, &type_vars)?
+                resolve_type_spec(&m.type_spec, known, aliases, &type_vars)?
             }
         };
         let default = extract_default(&m.modification);
@@ -681,30 +712,30 @@ fn resolve_function_type(
 
 /// Resolve a TypeSpec to a Ty.
 /// `type_vars` is the list of type-variable names in scope; they resolve to `Ty::TypeVar`.
-fn resolve_type_spec(ts: &Absyn::TypeSpec, known: &HashMap<String, Ty>, type_vars: &[String]) -> Option<Ty> {
+fn resolve_type_spec(ts: &Absyn::TypeSpec, known: &HashMap<String, Ty>, aliases: &HashMap<String, String>, type_vars: &[String]) -> Option<Ty> {
     match ts {
-        Absyn::TypeSpec::TPATH { path, .. } => resolve_path(path, known, type_vars),
+        Absyn::TypeSpec::TPATH { path, .. } => resolve_path(path, known, aliases, type_vars),
         Absyn::TypeSpec::TCOMPLEX { path, typeSpecs, .. } => {
             let args: Vec<_> = typeSpecs.into_iter().collect();
             let ctor = path_last(path);
             match ctor {
                 "tuple" => {
                     let tys: Option<Vec<Ty>> = args.iter()
-                        .map(|a| resolve_type_spec(a, known, type_vars))
+                        .map(|a| resolve_type_spec(a, known, aliases, type_vars))
                         .collect();
                     Some(Ty::Tuple(tys?))
                 }
                 "Option" if args.len() == 1 => {
-                    Some(Ty::Option(Box::new(resolve_type_spec(&args[0], known, type_vars)?)))
+                    Some(Ty::Option(Box::new(resolve_type_spec(&args[0], known, aliases, type_vars)?)))
                 }
                 "list" | "List" if args.len() == 1 => {
-                    Some(Ty::List(Box::new(resolve_type_spec(&args[0], known, type_vars)?)))
+                    Some(Ty::List(Box::new(resolve_type_spec(&args[0], known, aliases, type_vars)?)))
                 }
                 "array" | "Array" if args.len() == 1 => {
-                    Some(Ty::Array(Box::new(resolve_type_spec(&args[0], known, type_vars)?)))
+                    Some(Ty::Array(Box::new(resolve_type_spec(&args[0], known, aliases, type_vars)?)))
                 }
                 "Mutable" if args.len() == 1 => {
-                    let inner = resolve_type_spec(&args[0], known, type_vars)?;
+                    let inner = resolve_type_spec(&args[0], known, aliases, type_vars)?;
                     Some(Ty::Generic("Mutable".to_owned(), vec![inner]))
                 }
                 _ => {
@@ -714,7 +745,7 @@ fn resolve_type_spec(ts: &Absyn::TypeSpec, known: &HashMap<String, Ty>, type_var
                     let base_ty = known.get(lookup).or_else(|| known.get(ctor))?;
                     let base_name = ty_rust_name(base_ty).unwrap_or_else(|| ctor.to_owned());
                     let resolved: Option<Vec<Ty>> = args.iter()
-                        .map(|a| resolve_type_spec(a, known, type_vars))
+                        .map(|a| resolve_type_spec(a, known, aliases, type_vars))
                         .collect();
                     Some(Ty::Generic(base_name, resolved?))
                 }
@@ -723,7 +754,7 @@ fn resolve_type_spec(ts: &Absyn::TypeSpec, known: &HashMap<String, Ty>, type_var
     }
 }
 
-fn resolve_path(path: &Absyn::Path, known: &HashMap<String, Ty>, type_vars: &[String]) -> Option<Ty> {
+fn resolve_path(path: &Absyn::Path, known: &HashMap<String, Ty>, aliases: &HashMap<String, String>, type_vars: &[String]) -> Option<Ty> {
     let last = path_last(path);
     match last {
         "Integer" => return Some(Ty::I32),

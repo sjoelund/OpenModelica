@@ -511,12 +511,17 @@ fn collect_package_aliases(nodes: &HashMap<String, NameNode<'_>>, aliases: &mut 
                 Absyn::Import::QUAL_IMPORT { path } => {
                     let full = fmt_path(path);
                     let full = full.trim_start_matches('.');
-                    aliases.entry(name.clone()).or_insert_with(|| full.to_owned());
+                    // Skip self-referential aliases (e.g. `import SimCode;` where local name == full path).
+                    // These would block explicit NAMED_IMPORT aliases like `import SimCode = NSimCode;`.
+                    if name != full {
+                        aliases.entry(name.clone()).or_insert_with(|| full.to_owned());
+                    }
                 }
                 Absyn::Import::NAMED_IMPORT { name: alias_name, path } => {
                     let full = fmt_path(path);
                     let full = full.trim_start_matches('.');
-                    aliases.entry(alias_name.clone()).or_insert_with(|| full.to_owned());
+                    // Named imports are explicit and always win over any prior qual-import alias.
+                    aliases.insert(alias_name.clone(), full.to_owned());
                 }
                 _ => {}
             }

@@ -307,6 +307,7 @@ pub fn resolve_pass(hier: &mut InstanceHierarchy<'_>) -> bool {
     let mut known: HashMap<String, Ty> = HashMap::new();
     seed_builtins(&mut known);
     collect_known(&hier.top_level, "", &mut known);
+    collect_extends_known(&hier.top_level, "", &hier.top_level, &mut known);
     resolve_nodes(&mut hier.top_level, "", &known, &mut changed);
     changed
 }
@@ -420,6 +421,51 @@ fn collect_known(nodes: &HashMap<String, NameNode<'_>>, prefix: &str, known: &mu
             known.entry(name.clone()).or_insert_with(|| node.ty.clone());
         }
         collect_known(&node.children, &qname, known);
+    }
+}
+
+/// Navigate the top-level hierarchy following a dot-separated path.
+fn find_node_by_path<'h>(top_level: &'h HashMap<String, NameNode<'h>>, path: &str) -> Option<&'h NameNode<'h>> {
+    let mut parts = path.split('.');
+    let first = parts.next()?;
+    let mut current = top_level.get(first)?;
+    for part in parts {
+        current = current.children.get(part)?;
+    }
+    Some(current)
+}
+
+/// Propagate extends inheritance into the known map.
+/// For each node with extends clauses, find the base class in the top-level hierarchy
+/// and add its resolved direct children under the derived node's qualified name.
+/// This lets `ZeroCrossingTree.Tree` resolve even though Tree is only defined in BaseAvlTree.
+fn collect_extends_known<'a>(
+    nodes: &HashMap<String, NameNode<'a>>,
+    prefix: &str,
+    top_level: &HashMap<String, NameNode<'a>>,
+    known: &mut HashMap<String, Ty>,
+) {
+    for (name, node) in nodes {
+        let qname = qualify(prefix, name);
+        for ext in &node.extends {
+            let base_path = fmt_path(&ext.path);
+            let base_path = base_path.trim_start_matches('.');
+            if let Some(base_node) = find_node_by_path(top_level, base_path) {
+                for (child_name, child_node) in &base_node.children {
+                    if child_node.ty == Ty::Unknown || matches!(child_node.ty, Ty::TypeVar(_)) {
+                        continue;
+                    }
+                    // Full qualified key: ZeroCrossings.ZeroCrossingTree.Tree
+                    let full_key = qualify(&qname, child_name);
+                    known.entry(full_key).or_insert_with(|| child_node.ty.clone());
+                    // Relative key (no enclosing package prefix): ZeroCrossingTree.Tree
+                    // This is the form used by sibling type aliases, e.g. `type Tree = ZeroCrossingTree.Tree`
+                    let rel_key = qualify(name, child_name);
+                    known.entry(rel_key).or_insert_with(|| child_node.ty.clone());
+                }
+            }
+        }
+        collect_extends_known(&node.children, &qname, top_level, known);
     }
 }
 

@@ -108,10 +108,11 @@ pub enum TokenKind {
     // -----------------------------------------------------------------------
     // OpenModelica dollar-prefixed extensions
     // -----------------------------------------------------------------------
-    Code,     // $Code
-    CodeName, // $TypeName
-    CodeExp,  // $Expression
-    CodeVar,  // $Var
+    Code,          // $Code
+    CodeName,      // $TypeName
+    CodeExp,       // $Expression
+    CodeVar,       // $Var
+    CodeAnnotation,// $annotation
 
     // -----------------------------------------------------------------------
     // Operators — arithmetic
@@ -198,11 +199,12 @@ impl TokenKind {
             TokenKind::SlashEw | TokenKind::PowerEw => 2,
 
             // $-prefixed OpenModelica extensions
-            TokenKind::Code     => 5,   // "$Code"
-            TokenKind::CodeName => 9,   // "$TypeName"
-            TokenKind::CodeExp  => 11,  // "$Expression"
-            TokenKind::CodeVar  => 4,   // "$Var"
-            TokenKind::Overload => 9,   // "$overload"
+            TokenKind::Code           => 5,   // "$Code"
+            TokenKind::CodeName       => 9,   // "$TypeName"
+            TokenKind::CodeExp        => 11,  // "$Expression"
+            TokenKind::CodeVar        => 4,   // "$Var"
+            TokenKind::CodeAnnotation => 11,  // "$annotation"
+            TokenKind::Overload       => 9,   // "$overload"
 
             // All remaining variants are keywords covered by keyword_as_str.
             // All keywords are ASCII so .len() == char count.
@@ -742,6 +744,7 @@ impl<'s> Lexer<'s> {
                     "$TypeName"   => TokenKind::CodeName,
                     "$Expression" => TokenKind::CodeExp,
                     "$Var"        => TokenKind::CodeVar,
+                    "$annotation" => TokenKind::CodeAnnotation,
                     "$overload"   => TokenKind::Overload,
                     // $cpuTime and other $-prefixed identifiers become Ident.
                     _ => TokenKind::Ident(word),

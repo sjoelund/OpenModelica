@@ -582,6 +582,9 @@ fn element_list(input: &mut TokenInput) -> ModalResult<List<ClassBodyItem>> {
             cut_err(t(TK::Semi)).context(StrContext::Label("';' after annotation")).parse_next(input)?;
             items = cons(ClassBodyItem::Annotation(ann), items); continue;
         }
+        if let Some(elem) = opt(element).parse_next(input)? {
+            items = cons(ClassBodyItem::Element(elem), items); continue;
+        }
         if let Some(imp) = opt(import_clause).parse_next(input)? {
             let comment = comment.parse_next(input)?;
             let last_tok = &input[0];
@@ -688,6 +691,114 @@ fn element_list(input: &mut TokenInput) -> ModalResult<List<ClassBodyItem>> {
         break;
     }
     Ok(items.reverse())
+}
+
+fn element(input: &mut TokenInput) -> ModalResult<Absyn::Element> {
+    let first_tok = &input[0];
+    if let Some(imp) = opt(import_clause).parse_next(input)? {
+        let comment = comment.parse_next(input)?;
+        let last_tok = &input[0];
+        cut_err(t(TK::Semi)).context(StrContext::Label("';' after import clause")).parse_next(input)?;
+        let info = source_info(first_tok, last_tok);
+        let elem = Absyn::Element::ELEMENT {
+            finalPrefix: false, redeclareKeywords: None,
+            innerOuter: InnerOuter::NOT_INNER_OUTER, specification: ElementSpec::IMPORT { import_: imp, comment, info: info.clone() },
+            info: info, constrainClass: None,
+        };
+        return Ok(elem);
+    }
+    if let Some(ext) = opt(extends_clause).parse_next(input)? {
+        let last_tok = &input[0];
+        cut_err(t(TK::Semi)).context(StrContext::Label("';' after extends clause")).parse_next(input)?;
+        let info = source_info(first_tok, last_tok);
+        let elem = Absyn::Element::ELEMENT {
+            finalPrefix: false,
+            redeclareKeywords: None,
+            innerOuter: InnerOuter::NOT_INNER_OUTER {},
+            specification: ElementSpec::EXTENDS {
+                path: ext.path,
+                elementArg: ext.modification.unwrap_or_else(List::Nil),
+                annotationOpt: ext.annotation_opt,
+            },
+            info,
+            constrainClass: None,
+        };
+        return Ok(elem);
+    }
+    // element prefixes: [ redeclare ] [ final ] [ inner ] [ outer ]
+    //   then ( [replaceable] class_definition | [replaceable] component_clause )
+    //   with optional constrainedby clause if replaceable
+    let redeclare_  = opt(t(TK::Redeclare)).parse_next(input)?.is_some();
+    let final_      = opt(t(TK::Final)).parse_next(input)?.is_some();
+    let inner_      = opt(t(TK::Inner)).parse_next(input)?.is_some();
+    let outer_      = opt(t(TK::Outer)).parse_next(input)?.is_some();
+    let replaceable_ = opt(t(TK::Replaceable)).parse_next(input)?.is_some();
+
+    let redeclareKeywords: Option<RedeclareKeywords> = match (redeclare_, replaceable_) {
+        (true,  true)  => Some(RedeclareKeywords::REDECLARE_REPLACEABLE),
+        (true,  false) => Some(RedeclareKeywords::REDECLARE),
+        (false, true)  => Some(RedeclareKeywords::REPLACEABLE),
+        (false, false) => None,
+    };
+    let innerOuter = match (inner_, outer_) {
+        (true,  true)  => InnerOuter::INNER_OUTER,
+        (true,  false) => InnerOuter::INNER,
+        (false, true)  => InnerOuter::OUTER,
+        (false, false) => InnerOuter::NOT_INNER_OUTER,
+    };
+
+    let had_prefixes = redeclare_ || final_ || inner_ || outer_ || replaceable_;
+
+    if let Some(cls) = opt(class_definition).parse_next(input)? {
+        let constrainClass = if replaceable_ && opt(t(TK::Constrainedby)).parse_next(input)?.is_some() {
+            let path       = cut_err(name_path).context(StrContext::Label("path in constrainedby")).parse_next(input)?;
+            let elementArg = opt(class_modification).parse_next(input)?.unwrap_or_else(List::Nil);
+            let cmt        = comment(input)?;
+            Some(ConstrainClass::CONSTRAINCLASS {
+                elementSpec: ElementSpec::EXTENDS { path, elementArg, annotationOpt: None },
+                comment: cmt,
+            })
+        } else { None };
+        let last_tok = &input[0];
+        cut_err(t(TK::Semi)).context(StrContext::Label("';' after class definition")).parse_next(input)?;
+        let elem = Absyn::Element::ELEMENT {
+            finalPrefix: final_, redeclareKeywords, innerOuter,
+            specification: ElementSpec::CLASSDEF { replaceable_: replaceable_, class_: Arc::new(cls) },
+            info: source_info(first_tok, last_tok), constrainClass,
+        };
+        return Ok(elem);
+    }
+    if let Some(cc) = opt(component_clause).parse_next(input)? {
+        let constrainClass = if replaceable_ && opt(t(TK::Constrainedby)).parse_next(input)?.is_some() {
+            let path       = cut_err(name_path).context(StrContext::Label("path in constrainedby")).parse_next(input)?;
+            let elementArg = opt(class_modification).parse_next(input)?.unwrap_or_else(List::Nil);
+            let cmt        = comment(input)?;
+            Some(ConstrainClass::CONSTRAINCLASS {
+                elementSpec: ElementSpec::EXTENDS { path, elementArg, annotationOpt: None },
+                comment: cmt,
+            })
+        } else { None };
+        let last_tok = &input[0];
+        let elem = Absyn::Element::ELEMENT {
+            finalPrefix: final_, redeclareKeywords, innerOuter,
+            specification: ElementSpec::COMPONENTS {
+                attributes: cc.typePrefix, typeSpec: cc.typeSpec, components: cc.components,
+            },
+            info: source_info(first_tok, last_tok), constrainClass,
+        };
+        cut_err(t(TK::Semi))
+            .context(StrContext::Label("';' after component list"))
+            .parse_next(input)?;
+        return Ok(elem);
+    }
+
+    if had_prefixes {
+        return Err(ErrMode::Cut(ContextError::new().add_context(
+            input, &input.checkpoint(),
+            StrContext::Label("class definition or component clause after element prefixes"),
+        )));
+    }
+    Err(ErrMode::Backtrack(ContextError::default()))
 }
 
 fn type_prefix(input: &mut TokenInput) -> ModalResult<ElementAttributes> {
@@ -1597,7 +1708,7 @@ fn expression(input: &mut TokenInput) -> ModalResult<Absyn::Exp> {
         Some(TK::If)                             => return if_expression(input),
         Some(TK::Match) | Some(TK::Matchcontinue) => return match_expression(input),
         Some(TK::Function)                       => return part_eval_function_expression(input),
-        Some(TK::Code)                           => return code_expression(input),
+        Some(TK::Code) | Some(TK::CodeName) | Some(TK::CodeExp) | Some(TK::CodeVar) | Some(TK::CodeAnnotation) => return code_expression(input),
         _ => {}
     }
     simple_expression(input)
@@ -1625,12 +1736,160 @@ fn if_expression(input: &mut TokenInput) -> ModalResult<Absyn::Exp> {
     })
 }
 
+/// code_expression — $Code / $TypeName / $Expression / $Var / $annotation
+///
+/// ANTLR3 rule (simplified):
+///   CODE LPAR ( initial? ( EQUATION eq | CONSTRAINT constr | ALGORITHM alg )
+///             | m=modification
+///             | (LPAR expr RPAR) => expr          /* Code((expr)) */
+///             | (expr RPAR) => expr               /* Code(expr)   */
+///             | el=element (SEMICOLON)? ) RPAR
+///   | CODE_NAME LPAR name_path RPAR
+///   | CODE_ANNOTATION class_modification
+///   | CODE_EXP  LPAR expression RPAR
+///   | CODE_VAR  LPAR component_reference RPAR
 fn code_expression(input: &mut TokenInput) -> ModalResult<Absyn::Exp> {
-    match next_tok(input)? { TK::Code => {} _ => return Err(ErrMode::Backtrack(ContextError::default())) }
-    t(TK::LParen).parse_next(input)?;
-    let e = expression(input)?;
-    t(TK::RParen).parse_next(input)?;
-    Ok(Absyn::Exp::CODE { code: Absyn::CodeNode::C_EXPRESSION { exp: Arc::new(e) } })
+    match next_tok(input)? {
+        TK::CodeName => {
+            t(TK::LParen).parse_next(input)?;
+            let path = name_path(input)?;
+            t(TK::RParen).parse_next(input)?;
+            return Ok(Exp::CODE { code: CodeNode::C_TYPENAME { path } });
+        },
+        TK::CodeExp => {
+            t(TK::LParen).parse_next(input)?;
+            let exp = expression(input)?;
+            t(TK::RParen).parse_next(input)?;
+            return Ok(Exp::CODE { code: CodeNode::C_EXPRESSION { exp: Arc::new(exp) } });
+        },
+        TK::CodeVar => {
+            t(TK::LParen).parse_next(input)?;
+            let componentRef = component_reference(input)?;
+            t(TK::RParen).parse_next(input)?;
+            return Ok(Exp::CODE { code: CodeNode::C_VARIABLENAME { componentRef: Arc::new(componentRef) } });
+        },
+        TK::CodeAnnotation => {
+            let elementArgLst = class_modification(input)?;
+            return Ok(Exp::CODE { code: CodeNode::C_MODIFICATION { modification: Modification::CLASSMOD { elementArgLst, eqMod: EqMod::NOMOD } }});
+        },
+        TK::Code => {
+                t(TK::LParen)
+                    .context(StrContext::Label("'(' after $Code"))
+                    .parse_next(input)?;
+
+                // Check for Code((expr)) — double parenthesis means wrap expression
+                if let Some(e) = opt(expression).parse_next(input)? {
+                    cut_err(t(TK::RParen))
+                        .context(StrContext::Label("')' closing $Code"))
+                        .parse_next(input)?;
+                    return Ok(Exp::CODE { code: CodeNode::C_EXPRESSION { exp: Arc::new(e) } });
+                }
+
+                // Optional 'initial' keyword before equation/constraint/algorithm sections
+                let initial = matches!(opt(t(TK::Initial)).parse_next(input)?, Some(TK::Initial));
+
+                // Try EQUATION code_equation_clause
+                if matches!(peek_kind(input), Some(TK::Equation)) {
+                    next_tok(input)?;
+                    let eq = cut_err(code_equation_clause)
+                        .context(StrContext::Label("equation clause in $Code"))
+                        .parse_next(input)?;
+                    cut_err(t(TK::RParen))
+                        .context(StrContext::Label("')' closing $Code equation"))
+                        .parse_next(input)?;
+                    return Ok(Exp::CODE {
+                        code: CodeNode::C_EQUATIONSECTION { boolean: initial, equationItemLst: eq },
+                    });
+                }
+
+                // Try CONSTRAINT code_constraint_clause
+                if matches!(peek_kind(input), Some(TK::Constraint)) {
+                    next_tok(input)?;
+                    let constr = cut_err(code_constraint_clause)
+                        .context(StrContext::Label("constraint clause in $Code"))
+                        .parse_next(input)?;
+                    cut_err(t(TK::RParen))
+                        .context(StrContext::Label("')' closing $Code constraint"))
+                        .parse_next(input)?;
+                    return Ok(Exp::CODE {
+                        code: CodeNode::C_CONSTRAINTSECTION { boolean: initial, equationItemLst: constr },
+                    });
+                }
+
+                // Try ALGORITHM code_algorithm_clause
+                if matches!(peek_kind(input), Some(TK::Algorithm)) {
+                    next_tok(input)?;
+                    let alg = cut_err(code_algorithm_clause)
+                        .context(StrContext::Label("algorithm clause in $Code"))
+                        .parse_next(input)?;
+                    cut_err(t(TK::RParen))
+                        .context(StrContext::Label("')' closing $Code algorithm"))
+                        .parse_next(input)?;
+                    return Ok(Exp::CODE {
+                        code: CodeNode::C_ALGORITHMSECTION { boolean: initial, algorithmItemLst: alg },
+                    });
+                }
+
+                // Try modification
+                if let Ok(elementArgLst) = class_modification.parse_next(input) {
+                    return Ok(Exp::CODE { code: CodeNode::C_MODIFICATION { modification: Modification::CLASSMOD { elementArgLst, eqMod: EqMod::NOMOD } }});
+                }
+
+                // Try expression followed by ')'
+                if let Ok(e) = expression.parse_next(input) {
+                    if matches!(peek_kind(input), Some(TK::RParen)) {
+                        cut_err(t(TK::RParen))
+                            .context(StrContext::Label("')' closing $Code expression"))
+                            .parse_next(input)?;
+                        return Ok(Exp::CODE {
+                            code: CodeNode::C_EXPRESSION { exp: Arc::new(e) },
+                        });
+                    }
+                }
+
+                // Try element (SEMICOLON)?
+                if let Ok(element) = element.parse_next(input) {
+                    opt(t(TK::Semi)).parse_next(input)?;
+                    return Ok(Exp::CODE {
+                        code: CodeNode::C_ELEMENT { element },
+                    });
+                }
+
+        },
+        _ => return Err(ErrMode::Backtrack(ContextError::default())),
+    }
+
+    // ---- CODE_NAME / CODE_ANNOTATION / CODE_EXP / CODE_VAR ----
+    // These alternatives are distinguished by the first token:
+    //   $TypeName ( … )   — first token after 'Code' would not be LParen
+    //   but in our lexer $Code, $TypeName, $Expression, $Var are separate tokens.
+    // Since we already consumed Code ($Code), the next token should be LParen.
+
+    Err(ErrMode::Backtrack(ContextError::default()))
+}
+
+/// code_equation_clause: equation SEMICOLON code_equation_clause?
+fn code_equation_clause(input: &mut TokenInput) -> ModalResult<List<Arc<EquationItem>>> {
+    let eq = Arc::new(equation_item(input)?);
+    t(TK::Semi).parse_next(input)?;
+    let rest = opt(code_equation_clause).parse_next(input)?.unwrap_or(List::Nil());
+    Ok(cons(eq, rest))
+}
+
+/// code_constraint_clause: equation SEMICOLON code_constraint_clause?
+fn code_constraint_clause(input: &mut TokenInput) -> ModalResult<List<Arc<EquationItem>>> {
+    let eq = Arc::new(equation_item(input)?);
+    t(TK::Semi).parse_next(input)?;
+    let rest = opt(code_constraint_clause).parse_next(input)?.unwrap_or(List::Nil());
+    Ok(cons(eq, rest))
+}
+
+/// code_algorithm_clause: algorithm SEMICOLON code_algorithm_clause?
+fn code_algorithm_clause(input: &mut TokenInput) -> ModalResult<List<Arc<AlgorithmItem>>> {
+    let alg = Arc::new(algorithm_item(input)?);
+    t(TK::Semi).parse_next(input)?;
+    let rest = opt(code_algorithm_clause).parse_next(input)?.unwrap_or(List::Nil());
+    Ok(cons(alg, rest))
 }
 
 fn part_eval_function_expression(input: &mut TokenInput) -> ModalResult<Absyn::Exp> {

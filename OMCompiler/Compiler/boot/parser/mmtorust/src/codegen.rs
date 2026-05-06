@@ -11,6 +11,9 @@ use crate::hierarchy::{InstanceHierarchy, NameNode, NodeKind, Ty};
 struct GenCtx {
     /// Name of the top-level class being generated (e.g. "Absyn").
     top_name: String,
+    /// Current module path within the top-level file (e.g. `["Connect"]` when
+    /// inside `mod Connect`). Used by `shorten` to produce context-relative paths.
+    current_path: Vec<String>,
     /// Modules imported with `.*`; their types are referenced by bare name.
     unqual_modules: HashSet<String>,
     /// Explicit imports: dotted qualified name → local name.
@@ -24,6 +27,7 @@ impl GenCtx {
     fn new(top_name: &str) -> Self {
         Self {
             top_name: top_name.to_owned(),
+            current_path: Vec::new(),
             unqual_modules: HashSet::new(),
             named: BTreeMap::new(),
             uniontype_imports: HashSet::new(),
@@ -31,23 +35,40 @@ impl GenCtx {
     }
 
     /// Shorten a dot-separated qualified name to the shortest valid reference
-    /// for this file, based on the collected imports.
+    /// for this file, based on the collected imports and current nesting context.
     fn shorten(&self, dotted: &str) -> String {
-        // Same-module: strip the prefix, keep only the last segment (all types
-        // in one package are emitted flat in the same file).
-        if let Some(rest) = dotted.strip_prefix(&format!("{}.", self.top_name)) {
-            return rest.rsplit('.').next().unwrap_or(rest).to_owned();
+        // Build the current module's full dotted prefix (e.g. "DAE.Connect").
+        let cur_prefix = if self.current_path.is_empty() {
+            self.top_name.clone()
+        } else {
+            format!("{}.{}", self.top_name, self.current_path.join("."))
+        };
+
+        // Exact same-module item: strip the current prefix (longest match first).
+        if let Some(rest) = dotted.strip_prefix(&format!("{cur_prefix}.")) {
+            return rest.replace('.', "::");
         }
+
+        // Item in the same top-level file but a different nested module.
+        // With `use super::*;` in every nested mod, sibling/ancestor items and
+        // modules are visible by their path relative to the top-level package.
+        if let Some(rest) = dotted.strip_prefix(&format!("{}.", self.top_name)) {
+            return rest.replace('.', "::");
+        }
+
         // Named / qualified import.
         if let Some(local) = self.named.get(dotted) {
             return local.clone();
         }
-        // Wildcard import: if a module prefix matches, keep only the last segment.
+
+        // Wildcard import: if a module prefix matches, convert the remainder to a
+        // Rust path so nested-package items resolve through their `mod` blocks.
         for module in &self.unqual_modules {
             if let Some(rest) = dotted.strip_prefix(&format!("{module}.")) {
-                return rest.rsplit('.').next().unwrap_or(rest).to_owned();
+                return rest.replace('.', "::");
             }
         }
+
         // Fully-qualified Rust path.
         dotted.replace('.', "::")
     }
@@ -175,10 +196,29 @@ fn emit_node(out: &mut String, name: &str, node: &NameNode<'_>, indent: &str, ct
     use Absyn::Restriction::*;
     match &c.restriction {
         R_PACKAGE => {
+            let nested_indent = format!("{indent}    ");
+            let wrap = name != ctx.top_name;
+            let child_indent = if wrap {
+                // Nested package: emit as a `pub mod` block so items don't
+                // collide with same-named items in the parent package.
+                writeln!(out, "{indent}pub mod {name} {{").unwrap();
+                // Import everything from the parent module so that types
+                // defined in the enclosing package are visible by simple name.
+                writeln!(out, "{nested_indent}use super::*;").unwrap();
+                ctx.current_path.push(name.to_owned());
+                nested_indent
+            } else {
+                indent.to_owned()
+            };
             let mut children: Vec<_> = node.children.iter().collect();
             children.sort_by_key(|(n, _)| n.as_str());
             for (child_name, child_node) in children {
-                emit_node(out, child_name, child_node, indent, &mut *ctx);
+                emit_node(out, child_name, child_node, &child_indent, &mut *ctx);
+            }
+            if wrap {
+                ctx.current_path.pop();
+                writeln!(out, "{indent}}}").unwrap();
+                writeln!(out).unwrap();
             }
         }
         R_UNIONTYPE => emit_uniontype(out, name, node, c, indent, &mut *ctx),
@@ -216,7 +256,7 @@ fn emit_uniontype(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Cla
                 }
             }
             writeln!(out, "{indent}}}").unwrap();
-            writeln!(out, "pub use {name}::*;").unwrap();
+            writeln!(out, "{indent}pub use {name}::*;").unwrap();
             writeln!(out).unwrap();
         }
         Ty::AliasTo(_) => {

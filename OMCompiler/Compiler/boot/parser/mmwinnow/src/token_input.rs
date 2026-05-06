@@ -99,12 +99,15 @@ where
 /// Consume an `Ident` token and return its string value.
 #[inline]
 pub fn t_ident(input: &mut &[LexToken]) -> ModalResult<String> {
-    match input.first() {
-        Some(LexToken { kind: TK::Ident(s), .. }) => {
-            let s = s.clone(); *input = &input[1..]; Ok(s)
-        }
-        _ => Err(ErrMode::Backtrack(ContextError::default())),
-    }
+    let s = match input.first() {
+        Some(LexToken { kind: TK::Der, .. }) => "der".to_owned(),
+        Some(LexToken { kind: TK::Initial, .. }) => "initial".to_owned(),
+        Some(LexToken { kind: TK::Ident(s), .. })
+        => s.clone(),
+        _ => return Err(ErrMode::Backtrack(ContextError::default())),
+    };
+    *input = &input[1..];
+    Ok(s)
 }
 
 /// Consume an `Ident` *or* any keyword token, returning the source spelling.

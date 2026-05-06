@@ -557,7 +557,8 @@ end if;
 
 // setCommandLineOptions("-d=-newInst");
 // setCommandLineOptions("-g=Modelica");
+om:=OpenModelica.Scripting.getSourceFile(OpenModelica);
 s:=stringDelimitList(list(s for s in OpenModelica.Scripting.getSourceFile(OpenModelica.Scripting.getClassNames())),"\n");
-OpenModelica.Scripting.writeFile("compilerSources.txt.unsorted", s);
+OpenModelica.Scripting.writeFile("compilerSources.txt.unsorted", s + "\n" + om + "\n");
 getErrorString();
 system("sh -c 'ls -laS `cat compilerSources.txt.unsorted` | grep -o \"/home/.*\" - > compilerSources.txt'");

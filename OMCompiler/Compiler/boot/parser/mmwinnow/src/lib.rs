@@ -72,7 +72,7 @@ impl ParserError {
     }
 
     pub fn display(&self) -> String {
-        let mut out = format!("error: parsing failed at {}:{}\n", self.line, self.col);
+        let mut out = format!("error: parsing failed at {} {}:{}\n", CURRENT_FILE.take(), self.line, self.col);
         let mut labels: Vec<String> = Vec::new();
         let mut expected: Vec<String> = Vec::new();
         for ctx in self.inner.context() {
@@ -393,7 +393,7 @@ fn class_specifier(input: &mut TokenInput) -> ModalResult<ClassSpecifier> {
         cut_err(t(TK::End))
             .context(StrContext::Label("'end' closing class-extends"))
             .parse_next(input)?;
-        let _end_name = t_ident(input)?;
+            let _end_name = t_ident(input)?;
         let ann = match opt(annotation).parse_next(input)? {
             Some(ann) => {
                 t(TK::Semi).parse_next(input)?;

@@ -232,26 +232,30 @@ fn type_spec_path(ts: &Absyn::TypeSpec) -> &Absyn::Path {
     }
 }
 
-/// `replaceable type T subtypeof Any` — the defining pattern for a type variable.
-fn is_subtype_of_any(class: &MM::Class) -> bool {
+/// Both `replaceable type T subtypeof Any` (TPATH) and `type T = polymorphic<Any>` (TCOMPLEX)
+/// declare a type variable.
+fn is_type_var_decl(class: &MM::Class) -> bool {
     if !matches!(class.restriction, Absyn::Restriction::R_TYPE) {
         return false;
     }
     match &class.body {
-        MM::ClassDef::Derived { type_spec, .. } => path_last(type_spec_path(type_spec)) == "Any",
+        MM::ClassDef::Derived { type_spec, .. } => match type_spec {
+            Absyn::TypeSpec::TPATH { path, .. } => path_last(path) == "Any",
+            Absyn::TypeSpec::TCOMPLEX { path, .. } => path_last(path) == "polymorphic",
+        },
         _ => false,
     }
 }
 
 /// Collect all type-variable names declared in a class:
-/// from `<T, U>` (typeVars list) and from `replaceable type T subtypeof Any` members.
+/// from `<T, U>` (typeVars list), `replaceable type T subtypeof Any`, and `type T = polymorphic<Any>`.
 fn class_type_vars(c: &MM::Class) -> Vec<String> {
     match &c.body {
         MM::ClassDef::Parts { type_vars, members, .. } => {
             let mut vars: Vec<String> = type_vars.clone();
             for m in members {
                 if let MM::ClassMember::ClassDef(cdm) = m {
-                    if cdm.replaceable && is_subtype_of_any(&cdm.class_def) {
+                    if is_type_var_decl(&cdm.class_def) {
                         vars.push(cdm.class_def.name.clone());
                     }
                 }

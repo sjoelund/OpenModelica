@@ -148,6 +148,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "metamodelica"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+]
+
+[[package]]
 name = "miniz_oxide"
 version = "0.8.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -171,6 +178,7 @@ dependencies = [
  "anyhow",
  "backtrace-on-stack-overflow",
  "list_comprehension_macro",
+ "metamodelica",
  "rayon",
  "winnow",
 ]

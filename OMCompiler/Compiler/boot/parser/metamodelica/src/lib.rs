@@ -575,7 +575,7 @@ use List::{Cons, Nil};
 macro_rules! list {
     // Base case: empty list
     () => {
-        $crate::metamodelica::List::Nil()
+        $crate::List::Nil()
     };
     // Case with a trailing comma
     ( $($x:expr),*, ) => {
@@ -583,11 +583,11 @@ macro_rules! list {
     };
     // General case: peel off the first element and recurse
     ( $x:expr, $($rest:expr),+ ) => {
-        $crate::metamodelica::cons($x, list!($($rest),+))
+        $crate::cons($x, list!($($rest),+))
     };
     // Single element case
     ( $x:expr ) => {
-        $crate::metamodelica::cons($x, list!())
+        $crate::cons($x, list!())
     };
 }
 

@@ -3,7 +3,7 @@
 ///
 /// This module provides code generation from Absyn to Rust.
 
-use crate::metamodelica::*;
+use metamodelica::*;
 use std::sync::Arc;
 
 // mod Absyn

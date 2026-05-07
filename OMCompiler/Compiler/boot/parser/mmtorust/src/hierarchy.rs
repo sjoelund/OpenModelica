@@ -337,11 +337,36 @@ pub fn resolve_pass(hier: &mut InstanceHierarchy<'_>) -> bool {
     let mut known: BTreeMap<String, Ty> = BTreeMap::new();
     seed_builtins(&mut known);
     collect_known(&hier.top_level, "", &mut known);
+    // Resolve import nodes using the seeded known map so that imported types (e.g. via
+    // `import LexerJSON.{Token,...}`) appear as `Module.Name` entries in known before
+    // components and functions are resolved. This prevents bare-name ambiguity when
+    // multiple modules define the same type name.
+    seed_imports(&mut hier.top_level, "", &known, &mut changed);
+    known.clear();
+    seed_builtins(&mut known);
+    collect_known(&hier.top_level, "", &mut known);
     collect_extends_known(&hier.top_level, "", &hier.top_level, &mut known);
     let mut aliases: BTreeMap<String, String> = BTreeMap::new();
     collect_package_aliases(&hier.top_level, &mut aliases);
     resolve_nodes(&mut hier.top_level, "", &known, &aliases, &mut changed);
     changed
+}
+
+/// Resolve import nodes using the current known map so they appear in collect_known
+/// before components and functions are resolved.
+fn seed_imports(nodes: &mut BTreeMap<String, NameNode<'_>>, prefix: &str, known: &BTreeMap<String, Ty>, changed: &mut bool) {
+    for (name, node) in nodes.iter_mut() {
+        let qname = qualify(prefix, name);
+        if node.ty == Ty::Unknown {
+            if let NodeKind::Import(m) = &node.kind {
+                if let Some(ty) = try_resolve_import(m, &qname, known) {
+                    node.ty = ty;
+                    *changed = true;
+                }
+            }
+        }
+        seed_imports(&mut node.children, &qname, known, changed);
+    }
 }
 
 /// Seed classes with R_CLASS that extend ExternalObject as `Ty::ExternalObject(qname)`.
@@ -847,15 +872,21 @@ fn resolve_path(path: &Absyn::Path, known: &BTreeMap<String, Ty>, aliases: &BTre
 
 /// Look up `effective` in `known` and apply the UnionTypeVariant promotion if needed.
 fn resolve_known(effective: &str, last: &str, known: &BTreeMap<String, Ty>) -> Option<Ty> {
-    known.get(effective)?;
+    let child_ty = known.get(effective)?;
 
     // If this resolves to a record/variant inside a multi-record uniontype (Rust enum),
     // we need UnionTypeVariant instead — Rust cannot import through enums.
-    if let Some(dot_pos) = effective.rfind('.') {
-        let parent_qname = &effective[..dot_pos];
-        if let Some(parent_ty) = known.get(parent_qname) {
-            if matches!(parent_ty, Ty::RustEnum(_)) {
-                return Some(Ty::UnionTypeVariant(parent_qname.to_owned(), last.to_owned()));
+    // Only promote genuine record variants (RustStruct or RustUnitVariant); import nodes
+    // and other aliases stored at a Module.Name path must NOT be promoted even when
+    // Module happens to be a RustEnum (e.g. JSON.Token where JSON is a uniontype).
+    let is_genuine_variant = matches!(child_ty, Ty::RustStruct(_) | Ty::RustUnitVariant);
+    if is_genuine_variant {
+        if let Some(dot_pos) = effective.rfind('.') {
+            let parent_qname = &effective[..dot_pos];
+            if let Some(parent_ty) = known.get(parent_qname) {
+                if matches!(parent_ty, Ty::RustEnum(_)) {
+                    return Some(Ty::UnionTypeVariant(parent_qname.to_owned(), last.to_owned()));
+                }
             }
         }
     }

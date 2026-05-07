@@ -587,26 +587,6 @@ fn escape_ident(name: &str) -> String {
     }
 }
 
-/// Map a top-level dotted module name to the Rust path prefix for `use` statements.
-/// Known external modules are mapped to their crate paths; everything else is `crate::`.
-fn module_rust_prefix(dotted_module: &str) -> String {
-    match dotted_module {
-        "MetaModelica" => "mmwinnow::metamodelica".to_owned(),
-        "MetaModelica.Dangerous" => "mmwinnow::metamodelica::Dangerous".to_owned(),
-        _ => format!("crate::{}", dotted_module.replace('.', "::")),
-    }
-}
-
-/// Convert a fully-dotted import path (e.g. `MetaModelica.List`) to a Rust path.
-fn dotted_to_rust_path(dotted: &str) -> String {
-    // Find the top-level segment and reroute known external modules.
-    let top = dotted.split('.').next().unwrap_or(dotted);
-    match top {
-        "MetaModelica" => format!("mmwinnow::metamodelica{}", &dotted[top.len()..].replace('.', "::")),
-        _ => format!("crate::{}", dotted.replace('.', "::")),
-    }
-}
-
 fn path_to_dotted(path: &Absyn::Path) -> String {
     match path {
         Absyn::Path::IDENT { name } => name.clone(),

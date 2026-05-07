@@ -194,6 +194,30 @@ fn source_info(tok1: &Token, tok2: &Token) -> SourceInfo {
 // AST conversion helpers
 // ---------------------------------------------------------------------------
 
+/// Separate class-body annotation items from other items.
+/// Annotations at the top level and annotations that end up as the trailing items in a
+/// public/protected section (when the class has top-level public/protected blocks) are
+/// both promoted to class-level annotations.
+/// Returns `(non_annotation_items, annotations)`.
+fn split_annotations(items: List<ClassBodyItem>) -> (List<ClassBodyItem>, List<Absyn::Annotation>) {
+    let mut parts: List<ClassBodyItem> = List::Nil();
+    let mut anns:  List<Absyn::Annotation> = List::Nil();
+    for item in items.into_iter() {
+        match item {
+            ClassBodyItem::Annotation(ann) => anns = cons(ann, anns),
+            ClassBodyItem::Section { section, items: sec_items } => {
+                // Annotations that appear directly in a section's element list are
+                // class-level annotations (function-level ones are nested inside element bodies).
+                let (inner_parts, inner_anns) = split_annotations((*sec_items).clone());
+                for ann in inner_anns.into_iter() { anns = cons(ann, anns); }
+                parts = cons(ClassBodyItem::Section { section, items: Arc::new(inner_parts) }, parts);
+            }
+            other => parts = cons(other, parts),
+        }
+    }
+    (parts.reverse(), anns.reverse())
+}
+
 fn body_items_to_classparts(items: List<ClassBodyItem>) -> List<ClassPart> {
     let mut res = List::Nil();
     for item in items.into_iter() {
@@ -209,13 +233,7 @@ fn body_items_to_classparts(items: List<ClassBodyItem>) -> List<ClassPart> {
                 let ei = ElementItem::ELEMENTITEM { element: elem };
                 ClassPart::PUBLIC { contents: cons(ei, List::Nil()) }
             }
-            ClassBodyItem::Annotation(ann) => ClassPart::EXTERNAL {
-                externalDecl: ExternalDecl::EXTERNALDECL {
-                    funcName: None, lang: None, output_: None, args: List::Nil(),
-                    annotation_: Some(ann),
-                },
-                annotation_: None,
-            },
+            ClassBodyItem::Annotation(_) => unreachable!("annotations should be split out before body_items_to_classparts"),
             ClassBodyItem::Equations(items)        => ClassPart::EQUATIONS        { contents: items },
             ClassBodyItem::InitialEquations(items) => ClassPart::INITIALEQUATIONS { contents: items },
             ClassBodyItem::Algorithms(items)       => ClassPart::ALGORITHMS       { contents: items },
@@ -482,7 +500,8 @@ fn class_specifier2(input: &mut TokenInput) -> ModalResult<Arc<ClassDef>> {
     let parts     = cut_err(composition)
         .context(StrContext::Label("class body"))
         .parse_next(input)?;
-    let classParts = body_items_to_classparts(parts);
+    let (non_ann_parts, body_ann) = split_annotations(parts);
+    let classParts = body_items_to_classparts(non_ann_parts);
     cut_err(t(TK::End))
         .context(StrContext::Label("'end' closing class body"))
         .parse_next(input)?;
@@ -490,12 +509,14 @@ fn class_specifier2(input: &mut TokenInput) -> ModalResult<Arc<ClassDef>> {
         .context(StrContext::Label("class name after 'end'"))
         .parse_next(input)?;
 
+    // Annotations can appear either inside the class body (body_ann) or after `end Name`
+    // (Modelica2 style). Collect both into ann.
     let ann = match opt(annotation).parse_next(input)? {
         Some(ann) => {
             cut_err(t(TK::Semi)).context(StrContext::Label("';' after annotation")).parse_next(input)?;
-            List::new(ann)
+            body_ann.append(&List::new(ann))
         },
-        None => List::Nil()
+        None => body_ann
     };
 
     Ok(Arc::new(ClassDef::PARTS {
@@ -506,15 +527,12 @@ fn class_specifier2(input: &mut TokenInput) -> ModalResult<Arc<ClassDef>> {
 fn composition(input: &mut TokenInput) -> ModalResult<List<ClassBodyItem>> {
     let el_items = element_list(input)?;
     let c2_items = composition2(input)?;
-    let combined = el_items.append(&c2_items);
-    if let Some(ann) = opt(annotation).parse_next(input)? {
+    let mut result = el_items.append(&c2_items);
+    while let Some(ann) = opt(annotation).parse_next(input)? {
         cut_err(t(TK::Semi)).context(StrContext::Label("';' after annotation")).parse_next(input)?;
-        let mut result = combined;
         result = cons(ClassBodyItem::Annotation(ann), result);
-        Ok(result)
-    } else {
-        Ok(combined)
     }
+    Ok(result)
 }
 
 fn composition2(input: &mut TokenInput) -> ModalResult<List<ClassBodyItem>> {

@@ -26,10 +26,13 @@ struct GenCtx {
     current_crate: Option<String>,
     /// Maps top-level MM package names to their Rust crate names.
     crate_map: BTreeMap<String, String>,
+    /// Simple names of top-level uniontypes (those emitted as their own module+type file).
+    /// When used as a type from outside their module, they need `Name::Name` not just `Name`.
+    top_level_uniontype_names: HashSet<String>,
 }
 
 impl GenCtx {
-    fn new(top_name: &str, current_crate: Option<String>, crate_map: BTreeMap<String, String>) -> Self {
+    fn new(top_name: &str, current_crate: Option<String>, crate_map: BTreeMap<String, String>, top_level_uniontype_names: HashSet<String>) -> Self {
         Self {
             top_name: top_name.to_owned(),
             current_path: Vec::new(),
@@ -38,6 +41,7 @@ impl GenCtx {
             uniontype_imports: HashSet::new(),
             current_crate,
             crate_map,
+            top_level_uniontype_names,
         }
     }
 
@@ -198,6 +202,18 @@ pub fn generate_all(hier: &InstanceHierarchy<'_>, output_dir: &str) -> std::io::
         })
         .collect();
 
+    // Collect names of top-level uniontypes — they are emitted as both a module
+    // and a type inside that module, so references from other files need `Name::Name`.
+    let top_level_uniontype_names: HashSet<String> = hier.top_level.iter()
+        .filter_map(|(name, node)| {
+            if let NodeKind::Class(MM::Class { restriction: Absyn::Restriction::R_UNIONTYPE, .. }) = &node.kind {
+                Some(name.clone())
+            } else {
+                None
+            }
+        })
+        .collect();
+
     // Group top-level classes by their output directory.
     let mut dir_classes: BTreeMap<String, Vec<(&str, &NameNode<'_>)>> = BTreeMap::new();
     for (name, node) in &hier.top_level {
@@ -224,7 +240,7 @@ pub fn generate_all(hier: &InstanceHierarchy<'_>, output_dir: &str) -> std::io::
             } else {
                 None
             };
-            let content = generate_file(name, node, &crate_map, current_crate);
+            let content = generate_file(name, node, &crate_map, current_crate, &top_level_uniontype_names);
             std::fs::write(format!("{dir}/{name}.rs"), content)?;
         }
         let lib_content = generate_lib_file(hier, dir, output_dir);
@@ -254,8 +270,8 @@ fn generate_lib_file(hier: &InstanceHierarchy<'_>, this_dir: &str, default_dir: 
     out
 }
 
-fn generate_file(top_name: &str, node: &NameNode<'_>, crate_map: &BTreeMap<String, String>, current_crate: Option<String>) -> String {
-    let mut ctx = GenCtx::new(top_name, current_crate, crate_map.clone());
+fn generate_file(top_name: &str, node: &NameNode<'_>, crate_map: &BTreeMap<String, String>, current_crate: Option<String>, top_level_uniontype_names: &HashSet<String>) -> String {
+    let mut ctx = GenCtx::new(top_name, current_crate, crate_map.clone(), top_level_uniontype_names.clone());
     collect_imports(node, &mut ctx);
 
     let mut out = String::new();
@@ -533,8 +549,18 @@ fn fmt_ty(ty: &Ty, ctx: &mut GenCtx) -> String {
         Ty::Unit => "()".to_owned(),
         Ty::TypeVar(name) => name.clone(),
         Ty::RustUnitVariant => "()".to_owned(),
-        Ty::Enumeration(name) | Ty::RustEnum(name) | Ty::RustStruct(name) | Ty::AliasTo(name) => {
-            ctx.shorten(name)
+        Ty::Enumeration(name) | Ty::RustStruct(name) => ctx.shorten(name),
+        Ty::RustEnum(name) | Ty::AliasTo(name) => {
+            // Top-level uniontypes are emitted as both a module and a type inside
+            // that module, so a reference from any other file needs `Module::Type`.
+            let first = name.split('.').next().unwrap_or(name);
+            let last = name.rsplit('.').next().unwrap_or(name);
+            let shortened = ctx.shorten(name);
+            if ctx.top_level_uniontype_names.contains(first) && first != ctx.top_name {
+                format!("{shortened}::{last}")
+            } else {
+                shortened
+            }
         }
         Ty::UnionTypeVariant(union_qname, variant) => {
             // Rust cannot import through enums, so we emit `ShortenedUnionType::VariantName`.

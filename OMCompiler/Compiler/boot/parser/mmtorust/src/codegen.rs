@@ -570,7 +570,7 @@ fn fmt_ty(ty: &Ty, ctx: &mut GenCtx) -> String {
             format!("{union_short}::{variant}")
         }
         Ty::Option(inner) => format!("Option<{}>", fmt_ty(inner, ctx)),
-        Ty::List(inner) => format!("List<{}>", fmt_ty(inner, ctx)),
+        Ty::List(inner) => format!("metamodelica::List<{}>", fmt_ty(inner, ctx)),
         Ty::Array(inner) => format!("Array<{}>", fmt_ty(inner, ctx)),
         Ty::Tuple(tys) => {
             format!("({})", tys.iter().map(|t| fmt_ty(t, ctx)).collect::<Vec<_>>().join(", "))

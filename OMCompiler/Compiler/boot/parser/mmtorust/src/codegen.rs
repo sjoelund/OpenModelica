@@ -214,6 +214,9 @@ pub fn generate_all(hier: &InstanceHierarchy<'_>, output_dir: &str) -> std::io::
     }
 
     for (dir, classes) in &dir_classes {
+        if dir == "openmodelica/src" {
+            continue; // Builtin - handwritten code
+        };
         std::fs::create_dir_all(dir)?;
         for (name, node) in classes {
             let current_crate = if let NodeKind::Class(c) = &node.kind {
@@ -257,7 +260,7 @@ fn generate_file(top_name: &str, node: &NameNode<'_>, crate_map: &BTreeMap<Strin
 
     let mut out = String::new();
     writeln!(out, "// Auto-generated from MetaModelica source").unwrap();
-    writeln!(out, "#![allow(non_camel_case_types, non_snake_case, dead_code, unused_imports)]").unwrap();
+    writeln!(out, "#![allow(non_camel_case_types, non_snake_case, dead_code, unused_imports, unused_variables)]").unwrap();
     writeln!(out, "{}", "
 use mmwinnow::metamodelica::*; // Built-in types and functions
 ").unwrap();

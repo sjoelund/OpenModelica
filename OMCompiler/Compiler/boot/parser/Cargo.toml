@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["mmwinnow", "mmtorust", "openmodelica"]
+members = ["mmwinnow", "mmtorust", "openmodelica", "openmodelica_util"]
 
 #[profile.release]
 #debug = true

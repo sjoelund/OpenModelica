@@ -47,6 +47,9 @@ pub struct Class {
     pub comments_before_end: Vec<String>,
     pub comments_after_end: Vec<String>,
     pub info: Info,
+    /// Rust crate this class belongs to, derived from `__OpenModelica_Interface` annotation.
+    /// Only set on top-level packages (excluding "OpenModelica").
+    pub crate_name: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -155,7 +158,49 @@ pub fn from_program(prog: &Absyn::Program) -> Result<Program, Error> {
         let is_nf_builtin = matches!(&class, Absyn::Class::CLASS { info, .. } if is_nf_builtin(info));
         let result = convert_class(class);
         if is_nf_builtin { Ok(result.ok().flatten()) } else { result }
-    }).filter_map(|r| r.transpose()).collect()
+    }).filter_map(|r| r.transpose())
+    .map(|r| r.map(|mut c| {
+        if c.name != "OpenModelica" {
+            c.crate_name = extract_crate_name(&c.body);
+        }
+        c
+    }))
+    .collect()
+}
+
+fn extract_crate_name(body: &ClassDef) -> Option<String> {
+    let annotations = match body {
+        ClassDef::Parts { annotations, .. } | ClassDef::ClassExtends { annotations, .. } => annotations,
+        _ => return None,
+    };
+    for ann in annotations {
+        let Absyn::Annotation::ANNOTATION { elementArgs } = ann;
+        for arg in elementArgs {
+            if let Absyn::ElementArg::MODIFICATION {
+                path: Absyn::Path::IDENT { name },
+                modification: Some(Absyn::Modification::CLASSMOD { eqMod: Absyn::EqMod::EQMOD { exp, .. }, .. }),
+                ..
+            } = arg.as_ref() {
+                if name == "__OpenModelica_Interface" {
+                    if let Absyn::Exp::STRING { value } = exp.as_ref() {
+                        return interface_to_crate(value);
+                    }
+                }
+            }
+        }
+    }
+    None
+}
+
+fn interface_to_crate(interface: &str) -> Option<String> {
+    match interface {
+        "backend" => Some("openmodelica_backend".to_owned()),
+        "backendInterface" => Some("openmodelica_backend_interface".to_owned()),
+        "frontend" => Some("openmodelica_frontend".to_owned()),
+        "susan" => Some("openmodelica_susan".to_owned()),
+        "util" => Some("openmodelica_util".to_owned()),
+        _ => None,
+    }
 }
 
 fn convert_class(class: Absyn::Class) -> Result<Option<Class>, Error> {
@@ -187,6 +232,7 @@ fn convert_class(class: Absyn::Class) -> Result<Option<Class>, Error> {
         comments_before_end: commentsBeforeEnd.into_iter().collect(),
         comments_after_end: commentsAfterEnd.into_iter().collect(),
         info,
+        crate_name: None,
     }))
 }
 

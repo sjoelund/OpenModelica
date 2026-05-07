@@ -21,16 +21,23 @@ struct GenCtx {
     /// Uniontypes (Rust enums) whose variants are referenced via UnionTypeVariant.
     /// Their qualified names need to be imported so the generated code can use `UnionType::Variant`.
     uniontype_imports: HashSet<String>,
+    /// The Rust crate name for the file being generated (e.g. "openmodelica_frontend").
+    /// `None` means the default openmodelica crate.
+    current_crate: Option<String>,
+    /// Maps top-level MM package names to their Rust crate names.
+    crate_map: BTreeMap<String, String>,
 }
 
 impl GenCtx {
-    fn new(top_name: &str) -> Self {
+    fn new(top_name: &str, current_crate: Option<String>, crate_map: BTreeMap<String, String>) -> Self {
         Self {
             top_name: top_name.to_owned(),
             current_path: Vec::new(),
             unqual_modules: HashSet::new(),
             named: BTreeMap::new(),
             uniontype_imports: HashSet::new(),
+            current_crate,
+            crate_map,
         }
     }
 
@@ -77,11 +84,11 @@ impl GenCtx {
     fn use_lines(&self) -> Vec<String> {
         let mut lines: Vec<String> = Vec::new();
         for module in &self.unqual_modules {
-            let rust = module_rust_prefix(module);
+            let rust = self.module_rust_prefix(module);
             lines.push(format!("use {rust}::*;"));
         }
         for (dotted, local) in &self.named {
-            let rust = dotted_to_rust_path(dotted);
+            let rust = self.dotted_to_rust_path(dotted);
             let last = dotted.rsplit('.').next().unwrap_or(dotted);
             if local == last {
                 lines.push(format!("use {rust};"));
@@ -91,13 +98,53 @@ impl GenCtx {
         }
         // Import uniontypes that are referenced via UnionTypeVariant syntax.
         for uniontype_qname in &self.uniontype_imports {
-            let rust = dotted_to_rust_path(uniontype_qname);
-            let last = uniontype_qname.rsplit('.').next().unwrap_or(uniontype_qname);
+            let rust = self.dotted_to_rust_path(uniontype_qname);
             lines.push(format!("use {rust};"));
         }
         lines.sort();
         lines.dedup();
         lines
+    }
+
+    /// Map a top-level dotted module name to the Rust path prefix for `use` statements.
+    fn module_rust_prefix(&self, dotted_module: &str) -> String {
+        match dotted_module {
+            "MetaModelica" => "mmwinnow::metamodelica".to_owned(),
+            "MetaModelica.Dangerous" => "mmwinnow::metamodelica::Dangerous".to_owned(),
+            _ => {
+                let top = dotted_module.split('.').next().unwrap_or(dotted_module);
+                match self.crate_map.get(top) {
+                    Some(mc) if Some(mc) == self.current_crate.as_ref() => {
+                        format!("crate::{}", dotted_module.replace('.', "::"))
+                    }
+                    Some(mc) => {
+                        let rest = &dotted_module[top.len()..];
+                        format!("{mc}{}", rest.replace('.', "::"))
+                    }
+                    None => format!("crate::{}", dotted_module.replace('.', "::")),
+                }
+            }
+        }
+    }
+
+    /// Convert a fully-dotted import path (e.g. `MetaModelica.List`) to a Rust path.
+    fn dotted_to_rust_path(&self, dotted: &str) -> String {
+        let top = dotted.split('.').next().unwrap_or(dotted);
+        match top {
+            "MetaModelica" => {
+                format!("mmwinnow::metamodelica{}", &dotted[top.len()..].replace('.', "::"))
+            }
+            _ => match self.crate_map.get(top) {
+                Some(mc) if Some(mc) == self.current_crate.as_ref() => {
+                    format!("crate::{}", dotted.replace('.', "::"))
+                }
+                Some(mc) => {
+                    let rest = &dotted[top.len()..];
+                    format!("{mc}{}", rest.replace('.', "::"))
+                }
+                None => format!("crate::{}", dotted.replace('.', "::")),
+            },
+        }
     }
 }
 
@@ -140,37 +187,72 @@ fn collect_imports(node: &NameNode<'_>, ctx: &mut GenCtx) {
 // ── Public entry point ────────────────────────────────────────────────────────
 
 pub fn generate_all(hier: &InstanceHierarchy<'_>, output_dir: &str) -> std::io::Result<()> {
-    std::fs::create_dir_all(output_dir)?;
+    // Build crate_map: top-level class name → Rust crate name.
+    let crate_map: BTreeMap<String, String> = hier.top_level.iter()
+        .filter_map(|(name, node)| {
+            if let NodeKind::Class(c) = &node.kind {
+                c.crate_name.as_ref().map(|cn| (name.clone(), cn.clone()))
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    // Group top-level classes by their output directory.
+    let mut dir_classes: BTreeMap<String, Vec<(&str, &NameNode<'_>)>> = BTreeMap::new();
     for (name, node) in &hier.top_level {
-        let content = generate_file(name, node);
-        std::fs::write(format!("{output_dir}/{name}.rs"), content)?;
+        let dir = if let NodeKind::Class(c) = &node.kind {
+            if let Some(cn) = &c.crate_name {
+                format!("{cn}/src")
+            } else {
+                output_dir.to_owned()
+            }
+        } else {
+            output_dir.to_owned()
+        };
+        dir_classes.entry(dir).or_default().push((name.as_str(), node));
     }
-    let main_content = generate_main_file(hier);
-    std::fs::write(format!("{output_dir}/main.rs"), main_content)?;
+
+    for (dir, classes) in &dir_classes {
+        std::fs::create_dir_all(dir)?;
+        for (name, node) in classes {
+            let current_crate = if let NodeKind::Class(c) = &node.kind {
+                c.crate_name.clone()
+            } else {
+                None
+            };
+            let content = generate_file(name, node, &crate_map, current_crate);
+            std::fs::write(format!("{dir}/{name}.rs"), content)?;
+        }
+        let lib_content = generate_lib_file(hier, dir, output_dir);
+        std::fs::write(format!("{dir}/lib.rs"), lib_content)?;
+    }
     Ok(())
 }
 
-fn generate_main_file(hier: &InstanceHierarchy<'_>) -> String {
+fn generate_lib_file(hier: &InstanceHierarchy<'_>, this_dir: &str, default_dir: &str) -> String {
     let mut out = String::new();
-    writeln!(out, "// Auto-generated main file").unwrap();
-    for name in hier.top_level.keys() {
-        match hier.top_level[name].kind {
+    writeln!(out, "// Auto-generated lib file").unwrap();
+    for (name, node) in &hier.top_level {
+        let node_dir = if let NodeKind::Class(c) = &node.kind {
+            if let Some(cn) = &c.crate_name { format!("{cn}/src") } else { default_dir.to_owned() }
+        } else {
+            default_dir.to_owned()
+        };
+        if node_dir != this_dir { continue; }
+        match node.kind {
             NodeKind::Class(MM::Class{restriction: Absyn::Restriction::R_PACKAGE, ..}) |
             NodeKind::Class(MM::Class{restriction: Absyn::Restriction::R_UNIONTYPE, ..}) => {
-                writeln!(out, "mod {name};").unwrap();
+                writeln!(out, "pub mod {name};").unwrap();
             },
             _ => continue,
         }
     }
-    writeln!(out).unwrap();
-    out = out + r#"fn main() {
-    Main.main()
-}"#;
     out
 }
 
-fn generate_file(top_name: &str, node: &NameNode<'_>) -> String {
-    let mut ctx = GenCtx::new(top_name);
+fn generate_file(top_name: &str, node: &NameNode<'_>, crate_map: &BTreeMap<String, String>, current_crate: Option<String>) -> String {
+    let mut ctx = GenCtx::new(top_name, current_crate, crate_map.clone());
     collect_imports(node, &mut ctx);
 
     let mut out = String::new();

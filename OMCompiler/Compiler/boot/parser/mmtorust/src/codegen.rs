@@ -262,7 +262,7 @@ fn generate_file(top_name: &str, node: &NameNode<'_>, crate_map: &BTreeMap<Strin
     writeln!(out, "// Auto-generated from MetaModelica source").unwrap();
     writeln!(out, "#![allow(non_camel_case_types, non_snake_case, dead_code, unused_imports, unused_variables)]").unwrap();
     writeln!(out, "{}", "
-use mmwinnow::metamodelica::*; // Built-in types and functions
+use metamodelica::*; // Built-in types and functions
 ").unwrap();
     for line in ctx.use_lines() {
         writeln!(out, "{line}").unwrap();
@@ -355,7 +355,18 @@ fn emit_uniontype(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Cla
                     emit_struct(out, &rec_name, rec_node, rc, indent, &mut *ctx);
                 }
             }
-            writeln!(out, "{indent}pub type {} = {};", escape_ident(name), escape_ident(&rec_name)).unwrap();
+            let type_vars: Vec<String> = match &c.body {
+                MM::ClassDef::Parts { type_vars, .. } => type_vars.clone(),
+                _ => vec![],
+            };
+            let ename = escape_ident(name);
+            let rec_ename = escape_ident(&rec_name);
+            if type_vars.is_empty() {
+                writeln!(out, "{indent}pub type {ename} = {rec_ename};").unwrap();
+            } else {
+                let params = type_vars.join(", ");
+                writeln!(out, "{indent}pub type {ename}<{params}> = {rec_ename}<{params}>;").unwrap();
+            }
             writeln!(out).unwrap();
         }
         _ => {
@@ -413,10 +424,15 @@ fn emit_uniontype_functions(out: &mut String, name: &str, node: &NameNode<'_>, c
 fn emit_struct(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Class, indent: &str, ctx: &mut GenCtx) {
     let fields = component_fields(c, &node.children);
     let ename = escape_ident(name);
+    let mut type_vars: Vec<String> = Vec::new();
+    for (_, fty) in &fields {
+        collect_type_vars_in_ty(fty, &mut type_vars);
+    }
+    let type_params = if type_vars.is_empty() { String::new() } else { format!("<{}>", type_vars.join(", ")) };
     if fields.is_empty() {
-        writeln!(out, "{indent}pub struct {ename};").unwrap();
+        writeln!(out, "{indent}pub struct {ename}{type_params};").unwrap();
     } else {
-        writeln!(out, "{indent}pub struct {ename} {{").unwrap();
+        writeln!(out, "{indent}pub struct {ename}{type_params} {{").unwrap();
         for (fname, fty) in &fields {
             writeln!(out, "{indent}    pub {}: {},", escape_ident(fname), fmt_ty(fty, &mut *ctx)).unwrap();
         }
@@ -458,10 +474,15 @@ fn emit_function(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Clas
     // Child node .ty values are resolved without that context and may be Unknown for ArgT etc.
     let Ty::Function { type_vars, inputs: fn_inputs, output: fn_output } = &node.ty else { return };
 
-    let type_params = if type_vars.is_empty() {
+    let mut all_type_vars = type_vars.clone();
+    for inp in fn_inputs.iter() {
+        collect_type_vars_in_ty(&inp.ty, &mut all_type_vars);
+    }
+    collect_type_vars_in_ty(fn_output, &mut all_type_vars);
+    let type_params = if all_type_vars.is_empty() {
         String::new()
     } else {
-        format!("<{}>", type_vars.join(", "))
+        format!("<{}>", all_type_vars.join(", "))
     };
 
     let params = fn_inputs.iter()
@@ -487,6 +508,20 @@ fn emit_function(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Clas
 }
 
 // ── Type formatting ───────────────────────────────────────────────────────────
+
+fn collect_type_vars_in_ty(ty: &Ty, out: &mut Vec<String>) {
+    match ty {
+        Ty::TypeVar(name) => { if !out.contains(name) { out.push(name.clone()); } }
+        Ty::Option(inner) | Ty::List(inner) | Ty::Array(inner) => collect_type_vars_in_ty(inner, out),
+        Ty::Tuple(tys) => tys.iter().for_each(|t| collect_type_vars_in_ty(t, out)),
+        Ty::Generic(_, args) => args.iter().for_each(|t| collect_type_vars_in_ty(t, out)),
+        Ty::Function { inputs, output, .. } => {
+            inputs.iter().for_each(|inp| collect_type_vars_in_ty(&inp.ty, out));
+            collect_type_vars_in_ty(output, out);
+        }
+        _ => {}
+    }
+}
 
 fn fmt_ty(ty: &Ty, ctx: &mut GenCtx) -> String {
     match ty {

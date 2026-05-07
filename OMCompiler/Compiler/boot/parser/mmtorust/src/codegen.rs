@@ -586,14 +586,17 @@ fn fmt_ty(ty: &Ty, ctx: &mut GenCtx) -> String {
         }
         Ty::FunctionAlias { base, .. } => ctx.shorten(base),
         Ty::Generic(name, args) => {
-            // `name` is already in Rust form (dots replaced with ::).  If the
-            // leading segment is a top-level uniontype we must double it so the
-            // path refers to the type inside the module, not the module itself.
-            let first = name.split("::").next().unwrap_or(name.as_str());
+            // `name` is already in Rust form (dots replaced with ::) by ty_rust_name.
+            // Convert back to dotted form so shorten() can produce a context-relative
+            // path, then apply the top-level uniontype doubling if needed.
+            let dotted = name.replace("::", ".");
+            let first = dotted.split('.').next().unwrap_or(&dotted);
+            let last = dotted.rsplit('.').next().unwrap_or(&dotted);
+            let shortened = ctx.shorten(&dotted);
             let base = if ctx.top_level_uniontype_names.contains(first) && first != ctx.top_name {
-                format!("{name}::{first}")
+                format!("{shortened}::{last}")
             } else {
-                name.clone()
+                shortened
             };
             format!("{base}<{}>", args.iter().map(|t| fmt_ty(t, ctx)).collect::<Vec<_>>().join(", "))
         }

@@ -336,9 +336,70 @@ fn is_external_object_class(node: &NameNode<'_>) -> bool {
 /// Used only for warning checks; built from a read-only pass before mutation starts.
 type ScopeImports = BTreeMap<String, BTreeSet<String>>;
 
+/// Two-level type environment.
+/// Outer key = fully-qualified scope (parent package path); inner key = simple name.
+/// Builtins and top-level names use the empty-string scope `""`.
+/// Example: type `A.B.Foo` is stored as `env["A.B"]["Foo"]`.
+type ScopedKnown = BTreeMap<String, BTreeMap<String, Ty>>;
+
 struct WarnCtx<'a> {
     warnings: &'a mut BTreeSet<String>,
     scope_imports: &'a ScopeImports,
+}
+
+// ── ScopedKnown helpers ───────────────────────────────────────────────────────
+
+/// Split "A.B.C" into ("A.B", "C"); "A" into ("", "A").
+fn split_qname(qname: &str) -> (&str, &str) {
+    match qname.rfind('.') {
+        Some(i) => (&qname[..i], &qname[i + 1..]),
+        None => ("", qname),
+    }
+}
+
+/// Direct lookup by fully-qualified name: `env["A.B"]["Foo"]` for `"A.B.Foo"`.
+fn sk_get<'a>(known: &'a ScopedKnown, qname: &str) -> Option<&'a Ty> {
+    let (scope, name) = split_qname(qname);
+    known.get(scope)?.get(name)
+}
+
+/// Insert only if the slot is absent.
+fn sk_insert_if_absent(known: &mut ScopedKnown, qname: &str, ty: Ty) {
+    let (scope, name) = split_qname(qname);
+    known.entry(scope.to_owned()).or_default().entry(name.to_owned()).or_insert(ty);
+}
+
+/// Scope-walk: find `name` starting at `module_prefix`, walking up to the top-level
+/// package, then the builtin/top-level scope `""`.
+/// Returns the type reference and its resolved fully-qualified name.
+fn sk_lookup_bare<'a>(known: &'a ScopedKnown, name: &str, module_prefix: &str) -> Option<(&'a Ty, String)> {
+    if !module_prefix.is_empty() {
+        let mut scope = module_prefix;
+        loop {
+            if let Some(ty) = known.get(scope).and_then(|m| m.get(name)) {
+                return Some((ty, qualify(scope, name)));
+            }
+            match scope.rfind('.') {
+                Some(dot) => scope = &scope[..dot],
+                None => break,
+            }
+        }
+    }
+    known.get("").and_then(|m| m.get(name)).map(|ty| (ty, name.to_owned()))
+}
+
+/// If `(scope, name)` resolves to a RustStruct/RustUnitVariant and `scope` is itself a
+/// RustEnum in its parent, return `UnionTypeVariant`; otherwise clone `ty` unchanged.
+fn variant_promotion(scope: &str, name: &str, ty: &Ty, known: &ScopedKnown) -> Ty {
+    if matches!(ty, Ty::RustStruct(_) | Ty::RustUnitVariant) && !scope.is_empty() {
+        let (parent_scope, scope_name) = split_qname(scope);
+        if let Some(parent_ty) = known.get(parent_scope).and_then(|m| m.get(scope_name)) {
+            if matches!(parent_ty, Ty::RustEnum(_)) {
+                return Ty::UnionTypeVariant(scope.to_owned(), name.to_owned());
+            }
+        }
+    }
+    ty.clone()
 }
 
 /// Walk the hierarchy and record, for each scope, all names directly accessible within it
@@ -381,7 +442,7 @@ pub fn resolve_pass(hier: &mut InstanceHierarchy<'_>, warnings: &mut BTreeSet<St
     seed_metarecords(&mut hier.top_level, "", &mut changed);
     seed_external_objects(&mut hier.top_level, "", &mut changed);
     seed_type_vars(&mut hier.top_level, &mut changed);
-    let mut known: BTreeMap<String, Ty> = BTreeMap::new();
+    let mut known: ScopedKnown = BTreeMap::new();
     seed_builtins(&mut known);
     collect_known(&hier.top_level, "", &mut known);
     // Resolve import nodes using the seeded known map so that imported types (e.g. via
@@ -405,7 +466,7 @@ pub fn resolve_pass(hier: &mut InstanceHierarchy<'_>, warnings: &mut BTreeSet<St
 
 /// Resolve import nodes using the current known map so they appear in collect_known
 /// before components and functions are resolved.
-fn seed_imports(nodes: &mut BTreeMap<String, NameNode<'_>>, prefix: &str, known: &BTreeMap<String, Ty>, changed: &mut bool) {
+fn seed_imports(nodes: &mut BTreeMap<String, NameNode<'_>>, prefix: &str, known: &ScopedKnown, changed: &mut bool) {
     for (name, node) in nodes.iter_mut() {
         let qname = qualify(prefix, name);
         if node.ty == Ty::Unknown {
@@ -436,15 +497,10 @@ fn seed_external_objects(nodes: &mut BTreeMap<String, NameNode<'_>>, prefix: &st
 
 /// Pre-populate the known map with MM builtin types that are defined in the runtime
 /// rather than in any source file and therefore never appear in the hierarchy.
-fn seed_builtins(known: &mut BTreeMap<String, Ty>) {
-    // SourceInfo — builtin single-record uniontype; fields are all primitives.
-    //   record SOURCEINFO
-    //     String fileName; Boolean isReadOnly;
-    //     Integer lineNumberStart, columnNumberStart, lineNumberEnd, columnNumberEnd;
-    //     Real lastModification;
-    //   end SOURCEINFO;
-    known.entry("SOURCEINFO".into()).or_insert(Ty::RustStruct("SOURCEINFO".into()));
-    known.entry("SourceInfo".into()).or_insert(Ty::AliasTo("SourceInfo".into()));
+fn seed_builtins(known: &mut ScopedKnown) {
+    let top = known.entry(String::new()).or_default();
+    top.entry("SOURCEINFO".into()).or_insert(Ty::RustStruct("SOURCEINFO".into()));
+    top.entry("SourceInfo".into()).or_insert(Ty::AliasTo("SourceInfo".into()));
 }
 
 fn seed_enumerations(nodes: &mut BTreeMap<String, NameNode<'_>>, prefix: &str, changed: &mut bool) {
@@ -535,15 +591,14 @@ fn seed_type_vars(nodes: &mut BTreeMap<String, NameNode<'_>>, changed: &mut bool
     }
 }
 
-/// Snapshot all resolved types into a lookup map.
-/// TypeVars are intentionally excluded — they are local to their enclosing class
-/// and must not resolve names in sibling scopes.
-fn collect_known(nodes: &BTreeMap<String, NameNode<'_>>, prefix: &str, known: &mut BTreeMap<String, Ty>) {
+/// Snapshot all resolved types into the scoped lookup map.
+/// TypeVars are excluded — they are local to their enclosing class.
+fn collect_known(nodes: &BTreeMap<String, NameNode<'_>>, prefix: &str, known: &mut ScopedKnown) {
     for (name, node) in nodes {
         let qname = qualify(prefix, name);
         if node.ty != Ty::Unknown && !matches!(node.ty, Ty::TypeVar(_)) {
-            known.insert(qname.clone(), node.ty.clone());
-            known.entry(name.clone()).or_insert_with(|| node.ty.clone());
+            known.entry(prefix.to_owned()).or_default()
+                .entry(name.clone()).or_insert_with(|| node.ty.clone());
         }
         collect_known(&node.children, &qname, known);
     }
@@ -568,7 +623,7 @@ fn collect_extends_known<'a>(
     nodes: &BTreeMap<String, NameNode<'a>>,
     prefix: &str,
     top_level: &BTreeMap<String, NameNode<'a>>,
-    known: &mut BTreeMap<String, Ty>,
+    known: &mut ScopedKnown,
     wctx: &mut WarnCtx<'_>,
 ) {
     for (name, node) in nodes {
@@ -582,17 +637,13 @@ fn collect_extends_known<'a>(
                         continue;
                     }
                     // Full qualified key: ZeroCrossings.ZeroCrossingTree.Tree
-                    let full_key = qualify(&qname, child_name);
-                    known.entry(full_key).or_insert_with(|| child_node.ty.clone());
+                    sk_insert_if_absent(known, &qualify(&qname, child_name), child_node.ty.clone());
                     // Relative key (no enclosing package prefix): ZeroCrossingTree.Tree
-                    // This is the form used by sibling type aliases, e.g. `type Tree = ZeroCrossingTree.Tree`
-                    let rel_key = qualify(name, child_name);
-                    known.entry(rel_key).or_insert_with(|| child_node.ty.clone());
+                    // Used by sibling type aliases, e.g. `type Tree = ZeroCrossingTree.Tree`
+                    sk_insert_if_absent(known, &qualify(name, child_name), child_node.ty.clone());
                 }
             }
             // Process `redeclare type X = Y` modifications in the extends clause.
-            // These override TypeVar placeholders from the base class (e.g. BaseAvlTree.Key).
-            // aliases aren't available yet at this stage, but built-in types (String, Integer, …) resolve fine.
             let empty_aliases: BTreeMap<String, String> = BTreeMap::new();
             for arg in &ext.element_args {
                 if let Absyn::ElementArg::REDECLARATION {
@@ -601,10 +652,8 @@ fn collect_extends_known<'a>(
                     let Absyn::Class::CLASS { name: child_name, body, .. } = class_.as_ref();
                     if let Absyn::ClassDef::DERIVED { typeSpec, .. } = body.as_ref() {
                         if let Some(ty) = resolve_type_spec(typeSpec, known, &empty_aliases, &[], "", wctx) {
-                            let full_key = qualify(&qname, child_name);
-                            known.entry(full_key).or_insert_with(|| ty.clone());
-                            let rel_key = qualify(name, child_name);
-                            known.entry(rel_key).or_insert_with(|| ty.clone());
+                            sk_insert_if_absent(known, &qualify(&qname, child_name), ty.clone());
+                            sk_insert_if_absent(known, &qualify(name, child_name), ty);
                         }
                     }
                 }
@@ -643,11 +692,11 @@ fn collect_package_aliases(nodes: &BTreeMap<String, NameNode<'_>>, aliases: &mut
     }
 }
 
-fn resolve_nodes(nodes: &mut BTreeMap<String, NameNode<'_>>, prefix: &str, known: &BTreeMap<String, Ty>, aliases: &BTreeMap<String, String>, changed: &mut bool, wctx: &mut WarnCtx<'_>) {
+fn resolve_nodes(nodes: &mut BTreeMap<String, NameNode<'_>>, prefix: &str, known: &ScopedKnown, aliases: &BTreeMap<String, String>, changed: &mut bool, wctx: &mut WarnCtx<'_>) {
     resolve_nodes_inner(nodes, prefix, known, aliases, &[], changed, wctx);
 }
 
-fn resolve_nodes_inner(nodes: &mut BTreeMap<String, NameNode<'_>>, prefix: &str, known: &BTreeMap<String, Ty>, aliases: &BTreeMap<String, String>, outer_type_vars: &[String], changed: &mut bool, wctx: &mut WarnCtx<'_>) {
+fn resolve_nodes_inner(nodes: &mut BTreeMap<String, NameNode<'_>>, prefix: &str, known: &ScopedKnown, aliases: &BTreeMap<String, String>, outer_type_vars: &[String], changed: &mut bool, wctx: &mut WarnCtx<'_>) {
     for (name, node) in nodes.iter_mut() {
         let qname = qualify(prefix, name);
         if node.ty == Ty::Unknown {
@@ -672,7 +721,7 @@ fn resolve_nodes_inner(nodes: &mut BTreeMap<String, NameNode<'_>>, prefix: &str,
     }
 }
 
-fn try_resolve(node: &NameNode<'_>, qname: &str, known: &BTreeMap<String, Ty>, aliases: &BTreeMap<String, String>, outer_type_vars: &[String], wctx: &mut WarnCtx<'_>) -> Option<Ty> {
+fn try_resolve(node: &NameNode<'_>, qname: &str, known: &ScopedKnown, aliases: &BTreeMap<String, String>, outer_type_vars: &[String], wctx: &mut WarnCtx<'_>) -> Option<Ty> {
     let module_prefix = qname.rsplit_once('.').map_or("", |(p, _)| p);
     match &node.kind {
         NodeKind::Class(c) if is_function_class(&c.restriction) => {
@@ -693,14 +742,14 @@ fn try_resolve(node: &NameNode<'_>, qname: &str, known: &BTreeMap<String, Ty>, a
 
 /// Resolve an import node to the type of the thing it imports.
 /// `qname` is used to extract the local alias (its last segment) for GROUP_IMPORT disambiguation.
-fn try_resolve_import(m: &MM::ImportMember, qname: &str, known: &BTreeMap<String, Ty>) -> Option<Ty> {
+fn try_resolve_import(m: &MM::ImportMember, qname: &str, known: &ScopedKnown) -> Option<Ty> {
     let local = qname.rsplit('.').next().unwrap_or(qname);
     match &m.import {
         Absyn::Import::NAMED_IMPORT { path, .. } | Absyn::Import::QUAL_IMPORT { path } => {
             let dotted = fmt_path(path);
             let dotted = dotted.trim_start_matches('.');
-            known.get(dotted).cloned()
-                .or_else(|| known.get(path_last(path)).cloned())
+            sk_get(known, dotted).cloned()
+                .or_else(|| known.get("").and_then(|m| m.get(path_last(path))).cloned())
         }
         Absyn::Import::GROUP_IMPORT { prefix, groups } => {
             let prefix_str = fmt_path(prefix);
@@ -712,8 +761,8 @@ fn try_resolve_import(m: &MM::ImportMember, qname: &str, known: &BTreeMap<String
                 };
                 if is_match {
                     let full = format!("{prefix_str}.{orig}");
-                    return known.get(&full).cloned()
-                        .or_else(|| known.get(orig.as_str()).cloned());
+                    return sk_get(known, &full).cloned()
+                        .or_else(|| known.get("").and_then(|m| m.get(orig.as_str())).cloned());
                 }
             }
             None
@@ -747,7 +796,7 @@ fn try_resolve_uniontype(node: &NameNode<'_>, qname: &str) -> Option<Ty> {
 fn resolve_function_type(
     c: &MM::Class,
     node: &NameNode<'_>,
-    known: &BTreeMap<String, Ty>,
+    known: &ScopedKnown,
     aliases: &BTreeMap<String, String>,
     outer_type_vars: &[String],
     fn_qname: &str,
@@ -833,7 +882,7 @@ fn resolve_function_type(
 /// Resolve a TypeSpec to a Ty.
 /// `type_vars` is the list of type-variable names in scope; they resolve to `Ty::TypeVar`.
 /// `module_prefix` is the enclosing module qname used to resolve bare names to module-local types.
-fn resolve_type_spec(ts: &Absyn::TypeSpec, known: &BTreeMap<String, Ty>, aliases: &BTreeMap<String, String>, type_vars: &[String], module_prefix: &str, wctx: &mut WarnCtx<'_>) -> Option<Ty> {
+fn resolve_type_spec(ts: &Absyn::TypeSpec, known: &ScopedKnown, aliases: &BTreeMap<String, String>, type_vars: &[String], module_prefix: &str, wctx: &mut WarnCtx<'_>) -> Option<Ty> {
     match ts {
         Absyn::TypeSpec::TPATH { path, .. } => resolve_path(path, known, aliases, type_vars, module_prefix, wctx),
         Absyn::TypeSpec::TCOMPLEX { path, typeSpecs, .. } => {
@@ -863,7 +912,11 @@ fn resolve_type_spec(ts: &Absyn::TypeSpec, known: &BTreeMap<String, Ty>, aliases
                     // User-defined generic: base type must be known, all args must resolve.
                     let full = fmt_path(path);
                     let lookup = full.trim_start_matches('.');
-                    let base_ty = known.get(lookup).or_else(|| known.get(ctor))?;
+                    let base_ty = if lookup.contains('.') {
+                        sk_get(known, lookup)
+                    } else {
+                        sk_lookup_bare(known, lookup, module_prefix).map(|(ty, _)| ty)
+                    }?;
                     let base_name = ty_rust_name(base_ty).unwrap_or_else(|| ctor.to_owned());
                     let resolved: Option<Vec<Ty>> = args.iter()
                         .map(|a| resolve_type_spec(a, known, aliases, type_vars, module_prefix, wctx))
@@ -875,7 +928,7 @@ fn resolve_type_spec(ts: &Absyn::TypeSpec, known: &BTreeMap<String, Ty>, aliases
     }
 }
 
-fn resolve_path(path: &Absyn::Path, known: &BTreeMap<String, Ty>, aliases: &BTreeMap<String, String>, type_vars: &[String], module_prefix: &str, wctx: &mut WarnCtx<'_>) -> Option<Ty> {
+fn resolve_path(path: &Absyn::Path, known: &ScopedKnown, aliases: &BTreeMap<String, String>, type_vars: &[String], module_prefix: &str, wctx: &mut WarnCtx<'_>) -> Option<Ty> {
     let last = path_last(path);
     match last {
         "Integer" => return Some(Ty::I32),
@@ -888,27 +941,17 @@ fn resolve_path(path: &Absyn::Path, known: &BTreeMap<String, Ty>, aliases: &BTre
     let qname = fmt_path(path);
     let qname = qname.trim_start_matches('.');
 
-    // For bare names (no dot), walk up the enclosing module scope before falling back to the
-    // global bare-name shortcut. This ensures e.g. `Status` inside `Util` resolves to
-    // `Util.Status` rather than the first `Status` that was inserted into `known` globally.
-    if !qname.contains('.') && !module_prefix.is_empty() {
-        let mut prefix = module_prefix;
-        loop {
-            let candidate = format!("{prefix}.{qname}");
-            if known.contains_key(candidate.as_str()) {
-                return resolve_known(candidate.as_str(), last, known);
-            }
-            match prefix.rfind('.') {
-                Some(dot) => prefix = &prefix[..dot],
-                None => break,
-            }
+    // Bare name: scope-walk from module_prefix up to builtins/top-level.
+    if !qname.contains('.') {
+        if let Some((ty, resolved)) = sk_lookup_bare(known, qname, module_prefix) {
+            let (scope, name) = split_qname(&resolved);
+            return Some(variant_promotion(scope, name, ty, known));
         }
+        return None;
     }
 
-    // Expand a package alias in the leading segment when the direct path is unknown.
-    // e.g. `import Unit = NFUnit` adds "Unit" → "NFUnit" in aliases, so "Unit.Unit"
-    // should be looked up as "NFUnit.Unit".
-    let expanded: Option<String> = if !known.contains_key(qname) {
+    // Dotted name: try direct lookup first, then alias-expand the leading segment.
+    let expanded: Option<String> = if sk_get(known, qname).is_none() {
         if let Some(dot) = qname.find('.') {
             let (first, rest) = qname.split_at(dot); // rest starts with '.'
             aliases.get(first).map(|target| format!("{target}{rest}"))
@@ -920,49 +963,26 @@ fn resolve_path(path: &Absyn::Path, known: &BTreeMap<String, Ty>, aliases: &BTre
     };
     let effective = expanded.as_deref().unwrap_or(qname);
 
-    // Warn when a dotted path resolves but its leading segment is a package that was
-    // not imported in any enclosing scope (checked by walking up the scope tree).
+    // Warn when a dotted path resolves but its leading segment package was not imported.
     if let Some(dot) = qname.find('.') {
         let first = &qname[..dot];
-        // No warning if first is itself a known type (e.g. an enum accessed as Enum.Literal).
-        let first_is_type = known.contains_key(first);
+        // No warning if first is itself a known type (accessible via scope-walk).
+        let first_is_type = sk_lookup_bare(known, first, module_prefix).is_some();
         // No warning if first is the current module or one of its enclosing packages.
         let is_ancestor = !module_prefix.is_empty()
             && (module_prefix == first || module_prefix.starts_with(&format!("{first}.")));
         if !first_is_type && !is_ancestor
             && !is_imported_in_scope(wctx.scope_imports, module_prefix, first)
-            && known.contains_key(effective)
+            && sk_get(known, effective).is_some()
         {
             let ctx = if module_prefix.is_empty() { "<top level>" } else { module_prefix };
             wctx.warnings.insert(format!("warning: in '{ctx}': '{qname}' uses package '{first}' which is not imported"));
         }
     }
 
-    resolve_known(effective, last, known)
-}
-
-/// Look up `effective` in `known` and apply the UnionTypeVariant promotion if needed.
-fn resolve_known(effective: &str, last: &str, known: &BTreeMap<String, Ty>) -> Option<Ty> {
-    let child_ty = known.get(effective)?;
-
-    // If this resolves to a record/variant inside a multi-record uniontype (Rust enum),
-    // we need UnionTypeVariant instead — Rust cannot import through enums.
-    // Only promote genuine record variants (RustStruct or RustUnitVariant); import nodes
-    // and other aliases stored at a Module.Name path must NOT be promoted even when
-    // Module happens to be a RustEnum (e.g. JSON.Token where JSON is a uniontype).
-    let is_genuine_variant = matches!(child_ty, Ty::RustStruct(_) | Ty::RustUnitVariant);
-    if is_genuine_variant {
-        if let Some(dot_pos) = effective.rfind('.') {
-            let parent_qname = &effective[..dot_pos];
-            if let Some(parent_ty) = known.get(parent_qname) {
-                if matches!(parent_ty, Ty::RustEnum(_)) {
-                    return Some(Ty::UnionTypeVariant(parent_qname.to_owned(), last.to_owned()));
-                }
-            }
-        }
-    }
-
-    known.get(effective).cloned()
+    let (scope, name) = split_qname(effective);
+    let ty = known.get(scope).and_then(|m| m.get(name))?;
+    Some(variant_promotion(scope, name, ty, known))
 }
 
 // ── Expression helpers ────────────────────────────────────────────────────────

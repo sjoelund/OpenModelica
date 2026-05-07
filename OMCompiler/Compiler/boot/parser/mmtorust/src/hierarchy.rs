@@ -1,6 +1,6 @@
 #![allow(unused)]
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use mmwinnow::Absyn;
 use crate::MM;
@@ -329,9 +329,53 @@ fn is_external_object_class(node: &NameNode<'_>) -> bool {
     node.extends.iter().any(|ext| path_last(&ext.path) == "ExternalObject")
 }
 
+// ── Warning context ───────────────────────────────────────────────────────────
+
+/// Per-scope import tracking: maps a fully-qualified scope name to the set of names
+/// that are directly imported in that scope (one entry per `import` statement).
+/// Used only for warning checks; built from a read-only pass before mutation starts.
+type ScopeImports = BTreeMap<String, BTreeSet<String>>;
+
+struct WarnCtx<'a> {
+    warnings: &'a mut BTreeSet<String>,
+    scope_imports: &'a ScopeImports,
+}
+
+/// Walk the hierarchy and record, for each scope, all names directly accessible within it
+/// — both locally-defined children (nested packages, classes, functions) and imports.
+fn collect_scope_imports(nodes: &BTreeMap<String, NameNode<'_>>, prefix: &str, out: &mut ScopeImports) {
+    for (name, node) in nodes {
+        let qname = qualify(prefix, name);
+        for child_name in node.children.keys() {
+            out.entry(qname.clone()).or_default().insert(child_name.clone());
+        }
+        collect_scope_imports(&node.children, &qname, out);
+    }
+}
+
+/// Return true if `imported_name` is visible from `module_prefix` — i.e., it appears
+/// as a direct import in the scope itself or any enclosing scope up to (and including)
+/// the top-level package. Does not cross top-level package boundaries.
+fn is_imported_in_scope(scope_imports: &ScopeImports, module_prefix: &str, imported_name: &str) -> bool {
+    if module_prefix.is_empty() {
+        return false;
+    }
+    let mut scope = module_prefix;
+    loop {
+        if scope_imports.get(scope).is_some_and(|s| s.contains(imported_name)) {
+            return true;
+        }
+        match scope.rfind('.') {
+            Some(dot) => scope = &scope[..dot],
+            None => break, // checked the top-level package; stop
+        }
+    }
+    false
+}
+
 // ── Type resolution ───────────────────────────────────────────────────────────
 
-pub fn resolve_pass(hier: &mut InstanceHierarchy<'_>) -> bool {
+pub fn resolve_pass(hier: &mut InstanceHierarchy<'_>, warnings: &mut BTreeSet<String>) -> bool {
     let mut changed = false;
     seed_enumerations(&mut hier.top_level, "", &mut changed);
     seed_metarecords(&mut hier.top_level, "", &mut changed);
@@ -348,10 +392,14 @@ pub fn resolve_pass(hier: &mut InstanceHierarchy<'_>) -> bool {
     known.clear();
     seed_builtins(&mut known);
     collect_known(&hier.top_level, "", &mut known);
-    collect_extends_known(&hier.top_level, "", &hier.top_level, &mut known);
+    // Build the per-scope import index from a read-only pass before any mutation.
+    let mut scope_imports: ScopeImports = BTreeMap::new();
+    collect_scope_imports(&hier.top_level, "", &mut scope_imports);
+    let mut wctx = WarnCtx { warnings, scope_imports: &scope_imports };
+    collect_extends_known(&hier.top_level, "", &hier.top_level, &mut known, &mut wctx);
     let mut aliases: BTreeMap<String, String> = BTreeMap::new();
     collect_package_aliases(&hier.top_level, &mut aliases);
-    resolve_nodes(&mut hier.top_level, "", &known, &aliases, &mut changed);
+    resolve_nodes(&mut hier.top_level, "", &known, &aliases, &mut changed, &mut wctx);
     changed
 }
 
@@ -521,6 +569,7 @@ fn collect_extends_known<'a>(
     prefix: &str,
     top_level: &BTreeMap<String, NameNode<'a>>,
     known: &mut BTreeMap<String, Ty>,
+    wctx: &mut WarnCtx<'_>,
 ) {
     for (name, node) in nodes {
         let qname = qualify(prefix, name);
@@ -551,7 +600,7 @@ fn collect_extends_known<'a>(
                 } = arg {
                     let Absyn::Class::CLASS { name: child_name, body, .. } = class_.as_ref();
                     if let Absyn::ClassDef::DERIVED { typeSpec, .. } = body.as_ref() {
-                        if let Some(ty) = resolve_type_spec(typeSpec, known, &empty_aliases, &[], "") {
+                        if let Some(ty) = resolve_type_spec(typeSpec, known, &empty_aliases, &[], "", wctx) {
                             let full_key = qualify(&qname, child_name);
                             known.entry(full_key).or_insert_with(|| ty.clone());
                             let rel_key = qualify(name, child_name);
@@ -561,7 +610,7 @@ fn collect_extends_known<'a>(
                 }
             }
         }
-        collect_extends_known(&node.children, &qname, top_level, known);
+        collect_extends_known(&node.children, &qname, top_level, known, wctx);
     }
 }
 
@@ -575,8 +624,8 @@ fn collect_package_aliases(nodes: &BTreeMap<String, NameNode<'_>>, aliases: &mut
                 Absyn::Import::QUAL_IMPORT { path } => {
                     let full = fmt_path(path);
                     let full = full.trim_start_matches('.');
-                    // Skip self-referential aliases (e.g. `import SimCode;` where local name == full path).
-                    // These would block explicit NAMED_IMPORT aliases like `import SimCode = NSimCode;`.
+                    // Skip self-referential entries (`import Tpl;` where local == full path);
+                    // only renaming imports (`import SimCode = NSimCode;`) are useful here.
                     if name != full {
                         aliases.entry(name.clone()).or_insert_with(|| full.to_owned());
                     }
@@ -594,15 +643,15 @@ fn collect_package_aliases(nodes: &BTreeMap<String, NameNode<'_>>, aliases: &mut
     }
 }
 
-fn resolve_nodes(nodes: &mut BTreeMap<String, NameNode<'_>>, prefix: &str, known: &BTreeMap<String, Ty>, aliases: &BTreeMap<String, String>, changed: &mut bool) {
-    resolve_nodes_inner(nodes, prefix, known, aliases, &[], changed);
+fn resolve_nodes(nodes: &mut BTreeMap<String, NameNode<'_>>, prefix: &str, known: &BTreeMap<String, Ty>, aliases: &BTreeMap<String, String>, changed: &mut bool, wctx: &mut WarnCtx<'_>) {
+    resolve_nodes_inner(nodes, prefix, known, aliases, &[], changed, wctx);
 }
 
-fn resolve_nodes_inner(nodes: &mut BTreeMap<String, NameNode<'_>>, prefix: &str, known: &BTreeMap<String, Ty>, aliases: &BTreeMap<String, String>, outer_type_vars: &[String], changed: &mut bool) {
+fn resolve_nodes_inner(nodes: &mut BTreeMap<String, NameNode<'_>>, prefix: &str, known: &BTreeMap<String, Ty>, aliases: &BTreeMap<String, String>, outer_type_vars: &[String], changed: &mut bool, wctx: &mut WarnCtx<'_>) {
     for (name, node) in nodes.iter_mut() {
         let qname = qualify(prefix, name);
         if node.ty == Ty::Unknown {
-            if let Some(ty) = try_resolve(node, &qname, known, aliases, outer_type_vars) {
+            if let Some(ty) = try_resolve(node, &qname, known, aliases, outer_type_vars, wctx) {
                 node.ty = ty;
                 *changed = true;
             }
@@ -619,24 +668,24 @@ fn resolve_nodes_inner(nodes: &mut BTreeMap<String, NameNode<'_>>, prefix: &str,
             }
             vars
         };
-        resolve_nodes_inner(&mut node.children, &qname, known, aliases, &child_outer, changed);
+        resolve_nodes_inner(&mut node.children, &qname, known, aliases, &child_outer, changed, wctx);
     }
 }
 
-fn try_resolve(node: &NameNode<'_>, qname: &str, known: &BTreeMap<String, Ty>, aliases: &BTreeMap<String, String>, outer_type_vars: &[String]) -> Option<Ty> {
+fn try_resolve(node: &NameNode<'_>, qname: &str, known: &BTreeMap<String, Ty>, aliases: &BTreeMap<String, String>, outer_type_vars: &[String], wctx: &mut WarnCtx<'_>) -> Option<Ty> {
     let module_prefix = qname.rsplit_once('.').map_or("", |(p, _)| p);
     match &node.kind {
         NodeKind::Class(c) if is_function_class(&c.restriction) => {
-            resolve_function_type(c, node, known, aliases, outer_type_vars, qname)
+            resolve_function_type(c, node, known, aliases, outer_type_vars, qname, wctx)
         }
         NodeKind::Class(c) if matches!(c.restriction, Absyn::Restriction::R_UNIONTYPE) => {
             try_resolve_uniontype(node, qname)
         }
         NodeKind::Class(c) => match &c.body {
-            MM::ClassDef::Derived { type_spec, .. } => resolve_type_spec(type_spec, known, aliases, outer_type_vars, module_prefix),
+            MM::ClassDef::Derived { type_spec, .. } => resolve_type_spec(type_spec, known, aliases, outer_type_vars, module_prefix, wctx),
             _ => None,
         },
-        NodeKind::Component(m) => resolve_type_spec(&m.type_spec, known, aliases, outer_type_vars, module_prefix),
+        NodeKind::Component(m) => resolve_type_spec(&m.type_spec, known, aliases, outer_type_vars, module_prefix, wctx),
         NodeKind::Import(m) => try_resolve_import(m, qname, known),
         NodeKind::EnumLiteral => None,
     }
@@ -702,6 +751,7 @@ fn resolve_function_type(
     aliases: &BTreeMap<String, String>,
     outer_type_vars: &[String],
     fn_qname: &str,
+    wctx: &mut WarnCtx<'_>,
 ) -> Option<Ty> {
     let module_prefix = fn_qname.rsplit_once('.').map_or("", |(p, _)| p);
     let mut type_vars = class_type_vars(c);
@@ -734,7 +784,7 @@ fn resolve_function_type(
     for (child_name, child_node) in &node.children {
         if let NodeKind::Class(fn_class) = &child_node.kind {
             if is_function_class(&fn_class.restriction) {
-                if let Some(fn_ty) = resolve_function_type(fn_class, child_node, known, aliases, &type_vars, &format!("{fn_qname}.{child_name}")) {
+                if let Some(fn_ty) = resolve_function_type(fn_class, child_node, known, aliases, &type_vars, &format!("{fn_qname}.{child_name}"), wctx) {
                     local_fns.insert(child_name.clone(), fn_ty);
                 }
             }
@@ -755,7 +805,7 @@ fn resolve_function_type(
             if let Some(fn_ty) = local_fns.get(type_name).cloned() {
                 fn_ty
             } else {
-                resolve_type_spec(&m.type_spec, known, aliases, &type_vars, module_prefix)?
+                resolve_type_spec(&m.type_spec, known, aliases, &type_vars, module_prefix, wctx)?
             }
         };
         let default = extract_default(&m.modification);
@@ -783,30 +833,30 @@ fn resolve_function_type(
 /// Resolve a TypeSpec to a Ty.
 /// `type_vars` is the list of type-variable names in scope; they resolve to `Ty::TypeVar`.
 /// `module_prefix` is the enclosing module qname used to resolve bare names to module-local types.
-fn resolve_type_spec(ts: &Absyn::TypeSpec, known: &BTreeMap<String, Ty>, aliases: &BTreeMap<String, String>, type_vars: &[String], module_prefix: &str) -> Option<Ty> {
+fn resolve_type_spec(ts: &Absyn::TypeSpec, known: &BTreeMap<String, Ty>, aliases: &BTreeMap<String, String>, type_vars: &[String], module_prefix: &str, wctx: &mut WarnCtx<'_>) -> Option<Ty> {
     match ts {
-        Absyn::TypeSpec::TPATH { path, .. } => resolve_path(path, known, aliases, type_vars, module_prefix),
+        Absyn::TypeSpec::TPATH { path, .. } => resolve_path(path, known, aliases, type_vars, module_prefix, wctx),
         Absyn::TypeSpec::TCOMPLEX { path, typeSpecs, .. } => {
             let args: Vec<_> = typeSpecs.into_iter().collect();
             let ctor = path_last(path);
             match ctor {
                 "tuple" => {
                     let tys: Option<Vec<Ty>> = args.iter()
-                        .map(|a| resolve_type_spec(a, known, aliases, type_vars, module_prefix))
+                        .map(|a| resolve_type_spec(a, known, aliases, type_vars, module_prefix, wctx))
                         .collect();
                     Some(Ty::Tuple(tys?))
                 }
                 "Option" if args.len() == 1 => {
-                    Some(Ty::Option(Box::new(resolve_type_spec(&args[0], known, aliases, type_vars, module_prefix)?)))
+                    Some(Ty::Option(Box::new(resolve_type_spec(&args[0], known, aliases, type_vars, module_prefix, wctx)?)))
                 }
                 "list" | "List" if args.len() == 1 => {
-                    Some(Ty::List(Box::new(resolve_type_spec(&args[0], known, aliases, type_vars, module_prefix)?)))
+                    Some(Ty::List(Box::new(resolve_type_spec(&args[0], known, aliases, type_vars, module_prefix, wctx)?)))
                 }
                 "array" | "Array" if args.len() == 1 => {
-                    Some(Ty::Array(Box::new(resolve_type_spec(&args[0], known, aliases, type_vars, module_prefix)?)))
+                    Some(Ty::Array(Box::new(resolve_type_spec(&args[0], known, aliases, type_vars, module_prefix, wctx)?)))
                 }
                 "Mutable" if args.len() == 1 => {
-                    let inner = resolve_type_spec(&args[0], known, aliases, type_vars, module_prefix)?;
+                    let inner = resolve_type_spec(&args[0], known, aliases, type_vars, module_prefix, wctx)?;
                     Some(Ty::Generic("Mutable".to_owned(), vec![inner]))
                 }
                 _ => {
@@ -816,7 +866,7 @@ fn resolve_type_spec(ts: &Absyn::TypeSpec, known: &BTreeMap<String, Ty>, aliases
                     let base_ty = known.get(lookup).or_else(|| known.get(ctor))?;
                     let base_name = ty_rust_name(base_ty).unwrap_or_else(|| ctor.to_owned());
                     let resolved: Option<Vec<Ty>> = args.iter()
-                        .map(|a| resolve_type_spec(a, known, aliases, type_vars, module_prefix))
+                        .map(|a| resolve_type_spec(a, known, aliases, type_vars, module_prefix, wctx))
                         .collect();
                     Some(Ty::Generic(base_name, resolved?))
                 }
@@ -825,7 +875,7 @@ fn resolve_type_spec(ts: &Absyn::TypeSpec, known: &BTreeMap<String, Ty>, aliases
     }
 }
 
-fn resolve_path(path: &Absyn::Path, known: &BTreeMap<String, Ty>, aliases: &BTreeMap<String, String>, type_vars: &[String], module_prefix: &str) -> Option<Ty> {
+fn resolve_path(path: &Absyn::Path, known: &BTreeMap<String, Ty>, aliases: &BTreeMap<String, String>, type_vars: &[String], module_prefix: &str, wctx: &mut WarnCtx<'_>) -> Option<Ty> {
     let last = path_last(path);
     match last {
         "Integer" => return Some(Ty::I32),
@@ -869,6 +919,24 @@ fn resolve_path(path: &Absyn::Path, known: &BTreeMap<String, Ty>, aliases: &BTre
         None
     };
     let effective = expanded.as_deref().unwrap_or(qname);
+
+    // Warn when a dotted path resolves but its leading segment is a package that was
+    // not imported in any enclosing scope (checked by walking up the scope tree).
+    if let Some(dot) = qname.find('.') {
+        let first = &qname[..dot];
+        // No warning if first is itself a known type (e.g. an enum accessed as Enum.Literal).
+        let first_is_type = known.contains_key(first);
+        // No warning if first is the current module or one of its enclosing packages.
+        let is_ancestor = !module_prefix.is_empty()
+            && (module_prefix == first || module_prefix.starts_with(&format!("{first}.")));
+        if !first_is_type && !is_ancestor
+            && !is_imported_in_scope(wctx.scope_imports, module_prefix, first)
+            && known.contains_key(effective)
+        {
+            let ctx = if module_prefix.is_empty() { "<top level>" } else { module_prefix };
+            wctx.warnings.insert(format!("warning: in '{ctx}': '{qname}' uses package '{first}' which is not imported"));
+        }
+    }
 
     resolve_known(effective, last, known)
 }

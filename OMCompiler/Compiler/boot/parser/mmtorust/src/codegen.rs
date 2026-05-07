@@ -512,14 +512,15 @@ fn emit_function(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Clas
     let ret = fmt_ty(fn_output, ctx);
     let ename = escape_ident(name);
 
+    let pub_kw = if node.visibility == MM::Visibility::Public { "pub " } else { "" };
     if c.partial_prefix {
         let type_only_params = fn_inputs.iter()
             .map(|inp| fmt_ty(&inp.ty, ctx))
             .collect::<Vec<_>>()
             .join(", ");
-        writeln!(out, "{indent}pub type {ename} = fn({type_only_params}) -> {ret};").unwrap();
+        writeln!(out, "{indent}{pub_kw}type {ename}{type_params} = fn({type_only_params}) -> {ret};").unwrap();
     } else {
-        writeln!(out, "{indent}pub fn {ename}{type_params}({params}) -> {ret} {{").unwrap();
+        writeln!(out, "{indent}{pub_kw}fn {ename}{type_params}({params}) -> {ret} {{").unwrap();
         writeln!(out, "{indent}    todo!()").unwrap();
         writeln!(out, "{indent}}}").unwrap();
     }

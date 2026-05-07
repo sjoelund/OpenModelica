@@ -160,11 +160,12 @@ pub struct NameNode<'a> {
     pub children: BTreeMap<String, NameNode<'a>>,
     /// Extends clauses — no local name, but must be followed during lookup.
     pub extends: Vec<&'a MM::ExtendsMember>,
+    pub visibility: MM::Visibility,
 }
 
 impl<'a> NameNode<'a> {
     fn new(kind: NodeKind<'a>) -> Self {
-        Self { kind, ty: Ty::default(), children: BTreeMap::new(), extends: Vec::new() }
+        Self { kind, ty: Ty::default(), children: BTreeMap::new(), extends: Vec::new(), visibility: MM::Visibility::Public }
     }
 }
 
@@ -212,7 +213,9 @@ fn populate_from_class_def<'a>(def: &'a MM::ClassDef, node: &mut NameNode<'a>) {
     for member in members {
         match member {
             MM::ClassMember::ClassDef(m) => {
-                node.children.insert(m.class_def.name.clone(), build_class_node(&m.class_def));
+                let mut child = build_class_node(&m.class_def);
+                child.visibility = m.visibility.clone();
+                node.children.insert(m.class_def.name.clone(), child);
             }
             MM::ClassMember::Component(m) => {
                 node.children.insert(m.name.clone(), NameNode::new(NodeKind::Component(m)));

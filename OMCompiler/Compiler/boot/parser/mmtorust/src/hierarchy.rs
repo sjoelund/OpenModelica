@@ -406,14 +406,31 @@ fn seed_metarecords(nodes: &mut BTreeMap<String, NameNode<'_>>, prefix: &str, ch
         if let NodeKind::Class(c) = &node.kind {
             if matches!(c.restriction, Absyn::Restriction::R_UNIONTYPE) {
                 let rec_names: Vec<String> = record_child_names(node);
-                for rec_name in rec_names {
-                    let rec_qname = qualify(&qname, &rec_name);
-                    let child = node.children.get_mut(&rec_name).unwrap();
+                for rec_name in &rec_names {
+                    let rec_qname = qualify(&qname, rec_name);
+                    let child = node.children.get_mut(rec_name).unwrap();
                     if child.ty == Ty::Unknown {
                         child.ty = if has_component_children(child) {
                             Ty::RustStruct(rec_qname)
                         } else {
                             Ty::RustUnitVariant
+                        };
+                        *changed = true;
+                    }
+                }
+                // Also seed the uniontype itself once all records are known, so that
+                // collect_known can include it before functions in the same module are resolved.
+                if node.ty == Ty::Unknown {
+                    let all_seeded = rec_names.iter().all(|n| {
+                        node.children.get(n).map_or(false, |c| c.ty != Ty::Unknown)
+                    });
+                    if all_seeded {
+                        let mut sorted = rec_names.clone();
+                        sorted.sort();
+                        node.ty = match sorted.len() {
+                            0 => Ty::RustStruct(qname.clone()),
+                            1 => Ty::AliasTo(qname.clone()),
+                            _ => Ty::RustEnum(qname.clone()),
                         };
                         *changed = true;
                     }
@@ -506,7 +523,7 @@ fn collect_extends_known<'a>(
                 } = arg {
                     let Absyn::Class::CLASS { name: child_name, body, .. } = class_.as_ref();
                     if let Absyn::ClassDef::DERIVED { typeSpec, .. } = body.as_ref() {
-                        if let Some(ty) = resolve_type_spec(typeSpec, known, &empty_aliases, &[]) {
+                        if let Some(ty) = resolve_type_spec(typeSpec, known, &empty_aliases, &[], "") {
                             let full_key = qualify(&qname, child_name);
                             known.entry(full_key).or_insert_with(|| ty.clone());
                             let rel_key = qualify(name, child_name);
@@ -579,18 +596,19 @@ fn resolve_nodes_inner(nodes: &mut BTreeMap<String, NameNode<'_>>, prefix: &str,
 }
 
 fn try_resolve(node: &NameNode<'_>, qname: &str, known: &BTreeMap<String, Ty>, aliases: &BTreeMap<String, String>, outer_type_vars: &[String]) -> Option<Ty> {
+    let module_prefix = qname.rsplit_once('.').map_or("", |(p, _)| p);
     match &node.kind {
         NodeKind::Class(c) if is_function_class(&c.restriction) => {
-            resolve_function_type(c, node, known, aliases, outer_type_vars)
+            resolve_function_type(c, node, known, aliases, outer_type_vars, qname)
         }
         NodeKind::Class(c) if matches!(c.restriction, Absyn::Restriction::R_UNIONTYPE) => {
             try_resolve_uniontype(node, qname)
         }
         NodeKind::Class(c) => match &c.body {
-            MM::ClassDef::Derived { type_spec, .. } => resolve_type_spec(type_spec, known, aliases, outer_type_vars),
+            MM::ClassDef::Derived { type_spec, .. } => resolve_type_spec(type_spec, known, aliases, outer_type_vars, module_prefix),
             _ => None,
         },
-        NodeKind::Component(m) => resolve_type_spec(&m.type_spec, known, aliases, outer_type_vars),
+        NodeKind::Component(m) => resolve_type_spec(&m.type_spec, known, aliases, outer_type_vars, module_prefix),
         NodeKind::Import(m) => try_resolve_import(m, qname, known),
         NodeKind::EnumLiteral => None,
     }
@@ -647,13 +665,17 @@ fn try_resolve_uniontype(node: &NameNode<'_>, qname: &str) -> Option<Ty> {
 }
 
 /// Resolve a function's type, threading `outer_type_vars` into nested partial functions.
+/// `fn_qname` is the fully-qualified name of this function; its parent segment is used as the
+/// module prefix when resolving bare type names in function parameters.
 fn resolve_function_type(
     c: &MM::Class,
     node: &NameNode<'_>,
     known: &BTreeMap<String, Ty>,
     aliases: &BTreeMap<String, String>,
     outer_type_vars: &[String],
+    fn_qname: &str,
 ) -> Option<Ty> {
+    let module_prefix = fn_qname.rsplit_once('.').map_or("", |(p, _)| p);
     let mut type_vars = class_type_vars(c);
     for v in outer_type_vars {
         if !type_vars.contains(v) { type_vars.push(v.clone()); }
@@ -684,7 +706,7 @@ fn resolve_function_type(
     for (child_name, child_node) in &node.children {
         if let NodeKind::Class(fn_class) = &child_node.kind {
             if is_function_class(&fn_class.restriction) {
-                if let Some(fn_ty) = resolve_function_type(fn_class, child_node, known, aliases, &type_vars) {
+                if let Some(fn_ty) = resolve_function_type(fn_class, child_node, known, aliases, &type_vars, &format!("{fn_qname}.{child_name}")) {
                     local_fns.insert(child_name.clone(), fn_ty);
                 }
             }
@@ -705,7 +727,7 @@ fn resolve_function_type(
             if let Some(fn_ty) = local_fns.get(type_name).cloned() {
                 fn_ty
             } else {
-                resolve_type_spec(&m.type_spec, known, aliases, &type_vars)?
+                resolve_type_spec(&m.type_spec, known, aliases, &type_vars, module_prefix)?
             }
         };
         let default = extract_default(&m.modification);
@@ -732,30 +754,31 @@ fn resolve_function_type(
 
 /// Resolve a TypeSpec to a Ty.
 /// `type_vars` is the list of type-variable names in scope; they resolve to `Ty::TypeVar`.
-fn resolve_type_spec(ts: &Absyn::TypeSpec, known: &BTreeMap<String, Ty>, aliases: &BTreeMap<String, String>, type_vars: &[String]) -> Option<Ty> {
+/// `module_prefix` is the enclosing module qname used to resolve bare names to module-local types.
+fn resolve_type_spec(ts: &Absyn::TypeSpec, known: &BTreeMap<String, Ty>, aliases: &BTreeMap<String, String>, type_vars: &[String], module_prefix: &str) -> Option<Ty> {
     match ts {
-        Absyn::TypeSpec::TPATH { path, .. } => resolve_path(path, known, aliases, type_vars),
+        Absyn::TypeSpec::TPATH { path, .. } => resolve_path(path, known, aliases, type_vars, module_prefix),
         Absyn::TypeSpec::TCOMPLEX { path, typeSpecs, .. } => {
             let args: Vec<_> = typeSpecs.into_iter().collect();
             let ctor = path_last(path);
             match ctor {
                 "tuple" => {
                     let tys: Option<Vec<Ty>> = args.iter()
-                        .map(|a| resolve_type_spec(a, known, aliases, type_vars))
+                        .map(|a| resolve_type_spec(a, known, aliases, type_vars, module_prefix))
                         .collect();
                     Some(Ty::Tuple(tys?))
                 }
                 "Option" if args.len() == 1 => {
-                    Some(Ty::Option(Box::new(resolve_type_spec(&args[0], known, aliases, type_vars)?)))
+                    Some(Ty::Option(Box::new(resolve_type_spec(&args[0], known, aliases, type_vars, module_prefix)?)))
                 }
                 "list" | "List" if args.len() == 1 => {
-                    Some(Ty::List(Box::new(resolve_type_spec(&args[0], known, aliases, type_vars)?)))
+                    Some(Ty::List(Box::new(resolve_type_spec(&args[0], known, aliases, type_vars, module_prefix)?)))
                 }
                 "array" | "Array" if args.len() == 1 => {
-                    Some(Ty::Array(Box::new(resolve_type_spec(&args[0], known, aliases, type_vars)?)))
+                    Some(Ty::Array(Box::new(resolve_type_spec(&args[0], known, aliases, type_vars, module_prefix)?)))
                 }
                 "Mutable" if args.len() == 1 => {
-                    let inner = resolve_type_spec(&args[0], known, aliases, type_vars)?;
+                    let inner = resolve_type_spec(&args[0], known, aliases, type_vars, module_prefix)?;
                     Some(Ty::Generic("Mutable".to_owned(), vec![inner]))
                 }
                 _ => {
@@ -765,7 +788,7 @@ fn resolve_type_spec(ts: &Absyn::TypeSpec, known: &BTreeMap<String, Ty>, aliases
                     let base_ty = known.get(lookup).or_else(|| known.get(ctor))?;
                     let base_name = ty_rust_name(base_ty).unwrap_or_else(|| ctor.to_owned());
                     let resolved: Option<Vec<Ty>> = args.iter()
-                        .map(|a| resolve_type_spec(a, known, aliases, type_vars))
+                        .map(|a| resolve_type_spec(a, known, aliases, type_vars, module_prefix))
                         .collect();
                     Some(Ty::Generic(base_name, resolved?))
                 }
@@ -774,7 +797,7 @@ fn resolve_type_spec(ts: &Absyn::TypeSpec, known: &BTreeMap<String, Ty>, aliases
     }
 }
 
-fn resolve_path(path: &Absyn::Path, known: &BTreeMap<String, Ty>, aliases: &BTreeMap<String, String>, type_vars: &[String]) -> Option<Ty> {
+fn resolve_path(path: &Absyn::Path, known: &BTreeMap<String, Ty>, aliases: &BTreeMap<String, String>, type_vars: &[String], module_prefix: &str) -> Option<Ty> {
     let last = path_last(path);
     match last {
         "Integer" => return Some(Ty::I32),
@@ -786,6 +809,23 @@ fn resolve_path(path: &Absyn::Path, known: &BTreeMap<String, Ty>, aliases: &BTre
     }
     let qname = fmt_path(path);
     let qname = qname.trim_start_matches('.');
+
+    // For bare names (no dot), walk up the enclosing module scope before falling back to the
+    // global bare-name shortcut. This ensures e.g. `Status` inside `Util` resolves to
+    // `Util.Status` rather than the first `Status` that was inserted into `known` globally.
+    if !qname.contains('.') && !module_prefix.is_empty() {
+        let mut prefix = module_prefix;
+        loop {
+            let candidate = format!("{prefix}.{qname}");
+            if known.contains_key(candidate.as_str()) {
+                return resolve_known(candidate.as_str(), last, known);
+            }
+            match prefix.rfind('.') {
+                Some(dot) => prefix = &prefix[..dot],
+                None => break,
+            }
+        }
+    }
 
     // Expand a package alias in the leading segment when the direct path is unknown.
     // e.g. `import Unit = NFUnit` adds "Unit" → "NFUnit" in aliases, so "Unit.Unit"
@@ -802,23 +842,25 @@ fn resolve_path(path: &Absyn::Path, known: &BTreeMap<String, Ty>, aliases: &BTre
     };
     let effective = expanded.as_deref().unwrap_or(qname);
 
-    let ty = known.get(effective).cloned()?;
+    resolve_known(effective, last, known)
+}
+
+/// Look up `effective` in `known` and apply the UnionTypeVariant promotion if needed.
+fn resolve_known(effective: &str, last: &str, known: &BTreeMap<String, Ty>) -> Option<Ty> {
+    known.get(effective)?;
 
     // If this resolves to a record/variant inside a multi-record uniontype (Rust enum),
     // we need UnionTypeVariant instead — Rust cannot import through enums.
-    // Check: strip the last segment from effective to get the parent; if parent is a RustEnum,
-    // return UnionTypeVariant(parent_qname, last_segment).
     if let Some(dot_pos) = effective.rfind('.') {
         let parent_qname = &effective[..dot_pos];
         if let Some(parent_ty) = known.get(parent_qname) {
             if matches!(parent_ty, Ty::RustEnum(_)) {
-                let variant_name = last.to_owned();
-                return Some(Ty::UnionTypeVariant(parent_qname.to_owned(), variant_name));
+                return Some(Ty::UnionTypeVariant(parent_qname.to_owned(), last.to_owned()));
             }
         }
     }
 
-    Some(ty)
+    known.get(effective).cloned()
 }
 
 // ── Expression helpers ────────────────────────────────────────────────────────

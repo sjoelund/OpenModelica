@@ -461,7 +461,10 @@ fn emit_type_item(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Cla
     match &c.body {
         MM::ClassDef::Derived { type_spec: Absyn::TypeSpec::TCOMPLEX { path: Absyn::Path::IDENT { name }, .. }, .. } if name == "polymorphic" => (),
         MM::ClassDef::Derived { .. } => {
-            writeln!(out, "{indent}pub type {} = {};", escape_ident(name), fmt_ty(&node.ty, &mut *ctx)).unwrap();
+            let mut type_vars: Vec<String> = Vec::new();
+            collect_type_vars_in_ty(&node.ty, &mut type_vars);
+            let type_params = if type_vars.is_empty() { String::new() } else { format!("<{}>", type_vars.join(", ")) };
+            writeln!(out, "{indent}pub type {}{type_params} = {};", escape_ident(name), fmt_ty(&node.ty, &mut *ctx)).unwrap();
             writeln!(out).unwrap();
         }
         MM::ClassDef::Enumeration { enum_literals, .. } => {
@@ -571,7 +574,7 @@ fn fmt_ty(ty: &Ty, ctx: &mut GenCtx) -> String {
         }
         Ty::Option(inner) => format!("Option<{}>", fmt_ty(inner, ctx)),
         Ty::List(inner) => format!("metamodelica::List<{}>", fmt_ty(inner, ctx)),
-        Ty::Array(inner) => format!("Array<{}>", fmt_ty(inner, ctx)),
+        Ty::Array(inner) => format!("Vec<{}>", fmt_ty(inner, ctx)),
         Ty::Tuple(tys) => {
             format!("({})", tys.iter().map(|t| fmt_ty(t, ctx)).collect::<Vec<_>>().join(", "))
         }

@@ -109,8 +109,8 @@ impl GenCtx {
     /// Map a top-level dotted module name to the Rust path prefix for `use` statements.
     fn module_rust_prefix(&self, dotted_module: &str) -> String {
         match dotted_module {
-            "MetaModelica" => "mmwinnow::metamodelica".to_owned(),
-            "MetaModelica.Dangerous" => "mmwinnow::metamodelica::Dangerous".to_owned(),
+            "MetaModelica" => "metamodelica".to_owned(),
+            "MetaModelica.Dangerous" => "metamodelica::Dangerous".to_owned(),
             _ => {
                 let top = dotted_module.split('.').next().unwrap_or(dotted_module);
                 match self.crate_map.get(top) {
@@ -132,7 +132,7 @@ impl GenCtx {
         let top = dotted.split('.').next().unwrap_or(dotted);
         match top {
             "MetaModelica" => {
-                format!("mmwinnow::metamodelica{}", &dotted[top.len()..].replace('.', "::"))
+                format!("metamodelica{}", &dotted[top.len()..].replace('.', "::"))
             }
             _ => match self.crate_map.get(top) {
                 Some(mc) if Some(mc) == self.current_crate.as_ref() => {

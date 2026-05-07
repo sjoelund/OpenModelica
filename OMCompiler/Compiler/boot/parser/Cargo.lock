@@ -215,6 +215,10 @@ dependencies = [
 [[package]]
 name = "openmodelica_util"
 version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "metamodelica",
+]
 
 [[package]]
 name = "rayon"

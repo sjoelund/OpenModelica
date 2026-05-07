@@ -29,10 +29,6 @@ struct GenCtx {
     /// Simple names of top-level uniontypes (those emitted as their own module+type file).
     /// When used as a type from outside their module, they need `Name::Name` not just `Name`.
     top_level_uniontype_names: HashSet<String>,
-    /// Simple names of uniontypes nested inside this file's package that are wrapped in a
-    /// `pub mod`. References to them need `ModName::TypeName` doubling, except from within
-    /// the mod itself.
-    file_nested_uniontype_names: HashSet<String>,
 }
 
 impl GenCtx {
@@ -46,7 +42,6 @@ impl GenCtx {
             current_crate,
             crate_map,
             top_level_uniontype_names,
-            file_nested_uniontype_names: HashSet::new(),
         }
     }
 
@@ -275,29 +270,8 @@ fn generate_lib_file(hier: &InstanceHierarchy<'_>, this_dir: &str, default_dir: 
     out
 }
 
-/// Recursively collect simple names of all uniontypes nested inside a package node.
-/// These are the names that will be wrapped in `pub mod`, so references to them from
-/// sibling scopes need the `ModName::TypeName` doubling.
-fn collect_nested_uniontype_names(node: &NameNode<'_>, out: &mut HashSet<String>) {
-    let NodeKind::Class(c) = &node.kind else { return };
-    for (child_name, child_node) in &node.children {
-        if let NodeKind::Class(cc) = &child_node.kind {
-            match &cc.restriction {
-                Absyn::Restriction::R_UNIONTYPE => { out.insert(child_name.clone()); }
-                Absyn::Restriction::R_PACKAGE => { collect_nested_uniontype_names(child_node, out); }
-                _ => {}
-            }
-        }
-    }
-}
-
 fn generate_file(top_name: &str, node: &NameNode<'_>, crate_map: &BTreeMap<String, String>, current_crate: Option<String>, top_level_uniontype_names: &HashSet<String>) -> String {
     let mut ctx = GenCtx::new(top_name, current_crate, crate_map.clone(), top_level_uniontype_names.clone());
-
-    // Collect simple names of uniontypes nested inside this file — they are wrapped in a
-    // `pub mod` so references from sibling scopes need the `ModName::TypeName` doubling.
-    collect_nested_uniontype_names(node, &mut ctx.file_nested_uniontype_names);
-
     collect_imports(node, &mut ctx);
 
     let mut out = String::new();
@@ -362,11 +336,20 @@ fn emit_node(out: &mut String, name: &str, node: &NameNode<'_>, indent: &str, ct
 /// mirrors how function calls are resolved: `SBGraph.IncidenceList.new` shortens to
 /// `IncidenceList::new` naturally via `shorten()`.
 fn emit_uniontype(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Class, indent: &str, ctx: &mut GenCtx) {
-    let inner = format!("{indent}    ");
+    // Top-level unittypes (own file, name == top_name) are already a Rust module by
+    // virtue of their file — don't add a redundant inner `pub mod`. Nested unittypes
+    // (inside a package file) need wrapping so same-named functions don't collide.
+    let wrap_in_mod = name != ctx.top_name;
+    let inner;
     let ename = escape_ident(name);
-    writeln!(out, "{indent}pub mod {ename} {{").unwrap();
-    writeln!(out, "{inner}use super::*;").unwrap();
-    ctx.current_path.push(name.to_owned());
+    if wrap_in_mod {
+        inner = format!("{indent}    ");
+        writeln!(out, "{indent}pub mod {ename} {{").unwrap();
+        writeln!(out, "{inner}use super::*;").unwrap();
+        ctx.current_path.push(name.to_owned());
+    } else {
+        inner = indent.to_owned();
+    }
 
     match &node.ty {
         Ty::RustEnum(_) => {
@@ -455,8 +438,10 @@ fn emit_uniontype(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Cla
         }
     }
 
-    ctx.current_path.pop();
-    writeln!(out, "{indent}}}").unwrap();
+    if wrap_in_mod {
+        ctx.current_path.pop();
+        writeln!(out, "{indent}}}").unwrap();
+    }
     writeln!(out).unwrap();
 }
 
@@ -579,15 +564,20 @@ fn fmt_ty(ty: &Ty, ctx: &mut GenCtx) -> String {
         Ty::Enumeration(name) | Ty::RustStruct(name) => ctx.shorten(name),
         Ty::RustEnum(name) | Ty::AliasTo(name) => {
             // All unittypes are wrapped in `pub mod <Name>`, so the type lives at
-            // `ModName::TypeName`. Apply doubling unless we are currently emitting
-            // inside that mod (current_path ends with the simple name).
+            // `ModName::TypeName`. Apply `::TypeName` doubling unless we are currently
+            // emitting inside that mod (current_path ends with the simple name).
+            // Top-level-file unittypes have a single-component qname (e.g. "List");
+            // nested ones have a dotted qname (e.g. "LexerJSON.Token").
             let first = name.split('.').next().unwrap_or(name);
             let last = name.rsplit('.').next().unwrap_or(name);
             let shortened = ctx.shorten(name);
             let in_own_mod = ctx.current_path.last().map(|p| p == last).unwrap_or(false);
             let needs_doubling = !in_own_mod && (
                 (ctx.top_level_uniontype_names.contains(first) && first != ctx.top_name) ||
-                (ctx.file_nested_uniontype_names.contains(last) && first == ctx.top_name)
+                // Nested uniontype: dotted qname AND first != last. The first == last case
+                // (e.g. "IOStream.IOStream") means a package and its same-named uniontype —
+                // emit_uniontype skips the inner `pub mod` for those, so no extra segment.
+                (name.contains('.') && first != last)
             );
             if needs_doubling {
                 format!("{shortened}::{last}")
@@ -629,7 +619,7 @@ fn fmt_ty(ty: &Ty, ctx: &mut GenCtx) -> String {
             let in_own_mod = ctx.current_path.last().map(|p| p == last).unwrap_or(false);
             let needs_doubling = !in_own_mod && (
                 (ctx.top_level_uniontype_names.contains(first) && first != ctx.top_name) ||
-                (ctx.file_nested_uniontype_names.contains(last) && first == ctx.top_name)
+                (dotted.contains('.') && first != last)
             );
             let base = if needs_doubling {
                 format!("{shortened}::{last}")

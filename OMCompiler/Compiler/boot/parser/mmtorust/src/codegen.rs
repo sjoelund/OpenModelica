@@ -29,6 +29,10 @@ struct GenCtx {
     /// Simple names of top-level uniontypes (those emitted as their own module+type file).
     /// When used as a type from outside their module, they need `Name::Name` not just `Name`.
     top_level_uniontype_names: HashSet<String>,
+    /// Simple names of uniontypes nested inside this file's package that are wrapped in a
+    /// `pub mod`. References to them need `ModName::TypeName` doubling, except from within
+    /// the mod itself.
+    file_nested_uniontype_names: HashSet<String>,
 }
 
 impl GenCtx {
@@ -42,6 +46,7 @@ impl GenCtx {
             current_crate,
             crate_map,
             top_level_uniontype_names,
+            file_nested_uniontype_names: HashSet::new(),
         }
     }
 
@@ -270,8 +275,29 @@ fn generate_lib_file(hier: &InstanceHierarchy<'_>, this_dir: &str, default_dir: 
     out
 }
 
+/// Recursively collect simple names of all uniontypes nested inside a package node.
+/// These are the names that will be wrapped in `pub mod`, so references to them from
+/// sibling scopes need the `ModName::TypeName` doubling.
+fn collect_nested_uniontype_names(node: &NameNode<'_>, out: &mut HashSet<String>) {
+    let NodeKind::Class(c) = &node.kind else { return };
+    for (child_name, child_node) in &node.children {
+        if let NodeKind::Class(cc) = &child_node.kind {
+            match &cc.restriction {
+                Absyn::Restriction::R_UNIONTYPE => { out.insert(child_name.clone()); }
+                Absyn::Restriction::R_PACKAGE => { collect_nested_uniontype_names(child_node, out); }
+                _ => {}
+            }
+        }
+    }
+}
+
 fn generate_file(top_name: &str, node: &NameNode<'_>, crate_map: &BTreeMap<String, String>, current_crate: Option<String>, top_level_uniontype_names: &HashSet<String>) -> String {
     let mut ctx = GenCtx::new(top_name, current_crate, crate_map.clone(), top_level_uniontype_names.clone());
+
+    // Collect simple names of uniontypes nested inside this file — they are wrapped in a
+    // `pub mod` so references from sibling scopes need the `ModName::TypeName` doubling.
+    collect_nested_uniontype_names(node, &mut ctx.file_nested_uniontype_names);
+
     collect_imports(node, &mut ctx);
 
     let mut out = String::new();
@@ -330,70 +356,76 @@ fn emit_node(out: &mut String, name: &str, node: &NameNode<'_>, indent: &str, ct
     }
 }
 
+/// Emit a uniontype as a `pub mod <name>` containing the type definition and any
+/// function children. Wrapping in a mod prevents name collisions when two unittypes
+/// in the same package both define a function with the same name (e.g. `new`), and
+/// mirrors how function calls are resolved: `SBGraph.IncidenceList.new` shortens to
+/// `IncidenceList::new` naturally via `shorten()`.
 fn emit_uniontype(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Class, indent: &str, ctx: &mut GenCtx) {
+    let inner = format!("{indent}    ");
+    let ename = escape_ident(name);
+    writeln!(out, "{indent}pub mod {ename} {{").unwrap();
+    writeln!(out, "{inner}use super::*;").unwrap();
+    ctx.current_path.push(name.to_owned());
+
     match &node.ty {
         Ty::RustEnum(_) => {
-            writeln!(out, "{indent}pub enum {} {{", escape_ident(name)).unwrap();
+            writeln!(out, "{inner}pub enum {ename} {{").unwrap();
             for rec_name in &records_in_order(c) {
                 let Some(rec_node) = node.children.get(rec_name) else { continue };
                 let NodeKind::Class(rc) = &rec_node.kind else { continue };
                 match &rec_node.ty {
                     Ty::RustUnitVariant => {
-                        writeln!(out, "{indent}    {rec_name},").unwrap();
+                        writeln!(out, "{inner}    {rec_name},").unwrap();
                     }
                     Ty::RustStruct(_) => {
                         let fields = component_fields(rc, &rec_node.children);
                         if fields.is_empty() {
-                            writeln!(out, "{indent}    {rec_name},").unwrap();
+                            writeln!(out, "{inner}    {rec_name},").unwrap();
                         } else {
-                            writeln!(out, "{indent}    {rec_name} {{").unwrap();
+                            writeln!(out, "{inner}    {rec_name} {{").unwrap();
                             for (fname, fty) in &fields {
-                                writeln!(out, "{indent}        {}: {},", escape_ident(fname), fmt_ty(fty, &mut *ctx)).unwrap();
+                                writeln!(out, "{inner}        {}: {},", escape_ident(fname), fmt_ty(fty, &mut *ctx)).unwrap();
                             }
-                            writeln!(out, "{indent}    }},").unwrap();
+                            writeln!(out, "{inner}    }},").unwrap();
                         }
                     }
-                    _ => writeln!(out, "{indent}    {rec_name}, // unresolved").unwrap(),
+                    _ => writeln!(out, "{inner}    {rec_name}, // unresolved").unwrap(),
                 }
             }
-            writeln!(out, "{indent}}}").unwrap();
-            writeln!(out, "{indent}pub use {name}::*;").unwrap();
-            writeln!(out).unwrap();
+            writeln!(out, "{inner}}}").unwrap();
+            writeln!(out, "{inner}pub use {ename}::*;").unwrap();
         }
         Ty::AliasTo(_) => {
-            // Single-record uniontype: emit the struct, then a type alias.
-            // Derive the struct name from the class definition (AliasTo now carries
-            // the alias qname, not the struct name).
+            // Single-record uniontype: emit the struct then a type alias with the
+            // uniontype's name, so the type is accessible as `ModName::TypeName`.
             let recs = records_in_order(c);
             let rec_name = recs.into_iter().next().unwrap_or_default();
             if let Some(rec_node) = node.children.get(&rec_name) {
                 if let NodeKind::Class(rc) = &rec_node.kind {
-                    emit_struct(out, &rec_name, rec_node, rc, indent, &mut *ctx);
+                    emit_struct(out, &rec_name, rec_node, rc, &inner, &mut *ctx);
                 }
             }
             let type_vars: Vec<String> = match &c.body {
                 MM::ClassDef::Parts { type_vars, .. } => type_vars.clone(),
                 _ => vec![],
             };
-            let ename = escape_ident(name);
             let rec_ename = escape_ident(&rec_name);
             if type_vars.is_empty() {
-                writeln!(out, "{indent}pub type {ename} = {rec_ename};").unwrap();
+                writeln!(out, "{inner}pub type {ename} = {rec_ename};").unwrap();
             } else {
                 let params = type_vars.join(", ");
-                writeln!(out, "{indent}pub type {ename}<{params}> = {rec_ename}<{params}>;").unwrap();
+                writeln!(out, "{inner}pub type {ename}<{params}> = {rec_ename}<{params}>;").unwrap();
             }
-            writeln!(out).unwrap();
         }
         _ => {
-            // No records — emit an opaque struct, with PhantomData to hold any type params.
+            // No records — emit an opaque struct with PhantomData for type params.
             let type_vars: Vec<String> = match &c.body {
                 MM::ClassDef::Parts { type_vars, .. } => type_vars.clone(),
                 _ => vec![],
             };
-            let ename = escape_ident(name);
             if type_vars.is_empty() {
-                writeln!(out, "{indent}pub struct {ename};").unwrap();
+                writeln!(out, "{inner}pub struct {ename};").unwrap();
             } else {
                 let params = type_vars.join(", ");
                 let phantom = if type_vars.len() == 1 {
@@ -401,40 +433,31 @@ fn emit_uniontype(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Cla
                 } else {
                     format!("({})", params)
                 };
-                writeln!(out, "{indent}pub struct {ename}<{params}>(std::marker::PhantomData<{phantom}>);").unwrap();
+                writeln!(out, "{inner}pub struct {ename}<{params}>(std::marker::PhantomData<{phantom}>);").unwrap();
             }
-            writeln!(out).unwrap();
         }
     }
-    // Emit function children of the uniontype
-    emit_uniontype_functions(out, name, node, c, indent, &mut *ctx);
-}
 
-/// Emit functions that are direct children of a uniontype.
-/// These are sorted alphabetically to match the pattern used for other children.
-fn emit_uniontype_functions(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Class, indent: &str, ctx: &mut GenCtx) {
+    // Emit function children in declaration order.
     let members: &[MM::ClassMember] = match &c.body {
         MM::ClassDef::Parts { members, .. } | MM::ClassDef::ClassExtends { members, .. } => members,
-        _ => return,
+        _ => &[],
     };
-
-    // Collect function children in declaration order
-    let mut fns: Vec<(&str, &NameNode<'_>)> = Vec::new();
     for member in members {
         if let MM::ClassMember::ClassDef(cdm) = member {
             if matches!(cdm.class_def.restriction, Absyn::Restriction::R_FUNCTION { .. }) {
-                if let Some(child_node) = node.children.get(&cdm.class_def.name) {
-                    fns.push((cdm.class_def.name.as_str(), child_node));
+                if let Some(fn_node) = node.children.get(&cdm.class_def.name) {
+                    if let NodeKind::Class(fn_class) = &fn_node.kind {
+                        emit_function(out, &cdm.class_def.name, fn_node, fn_class, &inner, &mut *ctx);
+                    }
                 }
             }
         }
     }
 
-    for (fn_name, fn_node) in fns {
-        if let NodeKind::Class(fn_class) = &fn_node.kind {
-            emit_function(out, fn_name, fn_node, fn_class, indent, &mut *ctx);
-        }
-    }
+    ctx.current_path.pop();
+    writeln!(out, "{indent}}}").unwrap();
+    writeln!(out).unwrap();
 }
 
 fn emit_struct(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Class, indent: &str, ctx: &mut GenCtx) {
@@ -555,12 +578,18 @@ fn fmt_ty(ty: &Ty, ctx: &mut GenCtx) -> String {
         Ty::RustUnitVariant => "()".to_owned(),
         Ty::Enumeration(name) | Ty::RustStruct(name) => ctx.shorten(name),
         Ty::RustEnum(name) | Ty::AliasTo(name) => {
-            // Top-level uniontypes are emitted as both a module and a type inside
-            // that module, so a reference from any other file needs `Module::Type`.
+            // All unittypes are wrapped in `pub mod <Name>`, so the type lives at
+            // `ModName::TypeName`. Apply doubling unless we are currently emitting
+            // inside that mod (current_path ends with the simple name).
             let first = name.split('.').next().unwrap_or(name);
             let last = name.rsplit('.').next().unwrap_or(name);
             let shortened = ctx.shorten(name);
-            if ctx.top_level_uniontype_names.contains(first) && first != ctx.top_name {
+            let in_own_mod = ctx.current_path.last().map(|p| p == last).unwrap_or(false);
+            let needs_doubling = !in_own_mod && (
+                (ctx.top_level_uniontype_names.contains(first) && first != ctx.top_name) ||
+                (ctx.file_nested_uniontype_names.contains(last) && first == ctx.top_name)
+            );
+            if needs_doubling {
                 format!("{shortened}::{last}")
             } else {
                 shortened
@@ -580,24 +609,29 @@ fn fmt_ty(ty: &Ty, ctx: &mut GenCtx) -> String {
             format!("({})", tys.iter().map(|t| fmt_ty(t, ctx)).collect::<Vec<_>>().join(", "))
         }
         Ty::Function { type_vars, inputs, output } => {
-            let tvs = if type_vars.is_empty() {
+            /*let tvs = if type_vars.is_empty() {
                 String::new()
             } else {
                 format!("<{}>", type_vars.join(", "))
-            };
+            };*/ // The type variables are already included in the function type alias or item signature, so we don't need to repeat them here.
             let ins = inputs.iter().map(|inp| fmt_ty(&inp.ty, ctx)).collect::<Vec<_>>().join(", ");
-            format!("{tvs}fn({ins}) -> {}", fmt_ty(output, ctx))
+            format!("fn({ins}) -> {}", fmt_ty(output, ctx))
         }
         Ty::FunctionAlias { base, .. } => ctx.shorten(base),
         Ty::Generic(name, args) => {
             // `name` is already in Rust form (dots replaced with ::) by ty_rust_name.
             // Convert back to dotted form so shorten() can produce a context-relative
-            // path, then apply the top-level uniontype doubling if needed.
+            // path, then apply the same uniontype doubling as for RustEnum/AliasTo.
             let dotted = name.replace("::", ".");
             let first = dotted.split('.').next().unwrap_or(&dotted);
             let last = dotted.rsplit('.').next().unwrap_or(&dotted);
             let shortened = ctx.shorten(&dotted);
-            let base = if ctx.top_level_uniontype_names.contains(first) && first != ctx.top_name {
+            let in_own_mod = ctx.current_path.last().map(|p| p == last).unwrap_or(false);
+            let needs_doubling = !in_own_mod && (
+                (ctx.top_level_uniontype_names.contains(first) && first != ctx.top_name) ||
+                (ctx.file_nested_uniontype_names.contains(last) && first == ctx.top_name)
+            );
+            let base = if needs_doubling {
                 format!("{shortened}::{last}")
             } else {
                 shortened
@@ -652,6 +686,9 @@ fn component_fields<'a>(c: &'a MM::Class, children: &'a BTreeMap<String, NameNod
 /// Prefix Rust keywords with `r#` so they are valid identifiers.
 /// `self`, `super`, `crate`, and `Self` cannot be raw identifiers and are left as-is.
 fn escape_ident(name: &str) -> String {
+    if name.starts_with("'") {
+        return ("_".to_string() + &name.replace('\'', "").replace(".", "_"));
+    };
     match name {
         // strict keywords (edition-independent)
         "as" | "break" | "const" | "continue" | "else" | "enum" | "extern" |

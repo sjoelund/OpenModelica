@@ -562,7 +562,7 @@ impl<'s> Lexer<'s> {
 
     /// Lex a quoted identifier; the opening `'` has already been consumed.
     fn lex_qident(&mut self) -> Result<TokenKind, LexError> {
-        let mut s = String::new();
+        let mut s = "'".to_string();
         loop {
             match self.advance() {
                 None => return Err(self.err("unterminated quoted identifier")),
@@ -577,6 +577,7 @@ impl<'s> Lexer<'s> {
                 Some(c) => s.push(c),
             }
         }
+        s.push('\'');
         Ok(TokenKind::Ident(s))
     }
 

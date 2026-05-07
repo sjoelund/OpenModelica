@@ -586,7 +586,16 @@ fn fmt_ty(ty: &Ty, ctx: &mut GenCtx) -> String {
         }
         Ty::FunctionAlias { base, .. } => ctx.shorten(base),
         Ty::Generic(name, args) => {
-            format!("{name}<{}>", args.iter().map(|t| fmt_ty(t, ctx)).collect::<Vec<_>>().join(", "))
+            // `name` is already in Rust form (dots replaced with ::).  If the
+            // leading segment is a top-level uniontype we must double it so the
+            // path refers to the type inside the module, not the module itself.
+            let first = name.split("::").next().unwrap_or(name.as_str());
+            let base = if ctx.top_level_uniontype_names.contains(first) && first != ctx.top_name {
+                format!("{name}::{first}")
+            } else {
+                name.clone()
+            };
+            format!("{base}<{}>", args.iter().map(|t| fmt_ty(t, ctx)).collect::<Vec<_>>().join(", "))
         }
         Ty::ExternalObject(_) => {
             // External objects are opaque C handles in Rust.

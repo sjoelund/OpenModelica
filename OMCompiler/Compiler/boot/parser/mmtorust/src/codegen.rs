@@ -163,29 +163,42 @@ impl GenCtx {
 
 /// Walk the subtree collecting file-level import nodes into `ctx`.
 /// Stops at function boundaries — imports inside a function body are local to that function.
+/// Skips imports whose resolved path starts with `{top_name}.`: those refer to siblings
+/// within the same file and are already in scope through `use super::*;`.
 fn collect_imports(node: &NameNode<'_>, ctx: &mut GenCtx) {
+    let same_file_prefix = format!("{}.", ctx.top_name);
     for child in node.children.values() {
         match &child.kind {
             NodeKind::Import(m) => match &m.import {
                 Absyn::Import::UNQUAL_IMPORT { path } => {
-                    ctx.unqual_modules.insert(path_to_dotted(path));
+                    let dotted = path_to_dotted(path);
+                    if !dotted.starts_with(&same_file_prefix) {
+                        ctx.unqual_modules.insert(dotted);
+                    }
                 }
                 Absyn::Import::QUAL_IMPORT { path } => {
                     let dotted = path_to_dotted(path);
-                    let last = dotted.rsplit('.').next().unwrap_or(&dotted).to_owned();
-                    ctx.named.insert(dotted, last);
+                    if !dotted.starts_with(&same_file_prefix) {
+                        let last = dotted.rsplit('.').next().unwrap_or(&dotted).to_owned();
+                        ctx.named.insert(dotted, last);
+                    }
                 }
                 Absyn::Import::NAMED_IMPORT { name, path } => {
-                    ctx.named.insert(path_to_dotted(path), name.clone());
+                    let dotted = path_to_dotted(path);
+                    if !dotted.starts_with(&same_file_prefix) {
+                        ctx.named.insert(dotted, name.clone());
+                    }
                 }
                 Absyn::Import::GROUP_IMPORT { prefix, groups } => {
                     let prefix_str = path_to_dotted(prefix);
-                    for g in groups.into_iter() {
-                        let (local, orig) = match g {
-                            Absyn::GroupImport::GROUP_IMPORT_NAME { name } => (name.clone(), name.clone()),
-                            Absyn::GroupImport::GROUP_IMPORT_RENAME { rename, name } => (rename.clone(), name.clone()),
-                        };
-                        ctx.named.insert(format!("{prefix_str}.{orig}"), local);
+                    if !prefix_str.starts_with(&same_file_prefix) {
+                        for g in groups.into_iter() {
+                            let (local, orig) = match g {
+                                Absyn::GroupImport::GROUP_IMPORT_NAME { name } => (name.clone(), name.clone()),
+                                Absyn::GroupImport::GROUP_IMPORT_RENAME { rename, name } => (rename.clone(), name.clone()),
+                            };
+                            ctx.named.insert(format!("{prefix_str}.{orig}"), local);
+                        }
                     }
                 }
             },
@@ -341,8 +354,11 @@ fn emit_node(out: &mut String, name: &str, node: &NameNode<'_>, indent: &str, ct
                 // Nested package: emit as a `pub mod` block so items don't
                 // collide with same-named items in the parent package.
                 writeln!(out, "{indent}pub mod {name} {{").unwrap();
-                // Import everything from the parent module so that types
-                // defined in the enclosing package are visible by simple name.
+                // `use super::*` brings in all file-level imports (external crates,
+                // metamodelica builtins, Arc, etc.) and sibling items defined in this
+                // file. Encapsulated packages still need these Rust-level "builtins";
+                // their MetaModelica encapsulation is enforced by collect_imports not
+                // hoisting same-file sibling imports to the file's `use` list.
                 writeln!(out, "{nested_indent}use super::*;").unwrap();
                 ctx.current_path.push(name.to_owned());
                 nested_indent

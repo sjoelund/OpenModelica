@@ -141,7 +141,7 @@ impl fmt::Display for Ty {
 
 // ── NodeKind ──────────────────────────────────────────────────────────────────
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum NodeKind<'a> {
     Class(&'a MM::Class),
     Component(&'a MM::ComponentMember),
@@ -153,7 +153,7 @@ pub enum NodeKind<'a> {
 
 // ── NameNode ──────────────────────────────────────────────────────────────────
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct NameNode<'a> {
     pub kind: NodeKind<'a>,
     pub ty: Ty,
@@ -161,11 +161,16 @@ pub struct NameNode<'a> {
     /// Extends clauses — no local name, but must be followed during lookup.
     pub extends: Vec<&'a MM::ExtendsMember>,
     pub visibility: MM::Visibility,
+    /// For functions with a `ClassExtends` body (`function extends Foo`): the base
+    /// function's `MM::Class` whose input/output declarations we inherit.  Set by
+    /// `flatten_extends` so that `resolve_function_type` can re-resolve the signature
+    /// in the derived class's type context.
+    pub base_fn: Option<&'a MM::Class>,
 }
 
 impl<'a> NameNode<'a> {
     fn new(kind: NodeKind<'a>) -> Self {
-        Self { kind, ty: Ty::default(), children: BTreeMap::new(), extends: Vec::new(), visibility: MM::Visibility::Public }
+        Self { kind, ty: Ty::default(), children: BTreeMap::new(), extends: Vec::new(), visibility: MM::Visibility::Public, base_fn: None }
     }
 }
 
@@ -186,6 +191,102 @@ impl<'a> InstanceHierarchy<'a> {
             .map(|class| (class.name.clone(), build_class_node(class)))
             .collect();
         Self { top_level, recursive_types: BTreeSet::new() }
+    }
+}
+
+// ── Extends flattening ────────────────────────────────────────────────────────
+
+/// Clone a NameNode with all resolved types reset to Unknown so that the seeding
+/// and resolution passes re-run correctly in the derived class's context.
+fn clone_and_reset<'a>(node: &NameNode<'a>) -> NameNode<'a> {
+    NameNode {
+        kind: node.kind.clone(),
+        ty: Ty::Unknown,
+        children: node.children.iter().map(|(k, v)| (k.clone(), clone_and_reset(v))).collect(),
+        extends: node.extends.clone(),
+        visibility: node.visibility.clone(),
+        base_fn: None,
+    }
+}
+
+/// Flatten `extends` clauses for all top-level packages: copy missing children from
+/// the base class into the derived class so that type resolution and codegen see a
+/// fully-populated hierarchy.  Must be called **before** `resolve_pass`.
+///
+/// Only handles the case where the base class is a top-level class.
+pub fn flatten_extends(hier: &mut InstanceHierarchy<'_>) {
+    let names: Vec<String> = hier.top_level.keys().cloned().collect();
+    let mut visited: std::collections::HashSet<String> = std::collections::HashSet::new();
+    for name in names {
+        flatten_package_node(&name, &mut hier.top_level, &mut visited);
+    }
+}
+
+fn flatten_package_node<'a>(
+    name: &str,
+    top_level: &mut BTreeMap<String, NameNode<'a>>,
+    visited: &mut std::collections::HashSet<String>,
+) {
+    if !visited.insert(name.to_owned()) {
+        return;
+    }
+
+    let extends_paths: Vec<String> = top_level.get(name)
+        .map(|n| n.extends.iter().map(|e| fmt_path(&e.path).trim_start_matches('.').to_owned()).collect())
+        .unwrap_or_default();
+
+    for base_path in &extends_paths {
+        // Flatten base first (handles transitive extends chains).
+        flatten_package_node(base_path, top_level, visited);
+
+        // Phase 1: collect children to copy (those absent in the current node) and
+        //          base_fn assignments for ClassExtends functions already present.
+        let to_copy: Vec<(String, NameNode<'a>)>;
+        let base_fn_updates: Vec<(String, &'a MM::Class)>;
+        {
+            let base = top_level.get(base_path.as_str());
+            let current = top_level.get(name);
+            match (current, base) {
+                (Some(cur), Some(base_node)) => {
+                    to_copy = base_node.children.iter()
+                        .filter(|(cn, _)| !cur.children.contains_key(cn.as_str()))
+                        .map(|(cn, child)| (cn.clone(), clone_and_reset(child)))
+                        .collect();
+
+                    // For each ClassExtends function already in the current node, find
+                    // the corresponding function in the base class and record it.
+                    base_fn_updates = cur.children.iter()
+                        .filter_map(|(cn, child_node)| {
+                            if let NodeKind::Class(c) = &child_node.kind {
+                                if let MM::ClassDef::ClassExtends { base_class_name, .. } = &c.body {
+                                    if let Some(base_fn_node) = base_node.children.get(base_class_name.as_str()) {
+                                        if let NodeKind::Class(base_c) = &base_fn_node.kind {
+                                            if is_function_class(&base_c.restriction) {
+                                                return Some((cn.clone(), *base_c));
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            None
+                        })
+                        .collect()
+                }
+                _ => { to_copy = vec![]; base_fn_updates = vec![]; }
+            }
+        }
+
+        // Phase 2: apply the collected updates.
+        if let Some(cur_node) = top_level.get_mut(name) {
+            for (cn, base_c) in base_fn_updates {
+                if let Some(child) = cur_node.children.get_mut(&cn) {
+                    child.base_fn = Some(base_c);
+                }
+            }
+            for (cn, child) in to_copy {
+                cur_node.children.insert(cn, child);
+            }
+        }
     }
 }
 
@@ -829,6 +930,48 @@ fn try_resolve_uniontype(node: &NameNode<'_>, qname: &str) -> Option<Ty> {
     }
 }
 
+/// Re-resolve the inputs/outputs of `base_fn_c` in the scope of a derived class.
+/// Used for `function extends Foo` redeclarations: the base class provides the
+/// parameter declarations; the derived class's context provides the concrete types
+/// for any replaceable type parameters (e.g. `Key = String` instead of `Key = Integer`).
+fn resolve_function_from_base(
+    base_fn_c: &MM::Class,
+    known: &ScopedKnown,
+    aliases: &BTreeMap<String, String>,
+    type_vars: &[String],
+    module_prefix: &str,
+    wctx: &mut WarnCtx<'_>,
+) -> Option<Ty> {
+    let members = match &base_fn_c.body {
+        MM::ClassDef::Parts { members, .. } => members,
+        _ => return None,
+    };
+    let mut inputs: Vec<FunctionInput> = Vec::new();
+    let mut outputs: Vec<Ty> = Vec::new();
+    for member in members {
+        let MM::ClassMember::Component(m) = member else { continue };
+        let Some(ty) = resolve_type_spec(&m.type_spec, known, aliases, type_vars, module_prefix, wctx) else {
+            return None; // Defer if a type can't be resolved yet.
+        };
+        let default = extract_default(&m.modification);
+        match m.direction {
+            Absyn::Direction::INPUT => inputs.push(FunctionInput { name: m.name.clone(), ty, default }),
+            Absyn::Direction::OUTPUT => outputs.push(ty),
+            Absyn::Direction::INPUT_OUTPUT => {
+                outputs.push(ty.clone());
+                inputs.push(FunctionInput { name: m.name.clone(), ty, default });
+            }
+            _ => {}
+        }
+    }
+    let output = match outputs.len() {
+        0 => Ty::Unit,
+        1 => outputs.into_iter().next().unwrap(),
+        _ => Ty::Tuple(outputs),
+    };
+    Some(Ty::Function { type_vars: vec![], inputs, output: Box::new(output) })
+}
+
 /// Resolve a function's type, threading `outer_type_vars` into nested partial functions.
 /// `fn_qname` is the fully-qualified name of this function; its parent segment is used as the
 /// module prefix when resolving bare type names in function parameters.
@@ -858,6 +1001,16 @@ fn resolve_function_type(
             })
             .collect();
         return Some(Ty::FunctionAlias { base, modifications });
+    }
+
+    // `function extends Foo` (redeclare function extends): inherit the base function's
+    // input/output declarations but re-resolve all types in the derived class's context
+    // so that replaceable type parameters (e.g. `Key`) pick up their concrete bindings.
+    if matches!(&c.body, MM::ClassDef::ClassExtends { .. }) {
+        if let Some(base_fn_c) = node.base_fn {
+            return resolve_function_from_base(base_fn_c, known, aliases, &type_vars, module_prefix, wctx);
+        }
+        return None; // Defer until flatten_extends has set base_fn.
     }
 
     let members: &[MM::ClassMember] = match &c.body {

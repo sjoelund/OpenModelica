@@ -132,7 +132,7 @@ impl GenCtx {
                     }
                     Some(mc) => {
                         let rest = &dotted_module[top.len()..];
-                        format!("{mc}{}", rest.replace('.', "::"))
+                        format!("{mc}::{top}{}", rest.replace('.', "::"))
                     }
                     None => format!("crate::{}", dotted_module.replace('.', "::")),
                 }
@@ -153,7 +153,7 @@ impl GenCtx {
                 }
                 Some(mc) => {
                     let rest = &dotted[top.len()..];
-                    format!("{mc}{}", rest.replace('.', "::"))
+                    format!("{mc}::{top}{}", rest.replace('.', "::"))
                 }
                 None => format!("crate::{}", dotted.replace('.', "::")),
             },

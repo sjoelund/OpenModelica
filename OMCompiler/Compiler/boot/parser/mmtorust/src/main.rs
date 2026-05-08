@@ -23,6 +23,7 @@ fn start_compilation(results: Vec<Absyn::Program>) {
         }
     }
     let mut hier = hierarchy::InstanceHierarchy::from_program(&all_classes);
+    hierarchy::flatten_extends(&mut hier);
     let mut warnings = std::collections::BTreeSet::new();
     while hierarchy::resolve_pass(&mut hier, &mut warnings) {}
     for w in &warnings {

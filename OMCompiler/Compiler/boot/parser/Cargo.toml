@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["mmwinnow", "mmtorust", "openmodelica", "openmodelica_util", "metamodelica", "openmodelica_frontend", "openmodelica_backend_interface"]
+members = ["mmwinnow", "mmtorust", "openmodelica", "openmodelica_util", "metamodelica", "openmodelica_frontend", "openmodelica_backend_interface", "openmodelica_susan"]
 [workspace.dependencies]
 anyhow = "1.0.102"
 list_comprehension_macro = "0.1.1"

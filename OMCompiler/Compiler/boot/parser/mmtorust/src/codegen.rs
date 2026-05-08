@@ -21,6 +21,9 @@ struct GenCtx {
     /// Uniontypes (Rust enums) whose variants are referenced via UnionTypeVariant.
     /// Their qualified names need to be imported so the generated code can use `UnionType::Variant`.
     uniontype_imports: HashSet<String>,
+    /// Top-level module names that are used via fully-qualified paths (e.g. `FCore::Node`)
+    /// but not explicitly imported by the MetaModelica source — discovered during emit.
+    implicit_modules: BTreeSet<String>,
     /// The Rust crate name for the file being generated (e.g. "openmodelica_frontend").
     /// `None` means the default openmodelica crate.
     current_crate: Option<String>,
@@ -46,6 +49,7 @@ impl GenCtx {
             unqual_modules: HashSet::new(),
             named: BTreeMap::new(),
             uniontype_imports: HashSet::new(),
+            implicit_modules: BTreeSet::new(),
             current_crate,
             crate_map,
             top_level_uniontype_names,
@@ -56,7 +60,7 @@ impl GenCtx {
 
     /// Shorten a dot-separated qualified name to the shortest valid reference
     /// for this file, based on the collected imports and current nesting context.
-    fn shorten(&self, dotted: &str) -> String {
+    fn shorten(&mut self, dotted: &str) -> String {
         // Build the current module's full dotted prefix (e.g. "DAE.Connect").
         let cur_prefix = if self.current_path.is_empty() {
             self.top_name.clone()
@@ -95,7 +99,13 @@ impl GenCtx {
             }
         }
 
-        // Fully-qualified Rust path.
+        // Fully-qualified Rust path — record the top-level module as implicitly needed,
+        // but only for known MM packages (those in crate_map). Bare names like `SourceInfo`
+        // that fall through here are builtins provided by `metamodelica::*`, not modules.
+        let top = dotted.split('.').next().unwrap_or(dotted);
+        if top != self.top_name && self.crate_map.contains_key(top) {
+            self.implicit_modules.insert(top.to_owned());
+        }
         dotted.replace('.', "::")
     }
 
@@ -118,6 +128,11 @@ impl GenCtx {
         // Import uniontypes that are referenced via UnionTypeVariant syntax.
         for uniontype_qname in &self.uniontype_imports {
             let rust = self.dotted_to_rust_path(uniontype_qname);
+            lines.push(format!("use {rust};"));
+        }
+        // Modules referenced transitively (e.g. FCore in type aliases resolved through FNode).
+        for module in &self.implicit_modules {
+            let rust = self.module_rust_prefix(module);
             lines.push(format!("use {rust};"));
         }
         lines.sort();
@@ -330,6 +345,11 @@ fn generate_file(top_name: &str, node: &NameNode<'_>, crate_map: &BTreeMap<Strin
     ctx.no_mod_uniontypes = no_mod_uniontypes.clone();
     collect_imports(node, &mut ctx);
 
+    // First pass: emit the body so that shorten() can populate implicit_modules.
+    let mut body = String::new();
+    emit_node(&mut body, top_name, node, "", &mut ctx);
+
+    // Second pass: emit header + complete use lines (now including implicit modules).
     let mut out = String::new();
     writeln!(out, "// Auto-generated from MetaModelica source").unwrap();
     writeln!(out, "#![allow(non_camel_case_types, non_snake_case, dead_code, unused_imports, unused_variables)]").unwrap();
@@ -340,10 +360,10 @@ use metamodelica::*; // Built-in types and functions
     for line in ctx.use_lines() {
         writeln!(out, "{line}").unwrap();
     }
-    if !ctx.unqual_modules.is_empty() || !ctx.named.is_empty() {
+    if !ctx.unqual_modules.is_empty() || !ctx.named.is_empty() || !ctx.implicit_modules.is_empty() {
         writeln!(out).unwrap();
     }
-    emit_node(&mut out, top_name, node, "", &mut ctx);
+    out.push_str(&body);
     out
 }
 

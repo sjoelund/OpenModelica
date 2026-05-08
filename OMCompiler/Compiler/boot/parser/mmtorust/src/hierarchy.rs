@@ -671,6 +671,7 @@ pub fn resolve_pass(hier: &mut InstanceHierarchy<'_>, warnings: &mut BTreeSet<St
     collect_scope_imports(&hier.top_level, "", &hier.top_level, &mut scope_imports);
     let mut wctx = WarnCtx { warnings, scope_imports: &scope_imports };
     collect_extends_known(&hier.top_level, "", &hier.top_level, &mut known, &mut wctx);
+    collect_wildcard_import_known(&hier.top_level, "", &hier.top_level, &mut known);
     let mut aliases: BTreeMap<String, String> = BTreeMap::new();
     collect_package_aliases(&hier.top_level, &mut aliases);
     resolve_nodes(&mut hier.top_level, "", &known, &aliases, &mut changed, &mut wctx);
@@ -826,6 +827,38 @@ fn find_node_by_path<'h>(top_level: &'h BTreeMap<String, NameNode<'h>>, path: &s
         current = current.children.get(part)?;
     }
     Some(current)
+}
+
+/// Expand wildcard imports (`import Pkg.*`) into the known map.
+/// For each scope that contains a `*`-named child (a wildcard import), look up the
+/// target package in the hierarchy and copy all its resolved direct-child types into
+/// `known` under the importing scope, so that `sk_lookup_bare` can find them.
+fn collect_wildcard_import_known(
+    nodes: &BTreeMap<String, NameNode<'_>>,
+    prefix: &str,
+    top_level: &BTreeMap<String, NameNode<'_>>,
+    known: &mut ScopedKnown,
+) {
+    for (name, node) in nodes {
+        let qname = qualify(prefix, name);
+        if let Some(star_child) = node.children.get("*") {
+            if let NodeKind::Import(m) = &star_child.kind {
+                if let Absyn::Import::UNQUAL_IMPORT { path } = &m.import {
+                    let pkg = fmt_path(path);
+                    let pkg_path = pkg.trim_start_matches('.');
+                    if let Some(pkg_node) = find_node_by_path(top_level, pkg_path) {
+                        for (child_name, child_node) in &pkg_node.children {
+                            if child_node.ty != Ty::Unknown && !matches!(child_node.ty, Ty::TypeVar(_)) {
+                                known.entry(qname.clone()).or_default()
+                                    .entry(child_name.clone()).or_insert_with(|| child_node.ty.clone());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        collect_wildcard_import_known(&node.children, &qname, top_level, known);
+    }
 }
 
 /// Propagate extends inheritance into the known map.

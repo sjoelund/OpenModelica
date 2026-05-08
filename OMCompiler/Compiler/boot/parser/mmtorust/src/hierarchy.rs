@@ -174,6 +174,9 @@ impl<'a> NameNode<'a> {
 #[derive(Debug)]
 pub struct InstanceHierarchy<'a> {
     pub top_level: BTreeMap<String, NameNode<'a>>,
+    /// Fully-qualified names of types that form size-recursive cycles in Rust.
+    /// Populated by `detect_recursive_types` after resolve_pass converges.
+    pub recursive_types: BTreeSet<String>,
 }
 
 impl<'a> InstanceHierarchy<'a> {
@@ -182,7 +185,7 @@ impl<'a> InstanceHierarchy<'a> {
             .iter()
             .map(|class| (class.name.clone(), build_class_node(class)))
             .collect();
-        Self { top_level }
+        Self { top_level, recursive_types: BTreeSet::new() }
     }
 }
 
@@ -1154,6 +1157,123 @@ fn fmt_import(m: &MM::ImportMember) -> String {
                 Absyn::GroupImport::GROUP_IMPORT_RENAME { rename, name } => format!("{name} as {rename}"),
             }).collect();
             format!("import {}.{{{}}}", fmt_path(prefix), names.join(", "))
+        }
+    }
+}
+
+// ── Recursive type detection ──────────────────────────────────────────────────
+
+/// Collect the qualified names of types that are directly size-embedded — i.e. not behind a
+/// heap-allocated indirection.  Used to build the type-dependency graph for cycle detection.
+/// `List<T>` (→ `metamodelica::List<T>`) and `Array<T>` (→ `Vec<T>`) are already heap-
+/// allocated and therefore break any size-recursion cycle; they are excluded.
+fn ty_direct_deps(ty: &Ty) -> Vec<String> {
+    match ty {
+        Ty::RustStruct(name) | Ty::RustEnum(name) | Ty::AliasTo(name) => vec![name.clone()],
+        // A variant reference contributes a dep on its parent enum.
+        Ty::UnionTypeVariant(union_qname, _) => vec![union_qname.clone()],
+        // Option<T> embeds T inline in Rust — follow through.
+        Ty::Option(inner) => ty_direct_deps(inner),
+        // Tuple embeds all elements.
+        Ty::Tuple(tys) => tys.iter().flat_map(|t| ty_direct_deps(t)).collect(),
+        // Heap-allocated — skip.
+        Ty::List(_) | Ty::Array(_) => vec![],
+        // Generic type args may or may not be heap-allocated; conservatively follow them.
+        Ty::Generic(_, args) => args.iter().flat_map(|t| ty_direct_deps(t)).collect(),
+        _ => vec![],
+    }
+}
+
+fn collect_type_graph(
+    nodes: &BTreeMap<String, NameNode<'_>>,
+    prefix: &str,
+    graph: &mut BTreeMap<String, BTreeSet<String>>,
+) {
+    for (name, node) in nodes {
+        let qname = qualify(prefix, name);
+        match &node.ty {
+            Ty::RustStruct(_) => {
+                let deps: BTreeSet<String> = node.children.values()
+                    .filter(|c| matches!(c.kind, NodeKind::Component(_)))
+                    .flat_map(|c| ty_direct_deps(&c.ty))
+                    .collect();
+                graph.insert(qname.clone(), deps);
+            }
+            Ty::RustEnum(_) | Ty::AliasTo(_) => {
+                // The enum's size is the max of all its variants' sizes; follow all variant fields.
+                let deps: BTreeSet<String> = node.children.values()
+                    .flat_map(|variant| {
+                        variant.children.values()
+                            .filter(|c| matches!(c.kind, NodeKind::Component(_)))
+                            .flat_map(|c| ty_direct_deps(&c.ty))
+                    })
+                    .collect();
+                graph.insert(qname.clone(), deps);
+            }
+            _ => {}
+        }
+        collect_type_graph(&node.children, &qname, graph);
+    }
+}
+
+/// Detect which named types form size-recursive cycles (directly or mutually).
+/// Populates `hier.recursive_types` with the fully-qualified names of all such types.
+/// Must be called after `resolve_pass` has converged.
+pub fn detect_recursive_types(hier: &mut InstanceHierarchy<'_>) {
+    let mut graph: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+    collect_type_graph(&hier.top_level, "", &mut graph);
+
+    let nodes: Vec<String> = graph.keys().cloned().collect();
+    // 0 = white (unvisited), 1 = gray (on stack), 2 = black (done)
+    let mut color: BTreeMap<String, u8> = BTreeMap::new();
+    let mut path_stack: Vec<String> = Vec::new();
+    let mut call_stack: Vec<(String, Vec<String>, usize)> = Vec::new();
+
+    for start in &nodes {
+        if color.get(start.as_str()).copied().unwrap_or(0) != 0 {
+            continue;
+        }
+        color.insert(start.clone(), 1);
+        path_stack.push(start.clone());
+        let deps: Vec<String> = graph.get(start).map(|d| d.iter().cloned().collect()).unwrap_or_default();
+        call_stack.push((start.clone(), deps, 0));
+
+        while !call_stack.is_empty() {
+            let has_more = {
+                let (_, deps, idx) = call_stack.last().unwrap();
+                *idx < deps.len()
+            };
+            if has_more {
+                let dep = {
+                    let (_, deps, idx) = call_stack.last_mut().unwrap();
+                    let d = deps[*idx].clone();
+                    *idx += 1;
+                    d
+                };
+                match color.get(dep.as_str()).copied().unwrap_or(0) {
+                    1 => {
+                        // Back edge to a gray node — every node from dep's position to the
+                        // top of path_stack is part of this cycle.
+                        let cycle_start = path_stack.iter().position(|s| s == &dep).unwrap_or(0);
+                        for s in &path_stack[cycle_start..] {
+                            hier.recursive_types.insert(s.clone());
+                        }
+                    }
+                    0 => {
+                        color.insert(dep.clone(), 1);
+                        path_stack.push(dep.clone());
+                        let new_deps: Vec<String> = graph.get(&dep)
+                            .map(|d| d.iter().cloned().collect())
+                            .unwrap_or_default();
+                        call_stack.push((dep, new_deps, 0));
+                    }
+                    _ => {} // black — already fully explored
+                }
+            } else {
+                let (done_node, _, _) = call_stack.pop().unwrap();
+                color.insert(done_node, 2);
+                path_stack.pop();
+            }
         }
     }
 }

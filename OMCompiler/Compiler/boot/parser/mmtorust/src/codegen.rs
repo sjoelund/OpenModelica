@@ -1,6 +1,6 @@
 #![allow(unused)]
 
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::fmt::Write;
 use mmwinnow::Absyn;
 use crate::MM;
@@ -29,10 +29,13 @@ struct GenCtx {
     /// Simple names of top-level uniontypes (those emitted as their own module+type file).
     /// When used as a type from outside their module, they need `Name::Name` not just `Name`.
     top_level_uniontype_names: HashSet<String>,
+    /// Fully-qualified names of types that are recursive (form size cycles); their field
+    /// references are wrapped in `Arc<>` to give Rust a fixed-size indirection.
+    recursive_types: BTreeSet<String>,
 }
 
 impl GenCtx {
-    fn new(top_name: &str, current_crate: Option<String>, crate_map: BTreeMap<String, String>, top_level_uniontype_names: HashSet<String>) -> Self {
+    fn new(top_name: &str, current_crate: Option<String>, crate_map: BTreeMap<String, String>, top_level_uniontype_names: HashSet<String>, recursive_types: BTreeSet<String>) -> Self {
         Self {
             top_name: top_name.to_owned(),
             current_path: Vec::new(),
@@ -42,6 +45,7 @@ impl GenCtx {
             current_crate,
             crate_map,
             top_level_uniontype_names,
+            recursive_types,
         }
     }
 
@@ -240,7 +244,7 @@ pub fn generate_all(hier: &InstanceHierarchy<'_>, output_dir: &str) -> std::io::
             } else {
                 None
             };
-            let content = generate_file(name, node, &crate_map, current_crate, &top_level_uniontype_names);
+            let content = generate_file(name, node, &crate_map, current_crate, &top_level_uniontype_names, hier.recursive_types.clone());
             std::fs::write(format!("{dir}/{name}.rs"), content)?;
         }
         let lib_content = generate_lib_file(hier, dir, output_dir);
@@ -270,14 +274,15 @@ fn generate_lib_file(hier: &InstanceHierarchy<'_>, this_dir: &str, default_dir: 
     out
 }
 
-fn generate_file(top_name: &str, node: &NameNode<'_>, crate_map: &BTreeMap<String, String>, current_crate: Option<String>, top_level_uniontype_names: &HashSet<String>) -> String {
-    let mut ctx = GenCtx::new(top_name, current_crate, crate_map.clone(), top_level_uniontype_names.clone());
+fn generate_file(top_name: &str, node: &NameNode<'_>, crate_map: &BTreeMap<String, String>, current_crate: Option<String>, top_level_uniontype_names: &HashSet<String>, recursive_types: BTreeSet<String>) -> String {
+    let mut ctx = GenCtx::new(top_name, current_crate, crate_map.clone(), top_level_uniontype_names.clone(), recursive_types);
     collect_imports(node, &mut ctx);
 
     let mut out = String::new();
     writeln!(out, "// Auto-generated from MetaModelica source").unwrap();
     writeln!(out, "#![allow(non_camel_case_types, non_snake_case, dead_code, unused_imports, unused_variables)]").unwrap();
     writeln!(out, "{}", "
+use std::sync::Arc;
 use metamodelica::*; // Built-in types and functions
 ").unwrap();
     for line in ctx.use_lines() {
@@ -561,7 +566,15 @@ fn fmt_ty(ty: &Ty, ctx: &mut GenCtx) -> String {
         Ty::Unit => "()".to_owned(),
         Ty::TypeVar(name) => name.clone(),
         Ty::RustUnitVariant => "()".to_owned(),
-        Ty::Enumeration(name) | Ty::RustStruct(name) => ctx.shorten(name),
+        Ty::Enumeration(name) => ctx.shorten(name),
+        Ty::RustStruct(name) => {
+            let short = ctx.shorten(name);
+            if ctx.recursive_types.contains(name.as_str()) {
+                format!("Arc<{short}>")
+            } else {
+                short
+            }
+        }
         Ty::RustEnum(name) | Ty::AliasTo(name) => {
             // All unittypes are wrapped in `pub mod <Name>`, so the type lives at
             // `ModName::TypeName`. Apply `::TypeName` doubling unless we are currently
@@ -579,10 +592,15 @@ fn fmt_ty(ty: &Ty, ctx: &mut GenCtx) -> String {
                 // emit_uniontype skips the inner `pub mod` for those, so no extra segment.
                 (name.contains('.') && first != last)
             );
-            if needs_doubling {
+            let base = if needs_doubling {
                 format!("{shortened}::{last}")
             } else {
                 shortened
+            };
+            if ctx.recursive_types.contains(name.as_str()) {
+                format!("Arc<{base}>")
+            } else {
+                base
             }
         }
         Ty::UnionTypeVariant(union_qname, variant) => {

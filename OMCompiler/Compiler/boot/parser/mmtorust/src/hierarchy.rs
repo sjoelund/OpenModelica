@@ -209,16 +209,89 @@ fn clone_and_reset<'a>(node: &NameNode<'a>) -> NameNode<'a> {
     }
 }
 
-/// Flatten `extends` clauses for all top-level packages: copy missing children from
+/// Flatten `extends` clauses for all packages: copy missing children from
 /// the base class into the derived class so that type resolution and codegen see a
 /// fully-populated hierarchy.  Must be called **before** `resolve_pass`.
 ///
-/// Only handles the case where the base class is a top-level class.
+/// Handles top-level packages and packages nested one level inside a top-level package,
+/// as long as the base class is itself a top-level class.
 pub fn flatten_extends(hier: &mut InstanceHierarchy<'_>) {
     let names: Vec<String> = hier.top_level.keys().cloned().collect();
     let mut visited: std::collections::HashSet<String> = std::collections::HashSet::new();
     for name in names {
         flatten_package_node(&name, &mut hier.top_level, &mut visited);
+    }
+    flatten_nested_package_extends(&mut hier.top_level);
+}
+
+/// Flatten `extends` for packages nested one level inside a top-level package,
+/// where the base class is a top-level class. Same two-phase copy logic as
+/// `flatten_package_node`; the immutable borrow of the base (a different top-level
+/// key) and the mutable borrow of the parent are non-overlapping.
+fn flatten_nested_package_extends<'a>(top_level: &mut BTreeMap<String, NameNode<'a>>) {
+    let parent_names: Vec<String> = top_level.keys().cloned().collect();
+    for parent_name in &parent_names {
+        // Collect (child_name, base_paths) for children that extend a top-level base.
+        let work: Vec<(String, Vec<String>)> = {
+            let Some(parent) = top_level.get(parent_name.as_str()) else { continue };
+            parent.children.iter()
+                .filter(|(_, child)| !child.extends.is_empty())
+                .map(|(child_name, child)| {
+                    let bases = child.extends.iter()
+                        .map(|e| fmt_path(&e.path).trim_start_matches('.').to_owned())
+                        .filter(|base| top_level.contains_key(base.as_str()))
+                        .collect();
+                    (child_name.clone(), bases)
+                })
+                .collect()
+        };
+
+        for (child_name, base_paths) in work {
+            for base_path in &base_paths {
+                // Phase 1: collect children to copy and base_fn links to establish.
+                let to_copy: Vec<(String, NameNode<'a>)>;
+                let base_fn_updates: Vec<(String, &'a MM::Class)>;
+                {
+                    let base = top_level.get(base_path.as_str()).unwrap();
+                    let child = top_level.get(parent_name.as_str())
+                        .and_then(|p| p.children.get(child_name.as_str()))
+                        .unwrap();
+                    to_copy = base.children.iter()
+                        .filter(|(cn, _)| !child.children.contains_key(cn.as_str()))
+                        .map(|(cn, node)| (cn.clone(), clone_and_reset(node)))
+                        .collect();
+                    base_fn_updates = child.children.iter()
+                        .filter_map(|(cn, child_node)| {
+                            if let NodeKind::Class(c) = &child_node.kind {
+                                if let MM::ClassDef::ClassExtends { base_class_name, .. } = &c.body {
+                                    if let Some(base_fn_node) = base.children.get(base_class_name.as_str()) {
+                                        if let NodeKind::Class(base_c) = &base_fn_node.kind {
+                                            if is_function_class(&base_c.restriction) {
+                                                return Some((cn.clone(), *base_c));
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            None
+                        })
+                        .collect();
+                }
+
+                // Phase 2: apply.
+                let child = top_level.get_mut(parent_name.as_str())
+                    .and_then(|p| p.children.get_mut(child_name.as_str()))
+                    .unwrap();
+                for (cn, base_c) in base_fn_updates {
+                    if let Some(c) = child.children.get_mut(&cn) {
+                        c.base_fn = Some(base_c);
+                    }
+                }
+                for (cn, node) in to_copy {
+                    child.children.insert(cn, node);
+                }
+            }
+        }
     }
 }
 

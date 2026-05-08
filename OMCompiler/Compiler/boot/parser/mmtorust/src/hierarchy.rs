@@ -997,8 +997,9 @@ fn resolve_path(path: &Absyn::Path, known: &ScopedKnown, aliases: &BTreeMap<Stri
             && !is_imported_in_scope(wctx.scope_imports, module_prefix, first)
             && sk_get(known, effective).is_some()
         {
-            let ctx = if module_prefix.is_empty() { "<top level>" } else { module_prefix };
-            wctx.warnings.insert(format!("warning: in '{ctx}': '{qname}' uses package '{first}' which is not imported"));
+            if !module_prefix.is_empty() {
+                wctx.warnings.insert(format!("warning: in '{module_prefix}': '{qname}' uses package '{first}' which is not imported"));
+            };
         }
     }
 

@@ -833,10 +833,37 @@ fn find_node_by_path<'h>(top_level: &'h BTreeMap<String, NameNode<'h>>, path: &s
     Some(current)
 }
 
+/// Recursively copy all children of `pkg_node` (rooted at `pkg_scope`) into `known`
+/// under `import_scope`, so that dotted paths like `ConnectorType.Type` resolve when
+/// `ConnectorType` was brought in via a wildcard import.
+fn copy_wildcard_children(
+    pkg_node: &NameNode<'_>,
+    pkg_scope: &str,
+    import_scope: &str,
+    known: &mut ScopedKnown,
+) {
+    for (child_name, child_node) in &pkg_node.children {
+        let child_import_scope = qualify(import_scope, child_name);
+        let child_pkg_scope = qualify(pkg_scope, child_name);
+        // Copy resolved typed children into the importing scope.
+        if child_node.ty != Ty::Unknown && !matches!(child_node.ty, Ty::TypeVar(_)) {
+            known.entry(import_scope.to_owned()).or_default()
+                .entry(child_name.clone()).or_insert_with(|| child_node.ty.clone());
+        }
+        // Recurse into sub-packages so `Pkg.SubPkg.Type` is reachable as `SubPkg.Type`.
+        if matches!(child_node.kind, NodeKind::Class(crate::MM::Class { restriction: mmwinnow::Absyn::Restriction::R_PACKAGE, .. })) {
+            copy_wildcard_children(child_node, &child_pkg_scope, &child_import_scope, known);
+        }
+    }
+}
+
 /// Expand wildcard imports (`import Pkg.*`) into the known map.
 /// For each scope that contains a `*`-named child (a wildcard import), look up the
 /// target package in the hierarchy and copy all its resolved direct-child types into
 /// `known` under the importing scope, so that `sk_lookup_bare` can find them.
+/// Sub-packages of the imported package are also recursively copied so that dotted
+/// paths like `ConnectorType.Type` (where `ConnectorType` lives in the imported pkg)
+/// resolve correctly.
 fn collect_wildcard_import_known(
     nodes: &BTreeMap<String, NameNode<'_>>,
     prefix: &str,
@@ -851,12 +878,7 @@ fn collect_wildcard_import_known(
                     let pkg = fmt_path(path);
                     let pkg_path = pkg.trim_start_matches('.');
                     if let Some(pkg_node) = find_node_by_path(top_level, pkg_path) {
-                        for (child_name, child_node) in &pkg_node.children {
-                            if child_node.ty != Ty::Unknown && !matches!(child_node.ty, Ty::TypeVar(_)) {
-                                known.entry(qname.clone()).or_default()
-                                    .entry(child_name.clone()).or_insert_with(|| child_node.ty.clone());
-                            }
-                        }
+                        copy_wildcard_children(pkg_node, pkg_path, &qname, known);
                     }
                 }
             }

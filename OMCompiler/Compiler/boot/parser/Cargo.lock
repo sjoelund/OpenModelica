@@ -213,6 +213,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "openmodelica_backend_interface"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "metamodelica",
+ "openmodelica_util",
+]
+
+[[package]]
+name = "openmodelica_frontend"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "metamodelica",
+ "openmodelica_util",
+]
+
+[[package]]
 name = "openmodelica_util"
 version = "0.1.0"
 dependencies = [

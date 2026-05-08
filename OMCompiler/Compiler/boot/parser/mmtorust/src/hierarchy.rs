@@ -323,6 +323,20 @@ fn has_component_children(node: &NameNode<'_>) -> bool {
     node.children.values().any(|c| matches!(c.kind, NodeKind::Component(_)))
 }
 
+/// Returns true if a uniontype node has any children that are not records — e.g. functions,
+/// nested packages, constants. When true, the uniontype needs a `pub mod` wrapper so those
+/// members are reachable as `TypeName::function_name`. When false (records only), the wrapper
+/// is unnecessary and can be omitted.
+pub fn uniontype_needs_mod(node: &NameNode<'_>) -> bool {
+    node.children.values().any(|child| {
+        if let NodeKind::Class(c) = &child.kind {
+            !matches!(c.restriction, Absyn::Restriction::R_RECORD | Absyn::Restriction::R_METARECORD { .. })
+        } else {
+            false
+        }
+    })
+}
+
 /// Check if a class is an external object: has R_CLASS restriction and extends ExternalObject.
 fn is_external_object_class(node: &NameNode<'_>) -> bool {
     let NodeKind::Class(c) = &node.kind else { return false };

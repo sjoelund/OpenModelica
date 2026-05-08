@@ -4,7 +4,7 @@ use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::fmt::Write;
 use mmwinnow::Absyn;
 use crate::MM;
-use crate::hierarchy::{InstanceHierarchy, NameNode, NodeKind, Ty};
+use crate::hierarchy::{InstanceHierarchy, NameNode, NodeKind, Ty, uniontype_needs_mod};
 
 // ── Import-aware generation context ──────────────────────────────────────────
 
@@ -32,6 +32,10 @@ struct GenCtx {
     /// Fully-qualified names of types that are recursive (form size cycles); their field
     /// references are wrapped in `Arc<>` to give Rust a fixed-size indirection.
     recursive_types: BTreeSet<String>,
+    /// Fully-qualified names of nested uniontypes that are NOT wrapped in a `pub mod`
+    /// (because they contain only records). These must NOT get the `::TypeName` doubling
+    /// that mod-wrapped uniontypes require.
+    no_mod_uniontypes: HashSet<String>,
 }
 
 impl GenCtx {
@@ -46,6 +50,7 @@ impl GenCtx {
             crate_map,
             top_level_uniontype_names,
             recursive_types,
+            no_mod_uniontypes: HashSet::new(),
         }
     }
 
@@ -218,6 +223,15 @@ pub fn generate_all(hier: &InstanceHierarchy<'_>, output_dir: &str) -> std::io::
         })
         .collect();
 
+    // Collect fully-qualified names of all nested (non-top-level) uniontypes that have
+    // no `pub mod` wrapper because they contain only records. Built once across the whole
+    // hierarchy so that cross-file references (e.g. FlagsUtil referencing Flags.FlagData)
+    // also suppress the `::TypeName` doubling.
+    let mut no_mod_uniontypes: HashSet<String> = HashSet::new();
+    for (top_name, top_node) in &hier.top_level {
+        collect_no_mod_uniontypes(&top_node.children, top_name, &mut no_mod_uniontypes);
+    }
+
     // Group top-level classes by their output directory.
     let mut dir_classes: BTreeMap<String, Vec<(&str, &NameNode<'_>)>> = BTreeMap::new();
     for (name, node) in &hier.top_level {
@@ -244,7 +258,7 @@ pub fn generate_all(hier: &InstanceHierarchy<'_>, output_dir: &str) -> std::io::
             } else {
                 None
             };
-            let content = generate_file(name, node, &crate_map, current_crate, &top_level_uniontype_names, hier.recursive_types.clone());
+            let content = generate_file(name, node, &crate_map, current_crate, &top_level_uniontype_names, hier.recursive_types.clone(), &no_mod_uniontypes);
             std::fs::write(format!("{dir}/{name}.rs"), content)?;
         }
         let lib_content = generate_lib_file(hier, dir, output_dir);
@@ -274,8 +288,27 @@ fn generate_lib_file(hier: &InstanceHierarchy<'_>, this_dir: &str, default_dir: 
     out
 }
 
-fn generate_file(top_name: &str, node: &NameNode<'_>, crate_map: &BTreeMap<String, String>, current_crate: Option<String>, top_level_uniontype_names: &HashSet<String>, recursive_types: BTreeSet<String>) -> String {
+/// Collect fully-qualified names of nested uniontypes (inside packages) that have no
+/// `pub mod` wrapper because they contain only records. Used to suppress the `::TypeName`
+/// doubling in `fmt_ty` for those types.
+fn collect_no_mod_uniontypes(nodes: &BTreeMap<String, NameNode<'_>>, prefix: &str, out: &mut HashSet<String>) {
+    for (name, node) in nodes {
+        let qname = if prefix.is_empty() { name.clone() } else { format!("{prefix}.{name}") };
+        if let NodeKind::Class(c) = &node.kind {
+            if matches!(c.restriction, Absyn::Restriction::R_UNIONTYPE)
+                && !prefix.is_empty()
+                && !uniontype_needs_mod(node)
+            {
+                out.insert(qname.clone());
+            }
+        }
+        collect_no_mod_uniontypes(&node.children, &qname, out);
+    }
+}
+
+fn generate_file(top_name: &str, node: &NameNode<'_>, crate_map: &BTreeMap<String, String>, current_crate: Option<String>, top_level_uniontype_names: &HashSet<String>, recursive_types: BTreeSet<String>, no_mod_uniontypes: &HashSet<String>) -> String {
     let mut ctx = GenCtx::new(top_name, current_crate, crate_map.clone(), top_level_uniontype_names.clone(), recursive_types);
+    ctx.no_mod_uniontypes = no_mod_uniontypes.clone();
     collect_imports(node, &mut ctx);
 
     let mut out = String::new();
@@ -343,8 +376,10 @@ fn emit_node(out: &mut String, name: &str, node: &NameNode<'_>, indent: &str, ct
 fn emit_uniontype(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Class, indent: &str, ctx: &mut GenCtx) {
     // Top-level unittypes (own file, name == top_name) are already a Rust module by
     // virtue of their file — don't add a redundant inner `pub mod`. Nested unittypes
-    // (inside a package file) need wrapping so same-named functions don't collide.
-    let wrap_in_mod = name != ctx.top_name;
+    // that contain only records also don't need a mod: there are no functions or other
+    // members to access via `TypeName::member`. The mod is only needed when non-record
+    // children (functions, nested packages, …) must be reachable as `TypeName::fn_name`.
+    let wrap_in_mod = name != ctx.top_name && uniontype_needs_mod(node);
     let inner;
     let ename = escape_ident(name);
     if wrap_in_mod {
@@ -585,7 +620,7 @@ fn fmt_ty(ty: &Ty, ctx: &mut GenCtx) -> String {
             let last = name.rsplit('.').next().unwrap_or(name);
             let shortened = ctx.shorten(name);
             let in_own_mod = ctx.current_path.last().map(|p| p == last).unwrap_or(false);
-            let needs_doubling = !in_own_mod && (
+            let needs_doubling = !in_own_mod && !ctx.no_mod_uniontypes.contains(name.as_str()) && (
                 (ctx.top_level_uniontype_names.contains(first) && first != ctx.top_name) ||
                 // Nested uniontype: dotted qname AND first != last. The first == last case
                 // (e.g. "IOStream.IOStream") means a package and its same-named uniontype —
@@ -635,7 +670,7 @@ fn fmt_ty(ty: &Ty, ctx: &mut GenCtx) -> String {
             let last = dotted.rsplit('.').next().unwrap_or(&dotted);
             let shortened = ctx.shorten(&dotted);
             let in_own_mod = ctx.current_path.last().map(|p| p == last).unwrap_or(false);
-            let needs_doubling = !in_own_mod && (
+            let needs_doubling = !in_own_mod && !ctx.no_mod_uniontypes.contains(dotted.as_str()) && (
                 (ctx.top_level_uniontype_names.contains(first) && first != ctx.top_name) ||
                 (dotted.contains('.') && first != last)
             );

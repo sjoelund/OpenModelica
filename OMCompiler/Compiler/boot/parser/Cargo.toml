@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["mmwinnow", "mmtorust", "openmodelica", "openmodelica_util", "metamodelica"]
+members = ["mmwinnow", "mmtorust", "openmodelica", "openmodelica_util", "metamodelica", "openmodelica_frontend", "openmodelica_backend_interface"]
 [workspace.dependencies]
 anyhow = "1.0.102"
 list_comprehension_macro = "0.1.1"
@@ -9,6 +9,9 @@ winnow = "0.7"
 mmtorust = {path = "mmtorust"}
 mmwinnow = {path = "mmwinnow"}
 metamodelica = {path = "metamodelica"}
+openmodelica_frontend = {path = "openmodelica_frontend"}
+openmodelica_util = {path = "openmodelica_util"}
+openmodelica_backend_interface = {path = "openmodelica_backend_interface"}
 
 #[profile.release]
 #debug = true

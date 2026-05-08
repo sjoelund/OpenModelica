@@ -519,6 +519,9 @@ fn emit_uniontype(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Cla
                         Absyn::Restriction::R_TYPE | Absyn::Restriction::R_ENUMERATION => {
                             emit_type_item(out, &cdm.class_def.name, child_node, child_class, &inner, &mut *ctx);
                         }
+                        Absyn::Restriction::R_UNIONTYPE => {
+                            emit_uniontype(out, &cdm.class_def.name, child_node, child_class, &inner, &mut *ctx);
+                        }
                         _ => {}
                     }
                 }

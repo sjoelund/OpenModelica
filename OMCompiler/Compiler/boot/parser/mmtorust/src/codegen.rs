@@ -361,7 +361,7 @@ fn emit_node(out: &mut String, name: &str, node: &NameNode<'_>, indent: &str, ct
             }
         }
         R_UNIONTYPE => emit_uniontype(out, name, node, c, indent, &mut *ctx),
-        R_TYPE => emit_type_item(out, name, node, c, indent, &mut *ctx),
+        R_TYPE | R_ENUMERATION => emit_type_item(out, name, node, c, indent, &mut *ctx),
         R_RECORD | R_METARECORD { .. } => emit_struct(out, name, node, c, indent, &mut *ctx),
         R_FUNCTION { .. } => emit_function(out, name, node, c, indent, &mut *ctx),
         _ => {}
@@ -468,10 +468,16 @@ fn emit_uniontype(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Cla
     };
     for member in members {
         if let MM::ClassMember::ClassDef(cdm) = member {
-            if matches!(cdm.class_def.restriction, Absyn::Restriction::R_FUNCTION { .. }) {
-                if let Some(fn_node) = node.children.get(&cdm.class_def.name) {
-                    if let NodeKind::Class(fn_class) = &fn_node.kind {
-                        emit_function(out, &cdm.class_def.name, fn_node, fn_class, &inner, &mut *ctx);
+            if let Some(child_node) = node.children.get(&cdm.class_def.name) {
+                if let NodeKind::Class(child_class) = &child_node.kind {
+                    match &cdm.class_def.restriction {
+                        Absyn::Restriction::R_FUNCTION { .. } => {
+                            emit_function(out, &cdm.class_def.name, child_node, child_class, &inner, &mut *ctx);
+                        }
+                        Absyn::Restriction::R_TYPE | Absyn::Restriction::R_ENUMERATION => {
+                            emit_type_item(out, &cdm.class_def.name, child_node, child_class, &inner, &mut *ctx);
+                        }
+                        _ => {}
                     }
                 }
             }

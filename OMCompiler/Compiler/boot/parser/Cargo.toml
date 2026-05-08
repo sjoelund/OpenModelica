@@ -11,7 +11,9 @@ mmwinnow = {path = "mmwinnow"}
 metamodelica = {path = "metamodelica"}
 openmodelica_frontend = {path = "openmodelica_frontend"}
 openmodelica_util = {path = "openmodelica_util"}
+openmodelica_backend = {path = "openmodelica_backend"}
 openmodelica_backend_interface = {path = "openmodelica_backend_interface"}
+openmodelica_susan = {path = "openmodelica_susan"}
 
 #[profile.release]
 #debug = true

@@ -182,31 +182,46 @@ impl GenCtx {
     }
 }
 
+/// Return true if `dotted` (e.g. `"NFInstNode.NodeTree"`) resolves to a real node in the
+/// hierarchy. Used to skip dangling imports that appear in the MetaModelica source but
+/// refer to names that no longer exist (or never did) in the parsed tree.
+fn path_exists_in_hierarchy<'a>(dotted: &str, top_level: &'a BTreeMap<String, NameNode<'a>>) -> bool {
+    let mut parts = dotted.split('.');
+    let first = parts.next().unwrap_or("");
+    let Some(mut node) = top_level.get(first) else { return false };
+    for part in parts {
+        let Some(child) = node.children.get(part) else { return false };
+        node = child;
+    }
+    true
+}
+
 /// Walk the subtree collecting file-level import nodes into `ctx`.
 /// Stops at function boundaries — imports inside a function body are local to that function.
 /// Skips imports whose resolved path starts with `{top_name}.`: those refer to siblings
 /// within the same file and are already in scope through `use super::*;`.
-fn collect_imports(node: &NameNode<'_>, ctx: &mut GenCtx) {
+/// Skips imports that don't resolve to a real node in the hierarchy (dangling imports).
+fn collect_imports<'a>(node: &NameNode<'_>, ctx: &mut GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) {
     let same_file_prefix = format!("{}.", ctx.top_name);
     for child in node.children.values() {
         match &child.kind {
             NodeKind::Import(m) => match &m.import {
                 Absyn::Import::UNQUAL_IMPORT { path } => {
                     let dotted = path_to_dotted(path);
-                    if !dotted.starts_with(&same_file_prefix) {
+                    if !dotted.starts_with(&same_file_prefix) && path_exists_in_hierarchy(&dotted, top_level) {
                         ctx.unqual_modules.insert(dotted);
                     }
                 }
                 Absyn::Import::QUAL_IMPORT { path } => {
                     let dotted = path_to_dotted(path);
-                    if !dotted.starts_with(&same_file_prefix) {
+                    if !dotted.starts_with(&same_file_prefix) && path_exists_in_hierarchy(&dotted, top_level) {
                         let last = dotted.rsplit('.').next().unwrap_or(&dotted).to_owned();
                         ctx.named.insert(dotted, last);
                     }
                 }
                 Absyn::Import::NAMED_IMPORT { name, path } => {
                     let dotted = path_to_dotted(path);
-                    if !dotted.starts_with(&same_file_prefix) {
+                    if !dotted.starts_with(&same_file_prefix) && path_exists_in_hierarchy(&dotted, top_level) {
                         ctx.named.insert(dotted, name.clone());
                     }
                 }
@@ -218,7 +233,10 @@ fn collect_imports(node: &NameNode<'_>, ctx: &mut GenCtx) {
                                 Absyn::GroupImport::GROUP_IMPORT_NAME { name } => (name.clone(), name.clone()),
                                 Absyn::GroupImport::GROUP_IMPORT_RENAME { rename, name } => (rename.clone(), name.clone()),
                             };
-                            ctx.named.insert(format!("{prefix_str}.{orig}"), local);
+                            let full = format!("{prefix_str}.{orig}");
+                            if path_exists_in_hierarchy(&full, top_level) {
+                                ctx.named.insert(full, local);
+                            }
                         }
                     }
                 }
@@ -226,7 +244,7 @@ fn collect_imports(node: &NameNode<'_>, ctx: &mut GenCtx) {
             NodeKind::Class(c) if matches!(c.restriction, Absyn::Restriction::R_FUNCTION { .. }) => {
                 // Don't recurse into functions — their imports are local to that function.
             }
-            _ => collect_imports(child, ctx),
+            _ => collect_imports(child, ctx, top_level),
         }
     }
 }
@@ -292,7 +310,7 @@ pub fn generate_all(hier: &InstanceHierarchy<'_>, output_dir: &str) -> std::io::
             } else {
                 None
             };
-            let content = generate_file(name, node, &crate_map, current_crate, &top_level_uniontype_names, hier.recursive_types.clone(), &no_mod_uniontypes);
+            let content = generate_file(name, node, &crate_map, current_crate, &top_level_uniontype_names, hier.recursive_types.clone(), &no_mod_uniontypes, &hier.top_level);
             std::fs::write(format!("{dir}/{name}.rs"), content)?;
         }
         let lib_content = generate_lib_file(hier, dir, output_dir);
@@ -340,10 +358,10 @@ fn collect_no_mod_uniontypes(nodes: &BTreeMap<String, NameNode<'_>>, prefix: &st
     }
 }
 
-fn generate_file(top_name: &str, node: &NameNode<'_>, crate_map: &BTreeMap<String, String>, current_crate: Option<String>, top_level_uniontype_names: &HashSet<String>, recursive_types: BTreeSet<String>, no_mod_uniontypes: &HashSet<String>) -> String {
+fn generate_file<'a>(top_name: &str, node: &NameNode<'_>, crate_map: &BTreeMap<String, String>, current_crate: Option<String>, top_level_uniontype_names: &HashSet<String>, recursive_types: BTreeSet<String>, no_mod_uniontypes: &HashSet<String>, top_level: &'a BTreeMap<String, NameNode<'a>>) -> String {
     let mut ctx = GenCtx::new(top_name, current_crate, crate_map.clone(), top_level_uniontype_names.clone(), recursive_types);
     ctx.no_mod_uniontypes = no_mod_uniontypes.clone();
-    collect_imports(node, &mut ctx);
+    collect_imports(node, &mut ctx, top_level);
 
     // First pass: emit the body so that shorten() can populate implicit_modules.
     let mut body = String::new();

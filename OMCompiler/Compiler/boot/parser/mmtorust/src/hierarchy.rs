@@ -1277,16 +1277,39 @@ fn resolve_path(path: &Absyn::Path, known: &ScopedKnown, aliases: &ScopedAliases
         return None;
     }
 
-    // Dotted name: try direct lookup first, then alias-expand the leading segment.
-    let expanded: Option<String> = if sk_get(known, qname).is_none() {
-        if let Some(dot) = qname.find('.') {
-            let (first, rest) = qname.split_at(dot); // rest starts with '.'
-            alias_lookup(aliases, module_prefix, first).map(|target| format!("{target}{rest}"))
+    // Dotted name: try direct lookup first, then scope-walk by prepending ancestor
+    // scopes (e.g. `Connect.Face` in scope `DAE` → try `DAE.Connect.Face`), then
+    // alias-expand the leading segment.
+    let expanded: Option<String> = if sk_get(known, qname).is_some() {
+        None
+    } else {
+        // Scope-walk: try prepending each enclosing scope.
+        let scope_walked = if !module_prefix.is_empty() {
+            let mut scope = module_prefix;
+            let mut found = None;
+            loop {
+                let candidate = format!("{scope}.{qname}");
+                if sk_get(known, &candidate).is_some() {
+                    found = Some(candidate);
+                    break;
+                }
+                match scope.rfind('.') {
+                    Some(dot) => scope = &scope[..dot],
+                    None => break,
+                }
+            }
+            found
         } else {
             None
-        }
-    } else {
-        None
+        };
+        scope_walked.or_else(|| {
+            if let Some(dot) = qname.find('.') {
+                let (first, rest) = qname.split_at(dot); // rest starts with '.'
+                alias_lookup(aliases, module_prefix, first).map(|target| format!("{target}{rest}"))
+            } else {
+                None
+            }
+        })
     };
     let effective = expanded.as_deref().unwrap_or(qname);
 

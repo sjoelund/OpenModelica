@@ -232,6 +232,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "openmodelica_nf_frontend"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "metamodelica",
+ "openmodelica_frontend",
+ "openmodelica_util",
+]
+
+[[package]]
 name = "openmodelica_susan"
 version = "0.1.0"
 dependencies = [

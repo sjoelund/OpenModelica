@@ -404,13 +404,35 @@ fn variant_promotion(scope: &str, name: &str, ty: &Ty, known: &ScopedKnown) -> T
 
 /// Walk the hierarchy and record, for each scope, all names directly accessible within it
 /// — both locally-defined children (nested packages, classes, functions) and imports.
-fn collect_scope_imports(nodes: &BTreeMap<String, NameNode<'_>>, prefix: &str, out: &mut ScopeImports) {
+/// Wildcard imports (`import Pkg.*`) are expanded: every child of `Pkg` in the hierarchy
+/// is inserted into the scope's visible-name set.
+fn collect_scope_imports<'a>(
+    nodes: &BTreeMap<String, NameNode<'a>>,
+    prefix: &str,
+    top_level: &BTreeMap<String, NameNode<'a>>,
+    out: &mut ScopeImports,
+) {
     for (name, node) in nodes {
         let qname = qualify(prefix, name);
-        for child_name in node.children.keys() {
-            out.entry(qname.clone()).or_default().insert(child_name.clone());
+        for (child_name, child_node) in &node.children {
+            if child_name == "*" {
+                if let NodeKind::Import(m) = &child_node.kind {
+                    if let Absyn::Import::UNQUAL_IMPORT { path } = &m.import {
+                        let pkg = fmt_path(path);
+                        let pkg_path = pkg.trim_start_matches('.');
+                        if let Some(pkg_node) = find_node_by_path(top_level, pkg_path) {
+                            let scope_entry = out.entry(qname.clone()).or_default();
+                            for n in pkg_node.children.keys() {
+                                scope_entry.insert(n.clone());
+                            }
+                        }
+                    }
+                }
+            } else {
+                out.entry(qname.clone()).or_default().insert(child_name.clone());
+            }
         }
-        collect_scope_imports(&node.children, &qname, out);
+        collect_scope_imports(&node.children, &qname, top_level, out);
     }
 }
 
@@ -455,7 +477,7 @@ pub fn resolve_pass(hier: &mut InstanceHierarchy<'_>, warnings: &mut BTreeSet<St
     collect_known(&hier.top_level, "", &mut known);
     // Build the per-scope import index from a read-only pass before any mutation.
     let mut scope_imports: ScopeImports = BTreeMap::new();
-    collect_scope_imports(&hier.top_level, "", &mut scope_imports);
+    collect_scope_imports(&hier.top_level, "", &hier.top_level, &mut scope_imports);
     let mut wctx = WarnCtx { warnings, scope_imports: &scope_imports };
     collect_extends_known(&hier.top_level, "", &hier.top_level, &mut known, &mut wctx);
     let mut aliases: BTreeMap<String, String> = BTreeMap::new();

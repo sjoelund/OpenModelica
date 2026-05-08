@@ -890,7 +890,15 @@ fn collect_extends_known<'a>(
                     sk_insert_if_absent(known, &qualify(&qname, child_name), child_node.ty.clone());
                     // Relative key (no enclosing package prefix): ZeroCrossingTree.Tree
                     // Used by sibling type aliases, e.g. `type Tree = ZeroCrossingTree.Tree`
-                    sk_insert_if_absent(known, &qualify(name, child_name), child_node.ty.clone());
+                    // Prefer the derived class's already-seeded type (from collect_known) over the
+                    // base class's type, so that e.g. `EnvTree.Tree` resolves to
+                    // `NFSCodeEnv.EnvTree.Tree` rather than `BaseAvlTree.Tree`.
+                    let full_key = qualify(&qname, child_name);
+                    let rel_ty = sk_get(known, &full_key)
+                        .filter(|t| **t != Ty::Unknown && !matches!(*t, Ty::TypeVar(_)))
+                        .cloned()
+                        .unwrap_or_else(|| child_node.ty.clone());
+                    sk_insert_if_absent(known, &qualify(name, child_name), rel_ty);
                 }
             }
             // Process `redeclare type X = Y` modifications in the extends clause.

@@ -76,9 +76,15 @@ impl GenCtx {
             return rest.replace('.', "::");
         }
 
-        // Named / qualified import.
+        // Named / qualified import (exact match: e.g. `FUnit` → `Unit`).
         if let Some(local) = self.named.get(dotted) {
             return local.clone();
+        }
+        // Named import prefix match: e.g. `FUnit.Unit` with `FUnit → Unit` becomes `Unit::Unit`.
+        for (module_path, local_alias) in &self.named {
+            if let Some(rest) = dotted.strip_prefix(&format!("{module_path}.")) {
+                return format!("{local_alias}::{}", rest.replace('.', "::"));
+            }
         }
 
         // Wildcard import: if a module prefix matches, convert the remainder to a

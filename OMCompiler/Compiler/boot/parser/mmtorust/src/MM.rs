@@ -195,7 +195,7 @@ fn extract_crate_name(body: &ClassDef) -> Option<String> {
 fn interface_to_crate(interface: &str) -> Option<String> {
     match interface {
         "backend" => Some("openmodelica_backend".to_owned()),
-        "backendInterface" => Some("openmodelica_backend_interface".to_owned()),
+        "nf_frontend" => Some("openmodelica_nf_frontend".to_owned()),
         "frontend" => Some("openmodelica_frontend".to_owned()),
         "susan" => Some("openmodelica_susan".to_owned()),
         "util" => Some("openmodelica_util".to_owned()),

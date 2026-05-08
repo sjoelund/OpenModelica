@@ -1343,8 +1343,10 @@ fn ty_direct_deps(ty: &Ty) -> Vec<String> {
         Ty::Option(inner) => ty_direct_deps(inner),
         // Tuple embeds all elements.
         Ty::Tuple(tys) => tys.iter().flat_map(|t| ty_direct_deps(t)).collect(),
-        // Heap-allocated — skip.
-        Ty::List(_) | Ty::Array(_) => vec![],
+        // List<T> has head: T inline (only tail is Arc); follow through.
+        Ty::List(inner) => ty_direct_deps(inner),
+        // Array (Vec<T>) is fully heap-allocated — skip.
+        Ty::Array(_) => vec![],
         // Generic type args may or may not be heap-allocated; conservatively follow them.
         Ty::Generic(_, args) => args.iter().flat_map(|t| ty_direct_deps(t)).collect(),
         _ => vec![],

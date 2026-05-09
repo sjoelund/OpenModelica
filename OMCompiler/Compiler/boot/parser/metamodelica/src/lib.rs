@@ -61,30 +61,30 @@ pub enum OptionValue<A> {
 
 /// Logically combine two Booleans with 'and' operator.
 #[inline(always)]
-pub fn bool_and(b1: bool, b2: bool) -> bool {
+pub fn boolAnd(b1: bool, b2: bool) -> bool {
     b1 && b2
 }
 
 /// Logically combine two Booleans with 'or' operator.
 #[inline(always)]
-pub fn bool_or(b1: bool, b2: bool) -> bool {
+pub fn boolOr(b1: bool, b2: bool) -> bool {
     b1 || b2
 }
 
 /// Logically invert Boolean value using 'not' operator.
 #[inline(always)]
-pub fn bool_not(b: bool) -> bool {
+pub fn boolNot(b: bool) -> bool {
     !b
 }
 
 /// Compares two Booleans for equality.
 #[inline(always)]
-pub fn bool_eq(b1: bool, b2: bool) -> bool {
+pub fn boolEq(b1: bool, b2: bool) -> bool {
     b1 == b2
 }
 
 /// Returns "true" or "false" string from a boolean.
-pub fn bool_string(b: bool) -> String {
+pub fn boolString(b: bool) -> String {
     if b { "true".to_string() } else { "false".to_string() }
 }
 
@@ -94,52 +94,52 @@ pub fn bool_string(b: bool) -> String {
 
 /// Adds two Integer values.
 #[inline(always)]
-pub fn int_add(i1: i32, i2: i32) -> i32 {
+pub fn intAdd(i1: i32, i2: i32) -> i32 {
     i1 + i2
 }
 
 /// Subtracts two Integer values.
 #[inline(always)]
-pub fn int_sub(i1: i32, i2: i32) -> i32 {
+pub fn intSub(i1: i32, i2: i32) -> i32 {
     i1 - i2
 }
 
 /// Multiplies two Integer values.
 #[inline(always)]
-pub fn int_mul(i1: i32, i2: i32) -> i32 {
+pub fn intMul(i1: i32, i2: i32) -> i32 {
     i1 * i2
 }
 
 /// Divides two Integer values (truncated division).
 /// Matches Modelica's div() semantics: truncates toward zero.
-pub fn int_div(i1: i32, i2: i32) -> i32 {
+pub fn intDiv(i1: i32, i2: i32) -> i32 {
     i1 / i2
 }
 
 /// Calculates remainder of Integer division i1/i2.
 /// Matches Modelica's mod() semantics: same sign as dividend.
-pub fn int_mod(i1: i32, i2: i32) -> i32 {
+pub fn intMod(i1: i32, i2: i32) -> i32 {
     i1 % i2
 }
 
 /// Returns the bigger one of two Integer values.
-pub fn int_max(i1: i32, i2: i32) -> i32 {
+pub fn intMax(i1: i32, i2: i32) -> i32 {
     i1.max(i2)
 }
 
 /// Returns the smaller one of two Integer values.
-pub fn int_min(i1: i32, i2: i32) -> i32 {
+pub fn intMin(i1: i32, i2: i32) -> i32 {
     i1.min(i2)
 }
 
 /// Returns the absolute value of Integer i.
-pub fn int_abs(i: i32) -> i32 {
+pub fn intAbs(i: i32) -> i32 {
     i.abs()
 }
 
 /// Returns negative value of Integer i.
 #[inline(always)]
-pub fn int_neg(i: i32) -> i32 {
+pub fn intNeg(i: i32) -> i32 {
     -i
 }
 
@@ -149,37 +149,37 @@ pub fn int_neg(i: i32) -> i32 {
 
 /// Returns whether Integer i1 is smaller than Integer i2.
 #[inline(always)]
-pub fn int_lt(i1: i32, i2: i32) -> bool {
+pub fn intLt(i1: i32, i2: i32) -> bool {
     i1 < i2
 }
 
 /// Returns whether Integer i1 is smaller than or equal to Integer i2.
 #[inline(always)]
-pub fn int_le(i1: i32, i2: i32) -> bool {
+pub fn intLe(i1: i32, i2: i32) -> bool {
     i1 <= i2
 }
 
 /// Returns whether Integer i1 is equal to Integer i2.
 #[inline(always)]
-pub fn int_eq(i1: i32, i2: i32) -> bool {
+pub fn intEq(i1: i32, i2: i32) -> bool {
     i1 == i2
 }
 
 /// Returns whether Integer i1 is not equal to Integer i2.
 #[inline(always)]
-pub fn int_ne(i1: i32, i2: i32) -> bool {
+pub fn intNe(i1: i32, i2: i32) -> bool {
     i1 != i2
 }
 
 /// Returns whether Integer i1 is greater than or equal to Integer i2.
 #[inline(always)]
-pub fn int_ge(i1: i32, i2: i32) -> bool {
+pub fn intGe(i1: i32, i2: i32) -> bool {
     i1 >= i2
 }
 
 /// Returns whether Integer i1 is greater than Integer i2.
 #[inline(always)]
-pub fn int_gt(i1: i32, i2: i32) -> bool {
+pub fn intGt(i1: i32, i2: i32) -> bool {
     i1 > i2
 }
 
@@ -189,37 +189,37 @@ pub fn int_gt(i1: i32, i2: i32) -> bool {
 
 /// Returns bitwise inverted Integer number of i (~i in C).
 #[inline(always)]
-pub fn int_bit_not(i: i32) -> i32 {
+pub const fn intBitNot(i: i32) -> i32 {
     !i
 }
 
 /// Returns bitwise 'and' of Integers i1 and i2 (i1 & i2 in C).
 #[inline(always)]
-pub fn int_bit_and(i1: i32, i2: i32) -> i32 {
+pub const fn intBitAnd(i1: i32, i2: i32) -> i32 {
     i1 & i2
 }
 
 /// Returns bitwise 'or' of Integers i1 and i2 (i1 | i2 in C).
 #[inline(always)]
-pub fn int_bit_or(i1: i32, i2: i32) -> i32 {
+pub const fn intBitOr(i1: i32, i2: i32) -> i32 {
     i1 | i2
 }
 
 /// Returns bitwise 'xor' of Integers i1 and i2 (i1 ^ i2 in C).
 #[inline(always)]
-pub fn int_bit_xor(i1: i32, i2: i32) -> i32 {
+pub const fn intBitXor(i1: i32, i2: i32) -> i32 {
     i1 ^ i2
 }
 
 /// Returns bitwise left shift of Integer i by s bits (i << s in C).
 #[inline(always)]
-pub fn int_bit_l_shift(i: i32, s: i32) -> i32 {
+pub const fn intBitLShift(i: i32, s: i32) -> i32 {
     i << s
 }
 
 /// Returns bitwise right shift of Integer i by s bits (i >> s in C).
 #[inline(always)]
-pub fn int_bit_r_shift(i: i32, s: i32) -> i32 {
+pub const fn intBitRShift(i: i32, s: i32) -> i32 {
     i >> s
 }
 
@@ -229,12 +229,12 @@ pub fn int_bit_r_shift(i: i32, s: i32) -> i32 {
 
 /// Converts Integer to Real.
 #[inline(always)]
-pub fn int_real(i: i32) -> f64 {
+pub fn intReal(i: i32) -> f64 {
     i as f64
 }
 
 /// Converts Integer to String.
-pub fn int_string(i: i32) -> String {
+pub fn intString(i: i32) -> String {
     i.to_string()
 }
 
@@ -244,64 +244,64 @@ pub fn int_string(i: i32) -> String {
 
 /// Adds two Real values.
 #[inline(always)]
-pub fn real_add(r1: f64, r2: f64) -> f64 {
+pub fn realAdd(r1: f64, r2: f64) -> f64 {
     r1 + r2
 }
 
 /// Subtracts two Real values.
 #[inline(always)]
-pub fn real_sub(r1: f64, r2: f64) -> f64 {
+pub fn realSub(r1: f64, r2: f64) -> f64 {
     r1 - r2
 }
 
 /// Multiplies two Real values.
 #[inline(always)]
-pub fn real_mul(r1: f64, r2: f64) -> f64 {
+pub fn realMul(r1: f64, r2: f64) -> f64 {
     r1 * r2
 }
 
 /// Divides two Real values.
 #[inline(always)]
-pub fn real_div(r1: f64, r2: f64) -> f64 {
+pub fn realDiv(r1: f64, r2: f64) -> f64 {
     r1 / r2
 }
 
 /// Calculates remainder of Real division r1/r2.
-pub fn real_mod(r1: f64, r2: f64) -> f64 {
+pub fn realMod(r1: f64, r2: f64) -> f64 {
     r1 % r2
 }
 
 /// Raises r1 to the power r2 (r1^r2).
-pub fn real_pow(r1: f64, r2: f64) -> f64 {
+pub fn realPow(r1: f64, r2: f64) -> f64 {
     r1.powf(r2)
 }
 
 /// Returns the bigger one of two Real values.
 #[inline(always)]
-pub fn real_max(r1: f64, r2: f64) -> f64 {
+pub fn realMax(r1: f64, r2: f64) -> f64 {
     r1.max(r2)
 }
 
 /// Returns the smaller one of two Real values.
 #[inline(always)]
-pub fn real_min(r1: f64, r2: f64) -> f64 {
+pub fn realMin(r1: f64, r2: f64) -> f64 {
     r1.min(r2)
 }
 
 /// Returns the absolute value of Real x.
 #[inline(always)]
-pub fn real_abs(x: f64) -> f64 {
+pub fn realAbs(x: f64) -> f64 {
     x.abs()
 }
 
 /// Returns whether two Real values are approximately equal within absTol.
-pub fn real_almost_eq(a: f64, b: f64, abs_tol: f64) -> bool {
+pub fn realAlmostEq(a: f64, b: f64, abs_tol: f64) -> bool {
     abs_tol > (a - b).abs()
 }
 
 /// Returns negative value of Real x.
 #[inline(always)]
-pub fn real_neg(x: f64) -> f64 {
+pub fn realNeg(x: f64) -> f64 {
     -x
 }
 
@@ -311,37 +311,37 @@ pub fn real_neg(x: f64) -> f64 {
 
 /// Returns whether Real x1 is smaller than Real x2.
 #[inline(always)]
-pub fn real_lt(x1: f64, x2: f64) -> bool {
+pub fn realLt(x1: f64, x2: f64) -> bool {
     x1 < x2
 }
 
 /// Returns whether Real x1 is smaller than or equal to Real x2.
 #[inline(always)]
-pub fn real_le(x1: f64, x2: f64) -> bool {
+pub fn realLe(x1: f64, x2: f64) -> bool {
     x1 <= x2
 }
 
 /// Returns whether Real x1 is equal to Real x2.
 #[inline(always)]
-pub fn real_eq(x1: f64, x2: f64) -> bool {
+pub fn realEq(x1: f64, x2: f64) -> bool {
     x1 == x2
 }
 
 /// Returns whether Real x1 is not equal to Real x2.
 #[inline(always)]
-pub fn real_ne(x1: f64, x2: f64) -> bool {
+pub fn realNe(x1: f64, x2: f64) -> bool {
     x1 != x2
 }
 
 /// Returns whether Real x1 is greater than or equal to Real x2.
 #[inline(always)]
-pub fn real_ge(x1: f64, x2: f64) -> bool {
+pub fn realGe(x1: f64, x2: f64) -> bool {
     x1 >= x2
 }
 
 /// Returns whether Real x1 is greater than Real x2.
 #[inline(always)]
-pub fn real_gt(x1: f64, x2: f64) -> bool {
+pub fn realGt(x1: f64, x2: f64) -> bool {
     x1 > x2
 }
 
@@ -350,12 +350,12 @@ pub fn real_gt(x1: f64, x2: f64) -> bool {
 // ============================================================================
 
 /// Converts Real to Integer (truncates toward zero, matching Modelica integer() function).
-pub fn real_int(r: f64) -> i32 {
+pub fn realInt(r: f64) -> i32 {
     r as i32
 }
 
 /// Converts Real to String.
-pub fn real_string(r: f64) -> String {
+pub fn realString(r: f64) -> String {
     r.to_string()
 }
 
@@ -364,58 +364,58 @@ pub fn real_string(r: f64) -> String {
 // ============================================================================
 
 /// Returns the ASCII code point of a single-character string.
-pub fn string_char_int(ch: &str) -> i32 {
+pub fn stringCharInt(ch: &str) -> i32 {
     ch.chars().next()
         .map(|c| c as i32)
         .unwrap_or(0)
 }
 
 /// Returns a single-character string from an ASCII code point.
-pub fn int_string_char(i: i32) -> String {
+pub fn intStringChar(i: i32) -> String {
     std::char::from_u32(i as u32)
         .map(|c| c.to_string())
         .unwrap_or_default()
 }
 
 /// Parses an integer from a string. Fails if the string is not a valid integer.
-pub fn string_int(str: &str) -> Result<i32> {
+pub fn stringInt(str: &str) -> Result<i32> {
     str.parse::<i32>().map_err(|_| anyhow::anyhow!("Failed to parse integer from string: {}", str))
 }
 
 /// Parses a real (f64) from a string.
 /// Fails unless the whole string can be consumed.
-pub fn string_real(str: &str) -> Result<f64> {
+pub fn stringReal(str: &str) -> Result<f64> {
     str.parse::<f64>().map_err(|_| anyhow::anyhow!("Failed to parse real from string: {}", str))
 }
 
 /// Converts a string to a list of single-character strings.
-pub fn string_list_string_char(str: &str) -> List<String> {
+pub fn stringListStringChar(str: &str) -> List<String> {
     str.chars().map(|c| c.to_string()).collect()
 }
 
 /// Appends a list of strings into a single string.
-pub fn string_append_list(strs: &List<String>) -> String {
+pub fn stringAppendList(strs: &List<String>) -> String {
     strs.into_iter().collect()
 }
 
 /// Takes a list of strings and a delimiter and joins them with the delimiter inserted between elements.
 /// Example: stringDelimitList({"x","y","z"}, ", ") => "x, y, z"
-pub fn string_delimit_list(strs: &List<String>, delimiter: &str) -> String {
+pub fn stringDelimitList(strs: &List<String>, delimiter: &str) -> String {
     strs.into_iter().collect::<Vec<String>>().join(delimiter)
 }
 
 /// Returns the length of the string (number of bytes).
-pub fn string_length(str: &str) -> i32 {
+pub fn stringLength(str: &str) -> i32 {
     str.len() as i32
 }
 
 /// Returns true if the string is empty.
-pub fn string_empty(str: &str) -> bool {
+pub fn stringEmpty(str: &str) -> bool {
     str.is_empty()
 }
 
 /// Returns the byte value at the given 1-based index.
-pub fn string_get(str: &str, index: i32) -> Result<i32> {
+pub fn stringGet(str: &str, index: i32) -> Result<i32> {
     let idx = (index - 1) as usize; // 1-based to 0-based
     str.bytes().nth(idx)
         .map(|b| b as i32)
@@ -423,7 +423,7 @@ pub fn string_get(str: &str, index: i32) -> Result<i32> {
 }
 
 /// Returns the character at the given 1-based index as a string.
-pub fn string_get_string_char(str: &str, index: i32) -> Result<String> {
+pub fn stringGetStringChar(str: &str, index: i32) -> Result<String> {
     let idx = (index - 1) as usize; // 1-based to 0-based
     str.chars().nth(idx)
         .map(|c| c.to_string())
@@ -432,7 +432,7 @@ pub fn string_get_string_char(str: &str, index: i32) -> Result<String> {
 
 /// Updates the character at the given 1-based index with newch.
 /// newch should be a single character.
-pub fn string_update_string_char(str: &str, newch: &str, index: i32) -> Result<String> {
+pub fn stringUpdateStringChar(str: &str, newch: &str, index: i32) -> Result<String> {
     if newch.is_empty() {
         bail!("newch must not be empty");
     }
@@ -447,23 +447,23 @@ pub fn string_update_string_char(str: &str, newch: &str, index: i32) -> Result<S
 }
 
 /// Concatenates two strings (s1 + s2).
-pub fn string_append(s1: &str, s2: &str) -> String {
+pub fn stringAppend(s1: &str, s2: &str) -> String {
     format!("{}{}", s1, s2)
 }
 
 /// Compares two strings for equality.
 #[inline(always)]
-pub fn string_eq(s1: &str, s2: &str) -> bool {
+pub fn stringEq(s1: &str, s2: &str) -> bool {
     s1 == s2
 }
 #[inline(always)]
-pub fn string_equal(s1: &str, s2: &str) -> bool {
+pub fn stringEqual(s1: &str, s2: &str) -> bool {
     s1 == s2
 }
 
 /// Compares two strings lexicographically.
 /// Returns negative if s1 < s2, zero if s1 == s2, positive if s1 > s2.
-pub fn string_compare(s1: &str, s2: &str) -> i32 {
+pub fn stringCompare(s1: &str, s2: &str) -> i32 {
     // Byte-by-byte comparison for consistency
     let bytes1 = s1.as_bytes();
     let bytes2 = s2.as_bytes();
@@ -485,7 +485,7 @@ pub fn string_compare(s1: &str, s2: &str) -> i32 {
 }
 
 /// Returns a hash of the string using Rust's built-in hash.
-pub fn string_hash(str: &str) -> i32 {
+pub fn stringHash(str: &str) -> i32 {
     use std::collections::hash_map::DefaultHasher;
     use std::hash::Hash;
     use std::hash::Hasher;
@@ -496,7 +496,7 @@ pub fn string_hash(str: &str) -> i32 {
 
 /// Returns a DJB2 hash of the string.
 /// DJB2 algorithm: hash = hash * 33 + byte
-pub fn string_hash_djb2(str: &str) -> i32 {
+pub fn stringHashDjb2(str: &str) -> i32 {
     let mut hash: i32 = 5381;
     for &byte in str.as_bytes() {
         hash = hash.wrapping_mul(33).wrapping_add(byte as i32);
@@ -505,7 +505,7 @@ pub fn string_hash_djb2(str: &str) -> i32 {
 }
 
 /// Continues computing a DJB2 hash by adding another string to it.
-pub fn string_hash_djb2_continue(str: &str, hash: i32) -> i32 {
+pub fn stringHashDjb2Continue(str: &str, hash: i32) -> i32 {
     let mut h = hash;
     for &byte in str.as_bytes() {
         h = h.wrapping_mul(33).wrapping_add(byte as i32);
@@ -514,7 +514,7 @@ pub fn string_hash_djb2_continue(str: &str, hash: i32) -> i32 {
 }
 
 /// Computes a DJB2 hash and applies modulo without intermediate overflow issues.
-pub fn string_hash_djb2_mod(str: &str, mod_val: i32) -> i32 {
+pub fn stringHashDjb2Mod(str: &str, mod_val: i32) -> i32 {
     if mod_val == 0 {
         return 0;
     }
@@ -527,7 +527,7 @@ pub fn string_hash_djb2_mod(str: &str, mod_val: i32) -> i32 {
 
 /// Returns an SDBM hash of the string.
 /// SDBM algorithm: hash = byte + (hash << 6) + (hash << 16) - hash
-pub fn string_hash_sdbm(str: &str) -> i32 {
+pub fn stringHashSdbm(str: &str) -> i32 {
     let mut hash: i32 = 0;
     for &byte in str.as_bytes() {
         hash = byte as i32 + (hash << 6) + (hash << 16) - hash;
@@ -552,13 +552,13 @@ pub fn substring(str: &str, start: i32, stop: i32) -> Result<String> {
 }
 
 /// Alias for string_append_list (maps a list of single-char strings to one string).
-pub fn list_string_char_string(strs: &List<String>) -> String {
-    string_append_list(strs)
+pub fn listStringCharString(strs: &List<String>) -> String {
+    stringAppendList(strs)
 }
 
 /// Alias for string_append_list (maps a list of single-char strings to one string).
-pub fn string_char_list_string(strs: &List<String>) -> String {
-    string_append_list(strs)
+pub fn stringCharListString(strs: &List<String>) -> String {
+    stringAppendList(strs)
 }
 
 // ============================================================================
@@ -1010,38 +1010,38 @@ mod tests {
 
         #[test]
         fn test_bool_and() {
-            assert!(bool_and(true, true));
-            assert!(!bool_and(true, false));
-            assert!(!bool_and(false, true));
-            assert!(!bool_and(false, false));
+            assert!(boolAnd(true, true));
+            assert!(!boolAnd(true, false));
+            assert!(!boolAnd(false, true));
+            assert!(!boolAnd(false, false));
         }
 
         #[test]
         fn test_bool_or() {
-            assert!(bool_or(true, false));
-            assert!(bool_or(false, true));
-            assert!(bool_or(true, true));
-            assert!(!bool_or(false, false));
+            assert!(boolOr(true, false));
+            assert!(boolOr(false, true));
+            assert!(boolOr(true, true));
+            assert!(!boolOr(false, false));
         }
 
         #[test]
         fn test_bool_not() {
-            assert!(bool_not(false));
-            assert!(!bool_not(true));
+            assert!(boolNot(false));
+            assert!(!boolNot(true));
         }
 
         #[test]
         fn test_bool_eq() {
-            assert!(bool_eq(true, true));
-            assert!(bool_eq(false, false));
-            assert!(!bool_eq(true, false));
-            assert!(!bool_eq(false, true));
+            assert!(boolEq(true, true));
+            assert!(boolEq(false, false));
+            assert!(!boolEq(true, false));
+            assert!(!boolEq(false, true));
         }
 
         #[test]
         fn test_bool_string() {
-            assert_eq!(bool_string(true), "true");
-            assert_eq!(bool_string(false), "false");
+            assert_eq!(boolString(true), "true");
+            assert_eq!(boolString(false), "false");
         }
     }
 
@@ -1054,70 +1054,70 @@ mod tests {
 
         #[test]
         fn test_int_add() {
-            assert_eq!(int_add(1, 2), 3);
-            assert_eq!(int_add(-1, 1), 0);
-            assert_eq!(int_add(-1, -2), -3);
+            assert_eq!(intAdd(1, 2), 3);
+            assert_eq!(intAdd(-1, 1), 0);
+            assert_eq!(intAdd(-1, -2), -3);
         }
 
         #[test]
         fn test_int_sub() {
-            assert_eq!(int_sub(5, 3), 2);
-            assert_eq!(int_sub(3, 5), -2);
-            assert_eq!(int_sub(0, 0), 0);
+            assert_eq!(intSub(5, 3), 2);
+            assert_eq!(intSub(3, 5), -2);
+            assert_eq!(intSub(0, 0), 0);
         }
 
         #[test]
         fn test_int_mul() {
-            assert_eq!(int_mul(3, 4), 12);
-            assert_eq!(int_mul(-3, 4), -12);
-            assert_eq!(int_mul(-3, -4), 12);
-            assert_eq!(int_mul(0, 100), 0);
+            assert_eq!(intMul(3, 4), 12);
+            assert_eq!(intMul(-3, 4), -12);
+            assert_eq!(intMul(-3, -4), 12);
+            assert_eq!(intMul(0, 100), 0);
         }
 
         #[test]
         fn test_int_div() {
-            assert_eq!(int_div(10, 3), 3);
-            assert_eq!(int_div(10, -3), -3);
-            assert_eq!(int_div(-10, 3), -3);
-            assert_eq!(int_div(-10, -3), 3);
+            assert_eq!(intDiv(10, 3), 3);
+            assert_eq!(intDiv(10, -3), -3);
+            assert_eq!(intDiv(-10, 3), -3);
+            assert_eq!(intDiv(-10, -3), 3);
         }
 
         #[test]
         fn test_int_mod() {
-            assert_eq!(int_mod(10, 3), 1);
-            assert_eq!(int_mod(10, -3), 1);
-            assert_eq!(int_mod(-10, 3), -1);
-            assert_eq!(int_mod(-10, -3), -1);
+            assert_eq!(intMod(10, 3), 1);
+            assert_eq!(intMod(10, -3), 1);
+            assert_eq!(intMod(-10, 3), -1);
+            assert_eq!(intMod(-10, -3), -1);
         }
 
         #[test]
         fn test_int_max() {
-            assert_eq!(int_max(1, 2), 2);
-            assert_eq!(int_max(2, 1), 2);
-            assert_eq!(int_max(5, 5), 5);
-            assert_eq!(int_max(-1, -2), -1);
+            assert_eq!(intMax(1, 2), 2);
+            assert_eq!(intMax(2, 1), 2);
+            assert_eq!(intMax(5, 5), 5);
+            assert_eq!(intMax(-1, -2), -1);
         }
 
         #[test]
         fn test_int_min() {
-            assert_eq!(int_min(1, 2), 1);
-            assert_eq!(int_min(2, 1), 1);
-            assert_eq!(int_min(5, 5), 5);
-            assert_eq!(int_min(-1, -2), -2);
+            assert_eq!(intMin(1, 2), 1);
+            assert_eq!(intMin(2, 1), 1);
+            assert_eq!(intMin(5, 5), 5);
+            assert_eq!(intMin(-1, -2), -2);
         }
 
         #[test]
         fn test_int_abs() {
-            assert_eq!(int_abs(-5), 5);
-            assert_eq!(int_abs(5), 5);
-            assert_eq!(int_abs(0), 0);
+            assert_eq!(intAbs(-5), 5);
+            assert_eq!(intAbs(5), 5);
+            assert_eq!(intAbs(0), 0);
         }
 
         #[test]
         fn test_int_neg() {
-            assert_eq!(int_neg(5), -5);
-            assert_eq!(int_neg(-5), 5);
-            assert_eq!(int_neg(0), 0);
+            assert_eq!(intNeg(5), -5);
+            assert_eq!(intNeg(-5), 5);
+            assert_eq!(intNeg(0), 0);
         }
     }
 
@@ -1130,42 +1130,42 @@ mod tests {
 
         #[test]
         fn test_int_lt() {
-            assert!(int_lt(1, 2));
-            assert!(!int_lt(2, 2));
-            assert!(!int_lt(2, 1));
+            assert!(intLt(1, 2));
+            assert!(!intLt(2, 2));
+            assert!(!intLt(2, 1));
         }
 
         #[test]
         fn test_int_le() {
-            assert!(int_le(1, 2));
-            assert!(int_le(2, 2));
-            assert!(!int_le(2, 1));
+            assert!(intLe(1, 2));
+            assert!(intLe(2, 2));
+            assert!(!intLe(2, 1));
         }
 
         #[test]
         fn test_int_eq() {
-            assert!(int_eq(5, 5));
-            assert!(!int_eq(5, 6));
+            assert!(intEq(5, 5));
+            assert!(!intEq(5, 6));
         }
 
         #[test]
         fn test_int_ne() {
-            assert!(int_ne(5, 6));
-            assert!(!int_ne(5, 5));
+            assert!(intNe(5, 6));
+            assert!(!intNe(5, 5));
         }
 
         #[test]
         fn test_int_ge() {
-            assert!(int_ge(2, 1));
-            assert!(int_ge(2, 2));
-            assert!(!int_ge(1, 2));
+            assert!(intGe(2, 1));
+            assert!(intGe(2, 2));
+            assert!(!intGe(1, 2));
         }
 
         #[test]
         fn test_int_gt() {
-            assert!(int_gt(2, 1));
-            assert!(!int_gt(2, 2));
-            assert!(!int_gt(1, 2));
+            assert!(intGt(2, 1));
+            assert!(!intGt(2, 2));
+            assert!(!intGt(1, 2));
         }
     }
 
@@ -1178,39 +1178,39 @@ mod tests {
 
         #[test]
         fn test_int_bit_not() {
-            assert_eq!(int_bit_not(0i32), -1);
-            assert_eq!(int_bit_not(-1i32), 0);
-            assert_eq!(int_bit_not(1), !1);
+            assert_eq!(intBitNot(0i32), -1);
+            assert_eq!(intBitNot(-1i32), 0);
+            assert_eq!(intBitNot(1), !1);
         }
 
         #[test]
         fn test_int_bit_and() {
-            assert_eq!(int_bit_and(0b1100, 0b1010), 0b1000);
-            assert_eq!(int_bit_and(0, 5), 0);
+            assert_eq!(intBitAnd(0b1100, 0b1010), 0b1000);
+            assert_eq!(intBitAnd(0, 5), 0);
         }
 
         #[test]
         fn test_int_bit_or() {
-            assert_eq!(int_bit_or(0b1100, 0b1010), 0b1110);
-            assert_eq!(int_bit_or(0, 5), 5);
+            assert_eq!(intBitOr(0b1100, 0b1010), 0b1110);
+            assert_eq!(intBitOr(0, 5), 5);
         }
 
         #[test]
         fn test_int_bit_xor() {
-            assert_eq!(int_bit_xor(0b1100, 0b1010), 0b0110);
-            assert_eq!(int_bit_xor(5, 5), 0);
+            assert_eq!(intBitXor(0b1100, 0b1010), 0b0110);
+            assert_eq!(intBitXor(5, 5), 0);
         }
 
         #[test]
         fn test_int_bit_l_shift() {
-            assert_eq!(int_bit_l_shift(1, 3), 8);
-            assert_eq!(int_bit_l_shift(3, 1), 6);
+            assert_eq!(intBitLShift(1, 3), 8);
+            assert_eq!(intBitLShift(3, 1), 6);
         }
 
         #[test]
         fn test_int_bit_r_shift() {
-            assert_eq!(int_bit_r_shift(8, 3), 1);
-            assert_eq!(int_bit_r_shift(6, 1), 3);
+            assert_eq!(intBitRShift(8, 3), 1);
+            assert_eq!(intBitRShift(6, 1), 3);
         }
     }
 
@@ -1223,15 +1223,15 @@ mod tests {
 
         #[test]
         fn test_int_real() {
-            assert_eq!(int_real(42), 42.0_f64);
-            assert_eq!(int_real(-7), -7.0_f64);
+            assert_eq!(intReal(42), 42.0_f64);
+            assert_eq!(intReal(-7), -7.0_f64);
         }
 
         #[test]
         fn test_int_string() {
-            assert_eq!(int_string(42), "42");
-            assert_eq!(int_string(-7), "-7");
-            assert_eq!(int_string(0), "0");
+            assert_eq!(intString(42), "42");
+            assert_eq!(intString(-7), "-7");
+            assert_eq!(intString(0), "0");
         }
     }
 
@@ -1244,69 +1244,69 @@ mod tests {
 
         #[test]
         fn test_real_add() {
-            assert_eq!(real_add(1.5, 2.5), 4.0);
-            assert_eq!(real_add(-1.0, 1.0), 0.0);
+            assert_eq!(realAdd(1.5, 2.5), 4.0);
+            assert_eq!(realAdd(-1.0, 1.0), 0.0);
         }
 
         #[test]
         fn test_real_sub() {
-            assert_eq!(real_sub(5.0, 3.0), 2.0);
-            assert_eq!(real_sub(3.0, 5.0), -2.0);
+            assert_eq!(realSub(5.0, 3.0), 2.0);
+            assert_eq!(realSub(3.0, 5.0), -2.0);
         }
 
         #[test]
         fn test_real_mul() {
-            assert_eq!(real_mul(3.0, 4.0), 12.0);
-            assert_eq!(real_mul(-3.0, 4.0), -12.0);
+            assert_eq!(realMul(3.0, 4.0), 12.0);
+            assert_eq!(realMul(-3.0, 4.0), -12.0);
         }
 
         #[test]
         fn test_real_div() {
-            assert_eq!(real_div(10.0, 3.0), 10.0 / 3.0);
-            assert_eq!(real_div(6.0, 2.0), 3.0);
+            assert_eq!(realDiv(10.0, 3.0), 10.0 / 3.0);
+            assert_eq!(realDiv(6.0, 2.0), 3.0);
         }
 
         #[test]
         fn test_real_mod() {
-            assert_eq!(real_mod(10.0, 3.0), 1.0);
-            assert_eq!(real_mod(10.5, 3.0), 1.5);
+            assert_eq!(realMod(10.0, 3.0), 1.0);
+            assert_eq!(realMod(10.5, 3.0), 1.5);
         }
 
         #[test]
         fn test_real_pow() {
-            assert_eq!(real_pow(2.0, 3.0), 8.0);
-            assert_eq!(real_pow(9.0, 0.5), 3.0);
+            assert_eq!(realPow(2.0, 3.0), 8.0);
+            assert_eq!(realPow(9.0, 0.5), 3.0);
         }
 
         #[test]
         fn test_real_max() {
-            assert_eq!(real_max(1.5, 2.5), 2.5);
-            assert_eq!(real_max(5.0, 5.0), 5.0);
+            assert_eq!(realMax(1.5, 2.5), 2.5);
+            assert_eq!(realMax(5.0, 5.0), 5.0);
         }
 
         #[test]
         fn test_real_min() {
-            assert_eq!(real_min(1.5, 2.5), 1.5);
-            assert_eq!(real_min(5.0, 5.0), 5.0);
+            assert_eq!(realMin(1.5, 2.5), 1.5);
+            assert_eq!(realMin(5.0, 5.0), 5.0);
         }
 
         #[test]
         fn test_real_abs() {
-            assert_eq!(real_abs(-5.5), 5.5);
-            assert_eq!(real_abs(5.5), 5.5);
+            assert_eq!(realAbs(-5.5), 5.5);
+            assert_eq!(realAbs(5.5), 5.5);
         }
 
         #[test]
         fn test_real_almost_eq() {
-            assert!(real_almost_eq(1.0, 1.0000001, 1e-5));
-            assert!(!real_almost_eq(1.0, 1.1, 1e-5));
-            assert!(real_almost_eq(1.0, 1.0, 1e-6));
+            assert!(realAlmostEq(1.0, 1.0000001, 1e-5));
+            assert!(!realAlmostEq(1.0, 1.1, 1e-5));
+            assert!(realAlmostEq(1.0, 1.0, 1e-6));
         }
 
         #[test]
         fn test_real_neg() {
-            assert_eq!(real_neg(5.5), -5.5);
-            assert_eq!(real_neg(-5.5), 5.5);
+            assert_eq!(realNeg(5.5), -5.5);
+            assert_eq!(realNeg(-5.5), 5.5);
         }
     }
 
@@ -1319,42 +1319,42 @@ mod tests {
 
         #[test]
         fn test_real_lt() {
-            assert!(real_lt(1.0, 2.0));
-            assert!(!real_lt(2.0, 2.0));
-            assert!(!real_lt(2.0, 1.0));
+            assert!(realLt(1.0, 2.0));
+            assert!(!realLt(2.0, 2.0));
+            assert!(!realLt(2.0, 1.0));
         }
 
         #[test]
         fn test_real_le() {
-            assert!(real_le(1.0, 2.0));
-            assert!(real_le(2.0, 2.0));
-            assert!(!real_le(2.0, 1.0));
+            assert!(realLe(1.0, 2.0));
+            assert!(realLe(2.0, 2.0));
+            assert!(!realLe(2.0, 1.0));
         }
 
         #[test]
         fn test_real_eq() {
-            assert!(real_eq(1.0, 1.0));
-            assert!(!real_eq(1.0, 2.0));
+            assert!(realEq(1.0, 1.0));
+            assert!(!realEq(1.0, 2.0));
         }
 
         #[test]
         fn test_real_ne() {
-            assert!(real_ne(1.0, 2.0));
-            assert!(!real_ne(1.0, 1.0));
+            assert!(realNe(1.0, 2.0));
+            assert!(!realNe(1.0, 1.0));
         }
 
         #[test]
         fn test_real_ge() {
-            assert!(real_ge(2.0, 1.0));
-            assert!(real_ge(2.0, 2.0));
-            assert!(!real_ge(1.0, 2.0));
+            assert!(realGe(2.0, 1.0));
+            assert!(realGe(2.0, 2.0));
+            assert!(!realGe(1.0, 2.0));
         }
 
         #[test]
         fn test_real_gt() {
-            assert!(real_gt(2.0, 1.0));
-            assert!(!real_gt(2.0, 2.0));
-            assert!(!real_gt(1.0, 2.0));
+            assert!(realGt(2.0, 1.0));
+            assert!(!realGt(2.0, 2.0));
+            assert!(!realGt(1.0, 2.0));
         }
     }
 
@@ -1367,16 +1367,16 @@ mod tests {
 
         #[test]
         fn test_real_int() {
-            assert_eq!(real_int(3.7), 3);
-            assert_eq!(real_int(-3.7), -3);
-            assert_eq!(real_int(3.0), 3);
+            assert_eq!(realInt(3.7), 3);
+            assert_eq!(realInt(-3.7), -3);
+            assert_eq!(realInt(3.0), 3);
         }
 
         #[test]
         fn test_real_string() {
-            assert_eq!(real_string(3.14), "3.14");
-            assert_eq!(real_string(0.0), "0");
-            assert_eq!(real_string(-1.5), "-1.5");
+            assert_eq!(realString(3.14), "3.14");
+            assert_eq!(realString(0.0), "0");
+            assert_eq!(realString(-1.5), "-1.5");
         }
     }
 
@@ -1389,49 +1389,49 @@ mod tests {
 
         #[test]
         fn test_string_char_int() {
-            assert_eq!(string_char_int("A"), 65);
-            assert_eq!(string_char_int("a"), 97);
-            assert_eq!(string_char_int("0"), 48);
+            assert_eq!(stringCharInt("A"), 65);
+            assert_eq!(stringCharInt("a"), 97);
+            assert_eq!(stringCharInt("0"), 48);
         }
 
         #[test]
         fn test_int_string_char() {
-            assert_eq!(int_string_char(65), "A");
-            assert_eq!(int_string_char(97), "a");
-            assert_eq!(int_string_char(48), "0");
-            assert_eq!(int_string_char(0), "\0");
+            assert_eq!(intStringChar(65), "A");
+            assert_eq!(intStringChar(97), "a");
+            assert_eq!(intStringChar(48), "0");
+            assert_eq!(intStringChar(0), "\0");
         }
 
         #[test]
         fn test_string_int() {
-            assert_eq!(string_int("42").unwrap(), 42);
-            assert_eq!(string_int("-7").unwrap(), -7);
-            assert!(string_int("not_a_number").is_err());
+            assert_eq!(stringInt("42").unwrap(), 42);
+            assert_eq!(stringInt("-7").unwrap(), -7);
+            assert!(stringInt("not_a_number").is_err());
         }
 
         #[test]
         fn test_string_real() {
-            assert_eq!(string_real("3.14").unwrap(), 3.14);
-            assert_eq!(string_real("-2.5").unwrap(), -2.5);
-            assert!(string_real("not_a_number").is_err());
+            assert_eq!(stringReal("3.14").unwrap(), 3.14);
+            assert_eq!(stringReal("-2.5").unwrap(), -2.5);
+            assert!(stringReal("not_a_number").is_err());
         }
 
         #[test]
         fn test_string_list_string_char() {
-            let result = string_list_string_char("abc");
+            let result = stringListStringChar("abc");
             assert_eq!(result, List::from_iter(["a".to_string(), "b".to_string(), "c".to_string()]));
         }
 
         #[test]
         fn test_string_append_list() {
             let strs = list!["hello".to_string(), " ".to_string(), "world".to_string()];
-            assert_eq!(string_append_list(&strs), "hello world");
+            assert_eq!(stringAppendList(&strs), "hello world");
         }
 
         #[test]
         fn test_string_delimit_list() {
             let strs = list!["x".to_string(), "y".to_string(), "z".to_string()];
-            assert_eq!(string_delimit_list(&strs, ", "), "x, y, z");
+            assert_eq!(stringDelimitList(&strs, ", "), "x, y, z");
         }
     }
 
@@ -1444,14 +1444,14 @@ mod tests {
 
         #[test]
         fn test_string_length() {
-            assert_eq!(string_length("hello"), 5);
-            assert_eq!(string_length(""), 0);
+            assert_eq!(stringLength("hello"), 5);
+            assert_eq!(stringLength(""), 0);
         }
 
         #[test]
         fn test_string_empty() {
-            assert!(string_empty(""));
-            assert!(!string_empty("hello"));
+            assert!(stringEmpty(""));
+            assert!(!stringEmpty("hello"));
         }
     }
 
@@ -1464,29 +1464,29 @@ mod tests {
 
         #[test]
         fn test_string_get() {
-            assert_eq!(string_get("hello", 1).unwrap(), b'h' as i32);
-            assert_eq!(string_get("hello", 5).unwrap(), b'o' as i32);
-            assert!(string_get("hello", 0).is_err());
-            assert!(string_get("hello", 6).is_err());
+            assert_eq!(stringGet("hello", 1).unwrap(), b'h' as i32);
+            assert_eq!(stringGet("hello", 5).unwrap(), b'o' as i32);
+            assert!(stringGet("hello", 0).is_err());
+            assert!(stringGet("hello", 6).is_err());
         }
 
         #[test]
         fn test_string_get_string_char() {
-            assert_eq!(string_get_string_char("hello", 1).unwrap(), "h");
-            assert_eq!(string_get_string_char("hello", 3).unwrap(), "l");
-            assert_eq!(string_get_string_char("hello", 5).unwrap(), "o");
-            assert!(string_get_string_char("hello", 0).is_err());
-            assert!(string_get_string_char("hello", 6).is_err());
+            assert_eq!(stringGetStringChar("hello", 1).unwrap(), "h");
+            assert_eq!(stringGetStringChar("hello", 3).unwrap(), "l");
+            assert_eq!(stringGetStringChar("hello", 5).unwrap(), "o");
+            assert!(stringGetStringChar("hello", 0).is_err());
+            assert!(stringGetStringChar("hello", 6).is_err());
         }
 
         #[test]
         fn test_string_update_string_char() {
-            assert_eq!(string_update_string_char("hello", "X", 1).unwrap(), "Xello");
-            assert_eq!(string_update_string_char("hello", "X", 3).unwrap(), "heXlo");
-            assert_eq!(string_update_string_char("hello", "X", 5).unwrap(), "hellX");
-            assert!(string_update_string_char("hello", "X", 0).is_err());
-            assert!(string_update_string_char("hello", "X", 6).is_err());
-            assert!(string_update_string_char("hello", "", 1).is_err());
+            assert_eq!(stringUpdateStringChar("hello", "X", 1).unwrap(), "Xello");
+            assert_eq!(stringUpdateStringChar("hello", "X", 3).unwrap(), "heXlo");
+            assert_eq!(stringUpdateStringChar("hello", "X", 5).unwrap(), "hellX");
+            assert!(stringUpdateStringChar("hello", "X", 0).is_err());
+            assert!(stringUpdateStringChar("hello", "X", 6).is_err());
+            assert!(stringUpdateStringChar("hello", "", 1).is_err());
         }
     }
 
@@ -1499,22 +1499,22 @@ mod tests {
 
         #[test]
         fn test_string_append() {
-            assert_eq!(string_append("hello", " world"), "hello world");
-            assert_eq!(string_append("", "hello"), "hello");
-            assert_eq!(string_append("hello", ""), "hello");
+            assert_eq!(stringAppend("hello", " world"), "hello world");
+            assert_eq!(stringAppend("", "hello"), "hello");
+            assert_eq!(stringAppend("hello", ""), "hello");
         }
 
         #[test]
         fn test_string_eq() {
-            assert!(string_eq("abc", "abc"));
-            assert!(!string_eq("abc", "abd"));
-            assert!(!string_eq("", "abc"));
+            assert!(stringEq("abc", "abc"));
+            assert!(!stringEq("abc", "abd"));
+            assert!(!stringEq("", "abc"));
         }
 
         #[test]
         fn test_string_equal() {
-            assert!(string_equal("abc", "abc"));
-            assert!(!string_equal("abc", "abd"));
+            assert!(stringEqual("abc", "abc"));
+            assert!(!stringEqual("abc", "abd"));
         }
     }
 
@@ -1527,11 +1527,11 @@ mod tests {
 
         #[test]
         fn test_string_compare() {
-            assert!(string_compare("abc", "abd") < 0);
-            assert_eq!(string_compare("abc", "abc"), 0);
-            assert!(string_compare("abd", "abc") > 0);
-            assert!(string_compare("ab", "abc") < 0);
-            assert!(string_compare("abc", "ab") > 0);
+            assert!(stringCompare("abc", "abd") < 0);
+            assert_eq!(stringCompare("abc", "abc"), 0);
+            assert!(stringCompare("abd", "abc") > 0);
+            assert!(stringCompare("ab", "abc") < 0);
+            assert!(stringCompare("abc", "ab") > 0);
         }
     }
 
@@ -1545,38 +1545,38 @@ mod tests {
         #[test]
         fn test_string_hash_djb2() {
             // DJB2 of "a" = 5381 * 33 + 97 = 177700 + 97 = 177797
-            assert_eq!(string_hash_djb2("a"), 5381_i32.wrapping_mul(33).wrapping_add(97));
-            assert_eq!(string_hash_djb2(""), 5381);
+            assert_eq!(stringHashDjb2("a"), 5381_i32.wrapping_mul(33).wrapping_add(97));
+            assert_eq!(stringHashDjb2(""), 5381);
         }
 
         #[test]
         fn test_string_hash_djb2_continue() {
-            let h1 = string_hash_djb2("hello");
-            let _h2 = string_hash_djb2(" world");
-            let combined = string_hash_djb2_continue(" world", h1);
+            let h1 = stringHashDjb2("hello");
+            let _h2 = stringHashDjb2(" world");
+            let combined = stringHashDjb2Continue(" world", h1);
             // Starting from h1 and adding " world" should give the same
             // as hashing "hello world" from scratch
-            assert_eq!(combined, string_hash_djb2("hello world"));
+            assert_eq!(combined, stringHashDjb2("hello world"));
         }
 
         #[test]
         fn test_string_hash_djb2_mod() {
-            let h = string_hash_djb2_mod("hello", 100);
+            let h = stringHashDjb2Mod("hello", 100);
             assert!(h >= 0 && h < 100);
-            assert_eq!(string_hash_djb2_mod("hello", 0), 0);
+            assert_eq!(stringHashDjb2Mod("hello", 0), 0);
         }
 
         #[test]
         fn test_string_hash_sdbm() {
             // SDBM of "a" = 97 + 0 + 0 - 0 = 97
-            assert_eq!(string_hash_sdbm("a"), 97);
-            assert_eq!(string_hash_sdbm(""), 0);
+            assert_eq!(stringHashSdbm("a"), 97);
+            assert_eq!(stringHashSdbm(""), 0);
         }
 
         #[test]
         fn test_string_hash_consistency() {
             // Same string should produce same hash
-            assert_eq!(string_hash("test"), string_hash("test"));
+            assert_eq!(stringHash("test"), stringHash("test"));
         }
     }
 
@@ -1614,13 +1614,13 @@ mod tests {
         #[test]
         fn test_list_string_char_string() {
             let strs = list!["a".to_string(), "b".to_string(), "c".to_string()];
-            assert_eq!(list_string_char_string(&strs), "abc");
+            assert_eq!(listStringCharString(&strs), "abc");
         }
 
         #[test]
         fn test_string_char_list_string() {
             let strs = list!["a".to_string(), "b".to_string(), "c".to_string()];
-            assert_eq!(string_char_list_string(&strs), "abc");
+            assert_eq!(stringCharListString(&strs), "abc");
         }
     }
 

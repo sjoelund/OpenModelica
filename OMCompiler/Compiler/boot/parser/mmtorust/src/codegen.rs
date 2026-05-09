@@ -502,6 +502,7 @@ fn emit_uniontype(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Cla
 
     match &node.ty {
         Ty::RustEnum(_) => {
+            let mut emitted_variants: Vec<String> = Vec::new();
             writeln!(out, "{inner}pub enum {ename} {{").unwrap();
             for rec_name in &records_in_order(c) {
                 let Some(rec_node) = node.children.get(rec_name) else { continue };
@@ -509,6 +510,7 @@ fn emit_uniontype(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Cla
                 match &rec_node.ty {
                     Ty::RustUnitVariant => {
                         writeln!(out, "{inner}    {rec_name},").unwrap();
+                        emitted_variants.push(rec_name.clone());
                     }
                     Ty::RustStruct(_) => {
                         let fields = component_fields(rc, &rec_node.children);
@@ -521,12 +523,17 @@ fn emit_uniontype(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Cla
                             }
                             writeln!(out, "{inner}    }},").unwrap();
                         }
+                        emitted_variants.push(rec_name.clone());
                     }
-                    _ => writeln!(out, "{inner}    {rec_name}, // unresolved").unwrap(),
+                    _ => {
+                        writeln!(out, "{inner}    {rec_name}, // unresolved").unwrap();
+                        emitted_variants.push(rec_name.clone());
+                    }
                 }
             }
             writeln!(out, "{inner}}}").unwrap();
-            writeln!(out, "{inner}pub use {ename}::*;").unwrap();
+            let variant_list = emitted_variants.join(",");
+            writeln!(out, "{inner}pub use {ename}::{{{variant_list}}};").unwrap();
         }
         Ty::AliasTo(_) => {
             // Single-record uniontype: emit the struct then a type alias with the

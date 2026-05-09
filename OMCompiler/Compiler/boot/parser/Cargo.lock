@@ -215,7 +215,8 @@ dependencies = [
 name = "openmodelica"
 version = "0.1.0"
 dependencies = [
- "mmwinnow",
+ "metamodelica",
+ "openmodelica_backend",
 ]
 
 [[package]]

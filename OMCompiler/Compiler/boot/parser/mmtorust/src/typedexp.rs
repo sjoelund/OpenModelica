@@ -301,12 +301,12 @@ pub fn infer_exp<'a>(
 }
 
 fn extract_call_args<'a>(
-    functionArgs: &Absyn::FunctionArgs,
+    function_args: &Absyn::FunctionArgs,
     env: &HashMap<String, Ty>,
     top_level: &'a BTreeMap<String, NameNode<'a>>,
     pkg_prefix: &str,
 ) -> (Vec<TypedExp>, Vec<(String, TypedExp)>) {
-    match functionArgs {
+    match function_args {
         Absyn::FunctionArgs::FUNCTIONARGS { args, argNames } => {
             let pos: Vec<TypedExp> = args.into_iter()
                 .map(|a| infer_exp(a.as_ref(), env, top_level, pkg_prefix))

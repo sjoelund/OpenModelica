@@ -755,17 +755,17 @@ impl<T: PartialEq + Clone> List<T> {
 // ============================================================================
 
 /// Returns the length of the array. O(1).
-pub fn array_length<A>(arr: &[A]) -> i32 {
+pub fn arrayLength<A>(arr: &[A]) -> i32 {
     arr.len() as i32
 }
 
 /// Returns true if the array is empty. O(1).
-pub fn array_empty<A>(arr: &[A]) -> bool {
+pub fn arrayEmpty<A>(arr: &[A]) -> bool {
     arr.is_empty()
 }
 
 /// Gets the element at the given 1-based index. O(1).
-pub fn array_get<A: Clone>(arr: &[A], index: i32) -> Result<A> {
+pub fn arrayGet<A: Clone>(arr: &[A], index: i32) -> Result<A> {
     let idx = (index - 1) as usize; // 1-based to 0-based
     arr.get(idx)
         .cloned()
@@ -773,7 +773,7 @@ pub fn array_get<A: Clone>(arr: &[A], index: i32) -> Result<A> {
 }
 
 /// Creates a new array of the given size, initialized with initialValue. O(size).
-pub fn array_create<A: Clone>(size: i32, initial_value: A) -> Vec<A> {
+pub fn arrayCreate<A: Clone>(size: i32, initial_value: A) -> Vec<A> {
     if size <= 0 {
         return Vec::new();
     }
@@ -781,18 +781,18 @@ pub fn array_create<A: Clone>(size: i32, initial_value: A) -> Vec<A> {
 }
 
 /// Converts an array to a list. O(n).
-pub fn array_list<A: Clone>(arr: &[A]) -> List<A> {
+pub fn arrayList<A: Clone>(arr: &[A]) -> List<A> {
     arr.iter().cloned().collect()
 }
 
 /// Converts a list to an array. O(n).
-pub fn list_array<A: Clone>(lst: &List<A>) -> Vec<A> {
+pub fn listArray<A: Clone>(lst: &List<A>) -> Vec<A> {
     lst.into_iter().collect()
 }
 
 /// Updates the value at the given 1-based index. O(1).
 /// Mutates the array in place (impure).
-pub fn array_update<A: Clone>(arr: &mut Vec<A>, index: i32, new_value: A) -> Result<()> {
+pub fn arrayUpdate<A: Clone>(arr: &mut Vec<A>, index: i32, new_value: A) -> Result<()> {
     let idx = (index - 1) as usize; // 1-based to 0-based
     let len = arr.len();
     if idx >= len {
@@ -803,12 +803,12 @@ pub fn array_update<A: Clone>(arr: &mut Vec<A>, index: i32, new_value: A) -> Res
 }
 
 /// Creates a copy of the array. O(n).
-pub fn array_copy<A: Clone>(arr: &[A]) -> Vec<A> {
+pub fn arrayCopy<A: Clone>(arr: &[A]) -> Vec<A> {
     arr.to_vec()
 }
 
 /// Appends arr2 to arr1, creating a new array. O(length(arr1) + length(arr2)).
-pub fn array_append<A: Clone>(arr1: &[A], arr2: &[A]) -> Vec<A> {
+pub fn arrayAppend<A: Clone>(arr1: &[A], arr2: &[A]) -> Vec<A> {
     let mut result = arr1.to_vec();
     result.extend(arr2.iter().cloned());
     result
@@ -820,12 +820,12 @@ pub fn array_append<A: Clone>(arr1: &[A], arr2: &[A]) -> Vec<A> {
 
 /// Returns the string representation of any Debug-printable value.
 /// Rather slow; only use this for debugging!
-pub fn any_string<A: std::fmt::Debug>(a: &A) -> String {
+pub fn anyString<A: std::fmt::Debug>(a: &A) -> String {
     format!("{:?}", a)
 }
 
 /// Prints any Debug-printable value to stderr.
-pub fn print_any<A: std::fmt::Debug>(a: &A) {
+pub fn printAny<A: std::fmt::Debug>(a: &A) {
     eprintln!("{:?}", a);
 }
 
@@ -850,13 +850,13 @@ pub fn tick() -> i32 {
 }
 
 /// Structural equality for any PartialEq value.
-pub fn value_eq<A: PartialEq>(a1: &A, a2: &A) -> bool {
+pub fn valueEq<A: PartialEq>(a1: &A, a2: &A) -> bool {
     a1 == a2
 }
 
 /// Compares two Ord values.
 /// Returns -1 if a1 < a2, 0 if a1 == a2, 1 if a1 > a2.
-pub fn value_compare<A: Ord>(a1: &A, a2: &A) -> i32 {
+pub fn valueCompare<A: Ord>(a1: &A, a2: &A) -> i32 {
     match a1.cmp(a2) {
         std::cmp::Ordering::Less => -1,
         std::cmp::Ordering::Equal => 0,
@@ -871,24 +871,24 @@ pub fn value_compare<A: Ord>(a1: &A, a2: &A) -> i32 {
 /// This is a very fast comparison to speed up comparisons.
 /// If you know that all occurrences of a value are the same pointer,
 /// you can use reference_eq instead of structural equality.
-pub fn reference_eq<A: PartialEq>(a1: &A, a2: &A) -> bool {
+pub fn referenceEq<A: PartialEq>(a1: &A, a2: &A) -> bool {
     std::ptr::eq(a1 as *const A, a2 as *const A)
 }
 
 /// Returns the pointer address of a reference as a hexadecimal string for debugging.
-pub fn reference_pointer_string<A>(a: &A) -> String {
+pub fn referencePointerString<A>(a: &A) -> String {
     format!("{:p}", a)
 }
 
 /// Returns a debug string for a function symbol.
 /// In Rust, returns the type name of the value for debugging.
-pub fn reference_debug_string<A: std::fmt::Debug>(_a: &A) -> String {
+pub fn referenceDebugString<A: std::fmt::Debug>(_a: &A) -> String {
     format!("{:?}", std::any::type_name::<A>())
 }
 
 /// Returns the constructor tag for a boxed value.
 /// In Rust, returns a type-based discriminator.
-pub fn value_constructor<A>() -> i32 {
+pub fn valueConstructor<A>() -> i32 {
     // Use a hash of the type name as a stable discriminator
     let type_name = std::any::type_name::<A>();
     let mut hash: i32 = 5381;
@@ -900,14 +900,14 @@ pub fn value_constructor<A>() -> i32 {
 
 /// Returns the current time in seconds relative to process start.
 /// Not very accurate, intended for diff comparisons.
-fn get_start_instant() -> std::time::Instant {
+fn getStartInstant() -> std::time::Instant {
     use std::sync::OnceLock;
     static START: OnceLock<std::time::Instant> = OnceLock::new();
     *START.get_or_init(|| std::time::Instant::now())
 }
 
 pub fn clock() -> f64 {
-    get_start_instant().elapsed().as_secs_f64()
+    getStartInstant().elapsed().as_secs_f64()
 }
 
 // ============================================================================
@@ -915,12 +915,12 @@ pub fn clock() -> f64 {
 // ============================================================================
 
 /// Returns true if the Option is NONE.
-pub fn is_none<A>(opt: &OptionValue<A>) -> bool {
+pub fn isNone<A>(opt: &OptionValue<A>) -> bool {
     matches!(opt, OptionValue::None)
 }
 
 /// Returns true if the Option is SOME.
-pub fn is_some<A>(opt: &OptionValue<A>) -> bool {
+pub fn isSome<A>(opt: &OptionValue<A>) -> bool {
     matches!(opt, OptionValue::Some(_))
 }
 
@@ -930,14 +930,14 @@ pub fn is_some<A>(opt: &OptionValue<A>) -> bool {
 
 /// Sets the stack overflow signal to the given value and returns the old one.
 /// In this translation, simply returns the input value.
-pub fn set_stack_overflow_signal(in_signal: bool) -> bool {
+pub fn setStackOverflowSignal(in_signal: bool) -> bool {
     in_signal
 }
 
 /// Returns true if the formal output argument is present as an actual argument.
 /// In MetaModelica this is a compile-time check; in Rust it always returns true
 /// because the argument exists at the call site.
-pub fn is_present<T>(_ident: &T) -> bool {
+pub fn isPresent<T>(_ident: &T) -> bool {
     true
 }
 
@@ -1749,64 +1749,64 @@ mod tests {
         #[test]
         fn test_array_length() {
             let arr = vec![1, 2, 3];
-            assert_eq!(array_length(&arr), 3);
+            assert_eq!(arrayLength(&arr), 3);
             let empty: Vec<i32> = vec![];
-            assert_eq!(array_length(&empty), 0);
+            assert_eq!(arrayLength(&empty), 0);
         }
 
         #[test]
         fn test_array_empty() {
             let arr = vec![1, 2, 3];
-            assert!(!array_empty(&arr));
+            assert!(!arrayEmpty(&arr));
             let empty: Vec<i32> = vec![];
-            assert!(array_empty(&empty));
+            assert!(arrayEmpty(&empty));
         }
 
         #[test]
         fn test_array_get() {
             let arr = vec![10, 20, 30];
-            assert_eq!(array_get(&arr, 1).unwrap(), 10);
-            assert_eq!(array_get(&arr, 2).unwrap(), 20);
-            assert_eq!(array_get(&arr, 3).unwrap(), 30);
-            assert!(array_get(&arr, 0).is_err());
-            assert!(array_get(&arr, 4).is_err());
+            assert_eq!(arrayGet(&arr, 1).unwrap(), 10);
+            assert_eq!(arrayGet(&arr, 2).unwrap(), 20);
+            assert_eq!(arrayGet(&arr, 3).unwrap(), 30);
+            assert!(arrayGet(&arr, 0).is_err());
+            assert!(arrayGet(&arr, 4).is_err());
         }
 
         #[test]
         fn test_array_create() {
-            let arr = array_create(5, 0);
+            let arr = arrayCreate(5, 0);
             assert_eq!(arr, vec![0, 0, 0, 0, 0]);
-            let empty: Vec<i32> = array_create(0, 42);
+            let empty: Vec<i32> = arrayCreate(0, 42);
             assert!(empty.is_empty());
         }
 
         #[test]
         fn test_array_list() {
             let arr = vec![1, 2, 3];
-            let lst = array_list(&arr);
+            let lst = arrayList(&arr);
             assert_eq!(lst, list![1, 2, 3]);
         }
 
         #[test]
         fn test_list_array() {
             let lst = list![1, 2, 3];
-            let arr = list_array(&lst);
+            let arr = listArray(&lst);
             assert_eq!(arr, vec![1, 2, 3]);
         }
 
         #[test]
         fn test_array_update() {
             let mut arr = vec![1, 2, 3];
-            array_update(&mut arr, 2, 99).unwrap();
+            arrayUpdate(&mut arr, 2, 99).unwrap();
             assert_eq!(arr, vec![1, 99, 3]);
-            assert!(array_update(&mut arr, 0, 99).is_err());
-            assert!(array_update(&mut arr, 4, 99).is_err());
+            assert!(arrayUpdate(&mut arr, 0, 99).is_err());
+            assert!(arrayUpdate(&mut arr, 4, 99).is_err());
         }
 
         #[test]
         fn test_array_copy() {
             let arr = vec![1, 2, 3];
-            let copy = array_copy(&arr);
+            let copy = arrayCopy(&arr);
             assert_eq!(copy, vec![1, 2, 3]);
             assert_eq!(copy, arr);
         }
@@ -1815,11 +1815,11 @@ mod tests {
         fn test_array_append() {
             let a = vec![1, 2];
             let b = vec![3, 4];
-            assert_eq!(array_append(&a, &b), vec![1, 2, 3, 4]);
+            assert_eq!(arrayAppend(&a, &b), vec![1, 2, 3, 4]);
 
             let empty: Vec<i32> = vec![];
-            assert_eq!(array_append(&empty, &b), b);
-            assert_eq!(array_append(&a, &empty), a);
+            assert_eq!(arrayAppend(&empty, &b), b);
+            assert_eq!(arrayAppend(&a, &empty), a);
         }
     }
 
@@ -1833,18 +1833,18 @@ mod tests {
         #[test]
         fn test_any_string() {
             let val = 42i32;
-            let result = any_string(&val);
+            let result = anyString(&val);
             assert_eq!(result, "42");
 
             let s = "hello";
-            assert!(any_string(&s).contains("hello"));
+            assert!(anyString(&s).contains("hello"));
         }
 
         #[test]
         fn test_print_any() {
             // Just ensure it doesn't panic
             let val = 42i32;
-            print_any(&val);
+            printAny(&val);
         }
 
         #[test]
@@ -1866,19 +1866,19 @@ mod tests {
             let a = vec![1, 2, 3];
             let b = vec![1, 2, 3];
             let c = vec![1, 2, 4];
-            assert!(value_eq(&a, &b));
-            assert!(!value_eq(&a, &c));
+            assert!(valueEq(&a, &b));
+            assert!(!valueEq(&a, &c));
         }
 
         #[test]
         fn test_value_compare() {
-            assert_eq!(value_compare(&1, &2), -1);
-            assert_eq!(value_compare(&2, &2), 0);
-            assert_eq!(value_compare(&3, &2), 1);
+            assert_eq!(valueCompare(&1, &2), -1);
+            assert_eq!(valueCompare(&2, &2), 0);
+            assert_eq!(valueCompare(&3, &2), 1);
 
-            assert_eq!(value_compare(&"abc", &"abd"), -1);
-            assert_eq!(value_compare(&"abc", &"abc"), 0);
-            assert_eq!(value_compare(&"abd", &"abc"), 1);
+            assert_eq!(valueCompare(&"abc", &"abd"), -1);
+            assert_eq!(valueCompare(&"abc", &"abc"), 0);
+            assert_eq!(valueCompare(&"abd", &"abc"), 1);
         }
 
         #[test]
@@ -1886,16 +1886,16 @@ mod tests {
             let a = 42;
             let b = 42;
             // Same reference should be equal
-            assert!(reference_eq(&a, &a));
+            assert!(referenceEq(&a, &a));
             // Different references with same value
             // reference_eq checks pointer equality, so different vars may not be equal
-            assert!(reference_eq(&a, &b) || !reference_eq(&a, &b)); // either is valid
+            assert!(referenceEq(&a, &b) || !referenceEq(&a, &b)); // either is valid
         }
 
         #[test]
         fn test_reference_pointer_string() {
             let val = 42;
-            let ptr_str = reference_pointer_string(&val);
+            let ptr_str = referencePointerString(&val);
             // Should be a valid hex representation like "0x..."
             assert!(ptr_str.starts_with("0x"));
         }
@@ -1903,19 +1903,19 @@ mod tests {
         #[test]
         fn test_reference_debug_string() {
             let val = 42i32;
-            let result = reference_debug_string(&val);
+            let result = referenceDebugString(&val);
             assert!(result.contains("i32"));
         }
 
         #[test]
         fn test_value_constructor() {
             // Should return a stable value for the same type
-            let c1 = value_constructor::<i32>();
-            let c2 = value_constructor::<i32>();
+            let c1 = valueConstructor::<i32>();
+            let c2 = valueConstructor::<i32>();
             assert_eq!(c1, c2);
 
             // Different types should likely have different constructors
-            let c3 = value_constructor::<String>();
+            let c3 = valueConstructor::<String>();
             assert_ne!(c1, c3);
         }
 
@@ -1938,19 +1938,19 @@ mod tests {
         #[test]
         fn test_is_none() {
             let none: OptionValue<i32> = OptionValue::None;
-            assert!(is_none(&none));
+            assert!(isNone(&none));
 
             let some = OptionValue::Some(42);
-            assert!(!is_none(&some));
+            assert!(!isNone(&some));
         }
 
         #[test]
         fn test_is_some() {
             let none: OptionValue<i32> = OptionValue::None;
-            assert!(!is_some(&none));
+            assert!(!isSome(&none));
 
             let some = OptionValue::Some(42);
-            assert!(is_some(&some));
+            assert!(isSome(&some));
         }
     }
 
@@ -1970,8 +1970,8 @@ mod tests {
         #[test]
         fn test_is_present() {
             // Always returns true in Rust translation
-            assert!(is_present(&42));
-            assert!(is_present(&"hello"));
+            assert!(isPresent(&42));
+            assert!(isPresent(&"hello"));
         }
 
         #[test]

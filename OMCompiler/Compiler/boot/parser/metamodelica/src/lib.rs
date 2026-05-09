@@ -572,6 +572,7 @@ pub enum List<T> {
 }
 use List::{Cons, Nil};
 
+#[macro_export]
 macro_rules! list {
     // Base case: empty list
     () => {
@@ -1963,8 +1964,8 @@ mod tests {
 
         #[test]
         fn test_set_stack_overflow_signal() {
-            assert!(set_stack_overflow_signal(true));
-            assert!(!set_stack_overflow_signal(false));
+            assert!(setStackOverflowSignal(true));
+            assert!(!setStackOverflowSignal(false));
         }
 
         #[test]

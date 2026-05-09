@@ -594,6 +594,7 @@ fn emit_uniontype<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM:
             };
             let type_params = if type_vars.is_empty() { String::new() } else { format!("<{}>", type_vars.join(", ")) };
             let mut emitted_variants: Vec<String> = Vec::new();
+            writeln!(out, "{inner}#[derive(Clone, Debug, PartialEq, Eq, Hash)]").unwrap();
             writeln!(out, "{inner}pub enum {ename}{type_params} {{").unwrap();
             for rec_name in &records_in_order(c) {
                 let Some(rec_node) = node.children.get(rec_name) else { continue };
@@ -723,6 +724,7 @@ fn emit_type_item(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Cla
         }
         MM::ClassDef::Enumeration { enum_literals, .. } => {
             if let Absyn::EnumDef::ENUMLITERALS { enumLiterals } = enum_literals {
+                writeln!(out, "{indent}#[derive(Clone, Debug, PartialEq, Eq, Hash)]").unwrap();
                 writeln!(out, "{indent}pub enum {} {{", escape_ident(name)).unwrap();
                 for lit in enumLiterals {
                     let Absyn::EnumLiteral::ENUMLITERAL { literal, .. } = lit;
@@ -857,11 +859,12 @@ fn emit_exp(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx) -> String {
     match exp {
         TypedExp::Lit(Lit::Int(v))  => v.to_string(),
         TypedExp::Lit(Lit::Real(v)) => v.clone(),
-        TypedExp::Lit(Lit::Str(v))  => format!("\"{v}\""),
+        TypedExp::Lit(Lit::Str(v))  => format!("\"{v}\".to_string()"),
         TypedExp::Lit(Lit::Bool(v)) => v.to_string(),
 
         TypedExp::Var { name, .. } => {
-            if name.contains('.') { ctx.shorten(name) } else { escape_ident(name) }
+            let res = if name.contains('.') { ctx.shorten(name) } else { name.clone() };
+            escape_ident(&res)
         }
 
         TypedExp::BinOp { op, lhs, rhs, .. } => {
@@ -932,9 +935,9 @@ fn emit_exp(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx) -> String {
             let t = emit_exp(then_, is_const, ctx);
             let e = emit_exp(else_, is_const, ctx);
             let ei: String = elseif.iter()
-                .map(|(ec, eb)| format!(" else if {} {{{}}}", emit_exp(ec, is_const, ctx), emit_exp(eb, is_const, ctx)))
+                .map(|(ec, eb)| format!(" else if ({}) {{{}}}", emit_exp(ec, is_const, ctx), emit_exp(eb, is_const, ctx)))
                 .collect();
-            format!("if {c} {{{t}}}{ei} else {{{e}}}")
+            format!("if ({c}) {{{t}}}{ei} else {{{e}}}")
         }
 
         TypedExp::Cons { head, tail, .. } => {
@@ -980,7 +983,7 @@ fn emit_match(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], is_const:
                 ",\n        _ => bail!(\"match: no arm matched\")".to_owned()
             };
             format!(
-                "match {input_str} {{\n{}{fallback},\n    }}",
+                "(match {input_str} {{\n{}{fallback},\n    }})",
                 arms.join(",\n"),
             )
         }
@@ -1604,8 +1607,22 @@ fn component_fields<'a>(c: &'a MM::Class, children: &'a BTreeMap<String, NameNod
 /// Prefix Rust keywords with `r#` so they are valid identifiers.
 /// `self`, `super`, `crate`, and `Self` cannot be raw identifiers and are left as-is.
 fn escape_ident(name: &str) -> String {
-    if name.starts_with("'") {
-        return ("_".to_string() + &name.replace('\'', "").replace(".", "_"));
+    if let Some(start) = name.find('\'') {
+        // Find the next quote relative to the first one.
+        // We slice from start + 1 to ensure we find the *next* quote, not the current one.
+        if let Some(end_offset) = name[start + 1..].find('\'') {
+            // Calculate the absolute index of the second quote
+            let end = start + 1 + end_offset;
+
+            // Reconstruct the string:
+            // 1. &name[..start]  -> Everything before the first quote
+            // 2. &name[end + 1..] -> Everything after the second quote
+            // (Using end + 1 removes the second quote character as well.
+            //  Use &name[end..] if you want to keep the second quote.)
+
+            let new_name = format!("{}_{}{}", &name[..start], name[start+1..end].replace("'", "").replace(".","_").replace("::","_"), &name[end + 1..]);
+            return escape_ident(new_name.as_str());
+        };
     };
     match name {
         // strict keywords (edition-independent)

@@ -529,8 +529,13 @@ fn emit_uniontype(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Cla
 
     match &node.ty {
         Ty::RustEnum(_) => {
+            let type_vars: Vec<String> = match &c.body {
+                MM::ClassDef::Parts { type_vars, .. } => type_vars.clone(),
+                _ => vec![],
+            };
+            let type_params = if type_vars.is_empty() { String::new() } else { format!("<{}>", type_vars.join(", ")) };
             let mut emitted_variants: Vec<String> = Vec::new();
-            writeln!(out, "{inner}pub enum {ename} {{").unwrap();
+            writeln!(out, "{inner}pub enum {ename}{type_params} {{").unwrap();
             for rec_name in &records_in_order(c) {
                 let Some(rec_node) = node.children.get(rec_name) else { continue };
                 let NodeKind::Class(rc) = &rec_node.kind else { continue };

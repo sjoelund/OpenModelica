@@ -187,6 +187,17 @@ impl GenCtx {
     }
 }
 
+/// Walk `dotted` through the hierarchy and return the `Ty` of the terminal node, or `None`.
+fn lookup_node_ty<'a>(dotted: &str, top_level: &'a BTreeMap<String, NameNode<'a>>) -> Option<&'a Ty> {
+    let mut parts = dotted.split('.');
+    let first = parts.next().unwrap_or("");
+    let mut node = top_level.get(first)?;
+    for part in parts {
+        node = node.children.get(part)?;
+    }
+    Some(&node.ty)
+}
+
 /// Return true if `dotted` (e.g. `"NFInstNode.NodeTree"`) resolves to a real node in the
 /// hierarchy. Used to skip dangling imports that appear in the MetaModelica source but
 /// refer to names that no longer exist (or never did) in the parsed tree.
@@ -263,7 +274,15 @@ fn collect_imports<'a>(node: &NameNode<'_>, ctx: &mut GenCtx, top_level: &'a BTr
                         // `use crate::NFCall as Call` rather than `use crate::NFCall::Call`
                         // (the latter would fail — the alias is a private `use` in that module).
                         let effective = resolve_through_import_node(&dotted, top_level)
-                            .unwrap_or(dotted);
+                            .unwrap_or(dotted.clone());
+                        // If the node is a RustStruct whose qname differs from the import path,
+                        // the record was renamed to its parent uniontype (single-record uniontype).
+                        // Import the struct at its actual path (the uniontype) aliased to the
+                        // record's name, e.g. `use crate::SimCode::SimCode as SIMCODE;`.
+                        let effective = match lookup_node_ty(&effective, top_level) {
+                            Some(Ty::RustStruct(struct_qname)) if struct_qname != &effective => struct_qname.clone(),
+                            _ => effective,
+                        };
                         if effective != ctx.top_name && !effective.starts_with(&same_file_prefix) {
                             ctx.named.insert(effective, last);
                         }
@@ -273,7 +292,12 @@ fn collect_imports<'a>(node: &NameNode<'_>, ctx: &mut GenCtx, top_level: &'a BTr
                     let dotted = path_to_dotted(path);
                     if dotted != ctx.top_name && !dotted.starts_with(&same_file_prefix) && path_exists_in_hierarchy(&dotted, top_level) {
                         let effective = resolve_through_import_node(&dotted, top_level)
-                            .unwrap_or(dotted);
+                            .unwrap_or(dotted.clone());
+                        // Same renamed-record correction as for QUAL_IMPORT.
+                        let effective = match lookup_node_ty(&effective, top_level) {
+                            Some(Ty::RustStruct(struct_qname)) if struct_qname != &effective => struct_qname.clone(),
+                            _ => effective,
+                        };
                         if effective != ctx.top_name && !effective.starts_with(&same_file_prefix) {
                             ctx.named.insert(effective, name.clone());
                         }
@@ -289,7 +313,12 @@ fn collect_imports<'a>(node: &NameNode<'_>, ctx: &mut GenCtx, top_level: &'a BTr
                             };
                             let full = format!("{prefix_str}.{orig}");
                             if path_exists_in_hierarchy(&full, top_level) {
-                                ctx.named.insert(full, local);
+                                // Same renamed-record correction as for QUAL_IMPORT.
+                                let effective = match lookup_node_ty(&full, top_level) {
+                                    Some(Ty::RustStruct(struct_qname)) if struct_qname != &full => struct_qname.clone(),
+                                    _ => full,
+                                };
+                                ctx.named.insert(effective, local);
                             }
                         }
                     }

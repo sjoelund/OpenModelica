@@ -39,10 +39,14 @@ struct GenCtx {
     /// (because they contain only records). These must NOT get the `::TypeName` doubling
     /// that mod-wrapped uniontypes require.
     no_mod_uniontypes: HashSet<String>,
+    /// Maps fully-qualified function/partial-function names to their effective type variables
+    /// (collected from inputs and output). Used at codegen time to emit generic arguments when
+    /// a FunctionAlias type is referenced as a parameter type (e.g. `toStringT` → `toStringT<T>`).
+    fn_type_vars: BTreeMap<String, Vec<String>>,
 }
 
 impl GenCtx {
-    fn new(top_name: &str, current_crate: Option<String>, crate_map: BTreeMap<String, String>, top_level_uniontype_names: HashSet<String>, recursive_types: BTreeSet<String>) -> Self {
+    fn new(top_name: &str, current_crate: Option<String>, crate_map: BTreeMap<String, String>, top_level_uniontype_names: HashSet<String>, recursive_types: BTreeSet<String>, fn_type_vars: BTreeMap<String, Vec<String>>) -> Self {
         Self {
             top_name: top_name.to_owned(),
             current_path: Vec::new(),
@@ -55,6 +59,7 @@ impl GenCtx {
             top_level_uniontype_names,
             recursive_types,
             no_mod_uniontypes: HashSet::new(),
+            fn_type_vars,
         }
     }
 
@@ -333,6 +338,13 @@ pub fn generate_all(hier: &InstanceHierarchy<'_>, output_dir: &str) -> std::io::
         collect_no_mod_uniontypes(&top_node.children, top_name, &mut no_mod_uniontypes);
     }
 
+    // Build a map from fully-qualified function names to their effective type variables.
+    // Used at codegen time to emit generic arguments for FunctionAlias parameter types.
+    let mut fn_type_vars: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    for (top_name, top_node) in &hier.top_level {
+        collect_fn_type_vars(top_node, top_name, &mut fn_type_vars);
+    }
+
     // Group top-level classes by their output directory.
     let mut dir_classes: BTreeMap<String, Vec<(&str, &NameNode<'_>)>> = BTreeMap::new();
     for (name, node) in &hier.top_level {
@@ -359,7 +371,7 @@ pub fn generate_all(hier: &InstanceHierarchy<'_>, output_dir: &str) -> std::io::
             } else {
                 None
             };
-            let content = generate_file(name, node, &crate_map, current_crate, &top_level_uniontype_names, hier.recursive_types.clone(), &no_mod_uniontypes, &hier.top_level);
+            let content = generate_file(name, node, &crate_map, current_crate, &top_level_uniontype_names, hier.recursive_types.clone(), &no_mod_uniontypes, &hier.top_level, &fn_type_vars);
             std::fs::write(format!("{dir}/{name}.rs"), content)?;
         }
         let lib_content = generate_lib_file(hier, dir, output_dir);
@@ -392,6 +404,21 @@ fn generate_lib_file(hier: &InstanceHierarchy<'_>, this_dir: &str, default_dir: 
 /// Collect fully-qualified names of nested uniontypes (inside packages) that have no
 /// `pub mod` wrapper because they contain only records. Used to suppress the `::TypeName`
 /// doubling in `fmt_ty` for those types.
+/// Recursively walk the node tree and record, for each function node, the effective
+/// type variables present in its inputs/output. Used to emit `foo<T>` when a
+/// `FunctionAlias` referencing `foo` appears as a parameter type.
+fn collect_fn_type_vars(node: &NameNode<'_>, qname: &str, map: &mut BTreeMap<String, Vec<String>>) {
+    if let Ty::Function { .. } = &node.ty {
+        let mut tvs: Vec<String> = Vec::new();
+        collect_type_vars_in_ty(&node.ty, &mut tvs);
+        map.insert(qname.to_owned(), tvs);
+    }
+    for (child_name, child_node) in &node.children {
+        let child_qname = format!("{qname}.{child_name}");
+        collect_fn_type_vars(child_node, &child_qname, map);
+    }
+}
+
 fn collect_no_mod_uniontypes(nodes: &BTreeMap<String, NameNode<'_>>, prefix: &str, out: &mut HashSet<String>) {
     for (name, node) in nodes {
         let qname = if prefix.is_empty() { name.clone() } else { format!("{prefix}.{name}") };
@@ -407,8 +434,8 @@ fn collect_no_mod_uniontypes(nodes: &BTreeMap<String, NameNode<'_>>, prefix: &st
     }
 }
 
-fn generate_file<'a>(top_name: &str, node: &NameNode<'_>, crate_map: &BTreeMap<String, String>, current_crate: Option<String>, top_level_uniontype_names: &HashSet<String>, recursive_types: BTreeSet<String>, no_mod_uniontypes: &HashSet<String>, top_level: &'a BTreeMap<String, NameNode<'a>>) -> String {
-    let mut ctx = GenCtx::new(top_name, current_crate, crate_map.clone(), top_level_uniontype_names.clone(), recursive_types);
+fn generate_file<'a>(top_name: &str, node: &NameNode<'_>, crate_map: &BTreeMap<String, String>, current_crate: Option<String>, top_level_uniontype_names: &HashSet<String>, recursive_types: BTreeSet<String>, no_mod_uniontypes: &HashSet<String>, top_level: &'a BTreeMap<String, NameNode<'a>>, fn_type_vars: &BTreeMap<String, Vec<String>>) -> String {
+    let mut ctx = GenCtx::new(top_name, current_crate, crate_map.clone(), top_level_uniontype_names.clone(), recursive_types, fn_type_vars.clone());
     ctx.no_mod_uniontypes = no_mod_uniontypes.clone();
     collect_imports(node, &mut ctx, top_level);
 
@@ -775,7 +802,39 @@ fn fmt_ty(ty: &Ty, ctx: &mut GenCtx) -> String {
             let ins = inputs.iter().map(|inp| fmt_ty(&inp.ty, ctx)).collect::<Vec<_>>().join(", ");
             format!("fn({ins}) -> {}", fmt_ty(output, ctx))
         }
-        Ty::FunctionAlias { base, .. } => ctx.shorten(base),
+        Ty::FunctionAlias { base, .. } => {
+            let short = ctx.shorten(base);
+            // Look up the base function's type vars (e.g. ["T"] for toStringT<T>) so we can
+            // emit the correct generic arguments when this alias is used as a parameter type.
+            let cur_prefix = if ctx.current_path.is_empty() {
+                ctx.top_name.clone()
+            } else {
+                format!("{}.{}", ctx.top_name, ctx.current_path.join("."))
+            };
+            let tvs: Option<&Vec<String>> = if base.contains('.') {
+                ctx.fn_type_vars.get(base.as_str())
+            } else {
+                // Scope-walk from current module up to find the base function.
+                let mut result = None;
+                let mut scope: &str = &cur_prefix;
+                loop {
+                    let qualified = format!("{scope}.{base}");
+                    if let Some(v) = ctx.fn_type_vars.get(qualified.as_str()) {
+                        result = Some(v);
+                        break;
+                    }
+                    match scope.rfind('.') {
+                        Some(dot) => scope = &scope[..dot],
+                        None => break,
+                    }
+                }
+                result
+            };
+            match tvs {
+                Some(tvs) if !tvs.is_empty() => format!("{short}<{}>", tvs.join(", ")),
+                _ => short,
+            }
+        }
         Ty::Generic(name, args) => {
             // `name` is already in Rust form (dots replaced with ::) by ty_rust_name.
             // Convert back to dotted form so shorten() can produce a context-relative

@@ -1428,6 +1428,13 @@ fn fmt_exp(exp: &Absyn::Exp) -> String {
         Absyn::Exp::LBINARY { exp1, op, exp2 } |
         Absyn::Exp::RELATION { exp1, op, exp2 } |
         Absyn::Exp::BINARY { exp1, op, exp2 } => {
+            match op {
+                Absyn::Operator::EQUAL => {
+                    // Constant-time string equality
+                    return format!("const_str::equal!({},{})", fmt_exp(exp1), fmt_exp(exp2));
+                },
+                _ => {}
+            };
             let s = match op {
                 Absyn::Operator::ADD | Absyn::Operator::ADD_EW => "+",
                 Absyn::Operator::SUB | Absyn::Operator::SUB_EW => "-",

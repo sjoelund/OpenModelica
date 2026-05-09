@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 anyhow.workspace=true
+const-str.workspace=true
 metamodelica.workspace=true
 openmodelica_frontend.workspace=true
 openmodelica_nf_frontend.workspace=true

@@ -496,6 +496,7 @@ fn generate_file<'a>(top_name: &str, node: &NameNode<'_>, crate_map: &BTreeMap<S
     writeln!(out, "{}", "
 use std::sync::Arc;
 use metamodelica::*; // Built-in types and functions
+use const_str;
 ").unwrap();
     for line in ctx.use_lines() {
         writeln!(out, "{line}").unwrap();

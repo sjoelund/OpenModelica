@@ -1399,6 +1399,30 @@ fn resolve_path(path: &Absyn::Path, known: &ScopedKnown, aliases: &ScopedAliases
     Some(variant_promotion(scope, name, ty, known))
 }
 
+// ── Hierarchy lookup helpers (used by codegen and typedexp) ──────────────────
+
+pub(crate) fn lookup_node<'a>(dotted: &str, top_level: &'a BTreeMap<String, NameNode<'a>>) -> Option<&'a NameNode<'a>> {
+    let mut parts = dotted.split('.');
+    let first = parts.next().unwrap_or("");
+    let mut node = top_level.get(first)?;
+    for part in parts {
+        node = node.children.get(part)?;
+    }
+    Some(node)
+}
+
+pub(crate) fn lookup_node_ty<'a>(dotted: &str, top_level: &'a BTreeMap<String, NameNode<'a>>) -> Option<&'a Ty> {
+    lookup_node(dotted, top_level).map(|n| &n.ty)
+}
+
+/// Extract the raw `Absyn::Exp` from a modification, for typed inference in codegen.
+pub(crate) fn extract_default_exp(modification: &Option<Absyn::Modification>) -> Option<&Absyn::Exp> {
+    match modification {
+        Some(Absyn::Modification::CLASSMOD { eqMod: Absyn::EqMod::EQMOD { exp, .. }, .. }) => Some(exp),
+        _ => None,
+    }
+}
+
 // ── Expression helpers ────────────────────────────────────────────────────────
 
 pub(crate) fn extract_default(modification: &Option<Absyn::Modification>) -> Option<String> {

@@ -4,7 +4,9 @@ use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::fmt::Write;
 use mmwinnow::Absyn;
 use crate::MM;
-use crate::hierarchy::{InstanceHierarchy, NameNode, NodeKind, Ty, extract_default, uniontype_needs_mod};
+use std::collections::HashMap;
+use crate::hierarchy::{InstanceHierarchy, NameNode, NodeKind, Ty, extract_default, extract_default_exp, lookup_node, lookup_node_ty, uniontype_needs_mod};
+use crate::typedexp::{self, TypedExp, TypedPat, TypedCase, Lit, BinOpKind, UnOpKind, MatchKind, cref_to_dotted};
 
 // ── Import-aware generation context ──────────────────────────────────────────
 
@@ -185,21 +187,6 @@ impl GenCtx {
             },
         }
     }
-}
-
-/// Walk `dotted` through the hierarchy and return the `Ty` of the terminal node, or `None`.
-fn lookup_node_ty<'a>(dotted: &str, top_level: &'a BTreeMap<String, NameNode<'a>>) -> Option<&'a Ty> {
-    lookup_node(dotted, top_level).map(|n| &n.ty)
-}
-
-fn lookup_node<'a>(dotted: &str, top_level: &'a BTreeMap<String, NameNode<'a>>) -> Option<&'a NameNode<'a>> {
-    let mut parts = dotted.split('.');
-    let first = parts.next().unwrap_or("");
-    let mut node = top_level.get(first)?;
-    for part in parts {
-        node = node.children.get(part)?;
-    }
-    Some(node)
 }
 
 fn is_const_component<'a>(dotted: &str, top_level: &'a BTreeMap<String, NameNode<'a>>) -> bool {
@@ -487,7 +474,7 @@ fn generate_file<'a>(top_name: &str, node: &NameNode<'_>, crate_map: &BTreeMap<S
 
     // First pass: emit the body so that shorten() can populate implicit_modules.
     let mut body = String::new();
-    emit_node(&mut body, top_name, node, "", &mut ctx);
+    emit_node(&mut body, top_name, node, "", &mut ctx, top_level);
 
     // Second pass: emit header + complete use lines (now including implicit modules).
     let mut out = String::new();
@@ -510,7 +497,7 @@ use const_str;
 
 // ── Node emission ─────────────────────────────────────────────────────────────
 
-fn emit_node(out: &mut String, name: &str, node: &NameNode<'_>, indent: &str, ctx: &mut GenCtx) {
+fn emit_node<'a>(out: &mut String, name: &str, node: &NameNode<'_>, indent: &str, ctx: &mut GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) {
     if let NodeKind::Component(m) = &node.kind {
         if m.variability == Absyn::Variability::CONST {
             let rust_ty = match &node.ty {
@@ -520,7 +507,9 @@ fn emit_node(out: &mut String, name: &str, node: &NameNode<'_>, indent: &str, ct
                 Ty::Bool => "bool",
                 _ => return,
             };
-            if let Some(val) = extract_default(&m.modification) {
+            if let Some(exp) = extract_default_exp(&m.modification) {
+                let typed = typedexp::infer_exp(exp, &HashMap::new(), top_level);
+                let val = emit_exp(&typed, /*is_const=*/true, ctx);
                 let ename = escape_ident(name);
                 writeln!(out, "{indent}pub const {ename}: {rust_ty} = {val};").unwrap();
                 writeln!(out).unwrap();
@@ -552,7 +541,7 @@ fn emit_node(out: &mut String, name: &str, node: &NameNode<'_>, indent: &str, ct
             let mut children: Vec<_> = node.children.iter().collect();
             children.sort_by_key(|(n, _)| n.as_str());
             for (child_name, child_node) in children {
-                emit_node(out, child_name, child_node, &child_indent, &mut *ctx);
+                emit_node(out, child_name, child_node, &child_indent, &mut *ctx, top_level);
             }
             if wrap {
                 ctx.current_path.pop();
@@ -560,10 +549,10 @@ fn emit_node(out: &mut String, name: &str, node: &NameNode<'_>, indent: &str, ct
                 writeln!(out).unwrap();
             }
         }
-        R_UNIONTYPE => emit_uniontype(out, name, node, c, indent, &mut *ctx),
+        R_UNIONTYPE => emit_uniontype(out, name, node, c, indent, &mut *ctx, top_level),
         R_TYPE | R_ENUMERATION => emit_type_item(out, name, node, c, indent, &mut *ctx),
         R_RECORD | R_METARECORD { .. } => emit_struct(out, name, node, c, indent, &mut *ctx),
-        R_FUNCTION { .. } => emit_function(out, name, node, c, indent, &mut *ctx),
+        R_FUNCTION { .. } => emit_function(out, name, node, c, indent, &mut *ctx, top_level),
         _ => {}
     }
 }
@@ -573,7 +562,7 @@ fn emit_node(out: &mut String, name: &str, node: &NameNode<'_>, indent: &str, ct
 /// in the same package both define a function with the same name (e.g. `new`), and
 /// mirrors how function calls are resolved: `SBGraph.IncidenceList.new` shortens to
 /// `IncidenceList::new` naturally via `shorten()`.
-fn emit_uniontype(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Class, indent: &str, ctx: &mut GenCtx) {
+fn emit_uniontype<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Class, indent: &str, ctx: &mut GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) {
     // Top-level unittypes (own file, name == top_name) are already a Rust module by
     // virtue of their file — don't add a redundant inner `pub mod`. Nested unittypes
     // that contain only records also don't need a mod: there are no functions or other
@@ -674,13 +663,13 @@ fn emit_uniontype(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Cla
                 if let NodeKind::Class(child_class) = &child_node.kind {
                     match &cdm.class_def.restriction {
                         Absyn::Restriction::R_FUNCTION { .. } => {
-                            emit_function(out, &cdm.class_def.name, child_node, child_class, &inner, &mut *ctx);
+                            emit_function(out, &cdm.class_def.name, child_node, child_class, &inner, &mut *ctx, top_level);
                         }
                         Absyn::Restriction::R_TYPE | Absyn::Restriction::R_ENUMERATION => {
                             emit_type_item(out, &cdm.class_def.name, child_node, child_class, &inner, &mut *ctx);
                         }
                         Absyn::Restriction::R_UNIONTYPE => {
-                            emit_uniontype(out, &cdm.class_def.name, child_node, child_class, &inner, &mut *ctx);
+                            emit_uniontype(out, &cdm.class_def.name, child_node, child_class, &inner, &mut *ctx, top_level);
                         }
                         _ => {}
                     }
@@ -741,7 +730,7 @@ fn emit_type_item(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Cla
     }
 }
 
-fn emit_function(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Class, indent: &str, ctx: &mut GenCtx) {
+fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Class, indent: &str, ctx: &mut GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) {
     let members: &[MM::ClassMember] = match &c.body {
         MM::ClassDef::Parts { members, .. } | MM::ClassDef::ClassExtends { members, .. } => members,
         _ => return,
@@ -784,6 +773,183 @@ fn emit_function(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Clas
         writeln!(out, "{indent}}}").unwrap();
     }
     writeln!(out).unwrap();
+}
+
+// ── Expression and pattern emission ──────────────────────────────────────────
+
+fn emit_exp(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx) -> String {
+    match exp {
+        TypedExp::Lit(Lit::Int(v))  => v.to_string(),
+        TypedExp::Lit(Lit::Real(v)) => v.clone(),
+        TypedExp::Lit(Lit::Str(v))  => format!("\"{v}\""),
+        TypedExp::Lit(Lit::Bool(v)) => v.to_string(),
+
+        TypedExp::Var { name, .. } => {
+            if name.contains('.') { ctx.shorten(name) } else { escape_ident(name) }
+        }
+
+        TypedExp::BinOp { op, lhs, rhs, .. } => {
+            let l = emit_exp(lhs, is_const, ctx);
+            let r = emit_exp(rhs, is_const, ctx);
+            match op {
+                BinOpKind::Eq => {
+                    if is_const && lhs.ty() == Ty::Str {
+                        return format!("const_str::equal!({l},{r})");
+                    }
+                    format!("{l} == {r}")
+                }
+                BinOpKind::NEq => format!("{l} != {r}"),
+                BinOpKind::Lt  => format!("{l} < {r}"),
+                BinOpKind::LEq => format!("{l} <= {r}"),
+                BinOpKind::Gt  => format!("{l} > {r}"),
+                BinOpKind::GEq => format!("{l} >= {r}"),
+                BinOpKind::Add => format!("{l} + {r}"),
+                BinOpKind::Sub => format!("{l} - {r}"),
+                BinOpKind::Mul => format!("{l} * {r}"),
+                BinOpKind::Div => format!("{l} / {r}"),
+                BinOpKind::And => format!("{l} && {r}"),
+                BinOpKind::Or  => format!("{l} || {r}"),
+            }
+        }
+
+        TypedExp::UnOp { op, operand, .. } => {
+            let s = emit_exp(operand, is_const, ctx);
+            match op {
+                UnOpKind::Neg => format!("-{s}"),
+                UnOpKind::Not => format!("!{s}"),
+            }
+        }
+
+        TypedExp::Call { func, args, named_args, .. } => {
+            match func.as_str() {
+                "SOME" => {
+                    let arg = args.first().map(|a| emit_exp(a, is_const, ctx)).unwrap_or_default();
+                    format!("Some({arg})")
+                }
+                "NONE" => "None".to_owned(),
+                "fail" => "{ panic!(\"fail\") }".to_owned(),
+                _ => {
+                    let func_str = if func.contains('.') {
+                        ctx.shorten(func)
+                    } else {
+                        escape_ident(func)
+                    };
+                    let mut parts: Vec<String> = args.iter().map(|a| emit_exp(a, is_const, ctx)).collect();
+                    for (n, v) in named_args {
+                        parts.push(format!("{n}={}", emit_exp(v, is_const, ctx)));
+                    }
+                    format!("{func_str}({})", parts.join(", "))
+                }
+            }
+        }
+
+        TypedExp::If { cond, then_, elseif, else_, .. } => {
+            let c = emit_exp(cond, is_const, ctx);
+            let t = emit_exp(then_, is_const, ctx);
+            let e = emit_exp(else_, is_const, ctx);
+            let ei: String = elseif.iter()
+                .map(|(ec, eb)| format!(" else if {} {{{}}}", emit_exp(ec, is_const, ctx), emit_exp(eb, is_const, ctx)))
+                .collect();
+            format!("if {c} {{{t}}}{ei} else {{{e}}}")
+        }
+
+        TypedExp::Cons { head, tail, .. } => {
+            format!("metamodelica::List::cons({}, {})", emit_exp(head, is_const, ctx), emit_exp(tail, is_const, ctx))
+        }
+
+        TypedExp::Tuple(elems) => {
+            let parts: Vec<String> = elems.iter().map(|e| emit_exp(e, is_const, ctx)).collect();
+            format!("({})", parts.join(", "))
+        }
+
+        TypedExp::Array { elems, .. } => {
+            if elems.is_empty() {
+                "metamodelica::List::Nil".to_owned()
+            } else {
+                let parts: Vec<String> = elems.iter().map(|e| emit_exp(e, is_const, ctx)).collect();
+                format!("metamodelica::list![{}]", parts.join(", "))
+            }
+        }
+
+        TypedExp::Match { kind, input, cases, .. } => {
+            emit_match(kind, input, cases, is_const, ctx)
+        }
+
+        TypedExp::Todo(s) => format!("todo!(/*{}*/)", s.chars().take(60).collect::<String>()),
+    }
+}
+
+fn emit_match(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], is_const: bool, ctx: &mut GenCtx) -> String {
+    let input_str = emit_exp(input, is_const, ctx);
+    let arms: Vec<String> = cases.iter().map(|case| {
+        let pat = emit_pat(&case.pattern, ctx);
+        let guard = case.guard.as_ref()
+            .map(|g| format!(" if {}", emit_exp(g, is_const, ctx)))
+            .unwrap_or_default();
+        let result = emit_exp(&case.result, is_const, ctx);
+        format!("        {pat}{guard} => {result}")
+    }).collect();
+    let kw = match kind {
+        MatchKind::Match => "",
+        MatchKind::MatchContinue => "/* matchcontinue */ ",
+    };
+    format!("{kw}match {input_str} {{\n{}\n    }}", arms.join(",\n"))
+}
+
+fn emit_pat(pat: &TypedPat, ctx: &mut GenCtx) -> String {
+    match pat {
+        TypedPat::Wildcard    => "_".to_owned(),
+        TypedPat::Var(name)   => escape_ident(name),
+        TypedPat::EmptyList   => "metamodelica::List::Nil".to_owned(),
+        TypedPat::Some_(inner) => format!("Some({})", emit_pat(inner, ctx)),
+        TypedPat::None_       => "None".to_owned(),
+
+        TypedPat::Lit(Lit::Int(v))  => {
+            if *v < 0 { format!("({v})") } else { v.to_string() }
+        }
+        TypedPat::Lit(Lit::Bool(v)) => v.to_string(),
+        TypedPat::Lit(Lit::Str(_))  => "_ /* string — move to guard */".to_owned(),
+        TypedPat::Lit(Lit::Real(_)) => "_ /* real — move to guard */".to_owned(),
+
+        TypedPat::Cons { head, tail } => {
+            format!("metamodelica::List::Cons {{ head: {}, tail: {} }}",
+                emit_pat(head, ctx), emit_pat(tail, ctx))
+        }
+
+        TypedPat::Tuple(pats) => {
+            let parts: Vec<String> = pats.iter().map(|p| emit_pat(p, ctx)).collect();
+            format!("({})", parts.join(", "))
+        }
+
+        TypedPat::Constructor { name, fields, named_fields, .. } => {
+            let rust = if name.contains('.') { ctx.shorten(name) } else { escape_ident(name) };
+            if named_fields.is_empty() && fields.is_empty() {
+                rust
+            } else if named_fields.is_empty() {
+                let pats: Vec<String> = fields.iter().map(|p| emit_pat(p, ctx)).collect();
+                format!("{rust}({})", pats.join(", "))
+            } else {
+                let pats: Vec<String> = named_fields.iter()
+                    .map(|(fname, p)| {
+                        let pstr = emit_pat(p, ctx);
+                        // Use field shorthand when the binding name matches the field name.
+                        if matches!(p, TypedPat::Var(v) if v == fname) {
+                            escape_ident(fname)
+                        } else {
+                            format!("{}: {pstr}", escape_ident(fname))
+                        }
+                    })
+                    .collect();
+                format!("{rust} {{ {} }}", pats.join(", "))
+            }
+        }
+
+        TypedPat::As { var, pat } => {
+            format!("{} @ {}", escape_ident(var), emit_pat(pat, ctx))
+        }
+
+        TypedPat::Todo(s) => format!("_ /* todo: {} */", s.chars().take(40).collect::<String>()),
+    }
 }
 
 // ── Type formatting ───────────────────────────────────────────────────────────

@@ -5,6 +5,7 @@ use mmwinnow::List;
 
 mod MM;
 mod hierarchy;
+mod typedexp;
 mod codegen;
 use rayon::prelude::*;
 

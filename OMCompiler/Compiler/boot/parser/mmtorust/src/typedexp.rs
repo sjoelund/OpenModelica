@@ -486,6 +486,153 @@ fn collect_bindings(pat: &TypedPat, out: &mut Vec<(String, Ty)>) {
     }
 }
 
+// ── Typed statement IR ────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone)]
+pub enum TypedStmt {
+    /// `lhs := rhs;` — `lhs` may be any pattern (`x`, `(a,b)`, `SOME(x)`, `true`, …).
+    Assign { lhs: TypedPat, rhs: TypedExp },
+    /// A call statement with no return value (or value discarded).
+    NoRetCall { call: TypedExp },
+    If {
+        cond: TypedExp,
+        then_: Vec<TypedStmt>,
+        elseif: Vec<(TypedExp, Vec<TypedStmt>)>,
+        else_: Vec<TypedStmt>,
+    },
+    /// `for var in range loop body end for;` — single-iterator form only for now.
+    For { var: String, range: TypedExp, body: Vec<TypedStmt> },
+    While { cond: TypedExp, body: Vec<TypedStmt> },
+    /// `try body else else_body end try;`
+    Try { body: Vec<TypedStmt>, else_body: Vec<TypedStmt> },
+    /// `failure(body)` — succeeds iff `body` fails.
+    Failure { body: Vec<TypedStmt> },
+    Return,
+    Break,
+    Continue,
+    Todo(String),
+}
+
+/// Infer a list of algorithm items into typed statements, threading the env so that
+/// each pattern-assign extends bindings visible to subsequent stmts.
+pub fn infer_stmts<'a>(
+    items: &[Absyn::AlgorithmItem],
+    env: &mut HashMap<String, Ty>,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+    pkg_prefix: &str,
+) -> Vec<TypedStmt> {
+    let mut out = Vec::new();
+    for it in items {
+        if let Some(s) = infer_stmt(it, env, top_level, pkg_prefix) {
+            out.push(s);
+        }
+    }
+    out
+}
+
+fn infer_stmt<'a>(
+    item: &Absyn::AlgorithmItem,
+    env: &mut HashMap<String, Ty>,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+    pkg_prefix: &str,
+) -> Option<TypedStmt> {
+    let alg = match item {
+        Absyn::AlgorithmItem::ALGORITHMITEM { algorithm_, .. } => algorithm_.as_ref(),
+        Absyn::AlgorithmItem::ALGORITHMITEMCOMMENT { .. } => return None,
+    };
+    Some(match alg {
+        Absyn::Algorithm::ALG_ASSIGN { assignComponent, value } => {
+            let rhs = infer_exp(value, env, top_level, pkg_prefix);
+            // The LHS of `:=` is a pattern (in MetaModelica, patterns and expressions share syntax).
+            let lhs = infer_pat(assignComponent, top_level);
+            // Extend env from any new bindings introduced by the LHS.
+            for (name, _ty) in pat_bindings(&lhs) {
+                // For now we don't know the binding type accurately without scrutinee threading;
+                // record `Unknown`. The codegen can still emit the binding; fancier coercion later.
+                env.insert(name, rhs.ty());
+            }
+            TypedStmt::Assign { lhs, rhs }
+        }
+        Absyn::Algorithm::ALG_NORETCALL { functionCall, functionArgs } => {
+            let func = cref_to_dotted(functionCall);
+            let (args, named_args) = extract_call_args(functionArgs, env, top_level, pkg_prefix);
+            let ty = call_ty(&func, &args, top_level);
+            TypedStmt::NoRetCall { call: TypedExp::Call { func, args, named_args, ty } }
+        }
+        Absyn::Algorithm::ALG_IF { ifExp, trueBranch, elseIfAlgorithmBranch, elseBranch } => {
+            let cond = infer_exp(ifExp, env, top_level, pkg_prefix);
+            let then_ = infer_stmts_list(trueBranch, env, top_level, pkg_prefix);
+            let elseif: Vec<(TypedExp, Vec<TypedStmt>)> = elseIfAlgorithmBranch.into_iter()
+                .map(|(c, b)| (
+                    infer_exp(&c, env, top_level, pkg_prefix),
+                    infer_stmts_list(&b, env, top_level, pkg_prefix),
+                ))
+                .collect();
+            let else_ = infer_stmts_list(elseBranch, env, top_level, pkg_prefix);
+            TypedStmt::If { cond, then_, elseif, else_ }
+        }
+        Absyn::Algorithm::ALG_FOR { iterators, forBody }
+        | Absyn::Algorithm::ALG_PARFOR { iterators, parforBody: forBody } => {
+            // Single-iterator form only.
+            let iters: Vec<Absyn::ForIterator> = iterators.into_iter().collect();
+            if iters.len() == 1 {
+                let Absyn::ForIterator::ITERATOR { name, range, .. } = &iters[0];
+                let range_e = match range {
+                    Some(r) => infer_exp(r, env, top_level, pkg_prefix),
+                    None => TypedExp::Todo("for-without-range".to_owned()),
+                };
+                // Element type from list/array.
+                let elem_ty = match range_e.ty() {
+                    Ty::List(t) | Ty::Array(t) => *t,
+                    _ => Ty::Unknown,
+                };
+                let mut inner = env.clone();
+                inner.insert(name.clone(), elem_ty);
+                let body = infer_stmts_list(forBody, &mut inner, top_level, pkg_prefix);
+                TypedStmt::For { var: name.clone(), range: range_e, body }
+            } else {
+                TypedStmt::Todo("multi-iterator-for".to_owned())
+            }
+        }
+        Absyn::Algorithm::ALG_WHILE { boolExpr, whileBody } => {
+            let cond = infer_exp(boolExpr, env, top_level, pkg_prefix);
+            let body = infer_stmts_list(whileBody, env, top_level, pkg_prefix);
+            TypedStmt::While { cond, body }
+        }
+        Absyn::Algorithm::ALG_TRY { body, elseBody } => {
+            let mut benv = env.clone();
+            let body = infer_stmts_list(body, &mut benv, top_level, pkg_prefix);
+            let mut eenv = env.clone();
+            let else_body = infer_stmts_list(elseBody, &mut eenv, top_level, pkg_prefix);
+            TypedStmt::Try { body, else_body }
+        }
+        Absyn::Algorithm::ALG_FAILURE { equ } => {
+            let mut fenv = env.clone();
+            let body = infer_stmts_list(equ, &mut fenv, top_level, pkg_prefix);
+            TypedStmt::Failure { body }
+        }
+        Absyn::Algorithm::ALG_RETURN   => TypedStmt::Return,
+        Absyn::Algorithm::ALG_BREAK    => TypedStmt::Break,
+        Absyn::Algorithm::ALG_CONTINUE => TypedStmt::Continue,
+        other => TypedStmt::Todo(format!("{other:?}").chars().take(60).collect()),
+    })
+}
+
+fn infer_stmts_list<'a>(
+    items: &mmwinnow::List<Absyn::AlgorithmItem>,
+    env: &mut HashMap<String, Ty>,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+    pkg_prefix: &str,
+) -> Vec<TypedStmt> {
+    let mut out = Vec::new();
+    for it in items.into_iter() {
+        if let Some(s) = infer_stmt(&it, env, top_level, pkg_prefix) {
+            out.push(s);
+        }
+    }
+    out
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 fn absyn_op_to_binop(op: &Absyn::Operator) -> BinOpKind {

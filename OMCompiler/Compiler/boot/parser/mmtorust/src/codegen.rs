@@ -482,6 +482,7 @@ fn generate_file<'a>(top_name: &str, node: &NameNode<'_>, crate_map: &BTreeMap<S
     writeln!(out, "#![allow(non_camel_case_types, non_snake_case, dead_code, unused_imports, unused_variables, non_upper_case_globals)]").unwrap();
     writeln!(out, "{}", "
 use std::sync::Arc;
+use anyhow::{Result, bail};
 use metamodelica::*; // Built-in types and functions
 use const_str;
 ").unwrap();
@@ -762,7 +763,7 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
         .collect::<Vec<_>>()
         .join(", ");
 
-    let ret = fmt_ty(fn_output, ctx);
+    let ret_ty = fmt_ty(fn_output, ctx);
     let ename = escape_ident(name);
 
     let pub_kw = if node.visibility == MM::Visibility::Public { "pub " } else { "" };
@@ -771,12 +772,82 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
             .map(|inp| fmt_ty(&inp.ty, ctx))
             .collect::<Vec<_>>()
             .join(", ");
-        writeln!(out, "{indent}{pub_kw}type {ename}{type_params} = fn({type_only_params}) -> {ret};").unwrap();
-    } else {
-        writeln!(out, "{indent}{pub_kw}fn {ename}{type_params}({params}) -> {ret} {{").unwrap();
-        writeln!(out, "{indent}    todo!()").unwrap();
-        writeln!(out, "{indent}}}").unwrap();
+        writeln!(out, "{indent}{pub_kw}type {ename}{type_params} = fn({type_only_params}) -> Result<{ret_ty}>;").unwrap();
+        writeln!(out).unwrap();
+        return;
     }
+
+    // Walk components to find outputs (with names) and protected locals.
+    let mut outputs: Vec<(String, Ty, Option<Absyn::Modification>)> = Vec::new();
+    let mut protected: Vec<(String, Ty, Option<Absyn::Modification>)> = Vec::new();
+    let mut input_names: HashSet<String> = HashSet::new();
+    for inp in fn_inputs.iter() { input_names.insert(inp.name.clone()); }
+    for member in members {
+        let MM::ClassMember::Component(cm) = member else { continue };
+        let child_ty = node.children.get(&cm.name).map(|n| n.ty.clone()).unwrap_or(Ty::Unknown);
+        match cm.direction {
+            Absyn::Direction::OUTPUT | Absyn::Direction::INPUT_OUTPUT =>
+                outputs.push((cm.name.clone(), child_ty, cm.modification.clone())),
+            Absyn::Direction::BIDIR => {
+                if !input_names.contains(&cm.name) {
+                    protected.push((cm.name.clone(), child_ty, cm.modification.clone()));
+                }
+            }
+            _ => {}
+        }
+    }
+
+    let pkg_prefix = if ctx.current_path.is_empty() {
+        ctx.top_name.clone()
+    } else {
+        format!("{}.{}", ctx.top_name, ctx.current_path.join("."))
+    };
+
+    let mut infer_env: HashMap<String, Ty> = HashMap::new();
+    for inp in fn_inputs.iter() { infer_env.insert(inp.name.clone(), inp.ty.clone()); }
+    for (n, t, _) in &outputs { infer_env.insert(n.clone(), t.clone()); }
+    for (n, t, _) in &protected { infer_env.insert(n.clone(), t.clone()); }
+
+    let alg_items: &[Absyn::AlgorithmItem] = match &c.body {
+        MM::ClassDef::Parts { algorithms, .. } | MM::ClassDef::ClassExtends { algorithms, .. } => algorithms,
+        _ => &[],
+    };
+
+    let typed_stmts = typedexp::infer_stmts(alg_items, &mut infer_env, top_level, &pkg_prefix);
+
+    let mut env = LocalEnv::default();
+    for inp in fn_inputs.iter() { env.vars.insert(inp.name.clone(), inp.ty.clone()); }
+    for (n, t, _) in &outputs   { env.vars.insert(n.clone(), t.clone()); }
+    for (n, t, _) in &protected { env.vars.insert(n.clone(), t.clone()); }
+
+    writeln!(out, "{indent}{pub_kw}fn {ename}{type_params}({params}) -> Result<{ret_ty}> {{").unwrap();
+    let body_indent = format!("{indent}    ");
+
+    for (n, t, modif) in outputs.iter().chain(protected.iter()) {
+        let ty_s = fmt_ty(t, ctx);
+        let modif_opt: Option<Absyn::Modification> = modif.clone();
+        let init = extract_default_exp(&modif_opt).map(|exp| {
+            let typed = typedexp::infer_exp(exp, &infer_env, top_level, &pkg_prefix);
+            emit_exp(&typed, false, ctx)
+        });
+        match init {
+            Some(s) => writeln!(out, "{body_indent}let mut {}: {ty_s} = {s};", escape_ident(n)).unwrap(),
+            None    => writeln!(out, "{body_indent}let mut {}: {ty_s};", escape_ident(n)).unwrap(),
+        }
+    }
+
+    let mut fresh: u32 = 0;
+    emit_stmts(out, &body_indent, &typed_stmts, FailureMode::Function, ctx, &mut env, top_level, &mut fresh);
+
+    match outputs.len() {
+        0 => writeln!(out, "{body_indent}Ok(())").unwrap(),
+        1 => writeln!(out, "{body_indent}Ok({})", escape_ident(&outputs[0].0)).unwrap(),
+        _ => {
+            let parts: Vec<String> = outputs.iter().map(|(n, _, _)| escape_ident(n)).collect();
+            writeln!(out, "{body_indent}Ok(({}))", parts.join(", ")).unwrap();
+        }
+    }
+    writeln!(out, "{indent}}}").unwrap();
     writeln!(out).unwrap();
 }
 
@@ -832,7 +903,7 @@ fn emit_exp(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx) -> String {
                     format!("Some({arg})")
                 }
                 "NONE" => "None".to_owned(),
-                "fail" => "{ panic!(\"fail\") }".to_owned(),
+                "fail" => if is_const { "{ panic!(\"fail\") }".to_owned() } else { "bail!(\"fail\")".to_owned() },
                 _ => {
                     let func_str = if func.contains('.') {
                         ctx.shorten(func)
@@ -843,7 +914,15 @@ fn emit_exp(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx) -> String {
                     for (n, v) in named_args {
                         parts.push(format!("{n}={}", emit_exp(v, is_const, ctx)));
                     }
-                    format!("{func_str}({})", parts.join(", "))
+                    let call = format!("{func_str}({})", parts.join(", "));
+                    // Add `?` to propagate Result errors from fallible calls. Skip in const
+                    // context, for constructors (uppercase first char), and for known-infallible
+                    // builtins (the core arithmetic / comparison / structural ops).
+                    if is_const || is_constructor_name(func) || is_infallible_builtin(func) {
+                        call
+                    } else {
+                        format!("{call}?")
+                    }
                 }
             }
         }
@@ -886,19 +965,48 @@ fn emit_exp(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx) -> String {
 
 fn emit_match(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], is_const: bool, ctx: &mut GenCtx) -> String {
     let input_str = emit_exp(input, is_const, ctx);
-    let arms: Vec<String> = cases.iter().map(|case| {
-        let pat = emit_pat(&case.pattern, ctx);
-        let guard = case.guard.as_ref()
-            .map(|g| format!(" if {}", emit_exp(g, is_const, ctx)))
-            .unwrap_or_default();
-        let result = emit_exp(&case.result, is_const, ctx);
-        format!("        {pat}{guard} => {result}")
-    }).collect();
-    let kw = match kind {
-        MatchKind::Match => "",
-        MatchKind::MatchContinue => "/* matchcontinue */ ",
-    };
-    format!("{kw}match {input_str} {{\n{}\n    }}", arms.join(",\n"))
+    match kind {
+        MatchKind::Match => {
+            let has_wild = cases.iter().any(|c| matches!(c.pattern, TypedPat::Wildcard) && c.guard.is_none());
+            let arms: Vec<String> = cases.iter().map(|case| {
+                let pat = emit_pat(&case.pattern, ctx);
+                let guard = case.guard.as_ref()
+                    .map(|g| format!(" if {}", emit_exp(g, is_const, ctx)))
+                    .unwrap_or_default();
+                let result = emit_exp(&case.result, is_const, ctx);
+                format!("        {pat}{guard} => {result}")
+            }).collect();
+            let fallback = if has_wild { String::new() } else {
+                ",\n        _ => bail!(\"match: no arm matched\")".to_owned()
+            };
+            format!(
+                "match {input_str} {{\n{}{fallback},\n    }}",
+                arms.join(",\n"),
+            )
+        }
+        MatchKind::MatchContinue => {
+            // Each arm is an IIFE returning anyhow::Result<T>; first Ok wins.
+            // Failures inside an arm (pattern mismatch, ?-propagated errors) drop to next arm.
+            let mut s = String::new();
+            s.push_str("'mc: {\n");
+            s.push_str(&format!("        let __mc_input = {input_str};\n"));
+            for case in cases {
+                let pat = emit_pat(&case.pattern, ctx);
+                let guard_check = case.guard.as_ref()
+                    .map(|g| format!("            if !({}) {{ bail!(\"guard\") }}\n", emit_exp(g, is_const, ctx)))
+                    .unwrap_or_default();
+                let result = emit_exp(&case.result, is_const, ctx);
+                s.push_str("        if let Ok(__v) = (|| -> Result<_> {\n");
+                s.push_str(&format!("            let {pat} = __mc_input.clone() else {{ bail!(\"nomatch\") }};\n"));
+                s.push_str(&guard_check);
+                s.push_str(&format!("            Ok({result})\n"));
+                s.push_str("        })() { break 'mc __v; }\n");
+            }
+            s.push_str("        bail!(\"matchcontinue: no arm matched\")\n");
+            s.push_str("    }");
+            s
+        }
+    }
 }
 
 fn emit_pat(pat: &TypedPat, ctx: &mut GenCtx) -> String {
@@ -954,6 +1062,354 @@ fn emit_pat(pat: &TypedPat, ctx: &mut GenCtx) -> String {
         }
 
         TypedPat::Todo(s) => format!("_ /* todo: {} */", s.chars().take(40).collect::<String>()),
+    }
+}
+
+// ── Statement emission ────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum FailureMode {
+    /// Top-level body: pattern mismatch / `fail()` becomes `bail!(...)` which
+    /// returns Err from the enclosing function.
+    Function,
+    /// Inside a try arm or matchcontinue arm IIFE — bail propagates to that
+    /// closure boundary, which the dispatcher catches.
+    TryArm,
+    /// Inside `failure(...)` body — success of the body is itself a failure;
+    /// bodies still emit normally, the inversion happens at the `Failure` site.
+    Failure,
+}
+
+#[derive(Debug, Clone, Default)]
+struct LocalEnv {
+    vars: HashMap<String, Ty>,
+}
+
+fn is_constructor_name(func: &str) -> bool {
+    let last = func.rsplit('.').next().unwrap_or(func);
+    last.chars().next().map(|c| c.is_uppercase()).unwrap_or(false)
+}
+
+fn is_infallible_builtin(func: &str) -> bool {
+    matches!(func,
+        "intAdd" | "intSub" | "intMul" | "intDiv" | "intMod" | "intAbs"
+        | "intMax" | "intMin" | "intNeg" | "intBitAnd" | "intBitOr" | "intBitXor"
+        | "intBitNot" | "intBitLShift" | "intBitRShift" | "intReal" | "intString"
+        | "realAdd" | "realSub" | "realMul" | "realDiv" | "realMod" | "realPow"
+        | "realAbs" | "realMax" | "realMin" | "realNeg" | "realFloor" | "realCeil"
+        | "realInt" | "realString"
+        | "boolAnd" | "boolOr" | "boolNot" | "boolEq" | "boolString"
+        | "intEq" | "intNe" | "intLt" | "intLe" | "intGt" | "intGe"
+        | "realEq" | "realNe" | "realLt" | "realLe" | "realGt" | "realGe"
+        | "stringEq" | "stringEqual" | "stringCompare" | "stringHash" | "stringHashDjb2"
+        | "stringLength" | "stringAppend" | "stringAppendList" | "anyString"
+        | "referenceEq" | "valueEq" | "isEmpty" | "isSome" | "isNone"
+        | "listLength" | "listEmpty" | "listMember" | "listAppend"
+        | "listReverse" | "listHead" | "listFirst" | "listRest" | "listTail"
+        | "arrayLength" | "arrayCreate" | "arrayGet" | "arrayUpdate" | "arrayCopy"
+        | "print" | "printError"
+    )
+}
+
+fn pat_is_irrefutable(pat: &TypedPat) -> bool {
+    match pat {
+        TypedPat::Wildcard | TypedPat::Var(_) => true,
+        TypedPat::Tuple(ps) => ps.iter().all(pat_is_irrefutable),
+        TypedPat::As { pat, .. } => pat_is_irrefutable(pat),
+        _ => false,
+    }
+}
+
+/// Look up the field types of a record/metarecord by qualified name.
+/// Returns Vec of (field_name, field_ty) in declaration order.
+fn record_field_tys<'a>(
+    qname: &str,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+) -> Vec<(String, Ty)> {
+    let Some(node) = lookup_node(qname, top_level) else { return vec![] };
+    let NodeKind::Class(c) = &node.kind else { return vec![] };
+    let members: &[MM::ClassMember] = match &c.body {
+        MM::ClassDef::Parts { members, .. } | MM::ClassDef::ClassExtends { members, .. } => members,
+        _ => return vec![],
+    };
+    members.iter().filter_map(|m| {
+        let MM::ClassMember::Component(cm) = m else { return None };
+        let child = node.children.get(&cm.name)?;
+        Some((cm.name.clone(), child.ty.clone()))
+    }).collect()
+}
+
+/// Is this Ty stored behind an Arc due to recursion-cycle breaking?
+fn is_arc_wrapped(ty: &Ty, ctx: &GenCtx) -> bool {
+    let qname = match ty {
+        Ty::RustStruct(n) | Ty::RustEnum(n) | Ty::AliasTo(n) | Ty::ExternalObject(n) => n.as_str(),
+        Ty::Generic(name, _) => return ctx.recursive_types.contains(&name.replace("::", ".")),
+        _ => return false,
+    };
+    ctx.recursive_types.contains(qname)
+}
+
+/// Emit an irrefutable pattern binding `let pat = expr;` if pat is irrefutable, else
+/// `let pat = expr else { <fail> };`. Then process any deferred Arc-edge sub-patterns.
+/// Returns the emitted source.
+fn emit_pat_assign<'a>(
+    out: &mut String,
+    indent: &str,
+    pat: &TypedPat,
+    scrut_ty: &Ty,
+    scrut_expr: &str,
+    fail_mode: FailureMode,
+    ctx: &mut GenCtx,
+    env: &mut LocalEnv,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+    fresh: &mut u32,
+) {
+    match pat {
+        TypedPat::Wildcard => {
+            // Evaluate for side effects but discard.
+            writeln!(out, "{indent}let _ = {scrut_expr};").unwrap();
+        }
+        TypedPat::Var(name) => {
+            env.vars.insert(name.clone(), scrut_ty.clone());
+            writeln!(out, "{indent}let {} = {scrut_expr};", escape_ident(name)).unwrap();
+        }
+        _ => {
+            // Refutable: render shallow with deferrals for Arc-edge crossings.
+            let mut deferrals: Vec<(String, TypedPat, Ty)> = Vec::new();
+            let surface = render_shallow(pat, scrut_ty, ctx, env, top_level, fresh, &mut deferrals);
+            let fail = match fail_mode {
+                FailureMode::Function | FailureMode::TryArm => "bail!(\"pattern mismatch\")",
+                FailureMode::Failure => "()",
+            };
+            writeln!(out, "{indent}let {surface} = {scrut_expr} else {{ {fail} }};").unwrap();
+            for (sub_expr, sub_pat, sub_ty) in deferrals {
+                emit_pat_assign(out, indent, &sub_pat, &sub_ty, &sub_expr, fail_mode, ctx, env, top_level, fresh);
+            }
+        }
+    }
+}
+
+/// Render a pattern with shallow Arc-edge crossing: any Constructor field whose
+/// type is Arc-wrapped AND whose pattern is non-trivial gets replaced with a fresh
+/// binding `__t<N>`, and a `(*__tN).clone()` deferral is queued for follow-up lowering.
+fn render_shallow<'a>(
+    pat: &TypedPat,
+    scrut_ty: &Ty,
+    ctx: &mut GenCtx,
+    env: &mut LocalEnv,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+    fresh: &mut u32,
+    deferrals: &mut Vec<(String, TypedPat, Ty)>,
+) -> String {
+    match pat {
+        TypedPat::Wildcard => "_".to_owned(),
+        TypedPat::Var(name) => {
+            env.vars.insert(name.clone(), scrut_ty.clone());
+            escape_ident(name)
+        }
+        TypedPat::EmptyList => "metamodelica::List::Nil".to_owned(),
+        TypedPat::None_ => "None".to_owned(),
+        TypedPat::Some_(inner) => {
+            let inner_ty = match scrut_ty {
+                Ty::Option(t) => (**t).clone(),
+                _ => Ty::Unknown,
+            };
+            let inner_s = render_shallow(inner, &inner_ty, ctx, env, top_level, fresh, deferrals);
+            format!("Some({inner_s})")
+        }
+        TypedPat::Lit(Lit::Int(v)) => if *v < 0 { format!("({v})") } else { v.to_string() },
+        TypedPat::Lit(Lit::Bool(v)) => v.to_string(),
+        TypedPat::Lit(_) => "_ /* lit — guard not yet implemented */".to_owned(),
+        TypedPat::Cons { head, tail } => {
+            let elem_ty = match scrut_ty { Ty::List(t) => (**t).clone(), _ => Ty::Unknown };
+            let h = render_shallow(head, &elem_ty, ctx, env, top_level, fresh, deferrals);
+            let t = render_shallow(tail, scrut_ty, ctx, env, top_level, fresh, deferrals);
+            format!("metamodelica::List::Cons {{ head: {h}, tail: {t} }}")
+        }
+        TypedPat::Tuple(pats) => {
+            let tys: Vec<Ty> = match scrut_ty {
+                Ty::Tuple(ts) if ts.len() == pats.len() => ts.clone(),
+                _ => vec![Ty::Unknown; pats.len()],
+            };
+            let parts: Vec<String> = pats.iter().zip(tys.iter())
+                .map(|(p, t)| render_shallow(p, t, ctx, env, top_level, fresh, deferrals))
+                .collect();
+            format!("({})", parts.join(", "))
+        }
+        TypedPat::Constructor { name, fields, named_fields, .. } => {
+            // Field types: look up the record by qname.
+            let resolved_qname = if name.contains('.') {
+                Some(name.clone())
+            } else {
+                // Bare constructor: try current pkg prefix and ancestors.
+                let cur_prefix = if ctx.current_path.is_empty() {
+                    ctx.top_name.clone()
+                } else {
+                    format!("{}.{}", ctx.top_name, ctx.current_path.join("."))
+                };
+                let mut scope: &str = &cur_prefix;
+                let mut found = None;
+                loop {
+                    let q = format!("{scope}.{name}");
+                    if lookup_node(&q, top_level).is_some() { found = Some(q); break; }
+                    match scope.rfind('.') {
+                        Some(d) => scope = &scope[..d],
+                        None => { if lookup_node(name, top_level).is_some() { found = Some(name.clone()); } break; }
+                    }
+                }
+                found
+            };
+            let field_tys: Vec<(String, Ty)> = resolved_qname
+                .as_deref()
+                .map(|q| record_field_tys(q, top_level))
+                .unwrap_or_default();
+            let rust_ctor = if name.contains('.') { ctx.shorten(name) } else { escape_ident(name) };
+
+            // Helper: render one sub-pattern, splitting on Arc edge.
+            let mut handle = |sub: &TypedPat, fty: &Ty,
+                              ctx: &mut GenCtx, env: &mut LocalEnv,
+                              fresh: &mut u32, deferrals: &mut Vec<(String, TypedPat, Ty)>| -> String {
+                if is_arc_wrapped(fty, ctx) && !matches!(sub, TypedPat::Wildcard | TypedPat::Var(_)) {
+                    let n = *fresh; *fresh += 1;
+                    let tmp = format!("__t{n}");
+                    deferrals.push((format!("(*{tmp}).clone()"), sub.clone(), fty.clone()));
+                    tmp
+                } else {
+                    render_shallow(sub, fty, ctx, env, top_level, fresh, deferrals)
+                }
+            };
+
+            if !named_fields.is_empty() {
+                let parts: Vec<String> = named_fields.iter().map(|(fname, sp)| {
+                    let fty = field_tys.iter().find(|(n, _)| n == fname).map(|(_, t)| t.clone()).unwrap_or(Ty::Unknown);
+                    let s = handle(sp, &fty, ctx, env, fresh, deferrals);
+                    if matches!(sp, TypedPat::Var(v) if v == fname) {
+                        escape_ident(fname)
+                    } else {
+                        format!("{}: {s}", escape_ident(fname))
+                    }
+                }).collect();
+                format!("{rust_ctor} {{ {} }}", parts.join(", "))
+            } else if !fields.is_empty() {
+                let parts: Vec<String> = fields.iter().enumerate().map(|(i, sp)| {
+                    let fty = field_tys.get(i).map(|(_, t)| t.clone()).unwrap_or(Ty::Unknown);
+                    handle(sp, &fty, ctx, env, fresh, deferrals)
+                }).collect();
+                format!("{rust_ctor}({})", parts.join(", "))
+            } else {
+                rust_ctor
+            }
+        }
+        TypedPat::As { var, pat: inner } => {
+            env.vars.insert(var.clone(), scrut_ty.clone());
+            let inner_s = render_shallow(inner, scrut_ty, ctx, env, top_level, fresh, deferrals);
+            format!("{} @ {}", escape_ident(var), inner_s)
+        }
+        TypedPat::Todo(s) => format!("_ /* todo: {} */", s.chars().take(40).collect::<String>()),
+    }
+}
+
+fn emit_stmts<'a>(
+    out: &mut String,
+    indent: &str,
+    stmts: &[typedexp::TypedStmt],
+    fail_mode: FailureMode,
+    ctx: &mut GenCtx,
+    env: &mut LocalEnv,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+    fresh: &mut u32,
+) {
+    for s in stmts {
+        emit_stmt(out, indent, s, fail_mode, ctx, env, top_level, fresh);
+    }
+}
+
+fn emit_stmt<'a>(
+    out: &mut String,
+    indent: &str,
+    stmt: &typedexp::TypedStmt,
+    fail_mode: FailureMode,
+    ctx: &mut GenCtx,
+    env: &mut LocalEnv,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+    fresh: &mut u32,
+) {
+    use typedexp::TypedStmt as S;
+    match stmt {
+        S::Assign { lhs, rhs } => {
+            let scrut_ty = rhs.ty();
+            let scrut_expr = emit_exp(rhs, /*is_const=*/false, ctx);
+            // For irrefutable patterns we still want a single binding form.
+            // But MetaModelica often assigns to *existing* variables (declared as outputs
+            // or `protected` components). For a Var pattern we emit a plain `<name> = expr;`
+            // when the binding is already in scope, else a `let`. Heuristic: if env has it,
+            // it's an output or earlier protected — emit assignment.
+            if let TypedPat::Var(name) = lhs {
+                if env.vars.contains_key(name) {
+                    writeln!(out, "{indent}{} = {scrut_expr};", escape_ident(name)).unwrap();
+                    return;
+                }
+            }
+            emit_pat_assign(out, indent, lhs, &scrut_ty, &scrut_expr, fail_mode, ctx, env, top_level, fresh);
+        }
+        S::NoRetCall { call } => {
+            let s = emit_exp(call, false, ctx);
+            writeln!(out, "{indent}let _ = {s};").unwrap();
+        }
+        S::If { cond, then_, elseif, else_ } => {
+            let c = emit_exp(cond, false, ctx);
+            writeln!(out, "{indent}if {c} {{").unwrap();
+            emit_stmts(out, &format!("{indent}    "), then_, fail_mode, ctx, env, top_level, fresh);
+            for (ec, eb) in elseif {
+                let cs = emit_exp(ec, false, ctx);
+                writeln!(out, "{indent}}} else if {cs} {{").unwrap();
+                emit_stmts(out, &format!("{indent}    "), eb, fail_mode, ctx, env, top_level, fresh);
+            }
+            if !else_.is_empty() {
+                writeln!(out, "{indent}}} else {{").unwrap();
+                emit_stmts(out, &format!("{indent}    "), else_, fail_mode, ctx, env, top_level, fresh);
+            }
+            writeln!(out, "{indent}}}").unwrap();
+        }
+        S::For { var, range, body } => {
+            let r = emit_exp(range, false, ctx);
+            writeln!(out, "{indent}for {} in {r} {{", escape_ident(var)).unwrap();
+            // Element type: peel List/Array.
+            let elem_ty = match range.ty() { Ty::List(t) | Ty::Array(t) => *t, _ => Ty::Unknown };
+            let mut inner = env.clone();
+            inner.vars.insert(var.clone(), elem_ty);
+            emit_stmts(out, &format!("{indent}    "), body, fail_mode, ctx, &mut inner, top_level, fresh);
+            writeln!(out, "{indent}}}").unwrap();
+        }
+        S::While { cond, body } => {
+            let c = emit_exp(cond, false, ctx);
+            writeln!(out, "{indent}while {c} {{").unwrap();
+            emit_stmts(out, &format!("{indent}    "), body, fail_mode, ctx, env, top_level, fresh);
+            writeln!(out, "{indent}}}").unwrap();
+        }
+        S::Try { body, else_body } => {
+            // Run `body` as an IIFE; on Err run else_body.
+            writeln!(out, "{indent}if (|| -> Result<()> {{").unwrap();
+            let mut benv = env.clone();
+            emit_stmts(out, &format!("{indent}    "), body, FailureMode::TryArm, ctx, &mut benv, top_level, fresh);
+            writeln!(out, "{indent}    Ok(())").unwrap();
+            writeln!(out, "{indent}}})().is_err() {{").unwrap();
+            let mut eenv = env.clone();
+            emit_stmts(out, &format!("{indent}    "), else_body, fail_mode, ctx, &mut eenv, top_level, fresh);
+            writeln!(out, "{indent}}}").unwrap();
+        }
+        S::Failure { body } => {
+            // Body is *expected* to fail. If it runs cleanly, that itself is a failure.
+            writeln!(out, "{indent}if (|| -> Result<()> {{").unwrap();
+            let mut fenv = env.clone();
+            emit_stmts(out, &format!("{indent}    "), body, FailureMode::TryArm, ctx, &mut fenv, top_level, fresh);
+            writeln!(out, "{indent}    Ok(())").unwrap();
+            writeln!(out, "{indent}}})().is_ok() {{ bail!(\"failure(): body succeeded\") }}").unwrap();
+        }
+        S::Return   => writeln!(out, "{indent}/* return */ todo!(\"return-with-outputs not yet wired\");").unwrap(),
+        S::Break    => writeln!(out, "{indent}break;").unwrap(),
+        S::Continue => writeln!(out, "{indent}continue;").unwrap(),
+        S::Todo(s)  => writeln!(out, "{indent}/* todo stmt: {} */", s.chars().take(60).collect::<String>()).unwrap(),
     }
 }
 

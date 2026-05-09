@@ -867,7 +867,7 @@ fn emit_exp(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx) -> String {
             escape_ident(&res)
         }
 
-        TypedExp::BinOp { op, lhs, rhs, .. } => {
+        TypedExp::BinOp { op, lhs, rhs, ty, .. } => {
             let l = emit_exp(lhs, is_const, ctx);
             let r = emit_exp(rhs, is_const, ctx);
             match op {
@@ -882,6 +882,13 @@ fn emit_exp(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx) -> String {
                 BinOpKind::LEq => format!("{l} <= {r}"),
                 BinOpKind::Gt  => format!("{l} > {r}"),
                 BinOpKind::GEq => format!("{l} >= {r}"),
+                BinOpKind::Add if *ty == Ty::Str => {
+                    // Collect all string parts from a chain of Add ops and emit a single join operation.
+                    let mut parts: Vec<String> = Vec::new();
+                    collect_string_concat_parts(exp, is_const, ctx, &mut parts);
+                    let args = parts.join(", ");
+                    format!("[{args}].join(\"\")")
+                }
                 BinOpKind::Add => format!("{l} + {r}"),
                 BinOpKind::Sub => format!("{l} - {r}"),
                 BinOpKind::Mul => format!("{l} * {r}"),
@@ -968,6 +975,17 @@ fn emit_exp(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx) -> String {
         }
 
         TypedExp::Todo(s) => format!("todo!(/*{}*/)", s.chars().take(60).collect::<String>()),
+    }
+}
+
+/// Flatten a chain of string `Add` expressions into a list of individual string parts.
+/// e.g. `(a + b) + c` → `["a", "b", "c"]`
+fn collect_string_concat_parts(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, parts: &mut Vec<String>) {
+    if let TypedExp::BinOp { op: BinOpKind::Add, ty: Ty::Str, lhs, rhs, .. } = exp {
+        collect_string_concat_parts(lhs, is_const, ctx, parts);
+        collect_string_concat_parts(rhs, is_const, ctx, parts);
+    } else {
+        parts.push(emit_exp(exp, is_const, ctx));
     }
 }
 

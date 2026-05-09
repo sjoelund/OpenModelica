@@ -656,6 +656,7 @@ fn is_imported_in_scope(scope_imports: &ScopeImports, module_prefix: &str, impor
 pub fn resolve_pass(hier: &mut InstanceHierarchy<'_>, warnings: &mut BTreeSet<String>) -> bool {
     let mut changed = false;
     seed_enumerations(&mut hier.top_level, "", &mut changed);
+    seed_primitive_type_aliases(&mut hier.top_level, "", &mut changed);
     seed_metarecords(&mut hier.top_level, "", &mut changed);
     seed_external_objects(&mut hier.top_level, "", &mut changed);
     seed_type_vars(&mut hier.top_level, &mut changed);
@@ -719,6 +720,37 @@ fn seed_builtins(known: &mut ScopedKnown) {
     let top = known.entry(String::new()).or_default();
     top.entry("SOURCEINFO".into()).or_insert(Ty::RustStruct("SOURCEINFO".into()));
     top.entry("SourceInfo".into()).or_insert(Ty::AliasTo("SourceInfo".into()));
+}
+
+/// Seed `type T = Integer/Real/Boolean/String` aliases as primitive Ty variants.
+/// These never appear in the seeding passes for enumerations or metarecords, so without
+/// this pass they stay Unknown and `collect_known` skips them. A sibling import alias
+/// (e.g. `import Type = NFType`) would then shadow the local definition during bare-name
+/// lookup in `sk_lookup_bare`, producing a wrong type for function outputs.
+fn seed_primitive_type_aliases(nodes: &mut BTreeMap<String, NameNode<'_>>, prefix: &str, changed: &mut bool) {
+    for (name, node) in nodes.iter_mut() {
+        let qname = qualify(prefix, name);
+        if node.ty == Ty::Unknown {
+            if let NodeKind::Class(c) = &node.kind {
+                if matches!(c.restriction, Absyn::Restriction::R_TYPE) {
+                    if let MM::ClassDef::Derived { type_spec, .. } = &c.body {
+                        let ty = match path_last(type_spec_path(type_spec)) {
+                            "Integer" => Some(Ty::I32),
+                            "Real" => Some(Ty::F64),
+                            "Boolean" => Some(Ty::Bool),
+                            "String" => Some(Ty::Str),
+                            _ => None,
+                        };
+                        if let Some(ty) = ty {
+                            node.ty = ty;
+                            *changed = true;
+                        }
+                    }
+                }
+            }
+        }
+        seed_primitive_type_aliases(&mut node.children, &qname, changed);
+    }
 }
 
 fn seed_enumerations(nodes: &mut BTreeMap<String, NameNode<'_>>, prefix: &str, changed: &mut bool) {

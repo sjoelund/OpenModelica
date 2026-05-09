@@ -508,7 +508,12 @@ fn emit_node<'a>(out: &mut String, name: &str, node: &NameNode<'_>, indent: &str
                 _ => return,
             };
             if let Some(exp) = extract_default_exp(&m.modification) {
-                let typed = typedexp::infer_exp(exp, &HashMap::new(), top_level);
+                let pkg_prefix = if ctx.current_path.is_empty() {
+                    ctx.top_name.to_owned()
+                } else {
+                    format!("{}.{}", ctx.top_name, ctx.current_path.join("."))
+                };
+                let typed = typedexp::infer_exp(exp, &HashMap::new(), top_level, &pkg_prefix);
                 let val = emit_exp(&typed, /*is_const=*/true, ctx);
                 let ename = escape_ident(name);
                 writeln!(out, "{indent}pub const {ename}: {rust_ty} = {val};").unwrap();
@@ -793,7 +798,7 @@ fn emit_exp(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx) -> String {
             let r = emit_exp(rhs, is_const, ctx);
             match op {
                 BinOpKind::Eq => {
-                    if is_const && lhs.ty() == Ty::Str {
+                    if is_const && (lhs.ty() == Ty::Str || rhs.ty() == Ty::Str) {
                         return format!("const_str::equal!({l},{r})");
                     }
                     format!("{l} == {r}")

@@ -907,12 +907,17 @@ fn emit_exp(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx) -> String {
                 }
                 "NONE" => "None".to_owned(),
                 "fail" => if is_const { "{ panic!(\"fail\") }".to_owned() } else { "bail!(\"fail\")".to_owned() },
+                "list" => {
+                    let parts: Vec<String> = args.iter().map(|a| emit_exp(a, is_const, ctx)).collect();
+                    format!("metamodelica::list![{}]", parts.join(", "))
+                },
                 _ => {
                     let func_str = if func.contains('.') {
-                        ctx.shorten(func)
+                        &ctx.shorten(func)
                     } else {
-                        escape_ident(func)
+                        func
                     };
+                    let func_str = escape_ident(func_str);
                     let mut parts: Vec<String> = args.iter().map(|a| emit_exp(a, is_const, ctx)).collect();
                     for (n, v) in named_args {
                         parts.push(format!("{n}={}", emit_exp(v, is_const, ctx)));
@@ -1016,7 +1021,7 @@ fn emit_pat(pat: &TypedPat, ctx: &mut GenCtx) -> String {
     match pat {
         TypedPat::Wildcard    => "_".to_owned(),
         TypedPat::Var(name)   => escape_ident(name),
-        TypedPat::EmptyList   => "metamodelica::List::Nil".to_owned(),
+        TypedPat::EmptyList   => "metamodelica::List::Nil()".to_owned(),
         TypedPat::Some_(inner) => format!("Some({})", emit_pat(inner, ctx)),
         TypedPat::None_       => "None".to_owned(),
 
@@ -1184,7 +1189,7 @@ fn emit_pat_assign<'a>(
                 FailureMode::Function | FailureMode::TryArm => "bail!(\"pattern mismatch\")",
                 FailureMode::Failure => "()",
             };
-            writeln!(out, "{indent}let {surface} = {scrut_expr} else {{ {fail} }};").unwrap();
+            writeln!(out, "{indent}let {surface} = ({scrut_expr}) else {{ {fail} }};").unwrap();
             for (sub_expr, sub_pat, sub_ty) in deferrals {
                 emit_pat_assign(out, indent, &sub_pat, &sub_ty, &sub_expr, fail_mode, ctx, env, top_level, fresh);
             }
@@ -1624,6 +1629,9 @@ fn escape_ident(name: &str) -> String {
             return escape_ident(new_name.as_str());
         };
     };
+    if name.starts_with("MetaModelica::Dangerous") {
+        return format!("{}", name.replace("MetaModelica::Dangerous", "metamodelica::Dangerous"));
+    }
     match name {
         // strict keywords (edition-independent)
         "as" | "break" | "const" | "continue" | "else" | "enum" | "extern" |

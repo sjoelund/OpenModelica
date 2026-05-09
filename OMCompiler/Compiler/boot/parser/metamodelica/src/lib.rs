@@ -364,7 +364,7 @@ pub fn realString(r: f64) -> String {
 // ============================================================================
 
 /// Returns the ASCII code point of a single-character string.
-pub fn stringCharInt(ch: &str) -> i32 {
+pub fn stringCharInt(ch: String) -> i32 {
     ch.chars().next()
         .map(|c| c as i32)
         .unwrap_or(0)
@@ -378,18 +378,18 @@ pub fn intStringChar(i: i32) -> String {
 }
 
 /// Parses an integer from a string. Fails if the string is not a valid integer.
-pub fn stringInt(str: &str) -> Result<i32> {
+pub fn stringInt(str: String) -> Result<i32> {
     str.parse::<i32>().map_err(|_| anyhow::anyhow!("Failed to parse integer from string: {}", str))
 }
 
 /// Parses a real (f64) from a string.
 /// Fails unless the whole string can be consumed.
-pub fn stringReal(str: &str) -> Result<f64> {
+pub fn stringReal(str: String) -> Result<f64> {
     str.parse::<f64>().map_err(|_| anyhow::anyhow!("Failed to parse real from string: {}", str))
 }
 
 /// Converts a string to a list of single-character strings.
-pub fn stringListStringChar(str: &str) -> List<String> {
+pub fn stringListStringChar(str: String) -> List<String> {
     str.chars().map(|c| c.to_string()).collect()
 }
 
@@ -400,22 +400,22 @@ pub fn stringAppendList(strs: &List<String>) -> String {
 
 /// Takes a list of strings and a delimiter and joins them with the delimiter inserted between elements.
 /// Example: stringDelimitList({"x","y","z"}, ", ") => "x, y, z"
-pub fn stringDelimitList(strs: &List<String>, delimiter: &str) -> String {
-    strs.into_iter().collect::<Vec<String>>().join(delimiter)
+pub fn stringDelimitList(strs: &List<String>, delimiter: String) -> String {
+    strs.into_iter().collect::<Vec<String>>().join(&delimiter)
 }
 
 /// Returns the length of the string (number of bytes).
-pub fn stringLength(str: &str) -> i32 {
+pub fn stringLength(str: String) -> i32 {
     str.len() as i32
 }
 
 /// Returns true if the string is empty.
-pub fn stringEmpty(str: &str) -> bool {
+pub fn stringEmpty(str: String) -> bool {
     str.is_empty()
 }
 
 /// Returns the byte value at the given 1-based index.
-pub fn stringGet(str: &str, index: i32) -> Result<i32> {
+pub fn stringGet(str: String, index: i32) -> Result<i32> {
     let idx = (index - 1) as usize; // 1-based to 0-based
     str.bytes().nth(idx)
         .map(|b| b as i32)
@@ -423,7 +423,7 @@ pub fn stringGet(str: &str, index: i32) -> Result<i32> {
 }
 
 /// Returns the character at the given 1-based index as a string.
-pub fn stringGetStringChar(str: &str, index: i32) -> Result<String> {
+pub fn stringGetStringChar(str: String, index: i32) -> Result<String> {
     let idx = (index - 1) as usize; // 1-based to 0-based
     str.chars().nth(idx)
         .map(|c| c.to_string())
@@ -432,7 +432,7 @@ pub fn stringGetStringChar(str: &str, index: i32) -> Result<String> {
 
 /// Updates the character at the given 1-based index with newch.
 /// newch should be a single character.
-pub fn stringUpdateStringChar(str: &str, newch: &str, index: i32) -> Result<String> {
+pub fn stringUpdateStringChar(str: String, newch: String, index: i32) -> Result<String> {
     if newch.is_empty() {
         bail!("newch must not be empty");
     }
@@ -447,23 +447,23 @@ pub fn stringUpdateStringChar(str: &str, newch: &str, index: i32) -> Result<Stri
 }
 
 /// Concatenates two strings (s1 + s2).
-pub fn stringAppend(s1: &str, s2: &str) -> String {
+pub fn stringAppend(s1: String, s2: String) -> String {
     format!("{}{}", s1, s2)
 }
 
 /// Compares two strings for equality.
 #[inline(always)]
-pub fn stringEq(s1: &str, s2: &str) -> bool {
+pub fn stringEq(s1: String, s2: String) -> bool {
     s1 == s2
 }
 #[inline(always)]
-pub fn stringEqual(s1: &str, s2: &str) -> bool {
+pub fn stringEqual(s1: String, s2: String) -> bool {
     s1 == s2
 }
 
 /// Compares two strings lexicographically.
 /// Returns negative if s1 < s2, zero if s1 == s2, positive if s1 > s2.
-pub fn stringCompare(s1: &str, s2: &str) -> i32 {
+pub fn stringCompare(s1: String, s2: String) -> i32 {
     // Byte-by-byte comparison for consistency
     let bytes1 = s1.as_bytes();
     let bytes2 = s2.as_bytes();
@@ -485,7 +485,7 @@ pub fn stringCompare(s1: &str, s2: &str) -> i32 {
 }
 
 /// Returns a hash of the string using Rust's built-in hash.
-pub fn stringHash(str: &str) -> i32 {
+pub fn stringHash(str: String) -> i32 {
     use std::collections::hash_map::DefaultHasher;
     use std::hash::Hash;
     use std::hash::Hasher;
@@ -496,7 +496,7 @@ pub fn stringHash(str: &str) -> i32 {
 
 /// Returns a DJB2 hash of the string.
 /// DJB2 algorithm: hash = hash * 33 + byte
-pub fn stringHashDjb2(str: &str) -> i32 {
+pub fn stringHashDjb2(str: String) -> i32 {
     let mut hash: i32 = 5381;
     for &byte in str.as_bytes() {
         hash = hash.wrapping_mul(33).wrapping_add(byte as i32);
@@ -505,7 +505,7 @@ pub fn stringHashDjb2(str: &str) -> i32 {
 }
 
 /// Continues computing a DJB2 hash by adding another string to it.
-pub fn stringHashDjb2Continue(str: &str, hash: i32) -> i32 {
+pub fn stringHashDjb2Continue(str: String, hash: i32) -> i32 {
     let mut h = hash;
     for &byte in str.as_bytes() {
         h = h.wrapping_mul(33).wrapping_add(byte as i32);
@@ -514,7 +514,7 @@ pub fn stringHashDjb2Continue(str: &str, hash: i32) -> i32 {
 }
 
 /// Computes a DJB2 hash and applies modulo without intermediate overflow issues.
-pub fn stringHashDjb2Mod(str: &str, mod_val: i32) -> i32 {
+pub fn stringHashDjb2Mod(str: String, mod_val: i32) -> i32 {
     if mod_val == 0 {
         return 0;
     }
@@ -527,7 +527,7 @@ pub fn stringHashDjb2Mod(str: &str, mod_val: i32) -> i32 {
 
 /// Returns an SDBM hash of the string.
 /// SDBM algorithm: hash = byte + (hash << 6) + (hash << 16) - hash
-pub fn stringHashSdbm(str: &str) -> i32 {
+pub fn stringHashSdbm(str: String) -> i32 {
     let mut hash: i32 = 0;
     for &byte in str.as_bytes() {
         hash = byte as i32 + (hash << 6) + (hash << 16) - hash;
@@ -538,7 +538,7 @@ pub fn stringHashSdbm(str: &str) -> i32 {
 /// Extracts a substring from str.
 /// start and stop are 1-based indices (first character is at index 1).
 /// Fails for bogus start/stop values.
-pub fn substring(str: &str, start: i32, stop: i32) -> Result<String> {
+pub fn substring(str: String, start: i32, stop: i32) -> Result<String> {
     if start < 1 || stop < start || start > stop {
         bail!("Invalid substring range: start={}, stop={}", start, stop);
     }
@@ -832,7 +832,7 @@ pub fn printAny<A: std::fmt::Debug>(a: &A) {
 
 /// Prints a debug string prefix followed by any Debug-printable value to stderr.
 /// For RML compatibility.
-pub fn debug_print<A: std::fmt::Debug>(str: &str, a: &A) {
+pub fn debug_print<A: std::fmt::Debug>(str: String, a: &A) {
     eprintln!("{}: {:?}", str, a);
 }
 
@@ -982,7 +982,7 @@ pub mod Dangerous {
         vec![dummy; size as usize]
     }
     /// Unsafe string get without bounds checking.
-    pub fn stringGetNoBoundsChecking(str: &str, index: i32) -> i32 {
+    pub fn stringGetNoBoundsChecking(str: String, index: i32) -> i32 {
         let idx = (index - 1) as usize; // 1-based to 0-based
         // SAFETY: Caller must ensure index is in bounds.
         unsafe { (*str.as_bytes().get_unchecked(idx)) as i32 }
@@ -1390,9 +1390,9 @@ mod tests {
 
         #[test]
         fn test_string_char_int() {
-            assert_eq!(stringCharInt("A"), 65);
-            assert_eq!(stringCharInt("a"), 97);
-            assert_eq!(stringCharInt("0"), 48);
+            assert_eq!(stringCharInt("A".to_string()), 65);
+            assert_eq!(stringCharInt("a".to_string()), 97);
+            assert_eq!(stringCharInt("0".to_string()), 48);
         }
 
         #[test]
@@ -1405,21 +1405,21 @@ mod tests {
 
         #[test]
         fn test_string_int() {
-            assert_eq!(stringInt("42").unwrap(), 42);
-            assert_eq!(stringInt("-7").unwrap(), -7);
-            assert!(stringInt("not_a_number").is_err());
+            assert_eq!(stringInt("42".to_string()).unwrap(), 42);
+            assert_eq!(stringInt("-7".to_string()).unwrap(), -7);
+            assert!(stringInt("not_a_number".to_string()).is_err());
         }
 
         #[test]
         fn test_string_real() {
-            assert_eq!(stringReal("3.14").unwrap(), 3.14);
-            assert_eq!(stringReal("-2.5").unwrap(), -2.5);
-            assert!(stringReal("not_a_number").is_err());
+            assert_eq!(stringReal("3.14".to_string()).unwrap(), 3.14);
+            assert_eq!(stringReal("-2.5".to_string()).unwrap(), -2.5);
+            assert!(stringReal("not_a_number".to_string()).is_err());
         }
 
         #[test]
         fn test_string_list_string_char() {
-            let result = stringListStringChar("abc");
+            let result = stringListStringChar("abc".to_string());
             assert_eq!(result, List::from_iter(["a".to_string(), "b".to_string(), "c".to_string()]));
         }
 
@@ -1432,7 +1432,7 @@ mod tests {
         #[test]
         fn test_string_delimit_list() {
             let strs = list!["x".to_string(), "y".to_string(), "z".to_string()];
-            assert_eq!(stringDelimitList(&strs, ", "), "x, y, z");
+            assert_eq!(stringDelimitList(&strs, ", ".to_string()), "x, y, z");
         }
     }
 
@@ -1445,14 +1445,14 @@ mod tests {
 
         #[test]
         fn test_string_length() {
-            assert_eq!(stringLength("hello"), 5);
-            assert_eq!(stringLength(""), 0);
+            assert_eq!(stringLength("hello".to_string()), 5);
+            assert_eq!(stringLength("".to_string()), 0);
         }
 
         #[test]
         fn test_string_empty() {
-            assert!(stringEmpty(""));
-            assert!(!stringEmpty("hello"));
+            assert!(stringEmpty("".to_string()));
+            assert!(!stringEmpty("hello".to_string()));
         }
     }
 
@@ -1465,29 +1465,29 @@ mod tests {
 
         #[test]
         fn test_string_get() {
-            assert_eq!(stringGet("hello", 1).unwrap(), b'h' as i32);
-            assert_eq!(stringGet("hello", 5).unwrap(), b'o' as i32);
-            assert!(stringGet("hello", 0).is_err());
-            assert!(stringGet("hello", 6).is_err());
+            assert_eq!(stringGet("hello".to_string(), 1).unwrap(), b'h' as i32);
+            assert_eq!(stringGet("hello".to_string(), 5).unwrap(), b'o' as i32);
+            assert!(stringGet("hello".to_string(), 0).is_err());
+            assert!(stringGet("hello".to_string(), 6).is_err());
         }
 
         #[test]
         fn test_string_get_string_char() {
-            assert_eq!(stringGetStringChar("hello", 1).unwrap(), "h");
-            assert_eq!(stringGetStringChar("hello", 3).unwrap(), "l");
-            assert_eq!(stringGetStringChar("hello", 5).unwrap(), "o");
-            assert!(stringGetStringChar("hello", 0).is_err());
-            assert!(stringGetStringChar("hello", 6).is_err());
+            assert_eq!(stringGetStringChar("hello".to_string(), 1).unwrap(), "h");
+            assert_eq!(stringGetStringChar("hello".to_string(), 3).unwrap(), "l");
+            assert_eq!(stringGetStringChar("hello".to_string(), 5).unwrap(), "o");
+            assert!(stringGetStringChar("hello".to_string(), 0).is_err());
+            assert!(stringGetStringChar("hello".to_string(), 6).is_err());
         }
 
         #[test]
         fn test_string_update_string_char() {
-            assert_eq!(stringUpdateStringChar("hello", "X", 1).unwrap(), "Xello");
-            assert_eq!(stringUpdateStringChar("hello", "X", 3).unwrap(), "heXlo");
-            assert_eq!(stringUpdateStringChar("hello", "X", 5).unwrap(), "hellX");
-            assert!(stringUpdateStringChar("hello", "X", 0).is_err());
-            assert!(stringUpdateStringChar("hello", "X", 6).is_err());
-            assert!(stringUpdateStringChar("hello", "", 1).is_err());
+            assert_eq!(stringUpdateStringChar("hello".to_string(), "X".to_string(), 1).unwrap(), "Xello");
+            assert_eq!(stringUpdateStringChar("hello".to_string(), "X".to_string(), 3).unwrap(), "heXlo");
+            assert_eq!(stringUpdateStringChar("hello".to_string(), "X".to_string(), 5).unwrap(), "hellX");
+            assert!(stringUpdateStringChar("hello".to_string(), "X".to_string(), 0).is_err());
+            assert!(stringUpdateStringChar("hello".to_string(), "X".to_string(), 6).is_err());
+            assert!(stringUpdateStringChar("hello".to_string(), "".to_string(), 1).is_err());
         }
     }
 
@@ -1500,22 +1500,22 @@ mod tests {
 
         #[test]
         fn test_string_append() {
-            assert_eq!(stringAppend("hello", " world"), "hello world");
-            assert_eq!(stringAppend("", "hello"), "hello");
-            assert_eq!(stringAppend("hello", ""), "hello");
+            assert_eq!(stringAppend("hello".to_string(), " world".to_string()), "hello world");
+            assert_eq!(stringAppend("".to_string(), "hello".to_string()), "hello");
+            assert_eq!(stringAppend("hello".to_string(), "".to_string()), "hello");
         }
 
         #[test]
         fn test_string_eq() {
-            assert!(stringEq("abc", "abc"));
-            assert!(!stringEq("abc", "abd"));
-            assert!(!stringEq("", "abc"));
+            assert!(stringEq("abc".to_string(), "abc".to_string()));
+            assert!(!stringEq("abc".to_string(), "abd".to_string()));
+            assert!(!stringEq("".to_string(), "abc".to_string()));
         }
 
         #[test]
         fn test_string_equal() {
-            assert!(stringEqual("abc", "abc"));
-            assert!(!stringEqual("abc", "abd"));
+            assert!(stringEqual("abc".to_string(), "abc".to_string()));
+            assert!(!stringEqual("abc".to_string(), "abd".to_string()));
         }
     }
 
@@ -1528,11 +1528,11 @@ mod tests {
 
         #[test]
         fn test_string_compare() {
-            assert!(stringCompare("abc", "abd") < 0);
-            assert_eq!(stringCompare("abc", "abc"), 0);
-            assert!(stringCompare("abd", "abc") > 0);
-            assert!(stringCompare("ab", "abc") < 0);
-            assert!(stringCompare("abc", "ab") > 0);
+            assert!(stringCompare("abc".to_string(), "abd".to_string()) < 0);
+            assert_eq!(stringCompare("abc".to_string(), "abc".to_string()), 0);
+            assert!(stringCompare("abd".to_string(), "abc".to_string()) > 0);
+            assert!(stringCompare("ab".to_string(), "abc".to_string()) < 0);
+            assert!(stringCompare("abc".to_string(), "ab".to_string()) > 0);
         }
     }
 
@@ -1546,38 +1546,38 @@ mod tests {
         #[test]
         fn test_string_hash_djb2() {
             // DJB2 of "a" = 5381 * 33 + 97 = 177700 + 97 = 177797
-            assert_eq!(stringHashDjb2("a"), 5381_i32.wrapping_mul(33).wrapping_add(97));
-            assert_eq!(stringHashDjb2(""), 5381);
+            assert_eq!(stringHashDjb2("a".to_string()), 5381_i32.wrapping_mul(33).wrapping_add(97));
+            assert_eq!(stringHashDjb2("".to_string()), 5381);
         }
 
         #[test]
         fn test_string_hash_djb2_continue() {
-            let h1 = stringHashDjb2("hello");
-            let _h2 = stringHashDjb2(" world");
-            let combined = stringHashDjb2Continue(" world", h1);
+            let h1 = stringHashDjb2("hello".to_string());
+            let _h2 = stringHashDjb2(" world".to_string());
+            let combined = stringHashDjb2Continue(" world".to_string(), h1);
             // Starting from h1 and adding " world" should give the same
             // as hashing "hello world" from scratch
-            assert_eq!(combined, stringHashDjb2("hello world"));
+            assert_eq!(combined, stringHashDjb2("hello world".to_string()));
         }
 
         #[test]
         fn test_string_hash_djb2_mod() {
-            let h = stringHashDjb2Mod("hello", 100);
+            let h = stringHashDjb2Mod("hello".to_string(), 100);
             assert!(h >= 0 && h < 100);
-            assert_eq!(stringHashDjb2Mod("hello", 0), 0);
+            assert_eq!(stringHashDjb2Mod("hello".to_string(), 0), 0);
         }
 
         #[test]
         fn test_string_hash_sdbm() {
             // SDBM of "a" = 97 + 0 + 0 - 0 = 97
-            assert_eq!(stringHashSdbm("a"), 97);
-            assert_eq!(stringHashSdbm(""), 0);
+            assert_eq!(stringHashSdbm("a".to_string()), 97);
+            assert_eq!(stringHashSdbm("".to_string()), 0);
         }
 
         #[test]
         fn test_string_hash_consistency() {
             // Same string should produce same hash
-            assert_eq!(stringHash("test"), stringHash("test"));
+            assert_eq!(stringHash("test".to_string()), stringHash("test".to_string()));
         }
     }
 
@@ -1590,18 +1590,18 @@ mod tests {
 
         #[test]
         fn test_substring_basic() {
-            assert_eq!(substring("hello world", 1, 5).unwrap(), "hello");
-            assert_eq!(substring("hello world", 7, 11).unwrap(), "world");
-            assert_eq!(substring("hello", 3, 3).unwrap(), "l");
-            assert_eq!(substring("hello", 1, 5).unwrap(), "hello");
+            assert_eq!(substring("hello world".to_string(), 1, 5).unwrap(), "hello");
+            assert_eq!(substring("hello world".to_string(), 7, 11).unwrap(), "world");
+            assert_eq!(substring("hello".to_string(), 3, 3).unwrap(), "l");
+            assert_eq!(substring("hello".to_string(), 1, 5).unwrap(), "hello");
         }
 
         #[test]
         fn test_substring_errors() {
-            assert!(substring("hello", 0, 3).is_err());  // start < 1
-            assert!(substring("hello", 3, 2).is_err());  // stop < start
-            assert!(substring("hello", 1, 6).is_err());  // stop out of bounds
-            assert!(substring("hello", 6, 7).is_err());  // start out of bounds
+            assert!(substring("hello".to_string(), 0, 3).is_err());  // start < 1
+            assert!(substring("hello".to_string(), 3, 2).is_err());  // stop < start
+            assert!(substring("hello".to_string(), 1, 6).is_err());  // stop out of bounds
+            assert!(substring("hello".to_string(), 6, 7).is_err());  // start out of bounds
         }
     }
 
@@ -1852,7 +1852,7 @@ mod tests {
         fn test_debug_print() {
             // Just ensure it doesn't panic
             let val = 42i32;
-            debug_print("test", &val);
+            debug_print("test".to_string(), &val);
         }
 
         #[test]
@@ -2028,8 +2028,8 @@ mod tests {
 
         #[test]
         fn test_string_get_no_bounds_checking() {
-            let s = "hello";
-            assert_eq!(stringGetNoBoundsChecking(s, 1), b'h' as i32);
+            let s = "hello".to_string();
+            assert_eq!(stringGetNoBoundsChecking(s.clone(), 1), b'h' as i32);
             assert_eq!(stringGetNoBoundsChecking(s, 5), b'o' as i32);
         }
     }

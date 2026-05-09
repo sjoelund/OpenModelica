@@ -245,13 +245,13 @@ fn collect_imports<'a>(node: &NameNode<'_>, ctx: &mut GenCtx, top_level: &'a BTr
             NodeKind::Import(m) => match &m.import {
                 Absyn::Import::UNQUAL_IMPORT { path } => {
                     let dotted = path_to_dotted(path);
-                    if !dotted.starts_with(&same_file_prefix) && path_exists_in_hierarchy(&dotted, top_level) {
+                    if dotted != ctx.top_name && !dotted.starts_with(&same_file_prefix) && path_exists_in_hierarchy(&dotted, top_level) {
                         ctx.unqual_modules.insert(dotted);
                     }
                 }
                 Absyn::Import::QUAL_IMPORT { path } => {
                     let dotted = path_to_dotted(path);
-                    if !dotted.starts_with(&same_file_prefix) && path_exists_in_hierarchy(&dotted, top_level) {
+                    if dotted != ctx.top_name && !dotted.starts_with(&same_file_prefix) && path_exists_in_hierarchy(&dotted, top_level) {
                         let last = dotted.rsplit('.').next().unwrap_or(&dotted).to_owned();
                         // If the path ends at an Import alias node (e.g. `NFCall.Call` where
                         // `Call = NFCall` inside NFCall), use the resolved target so we emit
@@ -259,24 +259,24 @@ fn collect_imports<'a>(node: &NameNode<'_>, ctx: &mut GenCtx, top_level: &'a BTr
                         // (the latter would fail — the alias is a private `use` in that module).
                         let effective = resolve_through_import_node(&dotted, top_level)
                             .unwrap_or(dotted);
-                        if !effective.starts_with(&same_file_prefix) {
+                        if effective != ctx.top_name && !effective.starts_with(&same_file_prefix) {
                             ctx.named.insert(effective, last);
                         }
                     }
                 }
                 Absyn::Import::NAMED_IMPORT { name, path } => {
                     let dotted = path_to_dotted(path);
-                    if !dotted.starts_with(&same_file_prefix) && path_exists_in_hierarchy(&dotted, top_level) {
+                    if dotted != ctx.top_name && !dotted.starts_with(&same_file_prefix) && path_exists_in_hierarchy(&dotted, top_level) {
                         let effective = resolve_through_import_node(&dotted, top_level)
                             .unwrap_or(dotted);
-                        if !effective.starts_with(&same_file_prefix) {
+                        if effective != ctx.top_name && !effective.starts_with(&same_file_prefix) {
                             ctx.named.insert(effective, name.clone());
                         }
                     }
                 }
                 Absyn::Import::GROUP_IMPORT { prefix, groups } => {
                     let prefix_str = path_to_dotted(prefix);
-                    if !prefix_str.starts_with(&same_file_prefix) {
+                    if prefix_str != ctx.top_name && !prefix_str.starts_with(&same_file_prefix) {
                         for g in groups.into_iter() {
                             let (local, orig) = match g {
                                 Absyn::GroupImport::GROUP_IMPORT_NAME { name } => (name.clone(), name.clone()),

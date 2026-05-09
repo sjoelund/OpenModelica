@@ -811,7 +811,16 @@ fn seed_metarecords(nodes: &mut BTreeMap<String, NameNode<'_>>, prefix: &str, ch
                         sorted.sort();
                         node.ty = match sorted.len() {
                             0 => Ty::RustStruct(qname.clone()),
-                            1 => Ty::AliasTo(qname.clone()),
+                            1 => {
+                                // Single-record uniontype: the struct will be emitted under the
+                                // uniontype's name (no separate record struct + type alias).
+                                // Update the record's type so all references resolve to the
+                                // uniontype's qname, which is the Rust struct's actual name.
+                                if let Some(rec_child) = node.children.get_mut(sorted[0].as_str()) {
+                                    rec_child.ty = Ty::RustStruct(qname.clone());
+                                }
+                                Ty::AliasTo(qname.clone())
+                            }
                             _ => Ty::RustEnum(qname.clone()),
                         };
                         *changed = true;

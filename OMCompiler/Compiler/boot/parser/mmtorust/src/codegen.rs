@@ -536,25 +536,15 @@ fn emit_uniontype(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Cla
             writeln!(out, "{inner}pub use {ename}::{{{variant_list}}};").unwrap();
         }
         Ty::AliasTo(_) => {
-            // Single-record uniontype: emit the struct then a type alias with the
-            // uniontype's name, so the type is accessible as `ModName::TypeName`.
+            // Single-record uniontype: emit one struct named after the uniontype.
+            // The record's Ty::RustStruct was updated in seed_metarecords to carry the
+            // uniontype's qname, so all constructor/pattern references already resolve here.
             let recs = records_in_order(c);
             let rec_name = recs.into_iter().next().unwrap_or_default();
             if let Some(rec_node) = node.children.get(&rec_name) {
                 if let NodeKind::Class(rc) = &rec_node.kind {
-                    emit_struct(out, &rec_name, rec_node, rc, &inner, &mut *ctx);
+                    emit_struct(out, name, rec_node, rc, &inner, &mut *ctx);
                 }
-            }
-            let type_vars: Vec<String> = match &c.body {
-                MM::ClassDef::Parts { type_vars, .. } => type_vars.clone(),
-                _ => vec![],
-            };
-            let rec_ename = escape_ident(&rec_name);
-            if type_vars.is_empty() {
-                writeln!(out, "{inner}pub type {ename} = {rec_ename};").unwrap();
-            } else {
-                let params = type_vars.join(", ");
-                writeln!(out, "{inner}pub type {ename}<{params}> = {rec_ename}<{params}>;").unwrap();
             }
         }
         _ => {

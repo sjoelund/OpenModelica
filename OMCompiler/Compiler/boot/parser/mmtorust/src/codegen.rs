@@ -4,7 +4,7 @@ use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::fmt::Write;
 use mmwinnow::Absyn;
 use crate::MM;
-use crate::hierarchy::{InstanceHierarchy, NameNode, NodeKind, Ty, uniontype_needs_mod};
+use crate::hierarchy::{InstanceHierarchy, NameNode, NodeKind, Ty, extract_default, uniontype_needs_mod};
 
 // ── Import-aware generation context ──────────────────────────────────────────
 
@@ -189,13 +189,24 @@ impl GenCtx {
 
 /// Walk `dotted` through the hierarchy and return the `Ty` of the terminal node, or `None`.
 fn lookup_node_ty<'a>(dotted: &str, top_level: &'a BTreeMap<String, NameNode<'a>>) -> Option<&'a Ty> {
+    lookup_node(dotted, top_level).map(|n| &n.ty)
+}
+
+fn lookup_node<'a>(dotted: &str, top_level: &'a BTreeMap<String, NameNode<'a>>) -> Option<&'a NameNode<'a>> {
     let mut parts = dotted.split('.');
     let first = parts.next().unwrap_or("");
     let mut node = top_level.get(first)?;
     for part in parts {
         node = node.children.get(part)?;
     }
-    Some(&node.ty)
+    Some(node)
+}
+
+fn is_const_component<'a>(dotted: &str, top_level: &'a BTreeMap<String, NameNode<'a>>) -> bool {
+    match lookup_node(dotted, top_level) {
+        Some(n) => matches!(&n.kind, NodeKind::Component(m) if m.variability == Absyn::Variability::CONST),
+        None => false,
+    }
 }
 
 /// Return true if `dotted` (e.g. `"NFInstNode.NodeTree"`) resolves to a real node in the
@@ -262,7 +273,13 @@ fn collect_imports<'a>(node: &NameNode<'_>, ctx: &mut GenCtx, top_level: &'a BTr
                 Absyn::Import::UNQUAL_IMPORT { path } => {
                     let dotted = path_to_dotted(path);
                     if dotted != ctx.top_name && !dotted.starts_with(&same_file_prefix) && path_exists_in_hierarchy(&dotted, top_level) {
-                        ctx.unqual_modules.insert(dotted);
+                        if is_const_component(&dotted, top_level) {
+                            // `import Pkg.CONST;` — target is a constant, not a module; emit as named import.
+                            let last = dotted.rsplit('.').next().unwrap_or(&dotted).to_owned();
+                            ctx.named.insert(dotted, last);
+                        } else {
+                            ctx.unqual_modules.insert(dotted);
+                        }
                     }
                 }
                 Absyn::Import::QUAL_IMPORT { path } => {
@@ -475,7 +492,7 @@ fn generate_file<'a>(top_name: &str, node: &NameNode<'_>, crate_map: &BTreeMap<S
     // Second pass: emit header + complete use lines (now including implicit modules).
     let mut out = String::new();
     writeln!(out, "// Auto-generated from MetaModelica source").unwrap();
-    writeln!(out, "#![allow(non_camel_case_types, non_snake_case, dead_code, unused_imports, unused_variables)]").unwrap();
+    writeln!(out, "#![allow(non_camel_case_types, non_snake_case, dead_code, unused_imports, unused_variables, non_upper_case_globals)]").unwrap();
     writeln!(out, "{}", "
 use std::sync::Arc;
 use metamodelica::*; // Built-in types and functions
@@ -493,6 +510,23 @@ use metamodelica::*; // Built-in types and functions
 // ── Node emission ─────────────────────────────────────────────────────────────
 
 fn emit_node(out: &mut String, name: &str, node: &NameNode<'_>, indent: &str, ctx: &mut GenCtx) {
+    if let NodeKind::Component(m) = &node.kind {
+        if m.variability == Absyn::Variability::CONST {
+            let rust_ty = match &node.ty {
+                Ty::Str => "&'static str",
+                Ty::I32 => "i32",
+                Ty::F64 => "f64",
+                Ty::Bool => "bool",
+                _ => return,
+            };
+            if let Some(val) = extract_default(&m.modification) {
+                let ename = escape_ident(name);
+                writeln!(out, "{indent}pub const {ename}: {rust_ty} = {val};").unwrap();
+                writeln!(out).unwrap();
+            }
+        }
+        return;
+    }
     let NodeKind::Class(c) = &node.kind else { return };
     use Absyn::Restriction::*;
     match &c.restriction {

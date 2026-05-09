@@ -1401,7 +1401,7 @@ fn resolve_path(path: &Absyn::Path, known: &ScopedKnown, aliases: &ScopedAliases
 
 // ── Expression helpers ────────────────────────────────────────────────────────
 
-fn extract_default(modification: &Option<Absyn::Modification>) -> Option<String> {
+pub(crate) fn extract_default(modification: &Option<Absyn::Modification>) -> Option<String> {
     match modification {
         Some(Absyn::Modification::CLASSMOD { eqMod: Absyn::EqMod::EQMOD { exp, .. }, .. }) => {
             Some(fmt_exp(exp))
@@ -1425,12 +1425,16 @@ fn fmt_exp(exp: &Absyn::Exp) -> String {
             };
             format!("{s}{}", fmt_exp(exp))
         }
+        Absyn::Exp::LBINARY { exp1, op, exp2 } |
+        Absyn::Exp::RELATION { exp1, op, exp2 } |
         Absyn::Exp::BINARY { exp1, op, exp2 } => {
             let s = match op {
                 Absyn::Operator::ADD | Absyn::Operator::ADD_EW => "+",
                 Absyn::Operator::SUB | Absyn::Operator::SUB_EW => "-",
                 Absyn::Operator::MUL | Absyn::Operator::MUL_EW => "*",
                 Absyn::Operator::DIV | Absyn::Operator::DIV_EW => "/",
+                Absyn::Operator::AND => "&&",
+                Absyn::Operator::OR => "||",
                 Absyn::Operator::LESS => "<",
                 Absyn::Operator::LESSEQ => "<=",
                 Absyn::Operator::GREATER => ">",
@@ -1453,7 +1457,11 @@ fn fmt_exp(exp: &Absyn::Exp) -> String {
             let items: Vec<_> = arrayExp.into_iter().map(|e| fmt_exp(e.as_ref())).collect();
             format!("{{{}}}", items.join(", "))
         }
-        _ => "...".to_owned(),
+        Absyn::Exp::IFEXP { ifExp, trueBranch, elseBranch, elseIfBranch } => {
+            let else_if: String = elseIfBranch.into_iter().map(|(cond, branch)| format!(" else if {} {{{}}}", fmt_exp(&cond), fmt_exp(&branch))).collect();
+            format!("if {} {{{}}}{} else {{{}}}", fmt_exp(ifExp), fmt_exp(trueBranch), else_if, fmt_exp(elseBranch))
+        }
+        _ => format!("todo!(/*{:?}*/)", exp).to_owned(),
     }
 }
 

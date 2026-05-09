@@ -196,6 +196,43 @@ fn path_exists_in_hierarchy<'a>(dotted: &str, top_level: &'a BTreeMap<String, Na
     true
 }
 
+/// If `dotted` ends at an Import node (i.e. an alias defined inside a module),
+/// return the resolved target's fully-qualified dotted name from the node's `ty`.
+/// This prevents generating `use crate::Mod::PrivateAlias;` when the alias is a
+/// private `use` inside that module; callers should use the resolved path instead.
+fn resolve_through_import_node<'a>(
+    dotted: &str,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+) -> Option<String> {
+    let mut parts = dotted.split('.');
+    let first = parts.next().unwrap_or("");
+    let Some(mut node) = top_level.get(first) else { return None };
+    for part in parts {
+        let Some(child) = node.children.get(part) else { return None };
+        node = child;
+    }
+    if let NodeKind::Import(m) = &node.kind {
+        // Prefer the resolved type if available (gives the canonical dotted name).
+        match &node.ty {
+            Ty::RustEnum(n) | Ty::AliasTo(n) | Ty::RustStruct(n) => return Some(n.clone()),
+            _ => {}
+        }
+        // Fallback: read the target path directly from the AST (covers packages,
+        // which have Ty::Unknown since they are containers rather than value types).
+        let target = match &m.import {
+            Absyn::Import::NAMED_IMPORT { path, .. } | Absyn::Import::QUAL_IMPORT { path } => {
+                let d = path_to_dotted(path);
+                if d.is_empty() { return None; }
+                d
+            }
+            _ => return None,
+        };
+        Some(target)
+    } else {
+        None
+    }
+}
+
 /// Walk the subtree collecting file-level import nodes into `ctx`.
 /// Stops at function boundaries — imports inside a function body are local to that function.
 /// Skips imports whose resolved path starts with `{top_name}.`: those refer to siblings
@@ -216,13 +253,25 @@ fn collect_imports<'a>(node: &NameNode<'_>, ctx: &mut GenCtx, top_level: &'a BTr
                     let dotted = path_to_dotted(path);
                     if !dotted.starts_with(&same_file_prefix) && path_exists_in_hierarchy(&dotted, top_level) {
                         let last = dotted.rsplit('.').next().unwrap_or(&dotted).to_owned();
-                        ctx.named.insert(dotted, last);
+                        // If the path ends at an Import alias node (e.g. `NFCall.Call` where
+                        // `Call = NFCall` inside NFCall), use the resolved target so we emit
+                        // `use crate::NFCall as Call` rather than `use crate::NFCall::Call`
+                        // (the latter would fail — the alias is a private `use` in that module).
+                        let effective = resolve_through_import_node(&dotted, top_level)
+                            .unwrap_or(dotted);
+                        if !effective.starts_with(&same_file_prefix) {
+                            ctx.named.insert(effective, last);
+                        }
                     }
                 }
                 Absyn::Import::NAMED_IMPORT { name, path } => {
                     let dotted = path_to_dotted(path);
                     if !dotted.starts_with(&same_file_prefix) && path_exists_in_hierarchy(&dotted, top_level) {
-                        ctx.named.insert(dotted, name.clone());
+                        let effective = resolve_through_import_node(&dotted, top_level)
+                            .unwrap_or(dotted);
+                        if !effective.starts_with(&same_file_prefix) {
+                            ctx.named.insert(effective, name.clone());
+                        }
                     }
                 }
                 Absyn::Import::GROUP_IMPORT { prefix, groups } => {

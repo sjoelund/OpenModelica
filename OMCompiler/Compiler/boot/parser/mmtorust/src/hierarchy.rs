@@ -1568,8 +1568,14 @@ fn ty_direct_deps(ty: &Ty) -> Vec<String> {
         Ty::List(inner) => ty_direct_deps(inner),
         // Array (Vec<T>) is fully heap-allocated — skip.
         Ty::Array(_) => vec![],
-        // Generic type args may or may not be heap-allocated; conservatively follow them.
-        Ty::Generic(_, args) => args.iter().flat_map(|t| ty_direct_deps(t)).collect(),
+        // Generic instantiation: the base type is embedded directly (not heap-allocated),
+        // so it participates in size cycles just like a plain reference.
+        // `name` is stored in `::` form; convert to dotted form to match graph keys.
+        Ty::Generic(name, args) => {
+            let mut deps = vec![name.replace("::", ".")];
+            deps.extend(args.iter().flat_map(|t| ty_direct_deps(t)));
+            deps
+        }
         _ => vec![],
     }
 }

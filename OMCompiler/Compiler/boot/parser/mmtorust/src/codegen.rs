@@ -887,7 +887,12 @@ fn fmt_ty(ty: &Ty, ctx: &mut GenCtx) -> String {
             } else {
                 shortened
             };
-            format!("{base}<{}>", args.iter().map(|t| fmt_ty(t, ctx)).collect::<Vec<_>>().join(", "))
+            let ty = format!("{base}<{}>", args.iter().map(|t| fmt_ty(t, ctx)).collect::<Vec<_>>().join(", "));
+            if ctx.recursive_types.contains(dotted.as_str()) {
+                format!("Arc<{ty}>")
+            } else {
+                ty
+            }
         }
         Ty::ExternalObject(_) => {
             // External objects are opaque C handles in Rust.

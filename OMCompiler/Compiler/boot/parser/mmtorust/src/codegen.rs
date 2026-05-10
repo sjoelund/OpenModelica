@@ -923,9 +923,14 @@ fn emit_exp(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx) -> String {
                     let parts: Vec<String> = args.iter().map(|a| emit_exp(a, is_const, ctx)).collect();
                     format!("metamodelica::list![{}]", parts.join(", "))
                 },
+                "arrayGet" => {
+                    let arg1 = args.first().map(|a| emit_exp(a, is_const, ctx)).unwrap_or_default();
+                    let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx)).unwrap_or_default();
+                    format!("{}[{}-1]", arg1, arg2)
+                },
                 "arrayLength" => {
                     let arg = args.first().map(|a| emit_exp(a, is_const, ctx)).unwrap_or_default();
-                    format!("{}.len()", arg)
+                    format!("{}.len() as i32", arg)
                 },
                 "listEmpty" => {
                     let arg = args.first().map(|a| emit_exp(a, is_const, ctx)).unwrap_or_default();

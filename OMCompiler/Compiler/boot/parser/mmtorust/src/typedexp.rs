@@ -40,11 +40,21 @@ pub struct TypedCase {
     pub result: TypedExp,
 }
 
+/// One segment of a structured component reference, carrying its subscripts.
+/// e.g. `arr[1].field[2+i]` → `[Seg("arr",[1]), Seg("field",[2+i])]`
+#[derive(Debug, Clone)]
+pub struct CrefSegment {
+    pub name: String,
+    pub subscripts: Vec<TypedExp>,
+}
+
 #[derive(Debug, Clone)]
 pub enum TypedExp {
     Lit(Lit),
-    /// A variable reference or constant path. `name` is the dotted MM name.
-    Var { name: String, ty: Ty },
+    /// A variable reference or constant path.
+    /// `name` is the dotted MM name (for lookup/compat).
+    /// `segments` carries the structured parts with subscripts.
+    Var { name: String, segments: Vec<CrefSegment>, ty: Ty },
     BinOp { op: BinOpKind, lhs: Box<TypedExp>, rhs: Box<TypedExp>, ty: Ty },
     UnOp { op: UnOpKind, operand: Box<TypedExp>, ty: Ty },
     /// A function/constructor call. `func` is the dotted MM name (e.g. "List.map", "SOME").
@@ -117,6 +127,7 @@ pub enum TypedPat {
 // ── Inference ─────────────────────────────────────────────────────────────────
 
 /// Convert a ComponentRef to a dotted MetaModelica name (e.g. "List.map").
+/// Deprecated: loses subscripts and structure. Use `extract_cref_segments` instead.
 pub fn cref_to_dotted(cref: &Absyn::ComponentRef) -> String {
     match cref {
         Absyn::ComponentRef::CREF_IDENT { name, .. } => name.clone(),
@@ -125,6 +136,66 @@ pub fn cref_to_dotted(cref: &Absyn::ComponentRef) -> String {
         }
         Absyn::ComponentRef::CREF_FULLYQUALIFIED { componentRef } => cref_to_dotted(componentRef),
         Absyn::ComponentRef::WILD | Absyn::ComponentRef::ALLWILD => "_".to_owned(),
+    }
+}
+
+/// Extract structured segments (with subscripts) from a ComponentRef.
+/// Returns (dotted_name, segments). The segments are in read-order:
+/// `arr[1].field` → [("arr", [1]), ("field", [])]
+fn extract_cref_segments<'a>(
+    cref: &Absyn::ComponentRef,
+    env: &HashMap<String, Ty>,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+    pkg_prefix: &str,
+) -> (String, Vec<CrefSegment>) {
+    // Collect segments in reverse (tail-first) then reverse at the end.
+    let mut segs: Vec<CrefSegment> = Vec::new();
+    collect_cref_segments_rev(cref, env, top_level, pkg_prefix, &mut segs);
+    segs.reverse();
+
+    let dotted: String = segs.iter().map(|s| s.name.clone()).collect::<Vec<_>>().join(".");
+    (dotted, segs)
+}
+
+fn collect_cref_segments_rev<'a>(
+    cref: &Absyn::ComponentRef,
+    env: &HashMap<String, Ty>,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+    pkg_prefix: &str,
+    acc: &mut Vec<CrefSegment>,
+) {
+    match cref {
+        Absyn::ComponentRef::CREF_IDENT { name, subscripts } => {
+            let subs: Vec<TypedExp> = subscripts.into_iter()
+                .filter_map(|s| {
+                    if let Absyn::Subscript::SUBSCRIPT { subscript } = s.as_ref() {
+                        Some(infer_exp(subscript, env, top_level, pkg_prefix))
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            acc.push(CrefSegment { name: name.clone(), subscripts: subs });
+        }
+        Absyn::ComponentRef::CREF_QUAL { name, subscripts, componentRef } => {
+            let subs: Vec<TypedExp> = subscripts.into_iter()
+                .filter_map(|s| {
+                    if let Absyn::Subscript::SUBSCRIPT { subscript } = s.as_ref() {
+                        Some(infer_exp(subscript, env, top_level, pkg_prefix))
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            acc.push(CrefSegment { name: name.clone(), subscripts: subs });
+            collect_cref_segments_rev(componentRef, env, top_level, pkg_prefix, acc);
+        }
+        Absyn::ComponentRef::CREF_FULLYQUALIFIED { componentRef } => {
+            collect_cref_segments_rev(componentRef, env, top_level, pkg_prefix, acc);
+        }
+        Absyn::ComponentRef::WILD | Absyn::ComponentRef::ALLWILD => {
+            acc.push(CrefSegment { name: "_".to_owned(), subscripts: vec![] });
+        }
     }
 }
 
@@ -205,7 +276,7 @@ pub fn infer_exp<'a>(
         Absyn::Exp::BOOL    { value } => TypedExp::Lit(Lit::Bool(*value)),
 
         Absyn::Exp::CREF { componentRef } => {
-            let name = cref_to_dotted(componentRef);
+            let (name, segments) = extract_cref_segments(componentRef, env, top_level, pkg_prefix);
             // Local env takes priority; fall back to hierarchy, then try qualifying
             // the bare name with the enclosing package prefix (for sibling references).
             let ty = env.get(&name).cloned().unwrap_or_else(|| {
@@ -216,7 +287,7 @@ pub fn infer_exp<'a>(
                     ty
                 }
             });
-            TypedExp::Var { name, ty }
+            TypedExp::Var { name, segments, ty }
         }
 
         Absyn::Exp::BINARY  { exp1, op, exp2 }

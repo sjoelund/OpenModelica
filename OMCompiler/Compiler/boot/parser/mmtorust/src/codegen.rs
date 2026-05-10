@@ -6,7 +6,7 @@ use mmwinnow::Absyn;
 use crate::MM;
 use std::collections::HashMap;
 use crate::hierarchy::{InstanceHierarchy, NameNode, NodeKind, Ty, extract_default, extract_default_exp, lookup_node, lookup_node_ty, uniontype_needs_mod};
-use crate::typedexp::{self, TypedExp, TypedPat, TypedCase, Lit, BinOpKind, UnOpKind, MatchKind, cref_to_dotted};
+use crate::typedexp::{self, TypedExp, TypedPat, TypedCase, Lit, BinOpKind, UnOpKind, MatchKind, cref_to_dotted, CrefSegment};
 
 // ── Import-aware generation context ──────────────────────────────────────────
 
@@ -515,7 +515,7 @@ fn emit_node<'a>(out: &mut String, name: &str, node: &NameNode<'_>, indent: &str
                     format!("{}.{}", ctx.top_name, ctx.current_path.join("."))
                 };
                 let typed = typedexp::infer_exp(exp, &HashMap::new(), top_level, &pkg_prefix);
-                let val = emit_exp(&typed, /*is_const=*/true, ctx);
+                let val = emit_exp(&typed, /*is_const=*/true, ctx, top_level);
                 let ename = escape_ident(name);
                 writeln!(out, "{indent}pub const {ename}: {rust_ty} = {val};").unwrap();
                 writeln!(out).unwrap();
@@ -830,7 +830,7 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
         let modif_opt: Option<Absyn::Modification> = modif.clone();
         let init = extract_default_exp(&modif_opt).map(|exp| {
             let typed = typedexp::infer_exp(exp, &infer_env, top_level, &pkg_prefix);
-            emit_exp(&typed, false, ctx)
+            emit_exp(&typed, false, ctx, top_level)
         });
         match init {
             Some(s) => writeln!(out, "{body_indent}let mut {}: {ty_s} = {s};", escape_ident(n)).unwrap(),
@@ -860,21 +860,20 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
 
 // ── Expression and pattern emission ──────────────────────────────────────────
 
-fn emit_exp(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx) -> String {
+fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) -> String {
     match exp {
         TypedExp::Lit(Lit::Int(v))  => v.to_string(),
         TypedExp::Lit(Lit::Real(v)) => v.clone(),
         TypedExp::Lit(Lit::Str(v))  => format!("\"{v}\".to_string()"),
         TypedExp::Lit(Lit::Bool(v)) => v.to_string(),
 
-        TypedExp::Var { name, .. } => {
-            let res = if name.contains('.') { ctx.shorten(name) } else { name.clone() };
-            escape_ident(&res)
+        TypedExp::Var { name, segments, ty, .. } => {
+            emit_var(name, segments, ty, ctx, top_level)
         }
 
         TypedExp::BinOp { op, lhs, rhs, ty, .. } => {
-            let l = emit_exp(lhs, is_const, ctx);
-            let r = emit_exp(rhs, is_const, ctx);
+            let l = emit_exp(lhs, is_const, ctx, top_level);
+            let r = emit_exp(rhs, is_const, ctx, top_level);
             match op {
                 BinOpKind::Eq => {
                     if is_const && (lhs.ty() == Ty::Str || rhs.ty() == Ty::Str) {
@@ -890,7 +889,7 @@ fn emit_exp(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx) -> String {
                 BinOpKind::Add if *ty == Ty::Str => {
                     // Collect all string parts from a chain of Add ops and emit a single join operation.
                     let mut parts: Vec<String> = Vec::new();
-                    collect_string_concat_parts(exp, is_const, ctx, &mut parts);
+                    collect_string_concat_parts(exp, is_const, ctx, top_level, &mut parts);
                     let args = parts.join(", ");
                     format!("[{args}].join(\"\")")
                 }
@@ -904,7 +903,7 @@ fn emit_exp(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx) -> String {
         }
 
         TypedExp::UnOp { op, operand, .. } => {
-            let s = emit_exp(operand, is_const, ctx);
+            let s = emit_exp(operand, is_const, ctx, top_level);
             match op {
                 UnOpKind::Neg => format!("-{s}"),
                 UnOpKind::Not => format!("!{s}"),
@@ -914,26 +913,26 @@ fn emit_exp(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx) -> String {
         TypedExp::Call { func, args, named_args, .. } => {
             match func.as_str() {
                 "SOME" => {
-                    let arg = args.first().map(|a| emit_exp(a, is_const, ctx)).unwrap_or_default();
+                    let arg = args.first().map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
                     format!("Some({arg})")
                 }
                 "NONE" => "None".to_owned(),
                 "fail" => if is_const { "{ panic!(\"fail\") }".to_owned() } else { "bail!(\"fail\")".to_owned() },
                 "list" => {
-                    let parts: Vec<String> = args.iter().map(|a| emit_exp(a, is_const, ctx)).collect();
+                    let parts: Vec<String> = args.iter().map(|a| emit_exp(a, is_const, ctx, top_level)).collect();
                     format!("metamodelica::list![{}]", parts.join(", "))
                 },
                 "arrayGet" => {
-                    let arg1 = args.first().map(|a| emit_exp(a, is_const, ctx)).unwrap_or_default();
-                    let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx)).unwrap_or_default();
+                    let arg1 = args.first().map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
+                    let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
                     format!("{}[{}-1]", arg1, arg2)
                 },
                 "arrayLength" => {
-                    let arg = args.first().map(|a| emit_exp(a, is_const, ctx)).unwrap_or_default();
+                    let arg = args.first().map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
                     format!("{}.len() as i32", arg)
                 },
                 "listEmpty" => {
-                    let arg = args.first().map(|a| emit_exp(a, is_const, ctx)).unwrap_or_default();
+                    let arg = args.first().map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
                     format!("{}.is_empty()", arg)
                 },
                 _ => {
@@ -943,9 +942,9 @@ fn emit_exp(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx) -> String {
                         func
                     };
                     let func_str = escape_ident(func_str);
-                    let mut parts: Vec<String> = args.iter().map(|a| emit_exp(a, is_const, ctx)).collect();
+                    let mut parts: Vec<String> = args.iter().map(|a| emit_exp(a, is_const, ctx, top_level)).collect();
                     for (n, v) in named_args {
-                        parts.push(format!("{n}={}", emit_exp(v, is_const, ctx)));
+                        parts.push(format!("{n}={}", emit_exp(v, is_const, ctx, top_level)));
                     }
                     let call = format!("{func_str}({})", parts.join(", "));
                     // Add `?` to propagate Result errors from fallible calls. Skip in const
@@ -961,21 +960,21 @@ fn emit_exp(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx) -> String {
         }
 
         TypedExp::If { cond, then_, elseif, else_, .. } => {
-            let c = emit_exp(cond, is_const, ctx);
-            let t = emit_exp(then_, is_const, ctx);
-            let e = emit_exp(else_, is_const, ctx);
+            let c = emit_exp(cond, is_const, ctx, top_level);
+            let t = emit_exp(then_, is_const, ctx, top_level);
+            let e = emit_exp(else_, is_const, ctx, top_level);
             let ei: String = elseif.iter()
-                .map(|(ec, eb)| format!(" else if ({}) {{{}}}", emit_exp(ec, is_const, ctx), emit_exp(eb, is_const, ctx)))
+                .map(|(ec, eb)| format!(" else if ({}) {{{}}}", emit_exp(ec, is_const, ctx, top_level), emit_exp(eb, is_const, ctx, top_level)))
                 .collect();
             format!("if ({c}) {{{t}}}{ei} else {{{e}}}")
         }
 
         TypedExp::Cons { head, tail, .. } => {
-            format!("cons({}, {})", emit_exp(head, is_const, ctx), emit_exp(tail, is_const, ctx))
+            format!("cons({}, {})", emit_exp(head, is_const, ctx, top_level), emit_exp(tail, is_const, ctx, top_level))
         }
 
         TypedExp::Tuple(elems) => {
-            let parts: Vec<String> = elems.iter().map(|e| emit_exp(e, is_const, ctx)).collect();
+            let parts: Vec<String> = elems.iter().map(|e| emit_exp(e, is_const, ctx, top_level)).collect();
             format!("({})", parts.join(", "))
         }
 
@@ -983,31 +982,152 @@ fn emit_exp(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx) -> String {
             if elems.is_empty() {
                 "List::Nil".to_owned()
             } else {
-                let parts: Vec<String> = elems.iter().map(|e| emit_exp(e, is_const, ctx)).collect();
+                let parts: Vec<String> = elems.iter().map(|e| emit_exp(e, is_const, ctx, top_level)).collect();
                 format!("list![{}]", parts.join(", "))
             }
         }
 
         TypedExp::Match { kind, input, cases, .. } => {
-            emit_match(kind, input, cases, is_const, ctx)
+            emit_match(kind, input, cases, is_const, ctx, top_level)
         }
 
         TypedExp::Range { start, step, stop, .. } => {
-            emit_range(start, step.as_deref(), stop, is_const, ctx)
+            emit_range(start, step.as_deref(), stop, is_const, ctx, top_level)
         }
 
         TypedExp::Todo(s) => format!("todo!(/*{}*/)", s.chars().take(60).collect::<String>()),
     }
 }
 
+/// Emit a variable reference, handling subscripts and the package/field boundary.
+fn emit_var<'a>(
+    name: &str,
+    segments: &[CrefSegment],
+    _ty: &Ty,
+    ctx: &mut GenCtx,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+) -> String {
+    // Apply subscripts on the first (base) segment as array indexing.
+    let base_name = if segments.is_empty() {
+        name.to_owned()
+    } else {
+        let mut base = escape_ident(&segments[0].name);
+        for sub in &segments[0].subscripts {
+            base = format!("{}[{}]", base, emit_exp(sub, false, ctx, top_level));
+        }
+        base
+    };
+
+    // If there are no further segments, we're done.
+    if segments.len() <= 1 {
+        // For simple names without dots, just use the name directly.
+        if !name.contains('.') {
+            return if segments.is_empty() { escape_ident(name) } else { base_name };
+        }
+        // Dotted name with single segment and subscripts already applied.
+        let shortened = ctx.shorten(name);
+        let mut res = escape_ident(&shortened);
+        if segments.is_empty() {
+            return res;
+        }
+        // Rebuild with subscripts from segments[0].
+        if segments[0].subscripts.is_empty() {
+            return res;
+        }
+        let mut base = res;
+        for sub in &segments[0].subscripts {
+            base = format!("{}[{}]", base, emit_exp(sub, false, ctx, top_level));
+        }
+        return base;
+    }
+
+    // Multiple segments: find the package/field boundary.
+    // Walk backwards from the segments to find the deepest record type prefix.
+    // Everything before the record is a Rust path (::); everything from the record
+    // onwards uses field access (.).
+    let split_idx = find_record_split(segments, top_level);
+    let (pkg_segs, field_segs) = segments.split_at(split_idx);
+
+    // Emit the package prefix part using shorten.
+    let pkg_dotted: String = pkg_segs.iter().map(|s| s.name.clone()).collect::<Vec<_>>().join(".");
+    let base = if pkg_dotted.is_empty() {
+        base_name
+    } else {
+        let shortened = ctx.shorten(&pkg_dotted);
+        // Apply subscripts from the last package segment.
+        let last_pkg_segs = pkg_segs.last();
+        if let Some(last_seg) = last_pkg_segs {
+            if !last_seg.subscripts.is_empty() {
+                let mut b = escape_ident(&shortened);
+                for sub in &last_seg.subscripts {
+                    b = format!("{}[{}]", b, emit_exp(sub, false, ctx, top_level));
+                }
+                b
+            } else {
+                escape_ident(&shortened)
+            }
+        } else {
+            escape_ident(&shortened)
+        }
+    };
+
+    // Emit field access for the remaining segments.
+    let mut res = base;
+    for seg in field_segs {
+        res = format!("{}.{}", res, escape_ident(&seg.name));
+        for sub in &seg.subscripts {
+            res = format!("{}[{}]", res, emit_exp(sub, false, ctx, top_level));
+        }
+    }
+    res
+}
+
+/// Find the index at which to split segments into [package prefix] and [record fields].
+/// Returns the index of the first field segment. Everything before is the package path.
+/// Returns `segments.len()` if no record boundary is found (entire path is a package path).
+fn find_record_split<'a>(segments: &[CrefSegment], top_level: &'a BTreeMap<String, NameNode<'a>>) -> usize {
+    if segments.len() <= 1 {
+        return segments.len();
+    }
+
+    // Heuristic: if the first segment has subscripts (e.g., `arr[1].field`),
+    // the subscripted expression is the base and everything after is field access.
+    // Package paths don't have subscripts on their components.
+    if !segments[0].subscripts.is_empty() {
+        return 1;
+    }
+
+    // Walk backwards from the last possible split point.
+    // For a split at index i, the first i segments form the package prefix,
+    // and segments[i..] are the record fields.
+    for i in (1..segments.len()).rev() {
+        let prefix_dotted: String = segments[..i].iter().map(|s| s.name.clone()).collect::<Vec<_>>().join(".");
+        if let Some(node) = lookup_node(&prefix_dotted, top_level) {
+            // Check if this node is a record or metarecord.
+            if let NodeKind::Class(c) = &node.kind {
+                if matches!(c.restriction, Absyn::Restriction::R_RECORD | Absyn::Restriction::R_METARECORD { .. }) {
+                    // The prefix ends at a record. Fields after it are field accesses.
+                    return i;
+                }
+            }
+            // Not a record (package, function, etc.) — the entire path through here
+            // is a package path. Return segments.len() so shorten handles everything.
+            return segments.len();
+        }
+    }
+
+    // Nothing resolved — treat entire thing as a package path.
+    segments.len()
+}
+
 /// Flatten a chain of string `Add` expressions into a list of individual string parts.
 /// e.g. `(a + b) + c` → `["a", "b", "c"]`
-fn collect_string_concat_parts(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, parts: &mut Vec<String>) {
+fn collect_string_concat_parts<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>, parts: &mut Vec<String>) {
     if let TypedExp::BinOp { op: BinOpKind::Add, ty: Ty::Str, lhs, rhs, .. } = exp {
-        collect_string_concat_parts(lhs, is_const, ctx, parts);
-        collect_string_concat_parts(rhs, is_const, ctx, parts);
+        collect_string_concat_parts(lhs, is_const, ctx, top_level, parts);
+        collect_string_concat_parts(rhs, is_const, ctx, top_level, parts);
     } else {
-        parts.push(emit_exp(exp, is_const, ctx));
+        parts.push(emit_exp(exp, is_const, ctx, top_level));
     }
 }
 
@@ -1015,9 +1135,9 @@ fn collect_string_concat_parts(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx,
 /// Modelica ranges are arithmetic progressions: start, start+step, ..., while within [start, stop].
 /// Positive steps map to `(start..=stop).step_by(n)`.
 /// Negative steps reverse the range: `(stop..=start).step_by(-n)`.
-fn emit_range(start: &TypedExp, step: Option<&TypedExp>, stop: &TypedExp, is_const: bool, ctx: &mut GenCtx) -> String {
-    let s = emit_exp(start, is_const, ctx);
-    let e = emit_exp(stop, is_const, ctx);
+fn emit_range<'a>(start: &TypedExp, step: Option<&TypedExp>, stop: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) -> String {
+    let s = emit_exp(start, is_const, ctx, top_level);
+    let e = emit_exp(stop, is_const, ctx, top_level);
 
     match step {
         // `start:stop` — default step of 1, forward.
@@ -1040,7 +1160,7 @@ fn emit_range(start: &TypedExp, step: Option<&TypedExp>, stop: &TypedExp, is_con
                 }
             }
 
-            let step_val = emit_exp(step_exp, is_const, ctx);
+            let step_val = emit_exp(step_exp, is_const, ctx, top_level);
 
             // Dynamic step: positive path for the common case,
             // with a runtime branch that reverses for negative steps.
@@ -1051,17 +1171,17 @@ fn emit_range(start: &TypedExp, step: Option<&TypedExp>, stop: &TypedExp, is_con
     }
 }
 
-fn emit_match(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], is_const: bool, ctx: &mut GenCtx) -> String {
-    let input_str = emit_exp(input, is_const, ctx);
+fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], is_const: bool, ctx: &mut GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) -> String {
+    let input_str = emit_exp(input, is_const, ctx, top_level);
     match kind {
         MatchKind::Match => {
             let has_wild = cases.iter().any(|c| matches!(c.pattern, TypedPat::Wildcard) && c.guard.is_none());
             let arms: Vec<String> = cases.iter().map(|case| {
                 let pat = emit_pat(&case.pattern, ctx);
                 let guard = case.guard.as_ref()
-                    .map(|g| format!(" if {}", emit_exp(g, is_const, ctx)))
+                    .map(|g| format!(" if {}", emit_exp(g, is_const, ctx, top_level)))
                     .unwrap_or_default();
-                let result = emit_exp(&case.result, is_const, ctx);
+                let result = emit_exp(&case.result, is_const, ctx, top_level);
                 format!("        {pat}{guard} => {result}")
             }).collect();
             let fallback = if has_wild { String::new() } else {
@@ -1081,9 +1201,9 @@ fn emit_match(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], is_const:
             for case in cases {
                 let pat = emit_pat(&case.pattern, ctx);
                 let guard_check = case.guard.as_ref()
-                    .map(|g| format!("            if !({}) {{ bail!(\"guard\") }}\n", emit_exp(g, is_const, ctx)))
+                    .map(|g| format!("            if !({}) {{ bail!(\"guard\") }}\n", emit_exp(g, is_const, ctx, top_level)))
                     .unwrap_or_default();
-                let result = emit_exp(&case.result, is_const, ctx);
+                let result = emit_exp(&case.result, is_const, ctx, top_level);
                 s.push_str("        if let Ok(__v) = (|| -> Result<_> {\n");
                 s.push_str(&format!("            let {pat} = __mc_input.clone() else {{ bail!(\"nomatch\") }};\n"));
                 s.push_str(&guard_check);
@@ -1426,7 +1546,7 @@ fn emit_stmt<'a>(
     match stmt {
         S::Assign { lhs, rhs } => {
             let scrut_ty = rhs.ty();
-            let scrut_expr = emit_exp(rhs, /*is_const=*/false, ctx);
+            let scrut_expr = emit_exp(rhs, /*is_const=*/false, ctx, top_level);
             // For irrefutable patterns we still want a single binding form.
             // But MetaModelica often assigns to *existing* variables (declared as outputs
             // or `protected` components). For a Var pattern we emit a plain `<name> = expr;`
@@ -1441,15 +1561,15 @@ fn emit_stmt<'a>(
             emit_pat_assign(out, indent, lhs, &scrut_ty, &scrut_expr, fail_mode, ctx, env, top_level, fresh);
         }
         S::NoRetCall { call } => {
-            let s = emit_exp(call, false, ctx);
+            let s = emit_exp(call, false, ctx, top_level);
             writeln!(out, "{indent}let _ = {s};").unwrap();
         }
         S::If { cond, then_, elseif, else_ } => {
-            let c = emit_exp(cond, false, ctx);
+            let c = emit_exp(cond, false, ctx, top_level);
             writeln!(out, "{indent}if {c} {{").unwrap();
             emit_stmts(out, &format!("{indent}    "), then_, fail_mode, ctx, env, top_level, fresh);
             for (ec, eb) in elseif {
-                let cs = emit_exp(ec, false, ctx);
+                let cs = emit_exp(ec, false, ctx, top_level);
                 writeln!(out, "{indent}}} else if {cs} {{").unwrap();
                 emit_stmts(out, &format!("{indent}    "), eb, fail_mode, ctx, env, top_level, fresh);
             }
@@ -1460,7 +1580,7 @@ fn emit_stmt<'a>(
             writeln!(out, "{indent}}}").unwrap();
         }
         S::For { var, range, body } => {
-            let r = emit_exp(range, false, ctx);
+            let r = emit_exp(range, false, ctx, top_level);
             writeln!(out, "{indent}for {} in {r} {{", escape_ident(var)).unwrap();
             // Element type: peel List/Array.
             let elem_ty = match range.ty() { Ty::List(t) | Ty::Array(t) => *t, _ => Ty::Unknown };
@@ -1470,7 +1590,7 @@ fn emit_stmt<'a>(
             writeln!(out, "{indent}}}").unwrap();
         }
         S::While { cond, body } => {
-            let c = emit_exp(cond, false, ctx);
+            let c = emit_exp(cond, false, ctx, top_level);
             writeln!(out, "{indent}while {c} {{").unwrap();
             emit_stmts(out, &format!("{indent}    "), body, fail_mode, ctx, env, top_level, fresh);
             writeln!(out, "{indent}}}").unwrap();

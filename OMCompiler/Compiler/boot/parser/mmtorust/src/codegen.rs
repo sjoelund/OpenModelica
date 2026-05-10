@@ -780,8 +780,8 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
     }
 
     // Walk components to find outputs (with names) and protected locals.
-    let mut outputs: Vec<(String, Ty, Option<Absyn::Modification>)> = Vec::new();
-    let mut protected: Vec<(String, Ty, Option<Absyn::Modification>)> = Vec::new();
+    let mut outputs: Vec<(String, Ty, Option<Absyn::Modification>, bool)> = Vec::new();
+    let mut protected: Vec<(String, Ty, Option<Absyn::Modification>, bool)> = Vec::new();
     let mut input_names: HashSet<String> = HashSet::new();
     for inp in fn_inputs.iter() { input_names.insert(inp.name.clone()); }
     for member in members {
@@ -789,10 +789,20 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
         let child_ty = node.children.get(&cm.name).map(|n| n.ty.clone()).unwrap_or(Ty::Unknown);
         match cm.direction {
             Absyn::Direction::OUTPUT | Absyn::Direction::INPUT_OUTPUT =>
-                outputs.push((cm.name.clone(), child_ty, cm.modification.clone())),
+                outputs.push((
+                    cm.name.clone(),
+                    child_ty,
+                    cm.modification.clone(),
+                    cm.variability == Absyn::Variability::CONST,
+                )),
             Absyn::Direction::BIDIR => {
                 if !input_names.contains(&cm.name) {
-                    protected.push((cm.name.clone(), child_ty, cm.modification.clone()));
+                    protected.push((
+                        cm.name.clone(),
+                        child_ty,
+                        cm.modification.clone(),
+                        cm.variability == Absyn::Variability::CONST,
+                    ));
                 }
             }
             _ => {}
@@ -807,8 +817,8 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
 
     let mut infer_env: HashMap<String, Ty> = HashMap::new();
     for inp in fn_inputs.iter() { infer_env.insert(inp.name.clone(), inp.ty.clone()); }
-    for (n, t, _) in &outputs { infer_env.insert(n.clone(), t.clone()); }
-    for (n, t, _) in &protected { infer_env.insert(n.clone(), t.clone()); }
+    for (n, t, _, _) in &outputs { infer_env.insert(n.clone(), t.clone()); }
+    for (n, t, _, _) in &protected { infer_env.insert(n.clone(), t.clone()); }
 
     let alg_items: &[Absyn::AlgorithmItem] = match &c.body {
         MM::ClassDef::Parts { algorithms, .. } | MM::ClassDef::ClassExtends { algorithms, .. } => algorithms,
@@ -819,22 +829,24 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
 
     let mut env = LocalEnv::default();
     for inp in fn_inputs.iter() { env.vars.insert(inp.name.clone(), inp.ty.clone()); }
-    for (n, t, _) in &outputs   { env.vars.insert(n.clone(), t.clone()); }
-    for (n, t, _) in &protected { env.vars.insert(n.clone(), t.clone()); }
+    for (n, t, _, _) in &outputs   { env.vars.insert(n.clone(), t.clone()); }
+    for (n, t, _, _) in &protected { env.vars.insert(n.clone(), t.clone()); }
 
     writeln!(out, "{indent}{pub_kw}fn {ename}{type_params}({params}) -> Result<{ret_ty}> {{").unwrap();
     let body_indent = format!("{indent}    ");
 
-    for (n, t, modif) in outputs.iter().chain(protected.iter()) {
+    for (n, t, modif, is_const_local) in outputs.iter().chain(protected.iter()) {
         let ty_s = fmt_ty(t, ctx);
         let modif_opt: Option<Absyn::Modification> = modif.clone();
         let init = extract_default_exp(&modif_opt).map(|exp| {
             let typed = typedexp::infer_exp(exp, &infer_env, top_level, &pkg_prefix);
             emit_exp(&typed, false, ctx, top_level)
         });
-        match init {
-            Some(s) => writeln!(out, "{body_indent}let mut {}: {ty_s} = {s};", escape_ident(n)).unwrap(),
-            None    => writeln!(out, "{body_indent}let mut {}: {ty_s};", escape_ident(n)).unwrap(),
+        match (is_const_local, init) {
+            (true, Some(s)) => writeln!(out, "{body_indent}let {}: {ty_s} = {s};", escape_ident(n)).unwrap(),
+            (true, None) => writeln!(out, "{body_indent}let mut {}: {ty_s};", escape_ident(n)).unwrap(),
+            (false, Some(s)) => writeln!(out, "{body_indent}let mut {}: {ty_s} = {s};", escape_ident(n)).unwrap(),
+            (false, None) => writeln!(out, "{body_indent}let mut {}: {ty_s};", escape_ident(n)).unwrap(),
         }
     }
 
@@ -850,7 +862,7 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
         0 => writeln!(out, "{body_indent}Ok(())").unwrap(),
         1 => writeln!(out, "{body_indent}Ok({})", escape_ident(&outputs[0].0)).unwrap(),
         _ => {
-            let parts: Vec<String> = outputs.iter().map(|(n, _, _)| escape_ident(n)).collect();
+            let parts: Vec<String> = outputs.iter().map(|(n, _, _, _)| escape_ident(n)).collect();
             writeln!(out, "{body_indent}Ok(({}))", parts.join(", ")).unwrap();
         }
     }
@@ -918,6 +930,11 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                 BinOpKind::Sub => format!("{l} - {r}"),
                 BinOpKind::Mul => format!("{l} * {r}"),
                 BinOpKind::Div => format!("{l} / {r}"),
+                BinOpKind::Pow => {
+                    let lp = if lhs.ty() == Ty::I32 { format!("({l} as f64)") } else { l };
+                    let rp = if rhs.ty() == Ty::I32 { format!("({r} as f64)") } else { r };
+                    format!("({lp}).powf({rp})")
+                }
                 BinOpKind::And => format!("{l} && {r}"),
                 BinOpKind::Or  => format!("{l} || {r}"),
             }
@@ -1654,6 +1671,28 @@ fn emit_stmt<'a>(
     top_level: &'a BTreeMap<String, NameNode<'a>>,
     fresh: &mut u32,
 ) {
+    fn coerce_assign_expr(scrut_expr: String, scrut_ty: &Ty, lhs_ty: Option<&Ty>) -> String {
+        let mut expr = scrut_expr;
+        if matches!(lhs_ty, Some(Ty::F64)) && *scrut_ty == Ty::I32 {
+            expr = format!("({expr} as f64)");
+        }
+        maybe_clone_string_value(expr, scrut_ty)
+    }
+
+    fn lhs_assignment_ty(lhs: &TypedPat, env: &LocalEnv) -> Option<Ty> {
+        match lhs {
+            TypedPat::Var(name) => env.vars.get(name).cloned(),
+            TypedPat::Index { base, .. } => {
+                let base_ty = base.ty();
+                match base_ty {
+                    Ty::Array(inner) | Ty::List(inner) => Some(*inner),
+                    _ => None,
+                }
+            }
+            _ => None,
+        }
+    }
+
     use typedexp::TypedStmt as S;
     match stmt {
         S::Assign { lhs, rhs } => {
@@ -1666,20 +1705,22 @@ fn emit_stmt<'a>(
             // it's an output or earlier protected — emit assignment.
             if let TypedPat::Var(name) = lhs {
                 if env.vars.contains_key(name) {
-                    let scrut_expr = maybe_clone_string_value(scrut_expr, &scrut_ty);
+                    let scrut_expr = coerce_assign_expr(scrut_expr, &scrut_ty, env.vars.get(name));
                     writeln!(out, "{indent}{} = {scrut_expr};", escape_ident(name)).unwrap();
                     return;
                 }
             }
             if let TypedPat::Index { base, index } = lhs {
                 let lhs_str = emit_pat(lhs, ctx, top_level);
-                let scrut_expr = maybe_clone_string_value(scrut_expr, &scrut_ty);
+                let lhs_ty = lhs_assignment_ty(lhs, env);
+                let scrut_expr = coerce_assign_expr(scrut_expr, &scrut_ty, lhs_ty.as_ref());
                 writeln!(out, "{indent}{lhs_str} = {scrut_expr};").unwrap();
                 return;
             }
             if let TypedPat::FieldAccess { base, field } = lhs {
                 let lhs_str = field_access_to_dotted(base, field);
-                let scrut_expr = maybe_clone_string_value(scrut_expr, &scrut_ty);
+                let lhs_ty = lhs_assignment_ty(lhs, env);
+                let scrut_expr = coerce_assign_expr(scrut_expr, &scrut_ty, lhs_ty.as_ref());
                 writeln!(out, "{indent}{lhs_str} = {scrut_expr};").unwrap();
                 return;
             }

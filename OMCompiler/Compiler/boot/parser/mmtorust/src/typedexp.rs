@@ -20,7 +20,7 @@ pub enum Lit {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum BinOpKind {
-    Add, Sub, Mul, Div,
+    Add, Sub, Mul, Div, Pow,
     And, Or,
     Eq, NEq, Lt, LEq, Gt, GEq,
 }
@@ -225,6 +225,7 @@ fn binop_ty(op: BinOpKind, lhs_ty: &Ty, rhs_ty: &Ty) -> Ty {
                 _ => lhs_ty.clone(),
             }
         }
+        BinOpKind::Pow => Ty::F64,
         BinOpKind::And | BinOpKind::Or
         | BinOpKind::Eq | BinOpKind::NEq
         | BinOpKind::Lt | BinOpKind::LEq
@@ -933,6 +934,7 @@ fn absyn_op_to_binop(op: &Absyn::Operator) -> BinOpKind {
         Absyn::Operator::SUB | Absyn::Operator::SUB_EW => BinOpKind::Sub,
         Absyn::Operator::MUL | Absyn::Operator::MUL_EW => BinOpKind::Mul,
         Absyn::Operator::DIV | Absyn::Operator::DIV_EW => BinOpKind::Div,
+        Absyn::Operator::POW | Absyn::Operator::POW_EW => BinOpKind::Pow,
         Absyn::Operator::AND   => BinOpKind::And,
         Absyn::Operator::OR    => BinOpKind::Or,
         Absyn::Operator::EQUAL => BinOpKind::Eq,

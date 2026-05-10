@@ -545,7 +545,7 @@ pub fn stringHashSdbm(str: String) -> i32 {
 /// Extracts a substring from str.
 /// start and stop are 1-based indices (first character is at index 1).
 /// Fails for bogus start/stop values.
-pub fn substring(str: String, start: i32, stop: i32) -> Result<String> {
+pub fn substring(str: Arc<String>, start: i32, stop: i32) -> Result<Arc<String>> {
     if start < 1 || stop < start || start > stop {
         bail!("Invalid substring range: start={}, stop={}", start, stop);
     }
@@ -555,7 +555,7 @@ pub fn substring(str: String, start: i32, stop: i32) -> Result<String> {
     if stop_idx > chars.len() {
         bail!("Stop index {} exceeds string length {}", stop, chars.len());
     }
-    Ok(chars[start_idx..stop_idx].iter().collect())
+    Ok(Arc::new(chars[start_idx..stop_idx].iter().collect()))
 }
 
 /// Alias for string_append_list (maps a list of single-char strings to one string).
@@ -1610,18 +1610,18 @@ mod tests {
 
         #[test]
         fn test_substring_basic() {
-            assert_eq!(substring("hello world".to_string(), 1, 5).unwrap(), "hello");
-            assert_eq!(substring("hello world".to_string(), 7, 11).unwrap(), "world");
-            assert_eq!(substring("hello".to_string(), 3, 3).unwrap(), "l");
-            assert_eq!(substring("hello".to_string(), 1, 5).unwrap(), "hello");
+            assert_eq!(*substring(Arc::new("hello world".to_string()), 1, 5).unwrap(), "hello".to_string());
+            assert_eq!(*substring(Arc::new("hello world".to_string()), 7, 11).unwrap(), "world".to_string());
+            assert_eq!(*substring(Arc::new("hello".to_string()), 3, 3).unwrap(), "l".to_string());
+            assert_eq!(*substring(Arc::new("hello".to_string()), 1, 5).unwrap(), "hello".to_string());
         }
 
         #[test]
         fn test_substring_errors() {
-            assert!(substring("hello".to_string(), 0, 3).is_err());  // start < 1
-            assert!(substring("hello".to_string(), 3, 2).is_err());  // stop < start
-            assert!(substring("hello".to_string(), 1, 6).is_err());  // stop out of bounds
-            assert!(substring("hello".to_string(), 6, 7).is_err());  // start out of bounds
+            assert!(substring(Arc::new("hello".to_string()), 0, 3).is_err());  // start < 1
+            assert!(substring(Arc::new("hello".to_string()), 3, 2).is_err());  // stop < start
+            assert!(substring(Arc::new("hello".to_string()), 1, 6).is_err());  // stop out of bounds
+            assert!(substring(Arc::new("hello".to_string()), 6, 7).is_err());  // start out of bounds
         }
     }
 

@@ -2493,7 +2493,6 @@ fn type_specifier(input: &mut TokenInput) -> ModalResult<TypeSpec> {
         t(TK::Greater).parse_next(input)?;
     }
     let arrayDim = opt(array_subscripts).parse_next(input)?;
-    ts = ts.reverse();
     if ts.is_empty() {
         Ok(TypeSpec::TPATH { path, arrayDim })
     } else {

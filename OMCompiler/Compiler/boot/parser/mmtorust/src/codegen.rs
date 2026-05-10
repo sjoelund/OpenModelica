@@ -936,8 +936,12 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                 "NONE" => "None".to_owned(),
                 "fail" => if is_const { "{ panic!(\"fail\") }".to_owned() } else { "bail!(\"fail\")".to_owned() },
                 "list" => {
-                    let parts: Vec<String> = args.iter().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).collect();
-                    format!("metamodelica::list![{}]", parts.join(", "))
+                    if args.is_empty() {
+                        "List::Nil".to_owned()
+                    } else {
+                        let parts: Vec<String> = args.iter().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).collect();
+                        format!("metamodelica::list![{}]", parts.join(", "))
+                    }
                 },
                 "arrayGet" | "arrayGetNoBoundsChecking" => {
                     let arg1 = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
@@ -946,7 +950,7 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                 },
                 "arrayLength" | "listLength" | "stringLength" => {
                     let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
-                    format!("{}.len() as i32", arg)
+                    format!("({}.len() as i32)", arg)
                 },
                 "arrayCopy" => {
                     let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();

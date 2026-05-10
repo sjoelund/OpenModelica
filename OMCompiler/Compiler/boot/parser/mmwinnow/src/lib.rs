@@ -203,15 +203,15 @@ fn split_annotations(items: List<ClassBodyItem>) -> (List<ClassBodyItem>, List<A
     let mut anns:  List<Absyn::Annotation> = List::Nil;
     for item in items.into_iter() {
         match item {
-            ClassBodyItem::Annotation(ann) => anns = cons(ann, anns),
+            ClassBodyItem::Annotation(ann) => anns = cons(ann.clone(), anns),
             ClassBodyItem::Section { section, items: sec_items } => {
                 // Annotations that appear directly in a section's element list are
                 // class-level annotations (function-level ones are nested inside element bodies).
-                let (inner_parts, inner_anns) = split_annotations((*sec_items).clone());
-                for ann in inner_anns.into_iter() { anns = cons(ann, anns); }
-                parts = cons(ClassBodyItem::Section { section, items: Arc::new(inner_parts) }, parts);
+                let (inner_parts, inner_anns) = split_annotations((**sec_items).clone());
+                for ann in inner_anns.into_iter() { anns = cons(ann.clone(), anns); }
+                parts = cons(ClassBodyItem::Section { section: section.clone(), items: Arc::new(inner_parts) }, parts);
             }
-            other => parts = cons(other, parts),
+            other => parts = cons(other.clone(), parts),
         }
     }
     (parts.reverse(), anns.reverse())
@@ -222,26 +222,26 @@ fn body_items_to_classparts(items: List<ClassBodyItem>) -> List<ClassPart> {
     for item in items.into_iter() {
         let converted = match item {
             ClassBodyItem::Section { section, items } => {
-                let content = body_items_to_element_items((*items).clone());
+                let content = body_items_to_element_items((**items).clone());
                 match section {
                     SectionKind::Public    => ClassPart::PUBLIC    { contents: content },
                     SectionKind::Protected => ClassPart::PROTECTED { contents: content },
                 }
             }
             ClassBodyItem::Element(elem) => {
-                let ei = ElementItem::ELEMENTITEM { element: elem };
+                let ei = ElementItem::ELEMENTITEM { element: elem.clone() };
                 ClassPart::PUBLIC { contents: cons(ei, List::Nil) }
             }
             ClassBodyItem::Annotation(_) => unreachable!("annotations should be split out before body_items_to_classparts"),
-            ClassBodyItem::Equations(items)        => ClassPart::EQUATIONS        { contents: items },
-            ClassBodyItem::InitialEquations(items) => ClassPart::INITIALEQUATIONS { contents: items },
-            ClassBodyItem::Algorithms(items)       => ClassPart::ALGORITHMS       { contents: items },
-            ClassBodyItem::InitialAlgorithms(items)=> ClassPart::INITIALALGORITHMS{ contents: items },
+            ClassBodyItem::Equations(items)        => ClassPart::EQUATIONS        { contents: items.clone() },
+            ClassBodyItem::InitialEquations(items) => ClassPart::INITIALEQUATIONS { contents: items.clone() },
+            ClassBodyItem::Algorithms(items)       => ClassPart::ALGORITHMS       { contents: items.clone() },
+            ClassBodyItem::InitialAlgorithms(items)=> ClassPart::INITIALALGORITHMS{ contents: items.clone() },
             ClassBodyItem::Constraints             => ClassPart::CONSTRAINTS      { contents: List::Nil },
             ClassBodyItem::External { funcName, annotation_opt } => ClassPart::EXTERNAL {
                 externalDecl: ExternalDecl::EXTERNALDECL {
-                    funcName, lang: None, output_: None, args: List::Nil,
-                    annotation_: annotation_opt,
+                    funcName: funcName.clone(), lang: None, output_: None, args: List::Nil,
+                    annotation_: annotation_opt.clone(),
                 },
                 annotation_: None,
             },
@@ -1557,7 +1557,7 @@ fn local_clause(input: &mut TokenInput) -> ModalResult<List<Arc<Absyn::ElementIt
     let mut result: List<Arc<Absyn::ElementItem>> = List::Nil;
     for item in &items {
         let ei = match item {
-            ClassBodyItem::Element(elem)   => Absyn::ElementItem::ELEMENTITEM { element: elem },
+            ClassBodyItem::Element(elem)   => Absyn::ElementItem::ELEMENTITEM { element: elem.clone() },
             ClassBodyItem::Annotation(ann) => Absyn::ElementItem::LEXER_COMMENT { comment: format!("{ann:?}") },
             _ => continue,
         };
@@ -1703,7 +1703,7 @@ fn component_reference2(input: &mut TokenInput) -> ModalResult<Absyn::ComponentR
     let name     = t_ident(input)?;
     let raw_subs = opt(array_subscripts).parse_next(input)?.unwrap_or(List::Nil);
     let mut subscripts: List<Arc<Absyn::Subscript>> = List::Nil;
-    for s in &raw_subs.reverse() { subscripts = cons(Arc::new(s), subscripts); }
+    for s in &raw_subs.reverse() { subscripts = cons(Arc::new(s.clone()), subscripts); }
     if input.len() >= 2
         && input[0].kind == TK::Dot
         && matches!(&input[1].kind, TK::Ident(_))
@@ -2100,7 +2100,7 @@ fn primary(input: &mut TokenInput) -> ModalResult<Absyn::Exp> {
             let raw_subs = opt(array_subscripts).parse_next(input)?;
             if let Some(subs) = raw_subs {
                 let mut rc_subs: List<Arc<Subscript>> = List::Nil;
-                for s in &subs.reverse() { rc_subs = cons(Arc::new(s), rc_subs); }
+                for s in &subs.reverse() { rc_subs = cons(Arc::new(s.clone()), rc_subs); }
                 return Ok(Absyn::Exp::SUBSCRIPTED_EXP {
                     exp: Arc::new(to_tuple_or_exp(exprs, is_tuple)), subscripts: rc_subs,
                 });

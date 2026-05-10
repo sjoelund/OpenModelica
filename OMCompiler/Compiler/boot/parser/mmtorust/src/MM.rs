@@ -156,7 +156,7 @@ pub fn from_program(prog: &Absyn::Program) -> Result<Program, Error> {
     }
     classes.into_iter().map(|class| {
         let is_nf_builtin = matches!(&class, Absyn::Class::CLASS { info, .. } if is_nf_builtin(info));
-        let result = convert_class(class);
+        let result = convert_class(class.clone());
         if is_nf_builtin { Ok(result.ok().flatten()) } else { result }
     }).filter_map(|r| r.transpose())
     .map(|r| r.map(|mut c| {
@@ -228,9 +228,9 @@ fn convert_class(class: Absyn::Class) -> Result<Option<Class>, Error> {
         encapsulated_prefix: encapsulatedPrefix,
         restriction,
         body: converted_body,
-        comments_before_class: commentsBeforeClass.into_iter().collect(),
-        comments_before_end: commentsBeforeEnd.into_iter().collect(),
-        comments_after_end: commentsAfterEnd.into_iter().collect(),
+        comments_before_class: commentsBeforeClass.into_iter().cloned().collect(),
+        comments_before_end: commentsBeforeEnd.into_iter().cloned().collect(),
+        comments_after_end: commentsAfterEnd.into_iter().cloned().collect(),
         info,
         crate_name: None,
     }))
@@ -244,18 +244,18 @@ fn convert_class_def(def: &Absyn::ClassDef, class_info: &Info) -> Result<ClassDe
             let mut external = None;
             let lenient = is_nf_builtin(class_info);
             for part in classParts {
-                let result = convert_class_part(part, class_info, &mut members, &mut algorithms, &mut external);
+                let result = convert_class_part(part.clone(), class_info, &mut members, &mut algorithms, &mut external);
                 if !lenient {
                     result?;
                 }
             }
             Ok(ClassDef::Parts {
-                type_vars: typeVars.into_iter().collect(),
-                class_attrs: classAttrs.into_iter().collect(),
+                type_vars: typeVars.into_iter().cloned().collect(),
+                class_attrs: classAttrs.into_iter().cloned().collect(),
                 members,
                 algorithms,
                 external,
-                annotations: ann.into_iter().collect(),
+                annotations: ann.into_iter().cloned().collect(),
                 comment: comment.clone(),
             })
         }
@@ -283,7 +283,7 @@ fn convert_class_def(def: &Absyn::ClassDef, class_info: &Info) -> Result<ClassDe
             let mut algorithms = Vec::new();
             let mut external = None;
             for part in parts {
-                convert_class_part(part, class_info, &mut members, &mut algorithms, &mut external)?;
+                convert_class_part(part.clone(), class_info, &mut members, &mut algorithms, &mut external)?;
             }
             Ok(ClassDef::ClassExtends {
                 base_class_name: baseClassName.clone(),
@@ -291,7 +291,7 @@ fn convert_class_def(def: &Absyn::ClassDef, class_info: &Info) -> Result<ClassDe
                 comment: comment.clone(),
                 members,
                 algorithms,
-                annotations: ann.into_iter().collect(),
+                annotations: ann.into_iter().cloned().collect(),
             })
         }
         Absyn::ClassDef::PDER { .. } => {
@@ -315,7 +315,7 @@ fn convert_class_part(
             convert_element_items(contents, Visibility::Protected, class_info, members)?;
         }
         Absyn::ClassPart::ALGORITHMS { contents } => {
-            algorithms.extend(contents.into_iter());
+            algorithms.extend(contents.into_iter().cloned());
         }
         Absyn::ClassPart::INITIALALGORITHMS { .. } => {
             return Err(Error::InitialAlgorithmsNotAllowed { info: class_info.clone() });
@@ -347,10 +347,10 @@ fn convert_element_items(
     for item in &items {
         match item {
             Absyn::ElementItem::LEXER_COMMENT { comment } => {
-                members.push(ClassMember::LexerComment(comment));
+                members.push(ClassMember::LexerComment(comment.clone()));
             }
             Absyn::ElementItem::ELEMENTITEM { element } => {
-                let result = convert_element(element, visibility.clone(), class_info, members);
+                let result = convert_element(element.clone(), visibility.clone(), class_info, members);
                 if result.is_err() && !lenient {
                     return result;
                 }

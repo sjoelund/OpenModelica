@@ -384,14 +384,31 @@ pub fn stringListStringChar(str: Arc<String>) -> List<Arc<String>> {
 }
 
 /// Appends a list of strings into a single string.
-pub fn stringAppendList(strs: &List<String>) -> String {
-    strs.into_iter().collect()
+pub fn stringAppendList(strs: &List<Arc<String>>) -> Arc<String> {
+    let mut result = String::new();
+
+    for s in strs {
+        result.push_str(&s);
+    }
+
+    Arc::new(result)
 }
 
 /// Takes a list of strings and a delimiter and joins them with the delimiter inserted between elements.
 /// Example: stringDelimitList({"x","y","z"}, ", ") => "x, y, z"
-pub fn stringDelimitList(strs: &List<String>, delimiter: String) -> String {
-    strs.into_iter().collect::<Vec<String>>().join(&delimiter)
+pub fn stringDelimitList(strs: &List<Arc<String>>, delimiter: Arc<String>) -> Arc<String> {
+    let mut result = String::new();
+    let mut first = true;
+
+    for s in strs {
+        if !first {
+            result.push_str(&delimiter);
+        }
+        result.push_str(&s);
+        first = false;
+    }
+
+    Arc::new(result)
 }
 
 /// Returns the length of the string (number of bytes).
@@ -542,12 +559,12 @@ pub fn substring(str: String, start: i32, stop: i32) -> Result<String> {
 }
 
 /// Alias for string_append_list (maps a list of single-char strings to one string).
-pub fn listStringCharString(strs: &List<String>) -> String {
+pub fn listStringCharString(strs: &List<Arc<String>>) -> Arc<String> {
     stringAppendList(strs)
 }
 
 /// Alias for string_append_list (maps a list of single-char strings to one string).
-pub fn stringCharListString(strs: &List<String>) -> String {
+pub fn stringCharListString(strs: &List<Arc<String>>) -> Arc<String> {
     stringAppendList(strs)
 }
 
@@ -606,7 +623,7 @@ impl<T: Clone> FromIterator<T> for List<T> {
 }
 
 impl<'a, T: Clone> IntoIterator for &'a List<T> {
-    type Item = T;
+    type Item = &'a T;
     type IntoIter = ListIterator<'a, T>;
 
     // Required method
@@ -616,18 +633,30 @@ impl<'a, T: Clone> IntoIterator for &'a List<T> {
 }
 
 impl<'a, T: Clone> Iterator for ListIterator<'a, T> {
-    // We can refer to this type using Self::Item
-    type Item = T;
+    type Item = &'a T; // No Clone needed here!
 
     fn next(&mut self) -> Option<Self::Item> {
-        let res;
-        (res,self.curr) = match *self.curr {
-            Nil => (None, self.curr),
-            Cons{ref head, ref tail} => {
-                (Some((*head).clone()), &**tail)
+        // We match on the dereferenced value of self.curr to see the content.
+        // Note: We do NOT move *self.curr; we just look at it.
+        match self.curr {
+            // If it's Nil, we are done.
+            List::Nil => None,
+
+            // If it's Cons:
+            List::Cons { head, tail } => {
+                // 1. `head` is a `&'a T` because `self.curr` is `&'a List<T>` and `ref head` borrows from it.
+                // 2. `tail` is a `&Box<List<T>>`. We want to advance to the next node.
+                //    We borrow the contents of the Box. Since the Box lives inside the List
+                //    (which lives for 'a), this new reference is also valid for 'a.
+                let next_node = &**tail;
+
+                // 3. Update the iterator state to point to the next node.
+                self.curr = next_node;
+
+                // 4. Return the head.
+                Some(head)
             }
-        };
-        res
+        }
     }
 }
 
@@ -642,7 +671,7 @@ impl<T: Clone> List<T> {
         }
         let mut result = lst2.clone();
         for item in &self.reverse() {
-            result = cons(item, result);
+            result = cons(item.clone(), result);
         }
         result
     }
@@ -654,19 +683,20 @@ impl<T: Clone> List<T> {
     pub fn reverse(self: &List<T>) -> List<T> {
         let mut result: List<T> = Nil;
         for e in self {
-            result = cons(e, result);
+            result = cons(e.clone(), result);
         }
         result
     }
     /// Gets the element at the given 1-based index. O(index).
     pub fn get(self: &List<T>, index: i32) -> Result<T> {
         self.into_iter().nth((index - 1) as usize)
+            .cloned()
             .ok_or_else(|| anyhow::anyhow!("Index {} out of bounds for list of length {}", index, self.len()))
     }
     pub fn prepend_reverse(self: List<T>, prefix: &List<T>) -> List<T> {
         let mut result = self;
         for item in prefix {
-            result = cons(item, result);
+            result = cons(item.clone(), result);
         }
         result
     }
@@ -778,7 +808,7 @@ pub fn arrayList<A: Clone>(arr: &[A]) -> List<A> {
 
 /// Converts a list to an array. O(n).
 pub fn listArray<A: Clone>(lst: &List<A>) -> Vec<A> {
-    lst.into_iter().collect()
+    lst.into_iter().map(|item| item.clone()).collect()
 }
 
 /// Updates the value at the given 1-based index. O(1).
@@ -1415,14 +1445,14 @@ mod tests {
 
         #[test]
         fn test_string_append_list() {
-            let strs = list!["hello".to_string(), " ".to_string(), "world".to_string()];
-            assert_eq!(stringAppendList(&strs), "hello world");
+            let strs = list![Arc::new("hello".to_string()), Arc::new(" ".to_string()), Arc::new("world".to_string())];
+            assert_eq!(*stringAppendList(&strs), "hello world");
         }
 
         #[test]
         fn test_string_delimit_list() {
-            let strs = list!["x".to_string(), "y".to_string(), "z".to_string()];
-            assert_eq!(stringDelimitList(&strs, ", ".to_string()), "x, y, z");
+            let strs = list![Arc::new("x".to_string()), Arc::new("y".to_string()), Arc::new("z".to_string())];
+            assert_eq!(*stringDelimitList(&strs, Arc::new(", ".to_string())), "x, y, z");
         }
     }
 
@@ -1604,14 +1634,14 @@ mod tests {
 
         #[test]
         fn test_list_string_char_string() {
-            let strs = list!["a".to_string(), "b".to_string(), "c".to_string()];
-            assert_eq!(listStringCharString(&strs), "abc");
+            let strs = list![Arc::new("a".to_string()), Arc::new("b".to_string()), Arc::new("c".to_string())];
+            assert_eq!(*listStringCharString(&strs), "abc");
         }
 
         #[test]
         fn test_string_char_list_string() {
-            let strs = list!["a".to_string(), "b".to_string(), "c".to_string()];
-            assert_eq!(stringCharListString(&strs), "abc");
+            let strs = list![Arc::new("a".to_string()), Arc::new("b".to_string()), Arc::new("c".to_string())];
+            assert_eq!(*stringCharListString(&strs), "abc");
         }
     }
 

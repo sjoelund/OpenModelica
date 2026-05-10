@@ -866,7 +866,7 @@ fn infer_stmt<'a>(
         Absyn::Algorithm::ALG_FOR { iterators, forBody }
         | Absyn::Algorithm::ALG_PARFOR { iterators, parforBody: forBody } => {
             // Single-iterator form only.
-            let iters: Vec<Absyn::ForIterator> = iterators.into_iter().collect();
+            let iters: Vec<Absyn::ForIterator> = iterators.into_iter().cloned().collect();
             if iters.len() == 1 {
                 let Absyn::ForIterator::ITERATOR { name, range, .. } = &iters[0];
                 let range_e = match range {

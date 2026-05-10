@@ -985,7 +985,7 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                 "stringGet" | "MetaModelica.Dangerous.stringGetNoBoundsChecking" => {
                     let arg1 = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
                     let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
-                    format!("{}[({}-1) as usize]", arg1, arg2)
+                    format!("stringGet({},{})?", arg1, arg2)
                 },
                 "realMul" | "realAdd" | "realSub" | "realNeg" => {
                     let arg1 = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
@@ -1028,7 +1028,7 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                     let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
                     format!("{}.is_empty()", arg)
                 },
-                "listArray" | "arrayList" | "stringAppendList" => {
+                "listArray" | "MetaModelica.Dangerous.listArrayLiteral" | "arrayList" | "stringAppendList" => {
                     let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
                     format!("{arg}.into_iter().collect()")
                 },

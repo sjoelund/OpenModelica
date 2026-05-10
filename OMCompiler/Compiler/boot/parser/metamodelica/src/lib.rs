@@ -425,7 +425,7 @@ pub fn stringEmpty(str: String) -> bool {
 }
 
 /// Returns the byte value at the given 1-based index.
-pub fn stringGet(str: String, index: i32) -> Result<i32> {
+pub fn stringGet(str: Arc<String>, index: i32) -> Result<i32> {
     let idx = (index - 1) as usize; // 1-based to 0-based
     str.bytes().nth(idx)
         .map(|b| b as i32)
@@ -433,16 +433,16 @@ pub fn stringGet(str: String, index: i32) -> Result<i32> {
 }
 
 /// Returns the character at the given 1-based index as a string.
-pub fn stringGetStringChar(str: String, index: i32) -> Result<String> {
+pub fn stringGetStringChar(str: Arc<String>, index: i32) -> Result<Arc<String>> {
     let idx = (index - 1) as usize; // 1-based to 0-based
     str.chars().nth(idx)
-        .map(|c| c.to_string())
+        .map(|c| Arc::new(c.to_string()))
         .ok_or_else(|| anyhow::anyhow!("Index {} out of bounds for string of length {}", index, str.chars().count()))
 }
 
 /// Updates the character at the given 1-based index with newch.
 /// newch should be a single character.
-pub fn stringUpdateStringChar(str: String, newch: String, index: i32) -> Result<String> {
+pub fn stringUpdateStringChar(str: Arc<String>, newch: Arc<String>, index: i32) -> Result<Arc<String>> {
     if newch.is_empty() {
         bail!("newch must not be empty");
     }
@@ -453,7 +453,7 @@ pub fn stringUpdateStringChar(str: String, newch: String, index: i32) -> Result<
     }
     let new_char = newch.chars().next().unwrap_or(' ');
     chars[idx] = new_char;
-    Ok(chars.into_iter().collect())
+    Ok(Arc::new(chars.into_iter().collect()))
 }
 
 /// Concatenates two strings (s1 + s2).
@@ -1413,9 +1413,9 @@ mod tests {
 
         #[test]
         fn test_string_char_int() {
-            assert_eq!(stringCharInt(Arc::new("A".to_string())), 65);
-            assert_eq!(stringCharInt(Arc::new("a".to_string())), 97);
-            assert_eq!(stringCharInt(Arc::new("0".to_string())), 48);
+            assert_eq!(stringCharInt(Arc::new("A".to_string())).unwrap(), 65);
+            assert_eq!(stringCharInt(Arc::new("a".to_string())).unwrap(), 97);
+            assert_eq!(stringCharInt(Arc::new("0".to_string())).unwrap(), 48);
         }
 
         #[test]
@@ -1488,29 +1488,29 @@ mod tests {
 
         #[test]
         fn test_string_get() {
-            assert_eq!(stringGet("hello".to_string(), 1).unwrap(), b'h' as i32);
-            assert_eq!(stringGet("hello".to_string(), 5).unwrap(), b'o' as i32);
-            assert!(stringGet("hello".to_string(), 0).is_err());
-            assert!(stringGet("hello".to_string(), 6).is_err());
+            assert_eq!(stringGet(Arc::new("hello".to_string()), 1).unwrap(), b'h' as i32);
+            assert_eq!(stringGet(Arc::new("hello".to_string()), 5).unwrap(), b'o' as i32);
+            assert!(stringGet(Arc::new("hello".to_string()), 0).is_err());
+            assert!(stringGet(Arc::new("hello".to_string()), 6).is_err());
         }
 
         #[test]
         fn test_string_get_string_char() {
-            assert_eq!(stringGetStringChar("hello".to_string(), 1).unwrap(), "h");
-            assert_eq!(stringGetStringChar("hello".to_string(), 3).unwrap(), "l");
-            assert_eq!(stringGetStringChar("hello".to_string(), 5).unwrap(), "o");
-            assert!(stringGetStringChar("hello".to_string(), 0).is_err());
-            assert!(stringGetStringChar("hello".to_string(), 6).is_err());
+            assert_eq!(stringGetStringChar(Arc::new("hello".to_string()), 1).unwrap(), Arc::new("h".to_string()));
+            assert_eq!(stringGetStringChar(Arc::new("hello".to_string()), 3).unwrap(), Arc::new("l".to_string()));
+            assert_eq!(stringGetStringChar(Arc::new("hello".to_string()), 5).unwrap(), Arc::new("o".to_string()));
+            assert!(stringGetStringChar(Arc::new("hello".to_string()), 0).is_err());
+            assert!(stringGetStringChar(Arc::new("hello".to_string()), 6).is_err());
         }
 
         #[test]
         fn test_string_update_string_char() {
-            assert_eq!(stringUpdateStringChar("hello".to_string(), "X".to_string(), 1).unwrap(), "Xello");
-            assert_eq!(stringUpdateStringChar("hello".to_string(), "X".to_string(), 3).unwrap(), "heXlo");
-            assert_eq!(stringUpdateStringChar("hello".to_string(), "X".to_string(), 5).unwrap(), "hellX");
-            assert!(stringUpdateStringChar("hello".to_string(), "X".to_string(), 0).is_err());
-            assert!(stringUpdateStringChar("hello".to_string(), "X".to_string(), 6).is_err());
-            assert!(stringUpdateStringChar("hello".to_string(), "".to_string(), 1).is_err());
+            assert_eq!(stringUpdateStringChar(Arc::new("hello".to_string()), Arc::new("X".to_string()), 1).unwrap(), Arc::new("Xello".to_string()));
+            assert_eq!(stringUpdateStringChar(Arc::new("hello".to_string()), Arc::new("X".to_string()), 3).unwrap(), Arc::new("heXlo".to_string()));
+            assert_eq!(stringUpdateStringChar(Arc::new("hello".to_string()), Arc::new("X".to_string()), 5).unwrap(), Arc::new("hellX".to_string()));
+            assert!(stringUpdateStringChar(Arc::new("hello".to_string()), Arc::new("X".to_string()), 0).is_err());
+            assert!(stringUpdateStringChar(Arc::new("hello".to_string()), Arc::new("X".to_string()), 6).is_err());
+            assert!(stringUpdateStringChar(Arc::new("hello".to_string()), Arc::new("".to_string()), 1).is_err());
         }
     }
 

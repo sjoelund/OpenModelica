@@ -1296,6 +1296,10 @@ fn emit_pat<'a>(pat: &TypedPat, ctx: &mut GenCtx, top_level: &'a BTreeMap<String
             format!("{}[{}]", emit_exp(base, false, ctx, top_level), emit_exp(index, false, ctx, top_level))
         }
 
+        TypedPat::FieldAccess { base, field } => {
+            format!("{}::{}", emit_pat(base, ctx, top_level), escape_ident(field))
+        }
+
         TypedPat::Todo(s) => format!("_ /* todo: {} */", s.chars().take(40).collect::<String>()),
     }
 }
@@ -1352,7 +1356,20 @@ fn pat_is_irrefutable(pat: &TypedPat) -> bool {
         TypedPat::Tuple(ps) => ps.iter().all(pat_is_irrefutable),
         TypedPat::As { pat, .. } => pat_is_irrefutable(pat),
         TypedPat::Index { .. } => true,
+        TypedPat::FieldAccess { .. } => true,
         _ => false,
+    }
+}
+
+/// Convert a FieldAccess pattern chain to dotted expression syntax (e.g., `a.b.c`).
+fn field_access_to_dotted(base: &TypedPat, field: &str) -> String {
+    match base {
+        TypedPat::Var(name) => format!("{}.{}", escape_ident(name), escape_ident(field)),
+        TypedPat::FieldAccess { base: inner, field: f } => {
+            let inner_str = field_access_to_dotted(inner, f);
+            format!("{}.{}", inner_str, escape_ident(field))
+        },
+        _ => format!("/*?*/.{}", escape_ident(field)),
     }
 }
 
@@ -1549,6 +1566,10 @@ fn render_shallow<'a>(
             // Array index in pattern position — emit as lvalue access.
             format!("{}[{}]", emit_exp(base, false, ctx, top_level), emit_exp(index, false, ctx, top_level))
         }
+        TypedPat::FieldAccess { base, field } => {
+            let base_s = render_shallow(base, &Ty::Unknown, ctx, env, top_level, fresh, deferrals);
+            format!("{}::{}", base_s, escape_ident(field))
+        }
         TypedPat::Todo(s) => format!("_ /* todo: {} */", s.chars().take(40).collect::<String>()),
     }
 }
@@ -1596,6 +1617,11 @@ fn emit_stmt<'a>(
             }
             if let TypedPat::Index { base, index } = lhs {
                 let lhs_str = emit_pat(lhs, ctx, top_level);
+                writeln!(out, "{indent}{lhs_str} = {scrut_expr};").unwrap();
+                return;
+            }
+            if let TypedPat::FieldAccess { base, field } = lhs {
+                let lhs_str = field_access_to_dotted(base, field);
                 writeln!(out, "{indent}{lhs_str} = {scrut_expr};").unwrap();
                 return;
             }

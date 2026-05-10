@@ -124,6 +124,9 @@ pub enum TypedPat {
     As { var: String, pat: Box<TypedPat> },
     /// Array element access in pattern position (e.g. `arr[1]` on LHS of `:=`).
     Index { base: TypedExp, index: TypedExp },
+    /// Field access on a local variable (e.g. `exarray.lastUsedIndex` where `exarray`
+    /// is a variable). This must emit as `base.field` not as a let pattern.
+    FieldAccess { base: Box<TypedPat>, field: String },
     Todo(String),
 }
 
@@ -514,6 +517,37 @@ fn infer_case<'a>(
     }
 }
 
+/// Check if a pattern is a "local base" — a variable or field-access chain that can be
+/// used as the base of a field access expression (as opposed to a constructor/literal).
+fn is_local_base(pat: &TypedPat) -> bool {
+    matches!(pat, TypedPat::Var(_) | TypedPat::FieldAccess { .. })
+}
+
+/// Convert a local-base pattern back into a TypedExp for use as the base of field access.
+fn pat_to_exp(pat: &TypedPat, top_level: &BTreeMap<String, NameNode<'_>>) -> TypedExp {
+    match pat {
+        TypedPat::Var(name) => TypedExp::Var {
+            name: name.clone(),
+            segments: vec![CrefSegment { name: name.clone(), subscripts: vec![] }],
+            ty: lookup_ty_in_hierarchy(name, top_level),
+        },
+        TypedPat::FieldAccess { base, field } => {
+            let base_exp = pat_to_exp(base, top_level);
+            // Build a Var that represents the full dotted path, appending this field.
+            let base_name = match base_exp {
+                TypedExp::Var { name, .. } => name,
+                _ => "_".to_owned(),
+            };
+            TypedExp::Var {
+                name: format!("{base_name}.{field}"),
+                segments: vec![],
+                ty: Ty::Unknown,
+            }
+        },
+        _ => TypedExp::Var { name: "_".into(), segments: vec![], ty: Ty::Unknown },
+    }
+}
+
 /// Infer the pattern from an expression in case-pattern position.
 /// `env` and `pkg_prefix` are needed for subscripted refs (Index patterns) in assignment LHS.
 pub fn infer_pat<'a>(
@@ -590,8 +624,14 @@ pub fn infer_pat<'a>(
                             })
                             .next();
                         if let Some(sub_exp) = sub {
-                            let base_ty = lookup_ty_in_hierarchy(&dotted, top_level);
-                            let base = TypedExp::Var { name: dotted, segments: vec![], ty: base_ty };
+                            // Check if inner ref resolves to a local variable — if so, build
+                            // the base expression as a chain of field accesses, not a package path.
+                            let inner_pat = infer_pat(&Absyn::Exp::CREF { componentRef: componentRef.clone() }, env, top_level, pkg_prefix);
+                            let base = if is_local_base(&inner_pat) {
+                                pat_to_exp(&inner_pat, top_level)
+                            } else {
+                                TypedExp::Var { name: dotted.clone(), segments: vec![], ty: lookup_ty_in_hierarchy(&dotted, top_level) }
+                            };
                             TypedPat::Index {
                                 base,
                                 index: infer_exp(&sub_exp, env, top_level, pkg_prefix),
@@ -601,10 +641,22 @@ pub fn infer_pat<'a>(
                             TypedPat::Constructor { name: full_dotted, fields: vec![], named_fields: vec![], ty }
                         }
                     } else {
-                        let dotted = cref_to_dotted(componentRef);
-                        let full_dotted = format!("{name}.{}", dotted);
-                        let ty = lookup_ty_in_hierarchy(&full_dotted, top_level);
-                        TypedPat::Constructor { name: full_dotted, fields: vec![], named_fields: vec![], ty }
+                        // Before treating as constructor, check if the inner ref is a local
+                        // variable. If so, this is field access, not a constructor pattern.
+                        let inner_pat = infer_pat(&Absyn::Exp::CREF { componentRef: componentRef.clone() }, env, top_level, pkg_prefix);
+                        if is_local_base(&inner_pat) {
+                            // Chain: the inner pattern is a variable (possibly already nested
+                            // FieldAccess). Wrap it into a new FieldAccess for the outer field.
+                            TypedPat::FieldAccess {
+                                base: Box::new(inner_pat),
+                                field: name.clone(),
+                            }
+                        } else {
+                            let dotted = cref_to_dotted(componentRef);
+                            let full_dotted = format!("{name}.{}", dotted);
+                            let ty = lookup_ty_in_hierarchy(&full_dotted, top_level);
+                            TypedPat::Constructor { name: full_dotted, fields: vec![], named_fields: vec![], ty }
+                        }
                     }
                 }
                 _ => {

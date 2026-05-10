@@ -479,7 +479,7 @@ fn generate_file<'a>(top_name: &str, node: &NameNode<'_>, crate_map: &BTreeMap<S
     // Second pass: emit header + complete use lines (now including implicit modules).
     let mut out = String::new();
     writeln!(out, "// Auto-generated from MetaModelica source").unwrap();
-    writeln!(out, "#![allow(unreachable_code, non_camel_case_types, non_snake_case, dead_code, unused_imports, unused_variables, non_upper_case_globals, unused_mut)]").unwrap();
+    writeln!(out, "#![allow(unreachable_patterns, unreachable_code, non_camel_case_types, non_snake_case, dead_code, unused_imports, unused_variables, non_upper_case_globals, unused_mut)]").unwrap();
     writeln!(out, "{}", "
 use std::sync::Arc;
 use anyhow::{Result, bail};
@@ -939,7 +939,7 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                     let arg1 = args.get(0).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
                     let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
                     let arg3 = args.get(2).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
-                    format!("arrayUpdate(&mut {}, {}, {})", arg1, arg2, arg3)
+                    format!("{{let mut _tmp = {}; _tmp[{}-1] = {}; _tmp}}", arg1, arg2, arg3)
                 },
                 "arrayEmpty" | "listEmpty" => {
                     let arg = args.first().map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
@@ -1090,7 +1090,7 @@ fn emit_var<'a>(
     for seg in field_segs {
         res = format!("{}.{}", res, escape_ident(&seg.name));
         for sub in &seg.subscripts {
-            res = format!("{}[{}]", res, emit_exp(sub, false, ctx, top_level));
+            res = format!("{}[{}-1]", res, emit_exp(sub, false, ctx, top_level));
         }
     }
     res
@@ -1770,7 +1770,7 @@ fn fmt_ty(ty: &Ty, ctx: &mut GenCtx) -> String {
                 format!("<{}>", type_vars.join(", "))
             };*/ // The type variables are already included in the function type alias or item signature, so we don't need to repeat them here.
             let ins = inputs.iter().map(|inp| fmt_ty(&inp.ty, ctx)).collect::<Vec<_>>().join(", ");
-            format!("fn({ins}) -> {}", fmt_ty(output, ctx))
+            format!("fn({ins}) -> Result<{}>", fmt_ty(output, ctx))
         }
         Ty::FunctionAlias { base, .. } => {
             let short = ctx.shorten(base);

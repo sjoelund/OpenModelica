@@ -1007,8 +1007,6 @@ fn emit_range(start: &TypedExp, step: Option<&TypedExp>, stop: &TypedExp, is_con
 
         // `start:step:stop` — check the step sign at codegen time.
         Some(step_exp) => {
-            let step_val = emit_exp(step_exp, is_const, ctx);
-
             // If the step is a known positive literal, use the standard forward form.
             if let TypedExp::Lit(Lit::Int(n)) = step_exp {
                 if *n > 0 {
@@ -1020,14 +1018,16 @@ fn emit_range(start: &TypedExp, step: Option<&TypedExp>, stop: &TypedExp, is_con
                 }
                 // Negative step: reverse the range, negate the step.
                 if *n < 0 {
-                    return format!("({e}..={s}).step_by({})", -n);
+                    return format!("({e}..={s}).step_by({}).rev()", -n);
                 }
             }
+
+            let step_val = emit_exp(step_exp, is_const, ctx);
 
             // Dynamic step: positive path for the common case,
             // with a runtime branch that reverses for negative steps.
             format!(
-                "({{let __s={s}; let __e={e}; let __step={step_val}; if __step>0 {{__s..=__e}} else {{__e..=__s}}).step_by(if {step_val}>0 {{{step_val}}} else {{-({step_val})}})"
+                "({{let __s={s}; let __e={e}; let __step={step_val}; if __step>0 {{__s..=__e}} else {{__e..=__s}}}}).step_by(if {step_val}>0 {{{step_val}}} else {{-({step_val})}})"
             )
         }
     }

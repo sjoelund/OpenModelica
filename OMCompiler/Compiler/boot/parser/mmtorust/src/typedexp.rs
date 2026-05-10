@@ -231,16 +231,37 @@ pub fn infer_exp<'a>(
 
         Absyn::Exp::UNARY { op, exp } => {
             let operand = infer_exp(exp, env, top_level, pkg_prefix);
-            let (un_op, ty) = match op {
-                Absyn::Operator::NOT => (UnOpKind::Not, Ty::Bool),
-                _ => (UnOpKind::Neg, operand.ty()),
-            };
-            TypedExp::UnOp { op: un_op, operand: Box::new(operand), ty }
+            match op {
+                Absyn::Operator::NOT => {
+                    // Fold `!true` → `Lit(false)`, `!false` → `Lit(true)`.
+                    if let TypedExp::Lit(Lit::Bool(v)) = &operand {
+                        TypedExp::Lit(Lit::Bool(!v))
+                    } else {
+                        TypedExp::UnOp { op: UnOpKind::Not, operand: Box::new(operand), ty: Ty::Bool }
+                    }
+                }
+                _ => {
+                    // Fold `-1` → `Lit(Int(-1))`, `-"3.14"` → `Lit(Real("-3.14"))`.
+                    match &operand {
+                        TypedExp::Lit(Lit::Int(v)) => TypedExp::Lit(Lit::Int(-v)),
+                        TypedExp::Lit(Lit::Real(v)) => TypedExp::Lit(Lit::Real(format!("-{v}"))),
+                        _ => {
+                            let ty = operand.ty();
+                            TypedExp::UnOp { op: UnOpKind::Neg, operand: Box::new(operand), ty }
+                        }
+                    }
+                }
+            }
         }
 
         Absyn::Exp::LUNARY { exp, .. } => {
             let operand = infer_exp(exp, env, top_level, pkg_prefix);
-            TypedExp::UnOp { op: UnOpKind::Not, operand: Box::new(operand), ty: Ty::Bool }
+            // Fold `not true` → `Lit(false)`, `not false` → `Lit(true)`.
+            if let TypedExp::Lit(Lit::Bool(v)) = &operand {
+                TypedExp::Lit(Lit::Bool(!v))
+            } else {
+                TypedExp::UnOp { op: UnOpKind::Not, operand: Box::new(operand), ty: Ty::Bool }
+            }
         }
 
         Absyn::Exp::IFEXP { ifExp, trueBranch, elseBranch, elseIfBranch } => {

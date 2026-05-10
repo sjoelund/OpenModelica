@@ -1402,14 +1402,18 @@ fn emit_pat_assign<'a>(
             writeln!(out, "{indent}let {} = {scrut_expr};", escape_ident(name)).unwrap();
         }
         _ => {
-            // Refutable: render shallow with deferrals for Arc-edge crossings.
+            // Render shallow with deferrals for Arc-edge crossings.
             let mut deferrals: Vec<(String, TypedPat, Ty)> = Vec::new();
             let surface = render_shallow(pat, scrut_ty, ctx, env, top_level, fresh, &mut deferrals);
-            let fail = match fail_mode {
-                FailureMode::Function | FailureMode::TryArm => "bail!(\"pattern mismatch\")",
-                FailureMode::Failure => "()",
-            };
-            writeln!(out, "{indent}let {surface} = ({scrut_expr}) else {{ {fail} }};").unwrap();
+            if pat_is_irrefutable(pat) {
+                writeln!(out, "{indent}let {surface} = {scrut_expr};").unwrap();
+            } else {
+                let fail = match fail_mode {
+                    FailureMode::Function | FailureMode::TryArm => "bail!(\"pattern mismatch\")",
+                    FailureMode::Failure => "()",
+                };
+                writeln!(out, "{indent}let {surface} = ({scrut_expr}) else {{ {fail} }};").unwrap();
+            }
             for (sub_expr, sub_pat, sub_ty) in deferrals {
                 emit_pat_assign(out, indent, &sub_pat, &sub_ty, &sub_expr, fail_mode, ctx, env, top_level, fresh);
             }

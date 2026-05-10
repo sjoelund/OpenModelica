@@ -948,6 +948,7 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
             }
         }
 
+        // TODO: Comprehensions
         TypedExp::Call { func, args, named_args, .. } => {
             match func.as_str() {
                 "SOME" => {
@@ -967,6 +968,16 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                         format!("metamodelica::list![{}]", parts.join(", "))
                     }
                 },
+                "max" => {
+                    if args.len() == 2 {
+                        let arg1 = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+                        let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
+                        format!("std::cmp::max({arg1}, {arg2})")
+                    } else {
+                        let arg1 = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+                        format!("{arg1}.into_iter().max().unwrap()")
+                    }
+                },
                 "String" => {
                     let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
                     format!("Arc::new(format!(\"{{}}\", {arg}))")
@@ -975,6 +986,15 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                     let arg1 = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
                     let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
                     format!("{}[({}-1) as usize]", arg1, arg2)
+                },
+                "realMul" | "realAdd" | "realSub" | "realNeg" => {
+                    let arg1 = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+                    let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
+                    format!("{}({} as f64,{} as f64)", func, arg1, arg2)
+                },
+                "realInt" => {
+                    let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+                    format!("({arg} as i32)")
                 },
                 "arrayGet" | "arrayGetNoBoundsChecking" => {
                     let arg1 = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
@@ -1015,11 +1035,89 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                         func
                     };
                     let func_str = escape_ident(func_str);
-                    let mut parts: Vec<String> = args.iter().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).collect();
-                    for (n, v) in named_args {
-                        let v = emit_cloned_call_arg(v, is_const, ctx, top_level);
-                        parts.push(format!("{n}={v}"));
-                    }
+                    let formals = resolve_call_formals(func, ctx, top_level);
+                    let parts: Vec<String> = if let Some(formals) = formals {
+                        let has_defaults = formals.iter().any(|(_, d)| d.is_some());
+                        if has_defaults {
+                        let mut slots: Vec<Option<TypedExp>> = vec![None; formals.len()];
+                        let mut failed = false;
+
+                        for (i, a) in args.iter().enumerate() {
+                            if i >= slots.len() {
+                                failed = true;
+                                break;
+                            }
+                            slots[i] = Some(a.clone());
+                        }
+
+                        if !failed {
+                            for (n, v) in named_args {
+                                let Some(idx) = formals.iter().position(|(fname, _)| fname == n) else {
+                                    failed = true;
+                                    break;
+                                };
+                                if slots[idx].is_some() {
+                                    failed = true;
+                                    break;
+                                }
+                                slots[idx] = Some(v.clone());
+                            }
+                        }
+
+                        if !failed {
+                            for i in 0..slots.len() {
+                                if slots[i].is_some() {
+                                    continue;
+                                }
+                                if let Some(default_tpl) = formals[i].1.clone() {
+                                    let mut bindings: HashMap<String, TypedExp> = HashMap::new();
+                                    for (j, slot) in slots.iter().enumerate() {
+                                        if let Some(e) = slot {
+                                            bindings.insert(formals[j].0.clone(), e.clone());
+                                        }
+                                    }
+                                    slots[i] = Some(substitute_formal_refs(&default_tpl, &bindings));
+                                }
+                            }
+                        }
+
+                        if !failed {
+                            for slot in &slots {
+                                if slot.is_none() {
+                                    failed = true;
+                                    break;
+                                }
+                            }
+                        }
+
+                        if failed {
+                            let mut parts: Vec<String> = args.iter().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).collect();
+                            for (n, v) in named_args {
+                                let v = emit_cloned_call_arg(v, is_const, ctx, top_level);
+                                parts.push(format!("{n}={v}"));
+                            }
+                            parts
+                        } else {
+                            slots.into_iter()
+                                .map(|s| emit_cloned_call_arg(&s.unwrap(), is_const, ctx, top_level))
+                                .collect()
+                        }
+                        } else {
+                            let mut parts: Vec<String> = args.iter().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).collect();
+                            for (n, v) in named_args {
+                                let v = emit_cloned_call_arg(v, is_const, ctx, top_level);
+                                parts.push(format!("{n}={v}"));
+                            }
+                            parts
+                        }
+                    } else {
+                        let mut parts: Vec<String> = args.iter().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).collect();
+                        for (n, v) in named_args {
+                            let v = emit_cloned_call_arg(v, is_const, ctx, top_level);
+                            parts.push(format!("{n}={v}"));
+                        }
+                        parts
+                    };
                     let call = format!("{func_str}({})", parts.join(", "));
                     // Add `?` to propagate Result errors from fallible calls. Skip in const
                     // context, for constructors (uppercase first char), and for known-infallible
@@ -1224,6 +1322,247 @@ fn maybe_clone_string_value(expr: String, ty: &Ty) -> String {
 fn emit_cloned_call_arg<'a>(arg: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) -> String {
     let arg_str = emit_exp(arg, is_const, ctx, top_level);
     maybe_clone_string_value(arg_str, &arg.ty())
+}
+
+/// Resolve a function name as written at a call site to a fully-qualified dotted
+/// name in the hierarchy.
+fn resolve_call_qname<'a>(
+    func: &str,
+    ctx: &GenCtx,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+) -> Option<String> {
+    if func.is_empty() {
+        return None;
+    }
+
+    let mut exists = |name: &str| lookup_node(name, top_level).is_some();
+
+    if func.contains('.') {
+        if exists(func) {
+            return Some(func.to_owned());
+        }
+        // Handle named-import aliases in the first path segment.
+        let mut parts = func.splitn(2, '.');
+        let head = parts.next().unwrap_or(func);
+        let tail = parts.next().unwrap_or("");
+        for (dotted, local) in &ctx.named {
+            if local == head {
+                let candidate = if tail.is_empty() {
+                    dotted.clone()
+                } else {
+                    format!("{dotted}.{tail}")
+                };
+                if exists(&candidate) {
+                    return Some(candidate);
+                }
+            }
+        }
+        return None;
+    }
+
+    let cur_prefix = if ctx.current_path.is_empty() {
+        ctx.top_name.clone()
+    } else {
+        format!("{}.{}", ctx.top_name, ctx.current_path.join("."))
+    };
+
+    // Resolve relative to the current module first, then walk outwards.
+    let mut scope: &str = &cur_prefix;
+    loop {
+        let candidate = format!("{scope}.{func}");
+        if exists(&candidate) {
+            return Some(candidate);
+        }
+        match scope.rfind('.') {
+            Some(dot) => scope = &scope[..dot],
+            None => break,
+        }
+    }
+
+    // Unqualified imports can bring module members into scope.
+    for module in &ctx.unqual_modules {
+        let candidate = format!("{module}.{func}");
+        if exists(&candidate) {
+            return Some(candidate);
+        }
+    }
+
+    // Named import aliases can also denote modules.
+    for (dotted, local) in &ctx.named {
+        if local == func {
+            if exists(dotted) {
+                return Some(dotted.clone());
+            }
+            continue;
+        }
+        let candidate = format!("{dotted}.{func}");
+        if exists(&candidate) {
+            return Some(candidate);
+        }
+    }
+
+    if exists(func) {
+        Some(func.to_owned())
+    } else {
+        None
+    }
+}
+
+/// Return function formals in declaration order with typed default expressions,
+/// if any. Defaults are inferred in the callee scope so names/types match the
+/// callee's declaration context.
+fn resolve_call_formals<'a>(
+    func: &str,
+    ctx: &GenCtx,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+) -> Option<Vec<(String, Option<TypedExp>)>> {
+    let qname = resolve_call_qname(func, ctx, top_level)?;
+    let node = lookup_node(&qname, top_level)?;
+    let NodeKind::Class(c) = &node.kind else { return None };
+    if !matches!(c.restriction, Absyn::Restriction::R_FUNCTION { .. }) {
+        return None;
+    }
+
+    let module_prefix = qname.rsplit_once('.').map_or("", |(p, _)| p).to_owned();
+    let members: &[MM::ClassMember] = match &c.body {
+        MM::ClassDef::Parts { members, .. } | MM::ClassDef::ClassExtends { members, .. } => members,
+        _ => &[],
+    };
+
+    let mut infer_env: HashMap<String, Ty> = HashMap::new();
+    let mut out: Vec<(String, Option<TypedExp>)> = Vec::new();
+
+    for member in members {
+        let MM::ClassMember::Component(m) = member else { continue };
+        if !matches!(m.direction, Absyn::Direction::INPUT | Absyn::Direction::INPUT_OUTPUT) {
+            continue;
+        }
+
+        let ty = node.children.get(&m.name)
+            .map(|n| n.ty.clone())
+            .unwrap_or(Ty::Unknown);
+        let default = extract_default_exp(&m.modification)
+            .map(|exp| typedexp::infer_exp(exp, &infer_env, top_level, &module_prefix));
+        out.push((m.name.clone(), default));
+        infer_env.insert(m.name.clone(), ty);
+    }
+
+    // For `function extends` redeclarations, defaults can live on the inherited
+    // base signature. Fill missing defaults from `base_fn` when available.
+    if let Some(base_fn) = node.base_fn {
+        let base_members: &[MM::ClassMember] = match &base_fn.body {
+            MM::ClassDef::Parts { members, .. } | MM::ClassDef::ClassExtends { members, .. } => members,
+            _ => &[],
+        };
+
+        let mut base_infer_env: HashMap<String, Ty> = HashMap::new();
+        for member in base_members {
+            let MM::ClassMember::Component(m) = member else { continue };
+            if !matches!(m.direction, Absyn::Direction::INPUT | Absyn::Direction::INPUT_OUTPUT) {
+                continue;
+            }
+
+            let ty = node.children.get(&m.name)
+                .map(|n| n.ty.clone())
+                .unwrap_or(Ty::Unknown);
+            let default = extract_default_exp(&m.modification)
+                .map(|exp| typedexp::infer_exp(exp, &base_infer_env, top_level, &module_prefix));
+
+            if let Some(idx) = out.iter().position(|(name, _)| name == &m.name) {
+                if out[idx].1.is_none() {
+                    out[idx].1 = default;
+                }
+            } else {
+                out.push((m.name.clone(), default));
+            }
+            base_infer_env.insert(m.name.clone(), ty);
+        }
+    }
+
+    if out.is_empty() {
+        // Fallback: use resolved function type inputs when AST members are unavailable.
+        if let Ty::Function { inputs, .. } = &node.ty {
+            return Some(inputs.iter().map(|inp| (inp.name.clone(), None)).collect());
+        }
+        return None;
+    }
+
+    Some(out)
+}
+
+/// Substitute references to formal parameter names in `exp` using concrete
+/// argument expressions already chosen for earlier slots.
+fn substitute_formal_refs(exp: &TypedExp, bindings: &HashMap<String, TypedExp>) -> TypedExp {
+    match exp {
+        TypedExp::Lit(l) => TypedExp::Lit(l.clone()),
+        TypedExp::Var { name, segments, ty } => {
+            if segments.is_empty() && !name.contains('.') {
+                if let Some(repl) = bindings.get(name) {
+                    return repl.clone();
+                }
+            }
+            let new_segments = segments.iter().map(|seg| CrefSegment {
+                name: seg.name.clone(),
+                subscripts: seg.subscripts.iter().map(|s| substitute_formal_refs(s, bindings)).collect(),
+            }).collect();
+            TypedExp::Var { name: name.clone(), segments: new_segments, ty: ty.clone() }
+        }
+        TypedExp::BinOp { op, lhs, rhs, ty } => TypedExp::BinOp {
+            op: *op,
+            lhs: Box::new(substitute_formal_refs(lhs, bindings)),
+            rhs: Box::new(substitute_formal_refs(rhs, bindings)),
+            ty: ty.clone(),
+        },
+        TypedExp::UnOp { op, operand, ty } => TypedExp::UnOp {
+            op: *op,
+            operand: Box::new(substitute_formal_refs(operand, bindings)),
+            ty: ty.clone(),
+        },
+        TypedExp::Call { func, args, named_args, ty } => TypedExp::Call {
+            func: func.clone(),
+            args: args.iter().map(|a| substitute_formal_refs(a, bindings)).collect(),
+            named_args: named_args.iter()
+                .map(|(n, a)| (n.clone(), substitute_formal_refs(a, bindings)))
+                .collect(),
+            ty: ty.clone(),
+        },
+        TypedExp::If { cond, then_, elseif, else_, ty } => TypedExp::If {
+            cond: Box::new(substitute_formal_refs(cond, bindings)),
+            then_: Box::new(substitute_formal_refs(then_, bindings)),
+            elseif: elseif.iter()
+                .map(|(c, e)| (substitute_formal_refs(c, bindings), substitute_formal_refs(e, bindings)))
+                .collect(),
+            else_: Box::new(substitute_formal_refs(else_, bindings)),
+            ty: ty.clone(),
+        },
+        TypedExp::Cons { head, tail, ty } => TypedExp::Cons {
+            head: Box::new(substitute_formal_refs(head, bindings)),
+            tail: Box::new(substitute_formal_refs(tail, bindings)),
+            ty: ty.clone(),
+        },
+        TypedExp::Tuple(elems) => TypedExp::Tuple(elems.iter().map(|e| substitute_formal_refs(e, bindings)).collect()),
+        TypedExp::Array { elems, ty } => TypedExp::Array {
+            elems: elems.iter().map(|e| substitute_formal_refs(e, bindings)).collect(),
+            ty: ty.clone(),
+        },
+        TypedExp::Match { kind, input, cases, ty } => TypedExp::Match {
+            kind: *kind,
+            input: Box::new(substitute_formal_refs(input, bindings)),
+            cases: cases.iter().map(|c| typedexp::TypedCase {
+                pattern: c.pattern.clone(),
+                guard: c.guard.as_ref().map(|g| substitute_formal_refs(g, bindings)),
+                result: substitute_formal_refs(&c.result, bindings),
+            }).collect(),
+            ty: ty.clone(),
+        },
+        TypedExp::Range { start, step, stop, elem_ty } => TypedExp::Range {
+            start: Box::new(substitute_formal_refs(start, bindings)),
+            step: step.as_ref().map(|s| Box::new(substitute_formal_refs(s, bindings))),
+            stop: Box::new(substitute_formal_refs(stop, bindings)),
+            elem_ty: elem_ty.clone(),
+        },
+        TypedExp::Todo(s) => TypedExp::Todo(s.clone()),
+    }
 }
 
 /// Emit a Modelica range expression (`start:step:stop` or `start:stop`) as a Rust iterator.

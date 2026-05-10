@@ -45,17 +45,6 @@ pub struct SourceInfo {
 }
 
 // ============================================================================
-// Option - Option<A> types from MetaModelica
-// ============================================================================
-
-/// Represents an optional value: NONE or SOME(A).
-#[derive(Debug, Clone, PartialEq)]
-pub enum OptionValue<A> {
-    None,
-    Some(A),
-}
-
-// ============================================================================
 // Boolean functions
 // ============================================================================
 
@@ -566,7 +555,7 @@ pub fn stringCharListString(strs: &List<String>) -> String {
 // ============================================================================
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum List<T> {
+pub enum List<T: Clone> {
     Cons{head: T, tail: Arc<List<T>>},
     Nil,
 }
@@ -592,11 +581,11 @@ macro_rules! list {
     };
 }
 
-pub fn cons<T>(head: T, tail: List<T>) -> List<T> {
+pub fn cons<T: Clone>(head: T, tail: List<T>) -> List<T> {
     Cons{head: head, tail: Arc::new(tail)}
 }
 
-impl<T> Default for List<T> {
+impl<T: Clone> Default for List<T> {
     fn default() -> List<T> {
         Nil
     }
@@ -706,7 +695,7 @@ impl<T: Clone> List<T> {
     }
 }
 
-impl<T> List<T> {
+impl<T: Clone> List<T> {
     pub fn new(item: T) -> List<T> {
         Cons{head: item, tail: Arc::new(Nil)}
     }
@@ -916,13 +905,13 @@ pub fn clock() -> f64 {
 // ============================================================================
 
 /// Returns true if the Option is NONE.
-pub fn isNone<A>(opt: &OptionValue<A>) -> bool {
-    matches!(opt, OptionValue::None)
+pub fn isNone<A>(opt: &Option<A>) -> bool {
+    matches!(opt, None)
 }
 
 /// Returns true if the Option is SOME.
-pub fn isSome<A>(opt: &OptionValue<A>) -> bool {
-    matches!(opt, OptionValue::Some(_))
+pub fn isSome<A>(opt: &Option<A>) -> bool {
+    matches!(opt, Some(_))
 }
 
 // ============================================================================
@@ -1926,32 +1915,6 @@ mod tests {
             let t2 = clock();
             assert!(t1 >= 0.0);
             assert!(t2 >= t1);
-        }
-    }
-
-    // =========================================================================
-    // Option tests
-    // =========================================================================
-
-    mod option_tests {
-        use super::*;
-
-        #[test]
-        fn test_is_none() {
-            let none: OptionValue<i32> = OptionValue::None;
-            assert!(isNone(&none));
-
-            let some = OptionValue::Some(42);
-            assert!(!isNone(&some));
-        }
-
-        #[test]
-        fn test_is_some() {
-            let none: OptionValue<i32> = OptionValue::None;
-            assert!(!isSome(&none));
-
-            let some = OptionValue::Some(42);
-            assert!(isSome(&some));
         }
     }
 

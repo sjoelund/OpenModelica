@@ -3,6 +3,7 @@
 use std::collections::HashMap;
 use std::collections::BTreeMap;
 use mmwinnow::Absyn;
+use crate::MM;
 use crate::hierarchy::{NameNode, NodeKind, Ty};
 
 // ── Literal values ────────────────────────────────────────────────────────────
@@ -263,6 +264,62 @@ fn call_ty(func: &str, args: &[TypedExp], top_level: &BTreeMap<String, NameNode<
     }
 }
 
+/// For a dotted name like `exarray.lastUsedIndex`, resolve the first segment in the
+/// env to get its type, then walk through remaining segments as field accesses to get
+/// the final field type. Returns `None` if the first segment isn't in env.
+fn resolve_first_segment_type<'a>(
+    dotted: &str,
+    segments: &[CrefSegment],
+    env: &HashMap<String, Ty>,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+) -> Option<Ty> {
+    let first_name = segments.first().map(|s| s.name.as_str()).unwrap_or(dotted);
+    let mut ty = env.get(first_name)?.clone();
+
+    // Walk remaining segments as field accesses to narrow the type.
+    for seg in segments.iter().skip(1) {
+        if let Ty::RustStruct(qname) = &ty {
+            let field_tys = record_field_tys(qname, top_level);
+            ty = field_tys.iter().find(|(n, _)| n == &seg.name).map(|(_, t)| t.clone()).unwrap_or(Ty::Unknown);
+        } else {
+            break;
+        }
+    }
+
+    Some(ty)
+}
+
+fn record_field_tys<'a>(
+    qname: &str,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+) -> Vec<(String, Ty)> {
+    let Some(node) = lookup_node(qname, top_level) else { return vec![] };
+    let NodeKind::Class(c) = &node.kind else { return vec![] };
+    let members: &[MM::ClassMember] = match &c.body {
+        MM::ClassDef::Parts { members, .. } | MM::ClassDef::ClassExtends { members, .. } => members,
+        _ => return vec![],
+    };
+    members.iter().filter_map(|m| {
+        let MM::ClassMember::Component(cm) = m else { return None };
+        let child = node.children.get(&cm.name)?;
+        Some((cm.name.clone(), child.ty.clone()))
+    }).collect()
+}
+
+fn lookup_node<'a>(
+    dotted: &str,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+) -> Option<&'a NameNode<'a>> {
+    let mut parts = dotted.split('.');
+    let first = parts.next().unwrap_or("");
+    let mut node = top_level.get(first)?;
+    for part in parts {
+        let child = node.children.get(part)?;
+        node = child;
+    }
+    Some(node)
+}
+
 /// Infer the type of a MetaModelica expression, building a typed expression tree.
 /// `env` maps local variable names to their resolved types.
 pub fn infer_exp<'a>(
@@ -281,8 +338,12 @@ pub fn infer_exp<'a>(
             let (name, segments) = extract_cref_segments(componentRef, env, top_level, pkg_prefix);
             // Local env takes priority; fall back to hierarchy, then try qualifying
             // the bare name with the enclosing package prefix (for sibling references).
-            let ty = env.get(&name).cloned().unwrap_or_else(|| {
-                let ty = lookup_ty_in_hierarchy(&name, top_level);
+            // For dotted names like `exarray.lastUsedIndex`, the env key is just
+            // the first segment. If it resolves to a record type and the remaining
+            // segments are field accesses, use the record's field types.
+            let ty = resolve_first_segment_type(&name, &segments, env, top_level).unwrap_or_else(|| {
+                let first = segments.first().map(|s| s.name.as_str()).unwrap_or(&name);
+                let ty = lookup_ty_in_hierarchy(first, top_level);
                 if ty == Ty::Unknown && !pkg_prefix.is_empty() && !name.contains('.') {
                     lookup_ty_in_hierarchy(&format!("{pkg_prefix}.{name}"), top_level)
                 } else {

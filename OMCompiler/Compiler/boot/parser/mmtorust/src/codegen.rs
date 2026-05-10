@@ -1130,6 +1130,14 @@ fn find_record_split<'a>(segments: &[CrefSegment], top_level: &'a BTreeMap<Strin
         }
     }
 
+    // Nothing resolved in the hierarchy. Check if the first segment's name exists
+    // as a top-level node. If not, it's a local variable — treat everything after
+    // the first segment as field access on that variable.
+    let first_top = segments[0].name.split('.').next().unwrap_or(&segments[0].name);
+    if !top_level.contains_key(first_top) && segments.len() > 1 {
+        return 1;
+    }
+
     // Nothing resolved — treat entire thing as a package path.
     segments.len()
 }

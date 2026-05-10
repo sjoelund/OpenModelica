@@ -1177,7 +1177,7 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], is_co
         MatchKind::Match => {
             let has_wild = cases.iter().any(|c| matches!(c.pattern, TypedPat::Wildcard) && c.guard.is_none());
             let arms: Vec<String> = cases.iter().map(|case| {
-                let pat = emit_pat(&case.pattern, ctx);
+                let pat = emit_pat(&case.pattern, ctx, top_level);
                 let guard = case.guard.as_ref()
                     .map(|g| format!(" if {}", emit_exp(g, is_const, ctx, top_level)))
                     .unwrap_or_default();
@@ -1199,7 +1199,7 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], is_co
             s.push_str("'mc: {\n");
             s.push_str(&format!("        let __mc_input = {input_str};\n"));
             for case in cases {
-                let pat = emit_pat(&case.pattern, ctx);
+                let pat = emit_pat(&case.pattern, ctx, top_level);
                 let guard_check = case.guard.as_ref()
                     .map(|g| format!("            if !({}) {{ bail!(\"guard\") }}\n", emit_exp(g, is_const, ctx, top_level)))
                     .unwrap_or_default();
@@ -1217,12 +1217,12 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], is_co
     }
 }
 
-fn emit_pat(pat: &TypedPat, ctx: &mut GenCtx) -> String {
+fn emit_pat<'a>(pat: &TypedPat, ctx: &mut GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) -> String {
     match pat {
         TypedPat::Wildcard    => "_".to_owned(),
         TypedPat::Var(name)   => escape_ident(name),
         TypedPat::EmptyList   => "metamodelica::List::Nil".to_owned(),
-        TypedPat::Some_(inner) => format!("Some({})", emit_pat(inner, ctx)),
+        TypedPat::Some_(inner) => format!("Some({})", emit_pat(inner, ctx, top_level)),
         TypedPat::None_       => "None".to_owned(),
 
         TypedPat::Lit(Lit::Int(v))  => {
@@ -1234,11 +1234,11 @@ fn emit_pat(pat: &TypedPat, ctx: &mut GenCtx) -> String {
 
         TypedPat::Cons { head, tail } => {
             format!("metamodelica::List::Cons {{ head: {}, tail: {} }}",
-                emit_pat(head, ctx), emit_pat(tail, ctx))
+                emit_pat(head, ctx, top_level), emit_pat(tail, ctx, top_level))
         }
 
         TypedPat::Tuple(pats) => {
-            let parts: Vec<String> = pats.iter().map(|p| emit_pat(p, ctx)).collect();
+            let parts: Vec<String> = pats.iter().map(|p| emit_pat(p, ctx, top_level)).collect();
             format!("({})", parts.join(", "))
         }
 
@@ -1247,12 +1247,12 @@ fn emit_pat(pat: &TypedPat, ctx: &mut GenCtx) -> String {
             if named_fields.is_empty() && fields.is_empty() {
                 rust
             } else if named_fields.is_empty() {
-                let pats: Vec<String> = fields.iter().map(|p| emit_pat(p, ctx)).collect();
+                let pats: Vec<String> = fields.iter().map(|p| emit_pat(p, ctx, top_level)).collect();
                 format!("{rust}({})", pats.join(", "))
             } else {
                 let pats: Vec<String> = named_fields.iter()
                     .map(|(fname, p)| {
-                        let pstr = emit_pat(p, ctx);
+                    let pstr = emit_pat(p, ctx, top_level);
                         // Use field shorthand when the binding name matches the field name.
                         if matches!(p, TypedPat::Var(v) if v == fname) {
                             escape_ident(fname)
@@ -1266,7 +1266,12 @@ fn emit_pat(pat: &TypedPat, ctx: &mut GenCtx) -> String {
         }
 
         TypedPat::As { var, pat } => {
-            format!("{} @ {}", escape_ident(var), emit_pat(pat, ctx))
+            format!("{} @ {}", escape_ident(var), emit_pat(pat, ctx, top_level))
+        }
+
+        TypedPat::Index { base, index } => {
+            // This shouldn't normally reach emit_pat (handled in emit_stmt), but emit as fallback.
+            format!("{}[{}]", emit_exp(base, false, ctx, top_level), emit_exp(index, false, ctx, top_level))
         }
 
         TypedPat::Todo(s) => format!("_ /* todo: {} */", s.chars().take(40).collect::<String>()),
@@ -1324,6 +1329,7 @@ fn pat_is_irrefutable(pat: &TypedPat) -> bool {
         TypedPat::Wildcard | TypedPat::Var(_) => true,
         TypedPat::Tuple(ps) => ps.iter().all(pat_is_irrefutable),
         TypedPat::As { pat, .. } => pat_is_irrefutable(pat),
+        TypedPat::Index { .. } => true,
         _ => false,
     }
 }
@@ -1513,6 +1519,10 @@ fn render_shallow<'a>(
             let inner_s = render_shallow(inner, scrut_ty, ctx, env, top_level, fresh, deferrals);
             format!("{} @ {}", escape_ident(var), inner_s)
         }
+        TypedPat::Index { base, index } => {
+            // Array index in pattern position — emit as lvalue access.
+            format!("{}[{}]", emit_exp(base, false, ctx, top_level), emit_exp(index, false, ctx, top_level))
+        }
         TypedPat::Todo(s) => format!("_ /* todo: {} */", s.chars().take(40).collect::<String>()),
     }
 }
@@ -1557,6 +1567,11 @@ fn emit_stmt<'a>(
                     writeln!(out, "{indent}{} = {scrut_expr};", escape_ident(name)).unwrap();
                     return;
                 }
+            }
+            if let TypedPat::Index { base, index } = lhs {
+                let lhs_str = emit_pat(lhs, ctx, top_level);
+                writeln!(out, "{indent}{lhs_str} = {scrut_expr};").unwrap();
+                return;
             }
             emit_pat_assign(out, indent, lhs, &scrut_ty, &scrut_expr, fail_mode, ctx, env, top_level, fresh);
         }

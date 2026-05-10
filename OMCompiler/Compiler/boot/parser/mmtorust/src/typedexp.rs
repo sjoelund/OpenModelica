@@ -121,6 +121,8 @@ pub enum TypedPat {
     },
     /// `var as pat` — binds `var` to the whole value while also matching `pat`.
     As { var: String, pat: Box<TypedPat> },
+    /// Array element access in pattern position (e.g. `arr[1]` on LHS of `:=`).
+    Index { base: TypedExp, index: TypedExp },
     Todo(String),
 }
 
@@ -439,7 +441,7 @@ fn infer_case<'a>(
 ) -> TypedCase {
     match case {
         Absyn::Case::CASE { pattern, patternGuard, result, .. } => {
-            let pat = infer_pat(pattern, top_level);
+            let pat = infer_pat(pattern, env, top_level, pkg_prefix);
             let mut inner_env = env.clone();
             inner_env.extend(pat_bindings(&pat));
             let guard = patternGuard.as_ref().map(|g| infer_exp(g, &inner_env, top_level, pkg_prefix));
@@ -452,7 +454,13 @@ fn infer_case<'a>(
 }
 
 /// Infer the pattern from an expression in case-pattern position.
-pub fn infer_pat(exp: &Absyn::Exp, top_level: &BTreeMap<String, NameNode<'_>>) -> TypedPat {
+/// `env` and `pkg_prefix` are needed for subscripted refs (Index patterns) in assignment LHS.
+pub fn infer_pat<'a>(
+    exp: &Absyn::Exp,
+    env: &HashMap<String, Ty>,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+    pkg_prefix: &str,
+) -> TypedPat {
     match exp {
         Absyn::Exp::INTEGER { value } => TypedPat::Lit(Lit::Int(*value)),
         Absyn::Exp::REAL    { value } => TypedPat::Lit(Lit::Real(value.clone())),
@@ -478,6 +486,66 @@ pub fn infer_pat(exp: &Absyn::Exp, top_level: &BTreeMap<String, NameNode<'_>>) -
                         TypedPat::Var(name.clone())
                     }
                 }
+                // Subscripted reference in pattern position (e.g. `arr[1]` on LHS of `:=`).
+                Absyn::ComponentRef::CREF_IDENT { name, subscripts } => {
+                    let sub = subscripts.into_iter()
+                        .filter_map(|s| {
+                            if let Absyn::Subscript::SUBSCRIPT { subscript } = s.as_ref() {
+                                Some(subscript.as_ref().clone())
+                            } else {
+                                None
+                            }
+                        })
+                        .next();
+                    if let Some(sub_exp) = sub {
+                        let base_ty = env.get(name).cloned().unwrap_or_else(|| {
+                            lookup_ty_in_hierarchy(name, top_level)
+                        });
+                        let base = TypedExp::Var { name: name.clone(), segments: vec![], ty: base_ty };
+                        TypedPat::Index {
+                            base,
+                            index: infer_exp(&sub_exp, env, top_level, pkg_prefix),
+                        }
+                    } else {
+                        TypedPat::Var(name.clone())
+                    }
+                }
+                // Qualified reference with subscripts (e.g. `a.b[1]` on LHS of `:=`).
+                Absyn::ComponentRef::CREF_QUAL { name, subscripts, componentRef } => {
+                    let has_subs = subscripts.into_iter().any(|s| matches!(s.as_ref(), Absyn::Subscript::SUBSCRIPT { .. }));
+                    if has_subs {
+                        let dotted = cref_to_dotted(componentRef);
+                        // The subscripted part is the tail of the qualified ref.
+                        // Build the full dotted name (without subscript info for type lookup)
+                        // and emit as Index pattern.
+                        let full_dotted = format!("{name}.{}", cref_to_dotted(componentRef));
+                        let sub = subscripts.into_iter()
+                            .filter_map(|s| {
+                                if let Absyn::Subscript::SUBSCRIPT { subscript } = s.as_ref() {
+                                    Some(subscript.as_ref().clone())
+                                } else {
+                                    None
+                                }
+                            })
+                            .next();
+                        if let Some(sub_exp) = sub {
+                            let base_ty = lookup_ty_in_hierarchy(&dotted, top_level);
+                            let base = TypedExp::Var { name: dotted, segments: vec![], ty: base_ty };
+                            TypedPat::Index {
+                                base,
+                                index: infer_exp(&sub_exp, env, top_level, pkg_prefix),
+                            }
+                        } else {
+                            let ty = lookup_ty_in_hierarchy(&full_dotted, top_level);
+                            TypedPat::Constructor { name: full_dotted, fields: vec![], named_fields: vec![], ty }
+                        }
+                    } else {
+                        let dotted = cref_to_dotted(componentRef);
+                        let full_dotted = format!("{name}.{}", dotted);
+                        let ty = lookup_ty_in_hierarchy(&full_dotted, top_level);
+                        TypedPat::Constructor { name: full_dotted, fields: vec![], named_fields: vec![], ty }
+                    }
+                }
                 _ => {
                     let dotted = cref_to_dotted(componentRef);
                     let ty = lookup_ty_in_hierarchy(&dotted, top_level);
@@ -492,7 +560,7 @@ pub fn infer_pat(exp: &Absyn::Exp, top_level: &BTreeMap<String, NameNode<'_>>) -
                 "SOME" => {
                     let inner = match functionArgs {
                         Absyn::FunctionArgs::FUNCTIONARGS { args, .. } => args.into_iter().next()
-                            .map(|a| infer_pat(a.as_ref(), top_level))
+                            .map(|a| infer_pat(a.as_ref(), env, top_level, pkg_prefix))
                             .unwrap_or(TypedPat::Wildcard),
                         _ => TypedPat::Wildcard,
                     };
@@ -503,12 +571,12 @@ pub fn infer_pat(exp: &Absyn::Exp, top_level: &BTreeMap<String, NameNode<'_>>) -
                     let (fields, named_fields) = match functionArgs {
                         Absyn::FunctionArgs::FUNCTIONARGS { args, argNames } => {
                             let pos: Vec<TypedPat> = args.into_iter()
-                                .map(|a| infer_pat(a.as_ref(), top_level))
+                                .map(|a| infer_pat(a.as_ref(), env, top_level, pkg_prefix))
                                 .collect();
                             let named: Vec<(String, TypedPat)> = argNames.into_iter()
                                 .map(|na| {
                                     let Absyn::NamedArg::NAMEDARG { argName, argValue } = na.as_ref();
-                                    (argName.clone(), infer_pat(argValue, top_level))
+                                    (argName.clone(), infer_pat(argValue, env, top_level, pkg_prefix))
                                 })
                                 .collect();
                             (pos, named)
@@ -522,13 +590,13 @@ pub fn infer_pat(exp: &Absyn::Exp, top_level: &BTreeMap<String, NameNode<'_>>) -
         }
 
         Absyn::Exp::TUPLE { expressions } => {
-            TypedPat::Tuple(expressions.into_iter().map(|e| infer_pat(e.as_ref(), top_level)).collect())
+            TypedPat::Tuple(expressions.into_iter().map(|e| infer_pat(e.as_ref(), env, top_level, pkg_prefix)).collect())
         }
 
         Absyn::Exp::ARRAY { arrayExp } => {
             // {} is the empty-list pattern; {a,b,...} builds a list via nested cons.
             let mut pats: Vec<TypedPat> = arrayExp.into_iter()
-                .map(|e| infer_pat(e.as_ref(), top_level))
+                .map(|e| infer_pat(e.as_ref(), env, top_level, pkg_prefix))
                 .collect();
             if pats.is_empty() {
                 TypedPat::EmptyList
@@ -543,13 +611,13 @@ pub fn infer_pat(exp: &Absyn::Exp, top_level: &BTreeMap<String, NameNode<'_>>) -
 
         Absyn::Exp::CONS { head, rest } => {
             TypedPat::Cons {
-                head: Box::new(infer_pat(head, top_level)),
-                tail: Box::new(infer_pat(rest, top_level)),
+                head: Box::new(infer_pat(head, env, top_level, pkg_prefix)),
+                tail: Box::new(infer_pat(rest, env, top_level, pkg_prefix)),
             }
         }
 
         Absyn::Exp::AS { id, exp } => {
-            TypedPat::As { var: id.clone(), pat: Box::new(infer_pat(exp, top_level)) }
+           TypedPat::As { var: id.clone(), pat: Box::new(infer_pat(exp, env, top_level, pkg_prefix)) }
         }
 
         // Negative literal in pattern position.
@@ -652,7 +720,7 @@ fn infer_stmt<'a>(
         Absyn::Algorithm::ALG_ASSIGN { assignComponent, value } => {
             let rhs = infer_exp(value, env, top_level, pkg_prefix);
             // The LHS of `:=` is a pattern (in MetaModelica, patterns and expressions share syntax).
-            let lhs = infer_pat(assignComponent, top_level);
+            let lhs = infer_pat(assignComponent, env, top_level, pkg_prefix);
             // Extend env from any new bindings introduced by the LHS.
             for (name, _ty) in pat_bindings(&lhs) {
                 // For now we don't know the binding type accurately without scrutinee threading;

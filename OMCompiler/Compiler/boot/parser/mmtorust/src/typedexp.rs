@@ -519,8 +519,12 @@ fn infer_case<'a>(
 
 /// Check if a pattern is a "local base" — a variable or field-access chain that can be
 /// used as the base of a field access expression (as opposed to a constructor/literal).
-fn is_local_base(pat: &TypedPat) -> bool {
-    matches!(pat, TypedPat::Var(_) | TypedPat::FieldAccess { .. })
+fn is_local_base(pat: &TypedPat, env: &HashMap<String, Ty>) -> bool {
+    match pat {
+        TypedPat::Var(name) => env.contains_key(name),
+        TypedPat::FieldAccess { base, .. } => is_local_base(base, env),
+        _ => false,
+    }
 }
 
 /// Convert a local-base pattern back into a TypedExp for use as the base of field access.
@@ -606,14 +610,14 @@ pub fn infer_pat<'a>(
                     }
                 }
                 // Qualified reference with subscripts (e.g. `a.b[1]` on LHS of `:=`).
-                Absyn::ComponentRef::CREF_QUAL { name, subscripts, componentRef } => {
+                Absyn::ComponentRef::CREF_QUAL { name, subscripts, componentRef: rest } => {
                     let has_subs = subscripts.into_iter().any(|s| matches!(s.as_ref(), Absyn::Subscript::SUBSCRIPT { .. }));
                     if has_subs {
-                        let dotted = cref_to_dotted(componentRef);
+                        let dotted = cref_to_dotted(rest);
                         // The subscripted part is the tail of the qualified ref.
                         // Build the full dotted name (without subscript info for type lookup)
                         // and emit as Index pattern.
-                        let full_dotted = format!("{name}.{}", cref_to_dotted(componentRef));
+                        let full_dotted = cref_to_dotted(componentRef);
                         let sub = subscripts.into_iter()
                             .filter_map(|s| {
                                 if let Absyn::Subscript::SUBSCRIPT { subscript } = s.as_ref() {
@@ -626,8 +630,8 @@ pub fn infer_pat<'a>(
                         if let Some(sub_exp) = sub {
                             // Check if inner ref resolves to a local variable — if so, build
                             // the base expression as a chain of field accesses, not a package path.
-                            let inner_pat = infer_pat(&Absyn::Exp::CREF { componentRef: componentRef.clone() }, env, top_level, pkg_prefix);
-                            let base = if is_local_base(&inner_pat) {
+                            let inner_pat = infer_pat(&Absyn::Exp::CREF { componentRef: rest.clone() }, env, top_level, pkg_prefix);
+                            let base = if is_local_base(&inner_pat, env) {
                                 pat_to_exp(&inner_pat, top_level)
                             } else {
                                 TypedExp::Var { name: dotted.clone(), segments: vec![], ty: lookup_ty_in_hierarchy(&dotted, top_level) }
@@ -643,8 +647,8 @@ pub fn infer_pat<'a>(
                     } else {
                         // Before treating as constructor, check if the inner ref is a local
                         // variable. If so, this is field access, not a constructor pattern.
-                        let inner_pat = infer_pat(&Absyn::Exp::CREF { componentRef: componentRef.clone() }, env, top_level, pkg_prefix);
-                        if is_local_base(&inner_pat) {
+                        let inner_pat = infer_pat(&Absyn::Exp::CREF { componentRef: rest.clone() }, env, top_level, pkg_prefix);
+                        if is_local_base(&inner_pat, env) {
                             // Chain: the inner pattern is a variable (possibly already nested
                             // FieldAccess). Wrap it into a new FieldAccess for the outer field.
                             TypedPat::FieldAccess {
@@ -652,8 +656,7 @@ pub fn infer_pat<'a>(
                                 field: name.clone(),
                             }
                         } else {
-                            let dotted = cref_to_dotted(componentRef);
-                            let full_dotted = format!("{name}.{}", dotted);
+                            let full_dotted = cref_to_dotted(componentRef);
                             let ty = lookup_ty_in_hierarchy(&full_dotted, top_level);
                             TypedPat::Constructor { name: full_dotted, fields: vec![], named_fields: vec![], ty }
                         }

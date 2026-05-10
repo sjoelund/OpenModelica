@@ -1297,7 +1297,7 @@ fn emit_pat<'a>(pat: &TypedPat, ctx: &mut GenCtx, top_level: &'a BTreeMap<String
         }
 
         TypedPat::FieldAccess { base, field } => {
-            format!("{}::{}", emit_pat(base, ctx, top_level), escape_ident(field))
+            field_access_to_dotted(base, field)
         }
 
         TypedPat::Todo(s) => format!("_ /* todo: {} */", s.chars().take(40).collect::<String>()),
@@ -1567,8 +1567,7 @@ fn render_shallow<'a>(
             format!("{}[{}]", emit_exp(base, false, ctx, top_level), emit_exp(index, false, ctx, top_level))
         }
         TypedPat::FieldAccess { base, field } => {
-            let base_s = render_shallow(base, &Ty::Unknown, ctx, env, top_level, fresh, deferrals);
-            format!("{}::{}", base_s, escape_ident(field))
+            field_access_to_dotted(base, field)
         }
         TypedPat::Todo(s) => format!("_ /* todo: {} */", s.chars().take(40).collect::<String>()),
     }

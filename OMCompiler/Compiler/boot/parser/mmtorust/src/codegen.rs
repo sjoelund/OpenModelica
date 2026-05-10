@@ -757,7 +757,7 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
     let type_params = if all_type_vars.is_empty() {
         String::new()
     } else {
-        format!("<{}>", all_type_vars.join(", "))
+        format!("<{}>", all_type_vars.into_iter().map(|v| v + ": Clone").collect::<Vec<_>>().join(", "))
     };
 
     let params = fn_inputs.iter()
@@ -931,6 +931,10 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                     let arg = args.first().map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
                     format!("{}.len() as i32", arg)
                 },
+                "arrayCopy" => {
+                    let arg = args.first().map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
+                    format!("{}.to_vec()", arg)
+                },
                 "arrayUpdate" => {
                     let arg1 = args.get(0).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
                     let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
@@ -940,6 +944,10 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                 "arrayEmpty" | "listEmpty" => {
                     let arg = args.first().map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
                     format!("{}.is_empty()", arg)
+                },
+                "listArray" | "arrayList" | "stringAppendList" => {
+                    let arg = args.first().map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
+                    format!("{arg}.into_iter().collect()")
                 },
                 _ => {
                     let func_str = if func.contains('.') {

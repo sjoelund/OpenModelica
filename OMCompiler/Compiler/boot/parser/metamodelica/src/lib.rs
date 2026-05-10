@@ -782,14 +782,14 @@ pub fn listArray<A: Clone>(lst: &List<A>) -> Vec<A> {
 
 /// Updates the value at the given 1-based index. O(1).
 /// Mutates the array in place (impure).
-pub fn arrayUpdate<A: Clone>(arr: &mut Vec<A>, index: i32, new_value: A) -> Result<()> {
+pub fn arrayUpdate<A: Clone>(arr: &mut Vec<A>, index: i32, new_value: A) -> Result<&mut Vec<A>> {
     let idx = (index - 1) as usize; // 1-based to 0-based
     let len = arr.len();
     if idx >= len {
         bail!("Index {} out of bounds for array of length {}", index, len);
     }
     arr[idx] = new_value;
-    Ok(())
+    Ok(arr)
 }
 
 /// Creates a copy of the array. O(n).

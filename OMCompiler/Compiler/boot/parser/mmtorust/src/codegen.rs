@@ -878,8 +878,14 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
         }
 
         TypedExp::BinOp { op, lhs, rhs, ty, .. } => {
-            let l = emit_exp(lhs, is_const, ctx, top_level);
-            let r = emit_exp(rhs, is_const, ctx, top_level);
+            let mut l = emit_exp(lhs, is_const, ctx, top_level);
+            if lhs.ty() == Ty::I32 && rhs.ty() == Ty::F64 {
+                l = format!("({l} as f64)");
+            }
+            let mut r = emit_exp(rhs, is_const, ctx, top_level);
+            if rhs.ty() == Ty::I32 && lhs.ty() == Ty::F64 {
+                r = format!("({r} as f64)");
+            }
             match op {
                 BinOpKind::Eq => {
                     if is_const && (lhs.ty() == Ty::Str || rhs.ty() == Ty::Str) {
@@ -907,6 +913,7 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                         s
                     }
                 }
+                BinOpKind::Add if *ty == Ty::Str => format!("(*{l}).clone() + &*{r}"),
                 BinOpKind::Add => format!("{l} + {r}"),
                 BinOpKind::Sub => format!("{l} - {r}"),
                 BinOpKind::Mul => format!("{l} * {r}"),
@@ -942,6 +949,15 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                         let parts: Vec<String> = args.iter().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).collect();
                         format!("metamodelica::list![{}]", parts.join(", "))
                     }
+                },
+                "String" => {
+                    let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+                    format!("Arc::new(format!(\"{{}}\", {arg}))")
+                },
+                "stringGet" | "MetaModelica.Dangerous.stringGetNoBoundsChecking" => {
+                    let arg1 = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+                    let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
+                    format!("{}[({}-1) as usize]", arg1, arg2)
                 },
                 "arrayGet" | "arrayGetNoBoundsChecking" => {
                     let arg1 = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();

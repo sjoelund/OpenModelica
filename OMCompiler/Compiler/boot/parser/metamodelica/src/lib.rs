@@ -353,17 +353,17 @@ pub fn realString(r: f64) -> String {
 // ============================================================================
 
 /// Returns the ASCII code point of a single-character string.
-pub fn stringCharInt(ch: String) -> i32 {
+pub fn stringCharInt(ch: Arc<String>) -> i32 {
     ch.chars().next()
         .map(|c| c as i32)
         .unwrap_or(0)
 }
 
 /// Returns a single-character string from an ASCII code point.
-pub fn intStringChar(i: i32) -> String {
-    std::char::from_u32(i as u32)
+pub fn intStringChar(i: i32) -> Arc<String> {
+    Arc::new(std::char::from_u32(i as u32)
         .map(|c| c.to_string())
-        .unwrap_or_default()
+        .unwrap_or_default())
 }
 
 /// Parses an integer from a string. Fails if the string is not a valid integer.
@@ -378,8 +378,9 @@ pub fn stringReal(str: String) -> Result<f64> {
 }
 
 /// Converts a string to a list of single-character strings.
-pub fn stringListStringChar(str: String) -> List<String> {
-    str.chars().map(|c| c.to_string()).collect()
+pub fn stringListStringChar(str: Arc<String>) -> List<Arc<String>> {
+    // TODO: We could have constants for all these short strings to avoid allocations.
+    str.chars().map(|c| Arc::new(c.to_string())).collect()
 }
 
 /// Appends a list of strings into a single string.
@@ -1379,17 +1380,17 @@ mod tests {
 
         #[test]
         fn test_string_char_int() {
-            assert_eq!(stringCharInt("A".to_string()), 65);
-            assert_eq!(stringCharInt("a".to_string()), 97);
-            assert_eq!(stringCharInt("0".to_string()), 48);
+            assert_eq!(stringCharInt(Arc::new("A".to_string())), 65);
+            assert_eq!(stringCharInt(Arc::new("a".to_string())), 97);
+            assert_eq!(stringCharInt(Arc::new("0".to_string())), 48);
         }
 
         #[test]
         fn test_int_string_char() {
-            assert_eq!(intStringChar(65), "A");
-            assert_eq!(intStringChar(97), "a");
-            assert_eq!(intStringChar(48), "0");
-            assert_eq!(intStringChar(0), "\0");
+            assert_eq!(*intStringChar(65), "A");
+            assert_eq!(*intStringChar(97), "a");
+            assert_eq!(*intStringChar(48), "0");
+            assert_eq!(*intStringChar(0), "\0");
         }
 
         #[test]
@@ -1408,8 +1409,8 @@ mod tests {
 
         #[test]
         fn test_string_list_string_char() {
-            let result = stringListStringChar("abc".to_string());
-            assert_eq!(result, List::from_iter(["a".to_string(), "b".to_string(), "c".to_string()]));
+            let result = stringListStringChar(Arc::new("abc".to_string()));
+            assert_eq!(result, List::from_iter([Arc::new("a".to_string()), Arc::new("b".to_string()), Arc::new("c".to_string())]));
         }
 
         #[test]

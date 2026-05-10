@@ -864,7 +864,13 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
     match exp {
         TypedExp::Lit(Lit::Int(v))  => v.to_string(),
         TypedExp::Lit(Lit::Real(v)) => v.clone(),
-        TypedExp::Lit(Lit::Str(v))  => format!("\"{v}\".to_string()"),
+        TypedExp::Lit(Lit::Str(v))  => {
+            if is_const {
+                format!("\"{v}\"")
+            } else {
+                format!("Arc::new(\"{v}\".to_string())")
+            }
+        }
         TypedExp::Lit(Lit::Bool(v)) => v.to_string(),
 
         TypedExp::Var { name, segments, ty, .. } => {
@@ -887,11 +893,19 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                 BinOpKind::Gt  => format!("{l} > {r}"),
                 BinOpKind::GEq => format!("{l} >= {r}"),
                 BinOpKind::Add if *ty == Ty::Str => {
-                    // Collect all string parts from a chain of Add ops and emit a single join operation.
+                    // Collect all string parts from a chain of Add ops and emit one Arc<String> concat.
                     let mut parts: Vec<String> = Vec::new();
                     collect_string_concat_parts(exp, is_const, ctx, top_level, &mut parts);
-                    let args = parts.join(", ");
-                    format!("[{args}].join(\"\")")
+                    if parts.is_empty() {
+                        "Arc::new(String::new())".to_owned()
+                    } else {
+                        let mut s = String::from("{ let mut __mm_s = String::new(); ");
+                        for p in parts {
+                            let _ = write!(s, "__mm_s.push_str(({p}).as_str()); ");
+                        }
+                        s.push_str("Arc::new(__mm_s) }");
+                        s
+                    }
                 }
                 BinOpKind::Add => format!("{l} + {r}"),
                 BinOpKind::Sub => format!("{l} - {r}"),
@@ -913,40 +927,43 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
         TypedExp::Call { func, args, named_args, .. } => {
             match func.as_str() {
                 "SOME" => {
-                    let arg = args.first().map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
+                    let arg = args
+                        .first()
+                        .map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level))
+                        .unwrap_or_default();
                     format!("Some({arg})")
                 }
                 "NONE" => "None".to_owned(),
                 "fail" => if is_const { "{ panic!(\"fail\") }".to_owned() } else { "bail!(\"fail\")".to_owned() },
                 "list" => {
-                    let parts: Vec<String> = args.iter().map(|a| emit_exp(a, is_const, ctx, top_level)).collect();
+                    let parts: Vec<String> = args.iter().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).collect();
                     format!("metamodelica::list![{}]", parts.join(", "))
                 },
                 "arrayGet" | "arrayGetNoBoundsChecking" => {
-                    let arg1 = args.first().map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
+                    let arg1 = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
                     let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
                     format!("{}[{}-1]", arg1, arg2)
                 },
-                "arrayLength" | "listLength" => {
-                    let arg = args.first().map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
+                "arrayLength" | "listLength" | "stringLength" => {
+                    let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
                     format!("{}.len() as i32", arg)
                 },
                 "arrayCopy" => {
-                    let arg = args.first().map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
+                    let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
                     format!("{}.to_vec()", arg)
                 },
                 "arrayUpdate"| "arrayUpdateNoBoundsChecking" => {
-                    let arg1 = args.get(0).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
+                    let arg1 = args.get(0).map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
                     let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
-                    let arg3 = args.get(2).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
+                    let arg3 = args.get(2).map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
                     format!("{{let mut _tmp = {}; _tmp[{}-1] = {}; _tmp}}", arg1, arg2, arg3)
                 },
                 "arrayEmpty" | "listEmpty" => {
-                    let arg = args.first().map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
+                    let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
                     format!("{}.is_empty()", arg)
                 },
                 "listArray" | "arrayList" | "stringAppendList" => {
-                    let arg = args.first().map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
+                    let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
                     format!("{arg}.into_iter().collect()")
                 },
                 _ => {
@@ -956,9 +973,10 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                         func
                     };
                     let func_str = escape_ident(func_str);
-                    let mut parts: Vec<String> = args.iter().map(|a| emit_exp(a, is_const, ctx, top_level)).collect();
+                    let mut parts: Vec<String> = args.iter().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).collect();
                     for (n, v) in named_args {
-                        parts.push(format!("{n}={}", emit_exp(v, is_const, ctx, top_level)));
+                        let v = emit_cloned_call_arg(v, is_const, ctx, top_level);
+                        parts.push(format!("{n}={v}"));
                     }
                     let call = format!("{func_str}({})", parts.join(", "));
                     // Add `?` to propagate Result errors from fallible calls. Skip in const
@@ -1151,6 +1169,19 @@ fn collect_string_concat_parts<'a>(exp: &TypedExp, is_const: bool, ctx: &mut Gen
     } else {
         parts.push(emit_exp(exp, is_const, ctx, top_level));
     }
+}
+
+fn maybe_clone_string_value(expr: String, ty: &Ty) -> String {
+    if matches!(ty, Ty::Str) {
+        format!("({expr}).clone()")
+    } else {
+        expr
+    }
+}
+
+fn emit_cloned_call_arg<'a>(arg: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) -> String {
+    let arg_str = emit_exp(arg, is_const, ctx, top_level);
+    maybe_clone_string_value(arg_str, &arg.ty())
 }
 
 /// Emit a Modelica range expression (`start:step:stop` or `start:stop`) as a Rust iterator.
@@ -1610,17 +1641,20 @@ fn emit_stmt<'a>(
             // it's an output or earlier protected — emit assignment.
             if let TypedPat::Var(name) = lhs {
                 if env.vars.contains_key(name) {
+                    let scrut_expr = maybe_clone_string_value(scrut_expr, &scrut_ty);
                     writeln!(out, "{indent}{} = {scrut_expr};", escape_ident(name)).unwrap();
                     return;
                 }
             }
             if let TypedPat::Index { base, index } = lhs {
                 let lhs_str = emit_pat(lhs, ctx, top_level);
+                let scrut_expr = maybe_clone_string_value(scrut_expr, &scrut_ty);
                 writeln!(out, "{indent}{lhs_str} = {scrut_expr};").unwrap();
                 return;
             }
             if let TypedPat::FieldAccess { base, field } = lhs {
                 let lhs_str = field_access_to_dotted(base, field);
+                let scrut_expr = maybe_clone_string_value(scrut_expr, &scrut_ty);
                 writeln!(out, "{indent}{lhs_str} = {scrut_expr};").unwrap();
                 return;
             }
@@ -1709,7 +1743,7 @@ fn fmt_ty(ty: &Ty, ctx: &mut GenCtx) -> String {
         Ty::I32 => "i32".to_owned(),
         Ty::F64 => "f64".to_owned(),
         Ty::Bool => "bool".to_owned(),
-        Ty::Str => "String".to_owned(),
+        Ty::Str => "Arc<String>".to_owned(),
         Ty::Unit => "()".to_owned(),
         Ty::TypeVar(name) => name.clone(),
         Ty::RustUnitVariant => "()".to_owned(),

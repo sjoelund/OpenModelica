@@ -765,7 +765,7 @@ use std::sync::Arc;
              ALG_CONTINUE,
       }
 
-     const emptyMod: Modification = Modification::CLASSMOD{elementArgLst: List::Nil(), eqMod: EqMod::NOMOD{}};
+     const emptyMod: Modification = Modification::CLASSMOD{elementArgLst: List::Nil, eqMod: EqMod::NOMOD{}};
 
       /* Modifications are described by the `Modification\' type.  There
         are two forms of modifications: redeclarations and component

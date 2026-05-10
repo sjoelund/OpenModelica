@@ -918,6 +918,10 @@ fn emit_exp(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx) -> String {
                     let parts: Vec<String> = args.iter().map(|a| emit_exp(a, is_const, ctx)).collect();
                     format!("metamodelica::list![{}]", parts.join(", "))
                 },
+                "listEmpty" => {
+                    let arg = args.first().map(|a| emit_exp(a, is_const, ctx)).unwrap_or_default();
+                    format!("{}.is_empty()", arg)
+                },
                 _ => {
                     let func_str = if func.contains('.') {
                         &ctx.shorten(func)
@@ -1083,7 +1087,7 @@ fn emit_pat(pat: &TypedPat, ctx: &mut GenCtx) -> String {
     match pat {
         TypedPat::Wildcard    => "_".to_owned(),
         TypedPat::Var(name)   => escape_ident(name),
-        TypedPat::EmptyList   => "metamodelica::List::Nil()".to_owned(),
+        TypedPat::EmptyList   => "metamodelica::List::Nil".to_owned(),
         TypedPat::Some_(inner) => format!("Some({})", emit_pat(inner, ctx)),
         TypedPat::None_       => "None".to_owned(),
 

@@ -568,7 +568,7 @@ pub fn stringCharListString(strs: &List<String>) -> String {
 #[derive(Debug, Clone, PartialEq)]
 pub enum List<T> {
     Cons{head: T, tail: Arc<List<T>>},
-    Nil(),
+    Nil,
 }
 use List::{Cons, Nil};
 
@@ -576,7 +576,7 @@ use List::{Cons, Nil};
 macro_rules! list {
     // Base case: empty list
     () => {
-        $crate::List::Nil()
+        $crate::List::Nil
     };
     // Case with a trailing comma
     ( $($x:expr),*, ) => {
@@ -598,7 +598,7 @@ pub fn cons<T>(head: T, tail: List<T>) -> List<T> {
 
 impl<T> Default for List<T> {
     fn default() -> List<T> {
-        Nil()
+        Nil
     }
 }
 pub struct ListIterator<'a, T: Clone> {
@@ -607,7 +607,7 @@ pub struct ListIterator<'a, T: Clone> {
 
 impl<T: Clone> FromIterator<T> for List<T> {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> List<T> {
-        let mut buf = Nil();
+        let mut buf = Nil;
         for item in iter {
             buf = cons(item, buf);
         }
@@ -632,7 +632,7 @@ impl<'a, T: Clone> Iterator for ListIterator<'a, T> {
     fn next(&mut self) -> Option<Self::Item> {
         let res;
         (res,self.curr) = match *self.curr {
-            Nil() => (None, self.curr),
+            Nil => (None, self.curr),
             Cons{ref head, ref tail} => {
                 (Some((*head).clone()), &**tail)
             }
@@ -662,7 +662,7 @@ impl<T: Clone> List<T> {
     }
     /// Reverses the elements in a list. O(n).
     pub fn reverse(self: &List<T>) -> List<T> {
-        let mut result: List<T> = Nil();
+        let mut result: List<T> = Nil;
         for e in self {
             result = cons(e, result);
         }
@@ -688,13 +688,13 @@ impl<T: Clone> List<T> {
         if index == 1 {
             return self.rest().cloned();
         }
-        let mut result = Nil();
+        let mut result = Nil;
         let mut iter: &List<T> = self;
         let mut cur_index = index;
         loop {
             cur_index -= 1;
             let (head,tail) = match iter {
-                Nil() => bail!("Index {} out of bounds for list", index),
+                Nil => bail!("Index {} out of bounds for list", index),
                 Cons{head, tail} => (head, tail)
             };
             iter = tail;
@@ -708,7 +708,7 @@ impl<T: Clone> List<T> {
 
 impl<T> List<T> {
     pub fn new(item: T) -> List<T> {
-        Cons{head: item, tail: Arc::new(Nil())}
+        Cons{head: item, tail: Arc::new(Nil)}
     }
     pub fn cons(self: List<T>, item: T) -> List<T> {
         Cons{head: item, tail: Arc::new(self)}
@@ -717,7 +717,7 @@ impl<T> List<T> {
     /// Fails if the list is empty.
     pub fn head(self: &List<T>) -> Result<&T> {
         match self {
-            Nil() => bail!("Cannot get rest of empty list"),
+            Nil => bail!("Cannot get rest of empty list"),
             Cons{head, ..} => Ok(head),
         }
     }
@@ -725,14 +725,14 @@ impl<T> List<T> {
     /// Fails if the list is empty.
     pub fn rest(self: &List<T>) -> Result<&List<T>> {
         match self {
-            Nil() => bail!("Cannot get rest of empty list"),
+            Nil => bail!("Cannot get rest of empty list"),
             Cons{tail, ..} => Ok(tail),
         }
     }
     /// Returns true if the list is empty. O(1).
     pub fn is_empty(self: &List<T>) -> bool {
         match self {
-            Nil() => true,
+            Nil => true,
             _ => false
         }
     }
@@ -1640,7 +1640,7 @@ mod tests {
             assert_eq!(result, list![1, 2, 3, 4, 5]);
 
             // Empty list cases
-            let empty: List<i32> = Nil();
+            let empty: List<i32> = Nil;
             assert_eq!(empty.append(&b), b);
             assert_eq!(a.append(&empty), a);
         }
@@ -1651,15 +1651,15 @@ mod tests {
             let result = lst.reverse();
             assert_eq!(result, list![5, 4, 3, 2, 1]);
 
-            let empty: List<i32> = Nil();
-            assert_eq!(empty.reverse(), Nil());
+            let empty: List<i32> = Nil;
+            assert_eq!(empty.reverse(), Nil);
         }
 
         #[test]
         fn test_list_length() {
             let lst = list![1, 2, 3];
             assert_eq!(lst.len(), 3);
-            let empty: List<i32> = Nil();
+            let empty: List<i32> = Nil;
             assert_eq!(empty.len(), 0);
         }
 
@@ -1689,7 +1689,7 @@ mod tests {
             let single = list![1];
             assert!(single.rest().unwrap().is_empty());
 
-            let empty: List<i32> = Nil();
+            let empty: List<i32> = Nil;
             assert!(empty.rest().is_err());
         }
 
@@ -1698,7 +1698,7 @@ mod tests {
             let lst = list![1, 2, 3];
             assert_eq!(lst.head().unwrap().clone(), 1);
 
-            let empty: List<i32> = Nil();
+            let empty: List<i32> = Nil;
             assert!(empty.head().is_err());
         }
 
@@ -1715,7 +1715,7 @@ mod tests {
             let lst = list![1, 2, 3];
             assert!(!lst.is_empty());
 
-            let empty: List<i32> = Nil();
+            let empty: List<i32> = Nil;
             assert!(empty.is_empty());
         }
 
@@ -1725,7 +1725,7 @@ mod tests {
             let result = cons(1, lst);
             assert_eq!(result, list![1, 2, 3]);
 
-            let empty: List<i32> = Nil();
+            let empty: List<i32> = Nil;
             let result = cons(42, empty);
             assert_eq!(result, List::new(42));
         }

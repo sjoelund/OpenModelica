@@ -479,7 +479,7 @@ fn generate_file<'a>(top_name: &str, node: &NameNode<'_>, crate_map: &BTreeMap<S
     // Second pass: emit header + complete use lines (now including implicit modules).
     let mut out = String::new();
     writeln!(out, "// Auto-generated from MetaModelica source").unwrap();
-    writeln!(out, "#![allow(non_camel_case_types, non_snake_case, dead_code, unused_imports, unused_variables, non_upper_case_globals)]").unwrap();
+    writeln!(out, "#![allow(non_camel_case_types, non_snake_case, dead_code, unused_imports, unused_variables, non_upper_case_globals, unused_mut)]").unwrap();
     writeln!(out, "{}", "
 use std::sync::Arc;
 use anyhow::{Result, bail};
@@ -922,7 +922,7 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                     let parts: Vec<String> = args.iter().map(|a| emit_exp(a, is_const, ctx, top_level)).collect();
                     format!("metamodelica::list![{}]", parts.join(", "))
                 },
-                "arrayGet" => {
+                "arrayGet" | "arrayGetNoBoundsChecking" => {
                     let arg1 = args.first().map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
                     let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
                     format!("{}[{}-1]", arg1, arg2)
@@ -935,7 +935,7 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                     let arg = args.first().map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
                     format!("{}.to_vec()", arg)
                 },
-                "arrayUpdate" => {
+                "arrayUpdate"| "arrayUpdateNoBoundsChecking" => {
                     let arg1 = args.get(0).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
                     let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
                     let arg3 = args.get(2).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();

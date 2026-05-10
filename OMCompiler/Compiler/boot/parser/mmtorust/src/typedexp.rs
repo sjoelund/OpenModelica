@@ -61,6 +61,8 @@ pub enum TypedExp {
     /// An array/list literal. Empty array = empty list.
     Array { elems: Vec<TypedExp>, ty: Ty },
     Match { kind: MatchKind, input: Box<TypedExp>, cases: Vec<TypedCase>, ty: Ty },
+    /// `start:stop` or `start:step:stop` — an arithmetic-progression iterator.
+    Range { start: Box<TypedExp>, step: Option<Box<TypedExp>>, stop: Box<TypedExp>, elem_ty: Ty },
     Todo(String),
 }
 
@@ -79,6 +81,7 @@ impl TypedExp {
             TypedExp::Cons   { ty, .. }  => ty.clone(),
             TypedExp::Array  { ty, .. }  => ty.clone(),
             TypedExp::Match  { ty, .. }  => ty.clone(),
+            TypedExp::Range  { elem_ty, .. } => Ty::List(Box::new(elem_ty.clone())),
             TypedExp::Tuple(v) => Ty::Tuple(v.iter().map(|e| e.ty()).collect()),
             TypedExp::Todo(_)  => Ty::Unknown,
         }
@@ -294,6 +297,19 @@ pub fn infer_exp<'a>(
                 .find(|t| *t != Ty::Unknown)
                 .unwrap_or(Ty::Unknown);
             TypedExp::Match { kind, input: Box::new(input), cases: typed_cases, ty }
+        }
+
+        Absyn::Exp::RANGE { start, step, stop } => {
+            let start_e = infer_exp(start, env, top_level, pkg_prefix);
+            let step_e = step.as_ref().map(|s| infer_exp(s, env, top_level, pkg_prefix));
+            let stop_e = infer_exp(stop, env, top_level, pkg_prefix);
+            let elem_ty = start_e.ty();
+            TypedExp::Range {
+                start: Box::new(start_e),
+                step: step_e.map(Box::new),
+                stop: Box::new(stop_e),
+                elem_ty,
+            }
         }
 
         other => TypedExp::Todo(format!("{other:?}").chars().take(80).collect()),

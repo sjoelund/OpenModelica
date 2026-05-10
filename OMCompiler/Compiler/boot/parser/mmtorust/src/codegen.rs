@@ -974,6 +974,10 @@ fn emit_exp(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx) -> String {
             emit_match(kind, input, cases, is_const, ctx)
         }
 
+        TypedExp::Range { start, step, stop, .. } => {
+            emit_range(start, step.as_deref(), stop, is_const, ctx)
+        }
+
         TypedExp::Todo(s) => format!("todo!(/*{}*/)", s.chars().take(60).collect::<String>()),
     }
 }
@@ -986,6 +990,46 @@ fn collect_string_concat_parts(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx,
         collect_string_concat_parts(rhs, is_const, ctx, parts);
     } else {
         parts.push(emit_exp(exp, is_const, ctx));
+    }
+}
+
+/// Emit a Modelica range expression (`start:step:stop` or `start:stop`) as a Rust iterator.
+/// Modelica ranges are arithmetic progressions: start, start+step, ..., while within [start, stop].
+/// Positive steps map to `(start..=stop).step_by(n)`.
+/// Negative steps reverse the range: `(stop..=start).step_by(-n)`.
+fn emit_range(start: &TypedExp, step: Option<&TypedExp>, stop: &TypedExp, is_const: bool, ctx: &mut GenCtx) -> String {
+    let s = emit_exp(start, is_const, ctx);
+    let e = emit_exp(stop, is_const, ctx);
+
+    match step {
+        // `start:stop` — default step of 1, forward.
+        None => format!("{s}..={e}"),
+
+        // `start:step:stop` — check the step sign at codegen time.
+        Some(step_exp) => {
+            let step_val = emit_exp(step_exp, is_const, ctx);
+
+            // If the step is a known positive literal, use the standard forward form.
+            if let TypedExp::Lit(Lit::Int(n)) = step_exp {
+                if *n > 0 {
+                    return if *n == 1 {
+                        format!("{s}..={e}")
+                    } else {
+                        format!("({s}..={e}).step_by({n})")
+                    };
+                }
+                // Negative step: reverse the range, negate the step.
+                if *n < 0 {
+                    return format!("({e}..={s}).step_by({})", -n);
+                }
+            }
+
+            // Dynamic step: positive path for the common case,
+            // with a runtime branch that reverses for negative steps.
+            format!(
+                "({{let __s={s}; let __e={e}; let __step={step_val}; if __step>0 {{__s..=__e}} else {{__e..=__s}}).step_by(if {step_val}>0 {{{step_val}}} else {{-({step_val})}})"
+            )
+        }
     }
 }
 

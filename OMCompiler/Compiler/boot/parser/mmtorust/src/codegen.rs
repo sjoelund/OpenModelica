@@ -839,7 +839,12 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
     }
 
     let mut fresh: u32 = 0;
-    emit_stmts(out, &body_indent, &typed_stmts, FailureMode::Function, ctx, &mut env, top_level, &mut fresh);
+    match &c.body {
+        MM::ClassDef::Parts { external: Some(ext), .. } => {
+            writeln!(out, "{body_indent}todo!(); // {:?}", ext).unwrap();
+        },
+        _ => emit_stmts(out, &body_indent, &typed_stmts, FailureMode::Function, ctx, &mut env, top_level, &mut fresh)
+    };
 
     match outputs.len() {
         0 => writeln!(out, "{body_indent}Ok(())").unwrap(),
@@ -918,6 +923,10 @@ fn emit_exp(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx) -> String {
                     let parts: Vec<String> = args.iter().map(|a| emit_exp(a, is_const, ctx)).collect();
                     format!("metamodelica::list![{}]", parts.join(", "))
                 },
+                "arrayLength" => {
+                    let arg = args.first().map(|a| emit_exp(a, is_const, ctx)).unwrap_or_default();
+                    format!("{}.len()", arg)
+                },
                 "listEmpty" => {
                     let arg = args.first().map(|a| emit_exp(a, is_const, ctx)).unwrap_or_default();
                     format!("{}.is_empty()", arg)
@@ -957,7 +966,7 @@ fn emit_exp(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx) -> String {
         }
 
         TypedExp::Cons { head, tail, .. } => {
-            format!("metamodelica::List::cons({}, {})", emit_exp(head, is_const, ctx), emit_exp(tail, is_const, ctx))
+            format!("cons({}, {})", emit_exp(head, is_const, ctx), emit_exp(tail, is_const, ctx))
         }
 
         TypedExp::Tuple(elems) => {
@@ -967,10 +976,10 @@ fn emit_exp(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx) -> String {
 
         TypedExp::Array { elems, .. } => {
             if elems.is_empty() {
-                "metamodelica::List::Nil".to_owned()
+                "List::Nil".to_owned()
             } else {
                 let parts: Vec<String> = elems.iter().map(|e| emit_exp(e, is_const, ctx)).collect();
-                format!("metamodelica::list![{}]", parts.join(", "))
+                format!("list![{}]", parts.join(", "))
             }
         }
 

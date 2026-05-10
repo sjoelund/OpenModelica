@@ -931,6 +931,7 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                     let arg = args.first().map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
                     format!("{}.len() as i32", arg)
                 },
+                "arrayEmpty" |
                 "listEmpty" => {
                     let arg = args.first().map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
                     format!("{}.is_empty()", arg)

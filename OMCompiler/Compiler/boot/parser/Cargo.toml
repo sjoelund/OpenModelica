@@ -4,7 +4,7 @@ members = ["mmwinnow", "mmtorust", "openmodelica", "openmodelica_util", "metamod
 [workspace.dependencies]
 anyhow = "1.0.102"
 list_comprehension_macro = "0.1.1"
-default-args = "1.0.0"
+const-str = "1.1.0"
 rayon = "1"
 winnow = "0.7"
 mmtorust = {path = "mmtorust"}

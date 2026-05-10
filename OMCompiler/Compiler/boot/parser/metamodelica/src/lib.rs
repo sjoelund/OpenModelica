@@ -353,10 +353,13 @@ pub fn realString(r: f64) -> String {
 // ============================================================================
 
 /// Returns the ASCII code point of a single-character string.
-pub fn stringCharInt(ch: Arc<String>) -> i32 {
+pub fn stringCharInt(ch: Arc<String>) -> Result<i32> {
+    if ch.len() != 1 {
+        bail!("stringCharInt expects a single-character string, got '{}'", ch);
+    };
     ch.chars().next()
         .map(|c| c as i32)
-        .unwrap_or(0)
+        .ok_or_else(|| anyhow::anyhow!("Failed to get character from string: {}", ch))
 }
 
 /// Returns a single-character string from an ASCII code point.

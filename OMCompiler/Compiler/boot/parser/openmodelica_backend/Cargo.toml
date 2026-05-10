@@ -10,3 +10,4 @@ openmodelica_frontend.workspace=true
 openmodelica_nf_frontend.workspace=true
 openmodelica_susan.workspace=true
 openmodelica_util.workspace=true
+const-str.workspace=true

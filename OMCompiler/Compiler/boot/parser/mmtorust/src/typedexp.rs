@@ -137,13 +137,21 @@ pub enum TypedPat {
 /// Convert a ComponentRef to a dotted MetaModelica name (e.g. "List.map").
 /// Deprecated: loses subscripts and structure. Use `extract_cref_segments` instead.
 pub fn cref_to_dotted(cref: &Absyn::ComponentRef) -> String {
-    match cref {
+    let raw = match cref {
         Absyn::ComponentRef::CREF_IDENT { name, .. } => name.clone(),
         Absyn::ComponentRef::CREF_QUAL { name, componentRef, .. } => {
             format!("{name}.{}", cref_to_dotted(componentRef))
         }
         Absyn::ComponentRef::CREF_FULLYQUALIFIED { componentRef } => cref_to_dotted(componentRef),
         Absyn::ComponentRef::WILD | Absyn::ComponentRef::ALLWILD => "_".to_owned(),
+    };
+    match raw.as_str() {
+        "MetaModelica.Dangerous.stringGetNoBoundsChecking" | "Dangerous.stringGetNoBoundsChecking" => "stringGet".to_owned(),
+        "MetaModelica.Dangerous.arrayGetNoBoundsChecking" | "Dangerous.arrayGetNoBoundsChecking" | "arrayGetNoBoundsChecking" => "arrayGet".to_owned(),
+        "MetaModelica.Dangerous.arrayUpdateNoBoundsChecking" | "Dangerous.arrayUpdateNoBoundsChecking" => "arrayUpdate".to_owned(),
+        "MetaModelica.Dangerous.arrayCreateNoInit" | "Dangerous.arrayCreateNoInit" => "arrayCreate".to_owned(),
+        "MetaModelica.Dangerous.listArrayLiteral" | "Dangerous.listArrayLiteral" => "listArray".to_owned(),
+        _ => raw,
     }
 }
 
@@ -242,7 +250,8 @@ fn call_ty(func: &str, args: &[TypedExp], top_level: &BTreeMap<String, NameNode<
         "intAdd" | "intSub" | "intMul" | "intDiv" | "intMod" | "intAbs"
         | "intMax" | "intMin" | "intNeg" | "intBitAnd" | "intBitOr" | "intBitXor"
         | "intBitLShift" | "intBitRShift" | "intFromChar" | "stringLength"
-        | "stringCompare" | "stringHash" | "stringHashDjb2" => Ty::I32,
+        | "stringCompare" | "stringHash" | "stringHashDjb2" | "stringGet"
+        | "arrayLength" | "listLength" => Ty::I32,
         "realAdd" | "realSub" | "realMul" | "realDiv" | "realAbs"
         | "realMax" | "realMin" | "realNeg" | "realFloor" | "realCeil" => Ty::F64,
         "intString" | "realString" | "boolString" | "anyString"
@@ -250,15 +259,40 @@ fn call_ty(func: &str, args: &[TypedExp], top_level: &BTreeMap<String, NameNode<
         "stringEqual" | "stringEq" | "intEq" | "intLt" | "intLe" | "intGt" | "intGe"
         | "intNe" | "realEq" | "realLt" | "realLe" | "realGt" | "realGe"
         | "boolAnd" | "boolOr" | "boolNot" | "boolEq"
-        | "referenceEq" | "valueEq" | "isEmpty" | "isSome" | "isNone" => Ty::Bool,
+        | "referenceEq" | "valueEq" | "isEmpty" | "isSome" | "isNone"
+        | "arrayEmpty" | "listEmpty" => Ty::Bool,
         "listHead" | "listFirst" => {
             match args.first().map(|a| a.ty()) {
                 Some(Ty::List(inner)) => *inner,
                 _ => Ty::Unknown,
             }
         }
-        "listRest" | "listTail" | "listReverse" | "listAppend" => {
+        "listRest" | "listTail" | "listReverse" | "listAppend" | "listReverseInPlace" => {
             args.first().map(|a| a.ty()).unwrap_or(Ty::Unknown)
+        }
+        "arrayGet" => {
+            match args.first().map(|a| a.ty()) {
+                Some(Ty::Array(inner)) => *inner,
+                _ => Ty::Unknown,
+            }
+        }
+        "arrayUpdate" | "arrayCopy" => {
+            args.first().map(|a| a.ty()).unwrap_or(Ty::Unknown)
+        }
+        "arrayCreate" => {
+            Ty::Array(Box::new(args.get(1).map(|a| a.ty()).unwrap_or(Ty::Unknown)))
+        }
+        "listArray" => {
+            match args.first().map(|a| a.ty()) {
+                Some(Ty::List(inner)) => Ty::Array(inner),
+                _ => Ty::Unknown,
+            }
+        }
+        "arrayList" => {
+            match args.first().map(|a| a.ty()) {
+                Some(Ty::Array(inner)) => Ty::List(inner),
+                _ => Ty::Unknown,
+            }
         }
         _ => {
             match lookup_ty_in_hierarchy(func, top_level) {

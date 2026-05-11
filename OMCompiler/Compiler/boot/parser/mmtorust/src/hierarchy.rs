@@ -1497,7 +1497,7 @@ fn fmt_exp(exp: &Absyn::Exp) -> String {
 }
 
 fn fmt_cref(cref: &Absyn::ComponentRef) -> String {
-    match cref {
+    let raw = match cref {
         Absyn::ComponentRef::CREF_IDENT { name, .. } => name.clone(),
         Absyn::ComponentRef::CREF_QUAL { name, componentRef, .. } => {
             format!("{name}.{}", fmt_cref(componentRef))
@@ -1507,6 +1507,14 @@ fn fmt_cref(cref: &Absyn::ComponentRef) -> String {
         }
         Absyn::ComponentRef::WILD => "_".to_owned(),
         Absyn::ComponentRef::ALLWILD => "__".to_owned(),
+    };
+    match raw.as_str() {
+        "MetaModelica.Dangerous.stringGetNoBoundsChecking" | "Dangerous.stringGetNoBoundsChecking" | ".MetaModelica.Dangerous.stringGetNoBoundsChecking" => "stringGet".to_owned(),
+        "MetaModelica.Dangerous.arrayGetNoBoundsChecking" | "Dangerous.arrayGetNoBoundsChecking" | ".MetaModelica.Dangerous.arrayGetNoBoundsChecking" | "arrayGetNoBoundsChecking" => "arrayGet".to_owned(),
+        "MetaModelica.Dangerous.arrayUpdateNoBoundsChecking" | "Dangerous.arrayUpdateNoBoundsChecking" | ".MetaModelica.Dangerous.arrayUpdateNoBoundsChecking" | "arrayUpdateNoBoundsChecking" => "arrayUpdate".to_owned(),
+        "MetaModelica.Dangerous.arrayCreateNoInit" | "Dangerous.arrayCreateNoInit" | ".MetaModelica.Dangerous.arrayCreateNoInit" => "arrayCreate".to_owned(),
+        "MetaModelica.Dangerous.listArrayLiteral" | "Dangerous.listArrayLiteral" | ".MetaModelica.Dangerous.listArrayLiteral" => "listArray".to_owned(),
+        _ => raw,
     }
 }
 

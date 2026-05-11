@@ -984,7 +984,7 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                     let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
                     format!("Arc::new(format!(\"{{}}\", {arg}))")
                 },
-                "stringGet" | "MetaModelica.Dangerous.stringGetNoBoundsChecking" => {
+                "stringGet" => {
                     let arg1 = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
                     let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
                     format!("stringGet({},{})?", arg1, arg2)
@@ -1016,7 +1016,7 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                     let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
                     format!("metamodelica::printAny(&{arg})")
                 },
-                "arrayGet" | "arrayGetNoBoundsChecking" | "MetaModelica.Dangerous.arrayGetNoBoundsChecking" | "Dangerous.arrayGetNoBoundsChecking" => {
+                "arrayGet" | "arrayGetNoBoundsChecking" => {
                     let arg1 = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
                     let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
                     format!("{}[({}-1) as usize].clone()", arg1, arg2)
@@ -1048,33 +1048,6 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                     let arg3 = args.get(2).map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
                     format!("{{let mut _tmp = {}; _tmp[({}-1) as usize] = {}; _tmp}}", arg1, arg2, arg3)
                 },
-                "MetaModelica.Dangerous.arrayUpdateNoBoundsChecking" | "Dangerous.arrayUpdateNoBoundsChecking" => {
-                    let arg1 = args.get(0).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
-                    let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
-                    let arg3 = args.get(2).map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
-                    format!("Dangerous::arrayUpdateNoBoundsChecking(&mut {}, {}, {})", arg1, arg2, arg3)
-                },
-                "MetaModelica.Dangerous.arrayCreateNoInit" | "Dangerous.arrayCreateNoInit" => {
-                    let arg1 = args.first().map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
-                    let arg2 = args.get(1).map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
-                    format!("Dangerous::arrayCreateNoInit({}, {})", arg1, arg2)
-                },
-                _ if func.ends_with("Dangerous.arrayGetNoBoundsChecking") || func.ends_with("Dangerous::arrayGetNoBoundsChecking") => {
-                    let arg1 = args.first().map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
-                    let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
-                    format!("Dangerous::arrayGetNoBoundsChecking(&{}, {})", arg1, arg2)
-                },
-                _ if func.ends_with("Dangerous.arrayUpdateNoBoundsChecking") || func.ends_with("Dangerous::arrayUpdateNoBoundsChecking") => {
-                    let arg1 = args.get(0).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
-                    let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
-                    let arg3 = args.get(2).map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
-                    format!("Dangerous::arrayUpdateNoBoundsChecking(&mut {}, {}, {})", arg1, arg2, arg3)
-                },
-                _ if func.ends_with("Dangerous.arrayCreateNoInit") || func.ends_with("Dangerous::arrayCreateNoInit") => {
-                    let arg1 = args.first().map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
-                    let arg2 = args.get(1).map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
-                    format!("Dangerous::arrayCreateNoInit({}, {})", arg1, arg2)
-                },
                 "arrayEmpty" | "listEmpty" => {
                     let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
                     format!("{}.is_empty()", arg)
@@ -1091,7 +1064,7 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                         "SourceInfo {{ fileName: {a0}, isReadOnly: {a1}, lineNumberStart: {a2}, columnNumberStart: {a3}, lineNumberEnd: {a4}, columnNumberEnd: {a5}, lastModification: {a6} }}"
                     )
                 },
-                "listArray" | "MetaModelica.Dangerous.listArrayLiteral" | "arrayList" | "stringAppendList" => {
+                "listArray" | "arrayList" | "stringAppendList" => {
                     let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
                     format!("{arg}.into_iter().collect()")
                 },

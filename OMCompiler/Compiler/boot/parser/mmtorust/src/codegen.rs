@@ -1169,7 +1169,7 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                         parts
                     };
 
-                    let is_ctor = is_constructor_name(func);
+                    let is_ctor = is_constructor(&func_str, ctx, top_level) || is_constructor(func, ctx, top_level);
                     let mut call = format!("{func_str}({})", parts.join(", "));
                     if is_ctor {
                         let field_tys = if func.contains('.') {
@@ -1209,7 +1209,7 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                     // context, for constructors (uppercase first char), and for known-infallible
                     // note that infallible builtins still return a Result because they can be used as function pointers.
                     //  In order to skip the error checking here, it needs to have a special case handling the function above
-                    if is_const || is_constructor_name(func) /* || is_infallible_builtin(func) */ {
+                    if is_const || is_constructor(&func_str, ctx, top_level) || is_constructor(func, ctx, top_level) {
                         call
                     } else {
                         format!("{call}?")
@@ -1266,54 +1266,51 @@ fn emit_var<'a>(
     ctx: &mut GenCtx,
     top_level: &'a BTreeMap<String, NameNode<'a>>,
 ) -> String {
+
+    // If segments is empty but name has dots, it means the name contains the whole path.
+    // We should split it into segments so we can resolve the package/field boundary.
+    let mut real_segments = segments.to_vec();
+    let name_str = name.to_owned();
+    if real_segments.is_empty() && name_str.contains('.') {
+        for part in name_str.split('.') {
+            real_segments.push(CrefSegment {
+                name: part.to_owned(),
+                subscripts: vec![],
+            });
+        }
+    }
+
     // Apply subscripts on the first (base) segment as array indexing.
-    let base_name = if segments.is_empty() {
-        name.to_owned()
+    let base_name = if real_segments.is_empty() {
+        name_str.clone()
     } else {
-        let mut base = escape_ident(&segments[0].name);
-        for sub in &segments[0].subscripts {
+        let mut base = escape_ident(&real_segments[0].name);
+        for sub in &real_segments[0].subscripts {
             base = format!("{}[{}]", base, emit_exp(sub, false, ctx, top_level));
         }
         base
     };
 
     // If there are no further segments, we're done.
-    if segments.len() <= 1 {
-        // For simple names without dots, just use the name directly.
-        if !name.contains('.') {
-            if segments.is_empty() && name == "child" {
-                // Some AVL rotation match-cases currently infer an unbound temporary `child`.
-                // Use the local node value as a best-effort fallback to keep generation compiling.
+    if real_segments.len() <= 1 {
+        let only_name = if real_segments.is_empty() { name_str.clone() } else { real_segments[0].name.clone() };
+        if !only_name.contains('.') {
+            if real_segments.is_empty() && only_name == "child" {
                 return "node".to_owned();
             }
-            return if segments.is_empty() { escape_ident(name) } else { base_name };
+            return if real_segments.is_empty() { escape_ident(&only_name) } else { base_name };
         }
-        // Dotted name with single segment and subscripts already applied.
-        let shortened = ctx.shorten(name);
-        if shortened == "List::Nil" {
-            return "metamodelica::List::Nil".to_owned();
-        }
-        let mut res = escape_ident(&shortened);
-        if segments.is_empty() {
-            return res;
-        }
-        // Rebuild with subscripts from segments[0].
-        if segments[0].subscripts.is_empty() {
-            return res;
-        }
-        let mut base = res;
-        for sub in &segments[0].subscripts {
-            base = format!("{}[{}]", base, emit_exp(sub, false, ctx, top_level));
-        }
-        return base;
     }
 
-    // Multiple segments: find the package/field boundary.
+    // Multiple segments// Multiple segments: find the package/field boundary.
+// Multiple segments: find the package/field boundary.
     // Walk backwards from the segments to find the deepest record type prefix.
     // Everything before the record is a Rust path (::); everything from the record
     // onwards uses field access (.).
-    let split_idx = find_record_split(segments, top_level);
-    let (pkg_segs, field_segs) = segments.split_at(split_idx);
+    let split_idx = find_record_split(&real_segments, ctx, top_level);
+
+    let (pkg_segs, field_segs) = real_segments.split_at(split_idx);
+
 
     // Emit the package prefix part using shorten.
     let pkg_dotted: String = pkg_segs.iter().map(|s| s.name.clone()).collect::<Vec<_>>().join(".");
@@ -1342,7 +1339,8 @@ fn emit_var<'a>(
     };
 
     // Emit field access for the remaining segments.
-    let mut res = base;
+    let mut res = base.clone();
+
     for seg in field_segs {
         res = format!("{}.{}", res, escape_ident(&seg.name));
         for sub in &seg.subscripts {
@@ -1355,47 +1353,109 @@ fn emit_var<'a>(
 /// Find the index at which to split segments into [package prefix] and [record fields].
 /// Returns the index of the first field segment. Everything before is the package path.
 /// Returns `segments.len()` if no record boundary is found (entire path is a package path).
-fn find_record_split<'a>(segments: &[CrefSegment], top_level: &'a BTreeMap<String, NameNode<'a>>) -> usize {
+fn resolve_fully_qualified<'a>(prefix_dotted: &str, ctx: &GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) -> Option<&'a NameNode<'a>> {
+    // 1. Literal top level
+    if let Some(n) = lookup_node(prefix_dotted, top_level) {
+        return Some(n);
+    }
+    // 2. Relative to current path
+    let mut current = ctx.current_path.clone();
+    while !current.is_empty() {
+        let path = format!("{}.{}", current.join("."), prefix_dotted);
+        if let Some(n) = lookup_node(&path, top_level) {
+            return Some(n);
+        }
+        current.pop();
+    }
+    // 2b. Relative to top_name
+    let path_top = format!("{}.{}", ctx.top_name, prefix_dotted);
+    if let Some(n) = lookup_node(&path_top, top_level) {
+        return Some(n);
+    }
+    // 3. Named imports (reverse lookup: named values are the local names)
+    // Wait, ctx.named maps "Fully.Qualified" => "Local"
+    for (fq, local) in &ctx.named {
+        if prefix_dotted == local {
+            if let Some(n) = lookup_node(fq, top_level) {
+                return Some(n);
+            }
+        } else if let Some(rest) = prefix_dotted.strip_prefix(&format!("{}.", local)) {
+            let path = format!("{}.{}", fq, rest);
+            if let Some(n) = lookup_node(&path, top_level) {
+                return Some(n);
+            }
+        }
+    }
+    // 4. Unqualified modules (.* imports)
+    for unq in &ctx.unqual_modules {
+        let path = format!("{}.{}", unq, prefix_dotted);
+        if let Some(n) = lookup_node(&path, top_level) {
+            return Some(n);
+        }
+    }
+    None
+}
+
+fn find_record_split<'a>(segments: &[CrefSegment], ctx: &GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) -> usize {
     if segments.len() <= 1 {
-        return segments.len();
+        return segments.len(); // 0 or 1
     }
 
-    // Heuristic: if the first segment has subscripts (e.g., `arr[1].field`),
-    // the subscripted expression is the base and everything after is field access.
-    // Package paths don't have subscripts on their components.
     if !segments[0].subscripts.is_empty() {
         return 1;
     }
 
-    // Walk backwards from the last possible split point.
-    // For a split at index i, the first i segments form the package prefix,
-    // and segments[i..] are the record fields.
-    for i in (1..segments.len()).rev() {
+    // Walk backwards from the longest possible split point
+    for i in (1..=segments.len()).rev() {
         let prefix_dotted: String = segments[..i].iter().map(|s| s.name.clone()).collect::<Vec<_>>().join(".");
-        if let Some(node) = lookup_node(&prefix_dotted, top_level) {
-            // Check if this node is a record or metarecord.
-            if let NodeKind::Class(c) = &node.kind {
-                if matches!(c.restriction, Absyn::Restriction::R_RECORD | Absyn::Restriction::R_METARECORD { .. }) {
-                    // The prefix ends at a record. Fields after it are field accesses.
-                    return i;
+
+        // If the whole prefix actually resolves to something
+        let resolved_opt = resolve_fully_qualified(&prefix_dotted, ctx, top_level);
+        if let Some(node) = resolved_opt {
+            if let crate::hierarchy::NodeKind::Class(c) = &node.kind {
+                use mmwinnow::Absyn::Restriction::*;
+                match c.restriction {
+                    // uniontypes and enums act as namespaces for their constructors.
+                    // If we found the uniontype/enum itself, the VERY NEXT segment is its constructor!
+                    // so the rust module path covers up to the constructor.
+                    mmwinnow::Absyn::Restriction::R_ENUMERATION | mmwinnow::Absyn::Restriction::R_UNIONTYPE => {
+                        if i < segments.len() {
+                            return i + 1;
+                        } else {
+                            return i;
+                        }
+                    }
+                    // A package acts as a transparent namespace.
+                    // If the path exactly resolves to a package, it's a module path.
+                    mmwinnow::Absyn::Restriction::R_PACKAGE => return i,
+                    // Records and classes have fields.
+                    mmwinnow::Absyn::Restriction::R_RECORD | mmwinnow::Absyn::Restriction::R_METARECORD { .. } | mmwinnow::Absyn::Restriction::R_CLASS | mmwinnow::Absyn::Restriction::R_MODEL | mmwinnow::Absyn::Restriction::R_BLOCK | mmwinnow::Absyn::Restriction::R_CONNECTOR => {
+                        return i;
+                    }
+                    // Functions, variables, or anything else: they are NOT Rust modules.
+                    // The base element (the function/variable) is the start of the field access!
+                    _ => {
+                        // Keep looking for a shorter prefix that might be a package...
+                        // But wait! If we found a function or a local variable,
+                        // its parent MUST be the package. So `i` was not a package, but `i-1` might be.
+                        // Actually, if it's a known non-package, the Rust module path ends BEFORE IT!
+                        // Oh wait, if the Rust path is `UnorderedMap.map`, in Rust it is `UnorderedMap::map`.
+                        // Then `map` is the variable/function. And `.keys` is a field.
+                        // So the Rust package path is just `i`, wait...
+                        // If it's `UnorderedMap::map`, the expression is `UnorderedMap::map`.
+                        // The field is `keys`.
+                        return i;
+                    }
                 }
+            } else {
+                // If it resolves but isn't a class (e.g. constant, etc), it's the base of a field access.
+                return i;
             }
-            // Not a record (package, function, etc.) — the entire path through here
-            // is a package path. Return segments.len() so shorten handles everything.
-            return segments.len();
         }
     }
 
-    // Nothing resolved in the hierarchy. Check if the first segment's name exists
-    // as a top-level node. If not, it's a local variable — treat everything after
-    // the first segment as field access on that variable.
-    let first_top = segments[0].name.split('.').next().unwrap_or(&segments[0].name);
-    if !top_level.contains_key(first_top) && segments.len() > 1 {
-        return 1;
-    }
-
-    // Nothing resolved — treat entire thing as a package path.
-    segments.len()
+    // Fallback: assume the first segment is a variable/module and everything else is fields.
+    1
 }
 
 /// Flatten a chain of string `Add` expressions into a list of individual string parts.
@@ -1952,9 +2012,31 @@ struct LocalEnv {
     vars: HashMap<String, Ty>,
 }
 
-fn is_constructor_name(func: &str) -> bool {
-    let last = func.rsplit('.').next().unwrap_or(func);
-    last.chars().next().map(|c| c.is_uppercase()).unwrap_or(false)
+fn is_constructor(func: &str, ctx: &GenCtx, top_level: &BTreeMap<String, NameNode>) -> bool {
+    // Some built-ins are always constructors structurally.
+    if matches!(func, "SOME" | "NONE") {
+        return true;
+    }
+
+    if let Some(node) = resolve_fully_qualified(func, ctx, top_level) {
+
+        if let NodeKind::Class(c) = &node.kind {
+            if matches!(c.restriction, Absyn::Restriction::R_RECORD | Absyn::Restriction::R_UNIONTYPE { .. }) {
+                return true;
+            }
+        }
+        // Could be a uniontype variant if the parent is a uniontype.
+        // E.g., `List.Nil` where `List` is uniontype. Wait, `resolve_fully_qualified` looks up `List.Nil`
+        // which might resolve if it's considered a record inside `List`? No, uniontype variants aren't records.
+        // Actually, they ARE children in the namespace, but they don't have NodeKind::Class or Record.
+        // Wait, uniontype variants ARE records! `NodeKind::Class` with `R_RECORD`.
+        return false;
+    }
+
+    // Fallback: heuristic
+    let last = func.rsplit("::").next().unwrap_or(func);
+    let last = last.rsplit('.').next().unwrap_or(last);
+    last.chars().next().map(|c| c.is_uppercase() || c == '_').unwrap_or(false)
 }
 
 fn normalize_builtin_ctor_name(name: &str) -> String {

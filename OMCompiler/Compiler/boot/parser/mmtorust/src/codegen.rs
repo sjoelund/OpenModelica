@@ -1200,6 +1200,8 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                                 }
                             }
                             call = format!("{func_str} {{ {} }}", struct_parts.join(", "));
+                        } else {
+                            call = format!("{func_str}");
                         }
                     }
 

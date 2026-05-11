@@ -501,13 +501,6 @@ use const_str;
 fn emit_node<'a>(out: &mut String, name: &str, node: &NameNode<'_>, indent: &str, ctx: &mut GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) {
     if let NodeKind::Component(m) = &node.kind {
         if m.variability == Absyn::Variability::CONST {
-            let rust_ty = match &node.ty {
-                Ty::Str => "&'static str",
-                Ty::I32 => "i32",
-                Ty::F64 => "f64",
-                Ty::Bool => "bool",
-                _ => return,
-            };
             if let Some(exp) = extract_default_exp(&m.modification) {
                 let pkg_prefix = if ctx.current_path.is_empty() {
                     ctx.top_name.to_owned()
@@ -515,15 +508,33 @@ fn emit_node<'a>(out: &mut String, name: &str, node: &NameNode<'_>, indent: &str
                     format!("{}.{}", ctx.top_name, ctx.current_path.join("."))
                 };
                 let typed = typedexp::infer_exp(exp, &HashMap::new(), top_level, &pkg_prefix);
-                let val = emit_exp(&typed, /*is_const=*/true, ctx, top_level);
                 let ename = escape_ident(name);
-                writeln!(out, "{indent}pub const {ename}: {rust_ty} = {val};").unwrap();
-                writeln!(out).unwrap();
+
+                let rust_ty = match &node.ty {
+                    Ty::Str => Some("&'static str"),
+                    Ty::I32 => Some("i32"),
+                    Ty::F64 => Some("f64"),
+                    Ty::Bool => Some("bool"),
+                    _ => None,
+                };
+                if let Some(r_ty) = rust_ty {
+                    let val = emit_exp(&typed, /*is_const=*/true, ctx, top_level);
+                    writeln!(out, "{indent}pub const {ename}: {r_ty} = {val};").unwrap();
+                    writeln!(out).unwrap();
+                } else {
+                    let r_ty = fmt_ty(&node.ty, ctx);
+                    let val = emit_exp(&typed, /*is_const=*/false, ctx, top_level); // dynamic expr
+                    writeln!(out, "{indent}pub static {ename}: std::sync::LazyLock<{r_ty}> = std::sync::LazyLock::new(|| {{ {val} }});").unwrap();
+                    writeln!(out).unwrap();
+                }
             }
         }
         return;
     }
     let NodeKind::Class(c) = &node.kind else { return };
+    if c.partial_prefix && c.restriction != Absyn::Restriction::R_PACKAGE {
+        return;
+    }
     use Absyn::Restriction::*;
     match &c.restriction {
         R_PACKAGE => {
@@ -544,10 +555,12 @@ fn emit_node<'a>(out: &mut String, name: &str, node: &NameNode<'_>, indent: &str
             } else {
                 indent.to_owned()
             };
-            let mut children: Vec<_> = node.children.iter().collect();
-            children.sort_by_key(|(n, _)| n.as_str());
-            for (child_name, child_node) in children {
-                emit_node(out, child_name, child_node, &child_indent, &mut *ctx, top_level);
+            if !c.partial_prefix {
+                let mut children: Vec<_> = node.children.iter().collect();
+                children.sort_by_key(|(n, _)| n.as_str());
+                for (child_name, child_node) in children {
+                    emit_node(out, child_name, child_node, &child_indent, &mut *ctx, top_level);
+                }
             }
             if wrap {
                 ctx.current_path.pop();
@@ -769,15 +782,6 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
     let ename = escape_ident(name);
 
     let pub_kw = if node.visibility == MM::Visibility::Public { "pub " } else { "" };
-    if c.partial_prefix {
-        let type_only_params = fn_inputs.iter()
-            .map(|inp| fmt_ty(&inp.ty, ctx))
-            .collect::<Vec<_>>()
-            .join(", ");
-        writeln!(out, "{indent}{pub_kw}type {ename}{type_params} = fn({type_only_params}) -> Result<{ret_ty}>;").unwrap();
-        writeln!(out).unwrap();
-        return;
-    }
 
     // Walk components to find outputs (with names) and protected locals.
     let mut outputs: Vec<(String, Ty, Option<Absyn::Modification>, bool)> = Vec::new();
@@ -845,7 +849,8 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
         let init = if input_names.contains(n) {
             Some(escape_ident(n))
         } else {
-            init_raw.filter(|s| s != &escape_ident(n))
+            let cloned_s = format!("{}.clone()", escape_ident(n));
+            init_raw.filter(|s| s != &escape_ident(n) && s != &cloned_s)
         };
         match (is_const_local, init) {
             (true, Some(s)) => writeln!(out, "{body_indent}let {}: {ty_s} = {s};", escape_ident(n)).unwrap(),
@@ -1682,7 +1687,11 @@ fn emit_range<'a>(start: &TypedExp, step: Option<&TypedExp>, stop: &TypedExp, is
                 }
                 // Negative step: reverse the range, negate the step.
                 if *n < 0 {
-                    return format!("({e}..={s}).step_by({}).rev()", -n);
+                    return if *n == -1 {
+                        format!("({e}..={s}).rev()")
+                    } else {
+                        format!("({e}..={s}).step_by({}).rev()", -n)
+                    };
                 }
             }
 

@@ -699,7 +699,7 @@ fn emit_struct(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Class,
     for (_, fty) in &fields {
         collect_type_vars_in_ty(fty, &mut type_vars);
     }
-    let type_params = if type_vars.is_empty() { String::new() } else { format!("<{}>", type_vars.join(", ")) };
+    let type_params = if type_vars.is_empty() { String::new() } else { format!("<{}: Clone>", type_vars.join(", ")) };
     if fields.is_empty() {
         writeln!(out, "{indent}pub struct {ename}{type_params};").unwrap();
     } else {
@@ -888,7 +888,7 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
         TypedExp::Lit(Lit::Bool(v)) => v.to_string(),
 
         TypedExp::Var { name, segments, ty, .. } => {
-            emit_var(name, segments, ty, ctx, top_level)
+            format!("{}.clone()", emit_var(name, segments, ty, ctx, top_level))
         }
 
         TypedExp::BinOp { op, lhs, rhs, ty, .. } => {

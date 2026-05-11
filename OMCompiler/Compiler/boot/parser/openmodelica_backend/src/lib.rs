@@ -1,4 +1,5 @@
 // Auto-generated lib file
+#![recursion_limit = "1024"]
 pub mod AbsynToJulia;
 pub mod AdjacencyMatrix;
 pub mod AvlSetInt;

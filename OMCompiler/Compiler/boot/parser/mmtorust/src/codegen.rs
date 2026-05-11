@@ -416,6 +416,7 @@ pub fn generate_all(hier: &InstanceHierarchy<'_>, output_dir: &str) -> std::io::
 fn generate_lib_file(hier: &InstanceHierarchy<'_>, this_dir: &str, default_dir: &str) -> String {
     let mut out = String::new();
     writeln!(out, "// Auto-generated lib file").unwrap();
+    writeln!(out, "#![recursion_limit = \"1024\"]").unwrap(); // We have long lists to macro through...
     for (name, node) in &hier.top_level {
         let node_dir = if let NodeKind::Class(c) = &node.kind {
             if let Some(cn) = &c.crate_name { format!("{cn}/src") } else { default_dir.to_owned() }

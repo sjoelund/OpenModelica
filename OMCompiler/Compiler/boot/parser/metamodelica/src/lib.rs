@@ -223,8 +223,8 @@ pub fn intReal(i: i32) -> Result<f64> {
 }
 
 /// Converts Integer to String.
-pub fn intString(i: i32) -> Result<String> {
-    Ok(i.to_string())
+pub fn intString(i: i32) -> Result<Arc<String>> {
+    Ok(Arc::new(i.to_string()))
 }
 
 // ============================================================================
@@ -387,10 +387,10 @@ pub fn stringListStringChar(str: Arc<String>) -> Result<List<Arc<String>>> {
 }
 
 /// Appends a list of strings into a single string.
-pub fn stringAppendList(strs: &List<Arc<String>>) -> Result<Arc<String>> {
+pub fn stringAppendList(strs: List<Arc<String>>) -> Result<Arc<String>> {
     let mut result = String::new();
 
-    for s in strs {
+    for s in &strs {
         result.push_str(&s);
     }
 
@@ -399,11 +399,11 @@ pub fn stringAppendList(strs: &List<Arc<String>>) -> Result<Arc<String>> {
 
 /// Takes a list of strings and a delimiter and joins them with the delimiter inserted between elements.
 /// Example: stringDelimitList({"x","y","z"}, ", ") => "x, y, z"
-pub fn stringDelimitList(strs: &List<Arc<String>>, delimiter: Arc<String>) -> Result<Arc<String>> {
+pub fn stringDelimitList(strs: List<Arc<String>>, delimiter: Arc<String>) -> Result<Arc<String>> {
     let mut result = String::new();
     let mut first = true;
 
-    for s in strs {
+    for s in &strs {
         if !first {
             result.push_str(&delimiter);
         }
@@ -457,23 +457,23 @@ pub fn stringUpdateStringChar(str: Arc<String>, newch: Arc<String>, index: i32) 
 }
 
 /// Concatenates two strings (s1 + s2).
-pub fn stringAppend(s1: String, s2: String) -> Result<Arc<String>> {
+pub fn stringAppend(s1: Arc<String>, s2: Arc<String>) -> Result<Arc<String>> {
     Ok(Arc::new(format!("{}{}", s1, s2)))
 }
 
 /// Compares two strings for equality.
 #[inline(always)]
-pub fn stringEq(s1: String, s2: String) -> Result<bool> {
+pub fn stringEq(s1: Arc<String>, s2: Arc<String>) -> Result<bool> {
     Ok(s1 == s2)
 }
 #[inline(always)]
-pub fn stringEqual(s1: String, s2: String) -> Result<bool> {
+pub fn stringEqual(s1: Arc<String>, s2: Arc<String>) -> Result<bool> {
     Ok(s1 == s2)
 }
 
 /// Compares two strings lexicographically.
 /// Returns negative if s1 < s2, zero if s1 == s2, positive if s1 > s2.
-pub fn stringCompare(s1: String, s2: String) -> Result<i32> {
+pub fn stringCompare(s1: Arc<String>, s2: Arc<String>) -> Result<i32> {
     // Byte-by-byte comparison for consistency
     let bytes1 = s1.as_bytes();
     let bytes2 = s2.as_bytes();
@@ -495,7 +495,7 @@ pub fn stringCompare(s1: String, s2: String) -> Result<i32> {
 }
 
 /// Returns a hash of the string using Rust's built-in hash.
-pub fn stringHash(str: String) -> Result<i32> {
+pub fn stringHash(str: Arc<String>) -> Result<i32> {
     use std::collections::hash_map::DefaultHasher;
     use std::hash::Hash;
     use std::hash::Hasher;
@@ -506,7 +506,7 @@ pub fn stringHash(str: String) -> Result<i32> {
 
 /// Returns a DJB2 hash of the string.
 /// DJB2 algorithm: hash = hash * 33 + byte
-pub fn stringHashDjb2(str: String) -> Result<i32> {
+pub fn stringHashDjb2(str: Arc<String>) -> Result<i32> {
     let mut hash: i32 = 5381;
     for &byte in str.as_bytes() {
         hash = hash.wrapping_mul(33).wrapping_add(byte as i32);
@@ -515,7 +515,7 @@ pub fn stringHashDjb2(str: String) -> Result<i32> {
 }
 
 /// Continues computing a DJB2 hash by adding another string to it.
-pub fn stringHashDjb2Continue(str: String, hash: i32) -> Result<i32> {
+pub fn stringHashDjb2Continue(str: Arc<String>, hash: i32) -> Result<i32> {
     let mut h = hash;
     for &byte in str.as_bytes() {
         h = h.wrapping_mul(33).wrapping_add(byte as i32);
@@ -524,7 +524,7 @@ pub fn stringHashDjb2Continue(str: String, hash: i32) -> Result<i32> {
 }
 
 /// Computes a DJB2 hash and applies modulo without intermediate overflow issues.
-pub fn stringHashDjb2Mod(str: String, mod_val: i32) -> Result<i32> {
+pub fn stringHashDjb2Mod(str: Arc<String>, mod_val: i32) -> Result<i32> {
     if mod_val == 0 {
         return Ok(0);
     }
@@ -537,7 +537,7 @@ pub fn stringHashDjb2Mod(str: String, mod_val: i32) -> Result<i32> {
 
 /// Returns an SDBM hash of the string.
 /// SDBM algorithm: hash = byte + (hash << 6) + (hash << 16) - hash
-pub fn stringHashSdbm(str: String) -> Result<i32> {
+pub fn stringHashSdbm(str: Arc<String>) -> Result<i32> {
     let mut hash: i32 = 0;
     for &byte in str.as_bytes() {
         hash = byte as i32 + (hash << 6) + (hash << 16) - hash;
@@ -562,12 +562,12 @@ pub fn substring(str: Arc<String>, start: i32, stop: i32) -> Result<Arc<String>>
 }
 
 /// Alias for string_append_list (maps a list of single-char strings to one string).
-pub fn listStringCharString(strs: &List<Arc<String>>) -> Result<Arc<String>> {
+pub fn listStringCharString(strs: List<Arc<String>>) -> Result<Arc<String>> {
     stringAppendList(strs)
 }
 
 /// Alias for string_append_list (maps a list of single-char strings to one string).
-pub fn stringCharListString(strs: &List<Arc<String>>) -> Result<Arc<String>> {
+pub fn stringCharListString(strs: List<Arc<String>>) -> Result<Arc<String>> {
     stringAppendList(strs)
 }
 
@@ -1458,13 +1458,13 @@ mod tests {
         #[test]
         fn test_string_append_list() {
             let strs = list![Arc::new("hello".to_string()), Arc::new(" ".to_string()), Arc::new("world".to_string())];
-            assert_eq!(&*stringAppendList(&strs).unwrap(), "hello world");
+            assert_eq!(&*stringAppendList(strs).unwrap(), "hello world");
         }
 
         #[test]
         fn test_string_delimit_list() {
             let strs = list![Arc::new("x".to_string()), Arc::new("y".to_string()), Arc::new("z".to_string())];
-            assert_eq!(&*stringDelimitList(&strs, Arc::new(", ".to_string())).unwrap(), "x, y, z");
+            assert_eq!(&*stringDelimitList(strs, Arc::new(", ".to_string())).unwrap(), "x, y, z");
         }
     }
 
@@ -1532,22 +1532,22 @@ mod tests {
 
         #[test]
         fn test_string_append() {
-            assert_eq!(&*stringAppend("hello".to_string(), " world".to_string()).unwrap(), "hello world");
-            assert_eq!(&*stringAppend("".to_string(), "hello".to_string()).unwrap(), "hello");
-            assert_eq!(&*stringAppend("hello".to_string(), "".to_string()).unwrap(), "hello");
+            assert_eq!(&*stringAppend(Arc::new("hello".to_string()), Arc::new(" world".to_string())).unwrap(), "hello world");
+            assert_eq!(&*stringAppend(Arc::new("".to_string()), Arc::new("hello".to_string())).unwrap(), "hello");
+            assert_eq!(&*stringAppend(Arc::new("hello".to_string()), Arc::new("".to_string())).unwrap(), "hello");
         }
 
         #[test]
         fn test_string_eq() {
-            assert!(stringEq("abc".to_string(), "abc".to_string()).unwrap());
-            assert!(!stringEq("abc".to_string(), "abd".to_string()).unwrap());
-            assert!(!stringEq("".to_string(), "abc".to_string()).unwrap());
+            assert!(stringEq(Arc::new("abc".to_string()), Arc::new("abc".to_string())).unwrap());
+            assert!(!stringEq(Arc::new("abc".to_string()), Arc::new("abd".to_string())).unwrap());
+            assert!(!stringEq(Arc::new("".to_string()), Arc::new("abc".to_string())).unwrap());
         }
 
         #[test]
         fn test_string_equal() {
-            assert!(stringEqual("abc".to_string(), "abc".to_string()).unwrap());
-            assert!(!stringEqual("abc".to_string(), "abd".to_string()).unwrap());
+            assert!(stringEqual(Arc::new("abc".to_string()), Arc::new("abc".to_string())).unwrap());
+            assert!(!stringEqual(Arc::new("abc".to_string()), Arc::new("abd".to_string())).unwrap());
         }
     }
 
@@ -1560,11 +1560,11 @@ mod tests {
 
         #[test]
         fn test_string_compare() {
-            assert!(stringCompare("abc".to_string(), "abd".to_string()).unwrap() < 0);
-            assert_eq!(stringCompare("abc".to_string(), "abc".to_string()).unwrap(), 0);
-            assert!(stringCompare("abd".to_string(), "abc".to_string()).unwrap() > 0);
-            assert!(stringCompare("ab".to_string(), "abc".to_string()).unwrap() < 0);
-            assert!(stringCompare("abc".to_string(), "ab".to_string()).unwrap() > 0);
+            assert!(stringCompare(Arc::new("abc".to_string()), Arc::new("abd".to_string())).unwrap() < 0);
+            assert_eq!(stringCompare(Arc::new("abc".to_string()), Arc::new("abc".to_string())).unwrap(), 0);
+            assert!(stringCompare(Arc::new("abd".to_string()), Arc::new("abc".to_string())).unwrap() > 0);
+            assert!(stringCompare(Arc::new("ab".to_string()), Arc::new("abc".to_string())).unwrap() < 0);
+            assert!(stringCompare(Arc::new("abc".to_string()), Arc::new("ab".to_string())).unwrap() > 0);
         }
     }
 
@@ -1578,38 +1578,38 @@ mod tests {
         #[test]
         fn test_string_hash_djb2() {
             // DJB2 of "a" = 5381 * 33 + 97 = 177700 + 97 = 177797
-            assert_eq!(stringHashDjb2("a".to_string()).unwrap(), 5381_i32.wrapping_mul(33).wrapping_add(97));
-            assert_eq!(stringHashDjb2("".to_string()).unwrap(), 5381);
+            assert_eq!(stringHashDjb2(Arc::new("a".to_string())).unwrap(), 5381_i32.wrapping_mul(33).wrapping_add(97));
+            assert_eq!(stringHashDjb2(Arc::new("".to_string())).unwrap(), 5381);
         }
 
         #[test]
         fn test_string_hash_djb2_continue() {
-            let h1 = stringHashDjb2("hello".to_string()).unwrap();
-            let _h2 = stringHashDjb2(" world".to_string()).unwrap();
-            let combined = stringHashDjb2Continue(" world".to_string(), h1).unwrap();
+            let h1 = stringHashDjb2(Arc::new("hello".to_string())).unwrap();
+            let _h2 = stringHashDjb2(Arc::new(" world".to_string())).unwrap();
+            let combined = stringHashDjb2Continue(Arc::new(" world".to_string()), h1).unwrap();
             // Starting from h1 and adding " world" should give the same
             // as hashing "hello world" from scratch
-            assert_eq!(combined, stringHashDjb2("hello world".to_string()).unwrap());
+            assert_eq!(combined, stringHashDjb2(Arc::new("hello world".to_string())).unwrap());
         }
 
         #[test]
         fn test_string_hash_djb2_mod() {
-            let h = stringHashDjb2Mod("hello".to_string(), 100).unwrap();
+            let h = stringHashDjb2Mod(Arc::new("hello".to_string()), 100).unwrap();
             assert!(h >= 0 && h < 100);
-            assert_eq!(stringHashDjb2Mod("hello".to_string(), 0).unwrap(), 0);
+            assert_eq!(stringHashDjb2Mod(Arc::new("hello".to_string()), 0).unwrap(), 0);
         }
 
         #[test]
         fn test_string_hash_sdbm() {
             // SDBM of "a" = 97 + 0 + 0 - 0 = 97
-            assert_eq!(stringHashSdbm("a".to_string()).unwrap(), 97);
-            assert_eq!(stringHashSdbm("".to_string()).unwrap(), 0);
+            assert_eq!(stringHashSdbm(Arc::new("a".to_string())).unwrap(), 97);
+            assert_eq!(stringHashSdbm(Arc::new("".to_string())).unwrap(), 0);
         }
 
         #[test]
         fn test_string_hash_consistency() {
             // Same string should produce same hash
-            assert_eq!(stringHash("test".to_string()).unwrap(), stringHash("test".to_string()).unwrap());
+            assert_eq!(stringHash(Arc::new("test".to_string())).unwrap(), stringHash(Arc::new("test".to_string())).unwrap());
         }
     }
 
@@ -1647,13 +1647,13 @@ mod tests {
         #[test]
         fn test_list_string_char_string() {
             let strs = list![Arc::new("a".to_string()), Arc::new("b".to_string()), Arc::new("c".to_string())];
-            assert_eq!(&*listStringCharString(&strs).unwrap(), "abc");
+            assert_eq!(&*listStringCharString(strs).unwrap(), "abc");
         }
 
         #[test]
         fn test_string_char_list_string() {
             let strs = list![Arc::new("a".to_string()), Arc::new("b".to_string()), Arc::new("c".to_string())];
-            assert_eq!(&*stringCharListString(&strs).unwrap(), "abc");
+            assert_eq!(&*stringCharListString(strs).unwrap(), "abc");
         }
     }
 

@@ -2397,7 +2397,11 @@ fn emit_stmt<'a>(
         }
         S::For { var, range, body } => {
             let r = emit_exp(range, false, ctx, top_level);
-            writeln!(out, "{indent}for {} in {r} {{", escape_ident(var)).unwrap();
+            let need_ref = match range.ty() {
+                Ty::List(..) => "&",
+                _ => ""
+            };
+            writeln!(out, "{indent}for {} in {need_ref}{r} {{", escape_ident(var)).unwrap();
             // Element type: peel List/Array.
             let elem_ty = match range.ty() { Ty::List(t) | Ty::Array(t) => *t, _ => Ty::Unknown };
             let mut inner = env.clone();

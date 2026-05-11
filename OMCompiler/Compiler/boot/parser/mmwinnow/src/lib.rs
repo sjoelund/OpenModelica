@@ -2254,7 +2254,7 @@ fn function_arguments(input: &mut TokenInput) -> ModalResult<Absyn::FunctionArgs
     let fa = for_or_expression_list(input)?;
     match fa {
         Absyn::FunctionArgs::FOR_ITER_FARG { .. } => Ok(fa),
-        Absyn::FunctionArgs::FUNCTIONARGS { args, argNames: _ } => {
+        Absyn::FunctionArgs::FUNCTIONARGS { args, argNames } => { if !matches!(argNames, List::Nil) { return Ok(Absyn::FunctionArgs::FUNCTIONARGS { args, argNames }); }
             let argNames = opt(named_arguments).parse_next(input)?.unwrap_or(List::Nil);
             Ok(Absyn::FunctionArgs::FUNCTIONARGS { args, argNames })
         }

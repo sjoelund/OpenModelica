@@ -1158,7 +1158,41 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                         }
                         parts
                     };
-                    let call = format!("{func_str}({})", parts.join(", "));
+
+                    let is_ctor = is_constructor_name(func);
+                    let mut call = format!("{func_str}({})", parts.join(", "));
+                    if is_ctor {
+                        let field_tys = if func.contains('.') {
+                            record_field_tys(func, top_level)
+                        } else {
+                            Some(record_field_tys_by_simple_name(func, top_level))
+                        }.unwrap_or_default();
+
+                        if !field_tys.is_empty() {
+                            let mut struct_parts = Vec::new();
+                            let mut unhandled_parts = parts.iter();
+                            for (i, (fname, _)) in field_tys.iter().enumerate() {
+                                if i < args.len() {
+                                    if let Some(p) = unhandled_parts.next() {
+                                        struct_parts.push(format!("{}: {}", escape_ident(fname), p));
+                                    }
+                                }
+                            }
+                            // named_args were pushed as "n=v" strings... let's reconstruct them
+                            for (n, _) in named_args {
+                                if let Some(p) = unhandled_parts.next() {
+                                    let kv = p.splitn(2, '=').collect::<Vec<_>>();
+                                    if kv.len() == 2 {
+                                        struct_parts.push(format!("{}: {}", escape_ident(kv[0]), kv[1]));
+                                    } else {
+                                        struct_parts.push(format!("{}: {}", escape_ident(n), p));
+                                    }
+                                }
+                            }
+                            call = format!("{func_str} {{ {} }}", struct_parts.join(", "));
+                        }
+                    }
+
                     // Add `?` to propagate Result errors from fallible calls. Skip in const
                     // context, for constructors (uppercase first char), and for known-infallible
                     // note that infallible builtins still return a Result because they can be used as function pointers.
@@ -1842,7 +1876,7 @@ fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, sc
         }
 
         TypedPat::As { var, pat } => {
-            format!("{} @ {}", escape_ident(var), emit_pat(pat, ctx, top_level))
+            format!("{} @ {}", escape_ident(var), emit_pat_with_implicit_bind(pat, false, None, ctx, top_level))
         }
 
         TypedPat::Index { base, index } => {

@@ -842,7 +842,11 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
             let typed = typedexp::infer_exp(exp, &infer_env, top_level, &pkg_prefix);
             emit_exp(&typed, false, ctx, top_level)
         });
-        let init = init_raw.filter(|s| s != &escape_ident(n));
+        let init = if input_names.contains(n) {
+            Some(escape_ident(n))
+        } else {
+            init_raw.filter(|s| s != &escape_ident(n))
+        };
         match (is_const_local, init) {
             (true, Some(s)) => writeln!(out, "{body_indent}let {}: {ty_s} = {s};", escape_ident(n)).unwrap(),
             (true, None) => writeln!(out, "{body_indent}let mut {}: {ty_s};", escape_ident(n)).unwrap(),

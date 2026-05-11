@@ -146,11 +146,11 @@ pub fn cref_to_dotted(cref: &Absyn::ComponentRef) -> String {
         Absyn::ComponentRef::WILD | Absyn::ComponentRef::ALLWILD => "_".to_owned(),
     };
     match raw.as_str() {
-        "MetaModelica.Dangerous.stringGetNoBoundsChecking" | "Dangerous.stringGetNoBoundsChecking" => "stringGet".to_owned(),
+        "MetaModelica.Dangerous.stringGetNoBoundsChecking" | "Dangerous.stringGetNoBoundsChecking" | "stringGetNoBoundsChecking" => "stringGet".to_owned(),
         "MetaModelica.Dangerous.arrayGetNoBoundsChecking" | "Dangerous.arrayGetNoBoundsChecking" | "arrayGetNoBoundsChecking" => "arrayGet".to_owned(),
-        "MetaModelica.Dangerous.arrayUpdateNoBoundsChecking" | "Dangerous.arrayUpdateNoBoundsChecking" => "arrayUpdate".to_owned(),
-        "MetaModelica.Dangerous.arrayCreateNoInit" | "Dangerous.arrayCreateNoInit" => "arrayCreate".to_owned(),
-        "MetaModelica.Dangerous.listArrayLiteral" | "Dangerous.listArrayLiteral" => "listArray".to_owned(),
+        "MetaModelica.Dangerous.arrayUpdateNoBoundsChecking" | "Dangerous.arrayUpdateNoBoundsChecking" | "arrayUpdateNoBoundsChecking" => "arrayUpdate".to_owned(),
+        "MetaModelica.Dangerous.arrayCreateNoInit" | "Dangerous.arrayCreateNoInit" | "arrayCreateNoInit" => "arrayCreate".to_owned(),
+        "MetaModelica.Dangerous.listArrayLiteral" | "Dangerous.listArrayLiteral" | "listArrayLiteral" => "listArray".to_owned(),
         _ => raw,
     }
 }

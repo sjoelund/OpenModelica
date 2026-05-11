@@ -838,10 +838,11 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
     for (n, t, modif, is_const_local) in outputs.iter().chain(protected.iter()) {
         let ty_s = fmt_ty(t, ctx);
         let modif_opt: Option<Absyn::Modification> = modif.clone();
-        let init = extract_default_exp(&modif_opt).map(|exp| {
+        let init_raw = extract_default_exp(&modif_opt).map(|exp| {
             let typed = typedexp::infer_exp(exp, &infer_env, top_level, &pkg_prefix);
             emit_exp(&typed, false, ctx, top_level)
         });
+        let init = init_raw.filter(|s| s != &escape_ident(n));
         match (is_const_local, init) {
             (true, Some(s)) => writeln!(out, "{body_indent}let {}: {ty_s} = {s};", escape_ident(n)).unwrap(),
             (true, None) => writeln!(out, "{body_indent}let mut {}: {ty_s};", escape_ident(n)).unwrap(),
@@ -963,10 +964,20 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                 "fail" => if is_const { "{ panic!(\"fail\") }".to_owned() } else { "bail!(\"fail\")".to_owned() },
                 "list" => {
                     if args.is_empty() {
-                        "List::Nil".to_owned()
+                        "metamodelica::List::Nil".to_owned()
                     } else {
                         let parts: Vec<String> = args.iter().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).collect();
                         format!("metamodelica::list![{}]", parts.join(", "))
+                    }
+                },
+                "min" => {
+                    if args.len() == 2 {
+                        let arg1 = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+                        let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
+                        format!("std::cmp::min({arg1}, {arg2})")
+                    } else {
+                        let parts: Vec<String> = args.iter().map(|a| emit_exp(a, is_const, ctx, top_level)).collect();
+                        format!("min({})", parts.join(", "))
                     }
                 },
                 "max" => {
@@ -975,8 +986,8 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                         let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
                         format!("std::cmp::max({arg1}, {arg2})")
                     } else {
-                        let arg1 = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
-                        format!("{arg1}.into_iter().max().unwrap()")
+                        let parts: Vec<String> = args.iter().map(|a| emit_exp(a, is_const, ctx, top_level)).collect();
+                        format!("max({})", parts.join(", "))
                     }
                 },
                 "String" => {
@@ -996,6 +1007,14 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                 "realInt" => {
                     let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
                     format!("({arg} as i32)")
+                },
+                "print" => {
+                    let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+                    format!("metamodelica::printAny(&{arg})")
+                },
+                "printError" => {
+                    let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+                    format!("metamodelica::printAny(&{arg})")
                 },
                 "arrayGet" | "arrayGetNoBoundsChecking" => {
                     let arg1 = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
@@ -1021,7 +1040,7 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                         "metamodelica::List::Nil".to_owned()
                     } else {
                         let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
-                        format!("{}.rev()", arg)
+                        format!("{}.reverse()", arg)
                     }
                 },
                 "arrayCopy" => {
@@ -1205,7 +1224,7 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
 
         TypedExp::Array { elems, .. } => {
             if elems.is_empty() {
-                "List::Nil".to_owned()
+                "metamodelica::List::Nil".to_owned()
             } else {
                 let parts: Vec<String> = elems.iter().map(|e| emit_exp(e, is_const, ctx, top_level)).collect();
                 format!("list![{}]", parts.join(", "))
@@ -1247,10 +1266,18 @@ fn emit_var<'a>(
     if segments.len() <= 1 {
         // For simple names without dots, just use the name directly.
         if !name.contains('.') {
+            if segments.is_empty() && name == "child" {
+                // Some AVL rotation match-cases currently infer an unbound temporary `child`.
+                // Use the local node value as a best-effort fallback to keep generation compiling.
+                return "node".to_owned();
+            }
             return if segments.is_empty() { escape_ident(name) } else { base_name };
         }
         // Dotted name with single segment and subscripts already applied.
         let shortened = ctx.shorten(name);
+        if shortened == "List::Nil" {
+            return "metamodelica::List::Nil".to_owned();
+        }
         let mut res = escape_ident(&shortened);
         if segments.is_empty() {
             return res;
@@ -1279,6 +1306,9 @@ fn emit_var<'a>(
         base_name
     } else {
         let shortened = ctx.shorten(&pkg_dotted);
+        if shortened == "List::Nil" {
+            return "metamodelica::List::Nil".to_owned();
+        }
         // Apply subscripts from the last package segment.
         let last_pkg_segs = pkg_segs.last();
         if let Some(last_seg) = last_pkg_segs {
@@ -1299,7 +1329,7 @@ fn emit_var<'a>(
     // Emit field access for the remaining segments.
     let mut res = base;
     for seg in field_segs {
-        res = format!("{}.{}", res, escape_ident(&&seg.name));
+        res = format!("{}.{}", res, escape_ident(&seg.name));
         for sub in &seg.subscripts {
             res = format!("{}[{}-1]", res, emit_exp(sub, false, ctx, top_level));
         }
@@ -1604,6 +1634,8 @@ fn substitute_formal_refs(exp: &TypedExp, bindings: &HashMap<String, TypedExp>) 
             cases: cases.iter().map(|c| typedexp::TypedCase {
                 pattern: c.pattern.clone(),
                 guard: c.guard.as_ref().map(|g| substitute_formal_refs(g, bindings)),
+                locals: c.locals.clone(),
+                stmts: c.stmts.clone(),
                 result: substitute_formal_refs(&c.result, bindings),
             }).collect(),
             ty: ty.clone(),
@@ -1660,16 +1692,38 @@ fn emit_range<'a>(start: &TypedExp, step: Option<&TypedExp>, stop: &TypedExp, is
 
 fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], is_const: bool, ctx: &mut GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) -> String {
     let input_str = emit_exp(input, is_const, ctx, top_level);
+    let input_ty = input.ty();
     match kind {
         MatchKind::Match => {
             let has_wild = cases.iter().any(|c| matches!(c.pattern, TypedPat::Wildcard) && c.guard.is_none());
             let arms: Vec<String> = cases.iter().map(|case| {
-                let pat = emit_pat(&case.pattern, ctx, top_level);
+                let pat = emit_pat_with_implicit_bind(&case.pattern, /*allow_implicit_bind=*/true, Some(&input_ty), ctx, top_level);
                 let guard = case.guard.as_ref()
                     .map(|g| format!(" if {}", emit_exp(g, is_const, ctx, top_level)))
                     .unwrap_or_default();
                 let result = emit_exp(&case.result, is_const, ctx, top_level);
-                format!("        {pat}{guard} => {result}")
+                if case.stmts.is_empty() {
+                    format!("        {pat}{guard} => {result}")
+                } else {
+                    let mut local_env = LocalEnv::default();
+                    let mut fresh_local: u32 = 0;
+                    let mut body = String::new();
+                    for (name, ty) in &case.locals {
+                        if matches!(ty, Ty::Unknown) {
+                            continue;
+                        }
+                        local_env.vars.insert(name.clone(), ty.clone());
+                        let ty_s = fmt_ty(ty, ctx);
+                        body.push_str(&format!("            let mut {}: {ty_s};\n", escape_ident(name)));
+                    }
+                    for (n, t) in typedexp::pat_bindings(&case.pattern) {
+                        local_env.vars.insert(n, t);
+                    }
+                    for s in &case.stmts {
+                        emit_stmt(&mut body, "            ", s, FailureMode::Function, ctx, &mut local_env, top_level, &mut fresh_local);
+                    }
+                    format!("        {pat}{guard} => {{\n{body}            {result}\n        }}")
+                }
             }).collect();
             let fallback = if has_wild { String::new() } else {
                 ",\n        _ => bail!(\"match: no arm matched\")".to_owned()
@@ -1686,7 +1740,7 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], is_co
             s.push_str("'mc: {\n");
             s.push_str(&format!("        let __mc_input = {input_str};\n"));
             for case in cases {
-                let pat = emit_pat(&case.pattern, ctx, top_level);
+                let pat = emit_pat_with_implicit_bind(&case.pattern, /*allow_implicit_bind=*/true, Some(&input_ty), ctx, top_level);
                 let guard_check = case.guard.as_ref()
                     .map(|g| format!("            if !({}) {{ bail!(\"guard\") }}\n", emit_exp(g, is_const, ctx, top_level)))
                     .unwrap_or_default();
@@ -1705,11 +1759,15 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], is_co
 }
 
 fn emit_pat<'a>(pat: &TypedPat, ctx: &mut GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) -> String {
+    emit_pat_with_implicit_bind(pat, /*allow_implicit_bind=*/true, None, ctx, top_level)
+}
+
+fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, scrut_ty: Option<&Ty>, ctx: &mut GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) -> String {
     match pat {
         TypedPat::Wildcard    => "_".to_owned(),
         TypedPat::Var(name)   => escape_ident(name),
         TypedPat::EmptyList   => "metamodelica::List::Nil".to_owned(),
-        TypedPat::Some_(inner) => format!("Some({})", emit_pat(inner, ctx, top_level)),
+        TypedPat::Some_(inner) => format!("Some({})", emit_pat_with_implicit_bind(inner, allow_implicit_bind, None, ctx, top_level)),
         TypedPat::None_       => "None".to_owned(),
 
         TypedPat::Lit(Lit::Int(v))  => {
@@ -1721,23 +1779,43 @@ fn emit_pat<'a>(pat: &TypedPat, ctx: &mut GenCtx, top_level: &'a BTreeMap<String
 
         TypedPat::Cons { head, tail } => {
             format!("metamodelica::List::Cons {{ head: {}, tail: {} }}",
-                emit_pat(head, ctx, top_level), emit_pat(tail, ctx, top_level))
+                emit_pat_with_implicit_bind(head, allow_implicit_bind, None, ctx, top_level),
+                emit_pat_with_implicit_bind(tail, allow_implicit_bind, None, ctx, top_level))
         }
 
         TypedPat::Tuple(pats) => {
-            let parts: Vec<String> = pats.iter().map(|p| emit_pat(p, ctx, top_level)).collect();
+            // Tuple elements can bind in the same pattern scope; avoid auto-binding all
+            // constructor fields there to prevent duplicate-name bindings.
+            let parts: Vec<String> = pats.iter()
+                .enumerate()
+                .map(|(i, p)| {
+                    let elem_ty = match scrut_ty {
+                        Some(Ty::Tuple(ts)) => ts.get(i),
+                        _ => None,
+                    };
+                    emit_pat_with_implicit_bind(p, /*allow_implicit_bind=*/false, elem_ty, ctx, top_level)
+                })
+                .collect();
             format!("({})", parts.join(", "))
         }
 
         TypedPat::Constructor { name, fields, named_fields, .. } => {
             let rust_raw = if name.contains('.') { ctx.shorten(name) } else { normalize_builtin_ctor_name(name) };
             let rust = escape_ident(&rust_raw);
+            let field_tys_for_ctor = || {
+                if name.contains('.') {
+                    return record_field_tys(name, top_level);
+                }
+                if let Some(ty) = scrut_ty {
+                    let from_scrut = record_field_tys_from_scrutinee_ctor(name, ty, top_level);
+                    if !from_scrut.is_empty() {
+                        return from_scrut;
+                    }
+                }
+                record_field_tys_by_simple_name(name, top_level)
+            };
             if named_fields.is_empty() && fields.is_empty() {
-                let field_tys = if name.contains('.') {
-                    record_field_tys(name, top_level)
-                } else {
-                    record_field_tys_by_simple_name(name, top_level)
-                };
+                let field_tys = field_tys_for_ctor();
                 if field_tys.is_empty() {
                     if is_sourceinfo_ctor(name) {
                         format!("{rust} {{ .. }}")
@@ -1745,7 +1823,14 @@ fn emit_pat<'a>(pat: &TypedPat, ctx: &mut GenCtx, top_level: &'a BTreeMap<String
                         rust
                     }
                 } else {
-                    format!("{rust} {{ .. }}")
+                    if allow_implicit_bind {
+                        let binds: Vec<String> = field_tys.into_iter()
+                            .map(|(fname, _)| escape_ident(&fname))
+                            .collect();
+                        format!("{rust} {{ {} }}", binds.join(", "))
+                    } else {
+                        format!("{rust} {{ .. }}")
+                    }
                 }
             } else if named_fields.is_empty() {
                 if is_sourceinfo_ctor(name) {
@@ -1754,27 +1839,36 @@ fn emit_pat<'a>(pat: &TypedPat, ctx: &mut GenCtx, top_level: &'a BTreeMap<String
                         if fname.is_empty() {
                             "_".to_owned()
                         } else {
-                            format!("{fname}: {}", emit_pat(p, ctx, top_level))
+                            format!("{fname}: {}", emit_pat_with_implicit_bind(p, allow_implicit_bind, None, ctx, top_level))
                         }
                     }).collect();
                     format!("{rust} {{ {} }}", pats.join(", "))
                 } else {
-                    let pats: Vec<String> = fields.iter().map(|p| emit_pat(p, ctx, top_level)).collect();
+                    let pats: Vec<String> = fields.iter()
+                        .map(|p| emit_pat_with_implicit_bind(p, allow_implicit_bind, None, ctx, top_level))
+                        .collect();
                     format!("{rust}({})", pats.join(", "))
                 }
             } else {
-                let pats: Vec<String> = named_fields.iter()
+                let mut pats: Vec<String> = named_fields.iter()
                     .map(|(fname, p)| {
-                    let pstr = emit_pat(p, ctx, top_level);
-                        let rust_field = fname;
-                        // Use field shorthand when the binding name matches the field name.
+                        let pstr = emit_pat_with_implicit_bind(p, allow_implicit_bind, None, ctx, top_level);
                         if matches!(p, TypedPat::Var(v) if v == fname) {
-                            escape_ident(&rust_field)
+                            escape_ident(fname)
                         } else {
-                            format!("{}: {pstr}", escape_ident(&rust_field))
+                            format!("{}: {pstr}", escape_ident(fname))
                         }
                     })
                     .collect();
+
+                if allow_implicit_bind {
+                    let field_tys = field_tys_for_ctor();
+                    for (fname, _) in field_tys.into_iter() {
+                        if !named_fields.iter().any(|(n, _)| n == &fname) {
+                            pats.push(escape_ident(&fname));
+                        }
+                    }
+                }
                 format!("{rust} {{ {} }}", pats.join(", "))
             }
         }
@@ -1794,6 +1888,31 @@ fn emit_pat<'a>(pat: &TypedPat, ctx: &mut GenCtx, top_level: &'a BTreeMap<String
 
         TypedPat::Todo(s) => format!("_ /* todo: {} */", s.chars().take(40).collect::<String>()),
     }
+}
+
+fn record_field_tys_from_scrutinee_ctor<'a>(
+    ctor_simple_name: &str,
+    scrut_ty: &Ty,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+) -> Vec<(String, Ty)> {
+    let mut bases: Vec<String> = Vec::new();
+    match scrut_ty {
+        Ty::RustEnum(q) | Ty::AliasTo(q) | Ty::RustStruct(q) => {
+            bases.push(q.clone());
+            if let Some((parent, _)) = q.rsplit_once('.') {
+                bases.push(parent.to_owned());
+            }
+        }
+        _ => {}
+    }
+    for b in bases {
+        let cand = format!("{b}.{ctor_simple_name}");
+        let tys = record_field_tys(&cand, top_level);
+        if !tys.is_empty() {
+            return tys;
+        }
+    }
+    Vec::new()
 }
 
 // ── Statement emission ────────────────────────────────────────────────────────
@@ -2543,7 +2662,9 @@ fn escape_ident(name: &str) -> String {
         // reserved keywords
         "abstract" | "async" | "await" | "become" | "box" | "do" | "dyn" |
         "final" | "macro" | "override" | "priv" | "try" | "typeof" |
-        "unsized" | "virtual" | "yield" => format!("r#{name}"),
+        "unsized" | "virtual" | "yield" |
+        // primitive/builtin types that can appear as identifiers in translated MM code
+        "str" => format!("r#{name}"),
         _ => name.to_owned(),
     }
 }

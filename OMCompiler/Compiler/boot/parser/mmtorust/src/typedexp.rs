@@ -94,7 +94,7 @@ impl TypedExp {
             TypedExp::Cons   { ty, .. }  => ty.clone(),
             TypedExp::Array  { ty, .. }  => ty.clone(),
             TypedExp::Match  { ty, .. }  => ty.clone(),
-            TypedExp::Range  { elem_ty, .. } => Ty::List(Box::new(elem_ty.clone())),
+            TypedExp::Range  { elem_ty, .. } => Ty::Array(Box::new(elem_ty.clone())),
             TypedExp::Tuple(v) => Ty::Tuple(v.iter().map(|e| e.ty()).collect()),
             TypedExp::Todo(_)  => Ty::Unknown,
         }

@@ -1074,7 +1074,7 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                     let a5 = args.get(5).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_else(|| "0".to_owned());
                     let a6 = args.get(6).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_else(|| "0.0".to_owned());
                     format!(
-                        "SourceInfo {{ file_name: {a0}, is_read_only: {a1}, line_number_start: {a2}, column_number_start: {a3}, line_number_end: {a4}, column_number_end: {a5}, last_modification: {a6} }}"
+                        "SourceInfo {{ fileName: {a0}, isReadOnly: {a1}, lineNumberStart: {a2}, columnNumberStart: {a3}, lineNumberEnd: {a4}, columnNumberEnd: {a5}, lastModification: {a6} }}"
                     )
                 },
                 "listArray" | "MetaModelica.Dangerous.listArrayLiteral" | "arrayList" | "stringAppendList" => {

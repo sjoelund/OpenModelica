@@ -29,19 +29,19 @@ use anyhow::bail;
 #[derive(Debug, Clone, PartialEq)]
 pub struct SourceInfo {
     /// File name where the class is defined in.
-    pub file_name: Arc<String>,
+    pub fileName: Arc<String>,
     /// Should be true for libraries.
-    pub is_read_only: bool,
+    pub isReadOnly: bool,
     /// Start line number (1-based).
-    pub line_number_start: i32,
+    pub lineNumberStart: i32,
     /// Start column number (1-based).
-    pub column_number_start: i32,
+    pub columnNumberStart: i32,
     /// End line number (1-based).
-    pub line_number_end: i32,
+    pub lineNumberEnd: i32,
     /// End column number (1-based).
-    pub column_number_end: i32,
+    pub columnNumberEnd: i32,
     /// mtime in stat(2), stored as a double for increased precision on 32-bit platforms.
-    pub last_modification: f64,
+    pub lastModification: f64,
 }
 
 // ============================================================================
@@ -1980,17 +1980,17 @@ mod tests {
         #[test]
         fn test_source_info() {
             let info = SourceInfo {
-                file_name: Arc::new("test.mo".to_string()),
-                is_read_only: true,
-                line_number_start: 1,
-                column_number_start: 1,
-                line_number_end: 10,
-                column_number_end: 50,
-                last_modification: 1234567890.0,
+                fileName: Arc::new("test.mo".to_string()),
+                isReadOnly: true,
+                lineNumberStart: 1,
+                columnNumberStart: 1,
+                lineNumberEnd: 10,
+                columnNumberEnd: 50,
+                lastModification: 1234567890.0,
             };
-            assert_eq!(*info.file_name, "test.mo");
-            assert!(info.is_read_only);
-            assert_eq!(info.line_number_start, 1);
+            assert_eq!(*info.fileName, "test.mo");
+            assert!(info.isReadOnly);
+            assert_eq!(info.lineNumberStart, 1);
         }
     }
 

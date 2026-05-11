@@ -1718,7 +1718,7 @@ pub fn detect_recursive_types(hier: &mut InstanceHierarchy<'_>) {
 impl fmt::Display for InstanceHierarchy<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut names: Vec<_> = self.top_level.iter()
-            .filter(|(_, node)| !matches!(&node.kind, NodeKind::Class(c) if c.info.file_name.ends_with("NFModelicaBuiltin.mo")))
+            .filter(|(_, node)| !matches!(&node.kind, NodeKind::Class(c) if c.info.fileName.ends_with("NFModelicaBuiltin.mo")))
             .collect();
         names.sort_by_key(|(n, _)| n.as_str());
         writeln!(f, "Hierarchy ({} top-level classes):", names.len())?;

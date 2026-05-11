@@ -877,10 +877,11 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
         TypedExp::Lit(Lit::Int(v))  => v.to_string(),
         TypedExp::Lit(Lit::Real(v)) => v.clone(),
         TypedExp::Lit(Lit::Str(v))  => {
+            let escaped = format!("{v:?}");
             if is_const {
-                format!("\"{v}\"")
+                escaped
             } else {
-                format!("Arc::new(\"{v}\".to_string())")
+                format!("Arc::new(({escaped}).to_string())")
             }
         }
         TypedExp::Lit(Lit::Bool(v)) => v.to_string(),
@@ -1001,6 +1002,11 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                     let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
                     format!("{}[({}-1) as usize].clone()", arg1, arg2)
                 },
+                "MetaModelica.Dangerous.arrayGetNoBoundsChecking" | "Dangerous.arrayGetNoBoundsChecking" => {
+                    let arg1 = args.first().map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
+                    let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
+                    format!("Dangerous::arrayGetNoBoundsChecking(&{}, {})", arg1, arg2)
+                },
                 "valueEq" => {
                     let arg1 = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
                     let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
@@ -1011,8 +1017,12 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                     format!("({}.len() as i32)", arg)
                 },
                 "listReverse" | "listReverseInPlace" => {
-                    let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
-                    format!("{}.rev()", arg)
+                    if args.is_empty() {
+                        "metamodelica::List::Nil".to_owned()
+                    } else {
+                        let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+                        format!("{}.rev()", arg)
+                    }
                 },
                 "arrayCopy" => {
                     let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
@@ -1024,9 +1034,48 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                     let arg3 = args.get(2).map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
                     format!("{{let mut _tmp = {}; _tmp[({}-1) as usize] = {}; _tmp}}", arg1, arg2, arg3)
                 },
+                "MetaModelica.Dangerous.arrayUpdateNoBoundsChecking" | "Dangerous.arrayUpdateNoBoundsChecking" => {
+                    let arg1 = args.get(0).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
+                    let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
+                    let arg3 = args.get(2).map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+                    format!("Dangerous::arrayUpdateNoBoundsChecking(&mut {}, {}, {})", arg1, arg2, arg3)
+                },
+                "MetaModelica.Dangerous.arrayCreateNoInit" | "Dangerous.arrayCreateNoInit" => {
+                    let arg1 = args.first().map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
+                    let arg2 = args.get(1).map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+                    format!("Dangerous::arrayCreateNoInit({}, {})", arg1, arg2)
+                },
+                _ if func.ends_with("Dangerous.arrayGetNoBoundsChecking") || func.ends_with("Dangerous::arrayGetNoBoundsChecking") => {
+                    let arg1 = args.first().map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
+                    let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
+                    format!("Dangerous::arrayGetNoBoundsChecking(&{}, {})", arg1, arg2)
+                },
+                _ if func.ends_with("Dangerous.arrayUpdateNoBoundsChecking") || func.ends_with("Dangerous::arrayUpdateNoBoundsChecking") => {
+                    let arg1 = args.get(0).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
+                    let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
+                    let arg3 = args.get(2).map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+                    format!("Dangerous::arrayUpdateNoBoundsChecking(&mut {}, {}, {})", arg1, arg2, arg3)
+                },
+                _ if func.ends_with("Dangerous.arrayCreateNoInit") || func.ends_with("Dangerous::arrayCreateNoInit") => {
+                    let arg1 = args.first().map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
+                    let arg2 = args.get(1).map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+                    format!("Dangerous::arrayCreateNoInit({}, {})", arg1, arg2)
+                },
                 "arrayEmpty" | "listEmpty" => {
                     let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
                     format!("{}.is_empty()", arg)
+                },
+                "SOURCEINFO" | "SourceInfo" => {
+                    let a0 = args.get(0).map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_else(|| "Arc::new(\"\".to_string())".to_owned());
+                    let a1 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_else(|| "false".to_owned());
+                    let a2 = args.get(2).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_else(|| "0".to_owned());
+                    let a3 = args.get(3).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_else(|| "0".to_owned());
+                    let a4 = args.get(4).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_else(|| "0".to_owned());
+                    let a5 = args.get(5).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_else(|| "0".to_owned());
+                    let a6 = args.get(6).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_else(|| "0.0".to_owned());
+                    format!(
+                        "SourceInfo {{ file_name: {a0}, is_read_only: {a1}, line_number_start: {a2}, column_number_start: {a3}, line_number_end: {a4}, column_number_end: {a5}, last_modification: {a6} }}"
+                    )
                 },
                 "listArray" | "MetaModelica.Dangerous.listArrayLiteral" | "arrayList" | "stringAppendList" => {
                     let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
@@ -1250,7 +1299,7 @@ fn emit_var<'a>(
     // Emit field access for the remaining segments.
     let mut res = base;
     for seg in field_segs {
-        res = format!("{}.{}", res, escape_ident(&seg.name));
+        res = format!("{}.{}", res, escape_ident(&&seg.name));
         for sub in &seg.subscripts {
             res = format!("{}[{}-1]", res, emit_exp(sub, false, ctx, top_level));
         }
@@ -1681,21 +1730,48 @@ fn emit_pat<'a>(pat: &TypedPat, ctx: &mut GenCtx, top_level: &'a BTreeMap<String
         }
 
         TypedPat::Constructor { name, fields, named_fields, .. } => {
-            let rust = if name.contains('.') { ctx.shorten(name) } else { escape_ident(name) };
+            let rust_raw = if name.contains('.') { ctx.shorten(name) } else { normalize_builtin_ctor_name(name) };
+            let rust = escape_ident(&rust_raw);
             if named_fields.is_empty() && fields.is_empty() {
-                rust
+                let field_tys = if name.contains('.') {
+                    record_field_tys(name, top_level)
+                } else {
+                    record_field_tys_by_simple_name(name, top_level)
+                };
+                if field_tys.is_empty() {
+                    if is_sourceinfo_ctor(name) {
+                        format!("{rust} {{ .. }}")
+                    } else {
+                        rust
+                    }
+                } else {
+                    format!("{rust} {{ .. }}")
+                }
             } else if named_fields.is_empty() {
-                let pats: Vec<String> = fields.iter().map(|p| emit_pat(p, ctx, top_level)).collect();
-                format!("{rust}({})", pats.join(", "))
+                if is_sourceinfo_ctor(name) {
+                    let pats: Vec<String> = fields.iter().enumerate().map(|(i, p)| {
+                        let fname = sourceinfo_field_name_by_index(i);
+                        if fname.is_empty() {
+                            "_".to_owned()
+                        } else {
+                            format!("{fname}: {}", emit_pat(p, ctx, top_level))
+                        }
+                    }).collect();
+                    format!("{rust} {{ {} }}", pats.join(", "))
+                } else {
+                    let pats: Vec<String> = fields.iter().map(|p| emit_pat(p, ctx, top_level)).collect();
+                    format!("{rust}({})", pats.join(", "))
+                }
             } else {
                 let pats: Vec<String> = named_fields.iter()
                     .map(|(fname, p)| {
                     let pstr = emit_pat(p, ctx, top_level);
+                        let rust_field = fname;
                         // Use field shorthand when the binding name matches the field name.
                         if matches!(p, TypedPat::Var(v) if v == fname) {
-                            escape_ident(fname)
+                            escape_ident(&rust_field)
                         } else {
-                            format!("{}: {pstr}", escape_ident(fname))
+                            format!("{}: {pstr}", escape_ident(&rust_field))
                         }
                     })
                     .collect();
@@ -1745,7 +1821,41 @@ fn is_constructor_name(func: &str) -> bool {
     last.chars().next().map(|c| c.is_uppercase()).unwrap_or(false)
 }
 
+fn normalize_builtin_ctor_name(name: &str) -> String {
+    match name {
+        "SOURCEINFO" => "SourceInfo".to_owned(),
+        _ => name.to_owned(),
+    }
+}
+
+fn is_sourceinfo_ctor(name: &str) -> bool {
+    matches!(name, "SOURCEINFO" | "SourceInfo")
+}
+
+fn sourceinfo_field_name_by_index(i: usize) -> &'static str {
+    match i {
+        0 => "file_name",
+        1 => "is_read_only",
+        2 => "line_number_start",
+        3 => "column_number_start",
+        4 => "line_number_end",
+        5 => "column_number_end",
+        6 => "last_modification",
+        _ => "",
+    }
+}
+
 fn is_infallible_builtin(func: &str) -> bool {
+    if func.ends_with("Dangerous.arrayGetNoBoundsChecking")
+        || func.ends_with("Dangerous.arrayUpdateNoBoundsChecking")
+        || func.ends_with("Dangerous.arrayCreateNoInit")
+        || func.ends_with("Dangerous::arrayGetNoBoundsChecking")
+        || func.ends_with("Dangerous::arrayUpdateNoBoundsChecking")
+        || func.ends_with("Dangerous::arrayCreateNoInit")
+    {
+        return true;
+    }
+
     matches!(func,
         "intAdd" | "intSub" | "intMul" | "intDiv" | "intMod" | "intAbs"
         | "intMax" | "intMin" | "intNeg" | "intBitAnd" | "intBitOr" | "intBitXor"
@@ -1762,6 +1872,12 @@ fn is_infallible_builtin(func: &str) -> bool {
         | "listLength" | "listEmpty" | "listMember" | "listAppend"
         | "listReverse" | "listHead" | "listFirst" | "listRest" | "listTail"
         | "arrayLength" | "arrayCreate" | "arrayGet" | "arrayUpdate" | "arrayCopy"
+        | "MetaModelica.Dangerous.arrayGetNoBoundsChecking"
+        | "MetaModelica.Dangerous.arrayUpdateNoBoundsChecking"
+        | "MetaModelica.Dangerous.arrayCreateNoInit"
+        | "Dangerous.arrayGetNoBoundsChecking"
+        | "Dangerous.arrayUpdateNoBoundsChecking"
+        | "Dangerous.arrayCreateNoInit"
         | "print" | "printError"
     )
 }
@@ -1780,12 +1896,12 @@ fn pat_is_irrefutable(pat: &TypedPat) -> bool {
 /// Convert a FieldAccess pattern chain to dotted expression syntax (e.g., `a.b.c`).
 fn field_access_to_dotted(base: &TypedPat, field: &str) -> String {
     match base {
-        TypedPat::Var(name) => format!("{}.{}", escape_ident(name), escape_ident(field)),
+        TypedPat::Var(name) => format!("{}.{}", escape_ident(name), escape_ident(&field)),
         TypedPat::FieldAccess { base: inner, field: f } => {
             let inner_str = field_access_to_dotted(inner, f);
-            format!("{}.{}", inner_str, escape_ident(field))
+            format!("{}.{}", inner_str, escape_ident(&field))
         },
-        _ => format!("/*?*/.{}", escape_ident(field)),
+        _ => format!("/*?*/.{}", escape_ident(&field)),
     }
 }
 
@@ -1806,6 +1922,43 @@ fn record_field_tys<'a>(
         let child = node.children.get(&cm.name)?;
         Some((cm.name.clone(), child.ty.clone()))
     }).collect()
+}
+
+/// Fallback lookup for constructor patterns written with bare names (e.g. `SEMVER`).
+/// Searches class nodes by simple name and returns declaration-order field types.
+fn record_field_tys_by_simple_name<'a>(
+    simple_name: &str,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+) -> Vec<(String, Ty)> {
+    fn walk<'a>(node: &'a NameNode<'a>, simple_name: &str) -> Option<Vec<(String, Ty)>> {
+        for (child_name, child) in &node.children {
+            if child_name == simple_name {
+                if let NodeKind::Class(c) = &child.kind {
+                    let members: &[MM::ClassMember] = match &c.body {
+                        MM::ClassDef::Parts { members, .. } | MM::ClassDef::ClassExtends { members, .. } => members,
+                        _ => &[],
+                    };
+                    let tys: Vec<(String, Ty)> = members.iter().filter_map(|m| {
+                        let MM::ClassMember::Component(cm) = m else { return None };
+                        let fnode = child.children.get(&cm.name)?;
+                        Some((cm.name.clone(), fnode.ty.clone()))
+                    }).collect();
+                    return Some(tys);
+                }
+            }
+            if let Some(found) = walk(child, simple_name) {
+                return Some(found);
+            }
+        }
+        None
+    }
+
+    for node in top_level.values() {
+        if let Some(found) = walk(node, simple_name) {
+            return found;
+        }
+    }
+    Vec::new()
 }
 
 /// Is this Ty stored behind an Arc due to recursion-cycle breaking?
@@ -1911,7 +2064,7 @@ fn render_shallow<'a>(
         }
         TypedPat::Constructor { name, fields, named_fields, .. } => {
             // Field types: look up the record by qname.
-            let resolved_qname = if name.contains('.') {
+            let mut resolved_qname = if name.contains('.') {
                 Some(name.clone())
             } else {
                 // Bare constructor: try current pkg prefix and ancestors.
@@ -1932,11 +2085,31 @@ fn render_shallow<'a>(
                 }
                 found
             };
+            if resolved_qname.is_none() && !name.contains('.') {
+                // Fallback: if matching against a known uniontype/enum value, variants are
+                // commonly looked up as `EnumName.VARIANT`.
+                let enum_qname = match scrut_ty {
+                    Ty::RustEnum(q) | Ty::AliasTo(q) => Some(q.clone()),
+                    _ => None,
+                };
+                if let Some(enum_qname) = enum_qname {
+                    let candidate = format!("{enum_qname}.{name}");
+                    if lookup_node(&candidate, top_level).is_some() {
+                        resolved_qname = Some(candidate);
+                    }
+                }
+            }
             let field_tys: Vec<(String, Ty)> = resolved_qname
                 .as_deref()
                 .map(|q| record_field_tys(q, top_level))
                 .unwrap_or_default();
-            let rust_ctor = if name.contains('.') { ctx.shorten(name) } else { escape_ident(name) };
+            let field_tys = if field_tys.is_empty() && !name.contains('.') {
+                record_field_tys_by_simple_name(name, top_level)
+            } else {
+                field_tys
+            };
+            let rust_ctor_raw = if name.contains('.') { ctx.shorten(name) } else { normalize_builtin_ctor_name(name) };
+            let rust_ctor = escape_ident(&rust_ctor_raw);
 
             // Helper: render one sub-pattern, splitting on Arc edge.
             let mut handle = |sub: &TypedPat, fty: &Ty,
@@ -1956,21 +2129,40 @@ fn render_shallow<'a>(
                 let parts: Vec<String> = named_fields.iter().map(|(fname, sp)| {
                     let fty = field_tys.iter().find(|(n, _)| n == fname).map(|(_, t)| t.clone()).unwrap_or(Ty::Unknown);
                     let s = handle(sp, &fty, ctx, env, fresh, deferrals);
+                    let rust_field = fname;
                     if matches!(sp, TypedPat::Var(v) if v == fname) {
-                        escape_ident(fname)
+                        escape_ident(&rust_field)
                     } else {
-                        format!("{}: {s}", escape_ident(fname))
+                        format!("{}: {s}", escape_ident(&rust_field))
                     }
                 }).collect();
                 format!("{rust_ctor} {{ {} }}", parts.join(", "))
             } else if !fields.is_empty() {
-                let parts: Vec<String> = fields.iter().enumerate().map(|(i, sp)| {
-                    let fty = field_tys.get(i).map(|(_, t)| t.clone()).unwrap_or(Ty::Unknown);
-                    handle(sp, &fty, ctx, env, fresh, deferrals)
-                }).collect();
-                format!("{rust_ctor}({})", parts.join(", "))
+                if is_sourceinfo_ctor(name) {
+                    let parts: Vec<String> = fields.iter().enumerate().map(|(i, sp)| {
+                        let fty = field_tys.get(i).map(|(_, t)| t.clone()).unwrap_or(Ty::Unknown);
+                        let s = handle(sp, &fty, ctx, env, fresh, deferrals);
+                        let fname = sourceinfo_field_name_by_index(i);
+                        if fname.is_empty() { "_".to_owned() } else { format!("{fname}: {s}") }
+                    }).collect();
+                    format!("{rust_ctor} {{ {} }}", parts.join(", "))
+                } else {
+                    let parts: Vec<String> = fields.iter().enumerate().map(|(i, sp)| {
+                        let fty = field_tys.get(i).map(|(_, t)| t.clone()).unwrap_or(Ty::Unknown);
+                        handle(sp, &fty, ctx, env, fresh, deferrals)
+                    }).collect();
+                    format!("{rust_ctor}({})", parts.join(", "))
+                }
             } else {
-                rust_ctor
+                if field_tys.is_empty() {
+                    if is_sourceinfo_ctor(name) {
+                        format!("{rust_ctor} {{ .. }}")
+                    } else {
+                        rust_ctor
+                    }
+                } else {
+                    format!("{rust_ctor} {{ .. }}")
+                }
             }
         }
         TypedPat::As { var, pat: inner } => {

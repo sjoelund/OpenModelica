@@ -154,10 +154,9 @@ fn extract_cref_segments<'a>(
     top_level: &'a BTreeMap<String, NameNode<'a>>,
     pkg_prefix: &str,
 ) -> (String, Vec<CrefSegment>) {
-    // Collect segments in reverse (tail-first) then reverse at the end.
+    // Collect segments in read-order (head -> tail).
     let mut segs: Vec<CrefSegment> = Vec::new();
     collect_cref_segments_rev(cref, env, top_level, pkg_prefix, &mut segs);
-    segs.reverse();
 
     let dotted: String = segs.iter().map(|s| s.name.clone()).collect::<Vec<_>>().join(".");
     (dotted, segs)
@@ -574,14 +573,10 @@ pub fn infer_pat<'a>(
                     if name == "_" {
                         TypedPat::Wildcard
                     } else if name.chars().next().map(|c| c.is_uppercase()).unwrap_or(false) {
-                        // Uppercase: look up in hierarchy to distinguish unit-variant from binding.
+                        // Uppercase identifiers in pattern position are constructors in
+                        // MetaModelica (variants/records), not variable binders.
                         let ty = lookup_ty_in_hierarchy(name, top_level);
-                        match &ty {
-                            Ty::RustUnitVariant | Ty::UnionTypeVariant(..) => {
-                                TypedPat::Constructor { name: name.clone(), fields: vec![], named_fields: vec![], ty }
-                            }
-                            _ => TypedPat::Var(name.clone()),
-                        }
+                        TypedPat::Constructor { name: name.clone(), fields: vec![], named_fields: vec![], ty }
                     } else {
                         TypedPat::Var(name.clone())
                     }
@@ -646,18 +641,22 @@ pub fn infer_pat<'a>(
                             TypedPat::Constructor { name: full_dotted, fields: vec![], named_fields: vec![], ty }
                         }
                     } else {
-                        // Before treating as constructor, check if the inner ref is a local
-                        // variable. If so, this is field access, not a constructor pattern.
-                        let inner_pat = infer_pat(&Absyn::Exp::CREF { componentRef: rest.clone() }, env, top_level, pkg_prefix);
-                        if is_local_base(&inner_pat, env) {
-                            // Chain: the inner pattern is a variable (possibly already nested
-                            // FieldAccess). Wrap it into a new FieldAccess for the outer field.
-                            TypedPat::FieldAccess {
-                                base: Box::new(inner_pat),
-                                field: name.clone(),
+                        // For non-subscripted qualified refs, preserve source order in local
+                        // field chains (e.g. `exarray.lastUsedIndex`), otherwise treat as
+                        // constructor path.
+                        let full_dotted = cref_to_dotted(componentRef);
+                        let mut parts = full_dotted.split('.');
+                        let first = parts.next().unwrap_or("");
+                        if !first.is_empty() && env.contains_key(first) {
+                            let mut pat = TypedPat::Var(first.to_owned());
+                            for field in parts {
+                                pat = TypedPat::FieldAccess {
+                                    base: Box::new(pat),
+                                    field: field.to_owned(),
+                                };
                             }
+                            pat
                         } else {
-                            let full_dotted = cref_to_dotted(componentRef);
                             let ty = lookup_ty_in_hierarchy(&full_dotted, top_level);
                             TypedPat::Constructor { name: full_dotted, fields: vec![], named_fields: vec![], ty }
                         }

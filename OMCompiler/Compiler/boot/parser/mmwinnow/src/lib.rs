@@ -179,13 +179,13 @@ struct ComponentClause {
 fn source_info(tok1: &Token, tok2: &Token) -> SourceInfo {
     let (end_line, end_col) = tok2.end_pos();
     SourceInfo {
-        file_name: CURRENT_FILE.with(|f| Arc::clone(&f.borrow())),
-        is_read_only: false,
-        line_number_start: tok1.line as i32,
-        column_number_start: tok1.col as i32,
-        line_number_end: end_line as i32,
-        column_number_end: end_col as i32,
-        last_modification: 0.0,
+        fileName: CURRENT_FILE.with(|f| Arc::clone(&f.borrow())),
+        isReadOnly: false,
+        lineNumberStart: tok1.line as i32,
+        columnNumberStart: tok1.col as i32,
+        lineNumberEnd: end_line as i32,
+        columnNumberEnd: end_col as i32,
+        lastModification: 0.0,
     }
 }
 

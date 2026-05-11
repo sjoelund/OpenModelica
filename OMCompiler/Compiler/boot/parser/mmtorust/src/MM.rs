@@ -20,15 +20,15 @@ pub enum Error {
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Error::EquationsNotAllowed { info } => write!(f, "{}:{}: equations are not allowed in MetaModelica", info.file_name, info.line_number_start),
-            Error::ArrayDimNotAllowed { info } => write!(f, "{}:{}: array dimensions are not allowed in MetaModelica", info.file_name, info.line_number_start),
-            Error::InitialAlgorithmsNotAllowed { info } => write!(f, "{}:{}: initial algorithm sections are not allowed in MetaModelica", info.file_name, info.line_number_start),
-            Error::PderNotAllowed { info } => write!(f, "{}:{}: partial derivative (pder) is not allowed in MetaModelica", info.file_name, info.line_number_start),
-            Error::OverloadNotAllowed { info } => write!(f, "{}:{}: overload is not allowed in MetaModelica", info.file_name, info.line_number_start),
+            Error::EquationsNotAllowed { info } => write!(f, "{}:{}: equations are not allowed in MetaModelica", info.fileName, info.lineNumberStart),
+            Error::ArrayDimNotAllowed { info } => write!(f, "{}:{}: array dimensions are not allowed in MetaModelica", info.fileName, info.lineNumberStart),
+            Error::InitialAlgorithmsNotAllowed { info } => write!(f, "{}:{}: initial algorithm sections are not allowed in MetaModelica", info.fileName, info.lineNumberStart),
+            Error::PderNotAllowed { info } => write!(f, "{}:{}: partial derivative (pder) is not allowed in MetaModelica", info.fileName, info.lineNumberStart),
+            Error::OverloadNotAllowed { info } => write!(f, "{}:{}: overload is not allowed in MetaModelica", info.fileName, info.lineNumberStart),
             Error::WithinNotAllowed { path } => write!(f, "within {:?} is not allowed; only top-level programs are supported", path),
-            Error::ConstraintsNotAllowed { info } => write!(f, "{}:{}: constraint sections (Optimica) are not allowed in MetaModelica", info.file_name, info.line_number_start),
-            Error::DefineUnitNotAllowed { info } => write!(f, "{}:{}: defineunit is not allowed in MetaModelica", info.file_name, info.line_number_start),
-            Error::TextElementNotAllowed { info } => write!(f, "{}:{}: TEXT element (parse error placeholder) is not allowed", info.file_name, info.line_number_start),
+            Error::ConstraintsNotAllowed { info } => write!(f, "{}:{}: constraint sections (Optimica) are not allowed in MetaModelica", info.fileName, info.lineNumberStart),
+            Error::DefineUnitNotAllowed { info } => write!(f, "{}:{}: defineunit is not allowed in MetaModelica", info.fileName, info.lineNumberStart),
+            Error::TextElementNotAllowed { info } => write!(f, "{}:{}: TEXT element (parse error placeholder) is not allowed", info.fileName, info.lineNumberStart),
         }
     }
 }
@@ -334,7 +334,7 @@ fn convert_class_part(
 }
 
 fn is_nf_builtin(info: &Info) -> bool {
-    info.file_name.ends_with("NFModelicaBuiltin.mo")
+    info.fileName.ends_with("NFModelicaBuiltin.mo")
 }
 
 fn convert_element_items(

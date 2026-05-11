@@ -1776,15 +1776,14 @@ fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, sc
                     return record_field_tys(name, top_level);
                 }
                 if let Some(ty) = scrut_ty {
-                    let from_scrut = record_field_tys_from_scrutinee_ctor(name, ty, top_level);
-                    if !from_scrut.is_empty() {
-                        return from_scrut;
+                    if let Some(from_scrut) = record_field_tys_from_scrutinee_ctor(name, ty, top_level) {
+                        return Some(from_scrut);
                     }
                 }
-                record_field_tys_by_simple_name(name, top_level)
+                Some(record_field_tys_by_simple_name(name, top_level))
             };
             if named_fields.is_empty() && fields.is_empty() {
-                let field_tys = field_tys_for_ctor();
+                let field_tys = field_tys_for_ctor().unwrap_or_default();
                 if field_tys.is_empty() {
                     if is_sourceinfo_ctor(name) {
                         format!("{rust} {{ .. }}")
@@ -1831,7 +1830,7 @@ fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, sc
                     .collect();
 
                 if allow_implicit_bind {
-                    let field_tys = field_tys_for_ctor();
+                    let field_tys = field_tys_for_ctor().unwrap_or_default();
                     for (fname, _) in field_tys.into_iter() {
                         if !named_fields.iter().any(|(n, _)| n == &fname) {
                             pats.push(escape_ident(&fname));
@@ -1863,7 +1862,7 @@ fn record_field_tys_from_scrutinee_ctor<'a>(
     ctor_simple_name: &str,
     scrut_ty: &Ty,
     top_level: &'a BTreeMap<String, NameNode<'a>>,
-) -> Vec<(String, Ty)> {
+) -> Option<Vec<(String, Ty)>> {
     let mut bases: Vec<String> = Vec::new();
     match scrut_ty {
         Ty::RustEnum(q) | Ty::AliasTo(q) | Ty::RustStruct(q) => {
@@ -1876,12 +1875,11 @@ fn record_field_tys_from_scrutinee_ctor<'a>(
     }
     for b in bases {
         let cand = format!("{b}.{ctor_simple_name}");
-        let tys = record_field_tys(&cand, top_level);
-        if !tys.is_empty() {
-            return tys;
+        if let Some(tys) = record_field_tys(&cand, top_level) {
+            return Some(tys);
         }
     }
-    Vec::new()
+    None
 }
 
 // ── Statement emission ────────────────────────────────────────────────────────
@@ -1994,22 +1992,22 @@ fn field_access_to_dotted(base: &TypedPat, field: &str) -> String {
 }
 
 /// Look up the field types of a record/metarecord by qualified name.
-/// Returns Vec of (field_name, field_ty) in declaration order.
+/// Returns Some(Vec of (field_name, field_ty) in declaration order), or None if not found/not a class.
 fn record_field_tys<'a>(
     qname: &str,
     top_level: &'a BTreeMap<String, NameNode<'a>>,
-) -> Vec<(String, Ty)> {
-    let Some(node) = lookup_node(qname, top_level) else { return vec![] };
-    let NodeKind::Class(c) = &node.kind else { return vec![] };
+) -> Option<Vec<(String, Ty)>> {
+    let node = lookup_node(qname, top_level)?;
+    let NodeKind::Class(c) = &node.kind else { return None };
     let members: &[MM::ClassMember] = match &c.body {
         MM::ClassDef::Parts { members, .. } | MM::ClassDef::ClassExtends { members, .. } => members,
-        _ => return vec![],
+        _ => return None,
     };
-    members.iter().filter_map(|m| {
+    Some(members.iter().filter_map(|m| {
         let MM::ClassMember::Component(cm) = m else { return None };
         let child = node.children.get(&cm.name)?;
         Some((cm.name.clone(), child.ty.clone()))
-    }).collect()
+    }).collect())
 }
 
 /// Fallback lookup for constructor patterns written with bare names (e.g. `SEMVER`).
@@ -2173,6 +2171,9 @@ fn render_shallow<'a>(
                 }
                 found
             };
+            if name == "FAILURE" {
+                eprintln!("DEBUG FAILURE BEFORE FALLBACK: resolved_qname={:?}, scrut_ty={:?}", resolved_qname, scrut_ty);
+            }
             if resolved_qname.is_none() && !name.contains('.') {
                 // Fallback: if matching against a known uniontype/enum value, variants are
                 // commonly looked up as `EnumName.VARIANT`.
@@ -2180,6 +2181,9 @@ fn render_shallow<'a>(
                     Ty::RustEnum(q) | Ty::AliasTo(q) => Some(q.clone()),
                     _ => None,
                 };
+                if name == "FAILURE" {
+                    eprintln!("DEBUG FAILURE: scrut_ty={:?}, enum_qname={:?}", scrut_ty, enum_qname);
+                }
                 if let Some(enum_qname) = enum_qname {
                     let candidate = format!("{enum_qname}.{name}");
                     if lookup_node(&candidate, top_level).is_some() {
@@ -2189,9 +2193,9 @@ fn render_shallow<'a>(
             }
             let field_tys: Vec<(String, Ty)> = resolved_qname
                 .as_deref()
-                .map(|q| record_field_tys(q, top_level))
+                .and_then(|q| record_field_tys(q, top_level))
                 .unwrap_or_default();
-            let field_tys = if field_tys.is_empty() && !name.contains('.') {
+            let field_tys = if resolved_qname.is_none() && !name.contains('.') {
                 record_field_tys_by_simple_name(name, top_level)
             } else {
                 field_tys

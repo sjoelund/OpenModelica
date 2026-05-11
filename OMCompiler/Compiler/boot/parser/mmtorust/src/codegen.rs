@@ -970,24 +970,14 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                         format!("metamodelica::list![{}]", parts.join(", "))
                     }
                 },
-                "min" => {
+                "min" | "max" => {
                     if args.len() == 2 {
                         let arg1 = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
                         let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
-                        format!("std::cmp::min({arg1}, {arg2})")
+                        format!("std::cmp::{func}({arg1}, {arg2})")
                     } else {
                         let parts: Vec<String> = args.iter().map(|a| emit_exp(a, is_const, ctx, top_level)).collect();
-                        format!("min({})", parts.join(", "))
-                    }
-                },
-                "max" => {
-                    if args.len() == 2 {
-                        let arg1 = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
-                        let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
-                        format!("std::cmp::max({arg1}, {arg2})")
-                    } else {
-                        let parts: Vec<String> = args.iter().map(|a| emit_exp(a, is_const, ctx, top_level)).collect();
-                        format!("max({})", parts.join(", "))
+                        format!("{func}({})", parts.join(", "))
                     }
                 },
                 "String" => {
@@ -999,10 +989,20 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                     let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
                     format!("stringGet({},{})?", arg1, arg2)
                 },
-                "realMul" | "realAdd" | "realSub" | "realNeg" => {
+                "realNeg" => {
+                    let arg1 = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+                    format!("-( {} as f64)", arg1)
+                },
+                "realMul" | "realAdd" | "realSub" => {
                     let arg1 = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
                     let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
-                    format!("{}({} as f64,{} as f64)", func, arg1, arg2)
+                    let op = match func.as_str() {
+                        "realMul" => "*",
+                        "realAdd" => "+",
+                        "realSub" => "-",
+                        _ => unreachable!()
+                    };
+                    format!("({} as f64) {} ({} as f64)", arg1, op, arg2)
                 },
                 "realInt" => {
                     let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
@@ -1016,15 +1016,10 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                     let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
                     format!("metamodelica::printAny(&{arg})")
                 },
-                "arrayGet" | "arrayGetNoBoundsChecking" => {
+                "arrayGet" | "arrayGetNoBoundsChecking" | "MetaModelica.Dangerous.arrayGetNoBoundsChecking" | "Dangerous.arrayGetNoBoundsChecking" => {
                     let arg1 = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
                     let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
                     format!("{}[({}-1) as usize].clone()", arg1, arg2)
-                },
-                "MetaModelica.Dangerous.arrayGetNoBoundsChecking" | "Dangerous.arrayGetNoBoundsChecking" => {
-                    let arg1 = args.first().map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
-                    let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
-                    format!("Dangerous::arrayGetNoBoundsChecking(&{}, {})", arg1, arg2)
                 },
                 "valueEq" => {
                     let arg1 = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
@@ -1193,8 +1188,9 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                     let call = format!("{func_str}({})", parts.join(", "));
                     // Add `?` to propagate Result errors from fallible calls. Skip in const
                     // context, for constructors (uppercase first char), and for known-infallible
-                    // builtins (the core arithmetic / comparison / structural ops).
-                    if is_const || is_constructor_name(func) || is_infallible_builtin(func) {
+                    // note that infallible builtins still return a Result because they can be used as function pointers.
+                    //  In order to skip the error checking here, it needs to have a special case handling the function above
+                    if is_const || is_constructor_name(func) /* || is_infallible_builtin(func) */ {
                         call
                     } else {
                         format!("{call}?")

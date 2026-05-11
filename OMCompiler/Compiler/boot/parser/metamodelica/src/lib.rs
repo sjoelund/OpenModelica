@@ -50,31 +50,31 @@ pub struct SourceInfo {
 
 /// Logically combine two Booleans with 'and' operator.
 #[inline(always)]
-pub fn boolAnd(b1: bool, b2: bool) -> bool {
-    b1 && b2
+pub fn boolAnd(b1: bool, b2: bool) -> Result<bool> {
+    Ok(b1 && b2)
 }
 
 /// Logically combine two Booleans with 'or' operator.
 #[inline(always)]
-pub fn boolOr(b1: bool, b2: bool) -> bool {
-    b1 || b2
+pub fn boolOr(b1: bool, b2: bool) -> Result<bool> {
+    Ok(b1 || b2)
 }
 
 /// Logically invert Boolean value using 'not' operator.
 #[inline(always)]
-pub fn boolNot(b: bool) -> bool {
-    !b
+pub fn boolNot(b: bool) -> Result<bool> {
+    Ok(!b)
 }
 
 /// Compares two Booleans for equality.
 #[inline(always)]
-pub fn boolEq(b1: bool, b2: bool) -> bool {
-    b1 == b2
+pub fn boolEq(b1: bool, b2: bool) -> Result<bool> {
+    Ok(b1 == b2)
 }
 
 /// Returns "true" or "false" string from a boolean.
-pub fn boolString(b: bool) -> String {
-    if b { "true".to_string() } else { "false".to_string() }
+pub fn boolString(b: bool) -> Result<Arc<String>> {
+    Ok(Arc::new(if b { "true".to_string() } else { "false".to_string() }))
 }
 
 // ============================================================================
@@ -83,53 +83,53 @@ pub fn boolString(b: bool) -> String {
 
 /// Adds two Integer values.
 #[inline(always)]
-pub fn intAdd(i1: i32, i2: i32) -> i32 {
-    i1 + i2
+pub fn intAdd(i1: i32, i2: i32) -> Result<i32> {
+    Ok(i1 + i2)
 }
 
 /// Subtracts two Integer values.
 #[inline(always)]
-pub fn intSub(i1: i32, i2: i32) -> i32 {
-    i1 - i2
+pub fn intSub(i1: i32, i2: i32) -> Result<i32> {
+    Ok(i1 - i2)
 }
 
 /// Multiplies two Integer values.
 #[inline(always)]
-pub fn intMul(i1: i32, i2: i32) -> i32 {
-    i1 * i2
+pub fn intMul(i1: i32, i2: i32) -> Result<i32> {
+    Ok(i1 * i2)
 }
 
 /// Divides two Integer values (truncated division).
 /// Matches Modelica's div() semantics: truncates toward zero.
-pub fn intDiv(i1: i32, i2: i32) -> i32 {
-    i1 / i2
+pub fn intDiv(i1: i32, i2: i32) -> Result<i32> {
+    Ok(i1 / i2)
 }
 
 /// Calculates remainder of Integer division i1/i2.
 /// Matches Modelica's mod() semantics: same sign as dividend.
-pub fn intMod(i1: i32, i2: i32) -> i32 {
-    i1 % i2
+pub fn intMod(i1: i32, i2: i32) -> Result<i32> {
+    Ok(i1 % i2)
 }
 
 /// Returns the bigger one of two Integer values.
-pub fn intMax(i1: i32, i2: i32) -> i32 {
-    i1.max(i2)
+pub fn intMax(i1: i32, i2: i32) -> Result<i32> {
+    Ok(i1.max(i2))
 }
 
 /// Returns the smaller one of two Integer values.
-pub fn intMin(i1: i32, i2: i32) -> i32 {
-    i1.min(i2)
+pub fn intMin(i1: i32, i2: i32) -> Result<i32> {
+    Ok(i1.min(i2))
 }
 
 /// Returns the absolute value of Integer i.
-pub fn intAbs(i: i32) -> i32 {
-    i.abs()
+pub fn intAbs(i: i32) -> Result<i32> {
+    Ok(i.abs())
 }
 
 /// Returns negative value of Integer i.
 #[inline(always)]
-pub fn intNeg(i: i32) -> i32 {
-    -i
+pub fn intNeg(i: i32) -> Result<i32> {
+    Ok(-i)
 }
 
 // ============================================================================
@@ -138,38 +138,38 @@ pub fn intNeg(i: i32) -> i32 {
 
 /// Returns whether Integer i1 is smaller than Integer i2.
 #[inline(always)]
-pub fn intLt(i1: i32, i2: i32) -> bool {
-    i1 < i2
+pub fn intLt(i1: i32, i2: i32) -> Result<bool> {
+    Ok(i1 < i2)
 }
 
 /// Returns whether Integer i1 is smaller than or equal to Integer i2.
 #[inline(always)]
-pub fn intLe(i1: i32, i2: i32) -> bool {
-    i1 <= i2
+pub fn intLe(i1: i32, i2: i32) -> Result<bool> {
+    Ok(i1 <= i2)
 }
 
 /// Returns whether Integer i1 is equal to Integer i2.
 #[inline(always)]
-pub fn intEq(i1: i32, i2: i32) -> bool {
-    i1 == i2
+pub fn intEq(i1: i32, i2: i32) -> Result<bool> {
+    Ok(i1 == i2)
 }
 
 /// Returns whether Integer i1 is not equal to Integer i2.
 #[inline(always)]
-pub fn intNe(i1: i32, i2: i32) -> bool {
-    i1 != i2
+pub fn intNe(i1: i32, i2: i32) -> Result<bool> {
+    Ok(i1 != i2)
 }
 
 /// Returns whether Integer i1 is greater than or equal to Integer i2.
 #[inline(always)]
-pub fn intGe(i1: i32, i2: i32) -> bool {
-    i1 >= i2
+pub fn intGe(i1: i32, i2: i32) -> Result<bool> {
+    Ok(i1 >= i2)
 }
 
 /// Returns whether Integer i1 is greater than Integer i2.
 #[inline(always)]
-pub fn intGt(i1: i32, i2: i32) -> bool {
-    i1 > i2
+pub fn intGt(i1: i32, i2: i32) -> Result<bool> {
+    Ok(i1 > i2)
 }
 
 // ============================================================================
@@ -178,38 +178,38 @@ pub fn intGt(i1: i32, i2: i32) -> bool {
 
 /// Returns bitwise inverted Integer number of i (~i in C).
 #[inline(always)]
-pub const fn intBitNot(i: i32) -> i32 {
-    !i
+pub const fn intBitNot(i: i32) -> Result<i32> {
+    Ok(!i)
 }
 
 /// Returns bitwise 'and' of Integers i1 and i2 (i1 & i2 in C).
 #[inline(always)]
-pub const fn intBitAnd(i1: i32, i2: i32) -> i32 {
-    i1 & i2
+pub const fn intBitAnd(i1: i32, i2: i32) -> Result<i32> {
+    Ok(i1 & i2)
 }
 
 /// Returns bitwise 'or' of Integers i1 and i2 (i1 | i2 in C).
 #[inline(always)]
-pub const fn intBitOr(i1: i32, i2: i32) -> i32 {
-    i1 | i2
+pub const fn intBitOr(i1: i32, i2: i32) -> Result<i32> {
+    Ok(i1 | i2)
 }
 
 /// Returns bitwise 'xor' of Integers i1 and i2 (i1 ^ i2 in C).
 #[inline(always)]
-pub const fn intBitXor(i1: i32, i2: i32) -> i32 {
-    i1 ^ i2
+pub const fn intBitXor(i1: i32, i2: i32) -> Result<i32> {
+    Ok(i1 ^ i2)
 }
 
 /// Returns bitwise left shift of Integer i by s bits (i << s in C).
 #[inline(always)]
-pub const fn intBitLShift(i: i32, s: i32) -> i32 {
-    i << s
+pub const fn intBitLShift(i: i32, s: i32) -> Result<i32> {
+    Ok(i << s)
 }
 
 /// Returns bitwise right shift of Integer i by s bits (i >> s in C).
 #[inline(always)]
-pub const fn intBitRShift(i: i32, s: i32) -> i32 {
-    i >> s
+pub const fn intBitRShift(i: i32, s: i32) -> Result<i32> {
+    Ok(i >> s)
 }
 
 // ============================================================================
@@ -218,13 +218,13 @@ pub const fn intBitRShift(i: i32, s: i32) -> i32 {
 
 /// Converts Integer to Real.
 #[inline(always)]
-pub fn intReal(i: i32) -> f64 {
-    i as f64
+pub fn intReal(i: i32) -> Result<f64> {
+    Ok(i as f64)
 }
 
 /// Converts Integer to String.
-pub fn intString(i: i32) -> String {
-    i.to_string()
+pub fn intString(i: i32) -> Result<String> {
+    Ok(i.to_string())
 }
 
 // ============================================================================
@@ -233,65 +233,65 @@ pub fn intString(i: i32) -> String {
 
 /// Adds two Real values.
 #[inline(always)]
-pub fn realAdd(r1: f64, r2: f64) -> f64 {
-    r1 + r2
+pub fn realAdd(r1: f64, r2: f64) -> Result<f64> {
+    Ok(r1 + r2)
 }
 
 /// Subtracts two Real values.
 #[inline(always)]
-pub fn realSub(r1: f64, r2: f64) -> f64 {
-    r1 - r2
+pub fn realSub(r1: f64, r2: f64) -> Result<f64> {
+    Ok(r1 - r2)
 }
 
 /// Multiplies two Real values.
 #[inline(always)]
-pub fn realMul(r1: f64, r2: f64) -> f64 {
-    r1 * r2
+pub fn realMul(r1: f64, r2: f64) -> Result<f64> {
+    Ok(r1 * r2)
 }
 
 /// Divides two Real values.
 #[inline(always)]
-pub fn realDiv(r1: f64, r2: f64) -> f64 {
-    r1 / r2
+pub fn realDiv(r1: f64, r2: f64) -> Result<f64> {
+    Ok(r1 / r2)
 }
 
 /// Calculates remainder of Real division r1/r2.
-pub fn realMod(r1: f64, r2: f64) -> f64 {
-    r1 % r2
+pub fn realMod(r1: f64, r2: f64) -> Result<f64> {
+    Ok(r1 % r2)
 }
 
 /// Raises r1 to the power r2 (r1^r2).
-pub fn realPow(r1: f64, r2: f64) -> f64 {
-    r1.powf(r2)
+pub fn realPow(r1: f64, r2: f64) -> Result<f64> {
+    Ok(r1.powf(r2))
 }
 
 /// Returns the bigger one of two Real values.
 #[inline(always)]
-pub fn realMax(r1: f64, r2: f64) -> f64 {
-    r1.max(r2)
+pub fn realMax(r1: f64, r2: f64) -> Result<f64> {
+    Ok(r1.max(r2))
 }
 
 /// Returns the smaller one of two Real values.
 #[inline(always)]
-pub fn realMin(r1: f64, r2: f64) -> f64 {
-    r1.min(r2)
+pub fn realMin(r1: f64, r2: f64) -> Result<f64> {
+    Ok(r1.min(r2))
 }
 
 /// Returns the absolute value of Real x.
 #[inline(always)]
-pub fn realAbs(x: f64) -> f64 {
-    x.abs()
+pub fn realAbs(x: f64) -> Result<f64> {
+    Ok(x.abs())
 }
 
 /// Returns whether two Real values are approximately equal within absTol.
-pub fn realAlmostEq(a: f64, b: f64, abs_tol: f64) -> bool {
-    abs_tol > (a - b).abs()
+pub fn realAlmostEq(a: f64, b: f64, abs_tol: f64) -> Result<bool> {
+    Ok(abs_tol > (a - b).abs())
 }
 
 /// Returns negative value of Real x.
 #[inline(always)]
-pub fn realNeg(x: f64) -> f64 {
-    -x
+pub fn realNeg(x: f64) -> Result<f64> {
+    Ok(-x)
 }
 
 // ============================================================================
@@ -300,38 +300,38 @@ pub fn realNeg(x: f64) -> f64 {
 
 /// Returns whether Real x1 is smaller than Real x2.
 #[inline(always)]
-pub fn realLt(x1: f64, x2: f64) -> bool {
-    x1 < x2
+pub fn realLt(x1: f64, x2: f64) -> Result<bool> {
+    Ok(x1 < x2)
 }
 
 /// Returns whether Real x1 is smaller than or equal to Real x2.
 #[inline(always)]
-pub fn realLe(x1: f64, x2: f64) -> bool {
-    x1 <= x2
+pub fn realLe(x1: f64, x2: f64) -> Result<bool> {
+    Ok(x1 <= x2)
 }
 
 /// Returns whether Real x1 is equal to Real x2.
 #[inline(always)]
-pub fn realEq(x1: f64, x2: f64) -> bool {
-    x1 == x2
+pub fn realEq(x1: f64, x2: f64) -> Result<bool> {
+    Ok(x1 == x2)
 }
 
 /// Returns whether Real x1 is not equal to Real x2.
 #[inline(always)]
-pub fn realNe(x1: f64, x2: f64) -> bool {
-    x1 != x2
+pub fn realNe(x1: f64, x2: f64) -> Result<bool> {
+    Ok(x1 != x2)
 }
 
 /// Returns whether Real x1 is greater than or equal to Real x2.
 #[inline(always)]
-pub fn realGe(x1: f64, x2: f64) -> bool {
-    x1 >= x2
+pub fn realGe(x1: f64, x2: f64) -> Result<bool> {
+    Ok(x1 >= x2)
 }
 
 /// Returns whether Real x1 is greater than Real x2.
 #[inline(always)]
-pub fn realGt(x1: f64, x2: f64) -> bool {
-    x1 > x2
+pub fn realGt(x1: f64, x2: f64) -> Result<bool> {
+    Ok(x1 > x2)
 }
 
 // ============================================================================
@@ -339,13 +339,13 @@ pub fn realGt(x1: f64, x2: f64) -> bool {
 // ============================================================================
 
 /// Converts Real to Integer (truncates toward zero, matching Modelica integer() function).
-pub fn realInt(r: f64) -> i32 {
-    r as i32
+pub fn realInt(r: f64) -> Result<i32> {
+    Ok(r as i32)
 }
 
 /// Converts Real to String.
-pub fn realString(r: f64) -> String {
-    r.to_string()
+pub fn realString(r: f64) -> Result<Arc<String>> {
+    Ok(Arc::new(r.to_string()))
 }
 
 // ============================================================================
@@ -363,10 +363,10 @@ pub fn stringCharInt(ch: Arc<String>) -> Result<i32> {
 }
 
 /// Returns a single-character string from an ASCII code point.
-pub fn intStringChar(i: i32) -> Arc<String> {
-    Arc::new(std::char::from_u32(i as u32)
+pub fn intStringChar(i: i32) -> Result<Arc<String>> {
+    Ok(Arc::new(std::char::from_u32(i as u32)
         .map(|c| c.to_string())
-        .unwrap_or_default())
+        .unwrap_or_default()))
 }
 
 /// Parses an integer from a string. Fails if the string is not a valid integer.
@@ -381,25 +381,25 @@ pub fn stringReal(str: String) -> Result<f64> {
 }
 
 /// Converts a string to a list of single-character strings.
-pub fn stringListStringChar(str: Arc<String>) -> List<Arc<String>> {
+pub fn stringListStringChar(str: Arc<String>) -> Result<List<Arc<String>>> {
     // TODO: We could have constants for all these short strings to avoid allocations.
-    str.chars().map(|c| Arc::new(c.to_string())).collect()
+    Ok(str.chars().map(|c| Arc::new(c.to_string())).collect())
 }
 
 /// Appends a list of strings into a single string.
-pub fn stringAppendList(strs: &List<Arc<String>>) -> Arc<String> {
+pub fn stringAppendList(strs: &List<Arc<String>>) -> Result<Arc<String>> {
     let mut result = String::new();
 
     for s in strs {
         result.push_str(&s);
     }
 
-    Arc::new(result)
+    Ok(Arc::new(result))
 }
 
 /// Takes a list of strings and a delimiter and joins them with the delimiter inserted between elements.
 /// Example: stringDelimitList({"x","y","z"}, ", ") => "x, y, z"
-pub fn stringDelimitList(strs: &List<Arc<String>>, delimiter: Arc<String>) -> Arc<String> {
+pub fn stringDelimitList(strs: &List<Arc<String>>, delimiter: Arc<String>) -> Result<Arc<String>> {
     let mut result = String::new();
     let mut first = true;
 
@@ -411,17 +411,17 @@ pub fn stringDelimitList(strs: &List<Arc<String>>, delimiter: Arc<String>) -> Ar
         first = false;
     }
 
-    Arc::new(result)
+    Ok(Arc::new(result))
 }
 
 /// Returns the length of the string (number of bytes).
-pub fn stringLength(str: String) -> i32 {
-    str.len() as i32
+pub fn stringLength(str: String) -> Result<i32> {
+    Ok(str.len() as i32)
 }
 
 /// Returns true if the string is empty.
-pub fn stringEmpty(str: String) -> bool {
-    str.is_empty()
+pub fn stringEmpty(str: String) -> Result<bool> {
+    Ok(str.is_empty())
 }
 
 /// Returns the byte value at the given 1-based index.
@@ -457,92 +457,92 @@ pub fn stringUpdateStringChar(str: Arc<String>, newch: Arc<String>, index: i32) 
 }
 
 /// Concatenates two strings (s1 + s2).
-pub fn stringAppend(s1: String, s2: String) -> String {
-    format!("{}{}", s1, s2)
+pub fn stringAppend(s1: String, s2: String) -> Result<Arc<String>> {
+    Ok(Arc::new(format!("{}{}", s1, s2)))
 }
 
 /// Compares two strings for equality.
 #[inline(always)]
-pub fn stringEq(s1: String, s2: String) -> bool {
-    s1 == s2
+pub fn stringEq(s1: String, s2: String) -> Result<bool> {
+    Ok(s1 == s2)
 }
 #[inline(always)]
-pub fn stringEqual(s1: String, s2: String) -> bool {
-    s1 == s2
+pub fn stringEqual(s1: String, s2: String) -> Result<bool> {
+    Ok(s1 == s2)
 }
 
 /// Compares two strings lexicographically.
 /// Returns negative if s1 < s2, zero if s1 == s2, positive if s1 > s2.
-pub fn stringCompare(s1: String, s2: String) -> i32 {
+pub fn stringCompare(s1: String, s2: String) -> Result<i32> {
     // Byte-by-byte comparison for consistency
     let bytes1 = s1.as_bytes();
     let bytes2 = s2.as_bytes();
     let len = bytes1.len().min(bytes2.len());
     for i in 0..len {
         if bytes1[i] < bytes2[i] {
-            return -1;
+            return Ok(-1);
         }
         if bytes1[i] > bytes2[i] {
-            return 1;
+            return Ok(1);
         }
     }
     // Length comparison if all compared bytes were equal
     match bytes1.len().cmp(&bytes2.len()) {
-        std::cmp::Ordering::Less => -1,
-        std::cmp::Ordering::Equal => 0,
-        std::cmp::Ordering::Greater => 1,
+        std::cmp::Ordering::Less => Ok(-1),
+        std::cmp::Ordering::Equal => Ok(0),
+        std::cmp::Ordering::Greater => Ok(1),
     }
 }
 
 /// Returns a hash of the string using Rust's built-in hash.
-pub fn stringHash(str: String) -> i32 {
+pub fn stringHash(str: String) -> Result<i32> {
     use std::collections::hash_map::DefaultHasher;
     use std::hash::Hash;
     use std::hash::Hasher;
     let mut hasher = DefaultHasher::new();
     str.hash(&mut hasher);
-    hasher.finish() as i32
+    Ok(hasher.finish() as i32)
 }
 
 /// Returns a DJB2 hash of the string.
 /// DJB2 algorithm: hash = hash * 33 + byte
-pub fn stringHashDjb2(str: String) -> i32 {
+pub fn stringHashDjb2(str: String) -> Result<i32> {
     let mut hash: i32 = 5381;
     for &byte in str.as_bytes() {
         hash = hash.wrapping_mul(33).wrapping_add(byte as i32);
     }
-    hash
+    Ok(hash)
 }
 
 /// Continues computing a DJB2 hash by adding another string to it.
-pub fn stringHashDjb2Continue(str: String, hash: i32) -> i32 {
+pub fn stringHashDjb2Continue(str: String, hash: i32) -> Result<i32> {
     let mut h = hash;
     for &byte in str.as_bytes() {
         h = h.wrapping_mul(33).wrapping_add(byte as i32);
     }
-    h
+    Ok(h)
 }
 
 /// Computes a DJB2 hash and applies modulo without intermediate overflow issues.
-pub fn stringHashDjb2Mod(str: String, mod_val: i32) -> i32 {
+pub fn stringHashDjb2Mod(str: String, mod_val: i32) -> Result<i32> {
     if mod_val == 0 {
-        return 0;
+        return Ok(0);
     }
     let mut hash: i64 = 5381;
     for &byte in str.as_bytes() {
         hash = hash.wrapping_mul(33).wrapping_add(byte as i64);
     }
-    (hash % mod_val as i64) as i32
+    Ok((hash % mod_val as i64) as i32)
 }
 
 /// Returns an SDBM hash of the string.
 /// SDBM algorithm: hash = byte + (hash << 6) + (hash << 16) - hash
-pub fn stringHashSdbm(str: String) -> i32 {
+pub fn stringHashSdbm(str: String) -> Result<i32> {
     let mut hash: i32 = 0;
     for &byte in str.as_bytes() {
         hash = byte as i32 + (hash << 6) + (hash << 16) - hash;
     }
-    hash
+    Ok(hash)
 }
 
 /// Extracts a substring from str.
@@ -562,12 +562,12 @@ pub fn substring(str: Arc<String>, start: i32, stop: i32) -> Result<Arc<String>>
 }
 
 /// Alias for string_append_list (maps a list of single-char strings to one string).
-pub fn listStringCharString(strs: &List<Arc<String>>) -> Arc<String> {
+pub fn listStringCharString(strs: &List<Arc<String>>) -> Result<Arc<String>> {
     stringAppendList(strs)
 }
 
 /// Alias for string_append_list (maps a list of single-char strings to one string).
-pub fn stringCharListString(strs: &List<Arc<String>>) -> Arc<String> {
+pub fn stringCharListString(strs: &List<Arc<String>>) -> Result<Arc<String>> {
     stringAppendList(strs)
 }
 
@@ -779,13 +779,13 @@ impl<T: PartialEq + Clone> List<T> {
 // ============================================================================
 
 /// Returns the length of the array. O(1).
-pub fn arrayLength<A>(arr: &[A]) -> i32 {
-    arr.len() as i32
+pub fn arrayLength<A>(arr: &[A]) -> Result<i32> {
+    Ok(arr.len() as i32)
 }
 
 /// Returns true if the array is empty. O(1).
-pub fn arrayEmpty<A>(arr: &[A]) -> bool {
-    arr.is_empty()
+pub fn arrayEmpty<A>(arr: &[A]) -> Result<bool> {
+    Ok(arr.is_empty())
 }
 
 /// Gets the element at the given 1-based index. O(1).
@@ -797,21 +797,29 @@ pub fn arrayGet<A: Clone>(arr: &[A], index: i32) -> Result<A> {
 }
 
 /// Creates a new array of the given size, initialized with initialValue. O(size).
-pub fn arrayCreate<A: Clone>(size: i32, initial_value: A) -> Vec<A> {
+pub fn arrayCreate<A: Clone>(size: i32, initial_value: A) -> Result<Vec<A>> {
     if size <= 0 {
-        return Vec::new();
+        return Ok(Vec::new());
     }
-    vec![initial_value; size as usize]
+    Ok(vec![initial_value; size as usize])
 }
 
 /// Converts an array to a list. O(n).
-pub fn arrayList<A: Clone>(arr: &[A]) -> List<A> {
-    arr.iter().cloned().collect()
+pub fn arrayList<A: Clone>(arr: &[A]) -> Result<List<A>> {
+    let mut result = List::Nil;
+    for item in arr.iter().rev().cloned() {
+        result = List::cons(result, item);
+    }
+    Ok(result)
 }
 
 /// Converts a list to an array. O(n).
-pub fn listArray<A: Clone>(lst: &List<A>) -> Vec<A> {
-    lst.into_iter().map(|item| item.clone()).collect()
+pub fn listArray<A: Clone>(lst: &List<A>) -> Result<Vec<A>> {
+    let mut result = Vec::new();
+    for item in lst {
+        result.push(item.clone());
+    }
+    Ok(result)
 }
 
 /// Updates the value at the given 1-based index. O(1).
@@ -827,15 +835,15 @@ pub fn arrayUpdate<A: Clone>(arr: &mut Vec<A>, index: i32, new_value: A) -> Resu
 }
 
 /// Creates a copy of the array. O(n).
-pub fn arrayCopy<A: Clone>(arr: &[A]) -> Vec<A> {
-    arr.to_vec()
+pub fn arrayCopy<A: Clone>(arr: &[A]) -> Result<Vec<A>> {
+    Ok(arr.to_vec())
 }
 
 /// Appends arr2 to arr1, creating a new array. O(length(arr1) + length(arr2)).
-pub fn arrayAppend<A: Clone>(arr1: &[A], arr2: &[A]) -> Vec<A> {
+pub fn arrayAppend<A: Clone>(arr1: &[A], arr2: &[A]) -> Result<Vec<A>> {
     let mut result = arr1.to_vec();
     result.extend(arr2.iter().cloned());
-    result
+    Ok(result)
 }
 
 // ============================================================================
@@ -844,8 +852,8 @@ pub fn arrayAppend<A: Clone>(arr1: &[A], arr2: &[A]) -> Vec<A> {
 
 /// Returns the string representation of any Debug-printable value.
 /// Rather slow; only use this for debugging!
-pub fn anyString<A: std::fmt::Debug>(a: &A) -> String {
-    format!("{:?}", a)
+pub fn anyString<A: std::fmt::Debug>(a: &A) -> Result<Arc<String>> {
+    Ok(Arc::new(format!("{:?}", a)))
 }
 
 /// Prints any Debug-printable value to stderr.
@@ -865,26 +873,26 @@ thread_local! {
 
 /// Returns a monotonically increasing tick counter.
 /// Uses a thread-local counter for simulation purposes.
-pub fn tick() -> i32 {
+pub fn tick() -> Result<i32> {
     TICK_COUNTER.with(|counter| {
         let current = counter.get();
         counter.set(current.wrapping_add(1));
-        current as i32
+        Ok(current as i32)
     })
 }
 
 /// Structural equality for any PartialEq value.
-pub fn valueEq<A: PartialEq>(a1: &A, a2: &A) -> bool {
-    a1 == a2
+pub fn valueEq<A: PartialEq>(a1: &A, a2: &A) -> Result<bool> {
+    Ok(a1 == a2)
 }
 
 /// Compares two Ord values.
 /// Returns -1 if a1 < a2, 0 if a1 == a2, 1 if a1 > a2.
-pub fn valueCompare<A: Ord>(a1: &A, a2: &A) -> i32 {
+pub fn valueCompare<A: Ord>(a1: &A, a2: &A) -> Result<i32> {
     match a1.cmp(a2) {
-        std::cmp::Ordering::Less => -1,
-        std::cmp::Ordering::Equal => 0,
-        std::cmp::Ordering::Greater => 1,
+        std::cmp::Ordering::Less => Ok(-1),
+        std::cmp::Ordering::Equal => Ok(0),
+        std::cmp::Ordering::Greater => Ok(1),
     }
 }
 
@@ -895,31 +903,31 @@ pub fn valueCompare<A: Ord>(a1: &A, a2: &A) -> i32 {
 /// This is a very fast comparison to speed up comparisons.
 /// If you know that all occurrences of a value are the same pointer,
 /// you can use reference_eq instead of structural equality.
-pub fn referenceEq<A: PartialEq>(a1: &A, a2: &A) -> bool {
-    std::ptr::eq(a1 as *const A, a2 as *const A)
+pub fn referenceEq<A: PartialEq>(a1: &A, a2: &A) -> Result<bool> {
+    Ok(std::ptr::eq(a1 as *const A, a2 as *const A))
 }
 
 /// Returns the pointer address of a reference as a hexadecimal string for debugging.
-pub fn referencePointerString<A>(a: &A) -> String {
-    format!("{:p}", a)
+pub fn referencePointerString<A>(a: &A) -> Result<Arc<String>> {
+    Ok(Arc::new(format!("{:p}", a)))
 }
 
 /// Returns a debug string for a function symbol.
 /// In Rust, returns the type name of the value for debugging.
-pub fn referenceDebugString<A: std::fmt::Debug>(_a: &A) -> String {
-    format!("{:?}", std::any::type_name::<A>())
+pub fn referenceDebugString<A: std::fmt::Debug>(_a: &A) -> Result<String> {
+    Ok(format!("{:?}", std::any::type_name::<A>()))
 }
 
 /// Returns the constructor tag for a boxed value.
 /// In Rust, returns a type-based discriminator.
-pub fn valueConstructor<A>() -> i32 {
+pub fn valueConstructor<A>() -> Result<i32> {
     // Use a hash of the type name as a stable discriminator
     let type_name = std::any::type_name::<A>();
     let mut hash: i32 = 5381;
     for &byte in type_name.as_bytes() {
         hash = hash.wrapping_mul(33).wrapping_add(byte as i32);
     }
-    hash
+    Ok(hash)
 }
 
 /// Returns the current time in seconds relative to process start.
@@ -930,8 +938,8 @@ fn getStartInstant() -> std::time::Instant {
     *START.get_or_init(|| std::time::Instant::now())
 }
 
-pub fn clock() -> f64 {
-    getStartInstant().elapsed().as_secs_f64()
+pub fn clock() -> Result<f64> {
+    Ok(getStartInstant().elapsed().as_secs_f64())
 }
 
 // ============================================================================
@@ -939,13 +947,13 @@ pub fn clock() -> f64 {
 // ============================================================================
 
 /// Returns true if the Option is NONE.
-pub fn isNone<A>(opt: &Option<A>) -> bool {
-    matches!(opt, None)
+pub fn isNone<A>(opt: &Option<A>) -> Result<bool> {
+    Ok(matches!(opt, None))
 }
 
 /// Returns true if the Option is SOME.
-pub fn isSome<A>(opt: &Option<A>) -> bool {
-    matches!(opt, Some(_))
+pub fn isSome<A>(opt: &Option<A>) -> Result<bool> {
+    Ok(matches!(opt, Some(_)))
 }
 
 // ============================================================================
@@ -954,15 +962,15 @@ pub fn isSome<A>(opt: &Option<A>) -> bool {
 
 /// Sets the stack overflow signal to the given value and returns the old one.
 /// In this translation, simply returns the input value.
-pub fn setStackOverflowSignal(in_signal: bool) -> bool {
-    in_signal
+pub fn setStackOverflowSignal(in_signal: bool) -> Result<bool> {
+    Ok(in_signal)
 }
 
 /// Returns true if the formal output argument is present as an actual argument.
 /// In MetaModelica this is a compile-time check; in Rust it always returns true
 /// because the argument exists at the call site.
-pub fn isPresent<T>(_ident: &T) -> bool {
-    true
+pub fn isPresent<T>(_ident: &T) -> Result<bool> {
+    Ok(true)
 }
 
 /// Fail function - unconditionally raises an error.
@@ -978,41 +986,42 @@ pub mod Dangerous {
     use super::*;
     /// Unsafe array get without bounds checking.
     /// Panics in debug mode if index is out of bounds due to Rust's bounds checking on indexing.
-    pub fn arrayGetNoBoundsChecking<A: Clone>(arr: &[A], index: i32) -> A {
+    pub fn arrayGetNoBoundsChecking<A: Clone>(arr: &[A], index: i32) -> Result<A> {
         let idx = (index - 1) as usize; // 1-based to 0-based
         // SAFETY: Caller must ensure index is in bounds.
         // Rust does not have true unchecked indexing, but unsafe::get_unchecked avoids bounds check.
-        unsafe { arr.get_unchecked(idx).clone() }
+        unsafe { Ok(arr.get_unchecked(idx).clone()) }
     }
 
     /// Unsafe array update without bounds checking.
     /// Mutates the array in place.
-    pub fn arrayUpdateNoBoundsChecking<A: Clone>(arr: &mut Vec<A>, index: i32, new_value: A) {
+    pub fn arrayUpdateNoBoundsChecking<A: Clone>(arr: &mut Vec<A>, index: i32, new_value: A) -> Result<()> {
         let idx = (index - 1) as usize; // 1-based to 0-based
         // SAFETY: Caller must ensure index is in bounds.
         unsafe { *arr.get_unchecked_mut(idx) = new_value }
+        Ok(())
     }
 
     /// Creates a new array with uninitialized elements.
     /// The dummy parameter is used to fix the type of the array.
     /// Elements are set to a clone of dummy.
-    pub fn arrayCreateNoInit<A: Clone>(size: i32, dummy: A) -> Vec<A> {
+    pub fn arrayCreateNoInit<A: Clone>(size: i32, dummy: A) -> Result<Vec<A>> {
         if size <= 0 {
-            return Vec::new();
+            return Ok(Vec::new());
         }
         // SAFETY: We immediately fill with cloned values so the array is never used uninitialized.
         // In a true unsafe translation we could use MaybeUninit, but for safety we fill with dummy.
-        vec![dummy; size as usize]
+        Ok(vec![dummy; size as usize])
     }
     /// Unsafe string get without bounds checking.
-    pub fn stringGetNoBoundsChecking(str: String, index: i32) -> i32 {
+    pub fn stringGetNoBoundsChecking(str: String, index: i32) -> Result<i32> {
         let idx = (index - 1) as usize; // 1-based to 0-based
         // SAFETY: Caller must ensure index is in bounds.
-        unsafe { (*str.as_bytes().get_unchecked(idx)) as i32 }
+        unsafe { Ok((*str.as_bytes().get_unchecked(idx)) as i32) }
     }
     /// Reverses a list in place.
-    pub fn listReverseInPlace<T: Clone>(list: &List<T>) -> List<T>{
-        list.reverse()
+    pub fn listReverseInPlace<T: Clone>(list: &List<T>) -> Result<List<T>>{
+        Ok(list.reverse())
     }
 }
 
@@ -1034,38 +1043,38 @@ mod tests {
 
         #[test]
         fn test_bool_and() {
-            assert!(boolAnd(true, true));
-            assert!(!boolAnd(true, false));
-            assert!(!boolAnd(false, true));
-            assert!(!boolAnd(false, false));
+            assert!(boolAnd(true, true).unwrap());
+            assert!(!boolAnd(true, false).unwrap());
+            assert!(!boolAnd(false, true).unwrap());
+            assert!(!boolAnd(false, false).unwrap());
         }
 
         #[test]
         fn test_bool_or() {
-            assert!(boolOr(true, false));
-            assert!(boolOr(false, true));
-            assert!(boolOr(true, true));
-            assert!(!boolOr(false, false));
+            assert!(boolOr(true, false).unwrap());
+            assert!(boolOr(false, true).unwrap());
+            assert!(boolOr(true, true).unwrap());
+            assert!(!boolOr(false, false).unwrap());
         }
 
         #[test]
         fn test_bool_not() {
-            assert!(boolNot(false));
-            assert!(!boolNot(true));
+            assert!(boolNot(false).unwrap());
+            assert!(!boolNot(true).unwrap());
         }
 
         #[test]
         fn test_bool_eq() {
-            assert!(boolEq(true, true));
-            assert!(boolEq(false, false));
-            assert!(!boolEq(true, false));
-            assert!(!boolEq(false, true));
+            assert!(boolEq(true, true).unwrap());
+            assert!(boolEq(false, false).unwrap());
+            assert!(!boolEq(true, false).unwrap());
+            assert!(!boolEq(false, true).unwrap());
         }
 
         #[test]
         fn test_bool_string() {
-            assert_eq!(boolString(true), "true");
-            assert_eq!(boolString(false), "false");
+            assert_eq!(*boolString(true).unwrap(), "true");
+            assert_eq!(*boolString(false).unwrap(), "false");
         }
     }
 
@@ -1078,70 +1087,70 @@ mod tests {
 
         #[test]
         fn test_int_add() {
-            assert_eq!(intAdd(1, 2), 3);
-            assert_eq!(intAdd(-1, 1), 0);
-            assert_eq!(intAdd(-1, -2), -3);
+            assert_eq!(intAdd(1, 2).unwrap(), 3);
+            assert_eq!(intAdd(-1, 1).unwrap(), 0);
+            assert_eq!(intAdd(-1, -2).unwrap(), -3);
         }
 
         #[test]
         fn test_int_sub() {
-            assert_eq!(intSub(5, 3), 2);
-            assert_eq!(intSub(3, 5), -2);
-            assert_eq!(intSub(0, 0), 0);
+            assert_eq!(intSub(5, 3).unwrap(), 2);
+            assert_eq!(intSub(3, 5).unwrap(), -2);
+            assert_eq!(intSub(0, 0).unwrap(), 0);
         }
 
         #[test]
         fn test_int_mul() {
-            assert_eq!(intMul(3, 4), 12);
-            assert_eq!(intMul(-3, 4), -12);
-            assert_eq!(intMul(-3, -4), 12);
-            assert_eq!(intMul(0, 100), 0);
+            assert_eq!(intMul(3, 4).unwrap(), 12);
+            assert_eq!(intMul(-3, 4).unwrap(), -12);
+            assert_eq!(intMul(-3, -4).unwrap(), 12);
+            assert_eq!(intMul(0, 100).unwrap(), 0);
         }
 
         #[test]
         fn test_int_div() {
-            assert_eq!(intDiv(10, 3), 3);
-            assert_eq!(intDiv(10, -3), -3);
-            assert_eq!(intDiv(-10, 3), -3);
-            assert_eq!(intDiv(-10, -3), 3);
+            assert_eq!(intDiv(10, 3).unwrap(), 3);
+            assert_eq!(intDiv(10, -3).unwrap(), -3);
+            assert_eq!(intDiv(-10, 3).unwrap(), -3);
+            assert_eq!(intDiv(-10, -3).unwrap(), 3);
         }
 
         #[test]
         fn test_int_mod() {
-            assert_eq!(intMod(10, 3), 1);
-            assert_eq!(intMod(10, -3), 1);
-            assert_eq!(intMod(-10, 3), -1);
-            assert_eq!(intMod(-10, -3), -1);
+            assert_eq!(intMod(10, 3).unwrap(), 1);
+            assert_eq!(intMod(10, -3).unwrap(), 1);
+            assert_eq!(intMod(-10, 3).unwrap(), -1);
+            assert_eq!(intMod(-10, -3).unwrap(), -1);
         }
 
         #[test]
         fn test_int_max() {
-            assert_eq!(intMax(1, 2), 2);
-            assert_eq!(intMax(2, 1), 2);
-            assert_eq!(intMax(5, 5), 5);
-            assert_eq!(intMax(-1, -2), -1);
+            assert_eq!(intMax(1, 2).unwrap(), 2);
+            assert_eq!(intMax(2, 1).unwrap(), 2);
+            assert_eq!(intMax(5, 5).unwrap(), 5);
+            assert_eq!(intMax(-1, -2).unwrap(), -1);
         }
 
         #[test]
         fn test_int_min() {
-            assert_eq!(intMin(1, 2), 1);
-            assert_eq!(intMin(2, 1), 1);
-            assert_eq!(intMin(5, 5), 5);
-            assert_eq!(intMin(-1, -2), -2);
+            assert_eq!(intMin(1, 2).unwrap(), 1);
+            assert_eq!(intMin(2, 1).unwrap(), 1);
+            assert_eq!(intMin(5, 5).unwrap(), 5);
+            assert_eq!(intMin(-1, -2).unwrap(), -2);
         }
 
         #[test]
         fn test_int_abs() {
-            assert_eq!(intAbs(-5), 5);
-            assert_eq!(intAbs(5), 5);
-            assert_eq!(intAbs(0), 0);
+            assert_eq!(intAbs(-5).unwrap(), 5);
+            assert_eq!(intAbs(5).unwrap(), 5);
+            assert_eq!(intAbs(0).unwrap(), 0);
         }
 
         #[test]
         fn test_int_neg() {
-            assert_eq!(intNeg(5), -5);
-            assert_eq!(intNeg(-5), 5);
-            assert_eq!(intNeg(0), 0);
+            assert_eq!(intNeg(5).unwrap(), -5);
+            assert_eq!(intNeg(-5).unwrap(), 5);
+            assert_eq!(intNeg(0).unwrap(), 0);
         }
     }
 
@@ -1154,42 +1163,42 @@ mod tests {
 
         #[test]
         fn test_int_lt() {
-            assert!(intLt(1, 2));
-            assert!(!intLt(2, 2));
-            assert!(!intLt(2, 1));
+            assert!(intLt(1, 2).unwrap());
+            assert!(!intLt(2, 2).unwrap());
+            assert!(!intLt(2, 1).unwrap());
         }
 
         #[test]
         fn test_int_le() {
-            assert!(intLe(1, 2));
-            assert!(intLe(2, 2));
-            assert!(!intLe(2, 1));
+            assert!(intLe(1, 2).unwrap());
+            assert!(intLe(2, 2).unwrap());
+            assert!(!intLe(2, 1).unwrap());
         }
 
         #[test]
         fn test_int_eq() {
-            assert!(intEq(5, 5));
-            assert!(!intEq(5, 6));
+            assert!(intEq(5, 5).unwrap());
+            assert!(!intEq(5, 6).unwrap());
         }
 
         #[test]
         fn test_int_ne() {
-            assert!(intNe(5, 6));
-            assert!(!intNe(5, 5));
+            assert!(intNe(5, 6).unwrap());
+            assert!(!intNe(5, 5).unwrap());
         }
 
         #[test]
         fn test_int_ge() {
-            assert!(intGe(2, 1));
-            assert!(intGe(2, 2));
-            assert!(!intGe(1, 2));
+            assert!(intGe(2, 1).unwrap());
+            assert!(intGe(2, 2).unwrap());
+            assert!(!intGe(1, 2).unwrap());
         }
 
         #[test]
         fn test_int_gt() {
-            assert!(intGt(2, 1));
-            assert!(!intGt(2, 2));
-            assert!(!intGt(1, 2));
+            assert!(intGt(2, 1).unwrap());
+            assert!(!intGt(2, 2).unwrap());
+            assert!(!intGt(1, 2).unwrap());
         }
     }
 
@@ -1202,39 +1211,39 @@ mod tests {
 
         #[test]
         fn test_int_bit_not() {
-            assert_eq!(intBitNot(0i32), -1);
-            assert_eq!(intBitNot(-1i32), 0);
-            assert_eq!(intBitNot(1), !1);
+            assert_eq!(intBitNot(0i32).unwrap(), -1);
+            assert_eq!(intBitNot(-1i32).unwrap(), 0);
+            assert_eq!(intBitNot(1).unwrap(), !1);
         }
 
         #[test]
         fn test_int_bit_and() {
-            assert_eq!(intBitAnd(0b1100, 0b1010), 0b1000);
-            assert_eq!(intBitAnd(0, 5), 0);
+            assert_eq!(intBitAnd(0b1100, 0b1010).unwrap(), 0b1000);
+            assert_eq!(intBitAnd(0, 5).unwrap(), 0);
         }
 
         #[test]
         fn test_int_bit_or() {
-            assert_eq!(intBitOr(0b1100, 0b1010), 0b1110);
-            assert_eq!(intBitOr(0, 5), 5);
+            assert_eq!(intBitOr(0b1100, 0b1010).unwrap(), 0b1110);
+            assert_eq!(intBitOr(0, 5).unwrap(), 5);
         }
 
         #[test]
         fn test_int_bit_xor() {
-            assert_eq!(intBitXor(0b1100, 0b1010), 0b0110);
-            assert_eq!(intBitXor(5, 5), 0);
+            assert_eq!(intBitXor(0b1100, 0b1010).unwrap(), 0b0110);
+            assert_eq!(intBitXor(5, 5).unwrap(), 0);
         }
 
         #[test]
         fn test_int_bit_l_shift() {
-            assert_eq!(intBitLShift(1, 3), 8);
-            assert_eq!(intBitLShift(3, 1), 6);
+            assert_eq!(intBitLShift(1, 3).unwrap(), 8);
+            assert_eq!(intBitLShift(3, 1).unwrap(), 6);
         }
 
         #[test]
         fn test_int_bit_r_shift() {
-            assert_eq!(intBitRShift(8, 3), 1);
-            assert_eq!(intBitRShift(6, 1), 3);
+            assert_eq!(intBitRShift(8, 3).unwrap(), 1);
+            assert_eq!(intBitRShift(6, 1).unwrap(), 3);
         }
     }
 
@@ -1247,15 +1256,15 @@ mod tests {
 
         #[test]
         fn test_int_real() {
-            assert_eq!(intReal(42), 42.0_f64);
-            assert_eq!(intReal(-7), -7.0_f64);
+            assert_eq!(intReal(42).unwrap(), 42.0_f64);
+            assert_eq!(intReal(-7).unwrap(), -7.0_f64);
         }
 
         #[test]
         fn test_int_string() {
-            assert_eq!(intString(42), "42");
-            assert_eq!(intString(-7), "-7");
-            assert_eq!(intString(0), "0");
+            assert_eq!(&*intString(42).unwrap(), "42");
+            assert_eq!(&*intString(-7).unwrap(), "-7");
+            assert_eq!(&*intString(0).unwrap(), "0");
         }
     }
 
@@ -1268,69 +1277,69 @@ mod tests {
 
         #[test]
         fn test_real_add() {
-            assert_eq!(realAdd(1.5, 2.5), 4.0);
-            assert_eq!(realAdd(-1.0, 1.0), 0.0);
+            assert_eq!(realAdd(1.5, 2.5).unwrap(), 4.0);
+            assert_eq!(realAdd(-1.0, 1.0).unwrap(), 0.0);
         }
 
         #[test]
         fn test_real_sub() {
-            assert_eq!(realSub(5.0, 3.0), 2.0);
-            assert_eq!(realSub(3.0, 5.0), -2.0);
+            assert_eq!(realSub(5.0, 3.0).unwrap(), 2.0);
+            assert_eq!(realSub(3.0, 5.0).unwrap(), -2.0);
         }
 
         #[test]
         fn test_real_mul() {
-            assert_eq!(realMul(3.0, 4.0), 12.0);
-            assert_eq!(realMul(-3.0, 4.0), -12.0);
+            assert_eq!(realMul(3.0, 4.0).unwrap(), 12.0);
+            assert_eq!(realMul(-3.0, 4.0).unwrap(), -12.0);
         }
 
         #[test]
         fn test_real_div() {
-            assert_eq!(realDiv(10.0, 3.0), 10.0 / 3.0);
-            assert_eq!(realDiv(6.0, 2.0), 3.0);
+            assert_eq!(realDiv(10.0, 3.0).unwrap(), 10.0 / 3.0);
+            assert_eq!(realDiv(6.0, 2.0).unwrap(), 3.0);
         }
 
         #[test]
         fn test_real_mod() {
-            assert_eq!(realMod(10.0, 3.0), 1.0);
-            assert_eq!(realMod(10.5, 3.0), 1.5);
+            assert_eq!(realMod(10.0, 3.0).unwrap(), 1.0);
+            assert_eq!(realMod(10.5, 3.0).unwrap(), 1.5);
         }
 
         #[test]
         fn test_real_pow() {
-            assert_eq!(realPow(2.0, 3.0), 8.0);
-            assert_eq!(realPow(9.0, 0.5), 3.0);
+            assert_eq!(realPow(2.0, 3.0).unwrap(), 8.0);
+            assert_eq!(realPow(9.0, 0.5).unwrap(), 3.0);
         }
 
         #[test]
         fn test_real_max() {
-            assert_eq!(realMax(1.5, 2.5), 2.5);
-            assert_eq!(realMax(5.0, 5.0), 5.0);
+            assert_eq!(realMax(1.5, 2.5).unwrap(), 2.5);
+            assert_eq!(realMax(5.0, 5.0).unwrap(), 5.0);
         }
 
         #[test]
         fn test_real_min() {
-            assert_eq!(realMin(1.5, 2.5), 1.5);
-            assert_eq!(realMin(5.0, 5.0), 5.0);
+            assert_eq!(realMin(1.5, 2.5).unwrap(), 1.5);
+            assert_eq!(realMin(5.0, 5.0).unwrap(), 5.0);
         }
 
         #[test]
         fn test_real_abs() {
-            assert_eq!(realAbs(-5.5), 5.5);
-            assert_eq!(realAbs(5.5), 5.5);
+            assert_eq!(realAbs(-5.5).unwrap(), 5.5);
+            assert_eq!(realAbs(5.5).unwrap(), 5.5);
         }
 
         #[test]
         fn test_real_almost_eq() {
-            assert!(realAlmostEq(1.0, 1.0000001, 1e-5));
-            assert!(!realAlmostEq(1.0, 1.1, 1e-5));
-            assert!(realAlmostEq(1.0, 1.0, 1e-6));
+            assert!(realAlmostEq(1.0, 1.0000001, 1e-5).unwrap());
+            assert!(!realAlmostEq(1.0, 1.1, 1e-5).unwrap());
+            assert!(realAlmostEq(1.0, 1.0, 1e-6).unwrap());
         }
 
         #[test]
         fn test_real_neg() {
-            assert_eq!(realNeg(5.5), -5.5);
-            assert_eq!(realNeg(-5.5), 5.5);
+            assert_eq!(realNeg(5.5).unwrap(), -5.5);
+            assert_eq!(realNeg(-5.5).unwrap(), 5.5);
         }
     }
 
@@ -1343,42 +1352,42 @@ mod tests {
 
         #[test]
         fn test_real_lt() {
-            assert!(realLt(1.0, 2.0));
-            assert!(!realLt(2.0, 2.0));
-            assert!(!realLt(2.0, 1.0));
+            assert!(realLt(1.0, 2.0).unwrap());
+            assert!(!realLt(2.0, 2.0).unwrap());
+            assert!(!realLt(2.0, 1.0).unwrap());
         }
 
         #[test]
         fn test_real_le() {
-            assert!(realLe(1.0, 2.0));
-            assert!(realLe(2.0, 2.0));
-            assert!(!realLe(2.0, 1.0));
+            assert!(realLe(1.0, 2.0).unwrap());
+            assert!(realLe(2.0, 2.0).unwrap());
+            assert!(!realLe(2.0, 1.0).unwrap());
         }
 
         #[test]
         fn test_real_eq() {
-            assert!(realEq(1.0, 1.0));
-            assert!(!realEq(1.0, 2.0));
+            assert!(realEq(1.0, 1.0).unwrap());
+            assert!(!realEq(1.0, 2.0).unwrap());
         }
 
         #[test]
         fn test_real_ne() {
-            assert!(realNe(1.0, 2.0));
-            assert!(!realNe(1.0, 1.0));
+            assert!(realNe(1.0, 2.0).unwrap());
+            assert!(!realNe(1.0, 1.0).unwrap());
         }
 
         #[test]
         fn test_real_ge() {
-            assert!(realGe(2.0, 1.0));
-            assert!(realGe(2.0, 2.0));
-            assert!(!realGe(1.0, 2.0));
+            assert!(realGe(2.0, 1.0).unwrap());
+            assert!(realGe(2.0, 2.0).unwrap());
+            assert!(!realGe(1.0, 2.0).unwrap());
         }
 
         #[test]
         fn test_real_gt() {
-            assert!(realGt(2.0, 1.0));
-            assert!(!realGt(2.0, 2.0));
-            assert!(!realGt(1.0, 2.0));
+            assert!(realGt(2.0, 1.0).unwrap());
+            assert!(!realGt(2.0, 2.0).unwrap());
+            assert!(!realGt(1.0, 2.0).unwrap());
         }
     }
 
@@ -1391,16 +1400,16 @@ mod tests {
 
         #[test]
         fn test_real_int() {
-            assert_eq!(realInt(3.7), 3);
-            assert_eq!(realInt(-3.7), -3);
-            assert_eq!(realInt(3.0), 3);
+            assert_eq!(realInt(3.7).unwrap(), 3);
+            assert_eq!(realInt(-3.7).unwrap(), -3);
+            assert_eq!(realInt(3.0).unwrap(), 3);
         }
 
         #[test]
         fn test_real_string() {
-            assert_eq!(realString(3.14), "3.14");
-            assert_eq!(realString(0.0), "0");
-            assert_eq!(realString(-1.5), "-1.5");
+            assert_eq!(&*realString(3.14).unwrap(), "3.14");
+            assert_eq!(&*realString(0.0).unwrap(), "0");
+            assert_eq!(&*realString(-1.5).unwrap(), "-1.5");
         }
     }
 
@@ -1420,10 +1429,10 @@ mod tests {
 
         #[test]
         fn test_int_string_char() {
-            assert_eq!(*intStringChar(65), "A");
-            assert_eq!(*intStringChar(97), "a");
-            assert_eq!(*intStringChar(48), "0");
-            assert_eq!(*intStringChar(0), "\0");
+            assert_eq!(&*intStringChar(65).unwrap(), "A");
+            assert_eq!(&*intStringChar(97).unwrap(), "a");
+            assert_eq!(&*intStringChar(48).unwrap(), "0");
+            assert_eq!(&*intStringChar(0).unwrap(), "\0");
         }
 
         #[test]
@@ -1442,20 +1451,20 @@ mod tests {
 
         #[test]
         fn test_string_list_string_char() {
-            let result = stringListStringChar(Arc::new("abc".to_string()));
+            let result = stringListStringChar(Arc::new("abc".to_string())).unwrap();
             assert_eq!(result, List::from_iter([Arc::new("a".to_string()), Arc::new("b".to_string()), Arc::new("c".to_string())]));
         }
 
         #[test]
         fn test_string_append_list() {
             let strs = list![Arc::new("hello".to_string()), Arc::new(" ".to_string()), Arc::new("world".to_string())];
-            assert_eq!(*stringAppendList(&strs), "hello world");
+            assert_eq!(&*stringAppendList(&strs).unwrap(), "hello world");
         }
 
         #[test]
         fn test_string_delimit_list() {
             let strs = list![Arc::new("x".to_string()), Arc::new("y".to_string()), Arc::new("z".to_string())];
-            assert_eq!(*stringDelimitList(&strs, Arc::new(", ".to_string())), "x, y, z");
+            assert_eq!(&*stringDelimitList(&strs, Arc::new(", ".to_string())).unwrap(), "x, y, z");
         }
     }
 
@@ -1468,14 +1477,14 @@ mod tests {
 
         #[test]
         fn test_string_length() {
-            assert_eq!(stringLength("hello".to_string()), 5);
-            assert_eq!(stringLength("".to_string()), 0);
+            assert_eq!(stringLength("hello".to_string()).unwrap(), 5);
+            assert_eq!(stringLength("".to_string()).unwrap(), 0);
         }
 
         #[test]
         fn test_string_empty() {
-            assert!(stringEmpty("".to_string()));
-            assert!(!stringEmpty("hello".to_string()));
+            assert!(stringEmpty("".to_string()).unwrap());
+            assert!(!stringEmpty("hello".to_string()).unwrap());
         }
     }
 
@@ -1523,22 +1532,22 @@ mod tests {
 
         #[test]
         fn test_string_append() {
-            assert_eq!(stringAppend("hello".to_string(), " world".to_string()), "hello world");
-            assert_eq!(stringAppend("".to_string(), "hello".to_string()), "hello");
-            assert_eq!(stringAppend("hello".to_string(), "".to_string()), "hello");
+            assert_eq!(&*stringAppend("hello".to_string(), " world".to_string()).unwrap(), "hello world");
+            assert_eq!(&*stringAppend("".to_string(), "hello".to_string()).unwrap(), "hello");
+            assert_eq!(&*stringAppend("hello".to_string(), "".to_string()).unwrap(), "hello");
         }
 
         #[test]
         fn test_string_eq() {
-            assert!(stringEq("abc".to_string(), "abc".to_string()));
-            assert!(!stringEq("abc".to_string(), "abd".to_string()));
-            assert!(!stringEq("".to_string(), "abc".to_string()));
+            assert!(stringEq("abc".to_string(), "abc".to_string()).unwrap());
+            assert!(!stringEq("abc".to_string(), "abd".to_string()).unwrap());
+            assert!(!stringEq("".to_string(), "abc".to_string()).unwrap());
         }
 
         #[test]
         fn test_string_equal() {
-            assert!(stringEqual("abc".to_string(), "abc".to_string()));
-            assert!(!stringEqual("abc".to_string(), "abd".to_string()));
+            assert!(stringEqual("abc".to_string(), "abc".to_string()).unwrap());
+            assert!(!stringEqual("abc".to_string(), "abd".to_string()).unwrap());
         }
     }
 
@@ -1551,11 +1560,11 @@ mod tests {
 
         #[test]
         fn test_string_compare() {
-            assert!(stringCompare("abc".to_string(), "abd".to_string()) < 0);
-            assert_eq!(stringCompare("abc".to_string(), "abc".to_string()), 0);
-            assert!(stringCompare("abd".to_string(), "abc".to_string()) > 0);
-            assert!(stringCompare("ab".to_string(), "abc".to_string()) < 0);
-            assert!(stringCompare("abc".to_string(), "ab".to_string()) > 0);
+            assert!(stringCompare("abc".to_string(), "abd".to_string()).unwrap() < 0);
+            assert_eq!(stringCompare("abc".to_string(), "abc".to_string()).unwrap(), 0);
+            assert!(stringCompare("abd".to_string(), "abc".to_string()).unwrap() > 0);
+            assert!(stringCompare("ab".to_string(), "abc".to_string()).unwrap() < 0);
+            assert!(stringCompare("abc".to_string(), "ab".to_string()).unwrap() > 0);
         }
     }
 
@@ -1569,38 +1578,38 @@ mod tests {
         #[test]
         fn test_string_hash_djb2() {
             // DJB2 of "a" = 5381 * 33 + 97 = 177700 + 97 = 177797
-            assert_eq!(stringHashDjb2("a".to_string()), 5381_i32.wrapping_mul(33).wrapping_add(97));
-            assert_eq!(stringHashDjb2("".to_string()), 5381);
+            assert_eq!(stringHashDjb2("a".to_string()).unwrap(), 5381_i32.wrapping_mul(33).wrapping_add(97));
+            assert_eq!(stringHashDjb2("".to_string()).unwrap(), 5381);
         }
 
         #[test]
         fn test_string_hash_djb2_continue() {
-            let h1 = stringHashDjb2("hello".to_string());
-            let _h2 = stringHashDjb2(" world".to_string());
-            let combined = stringHashDjb2Continue(" world".to_string(), h1);
+            let h1 = stringHashDjb2("hello".to_string()).unwrap();
+            let _h2 = stringHashDjb2(" world".to_string()).unwrap();
+            let combined = stringHashDjb2Continue(" world".to_string(), h1).unwrap();
             // Starting from h1 and adding " world" should give the same
             // as hashing "hello world" from scratch
-            assert_eq!(combined, stringHashDjb2("hello world".to_string()));
+            assert_eq!(combined, stringHashDjb2("hello world".to_string()).unwrap());
         }
 
         #[test]
         fn test_string_hash_djb2_mod() {
-            let h = stringHashDjb2Mod("hello".to_string(), 100);
+            let h = stringHashDjb2Mod("hello".to_string(), 100).unwrap();
             assert!(h >= 0 && h < 100);
-            assert_eq!(stringHashDjb2Mod("hello".to_string(), 0), 0);
+            assert_eq!(stringHashDjb2Mod("hello".to_string(), 0).unwrap(), 0);
         }
 
         #[test]
         fn test_string_hash_sdbm() {
             // SDBM of "a" = 97 + 0 + 0 - 0 = 97
-            assert_eq!(stringHashSdbm("a".to_string()), 97);
-            assert_eq!(stringHashSdbm("".to_string()), 0);
+            assert_eq!(stringHashSdbm("a".to_string()).unwrap(), 97);
+            assert_eq!(stringHashSdbm("".to_string()).unwrap(), 0);
         }
 
         #[test]
         fn test_string_hash_consistency() {
             // Same string should produce same hash
-            assert_eq!(stringHash("test".to_string()), stringHash("test".to_string()));
+            assert_eq!(stringHash("test".to_string()).unwrap(), stringHash("test".to_string()).unwrap());
         }
     }
 
@@ -1638,13 +1647,13 @@ mod tests {
         #[test]
         fn test_list_string_char_string() {
             let strs = list![Arc::new("a".to_string()), Arc::new("b".to_string()), Arc::new("c".to_string())];
-            assert_eq!(*listStringCharString(&strs), "abc");
+            assert_eq!(&*listStringCharString(&strs).unwrap(), "abc");
         }
 
         #[test]
         fn test_string_char_list_string() {
             let strs = list![Arc::new("a".to_string()), Arc::new("b".to_string()), Arc::new("c".to_string())];
-            assert_eq!(*stringCharListString(&strs), "abc");
+            assert_eq!(&*stringCharListString(&strs).unwrap(), "abc");
         }
     }
 
@@ -1773,17 +1782,17 @@ mod tests {
         #[test]
         fn test_array_length() {
             let arr = vec![1, 2, 3];
-            assert_eq!(arrayLength(&arr), 3);
+            assert_eq!(arrayLength(&arr).unwrap(), 3);
             let empty: Vec<i32> = vec![];
-            assert_eq!(arrayLength(&empty), 0);
+            assert_eq!(arrayLength(&empty).unwrap(), 0);
         }
 
         #[test]
         fn test_array_empty() {
             let arr = vec![1, 2, 3];
-            assert!(!arrayEmpty(&arr));
+            assert!(!arrayEmpty(&arr).unwrap());
             let empty: Vec<i32> = vec![];
-            assert!(arrayEmpty(&empty));
+            assert!(arrayEmpty(&empty).unwrap());
         }
 
         #[test]
@@ -1798,23 +1807,23 @@ mod tests {
 
         #[test]
         fn test_array_create() {
-            let arr = arrayCreate(5, 0);
+            let arr = arrayCreate(5, 0).unwrap();
             assert_eq!(arr, vec![0, 0, 0, 0, 0]);
-            let empty: Vec<i32> = arrayCreate(0, 42);
+            let empty: Vec<i32> = arrayCreate(0, 42).unwrap();
             assert!(empty.is_empty());
         }
 
         #[test]
         fn test_array_list() {
             let arr = vec![1, 2, 3];
-            let lst = arrayList(&arr);
+            let lst = arrayList(&arr).unwrap();
             assert_eq!(lst, list![1, 2, 3]);
         }
 
         #[test]
         fn test_list_array() {
             let lst = list![1, 2, 3];
-            let arr = listArray(&lst);
+            let arr = listArray(&lst).unwrap();
             assert_eq!(arr, vec![1, 2, 3]);
         }
 
@@ -1830,7 +1839,7 @@ mod tests {
         #[test]
         fn test_array_copy() {
             let arr = vec![1, 2, 3];
-            let copy = arrayCopy(&arr);
+            let copy = arrayCopy(&arr).unwrap();
             assert_eq!(copy, vec![1, 2, 3]);
             assert_eq!(copy, arr);
         }
@@ -1839,11 +1848,11 @@ mod tests {
         fn test_array_append() {
             let a = vec![1, 2];
             let b = vec![3, 4];
-            assert_eq!(arrayAppend(&a, &b), vec![1, 2, 3, 4]);
+            assert_eq!(arrayAppend(&a, &b).unwrap(), vec![1, 2, 3, 4]);
 
             let empty: Vec<i32> = vec![];
-            assert_eq!(arrayAppend(&empty, &b), b);
-            assert_eq!(arrayAppend(&a, &empty), a);
+            assert_eq!(arrayAppend(&empty, &b).unwrap(), b);
+            assert_eq!(arrayAppend(&a, &empty).unwrap(), a);
         }
     }
 
@@ -1858,10 +1867,10 @@ mod tests {
         fn test_any_string() {
             let val = 42i32;
             let result = anyString(&val);
-            assert_eq!(result, "42");
+            assert_eq!(&*result.unwrap(), "42");
 
             let s = "hello";
-            assert!(anyString(&s).contains("hello"));
+            assert!(anyString(&s).unwrap().contains("hello"));
         }
 
         #[test]
@@ -1880,9 +1889,9 @@ mod tests {
 
         #[test]
         fn test_tick() {
-            let t1 = tick();
-            let t2 = tick();
-            assert_eq!(t2, t1.wrapping_add(1));
+            let t1 = tick().unwrap();
+            let t2 = tick().unwrap();
+            assert_eq!(t2, t1+1);
         }
 
         #[test]
@@ -1890,19 +1899,19 @@ mod tests {
             let a = vec![1, 2, 3];
             let b = vec![1, 2, 3];
             let c = vec![1, 2, 4];
-            assert!(valueEq(&a, &b));
-            assert!(!valueEq(&a, &c));
+            assert!(valueEq(&a, &b).unwrap());
+            assert!(!valueEq(&a, &c).unwrap());
         }
 
         #[test]
         fn test_value_compare() {
-            assert_eq!(valueCompare(&1, &2), -1);
-            assert_eq!(valueCompare(&2, &2), 0);
-            assert_eq!(valueCompare(&3, &2), 1);
+            assert_eq!(valueCompare(&1, &2).unwrap(), -1);
+            assert_eq!(valueCompare(&2, &2).unwrap(), 0);
+            assert_eq!(valueCompare(&3, &2).unwrap(), 1);
 
-            assert_eq!(valueCompare(&"abc", &"abd"), -1);
-            assert_eq!(valueCompare(&"abc", &"abc"), 0);
-            assert_eq!(valueCompare(&"abd", &"abc"), 1);
+            assert_eq!(valueCompare(&"abc", &"abd").unwrap(), -1);
+            assert_eq!(valueCompare(&"abc", &"abc").unwrap(), 0);
+            assert_eq!(valueCompare(&"abd", &"abc").unwrap(), 1);
         }
 
         #[test]
@@ -1910,16 +1919,16 @@ mod tests {
             let a = 42;
             let b = 42;
             // Same reference should be equal
-            assert!(referenceEq(&a, &a));
+            assert!(referenceEq(&a, &a).unwrap());
             // Different references with same value
             // reference_eq checks pointer equality, so different vars may not be equal
-            assert!(referenceEq(&a, &b) || !referenceEq(&a, &b)); // either is valid
+            assert!(referenceEq(&a, &b).unwrap() || !referenceEq(&a, &b).unwrap()); // either is valid
         }
 
         #[test]
         fn test_reference_pointer_string() {
             let val = 42;
-            let ptr_str = referencePointerString(&val);
+            let ptr_str = referencePointerString(&val).unwrap();
             // Should be a valid hex representation like "0x..."
             assert!(ptr_str.starts_with("0x"));
         }
@@ -1927,26 +1936,26 @@ mod tests {
         #[test]
         fn test_reference_debug_string() {
             let val = 42i32;
-            let result = referenceDebugString(&val);
+            let result = referenceDebugString(&val).unwrap();
             assert!(result.contains("i32"));
         }
 
         #[test]
         fn test_value_constructor() {
             // Should return a stable value for the same type
-            let c1 = valueConstructor::<i32>();
-            let c2 = valueConstructor::<i32>();
+            let c1 = valueConstructor::<i32>().unwrap();
+            let c2 = valueConstructor::<i32>().unwrap();
             assert_eq!(c1, c2);
 
             // Different types should likely have different constructors
-            let c3 = valueConstructor::<String>();
+            let c3 = valueConstructor::<String>().unwrap();
             assert_ne!(c1, c3);
         }
 
         #[test]
         fn test_clock() {
-            let t1 = clock();
-            let t2 = clock();
+            let t1 = clock().unwrap();
+            let t2 = clock().unwrap();
             assert!(t1 >= 0.0);
             assert!(t2 >= t1);
         }
@@ -1961,15 +1970,15 @@ mod tests {
 
         #[test]
         fn test_set_stack_overflow_signal() {
-            assert!(setStackOverflowSignal(true));
-            assert!(!setStackOverflowSignal(false));
+            assert!(setStackOverflowSignal(true).unwrap());
+            assert!(!setStackOverflowSignal(false).unwrap());
         }
 
         #[test]
         fn test_is_present() {
             // Always returns true in Rust translation
-            assert!(isPresent(&42));
-            assert!(isPresent(&"hello"));
+            assert!(isPresent(&42).unwrap());
+            assert!(isPresent(&"hello").unwrap());
         }
 
         #[test]
@@ -2005,29 +2014,29 @@ mod tests {
         fn test_array_get_no_bounds_checking() {
             let arr = vec![10, 20, 30];
             // Valid 1-based indices
-            assert_eq!(arrayGetNoBoundsChecking(&arr, 1), 10);
-            assert_eq!(arrayGetNoBoundsChecking(&arr, 2), 20);
-            assert_eq!(arrayGetNoBoundsChecking(&arr, 3), 30);
+            assert_eq!(arrayGetNoBoundsChecking(&arr, 1).unwrap(), 10);
+            assert_eq!(arrayGetNoBoundsChecking(&arr, 2).unwrap(), 20);
+            assert_eq!(arrayGetNoBoundsChecking(&arr, 3).unwrap(), 30);
         }
 
         #[test]
         fn test_array_update_no_bounds_checking() {
             let mut arr = vec![1, 2, 3];
-            arrayUpdateNoBoundsChecking(&mut arr, 2, 99);
+            arrayUpdateNoBoundsChecking(&mut arr, 2, 99).unwrap();
             assert_eq!(arr, vec![1, 99, 3]);
         }
 
         #[test]
         fn test_array_create_no_init() {
-            let arr = arrayCreateNoInit(5, 0i32);
+            let arr = arrayCreateNoInit(5, 0i32).unwrap();
             assert_eq!(arr.len(), 5);
         }
 
         #[test]
         fn test_string_get_no_bounds_checking() {
             let s = "hello".to_string();
-            assert_eq!(stringGetNoBoundsChecking(s.clone(), 1), b'h' as i32);
-            assert_eq!(stringGetNoBoundsChecking(s, 5), b'o' as i32);
+            assert_eq!(stringGetNoBoundsChecking(s.clone(), 1).unwrap(), b'h' as i32);
+            assert_eq!(stringGetNoBoundsChecking(s, 5).unwrap(), b'o' as i32);
         }
     }
 }

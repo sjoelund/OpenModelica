@@ -846,7 +846,11 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
         let modif_opt: Option<Absyn::Modification> = modif.clone();
         let init_raw = extract_default_exp(&modif_opt).map(|exp| {
             let typed = typedexp::infer_exp(exp, &infer_env, top_level, &pkg_prefix);
-            emit_exp(&typed, false, ctx, top_level)
+            let mut s = emit_exp(&typed, false, ctx, top_level);
+            if *t == Ty::F64 && typed.ty() == Ty::I32 {
+                s = format!("({s} as f64)");
+            }
+            s
         });
         let init = if input_names.contains(n) {
             Some(escape_ident(n))
@@ -899,7 +903,12 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
         TypedExp::Lit(Lit::Bool(v)) => v.to_string(),
 
         TypedExp::Var { name, segments, ty, .. } => {
-            format!("{}.clone()", emit_var(name, segments, ty, ctx, top_level))
+            let base = emit_var(name, segments, ty, ctx, top_level);
+            if should_clone_var_value(ty) {
+                format!("{base}.clone()")
+            } else {
+                base
+            }
         }
 
         TypedExp::BinOp { op, lhs, rhs, ty, .. } => {
@@ -962,7 +971,7 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
         }
 
         // TODO: Comprehensions
-        TypedExp::Call { func, args, named_args, .. } => {
+        TypedExp::Call { func, args, named_args, ty } => {
             match func.as_str() {
                 "SOME" => {
                     let arg = args
@@ -1102,11 +1111,11 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                 },
                 _ => {
                     let func_str = if func.contains('.') {
-                        &ctx.shorten(func)
+                        ctx.shorten(func)
                     } else {
-                        func
+                        func.to_owned()
                     };
-                    let func_str = escape_ident(func_str);
+                    let func_str = escape_ident(&func_str);
                     let formals = resolve_call_formals(func, ctx, top_level);
                     let parts: Vec<String> = if let Some(formals) = formals {
                         let has_defaults = formals.iter().any(|(_, d)| d.is_some());
@@ -1191,39 +1200,86 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                         parts
                     };
 
-                    let is_ctor = is_constructor(&func_str, ctx, top_level) || is_constructor(func, ctx, top_level);
+                    let ctor_qname = resolve_call_qname(func, ctx, top_level)
+                        .or_else(|| resolve_record_ctor_in_scope(func, ctx, top_level));
+                    let is_ctor = matches!(ty,
+                        Ty::RustStruct(_)
+                        | Ty::RustEnum(_)
+                        | Ty::AliasTo(_)
+                        | Ty::UnionTypeVariant(_, _)
+                        | Ty::Enumeration(_)
+                        | Ty::RustUnitVariant
+                    ) || is_constructor(&func_str, ctx, top_level) || is_constructor(func, ctx, top_level);
                     let mut call = format!("{func_str}({})", parts.join(", "));
                     if is_ctor {
-                        let field_tys = if func.contains('.') {
-                            record_field_tys(func, top_level)
-                        } else {
-                            Some(record_field_tys_by_simple_name(func, top_level))
-                        }.unwrap_or_default();
+                        let field_tys = ctor_qname
+                            .as_deref()
+                            .and_then(|q| record_field_tys(q, top_level))
+                            .or_else(|| {
+                                if func.contains('.') {
+                                    record_field_tys(func, top_level)
+                                } else {
+                                    Some(record_field_tys_by_simple_name(func, top_level))
+                                }
+                            })
+                            .unwrap_or_default();
 
                         if !field_tys.is_empty() {
-                            let mut struct_parts = Vec::new();
-                            let mut unhandled_parts = parts.iter();
-                            for (i, (fname, _)) in field_tys.iter().enumerate() {
-                                if i < args.len() {
-                                    if let Some(p) = unhandled_parts.next() {
-                                        struct_parts.push(format!("{}: {}", escape_ident(fname), p));
+                            let mut values: BTreeMap<String, String> = BTreeMap::new();
+                            let mut failed = false;
+                            let mut reason = String::new();
+
+                            if args.len() > field_tys.len() {
+                                failed = true;
+                                reason = format!("too many positional args for constructor {func}");
+                            }
+
+                            if !failed {
+                                for (i, arg) in args.iter().enumerate() {
+                                    let fname = &field_tys[i].0;
+                                    values.insert(fname.clone(), emit_cloned_call_arg(arg, is_const, ctx, top_level));
+                                }
+                            }
+
+                            if !failed {
+                                for (n, v) in named_args {
+                                    if !field_tys.iter().any(|(fname, _)| fname == n) {
+                                        failed = true;
+                                        reason = format!("unknown constructor field {n} for {func}");
+                                        break;
+                                    }
+                                    values.insert(n.clone(), emit_cloned_call_arg(v, is_const, ctx, top_level));
+                                }
+                            }
+
+                            if !failed {
+                                for (fname, _) in &field_tys {
+                                    if !values.contains_key(fname) {
+                                        failed = true;
+                                        reason = format!("missing constructor field {fname} for {func}");
+                                        break;
                                     }
                                 }
                             }
-                            // named_args were pushed as "n=v" strings... let's reconstruct them
-                            for (n, _) in named_args {
-                                if let Some(p) = unhandled_parts.next() {
-                                    let kv = p.splitn(2, '=').collect::<Vec<_>>();
-                                    if kv.len() == 2 {
-                                        struct_parts.push(format!("{}: {}", escape_ident(kv[0]), kv[1]));
-                                    } else {
-                                        struct_parts.push(format!("{}: {}", escape_ident(n), p));
-                                    }
-                                }
+
+                            if failed {
+                                call = format!("todo!(\"{reason}\")");
+                            } else {
+                                let struct_parts: Vec<String> = field_tys.iter()
+                                    .filter_map(|(fname, _)| values.get(fname).map(|v| format!("{}: {}", escape_ident(fname), v)))
+                                    .collect();
+                                call = format!("{func_str} {{ {} }}", struct_parts.join(", "));
                             }
-                            call = format!("{func_str} {{ {} }}", struct_parts.join(", "));
                         } else {
-                            call = format!("{func_str}");
+                            if args.is_empty() && named_args.is_empty() {
+                                call = func_str.clone();
+                            } else {
+                                call = format!("todo!(\"unsupported constructor arguments for {func}\")");
+                            }
+                        }
+
+                        if is_arc_wrapped(ty, ctx) && !call.starts_with("todo!(") {
+                            call = format!("Arc::new({call})");
                         }
                     }
 
@@ -1231,7 +1287,7 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                     // context, for constructors (uppercase first char), and for known-infallible
                     // note that infallible builtins still return a Result because they can be used as function pointers.
                     //  In order to skip the error checking here, it needs to have a special case handling the function above
-                    if is_const || is_constructor(&func_str, ctx, top_level) || is_constructor(func, ctx, top_level) {
+                    if is_const || is_ctor {
                         call
                     } else {
                         format!("{call}?")
@@ -1299,6 +1355,35 @@ fn emit_var<'a>(
                 name: part.to_owned(),
                 subscripts: vec![],
             });
+        }
+    }
+
+    // If this is a pure qualified symbol path (no subscripts), prefer semantic
+    // resolution through the hierarchy to avoid incorrect `.` field lowering.
+    if real_segments.iter().all(|s| s.subscripts.is_empty()) {
+        let dotted = if real_segments.is_empty() {
+            name_str.clone()
+        } else {
+            real_segments.iter().map(|s| s.name.clone()).collect::<Vec<_>>().join(".")
+        };
+        if let Some(resolved) = resolve_call_qname(&dotted, ctx, top_level) {
+            let shortened = ctx.shorten(&resolved);
+            if shortened == "List::Nil" {
+                return "metamodelica::List::Nil".to_owned();
+            }
+            return escape_ident(&shortened);
+        }
+
+        // Resolve the longest known prefix and keep the suffix as enum/constructor path.
+        for i in (1..real_segments.len()).rev() {
+            let prefix = real_segments[..i].iter().map(|s| s.name.clone()).collect::<Vec<_>>().join(".");
+            let suffix = real_segments[i..].iter().map(|s| s.name.clone()).collect::<Vec<_>>().join(".");
+            let resolved_prefix = resolve_call_qname(&prefix, ctx, top_level)
+                .or_else(|| resolve_type_by_simple_name(&prefix, top_level));
+            if let Some(resolved_prefix) = resolved_prefix {
+                let joined = format!("{resolved_prefix}.{suffix}");
+                return escape_ident(&ctx.shorten(&joined));
+            }
         }
     }
 
@@ -1499,9 +1584,97 @@ fn maybe_clone_string_value(expr: String, ty: &Ty) -> String {
     }
 }
 
+fn should_clone_var_value(ty: &Ty) -> bool {
+    match ty {
+        Ty::I32 | Ty::F64 | Ty::Bool | Ty::Unit => false,
+        Ty::Function { .. } | Ty::FunctionAlias { .. } => false,
+        Ty::Generic(name, _) if name.ends_with("Mutable::Mutable") || name.ends_with("Mutable.Mutable") => false,
+        _ => true,
+    }
+}
+
 fn emit_cloned_call_arg<'a>(arg: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) -> String {
+    if let TypedExp::Var { name, segments, ty, .. } = arg {
+        // Unknown-typed symbols are often function items passed as callbacks.
+        // Emitting `.clone()` on those produces invalid code (`fn item` has no clone method).
+        if *ty == Ty::Unknown {
+            return emit_var(name, segments, ty, ctx, top_level);
+        }
+
+        if var_is_function_item(name, segments, ctx, top_level) {
+            return emit_var(name, segments, ty, ctx, top_level);
+        }
+    }
     let arg_str = emit_exp(arg, is_const, ctx, top_level);
     maybe_clone_string_value(arg_str, &arg.ty())
+}
+
+fn var_is_function_item<'a>(
+    name: &str,
+    segments: &[CrefSegment],
+    ctx: &GenCtx,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+) -> bool {
+    let dotted = if !segments.is_empty() {
+        segments.iter().map(|s| s.name.clone()).collect::<Vec<_>>().join(".")
+    } else {
+        name.to_owned()
+    };
+
+    let Some(qname) = resolve_call_qname(&dotted, ctx, top_level) else { return false };
+    let Some(node) = lookup_node(&qname, top_level) else { return false };
+    match &node.kind {
+        NodeKind::Class(c) => matches!(c.restriction, Absyn::Restriction::R_FUNCTION { .. }),
+        _ => false,
+    }
+}
+
+fn resolve_record_ctor_in_scope<'a>(
+    simple: &str,
+    ctx: &GenCtx,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+) -> Option<String> {
+    if simple.contains('.') || simple.contains("::") {
+        return None;
+    }
+
+    let cur_prefix = if ctx.current_path.is_empty() {
+        ctx.top_name.clone()
+    } else {
+        format!("{}.{}", ctx.top_name, ctx.current_path.join("."))
+    };
+
+    fn walk<'a>(node: &'a NameNode<'a>, prefix: &str, simple: &str) -> Option<String> {
+        for (child_name, child) in &node.children {
+            let q = format!("{prefix}.{child_name}");
+            if child_name == simple {
+                if let NodeKind::Class(c) = &child.kind {
+                    if matches!(c.restriction, Absyn::Restriction::R_RECORD | Absyn::Restriction::R_METARECORD { .. }) {
+                        return Some(q);
+                    }
+                }
+            }
+            if let Some(found) = walk(child, &q, simple) {
+                return Some(found);
+            }
+        }
+        None
+    }
+
+    let mut scope = cur_prefix;
+    loop {
+        if let Some(scope_node) = lookup_node(&scope, top_level) {
+            if let Some(found) = walk(scope_node, &scope, simple) {
+                return Some(found);
+            }
+        }
+        match scope.rfind('.') {
+            Some(dot) => scope.truncate(dot),
+            None => break,
+        }
+    }
+
+    None
 }
 
 /// Resolve a function name as written at a call site to a fully-qualified dotted
@@ -2041,24 +2214,93 @@ fn is_constructor(func: &str, ctx: &GenCtx, top_level: &BTreeMap<String, NameNod
     }
 
     if let Some(node) = resolve_fully_qualified(func, ctx, top_level) {
+        if matches!(node.kind, NodeKind::EnumLiteral) {
+            return true;
+        }
 
         if let NodeKind::Class(c) = &node.kind {
             if matches!(c.restriction, Absyn::Restriction::R_RECORD | Absyn::Restriction::R_UNIONTYPE { .. }) {
                 return true;
             }
         }
-        // Could be a uniontype variant if the parent is a uniontype.
-        // E.g., `List.Nil` where `List` is uniontype. Wait, `resolve_fully_qualified` looks up `List.Nil`
-        // which might resolve if it's considered a record inside `List`? No, uniontype variants aren't records.
-        // Actually, they ARE children in the namespace, but they don't have NodeKind::Class or Record.
-        // Wait, uniontype variants ARE records! `NodeKind::Class` with `R_RECORD`.
-        return false;
     }
 
-    // Fallback: heuristic
-    let last = func.rsplit("::").next().unwrap_or(func);
-    let last = last.rsplit('.').next().unwrap_or(last);
-    last.chars().next().map(|c| c.is_uppercase() || c == '_').unwrap_or(false)
+    let simple = func.rsplit("::").next().unwrap_or(func).rsplit('.').next().unwrap_or(func);
+    simple_name_is_constructor(simple, top_level)
+}
+
+fn simple_name_is_constructor(simple_name: &str, top_level: &BTreeMap<String, NameNode>) -> bool {
+    fn walk(node: &NameNode<'_>, simple_name: &str) -> bool {
+        for (child_name, child) in &node.children {
+            if child_name == simple_name {
+                match &child.kind {
+                    NodeKind::EnumLiteral => return true,
+                    NodeKind::Class(c) => {
+                        if matches!(c.restriction, Absyn::Restriction::R_RECORD | Absyn::Restriction::R_METARECORD { .. }) {
+                            return true;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            if walk(child, simple_name) {
+                return true;
+            }
+        }
+        false
+    }
+
+    for node in top_level.values() {
+        if walk(node, simple_name) {
+            return true;
+        }
+    }
+    false
+}
+
+fn resolve_type_by_simple_name(simple_name: &str, top_level: &BTreeMap<String, NameNode>) -> Option<String> {
+    fn walk(node: &NameNode<'_>, prefix: &str, simple_name: &str) -> Option<String> {
+        for (child_name, child) in &node.children {
+            let q = if prefix.is_empty() { child_name.clone() } else { format!("{prefix}.{child_name}") };
+            if child_name == simple_name {
+                if let NodeKind::Class(c) = &child.kind {
+                    if matches!(c.restriction,
+                        Absyn::Restriction::R_ENUMERATION
+                        | Absyn::Restriction::R_UNIONTYPE
+                        | Absyn::Restriction::R_RECORD
+                        | Absyn::Restriction::R_METARECORD { .. }
+                        | Absyn::Restriction::R_PACKAGE
+                    ) {
+                        return Some(q);
+                    }
+                }
+            }
+            if let Some(found) = walk(child, &q, simple_name) {
+                return Some(found);
+            }
+        }
+        None
+    }
+
+    for (top_name, node) in top_level {
+        if top_name == simple_name {
+            if let NodeKind::Class(c) = &node.kind {
+                if matches!(c.restriction,
+                    Absyn::Restriction::R_ENUMERATION
+                    | Absyn::Restriction::R_UNIONTYPE
+                    | Absyn::Restriction::R_RECORD
+                    | Absyn::Restriction::R_METARECORD { .. }
+                    | Absyn::Restriction::R_PACKAGE
+                ) {
+                    return Some(top_name.clone());
+                }
+            }
+        }
+        if let Some(found) = walk(node, top_name, simple_name) {
+            return Some(found);
+        }
+    }
+    None
 }
 
 fn normalize_builtin_ctor_name(name: &str) -> String {
@@ -2074,13 +2316,13 @@ fn is_sourceinfo_ctor(name: &str) -> bool {
 
 fn sourceinfo_field_name_by_index(i: usize) -> &'static str {
     match i {
-        0 => "file_name",
-        1 => "is_read_only",
-        2 => "line_number_start",
-        3 => "column_number_start",
-        4 => "line_number_end",
-        5 => "column_number_end",
-        6 => "last_modification",
+        0 => "fileName",
+        1 => "isReadOnly",
+        2 => "lineNumberStart",
+        3 => "columnNumberStart",
+        4 => "lineNumberEnd",
+        5 => "columnNumberEnd",
+        6 => "lastModification",
         _ => "",
     }
 }

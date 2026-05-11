@@ -359,6 +359,39 @@ fn lookup_node<'a>(
     Some(node)
 }
 
+fn resolve_dotted_in_scope<'a>(
+    dotted: &str,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+    pkg_prefix: &str,
+) -> Option<String> {
+    if dotted.is_empty() {
+        return None;
+    }
+
+    if lookup_node(dotted, top_level).is_some() {
+        return Some(dotted.to_owned());
+    }
+
+    if pkg_prefix.is_empty() {
+        return None;
+    }
+
+    // Try current package and walk to parents.
+    let mut scope: &str = pkg_prefix;
+    loop {
+        let candidate = format!("{scope}.{dotted}");
+        if lookup_node(&candidate, top_level).is_some() {
+            return Some(candidate);
+        }
+        match scope.rfind('.') {
+            Some(dot) => scope = &scope[..dot],
+            None => break,
+        }
+    }
+
+    None
+}
+
 /// Infer the type of a MetaModelica expression, building a typed expression tree.
 /// `env` maps local variable names to their resolved types.
 pub fn infer_exp<'a>(
@@ -374,7 +407,39 @@ pub fn infer_exp<'a>(
         Absyn::Exp::BOOL    { value } => TypedExp::Lit(Lit::Bool(*value)),
 
         Absyn::Exp::CREF { componentRef } => {
-            let (name, segments) = extract_cref_segments(componentRef, env, top_level, pkg_prefix);
+            let (raw_name, raw_segments) = extract_cref_segments(componentRef, env, top_level, pkg_prefix);
+            let mut name = raw_name;
+            let mut segments = raw_segments;
+
+            if let Some(resolved) = resolve_dotted_in_scope(&name, top_level, pkg_prefix) {
+                let first_is_local = segments.first().map(|s| env.contains_key(&s.name)).unwrap_or(false);
+                let has_subscripts = segments.iter().any(|s| !s.subscripts.is_empty());
+                if !first_is_local && !has_subscripts {
+                    name = resolved.clone();
+                    segments = resolved
+                        .split('.')
+                        .map(|s| CrefSegment { name: s.to_owned(), subscripts: vec![] })
+                        .collect();
+                }
+            }
+            // If a qualified reference uses a matched enum/union value as base (e.g. `tree.left`),
+            // and the field name is already introduced as a local binding by the pattern,
+            // prefer that local binding instead of emitting an invalid direct enum field access.
+            if segments.len() >= 2 {
+                let first = &segments[0].name;
+                let second = &segments[1].name;
+                if env.contains_key(first) && env.contains_key(second) {
+                    let base_ty = env.get(first).cloned().unwrap_or(Ty::Unknown);
+                    if matches!(base_ty, Ty::RustEnum(_) | Ty::AliasTo(_) | Ty::Unknown) {
+                        let ty = env.get(second).cloned().unwrap_or(Ty::Unknown);
+                        return TypedExp::Var {
+                            name: second.clone(),
+                            segments: vec![CrefSegment { name: second.clone(), subscripts: vec![] }],
+                            ty,
+                        };
+                    }
+                }
+            }
             // Local env takes priority; fall back to hierarchy, then try qualifying
             // the bare name with the enclosing package prefix (for sibling references).
             // For dotted names like `exarray.lastUsedIndex`, the env key is just
@@ -383,8 +448,12 @@ pub fn infer_exp<'a>(
             let ty = resolve_first_segment_type(&name, &segments, env, top_level).unwrap_or_else(|| {
                 let first = segments.first().map(|s| s.name.as_str()).unwrap_or(&name);
                 let ty = lookup_ty_in_hierarchy(first, top_level);
-                if ty == Ty::Unknown && !pkg_prefix.is_empty() && !name.contains('.') {
-                    lookup_ty_in_hierarchy(&format!("{pkg_prefix}.{name}"), top_level)
+                if ty == Ty::Unknown {
+                    if let Some(resolved) = resolve_dotted_in_scope(&name, top_level, pkg_prefix) {
+                        lookup_ty_in_hierarchy(&resolved, top_level)
+                    } else {
+                        ty
+                    }
                 } else {
                     ty
                 }
@@ -449,7 +518,8 @@ pub fn infer_exp<'a>(
         }
 
         Absyn::Exp::CALL { function_, functionArgs, .. } => {
-            let func = cref_to_dotted(function_);
+            let raw_func = cref_to_dotted(function_);
+            let func = resolve_dotted_in_scope(&raw_func, top_level, pkg_prefix).unwrap_or(raw_func);
             let (args, named_args) = extract_call_args(functionArgs, env, top_level, pkg_prefix);
             let ty = call_ty(&func, &args, top_level);
             TypedExp::Call { func, args, named_args, ty }
@@ -785,13 +855,17 @@ pub fn infer_pat<'a>(
                 Absyn::ComponentRef::CREF_IDENT { name, subscripts } if subscripts.is_empty() => {
                     if name == "_" {
                         TypedPat::Wildcard
-                    } else if name.chars().next().map(|c| c.is_uppercase()).unwrap_or(false) {
-                        // Uppercase identifiers in pattern position are constructors in
-                        // MetaModelica (variants/records), not variable binders.
-                        let ty = lookup_ty_in_hierarchy(name, top_level);
-                        TypedPat::Constructor { name: name.clone(), fields: vec![], named_fields: vec![], ty }
                     } else {
-                        TypedPat::Var(name.clone())
+                        // Do not guess constructor-vs-variable from casing. Resolve via env
+                        // and hierarchy; unresolved names default to variable binders.
+                        if env.contains_key(name) {
+                            TypedPat::Var(name.clone())
+                        } else if let Some(resolved) = resolve_dotted_in_scope(name, top_level, pkg_prefix) {
+                            let ty = lookup_ty_in_hierarchy(&resolved, top_level);
+                            TypedPat::Constructor { name: resolved, fields: vec![], named_fields: vec![], ty }
+                        } else {
+                            TypedPat::Var(name.clone())
+                        }
                     }
                 }
                 // Subscripted reference in pattern position (e.g. `arr[1]` on LHS of `:=`).

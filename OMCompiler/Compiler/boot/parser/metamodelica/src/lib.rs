@@ -740,7 +740,7 @@ impl<T: Clone> List<T> {
     /// Fails if the list is empty.
     pub fn head(self: &List<T>) -> Result<&T> {
         match self {
-            Nil => bail!("Cannot get rest of empty list"),
+            Nil => bail!("Cannot get head of empty list"),
             Cons{head, ..} => Ok(head),
         }
     }

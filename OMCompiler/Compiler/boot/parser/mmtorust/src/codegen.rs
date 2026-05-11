@@ -714,6 +714,7 @@ fn emit_struct(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Class,
         collect_type_vars_in_ty(fty, &mut type_vars);
     }
     let type_params = if type_vars.is_empty() { String::new() } else { format!("<{}: Clone>", type_vars.join(", ")) };
+    writeln!(out, "#[derive(Clone, Debug, PartialEq, Eq, Hash)]").unwrap();
     if fields.is_empty() {
         writeln!(out, "{indent}pub struct {ename}{type_params};").unwrap();
     } else {
@@ -1039,6 +1040,27 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                 "arrayLength" | "listLength" | "stringLength" => {
                     let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
                     format!("({}.len() as i32)", arg)
+                },
+                "floor" => {
+                    let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+                    format!("{}.floor()", arg)
+                },
+                "integer" => {
+                    let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+                    format!("(({} as f64).floor() as i32)", arg)
+                },
+                "listHead" => {
+                    let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+                    format!("{}.head()?", arg)
+                },
+                "listRest" => {
+                    let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+                    format!("{}.rest()?", arg)
+                },
+                "listGet" => {
+                    let arg1 = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+                    let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
+                    format!("{arg1}.get({arg2})?")
                 },
                 "listReverse" | "listReverseInPlace" => {
                     if args.is_empty() {

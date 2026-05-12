@@ -1415,6 +1415,47 @@ pub(crate) fn lookup_node_ty<'a>(dotted: &str, top_level: &'a BTreeMap<String, N
     lookup_node(dotted, top_level).map(|n| &n.ty)
 }
 
+/// Look up a record node, searching through intermediate uniontype children when
+/// the direct path fails.
+///
+/// MetaModelica allows writing `Pkg.RECORD` when `RECORD` is actually a member of
+/// a uniontype `Pkg.SomeUniontype`.  When `lookup_node("Pkg.RECORD")` fails, this
+/// function tries `lookup_node("Pkg.U.RECORD")` for every uniontype child `U` of
+/// `Pkg`.  If several matches exist the first one (alphabetical order from the
+/// BTreeMap) is returned, which is deterministic.
+///
+/// Returns `(fully_qualified_dotted_path, &NameNode)` so callers can use the
+/// canonical name for further lookups.
+pub(crate) fn lookup_record_through_unions<'a>(
+    dotted: &str,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+) -> Option<(String, &'a NameNode<'a>)> {
+    // Fast path: direct lookup succeeds.
+    if let Some(node) = lookup_node(dotted, top_level) {
+        return Some((dotted.to_owned(), node));
+    }
+
+    // The last segment is the record/constructor name we're looking for.
+    let (parent_dotted, last) = dotted.rsplit_once('.')?;
+
+    // Walk to the parent node.
+    let parent = lookup_node(parent_dotted, top_level)?;
+
+    // Try all direct children that are uniontypes.
+    for (child_name, child_node) in &parent.children {
+        if let NodeKind::Class(c) = &child_node.kind {
+            if matches!(c.restriction, Absyn::Restriction::R_UNIONTYPE) {
+                if let Some(rec_node) = child_node.children.get(last) {
+                    let full = format!("{parent_dotted}.{child_name}.{last}");
+                    return Some((full, rec_node));
+                }
+            }
+        }
+    }
+
+    None
+}
+
 /// Extract the raw `Absyn::Exp` from a modification, for typed inference in codegen.
 pub(crate) fn extract_default_exp(modification: &Option<Absyn::Modification>) -> Option<&Absyn::Exp> {
     match modification {

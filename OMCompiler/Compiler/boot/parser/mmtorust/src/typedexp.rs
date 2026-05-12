@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::collections::BTreeMap;
 use mmwinnow::Absyn;
 use crate::MM;
-use crate::hierarchy::{NameNode, NodeKind, Ty};
+use crate::hierarchy::{NameNode, NodeKind, Ty, lookup_record_through_unions};
 
 // ── Literal values ────────────────────────────────────────────────────────────
 
@@ -335,7 +335,10 @@ fn record_field_tys<'a>(
     qname: &str,
     top_level: &'a BTreeMap<String, NameNode<'a>>,
 ) -> Vec<(String, Ty)> {
-    let Some(node) = lookup_node(qname, top_level) else { return vec![] };
+    // Try the direct path first; fall back to looking through uniontype parents.
+    let node = lookup_node(qname, top_level)
+        .or_else(|| lookup_record_through_unions(qname, top_level).map(|(_, n)| n));
+    let Some(node) = node else { return vec![] };
     let NodeKind::Class(c) = &node.kind else { return vec![] };
     let members: &[MM::ClassMember] = match &c.body {
         MM::ClassDef::Parts { members, .. } | MM::ClassDef::ClassExtends { members, .. } => members,
@@ -455,10 +458,25 @@ pub fn infer_exp<'a>(
             let func = cref_to_dotted(function_);
             let (args, named_args) = extract_call_args(functionArgs, env, top_level, pkg_prefix);
             let sig_ty = lookup_ty_in_hierarchy(&func, top_level);
+            // Look up the node, also trying through intermediate uniontype nodes so that
+            // e.g. `Gettext.gettext` finds `Gettext.TranslatableContent.gettext`.
+            // Also try `pkg_prefix.func` so that bare names like `LEAF` resolve to
+            // `AvlTreeString.Tree.LEAF` in the correct package context.
+            let resolved: Option<(String, &NameNode)> = lookup_record_through_unions(&func, top_level)
+                .or_else(|| lookup_node(&func, top_level).map(|n| (func.clone(), n)))
+                .or_else(|| {
+                    if !func.contains('.') && !pkg_prefix.is_empty() {
+                        let prefixed = format!("{pkg_prefix}.{func}");
+                        lookup_record_through_unions(&prefixed, top_level)
+                            .or_else(|| lookup_node(&prefixed, top_level).map(|n| (prefixed, n)))
+                    } else {
+                        None
+                    }
+                });
             let is_constructor = match &sig_ty {
                 Ty::RustStruct(_) | Ty::RustEnum(_) => true,
                 _ => {
-                    if let Some(node) = lookup_node(&func, top_level) {
+                    if let Some((_, node)) = &resolved {
                         matches!(node.kind, NodeKind::Class(ref c) if matches!(c.restriction, Absyn::Restriction::R_RECORD | Absyn::Restriction::R_UNIONTYPE))
                     } else {
                         false
@@ -466,7 +484,10 @@ pub fn infer_exp<'a>(
                 }
             };
             if is_constructor {
-                let ty = match lookup_ty_in_hierarchy(&func, top_level) {
+                // Use the canonical (fully-qualified) name so downstream codegen can
+                // look up fields, even when the call site used a shorter path.
+                let canonical = resolved.as_ref().map(|(q, _)| q.clone()).unwrap_or(func.clone());
+                let ty = match lookup_ty_in_hierarchy(&canonical, top_level) {
                     Ty::Function { output, .. } => *output,
                     other => other,
                 };
@@ -475,14 +496,10 @@ pub fn infer_exp<'a>(
                         record_field_tys(qname, top_level).into_iter().map(|(n, _)| n).collect()
                     }
                     _ => {
-                        if let Some(node) = lookup_node(&func, top_level) {
-                            record_field_tys(&func, top_level).into_iter().map(|(n, _)| n).collect()
-                        } else {
-                            vec![]
-                        }
+                        record_field_tys(&canonical, top_level).into_iter().map(|(n, _)| n).collect()
                     }
                 };
-                TypedExp::Constructor { name: func, args, named_args, ty, field_names }
+                TypedExp::Constructor { name: canonical, args, named_args, ty, field_names }
             } else {
                 let ty = call_ty(&func, &args, top_level);
                 TypedExp::Call { func, args, named_args, ty, sig_ty }

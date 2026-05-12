@@ -5,7 +5,7 @@ use std::fmt::Write;
 use mmwinnow::Absyn;
 use crate::MM;
 use std::collections::HashMap;
-use crate::hierarchy::{InstanceHierarchy, NameNode, NodeKind, Ty, extract_default, extract_default_exp, lookup_node, lookup_node_ty, uniontype_needs_mod};
+use crate::hierarchy::{InstanceHierarchy, NameNode, NodeKind, Ty, extract_default, extract_default_exp, lookup_node, lookup_node_ty, lookup_record_through_unions, uniontype_needs_mod};
 use crate::typedexp::{self, TypedExp, TypedPat, TypedCase, Lit, BinOpKind, UnOpKind, MatchKind, cref_to_dotted, CrefSegment};
 
 // ── Import-aware generation context ──────────────────────────────────────────
@@ -680,6 +680,30 @@ fn emit_uniontype<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM:
                     emit_struct(out, name, rec_node, rc, &inner, &mut *ctx);
                 }
             }
+            // Emit a type alias from the record name to the struct so that code
+            // written as `RECORD_NAME { field: ... }` or `let RECORD_NAME { field } = ...`
+            // continues to work after the struct is renamed to the uniontype name.
+            // Type aliases are usable as struct constructor and pattern syntax in Rust.
+            if !rec_name.is_empty() && rec_name != name {
+                let ename_alias = escape_ident(name);
+                let alias_name = escape_ident(&rec_name);
+                // Collect type parameters from the struct so the alias is properly generic.
+                let type_vars: Vec<String> = if let Some(rec_node) = node.children.get(&rec_name) {
+                    if let NodeKind::Class(rc) = &rec_node.kind {
+                        let fields = component_fields(rc, &rec_node.children);
+                        let mut tvs = Vec::new();
+                        for (_, fty) in &fields { collect_type_vars_in_ty(fty, &mut tvs); }
+                        tvs
+                    } else { vec![] }
+                } else { vec![] };
+                let type_params = if type_vars.is_empty() {
+                    String::new()
+                } else {
+                    format!("<{}>", type_vars.join(", "))
+                };
+                writeln!(out, "{inner}pub type {alias_name}{type_params} = {ename_alias}{type_params};").unwrap();
+                writeln!(out).unwrap();
+            }
         }
         _ => {
             // No records — emit an opaque struct with PhantomData for type params.
@@ -1351,21 +1375,73 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                 }
 
                 let c_rust = ctx.dotted_to_rust_path(qname);
-                if arg_strs.is_empty() {
+                let ctor_expr = if arg_strs.is_empty() {
                     format!("{c_rust}")
                 } else if field_names.is_empty() {
                     // if we failed to get fields, assume tuple-like variant/struct (rare in MM)
                     format!("{c_rust}({})", arg_strs.join(", "))
                 } else {
                     format!("{c_rust} {{ {} }}", arg_strs.join(", "))
+                };
+                // Wrap in Arc::new when constructing a variant of a recursive type;
+                // all usages of such types in fields are already Arc<T>.
+                if !is_const && constructor_needs_arc(ty, ctx) {
+                    format!("Arc::new({ctor_expr})")
+                } else {
+                    ctor_expr
+                }
+            } else if matches!(ty, Ty::RustUnitVariant)
+                || (matches!(ty, Ty::UnionTypeVariant(_, _))
+                    && args.is_empty()
+                    && named_args.is_empty()
+                    && field_names.is_empty())
+            {
+                // Unit variant: no fields, no parentheses.
+                ctx.dotted_to_rust_path(name)
+            } else if let Ty::UnionTypeVariant(enum_qname, _variant_name) = ty {
+                // Struct variant inside a multi-record uniontype (Rust enum).
+                // Look up field names from the record in the hierarchy.
+                let field_tys = record_field_tys(name, top_level)
+                    .unwrap_or_else(|| record_field_tys_by_simple_name(name, top_level));
+                let variant_rust = ctx.dotted_to_rust_path(name);
+                for (i, a) in args.iter().enumerate() {
+                    let val = emit_cloned_call_arg(a, is_const, ctx, top_level);
+                    let fname = field_tys.get(i).map(|(n, _)| n.as_str()).unwrap_or("_");
+                    let val = if struct_field_is_arc(enum_qname, fname, top_level, ctx) {
+                        format!("Arc::new({val})")
+                    } else { val };
+                    arg_strs.push(format!("{}: {val}", escape_ident(fname)));
+                }
+                for (n, na) in named_args {
+                    let val = emit_cloned_call_arg(&na, is_const, ctx, top_level);
+                    let val = if struct_field_is_arc(enum_qname, &n, top_level, ctx) {
+                        format!("Arc::new({val})")
+                    } else { val };
+                    arg_strs.push(format!("{}: {val}", escape_ident(&n)));
+                }
+                let ctor_expr = if arg_strs.is_empty() {
+                    format!("{variant_rust}")
+                } else {
+                    format!("{variant_rust} {{ {} }}", arg_strs.join(", "))
+                };
+                if !is_const && constructor_needs_arc(ty, ctx) {
+                    format!("Arc::new({ctor_expr})")
+                } else {
+                    ctor_expr
                 }
             } else {
-                // Unknown/fallback
+                // Unknown/fallback: emit as a function call.
                 for a in args {
                     arg_strs.push(emit_cloned_call_arg(a, is_const, ctx, top_level));
                 }
                 let c_rust = ctx.dotted_to_rust_path(name);
-                format!("{c_rust}({})", arg_strs.join(", "))
+                if arg_strs.is_empty() && field_names.is_empty() {
+                    // No args and no known fields — likely a unit variant or nullary constructor.
+                    // Emit without parentheses to avoid E0618.
+                    c_rust
+                } else {
+                    format!("{c_rust}({})", arg_strs.join(", "))
+                }
             }
         }
 
@@ -1897,6 +1973,17 @@ fn emit_range<'a>(start: &TypedExp, step: Option<&TypedExp>, stop: &TypedExp, is
 fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], is_const: bool, ctx: &mut GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) -> String {
     let input_str = emit_exp(input, is_const, ctx, top_level);
     let input_ty = input.ty();
+    // If the match scrutinee is a recursive enum/struct wrapped in Arc, we must use
+    // `.as_ref()` to obtain a `&T` reference that Rust can match against enum patterns.
+    // Without this, the match subject is `Arc<T>` and the enum patterns cannot match it.
+    // With `as_ref()`, Rust's match ergonomics automatically adds `ref` to pattern
+    // bindings, so bound variables become `&FieldType`; `.clone()` on them still works.
+    let input_is_arc = is_arc_wrapped(&input_ty, ctx);
+    let match_subject = if input_is_arc {
+        format!("{input_str}.as_ref()")
+    } else {
+        input_str.clone()
+    };
     match kind {
         MatchKind::Match => {
             let has_wild = cases.iter().any(|c| matches!(c.pattern, TypedPat::Wildcard) && c.guard.is_none());
@@ -1933,7 +2020,7 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], is_co
                 ",\n        _ => bail!(\"match: no arm matched\")".to_owned()
             };
             format!(
-                "(match {input_str} {{\n{}{fallback},\n    }})",
+                "(match {match_subject} {{\n{}{fallback},\n    }})",
                 arms.join(",\n"),
             )
         }
@@ -1942,7 +2029,12 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], is_co
             // Failures inside an arm (pattern mismatch, ?-propagated errors) drop to next arm.
             let mut s = String::new();
             s.push_str("'mc: {\n");
-            s.push_str(&format!("        let __mc_input = {input_str};\n"));
+            // For Arc-wrapped types, store the Arc then match via as_ref() per arm.
+            if input_is_arc {
+                s.push_str(&format!("        let __mc_input = {input_str};\n"));
+            } else {
+                s.push_str(&format!("        let __mc_input = {input_str};\n"));
+            }
             for case in cases {
                 let pat = emit_pat_with_implicit_bind(&case.pattern, /*allow_implicit_bind=*/true, Some(&input_ty), ctx, top_level);
                 let guard_check = case.guard.as_ref()
@@ -1950,7 +2042,11 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], is_co
                     .unwrap_or_default();
                 let result = emit_exp(&case.result, is_const, ctx, top_level);
                 s.push_str("        if let Ok(__v) = (|| -> Result<_> {\n");
-                s.push_str(&format!("            let {pat} = __mc_input.clone() else {{ bail!(\"nomatch\") }};\n"));
+                if input_is_arc {
+                    s.push_str(&format!("            let {pat} = __mc_input.as_ref() else {{ bail!(\"nomatch\") }};\n"));
+                } else {
+                    s.push_str(&format!("            let {pat} = __mc_input.clone() else {{ bail!(\"nomatch\") }};\n"));
+                }
                 s.push_str(&guard_check);
                 s.push_str(&format!("            Ok({result})\n"));
                 s.push_str("        })() { break 'mc __v; }\n");
@@ -2003,12 +2099,20 @@ fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, sc
             format!("({})", parts.join(", "))
         }
 
-        TypedPat::Constructor { name, fields, named_fields, .. } => {
+        TypedPat::Constructor { name, fields, named_fields, ty, .. } => {
             let rust_raw = if name.contains('.') { ctx.shorten(name) } else { normalize_builtin_ctor_name(name) };
             let rust = escape_ident(&rust_raw);
             let field_tys_for_ctor = || {
                 if name.contains('.') {
-                    return record_field_tys(name, top_level);
+                    // Direct lookup first; fall back to lookup-through-unions for names
+                    // like "Flags.FLAGS" where the record is at "Flags.Flag.FLAGS".
+                    if let Some(tys) = record_field_tys(name, top_level) {
+                        return Some(tys);
+                    }
+                    if let Some((canonical, _)) = lookup_record_through_unions(name, top_level) {
+                        return record_field_tys(&canonical, top_level);
+                    }
+                    return None;
                 }
                 if let Some(ty) = scrut_ty {
                     if let Some(from_scrut) = record_field_tys_from_scrutinee_ctor(name, ty, top_level) {
@@ -2018,19 +2122,21 @@ fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, sc
                 Some(record_field_tys_by_simple_name(name, top_level))
             };
             if named_fields.is_empty() && fields.is_empty() {
-                let field_tys = field_tys_for_ctor().unwrap_or_default();
-                if field_tys.is_empty() {
-                    if is_sourceinfo_ctor(name) {
-                        format!("{rust} {{ .. }}")
-                    } else {
-                        rust
-                    }
+                // Empty MetaModelica pattern `case NODE()` or `case NODE` —
+                // decide based on the type: struct/variant types need `{ .. }` to avoid
+                // E0532; constants and unknown types use the bare name.
+                let is_struct_ty = matches!(ty,
+                    Ty::RustStruct(_) | Ty::UnionTypeVariant(_, _) | Ty::RustUnitVariant
+                    | Ty::RustEnum(_) | Ty::AliasTo(_)
+                );
+                if is_struct_ty {
+                    format!("{rust} {{ .. }}")
                 } else {
-                    if allow_implicit_bind {
-                        let binds: Vec<String> = field_tys.into_iter()
-                            .map(|(fname, _)| escape_ident(&fname))
-                            .collect();
-                        format!("{rust} {{ {} }}", binds.join(", "))
+                    // For non-struct types (constants, unknown), look up fields.
+                    // If fields are found, it IS a struct variant and needs `{ .. }`.
+                    let field_tys = field_tys_for_ctor().unwrap_or_default();
+                    if field_tys.is_empty() {
+                        rust  // constant, enum value, or truly-unit variant
                     } else {
                         format!("{rust} {{ .. }}")
                     }
@@ -2047,10 +2153,36 @@ fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, sc
                     }).collect();
                     format!("{rust} {{ {} }}", pats.join(", "))
                 } else {
-                    let pats: Vec<String> = fields.iter()
-                        .map(|p| emit_pat_with_implicit_bind(p, allow_implicit_bind, None, ctx, top_level))
-                        .collect();
-                    format!("{rust}({})", pats.join(", "))
+                    // Positional patterns for named-field struct variants must use struct
+                    // syntax in Rust; tuple syntax only applies to tuple-style variants.
+                    // Look up field names so we can emit `Ctor { f1: p1, f2: p2 }`.
+                    let field_tys = field_tys_for_ctor().unwrap_or_default();
+                    if !field_tys.is_empty() {
+                        let pats: Vec<String> = fields.iter().enumerate().map(|(i, p)| {
+                            let fname = field_tys.get(i).map(|(n, _)| n.as_str()).unwrap_or("_");
+                            let pstr = emit_pat_with_implicit_bind(p, allow_implicit_bind, None, ctx, top_level);
+                            if matches!(p, TypedPat::Var(v) if v == fname) {
+                                escape_ident(fname)
+                            } else {
+                                format!("{}: {pstr}", escape_ident(fname))
+                            }
+                        }).collect();
+                        // If the pattern doesn't cover all fields, add `..` to avoid E0027.
+                        let needs_dotdot = fields.len() < field_tys.len();
+                        if needs_dotdot {
+                            format!("{rust} {{ {}, .. }}", pats.join(", "))
+                        } else {
+                            format!("{rust} {{ {} }}", pats.join(", "))
+                        }
+                    } else {
+                        // Field names unknown — fall back to tuple syntax with a comment.
+                        // This will likely fail to compile; it is better than silently
+                        // emitting wrong code.
+                        let pats: Vec<String> = fields.iter()
+                            .map(|p| emit_pat_with_implicit_bind(p, allow_implicit_bind, None, ctx, top_level))
+                            .collect();
+                        format!("/* TODO: unknown fields for {name} */ {rust}({})", pats.join(", "))
+                    }
                 }
             } else {
                 let mut pats: Vec<String> = named_fields.iter()
@@ -2064,13 +2196,14 @@ fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, sc
                     })
                     .collect();
 
-                if allow_implicit_bind {
-                    let field_tys = field_tys_for_ctor().unwrap_or_default();
-                    for (fname, _) in field_tys.into_iter() {
-                        if !named_fields.iter().any(|(n, _)| n == &fname) {
-                            pats.push(escape_ident(&fname));
-                        }
-                    }
+                // Check if any fields are missing; if so, add `..` to avoid E0027.
+                // We no longer implicitly bind remaining fields (that shadows same-named
+                // functions in scope and causes E0618).
+                let field_tys = field_tys_for_ctor().unwrap_or_default();
+                let all_covered = !field_tys.is_empty()
+                    && field_tys.iter().all(|(n, _)| named_fields.iter().any(|(m, _)| m == n));
+                if !all_covered {
+                    pats.push("..".to_owned());
                 }
                 format!("{rust} {{ {} }}", pats.join(", "))
             }
@@ -2143,18 +2276,22 @@ fn is_constructor(func: &str, ctx: &GenCtx, top_level: &BTreeMap<String, NameNod
         return true;
     }
 
-    if let Some(node) = resolve_fully_qualified(func, ctx, top_level) {
+    // Resolve through direct path first, then through intermediate uniontype nodes.
+    // This handles cases like `Gettext.gettext` where the record lives under
+    // `Gettext.TranslatableContent.gettext`.
+    let node_opt = resolve_fully_qualified(func, ctx, top_level)
+        .or_else(|| {
+            // Convert :: to . for lookup_record_through_unions (which uses dotted paths).
+            let dotted = func.replace("::", ".");
+            lookup_record_through_unions(&dotted, top_level).map(|(_, n)| n)
+        });
 
+    if let Some(node) = node_opt {
         if let NodeKind::Class(c) = &node.kind {
             if matches!(c.restriction, Absyn::Restriction::R_RECORD | Absyn::Restriction::R_UNIONTYPE { .. }) {
                 return true;
             }
         }
-        // Could be a uniontype variant if the parent is a uniontype.
-        // E.g., `List.Nil` where `List` is uniontype. Wait, `resolve_fully_qualified` looks up `List.Nil`
-        // which might resolve if it's considered a record inside `List`? No, uniontype variants aren't records.
-        // Actually, they ARE children in the namespace, but they don't have NodeKind::Class or Record.
-        // Wait, uniontype variants ARE records! `NodeKind::Class` with `R_RECORD`.
         return false;
     }
 
@@ -2312,6 +2449,44 @@ fn is_arc_wrapped(ty: &Ty, ctx: &GenCtx) -> bool {
         _ => return false,
     };
     ctx.recursive_types.contains(qname)
+}
+
+/// Return true if a *constructor expression* for this type should be wrapped in
+/// `Arc::new(...)`.  This happens when the value being constructed is a variant of
+/// a recursive uniontype (the parent type is in `recursive_types`), because all
+/// fields that store this type are emitted as `Arc<T>`.
+///
+/// For a variant record `Ty::RustStruct("Pkg.Tree.NODE")` the parent type is
+/// `"Pkg.Tree"`. For a uniontype itself `Ty::RustEnum("Pkg.Tree")` the type is
+/// its own parent.
+fn constructor_needs_arc(ty: &Ty, ctx: &GenCtx) -> bool {
+    match ty {
+        // Direct enum type: wrapped when the type itself is recursive.
+        Ty::RustEnum(qname) => ctx.recursive_types.contains(qname.as_str()),
+        // Variant record: wrapped when the PARENT enum/uniontype is recursive.
+        Ty::RustStruct(qname) => {
+            if ctx.recursive_types.contains(qname.as_str()) {
+                return true;
+            }
+            // Strip the last segment to get the parent uniontype name.
+            if let Some((parent, _)) = qname.rsplit_once('.') {
+                ctx.recursive_types.contains(parent)
+            } else {
+                false
+            }
+        }
+        Ty::AliasTo(qname) => {
+            if ctx.recursive_types.contains(qname.as_str()) {
+                return true;
+            }
+            if let Some((parent, _)) = qname.rsplit_once('.') {
+                ctx.recursive_types.contains(parent)
+            } else {
+                false
+            }
+        }
+        _ => false,
+    }
 }
 
 /// Return true if the named field of a record (identified by its fully-qualified dotted name)
@@ -2515,7 +2690,15 @@ fn render_shallow<'a>(
                         format!("{}: {s}", escape_ident(&rust_field))
                     }
                 }).collect();
-                format!("{rust_ctor} {{ {} }}", parts.join(", "))
+                // Add `..` if not all fields are covered (or if the field list is
+                // unknown), to satisfy Rust's E0027.
+                let all_covered = !field_tys.is_empty()
+                    && field_tys.iter().all(|(n, _)| named_fields.iter().any(|(m, _)| m == n));
+                if all_covered {
+                    format!("{rust_ctor} {{ {} }}", parts.join(", "))
+                } else {
+                    format!("{rust_ctor} {{ {}, .. }}", parts.join(", "))
+                }
             } else if !fields.is_empty() {
                 if is_sourceinfo_ctor(name) {
                     let parts: Vec<String> = fields.iter().enumerate().map(|(i, sp)| {
@@ -2525,22 +2708,48 @@ fn render_shallow<'a>(
                         if fname.is_empty() { "_".to_owned() } else { format!("{fname}: {s}") }
                     }).collect();
                     format!("{rust_ctor} {{ {} }}", parts.join(", "))
+                } else if !field_tys.is_empty() {
+                    // Positional patterns for named-field struct variants must use struct
+                    // syntax in Rust. Map positional sub-patterns to their field names.
+                    let parts: Vec<String> = fields.iter().enumerate().map(|(i, sp)| {
+                        let (fname, fty) = field_tys.get(i)
+                            .map(|(n, t)| (n.as_str(), t.clone()))
+                            .unwrap_or(("_", Ty::Unknown));
+                        let s = handle(sp, &fty, ctx, env, fresh, deferrals);
+                        if matches!(sp, TypedPat::Var(v) if v == fname) {
+                            escape_ident(fname)
+                        } else {
+                            format!("{}: {s}", escape_ident(fname))
+                        }
+                    }).collect();
+                    // Add `..` if the pattern covers fewer fields than the record has.
+                    if fields.len() < field_tys.len() {
+                        format!("{rust_ctor} {{ {}, .. }}", parts.join(", "))
+                    } else {
+                        format!("{rust_ctor} {{ {} }}", parts.join(", "))
+                    }
                 } else {
+                    // Field names unknown — fall back to tuple syntax with a comment.
                     let parts: Vec<String> = fields.iter().enumerate().map(|(i, sp)| {
                         let fty = field_tys.get(i).map(|(_, t)| t.clone()).unwrap_or(Ty::Unknown);
                         handle(sp, &fty, ctx, env, fresh, deferrals)
                     }).collect();
-                    format!("{rust_ctor}({})", parts.join(", "))
+                    format!("/* TODO: unknown fields for {name} */ {rust_ctor}({})", parts.join(", "))
                 }
             } else {
-                if field_tys.is_empty() {
-                    if is_sourceinfo_ctor(name) {
-                        format!("{rust_ctor} {{ .. }}")
-                    } else {
-                        rust_ctor
-                    }
-                } else {
+                // Empty pattern: use `{ .. }` for struct/variant types, bare name for constants.
+                let field_tys_empty = resolved_qname.as_deref()
+                    .and_then(|q| record_field_tys(q, top_level))
+                    .map(|v| v.is_empty())
+                    .unwrap_or(true);
+                let is_struct_ty = matches!(scrut_ty,
+                    Ty::RustStruct(_) | Ty::UnionTypeVariant(_, _) | Ty::RustUnitVariant
+                    | Ty::RustEnum(_) | Ty::AliasTo(_)
+                ) || !field_tys_empty;
+                if is_struct_ty || is_sourceinfo_ctor(name) {
                     format!("{rust_ctor} {{ .. }}")
+                } else {
+                    rust_ctor
                 }
             }
         }

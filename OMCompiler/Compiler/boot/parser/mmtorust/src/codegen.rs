@@ -339,6 +339,14 @@ fn collect_imports<'a>(node: &NameNode<'_>, ctx: &mut GenCtx, top_level: &'a BTr
 // ── Public entry point ────────────────────────────────────────────────────────
 
 pub fn generate_all(hier: &InstanceHierarchy<'_>, output_dir: &str) -> std::io::Result<()> {
+    let trace_codegen = matches!(
+        std::env::var("MMTORUST_TRACE_CODEGEN").as_deref(),
+        Ok("1") | Ok("true") | Ok("TRUE") | Ok("yes") | Ok("YES")
+    );
+    let file_timeout_secs: u64 = std::env::var("MMTORUST_FILE_TIMEOUT_SECS")
+        .ok()
+        .and_then(|s| s.parse::<u64>().ok())
+        .unwrap_or(0);
     // Build crate_map: top-level class name → Rust crate name.
     let crate_map: BTreeMap<String, String> = hier.top_level.iter()
         .filter_map(|(name, node)| {
@@ -392,6 +400,7 @@ pub fn generate_all(hier: &InstanceHierarchy<'_>, output_dir: &str) -> std::io::
         };
         dir_classes.entry(dir).or_default().push((name.as_str(), node));
     }
+    let all_file_t0 = std::time::Instant::now();
 
     for (dir, classes) in &dir_classes {
         if dir == "openmodelica/src" {
@@ -404,11 +413,30 @@ pub fn generate_all(hier: &InstanceHierarchy<'_>, output_dir: &str) -> std::io::
             } else {
                 None
             };
+            let file_path = format!("{dir}/{name}.rs");
+            if trace_codegen {
+                eprintln!("[mmtorust] codegen start {file_path}");
+            }
+            let file_t0 = std::time::Instant::now();
             let content = generate_file(name, node, &crate_map, current_crate, &top_level_uniontype_names, hier.recursive_types.clone(), &no_mod_uniontypes, &hier.top_level, &fn_type_vars);
-            std::fs::write(format!("{dir}/{name}.rs"), content)?;
+            let file_elapsed = file_t0.elapsed();
+            if trace_codegen {
+                eprintln!("[mmtorust] codegen done  {file_path} ({:.2}s)", file_elapsed.as_secs_f64());
+            }
+            if file_timeout_secs > 0 && file_elapsed.as_secs() > file_timeout_secs {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::TimedOut,
+                    format!("codegen for {file_path} exceeded {file_timeout_secs}s"),
+                ));
+            }
+            std::fs::write(&file_path, content)?;
         }
         let lib_content = generate_lib_file(hier, dir, output_dir);
         std::fs::write(format!("{dir}/lib.rs"), lib_content)?;
+    }
+    let all_file_elapsed = all_file_t0.elapsed();
+    if trace_codegen {
+        eprintln!("[mmtorust] codegen done all files ({:.2}s)", all_file_elapsed.as_secs_f64());
     }
     Ok(())
 }

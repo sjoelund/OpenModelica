@@ -46,14 +46,32 @@ struct GenCtx {
     /// (collected from inputs and output). Used at codegen time to emit generic arguments when
     /// a FunctionAlias type is referenced as a parameter type (e.g. `toStringT` → `toStringT<T>`).
     fn_type_vars: BTreeMap<String, Vec<String>>,
+    /// Fully-qualified function names that have at least one defaulted input.
+    fn_has_defaults: HashSet<String>,
+    /// Function input arity metadata: qname -> (required_inputs, total_inputs).
+    fn_input_arity: HashMap<String, (usize, usize)>,
     /// Memoized scoped call-name resolution results.
     call_qname_cache: RefCell<HashMap<String, Option<String>>>,
     /// Memoized scoped record-constructor resolution results.
     record_ctor_cache: RefCell<HashMap<String, Option<String>>>,
+    /// Memoized scoped constructor-kind checks.
+    constructor_cache: RefCell<HashMap<String, bool>>,
+    /// Memoized global constructor check by simple name.
+    simple_constructor_cache: RefCell<HashMap<String, bool>>,
+    /// Memoized simple-name record field layouts.
+    simple_record_fields_cache: RefCell<HashMap<String, Vec<(String, Ty)>>>,
+    /// Memoized formal/default info per fully-qualified function name.
+    formals_cache: RefCell<HashMap<String, Option<Vec<(String, Option<TypedExp>)>>>>,
+    /// Enables expensive semantic resolution for variable paths in emit_var.
+    enable_semantic_var_resolve: bool,
+    /// Enables positional default argument filling for omitted trailing parameters.
+    enable_positional_defaults: bool,
+    /// Enables fallback semantic constructor detection when type inference is not constructor-like.
+    enable_constructor_fallback: bool,
 }
 
 impl GenCtx {
-    fn new(top_name: &str, current_crate: Option<String>, crate_map: BTreeMap<String, String>, top_level_uniontype_names: HashSet<String>, recursive_types: BTreeSet<String>, fn_type_vars: BTreeMap<String, Vec<String>>) -> Self {
+    fn new(top_name: &str, current_crate: Option<String>, crate_map: BTreeMap<String, String>, top_level_uniontype_names: HashSet<String>, recursive_types: BTreeSet<String>, fn_type_vars: BTreeMap<String, Vec<String>>, fn_has_defaults: HashSet<String>, fn_input_arity: HashMap<String, (usize, usize)>) -> Self {
         Self {
             top_name: top_name.to_owned(),
             current_path: Vec::new(),
@@ -67,8 +85,26 @@ impl GenCtx {
             recursive_types,
             no_mod_uniontypes: HashSet::new(),
             fn_type_vars,
+            fn_has_defaults,
+            fn_input_arity,
             call_qname_cache: RefCell::new(HashMap::new()),
             record_ctor_cache: RefCell::new(HashMap::new()),
+            constructor_cache: RefCell::new(HashMap::new()),
+            simple_constructor_cache: RefCell::new(HashMap::new()),
+            simple_record_fields_cache: RefCell::new(HashMap::new()),
+            formals_cache: RefCell::new(HashMap::new()),
+            enable_semantic_var_resolve: matches!(
+                std::env::var("MMTORUST_SEMANTIC_VAR_RESOLVE").as_deref(),
+                Ok("1") | Ok("true") | Ok("TRUE") | Ok("yes") | Ok("YES")
+            ),
+            enable_positional_defaults: matches!(
+                std::env::var("MMTORUST_ENABLE_POSITIONAL_DEFAULTS").as_deref(),
+                Ok("1") | Ok("true") | Ok("TRUE") | Ok("yes") | Ok("YES")
+            ),
+            enable_constructor_fallback: matches!(
+                std::env::var("MMTORUST_CONSTRUCTOR_FALLBACK").as_deref(),
+                Ok("1") | Ok("true") | Ok("TRUE") | Ok("yes") | Ok("YES")
+            ),
         }
     }
 
@@ -390,8 +426,12 @@ pub fn generate_all(hier: &InstanceHierarchy<'_>, output_dir: &str) -> std::io::
     // Build a map from fully-qualified function names to their effective type variables.
     // Used at codegen time to emit generic arguments for FunctionAlias parameter types.
     let mut fn_type_vars: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    let mut fn_has_defaults: HashSet<String> = HashSet::new();
+    let mut fn_input_arity: HashMap<String, (usize, usize)> = HashMap::new();
     for (top_name, top_node) in &hier.top_level {
         collect_fn_type_vars(top_node, top_name, &mut fn_type_vars);
+        collect_fn_has_defaults(top_node, top_name, &mut fn_has_defaults);
+        collect_fn_input_arity(top_node, top_name, &mut fn_input_arity);
     }
 
     // Group top-level classes by their output directory.
@@ -425,7 +465,7 @@ pub fn generate_all(hier: &InstanceHierarchy<'_>, output_dir: &str) -> std::io::
                 eprintln!("[mmtorust] codegen start {file_path}");
             }
             let file_t0 = std::time::Instant::now();
-            let content = generate_file(name, node, &crate_map, current_crate, &top_level_uniontype_names, hier.recursive_types.clone(), &no_mod_uniontypes, &hier.top_level, &fn_type_vars);
+            let content = generate_file(name, node, &crate_map, current_crate, &top_level_uniontype_names, hier.recursive_types.clone(), &no_mod_uniontypes, &hier.top_level, &fn_type_vars, &fn_has_defaults, &fn_input_arity);
             let file_elapsed = file_t0.elapsed();
             if trace_codegen {
                 eprintln!("[mmtorust] codegen done  {file_path} ({:.2}s)", file_elapsed.as_secs_f64());
@@ -484,6 +524,99 @@ fn collect_fn_type_vars(node: &NameNode<'_>, qname: &str, map: &mut BTreeMap<Str
     }
 }
 
+fn collect_fn_has_defaults(node: &NameNode<'_>, qname: &str, out: &mut HashSet<String>) {
+    let mut has_defaults = false;
+    if let NodeKind::Class(c) = &node.kind {
+        if matches!(c.restriction, Absyn::Restriction::R_FUNCTION { .. }) {
+            let members: &[MM::ClassMember] = match &c.body {
+                MM::ClassDef::Parts { members, .. } | MM::ClassDef::ClassExtends { members, .. } => members,
+                _ => &[],
+            };
+            has_defaults = members.iter().any(|m| {
+                let MM::ClassMember::Component(cmp) = m else { return false };
+                matches!(cmp.direction, Absyn::Direction::INPUT | Absyn::Direction::INPUT_OUTPUT)
+                    && extract_default_exp(&cmp.modification).is_some()
+            });
+        }
+    }
+
+    if !has_defaults {
+        if let Some(base_fn) = node.base_fn {
+            let members: &[MM::ClassMember] = match &base_fn.body {
+                MM::ClassDef::Parts { members, .. } | MM::ClassDef::ClassExtends { members, .. } => members,
+                _ => &[],
+            };
+            has_defaults = members.iter().any(|m| {
+                let MM::ClassMember::Component(cmp) = m else { return false };
+                matches!(cmp.direction, Absyn::Direction::INPUT | Absyn::Direction::INPUT_OUTPUT)
+                    && extract_default_exp(&cmp.modification).is_some()
+            });
+        }
+    }
+
+    if has_defaults {
+        out.insert(qname.to_owned());
+    }
+
+    for (child_name, child_node) in &node.children {
+        let child_qname = format!("{qname}.{child_name}");
+        collect_fn_has_defaults(child_node, &child_qname, out);
+    }
+}
+
+fn collect_fn_input_arity(node: &NameNode<'_>, qname: &str, out: &mut HashMap<String, (usize, usize)>) {
+    if let NodeKind::Class(c) = &node.kind {
+        if matches!(c.restriction, Absyn::Restriction::R_FUNCTION { .. }) {
+            let members: &[MM::ClassMember] = match &c.body {
+                MM::ClassDef::Parts { members, .. } | MM::ClassDef::ClassExtends { members, .. } => members,
+                _ => &[],
+            };
+
+            let mut defaults_by_name: HashMap<String, bool> = HashMap::new();
+            let mut ordered: Vec<String> = Vec::new();
+            for m in members {
+                let MM::ClassMember::Component(cmp) = m else { continue };
+                if !matches!(cmp.direction, Absyn::Direction::INPUT | Absyn::Direction::INPUT_OUTPUT) {
+                    continue;
+                }
+                ordered.push(cmp.name.clone());
+                defaults_by_name.insert(cmp.name.clone(), extract_default_exp(&cmp.modification).is_some());
+            }
+
+            if let Some(base_fn) = node.base_fn {
+                let base_members: &[MM::ClassMember] = match &base_fn.body {
+                    MM::ClassDef::Parts { members, .. } | MM::ClassDef::ClassExtends { members, .. } => members,
+                    _ => &[],
+                };
+                for m in base_members {
+                    let MM::ClassMember::Component(cmp) = m else { continue };
+                    if !matches!(cmp.direction, Absyn::Direction::INPUT | Absyn::Direction::INPUT_OUTPUT) {
+                        continue;
+                    }
+                    let base_has_default = extract_default_exp(&cmp.modification).is_some();
+                    if let Some(local_has_default) = defaults_by_name.get_mut(&cmp.name) {
+                        if !*local_has_default && base_has_default {
+                            *local_has_default = true;
+                        }
+                    }
+                }
+            }
+
+            let total = ordered.len();
+            let required = ordered
+                .iter()
+                .filter(|n| !defaults_by_name.get(*n).copied().unwrap_or(false))
+                .count();
+            out.insert(qname.to_owned(), (required, total));
+        }
+    }
+
+    for (child_name, child_node) in &node.children {
+        let child_qname = format!("{qname}.{child_name}");
+        collect_fn_input_arity(child_node, &child_qname, out);
+    }
+}
+
 fn collect_no_mod_uniontypes(nodes: &BTreeMap<String, NameNode<'_>>, prefix: &str, out: &mut HashSet<String>) {
     for (name, node) in nodes {
         let qname = if prefix.is_empty() { name.clone() } else { format!("{prefix}.{name}") };
@@ -499,8 +632,8 @@ fn collect_no_mod_uniontypes(nodes: &BTreeMap<String, NameNode<'_>>, prefix: &st
     }
 }
 
-fn generate_file<'a>(top_name: &str, node: &NameNode<'_>, crate_map: &BTreeMap<String, String>, current_crate: Option<String>, top_level_uniontype_names: &HashSet<String>, recursive_types: BTreeSet<String>, no_mod_uniontypes: &HashSet<String>, top_level: &'a BTreeMap<String, NameNode<'a>>, fn_type_vars: &BTreeMap<String, Vec<String>>) -> String {
-    let mut ctx = GenCtx::new(top_name, current_crate, crate_map.clone(), top_level_uniontype_names.clone(), recursive_types, fn_type_vars.clone());
+fn generate_file<'a>(top_name: &str, node: &NameNode<'_>, crate_map: &BTreeMap<String, String>, current_crate: Option<String>, top_level_uniontype_names: &HashSet<String>, recursive_types: BTreeSet<String>, no_mod_uniontypes: &HashSet<String>, top_level: &'a BTreeMap<String, NameNode<'a>>, fn_type_vars: &BTreeMap<String, Vec<String>>, fn_has_defaults: &HashSet<String>, fn_input_arity: &HashMap<String, (usize, usize)>) -> String {
+    let mut ctx = GenCtx::new(top_name, current_crate, crate_map.clone(), top_level_uniontype_names.clone(), recursive_types, fn_type_vars.clone(), fn_has_defaults.clone(), fn_input_arity.clone());
     ctx.no_mod_uniontypes = no_mod_uniontypes.clone();
     collect_imports(node, &mut ctx, top_level);
 
@@ -1147,7 +1280,21 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                         func.to_owned()
                     };
                     let func_str = escape_ident(&func_str);
-                    let formals = resolve_call_formals(func, ctx, top_level);
+                    let needs_formals = if !named_args.is_empty() {
+                        true
+                    } else if !ctx.enable_positional_defaults {
+                        false
+                    } else {
+                        resolve_call_qname(func, ctx, top_level)
+                            .and_then(|q| ctx.fn_input_arity.get(&q).copied())
+                            .map(|(_required, total)| args.len() < total)
+                            .unwrap_or(false)
+                    };
+                    let formals = if needs_formals {
+                        resolve_call_formals(func, ctx, top_level)
+                    } else {
+                        None
+                    };
                     let parts: Vec<String> = if let Some(formals) = formals {
                         let has_defaults = formals.iter().any(|(_, d)| d.is_some());
                         if has_defaults {
@@ -1231,16 +1378,29 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                         parts
                     };
 
-                    let ctor_qname = resolve_call_qname(func, ctx, top_level)
-                        .or_else(|| resolve_record_ctor_in_scope(func, ctx, top_level));
-                    let is_ctor = matches!(ty,
+                    let ty_says_ctor = matches!(ty,
                         Ty::RustStruct(_)
                         | Ty::RustEnum(_)
                         | Ty::AliasTo(_)
                         | Ty::UnionTypeVariant(_, _)
                         | Ty::Enumeration(_)
                         | Ty::RustUnitVariant
-                    ) || is_constructor(&func_str, ctx, top_level) || is_constructor(func, ctx, top_level);
+                    );
+                    let is_ctor = if ty_says_ctor {
+                        true
+                    } else if !ctx.enable_constructor_fallback {
+                        false
+                    } else {
+                        // Fallback semantic check only when type inference did not already classify it.
+                        is_constructor(func, ctx, top_level)
+                            || (func_str != *func && is_constructor(&func_str, ctx, top_level))
+                    };
+                    let ctor_qname = if is_ctor {
+                        resolve_call_qname(func, ctx, top_level)
+                            .or_else(|| resolve_record_ctor_in_scope(func, ctx, top_level))
+                    } else {
+                        None
+                    };
                     let mut call = format!("{func_str}({})", parts.join(", "));
                     if is_ctor {
                         let field_tys = ctor_qname
@@ -1250,7 +1410,7 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                                 if func.contains('.') {
                                     record_field_tys(func, top_level)
                                 } else {
-                                    Some(record_field_tys_by_simple_name(func, top_level))
+                                    Some(record_field_tys_by_simple_name_cached(func, ctx, top_level))
                                 }
                             })
                             .unwrap_or_default();
@@ -1393,7 +1553,10 @@ fn emit_var<'a>(
     // resolution through the hierarchy to avoid incorrect `.` field lowering.
     // Keep simple one-segment names on the fast path to avoid repeated global
     // lookups for local variables.
-    if real_segments.len() > 1 && real_segments.iter().all(|s| s.subscripts.is_empty()) {
+    if ctx.enable_semantic_var_resolve
+        && real_segments.len() > 1
+        && real_segments.iter().all(|s| s.subscripts.is_empty())
+    {
         let dotted = if real_segments.is_empty() {
             name_str.clone()
         } else {
@@ -1755,6 +1918,21 @@ fn resolve_record_ctor_in_scope<'a>(
     result
 }
 
+fn record_field_tys_by_simple_name_cached<'a>(
+    simple: &str,
+    ctx: &GenCtx,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+) -> Vec<(String, Ty)> {
+    if let Some(hit) = ctx.simple_record_fields_cache.borrow().get(simple).cloned() {
+        return hit;
+    }
+    let result = record_field_tys_by_simple_name(simple, top_level);
+    ctx.simple_record_fields_cache
+        .borrow_mut()
+        .insert(simple.to_owned(), result.clone());
+    result
+}
+
 /// Resolve a function name as written at a call site to a fully-qualified dotted
 /// name in the hierarchy.
 fn resolve_call_qname<'a>(
@@ -1853,9 +2031,15 @@ fn resolve_call_formals<'a>(
     top_level: &'a BTreeMap<String, NameNode<'a>>,
 ) -> Option<Vec<(String, Option<TypedExp>)>> {
     let qname = resolve_call_qname(func, ctx, top_level)?;
+
+    if let Some(hit) = ctx.formals_cache.borrow().get(&qname).cloned() {
+        return hit;
+    }
+
     let node = lookup_node(&qname, top_level)?;
     let NodeKind::Class(c) = &node.kind else { return None };
     if !matches!(c.restriction, Absyn::Restriction::R_FUNCTION { .. }) {
+        ctx.formals_cache.borrow_mut().insert(qname, None);
         return None;
     }
 
@@ -1923,7 +2107,9 @@ fn resolve_call_formals<'a>(
         return None;
     }
 
-    Some(out)
+    let result = Some(out);
+    ctx.formals_cache.borrow_mut().insert(qname, result.clone());
+    result
 }
 
 /// Substitute references to formal parameter names in `exp` using concrete
@@ -2291,25 +2477,48 @@ struct LocalEnv {
 }
 
 fn is_constructor(func: &str, ctx: &GenCtx, top_level: &BTreeMap<String, NameNode>) -> bool {
+    let cache_key = format!("{}|{}|{}", ctx.top_name, ctx.current_path.join("."), func);
+    if let Some(hit) = ctx.constructor_cache.borrow().get(&cache_key).copied() {
+        return hit;
+    }
+
+    let result = (|| {
     // Some built-ins are always constructors structurally.
     if matches!(func, "SOME" | "NONE") {
         return true;
     }
 
-    if let Some(node) = resolve_fully_qualified(func, ctx, top_level) {
-        if matches!(node.kind, NodeKind::EnumLiteral) {
-            return true;
-        }
-
-        if let NodeKind::Class(c) = &node.kind {
-            if matches!(c.restriction, Absyn::Restriction::R_RECORD | Absyn::Restriction::R_UNIONTYPE { .. }) {
+    if let Some(qname) = resolve_call_qname(func, ctx, top_level) {
+        if let Some(node) = lookup_node(&qname, top_level) {
+            if matches!(node.kind, NodeKind::EnumLiteral) {
                 return true;
             }
+            if let NodeKind::Class(c) = &node.kind {
+                if matches!(
+                    c.restriction,
+                    Absyn::Restriction::R_RECORD
+                        | Absyn::Restriction::R_METARECORD { .. }
+                        | Absyn::Restriction::R_UNIONTYPE { .. }
+                ) {
+                    return true;
+                }
+            }
         }
+        return false;
     }
 
+    // Only do global simple-name fallback if qualified resolution failed.
     let simple = func.rsplit("::").next().unwrap_or(func).rsplit('.').next().unwrap_or(func);
-    simple_name_is_constructor(simple, top_level)
+    if let Some(hit) = ctx.simple_constructor_cache.borrow().get(simple).copied() {
+        return hit;
+    }
+    let hit = simple_name_is_constructor(simple, top_level);
+    ctx.simple_constructor_cache.borrow_mut().insert(simple.to_owned(), hit);
+    hit
+    })();
+
+    ctx.constructor_cache.borrow_mut().insert(cache_key, result);
+    result
 }
 
 fn simple_name_is_constructor(simple_name: &str, top_level: &BTreeMap<String, NameNode>) -> bool {

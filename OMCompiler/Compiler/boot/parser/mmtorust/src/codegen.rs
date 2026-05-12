@@ -927,7 +927,12 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
         TypedExp::Lit(Lit::Bool(v)) => v.to_string(),
 
         TypedExp::Var { name, segments, ty, .. } => {
-            format!("{}.clone()", emit_var(name, segments, ty, ctx, top_level))
+            let var_str = emit_var(name, segments, ty, ctx, top_level);
+            if matches!(ty, Ty::Function { .. } | Ty::FunctionAlias { .. }) {
+                var_str
+            } else {
+                format!("{var_str}.clone()")
+            }
         }
 
         TypedExp::BinOp { op, lhs, rhs, ty, .. } => {
@@ -2308,8 +2313,13 @@ fn emit_pat_assign<'a>(
             writeln!(out, "{indent}let _ = {scrut_expr};").unwrap();
         }
         TypedPat::Var(name) => {
-            env.vars.insert(name.clone(), scrut_ty.clone());
-            writeln!(out, "{indent}let {} = {scrut_expr};", escape_ident(name)).unwrap();
+            let (actual_ty, actual_expr) = if let Ty::Tuple(tys) = scrut_ty {
+                (tys.first().cloned().unwrap_or(Ty::Unknown), format!("{scrut_expr}.0"))
+            } else {
+                (scrut_ty.clone(), scrut_expr.to_string())
+            };
+            env.vars.insert(name.clone(), actual_ty);
+            writeln!(out, "{indent}let {} = {actual_expr};", escape_ident(name)).unwrap();
         }
         _ => {
             // Render shallow with deferrals for Arc-edge crossings.
@@ -2530,6 +2540,11 @@ fn emit_stmt<'a>(
 ) {
     fn coerce_assign_expr(scrut_expr: String, scrut_ty: &Ty, lhs_ty: Option<&Ty>) -> String {
         let mut expr = scrut_expr;
+        if let Ty::Tuple(_) = scrut_ty {
+            if !matches!(lhs_ty, Some(Ty::Tuple(_))) {
+                expr = format!("{expr}.0");
+            }
+        }
         if matches!(lhs_ty, Some(Ty::F64)) && *scrut_ty == Ty::I32 {
             expr = format!("({expr} as f64)");
         }

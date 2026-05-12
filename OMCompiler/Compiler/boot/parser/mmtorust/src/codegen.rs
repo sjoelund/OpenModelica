@@ -1,6 +1,7 @@
 #![allow(unused)]
 
 use std::collections::{BTreeMap, BTreeSet, HashSet};
+use std::cell::RefCell;
 use std::fmt::Write;
 use mmwinnow::Absyn;
 use crate::MM;
@@ -45,6 +46,10 @@ struct GenCtx {
     /// (collected from inputs and output). Used at codegen time to emit generic arguments when
     /// a FunctionAlias type is referenced as a parameter type (e.g. `toStringT` → `toStringT<T>`).
     fn_type_vars: BTreeMap<String, Vec<String>>,
+    /// Memoized scoped call-name resolution results.
+    call_qname_cache: RefCell<HashMap<String, Option<String>>>,
+    /// Memoized scoped record-constructor resolution results.
+    record_ctor_cache: RefCell<HashMap<String, Option<String>>>,
 }
 
 impl GenCtx {
@@ -62,6 +67,8 @@ impl GenCtx {
             recursive_types,
             no_mod_uniontypes: HashSet::new(),
             fn_type_vars,
+            call_qname_cache: RefCell::new(HashMap::new()),
+            record_ctor_cache: RefCell::new(HashMap::new()),
         }
     }
 
@@ -339,6 +346,15 @@ fn collect_imports<'a>(node: &NameNode<'_>, ctx: &mut GenCtx, top_level: &'a BTr
 // ── Public entry point ────────────────────────────────────────────────────────
 
 pub fn generate_all(hier: &InstanceHierarchy<'_>, output_dir: &str) -> std::io::Result<()> {
+    let trace_codegen = matches!(
+        std::env::var("MMTORUST_TRACE_CODEGEN").as_deref(),
+        Ok("1") | Ok("true") | Ok("TRUE") | Ok("yes") | Ok("YES")
+    );
+    let file_timeout_secs: u64 = std::env::var("MMTORUST_FILE_TIMEOUT_SECS")
+        .ok()
+        .and_then(|s| s.parse::<u64>().ok())
+        .unwrap_or(0);
+
     // Build crate_map: top-level class name → Rust crate name.
     let crate_map: BTreeMap<String, String> = hier.top_level.iter()
         .filter_map(|(name, node)| {
@@ -404,8 +420,23 @@ pub fn generate_all(hier: &InstanceHierarchy<'_>, output_dir: &str) -> std::io::
             } else {
                 None
             };
+            let file_path = format!("{dir}/{name}.rs");
+            if trace_codegen {
+                eprintln!("[mmtorust] codegen start {file_path}");
+            }
+            let file_t0 = std::time::Instant::now();
             let content = generate_file(name, node, &crate_map, current_crate, &top_level_uniontype_names, hier.recursive_types.clone(), &no_mod_uniontypes, &hier.top_level, &fn_type_vars);
-            std::fs::write(format!("{dir}/{name}.rs"), content)?;
+            let file_elapsed = file_t0.elapsed();
+            if trace_codegen {
+                eprintln!("[mmtorust] codegen done  {file_path} ({:.2}s)", file_elapsed.as_secs_f64());
+            }
+            if file_timeout_secs > 0 && file_elapsed.as_secs() > file_timeout_secs {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::TimedOut,
+                    format!("codegen for {file_path} exceeded {file_timeout_secs}s"),
+                ));
+            }
+            std::fs::write(&file_path, content)?;
         }
         let lib_content = generate_lib_file(hier, dir, output_dir);
         std::fs::write(format!("{dir}/lib.rs"), lib_content)?;
@@ -1360,7 +1391,9 @@ fn emit_var<'a>(
 
     // If this is a pure qualified symbol path (no subscripts), prefer semantic
     // resolution through the hierarchy to avoid incorrect `.` field lowering.
-    if real_segments.iter().all(|s| s.subscripts.is_empty()) {
+    // Keep simple one-segment names on the fast path to avoid repeated global
+    // lookups for local variables.
+    if real_segments.len() > 1 && real_segments.iter().all(|s| s.subscripts.is_empty()) {
         let dotted = if real_segments.is_empty() {
             name_str.clone()
         } else {
@@ -1638,43 +1671,88 @@ fn resolve_record_ctor_in_scope<'a>(
         return None;
     }
 
-    let cur_prefix = if ctx.current_path.is_empty() {
+    let cache_key = format!("{}|{}|{}", ctx.top_name, ctx.current_path.join("."), simple);
+    if let Some(hit) = ctx.record_ctor_cache.borrow().get(&cache_key).cloned() {
+        return hit;
+    }
+
+    let mut scopes: Vec<String> = Vec::new();
+    let mut scope = if ctx.current_path.is_empty() {
         ctx.top_name.clone()
     } else {
         format!("{}.{}", ctx.top_name, ctx.current_path.join("."))
     };
 
-    fn walk<'a>(node: &'a NameNode<'a>, prefix: &str, simple: &str) -> Option<String> {
-        for (child_name, child) in &node.children {
-            let q = format!("{prefix}.{child_name}");
-            if child_name == simple {
-                if let NodeKind::Class(c) = &child.kind {
-                    if matches!(c.restriction, Absyn::Restriction::R_RECORD | Absyn::Restriction::R_METARECORD { .. }) {
-                        return Some(q);
-                    }
-                }
-            }
-            if let Some(found) = walk(child, &q, simple) {
-                return Some(found);
-            }
-        }
-        None
-    }
-
-    let mut scope = cur_prefix;
     loop {
-        if let Some(scope_node) = lookup_node(&scope, top_level) {
-            if let Some(found) = walk(scope_node, &scope, simple) {
-                return Some(found);
-            }
-        }
+        scopes.push(scope.clone());
         match scope.rfind('.') {
             Some(dot) => scope.truncate(dot),
             None => break,
         }
     }
 
-    None
+    let is_record_ctor = |q: &str| -> bool {
+        let Some(node) = lookup_node(q, top_level) else { return false };
+        matches!(
+            &node.kind,
+            NodeKind::Class(c)
+                if matches!(c.restriction, Absyn::Restriction::R_RECORD | Absyn::Restriction::R_METARECORD { .. })
+        )
+    };
+
+    let mut result: Option<String> = None;
+
+    'scopes: for s in &scopes {
+        // Fast path: direct lexical lookup.
+        let direct = format!("{s}.{simple}");
+        if is_record_ctor(&direct) {
+            result = Some(direct);
+            break 'scopes;
+        }
+
+        // Fallback: nearest descendant under the same lexical scope.
+        let mut best: Option<(usize, String)> = None;
+        let scope_prefix = format!("{s}.");
+        let needle = format!(".{simple}");
+        for q in top_level.keys() {
+            if !q.starts_with(&scope_prefix) || !q.ends_with(&needle) {
+                continue;
+            }
+            if !is_record_ctor(q) {
+                continue;
+            }
+            // Prefer the closest descendant in lexical scope.
+            let depth = q[scope_prefix.len()..].split('.').count();
+            match &best {
+                Some((best_depth, _)) if *best_depth <= depth => {}
+                _ => best = Some((depth, q.clone())),
+            }
+        }
+        if let Some((_, q)) = best {
+            result = Some(q);
+            break 'scopes;
+        }
+    }
+
+    if result.is_none() {
+        // Final fallback: any unique global match by simple name.
+        let mut global_best: Option<(usize, String)> = None;
+        let needle = format!(".{simple}");
+        for q in top_level.keys() {
+            if !q.ends_with(&needle) || !is_record_ctor(q) {
+                continue;
+            }
+            let depth = q.split('.').count();
+            match &global_best {
+                Some((best_depth, _)) if *best_depth <= depth => {}
+                _ => global_best = Some((depth, q.clone())),
+            }
+        }
+        result = global_best.map(|(_, q)| q);
+    }
+
+    ctx.record_ctor_cache.borrow_mut().insert(cache_key, result.clone());
+    result
 }
 
 /// Resolve a function name as written at a call site to a fully-qualified dotted
@@ -1687,6 +1765,13 @@ fn resolve_call_qname<'a>(
     if func.is_empty() {
         return None;
     }
+
+    let cache_key = format!("{}|{}|{}", ctx.top_name, ctx.current_path.join("."), func);
+    if let Some(hit) = ctx.call_qname_cache.borrow().get(&cache_key).cloned() {
+        return hit;
+    }
+
+    let result = (|| {
 
     let mut exists = |name: &str| lookup_node(name, top_level).is_some();
 
@@ -1705,9 +1790,7 @@ fn resolve_call_qname<'a>(
                 } else {
                     format!("{dotted}.{tail}")
                 };
-                if exists(&candidate) {
-                    return Some(candidate);
-                }
+                if exists(&candidate) { return Some(candidate); }
             }
         }
         return None;
@@ -1743,15 +1826,11 @@ fn resolve_call_qname<'a>(
     // Named import aliases can also denote modules.
     for (dotted, local) in &ctx.named {
         if local == func {
-            if exists(dotted) {
-                return Some(dotted.clone());
-            }
+            if exists(dotted) { return Some(dotted.clone()); }
             continue;
         }
         let candidate = format!("{dotted}.{func}");
-        if exists(&candidate) {
-            return Some(candidate);
-        }
+        if exists(&candidate) { return Some(candidate); }
     }
 
     if exists(func) {
@@ -1759,6 +1838,10 @@ fn resolve_call_qname<'a>(
     } else {
         None
     }
+    })();
+
+    ctx.call_qname_cache.borrow_mut().insert(cache_key, result.clone());
+    result
 }
 
 /// Return function formals in declaration order with typed default expressions,

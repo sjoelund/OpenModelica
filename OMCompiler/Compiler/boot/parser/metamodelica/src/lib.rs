@@ -814,9 +814,9 @@ pub fn arrayList<A: Clone>(arr: &[A]) -> Result<List<A>> {
 }
 
 /// Converts a list to an array. O(n).
-pub fn listArray<A: Clone>(lst: &List<A>) -> Result<Vec<A>> {
+pub fn listArray<A: Clone>(lst: List<A>) -> Result<Vec<A>> {
     let mut result = Vec::new();
-    for item in lst {
+    for item in &lst {
         result.push(item.clone());
     }
     Ok(result)
@@ -983,7 +983,7 @@ pub fn fail() -> Result<()> {
 // ============================================================================
 
 pub mod Dangerous {
-    use super::*;
+    pub use super::*;
     /// Unsafe array get without bounds checking.
     /// Panics in debug mode if index is out of bounds due to Rust's bounds checking on indexing.
     pub fn arrayGetNoBoundsChecking<A: Clone>(arr: &[A], index: i32) -> Result<A> {

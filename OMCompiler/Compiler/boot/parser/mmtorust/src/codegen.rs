@@ -1076,6 +1076,21 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                     let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
                     format!("({arg} as i32)")
                 },
+                // Integer(x) is a Modelica/MetaModelica built-in type cast.
+                // For Real → Integer: floor to i32.
+                // For Enumeration → Integer: the discriminant (as i32).
+                // For Boolean → Integer: false=0, true=1.
+                "Integer" => {
+                    let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+                    // Check the argument type to emit the right conversion.
+                    match args.first().map(|a| a.ty()).as_ref() {
+                        Some(crate::hierarchy::Ty::F64) => format!("({arg} as i32)"),
+                        Some(crate::hierarchy::Ty::Bool) => format!("({arg} as i32)"),
+                        Some(crate::hierarchy::Ty::Enumeration(_)) => format!("({arg} as i32)"),
+                        // Unknown argument type — emit a generic cast; it may need manual review.
+                        _ => format!("({arg} as i32)"),
+                    }
+                },
                 "print" => {
                     let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
                     format!("metamodelica::printAny(&{arg})")
@@ -1248,7 +1263,11 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                         parts
                     };
 
-                    let is_ctor = is_constructor(&func_str, ctx, top_level) || is_constructor(func, ctx, top_level);
+                    let mut is_ctor = is_constructor(&func_str, ctx, top_level) || is_constructor(func, ctx, top_level);
+                    if is_ctor {
+                        println!("{:?} is a constructor, but was not detected as such in typedexp.rs", exp);
+                        is_ctor = false;
+                    }
                     let mut call = format!("{func_str}({})", parts.join(", "));
                     if is_ctor {
                         let field_tys = if func.contains('.') {
@@ -1549,14 +1568,20 @@ fn resolve_fully_qualified<'a>(prefix_dotted: &str, ctx: &GenCtx, top_level: &'a
     if let Some(n) = lookup_node(prefix_dotted, top_level) {
         return Some(n);
     }
-    // 2. Relative to current path
-    let mut current = ctx.current_path.clone();
-    while !current.is_empty() {
-        let path = format!("{}.{}", current.join("."), prefix_dotted);
-        if let Some(n) = lookup_node(&path, top_level) {
-            return Some(n);
+    // 2. Relative to the full current path (top_name + current_path + suffix), walking up.
+    // `ctx.current_path` alone is not enough because `lookup_node` needs top-level keys.
+    // Build the full path by combining `top_name` with each scope level.
+    {
+        let mut scope_parts: Vec<&str> = std::iter::once(ctx.top_name.as_str())
+            .chain(ctx.current_path.iter().map(|s| s.as_str()))
+            .collect();
+        while !scope_parts.is_empty() {
+            let path = format!("{}.{}", scope_parts.join("."), prefix_dotted);
+            if let Some(n) = lookup_node(&path, top_level) {
+                return Some(n);
+            }
+            scope_parts.pop();
         }
-        current.pop();
     }
     // 2b. Relative to top_name
     let path_top = format!("{}.{}", ctx.top_name, prefix_dotted);
@@ -2276,14 +2301,26 @@ fn is_constructor(func: &str, ctx: &GenCtx, top_level: &BTreeMap<String, NameNod
         return true;
     }
 
-    // Resolve through direct path first, then through intermediate uniontype nodes.
-    // This handles cases like `Gettext.gettext` where the record lives under
-    // `Gettext.TranslatableContent.gettext`.
-    let node_opt = resolve_fully_qualified(func, ctx, top_level)
+    // Build the current package context so we can use the import-aware resolver from
+    // typedexp — the same resolver that infer_exp uses. This handles import aliases
+    // like `EvalFunctionExt = NFEvalFunctionExt` that `resolve_fully_qualified` cannot
+    // follow because it only does literal hierarchy lookups.
+    let pkg_prefix = if ctx.current_path.is_empty() {
+        ctx.top_name.clone()
+    } else {
+        format!("{}.{}", ctx.top_name, ctx.current_path.join("."))
+    };
+
+    // Normalize :: (Rust path) back to . (MM dotted name) so the resolver can look it up.
+    let func_dotted = func.replace("::", ".");
+
+    let node_opt = typedexp::resolve_call_node(&func_dotted, top_level, &pkg_prefix)
+        .map(|(_, n)| n)
+        // Fallback: try without import-alias resolution via the codegen's own context
+        // (named imports, unqualified modules) which typedexp doesn't know about.
+        .or_else(|| resolve_fully_qualified(func, ctx, top_level))
         .or_else(|| {
-            // Convert :: to . for lookup_record_through_unions (which uses dotted paths).
-            let dotted = func.replace("::", ".");
-            lookup_record_through_unions(&dotted, top_level).map(|(_, n)| n)
+            lookup_record_through_unions(&func_dotted, top_level).map(|(_, n)| n)
         });
 
     if let Some(node) = node_opt {
@@ -2292,13 +2329,23 @@ fn is_constructor(func: &str, ctx: &GenCtx, top_level: &BTreeMap<String, NameNod
                 return true;
             }
         }
+        // Node was found in the hierarchy and is NOT a record/uniontype (e.g., it is a
+        // function, package, import, etc.). Return false without applying any heuristic.
         return false;
     }
 
-    // Fallback: heuristic
+    // Heuristic of last resort (node not found in hierarchy): treat names that are
+    // ALL_CAPS (all uppercase, underscores, and digits — no lowercase letters) as
+    // constructors. MetaModelica constructor names are universally ALL_CAPS (e.g.
+    // MATCHING, NOT_REPLACEABLE, EMPTY_NODE). Names with any lowercase character
+    // (e.g. GC_get_prof_stats_modelica, listArray, Lapack_dgesv) are functions,
+    // even when their first letter is uppercase.
+    // Do NOT include `_` as a possible first character — underscore-prefixed names
+    // like `_dladdr` are private external functions, not constructors.
     let last = func.rsplit("::").next().unwrap_or(func);
     let last = last.rsplit('.').next().unwrap_or(last);
-    last.chars().next().map(|c| c.is_uppercase() || c == '_').unwrap_or(false)
+    last.chars().next().map(|c| c.is_uppercase()).unwrap_or(false)
+        && last.chars().all(|c| c.is_ascii_uppercase() || c == '_' || c.is_ascii_digit())
 }
 
 fn normalize_builtin_ctor_name(name: &str) -> String {

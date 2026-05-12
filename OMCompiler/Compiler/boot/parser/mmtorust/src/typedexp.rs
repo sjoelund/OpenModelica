@@ -217,6 +217,165 @@ fn collect_cref_segments_rev<'a>(
     }
 }
 
+/// Convert an `Absyn::Path` to a dotted string (e.g. `"Pkg.Sub.Name"`).
+fn path_to_dotted(path: &Absyn::Path) -> String {
+    match path {
+        Absyn::Path::IDENT { name } => name.clone(),
+        Absyn::Path::QUALIFIED { name, path } => format!("{name}.{}", path_to_dotted(path)),
+        Absyn::Path::FULLYQUALIFIED { path } => path_to_dotted(path),
+    }
+}
+
+/// Extract the target dotted path from any import (including unqualified/wildcard).
+fn import_any_target_path(import: &Absyn::Import) -> Option<String> {
+    match import {
+        Absyn::Import::NAMED_IMPORT { path, .. }
+        | Absyn::Import::QUAL_IMPORT { path }
+        | Absyn::Import::UNQUAL_IMPORT { path } => {
+            let d = path_to_dotted(path);
+            if d.is_empty() { None } else { Some(d) }
+        }
+        _ => None,
+    }
+}
+
+/// Extract the target dotted path from a named or qualified import statement.
+/// Returns `None` for wildcard (`import Pkg.*`) and group imports.
+fn import_target_path(import: &Absyn::Import) -> Option<String> {
+    match import {
+        Absyn::Import::NAMED_IMPORT { path, .. } | Absyn::Import::QUAL_IMPORT { path } => {
+            let d = path_to_dotted(path);
+            if d.is_empty() { None } else { Some(d) }
+        }
+        _ => None,
+    }
+}
+
+/// Walk a dotted path through the hierarchy, transparently following import alias nodes.
+///
+/// For example, if `NFBuiltin` has `import LookupTree = NFLookupTree`, then
+/// `walk_dotted_with_imports("NFBuiltin.LookupTree.Tree.EMPTY", top_level)` resolves
+/// `LookupTree` → `NFLookupTree` and returns the node for `NFLookupTree.Tree.EMPTY`.
+///
+/// Also handles `Ty::AliasTo` type aliases (e.g. `type ParameterTree = NFCallParameterTree.Tree`).
+///
+/// Depth-limited to avoid infinite loops from mutually-recursive import aliases.
+fn walk_dotted_with_imports<'a>(
+    dotted: &str,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+    depth: u32,
+) -> Option<(String, &'a NameNode<'a>)> {
+    if depth > 8 {
+        // Guard against pathological import alias cycles.
+        return None;
+    }
+
+    // Fast path: direct lookup (also checks through intermediate uniontype nodes).
+    if let Some(r) = lookup_record_through_unions(dotted, top_level)
+        .or_else(|| lookup_node(dotted, top_level).map(|n| (dotted.to_owned(), n)))
+    {
+        return Some(r);
+    }
+
+    // Incremental walk: find the first prefix that exists in the hierarchy
+    // and is an import or type-alias node, then substitute and retry.
+    let parts: Vec<&str> = dotted.split('.').collect();
+    for split in 1..parts.len() {
+        let prefix = parts[..split].join(".");
+        let Some(node) = lookup_node(&prefix, top_level) else { continue };
+
+        let target: Option<String> = match &node.kind {
+            NodeKind::Import(m) => import_target_path(&m.import),
+            _ => None,
+        }
+        // Also follow type aliases recorded in the node's resolved type.
+        .or_else(|| match &node.ty {
+            Ty::AliasTo(t) => Some(t.clone()),
+            Ty::RustEnum(t) | Ty::RustStruct(t) => Some(t.clone()),
+            _ => None,
+        });
+
+        if let Some(target) = target {
+            let rest = parts[split..].join(".");
+            let resolved = if rest.is_empty() { target } else { format!("{target}.{rest}") };
+            if let Some(r) = walk_dotted_with_imports(&resolved, top_level, depth + 1) {
+                return Some(r);
+            }
+        }
+    }
+    None
+}
+
+/// Resolve a call-site function name to a `(canonical_dotted_name, node)` pair.
+///
+/// Resolution order:
+/// 1. Direct top-level lookup, including through intermediate uniontype nodes.
+/// 2. With `pkg_prefix` prepended (walking up the scope hierarchy from the most-specific
+///    enclosing scope to the least-specific), to resolve names relative to the current package.
+/// 3. At each candidate path, import-alias nodes (and `AliasTo` type aliases) are followed
+///    transparently so that e.g. `LookupTree.Tree.EMPTY` inside `NFBuiltin` resolves to
+///    `NFLookupTree.Tree.EMPTY` via the `import LookupTree = NFLookupTree;` declaration.
+///
+/// This function does NOT use heuristics (case/prefix); all decisions are based on the
+/// hierarchy.
+pub fn resolve_call_node<'a>(
+    func: &str,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+    pkg_prefix: &str,
+) -> Option<(String, &'a NameNode<'a>)> {
+    // 1. Direct lookup (handles fully-qualified top-level names).
+    if let Some(r) = walk_dotted_with_imports(func, top_level, 0) {
+        return Some(r);
+    }
+
+    // 2. Qualify with each enclosing scope level (most-specific first).
+    if !pkg_prefix.is_empty() {
+        let mut parts: Vec<&str> = pkg_prefix.split('.').collect();
+        loop {
+            let prefixed = format!("{}.{func}", parts.join("."));
+            if let Some(r) = walk_dotted_with_imports(&prefixed, top_level, 0) {
+                return Some(r);
+            }
+            if parts.is_empty() {
+                break;
+            }
+            parts.pop();
+        }
+    }
+
+    // 3. For each scope level, scan all import children and try to resolve `func`
+    //    against each import's target package. This handles:
+    //    - bare names whose source type's package is only reachable via import alias
+    //      (e.g. `MATCHING` in a scope with `import Matching = NBMatching;` — the
+    //      record `MATCHING` lives in `NBMatching` and is used unqualified)
+    //    - bare/dotted names reachable via wildcard imports
+    //      (e.g. `Replaceable.NOT_REPLACEABLE` in a scope with `import NFPrefixes.*`)
+    if !pkg_prefix.is_empty() {
+        let mut parts: Vec<&str> = pkg_prefix.split('.').collect();
+        loop {
+            let scope_path = parts.join(".");
+            if let Some(scope_node) = lookup_node(&scope_path, top_level) {
+                for child in scope_node.children.values() {
+                    if let NodeKind::Import(m) = &child.kind {
+                        if let Some(target) = import_any_target_path(&m.import) {
+                            let candidate = format!("{target}.{func}");
+                            if let Some(r) = walk_dotted_with_imports(&candidate, top_level, 0) {
+                                return Some(r);
+                            }
+                        }
+                    }
+                }
+            }
+            if parts.is_empty() {
+                break;
+            }
+            parts.pop();
+        }
+    }
+
+    None
+}
+
 fn lookup_ty_in_hierarchy<'a>(dotted: &str, top_level: &'a BTreeMap<String, NameNode<'a>>) -> Ty {
     let mut parts = dotted.split('.');
     let first = parts.next().unwrap_or("");
@@ -458,21 +617,12 @@ pub fn infer_exp<'a>(
             let func = cref_to_dotted(function_);
             let (args, named_args) = extract_call_args(functionArgs, env, top_level, pkg_prefix);
             let sig_ty = lookup_ty_in_hierarchy(&func, top_level);
-            // Look up the node, also trying through intermediate uniontype nodes so that
-            // e.g. `Gettext.gettext` finds `Gettext.TranslatableContent.gettext`.
-            // Also try `pkg_prefix.func` so that bare names like `LEAF` resolve to
-            // `AvlTreeString.Tree.LEAF` in the correct package context.
-            let resolved: Option<(String, &NameNode)> = lookup_record_through_unions(&func, top_level)
-                .or_else(|| lookup_node(&func, top_level).map(|n| (func.clone(), n)))
-                .or_else(|| {
-                    if !func.contains('.') && !pkg_prefix.is_empty() {
-                        let prefixed = format!("{pkg_prefix}.{func}");
-                        lookup_record_through_unions(&prefixed, top_level)
-                            .or_else(|| lookup_node(&prefixed, top_level).map(|n| (prefixed, n)))
-                    } else {
-                        None
-                    }
-                });
+            // Resolve the call node using import-aware lookup so that dotted names whose
+            // first segment is an import alias (e.g. `LookupTree.Tree.EMPTY` where
+            // `import LookupTree = NFLookupTree`) and names relative to the current
+            // package (e.g. bare `LEAF` or dotted `Tree.EMPTY` inside `AvlSetInt`) all
+            // resolve to their canonical fully-qualified path.
+            let resolved: Option<(String, &NameNode)> = resolve_call_node(&func, top_level, pkg_prefix);
             let is_constructor = match &sig_ty {
                 Ty::RustStruct(_) | Ty::RustEnum(_) => true,
                 _ => {
@@ -651,10 +801,11 @@ fn infer_case<'a>(
                 let func = cref_to_dotted(functionName);
                 let (args, named_args) = extract_call_args(functionArgs, env, top_level, pkg_prefix);
                 let sig_ty = lookup_ty_in_hierarchy(&func, top_level);
+                let resolved = resolve_call_node(&func, top_level, pkg_prefix);
                 let is_constructor = match &sig_ty {
                     Ty::RustStruct(_) | Ty::RustEnum(_) => true,
                     _ => {
-                        if let Some(node) = lookup_node(&func, top_level) {
+                        if let Some((_, node)) = &resolved {
                             matches!(node.kind, NodeKind::Class(ref c) if matches!(c.restriction, Absyn::Restriction::R_RECORD | Absyn::Restriction::R_UNIONTYPE))
                         } else {
                             false
@@ -662,7 +813,8 @@ fn infer_case<'a>(
                     }
                 };
                 let call = if is_constructor {
-                    let ty = match lookup_ty_in_hierarchy(&func, top_level) {
+                    let canonical = resolved.as_ref().map(|(q, _)| q.clone()).unwrap_or(func.clone());
+                    let ty = match lookup_ty_in_hierarchy(&canonical, top_level) {
                         Ty::Function { output, .. } => *output,
                         other => other,
                     };
@@ -671,14 +823,10 @@ fn infer_case<'a>(
                             record_field_tys(qname, top_level).into_iter().map(|(n, _)| n).collect()
                         }
                         _ => {
-                            if let Some(node) = lookup_node(&func, top_level) {
-                                record_field_tys(&func, top_level).into_iter().map(|(n, _)| n).collect()
-                            } else {
-                                vec![]
-                            }
+                            record_field_tys(&canonical, top_level).into_iter().map(|(n, _)| n).collect()
                         }
                     };
-                    TypedExp::Constructor { name: func, args, named_args, ty, field_names }
+                    TypedExp::Constructor { name: canonical, args, named_args, ty, field_names }
                 } else {
                     let ty = call_ty(&func, &args, top_level);
                     TypedExp::Call { func, args, named_args, ty, sig_ty }
@@ -1145,10 +1293,11 @@ fn infer_stmt<'a>(
             let func = cref_to_dotted(functionCall);
             let (args, named_args) = extract_call_args(functionArgs, env, top_level, pkg_prefix);
             let sig_ty = lookup_ty_in_hierarchy(&func, top_level);
+            let resolved = resolve_call_node(&func, top_level, pkg_prefix);
             let is_constructor = match &sig_ty {
                 Ty::RustStruct(_) | Ty::RustEnum(_) => true,
                 _ => {
-                    if let Some(node) = lookup_node(&func, top_level) {
+                    if let Some((_, node)) = &resolved {
                         matches!(node.kind, NodeKind::Class(ref c) if matches!(c.restriction, Absyn::Restriction::R_RECORD | Absyn::Restriction::R_UNIONTYPE))
                     } else {
                         false
@@ -1156,7 +1305,8 @@ fn infer_stmt<'a>(
                 }
             };
             let call = if is_constructor {
-                let ty = match lookup_ty_in_hierarchy(&func, top_level) {
+                let canonical = resolved.as_ref().map(|(q, _)| q.clone()).unwrap_or(func.clone());
+                let ty = match lookup_ty_in_hierarchy(&canonical, top_level) {
                     Ty::Function { output, .. } => *output,
                     other => other,
                 };
@@ -1165,14 +1315,10 @@ fn infer_stmt<'a>(
                         record_field_tys(qname, top_level).into_iter().map(|(n, _)| n).collect()
                     }
                     _ => {
-                        if let Some(node) = lookup_node(&func, top_level) {
-                            record_field_tys(&func, top_level).into_iter().map(|(n, _)| n).collect()
-                        } else {
-                            vec![]
-                        }
+                        record_field_tys(&canonical, top_level).into_iter().map(|(n, _)| n).collect()
                     }
                 };
-                TypedExp::Constructor { name: func, args, named_args, ty, field_names }
+                TypedExp::Constructor { name: canonical, args, named_args, ty, field_names }
             } else {
                 let ty = call_ty(&func, &args, top_level);
                 TypedExp::Call { func, args, named_args, ty, sig_ty }

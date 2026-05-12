@@ -2333,19 +2333,8 @@ fn is_constructor(func: &str, ctx: &GenCtx, top_level: &BTreeMap<String, NameNod
         // function, package, import, etc.). Return false without applying any heuristic.
         return false;
     }
-
-    // Heuristic of last resort (node not found in hierarchy): treat names that are
-    // ALL_CAPS (all uppercase, underscores, and digits — no lowercase letters) as
-    // constructors. MetaModelica constructor names are universally ALL_CAPS (e.g.
-    // MATCHING, NOT_REPLACEABLE, EMPTY_NODE). Names with any lowercase character
-    // (e.g. GC_get_prof_stats_modelica, listArray, Lapack_dgesv) are functions,
-    // even when their first letter is uppercase.
-    // Do NOT include `_` as a possible first character — underscore-prefixed names
-    // like `_dladdr` are private external functions, not constructors.
-    let last = func.rsplit("::").next().unwrap_or(func);
-    let last = last.rsplit('.').next().unwrap_or(last);
-    last.chars().next().map(|c| c.is_uppercase()).unwrap_or(false)
-        && last.chars().all(|c| c.is_ascii_uppercase() || c == '_' || c.is_ascii_digit())
+    // Shouldn't reach here. But let's assume it's not a constructor in that case
+    return false;
 }
 
 fn normalize_builtin_ctor_name(name: &str) -> String {

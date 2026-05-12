@@ -990,7 +990,7 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
         }
 
         // TODO: Comprehensions
-        TypedExp::Call { func, args, named_args, .. } => {
+        TypedExp::Call { func, args, named_args, sig_ty, .. } => {
             match func.as_str() {
                 "SOME" => {
                     let arg = args
@@ -1302,6 +1302,44 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
 
         TypedExp::Range { start, step, stop, .. } => {
             emit_range(start, step.as_deref(), stop, is_const, ctx, top_level)
+        }
+
+        TypedExp::Constructor { name, args, named_args, ty, field_names } => {
+            let mut arg_strs = Vec::new();
+            if let Ty::RustStruct(qname) | Ty::RustEnum(qname) = ty {
+                let mut remaining_named = named_args.clone();
+                for (i, fa) in args.iter().enumerate() {
+                    let val = emit_cloned_call_arg(fa, is_const, ctx, top_level);
+                    if i < field_names.len() {
+                        let fname_safe = escape_ident(&field_names[i]);
+                        arg_strs.push(format!("{fname_safe}: {val}"));
+                    } else {
+                        // fallback if we have more pos args than fields? shouldn't happen for valid mm
+                        arg_strs.push(val);
+                    }
+                }
+                for (n, na) in remaining_named {
+                    let val = emit_cloned_call_arg(&na, is_const, ctx, top_level);
+                    arg_strs.push(format!("{}: {val}", escape_ident(&n)));
+                }
+
+                let c_rust = ctx.dotted_to_rust_path(qname);
+                if arg_strs.is_empty() {
+                    format!("{c_rust}")
+                } else if field_names.is_empty() {
+                    // if we failed to get fields, assume tuple-like variant/struct (rare in MM)
+                    format!("{c_rust}({})", arg_strs.join(", "))
+                } else {
+                    format!("{c_rust} {{ {} }}", arg_strs.join(", "))
+                }
+            } else {
+                // Unknown/fallback
+                for a in args {
+                    arg_strs.push(emit_cloned_call_arg(a, is_const, ctx, top_level));
+                }
+                let c_rust = ctx.dotted_to_rust_path(name);
+                format!("{c_rust}({})", arg_strs.join(", "))
+            }
         }
 
         TypedExp::Todo(s) => format!("todo!(/*{}*/)", s.chars().take(60).collect::<String>()),
@@ -1726,13 +1764,23 @@ fn substitute_formal_refs(exp: &TypedExp, bindings: &HashMap<String, TypedExp>) 
             operand: Box::new(substitute_formal_refs(operand, bindings)),
             ty: ty.clone(),
         },
-        TypedExp::Call { func, args, named_args, ty } => TypedExp::Call {
+        TypedExp::Call { func, args, named_args, ty, sig_ty } => TypedExp::Call {
             func: func.clone(),
             args: args.iter().map(|a| substitute_formal_refs(a, bindings)).collect(),
             named_args: named_args.iter()
                 .map(|(n, a)| (n.clone(), substitute_formal_refs(a, bindings)))
                 .collect(),
             ty: ty.clone(),
+            sig_ty: sig_ty.clone(),
+        },
+        TypedExp::Constructor { name, args, named_args, ty, field_names } => TypedExp::Constructor {
+            name: name.clone(),
+            args: args.iter().map(|a| substitute_formal_refs(a, bindings)).collect(),
+            named_args: named_args.iter()
+                .map(|(n, a)| (n.clone(), substitute_formal_refs(a, bindings)))
+                .collect(),
+            ty: ty.clone(),
+            field_names: field_names.clone(),
         },
         TypedExp::If { cond, then_, elseif, else_, ty } => TypedExp::If {
             cond: Box::new(substitute_formal_refs(cond, bindings)),

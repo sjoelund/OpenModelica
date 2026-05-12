@@ -60,8 +60,10 @@ pub enum TypedExp {
     Var { name: String, segments: Vec<CrefSegment>, ty: Ty },
     BinOp { op: BinOpKind, lhs: Box<TypedExp>, rhs: Box<TypedExp>, ty: Ty },
     UnOp { op: UnOpKind, operand: Box<TypedExp>, ty: Ty },
-    /// A function/constructor call. `func` is the dotted MM name (e.g. "List.map", "SOME").
-    Call { func: String, args: Vec<TypedExp>, named_args: Vec<(String, TypedExp)>, ty: Ty },
+    /// A function call. `func` is the dotted MM name (e.g. "List.map", "SOME").
+    Call { func: String, args: Vec<TypedExp>, named_args: Vec<(String, TypedExp)>, ty: Ty, sig_ty: Ty },
+    /// A constructor/record literal. `name` is the dotted MM name.
+    Constructor { name: String, args: Vec<TypedExp>, named_args: Vec<(String, TypedExp)>, ty: Ty, field_names: Vec<String> },
     If {
         cond: Box<TypedExp>,
         then_: Box<TypedExp>,
@@ -90,6 +92,7 @@ impl TypedExp {
             TypedExp::BinOp  { ty, .. }  => ty.clone(),
             TypedExp::UnOp   { ty, .. }  => ty.clone(),
             TypedExp::Call   { ty, .. }  => ty.clone(),
+            TypedExp::Constructor { ty, .. } => ty.clone(),
             TypedExp::If     { ty, .. }  => ty.clone(),
             TypedExp::Cons   { ty, .. }  => ty.clone(),
             TypedExp::Array  { ty, .. }  => ty.clone(),
@@ -451,8 +454,39 @@ pub fn infer_exp<'a>(
         Absyn::Exp::CALL { function_, functionArgs, .. } => {
             let func = cref_to_dotted(function_);
             let (args, named_args) = extract_call_args(functionArgs, env, top_level, pkg_prefix);
-            let ty = call_ty(&func, &args, top_level);
-            TypedExp::Call { func, args, named_args, ty }
+            let sig_ty = lookup_ty_in_hierarchy(&func, top_level);
+            let is_constructor = match &sig_ty {
+                Ty::RustStruct(_) | Ty::RustEnum(_) => true,
+                _ => {
+                    if let Some(node) = lookup_node(&func, top_level) {
+                        matches!(node.kind, NodeKind::Class(ref c) if matches!(c.restriction, Absyn::Restriction::R_RECORD | Absyn::Restriction::R_UNIONTYPE))
+                    } else {
+                        false
+                    }
+                }
+            };
+            if is_constructor {
+                let ty = match lookup_ty_in_hierarchy(&func, top_level) {
+                    Ty::Function { output, .. } => *output,
+                    other => other,
+                };
+                let field_names = match &sig_ty {
+                    Ty::RustStruct(qname) | Ty::RustEnum(qname) => {
+                        record_field_tys(qname, top_level).into_iter().map(|(n, _)| n).collect()
+                    }
+                    _ => {
+                        if let Some(node) = lookup_node(&func, top_level) {
+                            record_field_tys(&func, top_level).into_iter().map(|(n, _)| n).collect()
+                        } else {
+                            vec![]
+                        }
+                    }
+                };
+                TypedExp::Constructor { name: func, args, named_args, ty, field_names }
+            } else {
+                let ty = call_ty(&func, &args, top_level);
+                TypedExp::Call { func, args, named_args, ty, sig_ty }
+            }
         }
 
         Absyn::Exp::TUPLE { expressions } => {
@@ -599,8 +633,40 @@ fn infer_case<'a>(
             Absyn::Equation::EQ_NORETCALL { functionName, functionArgs } => {
                 let func = cref_to_dotted(functionName);
                 let (args, named_args) = extract_call_args(functionArgs, env, top_level, pkg_prefix);
-                let ty = call_ty(&func, &args, top_level);
-                TypedStmt::NoRetCall { call: TypedExp::Call { func, args, named_args, ty } }
+                let sig_ty = lookup_ty_in_hierarchy(&func, top_level);
+                let is_constructor = match &sig_ty {
+                    Ty::RustStruct(_) | Ty::RustEnum(_) => true,
+                    _ => {
+                        if let Some(node) = lookup_node(&func, top_level) {
+                            matches!(node.kind, NodeKind::Class(ref c) if matches!(c.restriction, Absyn::Restriction::R_RECORD | Absyn::Restriction::R_UNIONTYPE))
+                        } else {
+                            false
+                        }
+                    }
+                };
+                let call = if is_constructor {
+                    let ty = match lookup_ty_in_hierarchy(&func, top_level) {
+                        Ty::Function { output, .. } => *output,
+                        other => other,
+                    };
+                    let field_names = match &sig_ty {
+                        Ty::RustStruct(qname) | Ty::RustEnum(qname) => {
+                            record_field_tys(qname, top_level).into_iter().map(|(n, _)| n).collect()
+                        }
+                        _ => {
+                            if let Some(node) = lookup_node(&func, top_level) {
+                                record_field_tys(&func, top_level).into_iter().map(|(n, _)| n).collect()
+                            } else {
+                                vec![]
+                            }
+                        }
+                    };
+                    TypedExp::Constructor { name: func, args, named_args, ty, field_names }
+                } else {
+                    let ty = call_ty(&func, &args, top_level);
+                    TypedExp::Call { func, args, named_args, ty, sig_ty }
+                };
+                TypedStmt::NoRetCall { call }
             }
             Absyn::Equation::EQ_IF { ifExp, equationTrueItems, elseIfBranches, equationElseItems } => {
                 let cond = infer_exp(ifExp, env, top_level, pkg_prefix);
@@ -1061,8 +1127,40 @@ fn infer_stmt<'a>(
         Absyn::Algorithm::ALG_NORETCALL { functionCall, functionArgs } => {
             let func = cref_to_dotted(functionCall);
             let (args, named_args) = extract_call_args(functionArgs, env, top_level, pkg_prefix);
-            let ty = call_ty(&func, &args, top_level);
-            TypedStmt::NoRetCall { call: TypedExp::Call { func, args, named_args, ty } }
+            let sig_ty = lookup_ty_in_hierarchy(&func, top_level);
+            let is_constructor = match &sig_ty {
+                Ty::RustStruct(_) | Ty::RustEnum(_) => true,
+                _ => {
+                    if let Some(node) = lookup_node(&func, top_level) {
+                        matches!(node.kind, NodeKind::Class(ref c) if matches!(c.restriction, Absyn::Restriction::R_RECORD | Absyn::Restriction::R_UNIONTYPE))
+                    } else {
+                        false
+                    }
+                }
+            };
+            let call = if is_constructor {
+                let ty = match lookup_ty_in_hierarchy(&func, top_level) {
+                    Ty::Function { output, .. } => *output,
+                    other => other,
+                };
+                let field_names = match &sig_ty {
+                    Ty::RustStruct(qname) | Ty::RustEnum(qname) => {
+                        record_field_tys(qname, top_level).into_iter().map(|(n, _)| n).collect()
+                    }
+                    _ => {
+                        if let Some(node) = lookup_node(&func, top_level) {
+                            record_field_tys(&func, top_level).into_iter().map(|(n, _)| n).collect()
+                        } else {
+                            vec![]
+                        }
+                    }
+                };
+                TypedExp::Constructor { name: func, args, named_args, ty, field_names }
+            } else {
+                let ty = call_ty(&func, &args, top_level);
+                TypedExp::Call { func, args, named_args, ty, sig_ty }
+            };
+            TypedStmt::NoRetCall { call }
         }
         Absyn::Algorithm::ALG_IF { ifExp, trueBranch, elseIfAlgorithmBranch, elseBranch } => {
             let cond = infer_exp(ifExp, env, top_level, pkg_prefix);

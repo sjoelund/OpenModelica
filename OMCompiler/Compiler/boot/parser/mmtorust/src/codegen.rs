@@ -2584,7 +2584,14 @@ fn emit_pat_assign<'a>(
             let mut deferrals: Vec<(String, TypedPat, Ty)> = Vec::new();
             let surface = render_shallow(pat, scrut_ty, ctx, env, top_level, fresh, &mut deferrals);
             if pat_is_irrefutable(pat) {
-                writeln!(out, "{indent}let {surface} = {scrut_expr};").unwrap();
+                match pat {
+                    TypedPat::Tuple(_) => {
+                        writeln!(out, "{indent}{surface} = {scrut_expr};").unwrap();
+                    }
+                    _ => {
+                        writeln!(out, "{indent}let {surface} = {scrut_expr};").unwrap();
+                    }
+                }
             } else {
                 let fail = match fail_mode {
                     FailureMode::Function | FailureMode::TryArm => "bail!(\"pattern mismatch\")",

@@ -1236,9 +1236,17 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                         if !field_tys.is_empty() {
                             let mut struct_parts = Vec::new();
                             let mut unhandled_parts = parts.iter();
-                            for (i, (fname, _)) in field_tys.iter().enumerate() {
+                            for (i, (fname, fty)) in field_tys.iter().enumerate() {
                                 if i < args.len() {
                                     if let Some(p) = unhandled_parts.next() {
+                                        // Wrap in Arc::new if the struct field is stored as Arc<T>
+                                        // due to size-recursive cycles.  String fields are excluded:
+                                        // their expressions already yield Arc<String>.
+                                        let p = if is_arc_wrapped(fty, ctx) {
+                                            format!("Arc::new({p})")
+                                        } else {
+                                            p.clone()
+                                        };
                                         struct_parts.push(format!("{}: {}", escape_ident(fname), p));
                                     }
                                 }
@@ -1316,7 +1324,16 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                 for (i, fa) in args.iter().enumerate() {
                     let val = emit_cloned_call_arg(fa, is_const, ctx, top_level);
                     if i < field_names.len() {
-                        let fname_safe = escape_ident(&field_names[i]);
+                        let fname = &field_names[i];
+                        let fname_safe = escape_ident(fname);
+                        // Wrap in Arc::new if the struct field is stored as Arc<T> due to
+                        // size-recursive cycles.  String fields are excluded: their expressions
+                        // already yield Arc<String> from emit_exp / emit_cloned_call_arg.
+                        let val = if struct_field_is_arc(qname, fname, top_level, ctx) {
+                            format!("Arc::new({val})")
+                        } else {
+                            val
+                        };
                         arg_strs.push(format!("{fname_safe}: {val}"));
                     } else {
                         // fallback if we have more pos args than fields? shouldn't happen for valid mm
@@ -1325,6 +1342,11 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                 }
                 for (n, na) in remaining_named {
                     let val = emit_cloned_call_arg(&na, is_const, ctx, top_level);
+                    let val = if struct_field_is_arc(qname, &n, top_level, ctx) {
+                        format!("Arc::new({val})")
+                    } else {
+                        val
+                    };
                     arg_strs.push(format!("{}: {val}", escape_ident(&n)));
                 }
 
@@ -2290,6 +2312,31 @@ fn is_arc_wrapped(ty: &Ty, ctx: &GenCtx) -> bool {
         _ => return false,
     };
     ctx.recursive_types.contains(qname)
+}
+
+/// Return true if the named field of a record (identified by its fully-qualified dotted name)
+/// is stored behind `Arc` in the emitted Rust struct, meaning a constructor argument for that
+/// field must be wrapped in `Arc::new(...)`.
+///
+/// Strings (Ty::Str) are always emitted as `Arc<String>` by `fmt_ty`, but their expressions
+/// are already `Arc<String>` from `emit_exp` / `emit_cloned_call_arg`, so they do NOT need
+/// an extra `Arc::new` layer here.
+/// Only types in `ctx.recursive_types` get an additional `Arc` wrapping at the field level.
+fn struct_field_is_arc<'a>(
+    struct_qname: &str,
+    field_name: &str,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+    ctx: &GenCtx,
+) -> bool {
+    let struct_node = match lookup_node(struct_qname, top_level) {
+        Some(n) => n,
+        None => return false,
+    };
+    let field_node = match struct_node.children.get(field_name) {
+        Some(n) => n,
+        None => return false,
+    };
+    is_arc_wrapped(&field_node.ty, ctx)
 }
 
 /// Emit an irrefutable pattern binding `let pat = expr;` if pat is irrefutable, else

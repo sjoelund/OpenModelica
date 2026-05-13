@@ -778,6 +778,18 @@ pub fn listAppend<T: Clone>(lst1: List<T>, lst2: List<T>) -> Result<List<T>> {
     Ok(lst1.append(&lst2))
 }
 
+pub fn listHead<T: Clone>(lst: List<T>) -> Result<T> {
+    let Cons{head, ..} = lst else {bail!("Cannot get head of empty list")};
+    Ok(head)
+}
+
+pub fn listRest<T: Clone>(lst: List<T>) -> Result<List<T>> {
+    match lst {
+        Nil => bail!("Cannot get rest of empty list"),
+        Cons{tail, ..} => Ok((*tail).clone()),
+    }
+}
+
 // ============================================================================
 // Array functions
 // ============================================================================

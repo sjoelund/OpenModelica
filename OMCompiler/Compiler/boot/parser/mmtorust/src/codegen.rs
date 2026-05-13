@@ -1402,11 +1402,11 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
         },
         "listHead" => {
             let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
-            Ok(format!("{}.head()?", arg))
+            Ok(format!("listHead({})?", arg))
         },
         "listRest" => {
             let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
-            Ok(format!("{}.rest()?", arg))
+            Ok(format!("listRest({})?", arg))
         },
         "listGet" => {
             let arg1 = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
@@ -2004,7 +2004,7 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], is_co
         MatchKind::Match => {
             let has_wild = cases.iter().any(|c| matches!(c.pattern, TypedPat::Wildcard) && c.guard.is_none());
             let arms: Vec<String> = cases.iter().map(|case| {
-                let pat = emit_pat_with_implicit_bind(&case.pattern, /*allow_implicit_bind=*/true, Some(&input_ty), ctx, top_level);
+                let pat = emit_pat_with_implicit_bind(&case.pattern, /*allow_implicit_bind=*/true, /*mut_bindings=*/true, Some(&input_ty), ctx, top_level);
                 let guard = case.guard.as_ref()
                     .map(|g| format!(" if {}", emit_exp(g, is_const, ctx, top_level)))
                     .unwrap_or_default();
@@ -2015,11 +2015,22 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], is_co
                     let mut local_env = LocalEnv::default();
                     let mut fresh_local: u32 = 0;
                     let mut body = String::new();
+                    // Pattern bindings are declared by the match arm itself (as `mut`
+                    // bindings). Don't shadow them with `let mut <name>;` declarations
+                    // in the arm body — that would create a separate variable, so any
+                    // subsequent re-assignment to <name> would update the local copy
+                    // and the original pattern binding (read by user code) would stay
+                    // stale. See appendLastList's inner `l :: ll := ll;` loop.
+                    let pat_binding_names: std::collections::HashSet<String> =
+                        typedexp::pat_bindings(&case.pattern).iter().map(|(n, _)| n.clone()).collect();
                     for (name, ty) in &case.locals {
                         if matches!(ty, Ty::Unknown) {
                             continue;
                         }
                         local_env.vars.insert(name.clone(), ty.clone());
+                        if pat_binding_names.contains(name) {
+                            continue;
+                        }
                         let ty_s = fmt_ty(ty, ctx);
                         body.push_str(&format!("            let mut {}: {ty_s};\n", escape_ident(name)));
                     }
@@ -2052,7 +2063,7 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], is_co
                 s.push_str(&format!("        let __mc_input = {input_str};\n"));
             }
             for case in cases {
-                let pat = emit_pat_with_implicit_bind(&case.pattern, /*allow_implicit_bind=*/true, Some(&input_ty), ctx, top_level);
+                let pat = emit_pat_with_implicit_bind(&case.pattern, /*allow_implicit_bind=*/true, /*mut_bindings=*/true, Some(&input_ty), ctx, top_level);
                 let guard_check = case.guard.as_ref()
                     .map(|g| format!("            if !({}) {{ bail!(\"guard\") }}\n", emit_exp(g, is_const, ctx, top_level)))
                     .unwrap_or_default();
@@ -2075,15 +2086,31 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], is_co
 }
 
 fn emit_pat<'a>(pat: &TypedPat, ctx: &mut GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) -> String {
-    emit_pat_with_implicit_bind(pat, /*allow_implicit_bind=*/true, None, ctx, top_level)
+    emit_pat_with_implicit_bind(pat, /*allow_implicit_bind=*/true, /*mut_bindings=*/false, None, ctx, top_level)
 }
 
-fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, scrut_ty: Option<&Ty>, ctx: &mut GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) -> String {
+/// Render a pattern.
+///
+/// `mut_bindings` controls whether `Var` bindings are emitted with the `mut`
+/// keyword. We need this in match arms (and let-else destructuring assignments)
+/// when the algorithm section that follows the pattern reassigns to one of the
+/// names bound by the pattern. MetaModelica permits reassigning pattern bindings;
+/// Rust requires the binding to be declared `mut` first. Since the unused-mut
+/// lint is allowed for generated code, marking *all* such bindings as `mut` is
+/// always safe.
+fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, mut_bindings: bool, scrut_ty: Option<&Ty>, ctx: &mut GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) -> String {
+    let bind_var = |name: &str| -> String {
+        if mut_bindings {
+            format!("mut {}", escape_ident(name))
+        } else {
+            escape_ident(name)
+        }
+    };
     match pat {
         TypedPat::Wildcard    => "_".to_owned(),
-        TypedPat::Var(name)   => escape_ident(name),
+        TypedPat::Var(name)   => bind_var(name),
         TypedPat::EmptyList   => "metamodelica::List::Nil".to_owned(),
-        TypedPat::Some_(inner) => format!("Some({})", emit_pat_with_implicit_bind(inner, allow_implicit_bind, None, ctx, top_level)),
+        TypedPat::Some_(inner) => format!("Some({})", emit_pat_with_implicit_bind(inner, allow_implicit_bind, mut_bindings, None, ctx, top_level)),
         TypedPat::None_       => "None".to_owned(),
 
         TypedPat::Lit(Lit::Int(v))  => {
@@ -2095,8 +2122,8 @@ fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, sc
 
         TypedPat::Cons { head, tail } => {
             format!("metamodelica::List::Cons {{ head: {}, tail: deref!({}) }}",
-                emit_pat_with_implicit_bind(head, allow_implicit_bind, None, ctx, top_level),
-                emit_pat_with_implicit_bind(tail, allow_implicit_bind, None, ctx, top_level))
+                emit_pat_with_implicit_bind(head, allow_implicit_bind, mut_bindings, None, ctx, top_level),
+                emit_pat_with_implicit_bind(tail, allow_implicit_bind, mut_bindings, None, ctx, top_level))
         }
 
         TypedPat::Tuple(pats) => {
@@ -2109,7 +2136,7 @@ fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, sc
                         Some(Ty::Tuple(ts)) => ts.get(i),
                         _ => None,
                     };
-                    emit_pat_with_implicit_bind(p, /*allow_implicit_bind=*/false, elem_ty, ctx, top_level)
+                    emit_pat_with_implicit_bind(p, /*allow_implicit_bind=*/false, mut_bindings, elem_ty, ctx, top_level)
                 })
                 .collect();
             format!("({})", parts.join(", "))
@@ -2164,7 +2191,7 @@ fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, sc
                         if fname.is_empty() {
                             "_".to_owned()
                         } else {
-                            format!("{fname}: {}", emit_pat_with_implicit_bind(p, allow_implicit_bind, None, ctx, top_level))
+                            format!("{fname}: {}", emit_pat_with_implicit_bind(p, allow_implicit_bind, mut_bindings, None, ctx, top_level))
                         }
                     }).collect();
                     format!("{rust} {{ {} }}", pats.join(", "))
@@ -2176,9 +2203,9 @@ fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, sc
                     if !field_tys.is_empty() {
                         let pats: Vec<String> = fields.iter().enumerate().map(|(i, p)| {
                             let fname = field_tys.get(i).map(|(n, _)| n.as_str()).unwrap_or("_");
-                            let pstr = emit_pat_with_implicit_bind(p, allow_implicit_bind, None, ctx, top_level);
+                            let pstr = emit_pat_with_implicit_bind(p, allow_implicit_bind, mut_bindings, None, ctx, top_level);
                             if matches!(p, TypedPat::Var(v) if v == fname) {
-                                escape_ident(fname)
+                                if mut_bindings { format!("{}: mut {}", escape_ident(fname), escape_ident(fname)) } else { escape_ident(fname) }
                             } else {
                                 format!("{}: {pstr}", escape_ident(fname))
                             }
@@ -2195,7 +2222,7 @@ fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, sc
                         // This will likely fail to compile; it is better than silently
                         // emitting wrong code.
                         let pats: Vec<String> = fields.iter()
-                            .map(|p| emit_pat_with_implicit_bind(p, allow_implicit_bind, None, ctx, top_level))
+                            .map(|p| emit_pat_with_implicit_bind(p, allow_implicit_bind, mut_bindings, None, ctx, top_level))
                             .collect();
                         format!("/* TODO: unknown fields for {name} */ {rust}({})", pats.join(", "))
                     }
@@ -2203,9 +2230,9 @@ fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, sc
             } else {
                 let mut pats: Vec<String> = named_fields.iter()
                     .map(|(fname, p)| {
-                        let pstr = emit_pat_with_implicit_bind(p, allow_implicit_bind, None, ctx, top_level);
+                        let pstr = emit_pat_with_implicit_bind(p, allow_implicit_bind, mut_bindings, None, ctx, top_level);
                         if matches!(p, TypedPat::Var(v) if v == fname) {
-                            escape_ident(fname)
+                            if mut_bindings { format!("{}: mut {}", escape_ident(fname), escape_ident(fname)) } else { escape_ident(fname) }
                         } else {
                             format!("{}: {pstr}", escape_ident(fname))
                         }
@@ -2226,7 +2253,8 @@ fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, sc
         }
 
         TypedPat::As { var, pat } => {
-            format!("{} @ {}", escape_ident(var), emit_pat_with_implicit_bind(pat, false, None, ctx, top_level))
+            let outer = if mut_bindings { format!("mut {}", escape_ident(var)) } else { escape_ident(var) };
+            format!("{} @ {}", outer, emit_pat_with_implicit_bind(pat, false, mut_bindings, None, ctx, top_level))
         }
 
         TypedPat::Index { base, index } => {
@@ -2571,13 +2599,24 @@ fn emit_pat_assign<'a>(
             writeln!(out, "{indent}let {} = {actual_expr};", escape_ident(name)).unwrap();
         }
         _ => {
+            // MetaModelica permits a pattern-let to *reassign* names that are
+            // already in scope (e.g. `l :: ll := ll;` where `l` and `ll` were
+            // bound earlier by an enclosing case pattern). Rust's `let` always
+            // introduces a new binding that shadows the outer name, so we'd
+            // mutate a fresh local and the user's later read of `l`/`ll` would
+            // see the stale outer value. Substitute fresh names for any pattern
+            // bindings that collide with the current scope and emit follow-up
+            // assignments to copy the new value back.
+            let mut reassign_pairs: Vec<(String, String)> = Vec::new();
+            let pat_owned = rewrite_pat_for_existing_bindings(pat, env, fresh, &mut reassign_pairs);
+            let pat_for_render = &pat_owned;
             // Render shallow with deferrals for Arc-edge crossings.
             let mut deferrals: Vec<(String, TypedPat, Ty)> = Vec::new();
-            let surface = render_shallow(pat, scrut_ty, ctx, env, top_level, fresh, &mut deferrals);
-            if pat_is_irrefutable(pat) {
-                match pat {
+            let surface = render_shallow(pat_for_render, scrut_ty, ctx, env, top_level, fresh, &mut deferrals);
+            if pat_is_irrefutable(pat_for_render) {
+                match pat_for_render {
                     TypedPat::Tuple(_) => {
-                        writeln!(out, "{indent}{surface} = {scrut_expr};").unwrap();
+                        writeln!(out, "{indent}let {surface} = {scrut_expr};").unwrap();
                     }
                     _ => {
                         writeln!(out, "{indent}let {surface} = {scrut_expr};").unwrap();
@@ -2590,10 +2629,69 @@ fn emit_pat_assign<'a>(
                 };
                 writeln!(out, "{indent}let {surface} = ({scrut_expr}) else {{ {fail} }};").unwrap();
             }
+            for (orig, fresh_name) in &reassign_pairs {
+                writeln!(out, "{indent}{} = {};", escape_ident(orig), escape_ident(fresh_name)).unwrap();
+            }
             for (sub_expr, sub_pat, sub_ty) in deferrals {
                 emit_pat_assign(out, indent, &sub_pat, &sub_ty, &sub_expr, fail_mode, ctx, env, top_level, fresh);
             }
         }
+    }
+}
+
+/// Walk a pattern, replacing any `Var(name)` (or `As { var, .. }`) whose name is
+/// already bound in the current scope with a fresh `__pa<N>` name. Returns the
+/// rewritten pattern; the caller emits `name = __paN;` after the let-binding so
+/// the existing variable is updated rather than shadowed. This is needed because
+/// MetaModelica pattern-lets reassign existing names (e.g. `l :: ll := ll;`)
+/// while Rust's `let` always introduces a new binding.
+fn rewrite_pat_for_existing_bindings(
+    pat: &TypedPat,
+    env: &LocalEnv,
+    fresh: &mut u32,
+    reassign: &mut Vec<(String, String)>,
+) -> TypedPat {
+    let mk_fresh = |fresh: &mut u32| -> String {
+        let n = *fresh; *fresh += 1;
+        format!("__pa{n}")
+    };
+    match pat {
+        TypedPat::Var(name) if env.vars.contains_key(name) => {
+            let new_name = mk_fresh(fresh);
+            reassign.push((name.clone(), new_name.clone()));
+            TypedPat::Var(new_name)
+        }
+        TypedPat::Some_(inner) => TypedPat::Some_(Box::new(
+            rewrite_pat_for_existing_bindings(inner, env, fresh, reassign))),
+        TypedPat::Cons { head, tail } => TypedPat::Cons {
+            head: Box::new(rewrite_pat_for_existing_bindings(head, env, fresh, reassign)),
+            tail: Box::new(rewrite_pat_for_existing_bindings(tail, env, fresh, reassign)),
+        },
+        TypedPat::Tuple(pats) => TypedPat::Tuple(
+            pats.iter().map(|p| rewrite_pat_for_existing_bindings(p, env, fresh, reassign)).collect()),
+        TypedPat::Constructor { name, fields, named_fields, ty } => {
+            let new_fields = fields.iter()
+                .map(|p| rewrite_pat_for_existing_bindings(p, env, fresh, reassign)).collect();
+            let new_named = named_fields.iter()
+                .map(|(n, p)| (n.clone(), rewrite_pat_for_existing_bindings(p, env, fresh, reassign))).collect();
+            TypedPat::Constructor {
+                name: name.clone(),
+                fields: new_fields,
+                named_fields: new_named,
+                ty: ty.clone(),
+            }
+        }
+        TypedPat::As { var, pat } => {
+            let inner = rewrite_pat_for_existing_bindings(pat, env, fresh, reassign);
+            if env.vars.contains_key(var) {
+                let new_name = mk_fresh(fresh);
+                reassign.push((var.clone(), new_name.clone()));
+                TypedPat::As { var: new_name, pat: Box::new(inner) }
+            } else {
+                TypedPat::As { var: var.clone(), pat: Box::new(inner) }
+            }
+        }
+        _ => pat.clone(),
     }
 }
 

@@ -5,7 +5,7 @@ use std::fmt::Write;
 use mmwinnow::Absyn;
 use crate::MM;
 use std::collections::HashMap;
-use crate::hierarchy::{InstanceHierarchy, NameNode, NodeKind, Ty, extract_default, extract_default_exp, lookup_node, lookup_node_ty, lookup_record_through_unions, uniontype_needs_mod};
+use crate::hierarchy::{InstanceHierarchy, NameNode, NodeKind, Ty, extract_default, extract_default_exp, lookup_node, lookup_node_ty, lookup_record_through_unions, uniontype_needs_mod, collect_type_vars_in_ty};
 use crate::typedexp::{self, TypedExp, TypedPat, TypedCase, Lit, BinOpKind, UnOpKind, MatchKind, cref_to_dotted, CrefSegment};
 
 // ── Import-aware generation context ──────────────────────────────────────────
@@ -536,7 +536,7 @@ fn emit_node<'a>(out: &mut String, name: &str, node: &NameNode<'_>, indent: &str
                 } else {
                     format!("{}.{}", ctx.top_name, ctx.current_path.join("."))
                 };
-                let typed = typedexp::infer_exp(exp, &HashMap::new(), top_level, &pkg_prefix);
+                let typed = typedexp::infer_exp(exp, &HashMap::new(), top_level, &pkg_prefix, &[]);
                 let ename = escape_ident(name);
 
                 let rust_ty = match &node.ty {
@@ -824,7 +824,7 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
     let type_params = if all_type_vars.is_empty() {
         String::new()
     } else {
-        format!("<{}>", all_type_vars.into_iter().map(|v| v + ": Clone").collect::<Vec<_>>().join(", "))
+        format!("<{}>", all_type_vars.iter().map(|v| format!("{v}: Clone")).collect::<Vec<_>>().join(", "))
     };
 
     let params = fn_inputs.iter()
@@ -883,7 +883,7 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
         _ => &[],
     };
 
-    let typed_stmts = typedexp::infer_stmts(alg_items, &mut infer_env, top_level, &pkg_prefix);
+    let typed_stmts = typedexp::infer_stmts(alg_items, &mut infer_env, top_level, &pkg_prefix, &all_type_vars);
 
     let mut env = LocalEnv::default();
     for inp in fn_inputs.iter() { env.vars.insert(inp.name.clone(), inp.ty.clone()); }
@@ -897,7 +897,7 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
         let ty_s = fmt_ty(t, ctx);
         let modif_opt: Option<Absyn::Modification> = modif.clone();
         let init_raw = extract_default_exp(&modif_opt).map(|exp| {
-            let typed = typedexp::infer_exp(exp, &infer_env, top_level, &pkg_prefix);
+            let typed = typedexp::infer_exp(exp, &infer_env, top_level, &pkg_prefix, &all_type_vars);
             emit_exp(&typed, false, ctx, top_level)
         });
         let init = if input_names.contains(n) {
@@ -1815,8 +1815,10 @@ fn resolve_call_formals<'a>(
         let ty = node.children.get(&m.name)
             .map(|n| n.ty.clone())
             .unwrap_or(Ty::Unknown);
+        let mut fn_type_vars: Vec<String> = Vec::new();
+        collect_type_vars_in_ty(&node.ty, &mut fn_type_vars);
         let default = extract_default_exp(&m.modification)
-            .map(|exp| typedexp::infer_exp(exp, &infer_env, top_level, &module_prefix));
+            .map(|exp| typedexp::infer_exp(exp, &infer_env, top_level, &module_prefix, &fn_type_vars));
         out.push((m.name.clone(), default));
         infer_env.insert(m.name.clone(), ty);
     }
@@ -1839,8 +1841,10 @@ fn resolve_call_formals<'a>(
             let ty = node.children.get(&m.name)
                 .map(|n| n.ty.clone())
                 .unwrap_or(Ty::Unknown);
+            let mut fn_type_vars: Vec<String> = Vec::new();
+            collect_type_vars_in_ty(&node.ty, &mut fn_type_vars);
             let default = extract_default_exp(&m.modification)
-                .map(|exp| typedexp::infer_exp(exp, &base_infer_env, top_level, &module_prefix));
+                .map(|exp| typedexp::infer_exp(exp, &base_infer_env, top_level, &module_prefix, &fn_type_vars));
 
             if let Some(idx) = out.iter().position(|(name, _)| name == &m.name) {
                 if out[idx].1.is_none() {
@@ -2963,20 +2967,6 @@ fn emit_stmt<'a>(
 }
 
 // ── Type formatting ───────────────────────────────────────────────────────────
-
-fn collect_type_vars_in_ty(ty: &Ty, out: &mut Vec<String>) {
-    match ty {
-        Ty::TypeVar(name) => { if !out.contains(name) { out.push(name.clone()); } }
-        Ty::Option(inner) | Ty::List(inner) | Ty::Array(inner) => collect_type_vars_in_ty(inner, out),
-        Ty::Tuple(tys) => tys.iter().for_each(|t| collect_type_vars_in_ty(t, out)),
-        Ty::Generic(_, args) => args.iter().for_each(|t| collect_type_vars_in_ty(t, out)),
-        Ty::Function { inputs, output, .. } => {
-            inputs.iter().for_each(|inp| collect_type_vars_in_ty(&inp.ty, out));
-            collect_type_vars_in_ty(output, out);
-        }
-        _ => {}
-    }
-}
 
 fn fmt_ty(ty: &Ty, ctx: &mut GenCtx) -> String {
     match ty {

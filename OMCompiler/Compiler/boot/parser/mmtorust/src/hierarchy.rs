@@ -1401,6 +1401,29 @@ fn resolve_path(path: &Absyn::Path, known: &ScopedKnown, aliases: &ScopedAliases
 
 // ── Hierarchy lookup helpers (used by codegen and typedexp) ──────────────────
 
+/// Collect all type-variable names (from `Ty::TypeVar`) reachable inside `ty`.
+/// Duplicates are suppressed. Suitable for deriving Rust generic parameters from resolved types.
+pub(crate) fn collect_type_vars_in_ty(ty: &Ty, out: &mut Vec<String>) {
+    match ty {
+        Ty::TypeVar(name) => { if !out.contains(name) { out.push(name.clone()); } }
+        Ty::Option(inner) | Ty::List(inner) | Ty::Array(inner) => collect_type_vars_in_ty(inner, out),
+        Ty::Tuple(tys) => tys.iter().for_each(|t| collect_type_vars_in_ty(t, out)),
+        Ty::Generic(_, args) => args.iter().for_each(|t| collect_type_vars_in_ty(t, out)),
+        Ty::Function { inputs, output, .. } => {
+            inputs.iter().for_each(|inp| collect_type_vars_in_ty(&inp.ty, out));
+            collect_type_vars_in_ty(output, out);
+        }
+        _ => {}
+    }
+}
+
+/// Collect all type-variable names reachable in the value-types of an environment map.
+pub(crate) fn collect_type_vars_in_env(env: &std::collections::HashMap<String, Ty>, out: &mut Vec<String>) {
+    for ty in env.values() {
+        collect_type_vars_in_ty(ty, out);
+    }
+}
+
 pub(crate) fn lookup_node<'a>(dotted: &str, top_level: &'a BTreeMap<String, NameNode<'a>>) -> Option<&'a NameNode<'a>> {
     let mut parts = dotted.split('.');
     let first = parts.next().unwrap_or("");

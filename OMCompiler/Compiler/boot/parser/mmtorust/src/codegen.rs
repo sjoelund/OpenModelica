@@ -1457,7 +1457,7 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
         },
         "listArray" | "arrayList" | "stringAppendList" => {
             let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
-            Ok(format!("{arg}.into_iter().collect()"))
+            Ok(format!("{arg}.into_iter().cloned().collect()"))
         },
         _ => bail!("Not a builtin function")
     }
@@ -2637,11 +2637,15 @@ fn emit_pat_assign<'a>(
                 };
                 writeln!(out, "{indent}let {surface} = ({scrut_expr}) else {{ {fail} }};").unwrap();
             }
-            for (orig, fresh_name) in &reassign_pairs {
-                writeln!(out, "{indent}{} = {};", escape_ident(orig), escape_ident(fresh_name)).unwrap();
-            }
+            // Deferrals must run *before* the reassign loop: a deferral may
+            // produce a `let __paN = (*__tM).clone();` binding for one of the
+            // fresh names that the reassign loop then copies back into the
+            // user's variable (e.g. `rest_e2 = __pa1;`).
             for (sub_expr, sub_pat, sub_ty) in deferrals {
                 emit_pat_assign(out, indent, &sub_pat, &sub_ty, &sub_expr, fail_mode, ctx, env, top_level, fresh);
+            }
+            for (orig, fresh_name) in &reassign_pairs {
+                writeln!(out, "{indent}{} = {};", escape_ident(orig), escape_ident(fresh_name)).unwrap();
             }
         }
     }
@@ -2737,7 +2741,21 @@ fn render_shallow<'a>(
         TypedPat::Cons { head, tail } => {
             let elem_ty = match scrut_ty { Ty::List(t) => (**t).clone(), _ => Ty::Unknown };
             let h = render_shallow(head, &elem_ty, ctx, env, top_level, fresh, deferrals);
-            let t = render_shallow(tail, scrut_ty, ctx, env, top_level, fresh, deferrals);
+            // The `tail` field of `metamodelica::List::Cons` is `Arc<List<T>>`, so
+            // binding the tail directly in the pattern would yield an `Arc<List<T>>`
+            // value while the surface MetaModelica type is `list<T>`. We always
+            // cross this Arc edge by introducing a fresh temporary and deferring
+            // the real tail-binding to a `let ... = (*tmp).clone();` follow-up
+            // (or further pattern destructuring if `tail` is non-trivial).
+            // Wildcards pass through unchanged — there is nothing to bind.
+            let t = if matches!(tail.as_ref(), TypedPat::Wildcard) {
+                "_".to_owned()
+            } else {
+                let n = *fresh; *fresh += 1;
+                let tmp = format!("__t{n}");
+                deferrals.push((format!("(*{tmp}).clone()"), (**tail).clone(), scrut_ty.clone()));
+                tmp
+            };
             format!("metamodelica::List::Cons {{ head: {h}, tail: {t} }}")
         }
         TypedPat::Tuple(pats) => {
@@ -2973,8 +2991,43 @@ fn emit_stmt<'a>(
             // it's an output or earlier protected — emit assignment.
             if let TypedPat::Var(name) = lhs {
                 if env.vars.contains_key(name) {
-                    let scrut_expr = coerce_assign_expr(scrut_expr, &scrut_ty, env.vars.get(name));
+                    let lhs_ty = env.vars.get(name).cloned();
+                    // MetaModelica permits assigning a multi-output call to a single
+                    // variable; the unmentioned outputs are silently discarded.
+                    // Emit `(name, _, _, ...) = expr;` so the user-visible binding
+                    // gets the first output and the rest are dropped, while keeping
+                    // the call expression evaluated exactly once.
+                    if let Ty::Tuple(tys) = &scrut_ty {
+                        if !matches!(lhs_ty, Some(Ty::Tuple(_))) && tys.len() >= 2 {
+                            let mut slots: Vec<String> = Vec::with_capacity(tys.len());
+                            slots.push(escape_ident(name).to_string());
+                            for _ in 1..tys.len() { slots.push("_".to_owned()); }
+                            writeln!(out, "{indent}({}) = {scrut_expr};", slots.join(", ")).unwrap();
+                            return;
+                        }
+                    }
+                    let scrut_expr = coerce_assign_expr(scrut_expr, &scrut_ty, lhs_ty.as_ref());
                     writeln!(out, "{indent}{} = {scrut_expr};", escape_ident(name)).unwrap();
+                    return;
+                }
+            }
+            // Special case: tuple of plain variables, all already in scope. Emit a
+            // direct destructuring assignment so we don't need fresh temporaries.
+            // This handles patterns like `(e1, e2, e3) := t;` where e1/e2/e3 were
+            // declared earlier (e.g. as `protected` components).
+            if let TypedPat::Tuple(pats) = lhs {
+                let all_existing_vars = !pats.is_empty() && pats.iter().all(|p| match p {
+                    TypedPat::Var(n) => env.vars.contains_key(n),
+                    TypedPat::Wildcard => true,
+                    _ => false,
+                });
+                if all_existing_vars {
+                    let slots: Vec<String> = pats.iter().map(|p| match p {
+                        TypedPat::Var(n) => escape_ident(n).to_string(),
+                        TypedPat::Wildcard => "_".to_owned(),
+                        _ => unreachable!(),
+                    }).collect();
+                    writeln!(out, "{indent}({}) = {scrut_expr};", slots.join(", ")).unwrap();
                     return;
                 }
             }

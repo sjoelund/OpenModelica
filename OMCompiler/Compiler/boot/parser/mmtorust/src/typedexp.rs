@@ -404,7 +404,7 @@ fn binop_ty(op: BinOpKind, lhs_ty: &Ty, rhs_ty: &Ty) -> Ty {
     }
 }
 
-fn call_ty(func: &str, args: &[TypedExp], top_level: &BTreeMap<String, NameNode<'_>>) -> Ty {
+fn call_ty(func: &str, args: &[TypedExp], top_level: &BTreeMap<String, NameNode<'_>>, pkg_prefix: &str) -> Ty {
     match func {
         "SOME" => Ty::Option(Box::new(args.first().map(|a| a.ty()).unwrap_or(Ty::Unknown))),
         "NONE" => Ty::Option(Box::new(Ty::Unknown)),
@@ -457,7 +457,15 @@ fn call_ty(func: &str, args: &[TypedExp], top_level: &BTreeMap<String, NameNode<
             }
         }
         _ => {
-            match lookup_ty_in_hierarchy(func, top_level) {
+            // Resolve bare names against the current package scope so that calls
+            // inside a module (e.g. `deleteMemberOnTrue` from inside `List.mo`)
+            // find their canonical fully-qualified definition. Without this, the
+            // hierarchy lookup would miss the function and return Ty::Unknown,
+            // causing downstream Tuple-coercion logic to skip its tuple handling.
+            let canonical = resolve_call_node(func, top_level, pkg_prefix)
+                .map(|(q, _)| q)
+                .unwrap_or_else(|| func.to_owned());
+            match lookup_ty_in_hierarchy(&canonical, top_level) {
                 Ty::Function { output, .. } => *output,
                 other => other,
             }
@@ -655,7 +663,7 @@ pub fn infer_exp<'a>(
                 };
                 TypedExp::Constructor { name: canonical, args, named_args, ty, field_names }
             } else {
-                let ty = call_ty(&func, &args, top_level);
+                let ty = call_ty(&func, &args, top_level, pkg_prefix);
                 TypedExp::Call { func, args, named_args, ty, sig_ty }
             }
         }
@@ -888,7 +896,7 @@ fn infer_case<'a>(
                     };
                     TypedExp::Constructor { name: canonical, args, named_args, ty, field_names }
                 } else {
-                    let ty = call_ty(&func, &args, top_level);
+                    let ty = call_ty(&func, &args, top_level, pkg_prefix);
                     TypedExp::Call { func, args, named_args, ty, sig_ty }
                 };
                 TypedStmt::NoRetCall { call }
@@ -1479,7 +1487,7 @@ fn infer_stmt<'a>(
                 };
                 TypedExp::Constructor { name: canonical, args, named_args, ty, field_names }
             } else {
-                let ty = call_ty(&func, &args, top_level);
+                let ty = call_ty(&func, &args, top_level, pkg_prefix);
                 TypedExp::Call { func, args, named_args, ty, sig_ty }
             };
             TypedStmt::NoRetCall { call }

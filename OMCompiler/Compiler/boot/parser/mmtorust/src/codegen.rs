@@ -12,6 +12,35 @@ use anyhow::{Result,bail};
 // ── Import-aware generation context ──────────────────────────────────────────
 
 const DEFAULT_TRAITS: &str = "Clone + PartialEq";
+
+/// How to propagate a Result error from a fallible sub-expression.
+///
+/// MetaModelica calls return `Result<T>` in our lowering. The Rust expression
+/// we emit to "extract the value or propagate the error" depends on the
+/// surrounding syntactic context, because Rust's `?` operator only works
+/// inside a function/try-block that returns `Result`.
+///
+///   - `Function` — the default. The current function returns `Result<_>`,
+///     so we can append `?` and let an error bubble out.
+///   - `Filter` — inside an `Iterator::filter(|e| <bool>)` closure. The
+///     predicate must yield a plain `bool`, so `?` is unavailable. We use
+///     `.unwrap()` (panic on Err). We only enter this mode for guard
+///     predicates of `for`-comprehensions / reductions, where the predicate
+///     is expected to be infallible at runtime.
+///   - `TryBlock(label)` — inside a MetaModelica `try`/`else` block lowered
+///     to a labeled Rust block. The closure-based IIFE form cannot capture
+///     pre-declared `let mut` locals before they are initialised, so we use
+///     a labeled `'l: { ... }` and `unwrap_break_err!(expr, 'l)` instead of
+///     `expr?`. The macro evaluates `expr`; on `Err(e)` it breaks the block
+///     with `Err(e)`, on `Ok(v)` it yields `v` — playing the same role as
+///     `?` but exiting the labeled block rather than the function.
+#[derive(Clone, Debug)]
+enum QMode {
+    Function,
+    Filter,
+    TryBlock(String),
+}
+
 struct GenCtx {
     /// Name of the top-level class being generated (e.g. "Absyn").
     top_name: String,
@@ -47,6 +76,12 @@ struct GenCtx {
     /// (collected from inputs and output). Used at codegen time to emit generic arguments when
     /// a FunctionAlias type is referenced as a parameter type (e.g. `toStringT` → `toStringT<T>`).
     fn_type_vars: BTreeMap<String, Vec<String>>,
+    /// How `?` should be lowered for fallible calls emitted from inside the
+    /// expression we are currently generating. See [`QMode`]. Callers that
+    /// enter a non-`Function` context are responsible for saving and
+    /// restoring this field around the recursive `emit_exp` call (see
+    /// [`GenCtx::with_qmode`]).
+    qmode: QMode,
 }
 
 impl GenCtx {
@@ -64,7 +99,34 @@ impl GenCtx {
             recursive_types,
             no_mod_uniontypes: HashSet::new(),
             fn_type_vars,
+            qmode: QMode::Function,
         }
+    }
+
+    /// Wrap a fallible Rust expression with the appropriate error-propagation
+    /// form for the current [`QMode`]. The argument should be a complete
+    /// expression that evaluates to `Result<T, _>`; the returned string is
+    /// an expression of type `T` in the surrounding context.
+    fn q(&self, expr: &str) -> String {
+        match &self.qmode {
+            QMode::Function => format!("{expr}?"),
+            // `Iterator::filter` requires a plain `bool` predicate; we cannot
+            // propagate via `?`. The reductions we generate this for invoke
+            // user predicates that should not fail at runtime; if one does,
+            // surfacing the panic is preferable to silently swallowing it.
+            QMode::Filter => format!("{expr}.unwrap()"),
+            QMode::TryBlock(label) => format!("unwrap_break_err!({expr}, {label})"),
+        }
+    }
+
+    /// Run `body` with `qmode` temporarily replaced. Restores the previous
+    /// mode on exit, including on panic — though we don't rely on panic
+    /// safety, it keeps the invariant readable.
+    fn with_qmode<R>(&mut self, mode: QMode, body: impl FnOnce(&mut Self) -> R) -> R {
+        let saved = std::mem::replace(&mut self.qmode, mode);
+        let r = body(self);
+        self.qmode = saved;
+        r
     }
 
     /// Shorten a dot-separated qualified name to the shortest valid reference
@@ -1137,7 +1199,7 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
             if is_const {
                 call
             } else {
-                format!("{call}?")
+                ctx.q(&call)
             }
         }
 
@@ -1361,10 +1423,14 @@ fn emit_reduction<'a>(
     // Apply guards: each iterator's guard is a Boolean over the bindings up to and
     // including that iterator. We combine them with `&&` into a single filter to
     // avoid nested filter calls (which would also work but are noisier).
+    // Guard predicates live inside `Iterator::filter(|..| -> bool { .. })`.
+    // That closure must return a plain `bool`, so we switch to `QMode::Filter`
+    // (use `.unwrap()` instead of `?`) for any fallible calls inside `g`.
     let mut guard_parts: Vec<String> = Vec::new();
     for it in iterators {
         if let Some(g) = &it.guard {
-            guard_parts.push(emit_exp(g, is_const, ctx, top_level));
+            let s = ctx.with_qmode(QMode::Filter, |ctx| emit_exp(g, is_const, ctx, top_level));
+            guard_parts.push(s);
         }
     }
     if !guard_parts.is_empty() {
@@ -1406,10 +1472,10 @@ fn emit_reduction<'a>(
             // `Iterator::min()` returns Option; for numeric reductions over a
             // possibly-empty range we surface that as a Result via `?` rather
             // than silently substituting a default.
-            format!("({mapped}).min().ok_or_else(|| anyhow::anyhow!(\"empty min reduction\"))?")
+            ctx.q(&format!("({mapped}).min().ok_or_else(|| anyhow::anyhow!(\"empty min reduction\"))"))
         }
         "max" => {
-            format!("({mapped}).max().ok_or_else(|| anyhow::anyhow!(\"empty max reduction\"))?")
+            ctx.q(&format!("({mapped}).max().ok_or_else(|| anyhow::anyhow!(\"empty max reduction\"))"))
         }
         "listAppend" => {
             // `listAppend(elem for ...)` folds with `listAppend(elem, acc)` over
@@ -1440,9 +1506,12 @@ fn emit_reduction<'a>(
                     // listAppend / built-ins above. User-defined reductions whose
                     // accumulator is the *first* parameter would need a separate
                     // branch; surface that mismatch with an explicit todo!.
-                    format!(
-                        "({mapped}).try_fold::<_, _, anyhow::Result<_>>({seed}, |__acc, __x| Ok({fname}(__x, __acc)?))?"
-                    )
+                    // The inner `?` is fine: try_fold's closure returns Result,
+                    // so propagating with `?` is legal regardless of our outer
+                    // qmode. The outer extraction follows the caller's qmode.
+                    ctx.q(&format!(
+                        "({mapped}).try_fold::<_, _, anyhow::Result<_>>({seed}, |__acc, __x| Ok({fname}(__x, __acc)?))"
+                    ))
                 }
                 None => {
                     // Unknown reduction operator with no resolvable default: emit a
@@ -1529,7 +1598,7 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
         "stringGet" => {
             let arg1 = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
             let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
-            Ok(format!("stringGet({},{})?", arg1, arg2))
+            Ok(ctx.q(&format!("stringGet({},{})", arg1, arg2)))
         },
         "realNeg" => {
             let arg1 = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
@@ -1597,7 +1666,7 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
             let f = if a1.ty() == Ty::I32 && a2.ty() == Ty::I32 {"intMod"} else {"realMod"};
             let arg1 = emit_cloned_call_arg(a1, is_const, ctx, top_level);
             let arg2 = emit_cloned_call_arg(a2, is_const, ctx, top_level);
-            Ok(format!("{f}({arg1}, {arg2})?"))
+            Ok(ctx.q(&format!("{f}({arg1}, {arg2})")))
         },
         "div" => {
             let arg1 = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
@@ -1614,21 +1683,21 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
         },
         "listHead" => {
             let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
-            Ok(format!("listHead({})?", arg))
+            Ok(ctx.q(&format!("listHead({})", arg)))
         },
         "listRest" => {
             let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
-            Ok(format!("listRest({})?", arg))
+            Ok(ctx.q(&format!("listRest({})", arg)))
         },
         "listGet" => {
             let arg1 = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
             let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
-            Ok(format!("{arg1}.get({arg2})?"))
+            Ok(ctx.q(&format!("{arg1}.get({arg2})")))
         },
         "referenceEq" => {
             let arg1 = args.first().map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
             let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
-            Ok(format!("referenceEq(&{arg1},&{arg2})?"))
+            Ok(ctx.q(&format!("referenceEq(&{arg1},&{arg2})")))
         },
         "isPresent" => {
             Ok(format!("true /* isPresent not implemented in Rust */"))
@@ -2236,7 +2305,7 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], is_co
         MatchKind::Match => {
             let has_wild = cases.iter().any(|c| matches!(c.pattern, TypedPat::Wildcard) && c.guard.is_none());
             let arms: Vec<String> = cases.iter().map(|case| {
-                let pat = emit_pat_with_implicit_bind(&case.pattern, /*allow_implicit_bind=*/true, /*mut_bindings=*/true, Some(&input_ty), ctx, top_level);
+                let pat = emit_pat_with_implicit_bind(&case.pattern, /*allow_implicit_bind=*/true, /*mut_bindings=*/true, /*in_deref=*/false, Some(&input_ty), ctx, top_level);
                 let guard = case.guard.as_ref()
                     .map(|g| format!(" if {}", emit_exp(g, is_const, ctx, top_level)))
                     .unwrap_or_default();
@@ -2269,6 +2338,24 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], is_co
                     for (n, t) in typedexp::pat_bindings(&case.pattern) {
                         local_env.vars.insert(n, t);
                     }
+                    // Re-bind any pattern names that live inside `deref!(..)` AND
+                    // are reassigned in the arm body. The pattern emitted those as
+                    // `ref <name>`, giving `&T`; without a fresh owned `mut` shadow
+                    // the body's `name = ...` would fail to compile. Cloning the
+                    // referenced value yields an owned, mutable local that the
+                    // body can both read and reassign.
+                    let mut deref_names: Vec<String> = Vec::new();
+                    pat_deref_bindings(&case.pattern, &mut deref_names);
+                    if !deref_names.is_empty() {
+                        let mut assigned: HashSet<String> = HashSet::new();
+                        stmts_assigned_var_names(&case.stmts, &mut assigned);
+                        for n in &deref_names {
+                            if assigned.contains(n) {
+                                let id = escape_ident(n);
+                                body.push_str(&format!("            let mut {id} = {id}.clone();\n"));
+                            }
+                        }
+                    }
                     for s in &case.stmts {
                         emit_stmt(&mut body, "            ", s, FailureMode::Function, ctx, &mut local_env, top_level, &mut fresh_local);
                     }
@@ -2295,7 +2382,7 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], is_co
                 s.push_str(&format!("        let __mc_input = {input_str};\n"));
             }
             for case in cases {
-                let pat = emit_pat_with_implicit_bind(&case.pattern, /*allow_implicit_bind=*/true, /*mut_bindings=*/true, Some(&input_ty), ctx, top_level);
+                let pat = emit_pat_with_implicit_bind(&case.pattern, /*allow_implicit_bind=*/true, /*mut_bindings=*/true, /*in_deref=*/false, Some(&input_ty), ctx, top_level);
                 let guard_check = case.guard.as_ref()
                     .map(|g| format!("            if !({}) {{ bail!(\"guard\") }}\n", emit_exp(g, is_const, ctx, top_level)))
                     .unwrap_or_default();
@@ -2318,7 +2405,88 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], is_co
 }
 
 fn emit_pat<'a>(pat: &TypedPat, ctx: &mut GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) -> String {
-    emit_pat_with_implicit_bind(pat, /*allow_implicit_bind=*/true, /*mut_bindings=*/false, None, ctx, top_level)
+    emit_pat_with_implicit_bind(pat, /*allow_implicit_bind=*/true, /*mut_bindings=*/false, /*in_deref=*/false, None, ctx, top_level)
+}
+
+/// Collect every binding name in `pat` that lies inside at least one
+/// `deref!(...)` (i.e. inside a `Cons.tail` subtree at any depth). These
+/// bindings *cannot* be `mut` directly: the `deref_patterns` macro generates
+/// a pattern that yields references through the `Arc<List<T>>`, and `mut`
+/// on a by-reference binding is rejected by the Rust compiler. We emit
+/// `ref <name>` for them in the pattern, and then optionally re-bind them
+/// with `let mut <name> = <name>.clone();` in the arm body if the source
+/// MetaModelica reassigns them.
+fn pat_deref_bindings(pat: &TypedPat, out: &mut Vec<String>) {
+    fn walk_inside_deref(p: &TypedPat, out: &mut Vec<String>) {
+        match p {
+            TypedPat::Var(name) => out.push(name.clone()),
+            TypedPat::Some_(inner) => walk_inside_deref(inner, out),
+            TypedPat::Cons { head, tail } => {
+                // We are already inside a deref!: everything below is too.
+                walk_inside_deref(head, out);
+                walk_inside_deref(tail, out);
+            }
+            TypedPat::Tuple(pats) => pats.iter().for_each(|p| walk_inside_deref(p, out)),
+            TypedPat::Constructor { fields, named_fields, .. } => {
+                fields.iter().for_each(|p| walk_inside_deref(p, out));
+                named_fields.iter().for_each(|(_, p)| walk_inside_deref(p, out));
+            }
+            TypedPat::As { var, pat } => {
+                out.push(var.clone());
+                walk_inside_deref(pat, out);
+            }
+            _ => {}
+        }
+    }
+    // Top-level walk: only recurse into a `Cons.tail` to "enter" deref!.
+    match pat {
+        TypedPat::Cons { head, tail } => {
+            pat_deref_bindings(head, out); // head is NOT inside this Cons's deref!
+            walk_inside_deref(tail, out);
+        }
+        TypedPat::Some_(inner) => pat_deref_bindings(inner, out),
+        TypedPat::Tuple(pats) => pats.iter().for_each(|p| pat_deref_bindings(p, out)),
+        TypedPat::Constructor { fields, named_fields, .. } => {
+            fields.iter().for_each(|p| pat_deref_bindings(p, out));
+            named_fields.iter().for_each(|(_, p)| pat_deref_bindings(p, out));
+        }
+        TypedPat::As { pat, .. } => pat_deref_bindings(pat, out),
+        _ => {}
+    }
+}
+
+/// Walk `stmts` and collect names that appear as the LHS of an `Assign`
+/// (either as `Var(n)` directly, as `As { var: n, .. }`, or as a tuple
+/// component). Used to decide which pattern-bound names need to be
+/// re-bound as owned `mut` locals at the top of a match arm.
+fn stmts_assigned_var_names(stmts: &[typedexp::TypedStmt], out: &mut HashSet<String>) {
+    fn lhs_names(p: &TypedPat, out: &mut HashSet<String>) {
+        match p {
+            TypedPat::Var(n) => { out.insert(n.clone()); }
+            TypedPat::As { var, pat } => { out.insert(var.clone()); lhs_names(pat, out); }
+            TypedPat::Tuple(pats) => pats.iter().for_each(|p| lhs_names(p, out)),
+            _ => {}
+        }
+    }
+    use typedexp::TypedStmt as S;
+    for s in stmts {
+        match s {
+            S::Assign { lhs, .. } => lhs_names(lhs, out),
+            S::If { then_, elseif, else_, .. } => {
+                stmts_assigned_var_names(then_, out);
+                for (_, eb) in elseif { stmts_assigned_var_names(eb, out); }
+                stmts_assigned_var_names(else_, out);
+            }
+            S::For { body, .. } | S::While { body, .. } | S::Failure { body } => {
+                stmts_assigned_var_names(body, out);
+            }
+            S::Try { body, else_body } => {
+                stmts_assigned_var_names(body, out);
+                stmts_assigned_var_names(else_body, out);
+            }
+            _ => {}
+        }
+    }
 }
 
 /// Render a pattern.
@@ -2330,9 +2498,17 @@ fn emit_pat<'a>(pat: &TypedPat, ctx: &mut GenCtx, top_level: &'a BTreeMap<String
 /// Rust requires the binding to be declared `mut` first. Since the unused-mut
 /// lint is allowed for generated code, marking *all* such bindings as `mut` is
 /// always safe.
-fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, mut_bindings: bool, scrut_ty: Option<&Ty>, ctx: &mut GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) -> String {
+fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, mut_bindings: bool, in_deref: bool, scrut_ty: Option<&Ty>, ctx: &mut GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) -> String {
+    // `in_deref` marks that we are emitting beneath a `deref!(..)` wrapper
+    // (i.e. somewhere inside the tail subtree of a `Cons` pattern). The
+    // `deref_patterns` macro expansion binds names by reference, so a
+    // `mut <name>` binding would not compile. We emit `ref <name>` instead
+    // and rely on the match-arm prologue to introduce a fresh `let mut`
+    // shadow for any name that the arm body actually reassigns.
     let bind_var = |name: &str| -> String {
-        if mut_bindings {
+        if in_deref {
+            format!("ref {}", escape_ident(name))
+        } else if mut_bindings {
             format!("mut {}", escape_ident(name))
         } else {
             escape_ident(name)
@@ -2342,7 +2518,7 @@ fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, mu
         TypedPat::Wildcard    => "_".to_owned(),
         TypedPat::Var(name)   => bind_var(name),
         TypedPat::EmptyList   => "metamodelica::List::Nil".to_owned(),
-        TypedPat::Some_(inner) => format!("Some({})", emit_pat_with_implicit_bind(inner, allow_implicit_bind, mut_bindings, None, ctx, top_level)),
+        TypedPat::Some_(inner) => format!("Some({})", emit_pat_with_implicit_bind(inner, allow_implicit_bind, mut_bindings, in_deref, None, ctx, top_level)),
         TypedPat::None_       => "None".to_owned(),
 
         TypedPat::Lit(Lit::Int(v))  => {
@@ -2353,9 +2529,13 @@ fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, mu
         TypedPat::Lit(Lit::Real(_)) => "_ /* real — move to guard */".to_owned(),
 
         TypedPat::Cons { head, tail } => {
+            // The head matches a plain `T` (the element value), so it can keep
+            // the current `in_deref` setting. The tail is wrapped in
+            // `deref!(..)` and therefore introduces a deref context for all
+            // bindings nested inside it.
             format!("metamodelica::List::Cons {{ head: {}, tail: deref!({}) }}",
-                emit_pat_with_implicit_bind(head, allow_implicit_bind, mut_bindings, None, ctx, top_level),
-                emit_pat_with_implicit_bind(tail, allow_implicit_bind, mut_bindings, None, ctx, top_level))
+                emit_pat_with_implicit_bind(head, allow_implicit_bind, mut_bindings, in_deref, None, ctx, top_level),
+                emit_pat_with_implicit_bind(tail, allow_implicit_bind, mut_bindings, /*in_deref=*/true, None, ctx, top_level))
         }
 
         TypedPat::Tuple(pats) => {
@@ -2368,7 +2548,7 @@ fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, mu
                         Some(Ty::Tuple(ts)) => ts.get(i),
                         _ => None,
                     };
-                    emit_pat_with_implicit_bind(p, /*allow_implicit_bind=*/false, mut_bindings, elem_ty, ctx, top_level)
+                    emit_pat_with_implicit_bind(p, /*allow_implicit_bind=*/false, mut_bindings, in_deref, elem_ty, ctx, top_level)
                 })
                 .collect();
             format!("({})", parts.join(", "))
@@ -2423,7 +2603,7 @@ fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, mu
                         if fname.is_empty() {
                             "_".to_owned()
                         } else {
-                            format!("{fname}: {}", emit_pat_with_implicit_bind(p, allow_implicit_bind, mut_bindings, None, ctx, top_level))
+                            format!("{fname}: {}", emit_pat_with_implicit_bind(p, allow_implicit_bind, mut_bindings, in_deref, None, ctx, top_level))
                         }
                     }).collect();
                     format!("{rust} {{ {} }}", pats.join(", "))
@@ -2435,9 +2615,15 @@ fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, mu
                     if !field_tys.is_empty() {
                         let pats: Vec<String> = fields.iter().enumerate().map(|(i, p)| {
                             let fname = field_tys.get(i).map(|(n, _)| n.as_str()).unwrap_or("_");
-                            let pstr = emit_pat_with_implicit_bind(p, allow_implicit_bind, mut_bindings, None, ctx, top_level);
+                            let pstr = emit_pat_with_implicit_bind(p, allow_implicit_bind, mut_bindings, in_deref, None, ctx, top_level);
                             if matches!(p, TypedPat::Var(v) if v == fname) {
-                                if mut_bindings { format!("{}: mut {}", escape_ident(fname), escape_ident(fname)) } else { escape_ident(fname) }
+                                if in_deref {
+                                    format!("{}: ref {}", escape_ident(fname), escape_ident(fname))
+                                } else if mut_bindings {
+                                    format!("{}: mut {}", escape_ident(fname), escape_ident(fname))
+                                } else {
+                                    escape_ident(fname)
+                                }
                             } else {
                                 format!("{}: {pstr}", escape_ident(fname))
                             }
@@ -2454,7 +2640,7 @@ fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, mu
                         // This will likely fail to compile; it is better than silently
                         // emitting wrong code.
                         let pats: Vec<String> = fields.iter()
-                            .map(|p| emit_pat_with_implicit_bind(p, allow_implicit_bind, mut_bindings, None, ctx, top_level))
+                            .map(|p| emit_pat_with_implicit_bind(p, allow_implicit_bind, mut_bindings, in_deref, None, ctx, top_level))
                             .collect();
                         format!("/* TODO: unknown fields for {name} */ {rust}({})", pats.join(", "))
                     }
@@ -2462,9 +2648,15 @@ fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, mu
             } else {
                 let mut pats: Vec<String> = named_fields.iter()
                     .map(|(fname, p)| {
-                        let pstr = emit_pat_with_implicit_bind(p, allow_implicit_bind, mut_bindings, None, ctx, top_level);
+                        let pstr = emit_pat_with_implicit_bind(p, allow_implicit_bind, mut_bindings, in_deref, None, ctx, top_level);
                         if matches!(p, TypedPat::Var(v) if v == fname) {
-                            if mut_bindings { format!("{}: mut {}", escape_ident(fname), escape_ident(fname)) } else { escape_ident(fname) }
+                            if in_deref {
+                                format!("{}: ref {}", escape_ident(fname), escape_ident(fname))
+                            } else if mut_bindings {
+                                format!("{}: mut {}", escape_ident(fname), escape_ident(fname))
+                            } else {
+                                escape_ident(fname)
+                            }
                         } else {
                             format!("{}: {pstr}", escape_ident(fname))
                         }
@@ -2485,8 +2677,14 @@ fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, mu
         }
 
         TypedPat::As { var, pat } => {
-            let outer = if mut_bindings { format!("mut {}", escape_ident(var)) } else { escape_ident(var) };
-            format!("{} @ {}", outer, emit_pat_with_implicit_bind(pat, false, mut_bindings, None, ctx, top_level))
+            let outer = if in_deref {
+                format!("ref {}", escape_ident(var))
+            } else if mut_bindings {
+                format!("mut {}", escape_ident(var))
+            } else {
+                escape_ident(var)
+            };
+            format!("{} @ {}", outer, emit_pat_with_implicit_bind(pat, false, mut_bindings, in_deref, None, ctx, top_level))
         }
 
         TypedPat::Index { base, index } => {
@@ -2859,8 +3057,20 @@ fn emit_pat_assign<'a>(
                     }
                 }
             } else {
-                let fail = match fail_mode {
-                    FailureMode::Function | FailureMode::TryArm => "bail!(\"pattern mismatch\")",
+                // For a let-else inside a try-body lowered to a labeled block,
+                // we must exit the *block* with `Err(_)`, not `bail!` out of the
+                // surrounding function. `bail!` expands to `return Err(..)` and
+                // would skip the `else_body` recovery entirely.
+                let fail_owned;
+                let fail: &str = match fail_mode {
+                    FailureMode::Function => "bail!(\"pattern mismatch\")",
+                    FailureMode::TryArm => match &ctx.qmode {
+                        QMode::TryBlock(label) => {
+                            fail_owned = format!("break {label} Err::<(), _>(anyhow::anyhow!(\"pattern mismatch\"))");
+                            &fail_owned
+                        }
+                        _ => "bail!(\"pattern mismatch\")",
+                    },
                     FailureMode::Failure => "()",
                 };
                 writeln!(out, "{indent}let {surface} = ({scrut_expr}) else {{ {fail} }};").unwrap();
@@ -3315,23 +3525,48 @@ fn emit_stmt<'a>(
             writeln!(out, "{indent}}}").unwrap();
         }
         S::Try { body, else_body } => {
-            // Run `body` as an IIFE; on Err run else_body.
-            writeln!(out, "{indent}if (|| -> Result<()> {{").unwrap();
+            // Lower `try body else else_body end try;` to a labeled Rust block
+            // rather than an IIFE. The IIFE form (`(|| -> Result<_> { .. })()`)
+            // cannot use `let mut x: T;` declared in the surrounding statement
+            // scope: the closure would have to capture `x`, but a mutable
+            // borrow of an uninitialised binding is rejected by the borrow
+            // checker. A labeled block executes in-line, so all surrounding
+            // locals are in scope and can be assigned to.
+            //
+            // Inside the block we cannot use `?` either — that would propagate
+            // out of the enclosing function, defeating the `try/else` recovery.
+            // Instead, fallible calls are emitted as
+            // `unwrap_break_err!(expr, '__tryN)`, which `break '__tryN Err(e)`
+            // on failure, exiting the block with an `Err` value the surrounding
+            // `if ...is_err() { else_body }` then dispatches on.
+            let label = format!("'__try{}", *fresh);
+            *fresh += 1;
+            writeln!(out, "{indent}if {label}: {{", ).unwrap();
             let mut benv = env.clone();
-            emit_stmts(out, &format!("{indent}    "), body, FailureMode::TryArm, ctx, &mut benv, top_level, fresh);
-            writeln!(out, "{indent}    Ok(())").unwrap();
-            writeln!(out, "{indent}}})().is_err() {{").unwrap();
+            ctx.with_qmode(QMode::TryBlock(label.clone()), |ctx| {
+                emit_stmts(out, &format!("{indent}    "), body, FailureMode::TryArm, ctx, &mut benv, top_level, fresh);
+            });
+            writeln!(out, "{indent}    Ok::<(), anyhow::Error>(())").unwrap();
+            writeln!(out, "{indent}}}.is_err() {{").unwrap();
             let mut eenv = env.clone();
             emit_stmts(out, &format!("{indent}    "), else_body, fail_mode, ctx, &mut eenv, top_level, fresh);
             writeln!(out, "{indent}}}").unwrap();
         }
         S::Failure { body } => {
-            // Body is *expected* to fail. If it runs cleanly, that itself is a failure.
-            writeln!(out, "{indent}if (|| -> Result<()> {{").unwrap();
+            // `failure(body)` succeeds iff the body fails. We use the same
+            // labeled-block lowering as `try`/`else` so any `let mut` locals
+            // declared in the surrounding scope are still assignable from
+            // within the body — and so a fallible call short-circuits to a
+            // recoverable `Err` rather than to the enclosing function.
+            let label = format!("'__try{}", *fresh);
+            *fresh += 1;
+            writeln!(out, "{indent}if {label}: {{").unwrap();
             let mut fenv = env.clone();
-            emit_stmts(out, &format!("{indent}    "), body, FailureMode::TryArm, ctx, &mut fenv, top_level, fresh);
-            writeln!(out, "{indent}    Ok(())").unwrap();
-            writeln!(out, "{indent}}})().is_ok() {{ bail!(\"failure(): body succeeded\") }}").unwrap();
+            ctx.with_qmode(QMode::TryBlock(label.clone()), |ctx| {
+                emit_stmts(out, &format!("{indent}    "), body, FailureMode::TryArm, ctx, &mut fenv, top_level, fresh);
+            });
+            writeln!(out, "{indent}    Ok::<(), anyhow::Error>(())").unwrap();
+            writeln!(out, "{indent}}}.is_ok() {{ bail!(\"failure(): body succeeded\") }}").unwrap();
         }
         S::Return => {
             // Expand `return;` into the same Ok(...) shape that emit_function produces

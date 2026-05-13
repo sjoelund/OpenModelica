@@ -173,6 +173,7 @@ dependencies = [
 name = "mmtorust"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "mmwinnow",
  "rayon",
 ]

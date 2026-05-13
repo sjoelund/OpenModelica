@@ -257,7 +257,7 @@ pub fn realDiv(r1: f64, r2: f64) -> Result<f64> {
 
 /// Calculates remainder of Real division r1/r2.
 pub fn realMod(r1: f64, r2: f64) -> Result<f64> {
-    Ok(r1 % r2)
+    Ok(r1 - (r1/r2).floor()*r2)
 }
 
 /// Raises r1 to the power r2 (r1^r2).
@@ -772,6 +772,10 @@ impl<T: PartialEq + Clone> List<T> {
         }
         return false;
     }
+}
+
+pub fn listAppend<T: Clone>(lst1: List<T>, lst2: List<T>) -> Result<List<T>> {
+    Ok(lst1.append(&lst2))
 }
 
 // ============================================================================
@@ -1823,7 +1827,7 @@ mod tests {
         #[test]
         fn test_list_array() {
             let lst = list![1, 2, 3];
-            let arr = listArray(&lst).unwrap();
+            let arr = listArray(lst).unwrap();
             assert_eq!(arr, vec![1, 2, 3]);
         }
 

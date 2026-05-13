@@ -7,6 +7,7 @@ use crate::MM;
 use std::collections::HashMap;
 use crate::hierarchy::{InstanceHierarchy, NameNode, NodeKind, Ty, extract_default, extract_default_exp, lookup_node, lookup_node_ty, lookup_record_through_unions, uniontype_needs_mod, collect_type_vars_in_ty};
 use crate::typedexp::{self, TypedExp, TypedPat, TypedCase, Lit, BinOpKind, UnOpKind, MatchKind, cref_to_dotted, CrefSegment};
+use anyhow::{Result,bail};
 
 // ── Import-aware generation context ──────────────────────────────────────────
 
@@ -1022,307 +1023,117 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
 
         // TODO: Comprehensions
         TypedExp::Call { func, args, named_args, sig_ty, .. } => {
-            match func.as_str() {
-                "SOME" => {
-                    let arg = args
-                        .first()
-                        .map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level))
-                        .unwrap_or_default();
-                    format!("Some({arg})")
+            let num_named = named_args.len();
+            if named_args.is_empty() {
+                if let Ok(res) = emit_builtin_call(func, args, is_const, ctx, top_level) {
+                    return res;
                 }
-                "NONE" => "None".to_owned(),
-                "fail" => if is_const { "{ panic!(\"fail\") }".to_owned() } else { "bail!(\"fail\")".to_owned() },
-                "list" => {
-                    if args.is_empty() {
-                        "metamodelica::List::Nil".to_owned()
-                    } else {
-                        let parts: Vec<String> = args.iter().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).collect();
-                        format!("metamodelica::list![{}]", parts.join(", "))
+            }
+            let func_str = if func.contains('.') {
+                &ctx.shorten(func)
+            } else {
+                func
+            };
+            let func_str = escape_ident(func_str);
+            let formals = resolve_call_formals(func, ctx, top_level);
+            let parts: Vec<String> = if let Some(formals) = formals {
+                let has_defaults = formals.iter().any(|(_, d)| d.is_some());
+                if has_defaults {
+                let mut slots: Vec<Option<TypedExp>> = vec![None; formals.len()];
+                let mut failed = false;
+
+                for (i, a) in args.iter().enumerate() {
+                    if i >= slots.len() {
+                        failed = true;
+                        break;
                     }
-                },
-                "min" | "max" => {
-                    if args.len() == 2 {
-                        let arg1 = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
-                        let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
-                        format!("std::cmp::{func}({arg1}, {arg2})")
-                    } else {
-                        let parts: Vec<String> = args.iter().map(|a| emit_exp(a, is_const, ctx, top_level)).collect();
-                        format!("{func}({})", parts.join(", "))
-                    }
-                },
-                "String" => {
-                    let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
-                    format!("Arc::new(format!(\"{{}}\", {arg}))")
-                },
-                "stringGet" => {
-                    let arg1 = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
-                    let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
-                    format!("stringGet({},{})?", arg1, arg2)
-                },
-                "realNeg" => {
-                    let arg1 = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
-                    format!("-( {} as f64)", arg1)
-                },
-                "realMul" | "realAdd" | "realSub" => {
-                    let arg1 = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
-                    let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
-                    let op = match func.as_str() {
-                        "realMul" => "*",
-                        "realAdd" => "+",
-                        "realSub" => "-",
-                        _ => unreachable!()
-                    };
-                    format!("({} as f64) {} ({} as f64)", arg1, op, arg2)
-                },
-                "realInt" => {
-                    let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
-                    format!("({arg} as i32)")
-                },
-                // Integer(x) is a Modelica/MetaModelica built-in type cast.
-                // For Real → Integer: floor to i32.
-                // For Enumeration → Integer: the discriminant (as i32).
-                // For Boolean → Integer: false=0, true=1.
-                "Integer" => {
-                    let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
-                    // Check the argument type to emit the right conversion.
-                    match args.first().map(|a| a.ty()).as_ref() {
-                        Some(crate::hierarchy::Ty::F64) => format!("({arg} as i32)"),
-                        Some(crate::hierarchy::Ty::Bool) => format!("({arg} as i32)"),
-                        Some(crate::hierarchy::Ty::Enumeration(_)) => format!("({arg} as i32)"),
-                        // Unknown argument type — emit a generic cast; it may need manual review.
-                        _ => format!("({arg} as i32)"),
-                    }
-                },
-                "print" => {
-                    let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
-                    format!("metamodelica::printAny(&{arg})")
-                },
-                "printError" => {
-                    let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
-                    format!("metamodelica::printAny(&{arg})")
-                },
-                "arrayGet" | "arrayGetNoBoundsChecking" => {
-                    let arg1 = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
-                    let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
-                    format!("{}[({}-1) as usize].clone()", arg1, arg2)
-                },
-                "valueEq" => {
-                    let arg1 = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
-                    let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
-                    format!("{} == {}", arg1, arg2)
-                },
-                "arrayLength" | "listLength" | "stringLength" => {
-                    let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
-                    format!("({}.len() as i32)", arg)
-                },
-                "floor" => {
-                    let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
-                    format!("{}.floor()", arg)
-                },
-                "integer" => {
-                    let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
-                    format!("(({} as f64).floor() as i32)", arg)
-                },
-                "listHead" => {
-                    let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
-                    format!("{}.head()?", arg)
-                },
-                "listRest" => {
-                    let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
-                    format!("{}.rest()?", arg)
-                },
-                "listGet" => {
-                    let arg1 = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
-                    let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
-                    format!("{arg1}.get({arg2})?")
-                },
-                "listReverse" | "listReverseInPlace" => {
-                    if args.is_empty() {
-                        "metamodelica::List::Nil".to_owned()
-                    } else {
-                        let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
-                        format!("{}.reverse()", arg)
-                    }
-                },
-                "arrayCopy" => {
-                    let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
-                    format!("{}.to_vec()", arg)
-                },
-                "arrayUpdate"| "arrayUpdateNoBoundsChecking" => {
-                    let arg1 = args.get(0).map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
-                    let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
-                    let arg3 = args.get(2).map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
-                    format!("{{let mut _tmp = {}; _tmp[({}-1) as usize] = {}; _tmp}}", arg1, arg2, arg3)
-                },
-                "arrayEmpty" | "listEmpty" => {
-                    let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
-                    format!("{}.is_empty()", arg)
-                },
-                "SOURCEINFO" | "SourceInfo" => {
-                    let a0 = args.get(0).map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_else(|| "Arc::new(\"\".to_string())".to_owned());
-                    let a1 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_else(|| "false".to_owned());
-                    let a2 = args.get(2).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_else(|| "0".to_owned());
-                    let a3 = args.get(3).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_else(|| "0".to_owned());
-                    let a4 = args.get(4).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_else(|| "0".to_owned());
-                    let a5 = args.get(5).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_else(|| "0".to_owned());
-                    let a6 = args.get(6).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_else(|| "0.0".to_owned());
-                    format!(
-                        "SourceInfo {{ fileName: {a0}, isReadOnly: {a1}, lineNumberStart: {a2}, columnNumberStart: {a3}, lineNumberEnd: {a4}, columnNumberEnd: {a5}, lastModification: {a6} }}"
-                    )
-                },
-                "listArray" | "arrayList" | "stringAppendList" => {
-                    let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
-                    format!("{arg}.into_iter().collect()")
-                },
-                _ => {
-                    let func_str = if func.contains('.') {
-                        &ctx.shorten(func)
-                    } else {
-                        func
-                    };
-                    let func_str = escape_ident(func_str);
-                    let formals = resolve_call_formals(func, ctx, top_level);
-                    let parts: Vec<String> = if let Some(formals) = formals {
-                        let has_defaults = formals.iter().any(|(_, d)| d.is_some());
-                        if has_defaults {
-                        let mut slots: Vec<Option<TypedExp>> = vec![None; formals.len()];
-                        let mut failed = false;
+                    slots[i] = Some(a.clone());
+                }
 
-                        for (i, a) in args.iter().enumerate() {
-                            if i >= slots.len() {
-                                failed = true;
-                                break;
-                            }
-                            slots[i] = Some(a.clone());
+                if !failed {
+                    for (n, v) in named_args {
+                        let Some(idx) = formals.iter().position(|(fname, _)| fname == n) else {
+                            failed = true;
+                            break;
+                        };
+                        if slots[idx].is_some() {
+                            failed = true;
+                            break;
                         }
-
-                        if !failed {
-                            for (n, v) in named_args {
-                                let Some(idx) = formals.iter().position(|(fname, _)| fname == n) else {
-                                    failed = true;
-                                    break;
-                                };
-                                if slots[idx].is_some() {
-                                    failed = true;
-                                    break;
-                                }
-                                slots[idx] = Some(v.clone());
-                            }
-                        }
-
-                        if !failed {
-                            for i in 0..slots.len() {
-                                if slots[i].is_some() {
-                                    continue;
-                                }
-                                if let Some(default_tpl) = formals[i].1.clone() {
-                                    let mut bindings: HashMap<String, TypedExp> = HashMap::new();
-                                    for (j, slot) in slots.iter().enumerate() {
-                                        if let Some(e) = slot {
-                                            bindings.insert(formals[j].0.clone(), e.clone());
-                                        }
-                                    }
-                                    slots[i] = Some(substitute_formal_refs(&default_tpl, &bindings));
-                                }
-                            }
-                        }
-
-                        if !failed {
-                            for slot in &slots {
-                                if slot.is_none() {
-                                    failed = true;
-                                    break;
-                                }
-                            }
-                        }
-
-                        if failed {
-                            let mut parts: Vec<String> = args.iter().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).collect();
-                            for (n, v) in named_args {
-                                let v = emit_cloned_call_arg(v, is_const, ctx, top_level);
-                                parts.push(format!("{n}={v}"));
-                            }
-                            parts
-                        } else {
-                            slots.into_iter()
-                                .map(|s| emit_cloned_call_arg(&s.unwrap(), is_const, ctx, top_level))
-                                .collect()
-                        }
-                        } else {
-                            let mut parts: Vec<String> = args.iter().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).collect();
-                            for (n, v) in named_args {
-                                let v = emit_cloned_call_arg(v, is_const, ctx, top_level);
-                                parts.push(format!("{n}={v}"));
-                            }
-                            parts
-                        }
-                    } else {
-                        let mut parts: Vec<String> = args.iter().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).collect();
-                        for (n, v) in named_args {
-                            let v = emit_cloned_call_arg(v, is_const, ctx, top_level);
-                            parts.push(format!("{n}={v}"));
-                        }
-                        parts
-                    };
-
-                    let mut is_ctor = is_constructor(&func_str, ctx, top_level) || is_constructor(func, ctx, top_level);
-                    if is_ctor {
-                        println!("{:?} is a constructor, but was not detected as such in typedexp.rs", exp);
-                        is_ctor = false;
-                    }
-                    let mut call = format!("{func_str}({})", parts.join(", "));
-                    if is_ctor {
-                        let field_tys = if func.contains('.') {
-                            record_field_tys(func, top_level)
-                        } else {
-                            Some(record_field_tys_by_simple_name(func, top_level))
-                        }.unwrap_or_default();
-
-                        if !field_tys.is_empty() {
-                            let mut struct_parts = Vec::new();
-                            let mut unhandled_parts = parts.iter();
-                            for (i, (fname, fty)) in field_tys.iter().enumerate() {
-                                if i < args.len() {
-                                    if let Some(p) = unhandled_parts.next() {
-                                        // Wrap in Arc::new if the struct field is stored as Arc<T>
-                                        // due to size-recursive cycles.  String fields are excluded:
-                                        // their expressions already yield Arc<String>.
-                                        let p = if is_arc_wrapped(fty, ctx) {
-                                            format!("Arc::new({p})")
-                                        } else {
-                                            p.clone()
-                                        };
-                                        struct_parts.push(format!("{}: {}", escape_ident(fname), p));
-                                    }
-                                }
-                            }
-                            // named_args were pushed as "n=v" strings... let's reconstruct them
-                            for (n, _) in named_args {
-                                if let Some(p) = unhandled_parts.next() {
-                                    let kv = p.splitn(2, '=').collect::<Vec<_>>();
-                                    if kv.len() == 2 {
-                                        struct_parts.push(format!("{}: {}", escape_ident(kv[0]), kv[1]));
-                                    } else {
-                                        struct_parts.push(format!("{}: {}", escape_ident(n), p));
-                                    }
-                                }
-                            }
-                            call = format!("{func_str} {{ {} }}", struct_parts.join(", "));
-                        } else {
-                            call = format!("{func_str}");
-                        }
-                    }
-
-                    // Add `?` to propagate Result errors from fallible calls. Skip in const
-                    // context, for constructors (uppercase first char), and for known-infallible
-                    // note that infallible builtins still return a Result because they can be used as function pointers.
-                    //  In order to skip the error checking here, it needs to have a special case handling the function above
-                    if is_const || is_constructor(&func_str, ctx, top_level) || is_constructor(func, ctx, top_level) {
-                        call
-                    } else {
-                        format!("{call}?")
+                        slots[idx] = Some(v.clone());
                     }
                 }
+
+                if !failed {
+                    for i in 0..slots.len() {
+                        if slots[i].is_some() {
+                            continue;
+                        }
+                        if let Some(default_tpl) = formals[i].1.clone() {
+                            let mut bindings: HashMap<String, TypedExp> = HashMap::new();
+                            for (j, slot) in slots.iter().enumerate() {
+                                if let Some(e) = slot {
+                                    bindings.insert(formals[j].0.clone(), e.clone());
+                                }
+                            }
+                            slots[i] = Some(substitute_formal_refs(&default_tpl, &bindings));
+                        }
+                    }
+                }
+
+                if !failed {
+                    for slot in &slots {
+                        if slot.is_none() {
+                            failed = true;
+                            break;
+                        }
+                    }
+                }
+
+                if failed {
+                    let mut parts: Vec<String> = args.iter().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).collect();
+                    for (n, v) in named_args {
+                        let v = emit_cloned_call_arg(v, is_const, ctx, top_level);
+                        parts.push(format!("{n}={v}"));
+                    }
+                    parts
+                } else {
+                    slots.into_iter()
+                        .map(|s| emit_cloned_call_arg(&s.unwrap(), is_const, ctx, top_level))
+                        .collect()
+                }
+                } else {
+                    let mut parts: Vec<String> = args.iter().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).collect();
+                    for (n, v) in named_args {
+                        let v = emit_cloned_call_arg(v, is_const, ctx, top_level);
+                        parts.push(format!("{n}={v}"));
+                    }
+                    parts
+                }
+            } else {
+                let mut parts: Vec<String> = args.iter().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).collect();
+                for (n, v) in named_args {
+                    let v = emit_cloned_call_arg(v, is_const, ctx, top_level);
+                    parts.push(format!("{n}={v}"));
+                }
+                parts
+            };
+
+            let mut is_ctor = is_constructor(&func_str, ctx, top_level) || is_constructor(func, ctx, top_level);
+            if is_ctor {
+                println!("{:?} is a constructor, but was not detected as such in typedexp.rs", exp);
+                is_ctor = false;
+            }
+            let mut call = format!("{func_str}({})", parts.join(", "));
+
+            // Add `?` to propagate Result errors from fallible calls. Skip in const
+            // context, for constructors (uppercase first char), and for known-infallible
+            // note that infallible builtins still return a Result because they can be used as function pointers.
+            //  In order to skip the error checking here, it needs to have a special case handling the function above
+            if is_const {
+                call
+            } else {
+                format!("{call}?")
             }
         }
 
@@ -1467,6 +1278,180 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
         }
 
         TypedExp::Todo(s) => format!("todo!(/*{}*/)", s.chars().take(60).collect::<String>()),
+    }
+}
+
+fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mut GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) -> Result<String> {
+    match func {
+        "SOME" => {
+            let arg = args
+                .first()
+                .map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level))
+                .unwrap_or_default();
+            Ok(format!("Some({arg})"))
+        }
+        "NONE" => Ok("None".to_owned()),
+        "fail" => if is_const { Ok("{ panic!(\"fail\") }".to_owned()) } else { Ok("bail!(\"fail\")".to_owned()) },
+        "list" => {
+            if args.is_empty() {
+                Ok("metamodelica::List::Nil".to_owned())
+            } else {
+                let parts: Vec<String> = args.iter().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).collect();
+                Ok(format!("metamodelica::list![{}]", parts.join(", ")))
+            }
+        },
+        "min" | "max" => {
+            if args.len() == 2 {
+                let arg1 = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+                let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
+                Ok(format!("std::cmp::{func}({arg1}, {arg2})"))
+            } else {
+                let parts: Vec<String> = args.iter().map(|a| emit_exp(a, is_const, ctx, top_level)).collect();
+                Ok(format!("{func}({})", parts.join(", ")))
+            }
+        },
+        "String" => {
+            let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+            Ok(format!("Arc::new(format!(\"{{}}\", {arg}))"))
+        },
+        "stringGet" => {
+            let arg1 = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+            let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
+            Ok(format!("stringGet({},{})?", arg1, arg2))
+        },
+        "realNeg" => {
+            let arg1 = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+            Ok(format!("-( {} as f64)", arg1))
+        },
+        "realMul" | "realAdd" | "realSub" => {
+            let arg1 = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+            let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
+            let op = match func {
+                "realMul" => "*",
+                "realAdd" => "+",
+                "realSub" => "-",
+                _ => unreachable!()
+            };
+            Ok(format!("({} as f64) {} ({} as f64)", arg1, op, arg2))
+        },
+        "realInt" => {
+            let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+            Ok(format!("({arg} as i32)"))
+        },
+        // Integer(x) is a Modelica/MetaModelica built-in type cast.
+        // For Real → Integer: floor to i32.
+        // For Enumeration → Integer: the discriminant (as i32).
+        // For Boolean → Integer: false=0, true=1.
+        "Integer" => {
+            let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+            // Check the argument type to emit the right conversion.
+            match args.first().map(|a| a.ty()).as_ref() {
+                Some(crate::hierarchy::Ty::F64) => Ok(format!("({arg} as i32)")),
+                Some(crate::hierarchy::Ty::Bool) => Ok(format!("({arg} as i32)")),
+                Some(crate::hierarchy::Ty::Enumeration(_)) => Ok(format!("({arg} as i32)")),
+                // Unknown argument type — emit a generic cast; it may need manual review.
+                _ => Ok(format!("({arg} as i32)")),
+            }
+        },
+        "print" => {
+            let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+            Ok(format!("metamodelica::printAny(&{arg})"))
+        },
+        "printError" => {
+            let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+            Ok(format!("metamodelica::printAny(&{arg})"))
+        },
+        "arrayGet" | "arrayGetNoBoundsChecking" => {
+            let arg1 = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+            let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
+            Ok(format!("{}[({}-1) as usize].clone()", arg1, arg2))
+        },
+        "valueEq" => {
+            let arg1 = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+            let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
+            Ok(format!("{} == {}", arg1, arg2))
+        },
+        "arrayLength" | "listLength" | "stringLength" => {
+            let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+            Ok(format!("({}.len() as i32)", arg))
+        },
+        "floor" => {
+            let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+            Ok(format!("{}.floor()", arg))
+        },
+        "mod" if args.len()==2 => {
+            let a1 = args.get(0).unwrap();
+            let a2 = args.get(1).unwrap();
+            let f = if a1.ty() == Ty::I32 && a2.ty() == Ty::I32 {"intMod"} else {"realMod"};
+            let arg1 = emit_cloned_call_arg(a1, is_const, ctx, top_level);
+            let arg2 = emit_cloned_call_arg(a2, is_const, ctx, top_level);
+            Ok(format!("{f}({arg1}, {arg2})?"))
+        },
+        "div" => {
+            let arg1 = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+            let arg2 = args.get(1).map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+            Ok(format!("{arg1} / {arg2}"))
+        },
+        "abs" => {
+            let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+            Ok(format!("{}.abs()", arg))
+        },
+        "integer" => {
+            let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+            Ok(format!("(({} as f64).floor() as i32)", arg))
+        },
+        "listHead" => {
+            let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+            Ok(format!("{}.head()?", arg))
+        },
+        "listRest" => {
+            let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+            Ok(format!("{}.rest()?", arg))
+        },
+        "listGet" => {
+            let arg1 = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+            let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
+            Ok(format!("{arg1}.get({arg2})?"))
+        },
+        "listReverse" | "listReverseInPlace" => {
+            if args.is_empty() {
+                Ok("metamodelica::List::Nil".to_owned())
+            } else {
+                let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+                Ok(format!("{}.reverse()", arg))
+            }
+        },
+        "arrayCopy" => {
+            let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+            Ok(format!("{}.to_vec()", arg))
+        },
+        "arrayUpdate"| "arrayUpdateNoBoundsChecking" => {
+            let arg1 = args.get(0).map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+            let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
+            let arg3 = args.get(2).map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+            Ok(format!("{{let mut _tmp = {}; _tmp[({}-1) as usize] = {}; _tmp}}", arg1, arg2, arg3))
+        },
+        "arrayEmpty" | "listEmpty" => {
+            let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+            Ok(format!("{}.is_empty()", arg))
+        },
+        "SOURCEINFO" | "SourceInfo" => {
+            let a0 = args.get(0).map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_else(|| "Arc::new(\"\".to_string())".to_owned());
+            let a1 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_else(|| "false".to_owned());
+            let a2 = args.get(2).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_else(|| "0".to_owned());
+            let a3 = args.get(3).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_else(|| "0".to_owned());
+            let a4 = args.get(4).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_else(|| "0".to_owned());
+            let a5 = args.get(5).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_else(|| "0".to_owned());
+            let a6 = args.get(6).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_else(|| "0.0".to_owned());
+            Ok(format!(
+                "SourceInfo {{ fileName: {a0}, isReadOnly: {a1}, lineNumberStart: {a2}, columnNumberStart: {a3}, lineNumberEnd: {a4}, columnNumberEnd: {a5}, lastModification: {a6} }}"
+            ))
+        },
+        "listArray" | "arrayList" | "stringAppendList" => {
+            let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+            Ok(format!("{arg}.into_iter().collect()"))
+        },
+        _ => bail!("Not a builtin function")
     }
 }
 

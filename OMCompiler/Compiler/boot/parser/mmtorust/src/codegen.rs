@@ -444,6 +444,8 @@ pub fn generate_all(hier: &InstanceHierarchy<'_>, output_dir: &str) -> std::io::
 fn generate_lib_file(hier: &InstanceHierarchy<'_>, this_dir: &str, default_dir: &str) -> String {
     let mut out = String::new();
     writeln!(out, "// Auto-generated lib file").unwrap();
+    writeln!(out, "// TODO: Decide if we go with nightly rust for deref patterns, or https://crates.io/crates/match_deref").unwrap();
+    writeln!(out, "#![feature(deref_patterns)]").unwrap(); // We have long lists to macro through...
     writeln!(out, "#![recursion_limit = \"1024\"]").unwrap(); // We have long lists to macro through...
     for (name, node) in &hier.top_level {
         let node_dir = if let NodeKind::Class(c) = &node.kind {
@@ -2107,7 +2109,7 @@ fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, sc
         TypedPat::Lit(Lit::Real(_)) => "_ /* real — move to guard */".to_owned(),
 
         TypedPat::Cons { head, tail } => {
-            format!("metamodelica::List::Cons {{ head: {}, tail: {} }}",
+            format!("metamodelica::List::Cons {{ head: {}, tail: deref!({}) }}",
                 emit_pat_with_implicit_bind(head, allow_implicit_bind, None, ctx, top_level),
                 emit_pat_with_implicit_bind(tail, allow_implicit_bind, None, ctx, top_level))
         }

@@ -1736,7 +1736,7 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
                 "SourceInfo {{ fileName: {a0}, isReadOnly: {a1}, lineNumberStart: {a2}, columnNumberStart: {a3}, lineNumberEnd: {a4}, columnNumberEnd: {a5}, lastModification: {a6} }}"
             ))
         },
-        "listArray" | "arrayList" | "stringAppendList" => {
+        "listArray" | "arrayList" /* | "stringAppendList" */ => {
             let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
             Ok(format!("{arg}.into_iter().{}collect()", if func == "arrayList" {""} else {"cloned()."}))
         },

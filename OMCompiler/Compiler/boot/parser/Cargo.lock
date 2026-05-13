@@ -139,6 +139,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1f6b9436dcadceb8d39e4bed5045af1639cf369b68898ca1b0b11d7419e77e84"
 
 [[package]]
+name = "loop_unwrap"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0904e6304e9caf24ea4948779e2dda92122bd7d3e98ae1926867df97093b9f9e"
+
+[[package]]
 name = "memchr"
 version = "2.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -270,6 +276,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "const-str",
+ "loop_unwrap",
  "metamodelica",
 ]
 

@@ -512,10 +512,12 @@ fn generate_file<'a>(top_name: &str, node: &NameNode<'_>, crate_map: &BTreeMap<S
     // Second pass: emit header + complete use lines (now including implicit modules).
     let mut out = String::new();
     writeln!(out, "// Auto-generated from MetaModelica source").unwrap();
+    writeln!(out, "#![allow(warnings)]").unwrap();
     writeln!(out, "#![allow(unreachable_patterns, unreachable_code, non_camel_case_types, non_snake_case, dead_code, unused_imports, unused_variables, non_upper_case_globals, unused_mut)]").unwrap();
     writeln!(out, "{}", "
 use std::sync::Arc;
 use anyhow::{Result, bail};
+use loop_unwrap::unwrap_break_err;
 use metamodelica::*; // Built-in types and functions
 use const_str;
 ").unwrap();
@@ -769,7 +771,7 @@ fn emit_struct(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Class,
     for (_, fty) in &fields {
         collect_type_vars_in_ty(fty, &mut type_vars);
     }
-    let type_params = if type_vars.is_empty() { String::new() } else { format!("<{}: {{DEFAULT_TRAITS}}>", type_vars.join(", ")) };
+    let type_params = if type_vars.is_empty() { String::new() } else { format!("<{}: {DEFAULT_TRAITS}>", type_vars.join(", ")) };
     writeln!(out, "#[derive(Clone, Debug, PartialEq, Eq, Hash)]").unwrap();
     if fields.is_empty() {
         writeln!(out, "{indent}pub struct {ename}{type_params};").unwrap();
@@ -828,7 +830,7 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
     let type_params = if all_type_vars.is_empty() {
         String::new()
     } else {
-        format!("<{}>", all_type_vars.iter().map(|v| format!("{v}: {{DEFAULT_TRAITS}}")).collect::<Vec<_>>().join(", "))
+        format!("<{}>", all_type_vars.iter().map(|v| format!("{v}: {DEFAULT_TRAITS}")).collect::<Vec<_>>().join(", "))
     };
 
     let params = fn_inputs.iter()
@@ -1320,13 +1322,17 @@ fn emit_reduction<'a>(
     for (i, it) in iterators.iter().enumerate() {
         let range_s = emit_exp(&it.range, is_const, ctx, top_level);
         let borrow = match it.range.ty() {
-            Ty::List(_) | Ty::Array(_) => "&",
+            // Skip this. We anyway need to clone everything all the time as the code is written
+            // Ty::List(_) | Ty::Array(_) => "&",
             _ => "",
         };
         if i == 0 {
             // The first iterator seeds the chain; subsequent iterators are
             // combined via `flat_map` (cartesian) or `zip` (thread).
-            iter_chain.push_str(&format!("({borrow}{range_s}).into_iter()"));
+            match it.range.ty() {
+                Ty::List(_) => iter_chain.push_str(&format!("({borrow}{range_s}).into_iter().cloned()")),
+                _ => iter_chain.push_str(&format!("({borrow}{range_s}).into_iter()")),
+            };
         } else {
             match iter_kind {
                 ReductionIterKind::Thread => {
@@ -1385,7 +1391,7 @@ fn emit_reduction<'a>(
             // `listReverse(... for it in xs)` builds a list in reverse-iteration
             // order. Folding with cons gives that order without an extra reverse.
             format!(
-                "({mapped}).fold(metamodelica::List::Nil, |acc, __x| metamodelica::List::Cons(__x, std::sync::Arc::new(acc)))"
+                "({mapped}).fold(metamodelica::List::Nil, |__acc, __x| metamodelica::List::Cons{{head: __x, tail: std::sync::Arc::new(__acc)}})"
             )
         }
         "sum" => {
@@ -1663,7 +1669,7 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
         },
         "listArray" | "arrayList" | "stringAppendList" => {
             let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
-            Ok(format!("{arg}.into_iter().cloned().collect()"))
+            Ok(format!("{arg}.into_iter().{}collect()", if func == "arrayList" {""} else {"cloned()."}))
         },
         _ => bail!("Not a builtin function")
     }
@@ -2188,7 +2194,7 @@ fn emit_range<'a>(start: &TypedExp, step: Option<&TypedExp>, stop: &TypedExp, is
                     return if *n == 1 {
                         format!("{s}..={e}")
                     } else {
-                        format!("({s}..={e}).step_by({n})")
+                        format!("({s}..={e}).step_by(({n}) as usize)")
                     };
                 }
                 // Negative step: reverse the range, negate the step.
@@ -2196,7 +2202,7 @@ fn emit_range<'a>(start: &TypedExp, step: Option<&TypedExp>, stop: &TypedExp, is
                     return if *n == -1 {
                         format!("({e}..={s}).rev()")
                     } else {
-                        format!("({e}..={s}).step_by({}).rev()", -n)
+                        format!("({e}..={s}).step_by(({}) as usize).rev()", -n)
                     };
                 }
             }
@@ -2206,7 +2212,7 @@ fn emit_range<'a>(start: &TypedExp, step: Option<&TypedExp>, stop: &TypedExp, is
             // Dynamic step: positive path for the common case,
             // with a runtime branch that reverses for negative steps.
             format!(
-                "({{let __s={s}; let __e={e}; let __step={step_val}; if __step>0 {{__s..=__e}} else {{__e..=__s}}}}).step_by(if {step_val}>0 {{{step_val}}} else {{-({step_val})}})"
+                "({{let __s={s}; let __e={e}; let __step={step_val}; if __step>0 {{__s..=__e}} else {{__e..=__s}}}}).step_by((if {step_val}>0 {{{step_val}}} else {{-({step_val})}}) as usize)"
             )
         }
     }

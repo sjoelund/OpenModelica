@@ -898,14 +898,14 @@ pub fn tick() -> Result<i32> {
 }
 
 /// Structural equality for any PartialEq value.
-pub fn valueEq<A: PartialEq>(a1: &A, a2: &A) -> Result<bool> {
+pub fn valueEq<A: PartialEq>(a1: A, a2: A) -> Result<bool> {
     Ok(a1 == a2)
 }
 
 /// Compares two Ord values.
 /// Returns -1 if a1 < a2, 0 if a1 == a2, 1 if a1 > a2.
-pub fn valueCompare<A: Ord>(a1: &A, a2: &A) -> Result<i32> {
-    match a1.cmp(a2) {
+pub fn valueCompare<A: Ord>(a1: A, a2: A) -> Result<i32> {
+    match a1.cmp(&a2) {
         std::cmp::Ordering::Less => Ok(-1),
         std::cmp::Ordering::Equal => Ok(0),
         std::cmp::Ordering::Greater => Ok(1),

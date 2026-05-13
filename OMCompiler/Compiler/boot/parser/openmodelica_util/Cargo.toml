@@ -7,3 +7,4 @@ edition = "2024"
 anyhow.workspace=true
 metamodelica.workspace=true
 const-str.workspace=true
+loop_unwrap.workspace=true

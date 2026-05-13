@@ -170,7 +170,7 @@ pub enum TypedPat {
 /// Deprecated: loses subscripts and structure. Use `extract_cref_segments` instead.
 pub fn cref_to_dotted(cref: &Absyn::ComponentRef) -> String {
     let raw = match cref {
-        Absyn::ComponentRef::CREF_IDENT { name, .. } => name.clone(),
+        Absyn::ComponentRef::CREF_IDENT { name, .. } => name.to_string(),
         Absyn::ComponentRef::CREF_QUAL { name, componentRef, .. } => {
             format!("{name}.{}", cref_to_dotted(componentRef))
         }
@@ -213,7 +213,7 @@ fn collect_cref_segments_rev<'a>(
 ) {
     match cref {
         Absyn::ComponentRef::CREF_IDENT { name, subscripts } => {
-            let subs: Vec<TypedExp> = subscripts.into_iter()
+            let subs: Vec<TypedExp> = (&**subscripts).into_iter()
                 .filter_map(|s| {
                     if let Absyn::Subscript::SUBSCRIPT { subscript } = s.as_ref() {
                         Some(infer_exp(subscript, env, top_level, pkg_prefix, &[]))
@@ -222,10 +222,10 @@ fn collect_cref_segments_rev<'a>(
                     }
                 })
                 .collect();
-            acc.push(CrefSegment { name: name.clone(), subscripts: subs });
+            acc.push(CrefSegment { name: name.to_string(), subscripts: subs });
         }
         Absyn::ComponentRef::CREF_QUAL { name, subscripts, componentRef } => {
-            let subs: Vec<TypedExp> = subscripts.into_iter()
+            let subs: Vec<TypedExp> = (&**subscripts).into_iter()
                 .filter_map(|s| {
                     if let Absyn::Subscript::SUBSCRIPT { subscript } = s.as_ref() {
                         Some(infer_exp(subscript, env, top_level, pkg_prefix, &[]))
@@ -234,7 +234,7 @@ fn collect_cref_segments_rev<'a>(
                     }
                 })
                 .collect();
-            acc.push(CrefSegment { name: name.clone(), subscripts: subs });
+            acc.push(CrefSegment { name: name.to_string(), subscripts: subs });
             collect_cref_segments_rev(componentRef, env, top_level, pkg_prefix, acc);
         }
         Absyn::ComponentRef::CREF_FULLYQUALIFIED { componentRef } => {
@@ -249,7 +249,7 @@ fn collect_cref_segments_rev<'a>(
 /// Convert an `Absyn::Path` to a dotted string (e.g. `"Pkg.Sub.Name"`).
 fn path_to_dotted(path: &Absyn::Path) -> String {
     match path {
-        Absyn::Path::IDENT { name } => name.clone(),
+        Absyn::Path::IDENT { name } => name.to_string(),
         Absyn::Path::QUALIFIED { name, path } => format!("{name}.{}", path_to_dotted(path)),
         Absyn::Path::FULLYQUALIFIED { path } => path_to_dotted(path),
     }
@@ -579,13 +579,33 @@ fn resolve_first_segment_type<'a>(
     let first_name = segments.first().map(|s| s.name.as_str()).unwrap_or(dotted);
     let mut ty = env.get(first_name)?.clone();
 
-    // Walk remaining segments as field accesses to narrow the type.
+    // Apply subscripts on the first segment. Each scalar subscript peels off one
+    // outer Array/List layer (e.g. `arr[i]` on an `Array<T>` yields `T`). Without
+    // this, a reduction over `arr[i]` would type its body as `Array<T>` and the
+    // accumulator declaration would be `List<Array<T>>` instead of `List<T>`.
+    if let Some(seg) = segments.first() {
+        for _ in &seg.subscripts {
+            ty = match ty {
+                Ty::Array(inner) | Ty::List(inner) => *inner,
+                other => other,
+            };
+        }
+    }
+
+    // Walk remaining segments as field accesses to narrow the type, applying
+    // each segment's subscripts the same way.
     for seg in segments.iter().skip(1) {
         if let Ty::RustStruct(qname) = &ty {
             let field_tys = record_field_tys(qname, top_level);
             ty = field_tys.iter().find(|(n, _)| n == &seg.name).map(|(_, t)| t.clone()).unwrap_or(Ty::Unknown);
         } else {
             break;
+        }
+        for _ in &seg.subscripts {
+            ty = match ty {
+                Ty::Array(inner) | Ty::List(inner) => *inner,
+                other => other,
+            };
         }
     }
 
@@ -640,8 +660,8 @@ pub fn infer_exp<'a>(
 ) -> TypedExp {
     match exp {
         Absyn::Exp::INTEGER { value } => TypedExp::Lit(Lit::Int(*value)),
-        Absyn::Exp::REAL    { value } => TypedExp::Lit(Lit::Real(value.clone())),
-        Absyn::Exp::STRING  { value } => TypedExp::Lit(Lit::Str(value.clone())),
+        Absyn::Exp::REAL    { value } => TypedExp::Lit(Lit::Real(value.to_string())),
+        Absyn::Exp::STRING  { value } => TypedExp::Lit(Lit::Str(value.to_string())),
         Absyn::Exp::BOOL    { value } => TypedExp::Lit(Lit::Bool(*value)),
 
         Absyn::Exp::CREF { componentRef } => {
@@ -720,8 +740,8 @@ pub fn infer_exp<'a>(
             let cond  = infer_exp(ifExp, env, top_level, pkg_prefix, type_vars);
             let then_ = infer_exp(trueBranch, env, top_level, pkg_prefix, type_vars);
             let else_ = infer_exp(elseBranch, env, top_level, pkg_prefix, type_vars);
-            let elseif: Vec<(TypedExp, TypedExp)> = elseIfBranch.into_iter()
-                .map(|(c, b)| (infer_exp(&c, env, top_level, pkg_prefix, type_vars), infer_exp(&b, env, top_level, pkg_prefix, type_vars)))
+            let elseif: Vec<(TypedExp, TypedExp)> = (&**elseIfBranch).into_iter()
+                .map(|(c, b)| (infer_exp(c.as_ref(), env, top_level, pkg_prefix, type_vars), infer_exp(b.as_ref(), env, top_level, pkg_prefix, type_vars)))
                 .collect();
             let ty = if then_.ty() != Ty::Unknown { then_.ty() } else { else_.ty() };
             TypedExp::If { cond: Box::new(cond), then_: Box::new(then_), elseif, else_: Box::new(else_), ty }
@@ -742,7 +762,7 @@ pub fn infer_exp<'a>(
                 // later iterators / body see those bindings.
                 let mut iter_env = env.clone();
                 let mut iters: Vec<ReductionIter> = Vec::new();
-                for it in iterators.into_iter() {
+                for it in (&**iterators).into_iter() {
                     let Absyn::ForIterator::ITERATOR { name: it_name, guardExp, range } = it;
                     let range_e = match range {
                         Some(r) => infer_exp(r.as_ref(), &iter_env, top_level, pkg_prefix, type_vars),
@@ -754,9 +774,9 @@ pub fn infer_exp<'a>(
                         Ty::List(t) | Ty::Array(t) => *t,
                         _ => Ty::Unknown,
                     };
-                    iter_env.insert(it_name.clone(), elem_ty.clone());
+                    iter_env.insert(it_name.to_string(), elem_ty.clone());
                     let guard = guardExp.as_ref().map(|g| infer_exp(g.as_ref(), &iter_env, top_level, pkg_prefix, type_vars));
-                    iters.push(ReductionIter { name: it_name.clone(), range: range_e, guard, elem_ty });
+                    iters.push(ReductionIter { name: it_name.to_string(), range: range_e, guard, elem_ty });
                 }
                 let body = infer_exp(body_exp.as_ref(), &iter_env, top_level, pkg_prefix, type_vars);
                 // The reduction's result type depends on `func`:
@@ -824,14 +844,14 @@ pub fn infer_exp<'a>(
         }
 
         Absyn::Exp::TUPLE { expressions } => {
-            let elems: Vec<TypedExp> = expressions.into_iter()
+            let elems: Vec<TypedExp> = (&**expressions).into_iter()
                 .map(|e| infer_exp(e.as_ref(), env, top_level, pkg_prefix, type_vars))
                 .collect();
             TypedExp::Tuple(elems)
         }
 
         Absyn::Exp::ARRAY { arrayExp } => {
-            let elems: Vec<TypedExp> = arrayExp.into_iter()
+            let elems: Vec<TypedExp> = (&**arrayExp).into_iter()
                 .map(|e| infer_exp(e.as_ref(), env, top_level, pkg_prefix, type_vars))
                 .collect();
             let inner_ty = elems.first().map(|e| e.ty()).unwrap_or(Ty::Unknown);
@@ -859,8 +879,8 @@ pub fn infer_exp<'a>(
             for (n, t) in &match_locals {
                 case_env.insert(n.clone(), t.clone());
             }
-            let typed_cases: Vec<TypedCase> = cases.into_iter()
-                .map(|c| infer_case(&c, &case_env, top_level, pkg_prefix, &match_locals, type_vars))
+            let typed_cases: Vec<TypedCase> = (&**cases).into_iter()
+                .map(|c| infer_case(c, &case_env, top_level, pkg_prefix, &match_locals, type_vars))
                 .collect();
             let ty = typed_cases.iter()
                 .map(|c| c.result.ty())
@@ -895,13 +915,13 @@ fn extract_call_args<'a>(
 ) -> (Vec<TypedExp>, Vec<(String, TypedExp)>) {
     match function_args {
         Absyn::FunctionArgs::FUNCTIONARGS { args, argNames } => {
-            let pos: Vec<TypedExp> = args.into_iter()
+            let pos: Vec<TypedExp> = (&**args).into_iter()
                 .map(|a| infer_exp(a.as_ref(), env, top_level, pkg_prefix, type_vars))
                 .collect();
-            let named: Vec<(String, TypedExp)> = argNames.into_iter()
+            let named: Vec<(String, TypedExp)> = (&**argNames).into_iter()
                 .map(|na| {
                     let Absyn::NamedArg::NAMEDARG { argName, argValue } = na.as_ref();
-                    (argName.clone(), infer_exp(argValue, env, top_level, pkg_prefix, type_vars))
+                    (argName.to_string(), infer_exp(argValue.as_ref(), env, top_level, pkg_prefix, type_vars))
                 })
                 .collect();
             (pos, named)
@@ -921,7 +941,7 @@ fn infer_case<'a>(
 ) -> TypedCase {
     fn path_to_dotted(path: &Absyn::Path) -> String {
         match path {
-            Absyn::Path::IDENT { name } => name.clone(),
+            Absyn::Path::IDENT { name } => name.to_string(),
             Absyn::Path::QUALIFIED { name, path } => format!("{name}.{}", path_to_dotted(path)),
             Absyn::Path::FULLYQUALIFIED { path } => path_to_dotted(path),
         }
@@ -955,7 +975,7 @@ fn infer_case<'a>(
                 }
             }
             Absyn::TypeSpec::TCOMPLEX { path, typeSpecs, .. } => {
-                let args: Vec<_> = typeSpecs.into_iter().collect();
+                let args: Vec<std::sync::Arc<Absyn::TypeSpec>> = (&**typeSpecs).into_iter().cloned().collect();
                 let ctor = path_to_dotted(path);
                 match ctor.as_str() {
                     "Option" if args.len() == 1 => {
@@ -984,17 +1004,17 @@ fn infer_case<'a>(
         }
     }
 
-    fn infer_case_locals(local_decls: &mmwinnow::List<std::sync::Arc<Absyn::ElementItem>>, type_vars: &[String], top_level: &BTreeMap<String, NameNode<'_>>) -> Vec<(String, Ty)> {
+    fn infer_case_locals(local_decls: &std::sync::Arc<mmwinnow::List<std::sync::Arc<Absyn::ElementItem>>>, type_vars: &[String], top_level: &BTreeMap<String, NameNode<'_>>) -> Vec<(String, Ty)> {
         let mut out = Vec::new();
-        for item in local_decls.into_iter() {
+        for item in (&**local_decls).into_iter() {
             let Absyn::ElementItem::ELEMENTITEM { element } = item.as_ref() else { continue };
             let Absyn::Element::ELEMENT { specification, .. } = element else { continue };
             let Absyn::ElementSpec::COMPONENTS { typeSpec, components, .. } = specification else { continue };
             let ty = typespec_to_ty(&typeSpec, type_vars, top_level);
-            for comp_item in components.into_iter() {
+            for comp_item in (&**components).into_iter() {
                 let Absyn::ComponentItem::COMPONENTITEM { component, .. } = comp_item.as_ref();
                 let Absyn::Component::COMPONENT { name, .. } = component;
-                out.push((name.clone(), ty.clone()));
+                out.push((name.to_string(), ty.clone()));
             }
         }
         out
@@ -1059,21 +1079,21 @@ fn infer_case<'a>(
             Absyn::Equation::EQ_IF { ifExp, equationTrueItems, elseIfBranches, equationElseItems } => {
                 let cond = infer_exp(ifExp, env, top_level, pkg_prefix, type_vars);
                 let then_ = infer_eq_items_list_arc(equationTrueItems, env, top_level, pkg_prefix, type_vars);
-                let elseif: Vec<(TypedExp, Vec<TypedStmt>)> = elseIfBranches.into_iter()
+                let elseif: Vec<(TypedExp, Vec<TypedStmt>)> = (&**elseIfBranches).into_iter()
                     .map(|(c, b)| (
-                        infer_exp(&c, env, top_level, pkg_prefix, type_vars),
-                        infer_eq_items_list_arc(&b, env, top_level, pkg_prefix, type_vars),
+                        infer_exp(c, env, top_level, pkg_prefix, type_vars),
+                        infer_eq_items_list_arc(b, env, top_level, pkg_prefix, type_vars),
                     ))
                     .collect();
                 let else_ = infer_eq_items_list_arc(equationElseItems, env, top_level, pkg_prefix, type_vars);
                 TypedStmt::If { cond, then_, elseif, else_ }
             }
             Absyn::Equation::EQ_FOR { iterators, forEquations } => {
-                let iters: Vec<Absyn::ForIterator> = iterators.into_iter().cloned().collect();
+                let iters: Vec<Absyn::ForIterator> = (&**iterators).into_iter().cloned().collect();
                 if iters.len() == 1 {
                     let Absyn::ForIterator::ITERATOR { name, range, .. } = &iters[0];
                     let range_e = match range {
-                        Some(r) => infer_exp(r, env, top_level, pkg_prefix, type_vars),
+                        Some(r) => infer_exp(r.as_ref(), env, top_level, pkg_prefix, type_vars),
                         None => TypedExp::Todo("for-without-range".to_owned()),
                     };
                     let elem_ty = match range_e.ty() {
@@ -1081,9 +1101,9 @@ fn infer_case<'a>(
                         _ => Ty::Unknown,
                     };
                     let mut inner = env.clone();
-                    inner.insert(name.clone(), elem_ty);
+                    inner.insert(name.to_string(), elem_ty);
                     let body = infer_eq_items_list_arc(forEquations, &mut inner, top_level, pkg_prefix, type_vars);
-                    TypedStmt::For { var: name.clone(), range: range_e, body }
+                    TypedStmt::For { var: name.to_string(), range: range_e, body }
                 } else {
                     TypedStmt::Todo("multi-iterator-for-eq".to_owned())
                 }
@@ -1100,15 +1120,15 @@ fn infer_case<'a>(
     }
 
     fn infer_eq_items_list<'a>(
-        items: &mmwinnow::List<Absyn::EquationItem>,
+        items: &std::sync::Arc<mmwinnow::List<Absyn::EquationItem>>,
         env: &mut HashMap<String, Ty>,
         top_level: &'a BTreeMap<String, NameNode<'a>>,
         pkg_prefix: &str,
         type_vars: &[String],
     ) -> Vec<TypedStmt> {
         let mut out = Vec::new();
-        for it in items.into_iter() {
-            if let Some(s) = infer_eq_item(&it, env, top_level, pkg_prefix, type_vars) {
+        for it in (&**items).into_iter() {
+            if let Some(s) = infer_eq_item(it, env, top_level, pkg_prefix, type_vars) {
                 out.push(s);
             }
         }
@@ -1116,14 +1136,14 @@ fn infer_case<'a>(
     }
 
     fn infer_eq_items_list_arc<'a>(
-        items: &mmwinnow::List<std::sync::Arc<Absyn::EquationItem>>,
+        items: &std::sync::Arc<mmwinnow::List<std::sync::Arc<Absyn::EquationItem>>>,
         env: &mut HashMap<String, Ty>,
         top_level: &'a BTreeMap<String, NameNode<'a>>,
         pkg_prefix: &str,
         type_vars: &[String],
     ) -> Vec<TypedStmt> {
         let mut out = Vec::new();
-        for it in items.into_iter() {
+        for it in (&**items).into_iter() {
             if let Some(s) = infer_eq_item(it.as_ref(), env, top_level, pkg_prefix, type_vars) {
                 out.push(s);
             }
@@ -1215,13 +1235,13 @@ fn infer_case<'a>(
 ///
 /// `type_vars` must be the function-level type variable names (e.g. `["Key"]`).
 fn infer_case_locals_standalone(
-    local_decls: &mmwinnow::List<std::sync::Arc<Absyn::ElementItem>>,
+    local_decls: &std::sync::Arc<mmwinnow::List<std::sync::Arc<Absyn::ElementItem>>>,
     type_vars: &[String],
     top_level: &BTreeMap<String, NameNode<'_>>,
 ) -> Vec<(String, Ty)> {
     fn path_to_dotted(path: &Absyn::Path) -> String {
         match path {
-            Absyn::Path::IDENT { name } => name.clone(),
+            Absyn::Path::IDENT { name } => name.to_string(),
             Absyn::Path::QUALIFIED { name, path } => format!("{name}.{}", path_to_dotted(path)),
             Absyn::Path::FULLYQUALIFIED { path } => path_to_dotted(path),
         }
@@ -1240,7 +1260,7 @@ fn infer_case_locals_standalone(
                 }
             }
             Absyn::TypeSpec::TCOMPLEX { path, typeSpecs, .. } => {
-                let args: Vec<_> = typeSpecs.into_iter().collect();
+                let args: Vec<std::sync::Arc<Absyn::TypeSpec>> = (&**typeSpecs).into_iter().cloned().collect();
                 let ctor = path_to_dotted(path);
                 match ctor.as_str() {
                     "Option" if args.len() == 1 => {
@@ -1266,15 +1286,15 @@ fn infer_case_locals_standalone(
     }
 
     let mut out = Vec::new();
-    for item in local_decls.into_iter() {
+    for item in (&**local_decls).into_iter() {
         let Absyn::ElementItem::ELEMENTITEM { element } = item.as_ref() else { continue };
         let Absyn::Element::ELEMENT { specification, .. } = element else { continue };
         let Absyn::ElementSpec::COMPONENTS { typeSpec, components, .. } = specification else { continue };
         let ty = typespec_to_ty(&typeSpec, type_vars, top_level);
-        for comp_item in components.into_iter() {
+        for comp_item in (&**components).into_iter() {
             let Absyn::ComponentItem::COMPONENTITEM { component, .. } = comp_item.as_ref();
             let Absyn::Component::COMPONENT { name, .. } = component;
-            out.push((name.clone(), ty.clone()));
+            out.push((name.to_string(), ty.clone()));
         }
     }
     out
@@ -1326,28 +1346,28 @@ pub fn infer_pat<'a>(
 ) -> TypedPat {
     match exp {
         Absyn::Exp::INTEGER { value } => TypedPat::Lit(Lit::Int(*value)),
-        Absyn::Exp::REAL    { value } => TypedPat::Lit(Lit::Real(value.clone())),
-        Absyn::Exp::STRING  { value } => TypedPat::Lit(Lit::Str(value.clone())),
+        Absyn::Exp::REAL    { value } => TypedPat::Lit(Lit::Real(value.to_string())),
+        Absyn::Exp::STRING  { value } => TypedPat::Lit(Lit::Str(value.to_string())),
         Absyn::Exp::BOOL    { value } => TypedPat::Lit(Lit::Bool(*value)),
 
         Absyn::Exp::CREF { componentRef } => {
             match componentRef.as_ref() {
                 Absyn::ComponentRef::WILD | Absyn::ComponentRef::ALLWILD => TypedPat::Wildcard,
                 Absyn::ComponentRef::CREF_IDENT { name, subscripts } if subscripts.is_empty() => {
-                    if name == "_" {
+                    if &**name == "_" {
                         TypedPat::Wildcard
                     } else if name.chars().next().map(|c| c.is_uppercase()).unwrap_or(false) {
                         // Uppercase identifiers in pattern position are constructors in
                         // MetaModelica (variants/records), not variable binders.
                         let ty = lookup_ty_in_hierarchy(name, top_level);
-                        TypedPat::Constructor { name: name.clone(), fields: vec![], named_fields: vec![], ty }
+                        TypedPat::Constructor { name: name.to_string(), fields: vec![], named_fields: vec![], ty }
                     } else {
-                        TypedPat::Var(name.clone())
+                        TypedPat::Var(name.to_string())
                     }
                 }
                 // Subscripted reference in pattern position (e.g. `arr[1]` on LHS of `:=`).
                 Absyn::ComponentRef::CREF_IDENT { name, subscripts } => {
-                    let sub = subscripts.into_iter()
+                    let sub = (&**subscripts).into_iter()
                         .filter_map(|s| {
                             if let Absyn::Subscript::SUBSCRIPT { subscript } = s.as_ref() {
                                 Some(subscript.as_ref().clone())
@@ -1357,28 +1377,28 @@ pub fn infer_pat<'a>(
                         })
                         .next();
                     if let Some(sub_exp) = sub {
-                        let base_ty = env.get(name).cloned().unwrap_or_else(|| {
+                        let base_ty = env.get(&**name).cloned().unwrap_or_else(|| {
                             lookup_ty_in_hierarchy(name, top_level)
                         });
-                        let base = TypedExp::Var { name: name.clone(), segments: vec![], ty: base_ty };
+                        let base = TypedExp::Var { name: name.to_string(), segments: vec![], ty: base_ty };
                         TypedPat::Index {
                             base,
                             index: infer_exp(&sub_exp, env, top_level, pkg_prefix, type_vars),
                         }
                     } else {
-                        TypedPat::Var(name.clone())
+                        TypedPat::Var(name.to_string())
                     }
                 }
                 // Qualified reference with subscripts (e.g. `a.b[1]` on LHS of `:=`).
                 Absyn::ComponentRef::CREF_QUAL { name, subscripts, componentRef: rest } => {
-                    let has_subs = subscripts.into_iter().any(|s| matches!(s.as_ref(), Absyn::Subscript::SUBSCRIPT { .. }));
+                    let has_subs = (&**subscripts).into_iter().any(|s| matches!(s.as_ref(), Absyn::Subscript::SUBSCRIPT { .. }));
                     if has_subs {
                         let dotted = cref_to_dotted(rest);
                         // The subscripted part is the tail of the qualified ref.
                         // Build the full dotted name (without subscript info for type lookup)
                         // and emit as Index pattern.
                         let full_dotted = cref_to_dotted(componentRef);
-                        let sub = subscripts.into_iter()
+                        let sub = (&**subscripts).into_iter()
                             .filter_map(|s| {
                                 if let Absyn::Subscript::SUBSCRIPT { subscript } = s.as_ref() {
                                     Some(subscript.as_ref().clone())
@@ -1439,7 +1459,7 @@ pub fn infer_pat<'a>(
             match func.as_str() {
                 "SOME" => {
                     let inner = match functionArgs {
-                        Absyn::FunctionArgs::FUNCTIONARGS { args, .. } => args.into_iter().next()
+                        Absyn::FunctionArgs::FUNCTIONARGS { args, .. } => (&**args).into_iter().next()
                             .map(|a| infer_pat(a.as_ref(), env, top_level, pkg_prefix, type_vars))
                             .unwrap_or(TypedPat::Wildcard),
                         _ => TypedPat::Wildcard,
@@ -1450,13 +1470,13 @@ pub fn infer_pat<'a>(
                 _ => {
                     let (fields, named_fields) = match functionArgs {
                         Absyn::FunctionArgs::FUNCTIONARGS { args, argNames } => {
-                            let pos: Vec<TypedPat> = args.into_iter()
+                            let pos: Vec<TypedPat> = (&**args).into_iter()
                                 .map(|a| infer_pat(a.as_ref(), env, top_level, pkg_prefix, type_vars))
                                 .collect();
-                            let named: Vec<(String, TypedPat)> = argNames.into_iter()
+                            let named: Vec<(String, TypedPat)> = (&**argNames).into_iter()
                                 .map(|na| {
                                     let Absyn::NamedArg::NAMEDARG { argName, argValue } = na.as_ref();
-                                    (argName.clone(), infer_pat(argValue, env, top_level, pkg_prefix, type_vars))
+                                    (argName.to_string(), infer_pat(argValue.as_ref(), env, top_level, pkg_prefix, type_vars))
                                 })
                                 .collect();
                             (pos, named)
@@ -1470,12 +1490,12 @@ pub fn infer_pat<'a>(
         }
 
         Absyn::Exp::TUPLE { expressions } => {
-            TypedPat::Tuple(expressions.into_iter().map(|e| infer_pat(e.as_ref(), env, top_level, pkg_prefix, type_vars)).collect())
+            TypedPat::Tuple((&**expressions).into_iter().map(|e| infer_pat(e.as_ref(), env, top_level, pkg_prefix, type_vars)).collect())
         }
 
         Absyn::Exp::ARRAY { arrayExp } => {
             // {} is the empty-list pattern; {a,b,...} builds a list via nested cons.
-            let mut pats: Vec<TypedPat> = arrayExp.into_iter()
+            let mut pats: Vec<TypedPat> = (&**arrayExp).into_iter()
                 .map(|e| infer_pat(e.as_ref(), env, top_level, pkg_prefix, type_vars))
                 .collect();
             if pats.is_empty() {
@@ -1497,7 +1517,7 @@ pub fn infer_pat<'a>(
         }
 
         Absyn::Exp::AS { id, exp } => {
-           TypedPat::As { var: id.clone(), pat: Box::new(infer_pat(exp, env, top_level, pkg_prefix, type_vars)) }
+           TypedPat::As { var: id.to_string(), pat: Box::new(infer_pat(exp, env, top_level, pkg_prefix, type_vars)) }
         }
 
         // Negative literal in pattern position.
@@ -1650,10 +1670,10 @@ fn infer_stmt<'a>(
         Absyn::Algorithm::ALG_IF { ifExp, trueBranch, elseIfAlgorithmBranch, elseBranch } => {
             let cond = infer_exp(ifExp, env, top_level, pkg_prefix, type_vars);
             let then_ = infer_stmts_list(trueBranch, env, top_level, pkg_prefix, type_vars);
-            let elseif: Vec<(TypedExp, Vec<TypedStmt>)> = elseIfAlgorithmBranch.into_iter()
+            let elseif: Vec<(TypedExp, Vec<TypedStmt>)> = (&**elseIfAlgorithmBranch).into_iter()
                 .map(|(c, b)| (
-                    infer_exp(&c, env, top_level, pkg_prefix, type_vars),
-                    infer_stmts_list(&b, env, top_level, pkg_prefix, type_vars),
+                    infer_exp(c, env, top_level, pkg_prefix, type_vars),
+                    infer_stmts_list(b, env, top_level, pkg_prefix, type_vars),
                 ))
                 .collect();
             let else_ = infer_stmts_list(elseBranch, env, top_level, pkg_prefix, type_vars);
@@ -1662,11 +1682,11 @@ fn infer_stmt<'a>(
         Absyn::Algorithm::ALG_FOR { iterators, forBody }
         | Absyn::Algorithm::ALG_PARFOR { iterators, parforBody: forBody } => {
             // Single-iterator form only.
-            let iters: Vec<Absyn::ForIterator> = iterators.into_iter().cloned().collect();
+            let iters: Vec<Absyn::ForIterator> = (&**iterators).into_iter().cloned().collect();
             if iters.len() == 1 {
                 let Absyn::ForIterator::ITERATOR { name, range, .. } = &iters[0];
                 let range_e = match range {
-                    Some(r) => infer_exp(r, env, top_level, pkg_prefix, type_vars),
+                    Some(r) => infer_exp(r.as_ref(), env, top_level, pkg_prefix, type_vars),
                     None => TypedExp::Todo("for-without-range".to_owned()),
                 };
                 // Element type from list/array.
@@ -1675,9 +1695,9 @@ fn infer_stmt<'a>(
                     _ => Ty::Unknown,
                 };
                 let mut inner = env.clone();
-                inner.insert(name.clone(), elem_ty);
+                inner.insert(name.to_string(), elem_ty);
                 let body = infer_stmts_list(forBody, &mut inner, top_level, pkg_prefix, type_vars);
-                TypedStmt::For { var: name.clone(), range: range_e, body }
+                TypedStmt::For { var: name.to_string(), range: range_e, body }
             } else {
                 TypedStmt::Todo("multi-iterator-for".to_owned())
             }
@@ -1707,15 +1727,15 @@ fn infer_stmt<'a>(
 }
 
 fn infer_stmts_list<'a>(
-    items: &mmwinnow::List<Absyn::AlgorithmItem>,
+    items: &std::sync::Arc<mmwinnow::List<Absyn::AlgorithmItem>>,
     env: &mut HashMap<String, Ty>,
     top_level: &'a BTreeMap<String, NameNode<'a>>,
     pkg_prefix: &str,
     type_vars: &[String],
 ) -> Vec<TypedStmt> {
     let mut out = Vec::new();
-    for it in items.into_iter() {
-        if let Some(s) = infer_stmt(&it, env, top_level, pkg_prefix, type_vars) {
+    for it in (&**items).into_iter() {
+        if let Some(s) = infer_stmt(it, env, top_level, pkg_prefix, type_vars) {
             out.push(s);
         }
     }

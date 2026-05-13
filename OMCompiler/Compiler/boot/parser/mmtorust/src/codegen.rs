@@ -82,6 +82,17 @@ struct GenCtx {
     /// restoring this field around the recursive `emit_exp` call (see
     /// [`GenCtx::with_qmode`]).
     qmode: QMode,
+    /// Variables in scope at the enclosing function level: inputs, outputs,
+    /// and protected locals. Used to seed the per-arm `LocalEnv` when entering
+    /// a match-expression case body, so assignments to function-level outputs
+    /// or protected components are recognised as re-assignments (plain `=`)
+    /// rather than fresh `let` shadowings. Cleared between functions.
+    fn_env_vars: HashMap<String, Ty>,
+    /// Output component names (in declaration order) of the enclosing function.
+    /// Used by `S::Return` inside a match-arm body to expand `return;` into
+    /// `return Ok((outputs...));`. The arm body is emitted with a fresh
+    /// `LocalEnv`, which would otherwise lose this information.
+    fn_outputs: Vec<String>,
 }
 
 impl GenCtx {
@@ -100,6 +111,8 @@ impl GenCtx {
             no_mod_uniontypes: HashSet::new(),
             fn_type_vars,
             qmode: QMode::Function,
+            fn_env_vars: HashMap::new(),
+            fn_outputs: Vec::new(),
         }
     }
 
@@ -367,17 +380,17 @@ fn collect_imports<'a>(node: &NameNode<'_>, ctx: &mut GenCtx, top_level: &'a BTr
                             _ => effective,
                         };
                         if effective != ctx.top_name && !effective.starts_with(&same_file_prefix) {
-                            ctx.named.insert(effective, name.clone());
+                            ctx.named.insert(effective, name.to_string());
                         }
                     }
                 }
                 Absyn::Import::GROUP_IMPORT { prefix, groups } => {
                     let prefix_str = path_to_dotted(prefix);
                     if prefix_str != ctx.top_name && !prefix_str.starts_with(&same_file_prefix) {
-                        for g in groups.into_iter() {
-                            let (local, orig) = match g {
-                                Absyn::GroupImport::GROUP_IMPORT_NAME { name } => (name.clone(), name.clone()),
-                                Absyn::GroupImport::GROUP_IMPORT_RENAME { rename, name } => (rename.clone(), name.clone()),
+                        for g in (&**groups).into_iter() {
+                            let (local, orig): (String, String) = match g {
+                                Absyn::GroupImport::GROUP_IMPORT_NAME { name } => (name.to_string(), name.to_string()),
+                                Absyn::GroupImport::GROUP_IMPORT_RENAME { rename, name } => (rename.to_string(), name.to_string()),
                             };
                             let full = format!("{prefix_str}.{orig}");
                             if path_exists_in_hierarchy(&full, top_level) {
@@ -849,7 +862,7 @@ fn emit_struct(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Class,
 
 fn emit_type_item(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Class, indent: &str, ctx: &mut GenCtx) {
     match &c.body {
-        MM::ClassDef::Derived { type_spec: Absyn::TypeSpec::TCOMPLEX { path: Absyn::Path::IDENT { name }, .. }, .. } if name == "polymorphic" => (),
+        MM::ClassDef::Derived { type_spec: Absyn::TypeSpec::TCOMPLEX { path: Absyn::Path::IDENT { name }, .. }, .. } if &**name == "polymorphic" => (),
         MM::ClassDef::Derived { .. } => {
             let mut type_vars: Vec<String> = Vec::new();
             collect_type_vars_in_ty(&node.ty, &mut type_vars);
@@ -861,9 +874,9 @@ fn emit_type_item(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Cla
             if let Absyn::EnumDef::ENUMLITERALS { enumLiterals } = enum_literals {
                 writeln!(out, "{indent}#[derive(Clone, Debug, PartialEq, Eq, Hash)]").unwrap();
                 writeln!(out, "{indent}pub enum {} {{", escape_ident(name)).unwrap();
-                for lit in enumLiterals {
+                for lit in &**enumLiterals {
                     let Absyn::EnumLiteral::ENUMLITERAL { literal, .. } = lit;
-                    writeln!(out, "{indent}    {},", escape_ident(literal.as_str())).unwrap();
+                    writeln!(out, "{indent}    {},", escape_ident(&**literal)).unwrap();
                 }
                 writeln!(out, "{indent}}}").unwrap();
                 writeln!(out).unwrap();
@@ -958,6 +971,13 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
     for (n, t, _, _) in &outputs   { env.vars.insert(n.clone(), t.clone()); }
     for (n, t, _, _) in &protected { env.vars.insert(n.clone(), t.clone()); }
     env.outputs = outputs.iter().map(|(n, _, _, _)| n.clone()).collect();
+
+    // Expose function-level scope on the codegen context so emit_match's
+    // per-arm `LocalEnv` (which would otherwise start empty) can recognise
+    // re-assignments to outputs/protected components and so `return;` inside
+    // a match arm can expand to the same Ok(...) tuple as the function tail.
+    ctx.fn_env_vars = env.vars.clone();
+    ctx.fn_outputs = env.outputs.clone();
 
     writeln!(out, "{indent}{pub_kw}fn {ename}{type_params}({params}) -> Result<{ret_ty}> {{").unwrap();
     let body_indent = format!("{indent}    ");
@@ -1377,117 +1397,147 @@ fn emit_reduction<'a>(
         return format!("todo!(\"empty-iterator reduction {func}\")");
     }
 
-    // Render each iterator's source range. Lists/arrays are borrowed (`&`) so the
-    // iteration doesn't move them; the per-element clones come from the bindings.
-    // Ranges (numeric `a:b`) are consumed by value since they're cheap to produce.
-    let mut iter_chain = String::new();
-    for (i, it) in iterators.iter().enumerate() {
+    // We lower reductions to a block expression containing one or more `for`
+    // loops driving an accumulator. This is more efficient than an iterator
+    // chain (no `.collect()` to a temporary `Vec` for `list(...)`, no double
+    // collect for nested reductions) and — crucially — lets the body and
+    // guards use `?` directly: the loop body is plain function-context Rust,
+    // so a fallible call inside it propagates with `?` rather than needing
+    // `.unwrap()` inside a `filter`/`map` closure (which would also discard
+    // the `Result` and not compile).
+    //
+    // Shape:
+    //
+    //   {
+    //       let mut __acc: <AccTy> = <seed>;
+    //       for <pat1> in <range1>... {
+    //           if !(<guard1>) { continue; }   // when guard present
+    //           for <pat2> in <range2>... {    // for Combine (cartesian)
+    //               if !(<guard2>) { continue; }
+    //               let __x = <body>;
+    //               <update __acc with __x>;
+    //           }
+    //       }
+    //       <finalize __acc>
+    //   }
+    //
+    // For `Thread` iterators we collapse multiple iterators into a single
+    // `.zip` chain and emit one for-loop that destructures all bindings —
+    // matching MetaModelica's parallel-iteration semantics.
+
+    // Build the for-loop opening for one iterator.
+    fn open_for(it: &ReductionIter, is_const: bool, ctx: &mut GenCtx, top_level: &BTreeMap<String, NameNode>) -> String {
         let range_s = emit_exp(&it.range, is_const, ctx, top_level);
-        let borrow = match it.range.ty() {
-            // Skip this. We anyway need to clone everything all the time as the code is written
-            // Ty::List(_) | Ty::Array(_) => "&",
-            _ => "",
+        let iter_expr = match it.range.ty() {
+            // Lists yield &T; clone so the loop body owns its element (matches
+            // the rest of the generated code which clones liberally).
+            Ty::List(_) => format!("({range_s}).into_iter().cloned()"),
+            _ => format!("({range_s}).into_iter()"),
         };
-        if i == 0 {
-            // The first iterator seeds the chain; subsequent iterators are
-            // combined via `flat_map` (cartesian) or `zip` (thread).
-            match it.range.ty() {
-                Ty::List(_) => iter_chain.push_str(&format!("({borrow}{range_s}).into_iter().cloned()")),
-                _ => iter_chain.push_str(&format!("({borrow}{range_s}).into_iter()")),
-            };
-        } else {
-            match iter_kind {
-                ReductionIterKind::Thread => {
-                    iter_chain.push_str(&format!(".zip(({borrow}{range_s}).into_iter())"));
-                }
-                ReductionIterKind::Combine => {
-                    // Bind earlier iterator names so their ranges (and the body)
-                    // can see them. The previous chain yields nested tuples; we
-                    // unpack them into a fresh tuple in the same shape used by
-                    // the body closures below.
-                    let prev_pat = iter_pattern(&iterators[..i]);
-                    let cur = escape_ident(&it.name);
-                    iter_chain.push_str(&format!(
-                        ".flat_map(|{prev_pat}| ({borrow}{range_s}).into_iter().map(move |{cur}| {})",
-                        iter_pair(&iterators[..i], &it.name)
-                    ));
-                    iter_chain.push(')');
-                }
+        format!("for {} in {iter_expr} {{\n", escape_ident(&it.name))
+    }
+
+    // Emit guard check as `if !(...) { continue; }`. Guards may be fallible,
+    // so they're emitted under the caller's current qmode — `?` (Function),
+    // `unwrap_break_err!` (TryBlock), etc. — same as any other call site.
+    fn guard_check(it: &ReductionIter, is_const: bool, ctx: &mut GenCtx, top_level: &BTreeMap<String, NameNode>, indent: &str) -> String {
+        match &it.guard {
+            None => String::new(),
+            Some(g) => {
+                let s = emit_exp(g, is_const, ctx, top_level);
+                format!("{indent}if !({s}) {{ continue; }}\n")
             }
         }
     }
 
-    // Closure pattern that destructures the current "tuple of iter bindings".
-    let bind_pat = iter_pattern(iterators);
-
-    // Apply guards: each iterator's guard is a Boolean over the bindings up to and
-    // including that iterator. We combine them with `&&` into a single filter to
-    // avoid nested filter calls (which would also work but are noisier).
-    // Guard predicates live inside `Iterator::filter(|..| -> bool { .. })`.
-    // That closure must return a plain `bool`, so we switch to `QMode::Filter`
-    // (use `.unwrap()` instead of `?`) for any fallible calls inside `g`.
-    let mut guard_parts: Vec<String> = Vec::new();
-    for it in iterators {
-        if let Some(g) = &it.guard {
-            let s = ctx.with_qmode(QMode::Filter, |ctx| emit_exp(g, is_const, ctx, top_level));
-            guard_parts.push(s);
+    let body_ty = body.ty();
+    // Render a type for an accumulator slot. If our inferred type isn't known
+    // (typedexp can't always propagate through nested reductions / fallible
+    // bodies), emit `_` so Rust infers from the loop body — that's strictly
+    // better than `/* ? */`, which `fmt_ty` produces for `Ty::Unknown` and
+    // which is not valid Rust in a type position.
+    fn ty_or_underscore(t: &Ty, ctx: &mut GenCtx) -> String {
+        if matches!(t, Ty::Unknown) {
+            "_".to_owned()
+        } else {
+            // `fmt_ty` renders nested `Ty::Unknown` as `/* ? */`, which is not
+            // valid in a type position once the comment is stripped. Patch any
+            // such occurrences to `_` so Rust's inference fills them in.
+            fmt_ty(t, ctx).replace("/* ? */", "_")
         }
     }
-    if !guard_parts.is_empty() {
-        iter_chain.push_str(&format!(
-            ".filter(|{bind_pat}| {})",
-            guard_parts.join(" && ")
-        ));
-    }
-
-    let body_s = emit_exp(body, is_const, ctx, top_level);
-    let mapped = format!("{iter_chain}.map(|{bind_pat}| {body_s})");
-
-    // Apply the reduction operator. The numeric type for `sum`/`product` follows
-    // the body's type; defaulting to f64 when unknown keeps the generated code
-    // type-checkable for Real reductions even before full inference.
-    let body_ty = body.ty();
-    match func {
+    // Determine the accumulator declaration and the update statement.
+    // `acc_decl` is the `let mut __acc...` line; `update` is the per-iteration
+    // assignment using the in-scope `__x` (the body's value); `finalize` is
+    // the trailing expression that yields the block's value.
+    let (acc_decl, update, finalize): (String, String, String) = match func {
         "list" => {
-            // `list(... for it in xs)` produces a List<T>. Build it by collecting
-            // into a List<T> directly; the metamodelica List supports FromIterator.
-            format!("({mapped}).collect::<metamodelica::List<_>>()")
+            // List<T> in forward iteration order. Cons inside the loop builds
+            // a reversed list (no intermediate Vec); a single `.reverse()` at
+            // the end flips it back to forward order. This is one linear pass
+            // over the cons-cells and avoids the Vec allocation entirely.
+            let elem_ty = match ty { Ty::List(t) => ty_or_underscore(t, ctx), _ => "_".to_owned() };
+            (
+                format!("let mut __acc: metamodelica::List<{elem_ty}> = metamodelica::List::Nil;"),
+                "__acc = metamodelica::List::Cons{head: __x, tail: std::sync::Arc::new(__acc)};".to_owned(),
+                "__acc.reverse()".to_owned(),
+            )
         }
         "listReverse" => {
-            // `listReverse(... for it in xs)` builds a list in reverse-iteration
-            // order. Folding with cons gives that order without an extra reverse.
-            format!(
-                "({mapped}).fold(metamodelica::List::Nil, |__acc, __x| metamodelica::List::Cons{{head: __x, tail: std::sync::Arc::new(__acc)}})"
+            // Reverse-iteration order: cons directly onto the accumulator.
+            let elem_ty = match ty { Ty::List(t) => ty_or_underscore(t, ctx), _ => "_".to_owned() };
+            (
+                format!("let mut __acc: metamodelica::List<{elem_ty}> = metamodelica::List::Nil;"),
+                "__acc = metamodelica::List::Cons{head: __x, tail: std::sync::Arc::new(__acc)};".to_owned(),
+                "__acc".to_owned(),
             )
         }
         "sum" => {
             let ty_s = numeric_sum_ty(&body_ty);
-            format!("({mapped}).sum::<{ty_s}>()")
+            let zero = if ty_s == "f64" { "0.0" } else { "0" };
+            (
+                format!("let mut __acc: {ty_s} = {zero};"),
+                "__acc += __x;".to_owned(),
+                "__acc".to_owned(),
+            )
         }
         "product" => {
             let ty_s = numeric_sum_ty(&body_ty);
-            format!("({mapped}).product::<{ty_s}>()")
+            let one = if ty_s == "f64" { "1.0" } else { "1" };
+            (
+                format!("let mut __acc: {ty_s} = {one};"),
+                "__acc *= __x;".to_owned(),
+                "__acc".to_owned(),
+            )
         }
-        "min" => {
-            // `Iterator::min()` returns Option; for numeric reductions over a
-            // possibly-empty range we surface that as a Result via `?` rather
-            // than silently substituting a default.
-            ctx.q(&format!("({mapped}).min().ok_or_else(|| anyhow::anyhow!(\"empty min reduction\"))"))
-        }
-        "max" => {
-            ctx.q(&format!("({mapped}).max().ok_or_else(|| anyhow::anyhow!(\"empty max reduction\"))"))
+        "min" | "max" => {
+            // Empty reduction is a runtime error: surface it as Result via
+            // the caller's qmode so it joins the surrounding error path.
+            let cmp = if func == "min" { "<" } else { ">" };
+            let elem_ty = ty_or_underscore(&body_ty, ctx);
+            let final_expr = ctx.q(&format!("__acc.ok_or_else(|| anyhow::anyhow!(\"empty {func} reduction\"))"));
+            (
+                format!("let mut __acc: Option<{elem_ty}> = None;"),
+                format!("__acc = Some(match __acc {{ None => __x, Some(__cur) => if __x {cmp} __cur {{ __x }} else {{ __cur }} }});"),
+                final_expr,
+            )
         }
         "listAppend" => {
-            // `listAppend(elem for ...)` folds with `listAppend(elem, acc)` over
-            // each iteration, accumulator seeded with Nil. The mapped element is
-            // expected to be a list; the result is the same list type.
-            format!(
-                "({mapped}).fold(metamodelica::List::Nil, |__acc, __x| __x.append(&__acc))"
+            // `listAppend(elem for ...)` accumulates by appending each element
+            // (a list) to the previously-accumulated list. `__x.append(&acc)`
+            // matches the existing helper's argument order: prepend __x onto acc.
+            let inner_ty = match ty { Ty::List(t) => ty_or_underscore(t, ctx), _ => "_".to_owned() };
+            (
+                format!("let mut __acc: metamodelica::List<{inner_ty}> = metamodelica::List::Nil;"),
+                "__acc = __x.append(&__acc);".to_owned(),
+                "__acc".to_owned(),
             )
         }
         _ => {
-            // User-defined reduction: needs the function's accumulator default.
-            // We can resolve that through `resolve_call_formals` at the call site.
+            // User-defined reduction: resolve the accumulator default from the
+            // function's formal parameter list. We assume the accumulator is the
+            // last (or default-valued) parameter and that the call shape is
+            // `f(elem, acc)` — same as the built-ins above.
             let formals = resolve_call_formals(func, ctx, top_level);
             let default_expr: Option<String> = formals
                 .as_ref()
@@ -1501,28 +1551,91 @@ fn emit_reduction<'a>(
                         func.to_owned()
                     };
                     let fname = escape_ident(&fname);
-                    // `f(elem, acc)` per iteration. We pass elem first, acc second
-                    // — this matches the MetaModelica convention used by the
-                    // listAppend / built-ins above. User-defined reductions whose
-                    // accumulator is the *first* parameter would need a separate
-                    // branch; surface that mismatch with an explicit todo!.
-                    // The inner `?` is fine: try_fold's closure returns Result,
-                    // so propagating with `?` is legal regardless of our outer
-                    // qmode. The outer extraction follows the caller's qmode.
-                    ctx.q(&format!(
-                        "({mapped}).try_fold::<_, _, anyhow::Result<_>>({seed}, |__acc, __x| Ok({fname}(__x, __acc)?))"
-                    ))
+                    let acc_ty = ty_or_underscore(ty, ctx);
+                    let call_expr = format!("{fname}(__x, __acc)");
+                    let update = format!("__acc = {};", ctx.q(&call_expr));
+                    (
+                        format!("let mut __acc: {acc_ty} = {seed};"),
+                        update,
+                        "__acc".to_owned(),
+                    )
                 }
                 None => {
                     // Unknown reduction operator with no resolvable default: emit a
                     // todo! so the generated code's compile failure points us at the
                     // specific reduction that still needs lowering.
-                    let _ = ty;
-                    format!("todo!(\"reduction {func}: cannot resolve default value\")")
+                    return format!("todo!(\"reduction {func}: cannot resolve default value\")");
                 }
             }
         }
+    };
+
+    // Build the nested for-loops. Thread iterators collapse to a single zipped
+    // loop; Combine iterators nest.
+    //
+    // Indentation matches the rest of the codegen's expression output: assume
+    // the call site is at 4-space function-body indent, so the block's contents
+    // start at 8 spaces and nest from there. The closing brace is at 4 spaces
+    // so that `<lhs> = <block>;` reads as a properly-nested assignment. This
+    // is the same convention `emit_match` uses for its multi-line arms.
+    let mut s = String::new();
+    s.push_str("{\n");
+    s.push_str(&format!("        {acc_decl}\n"));
+    let body_s = emit_exp(body, is_const, ctx, top_level);
+
+    match iter_kind {
+        ReductionIterKind::Thread => {
+            // Build a zipped iterator over all ranges and one for-loop that
+            // destructures the bindings as a (possibly nested) tuple.
+            let mut zip_expr = String::new();
+            for (i, it) in iterators.iter().enumerate() {
+                let range_s = emit_exp(&it.range, is_const, ctx, top_level);
+                let part = match it.range.ty() {
+                    Ty::List(_) => format!("({range_s}).into_iter().cloned()"),
+                    _ => format!("({range_s}).into_iter()"),
+                };
+                if i == 0 {
+                    zip_expr = part;
+                } else {
+                    zip_expr = format!("{zip_expr}.zip({part})");
+                }
+            }
+            let pat = iter_pattern(iterators);
+            s.push_str(&format!("        for {pat} in {zip_expr} {{\n"));
+            for it in iterators {
+                s.push_str(&guard_check(it, is_const, ctx, top_level, "            "));
+            }
+            s.push_str(&format!("            let __x = {body_s};\n"));
+            s.push_str(&format!("            {update}\n"));
+            s.push_str("        }\n");
+        }
+        ReductionIterKind::Combine => {
+            // Cartesian: nest the loops. Each iterator's guard is checked
+            // immediately after its loop opens so we skip work as early as
+            // possible (mirrors the MetaModelica semantics). Base indent is
+            // 8 spaces (block body); each nested for-loop adds 4.
+            let base = 2; // 2 * 4 = 8 spaces for the first for-loop
+            let indents: Vec<String> = (0..iterators.len())
+                .map(|d| "    ".repeat(base + d))
+                .collect();
+            for (i, it) in iterators.iter().enumerate() {
+                s.push_str(&indents[i]);
+                s.push_str(&open_for(it, is_const, ctx, top_level));
+                s.push_str(&guard_check(it, is_const, ctx, top_level, &format!("{}    ", indents[i])));
+            }
+            let inner_indent = format!("{}    ", indents.last().unwrap());
+            s.push_str(&format!("{inner_indent}let __x = {body_s};\n"));
+            s.push_str(&format!("{inner_indent}{update}\n"));
+            for i in (0..iterators.len()).rev() {
+                s.push_str(&indents[i]);
+                s.push_str("}\n");
+            }
+        }
     }
+
+    s.push_str(&format!("        {finalize}\n"));
+    s.push_str("    }");
+    s
 }
 
 /// Build the binding pattern produced by the current iterator chain.
@@ -1692,7 +1805,7 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
         "listGet" => {
             let arg1 = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
             let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
-            Ok(ctx.q(&format!("{arg1}.get({arg2})")))
+            Ok(ctx.q(&format!("*({arg1}).get({arg2})")))
         },
         "referenceEq" => {
             let arg1 = args.first().map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
@@ -1703,12 +1816,8 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
             Ok(format!("true /* isPresent not implemented in Rust */"))
         },
         "listReverse" | "listReverseInPlace" => {
-            if args.is_empty() {
-                Ok("metamodelica::List::Nil".to_owned())
-            } else {
-                let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
-                Ok(format!("{}.reverse()", arg))
-            }
+            let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+            Ok(format!("*({}).reverse()", arg))
         },
         "arrayCopy" => {
             let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
@@ -2313,7 +2422,15 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], is_co
                 if case.stmts.is_empty() {
                     format!("        {pat}{guard} => {result}")
                 } else {
-                    let mut local_env = LocalEnv::default();
+                    // Seed the arm's local env from the enclosing function scope:
+                    // inputs/outputs/protected are visible inside the arm body and
+                    // assignments to them must be plain `name = expr;` rather than
+                    // `let name = ...;`. Also propagate the function's output names
+                    // so `return;` expands to `return Ok((outputs...));`.
+                    let mut local_env = LocalEnv {
+                        vars: ctx.fn_env_vars.clone(),
+                        outputs: ctx.fn_outputs.clone(),
+                    };
                     let mut fresh_local: u32 = 0;
                     let mut body = String::new();
                     // Pattern bindings are declared by the match arm itself (as `mut`
@@ -3595,7 +3712,7 @@ fn fmt_ty(ty: &Ty, ctx: &mut GenCtx) -> String {
         Ty::I32 => "i32".to_owned(),
         Ty::F64 => "f64".to_owned(),
         Ty::Bool => "bool".to_owned(),
-        Ty::Str => "Arc<String>".to_owned(),
+        Ty::Str => "Arc<str>".to_owned(),
         Ty::Unit => "()".to_owned(),
         Ty::TypeVar(name) => name.clone(),
         Ty::RustUnitVariant => "()".to_owned(),
@@ -3644,7 +3761,7 @@ fn fmt_ty(ty: &Ty, ctx: &mut GenCtx) -> String {
             format!("{union_short}::{variant}")
         }
         Ty::Option(inner) => format!("Option<{}>", fmt_ty(inner, ctx)),
-        Ty::List(inner) => format!("metamodelica::List<{}>", fmt_ty(inner, ctx)),
+        Ty::List(inner) => format!("Arc<metamodelica::List<{}>>", fmt_ty(inner, ctx)),
         Ty::Array(inner) => format!("Vec<{}>", fmt_ty(inner, ctx)),
         Ty::Tuple(tys) => {
             format!("({})", tys.iter().map(|t| fmt_ty(t, ctx)).collect::<Vec<_>>().join(", "))
@@ -3803,7 +3920,7 @@ fn escape_ident(name: &str) -> String {
 
 fn path_to_dotted(path: &Absyn::Path) -> String {
     match path {
-        Absyn::Path::IDENT { name } => name.clone(),
+        Absyn::Path::IDENT { name } => name.to_string(),
         Absyn::Path::QUALIFIED { name, path } => format!("{name}.{}", path_to_dotted(path)),
         Absyn::Path::FULLYQUALIFIED { path } => path_to_dotted(path),
     }

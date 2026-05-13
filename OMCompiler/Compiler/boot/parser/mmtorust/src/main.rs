@@ -1,7 +1,7 @@
 use mmwinnow::parse;
 use mmwinnow::Grammar;
 use mmwinnow::Absyn;
-use mmwinnow::List;
+use metamodelica::nil;
 
 mod MM;
 mod hierarchy;
@@ -50,7 +50,7 @@ fn main() {
     let mut i = 0;
     let files: Vec<(&str, usize)> = sources.lines().filter(|l| !l.trim().is_empty()).map(|f| {i=i+1;(f,i-1)}).collect();
 
-    let programs: Vec<std::sync::Mutex<Absyn::Program>> = files.iter().map(|_| std::sync::Mutex::new(Absyn::Program::PROGRAM{classes: List::Nil{}, within_: Absyn::Within::TOP})).collect();
+    let programs: Vec<std::sync::Mutex<Absyn::Program>> = files.iter().map(|_| std::sync::Mutex::new(Absyn::Program::PROGRAM{classes: nil(), within_: Absyn::Within::TOP})).collect();
 
     let results: Vec<Result<(), String>> = files
         .par_iter()

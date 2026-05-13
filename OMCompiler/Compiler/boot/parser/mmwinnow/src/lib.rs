@@ -17,14 +17,14 @@ pub use token_input::TokenInput;
 use lexer::{Token, TokenKind as TK};
 use token_input::{t, next_tok, peek_kind, try_tok, t_ident, t_any_ident, t_str_token};
 use winnow::stream::Stream;
-use metamodelica::{cons, SourceInfo};
+use metamodelica::{cons, nil, SourceInfo};
 
 use winnow::{Parser, ModalResult, combinator::{opt, alt, cut_err}, error::{AddContext, ContextError, StrContext, StrContextValue, ErrMode}};
 use std::sync::Arc;
 use std::cell::RefCell;
 
 thread_local! {
-    static CURRENT_FILE: RefCell<Arc<String>> = RefCell::new(Arc::new(String::new()));
+    static CURRENT_FILE: RefCell<Arc<str>> = RefCell::new(Arc::from(""));
 }
 
 // ---------------------------------------------------------------------------
@@ -114,7 +114,7 @@ impl std::error::Error for ParserError {}
 
 /// Lex then parse `src`.  Returns the AST or the first error encountered.
 pub fn parse(src: &str, filename: &str, grammar: Grammar) -> Result<Program, Box<dyn std::error::Error>> {
-    CURRENT_FILE.with(|f| *f.borrow_mut() = Arc::new(filename.to_owned()));
+    CURRENT_FILE.with(|f| *f.borrow_mut() = Arc::from(filename));
     let tokens = lexer::lex(src, grammar)?;
     stored_definition
         .parse(tokens.as_slice())
@@ -130,12 +130,12 @@ pub enum ClassBodyItem {
     Section { section: SectionKind, items: Arc<List<ClassBodyItem>> },
     Element(Absyn::Element),
     Annotation(Absyn::Annotation),
-    Equations(List<EquationItem>),
-    InitialEquations(List<EquationItem>),
-    Algorithms(List<AlgorithmItem>),
-    InitialAlgorithms(List<AlgorithmItem>),
+    Equations(Arc<List<EquationItem>>),
+    InitialEquations(Arc<List<EquationItem>>),
+    Algorithms(Arc<List<AlgorithmItem>>),
+    InitialAlgorithms(Arc<List<AlgorithmItem>>),
     Constraints,
-    External { funcName: Option<String>, annotation_opt: Option<Absyn::Annotation> },
+    External { funcName: Option<Arc<str>>, annotation_opt: Option<Absyn::Annotation> },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -165,7 +165,7 @@ impl ClassSpecifier {
 #[derive(Debug, Clone)]
 struct ExtendsClause {
     path: Path,
-    modification: Option<List<Arc<ElementArg>>>,
+    modification: Option<Arc<List<Arc<ElementArg>>>>,
     annotation_opt: Option<Annotation>,
 }
 
@@ -173,7 +173,7 @@ struct ExtendsClause {
 struct ComponentClause {
     typePrefix: ElementAttributes,
     typeSpec: TypeSpec,
-    components: List<Arc<ComponentItem>>,
+    components: Arc<List<Arc<ComponentItem>>>,
 }
 
 fn source_info(tok1: &Token, tok2: &Token) -> SourceInfo {
@@ -198,18 +198,18 @@ fn source_info(tok1: &Token, tok2: &Token) -> SourceInfo {
 /// public/protected section (when the class has top-level public/protected blocks) are
 /// both promoted to class-level annotations.
 /// Returns `(non_annotation_items, annotations)`.
-fn split_annotations(items: List<ClassBodyItem>) -> (List<ClassBodyItem>, List<Absyn::Annotation>) {
-    let mut parts: List<ClassBodyItem> = List::Nil;
-    let mut anns:  List<Absyn::Annotation> = List::Nil;
-    for item in items.into_iter() {
+fn split_annotations(items: Arc<List<ClassBodyItem>>) -> (Arc<List<ClassBodyItem>>, Arc<List<Absyn::Annotation>>) {
+    let mut parts: Arc<List<ClassBodyItem>> = Arc::new(List::Nil);
+    let mut anns:  Arc<List<Absyn::Annotation>> = Arc::new(List::Nil);
+    for item in &*items {
         match item {
             ClassBodyItem::Annotation(ann) => anns = cons(ann.clone(), anns),
             ClassBodyItem::Section { section, items: sec_items } => {
                 // Annotations that appear directly in a section's element list are
                 // class-level annotations (function-level ones are nested inside element bodies).
-                let (inner_parts, inner_anns) = split_annotations((**sec_items).clone());
-                for ann in inner_anns.into_iter() { anns = cons(ann.clone(), anns); }
-                parts = cons(ClassBodyItem::Section { section: section.clone(), items: Arc::new(inner_parts) }, parts);
+                let (inner_parts, inner_anns) = split_annotations(Arc::clone(sec_items));
+                for ann in &*inner_anns { anns = cons(ann.clone(), anns); }
+                parts = cons(ClassBodyItem::Section { section: section.clone(), items: inner_parts }, parts);
             }
             other => parts = cons(other.clone(), parts),
         }
@@ -217,12 +217,12 @@ fn split_annotations(items: List<ClassBodyItem>) -> (List<ClassBodyItem>, List<A
     (parts.reverse(), anns.reverse())
 }
 
-fn body_items_to_classparts(items: List<ClassBodyItem>) -> List<ClassPart> {
-    let mut res = List::Nil;
-    for item in items.into_iter() {
+fn body_items_to_classparts(items: Arc<List<ClassBodyItem>>) -> Arc<List<ClassPart>> {
+    let mut res: Arc<List<ClassPart>> = Arc::new(List::Nil);
+    for item in &*items {
         let converted = match item {
             ClassBodyItem::Section { section, items } => {
-                let content = body_items_to_element_items((**items).clone());
+                let content = body_items_to_element_items(Arc::clone(items));
                 match section {
                     SectionKind::Public    => ClassPart::PUBLIC    { contents: content },
                     SectionKind::Protected => ClassPart::PROTECTED { contents: content },
@@ -230,17 +230,17 @@ fn body_items_to_classparts(items: List<ClassBodyItem>) -> List<ClassPart> {
             }
             ClassBodyItem::Element(elem) => {
                 let ei = ElementItem::ELEMENTITEM { element: elem.clone() };
-                ClassPart::PUBLIC { contents: cons(ei, List::Nil) }
+                ClassPart::PUBLIC { contents: cons(ei, Arc::new(List::Nil)) }
             }
             ClassBodyItem::Annotation(_) => unreachable!("annotations should be split out before body_items_to_classparts"),
             ClassBodyItem::Equations(items)        => ClassPart::EQUATIONS        { contents: items.clone() },
             ClassBodyItem::InitialEquations(items) => ClassPart::INITIALEQUATIONS { contents: items.clone() },
             ClassBodyItem::Algorithms(items)       => ClassPart::ALGORITHMS       { contents: items.clone() },
             ClassBodyItem::InitialAlgorithms(items)=> ClassPart::INITIALALGORITHMS{ contents: items.clone() },
-            ClassBodyItem::Constraints             => ClassPart::CONSTRAINTS      { contents: List::Nil },
+            ClassBodyItem::Constraints             => ClassPart::CONSTRAINTS      { contents: Arc::new(List::Nil) },
             ClassBodyItem::External { funcName, annotation_opt } => ClassPart::EXTERNAL {
                 externalDecl: ExternalDecl::EXTERNALDECL {
-                    funcName: funcName.clone(), lang: None, output_: None, args: List::Nil,
+                    funcName: funcName.clone(), lang: None, output_: None, args: Arc::new(List::Nil),
                     annotation_: annotation_opt.clone(),
                 },
                 annotation_: None,
@@ -251,24 +251,25 @@ fn body_items_to_classparts(items: List<ClassBodyItem>) -> List<ClassPart> {
     res.reverse()
 }
 
-fn body_items_to_element_items(items: List<ClassBodyItem>) -> List<ElementItem> {
-    match items {
-        List::Nil => List::Nil,
+fn body_items_to_element_items(items: Arc<List<ClassBodyItem>>) -> Arc<List<ElementItem>> {
+    match &*items {
+        List::Nil => Arc::new(List::Nil),
         List::Cons { head, tail } => {
             let converted = match head {
-                ClassBodyItem::Element(elem)   => ElementItem::ELEMENTITEM { element: elem },
-                ClassBodyItem::Annotation(ann) => ElementItem::LEXER_COMMENT { comment: format!("{ann:?}") },
-                ClassBodyItem::External { funcName, .. } => ElementItem::LEXER_COMMENT { comment: format!("external {funcName:?}") },
-                _ => ElementItem::LEXER_COMMENT { comment: "unclassified body item".into() },
+                ClassBodyItem::Element(elem)   => ElementItem::ELEMENTITEM { element: elem.clone() },
+                ClassBodyItem::Annotation(ann) => ElementItem::LEXER_COMMENT { comment: Arc::from(format!("{ann:?}").as_str()) },
+                ClassBodyItem::External { funcName, .. } => ElementItem::LEXER_COMMENT { comment: Arc::from(format!("external {funcName:?}").as_str()) },
+                _ => ElementItem::LEXER_COMMENT { comment: Arc::from("unclassified body item") },
             };
-            cons(converted, body_items_to_element_items((*tail).clone()))
+            cons(converted, body_items_to_element_items(tail.clone()))
         }
     }
 }
 
-fn to_rc_list<T: Clone>(lst: List<T>) -> List<Arc<T>> {
-    let mut result: List<Arc<T>> = List::Nil;
-    for item in &lst.reverse() { result = cons(Arc::new(item.clone()), result); }
+fn to_rc_list<T: Clone>(lst: Arc<List<T>>) -> Arc<List<Arc<T>>> {
+    let mut result: Arc<List<Arc<T>>> = Arc::new(List::Nil);
+    let rev = lst.reverse();
+    for item in &*rev { result = cons(Arc::new(item.clone()), result); }
     result
 }
 
@@ -279,7 +280,7 @@ fn default_element_attrs() -> ElementAttributes {
         variability: Variability::VAR {},
         direction: Direction::INPUT {},
         isField: IsField::NONFIELD {},
-        arrayDim: ArrayDim::Nil,
+        arrayDim: Arc::new(List::Nil),
     }
 }
 
@@ -315,8 +316,8 @@ fn stored_definition(input: &mut TokenInput) -> ModalResult<Program> {
 }
 
 /// class_definition_list: (FINAL? class_definition SEMICOLON)*
-fn class_definition_list(input: &mut TokenInput) -> ModalResult<List<Class>> {
-    let mut defs: List<Class> = List::Nil;
+fn class_definition_list(input: &mut TokenInput) -> ModalResult<Arc<List<Class>>> {
+    let mut defs: Arc<List<Class>> = Arc::new(List::Nil);
     loop {
         if input.is_empty() { break; }
         let _final = opt(t(TK::Final)).parse_next(input)?.is_some();
@@ -343,8 +344,8 @@ fn class_definition(input: &mut TokenInput) -> ModalResult<Class> {
     Ok(Class::CLASS {
         name: specifier.name(), partialPrefix, finalPrefix, encapsulatedPrefix,
         restriction, body: specifier.body(),
-        commentsBeforeClass: List::Nil, commentsBeforeEnd: List::Nil,
-        commentsAfterEnd: List::Nil, info: source_info(&start[0], &start[start.len() - input.len() - 1]),
+        commentsBeforeClass: Arc::new(List::Nil), commentsBeforeEnd: Arc::new(List::Nil),
+        commentsAfterEnd: Arc::new(List::Nil), info: source_info(&start[0], &start[start.len() - input.len() - 1]),
     })
 }
 
@@ -401,7 +402,7 @@ fn class_specifier(input: &mut TokenInput) -> ModalResult<ClassSpecifier> {
         let name = cut_err(t_ident)
             .context(StrContext::Label("class name after 'extends'"))
             .parse_next(input)?;
-        let modifications = opt(class_modification).parse_next(input)?.unwrap_or(List::Nil);
+        let modifications = opt(class_modification).parse_next(input)?.unwrap_or_else(|| Arc::new(List::Nil));
         let comment   = string_comment(input)?;
         let parts     = cut_err(composition)
             .context(StrContext::Label("class-extends body"))
@@ -416,7 +417,7 @@ fn class_specifier(input: &mut TokenInput) -> ModalResult<ClassSpecifier> {
                 t(TK::Semi).parse_next(input)?;
                 List::new(ann)
             },
-            None => List::Nil
+            None => Arc::new(List::Nil)
         };
         Ok(ClassSpecifier::Extends {
             name: name.clone(),
@@ -435,7 +436,7 @@ fn class_specifier2(input: &mut TokenInput) -> ModalResult<Arc<ClassDef>> {
     if opt(t(TK::Subtypeof)).parse_next(input)?.is_some() {
         let ts = type_specifier(input)?;
         return Ok(Arc::new(ClassDef::DERIVED {
-            typeSpec: TypeSpec::TCOMPLEX { path: Path::IDENT{name: "polymorphic".to_string()}, typeSpecs: List::new(Arc::new(ts)), arrayDim: None }, attributes: default_element_attrs(), arguments: List::Nil, comment: None,
+            typeSpec: TypeSpec::TCOMPLEX { path: Path::IDENT{name: "polymorphic".into()}, typeSpecs: List::new(Arc::new(ts)), arrayDim: None }, attributes: default_element_attrs(), arguments: Arc::new(List::Nil), comment: None,
         }));
     }
 
@@ -474,14 +475,14 @@ fn class_specifier2(input: &mut TokenInput) -> ModalResult<Arc<ClassDef>> {
         let typeSpec = cut_err(type_specifier)
             .context(StrContext::Label("type specifier after '='"))
             .parse_next(input)?;
-        let arguments: List<Arc<ElementArg>> = opt(class_modification).parse_next(input)?.unwrap_or_default();
+        let arguments: Arc<List<Arc<ElementArg>>> = opt(class_modification).parse_next(input)?.unwrap_or_else(|| Arc::new(List::Nil));
         let comment = comment.parse_next(input)?;
         return Ok(Arc::new(ClassDef::DERIVED {
             typeSpec, attributes, arguments, comment,
         }));
     }
 
-    let mut typeVars: List<String> = List::Nil;
+    let mut typeVars: Arc<List<Arc<str>>> = Arc::new(List::Nil);
     if opt(t(TK::Less)).parse_next(input)?.is_some() {
         loop {
             let id = t_ident(input)?;
@@ -519,11 +520,11 @@ fn class_specifier2(input: &mut TokenInput) -> ModalResult<Arc<ClassDef>> {
     };
 
     Ok(Arc::new(ClassDef::PARTS {
-        typeVars, classAttrs: List::Nil, classParts, ann, comment,
+        typeVars, classAttrs: Arc::new(List::Nil), classParts, ann, comment,
     }))
 }
 
-fn composition(input: &mut TokenInput) -> ModalResult<List<ClassBodyItem>> {
+fn composition(input: &mut TokenInput) -> ModalResult<Arc<List<ClassBodyItem>>> {
     let el_items = element_list(input)?;
     let c2_items = composition2(input)?;
     let mut result = el_items.append(&c2_items);
@@ -534,8 +535,8 @@ fn composition(input: &mut TokenInput) -> ModalResult<List<ClassBodyItem>> {
     Ok(result)
 }
 
-fn composition2(input: &mut TokenInput) -> ModalResult<List<ClassBodyItem>> {
-    let mut parts: List<ClassBodyItem> = List::Nil;
+fn composition2(input: &mut TokenInput) -> ModalResult<Arc<List<ClassBodyItem>>> {
+    let mut parts: Arc<List<ClassBodyItem>> = Arc::new(List::Nil);
     loop {
         if input.is_empty() { break; }
         if let Some(ext) = opt(external_part).parse_next(input)? {
@@ -543,12 +544,12 @@ fn composition2(input: &mut TokenInput) -> ModalResult<List<ClassBodyItem>> {
         }
         if opt(t(TK::Public)).parse_next(input)?.is_some() {
             let items = element_list(input)?;
-            parts = cons(ClassBodyItem::Section { section: SectionKind::Public, items: Arc::new(items) }, parts);
+            parts = cons(ClassBodyItem::Section { section: SectionKind::Public, items }, parts);
             continue;
         }
         if opt(t(TK::Protected)).parse_next(input)?.is_some() {
             let items = element_list(input)?;
-            parts = cons(ClassBodyItem::Section { section: SectionKind::Protected, items: Arc::new(items) }, parts);
+            parts = cons(ClassBodyItem::Section { section: SectionKind::Protected, items }, parts);
             continue;
         }
         if opt(t(TK::Initial)).parse_next(input)?.is_some() {
@@ -584,8 +585,8 @@ fn composition2(input: &mut TokenInput) -> ModalResult<List<ClassBodyItem>> {
     Ok(parts.reverse())
 }
 
-fn element_list(input: &mut TokenInput) -> ModalResult<List<ClassBodyItem>> {
-    let mut items: List<ClassBodyItem> = List::Nil;
+fn element_list(input: &mut TokenInput) -> ModalResult<Arc<List<ClassBodyItem>>> {
+    let mut items: Arc<List<ClassBodyItem>> = Arc::new(List::Nil);
     loop {
         let first_tok = &input[0];
         match peek_kind(input) {
@@ -624,7 +625,7 @@ fn element_list(input: &mut TokenInput) -> ModalResult<List<ClassBodyItem>> {
                 innerOuter: InnerOuter::NOT_INNER_OUTER {},
                 specification: ElementSpec::EXTENDS {
                     path: ext.path,
-                    elementArg: ext.modification.unwrap_or(List::Nil),
+                    elementArg: ext.modification.unwrap_or_else(|| Arc::new(List::Nil)),
                     annotationOpt: ext.annotation_opt,
                 },
                 info,
@@ -659,7 +660,7 @@ fn element_list(input: &mut TokenInput) -> ModalResult<List<ClassBodyItem>> {
         if let Some(cls) = opt(class_definition).parse_next(input)? {
             let constrainClass = if replaceable_ && opt(t(TK::Constrainedby)).parse_next(input)?.is_some() {
                 let path       = cut_err(name_path).context(StrContext::Label("path in constrainedby")).parse_next(input)?;
-                let elementArg = opt(class_modification).parse_next(input)?.unwrap_or(List::Nil);
+                let elementArg = opt(class_modification).parse_next(input)?.unwrap_or_else(|| Arc::new(List::Nil));
                 let cmt        = comment(input)?;
                 Some(ConstrainClass::CONSTRAINCLASS {
                     elementSpec: ElementSpec::EXTENDS { path, elementArg, annotationOpt: None },
@@ -678,7 +679,7 @@ fn element_list(input: &mut TokenInput) -> ModalResult<List<ClassBodyItem>> {
         if let Some(cc) = opt(component_clause).parse_next(input)? {
             let constrainClass = if replaceable_ && opt(t(TK::Constrainedby)).parse_next(input)?.is_some() {
                 let path       = cut_err(name_path).context(StrContext::Label("path in constrainedby")).parse_next(input)?;
-                let elementArg = opt(class_modification).parse_next(input)?.unwrap_or(List::Nil);
+                let elementArg = opt(class_modification).parse_next(input)?.unwrap_or_else(|| Arc::new(List::Nil));
                 let cmt        = comment(input)?;
                 Some(ConstrainClass::CONSTRAINCLASS {
                     elementSpec: ElementSpec::EXTENDS { path, elementArg, annotationOpt: None },
@@ -734,7 +735,7 @@ fn element(input: &mut TokenInput) -> ModalResult<Absyn::Element> {
             innerOuter: InnerOuter::NOT_INNER_OUTER {},
             specification: ElementSpec::EXTENDS {
                 path: ext.path,
-                elementArg: ext.modification.unwrap_or(List::Nil),
+                elementArg: ext.modification.unwrap_or_else(|| Arc::new(List::Nil)),
                 annotationOpt: ext.annotation_opt,
             },
             info,
@@ -769,7 +770,7 @@ fn element(input: &mut TokenInput) -> ModalResult<Absyn::Element> {
     if let Some(cls) = opt(class_definition).parse_next(input)? {
         let constrainClass = if replaceable_ && opt(t(TK::Constrainedby)).parse_next(input)?.is_some() {
             let path       = cut_err(name_path).context(StrContext::Label("path in constrainedby")).parse_next(input)?;
-            let elementArg = opt(class_modification).parse_next(input)?.unwrap_or(List::Nil);
+            let elementArg = opt(class_modification).parse_next(input)?.unwrap_or_else(|| Arc::new(List::Nil));
             let cmt        = comment(input)?;
             Some(ConstrainClass::CONSTRAINCLASS {
                 elementSpec: ElementSpec::EXTENDS { path, elementArg, annotationOpt: None },
@@ -788,7 +789,7 @@ fn element(input: &mut TokenInput) -> ModalResult<Absyn::Element> {
     if let Some(cc) = opt(component_clause).parse_next(input)? {
         let constrainClass = if replaceable_ && opt(t(TK::Constrainedby)).parse_next(input)?.is_some() {
             let path       = cut_err(name_path).context(StrContext::Label("path in constrainedby")).parse_next(input)?;
-            let elementArg = opt(class_modification).parse_next(input)?.unwrap_or(List::Nil);
+            let elementArg = opt(class_modification).parse_next(input)?.unwrap_or_else(|| Arc::new(List::Nil));
             let cmt        = comment(input)?;
             Some(ConstrainClass::CONSTRAINCLASS {
                 elementSpec: ElementSpec::EXTENDS { path, elementArg, annotationOpt: None },
@@ -845,14 +846,14 @@ fn type_prefix(input: &mut TokenInput) -> ModalResult<ElementAttributes> {
     };
 
     let is_field = try_tok(input, |k| match k {
-        TK::Ident(s) if s == "field"    => Some(IsField::FIELD),
-        TK::Ident(s) if s == "nonfield" => Some(IsField::NONFIELD),
+        TK::Ident(s) if s.as_ref() == "field"    => Some(IsField::FIELD),
+        TK::Ident(s) if s.as_ref() == "nonfield" => Some(IsField::NONFIELD),
         _                                => None,
     }).unwrap_or(IsField::NONFIELD);
 
     Ok(ElementAttributes::ATTR {
         flowPrefix: flow, streamPrefix: stream, parallelism, variability, direction,
-        isField: is_field, arrayDim: ArrayDim::Nil,
+        isField: is_field, arrayDim: Arc::new(List::Nil),
     })
 }
 
@@ -865,7 +866,7 @@ fn component_clause(input: &mut TokenInput) -> ModalResult<ComponentClause> {
     Ok(ComponentClause { typePrefix, typeSpec, components })
 }
 
-fn component_list(input: &mut TokenInput) -> ModalResult<List<Arc<ComponentItem>>> {
+fn component_list(input: &mut TokenInput) -> ModalResult<Arc<List<Arc<ComponentItem>>>> {
     let first = component_declaration(input)?;
     let mut items = List::new(Arc::new(first));
     loop {
@@ -878,10 +879,10 @@ fn component_list(input: &mut TokenInput) -> ModalResult<List<Arc<ComponentItem>
 fn component_declaration(input: &mut TokenInput) -> ModalResult<ComponentItem> {
     let name = match next_tok(input)? {
         TK::Ident(n)  => n,
-        TK::Operator  => "operator".to_string(),
+        TK::Operator  => Arc::from("operator"),
         _ => return Err(ErrMode::Backtrack(ContextError::default())),
     };
-    let arrayDim  = opt(array_subscripts).parse_next(input)?.unwrap_or(List::Nil);
+    let arrayDim  = opt(array_subscripts).parse_next(input)?.unwrap_or_else(|| Arc::new(List::Nil));
     let m         = opt(modification).parse_next(input)?;
     let condition = if opt(t(TK::If)).parse_next(input)?.is_some() {
         Some(expression(input)?)
@@ -896,7 +897,7 @@ fn component_declaration(input: &mut TokenInput) -> ModalResult<ComponentItem> {
 
 fn modification(input: &mut TokenInput) -> ModalResult<Modification> {
     let start = *input;
-    let cm = opt(class_modification).parse_next(input)?.unwrap_or(List::Nil);
+    let cm = opt(class_modification).parse_next(input)?.unwrap_or_else(|| Arc::new(List::Nil));
     let eq = if opt(alt((t(TK::Assign), t(TK::Equal)))).parse_next(input)?.is_some() {
         let exp = cut_err(modification_expression)
                 .context(StrContext::Label("modification expression"))
@@ -918,16 +919,16 @@ fn modification_expression(input: &mut TokenInput) -> ModalResult<Absyn::Exp> {
     expression(input)
 }
 
-fn class_modification(input: &mut TokenInput) -> ModalResult<List<Arc<ElementArg>>> {
+fn class_modification(input: &mut TokenInput) -> ModalResult<Arc<List<Arc<ElementArg>>>> {
     t(TK::LParen).parse_next(input)?;
-    let arguments = opt(argument_list).parse_next(input)?.unwrap_or(List::Nil);
+    let arguments = opt(argument_list).parse_next(input)?.unwrap_or_else(|| Arc::new(List::Nil));
     cut_err(t(TK::RParen))
         .context(StrContext::Label("')' closing modification list"))
         .parse_next(input)?;
     Ok(arguments)
 }
 
-fn argument_list(input: &mut TokenInput) -> ModalResult<List<Arc<ElementArg>>> {
+fn argument_list(input: &mut TokenInput) -> ModalResult<Arc<List<Arc<ElementArg>>>> {
     let mut res = List::new(Arc::new(argument(input)?));
     loop {
         if opt(t(TK::Comma)).parse_next(input)?.is_none() { break; }
@@ -971,7 +972,7 @@ fn parse_replaceable_spec(input: &mut TokenInput) -> ModalResult<(ElementSpec, O
         let path       = cut_err(name_path)
             .context(StrContext::Label("path in constrainedby clause"))
             .parse_next(input)?;
-        let elementArg = opt(class_modification).parse_next(input)?.unwrap_or(List::Nil);
+        let elementArg = opt(class_modification).parse_next(input)?.unwrap_or_else(|| Arc::new(List::Nil));
         let comment    = comment(input)?;
         Some(ConstrainClass::CONSTRAINCLASS {
             elementSpec: ElementSpec::EXTENDS { path, elementArg, annotationOpt: None },
@@ -1062,7 +1063,7 @@ fn import_clause(input: &mut TokenInput) -> ModalResult<Import> {
         Some(TK::Dot) => match alt((t(TK::LBrace),t(TK::Star))).parse_next(input)? {
             TK::Star => Ok(Import::UNQUAL_IMPORT { path }), // Modelica 2 where .* is not a separate token
             TK::LBrace => {
-                let mut groups: List<GroupImport> = List::Nil;
+                let mut groups: Arc<List<GroupImport>> = Arc::new(List::Nil);
                 loop {
                     let first = t_any_ident(input)?;
                     let gi = if opt(t(TK::Equal)).parse_next(input)?.is_some() {
@@ -1118,15 +1119,15 @@ fn external_part(input: &mut TokenInput) -> ModalResult<ClassBodyItem> {
         }
     }
     t(TK::Semi).parse_next(input)?;
-    Ok(ClassBodyItem::External { funcName: Some(format!("{parts:?}")), annotation_opt: None })
+    Ok(ClassBodyItem::External { funcName: Some(Arc::from(format!("{parts:?}").as_str())), annotation_opt: None })
 }
 
 // ---------------------------------------------------------------------------
 // Equation / algorithm sections
 // ---------------------------------------------------------------------------
 
-fn equation_section_items(input: &mut TokenInput) -> ModalResult<List<EquationItem>> {
-    let mut items: List<EquationItem> = List::Nil;
+fn equation_section_items(input: &mut TokenInput) -> ModalResult<Arc<List<EquationItem>>> {
+    let mut items: Arc<List<EquationItem>> = Arc::new(List::Nil);
     loop {
         if input.is_empty() { break; }
         match peek_kind(input) {
@@ -1140,8 +1141,8 @@ fn equation_section_items(input: &mut TokenInput) -> ModalResult<List<EquationIt
     Ok(items.reverse())
 }
 
-fn algorithm_section_items(input: &mut TokenInput) -> ModalResult<List<AlgorithmItem>> {
-    let mut items: List<AlgorithmItem> = List::Nil;
+fn algorithm_section_items(input: &mut TokenInput) -> ModalResult<Arc<List<AlgorithmItem>>> {
+    let mut items: Arc<List<AlgorithmItem>> = Arc::new(List::Nil);
     loop {
         if input.is_empty() { break; }
         match peek_kind(input) {
@@ -1156,8 +1157,8 @@ fn algorithm_section_items(input: &mut TokenInput) -> ModalResult<List<Algorithm
 }
 
 /// Equations stopping at Then / Else / Elseif / Elsewhen / End.
-fn equation_list(input: &mut TokenInput) -> ModalResult<List<EquationItem>> {
-    let mut items: List<EquationItem> = List::Nil;
+fn equation_list(input: &mut TokenInput) -> ModalResult<Arc<List<EquationItem>>> {
+    let mut items: Arc<List<EquationItem>> = Arc::new(List::Nil);
     loop {
         if input.is_empty() { break; }
         match peek_kind(input) {
@@ -1171,7 +1172,7 @@ fn equation_list(input: &mut TokenInput) -> ModalResult<List<EquationItem>> {
     Ok(items.reverse())
 }
 
-fn equation_list_then(input: &mut TokenInput) -> ModalResult<List<Absyn::EquationItem>> {
+fn equation_list_then(input: &mut TokenInput) -> ModalResult<Arc<List<Absyn::EquationItem>>> {
     equation_list(input)
 }
 
@@ -1220,7 +1221,7 @@ fn if_equation_e(input: &mut TokenInput) -> ModalResult<Equation> {
         _        => return Err(ErrMode::Cut(ContextError::default())),
     }
     let true_items = equation_list(input)?;
-    let mut else_if_branches: Vec<(Absyn::Exp, List<Arc<EquationItem>>)> = Vec::new();
+    let mut else_if_branches: Vec<(Absyn::Exp, Arc<List<Arc<EquationItem>>>)> = Vec::new();
     loop {
         if !matches!(peek_kind(input), Some(TK::Elseif)) { break; }
         next_tok(input)?;
@@ -1234,7 +1235,7 @@ fn if_equation_e(input: &mut TokenInput) -> ModalResult<Equation> {
     let else_items = if matches!(peek_kind(input), Some(TK::Else)) {
         next_tok(input)?;
         equation_list(input)?
-    } else { List::Nil };
+    } else { Arc::new(List::Nil) };
     match cut_err(next_tok)
         .context(StrContext::Label("'end' closing if-equation"))
         .parse_next(input)?
@@ -1243,7 +1244,7 @@ fn if_equation_e(input: &mut TokenInput) -> ModalResult<Equation> {
         _       => return Err(ErrMode::Cut(ContextError::default())),
     }
     next_tok(input)?; // "if" or end-ident
-    let mut elseif_list: List<(Absyn::Exp, List<Arc<EquationItem>>)> = List::Nil;
+    let mut elseif_list: Arc<List<(Absyn::Exp, Arc<List<Arc<EquationItem>>>)>> = Arc::new(List::Nil);
     for branch in else_if_branches.into_iter().rev() { elseif_list = cons(branch, elseif_list); }
     Ok(Equation::EQ_IF {
         ifExp: cond,
@@ -1286,7 +1287,7 @@ fn when_equation_e(input: &mut TokenInput) -> ModalResult<Equation> {
         _        => return Err(ErrMode::Cut(ContextError::default())),
     }
     let when_body = equation_list(input)?;
-    let mut else_when: Vec<(Absyn::Exp, List<Arc<EquationItem>>)> = Vec::new();
+    let mut else_when: Vec<(Absyn::Exp, Arc<List<Arc<EquationItem>>>)> = Vec::new();
     loop {
         if !matches!(peek_kind(input), Some(TK::Elsewhen)) { break; }
         next_tok(input)?;
@@ -1305,7 +1306,7 @@ fn when_equation_e(input: &mut TokenInput) -> ModalResult<Equation> {
         _       => return Err(ErrMode::Cut(ContextError::default())),
     }
     next_tok(input)?; // "when"
-    let mut ew_list: List<(Absyn::Exp, List<Arc<EquationItem>>)> = List::Nil;
+    let mut ew_list: Arc<List<(Absyn::Exp, Arc<List<Arc<EquationItem>>>)>> = Arc::new(List::Nil);
     for branch in else_when.into_iter().rev() { ew_list = cons(branch, ew_list); }
     Ok(Equation::EQ_WHEN_E {
         whenExp: when_cond,
@@ -1337,8 +1338,8 @@ fn connect_equation(input: &mut TokenInput) -> ModalResult<Equation> {
 }
 
 /// Algorithm statements stopping at Then / Else / Elseif / Elsewhen / End.
-fn algorithm_list(input: &mut TokenInput) -> ModalResult<List<AlgorithmItem>> {
-    let mut items: List<AlgorithmItem> = List::Nil;
+fn algorithm_list(input: &mut TokenInput) -> ModalResult<Arc<List<AlgorithmItem>>> {
+    let mut items: Arc<List<AlgorithmItem>> = Arc::new(List::Nil);
     loop {
         if input.is_empty() { break; }
         match peek_kind(input) {
@@ -1352,7 +1353,7 @@ fn algorithm_list(input: &mut TokenInput) -> ModalResult<List<AlgorithmItem>> {
     Ok(items.reverse())
 }
 
-fn algorithm_list_then(input: &mut TokenInput) -> ModalResult<List<Absyn::AlgorithmItem>> {
+fn algorithm_list_then(input: &mut TokenInput) -> ModalResult<Arc<List<Absyn::AlgorithmItem>>> {
     algorithm_list(input)
 }
 
@@ -1403,7 +1404,7 @@ fn if_algorithm(input: &mut TokenInput) -> ModalResult<Algorithm> {
         _        => return Err(ErrMode::Cut(ContextError::default())),
     }
     let true_items = algorithm_list(input)?;
-    let mut else_if_branches: Vec<(Absyn::Exp, List<AlgorithmItem>)> = Vec::new();
+    let mut else_if_branches: Vec<(Absyn::Exp, Arc<List<AlgorithmItem>>)> = Vec::new();
     loop {
         if !matches!(peek_kind(input), Some(TK::Elseif)) { break; }
         next_tok(input)?;
@@ -1416,13 +1417,13 @@ fn if_algorithm(input: &mut TokenInput) -> ModalResult<Algorithm> {
     }
     let else_items = if matches!(peek_kind(input), Some(TK::Else)) {
         next_tok(input)?; algorithm_list(input)?
-    } else { List::Nil };
+    } else { Arc::new(List::Nil) };
     match cut_err(next_tok).context(StrContext::Label("'end' closing if-algorithm")).parse_next(input)? {
         TK::End => {}
         _       => return Err(ErrMode::Cut(ContextError::default())),
     }
     next_tok(input)?; // "if" or end-ident
-    let mut elseif_list: List<(Absyn::Exp, List<AlgorithmItem>)> = List::Nil;
+    let mut elseif_list: Arc<List<(Absyn::Exp, Arc<List<AlgorithmItem>>)>> = Arc::new(List::Nil);
     for branch in else_if_branches.into_iter().rev() { elseif_list = cons(branch, elseif_list); }
     Ok(Algorithm::ALG_IF {
         ifExp: cond, trueBranch: true_items,
@@ -1470,7 +1471,7 @@ fn when_algorithm(input: &mut TokenInput) -> ModalResult<Algorithm> {
         _        => return Err(ErrMode::Cut(ContextError::default())),
     }
     let when_body = algorithm_list(input)?;
-    let mut else_when: Vec<(Absyn::Exp, List<AlgorithmItem>)> = Vec::new();
+    let mut else_when: Vec<(Absyn::Exp, Arc<List<AlgorithmItem>>)> = Vec::new();
     loop {
         if !matches!(peek_kind(input), Some(TK::Elsewhen)) { break; }
         next_tok(input)?;
@@ -1486,7 +1487,7 @@ fn when_algorithm(input: &mut TokenInput) -> ModalResult<Algorithm> {
         _       => return Err(ErrMode::Cut(ContextError::default())),
     }
     next_tok(input)?; // "when"
-    let mut ew_list: List<(Absyn::Exp, List<AlgorithmItem>)> = List::Nil;
+    let mut ew_list: Arc<List<(Absyn::Exp, Arc<List<AlgorithmItem>>)>> = Arc::new(List::Nil);
     for branch in else_when.into_iter().rev() { ew_list = cons(branch, ew_list); }
     Ok(Algorithm::ALG_WHEN_A {
         boolExpr: when_cond, whenBody: when_body, elseWhenAlgorithmBranch: ew_list,
@@ -1546,19 +1547,19 @@ fn match_case_body(input: &mut TokenInput) -> ModalResult<Absyn::ClassPart> {
                 .parse_next(input)?;
             Ok(Absyn::ClassPart::ALGORITHMS { contents })
         }
-        _ => Ok(Absyn::ClassPart::ALGORITHMS { contents: List::Nil }),
+        _ => Ok(Absyn::ClassPart::ALGORITHMS { contents: Arc::new(List::Nil) }),
     }
 }
 
-fn local_clause(input: &mut TokenInput) -> ModalResult<List<Arc<Absyn::ElementItem>>> {
-    if !matches!(peek_kind(input), Some(TK::Local)) { return Ok(List::Nil); }
+fn local_clause(input: &mut TokenInput) -> ModalResult<Arc<List<Arc<Absyn::ElementItem>>>> {
+    if !matches!(peek_kind(input), Some(TK::Local)) { return Ok(Arc::new(List::Nil)); }
     next_tok(input)?; // Local
     let items = element_list(input)?;
-    let mut result: List<Arc<Absyn::ElementItem>> = List::Nil;
-    for item in &items {
+    let mut result: Arc<List<Arc<Absyn::ElementItem>>> = Arc::new(List::Nil);
+    for item in &*items {
         let ei = match item {
             ClassBodyItem::Element(elem)   => Absyn::ElementItem::ELEMENTITEM { element: elem.clone() },
-            ClassBodyItem::Annotation(ann) => Absyn::ElementItem::LEXER_COMMENT { comment: format!("{ann:?}") },
+            ClassBodyItem::Annotation(ann) => Absyn::ElementItem::LEXER_COMMENT { comment: Arc::from(format!("{ann:?}").as_str()) },
             _ => continue,
         };
         result = cons(Arc::new(ei), result);
@@ -1595,8 +1596,8 @@ fn match_onecase(input: &mut TokenInput) -> ModalResult<Absyn::Case> {
     })
 }
 
-fn match_cases(input: &mut TokenInput) -> ModalResult<List<Absyn::Case>> {
-    let mut cases: List<Absyn::Case> = List::Nil;
+fn match_cases(input: &mut TokenInput) -> ModalResult<Arc<List<Absyn::Case>>> {
+    let mut cases: Arc<List<Absyn::Case>> = Arc::new(List::Nil);
     loop {
         match peek_kind(input) {
             Some(TK::Case) => { cases = cons(match_onecase(input)?, cases); }
@@ -1618,7 +1619,7 @@ fn match_cases(input: &mut TokenInput) -> ModalResult<List<Absyn::Case>> {
                     },
                     _ => {
                         opt(t(TK::Then)).parse_next(input)?;
-                        Absyn::ClassPart::ALGORITHMS { contents: List::Nil }
+                        Absyn::ClassPart::ALGORITHMS { contents: Arc::new(List::Nil) }
                     },
                 };
                 let start_exp = &input[0];
@@ -1701,9 +1702,9 @@ fn component_reference(input: &mut TokenInput) -> ModalResult<Absyn::ComponentRe
 
 fn component_reference2(input: &mut TokenInput) -> ModalResult<Absyn::ComponentRef> {
     let name     = t_ident(input)?;
-    let raw_subs = opt(array_subscripts).parse_next(input)?.unwrap_or(List::Nil);
-    let mut subscripts: List<Arc<Absyn::Subscript>> = List::Nil;
-    for s in &raw_subs.reverse() { subscripts = cons(Arc::new(s.clone()), subscripts); }
+    let raw_subs = opt(array_subscripts).parse_next(input)?.unwrap_or_else(|| Arc::new(List::Nil));
+    let mut subscripts: Arc<List<Arc<Absyn::Subscript>>> = Arc::new(List::Nil);
+    for s in &*raw_subs.reverse() { subscripts = cons(Arc::new(s.clone()), subscripts); }
     if input.len() >= 2
         && input[0].kind == TK::Dot
         && matches!(&input[1].kind, TK::Ident(_))
@@ -1736,7 +1737,7 @@ fn if_expression(input: &mut TokenInput) -> ModalResult<Absyn::Exp> {
     let cond    = expression(input)?;
     match next_tok(input)? { TK::Then => {} _ => return Err(ErrMode::Backtrack(ContextError::default())) }
     let true_br = expression(input)?;
-    let mut elseif: List<(Arc<Absyn::Exp>, Arc<Absyn::Exp>)> = List::Nil;
+    let mut elseif: Arc<List<(Arc<Absyn::Exp>, Arc<Absyn::Exp>)>> = nil();
     loop {
         if !matches!(peek_kind(input), Some(TK::Elseif)) { break; }
         next_tok(input)?;
@@ -1886,26 +1887,26 @@ fn code_expression(input: &mut TokenInput) -> ModalResult<Absyn::Exp> {
 }
 
 /// code_equation_clause: equation SEMICOLON code_equation_clause?
-fn code_equation_clause(input: &mut TokenInput) -> ModalResult<List<Arc<EquationItem>>> {
+fn code_equation_clause(input: &mut TokenInput) -> ModalResult<Arc<List<Arc<EquationItem>>>> {
     let eq = Arc::new(equation_item(input)?);
     t(TK::Semi).parse_next(input)?;
-    let rest = opt(code_equation_clause).parse_next(input)?.unwrap_or(List::Nil);
+    let rest = opt(code_equation_clause).parse_next(input)?.unwrap_or(nil());
     Ok(cons(eq, rest))
 }
 
 /// code_constraint_clause: equation SEMICOLON code_constraint_clause?
-fn code_constraint_clause(input: &mut TokenInput) -> ModalResult<List<Arc<EquationItem>>> {
+fn code_constraint_clause(input: &mut TokenInput) -> ModalResult<Arc<List<Arc<EquationItem>>>> {
     let eq = Arc::new(equation_item(input)?);
     t(TK::Semi).parse_next(input)?;
-    let rest = opt(code_constraint_clause).parse_next(input)?.unwrap_or(List::Nil);
+    let rest = opt(code_constraint_clause).parse_next(input)?.unwrap_or(nil());
     Ok(cons(eq, rest))
 }
 
 /// code_algorithm_clause: algorithm SEMICOLON code_algorithm_clause?
-fn code_algorithm_clause(input: &mut TokenInput) -> ModalResult<List<Arc<AlgorithmItem>>> {
+fn code_algorithm_clause(input: &mut TokenInput) -> ModalResult<Arc<List<Arc<AlgorithmItem>>>> {
     let alg = Arc::new(algorithm_item(input)?);
     t(TK::Semi).parse_next(input)?;
-    let rest = opt(code_algorithm_clause).parse_next(input)?.unwrap_or(List::Nil);
+    let rest = opt(code_algorithm_clause).parse_next(input)?.unwrap_or(nil());
     Ok(cons(alg, rest))
 }
 
@@ -1913,11 +1914,11 @@ fn part_eval_function_expression(input: &mut TokenInput) -> ModalResult<Absyn::E
     t(TK::Function).parse_next(input)?;
     let cr      = component_reference(input)?;
     t(TK::LParen).parse_next(input)?;
-    let argNames = opt(named_arguments).parse_next(input)?.unwrap_or(List::Nil);
+    let argNames = opt(named_arguments).parse_next(input)?.unwrap_or(nil());
     t(TK::RParen).parse_next(input)?;
     Ok(Absyn::Exp::PARTEVALFUNCTION {
         function_: Arc::new(cr),
-        functionArgs: Absyn::FunctionArgs::FUNCTIONARGS { args: List::Nil, argNames },
+        functionArgs: Absyn::FunctionArgs::FUNCTIONARGS { args: nil(), argNames },
     })
 }
 
@@ -1926,7 +1927,7 @@ fn simple_expression(input: &mut TokenInput) -> ModalResult<Absyn::Exp> {
     // Check for ident AS pattern (MetaModelica).
     {
         let saved = *input;
-        let as_result: Option<String> = (|| {
+        let as_result: Option<Arc<str>> = (|| {
             let id = match input.first() {
                 Some(tok) => match &tok.kind {
                     TK::Ident(s) => s.clone(),
@@ -2099,8 +2100,8 @@ fn primary(input: &mut TokenInput) -> ModalResult<Absyn::Exp> {
             let (exprs, is_tuple) = output_expression_list(input)?;
             let raw_subs = opt(array_subscripts).parse_next(input)?;
             if let Some(subs) = raw_subs {
-                let mut rc_subs: List<Arc<Subscript>> = List::Nil;
-                for s in &subs.reverse() { rc_subs = cons(Arc::new(s.clone()), rc_subs); }
+                let mut rc_subs: Arc<List<Arc<Subscript>>> = nil();
+                for s in &*(subs.reverse()) { rc_subs = cons(Arc::new(s.clone()), rc_subs); }
                 return Ok(Absyn::Exp::SUBSCRIPTED_EXP {
                     exp: Arc::new(to_tuple_or_exp(exprs, is_tuple)), subscripts: rc_subs,
                 });
@@ -2119,14 +2120,14 @@ fn primary(input: &mut TokenInput) -> ModalResult<Absyn::Exp> {
             t(TK::RBrace).parse_next(input)?;
             return match fa {
                 Absyn::FunctionArgs::FOR_ITER_FARG { exp, iterType, iterators } => {
-                    let cr = Absyn::ComponentRef::CREF_IDENT { name: "$array".into(), subscripts: List::Nil };
+                    let cr = Absyn::ComponentRef::CREF_IDENT { name: "$array".into(), subscripts: nil() };
                     Ok(Absyn::Exp::CALL {
                         function_: Arc::new(cr),
                         functionArgs: Absyn::FunctionArgs::FOR_ITER_FARG { exp, iterType, iterators },
-                        typeVars: List::Nil,
+                        typeVars: nil(),
                     })
                 }
-                Absyn::FunctionArgs::FUNCTIONARGS { args, argNames: List::Nil } =>
+                Absyn::FunctionArgs::FUNCTIONARGS { args, argNames } if argNames.is_empty() =>
                     Ok(Absyn::Exp::ARRAY { arrayExp: args }),
                 _ => Err(ErrMode::Backtrack(ContextError::default())),
             };
@@ -2134,14 +2135,14 @@ fn primary(input: &mut TokenInput) -> ModalResult<Absyn::Exp> {
         Some(TK::Der) => {
             next_tok(input)?;
             let fa = function_call(input)?;
-            let cr = Absyn::ComponentRef::CREF_IDENT { name: "der".into(), subscripts: List::Nil };
-            return Ok(Absyn::Exp::CALL { function_: Arc::new(cr), functionArgs: fa, typeVars: List::Nil });
+            let cr = Absyn::ComponentRef::CREF_IDENT { name: "der".into(), subscripts: nil() };
+            return Ok(Absyn::Exp::CALL { function_: Arc::new(cr), functionArgs: fa, typeVars: nil() });
         }
         Some(TK::Pure) => {
             next_tok(input)?;
             let fa = function_call(input)?;
-            let cr = Absyn::ComponentRef::CREF_IDENT { name: "pure".into(), subscripts: List::Nil };
-            return Ok(Absyn::Exp::CALL { function_: Arc::new(cr), functionArgs: fa, typeVars: List::Nil });
+            let cr = Absyn::ComponentRef::CREF_IDENT { name: "pure".into(), subscripts: nil() };
+            return Ok(Absyn::Exp::CALL { function_: Arc::new(cr), functionArgs: fa, typeVars: nil() });
         }
         Some(TK::Wild) => {
             next_tok(input)?;
@@ -2156,13 +2157,13 @@ fn primary(input: &mut TokenInput) -> ModalResult<Absyn::Exp> {
     component_reference__function_call(input)
 }
 
-fn to_tuple_or_exp(exprs: List<Arc<Absyn::Exp>>, is_tuple: bool) -> Absyn::Exp {
+fn to_tuple_or_exp(exprs: Arc<List<Arc<Absyn::Exp>>>, is_tuple: bool) -> Absyn::Exp {
     if is_tuple {
         Absyn::Exp::TUPLE { expressions: exprs }
     } else {
-        match exprs {
+        match *exprs {
             List::Cons { ref head, .. } => (**head).clone(),
-            List::Nil                 => Absyn::Exp::TUPLE { expressions: List::Nil },
+            List::Nil                 => Absyn::Exp::TUPLE { expressions: nil() },
         }
     }
 }
@@ -2182,17 +2183,17 @@ fn component_reference__function_call(input: &mut TokenInput) -> ModalResult<Abs
         if matches!(peek_kind(input), Some(TK::LParen)) {
             next_tok(input)?;
             t(TK::RParen).parse_next(input)?;
-            let cr = Absyn::ComponentRef::CREF_IDENT { name: "initial".into(), subscripts: List::Nil };
+            let cr = Absyn::ComponentRef::CREF_IDENT { name: "initial".into(), subscripts: nil() };
             return Ok(Absyn::Exp::CALL {
                 function_: Arc::new(cr),
-                functionArgs: Absyn::FunctionArgs::FUNCTIONARGS { args: List::Nil, argNames: List::Nil },
-                typeVars: List::Nil,
+                functionArgs: Absyn::FunctionArgs::FUNCTIONARGS { args: nil(), argNames: nil() },
+                typeVars: nil(),
             });
         }
         // Not initial() — treat 'initial' as an identifier.
         // Fall through with synthetic cref.
         return Ok(Absyn::Exp::CREF {
-            componentRef: Arc::new(Absyn::ComponentRef::CREF_IDENT { name: "initial".into(), subscripts: List::Nil }),
+            componentRef: Arc::new(Absyn::ComponentRef::CREF_IDENT { name: "initial".into(), subscripts: nil() }),
         });
     }
 
@@ -2201,9 +2202,9 @@ fn component_reference__function_call(input: &mut TokenInput) -> ModalResult<Abs
     // Polymorphic call: cr <T1,T2,...> ( args )
     if matches!(peek_kind(input), Some(TK::Less)) {
         let saved = *input;
-        if let Ok(type_vars) = (|| -> ModalResult<List<Path>> {
+        if let Ok(type_vars) = (|| -> ModalResult<Arc<List<Path>>> {
             next_tok(input)?; // '<'
-            let mut vars: List<Path> = List::Nil;
+            let mut vars: Arc<List<Path>> = nil();
             loop {
                 if matches!(peek_kind(input), Some(TK::Greater)) { break; }
                 vars = cons(name_path(input)?, vars);
@@ -2233,11 +2234,11 @@ fn component_reference__function_call(input: &mut TokenInput) -> ModalResult<Abs
             next_tok(input)?; // Dot
             let field = expression(input)?;
             return Ok(Absyn::Exp::DOT {
-                exp:   Arc::new(Absyn::Exp::CALL { function_: Arc::new(cr), functionArgs: fa, typeVars: List::Nil }),
+                exp:   Arc::new(Absyn::Exp::CALL { function_: Arc::new(cr), functionArgs: fa, typeVars: nil() }),
                 index: Arc::new(field),
             });
         }
-        return Ok(Absyn::Exp::CALL { function_: Arc::new(cr), functionArgs: fa, typeVars: List::Nil });
+        return Ok(Absyn::Exp::CALL { function_: Arc::new(cr), functionArgs: fa, typeVars: nil() });
     }
 
     Ok(Absyn::Exp::CREF { componentRef: Arc::new(cr) })
@@ -2251,20 +2252,24 @@ fn function_call(input: &mut TokenInput) -> ModalResult<Absyn::FunctionArgs> {
 }
 
 fn function_arguments(input: &mut TokenInput) -> ModalResult<Absyn::FunctionArgs> {
-    let fa = for_or_expression_list(input)?;
+    for_or_expression_list(input)
+    /* for_or_expression_list returns the named arguments now, and for array they trigger an error
     match fa {
         Absyn::FunctionArgs::FOR_ITER_FARG { .. } => Ok(fa),
-        Absyn::FunctionArgs::FUNCTIONARGS { args, argNames } => { if !matches!(argNames, List::Nil) { return Ok(Absyn::FunctionArgs::FUNCTIONARGS { args, argNames }); }
-            let argNames = opt(named_arguments).parse_next(input)?.unwrap_or(List::Nil);
+        Absyn::FunctionArgs::FUNCTIONARGS { args, argNames } => {
+            if !matches!(argNames, List::Nil) {
+                return Ok(Absyn::FunctionArgs::FUNCTIONARGS { args, argNames });
+            }
+            let argNames = opt(named_arguments).parse_next(input)?.unwrap_or(nil());
             Ok(Absyn::FunctionArgs::FUNCTIONARGS { args, argNames })
         }
-    }
+    }*/
 }
 
 fn for_or_expression_list(input: &mut TokenInput) -> ModalResult<Absyn::FunctionArgs> {
     // Empty.
     if matches!(peek_kind(input), Some(TK::RParen) | Some(TK::RBrace) | None) {
-        return Ok(Absyn::FunctionArgs::FUNCTIONARGS { args: List::Nil, argNames: List::Nil });
+        return Ok(Absyn::FunctionArgs::FUNCTIONARGS { args: nil(), argNames: nil() });
     }
 
     // If the first token cannot start an expression (e.g. a keyword used as a record
@@ -2276,7 +2281,7 @@ fn for_or_expression_list(input: &mut TokenInput) -> ModalResult<Absyn::Function
             input.reset(&checkpoint);
             let arg_names = named_arguments(input)?;
             return Ok(Absyn::FunctionArgs::FUNCTIONARGS {
-                args: List::Nil,
+                args: nil(),
                 argNames: arg_names,
             });
         }
@@ -2298,8 +2303,8 @@ fn for_or_expression_list(input: &mut TokenInput) -> ModalResult<Absyn::Function
     }
 
     // Expression list, possibly ending with named arguments.
-    let mut args: List<Arc<Absyn::Exp>> = List::Nil;
-    let mut arg_names: List<Arc<Absyn::NamedArg>> = List::Nil;
+    let mut args: Arc<List<Arc<Absyn::Exp>>> = nil();
+    let mut arg_names: Arc<List<Arc<Absyn::NamedArg>>> = nil();
     loop {
         let is_plain_ident = matches!(
             &exp,
@@ -2329,9 +2334,9 @@ fn named_argument(input: &mut TokenInput) -> ModalResult<Absyn::NamedArg> {
     Ok(Absyn::NamedArg::NAMEDARG { argName, argValue })
 }
 
-fn named_arguments(input: &mut TokenInput) -> ModalResult<List<Arc<Absyn::NamedArg>>> {
+fn named_arguments(input: &mut TokenInput) -> ModalResult<Arc<List<Arc<Absyn::NamedArg>>>> {
     let first = named_argument(input)?;
-    let mut args: List<Arc<Absyn::NamedArg>> = cons(Arc::new(first), List::Nil);
+    let mut args: Arc<List<Arc<Absyn::NamedArg>>> = cons(Arc::new(first), nil());
     loop {
         if opt(t(TK::Comma)).parse_next(input)?.is_none() { break; }
         match named_argument(input) {
@@ -2344,7 +2349,7 @@ fn named_arguments(input: &mut TokenInput) -> ModalResult<List<Arc<Absyn::NamedA
 
 fn for_indices(input: &mut TokenInput) -> ModalResult<Absyn::ForIterators> {
     let first = for_index(input)?;
-    let mut result: List<Absyn::ForIterator> = cons(first, List::Nil);
+    let mut result: Arc<List<Absyn::ForIterator>> = List::new(first);
     loop {
         if opt(t(TK::Comma)).parse_next(input)?.is_none() { break; }
         match for_index(input) {
@@ -2371,9 +2376,9 @@ fn for_index(input: &mut TokenInput) -> ModalResult<Absyn::ForIterator> {
     Ok(Absyn::ForIterator::ITERATOR { name, guardExp, range })
 }
 
-fn expression_list(input: &mut TokenInput) -> ModalResult<List<Arc<Absyn::Exp>>> {
+fn expression_list(input: &mut TokenInput) -> ModalResult<Arc<List<Arc<Absyn::Exp>>>> {
     let e = expression(input)?;
-    let mut result: List<Arc<Absyn::Exp>> = cons(Arc::new(e), List::Nil);
+    let mut result: Arc<List<Arc<Absyn::Exp>>> = cons(Arc::new(e), nil());
     loop {
         if opt(t(TK::Comma)).parse_next(input)?.is_none() { break; }
         match expression(input) {
@@ -2385,50 +2390,20 @@ fn expression_list(input: &mut TokenInput) -> ModalResult<List<Arc<Absyn::Exp>>>
 }
 
 /// Consumes up to and including ')'; returns (expressions, isTuple).
-fn output_expression_list(input: &mut TokenInput) -> ModalResult<(List<Arc<Absyn::Exp>>, bool)> {
+fn output_expression_list(input: &mut TokenInput) -> ModalResult<(Arc<List<Arc<Absyn::Exp>>>, bool)> {
     // ()
-    if matches!(peek_kind(input), Some(TK::RParen)) {
-        next_tok(input)?;
-        return Ok((List::Nil, true));
+    if opt(t(TK::RParen)).parse_next(input)?.is_some() {
+        return Ok((nil(), true));
     }
     // Leading comma: (, b) → WILD, b
-    if matches!(peek_kind(input), Some(TK::Comma)) {
-        next_tok(input)?;
+    if opt(t(TK::Comma)).parse_next(input)?.is_some() {
         let (rest, _) = output_expression_list(input)?;
         let wild_exp = Arc::new(Absyn::Exp::CREF { componentRef: Arc::new(Absyn::ComponentRef::WILD {}) });
         return Ok((cons(wild_exp, rest), true));
     }
-    // Named-argument detection: ident followed by '=' (not '==').
-    let is_named = input.len() >= 2
-        && matches!(&input[0].kind, TK::Ident(_))
-        && input[1].kind == TK::Equal
-        && input.get(2).map(|t| t.kind != TK::Equal).unwrap_or(true);
-    if is_named {
-        // TODO: This can't possibly be right
-        // Consume all tokens until the matching ')'.
-        let mut content = Vec::new();
-        let mut depth = 1u32;
-        loop {
-            match peek_kind(input) {
-                None => break,
-                Some(TK::LParen) => { depth += 1; content.push(next_tok(input)?); }
-                Some(TK::RParen) => {
-                    depth -= 1;
-                    if depth == 0 { next_tok(input)?; break; }
-                    content.push(next_tok(input)?);
-                }
-                _ => { content.push(next_tok(input)?); }
-            }
-        }
-        let expr = Absyn::Exp::STRING { value: format!("{content:?}") };
-        return Ok((cons(Arc::new(expr), List::Nil), true));
-    }
-
     let e1 = expression(input)?;
-    if matches!(peek_kind(input), Some(TK::Comma)) {
-        next_tok(input)?;
-        let (rest, _) = output_expression_list(input)?;
-        let mut result = rest;
+    if opt(t(TK::Comma)).parse_next(input)?.is_some() {
+        let (mut result, _) = output_expression_list(input)?;
         if result.is_empty() {
             let wild = Arc::new(Absyn::Exp::CREF { componentRef: Arc::new(Absyn::ComponentRef::WILD {}) });
             result = cons(wild, result);
@@ -2436,12 +2411,12 @@ fn output_expression_list(input: &mut TokenInput) -> ModalResult<(List<Arc<Absyn
         return Ok((cons(Arc::new(e1), result), true));
     }
     t(TK::RParen).parse_next(input)?;
-    Ok((cons(Arc::new(e1), List::Nil), false))
+    Ok((cons(Arc::new(e1), nil()), false))
 }
 
-fn matrix_expression_list(input: &mut TokenInput) -> ModalResult<List<List<Arc<Absyn::Exp>>>> {
+fn matrix_expression_list(input: &mut TokenInput) -> ModalResult<Arc<List<Arc<List<Arc<Absyn::Exp>>>>>> {
     let row = expression_list(input)?;
-    let mut rows: List<List<Arc<Absyn::Exp>>> = cons(row, List::Nil);
+    let mut rows = cons(row, nil());
     loop {
         if matches!(peek_kind(input), Some(TK::Semi)) {
             next_tok(input)?;
@@ -2461,15 +2436,15 @@ fn matrix_expression_list(input: &mut TokenInput) -> ModalResult<List<List<Arc<A
 // String comments and types
 // ---------------------------------------------------------------------------
 
-fn string_comment(input: &mut TokenInput) -> ModalResult<Option<String>> {
-    let mut res = match opt(t_str_token).parse_next(input)? {
-        Some(s) => s,
+fn string_comment(input: &mut TokenInput) -> ModalResult<Option<Arc<str>>> {
+    let mut res: String = match opt(t_str_token).parse_next(input)? {
+        Some(s) => s.to_string(),
         None    => return Ok(None),
     };
     while opt(t(TK::Plus)).parse_next(input)?.is_some() {
         res.push_str(&cut_err(t_str_token).parse_next(input)?);
     }
-    Ok(Some(res))
+    Ok(Some(Arc::from(res)))
 }
 
 fn comment(input: &mut TokenInput) -> ModalResult<Option<Comment>> {
@@ -2480,7 +2455,7 @@ fn comment(input: &mut TokenInput) -> ModalResult<Option<Comment>> {
 
 fn type_specifier(input: &mut TokenInput) -> ModalResult<TypeSpec> {
     let path = name_path(input)?;
-    let mut ts: List<Arc<TypeSpec>> = List::Nil;
+    let mut ts: Arc<List<Arc<TypeSpec>>> = nil();
     if opt(t(TK::Less)).parse_next(input)?.is_some() {
         loop {
             if matches!(peek_kind(input), Some(TK::Greater)) || input.is_empty() { break; }
@@ -2510,7 +2485,7 @@ fn subscript(input: &mut TokenInput) -> ModalResult<Subscript> {
 
 fn array_subscripts(input: &mut TokenInput) -> ModalResult<ArrayDim> {
     t(TK::LBracket).parse_next(input)?;
-    let mut subs: List<Subscript> = List::Nil;
+    let mut subs: Arc<List<Subscript>> = nil();
     loop {
         if matches!(peek_kind(input), Some(TK::RBracket)) || input.is_empty() { break; }
         subs = cons(subscript(input)?, subs);
@@ -2520,8 +2495,8 @@ fn array_subscripts(input: &mut TokenInput) -> ModalResult<ArrayDim> {
     Ok(subs.reverse())
 }
 
-fn enum_list(input: &mut TokenInput) -> ModalResult<List<EnumLiteral>> {
-    let mut literals: List<EnumLiteral> = List::Nil;
+fn enum_list(input: &mut TokenInput) -> ModalResult<Arc<List<EnumLiteral>>> {
+    let mut literals: Arc<List<EnumLiteral>> = nil();
     loop {
         match peek_kind(input) {
             None | Some(TK::Pipe) | Some(TK::Comma) | Some(TK::Semi)
@@ -2577,9 +2552,8 @@ mod tests {
         match parse(code, "", Grammar::MetaModelica).unwrap() {
             Program::PROGRAM { classes, .. } => {
                 assert!(!classes.is_empty());
-                if let List::Cons { head: class, .. } = classes {
-                    let Class::CLASS { name, .. } = &class;
-                    assert_eq!(name, "SimpleSystem");
+                if let List::Cons { head: Class::CLASS { name, .. }, .. } = &*classes {
+                    assert_eq!(&**name, "SimpleSystem");
                 }
             }
         }

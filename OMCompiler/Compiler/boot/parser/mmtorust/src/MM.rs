@@ -154,8 +154,8 @@ pub fn from_program(prog: &Absyn::Program) -> Result<Program, Error> {
     if let Absyn::Within::WITHIN { path } = within_ {
         return Err(Error::WithinNotAllowed { path: path.clone() });
     }
-    classes.into_iter().map(|class| {
-        let is_nf_builtin = matches!(&class, Absyn::Class::CLASS { info, .. } if is_nf_builtin(info));
+    (&**classes).into_iter().map(|class| {
+        let is_nf_builtin = matches!(class, Absyn::Class::CLASS { info, .. } if is_nf_builtin(info));
         let result = convert_class(class.clone());
         if is_nf_builtin { Ok(result.ok().flatten()) } else { result }
     }).filter_map(|r| r.transpose())
@@ -175,13 +175,13 @@ fn extract_crate_name(body: &ClassDef) -> Option<String> {
     };
     for ann in annotations {
         let Absyn::Annotation::ANNOTATION { elementArgs } = ann;
-        for arg in elementArgs {
+        for arg in &**elementArgs {
             if let Absyn::ElementArg::MODIFICATION {
                 path: Absyn::Path::IDENT { name },
                 modification: Some(Absyn::Modification::CLASSMOD { eqMod: Absyn::EqMod::EQMOD { exp, .. }, .. }),
                 ..
             } = arg.as_ref() {
-                if name == "__OpenModelica_Interface" {
+                if &**name == "__OpenModelica_Interface" {
                     if let Absyn::Exp::STRING { value } = exp.as_ref() {
                         return interface_to_crate(value);
                     }
@@ -222,15 +222,15 @@ fn convert_class(class: Absyn::Class) -> Result<Option<Class>, Error> {
     };
     let converted_body = convert_class_def(body.as_ref(), &info)?;
     Ok(Some(Class {
-        name,
+        name: name.to_string(),
         partial_prefix: partialPrefix,
         final_prefix: finalPrefix,
         encapsulated_prefix: encapsulatedPrefix,
         restriction,
         body: converted_body,
-        comments_before_class: commentsBeforeClass.into_iter().cloned().collect(),
-        comments_before_end: commentsBeforeEnd.into_iter().cloned().collect(),
-        comments_after_end: commentsAfterEnd.into_iter().cloned().collect(),
+        comments_before_class: (&*commentsBeforeClass).into_iter().map(|s| s.to_string()).collect(),
+        comments_before_end: (&*commentsBeforeEnd).into_iter().map(|s| s.to_string()).collect(),
+        comments_after_end: (&*commentsAfterEnd).into_iter().map(|s| s.to_string()).collect(),
         info,
         crate_name: None,
     }))
@@ -243,20 +243,20 @@ fn convert_class_def(def: &Absyn::ClassDef, class_info: &Info) -> Result<ClassDe
             let mut algorithms = Vec::new();
             let mut external = None;
             let lenient = is_nf_builtin(class_info);
-            for part in classParts {
+            for part in &**classParts {
                 let result = convert_class_part(part.clone(), class_info, &mut members, &mut algorithms, &mut external);
                 if !lenient {
                     result?;
                 }
             }
             Ok(ClassDef::Parts {
-                type_vars: typeVars.into_iter().cloned().collect(),
-                class_attrs: classAttrs.into_iter().cloned().collect(),
+                type_vars: (&**typeVars).into_iter().map(|s| s.to_string()).collect(),
+                class_attrs: (&**classAttrs).into_iter().cloned().collect(),
                 members,
                 algorithms,
                 external,
-                annotations: ann.into_iter().cloned().collect(),
-                comment: comment.clone(),
+                annotations: (&**ann).into_iter().cloned().collect(),
+                comment: comment.as_ref().map(|s| s.to_string()),
             })
         }
         Absyn::ClassDef::DERIVED { typeSpec, attributes, arguments, comment } => {
@@ -265,7 +265,7 @@ fn convert_class_def(def: &Absyn::ClassDef, class_info: &Info) -> Result<ClassDe
             Ok(ClassDef::Derived {
                 type_spec: typeSpec.clone(),
                 attributes: attributes.clone(),
-                arguments: arguments.into_iter().map(|a| a.as_ref().clone()).collect(),
+                arguments: (&**arguments).into_iter().map(|a| a.as_ref().clone()).collect(),
                 comment: comment.clone(),
             })
         }
@@ -282,16 +282,16 @@ fn convert_class_def(def: &Absyn::ClassDef, class_info: &Info) -> Result<ClassDe
             let mut members = Vec::new();
             let mut algorithms = Vec::new();
             let mut external = None;
-            for part in parts {
+            for part in &**parts {
                 convert_class_part(part.clone(), class_info, &mut members, &mut algorithms, &mut external)?;
             }
             Ok(ClassDef::ClassExtends {
-                base_class_name: baseClassName.clone(),
-                modifications: modifications.into_iter().map(|m| m.as_ref().clone()).collect(),
-                comment: comment.clone(),
+                base_class_name: baseClassName.to_string(),
+                modifications: (&**modifications).into_iter().map(|m| m.as_ref().clone()).collect(),
+                comment: comment.as_ref().map(|s| s.to_string()),
                 members,
                 algorithms,
-                annotations: ann.into_iter().cloned().collect(),
+                annotations: (&**ann).into_iter().cloned().collect(),
             })
         }
         Absyn::ClassDef::PDER { .. } => {
@@ -315,7 +315,7 @@ fn convert_class_part(
             convert_element_items(contents, Visibility::Protected, class_info, members)?;
         }
         Absyn::ClassPart::ALGORITHMS { contents } => {
-            algorithms.extend(contents.into_iter().cloned());
+            algorithms.extend((&*contents).into_iter().cloned());
         }
         Absyn::ClassPart::INITIALALGORITHMS { .. } => {
             return Err(Error::InitialAlgorithmsNotAllowed { info: class_info.clone() });
@@ -338,16 +338,16 @@ fn is_nf_builtin(info: &Info) -> bool {
 }
 
 fn convert_element_items(
-    items: mmwinnow::List<Absyn::ElementItem>,
+    items: std::sync::Arc<mmwinnow::List<Absyn::ElementItem>>,
     visibility: Visibility,
     class_info: &Info,
     members: &mut Vec<ClassMember>,
 ) -> Result<(), Error> {
     let lenient = is_nf_builtin(class_info);
-    for item in &items {
+    for item in &*items {
         match item {
             Absyn::ElementItem::LEXER_COMMENT { comment } => {
-                members.push(ClassMember::LexerComment(comment.clone()));
+                members.push(ClassMember::LexerComment(comment.to_string()));
             }
             Absyn::ElementItem::ELEMENTITEM { element } => {
                 let result = convert_element(element.clone(), visibility.clone(), class_info, members);
@@ -394,7 +394,7 @@ fn convert_element(
                         redeclare_keywords: redeclareKeywords,
                         info,
                         path,
-                        element_args: elementArg.into_iter().map(|a| a.as_ref().clone()).collect(),
+                        element_args: (&*elementArg).into_iter().map(|a| a.as_ref().clone()).collect(),
                         annotation: annotationOpt,
                     }));
                 }
@@ -414,7 +414,7 @@ fn convert_element(
                         direction,
                         ..
                     } = attributes;
-                    for comp_item in &components {
+                    for comp_item in &*components {
                         let Absyn::ComponentItem::COMPONENTITEM { component, condition, comment } = comp_item.as_ref().clone();
                         let Absyn::Component::COMPONENT { name, arrayDim, modification } = component;
                         check_array_dim(&arrayDim, &info)?;
@@ -427,7 +427,7 @@ fn convert_element(
                             variability: variability.clone(),
                             direction: direction.clone(),
                             type_spec: typeSpec.clone(),
-                            name,
+                            name: name.to_string(),
                             modification,
                             condition,
                             comment,

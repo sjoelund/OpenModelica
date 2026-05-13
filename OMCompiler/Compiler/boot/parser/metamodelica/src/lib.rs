@@ -29,7 +29,7 @@ use anyhow::bail;
 #[derive(Debug, Clone, PartialEq)]
 pub struct SourceInfo {
     /// File name where the class is defined in.
-    pub fileName: Arc<String>,
+    pub fileName: Arc<str>,
     /// Should be true for libraries.
     pub isReadOnly: bool,
     /// Start line number (1-based).
@@ -73,8 +73,8 @@ pub fn boolEq(b1: bool, b2: bool) -> Result<bool> {
 }
 
 /// Returns "true" or "false" string from a boolean.
-pub fn boolString(b: bool) -> Result<Arc<String>> {
-    Ok(Arc::new(if b { "true".to_string() } else { "false".to_string() }))
+pub fn boolString(b: bool) -> Result<Arc<str>> {
+    Ok(Arc::from(if b { "true".to_string() } else { "false".to_string() }))
 }
 
 // ============================================================================
@@ -223,8 +223,8 @@ pub fn intReal(i: i32) -> Result<f64> {
 }
 
 /// Converts Integer to String.
-pub fn intString(i: i32) -> Result<Arc<String>> {
-    Ok(Arc::new(i.to_string()))
+pub fn intString(i: i32) -> Result<Arc<str>> {
+    Ok(Arc::from(i.to_string()))
 }
 
 // ============================================================================
@@ -344,8 +344,8 @@ pub fn realInt(r: f64) -> Result<i32> {
 }
 
 /// Converts Real to String.
-pub fn realString(r: f64) -> Result<Arc<String>> {
-    Ok(Arc::new(r.to_string()))
+pub fn realString(r: f64) -> Result<Arc<str>> {
+    Ok(Arc::from(r.to_string()))
 }
 
 // ============================================================================
@@ -353,7 +353,7 @@ pub fn realString(r: f64) -> Result<Arc<String>> {
 // ============================================================================
 
 /// Returns the ASCII code point of a single-character string.
-pub fn stringCharInt(ch: Arc<String>) -> Result<i32> {
+pub fn stringCharInt(ch: Arc<str>) -> Result<i32> {
     if ch.len() != 1 {
         bail!("stringCharInt expects a single-character string, got '{}'", ch);
     };
@@ -363,10 +363,8 @@ pub fn stringCharInt(ch: Arc<String>) -> Result<i32> {
 }
 
 /// Returns a single-character string from an ASCII code point.
-pub fn intStringChar(i: i32) -> Result<Arc<String>> {
-    Ok(Arc::new(std::char::from_u32(i as u32)
-        .map(|c| c.to_string())
-        .unwrap_or_default()))
+pub fn intStringChar(i: i32) -> Result<Arc<str>> {
+    Ok(Arc::from(std::char::from_u32(i as u32).unwrap().to_string()))
 }
 
 /// Parses an integer from a string. Fails if the string is not a valid integer.
@@ -381,29 +379,37 @@ pub fn stringReal(str: String) -> Result<f64> {
 }
 
 /// Converts a string to a list of single-character strings.
-pub fn stringListStringChar(str: Arc<String>) -> Result<List<Arc<String>>> {
+pub fn stringListStringChar(str: Arc<str>) -> Result<List<Arc<str>>> {
     // TODO: We could have constants for all these short strings to avoid allocations.
-    Ok(str.chars().map(|c| Arc::new(c.to_string())).collect())
+    Ok(str.chars().map(|c| Arc::from(c.to_string())).collect())
 }
 
 /// Appends a list of strings into a single string.
-pub fn stringAppendList(strs: List<Arc<String>>) -> Result<Arc<String>> {
-    let mut result = String::new();
-
-    for s in &strs {
+pub fn stringAppendList(strs: Arc<List<Arc<str>>>) -> Result<Arc<str>> {
+    let mut len = 0;
+    for s in &*strs {
+        len += s.len();
+    }
+    let mut result = String::with_capacity(len);
+    for s in &*strs {
         result.push_str(&s);
     }
-
-    Ok(Arc::new(result))
+    Ok(Arc::from(result))
 }
 
 /// Takes a list of strings and a delimiter and joins them with the delimiter inserted between elements.
 /// Example: stringDelimitList({"x","y","z"}, ", ") => "x, y, z"
-pub fn stringDelimitList(strs: List<Arc<String>>, delimiter: Arc<String>) -> Result<Arc<String>> {
-    let mut result = String::new();
+pub fn stringDelimitList(strs: Arc<List<Arc<str>>>, delimiter: Arc<str>) -> Result<Arc<str>> {
+    let mut len = 0;
+    let delimiter_len = delimiter.len();
+    for s in &*strs {
+        len += s.len() + delimiter_len;
+    }
+
+    let mut result = String::with_capacity(len);
     let mut first = true;
 
-    for s in &strs {
+    for s in &*strs {
         if !first {
             result.push_str(&delimiter);
         }
@@ -411,7 +417,7 @@ pub fn stringDelimitList(strs: List<Arc<String>>, delimiter: Arc<String>) -> Res
         first = false;
     }
 
-    Ok(Arc::new(result))
+    Ok(Arc::from(result))
 }
 
 /// Returns the length of the string (number of bytes).
@@ -425,7 +431,7 @@ pub fn stringEmpty(str: String) -> Result<bool> {
 }
 
 /// Returns the byte value at the given 1-based index.
-pub fn stringGet(str: Arc<String>, index: i32) -> Result<i32> {
+pub fn stringGet(str: Arc<str>, index: i32) -> Result<i32> {
     let idx = (index - 1) as usize; // 1-based to 0-based
     str.bytes().nth(idx)
         .map(|b| b as i32)
@@ -433,16 +439,16 @@ pub fn stringGet(str: Arc<String>, index: i32) -> Result<i32> {
 }
 
 /// Returns the character at the given 1-based index as a string.
-pub fn stringGetStringChar(str: Arc<String>, index: i32) -> Result<Arc<String>> {
+pub fn stringGetStringChar(str: Arc<str>, index: i32) -> Result<Arc<str>> {
     let idx = (index - 1) as usize; // 1-based to 0-based
     str.chars().nth(idx)
-        .map(|c| Arc::new(c.to_string()))
+        .map(|c| Arc::from(c.to_string()))
         .ok_or_else(|| anyhow::anyhow!("Index {} out of bounds for string of length {}", index, str.chars().count()))
 }
 
 /// Updates the character at the given 1-based index with newch.
 /// newch should be a single character.
-pub fn stringUpdateStringChar(str: Arc<String>, newch: Arc<String>, index: i32) -> Result<Arc<String>> {
+pub fn stringUpdateStringChar(str: Arc<str>, newch: Arc<str>, index: i32) -> Result<Arc<str>> {
     if newch.is_empty() {
         bail!("newch must not be empty");
     }
@@ -453,27 +459,27 @@ pub fn stringUpdateStringChar(str: Arc<String>, newch: Arc<String>, index: i32) 
     }
     let new_char = newch.chars().next().unwrap_or(' ');
     chars[idx] = new_char;
-    Ok(Arc::new(chars.into_iter().collect()))
+    Ok(Arc::from(chars.into_iter().collect::<String>()))
 }
 
 /// Concatenates two strings (s1 + s2).
-pub fn stringAppend(s1: Arc<String>, s2: Arc<String>) -> Result<Arc<String>> {
-    Ok(Arc::new(format!("{}{}", s1, s2)))
+pub fn stringAppend(s1: Arc<str>, s2: Arc<str>) -> Result<Arc<str>> {
+    Ok(Arc::from(format!("{}{}", s1, s2)))
 }
 
 /// Compares two strings for equality.
 #[inline(always)]
-pub fn stringEq(s1: Arc<String>, s2: Arc<String>) -> Result<bool> {
+pub fn stringEq(s1: Arc<str>, s2: Arc<str>) -> Result<bool> {
     Ok(s1 == s2)
 }
 #[inline(always)]
-pub fn stringEqual(s1: Arc<String>, s2: Arc<String>) -> Result<bool> {
+pub fn stringEqual(s1: Arc<str>, s2: Arc<str>) -> Result<bool> {
     Ok(s1 == s2)
 }
 
 /// Compares two strings lexicographically.
 /// Returns negative if s1 < s2, zero if s1 == s2, positive if s1 > s2.
-pub fn stringCompare(s1: Arc<String>, s2: Arc<String>) -> Result<i32> {
+pub fn stringCompare(s1: Arc<str>, s2: Arc<str>) -> Result<i32> {
     // Byte-by-byte comparison for consistency
     let bytes1 = s1.as_bytes();
     let bytes2 = s2.as_bytes();
@@ -495,7 +501,7 @@ pub fn stringCompare(s1: Arc<String>, s2: Arc<String>) -> Result<i32> {
 }
 
 /// Returns a hash of the string using Rust's built-in hash.
-pub fn stringHash(str: Arc<String>) -> Result<i32> {
+pub fn stringHash(str: Arc<str>) -> Result<i32> {
     use std::collections::hash_map::DefaultHasher;
     use std::hash::Hash;
     use std::hash::Hasher;
@@ -506,7 +512,7 @@ pub fn stringHash(str: Arc<String>) -> Result<i32> {
 
 /// Returns a DJB2 hash of the string.
 /// DJB2 algorithm: hash = hash * 33 + byte
-pub fn stringHashDjb2(str: Arc<String>) -> Result<i32> {
+pub fn stringHashDjb2(str: Arc<str>) -> Result<i32> {
     let mut hash: i32 = 5381;
     for &byte in str.as_bytes() {
         hash = hash.wrapping_mul(33).wrapping_add(byte as i32);
@@ -515,7 +521,7 @@ pub fn stringHashDjb2(str: Arc<String>) -> Result<i32> {
 }
 
 /// Continues computing a DJB2 hash by adding another string to it.
-pub fn stringHashDjb2Continue(str: Arc<String>, hash: i32) -> Result<i32> {
+pub fn stringHashDjb2Continue(str: Arc<str>, hash: i32) -> Result<i32> {
     let mut h = hash;
     for &byte in str.as_bytes() {
         h = h.wrapping_mul(33).wrapping_add(byte as i32);
@@ -524,7 +530,7 @@ pub fn stringHashDjb2Continue(str: Arc<String>, hash: i32) -> Result<i32> {
 }
 
 /// Computes a DJB2 hash and applies modulo without intermediate overflow issues.
-pub fn stringHashDjb2Mod(str: Arc<String>, mod_val: i32) -> Result<i32> {
+pub fn stringHashDjb2Mod(str: Arc<str>, mod_val: i32) -> Result<i32> {
     if mod_val == 0 {
         return Ok(0);
     }
@@ -537,7 +543,7 @@ pub fn stringHashDjb2Mod(str: Arc<String>, mod_val: i32) -> Result<i32> {
 
 /// Returns an SDBM hash of the string.
 /// SDBM algorithm: hash = byte + (hash << 6) + (hash << 16) - hash
-pub fn stringHashSdbm(str: Arc<String>) -> Result<i32> {
+pub fn stringHashSdbm(str: Arc<str>) -> Result<i32> {
     let mut hash: i32 = 0;
     for &byte in str.as_bytes() {
         hash = byte as i32 + (hash << 6) + (hash << 16) - hash;
@@ -548,7 +554,7 @@ pub fn stringHashSdbm(str: Arc<String>) -> Result<i32> {
 /// Extracts a substring from str.
 /// start and stop are 1-based indices (first character is at index 1).
 /// Fails for bogus start/stop values.
-pub fn substring(str: Arc<String>, start: i32, stop: i32) -> Result<Arc<String>> {
+pub fn substring(str: Arc<str>, start: i32, stop: i32) -> Result<Arc<str>> {
     if start < 1 || stop < start || start > stop {
         bail!("Invalid substring range: start={}, stop={}", start, stop);
     }
@@ -558,16 +564,16 @@ pub fn substring(str: Arc<String>, start: i32, stop: i32) -> Result<Arc<String>>
     if stop_idx > chars.len() {
         bail!("Stop index {} exceeds string length {}", stop, chars.len());
     }
-    Ok(Arc::new(chars[start_idx..stop_idx].iter().collect()))
+    Ok(Arc::from(chars[start_idx..stop_idx].iter().collect::<String>()))
 }
 
 /// Alias for string_append_list (maps a list of single-char strings to one string).
-pub fn listStringCharString(strs: List<Arc<String>>) -> Result<Arc<String>> {
+pub fn listStringCharString(strs: Arc<List<Arc<str>>>) -> Result<Arc<str>> {
     stringAppendList(strs)
 }
 
 /// Alias for string_append_list (maps a list of single-char strings to one string).
-pub fn stringCharListString(strs: List<Arc<String>>) -> Result<Arc<String>> {
+pub fn stringCharListString(strs: Arc<List<Arc<str>>>) -> Result<Arc<str>> {
     stringAppendList(strs)
 }
 
@@ -586,7 +592,7 @@ use List::{Cons, Nil};
 macro_rules! list {
     // Base case: empty list
     () => {
-        $crate::List::Nil
+        std::sync::Arc::new($crate::List::Nil)
     };
     // Case with a trailing comma
     ( $($x:expr),*, ) => {
@@ -602,8 +608,12 @@ macro_rules! list {
     };
 }
 
-pub fn cons<T: Clone>(head: T, tail: List<T>) -> List<T> {
-    Cons{head: head, tail: Arc::new(tail)}
+pub fn nil<T: Clone>() -> Arc<List<T>> {
+    Arc::new(Nil)
+}
+
+pub fn cons<T: Clone>(head: T, tail: Arc<List<T>>) -> Arc<List<T>> {
+    Arc::new(Cons{head, tail})
 }
 
 impl<T: Clone> Default for List<T> {
@@ -611,52 +621,69 @@ impl<T: Clone> Default for List<T> {
         Nil
     }
 }
-pub struct ListIterator<'a, T: Clone> {
+pub struct ListIterator<T: Clone> {
+    curr: Arc<List<T>>,
+}
+
+pub struct ListRefIterator<'a, T: Clone> {
     curr: &'a List<T>,
 }
 
 impl<T: Clone> FromIterator<T> for List<T> {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> List<T> {
-        let mut buf = Nil;
+        let mut buf = nil();
         for item in iter {
             buf = cons(item, buf);
         }
-        buf.reverse()
+        (*buf.reverse()).clone()
     }
 }
 
 impl<'a, T: Clone> IntoIterator for &'a List<T> {
     type Item = &'a T;
-    type IntoIter = ListIterator<'a, T>;
+    type IntoIter = ListRefIterator<'a, T>;
 
     // Required method
     fn into_iter(self) -> Self::IntoIter {
-        ListIterator { curr: self }
+       ListRefIterator { curr: self }
+    }
+ }
+
+impl<T: Clone> IntoIterator for List<T> {
+    type Item = T;
+    type IntoIter = ListIterator<T>;
+
+    // Required method
+    fn into_iter(self) -> Self::IntoIter {
+        ListIterator { curr: Arc::new(self) }
     }
 }
 
-impl<'a, T: Clone> Iterator for ListIterator<'a, T> {
-    type Item = &'a T; // No Clone needed here!
+impl<T: Clone> Iterator for ListIterator<T> {
+    type Item = T; // No Clone needed here!
 
     fn next(&mut self) -> Option<Self::Item> {
-        // We match on the dereferenced value of self.curr to see the content.
-        // Note: We do NOT move *self.curr; we just look at it.
-        match self.curr {
+        match *self.curr.clone() {
             // If it's Nil, we are done.
-            List::Nil => None,
+            List::Nil => return None,
 
             // If it's Cons:
-            List::Cons { head, tail } => {
-                // 1. `head` is a `&'a T` because `self.curr` is `&'a List<T>` and `ref head` borrows from it.
-                // 2. `tail` is a `&Box<List<T>>`. We want to advance to the next node.
-                //    We borrow the contents of the Box. Since the Box lives inside the List
-                //    (which lives for 'a), this new reference is also valid for 'a.
-                let next_node = &**tail;
+            List::Cons { ref head, ref tail } => {
+                self.curr = tail.clone();
+                Some(head.clone())
+            }
+        }
+    }
+}
 
-                // 3. Update the iterator state to point to the next node.
-                self.curr = next_node;
+impl<'a, T: Clone> Iterator for ListRefIterator<'a, T> {
+    type Item = &'a T;
 
-                // 4. Return the head.
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.curr {
+            Nil => return None,
+            Cons { head, tail } => {
+                self.curr = tail;
                 Some(head)
             }
         }
@@ -665,7 +692,7 @@ impl<'a, T: Clone> Iterator for ListIterator<'a, T> {
 
 impl<T: Clone> List<T> {
     /// Appends lst2 to lst1. O(length(lst1)), O(1) if either list is empty.
-    pub fn append(self: &List<T>, lst2: &List<T>) -> List<T> {
+    pub fn append(self: &Arc<List<T>>, lst2: &Arc<List<T>>) -> Arc<List<T>> {
         if self.is_empty() {
             return lst2.clone();
         }
@@ -673,7 +700,7 @@ impl<T: Clone> List<T> {
             return self.clone();
         }
         let mut result = lst2.clone();
-        for item in &self.reverse() {
+        for item in &*(self.reverse()) {
             result = cons(item.clone(), result);
         }
         result
@@ -683,46 +710,46 @@ impl<T: Clone> List<T> {
         self.into_iter().count() as i32
     }
     /// Reverses the elements in a list. O(n).
-    pub fn reverse(self: &List<T>) -> List<T> {
-        let mut result: List<T> = Nil;
-        for e in self {
+    pub fn reverse(self: &Arc<List<T>>) -> Arc<List<T>> {
+        let mut result: Arc<List<T>> = nil();
+        for e in &**self {
             result = cons(e.clone(), result);
         }
         result
     }
     /// Gets the element at the given 1-based index. O(index).
-    pub fn get(self: &List<T>, index: i32) -> Result<T> {
-        self.into_iter().nth((index - 1) as usize)
+    pub fn get(self: &Arc<List<T>>, index: i32) -> Result<T> {
+        (&**self).into_iter().nth((index - 1) as usize)
             .cloned()
             .ok_or_else(|| anyhow::anyhow!("Index {} out of bounds for list of length {}", index, self.len()))
     }
-    pub fn prepend_reverse(self: List<T>, prefix: &List<T>) -> List<T> {
-        let mut result = self;
-        for item in prefix {
+    pub fn prepend_reverse(self: &Arc<List<T>>, prefix: &Arc<List<T>>) -> Arc<List<T>> {
+        let mut result = self.clone();
+        for item in &**prefix {
             result = cons(item.clone(), result);
         }
         result
     }
     /// Deletes the element at the given 1-based index. O(index).
-    pub fn delete(self: &List<T>, index: i32) -> Result<List<T>> {
+    pub fn delete(self: &Arc<List<T>>, index: i32) -> Result<Arc<List<T>>> {
         if index < 1 {
             bail!("Index must be positive, got {}", index);
         }
         if index == 1 {
-            return self.rest().cloned();
+            return self.rest();
         }
-        let mut result = Nil;
-        let mut iter: &List<T> = self;
+        let mut result = nil();
+        let mut iter = self;
         let mut cur_index = index;
         loop {
             cur_index -= 1;
-            let (head,tail) = match iter {
+            let (head,tail) = match &**iter {
                 Nil => bail!("Index {} out of bounds for list", index),
                 Cons{head, tail} => (head, tail)
             };
-            iter = tail;
+            iter = &tail;
             if cur_index == 0 {
-                return Ok(iter.clone().prepend_reverse(&result));
+                return Ok(iter.prepend_reverse(&result));
             }
             result = cons(head.clone(), result);
         }
@@ -730,31 +757,31 @@ impl<T: Clone> List<T> {
 }
 
 impl<T: Clone> List<T> {
-    pub fn new(item: T) -> List<T> {
-        Cons{head: item, tail: Arc::new(Nil)}
+    pub fn new(item: T) -> Arc<List<T>> {
+        Arc::new(Cons{head: item, tail: nil()})
     }
-    pub fn cons(self: List<T>, item: T) -> List<T> {
-        Cons{head: item, tail: Arc::new(self)}
+    pub fn cons(self: Arc<List<T>>, item: T) -> Arc<List<T>> {
+        Arc::new(Cons{head: item, tail: self})
     }
     /// Gets the first element. O(1).
     /// Fails if the list is empty.
-    pub fn head(self: &List<T>) -> Result<&T> {
-        match self {
+    pub fn head(self: &Arc<List<T>>) -> Result<&T> {
+        match &**self {
             Nil => bail!("Cannot get head of empty list"),
             Cons{head, ..} => Ok(head),
         }
     }
     /// Returns all elements except the first. O(1).
     /// Fails if the list is empty.
-    pub fn rest(self: &List<T>) -> Result<&List<T>> {
-        match self {
+    pub fn rest(self: &Arc<List<T>>) -> Result<Arc<List<T>>> {
+        match &**self {
             Nil => bail!("Cannot get rest of empty list"),
-            Cons{tail, ..} => Ok(tail),
+            Cons{tail, ..} => Ok(tail.clone()),
         }
     }
     /// Returns true if the list is empty. O(1).
-    pub fn is_empty(self: &List<T>) -> bool {
-        match self {
+    pub fn is_empty(self: &Arc<List<T>>) -> bool {
+        match **self {
             Nil => true,
             _ => false
         }
@@ -766,31 +793,31 @@ impl<T: Clone> List<T> {
 impl<T: PartialEq + Clone> List<T> {
     /// Checks if an element is a member of the list. O(n).
     /// Uses PartialEq for comparison.
-    pub fn contains(self: &List<T>, element: &T) -> bool {
-        for item in self {
-            if element.eq(&item) { return true; }
+    pub fn contains(self: &Arc<List<T>>, element: &T) -> bool {
+        for item in &**self {
+            if element.eq(item) { return true; }
         }
         return false;
     }
 }
 
-pub fn listAppend<T: Clone>(lst1: List<T>, lst2: List<T>) -> Result<List<T>> {
+pub fn listAppend<T: Clone>(lst1: Arc<List<T>>, lst2: Arc<List<T>>) -> Result<Arc<List<T>>> {
     Ok(lst1.append(&lst2))
 }
 
-pub fn listMember<T: Clone+PartialEq>(element: T, lst: List<T>) -> Result<bool> {
+pub fn listMember<T: Clone+PartialEq>(element: T, lst: Arc<List<T>>) -> Result<bool> {
     Ok(lst.contains(&element))
 }
 
-pub fn listHead<T: Clone>(lst: List<T>) -> Result<T> {
-    let Cons{head, ..} = lst else {bail!("Cannot get head of empty list")};
-    Ok(head)
+pub fn listHead<T: Clone>(lst: Arc<List<T>>) -> Result<T> {
+    let Cons{head, ..} = &*lst else {bail!("Cannot get head of empty list")};
+    Ok(head.clone())
 }
 
-pub fn listRest<T: Clone>(lst: List<T>) -> Result<List<T>> {
-    match lst {
+pub fn listRest<T: Clone>(lst: Arc<List<T>>) -> Result<Arc<List<T>>> {
+    match &*lst {
         Nil => bail!("Cannot get rest of empty list"),
-        Cons{tail, ..} => Ok((*tail).clone()),
+        Cons{tail, ..} => Ok(tail.clone()),
     }
 }
 
@@ -825,8 +852,8 @@ pub fn arrayCreate<A: Clone>(size: i32, initial_value: A) -> Result<Vec<A>> {
 }
 
 /// Converts an array to a list. O(n).
-pub fn arrayList<A: Clone>(arr: &[A]) -> Result<List<A>> {
-    let mut result = List::Nil;
+pub fn arrayList<A: Clone>(arr: &[A]) -> Result<Arc<List<A>>> {
+    let mut result = Arc::new(List::Nil);
     for item in arr.iter().rev().cloned() {
         result = List::cons(result, item);
     }
@@ -834,9 +861,9 @@ pub fn arrayList<A: Clone>(arr: &[A]) -> Result<List<A>> {
 }
 
 /// Converts a list to an array. O(n).
-pub fn listArray<A: Clone>(lst: List<A>) -> Result<Vec<A>> {
+pub fn listArray<A: Clone>(lst: Arc<List<A>>) -> Result<Vec<A>> {
     let mut result = Vec::new();
-    for item in &lst {
+    for item in &*lst {
         result.push(item.clone());
     }
     Ok(result)
@@ -872,8 +899,8 @@ pub fn arrayAppend<A: Clone>(arr1: &[A], arr2: &[A]) -> Result<Vec<A>> {
 
 /// Returns the string representation of any Debug-printable value.
 /// Rather slow; only use this for debugging!
-pub fn anyString<A: std::fmt::Debug>(a: &A) -> Result<Arc<String>> {
-    Ok(Arc::new(format!("{:?}", a)))
+pub fn anyString<A: std::fmt::Debug>(a: &A) -> Result<Arc<str>> {
+    Ok(Arc::from(format!("{:?}", a)))
 }
 
 /// Prints any Debug-printable value to stderr.
@@ -928,8 +955,8 @@ pub fn referenceEq<A: PartialEq>(a1: &A, a2: &A) -> Result<bool> {
 }
 
 /// Returns the pointer address of a reference as a hexadecimal string for debugging.
-pub fn referencePointerString<A>(a: &A) -> Result<Arc<String>> {
-    Ok(Arc::new(format!("{:p}", a)))
+pub fn referencePointerString<A>(a: &A) -> Result<Arc<str>> {
+    Ok(Arc::from(format!("{:p}", a)))
 }
 
 /// Returns a debug string for a function symbol.
@@ -1040,7 +1067,7 @@ pub mod Dangerous {
         unsafe { Ok((*str.as_bytes().get_unchecked(idx)) as i32) }
     }
     /// Reverses a list in place.
-    pub fn listReverseInPlace<T: Clone>(list: &List<T>) -> Result<List<T>>{
+    pub fn listReverseInPlace<T: Clone>(list: Arc<List<T>>) -> Result<Arc<List<T>>>{
         Ok(list.reverse())
     }
 }
@@ -1093,8 +1120,8 @@ mod tests {
 
         #[test]
         fn test_bool_string() {
-            assert_eq!(*boolString(true).unwrap(), "true");
-            assert_eq!(*boolString(false).unwrap(), "false");
+            assert_eq!(&*boolString(true).unwrap(), "true");
+            assert_eq!(&*boolString(false).unwrap(), "false");
         }
     }
 
@@ -1442,9 +1469,9 @@ mod tests {
 
         #[test]
         fn test_string_char_int() {
-            assert_eq!(stringCharInt(Arc::new("A".to_string())).unwrap(), 65);
-            assert_eq!(stringCharInt(Arc::new("a".to_string())).unwrap(), 97);
-            assert_eq!(stringCharInt(Arc::new("0".to_string())).unwrap(), 48);
+            assert_eq!(stringCharInt(Arc::from("A")).unwrap(), 65);
+            assert_eq!(stringCharInt(Arc::from("a")).unwrap(), 97);
+            assert_eq!(stringCharInt(Arc::from("0")).unwrap(), 48);
         }
 
         #[test]
@@ -1471,20 +1498,20 @@ mod tests {
 
         #[test]
         fn test_string_list_string_char() {
-            let result = stringListStringChar(Arc::new("abc".to_string())).unwrap();
-            assert_eq!(result, List::from_iter([Arc::new("a".to_string()), Arc::new("b".to_string()), Arc::new("c".to_string())]));
+            let result = stringListStringChar(Arc::from("abc")).unwrap();
+            assert_eq!(result, List::from_iter([Arc::from("a"), Arc::from("b"), Arc::from("c")]));
         }
 
         #[test]
         fn test_string_append_list() {
-            let strs = list![Arc::new("hello".to_string()), Arc::new(" ".to_string()), Arc::new("world".to_string())];
+            let strs = list![Arc::from("hello"), Arc::from(" "), Arc::from("world")];
             assert_eq!(&*stringAppendList(strs).unwrap(), "hello world");
         }
 
         #[test]
         fn test_string_delimit_list() {
-            let strs = list![Arc::new("x".to_string()), Arc::new("y".to_string()), Arc::new("z".to_string())];
-            assert_eq!(&*stringDelimitList(strs, Arc::new(", ".to_string())).unwrap(), "x, y, z");
+            let strs: Arc<List<Arc<str>>> = list![Arc::from("x"), Arc::from("y"), Arc::from("z")];
+            assert_eq!(&(*stringDelimitList(strs, Arc::from(", ")).unwrap()), "x, y, z");
         }
     }
 
@@ -1517,29 +1544,29 @@ mod tests {
 
         #[test]
         fn test_string_get() {
-            assert_eq!(stringGet(Arc::new("hello".to_string()), 1).unwrap(), b'h' as i32);
-            assert_eq!(stringGet(Arc::new("hello".to_string()), 5).unwrap(), b'o' as i32);
-            assert!(stringGet(Arc::new("hello".to_string()), 0).is_err());
-            assert!(stringGet(Arc::new("hello".to_string()), 6).is_err());
+            assert_eq!(stringGet(Arc::from("hello"), 1).unwrap(), b'h' as i32);
+            assert_eq!(stringGet(Arc::from("hello"), 5).unwrap(), b'o' as i32);
+            assert!(stringGet(Arc::from("hello"), 0).is_err());
+            assert!(stringGet(Arc::from("hello"), 6).is_err());
         }
 
         #[test]
         fn test_string_get_string_char() {
-            assert_eq!(stringGetStringChar(Arc::new("hello".to_string()), 1).unwrap(), Arc::new("h".to_string()));
-            assert_eq!(stringGetStringChar(Arc::new("hello".to_string()), 3).unwrap(), Arc::new("l".to_string()));
-            assert_eq!(stringGetStringChar(Arc::new("hello".to_string()), 5).unwrap(), Arc::new("o".to_string()));
-            assert!(stringGetStringChar(Arc::new("hello".to_string()), 0).is_err());
-            assert!(stringGetStringChar(Arc::new("hello".to_string()), 6).is_err());
+            assert_eq!(stringGetStringChar(Arc::from("hello"), 1).unwrap(), Arc::from("h"));
+            assert_eq!(stringGetStringChar(Arc::from("hello"), 3).unwrap(), Arc::from("l"));
+            assert_eq!(stringGetStringChar(Arc::from("hello"), 5).unwrap(), Arc::from("o"));
+            assert!(stringGetStringChar(Arc::from("hello"), 0).is_err());
+            assert!(stringGetStringChar(Arc::from("hello"), 6).is_err());
         }
 
         #[test]
         fn test_string_update_string_char() {
-            assert_eq!(stringUpdateStringChar(Arc::new("hello".to_string()), Arc::new("X".to_string()), 1).unwrap(), Arc::new("Xello".to_string()));
-            assert_eq!(stringUpdateStringChar(Arc::new("hello".to_string()), Arc::new("X".to_string()), 3).unwrap(), Arc::new("heXlo".to_string()));
-            assert_eq!(stringUpdateStringChar(Arc::new("hello".to_string()), Arc::new("X".to_string()), 5).unwrap(), Arc::new("hellX".to_string()));
-            assert!(stringUpdateStringChar(Arc::new("hello".to_string()), Arc::new("X".to_string()), 0).is_err());
-            assert!(stringUpdateStringChar(Arc::new("hello".to_string()), Arc::new("X".to_string()), 6).is_err());
-            assert!(stringUpdateStringChar(Arc::new("hello".to_string()), Arc::new("".to_string()), 1).is_err());
+            assert_eq!(stringUpdateStringChar(Arc::from("hello"), Arc::from("X"), 1).unwrap(), Arc::from("Xello"));
+            assert_eq!(stringUpdateStringChar(Arc::from("hello"), Arc::from("X"), 3).unwrap(), Arc::from("heXlo"));
+            assert_eq!(stringUpdateStringChar(Arc::from("hello"), Arc::from("X"), 5).unwrap(), Arc::from("hellX"));
+            assert!(stringUpdateStringChar(Arc::from("hello"), Arc::from("X"), 0).is_err());
+            assert!(stringUpdateStringChar(Arc::from("hello"), Arc::from("X"), 6).is_err());
+            assert!(stringUpdateStringChar(Arc::from("hello"), Arc::from(""), 1).is_err());
         }
     }
 
@@ -1552,22 +1579,22 @@ mod tests {
 
         #[test]
         fn test_string_append() {
-            assert_eq!(&*stringAppend(Arc::new("hello".to_string()), Arc::new(" world".to_string())).unwrap(), "hello world");
-            assert_eq!(&*stringAppend(Arc::new("".to_string()), Arc::new("hello".to_string())).unwrap(), "hello");
-            assert_eq!(&*stringAppend(Arc::new("hello".to_string()), Arc::new("".to_string())).unwrap(), "hello");
+            assert_eq!(&*stringAppend(Arc::from("hello"), Arc::from(" world")).unwrap(), "hello world");
+            assert_eq!(&*stringAppend(Arc::from(""), Arc::from("hello")).unwrap(), "hello");
+            assert_eq!(&*stringAppend(Arc::from("hello"), Arc::from("")).unwrap(), "hello");
         }
 
         #[test]
         fn test_string_eq() {
-            assert!(stringEq(Arc::new("abc".to_string()), Arc::new("abc".to_string())).unwrap());
-            assert!(!stringEq(Arc::new("abc".to_string()), Arc::new("abd".to_string())).unwrap());
-            assert!(!stringEq(Arc::new("".to_string()), Arc::new("abc".to_string())).unwrap());
+            assert!(stringEq(Arc::from("abc"), Arc::from("abc")).unwrap());
+            assert!(!stringEq(Arc::from("abc"), Arc::from("abd")).unwrap());
+            assert!(!stringEq(Arc::from(""), Arc::from("abc")).unwrap());
         }
 
         #[test]
         fn test_string_equal() {
-            assert!(stringEqual(Arc::new("abc".to_string()), Arc::new("abc".to_string())).unwrap());
-            assert!(!stringEqual(Arc::new("abc".to_string()), Arc::new("abd".to_string())).unwrap());
+            assert!(stringEqual(Arc::from("abc"), Arc::from("abc")).unwrap());
+            assert!(!stringEqual(Arc::from("abc"), Arc::from("abd")).unwrap());
         }
     }
 
@@ -1580,11 +1607,11 @@ mod tests {
 
         #[test]
         fn test_string_compare() {
-            assert!(stringCompare(Arc::new("abc".to_string()), Arc::new("abd".to_string())).unwrap() < 0);
-            assert_eq!(stringCompare(Arc::new("abc".to_string()), Arc::new("abc".to_string())).unwrap(), 0);
-            assert!(stringCompare(Arc::new("abd".to_string()), Arc::new("abc".to_string())).unwrap() > 0);
-            assert!(stringCompare(Arc::new("ab".to_string()), Arc::new("abc".to_string())).unwrap() < 0);
-            assert!(stringCompare(Arc::new("abc".to_string()), Arc::new("ab".to_string())).unwrap() > 0);
+            assert!(stringCompare(Arc::from("abc"), Arc::from("abd")).unwrap() < 0);
+            assert_eq!(stringCompare(Arc::from("abc"), Arc::from("abc")).unwrap(), 0);
+            assert!(stringCompare(Arc::from("abd"), Arc::from("abc")).unwrap() > 0);
+            assert!(stringCompare(Arc::from("ab"), Arc::from("abc")).unwrap() < 0);
+            assert!(stringCompare(Arc::from("abc"), Arc::from("ab")).unwrap() > 0);
         }
     }
 
@@ -1598,38 +1625,38 @@ mod tests {
         #[test]
         fn test_string_hash_djb2() {
             // DJB2 of "a" = 5381 * 33 + 97 = 177700 + 97 = 177797
-            assert_eq!(stringHashDjb2(Arc::new("a".to_string())).unwrap(), 5381_i32.wrapping_mul(33).wrapping_add(97));
-            assert_eq!(stringHashDjb2(Arc::new("".to_string())).unwrap(), 5381);
+            assert_eq!(stringHashDjb2(Arc::from("a")).unwrap(), 5381_i32.wrapping_mul(33).wrapping_add(97));
+            assert_eq!(stringHashDjb2(Arc::from("")).unwrap(), 5381);
         }
 
         #[test]
         fn test_string_hash_djb2_continue() {
-            let h1 = stringHashDjb2(Arc::new("hello".to_string())).unwrap();
-            let _h2 = stringHashDjb2(Arc::new(" world".to_string())).unwrap();
-            let combined = stringHashDjb2Continue(Arc::new(" world".to_string()), h1).unwrap();
+            let h1 = stringHashDjb2(Arc::from("hello")).unwrap();
+            let _h2 = stringHashDjb2(Arc::from(" world")).unwrap();
+            let combined = stringHashDjb2Continue(Arc::from(" world"), h1).unwrap();
             // Starting from h1 and adding " world" should give the same
             // as hashing "hello world" from scratch
-            assert_eq!(combined, stringHashDjb2(Arc::new("hello world".to_string())).unwrap());
+            assert_eq!(combined, stringHashDjb2(Arc::from("hello world")).unwrap());
         }
 
         #[test]
         fn test_string_hash_djb2_mod() {
-            let h = stringHashDjb2Mod(Arc::new("hello".to_string()), 100).unwrap();
+            let h = stringHashDjb2Mod(Arc::from("hello"), 100).unwrap();
             assert!(h >= 0 && h < 100);
-            assert_eq!(stringHashDjb2Mod(Arc::new("hello".to_string()), 0).unwrap(), 0);
+            assert_eq!(stringHashDjb2Mod(Arc::from("hello"), 0).unwrap(), 0);
         }
 
         #[test]
         fn test_string_hash_sdbm() {
             // SDBM of "a" = 97 + 0 + 0 - 0 = 97
-            assert_eq!(stringHashSdbm(Arc::new("a".to_string())).unwrap(), 97);
-            assert_eq!(stringHashSdbm(Arc::new("".to_string())).unwrap(), 0);
+            assert_eq!(stringHashSdbm(Arc::from("a")).unwrap(), 97);
+            assert_eq!(stringHashSdbm(Arc::from("")).unwrap(), 0);
         }
 
         #[test]
         fn test_string_hash_consistency() {
             // Same string should produce same hash
-            assert_eq!(stringHash(Arc::new("test".to_string())).unwrap(), stringHash(Arc::new("test".to_string())).unwrap());
+            assert_eq!(stringHash(Arc::from("test")).unwrap(), stringHash(Arc::from("test")).unwrap());
         }
     }
 
@@ -1642,18 +1669,18 @@ mod tests {
 
         #[test]
         fn test_substring_basic() {
-            assert_eq!(*substring(Arc::new("hello world".to_string()), 1, 5).unwrap(), "hello".to_string());
-            assert_eq!(*substring(Arc::new("hello world".to_string()), 7, 11).unwrap(), "world".to_string());
-            assert_eq!(*substring(Arc::new("hello".to_string()), 3, 3).unwrap(), "l".to_string());
-            assert_eq!(*substring(Arc::new("hello".to_string()), 1, 5).unwrap(), "hello".to_string());
+            assert_eq!(*substring(Arc::from("hello world".to_string()), 1, 5).unwrap(), "hello".to_string());
+            assert_eq!(*substring(Arc::from("hello world".to_string()), 7, 11).unwrap(), "world".to_string());
+            assert_eq!(*substring(Arc::from("hello".to_string()), 3, 3).unwrap(), "l".to_string());
+            assert_eq!(*substring(Arc::from("hello".to_string()), 1, 5).unwrap(), "hello".to_string());
         }
 
         #[test]
         fn test_substring_errors() {
-            assert!(substring(Arc::new("hello".to_string()), 0, 3).is_err());  // start < 1
-            assert!(substring(Arc::new("hello".to_string()), 3, 2).is_err());  // stop < start
-            assert!(substring(Arc::new("hello".to_string()), 1, 6).is_err());  // stop out of bounds
-            assert!(substring(Arc::new("hello".to_string()), 6, 7).is_err());  // start out of bounds
+            assert!(substring(Arc::from("hello"), 0, 3).is_err());  // start < 1
+            assert!(substring(Arc::from("hello"), 3, 2).is_err());  // stop < start
+            assert!(substring(Arc::from("hello"), 1, 6).is_err());  // stop out of bounds
+            assert!(substring(Arc::from("hello"), 6, 7).is_err());  // start out of bounds
         }
     }
 
@@ -1666,13 +1693,13 @@ mod tests {
 
         #[test]
         fn test_list_string_char_string() {
-            let strs = list![Arc::new("a".to_string()), Arc::new("b".to_string()), Arc::new("c".to_string())];
+            let strs: Arc<List<Arc<str>>> = list![Arc::from("a"), Arc::from("b"), Arc::from("c")];
             assert_eq!(&*listStringCharString(strs).unwrap(), "abc");
         }
 
         #[test]
         fn test_string_char_list_string() {
-            let strs = list![Arc::new("a".to_string()), Arc::new("b".to_string()), Arc::new("c".to_string())];
+            let strs: Arc<List<Arc<str>>> = list![Arc::from("a"), Arc::from("b"), Arc::from("c")];
             assert_eq!(&*stringCharListString(strs).unwrap(), "abc");
         }
     }
@@ -1692,7 +1719,7 @@ mod tests {
             assert_eq!(result, list![1, 2, 3, 4, 5]);
 
             // Empty list cases
-            let empty: List<i32> = Nil;
+            let empty: Arc<List<i32>> = nil();
             assert_eq!(empty.append(&b), b);
             assert_eq!(a.append(&empty), a);
         }
@@ -1703,15 +1730,15 @@ mod tests {
             let result = lst.reverse();
             assert_eq!(result, list![5, 4, 3, 2, 1]);
 
-            let empty: List<i32> = Nil;
-            assert_eq!(empty.reverse(), Nil);
+            let empty: Arc<List<i32>> = nil();
+            assert_eq!(empty.reverse(), nil());
         }
 
         #[test]
         fn test_list_length() {
             let lst = list![1, 2, 3];
             assert_eq!(lst.len(), 3);
-            let empty: List<i32> = Nil;
+            let empty: Arc<List<i32>> = nil();
             assert_eq!(empty.len(), 0);
         }
 
@@ -1741,7 +1768,7 @@ mod tests {
             let single = list![1];
             assert!(single.rest().unwrap().is_empty());
 
-            let empty: List<i32> = Nil;
+            let empty: Arc<List<i32>> = nil();
             assert!(empty.rest().is_err());
         }
 
@@ -1750,7 +1777,7 @@ mod tests {
             let lst = list![1, 2, 3];
             assert_eq!(lst.head().unwrap().clone(), 1);
 
-            let empty: List<i32> = Nil;
+            let empty: Arc<List<i32>> = nil();
             assert!(empty.head().is_err());
         }
 
@@ -1767,7 +1794,7 @@ mod tests {
             let lst = list![1, 2, 3];
             assert!(!lst.is_empty());
 
-            let empty: List<i32> = Nil;
+            let empty: Arc<List<i32>> = nil();
             assert!(empty.is_empty());
         }
 
@@ -1777,7 +1804,7 @@ mod tests {
             let result = cons(1, lst);
             assert_eq!(result, list![1, 2, 3]);
 
-            let empty: List<i32> = Nil;
+            let empty: Arc<List<i32>> = nil();
             let result = cons(42, empty);
             assert_eq!(result, List::new(42));
         }
@@ -2009,7 +2036,7 @@ mod tests {
         #[test]
         fn test_source_info() {
             let info = SourceInfo {
-                fileName: Arc::new("test.mo".to_string()),
+                fileName: Arc::from("test.mo".to_string()),
                 isReadOnly: true,
                 lineNumberStart: 1,
                 columnNumberStart: 1,
@@ -2017,7 +2044,7 @@ mod tests {
                 columnNumberEnd: 50,
                 lastModification: 1234567890.0,
             };
-            assert_eq!(*info.fileName, "test.mo");
+            assert_eq!(&*info.fileName, "test.mo");
             assert!(info.isReadOnly);
             assert_eq!(info.lineNumberStart, 1);
         }

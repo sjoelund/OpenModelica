@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+metamodelica.workspace = true
 mmwinnow.workspace = true
 rayon.workspace = true
 anyhow.workspace = true

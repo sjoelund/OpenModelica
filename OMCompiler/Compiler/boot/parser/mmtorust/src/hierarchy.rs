@@ -2,6 +2,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
+use std::sync::Arc;
 use mmwinnow::Absyn;
 use crate::MM;
 
@@ -377,9 +378,9 @@ fn populate_from_class_def<'a>(def: &'a MM::ClassDef, node: &mut NameNode<'a>) {
         MM::ClassDef::ClassExtends { members, .. } => members,
         MM::ClassDef::Enumeration { enum_literals, .. } => {
             if let Absyn::EnumDef::ENUMLITERALS { enumLiterals } = enum_literals {
-                for lit in enumLiterals {
+                for lit in &**enumLiterals {
                     let Absyn::EnumLiteral::ENUMLITERAL { literal, .. } = lit;
-                    node.children.insert(literal.clone(), NameNode::new(NodeKind::EnumLiteral));
+                    node.children.insert(literal.to_string(), NameNode::new(NodeKind::EnumLiteral));
                 }
             }
             return;
@@ -413,15 +414,15 @@ fn populate_from_class_def<'a>(def: &'a MM::ClassDef, node: &mut NameNode<'a>) {
 fn import_nodes(m: &MM::ImportMember) -> Vec<(String, NameNode<'_>)> {
     let node = || NameNode::new(NodeKind::Import(m));
     match &m.import {
-        Absyn::Import::NAMED_IMPORT { name, .. } => vec![(name.clone(), node())],
+        Absyn::Import::NAMED_IMPORT { name, .. } => vec![(name.to_string(), node())],
         Absyn::Import::QUAL_IMPORT { path } => vec![(path_last(path).to_owned(), node())],
         Absyn::Import::UNQUAL_IMPORT { .. } => vec![("*".to_owned(), node())],
-        Absyn::Import::GROUP_IMPORT { groups, .. } => groups
+        Absyn::Import::GROUP_IMPORT { groups, .. } => (&**groups)
             .into_iter()
             .map(|g| {
                 let local = match g {
-                    Absyn::GroupImport::GROUP_IMPORT_NAME { name } => name.clone(),
-                    Absyn::GroupImport::GROUP_IMPORT_RENAME { rename, .. } => rename.clone(),
+                    Absyn::GroupImport::GROUP_IMPORT_NAME { name } => name.to_string(),
+                    Absyn::GroupImport::GROUP_IMPORT_RENAME { rename, .. } => rename.to_string(),
                 };
                 (local, node())
             })
@@ -1006,7 +1007,7 @@ fn collect_package_aliases(nodes: &BTreeMap<String, NameNode<'_>>, prefix: &str,
                 Absyn::Import::NAMED_IMPORT { name: alias_name, path } => {
                     let full = fmt_path(path);
                     let full = full.trim_start_matches('.');
-                    scope_map.insert(alias_name.clone(), full.to_owned());
+                    scope_map.insert(alias_name.to_string(), full.to_owned());
                 }
                 _ => {}
             }
@@ -1092,15 +1093,15 @@ fn try_resolve_import(m: &MM::ImportMember, qname: &str, known: &ScopedKnown) ->
         Absyn::Import::GROUP_IMPORT { prefix, groups } => {
             let prefix_str = fmt_path(prefix);
             let prefix_str = prefix_str.trim_start_matches('.');
-            for g in groups {
+            for g in &**groups {
                 let (is_match, orig) = match g {
-                    Absyn::GroupImport::GROUP_IMPORT_NAME { name } => (name == local, name),
-                    Absyn::GroupImport::GROUP_IMPORT_RENAME { rename, name } => (rename == local, name),
+                    Absyn::GroupImport::GROUP_IMPORT_NAME { name } => (&**name == local, name),
+                    Absyn::GroupImport::GROUP_IMPORT_RENAME { rename, name } => (&**rename == local, name),
                 };
                 if is_match {
                     let full = format!("{prefix_str}.{orig}");
                     return sk_get(known, &full).cloned()
-                        .or_else(|| known.get("").and_then(|m| m.get(orig.as_str())).cloned());
+                        .or_else(|| known.get("").and_then(|m| m.get(&**orig)).cloned());
                 }
             }
             None
@@ -1276,7 +1277,7 @@ fn resolve_type_spec(ts: &Absyn::TypeSpec, known: &ScopedKnown, aliases: &Scoped
     match ts {
         Absyn::TypeSpec::TPATH { path, .. } => resolve_path(path, known, aliases, type_vars, module_prefix, wctx),
         Absyn::TypeSpec::TCOMPLEX { path, typeSpecs, .. } => {
-            let args: Vec<_> = typeSpecs.into_iter().collect();
+            let args: Vec<Arc<Absyn::TypeSpec>> = (&**typeSpecs).into_iter().cloned().collect();
             let ctor = path_last(path);
             match ctor {
                 "tuple" => {
@@ -1501,7 +1502,7 @@ pub(crate) fn extract_default(modification: &Option<Absyn::Modification>) -> Opt
 fn fmt_exp(exp: &Absyn::Exp) -> String {
     match exp {
         Absyn::Exp::INTEGER { value } => value.to_string(),
-        Absyn::Exp::REAL { value } => value.clone(),
+        Absyn::Exp::REAL { value } => value.to_string(),
         Absyn::Exp::STRING { value } => format!("\"{value}\""),
         Absyn::Exp::BOOL { value } => value.to_string(),
         Absyn::Exp::CREF { componentRef } => fmt_cref(componentRef),
@@ -1541,19 +1542,19 @@ fn fmt_exp(exp: &Absyn::Exp) -> String {
             format!("{} {s} {}", fmt_exp(exp1), fmt_exp(exp2))
         }
         Absyn::Exp::CALL { function_, functionArgs: Absyn::FunctionArgs::FUNCTIONARGS { args, argNames }, .. } => {
-            let mut parts: Vec<String> = args.into_iter().map(|a| fmt_exp(a.as_ref())).collect();
-            for named in argNames {
+            let mut parts: Vec<String> = (&**args).into_iter().map(|a| fmt_exp(a.as_ref())).collect();
+            for named in &**argNames {
                 let Absyn::NamedArg::NAMEDARG { argName, argValue } = named.as_ref();
-                parts.push(format!("{argName}={}", fmt_exp(argValue)));
+                parts.push(format!("{argName}={}", fmt_exp(argValue.as_ref())));
             }
             format!("{}({})", fmt_cref(function_), parts.join(", "))
         }
         Absyn::Exp::ARRAY { arrayExp } => {
-            let items: Vec<_> = arrayExp.into_iter().map(|e| fmt_exp(e.as_ref())).collect();
+            let items: Vec<_> = (&**arrayExp).into_iter().map(|e| fmt_exp(e.as_ref())).collect();
             format!("{{{}}}", items.join(", "))
         }
         Absyn::Exp::IFEXP { ifExp, trueBranch, elseBranch, elseIfBranch } => {
-            let else_if: String = elseIfBranch.into_iter().map(|(cond, branch)| format!(" else if {} {{{}}}", fmt_exp(&cond), fmt_exp(&branch))).collect();
+            let else_if: String = (&**elseIfBranch).into_iter().map(|(cond, branch)| format!(" else if {} {{{}}}", fmt_exp(cond.as_ref()), fmt_exp(branch.as_ref()))).collect();
             format!("if {} {{{}}}{} else {{{}}}", fmt_exp(ifExp), fmt_exp(trueBranch), else_if, fmt_exp(elseBranch))
         }
         _ => format!("todo!(/*{:?}*/)", exp).to_owned(),
@@ -1562,7 +1563,7 @@ fn fmt_exp(exp: &Absyn::Exp) -> String {
 
 fn fmt_cref(cref: &Absyn::ComponentRef) -> String {
     let raw = match cref {
-        Absyn::ComponentRef::CREF_IDENT { name, .. } => name.clone(),
+        Absyn::ComponentRef::CREF_IDENT { name, .. } => name.to_string(),
         Absyn::ComponentRef::CREF_QUAL { name, componentRef, .. } => {
             format!("{name}.{}", fmt_cref(componentRef))
         }
@@ -1607,7 +1608,7 @@ fn path_last(path: &Absyn::Path) -> &str {
 
 fn fmt_path(path: &Absyn::Path) -> String {
     match path {
-        Absyn::Path::IDENT { name } => name.clone(),
+        Absyn::Path::IDENT { name } => name.to_string(),
         Absyn::Path::QUALIFIED { name, path } => format!("{name}.{}", fmt_path(path)),
         Absyn::Path::FULLYQUALIFIED { path } => format!(".{}", fmt_path(path)),
     }
@@ -1617,7 +1618,7 @@ fn fmt_type_spec(ts: &Absyn::TypeSpec) -> String {
     match ts {
         Absyn::TypeSpec::TPATH { path, .. } => fmt_path(path),
         Absyn::TypeSpec::TCOMPLEX { path, typeSpecs, .. } => {
-            let args: Vec<_> = typeSpecs.into_iter().map(|t| fmt_type_spec(&t)).collect();
+            let args: Vec<_> = (&**typeSpecs).into_iter().map(|t| fmt_type_spec(t)).collect();
             format!("{}<{}>", fmt_path(path), args.join(", "))
         }
     }
@@ -1651,8 +1652,8 @@ fn fmt_import(m: &MM::ImportMember) -> String {
         Absyn::Import::QUAL_IMPORT { path } => format!("import {}", fmt_path(path)),
         Absyn::Import::UNQUAL_IMPORT { path } => format!("import {}.*", fmt_path(path)),
         Absyn::Import::GROUP_IMPORT { prefix, groups } => {
-            let names: Vec<_> = groups.into_iter().map(|g| match g {
-                Absyn::GroupImport::GROUP_IMPORT_NAME { name } => name.clone(),
+            let names: Vec<String> = (&**groups).into_iter().map(|g| match g {
+                Absyn::GroupImport::GROUP_IMPORT_NAME { name } => name.to_string(),
                 Absyn::GroupImport::GROUP_IMPORT_RENAME { rename, name } => format!("{name} as {rename}"),
             }).collect();
             format!("import {}.{{{}}}", fmt_path(prefix), names.join(", "))

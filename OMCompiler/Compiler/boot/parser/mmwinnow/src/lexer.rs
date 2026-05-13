@@ -40,6 +40,7 @@
 //! grammar-dependent; see [`Grammar`].
 
 use crate::Grammar;
+use std::sync::Arc;
 
 /// A single token with its start position in the source file.
 /// Line and column are both 1-based.
@@ -57,14 +58,14 @@ pub enum TokenKind {
     // Literals
     // -----------------------------------------------------------------------
     /// Identifier or quoted identifier (content between single quotes).
-    Ident(String),
+    Ident(Arc<str>),
     /// Integer literal, stored as i32.
     Int(i32),
     /// Real literal, stored as f64 and original string.
-    Real(f64, String),
+    Real(f64, Arc<str>),
     /// String literal: raw content between the double-quote delimiters.
     /// Escape sequences are preserved as written (e.g. `\n` stays `\n`).
-    Str(String),
+    Str(Arc<str>),
 
     // -----------------------------------------------------------------------
     // Base Modelica keywords (all grammars)
@@ -535,7 +536,7 @@ impl<'s> Lexer<'s> {
             "optimization" if optimica => TokenKind::Optimization,
             "constraint"   if optimica => TokenKind::Constraint,
 
-            _ => TokenKind::Ident(word.to_string()),
+            _ => TokenKind::Ident(word.into()),
         }
     }
 
@@ -557,7 +558,7 @@ impl<'s> Lexer<'s> {
                 Some(c) => raw.push(c),
             }
         }
-        Ok(TokenKind::Str(raw))
+        Ok(TokenKind::Str(Arc::from(raw.as_str())))
     }
 
     /// Lex a quoted identifier; the opening `'` has already been consumed.
@@ -578,7 +579,7 @@ impl<'s> Lexer<'s> {
             }
         }
         s.push('\'');
-        Ok(TokenKind::Ident(s))
+        Ok(TokenKind::Ident(Arc::from(s.as_str())))
     }
 
     /// Lex a numeric literal; `first` is the first digit already consumed.
@@ -626,7 +627,7 @@ impl<'s> Lexer<'s> {
 
         if is_real {
             match s.parse::<f64>() {
-                Ok(n) if n.is_finite() => Ok(TokenKind::Real(n, s)),
+                Ok(n) if n.is_finite() => Ok(TokenKind::Real(n, Arc::from(s.as_str()))),
                 Ok(_) => Err(self.err(format!("real literal '{}' is infinite or NaN, which is not allowed", s))),
                 Err(e) => Err(self.err(format!("invalid real literal '{}': {}", s, e))),
             }
@@ -657,7 +658,7 @@ impl<'s> Lexer<'s> {
             }
         }
         match s.parse::<f64>() {
-            Ok(n) if n.is_finite() => Ok(TokenKind::Real(n, s[1..].to_string())),
+            Ok(n) if n.is_finite() => Ok(TokenKind::Real(n, Arc::from(&s[1..]))),
             Ok(_) => Err(self.err(format!("real literal '{}' is infinite or NaN, which is not allowed", s))),
             Err(e) => Err(self.err(format!("invalid real literal '{}': {}", s, e))),
         }
@@ -748,7 +749,7 @@ impl<'s> Lexer<'s> {
                     "$annotation" => TokenKind::CodeAnnotation,
                     "$overload"   => TokenKind::Overload,
                     // $cpuTime and other $-prefixed identifiers become Ident.
-                    _ => TokenKind::Ident(word),
+                    _ => TokenKind::Ident(Arc::from(word.as_str())),
                 }
             }
 
@@ -855,9 +856,9 @@ mod tests {
         );
         // In Modelica2 these are identifiers.
         let toks = lex("stream pure impure", Grammar::Modelica2).unwrap();
-        assert!(matches!(&toks[0].kind, TokenKind::Ident(s) if s == "stream"));
-        assert!(matches!(&toks[1].kind, TokenKind::Ident(s) if s == "pure"));
-        assert!(matches!(&toks[2].kind, TokenKind::Ident(s) if s == "impure"));
+        assert!(matches!(&toks[0].kind, TokenKind::Ident(s) if &**s == "stream"));
+        assert!(matches!(&toks[1].kind, TokenKind::Ident(s) if &**s == "pure"));
+        assert!(matches!(&toks[2].kind, TokenKind::Ident(s) if &**s == "impure"));
     }
 
     #[test]
@@ -868,7 +869,7 @@ mod tests {
         assert_eq!(toks[2].kind, TokenKind::Real(1.0e5, "1.0e5".into()));
         assert_eq!(toks[3], Token{kind:TokenKind::Real(0.5, ".5".into()), line:1, col:15});
         assert_eq!(toks[4].kind, TokenKind::Str("hello\\nworld".into()));
-        assert_eq!(toks[5].kind, TokenKind::Ident("quoted ident".into()));
+        assert_eq!(toks[5].kind, TokenKind::Ident("'quoted ident'".into()));
     }
 
     #[test]

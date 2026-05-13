@@ -65,7 +65,7 @@ use std::sync::Arc;
 /// Forward declaration of uniontype Msg
 
 
-    pub type Ident = String/* An identifier, for example a variable name */
+    pub type Ident = Arc<str>/* An identifier, for example a variable name */
     ;
       /* For Iterator - these are used in:
          * for loops where the expression part can be NONE() and then the range
@@ -81,13 +81,13 @@ use std::sync::Arc;
       pub enum ForIterator {
              ITERATOR{
 
-                   name: String,
+                   name: Arc<str>,
                    guardExp: Option<Arc<Exp>>,
                    range: Option<Arc<Exp>>,
             },
       }
 
-    pub type ForIterators = List<ForIterator>/* For Iterators -
+    pub type ForIterators = Arc<List<ForIterator>>/* For Iterators -
        these are used in:
        * for loops where the expression part can be NONE() and then the range
          is taken from an array variable that the iterator is used to index,
@@ -105,7 +105,7 @@ use std::sync::Arc;
       pub enum Program {
              PROGRAM{
 
-                   classes: List<Class>/* List of classes */
+                   classes: Arc<List<Class>>/* List of classes */
                    ,
                    within_: Within/* Within clause */
                    ,
@@ -147,11 +147,11 @@ use std::sync::Arc;
                    restriction: Restriction/* Restriction */
                    ,
                    body: Arc<ClassDef>,
-                   commentsBeforeClass: List<String>/* when a class is the first one in the file and has a comment before it */
+                   commentsBeforeClass: Arc<List<Arc<str>>>/* when a class is the first one in the file and has a comment before it */
                    ,
-                   commentsBeforeEnd: List<String>/* when a class has comments before its end */
+                   commentsBeforeEnd: Arc<List<Arc<str>>>/* when a class has comments before its end */
                    ,
-                   commentsAfterEnd: List<String>/* when the class has comments after its end, before the next class or the end of the file */
+                   commentsAfterEnd: Arc<List<Arc<str>>>/* when the class has comments after its end, before the next class or the end of the file */
                    ,
                    info: Info/* Information: FileName is the class is defined in +
                                   isReadOnly bool + start line no + start column no +
@@ -173,15 +173,15 @@ use std::sync::Arc;
       pub enum ClassDef {
              PARTS{
 
-                   typeVars: List<String>/* class A<B,C> ... has type variables B,C */
+                   typeVars: Arc<List<Arc<str>>>/* class A<B,C> ... has type variables B,C */
                    ,
-                   classAttrs: List<NamedArg>/* optimization Op (objective=...) end Op. A list arguments attributing a
+                   classAttrs: Arc<List<NamedArg>>/* optimization Op (objective=...) end Op. A list arguments attributing a
                        class declaration. Currently used only for Optimica extensions */
                    ,
-                   classParts: List<ClassPart>,
-                   ann: List<Annotation>/* Modelica2 allowed multiple class-annotations */
+                   classParts: Arc<List<ClassPart>>,
+                   ann: Arc<List<Annotation>>/* Modelica2 allowed multiple class-annotations */
                    ,
-                   comment: Option<String>,
+                   comment: Option<Arc<str>>,
             },
 
              DERIVED{
@@ -189,7 +189,7 @@ use std::sync::Arc;
                    typeSpec: TypeSpec/* typeSpec specification includes array dimensions */
                    ,
                    attributes: ElementAttributes,
-                   arguments: List<Arc<ElementArg>>,
+                   arguments: Arc<List<Arc<ElementArg>>>,
                    comment: Option<Comment>,
             },
 
@@ -201,7 +201,7 @@ use std::sync::Arc;
 
              OVERLOAD{
 
-                   functionNames: List<Path>,
+                   functionNames: Arc<List<Path>>,
                    comment: Option<Comment>,
             },
 
@@ -209,26 +209,26 @@ use std::sync::Arc;
 
                    baseClassName: Ident/* name of class to extend */
                    ,
-                   modifications: List<Arc<ElementArg>>/* modifications to be applied to the base class */
+                   modifications: Arc<List<Arc<ElementArg>>>/* modifications to be applied to the base class */
                    ,
-                   comment: Option<String>/* comment */
+                   comment: Option<Arc<str>>/* comment */
                    ,
-                   parts: List<ClassPart>/* class parts */
+                   parts: Arc<List<ClassPart>>/* class parts */
                    ,
-                   ann: List<Annotation>,
+                   ann: Arc<List<Annotation>>,
             },
 
              PDER{
 
                    functionName: Path,
-                   vars: List<Ident>/* derived variables */
+                   vars: Arc<List<Ident>>/* derived variables */
                    ,
                    comment: Option<Comment>/* comment */
                    ,
             },
       }
 
-    pub type ArrayDim = List<Subscript>/* Component attributes are
+    pub type ArrayDim = Arc<List<Subscript>>/* Component attributes are
       properties of components which are applied by type prefixes.
       As an example, declaring a component as `input Real x;\' will
       give the attributes `ATTR({},false,VAR,INPUT)\'.
@@ -251,7 +251,7 @@ use std::sync::Arc;
              TCOMPLEX{
 
                    path: Path,
-                   typeSpecs: List<Arc<TypeSpec>>,
+                   typeSpecs: Arc<List<Arc<TypeSpec>>>,
                    arrayDim: Option<ArrayDim>,
             },
       }
@@ -264,7 +264,7 @@ use std::sync::Arc;
       pub enum EnumDef {
              ENUMLITERALS{
 
-                   enumLiterals: List<EnumLiteral>,
+                   enumLiterals: Arc<List<EnumLiteral>>,
             },
 
              ENUM_COLON,
@@ -294,37 +294,37 @@ use std::sync::Arc;
       pub enum ClassPart {
              PUBLIC{
 
-                   contents: List<ElementItem>,
+                   contents: Arc<List<ElementItem>>,
             },
 
              PROTECTED{
 
-                   contents: List<ElementItem>,
+                   contents: Arc<List<ElementItem>>,
             },
 
              CONSTRAINTS{
 
-                   contents: List<Arc<Exp>>,
+                   contents: Arc<List<Arc<Exp>>>,
             },
 
              EQUATIONS{
 
-                   contents: List<EquationItem>,
+                   contents: Arc<List<EquationItem>>,
             },
 
              INITIALEQUATIONS{
 
-                   contents: List<EquationItem>,
+                   contents: Arc<List<EquationItem>>,
             },
 
              ALGORITHMS{
 
-                   contents: List<AlgorithmItem>,
+                   contents: Arc<List<AlgorithmItem>>,
             },
 
              INITIALALGORITHMS{
 
-                   contents: List<AlgorithmItem>,
+                   contents: Arc<List<AlgorithmItem>>,
             },
 
              EXTERNAL{
@@ -348,7 +348,7 @@ use std::sync::Arc;
 
              LEXER_COMMENT{
 
-                   comment: String,
+                   comment: Arc<str>,
             },
       }
 
@@ -376,7 +376,7 @@ use std::sync::Arc;
              DEFINEUNIT{
 
                    name: Ident,
-                   args: List<NamedArg>,
+                   args: Arc<List<NamedArg>>,
                    info: Info,
             },
 
@@ -385,7 +385,7 @@ use std::sync::Arc;
                    optName: Option<Ident>/* optName : optional name of text, e.g. model with syntax error.
                                                           We need the name to be able to browse it... */
                    ,
-                   string: String,
+                   string: Arc<str>,
                    info: Info,
             },
       }
@@ -430,7 +430,7 @@ use std::sync::Arc;
 
                    path: Path/* path */
                    ,
-                   elementArg: List<Arc<ElementArg>>/* elementArg */
+                   elementArg: Arc<List<Arc<ElementArg>>>/* elementArg */
                    ,
                    annotationOpt: Option<Annotation>/* optional annotation */
                    ,
@@ -451,7 +451,7 @@ use std::sync::Arc;
                    ,
                    typeSpec: TypeSpec/* typeSpec */
                    ,
-                   components: List<Arc<ComponentItem>>/* components */
+                   components: Arc<List<Arc<ComponentItem>>>/* components */
                    ,
             },
       }
@@ -501,7 +501,7 @@ use std::sync::Arc;
              GROUP_IMPORT{
 
                    prefix: Path,
-                   groups: List<GroupImport>,
+                   groups: Arc<List<GroupImport>>,
             },
       }
 
@@ -511,13 +511,13 @@ use std::sync::Arc;
       pub enum GroupImport {
              GROUP_IMPORT_NAME{
 
-                   name: String,
+                   name: Arc<str>,
             },
 
              GROUP_IMPORT_RENAME{
 
-                   rename: String,
-                   name: String,
+                   rename: Arc<str>,
+                   name: Arc<str>,
             },
       }
 
@@ -576,7 +576,7 @@ use std::sync::Arc;
 
              EQUATIONITEMCOMMENT{
 
-                   comment: String,
+                   comment: Arc<str>,
             },
       }
 
@@ -597,7 +597,7 @@ use std::sync::Arc;
 
              ALGORITHMITEMCOMMENT{
 
-                   comment: String,
+                   comment: Arc<str>,
             },
       }
 
@@ -611,11 +611,11 @@ use std::sync::Arc;
 
                    ifExp: Exp/* Conditional expression */
                    ,
-                   equationTrueItems: List<Arc<EquationItem>>/* true branch */
+                   equationTrueItems: Arc<List<Arc<EquationItem>>>/* true branch */
                    ,
-                   elseIfBranches: List<(Exp, List<Arc<EquationItem>>)>/* elseIfBranches */
+                   elseIfBranches: Arc<List<(Exp, Arc<List<Arc<EquationItem>>>)>>/* elseIfBranches */
                    ,
-                   equationElseItems: List<Arc<EquationItem>>/* equationElseItems Standard 2-side eqn */
+                   equationElseItems: Arc<List<Arc<EquationItem>>>/* equationElseItems Standard 2-side eqn */
                    ,
             },
 
@@ -648,7 +648,7 @@ use std::sync::Arc;
              EQ_FOR{
 
                    iterators: ForIterators,
-                   forEquations: List<Arc<EquationItem>>/* forEquations */
+                   forEquations: Arc<List<Arc<EquationItem>>>/* forEquations */
                    ,
             },
 
@@ -656,9 +656,9 @@ use std::sync::Arc;
 
                    whenExp: Exp/* whenExp */
                    ,
-                   whenEquations: List<Arc<EquationItem>>/* whenEquations */
+                   whenEquations: Arc<List<Arc<EquationItem>>>/* whenEquations */
                    ,
-                   elseWhenEquations: List<(Exp, List<Arc<EquationItem>>)>/* elseWhenEquations */
+                   elseWhenEquations: Arc<List<(Exp, Arc<List<Arc<EquationItem>>>)>>/* elseWhenEquations */
                    ,
             },
 
@@ -696,25 +696,25 @@ use std::sync::Arc;
 
                    ifExp: Exp/* ifExp */
                    ,
-                   trueBranch: List<AlgorithmItem>/* trueBranch */
+                   trueBranch: Arc<List<AlgorithmItem>>/* trueBranch */
                    ,
-                   elseIfAlgorithmBranch: List<(Exp, List<AlgorithmItem>)>/* elseIfAlgorithmBranch */
+                   elseIfAlgorithmBranch: Arc<List<(Exp, Arc<List<AlgorithmItem>>)>>/* elseIfAlgorithmBranch */
                    ,
-                   elseBranch: List<AlgorithmItem>/* elseBranch */
+                   elseBranch: Arc<List<AlgorithmItem>>/* elseBranch */
                    ,
             },
 
              ALG_FOR{
 
                    iterators: ForIterators,
-                   forBody: List<AlgorithmItem>/* forBody */
+                   forBody: Arc<List<AlgorithmItem>>/* forBody */
                    ,
             },
 
              ALG_PARFOR{
 
                    iterators: ForIterators,
-                   parforBody: List<AlgorithmItem>/* parallel for loop Body */
+                   parforBody: Arc<List<AlgorithmItem>>/* parallel for loop Body */
                    ,
             },
 
@@ -722,7 +722,7 @@ use std::sync::Arc;
 
                    boolExpr: Exp/* boolExpr */
                    ,
-                   whileBody: List<AlgorithmItem>/* whileBody */
+                   whileBody: Arc<List<AlgorithmItem>>/* whileBody */
                    ,
             },
 
@@ -730,9 +730,9 @@ use std::sync::Arc;
 
                    boolExpr: Exp/* boolExpr */
                    ,
-                   whenBody: List<AlgorithmItem>/* whenBody */
+                   whenBody: Arc<List<AlgorithmItem>>/* whenBody */
                    ,
-                   elseWhenAlgorithmBranch: List<(Exp, List<AlgorithmItem>)>/* elseWhenAlgorithmBranch */
+                   elseWhenAlgorithmBranch: Arc<List<(Exp, Arc<List<AlgorithmItem>>)>>/* elseWhenAlgorithmBranch */
                    ,
             },
 
@@ -753,19 +753,19 @@ use std::sync::Arc;
 
              ALG_FAILURE{
 
-                   equ: List<AlgorithmItem>,
+                   equ: Arc<List<AlgorithmItem>>,
             },
 
              ALG_TRY{
 
-                   body: List<AlgorithmItem>,
-                   elseBody: List<AlgorithmItem>,
+                   body: Arc<List<AlgorithmItem>>,
+                   elseBody: Arc<List<AlgorithmItem>>,
             },
 
              ALG_CONTINUE,
       }
 
-     const emptyMod: Modification = Modification::CLASSMOD{elementArgLst: List::Nil, eqMod: EqMod::NOMOD{}};
+     fn emptyMod() -> Modification { Modification::CLASSMOD{ elementArgLst: Arc::new(List::Nil), eqMod: EqMod::NOMOD{} } }
 
       /* Modifications are described by the `Modification\' type.  There
         are two forms of modifications: redeclarations and component
@@ -777,7 +777,7 @@ use std::sync::Arc;
       pub enum Modification {
              CLASSMOD{
 
-                   elementArgLst: List<Arc<ElementArg>>,
+                   elementArgLst: Arc<List<Arc<ElementArg>>>,
                    eqMod: EqMod,
             },
       }
@@ -809,7 +809,7 @@ use std::sync::Arc;
                    path: Path,
                    modification: Option<Modification>/* modification */
                    ,
-                   comment: Option<String>/* comment */
+                   comment: Option<Arc<str>>/* comment */
                    ,
                    info: Info,
             },
@@ -832,7 +832,7 @@ use std::sync::Arc;
 
              ELEMENTARGCOMMENT{
 
-                   comment: String,
+                   comment: Arc<str>,
             },
 
              INHERITANCEBREAK{
@@ -949,7 +949,7 @@ use std::sync::Arc;
 
              REAL{
 
-                   value: String/* String representation of a Real, in order to unparse without changing the user's display preference */
+                   value: Arc<str>/* String representation of a Real, in order to unparse without changing the user's display preference */
                    ,
             },
 
@@ -960,7 +960,7 @@ use std::sync::Arc;
 
              STRING{
 
-                   value: String,
+                   value: Arc<str>,
             },
 
              BOOL{
@@ -1017,7 +1017,7 @@ use std::sync::Arc;
                    ,
                    elseBranch: Arc<Exp>/* elseBranch */
                    ,
-                   elseIfBranch: List<(Arc<Exp>, Arc<Exp>)>/* elseIfBranch Function calls */
+                   elseIfBranch: Arc<List<(Arc<Exp>, Arc<Exp>)>>/* elseIfBranch Function calls */
                    ,
             },
 
@@ -1026,7 +1026,7 @@ use std::sync::Arc;
                    function_: Arc<ComponentRef>/* function */
                    ,
                    functionArgs: FunctionArgs,
-                   typeVars: List<Path>,
+                   typeVars: Arc<List<Path>>,
             },
 
             // stefan
@@ -1041,12 +1041,12 @@ use std::sync::Arc;
 
              ARRAY{
 
-                   arrayExp: List<Arc<Exp>>,
+                   arrayExp: Arc<List<Arc<Exp>>>,
             },
 
              MATRIX{
 
-                   matrix: List<List<Arc<Exp>>>,
+                   matrix: Arc<List<Arc<List<Arc<Exp>>>>>,
             },
 
              RANGE{
@@ -1061,7 +1061,7 @@ use std::sync::Arc;
 
              TUPLE{
 
-                   expressions: List<Arc<Exp>>/* comma-separated expressions */
+                   expressions: Arc<List<Arc<Exp>>>/* comma-separated expressions */
                    ,
             },
 
@@ -1097,11 +1097,11 @@ use std::sync::Arc;
                    ,
                    inputExp: Arc<Exp>/*  match expression of          */
                    ,
-                   localDecls: List<Arc<ElementItem>>/*  local declarations           */
+                   localDecls: Arc<List<Arc<ElementItem>>>/*  local declarations           */
                    ,
-                   cases: List<Case>/*  case list + else in the end  */
+                   cases: Arc<List<Case>>/*  case list + else in the end  */
                    ,
-                   comment: Option<String>/*  match expr comment_optional  */
+                   comment: Option<Arc<str>>/*  match expr comment_optional  */
                    ,
             },
 
@@ -1110,7 +1110,7 @@ use std::sync::Arc;
 
              LIST{
 
-                   exps: List<Arc<Exp>>,
+                   exps: Arc<List<Arc<Exp>>>,
             },
 
              DOT{
@@ -1121,15 +1121,15 @@ use std::sync::Arc;
 
              EXPRESSIONCOMMENT{
 
-                   commentsBefore: List<String>,
+                   commentsBefore: Arc<List<Arc<str>>>,
                    exp: Arc<Exp>,
-                   commentsAfter: List<String>,
+                   commentsAfter: Arc<List<Arc<str>>>,
             },
 
              SUBSCRIPTED_EXP{
 
                    exp: Arc<Exp>,
-                   subscripts: List<Arc<Subscript>>,
+                   subscripts: Arc<List<Arc<Subscript>>>,
             },
 
             BREAK,
@@ -1148,7 +1148,7 @@ use std::sync::Arc;
                    patternGuard: Option<Arc<Exp>>,
                    patternInfo: Info/* file information of the pattern */
                    ,
-                   localDecls: List<Arc<ElementItem>>/*  local decls  */
+                   localDecls: Arc<List<Arc<ElementItem>>>/*  local decls  */
                    ,
                    classPart: ClassPart/*  equation or algorithm section  */
                    ,
@@ -1156,7 +1156,7 @@ use std::sync::Arc;
                    ,
                    resultInfo: Info/* file information of the result-exp */
                    ,
-                   comment: Option<String>/*  comment after case like: case pattern string_comment  */
+                   comment: Option<Arc<str>>/*  comment after case like: case pattern string_comment  */
                    ,
                    info: Info/* file information of the whole case */
                    ,
@@ -1164,7 +1164,7 @@ use std::sync::Arc;
 
              ELSE{
 
-                   localDecls: List<Arc<ElementItem>>/*  local decls  */
+                   localDecls: Arc<List<Arc<ElementItem>>>/*  local decls  */
                    ,
                    classPart: ClassPart/*  equation or algorithm section  */
                    ,
@@ -1172,7 +1172,7 @@ use std::sync::Arc;
                    ,
                    resultInfo: Info/* file information of the result-exp */
                    ,
-                   comment: Option<String>/*  comment after case like: case pattern string_comment  */
+                   comment: Option<Arc<str>>/*  comment after case like: case pattern string_comment  */
                    ,
                    info: Info/* file information of the whole case */
                    ,
@@ -1207,19 +1207,19 @@ use std::sync::Arc;
              C_CONSTRAINTSECTION{
 
                    boolean: bool,
-                   equationItemLst: List<Arc<EquationItem>>,
+                   equationItemLst: Arc<List<Arc<EquationItem>>>,
             },
 
              C_EQUATIONSECTION{
 
                    boolean: bool,
-                   equationItemLst: List<Arc<EquationItem>>,
+                   equationItemLst: Arc<List<Arc<EquationItem>>>,
             },
 
              C_ALGORITHMSECTION{
 
                    boolean: bool,
-                   algorithmItemLst: List<Arc<AlgorithmItem>>,
+                   algorithmItemLst: Arc<List<Arc<AlgorithmItem>>>,
             },
 
              C_ELEMENT{
@@ -1246,9 +1246,9 @@ use std::sync::Arc;
       pub enum FunctionArgs {
              FUNCTIONARGS{
 
-                   args: List<Arc<Exp>>/* args */
+                   args: Arc<List<Arc<Exp>>>/* args */
                    ,
-                   argNames: List<Arc<NamedArg>>/* argNames */
+                   argNames: Arc<List<Arc<NamedArg>>>/* argNames */
                    ,
             },
 
@@ -1367,7 +1367,7 @@ use std::sync::Arc;
 
                    name: Ident/* name */
                    ,
-                   subscripts: List<Arc<Subscript>>/* subscripts */
+                   subscripts: Arc<List<Arc<Subscript>>>/* subscripts */
                    ,
                    componentRef: Arc<ComponentRef>/* componentRef */
                    ,
@@ -1377,7 +1377,7 @@ use std::sync::Arc;
 
                    name: Ident/* name */
                    ,
-                   subscripts: List<Arc<Subscript>>/* subscripts */
+                   subscripts: Arc<List<Arc<Subscript>>>/* subscripts */
                    ,
             },
 
@@ -1471,7 +1471,7 @@ use std::sync::Arc;
                    moved: bool,
                   // true if moved outside uniontype, otherwise false.
 
-                   typeVars: List<String>,
+                   typeVars: Arc<List<Arc<str>>>,
             },
 
              R_UNKNOWN,
@@ -1512,7 +1512,7 @@ use std::sync::Arc;
       pub enum Annotation {
              ANNOTATION{
 
-                   elementArgs: List<Arc<ElementArg>>/* elementArgs */
+                   elementArgs: Arc<List<Arc<ElementArg>>>/* elementArgs */
                    ,
             },
       }
@@ -1526,7 +1526,7 @@ use std::sync::Arc;
 
                    annotation_: Option<Annotation>/* annotation */
                    ,
-                   comment: Option<String>/* comment */
+                   comment: Option<Arc<str>>/* comment */
                    ,
             },
       }
@@ -1540,11 +1540,11 @@ use std::sync::Arc;
 
                    funcName: Option<Ident>/* The name of the external function */
                    ,
-                   lang: Option<String>/* Language of the external function */
+                   lang: Option<Arc<str>>/* Language of the external function */
                    ,
                    output_: Option<ComponentRef>/* output parameter as return value */
                    ,
-                   args: List<Arc<Exp>>/* only positional arguments, i.e. expression list */
+                   args: Arc<List<Arc<Exp>>>/* only positional arguments, i.e. expression list */
                    ,
                    annotation_: Option<Annotation>,
             },

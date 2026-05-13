@@ -1413,6 +1413,14 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
             let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
             Ok(format!("{arg1}.get({arg2})?"))
         },
+        "referenceEq" => {
+            let arg1 = args.first().map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
+            let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
+            Ok(format!("referenceEq(&{arg1},&{arg2})?"))
+        },
+        "isPresent" => {
+            Ok(format!("true /* isPresent not implemented in Rust */"))
+        },
         "listReverse" | "listReverseInPlace" => {
             if args.is_empty() {
                 Ok("metamodelica::List::Nil".to_owned())
@@ -1483,7 +1491,7 @@ fn emit_var<'a>(
     } else {
         let mut base = escape_ident(&real_segments[0].name);
         for sub in &real_segments[0].subscripts {
-            base = format!("{}[{}]", base, emit_exp(sub, false, ctx, top_level));
+            base = format!("{}[({}-1) as usize]", base, emit_exp(sub, false, ctx, top_level));
         }
         base
     };
@@ -1524,7 +1532,7 @@ fn emit_var<'a>(
             if !last_seg.subscripts.is_empty() {
                 let mut b = escape_ident(&shortened);
                 for sub in &last_seg.subscripts {
-                    b = format!("{}[{}]", b, emit_exp(sub, false, ctx, top_level));
+                    b = format!("{}[({}-1) as usize]", b, emit_exp(sub, false, ctx, top_level));
                 }
                 b
             } else {
@@ -1541,7 +1549,7 @@ fn emit_var<'a>(
     for seg in field_segs {
         res = format!("{}.{}", res, escape_ident(&seg.name));
         for sub in &seg.subscripts {
-            res = format!("{}[{}-1]", res, emit_exp(sub, false, ctx, top_level));
+            res = format!("{}[({}-1) as usize]", res, emit_exp(sub, false, ctx, top_level));
         }
     }
     res
@@ -2259,7 +2267,7 @@ fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, mu
 
         TypedPat::Index { base, index } => {
             // This shouldn't normally reach emit_pat (handled in emit_stmt), but emit as fallback.
-            format!("{}[{}]", emit_exp(base, false, ctx, top_level), emit_exp(index, false, ctx, top_level))
+            format!("{}[({}-1) as usize]", emit_exp(base, false, ctx, top_level), emit_exp(index, false, ctx, top_level))
         }
 
         TypedPat::FieldAccess { base, field } => {

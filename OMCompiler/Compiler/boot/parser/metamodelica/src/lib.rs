@@ -963,12 +963,12 @@ pub fn clock() -> Result<f64> {
 // ============================================================================
 
 /// Returns true if the Option is NONE.
-pub fn isNone<A>(opt: &Option<A>) -> Result<bool> {
+pub fn isNone<A>(opt: Option<A>) -> Result<bool> {
     Ok(matches!(opt, None))
 }
 
 /// Returns true if the Option is SOME.
-pub fn isSome<A>(opt: &Option<A>) -> Result<bool> {
+pub fn isSome<A>(opt: Option<A>) -> Result<bool> {
     Ok(matches!(opt, Some(_)))
 }
 

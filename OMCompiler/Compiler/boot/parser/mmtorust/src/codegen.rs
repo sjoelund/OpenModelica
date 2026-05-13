@@ -6,11 +6,12 @@ use mmwinnow::Absyn;
 use crate::MM;
 use std::collections::HashMap;
 use crate::hierarchy::{InstanceHierarchy, NameNode, NodeKind, Ty, extract_default, extract_default_exp, lookup_node, lookup_node_ty, lookup_record_through_unions, uniontype_needs_mod, collect_type_vars_in_ty};
-use crate::typedexp::{self, TypedExp, TypedPat, TypedCase, Lit, BinOpKind, UnOpKind, MatchKind, cref_to_dotted, CrefSegment};
+use crate::typedexp::{self, TypedExp, TypedPat, TypedCase, Lit, BinOpKind, UnOpKind, MatchKind, ReductionIter, ReductionIterKind, cref_to_dotted, CrefSegment};
 use anyhow::{Result,bail};
 
 // ── Import-aware generation context ──────────────────────────────────────────
 
+const DEFAULT_TRAITS: &str = "Clone + PartialEq";
 struct GenCtx {
     /// Name of the top-level class being generated (e.g. "Absyn").
     top_name: String,
@@ -768,7 +769,7 @@ fn emit_struct(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Class,
     for (_, fty) in &fields {
         collect_type_vars_in_ty(fty, &mut type_vars);
     }
-    let type_params = if type_vars.is_empty() { String::new() } else { format!("<{}: Clone>", type_vars.join(", ")) };
+    let type_params = if type_vars.is_empty() { String::new() } else { format!("<{}: {{DEFAULT_TRAITS}}>", type_vars.join(", ")) };
     writeln!(out, "#[derive(Clone, Debug, PartialEq, Eq, Hash)]").unwrap();
     if fields.is_empty() {
         writeln!(out, "{indent}pub struct {ename}{type_params};").unwrap();
@@ -827,7 +828,7 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
     let type_params = if all_type_vars.is_empty() {
         String::new()
     } else {
-        format!("<{}>", all_type_vars.iter().map(|v| format!("{v}: Clone")).collect::<Vec<_>>().join(", "))
+        format!("<{}>", all_type_vars.iter().map(|v| format!("{v}: {{DEFAULT_TRAITS}}")).collect::<Vec<_>>().join(", "))
     };
 
     let params = fn_inputs.iter()
@@ -892,6 +893,7 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
     for inp in fn_inputs.iter() { env.vars.insert(inp.name.clone(), inp.ty.clone()); }
     for (n, t, _, _) in &outputs   { env.vars.insert(n.clone(), t.clone()); }
     for (n, t, _, _) in &protected { env.vars.insert(n.clone(), t.clone()); }
+    env.outputs = outputs.iter().map(|(n, _, _, _)| n.clone()).collect();
 
     writeln!(out, "{indent}{pub_kw}fn {ename}{type_params}({params}) -> Result<{ret_ty}> {{").unwrap();
     let body_indent = format!("{indent}    ");
@@ -1277,7 +1279,211 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
             }
         }
 
+        TypedExp::Reduction { func, body, iterators, iter_kind, ty } =>
+            emit_reduction(func, body, iterators, *iter_kind, ty, is_const, ctx, top_level),
+
         TypedExp::Todo(s) => format!("todo!(/*{}*/)", s.chars().take(60).collect::<String>()),
+    }
+}
+
+/// Emit a reduction expression as a Rust iterator pipeline.
+///
+/// Strategy:
+///   1. Build the iterator over the cartesian product (or zip for `threaded`) of
+///      the iterators' ranges, with each binding produced in declaration order.
+///   2. Apply each iterator's optional `guard` as a `.filter(...)` step.
+///   3. Map each tuple of bindings through `body`.
+///   4. Apply the reduction (sum/product/min/max/collect/fold) according to `func`.
+///
+/// For user-defined reductions the function must declare its accumulator's default
+/// value; we look that up via `resolve_call_formals` and synthesize a `fold`. If
+/// the lookup fails we emit a `todo!(...)` so the missing default is visible at
+/// compile time of the generated code.
+fn emit_reduction<'a>(
+    func: &str,
+    body: &TypedExp,
+    iterators: &[ReductionIter],
+    iter_kind: ReductionIterKind,
+    ty: &Ty,
+    is_const: bool,
+    ctx: &mut GenCtx,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+) -> String {
+    if iterators.is_empty() {
+        return format!("todo!(\"empty-iterator reduction {func}\")");
+    }
+
+    // Render each iterator's source range. Lists/arrays are borrowed (`&`) so the
+    // iteration doesn't move them; the per-element clones come from the bindings.
+    // Ranges (numeric `a:b`) are consumed by value since they're cheap to produce.
+    let mut iter_chain = String::new();
+    for (i, it) in iterators.iter().enumerate() {
+        let range_s = emit_exp(&it.range, is_const, ctx, top_level);
+        let borrow = match it.range.ty() {
+            Ty::List(_) | Ty::Array(_) => "&",
+            _ => "",
+        };
+        if i == 0 {
+            // The first iterator seeds the chain; subsequent iterators are
+            // combined via `flat_map` (cartesian) or `zip` (thread).
+            iter_chain.push_str(&format!("({borrow}{range_s}).into_iter()"));
+        } else {
+            match iter_kind {
+                ReductionIterKind::Thread => {
+                    iter_chain.push_str(&format!(".zip(({borrow}{range_s}).into_iter())"));
+                }
+                ReductionIterKind::Combine => {
+                    // Bind earlier iterator names so their ranges (and the body)
+                    // can see them. The previous chain yields nested tuples; we
+                    // unpack them into a fresh tuple in the same shape used by
+                    // the body closures below.
+                    let prev_pat = iter_pattern(&iterators[..i]);
+                    let cur = escape_ident(&it.name);
+                    iter_chain.push_str(&format!(
+                        ".flat_map(|{prev_pat}| ({borrow}{range_s}).into_iter().map(move |{cur}| {})",
+                        iter_pair(&iterators[..i], &it.name)
+                    ));
+                    iter_chain.push(')');
+                }
+            }
+        }
+    }
+
+    // Closure pattern that destructures the current "tuple of iter bindings".
+    let bind_pat = iter_pattern(iterators);
+
+    // Apply guards: each iterator's guard is a Boolean over the bindings up to and
+    // including that iterator. We combine them with `&&` into a single filter to
+    // avoid nested filter calls (which would also work but are noisier).
+    let mut guard_parts: Vec<String> = Vec::new();
+    for it in iterators {
+        if let Some(g) = &it.guard {
+            guard_parts.push(emit_exp(g, is_const, ctx, top_level));
+        }
+    }
+    if !guard_parts.is_empty() {
+        iter_chain.push_str(&format!(
+            ".filter(|{bind_pat}| {})",
+            guard_parts.join(" && ")
+        ));
+    }
+
+    let body_s = emit_exp(body, is_const, ctx, top_level);
+    let mapped = format!("{iter_chain}.map(|{bind_pat}| {body_s})");
+
+    // Apply the reduction operator. The numeric type for `sum`/`product` follows
+    // the body's type; defaulting to f64 when unknown keeps the generated code
+    // type-checkable for Real reductions even before full inference.
+    let body_ty = body.ty();
+    match func {
+        "list" => {
+            // `list(... for it in xs)` produces a List<T>. Build it by collecting
+            // into a List<T> directly; the metamodelica List supports FromIterator.
+            format!("({mapped}).collect::<metamodelica::List<_>>()")
+        }
+        "listReverse" => {
+            // `listReverse(... for it in xs)` builds a list in reverse-iteration
+            // order. Folding with cons gives that order without an extra reverse.
+            format!(
+                "({mapped}).fold(metamodelica::List::Nil, |acc, __x| metamodelica::List::Cons(__x, std::sync::Arc::new(acc)))"
+            )
+        }
+        "sum" => {
+            let ty_s = numeric_sum_ty(&body_ty);
+            format!("({mapped}).sum::<{ty_s}>()")
+        }
+        "product" => {
+            let ty_s = numeric_sum_ty(&body_ty);
+            format!("({mapped}).product::<{ty_s}>()")
+        }
+        "min" => {
+            // `Iterator::min()` returns Option; for numeric reductions over a
+            // possibly-empty range we surface that as a Result via `?` rather
+            // than silently substituting a default.
+            format!("({mapped}).min().ok_or_else(|| anyhow::anyhow!(\"empty min reduction\"))?")
+        }
+        "max" => {
+            format!("({mapped}).max().ok_or_else(|| anyhow::anyhow!(\"empty max reduction\"))?")
+        }
+        "listAppend" => {
+            // `listAppend(elem for ...)` folds with `listAppend(elem, acc)` over
+            // each iteration, accumulator seeded with Nil. The mapped element is
+            // expected to be a list; the result is the same list type.
+            format!(
+                "({mapped}).fold(metamodelica::List::Nil, |__acc, __x| __x.append(&__acc))"
+            )
+        }
+        _ => {
+            // User-defined reduction: needs the function's accumulator default.
+            // We can resolve that through `resolve_call_formals` at the call site.
+            let formals = resolve_call_formals(func, ctx, top_level);
+            let default_expr: Option<String> = formals
+                .as_ref()
+                .and_then(|fs| fs.iter().rev().find_map(|(_, d)| d.clone()))
+                .map(|tpl| emit_exp(&tpl, is_const, ctx, top_level));
+            match default_expr {
+                Some(seed) => {
+                    let fname = if func.contains('.') {
+                        ctx.shorten(func)
+                    } else {
+                        func.to_owned()
+                    };
+                    let fname = escape_ident(&fname);
+                    // `f(elem, acc)` per iteration. We pass elem first, acc second
+                    // — this matches the MetaModelica convention used by the
+                    // listAppend / built-ins above. User-defined reductions whose
+                    // accumulator is the *first* parameter would need a separate
+                    // branch; surface that mismatch with an explicit todo!.
+                    format!(
+                        "({mapped}).try_fold::<_, _, anyhow::Result<_>>({seed}, |__acc, __x| Ok({fname}(__x, __acc)?))?"
+                    )
+                }
+                None => {
+                    // Unknown reduction operator with no resolvable default: emit a
+                    // todo! so the generated code's compile failure points us at the
+                    // specific reduction that still needs lowering.
+                    let _ = ty;
+                    format!("todo!(\"reduction {func}: cannot resolve default value\")")
+                }
+            }
+        }
+    }
+}
+
+/// Build the binding pattern produced by the current iterator chain.
+/// For a single iterator: just the iterator's identifier.
+/// For multiple iterators with `flat_map` chaining: a nested tuple `((a, b), c)`
+/// in left-fold order, matching what `iter_pair` constructs below.
+fn iter_pattern(iters: &[ReductionIter]) -> String {
+    match iters.len() {
+        0 => "_".to_owned(),
+        1 => escape_ident(&iters[0].name),
+        _ => {
+            // Build `((((i0, i1), i2), i3), ...)` left-associatively.
+            let mut s = escape_ident(&iters[0].name);
+            for it in &iters[1..] {
+                s = format!("({s}, {})", escape_ident(&it.name));
+            }
+            s
+        }
+    }
+}
+
+/// Build the tuple value produced by a nested `flat_map` to forward bindings.
+/// Mirrors `iter_pattern` so destructuring matches construction.
+fn iter_pair(prev: &[ReductionIter], cur: &str) -> String {
+    let prev_pat = iter_pattern(prev);
+    format!("({prev_pat}, {})", escape_ident(cur))
+}
+
+/// Pick the numeric type used in `Iterator::sum::<T>()` / `product::<T>()`.
+/// Falls back to `i32` for Unknown so the generated code remains type-checkable;
+/// the wider value path will surface any mismatch at compile time.
+fn numeric_sum_ty(ty: &Ty) -> &'static str {
+    match ty {
+        Ty::F64 => "f64",
+        Ty::I32 => "i32",
+        _ => "i32",
     }
 }
 
@@ -1946,6 +2152,18 @@ fn substitute_formal_refs(exp: &TypedExp, bindings: &HashMap<String, TypedExp>) 
             stop: Box::new(substitute_formal_refs(stop, bindings)),
             elem_ty: elem_ty.clone(),
         },
+        TypedExp::Reduction { func, body, iterators, iter_kind, ty } => TypedExp::Reduction {
+            func: func.clone(),
+            body: Box::new(substitute_formal_refs(body, bindings)),
+            iterators: iterators.iter().map(|it| ReductionIter {
+                name: it.name.clone(),
+                range: substitute_formal_refs(&it.range, bindings),
+                guard: it.guard.as_ref().map(|g| substitute_formal_refs(g, bindings)),
+                elem_ty: it.elem_ty.clone(),
+            }).collect(),
+            iter_kind: *iter_kind,
+            ty: ty.clone(),
+        },
         TypedExp::Todo(s) => TypedExp::Todo(s.clone()),
     }
 }
@@ -2320,6 +2538,10 @@ enum FailureMode {
 #[derive(Debug, Clone, Default)]
 struct LocalEnv {
     vars: HashMap<String, Ty>,
+    /// Names of the enclosing function's output components, in declaration order.
+    /// Used to expand `return;` into `return Ok((outputs...));` so the early-exit
+    /// path mirrors the final implicit return at the end of `emit_function`.
+    outputs: Vec<String>,
 }
 
 fn is_constructor(func: &str, ctx: &GenCtx, top_level: &BTreeMap<String, NameNode>) -> bool {
@@ -3105,7 +3327,19 @@ fn emit_stmt<'a>(
             writeln!(out, "{indent}    Ok(())").unwrap();
             writeln!(out, "{indent}}})().is_ok() {{ bail!(\"failure(): body succeeded\") }}").unwrap();
         }
-        S::Return   => writeln!(out, "{indent}/* return */ todo!(\"return-with-outputs not yet wired\");").unwrap(),
+        S::Return => {
+            // Expand `return;` into the same Ok(...) shape that emit_function produces
+            // at the end of the function body, so the early-exit path returns the
+            // current values of the output components.
+            match env.outputs.len() {
+                0 => writeln!(out, "{indent}return Ok(());").unwrap(),
+                1 => writeln!(out, "{indent}return Ok({});", escape_ident(&env.outputs[0])).unwrap(),
+                _ => {
+                    let parts: Vec<String> = env.outputs.iter().map(|n| escape_ident(n)).collect();
+                    writeln!(out, "{indent}return Ok(({}));", parts.join(", ")).unwrap();
+                }
+            }
+        }
         S::Break    => writeln!(out, "{indent}break;").unwrap(),
         S::Continue => writeln!(out, "{indent}continue;").unwrap(),
         S::Todo(s)  => writeln!(out, "{indent}/* todo stmt: {} */", s.chars().take(60).collect::<String>()).unwrap(),

@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::collections::BTreeMap;
 use mmwinnow::Absyn;
 use crate::MM;
-use crate::hierarchy::{NameNode, NodeKind, Ty, lookup_record_through_unions, collect_type_vars_in_ty, collect_type_vars_in_env};
+use crate::hierarchy::{FunctionInput, NameNode, NodeKind, Ty, lookup_record_through_unions, collect_type_vars_in_ty, collect_type_vars_in_env};
 
 // ── Literal values ────────────────────────────────────────────────────────────
 
@@ -30,6 +30,22 @@ pub enum UnOpKind { Neg, Not }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum MatchKind { Match, MatchContinue }
+
+/// How multiple iterators in a reduction interact:
+/// - `Combine`: cartesian product (the default; e.g. `f(e for i in xs, j in ys)`).
+/// - `Thread`:  zip (introduced by the `threaded` keyword).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ReductionIterKind { Combine, Thread }
+
+/// One iterator in a reduction. `range` is the source collection, `guard` is an
+/// optional Boolean filter expression evaluated per element.
+#[derive(Debug, Clone)]
+pub struct ReductionIter {
+    pub name: String,
+    pub range: TypedExp,
+    pub guard: Option<TypedExp>,
+    pub elem_ty: Ty,
+}
 
 // ── Typed expression IR ───────────────────────────────────────────────────────
 
@@ -78,6 +94,18 @@ pub enum TypedExp {
     Match { kind: MatchKind, input: Box<TypedExp>, cases: Vec<TypedCase>, ty: Ty },
     /// `start:stop` or `start:step:stop` — an arithmetic-progression iterator.
     Range { start: Box<TypedExp>, step: Option<Box<TypedExp>>, stop: Box<TypedExp>, elem_ty: Ty },
+    /// A reduction expression `f(body for iter1 in r1, iter2 in r2, ...)` (or
+    /// `threaded for ...` for zip semantics). The reduction is identified by
+    /// `func` — either a builtin (`list`, `listReverse`, `sum`, `product`,
+    /// `min`, `max`, `listAppend`) or a user-defined function whose signature
+    /// must carry a `defaultValue` so the accumulator can be seeded.
+    Reduction {
+        func: String,
+        body: Box<TypedExp>,
+        iterators: Vec<ReductionIter>,
+        iter_kind: ReductionIterKind,
+        ty: Ty,
+    },
     Todo(String),
 }
 
@@ -98,6 +126,7 @@ impl TypedExp {
             TypedExp::Array  { ty, .. }  => ty.clone(),
             TypedExp::Match  { ty, .. }  => ty.clone(),
             TypedExp::Range  { elem_ty, .. } => Ty::Array(Box::new(elem_ty.clone())),
+            TypedExp::Reduction { ty, .. } => ty.clone(),
             TypedExp::Tuple(v) => Ty::Tuple(v.iter().map(|e| e.ty()).collect()),
             TypedExp::Todo(_)  => Ty::Unknown,
         }
@@ -387,6 +416,71 @@ fn lookup_ty_in_hierarchy<'a>(dotted: &str, top_level: &'a BTreeMap<String, Name
     node.ty.clone()
 }
 
+/// Return the function signature for a MetaModelica built-in function used as a
+/// first-class value (e.g. `valueEq` passed as a callback). Built-ins are not in
+/// the hierarchy, so when a CREF resolves to `Ty::Unknown` we fall back here so
+/// that codegen can treat the reference as a function pointer (no `.clone()`).
+///
+/// The signatures use `TypeVar("T")` as a stand-in for parameters whose actual
+/// type is determined by the call site. The shape only needs to be `Ty::Function`
+/// for codegen to skip the value clone; the inputs/output are informational.
+pub fn builtin_function_ty(name: &str) -> Option<Ty> {
+    let tv = |n: &str| Ty::TypeVar(n.to_owned());
+    let inp = |name: &str, ty: Ty| FunctionInput { name: name.to_owned(), ty, default: None };
+    let f = |inputs: Vec<FunctionInput>, output: Ty, type_vars: Vec<String>| -> Ty {
+        Ty::Function { type_vars, inputs, output: Box::new(output) }
+    };
+    match name {
+        // Equality / comparison predicates: (T, T) -> Bool
+        "valueEq" | "referenceEq" =>
+            Some(f(vec![inp("a", tv("T")), inp("b", tv("T"))], Ty::Bool, vec!["T".to_owned()])),
+        "intEq" | "intNe" | "intLt" | "intLe" | "intGt" | "intGe" =>
+            Some(f(vec![inp("a", Ty::I32), inp("b", Ty::I32)], Ty::Bool, vec![])),
+        "realEq" | "realLt" | "realLe" | "realGt" | "realGe" =>
+            Some(f(vec![inp("a", Ty::F64), inp("b", Ty::F64)], Ty::Bool, vec![])),
+        "stringEq" | "stringEqual" =>
+            Some(f(vec![inp("a", Ty::Str), inp("b", Ty::Str)], Ty::Bool, vec![])),
+        "boolEq" | "boolAnd" | "boolOr" =>
+            Some(f(vec![inp("a", Ty::Bool), inp("b", Ty::Bool)], Ty::Bool, vec![])),
+        "boolNot" =>
+            Some(f(vec![inp("a", Ty::Bool)], Ty::Bool, vec![])),
+        "isSome" | "isNone" =>
+            Some(f(vec![inp("o", Ty::Option(Box::new(tv("T"))))], Ty::Bool, vec!["T".to_owned()])),
+        "listEmpty" =>
+            Some(f(vec![inp("l", Ty::List(Box::new(tv("T"))))], Ty::Bool, vec!["T".to_owned()])),
+        "arrayEmpty" =>
+            Some(f(vec![inp("a", Ty::Array(Box::new(tv("T"))))], Ty::Bool, vec!["T".to_owned()])),
+
+        // Length-style: container -> Integer
+        "listLength" =>
+            Some(f(vec![inp("l", Ty::List(Box::new(tv("T"))))], Ty::I32, vec!["T".to_owned()])),
+        "arrayLength" =>
+            Some(f(vec![inp("a", Ty::Array(Box::new(tv("T"))))], Ty::I32, vec!["T".to_owned()])),
+        "stringLength" =>
+            Some(f(vec![inp("s", Ty::Str)], Ty::I32, vec![])),
+
+        // Arithmetic: (T, T) -> T
+        "intAdd" | "intSub" | "intMul" | "intDiv" | "intMod" | "intMax" | "intMin" =>
+            Some(f(vec![inp("a", Ty::I32), inp("b", Ty::I32)], Ty::I32, vec![])),
+        "realAdd" | "realSub" | "realMul" | "realDiv" | "realMax" | "realMin" =>
+            Some(f(vec![inp("a", Ty::F64), inp("b", Ty::F64)], Ty::F64, vec![])),
+
+        // String conversions/concat
+        "intString" =>
+            Some(f(vec![inp("i", Ty::I32)], Ty::Str, vec![])),
+        "realString" =>
+            Some(f(vec![inp("r", Ty::F64)], Ty::Str, vec![])),
+        "boolString" =>
+            Some(f(vec![inp("b", Ty::Bool)], Ty::Str, vec![])),
+        "anyString" =>
+            Some(f(vec![inp("v", tv("T"))], Ty::Str, vec!["T".to_owned()])),
+        "stringAppend" =>
+            Some(f(vec![inp("a", Ty::Str), inp("b", Ty::Str)], Ty::Str, vec![])),
+
+        _ => None,
+    }
+}
+
 fn binop_ty(op: BinOpKind, lhs_ty: &Ty, rhs_ty: &Ty) -> Ty {
     match op {
         BinOpKind::Add | BinOpKind::Sub | BinOpKind::Mul | BinOpKind::Div => {
@@ -566,6 +660,14 @@ pub fn infer_exp<'a>(
                     ty
                 }
             });
+            // If the reference still resolves to Unknown and the name matches a known
+            // built-in function (not in the hierarchy), treat it as a function pointer
+            // so callers can pass it without `.clone()`.
+            let ty = if ty == Ty::Unknown && segments.len() == 1 && !name.contains('.') {
+                builtin_function_ty(&name).unwrap_or(Ty::Unknown)
+            } else {
+                ty
+            };
             TypedExp::Var { name, segments, ty }
         }
 
@@ -627,6 +729,59 @@ pub fn infer_exp<'a>(
 
         Absyn::Exp::CALL { function_, functionArgs, .. } => {
             let func = cref_to_dotted(function_);
+            // Detect reduction syntax `f(expr for it in range, ...)` and lower it
+            // into a dedicated TypedExp::Reduction node rather than a Call with
+            // missing arguments.
+            if let Absyn::FunctionArgs::FOR_ITER_FARG { exp: body_exp, iterType, iterators } = functionArgs {
+                let iter_kind = match iterType {
+                    Absyn::ReductionIterType::COMBINE => ReductionIterKind::Combine,
+                    Absyn::ReductionIterType::THREAD  => ReductionIterKind::Thread,
+                };
+                // Build iterators left-to-right; each iterator binds a name visible
+                // to subsequent iterator ranges and the body. We thread `env` so
+                // later iterators / body see those bindings.
+                let mut iter_env = env.clone();
+                let mut iters: Vec<ReductionIter> = Vec::new();
+                for it in iterators.into_iter() {
+                    let Absyn::ForIterator::ITERATOR { name: it_name, guardExp, range } = it;
+                    let range_e = match range {
+                        Some(r) => infer_exp(r.as_ref(), &iter_env, top_level, pkg_prefix, type_vars),
+                        // A reduction iterator without an explicit range is the implicit-array
+                        // form (Modelica spec §3.4.4.2); not yet supported in the lowering.
+                        None => TypedExp::Todo("reduction-iter-without-range".to_owned()),
+                    };
+                    let elem_ty = match range_e.ty() {
+                        Ty::List(t) | Ty::Array(t) => *t,
+                        _ => Ty::Unknown,
+                    };
+                    iter_env.insert(it_name.clone(), elem_ty.clone());
+                    let guard = guardExp.as_ref().map(|g| infer_exp(g.as_ref(), &iter_env, top_level, pkg_prefix, type_vars));
+                    iters.push(ReductionIter { name: it_name.clone(), range: range_e, guard, elem_ty });
+                }
+                let body = infer_exp(body_exp.as_ref(), &iter_env, top_level, pkg_prefix, type_vars);
+                // The reduction's result type depends on `func`:
+                //  - list / listReverse / listAppend → list<body_ty>
+                //  - min / max → body_ty itself
+                //  - sum / product → body_ty (numeric)
+                //  - user function → the function's output type
+                let body_ty = body.ty();
+                let ty = match func.as_str() {
+                    "list" | "listReverse" => Ty::List(Box::new(body_ty.clone())),
+                    "listAppend" => body_ty.clone(),
+                    "sum" | "product" | "min" | "max" => body_ty.clone(),
+                    _ => match lookup_ty_in_hierarchy(&func, top_level) {
+                        Ty::Function { output, .. } => *output,
+                        _ => Ty::Unknown,
+                    },
+                };
+                return TypedExp::Reduction {
+                    func,
+                    body: Box::new(body),
+                    iterators: iters,
+                    iter_kind,
+                    ty,
+                };
+            }
             let (args, named_args) = extract_call_args(functionArgs, env, top_level, pkg_prefix, type_vars);
             let sig_ty = lookup_ty_in_hierarchy(&func, top_level);
             // Resolve the call node using import-aware lookup so that dotted names whose

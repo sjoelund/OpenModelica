@@ -3882,9 +3882,9 @@ fn emit_stmt<'a>(
             let r = match range.ty() {
                 Ty::List(..) => format!("&*{r}"),
                 Ty::Array(..) => format!("{r}.borrow().iter().cloned().collect::<Vec<_>>()"),
-                // Ty::Range: `r` is already a Rust iterator (`a..=b`,
+                Ty::Range(..) => r,
                 // `(a..=b).step_by(..)`), so feed it straight to `for ... in`.
-                _ => r,
+                t => format!("{r} /* Unknown type for iterator {:?} */", t),
             };
             writeln!(out, "{indent}for {} in {r} {{", escape_ident(var)).unwrap();
             // Element type: peel List/Array.

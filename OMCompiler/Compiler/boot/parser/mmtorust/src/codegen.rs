@@ -126,10 +126,11 @@ impl GenCtx {
     /// by `qname`. Types whose fields transitively embed `Mutable<T>` cannot
     /// derive `PartialEq` / `Eq` / `Hash`; they get only `Clone, Debug`.
     fn derives_for(&self, qname: &str) -> &'static str {
+        // We added a custom implementation for PartialEq for Mutable<T>, so we can still derive PartialEq for types containing it.
         if self.types_containing_mutable.contains(qname) {
-            "#[derive(Clone, Debug)]"
+            "#[derive(Clone, Debug, PartialEq)]"
         } else {
-            "#[derive(Clone, Debug, PartialEq, Eq, Hash)]"
+            "#[derive(Clone, Debug, PartialEq)]"
         }
     }
 
@@ -870,7 +871,7 @@ fn emit_struct(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Class,
     let type_params = if type_vars.is_empty() { String::new() } else { format!("<{}: {DEFAULT_TRAITS}>", type_vars.join(", ")) };
     let derives = match &node.ty {
         Ty::RustStruct(qname) => ctx.derives_for(qname),
-        _ => "#[derive(Clone, Debug, PartialEq, Eq, Hash)]",
+        _ => "#[derive(Clone, Debug, PartialEq)]",
     };
     writeln!(out, "{derives}").unwrap();
     if fields.is_empty() {
@@ -897,7 +898,7 @@ fn emit_type_item(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Cla
         }
         MM::ClassDef::Enumeration { enum_literals, .. } => {
             if let Absyn::EnumDef::ENUMLITERALS { enumLiterals } = enum_literals {
-                writeln!(out, "{indent}#[derive(Clone, Debug, PartialEq, Eq, Hash)]").unwrap();
+                writeln!(out, "{indent}#[derive(Clone, Debug, PartialEq)]").unwrap();
                 writeln!(out, "{indent}pub enum {} {{", escape_ident(name)).unwrap();
                 for lit in &**enumLiterals {
                     let Absyn::EnumLiteral::ENUMLITERAL { literal, .. } = lit;
@@ -1099,13 +1100,13 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                     let mut parts: Vec<String> = Vec::new();
                     collect_string_concat_parts(exp, is_const, ctx, top_level, &mut parts);
                     if parts.is_empty() {
-                        "Arc::new(String::new())".to_owned()
+                        "Arc::<str>::from(\"\")".to_owned()
                     } else {
                         let mut s = String::from("{ let mut __mm_s = String::new(); ");
                         for p in parts {
-                            let _ = write!(s, "__mm_s.push_str(({p}).as_str()); ");
+                            let _ = write!(s, "__mm_s.push_str(&*{p}); ");
                         }
-                        s.push_str("Arc::new(__mm_s) }");
+                        s.push_str("Arc::<str>::from(__mm_s) }");
                         s
                     }
                 }
@@ -1334,7 +1335,24 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                     arg_strs.push(format!("{}: {val}", escape_ident(&n)));
                 }
 
-                let c_rust = ctx.dotted_to_rust_path(qname);
+                // Resolve the struct's Rust path the same way `fmt_ty` does for type
+                // positions: a single-record uniontype's struct lives at `Mod::Struct`
+                // (the struct shares its name with the enclosing module/file). Without
+                // the doubling, `crate::SBSet { ... }` resolves to the module, not the
+                // struct, and Rust rejects it (E0574).
+                let first = qname.split('.').next().unwrap_or(qname);
+                let last = qname.rsplit('.').next().unwrap_or(qname);
+                let shortened = ctx.shorten(qname);
+                let in_own_mod = ctx.current_path.last().map(|p| p == last).unwrap_or(false);
+                let needs_doubling = !in_own_mod && !ctx.no_mod_uniontypes.contains(qname.as_str()) && (
+                    (ctx.top_level_uniontype_names.contains(first) && first != ctx.top_name) ||
+                    (qname.contains('.') && first != last)
+                );
+                let c_rust = if needs_doubling {
+                    format!("{shortened}::{last}")
+                } else {
+                    shortened
+                };
                 let ctor_expr = if arg_strs.is_empty() {
                     format!("{c_rust}")
                 } else if field_names.is_empty() {
@@ -3174,6 +3192,38 @@ fn field_access_to_dotted(base: &TypedPat, field: &str) -> String {
     }
 }
 
+/// For a single-record uniontype whose record has been renamed to its parent's name,
+/// the record components live one level deeper (under the uniontype's child) than the
+/// uniontype's `qname` suggests. Given a qname that may name either:
+///   - a plain record/class (returned unchanged), or
+///   - a uniontype with exactly one record child,
+/// return the qname of the underlying record. Returns `None` if the node is not a
+/// uniontype that fits the single-record shape (caller should use `qname` as-is).
+fn resolve_single_record_qname<'a>(
+    qname: &str,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+) -> Option<String> {
+    let node = lookup_node(qname, top_level)?;
+    let NodeKind::Class(c) = &node.kind else { return None };
+    if !matches!(c.restriction, Absyn::Restriction::R_UNIONTYPE) {
+        return None;
+    }
+    // Find the single record child.
+    let mut record_children: Vec<&str> = Vec::new();
+    for (child_name, child) in &node.children {
+        if let NodeKind::Class(cc) = &child.kind {
+            if matches!(cc.restriction, Absyn::Restriction::R_RECORD | Absyn::Restriction::R_METARECORD { .. }) {
+                record_children.push(child_name.as_str());
+            }
+        }
+    }
+    if record_children.len() == 1 {
+        Some(format!("{qname}.{}", record_children[0]))
+    } else {
+        None
+    }
+}
+
 /// Look up the field types of a record/metarecord by qualified name.
 /// Returns Some(Vec of (field_name, field_ty) in declaration order), or None if not found/not a class.
 fn record_field_tys<'a>(
@@ -3866,10 +3916,90 @@ fn emit_stmt<'a>(
                 return;
             }
             if let TypedPat::FieldAccess { base, field } = lhs {
+                // MetaModelica records have value semantics: `var.field := X` assigns a
+                // new record value (with `field` replaced) back to `var`. In Rust we
+                // store these as `Arc<Struct>`, so we cannot mutate through the Arc;
+                // instead we rebuild the struct with the new field and shadow `var`.
+                //
+                // Only the single-level case (base is a local variable of a known
+                // record type) is handled here. Deeper chains like `a.b.c := X` are
+                // not yet covered — they need recursive rebuild — and fall through to
+                // the direct assignment form, which will produce a compile error that
+                // signals the missing case.
+                if let TypedPat::Var(base_name) = base.as_ref() {
+                    if let Some(base_ty) = env.vars.get(base_name) {
+                        let struct_qname: Option<String> = match base_ty {
+                            Ty::RustStruct(q) | Ty::AliasTo(q) => Some(q.clone()),
+                            _ => None,
+                        };
+                        if let Some(qname) = struct_qname {
+                            // `qname` may point at a single-record uniontype (whose record
+                            // was renamed to the uniontype). In that case, the record's
+                            // components live one level deeper, under the uniontype's child.
+                            // Resolve to the actual record qname for the field lookup.
+                            let record_qname = resolve_single_record_qname(&qname, top_level)
+                                .unwrap_or_else(|| qname.clone());
+                            let fields_opt = record_field_tys(&record_qname, top_level)
+                                .filter(|v| !v.is_empty())
+                                .or_else(|| {
+                                    let v = record_field_tys_by_simple_name(&record_qname, top_level);
+                                    if v.is_empty() { None } else { Some(v) }
+                                });
+                            if let Some(fields) = fields_opt {
+                                // Compute the Rust path to the struct, applying the same
+                                // single-record-uniontype doubling as fmt_ty / Constructor:
+                                // a struct named after its enclosing module/file lives at
+                                // `Mod::Struct`.
+                                let first = qname.split('.').next().unwrap_or(&qname);
+                                let last = qname.rsplit('.').next().unwrap_or(&qname);
+                                let shortened = ctx.shorten(&qname);
+                                let in_own_mod = ctx.current_path.last().map(|p| p == last).unwrap_or(false);
+                                let needs_doubling = !in_own_mod && !ctx.no_mod_uniontypes.contains(qname.as_str()) && (
+                                    (ctx.top_level_uniontype_names.contains(first) && first != ctx.top_name) ||
+                                    (qname.contains('.') && first != last)
+                                );
+                                let struct_path = if needs_doubling {
+                                    format!("{shortened}::{last}")
+                                } else {
+                                    shortened
+                                };
+
+                                let lhs_ty = fields.iter().find(|(n, _)| n == field).map(|(_, t)| t.clone());
+                                let scrut_expr = coerce_assign_expr(scrut_expr, &scrut_ty, lhs_ty.as_ref());
+                                let new_field_val = if struct_field_is_arc(&qname, field, top_level, ctx) {
+                                    format!("Arc::new({scrut_expr})")
+                                } else {
+                                    scrut_expr
+                                };
+                                let base_safe = escape_ident(base_name);
+                                let mut field_strs: Vec<String> = Vec::with_capacity(fields.len());
+                                for (fname, _) in &fields {
+                                    let fname_safe = escape_ident(fname);
+                                    if fname == field {
+                                        field_strs.push(format!("{fname_safe}: {new_field_val}"));
+                                    } else {
+                                        field_strs.push(format!("{fname_safe}: {base_safe}.{fname_safe}.clone()"));
+                                    }
+                                }
+                                let ctor_expr = format!("{struct_path} {{ {} }}", field_strs.join(", "));
+                                let rhs = if constructor_needs_arc(base_ty, ctx) {
+                                    format!("Arc::new({ctor_expr})")
+                                } else {
+                                    ctor_expr
+                                };
+                                writeln!(out, "{indent}{base_safe} = {rhs};").unwrap();
+                                return;
+                            }
+                        }
+                    }
+                }
+                // Fallback: direct field assignment. Works only when `base` is not an
+                // Arc-wrapped record (rare); kept so unhandled shapes surface as a
+                // Rust error rather than a silent miscompile.
                 let lhs_str = field_access_to_dotted(base, field);
                 let lhs_ty = lhs_assignment_ty(lhs, env);
                 let scrut_expr = coerce_assign_expr(scrut_expr, &scrut_ty, lhs_ty.as_ref());
-                writeln!(out, "{indent}{lhs_str} = {scrut_expr};").unwrap();
+                writeln!(out, "{indent}{lhs_str} = {scrut_expr}; // TODO: unhandled field-assign shape").unwrap();
                 return;
             }
             emit_pat_assign(out, indent, lhs, &scrut_ty, &scrut_expr, fail_mode, ctx, env, top_level, fresh);

@@ -2445,7 +2445,7 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], is_co
                     // stale. See appendLastList's inner `l :: ll := ll;` loop.
                     let pat_binding_names: std::collections::HashSet<String> =
                         typedexp::pat_bindings(&case.pattern).iter().map(|(n, _)| n.clone()).collect();
-                    for (name, ty) in &case.locals {
+                    for (name, ty, default) in &case.locals {
                         if matches!(ty, Ty::Unknown) {
                             continue;
                         }
@@ -2454,7 +2454,15 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], is_co
                             continue;
                         }
                         let ty_s = fmt_ty(ty, ctx);
-                        body.push_str(&format!("            let mut {}: {ty_s};\n", escape_ident(name)));
+                        match default {
+                            Some(d) => {
+                                let init = emit_exp(d, is_const, ctx, top_level);
+                                body.push_str(&format!("            let mut {}: {ty_s} = {init};\n", escape_ident(name)));
+                            }
+                            None => {
+                                body.push_str(&format!("            let mut {}: {ty_s};\n", escape_ident(name)));
+                            }
+                        }
                     }
                     for (n, t) in typedexp::pat_bindings(&case.pattern) {
                         local_env.vars.insert(n, t);

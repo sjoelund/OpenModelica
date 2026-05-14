@@ -1034,7 +1034,7 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
             if is_const {
                 escaped
             } else {
-                format!("Arc::new(({escaped}).to_string())")
+                format!("Arc::from({escaped})")
             }
         }
         TypedExp::Lit(Lit::Bool(v)) => v.to_string(),
@@ -1244,7 +1244,7 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
 
         TypedExp::Array { elems, .. } => {
             if elems.is_empty() {
-                "metamodelica::List::Nil".to_owned()
+                "metamodelica::nil()".to_owned()
             } else {
                 let parts: Vec<String> = elems.iter().map(|e| emit_exp(e, is_const, ctx, top_level)).collect();
                 format!("list![{}]", parts.join(", "))
@@ -1478,8 +1478,8 @@ fn emit_reduction<'a>(
             // over the cons-cells and avoids the Vec allocation entirely.
             let elem_ty = match ty { Ty::List(t) => ty_or_underscore(t, ctx), _ => "_".to_owned() };
             (
-                format!("let mut __acc: metamodelica::List<{elem_ty}> = metamodelica::List::Nil;"),
-                "__acc = metamodelica::List::Cons{head: __x, tail: std::sync::Arc::new(__acc)};".to_owned(),
+                format!("let mut __acc: Arc<metamodelica::List<{elem_ty}>> = metamodelica::nil();"),
+                "__acc = cons(__x, __acc);".to_owned(),
                 "__acc.reverse()".to_owned(),
             )
         }
@@ -1487,8 +1487,8 @@ fn emit_reduction<'a>(
             // Reverse-iteration order: cons directly onto the accumulator.
             let elem_ty = match ty { Ty::List(t) => ty_or_underscore(t, ctx), _ => "_".to_owned() };
             (
-                format!("let mut __acc: metamodelica::List<{elem_ty}> = metamodelica::List::Nil;"),
-                "__acc = metamodelica::List::Cons{head: __x, tail: std::sync::Arc::new(__acc)};".to_owned(),
+                format!("let mut __acc: Arc<metamodelica::List<{elem_ty}>> = metamodelica::nil();"),
+                "__acc = cons(__x, __acc);".to_owned(),
                 "__acc".to_owned(),
             )
         }
@@ -1528,7 +1528,7 @@ fn emit_reduction<'a>(
             // matches the existing helper's argument order: prepend __x onto acc.
             let inner_ty = match ty { Ty::List(t) => ty_or_underscore(t, ctx), _ => "_".to_owned() };
             (
-                format!("let mut __acc: metamodelica::List<{inner_ty}> = metamodelica::List::Nil;"),
+                format!("let mut __acc: Arc<metamodelica::List<{inner_ty}>> = metamodelica::nil();"),
                 "__acc = __x.append(&__acc);".to_owned(),
                 "__acc".to_owned(),
             )
@@ -1591,7 +1591,7 @@ fn emit_reduction<'a>(
             for (i, it) in iterators.iter().enumerate() {
                 let range_s = emit_exp(&it.range, is_const, ctx, top_level);
                 let part = match it.range.ty() {
-                    Ty::List(_) => format!("({range_s}).into_iter().cloned()"),
+                    Ty::List(_) => format!("(&({range_s})).into_iter()"),
                     _ => format!("({range_s}).into_iter()"),
                 };
                 if i == 0 {
@@ -1688,7 +1688,7 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
         "fail" => if is_const { Ok("{ panic!(\"fail\") }".to_owned()) } else { Ok("bail!(\"fail\")".to_owned()) },
         "list" => {
             if args.is_empty() {
-                Ok("metamodelica::List::Nil".to_owned())
+                Ok("metamodelica::nil()".to_owned())
             } else {
                 let parts: Vec<String> = args.iter().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).collect();
                 Ok(format!("metamodelica::list![{}]", parts.join(", ")))
@@ -1816,8 +1816,8 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
             Ok(format!("true /* isPresent not implemented in Rust */"))
         },
         "listReverse" | "listReverseInPlace" => {
-            let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
-            Ok(format!("*({}).reverse()", arg))
+            let arg = args.first().map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
+            Ok(format!("{}.reverse()", arg))
         },
         "arrayCopy" => {
             let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
@@ -1914,7 +1914,7 @@ fn emit_var<'a>(
     } else {
         let shortened = ctx.shorten(&pkg_dotted);
         if shortened == "List::Nil" {
-            return "metamodelica::List::Nil".to_owned();
+            return "metamodelica::nil()".to_owned();
         }
         // Apply subscripts from the last package segment.
         let last_pkg_segs = pkg_segs.last();
@@ -2646,13 +2646,9 @@ fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, mu
         TypedPat::Lit(Lit::Real(_)) => "_ /* real — move to guard */".to_owned(),
 
         TypedPat::Cons { head, tail } => {
-            // The head matches a plain `T` (the element value), so it can keep
-            // the current `in_deref` setting. The tail is wrapped in
-            // `deref!(..)` and therefore introduces a deref context for all
-            // bindings nested inside it.
-            format!("metamodelica::List::Cons {{ head: {}, tail: deref!({}) }}",
+            format!("metamodelica::List::Cons {{ head: {}, tail: {} }}",
                 emit_pat_with_implicit_bind(head, allow_implicit_bind, mut_bindings, in_deref, None, ctx, top_level),
-                emit_pat_with_implicit_bind(tail, allow_implicit_bind, mut_bindings, /*in_deref=*/true, None, ctx, top_level))
+                emit_pat_with_implicit_bind(tail, allow_implicit_bind, mut_bindings, false, None, ctx, top_level))
         }
 
         TypedPat::Tuple(pats) => {
@@ -3164,13 +3160,33 @@ fn emit_pat_assign<'a>(
             // Render shallow with deferrals for Arc-edge crossings.
             let mut deferrals: Vec<(String, TypedPat, Ty)> = Vec::new();
             let surface = render_shallow(pat_for_render, scrut_ty, ctx, env, top_level, fresh, &mut deferrals);
+            // When the scrutinee is Arc-wrapped (list<T> → Arc<List<T>>; recursive
+            // uniontypes wrapped in Arc), destructuring a variant pattern such as
+            // `Cons { head, tail }` only succeeds via the `deref_patterns`
+            // feature, which deref's through the Arc. The deref produces a
+            // shared reference, so the bindings inside the pattern are bound
+            // by reference and cannot be moved out (E0507). The fix is to
+            // pattern-match against `&(scrutinee)` explicitly — making the
+            // by-reference nature visible — and then `.clone()` each binding
+            // at the point of use. For non-Arc scrutinees (tuples, plain
+            // records, primitives), the bindings remain owned moves.
+            let needs_borrow = matches!(scrut_ty, Ty::List(_)) || is_arc_wrapped(scrut_ty, ctx);
+            let scrut_for_pat = if needs_borrow {
+                format!("&({scrut_expr})")
+            } else {
+                format!("({scrut_expr})")
+            };
             if pat_is_irrefutable(pat_for_render) {
                 match pat_for_render {
                     TypedPat::Tuple(_) => {
                         writeln!(out, "{indent}let {surface} = {scrut_expr};").unwrap();
                     }
                     _ => {
-                        writeln!(out, "{indent}let {surface} = {scrut_expr};").unwrap();
+                        if needs_borrow {
+                            writeln!(out, "{indent}let {surface} = {scrut_for_pat};").unwrap();
+                        } else {
+                            writeln!(out, "{indent}let {surface} = {scrut_expr};").unwrap();
+                        }
                     }
                 }
             } else {
@@ -3190,7 +3206,7 @@ fn emit_pat_assign<'a>(
                     },
                     FailureMode::Failure => "()",
                 };
-                writeln!(out, "{indent}let {surface} = ({scrut_expr}) else {{ {fail} }};").unwrap();
+                writeln!(out, "{indent}let {surface} = {scrut_for_pat} else {{ {fail} }};").unwrap();
             }
             // Deferrals must run *before* the reassign loop: a deferral may
             // produce a `let __paN = (*__tM).clone();` binding for one of the
@@ -3200,7 +3216,27 @@ fn emit_pat_assign<'a>(
                 emit_pat_assign(out, indent, &sub_pat, &sub_ty, &sub_expr, fail_mode, ctx, env, top_level, fresh);
             }
             for (orig, fresh_name) in &reassign_pairs {
-                writeln!(out, "{indent}{} = {};", escape_ident(orig), escape_ident(fresh_name)).unwrap();
+                // Whether the reassign needs `.clone()` depends on how
+                // `fresh_name` is bound:
+                //
+                //   - If the surrounding let-else borrowed the scrutinee
+                //     (`needs_borrow == true`, e.g. an Arc<List<T>> scrutinee
+                //     destructured via `deref_patterns`), every binding inside
+                //     the pattern is a shared reference and reading it must
+                //     go through `.clone()`.
+                //   - Otherwise the binding is an owned by-value move. Cloning
+                //     would still be correct, but for non-Arc types it may be
+                //     an expensive deep copy. Skip it for value types and only
+                //     keep it for Arc-shaped originals (list / recursive
+                //     types) where it's just a refcount bump.
+                let orig_ty = env.vars.get(orig).cloned().unwrap_or(Ty::Unknown);
+                let arc_shaped = matches!(&orig_ty, Ty::List(_)) || is_arc_wrapped(&orig_ty, ctx);
+                let needs_clone = needs_borrow || arc_shaped;
+                if needs_clone {
+                    writeln!(out, "{indent}{} = {}.clone();", escape_ident(orig), escape_ident(fresh_name)).unwrap();
+                } else {
+                    writeln!(out, "{indent}{} = {};", escape_ident(orig), escape_ident(fresh_name)).unwrap();
+                }
             }
         }
     }
@@ -3296,20 +3332,36 @@ fn render_shallow<'a>(
         TypedPat::Cons { head, tail } => {
             let elem_ty = match scrut_ty { Ty::List(t) => (**t).clone(), _ => Ty::Unknown };
             let h = render_shallow(head, &elem_ty, ctx, env, top_level, fresh, deferrals);
-            // The `tail` field of `metamodelica::List::Cons` is `Arc<List<T>>`, so
-            // binding the tail directly in the pattern would yield an `Arc<List<T>>`
-            // value while the surface MetaModelica type is `list<T>`. We always
-            // cross this Arc edge by introducing a fresh temporary and deferring
-            // the real tail-binding to a `let ... = (*tmp).clone();` follow-up
-            // (or further pattern destructuring if `tail` is non-trivial).
+            // The `tail` field of `metamodelica::List::Cons` is `Arc<List<T>>`, and
+            // the surface MetaModelica type `list<T>` is also lowered to
+            // `Arc<List<T>>`, so binding the tail directly in the pattern yields a
+            // value of exactly the right user-visible type. We still route the
+            // tail through a fresh `__tN` temporary so that a non-trivial sub-pattern
+            // (e.g. another `Cons`, a constructor, or a name that shadows an
+            // already-bound variable) can be re-emitted by `emit_pat_assign` against
+            // an owned `Arc<List<T>>` scrutinee. The deferred expression is therefore
+            // `__tN.clone()` (an Arc bump), NOT `(*__tN).clone()` — the latter would
+            // strip the Arc and produce a `List<T>` value, which no longer matches
+            // the surface type.
             // Wildcards pass through unchanged — there is nothing to bind.
-            let t = if matches!(tail.as_ref(), TypedPat::Wildcard) {
-                "_".to_owned()
-            } else {
-                let n = *fresh; *fresh += 1;
-                let tmp = format!("__t{n}");
-                deferrals.push((format!("(*{tmp}).clone()"), (**tail).clone(), scrut_ty.clone()));
-                tmp
+            // A simple `Var(name)` sub-pattern can also be bound directly in the
+            // pattern: by-value matching on an `Arc<List<T>>` moves the `tail`
+            // field out as an `Arc<List<T>>`, which is exactly the surface type
+            // of the user's variable. No fresh temporary or follow-up clone is
+            // needed in that case. Note that `rewrite_pat_for_existing_bindings`
+            // has already substituted any name that collides with the current
+            // scope by a fresh `__paN`, so binding directly here is safe — the
+            // reassign-back step in `emit_pat_assign` will copy the new value
+            // into the original user variable.
+            let t = match tail.as_ref() {
+                TypedPat::Wildcard => "_".to_owned(),
+                TypedPat::Var(_) => render_shallow(tail, scrut_ty, ctx, env, top_level, fresh, deferrals),
+                _ => {
+                    let n = *fresh; *fresh += 1;
+                    let tmp = format!("__t{n}");
+                    deferrals.push((format!("{tmp}.clone()"), (**tail).clone(), scrut_ty.clone()));
+                    tmp
+                }
             };
             format!("metamodelica::List::Cons {{ head: {h}, tail: {t} }}")
         }
@@ -3624,7 +3676,7 @@ fn emit_stmt<'a>(
         S::For { var, range, body } => {
             let r = emit_exp(range, false, ctx, top_level);
             let need_ref = match range.ty() {
-                Ty::List(..) => "&",
+                Ty::List(..) => "&*",
                 _ => ""
             };
             writeln!(out, "{indent}for {} in {need_ref}{r} {{", escape_ident(var)).unwrap();

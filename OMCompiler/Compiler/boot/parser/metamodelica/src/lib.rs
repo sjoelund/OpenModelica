@@ -621,10 +621,6 @@ impl<T: Clone> Default for List<T> {
         Nil
     }
 }
-pub struct ListIterator<T: Clone> {
-    curr: Arc<List<T>>,
-}
-
 pub struct ListRefIterator<'a, T: Clone> {
     curr: &'a List<T>,
 }
@@ -647,7 +643,12 @@ impl<'a, T: Clone> IntoIterator for &'a List<T> {
     fn into_iter(self) -> Self::IntoIter {
        ListRefIterator { curr: self }
     }
- }
+}
+
+/*
+pub struct ListIterator<T: Clone> {
+    curr: Arc<List<T>>,
+}
 
 impl<T: Clone> IntoIterator for List<T> {
     type Item = T;
@@ -675,6 +676,7 @@ impl<T: Clone> Iterator for ListIterator<T> {
         }
     }
 }
+*/
 
 impl<'a, T: Clone> Iterator for ListRefIterator<'a, T> {
     type Item = &'a T;
@@ -819,6 +821,10 @@ pub fn listRest<T: Clone>(lst: Arc<List<T>>) -> Result<Arc<List<T>>> {
         Nil => bail!("Cannot get rest of empty list"),
         Cons{tail, ..} => Ok(tail.clone()),
     }
+}
+
+pub fn listLength<T: Clone>(lst: Arc<List<T>>) -> Result<i32> {
+    Ok(lst.len())
 }
 
 // ============================================================================

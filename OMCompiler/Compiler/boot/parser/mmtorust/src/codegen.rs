@@ -490,6 +490,10 @@ pub fn generate_all(hier: &InstanceHierarchy<'_>, output_dir: &str) -> std::io::
             } else {
                 None
             };
+            if *name == "Mutable" {
+                // We hand-write some files
+                continue;
+            }
             let file_path = format!("{dir}/{name}.rs");
             if trace_codegen {
                 eprintln!("[mmtorust] codegen start {file_path}");

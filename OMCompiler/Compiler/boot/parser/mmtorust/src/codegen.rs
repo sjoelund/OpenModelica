@@ -1805,7 +1805,7 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
         "listGet" => {
             let arg1 = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
             let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
-            Ok(ctx.q(&format!("*({arg1}).get({arg2})")))
+            Ok(ctx.q(&format!("({arg1}).get({arg2})")))
         },
         "referenceEq" => {
             let arg1 = args.first().map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();

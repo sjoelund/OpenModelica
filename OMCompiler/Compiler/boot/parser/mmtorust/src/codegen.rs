@@ -1102,8 +1102,8 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
         TypedExp::UnOp { op, operand, .. } => {
             let s = emit_exp(operand, is_const, ctx, top_level);
             match op {
-                UnOpKind::Neg => format!("-{s}"),
-                UnOpKind::Not => format!("!{s}"),
+                UnOpKind::Neg => format!("-({s})"),
+                UnOpKind::Not => format!("!({s})"),
             }
         }
 

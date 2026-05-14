@@ -10,15 +10,29 @@
 //!   Real -> f64
 //!   Boolean -> bool
 //!   String -> String
-//!   List<T> -> im::Vector<T>
-//!   array<T> -> Vec<T>
+//!   List<T> -> Arc<List<T>>           (persistent singly-linked list)
+//!   array<T> -> Array<T> = Rc<RefCell<Vec<T>>>
 //!
 //! Note: MetaModelica uses 1-based indexing; Rust uses 0-based.
 //! Functions that take indices expect 1-based indexing to match MetaModelica semantics.
+//!
+//! Array semantics: MetaModelica `array<T>` has reference (aliasing) semantics —
+//! `arrayUpdate` mutates the underlying storage in place and the change is visible
+//! through every alias of the array. We model that with `Rc<RefCell<Vec<T>>>`.
+//! The compiler the bootstrap targets is single-threaded at the MM level, so
+//! `Rc`/`RefCell` (no synchronization cost, deterministic borrow-violation panics)
+//! is preferred over `Arc<Mutex<...>>` (lock+unlock per access, deadlock risk on
+//! re-entrant callbacks). If MM-level concurrency is ever introduced, this alias
+//! is the only thing that needs to change.
 
 use std::sync::Arc;
+use std::rc::Rc;
+use std::cell::RefCell;
 use anyhow::Result;
 use anyhow::bail;
+
+/// MetaModelica `array<T>`. See module-level docs for rationale.
+pub type Array<A> = Rc<RefCell<Vec<A>>>;
 
 // ============================================================================
 // SourceInfo - Location information for elements and classes
@@ -831,72 +845,91 @@ pub fn listLength<T: Clone>(lst: Arc<List<T>>) -> Result<i32> {
 // Array functions
 // ============================================================================
 
+/// Wraps a `Vec<T>` into a fresh MetaModelica `Array<T>`.
+#[inline]
+pub fn arrayFromVec<A>(v: Vec<A>) -> Array<A> {
+    Rc::new(RefCell::new(v))
+}
+
+// All array fns take `Array<A>` by value: cloning an `Rc` is one atomic-free
+// refcount bump, so the by-value convention matches how `Arc<List<A>>` is
+// handled elsewhere and lets generated call sites pass `arr.clone()` directly
+// without needing an explicit `&` prefix.
+
 /// Returns the length of the array. O(1).
-pub fn arrayLength<A>(arr: &[A]) -> Result<i32> {
-    Ok(arr.len() as i32)
+pub fn arrayLength<A>(arr: Array<A>) -> Result<i32> {
+    Ok(arr.borrow().len() as i32)
 }
 
 /// Returns true if the array is empty. O(1).
-pub fn arrayEmpty<A>(arr: &[A]) -> Result<bool> {
-    Ok(arr.is_empty())
+pub fn arrayEmpty<A>(arr: Array<A>) -> Result<bool> {
+    Ok(arr.borrow().is_empty())
 }
 
 /// Gets the element at the given 1-based index. O(1).
-pub fn arrayGet<A: Clone>(arr: &[A], index: i32) -> Result<A> {
+pub fn arrayGet<A: Clone>(arr: Array<A>, index: i32) -> Result<A> {
     let idx = (index - 1) as usize; // 1-based to 0-based
-    arr.get(idx)
+    let v = arr.borrow();
+    v.get(idx)
         .cloned()
-        .ok_or_else(|| anyhow::anyhow!("Index {} out of bounds for array of length {}", index, arr.len()))
+        .ok_or_else(|| anyhow::anyhow!("Index {} out of bounds for array of length {}", index, v.len()))
 }
 
 /// Creates a new array of the given size, initialized with initialValue. O(size).
-pub fn arrayCreate<A: Clone>(size: i32, initial_value: A) -> Result<Vec<A>> {
+pub fn arrayCreate<A: Clone>(size: i32, initial_value: A) -> Result<Array<A>> {
     if size <= 0 {
-        return Ok(Vec::new());
+        return Ok(arrayFromVec(Vec::new()));
     }
-    Ok(vec![initial_value; size as usize])
+    Ok(arrayFromVec(vec![initial_value; size as usize]))
 }
 
 /// Converts an array to a list. O(n).
-pub fn arrayList<A: Clone>(arr: &[A]) -> Result<Arc<List<A>>> {
+pub fn arrayList<A: Clone>(arr: Array<A>) -> Result<Arc<List<A>>> {
     let mut result = Arc::new(List::Nil);
-    for item in arr.iter().rev().cloned() {
+    for item in arr.borrow().iter().rev().cloned() {
         result = List::cons(result, item);
     }
     Ok(result)
 }
 
 /// Converts a list to an array. O(n).
-pub fn listArray<A: Clone>(lst: Arc<List<A>>) -> Result<Vec<A>> {
+pub fn listArray<A: Clone>(lst: Arc<List<A>>) -> Result<Array<A>> {
     let mut result = Vec::new();
     for item in &*lst {
         result.push(item.clone());
     }
-    Ok(result)
+    Ok(arrayFromVec(result))
 }
 
 /// Updates the value at the given 1-based index. O(1).
-/// Mutates the array in place (impure).
-pub fn arrayUpdate<A: Clone>(arr: &mut Vec<A>, index: i32, new_value: A) -> Result<&mut Vec<A>> {
+/// Mutates the underlying storage; the change is visible through every alias
+/// of the same array. Returns the same `Rc` (a cheap clone) so call sites can
+/// chain or reassign as the MetaModelica signature suggests.
+pub fn arrayUpdate<A: Clone>(arr: Array<A>, index: i32, new_value: A) -> Result<Array<A>> {
     let idx = (index - 1) as usize; // 1-based to 0-based
-    let len = arr.len();
-    if idx >= len {
-        bail!("Index {} out of bounds for array of length {}", index, len);
+    {
+        let mut v = arr.borrow_mut();
+        let len = v.len();
+        if idx >= len {
+            bail!("Index {} out of bounds for array of length {}", index, len);
+        }
+        v[idx] = new_value;
     }
-    arr[idx] = new_value;
     Ok(arr)
 }
 
-/// Creates a copy of the array. O(n).
-pub fn arrayCopy<A: Clone>(arr: &[A]) -> Result<Vec<A>> {
-    Ok(arr.to_vec())
+/// Creates a (deep, by-element) copy of the array. O(n).
+/// The returned array does NOT share storage with the input.
+pub fn arrayCopy<A: Clone>(arr: Array<A>) -> Result<Array<A>> {
+    Ok(arrayFromVec(arr.borrow().clone()))
 }
 
 /// Appends arr2 to arr1, creating a new array. O(length(arr1) + length(arr2)).
-pub fn arrayAppend<A: Clone>(arr1: &[A], arr2: &[A]) -> Result<Vec<A>> {
-    let mut result = arr1.to_vec();
-    result.extend(arr2.iter().cloned());
-    Ok(result)
+/// The result does not share storage with either input.
+pub fn arrayAppend<A: Clone>(arr1: Array<A>, arr2: Array<A>) -> Result<Array<A>> {
+    let mut result = arr1.borrow().clone();
+    result.extend(arr2.borrow().iter().cloned());
+    Ok(arrayFromVec(result))
 }
 
 // ============================================================================
@@ -1039,37 +1072,38 @@ pub mod Dangerous {
     pub use super::*;
     /// Unsafe array get without bounds checking.
     /// Panics in debug mode if index is out of bounds due to Rust's bounds checking on indexing.
-    pub fn arrayGetNoBoundsChecking<A: Clone>(arr: &[A], index: i32) -> Result<A> {
+    pub fn arrayGetNoBoundsChecking<A: Clone>(arr: Array<A>, index: i32) -> Result<A> {
         let idx = (index - 1) as usize; // 1-based to 0-based
+        let v = arr.borrow();
         // SAFETY: Caller must ensure index is in bounds.
-        // Rust does not have true unchecked indexing, but unsafe::get_unchecked avoids bounds check.
-        unsafe { Ok(arr.get_unchecked(idx).clone()) }
+        unsafe { Ok(v.get_unchecked(idx).clone()) }
     }
 
     /// Unsafe array update without bounds checking.
-    /// Mutates the array in place.
-    pub fn arrayUpdateNoBoundsChecking<A: Clone>(arr: &mut Vec<A>, index: i32, new_value: A) -> Result<()> {
+    /// Mutates the underlying storage in place; visible through every alias.
+    pub fn arrayUpdateNoBoundsChecking<A: Clone>(arr: Array<A>, index: i32, new_value: A) -> Result<()> {
         let idx = (index - 1) as usize; // 1-based to 0-based
+        let mut v = arr.borrow_mut();
         // SAFETY: Caller must ensure index is in bounds.
-        unsafe { *arr.get_unchecked_mut(idx) = new_value }
+        unsafe { *v.get_unchecked_mut(idx) = new_value }
         Ok(())
     }
 
     /// Creates a new array with uninitialized elements.
-    /// The dummy parameter is used to fix the type of the array.
-    /// Elements are set to a clone of dummy.
-    pub fn arrayCreateNoInit<A: Clone>(size: i32) -> Result<Vec<A>> {
+    /// The MetaModelica signature takes a `dummy` argument purely as a type witness;
+    /// the codegen drops it because Rust generics already carry the element type.
+    pub fn arrayCreateNoInit<A: Clone>(size: i32) -> Result<Array<A>> {
         if size < 0 {
             bail!("Size must be non-negative, got {}", size);
         }
         let mut v = Vec::with_capacity(size as usize);
         // SAFETY:
-        // 1. We allocated capacity for n elements.
-        // 2. We guarantee that we will initialize every element before reading it.
+        // 1. We allocated capacity for `size` elements.
+        // 2. Caller guarantees every element is initialized before being read.
         unsafe {
             v.set_len(size as usize);
         }
-        Ok(v)
+        Ok(arrayFromVec(v))
     }
     /// Unsafe string get without bounds checking.
     pub fn stringGetNoBoundsChecking(str: String, index: i32) -> Result<i32> {
@@ -1837,80 +1871,85 @@ mod tests {
     mod array_function_tests {
         use super::*;
 
+        fn arr<A>(v: Vec<A>) -> Array<A> { arrayFromVec(v) }
+
         #[test]
         fn test_array_length() {
-            let arr = vec![1, 2, 3];
-            assert_eq!(arrayLength(&arr).unwrap(), 3);
-            let empty: Vec<i32> = vec![];
-            assert_eq!(arrayLength(&empty).unwrap(), 0);
+            assert_eq!(arrayLength(arr(vec![1, 2, 3])).unwrap(), 3);
+            assert_eq!(arrayLength(arr::<i32>(vec![])).unwrap(), 0);
         }
 
         #[test]
         fn test_array_empty() {
-            let arr = vec![1, 2, 3];
-            assert!(!arrayEmpty(&arr).unwrap());
-            let empty: Vec<i32> = vec![];
-            assert!(arrayEmpty(&empty).unwrap());
+            assert!(!arrayEmpty(arr(vec![1, 2, 3])).unwrap());
+            assert!(arrayEmpty(arr::<i32>(vec![])).unwrap());
         }
 
         #[test]
         fn test_array_get() {
-            let arr = vec![10, 20, 30];
-            assert_eq!(arrayGet(&arr, 1).unwrap(), 10);
-            assert_eq!(arrayGet(&arr, 2).unwrap(), 20);
-            assert_eq!(arrayGet(&arr, 3).unwrap(), 30);
-            assert!(arrayGet(&arr, 0).is_err());
-            assert!(arrayGet(&arr, 4).is_err());
+            let a = arr(vec![10, 20, 30]);
+            assert_eq!(arrayGet(a.clone(), 1).unwrap(), 10);
+            assert_eq!(arrayGet(a.clone(), 2).unwrap(), 20);
+            assert_eq!(arrayGet(a.clone(), 3).unwrap(), 30);
+            assert!(arrayGet(a.clone(), 0).is_err());
+            assert!(arrayGet(a, 4).is_err());
         }
 
         #[test]
         fn test_array_create() {
-            let arr = arrayCreate(5, 0).unwrap();
-            assert_eq!(arr, vec![0, 0, 0, 0, 0]);
-            let empty: Vec<i32> = arrayCreate(0, 42).unwrap();
-            assert!(empty.is_empty());
+            let a = arrayCreate(5, 0).unwrap();
+            assert_eq!(*a.borrow(), vec![0, 0, 0, 0, 0]);
+            let empty: Array<i32> = arrayCreate(0, 42).unwrap();
+            assert!(empty.borrow().is_empty());
         }
 
         #[test]
         fn test_array_list() {
-            let arr = vec![1, 2, 3];
-            let lst = arrayList(&arr).unwrap();
+            let a = arr(vec![1, 2, 3]);
+            let lst = arrayList(a).unwrap();
             assert_eq!(lst, list![1, 2, 3]);
         }
 
         #[test]
         fn test_list_array() {
             let lst = list![1, 2, 3];
-            let arr = listArray(lst).unwrap();
-            assert_eq!(arr, vec![1, 2, 3]);
+            let a = listArray(lst).unwrap();
+            assert_eq!(*a.borrow(), vec![1, 2, 3]);
         }
 
         #[test]
         fn test_array_update() {
-            let mut arr = vec![1, 2, 3];
-            arrayUpdate(&mut arr, 2, 99).unwrap();
-            assert_eq!(arr, vec![1, 99, 3]);
-            assert!(arrayUpdate(&mut arr, 0, 99).is_err());
-            assert!(arrayUpdate(&mut arr, 4, 99).is_err());
+            let a = arr(vec![1, 2, 3]);
+            arrayUpdate(a.clone(), 2, 99).unwrap();
+            assert_eq!(*a.borrow(), vec![1, 99, 3]);
+            assert!(arrayUpdate(a.clone(), 0, 99).is_err());
+            assert!(arrayUpdate(a.clone(), 4, 99).is_err());
+
+            // Aliasing semantics: updates visible through every clone of the Rc.
+            let alias = a.clone();
+            arrayUpdate(a.clone(), 1, 100).unwrap();
+            assert_eq!(*alias.borrow(), vec![100, 99, 3]);
         }
 
         #[test]
         fn test_array_copy() {
-            let arr = vec![1, 2, 3];
-            let copy = arrayCopy(&arr).unwrap();
-            assert_eq!(copy, vec![1, 2, 3]);
-            assert_eq!(copy, arr);
+            let a = arr(vec![1, 2, 3]);
+            let copy = arrayCopy(a.clone()).unwrap();
+            assert_eq!(*copy.borrow(), vec![1, 2, 3]);
+            // arrayCopy must NOT share storage with the source.
+            arrayUpdate(a, 1, 99).unwrap();
+            assert_eq!(*copy.borrow(), vec![1, 2, 3]);
         }
 
         #[test]
         fn test_array_append() {
-            let a = vec![1, 2];
-            let b = vec![3, 4];
-            assert_eq!(arrayAppend(&a, &b).unwrap(), vec![1, 2, 3, 4]);
+            let a = arr(vec![1, 2]);
+            let b = arr(vec![3, 4]);
+            assert_eq!(*arrayAppend(a.clone(), b.clone()).unwrap().borrow(), vec![1, 2, 3, 4]);
 
-            let empty: Vec<i32> = vec![];
-            assert_eq!(arrayAppend(&empty, &b).unwrap(), b);
-            assert_eq!(arrayAppend(&a, &empty).unwrap(), a);
+            let empty: Array<i32> = arr(vec![]);
+            assert_eq!(*arrayAppend(empty.clone(), b).unwrap().borrow(), vec![3, 4]);
+            assert_eq!(*arrayAppend(a, empty).unwrap().borrow(), vec![1, 2]);
         }
     }
 
@@ -2070,24 +2109,24 @@ mod tests {
 
         #[test]
         fn test_array_get_no_bounds_checking() {
-            let arr = vec![10, 20, 30];
+            let arr = arrayFromVec(vec![10, 20, 30]);
             // Valid 1-based indices
-            assert_eq!(arrayGetNoBoundsChecking(&arr, 1).unwrap(), 10);
-            assert_eq!(arrayGetNoBoundsChecking(&arr, 2).unwrap(), 20);
-            assert_eq!(arrayGetNoBoundsChecking(&arr, 3).unwrap(), 30);
+            assert_eq!(arrayGetNoBoundsChecking(arr.clone(), 1).unwrap(), 10);
+            assert_eq!(arrayGetNoBoundsChecking(arr.clone(), 2).unwrap(), 20);
+            assert_eq!(arrayGetNoBoundsChecking(arr, 3).unwrap(), 30);
         }
 
         #[test]
         fn test_array_update_no_bounds_checking() {
-            let mut arr = vec![1, 2, 3];
-            arrayUpdateNoBoundsChecking(&mut arr, 2, 99).unwrap();
-            assert_eq!(arr, vec![1, 99, 3]);
+            let arr = arrayFromVec(vec![1, 2, 3]);
+            arrayUpdateNoBoundsChecking(arr.clone(), 2, 99).unwrap();
+            assert_eq!(*arr.borrow(), vec![1, 99, 3]);
         }
 
         #[test]
         fn test_array_create_no_init() {
-            let arr: Vec<i32> = arrayCreateNoInit(5).unwrap();
-            assert_eq!(arr.len(), 5);
+            let arr: Array<i32> = arrayCreateNoInit(5).unwrap();
+            assert_eq!(arr.borrow().len(), 5);
         }
 
         #[test]

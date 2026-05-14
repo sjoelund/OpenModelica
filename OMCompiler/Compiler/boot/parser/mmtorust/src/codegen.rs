@@ -1773,16 +1773,26 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
             Ok(format!("metamodelica::printAny(&{arg})"))
         },
         "arrayGet" | "arrayGetNoBoundsChecking" => {
+            // `arr` is `metamodelica::Array<T>` = `Rc<RefCell<Vec<T>>>`.
+            // `.borrow()` returns a `Ref<Vec<T>>` whose lifetime extends to the end
+            // of the enclosing expression, so the inline index + clone is sound.
+            // NoBoundsChecking falls back to checked indexing here; lifting it to
+            // `get_unchecked` would require a longer-lived borrow scope. TODO if profiling demands it.
             let arg1 = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
             let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
-            Ok(format!("{}[({}-1) as usize].clone()", arg1, arg2))
+            Ok(format!("{}.borrow()[({}-1) as usize].clone()", arg1, arg2))
         },
         "valueEq" => {
             let arg1 = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
             let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
             Ok(format!("{} == {}", arg1, arg2))
         },
-        "arrayLength" | "listLength" | "stringLength" => {
+        "arrayLength" => {
+            // `Array<T>` is `Rc<RefCell<Vec<T>>>` so we go through `.borrow()`.
+            let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+            Ok(format!("({}.borrow().len() as i32)", arg))
+        },
+        "listLength" | "stringLength" => {
             let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
             Ok(format!("({}.len() as i32)", arg))
         },
@@ -1837,8 +1847,9 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
             Ok(format!("{}.reverse()", arg))
         },
         "arrayCopy" => {
+            // Deep (by-element) copy: a fresh Array not aliasing the source.
             let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
-            Ok(format!("{}.to_vec()", arg))
+            Ok(format!("metamodelica::arrayFromVec({}.borrow().clone())", arg))
         },
         // MetaModelica.Dangerous.arrayCreateNoInit(size, dummy): the `dummy`
         // argument is a type witness only in the MM signature — the Rust
@@ -1851,12 +1862,20 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
             if is_const { Ok(call) } else { Ok(ctx.q(&call)) }
         },
         "arrayUpdate"| "arrayUpdateNoBoundsChecking" => {
+            // MM semantics: mutate in place, return the same array (aliases see the change).
+            // We bind the array once so {arg1} (which may be a non-trivial expression) is
+            // evaluated only once, mutate through `borrow_mut()`, then yield the same Rc.
+            // NoBoundsChecking uses checked indexing here; same TODO as arrayGet.
             let arg1 = args.get(0).map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
             let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
             let arg3 = args.get(2).map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
-            Ok(format!("{{let mut _tmp = {}; _tmp[({}-1) as usize] = {}; _tmp}}", arg1, arg2, arg3))
+            Ok(format!("{{let _arr = {}; _arr.borrow_mut()[({}-1) as usize] = {}; _arr}}", arg1, arg2, arg3))
         },
-        "arrayEmpty" | "listEmpty" => {
+        "arrayEmpty" => {
+            let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+            Ok(format!("{}.borrow().is_empty()", arg))
+        },
+        "listEmpty" => {
             let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
             Ok(format!("{}.is_empty()", arg))
         },
@@ -1873,12 +1892,14 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
             ))
         },
         "listArray" =>{
+            // List -> Array: collect into a Vec, then wrap into the shared-mutable Array.
             let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
-            Ok(format!("{arg}.into_iter().cloned().collect()"))
+            Ok(format!("metamodelica::arrayFromVec({arg}.into_iter().cloned().collect())"))
         },
         "arrayList" /* | "stringAppendList" */ => {
+            // Array -> List: borrow the inner Vec, clone elements into a fresh List.
             let arg = args.first().map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
-            Ok(format!("Arc::new({arg}.into_iter().{}collect())", if func == "arrayList" {""} else {"cloned()"}))
+            Ok(format!("Arc::new({arg}.borrow().iter().cloned().collect())"))
         },
         _ => bail!("Not a builtin function")
     }
@@ -1906,13 +1927,30 @@ fn emit_var<'a>(
         }
     }
 
-    // Apply subscripts on the first (base) segment as array indexing.
+    // Apply subscripts on the first (base) segment as 1-based indexing.
+    //
+    // The base may be either a `Vec<T>`-shaped value (e.g. fn-call result whose
+    // type we don't see here) or a `metamodelica::Array<T>` = `Rc<RefCell<Vec<T>>>`.
+    // For Array, we must go through `.borrow()` before subscripting. We detect
+    // that case by consulting `ctx.fn_env_vars`, which holds the declared types
+    // of every input/output/protected local of the enclosing function.
+    //
+    // Limitation: match-arm pattern bindings aren't reflected in fn_env_vars, so
+    // an Array bound by a pattern won't get `.borrow()` here. That falls under
+    // the broader "thread more type info through CrefSegment" cleanup; today it
+    // produces a compile error pointing at the call site, which is what we want
+    // rather than silent wrong codegen.
     let base_name = if real_segments.is_empty() {
         name_str.clone()
     } else {
         let mut base = escape_ident(&real_segments[0].name);
-        for sub in &real_segments[0].subscripts {
-            base = format!("{}[({}-1) as usize]", base, emit_exp(sub, false, ctx, top_level));
+        if !real_segments[0].subscripts.is_empty() {
+            if matches!(ctx.fn_env_vars.get(&real_segments[0].name), Some(Ty::Array(_))) {
+                base = format!("{base}.borrow()");
+            }
+            for sub in &real_segments[0].subscripts {
+                base = format!("{}[({}-1) as usize]", base, emit_exp(sub, false, ctx, top_level));
+            }
         }
         base
     };
@@ -3798,11 +3836,17 @@ fn emit_stmt<'a>(
         }
         S::For { var, range, body } => {
             let r = emit_exp(range, false, ctx, top_level);
-            let need_ref = match range.ty() {
-                Ty::List(..) => "&*",
-                _ => ""
+            // List<T> behind `Arc` → iterate via `&*lst` (Deref<Target=List>).
+            // Array<T> = `Rc<RefCell<Vec<T>>>` → iterate via `arr.borrow().iter()`
+            //   then `.cloned()` so the loop variable owns its element instead of
+            //   borrowing through the RefCell guard for the whole body (avoids
+            //   holding a borrow across user code that may itself touch the array).
+            let r = match range.ty() {
+                Ty::List(..) => format!("&*{r}"),
+                Ty::Array(..) => format!("{r}.borrow().iter().cloned().collect::<Vec<_>>()"),
+                _ => r,
             };
-            writeln!(out, "{indent}for {} in {need_ref}{r} {{", escape_ident(var)).unwrap();
+            writeln!(out, "{indent}for {} in {r} {{", escape_ident(var)).unwrap();
             // Element type: peel List/Array.
             let elem_ty = match range.ty() { Ty::List(t) | Ty::Array(t) => *t, _ => Ty::Unknown };
             let mut inner = env.clone();
@@ -3937,7 +3981,11 @@ fn fmt_ty(ty: &Ty, ctx: &mut GenCtx) -> String {
         }
         Ty::Option(inner) => format!("Option<{}>", fmt_ty(inner, ctx)),
         Ty::List(inner) => format!("Arc<metamodelica::List<{}>>", fmt_ty(inner, ctx)),
-        Ty::Array(inner) => format!("Vec<{}>", fmt_ty(inner, ctx)),
+        // MetaModelica `array<T>` has reference (aliasing) semantics: arrayUpdate
+        // mutates in place and the change is visible through every alias. We model
+        // that with `metamodelica::Array<T>` (alias for `Rc<RefCell<Vec<T>>>`).
+        // Single-threaded shared mutability — no lock cost, no deadlock risk.
+        Ty::Array(inner) => format!("metamodelica::Array<{}>", fmt_ty(inner, ctx)),
         Ty::Tuple(tys) => {
             format!("({})", tys.iter().map(|t| fmt_ty(t, ctx)).collect::<Vec<_>>().join(", "))
         }

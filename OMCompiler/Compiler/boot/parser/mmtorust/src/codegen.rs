@@ -651,6 +651,7 @@ use anyhow::{Result, bail};
 use loop_unwrap::unwrap_break_err;
 use metamodelica::*; // Built-in types and functions
 use const_str;
+use arcstr::{ArcStr, literal, format};
 ").unwrap();
     for line in ctx.use_lines() {
         writeln!(out, "{line}").unwrap();
@@ -677,7 +678,7 @@ fn emit_node<'a>(out: &mut String, name: &str, node: &NameNode<'_>, indent: &str
                 let ename = escape_ident(name);
 
                 let rust_ty = match &node.ty {
-                    Ty::Str => Some("&'static str"),
+                    Ty::Str => Some("ArcStr"),
                     Ty::I32 => Some("i32"),
                     Ty::F64 => Some("f64"),
                     Ty::Bool => Some("bool"),
@@ -1091,14 +1092,7 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
         TypedExp::Lit(Lit::Real(v)) => v.clone(),
         TypedExp::Lit(Lit::Str(v))  => {
             let escaped = format!("{v:?}");
-            if is_const {
-                escaped
-            } else {
-                // Disambiguate to `Arc<str>` — `Arc::from(&str)` has multiple impls
-                // (`Arc<str>`, `Arc<String>`, …), and the surrounding context isn't
-                // always enough for inference (e.g. when followed by `.clone()`).
-                format!("Arc::<str>::from({escaped})")
-            }
+            format!("literal!({escaped})")
         }
         TypedExp::Lit(Lit::Bool(v)) => v.to_string(),
 
@@ -1133,17 +1127,17 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                 BinOpKind::Gt  => format!("{l} > {r}"),
                 BinOpKind::GEq => format!("{l} >= {r}"),
                 BinOpKind::Add if *ty == Ty::Str => {
-                    // Collect all string parts from a chain of Add ops and emit one Arc<String> concat.
+                    // Collect all string parts from a chain of Add ops and emit one ArcStr concat.
                     let mut parts: Vec<String> = Vec::new();
                     collect_string_concat_parts(exp, is_const, ctx, top_level, &mut parts);
                     if parts.is_empty() {
-                        "Arc::<str>::from(\"\")".to_owned()
+                        panic!("How can a binary expression have 0 arguments?")
                     } else {
                         let mut s = String::from("{ let mut __mm_s = String::new(); ");
                         for p in parts {
                             let _ = write!(s, "__mm_s.push_str(&*{p}); ");
                         }
-                        s.push_str("Arc::<str>::from(__mm_s) }");
+                        s.push_str("ArcStr::from(__mm_s) }");
                         s
                     }
                 }
@@ -1350,7 +1344,7 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                         let fname_safe = escape_ident(fname);
                         // Wrap in Arc::new if the struct field is stored as Arc<T> due to
                         // size-recursive cycles.  String fields are excluded: their expressions
-                        // already yield Arc<String> from emit_exp / emit_cloned_call_arg.
+                        // already yield ArcStr from emit_exp / emit_cloned_call_arg.
                         let val = if struct_field_is_arc(qname, fname, top_level, ctx) {
                             format!("Arc::new({val})")
                         } else {
@@ -3478,8 +3472,8 @@ fn constructor_needs_arc(ty: &Ty, ctx: &GenCtx) -> bool {
 /// is stored behind `Arc` in the emitted Rust struct, meaning a constructor argument for that
 /// field must be wrapped in `Arc::new(...)`.
 ///
-/// Strings (Ty::Str) are always emitted as `Arc<String>` by `fmt_ty`, but their expressions
-/// are already `Arc<String>` from `emit_exp` / `emit_cloned_call_arg`, so they do NOT need
+/// Strings (Ty::Str) are always emitted as `ArcStr` by `fmt_ty`, but their expressions
+/// are already `ArcStr` from `emit_exp` / `emit_cloned_call_arg`, so they do NOT need
 /// an extra `Arc::new` layer here.
 /// Only types in `ctx.recursive_types` get an additional `Arc` wrapping at the field level.
 fn struct_field_is_arc<'a>(
@@ -4663,7 +4657,7 @@ fn fmt_ty(ty: &Ty, ctx: &mut GenCtx) -> String {
         Ty::I32 => "i32".to_owned(),
         Ty::F64 => "f64".to_owned(),
         Ty::Bool => "bool".to_owned(),
-        Ty::Str => "Arc<str>".to_owned(),
+        Ty::Str => "ArcStr".to_owned(),
         Ty::Unit => "()".to_owned(),
         Ty::TypeVar(name) => name.clone(),
         Ty::RustUnitVariant => "()".to_owned(),

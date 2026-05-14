@@ -3730,6 +3730,15 @@ fn emit_stmt<'a>(
         if matches!(lhs_ty, Some(Ty::F64)) && *scrut_ty == Ty::I32 {
             expr = format!("({expr} as f64)");
         }
+        // A range can't be stored in an Array/List binding without
+        // materialising it. We haven't lowered that path yet; emit a TODO so
+        // the failure shows up at the call site rather than as opaque type
+        // mismatch noise.
+        if matches!(scrut_ty, Ty::Range(_))
+            && matches!(lhs_ty, Some(Ty::Array(_)) | Some(Ty::List(_)))
+        {
+            expr = format!("/* TODO: materialise Range into Array/List */ {expr}");
+        }
         maybe_clone_string_value(expr, scrut_ty)
     }
 
@@ -3844,11 +3853,13 @@ fn emit_stmt<'a>(
             let r = match range.ty() {
                 Ty::List(..) => format!("&*{r}"),
                 Ty::Array(..) => format!("{r}.borrow().iter().cloned().collect::<Vec<_>>()"),
+                // Ty::Range: `r` is already a Rust iterator (`a..=b`,
+                // `(a..=b).step_by(..)`), so feed it straight to `for ... in`.
                 _ => r,
             };
             writeln!(out, "{indent}for {} in {r} {{", escape_ident(var)).unwrap();
             // Element type: peel List/Array.
-            let elem_ty = match range.ty() { Ty::List(t) | Ty::Array(t) => *t, _ => Ty::Unknown };
+            let elem_ty = match range.ty() { Ty::List(t) | Ty::Array(t) | Ty::Range(t) => *t, _ => Ty::Unknown };
             let mut inner = env.clone();
             inner.vars.insert(var.clone(), elem_ty);
             emit_stmts(out, &format!("{indent}    "), body, fail_mode, ctx, &mut inner, top_level, fresh);
@@ -3986,6 +3997,11 @@ fn fmt_ty(ty: &Ty, ctx: &mut GenCtx) -> String {
         // that with `metamodelica::Array<T>` (alias for `Rc<RefCell<Vec<T>>>`).
         // Single-threaded shared mutability — no lock cost, no deadlock risk.
         Ty::Array(inner) => format!("metamodelica::Array<{}>", fmt_ty(inner, ctx)),
+        // Ranges have no surface Rust type that captures both `RangeInclusive`
+        // and `StepBy<RangeInclusive>`; they're meant to be consumed in-place
+        // by a for-loop or reduction iterator. Flowing into a typed slot means
+        // the user wrote something we haven't lowered yet.
+        Ty::Range(inner) => format!("/* TODO: Range<{}> escaped iterator context */ ()", fmt_ty(inner, ctx)),
         Ty::Tuple(tys) => {
             format!("({})", tys.iter().map(|t| fmt_ty(t, ctx)).collect::<Vec<_>>().join(", "))
         }

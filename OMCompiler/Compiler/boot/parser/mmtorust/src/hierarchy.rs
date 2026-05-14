@@ -39,6 +39,12 @@ pub enum Ty {
     List(Box<Ty>),
     /// Modelica `array<T>`
     Array(Box<Ty>),
+    /// A Modelica range expression `start:stop` or `start:step:stop`.
+    /// Carries the element type. Only valid as the type of `TypedExp::Range` —
+    /// represents a Rust iterator value, not a materialised collection.
+    /// Must be consumed in-place (for-loop, reduction iterator). Flowing
+    /// into an Array/List context requires explicit materialisation.
+    Range(Box<Ty>),
     /// Multiple values (multiple output components of a function).
     Tuple(Vec<Ty>),
     /// No output.
@@ -88,6 +94,7 @@ impl fmt::Display for Ty {
             Ty::Option(inner) => write!(f, "Option<{inner}>"),
             Ty::List(inner) => write!(f, "List<{inner}>"),
             Ty::Array(inner) => write!(f, "Array<{inner}>"),
+            Ty::Range(inner) => write!(f, "Range<{inner}>"),
             Ty::Unit => f.write_str("()"),
             Ty::Tuple(tys) => {
                 f.write_str("(")?;
@@ -1407,7 +1414,7 @@ fn resolve_path(path: &Absyn::Path, known: &ScopedKnown, aliases: &ScopedAliases
 pub(crate) fn collect_type_vars_in_ty(ty: &Ty, out: &mut Vec<String>) {
     match ty {
         Ty::TypeVar(name) => { if !out.contains(name) { out.push(name.clone()); } }
-        Ty::Option(inner) | Ty::List(inner) | Ty::Array(inner) => collect_type_vars_in_ty(inner, out),
+        Ty::Option(inner) | Ty::List(inner) | Ty::Array(inner) | Ty::Range(inner) => collect_type_vars_in_ty(inner, out),
         Ty::Tuple(tys) => tys.iter().for_each(|t| collect_type_vars_in_ty(t, out)),
         Ty::Generic(_, args) => args.iter().for_each(|t| collect_type_vars_in_ty(t, out)),
         Ty::Function { inputs, output, .. } => {

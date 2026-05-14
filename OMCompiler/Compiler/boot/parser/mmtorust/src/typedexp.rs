@@ -130,7 +130,7 @@ impl TypedExp {
             TypedExp::Cons   { ty, .. }  => ty.clone(),
             TypedExp::Array  { ty, .. }  => ty.clone(),
             TypedExp::Match  { ty, .. }  => ty.clone(),
-            TypedExp::Range  { elem_ty, .. } => Ty::Array(Box::new(elem_ty.clone())),
+            TypedExp::Range  { elem_ty, .. } => Ty::Range(Box::new(elem_ty.clone())),
             TypedExp::Reduction { ty, .. } => ty.clone(),
             TypedExp::Tuple(v) => Ty::Tuple(v.iter().map(|e| e.ty()).collect()),
             TypedExp::Todo(_)  => Ty::Unknown,
@@ -786,7 +786,7 @@ pub fn infer_exp<'a>(
                         None => TypedExp::Todo("reduction-iter-without-range".to_owned()),
                     };
                     let elem_ty = match range_e.ty() {
-                        Ty::List(t) | Ty::Array(t) => *t,
+                        Ty::List(t) | Ty::Array(t) | Ty::Range(t) => *t,
                         _ => Ty::Unknown,
                     };
                     iter_env.insert(it_name.to_string(), elem_ty.clone());
@@ -1123,7 +1123,7 @@ fn infer_case<'a>(
                         None => TypedExp::Todo("for-without-range".to_owned()),
                     };
                     let elem_ty = match range_e.ty() {
-                        Ty::List(t) | Ty::Array(t) => *t,
+                        Ty::List(t) | Ty::Array(t) | Ty::Range(t) => *t,
                         _ => Ty::Unknown,
                     };
                     let mut inner = env.clone();
@@ -1757,7 +1757,7 @@ fn infer_stmt<'a>(
                 };
                 // Element type from list/array.
                 let elem_ty = match range_e.ty() {
-                    Ty::List(t) | Ty::Array(t) => *t,
+                    Ty::List(t) | Ty::Array(t) | Ty::Range(t) => *t,
                     _ => Ty::Unknown,
                 };
                 let mut inner = env.clone();

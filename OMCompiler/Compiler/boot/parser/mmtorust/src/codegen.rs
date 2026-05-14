@@ -3946,24 +3946,8 @@ fn emit_stmt<'a>(
                                     if v.is_empty() { None } else { Some(v) }
                                 });
                             if let Some(fields) = fields_opt {
-                                // Compute the Rust path to the struct, applying the same
-                                // single-record-uniontype doubling as fmt_ty / Constructor:
-                                // a struct named after its enclosing module/file lives at
-                                // `Mod::Struct`.
-                                let first = qname.split('.').next().unwrap_or(&qname);
-                                let last = qname.rsplit('.').next().unwrap_or(&qname);
-                                let shortened = ctx.shorten(&qname);
-                                let in_own_mod = ctx.current_path.last().map(|p| p == last).unwrap_or(false);
-                                let needs_doubling = !in_own_mod && !ctx.no_mod_uniontypes.contains(qname.as_str()) && (
-                                    (ctx.top_level_uniontype_names.contains(first) && first != ctx.top_name) ||
-                                    (qname.contains('.') && first != last)
-                                );
-                                let struct_path = if needs_doubling {
-                                    format!("{shortened}::{last}")
-                                } else {
-                                    shortened
-                                };
-
+                                // Coerce the rhs to the field's declared type and wrap in
+                                // Arc::new if the struct stores this field as Arc<T>.
                                 let lhs_ty = fields.iter().find(|(n, _)| n == field).map(|(_, t)| t.clone());
                                 let scrut_expr = coerce_assign_expr(scrut_expr, &scrut_ty, lhs_ty.as_ref());
                                 let new_field_val = if struct_field_is_arc(&qname, field, top_level, ctx) {
@@ -3972,22 +3956,26 @@ fn emit_stmt<'a>(
                                     scrut_expr
                                 };
                                 let base_safe = escape_ident(base_name);
-                                let mut field_strs: Vec<String> = Vec::with_capacity(fields.len());
-                                for (fname, _) in &fields {
-                                    let fname_safe = escape_ident(fname);
-                                    if fname == field {
-                                        field_strs.push(format!("{fname_safe}: {new_field_val}"));
-                                    } else {
-                                        field_strs.push(format!("{fname_safe}: {base_safe}.{fname_safe}.clone()"));
-                                    }
-                                }
-                                let ctor_expr = format!("{struct_path} {{ {} }}", field_strs.join(", "));
-                                let rhs = if constructor_needs_arc(base_ty, ctx) {
-                                    format!("Arc::new({ctor_expr})")
+                                let field_safe = escape_ident(field);
+                                if constructor_needs_arc(base_ty, ctx) {
+                                    // Record value is shared as `Arc<T>` — clone the
+                                    // underlying record, update the field on the owned
+                                    // copy, and rewrap in a fresh `Arc<T>`. This is what
+                                    // `assign_field!` (from the metamodelica crate) does
+                                    // and matches MetaModelica's value semantics for
+                                    // `var.field := value`.
+                                    writeln!(
+                                        out,
+                                        "{indent}assign_field!({base_safe}.{field_safe} = {new_field_val});"
+                                    ).unwrap();
                                 } else {
-                                    ctor_expr
-                                };
-                                writeln!(out, "{indent}{base_safe} = {rhs};").unwrap();
+                                    // Plain owned record — in-place mutation already
+                                    // produces a fresh, locally-owned value.
+                                    writeln!(
+                                        out,
+                                        "{indent}{base_safe}.{field_safe} = {new_field_val};"
+                                    ).unwrap();
+                                }
                                 return;
                             }
                         }

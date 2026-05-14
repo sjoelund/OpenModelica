@@ -622,6 +622,50 @@ macro_rules! list {
     };
 }
 
+/// Functionally update a single field of a record value stored as `Arc<T>`.
+///
+/// MetaModelica record update (`var.field := value`) has value semantics: a new
+/// record is produced and rebound. We model the record as `Arc<T>` for cheap
+/// sharing, so direct field mutation through the `Arc` is impossible. This macro
+/// clones the underlying record (a shallow copy — the contained fields are
+/// themselves cheap `Arc` handles or scalars), overwrites the targeted field on
+/// the owned copy, and rebinds `$base` to a fresh `Arc<T>`.
+///
+/// For multi-record uniontypes (Rust enums), use `assign_variant_field!` instead:
+/// the matched variant must be named explicitly because the enum tag is not
+/// inferable from the macro's input position. With a single-record uniontype
+/// (or any plain struct), this macro suffices.
+#[macro_export]
+macro_rules! assign_field {
+    ($base:ident . $field:ident = $value:expr) => {{
+        let mut __owned = (*$base).clone();
+        __owned.$field = $value;
+        $base = ::std::sync::Arc::new(__owned);
+    }};
+}
+
+/// Like `assign_field!`, but for a uniontype-enum value whose currently matched
+/// variant is known statically (e.g. inside a `match` arm or after a refutable
+/// `let`-pattern). The variant path must be supplied so the destructure picks
+/// the right arm; a runtime mismatch panics, which would indicate a codegen bug.
+///
+/// Example: `assign_variant_field!(node => NFInstNode::CLASS_NODE; ty = newTy);`
+#[macro_export]
+macro_rules! assign_variant_field {
+    ($base:ident => $($variant:ident)::+ ; $field:ident = $value:expr) => {{
+        let mut __owned = (*$base).clone();
+        if let $($variant)::+ { $field: ref mut __slot, .. } = __owned {
+            *__slot = $value;
+        } else {
+            panic!(
+                "assign_variant_field!: expected variant {} but value held a different variant",
+                stringify!($($variant)::+),
+            );
+        }
+        $base = ::std::sync::Arc::new(__owned);
+    }};
+}
+
 pub fn nil<T: Clone>() -> Arc<List<T>> {
     Arc::new(Nil)
 }

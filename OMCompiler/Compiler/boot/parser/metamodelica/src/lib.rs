@@ -1058,13 +1058,18 @@ pub mod Dangerous {
     /// Creates a new array with uninitialized elements.
     /// The dummy parameter is used to fix the type of the array.
     /// Elements are set to a clone of dummy.
-    pub fn arrayCreateNoInit<A: Clone>(size: i32, dummy: A) -> Result<Vec<A>> {
-        if size <= 0 {
-            return Ok(Vec::new());
+    pub fn arrayCreateNoInit<A: Clone>(size: i32) -> Result<Vec<A>> {
+        if size < 0 {
+            bail!("Size must be non-negative, got {}", size);
         }
-        // SAFETY: We immediately fill with cloned values so the array is never used uninitialized.
-        // In a true unsafe translation we could use MaybeUninit, but for safety we fill with dummy.
-        Ok(vec![dummy; size as usize])
+        let mut v = Vec::with_capacity(size as usize);
+        // SAFETY:
+        // 1. We allocated capacity for n elements.
+        // 2. We guarantee that we will initialize every element before reading it.
+        unsafe {
+            v.set_len(size as usize);
+        }
+        Ok(v)
     }
     /// Unsafe string get without bounds checking.
     pub fn stringGetNoBoundsChecking(str: String, index: i32) -> Result<i32> {
@@ -2081,7 +2086,7 @@ mod tests {
 
         #[test]
         fn test_array_create_no_init() {
-            let arr = arrayCreateNoInit(5, 0i32).unwrap();
+            let arr: Vec<i32> = arrayCreateNoInit(5).unwrap();
             assert_eq!(arr.len(), 5);
         }
 

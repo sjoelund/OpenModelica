@@ -1577,7 +1577,10 @@ fn fmt_cref(cref: &Absyn::ComponentRef) -> String {
         "MetaModelica.Dangerous.stringGetNoBoundsChecking" | "Dangerous.stringGetNoBoundsChecking" | ".MetaModelica.Dangerous.stringGetNoBoundsChecking" | "stringGetNoBoundsChecking" => "stringGet".to_owned(),
         "MetaModelica.Dangerous.arrayGetNoBoundsChecking" | "Dangerous.arrayGetNoBoundsChecking" | ".MetaModelica.Dangerous.arrayGetNoBoundsChecking" | "arrayGetNoBoundsChecking" => "arrayGet".to_owned(),
         "MetaModelica.Dangerous.arrayUpdateNoBoundsChecking" | "Dangerous.arrayUpdateNoBoundsChecking" | ".MetaModelica.Dangerous.arrayUpdateNoBoundsChecking" | "arrayUpdateNoBoundsChecking" => "arrayUpdate".to_owned(),
-        "MetaModelica.Dangerous.arrayCreateNoInit" | "Dangerous.arrayCreateNoInit" | ".MetaModelica.Dangerous.arrayCreateNoInit" | "arrayCreateNoInit" => "arrayCreate".to_owned(),
+        // Keep arrayCreateNoInit distinct from arrayCreate; codegen lowers it
+        // to `metamodelica::Dangerous::arrayCreateNoInit(size)` (dropping the
+        // dummy type-witness argument).
+        "MetaModelica.Dangerous.arrayCreateNoInit" | "Dangerous.arrayCreateNoInit" | ".MetaModelica.Dangerous.arrayCreateNoInit" => "arrayCreateNoInit".to_owned(),
         "MetaModelica.Dangerous.listArrayLiteral" | "Dangerous.listArrayLiteral" | ".MetaModelica.Dangerous.listArrayLiteral" | "listArrayLiteral" => "listArray".to_owned(),
         _ => raw,
     }

@@ -186,7 +186,11 @@ pub fn cref_to_dotted(cref: &Absyn::ComponentRef) -> String {
         "MetaModelica.Dangerous.stringGetNoBoundsChecking" | "Dangerous.stringGetNoBoundsChecking" | "stringGetNoBoundsChecking" => "stringGet".to_owned(),
         "MetaModelica.Dangerous.arrayGetNoBoundsChecking" | "Dangerous.arrayGetNoBoundsChecking" | "arrayGetNoBoundsChecking" => "arrayGet".to_owned(),
         "MetaModelica.Dangerous.arrayUpdateNoBoundsChecking" | "Dangerous.arrayUpdateNoBoundsChecking" | "arrayUpdateNoBoundsChecking" => "arrayUpdate".to_owned(),
-        "MetaModelica.Dangerous.arrayCreateNoInit" | "Dangerous.arrayCreateNoInit" | "arrayCreateNoInit" => "arrayCreate".to_owned(),
+        // arrayCreateNoInit is kept distinct from arrayCreate: it lowers to
+        // `metamodelica::Dangerous::arrayCreateNoInit(size)` which takes only the
+        // size (the MetaModelica `dummy` second argument is a type witness only
+        // and is dropped at codegen time).
+        "MetaModelica.Dangerous.arrayCreateNoInit" | "Dangerous.arrayCreateNoInit" => "arrayCreateNoInit".to_owned(),
         "MetaModelica.Dangerous.listArrayLiteral" | "Dangerous.listArrayLiteral" | "listArrayLiteral" => "listArray".to_owned(),
         _ => raw,
     }
@@ -541,6 +545,12 @@ fn call_ty(func: &str, args: &[TypedExp], top_level: &BTreeMap<String, NameNode<
             args.first().map(|a| a.ty()).unwrap_or(Ty::Unknown)
         }
         "arrayCreate" => {
+            Ty::Array(Box::new(args.get(1).map(|a| a.ty()).unwrap_or(Ty::Unknown)))
+        }
+        // arrayCreateNoInit(size, dummy): element type comes from the dummy
+        // witness argument, same as arrayCreate. The dummy is dropped at
+        // codegen time; here we still use it for type inference.
+        "arrayCreateNoInit" => {
             Ty::Array(Box::new(args.get(1).map(|a| a.ty()).unwrap_or(Ty::Unknown)))
         }
         "listArray" => {

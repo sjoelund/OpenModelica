@@ -1085,10 +1085,27 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                     }
                 }
                 BinOpKind::Add if *ty == Ty::Str => format!("(*{l}).clone() + &*{r}"),
-                BinOpKind::Add => format!("{l} + {r}"),
-                BinOpKind::Sub => format!("{l} - {r}"),
-                BinOpKind::Mul => format!("{l} * {r}"),
-                BinOpKind::Div => format!("{l} / {r}"),
+                BinOpKind::Add => {
+                    let lp = if lhs.ty() == Ty::I32 && rhs.ty() == Ty::F64 { format!("({l} as f64)") } else { l };
+                    let rp = if rhs.ty() == Ty::I32 && lhs.ty() == Ty::F64 { format!("({r} as f64)") } else { r };
+                    format!("{lp} + {rp}")
+                },
+                BinOpKind::Sub => {
+                    let lp = if lhs.ty() == Ty::I32 && rhs.ty() == Ty::F64 { format!("({l} as f64)") } else { l };
+                    let rp = if rhs.ty() == Ty::I32 && lhs.ty() == Ty::F64 { format!("({r} as f64)") } else { r };
+                    format!("{lp} - {rp}")
+
+                },
+                BinOpKind::Mul => {
+                    let lp = if lhs.ty() == Ty::I32 && rhs.ty() == Ty::F64 { format!("({l} as f64)") } else { l };
+                    let rp = if rhs.ty() == Ty::I32 && lhs.ty() == Ty::F64 { format!("({r} as f64)") } else { r };
+                    format!("{lp} * {rp}")
+                },
+                BinOpKind::Div => {
+                    let lp = if lhs.ty() == Ty::I32 && rhs.ty() == Ty::F64 { format!("({l} as f64)") } else { l };
+                    let rp = if rhs.ty() == Ty::I32 && lhs.ty() == Ty::F64 { format!("({r} as f64)") } else { r };
+                    format!("{lp} / {rp}")
+                },
                 BinOpKind::Pow => {
                     let lp = if lhs.ty() == Ty::I32 { format!("({l} as f64)") } else { l };
                     let rp = if rhs.ty() == Ty::I32 { format!("({r} as f64)") } else { r };
@@ -1730,7 +1747,7 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
         },
         "realInt" => {
             let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
-            Ok(format!("({arg} as i32)"))
+            Ok(format!("(({arg}) as i32)"))
         },
         // Integer(x) is a Modelica/MetaModelica built-in type cast.
         // For Real → Integer: floor to i32.
@@ -1740,11 +1757,11 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
             let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
             // Check the argument type to emit the right conversion.
             match args.first().map(|a| a.ty()).as_ref() {
-                Some(crate::hierarchy::Ty::F64) => Ok(format!("({arg} as i32)")),
-                Some(crate::hierarchy::Ty::Bool) => Ok(format!("({arg} as i32)")),
-                Some(crate::hierarchy::Ty::Enumeration(_)) => Ok(format!("({arg} as i32)")),
+                Some(crate::hierarchy::Ty::F64) => Ok(format!("(({arg}) as i32)")),
+                Some(crate::hierarchy::Ty::Bool) => Ok(format!("(({arg}) as i32)")),
+                Some(crate::hierarchy::Ty::Enumeration(_)) => Ok(format!("(({arg}) as i32)")),
                 // Unknown argument type — emit a generic cast; it may need manual review.
-                _ => Ok(format!("({arg} as i32)")),
+                _ => Ok(format!("(({arg}) as i32 /* Integer(...) with unknown arg type */)")),
             }
         },
         "print" => {
@@ -1822,6 +1839,16 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
         "arrayCopy" => {
             let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
             Ok(format!("{}.to_vec()", arg))
+        },
+        // MetaModelica.Dangerous.arrayCreateNoInit(size, dummy): the `dummy`
+        // argument is a type witness only in the MM signature — the Rust
+        // counterpart is generic, so we drop the second argument here. The
+        // function is fallible (returns Result), hence wrapped with `?` via
+        // ctx.q for non-const contexts.
+        "arrayCreateNoInit" => {
+            let arg1 = args.first().map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
+            let call = format!("metamodelica::Dangerous::arrayCreateNoInit({arg1})");
+            if is_const { Ok(call) } else { Ok(ctx.q(&call)) }
         },
         "arrayUpdate"| "arrayUpdateNoBoundsChecking" => {
             let arg1 = args.get(0).map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();

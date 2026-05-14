@@ -637,9 +637,19 @@ macro_rules! list {
 /// (or any plain struct), this macro suffices.
 #[macro_export]
 macro_rules! assign_field {
-    ($base:ident . $field:ident = $value:expr) => {{
+    // One or more field assignments against the same `Arc<T>` base. The clone
+    // and the `Arc::new` happen once for the whole batch, no matter how many
+    // fields are updated. All assignments must target the same identifier; the
+    // macro reuses `$base` as the storage and only matches the trailing entries
+    // to keep the parser happy.
+    (
+        $base:ident . $first_field:ident = $first_value:expr
+        $(, $_base:ident . $field:ident = $value:expr)*
+        $(,)?
+    ) => {{
         let mut __owned = (*$base).clone();
-        __owned.$field = $value;
+        __owned.$first_field = $first_value;
+        $( __owned.$field = $value; )*
         $base = ::std::sync::Arc::new(__owned);
     }};
 }
@@ -652,10 +662,27 @@ macro_rules! assign_field {
 /// Example: `assign_variant_field!(node => NFInstNode::CLASS_NODE; ty = newTy);`
 #[macro_export]
 macro_rules! assign_variant_field {
-    ($base:ident => $($variant:ident)::+ ; $field:ident = $value:expr) => {{
+    // One or more field assignments to a value already known to be a specific
+    // variant (`$($variant)::+`). The destructure happens once; the field
+    // bindings are then assigned in sequence on the owned copy. A runtime
+    // variant mismatch panics — that would indicate a codegen bug.
+    (
+        $base:ident => $($variant:ident)::+ ;
+        $first_field:ident = $first_value:expr
+        $(, $field:ident = $value:expr)*
+        $(,)?
+    ) => {{
         let mut __owned = (*$base).clone();
-        if let $($variant)::+ { $field: ref mut __slot, .. } = __owned {
-            *__slot = $value;
+        // Field-shorthand destructure: each captured binding takes the same
+        // name as the field, so the macro doesn't need to invent unique
+        // identifiers per repetition.
+        if let $($variant)::+ {
+            $first_field,
+            $($field,)*
+            ..
+        } = &mut __owned {
+            *$first_field = $first_value;
+            $( *$field = $value; )*
         } else {
             panic!(
                 "assign_variant_field!: expected variant {} but value held a different variant",

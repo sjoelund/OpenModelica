@@ -2543,7 +2543,14 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], is_co
                     let mut local_env = LocalEnv {
                         vars: ctx.fn_env_vars.clone(),
                         outputs: ctx.fn_outputs.clone(),
+                        variants: HashMap::new(),
                     };
+                    // The match arm guarantees that the scrutinee (when it is a
+                    // simple variable reference) holds the matched variant for
+                    // the duration of this arm — propagate that into the arm's
+                    // local env so field assignments on it can use the
+                    // variant-aware macro.
+                    record_pattern_variants(&case.pattern, input, &mut local_env, top_level);
                     let mut fresh_local: u32 = 0;
                     let mut body = String::new();
                     // Pattern bindings are declared by the match arm itself (as `mut`
@@ -2594,9 +2601,10 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], is_co
                             }
                         }
                     }
-                    for s in &case.stmts {
-                        emit_stmt(&mut body, "            ", s, FailureMode::Function, ctx, &mut local_env, top_level, &mut fresh_local);
-                    }
+                    // Use emit_stmts (not a raw emit_stmt loop) so consecutive
+                    // record-field updates within the arm get batched into one
+                    // `assign_field!` / `assign_variant_field!` call.
+                    emit_stmts(&mut body, "            ", &case.stmts, FailureMode::Function, ctx, &mut local_env, top_level, &mut fresh_local);
                     format!("        {pat}{guard} => {{\n{body}            {result}\n        }}")
                 }
             }).collect();
@@ -3064,6 +3072,16 @@ struct LocalEnv {
     /// Used to expand `return;` into `return Ok((outputs...));` so the early-exit
     /// path mirrors the final implicit return at the end of `emit_function`.
     outputs: Vec<String>,
+    /// For variables currently known to hold a specific uniontype variant
+    /// (e.g. inside a match arm whose pattern is a `Constructor`, or after a
+    /// refutable `let Constructor { .. } = expr;`), remember the enum qname and
+    /// variant simple name. This lets us emit `assign_variant_field!` for
+    /// `var.field := value` on multi-record uniontype values without having to
+    /// re-analyze patterns at every use site.
+    ///
+    /// The mapping is cleared on any plain `var = ...` reassignment (since the
+    /// new value may be a different variant) — see `S::Assign` handling.
+    variants: HashMap<String, (String, String)>,
 }
 
 fn is_constructor(func: &str, ctx: &GenCtx, top_level: &BTreeMap<String, NameNode>) -> bool {
@@ -3781,9 +3799,372 @@ fn emit_stmts<'a>(
     top_level: &'a BTreeMap<String, NameNode<'a>>,
     fresh: &mut u32,
 ) {
-    for s in stmts {
-        emit_stmt(out, indent, s, fail_mode, ctx, env, top_level, fresh);
+    let mut i = 0;
+    while i < stmts.len() {
+        // Look for a run of consecutive `Assign` statements of the form
+        // `<same-base>.<field> := <expr>;` that all dispatch to the same
+        // record-update macro (`assign_field!` for Arc<Struct> or
+        // `assign_variant_field!` for an Arc<Enum> with a known matched
+        // variant). A run of length ≥ 2 is emitted as a single macro call:
+        // one line per field, but only one `(*base).clone()` and one
+        // `Arc::new(..)` at runtime.
+        //
+        // We pre-screen without rendering expressions (which would mutate
+        // `ctx` state and double-emit `use` markers): only render rhs values
+        // once we're committed to the macro path.
+        if let Some(plan) = plan_field_assign(&stmts[i], env, top_level) {
+            if plan.is_macro(ctx) {
+                let mut plans: Vec<FieldAssignPlan> = vec![plan];
+                let mut j = i + 1;
+                while j < stmts.len() {
+                    let Some(next) = plan_field_assign(&stmts[j], env, top_level) else { break };
+                    if !next.same_batch_as(&plans[0]) { break; }
+                    plans.push(next);
+                    j += 1;
+                }
+                let kinds: Vec<FieldAssignKind> = plans.into_iter()
+                    .map(|p| p.render(ctx, top_level))
+                    .collect();
+                let clauses: Vec<String> = kinds.iter().map(|k| k.clause()).collect();
+                kinds[0].emit_batch(out, indent, &clauses);
+                i = j;
+                continue;
+            }
+        }
+        emit_stmt(out, indent, &stmts[i], fail_mode, ctx, env, top_level, fresh);
+        i += 1;
     }
+}
+
+/// Lightweight pre-classification: identifies whether a statement is a
+/// macro-batchable field assignment WITHOUT calling `emit_exp` (which mutates
+/// codegen state). The full lowering happens later in `render`, by which time
+/// we know we will actually emit the statement.
+struct FieldAssignPlan<'s> {
+    stmt: &'s typedexp::TypedStmt,
+    base_name: String,
+    /// The variable's full declared type, used in `render` to decide whether
+    /// the record is stored as `Arc<T>` (macro lowering) or plain (in-place).
+    base_ty: Ty,
+    /// Resolved record qname whose fields we will look up (for struct path)
+    /// OR `"<enum_qname>.<variant>"` for the variant path.
+    record_qname: String,
+    /// Set when the base is a known uniontype variant.
+    variant: Option<(String, String)>,
+}
+
+impl<'s> FieldAssignPlan<'s> {
+    /// Whether this plan will be lowered through one of the record-update
+    /// macros (so batching is worthwhile). Variant assignments always use a
+    /// macro; struct assignments use a macro only when the base is `Arc<T>`.
+    fn is_macro(&self, ctx: &GenCtx) -> bool {
+        self.variant.is_some() || constructor_needs_arc(&self.base_ty, ctx)
+    }
+
+    /// Two plans batch together iff they target the same base AND lower
+    /// through the same macro (same struct OR same variant).
+    fn same_batch_as(&self, other: &FieldAssignPlan<'_>) -> bool {
+        self.base_name == other.base_name && self.variant == other.variant
+    }
+
+    fn render<'a>(
+        self,
+        ctx: &mut GenCtx,
+        top_level: &'a BTreeMap<String, NameNode<'a>>,
+    ) -> FieldAssignKind {
+        let FieldAssignPlan { stmt, base_name, base_ty, record_qname, variant } = self;
+        let typedexp::TypedStmt::Assign { lhs, rhs } = stmt else { unreachable!() };
+        let TypedPat::FieldAccess { field, .. } = lhs else { unreachable!() };
+
+        let scrut_ty = rhs.ty();
+        let scrut_expr = emit_exp(rhs, /*is_const=*/false, ctx, top_level);
+
+        let fields = record_field_tys(&record_qname, top_level)
+            .filter(|v| !v.is_empty())
+            .or_else(|| {
+                let v = record_field_tys_by_simple_name(&record_qname, top_level);
+                if v.is_empty() { None } else { Some(v) }
+            })
+            .unwrap_or_default();
+        let lhs_ty = fields.iter().find(|(n, _)| n == field).map(|(_, t)| t.clone());
+        let expr = coerce_assign_expr_pub(scrut_expr, &scrut_ty, lhs_ty.as_ref());
+        let value = if struct_field_is_arc(&record_qname, field, top_level, ctx) {
+            format!("Arc::new({expr})")
+        } else {
+            expr
+        };
+        let base_safe = escape_ident(&base_name).to_string();
+        let field_safe = escape_ident(field).to_string();
+
+        if let Some((enum_qname, variant_name)) = variant {
+            let variant_path = build_variant_path(&enum_qname, &variant_name, ctx);
+            FieldAssignKind::ArcVariant { base: base_safe, variant_path, field: field_safe, value }
+        } else if constructor_needs_arc(&base_ty, ctx) {
+            FieldAssignKind::ArcStruct { base: base_safe, field: field_safe, value }
+        } else {
+            FieldAssignKind::Plain { base: base_safe, field: field_safe, value }
+        }
+    }
+}
+
+/// Inspect a statement, using only `env`/`top_level` (no `ctx` mutation), to
+/// decide whether it lowers to a record-update macro. Returns a plan for the
+/// caller to render later when emission is committed.
+fn plan_field_assign<'a, 's>(
+    stmt: &'s typedexp::TypedStmt,
+    env: &LocalEnv,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+) -> Option<FieldAssignPlan<'s>> {
+    use typedexp::TypedStmt as S;
+    let S::Assign { lhs, .. } = stmt else { return None };
+    let TypedPat::FieldAccess { base, .. } = lhs else { return None };
+    let TypedPat::Var(base_name) = base.as_ref() else { return None };
+    let base_ty = env.vars.get(base_name)?.clone();
+
+    // Variant path takes precedence: if the base variable is known to hold a
+    // specific uniontype variant, lower through `assign_variant_field!`.
+    if let Some((enum_qname, variant_name)) = env.variants.get(base_name).cloned() {
+        let record_qname = format!("{enum_qname}.{variant_name}");
+        // Only commit to the variant path if the record actually exists.
+        if record_field_tys(&record_qname, top_level).is_some() {
+            return Some(FieldAssignPlan {
+                stmt,
+                base_name: base_name.clone(),
+                base_ty,
+                record_qname,
+                variant: Some((enum_qname, variant_name)),
+            });
+        }
+    }
+
+    let struct_qname = match &base_ty {
+        Ty::RustStruct(q) | Ty::AliasTo(q) => q.clone(),
+        _ => return None,
+    };
+    let record_qname = resolve_single_record_qname(&struct_qname, top_level)
+        .unwrap_or_else(|| struct_qname.clone());
+    // The record's fields must be resolvable for the rebuild to make sense.
+    let has_fields = record_field_tys(&record_qname, top_level)
+        .map(|v| !v.is_empty())
+        .unwrap_or(false)
+        || !record_field_tys_by_simple_name(&record_qname, top_level).is_empty();
+    if !has_fields {
+        return None;
+    }
+    Some(FieldAssignPlan {
+        stmt,
+        base_name: base_name.clone(),
+        base_ty,
+        record_qname: struct_qname.clone(),
+        variant: None,
+    })
+}
+
+fn build_variant_path(enum_qname: &str, variant_name: &str, ctx: &mut GenCtx) -> String {
+    let shortened = ctx.shorten(enum_qname);
+    if ctx.no_mod_uniontypes.contains(enum_qname) {
+        return format!("{shortened}::{variant_name}");
+    }
+    let first = enum_qname.split('.').next().unwrap_or(enum_qname);
+    let last = enum_qname.rsplit('.').next().unwrap_or(enum_qname);
+    let in_own_mod = ctx.current_path.last().map(|p| p == last).unwrap_or(false);
+    let needs_doubling = !in_own_mod && (
+        (ctx.top_level_uniontype_names.contains(first) && first != ctx.top_name) ||
+        (enum_qname.contains('.') && first != last)
+    );
+    if needs_doubling {
+        format!("{shortened}::{last}::{variant_name}")
+    } else {
+        format!("{shortened}::{variant_name}")
+    }
+}
+
+/// Result of inspecting an `Assign` statement to see whether it is a
+/// record-field update that should be lowered through one of the
+/// `assign_field!` / `assign_variant_field!` macros.
+enum FieldAssignKind {
+    /// `assign_field!(<base>.<field> = <value>);`
+    ArcStruct { base: String, field: String, value: String },
+    /// `assign_variant_field!(<base> => <variant_path>; <field> = <value>);`
+    ArcVariant { base: String, variant_path: String, field: String, value: String },
+    /// `<base>.<field> = <value>;` — plain owned struct, no macro needed.
+    Plain { base: String, field: String, value: String },
+}
+
+impl FieldAssignKind {
+    fn is_macro(&self) -> bool {
+        matches!(self, FieldAssignKind::ArcStruct { .. } | FieldAssignKind::ArcVariant { .. })
+    }
+
+    /// Same base variable AND same macro path → safe to batch into one call.
+    /// Plain assignments aren't batched (they don't share any setup cost).
+    fn same_batch_as(&self, other: &FieldAssignKind) -> bool {
+        match (self, other) {
+            (FieldAssignKind::ArcStruct { base: a, .. }, FieldAssignKind::ArcStruct { base: b, .. }) => a == b,
+            (
+                FieldAssignKind::ArcVariant { base: a, variant_path: va, .. },
+                FieldAssignKind::ArcVariant { base: b, variant_path: vb, .. },
+            ) => a == b && va == vb,
+            _ => false,
+        }
+    }
+
+    /// The per-assignment clause inside the macro call (everything after the
+    /// leading `<base> .` for struct, or just `<field> = <value>` for variant).
+    fn clause(&self) -> String {
+        match self {
+            FieldAssignKind::ArcStruct { base, field, value } => format!("{base}.{field} = {value}"),
+            FieldAssignKind::ArcVariant { field, value, .. } => format!("{field} = {value}"),
+            FieldAssignKind::Plain { base, field, value } => format!("{base}.{field} = {value}"),
+        }
+    }
+
+    fn emit_batch(&self, out: &mut String, indent: &str, clauses: &[String]) {
+        let inner_indent = format!("{indent}    ");
+        match self {
+            FieldAssignKind::ArcStruct { base, .. } => {
+                if clauses.len() == 1 {
+                    writeln!(out, "{indent}assign_field!({});", clauses[0]).unwrap();
+                } else {
+                    writeln!(out, "{indent}assign_field!(").unwrap();
+                    // Repeat the base ident on every line so the macro's
+                    // repetition arm can match it; only the first one is the
+                    // real binding, the rest are matched and discarded.
+                    let _ = base; // silence unused warning when first clause already starts with base
+                    for (k, c) in clauses.iter().enumerate() {
+                        let comma = if k + 1 < clauses.len() { "," } else { "" };
+                        writeln!(out, "{inner_indent}{c}{comma}").unwrap();
+                    }
+                    writeln!(out, "{indent});").unwrap();
+                }
+            }
+            FieldAssignKind::ArcVariant { base, variant_path, .. } => {
+                if clauses.len() == 1 {
+                    writeln!(out, "{indent}assign_variant_field!({base} => {variant_path}; {});", clauses[0]).unwrap();
+                } else {
+                    writeln!(out, "{indent}assign_variant_field!({base} => {variant_path};").unwrap();
+                    for (k, c) in clauses.iter().enumerate() {
+                        let comma = if k + 1 < clauses.len() { "," } else { "" };
+                        writeln!(out, "{inner_indent}{c}{comma}").unwrap();
+                    }
+                    writeln!(out, "{indent});").unwrap();
+                }
+            }
+            FieldAssignKind::Plain { .. } => {
+                // Plain assigns are not batched; emit each on its own line.
+                for c in clauses {
+                    writeln!(out, "{indent}{c};").unwrap();
+                }
+            }
+        }
+    }
+}
+
+
+/// Same as the nested `coerce_assign_expr` inside `emit_stmt`, lifted out so
+/// the classification helper can use the same coercion logic.
+fn coerce_assign_expr_pub(scrut_expr: String, scrut_ty: &Ty, lhs_ty: Option<&Ty>) -> String {
+    let mut expr = scrut_expr;
+    if let Ty::Tuple(_) = scrut_ty {
+        if !matches!(lhs_ty, Some(Ty::Tuple(_))) {
+            expr = format!("{expr}.0");
+        }
+    }
+    if matches!(lhs_ty, Some(Ty::F64)) && *scrut_ty == Ty::I32 {
+        expr = format!("({expr} as f64)");
+    }
+    expr
+}
+
+/// If a match arm's pattern asserts a particular uniontype variant, record
+/// that fact for `local_env` so later field assignments on the scrutinee (or
+/// on a `var as Constructor` binding) can be lowered through
+/// `assign_variant_field!`.
+///
+/// Two pattern shapes seed `variants`:
+///   1. `var as Constructor(..)` — the outer `var` binding is known to be
+///      `Constructor`.
+///   2. The match scrutinee is a plain `TypedExp::Var(name)` AND the pattern
+///      is a `Constructor` for a uniontype variant — that named variable is
+///      known to be the matched variant for the duration of the arm.
+fn record_pattern_variants<'a>(
+    pat: &TypedPat,
+    scrutinee: &TypedExp,
+    env: &mut LocalEnv,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+) {
+    let scrut_ty = scrutinee.ty();
+    // (1) Outer `as` binding.
+    if let TypedPat::As { var, pat: inner } = pat {
+        if let Some((enum_q, variant)) = variant_of_pat(inner, &scrut_ty, top_level) {
+            env.variants.insert(var.clone(), (enum_q, variant));
+        }
+    }
+    // (2) Scrutinee that's a bare variable narrowed by the arm's pattern.
+    let inner_pat = match pat {
+        TypedPat::As { pat: inner, .. } => inner.as_ref(),
+        other => other,
+    };
+    if let Some((enum_q, variant)) = variant_of_pat(inner_pat, &scrut_ty, top_level) {
+        if let TypedExp::Var { name, .. } = scrutinee {
+            env.variants.insert(name.clone(), (enum_q, variant));
+        }
+    }
+}
+
+/// If `pat` is a constructor pattern that proves the matched value is a
+/// specific multi-record uniontype variant, return `(enum_qname, variant)`.
+///
+/// We try, in order:
+///   1. The pattern's `ty` already promoted to `UnionTypeVariant` by inference.
+///   2. The pattern's `ty` as `RustStruct("Parent.Variant")` — a record qname
+///      where the parent is the enclosing uniontype.
+///   3. Fall back to the scrutinee's type: if it's a multi-record uniontype
+///      and the pattern's name matches one of its records, accept that record
+///      as the variant. This covers patterns written with a bare simple name
+///      (e.g. `case NODE(...)`), which the type inferencer leaves as
+///      `Ty::Unknown` because the unqualified name doesn't resolve at the top
+///      level of the hierarchy.
+fn variant_of_pat<'a>(
+    pat: &TypedPat,
+    scrut_ty: &Ty,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+) -> Option<(String, String)> {
+    let TypedPat::Constructor { name, ty, .. } = pat else { return None };
+    if let Ty::UnionTypeVariant(enum_q, variant) = ty {
+        return Some((enum_q.clone(), variant.clone()));
+    }
+    if let Ty::RustStruct(qname) = ty {
+        if let Some((parent, variant)) = qname.rsplit_once('.') {
+            let simple_name = name.rsplit('.').next().unwrap_or(name);
+            if simple_name == variant {
+                return Some((parent.to_owned(), variant.to_owned()));
+            }
+        }
+    }
+    // Fall back to scrutinee type: find the uniontype's record whose simple
+    // name equals the pattern's name.
+    let enum_qname = match scrut_ty {
+        Ty::RustEnum(q) | Ty::AliasTo(q) => q.clone(),
+        _ => return None,
+    };
+    let simple_name = name.rsplit('.').next().unwrap_or(name);
+    let enum_node = lookup_node(&enum_qname, top_level)?;
+    let NodeKind::Class(c) = &enum_node.kind else { return None };
+    if !matches!(c.restriction, Absyn::Restriction::R_UNIONTYPE) {
+        return None;
+    }
+    for (child_name, child_node) in &enum_node.children {
+        if let NodeKind::Class(cc) = &child_node.kind {
+            if matches!(cc.restriction,
+                Absyn::Restriction::R_RECORD | Absyn::Restriction::R_METARECORD { .. })
+                && child_name == simple_name
+            {
+                return Some((enum_qname.clone(), child_name.clone()));
+            }
+        }
+    }
+    None
 }
 
 fn emit_stmt<'a>(
@@ -3844,6 +4225,9 @@ fn emit_stmt<'a>(
             // it's an output or earlier protected — emit assignment.
             if let TypedPat::Var(name) = lhs {
                 if env.vars.contains_key(name) {
+                    // Plain reassignment may switch to a different variant — the
+                    // previously-known variant assertion no longer holds.
+                    env.variants.remove(name);
                     let lhs_ty = env.vars.get(name).cloned();
                     // MetaModelica permits assigning a multi-output call to a single
                     // variable; the unmentioned outputs are silently discarded.
@@ -3916,74 +4300,19 @@ fn emit_stmt<'a>(
                 return;
             }
             if let TypedPat::FieldAccess { base, field } = lhs {
-                // MetaModelica records have value semantics: `var.field := X` assigns a
-                // new record value (with `field` replaced) back to `var`. In Rust we
-                // store these as `Arc<Struct>`, so we cannot mutate through the Arc;
-                // instead we rebuild the struct with the new field and shadow `var`.
-                //
-                // Only the single-level case (base is a local variable of a known
-                // record type) is handled here. Deeper chains like `a.b.c := X` are
-                // not yet covered — they need recursive rebuild — and fall through to
-                // the direct assignment form, which will produce a compile error that
-                // signals the missing case.
-                if let TypedPat::Var(base_name) = base.as_ref() {
-                    if let Some(base_ty) = env.vars.get(base_name) {
-                        let struct_qname: Option<String> = match base_ty {
-                            Ty::RustStruct(q) | Ty::AliasTo(q) => Some(q.clone()),
-                            _ => None,
-                        };
-                        if let Some(qname) = struct_qname {
-                            // `qname` may point at a single-record uniontype (whose record
-                            // was renamed to the uniontype). In that case, the record's
-                            // components live one level deeper, under the uniontype's child.
-                            // Resolve to the actual record qname for the field lookup.
-                            let record_qname = resolve_single_record_qname(&qname, top_level)
-                                .unwrap_or_else(|| qname.clone());
-                            let fields_opt = record_field_tys(&record_qname, top_level)
-                                .filter(|v| !v.is_empty())
-                                .or_else(|| {
-                                    let v = record_field_tys_by_simple_name(&record_qname, top_level);
-                                    if v.is_empty() { None } else { Some(v) }
-                                });
-                            if let Some(fields) = fields_opt {
-                                // Coerce the rhs to the field's declared type and wrap in
-                                // Arc::new if the struct stores this field as Arc<T>.
-                                let lhs_ty = fields.iter().find(|(n, _)| n == field).map(|(_, t)| t.clone());
-                                let scrut_expr = coerce_assign_expr(scrut_expr, &scrut_ty, lhs_ty.as_ref());
-                                let new_field_val = if struct_field_is_arc(&qname, field, top_level, ctx) {
-                                    format!("Arc::new({scrut_expr})")
-                                } else {
-                                    scrut_expr
-                                };
-                                let base_safe = escape_ident(base_name);
-                                let field_safe = escape_ident(field);
-                                if constructor_needs_arc(base_ty, ctx) {
-                                    // Record value is shared as `Arc<T>` — clone the
-                                    // underlying record, update the field on the owned
-                                    // copy, and rewrap in a fresh `Arc<T>`. This is what
-                                    // `assign_field!` (from the metamodelica crate) does
-                                    // and matches MetaModelica's value semantics for
-                                    // `var.field := value`.
-                                    writeln!(
-                                        out,
-                                        "{indent}assign_field!({base_safe}.{field_safe} = {new_field_val});"
-                                    ).unwrap();
-                                } else {
-                                    // Plain owned record — in-place mutation already
-                                    // produces a fresh, locally-owned value.
-                                    writeln!(
-                                        out,
-                                        "{indent}{base_safe}.{field_safe} = {new_field_val};"
-                                    ).unwrap();
-                                }
-                                return;
-                            }
-                        }
-                    }
+                // The macro lowering (assign_field!/assign_variant_field!) is
+                // applied by `emit_stmts`'s pre-pass before this function runs,
+                // using `plan_field_assign` to avoid double-rendering the rhs.
+                // Reaching this branch in `emit_stmt` means the pre-pass found
+                // no lowering — handle the single-statement non-macro case.
+                if let Some(plan) = plan_field_assign(stmt, env, top_level) {
+                    let kind = plan.render(ctx, top_level);
+                    kind.emit_batch(out, indent, &[kind.clause()]);
+                    return;
                 }
-                // Fallback: direct field assignment. Works only when `base` is not an
-                // Arc-wrapped record (rare); kept so unhandled shapes surface as a
-                // Rust error rather than a silent miscompile.
+                // Fallback: direct field assignment. Works only when `base` is not
+                // an Arc-wrapped record (rare); kept so unhandled shapes surface as
+                // a Rust error rather than a silent miscompile.
                 let lhs_str = field_access_to_dotted(base, field);
                 let lhs_ty = lhs_assignment_ty(lhs, env);
                 let scrut_expr = coerce_assign_expr(scrut_expr, &scrut_ty, lhs_ty.as_ref());

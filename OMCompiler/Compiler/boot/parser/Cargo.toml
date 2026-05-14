@@ -3,6 +3,7 @@ resolver = "3"
 members = ["mmwinnow", "mmtorust", "openmodelica", "openmodelica_util", "metamodelica", "openmodelica_frontend", "openmodelica_backend", "openmodelica_susan", "openmodelica_nf_frontend", "openmodelica_util_datatypes_basic"]
 [workspace.dependencies]
 anyhow = "1.0.102"
+arcstr = "1.2.0"
 list_comprehension_macro = "0.1.1"
 const-str = "1.1.0"
 rayon = "1"

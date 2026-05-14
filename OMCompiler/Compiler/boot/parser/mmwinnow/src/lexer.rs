@@ -40,7 +40,7 @@
 //! grammar-dependent; see [`Grammar`].
 
 use crate::Grammar;
-use std::sync::Arc;
+use arcstr::{ArcStr};
 
 /// A single token with its start position in the source file.
 /// Line and column are both 1-based.
@@ -58,14 +58,14 @@ pub enum TokenKind {
     // Literals
     // -----------------------------------------------------------------------
     /// Identifier or quoted identifier (content between single quotes).
-    Ident(Arc<str>),
+    Ident(ArcStr),
     /// Integer literal, stored as i32.
     Int(i32),
     /// Real literal, stored as f64 and original string.
-    Real(f64, Arc<str>),
+    Real(f64, ArcStr),
     /// String literal: raw content between the double-quote delimiters.
     /// Escape sequences are preserved as written (e.g. `\n` stays `\n`).
-    Str(Arc<str>),
+    Str(ArcStr),
 
     // -----------------------------------------------------------------------
     // Base Modelica keywords (all grammars)
@@ -558,7 +558,7 @@ impl<'s> Lexer<'s> {
                 Some(c) => raw.push(c),
             }
         }
-        Ok(TokenKind::Str(Arc::from(raw.as_str())))
+        Ok(TokenKind::Str(raw.into()))
     }
 
     /// Lex a quoted identifier; the opening `'` has already been consumed.
@@ -579,7 +579,7 @@ impl<'s> Lexer<'s> {
             }
         }
         s.push('\'');
-        Ok(TokenKind::Ident(Arc::from(s.as_str())))
+        Ok(TokenKind::Ident(s.into()))
     }
 
     /// Lex a numeric literal; `first` is the first digit already consumed.
@@ -627,7 +627,7 @@ impl<'s> Lexer<'s> {
 
         if is_real {
             match s.parse::<f64>() {
-                Ok(n) if n.is_finite() => Ok(TokenKind::Real(n, Arc::from(s.as_str()))),
+                Ok(n) if n.is_finite() => Ok(TokenKind::Real(n, s.into())),
                 Ok(_) => Err(self.err(format!("real literal '{}' is infinite or NaN, which is not allowed", s))),
                 Err(e) => Err(self.err(format!("invalid real literal '{}': {}", s, e))),
             }
@@ -658,7 +658,7 @@ impl<'s> Lexer<'s> {
             }
         }
         match s.parse::<f64>() {
-            Ok(n) if n.is_finite() => Ok(TokenKind::Real(n, Arc::from(&s[1..]))),
+            Ok(n) if n.is_finite() => Ok(TokenKind::Real(n, s[1..].into())),
             Ok(_) => Err(self.err(format!("real literal '{}' is infinite or NaN, which is not allowed", s))),
             Err(e) => Err(self.err(format!("invalid real literal '{}': {}", s, e))),
         }
@@ -749,7 +749,7 @@ impl<'s> Lexer<'s> {
                     "$annotation" => TokenKind::CodeAnnotation,
                     "$overload"   => TokenKind::Overload,
                     // $cpuTime and other $-prefixed identifiers become Ident.
-                    _ => TokenKind::Ident(Arc::from(word.as_str())),
+                    _ => TokenKind::Ident(word.into()),
                 }
             }
 

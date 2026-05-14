@@ -5,6 +5,7 @@
 
 use metamodelica::*;
 use std::sync::Arc;
+use arcstr::{ArcStr, literal};
 
 // mod Absyn
 
@@ -65,7 +66,7 @@ use std::sync::Arc;
 /// Forward declaration of uniontype Msg
 
 
-    pub type Ident = Arc<str>/* An identifier, for example a variable name */
+    pub type Ident = ArcStr/* An identifier, for example a variable name */
     ;
       /* For Iterator - these are used in:
          * for loops where the expression part can be NONE() and then the range
@@ -81,7 +82,7 @@ use std::sync::Arc;
       pub enum ForIterator {
              ITERATOR{
 
-                   name: Arc<str>,
+                   name: ArcStr,
                    guardExp: Option<Arc<Exp>>,
                    range: Option<Arc<Exp>>,
             },
@@ -147,11 +148,11 @@ use std::sync::Arc;
                    restriction: Restriction/* Restriction */
                    ,
                    body: Arc<ClassDef>,
-                   commentsBeforeClass: Arc<List<Arc<str>>>/* when a class is the first one in the file and has a comment before it */
+                   commentsBeforeClass: Arc<List<ArcStr>>/* when a class is the first one in the file and has a comment before it */
                    ,
-                   commentsBeforeEnd: Arc<List<Arc<str>>>/* when a class has comments before its end */
+                   commentsBeforeEnd: Arc<List<ArcStr>>/* when a class has comments before its end */
                    ,
-                   commentsAfterEnd: Arc<List<Arc<str>>>/* when the class has comments after its end, before the next class or the end of the file */
+                   commentsAfterEnd: Arc<List<ArcStr>>/* when the class has comments after its end, before the next class or the end of the file */
                    ,
                    info: Info/* Information: FileName is the class is defined in +
                                   isReadOnly bool + start line no + start column no +
@@ -173,7 +174,7 @@ use std::sync::Arc;
       pub enum ClassDef {
              PARTS{
 
-                   typeVars: Arc<List<Arc<str>>>/* class A<B,C> ... has type variables B,C */
+                   typeVars: Arc<List<ArcStr>>/* class A<B,C> ... has type variables B,C */
                    ,
                    classAttrs: Arc<List<NamedArg>>/* optimization Op (objective=...) end Op. A list arguments attributing a
                        class declaration. Currently used only for Optimica extensions */
@@ -181,7 +182,7 @@ use std::sync::Arc;
                    classParts: Arc<List<ClassPart>>,
                    ann: Arc<List<Annotation>>/* Modelica2 allowed multiple class-annotations */
                    ,
-                   comment: Option<Arc<str>>,
+                   comment: Option<ArcStr>,
             },
 
              DERIVED{
@@ -211,7 +212,7 @@ use std::sync::Arc;
                    ,
                    modifications: Arc<List<Arc<ElementArg>>>/* modifications to be applied to the base class */
                    ,
-                   comment: Option<Arc<str>>/* comment */
+                   comment: Option<ArcStr>/* comment */
                    ,
                    parts: Arc<List<ClassPart>>/* class parts */
                    ,
@@ -348,7 +349,7 @@ use std::sync::Arc;
 
              LEXER_COMMENT{
 
-                   comment: Arc<str>,
+                   comment: ArcStr,
             },
       }
 
@@ -385,7 +386,7 @@ use std::sync::Arc;
                    optName: Option<Ident>/* optName : optional name of text, e.g. model with syntax error.
                                                           We need the name to be able to browse it... */
                    ,
-                   string: Arc<str>,
+                   string: ArcStr,
                    info: Info,
             },
       }
@@ -511,13 +512,13 @@ use std::sync::Arc;
       pub enum GroupImport {
              GROUP_IMPORT_NAME{
 
-                   name: Arc<str>,
+                   name: ArcStr,
             },
 
              GROUP_IMPORT_RENAME{
 
-                   rename: Arc<str>,
-                   name: Arc<str>,
+                   rename: ArcStr,
+                   name: ArcStr,
             },
       }
 
@@ -576,7 +577,7 @@ use std::sync::Arc;
 
              EQUATIONITEMCOMMENT{
 
-                   comment: Arc<str>,
+                   comment: ArcStr,
             },
       }
 
@@ -597,7 +598,7 @@ use std::sync::Arc;
 
              ALGORITHMITEMCOMMENT{
 
-                   comment: Arc<str>,
+                   comment: ArcStr,
             },
       }
 
@@ -809,7 +810,7 @@ use std::sync::Arc;
                    path: Path,
                    modification: Option<Modification>/* modification */
                    ,
-                   comment: Option<Arc<str>>/* comment */
+                   comment: Option<ArcStr>/* comment */
                    ,
                    info: Info,
             },
@@ -832,7 +833,7 @@ use std::sync::Arc;
 
              ELEMENTARGCOMMENT{
 
-                   comment: Arc<str>,
+                   comment: ArcStr,
             },
 
              INHERITANCEBREAK{
@@ -949,7 +950,7 @@ use std::sync::Arc;
 
              REAL{
 
-                   value: Arc<str>/* String representation of a Real, in order to unparse without changing the user's display preference */
+                   value: ArcStr/* String representation of a Real, in order to unparse without changing the user's display preference */
                    ,
             },
 
@@ -960,7 +961,7 @@ use std::sync::Arc;
 
              STRING{
 
-                   value: Arc<str>,
+                   value: ArcStr,
             },
 
              BOOL{
@@ -1101,7 +1102,7 @@ use std::sync::Arc;
                    ,
                    cases: Arc<List<Case>>/*  case list + else in the end  */
                    ,
-                   comment: Option<Arc<str>>/*  match expr comment_optional  */
+                   comment: Option<ArcStr>/*  match expr comment_optional  */
                    ,
             },
 
@@ -1121,9 +1122,9 @@ use std::sync::Arc;
 
              EXPRESSIONCOMMENT{
 
-                   commentsBefore: Arc<List<Arc<str>>>,
+                   commentsBefore: Arc<List<ArcStr>>,
                    exp: Arc<Exp>,
-                   commentsAfter: Arc<List<Arc<str>>>,
+                   commentsAfter: Arc<List<ArcStr>>,
             },
 
              SUBSCRIPTED_EXP{
@@ -1156,7 +1157,7 @@ use std::sync::Arc;
                    ,
                    resultInfo: Info/* file information of the result-exp */
                    ,
-                   comment: Option<Arc<str>>/*  comment after case like: case pattern string_comment  */
+                   comment: Option<ArcStr>/*  comment after case like: case pattern string_comment  */
                    ,
                    info: Info/* file information of the whole case */
                    ,
@@ -1172,7 +1173,7 @@ use std::sync::Arc;
                    ,
                    resultInfo: Info/* file information of the result-exp */
                    ,
-                   comment: Option<Arc<str>>/*  comment after case like: case pattern string_comment  */
+                   comment: Option<ArcStr>/*  comment after case like: case pattern string_comment  */
                    ,
                    info: Info/* file information of the whole case */
                    ,
@@ -1471,7 +1472,7 @@ use std::sync::Arc;
                    moved: bool,
                   // true if moved outside uniontype, otherwise false.
 
-                   typeVars: Arc<List<Arc<str>>>,
+                   typeVars: Arc<List<ArcStr>>,
             },
 
              R_UNKNOWN,
@@ -1526,7 +1527,7 @@ use std::sync::Arc;
 
                    annotation_: Option<Annotation>/* annotation */
                    ,
-                   comment: Option<Arc<str>>/* comment */
+                   comment: Option<ArcStr>/* comment */
                    ,
             },
       }
@@ -1540,7 +1541,7 @@ use std::sync::Arc;
 
                    funcName: Option<Ident>/* The name of the external function */
                    ,
-                   lang: Option<Arc<str>>/* Language of the external function */
+                   lang: Option<ArcStr>/* Language of the external function */
                    ,
                    output_: Option<ComponentRef>/* output parameter as return value */
                    ,

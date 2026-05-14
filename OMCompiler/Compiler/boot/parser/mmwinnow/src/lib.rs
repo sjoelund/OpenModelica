@@ -22,9 +22,10 @@ use metamodelica::{cons, nil, SourceInfo};
 use winnow::{Parser, ModalResult, combinator::{opt, alt, cut_err}, error::{AddContext, ContextError, StrContext, StrContextValue, ErrMode}};
 use std::sync::Arc;
 use std::cell::RefCell;
+use arcstr::{ArcStr, literal};
 
 thread_local! {
-    static CURRENT_FILE: RefCell<Arc<str>> = RefCell::new(Arc::from(""));
+    static CURRENT_FILE: RefCell<ArcStr> = RefCell::new(literal!(""));
 }
 
 // ---------------------------------------------------------------------------
@@ -114,7 +115,7 @@ impl std::error::Error for ParserError {}
 
 /// Lex then parse `src`.  Returns the AST or the first error encountered.
 pub fn parse(src: &str, filename: &str, grammar: Grammar) -> Result<Program, Box<dyn std::error::Error>> {
-    CURRENT_FILE.with(|f| *f.borrow_mut() = Arc::from(filename));
+    CURRENT_FILE.with(|f| *f.borrow_mut() = ArcStr::from(filename));
     let tokens = lexer::lex(src, grammar)?;
     stored_definition
         .parse(tokens.as_slice())
@@ -135,7 +136,7 @@ pub enum ClassBodyItem {
     Algorithms(Arc<List<AlgorithmItem>>),
     InitialAlgorithms(Arc<List<AlgorithmItem>>),
     Constraints,
-    External { funcName: Option<Arc<str>>, annotation_opt: Option<Absyn::Annotation> },
+    External { funcName: Option<ArcStr>, annotation_opt: Option<Absyn::Annotation> },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -179,7 +180,7 @@ struct ComponentClause {
 fn source_info(tok1: &Token, tok2: &Token) -> SourceInfo {
     let (end_line, end_col) = tok2.end_pos();
     SourceInfo {
-        fileName: CURRENT_FILE.with(|f| Arc::clone(&f.borrow())),
+        fileName: CURRENT_FILE.with(|f| f.borrow().clone()),
         isReadOnly: false,
         lineNumberStart: tok1.line as i32,
         columnNumberStart: tok1.col as i32,
@@ -257,9 +258,7 @@ fn body_items_to_element_items(items: Arc<List<ClassBodyItem>>) -> Arc<List<Elem
         List::Cons { head, tail } => {
             let converted = match head {
                 ClassBodyItem::Element(elem)   => ElementItem::ELEMENTITEM { element: elem.clone() },
-                ClassBodyItem::Annotation(ann) => ElementItem::LEXER_COMMENT { comment: Arc::from(format!("{ann:?}").as_str()) },
-                ClassBodyItem::External { funcName, .. } => ElementItem::LEXER_COMMENT { comment: Arc::from(format!("external {funcName:?}").as_str()) },
-                _ => ElementItem::LEXER_COMMENT { comment: Arc::from("unclassified body item") },
+                _ => panic!("only Element items can appear inside public/protected sections, but found {:?}", head),
             };
             cons(converted, body_items_to_element_items(tail.clone()))
         }
@@ -482,7 +481,7 @@ fn class_specifier2(input: &mut TokenInput) -> ModalResult<Arc<ClassDef>> {
         }));
     }
 
-    let mut typeVars: Arc<List<Arc<str>>> = Arc::new(List::Nil);
+    let mut typeVars: Arc<List<ArcStr>> = Arc::new(List::Nil);
     if opt(t(TK::Less)).parse_next(input)?.is_some() {
         loop {
             let id = t_ident(input)?;
@@ -846,8 +845,8 @@ fn type_prefix(input: &mut TokenInput) -> ModalResult<ElementAttributes> {
     };
 
     let is_field = try_tok(input, |k| match k {
-        TK::Ident(s) if s.as_ref() == "field"    => Some(IsField::FIELD),
-        TK::Ident(s) if s.as_ref() == "nonfield" => Some(IsField::NONFIELD),
+        TK::Ident(s) if s == "field"    => Some(IsField::FIELD),
+        TK::Ident(s) if s == "nonfield" => Some(IsField::NONFIELD),
         _                                => None,
     }).unwrap_or(IsField::NONFIELD);
 
@@ -879,7 +878,7 @@ fn component_list(input: &mut TokenInput) -> ModalResult<Arc<List<Arc<ComponentI
 fn component_declaration(input: &mut TokenInput) -> ModalResult<ComponentItem> {
     let name = match next_tok(input)? {
         TK::Ident(n)  => n,
-        TK::Operator  => Arc::from("operator"),
+        TK::Operator  => literal!("operator"),
         _ => return Err(ErrMode::Backtrack(ContextError::default())),
     };
     let arrayDim  = opt(array_subscripts).parse_next(input)?.unwrap_or_else(|| Arc::new(List::Nil));
@@ -1119,7 +1118,7 @@ fn external_part(input: &mut TokenInput) -> ModalResult<ClassBodyItem> {
         }
     }
     t(TK::Semi).parse_next(input)?;
-    Ok(ClassBodyItem::External { funcName: Some(Arc::from(format!("{parts:?}").as_str())), annotation_opt: None })
+    Ok(ClassBodyItem::External { funcName: Some(arcstr::format!("{parts:?}")), annotation_opt: None })
 }
 
 // ---------------------------------------------------------------------------
@@ -1559,7 +1558,7 @@ fn local_clause(input: &mut TokenInput) -> ModalResult<Arc<List<Arc<Absyn::Eleme
     for item in &*items {
         let ei = match item {
             ClassBodyItem::Element(elem)   => Absyn::ElementItem::ELEMENTITEM { element: elem.clone() },
-            ClassBodyItem::Annotation(ann) => Absyn::ElementItem::LEXER_COMMENT { comment: Arc::from(format!("{ann:?}").as_str()) },
+            ClassBodyItem::Annotation(ann) => Absyn::ElementItem::LEXER_COMMENT { comment: arcstr::format!("{ann:?}") },
             _ => continue,
         };
         result = cons(Arc::new(ei), result);
@@ -1927,7 +1926,7 @@ fn simple_expression(input: &mut TokenInput) -> ModalResult<Absyn::Exp> {
     // Check for ident AS pattern (MetaModelica).
     {
         let saved = *input;
-        let as_result: Option<Arc<str>> = (|| {
+        let as_result: Option<ArcStr> = (|| {
             let id = match input.first() {
                 Some(tok) => match &tok.kind {
                     TK::Ident(s) => s.clone(),
@@ -2436,7 +2435,7 @@ fn matrix_expression_list(input: &mut TokenInput) -> ModalResult<Arc<List<Arc<Li
 // String comments and types
 // ---------------------------------------------------------------------------
 
-fn string_comment(input: &mut TokenInput) -> ModalResult<Option<Arc<str>>> {
+fn string_comment(input: &mut TokenInput) -> ModalResult<Option<ArcStr>> {
     let mut res: String = match opt(t_str_token).parse_next(input)? {
         Some(s) => s.to_string(),
         None    => return Ok(None),
@@ -2444,7 +2443,7 @@ fn string_comment(input: &mut TokenInput) -> ModalResult<Option<Arc<str>>> {
     while opt(t(TK::Plus)).parse_next(input)?.is_some() {
         res.push_str(&cut_err(t_str_token).parse_next(input)?);
     }
-    Ok(Some(Arc::from(res)))
+    Ok(Some(res.into()))
 }
 
 fn comment(input: &mut TokenInput) -> ModalResult<Option<Comment>> {

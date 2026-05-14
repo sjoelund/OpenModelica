@@ -30,6 +30,7 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use anyhow::Result;
 use anyhow::bail;
+use arcstr::{ArcStr, literal, format};
 
 /// MetaModelica `array<T>`. See module-level docs for rationale.
 pub type Array<A> = Rc<RefCell<Vec<A>>>;
@@ -43,7 +44,7 @@ pub type Array<A> = Rc<RefCell<Vec<A>>>;
 #[derive(Debug, Clone, PartialEq)]
 pub struct SourceInfo {
     /// File name where the class is defined in.
-    pub fileName: Arc<str>,
+    pub fileName: ArcStr,
     /// Should be true for libraries.
     pub isReadOnly: bool,
     /// Start line number (1-based).
@@ -87,8 +88,8 @@ pub fn boolEq(b1: bool, b2: bool) -> Result<bool> {
 }
 
 /// Returns "true" or "false" string from a boolean.
-pub fn boolString(b: bool) -> Result<Arc<str>> {
-    Ok(Arc::from(if b { "true".to_string() } else { "false".to_string() }))
+pub fn boolString(b: bool) -> Result<ArcStr> {
+    Ok(if b { literal!("true") } else { literal!("false") })
 }
 
 // ============================================================================
@@ -237,8 +238,8 @@ pub fn intReal(i: i32) -> Result<f64> {
 }
 
 /// Converts Integer to String.
-pub fn intString(i: i32) -> Result<Arc<str>> {
-    Ok(Arc::from(i.to_string()))
+pub fn intString(i: i32) -> Result<ArcStr> {
+    Ok(format!("{}", i))
 }
 
 // ============================================================================
@@ -358,8 +359,8 @@ pub fn realInt(r: f64) -> Result<i32> {
 }
 
 /// Converts Real to String.
-pub fn realString(r: f64) -> Result<Arc<str>> {
-    Ok(Arc::from(r.to_string()))
+pub fn realString(r: f64) -> Result<ArcStr> {
+    Ok(format!("{}", r))
 }
 
 // ============================================================================
@@ -367,7 +368,7 @@ pub fn realString(r: f64) -> Result<Arc<str>> {
 // ============================================================================
 
 /// Returns the ASCII code point of a single-character string.
-pub fn stringCharInt(ch: Arc<str>) -> Result<i32> {
+pub fn stringCharInt(ch: ArcStr) -> Result<i32> {
     if ch.len() != 1 {
         bail!("stringCharInt expects a single-character string, got '{}'", ch);
     };
@@ -377,29 +378,29 @@ pub fn stringCharInt(ch: Arc<str>) -> Result<i32> {
 }
 
 /// Returns a single-character string from an ASCII code point.
-pub fn intStringChar(i: i32) -> Result<Arc<str>> {
-    Ok(Arc::from(std::char::from_u32(i as u32).unwrap().to_string()))
+pub fn intStringChar(i: i32) -> Result<ArcStr> {
+    Ok(format!("{}", std::char::from_u32(i as u32).unwrap()))
 }
 
 /// Parses an integer from a string. Fails if the string is not a valid integer.
-pub fn stringInt(str: String) -> Result<i32> {
+pub fn stringInt(str: ArcStr) -> Result<i32> {
     str.parse::<i32>().map_err(|_| anyhow::anyhow!("Failed to parse integer from string: {}", str))
 }
 
 /// Parses a real (f64) from a string.
 /// Fails unless the whole string can be consumed.
-pub fn stringReal(str: String) -> Result<f64> {
+pub fn stringReal(str: ArcStr) -> Result<f64> {
     str.parse::<f64>().map_err(|_| anyhow::anyhow!("Failed to parse real from string: {}", str))
 }
 
 /// Converts a string to a list of single-character strings.
-pub fn stringListStringChar(str: Arc<str>) -> Result<List<Arc<str>>> {
+pub fn stringListStringChar(str: ArcStr) -> Result<List<ArcStr>> {
     // TODO: We could have constants for all these short strings to avoid allocations.
-    Ok(str.chars().map(|c| Arc::from(c.to_string())).collect())
+    Ok(str.chars().map(|c| format!("{}", c)).collect())
 }
 
 /// Appends a list of strings into a single string.
-pub fn stringAppendList(strs: Arc<List<Arc<str>>>) -> Result<Arc<str>> {
+pub fn stringAppendList(strs: Arc<List<ArcStr>>) -> Result<ArcStr> {
     let mut len = 0;
     for s in &*strs {
         len += s.len();
@@ -408,12 +409,12 @@ pub fn stringAppendList(strs: Arc<List<Arc<str>>>) -> Result<Arc<str>> {
     for s in &*strs {
         result.push_str(&s);
     }
-    Ok(Arc::from(result))
+    Ok(result.into())
 }
 
 /// Takes a list of strings and a delimiter and joins them with the delimiter inserted between elements.
 /// Example: stringDelimitList({"x","y","z"}, ", ") => "x, y, z"
-pub fn stringDelimitList(strs: Arc<List<Arc<str>>>, delimiter: Arc<str>) -> Result<Arc<str>> {
+pub fn stringDelimitList(strs: Arc<List<ArcStr>>, delimiter: ArcStr) -> Result<ArcStr> {
     let mut len = 0;
     let delimiter_len = delimiter.len();
     for s in &*strs {
@@ -431,7 +432,7 @@ pub fn stringDelimitList(strs: Arc<List<Arc<str>>>, delimiter: Arc<str>) -> Resu
         first = false;
     }
 
-    Ok(Arc::from(result))
+    Ok(result.into())
 }
 
 /// Returns the length of the string (number of bytes).
@@ -445,7 +446,7 @@ pub fn stringEmpty(str: String) -> Result<bool> {
 }
 
 /// Returns the byte value at the given 1-based index.
-pub fn stringGet(str: Arc<str>, index: i32) -> Result<i32> {
+pub fn stringGet(str: ArcStr, index: i32) -> Result<i32> {
     let idx = (index - 1) as usize; // 1-based to 0-based
     str.bytes().nth(idx)
         .map(|b| b as i32)
@@ -453,16 +454,16 @@ pub fn stringGet(str: Arc<str>, index: i32) -> Result<i32> {
 }
 
 /// Returns the character at the given 1-based index as a string.
-pub fn stringGetStringChar(str: Arc<str>, index: i32) -> Result<Arc<str>> {
+pub fn stringGetStringChar(str: ArcStr, index: i32) -> Result<ArcStr> {
     let idx = (index - 1) as usize; // 1-based to 0-based
     str.chars().nth(idx)
-        .map(|c| Arc::from(c.to_string()))
+        .map(|c| format!("{}", c))
         .ok_or_else(|| anyhow::anyhow!("Index {} out of bounds for string of length {}", index, str.chars().count()))
 }
 
 /// Updates the character at the given 1-based index with newch.
 /// newch should be a single character.
-pub fn stringUpdateStringChar(str: Arc<str>, newch: Arc<str>, index: i32) -> Result<Arc<str>> {
+pub fn stringUpdateStringChar(str: ArcStr, newch: ArcStr, index: i32) -> Result<ArcStr> {
     if newch.is_empty() {
         bail!("newch must not be empty");
     }
@@ -473,27 +474,27 @@ pub fn stringUpdateStringChar(str: Arc<str>, newch: Arc<str>, index: i32) -> Res
     }
     let new_char = newch.chars().next().unwrap_or(' ');
     chars[idx] = new_char;
-    Ok(Arc::from(chars.into_iter().collect::<String>()))
+    Ok(format!("{}", chars.into_iter().collect::<String>()))
 }
 
 /// Concatenates two strings (s1 + s2).
-pub fn stringAppend(s1: Arc<str>, s2: Arc<str>) -> Result<Arc<str>> {
-    Ok(Arc::from(format!("{}{}", s1, s2)))
+pub fn stringAppend(s1: ArcStr, s2: ArcStr) -> Result<ArcStr> {
+    Ok(format!("{}{}", s1, s2))
 }
 
 /// Compares two strings for equality.
 #[inline(always)]
-pub fn stringEq(s1: Arc<str>, s2: Arc<str>) -> Result<bool> {
+pub fn stringEq(s1: ArcStr, s2: ArcStr) -> Result<bool> {
     Ok(s1 == s2)
 }
 #[inline(always)]
-pub fn stringEqual(s1: Arc<str>, s2: Arc<str>) -> Result<bool> {
+pub fn stringEqual(s1: ArcStr, s2: ArcStr) -> Result<bool> {
     Ok(s1 == s2)
 }
 
 /// Compares two strings lexicographically.
 /// Returns negative if s1 < s2, zero if s1 == s2, positive if s1 > s2.
-pub fn stringCompare(s1: Arc<str>, s2: Arc<str>) -> Result<i32> {
+pub fn stringCompare(s1: ArcStr, s2: ArcStr) -> Result<i32> {
     // Byte-by-byte comparison for consistency
     let bytes1 = s1.as_bytes();
     let bytes2 = s2.as_bytes();
@@ -515,7 +516,7 @@ pub fn stringCompare(s1: Arc<str>, s2: Arc<str>) -> Result<i32> {
 }
 
 /// Returns a hash of the string using Rust's built-in hash.
-pub fn stringHash(str: Arc<str>) -> Result<i32> {
+pub fn stringHash(str: ArcStr) -> Result<i32> {
     use std::collections::hash_map::DefaultHasher;
     use std::hash::Hash;
     use std::hash::Hasher;
@@ -526,7 +527,7 @@ pub fn stringHash(str: Arc<str>) -> Result<i32> {
 
 /// Returns a DJB2 hash of the string.
 /// DJB2 algorithm: hash = hash * 33 + byte
-pub fn stringHashDjb2(str: Arc<str>) -> Result<i32> {
+pub fn stringHashDjb2(str: ArcStr) -> Result<i32> {
     let mut hash: i32 = 5381;
     for &byte in str.as_bytes() {
         hash = hash.wrapping_mul(33).wrapping_add(byte as i32);
@@ -535,7 +536,7 @@ pub fn stringHashDjb2(str: Arc<str>) -> Result<i32> {
 }
 
 /// Continues computing a DJB2 hash by adding another string to it.
-pub fn stringHashDjb2Continue(str: Arc<str>, hash: i32) -> Result<i32> {
+pub fn stringHashDjb2Continue(str: ArcStr, hash: i32) -> Result<i32> {
     let mut h = hash;
     for &byte in str.as_bytes() {
         h = h.wrapping_mul(33).wrapping_add(byte as i32);
@@ -544,7 +545,7 @@ pub fn stringHashDjb2Continue(str: Arc<str>, hash: i32) -> Result<i32> {
 }
 
 /// Computes a DJB2 hash and applies modulo without intermediate overflow issues.
-pub fn stringHashDjb2Mod(str: Arc<str>, mod_val: i32) -> Result<i32> {
+pub fn stringHashDjb2Mod(str: ArcStr, mod_val: i32) -> Result<i32> {
     if mod_val == 0 {
         return Ok(0);
     }
@@ -557,7 +558,7 @@ pub fn stringHashDjb2Mod(str: Arc<str>, mod_val: i32) -> Result<i32> {
 
 /// Returns an SDBM hash of the string.
 /// SDBM algorithm: hash = byte + (hash << 6) + (hash << 16) - hash
-pub fn stringHashSdbm(str: Arc<str>) -> Result<i32> {
+pub fn stringHashSdbm(str: ArcStr) -> Result<i32> {
     let mut hash: i32 = 0;
     for &byte in str.as_bytes() {
         hash = byte as i32 + (hash << 6) + (hash << 16) - hash;
@@ -568,7 +569,7 @@ pub fn stringHashSdbm(str: Arc<str>) -> Result<i32> {
 /// Extracts a substring from str.
 /// start and stop are 1-based indices (first character is at index 1).
 /// Fails for bogus start/stop values.
-pub fn substring(str: Arc<str>, start: i32, stop: i32) -> Result<Arc<str>> {
+pub fn substring(str: ArcStr, start: i32, stop: i32) -> Result<ArcStr> {
     if start < 1 || stop < start || start > stop {
         bail!("Invalid substring range: start={}, stop={}", start, stop);
     }
@@ -578,16 +579,16 @@ pub fn substring(str: Arc<str>, start: i32, stop: i32) -> Result<Arc<str>> {
     if stop_idx > chars.len() {
         bail!("Stop index {} exceeds string length {}", stop, chars.len());
     }
-    Ok(Arc::from(chars[start_idx..stop_idx].iter().collect::<String>()))
+    Ok(format!("{}", chars[start_idx..stop_idx].iter().collect::<String>()))
 }
 
 /// Alias for string_append_list (maps a list of single-char strings to one string).
-pub fn listStringCharString(strs: Arc<List<Arc<str>>>) -> Result<Arc<str>> {
+pub fn listStringCharString(strs: Arc<List<ArcStr>>) -> Result<ArcStr> {
     stringAppendList(strs)
 }
 
 /// Alias for string_append_list (maps a list of single-char strings to one string).
-pub fn stringCharListString(strs: Arc<List<Arc<str>>>) -> Result<Arc<str>> {
+pub fn stringCharListString(strs: Arc<List<ArcStr>>) -> Result<ArcStr> {
     stringAppendList(strs)
 }
 
@@ -1065,8 +1066,8 @@ pub fn arrayAppend<A: Clone>(arr1: Array<A>, arr2: Array<A>) -> Result<Array<A>>
 
 /// Returns the string representation of any Debug-printable value.
 /// Rather slow; only use this for debugging!
-pub fn anyString<A: std::fmt::Debug>(a: &A) -> Result<Arc<str>> {
-    Ok(Arc::from(format!("{:?}", a)))
+pub fn anyString<A: std::fmt::Debug>(a: &A) -> Result<ArcStr> {
+    Ok(format!("{:?}", a))
 }
 
 /// Prints any Debug-printable value to stderr.
@@ -1121,13 +1122,13 @@ pub fn referenceEq<A: PartialEq>(a1: &A, a2: &A) -> Result<bool> {
 }
 
 /// Returns the pointer address of a reference as a hexadecimal string for debugging.
-pub fn referencePointerString<A>(a: &A) -> Result<Arc<str>> {
-    Ok(Arc::from(format!("{:p}", a)))
+pub fn referencePointerString<A>(a: &A) -> Result<ArcStr> {
+    Ok(format!("{:p}", a))
 }
 
 /// Returns a debug string for a function symbol.
 /// In Rust, returns the type name of the value for debugging.
-pub fn referenceDebugString<A: std::fmt::Debug>(_a: &A) -> Result<String> {
+pub fn referenceDebugString<A: std::fmt::Debug>(_a: &A) -> Result<ArcStr> {
     Ok(format!("{:?}", std::any::type_name::<A>()))
 }
 
@@ -1667,9 +1668,9 @@ mod tests {
 
         #[test]
         fn test_string_char_int() {
-            assert_eq!(stringCharInt(Arc::from("A")).unwrap(), 65);
-            assert_eq!(stringCharInt(Arc::from("a")).unwrap(), 97);
-            assert_eq!(stringCharInt(Arc::from("0")).unwrap(), 48);
+            assert_eq!(stringCharInt(literal!("A")).unwrap(), 65);
+            assert_eq!(stringCharInt(literal!("a")).unwrap(), 97);
+            assert_eq!(stringCharInt(literal!("0")).unwrap(), 48);
         }
 
         #[test]
@@ -1682,34 +1683,34 @@ mod tests {
 
         #[test]
         fn test_string_int() {
-            assert_eq!(stringInt("42".to_string()).unwrap(), 42);
-            assert_eq!(stringInt("-7".to_string()).unwrap(), -7);
-            assert!(stringInt("not_a_number".to_string()).is_err());
+            assert_eq!(stringInt(literal!("42")).unwrap(), 42);
+            assert_eq!(stringInt(literal!("-7")).unwrap(), -7);
+            assert!(stringInt(literal!("not_a_number")).is_err());
         }
 
         #[test]
         fn test_string_real() {
-            assert_eq!(stringReal("3.14".to_string()).unwrap(), 3.14);
-            assert_eq!(stringReal("-2.5".to_string()).unwrap(), -2.5);
-            assert!(stringReal("not_a_number".to_string()).is_err());
+            assert_eq!(stringReal(literal!("3.14")).unwrap(), 3.14);
+            assert_eq!(stringReal(literal!("-2.5")).unwrap(), -2.5);
+            assert!(stringReal(literal!("not_a_number")).is_err());
         }
 
         #[test]
         fn test_string_list_string_char() {
-            let result = stringListStringChar(Arc::from("abc")).unwrap();
-            assert_eq!(result, List::from_iter([Arc::from("a"), Arc::from("b"), Arc::from("c")]));
+            let result = stringListStringChar(literal!("abc ")).unwrap();
+            assert_eq!(result, List::from_iter([literal!("a"), literal!("b"), literal!("c")]));
         }
 
         #[test]
         fn test_string_append_list() {
-            let strs = list![Arc::from("hello"), Arc::from(" "), Arc::from("world")];
+            let strs = list![literal!("hello"), literal!(" "), literal!("world")];
             assert_eq!(&*stringAppendList(strs).unwrap(), "hello world");
         }
 
         #[test]
         fn test_string_delimit_list() {
-            let strs: Arc<List<Arc<str>>> = list![Arc::from("x"), Arc::from("y"), Arc::from("z")];
-            assert_eq!(&(*stringDelimitList(strs, Arc::from(", ")).unwrap()), "x, y, z");
+            let strs: Arc<List<ArcStr>> = list![literal!("x"), literal!("y"), literal!("z")];
+            assert_eq!(stringDelimitList(strs, literal!(", ")).unwrap(), "x, y, z");
         }
     }
 
@@ -1742,29 +1743,29 @@ mod tests {
 
         #[test]
         fn test_string_get() {
-            assert_eq!(stringGet(Arc::from("hello"), 1).unwrap(), b'h' as i32);
-            assert_eq!(stringGet(Arc::from("hello"), 5).unwrap(), b'o' as i32);
-            assert!(stringGet(Arc::from("hello"), 0).is_err());
-            assert!(stringGet(Arc::from("hello"), 6).is_err());
+            assert_eq!(stringGet(literal!("hello"), 1).unwrap(), b'h' as i32);
+            assert_eq!(stringGet(literal!("hello"), 5).unwrap(), b'o' as i32);
+            assert!(stringGet(literal!("hello"), 0).is_err());
+            assert!(stringGet(literal!("hello"), 6).is_err());
         }
 
         #[test]
         fn test_string_get_string_char() {
-            assert_eq!(stringGetStringChar(Arc::from("hello"), 1).unwrap(), Arc::from("h"));
-            assert_eq!(stringGetStringChar(Arc::from("hello"), 3).unwrap(), Arc::from("l"));
-            assert_eq!(stringGetStringChar(Arc::from("hello"), 5).unwrap(), Arc::from("o"));
-            assert!(stringGetStringChar(Arc::from("hello"), 0).is_err());
-            assert!(stringGetStringChar(Arc::from("hello"), 6).is_err());
+            assert_eq!(stringGetStringChar(literal!("hello"), 1).unwrap(), literal!("h"));
+            assert_eq!(stringGetStringChar(literal!("hello"), 3).unwrap(), literal!("l"));
+            assert_eq!(stringGetStringChar(literal!("hello"), 5).unwrap(), literal!("o"));
+            assert!(stringGetStringChar(literal!("hello"), 0).is_err());
+            assert!(stringGetStringChar(literal!("hello"), 6).is_err());
         }
 
         #[test]
         fn test_string_update_string_char() {
-            assert_eq!(stringUpdateStringChar(Arc::from("hello"), Arc::from("X"), 1).unwrap(), Arc::from("Xello"));
-            assert_eq!(stringUpdateStringChar(Arc::from("hello"), Arc::from("X"), 3).unwrap(), Arc::from("heXlo"));
-            assert_eq!(stringUpdateStringChar(Arc::from("hello"), Arc::from("X"), 5).unwrap(), Arc::from("hellX"));
-            assert!(stringUpdateStringChar(Arc::from("hello"), Arc::from("X"), 0).is_err());
-            assert!(stringUpdateStringChar(Arc::from("hello"), Arc::from("X"), 6).is_err());
-            assert!(stringUpdateStringChar(Arc::from("hello"), Arc::from(""), 1).is_err());
+            assert_eq!(stringUpdateStringChar(literal!("hello"), literal!("X"), 1).unwrap(), literal!("Xello"));
+            assert_eq!(stringUpdateStringChar(literal!("hello"), literal!("X"), 3).unwrap(), literal!("heXlo"));
+            assert_eq!(stringUpdateStringChar(literal!("hello"), literal!("X"), 5).unwrap(), literal!("hellX"));
+            assert!(stringUpdateStringChar(literal!("hello"), literal!("X"), 0).is_err());
+            assert!(stringUpdateStringChar(literal!("hello"), literal!("X"), 6).is_err());
+            assert!(stringUpdateStringChar(literal!("hello"), literal!(""), 1).is_err());
         }
     }
 
@@ -1777,22 +1778,22 @@ mod tests {
 
         #[test]
         fn test_string_append() {
-            assert_eq!(&*stringAppend(Arc::from("hello"), Arc::from(" world")).unwrap(), "hello world");
-            assert_eq!(&*stringAppend(Arc::from(""), Arc::from("hello")).unwrap(), "hello");
-            assert_eq!(&*stringAppend(Arc::from("hello"), Arc::from("")).unwrap(), "hello");
+            assert_eq!(stringAppend(literal!("hello"), literal!(" world")).unwrap(), literal!("hello world"));
+            assert_eq!(stringAppend(literal!(""), literal!("hello")).unwrap(), literal!("hello"));
+            assert_eq!(stringAppend(literal!("hello"), literal!("")).unwrap(), literal!("hello"));
         }
 
         #[test]
         fn test_string_eq() {
-            assert!(stringEq(Arc::from("abc"), Arc::from("abc")).unwrap());
-            assert!(!stringEq(Arc::from("abc"), Arc::from("abd")).unwrap());
-            assert!(!stringEq(Arc::from(""), Arc::from("abc")).unwrap());
+            assert!(stringEq(literal!("abc"), literal!("abc")).unwrap());
+            assert!(!stringEq(literal!("abc"), literal!("abd")).unwrap());
+            assert!(!stringEq(literal!(""), literal!("abc")).unwrap());
         }
 
         #[test]
         fn test_string_equal() {
-            assert!(stringEqual(Arc::from("abc"), Arc::from("abc")).unwrap());
-            assert!(!stringEqual(Arc::from("abc"), Arc::from("abd")).unwrap());
+            assert!(stringEqual(literal!("abc"), literal!("abc")).unwrap());
+            assert!(!stringEqual(literal!("abc"), literal!("abd")).unwrap());
         }
     }
 
@@ -1805,11 +1806,11 @@ mod tests {
 
         #[test]
         fn test_string_compare() {
-            assert!(stringCompare(Arc::from("abc"), Arc::from("abd")).unwrap() < 0);
-            assert_eq!(stringCompare(Arc::from("abc"), Arc::from("abc")).unwrap(), 0);
-            assert!(stringCompare(Arc::from("abd"), Arc::from("abc")).unwrap() > 0);
-            assert!(stringCompare(Arc::from("ab"), Arc::from("abc")).unwrap() < 0);
-            assert!(stringCompare(Arc::from("abc"), Arc::from("ab")).unwrap() > 0);
+            assert!(stringCompare(literal!("abc"), literal!("abd")).unwrap() < 0);
+            assert_eq!(stringCompare(literal!("abc"), literal!("abc")).unwrap(), 0);
+            assert!(stringCompare(literal!("abd"), literal!("abc")).unwrap() > 0);
+            assert!(stringCompare(literal!("ab"), literal!("abc")).unwrap() < 0);
+            assert!(stringCompare(literal!("abc"), literal!("ab")).unwrap() > 0);
         }
     }
 
@@ -1823,38 +1824,38 @@ mod tests {
         #[test]
         fn test_string_hash_djb2() {
             // DJB2 of "a" = 5381 * 33 + 97 = 177700 + 97 = 177797
-            assert_eq!(stringHashDjb2(Arc::from("a")).unwrap(), 5381_i32.wrapping_mul(33).wrapping_add(97));
-            assert_eq!(stringHashDjb2(Arc::from("")).unwrap(), 5381);
+            assert_eq!(stringHashDjb2(literal!("a")).unwrap(), 5381_i32.wrapping_mul(33).wrapping_add(97));
+            assert_eq!(stringHashDjb2(literal!("")).unwrap(), 5381);
         }
 
         #[test]
         fn test_string_hash_djb2_continue() {
-            let h1 = stringHashDjb2(Arc::from("hello")).unwrap();
-            let _h2 = stringHashDjb2(Arc::from(" world")).unwrap();
-            let combined = stringHashDjb2Continue(Arc::from(" world"), h1).unwrap();
+            let h1 = stringHashDjb2(literal!("hello")).unwrap();
+            let _h2 = stringHashDjb2(literal!(" world")).unwrap();
+            let combined = stringHashDjb2Continue(literal!(" world"), h1).unwrap();
             // Starting from h1 and adding " world" should give the same
             // as hashing "hello world" from scratch
-            assert_eq!(combined, stringHashDjb2(Arc::from("hello world")).unwrap());
+            assert_eq!(combined, stringHashDjb2(literal!("hello world")).unwrap());
         }
 
         #[test]
         fn test_string_hash_djb2_mod() {
-            let h = stringHashDjb2Mod(Arc::from("hello"), 100).unwrap();
+            let h = stringHashDjb2Mod(literal!("hello"), 100).unwrap();
             assert!(h >= 0 && h < 100);
-            assert_eq!(stringHashDjb2Mod(Arc::from("hello"), 0).unwrap(), 0);
+            assert_eq!(stringHashDjb2Mod(literal!("hello"), 0).unwrap(), 0);
         }
 
         #[test]
         fn test_string_hash_sdbm() {
             // SDBM of "a" = 97 + 0 + 0 - 0 = 97
-            assert_eq!(stringHashSdbm(Arc::from("a")).unwrap(), 97);
-            assert_eq!(stringHashSdbm(Arc::from("")).unwrap(), 0);
+            assert_eq!(stringHashSdbm(literal!("a")).unwrap(), 97);
+            assert_eq!(stringHashSdbm(literal!("")).unwrap(), 0);
         }
 
         #[test]
         fn test_string_hash_consistency() {
             // Same string should produce same hash
-            assert_eq!(stringHash(Arc::from("test")).unwrap(), stringHash(Arc::from("test")).unwrap());
+            assert_eq!(stringHash(literal!("test")).unwrap(), stringHash(literal!("test")).unwrap());
         }
     }
 
@@ -1867,18 +1868,18 @@ mod tests {
 
         #[test]
         fn test_substring_basic() {
-            assert_eq!(*substring(Arc::from("hello world".to_string()), 1, 5).unwrap(), "hello".to_string());
-            assert_eq!(*substring(Arc::from("hello world".to_string()), 7, 11).unwrap(), "world".to_string());
-            assert_eq!(*substring(Arc::from("hello".to_string()), 3, 3).unwrap(), "l".to_string());
-            assert_eq!(*substring(Arc::from("hello".to_string()), 1, 5).unwrap(), "hello".to_string());
+            assert_eq!(*substring(literal!("hello world"), 1, 5).unwrap(), "hello".to_string());
+            assert_eq!(*substring(literal!("hello world"), 7, 11).unwrap(), "world".to_string());
+            assert_eq!(*substring(literal!("hello"), 3, 3).unwrap(), "l".to_string());
+            assert_eq!(*substring(literal!("hello"), 1, 5).unwrap(), "hello".to_string());
         }
 
         #[test]
         fn test_substring_errors() {
-            assert!(substring(Arc::from("hello"), 0, 3).is_err());  // start < 1
-            assert!(substring(Arc::from("hello"), 3, 2).is_err());  // stop < start
-            assert!(substring(Arc::from("hello"), 1, 6).is_err());  // stop out of bounds
-            assert!(substring(Arc::from("hello"), 6, 7).is_err());  // start out of bounds
+            assert!(substring(literal!("hello"), 0, 3).is_err());  // start < 1
+            assert!(substring(literal!("hello"), 3, 2).is_err());  // stop < start
+            assert!(substring(literal!("hello"), 1, 6).is_err());  // stop out of bounds
+            assert!(substring(literal!("hello"), 6, 7).is_err());  // start out of bounds
         }
     }
 
@@ -1891,13 +1892,13 @@ mod tests {
 
         #[test]
         fn test_list_string_char_string() {
-            let strs: Arc<List<Arc<str>>> = list![Arc::from("a"), Arc::from("b"), Arc::from("c")];
+            let strs: Arc<List<ArcStr>> = list![literal!("a"), literal!("b"), literal!("c")];
             assert_eq!(&*listStringCharString(strs).unwrap(), "abc");
         }
 
         #[test]
         fn test_string_char_list_string() {
-            let strs: Arc<List<Arc<str>>> = list![Arc::from("a"), Arc::from("b"), Arc::from("c")];
+            let strs: Arc<List<ArcStr>> = list![literal!("a"), literal!("b"), literal!("c")];
             assert_eq!(&*stringCharListString(strs).unwrap(), "abc");
         }
     }
@@ -2239,7 +2240,7 @@ mod tests {
         #[test]
         fn test_source_info() {
             let info = SourceInfo {
-                fileName: Arc::from("test.mo".to_string()),
+                fileName: literal!("test.mo"),
                 isReadOnly: true,
                 lineNumberStart: 1,
                 columnNumberStart: 1,
@@ -2247,7 +2248,7 @@ mod tests {
                 columnNumberEnd: 50,
                 lastModification: 1234567890.0,
             };
-            assert_eq!(&*info.fileName, "test.mo");
+            assert_eq!(info.fileName, "test.mo");
             assert!(info.isReadOnly);
             assert_eq!(info.lineNumberStart, 1);
         }

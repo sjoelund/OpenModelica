@@ -41,7 +41,7 @@
 
 use crate::lexer::{Token as LexToken, TokenKind as TK, keyword_as_str};
 use winnow::{ModalResult, error::{ContextError, ErrMode}};
-use std::sync::Arc;
+use arcstr::{ArcStr, literal};
 
 /// The parser input type: a slice of already-lexed tokens.
 pub type TokenInput<'a> = &'a [LexToken];
@@ -99,11 +99,11 @@ where
 
 /// Consume an `Ident` token and return its string value.
 #[inline]
-pub fn t_ident(input: &mut &[LexToken]) -> ModalResult<Arc<str>> {
-    let s: Arc<str> = match input.first() {
-        Some(LexToken { kind: TK::Der, .. }) => Arc::from("der"),
-        Some(LexToken { kind: TK::Initial, .. }) => Arc::from("initial"),
-        Some(LexToken { kind: TK::Code, .. }) => Arc::from("$Code"),
+pub fn t_ident(input: &mut &[LexToken]) -> ModalResult<ArcStr> {
+    let s: ArcStr = match input.first() {
+        Some(LexToken { kind: TK::Der, .. }) => literal!("der"),
+        Some(LexToken { kind: TK::Initial, .. }) => literal!("initial"),
+        Some(LexToken { kind: TK::Code, .. }) => literal!("$Code"),
         Some(LexToken { kind: TK::Ident(s), .. })
         => s.clone(),
         _ => return Err(ErrMode::Backtrack(ContextError::default())),
@@ -115,7 +115,7 @@ pub fn t_ident(input: &mut &[LexToken]) -> ModalResult<Arc<str>> {
 /// Consume an `Ident` *or* any keyword token, returning the source spelling.
 /// Used where keywords may appear as field/record names (e.g. named arguments).
 #[inline]
-pub fn t_any_ident(input: &mut &[LexToken]) -> ModalResult<Arc<str>> {
+pub fn t_any_ident(input: &mut &[LexToken]) -> ModalResult<ArcStr> {
     match input.first() {
         Some(LexToken { kind: TK::Ident(s), .. }) => {
             let s = s.clone(); *input = &input[1..]; Ok(s)
@@ -123,7 +123,7 @@ pub fn t_any_ident(input: &mut &[LexToken]) -> ModalResult<Arc<str>> {
         Some(LexToken { kind, .. }) => {
             if let Some(spelling) = keyword_as_str(kind) {
                 *input = &input[1..];
-                Ok(Arc::from(spelling))
+                Ok(spelling.into())
             } else {
                 Err(ErrMode::Backtrack(ContextError::default()))
             }
@@ -134,7 +134,7 @@ pub fn t_any_ident(input: &mut &[LexToken]) -> ModalResult<Arc<str>> {
 
 /// Consume a `Str` token and return its raw content (escape sequences preserved).
 #[inline]
-pub fn t_str_token(input: &mut &[LexToken]) -> ModalResult<Arc<str>> {
+pub fn t_str_token(input: &mut &[LexToken]) -> ModalResult<ArcStr> {
     match input.first() {
         Some(LexToken { kind: TK::Str(s), .. }) => {
             let s = s.clone(); *input = &input[1..]; Ok(s)

@@ -10,3 +10,4 @@ openmodelica_susan.workspace = true
 openmodelica_util_datatypes_basic.workspace=true
 anyhow.workspace = true
 const-str.workspace=true
+arcstr.workspace=true

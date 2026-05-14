@@ -1340,18 +1340,35 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                 // (the struct shares its name with the enclosing module/file). Without
                 // the doubling, `crate::SBSet { ... }` resolves to the module, not the
                 // struct, and Rust rejects it (E0574).
-                let first = qname.split('.').next().unwrap_or(qname);
+                //
+                // Special case: a record inside a multi-record uniontype is typed as
+                // `RustStruct(record_qname)` here (seed_metarecords doesn't promote it
+                // to `UnionTypeVariant`), but in Rust it's an enum variant — not its
+                // own struct. Detect this by looking up the parent ty; if the parent
+                // is `RustEnum`, build the path as `<EnumPath>::<Variant>` so the
+                // path-resolution rules (including `no_mod_uniontypes`) apply to the
+                // enum, not the variant.
                 let last = qname.rsplit('.').next().unwrap_or(qname);
-                let shortened = ctx.shorten(qname);
-                let in_own_mod = ctx.current_path.last().map(|p| p == last).unwrap_or(false);
-                let needs_doubling = !in_own_mod && !ctx.no_mod_uniontypes.contains(qname.as_str()) && (
-                    (ctx.top_level_uniontype_names.contains(first) && first != ctx.top_name) ||
-                    (qname.contains('.') && first != last)
-                );
-                let c_rust = if needs_doubling {
-                    format!("{shortened}::{last}")
+                let parent_qname: Option<&str> = qname.rfind('.').map(|i| &qname[..i]);
+                let parent_is_enum = parent_qname
+                    .and_then(|p| lookup_node_ty(p, top_level))
+                    .map(|t| matches!(t, Ty::RustEnum(_)))
+                    .unwrap_or(false);
+                let c_rust = if parent_is_enum {
+                    build_variant_path(parent_qname.unwrap(), last, ctx)
                 } else {
-                    shortened
+                    let first = qname.split('.').next().unwrap_or(qname);
+                    let shortened = ctx.shorten(qname);
+                    let in_own_mod = ctx.current_path.last().map(|p| p == last).unwrap_or(false);
+                    let needs_doubling = !in_own_mod && !ctx.no_mod_uniontypes.contains(qname.as_str()) && (
+                        (ctx.top_level_uniontype_names.contains(first) && first != ctx.top_name) ||
+                        (qname.contains('.') && first != last)
+                    );
+                    if needs_doubling {
+                        format!("{shortened}::{last}")
+                    } else {
+                        shortened
+                    }
                 };
                 let ctor_expr = if arg_strs.is_empty() {
                     format!("{c_rust}")

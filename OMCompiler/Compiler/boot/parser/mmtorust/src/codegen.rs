@@ -68,6 +68,11 @@ struct GenCtx {
     /// Fully-qualified names of types that are recursive (form size cycles); their field
     /// references are wrapped in `Arc<>` to give Rust a fixed-size indirection.
     recursive_types: BTreeSet<String>,
+    /// Fully-qualified names of struct/enum/uniontype types that transitively
+    /// embed a `Mutable<T>` field. Such types cannot derive `PartialEq` / `Eq`
+    /// / `Hash` because `Mutex<T>` doesn't implement those traits. Populated
+    /// from `InstanceHierarchy::types_containing_mutable`.
+    types_containing_mutable: BTreeSet<String>,
     /// Fully-qualified names of nested uniontypes that are NOT wrapped in a `pub mod`
     /// (because they contain only records). These must NOT get the `::TypeName` doubling
     /// that mod-wrapped uniontypes require.
@@ -96,7 +101,7 @@ struct GenCtx {
 }
 
 impl GenCtx {
-    fn new(top_name: &str, current_crate: Option<String>, crate_map: BTreeMap<String, String>, top_level_uniontype_names: HashSet<String>, recursive_types: BTreeSet<String>, fn_type_vars: BTreeMap<String, Vec<String>>) -> Self {
+    fn new(top_name: &str, current_crate: Option<String>, crate_map: BTreeMap<String, String>, top_level_uniontype_names: HashSet<String>, recursive_types: BTreeSet<String>, types_containing_mutable: BTreeSet<String>, fn_type_vars: BTreeMap<String, Vec<String>>) -> Self {
         Self {
             top_name: top_name.to_owned(),
             current_path: Vec::new(),
@@ -108,11 +113,23 @@ impl GenCtx {
             crate_map,
             top_level_uniontype_names,
             recursive_types,
+            types_containing_mutable,
             no_mod_uniontypes: HashSet::new(),
             fn_type_vars,
             qmode: QMode::Function,
             fn_env_vars: HashMap::new(),
             fn_outputs: Vec::new(),
+        }
+    }
+
+    /// Produce the `#[derive(...)]` attribute appropriate for the type identified
+    /// by `qname`. Types whose fields transitively embed `Mutable<T>` cannot
+    /// derive `PartialEq` / `Eq` / `Hash`; they get only `Clone, Debug`.
+    fn derives_for(&self, qname: &str) -> &'static str {
+        if self.types_containing_mutable.contains(qname) {
+            "#[derive(Clone, Debug)]"
+        } else {
+            "#[derive(Clone, Debug, PartialEq, Eq, Hash)]"
         }
     }
 
@@ -499,7 +516,7 @@ pub fn generate_all(hier: &InstanceHierarchy<'_>, output_dir: &str) -> std::io::
                 eprintln!("[mmtorust] codegen start {file_path}");
             }
             let file_t0 = std::time::Instant::now();
-            let content = generate_file(name, node, &crate_map, current_crate, &top_level_uniontype_names, hier.recursive_types.clone(), &no_mod_uniontypes, &hier.top_level, &fn_type_vars);
+            let content = generate_file(name, node, &crate_map, current_crate, &top_level_uniontype_names, hier.recursive_types.clone(), hier.types_containing_mutable.clone(), &no_mod_uniontypes, &hier.top_level, &fn_type_vars);
             let file_elapsed = file_t0.elapsed();
             if trace_codegen {
                 eprintln!("[mmtorust] codegen done  {file_path} ({:.2}s)", file_elapsed.as_secs_f64());
@@ -579,8 +596,8 @@ fn collect_no_mod_uniontypes(nodes: &BTreeMap<String, NameNode<'_>>, prefix: &st
     }
 }
 
-fn generate_file<'a>(top_name: &str, node: &NameNode<'_>, crate_map: &BTreeMap<String, String>, current_crate: Option<String>, top_level_uniontype_names: &HashSet<String>, recursive_types: BTreeSet<String>, no_mod_uniontypes: &HashSet<String>, top_level: &'a BTreeMap<String, NameNode<'a>>, fn_type_vars: &BTreeMap<String, Vec<String>>) -> String {
-    let mut ctx = GenCtx::new(top_name, current_crate, crate_map.clone(), top_level_uniontype_names.clone(), recursive_types, fn_type_vars.clone());
+fn generate_file<'a>(top_name: &str, node: &NameNode<'_>, crate_map: &BTreeMap<String, String>, current_crate: Option<String>, top_level_uniontype_names: &HashSet<String>, recursive_types: BTreeSet<String>, types_containing_mutable: BTreeSet<String>, no_mod_uniontypes: &HashSet<String>, top_level: &'a BTreeMap<String, NameNode<'a>>, fn_type_vars: &BTreeMap<String, Vec<String>>) -> String {
+    let mut ctx = GenCtx::new(top_name, current_crate, crate_map.clone(), top_level_uniontype_names.clone(), recursive_types, types_containing_mutable, fn_type_vars.clone());
     ctx.no_mod_uniontypes = no_mod_uniontypes.clone();
     collect_imports(node, &mut ctx, top_level);
 
@@ -714,14 +731,14 @@ fn emit_uniontype<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM:
     }
 
     match &node.ty {
-        Ty::RustEnum(_) => {
+        Ty::RustEnum(qname) => {
             let type_vars: Vec<String> = match &c.body {
                 MM::ClassDef::Parts { type_vars, .. } => type_vars.clone(),
                 _ => vec![],
             };
             let type_params = if type_vars.is_empty() { String::new() } else { format!("<{}>", type_vars.join(", ")) };
             let mut emitted_variants: Vec<String> = Vec::new();
-            writeln!(out, "{inner}#[derive(Clone, Debug, PartialEq, Eq, Hash)]").unwrap();
+            writeln!(out, "{inner}{}", ctx.derives_for(qname)).unwrap();
             writeln!(out, "{inner}pub enum {ename}{type_params} {{").unwrap();
             for rec_name in &records_in_order(c) {
                 let Some(rec_node) = node.children.get(rec_name) else { continue };
@@ -851,7 +868,11 @@ fn emit_struct(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Class,
         collect_type_vars_in_ty(fty, &mut type_vars);
     }
     let type_params = if type_vars.is_empty() { String::new() } else { format!("<{}: {DEFAULT_TRAITS}>", type_vars.join(", ")) };
-    writeln!(out, "#[derive(Clone, Debug, PartialEq, Eq, Hash)]").unwrap();
+    let derives = match &node.ty {
+        Ty::RustStruct(qname) => ctx.derives_for(qname),
+        _ => "#[derive(Clone, Debug, PartialEq, Eq, Hash)]",
+    };
+    writeln!(out, "{derives}").unwrap();
     if fields.is_empty() {
         writeln!(out, "{indent}pub struct {ename}{type_params};").unwrap();
     } else {

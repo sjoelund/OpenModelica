@@ -575,10 +575,101 @@ fn call_ty(func: &str, args: &[TypedExp], top_level: &BTreeMap<String, NameNode<
                 .map(|(q, _)| q)
                 .unwrap_or_else(|| func.to_owned());
             match lookup_ty_in_hierarchy(&canonical, top_level) {
-                Ty::Function { output, .. } => *output,
+                Ty::Function { type_vars, inputs, output } => {
+                    // Unify the declared input types with the actual argument types
+                    // so that any free type variables in the function signature get
+                    // bound to concrete types from the call site. Without this step,
+                    // calls like `Mutable.access<T>(mutable: Mutable<T>) -> T` invoked
+                    // on a value of type `Mutable<list<X>>` would report their output
+                    // as the raw `TypeVar("T")` instead of the concrete `list<X>`,
+                    // breaking type-directed codegen (e.g. for-loop iterator handling,
+                    // Arc-borrow decisions in pattern matching).
+                    //
+                    // The unification variables are every type-variable name that
+                    // appears anywhere in the function's input or output types —
+                    // not just `Ty::Function::type_vars`. Functions defined inside
+                    // a generic class (e.g. `function access` inside `uniontype
+                    // Mutable<T>`) inherit the enclosing class's type parameter
+                    // without listing it in their own `type_vars` field.
+                    let mut all_vars: Vec<String> = Vec::new();
+                    for inp in inputs.iter() {
+                        collect_type_vars_in_ty(&inp.ty, &mut all_vars);
+                    }
+                    collect_type_vars_in_ty(&output, &mut all_vars);
+                    for v in &type_vars {
+                        if !all_vars.contains(v) { all_vars.push(v.clone()); }
+                    }
+                    let mut subst: HashMap<String, Ty> = HashMap::new();
+                    for (inp, arg) in inputs.iter().zip(args.iter()) {
+                        unify_collect(&inp.ty, &arg.ty(), &all_vars, &mut subst);
+                    }
+                    apply_subst(&output, &subst)
+                }
                 other => other,
             }
         }
+    }
+}
+
+/// Build a substitution map by structurally walking `sig` against `actual`.
+/// Whenever `sig` is a `TypeVar` listed in `type_vars`, record the binding to
+/// `actual` (first-binding wins; later inconsistent bindings are ignored — a
+/// proper compiler pass would report the conflict, but for return-type
+/// substitution alone any consistent witness suffices).
+fn unify_collect(sig: &Ty, actual: &Ty, type_vars: &[String], subst: &mut HashMap<String, Ty>) {
+    match (sig, actual) {
+        (Ty::TypeVar(name), other) if type_vars.iter().any(|v| v == name) => {
+            if !matches!(other, Ty::Unknown) {
+                subst.entry(name.clone()).or_insert_with(|| other.clone());
+            }
+        }
+        (Ty::Option(a), Ty::Option(b))
+        | (Ty::List(a),   Ty::List(b))
+        | (Ty::Array(a),  Ty::Array(b))
+        | (Ty::Range(a),  Ty::Range(b)) => unify_collect(a, b, type_vars, subst),
+        (Ty::Tuple(a), Ty::Tuple(b)) if a.len() == b.len() => {
+            for (x, y) in a.iter().zip(b.iter()) {
+                unify_collect(x, y, type_vars, subst);
+            }
+        }
+        (Ty::Generic(na, aargs), Ty::Generic(nb, bargs))
+            if na == nb && aargs.len() == bargs.len() =>
+        {
+            for (x, y) in aargs.iter().zip(bargs.iter()) {
+                unify_collect(x, y, type_vars, subst);
+            }
+        }
+        (Ty::Function { inputs: ai, output: ao, .. },
+         Ty::Function { inputs: bi, output: bo, .. }) if ai.len() == bi.len() => {
+            for (x, y) in ai.iter().zip(bi.iter()) {
+                unify_collect(&x.ty, &y.ty, type_vars, subst);
+            }
+            unify_collect(ao, bo, type_vars, subst);
+        }
+        _ => {}
+    }
+}
+
+/// Apply a type-variable substitution to a type, recursively.
+fn apply_subst(ty: &Ty, subst: &HashMap<String, Ty>) -> Ty {
+    if subst.is_empty() { return ty.clone(); }
+    match ty {
+        Ty::TypeVar(name) => subst.get(name).cloned().unwrap_or_else(|| ty.clone()),
+        Ty::Option(inner) => Ty::Option(Box::new(apply_subst(inner, subst))),
+        Ty::List(inner)   => Ty::List(Box::new(apply_subst(inner, subst))),
+        Ty::Array(inner)  => Ty::Array(Box::new(apply_subst(inner, subst))),
+        Ty::Range(inner)  => Ty::Range(Box::new(apply_subst(inner, subst))),
+        Ty::Tuple(tys)    => Ty::Tuple(tys.iter().map(|t| apply_subst(t, subst)).collect()),
+        Ty::Generic(name, args) =>
+            Ty::Generic(name.clone(), args.iter().map(|t| apply_subst(t, subst)).collect()),
+        Ty::Function { type_vars, inputs, output } => Ty::Function {
+            type_vars: type_vars.clone(),
+            inputs: inputs.iter()
+                .map(|inp| FunctionInput { name: inp.name.clone(), ty: apply_subst(&inp.ty, subst), default: inp.default.clone() })
+                .collect(),
+            output: Box::new(apply_subst(output, subst)),
+        },
+        _ => ty.clone(),
     }
 }
 
@@ -609,12 +700,39 @@ fn resolve_first_segment_type<'a>(
 
     // Walk remaining segments as field accesses to narrow the type, applying
     // each segment's subscripts the same way.
+    //
+    // Both plain structs (`Ty::RustStruct`) and generic instantiations
+    // (`Ty::Generic` of a user-defined struct/uniontype) support field access.
+    // For the generic case we look up the underlying type's field declarations
+    // and apply the instantiation's type-argument substitution so that fields
+    // are reported in the caller's instantiation rather than in the parameter
+    // form. Without this, `delst.front` where `delst: MutableList<X>` would
+    // return the parameter form `Ty::TypeVar("T")`/`Mutable<list<T>>` and
+    // downstream type-directed codegen would fail (e.g. function-call
+    // type-variable unification cannot tell what concrete type a `Mutable<...>`
+    // wraps without it).
     for seg in segments.iter().skip(1) {
-        if let Ty::RustStruct(qname) = &ty {
-            let field_tys = record_field_tys(qname, top_level);
-            ty = field_tys.iter().find(|(n, _)| n == &seg.name).map(|(_, t)| t.clone()).unwrap_or(Ty::Unknown);
-        } else {
-            break;
+        let field_ty: Option<Ty> = match &ty {
+            Ty::RustStruct(qname) => {
+                let field_tys = record_field_tys(qname, top_level);
+                field_tys.iter().find(|(n, _)| n == &seg.name).map(|(_, t)| t.clone())
+            }
+            Ty::Generic(rust_name, args) => {
+                // `rust_name` uses `::` separators; the hierarchy is dotted.
+                let dotted = rust_name.replace("::", ".");
+                let formal = class_type_param_names(&dotted, top_level);
+                let mut subst: HashMap<String, Ty> = HashMap::new();
+                for (name, actual) in formal.iter().zip(args.iter()) {
+                    subst.insert(name.clone(), actual.clone());
+                }
+                let field_tys = record_field_tys(&dotted, top_level);
+                field_tys.iter().find(|(n, _)| n == &seg.name).map(|(_, t)| apply_subst(t, &subst))
+            }
+            _ => None,
+        };
+        match field_ty {
+            Some(t) => ty = t,
+            None => break,
         }
         for _ in &seg.subscripts {
             ty = match ty {
@@ -640,11 +758,58 @@ fn record_field_tys<'a>(
         MM::ClassDef::Parts { members, .. } | MM::ClassDef::ClassExtends { members, .. } => members,
         _ => return vec![],
     };
-    members.iter().filter_map(|m| {
+    let direct: Vec<(String, Ty)> = members.iter().filter_map(|m| {
         let MM::ClassMember::Component(cm) = m else { return None };
         let child = node.children.get(&cm.name)?;
         Some((cm.name.clone(), child.ty.clone()))
-    }).collect()
+    }).collect();
+    if !direct.is_empty() {
+        return direct;
+    }
+    // Single-record uniontype: hierarchy seeding emits the record under the
+    // uniontype's own qname (no separate record struct + alias), so direct
+    // field lookup on the uniontype node finds no components — the components
+    // live on the sole record child. Forward to it.
+    if matches!(c.restriction, Absyn::Restriction::R_UNIONTYPE) {
+        let record_children: Vec<&NameNode> = node.children.values()
+            .filter(|child| matches!(&child.kind, NodeKind::Class(cc)
+                if matches!(cc.restriction, Absyn::Restriction::R_RECORD | Absyn::Restriction::R_METARECORD { .. })))
+            .collect();
+        if record_children.len() == 1 {
+            let rec_node = record_children[0];
+            if let NodeKind::Class(rc) = &rec_node.kind {
+                let rec_members: &[MM::ClassMember] = match &rc.body {
+                    MM::ClassDef::Parts { members, .. } | MM::ClassDef::ClassExtends { members, .. } => members,
+                    _ => return vec![],
+                };
+                return rec_members.iter().filter_map(|m| {
+                    let MM::ClassMember::Component(cm) = m else { return None };
+                    let child = rec_node.children.get(&cm.name)?;
+                    Some((cm.name.clone(), child.ty.clone()))
+                }).collect();
+            }
+        }
+    }
+    direct
+}
+
+/// Return the formal type-parameter names declared on a user-defined class
+/// (uniontype or record) identified by `qname`. For a uniontype like
+/// `uniontype Mutable<T> ... end Mutable;` the result is `["T"]`. Used to
+/// substitute a generic instantiation's type arguments into the parameter
+/// form of its field declarations when walking field accesses.
+fn class_type_param_names<'a>(
+    qname: &str,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+) -> Vec<String> {
+    let node = lookup_node(qname, top_level)
+        .or_else(|| lookup_record_through_unions(qname, top_level).map(|(_, n)| n));
+    let Some(node) = node else { return vec![] };
+    let NodeKind::Class(c) = &node.kind else { return vec![] };
+    match &c.body {
+        MM::ClassDef::Parts { type_vars, .. } => type_vars.clone(),
+        _ => vec![],
+    }
 }
 
 fn lookup_node<'a>(
@@ -1689,11 +1854,21 @@ fn infer_stmt<'a>(
             let rhs = infer_exp(value, env, top_level, pkg_prefix, type_vars);
             // The LHS of `:=` is a pattern (in MetaModelica, patterns and expressions share syntax).
             let lhs = infer_pat(assignComponent, env, top_level, pkg_prefix, type_vars);
-            // Extend env from any new bindings introduced by the LHS.
+            // Extend env from any *new* bindings introduced by the LHS.
+            // Declared locals (outputs/protected) already have their authoritative
+            // type recorded in env from the function-prelude pass; we must not
+            // overwrite that with `rhs.ty()`, because the RHS type can be a raw
+            // function-output TypeVar (e.g. `Mutable.access<T>(Mutable<T>) -> T`
+            // returns `Ty::TypeVar("T")` without per-call substitution) and we
+            // would lose the local's structural type (e.g. `list<T>`), breaking
+            // downstream type-directed codegen such as for-loop iteration.
+            //
+            // For pattern-introduced names not yet in env (e.g. `x :: rest := lst`)
+            // we still need an entry. The exact type derivation from the scrutinee
+            // is left to later work; insert `Ty::Unknown` so codegen at least sees
+            // the binding exists without overriding declared types elsewhere.
             for (name, _ty) in pat_bindings(&lhs) {
-                // For now we don't know the binding type accurately without scrutinee threading;
-                // record `Unknown`. The codegen can still emit the binding; fancier coercion later.
-                env.insert(name, rhs.ty());
+                env.entry(name).or_insert(Ty::Unknown);
             }
             TypedStmt::Assign { lhs, rhs }
         }

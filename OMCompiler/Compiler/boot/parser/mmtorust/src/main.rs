@@ -31,6 +31,7 @@ fn start_compilation(results: Vec<Absyn::Program>) {
         eprintln!("{w}");
     }
     hierarchy::detect_recursive_types(&mut hier);
+    hierarchy::detect_types_containing_mutable(&mut hier);
     // println!("{hier}");
     codegen::generate_all(&hier, "openmodelica/src").expect("code generation failed");
     println!("MM conversion: {} files, {} failures", results.len(), failures);

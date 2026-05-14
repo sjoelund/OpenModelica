@@ -190,6 +190,16 @@ pub struct InstanceHierarchy<'a> {
     /// Fully-qualified names of types that form size-recursive cycles in Rust.
     /// Populated by `detect_recursive_types` after resolve_pass converges.
     pub recursive_types: BTreeSet<String>,
+    /// Fully-qualified names of user-defined struct/enum types that transitively
+    /// embed a `Mutable<T>` (= `Arc<Mutex<T>>`) field. `Mutex<T>` does not implement
+    /// `PartialEq` / `Eq` / `Hash`, so these types must not request those derives —
+    /// the generated `#[derive(...)]` would otherwise fail to compile. Propagation
+    /// also follows container types (`Option`, `List`, `Array`, `Tuple`, `Generic`)
+    /// because `#[derive(PartialEq)]` on a struct uses the concrete field types
+    /// directly: a field of type `List<MyOther>` still needs `MyOther: PartialEq`
+    /// for the derive to apply.
+    /// Populated by `detect_types_containing_mutable` after resolve_pass converges.
+    pub types_containing_mutable: BTreeSet<String>,
 }
 
 impl<'a> InstanceHierarchy<'a> {
@@ -198,7 +208,7 @@ impl<'a> InstanceHierarchy<'a> {
             .iter()
             .map(|class| (class.name.clone(), build_class_node(class)))
             .collect();
-        Self { top_level, recursive_types: BTreeSet::new() }
+        Self { top_level, recursive_types: BTreeSet::new(), types_containing_mutable: BTreeSet::new() }
     }
 }
 
@@ -1794,6 +1804,86 @@ pub fn detect_recursive_types(hier: &mut InstanceHierarchy<'_>) {
             }
         }
     }
+}
+
+// ── Mutable-containment detection ─────────────────────────────────────────────
+
+/// Collect, for every user-defined struct/enum/uniontype `qname`, the resolved
+/// `Ty`s of all of its component fields (variant fields in the enum/uniontype
+/// case). Used as the input to the `Mutable`-containment fixed point.
+fn collect_struct_field_tys(
+    nodes: &BTreeMap<String, NameNode<'_>>,
+    prefix: &str,
+    out: &mut BTreeMap<String, Vec<Ty>>,
+) {
+    for (name, node) in nodes {
+        let qname = qualify(prefix, name);
+        match &node.ty {
+            Ty::RustStruct(_) => {
+                let tys: Vec<Ty> = node.children.values()
+                    .filter(|c| matches!(c.kind, NodeKind::Component(_)))
+                    .map(|c| c.ty.clone())
+                    .collect();
+                out.insert(qname.clone(), tys);
+            }
+            Ty::RustEnum(_) | Ty::AliasTo(_) => {
+                let tys: Vec<Ty> = node.children.values()
+                    .flat_map(|variant| variant.children.values()
+                        .filter(|c| matches!(c.kind, NodeKind::Component(_)))
+                        .map(|c| c.ty.clone()))
+                    .collect();
+                out.insert(qname.clone(), tys);
+            }
+            _ => {}
+        }
+        collect_struct_field_tys(&node.children, &qname, out);
+    }
+}
+
+/// True if `ty` mentions a `Mutable<...>` anywhere in its structure, considering
+/// the (currently known) set of `tainted` user-defined types as also containing
+/// `Mutable`. Container types (`Option`, `List`, `Array`, `Tuple`, `Generic`)
+/// propagate the property because `#[derive(PartialEq)]` on a struct with a
+/// field `List<MyOther>` requires `MyOther: PartialEq`.
+fn ty_contains_mutable(ty: &Ty, tainted: &BTreeSet<String>) -> bool {
+    match ty {
+        Ty::Generic(name, args) => {
+            // `name` is stored in `::` form (Rust path); normalise back to dotted
+            // form to match graph keys.
+            let dotted = name.replace("::", ".");
+            dotted == "Mutable"
+                || tainted.contains(&dotted)
+                || args.iter().any(|a| ty_contains_mutable(a, tainted))
+        }
+        Ty::Option(t) | Ty::List(t) | Ty::Array(t) | Ty::Range(t) => ty_contains_mutable(t, tainted),
+        Ty::Tuple(ts) => ts.iter().any(|t| ty_contains_mutable(t, tainted)),
+        Ty::RustStruct(qname) | Ty::RustEnum(qname) | Ty::AliasTo(qname) => tainted.contains(qname),
+        Ty::UnionTypeVariant(qname, _) => tainted.contains(qname),
+        _ => false,
+    }
+}
+
+/// Detect which named types transitively contain a `Mutable<T>` field and
+/// therefore cannot derive `PartialEq` / `Eq` / `Hash` (because `Mutex<T>`
+/// implements none of those traits). Must be called after `resolve_pass` has
+/// converged so all field types are populated.
+pub fn detect_types_containing_mutable(hier: &mut InstanceHierarchy<'_>) {
+    let mut graph: BTreeMap<String, Vec<Ty>> = BTreeMap::new();
+    collect_struct_field_tys(&hier.top_level, "", &mut graph);
+
+    let mut tainted: BTreeSet<String> = BTreeSet::new();
+    loop {
+        let mut changed = false;
+        for (qname, field_tys) in &graph {
+            if tainted.contains(qname) { continue; }
+            if field_tys.iter().any(|t| ty_contains_mutable(t, &tainted)) {
+                tainted.insert(qname.clone());
+                changed = true;
+            }
+        }
+        if !changed { break; }
+    }
+    hier.types_containing_mutable = tainted;
 }
 
 // ── Pretty-printing ───────────────────────────────────────────────────────────

@@ -1845,9 +1845,13 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
                 "SourceInfo {{ fileName: {a0}, isReadOnly: {a1}, lineNumberStart: {a2}, columnNumberStart: {a3}, lineNumberEnd: {a4}, columnNumberEnd: {a5}, lastModification: {a6} }}"
             ))
         },
-        "listArray" | "arrayList" /* | "stringAppendList" */ => {
+        "listArray" =>{
             let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
-            Ok(format!("{arg}.into_iter().{}collect()", if func == "arrayList" {""} else {"cloned()."}))
+            Ok(format!("{arg}.into_iter().cloned().collect()"))
+        },
+        "arrayList" /* | "stringAppendList" */ => {
+            let arg = args.first().map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
+            Ok(format!("Arc::new({arg}.into_iter().{}collect())", if func == "arrayList" {""} else {"cloned()"}))
         },
         _ => bail!("Not a builtin function")
     }
@@ -2635,6 +2639,20 @@ fn stmts_assigned_var_names(stmts: &[typedexp::TypedStmt], out: &mut HashSet<Str
             TypedPat::Var(n) => { out.insert(n.clone()); }
             TypedPat::As { var, pat } => { out.insert(var.clone()); lhs_names(pat, out); }
             TypedPat::Tuple(pats) => pats.iter().for_each(|p| lhs_names(p, out)),
+            // A compound LHS pattern like `l :: ll := ll` is lowered by
+            // `emit_pat_assign` to synthetic `name = __paN.clone();` writes
+            // for every binding the pattern introduces. Each such name is a
+            // *reassignment* of an already-in-scope variable (per
+            // `rewrite_pat_for_existing_bindings`), so collect them here so
+            // that the match-arm prologue knows to introduce an owned
+            // `let mut <name>` shadow for any name also bound by ref in
+            // the arm's case pattern.
+            TypedPat::Cons { head, tail } => { lhs_names(head, out); lhs_names(tail, out); }
+            TypedPat::Constructor { fields, named_fields, .. } => {
+                fields.iter().for_each(|p| lhs_names(p, out));
+                named_fields.iter().for_each(|(_, p)| lhs_names(p, out));
+            }
+            TypedPat::Some_(inner) => lhs_names(inner, out),
             _ => {}
         }
     }

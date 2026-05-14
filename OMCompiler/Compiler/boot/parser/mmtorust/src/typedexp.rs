@@ -1173,13 +1173,26 @@ fn infer_case<'a>(
 
     match case {
         Absyn::Case::CASE { pattern, patternGuard, localDecls, classPart, result, .. } => {
-            let pat = infer_pat(pattern, env, top_level, pkg_prefix, type_vars);
+            // Case-level locals (`local list<X> M;`) must be visible to
+            // `infer_pat` so that a pattern reference like `node::M` resolves
+            // `M` to the locally-declared variable rather than being
+            // misclassified as a constructor by the uppercase heuristic in
+            // `infer_pat`. Without this, an uppercase-named local appearing
+            // in pattern position becomes `TypedPat::Constructor { name: "M" }`
+            // and downstream codegen emits it as a bare ctor name, losing the
+            // ref-binding through the surrounding `Cons.tail` Arc edge.
+            let case_locals_pre = infer_case_locals(localDecls, type_vars, top_level);
+            let mut pat_env = env.clone();
+            for (n, t) in &case_locals_pre {
+                pat_env.insert(n.clone(), t.clone());
+            }
+            let pat = infer_pat(pattern, &pat_env, top_level, pkg_prefix, type_vars);
             let mut inner_env = env.clone();
             inner_env.extend(pat_bindings(&pat));
             // Start with match-level locals (already in env), then add case-level locals.
             // Dedup: case-level locals shadow match-level ones with the same name.
             let mut locals: Vec<(String, Ty)> = extra_locals.to_vec();
-            let case_locals = infer_case_locals(localDecls, type_vars, top_level);
+            let case_locals = case_locals_pre;
             for (n, t) in &case_locals {
                 if let Some(pos) = locals.iter().position(|(ln, _)| ln == n) {
                     locals[pos] = (n.clone(), t.clone()); // case-level shadows match-level
@@ -1356,6 +1369,15 @@ pub fn infer_pat<'a>(
                 Absyn::ComponentRef::CREF_IDENT { name, subscripts } if subscripts.is_empty() => {
                     if &**name == "_" {
                         TypedPat::Wildcard
+                    } else if env.contains_key(&**name) {
+                        // The name is bound in the current scope (function
+                        // input/output/protected, match-level local, or
+                        // case-level local). It must be a pattern variable —
+                        // a local variable shadows any same-named constructor
+                        // in scope, and crucially this prevents an uppercase
+                        // local (e.g. `local list<X> M;` referenced as `node::M`)
+                        // from being misclassified as a constructor.
+                        TypedPat::Var(name.to_string())
                     } else if name.chars().next().map(|c| c.is_uppercase()).unwrap_or(false) {
                         // Uppercase identifiers in pattern position are constructors in
                         // MetaModelica (variants/records), not variable binders.

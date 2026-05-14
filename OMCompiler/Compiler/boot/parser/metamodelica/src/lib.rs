@@ -693,6 +693,62 @@ macro_rules! assign_variant_field {
     }};
 }
 
+/// Read a single field from a uniontype-enum value whose currently matched
+/// variant is known statically (e.g. inside a `match` arm or after a refutable
+/// `let`-pattern). MetaModelica syntax `v.field` is valid on a uniontype value
+/// when the surrounding control flow proves `v` holds a particular record
+/// variant; in Rust the enum has no such field directly, so the field must be
+/// extracted by destructuring. This macro performs that destructure inline.
+///
+/// The returned value is a reference (`&FieldType`) borrowed from `$base`; the
+/// caller is expected to clone it as appropriate. A runtime variant mismatch
+/// panics, which would indicate a codegen bug.
+///
+/// Two input forms are supported:
+///   - `var_field!(v.field, Pkg::Type::VARIANT)` for a plain (owned) enum value.
+///   - `var_field!((*v).field, Pkg::Type::VARIANT)` when `v` is `Arc<Enum>` /
+///     other `Deref`-able smart pointer; the explicit `*` selects the deref arm.
+///
+/// The variant path must be supplied so the destructure picks the right arm;
+/// it cannot be inferred from the input position.
+#[macro_export]
+macro_rules! var_field {
+    // Plain (owned) base: match against `&$base`. Rust match ergonomics binds
+    // `$field` as `&FieldType` against the enum scrutinee.
+    ( $base:ident . $field:ident , $($variant:ident)::+ ) => {
+        match &$base {
+            $($variant)::+ { $field, .. } => $field,
+            _ => panic!(
+                "var_field!: expected variant {} but value held a different variant",
+                stringify!($($variant)::+),
+            ),
+        }
+    };
+    // Smart-pointer base (Arc / Rc / Box / &T / &mut T): `*$base` derefs through
+    // the wrapper to the underlying enum; `&*$base` then yields `&Enum`.
+    ( ( * $base:ident ) . $field:ident , $($variant:ident)::+ ) => {
+        match &*$base {
+            $($variant)::+ { $field, .. } => $field,
+            _ => panic!(
+                "var_field!: expected variant {} but value held a different variant",
+                stringify!($($variant)::+),
+            ),
+        }
+    };
+    // Reference to a smart pointer (e.g. `&Arc<Enum>`): produced by `ref`
+    // pattern bindings on Arc-typed fields under `deref_patterns`. The first
+    // `*` strips the outer reference, the second `*` derefs the Arc.
+    ( ( * * $base:ident ) . $field:ident , $($variant:ident)::+ ) => {
+        match &**$base {
+            $($variant)::+ { $field, .. } => $field,
+            _ => panic!(
+                "var_field!: expected variant {} but value held a different variant",
+                stringify!($($variant)::+),
+            ),
+        }
+    };
+}
+
 pub fn nil<T: Clone>() -> Arc<List<T>> {
     Arc::new(Nil)
 }

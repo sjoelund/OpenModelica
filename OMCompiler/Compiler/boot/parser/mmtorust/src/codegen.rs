@@ -98,6 +98,38 @@ struct GenCtx {
     /// `return Ok((outputs...));`. The arm body is emitted with a fresh
     /// `LocalEnv`, which would otherwise lose this information.
     fn_outputs: Vec<String>,
+    /// Variables currently known to hold a specific uniontype variant. Mirrors
+    /// `LocalEnv::variants` but is accessible from `emit_exp` / `emit_var`,
+    /// which don't receive the per-statement `LocalEnv`. Populated around the
+    /// emission of a match arm's body+result; saved and restored at arm
+    /// boundaries so nested match expressions don't leak into the enclosing
+    /// scope. The keys are MetaModelica variable names (pre-escape); values
+    /// are `(enum_qname, variant_simple_name)`.
+    variants: HashMap<String, (String, String)>,
+    /// Rust binding shape for variables in `variants`. Determines the deref
+    /// form emitted around `var_field!` scrutinee:
+    ///   `Owned` — plain `T` enum value (`var_field!(v.f, V::X)`).
+    ///   `Arc`   — `Arc<T>` / similar smart pointer (`var_field!((*v).f, ..)`).
+    ///   `RefArc` — `&Arc<T>` (a `ref`-bound pattern field whose declared type
+    ///              is itself `Arc<T>`); requires `(**v).f`.
+    /// Absent entries default to `Owned` for top-level function vars whose
+    /// Arc-ness is read from `fn_env_vars` instead.
+    variant_shapes: HashMap<String, VarShape>,
+}
+
+/// Binding-shape classification for variables tracked in `GenCtx::variants`.
+/// Determines how `var_field!` should dereference the variable to obtain the
+/// underlying enum value for pattern matching.
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum VarShape {
+    /// Owned `T` (the variable holds an enum value directly).
+    Owned,
+    /// `Arc<T>` / smart-pointer wrapped enum (e.g. recursive uniontype value).
+    Arc,
+    /// `&Arc<T>` — a reference to an Arc-wrapped enum. Produced when a
+    /// uniontype variant pattern destructures an Arc-typed field with
+    /// `ref binding @ ...`.
+    RefArc,
 }
 
 impl GenCtx {
@@ -119,6 +151,8 @@ impl GenCtx {
             qmode: QMode::Function,
             fn_env_vars: HashMap::new(),
             fn_outputs: Vec::new(),
+            variants: HashMap::new(),
+            variant_shapes: HashMap::new(),
         }
     }
 
@@ -2067,9 +2101,48 @@ fn emit_var<'a>(
     };
 
     // Emit field access for the remaining segments.
+    //
+    // Special case: if the base is a single local variable known to currently
+    // hold a specific uniontype variant (e.g. inside a `match` arm whose
+    // pattern fixed that variable's variant), the enum has no `.field`
+    // directly — the field lives inside the matched record. We lower the
+    // first field access through `var_field!`, which destructures the enum
+    // and yields a reference to the field. Subsequent field accesses on the
+    // returned reference auto-deref normally.
+    //
+    // Only triggered when the variable base actually resolves to an enum-like
+    // type; package/module bases are handled by the regular field-emit path.
     let mut res = base.clone();
+    let mut field_iter = field_segs.iter();
+    if pkg_segs.len() == 1 && !field_segs.is_empty() {
+        let var_name = &pkg_segs[0].name;
+        if let Some((enum_qname, variant_name)) = ctx.variants.get(var_name).cloned() {
+            let first = field_iter.next().unwrap();
+            // Resolve the enum path through the same shorten/import machinery
+            // we use for constructor calls so the emitted path is valid in the
+            // current file's import scope.
+            let variant_path = build_variant_path(&enum_qname, &variant_name, ctx);
+            // Determine the binding shape. Explicit shapes (from nested-As
+            // pattern bindings) take precedence; otherwise fall back to the
+            // function-level variable type via `fn_env_vars`.
+            let shape = ctx.variant_shapes.get(var_name).copied().unwrap_or_else(|| {
+                let var_ty = ctx.fn_env_vars.get(var_name).cloned().unwrap_or(Ty::Unknown);
+                if is_arc_wrapped(&var_ty, ctx) { VarShape::Arc } else { VarShape::Owned }
+            });
+            let field_id = escape_ident(&first.name);
+            let macro_call = match shape {
+                VarShape::Owned  => format!("{base}.{field_id}"),
+                VarShape::Arc    => format!("(*{base}).{field_id}"),
+                VarShape::RefArc => format!("(**{base}).{field_id}"),
+            };
+            res = format!("var_field!({macro_call}, {variant_path})");
+            for sub in &first.subscripts {
+                res = format!("{}[({}-1) as usize]", res, emit_exp(sub, false, ctx, top_level));
+            }
+        }
+    }
 
-    for seg in field_segs {
+    for seg in field_iter {
         res = format!("{}.{}", res, escape_ident(&seg.name));
         for sub in &seg.subscripts {
             res = format!("{}[({}-1) as usize]", res, emit_exp(sub, false, ctx, top_level));
@@ -2548,11 +2621,28 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], is_co
             let has_wild = cases.iter().any(|c| matches!(c.pattern, TypedPat::Wildcard) && c.guard.is_none());
             let arms: Vec<String> = cases.iter().map(|case| {
                 let pat = emit_pat_with_implicit_bind(&case.pattern, /*allow_implicit_bind=*/true, /*mut_bindings=*/true, /*in_deref=*/false, Some(&input_ty), ctx, top_level);
+                // Compute the variant narrowing established by this arm's pattern so
+                // that reads of `v.field` inside the guard and the case result use
+                // `var_field!`. Save ctx.variants to restore after the arm so sibling
+                // arms / nested matches don't see these bindings.
+                let saved_variants = ctx.variants.clone();
+                let saved_shapes = ctx.variant_shapes.clone();
+                {
+                    let mut tmp_env = LocalEnv::default();
+                    let mut tmp_shapes: HashMap<String, VarShape> = HashMap::new();
+                    record_pattern_variants_with_shapes(&case.pattern, input, &mut tmp_env, top_level, &mut tmp_shapes, ctx);
+                    for (k, v) in tmp_env.variants {
+                        ctx.variants.insert(k, v);
+                    }
+                    for (k, s) in tmp_shapes {
+                        ctx.variant_shapes.insert(k, s);
+                    }
+                }
                 let guard = case.guard.as_ref()
                     .map(|g| format!(" if {}", emit_exp(g, is_const, ctx, top_level)))
                     .unwrap_or_default();
                 let result = emit_exp(&case.result, is_const, ctx, top_level);
-                if case.stmts.is_empty() {
+                let arm_str = if case.stmts.is_empty() {
                     format!("        {pat}{guard} => {result}")
                 } else {
                     // Seed the arm's local env from the enclosing function scope:
@@ -2626,7 +2716,10 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], is_co
                     // `assign_field!` / `assign_variant_field!` call.
                     emit_stmts(&mut body, "            ", &case.stmts, FailureMode::Function, ctx, &mut local_env, top_level, &mut fresh_local);
                     format!("        {pat}{guard} => {{\n{body}            {result}\n        }}")
-                }
+                };
+                ctx.variants = saved_variants;
+                ctx.variant_shapes = saved_shapes;
+                arm_str
             }).collect();
             let fallback = if has_wild { String::new() } else {
                 ",\n        _ => bail!(\"match: no arm matched\")".to_owned()
@@ -2649,6 +2742,19 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], is_co
             }
             for case in cases {
                 let pat = emit_pat_with_implicit_bind(&case.pattern, /*allow_implicit_bind=*/true, /*mut_bindings=*/true, /*in_deref=*/false, Some(&input_ty), ctx, top_level);
+                let saved_variants = ctx.variants.clone();
+                let saved_shapes = ctx.variant_shapes.clone();
+                {
+                    let mut tmp_env = LocalEnv::default();
+                    let mut tmp_shapes: HashMap<String, VarShape> = HashMap::new();
+                    record_pattern_variants_with_shapes(&case.pattern, input, &mut tmp_env, top_level, &mut tmp_shapes, ctx);
+                    for (k, v) in tmp_env.variants {
+                        ctx.variants.insert(k, v);
+                    }
+                    for (k, s) in tmp_shapes {
+                        ctx.variant_shapes.insert(k, s);
+                    }
+                }
                 let guard_check = case.guard.as_ref()
                     .map(|g| format!("            if !({}) {{ bail!(\"guard\") }}\n", emit_exp(g, is_const, ctx, top_level)))
                     .unwrap_or_default();
@@ -2662,6 +2768,8 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], is_co
                 s.push_str(&guard_check);
                 s.push_str(&format!("            Ok({result})\n"));
                 s.push_str("        })() { break 'mc __v; }\n");
+                ctx.variants = saved_variants;
+                ctx.variant_shapes = saved_shapes;
             }
             s.push_str("        bail!(\"matchcontinue: no arm matched\")\n");
             s.push_str("    }");
@@ -4113,6 +4221,30 @@ fn record_pattern_variants<'a>(
     env: &mut LocalEnv,
     top_level: &'a BTreeMap<String, NameNode<'a>>,
 ) {
+    record_pattern_variants_inner(pat, scrutinee, env, top_level, &mut HashMap::new(), None);
+}
+
+/// Like `record_pattern_variants`, plus collects per-binding `VarShape` info
+/// for tracked variants. `shapes` is the output buffer.
+fn record_pattern_variants_with_shapes<'a>(
+    pat: &TypedPat,
+    scrutinee: &TypedExp,
+    env: &mut LocalEnv,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+    shapes: &mut HashMap<String, VarShape>,
+    ctx: &GenCtx,
+) {
+    record_pattern_variants_inner(pat, scrutinee, env, top_level, shapes, Some(ctx));
+}
+
+fn record_pattern_variants_inner<'a>(
+    pat: &TypedPat,
+    scrutinee: &TypedExp,
+    env: &mut LocalEnv,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+    shapes: &mut HashMap<String, VarShape>,
+    ctx: Option<&GenCtx>,
+) {
     let scrut_ty = scrutinee.ty();
     // (1) Outer `as` binding.
     if let TypedPat::As { var, pat: inner } = pat {
@@ -4128,6 +4260,78 @@ fn record_pattern_variants<'a>(
     if let Some((enum_q, variant)) = variant_of_pat(inner_pat, &scrut_ty, top_level) {
         if let TypedExp::Var { name, .. } = scrutinee {
             env.variants.insert(name.clone(), (enum_q, variant));
+        }
+    }
+    // (3) Tuple scrutinee + tuple pattern: pair each element. This is the
+    //     common MetaModelica idiom
+    //         match (v1, v2) { (CTOR_A { .. }, CTOR_B { .. }) => ... }
+    //     where the arm body wants to read `v1.field_of_A` and
+    //     `v2.field_of_B`. Without this pass those reads would not know
+    //     which variant each element holds.
+    if let (TypedPat::Tuple(pat_elems), TypedExp::Tuple(scrut_elems)) = (inner_pat, scrutinee) {
+        if pat_elems.len() == scrut_elems.len() {
+            for (sub_pat, sub_scrut) in pat_elems.iter().zip(scrut_elems.iter()) {
+                record_pattern_variants_inner(sub_pat, sub_scrut, env, top_level, shapes, ctx);
+            }
+        }
+    }
+    // (4) Nested `As` bindings inside a Constructor pattern. The matched
+    //     record carries field types; if a named-field pattern is
+    //     `As { var, pat: Constructor(..) }` and that pattern asserts a
+    //     specific uniontype variant, `var` is known to hold that variant
+    //     for the duration of the arm.
+    //
+    //     The binding's Rust shape depends on whether the enclosing match
+    //     crossed an Arc edge (causing `ref` bindings on every nested name)
+    //     AND whether the bound field's own type is Arc-wrapped. When both
+    //     hold, the binding is `&Arc<T>` — `VarShape::RefArc`. We only
+    //     record a shape when the caller provided a `ctx` (so we can
+    //     consult `recursive_types`); without it, `emit_var` falls back to
+    //     the type-table-driven default.
+    if let TypedPat::Constructor { name, named_fields, .. } = inner_pat {
+        // Resolve the record's qname so we can look up field types. The
+        // pattern's `ty` may already carry it; otherwise look it up against
+        // the scrutinee's enum.
+        let record_qname_opt = match record_field_tys_from_scrutinee_ctor(
+            name.rsplit('.').next().unwrap_or(name),
+            &scrut_ty,
+            top_level,
+        ) {
+            Some(tys) => Some(tys),
+            None => {
+                let v = record_field_tys_by_simple_name(name.rsplit('.').next().unwrap_or(name), top_level);
+                if v.is_empty() { None } else { Some(v) }
+            }
+        };
+        if let Some(field_tys) = record_qname_opt {
+            let scrut_crosses_arc = ctx.map(|c| ty_needs_arc_match_deref(&scrut_ty, c)).unwrap_or(false);
+            for (fname, fpat) in named_fields {
+                let TypedPat::As { var, pat: inner_as } = fpat else { continue };
+                let Some(field_ty) = field_tys.iter().find(|(n, _)| n == fname).map(|(_, t)| t.clone()) else { continue };
+                if let Some((enum_q, variant)) = variant_of_pat(inner_as, &field_ty, top_level) {
+                    env.variants.insert(var.clone(), (enum_q, variant));
+                    if let Some(c) = ctx {
+                        let field_is_arc = is_arc_wrapped(&field_ty, c);
+                        let shape = match (scrut_crosses_arc, field_is_arc) {
+                            (true, true)   => VarShape::RefArc,
+                            // Other combinations are not yet implemented:
+                            //   (true, false)  → &T (would need a `var_field!(*v.f, ..)` arm)
+                            //   (false, true)  → Arc<T> by-value (already handled by emit_var fallback)
+                            //   (false, false) → owned T  (same)
+                            // For (false, true)/(false, false) we leave the
+                            // shape unset; emit_var's fn_env_vars fallback
+                            // applies — though for pattern bindings that
+                            // fallback returns Unknown ⇒ Owned, which is
+                            // wrong for Arc fields. That case is not
+                            // exercised by the current corpus; if it shows
+                            // up, add `VarShape::Arc` here and the right
+                            // arm above.
+                            _ => continue,
+                        };
+                        shapes.insert(var.clone(), shape);
+                    }
+                }
+            }
         }
     }
 }

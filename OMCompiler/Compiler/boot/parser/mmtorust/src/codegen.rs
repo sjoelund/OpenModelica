@@ -1060,7 +1060,10 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
             if is_const {
                 escaped
             } else {
-                format!("Arc::from({escaped})")
+                // Disambiguate to `Arc<str>` — `Arc::from(&str)` has multiple impls
+                // (`Arc<str>`, `Arc<String>`, …), and the surrounding context isn't
+                // always enough for inference (e.g. when followed by `.clone()`).
+                format!("Arc::<str>::from({escaped})")
             }
         }
         TypedExp::Lit(Lit::Bool(v)) => v.to_string(),

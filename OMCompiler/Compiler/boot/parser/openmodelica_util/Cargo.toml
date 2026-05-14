@@ -8,3 +8,4 @@ anyhow.workspace=true
 metamodelica.workspace=true
 const-str.workspace=true
 loop_unwrap.workspace=true
+openmodelica_util_datatypes_basic.workspace=true

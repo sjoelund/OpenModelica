@@ -49,7 +49,7 @@ struct GenCtx {
     current_path: Vec<String>,
     /// Modules imported with `.*`; their types are referenced by bare name.
     unqual_modules: HashSet<String>,
-    /// Explicit imports: dotted qualified name → local name.
+    /// Explicit imports: dotted qualified name → local name.""
     named: BTreeMap<String, String>,
     /// Uniontypes (Rust enums) whose variants are referenced via UnionTypeVariant.
     /// Their qualified names need to be imported so the generated code can use `UnionType::Variant`.
@@ -507,10 +507,10 @@ pub fn generate_all(hier: &InstanceHierarchy<'_>, output_dir: &str) -> std::io::
             } else {
                 None
             };
-            if *name == "Mutable" {
-                // We hand-write some files
-                continue;
-            }
+            match *name {
+                "Mutable" | "GCExt" => continue,
+                _ => {}
+            };
             let file_path = format!("{dir}/{name}.rs");
             if trace_codegen {
                 eprintln!("[mmtorust] codegen start {file_path}");

@@ -559,6 +559,12 @@ fn call_ty(func: &str, args: &[TypedExp], top_level: &BTreeMap<String, NameNode<
                 _ => Ty::Unknown,
             }
         }
+        // MetaModelica builtin: `stringListStringChar(s)` → `List<String>` of one-char strings.
+        // Declared in MetaModelicaBuiltin.mo (`output List<String> chars`); the metamodelica
+        // runtime crate exposes it returning `Arc<List<ArcStr>>` to match the list convention.
+        "stringListStringChar" => Ty::List(Box::new(Ty::Str)),
+        // `listStringCharString` / `stringCharListString` invert that — list of one-char strings → String.
+        "listStringCharString" | "stringCharListString" => Ty::Str,
         "arrayList" => {
             match args.first().map(|a| a.ty()) {
                 Some(Ty::Array(inner)) => Ty::List(inner),

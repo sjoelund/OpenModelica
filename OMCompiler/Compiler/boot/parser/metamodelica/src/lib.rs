@@ -394,9 +394,9 @@ pub fn stringReal(str: ArcStr) -> Result<f64> {
 }
 
 /// Converts a string to a list of single-character strings.
-pub fn stringListStringChar(str: ArcStr) -> Result<List<ArcStr>> {
+pub fn stringListStringChar(str: ArcStr) -> Result<Arc<List<ArcStr>>> {
     // TODO: We could have constants for all these short strings to avoid allocations.
-    Ok(str.chars().map(|c| format!("{}", c)).collect())
+    Ok(Arc::new(str.chars().map(|c| format!("{}", c)).collect()))
 }
 
 /// Appends a list of strings into a single string.
@@ -1698,7 +1698,7 @@ mod tests {
         #[test]
         fn test_string_list_string_char() {
             let result = stringListStringChar(literal!("abc ")).unwrap();
-            assert_eq!(result, List::from_iter([literal!("a"), literal!("b"), literal!("c")]));
+            assert_eq!(&*result, &List::from_iter([literal!("a"), literal!("b"), literal!("c")]));
         }
 
         #[test]

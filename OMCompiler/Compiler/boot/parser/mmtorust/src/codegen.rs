@@ -688,6 +688,14 @@ fn emit_node<'a>(out: &mut String, name: &str, node: &NameNode<'_>, indent: &str
                     let val = emit_exp(&typed, /*is_const=*/true, ctx, top_level);
                     writeln!(out, "{indent}pub const {ename}: {r_ty} = {val};").unwrap();
                     writeln!(out).unwrap();
+                } else if is_static_const_emittable(&typed, ctx, top_level) {
+                    // Record/struct of pure literals and other const-emittable values:
+                    // emit a plain `pub static` whose initializer is a const expression.
+                    // No `LazyLock` indirection needed — the value can be built at compile time.
+                    let r_ty = fmt_ty(&node.ty, ctx);
+                    let val = emit_exp(&typed, /*is_const=*/true, ctx, top_level);
+                    writeln!(out, "{indent}pub static {ename}: {r_ty} = {val};").unwrap();
+                    writeln!(out).unwrap();
                 } else {
                     let r_ty = fmt_ty(&node.ty, ctx);
                     let val = emit_exp(&typed, /*is_const=*/false, ctx, top_level); // dynamic expr
@@ -948,6 +956,39 @@ fn emit_type_item(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Cla
 }
 
 fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Class, indent: &str, ctx: &mut GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) {
+    // Short class definition: `function Alias = Base[(arg=default, ...)]`.
+    // Resolved by hierarchy::resolve_function_type to Ty::FunctionAlias.
+    //
+    // Without modifications we re-export the base function under the alias name
+    // (`pub use crate::path::base as alias;`). The base path is shortened to be
+    // relative to the current module/scope just like a normal type reference.
+    //
+    // With modifications (default-argument overrides) we cannot use a plain
+    // re-export because the alias must apply those overrides. That case isn't
+    // wired up yet, so we emit a `todo!()` placeholder so it surfaces at compile
+    // time rather than silently dropping the alias.
+    if let Ty::FunctionAlias { base, modifications } = &node.ty {
+        let pub_kw = if node.visibility == MM::Visibility::Public { "pub " } else { "" };
+        let alias_name = escape_ident(name);
+        if modifications.is_empty() {
+            let base_short = ctx.shorten(base);
+            writeln!(out, "{indent}{pub_kw}use {base_short} as {alias_name};").unwrap();
+            writeln!(out).unwrap();
+        } else {
+            // TODO: emit a wrapper `pub fn {name}(...) -> ... {{ {base}(..., {arg}={value}, ...) }}`
+            // by looking up the base function's signature and substituting defaults
+            // for the overridden parameters.
+            let mods = modifications.iter()
+                .map(|(k, v)| format!("{k}={v}"))
+                .collect::<Vec<_>>()
+                .join(", ");
+            writeln!(out, "{indent}// {pub_kw}fn {alias_name} = {base}({mods}) -- function alias with default-arg modifications not yet supported").unwrap();
+            writeln!(out, "{indent}{pub_kw}fn {alias_name}() {{ todo!(\"function alias {name} = {base}({mods})\") }}").unwrap();
+            writeln!(out).unwrap();
+        }
+        return;
+    }
+
     let members: &[MM::ClassMember] = match &c.body {
         MM::ClassDef::Parts { members, .. } | MM::ClassDef::ClassExtends { members, .. } => members,
         _ => return,
@@ -2280,7 +2321,10 @@ fn maybe_clone_string_value(expr: String, ty: &Ty) -> String {
 
 fn emit_cloned_call_arg<'a>(arg: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) -> String {
     let arg_str = emit_exp(arg, is_const, ctx, top_level);
-    maybe_clone_string_value(arg_str, &arg.ty())
+    // In const/static context the value is consumed by-value at compile time;
+    // wrapping with `.clone()` would break const evaluation (e.g. `literal!("")`
+    // is a const ArcStr but `literal!("").clone()` is not a const expression).
+    if is_const { arg_str } else { maybe_clone_string_value(arg_str, &arg.ty()) }
 }
 
 /// Resolve a function name as written at a call site to a fully-qualified dotted
@@ -3421,6 +3465,59 @@ fn record_field_tys_by_simple_name<'a>(
 }
 
 /// Is this Ty stored behind an Arc due to recursion-cycle breaking?
+/// Return true if `exp` can be lowered to a Rust *const expression* — i.e. the
+/// value can be stored in a `pub static X: T = <expr>;` without needing the
+/// `LazyLock` wrapper.
+///
+/// The criterion is structural: literals are const; tuples, options, and
+/// struct/unit-variant constructors are const if all their parts are const and
+/// the constructed type doesn't require an `Arc::new` wrapping (which is
+/// non-const because `Arc::new` allocates at runtime). Calls, variable refs,
+/// binary ops, ranges, ifs, matches, etc. are conservatively rejected — they
+/// could be const in some cases but aren't worth detecting until needed.
+///
+/// `literal!("...")` (from arcstr) is a const ArcStr, so string literals qualify.
+fn is_static_const_emittable(exp: &TypedExp, ctx: &GenCtx, top_level: &BTreeMap<String, NameNode<'_>>) -> bool {
+    match exp {
+        TypedExp::Lit(_) => true,
+        TypedExp::Tuple(elems) => elems.iter().all(|e| is_static_const_emittable(e, ctx, top_level)),
+        // A `Call` whose function is actually a record/uniontype constructor
+        // gets rendered as a struct literal in `emit_exp`. The `typedexp` pass
+        // can fail to classify these as `Constructor` when its scope-limited
+        // resolver doesn't find the record (e.g., SOURCEINFO from MetaModelicaBuiltin
+        // referenced from Util.mo) — codegen's `is_constructor` has wider lookups.
+        TypedExp::Call { func, args, named_args, .. } => {
+            // `is_constructor` covers records resolvable through the hierarchy;
+            // `is_sourceinfo_ctor` covers the SOURCEINFO builtin whose definition
+            // lives in MetaModelicaBuiltin.mo (not in the user-visible scope).
+            let recognized_ctor = is_constructor(func, ctx, top_level) || is_sourceinfo_ctor(func);
+            recognized_ctor
+                && args.iter().all(|a| is_static_const_emittable(a, ctx, top_level))
+                && named_args.iter().all(|(_, a)| is_static_const_emittable(a, ctx, top_level))
+        }
+        TypedExp::Constructor { ty, args, named_args, .. } => {
+            // A constructor whose value would be Arc::new-wrapped at codegen time
+            // (recursive uniontype variants) cannot be a const expression.
+            if constructor_needs_arc(ty, ctx) { return false; }
+            // Same for any individual field that gets wrapped in Arc::new
+            // (struct_field_is_arc) — Arc::new is not const.
+            // We approximate by rejecting if the struct stores any Arc-wrapped
+            // field; a future refinement could check field-by-field.
+            if let Ty::RustStruct(qname) | Ty::RustEnum(qname) = ty {
+                if ctx.recursive_types.contains(qname.as_str()) { return false; }
+                if let Some((parent, _)) = qname.rsplit_once('.') {
+                    if ctx.recursive_types.contains(parent) { return false; }
+                }
+            }
+            args.iter().all(|a| is_static_const_emittable(a, ctx, top_level))
+                && named_args.iter().all(|(_, a)| is_static_const_emittable(a, ctx, top_level))
+        }
+        // Unit variants of an enum are const-constructable when the enum is not Arc-wrapped.
+        TypedExp::Var { ty: Ty::RustUnitVariant, .. } => true,
+        _ => false,
+    }
+}
+
 fn is_arc_wrapped(ty: &Ty, ctx: &GenCtx) -> bool {
     let qname = match ty {
         Ty::RustStruct(n) | Ty::RustEnum(n) | Ty::AliasTo(n) | Ty::ExternalObject(n) => n.as_str(),

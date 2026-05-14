@@ -1994,6 +1994,12 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
             let call = format!("metamodelica::Dangerous::arrayCreateNoInit({arg1})");
             if is_const { Ok(call) } else { Ok(ctx.q(&call)) }
         },
+        "arrayClearIndex" => {
+            let arg1 = args.first().map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
+            let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
+            let call = format!("metamodelica::Dangerous::arrayClearIndex({arg1}, {arg2})");
+            if is_const { Ok(call) } else { Ok(ctx.q(&call)) }
+        },
         "arrayUpdate"| "arrayUpdateNoBoundsChecking" => {
             // MM semantics: mutate in place, return the same array (aliases see the change).
             // We bind the array once so {arg1} (which may be a non-trivial expression) is
@@ -4638,7 +4644,7 @@ fn emit_stmt<'a>(
         }
         S::NoRetCall { call } => {
             let s = emit_exp(call, false, ctx, top_level);
-            writeln!(out, "{indent}let _ = {s};").unwrap();
+            writeln!(out, "{indent}{s};").unwrap();
         }
         S::If { cond, then_, elseif, else_ } => {
             let c = emit_exp(cond, false, ctx, top_level);

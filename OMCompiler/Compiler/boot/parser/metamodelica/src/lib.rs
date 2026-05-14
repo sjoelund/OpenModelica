@@ -1217,6 +1217,23 @@ pub mod Dangerous {
         Ok(())
     }
 
+    /// Unsafe array clearing without bounds checking.
+    /// Mutates the underlying storage in place; visible through every alias.
+    pub fn arrayClearIndex<A: Clone>(arr: Array<A>, index: i32) -> Result<()> {
+        let idx = (index - 1) as usize; // 1-based to 0-based
+        let mut v = arr.borrow_mut();
+        // SAFETY: Caller must ensure idx is in bounds. We drop the existing
+        // value in place, then overwrite its storage with zero bytes. The
+        // slot must not be read as an `A` again before being reinitialized,
+        // since the all-zero bit-pattern is not a valid value for arbitrary A.
+        unsafe {
+            let p = v.get_unchecked_mut(idx) as *mut A;
+            std::ptr::drop_in_place(p);
+            std::ptr::write_bytes(p, 0u8, 1);
+        }
+        Ok(())
+    }
+
     /// Creates a new array with uninitialized elements.
     /// The MetaModelica signature takes a `dummy` argument purely as a type witness;
     /// the codegen drops it because Rust generics already carry the element type.

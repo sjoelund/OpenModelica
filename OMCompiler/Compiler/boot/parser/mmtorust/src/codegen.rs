@@ -2462,7 +2462,7 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], is_co
                     // referenced value yields an owned, mutable local that the
                     // body can both read and reassign.
                     let mut deref_names: Vec<String> = Vec::new();
-                    pat_deref_bindings(&case.pattern, &mut deref_names);
+                    pat_deref_bindings(&case.pattern, &input_ty, ctx, top_level, &mut deref_names);
                     if !deref_names.is_empty() {
                         let mut assigned: HashSet<String> = HashSet::new();
                         stmts_assigned_var_names(&case.stmts, &mut assigned);
@@ -2525,15 +2525,32 @@ fn emit_pat<'a>(pat: &TypedPat, ctx: &mut GenCtx, top_level: &'a BTreeMap<String
     emit_pat_with_implicit_bind(pat, /*allow_implicit_bind=*/true, /*mut_bindings=*/false, /*in_deref=*/false, None, ctx, top_level)
 }
 
-/// Collect every binding name in `pat` that lies inside at least one
-/// `deref!(...)` (i.e. inside a `Cons.tail` subtree at any depth). These
-/// bindings *cannot* be `mut` directly: the `deref_patterns` macro generates
-/// a pattern that yields references through the `Arc<List<T>>`, and `mut`
+/// Return true if matching `pat` against a scrutinee of `ty` will cross an
+/// Arc edge — i.e. the pattern destructures through an `Arc<T>` wrapper.
+/// Crossing an Arc edge happens for:
+///   - `Ty::List(_)` (lowered to `Arc<metamodelica::List<T>>`).
+///   - Any type marked recursive in `ctx.recursive_types` (uniontype enums and
+///     their variant records are stored behind `Arc`).
+///   - The `tail` field of a `Cons` pattern (typed as `Arc<List<T>>` regardless
+///     of the outer scrutinee, since the field itself is Arc-wrapped).
+/// Once we cross an Arc edge, the `deref_patterns` feature binds every
+/// nested name by reference; `mut <name>` is therefore rejected as a
+/// non-reference binding mode and any move from the binding fails (E0507).
+/// We must emit `ref <name>` for those bindings and, in the arm body,
+/// rebind with `let mut <name> = <name>.clone();` if the body reassigns them.
+fn ty_needs_arc_match_deref(ty: &Ty, ctx: &GenCtx) -> bool {
+    matches!(ty, Ty::List(_)) || is_arc_wrapped(ty, ctx)
+}
+
+/// Collect every binding name in `pat` that lies inside an Arc-deref path
+/// (across an `Arc<T>` edge) when the pattern is matched against a value of
+/// type `scrut_ty`. Such bindings *cannot* be `mut` directly: the
+/// `deref_patterns` feature yields references through the `Arc`, and `mut`
 /// on a by-reference binding is rejected by the Rust compiler. We emit
 /// `ref <name>` for them in the pattern, and then optionally re-bind them
 /// with `let mut <name> = <name>.clone();` in the arm body if the source
 /// MetaModelica reassigns them.
-fn pat_deref_bindings(pat: &TypedPat, out: &mut Vec<String>) {
+fn pat_deref_bindings(pat: &TypedPat, scrut_ty: &Ty, ctx: &GenCtx, top_level: &BTreeMap<String, NameNode<'_>>, out: &mut Vec<String>) {
     fn walk_inside_deref(p: &TypedPat, out: &mut Vec<String>) {
         match p {
             TypedPat::Var(name) => out.push(name.clone()),
@@ -2555,19 +2572,55 @@ fn pat_deref_bindings(pat: &TypedPat, out: &mut Vec<String>) {
             _ => {}
         }
     }
-    // Top-level walk: only recurse into a `Cons.tail` to "enter" deref!.
+    // If the scrutinee type itself crosses an Arc edge, every binding below
+    // this pattern is in deref territory.
+    if ty_needs_arc_match_deref(scrut_ty, ctx) {
+        walk_inside_deref(pat, out);
+        return;
+    }
+    // Otherwise, recurse type-aware to find where Arc edges are crossed.
     match pat {
         TypedPat::Cons { head, tail } => {
-            pat_deref_bindings(head, out); // head is NOT inside this Cons's deref!
+            // The Cons.tail field is `Arc<List<T>>` — itself an Arc edge —
+            // so everything below the tail subtree is in deref. The head
+            // is bound by value (type T) without crossing an Arc edge, so
+            // recurse type-aware into it.
+            let elem_ty = match scrut_ty { Ty::List(t) => (**t).clone(), _ => Ty::Unknown };
+            pat_deref_bindings(head, &elem_ty, ctx, top_level, out);
             walk_inside_deref(tail, out);
         }
-        TypedPat::Some_(inner) => pat_deref_bindings(inner, out),
-        TypedPat::Tuple(pats) => pats.iter().for_each(|p| pat_deref_bindings(p, out)),
-        TypedPat::Constructor { fields, named_fields, .. } => {
-            fields.iter().for_each(|p| pat_deref_bindings(p, out));
-            named_fields.iter().for_each(|(_, p)| pat_deref_bindings(p, out));
+        TypedPat::Some_(inner) => {
+            let inner_ty = match scrut_ty { Ty::Option(t) => (**t).clone(), _ => Ty::Unknown };
+            pat_deref_bindings(inner, &inner_ty, ctx, top_level, out);
         }
-        TypedPat::As { pat, .. } => pat_deref_bindings(pat, out),
+        TypedPat::Tuple(pats) => {
+            let elem_tys: Vec<Ty> = match scrut_ty {
+                Ty::Tuple(ts) if ts.len() == pats.len() => ts.clone(),
+                _ => vec![Ty::Unknown; pats.len()],
+            };
+            for (p, ety) in pats.iter().zip(elem_tys.iter()) {
+                pat_deref_bindings(p, ety, ctx, top_level, out);
+            }
+        }
+        TypedPat::Constructor { fields, named_fields, name, .. } => {
+            // Look up field types so we can detect Arc-wrapped fields. The
+            // field types come from the record definition for this variant.
+            let field_tys = record_field_tys(name, top_level)
+                .or_else(|| lookup_record_through_unions(name, top_level)
+                    .and_then(|(canonical, _)| record_field_tys(&canonical, top_level)))
+                .or_else(|| record_field_tys_from_scrutinee_ctor(name, scrut_ty, top_level))
+                .unwrap_or_default();
+            for (i, p) in fields.iter().enumerate() {
+                let fty = field_tys.get(i).map(|(_, t)| t.clone()).unwrap_or(Ty::Unknown);
+                pat_deref_bindings(p, &fty, ctx, top_level, out);
+            }
+            for (fname, p) in named_fields {
+                let fty = field_tys.iter().find(|(n, _)| n == fname)
+                    .map(|(_, t)| t.clone()).unwrap_or(Ty::Unknown);
+                pat_deref_bindings(p, &fty, ctx, top_level, out);
+            }
+        }
+        TypedPat::As { pat, .. } => pat_deref_bindings(pat, scrut_ty, ctx, top_level, out),
         _ => {}
     }
 }
@@ -2622,6 +2675,12 @@ fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, mu
     // `mut <name>` binding would not compile. We emit `ref <name>` instead
     // and rely on the match-arm prologue to introduce a fresh `let mut`
     // shadow for any name that the arm body actually reassigns.
+    //
+    // If the current scrutinee type itself crosses an Arc edge (Ty::List
+    // or a recursive uniontype wrapped in Arc), matching it via
+    // `deref_patterns` produces by-ref bindings. Force `in_deref` true for
+    // the rest of this subtree so `bind_var` emits `ref` rather than `mut`.
+    let in_deref = in_deref || scrut_ty.map(|t| ty_needs_arc_match_deref(t, ctx)).unwrap_or(false);
     let bind_var = |name: &str| -> String {
         if in_deref {
             format!("ref {}", escape_ident(name))
@@ -2646,9 +2705,20 @@ fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, mu
         TypedPat::Lit(Lit::Real(_)) => "_ /* real — move to guard */".to_owned(),
 
         TypedPat::Cons { head, tail } => {
+            // Element type: pull from scrut_ty when known so any sub-pattern
+            // that itself crosses an Arc edge (e.g. an element which is a
+            // recursive uniontype) gets `in_deref` set correctly.
+            let elem_ty: Ty = match scrut_ty { Some(Ty::List(t)) => (**t).clone(), _ => Ty::Unknown };
+            // The `tail` field of `metamodelica::List::Cons` is `Arc<List<T>>`
+            // (itself an Arc edge), so emit the tail sub-pattern with a
+            // synthetic `Ty::List(elem)` scrutinee. This is what makes a
+            // nested tail-side `Cons` or `Var` get `ref` binding rather
+            // than `mut` (which would fail to compile as a move out of a
+            // shared reference under `deref_patterns`).
+            let tail_ty = Ty::List(Box::new(elem_ty.clone()));
             format!("metamodelica::List::Cons {{ head: {}, tail: {} }}",
-                emit_pat_with_implicit_bind(head, allow_implicit_bind, mut_bindings, in_deref, None, ctx, top_level),
-                emit_pat_with_implicit_bind(tail, allow_implicit_bind, mut_bindings, false, None, ctx, top_level))
+                emit_pat_with_implicit_bind(head, allow_implicit_bind, mut_bindings, in_deref, Some(&elem_ty), ctx, top_level),
+                emit_pat_with_implicit_bind(tail, allow_implicit_bind, mut_bindings, true, Some(&tail_ty), ctx, top_level))
         }
 
         TypedPat::Tuple(pats) => {

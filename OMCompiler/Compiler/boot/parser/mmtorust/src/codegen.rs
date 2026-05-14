@@ -1449,6 +1449,7 @@ fn emit_reduction<'a>(
             // Lists yield &T; clone so the loop body owns its element (matches
             // the rest of the generated code which clones liberally).
             Ty::List(_) => format!("({range_s}).into_iter().cloned()"),
+            Ty::Array(_) => format!("({range_s}).borrow().iter()"),
             _ => format!("({range_s}).into_iter()"),
         };
         format!("for {} in {iter_expr} {{\n", escape_ident(&it.name))
@@ -3809,10 +3810,34 @@ fn emit_stmt<'a>(
                 }
             }
             if let TypedPat::Index { base, index } = lhs {
-                let lhs_str = emit_pat(lhs, ctx, top_level);
                 let lhs_ty = lhs_assignment_ty(lhs, env);
                 let scrut_expr = coerce_assign_expr(scrut_expr, &scrut_ty, lhs_ty.as_ref());
-                writeln!(out, "{indent}{lhs_str} = {scrut_expr};").unwrap();
+                let idx_str = emit_exp(index, /*is_const=*/false, ctx, top_level);
+                match base.ty() {
+                    Ty::Array(_) => {
+                        // Modelica `arr[i] := rhs;` on an Array<T> (= Rc<RefCell<Vec<T>>>).
+                        // Two hazards to avoid:
+                        //   1. The cell needs `borrow_mut()` for writing; plain indexing
+                        //      on the Rc handle gives no IndexMut impl.
+                        //   2. The rhs may itself borrow the same array (e.g. swap), so
+                        //      we hoist it into a local temp first to drop any Ref before
+                        //      acquiring the RefMut — otherwise RefCell would panic at runtime.
+                        let n = *fresh; *fresh += 1;
+                        let tmp = format!("__cell{n}");
+                        let base_str = emit_exp(base, /*is_const=*/false, ctx, top_level);
+                        writeln!(out, "{indent}{{").unwrap();
+                        writeln!(out, "{indent}    let {tmp} = {scrut_expr};").unwrap();
+                        writeln!(out, "{indent}    {base_str}.borrow_mut()[({idx_str}-1) as usize] = {tmp};").unwrap();
+                        writeln!(out, "{indent}}}").unwrap();
+                    }
+                    _ => {
+                        // Non-array indexed LHS (e.g. mutable slice/Vec passed by reference).
+                        // No known MetaModelica construct hits this today; fall back to the
+                        // direct form and let the Rust compiler diagnose if we got it wrong.
+                        let lhs_str = emit_pat(lhs, ctx, top_level);
+                        writeln!(out, "{indent}{lhs_str} = {scrut_expr}; // TODO: indexed assign on non-Array base").unwrap();
+                    }
+                }
                 return;
             }
             if let TypedPat::FieldAccess { base, field } = lhs {

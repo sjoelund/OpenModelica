@@ -1115,6 +1115,32 @@ pub mod Dangerous {
     pub fn listReverseInPlace<T: Clone>(list: Arc<List<T>>) -> Result<Arc<List<T>>>{
         Ok(list.reverse())
     }
+    /// Overwrites the `tail` field of the given Cons cell.
+    ///
+    /// SAFETY: Mutates the cell behind the `Arc` through a raw pointer, so all
+    /// other holders of clones of this `Arc` observe the change. Caller must
+    /// ensure no other thread is reading the cell concurrently. Mirrors the
+    /// MetaModelica runtime's RML cons-cell mutation.
+    pub fn listSetRest<T: Clone>(list: Arc<List<T>>, new_tail: Arc<List<T>>) -> Result<()> {
+        let ptr = Arc::as_ptr(&list) as *mut List<T>;
+        unsafe {
+            match &mut *ptr {
+                List::Cons { tail, .. } => { *tail = new_tail; Ok(()) }
+                List::Nil => bail!("listSetRest: called on Nil"),
+            }
+        }
+    }
+    /// Overwrites the `head` field of the given Cons cell. See `listSetRest`
+    /// for the safety contract.
+    pub fn listSetFirst<T: Clone>(list: Arc<List<T>>, new_head: T) -> Result<()> {
+        let ptr = Arc::as_ptr(&list) as *mut List<T>;
+        unsafe {
+            match &mut *ptr {
+                List::Cons { head, .. } => { *head = new_head; Ok(()) }
+                List::Nil => bail!("listSetFirst: called on Nil"),
+            }
+        }
+    }
 }
 
 // ============================================================================

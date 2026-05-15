@@ -1,12 +1,7 @@
-// Auto-generated from MetaModelica source
-#![allow(warnings)]
-#![allow(unreachable_patterns, unreachable_code, non_camel_case_types, non_snake_case, dead_code, unused_imports, unused_variables, non_upper_case_globals, unused_mut)]
-
+// Manually written
 use std::sync::{Arc, Mutex};
 use anyhow::{Result, bail};
-use loop_unwrap::unwrap_break_err;
 use metamodelica::*; // Built-in types and functions
-use const_str;
 use arcstr::{ArcStr, literal, format};
 
 // Mirrors the MetaModelica/C representation: `Mutable` corresponds to
@@ -47,7 +42,7 @@ pub fn createImmutable<T: Clone + PartialEq>(data: T) -> Result<Pointer<T>> {
 pub fn update<T: Clone + PartialEq>(mutable: Pointer<T>, data: T) -> Result<()> {
     match mutable {
         Pointer::Mutable(cell) => {
-            let mut guard = cell.lock().map_err(|_| anyhow::anyhow!("Pointer.update: mutex poisoned"))?;
+            let mut guard = cell.lock().unwrap();
             *guard = data;
             Ok(())
         }
@@ -58,7 +53,7 @@ pub fn update<T: Clone + PartialEq>(mutable: Pointer<T>, data: T) -> Result<()> 
 pub fn access<T: Clone + PartialEq>(mutable: Pointer<T>) -> Result<T> {
     match mutable {
         Pointer::Mutable(cell) => {
-            let guard = cell.lock().map_err(|_| anyhow::anyhow!("Pointer.access: mutex poisoned"))?;
+            let guard = cell.lock().expect("Pointer.access: mutex poisoned");
             Ok((*guard).clone())
         }
         Pointer::Immutable(a) => Ok((*a).clone()),

@@ -39,7 +39,6 @@ pub mod Lapack;
 pub mod LexerJSON;
 pub mod NFLookupTree;
 pub mod OMSimulatorExt;
-pub mod Pointer;
 pub mod Print;
 pub mod SBAtomicSet;
 pub mod SBFunctions;

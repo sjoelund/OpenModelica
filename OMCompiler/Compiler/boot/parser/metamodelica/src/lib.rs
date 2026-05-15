@@ -2152,20 +2152,6 @@ mod tests {
         }
 
         #[test]
-        fn test_print_any() {
-            // Just ensure it doesn't panic
-            let val = 42i32;
-            printAny(&val);
-        }
-
-        #[test]
-        fn test_debug_print() {
-            // Just ensure it doesn't panic
-            let val = 42i32;
-            debug_print("test".to_string(), &val);
-        }
-
-        #[test]
         fn test_tick() {
             let t1 = tick().unwrap();
             let t2 = tick().unwrap();

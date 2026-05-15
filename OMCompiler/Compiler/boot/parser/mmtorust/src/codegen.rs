@@ -2,6 +2,7 @@
 
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::fmt::Write;
+use rayon::prelude::*;
 use mmwinnow::Absyn;
 use crate::MM;
 use std::collections::HashMap;
@@ -536,38 +537,53 @@ pub fn generate_all(hier: &InstanceHierarchy<'_>, output_dir: &str) -> std::io::
     }
     let all_file_t0 = std::time::Instant::now();
 
+    // Serial pass: create directories and collect (dir, name, node) tuples for parallel codegen.
+    let mut file_jobs: Vec<(&str, &str, &NameNode<'_>)> = Vec::new();
     for (dir, classes) in &dir_classes {
         if dir == "openmodelica/src" {
             continue; // Builtin - handwritten code
         };
         std::fs::create_dir_all(dir)?;
         for (name, node) in classes {
-            let current_crate = if let NodeKind::Class(c) = &node.kind {
-                c.crate_name.clone()
-            } else {
-                None
-            };
             match *name {
-                "Mutable" | "GCExt" => continue,
+                "Mutable" | "GCExt" | "Pointer" => continue,
                 _ => {}
             };
-            let file_path = format!("{dir}/{name}.rs");
-            if trace_codegen {
-                eprintln!("[mmtorust] codegen start {file_path}");
-            }
-            let file_t0 = std::time::Instant::now();
-            let content = generate_file(name, node, &crate_map, current_crate, &top_level_uniontype_names, hier.recursive_types.clone(), hier.types_containing_mutable.clone(), &no_mod_uniontypes, &hier.top_level, &fn_type_vars);
-            let file_elapsed = file_t0.elapsed();
-            if trace_codegen {
-                eprintln!("[mmtorust] codegen done  {file_path} ({:.2}s)", file_elapsed.as_secs_f64());
-            }
-            if file_timeout_secs > 0 && file_elapsed.as_secs() > file_timeout_secs {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::TimedOut,
-                    format!("codegen for {file_path} exceeded {file_timeout_secs}s"),
-                ));
-            }
-            std::fs::write(&file_path, content)?;
+            file_jobs.push((dir.as_str(), name, node));
+        }
+    }
+
+    // Parallel pass: each file is generated independently.
+    file_jobs.par_iter().try_for_each(|(dir, name, node)| -> std::io::Result<()> {
+        let current_crate = if let NodeKind::Class(c) = &node.kind {
+            c.crate_name.clone()
+        } else {
+            None
+        };
+        let file_path = format!("{dir}/{name}.rs");
+        if trace_codegen {
+            eprintln!("[mmtorust] codegen start {file_path}");
+        }
+        let file_t0 = std::time::Instant::now();
+        let content = generate_file(name, node, &crate_map, current_crate, &top_level_uniontype_names, hier.recursive_types.clone(), hier.types_containing_mutable.clone(), &no_mod_uniontypes, &hier.top_level, &fn_type_vars);
+        let file_elapsed = file_t0.elapsed();
+        if trace_codegen {
+            eprintln!("[mmtorust] codegen done  {file_path} ({:.2}s)", file_elapsed.as_secs_f64());
+        }
+        if file_timeout_secs > 0 && file_elapsed.as_secs() > file_timeout_secs {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::TimedOut,
+                format!("codegen for {file_path} exceeded {file_timeout_secs}s"),
+            ));
+        }
+        std::fs::write(&file_path, content)?;
+        Ok(())
+    })?;
+
+    // Serial pass: write lib.rs per directory.
+    for dir in dir_classes.keys() {
+        if dir == "openmodelica/src" {
+            continue;
         }
         let lib_content = generate_lib_file(hier, dir, output_dir);
         std::fs::write(format!("{dir}/lib.rs"), lib_content)?;
@@ -1934,7 +1950,7 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
         },
         "print" => {
             let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
-            Ok(format!("println!(\"{}\", {arg})"))
+            Ok(format!("println!(\"{{}}\", {arg})"))
         },
         "arrayGet" | "arrayGetNoBoundsChecking" => {
             // `arr` is `metamodelica::Array<T>` = `Rc<RefCell<Vec<T>>>`.

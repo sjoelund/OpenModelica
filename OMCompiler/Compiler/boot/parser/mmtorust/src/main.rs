@@ -7,6 +7,8 @@ mod MM;
 mod hierarchy;
 mod typedexp;
 mod codegen;
+mod external_c_calls;
+mod fallibility;
 use rayon::prelude::*;
 
 fn start_compilation(results: Vec<Absyn::Program>) {
@@ -39,6 +41,25 @@ fn start_compilation(results: Vec<Absyn::Program>) {
     hierarchy::detect_types_containing_mutable(&mut hier);
     println!("Hierarchy recursive+mutable detection: {:.2}s", t0.elapsed().as_secs_f64());
     // println!("{hier}");
+
+    // Fallibility analysis: classify every user-defined function as fallible
+    // (lowers to `-> Result<T>`) or infallible (lowers to `-> T`). The result
+    // is consumed by codegen to decide whether each call site needs `?` and
+    // whether function-pointer references need a `fnptr!`-style wrapper.
+    let t0 = std::time::Instant::now();
+    let info = fallibility::analyze(&hier);
+    hier.fallible_functions = info.fallible_functions.clone();
+    let infallible_count = info.total_functions.saturating_sub(info.fallible_functions.len());
+    println!(
+        "Fallibility analysis: {} functions ({} fallible, {} infallible), {} externals; {} ext registry entries; {:.2}s",
+        info.total_functions,
+        info.fallible_functions.len(),
+        infallible_count,
+        info.external_functions,
+        external_c_calls::registered_count(),
+        t0.elapsed().as_secs_f64(),
+    );
+
     let t0 = std::time::Instant::now();
     codegen::generate_all(&hier, "openmodelica/src").expect("code generation failed");
     println!("Code generation {:.2}s", t0.elapsed().as_secs_f64())

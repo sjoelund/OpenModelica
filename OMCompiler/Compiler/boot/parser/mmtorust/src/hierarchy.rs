@@ -209,6 +209,15 @@ pub struct InstanceHierarchy<'a> {
     /// for the derive to apply.
     /// Populated by `detect_types_containing_mutable` after resolve_pass converges.
     pub types_containing_mutable: BTreeSet<String>,
+    /// Fully-qualified names of every user-defined function that the
+    /// fallibility analysis classified as fallible (i.e. lowers to a Rust
+    /// function returning `anyhow::Result<T>`).  Functions absent from this
+    /// set are infallible and lower to a bare `T`.
+    ///
+    /// Populated by [`crate::fallibility::analyze`] after both
+    /// [`detect_recursive_types`] and [`detect_types_containing_mutable`] have
+    /// converged. Empty until then.
+    pub fallible_functions: BTreeSet<String>,
 }
 
 impl<'a> InstanceHierarchy<'a> {
@@ -217,7 +226,12 @@ impl<'a> InstanceHierarchy<'a> {
             .iter()
             .map(|class| (class.name.clone(), build_class_node(class)))
             .collect();
-        Self { top_level, recursive_types: BTreeSet::new(), types_containing_mutable: BTreeSet::new() }
+        Self {
+            top_level,
+            recursive_types: BTreeSet::new(),
+            types_containing_mutable: BTreeSet::new(),
+            fallible_functions: BTreeSet::new(),
+        }
     }
 }
 

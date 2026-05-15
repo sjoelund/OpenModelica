@@ -6,7 +6,7 @@ use rayon::prelude::*;
 use mmwinnow::Absyn;
 use crate::MM;
 use std::collections::HashMap;
-use crate::hierarchy::{InstanceHierarchy, NameNode, NodeKind, Ty, extract_default, extract_default_exp, lookup_node, lookup_node_ty, lookup_record_through_unions, uniontype_needs_mod, collect_type_vars_in_ty};
+use crate::hierarchy::{InstanceHierarchy, FunctionInput, NameNode, NodeKind, Ty, extract_default, extract_default_exp, lookup_node, lookup_node_ty, lookup_record_through_unions, uniontype_needs_mod, collect_type_vars_in_ty};
 use crate::typedexp::{self, TypedExp, TypedPat, TypedCase, Lit, BinOpKind, UnOpKind, MatchKind, ReductionIter, ReductionIterKind, cref_to_dotted, CrefSegment};
 use anyhow::{Result,bail};
 
@@ -1161,6 +1161,12 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
         // call shape uniform.
         collect_from_class(base_fn, None, &mut inherited_components, &mut seen, &mut inherited_tys);
     }
+    // Snapshot the point at which only `base_fn` inherited components are in
+    // the list. Anything appended after this index came from `node.extends`
+    // (the `function F ... extends X; ... end F` form, which lives in
+    // ClassMember::Extends rather than ClassDef::ClassExtends) and is *not*
+    // reflected in `node.ty`'s inputs/outputs — those need a follow-up merge.
+    let base_fn_inherited_count = inherited_components.len();
     // Compute the enclosing package qname so a bare `extends X;` (the typical
     // form when the base function lives in the same package) can be resolved
     // as `<pkg>.X`. `ctx.current_path` includes the surrounding package
@@ -1197,7 +1203,7 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
     let members: &[MM::ClassMember] = if inherited_components.is_empty() {
         local_members
     } else {
-        let mut merged = inherited_components;
+        let mut merged = inherited_components.clone();
         merged.extend(local_members.iter().cloned());
         base_members_storage = merged;
         &base_members_storage
@@ -1237,23 +1243,96 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
         return;
     }
 
+    // Inherited inputs/outputs: `resolve_function_type` for the `Parts + extends X;`
+    // form does not walk into the base function's components, so `fn_inputs`
+    // omits inherited INPUT params and `fn_output` omits inherited OUTPUTs. We
+    // recover both here by walking the already-merged `members` slice.
+    //
+    // `fn_inputs_owned` holds the merged input list; `merged_output_ty` is the
+    // function's return type, recomputed from local + inherited outputs when
+    // extends added any. Local-only functions still use `fn_inputs` / `fn_output`
+    // unchanged to avoid disturbing well-typed paths.
+    let mut merged_inputs: Vec<FunctionInput> = fn_inputs.clone();
+    let mut merged_output_tys: Vec<Ty> = Vec::new();
+    let mut had_inherited_output = false;
+    // Only the *Parts+Extends-member* form needs the merge — the header-form
+    // (ClassExtends with `base_fn`) goes through `resolve_function_from_base`,
+    // which already produced a complete Ty::Function.
+    let extends_member_inherited = &inherited_components[base_fn_inherited_count..];
+    if !extends_member_inherited.is_empty() {
+        let existing_in: HashSet<String> = merged_inputs.iter().map(|i| i.name.clone()).collect();
+        for member in extends_member_inherited {
+            let MM::ClassMember::Component(cm) = member else { continue };
+            let ty = inherited_tys.get(&cm.name).cloned().unwrap_or(Ty::Unknown);
+            match cm.direction {
+                Absyn::Direction::INPUT => {
+                    if !existing_in.contains(&cm.name) {
+                        merged_inputs.push(FunctionInput {
+                            name: cm.name.clone(),
+                            ty,
+                            default: extract_default(&cm.modification),
+                        });
+                    }
+                }
+                Absyn::Direction::OUTPUT => {
+                    had_inherited_output = true;
+                    merged_output_tys.push(ty);
+                }
+                Absyn::Direction::INPUT_OUTPUT => {
+                    had_inherited_output = true;
+                    merged_output_tys.push(ty.clone());
+                    if !existing_in.contains(&cm.name) {
+                        merged_inputs.push(FunctionInput {
+                            name: cm.name.clone(),
+                            ty,
+                            default: extract_default(&cm.modification),
+                        });
+                    }
+                }
+                _ => {}
+            }
+        }
+        // If extends contributed outputs, also fold in any local outputs in
+        // declaration order so the tuple matches the source.
+        if had_inherited_output {
+            for member in local_members {
+                let MM::ClassMember::Component(cm) = member else { continue };
+                if matches!(cm.direction, Absyn::Direction::OUTPUT | Absyn::Direction::INPUT_OUTPUT) {
+                    let ty = node.children.get(&cm.name).map(|n| n.ty.clone()).unwrap_or(Ty::Unknown);
+                    merged_output_tys.push(ty);
+                }
+            }
+        }
+    }
+    let merged_output_ty: Ty = if had_inherited_output {
+        match merged_output_tys.len() {
+            0 => Ty::Unit,
+            1 => merged_output_tys.into_iter().next().unwrap(),
+            _ => Ty::Tuple(merged_output_tys),
+        }
+    } else {
+        fn_output.as_ref().clone()
+    };
+    let fn_inputs_eff: &[FunctionInput] = &merged_inputs;
+    let fn_output_eff: &Ty = &merged_output_ty;
+
     let mut all_type_vars = type_vars.clone();
-    for inp in fn_inputs.iter() {
+    for inp in fn_inputs_eff.iter() {
         collect_type_vars_in_ty(&inp.ty, &mut all_type_vars);
     }
-    collect_type_vars_in_ty(fn_output, &mut all_type_vars);
+    collect_type_vars_in_ty(fn_output_eff, &mut all_type_vars);
     let type_params = if all_type_vars.is_empty() {
         String::new()
     } else {
         format!("<{}>", all_type_vars.iter().map(|v| format!("{v}: {DEFAULT_TRAITS}")).collect::<Vec<_>>().join(", "))
     };
 
-    let params = fn_inputs.iter()
+    let params = fn_inputs_eff.iter()
         .map(|inp| format!("{}: {}", escape_ident(&inp.name), fmt_param_ty(&inp.ty, ctx)))
         .collect::<Vec<_>>()
         .join(", ");
 
-    let ret_ty = fmt_ty(fn_output, ctx);
+    let ret_ty = fmt_ty(fn_output_eff, ctx);
     let ename = escape_ident(name);
 
     let pub_kw = if node.visibility == MM::Visibility::Public { "pub " } else { "" };
@@ -1275,7 +1354,7 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
     let mut outputs: Vec<(String, Ty, Option<Absyn::Modification>, bool)> = Vec::new();
     let mut protected: Vec<(String, Ty, Option<Absyn::Modification>, bool)> = Vec::new();
     let mut input_names: HashSet<String> = HashSet::new();
-    for inp in fn_inputs.iter() { input_names.insert(inp.name.clone()); }
+    for inp in fn_inputs_eff.iter() { input_names.insert(inp.name.clone()); }
     for member in members {
         let MM::ClassMember::Component(cm) = member else { continue };
         let child_ty = node.children.get(&cm.name)
@@ -1312,7 +1391,7 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
     };
 
     let mut infer_env: HashMap<String, Ty> = HashMap::new();
-    for inp in fn_inputs.iter() { infer_env.insert(inp.name.clone(), inp.ty.clone()); }
+    for inp in fn_inputs_eff.iter() { infer_env.insert(inp.name.clone(), inp.ty.clone()); }
     for (n, t, _, _) in &outputs { infer_env.insert(n.clone(), t.clone()); }
     for (n, t, _, _) in &protected { infer_env.insert(n.clone(), t.clone()); }
 
@@ -1324,7 +1403,7 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
     let typed_stmts = typedexp::infer_stmts(alg_items, &mut infer_env, top_level, &pkg_prefix, &all_type_vars);
 
     let mut env = LocalEnv::default();
-    for inp in fn_inputs.iter() { env.vars.insert(inp.name.clone(), inp.ty.clone()); }
+    for inp in fn_inputs_eff.iter() { env.vars.insert(inp.name.clone(), inp.ty.clone()); }
     for (n, t, _, _) in &outputs   { env.vars.insert(n.clone(), t.clone()); }
     for (n, t, _, _) in &protected { env.vars.insert(n.clone(), t.clone()); }
     env.outputs = outputs.iter().map(|(n, _, _, _)| n.clone()).collect();
@@ -1348,6 +1427,12 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
     let body_indent = format!("{indent}    ");
 
     for (n, t, modif, is_const_local) in outputs.iter().chain(protected.iter()) {
+        // When the local's type is unknown, omit the annotation entirely and
+        // let Rust infer from the later assignment. `fmt_ty(Ty::Unknown)`
+        // produces `/* ? */`, which is not a valid type, so emitting
+        // `let mut x: /* ? */;` would fail to parse. Match-arm locals use the
+        // same fallback (see "TODO: local with unresolved type" below).
+        let is_unknown_ty = matches!(t, Ty::Unknown);
         let ty_s = fmt_ty(t, ctx);
         let modif_opt: Option<Absyn::Modification> = modif.clone();
         let init_raw = extract_default_exp(&modif_opt).map(|exp| {
@@ -1360,11 +1445,18 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
             let cloned_s = format!("{}.clone()", escape_ident(n));
             init_raw.filter(|s| s != &escape_ident(n) && s != &cloned_s)
         };
+        let ty_annot = if is_unknown_ty { String::new() } else { format!(": {ty_s}") };
         match (is_const_local, init) {
-            (true, Some(s)) => writeln!(out, "{body_indent}let {}: {ty_s} = {s};", escape_ident(n)).unwrap(),
-            (true, None) => writeln!(out, "{body_indent}let mut {}: {ty_s};", escape_ident(n)).unwrap(),
-            (false, Some(s)) => writeln!(out, "{body_indent}let mut {}: {ty_s} = {s};", escape_ident(n)).unwrap(),
-            (false, None) => writeln!(out, "{body_indent}let mut {}: {ty_s};", escape_ident(n)).unwrap(),
+            (true, Some(s)) => writeln!(out, "{body_indent}let {}{ty_annot} = {s};", escape_ident(n)).unwrap(),
+            (true, None) => writeln!(out, "{body_indent}let mut {}{ty_annot}; // TODO: local with unresolved type", escape_ident(n)).unwrap(),
+            (false, Some(s)) => writeln!(out, "{body_indent}let mut {}{ty_annot} = {s};", escape_ident(n)).unwrap(),
+            (false, None) => {
+                if is_unknown_ty {
+                    writeln!(out, "{body_indent}let mut {}; // TODO: local with unresolved type", escape_ident(n)).unwrap();
+                } else {
+                    writeln!(out, "{body_indent}let mut {}{ty_annot};", escape_ident(n)).unwrap();
+                }
+            }
         }
     }
 
@@ -1518,6 +1610,15 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                 // same case. Concrete function references (resolved through
                 // the hierarchy above) follow the same path.
                 Ty::Function { .. } | Ty::FunctionAlias { .. } => var_str,
+                // Inside a `const` initializer Rust can't call `.clone()` —
+                // `Clone` isn't a stable const trait yet (E0658 + "Clone is
+                // not yet stable as a const trait"). For const operands of
+                // primitive Copy types (Bool, Int, Real) the clone is a
+                // no-op anyway, and for ArcStr the value can be referenced
+                // directly. Suppress the clone in const context; the call
+                // sites we know about (const initializers using other
+                // const values) don't need it.
+                _ if is_const => var_str,
                 _ => format!("{var_str}.clone()"),
             }
         }
@@ -3333,7 +3434,7 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], is_co
         MatchKind::Match => {
             let has_wild = cases.iter().any(|c| matches!(c.pattern, TypedPat::Wildcard) && c.guard.is_none());
             let arms: Vec<String> = cases.iter().map(|case| {
-                let pat = emit_pat_with_implicit_bind(&case.pattern, /*allow_implicit_bind=*/true, /*mut_bindings=*/true, /*in_deref=*/false, Some(&input_ty), ctx, top_level);
+                let pat = emit_pat_with_implicit_bind(&case.pattern, /*allow_implicit_bind=*/true, /*mut_bindings=*/true, /*in_deref=*/false, /*implicit_ref=*/input_is_arc, Some(&input_ty), ctx, top_level);
                 // Compute the variant narrowing established by this arm's pattern so
                 // that reads of `v.field` inside the guard and the case result use
                 // `var_field!`. Save ctx.variants to restore after the arm so sibling
@@ -3465,7 +3566,7 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], is_co
                 s.push_str(&format!("        let __mc_input = {input_str};\n"));
             }
             for case in cases {
-                let pat = emit_pat_with_implicit_bind(&case.pattern, /*allow_implicit_bind=*/true, /*mut_bindings=*/true, /*in_deref=*/false, Some(&input_ty), ctx, top_level);
+                let pat = emit_pat_with_implicit_bind(&case.pattern, /*allow_implicit_bind=*/true, /*mut_bindings=*/true, /*in_deref=*/false, /*implicit_ref=*/input_is_arc, Some(&input_ty), ctx, top_level);
                 let saved_variants = ctx.variants.clone();
                 let saved_shapes = ctx.variant_shapes.clone();
                 {
@@ -3503,7 +3604,7 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], is_co
 }
 
 fn emit_pat<'a>(pat: &TypedPat, ctx: &mut GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) -> String {
-    emit_pat_with_implicit_bind(pat, /*allow_implicit_bind=*/true, /*mut_bindings=*/false, /*in_deref=*/false, None, ctx, top_level)
+    emit_pat_with_implicit_bind(pat, /*allow_implicit_bind=*/true, /*mut_bindings=*/false, /*in_deref=*/false, /*implicit_ref=*/false, None, ctx, top_level)
 }
 
 /// Return true if matching `pat` against a scrutinee of `ty` will cross an
@@ -3665,21 +3766,33 @@ fn stmts_assigned_var_names(stmts: &[typedexp::TypedStmt], out: &mut HashSet<Str
 /// Rust requires the binding to be declared `mut` first. Since the unused-mut
 /// lint is allowed for generated code, marking *all* such bindings as `mut` is
 /// always safe.
-fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, mut_bindings: bool, in_deref: bool, scrut_ty: Option<&Ty>, ctx: &mut GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) -> String {
-    // `in_deref` marks that we are emitting beneath a `deref!(..)` wrapper
-    // (i.e. somewhere inside the tail subtree of a `Cons` pattern). The
-    // `deref_patterns` macro expansion binds names by reference, so a
-    // `mut <name>` binding would not compile. We emit `ref <name>` instead
-    // and rely on the match-arm prologue to introduce a fresh `let mut`
-    // shadow for any name that the arm body actually reassigns.
+fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, mut_bindings: bool, in_deref: bool, implicit_ref: bool, scrut_ty: Option<&Ty>, ctx: &mut GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) -> String {
+    // Two distinct match-ergonomics regimes — see also `emit_match`:
     //
-    // If the current scrutinee type itself crosses an Arc edge (Ty::List
-    // or a recursive uniontype wrapped in Arc), matching it via
-    // `deref_patterns` produces by-ref bindings. Force `in_deref` true for
-    // the rest of this subtree so `bind_var` emits `ref` rather than `mut`.
-    let in_deref = in_deref || scrut_ty.map(|t| ty_needs_arc_match_deref(t, ctx)).unwrap_or(false);
+    // 1. `implicit_ref`: the outer subject was wrapped in `.as_ref()` by
+    //    `emit_match` because it's a recursive Arc-wrapped uniontype. The
+    //    scrutinee is `&T`, default binding mode is `ref`, and Rust 2024
+    //    rejects an explicit `ref <name>` (E0658, "cannot explicitly borrow
+    //    within an implicitly-borrowing pattern"). Emit bare names. Once
+    //    set, it propagates to every nested sub-pattern.
+    //
+    // 2. `in_deref` (regime 2): subject is `Arc<List<T>>` matched directly
+    //    via `deref_patterns`, or we're inside the `Cons.tail` of one. A
+    //    bare `head: x` would try to move from behind the Arc (E0507), so
+    //    we emit explicit `ref x`.
+    //
+    // `implicit_ref` only enters via the outer `emit_match` call (which
+    // tracks whether it wrapped the subject in `.as_ref()`). Don't re-derive
+    // it from inner scrut_ty: a nested `(Arc<List<T>>, Arc<Tree>)` tuple
+    // scrutinee is *not* implicit-borrowed even though its second element
+    // is a recursive Arc-wrapped uniontype — `emit_match` doesn't insert
+    // `.as_ref()` on a tuple. Just propagate what the caller told us.
+    let in_deref = in_deref
+        || (!implicit_ref && scrut_ty.map(|t| ty_needs_arc_match_deref(t, ctx)).unwrap_or(false));
     let bind_var = |name: &str| -> String {
-        if in_deref {
+        if implicit_ref {
+            escape_ident(name)
+        } else if in_deref {
             format!("ref {}", escape_ident(name))
         } else if mut_bindings {
             format!("mut {}", escape_ident(name))
@@ -3691,7 +3804,7 @@ fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, mu
         TypedPat::Wildcard    => "_".to_owned(),
         TypedPat::Var(name)   => bind_var(name),
         TypedPat::EmptyList   => "metamodelica::List::Nil".to_owned(),
-        TypedPat::Some_(inner) => format!("Some({})", emit_pat_with_implicit_bind(inner, allow_implicit_bind, mut_bindings, in_deref, None, ctx, top_level)),
+        TypedPat::Some_(inner) => format!("Some({})", emit_pat_with_implicit_bind(inner, allow_implicit_bind, mut_bindings, in_deref, implicit_ref, None, ctx, top_level)),
         TypedPat::None_       => "None".to_owned(),
 
         TypedPat::Lit(Lit::Int(v))  => {
@@ -3714,8 +3827,8 @@ fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, mu
             // shared reference under `deref_patterns`).
             let tail_ty = Ty::List(Box::new(elem_ty.clone()));
             format!("metamodelica::List::Cons {{ head: {}, tail: {} }}",
-                emit_pat_with_implicit_bind(head, allow_implicit_bind, mut_bindings, in_deref, Some(&elem_ty), ctx, top_level),
-                emit_pat_with_implicit_bind(tail, allow_implicit_bind, mut_bindings, true, Some(&tail_ty), ctx, top_level))
+                emit_pat_with_implicit_bind(head, allow_implicit_bind, mut_bindings, in_deref, implicit_ref, Some(&elem_ty), ctx, top_level),
+                emit_pat_with_implicit_bind(tail, allow_implicit_bind, mut_bindings, true, implicit_ref, Some(&tail_ty), ctx, top_level))
         }
 
         TypedPat::Tuple(pats) => {
@@ -3728,7 +3841,7 @@ fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, mu
                         Some(Ty::Tuple(ts)) => ts.get(i),
                         _ => None,
                     };
-                    emit_pat_with_implicit_bind(p, /*allow_implicit_bind=*/false, mut_bindings, in_deref, elem_ty, ctx, top_level)
+                    emit_pat_with_implicit_bind(p, /*allow_implicit_bind=*/false, mut_bindings, in_deref, implicit_ref, elem_ty, ctx, top_level)
                 })
                 .collect();
             format!("({})", parts.join(", "))
@@ -3801,7 +3914,7 @@ fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, mu
                         if fname.is_empty() {
                             "_".to_owned()
                         } else {
-                            format!("{fname}: {}", emit_pat_with_implicit_bind(p, allow_implicit_bind, mut_bindings, in_deref, None, ctx, top_level))
+                            format!("{fname}: {}", emit_pat_with_implicit_bind(p, allow_implicit_bind, mut_bindings, in_deref, implicit_ref, None, ctx, top_level))
                         }
                     }).collect();
                     format!("{rust} {{ {} }}", pats.join(", "))
@@ -3818,9 +3931,11 @@ fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, mu
                             // inside `INDEX(...)`) can disambiguate against other records
                             // sharing the same simple name (e.g. an empty `Dimension.BOOLEAN`).
                             let inner_scrut = field_tys.get(i).map(|(_, t)| t);
-                            let pstr = emit_pat_with_implicit_bind(p, allow_implicit_bind, mut_bindings, in_deref, inner_scrut, ctx, top_level);
+                            let pstr = emit_pat_with_implicit_bind(p, allow_implicit_bind, mut_bindings, in_deref, implicit_ref, inner_scrut, ctx, top_level);
                             if matches!(p, TypedPat::Var(v) if v == fname) {
-                                if in_deref {
+                                if implicit_ref {
+                                    escape_ident(fname)
+                                } else if in_deref {
                                     format!("{}: ref {}", escape_ident(fname), escape_ident(fname))
                                 } else if mut_bindings {
                                     format!("{}: mut {}", escape_ident(fname), escape_ident(fname))
@@ -3843,7 +3958,7 @@ fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, mu
                         // This will likely fail to compile; it is better than silently
                         // emitting wrong code.
                         let pats: Vec<String> = fields.iter()
-                            .map(|p| emit_pat_with_implicit_bind(p, allow_implicit_bind, mut_bindings, in_deref, None, ctx, top_level))
+                            .map(|p| emit_pat_with_implicit_bind(p, allow_implicit_bind, mut_bindings, in_deref, implicit_ref, None, ctx, top_level))
                             .collect();
                         format!("/* TODO: unknown fields for {name} */ {rust}({})", pats.join(", "))
                     }
@@ -3856,9 +3971,11 @@ fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, mu
                         // disambiguate against similarly-named records — same reason
                         // as the positional branch above.
                         let inner_scrut = field_tys.iter().find(|(n, _)| n == fname).map(|(_, t)| t);
-                        let pstr = emit_pat_with_implicit_bind(p, allow_implicit_bind, mut_bindings, in_deref, inner_scrut, ctx, top_level);
+                        let pstr = emit_pat_with_implicit_bind(p, allow_implicit_bind, mut_bindings, in_deref, implicit_ref, inner_scrut, ctx, top_level);
                         if matches!(p, TypedPat::Var(v) if v == fname) {
-                            if in_deref {
+                            if implicit_ref {
+                                escape_ident(fname)
+                            } else if in_deref {
                                 format!("{}: ref {}", escape_ident(fname), escape_ident(fname))
                             } else if mut_bindings {
                                 format!("{}: mut {}", escape_ident(fname), escape_ident(fname))
@@ -3884,14 +4001,16 @@ fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, mu
         }
 
         TypedPat::As { var, pat } => {
-            let outer = if in_deref {
+            let outer = if implicit_ref {
+                escape_ident(var)
+            } else if in_deref {
                 format!("ref {}", escape_ident(var))
             } else if mut_bindings {
                 format!("mut {}", escape_ident(var))
             } else {
                 escape_ident(var)
             };
-            format!("{} @ {}", outer, emit_pat_with_implicit_bind(pat, false, mut_bindings, in_deref, None, ctx, top_level))
+            format!("{} @ {}", outer, emit_pat_with_implicit_bind(pat, false, mut_bindings, in_deref, implicit_ref, None, ctx, top_level))
         }
 
         TypedPat::Index { base, index } => {

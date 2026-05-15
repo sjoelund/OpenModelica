@@ -4592,6 +4592,83 @@ fn variant_of_pat<'a>(
     None
 }
 
+/// Control-flow analysis for `try`/`else` lowering.
+///
+/// Either the statement list always diverges (return / fail() / break /
+/// continue / nested constructs in which every branch diverges), or it can
+/// fall through — in which case we report the set of variables definitely
+/// assigned on **every** path that reaches the end. Conservative on shapes
+/// we don't analyse (loops, match-in-expression position, complex LHSs):
+/// fall-through with no contributed assignments.
+enum FlowResult {
+    Diverges,
+    FallsThrough(HashSet<String>),
+}
+
+fn is_fail_call(exp: &TypedExp) -> bool {
+    matches!(exp, TypedExp::Call { func, .. } if func == "fail")
+}
+
+fn merge_branch_flows(branches: &[FlowResult]) -> FlowResult {
+    let mut acc: Option<HashSet<String>> = None;
+    for b in branches {
+        match b {
+            FlowResult::Diverges => continue,
+            FlowResult::FallsThrough(set) => {
+                acc = Some(match acc {
+                    None => set.clone(),
+                    Some(cur) => cur.intersection(set).cloned().collect(),
+                });
+            }
+        }
+    }
+    match acc {
+        None => FlowResult::Diverges,
+        Some(s) => FlowResult::FallsThrough(s),
+    }
+}
+
+fn stmt_flow(s: &typedexp::TypedStmt) -> FlowResult {
+    use typedexp::TypedStmt as S;
+    match s {
+        S::Return | S::Break | S::Continue => FlowResult::Diverges,
+        S::Assign { lhs, rhs } => {
+            if is_fail_call(rhs) { return FlowResult::Diverges; }
+            let mut set = HashSet::new();
+            if let TypedPat::Var(n) = lhs { set.insert(n.clone()); }
+            FlowResult::FallsThrough(set)
+        }
+        S::NoRetCall { call } => {
+            if is_fail_call(call) { FlowResult::Diverges }
+            else { FlowResult::FallsThrough(HashSet::new()) }
+        }
+        S::If { then_, elseif, else_, .. } => {
+            let mut branches: Vec<FlowResult> = Vec::with_capacity(2 + elseif.len());
+            branches.push(stmts_flow(then_));
+            for (_, eb) in elseif { branches.push(stmts_flow(eb)); }
+            branches.push(stmts_flow(else_));
+            merge_branch_flows(&branches)
+        }
+        S::Try { body, else_body } => {
+            merge_branch_flows(&[stmts_flow(body), stmts_flow(else_body)])
+        }
+        S::For { .. } | S::While { .. } | S::Failure { .. } | S::Todo(_) => {
+            FlowResult::FallsThrough(HashSet::new())
+        }
+    }
+}
+
+fn stmts_flow(stmts: &[typedexp::TypedStmt]) -> FlowResult {
+    let mut acc: HashSet<String> = HashSet::new();
+    for s in stmts {
+        match stmt_flow(s) {
+            FlowResult::Diverges => return FlowResult::Diverges,
+            FlowResult::FallsThrough(set) => acc.extend(set),
+        }
+    }
+    FlowResult::FallsThrough(acc)
+}
+
 fn emit_stmt<'a>(
     out: &mut String,
     indent: &str,
@@ -4807,19 +4884,84 @@ fn emit_stmt<'a>(
             // Instead, fallible calls are emitted as
             // `unwrap_break_err!(expr, '__tryN)`, which `break '__tryN Err(e)`
             // on failure, exiting the block with an `Err` value the surrounding
-            // `if ...is_err() { else_body }` then dispatches on.
+            // dispatch then handles.
+            //
+            // When the body definitely assigns outer-scoped variables on every
+            // non-diverging path, Rust's flow analysis cannot connect "block
+            // returned Ok" with "the assignment ran" — so reads after the try
+            // appear as use-of-possibly-uninit. To fix this we yield those
+            // variables as a tuple from the block's tail, then reassign them
+            // in the `Ok` arm of a surrounding `match`. A variable is only
+            // safe to yield if the else-branch either also definitely assigns
+            // it OR diverges (so the join-point after the match is reached
+            // only with the variable definitely assigned).
             let label = format!("'__try{}", *fresh);
+            let label_n = *fresh;
             *fresh += 1;
-            writeln!(out, "{indent}if {label}: {{", ).unwrap();
-            let mut benv = env.clone();
-            ctx.with_qmode(QMode::TryBlock(label.clone()), |ctx| {
-                emit_stmts(out, &format!("{indent}    "), body, FailureMode::TryArm, ctx, &mut benv, top_level, fresh);
-            });
-            writeln!(out, "{indent}    Ok::<(), anyhow::Error>(())").unwrap();
-            writeln!(out, "{indent}}}.is_err() {{").unwrap();
-            let mut eenv = env.clone();
-            emit_stmts(out, &format!("{indent}    "), else_body, fail_mode, ctx, &mut eenv, top_level, fresh);
-            writeln!(out, "{indent}}}").unwrap();
+
+            let body_flow = stmts_flow(body);
+            let else_flow = stmts_flow(else_body);
+            let yield_vars: Vec<String> = match &body_flow {
+                FlowResult::Diverges => Vec::new(),
+                FlowResult::FallsThrough(body_init) => {
+                    let mut v: Vec<String> = body_init.iter()
+                        .filter(|name| env.vars.contains_key(*name))
+                        .filter(|name| match &else_flow {
+                            FlowResult::Diverges => true,
+                            FlowResult::FallsThrough(else_init) => else_init.contains(*name),
+                        })
+                        .cloned()
+                        .collect();
+                    v.sort();
+                    v
+                }
+            };
+
+            if yield_vars.is_empty() {
+                writeln!(out, "{indent}if {label}: {{", ).unwrap();
+                let mut benv = env.clone();
+                ctx.with_qmode(QMode::TryBlock(label.clone()), |ctx| {
+                    emit_stmts(out, &format!("{indent}    "), body, FailureMode::TryArm, ctx, &mut benv, top_level, fresh);
+                });
+                writeln!(out, "{indent}    Ok::<(), anyhow::Error>(())").unwrap();
+                writeln!(out, "{indent}}}.is_err() {{").unwrap();
+                let mut eenv = env.clone();
+                emit_stmts(out, &format!("{indent}    "), else_body, fail_mode, ctx, &mut eenv, top_level, fresh);
+                writeln!(out, "{indent}}}").unwrap();
+            } else {
+                let escaped_vars: Vec<String> = yield_vars.iter().map(|n| escape_ident(n)).collect();
+                let yield_tuple = if yield_vars.len() == 1 {
+                    format!("({},)", escaped_vars[0])
+                } else {
+                    format!("({})", escaped_vars.join(", "))
+                };
+                let temp_names: Vec<String> = (0..yield_vars.len())
+                    .map(|i| format!("__try{label_n}_o{i}"))
+                    .collect();
+                let temp_pat = if yield_vars.len() == 1 {
+                    format!("({},)", temp_names[0])
+                } else {
+                    format!("({})", temp_names.join(", "))
+                };
+
+                writeln!(out, "{indent}match {label}: {{").unwrap();
+                let mut benv = env.clone();
+                ctx.with_qmode(QMode::TryBlock(label.clone()), |ctx| {
+                    emit_stmts(out, &format!("{indent}    "), body, FailureMode::TryArm, ctx, &mut benv, top_level, fresh);
+                });
+                writeln!(out, "{indent}    Ok::<_, anyhow::Error>({yield_tuple})").unwrap();
+                writeln!(out, "{indent}}} {{").unwrap();
+                writeln!(out, "{indent}    Ok({temp_pat}) => {{").unwrap();
+                for (v, t) in escaped_vars.iter().zip(temp_names.iter()) {
+                    writeln!(out, "{indent}        {v} = {t};").unwrap();
+                }
+                writeln!(out, "{indent}    }}").unwrap();
+                writeln!(out, "{indent}    Err(_) => {{").unwrap();
+                let mut eenv = env.clone();
+                emit_stmts(out, &format!("{indent}        "), else_body, fail_mode, ctx, &mut eenv, top_level, fresh);
+                writeln!(out, "{indent}    }}").unwrap();
+                writeln!(out, "{indent}}}").unwrap();
+            }
         }
         S::Failure { body } => {
             // `failure(body)` succeeds iff the body fails. We use the same

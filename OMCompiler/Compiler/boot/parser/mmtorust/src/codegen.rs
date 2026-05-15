@@ -1089,9 +1089,118 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
         return;
     }
 
-    let members: &[MM::ClassMember] = match &c.body {
+    fn absyn_path_to_dotted(p: &Absyn::Path) -> String {
+        let raw = match p {
+            Absyn::Path::IDENT { name } => name.to_string(),
+            Absyn::Path::QUALIFIED { name, path } => format!("{name}.{}", absyn_path_to_dotted(path)),
+            Absyn::Path::FULLYQUALIFIED { path } => format!(".{}", absyn_path_to_dotted(path)),
+        };
+        raw.trim_start_matches('.').to_owned()
+    }
+
+    let local_members: &[MM::ClassMember] = match &c.body {
         MM::ClassDef::Parts { members, .. } | MM::ClassDef::ClassExtends { members, .. } => members,
         _ => return,
+    };
+    // Inherited inputs/outputs/protected components aren't repeated in `c.body`,
+    // but we still need their declarations so they end up in env.vars and the
+    // function signature. Two forms to handle:
+    //
+    //   1. `function F extends G ... end F;` — `c.body` is `ClassDef::ClassExtends`
+    //      and `flatten_extends` has stored the base class in `node.base_fn`.
+    //   2. `function F ... extends G; ... end F;` — `c.body` is `ClassDef::Parts`
+    //      with one or more `ClassMember::Extends`. `flatten_extends` has copied
+    //      the base's children into `node.children`, but not the original AST
+    //      members. We resolve each `Extends.path` against the hierarchy and
+    //      merge its component members in declaration order.
+    //
+    // Without this, an inherited `output array<...> indices;` is not declared
+    // in the emitted Rust function and `indices[i] := ...` later falls through
+    // to the "indexed assign on non-Array base" branch because env.vars has no
+    // entry for the variable.
+    let base_members_storage: Vec<MM::ClassMember>;
+    let local_names: HashSet<String> = local_members.iter().filter_map(|m| match m {
+        MM::ClassMember::Component(cm) => Some(cm.name.clone()),
+        _ => None,
+    }).collect();
+    let mut inherited_components: Vec<MM::ClassMember> = Vec::new();
+    let mut seen: HashSet<String> = HashSet::new();
+    // Type fallback for inherited components: their types live in the base
+    // function's NameNode.children, not ours, so node.children.get(name) below
+    // would yield Unknown. We collect them here as we walk the bases.
+    let mut inherited_tys: HashMap<String, Ty> = HashMap::new();
+    let mut collect_from_class = |base_c: &MM::Class,
+                                   base_children: Option<&BTreeMap<String, NameNode<'_>>>,
+                                   sink: &mut Vec<MM::ClassMember>,
+                                   seen: &mut HashSet<String>,
+                                   tys: &mut HashMap<String, Ty>| {
+        let bm: &[MM::ClassMember] = match &base_c.body {
+            MM::ClassDef::Parts { members, .. } | MM::ClassDef::ClassExtends { members, .. } => members,
+            _ => &[],
+        };
+        for m in bm {
+            if let MM::ClassMember::Component(cm) = m {
+                if local_names.contains(&cm.name) || !seen.insert(cm.name.clone()) {
+                    continue;
+                }
+                if let Some(bc) = base_children {
+                    if let Some(child) = bc.get(&cm.name) {
+                        if child.ty != Ty::Unknown {
+                            tys.insert(cm.name.clone(), child.ty.clone());
+                        }
+                    }
+                }
+                sink.push(m.clone());
+            }
+        }
+    };
+    if let Some(base_fn) = node.base_fn {
+        // base_fn has no associated NameNode handle here (we only have the
+        // MM::Class). Type fallback for header-form extends still works because
+        // `flatten_extends` did copy children into our node — but we keep the
+        // call shape uniform.
+        collect_from_class(base_fn, None, &mut inherited_components, &mut seen, &mut inherited_tys);
+    }
+    // Compute the enclosing package qname so a bare `extends X;` (the typical
+    // form when the base function lives in the same package) can be resolved
+    // as `<pkg>.X`. `ctx.current_path` includes the surrounding package
+    // segments up to but not including this function's own name.
+    let enclosing_pkg = if ctx.current_path.is_empty() {
+        ctx.top_name.clone()
+    } else {
+        format!("{}.{}", ctx.top_name, ctx.current_path.join("."))
+    };
+    for ext in &node.extends {
+        // ExtendsMember.path is the base function's qualified name. Try
+        // resolution in order: as-is (works for fully-qualified extends),
+        // as a sibling of this function (the common case for `extends X;`
+        // inside a package member), and finally as a top-level name.
+        let dotted = absyn_path_to_dotted(&ext.path);
+        let base_node = lookup_node(&dotted, top_level)
+            .or_else(|| {
+                if enclosing_pkg.is_empty() {
+                    None
+                } else {
+                    lookup_node(&format!("{enclosing_pkg}.{dotted}"), top_level)
+                }
+            })
+            .or_else(|| {
+                let last = dotted.rsplit('.').next().unwrap_or(&dotted);
+                lookup_node(last, top_level)
+            });
+        if let Some(bn) = base_node {
+            if let NodeKind::Class(base_c) = &bn.kind {
+                collect_from_class(base_c, Some(&bn.children), &mut inherited_components, &mut seen, &mut inherited_tys);
+            }
+        }
+    }
+    let members: &[MM::ClassMember] = if inherited_components.is_empty() {
+        local_members
+    } else {
+        let mut merged = inherited_components;
+        merged.extend(local_members.iter().cloned());
+        base_members_storage = merged;
+        &base_members_storage
     };
 
     // Use types from the resolved Ty::Function — those were computed by resolve_function_type
@@ -1169,7 +1278,11 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
     for inp in fn_inputs.iter() { input_names.insert(inp.name.clone()); }
     for member in members {
         let MM::ClassMember::Component(cm) = member else { continue };
-        let child_ty = node.children.get(&cm.name).map(|n| n.ty.clone()).unwrap_or(Ty::Unknown);
+        let child_ty = node.children.get(&cm.name)
+            .map(|n| n.ty.clone())
+            .filter(|t| *t != Ty::Unknown)
+            .or_else(|| inherited_tys.get(&cm.name).cloned())
+            .unwrap_or(Ty::Unknown);
         match cm.direction {
             Absyn::Direction::OUTPUT | Absyn::Direction::INPUT_OUTPUT =>
                 outputs.push((
@@ -3689,7 +3802,12 @@ fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, mu
                     if !field_tys.is_empty() {
                         let pats: Vec<String> = fields.iter().enumerate().map(|(i, p)| {
                             let fname = field_tys.get(i).map(|(n, _)| n.as_str()).unwrap_or("_");
-                            let pstr = emit_pat_with_implicit_bind(p, allow_implicit_bind, mut_bindings, in_deref, None, ctx, top_level);
+                            // Pass the field's declared type as the inner scrutinee so a
+                            // nested constructor pattern (e.g. `Expression.BOOLEAN(false)`
+                            // inside `INDEX(...)`) can disambiguate against other records
+                            // sharing the same simple name (e.g. an empty `Dimension.BOOLEAN`).
+                            let inner_scrut = field_tys.get(i).map(|(_, t)| t);
+                            let pstr = emit_pat_with_implicit_bind(p, allow_implicit_bind, mut_bindings, in_deref, inner_scrut, ctx, top_level);
                             if matches!(p, TypedPat::Var(v) if v == fname) {
                                 if in_deref {
                                     format!("{}: ref {}", escape_ident(fname), escape_ident(fname))
@@ -3720,9 +3838,14 @@ fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, mu
                     }
                 }
             } else {
+                let field_tys = field_tys_for_ctor().unwrap_or_default();
                 let mut pats: Vec<String> = named_fields.iter()
                     .map(|(fname, p)| {
-                        let pstr = emit_pat_with_implicit_bind(p, allow_implicit_bind, mut_bindings, in_deref, None, ctx, top_level);
+                        // Look up the named field's type so the inner pattern can
+                        // disambiguate against similarly-named records — same reason
+                        // as the positional branch above.
+                        let inner_scrut = field_tys.iter().find(|(n, _)| n == fname).map(|(_, t)| t);
+                        let pstr = emit_pat_with_implicit_bind(p, allow_implicit_bind, mut_bindings, in_deref, inner_scrut, ctx, top_level);
                         if matches!(p, TypedPat::Var(v) if v == fname) {
                             if in_deref {
                                 format!("{}: ref {}", escape_ident(fname), escape_ident(fname))
@@ -3740,7 +3863,6 @@ fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, mu
                 // Check if any fields are missing; if so, add `..` to avoid E0027.
                 // We no longer implicitly bind remaining fields (that shadows same-named
                 // functions in scope and causes E0618).
-                let field_tys = field_tys_for_ctor().unwrap_or_default();
                 let all_covered = !field_tys.is_empty()
                     && field_tys.iter().all(|(n, _)| named_fields.iter().any(|(m, _)| m == n));
                 if !all_covered {
@@ -4142,6 +4264,21 @@ fn constructor_needs_arc(ty: &Ty, ctx: &GenCtx) -> bool {
                 return true;
             }
             if let Some((parent, _)) = qname.rsplit_once('.') {
+                ctx.recursive_types.contains(parent)
+            } else {
+                false
+            }
+        }
+        // Generic instantiations of a user-defined record/uniontype carry their
+        // base type's Rust-form qname (e.g. "ExpandableArray"). The wrapping
+        // rule mirrors `Ty::RustStruct`: wrap when the type itself or its
+        // parent uniontype is marked recursive.
+        Ty::Generic(rust_name, _) => {
+            let dotted = rust_name.replace("::", ".");
+            if ctx.recursive_types.contains(dotted.as_str()) {
+                return true;
+            }
+            if let Some((parent, _)) = dotted.rsplit_once('.') {
                 ctx.recursive_types.contains(parent)
             } else {
                 false
@@ -4784,6 +4921,10 @@ fn plan_field_assign<'a, 's>(
 
     let struct_qname = match &base_ty {
         Ty::RustStruct(q) | Ty::AliasTo(q) => q.clone(),
+        // Generic instantiations of user-defined records/uniontypes (e.g.
+        // `ExpandableArray<T>`) carry the Rust-form name in `Ty::Generic`,
+        // so normalise back to the dotted hierarchy key for field lookup.
+        Ty::Generic(rust_name, _) => rust_name.replace("::", "."),
         _ => return None,
     };
     let record_qname = resolve_single_record_qname(&struct_qname, top_level)

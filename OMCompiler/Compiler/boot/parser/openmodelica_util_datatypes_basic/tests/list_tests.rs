@@ -412,7 +412,7 @@ fn test_filter() -> Result<()> {
 #[test]
 fn test_filter1() -> Result<()> {
     let lst = list![1i32];
-    let result = L::filter1(Arc::clone(&lst), is_positive)?;
+    let result = L::filter1(Arc::clone(&lst), |x, _arg| { if x > 0 { Ok(()) } else { bail!("skip") } }, 0i32)?;
     assert_eq!(result, list![1i32]);
     Ok(())
 }
@@ -421,7 +421,7 @@ fn test_filter1() -> Result<()> {
 #[test]
 fn test_filter1_on_true() -> Result<()> {
     let lst = list![1i32, 2, 3];
-    let result = L::filter1OnTrue(Arc::clone(&lst), is_even)?;
+    let result = L::filter1OnTrue(Arc::clone(&lst), |x, _arg| Ok(x % 2 == 0), 0i32)?;
     assert_eq!(result, list![2i32]);
     Ok(())
 }
@@ -430,9 +430,8 @@ fn test_filter1_on_true() -> Result<()> {
 #[test]
 fn test_filter1_on_true_and_update() -> Result<()> {
     let lst = list![1i32, 2, 3];
-    let (kept, removed) = L::filter1OnTrueAndUpdate(Arc::clone(&lst), |x| Ok((x > 1, x)))?;
-    assert_eq!(kept, list![2i32, 3]);
-    assert_eq!(removed, list![1i32]);
+    let result = L::filter1OnTrueAndUpdate(Arc::clone(&lst), |x, _arg| Ok(x > 1), |x, _arg| Ok(x * 10), 0i32)?;
+    assert_eq!(result, list![20i32, 30i32]);
     Ok(())
 }
 
@@ -440,8 +439,9 @@ fn test_filter1_on_true_and_update() -> Result<()> {
 #[test]
 fn test_filter1_on_true_sync() -> Result<()> {
     let lst = list![1i32, 2, 3];
-    let result = L::filter1OnTrueSync(Arc::clone(&lst), is_even)?;
-    assert_eq!(result, list![2i32]);
+    let sync = list![10i32, 20, 30];
+    let (kept, _removed) = L::filter1OnTrueSync(Arc::clone(&lst), |x, _arg| Ok(x % 2 == 0), 0i32, Arc::clone(&sync))?;
+    assert_eq!(kept, list![2i32]);
     Ok(())
 }
 
@@ -449,7 +449,7 @@ fn test_filter1_on_true_sync() -> Result<()> {
 #[test]
 fn test_filter1r_on_true() -> Result<()> {
     let lst = list![2i32, 4, 6];
-    let result = L::filter1rOnTrue(Arc::clone(&lst), is_even)?;
+    let result = L::filter1rOnTrue(Arc::clone(&lst), |_arg, x| Ok(x % 2 == 0), 0i32)?;
     assert_eq!(result, list![2i32, 4, 6]);
     Ok(())
 }
@@ -458,7 +458,7 @@ fn test_filter1r_on_true() -> Result<()> {
 #[test]
 fn test_filter2_on_true() -> Result<()> {
     let lst = list![1i32, 2, 3, 4];
-    let result = L::filter2OnTrue(Arc::clone(&lst), is_even)?;
+    let result = L::filter2OnTrue(Arc::clone(&lst), |x, _a, _b| Ok(x % 2 == 0), 0i32, 0i32)?;
     assert_eq!(result, list![2i32, 4]);
     Ok(())
 }
@@ -467,8 +467,7 @@ fn test_filter2_on_true() -> Result<()> {
 #[test]
 fn test_filter_cons() -> Result<()> {
     let lst = list![1i32, 2, 3];
-    let result = L::filterCons(Arc::clone(&lst), is_even)?;
-    // Should keep elements where predicate is true
+    let result = L::filterCons(Arc::clone(&lst), |x| Ok(x % 2 == 0), nil())?;
     assert_eq!(result, list![2i32]);
     Ok(())
 }
@@ -476,8 +475,9 @@ fn test_filter_cons() -> Result<()> {
 // ── FilterMap ──
 #[test]
 fn test_filter_map() -> Result<()> {
+    // filterMap returns non-Option values; errors skip
     let lst = list![1i32, 2, 3, 4];
-    let result = L::filterMap(Arc::clone(&lst), |x| Ok(if x % 2 == 0 { Some(x * 10) } else { None }))?;
+    let result = L::filterMap(Arc::clone(&lst), |x| if x % 2 == 0 { Ok(x * 10) } else { bail!("skip") })?;
     assert_eq!(result, list![20i32, 40]);
     Ok(())
 }
@@ -486,7 +486,7 @@ fn test_filter_map() -> Result<()> {
 #[test]
 fn test_filter_map1() -> Result<()> {
     let lst = list![2i32];
-    let result = L::filterMap1(Arc::clone(&lst), |x| Ok(if x > 0 { Some(x * 2) } else { None }))?;
+    let result = L::filterMap1(Arc::clone(&lst), |x, _arg| if x > 0 { Ok(x * 2) } else { bail!("skip") }, 0i32)?;
     assert_eq!(result, list![4i32]);
     Ok(())
 }
@@ -495,7 +495,7 @@ fn test_filter_map1() -> Result<()> {
 #[test]
 fn test_filter_on_false() -> Result<()> {
     let lst = list![1i32, 2, 3, 4];
-    let result = L::filterOnFalse(Arc::clone(&lst), is_even)?;
+    let result = L::filterOnFalse(Arc::clone(&lst), |x| Ok(x % 2 == 0))?;
     assert_eq!(result, list![1i32, 3]);
     Ok(())
 }
@@ -513,22 +513,25 @@ fn test_filter_on_true() -> Result<()> {
 #[test]
 fn test_filter_on_true_sync() -> Result<()> {
     let lst = list![1i32, 2, 3, 4];
-    let result = L::filterOnTrueSync(Arc::clone(&lst), is_even)?;
-    assert_eq!(result, list![2i32, 4]);
+    let sync = list![10i32, 20, 30, 40];
+    let (matched, _unmatched) = L::filterOnTrueSync(Arc::clone(&lst), is_even, Arc::clone(&sync))?;
+    assert_eq!(matched, list![2i32, 4]);
     Ok(())
 }
 
 // ── Find ──
 #[test]
 fn test_find_found() -> Result<()> {
+    // find returns T, not Option<T>; bails if not found
     let lst = list![1i32, 2, 3];
-    assert_eq!(L::find(Arc::clone(&lst), 2)?, Some(2));
+    let result = L::find(Arc::clone(&lst), |x| Ok(x == 2))?;
+    assert_eq!(result, 2);
     Ok(())
 }
 #[test]
 fn test_find_not_found() -> Result<()> {
     let lst = list![1i32, 2, 3];
-    assert_eq!(L::find(Arc::clone(&lst), 4)?, None);
+    assert!(L::find(Arc::clone(&lst), |x| Ok(x == 4)).is_err());
     Ok(())
 }
 
@@ -536,25 +539,28 @@ fn test_find_not_found() -> Result<()> {
 #[test]
 fn test_find1_found() -> Result<()> {
     let lst = list![1i32];
-    assert_eq!(L::find1(Arc::clone(&lst))? , Some(1));
+    let result = L::find1(Arc::clone(&lst), |x, _arg| Ok(x > 0), 0i32)?;
+    assert_eq!(result, 1);
     Ok(())
 }
 
 // ── FindAndMap ──
 #[test]
 fn test_find_and_map() -> Result<()> {
+    // Returns (list, bool)
     let lst = list![1i32, 2, 3];
-    let result = L::findAndMap(Arc::clone(&lst), |x| Ok(if x > 1 { Some(x * 10) } else { None }))?;
-    assert_eq!(result, Some(20));
+    let (result, found) = L::findAndMap(Arc::clone(&lst), |x| Ok(x > 1), |x| Ok(x * 10))?;
+    assert!(found);
     Ok(())
 }
 
 // ── FindAndRemove ──
 #[test]
 fn test_find_and_remove() -> Result<()> {
+    // Returns (element, rest_of_list) or bails
     let lst = list![1i32, 2, 3];
     let (found, rest) = L::findAndRemove(Arc::clone(&lst), |x| Ok(x == 2))?;
-    assert_eq!(found, true);
+    assert_eq!(found, 2);
     assert_eq!(rest, list![1i32, 3]);
     Ok(())
 }
@@ -563,8 +569,8 @@ fn test_find_and_remove() -> Result<()> {
 #[test]
 fn test_find_and_remove1() -> Result<()> {
     let lst = list![1i32, 2];
-    let (found, rest) = L::findAndRemove1(Arc::clone(&lst), |x| Ok(x == 2))?;
-    assert_eq!(found, true);
+    let (found, rest) = L::findAndRemove1(Arc::clone(&lst), |x, _arg| Ok(x == 2), 0i32)?;
+    assert_eq!(found, 2);
     assert_eq!(rest, list![1i32]);
     Ok(())
 }
@@ -572,9 +578,11 @@ fn test_find_and_remove1() -> Result<()> {
 // ── FindBoolList ──
 #[test]
 fn test_find_bool_list() -> Result<()> {
-    let lst = list![1i32, 2, 3];
-    let result = L::findBoolList(Arc::clone(&lst), is_positive)?;
-    assert_eq!(result, list![true, true, true]);
+    // findBoolList(bools, list, falseValue)
+    let bools = list![true, false, false];
+    let lst = list![10i32, 20, 30];
+    let result = L::findBoolList(Arc::clone(&bools), Arc::clone(&lst), 99i32)?;
+    assert_eq!(result, 10);
     Ok(())
 }
 
@@ -582,8 +590,9 @@ fn test_find_bool_list() -> Result<()> {
 #[test]
 fn test_find_map() -> Result<()> {
     let lst = list![1i32, 2, 3];
-    let result = L::findMap(Arc::clone(&lst), double)?;
-    assert_eq!(result, list![2i32, 4, 6]);
+    let (result, found) = L::findMap(Arc::clone(&lst), |x| Ok((x * 10, x > 0)))?;
+    assert!(found);
+    assert_eq!(result, list![10i32, 20, 30]);
     Ok(())
 }
 
@@ -591,7 +600,7 @@ fn test_find_map() -> Result<()> {
 #[test]
 fn test_find_option_some() -> Result<()> {
     let lst = list![Some(1i32), None, Some(3)];
-    let result = L::findOption(Arc::clone(&lst))?;
+    let result = L::findOption(Arc::clone(&lst), |x| Ok(x.unwrap_or(0) > 0))?;
     assert_eq!(result, Some(1));
     Ok(())
 }

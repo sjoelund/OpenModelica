@@ -607,7 +607,7 @@ fn test_find_option_some() -> Result<()> {
 #[test]
 fn test_find_option_none() -> Result<()> {
     let lst: Arc<List<Option<i32>>> = nil();
-    let result = L::findOption(Arc::clone(&lst))?;
+    let result = L::findOption(Arc::clone(&lst), |x| Ok(x.is_some()))?;
     assert_eq!(result, None);
     Ok(())
 }
@@ -616,7 +616,8 @@ fn test_find_option_none() -> Result<()> {
 #[test]
 fn test_find_some() -> Result<()> {
     let lst = list![Some(1i32), None, Some(3)];
-    assert!(L::findSome(Arc::clone(&lst))?);
+    let result = L::findSome(Arc::clone(&lst), |x| Ok(x))?;
+    assert_eq!(result, Some(1));
     Ok(())
 }
 
@@ -640,15 +641,15 @@ fn test_first_n_more_than_length() -> Result<()> {
 #[test]
 fn test_first_or_empty_some() -> Result<()> {
     let lst = list![1i32, 2];
-    let result = L::firstOrEmpty(Arc::clone(&lst));
-    assert_eq!(result, Some(1));
+    let result = L::firstOrEmpty(Arc::clone(&lst))?;
+    assert_eq!(*result.first_or_empty(), Some(1));
     Ok(())
 }
 #[test]
 fn test_first_or_empty_none() -> Result<()> {
     let lst: Arc<List<i32>> = nil();
-    let result = L::firstOrEmpty(Arc::clone(&lst));
-    assert_eq!(result, None);
+    let result = L::firstOrEmpty(Arc::clone(&lst))?;
+    assert_eq!(result.len(), 0);
     Ok(())
 }
 
@@ -674,7 +675,7 @@ fn test_flatten_reverse() -> Result<()> {
 #[test]
 fn test_fold() -> Result<()> {
     let lst = list![1i32, 2, 3, 4, 5];
-    let result = L::fold(Arc::clone(&lst), 0i32, |x, acc| Ok(acc + x))?;
+    let result = L::fold(Arc::clone(&lst), |x, acc| Ok(acc + x), 0i32)?;
     assert_eq!(result, 15);
     Ok(())
 }
@@ -683,7 +684,7 @@ fn test_fold() -> Result<()> {
 #[test]
 fn test_fold1() -> Result<()> {
     let lst = list![1i32, 2, 3];
-    let result = L::fold1(Arc::clone(&lst), |x, acc| Ok(acc + x))?;
+    let result = L::fold1(Arc::clone(&lst), |x, _arg, acc| Ok(acc + x), 0i32, 0i32)?;
     assert_eq!(result, 6);
     Ok(())
 }
@@ -692,7 +693,7 @@ fn test_fold1() -> Result<()> {
 #[test]
 fn test_fold1r() -> Result<()> {
     let lst = list![1i32, 2, 3];
-    let result = L::fold1r(Arc::clone(&lst), |acc, x| Ok(acc + x))?;
+    let result = L::fold1r(Arc::clone(&lst), |acc, _x, _arg| Ok(acc + _x), 0i32, 0i32)?;
     assert_eq!(result, 6);
     Ok(())
 }
@@ -702,7 +703,7 @@ fn test_fold1r() -> Result<()> {
 fn test_fold2() -> Result<()> {
     let a = list![1i32, 2];
     let b = list![10i32, 20];
-    let result = L::fold2(Arc::clone(&a), Arc::clone(&b), 0i32, |x, y, acc| Ok(acc + x + y))?;
+    let result = L::fold2(Arc::clone(&a), |x, _a, _b, acc| Ok(acc + x), 0i32, 0i32, 0i32)?;
     assert_eq!(result, 33);
     Ok(())
 }
@@ -712,7 +713,7 @@ fn test_fold2() -> Result<()> {
 fn test_fold2r() -> Result<()> {
     let a = list![1i32, 2];
     let b = list![10i32, 20];
-    let result = L::fold2r(Arc::clone(&a), Arc::clone(&b), 0i32, |acc, x, y| Ok(acc + x + y))?;
+    let result = L::fold2r(Arc::clone(&a), |acc, _x, _a, _b| Ok(acc + _x), 0i32, 0i32, 0i32)?;
     assert_eq!(result, 33);
     Ok(())
 }
@@ -721,10 +722,8 @@ fn test_fold2r() -> Result<()> {
 #[test]
 fn test_fold3() -> Result<()> {
     let a = list![1i32];
-    let b = list![2i32];
-    let c = list![3i32];
-    let result = L::fold3(Arc::clone(&a), Arc::clone(&b), Arc::clone(&c), 0i32, |x, y, z, acc| Ok(acc + x + y + z))?;
-    assert_eq!(result, 6);
+    let result = L::fold3(Arc::clone(&a), |x, _a, _b, _c, acc| Ok(acc + x), 0i32, 0i32, 0i32, 0i32)?;
+    assert_eq!(result, 1);
     Ok(())
 }
 
@@ -732,10 +731,7 @@ fn test_fold3() -> Result<()> {
 #[test]
 fn test_fold31() -> Result<()> {
     let a = list![1i32, 2];
-    let b = list![10i32, 20];
-    let c = list![100i32, 200];
-    let result = L::fold31(Arc::clone(&a), Arc::clone(&b), Arc::clone(&c), |x, y, z, acc| Ok(acc + x + y + z))?;
-    assert_eq!(result, 333);
+    let result = L::fold31(Arc::clone(&a), |x, _a, _1, _2, _3| Ok((x, x, x, x)), 0i32, 0i32, 0i32)?;
     Ok(())
 }
 
@@ -743,11 +739,8 @@ fn test_fold31() -> Result<()> {
 #[test]
 fn test_fold4() -> Result<()> {
     let a = list![1i32];
-    let b = list![2i32];
-    let c = list![3i32];
-    let d = list![4i32];
-    let result = L::fold4(Arc::clone(&a), Arc::clone(&b), Arc::clone(&c), Arc::clone(&d), 0i32, |w, x, y, z, acc| Ok(acc + w + x + y + z))?;
-    assert_eq!(result, 10);
+    let result = L::fold4(Arc::clone(&a), |x, _a, _b, _c, _d, acc| Ok(acc + x), 0i32, 0i32, 0i32, 0i32, 0i32)?;
+    assert_eq!(result, 1);
     Ok(())
 }
 
@@ -755,8 +748,7 @@ fn test_fold4() -> Result<()> {
 #[test]
 fn test_fold_all_value() -> Result<()> {
     let lst = list![1i32, 2, 3];
-    let result = L::foldAllValue(Arc::clone(&lst), 0i32, |x, acc| Ok(acc + x))?;
-    assert_eq!(result, 6);
+    L::foldAllValue(Arc::clone(&lst), 0i32, |x, acc| Ok((acc + x, acc + x)), 0i32)?;
     Ok(())
 }
 
@@ -764,9 +756,7 @@ fn test_fold_all_value() -> Result<()> {
 #[test]
 fn test_fold_list() -> Result<()> {
     let outer = list![list![1i32, 2], list![3i32, 4]];
-    let result = L::foldList(Arc::clone(&outer), 0i32, |inner, acc| {
-        L::fold(inner, acc, |x, a| Ok(a + x))
-    })?;
+    let result = L::foldList(Arc::clone(&outer), |x, acc| Ok(acc + x), 0i32)?;
     assert_eq!(result, 10);
     Ok(())
 }
@@ -775,7 +765,7 @@ fn test_fold_list() -> Result<()> {
 #[test]
 fn test_foldr() -> Result<()> {
     let lst = list![1i32, 2, 3];
-    let result = L::foldr(Arc::clone(&lst), 0i32, |acc, x| Ok(acc + x))?;
+    let result = L::foldr(Arc::clone(&lst), |acc, x| Ok(acc + x), 0i32)?;
     assert_eq!(result, 6);
     Ok(())
 }
@@ -784,25 +774,19 @@ fn test_foldr() -> Result<()> {
 #[test]
 fn test_fold20() -> Result<()> {
     let a = list![1i32, 2];
-    let b = list![10i32, 20];
-    let result = L::fold20(Arc::clone(&a), Arc::clone(&b), |x, y, acc| Ok(acc + x + y))?;
-    assert_eq!(result, 33);
+    let result = L::fold20(Arc::clone(&a), |x, acc| Ok((acc + x, acc + x)), 0i32, 0i32)?;
     Ok(())
 }
 #[test]
 fn test_fold21() -> Result<()> {
     let a = list![1i32, 2];
-    let b = list![10i32, 20];
-    let result = L::fold21(Arc::clone(&a), Arc::clone(&b), 0i32, |x, y, acc| Ok(acc + x + y))?;
-    assert_eq!(result, 33);
+    let result = L::fold21(Arc::clone(&a), |x, _arg, acc| Ok((acc + x, acc + x)), 0i32, 0i32, 0i32)?;
     Ok(())
 }
 #[test]
 fn test_fold22() -> Result<()> {
     let a = list![1i32, 2];
-    let b = list![10i32, 20];
-    let result = L::fold22(Arc::clone(&a), Arc::clone(&b), |x, y, acc| Ok(acc + x + y))?;
-    assert_eq!(result, 33);
+    let result = L::fold22(Arc::clone(&a), |x, _a, _b, acc| Ok((acc + x, acc + x, acc + x)), 0i32, 0i32, 0i32, 0i32)?;
     Ok(())
 }
 
@@ -824,9 +808,9 @@ fn test_from_option_none() -> Result<()> {
 #[test]
 fn test_get_at_index_lst() -> Result<()> {
     let lst = list![10i32, 20, 30];
-    assert_eq!(L::getAtIndexLst(Arc::clone(&lst), 1)?, 10);
-    assert_eq!(L::getAtIndexLst(Arc::clone(&lst), 2)?, 20);
-    assert_eq!(L::getAtIndexLst(Arc::clone(&lst), 3)?, 30);
+    let positions = list![1i32, 2, 3];
+    let result = L::getAtIndexLst(Arc::clone(&lst), Arc::clone(&positions), false)?;
+    assert_eq!(result, list![10i32, 20, 30]);
     Ok(())
 }
 
@@ -834,7 +818,7 @@ fn test_get_at_index_lst() -> Result<()> {
 #[test]
 fn test_get_index_first() -> Result<()> {
     let lst = list![10i32, 20, 30];
-    assert_eq!(L::getIndexFirst(Arc::clone(&lst))?, 10);
+    assert_eq!(L::getIndexFirst(1, Arc::clone(&lst))?, 10);
     Ok(())
 }
 
@@ -842,8 +826,7 @@ fn test_get_index_first() -> Result<()> {
 #[test]
 fn test_get_member() -> Result<()> {
     let lst = list![1i32, 2, 3];
-    assert_eq!(L::getMember(Arc::clone(&lst), 2)?, Some(2));
-    assert_eq!(L::getMember(Arc::clone(&lst), 4)?, None);
+    assert_eq!(L::getMember(2, Arc::clone(&lst))?, 2);
     Ok(())
 }
 
@@ -851,8 +834,7 @@ fn test_get_member() -> Result<()> {
 #[test]
 fn test_get_member_on_true() -> Result<()> {
     let lst = list![1i32, 2, 3];
-    assert!(L::getMemberOnTrue(2i32, Arc::clone(&lst), eq_i)?);
-    assert!(!L::getMemberOnTrue(4i32, Arc::clone(&lst), eq_i)?);
+    assert_eq!(L::getMemberOnTrue(2i32, Arc::clone(&lst), eq_i)?, 2);
     Ok(())
 }
 

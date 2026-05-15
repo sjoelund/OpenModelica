@@ -1070,7 +1070,7 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
     };
 
     let params = fn_inputs.iter()
-        .map(|inp| format!("{}: {}", escape_ident(&inp.name), fmt_ty(&inp.ty, ctx)))
+        .map(|inp| format!("{}: {}", escape_ident(&inp.name), fmt_param_ty(&inp.ty, ctx)))
         .collect::<Vec<_>>()
         .join(", ");
 
@@ -1198,10 +1198,23 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
 
         TypedExp::Var { name, segments, ty, .. } => {
             let var_str = emit_var(name, segments, ty, ctx, top_level);
-            if matches!(ty, Ty::Function { .. } | Ty::FunctionAlias { .. }) {
-                var_str
-            } else {
-                format!("{var_str}.clone()")
+            match ty {
+                // Anonymous function types resolve to `impl Fn(...)` in
+                // parameter position (see `fmt_param_ty`). `impl Fn` is not
+                // `Copy`, so passing the variable by value moves it; once
+                // moved the binding can't be used again (which trips up the
+                // very common pattern of forwarding a callback through a
+                // loop or to multiple helper calls). Pass it by reference
+                // instead — `&F: Fn` when `F: Fn`, so receivers that also
+                // declare `impl Fn(...)` accept the borrow transparently.
+                Ty::Function { name: None, .. } => format!("&{var_str}"),
+                // Named `partial function` aliases (e.g. `KeyEq`) lower to a
+                // concrete `fn(...)` pointer — that *is* `Copy`, so the move
+                // hazard above doesn't apply and we keep emitting the bare
+                // identifier. `Ty::FunctionAlias` (re-export aliases) is the
+                // same case.
+                Ty::Function { .. } | Ty::FunctionAlias { .. } => var_str,
+                _ => format!("{var_str}.clone()"),
             }
         }
 
@@ -1582,7 +1595,120 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
         TypedExp::Reduction { func, body, iterators, iter_kind, ty } =>
             emit_reduction(func, body, iterators, *iter_kind, ty, is_const, ctx, top_level),
 
+        TypedExp::PartEval { func, args, named_args, sig_ty, .. } =>
+            emit_parteval(func, args, named_args, sig_ty, is_const, ctx, top_level),
+
         TypedExp::Todo(s) => format!("todo!(/*{}*/)", s.chars().take(60).collect::<String>()),
+    }
+}
+
+/// Emit a partial function application `function f(arg=val, ...)` as a Rust
+/// `move` closure that captures the bound expressions and forwards the
+/// remaining (unbound) formals to `f`.
+///
+/// We need the underlying function's formal list (names in declaration order)
+/// to know:
+///   * which formals are bound by named-arg syntax (matched by name),
+///   * which positions remain unbound (and so become the closure's parameters).
+///
+/// `sig_ty` carries that information; it was set by `infer_exp` from a
+/// hierarchy lookup. If the lookup failed, we still emit a closure but
+/// surface the loss with a `todo!()` body so the gap is visible at compile
+/// time rather than silently producing wrong code.
+///
+/// Capture handling: bound expressions are evaluated once when the closure
+/// is constructed and stored in `let __pe_b{i} = ...;` bindings inside an
+/// outer block. The closure body re-clones each captured value before
+/// passing it to `f` (the closure must implement `Fn`, so each invocation
+/// can read but not consume its captures). For non-`Clone` values this
+/// would fail to compile — that's the desired signal that the captured
+/// value's type doesn't support the `Fn` semantics we promise to callers.
+fn emit_parteval<'a>(
+    func: &str,
+    args: &[TypedExp],
+    named_args: &[(String, TypedExp)],
+    sig_ty: &Ty,
+    is_const: bool,
+    ctx: &mut GenCtx,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+) -> String {
+    let func_str = if func.contains('.') {
+        ctx.shorten(func)
+    } else {
+        func.to_owned()
+    };
+    let func_str = escape_ident(&func_str);
+
+    // Pull the formal-name order from the resolved signature.
+    let formal_names: Vec<String> = match sig_ty {
+        Ty::Function { inputs, .. } => inputs.iter().map(|i| i.name.clone()).collect(),
+        _ => {
+            // We have no signature info, so we can't tell how many formals
+            // remain unbound or which ones the named-args refer to. Emit a
+            // todo so the missing-signature case is visible at compile time.
+            return format!("todo!(\"PARTEVALFUNCTION of {func}: function signature not resolved\")");
+        }
+    };
+
+    let bound_pos = args.len();
+    if bound_pos > formal_names.len() {
+        return format!("todo!(\"PARTEVALFUNCTION of {func}: too many positional bindings\")");
+    }
+    // Map: formal name → bound expression (for named bindings).
+    use std::collections::HashMap as HM;
+    let mut named_map: HM<&str, &TypedExp> = HM::new();
+    for (n, e) in named_args {
+        named_map.insert(n.as_str(), e);
+    }
+
+    // Emit each bound expression once into a `let __pe_b{i}` binding so the
+    // captured value lives outside the closure (the closure captures by
+    // `move` and clones inside the body on each invocation).
+    let mut captures: Vec<String> = Vec::new();
+    // For each formal: record either a capture name (to clone in body) or
+    // a fresh closure parameter name (forwarded to the call).
+    let mut call_arg_exprs: Vec<String> = Vec::new();
+    let mut closure_params: Vec<String> = Vec::new();
+
+    for (i, formal_name) in formal_names.iter().enumerate() {
+        if i < bound_pos {
+            // Positional binding.
+            let v = emit_exp(&args[i], is_const, ctx, top_level);
+            let cap_name = format!("__pe_b{i}");
+            captures.push(format!("let {cap_name} = {v};"));
+            call_arg_exprs.push(format!("{cap_name}.clone()"));
+        } else if let Some(named_expr) = named_map.remove(formal_name.as_str()) {
+            // Named binding (looked up by formal name).
+            let v = emit_exp(named_expr, is_const, ctx, top_level);
+            let cap_name = format!("__pe_b{i}");
+            captures.push(format!("let {cap_name} = {v};"));
+            call_arg_exprs.push(format!("{cap_name}.clone()"));
+        } else {
+            // Unbound — becomes a closure parameter.
+            let p = format!("__pe_a{i}");
+            closure_params.push(p.clone());
+            call_arg_exprs.push(p);
+        }
+    }
+
+    // Any named-args that did NOT match a formal name are a type error —
+    // surface them so the bug is visible rather than silently dropping them.
+    if !named_map.is_empty() {
+        let bad: Vec<&str> = named_map.keys().copied().collect();
+        return format!(
+            "todo!(\"PARTEVALFUNCTION of {func}: named args do not match any formal: {:?}\")",
+            bad
+        );
+    }
+
+    let params_list = closure_params.join(", ");
+    let call_expr = format!("{func_str}({})", call_arg_exprs.join(", "));
+    let closure = format!("move |{params_list}| {call_expr}");
+
+    if captures.is_empty() {
+        closure
+    } else {
+        format!("{{ {} {closure} }}", captures.join(" "))
     }
 }
 
@@ -2793,6 +2919,15 @@ fn substitute_formal_refs(exp: &TypedExp, bindings: &HashMap<String, TypedExp>) 
                 elem_ty: it.elem_ty.clone(),
             }).collect(),
             iter_kind: *iter_kind,
+            ty: ty.clone(),
+        },
+        TypedExp::PartEval { func, args, named_args, sig_ty, ty } => TypedExp::PartEval {
+            func: func.clone(),
+            args: args.iter().map(|a| substitute_formal_refs(a, bindings)).collect(),
+            named_args: named_args.iter()
+                .map(|(n, a)| (n.clone(), substitute_formal_refs(a, bindings)))
+                .collect(),
+            sig_ty: sig_ty.clone(),
             ty: ty.clone(),
         },
         TypedExp::Todo(s) => TypedExp::Todo(s.clone()),
@@ -5180,6 +5315,52 @@ fn emit_stmt<'a>(
 }
 
 // ── Type formatting ───────────────────────────────────────────────────────────
+
+/// Format a type as it appears in a function-parameter position.
+///
+/// Differs from `fmt_ty` only for function-typed parameters: we emit
+/// `impl Fn(...) -> Result<...>` rather than a concrete `fn(...)` pointer
+/// or a named `partial function` alias (`KeyEq<T>`). The `impl Fn` form
+/// accepts:
+///   * a function item / `fn` pointer (a plain function name),
+///   * a closure (e.g. emitted by PARTEVALFUNCTION lowering), and
+///   * any other `Fn(...) -> ...` implementor.
+///
+/// `Fn` (not `FnMut`/`FnOnce`) is chosen because callbacks in this codebase
+/// are invoked repeatedly inside `fold`/`map`/`forEach` loops and must not
+/// consume their captures. If we ever lower a partial application that
+/// needs to consume its captures (or mutate them), the bound must be
+/// relaxed at that point rather than tightened ad hoc.
+///
+/// Notes / limitations:
+///   * Named `partial function` aliases (e.g. `KeyEq<T>`) are still emitted
+///     by `fmt_ty` itself, so they continue to work as struct field types
+///     and `type X = ...` aliases. Inside such aliases the function value
+///     is still a `fn` pointer; closures cannot be stored there. Lifting
+///     that limitation requires switching the alias to `Rc<dyn Fn(...)>`
+///     (or similar) and updating every passing convention — out of scope
+///     for this change.
+///   * `Ty::FunctionAlias` (re-export `function Foo = Bar`) is treated
+///     identically to a plain function pointer; we still emit it by alias
+///     name here, since lifting the same restriction needs the same
+///     refactor.
+fn fmt_param_ty(ty: &Ty, ctx: &mut GenCtx) -> String {
+    match ty {
+        // Only ANONYMOUS function types get the `impl Fn` treatment. A named
+        // `partial function` (e.g. `KeyEq`) is typically also used as a
+        // struct/record field (where `impl Trait` is illegal) — switching
+        // those aliases is a larger refactor that has to change how field
+        // storage and the corresponding constructors box the callback. Until
+        // that lands, named aliases keep their concrete `fn(...)` shape so
+        // that the same parameter can be stored in a record field of the
+        // alias type.
+        Ty::Function { inputs, output, name: None, .. } => {
+            let ins = inputs.iter().map(|inp| fmt_ty(&inp.ty, ctx)).collect::<Vec<_>>().join(", ");
+            format!("impl Fn({ins}) -> Result<{}>", fmt_ty(output, ctx))
+        }
+        _ => fmt_ty(ty, ctx),
+    }
+}
 
 fn fmt_ty(ty: &Ty, ctx: &mut GenCtx) -> String {
     match ty {

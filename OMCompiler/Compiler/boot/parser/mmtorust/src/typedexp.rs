@@ -85,6 +85,24 @@ pub enum TypedExp {
     Call { func: String, args: Vec<TypedExp>, named_args: Vec<(String, TypedExp)>, ty: Ty, sig_ty: Ty },
     /// A constructor/record literal. `name` is the dotted MM name.
     Constructor { name: String, args: Vec<TypedExp>, named_args: Vec<(String, TypedExp)>, ty: Ty, field_names: Vec<String> },
+    /// Partial function application: `function f(arg1 = e1, arg2 = e2, ...)` —
+    /// produces a callable value with the named/positional formals bound and the
+    /// remaining formals still open. Lowers to a Rust closure that captures the
+    /// bound expressions and forwards the unbound formals to `f`.
+    ///
+    /// `func` is the MM name of the underlying function. `args` are positional
+    /// bindings (each binds the i-th formal); `named_args` are bindings keyed by
+    /// formal name. `sig_ty` is the resolved `Ty::Function` of `func` (carrying
+    /// formal names/types, needed by codegen to know which formals remain
+    /// unbound). `ty` is the resulting function type — `sig_ty` with the bound
+    /// formals removed from `inputs`.
+    PartEval {
+        func: String,
+        args: Vec<TypedExp>,
+        named_args: Vec<(String, TypedExp)>,
+        sig_ty: Ty,
+        ty: Ty,
+    },
     If {
         cond: Box<TypedExp>,
         then_: Box<TypedExp>,
@@ -132,6 +150,7 @@ impl TypedExp {
             TypedExp::Match  { ty, .. }  => ty.clone(),
             TypedExp::Range  { elem_ty, .. } => Ty::Range(Box::new(elem_ty.clone())),
             TypedExp::Reduction { ty, .. } => ty.clone(),
+            TypedExp::PartEval { ty, .. } => ty.clone(),
             TypedExp::Tuple(v) => Ty::Tuple(v.iter().map(|e| e.ty()).collect()),
             TypedExp::Todo(_)  => Ty::Unknown,
         }
@@ -432,7 +451,11 @@ fn lookup_ty_in_hierarchy<'a>(dotted: &str, top_level: &'a BTreeMap<String, Name
 ///
 /// The signatures use `TypeVar("T")` as a stand-in for parameters whose actual
 /// type is determined by the call site. The shape only needs to be `Ty::Function`
-/// for codegen to skip the value clone; the inputs/output are informational.
+/// for codegen to skip the value clone; the inputs/output are informational —
+/// EXCEPT for partial-application lowering (PARTEVALFUNCTION), which needs the
+/// formal *names* to match what users write in `function f(name = value)`. So
+/// where the MetaModelica builtin uses specific names (e.g. `realEq(x1, x2)`),
+/// they are mirrored here.
 pub fn builtin_function_ty(name: &str) -> Option<Ty> {
     let tv = |n: &str| Ty::TypeVar(n.to_owned());
     let inp = |name: &str, ty: Ty| FunctionInput { name: name.to_owned(), ty, default: None };
@@ -446,7 +469,7 @@ pub fn builtin_function_ty(name: &str) -> Option<Ty> {
         "intEq" | "intNe" | "intLt" | "intLe" | "intGt" | "intGe" =>
             Some(f(vec![inp("a", Ty::I32), inp("b", Ty::I32)], Ty::Bool, vec![])),
         "realEq" | "realLt" | "realLe" | "realGt" | "realGe" =>
-            Some(f(vec![inp("a", Ty::F64), inp("b", Ty::F64)], Ty::Bool, vec![])),
+            Some(f(vec![inp("x1", Ty::F64), inp("x2", Ty::F64)], Ty::Bool, vec![])),
         "stringEq" | "stringEqual" =>
             Some(f(vec![inp("a", Ty::Str), inp("b", Ty::Str)], Ty::Bool, vec![])),
         "boolEq" | "boolAnd" | "boolOr" =>
@@ -1097,6 +1120,52 @@ pub fn infer_exp<'a>(
                 let ty = call_ty(&func, &args, top_level, pkg_prefix);
                 TypedExp::Call { func, args, named_args, ty, sig_ty }
             }
+        }
+
+        Absyn::Exp::PARTEVALFUNCTION { function_, functionArgs } => {
+            // `function f(arg = e, ...)`: partial application of `f` with the
+            // specified arguments bound. The remaining formals stay open and
+            // must be supplied at every later call site.
+            let func = cref_to_dotted(function_);
+            let (args, named_args) = extract_call_args(functionArgs, env, top_level, pkg_prefix, type_vars);
+            // Resolve the underlying function's signature. We need formal
+            // names and types (in order) so codegen can identify which
+            // formals were bound positionally / by name and emit a closure
+            // that forwards the remaining unbound formals.
+            //
+            // We use the same name-resolution path as a normal CALL site so
+            // that bare references to sibling functions (e.g. `edge_finder`
+            // inside its enclosing package) are found.  Built-ins (e.g.
+            // `realEq`) live outside the hierarchy and are looked up in
+            // `builtin_function_ty`.
+            let sig_ty = match resolve_call_node(&func, top_level, pkg_prefix) {
+                Some((_, node)) => node.ty.clone(),
+                None => builtin_function_ty(&func).unwrap_or_else(|| lookup_ty_in_hierarchy(&func, top_level)),
+            };
+            let ty = match &sig_ty {
+                Ty::Function { type_vars: tvs, inputs, output, .. } => {
+                    let bound_pos = args.len();
+                    let bound_named: std::collections::HashSet<&str> =
+                        named_args.iter().map(|(n, _)| n.as_str()).collect();
+                    let remaining: Vec<FunctionInput> = inputs.iter().enumerate()
+                        .filter_map(|(i, inp)| {
+                            if i < bound_pos { return None; }
+                            if bound_named.contains(inp.name.as_str()) { return None; }
+                            Some(inp.clone())
+                        })
+                        .collect();
+                    Ty::Function {
+                        type_vars: tvs.clone(),
+                        inputs: remaining,
+                        output: output.clone(),
+                        // The result is no longer the original named alias —
+                        // it's a freshly-shaped function whose arity differs.
+                        name: None,
+                    }
+                }
+                _ => Ty::Unknown,
+            };
+            TypedExp::PartEval { func, args, named_args, sig_ty, ty }
         }
 
         Absyn::Exp::TUPLE { expressions } => {

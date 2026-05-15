@@ -1503,7 +1503,7 @@ fn test_min_element() -> Result<()> {
 // ── MkOption ──
 #[test]
 fn test_mk_option() -> Result<()> {
-    let result = L::mk_option(42i32)?;
+    let result = L::mkOption(42i32)?;
     assert_eq!(result, Some(42));
     Ok(())
 }
@@ -2105,7 +2105,7 @@ fn test_trim_to_length() -> Result<()> {
 fn test_union() -> Result<()> {
     let a = list![1i32, 2, 3];
     let b = list![3i32, 4, 5];
-    let result = L::union_(Arc::clone(&a), Arc::clone(&b))?;
+    let result = L::union(Arc::clone(&a), Arc::clone(&b))?;
     assert_eq!(result, list![1i32, 2, 3, 4, 5]);
     Ok(())
 }

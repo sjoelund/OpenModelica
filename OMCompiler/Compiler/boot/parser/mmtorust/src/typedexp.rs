@@ -474,6 +474,12 @@ pub fn builtin_function_ty(name: &str) -> Option<Ty> {
         "realAdd" | "realSub" | "realMul" | "realDiv" | "realMax" | "realMin" =>
             Some(f(vec![inp("a", Ty::F64), inp("b", Ty::F64)], Ty::F64, vec![])),
 
+        // Numeric coercions
+        "intReal" =>
+            Some(f(vec![inp("i", Ty::I32)], Ty::F64, vec![])),
+        "realInt" =>
+            Some(f(vec![inp("r", Ty::F64)], Ty::I32, vec![])),
+
         // String conversions/concat
         "intString" =>
             Some(f(vec![inp("i", Ty::I32)], Ty::Str, vec![])),
@@ -485,6 +491,13 @@ pub fn builtin_function_ty(name: &str) -> Option<Ty> {
             Some(f(vec![inp("v", tv("T"))], Ty::Str, vec!["T".to_owned()])),
         "stringAppend" =>
             Some(f(vec![inp("a", Ty::Str), inp("b", Ty::Str)], Ty::Str, vec![])),
+        // String → number/boolean parsing
+        "stringInt" =>
+            Some(f(vec![inp("s", Ty::Str)], Ty::I32, vec![])),
+        "stringReal" =>
+            Some(f(vec![inp("s", Ty::Str)], Ty::F64, vec![])),
+        "stringBool" =>
+            Some(f(vec![inp("s", Ty::Str)], Ty::Bool, vec![])),
 
         _ => None,
     }
@@ -514,11 +527,14 @@ fn call_ty(func: &str, args: &[TypedExp], top_level: &BTreeMap<String, NameNode<
         "fail" => Ty::Unknown,
         "intAdd" | "intSub" | "intMul" | "intDiv" | "intMod" | "intAbs"
         | "intMax" | "intMin" | "intNeg" | "intBitAnd" | "intBitOr" | "intBitXor"
-        | "intBitLShift" | "intBitRShift" | "intFromChar" | "stringLength"
-        | "stringCompare" | "stringHash" | "stringHashDjb2" | "stringGet"
+        | "intBitNot" | "intBitLShift" | "intBitRShift" | "intFromChar"
+        | "stringLength" | "stringCompare" | "stringHash" | "stringHashDjb2"
+        | "stringGet" | "stringInt" | "realInt"
         | "arrayLength" | "listLength" => Ty::I32,
         "realAdd" | "realSub" | "realMul" | "realDiv" | "realAbs"
-        | "realMax" | "realMin" | "realNeg" | "realFloor" | "realCeil" => Ty::F64,
+        | "realMax" | "realMin" | "realNeg" | "realFloor" | "realCeil"
+        | "realMod" | "realPow" | "intReal" | "stringReal" => Ty::F64,
+        "stringBool" => Ty::Bool,
         "intString" | "realString" | "boolString" | "anyString"
         | "stringAppend" | "stringCharAt" | "stringGetStringChar" => Ty::Str,
         "stringEqual" | "stringEq" | "intEq" | "intLt" | "intLe" | "intGt" | "intGe"

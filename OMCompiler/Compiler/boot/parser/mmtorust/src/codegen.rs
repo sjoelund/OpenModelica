@@ -1020,6 +1020,35 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
     // Child node .ty values are resolved without that context and may be Unknown for ArgT etc.
     let Ty::Function { type_vars, inputs: fn_inputs, output: fn_output } = &node.ty else { return };
 
+    // `partial function` declarations are MetaModelica's way of naming a function
+    // signature — they have no body and are used as a type for function-valued
+    // parameters (e.g. `KeyEq` inside `UnorderedSet`). Emit them as a Rust type
+    // alias so that consumers can write `KeyEq<T>` instead of repeating the raw
+    // `fn(...) -> Result<...>` signature.
+    //
+    // TODO: also rewrite parameter types that resolve to a partial function into
+    // a reference to this alias (currently we still inline the raw `fn` type at
+    // those sites, which compiles but loses the named-type readability).
+    if c.partial_prefix {
+        let mut all_type_vars = type_vars.clone();
+        for inp in fn_inputs.iter() {
+            collect_type_vars_in_ty(&inp.ty, &mut all_type_vars);
+        }
+        collect_type_vars_in_ty(fn_output, &mut all_type_vars);
+        let type_params = if all_type_vars.is_empty() {
+            String::new()
+        } else {
+            format!("<{}: {DEFAULT_TRAITS}>", all_type_vars.join(", "))
+        };
+        let ins = fn_inputs.iter().map(|inp| fmt_ty(&inp.ty, ctx)).collect::<Vec<_>>().join(", ");
+        let out_ty = fmt_ty(fn_output, ctx);
+        let pub_kw = if node.visibility == MM::Visibility::Public { "pub " } else { "" };
+        let ename = escape_ident(name);
+        writeln!(out, "{indent}{pub_kw}type {ename}{type_params} = fn({ins}) -> Result<{out_ty}>;").unwrap();
+        writeln!(out).unwrap();
+        return;
+    }
+
     let mut all_type_vars = type_vars.clone();
     for inp in fn_inputs.iter() {
         collect_type_vars_in_ty(&inp.ty, &mut all_type_vars);
@@ -1867,12 +1896,66 @@ fn numeric_sum_ty(ty: &Ty) -> &'static str {
     }
 }
 
+/// Look up the declared formal-parameter type of a builtin by index, using the
+/// `typedexp::builtin_function_ty` registry as the single source of truth.
+/// Returns `None` if the builtin has no entry (e.g. constructor-shaped builtins
+/// such as `SOME`, `list`, or `SOURCEINFO` whose argument shapes are
+/// context-dependent and don't have a static formal type).
+fn builtin_formal_ty(func: &str, idx: usize) -> Option<Ty> {
+    if let Some(Ty::Function { inputs, .. }) = typedexp::builtin_function_ty(func) {
+        return inputs.get(idx).map(|i| i.ty.clone());
+    }
+    None
+}
+
+/// Emit a builtin call argument with MetaModelica's implicit tuple→first
+/// coercion applied when the actual argument is a tuple and the formal expects
+/// a scalar. The clone-for-value behavior matches `emit_cloned_call_arg`.
+fn emit_builtin_call_arg<'a>(
+    func: &str,
+    idx: usize,
+    arg: &TypedExp,
+    is_const: bool,
+    ctx: &mut GenCtx,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+) -> String {
+    let formal = builtin_formal_ty(func, idx);
+    emit_call_arg_with_formal(arg, formal.as_ref(), is_const, ctx, top_level)
+}
+
+/// Like `emit_builtin_call_arg` but without the clone — for argument positions
+/// where the surrounding builtin emission already takes a reference or a Copy
+/// scalar (e.g. an index, a boolean flag). The tuple→`.0` coercion is still
+/// applied so a tuple-returning call passed in scalar context is unpacked.
+fn emit_builtin_call_arg_raw<'a>(
+    func: &str,
+    idx: usize,
+    arg: &TypedExp,
+    is_const: bool,
+    ctx: &mut GenCtx,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+) -> String {
+    let formal = builtin_formal_ty(func, idx);
+    let needs_first = matches!(arg.ty(), Ty::Tuple(_))
+        && matches!(&formal, Some(t) if !matches!(t, Ty::Tuple(_) | Ty::Unknown));
+    let raw = emit_exp(arg, is_const, ctx, top_level);
+    if needs_first { format!("({raw}).0") } else { raw }
+}
+
 fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mut GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) -> Result<String> {
+    // All argument emission below goes through `emit_builtin_call_arg{,_raw}`,
+    // which consults `typedexp::builtin_function_ty` and applies MetaModelica's
+    // implicit tuple→first coercion when a tuple-returning call is passed where
+    // a scalar is expected (e.g. `intMod(hashfn(k), len)` where `hashfn` returns
+    // a single value but a future signature change to a tuple would still emit
+    // valid code at this site). Builtins without a registry entry — `SOME`,
+    // `NONE`, `list`, `SOURCEINFO`, etc. — get `None` as the formal type and
+    // fall back to the prior non-coercing behavior, which is fine for them.
     match func {
         "SOME" => {
             let arg = args
                 .first()
-                .map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level))
+                .map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level))
                 .unwrap_or_default();
             Ok(format!("Some({arg})"))
         }
@@ -1891,36 +1974,40 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
             if args.is_empty() {
                 Ok("metamodelica::nil()".to_owned())
             } else {
-                let parts: Vec<String> = args.iter().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).collect();
+                let parts: Vec<String> = args.iter().enumerate()
+                    .map(|(i, a)| emit_builtin_call_arg(func, i, a, is_const, ctx, top_level))
+                    .collect();
                 Ok(format!("metamodelica::list![{}]", parts.join(", ")))
             }
         },
         "min" | "max" => {
             if args.len() == 2 {
-                let arg1 = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
-                let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
+                let arg1 = args.first().map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
+                let arg2 = args.get(1).map(|a| emit_builtin_call_arg_raw(func, 1, a, is_const, ctx, top_level)).unwrap_or_default();
                 Ok(format!("std::cmp::{func}({arg1}, {arg2})"))
             } else {
-                let parts: Vec<String> = args.iter().map(|a| emit_exp(a, is_const, ctx, top_level)).collect();
+                let parts: Vec<String> = args.iter().enumerate()
+                    .map(|(i, a)| emit_builtin_call_arg_raw(func, i, a, is_const, ctx, top_level))
+                    .collect();
                 Ok(format!("{func}({})", parts.join(", ")))
             }
         },
         "String" => {
-            let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+            let arg = args.first().map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
             Ok(format!("format!(\"{{}}\", {arg})"))
         },
         "stringGet" => {
-            let arg1 = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
-            let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
+            let arg1 = args.first().map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
+            let arg2 = args.get(1).map(|a| emit_builtin_call_arg_raw(func, 1, a, is_const, ctx, top_level)).unwrap_or_default();
             Ok(ctx.q(&format!("stringGet({},{})", arg1, arg2)))
         },
         "realNeg" => {
-            let arg1 = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+            let arg1 = args.first().map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
             Ok(format!("-( {} as f64)", arg1))
         },
         "realMul" | "realAdd" | "realSub" => {
-            let arg1 = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
-            let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
+            let arg1 = args.first().map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
+            let arg2 = args.get(1).map(|a| emit_builtin_call_arg_raw(func, 1, a, is_const, ctx, top_level)).unwrap_or_default();
             let op = match func {
                 "realMul" => "*",
                 "realAdd" => "+",
@@ -1930,7 +2017,7 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
             Ok(format!("({} as f64) {} ({} as f64)", arg1, op, arg2))
         },
         "realInt" => {
-            let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+            let arg = args.first().map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
             Ok(format!("(({arg}) as i32)"))
         },
         // Integer(x) is a Modelica/MetaModelica built-in type cast.
@@ -1938,7 +2025,7 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
         // For Enumeration → Integer: the discriminant (as i32).
         // For Boolean → Integer: false=0, true=1.
         "Integer" => {
-            let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+            let arg = args.first().map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
             // Check the argument type to emit the right conversion.
             match args.first().map(|a| a.ty()).as_ref() {
                 Some(crate::hierarchy::Ty::F64) => Ok(format!("(({arg}) as i32)")),
@@ -1949,7 +2036,7 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
             }
         },
         "print" => {
-            let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+            let arg = args.first().map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
             Ok(format!("println!(\"{{}}\", {arg})"))
         },
         "arrayGet" | "arrayGetNoBoundsChecking" => {
@@ -1958,77 +2045,80 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
             // of the enclosing expression, so the inline index + clone is sound.
             // NoBoundsChecking falls back to checked indexing here; lifting it to
             // `get_unchecked` would require a longer-lived borrow scope. TODO if profiling demands it.
-            let arg1 = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
-            let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
+            let arg1 = args.first().map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
+            let arg2 = args.get(1).map(|a| emit_builtin_call_arg_raw(func, 1, a, is_const, ctx, top_level)).unwrap_or_default();
             Ok(format!("{}.borrow()[({}-1) as usize].clone()", arg1, arg2))
         },
         "valueEq" => {
-            let arg1 = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
-            let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
+            let arg1 = args.first().map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
+            let arg2 = args.get(1).map(|a| emit_builtin_call_arg_raw(func, 1, a, is_const, ctx, top_level)).unwrap_or_default();
             Ok(format!("{} == {}", arg1, arg2))
         },
         "arrayLength" => {
             // `Array<T>` is `Rc<RefCell<Vec<T>>>` so we go through `.borrow()`.
-            let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+            let arg = args.first().map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
             Ok(format!("({}.borrow().len() as i32)", arg))
         },
         "listLength" | "stringLength" => {
-            let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+            let arg = args.first().map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
             Ok(format!("({}.len() as i32)", arg))
         },
         "floor" => {
-            let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+            let arg = args.first().map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
             Ok(format!("{}.floor()", arg))
         },
         "mod" if args.len()==2 => {
             let a1 = args.get(0).unwrap();
             let a2 = args.get(1).unwrap();
             let f = if a1.ty() == Ty::I32 && a2.ty() == Ty::I32 {"intMod"} else {"realMod"};
-            let arg1 = emit_cloned_call_arg(a1, is_const, ctx, top_level);
-            let arg2 = emit_cloned_call_arg(a2, is_const, ctx, top_level);
+            // Route through the typed-formal helper for the resolved underlying
+            // builtin (intMod/realMod) so a tuple-returning operand still gets
+            // unpacked via `.0` against the correct scalar formal type.
+            let arg1 = emit_builtin_call_arg(f, 0, a1, is_const, ctx, top_level);
+            let arg2 = emit_builtin_call_arg(f, 1, a2, is_const, ctx, top_level);
             Ok(ctx.q(&format!("{f}({arg1}, {arg2})")))
         },
         "div" => {
-            let arg1 = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
-            let arg2 = args.get(1).map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+            let arg1 = args.first().map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
+            let arg2 = args.get(1).map(|a| emit_builtin_call_arg(func, 1, a, is_const, ctx, top_level)).unwrap_or_default();
             Ok(format!("{arg1} / {arg2}"))
         },
         "abs" => {
-            let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+            let arg = args.first().map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
             Ok(format!("{}.abs()", arg))
         },
         "integer" => {
-            let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+            let arg = args.first().map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
             Ok(format!("(({} as f64).floor() as i32)", arg))
         },
         "listHead" => {
-            let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+            let arg = args.first().map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
             Ok(ctx.q(&format!("listHead({})", arg)))
         },
         "listRest" => {
-            let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+            let arg = args.first().map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
             Ok(ctx.q(&format!("listRest({})", arg)))
         },
         "listGet" => {
-            let arg1 = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
-            let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
+            let arg1 = args.first().map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
+            let arg2 = args.get(1).map(|a| emit_builtin_call_arg_raw(func, 1, a, is_const, ctx, top_level)).unwrap_or_default();
             Ok(ctx.q(&format!("({arg1}).get({arg2})")))
         },
         "referenceEq" => {
-            let arg1 = args.first().map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
-            let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
+            let arg1 = args.first().map(|a| emit_builtin_call_arg_raw(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
+            let arg2 = args.get(1).map(|a| emit_builtin_call_arg_raw(func, 1, a, is_const, ctx, top_level)).unwrap_or_default();
             Ok(ctx.q(&format!("referenceEq(&{arg1},&{arg2})")))
         },
         "isPresent" => {
             Ok(format!("true /* isPresent not implemented in Rust */"))
         },
         "listReverse" | "listReverseInPlace" => {
-            let arg = args.first().map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
+            let arg = args.first().map(|a| emit_builtin_call_arg_raw(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
             Ok(format!("{}.reverse()", arg))
         },
         "arrayCopy" => {
             // Deep (by-element) copy: a fresh Array not aliasing the source.
-            let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+            let arg = args.first().map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
             Ok(format!("metamodelica::arrayFromVec({}.borrow().clone())", arg))
         },
         // MetaModelica.Dangerous.arrayCreateNoInit(size, dummy): the `dummy`
@@ -2037,13 +2127,13 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
         // function is fallible (returns Result), hence wrapped with `?` via
         // ctx.q for non-const contexts.
         "arrayCreateNoInit" => {
-            let arg1 = args.first().map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
+            let arg1 = args.first().map(|a| emit_builtin_call_arg_raw(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
             let call = format!("metamodelica::Dangerous::arrayCreateNoInit({arg1})");
             if is_const { Ok(call) } else { Ok(ctx.q(&call)) }
         },
         "arrayClearIndex" => {
-            let arg1 = args.first().map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
-            let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
+            let arg1 = args.first().map(|a| emit_builtin_call_arg_raw(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
+            let arg2 = args.get(1).map(|a| emit_builtin_call_arg_raw(func, 1, a, is_const, ctx, top_level)).unwrap_or_default();
             let call = format!("metamodelica::Dangerous::arrayClearIndex({arg1}, {arg2})");
             if is_const { Ok(call) } else { Ok(ctx.q(&call)) }
         },
@@ -2052,39 +2142,39 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
             // We bind the array once so {arg1} (which may be a non-trivial expression) is
             // evaluated only once, mutate through `borrow_mut()`, then yield the same Rc.
             // NoBoundsChecking uses checked indexing here; same TODO as arrayGet.
-            let arg1 = args.get(0).map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
-            let arg2 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
-            let arg3 = args.get(2).map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+            let arg1 = args.get(0).map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
+            let arg2 = args.get(1).map(|a| emit_builtin_call_arg_raw(func, 1, a, is_const, ctx, top_level)).unwrap_or_default();
+            let arg3 = args.get(2).map(|a| emit_builtin_call_arg(func, 2, a, is_const, ctx, top_level)).unwrap_or_default();
             Ok(format!("{{let _arr = {}; _arr.borrow_mut()[({}-1) as usize] = {}; _arr}}", arg1, arg2, arg3))
         },
         "arrayEmpty" => {
-            let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+            let arg = args.first().map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
             Ok(format!("{}.borrow().is_empty()", arg))
         },
         "listEmpty" => {
-            let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+            let arg = args.first().map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
             Ok(format!("{}.is_empty()", arg))
         },
         "SOURCEINFO" | "SourceInfo" => {
-            let a0 = args.get(0).map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_else(|| "Arc::new(\"\".to_string())".to_owned());
-            let a1 = args.get(1).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_else(|| "false".to_owned());
-            let a2 = args.get(2).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_else(|| "0".to_owned());
-            let a3 = args.get(3).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_else(|| "0".to_owned());
-            let a4 = args.get(4).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_else(|| "0".to_owned());
-            let a5 = args.get(5).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_else(|| "0".to_owned());
-            let a6 = args.get(6).map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_else(|| "0.0".to_owned());
+            let a0 = args.get(0).map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_else(|| "Arc::new(\"\".to_string())".to_owned());
+            let a1 = args.get(1).map(|a| emit_builtin_call_arg_raw(func, 1, a, is_const, ctx, top_level)).unwrap_or_else(|| "false".to_owned());
+            let a2 = args.get(2).map(|a| emit_builtin_call_arg_raw(func, 2, a, is_const, ctx, top_level)).unwrap_or_else(|| "0".to_owned());
+            let a3 = args.get(3).map(|a| emit_builtin_call_arg_raw(func, 3, a, is_const, ctx, top_level)).unwrap_or_else(|| "0".to_owned());
+            let a4 = args.get(4).map(|a| emit_builtin_call_arg_raw(func, 4, a, is_const, ctx, top_level)).unwrap_or_else(|| "0".to_owned());
+            let a5 = args.get(5).map(|a| emit_builtin_call_arg_raw(func, 5, a, is_const, ctx, top_level)).unwrap_or_else(|| "0".to_owned());
+            let a6 = args.get(6).map(|a| emit_builtin_call_arg_raw(func, 6, a, is_const, ctx, top_level)).unwrap_or_else(|| "0.0".to_owned());
             Ok(format!(
                 "SourceInfo {{ fileName: {a0}, isReadOnly: {a1}, lineNumberStart: {a2}, columnNumberStart: {a3}, lineNumberEnd: {a4}, columnNumberEnd: {a5}, lastModification: {a6} }}"
             ))
         },
         "listArray" =>{
             // List -> Array: collect into a Vec, then wrap into the shared-mutable Array.
-            let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
+            let arg = args.first().map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
             Ok(format!("metamodelica::arrayFromVec({arg}.into_iter().cloned().collect())"))
         },
         "arrayList" /* | "stringAppendList" */ => {
             // Array -> List: borrow the inner Vec, clone elements into a fresh List.
-            let arg = args.first().map(|a| emit_exp(a, is_const, ctx, top_level)).unwrap_or_default();
+            let arg = args.first().map(|a| emit_builtin_call_arg_raw(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
             Ok(format!("Arc::new({arg}.borrow().iter().cloned().collect())"))
         },
         _ => bail!("Not a builtin function")
@@ -2510,7 +2600,20 @@ fn resolve_call_formals<'a>(
     ctx: &GenCtx,
     top_level: &'a BTreeMap<String, NameNode<'a>>,
 ) -> Option<Vec<CallFormal>> {
-    let qname = resolve_call_qname(func, ctx, top_level)?;
+    // Builtins (isSome, listLength, intReal, ...) have no AST node in the hierarchy.
+    // We still need their formal types so `emit_call_arg_with_formal` can apply the
+    // implicit tuple→first coercion when a tuple-returning call is passed in a
+    // scalar context (e.g. `isSome(find(...))` where `find` returns `(Option<T>, i32)`).
+    // The registry in typedexp::builtin_function_ty is the single source of truth.
+    let qname = match resolve_call_qname(func, ctx, top_level) {
+        Some(q) => q,
+        None => {
+            if let Some(Ty::Function { inputs, .. }) = typedexp::builtin_function_ty(func) {
+                return Some(inputs.into_iter().map(|inp| (inp.name, inp.ty, None)).collect());
+            }
+            return None;
+        }
+    };
     let node = lookup_node(&qname, top_level)?;
     let NodeKind::Class(c) = &node.kind else { return None };
     if !matches!(c.restriction, Absyn::Restriction::R_FUNCTION { .. }) {

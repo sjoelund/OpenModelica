@@ -2997,34 +2997,36 @@ fn pat_deref_bindings(pat: &TypedPat, scrut_ty: &Ty, ctx: &GenCtx, top_level: &B
 /// Walk `stmts` and collect names that appear as the LHS of an `Assign`
 /// (either as `Var(n)` directly, as `As { var: n, .. }`, or as a tuple
 /// component). Used to decide which pattern-bound names need to be
+/// Collect all variable names bound by an assignment LHS pattern.
+fn pat_assigned_names(p: &TypedPat, out: &mut HashSet<String>) {
+    match p {
+        TypedPat::Var(n) => { out.insert(n.clone()); }
+        TypedPat::As { var, pat } => { out.insert(var.clone()); pat_assigned_names(pat, out); }
+        TypedPat::Tuple(pats) => pats.iter().for_each(|p| pat_assigned_names(p, out)),
+        // A compound LHS pattern like `l :: ll := ll` is lowered by
+        // `emit_pat_assign` to synthetic `name = __paN.clone();` writes
+        // for every binding the pattern introduces. Each such name is a
+        // *reassignment* of an already-in-scope variable (per
+        // `rewrite_pat_for_existing_bindings`), so collect them here so
+        // that the match-arm prologue knows to introduce an owned
+        // `let mut <name>` shadow for any name also bound by ref in
+        // the arm's case pattern.
+        TypedPat::Cons { head, tail } => { pat_assigned_names(head, out); pat_assigned_names(tail, out); }
+        TypedPat::Constructor { fields, named_fields, .. } => {
+            fields.iter().for_each(|p| pat_assigned_names(p, out));
+            named_fields.iter().for_each(|(_, p)| pat_assigned_names(p, out));
+        }
+        TypedPat::Some_(inner) => pat_assigned_names(inner, out),
+        _ => {}
+    }
+}
+
 /// re-bound as owned `mut` locals at the top of a match arm.
 fn stmts_assigned_var_names(stmts: &[typedexp::TypedStmt], out: &mut HashSet<String>) {
-    fn lhs_names(p: &TypedPat, out: &mut HashSet<String>) {
-        match p {
-            TypedPat::Var(n) => { out.insert(n.clone()); }
-            TypedPat::As { var, pat } => { out.insert(var.clone()); lhs_names(pat, out); }
-            TypedPat::Tuple(pats) => pats.iter().for_each(|p| lhs_names(p, out)),
-            // A compound LHS pattern like `l :: ll := ll` is lowered by
-            // `emit_pat_assign` to synthetic `name = __paN.clone();` writes
-            // for every binding the pattern introduces. Each such name is a
-            // *reassignment* of an already-in-scope variable (per
-            // `rewrite_pat_for_existing_bindings`), so collect them here so
-            // that the match-arm prologue knows to introduce an owned
-            // `let mut <name>` shadow for any name also bound by ref in
-            // the arm's case pattern.
-            TypedPat::Cons { head, tail } => { lhs_names(head, out); lhs_names(tail, out); }
-            TypedPat::Constructor { fields, named_fields, .. } => {
-                fields.iter().for_each(|p| lhs_names(p, out));
-                named_fields.iter().for_each(|(_, p)| lhs_names(p, out));
-            }
-            TypedPat::Some_(inner) => lhs_names(inner, out),
-            _ => {}
-        }
-    }
     use typedexp::TypedStmt as S;
     for s in stmts {
         match s {
-            S::Assign { lhs, .. } => lhs_names(lhs, out),
+            S::Assign { lhs, .. } => pat_assigned_names(lhs, out),
             S::If { then_, elseif, else_, .. } => {
                 stmts_assigned_var_names(then_, out);
                 for (_, eb) in elseif { stmts_assigned_var_names(eb, out); }
@@ -3765,7 +3767,7 @@ fn emit_pat_assign<'a>(
                     FailureMode::Function => "bail!(\"pattern mismatch\")",
                     FailureMode::TryArm => match &ctx.qmode {
                         QMode::TryBlock(label) => {
-                            fail_owned = format!("break {label} Err::<(), _>(anyhow::anyhow!(\"pattern mismatch\"))");
+                            fail_owned = format!("break {label} Err::<_, _>(anyhow::anyhow!(\"pattern mismatch\"))");
                             &fail_owned
                         }
                         _ => "bail!(\"pattern mismatch\")",
@@ -4635,7 +4637,7 @@ fn stmt_flow(s: &typedexp::TypedStmt) -> FlowResult {
         S::Assign { lhs, rhs } => {
             if is_fail_call(rhs) { return FlowResult::Diverges; }
             let mut set = HashSet::new();
-            if let TypedPat::Var(n) = lhs { set.insert(n.clone()); }
+            pat_assigned_names(lhs, &mut set);
             FlowResult::FallsThrough(set)
         }
         S::NoRetCall { call } => {

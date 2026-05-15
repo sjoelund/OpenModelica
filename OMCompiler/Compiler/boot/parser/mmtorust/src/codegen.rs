@@ -3385,11 +3385,22 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], is_co
                     let pat_binding_names: std::collections::HashSet<String> =
                         typedexp::pat_bindings(&case.pattern).iter().map(|(n, _)| n.clone()).collect();
                     for (name, ty, default) in &case.locals {
-                        if matches!(ty, Ty::Unknown) {
-                            continue;
-                        }
+                        // Always register the local in the arm's env so any later
+                        // `name := ...` becomes a plain re-assignment and not a
+                        // `let mut name = ...` that would only live inside the
+                        // sub-block that emitted it. For Ty::Unknown we still
+                        // pre-declare without a type annotation and let Rust
+                        // infer it from the eventual write — the alternative
+                        // (skipping the declaration) caused E0425/"scope" errors
+                        // when the local was assigned inside an `if` arm and read
+                        // after the `if`.
                         local_env.vars.insert(name.clone(), ty.clone());
                         if pat_binding_names.contains(name) {
+                            continue;
+                        }
+                        if matches!(ty, Ty::Unknown) {
+                            // No usable type — let Rust infer from later assignment.
+                            body.push_str(&format!("            let mut {}; // TODO: local with unresolved type\n", escape_ident(name)));
                             continue;
                         }
                         let ty_s = fmt_ty(ty, ctx);

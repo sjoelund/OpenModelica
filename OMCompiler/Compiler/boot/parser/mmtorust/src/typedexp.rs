@@ -719,10 +719,21 @@ fn resolve_first_segment_type<'a>(
     // wraps without it).
     for seg in segments.iter().skip(1) {
         let field_ty: Option<Ty> = match &ty {
-            Ty::RustStruct(qname) => {
+            // Plain record / single-record uniontype rendered as a struct.
+            // `record_field_tys` transparently handles the single-record uniontype
+            // case by walking through to the sole record child.
+            Ty::RustStruct(qname) | Ty::AliasTo(qname) => {
                 let field_tys = record_field_tys(qname, top_level);
                 field_tys.iter().find(|(n, _)| n == &seg.name).map(|(_, t)| t.clone())
             }
+            // Multi-record uniontype rendered as a Rust enum. Field access on an
+            // enum value is only legal in MetaModelica when the field exists in
+            // the matched record-variant (the compiler is supposed to have
+            // narrowed the value by pattern matching). At the type level we
+            // don't carry the narrowing, so search all record variants for the
+            // field — MetaModelica requires same-named fields across variants
+            // to have the same type, so any matching record gives the answer.
+            Ty::RustEnum(qname) => uniontype_variant_field_ty(qname, &seg.name, top_level),
             Ty::Generic(rust_name, args) => {
                 // `rust_name` uses `::` separators; the hierarchy is dotted.
                 let dotted = rust_name.replace("::", ".");
@@ -749,6 +760,48 @@ fn resolve_first_segment_type<'a>(
     }
 
     Some(ty)
+}
+
+/// Look up a field on a multi-record uniontype by searching each record-variant.
+///
+/// Use case: in a match arm like `case Flags.ENUM_FLAG() then ... flag.validValues ...`,
+/// the bound `flag` is typed as the uniontype (`Ty::RustEnum`) — narrowing isn't
+/// tracked at the type level. To resolve `flag.validValues` we walk the
+/// uniontype's record children and pick the first record that declares the
+/// field. MetaModelica enforces that fields with the same name across variants
+/// share a type, so the first hit is authoritative.
+///
+/// Returns `None` if `qname` doesn't name a uniontype or none of its records
+/// declare a field with this name.
+fn uniontype_variant_field_ty<'a>(
+    qname: &str,
+    field: &str,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+) -> Option<Ty> {
+    let node = lookup_node(qname, top_level)?;
+    let NodeKind::Class(c) = &node.kind else { return None };
+    if !matches!(c.restriction, Absyn::Restriction::R_UNIONTYPE) {
+        return None;
+    }
+    for child in node.children.values() {
+        let NodeKind::Class(rc) = &child.kind else { continue };
+        if !matches!(rc.restriction, Absyn::Restriction::R_RECORD | Absyn::Restriction::R_METARECORD { .. }) {
+            continue;
+        }
+        let rec_members: &[MM::ClassMember] = match &rc.body {
+            MM::ClassDef::Parts { members, .. } | MM::ClassDef::ClassExtends { members, .. } => members,
+            _ => continue,
+        };
+        for m in rec_members {
+            let MM::ClassMember::Component(cm) = m else { continue };
+            if cm.name == field {
+                if let Some(comp_node) = child.children.get(&cm.name) {
+                    return Some(comp_node.ty.clone());
+                }
+            }
+        }
+    }
+    None
 }
 
 fn record_field_tys<'a>(

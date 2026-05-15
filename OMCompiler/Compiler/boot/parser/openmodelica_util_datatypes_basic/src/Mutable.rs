@@ -1,7 +1,6 @@
 // Manually written
 #![allow(non_snake_case)]
 use std::sync::Arc;
-use anyhow::{Result};
 
 #[derive(Clone, Debug)]
 pub struct Mutable<T: Clone + PartialEq>(Arc<std::sync::Mutex<T>>);
@@ -14,16 +13,15 @@ impl<T: Clone + PartialEq> PartialEq for Mutable<T> {
     }
 }
 
-pub fn create<T: Clone + PartialEq>(data: T) -> Result<Mutable<T>> {
-    Ok(Mutable(Arc::from(std::sync::Mutex::new(data))))
+pub fn create<T: Clone + PartialEq>(data: T) -> Mutable<T> {
+    Mutable(Arc::from(std::sync::Mutex::new(data)))
 }
 
-pub fn update<T: Clone + PartialEq>(mutable: Mutable<T>, data: T) -> Result<()> {
+pub fn update<T: Clone + PartialEq>(mutable: Mutable<T>, data: T) {
     let mut guard = mutable.0.lock().unwrap();
     *guard = data;
-    Ok(())
 }
 
-pub fn access<T: Clone + PartialEq>(mutable: Mutable<T>) -> Result<T> {
-    Ok(mutable.0.lock().unwrap().clone())
+pub fn access<T: Clone + PartialEq>(mutable: Mutable<T>) -> T {
+    mutable.0.lock().unwrap().clone()
 }

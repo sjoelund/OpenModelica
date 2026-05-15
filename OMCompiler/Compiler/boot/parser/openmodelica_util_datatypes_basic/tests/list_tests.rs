@@ -331,8 +331,9 @@ fn test_create() -> Result<()> {
 // ── DeleteMemberOnTrue ──
 #[test]
 fn test_delete_member_on_true() -> Result<()> {
+    // Returns (list, Option<deleted>)
     let lst = list![1i32, 2, 3, 2, 4];
-    let result = L::deleteMemberOnTrue(2i32, Arc::clone(&lst), eq_i)?;
+    let (result, _deleted) = L::deleteMemberOnTrue(2i32, Arc::clone(&lst), eq_i)?;
     assert_eq!(result, list![1i32, 3, 4]);
     Ok(())
 }
@@ -342,7 +343,7 @@ fn test_delete_member_on_true() -> Result<()> {
 fn test_delete_positions() -> Result<()> {
     let lst = list![1i32, 2, 3, 4, 5];
     let positions = list![2i32, 4];
-    let result = L::deletePositions(Arc::clone(&lst), Arc::clone(&positions))?;
+    let result = L::deletePositions(Arc::clone(&lst), Arc::clone(&positions), false)?;
     assert_eq!(result, list![1i32, 3, 5]);
     Ok(())
 }
@@ -352,7 +353,7 @@ fn test_delete_positions() -> Result<()> {
 fn test_delete_positions_sorted() -> Result<()> {
     let lst = list![1i32, 2, 3, 4, 5];
     let positions = list![1i32, 3, 5];
-    let result = L::deletePositionsSorted(Arc::clone(&lst), Arc::clone(&positions))?;
+    let result = L::deletePositionsSorted(Arc::clone(&lst), Arc::clone(&positions), false)?;
     assert_eq!(result, list![2i32, 4]);
     Ok(())
 }
@@ -360,23 +361,23 @@ fn test_delete_positions_sorted() -> Result<()> {
 // ── Exist1 ──
 #[test]
 fn test_exist1_true() -> Result<()> {
-    let lst = list![1i32, 2, 3];
-    assert!(L::exist1(Arc::clone(&lst), is_positive)?);
+    // exist1(list, func, extraArg) - func takes (T, ArgT)
+    assert!(L::exist1(list![1i32, 2, 3], |x, _arg| Ok(x > 0), 0i32)?);
     Ok(())
 }
 #[test]
 fn test_exist1_false() -> Result<()> {
-    let lst = list![-1i32, -2];
-    assert!(!L::exist1(Arc::clone(&lst), is_positive)?);
+    assert!(!L::exist1(list![-1i32, -2], |x, _arg| Ok(x > 0), 0i32)?);
     Ok(())
 }
 
 // ── ExtractOnTrue ──
 #[test]
 fn test_extract_on_true() -> Result<()> {
+    // Returns (matched, unmatched)
     let lst = list![1i32, 2, 3, 4, 5];
-    let result = L::extractOnTrue(Arc::clone(&lst), is_even)?;
-    assert_eq!(result, list![2i32, 4]);
+    let (matched, _unmatched) = L::extractOnTrue(Arc::clone(&lst), |x| Ok(x % 2 == 0))?;
+    assert_eq!(matched, list![2i32, 4]);
     Ok(())
 }
 
@@ -384,8 +385,8 @@ fn test_extract_on_true() -> Result<()> {
 #[test]
 fn test_extract1_on_true() -> Result<()> {
     let lst = list![1i32, 2, 3];
-    let result = L::extract1OnTrue(Arc::clone(&lst), is_even)?;
-    assert_eq!(result, list![2i32]);
+    let (matched, _unmatched) = L::extract1OnTrue(Arc::clone(&lst), |x, _arg| Ok(x % 2 == 0), 0i32)?;
+    assert_eq!(matched, list![2i32]);
     Ok(())
 }
 
@@ -400,8 +401,9 @@ fn test_fill() -> Result<()> {
 // ── Filter ──
 #[test]
 fn test_filter() -> Result<()> {
+    // filter uses unwrap_break_err pattern - func returns Result<()>
     let lst = list![1i32, 2, 3, 4, 5, 6];
-    let result = L::filter(Arc::clone(&lst), is_even)?;
+    let result = L::filter(Arc::clone(&lst), |x| { if x % 2 == 0 { Ok(()) } else { bail!("skip") } })?;
     assert_eq!(result, list![2i32, 4, 6]);
     Ok(())
 }

@@ -1,7 +1,6 @@
 // Manually written
 #![allow(non_snake_case)]
 use std::sync::{Arc, Mutex};
-use anyhow::{Result, bail};
 use metamodelica::*; // Built-in types and functions
 
 // Mirrors the MetaModelica/C representation: `Mutable` corresponds to
@@ -31,45 +30,54 @@ impl<T: PartialEq> PartialEq for Pointer<T> {
     }
 }
 
-pub fn create<T: Clone + PartialEq>(data: T) -> Result<Pointer<T>> {
-    Ok(Pointer::Mutable(Arc::new(Mutex::new(data))))
+pub fn create<T: Clone + PartialEq>(data: T) -> Pointer<T> {
+    Pointer::Mutable(Arc::new(Mutex::new(data)))
 }
 
-pub fn createImmutable<T: Clone + PartialEq>(data: T) -> Result<Pointer<T>> {
-    Ok(Pointer::Immutable(Arc::new(data)))
+pub fn createImmutable<T: Clone + PartialEq>(data: T) -> Pointer<T> {
+    Pointer::Immutable(Arc::new(data))
 }
 
-pub fn update<T: Clone + PartialEq>(mutable: Pointer<T>, data: T) -> Result<()> {
+// The MetaModelica/C runtime treats `update` as infallible: it writes through
+// the box pointer without inspecting the ctor tag. Passing an immutable
+// pointer is undefined behaviour at the C level; we surface that as a Rust
+// panic rather than a `Result` because every caller would `unwrap`.
+pub fn update<T: Clone + PartialEq>(mutable: Pointer<T>, data: T) {
     match mutable {
         Pointer::Mutable(cell) => {
             let mut guard = cell.lock().expect("Pointer.update: mutex poisoned");
             *guard = data;
-            Ok(())
         }
-        Pointer::Immutable(_) => bail!("Pointer.update: tried to update an immutable Pointer"),
+        Pointer::Immutable(_) => panic!("Pointer.update: tried to update an immutable Pointer"),
     }
 }
 
-pub fn access<T: Clone + PartialEq>(mutable: Pointer<T>) -> Result<T> {
+pub fn access<T: Clone + PartialEq>(mutable: Pointer<T>) -> T {
     match mutable {
         Pointer::Mutable(cell) => {
             let guard = cell.lock().expect("Pointer.access: mutex poisoned");
-            Ok((*guard).clone())
+            (*guard).clone()
         }
-        Pointer::Immutable(a) => Ok((*a).clone()),
+        Pointer::Immutable(a) => (*a).clone(),
     }
 }
 
-pub fn clone<T: Clone + PartialEq>(mutable: Pointer<T>) -> Result<Pointer<T>> {
-    Ok(mutable)
+pub fn clone<T: Clone + PartialEq>(mutable: Pointer<T>) -> Pointer<T> {
+    mutable
 }
 
-pub fn apply<T: Clone + PartialEq>(mutable: Pointer<T>, func: fn(T) -> Result<T>) -> Result<Pointer<T>> {
-    let new = func(access(mutable.clone())?)?;
-    if !(referenceEq(&new, &access(mutable.clone())?)?) {
-        update(mutable.clone(), new)?;
+// `func` is a callback. Per the fallibility convention, function-pointer slots
+// remain `fn(T) -> Result<T>` so the same slot can carry either fallible or
+// infallible callees (codegen wraps infallible ones via `fnptr!`). The body
+// itself is infallible — but it has to `?`-propagate failures from the
+// callback. We can't, because we now return `T`. Resolve this by `unwrap()`ing
+// the callback result: the MM analysis classified `Pointer.apply` infallible
+// based on its callees, which is only sound when the callback itself never
+// fails. Surface a misuse as a panic, consistent with the C runtime.
+pub fn apply<T: Clone + PartialEq>(mutable: Pointer<T>, func: fn(T) -> anyhow::Result<T>) -> Pointer<T> {
+    let new = func(access(mutable.clone())).unwrap();
+    if !referenceEq(&new, &access(mutable.clone())).unwrap() {
+        update(mutable.clone(), new);
     }
-    Ok(mutable)
+    mutable
 }
-
-

@@ -300,6 +300,20 @@ impl Walk {
         };
         match alg {
             Absyn::Algorithm::ALG_ASSIGN { assignComponent, value } => {
+                // MetaModelica's `:=` is a *pattern* assignment: if the LHS is
+                // anything other than a plain variable reference (or a tuple
+                // of plain variable references), the match can fail at runtime
+                // and the surrounding function therefore fallible. Codegen
+                // lowers these to `let PAT = RHS else { bail!("pattern
+                // mismatch") };`, which only typechecks when the function
+                // returns `Result`. Examples:
+                //   `Cons(h, t) := xs;`        — list cons pattern
+                //   `SOME(x) := opt;`          — uniontype variant pattern
+                //   `(a, SOME(b)) := pair;`    — tuple containing a refutable
+                //                                sub-pattern
+                if exp_is_refutable_lhs(assignComponent) {
+                    self.has_fail = true;
+                }
                 self.scan_exp(assignComponent);
                 self.scan_exp(value);
             }
@@ -461,6 +475,35 @@ impl Walk {
             self.has_fail = true;
         }
         self.calls.insert(name.to_owned());
+    }
+}
+
+/// True when an expression used on the LHS of a MetaModelica `:=` assignment
+/// produces a *refutable* pattern — one whose match can fail at runtime, in
+/// which case codegen emits `bail!("pattern mismatch")` to surface the failure
+/// to the caller, making the surrounding function fallible.
+///
+/// Plain variables and tuples-of-plain-variables are irrefutable; anything
+/// involving a constructor, cons-cell, literal, range, or destructuring
+/// expression is refutable. Wildcards (`_`) are irrefutable but appear in
+/// pattern position only inside a containing tuple.
+///
+/// Conservative: when in doubt, classify as refutable. A spurious "fallible"
+/// classification just keeps a `Result<>` return where it wasn't needed, while
+/// a spurious "infallible" classification produces uncompilable code.
+fn exp_is_refutable_lhs(e: &Absyn::Exp) -> bool {
+    use Absyn::Exp::*;
+    match e {
+        // A plain identifier on the LHS is an ordinary assignment.
+        CREF { .. } => false,
+        // `(a, b, c) := rhs` — only irrefutable if every component is itself
+        // irrefutable on the LHS.
+        TUPLE { expressions } => (&**expressions).into_iter().any(|e| exp_is_refutable_lhs(e)),
+        // Every other Exp shape that can syntactically appear on the LHS of
+        // `:=` denotes a refutable pattern match: constructor applications
+        // (CALL), cons-cells (CONS), literal lists/arrays, as-patterns,
+        // ranges, and even bare literals.
+        _ => true,
     }
 }
 

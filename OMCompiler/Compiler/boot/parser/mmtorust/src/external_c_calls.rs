@@ -403,6 +403,7 @@ fn registry() -> &'static BTreeMap<&'static str, Fallibility> {
         m.insert("SystemImpl__gettextInit", Infallible);
         m.insert("SystemImpl__iconv", Infallible);             // returns "" on failure, not MMC_THROW
         m.insert("SystemImpl__loadModelCallBack", Infallible);
+        m.insert("SystemImpl__loadModelCallBackDefined", Infallible);
         m.insert("SystemImpl__plotCallBack", Infallible);
         m.insert("SystemImpl__plotCallBackDefined", Infallible);
         m.insert("SystemImpl__pwd", Infallible);               // returns NULL/empty on failure
@@ -633,6 +634,9 @@ fn registry() -> &'static BTreeMap<&'static str, Fallibility> {
         m.insert("serializeC", Infallible); // TODO: not found in runtime/
         m.insert("serializeJ", Infallible); // TODO: not found in runtime/
 
+        m.insert("intMaxLit", Infallible);
+        m.insert("realMaxLit", Infallible);
+
         m
     })
 }
@@ -667,14 +671,18 @@ pub fn lookup_or_panic(c_name: &str, mm_qname: &str) -> Fallibility {
     if !mm_qname.contains('.') {
         return Fallibility::Irrelevant;
     }
-    if mm_qname.starts_with("Connections") || mm_qname.starts_with("OMC_ARGS") {
+    if mm_qname.starts_with("Connections") ||
+       mm_qname.starts_with("Subtask") ||
+       mm_qname.starts_with("OMC_") ||
+       mm_qname.starts_with("Pointer") ||
+       mm_qname.starts_with("OpenModelica.") {
         return Fallibility::Irrelevant;
     }
     if let Some(f) = registry().get(c_name) {
         return *f;
     }
     if lenient_mode() {
-        record_lenient_miss(c_name);
+        record_lenient_miss(c_name, mm_qname);
         return Fallibility::Fallible;
     }
     panic!(
@@ -699,13 +707,13 @@ fn lenient_mode() -> bool {
 /// Track misses in lenient mode so we can emit one consolidated warning per
 /// distinct symbol — flooding stderr with a line per call site would obscure
 /// the real signal.
-fn record_lenient_miss(c_name: &str) {
+fn record_lenient_miss(c_name: &str, mm_qname: &str) {
     use std::sync::Mutex;
     static MISSES: OnceLock<Mutex<std::collections::BTreeSet<String>>> = OnceLock::new();
     let set = MISSES.get_or_init(|| Mutex::new(std::collections::BTreeSet::new()));
     let mut guard = set.lock().expect("MISSES mutex");
     if guard.insert(c_name.to_owned()) {
-        eprintln!("warning: external_c_calls: unlisted external `{c_name}` (assuming Fallible — lenient mode)");
+        eprintln!("warning: external_c_calls: unlisted external `{c_name}` for `{mm_qname}` (assuming Fallible — lenient mode)");
     }
 }
 

@@ -2,6 +2,7 @@
 // TODO: Decide if we go with nightly rust for deref patterns, or https://crates.io/crates/match_deref
 #![feature(deref_patterns)]
 #![recursion_limit = "1024"]
+pub mod Array;
 pub mod Autoconf;
 pub mod AvlSetString;
 pub mod AvlTreeString;
@@ -17,6 +18,7 @@ pub mod Curl;
 pub mod Debug;
 pub mod DiffAlgorithm;
 pub mod DisjointSets;
+pub mod DoubleEnded;
 pub mod Error;
 pub mod ErrorExt;
 pub mod ErrorTypes;
@@ -27,6 +29,7 @@ pub mod FMIExt;
 pub mod File;
 pub mod Flags;
 pub mod FlagsUtil;
+pub mod GCExt;
 pub mod Gettext;
 pub mod Global;
 pub mod Graph;
@@ -37,8 +40,11 @@ pub mod JSON;
 pub mod JSONExt;
 pub mod Lapack;
 pub mod LexerJSON;
+pub mod List;
+pub mod Mutable;
 pub mod NFLookupTree;
 pub mod OMSimulatorExt;
+pub mod Pointer;
 pub mod Print;
 pub mod SBAtomicSet;
 pub mod SBFunctions;

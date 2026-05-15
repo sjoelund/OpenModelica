@@ -437,7 +437,7 @@ pub fn builtin_function_ty(name: &str) -> Option<Ty> {
     let tv = |n: &str| Ty::TypeVar(n.to_owned());
     let inp = |name: &str, ty: Ty| FunctionInput { name: name.to_owned(), ty, default: None };
     let f = |inputs: Vec<FunctionInput>, output: Ty, type_vars: Vec<String>| -> Ty {
-        Ty::Function { type_vars, inputs, output: Box::new(output) }
+        Ty::Function { type_vars, inputs, output: Box::new(output), name: None }
     };
     match name {
         // Equality / comparison predicates: (T, T) -> Bool
@@ -597,7 +597,7 @@ fn call_ty(func: &str, args: &[TypedExp], top_level: &BTreeMap<String, NameNode<
                 .map(|(q, _)| q)
                 .unwrap_or_else(|| func.to_owned());
             match lookup_ty_in_hierarchy(&canonical, top_level) {
-                Ty::Function { type_vars, inputs, output } => {
+                Ty::Function { type_vars, inputs, output, .. } => {
                     // Unify the declared input types with the actual argument types
                     // so that any free type variables in the function signature get
                     // bound to concrete types from the call site. Without this step,
@@ -684,12 +684,13 @@ fn apply_subst(ty: &Ty, subst: &HashMap<String, Ty>) -> Ty {
         Ty::Tuple(tys)    => Ty::Tuple(tys.iter().map(|t| apply_subst(t, subst)).collect()),
         Ty::Generic(name, args) =>
             Ty::Generic(name.clone(), args.iter().map(|t| apply_subst(t, subst)).collect()),
-        Ty::Function { type_vars, inputs, output } => Ty::Function {
+        Ty::Function { type_vars, inputs, output, name } => Ty::Function {
             type_vars: type_vars.clone(),
             inputs: inputs.iter()
                 .map(|inp| FunctionInput { name: inp.name.clone(), ty: apply_subst(&inp.ty, subst), default: inp.default.clone() })
                 .collect(),
             output: Box::new(apply_subst(output, subst)),
+            name: name.clone(),
         },
         _ => ty.clone(),
     }

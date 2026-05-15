@@ -789,13 +789,13 @@ fn test_fold22() -> Result<()> {
 // ── FromOption ──
 #[test]
 fn test_from_option_some() -> Result<()> {
-    let result = L::from_option(Some(42i32))?;
+    let result = L::fromOption(Some(42i32))?;
     assert_eq!(result, list![42i32]);
     Ok(())
 }
 #[test]
 fn test_from_option_none() -> Result<()> {
-    let result = L::from_option(Option::<i32>::None)?;
+    let result = L::fromOption(Option::<i32>::None)?;
     assert!(result.is_empty());
     Ok(())
 }

@@ -50,10 +50,19 @@ pub enum Ty {
     /// No output.
     Unit,
     /// A resolved function type. `inputs` carries names and optional defaults.
+    ///
+    /// `name` is set when the function type was *introduced* by a `partial function`
+    /// declaration (e.g. `partial function KeyEq` inside `uniontype UnorderedSet<T>`).
+    /// It carries the fully-qualified name of that declaration so that downstream
+    /// codegen can emit the named type alias (`KeyEq<T>`) at use sites instead of
+    /// inlining the raw `fn(...) -> Result<...>` signature. For ordinary functions
+    /// (non-partial, or anonymous function types) this is `None` and codegen falls
+    /// back to the structural representation.
     Function {
         type_vars: Vec<String>,
         inputs: Vec<FunctionInput>,
         output: Box<Ty>,
+        name: Option<String>,
     },
     /// `function Foo = Bar(param=default)` — a named alias of another function with optional
     /// default-argument overrides. `modifications` is `(param_name, expr_string)` pairs.
@@ -104,7 +113,7 @@ impl fmt::Display for Ty {
                 }
                 f.write_str(")")
             }
-            Ty::Function { type_vars, inputs, output } => {
+            Ty::Function { type_vars, inputs, output, name: _ } => {
                 if !type_vars.is_empty() {
                     write!(f, "<{}>", type_vars.join(", "))?;
                 }
@@ -1081,7 +1090,7 @@ fn try_resolve(node: &NameNode<'_>, qname: &str, known: &ScopedKnown, aliases: &
     let module_prefix = qname.rsplit_once('.').map_or("", |(p, _)| p);
     match &node.kind {
         NodeKind::Class(c) if is_function_class(&c.restriction) => {
-            resolve_function_type(c, node, known, aliases, outer_type_vars, qname, wctx)
+            resolve_function_type(c, node, known, aliases, outer_type_vars, qname, wctx, /*nested_in_function=*/false)
         }
         NodeKind::Class(c) if matches!(c.restriction, Absyn::Restriction::R_UNIONTYPE) => {
             try_resolve_uniontype(node, qname)
@@ -1185,7 +1194,7 @@ fn resolve_function_from_base(
         1 => outputs.into_iter().next().unwrap(),
         _ => Ty::Tuple(outputs),
     };
-    Some(Ty::Function { type_vars: vec![], inputs, output: Box::new(output) })
+    Some(Ty::Function { type_vars: vec![], inputs, output: Box::new(output), name: None })
 }
 
 /// Resolve a function's type, threading `outer_type_vars` into nested partial functions.
@@ -1199,6 +1208,12 @@ fn resolve_function_type(
     outer_type_vars: &[String],
     fn_qname: &str,
     wctx: &mut WarnCtx<'_>,
+    // Set when this resolution is for a partial function nested directly inside
+    // another function (i.e. invoked via the recursive call below). Codegen
+    // currently does not emit those nested aliases — they're only resolvable
+    // structurally — so we must not tag the resulting `Ty::Function` with a
+    // name that points at a non-existent Rust type alias.
+    nested_in_function: bool,
 ) -> Option<Ty> {
     let module_prefix = fn_qname.rsplit_once('.').map_or("", |(p, _)| p);
     let mut type_vars = class_type_vars(c);
@@ -1241,7 +1256,7 @@ fn resolve_function_type(
     for (child_name, child_node) in &node.children {
         if let NodeKind::Class(fn_class) = &child_node.kind {
             if is_function_class(&fn_class.restriction) {
-                if let Some(fn_ty) = resolve_function_type(fn_class, child_node, known, aliases, &type_vars, &format!("{fn_qname}.{child_name}"), wctx) {
+                if let Some(fn_ty) = resolve_function_type(fn_class, child_node, known, aliases, &type_vars, &format!("{fn_qname}.{child_name}"), wctx, /*nested_in_function=*/true) {
                     local_fns.insert(child_name.clone(), fn_ty);
                 }
             }
@@ -1284,7 +1299,12 @@ fn resolve_function_type(
     };
     // Only report the type vars that belong to this function (not inherited outer ones).
     let own_type_vars = class_type_vars(c);
-    Some(Ty::Function { type_vars: own_type_vars, inputs, output: Box::new(output) })
+    // Tag with the declaration name only for `partial function` declarations.
+    // Those are the named function-type aliases consumers may refer to by name
+    // (e.g. `KeyEq eqFn;`); concrete functions don't need the name attached
+    // because their signature is not what gets referenced as a type.
+    let name = if c.partial_prefix && !nested_in_function { Some(fn_qname.to_owned()) } else { None };
+    Some(Ty::Function { type_vars: own_type_vars, inputs, output: Box::new(output), name })
 }
 
 /// Resolve a TypeSpec to a Ty.

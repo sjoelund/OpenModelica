@@ -728,7 +728,16 @@ fn emit_node<'a>(out: &mut String, name: &str, node: &NameNode<'_>, indent: &str
         return;
     }
     let NodeKind::Class(c) = &node.kind else { return };
-    if c.partial_prefix && c.restriction != Absyn::Restriction::R_PACKAGE {
+    // `partial` packages (`partial package Foo`) are still processed — their
+    // contents need to be emitted. Partial functions used to be skipped here,
+    // but they are now dispatched into `emit_function`, which detects
+    // `partial_prefix` and emits a Rust `type Foo<T> = fn(...) -> Result<...>`
+    // alias for them. Other partial classes (records, types, ...) have no
+    // useful Rust representation and are skipped.
+    if c.partial_prefix && !matches!(
+        &c.restriction,
+        Absyn::Restriction::R_PACKAGE | Absyn::Restriction::R_FUNCTION { .. },
+    ) {
         return;
     }
     use Absyn::Restriction::*;
@@ -1018,7 +1027,7 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
     // Use types from the resolved Ty::Function — those were computed by resolve_function_type
     // with the correct type_vars in scope, so type-variable parameters resolve correctly.
     // Child node .ty values are resolved without that context and may be Unknown for ArgT etc.
-    let Ty::Function { type_vars, inputs: fn_inputs, output: fn_output } = &node.ty else { return };
+    let Ty::Function { type_vars, inputs: fn_inputs, output: fn_output, .. } = &node.ty else { return };
 
     // `partial function` declarations are MetaModelica's way of naming a function
     // signature — they have no body and are used as a type for function-valued
@@ -5241,12 +5250,39 @@ fn fmt_ty(ty: &Ty, ctx: &mut GenCtx) -> String {
         Ty::Tuple(tys) => {
             format!("({})", tys.iter().map(|t| fmt_ty(t, ctx)).collect::<Vec<_>>().join(", "))
         }
-        Ty::Function { type_vars, inputs, output } => {
-            /*let tvs = if type_vars.is_empty() {
-                String::new()
-            } else {
-                format!("<{}>", type_vars.join(", "))
-            };*/ // The type variables are already included in the function type alias or item signature, so we don't need to repeat them here.
+        Ty::Function { type_vars: _, inputs, output, name } => {
+            // If this function type was introduced by a named `partial function`
+            // declaration, emit a reference to the Rust type alias rather than
+            // inlining the raw `fn(...) -> Result<...>` signature. The type
+            // arguments come from whatever TypeVars are present in the inputs
+            // and output after unification — at a use site like `eqFn: KeyEq`
+            // inside `uniontype UnorderedSet<T>` those TypeVars are still `T`,
+            // so we emit `KeyEq<T>`; after call-site unification they may be
+            // concrete types (e.g. `KeyEq<i32>`).
+            if let Some(qname) = name {
+                let short = ctx.shorten(qname);
+                let mut tvs: Vec<Ty> = Vec::new();
+                let mut seen: Vec<String> = Vec::new();
+                let mut push_unique = |t: &Ty, tvs: &mut Vec<Ty>, seen: &mut Vec<String>| {
+                    let mut here: Vec<String> = Vec::new();
+                    collect_type_vars_in_ty(t, &mut here);
+                    for v in here {
+                        if !seen.contains(&v) {
+                            seen.push(v.clone());
+                            tvs.push(Ty::TypeVar(v));
+                        }
+                    }
+                };
+                for inp in inputs.iter() {
+                    push_unique(&inp.ty, &mut tvs, &mut seen);
+                }
+                push_unique(output, &mut tvs, &mut seen);
+                if tvs.is_empty() {
+                    return short;
+                }
+                let args = tvs.iter().map(|t| fmt_ty(t, ctx)).collect::<Vec<_>>().join(", ");
+                return format!("{short}<{args}>");
+            }
             let ins = inputs.iter().map(|inp| fmt_ty(&inp.ty, ctx)).collect::<Vec<_>>().join(", ");
             format!("fn({ins}) -> Result<{}>", fmt_ty(output, ctx))
         }

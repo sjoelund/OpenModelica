@@ -2,7 +2,6 @@
 use std::sync::{Arc, Mutex};
 use anyhow::{Result, bail};
 use metamodelica::*; // Built-in types and functions
-use arcstr::{ArcStr, literal, format};
 
 // Mirrors the MetaModelica/C representation: `Mutable` corresponds to
 // `mmc_mk_box1(0, data)` (ctor 0, in-place updatable) and `Immutable`
@@ -35,6 +34,7 @@ pub fn create<T: Clone + PartialEq>(data: T) -> Result<Pointer<T>> {
     Ok(Pointer::Mutable(Arc::new(Mutex::new(data))))
 }
 
+#[allow(non_snake_case)]
 pub fn createImmutable<T: Clone + PartialEq>(data: T) -> Result<Pointer<T>> {
     Ok(Pointer::Immutable(Arc::new(data)))
 }
@@ -42,7 +42,7 @@ pub fn createImmutable<T: Clone + PartialEq>(data: T) -> Result<Pointer<T>> {
 pub fn update<T: Clone + PartialEq>(mutable: Pointer<T>, data: T) -> Result<()> {
     match mutable {
         Pointer::Mutable(cell) => {
-            let mut guard = cell.lock().unwrap();
+            let mut guard = cell.lock().expect("Pointer.update: mutex poisoned");
             *guard = data;
             Ok(())
         }

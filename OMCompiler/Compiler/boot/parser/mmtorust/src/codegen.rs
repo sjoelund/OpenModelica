@@ -39,6 +39,10 @@ enum QMode {
     Function,
     Filter,
     TryBlock(String),
+    /// Emit the call expression itself without any error-propagation wrapper,
+    /// returning the raw `Result<T, E>`. Used in `if let Ok(PAT) = CALL { … }`
+    /// conditions for the single-statement try optimisation.
+    Bare,
 }
 
 struct GenCtx {
@@ -181,6 +185,7 @@ impl GenCtx {
             // surfacing the panic is preferable to silently swallowing it.
             QMode::Filter => format!("{expr}.unwrap()"),
             QMode::TryBlock(label) => format!("unwrap_break_err!({expr}, {label})"),
+            QMode::Bare => expr.to_owned(),
         }
     }
 
@@ -3312,7 +3317,7 @@ fn record_field_tys_from_scrutinee_ctor<'a>(
 
 // ── Statement emission ────────────────────────────────────────────────────────
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 enum FailureMode {
     /// Top-level body: pattern mismatch / `fail()` becomes `bail!(...)` which
     /// returns Err from the enclosing function.
@@ -3323,6 +3328,10 @@ enum FailureMode {
     /// Inside `failure(...)` body — success of the body is itself a failure;
     /// bodies still emit normally, the inversion happens at the `Failure` site.
     Failure,
+    /// Single-statement try optimisation: emit `if let Ok(PAT) = CALL { body }
+    /// else { else_code }` instead of a labeled block. The contained string is
+    /// the already-emitted else-body (indented one level deeper than the `if`).
+    IfLetElse(String),
 }
 
 #[derive(Debug, Clone, Default)]
@@ -3701,8 +3710,15 @@ fn emit_pat_assign<'a>(
 ) {
     match pat {
         TypedPat::Wildcard => {
-            // Evaluate for side effects but discard.
-            writeln!(out, "{indent}let _ = {scrut_expr};").unwrap();
+            if let FailureMode::IfLetElse(else_code) = fail_mode {
+                writeln!(out, "{indent}if let Ok(_) = {scrut_expr} {{").unwrap();
+                writeln!(out, "{indent}}} else {{").unwrap();
+                out.push_str(else_code.as_str());
+                writeln!(out, "{indent}}}").unwrap();
+            } else {
+                // Evaluate for side effects but discard.
+                writeln!(out, "{indent}let _ = {scrut_expr};").unwrap();
+            }
         }
         TypedPat::Var(name) => {
             let (actual_ty, actual_expr) = if let Ty::Tuple(tys) = scrut_ty {
@@ -3711,7 +3727,18 @@ fn emit_pat_assign<'a>(
                 (scrut_ty.clone(), scrut_expr.to_string())
             };
             env.vars.insert(name.clone(), actual_ty);
-            writeln!(out, "{indent}let {} = {actual_expr};", escape_ident(name)).unwrap();
+            if let FailureMode::IfLetElse(else_code) = fail_mode {
+                let n = *fresh; *fresh += 1;
+                let tmp = format!("__iflet{n}");
+                let inner = format!("{indent}    ");
+                writeln!(out, "{indent}if let Ok({tmp}) = {actual_expr} {{").unwrap();
+                writeln!(out, "{inner}{} = {tmp};", escape_ident(name)).unwrap();
+                writeln!(out, "{indent}}} else {{").unwrap();
+                out.push_str(else_code.as_str());
+                writeln!(out, "{indent}}}").unwrap();
+            } else {
+                writeln!(out, "{indent}let {} = {actual_expr};", escape_ident(name)).unwrap();
+            }
         }
         _ => {
             // MetaModelica permits a pattern-let to *reassign* names that are
@@ -3744,6 +3771,27 @@ fn emit_pat_assign<'a>(
             } else {
                 format!("({scrut_expr})")
             };
+            // Helper: emit deferrals then reassign-pairs at a given indent level.
+            // Deferrals must run before reassigns (a deferral may produce a
+            // `let __paN = (*__tM).clone();` binding that a reassign then copies).
+            macro_rules! emit_body {
+                ($out:expr, $ind:expr, $fm:expr) => {
+                    for (sub_expr, sub_pat, sub_ty) in deferrals {
+                        emit_pat_assign($out, $ind, &sub_pat, &sub_ty, &sub_expr, $fm, ctx, env, top_level, fresh);
+                    }
+                    for (orig, fresh_name) in &reassign_pairs {
+                        let orig_ty = env.vars.get(orig).cloned().unwrap_or(Ty::Unknown);
+                        let arc_shaped = matches!(&orig_ty, Ty::List(_)) || is_arc_wrapped(&orig_ty, ctx);
+                        let needs_clone = needs_borrow || arc_shaped;
+                        if needs_clone {
+                            writeln!($out, "{}{} = {}.clone();", $ind, escape_ident(orig), escape_ident(fresh_name)).unwrap();
+                        } else {
+                            writeln!($out, "{}{} = {};", $ind, escape_ident(orig), escape_ident(fresh_name)).unwrap();
+                        }
+                    }
+                };
+            }
+
             if pat_is_irrefutable(pat_for_render) {
                 match pat_for_render {
                     TypedPat::Tuple(_) => {
@@ -3757,6 +3805,17 @@ fn emit_pat_assign<'a>(
                         }
                     }
                 }
+                emit_body!(out, indent, fail_mode.clone());
+            } else if let FailureMode::IfLetElse(else_code) = fail_mode {
+                // Single-statement try optimisation: emit
+                //   if let Ok(PAT) = CALL { body } else { else_code }
+                // `scrut_expr` is already the raw Result (emitted in Bare mode).
+                let inner = format!("{indent}    ");
+                writeln!(out, "{indent}if let Ok({surface}) = {scrut_expr} {{").unwrap();
+                emit_body!(out, inner.as_str(), FailureMode::Function);
+                writeln!(out, "{indent}}} else {{").unwrap();
+                out.push_str(else_code.as_str());
+                writeln!(out, "{indent}}}").unwrap();
             } else {
                 // For a let-else inside a try-body lowered to a labeled block,
                 // we must exit the *block* with `Err(_)`, not `bail!` out of the
@@ -3773,38 +3832,10 @@ fn emit_pat_assign<'a>(
                         _ => "bail!(\"pattern mismatch\")",
                     },
                     FailureMode::Failure => "()",
+                    FailureMode::IfLetElse(_) => unreachable!(),
                 };
                 writeln!(out, "{indent}let {surface} = {scrut_for_pat} else {{ {fail} }};").unwrap();
-            }
-            // Deferrals must run *before* the reassign loop: a deferral may
-            // produce a `let __paN = (*__tM).clone();` binding for one of the
-            // fresh names that the reassign loop then copies back into the
-            // user's variable (e.g. `rest_e2 = __pa1;`).
-            for (sub_expr, sub_pat, sub_ty) in deferrals {
-                emit_pat_assign(out, indent, &sub_pat, &sub_ty, &sub_expr, fail_mode, ctx, env, top_level, fresh);
-            }
-            for (orig, fresh_name) in &reassign_pairs {
-                // Whether the reassign needs `.clone()` depends on how
-                // `fresh_name` is bound:
-                //
-                //   - If the surrounding let-else borrowed the scrutinee
-                //     (`needs_borrow == true`, e.g. an Arc<List<T>> scrutinee
-                //     destructured via `deref_patterns`), every binding inside
-                //     the pattern is a shared reference and reading it must
-                //     go through `.clone()`.
-                //   - Otherwise the binding is an owned by-value move. Cloning
-                //     would still be correct, but for non-Arc types it may be
-                //     an expensive deep copy. Skip it for value types and only
-                //     keep it for Arc-shaped originals (list / recursive
-                //     types) where it's just a refcount bump.
-                let orig_ty = env.vars.get(orig).cloned().unwrap_or(Ty::Unknown);
-                let arc_shaped = matches!(&orig_ty, Ty::List(_)) || is_arc_wrapped(&orig_ty, ctx);
-                let needs_clone = needs_borrow || arc_shaped;
-                if needs_clone {
-                    writeln!(out, "{indent}{} = {}.clone();", escape_ident(orig), escape_ident(fresh_name)).unwrap();
-                } else {
-                    writeln!(out, "{indent}{} = {};", escape_ident(orig), escape_ident(fresh_name)).unwrap();
-                }
+                emit_body!(out, indent, fail_mode.clone());
             }
         }
     }
@@ -4162,7 +4193,7 @@ fn emit_stmts<'a>(
                 continue;
             }
         }
-        emit_stmt(out, indent, &stmts[i], fail_mode, ctx, env, top_level, fresh);
+        emit_stmt(out, indent, &stmts[i], fail_mode.clone(), ctx, env, top_level, fresh);
         i += 1;
     }
 }
@@ -4832,11 +4863,11 @@ fn emit_stmt<'a>(
         S::If { cond, then_, elseif, else_ } => {
             let c = emit_exp(cond, false, ctx, top_level);
             writeln!(out, "{indent}if {c} {{").unwrap();
-            emit_stmts(out, &format!("{indent}    "), then_, fail_mode, ctx, env, top_level, fresh);
+            emit_stmts(out, &format!("{indent}    "), then_, fail_mode.clone(), ctx, env, top_level, fresh);
             for (ec, eb) in elseif {
                 let cs = emit_exp(ec, false, ctx, top_level);
                 writeln!(out, "{indent}}} else if {cs} {{").unwrap();
-                emit_stmts(out, &format!("{indent}    "), eb, fail_mode, ctx, env, top_level, fresh);
+                emit_stmts(out, &format!("{indent}    "), eb, fail_mode.clone(), ctx, env, top_level, fresh);
             }
             if !else_.is_empty() {
                 writeln!(out, "{indent}}} else {{").unwrap();
@@ -4873,6 +4904,30 @@ fn emit_stmt<'a>(
             writeln!(out, "{indent}}}").unwrap();
         }
         S::Try { body, else_body } => {
+            // ── Single-statement fast path ──────────────────────────────────
+            // When the body is exactly one `PAT := CALL` assignment and the
+            // else-branch always diverges, emit a concise `if let Ok(PAT) =
+            // CALL { body } else { else }` without any labeled block.
+            // `CALL` is emitted in `QMode::Bare` so it yields the raw
+            // `Result<T, E>`; the `if let Ok(…)` handles the matching.
+            // Because the else diverges, Rust's flow analysis proves that any
+            // variable assigned in the then-branch is definitely initialised
+            // after the statement — no tuple-yield machinery needed.
+            if body.len() == 1 && matches!(stmts_flow(else_body), FlowResult::Diverges) {
+                if let typedexp::TypedStmt::Assign { lhs, rhs } = &body[0] {
+                    let scrut_ty = rhs.ty();
+                    let scrut_expr = ctx.with_qmode(QMode::Bare, |ctx| {
+                        emit_exp(rhs, /*is_const=*/false, ctx, top_level)
+                    });
+                    let mut else_str = String::new();
+                    let mut eenv = env.clone();
+                    emit_stmts(&mut else_str, &format!("{indent}    "), else_body, fail_mode, ctx, &mut eenv, top_level, fresh);
+                    emit_pat_assign(out, indent, lhs, &scrut_ty, &scrut_expr,
+                        FailureMode::IfLetElse(else_str), ctx, env, top_level, fresh);
+                    return;
+                }
+            }
+
             // Lower `try body else else_body end try;` to a labeled Rust block
             // rather than an IIFE. The IIFE form (`(|| -> Result<_> { .. })()`)
             // cannot use `let mut x: T;` declared in the surrounding statement

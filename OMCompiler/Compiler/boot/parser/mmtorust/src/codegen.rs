@@ -1934,11 +1934,7 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
         },
         "print" => {
             let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
-            Ok(format!("metamodelica::printAny(&{arg})"))
-        },
-        "printError" => {
-            let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
-            Ok(format!("metamodelica::printAny(&{arg})"))
+            Ok(format!("println!(\"{}\", {arg})"))
         },
         "arrayGet" | "arrayGetNoBoundsChecking" => {
             // `arr` is `metamodelica::Array<T>` = `Rc<RefCell<Vec<T>>>`.

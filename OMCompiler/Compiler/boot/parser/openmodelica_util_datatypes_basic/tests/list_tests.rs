@@ -235,13 +235,14 @@ fn test_compare_length() -> Result<()> {
 // ── ConsN ──
 #[test]
 fn test_cons_n() -> Result<()> {
-    let result = L::consN(42i32, 3)?;
+    // consN(size, element, list)
+    let result = L::consN(3, 42i32, nil())?;
     assert_eq!(result, list![42i32, 42, 42]);
     Ok(())
 }
 #[test]
 fn test_cons_n_zero() -> Result<()> {
-    let result = L::consN(42i32, 0)?;
+    let result = L::consN(0, 42i32, nil())?;
     assert!(result.is_empty());
     Ok(())
 }
@@ -249,13 +250,14 @@ fn test_cons_n_zero() -> Result<()> {
 // ── ConsOnTrue ──
 #[test]
 fn test_cons_on_true_true() -> Result<()> {
-    let result = L::consOnTrue(1i32, true)?;
+    // consOnTrue(condition, element, list)
+    let result = L::consOnTrue(true, 1i32, nil())?;
     assert_eq!(result, list![1i32]);
     Ok(())
 }
 #[test]
 fn test_cons_on_true_false() -> Result<()> {
-    let result = L::consOnTrue(1i32, false)?;
+    let result = L::consOnTrue(false, 1i32, nil())?;
     assert!(result.is_empty());
     Ok(())
 }
@@ -263,13 +265,14 @@ fn test_cons_on_true_false() -> Result<()> {
 // ── ConsOption ──
 #[test]
 fn test_cons_option_some() -> Result<()> {
-    let result = L::consOption(Some(1i32))?;
+    // consOption(element, list)
+    let result = L::consOption(Some(1i32), nil())?;
     assert_eq!(result, list![1i32]);
     Ok(())
 }
 #[test]
 fn test_cons_option_none() -> Result<()> {
-    let result = L::consOption(Option::<i32>::None)?;
+    let result = L::consOption(Option::<i32>::None, nil())?;
     assert!(result.is_empty());
     Ok(())
 }
@@ -277,8 +280,9 @@ fn test_cons_option_none() -> Result<()> {
 // ── Consr ──
 #[test]
 fn test_consr() -> Result<()> {
+    // consr(list, element)
     let lst = list![2i32, 3];
-    let result = L::consr(1i32, Arc::clone(&lst))?;
+    let result = L::consr(Arc::clone(&lst), 1i32)?;
     assert_eq!(result, list![1i32, 2, 3]);
     Ok(())
 }
@@ -286,14 +290,15 @@ fn test_consr() -> Result<()> {
 // ── Contains ──
 #[test]
 fn test_contains_true() -> Result<()> {
+    // contains(list, elem, eqFunc)
     let lst = list![1i32, 2, 3];
-    assert!(L::contains(Arc::clone(&lst), 2)?);
+    assert!(L::contains(Arc::clone(&lst), 2, eq_i)?);
     Ok(())
 }
 #[test]
 fn test_contains_false() -> Result<()> {
     let lst = list![1i32, 2, 3];
-    assert!(!L::contains(Arc::clone(&lst), 4)?);
+    assert!(!L::contains(Arc::clone(&lst), 4, eq_i)?);
     Ok(())
 }
 
@@ -309,7 +314,7 @@ fn test_count() -> Result<()> {
 #[test]
 fn test_counting_sort() -> Result<()> {
     let lst = list![3i32, 1, 4, 1, 5, 9, 2, 6];
-    let result = L::countingSort(Arc::clone(&lst))?;
+    let result = L::countingSort(Arc::clone(&lst), 9)?;
     assert_eq!(result, list![1i32, 1, 2, 3, 4, 5, 6, 9]);
     Ok(())
 }
@@ -317,8 +322,9 @@ fn test_counting_sort() -> Result<()> {
 // ── Create ──
 #[test]
 fn test_create() -> Result<()> {
-    let result = L::create(5, 0i32)?;
-    assert_eq!(result, list![0i32, 0, 0, 0, 0]);
+    // create(element) - creates single element list
+    let result = L::create(0i32)?;
+    assert_eq!(result, list![0i32]);
     Ok(())
 }
 

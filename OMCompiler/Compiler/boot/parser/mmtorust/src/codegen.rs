@@ -111,6 +111,16 @@ struct GenCtx {
     /// scope. The keys are MetaModelica variable names (pre-escape); values
     /// are `(enum_qname, variant_simple_name)`.
     variants: HashMap<String, (String, String)>,
+    /// Fully-qualified names of user-defined functions classified as
+    /// *fallible* by [`crate::fallibility::analyze`]. Functions absent from
+    /// this set are infallible: their Rust signature drops `Result<>` and
+    /// their call sites omit `?` (or the surrounding [`QMode`] equivalent).
+    fallible_functions: BTreeSet<String>,
+    /// Fallibility of the function currently being emitted. Set at the start
+    /// of [`emit_function`] and consulted by the return-statement emitter and
+    /// by the implicit-return tail in [`emit_function`] to decide whether to
+    /// wrap output tuples in `Ok(...)`.
+    current_fn_fallible: bool,
     /// Rust binding shape for variables in `variants`. Determines the deref
     /// form emitted around `var_field!` scrutinee:
     ///   `Owned` — plain `T` enum value (`var_field!(v.f, V::X)`).
@@ -138,7 +148,7 @@ enum VarShape {
 }
 
 impl GenCtx {
-    fn new(top_name: &str, current_crate: Option<String>, crate_map: BTreeMap<String, String>, top_level_uniontype_names: HashSet<String>, recursive_types: BTreeSet<String>, types_containing_mutable: BTreeSet<String>, fn_type_vars: BTreeMap<String, Vec<String>>) -> Self {
+    fn new(top_name: &str, current_crate: Option<String>, crate_map: BTreeMap<String, String>, top_level_uniontype_names: HashSet<String>, recursive_types: BTreeSet<String>, types_containing_mutable: BTreeSet<String>, fn_type_vars: BTreeMap<String, Vec<String>>, fallible_functions: BTreeSet<String>) -> Self {
         Self {
             top_name: top_name.to_owned(),
             current_path: Vec::new(),
@@ -158,7 +168,59 @@ impl GenCtx {
             fn_outputs: Vec::new(),
             variants: HashMap::new(),
             variant_shapes: HashMap::new(),
+            fallible_functions,
+            current_fn_fallible: true,
         }
+    }
+
+    /// True when `qname` is a known *user-defined* function whose generated
+    /// Rust signature returns `Result<T>` (i.e. is fallible per the
+    /// fallibility analysis). Returns `false` for infallible user functions.
+    ///
+    /// Note: this is the membership test for [`Self::fallible_functions`].
+    /// Builtins are NOT in that set (the analysis stores only user-defined
+    /// functions); call-site decisions for builtins are handled separately
+    /// because every builtin still returns `Result<T>` in its current Rust
+    /// signature regardless of its semantic fallibility classification.
+    fn is_fallible_user_fn(&self, qname: &str) -> bool {
+        self.fallible_functions.contains(qname)
+    }
+
+    /// True when `qname` is a *known user-defined function* (present in the
+    /// hierarchy as a function) that has been classified infallible.  This is
+    /// strictly stronger than `!is_fallible_user_fn`: an unknown name (e.g.
+    /// builtin, callback parameter, unresolved import) is *not* considered
+    /// infallible by this predicate, which is the right answer for call-site
+    /// decisions ("should I drop the `?`?") — we only drop `?` when we have
+    /// positive evidence the callee returns a non-`Result` value.
+    fn is_known_infallible_user_fn<'a>(&self, qname: &str, top_level: &BTreeMap<String, NameNode<'a>>) -> bool {
+        if self.fallible_functions.contains(qname) {
+            return false;
+        }
+        // Confirm `qname` actually denotes a user-defined function node
+        // (R_FUNCTION). Anything else — record constructor, type alias,
+        // builtin — has its own emission logic and must not be re-classified
+        // here based on absence-from-the-fallible-set alone.
+        let Some(node) = lookup_node(qname, top_level) else { return false };
+        let NodeKind::Class(c) = &node.kind else { return false };
+        if !matches!(c.restriction, Absyn::Restriction::R_FUNCTION { .. }) {
+            return false;
+        }
+        // `partial function` declarations are *type aliases* for callback
+        // signatures; they have no body and their referenced function values
+        // are always fallible-shaped at the type level. The classification
+        // doesn't apply to them as a *callee*.
+        if c.partial_prefix {
+            return false;
+        }
+        // `function Foo = Bar(...)` aliases are re-exports; their effective
+        // fallibility comes from `Bar`. The fallibility analysis records the
+        // alias under its own qname, so the membership check above is the
+        // authoritative answer — but we still require the alias to denote a
+        // real function (not an unresolved name). FunctionAlias node.ty would
+        // be the cleaner signal; we don't have it cheaply here, so we accept
+        // any non-partial R_FUNCTION as known.
+        true
     }
 
     /// Produce the `#[derive(...)]` attribute appropriate for the type identified
@@ -179,6 +241,14 @@ impl GenCtx {
     /// an expression of type `T` in the surrounding context.
     fn q(&self, expr: &str) -> String {
         match &self.qmode {
+            // `?` only works in a function body that returns `Result`. When the
+            // surrounding function is infallible we still call into builtins
+            // whose Rust signature returns `Result<T>` (the builtin layer has
+            // not yet been switched away from `Result`); the fallibility
+            // analysis only marks the enclosing function infallible when every
+            // such call is known to never produce `Err`, so `.unwrap()` is
+            // safe and surfaces as a panic if the analysis is ever wrong.
+            QMode::Function if !self.current_fn_fallible => format!("{expr}.unwrap()"),
             QMode::Function => format!("{expr}?"),
             // `Iterator::filter` requires a plain `bool` predicate; we cannot
             // propagate via `?`. The reductions we generate this for invoke
@@ -565,7 +635,7 @@ pub fn generate_all(hier: &InstanceHierarchy<'_>, output_dir: &str) -> std::io::
             eprintln!("[mmtorust] codegen start {file_path}");
         }
         let file_t0 = std::time::Instant::now();
-        let content = generate_file(name, node, &crate_map, current_crate, &top_level_uniontype_names, hier.recursive_types.clone(), hier.types_containing_mutable.clone(), &no_mod_uniontypes, &hier.top_level, &fn_type_vars);
+        let content = generate_file(name, node, &crate_map, current_crate, &top_level_uniontype_names, hier.recursive_types.clone(), hier.types_containing_mutable.clone(), &no_mod_uniontypes, &hier.top_level, &fn_type_vars, &hier.fallible_functions);
         let file_elapsed = file_t0.elapsed();
         if trace_codegen {
             eprintln!("[mmtorust] codegen done  {file_path} ({:.2}s)", file_elapsed.as_secs_f64());
@@ -652,8 +722,8 @@ fn collect_no_mod_uniontypes(nodes: &BTreeMap<String, NameNode<'_>>, prefix: &st
     }
 }
 
-fn generate_file<'a>(top_name: &str, node: &NameNode<'_>, crate_map: &BTreeMap<String, String>, current_crate: Option<String>, top_level_uniontype_names: &HashSet<String>, recursive_types: BTreeSet<String>, types_containing_mutable: BTreeSet<String>, no_mod_uniontypes: &HashSet<String>, top_level: &'a BTreeMap<String, NameNode<'a>>, fn_type_vars: &BTreeMap<String, Vec<String>>) -> String {
-    let mut ctx = GenCtx::new(top_name, current_crate, crate_map.clone(), top_level_uniontype_names.clone(), recursive_types, types_containing_mutable, fn_type_vars.clone());
+fn generate_file<'a>(top_name: &str, node: &NameNode<'_>, crate_map: &BTreeMap<String, String>, current_crate: Option<String>, top_level_uniontype_names: &HashSet<String>, recursive_types: BTreeSet<String>, types_containing_mutable: BTreeSet<String>, no_mod_uniontypes: &HashSet<String>, top_level: &'a BTreeMap<String, NameNode<'a>>, fn_type_vars: &BTreeMap<String, Vec<String>>, fallible_functions: &BTreeSet<String>) -> String {
+    let mut ctx = GenCtx::new(top_name, current_crate, crate_map.clone(), top_level_uniontype_names.clone(), recursive_types, types_containing_mutable, fn_type_vars.clone(), fallible_functions.clone());
     ctx.no_mod_uniontypes = no_mod_uniontypes.clone();
     collect_imports(node, &mut ctx, top_level);
 
@@ -1079,6 +1149,19 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
 
     let pub_kw = if node.visibility == MM::Visibility::Public { "pub " } else { "" };
 
+    // Determine this function's fallibility. The fallibility analysis records
+    // *fallible* user functions by fully-qualified MM name; absence means
+    // infallible. The FQN we construct here must match the convention used by
+    // `fallibility::collect_functions` (dot-separated, top package first).
+    let fn_qname = if ctx.current_path.is_empty() {
+        format!("{}.{}", ctx.top_name, name)
+    } else {
+        format!("{}.{}.{}", ctx.top_name, ctx.current_path.join("."), name)
+    };
+    let saved_fn_fallible = ctx.current_fn_fallible;
+    ctx.current_fn_fallible = ctx.fallible_functions.contains(&fn_qname);
+    let is_fallible_fn = ctx.current_fn_fallible;
+
     // Walk components to find outputs (with names) and protected locals.
     let mut outputs: Vec<(String, Ty, Option<Absyn::Modification>, bool)> = Vec::new();
     let mut protected: Vec<(String, Ty, Option<Absyn::Modification>, bool)> = Vec::new();
@@ -1140,7 +1223,15 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
     ctx.fn_env_vars = env.vars.clone();
     ctx.fn_outputs = env.outputs.clone();
 
-    writeln!(out, "{indent}{pub_kw}fn {ename}{type_params}({params}) -> Result<{ret_ty}> {{").unwrap();
+    // Infallible functions drop the `Result<>` wrapper — the surrounding code
+    // can then call them without `?` and use the value directly. Fallible
+    // functions keep `Result<T>`, which propagates anyhow errors via `?`.
+    let sig_ret = if is_fallible_fn {
+        format!("Result<{ret_ty}>")
+    } else {
+        ret_ty.clone()
+    };
+    writeln!(out, "{indent}{pub_kw}fn {ename}{type_params}({params}) -> {sig_ret} {{").unwrap();
     let body_indent = format!("{indent}    ");
 
     for (n, t, modif, is_const_local) in outputs.iter().chain(protected.iter()) {
@@ -1172,19 +1263,38 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
         _ => emit_stmts(out, &body_indent, &typed_stmts, FailureMode::Function, ctx, &mut env, top_level, &mut fresh)
     };
 
-    match outputs.len() {
-        0 => writeln!(out, "{body_indent}Ok(())").unwrap(),
-        1 => writeln!(out, "{body_indent}Ok({})", escape_ident(&outputs[0].0)).unwrap(),
+    // Tail expression. For fallible functions we wrap in `Ok(...)`; infallible
+    // functions yield the raw value (or unit).
+    let tail_val: String = match outputs.len() {
+        0 => "()".to_owned(),
+        1 => escape_ident(&outputs[0].0),
         _ => {
             let parts: Vec<String> = outputs.iter().map(|(n, _, _, _)| escape_ident(n)).collect();
-            writeln!(out, "{body_indent}Ok(({}))", parts.join(", ")).unwrap();
+            format!("({})", parts.join(", "))
         }
+    };
+    if is_fallible_fn {
+        writeln!(out, "{body_indent}Ok({tail_val})").unwrap();
+    } else {
+        writeln!(out, "{body_indent}{tail_val}").unwrap();
     }
     writeln!(out, "{indent}}}").unwrap();
     writeln!(out).unwrap();
+    ctx.current_fn_fallible = saved_fn_fallible;
 }
 
 // ── Expression and pattern emission ──────────────────────────────────────────
+
+/// True when `ty` references any `Ty::TypeVar` — directly or through a
+/// container/Generic/Function shape. Used by [`fnptr!`] emission to decide
+/// whether the closure parameter type can be spelled at the caller (concrete
+/// types) or must be left as `_` for inference (type vars from the callee's
+/// scope that are not in scope here).
+fn ty_mentions_typevar(ty: &Ty) -> bool {
+    let mut tvs = Vec::new();
+    crate::hierarchy::collect_type_vars_in_ty(ty, &mut tvs);
+    !tvs.is_empty()
+}
 
 fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) -> String {
     match exp {
@@ -1198,7 +1308,79 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
 
         TypedExp::Var { name, segments, ty, .. } => {
             let var_str = emit_var(name, segments, ty, ctx, top_level);
-            match ty {
+            // typedexp::infer_exp only consults the *first* segment when typing
+            // a dotted CREF (see `Absyn::Exp::CREF` arm), so a path like
+            // `Util.tuple21` carries `ty = Ty::Unknown` even though the path
+            // resolves to a function in the hierarchy. Promote those references
+            // here by re-resolving the full dotted name; this lets the
+            // `Ty::Function` arm below pick up the infallible fnptr! wrapping
+            // and avoids the spurious `.clone()` fallthrough that would
+            // otherwise treat a function path like a value.
+            //
+            // We only attempt the promotion when the inferred ty is Unknown
+            // and the source has dotted form (segments give us the path).
+            // Anything that already inferred to a concrete ty (record value,
+            // local var, etc.) is left alone.
+            let promoted_ty: Option<Ty> = if matches!(ty, Ty::Unknown) && !segments.is_empty() {
+                let dotted: String = segments.iter().map(|s| s.name.clone()).collect::<Vec<_>>().join(".");
+                resolve_call_qname(&dotted, ctx, top_level)
+                    .and_then(|q| lookup_node(&q, top_level).map(|n| n.ty.clone()))
+                    .filter(|t| matches!(t, Ty::Function { .. } | Ty::FunctionAlias { .. }))
+            } else {
+                None
+            };
+            let effective_ty: &Ty = promoted_ty.as_ref().unwrap_or(ty);
+
+            // Try to resolve this reference to a fully-qualified function name
+            // in the hierarchy. `Ty::Function::name` is only populated for
+            // `partial function` declarations (callback signature aliases), so
+            // for *concrete* function references we have to derive the FQN
+            // from the variable's path. We use the dotted segments first; if
+            // empty, fall back to the local name resolved against the
+            // surrounding scope (mirrors what `emit_var` does for bare names).
+            let resolved_fn_qname: Option<String> = match effective_ty {
+                Ty::Function { .. } | Ty::FunctionAlias { .. } => {
+                    let lookup_name: String = if !segments.is_empty() {
+                        segments.iter().map(|s| s.name.clone()).collect::<Vec<_>>().join(".")
+                    } else {
+                        name.clone()
+                    };
+                    resolve_call_qname(&lookup_name, ctx, top_level)
+                }
+                _ => None,
+            };
+
+            let infallible_ref = resolved_fn_qname
+                .as_deref()
+                .map(|q| ctx.is_known_infallible_user_fn(q, top_level))
+                .unwrap_or(false);
+
+            match effective_ty {
+                // Infallible concrete function used as a value. Wrap with
+                // `fnptr!(path, ArgTy1, …)` so the closure satisfies the
+                // surrounding `fn(...) -> Result<T>` slot (see the macro doc
+                // in `metamodelica::fnptr!`).
+                Ty::Function { inputs, .. } if infallible_ref => {
+                    // The closure synthesized by `fnptr!` annotates each
+                    // parameter with its declared type. Concrete types are
+                    // emitted as-is; type variables from the function's own
+                    // signature (e.g. `T1`, `T2` on a generic `tuple21`) are
+                    // *not* in scope at the caller, so we emit `_` for any
+                    // input type that mentions a type variable and let Rust
+                    // infer it from the surrounding higher-order context.
+                    let input_tys: Vec<String> = inputs.iter().map(|i| {
+                        if ty_mentions_typevar(&i.ty) {
+                            "_".to_owned()
+                        } else {
+                            fmt_ty(&i.ty, ctx)
+                        }
+                    }).collect();
+                    if input_tys.is_empty() {
+                        format!("fnptr!({var_str})")
+                    } else {
+                        format!("fnptr!({}, {})", var_str, input_tys.join(", "))
+                    }
+                }
                 // Anonymous function types resolve to `impl Fn(...)` in
                 // parameter position (see `fmt_param_ty`). `impl Fn` is not
                 // `Copy`, so passing the variable by value moves it; once
@@ -1207,12 +1389,21 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                 // loop or to multiple helper calls). Pass it by reference
                 // instead — `&F: Fn` when `F: Fn`, so receivers that also
                 // declare `impl Fn(...)` accept the borrow transparently.
-                Ty::Function { name: None, .. } => format!("&{var_str}"),
+                //
+                // The `&` is only correct for *callback parameters* whose
+                // type is genuinely anonymous (no resolved FQN). Concrete
+                // function references — which we just resolved into
+                // `resolved_fn_qname` — are `fn` items (zero-sized, `Copy`)
+                // and should be passed by value, just like the named
+                // `partial function` aliases below.
+                Ty::Function { name: None, .. } if resolved_fn_qname.is_none() =>
+                    format!("&{var_str}"),
                 // Named `partial function` aliases (e.g. `KeyEq`) lower to a
                 // concrete `fn(...)` pointer — that *is* `Copy`, so the move
                 // hazard above doesn't apply and we keep emitting the bare
                 // identifier. `Ty::FunctionAlias` (re-export aliases) is the
-                // same case.
+                // same case. Concrete function references (resolved through
+                // the hierarchy above) follow the same path.
                 Ty::Function { .. } | Ty::FunctionAlias { .. } => var_str,
                 _ => format!("{var_str}.clone()"),
             }
@@ -1407,14 +1598,32 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
             }
             let mut call = format!("{func_str}({})", parts.join(", "));
 
-            // Add `?` to propagate Result errors from fallible calls. Skip in const
-            // context, for constructors (uppercase first char), and for known-infallible
-            // note that infallible builtins still return a Result because they can be used as function pointers.
-            //  In order to skip the error checking here, it needs to have a special case handling the function above
+            // Decide whether to attach the `?`/q-wrapping. A call expression in
+            // the generated Rust returns:
+            //   * `T`         — if the callee is an *infallible user function*
+            //                   (its Rust signature was generated without
+            //                   `Result<>` by `emit_function`).
+            //   * `Result<T>` — otherwise (builtins still uniformly return
+            //                   `Result`; fallible user functions return
+            //                   `Result`).
+            //
+            // We can only resolve "infallible user function" from the dotted
+            // name through the hierarchy (builtins are not in the hierarchy
+            // and never qualify). Const contexts produce constant expressions
+            // and never wrap.
             if is_const {
                 call
             } else {
-                ctx.q(&call)
+                let callee_qname = resolve_call_qname(func, ctx, top_level);
+                let infallible_user = callee_qname
+                    .as_deref()
+                    .map(|q| ctx.is_known_infallible_user_fn(q, top_level))
+                    .unwrap_or(false);
+                if infallible_user {
+                    call
+                } else {
+                    ctx.q(&call)
+                }
             }
         }
 
@@ -1703,7 +1912,22 @@ fn emit_parteval<'a>(
 
     let params_list = closure_params.join(", ");
     let call_expr = format!("{func_str}({})", call_arg_exprs.join(", "));
-    let closure = format!("move |{params_list}| {call_expr}");
+    // The closure escapes into a function-pointer slot whose signature is
+    // `... -> Result<T>`. When the inner function is *infallible* (its Rust
+    // signature returns `T`), the closure body produces `T` and we have to
+    // re-wrap it in `Ok(...)` to satisfy the slot. The fallible case yields a
+    // `Result<T>` from the call directly and needs no extra wrapping.
+    let callee_qname = resolve_call_qname(func, ctx, top_level);
+    let inner_infallible = callee_qname
+        .as_deref()
+        .map(|q| ctx.is_known_infallible_user_fn(q, top_level))
+        .unwrap_or(false);
+    let body_expr = if inner_infallible {
+        format!("Ok({call_expr})")
+    } else {
+        call_expr
+    };
+    let closure = format!("move |{params_list}| {body_expr}");
 
     if captures.is_empty() {
         closure
@@ -5296,16 +5520,21 @@ fn emit_stmt<'a>(
             writeln!(out, "{indent}}}.is_ok() {{ bail!(\"failure(): body succeeded\") }}").unwrap();
         }
         S::Return => {
-            // Expand `return;` into the same Ok(...) shape that emit_function produces
-            // at the end of the function body, so the early-exit path returns the
-            // current values of the output components.
-            match env.outputs.len() {
-                0 => writeln!(out, "{indent}return Ok(());").unwrap(),
-                1 => writeln!(out, "{indent}return Ok({});", escape_ident(&env.outputs[0])).unwrap(),
+            // Expand `return;` into the same shape that emit_function produces
+            // at the tail: `Ok(tuple)` when the enclosing function is fallible,
+            // bare `tuple` otherwise.
+            let tail: String = match env.outputs.len() {
+                0 => "()".to_owned(),
+                1 => escape_ident(&env.outputs[0]),
                 _ => {
                     let parts: Vec<String> = env.outputs.iter().map(|n| escape_ident(n)).collect();
-                    writeln!(out, "{indent}return Ok(({}));", parts.join(", ")).unwrap();
+                    format!("({})", parts.join(", "))
                 }
+            };
+            if ctx.current_fn_fallible {
+                writeln!(out, "{indent}return Ok({tail});").unwrap();
+            } else {
+                writeln!(out, "{indent}return {tail};").unwrap();
             }
         }
         S::Break    => writeln!(out, "{indent}break;").unwrap(),

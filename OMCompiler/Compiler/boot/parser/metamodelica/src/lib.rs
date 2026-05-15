@@ -39,6 +39,27 @@ pub type Array<A> = Rc<RefCell<Vec<A>>>;
 // SourceInfo - Location information for elements and classes
 // ============================================================================
 
+/// MetaModelica's `sourceInfo()` built-in: returns a `SourceInfo` populated from
+/// the *compiler* call-site, not from any runtime value. We mirror that here by
+/// using `file!()` / `line!()` / `column!()`, which the Rust compiler expands at
+/// macro-invocation site — exactly the semantics MetaModelica gives `sourceInfo()`.
+///
+/// Codegen emits `sourceInfo!()` for the no-arg MetaModelica builtin call.
+#[macro_export]
+macro_rules! sourceInfo {
+    () => {
+        $crate::SourceInfo {
+            fileName: ::arcstr::ArcStr::from(file!()),
+            isReadOnly: false,
+            lineNumberStart: line!() as i32,
+            columnNumberStart: column!() as i32,
+            lineNumberEnd: line!() as i32,
+            columnNumberEnd: column!() as i32,
+            lastModification: 0.0,
+        }
+    };
+}
+
 /// The Info attribute provides location information for elements and classes.
 /// Mapped from the SOURCEINFO record in MetaModelicaBuiltin.mo.
 #[derive(Debug, Clone, PartialEq)]

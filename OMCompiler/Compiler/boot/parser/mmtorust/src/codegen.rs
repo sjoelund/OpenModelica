@@ -1238,7 +1238,7 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
             let func_str = escape_ident(func_str);
             let formals = resolve_call_formals(func, ctx, top_level);
             let parts: Vec<String> = if let Some(formals) = formals {
-                let has_defaults = formals.iter().any(|(_, d)| d.is_some());
+                let has_defaults = formals.iter().any(|(_, _, d)| d.is_some());
                 if has_defaults {
                 let mut slots: Vec<Option<TypedExp>> = vec![None; formals.len()];
                 let mut failed = false;
@@ -1253,7 +1253,7 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
 
                 if !failed {
                     for (n, v) in named_args {
-                        let Some(idx) = formals.iter().position(|(fname, _)| fname == n) else {
+                        let Some(idx) = formals.iter().position(|(fname, _, _)| fname == n) else {
                             failed = true;
                             break;
                         };
@@ -1270,7 +1270,7 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                         if slots[i].is_some() {
                             continue;
                         }
-                        if let Some(default_tpl) = formals[i].1.clone() {
+                        if let Some(default_tpl) = formals[i].2.clone() {
                             let mut bindings: HashMap<String, TypedExp> = HashMap::new();
                             for (j, slot) in slots.iter().enumerate() {
                                 if let Some(e) = slot {
@@ -1292,21 +1292,29 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                 }
 
                 if failed {
-                    let mut parts: Vec<String> = args.iter().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).collect();
+                    let mut parts: Vec<String> = args.iter().enumerate().map(|(i, a)| {
+                        emit_call_arg_with_formal(a, formals.get(i).map(|f| &f.1), is_const, ctx, top_level)
+                    }).collect();
                     for (n, v) in named_args {
-                        let v = emit_cloned_call_arg(v, is_const, ctx, top_level);
+                        let formal_ty = formals.iter().find_map(|(fname, fty, _)| if fname == n { Some(fty) } else { None });
+                        let v = emit_call_arg_with_formal(v, formal_ty, is_const, ctx, top_level);
                         parts.push(format!("{n}={v}"));
                     }
                     parts
                 } else {
-                    slots.into_iter()
-                        .map(|s| emit_cloned_call_arg(&s.unwrap(), is_const, ctx, top_level))
+                    slots.into_iter().enumerate()
+                        .map(|(i, s)| {
+                            emit_call_arg_with_formal(&s.unwrap(), formals.get(i).map(|f| &f.1), is_const, ctx, top_level)
+                        })
                         .collect()
                 }
                 } else {
-                    let mut parts: Vec<String> = args.iter().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).collect();
+                    let mut parts: Vec<String> = args.iter().enumerate().map(|(i, a)| {
+                        emit_call_arg_with_formal(a, formals.get(i).map(|f| &f.1), is_const, ctx, top_level)
+                    }).collect();
                     for (n, v) in named_args {
-                        let v = emit_cloned_call_arg(v, is_const, ctx, top_level);
+                        let formal_ty = formals.iter().find_map(|(fname, fty, _)| if fname == n { Some(fty) } else { None });
+                        let v = emit_call_arg_with_formal(v, formal_ty, is_const, ctx, top_level);
                         parts.push(format!("{n}={v}"));
                     }
                     parts
@@ -1643,13 +1651,26 @@ fn emit_reduction<'a>(
             )
         }
         "sum" => {
-            let ty_s = numeric_sum_ty(&body_ty);
-            let zero = if ty_s == "f64" { "0.0" } else { "0" };
-            (
-                format!("let mut __acc: {ty_s} = {zero};"),
-                "__acc += __x;".to_owned(),
-                "__acc".to_owned(),
-            )
+            // MetaModelica's `sum` is overloaded: numeric addition for Integer/Real,
+            // string concatenation for String. We discriminate on the body type so
+            // a sum-of-strings builds an ArcStr via a String buffer (matching the
+            // pattern used elsewhere in this file for string concatenation), rather
+            // than falling back to numeric addition with the wrong accumulator type.
+            if matches!(body_ty, Ty::Str) {
+                (
+                    "let mut __acc = String::new();".to_owned(),
+                    "__acc.push_str(&__x);".to_owned(),
+                    "ArcStr::from(__acc)".to_owned(),
+                )
+            } else {
+                let ty_s = numeric_sum_ty(&body_ty);
+                let zero = if ty_s == "f64" { "0.0" } else { "0" };
+                (
+                    format!("let mut __acc: {ty_s} = {zero};"),
+                    "__acc += __x;".to_owned(),
+                    "__acc".to_owned(),
+                )
+            }
         }
         "product" => {
             let ty_s = numeric_sum_ty(&body_ty);
@@ -1691,7 +1712,7 @@ fn emit_reduction<'a>(
             let formals = resolve_call_formals(func, ctx, top_level);
             let default_expr: Option<String> = formals
                 .as_ref()
-                .and_then(|fs| fs.iter().rev().find_map(|(_, d)| d.clone()))
+                .and_then(|fs| fs.iter().rev().find_map(|(_, _, d)| d.clone()))
                 .map(|tpl| emit_exp(&tpl, is_const, ctx, top_level));
             match default_expr {
                 Some(seed) => {
@@ -1836,6 +1857,15 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
         }
         "NONE" => Ok("None".to_owned()),
         "fail" => if is_const { Ok("{ panic!(\"fail\") }".to_owned()) } else { Ok("bail!(\"fail\")".to_owned()) },
+        "sourceInfo" if args.is_empty() => {
+            // MetaModelica's `sourceInfo()` returns a SourceInfo populated from the
+            // *compiler* call-site — i.e. the location in the .mo source. We emit
+            // the `sourceInfo!()` macro, which uses Rust's `file!()`/`line!()` to
+            // capture the Rust call-site (i.e. the generated .rs file). For a
+            // bootstrap that's the closest equivalent: the Rust file lines map
+            // 1:1 to the original MetaModelica statements.
+            Ok("metamodelica::sourceInfo!()".to_owned())
+        }
         "list" => {
             if args.is_empty() {
                 Ok("metamodelica::nil()".to_owned())
@@ -2333,6 +2363,37 @@ fn emit_cloned_call_arg<'a>(arg: &TypedExp, is_const: bool, ctx: &mut GenCtx, to
     if is_const { arg_str } else { maybe_clone_string_value(arg_str, &arg.ty()) }
 }
 
+/// MetaModelica implicitly extracts the first element of a tuple-returning call
+/// when it is used in a single-value context (e.g. as an argument whose formal
+/// expects a non-tuple type). We mirror that here by wrapping the emitted call
+/// in `.0` when (and only when) the actual argument's static type is a tuple
+/// but the formal expects a non-tuple. The check is conservative: if the formal
+/// type is itself a tuple (or unknown), we leave the expression alone so we
+/// don't break legitimate tuple-passing.
+fn emit_call_arg_with_formal<'a>(
+    arg: &TypedExp,
+    formal_ty: Option<&Ty>,
+    is_const: bool,
+    ctx: &mut GenCtx,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+) -> String {
+    let needs_first = matches!(arg.ty(), Ty::Tuple(_))
+        && matches!(formal_ty, Some(t) if !matches!(t, Ty::Tuple(_) | Ty::Unknown));
+    if !needs_first {
+        return emit_cloned_call_arg(arg, is_const, ctx, top_level);
+    }
+    // Emit the call (with `?` propagation already attached by emit_exp via ctx.q),
+    // wrap in parens so `.0` binds to the whole call result, then re-apply the
+    // clone-for-string heuristic against the *first element's* type.
+    let raw = emit_exp(arg, is_const, ctx, top_level);
+    let first_ty = match arg.ty() {
+        Ty::Tuple(elems) => elems.into_iter().next().unwrap_or(Ty::Unknown),
+        _ => Ty::Unknown,
+    };
+    let extracted = format!("({raw}).0");
+    if is_const { extracted } else { maybe_clone_string_value(extracted, &first_ty) }
+}
+
 /// Resolve a function name as written at a call site to a fully-qualified dotted
 /// name in the hierarchy.
 fn resolve_call_qname<'a>(
@@ -2420,11 +2481,18 @@ fn resolve_call_qname<'a>(
 /// Return function formals in declaration order with typed default expressions,
 /// if any. Defaults are inferred in the callee scope so names/types match the
 /// callee's declaration context.
+/// Each entry is (formal name, formal type, optional default-value expression).
+/// The `Ty` lets call-site codegen perform implicit conversions that depend on
+/// the formal's expected shape (currently: extracting the first element when a
+/// tuple-returning call is passed where a non-tuple value is expected — see
+/// `maybe_implicit_first_tuple_elem`).
+pub type CallFormal = (String, Ty, Option<TypedExp>);
+
 fn resolve_call_formals<'a>(
     func: &str,
     ctx: &GenCtx,
     top_level: &'a BTreeMap<String, NameNode<'a>>,
-) -> Option<Vec<(String, Option<TypedExp>)>> {
+) -> Option<Vec<CallFormal>> {
     let qname = resolve_call_qname(func, ctx, top_level)?;
     let node = lookup_node(&qname, top_level)?;
     let NodeKind::Class(c) = &node.kind else { return None };
@@ -2439,7 +2507,7 @@ fn resolve_call_formals<'a>(
     };
 
     let mut infer_env: HashMap<String, Ty> = HashMap::new();
-    let mut out: Vec<(String, Option<TypedExp>)> = Vec::new();
+    let mut out: Vec<CallFormal> = Vec::new();
 
     for member in members {
         let MM::ClassMember::Component(m) = member else { continue };
@@ -2454,7 +2522,7 @@ fn resolve_call_formals<'a>(
         collect_type_vars_in_ty(&node.ty, &mut fn_type_vars);
         let default = extract_default_exp(&m.modification)
             .map(|exp| typedexp::infer_exp(exp, &infer_env, top_level, &module_prefix, &fn_type_vars));
-        out.push((m.name.clone(), default));
+        out.push((m.name.clone(), ty.clone(), default));
         infer_env.insert(m.name.clone(), ty);
     }
 
@@ -2481,12 +2549,12 @@ fn resolve_call_formals<'a>(
             let default = extract_default_exp(&m.modification)
                 .map(|exp| typedexp::infer_exp(exp, &base_infer_env, top_level, &module_prefix, &fn_type_vars));
 
-            if let Some(idx) = out.iter().position(|(name, _)| name == &m.name) {
-                if out[idx].1.is_none() {
-                    out[idx].1 = default;
+            if let Some(idx) = out.iter().position(|(name, _, _)| name == &m.name) {
+                if out[idx].2.is_none() {
+                    out[idx].2 = default;
                 }
             } else {
-                out.push((m.name.clone(), default));
+                out.push((m.name.clone(), ty.clone(), default));
             }
             base_infer_env.insert(m.name.clone(), ty);
         }
@@ -2495,7 +2563,7 @@ fn resolve_call_formals<'a>(
     if out.is_empty() {
         // Fallback: use resolved function type inputs when AST members are unavailable.
         if let Ty::Function { inputs, .. } = &node.ty {
-            return Some(inputs.iter().map(|inp| (inp.name.clone(), None)).collect());
+            return Some(inputs.iter().map(|inp| (inp.name.clone(), inp.ty.clone(), None)).collect());
         }
         return None;
     }
@@ -3064,6 +3132,24 @@ fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, mu
                     }
                     if let Some((canonical, _)) = lookup_record_through_unions(name, top_level) {
                         return record_field_tys(&canonical, top_level);
+                    }
+                    // The scrutinee's type tells us the enclosing uniontype, which lets
+                    // us recover the record's field layout when neither direct lookup
+                    // nor the bottom-up uniontype walk succeeds — e.g. when `name`
+                    // resolves only through an import alias and the simple-name pass
+                    // would otherwise miss it.
+                    if let Some(ty) = scrut_ty {
+                        let simple = name.rsplit_once('.').map_or(name.as_str(), |(_, s)| s);
+                        if let Some(from_scrut) = record_field_tys_from_scrutinee_ctor(simple, ty, top_level) {
+                            return Some(from_scrut);
+                        }
+                    }
+                    // Last resort: search by simple name. Better than emitting a TODO
+                    // for a record we just couldn't find by qualified path.
+                    let simple = name.rsplit_once('.').map_or(name.as_str(), |(_, s)| s);
+                    let by_simple = record_field_tys_by_simple_name(simple, top_level);
+                    if !by_simple.is_empty() {
+                        return Some(by_simple);
                     }
                     return None;
                 }
@@ -3898,15 +3984,33 @@ fn render_shallow<'a>(
                     }
                 }
             }
-            let field_tys: Vec<(String, Ty)> = resolved_qname
+            // Resolve the record's field list, walking through enclosing uniontypes
+            // when the qualified name (e.g. "Flags.FLAGS") isn't a direct node — the
+            // canonical path is typically "Flags.Flag.FLAGS" via the Flag uniontype.
+            let mut field_tys: Vec<(String, Ty)> = resolved_qname
                 .as_deref()
                 .and_then(|q| record_field_tys(q, top_level))
                 .unwrap_or_default();
-            let field_tys = if resolved_qname.is_none() && !name.contains('.') {
-                record_field_tys_by_simple_name(name, top_level)
-            } else {
-                field_tys
-            };
+            if field_tys.is_empty() {
+                if let Some(q) = resolved_qname.as_deref() {
+                    if let Some((canonical, _)) = lookup_record_through_unions(q, top_level) {
+                        if let Some(tys) = record_field_tys(&canonical, top_level) {
+                            field_tys = tys;
+                            resolved_qname = Some(canonical);
+                        }
+                    }
+                }
+            }
+            if field_tys.is_empty() {
+                // Last-resort search by simple name (handles cases where neither the
+                // dotted path nor the uniontype walk yields a hit, e.g. records
+                // reachable only via an import alias).
+                let simple = name.rsplit_once('.').map_or(name.as_str(), |(_, s)| s);
+                let by_simple = record_field_tys_by_simple_name(simple, top_level);
+                if !by_simple.is_empty() {
+                    field_tys = by_simple;
+                }
+            }
             let rust_ctor_raw = if name.contains('.') { ctx.shorten(name) } else { normalize_builtin_ctor_name(name) };
             let rust_ctor = escape_ident(&rust_ctor_raw);
 

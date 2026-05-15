@@ -1087,19 +1087,8 @@ pub fn arrayAppend<A: Clone>(arr1: Array<A>, arr2: Array<A>) -> Result<Array<A>>
 
 /// Returns the string representation of any Debug-printable value.
 /// Rather slow; only use this for debugging!
-pub fn anyString<A: std::fmt::Debug>(a: &A) -> Result<ArcStr> {
+pub fn anyString<A: std::fmt::Debug>(a: A) -> Result<ArcStr> {
     Ok(format!("{:?}", a))
-}
-
-/// Prints any Debug-printable value to stderr.
-pub fn printAny<A: std::fmt::Debug>(a: &A) {
-    eprintln!("{:?}", a);
-}
-
-/// Prints a debug string prefix followed by any Debug-printable value to stderr.
-/// For RML compatibility.
-pub fn debug_print<A: std::fmt::Debug>(str: String, a: &A) {
-    eprintln!("{}: {:?}", str, a);
 }
 
 thread_local! {

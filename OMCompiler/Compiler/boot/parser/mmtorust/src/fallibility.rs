@@ -169,6 +169,69 @@ pub fn builtin_fallibility(name: &str) -> Option<Fallibility> {
         | "listReverseInPlace" => Infallible,
         "listSetRest" | "listSetFirst" => Fallible,
 
+        // ── Modelica language built-ins ──────────────────────────────────────
+        // Declared as `external "C" name(...)` in
+        // `OMCompiler/Compiler/FrontEnd/ModelicaBuiltin.mo` (and friends), but
+        // they are NOT calls into the OpenModelica C runtime — the compiler
+        // implements them directly (math intrinsics, array constructors,
+        // signal operators). Classifying them here short-circuits the
+        // [`crate::external_c_calls`] lookup so they don't need an entry in
+        // that runtime-symbol registry.
+
+        // Pure mathematical functions — total over the input domain. Some
+        // (sqrt for negative input, log for non-positive) yield NaN/-inf at
+        // runtime rather than raising, so they remain infallible.
+        "sin" | "cos" | "tan"
+        | "sinh" | "cosh" | "tanh"
+        | "asin" | "acos" | "atan" | "atan2"
+        | "exp" | "log" | "log10"
+        | "sqrt" | "ceil" | "floor"
+        | "sign" | "integer"
+        | "abs" | "mod" | "div" | "rem" => Infallible,
+
+        // Array constructors / reshape / projections.
+        "ones" | "zeros" | "fill" | "identity" | "diagonal"
+        | "vector" | "matrix" | "scalar" | "array"
+        | "transpose" | "symmetric" | "skew"
+        | "cross" | "outerProduct" | "linspace" => Infallible,
+
+        // Reductions over arrays.
+        "sum" | "product" | "min" | "max" => Infallible,
+
+        // Continuous- / discrete-signal operators. Semantically these read
+        // from solver state; they cannot fail at the language level.
+        "pre" | "previous" | "der" | "edge" | "change"
+        | "sample" | "hold" | "noEvent" | "smooth"
+        | "semiLinear" | "reinit" | "delay"
+        | "initial" | "terminal" => Infallible,
+
+        // Synchronous (clocked) operators.
+        "subSample" | "superSample" | "shiftSample" | "backSample"
+        | "noClock" | "transition" | "ticksInState" | "timeInState"
+        | "inStream" | "actualStream" | "getInstanceName"
+        | "activeState" | "initialState" => Infallible,
+
+        // Array shape / introspection.
+        "size" | "ndims" => Infallible,
+
+        // `cat(dim, A1, A2, ...)` concatenates arrays along dimension `dim`.
+        // `classDirectory()` returns the source-file directory at the call
+        // site — purely a compile-time query lowered to a constant.
+        "cat" | "classDirectory" => Infallible,
+
+        // Miscellaneous: connector cardinality, homotopy continuation,
+        // distributed-parameter PDE primitive, pure-function marker.
+        "cardinality" | "homotopy" | "spatialDistribution"
+        | "promote" | "pure" => Infallible,
+
+        // ── Failure-raising Modelica builtins ────────────────────────────────
+        // `assert` throws when its condition is false; `terminate` ends the
+        // simulation. Both propagate failure to the surrounding function.
+        "assert" | "terminate" => Fallible,
+
+        // ── I/O — `print` writes to stdout and never fails at this level. ──
+        "print" => Infallible,
+
         _ => return None,
     })
 }
@@ -269,15 +332,21 @@ impl Walk {
                 self.record_call(&cref_to_dotted(functionCall));
                 self.scan_function_args(functionArgs);
             }
-            Absyn::Algorithm::ALG_FAILURE { equ } => {
-                // The body's failures are *caught* by `failure(...)`, so calls
-                // inside it should not propagate fallibility upward. This first
-                // iteration over-approximates by scanning the body anyway; a
-                // future refinement will track a catch-depth counter.
-                for it in &**equ { self.scan_algorithm_item(it); }
+            Absyn::Algorithm::ALG_FAILURE { equ: _ } => {
+                // `failure(body)` *succeeds* iff `body` fails, which means it
+                // *throws* whenever the body succeeds — so the construct
+                // itself is unconditionally fallible from the enclosing
+                // function's point of view. We do NOT need to inspect the
+                // body: regardless of what it does, the failure clause can
+                // raise the failure that escapes upward.
+                self.has_fail = true;
             }
-            Absyn::Algorithm::ALG_TRY { body, elseBody } => {
-                for it in &**body { self.scan_algorithm_item(it); }
+            Absyn::Algorithm::ALG_TRY { body: _, elseBody } => {
+                // `try BODY else ELSE end try;` catches a failure raised by
+                // BODY and runs ELSE instead. The only paths that can
+                // propagate a failure *out* of the try clause are failures
+                // inside ELSE (BODY's failures are caught and so do not
+                // contribute to the enclosing function's fallibility).
                 for it in &**elseBody { self.scan_algorithm_item(it); }
             }
             Absyn::Algorithm::ALG_RETURN
@@ -417,48 +486,13 @@ fn cref_to_dotted(cref: &Absyn::ComponentRef) -> String {
 /// Pick the external C symbol used by an `external "C" ...` declaration.
 ///
 /// Modelica allows omitting the explicit funcName, in which case the enclosing
-/// MM function's name is used as the C symbol.
-///
-/// **mmwinnow parser limitation**: today the parser does not actually parse
-/// the external declaration; it stores the raw token stream as the debug
-/// formatting of a `Vec<Token>` in `funcName`. We work around that here by
-/// scanning for the first `Ident("...")` after the language-tag `Str("C")`.
-/// When the parser is upgraded to extract the C name properly, this hack
-/// becomes a one-line read of `funcName`.
+/// MM function's name is the C symbol — see the Modelica spec, §12.9.1.3.
 fn external_symbol_name(decl: &Absyn::ExternalDecl, fallback_fn_name: &str) -> String {
     let Absyn::ExternalDecl::EXTERNALDECL { funcName, .. } = decl;
-    let raw = match funcName.as_ref() {
-        Some(n) if !n.is_empty() => n.as_str(),
-        _ => return fallback_fn_name.to_owned(),
-    };
-
-    // The token stream looks like one of:
-    //   [Str("C"), Ident("Name"), LParen, ...]       — explicit C name
-    //   [Str("C"), LParen, ...]                      — name defaults to MM fn
-    //   [Ident("Name"), LParen, ...]                 — language tag omitted
-    //   [LParen, ...]                                — both omitted
-    // Find the first `Ident("...")` token *before* the first `LParen` — that
-    // is the explicit C function name. Anything after `LParen` is an argument.
-    if let Some(lparen_pos) = raw.find("LParen") {
-        let head = &raw[..lparen_pos];
-        if let Some(name) = first_ident_in(head) {
-            return name;
-        }
-    } else if let Some(name) = first_ident_in(raw) {
-        return name;
+    match funcName.as_ref() {
+        Some(n) if !n.is_empty() => n.to_string(),
+        _ => fallback_fn_name.to_owned(),
     }
-    fallback_fn_name.to_owned()
-}
-
-/// Pull the contents of the first `Ident("...")` debug-formatted token out of
-/// `s`. Returns `None` if no such token is present. Helper for the parser
-/// workaround in [`external_symbol_name`].
-fn first_ident_in(s: &str) -> Option<String> {
-    let key = "Ident(\"";
-    let start = s.find(key)? + key.len();
-    let rest = &s[start..];
-    let end = rest.find('"')?;
-    Some(rest[..end].to_owned())
 }
 
 /// Walk the hierarchy and collect every R_FUNCTION class together with its
@@ -521,13 +555,25 @@ pub fn analyze(hier: &InstanceHierarchy<'_>) -> FallibilityInfo {
     let mut fallible: BTreeSet<String> = BTreeSet::new();
 
     // Seed: every function whose immediate features (external/fail/match)
-    // make it locally fallible. Externals consult the strict registry —
-    // missing entries will panic with a pointer to where to add them.
+    // make it locally fallible.
+    //
+    // For functions with an `external` clause, look up the classification in
+    // priority order:
+    //   1. The MM-side bare name in [`builtin_fallibility`] — this is where
+    //      Modelica language built-ins (`sin`, `cos`, `assert`, the array
+    //      constructors, the signal operators, …) live. They are declared
+    //      with `external "C"` in `ModelicaBuiltin.mo` but the compiler
+    //      implements them directly; they are NOT calls into the OpenModelica
+    //      C runtime, so they must not consult [`external_c_calls`].
+    //   2. The C symbol in [`external_c_calls`] — the strict registry of
+    //      genuine `OMCompiler/Compiler/runtime/*.c` symbols. Panics on
+    //      unlisted entries (unless `MMTORUST_LENIENT_EXTERNALS=1`).
     for (qname, w) in &walks {
         let local = if let Some(c_name) = &w.external {
-            // STRICT: panic if not listed. The panic carries the MM-side
-            // qualified name so the entry can be added precisely.
-            matches!(external_c_calls::lookup_or_panic(c_name, qname), Fallibility::Fallible)
+            let simple = qname.rsplit_once('.').map(|(_, s)| s).unwrap_or(qname.as_str());
+            let f = builtin_fallibility(simple)
+                .unwrap_or_else(|| external_c_calls::lookup_or_panic(c_name, qname));
+            matches!(f, Fallibility::Fallible)
         } else {
             w.has_fail || w.has_match
         };

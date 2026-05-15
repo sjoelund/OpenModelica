@@ -136,7 +136,23 @@ pub enum ClassBodyItem {
     Algorithms(Arc<List<AlgorithmItem>>),
     InitialAlgorithms(Arc<List<AlgorithmItem>>),
     Constraints,
-    External { funcName: Option<ArcStr>, annotation_opt: Option<Absyn::Annotation> },
+    External {
+        /// Language tag from the `external "C"` clause (Modelica allows "C"
+        /// and "FORTRAN 77"; OpenModelica only uses "C"). Absent for the bare
+        /// `external` marker form.
+        lang: Option<ArcStr>,
+        /// Explicit C symbol name when the clause spells one out as
+        /// `external "C" funcName(...)`; absent when the C name defaults to
+        /// the enclosing MetaModelica function's name (the common case).
+        funcName: Option<ArcStr>,
+        /// Optional `output = ...` binding (`external "C" out = foo(...)`):
+        /// the wrapped function returns through this component instead of
+        /// through a Modelica `output` declaration position.
+        output_: Option<Absyn::ComponentRef>,
+        /// Positional argument expressions passed to the C function.
+        args: Arc<List<Arc<Absyn::Exp>>>,
+        annotation_opt: Option<Absyn::Annotation>,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -239,9 +255,12 @@ fn body_items_to_classparts(items: Arc<List<ClassBodyItem>>) -> Arc<List<ClassPa
             ClassBodyItem::Algorithms(items)       => ClassPart::ALGORITHMS       { contents: items.clone() },
             ClassBodyItem::InitialAlgorithms(items)=> ClassPart::INITIALALGORITHMS{ contents: items.clone() },
             ClassBodyItem::Constraints             => ClassPart::CONSTRAINTS      { contents: Arc::new(List::Nil) },
-            ClassBodyItem::External { funcName, annotation_opt } => ClassPart::EXTERNAL {
+            ClassBodyItem::External { lang, funcName, output_, args, annotation_opt } => ClassPart::EXTERNAL {
                 externalDecl: ExternalDecl::EXTERNALDECL {
-                    funcName: funcName.clone(), lang: None, output_: None, args: Arc::new(List::Nil),
+                    funcName: funcName.clone(),
+                    lang: lang.clone(),
+                    output_: output_.clone(),
+                    args: args.clone(),
                     annotation_: annotation_opt.clone(),
                 },
                 annotation_: None,
@@ -1104,21 +1123,93 @@ fn extends_clause(input: &mut TokenInput) -> ModalResult<ExtendsClause> {
     Ok(ExtendsClause { path, modification, annotation_opt })
 }
 
+/// Parse an `external` clause according to the Modelica spec:
+///
+/// ```text
+/// external_clause      ::= "external" [ language_specification ]
+///                                     [ external_function_call ]
+///                                     [ annotation ] ";"
+/// language_specification ::= STRING                              // e.g. "C"
+/// external_function_call ::= [ component_reference "=" ]
+///                            IDENT "(" [ expression_list ] ")"
+/// ```
+///
+/// All sub-parts are optional individually — `external;` is a legal bare
+/// marker, and `external annotation(...);` skips both the language tag and
+/// the function call. We commit to one possible shape with `opt` per part so
+/// the grammar stays close to the spec and unusual but legal combinations
+/// (`external "C"  ;`) are accepted without bespoke special cases.
 fn external_part(input: &mut TokenInput) -> ModalResult<ClassBodyItem> {
     if !matches!(peek_kind(input), Some(TK::External)) {
         return Err(ErrMode::Backtrack(ContextError::default()));
     }
     next_tok(input)?; // consume 'external'
-    // Consume tokens until the terminating ';'.
-    let mut parts = Vec::new();
-    loop {
-        match peek_kind(input) {
-            None | Some(TK::Semi) => break,
-            _ => { parts.push(next_tok(input)?); }
+
+    // 1. Optional language specification — a quoted string literal.
+    let lang = opt(t_str_token).parse_next(input)?;
+
+    // 2. Optional external function call:
+    //      [ component_reference "=" ] IDENT "(" expression_list? ")"
+    //
+    // The `[component_reference "="]` prefix is rare (most externals omit it)
+    // but legal — Modelica allows binding the C return value into a named
+    // output component when the wrapping function's declared output is the
+    // same component. We need a checkpoint-and-backtrack here because the
+    // first identifier could be either the output component (followed by
+    // `=`) or the function name (followed by `(`).
+    let mut output_: Option<Absyn::ComponentRef> = None;
+    let mut func_name: Option<ArcStr> = None;
+    let mut args: Arc<List<Arc<Absyn::Exp>>> = nil();
+
+    // The function-call body is only present when the next token is an
+    // identifier; otherwise we are looking at `annotation` or `;`.
+    if matches!(peek_kind(input), Some(TK::Ident(_))) {
+        let checkpoint = input.checkpoint();
+        // Try `component_reference "="` prefix first.
+        let with_output = (|| -> ModalResult<(Absyn::ComponentRef, ArcStr)> {
+            let cref = component_reference(input)?;
+            t(TK::Equal).parse_next(input)?;
+            let name = t_any_ident(input)?;
+            Ok((cref, name))
+        })();
+        match with_output {
+            Ok((cref, name)) => {
+                output_ = Some(cref);
+                func_name = Some(name);
+            }
+            Err(_) => {
+                // No `=`; this identifier IS the function name.
+                input.reset(&checkpoint);
+                func_name = Some(t_any_ident(input)?);
+            }
+        }
+
+        // Argument list. Required by the grammar once a function name is
+        // present, but we accept the bare-identifier form gracefully — a few
+        // MetaModelicaBuiltin entries declare e.g. `external "C" foo;`.
+        if opt(t(TK::LParen)).parse_next(input)?.is_some() {
+            let fa = function_arguments(input)?;
+            t(TK::RParen).parse_next(input)?;
+            // Only the positional-arg form is valid here — named arguments
+            // and for-iterators are nonsense in an external binding. Drop
+            // anything that isn't FUNCTIONARGS.args.
+            if let Absyn::FunctionArgs::FUNCTIONARGS { args: a, .. } = fa {
+                args = a;
+            }
         }
     }
+
+    // 3. Optional annotation, then mandatory `;`.
+    let annotation_opt = opt(annotation).parse_next(input)?;
     t(TK::Semi).parse_next(input)?;
-    Ok(ClassBodyItem::External { funcName: Some(arcstr::format!("{parts:?}")), annotation_opt: None })
+
+    Ok(ClassBodyItem::External {
+        lang,
+        funcName: func_name,
+        output_,
+        args,
+        annotation_opt,
+    })
 }
 
 // ---------------------------------------------------------------------------

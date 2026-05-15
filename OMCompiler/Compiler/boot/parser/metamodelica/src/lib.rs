@@ -39,6 +39,79 @@ pub type Array<A> = Rc<RefCell<Vec<A>>>;
 // SourceInfo - Location information for elements and classes
 // ============================================================================
 
+/// Wrap an infallible function value so it satisfies a function-pointer type
+/// whose signature expects `Result<T>`.
+///
+/// MetaModelica function-typed parameters are uniformly lowered to
+/// `fn(...) -> Result<T>` so that the same callback site can accept both
+/// failing and non-failing callees. Codegen tracks which functions are
+/// fallible (see `mmtorust::fallibility`); when an *infallible* function `f`
+/// is passed by reference into a position that wants
+/// `fn(A, B, ...) -> Result<T>`, codegen wraps it with `fnptr!(f)` so the
+/// shapes line up without forcing every infallible function to materialise
+/// a `Result`.
+///
+/// The macro is variadic in its argument list. Example expansions:
+///
+///   `fnptr!(g, A, B)`   →   `|a: A, b: B| -> Result<_> { Ok(g(a, b)) }`
+///   `fnptr!(h, A)`      →   `|a: A| -> Result<_> { Ok(h(a)) }`
+///   `fnptr!(noargs)`    →   `|| -> Result<_> { Ok(noargs()) }`
+///
+/// The closure does not capture by reference — the wrapped function is a
+/// path expression (a function name or `Module::f`), which is already a
+/// zero-sized `fn` item with no environment to capture.
+///
+/// **Note on cost**: the closure boxes nothing and the `Ok(..)` wrap is
+/// trivially inlined by the optimiser. The point of the wrapper is purely
+/// type-level; the runtime cost is the moral equivalent of `unwrap_unchecked`
+/// in the reverse direction.
+#[macro_export]
+macro_rules! fnptr {
+    // Zero-argument form.
+    ($f:path) => {
+        || -> ::anyhow::Result<_> { ::std::result::Result::Ok($f()) }
+    };
+    // 1+ argument form. The argument *types* must be supplied at the call
+    // site so the closure's signature is unambiguous to the type system
+    // (function pointers don't auto-infer parameter types).
+    ($f:path $(, $t:ty)+ $(,)?) => {{
+        // Generate fresh idents `__a0, __a1, …` for each type slot so the
+        // macro stays type-driven (no second list of argument names needed
+        // from the caller). The implementation expands one closure
+        // parameter per `$t` via the `${index()}` builtin if available, but
+        // we fall back to a hand-written tuple form for stability across
+        // Rust versions: we accept up to 8 type arguments — enough for all
+        // call sites we generate today — and the user gets a clear macro
+        // error otherwise.
+        $crate::__fnptr_dispatch!($f $(, $t)+)
+    }};
+}
+
+/// Internal helper for [`fnptr!`]: dispatches on arity (1..=8) without
+/// requiring the unstable `${index()}` builtin. Each arm just spells out the
+/// closure parameter names; adding more arms is mechanical if a generated
+/// call site ever needs >8 arguments.
+#[macro_export]
+#[doc(hidden)]
+macro_rules! __fnptr_dispatch {
+    ($f:path, $t1:ty) =>
+        { |a1: $t1| -> ::anyhow::Result<_> { ::std::result::Result::Ok($f(a1)) } };
+    ($f:path, $t1:ty, $t2:ty) =>
+        { |a1: $t1, a2: $t2| -> ::anyhow::Result<_> { ::std::result::Result::Ok($f(a1, a2)) } };
+    ($f:path, $t1:ty, $t2:ty, $t3:ty) =>
+        { |a1: $t1, a2: $t2, a3: $t3| -> ::anyhow::Result<_> { ::std::result::Result::Ok($f(a1, a2, a3)) } };
+    ($f:path, $t1:ty, $t2:ty, $t3:ty, $t4:ty) =>
+        { |a1: $t1, a2: $t2, a3: $t3, a4: $t4| -> ::anyhow::Result<_> { ::std::result::Result::Ok($f(a1, a2, a3, a4)) } };
+    ($f:path, $t1:ty, $t2:ty, $t3:ty, $t4:ty, $t5:ty) =>
+        { |a1: $t1, a2: $t2, a3: $t3, a4: $t4, a5: $t5| -> ::anyhow::Result<_> { ::std::result::Result::Ok($f(a1, a2, a3, a4, a5)) } };
+    ($f:path, $t1:ty, $t2:ty, $t3:ty, $t4:ty, $t5:ty, $t6:ty) =>
+        { |a1: $t1, a2: $t2, a3: $t3, a4: $t4, a5: $t5, a6: $t6| -> ::anyhow::Result<_> { ::std::result::Result::Ok($f(a1, a2, a3, a4, a5, a6)) } };
+    ($f:path, $t1:ty, $t2:ty, $t3:ty, $t4:ty, $t5:ty, $t6:ty, $t7:ty) =>
+        { |a1: $t1, a2: $t2, a3: $t3, a4: $t4, a5: $t5, a6: $t6, a7: $t7| -> ::anyhow::Result<_> { ::std::result::Result::Ok($f(a1, a2, a3, a4, a5, a6, a7)) } };
+    ($f:path, $t1:ty, $t2:ty, $t3:ty, $t4:ty, $t5:ty, $t6:ty, $t7:ty, $t8:ty) =>
+        { |a1: $t1, a2: $t2, a3: $t3, a4: $t4, a5: $t5, a6: $t6, a7: $t7, a8: $t8| -> ::anyhow::Result<_> { ::std::result::Result::Ok($f(a1, a2, a3, a4, a5, a6, a7, a8)) } };
+}
+
 /// MetaModelica's `sourceInfo()` built-in: returns a `SourceInfo` populated from
 /// the *compiler* call-site, not from any runtime value. We mirror that here by
 /// using `file!()` / `line!()` / `column!()`, which the Rust compiler expands at

@@ -63,47 +63,572 @@ fn registry() -> &'static BTreeMap<&'static str, Fallibility> {
         use Fallibility::*;
         let mut m: BTreeMap<&'static str, Fallibility> = BTreeMap::new();
 
-        // ── ErrorExt — error/diagnostic infrastructure ────────────────────────
-        // These manipulate the message stack; none of them throw on their own.
-        // Source: OMCompiler/Compiler/runtime/errorext.cpp (no MMC_THROW).
+        // ── ASSCEXT.cpp ────────────────────────────────────────────────────
+        // Adjugate-style matrix store: pure data setters/getters, no throws.
+        m.insert("ASSC_setMatrix", Infallible);
+        m.insert("ASSC_freeMatrix", Infallible);
+        m.insert("ASSC_printMatrix", Infallible);
+
+        // ── BackendDAEEXT_omc.cpp ──────────────────────────────────────────
+        // Bipartite-matching state machine. Only getAssignment throws (when
+        // the caller passes mismatched array dimensions).
+        m.insert("BackendDAEEXT_initMarks", Infallible);
+        m.insert("BackendDAEEXT_eMark", Infallible);
+        m.insert("BackendDAEEXT_getEMark", Infallible);
+        m.insert("BackendDAEEXT_vMark", Infallible);
+        m.insert("BackendDAEEXT_getVMark", Infallible);
+        m.insert("BackendDAEEXT_getMarkedEqns", Infallible);
+        m.insert("BackendDAEEXT_getDifferentiatedEqns", Infallible);
+        m.insert("BackendDAEEXT_clearDifferentiated", Infallible);
+        m.insert("BackendDAEEXT_markDifferentiated", Infallible);
+        m.insert("BackendDAEEXT_getMarkedVariables", Infallible);
+        m.insert("BackendDAEEXT_initLowLink", Infallible);
+        m.insert("BackendDAEEXT_initNumber", Infallible);
+        m.insert("BackendDAEEXT_setLowLink", Infallible);
+        m.insert("BackendDAEEXT_getLowLink", Infallible);
+        m.insert("BackendDAEEXT_setNumber", Infallible);
+        m.insert("BackendDAEEXT_getNumber", Infallible);
+        m.insert("BackendDAEEXT_dumpMarkedEquations", Infallible);
+        m.insert("BackendDAEEXT_dumpMarkedVariables", Infallible);
+        m.insert("BackendDAEEXT_initV", Infallible);
+        m.insert("BackendDAEEXT_initF", Infallible);
+        m.insert("BackendDAEEXT_setV", Infallible);
+        m.insert("BackendDAEEXT_getV", Infallible);
+        m.insert("BackendDAEEXT_setF", Infallible);
+        m.insert("BackendDAEEXT_getF", Infallible);
+        m.insert("BackendDAEEXT_setAdjacencyMatrix", Infallible);
+        m.insert("BackendDAEEXT_cheapmatching", Infallible);
+        m.insert("BackendDAEEXT_matching", Infallible);
+        m.insert("BackendDAEEXT_setAssignment", Infallible);
+        m.insert("BackendDAEEXT_getAssignment", Fallible); // length mismatch throws
+
+        // ── Corba_omc.cpp / corbaimpl_stub_omc.c ──────────────────────────
+        // In the stub build every Corba_* throws; in the corba build only
+        // initialize can throw. We choose the safe upper bound: Fallible.
+        m.insert("Corba_haveCorba", Infallible); // pure flag query
+        m.insert("Corba_setObjectReferenceFilePath", Fallible);
+        m.insert("Corba_setSessionName", Fallible);
+        m.insert("Corba_waitForCommand", Fallible);
+        m.insert("Corba_initialize", Fallible);
+        m.insert("Corba_close", Fallible);
+        m.insert("Corba_sendreply", Fallible);
+
+        // ── Dynload_omc.cpp ────────────────────────────────────────────────
+        m.insert("DynLoad_executeFunction", Fallible); // throws on lookup/call failure
+
+        // ── errorext.cpp / Error_omc.cpp ──────────────────────────────────
+        // Message-stack accounting; none of these throw on their own.
         m.insert("ErrorImpl__setCheckpoint", Infallible);
         m.insert("ErrorImpl__rollBack", Infallible);
         m.insert("ErrorImpl__delCheckpoint", Infallible);
-        m.insert("ErrorImpl__rollbackNumCheckpoint", Infallible);
+        m.insert("ErrorImpl__deleteNumCheckpoints", Infallible);
+        m.insert("ErrorImpl__rollbackNumCheckpoints", Infallible);
+        m.insert("ErrorImpl__getNumCheckpoints", Infallible);
+        m.insert("ErrorImpl__isTopCheckpoint", Infallible);
         m.insert("ErrorImpl__getNumErrorMessages", Infallible);
         m.insert("ErrorImpl__getNumWarningMessages", Infallible);
-        m.insert("ErrorImpl__getNumMessages", Infallible);
         m.insert("ErrorImpl__clearMessages", Infallible);
-        m.insert("ErrorImpl__getMessages", Infallible);
+        m.insert("ErrorImpl__getCheckpointMessages", Infallible);
+        m.insert("ErrorImpl__pop", Infallible);
+        m.insert("ErrorImpl__pushMessages", Infallible);
+        m.insert("ErrorImpl__freeMessages", Infallible);
+        m.insert("Error_addSourceMessage", Infallible);
+        m.insert("Error_getMessages", Infallible);
+        m.insert("Error_getNumMessages", Infallible);
+        m.insert("Error_initAssertionFunctions", Infallible);
+        m.insert("Error_moveMessagesToParentThread", Infallible);
+        m.insert("Error_printCheckpointMessagesStr", Infallible);
+        m.insert("Error_printErrorsNoWarning", Infallible);
+        m.insert("Error_printMessagesStr", Infallible);
+        m.insert("Error_registerModelicaFormatError", Infallible);
+        m.insert("Error_setShowErrorMessages", Infallible);
 
-        // ── System — process / filesystem / string utilities ──────────────────
-        // Most of these wrap libc; the wrappers that allocate or open files
-        // throw on failure.
-        // Source: OMCompiler/Compiler/runtime/systemimpl.c.
-        m.insert("SystemImpl__regex", Fallible);   // compiles a regex; throws on bad pattern
-        m.insert("SystemImpl__getuid", Infallible);
-        m.insert("SystemImpl__readFile", Fallible);
-        m.insert("SystemImpl__writeFile", Fallible);
-        m.insert("SystemImpl__realpath", Fallible);
-        m.insert("SystemImpl__dirname", Infallible);
-        m.insert("SystemImpl__basename", Infallible);
-        m.insert("System_realtimeClock", Infallible);
-        m.insert("System_realtimeTick", Infallible);
-        m.insert("System_realtimeTock", Infallible);
+        // ── ffi_omc.cpp ────────────────────────────────────────────────────
+        m.insert("FFI_callFunction", Fallible); // arg packing + dlsym lookup may throw
 
-        // ── Print — output buffer manipulation, no failure path ───────────────
-        // Source: OMCompiler/Compiler/runtime/printimpl.c.
-        m.insert("PrintImpl__printBufSpace", Infallible);
-        m.insert("PrintImpl__printBufNewLine", Infallible);
-        m.insert("PrintImpl__getString", Infallible);
-        m.insert("PrintImpl__clearBuf", Infallible);
+        // ── FMIImpl.c ──────────────────────────────────────────────────────
+        m.insert("FMIImpl__initializeFMIImport", Fallible); // wrapper throws on stub builds
+        m.insert("FMIImpl__releaseFMIImport", Fallible);
 
-        // NOTE: the above is a deliberately small seed set, just enough for the
-        // fallibility analyser to start with a known-good corpus. The complete
-        // population — projected at ~467 entries based on a `grep -c` over the
-        // MetaModelica sources — is left as follow-up work; the analyser will
-        // panic on the first unlisted external it encounters, which forces the
-        // table to be filled in lockstep with the call-graph walk.
+        // ── boehm-gc library (omcgc) ───────────────────────────────────────
+        // These are direct calls into libgc; the GC primitives have well-
+        // defined return-value semantics and never propagate failure back.
+        m.insert("GC_disable", Infallible);
+        m.insert("GC_enable", Infallible);
+        m.insert("GC_expand_hp_dbl", Infallible);
+        m.insert("GC_gcollect", Infallible);
+        m.insert("GC_gcollect_and_unmap", Infallible);
+        m.insert("GC_get_force_unmap_on_gcollect", Infallible);
+        m.insert("GC_set_force_unmap_on_gcollect", Infallible);
+        m.insert("GC_set_free_space_divisor", Infallible);
+        m.insert("GC_set_max_heap_size_dbl", Infallible);
+        m.insert("GC_get_prof_stats_modelica", Infallible);
+
+        // ── HpcOmBenchmarkExt_omc.cpp / HpcOmSchedulerExt_omc.cpp ──────────
+        // The Visual-Studio stub throws unconditionally; the real impl may
+        // also throw on parse failures. Conservative: Fallible.
+        m.insert("HpcOmBenchmarkExt_readCalcTimesFromJson", Fallible);
+        m.insert("HpcOmBenchmarkExt_readCalcTimesFromXml", Fallible);
+        m.insert("HpcOmBenchmarkExt_requiredTimeForComm", Fallible);
+        m.insert("HpcOmBenchmarkExt_requiredTimeForOp", Fallible);
+        m.insert("HpcOmSchedulerExt_readScheduleFromGraphMl", Fallible);
+        m.insert("HpcOmSchedulerExt_scheduleMetis", Fallible);
+        m.insert("HpcOmSchedulerExt_schedulehMetis", Fallible);
+
+        // ── IOStreamExt_omc.cpp ────────────────────────────────────────────
+        // All File/Buffer ops are NYI stubs that throw; appendReversedList
+        // is the only fully-implemented one.
+        m.insert("IOStreamExt_createFile", Fallible);
+        m.insert("IOStreamExt_closeFile", Fallible);
+        m.insert("IOStreamExt_deleteFile", Fallible);
+        m.insert("IOStreamExt_clearFile", Fallible);
+        m.insert("IOStreamExt_printFile", Fallible);
+        m.insert("IOStreamExt_readFile", Fallible);
+        m.insert("IOStreamExt_appendFile", Fallible);
+        m.insert("IOStreamExt_createBuffer", Fallible);
+        m.insert("IOStreamExt_deleteBuffer", Fallible);
+        m.insert("IOStreamExt_clearBuffer", Fallible);
+        m.insert("IOStreamExt_readBuffer", Fallible);
+        m.insert("IOStreamExt_appendBuffer", Fallible);
+        m.insert("IOStreamExt_printBuffer", Fallible);
+        m.insert("IOStreamExt_appendReversedList", Infallible);
+        m.insert("IOStreamExt_printReversedList", Fallible); // default case throws
+
+        // ── NFInst.mo inline external ──────────────────────────────────────
+        m.insert("Inst_makeTopNode", Infallible); // TODO: not found in runtime/; inline helper
+
+        // ── lapackimpl.c ───────────────────────────────────────────────────
+        // LAPACK wrappers return *INFO via output args; only the
+        // no-LAPACK build throws. Conservative on success path: Infallible.
+        m.insert("LapackImpl__dgbsv", Infallible);
+        m.insert("LapackImpl__dgeev", Infallible);
+        m.insert("LapackImpl__dgegv", Infallible);
+        m.insert("LapackImpl__dgels", Infallible);
+        m.insert("LapackImpl__dgelsx", Infallible);
+        m.insert("LapackImpl__dgelsy", Infallible);
+        m.insert("LapackImpl__dgeqpf", Infallible);
+        m.insert("LapackImpl__dgesv", Infallible);
+        m.insert("LapackImpl__dgesvd", Infallible);
+        m.insert("LapackImpl__dgetrf", Infallible);
+        m.insert("LapackImpl__dgetri", Infallible);
+        m.insert("LapackImpl__dgetrs", Infallible);
+        m.insert("LapackImpl__dgglse", Infallible);
+        m.insert("LapackImpl__dgtsv", Infallible);
+        m.insert("LapackImpl__dhseqr", Infallible);
+        m.insert("LapackImpl__dorgqr", Infallible);
+
+        // ── OMSimulator_omc.c ──────────────────────────────────────────────
+        // All OMSimulator entry points return an int oms_status_t; none
+        // call MMC_THROW. Errors flow back via the integer status code.
+        m.insert("OMSimulator_loadDLL", Infallible);
+        m.insert("OMSimulator_unloadDLL", Infallible);
+        m.insert("OMSimulator_oms_getVersion", Infallible);
+        m.insert("OMSimulator_oms_RunFile", Infallible);
+        m.insert("OMSimulator_oms_addBus", Infallible);
+        m.insert("OMSimulator_oms_addConnection", Infallible);
+        m.insert("OMSimulator_oms_addConnector", Infallible);
+        m.insert("OMSimulator_oms_addConnectorToBus", Infallible);
+        m.insert("OMSimulator_oms_addConnectorToTLMBus", Infallible);
+        m.insert("OMSimulator_oms_addDynamicValueIndicator", Infallible);
+        m.insert("OMSimulator_oms_addEventIndicator", Infallible);
+        m.insert("OMSimulator_oms_addExternalModel", Infallible);
+        m.insert("OMSimulator_oms_addSignalsToResults", Infallible);
+        m.insert("OMSimulator_oms_addStaticValueIndicator", Infallible);
+        m.insert("OMSimulator_oms_addSubModel", Infallible);
+        m.insert("OMSimulator_oms_addSystem", Infallible);
+        m.insert("OMSimulator_oms_addTLMBus", Infallible);
+        m.insert("OMSimulator_oms_addTLMConnection", Infallible);
+        m.insert("OMSimulator_oms_addTimeIndicator", Infallible);
+        m.insert("OMSimulator_oms_compareSimulationResults", Infallible);
+        m.insert("OMSimulator_oms_copySystem", Infallible);
+        m.insert("OMSimulator_oms_delete", Infallible);
+        m.insert("OMSimulator_oms_deleteConnection", Infallible);
+        m.insert("OMSimulator_oms_deleteConnectorFromBus", Infallible);
+        m.insert("OMSimulator_oms_deleteConnectorFromTLMBus", Infallible);
+        m.insert("OMSimulator_oms_export", Infallible);
+        m.insert("OMSimulator_oms_exportDependencyGraphs", Infallible);
+        m.insert("OMSimulator_oms_exportSnapshot", Infallible);
+        m.insert("OMSimulator_oms_extractFMIKind", Infallible);
+        m.insert("OMSimulator_oms_faultInjection", Infallible);
+        m.insert("OMSimulator_oms_getBoolean", Infallible);
+        m.insert("OMSimulator_oms_getFixedStepSize", Infallible);
+        m.insert("OMSimulator_oms_getInteger", Infallible);
+        m.insert("OMSimulator_oms_getModelState", Infallible);
+        m.insert("OMSimulator_oms_getReal", Infallible);
+        m.insert("OMSimulator_oms_getSolver", Infallible);
+        m.insert("OMSimulator_oms_getStartTime", Infallible);
+        m.insert("OMSimulator_oms_getStopTime", Infallible);
+        m.insert("OMSimulator_oms_getSubModelPath", Infallible);
+        m.insert("OMSimulator_oms_getSystemType", Infallible);
+        m.insert("OMSimulator_oms_getTolerance", Infallible);
+        m.insert("OMSimulator_oms_getVariableStepSize", Infallible);
+        m.insert("OMSimulator_oms_importFile", Infallible);
+        m.insert("OMSimulator_oms_importSnapshot", Infallible);
+        m.insert("OMSimulator_oms_initialize", Infallible);
+        m.insert("OMSimulator_oms_instantiate", Infallible);
+        m.insert("OMSimulator_oms_list", Infallible);
+        m.insert("OMSimulator_oms_listUnconnectedConnectors", Infallible);
+        m.insert("OMSimulator_oms_loadSnapshot", Infallible);
+        m.insert("OMSimulator_oms_newModel", Infallible);
+        m.insert("OMSimulator_oms_removeSignalsFromResults", Infallible);
+        m.insert("OMSimulator_oms_rename", Infallible);
+        m.insert("OMSimulator_oms_reset", Infallible);
+        m.insert("OMSimulator_oms_setBoolean", Infallible);
+        m.insert("OMSimulator_oms_setCommandLineOption", Infallible);
+        m.insert("OMSimulator_oms_setFixedStepSize", Infallible);
+        m.insert("OMSimulator_oms_setInteger", Infallible);
+        m.insert("OMSimulator_oms_setLogFile", Infallible);
+        m.insert("OMSimulator_oms_setLoggingInterval", Infallible);
+        m.insert("OMSimulator_oms_setLoggingLevel", Infallible);
+        m.insert("OMSimulator_oms_setReal", Infallible);
+        m.insert("OMSimulator_oms_setRealInputDerivative", Infallible);
+        m.insert("OMSimulator_oms_setResultFile", Infallible);
+        m.insert("OMSimulator_oms_setSignalFilter", Infallible);
+        m.insert("OMSimulator_oms_setSolver", Infallible);
+        m.insert("OMSimulator_oms_setStartTime", Infallible);
+        m.insert("OMSimulator_oms_setStopTime", Infallible);
+        m.insert("OMSimulator_oms_setTLMPositionAndOrientation", Infallible);
+        m.insert("OMSimulator_oms_setTLMSocketData", Infallible);
+        m.insert("OMSimulator_oms_setTempDirectory", Infallible);
+        m.insert("OMSimulator_oms_setTolerance", Infallible);
+        m.insert("OMSimulator_oms_setVariableStepSize", Infallible);
+        m.insert("OMSimulator_oms_setWorkingDirectory", Infallible);
+        m.insert("OMSimulator_oms_simulate", Infallible);
+        m.insert("OMSimulator_oms_stepUntil", Infallible);
+        m.insert("OMSimulator_oms_terminate", Infallible);
+
+        // ── ModelicaBuiltin.mo runtime helpers ─────────────────────────────
+        // Declared as `external "C"` from ModelicaBuiltin.mo but backed by
+        // genuine C entry points under runtime/.
+        m.insert("OpenModelicaInternal_stat", Fallible); // syscall, throws on EACCES etc.
+        m.insert("OpenModelica_regex", Fallible);        // throws on bad pattern
+        m.insert("OpenModelica_updateUriMapping", Infallible);
+
+        // ── Parser_omc.c ───────────────────────────────────────────────────
+        // All parse_* throw on parse failure; the LVE side returns int.
+        m.insert("ParserExt_parse", Fallible);
+        m.insert("ParserExt_parseexp", Fallible);
+        m.insert("ParserExt_parsestring", Fallible);
+        m.insert("ParserExt_parsestringexp", Fallible);
+        m.insert("ParserExt_stringPath", Fallible);
+        m.insert("ParserExt_stringCref", Fallible);
+        m.insert("ParserExt_stringMod", Fallible);
+        m.insert("ParserExt_stringEq", Fallible);
+        m.insert("ParserExt_startLibraryVendorExecutable", Infallible);
+        m.insert("ParserExt_checkLVEToolLicense", Infallible);
+        m.insert("ParserExt_checkLVEToolFeature", Infallible);
+        m.insert("ParserExt_stopLibraryVendorExecutable", Infallible);
+
+        // ── Print_omc.c ────────────────────────────────────────────────────
+        // Wrappers that touch the per-thread print buffer; throw if the
+        // PrintImpl side returns NULL / out-of-bounds.
+        m.insert("Print_saveAndClearBuf", Fallible);
+        m.insert("Print_restoreBuf", Fallible);
+        m.insert("Print_printErrorBuf", Fallible);
+        m.insert("Print_printBufLen", Fallible);
+        m.insert("Print_hasBufNewLineAtEnd", Infallible);
+        m.insert("Print_getBufLength", Infallible);
+        m.insert("Print_getString", Fallible);
+        m.insert("Print_getErrorString", Fallible);
+        m.insert("Print_clearErrorBuf", Infallible);
+        m.insert("Print_clearBuf", Infallible);
+        m.insert("Print_printBufSpace", Fallible);
+        m.insert("Print_printBufNewLine", Fallible);
+        m.insert("Print_writeBuf", Fallible);
+        m.insert("Print_writeBufConvertLines", Fallible);
+
+        // ── serializer.cpp ─────────────────────────────────────────────────
+        m.insert("Serializer_outputFile", Infallible);
+        m.insert("Serializer_bypass", Infallible);
+
+        // ── settingsimpl.c / Settings_omc.cpp ──────────────────────────────
+        // Settings_omc.cpp wrappers for the installation/Modelica path can
+        // throw if the underlying impl returns NULL.
+        m.insert("SettingsImpl__setInstallationDirectoryPath", Infallible);
+        m.insert("SettingsImpl__setModelicaPath", Infallible);
+        m.insert("SettingsImpl__setTempDirectoryPath", Infallible);
+        m.insert("Settings_dumpSettings", Infallible);
+        m.insert("Settings_getEcho", Infallible);
+        m.insert("Settings_getHomeDir", Infallible);
+        m.insert("Settings_getInstallationDirectoryPath", Fallible);
+        m.insert("Settings_getModelicaPath", Fallible);
+        m.insert("Settings_getTempDirectoryPath", Infallible);
+        m.insert("Settings_getVersionNr", Infallible);
+        m.insert("Settings_setEcho", Infallible);
+
+        // ── SimulationResults_omc.c ────────────────────────────────────────
+        // The reader chain can fail (missing file, missing variable, parse
+        // error). Closing the cache is infallible.
+        m.insert("SimulationResults_close", Infallible);
+        m.insert("SimulationResults_cmpSimulationResults", Fallible);
+        m.insert("SimulationResults_deltaSimulationResults", Fallible);
+        m.insert("SimulationResults_diffSimulationResults", Fallible);
+        m.insert("SimulationResults_diffSimulationResultsHtml", Fallible);
+        m.insert("SimulationResults_filterSimulationResults", Fallible);
+        m.insert("SimulationResults_readDataset", Fallible);
+        m.insert("SimulationResults_readSimulationResultSize", Fallible);
+        m.insert("SimulationResults_readVariables", Fallible);
+        m.insert("SimulationResults_val", Fallible);
+
+        // ── socketimpl.c / Socket_omc.c ────────────────────────────────────
+        m.insert("Socket_waitforconnect", Infallible);
+        m.insert("Socket_handlerequest", Infallible);
+        m.insert("Socket_close", Infallible);
+        m.insert("Socket_sendreply", Infallible);
+        m.insert("Socket_cleanup", Infallible);
+
+        // ── System.mo inline external (StringAllocator) ────────────────────
+        m.insert("StringAllocator_constructor", Fallible); // negative size throws
+
+        // ── systemimpl.c (SystemImpl_*) ────────────────────────────────────
+        m.insert("SystemImpl__alarm", Infallible);
+        m.insert("SystemImpl__chdir", Infallible);             // returns int status
+        m.insert("SystemImpl__copyFile", Infallible);          // returns int status
+        m.insert("SystemImpl__covertTextFileToCLiteral", Infallible);
+        m.insert("SystemImpl__createDirectory", Infallible);
+        m.insert("SystemImpl__createTemporaryDirectory", Fallible); // mkdtemp failure throws
+        m.insert("SystemImpl__ctime", Infallible);
+        m.insert("SystemImpl__dgesv", Fallible);               // throws if LAPACK missing
+        m.insert("SystemImpl__directoryExists", Infallible);
+        m.insert("SystemImpl__dladdr", Infallible);
+        m.insert("SystemImpl__fflush", Infallible);
+        m.insert("SystemImpl__fileContentsEqual", Infallible);
+        m.insert("SystemImpl__fputs", Infallible);
+        m.insert("SystemImpl__getCurrentTime", Infallible);
+        m.insert("SystemImpl__getSizeOfData", Infallible);
+        m.insert("SystemImpl__gettext", Infallible);
+        m.insert("SystemImpl__gettextInit", Infallible);
+        m.insert("SystemImpl__iconv", Infallible);             // returns "" on failure, not MMC_THROW
+        m.insert("SystemImpl__loadModelCallBack", Infallible);
+        m.insert("SystemImpl__plotCallBack", Infallible);
+        m.insert("SystemImpl__plotCallBackDefined", Infallible);
+        m.insert("SystemImpl__pwd", Infallible);               // returns NULL/empty on failure
+        m.insert("SystemImpl__realRand", Infallible);
+        m.insert("SystemImpl__regularFileExists", Infallible);
+        m.insert("SystemImpl__regularFileReadable", Infallible);
+        m.insert("SystemImpl__regularFileWritable", Infallible);
+        m.insert("SystemImpl__relocateFunctions", Infallible);
+        m.insert("SystemImpl__removeDirectory", Infallible);
+        m.insert("SystemImpl__removeFile", Infallible);
+        m.insert("SystemImpl__rename", Infallible);
+        m.insert("SystemImpl__reopenStandardStream", Infallible);
+        m.insert("SystemImpl__setCCompiler", Infallible);
+        m.insert("SystemImpl__setCFlags", Infallible);
+        m.insert("SystemImpl__setCXXCompiler", Infallible);
+        m.insert("SystemImpl__setLDFlags", Infallible);
+        m.insert("SystemImpl__setLinker", Infallible);
+        m.insert("SystemImpl__spawnCall", Infallible);
+        m.insert("SystemImpl__stat", Infallible);
+        m.insert("SystemImpl__systemCall", Infallible);
+        m.insert("SystemImpl__systemCallParallel", Infallible);
+        m.insert("SystemImpl__time", Infallible);
+        m.insert("SystemImpl__unescapedStringLength", Infallible);
+        m.insert("SystemImpl__waitForInput", Infallible);
+        m.insert("SystemImpl__winGetSystemDirectoryA", Infallible); // c_add_message but no MMC_THROW
+        m.insert("SystemImpl_tmpTickIndex", Infallible);
+        m.insert("SystemImpl_tmpTickIndexReserve", Infallible);
+        m.insert("SystemImpl_tmpTickMaximum", Infallible);
+        m.insert("SystemImpl_tmpTickReset", Infallible);
+        m.insert("SystemImpl_tmpTickResetIndex", Infallible);
+        m.insert("SystemImpl_tmpTickSetIndex", Infallible);
+
+        // ── System_omc.c (System_* wrappers) ───────────────────────────────
+        // The wrappers in System_omc.c that throw on NULL/-1 return: any of
+        // the file/library/realtime functions whose preconditions are
+        // checked at the wrapper.
+        m.insert("System_appendFile", Fallible);
+        m.insert("System_basename", Infallible);
+        m.insert("System_dirname", Infallible);
+        m.insert("System_escapedString", Infallible);
+        m.insert("System_fileIsNewerThan", Fallible);          // returns -1 → MMC_THROW
+        m.insert("System_freeFunction", Fallible);
+        m.insert("System_freeLibrary", Fallible);
+        m.insert("System_gccDumpMachine", Infallible);
+        m.insert("System_gccVersion", Infallible);
+        m.insert("System_getCCompiler", Infallible);
+        m.insert("System_getCFlags", Infallible);
+        m.insert("System_getCXXCompiler", Infallible);
+        m.insert("System_getClassnamesForSimulation", Infallible);
+        m.insert("System_getCurrentDateTime", Infallible);
+        m.insert("System_getCurrentTimeStr", Fallible);        // localtime failure throws
+        m.insert("System_getFileModificationTime", Infallible);
+        m.insert("System_getHasExpandableConnectors", Infallible);
+        m.insert("System_getHasInnerOuterDefinitions", Infallible);
+        m.insert("System_getHasOverconstrainedConnectors", Infallible);
+        m.insert("System_getHasStreamConnectors", Infallible);
+        m.insert("System_getLDFlags", Infallible);
+        m.insert("System_getLinker", Infallible);
+        m.insert("System_getLoadModelPath", Fallible);         // throws when no path matches
+        m.insert("System_getMemorySize", Infallible);
+        m.insert("System_getOMPCCompiler", Infallible);
+        m.insert("System_getPartialInstantiation", Infallible);
+        m.insert("System_getSimulationHelpTextSphinx", Infallible);
+        m.insert("System_getTerminalWidth", Infallible);
+        m.insert("System_getTimerCummulatedTime", Infallible);
+        m.insert("System_getTimerElapsedTime", Infallible);
+        m.insert("System_getTimerIntervalTime", Infallible);
+        m.insert("System_getTimerStackIndex", Infallible);
+        m.insert("System_getUUIDStr", Infallible);
+        m.insert("System_getUsesCardinality", Infallible);
+        m.insert("System_getVariableValue", Fallible);         // throws on lookup failure
+        m.insert("System_getuid", Infallible);
+        m.insert("System_initGarbageCollector", Infallible);
+        m.insert("System_launchParallelTasks", Fallible);      // MMC_THROW_INTERNAL on pthread error
+        m.insert("System_loadLibrary", Fallible);              // throws on dlopen failure
+        m.insert("System_lookupFunction", Fallible);           // -1 → throw
+        m.insert("System_makeC89Identifier", Infallible);
+        m.insert("System_moFiles", Infallible);
+        m.insert("System_mocFiles", Infallible);
+        m.insert("System_modelicaPlatform", Infallible);
+        m.insert("System_numProcessors", Infallible);
+        m.insert("System_openModelicaPlatform", Infallible);
+        m.insert("System_openModelicaPlatformAlternative", Infallible);
+        m.insert("System_popen", Infallible);                  // returns status via output arg
+        m.insert("System_readEnv", Fallible);                  // throws on missing var
+        m.insert("System_readFile", Fallible);
+        m.insert("System_realpath", Fallible);                 // canonicalisation throws
+        m.insert("System_realtimeAccumulate", Fallible);       // index OOB throws
+        m.insert("System_realtimeAccumulated", Fallible);
+        m.insert("System_realtimeClear", Fallible);
+        m.insert("System_realtimeNtick", Fallible);
+        m.insert("System_realtimeTick", Fallible);
+        m.insert("System_realtimeTock", Fallible);
+        m.insert("System_regex", Infallible);                  // numMatches returned as 0 on bad regex
+        m.insert("System_resetTimer", Infallible);
+        m.insert("System_setClassnamesForSimulation", Infallible);
+        m.insert("System_setHasExpandableConnectors", Infallible);
+        m.insert("System_setHasInnerOuterDefinitions", Infallible);
+        m.insert("System_setHasOverconstrainedConnectors", Infallible);
+        m.insert("System_setHasStreamConnectors", Infallible);
+        m.insert("System_setPartialInstantiation", Infallible);
+        m.insert("System_setUsesCardinality", Infallible);
+        m.insert("System_snprintff", Fallible);                // format-arg validation throws
+        m.insert("System_splitOnNewline", Fallible);           // allocation failure throws
+        m.insert("System_sprintff", Fallible);
+        m.insert("System_startTimer", Infallible);
+        m.insert("System_stopTimer", Infallible);
+        m.insert("System_strcmp", Infallible);
+        m.insert("System_strcmp_offset", Infallible);
+        m.insert("System_stringFind", Fallible);               // returns -1 → MMC_THROW
+        m.insert("System_stringFindString", Infallible);
+        m.insert("System_stringReplace", Fallible);            // NULL on alloc fail throws
+        m.insert("System_strncmp", Infallible);
+        m.insert("System_strtok", Infallible);
+        m.insert("System_strtokIncludingDelimiters", Infallible);
+        m.insert("System_subDirectories", Infallible);
+        m.insert("System_threadFail", Infallible);             // direct MMC_THROW is the entire body — but it is the *callee*'s purpose to throw; treat as Fallible? See below.
+        m.insert("System_tolower", Infallible);
+        m.insert("System_toupper", Infallible);
+        m.insert("System_trim", Infallible);
+        m.insert("System_trimChar", Fallible);                 // multi-char input throws
+        m.insert("System_unescapedString", Infallible);
+        m.insert("System_unquoteIdentifier", Infallible);
+        m.insert("System_uriToClassAndPath", Fallible);        // malformed URI throws
+        m.insert("System_userIsRoot", Infallible);
+        m.insert("System_writeFile", Fallible);
+
+        // ── TaskGraphResults_omc.cpp ───────────────────────────────────────
+        m.insert("TaskGraphResults_checkCodeGraph", Fallible);
+        m.insert("TaskGraphResults_checkTaskGraph", Fallible);
+
+        // ── unitparserext.cpp / UnitParserExt_omc.cpp ─────────────────────
+        m.insert("UnitParserExtImpl__addBase", Infallible);
+        m.insert("UnitParserExtImpl__addDerived", Infallible);
+        m.insert("UnitParserExtImpl__addDerivedWeight", Infallible);
+        m.insert("UnitParserExtImpl__allUnitSymbols", Infallible);
+        m.insert("UnitParserExtImpl__checkpoint", Infallible);
+        m.insert("UnitParserExtImpl__clear", Infallible);
+        m.insert("UnitParserExtImpl__commit", Infallible);
+        m.insert("UnitParserExtImpl__initSIUnits", Infallible);
+        m.insert("UnitParserExtImpl__registerWeight", Infallible);
+        m.insert("UnitParserExtImpl__rollback", Infallible);
+        m.insert("UnitParserExt_str2unit", Fallible);
+        m.insert("UnitParserExt_unit2str", Infallible);
+
+        // ── zeromqimpl.c / ZeroMQ_omc.c ────────────────────────────────────
+        m.insert("ZeroMQ_initialize", Infallible);
+        m.insert("ZeroMQ_handleRequest", Infallible);
+        m.insert("ZeroMQ_sendReply", Infallible);
+        m.insert("ZeroMQ_close", Infallible);
+
+        // ── Util.mo / NFModelicaBuiltin.mo inline helpers ──────────────────
+        // Tiny inline `external "C" Include="..."` shims; pure data access.
+        m.insert("anyStringCode", Infallible);
+        m.insert("architecture_numbits", Infallible);
+        m.insert("referenceCompareExt", Infallible);
+
+        // ── libc / runtime symbols used directly ───────────────────────────
+        m.insert("exit", Fallible);                            // by definition, terminates control
+        m.insert("rand", Infallible);
+        m.insert("setenv", Infallible);                        // success/failure via return value
+
+        // ── StackOverflow.mo runtime hooks ─────────────────────────────────
+        m.insert("mmc_do_stackoverflow", Fallible);            // longjmps
+        m.insert("mmc_getStacktraceMessages_threadData", Infallible);
+        m.insert("mmc_setStacktraceMessages_threadData", Infallible);
+        m.insert("mmc_hasStacktraceMessages", Infallible);
+        m.insert("mmc_clearStacktraceMessages", Infallible);
+
+        // ── Mutable.mo / Pointer.mo inline helpers ─────────────────────────
+        m.insert("mutableCreate", Infallible);
+        m.insert("mutableUpdate", Infallible);
+        m.insert("mutableAccess", Infallible);
+        m.insert("pointerCreate", Infallible);
+        m.insert("pointerUpdate", Infallible);
+        m.insert("pointerAccess", Infallible);
+
+        // ── om_curl.c / om_unzip.c ─────────────────────────────────────────
+        m.insert("om_curl_multi_download", Infallible);
+        m.insert("om_unzip", Infallible);
+
+        // ── omc_file_ext.h inline file API ─────────────────────────────────
+        // The om_file_* family of helpers are static inline; none of them
+        // call MMC_THROW or report failure beyond their integer status.
+        m.insert("om_file_new", Infallible);
+        m.insert("om_file_free", Infallible);
+        m.insert("om_file_open", Infallible);
+        m.insert("om_file_write", Infallible);
+        m.insert("om_file_write_int", Infallible);
+        m.insert("om_file_write_real", Infallible);
+        m.insert("om_file_write_escape", Infallible);
+        m.insert("om_file_seek", Infallible);
+        m.insert("om_file_tell", Infallible);
+        m.insert("om_file_get_filename", Infallible);
+        m.insert("om_file_no_reference", Infallible);
+        m.insert("om_file_get_reference", Infallible);
+        m.insert("om_file_release_reference", Infallible);
+
+        // ── System.mo inline StringAllocator helpers ───────────────────────
+        m.insert("om_stringAllocatorResult", Infallible);
+        m.insert("om_stringAllocatorStringCopy", Infallible);
+
+        // ── GCExt.mo inline GC_free wrapper ────────────────────────────────
+        m.insert("omc_GC_free_ext", Infallible);
+
+        // ── JSONExt.mo inline cast/inspector helpers ───────────────────────
+        m.insert("omc_cast_int", Infallible);
+        m.insert("omc_cast_real", Infallible);
+        m.insert("omc_cast_string", Infallible);
+        m.insert("omc_get_list", Infallible);
+        m.insert("omc_get_list_element", Infallible);
+        m.insert("omc_get_record_component", Infallible);
+        m.insert("omc_get_record_names", Infallible);
+        m.insert("omc_get_some", Infallible);
+        m.insert("omc_get_tuple_size", Infallible);
+        m.insert("omc_is_array", Infallible);
+        m.insert("omc_is_cons", Infallible);
+        m.insert("omc_is_integer", Infallible);
+        m.insert("omc_is_nil", Infallible);
+        m.insert("omc_is_none", Infallible);
+        m.insert("omc_is_real", Infallible);
+        m.insert("omc_is_record", Infallible);
+        m.insert("omc_is_some", Infallible);
+        m.insert("omc_is_string", Infallible);
+        m.insert("omc_is_tuple", Infallible);
+
+        // ── Serializer C/J backends (referenced from BackEnd flat code) ────
+        m.insert("serializeC", Infallible); // TODO: not found in runtime/
+        m.insert("serializeJ", Infallible); // TODO: not found in runtime/
 
         m
     })

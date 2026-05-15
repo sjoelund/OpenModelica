@@ -457,12 +457,12 @@ pub fn stringDelimitList(strs: Arc<List<ArcStr>>, delimiter: ArcStr) -> Result<A
 }
 
 /// Returns the length of the string (number of bytes).
-pub fn stringLength(str: String) -> Result<i32> {
+pub fn stringLength(str: ArcStr) -> Result<i32> {
     Ok(str.len() as i32)
 }
 
 /// Returns true if the string is empty.
-pub fn stringEmpty(str: String) -> Result<bool> {
+pub fn stringEmpty(str: ArcStr) -> Result<bool> {
     Ok(str.is_empty())
 }
 
@@ -1761,14 +1761,14 @@ mod tests {
 
         #[test]
         fn test_string_length() {
-            assert_eq!(stringLength("hello".to_string()).unwrap(), 5);
-            assert_eq!(stringLength("".to_string()).unwrap(), 0);
+            assert_eq!(stringLength("hello".into()).unwrap(), 5);
+            assert_eq!(stringLength("".into()).unwrap(), 0);
         }
 
         #[test]
         fn test_string_empty() {
-            assert!(stringEmpty("".to_string()).unwrap());
-            assert!(!stringEmpty("hello".to_string()).unwrap());
+            assert!(stringEmpty("".into()).unwrap());
+            assert!(!stringEmpty("hello".into()).unwrap());
         }
     }
 

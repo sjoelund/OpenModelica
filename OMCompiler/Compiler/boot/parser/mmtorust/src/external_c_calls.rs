@@ -49,6 +49,9 @@ pub enum Fallibility {
     /// runtime via `MMC_THROW` / `c_add_message` / status return. The
     /// Rust lowering wraps the output in `Result<T>`.
     Fallible,
+    /// The function is not used in MetaModelica. It is an error if this
+    /// function is used during code generation.
+    Irrelevant,
 }
 
 /// Static registry of known external "C" calls.
@@ -661,6 +664,12 @@ pub fn lookup(name: &str) -> Option<Fallibility> {
 /// being populated; CI and release builds should leave it unset so that the
 /// strict invariant is enforced.
 pub fn lookup_or_panic(c_name: &str, mm_qname: &str) -> Fallibility {
+    if !mm_qname.contains('.') {
+        return Fallibility::Irrelevant;
+    }
+    if mm_qname.starts_with("Connections") || mm_qname.starts_with("OMC_ARGS") {
+        return Fallibility::Irrelevant;
+    }
     if let Some(f) = registry().get(c_name) {
         return *f;
     }

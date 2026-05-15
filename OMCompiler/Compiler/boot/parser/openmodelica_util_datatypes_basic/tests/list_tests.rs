@@ -1,7 +1,7 @@
 use anyhow::Result;
 use std::sync::Arc;
 use metamodelica::*;
-use arcstr::{ArcStr, literal};
+use arcstr::ArcStr;
 use openmodelica_util_datatypes_basic::List as L;
 
 // ── helper predicates (must be fn pointers) ──
@@ -28,9 +28,8 @@ fn id_i32(x: i32) -> Result<i32> { Ok(x) }
 #[test]
 fn test_accumulate_map_accum() -> Result<()> {
     let lst = list![1i32, 2, 3];
-    let (result, acc) = L::accumulateMapAccum(Arc::clone(&lst), 0i32, |x, a| Ok((x + a, a + 1)))?;
-    assert_eq!(*result, list![1i32, 3, 6]);
-    assert_eq!(acc, 3);
+    let result = L::accumulateMapAccum(Arc::clone(&lst), |x, _acc| Ok(list![x]))?;
+    assert_eq!(*result, list![3i32, 2, 1]);
     Ok(())
 }
 
@@ -58,25 +57,25 @@ fn test_all_empty() -> Result<()> {
 #[test]
 fn test_all_equal_true() -> Result<()> {
     let lst = list![5i32, 5, 5];
-    assert!(L::allEqual(Arc::clone(&lst))?);
+    assert!(L::allEqual(Arc::clone(&lst), eq_i)?);
     Ok(())
 }
 #[test]
 fn test_all_equal_false() -> Result<()> {
     let lst = list![5i32, 3, 5];
-    assert!(!L::allEqual(Arc::clone(&lst))?);
+    assert!(!L::allEqual(Arc::clone(&lst), eq_i)?);
     Ok(())
 }
 #[test]
 fn test_all_equal_single() -> Result<()> {
     let lst = list![1i32];
-    assert!(L::allEqual(Arc::clone(&lst))?);
+    assert!(L::allEqual(Arc::clone(&lst), eq_i)?);
     Ok(())
 }
 #[test]
 fn test_all_equal_empty() -> Result<()> {
     let lst: Arc<List<i32>> = nil();
-    assert!(L::allEqual(Arc::clone(&lst))?);
+    assert!(L::allEqual(Arc::clone(&lst), eq_i)?);
     Ok(())
 }
 
@@ -85,13 +84,15 @@ fn test_all_equal_empty() -> Result<()> {
 fn test_all_reference_eq_true() -> Result<()> {
     let inner: Arc<List<i32>> = list![1i32];
     let lst = list![Arc::clone(&inner), Arc::clone(&inner)];
-    assert!(L::allReferenceEq(Arc::clone(&lst))?);
+    let lst2 = list![Arc::clone(&inner), Arc::clone(&inner)];
+    assert!(L::allReferenceEq(Arc::clone(&lst), Arc::clone(&lst2))?);
     Ok(())
 }
 #[test]
 fn test_all_reference_eq_false() -> Result<()> {
     let lst = list![list![1i32], list![1i32]];
-    assert!(!L::allReferenceEq(Arc::clone(&lst))?);
+    let lst2 = list![list![1i32, 2], list![1i32]];
+    assert!(!L::allReferenceEq(Arc::clone(&lst), Arc::clone(&lst2))?);
     Ok(())
 }
 
@@ -119,7 +120,7 @@ fn test_any_empty() -> Result<()> {
 #[test]
 fn test_append_elt() -> Result<()> {
     let lst = list![1i32, 2];
-    let result = L::appendElt(Arc::clone(&lst), 3)?;
+    let result = L::appendElt(3, Arc::clone(&lst))?;
     assert_eq!(result, list![1i32, 2, 3]);
     Ok(())
 }

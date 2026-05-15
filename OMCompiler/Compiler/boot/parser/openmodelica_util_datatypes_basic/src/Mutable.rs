@@ -1,4 +1,5 @@
 // Manually written
+#![allow(non_snake_case)]
 use std::sync::Arc;
 use anyhow::{Result};
 
@@ -24,6 +25,5 @@ pub fn update<T: Clone + PartialEq>(mutable: Mutable<T>, data: T) -> Result<()> 
 }
 
 pub fn access<T: Clone + PartialEq>(mutable: Mutable<T>) -> Result<T> {
-    let mut guard = mutable.0.lock().unwrap();
-    Ok(guard.clone())
+    Ok(mutable.0.lock().unwrap().clone())
 }

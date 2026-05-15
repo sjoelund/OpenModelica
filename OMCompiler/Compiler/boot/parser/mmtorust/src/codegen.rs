@@ -1907,7 +1907,7 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
         },
         "String" => {
             let arg = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();
-            Ok(format!("Arc::new(format!(\"{{}}\", {arg}))"))
+            Ok(format!("format!(\"{{}}\", {arg})"))
         },
         "stringGet" => {
             let arg1 = args.first().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).unwrap_or_default();

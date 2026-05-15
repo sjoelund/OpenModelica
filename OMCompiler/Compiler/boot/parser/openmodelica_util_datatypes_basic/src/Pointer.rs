@@ -1,4 +1,5 @@
 // Manually written
+#![allow(non_snake_case)]
 use std::sync::{Arc, Mutex};
 use anyhow::{Result, bail};
 use metamodelica::*; // Built-in types and functions
@@ -34,7 +35,6 @@ pub fn create<T: Clone + PartialEq>(data: T) -> Result<Pointer<T>> {
     Ok(Pointer::Mutable(Arc::new(Mutex::new(data))))
 }
 
-#[allow(non_snake_case)]
 pub fn createImmutable<T: Clone + PartialEq>(data: T) -> Result<Pointer<T>> {
     Ok(Pointer::Immutable(Arc::new(data)))
 }

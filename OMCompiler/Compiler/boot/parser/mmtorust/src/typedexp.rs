@@ -514,6 +514,21 @@ pub fn builtin_function_ty(name: &str) -> Option<Ty> {
             Some(f(vec![inp("v", tv("T"))], Ty::Str, vec!["T".to_owned()])),
         "stringAppend" =>
             Some(f(vec![inp("a", Ty::Str), inp("b", Ty::Str)], Ty::Str, vec![])),
+        // `stringDelimitList(list<String>, String) -> String`. Declared in
+        // MetaModelicaBuiltin.mo. Listing it here pins the result type so
+        // that adjacent `+` chains in user code are typed as Ty::Str and
+        // routed to the ArcStr concat path rather than the numeric `+`.
+        "stringDelimitList" =>
+            Some(f(vec![inp("strs", Ty::List(Box::new(Ty::Str))), inp("delimiter", Ty::Str)], Ty::Str, vec![])),
+        "stringAppendList" =>
+            Some(f(vec![inp("strs", Ty::List(Box::new(Ty::Str)))], Ty::Str, vec![])),
+        // `getInstanceName()` — MetaModelicaBuiltin.mo. Lowered to a literal at
+        // each call site by `emit_builtin_call` using the enclosing function's
+        // qualified name (`GenCtx::current_fn_qname`). Listed here so the
+        // result type is known for surrounding expression typing (e.g. it
+        // becomes the lhs of a `+ literal!(...)` string concat).
+        "getInstanceName" =>
+            Some(f(vec![], Ty::Str, vec![])),
         // String → number/boolean parsing
         "stringInt" =>
             Some(f(vec![inp("s", Ty::Str)], Ty::I32, vec![])),
@@ -530,6 +545,16 @@ fn binop_ty(op: BinOpKind, lhs_ty: &Ty, rhs_ty: &Ty) -> Ty {
     match op {
         BinOpKind::Add | BinOpKind::Sub | BinOpKind::Mul | BinOpKind::Div => {
             match (lhs_ty, rhs_ty) {
+                // String concatenation: in MetaModelica, `+` on String is the
+                // only overload that doesn't require both sides to be numeric,
+                // so a single Str side is enough to pin the result type.
+                // Without this rule, a call whose return type we failed to
+                // infer (Ty::Unknown) would propagate up the Add chain even
+                // when the other operand is a literal! string, and emit_exp
+                // would fall through to the numeric `+` codegen instead of
+                // the ArcStr concat path. Only valid for Add — Sub/Mul/Div on
+                // strings don't exist in MetaModelica.
+                _ if matches!(op, BinOpKind::Add) && (matches!(lhs_ty, Ty::Str) || matches!(rhs_ty, Ty::Str)) => Ty::Str,
                 (Ty::F64, _) | (_, Ty::F64) => Ty::F64,
                 (Ty::I32, _) | (_, Ty::I32) => Ty::I32,
                 _ => lhs_ty.clone(),

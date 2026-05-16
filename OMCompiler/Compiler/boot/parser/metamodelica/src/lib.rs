@@ -1215,6 +1215,56 @@ pub fn referenceDebugString<A: std::fmt::Debug>(_a: &A) -> Result<ArcStr> {
     Ok(format!("{:?}", std::any::type_name::<A>()))
 }
 
+// ============================================================================
+// Global roots — MetaModelicaBuiltin.mo setGlobalRoot/getGlobalRoot.
+//
+// Each MetaModelica `setGlobalRoot(idx, v)` stores `v` in a fixed slot; the
+// MMC backend allocated slots 0..1023 (the first 9 are thread-local, the rest
+// shared). For the boot/Rust path we don't have multiple threads running the
+// compiler proper, so a single thread-local table is sufficient — and avoids
+// the Send/Sync constraints that would otherwise be incompatible with
+// `Rc<RefCell<_>>`-shaped values the compiler stores in global roots (Flags,
+// caches, etc.).
+//
+// Values are erased through `Rc<dyn Any>`; `getGlobalRoot::<A>` downcasts on
+// retrieval. Index 0 is permitted but typically maps to "uninitialized" by
+// convention — MetaModelicaBuiltin.mo specifically warns against using it.
+// ============================================================================
+thread_local! {
+    static GLOBAL_ROOTS: std::cell::RefCell<Vec<Option<std::rc::Rc<dyn std::any::Any>>>> =
+        const { std::cell::RefCell::new(Vec::new()) };
+}
+
+pub fn setGlobalRoot<A: std::any::Any + 'static>(index: i32, value: A) -> Result<()> {
+    GLOBAL_ROOTS.with(|r| {
+        let mut v = r.borrow_mut();
+        let idx = index as usize;
+        if v.len() <= idx {
+            v.resize_with(idx + 1, || None);
+        }
+        v[idx] = Some(std::rc::Rc::new(value));
+    });
+    Ok(())
+}
+
+pub fn getGlobalRoot<A: std::any::Any + Clone + 'static>(index: i32) -> Result<A> {
+    GLOBAL_ROOTS.with(|r| {
+        let v = r.borrow();
+        let entry = v
+            .get(index as usize)
+            .and_then(|o| o.clone())
+            .ok_or_else(|| anyhow::anyhow!("getGlobalRoot: index {} is uninitialized", index))?;
+        match entry.downcast::<A>() {
+            Ok(rc) => Ok((*rc).clone()),
+            Err(_) => Err(anyhow::anyhow!(
+                "getGlobalRoot: index {} type mismatch (expected {})",
+                index,
+                std::any::type_name::<A>()
+            )),
+        }
+    })
+}
+
 /// Returns the constructor tag for a boxed value.
 /// In Rust, returns a type-based discriminator.
 pub fn valueConstructor<A>() -> Result<i32> {

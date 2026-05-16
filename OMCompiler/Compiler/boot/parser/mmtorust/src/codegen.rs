@@ -121,6 +121,24 @@ struct GenCtx {
     /// by the implicit-return tail in [`emit_function`] to decide whether to
     /// wrap output tuples in `Ok(...)`.
     current_fn_fallible: bool,
+    /// Fully-qualified MetaModelica name (dot-separated) of the function
+    /// currently being emitted. Used by the `getInstanceName()` builtin —
+    /// MetaModelicaBuiltin.mo specifies this returns the enclosing function's
+    /// qualified name, and the C bootstrap rewrites it to a literal at compile
+    /// time. We do the same in codegen rather than at runtime so the constant
+    /// is folded directly into the call site.
+    current_fn_qname: String,
+    /// Fully-qualified names of `partial function` declarations whose parent
+    /// is itself a `function` (i.e. nested inside a function body rather than
+    /// declared at module / package / uniontype scope). MetaModelica permits
+    /// this — the alias is a function-local type — but Rust has no equivalent:
+    /// a nested `type` declaration inside `fn` is not accessible to its own
+    /// parameter list, and lifting the alias to module scope would collide
+    /// across functions that all declare a same-named local alias (e.g.
+    /// `Error.getCurrentComponent.prefixToStr` and
+    /// `Error.updateCurrentComponent.prefixToStr`). For these qnames we
+    /// fall back to inline `fn(...) -> Result<...>` emission in `fmt_ty`.
+    nested_partial_aliases: BTreeSet<String>,
     /// Rust binding shape for variables in `variants`. Determines the deref
     /// form emitted around `var_field!` scrutinee:
     ///   `Owned` — plain `T` enum value (`var_field!(v.f, V::X)`).
@@ -170,6 +188,8 @@ impl GenCtx {
             variant_shapes: HashMap::new(),
             fallible_functions,
             current_fn_fallible: true,
+            current_fn_qname: String::new(),
+            nested_partial_aliases: BTreeSet::new(),
         }
     }
 
@@ -707,6 +727,41 @@ fn collect_fn_type_vars(node: &NameNode<'_>, qname: &str, map: &mut BTreeMap<Str
     }
 }
 
+/// Walk the hierarchy collecting fully-qualified names of `partial function`
+/// declarations whose parent class is itself a function. See
+/// [`GenCtx::nested_partial_aliases`] for why these get inlined rather than
+/// referenced by name. `parent_is_fn` carries down whether the *current*
+/// scope is inside a function class, so children declared inside it get
+/// recorded.
+fn collect_nested_partial_aliases(
+    nodes: &BTreeMap<String, NameNode<'_>>,
+    prefix: &str,
+    parent_is_fn: bool,
+    out: &mut BTreeSet<String>,
+) {
+    for (name, node) in nodes {
+        let qname = if prefix.is_empty() { name.clone() } else { format!("{prefix}.{name}") };
+        let mut is_fn = false;
+        let mut is_partial = false;
+        if let NodeKind::Class(c) = &node.kind {
+            // `partial_prefix` marks `partial function` aliases (see
+            // emit_function's early-return for these). Function-restricted
+            // classes — both regular and partial — propagate `parent_is_fn`
+            // into their children.
+            if matches!(c.restriction, Absyn::Restriction::R_FUNCTION { .. }) {
+                is_fn = true;
+            }
+            if c.partial_prefix {
+                is_partial = true;
+            }
+        }
+        if is_partial && parent_is_fn {
+            out.insert(qname.clone());
+        }
+        collect_nested_partial_aliases(&node.children, &qname, is_fn, out);
+    }
+}
+
 fn collect_no_mod_uniontypes(nodes: &BTreeMap<String, NameNode<'_>>, prefix: &str, out: &mut HashSet<String>) {
     for (name, node) in nodes {
         let qname = if prefix.is_empty() { name.clone() } else { format!("{prefix}.{name}") };
@@ -725,6 +780,10 @@ fn collect_no_mod_uniontypes(nodes: &BTreeMap<String, NameNode<'_>>, prefix: &st
 fn generate_file<'a>(top_name: &str, node: &NameNode<'_>, crate_map: &BTreeMap<String, String>, current_crate: Option<String>, top_level_uniontype_names: &HashSet<String>, recursive_types: BTreeSet<String>, types_containing_mutable: BTreeSet<String>, no_mod_uniontypes: &HashSet<String>, top_level: &'a BTreeMap<String, NameNode<'a>>, fn_type_vars: &BTreeMap<String, Vec<String>>, fallible_functions: &BTreeSet<String>) -> String {
     let mut ctx = GenCtx::new(top_name, current_crate, crate_map.clone(), top_level_uniontype_names.clone(), recursive_types, types_containing_mutable, fn_type_vars.clone(), fallible_functions.clone());
     ctx.no_mod_uniontypes = no_mod_uniontypes.clone();
+    // Pre-walk the *whole* hierarchy (not just this file's node) so that
+    // function-nested partial-function aliases are recognised regardless of
+    // whether they live in the file currently being emitted or in a sibling.
+    collect_nested_partial_aliases(top_level, "", false, &mut ctx.nested_partial_aliases);
     collect_imports(node, &mut ctx, top_level);
 
     // First pass: emit the body so that shorten() can populate implicit_modules.
@@ -1348,6 +1407,7 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
     };
     let saved_fn_fallible = ctx.current_fn_fallible;
     ctx.current_fn_fallible = ctx.fallible_functions.contains(&fn_qname);
+    let saved_fn_qname = std::mem::replace(&mut ctx.current_fn_qname, fn_qname.clone());
     let is_fallible_fn = ctx.current_fn_fallible;
 
     // Walk components to find outputs (with names) and protected locals.
@@ -1486,6 +1546,7 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
     writeln!(out, "{indent}}}").unwrap();
     writeln!(out).unwrap();
     ctx.current_fn_fallible = saved_fn_fallible;
+    ctx.current_fn_qname = saved_fn_qname;
 }
 
 // ── Expression and pattern emission ──────────────────────────────────────────
@@ -2534,6 +2595,16 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
         }
         "NONE" => Ok("None".to_owned()),
         "fail" => if is_const { Ok("{ panic!(\"fail\") }".to_owned()) } else { Ok("bail!(\"fail\")".to_owned()) },
+        "getInstanceName" if args.is_empty() => {
+            // MetaModelicaBuiltin.mo: returns a String literal with the
+            // fully-qualified name of the enclosing function. The MMC bootstrap
+            // resolves this at compile time, and so do we — emit the captured
+            // `current_fn_qname` as a string literal!. This is preferable to a
+            // runtime lookup because it avoids any thread-local plumbing and
+            // makes the result a true compile-time constant.
+            let escaped = format!("{:?}", ctx.current_fn_qname);
+            Ok(format!("literal!({escaped})"))
+        }
         "sourceInfo" if args.is_empty() => {
             // MetaModelica's `sourceInfo()` returns a SourceInfo populated from the
             // *compiler* call-site — i.e. the location in the .mo source. We emit
@@ -2835,10 +2906,25 @@ fn emit_var<'a>(
             return "metamodelica::nil()".to_owned();
         }
         // Apply subscripts from the last package segment.
+        //
+        // Package-level constants of type `Array<T>` are emitted as
+        // `LazyLock<metamodelica::Array<T>>` = `LazyLock<Rc<RefCell<Vec<T>>>>`.
+        // Indexing requires `.borrow()` first (the LazyLock deref-coerces to
+        // Rc<RefCell<_>> automatically, but Rust does not auto-`.borrow()`).
+        // We detect Array-typed constants by resolving the fully-qualified
+        // package path to its declared node and inspecting its type. This is
+        // the package-path mirror of the local-variable `Ty::Array` check at
+        // the top of this function.
         let last_pkg_segs = pkg_segs.last();
         if let Some(last_seg) = last_pkg_segs {
             if !last_seg.subscripts.is_empty() {
+                let is_array_const = resolve_fully_qualified(&pkg_dotted, ctx, top_level)
+                    .map(|n| matches!(n.ty, Ty::Array(_)))
+                    .unwrap_or(false);
                 let mut b = escape_ident(&shortened);
+                if is_array_const {
+                    b = format!("{b}.borrow()");
+                }
                 for sub in &last_seg.subscripts {
                     b = format!("{}[({}-1) as usize]", b, emit_exp(sub, false, ctx, top_level));
                 }
@@ -5941,6 +6027,14 @@ fn fmt_ty(ty: &Ty, ctx: &mut GenCtx) -> String {
             // so we emit `KeyEq<T>`; after call-site unification they may be
             // concrete types (e.g. `KeyEq<i32>`).
             if let Some(qname) = name {
+                // Function-nested `partial function` aliases cannot be referenced
+                // by their qualified Rust name (the parent function has no
+                // namespace to host them). Fall through to the inline
+                // `fn(...) -> Result<...>` form for those.
+                if ctx.nested_partial_aliases.contains(qname.as_str()) {
+                    let ins = inputs.iter().map(|inp| fmt_ty(&inp.ty, ctx)).collect::<Vec<_>>().join(", ");
+                    return format!("fn({ins}) -> Result<{}>", fmt_ty(output, ctx));
+                }
                 let short = ctx.shorten(qname);
                 let mut tvs: Vec<Ty> = Vec::new();
                 let mut seen: Vec<String> = Vec::new();

@@ -114,7 +114,10 @@ pub enum TypedExp {
     Tuple(Vec<TypedExp>),
     /// An array/list literal. Empty array = empty list.
     Array { elems: Vec<TypedExp>, ty: Ty },
-    Match { kind: MatchKind, input: Box<TypedExp>, cases: Vec<TypedCase>, ty: Ty },
+    /// `as_binding` is `Some(name)` when the source wrote `match name as expr ...`,
+    /// in which case the scrutinee value must be bound to `name` and visible in
+    /// every arm's guard / locals / body / result.
+    Match { kind: MatchKind, input: Box<TypedExp>, cases: Vec<TypedCase>, ty: Ty, as_binding: Option<String> },
     /// `start:stop` or `start:step:stop` — an arithmetic-progression iterator.
     Range { start: Box<TypedExp>, step: Option<Box<TypedExp>>, stop: Box<TypedExp>, elem_ty: Ty },
     /// A reduction expression `f(body for iter1 in r1, iter2 in r2, ...)` (or
@@ -1216,7 +1219,15 @@ pub fn infer_exp<'a>(
         }
 
         Absyn::Exp::MATCHEXP { matchTy, inputExp, localDecls, cases, .. } => {
-            let input = infer_exp(inputExp, env, top_level, pkg_prefix, type_vars);
+            // `match id as expr ...` binds the scrutinee to `id` so the arm
+            // bodies can refer to the un-decomposed value. Lift the `AS`
+            // wrapper out into an explicit `as_binding`; the real scrutinee
+            // is the inner expression.
+            let (real_input, as_binding): (&Absyn::Exp, Option<String>) = match &**inputExp {
+                Absyn::Exp::AS { id, exp } => (exp.as_ref(), Some(id.to_string())),
+                _ => (inputExp.as_ref(), None),
+            };
+            let input = infer_exp(real_input, env, top_level, pkg_prefix, type_vars);
             let kind = match matchTy {
                 Absyn::MatchType::MATCH => MatchKind::Match,
                 Absyn::MatchType::MATCHCONTINUE => MatchKind::MatchContinue,
@@ -1228,6 +1239,11 @@ pub fn infer_exp<'a>(
             let mut case_env = env.clone();
             for (n, t, _) in &match_locals_raw {
                 case_env.insert(n.clone(), t.clone());
+            }
+            // The `as` binding is in scope inside every arm; its type is
+            // the scrutinee's type.
+            if let Some(name) = &as_binding {
+                case_env.insert(name.clone(), input.ty());
             }
             // Type-check default-binding expressions for match-level locals in
             // an environment where the surrounding scope and all match-level
@@ -1246,7 +1262,7 @@ pub fn infer_exp<'a>(
                 .map(|c| c.result.ty())
                 .find(|t| *t != Ty::Unknown)
                 .unwrap_or(Ty::Unknown);
-            TypedExp::Match { kind, input: Box::new(input), cases: typed_cases, ty }
+            TypedExp::Match { kind, input: Box::new(input), cases: typed_cases, ty, as_binding }
         }
 
         Absyn::Exp::RANGE { start, step, stop } => {
@@ -1940,6 +1956,53 @@ pub fn pat_bindings(pat: &TypedPat) -> Vec<(String, Ty)> {
     let mut out = Vec::new();
     collect_bindings(pat, &mut out);
     out
+}
+
+/// Like `pat_bindings`, but propagates a known scrutinee type into the pattern,
+/// so tuple components, `SOME(x)` inners, etc. yield typed bindings instead of
+/// `Ty::Unknown`. Constructor field types still come back as `Unknown` here —
+/// resolving those requires the record-field map which lives in the codegen
+/// context; callers that need typed constructor fields should look that up
+/// separately.
+pub fn pat_bindings_with_scrut_ty(pat: &TypedPat, scrut: &Ty) -> Vec<(String, Ty)> {
+    let mut out = Vec::new();
+    collect_bindings_typed(pat, scrut, &mut out);
+    out
+}
+
+fn collect_bindings_typed(pat: &TypedPat, scrut: &Ty, out: &mut Vec<(String, Ty)>) {
+    match pat {
+        TypedPat::Var(name) => out.push((name.clone(), scrut.clone())),
+        TypedPat::Some_(inner) => {
+            let inner_ty = match scrut { Ty::Option(t) => (**t).clone(), _ => Ty::Unknown };
+            collect_bindings_typed(inner, &inner_ty, out);
+        }
+        TypedPat::Cons { head, tail } => {
+            let elem_ty = match scrut { Ty::List(t) => (**t).clone(), _ => Ty::Unknown };
+            collect_bindings_typed(head, &elem_ty, out);
+            collect_bindings_typed(tail, scrut, out);
+        }
+        TypedPat::Tuple(pats) => {
+            let tys: Vec<Ty> = match scrut {
+                Ty::Tuple(ts) if ts.len() == pats.len() => ts.clone(),
+                _ => vec![Ty::Unknown; pats.len()],
+            };
+            for (p, ty) in pats.iter().zip(tys.iter()) {
+                collect_bindings_typed(p, ty, out);
+            }
+        }
+        TypedPat::Constructor { fields, named_fields, .. } => {
+            // Without the record-field map we can't recover field types here;
+            // emit Unknown so the caller can choose to enrich.
+            fields.iter().for_each(|p| collect_bindings_typed(p, &Ty::Unknown, out));
+            named_fields.iter().for_each(|(_, p)| collect_bindings_typed(p, &Ty::Unknown, out));
+        }
+        TypedPat::As { var, pat } => {
+            out.push((var.clone(), scrut.clone()));
+            collect_bindings_typed(pat, scrut, out);
+        }
+        _ => {}
+    }
 }
 
 fn collect_bindings(pat: &TypedPat, out: &mut Vec<(String, Ty)>) {

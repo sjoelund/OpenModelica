@@ -865,7 +865,16 @@ fn emit_node<'a>(out: &mut String, name: &str, node: &NameNode<'_>, indent: &str
                     writeln!(out).unwrap();
                 } else {
                     let r_ty = fmt_ty(&node.ty, ctx);
-                    let val = emit_exp(&typed, /*is_const=*/false, ctx, top_level); // dynamic expr
+                    // The closure body returns `T`, not `Result<T>`, so emit
+                    // the initializer in an infallible context: the `q()`
+                    // helper turns `?` into `.unwrap()` for calls whose Rust
+                    // signature still returns `Result` (per the fallibility
+                    // analysis these are the calls that won't actually fail
+                    // at runtime — if they did, the program is broken anyway).
+                    let saved_fallible = ctx.current_fn_fallible;
+                    ctx.current_fn_fallible = false;
+                    let val = emit_exp(&typed, /*is_const=*/false, ctx, top_level);
+                    ctx.current_fn_fallible = saved_fallible;
                     writeln!(out, "{indent}pub static {ename}: std::sync::LazyLock<{r_ty}> = std::sync::LazyLock::new(|| {{ {val} }});").unwrap();
                     writeln!(out).unwrap();
                 }
@@ -1087,7 +1096,12 @@ fn emit_struct(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Class,
     for (_, fty) in &fields {
         collect_type_vars_in_ty(fty, &mut type_vars);
     }
-    let type_params = if type_vars.is_empty() { String::new() } else { format!("<{}: {DEFAULT_TRAITS}>", type_vars.join(", ")) };
+    let type_params = if type_vars.is_empty() {
+        String::new()
+    } else {
+        let bounded: Vec<String> = type_vars.iter().map(|v| format!("{v}: {DEFAULT_TRAITS}")).collect();
+        format!("<{}>", bounded.join(", "))
+    };
     let derives = match &node.ty {
         Ty::RustStruct(qname) => ctx.derives_for(qname),
         _ => "#[derive(Clone, Debug, PartialEq)]",
@@ -1308,7 +1322,8 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
         let type_params = if all_type_vars.is_empty() {
             String::new()
         } else {
-            format!("<{}: {DEFAULT_TRAITS}>", all_type_vars.join(", "))
+            let bounded: Vec<String> = all_type_vars.iter().map(|v| format!("{v}: {DEFAULT_TRAITS}")).collect();
+            format!("<{}>", bounded.join(", "))
         };
         let ins = fn_inputs.iter().map(|inp| fmt_ty(&inp.ty, ctx)).collect::<Vec<_>>().join(", ");
         let out_ty = fmt_ty(fn_output, ctx);
@@ -2006,8 +2021,8 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
             }
         }
 
-        TypedExp::Match { kind, input, cases, .. } => {
-            emit_match(kind, input, cases, is_const, ctx, top_level)
+        TypedExp::Match { kind, input, cases, as_binding, .. } => {
+            emit_match(kind, input, cases, as_binding.as_deref(), is_const, ctx, top_level)
         }
 
         TypedExp::Range { start, step, stop, .. } => {
@@ -3659,7 +3674,7 @@ fn substitute_formal_refs(exp: &TypedExp, bindings: &HashMap<String, TypedExp>) 
             elems: elems.iter().map(|e| substitute_formal_refs(e, bindings)).collect(),
             ty: ty.clone(),
         },
-        TypedExp::Match { kind, input, cases, ty } => TypedExp::Match {
+        TypedExp::Match { kind, input, cases, ty, as_binding } => TypedExp::Match {
             kind: *kind,
             input: Box::new(substitute_formal_refs(input, bindings)),
             cases: cases.iter().map(|c| typedexp::TypedCase {
@@ -3670,6 +3685,7 @@ fn substitute_formal_refs(exp: &TypedExp, bindings: &HashMap<String, TypedExp>) 
                 result: substitute_formal_refs(&c.result, bindings),
             }).collect(),
             ty: ty.clone(),
+            as_binding: as_binding.clone(),
         },
         TypedExp::Range { start, step, stop, elem_ty } => TypedExp::Range {
             start: Box::new(substitute_formal_refs(start, bindings)),
@@ -3746,9 +3762,19 @@ fn emit_range<'a>(start: &TypedExp, step: Option<&TypedExp>, stop: &TypedExp, is
     }
 }
 
-fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], is_const: bool, ctx: &mut GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) -> String {
-    let input_str = emit_exp(input, is_const, ctx, top_level);
+fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_binding: Option<&str>, is_const: bool, ctx: &mut GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) -> String {
+    let raw_input_str = emit_exp(input, is_const, ctx, top_level);
     let input_ty = input.ty();
+    // When the source wrote `match id as expr`, materialize the scrutinee
+    // into a local named `id` so that arm bodies can read fields off it.
+    // We wrap the whole match in a block: `{ let id = expr; (match id.clone() { ... }) }`.
+    let (input_str, as_prefix) = if let Some(name) = as_binding {
+        let id = escape_ident(name);
+        let prefix = format!("{{ let {id} = {raw_input_str}; ");
+        (id, Some(prefix))
+    } else {
+        (raw_input_str, None)
+    };
     // If the match scrutinee is a recursive enum/struct wrapped in Arc, we must use
     // `.as_ref()` to obtain a `&T` reference that Rust can match against enum patterns.
     // Without this, the match subject is `Arc<T>` and the enum patterns cannot match it.
@@ -3757,10 +3783,14 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], is_co
     let input_is_arc = is_arc_wrapped(&input_ty, ctx);
     let match_subject = if input_is_arc {
         format!("{input_str}.as_ref()")
+    } else if as_prefix.is_some() {
+        // `id` is a fresh let-binding that arm bodies will read — clone so
+        // the match doesn't move it.
+        format!("{input_str}.clone()")
     } else {
         input_str.clone()
     };
-    match kind {
+    let body_str = match kind {
         MatchKind::Match => {
             let has_wild = cases.iter().any(|c| matches!(c.pattern, TypedPat::Wildcard) && c.guard.is_none());
             let arms: Vec<String> = cases.iter().map(|case| {
@@ -3780,6 +3810,18 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], is_co
                     }
                     for (k, s) in tmp_shapes {
                         ctx.variant_shapes.insert(k, s);
+                    }
+                }
+                // Register pattern bindings' types into ctx.fn_env_vars *before*
+                // emitting the guard / result / body, since each of those needs
+                // to see the binding's type (e.g. to decide whether an Array
+                // requires a `.borrow()`). Saved/restored around the arm.
+                let saved_fn_env_vars = ctx.fn_env_vars.clone();
+                let typed_pat_bindings: Vec<(String, Ty)> =
+                    typedexp::pat_bindings_with_scrut_ty(&case.pattern, &input_ty);
+                for (n, t) in &typed_pat_bindings {
+                    if !matches!(t, Ty::Unknown) {
+                        ctx.fn_env_vars.insert(n.clone(), t.clone());
                     }
                 }
                 let guard = case.guard.as_ref()
@@ -3845,7 +3887,7 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], is_co
                             }
                         }
                     }
-                    for (n, t) in typedexp::pat_bindings(&case.pattern) {
+                    for (n, t) in typed_pat_bindings.iter().cloned() {
                         local_env.vars.insert(n, t);
                     }
                     // Re-bind any pattern names that live inside `deref!(..)` AND
@@ -3872,6 +3914,7 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], is_co
                     emit_stmts(&mut body, "            ", &case.stmts, FailureMode::Function, ctx, &mut local_env, top_level, &mut fresh_local);
                     format!("        {pat}{guard} => {{\n{body}            {result}\n        }}")
                 };
+                ctx.fn_env_vars = saved_fn_env_vars;
                 ctx.variants = saved_variants;
                 ctx.variant_shapes = saved_shapes;
                 arm_str
@@ -4020,6 +4063,10 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], is_co
             s.push_str("    }");
             s
         }
+    };
+    match as_prefix {
+        Some(prefix) => format!("{prefix}{body_str} }}"),
+        None => body_str,
     }
 }
 

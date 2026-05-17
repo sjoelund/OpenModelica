@@ -60,6 +60,23 @@ fn start_compilation(results: Vec<Absyn::Program>) {
         t0.elapsed().as_secs_f64(),
     );
 
+    // PartialEq requirement analysis: for each user-defined function,
+    // figure out which of its type parameters need a `+ PartialEq` bound
+    // in the emitted Rust signature. This runs after fallibility so we
+    // can use its results (though right now it only needs `top_level`).
+    // Without this pass codegen would either over-require PartialEq
+    // (breaking callbacks forwarded through generic helpers like
+    // `List.map3`) or under-require it (breaking transitive callers of
+    // `valueEq`/`listMember`).
+    let t0 = std::time::Instant::now();
+    hier.partial_eq_required = codegen::analyze_partial_eq(&hier.top_level);
+    let with_eq = hier.partial_eq_required.values().filter(|s| !s.is_empty()).count();
+    println!(
+        "PartialEq analysis: {} functions with PartialEq-bounded type params; {:.2}s",
+        with_eq,
+        t0.elapsed().as_secs_f64(),
+    );
+
     let t0 = std::time::Instant::now();
     codegen::generate_all(&hier, "openmodelica/src").expect("code generation failed");
     println!("Code generation {:.2}s", t0.elapsed().as_secs_f64())

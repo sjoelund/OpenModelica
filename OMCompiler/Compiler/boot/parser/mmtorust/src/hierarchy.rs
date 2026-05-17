@@ -218,6 +218,25 @@ pub struct InstanceHierarchy<'a> {
     /// [`detect_recursive_types`] and [`detect_types_containing_mutable`] have
     /// converged. Empty until then.
     pub fallible_functions: BTreeSet<String>,
+    /// Per-function set of type-parameter names that need a `+ PartialEq`
+    /// bound in the emitted Rust signature.
+    ///
+    /// Key: the function's fully-qualified MM name (same convention as
+    /// `fallible_functions`). Value: names of type parameters declared on
+    /// that function whose value gets compared via `==` / `!=`, passed to
+    /// a `PartialEq`-requiring builtin (`valueEq`, `listMember`,
+    /// `referenceEq`), or forwarded into another user function whose
+    /// matching type parameter already needs `PartialEq` (transitive
+    /// propagation, computed by fixed-point).
+    ///
+    /// Type parameters absent from this set are emitted with `Clone +
+    /// 'static` only — so callers can forward non-`PartialEq` values
+    /// (notably `&impl Fn(...)` callbacks) through generic helpers like
+    /// `List::map3(.., extra_arg, ..)` without tripping a bound.
+    ///
+    /// Populated by [`crate::partial_eq_analysis::analyze`] after
+    /// [`crate::fallibility::analyze`].
+    pub partial_eq_required: BTreeMap<String, std::collections::HashSet<String>>,
 }
 
 impl<'a> InstanceHierarchy<'a> {
@@ -231,6 +250,7 @@ impl<'a> InstanceHierarchy<'a> {
             recursive_types: BTreeSet::new(),
             types_containing_mutable: BTreeSet::new(),
             fallible_functions: BTreeSet::new(),
+            partial_eq_required: BTreeMap::new(),
         }
     }
 }

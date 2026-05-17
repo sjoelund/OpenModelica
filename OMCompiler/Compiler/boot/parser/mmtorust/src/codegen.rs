@@ -133,6 +133,11 @@ struct GenCtx {
     /// this set are infallible: their Rust signature drops `Result<>` and
     /// their call sites omit `?` (or the surrounding [`QMode`] equivalent).
     fallible_functions: BTreeSet<String>,
+    /// Per-function set of type parameter names that need a `+ PartialEq`
+    /// bound. Populated by [`analyze_partial_eq`] and consulted by
+    /// [`emit_function`] when formatting the signature's type parameters.
+    /// Keyed by FQN (same convention as `fallible_functions`).
+    partial_eq_required: BTreeMap<String, HashSet<String>>,
     /// Fallibility of the function currently being emitted. Set at the start
     /// of [`emit_function`] and consulted by the return-statement emitter and
     /// by the implicit-return tail in [`emit_function`] to decide whether to
@@ -183,7 +188,7 @@ enum VarShape {
 }
 
 impl GenCtx {
-    fn new(top_name: &str, current_crate: Option<String>, crate_map: BTreeMap<String, String>, top_level_uniontype_names: HashSet<String>, recursive_types: BTreeSet<String>, types_containing_mutable: BTreeSet<String>, fn_type_vars: BTreeMap<String, Vec<String>>, fallible_functions: BTreeSet<String>) -> Self {
+    fn new(top_name: &str, current_crate: Option<String>, crate_map: BTreeMap<String, String>, top_level_uniontype_names: HashSet<String>, recursive_types: BTreeSet<String>, types_containing_mutable: BTreeSet<String>, fn_type_vars: BTreeMap<String, Vec<String>>, fallible_functions: BTreeSet<String>, partial_eq_required: BTreeMap<String, HashSet<String>>) -> Self {
         Self {
             top_name: top_name.to_owned(),
             current_path: Vec::new(),
@@ -204,6 +209,7 @@ impl GenCtx {
             variants: HashMap::new(),
             variant_shapes: HashMap::new(),
             fallible_functions,
+            partial_eq_required,
             current_fn_fallible: true,
             current_fn_qname: String::new(),
             nested_partial_aliases: BTreeSet::new(),
@@ -672,7 +678,7 @@ pub fn generate_all(hier: &InstanceHierarchy<'_>, output_dir: &str) -> std::io::
             eprintln!("[mmtorust] codegen start {file_path}");
         }
         let file_t0 = std::time::Instant::now();
-        let content = generate_file(name, node, &crate_map, current_crate, &top_level_uniontype_names, hier.recursive_types.clone(), hier.types_containing_mutable.clone(), &no_mod_uniontypes, &hier.top_level, &fn_type_vars, &hier.fallible_functions);
+        let content = generate_file(name, node, &crate_map, current_crate, &top_level_uniontype_names, hier.recursive_types.clone(), hier.types_containing_mutable.clone(), &no_mod_uniontypes, &hier.top_level, &fn_type_vars, &hier.fallible_functions, &hier.partial_eq_required);
         let file_elapsed = file_t0.elapsed();
         if trace_codegen {
             eprintln!("[mmtorust] codegen done  {file_path} ({:.2}s)", file_elapsed.as_secs_f64());
@@ -794,8 +800,8 @@ fn collect_no_mod_uniontypes(nodes: &BTreeMap<String, NameNode<'_>>, prefix: &st
     }
 }
 
-fn generate_file<'a>(top_name: &str, node: &NameNode<'_>, crate_map: &BTreeMap<String, String>, current_crate: Option<String>, top_level_uniontype_names: &HashSet<String>, recursive_types: BTreeSet<String>, types_containing_mutable: BTreeSet<String>, no_mod_uniontypes: &HashSet<String>, top_level: &'a BTreeMap<String, NameNode<'a>>, fn_type_vars: &BTreeMap<String, Vec<String>>, fallible_functions: &BTreeSet<String>) -> String {
-    let mut ctx = GenCtx::new(top_name, current_crate, crate_map.clone(), top_level_uniontype_names.clone(), recursive_types, types_containing_mutable, fn_type_vars.clone(), fallible_functions.clone());
+fn generate_file<'a>(top_name: &str, node: &NameNode<'_>, crate_map: &BTreeMap<String, String>, current_crate: Option<String>, top_level_uniontype_names: &HashSet<String>, recursive_types: BTreeSet<String>, types_containing_mutable: BTreeSet<String>, no_mod_uniontypes: &HashSet<String>, top_level: &'a BTreeMap<String, NameNode<'a>>, fn_type_vars: &BTreeMap<String, Vec<String>>, fallible_functions: &BTreeSet<String>, partial_eq_required: &BTreeMap<String, HashSet<String>>) -> String {
+    let mut ctx = GenCtx::new(top_name, current_crate, crate_map.clone(), top_level_uniontype_names.clone(), recursive_types, types_containing_mutable, fn_type_vars.clone(), fallible_functions.clone(), partial_eq_required.clone());
     ctx.no_mod_uniontypes = no_mod_uniontypes.clone();
     // Pre-walk the *whole* hierarchy (not just this file's node) so that
     // function-nested partial-function aliases are recognised regardless of
@@ -1132,10 +1138,21 @@ fn emit_struct(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Class,
     for (_, fty) in &fields {
         collect_type_vars_in_ty(fty, &mut type_vars);
     }
+    // Use the minimum bound `Clone + 'static` on struct type parameters.
+    // We intentionally drop `PartialEq` here even though `#[derive(Clone,
+    // Debug, PartialEq)]` is emitted below: `#[derive(PartialEq)]` produces
+    // a *conditional* impl (`impl<T: PartialEq> PartialEq for Foo<T>`), so
+    // the struct itself does not require `T: PartialEq` to be defined or
+    // used — it only requires it where the receiver code actually invokes
+    // structural equality. Keeping `PartialEq` in the struct's *declared*
+    // bound, on the other hand, would force every use site (including
+    // functions that just forward the value) to also carry `T: PartialEq`,
+    // breaking code that flows non-`PartialEq` values like `&impl Fn(...)`
+    // through generic forwarders.
     let type_params = if type_vars.is_empty() {
         String::new()
     } else {
-        let bounded: Vec<String> = type_vars.iter().map(|v| format!("{v}: {DEFAULT_TRAITS}")).collect();
+        let bounded: Vec<String> = type_vars.iter().map(|v| format!("{v}: Clone + 'static")).collect();
         format!("<{}>", bounded.join(", "))
     };
     let derives = match &node.ty {
@@ -1355,10 +1372,17 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
             collect_type_vars_in_ty(&inp.ty, &mut all_type_vars);
         }
         collect_type_vars_in_ty(fn_output, &mut all_type_vars);
+        // Partial-function aliases lower to a Rust type alias for a `fn`
+        // pointer (or an `impl Fn` parameter signature). The aliased type
+        // never participates in structural equality, so drop `PartialEq`
+        // from the type-parameter bound — keeping it would force every
+        // user of the alias to also carry `T: PartialEq`, which fails
+        // when the alias is parametric over a callback or function-
+        // pointer type.
         let type_params = if all_type_vars.is_empty() {
             String::new()
         } else {
-            let bounded: Vec<String> = all_type_vars.iter().map(|v| format!("{v}: {DEFAULT_TRAITS}")).collect();
+            let bounded: Vec<String> = all_type_vars.iter().map(|v| format!("{v}: Clone + 'static")).collect();
             format!("<{}>", bounded.join(", "))
         };
         let ins = fn_inputs.iter().map(|inp| fmt_ty(&inp.ty, ctx)).collect::<Vec<_>>().join(", ");
@@ -1561,6 +1585,31 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
     } else {
         ret_ty.clone()
     };
+
+    // Recompute `type_params` using the workspace-wide PartialEq
+    // requirement analysis. `ctx.partial_eq_required[fn_qname]` was
+    // populated by [`analyze_partial_eq`] before code generation; it
+    // captures both direct uses (`==`/`!=` and PartialEq-requiring
+    // builtins) and transitive propagation through user-function call
+    // sites. Type parameters not in that set are emitted with
+    // `Clone + 'static` only, which lets MM callbacks
+    // (`&impl Fn(...)`, which is not `PartialEq`) flow through generic
+    // forwarders like `List::map3(.., extra_arg, ..)`.
+    let type_params = if all_type_vars.is_empty() {
+        String::new()
+    } else {
+        let empty: HashSet<String> = HashSet::new();
+        let eq_vars = ctx.partial_eq_required.get(&fn_qname).unwrap_or(&empty);
+        let bounded: Vec<String> = all_type_vars.iter().map(|v| {
+            if eq_vars.contains(v) {
+                format!("{v}: Clone + PartialEq + 'static")
+            } else {
+                format!("{v}: Clone + 'static")
+            }
+        }).collect();
+        format!("<{}>", bounded.join(", "))
+    };
+
     writeln!(out, "{indent}{pub_kw}fn {ename}{type_params}({params}) -> {sig_ret} {{").unwrap();
     let body_indent = format!("{indent}    ");
 
@@ -6606,6 +6655,582 @@ fn split_balanced_call_arg(s: &str) -> Option<(&str, &str)> {
         i += 1;
     }
     None
+}
+
+/// Run the workspace-wide `PartialEq` requirements analysis.
+///
+/// Walks every user-defined function in the hierarchy, type-checks its
+/// body once, and computes the per-function set of type parameters that
+/// need a `+ PartialEq` bound in the emitted Rust signature. The result
+/// is consumed by [`emit_function`] (via `ctx.partial_eq_required`).
+///
+/// Two sources of requirement are recognised:
+///   1. **Direct**: the body contains `==`/`!=` whose operand types
+///      mention the type parameter, OR calls (or references) one of the
+///      builtins in [`PARTIAL_EQ_REQUIRING_BUILTINS`] with such an
+///      operand. Collected by [`visit_stmt_for_eq`] /
+///      [`visit_exp_for_eq`].
+///   2. **Transitive**: the body calls another user function `g` where
+///      one of `g`'s type parameters needs `PartialEq` and the call's
+///      argument substitution carries one of the caller's type
+///      parameters into that slot. Computed by fixed-point on the call
+///      graph using [`unify_subst`] over the typed argument/formal
+///      types.
+///
+/// The fixed-point terminates because the requirement set per function
+/// can only grow and is bounded by the function's declared type
+/// parameters. Functions whose body cannot be typed (e.g. `external`
+/// declarations) contribute no statements and so produce an empty set.
+pub fn analyze_partial_eq<'a>(
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+) -> BTreeMap<String, HashSet<String>> {
+    // Collect every user-defined function class together with its FQN
+    // (top-level package first), matching the convention used by
+    // `fallibility::collect_functions`.
+    let mut all_fns: Vec<(String, &'a NameNode<'a>)> = Vec::new();
+    collect_all_function_nodes(top_level, "", &mut all_fns);
+
+    // Functions without any type parameters cannot possibly need
+    // `PartialEq` bounds — there's no `T` to bound. Skip them entirely:
+    // re-typing their bodies is the dominant cost of this pass and the
+    // overwhelming majority of MM functions are monomorphic. We still
+    // visit them transitively (a non-generic function can be called from
+    // a generic one), but only via the cached requirement set, which is
+    // permanently empty for them — looked up by name in `required`.
+    let mut cache: BTreeMap<String, Vec<typedexp::TypedStmt>> = BTreeMap::new();
+    let mut required: BTreeMap<String, HashSet<String>> = BTreeMap::new();
+
+    for (qname, node) in &all_fns {
+        let has_type_vars = matches!(&node.ty, Ty::Function { inputs, output, type_vars, .. }
+            if !type_vars.is_empty()
+                || inputs.iter().any(|inp| ty_has_type_var(&inp.ty))
+                || ty_has_type_var(output));
+        if !has_type_vars {
+            // Record an empty requirement set so downstream lookups still
+            // resolve, and don't typecheck the body.
+            required.insert(qname.clone(), HashSet::new());
+            continue;
+        }
+        let stmts = typedexp_function_body_for_analysis(qname, node, top_level);
+        let mut direct: HashSet<String> = HashSet::new();
+        for s in &stmts { visit_stmt_for_eq(s, &mut direct); }
+        required.insert(qname.clone(), direct);
+        cache.insert(qname.clone(), stmts);
+    }
+
+    // Fixed-point: each iteration walks every cached body, looks up the
+    // current requirement set for any user-function callee, and
+    // propagates back through the call's substitution. Stops when no
+    // function's set grows in an iteration.
+    loop {
+        let mut changed = false;
+        // Keys are sorted (BTreeMap), so the iteration order is
+        // deterministic across runs — useful for diffing generated code.
+        let qnames: Vec<String> = cache.keys().cloned().collect();
+        for qname in &qnames {
+            let pkg_prefix = qname.rsplit_once('.').map_or("", |(p, _)| p).to_owned();
+            let stmts = &cache[qname];
+            let mut current = required[qname].clone();
+            let before = current.len();
+            for s in stmts {
+                propagate_stmt_partial_eq(s, &required, top_level, &pkg_prefix, &mut current);
+            }
+            if current.len() > before {
+                changed = true;
+                required.insert(qname.clone(), current);
+            }
+        }
+        if !changed { break; }
+    }
+
+    required
+}
+
+fn collect_all_function_nodes<'a>(
+    nodes: &'a BTreeMap<String, NameNode<'a>>,
+    prefix: &str,
+    out: &mut Vec<(String, &'a NameNode<'a>)>,
+) {
+    for (name, node) in nodes {
+        let qname = if prefix.is_empty() { name.clone() } else { format!("{prefix}.{name}") };
+        if let NodeKind::Class(c) = &node.kind {
+            if matches!(c.restriction, Absyn::Restriction::R_FUNCTION { .. }) {
+                out.push((qname.clone(), node));
+            }
+        }
+        collect_all_function_nodes(&node.children, &qname, out);
+    }
+}
+
+/// Type-check a function's body in isolation so the analysis pass can
+/// walk it for `PartialEq` requirements. Mirrors the env-setup in
+/// `emit_function` but doesn't replicate its extends-merge logic — the
+/// analysis only cares about the *expressions* in the body, not the
+/// exact set of declared locals, so the simpler env-from-children build
+/// is sufficient.
+fn typedexp_function_body_for_analysis<'a>(
+    fn_qname: &str,
+    node: &NameNode<'_>,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+) -> Vec<typedexp::TypedStmt> {
+    let NodeKind::Class(c) = &node.kind else { return Vec::new(); };
+
+    let mut all_type_vars: Vec<String> = Vec::new();
+    if let Ty::Function { type_vars, inputs, output, .. } = &node.ty {
+        all_type_vars = type_vars.clone();
+        for inp in inputs.iter() {
+            collect_type_vars_in_ty(&inp.ty, &mut all_type_vars);
+        }
+        collect_type_vars_in_ty(output, &mut all_type_vars);
+    }
+
+    let mut env: HashMap<String, Ty> = HashMap::new();
+    for (name, child) in &node.children {
+        env.insert(name.clone(), child.ty.clone());
+    }
+
+    let alg_items: &[Absyn::AlgorithmItem] = match &c.body {
+        MM::ClassDef::Parts { algorithms, .. } | MM::ClassDef::ClassExtends { algorithms, .. } => algorithms,
+        _ => return Vec::new(),
+    };
+
+    let pkg_prefix = fn_qname.rsplit_once('.').map_or("", |(p, _)| p);
+    typedexp::infer_stmts(alg_items, &mut env, top_level, pkg_prefix, &all_type_vars)
+}
+
+/// Walk a typed statement, looking for user-function calls. For each
+/// such call, consult `required` for the callee's current requirement
+/// set; if non-empty, derive the caller's type variables that flow into
+/// the requiring callee slots via [`unify_subst`] and union them into
+/// `out`.
+///
+/// This is the propagation half of the analysis. Direct requirements
+/// are produced by [`visit_stmt_for_eq`].
+fn propagate_stmt_partial_eq<'a>(
+    stmt: &typedexp::TypedStmt,
+    required: &BTreeMap<String, HashSet<String>>,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+    pkg_prefix: &str,
+    out: &mut HashSet<String>,
+) {
+    use typedexp::TypedStmt as S;
+    match stmt {
+        S::Assign { rhs, .. } => propagate_exp_partial_eq(rhs, required, top_level, pkg_prefix, out),
+        S::NoRetCall { call } => propagate_exp_partial_eq(call, required, top_level, pkg_prefix, out),
+        S::If { cond, then_, elseif, else_ } => {
+            propagate_exp_partial_eq(cond, required, top_level, pkg_prefix, out);
+            for s in then_ { propagate_stmt_partial_eq(s, required, top_level, pkg_prefix, out); }
+            for (c, body) in elseif {
+                propagate_exp_partial_eq(c, required, top_level, pkg_prefix, out);
+                for s in body { propagate_stmt_partial_eq(s, required, top_level, pkg_prefix, out); }
+            }
+            for s in else_ { propagate_stmt_partial_eq(s, required, top_level, pkg_prefix, out); }
+        }
+        S::For { range, body, .. } => {
+            propagate_exp_partial_eq(range, required, top_level, pkg_prefix, out);
+            for s in body { propagate_stmt_partial_eq(s, required, top_level, pkg_prefix, out); }
+        }
+        S::While { cond, body } => {
+            propagate_exp_partial_eq(cond, required, top_level, pkg_prefix, out);
+            for s in body { propagate_stmt_partial_eq(s, required, top_level, pkg_prefix, out); }
+        }
+        S::Try { body, else_body } => {
+            for s in body { propagate_stmt_partial_eq(s, required, top_level, pkg_prefix, out); }
+            for s in else_body { propagate_stmt_partial_eq(s, required, top_level, pkg_prefix, out); }
+        }
+        S::Failure { body } => {
+            for s in body { propagate_stmt_partial_eq(s, required, top_level, pkg_prefix, out); }
+        }
+        S::Return | S::Break | S::Continue | S::Todo(_) => {}
+    }
+}
+
+fn propagate_exp_partial_eq<'a>(
+    exp: &typedexp::TypedExp,
+    required: &BTreeMap<String, HashSet<String>>,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+    pkg_prefix: &str,
+    out: &mut HashSet<String>,
+) {
+    use typedexp::TypedExp as E;
+    match exp {
+        E::Lit(_) | E::Todo(_) => {}
+        E::Var { name, segments, ty } => {
+            // A reference to a user function as a *value* (e.g. via
+            // `fnptr!(union, _, _)` or a bare `&someFn` callback)
+            // instantiates the callee's type parameters with whatever
+            // the caller has at the use site. If any of the callee's
+            // type parameters need `PartialEq`, the corresponding caller
+            // type parameter needs it too. We use `unify_subst_collect`
+            // between the *declared* function signature (looked up in
+            // `top_level`) and the *use-site* type carried by the `Var`.
+            //
+            // Resolve via the full dotted name if it has dots; otherwise
+            // try plain lookup followed by package-walked resolution.
+            // The resolver in `typedexp::resolve_call_node` mirrors what
+            // call sites use, so the same name resolves consistently.
+            let lookup_name: String = if !segments.is_empty() {
+                segments.iter().map(|s| s.name.clone()).collect::<Vec<_>>().join(".")
+            } else {
+                name.clone()
+            };
+            if let Some(qname) = typedexp::resolve_call_node(&lookup_name, top_level, pkg_prefix).map(|(q, _)| q) {
+                if let Some(callee_req) = required.get(&qname) {
+                    if !callee_req.is_empty() {
+                        if let Some(callee_node) = typedexp_lookup_node(&qname, top_level) {
+                            let mut subst: HashMap<String, HashSet<String>> = HashMap::new();
+                            unify_subst_collect(&callee_node.ty, ty, &mut subst);
+                            for callee_tv in callee_req {
+                                if let Some(caller_tvs) = subst.get(callee_tv) {
+                                    out.extend(caller_tvs.iter().cloned());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            for seg in segments {
+                for sub in &seg.subscripts {
+                    propagate_exp_partial_eq(sub, required, top_level, pkg_prefix, out);
+                }
+            }
+        }
+        E::BinOp { lhs, rhs, .. } => {
+            propagate_exp_partial_eq(lhs, required, top_level, pkg_prefix, out);
+            propagate_exp_partial_eq(rhs, required, top_level, pkg_prefix, out);
+        }
+        E::UnOp { operand, .. } => propagate_exp_partial_eq(operand, required, top_level, pkg_prefix, out),
+        E::Call { func, args, named_args, .. } => {
+            if let Some(qname) = typedexp::resolve_call_node(func, top_level, pkg_prefix).map(|(q, _)| q) {
+                if let Some(callee_req) = required.get(&qname) {
+                    if !callee_req.is_empty() {
+                        if let Some(callee_node) = typedexp_lookup_node(&qname, top_level) {
+                            if let Ty::Function { inputs: formals, .. } = &callee_node.ty {
+                                let mut subst: HashMap<String, HashSet<String>> = HashMap::new();
+                                for (i, arg) in args.iter().enumerate() {
+                                    if let Some(formal) = formals.get(i) {
+                                        unify_subst_collect(&formal.ty, &arg.ty(), &mut subst);
+                                    }
+                                }
+                                for (n, arg) in named_args {
+                                    if let Some(formal) = formals.iter().find(|f| &f.name == n) {
+                                        unify_subst_collect(&formal.ty, &arg.ty(), &mut subst);
+                                    }
+                                }
+                                for callee_tv in callee_req {
+                                    if let Some(caller_tvs) = subst.get(callee_tv) {
+                                        out.extend(caller_tvs.iter().cloned());
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            for a in args { propagate_exp_partial_eq(a, required, top_level, pkg_prefix, out); }
+            for (_, v) in named_args { propagate_exp_partial_eq(v, required, top_level, pkg_prefix, out); }
+        }
+        E::Constructor { args, named_args, .. } | E::PartEval { args, named_args, .. } => {
+            for a in args { propagate_exp_partial_eq(a, required, top_level, pkg_prefix, out); }
+            for (_, v) in named_args { propagate_exp_partial_eq(v, required, top_level, pkg_prefix, out); }
+        }
+        E::If { cond, then_, elseif, else_, .. } => {
+            propagate_exp_partial_eq(cond, required, top_level, pkg_prefix, out);
+            propagate_exp_partial_eq(then_, required, top_level, pkg_prefix, out);
+            for (c, b) in elseif {
+                propagate_exp_partial_eq(c, required, top_level, pkg_prefix, out);
+                propagate_exp_partial_eq(b, required, top_level, pkg_prefix, out);
+            }
+            propagate_exp_partial_eq(else_, required, top_level, pkg_prefix, out);
+        }
+        E::Cons { head, tail, .. } => {
+            propagate_exp_partial_eq(head, required, top_level, pkg_prefix, out);
+            propagate_exp_partial_eq(tail, required, top_level, pkg_prefix, out);
+        }
+        E::Tuple(elems) | E::Array { elems, .. } => {
+            for e in elems { propagate_exp_partial_eq(e, required, top_level, pkg_prefix, out); }
+        }
+        E::Match { input, cases, .. } => {
+            propagate_exp_partial_eq(input, required, top_level, pkg_prefix, out);
+            for c in cases {
+                if let Some(g) = &c.guard { propagate_exp_partial_eq(g, required, top_level, pkg_prefix, out); }
+                for (_, _, d) in &c.locals {
+                    if let Some(d) = d { propagate_exp_partial_eq(d, required, top_level, pkg_prefix, out); }
+                }
+                for s in &c.stmts { propagate_stmt_partial_eq(s, required, top_level, pkg_prefix, out); }
+                propagate_exp_partial_eq(&c.result, required, top_level, pkg_prefix, out);
+            }
+        }
+        E::Range { start, step, stop, .. } => {
+            propagate_exp_partial_eq(start, required, top_level, pkg_prefix, out);
+            if let Some(s) = step { propagate_exp_partial_eq(s, required, top_level, pkg_prefix, out); }
+            propagate_exp_partial_eq(stop, required, top_level, pkg_prefix, out);
+        }
+        E::Reduction { body, iterators, .. } => {
+            propagate_exp_partial_eq(body, required, top_level, pkg_prefix, out);
+            for it in iterators {
+                propagate_exp_partial_eq(&it.range, required, top_level, pkg_prefix, out);
+                if let Some(g) = &it.guard { propagate_exp_partial_eq(g, required, top_level, pkg_prefix, out); }
+            }
+        }
+    }
+}
+
+/// Walk both types in parallel; whenever the callee side reaches a
+/// `Ty::TypeVar(c)`, record every type variable that appears in the
+/// caller's side as a value substituted in for `c`. The mapping is
+/// many-to-many (over-approximation) because a callee tv can appear in
+/// multiple positions of the formal type, and the caller's type at the
+/// argument position may itself be a structured type whose own type
+/// vars all flow into the callee's `c` slot.
+///
+/// Used by the call-graph propagation step of [`analyze_partial_eq`]:
+/// once we know which of the callee's type vars need `PartialEq`, we
+/// look them up in this substitution to find the caller's type vars
+/// that inherit the same requirement.
+fn unify_subst_collect(callee_ty: &Ty, caller_ty: &Ty, out: &mut HashMap<String, HashSet<String>>) {
+    match (callee_ty, caller_ty) {
+        (Ty::TypeVar(c), _) => {
+            let mut tvs: Vec<String> = Vec::new();
+            collect_type_vars_in_ty(caller_ty, &mut tvs);
+            out.entry(c.clone()).or_default().extend(tvs);
+        }
+        (Ty::Option(c), Ty::Option(t))
+        | (Ty::List(c), Ty::List(t))
+        | (Ty::Array(c), Ty::Array(t))
+        | (Ty::Range(c), Ty::Range(t)) => {
+            unify_subst_collect(c, t, out);
+        }
+        (Ty::Tuple(cs), Ty::Tuple(ts)) if cs.len() == ts.len() => {
+            for (c, t) in cs.iter().zip(ts) { unify_subst_collect(c, t, out); }
+        }
+        (Ty::Generic(cn, cargs), Ty::Generic(tn, targs)) if cn == tn && cargs.len() == targs.len() => {
+            for (c, t) in cargs.iter().zip(targs) { unify_subst_collect(c, t, out); }
+        }
+        (Ty::Function { inputs: ci, output: co, .. }, Ty::Function { inputs: ti, output: to, .. })
+            if ci.len() == ti.len() =>
+        {
+            for (c, t) in ci.iter().zip(ti) { unify_subst_collect(&c.ty, &t.ty, out); }
+            unify_subst_collect(co, to, out);
+        }
+        _ => {}
+    }
+}
+
+/// True when `ty` mentions any `Ty::TypeVar` directly or through any
+/// container. Used by [`analyze_partial_eq`] to skip the body re-typing
+/// for fully monomorphic functions (the dominant majority).
+fn ty_has_type_var(ty: &Ty) -> bool {
+    match ty {
+        Ty::TypeVar(_) => true,
+        Ty::Option(t) | Ty::List(t) | Ty::Array(t) | Ty::Range(t) => ty_has_type_var(t),
+        Ty::Tuple(ts) => ts.iter().any(ty_has_type_var),
+        Ty::Generic(_, args) => args.iter().any(ty_has_type_var),
+        Ty::Function { inputs, output, .. } => {
+            inputs.iter().any(|inp| ty_has_type_var(&inp.ty)) || ty_has_type_var(output)
+        }
+        _ => false,
+    }
+}
+
+fn typedexp_lookup_node<'a>(
+    dotted: &str,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+) -> Option<&'a NameNode<'a>> {
+    let mut parts = dotted.split('.');
+    let first = parts.next()?;
+    let mut node = top_level.get(first)?;
+    for part in parts {
+        node = node.children.get(part)?;
+    }
+    Some(node)
+}
+
+/// MM-level builtins (and a handful of metamodelica-crate functions exposed
+/// as builtins) whose Rust signature requires `T: PartialEq` on the type
+/// parameter that flows into the operand position. Used by
+/// [`collect_partial_eq_type_vars`] to decide which type parameters of the
+/// enclosing function need a `+ PartialEq` bound.
+///
+/// `valueEq`, `listMember`, and `referenceEq` are the only such builtins in
+/// MetaModelica today; add to this list if more are introduced (or if a
+/// builtin gains a `PartialEq` bound on a previously-unconstrained type
+/// parameter). The handful of builtins listed here is the entire set of
+/// places MM source code can require structural equality on a generic
+/// type, so a body that never reaches one of these (and never uses `==`
+/// directly) genuinely does not need `PartialEq` on its type parameters.
+const PARTIAL_EQ_REQUIRING_BUILTINS: &[&str] = &["valueEq", "listMember", "referenceEq"];
+
+/// Walk a list of [`TypedStmt`]s (typically the algorithm body of a
+/// function) and collect the names of type variables that appear in
+/// operand types of `==` / `!=` or in argument types of a known
+/// `PartialEq`-requiring builtin call. These are exactly the type
+/// parameters of the enclosing function that need a `+ PartialEq` bound.
+///
+/// Type parameters not in the result set are emitted with `Clone + 'static`
+/// only — callers can then forward a non-`PartialEq` value (e.g. a
+/// `&impl Fn(...)` callback) through generic forwarders like
+/// `List::map3(.., extra_arg, ..)` without tripping the bound. See the
+/// `Graph.rs` call sites of `map3`/`map2`/`fold2` for the motivating
+/// MetaModelica idiom.
+///
+/// The walk does NOT cross into user-defined callees (no
+/// transitive analysis): a call `f(x)` where the type variable `T` of the
+/// enclosing function flows into `f`'s `T: PartialEq` parameter would not
+/// be detected here, and the callee's bound would surface at the call
+/// site as `T: PartialEq is not satisfied`. In practice, MetaModelica
+/// equality goes through the listed builtins, so this conservative scope
+/// is sufficient for current code; if a propagation gap arises, extend
+/// this with a fixed-point pass keyed on the call graph (see
+/// `fallibility::analyze` for a similar shape).
+fn collect_partial_eq_type_vars(stmts: &[typedexp::TypedStmt]) -> std::collections::HashSet<String> {
+    let mut out = std::collections::HashSet::new();
+    for s in stmts {
+        visit_stmt_for_eq(s, &mut out);
+    }
+    out
+}
+
+fn visit_stmt_for_eq(stmt: &typedexp::TypedStmt, out: &mut std::collections::HashSet<String>) {
+    use typedexp::TypedStmt as S;
+    match stmt {
+        S::Assign { rhs, .. } => visit_exp_for_eq(rhs, out),
+        S::NoRetCall { call } => visit_exp_for_eq(call, out),
+        S::If { cond, then_, elseif, else_ } => {
+            visit_exp_for_eq(cond, out);
+            for s in then_ { visit_stmt_for_eq(s, out); }
+            for (c, body) in elseif {
+                visit_exp_for_eq(c, out);
+                for s in body { visit_stmt_for_eq(s, out); }
+            }
+            for s in else_ { visit_stmt_for_eq(s, out); }
+        }
+        S::For { range, body, .. } => {
+            visit_exp_for_eq(range, out);
+            for s in body { visit_stmt_for_eq(s, out); }
+        }
+        S::While { cond, body } => {
+            visit_exp_for_eq(cond, out);
+            for s in body { visit_stmt_for_eq(s, out); }
+        }
+        S::Try { body, else_body } => {
+            for s in body { visit_stmt_for_eq(s, out); }
+            for s in else_body { visit_stmt_for_eq(s, out); }
+        }
+        S::Failure { body } => {
+            for s in body { visit_stmt_for_eq(s, out); }
+        }
+        S::Return | S::Break | S::Continue | S::Todo(_) => {}
+    }
+}
+
+fn visit_exp_for_eq(exp: &typedexp::TypedExp, out: &mut std::collections::HashSet<String>) {
+    use typedexp::{TypedExp as E, BinOpKind};
+    match exp {
+        E::Lit(_) | E::Todo(_) => {}
+        E::Var { name, segments, ty } => {
+            // A reference to one of the PartialEq-requiring builtins as a
+            // *value* (e.g. `&valueEq` passed as a callback to
+            // `deleteMemberOnTrue(..., &valueEq)`) instantiates the
+            // builtin's `T: PartialEq` bound with whatever type-var the
+            // caller has — and the caller therefore needs `T: PartialEq`
+            // too. Match on the bare last segment so qualified forms
+            // (`MetaModelica.valueEq`, `Dangerous.referenceEq`, …) are
+            // recognised.
+            let bare = name.rsplit('.').next().unwrap_or(name);
+            if PARTIAL_EQ_REQUIRING_BUILTINS.contains(&bare) {
+                let mut tvs = Vec::new();
+                crate::hierarchy::collect_type_vars_in_ty(ty, &mut tvs);
+                out.extend(tvs);
+            }
+            for seg in segments {
+                for sub in &seg.subscripts {
+                    visit_exp_for_eq(sub, out);
+                }
+            }
+        }
+        E::BinOp { op, lhs, rhs, .. } => {
+            if matches!(op, BinOpKind::Eq | BinOpKind::NEq) {
+                // Structural equality requires `PartialEq` on the type of
+                // each operand. Collect the type variables that participate.
+                let mut tvs = Vec::new();
+                crate::hierarchy::collect_type_vars_in_ty(&lhs.ty(), &mut tvs);
+                crate::hierarchy::collect_type_vars_in_ty(&rhs.ty(), &mut tvs);
+                out.extend(tvs);
+            }
+            visit_exp_for_eq(lhs, out);
+            visit_exp_for_eq(rhs, out);
+        }
+        E::UnOp { operand, .. } => visit_exp_for_eq(operand, out),
+        E::Call { func, args, named_args, .. } => {
+            // Direct calls to the listed builtins propagate `PartialEq`
+            // requirements onto the type vars that appear in the operand
+            // types. Match against the bare last segment so qualified
+            // forms (`MetaModelica.valueEq`, `Dangerous.referenceEq`,
+            // etc.) are recognised too.
+            let bare = func.rsplit('.').next().unwrap_or(func);
+            if PARTIAL_EQ_REQUIRING_BUILTINS.contains(&bare) {
+                for a in args {
+                    let mut tvs = Vec::new();
+                    crate::hierarchy::collect_type_vars_in_ty(&a.ty(), &mut tvs);
+                    out.extend(tvs);
+                }
+                for (_, v) in named_args {
+                    let mut tvs = Vec::new();
+                    crate::hierarchy::collect_type_vars_in_ty(&v.ty(), &mut tvs);
+                    out.extend(tvs);
+                }
+            }
+            for a in args { visit_exp_for_eq(a, out); }
+            for (_, v) in named_args { visit_exp_for_eq(v, out); }
+        }
+        E::Constructor { args, named_args, .. } => {
+            for a in args { visit_exp_for_eq(a, out); }
+            for (_, v) in named_args { visit_exp_for_eq(v, out); }
+        }
+        E::PartEval { args, named_args, .. } => {
+            for a in args { visit_exp_for_eq(a, out); }
+            for (_, v) in named_args { visit_exp_for_eq(v, out); }
+        }
+        E::If { cond, then_, elseif, else_, .. } => {
+            visit_exp_for_eq(cond, out);
+            visit_exp_for_eq(then_, out);
+            for (c, b) in elseif {
+                visit_exp_for_eq(c, out);
+                visit_exp_for_eq(b, out);
+            }
+            visit_exp_for_eq(else_, out);
+        }
+        E::Cons { head, tail, .. } => {
+            visit_exp_for_eq(head, out);
+            visit_exp_for_eq(tail, out);
+        }
+        E::Tuple(elems) => { for e in elems { visit_exp_for_eq(e, out); } }
+        E::Array { elems, .. } => { for e in elems { visit_exp_for_eq(e, out); } }
+        E::Match { input, cases, .. } => {
+            visit_exp_for_eq(input, out);
+            for c in cases {
+                if let Some(g) = &c.guard { visit_exp_for_eq(g, out); }
+                for (_, _, d) in &c.locals {
+                    if let Some(d) = d { visit_exp_for_eq(d, out); }
+                }
+                for s in &c.stmts { visit_stmt_for_eq(s, out); }
+                visit_exp_for_eq(&c.result, out);
+            }
+        }
+        E::Range { start, step, stop, .. } => {
+            visit_exp_for_eq(start, out);
+            if let Some(s) = step { visit_exp_for_eq(s, out); }
+            visit_exp_for_eq(stop, out);
+        }
+        E::Reduction { body, iterators, .. } => {
+            visit_exp_for_eq(body, out);
+            for it in iterators {
+                visit_exp_for_eq(&it.range, out);
+                if let Some(g) = &it.guard { visit_exp_for_eq(g, out); }
+            }
+        }
+    }
 }
 
 fn fmt_ty(ty: &Ty, ctx: &mut GenCtx) -> String {

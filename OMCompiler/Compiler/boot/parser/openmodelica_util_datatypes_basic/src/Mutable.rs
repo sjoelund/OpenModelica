@@ -3,8 +3,13 @@
 use std::sync::Arc;
 
 #[derive(Clone, Debug)]
-pub struct Mutable<T: Clone + PartialEq>(Arc<std::sync::Mutex<T>>);
+pub struct Mutable<T: Clone>(Arc<std::sync::Mutex<T>>);
 
+// `PartialEq` is a conditional impl rather than a struct-level bound so
+// that `Mutable<T>` can store values whose `T` does not implement
+// `PartialEq` (notably callbacks: `&impl Fn(...)` and similar). MM-level
+// code only invokes structural equality on `Mutable<T>` when `T` itself
+// is comparable.
 impl<T: Clone + PartialEq> PartialEq for Mutable<T> {
     fn eq(&self, other: &Self) -> bool {
         let self_guard = self.0.lock().unwrap();
@@ -13,15 +18,15 @@ impl<T: Clone + PartialEq> PartialEq for Mutable<T> {
     }
 }
 
-pub fn create<T: Clone + PartialEq>(data: T) -> Mutable<T> {
+pub fn create<T: Clone>(data: T) -> Mutable<T> {
     Mutable(Arc::from(std::sync::Mutex::new(data)))
 }
 
-pub fn update<T: Clone + PartialEq>(mutable: Mutable<T>, data: T) {
+pub fn update<T: Clone>(mutable: Mutable<T>, data: T) {
     let mut guard = mutable.0.lock().unwrap();
     *guard = data;
 }
 
-pub fn access<T: Clone + PartialEq>(mutable: Mutable<T>) -> T {
+pub fn access<T: Clone>(mutable: Mutable<T>) -> T {
     mutable.0.lock().unwrap().clone()
 }

@@ -567,10 +567,14 @@ fn resolve_called_qname<'a>(
     caller_qname: &str,
     top_level: &'a BTreeMap<String, NameNode<'a>>,
 ) -> Option<String> {
-    // `caller_qname` includes the function's own name; strip it to get the
-    // enclosing package prefix that `resolve_call_node` expects.
-    let pkg_prefix = caller_qname.rsplit_once('.').map(|(p, _)| p).unwrap_or("");
-    resolve_call_node(raw, top_level, pkg_prefix).map(|(q, _)| q)
+    // Pass the *full* caller FQN as the scope prefix, not the enclosing
+    // package. `resolve_call_node` walks the prefix outward one segment at
+    // a time, so this lets it try `Mod.Caller.callee` first (catching
+    // function-nested helper functions) before falling back to
+    // `Mod.callee` and the bare top-level lookup. Stripping the function
+    // name eagerly would skip the function-nested case and the
+    // fallibility analysis would then see the call as unresolved.
+    resolve_call_node(raw, top_level, caller_qname).map(|(q, _)| q)
 }
 
 // ── Driver ───────────────────────────────────────────────────────────────────

@@ -864,7 +864,23 @@ fn emit_node<'a>(out: &mut String, name: &str, node: &NameNode<'_>, indent: &str
                     writeln!(out, "{indent}pub static {ename}: {r_ty} = {val};").unwrap();
                     writeln!(out).unwrap();
                 } else {
-                    let r_ty = fmt_ty(&node.ty, ctx);
+                    // Top-level `pub static` of type `Array<T>` is special-cased
+                    // to `StaticArray<T>`. `Array<T> = Rc<RefCell<Vec<T>>>` is
+                    // not `Sync`, so `LazyLock<Array<T>>` would fail to compile
+                    // as a `pub static`. Constant `array<T>` declarations (lexer
+                    // tables, NF builtin caches, ...) are never written to, so
+                    // we emit them as the `Sync`-safe `StaticArray<T>` wrapper
+                    // (an `Arc<Vec<T>>` under the hood) which exposes the same
+                    // `.borrow()` / `[idx]` / `.clone()` surface generated code
+                    // expects from an `Array<T>`. See `metamodelica::StaticArray`
+                    // for the full rationale.
+                    let is_array_const = matches!(&node.ty, Ty::Array(_));
+                    let r_ty = if is_array_const {
+                        let inner = match &node.ty { Ty::Array(t) => t.as_ref(), _ => unreachable!() };
+                        format!("metamodelica::StaticArray<{}>", fmt_ty(inner, ctx))
+                    } else {
+                        fmt_ty(&node.ty, ctx)
+                    };
                     // The closure body returns `T`, not `Result<T>`, so emit
                     // the initializer in an infallible context: the `q()`
                     // helper turns `?` into `.unwrap()` for calls whose Rust
@@ -873,8 +889,28 @@ fn emit_node<'a>(out: &mut String, name: &str, node: &NameNode<'_>, indent: &str
                     // at runtime — if they did, the program is broken anyway).
                     let saved_fallible = ctx.current_fn_fallible;
                     ctx.current_fn_fallible = false;
-                    let val = emit_exp(&typed, /*is_const=*/false, ctx, top_level);
+                    let mut val = emit_exp(&typed, /*is_const=*/false, ctx, top_level);
                     ctx.current_fn_fallible = saved_fallible;
+                    if is_array_const {
+                        // Rewrite the array-constructor calls in the initializer
+                        // so the resulting value is a `StaticArray<T>` rather
+                        // than an `Array<T>`. The two constructor shapes we see
+                        // here are:
+                        //
+                        //   1. `metamodelica::Dangerous::listArray(<L>).unwrap()`
+                        //      — emitted from `MetaModelica.Dangerous.listArrayLiteral({...})`.
+                        //   2. `metamodelica::arrayFromVec(<V>)`
+                        //      — emitted from `MetaModelica.arrayCreate`-style inits
+                        //        whose RHS is already a `Vec<T>` collected at the
+                        //        call site (see e.g. NFBuiltin EMPTY_NODE_CACHE).
+                        //
+                        // Both are pure local-shape rewrites: the inner argument
+                        // is unchanged, only the outer constructor differs.
+                        // Anything else falls through as a TODO comment so the
+                        // missing case is visible at the use site rather than
+                        // silently producing the wrong type.
+                        val = rewrite_array_init_for_static(&val);
+                    }
                     writeln!(out, "{indent}pub static {ename}: std::sync::LazyLock<{r_ty}> = std::sync::LazyLock::new(|| {{ {val} }});").unwrap();
                     writeln!(out).unwrap();
                 }
@@ -1432,7 +1468,17 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
     // *fallible* user functions by fully-qualified MM name; absence means
     // infallible. The FQN we construct here must match the convention used by
     // `fallibility::collect_functions` (dot-separated, top package first).
-    let fn_qname = if ctx.current_path.is_empty() {
+    //
+    // When `ctx.current_fn_qname` is non-empty we are recursing into a
+    // function-nested function (e.g. `make_result` inside `minAtomPW`).
+    // `fallibility::collect_functions` walks `node.children` recursively, so
+    // it records the nested function under its parent function's FQN —
+    // `SBFunctions.minAtomPW.make_result`, not `SBFunctions.make_result`.
+    // We must mirror that here, otherwise the fallibility lookup misses and
+    // the wrapper signature ends up out of sync with the caller's `?`.
+    let fn_qname = if !ctx.current_fn_qname.is_empty() {
+        format!("{}.{}", ctx.current_fn_qname, name)
+    } else if ctx.current_path.is_empty() {
         format!("{}.{}", ctx.top_name, name)
     } else {
         format!("{}.{}.{}", ctx.top_name, ctx.current_path.join("."), name)
@@ -1517,6 +1563,39 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
     };
     writeln!(out, "{indent}{pub_kw}fn {ename}{type_params}({params}) -> {sig_ret} {{").unwrap();
     let body_indent = format!("{indent}    ");
+
+    // Emit nested `function ... end ...;` definitions as Rust inner-`fn`
+    // items declared at the top of the parent function's body.
+    //
+    // Rationale: MetaModelica nested functions do not close over the
+    // enclosing function's locals — they are syntactically scoped to the
+    // parent but semantically independent. In Rust, items declared inside
+    // a function body have exactly that behaviour: they can be called by
+    // name from the surrounding body, but they cannot capture outer locals.
+    // Emitting them here also gives every parent function a fresh
+    // namespace for its nested functions, so two unrelated parents with a
+    // helper called `make_result` do not clash (which is why we don't need
+    // the C backend's `omc_<Mod>_<Parent>_<Nested>` name mangling).
+    //
+    // `populate_from_class_def` already registers each nested
+    // `ClassDef` in `node.children`, so `emit_function` recurses with the
+    // correct type information for the inner function. Visibility prefixes
+    // (`pub fn`) become harmless `pub`s inside a body; the type-resolution
+    // information and fallibility state are saved/restored by the
+    // recursive `emit_function` call itself.
+    if let MM::ClassDef::Parts { members: parent_members, .. } | MM::ClassDef::ClassExtends { members: parent_members, .. } = &c.body {
+        for member in parent_members.iter() {
+            if let MM::ClassMember::ClassDef(cdm) = member {
+                if matches!(&cdm.class_def.restriction, Absyn::Restriction::R_FUNCTION { .. }) {
+                    if let Some(child_node) = node.children.get(&cdm.class_def.name) {
+                        if let NodeKind::Class(child_class) = &child_node.kind {
+                            emit_function(out, &cdm.class_def.name, child_node, child_class, &body_indent, ctx, top_level);
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     for (n, t, modif, is_const_local) in outputs.iter().chain(protected.iter()) {
         // When the local's type is unknown, omit the annotation entirely and
@@ -3460,6 +3539,28 @@ fn resolve_call_qname<'a>(
     } else {
         format!("{}.{}", ctx.top_name, ctx.current_path.join("."))
     };
+
+    // Function-nested children come first: when we are inside a function
+    // whose `node.children` registers nested `function ... end ...;`
+    // declarations, an unqualified call to one of those should resolve to
+    // the nested name rather than walking out to the enclosing module.
+    // `ctx.current_fn_qname` is the FQN of the currently-emitted function
+    // (set by [`emit_function`]); it is empty at module scope, in which
+    // case this lookup does nothing.
+    //
+    // Without this, `make_result(..)` inside `minAtomPW` falls through to
+    // the module-scope walk, fails to find `SBFunctions.make_result`, and
+    // (a) the codegen treats the callee as an unknown name (so it
+    //     conservatively wraps `?` even when the nested function is
+    //     infallible), and
+    // (b) the fallibility analysis can't propagate "infallibility of
+    //     `make_result`" to the caller because the call doesn't resolve.
+    if !ctx.current_fn_qname.is_empty() {
+        let candidate = format!("{}.{}", ctx.current_fn_qname, func);
+        if exists(&candidate) {
+            return Some(candidate);
+        }
+    }
 
     // Resolve relative to the current module first, then walk outwards.
     let mut scope: &str = &cur_prefix;
@@ -6355,6 +6456,89 @@ fn fmt_param_ty(ty: &Ty, ctx: &mut GenCtx) -> String {
         }
         _ => fmt_ty(ty, ctx),
     }
+}
+
+/// Rewrite an `Array<T>` initializer string so it produces a
+/// `StaticArray<T>` instead. Used for top-level `pub static` constants of
+/// type `array<T>` — see `emit_node` for the rationale.
+///
+/// Only the well-known constructor shapes emitted by `emit_exp` /
+/// `emit_builtin_call` are recognised:
+///
+///   - `metamodelica::Dangerous::listArray(<arg>).unwrap()` (from
+///     `MetaModelica.Dangerous.listArrayLiteral`).
+///   - `metamodelica::arrayFromVec(<arg>)` (from the `listArray` builtin
+///     emit path, which is what plain `listArray(...)` initializers turn
+///     into).
+///
+/// If the initializer does not match a known shape, prepend a TODO so the
+/// (broken) static is impossible to miss at the use site rather than
+/// silently producing the wrong type. Constant `array<T>` declarations
+/// from new sources should be added here.
+fn rewrite_array_init_for_static(init: &str) -> String {
+    // Trim a trailing `.unwrap()` that follows a `Result`-returning call —
+    // both rewritten constructors are infallible.
+    let trimmed = init.trim();
+    let prefix_listarray = "metamodelica::Dangerous::listArray(";
+    let prefix_arrayfromvec = "metamodelica::arrayFromVec(";
+
+    if let Some(rest) = trimmed.strip_prefix(prefix_listarray) {
+        // Match the balanced parenthesised arg, then an optional `.unwrap()`.
+        if let Some((arg, _tail)) = split_balanced_call_arg(rest) {
+            return format!(
+                "metamodelica::StaticArray::new({arg}.into_iter().cloned().collect())"
+            );
+        }
+    }
+    if let Some(rest) = trimmed.strip_prefix(prefix_arrayfromvec) {
+        if let Some((arg, _tail)) = split_balanced_call_arg(rest) {
+            return format!("metamodelica::StaticArray::new({arg})");
+        }
+    }
+    // Unknown shape: keep the original initializer (which will not compile
+    // as a `StaticArray<T>`) and annotate it so the failure is loud and
+    // self-describing rather than a confusing type mismatch.
+    format!(
+        "/* TODO(StaticArray): unrecognised array-constant initializer shape; \
+         add the constructor pattern to rewrite_array_init_for_static. */ {init}"
+    )
+}
+
+/// Given `s` starting just past an opening `(`, return `(inner_arg, tail)`
+/// where `inner_arg` is the substring up to the matching `)` and `tail` is
+/// the substring after that `)`. Returns `None` if parentheses are unbalanced.
+/// Skips over string literals so `(... "(" ...)` does not confuse the count.
+fn split_balanced_call_arg(s: &str) -> Option<(&str, &str)> {
+    let bytes = s.as_bytes();
+    let mut depth: i32 = 1;
+    let mut i = 0usize;
+    let mut in_str = false;
+    let mut in_char = false;
+    while i < bytes.len() {
+        let b = bytes[i];
+        if in_str {
+            if b == b'\\' { i += 2; continue; }
+            if b == b'"' { in_str = false; }
+        } else if in_char {
+            if b == b'\\' { i += 2; continue; }
+            if b == b'\'' { in_char = false; }
+        } else {
+            match b {
+                b'"' => in_str = true,
+                b'\'' => in_char = true,
+                b'(' => depth += 1,
+                b')' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        return Some((&s[..i], &s[i + 1..]));
+                    }
+                }
+                _ => {}
+            }
+        }
+        i += 1;
+    }
+    None
 }
 
 fn fmt_ty(ty: &Ty, ctx: &mut GenCtx) -> String {

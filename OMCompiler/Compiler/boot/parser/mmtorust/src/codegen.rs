@@ -3483,19 +3483,52 @@ fn emit_call_arg_with_formal<'a>(
 ) -> String {
     let needs_first = matches!(arg.ty(), Ty::Tuple(_))
         && matches!(formal_ty, Some(t) if !matches!(t, Ty::Tuple(_) | Ty::Unknown));
-    if !needs_first {
-        return emit_cloned_call_arg(arg, is_const, ctx, top_level);
-    }
-    // Emit the call (with `?` propagation already attached by emit_exp via ctx.q),
-    // wrap in parens so `.0` binds to the whole call result, then re-apply the
-    // clone-for-string heuristic against the *first element's* type.
-    let raw = emit_exp(arg, is_const, ctx, top_level);
-    let first_ty = match arg.ty() {
-        Ty::Tuple(elems) => elems.into_iter().next().unwrap_or(Ty::Unknown),
-        _ => Ty::Unknown,
+    let raw = if !needs_first {
+        emit_cloned_call_arg(arg, is_const, ctx, top_level)
+    } else {
+        // Emit the call (with `?` propagation already attached by emit_exp via ctx.q),
+        // wrap in parens so `.0` binds to the whole call result, then re-apply the
+        // clone-for-string heuristic against the *first element's* type.
+        let raw_exp = emit_exp(arg, is_const, ctx, top_level);
+        let first_ty = match arg.ty() {
+            Ty::Tuple(elems) => elems.into_iter().next().unwrap_or(Ty::Unknown),
+            _ => Ty::Unknown,
+        };
+        let extracted = format!("({raw_exp}).0");
+        if is_const { extracted } else { maybe_clone_string_value(extracted, &first_ty) }
     };
-    let extracted = format!("({raw}).0");
-    if is_const { extracted } else { maybe_clone_string_value(extracted, &first_ty) }
+
+    // When the formal is an anonymous callback slot (`&impl Fn(...)`) the
+    // argument must be a shared reference. `emit_var`'s `Ty::Function { name:
+    // None, .. }` arm already prefixes a `&` for plain variable forwards,
+    // so don't double-borrow in that case. Everything else (PartEval
+    // closures, `fnptr!(...)` macro expansions, freshly synthesized
+    // `move |..| ..` closures) is produced as a value expression and needs
+    // the borrow added here. `&` on a temporary is fine for a call argument:
+    // Rust extends the temporary's lifetime to the end of the enclosing
+    // statement, which strictly outlives the callee invocation.
+    // When the formal is an anonymous callback slot the receiver
+    // signature is `&impl Fn(...)` (see `fmt_param_ty`), so the
+    // argument must be a shared reference. `emit_var`'s
+    // `Ty::Function { name: None, .. }` arm already prefixes `&` for
+    // plain variable forwards, so don't double-borrow in that case.
+    // Everything else (PartEval closures, `fnptr!(...)` macro
+    // expansions, freshly synthesized `move |..| ..` closures) is
+    // produced as a value expression and needs the borrow added here.
+    // `&` on a temporary is fine for a call argument: Rust extends the
+    // temporary's lifetime to the end of the enclosing statement, which
+    // strictly outlives the callee invocation.
+    //
+    // We only add `&` when the formal is `name: None` because named
+    // `partial function` aliases (e.g. `ConflictFunc`) keep their
+    // concrete `fn(...)` shape in `fmt_param_ty` — passing `&fn_ptr`
+    // into a `fn(...)` slot would be a type error. `resolve_call_formals`
+    // pulls the formal type from `node.ty.inputs`, which matches what
+    // `fmt_param_ty` saw at the function-definition site.
+    if matches!(formal_ty, Some(&Ty::Function { name: None, .. })) && !raw.trim_start().starts_with('&') {
+        return format!("&({raw})");
+    }
+    raw
 }
 
 /// Resolve a function name as written at a call site to a fully-qualified dotted
@@ -3654,9 +3687,23 @@ fn resolve_call_formals<'a>(
             continue;
         }
 
-        let ty = node.children.get(&m.name)
-            .map(|n| n.ty.clone())
-            .unwrap_or(Ty::Unknown);
+        // Prefer the type recorded on the function's `node.ty.inputs` —
+        // that's the version `emit_function` actually emits the signature
+        // from (via `fmt_param_ty`), so it stays in sync with what the
+        // callee declares. The per-component `node.children[name].ty`
+        // can differ for callbacks: for some functions (notably ones
+        // whose `partial function` alias is declared inside the function
+        // body) the def-side normalises the alias away in
+        // `node.ty.inputs` while `node.children` keeps the alias name.
+        // Using the children type here would make the call-site formal
+        // lookup disagree with the emitted signature for those cases.
+        let ty = if let Ty::Function { inputs: fn_inputs, .. } = &node.ty {
+            fn_inputs.iter().find(|i| i.name == m.name).map(|i| i.ty.clone())
+                .or_else(|| node.children.get(&m.name).map(|n| n.ty.clone()))
+                .unwrap_or(Ty::Unknown)
+        } else {
+            node.children.get(&m.name).map(|n| n.ty.clone()).unwrap_or(Ty::Unknown)
+        };
         let mut fn_type_vars: Vec<String> = Vec::new();
         collect_type_vars_in_ty(&node.ty, &mut fn_type_vars);
         let default = extract_default_exp(&m.modification)
@@ -6442,17 +6489,26 @@ fn emit_stmt<'a>(
 ///     refactor.
 fn fmt_param_ty(ty: &Ty, ctx: &mut GenCtx) -> String {
     match ty {
-        // Only ANONYMOUS function types get the `impl Fn` treatment. A named
-        // `partial function` (e.g. `KeyEq`) is typically also used as a
-        // struct/record field (where `impl Trait` is illegal) — switching
-        // those aliases is a larger refactor that has to change how field
-        // storage and the corresponding constructors box the callback. Until
-        // that lands, named aliases keep their concrete `fn(...)` shape so
-        // that the same parameter can be stored in a record field of the
-        // alias type.
+        // Anonymous function-typed parameters are taken by *shared
+        // reference* (`&impl Fn(...)`). MM-translated code routinely
+        // forwards the same callback through several helper calls and
+        // into recursive children, which under a by-value `impl Fn`
+        // produces "use of moved value" errors (and `inCompFunc.clone()`
+        // doesn't help because `impl Fn` is not `Clone`). `&F` for
+        // `F: Fn` is itself `Fn` and is `Copy`, so it forwards freely.
+        // The borrow's lifetime is the function-input elision, which
+        // strictly outlives the function body — no escape hazard.
+        //
+        // Named `partial function` aliases (e.g. `KeyEq`) are emitted
+        // as the alias type directly because they may also live in
+        // record fields where `impl Trait` is illegal. The two paths
+        // happen to agree at the call site: a fn-pointer alias value
+        // is `Copy` (so the move hazard above does not apply), and an
+        // `&impl Fn` slot still accepts a fn pointer because every
+        // `fn(...)` implements `Fn`.
         Ty::Function { inputs, output, name: None, .. } => {
             let ins = inputs.iter().map(|inp| fmt_ty(&inp.ty, ctx)).collect::<Vec<_>>().join(", ");
-            format!("impl Fn({ins}) -> Result<{}>", fmt_ty(output, ctx))
+            format!("&impl Fn({ins}) -> Result<{}>", fmt_ty(output, ctx))
         }
         _ => fmt_ty(ty, ctx),
     }

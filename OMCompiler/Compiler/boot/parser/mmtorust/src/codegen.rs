@@ -12,7 +12,24 @@ use anyhow::{Result,bail};
 
 // ── Import-aware generation context ──────────────────────────────────────────
 
-const DEFAULT_TRAITS: &str = "Clone + PartialEq";
+/// Trait bounds applied to every type-variable parameter on a generated
+/// function or type. We need:
+///  * `Clone` — MetaModelica passes by value with copy-on-store semantics; the
+///    lowering inserts `.clone()` aggressively to keep that semantics.
+///  * `PartialEq` — required so values can flow through `case` matches and
+///    `==` comparisons that the source code may use on type-variable values.
+///  * `'static` — required wherever a generic value crosses a *type-erased*
+///    storage boundary. The two such boundaries we generate code for are
+///    `setGlobalRoot`/`getGlobalRoot` (which downcast through `Rc<dyn Any>`,
+///    and `Any` is `: 'static`) and `referenceEq`/`referenceDebugString`.
+///    Without the bound, a generic function like
+///    `getCurrentComponent<T>() { tpl = getGlobalRoot(...); ... }` won't
+///    compile because the inferred type for the slot includes `T`, and the
+///    `Any` bound requires `T: 'static`. MetaModelica values never carry
+///    borrowed references (they're all `Rc<…>`/`ArcStr`/owned data), so
+///    `'static` is satisfied by every type we ever instantiate generics with;
+///    making it part of the default bound is honest, not a shortcut.
+const DEFAULT_TRAITS: &str = "Clone + PartialEq + 'static";
 
 /// How to propagate a Result error from a fallible sub-expression.
 ///
@@ -1521,10 +1538,69 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
     }
 
     let mut fresh: u32 = 0;
+    // `function F extends G(...) end F;` with no local algorithm section: the
+    // body is supposed to come from `G`. We do *not* yet implement this in the
+    // codegen — doing it correctly requires:
+    //   1. Taking `alg_items` from `node.base_fn`'s body and retyping them
+    //      under the derived function's input/output environment (which may
+    //      involve type-variable substitution beyond what we currently do).
+    //   2. For each modification on a `replaceable package P { constant ... }`
+    //      member of the base, substituting references `P.field` inside the
+    //      inherited algorithm with the override value. The DiffAlgorithm
+    //      module's `printDiffXml`, `printDiffTerminalColor`, `printActual`
+    //      are the canonical examples — each refines `partialPrintDiff`'s
+    //      `DiffStrings` package with concrete open/close strings.
+    // Until both pieces land, emit a `todo!()` so the broken empty body fails
+    // loudly at runtime instead of silently returning an uninitialised local.
+    // Inherit-from-base detection covers both function-extends forms:
+    //
+    //   (a) `function F extends G(...) end F;` — `c.body` is `ClassDef::ClassExtends`.
+    //       `flatten_extends` sets `node.base_fn` to G.
+    //   (b) `function F ... extends G(...); ... end F;` — `c.body` is `ClassDef::Parts`
+    //       with a `ClassMember::Extends`. There's no `node.base_fn`; the base
+    //       can be looked up in the hierarchy via the Extends member's path.
+    //
+    // In both cases, when there is *no local algorithm section*, the function
+    // body must come from G. We don't yet implement that inheritance, so emit
+    // a loud `todo!()` instead of letting the empty body fall through to a
+    // bare reference to an uninitialised output local.
+    let base_alg_nonempty = |base_c: &MM::Class| matches!(&base_c.body,
+        MM::ClassDef::Parts { algorithms, .. } | MM::ClassDef::ClassExtends { algorithms, .. } if !algorithms.is_empty());
+    let local_algs_empty = match &c.body {
+        MM::ClassDef::Parts { algorithms, .. } | MM::ClassDef::ClassExtends { algorithms, .. } => algorithms.is_empty(),
+        _ => true,
+    };
+    let header_form_inherits_alg = node.base_fn.is_some_and(|b| base_alg_nonempty(b));
+    let member_form_inherits_alg = !node.extends.is_empty() && node.extends.iter().any(|ext| {
+        let dotted = absyn_path_to_dotted(&ext.path);
+        let lookup = lookup_node(&dotted, top_level)
+            .or_else(|| {
+                if enclosing_pkg.is_empty() { None } else { lookup_node(&format!("{enclosing_pkg}.{dotted}"), top_level) }
+            })
+            .or_else(|| {
+                let last = dotted.rsplit('.').next().unwrap_or(&dotted);
+                lookup_node(last, top_level)
+            });
+        matches!(lookup.and_then(|bn| match &bn.kind { NodeKind::Class(bc) => Some(bc), _ => None }),
+            Some(bc) if base_alg_nonempty(bc))
+    });
+    let inherit_from_base_unimplemented = local_algs_empty
+        && typed_stmts.is_empty()
+        && (header_form_inherits_alg || member_form_inherits_alg);
     match &c.body {
         MM::ClassDef::Parts { external: Some(ext), .. } => {
             writeln!(out, "{body_indent}todo!(); // {:?}", ext).unwrap();
         },
+        _ if inherit_from_base_unimplemented => {
+            writeln!(out, "{body_indent}// TODO: inherit algorithm from base function via `extends` clause.").unwrap();
+            writeln!(out, "{body_indent}// Requires substituting `replaceable package` constant overrides into the inherited body.").unwrap();
+            writeln!(out, "{body_indent}todo!(\"function `{name}` inherits its algorithm via `extends` — not yet implemented\")").unwrap();
+            writeln!(out, "{indent}}}").unwrap();
+            writeln!(out).unwrap();
+            ctx.current_fn_fallible = saved_fn_fallible;
+            ctx.current_fn_qname = saved_fn_qname;
+            return;
+        }
         _ => emit_stmts(out, &body_indent, &typed_stmts, FailureMode::Function, ctx, &mut env, top_level, &mut fresh)
     };
 
@@ -1950,7 +2026,13 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                         // Wrap in Arc::new if the struct field is stored as Arc<T> due to
                         // size-recursive cycles.  String fields are excluded: their expressions
                         // already yield ArcStr from emit_exp / emit_cloned_call_arg.
-                        let val = if struct_field_is_arc(qname, fname, top_level, ctx) {
+                        // Skip the wrap when the argument's expression already evaluates to
+                        // `Arc<T>` (e.g. a constructor of the recursive uniontype, or a
+                        // variable typed as the recursive enum) — otherwise we'd produce
+                        // `Arc::new(Arc::new(...))`.
+                        let val = if struct_field_is_arc(qname, fname, top_level, ctx)
+                            && !value_emitted_as_arc(fa, ctx)
+                        {
                             format!("Arc::new({val})")
                         } else {
                             val
@@ -1963,7 +2045,9 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                 }
                 for (n, na) in remaining_named {
                     let val = emit_cloned_call_arg(&na, is_const, ctx, top_level);
-                    let val = if struct_field_is_arc(qname, &n, top_level, ctx) {
+                    let val = if struct_field_is_arc(qname, &n, top_level, ctx)
+                        && !value_emitted_as_arc(&na, ctx)
+                    {
                         format!("Arc::new({val})")
                     } else {
                         val
@@ -2028,7 +2112,30 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                     && field_names.is_empty())
             {
                 // Unit variant: no fields, no parentheses.
-                ctx.dotted_to_rust_path(name)
+                //
+                // If the enclosing uniontype is recursive, its values are stored as
+                // `Arc<Enum>` everywhere they appear (variable slots, struct fields,
+                // function parameters and returns). The unit-variant *expression*
+                // however evaluates to a bare `Enum`. To keep types consistent at
+                // use sites we wrap the variant value in `Arc::new(...)` — unless
+                // we are in a `const` context (`Arc::new` is not const).
+                //
+                // The parent enum is determined either from the constructor's `name`
+                // (e.g. `"Pkg.Tree.EMPTY"` → parent `"Pkg.Tree"`) or from
+                // `Ty::UnionTypeVariant(parent, _)` if available.
+                let path = ctx.dotted_to_rust_path(name);
+                let parent_recursive = match ty {
+                    Ty::UnionTypeVariant(parent, _) => ctx.recursive_types.contains(parent.as_str()),
+                    _ => name
+                        .rsplit_once('.')
+                        .map(|(parent, _)| ctx.recursive_types.contains(parent))
+                        .unwrap_or(false),
+                };
+                if !is_const && parent_recursive {
+                    format!("Arc::new({path})")
+                } else {
+                    path
+                }
             } else if let Ty::UnionTypeVariant(enum_qname, _variant_name) = ty {
                 // Struct variant inside a multi-record uniontype (Rust enum).
                 // Look up field names from the record in the hierarchy.
@@ -2038,14 +2145,18 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                 for (i, a) in args.iter().enumerate() {
                     let val = emit_cloned_call_arg(a, is_const, ctx, top_level);
                     let fname = field_tys.get(i).map(|(n, _)| n.as_str()).unwrap_or("_");
-                    let val = if struct_field_is_arc(enum_qname, fname, top_level, ctx) {
+                    let val = if struct_field_is_arc(enum_qname, fname, top_level, ctx)
+                        && !value_emitted_as_arc(a, ctx)
+                    {
                         format!("Arc::new({val})")
                     } else { val };
                     arg_strs.push(format!("{}: {val}", escape_ident(fname)));
                 }
                 for (n, na) in named_args {
                     let val = emit_cloned_call_arg(&na, is_const, ctx, top_level);
-                    let val = if struct_field_is_arc(enum_qname, &n, top_level, ctx) {
+                    let val = if struct_field_is_arc(enum_qname, &n, top_level, ctx)
+                        && !value_emitted_as_arc(&na, ctx)
+                    {
                         format!("Arc::new({val})")
                     } else { val };
                     arg_strs.push(format!("{}: {val}", escape_ident(&n)));
@@ -2595,6 +2706,82 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
         }
         "NONE" => Ok("None".to_owned()),
         "fail" => if is_const { Ok("{ panic!(\"fail\") }".to_owned()) } else { Ok("bail!(\"fail\")".to_owned()) },
+        // setGlobalRoot(index, value)
+        //   MetaModelicaBuiltin.mo: writes `value` into the process-wide
+        //   global-root table at the integer slot `index`. The MMC C runtime
+        //   (`nobox_setGlobalRoot` in meta_modelica_builtin.c) splits the
+        //   table at index 8: slots 0..8 live in `threadData->localRoots`,
+        //   slots 9..N in `mmc_GC_state->global_roots`. We mirror that
+        //   semantic in `metamodelica::setGlobalRoot` (currently a single
+        //   thread_local Vec — see the long comment there for why we can't
+        //   use a process-wide static while values may contain non-Send
+        //   `Rc<RefCell<…>>`).
+        //
+        // Two things matter for the codegen here:
+        //   1. If the index argument is a *constant integer cref* (e.g.
+        //      `Global.instHashIndex`), resolve it to the literal value at
+        //      compile time. The C bootstrap does this and the resulting
+        //      slot accesses become `setGlobalRoot(9, …)` — easier to read,
+        //      and lets future per-index slot specialisation hook off a
+        //      static integer rather than a name resolution.
+        //   2. Pin the type parameter `A` of the runtime function with an
+        //      explicit turbofish whenever the value's type is known. The
+        //      Rust runtime function is
+        //        `setGlobalRoot<A: Any + 'static>(idx: i32, value: A)`
+        //      and without the turbofish the inference fails when `value`
+        //      is `None` (E0282 on the `Option::T` parameter, exactly the
+        //      shape seen in `Global::initialize`) or when the value is a
+        //      tuple/`Some(…)` of a type that the surrounding context
+        //      doesn't pin.
+        //
+        // TODO(per-index typed slots): the user's longer-term design is to
+        // resolve each *known* index to its own typed `LazyLock`/thread-local
+        // (e.g. `Global.instHashIndex` → a dedicated
+        // `LazyLock<RefCell<InstHashTable::HashTable>>` initialised from
+        // `InstHashTable::emptyInstHashTable()`). That requires a whole-program
+        // pre-pass to gather (idx_const_qname, value_type) pairs across files
+        // and resolve type-variable indirection, which is a non-trivial
+        // refactor. The constant-index folding here is the shared first step.
+        "setGlobalRoot" if args.len() == 2 => {
+            let idx_expr = match resolve_const_int(&args[0], ctx, top_level) {
+                Some(v) => v.to_string(),
+                None => emit_builtin_call_arg_raw(func, 0, &args[0], is_const, ctx, top_level),
+            };
+            let val_ty = args[1].ty();
+            let val_expr = emit_builtin_call_arg(func, 1, &args[1], is_const, ctx, top_level);
+            let turbofish = if ty_contains_unknown(&val_ty) {
+                // We can't pin `A` because the value's type is not fully
+                // known here. Leave inference to Rust — at the few sites
+                // where this happens (notably the `NONE()` calls in
+                // `Global::initialize`) the user will still see an E0282 or
+                // unused-init warning. Documented at the call site.
+                String::new()
+            } else {
+                format!("::<{}>", fmt_ty(&val_ty, ctx))
+            };
+            let q = if ctx.current_fn_fallible { "?" } else { ".unwrap()" };
+            Ok(format!("metamodelica::setGlobalRoot{turbofish}({idx_expr}, {val_expr}){q}"))
+        }
+        // getGlobalRoot(index) — read the value previously stored at `index`.
+        //   Mirrors `nobox_getGlobalRoot` (see comment on setGlobalRoot for
+        //   the slot-layout details). The runtime fails with an Err if the
+        //   slot was never written — matching the C runtime's
+        //   `MMC_THROW_INTERNAL` behavior — so we propagate with `?`.
+        //
+        // We don't emit a turbofish here: the result type is inferred from
+        // the assignment LHS, which is almost always a typed local in
+        // generated code (e.g. `let mut tpl: Option<…>; tpl = getGlobalRoot(I)?;`).
+        // The `'static` bound on `A` is now satisfied because every
+        // generated generic type-parameter carries `: 'static` via
+        // `DEFAULT_TRAITS`.
+        "getGlobalRoot" if args.len() == 1 => {
+            let idx_expr = match resolve_const_int(&args[0], ctx, top_level) {
+                Some(v) => v.to_string(),
+                None => emit_builtin_call_arg_raw(func, 0, &args[0], is_const, ctx, top_level),
+            };
+            let q = if ctx.current_fn_fallible { "?" } else { ".unwrap()" };
+            Ok(format!("metamodelica::getGlobalRoot({idx_expr}){q}"))
+        }
         "getInstanceName" if args.is_empty() => {
             // MetaModelicaBuiltin.mo: returns a String literal with the
             // fully-qualified name of the enclosing function. The MMC bootstrap
@@ -2991,6 +3178,63 @@ fn emit_var<'a>(
 /// Find the index at which to split segments into [package prefix] and [record fields].
 /// Returns the index of the first field segment. Everything before is the package path.
 /// Returns `segments.len()` if no record boundary is found (entire path is a package path).
+/// Returns true if `ty` mentions any `Ty::Unknown` anywhere in its structure.
+/// Used by the `setGlobalRoot` lowering to decide whether the value's type is
+/// fully resolved enough to emit as a turbofish on the runtime call. A `Ty`
+/// containing `Unknown` would emit `?` in `fmt_ty` and fail to compile.
+fn ty_contains_unknown(ty: &Ty) -> bool {
+    match ty {
+        Ty::Unknown => true,
+        Ty::I32 | Ty::F64 | Ty::Bool | Ty::Str | Ty::Unit
+        | Ty::Enumeration(_) | Ty::TypeVar(_) | Ty::RustStruct(_)
+        | Ty::RustEnum(_) | Ty::RustUnitVariant | Ty::AliasTo(_)
+        | Ty::UnionTypeVariant(_, _) | Ty::ExternalObject(_)
+        | Ty::FunctionAlias { .. } => false,
+        Ty::Option(t) | Ty::List(t) | Ty::Array(t) | Ty::Range(t) => ty_contains_unknown(t),
+        Ty::Tuple(ts) => ts.iter().any(ty_contains_unknown),
+        Ty::Generic(_, args) => args.iter().any(ty_contains_unknown),
+        Ty::Function { inputs, output, .. } => {
+            inputs.iter().any(|i| ty_contains_unknown(&i.ty)) || ty_contains_unknown(output)
+        }
+    }
+}
+
+/// If `exp` is (or transparently resolves to) a compile-time `constant Integer`
+/// cref, return its literal value. Otherwise return `None`.
+///
+/// This mirrors what the C bootstrap (and the original MMC backend) does for
+/// `setGlobalRoot(Global.instHashIndex, …)` → it emits the integer literal
+/// `9` rather than reading the constant at runtime. Used by the set/getGlobalRoot
+/// lowering to make the generated code easier to inspect and to keep the call
+/// open to future per-index slot specialisation that hooks off a static int.
+fn resolve_const_int<'a>(exp: &TypedExp, ctx: &GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) -> Option<i32> {
+    use crate::typedexp::{Lit, TypedExp as E};
+    match exp {
+        E::Lit(Lit::Int(v)) => Some(*v),
+        E::Var { name, segments, .. } if segments.iter().all(|s| s.subscripts.is_empty()) => {
+            // Look up the cref in the hierarchy and require:
+            //   * NodeKind::Component
+            //   * variability == CONST
+            //   * type i32 (Modelica Integer)
+            //   * an INTEGER literal in the modification
+            let node = resolve_fully_qualified(name, ctx, top_level)?;
+            let NodeKind::Component(comp) = &node.kind else { return None };
+            if comp.variability != Absyn::Variability::CONST { return None }
+            if node.ty != Ty::I32 { return None }
+            let default = extract_default_exp(&comp.modification)?;
+            match default {
+                Absyn::Exp::INTEGER { value } => Some(*value),
+                // A negated literal, e.g. `constant Integer foo = -1;`.
+                Absyn::Exp::UNARY { op: Absyn::Operator::UMINUS, exp } => {
+                    if let Absyn::Exp::INTEGER { value } = &**exp { Some(-value) } else { None }
+                }
+                _ => None,
+            }
+        }
+        _ => None,
+    }
+}
+
 fn resolve_fully_qualified<'a>(prefix_dotted: &str, ctx: &GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) -> Option<&'a NameNode<'a>> {
     // 1. Literal top level
     if let Some(n) = lookup_node(prefix_dotted, top_level) {
@@ -3669,6 +3913,95 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], is_co
                 let guard_check = case.guard.as_ref()
                     .map(|g| format!("            if !({}) {{ bail!(\"guard\") }}\n", emit_exp(g, is_const, ctx, top_level)))
                     .unwrap_or_default();
+
+                // Case-body statements & locals. MetaModelica `matchcontinue` arms
+                // can carry an `algorithm` block (declarations + statements) that
+                // executes between pattern destructuring and the `then <result>`
+                // expression. Without emitting these the arm would just return
+                // the result of an unmodified scrutinee — silently dropping work
+                // such as recursive computations into the variable that the
+                // result expression references. Mirrors the MatchKind::Match path.
+                let mut body = String::new();
+                if !case.stmts.is_empty() || !case.locals.is_empty() {
+                    let mut local_env = LocalEnv {
+                        vars: ctx.fn_env_vars.clone(),
+                        outputs: ctx.fn_outputs.clone(),
+                        variants: HashMap::new(),
+                    };
+                    record_pattern_variants(&case.pattern, input, &mut local_env, top_level);
+                    let pat_binding_names: std::collections::HashSet<String> =
+                        typedexp::pat_bindings(&case.pattern).iter().map(|(n, _)| n.clone()).collect();
+                    for (name, ty, default) in &case.locals {
+                        local_env.vars.insert(name.clone(), ty.clone());
+                        if pat_binding_names.contains(name) {
+                            continue;
+                        }
+                        if matches!(ty, Ty::Unknown) {
+                            body.push_str(&format!("            let mut {}; // TODO: local with unresolved type\n", escape_ident(name)));
+                            continue;
+                        }
+                        let ty_s = fmt_ty(ty, ctx);
+                        match default {
+                            Some(d) => {
+                                let init = emit_exp(d, is_const, ctx, top_level);
+                                body.push_str(&format!("            let mut {}: {ty_s} = {init};\n", escape_ident(name)));
+                            }
+                            None => {
+                                body.push_str(&format!("            let mut {}: {ty_s};\n", escape_ident(name)));
+                            }
+                        }
+                    }
+                    for (n, t) in typedexp::pat_bindings(&case.pattern) {
+                        local_env.vars.insert(n, t);
+                    }
+                    let mut deref_names: Vec<String> = Vec::new();
+                    pat_deref_bindings(&case.pattern, &input_ty, ctx, top_level, &mut deref_names);
+                    let mut assigned: HashSet<String> = HashSet::new();
+                    stmts_assigned_var_names(&case.stmts, &mut assigned);
+                    if !deref_names.is_empty() {
+                        for n in &deref_names {
+                            if assigned.contains(n) {
+                                let id = escape_ident(n);
+                                body.push_str(&format!("            let mut {id} = {id}.clone();\n"));
+                            }
+                        }
+                    }
+                    // Shadow any *function-scope* variable that this arm assigns
+                    // to. Each arm is wrapped in an IIFE; the closure would
+                    // otherwise capture the outer variable by `&mut`, which the
+                    // borrow checker rejects if the outer is declared but not
+                    // initialised (`let mut x: T; x = 'mc: { ... };`). A local
+                    // shadow inside the IIFE makes assignments and subsequent
+                    // reads refer to the shadow, so the outer needs no prior
+                    // init. The matchcontinue's value is still returned via
+                    // `Ok(...)` and assigned to the outer `'mc:` block target.
+                    //
+                    // We skip names that are already pattern bindings (those are
+                    // owned bindings introduced by the destructuring `let`),
+                    // case-local declarations, or `deref!`-shadowed locals
+                    // (handled above), since each of those already introduces
+                    // an in-scope local.
+                    let mut shadow_seen: HashSet<String> = HashSet::new();
+                    for (case_local_name, _, _) in &case.locals { shadow_seen.insert(case_local_name.clone()); }
+                    for n in &deref_names { shadow_seen.insert(n.clone()); }
+                    for (n, _) in typedexp::pat_bindings(&case.pattern) { shadow_seen.insert(n); }
+                    for name in &assigned {
+                        if shadow_seen.contains(name) { continue; }
+                        let Some(ty) = ctx.fn_env_vars.get(name).cloned() else { continue };
+                        if matches!(ty, Ty::Unknown) {
+                            body.push_str(&format!("            let mut {}; // TODO: shadow of function-scope local with unresolved type\n", escape_ident(name)));
+                        } else {
+                            let ty_s = fmt_ty(&ty, ctx);
+                            body.push_str(&format!("            let mut {}: {ty_s};\n", escape_ident(name)));
+                        }
+                    }
+                    let mut fresh_local: u32 = 0;
+                    // FailureMode::Function: a `fail()` inside the IIFE expands
+                    // to `bail!()`, which makes the closure return Err — the
+                    // outer `if let Ok(__v) = ...` then skips to the next arm,
+                    // which matches MetaModelica matchcontinue semantics.
+                    emit_stmts(&mut body, "            ", &case.stmts, FailureMode::Function, ctx, &mut local_env, top_level, &mut fresh_local);
+                }
                 let result = emit_exp(&case.result, is_const, ctx, top_level);
                 s.push_str("        if let Ok(__v) = (|| -> Result<_> {\n");
                 if input_is_arc {
@@ -3677,6 +4010,7 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], is_co
                     s.push_str(&format!("            let {pat} = __mc_input.clone() else {{ bail!(\"nomatch\") }};\n"));
                 }
                 s.push_str(&guard_check);
+                s.push_str(&body);
                 s.push_str(&format!("            Ok({result})\n"));
                 s.push_str("        })() { break 'mc __v; }\n");
                 ctx.variants = saved_variants;
@@ -4449,6 +4783,34 @@ fn is_arc_wrapped(ty: &Ty, ctx: &GenCtx) -> bool {
         _ => return false,
     };
     ctx.recursive_types.contains(qname)
+}
+
+/// Return true if the value produced by emitting `arg` will already be wrapped
+/// in `Arc<T>`. Used by struct-field emission to avoid emitting a redundant
+/// outer `Arc::new(...)` around an expression that already yields `Arc<T>`.
+///
+/// This is the case when:
+///   * The argument's static type is itself a recursive uniontype (variables,
+///     calls, etc. of `Ty::RustEnum(qname)` where `qname` is recursive).
+///   * The argument is a *constructor expression* for a variant of a recursive
+///     uniontype — `emit_exp` wraps it in `Arc::new(...)` via `constructor_needs_arc`.
+///   * The argument is a *unit-variant constructor* whose parent uniontype is
+///     recursive — once Bug B is fixed below, `emit_exp` wraps these in `Arc::new`.
+fn value_emitted_as_arc(arg: &TypedExp, ctx: &GenCtx) -> bool {
+    let ty = arg.ty();
+    if is_arc_wrapped(&ty, ctx) || constructor_needs_arc(&ty, ctx) {
+        return true;
+    }
+    if matches!(&ty, Ty::RustUnitVariant) {
+        if let TypedExp::Constructor { name, .. } = arg {
+            if let Some((parent, _)) = name.rsplit_once('.') {
+                if ctx.recursive_types.contains(parent) {
+                    return true;
+                }
+            }
+        }
+    }
+    false
 }
 
 /// Return true if a *constructor expression* for this type should be wrapped in

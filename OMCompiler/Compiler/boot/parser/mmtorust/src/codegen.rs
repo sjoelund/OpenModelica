@@ -5643,7 +5643,18 @@ impl<'s> FieldAssignPlan<'s> {
             .unwrap_or_default();
         let lhs_ty = fields.iter().find(|(n, _)| n == field).map(|(_, t)| t.clone());
         let expr = coerce_assign_expr_pub(scrut_expr, &scrut_ty, lhs_ty.as_ref());
-        let value = if struct_field_is_arc(&record_qname, field, top_level, ctx) {
+        // Mirror the `value_emitted_as_arc` guard used by the constructor
+        // emission path: if the RHS already evaluates to `Arc<T>` (e.g. it
+        // is a recursive-uniontype-typed call result, where every such
+        // value is materialised as an `Arc`), wrapping again would give
+        // `Arc::new(Arc<T>)` and the receiving field's type-check fails
+        // with `expected T, found Arc<T>`. The guard mirrors how the
+        // recursive-record constructor argument path avoids the same
+        // double-wrap (see the `struct_field_is_arc && !value_emitted_as_arc`
+        // check around line 2127).
+        let value = if struct_field_is_arc(&record_qname, field, top_level, ctx)
+            && !value_emitted_as_arc(rhs, ctx)
+        {
             format!("Arc::new({expr})")
         } else {
             expr

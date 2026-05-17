@@ -447,6 +447,51 @@ fn lookup_ty_in_hierarchy<'a>(dotted: &str, top_level: &'a BTreeMap<String, Name
     node.ty.clone()
 }
 
+/// Scope-aware type-name resolution for use by `typespec_to_ty`.
+///
+/// MetaModelica scopes name lookup from the inside out: a simple name inside
+/// `package P` resolves to `P.X` (a sibling), to an `extends`-imported name,
+/// or finally to a top-level package. Critically, when a uniontype `IOStream`
+/// is declared inside `package IOStream`, the bare name `IOStream` inside that
+/// package's bodies must resolve to the *uniontype*, not the package itself.
+///
+/// `resolve_call_node` would short-circuit on step 1 (direct top-level lookup)
+/// and return the package node — whose `.ty` is `Ty::Unknown` for non-record
+/// packages — so for type resolution we walk scopes first and only fall back
+/// to the top level once nothing matches inside any enclosing scope.
+fn resolve_type_name<'a>(
+    name: &str,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+    pkg_prefix: &str,
+) -> Ty {
+    // MetaModelica builtin types not declared in any source file. The hierarchy
+    // seeds these into a separate `ScopedKnown` map and not into `top_level`,
+    // so we resolve them here directly. Mirrors `seed_builtins` in hierarchy.rs.
+    match name {
+        "SourceInfo" => return Ty::RustStruct("SourceInfo".into()),
+        _ => {}
+    }
+    if !pkg_prefix.is_empty() {
+        let mut parts: Vec<&str> = pkg_prefix.split('.').collect();
+        loop {
+            let prefixed = format!("{}.{name}", parts.join("."));
+            let ty = lookup_ty_in_hierarchy(&prefixed, top_level);
+            if !matches!(ty, Ty::Unknown) {
+                return ty;
+            }
+            if parts.is_empty() {
+                break;
+            }
+            parts.pop();
+        }
+    }
+    // Fall back to `resolve_call_node` so that import-aliased and
+    // wildcard-imported type names also resolve.
+    resolve_call_node(name, top_level, pkg_prefix)
+        .map(|(_, n)| n.ty.clone())
+        .unwrap_or(Ty::Unknown)
+}
+
 /// Return the function signature for a MetaModelica built-in function used as a
 /// first-class value (e.g. `valueEq` passed as a callback). Built-ins are not in
 /// the hierarchy, so when a CREF resolves to `Ty::Unknown` we fall back here so
@@ -1235,7 +1280,7 @@ pub fn infer_exp<'a>(
             // Process match-level local declarations: these are visible to all arms
             // and must be declared in each arm body. We add them to the environment
             // before inferring the case bodies so that their types are known inside arms.
-            let match_locals_raw = infer_case_locals_standalone(localDecls, type_vars, top_level);
+            let match_locals_raw = infer_case_locals_standalone(localDecls, type_vars, top_level, pkg_prefix);
             let mut case_env = env.clone();
             for (n, t, _) in &match_locals_raw {
                 case_env.insert(n.clone(), t.clone());
@@ -1337,7 +1382,7 @@ fn infer_case<'a>(
     /// - `polymorphic<T>` (the parser's representation of `replaceable type T subtypeof Any`) →
     ///   recurse into the inner spec (stripping the wrapper)
     /// - Everything else → hierarchy lookup
-    fn typespec_to_ty(type_spec: &Absyn::TypeSpec, type_vars: &[String], top_level: &BTreeMap<String, NameNode<'_>>) -> Ty {
+    fn typespec_to_ty(type_spec: &Absyn::TypeSpec, type_vars: &[String], top_level: &BTreeMap<String, NameNode<'_>>, pkg_prefix: &str) -> Ty {
         match type_spec {
             Absyn::TypeSpec::TPATH { path, .. } => {
                 let name = path_to_dotted(path);
@@ -1347,7 +1392,14 @@ fn infer_case<'a>(
                     "Boolean" => Ty::Bool,
                     "String"  => Ty::Str,
                     _ if type_vars.iter().any(|v| v == &name) => Ty::TypeVar(name),
-                    _ => lookup_ty_in_hierarchy(&name, top_level),
+                    // Scope-aware lookup: resolve the type name relative to the
+                    // enclosing package using the same rules as call resolution.
+                    // Falling back to `lookup_ty_in_hierarchy` (which only handles
+                    // fully-qualified names) here would leave package-local types
+                    // like `Tree` (declared inside `AvlSet*` via `extends`) as
+                    // `Ty::Unknown`, which in turn forces the code generator to
+                    // emit `let mut x; // TODO: ...` for case locals.
+                    _ => resolve_type_name(&name, top_level, pkg_prefix),
                 }
             }
             Absyn::TypeSpec::TCOMPLEX { path, typeSpecs, .. } => {
@@ -1355,38 +1407,38 @@ fn infer_case<'a>(
                 let ctor = path_to_dotted(path);
                 match ctor.as_str() {
                     "Option" if args.len() == 1 => {
-                        Ty::Option(Box::new(typespec_to_ty(args[0].as_ref(), type_vars, top_level)))
+                        Ty::Option(Box::new(typespec_to_ty(args[0].as_ref(), type_vars, top_level, pkg_prefix)))
                     }
                     "list" | "List" if args.len() == 1 => {
-                        Ty::List(Box::new(typespec_to_ty(args[0].as_ref(), type_vars, top_level)))
+                        Ty::List(Box::new(typespec_to_ty(args[0].as_ref(), type_vars, top_level, pkg_prefix)))
                     }
                     "array" | "Array" if args.len() == 1 => {
-                        Ty::Array(Box::new(typespec_to_ty(args[0].as_ref(), type_vars, top_level)))
+                        Ty::Array(Box::new(typespec_to_ty(args[0].as_ref(), type_vars, top_level, pkg_prefix)))
                     }
                     "tuple" => {
-                        let tys: Vec<Ty> = args.iter().map(|a| typespec_to_ty(a.as_ref(), type_vars, top_level)).collect();
+                        let tys: Vec<Ty> = args.iter().map(|a| typespec_to_ty(a.as_ref(), type_vars, top_level, pkg_prefix)).collect();
                         Ty::Tuple(tys)
                     }
                     // `polymorphic<T>` is the parser's representation for `replaceable type T subtypeof Any`.
                     // Strip the wrapper and resolve the inner spec directly.
                     "polymorphic" if args.len() == 1 => {
-                        typespec_to_ty(args[0].as_ref(), type_vars, top_level)
+                        typespec_to_ty(args[0].as_ref(), type_vars, top_level, pkg_prefix)
                     }
-                    // Unknown generic — look up the base name in the hierarchy.
+                    // Unknown generic — look up the base name scope-aware.
                     // The type arguments are not represented in Ty yet; this is a known limitation.
-                    _ => lookup_ty_in_hierarchy(&ctor, top_level),
+                    _ => resolve_type_name(&ctor, top_level, pkg_prefix),
                 }
             }
         }
     }
 
-    fn infer_case_locals(local_decls: &std::sync::Arc<mmwinnow::List<std::sync::Arc<Absyn::ElementItem>>>, type_vars: &[String], top_level: &BTreeMap<String, NameNode<'_>>) -> Vec<(String, Ty, Option<Absyn::Exp>)> {
+    fn infer_case_locals(local_decls: &std::sync::Arc<mmwinnow::List<std::sync::Arc<Absyn::ElementItem>>>, type_vars: &[String], top_level: &BTreeMap<String, NameNode<'_>>, pkg_prefix: &str) -> Vec<(String, Ty, Option<Absyn::Exp>)> {
         let mut out = Vec::new();
         for item in (&**local_decls).into_iter() {
             let Absyn::ElementItem::ELEMENTITEM { element } = item.as_ref() else { continue };
             let Absyn::Element::ELEMENT { specification, .. } = element else { continue };
             let Absyn::ElementSpec::COMPONENTS { typeSpec, components, .. } = specification else { continue };
-            let ty = typespec_to_ty(&typeSpec, type_vars, top_level);
+            let ty = typespec_to_ty(&typeSpec, type_vars, top_level, pkg_prefix);
             for comp_item in (&**components).into_iter() {
                 let Absyn::ComponentItem::COMPONENTITEM { component, .. } = comp_item.as_ref();
                 let Absyn::Component::COMPONENT { name, modification, .. } = component;
@@ -1558,7 +1610,7 @@ fn infer_case<'a>(
             // in pattern position becomes `TypedPat::Constructor { name: "M" }`
             // and downstream codegen emits it as a bare ctor name, losing the
             // ref-binding through the surrounding `Cons.tail` Arc edge.
-            let case_locals_pre = infer_case_locals(localDecls, type_vars, top_level);
+            let case_locals_pre = infer_case_locals(localDecls, type_vars, top_level, pkg_prefix);
             let mut pat_env = env.clone();
             for (n, t, _) in &case_locals_pre {
                 pat_env.insert(n.clone(), t.clone());
@@ -1605,7 +1657,7 @@ fn infer_case<'a>(
         Absyn::Case::ELSE { localDecls, classPart, result, .. } => {
             let mut case_env = env.clone();
             let mut locals: Vec<(String, Ty, Option<TypedExp>)> = extra_locals.to_vec();
-            let case_locals = infer_case_locals(localDecls, type_vars, top_level);
+            let case_locals = infer_case_locals(localDecls, type_vars, top_level, pkg_prefix);
             // Build the environment in which case-local default expressions
             // are type-checked: surrounding scope + all case-locals.
             let mut local_init_env = env.clone();
@@ -1645,6 +1697,7 @@ fn infer_case_locals_standalone(
     local_decls: &std::sync::Arc<mmwinnow::List<std::sync::Arc<Absyn::ElementItem>>>,
     type_vars: &[String],
     top_level: &BTreeMap<String, NameNode<'_>>,
+    pkg_prefix: &str,
 ) -> Vec<(String, Ty, Option<Absyn::Exp>)> {
     fn path_to_dotted(path: &Absyn::Path) -> String {
         match path {
@@ -1653,7 +1706,7 @@ fn infer_case_locals_standalone(
             Absyn::Path::FULLYQUALIFIED { path } => path_to_dotted(path),
         }
     }
-    fn typespec_to_ty(type_spec: &Absyn::TypeSpec, type_vars: &[String], top_level: &BTreeMap<String, NameNode<'_>>) -> Ty {
+    fn typespec_to_ty(type_spec: &Absyn::TypeSpec, type_vars: &[String], top_level: &BTreeMap<String, NameNode<'_>>, pkg_prefix: &str) -> Ty {
         match type_spec {
             Absyn::TypeSpec::TPATH { path, .. } => {
                 let name = path_to_dotted(path);
@@ -1663,7 +1716,8 @@ fn infer_case_locals_standalone(
                     "Boolean" => Ty::Bool,
                     "String"  => Ty::Str,
                     _ if type_vars.iter().any(|v| v == &name) => Ty::TypeVar(name),
-                    _ => lookup_ty_in_hierarchy(&name, top_level),
+                    // Scope-aware lookup — see the inner copy in `infer_case`.
+                    _ => resolve_type_name(&name, top_level, pkg_prefix),
                 }
             }
             Absyn::TypeSpec::TCOMPLEX { path, typeSpecs, .. } => {
@@ -1671,22 +1725,22 @@ fn infer_case_locals_standalone(
                 let ctor = path_to_dotted(path);
                 match ctor.as_str() {
                     "Option" if args.len() == 1 => {
-                        Ty::Option(Box::new(typespec_to_ty(args[0].as_ref(), type_vars, top_level)))
+                        Ty::Option(Box::new(typespec_to_ty(args[0].as_ref(), type_vars, top_level, pkg_prefix)))
                     }
                     "list" | "List" if args.len() == 1 => {
-                        Ty::List(Box::new(typespec_to_ty(args[0].as_ref(), type_vars, top_level)))
+                        Ty::List(Box::new(typespec_to_ty(args[0].as_ref(), type_vars, top_level, pkg_prefix)))
                     }
                     "array" | "Array" if args.len() == 1 => {
-                        Ty::Array(Box::new(typespec_to_ty(args[0].as_ref(), type_vars, top_level)))
+                        Ty::Array(Box::new(typespec_to_ty(args[0].as_ref(), type_vars, top_level, pkg_prefix)))
                     }
                     "tuple" => {
-                        let tys: Vec<Ty> = args.iter().map(|a| typespec_to_ty(a.as_ref(), type_vars, top_level)).collect();
+                        let tys: Vec<Ty> = args.iter().map(|a| typespec_to_ty(a.as_ref(), type_vars, top_level, pkg_prefix)).collect();
                         Ty::Tuple(tys)
                     }
                     "polymorphic" if args.len() == 1 => {
-                        typespec_to_ty(args[0].as_ref(), type_vars, top_level)
+                        typespec_to_ty(args[0].as_ref(), type_vars, top_level, pkg_prefix)
                     }
-                    _ => lookup_ty_in_hierarchy(&ctor, top_level),
+                    _ => resolve_type_name(&ctor, top_level, pkg_prefix),
                 }
             }
         }
@@ -1697,7 +1751,7 @@ fn infer_case_locals_standalone(
         let Absyn::ElementItem::ELEMENTITEM { element } = item.as_ref() else { continue };
         let Absyn::Element::ELEMENT { specification, .. } = element else { continue };
         let Absyn::ElementSpec::COMPONENTS { typeSpec, components, .. } = specification else { continue };
-        let ty = typespec_to_ty(&typeSpec, type_vars, top_level);
+        let ty = typespec_to_ty(&typeSpec, type_vars, top_level, pkg_prefix);
         for comp_item in (&**components).into_iter() {
             let Absyn::ComponentItem::COMPONENTITEM { component, .. } = comp_item.as_ref();
             let Absyn::Component::COMPONENT { name, modification, .. } = component;
@@ -1706,6 +1760,64 @@ fn infer_case_locals_standalone(
         }
     }
     out
+}
+
+/// Resolve a MetaModelica `TypeSpec` to a `Ty` using the same rules as the
+/// inner helpers nested in `infer_case` / `infer_case_locals_standalone`.
+///
+/// Exposed so that the code generator can resolve component types for
+/// inherited members where the hierarchy did not pre-populate `NameNode.ty`
+/// (e.g. components of a `replaceable partial function` carried in through
+/// `function F extends G` — the base's children are not copied across).
+pub fn resolve_typespec<'a>(
+    type_spec: &Absyn::TypeSpec,
+    type_vars: &[String],
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+    pkg_prefix: &str,
+) -> Ty {
+    fn path_to_dotted(path: &Absyn::Path) -> String {
+        match path {
+            Absyn::Path::IDENT { name } => name.to_string(),
+            Absyn::Path::QUALIFIED { name, path } => format!("{name}.{}", path_to_dotted(path)),
+            Absyn::Path::FULLYQUALIFIED { path } => path_to_dotted(path),
+        }
+    }
+    match type_spec {
+        Absyn::TypeSpec::TPATH { path, .. } => {
+            let name = path_to_dotted(path);
+            match name.as_str() {
+                "Integer" => Ty::I32,
+                "Real"    => Ty::F64,
+                "Boolean" => Ty::Bool,
+                "String"  => Ty::Str,
+                _ if type_vars.iter().any(|v| v == &name) => Ty::TypeVar(name),
+                _ => resolve_type_name(&name, top_level, pkg_prefix),
+            }
+        }
+        Absyn::TypeSpec::TCOMPLEX { path, typeSpecs, .. } => {
+            let args: Vec<std::sync::Arc<Absyn::TypeSpec>> = (&**typeSpecs).into_iter().cloned().collect();
+            let ctor = path_to_dotted(path);
+            match ctor.as_str() {
+                "Option" if args.len() == 1 => {
+                    Ty::Option(Box::new(resolve_typespec(args[0].as_ref(), type_vars, top_level, pkg_prefix)))
+                }
+                "list" | "List" if args.len() == 1 => {
+                    Ty::List(Box::new(resolve_typespec(args[0].as_ref(), type_vars, top_level, pkg_prefix)))
+                }
+                "array" | "Array" if args.len() == 1 => {
+                    Ty::Array(Box::new(resolve_typespec(args[0].as_ref(), type_vars, top_level, pkg_prefix)))
+                }
+                "tuple" => {
+                    let tys: Vec<Ty> = args.iter().map(|a| resolve_typespec(a.as_ref(), type_vars, top_level, pkg_prefix)).collect();
+                    Ty::Tuple(tys)
+                }
+                "polymorphic" if args.len() == 1 => {
+                    resolve_typespec(args[0].as_ref(), type_vars, top_level, pkg_prefix)
+                }
+                _ => resolve_type_name(&ctor, top_level, pkg_prefix),
+            }
+        }
+    }
 }
 
 /// Check if a pattern is a "local base" — a variable or field-access chain that can be

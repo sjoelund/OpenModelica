@@ -1517,12 +1517,28 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
     let mut protected: Vec<(String, Ty, Option<Absyn::Modification>, bool)> = Vec::new();
     let mut input_names: HashSet<String> = HashSet::new();
     for inp in fn_inputs_eff.iter() { input_names.insert(inp.name.clone()); }
+    let pkg_prefix_for_typespec = if ctx.current_path.is_empty() {
+        ctx.top_name.clone()
+    } else {
+        format!("{}.{}", ctx.top_name, ctx.current_path.join("."))
+    };
     for member in members {
         let MM::ClassMember::Component(cm) = member else { continue };
         let child_ty = node.children.get(&cm.name)
             .map(|n| n.ty.clone())
             .filter(|t| *t != Ty::Unknown)
-            .or_else(|| inherited_tys.get(&cm.name).cloned())
+            .or_else(|| inherited_tys.get(&cm.name).cloned().filter(|t| *t != Ty::Unknown))
+            // Last-resort: resolve the component's `TypeSpec` directly. This
+            // covers inherited components from a `function F extends G` base
+            // whose NameNode children were not copied across by
+            // `flatten_extends` — e.g. `output Integer outResult` inherited
+            // from `BaseAvlSet.keyCompare` into `AvlTreeString.keyCompare`.
+            // Without this, the output ends up `Ty::Unknown` and the body
+            // emits `let mut outResult; // TODO: local with unresolved type`.
+            .or_else(|| {
+                let ty = typedexp::resolve_typespec(&cm.type_spec, &all_type_vars, top_level, &pkg_prefix_for_typespec);
+                if matches!(ty, Ty::Unknown) { None } else { Some(ty) }
+            })
             .unwrap_or(Ty::Unknown);
         match cm.direction {
             Absyn::Direction::OUTPUT | Absyn::Direction::INPUT_OUTPUT =>

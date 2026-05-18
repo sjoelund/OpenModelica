@@ -659,7 +659,11 @@ pub fn generate_all(hier: &InstanceHierarchy<'_>, output_dir: &str) -> std::io::
         std::fs::create_dir_all(dir)?;
         for (name, node) in classes {
             match *name {
-                "Mutable" | "GCExt" | "Pointer" => continue,
+                // `File` is an ExternalObject whose runtime semantics (file
+                // handle + reference count) are hand-written in
+                // `openmodelica_util/src/File.rs`. Skip codegen so the manual
+                // implementation isn't overwritten.
+                "Mutable" | "GCExt" | "Pointer" | "File" => continue,
                 _ => {}
             };
             file_jobs.push((dir.as_str(), name, node));
@@ -974,7 +978,166 @@ fn emit_node<'a>(out: &mut String, name: &str, node: &NameNode<'_>, indent: &str
         R_TYPE | R_ENUMERATION => emit_type_item(out, name, node, c, indent, &mut *ctx),
         R_RECORD | R_METARECORD { .. } => emit_struct(out, name, node, c, indent, &mut *ctx),
         R_FUNCTION { .. } => emit_function(out, name, node, c, indent, &mut *ctx, top_level),
+        R_CLASS if crate::hierarchy::is_external_object_class(node) => {
+            emit_external_object(out, name, node, c, indent, &mut *ctx, top_level)
+        }
         _ => {}
+    }
+}
+
+/// Emit a Rust representation for a MetaModelica ExternalObject class.
+///
+/// External objects are opaque, nominal types whose lifecycle is governed by a
+/// `constructor` and a `destructor` function declared inside the class body.
+/// The actual implementation lives in C runtime code (the `external "C" ...`
+/// annotations point at functions like `om_file_new`). The codegen cannot
+/// know how to bridge those calls in general — so we emit a placeholder Rust
+/// surface that compiles, names the type correctly, and clearly marks where
+/// runtime glue is missing.
+///
+/// What we emit, given `class Foo extends ExternalObject; function constructor ...`:
+///
+/// ```text
+/// pub struct Foo {
+///     // Opaque handle; the real representation is provided by the runtime.
+/// }
+/// impl Foo {
+///     pub fn new(/* constructor inputs */) -> Result<Foo> {
+///         todo!("external object Foo: constructor not implemented")
+///     }
+/// }
+/// // For callers that spell `Foo.Foo(...)` (the MM convention for invoking the
+/// // constructor by class name), we also expose a free function with the
+/// // class name as a thin shim that forwards to `Foo::new`.
+/// pub fn Foo(/* constructor inputs */) -> Result<Foo> { Foo::new(...) }
+/// // Destructor is emitted as a no-op stub; the runtime is responsible for
+/// // releasing resources when the Rust value is dropped.
+/// pub fn destructor(/* destructor inputs */) {}
+/// ```
+///
+/// Classes whose runtime is hand-implemented (e.g. `File`) are skipped at the
+/// dispatch layer so this generic emission does not overwrite them.
+fn emit_external_object<'a>(
+    out: &mut String,
+    name: &str,
+    node: &NameNode<'_>,
+    c: &MM::Class,
+    indent: &str,
+    ctx: &mut GenCtx,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+) {
+    let ename = escape_ident(name);
+    writeln!(out, "{indent}/// Opaque external object `{name}`. The runtime owns the").unwrap();
+    writeln!(out, "{indent}/// representation; this struct exists only to give the type a").unwrap();
+    writeln!(out, "{indent}/// nominal identity in Rust so call sites type-check.").unwrap();
+    writeln!(out, "{indent}#[derive(Clone, Debug)]").unwrap();
+    writeln!(out, "{indent}pub struct {ename} {{").unwrap();
+    writeln!(out, "{indent}    _opaque: std::sync::Arc<std::sync::Mutex<()>>,").unwrap();
+    writeln!(out, "{indent}}}").unwrap();
+    writeln!(out).unwrap();
+
+    // Locate the constructor and destructor child functions.
+    let members: &[MM::ClassMember] = match &c.body {
+        MM::ClassDef::Parts { members, .. } | MM::ClassDef::ClassExtends { members, .. } => members,
+        _ => &[],
+    };
+    let mut ctor: Option<(&MM::ClassMember, &str)> = None;
+    let mut dtor: Option<(&MM::ClassMember, &str)> = None;
+    for m in members {
+        if let MM::ClassMember::ClassDef(cdm) = m {
+            match cdm.class_def.name.as_str() {
+                "constructor" => ctor = Some((m, "constructor")),
+                "destructor" => dtor = Some((m, "destructor")),
+                _ => {}
+            }
+        }
+    }
+
+    // Helper: gather (name, ty) tuples for the inputs/outputs of a child function
+    // by reading its component members. We use the hierarchy node's children so
+    // the types are resolved (rather than raw Absyn paths).
+    let get_io = |child_name: &str| -> Option<(Vec<(String, Ty)>, Vec<(String, Ty)>)> {
+        let child = node.children.get(child_name)?;
+        let NodeKind::Class(cc) = &child.kind else { return None };
+        let cm: &[MM::ClassMember] = match &cc.body {
+            MM::ClassDef::Parts { members, .. } | MM::ClassDef::ClassExtends { members, .. } => members,
+            _ => &[],
+        };
+        let mut ins = Vec::new();
+        let mut outs = Vec::new();
+        for m in cm {
+            if let MM::ClassMember::Component(comp) = m {
+                let ty = child.children.get(&comp.name).map(|n| n.ty.clone()).unwrap_or(Ty::Unknown);
+                match comp.direction {
+                    Absyn::Direction::INPUT => ins.push((comp.name.clone(), ty)),
+                    Absyn::Direction::OUTPUT => outs.push((comp.name.clone(), ty)),
+                    Absyn::Direction::BIDIR | Absyn::Direction::INPUT_OUTPUT => {}
+                }
+            }
+        }
+        Some((ins, outs))
+    };
+
+    // Constructor → `impl Foo { pub fn new(...) -> Result<Foo> { todo!(...) } }`
+    // plus a free-function shim with the class name so `Foo.Foo(...)` call sites
+    // resolve. Destructor → no-op stub.
+    if let Some((_, cname)) = ctor {
+        let (ins, _outs) = get_io(cname).unwrap_or((vec![], vec![]));
+        let params: Vec<String> = ins.iter()
+            .map(|(n, t)| format!("{}: {}", escape_ident(n), fmt_ty(t, ctx)))
+            .collect();
+        let arg_names: Vec<String> = ins.iter().map(|(n, _)| escape_ident(n)).collect();
+        writeln!(out, "{indent}impl {ename} {{").unwrap();
+        writeln!(out, "{indent}    pub fn new({}) -> Result<{ename}> {{", params.join(", ")).unwrap();
+        writeln!(out, "{indent}        // TODO: implement runtime constructor for external object `{name}`.").unwrap();
+        writeln!(out, "{indent}        // The MetaModelica source declares `external \"C\" ...`; the").unwrap();
+        writeln!(out, "{indent}        // matching C runtime function must be ported to Rust or FFI'd.").unwrap();
+        let _ = arg_names; // bindings are unused until the runtime is wired up
+        writeln!(out, "{indent}        todo!(\"external object `{name}`: constructor not implemented\")").unwrap();
+        writeln!(out, "{indent}    }}").unwrap();
+        writeln!(out, "{indent}}}").unwrap();
+        // Free-function shim with the class name. MetaModelica spells the
+        // constructor call as `Foo(...)` (or `Pkg.Foo(...)` from outside),
+        // so we expose a function with the class name that forwards.
+        let shim_args = ins.iter().map(|(n, _)| escape_ident(n)).collect::<Vec<_>>().join(", ");
+        writeln!(out, "{indent}#[allow(non_snake_case)]").unwrap();
+        writeln!(out, "{indent}pub fn {ename}({}) -> Result<{ename}> {{", params.join(", ")).unwrap();
+        writeln!(out, "{indent}    {ename}::new({shim_args})").unwrap();
+        writeln!(out, "{indent}}}").unwrap();
+        writeln!(out).unwrap();
+    }
+    if let Some((_, dname)) = dtor {
+        let (ins, _outs) = get_io(dname).unwrap_or((vec![], vec![]));
+        // Prefix the parameter name with `_` to silence "unused" warnings.
+        // Apply the underscore *before* `escape_ident` so we don't end up with
+        // `_r#name` (an invalid Rust identifier — the raw-identifier prefix
+        // must be at the start of the token).
+        let params: Vec<String> = ins.iter()
+            .map(|(n, t)| format!("{}: {}", escape_ident(&format!("_{n}")), fmt_ty(t, ctx)))
+            .collect();
+        writeln!(out, "{indent}/// Destructor stub. The Rust value's `Drop` impl (added by the").unwrap();
+        writeln!(out, "{indent}/// runtime when implemented) is responsible for releasing the").unwrap();
+        writeln!(out, "{indent}/// underlying resource; calling this explicitly is a no-op.").unwrap();
+        writeln!(out, "{indent}pub fn destructor({}) {{}}", params.join(", ")).unwrap();
+        writeln!(out).unwrap();
+    }
+
+    // Emit any other function children (rare for ExternalObjects since the
+    // useful operations are usually declared at the enclosing package level,
+    // but we recurse here for completeness).
+    for member in members {
+        if let MM::ClassMember::ClassDef(cdm) = member {
+            if matches!(cdm.class_def.name.as_str(), "constructor" | "destructor") {
+                continue;
+            }
+            if let Some(child_node) = node.children.get(&cdm.class_def.name) {
+                if let NodeKind::Class(child_class) = &child_node.kind {
+                    if matches!(child_class.restriction, Absyn::Restriction::R_FUNCTION { .. }) {
+                        emit_function(out, &cdm.class_def.name, child_node, child_class, indent, &mut *ctx, top_level);
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -7927,9 +8090,17 @@ fn fmt_ty(ty: &Ty, ctx: &mut GenCtx) -> String {
                 ty
             }
         }
-        Ty::ExternalObject(_) => {
-            // External objects are opaque C handles in Rust.
-            "std::ffi::c_void".to_owned()
+        Ty::ExternalObject(qname) => {
+            // External objects are nominal opaque types. Each one is a distinct
+            // Rust struct defined in the module that declares the class. The
+            // qname is the fully-qualified dotted path (e.g. `File.File`); turn
+            // it into a Rust path so callers in other modules can name the type.
+            // Inside its own module the doubled `Mod::Mod` is what callers in
+            // other crates write today — we keep the path uniform rather than
+            // collapse the doubling, matching how user code (e.g. `Tpl.mo`)
+            // writes `File.File` to reference the type.
+            let dotted = qname.as_str();
+            ctx.shorten(dotted)
         }
     }
 }

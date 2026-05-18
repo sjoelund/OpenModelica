@@ -573,7 +573,7 @@ pub fn uniontype_needs_mod(node: &NameNode<'_>) -> bool {
 }
 
 /// Check if a class is an external object: has R_CLASS restriction and extends ExternalObject.
-fn is_external_object_class(node: &NameNode<'_>) -> bool {
+pub fn is_external_object_class(node: &NameNode<'_>) -> bool {
     let NodeKind::Class(c) = &node.kind else { return false };
     if !matches!(c.restriction, Absyn::Restriction::R_CLASS) {
         return false;

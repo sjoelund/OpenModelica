@@ -4,7 +4,7 @@ use metamodelica::*;
 use arcstr::{ArcStr, literal};
 use openmodelica_util_datatypes_basic::Array;
 
-// ── helper predicates (must be fn pointers, not closures) ──
+// ── helper predicates ──
 
 fn is_positive(x: i32) -> Result<bool> { Ok(x > 0) }
 fn is_even(x: i32) -> Result<bool> { Ok(x % 2 == 0) }
@@ -29,67 +29,61 @@ fn arr(v: Vec<i32>) -> metamodelica::Array<i32> { arrayFromVec(v) }
 
 // ── Tests ──
 
+// all returns bool, not Result
 #[test]
-fn test_all_true() -> Result<()> {
+fn test_all_true() {
     let a = arr(vec![1, 2, 3]);
-    assert!(Array::all(a, is_positive)?);
-    Ok(())
+    assert!(Array::all(a, &is_positive));
 }
 
 #[test]
-fn test_all_false() -> Result<()> {
+fn test_all_false() {
     let a = arr(vec![1, -2, 3]);
-    assert!(!Array::all(a, is_positive)?);
-    Ok(())
+    assert!(!Array::all(a, &is_positive));
 }
 
 #[test]
-fn test_all_empty() -> Result<()> {
+fn test_all_empty() {
     let a: metamodelica::Array<i32> = arrayFromVec(vec![]);
-    assert!(Array::all(a, is_positive)?);
-    Ok(())
+    assert!(Array::all(a, &is_positive));
 }
 
+// allEqual returns bool, not Result
 #[test]
-fn test_all_equal_true() -> Result<()> {
+fn test_all_equal_true() {
     let a = arr(vec![5, 5, 5]);
-    assert!(Array::allEqual(a, |a, b| Ok(a == b))?);
-    Ok(())
+    assert!(Array::allEqual(a, &|a, b| Ok(a == b)));
 }
 
 #[test]
-fn test_all_equal_false() -> Result<()> {
+fn test_all_equal_false() {
     let a = arr(vec![5, 3, 5]);
-    assert!(!Array::allEqual(a, |a, b| Ok(a == b))?);
-    Ok(())
+    assert!(!Array::allEqual(a, &|a, b| Ok(a == b)));
 }
 
 #[test]
-fn test_all_equal_empty() -> Result<()> {
+fn test_all_equal_empty() {
     let a: metamodelica::Array<i32> = arrayFromVec(vec![]);
-    assert!(Array::allEqual(a, |a, b| Ok(a == b))?);
-    Ok(())
+    assert!(Array::allEqual(a, &|a, b| Ok(a == b)));
 }
 
+// any returns bool, not Result
 #[test]
-fn test_any_found() -> Result<()> {
+fn test_any_found() {
     let a = arr(vec![-1, 2, -3]);
-    assert!(Array::any(a, is_positive)?);
-    Ok(())
+    assert!(Array::any(a, &is_positive));
 }
 
 #[test]
-fn test_any_none() -> Result<()> {
+fn test_any_none() {
     let a = arr(vec![-1, -2, -3]);
-    assert!(!Array::any(a, is_positive)?);
-    Ok(())
+    assert!(!Array::any(a, &is_positive));
 }
 
 #[test]
-fn test_any_empty() -> Result<()> {
+fn test_any_empty() {
     let a: metamodelica::Array<i32> = arrayFromVec(vec![]);
-    assert!(!Array::any(a, is_positive)?);
-    Ok(())
+    assert!(!Array::any(a, &is_positive));
 }
 
 #[test]
@@ -119,36 +113,33 @@ fn test_append_list_empty_lst() -> Result<()> {
     Ok(())
 }
 
+// compare returns i32, not Result
 #[test]
-fn test_compare_equal() -> Result<()> {
+fn test_compare_equal() {
     let a = arr(vec![1, 2, 3]);
     let b = arr(vec![1, 2, 3]);
-    assert_eq!(Array::compare(a, b, int_cmp)?, 0);
-    Ok(())
+    assert_eq!(Array::compare(a, b, &int_cmp), 0);
 }
 
 #[test]
-fn test_compare_less() -> Result<()> {
+fn test_compare_less() {
     let a = arr(vec![1, 2]);
     let b = arr(vec![1, 3]);
-    assert_eq!(Array::compare(a, b, int_cmp)?, -1);
-    Ok(())
+    assert_eq!(Array::compare(a, b, &int_cmp), -1);
 }
 
 #[test]
-fn test_compare_greater() -> Result<()> {
+fn test_compare_greater() {
     let a = arr(vec![1, 4]);
     let b = arr(vec![1, 3]);
-    assert_eq!(Array::compare(a, b, int_cmp)?, 1);
-    Ok(())
+    assert_eq!(Array::compare(a, b, &int_cmp), 1);
 }
 
 #[test]
-fn test_compare_length_diff() -> Result<()> {
+fn test_compare_length_diff() {
     let a = arr(vec![1, 2, 3]);
     let b = arr(vec![1, 2]);
-    assert_eq!(Array::compare(a, b, int_cmp)?, 1);
-    Ok(())
+    assert_eq!(Array::compare(a, b, &int_cmp), 1);
 }
 
 #[test]
@@ -180,11 +171,11 @@ fn test_copy_range() -> Result<()> {
     Ok(())
 }
 
+// createIntRange returns Array<i32>, not Result
 #[test]
-fn test_create_int_range() -> Result<()> {
-    let result = Array::createIntRange(5)?;
+fn test_create_int_range() {
+    let result = Array::createIntRange(5);
     assert_eq!(*result.borrow(), vec![1, 2, 3, 4, 5]);
-    Ok(())
 }
 
 #[test]
@@ -235,100 +226,97 @@ fn test_expand_to_size_no_grow() -> Result<()> {
     Ok(())
 }
 
+// filter returns Array<T>, not Result
+// NOTE: filter keeps elements where predicate returns FALSE (filter-out semantics)
 #[test]
-fn test_filter() -> Result<()> {
+fn test_filter() {
     let a = arr(vec![1, 2, 3, 4, 5, 6]);
-    let result = Array::filter(a, is_even)?;
-    assert_eq!(*result.borrow(), vec![2, 4, 6]);
-    Ok(())
+    let result = Array::filter(a, &is_even);
+    assert_eq!(*result.borrow(), vec![1, 3, 5]);
 }
 
 #[test]
-fn test_filter_none() -> Result<()> {
+fn test_filter_none() {
     let a = arr(vec![1, 3, 5]);
-    let result = Array::filter(a, is_even)?;
-    assert!(result.borrow().is_empty());
-    Ok(())
+    let result = Array::filter(a, &is_even);
+    assert_eq!(*result.borrow(), vec![1, 3, 5]);
 }
 
+// findFirstOnTrue returns Option<T>, not Result
 #[test]
-fn test_find_first_on_true_found() -> Result<()> {
+fn test_find_first_on_true_found() {
     let a = arr(vec![1, 3, 5, 7, 2]);
-    let result = Array::findFirstOnTrue(a, is_greater_than_5)?;
+    let result = Array::findFirstOnTrue(a, &is_greater_than_5);
     assert_eq!(result, Some(7));
-    Ok(())
 }
 
 #[test]
-fn test_find_first_on_true_not_found() -> Result<()> {
+fn test_find_first_on_true_not_found() {
     let a = arr(vec![1, 2, 3]);
-    let result = Array::findFirstOnTrue(a, is_greater_than_5)?;
+    let result = Array::findFirstOnTrue(a, &is_greater_than_5);
     assert_eq!(result, None);
-    Ok(())
 }
 
+// findFirstOnTrueWithIdx returns (Option<T>, i32), not Result
 #[test]
-fn test_find_first_on_true_with_idx_found() -> Result<()> {
+fn test_find_first_on_true_with_idx_found() {
     let a = arr(vec![1, 3, 5, 7]);
-    let (val, idx) = Array::findFirstOnTrueWithIdx(a, is_greater_than_5)?;
+    let (val, idx) = Array::findFirstOnTrueWithIdx(a, &is_greater_than_5);
     assert_eq!(val, Some(7));
     assert_eq!(idx, 4);
-    Ok(())
 }
 
 #[test]
-fn test_find_first_on_true_with_idx_not_found() -> Result<()> {
+fn test_find_first_on_true_with_idx_not_found() {
     let a = arr(vec![1, 2, 3]);
-    let (val, idx) = Array::findFirstOnTrueWithIdx(a, is_greater_than_5)?;
+    let (val, idx) = Array::findFirstOnTrueWithIdx(a, &is_greater_than_5);
     assert_eq!(val, None);
     assert_eq!(idx, -1);
-    Ok(())
 }
 
+// fold returns FoldT, not Result
 #[test]
-fn test_fold() -> Result<()> {
+fn test_fold() {
     let a = arr(vec![1, 2, 3, 4, 5]);
-    let result = Array::fold(a, fold_add, 0)?;
+    let result = Array::fold(a, &fold_add, 0);
     assert_eq!(result, 15);
-    Ok(())
 }
 
 #[test]
 fn test_fold_index() -> Result<()> {
     let a = arr(vec![10, 20]);
     // fold_index_add(10, 1, 0) = 11, fold_index_add(20, 2, 11) = 33
-    let result = Array::foldIndex(a, fold_index_add, 0)?;
+    let result = Array::foldIndex(a, &fold_index_add, 0)?;
     assert_eq!(result, 33);
     Ok(())
 }
 
+// generate returns Array<T>, not Result
 #[test]
-fn test_generate() -> Result<()> {
-    let result = Array::generate(3, || Ok(42))?;
+fn test_generate() {
+    let result = Array::generate(3, &|| Ok(42));
     assert_eq!(*result.borrow(), vec![42, 42, 42]);
-    Ok(())
 }
 
 #[test]
-fn test_generate_zero() -> Result<()> {
-    let result = Array::generate(0, || Ok(42i32))?;
+fn test_generate_zero() {
+    let result = Array::generate(0, &|| Ok(42i32));
     assert!(result.borrow().is_empty());
-    Ok(())
 }
 
+// getIndexFirst returns T, not Result
 #[test]
-fn test_get_index_first() -> Result<()> {
+fn test_get_index_first() {
     let a = arr(vec![10, 20, 30]);
-    assert_eq!(Array::getIndexFirst(1, a.clone())?, 10);
-    assert_eq!(Array::getIndexFirst(2, a.clone())?, 20);
-    assert_eq!(Array::getIndexFirst(3, a)?, 30);
-    Ok(())
+    assert_eq!(Array::getIndexFirst(1, a.clone()), 10);
+    assert_eq!(Array::getIndexFirst(2, a.clone()), 20);
+    assert_eq!(Array::getIndexFirst(3, a), 30);
 }
 
 #[test]
 fn test_get_member_on_true() -> Result<()> {
     let a = arr(vec![1, 2, 3]);
-    let (val, idx) = Array::getMemberOnTrue(2, a.clone(), |v, e| Ok(v == e))?;
+    let (val, idx) = Array::getMemberOnTrue(2, a.clone(), &|v, e| Ok(v == e))?;
     assert_eq!(val, 2);
     assert_eq!(idx, 2);
     Ok(())
@@ -343,29 +331,28 @@ fn test_get_range() -> Result<()> {
     Ok(())
 }
 
+// heapSort returns Array<i32>, not Result
 #[test]
-fn test_heap_sort() -> Result<()> {
+fn test_heap_sort() {
     let a = arr(vec![3, 1, 4, 1, 5, 9, 2, 6]);
-    let result = Array::heapSort(a)?;
+    let result = Array::heapSort(a);
     assert_eq!(*result.borrow(), vec![1, 1, 2, 3, 4, 5, 6, 9]);
-    Ok(())
 }
 
 #[test]
-fn test_heap_sort_empty() -> Result<()> {
+fn test_heap_sort_empty() {
     let a: metamodelica::Array<i32> = arrayFromVec(vec![]);
-    let result = Array::heapSort(a)?;
+    let result = Array::heapSort(a);
     assert!(result.borrow().is_empty());
-    Ok(())
 }
 
+// insertList returns Array<T>, not Result
 #[test]
-fn test_insert_list() -> Result<()> {
+fn test_insert_list() {
     let a = arr(vec![0, 0, 0, 0, 0]);
     let lst = list![1i32, 2, 3];
-    let result = Array::insertList(a, Arc::clone(&lst), 2)?;
+    let result = Array::insertList(a, Arc::clone(&lst), 2);
     assert_eq!(*result.borrow(), vec![0, 1, 2, 3, 0]);
-    Ok(())
 }
 
 #[test]
@@ -387,30 +374,28 @@ fn test_is_equal_length_diff_fails() -> Result<()> {
     Ok(())
 }
 
+// isEqualOnTrue returns bool, not Result
 #[test]
-fn test_is_equal_on_true_custom_pred() -> Result<()> {
+fn test_is_equal_on_true_custom_pred() {
     let a = arr(vec![2, 4, 6]);
     let b = arr(vec![4, 6, 8]);
-    assert!(Array::isEqualOnTrue(a, b, |x, y| Ok(x * 2 == y))?);
-    Ok(())
+    assert!(Array::isEqualOnTrue(a, b, &|x, y| Ok(x * 2 == y)));
+}
+
+// isLess returns bool, not Result
+#[test]
+fn test_is_less_true() {
+    assert!(Array::isLess(arr(vec![1, 2]), arr(vec![1, 3]), &int_less));
 }
 
 #[test]
-fn test_is_less_true() -> Result<()> {
-    assert!(Array::isLess(arr(vec![1, 2]), arr(vec![1, 3]), int_less)?);
-    Ok(())
+fn test_is_less_false() {
+    assert!(!Array::isLess(arr(vec![1, 4]), arr(vec![1, 3]), &int_less));
 }
 
 #[test]
-fn test_is_less_false() -> Result<()> {
-    assert!(!Array::isLess(arr(vec![1, 4]), arr(vec![1, 3]), int_less)?);
-    Ok(())
-}
-
-#[test]
-fn test_is_less_equal() -> Result<()> {
-    assert!(!Array::isLess(arr(vec![1, 2, 3]), arr(vec![1, 2, 3]), int_less)?);
-    Ok(())
+fn test_is_less_equal() {
+    assert!(!Array::isLess(arr(vec![1, 2, 3]), arr(vec![1, 2, 3]), &int_less));
 }
 
 #[test]
@@ -440,26 +425,25 @@ fn test_join_empty_second() -> Result<()> {
     Ok(())
 }
 
+// map returns Array<TO>, not Result
 #[test]
-fn test_map() -> Result<()> {
+fn test_map() {
     let a = arr(vec![1, 2, 3]);
-    let result = Array::map(a, double)?;
+    let result = Array::map(a, &double);
     assert_eq!(*result.borrow(), vec![2, 4, 6]);
-    Ok(())
 }
 
 #[test]
-fn test_map_empty() -> Result<()> {
+fn test_map_empty() {
     let a: metamodelica::Array<i32> = arrayFromVec(vec![]);
-    let result = Array::map(a, double);
-    assert!(result?.borrow().is_empty());
-    Ok(())
+    let result = Array::map(a, &double);
+    assert!(result.borrow().is_empty());
 }
 
 #[test]
 fn test_map1() -> Result<()> {
     let a = arr(vec![1, 2, 3]);
-    let result = Array::map1(a, |x, arg| Ok(x + arg), 10)?;
+    let result = Array::map1(a, &|x, arg| Ok(x + arg), 10)?;
     assert_eq!(*result.borrow(), vec![11, 12, 13]);
     Ok(())
 }
@@ -467,88 +451,86 @@ fn test_map1() -> Result<()> {
 #[test]
 fn test_map1_ind() -> Result<()> {
     let a = arr(vec![1, 2, 3]);
-    let result = Array::map1Ind(a, |x, idx, arg| Ok(x + idx + arg), 0)?;
+    let result = Array::map1Ind(a, &|x, idx, arg| Ok(x + idx + arg), 0)?;
     assert_eq!(*result.borrow(), vec![2, 4, 6]);
     Ok(())
 }
 
+// mapFold returns (Array<TO>, ArgT), not Result
 #[test]
-fn test_map_fold() -> Result<()> {
+fn test_map_fold() {
     let a = arr(vec![1, 2, 3]);
-    let (result_arr, result_arg) = Array::mapFold(a, fold_tuple, 0)?;
+    let (result_arr, result_arg) = Array::mapFold(a, &fold_tuple, 0);
     assert_eq!(*result_arr.borrow(), vec![2, 4, 6]);
     assert_eq!(result_arg, 6);
-    Ok(())
 }
 
 #[test]
 fn test_map_list() -> Result<()> {
     let lst = list![1i32, 2, 3];
-    let result = Array::mapList(Arc::clone(&lst), double)?;
+    let result = Array::mapList(Arc::clone(&lst), &double)?;
     assert_eq!(*result.borrow(), vec![2, 4, 6]);
     Ok(())
 }
 
+// mapNoCopy returns Array<T>, not Result
 #[test]
-fn test_map_no_copy() -> Result<()> {
+fn test_map_no_copy() {
     let a = arr(vec![1, 2, 3]);
-    let result = Array::mapNoCopy(a, mapnocopy_fn)?;
+    let result = Array::mapNoCopy(a, &mapnocopy_fn);
     assert_eq!(*result.borrow(), vec![2, 3, 4]);
-    Ok(())
 }
 
+// maxElement returns T, not Result
 #[test]
-fn test_max_element() -> Result<()> {
+fn test_max_element() {
     let a = arr(vec![3, 1, 4, 1, 5, 9]);
-    let result = Array::maxElement(a, int_less)?;
+    let result = Array::maxElement(a, &int_less);
     assert_eq!(result, 9);
-    Ok(())
 }
 
+// minElement returns T, not Result
 #[test]
-fn test_min_element() -> Result<()> {
+fn test_min_element() {
     let a = arr(vec![3, 1, 4, 1, 5, 9]);
-    let result = Array::minElement(a, int_less)?;
+    let result = Array::minElement(a, &int_less);
     assert_eq!(result, 1);
-    Ok(())
 }
 
+// position returns i32, not Result
 #[test]
-fn test_position_found() -> Result<()> {
+fn test_position_found() {
     let a = arr(vec![1, 2, 3, 4, 5]);
-    assert_eq!(Array::position(a, 3, 5)?, 3);
-    Ok(())
+    assert_eq!(Array::position(a, 3, 5), 3);
 }
 
 #[test]
-fn test_position_not_found() -> Result<()> {
+fn test_position_not_found() {
     let a = arr(vec![1, 2, 3]);
-    assert_eq!(Array::position(a, 99, 3)?, 0);
-    Ok(())
+    assert_eq!(Array::position(a, 99, 3), 0);
 }
 
 #[test]
 fn test_reduce() -> Result<()> {
     let a = arr(vec![1, 2, 3, 4]);
-    let result = Array::reduce(a, add)?;
+    let result = Array::reduce(a, &add)?;
     assert_eq!(result, 10);
     Ok(())
 }
 
+// remove returns Array<T>, not Result
 #[test]
-fn test_remove() -> Result<()> {
+fn test_remove() {
     let a = arr(vec![1, 2, 3, 4]);
-    let result = Array::remove(a, 2)?;
+    let result = Array::remove(a, 2);
     assert_eq!(*result.borrow(), vec![1, 3, 4]);
-    Ok(())
 }
 
 #[test]
-fn test_remove_single_element() -> Result<()> {
+fn test_remove_single_element() {
     let a = arr(vec![1]);
-    let result = Array::remove(a, 1)?;
+    let result = Array::remove(a, 1);
     assert!(result.borrow().is_empty());
-    Ok(())
 }
 
 #[test]
@@ -588,7 +570,7 @@ fn test_set_range() -> Result<()> {
 fn test_thread_map() -> Result<()> {
     let a = arr(vec![1, 2, 3]);
     let b = arr(vec![10, 20, 30]);
-    let result = Array::threadMap(a, b, thread_add)?;
+    let result = Array::threadMap(a, b, &thread_add)?;
     assert_eq!(*result.borrow(), vec![11, 22, 33]);
     Ok(())
 }
@@ -597,7 +579,7 @@ fn test_thread_map() -> Result<()> {
 fn test_thread_map_empty() -> Result<()> {
     let a: metamodelica::Array<i32> = arrayFromVec(vec![]);
     let b: metamodelica::Array<i32> = arrayFromVec(vec![]);
-    let result = Array::threadMap(a, b, thread_add)?;
+    let result = Array::threadMap(a, b, &thread_add)?;
     assert!(result.borrow().is_empty());
     Ok(())
 }
@@ -606,7 +588,7 @@ fn test_thread_map_empty() -> Result<()> {
 fn test_thread_map_length_mismatch() -> Result<()> {
     let a = arr(vec![1, 2]);
     let b = arr(vec![1, 2, 3]);
-    let result = Array::threadMap(a, b, thread_add);
+    let result = Array::threadMap(a, b, &thread_add);
     assert!(result.is_err());
     Ok(())
 }
@@ -615,7 +597,7 @@ fn test_thread_map_length_mismatch() -> Result<()> {
 fn test_to_string() -> Result<()> {
     let a = arr(vec![1, 2, 3]);
     let result = Array::toString(
-        a, int_to_string,
+        a, &int_to_string,
         literal!("array"),
         literal!("["),
         literal!(", "),
@@ -630,7 +612,7 @@ fn test_to_string() -> Result<()> {
 fn test_to_string_empty() -> Result<()> {
     let a: metamodelica::Array<i32> = arrayFromVec(vec![]);
     let result = Array::toString(
-        a, int_to_string,
+        a, &int_to_string,
         literal!("array"),
         literal!("["),
         literal!(", "),
@@ -645,7 +627,7 @@ fn test_to_string_empty() -> Result<()> {
 fn test_to_string_max_length() -> Result<()> {
     let a = arr(vec![1, 2, 3, 4, 5]);
     let result = Array::toString(
-        a, int_to_string,
+        a, &int_to_string,
         literal!("array"),
         literal!("["),
         literal!(", "),
@@ -660,7 +642,7 @@ fn test_to_string_max_length() -> Result<()> {
 fn test_to_string_print_empty_false() -> Result<()> {
     let a: metamodelica::Array<i32> = arrayFromVec(vec![]);
     let result = Array::toString(
-        a, int_to_string,
+        a, &int_to_string,
         literal!("array"),
         literal!("["),
         literal!(", "),
@@ -671,25 +653,24 @@ fn test_to_string_print_empty_false() -> Result<()> {
     Ok(())
 }
 
+// transpose returns Array<Array<T>>, not Result
 #[test]
-fn test_transpose() -> Result<()> {
-    // 2x3 matrix: [[1,2,3],[4,5,6]] -> [[4,1],[5,2],[6,3]]
+fn test_transpose() {
+    // 2x3 matrix: [[1,2,3],[4,5,6]] -> transpose is [[1,4],[2,5],[3,6]]
     let row1 = arrayFromVec(vec![1i32, 2, 3]);
     let row2 = arrayFromVec(vec![4i32, 5, 6]);
     let a = arrayFromVec(vec![row1, row2]);
-    let result = Array::transpose(a)?;
+    let result = Array::transpose(a);
     assert_eq!(*result.borrow()[0].borrow(), vec![1, 4]);
     assert_eq!(*result.borrow()[1].borrow(), vec![2, 5]);
     assert_eq!(*result.borrow()[2].borrow(), vec![3, 6]);
-    Ok(())
 }
 
 #[test]
-fn test_transpose_empty() -> Result<()> {
+fn test_transpose_empty() {
     let a: metamodelica::Array<metamodelica::Array<i32>> = arrayFromVec(vec![]);
-    let result = Array::transpose(a)?;
+    let result = Array::transpose(a);
     assert!(result.borrow().is_empty());
-    Ok(())
 }
 
 #[test]
@@ -721,15 +702,16 @@ fn test_cons_to_element() -> Result<()> {
     Ok(())
 }
 
+// mapNoCopy_1 returns (Array<T>, ArgT), not Result
 #[test]
-fn test_map_no_copy_1() -> Result<()> {
+fn test_map_no_copy_1() {
     let a = arr(vec![1, 2, 3]);
     let (result_arr, result_arg) = Array::mapNoCopy_1(
         a,
-        |(x, acc): (i32, i32)| Ok((x + 1, acc + 1)),
+        &|(x, acc): (i32, i32)| Ok((x + 1, acc + 1)),
         0i32
-    )?;
+    );
     assert_eq!(*result_arr.borrow(), vec![2, 3, 4]);
     assert_eq!(result_arg, 3);
-    Ok(())
 }
+

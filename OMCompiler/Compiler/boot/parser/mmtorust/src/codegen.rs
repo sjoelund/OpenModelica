@@ -713,7 +713,7 @@ fn generate_lib_file(hier: &InstanceHierarchy<'_>, this_dir: &str, default_dir: 
     writeln!(out, "// Auto-generated lib file").unwrap();
     writeln!(out, "// TODO: Decide if we go with nightly rust for deref patterns, or https://crates.io/crates/match_deref").unwrap();
     writeln!(out, "#![feature(deref_patterns)]").unwrap(); // We have long lists to macro through...
-    writeln!(out, "#![recursion_limit = \"1024\"]").unwrap(); // We have long lists to macro through...
+    writeln!(out, "#![recursion_limit = \"65536\"]").unwrap(); // We have long lists to macro through...
     for (name, node) in &hier.top_level {
         let node_dir = if let NodeKind::Class(c) = &node.kind {
             if let Some(cn) = &c.crate_name { format!("{cn}/src") } else { default_dir.to_owned() }
@@ -1831,6 +1831,21 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
 /// whether the closure parameter type can be spelled at the caller (concrete
 /// types) or must be left as `_` for inference (type vars from the callee's
 /// scope that are not in scope here).
+/// Map a function name that collides with a Rust language construct (macro,
+/// keyword, prelude type) to the qualified runtime path that actually denotes
+/// the MetaModelica builtin. Only applies when the resolved FQN is the bare
+/// builtin name at top level — qualified user references like
+/// `MyMod.print(...)` are left alone.
+fn remap_shadowed_builtin_path(var_str: &str, resolved_qname: Option<&str>) -> String {
+    let qname = match resolved_qname { Some(q) => q, None => return var_str.to_owned() };
+    if var_str != qname { return var_str.to_owned(); }
+    match qname {
+        // `print!` is a Rust macro; the function value lives in `metamodelica::print`.
+        "print" => "metamodelica::print".to_owned(),
+        _ => var_str.to_owned(),
+    }
+}
+
 fn ty_mentions_typevar(ty: &Ty) -> bool {
     let mut tvs = Vec::new();
     crate::hierarchy::collect_type_vars_in_ty(ty, &mut tvs);
@@ -1896,6 +1911,12 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                 .map(|q| ctx.is_known_infallible_user_fn(q, top_level))
                 .unwrap_or(false);
 
+            // Some MetaModelica builtins share a name with a Rust language
+            // construct (`print` is a macro, `String` is a struct, etc.).
+            // Emitting the bare identifier as a value resolves to the Rust
+            // construct rather than the runtime function. Remap such names
+            // to their qualified runtime path before fnptr! wrapping.
+            let var_str = remap_shadowed_builtin_path(&var_str, resolved_fn_qname.as_deref());
             match effective_ty {
                 // Infallible concrete function used as a value. Wrap with
                 // `fnptr!(path, ArgTy1, …)` so the closure satisfies the
@@ -1936,8 +1957,15 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                 // function references — which we just resolved into
                 // `resolved_fn_qname` — are `fn` items (zero-sized, `Copy`)
                 // and should be passed by value, just like the named
-                // `partial function` aliases below.
-                Ty::Function { name: None, .. } if resolved_fn_qname.is_none() =>
+                // `partial function` aliases below. A free MetaModelica
+                // builtin like `stringEq` that the hierarchy doesn't expose
+                // as a node also falls into the "fn item" group; we
+                // distinguish callback parameters by their presence in the
+                // surrounding function's variable environment (`fn_env_vars`
+                // is populated for inputs/protected locals — see
+                // `emit_function`).
+                Ty::Function { name: None, .. } if resolved_fn_qname.is_none()
+                    && ctx.fn_env_vars.contains_key(&name.split('.').next().unwrap_or(name).to_owned()) =>
                     format!("&{var_str}"),
                 // Named `partial function` aliases (e.g. `KeyEq`) lower to a
                 // concrete `fn(...)` pointer — that *is* `Copy`, so the move
@@ -2043,6 +2071,26 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                     return res;
                 }
             }
+            // `String(value, significantDigits=N, ...)` is the MetaModelica
+            // value-to-string builtin with optional named formatting args.
+            // Rust's `String` is a struct, not a function — falling through to
+            // the regular call path would emit `String(...)` which is a struct
+            // tuple-constructor and fails to compile. We don't yet handle the
+            // full set of formatting options (minimumLength, leftJustified,
+            // significantDigits) so surface this as a `todo!` rather than
+            // generating wrong code.
+            if func == "String" {
+                // We don't yet lower the named formatting options
+                // (minimumLength, leftJustified, significantDigits). Surface
+                // this clearly at runtime rather than silently emitting a
+                // wrong call. The block returns an `ArcStr` so the
+                // surrounding string-concat path (`&*expr`) still
+                // type-checks against the deref target.
+                let names: Vec<String> = named_args.iter().map(|(n, _)| format!("{n}")).collect();
+                let msg = format!("String() builtin with named args [{}] not yet lowered", names.join(","));
+                let escaped = format!("{msg:?}");
+                return format!("{{ let __mm_unimpl: ArcStr = todo!({escaped}); __mm_unimpl }}");
+            }
             let func_str = if func.contains('.') {
                 &ctx.shorten(func)
             } else {
@@ -2051,8 +2099,14 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
             let func_str = escape_ident(func_str);
             let formals = resolve_call_formals(func, ctx, top_level);
             let parts: Vec<String> = if let Some(formals) = formals {
-                let has_defaults = formals.iter().any(|(_, _, d)| d.is_some());
-                if has_defaults {
+                // Reorder positional + named arguments into formal-declaration
+                // order. Rust calls are positional-only, so a MetaModelica
+                // call like `f(p, name=v)` has to be lowered to `f(p, v)` —
+                // emitting `name=v` would be invalid Rust syntax. This block
+                // runs for every user-function call where we have formal
+                // information; the prior gate restricted it to functions
+                // with default arguments, which silently mis-emitted any
+                // call that mixed named args with non-defaulted formals.
                 let mut slots: Vec<Option<TypedExp>> = vec![None; formals.len()];
                 let mut failed = false;
 
@@ -2078,6 +2132,10 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                     }
                 }
 
+                // Apply default values for any still-empty slot. Defaults are
+                // typed in the callee's scope and may reference earlier
+                // formals, so we substitute the already-filled slot values
+                // for those name references before emitting.
                 if !failed {
                     for i in 0..slots.len() {
                         if slots[i].is_some() {
@@ -2105,6 +2163,11 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                 }
 
                 if failed {
+                    // Last resort: emit positional args followed by `n=v`
+                    // pairs. The `n=v` form is not valid Rust call syntax
+                    // and will fail to compile — that's intentional: it
+                    // surfaces the residual case (typically an unresolved
+                    // named arg) instead of silently dropping it.
                     let mut parts: Vec<String> = args.iter().enumerate().map(|(i, a)| {
                         emit_call_arg_with_formal(a, formals.get(i).map(|f| &f.1), is_const, ctx, top_level)
                     }).collect();
@@ -2120,17 +2183,6 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                             emit_call_arg_with_formal(&s.unwrap(), formals.get(i).map(|f| &f.1), is_const, ctx, top_level)
                         })
                         .collect()
-                }
-                } else {
-                    let mut parts: Vec<String> = args.iter().enumerate().map(|(i, a)| {
-                        emit_call_arg_with_formal(a, formals.get(i).map(|f| &f.1), is_const, ctx, top_level)
-                    }).collect();
-                    for (n, v) in named_args {
-                        let formal_ty = formals.iter().find_map(|(fname, fty, _)| if fname == n { Some(fty) } else { None });
-                        let v = emit_call_arg_with_formal(v, formal_ty, is_const, ctx, top_level);
-                        parts.push(format!("{n}={v}"));
-                    }
-                    parts
                 }
             } else {
                 let mut parts: Vec<String> = args.iter().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).collect();
@@ -2611,6 +2663,14 @@ fn emit_reduction<'a>(
     fn ty_or_underscore(t: &Ty, ctx: &mut GenCtx) -> String {
         if matches!(t, Ty::Unknown) {
             "_".to_owned()
+        } else if ty_mentions_typevar(t) {
+            // The reduction body's static type carries type variables from a
+            // callee's signature (e.g. `tuple21<T1,T2>`'s `T1` flowing into
+            // the accumulator) that aren't in scope at the caller. Emitting
+            // them verbatim would produce `Arc<List<T1>>` against an
+            // undeclared name; defer to Rust inference instead. The body
+            // assignment to `__x` pins the concrete type from the call site.
+            "_".to_owned()
         } else {
             // `fmt_ty` renders nested `Ty::Unknown` as `/* ? */`, which is not
             // valid in a type position once the comment is stripped. Patch any
@@ -2883,7 +2943,14 @@ fn emit_builtin_call_arg_raw<'a>(
     let needs_first = matches!(arg.ty(), Ty::Tuple(_))
         && matches!(&formal, Some(t) if !matches!(t, Ty::Tuple(_) | Ty::Unknown));
     let raw = emit_exp(arg, is_const, ctx, top_level);
-    if needs_first { format!("({raw}).0") } else { raw }
+    let raw = if needs_first { format!("({raw}).0") } else { raw };
+    // Mirror the Integer→Real widening in `emit_call_arg_with_formal`. Without
+    // it, builtins like `SOURCEINFO(_,_,_,_,_,_,lastModification)` reject a
+    // bare integer literal for the `Real` slot.
+    if matches!(formal, Some(Ty::F64)) && matches!(arg.ty(), Ty::I32) {
+        return format!("({raw} as f64)");
+    }
+    raw
 }
 
 fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mut GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) -> Result<String> {
@@ -3023,8 +3090,20 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
             }
         },
         "String" => {
-            let arg = args.first().map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
-            Ok(format!("format!(\"{{}}\", {arg})"))
+            let arg_exp = args.first();
+            let arg = arg_exp.map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
+            // Pick the format spec based on the argument's static type.
+            // `Display` is implemented for primitives and `ArcStr`; user
+            // enums/structs only derive `Debug`. Without this, `String(tok.id)`
+            // where `tok.id: TokenId` (enum) fails to compile because
+            // `TokenId: Display` is unimplemented. The `Debug` fallback
+            // matches `anyString`'s behaviour and keeps the runtime output
+            // human-readable.
+            let spec = match arg_exp.map(|a| a.ty()) {
+                Some(Ty::I32) | Some(Ty::F64) | Some(Ty::Bool) | Some(Ty::Str) => "{}",
+                _ => "{:?}",
+            };
+            Ok(format!("ArcStr::from(format!(\"{spec}\", {arg}))"))
         },
         "stringGet" => {
             let arg1 = args.first().map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
@@ -3096,6 +3175,10 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
         "floor" => {
             let arg = args.first().map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
             Ok(format!("{}.floor()", arg))
+        },
+        "ceil" => {
+            let arg = args.first().map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
+            Ok(format!("{}.ceil()", arg))
         },
         "mod" if args.len()==2 => {
             let a1 = args.get(0).unwrap();
@@ -3337,6 +3420,30 @@ fn emit_var<'a>(
     // type; package/module bases are handled by the regular field-emit path.
     let mut res = base.clone();
     let mut field_iter = field_segs.iter();
+
+    // Track the type of the value `res` currently refers to so we can detect
+    // when a downstream field access lands on an `Array<T>` (= `Rc<RefCell<Vec<T>>>`)
+    // and inject the required `.borrow()` before indexing.
+    //
+    // Starting point: a single-segment package base resolves to the local
+    // variable's declared type (via `fn_env_vars`); a multi-segment package
+    // path resolves to the node's declared type. Anything we can't resolve
+    // (untyped match-arm bindings, captured closure vars, …) leaves the
+    // tracker at `Ty::Unknown` and disables the array-borrow injection for
+    // that chain — which falls back to the prior (incorrect) behavior, i.e.
+    // a compile error at the call site rather than silent wrong codegen.
+    let mut cur_ty: Ty = if pkg_segs.len() == 1 {
+        ctx.fn_env_vars.get(&pkg_segs[0].name).cloned().unwrap_or(Ty::Unknown)
+    } else if !pkg_dotted.is_empty() {
+        resolve_fully_qualified(&pkg_dotted, ctx, top_level)
+            .map(|n| n.ty.clone())
+            .unwrap_or(Ty::Unknown)
+    } else if !real_segments.is_empty() {
+        ctx.fn_env_vars.get(&real_segments[0].name).cloned().unwrap_or(Ty::Unknown)
+    } else {
+        Ty::Unknown
+    };
+
     if pkg_segs.len() == 1 && !field_segs.is_empty() {
         let var_name = &pkg_segs[0].name;
         if let Some((enum_qname, variant_name)) = ctx.variants.get(var_name).cloned() {
@@ -3366,12 +3473,80 @@ fn emit_var<'a>(
     }
 
     for seg in field_iter {
+        // Look up the type of `seg.name` on the current (record-shaped) ty
+        // *before* mutating `res`, so we know whether to insert `.borrow()`
+        // for an Array-valued field. `cur_ty` is then advanced to the field
+        // type, with subscripts peeling off the outer Array/List layer in
+        // the same way `resolve_first_segment_type` does on the typedexp side.
+        let field_ty: Ty = lookup_field_ty(&cur_ty, &seg.name, top_level).unwrap_or(Ty::Unknown);
         res = format!("{}.{}", res, escape_ident(&seg.name));
+        if !seg.subscripts.is_empty() && matches!(field_ty, Ty::Array(_)) {
+            res = format!("{res}.borrow()");
+        }
         for sub in &seg.subscripts {
             res = format!("{}[({}-1) as usize]", res, emit_exp(sub, false, ctx, top_level));
         }
+        cur_ty = field_ty;
+        for _ in &seg.subscripts {
+            cur_ty = match cur_ty {
+                Ty::Array(inner) | Ty::List(inner) => *inner,
+                other => other,
+            };
+        }
     }
     res
+}
+
+/// Look up the Rust type of a field on a record-shaped Modelica type. Used by
+/// `emit_var` to thread enough type information through dotted CREF emission
+/// to decide whether `.borrow()` is required before subscripting an
+/// `Array<T>` field. Walks through the same shapes that
+/// `resolve_first_segment_type` (in `typedexp`) handles.
+fn lookup_field_ty(ty: &Ty, field: &str, top_level: &BTreeMap<String, NameNode<'_>>) -> Option<Ty> {
+    match ty {
+        Ty::RustStruct(qname) | Ty::AliasTo(qname) => {
+            record_field_tys(qname, top_level)?
+                .into_iter()
+                .find(|(n, _)| n == field)
+                .map(|(_, t)| t)
+        }
+        Ty::RustEnum(qname) => {
+            // Field access on an enum value is only legal after pattern-narrowing;
+            // we don't track that narrowing here, so search all variants and
+            // return the first matching field. Same-named fields must agree on
+            // type across variants in MetaModelica.
+            let node = lookup_node(qname, top_level)?;
+            let NodeKind::Class(c) = &node.kind else { return None };
+            if !matches!(c.restriction, Absyn::Restriction::R_UNIONTYPE) { return None; }
+            for (_, child) in &node.children {
+                if let Some(field_tys) = record_field_tys(&format!("{qname}.{}", child_qname_simple(child)), top_level) {
+                    if let Some((_, t)) = field_tys.into_iter().find(|(n, _)| n == field) {
+                        return Some(t);
+                    }
+                }
+            }
+            None
+        }
+        Ty::Generic(rust_name, _args) => {
+            let dotted = rust_name.replace("::", ".");
+            record_field_tys(&dotted, top_level)?
+                .into_iter()
+                .find(|(n, _)| n == field)
+                .map(|(_, t)| t)
+        }
+        _ => None,
+    }
+}
+
+/// Return a simple-name reference for a child node — used only as a key in the
+/// dotted lookup performed by `lookup_field_ty` for uniontype variants. The
+/// hierarchy stores variant nodes under their simple name, which matches the
+/// dotted layout `{parent_qname}.{variant_name}`.
+fn child_qname_simple(child: &NameNode<'_>) -> String {
+    match &child.kind {
+        NodeKind::Class(c) => c.name.clone(),
+        _ => String::new(),
+    }
 }
 
 /// Find the index at which to split segments into [package prefix] and [record fields].
@@ -3632,6 +3807,16 @@ fn emit_call_arg_with_formal<'a>(
     // `fmt_param_ty` saw at the function-definition site.
     if matches!(formal_ty, Some(&Ty::Function { name: None, .. })) && !raw.trim_start().starts_with('&') {
         return format!("&({raw})");
+    }
+    // Implicit Integer→Real promotion: MetaModelica silently widens i32 actuals
+    // to f64 when the formal is declared `Real`. Without this the generated
+    // call passes a raw integer literal (or i32 expression) into an f64 slot
+    // and rustc rejects it. We only widen when *both* sides are statically
+    // known: i32 actual, f64 formal. Any other shape (unknown formal, mixed
+    // arithmetic, container types) is left to the surrounding emit logic so
+    // we don't accidentally cast things that aren't pure scalars.
+    if matches!(formal_ty, Some(&Ty::F64)) && matches!(arg.ty(), Ty::I32) {
+        return format!("({raw} as f64)");
     }
     raw
 }
@@ -4611,6 +4796,13 @@ fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, mu
                 // Empty MetaModelica pattern `case NODE()` or `case NODE` —
                 // decide based on the type: struct/variant types need `{ .. }` to avoid
                 // E0532; constants and unknown types use the bare name.
+                // The SOURCEINFO builtin has no hierarchy node we can probe via
+                // `ty`, so short-circuit on the constructor name; otherwise the
+                // empty fall-through emits a bare `SourceInfo` that Rust reads
+                // as a variable binding and rejects as a repeated identifier.
+                if is_sourceinfo_ctor(name) {
+                    return format!("{rust} {{ .. }}");
+                }
                 let is_struct_ty = matches!(ty,
                     Ty::RustStruct(_) | Ty::UnionTypeVariant(_, _) | Ty::RustUnitVariant
                     | Ty::RustEnum(_) | Ty::AliasTo(_)
@@ -4978,11 +5170,40 @@ fn record_field_tys<'a>(
         MM::ClassDef::Parts { members, .. } | MM::ClassDef::ClassExtends { members, .. } => members,
         _ => return None,
     };
-    Some(members.iter().filter_map(|m| {
+    let direct: Vec<(String, Ty)> = members.iter().filter_map(|m| {
         let MM::ClassMember::Component(cm) = m else { return None };
         let child = node.children.get(&cm.name)?;
         Some((cm.name.clone(), child.ty.clone()))
-    }).collect())
+    }).collect();
+    if !direct.is_empty() {
+        return Some(direct);
+    }
+    // Single-record uniontype: the parent uniontype's body holds the record
+    // declaration rather than components — the actual fields live on the
+    // sole record child. Mirror the lookup walk in
+    // `typedexp::record_field_tys`.
+    if matches!(c.restriction, Absyn::Restriction::R_UNIONTYPE) {
+        let record_children: Vec<&NameNode> = node.children.values()
+            .filter(|child| matches!(&child.kind, NodeKind::Class(cc)
+                if matches!(cc.restriction, Absyn::Restriction::R_RECORD | Absyn::Restriction::R_METARECORD { .. })))
+            .collect();
+        if record_children.len() == 1 {
+            let rec_node = record_children[0];
+            if let NodeKind::Class(rc) = &rec_node.kind {
+                let rec_members: &[MM::ClassMember] = match &rc.body {
+                    MM::ClassDef::Parts { members, .. } | MM::ClassDef::ClassExtends { members, .. } => members,
+                    _ => return Some(direct),
+                };
+                let from_rec: Vec<(String, Ty)> = rec_members.iter().filter_map(|m| {
+                    let MM::ClassMember::Component(cm) = m else { return None };
+                    let child = rec_node.children.get(&cm.name)?;
+                    Some((cm.name.clone(), child.ty.clone()))
+                }).collect();
+                return Some(from_rec);
+            }
+        }
+    }
+    Some(direct)
 }
 
 /// Fallback lookup for constructor patterns written with bare names (e.g. `SEMVER`).

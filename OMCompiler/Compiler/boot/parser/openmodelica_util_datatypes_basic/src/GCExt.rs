@@ -3,6 +3,8 @@
 #![allow(unreachable_patterns, unreachable_code, non_camel_case_types, non_snake_case, dead_code, unused_imports, unused_variables, non_upper_case_globals, unused_mut)]
 
 use std::sync::Arc;
+use arcstr::ArcStr;
+use anyhow::Result;
 use loop_unwrap::unwrap_break_err;
 use metamodelica::*; // Built-in types and functions
 use const_str;
@@ -50,8 +52,8 @@ pub fn getProfStats() -> ProfStats {
 // classified Infallible (it returns `Result<ArcStr>` only for signature
 // uniformity with the builtin layer). We `.unwrap()` those calls here for the
 // same reason the codegen does inside infallible functions.
-pub fn profStatsStr(stats: ProfStats, head: Arc<str>, delimiter: Arc<str>) -> Arc<str> {
-    let s: Arc<str> = (match stats.clone() {
+pub fn profStatsStr(stats: ProfStats, head: ArcStr, delimiter: ArcStr) -> Result<ArcStr> {
+    let s: ArcStr = (match stats.clone() {
         PROFSTATS { .. } => { let mut __mm_s = String::new();
             __mm_s.push_str(&*head);
             __mm_s.push_str(&*delimiter);
@@ -87,9 +89,9 @@ pub fn profStatsStr(stats: ProfStats, head: Arc<str>, delimiter: Arc<str>) -> Ar
             __mm_s.push_str(&*delimiter);
             __mm_s.push_str(&*("reclaimed_bytes_before_gc: "));
             __mm_s.push_str(&*intString(stats.reclaimed_bytes_before_gc.clone()).unwrap());
-            Arc::from(__mm_s) },
+            ArcStr::from(__mm_s) },
     });
-    s
+    Ok(s)
 }
 
 pub fn setForceUnmapOnGcollect(forceUnmap: bool) {}

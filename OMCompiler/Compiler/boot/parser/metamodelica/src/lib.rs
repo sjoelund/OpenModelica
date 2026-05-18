@@ -186,6 +186,22 @@ pub fn boolString(b: bool) -> Result<ArcStr> {
     Ok(if b { literal!("true") } else { literal!("false") })
 }
 
+/// MetaModelica `print` builtin: writes the argument to stdout *without*
+/// adding a trailing newline (matches the C runtime's `print`). This exists
+/// alongside the inline `println!` lowering used at direct call sites so that
+/// passing `print` as a value (e.g. `List.map_0(strs, print)`) resolves to a
+/// real function item that can be wrapped by `fnptr!`. The codegen prefers the
+/// inline lowering for direct calls because it avoids an extra trait-object
+/// hop and keeps the formatting macro behaviour identical to the prior
+/// generated code.
+pub fn print(s: ArcStr) -> Result<()> {
+    use std::io::Write;
+    let stdout = std::io::stdout();
+    let mut handle = stdout.lock();
+    handle.write_all(s.as_bytes()).ok();
+    Ok(())
+}
+
 // ============================================================================
 // Integer arithmetic functions
 // ============================================================================

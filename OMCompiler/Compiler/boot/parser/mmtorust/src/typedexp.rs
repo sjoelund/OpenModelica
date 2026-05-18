@@ -1039,6 +1039,19 @@ pub fn infer_exp<'a>(
             // the first segment. If it resolves to a record type and the remaining
             // segments are field accesses, use the record's field types.
             let ty = resolve_first_segment_type(&name, &segments, env, top_level).unwrap_or_else(|| {
+                // Dotted name with no local-variable shadow: prefer the
+                // full-path hierarchy lookup. This correctly types references
+                // to imported functions like `SBInterval.isEmpty` as
+                // `Ty::Function` so they round-trip through the call-site
+                // `fnptr!` wrapping. Without this we'd resolve the leading
+                // segment (a uniontype/package) and stop, dropping the
+                // function's type entirely.
+                if name.contains('.') {
+                    let full = lookup_ty_in_hierarchy(&name, top_level);
+                    if !matches!(full, Ty::Unknown) {
+                        return full;
+                    }
+                }
                 let first = segments.first().map(|s| s.name.as_str()).unwrap_or(&name);
                 let ty = lookup_ty_in_hierarchy(first, top_level);
                 if ty == Ty::Unknown && !pkg_prefix.is_empty() && !name.contains('.') {

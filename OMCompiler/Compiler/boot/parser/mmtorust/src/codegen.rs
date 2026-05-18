@@ -1184,12 +1184,41 @@ fn emit_type_item(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Cla
         }
         MM::ClassDef::Enumeration { enum_literals, .. } => {
             if let Absyn::EnumDef::ENUMLITERALS { enumLiterals } = enum_literals {
-                writeln!(out, "{indent}#[derive(Clone, Debug, PartialEq)]").unwrap();
-                writeln!(out, "{indent}pub enum {} {{", escape_ident(name)).unwrap();
+                // Modelica enumeration semantics (Modelica spec 4.8.5.2 and built-in
+                // `Integer(E.ei)`):
+                //   - Literals are ordered by declaration: Integer(E.e1) = 1, …,
+                //     Integer(E.en) = n.
+                //   - Relational ops (`<`, `<=`, `>=`, `>`) compare values by ordinal.
+                //
+                // We therefore emit a fieldless `#[repr(i32)]` enum with explicit
+                // discriminants starting at 1, so `value as i32` directly yields the
+                // Modelica ordinal — matching the C-runtime convention and what the
+                // `Integer(<enum>)` built-in expects (see emit_builtin_call "Integer").
+                //
+                // We do NOT `#[derive(PartialOrd, Ord)]`: while the derived order
+                // would coincide here (declaration order == ordinal order), a custom
+                // impl rooted in the discriminant cast makes the Modelica semantics
+                // explicit and survives reordering of variants by future maintenance.
+                //
+                // `Copy` is added because Modelica enumeration values are scalar
+                // values; this also lets `*self as i32` in the comparison impls work
+                // without consuming `self`.
+                let ename = escape_ident(name);
+                writeln!(out, "{indent}#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]").unwrap();
+                writeln!(out, "{indent}#[repr(i32)]").unwrap();
+                writeln!(out, "{indent}pub enum {ename} {{").unwrap();
+                let mut i: i32 = 0;
                 for lit in &**enumLiterals {
                     let Absyn::EnumLiteral::ENUMLITERAL { literal, .. } = lit;
-                    writeln!(out, "{indent}    {},", escape_ident(&**literal)).unwrap();
+                    i += 1;
+                    writeln!(out, "{indent}    {} = {i},", escape_ident(&**literal)).unwrap();
                 }
+                writeln!(out, "{indent}}}").unwrap();
+                writeln!(out, "{indent}impl PartialOrd for {ename} {{").unwrap();
+                writeln!(out, "{indent}    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {{ Some(self.cmp(other)) }}").unwrap();
+                writeln!(out, "{indent}}}").unwrap();
+                writeln!(out, "{indent}impl Ord for {ename} {{").unwrap();
+                writeln!(out, "{indent}    fn cmp(&self, other: &Self) -> std::cmp::Ordering {{ (*self as i32).cmp(&(*other as i32)) }}").unwrap();
                 writeln!(out, "{indent}}}").unwrap();
                 writeln!(out).unwrap();
             }

@@ -170,6 +170,35 @@ struct GenCtx {
     /// Absent entries default to `Owned` for top-level function vars whose
     /// Arc-ness is read from `fn_env_vars` instead.
     variant_shapes: HashMap<String, VarShape>,
+    /// `true` while emitting the body of a function that has been
+    /// `#[tailcall::tailcall]`-annotated. The macro forbids both `?` and
+    /// `bail!`/`return Err(...)` anywhere in the body — even in non-tail
+    /// positions like preamble matches — because it transforms the whole
+    /// body into a `Thunk<'_, _>`-returning state machine. We use this
+    /// flag in [`emit_match`] (and similar) to rewrite the non-exhaustive
+    /// match fallback from `bail!("match: no arm matched")` to
+    /// `unreachable!("…")`, whose `!` type unifies with whatever the
+    /// macro expects. This trades a clean `Err` for a panic on a truly
+    /// non-exhaustive runtime case — acceptable because the analysis
+    /// pass in [`plan_tail_call_lowering`] only fires for functions that
+    /// the codegen has already verified to be `?`-free.
+    in_tail_lowered_fn: bool,
+    /// Active tail-call lowering context, set by `emit_tail_value_exp` while
+    /// emitting the tail expression of a function selected for `#[tailcall]`.
+    ///
+    /// `(self_name, fallible)`:
+    ///   * `self_name` — the bare name of the recursive function. Used by
+    ///     `emit_match` to detect self-call results in case position so they
+    ///     can be emitted bare (no `?`/no `Ok(...)` wrap), and by `emit_exp`'s
+    ///     `Call` arm to suppress `?` on the self-call itself.
+    ///   * `fallible` — when `true`, non-self tail-position leaves in match
+    ///     arms must be wrapped in `Ok(...)` so every arm yields
+    ///     `Result<T>` and the match's value can flow out as the function's
+    ///     return.
+    ///
+    /// `None` outside the tail-expression of a tail-call-lowered function;
+    /// the field is restored on exit (see `emit_tail_value_exp`).
+    tail_lowering: Option<(String, bool)>,
 }
 
 /// Binding-shape classification for variables tracked in `GenCtx::variants`.
@@ -213,6 +242,8 @@ impl GenCtx {
             current_fn_fallible: true,
             current_fn_qname: String::new(),
             nested_partial_aliases: BTreeSet::new(),
+            in_tail_lowered_fn: false,
+            tail_lowering: None,
         }
     }
 
@@ -301,6 +332,16 @@ impl GenCtx {
             QMode::TryBlock(label) => format!("unwrap_break_err!({expr}, {label})"),
             QMode::Bare => expr.to_owned(),
         }
+    }
+
+    /// Run `body` with `tail_lowering` temporarily replaced; restores on
+    /// exit. Used to scope the tail-call lowering signal to the exact span
+    /// of code being emitted as a tail expression.
+    fn with_tail_lowering<R>(&mut self, t: Option<(String, bool)>, body: impl FnOnce(&mut Self) -> R) -> R {
+        let saved = std::mem::replace(&mut self.tail_lowering, t);
+        let r = body(self);
+        self.tail_lowering = saved;
+        r
     }
 
     /// Run `body` with `qmode` temporarily replaced. Restores the previous
@@ -1390,6 +1431,788 @@ fn emit_type_item(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Cla
     }
 }
 
+// ── Tail-call analysis ──────────────────────────────────────────────────────
+//
+// We detect single-output, infallible functions whose body either is, or can
+// be rewritten into, a single tail expression that contains at least one
+// self-call in tail position.  The classes of body we recognise are:
+//
+//   (A) `<preamble>; outVar := <tail-expr>;`
+//       — the canonical "match in tail position" shape, e.g. `BaseAvlTree.get`.
+//
+//   (B) `<preamble>; if c then … else … end if;` where every branch is itself
+//       a body of class (A) / (B) / (C) targeting the same `outVar`.
+//       — the gcd-via-if shape:
+//           algorithm
+//             if b == 0 then  outResult := a;
+//             else            outResult := gcd(b, mod(a,b));
+//             end if;
+//
+//   (C) Match-expression cases with algorithm-side recursion:
+//           case X algorithm  outLocal := f(...);  then outLocal;
+//       The case's tail-position value is the RHS of its last `Assign` (when
+//       that assigns to the variable yielded by the `then`).  This is the
+//       `BaseAvlTree.listKeys` / `listValues` shape.
+//
+// "Tail position" inside an expression descends through arms of `if`/`match`
+// and the algorithm-side last-assign of `match` cases.
+//
+// When a function matches one of these shapes *and* is infallible (the
+// `#[tailcall]` crate forbids `?` in the body), we drop the `let mut outVar;
+// … outVar = e; outVar` framing and emit the body as a single trailing
+// expression — recursively pushing branch-final assignments down into
+// `if`/`else` arms so the self-call ends up syntactically last.  We then
+// annotate the function with `#[tailcall::tailcall]`.
+//
+// Multi-mutual recursion (SCCs of size 2–3) is *not* implemented — see the
+// open TODO. The current MetaModelica source rarely needs it (every
+// important case in `BaseAvlTree`/`List` is a single self-recursive
+// function), so we leave it as a documented follow-up rather than introduce
+// a trampoline scheme on speculation.
+
+/// Return true if any tail position of `exp` is a call to `self_short_name`.
+///
+/// We look at the *MetaModelica* function name as it appears in
+/// `TypedExp::Call.func`. MM source written *inside* `function f` references
+/// the function as bare `f(...)` — `Call.func == "f"` exactly. A dotted form
+/// in `Call.func` (e.g. `ErrorExt.getMessages`) always denotes a *cross-module*
+/// call, even when the trailing segment coincides with the enclosing
+/// function's name (cross-module forwarders are a common pattern: an
+/// infallible `getMessages()` in `Error` that forwards to
+/// `ErrorExt.getMessages()`). We therefore require strict equality: matching
+/// the trailing segment of a dotted call would create false positives that
+/// then drive `#[tailcall]` annotations on non-recursive forwarders.
+///
+/// TODO: handle nested-function shadowing — if `function f` is itself nested
+/// inside `function g.f`, a call to `f(...)` in `g.f`'s body resolves to
+/// whichever `f` is in scope by MetaModelica's lookup rules. The current
+/// `TypedExp::Call.func` representation does not carry that resolution.
+/// Strict short-name matching is correct for the (overwhelmingly common)
+/// case where there is no shadowing.
+fn exp_has_tail_self_call(exp: &TypedExp, self_short_name: &str) -> bool {
+    match exp {
+        TypedExp::Call { func, .. } => func == self_short_name,
+        TypedExp::If { then_, elseif, else_, .. } => {
+            exp_has_tail_self_call(then_, self_short_name)
+                || elseif.iter().any(|(_, e)| exp_has_tail_self_call(e, self_short_name))
+                || exp_has_tail_self_call(else_, self_short_name)
+        }
+        TypedExp::Match { cases, .. } => {
+            cases.iter().any(|case| {
+                // A case's tail position is its `result` expression, *unless* the
+                // case has algorithm-side statements ending in an assignment to
+                // a local that's then yielded — in that case the `then` expr
+                // here is just the local. We could descend into the
+                // algorithm-side via `stmts_have_tail_self_call`, but for now
+                // we only inspect the `result` expression because that's the
+                // shape the current TypedCase representation exposes uniformly.
+                // Cases that use algorithm-side recursion (the
+                // `BaseAvlTree.listKeys` pattern with `algorithm lst := f(...); then lst;`)
+                // are not yet detected — see the TODO above.
+                case_tail_has_self_call(case, self_short_name)
+            })
+        }
+        // Constructors, binary ops, etc. never have a tail-position call: the
+        // call's value flows into a wrapping operation, not back to the caller.
+        _ => false,
+    }
+}
+
+/// Detect a self-call in the tail position of a match case.
+///
+/// Two shapes can carry a tail self-call:
+///   * `then <expr>;` — the result expression itself contains a self-call;
+///   * `algorithm <stmts>; then <var>;` where the last statement of `<stmts>`
+///     is `<var> := <expr>;` and `<expr>` contains a tail self-call. In that
+///     case `<expr>` is what the case yields, so it *is* in tail position
+///     even though `result` is just a variable reference.
+fn case_tail_has_self_call(case: &TypedCase, self_short_name: &str) -> bool {
+    if let TypedExp::Var { name: result_name, .. } = &case.result {
+        if let Some(typedexp::TypedStmt::Assign { lhs: TypedPat::Var(asg_name), rhs }) = case.stmts.last() {
+            if asg_name == result_name && exp_has_tail_self_call(rhs, self_short_name) {
+                return true;
+            }
+        }
+    }
+    exp_has_tail_self_call(&case.result, self_short_name)
+}
+
+/// Return true if the body `stmts` (interpreted as code that will produce
+/// `out_name`'s value) has a self-call in some tail position. Mirrors the
+/// recursion in [`stmts_lowerable_as_tail_expr`].
+fn stmts_have_tail_self_call(
+    stmts: &[typedexp::TypedStmt],
+    out_name: &str,
+    self_short_name: &str,
+) -> bool {
+    let Some(last) = stmts.last() else { return false; };
+    match last {
+        typedexp::TypedStmt::Assign { lhs: TypedPat::Var(name), rhs } if name == out_name => {
+            exp_has_tail_self_call(rhs, self_short_name)
+        }
+        typedexp::TypedStmt::If { then_, elseif, else_, .. } => {
+            stmts_have_tail_self_call(then_, out_name, self_short_name)
+                || elseif.iter().any(|(_, b)| stmts_have_tail_self_call(b, out_name, self_short_name))
+                || stmts_have_tail_self_call(else_, out_name, self_short_name)
+        }
+        _ => false,
+    }
+}
+
+/// Return true if `stmts` can be re-emitted as a single tail expression that
+/// evaluates to `out_name`'s value.
+///
+/// This is a *structural* check; it does not look at self-calls. We use it
+/// together with [`stmts_have_tail_self_call`] to gate the lowering.
+fn stmts_lowerable_as_tail_expr(stmts: &[typedexp::TypedStmt], out_name: &str) -> bool {
+    let Some(last) = stmts.last() else { return false; };
+    match last {
+        typedexp::TypedStmt::Assign { lhs: TypedPat::Var(name), .. } => name == out_name,
+        typedexp::TypedStmt::If { then_, elseif, else_, .. } => {
+            // An incomplete if (no else, or an `else` whose branch leaves
+            // `out` unset) leaves the function's value undefined unless the
+            // preamble assigned `out` first — and we already restrict to
+            // bodies whose *last* statement is the if. So require a real
+            // else branch *and* require every branch to itself end with a
+            // tail-position assignment to `out`.
+            !else_.is_empty()
+                && stmts_lowerable_as_tail_expr(then_, out_name)
+                && elseif.iter().all(|(_, b)| stmts_lowerable_as_tail_expr(b, out_name))
+                && stmts_lowerable_as_tail_expr(else_, out_name)
+        }
+        _ => false,
+    }
+}
+
+/// A plan describing how to lower a function body as a tail-position
+/// expression rather than as `let mut out; … out = e; out`.
+struct TailCallPlan {
+    /// Name of the single output variable whose declaration we suppress and
+    /// whose final assignment(s) become the function's tail expression.
+    suppressed_out: String,
+    /// `true` when the enclosing function returns `Result<T>` — tail-position
+    /// leaves that are not self-calls need an `Ok(...)` wrap to match the
+    /// function's return type; the self-call itself already returns
+    /// `Result<T>` and is emitted bare (no `?`, no wrap).
+    fallible: bool,
+}
+
+/// Builtin calls whose [`emit_builtin_call`] handler lowers them to a bare
+/// Rust expression (no `Result<T>` wrapper, no `ctx.q(...)`, hence no `?`
+/// in a fallible enclosing function).  We need this list because the
+/// runtime signatures in `metamodelica/src/lib.rs` for many builtins are
+/// still `fn(…) -> Result<T>` for historical reasons (see the comment on
+/// `fallibility::builtin_fallibility`) — relying on the signature alone
+/// would over-approximate.  Keep this in sync with the no-`ctx.q` arms of
+/// `emit_builtin_call`.
+const BUILTINS_EMIT_BARE: &[&str] = &[
+    // `valueEq(a, b)` lowers to `a == b`.
+    "valueEq",
+];
+
+/// Return true if `func` resolves to a user function that emits its calls
+/// with `?` / `.unwrap()` in the current context.
+///
+/// Conservative: when resolution fails or the callee is unknown we report
+/// `true` (fallible) — callers use this only to *skip* the lowering, so a
+/// false positive simply means we miss an optimisation, never that we
+/// produce wrong code.
+fn call_emits_question_mark<'a>(
+    func: &str,
+    ctx: &GenCtx,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+) -> bool {
+    if BUILTINS_EMIT_BARE.contains(&func) {
+        return false;
+    }
+    if let Some(q) = resolve_call_qname(func, ctx, top_level) {
+        !ctx.is_known_infallible_user_fn(&q, top_level)
+    } else {
+        // Other builtins (`intMod`, `stringDelimitList`, …) are routed
+        // through `ctx.q(...)` which adds `?` in a fallible function.
+        // Treat them as fallible.
+        true
+    }
+}
+
+/// Return true if any *non-tail-position* subexpression of `exp` (interpreted
+/// as a tail expression yielding the function's value) would emit `?` when
+/// the enclosing function is fallible.
+///
+/// Tail-position self-calls are *not* counted: those will be emitted bare by
+/// [`emit_tail_value_exp`].
+fn tail_exp_has_non_tail_question_mark<'a>(
+    exp: &TypedExp,
+    self_name: &str,
+    ctx: &GenCtx,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+) -> bool {
+    match exp {
+        // Tail self-call: arguments are evaluated *before* the call returns,
+        // so they are not in tail position — any fallible call inside them
+        // would force a `?`.
+        TypedExp::Call { func, args, named_args, .. } if func == self_name => {
+            args.iter().any(|a| exp_uses_question_mark(a, ctx, top_level))
+                || named_args.iter().any(|(_, a)| exp_uses_question_mark(a, ctx, top_level))
+        }
+        TypedExp::If { cond, then_, elseif, else_, .. } => {
+            exp_uses_question_mark(cond, ctx, top_level)
+                || tail_exp_has_non_tail_question_mark(then_, self_name, ctx, top_level)
+                || elseif.iter().any(|(ec, eb)|
+                    exp_uses_question_mark(ec, ctx, top_level)
+                    || tail_exp_has_non_tail_question_mark(eb, self_name, ctx, top_level))
+                || tail_exp_has_non_tail_question_mark(else_, self_name, ctx, top_level)
+        }
+        // Match in tail position: the scrutinee is non-tail; each case's
+        // guards / locals / stmts are non-tail; the case's `result` is the
+        // case's tail expression, *except* when the case ends in an
+        // algorithm-side `<name> := <rhs>;` whose `<name>` is exactly what
+        // `result` yields — in that case `<rhs>` is the tail and the last
+        // stmt's RHS is what we will emit. Mirror that logic so the gate
+        // doesn't falsely reject lowerable patterns.
+        TypedExp::Match { input, cases, .. } => {
+            if exp_uses_question_mark(input, ctx, top_level) { return true; }
+            cases.iter().any(|case| {
+                if case.guard.as_ref().is_some_and(|g| exp_uses_question_mark(g, ctx, top_level)) { return true; }
+                if case.locals.iter().any(|(_, _, d)| d.as_ref().is_some_and(|e| exp_uses_question_mark(e, ctx, top_level))) {
+                    return true;
+                }
+                // Detect the algorithm-side tail pattern. When present, the
+                // last stmt's RHS is in tail position; everything before
+                // (and the `result` itself, which is just a var read) is
+                // non-tail-but-?-free.
+                let algo_tail_rhs = if !case.stmts.is_empty() {
+                    if let (typedexp::TypedStmt::Assign { lhs: TypedPat::Var(an), rhs }, TypedExp::Var { name: rn, .. }) =
+                        (case.stmts.last().unwrap(), &case.result)
+                    {
+                        if an == rn { Some(rhs) } else { None }
+                    } else { None }
+                } else { None };
+                let stmts_to_check: &[typedexp::TypedStmt] = if algo_tail_rhs.is_some() {
+                    &case.stmts[..case.stmts.len() - 1]
+                } else {
+                    &case.stmts[..]
+                };
+                if stmts_to_check.iter().any(|s| stmt_uses_question_mark(s, ctx, top_level)) { return true; }
+                match algo_tail_rhs {
+                    Some(rhs) => tail_exp_has_non_tail_question_mark(rhs, self_name, ctx, top_level),
+                    None => tail_exp_has_non_tail_question_mark(&case.result, self_name, ctx, top_level),
+                }
+            })
+        }
+        // Other tail leaves are non-self values that we will wrap in `Ok(...)`
+        // for a fallible function. Their subexpressions are not in tail
+        // position, so any fallible call inside them yields `?`.
+        _ => exp_uses_question_mark(exp, ctx, top_level),
+    }
+}
+
+/// Return true if `exp` (in *any* position — no tail-position awareness)
+/// contains a subexpression that would emit `?` in a fallible function.
+fn exp_uses_question_mark<'a>(
+    exp: &TypedExp,
+    ctx: &GenCtx,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+) -> bool {
+    match exp {
+        TypedExp::Call { func, args, named_args, .. } => {
+            if call_emits_question_mark(func, ctx, top_level) { return true; }
+            args.iter().any(|a| exp_uses_question_mark(a, ctx, top_level))
+                || named_args.iter().any(|(_, a)| exp_uses_question_mark(a, ctx, top_level))
+        }
+        TypedExp::Constructor { args, named_args, .. } => {
+            args.iter().any(|a| exp_uses_question_mark(a, ctx, top_level))
+                || named_args.iter().any(|(_, a)| exp_uses_question_mark(a, ctx, top_level))
+        }
+        TypedExp::PartEval { args, named_args, .. } => {
+            args.iter().any(|a| exp_uses_question_mark(a, ctx, top_level))
+                || named_args.iter().any(|(_, a)| exp_uses_question_mark(a, ctx, top_level))
+        }
+        TypedExp::BinOp { lhs, rhs, .. } => {
+            exp_uses_question_mark(lhs, ctx, top_level) || exp_uses_question_mark(rhs, ctx, top_level)
+        }
+        TypedExp::UnOp { operand, .. } => exp_uses_question_mark(operand, ctx, top_level),
+        TypedExp::If { cond, then_, elseif, else_, .. } => {
+            exp_uses_question_mark(cond, ctx, top_level)
+                || exp_uses_question_mark(then_, ctx, top_level)
+                || elseif.iter().any(|(ec, eb)|
+                    exp_uses_question_mark(ec, ctx, top_level)
+                    || exp_uses_question_mark(eb, ctx, top_level))
+                || exp_uses_question_mark(else_, ctx, top_level)
+        }
+        TypedExp::Cons { head, tail, .. } => {
+            exp_uses_question_mark(head, ctx, top_level) || exp_uses_question_mark(tail, ctx, top_level)
+        }
+        TypedExp::Tuple(es) => es.iter().any(|e| exp_uses_question_mark(e, ctx, top_level)),
+        TypedExp::Array { elems, .. } => elems.iter().any(|e| exp_uses_question_mark(e, ctx, top_level)),
+        TypedExp::Match { input, cases, .. } => {
+            exp_uses_question_mark(input, ctx, top_level)
+                || cases.iter().any(|c| case_uses_question_mark(c, ctx, top_level))
+        }
+        TypedExp::Range { start, step, stop, .. } => {
+            exp_uses_question_mark(start, ctx, top_level)
+                || step.as_ref().is_some_and(|s| exp_uses_question_mark(s, ctx, top_level))
+                || exp_uses_question_mark(stop, ctx, top_level)
+        }
+        TypedExp::Reduction { body, iterators, .. } => {
+            exp_uses_question_mark(body, ctx, top_level)
+                || iterators.iter().any(|it| exp_uses_question_mark(&it.range, ctx, top_level))
+        }
+        TypedExp::Var { segments, .. } => {
+            // CrefSegment subscripts may evaluate fallible expressions; scan them.
+            segments.iter().any(|seg| seg.subscripts.iter().any(|s| exp_uses_question_mark(s, ctx, top_level)))
+        }
+        TypedExp::Lit(_) | TypedExp::Todo(_) => false,
+    }
+}
+
+fn case_uses_question_mark<'a>(
+    case: &TypedCase,
+    ctx: &GenCtx,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+) -> bool {
+    if let Some(g) = &case.guard {
+        if exp_uses_question_mark(g, ctx, top_level) { return true; }
+    }
+    if case.locals.iter().any(|(_, _, d)| d.as_ref().is_some_and(|e| exp_uses_question_mark(e, ctx, top_level))) {
+        return true;
+    }
+    if case.stmts.iter().any(|s| stmt_uses_question_mark(s, ctx, top_level)) { return true; }
+    exp_uses_question_mark(&case.result, ctx, top_level)
+}
+
+/// Return true if `exp` contains a non-tail-position match whose cases do
+/// not include a universally-matching arm (wildcard, no guard). Such a
+/// match would lower its fallback to `unreachable!()` inside a
+/// `#[tailcall]` body — see [`emit_match`] — converting MM's "fail when no
+/// arm matches" semantics into a Rust panic. We refuse the lowering when
+/// that would happen so the generated code stays panic-free.
+fn exp_has_nonexhaustive_match(exp: &TypedExp) -> bool {
+    match exp {
+        TypedExp::Match { input, cases, .. } => {
+            let has_wild = cases.iter().any(|c| matches!(c.pattern, TypedPat::Wildcard) && c.guard.is_none());
+            if !has_wild { return true; }
+            exp_has_nonexhaustive_match(input)
+                || cases.iter().any(|c| {
+                    c.guard.as_ref().is_some_and(exp_has_nonexhaustive_match)
+                        || c.locals.iter().any(|(_, _, d)| d.as_ref().is_some_and(exp_has_nonexhaustive_match))
+                        || c.stmts.iter().any(stmt_has_nonexhaustive_match)
+                        || exp_has_nonexhaustive_match(&c.result)
+                })
+        }
+        TypedExp::Call { args, named_args, .. }
+        | TypedExp::Constructor { args, named_args, .. }
+        | TypedExp::PartEval { args, named_args, .. } => {
+            args.iter().any(exp_has_nonexhaustive_match)
+                || named_args.iter().any(|(_, e)| exp_has_nonexhaustive_match(e))
+        }
+        TypedExp::BinOp { lhs, rhs, .. } => exp_has_nonexhaustive_match(lhs) || exp_has_nonexhaustive_match(rhs),
+        TypedExp::UnOp { operand, .. } => exp_has_nonexhaustive_match(operand),
+        TypedExp::If { cond, then_, elseif, else_, .. } => {
+            exp_has_nonexhaustive_match(cond)
+                || exp_has_nonexhaustive_match(then_)
+                || elseif.iter().any(|(c, e)| exp_has_nonexhaustive_match(c) || exp_has_nonexhaustive_match(e))
+                || exp_has_nonexhaustive_match(else_)
+        }
+        TypedExp::Cons { head, tail, .. } => exp_has_nonexhaustive_match(head) || exp_has_nonexhaustive_match(tail),
+        TypedExp::Tuple(es) => es.iter().any(exp_has_nonexhaustive_match),
+        TypedExp::Array { elems, .. } => elems.iter().any(exp_has_nonexhaustive_match),
+        TypedExp::Range { start, step, stop, .. } => {
+            exp_has_nonexhaustive_match(start)
+                || step.as_ref().is_some_and(|s| exp_has_nonexhaustive_match(s))
+                || exp_has_nonexhaustive_match(stop)
+        }
+        TypedExp::Reduction { body, iterators, .. } => {
+            exp_has_nonexhaustive_match(body)
+                || iterators.iter().any(|it| exp_has_nonexhaustive_match(&it.range)
+                    || it.guard.as_ref().is_some_and(exp_has_nonexhaustive_match))
+        }
+        TypedExp::Var { segments, .. } => {
+            segments.iter().any(|s| s.subscripts.iter().any(exp_has_nonexhaustive_match))
+        }
+        TypedExp::Lit(_) | TypedExp::Todo(_) => false,
+    }
+}
+
+fn stmt_has_nonexhaustive_match(stmt: &typedexp::TypedStmt) -> bool {
+    use typedexp::TypedStmt as S;
+    match stmt {
+        S::Assign { rhs, .. } => exp_has_nonexhaustive_match(rhs),
+        S::NoRetCall { call } => exp_has_nonexhaustive_match(call),
+        S::If { cond, then_, elseif, else_ } => {
+            exp_has_nonexhaustive_match(cond)
+                || then_.iter().any(stmt_has_nonexhaustive_match)
+                || elseif.iter().any(|(ec, eb)| exp_has_nonexhaustive_match(ec) || eb.iter().any(stmt_has_nonexhaustive_match))
+                || else_.iter().any(stmt_has_nonexhaustive_match)
+        }
+        S::For { range, body, .. } => exp_has_nonexhaustive_match(range) || body.iter().any(stmt_has_nonexhaustive_match),
+        S::While { cond, body } => exp_has_nonexhaustive_match(cond) || body.iter().any(stmt_has_nonexhaustive_match),
+        S::Try { body, else_body } => body.iter().any(stmt_has_nonexhaustive_match) || else_body.iter().any(stmt_has_nonexhaustive_match),
+        S::Failure { body } => body.iter().any(stmt_has_nonexhaustive_match),
+        S::Return | S::Break | S::Continue | S::Todo(_) => false,
+    }
+}
+
+/// Same as `exp_has_nonexhaustive_match`, but treats `exp` as a tail
+/// position: a tail-position match whose cases all yield `Result<T>` lowers
+/// its fallback to `Err(anyhow::anyhow!(...))` (a value, not a panic), so
+/// it does *not* count against the panic-free constraint. Sub-expressions
+/// that are themselves non-tail (the scrutinee, case guards/locals/stmts,
+/// and per-case sub-results that are themselves non-tail) are still
+/// checked recursively.
+fn tail_exp_has_nonexhaustive_nontail_match(
+    exp: &TypedExp,
+    self_name: &str,
+    fallible: bool,
+) -> bool {
+    match exp {
+        // The tail-self-call's arguments are non-tail.
+        TypedExp::Call { func, args, named_args, .. } if func == self_name => {
+            args.iter().any(exp_has_nonexhaustive_match)
+                || named_args.iter().any(|(_, e)| exp_has_nonexhaustive_match(e))
+        }
+        TypedExp::If { cond, then_, elseif, else_, .. } => {
+            exp_has_nonexhaustive_match(cond)
+                || tail_exp_has_nonexhaustive_nontail_match(then_, self_name, fallible)
+                || elseif.iter().any(|(c, e)|
+                    exp_has_nonexhaustive_match(c)
+                    || tail_exp_has_nonexhaustive_nontail_match(e, self_name, fallible))
+                || tail_exp_has_nonexhaustive_nontail_match(else_, self_name, fallible)
+        }
+        TypedExp::Match { input, cases, .. } => {
+            // Tail-position match: its own fallback is `Err(...)` (fallible)
+            // or `unreachable!()` (infallible). Only the fallible case is
+            // panic-free, so for an infallible tail-lowered function we
+            // still reject a non-exhaustive tail-position match.
+            let has_wild = cases.iter().any(|c| matches!(c.pattern, TypedPat::Wildcard) && c.guard.is_none());
+            if !has_wild && !fallible { return true; }
+            if exp_has_nonexhaustive_match(input) { return true; }
+            cases.iter().any(|c| {
+                if c.guard.as_ref().is_some_and(exp_has_nonexhaustive_match) { return true; }
+                if c.locals.iter().any(|(_, _, d)| d.as_ref().is_some_and(exp_has_nonexhaustive_match)) { return true; }
+                // Detect algorithm-side tail (last stmt is `Assign(name, rhs)` + result `Var(name)`).
+                let algo_tail_rhs = if !c.stmts.is_empty() {
+                    if let (typedexp::TypedStmt::Assign { lhs: TypedPat::Var(an), rhs }, TypedExp::Var { name: rn, .. }) =
+                        (c.stmts.last().unwrap(), &c.result)
+                    {
+                        if an == rn { Some(rhs) } else { None }
+                    } else { None }
+                } else { None };
+                let stmts_to_check: &[typedexp::TypedStmt] = if algo_tail_rhs.is_some() {
+                    &c.stmts[..c.stmts.len() - 1]
+                } else {
+                    &c.stmts[..]
+                };
+                if stmts_to_check.iter().any(stmt_has_nonexhaustive_match) { return true; }
+                match algo_tail_rhs {
+                    Some(rhs) => tail_exp_has_nonexhaustive_nontail_match(rhs, self_name, fallible),
+                    None => tail_exp_has_nonexhaustive_nontail_match(&c.result, self_name, fallible),
+                }
+            })
+        }
+        // Any other leaf is non-tail-control-flow; recurse over it as a
+        // non-tail subexpression.
+        _ => exp_has_nonexhaustive_match(exp),
+    }
+}
+
+fn body_has_nonexhaustive_nontail_match(
+    stmts: &[typedexp::TypedStmt],
+    out_name: &str,
+    self_name: &str,
+    fallible: bool,
+) -> bool {
+    let Some((last, head)) = stmts.split_last() else { return false; };
+    if head.iter().any(stmt_has_nonexhaustive_match) { return true; }
+    match last {
+        typedexp::TypedStmt::Assign { lhs: TypedPat::Var(name), rhs } if name == out_name => {
+            tail_exp_has_nonexhaustive_nontail_match(rhs, self_name, fallible)
+        }
+        typedexp::TypedStmt::If { cond, then_, elseif, else_ } => {
+            exp_has_nonexhaustive_match(cond)
+                || body_has_nonexhaustive_nontail_match(then_, out_name, self_name, fallible)
+                || elseif.iter().any(|(ec, eb)|
+                    exp_has_nonexhaustive_match(ec)
+                    || body_has_nonexhaustive_nontail_match(eb, out_name, self_name, fallible))
+                || body_has_nonexhaustive_nontail_match(else_, out_name, self_name, fallible)
+        }
+        _ => true,
+    }
+}
+
+fn stmt_uses_question_mark<'a>(
+    stmt: &typedexp::TypedStmt,
+    ctx: &GenCtx,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+) -> bool {
+    use typedexp::TypedStmt as S;
+    match stmt {
+        S::Assign { rhs, .. } => exp_uses_question_mark(rhs, ctx, top_level),
+        S::NoRetCall { call } => exp_uses_question_mark(call, ctx, top_level),
+        S::If { cond, then_, elseif, else_ } => {
+            exp_uses_question_mark(cond, ctx, top_level)
+                || then_.iter().any(|s| stmt_uses_question_mark(s, ctx, top_level))
+                || elseif.iter().any(|(ec, eb)|
+                    exp_uses_question_mark(ec, ctx, top_level)
+                    || eb.iter().any(|s| stmt_uses_question_mark(s, ctx, top_level)))
+                || else_.iter().any(|s| stmt_uses_question_mark(s, ctx, top_level))
+        }
+        S::For { range, body, .. } => {
+            exp_uses_question_mark(range, ctx, top_level)
+                || body.iter().any(|s| stmt_uses_question_mark(s, ctx, top_level))
+        }
+        S::While { cond, body } => {
+            exp_uses_question_mark(cond, ctx, top_level)
+                || body.iter().any(|s| stmt_uses_question_mark(s, ctx, top_level))
+        }
+        S::Try { body, else_body } => {
+            body.iter().any(|s| stmt_uses_question_mark(s, ctx, top_level))
+                || else_body.iter().any(|s| stmt_uses_question_mark(s, ctx, top_level))
+        }
+        S::Failure { body } => body.iter().any(|s| stmt_uses_question_mark(s, ctx, top_level)),
+        S::Return | S::Break | S::Continue | S::Todo(_) => false,
+    }
+}
+
+/// Walk the body, with last-stmt awareness, to decide whether the lowered
+/// form would emit any `?` (other than on the tail self-call, which we
+/// suppress). `#[tailcall]` rejects `?` in the body — so we use this as a
+/// gate for the fallible case.
+fn body_emits_extra_question_mark<'a>(
+    stmts: &[typedexp::TypedStmt],
+    out_name: &str,
+    self_name: &str,
+    ctx: &GenCtx,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+) -> bool {
+    let Some((last, head)) = stmts.split_last() else { return false; };
+    // Preamble stmts are emitted verbatim; any `?` they would produce stays.
+    if head.iter().any(|s| stmt_uses_question_mark(s, ctx, top_level)) { return true; }
+    last_stmt_emits_extra_question_mark(last, out_name, self_name, ctx, top_level)
+}
+
+fn last_stmt_emits_extra_question_mark<'a>(
+    stmt: &typedexp::TypedStmt,
+    out_name: &str,
+    self_name: &str,
+    ctx: &GenCtx,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+) -> bool {
+    use typedexp::TypedStmt as S;
+    match stmt {
+        S::Assign { lhs: TypedPat::Var(name), rhs } if name == out_name => {
+            tail_exp_has_non_tail_question_mark(rhs, self_name, ctx, top_level)
+        }
+        S::If { cond, then_, elseif, else_ } => {
+            exp_uses_question_mark(cond, ctx, top_level)
+                || body_emits_extra_question_mark(then_, out_name, self_name, ctx, top_level)
+                || elseif.iter().any(|(ec, eb)|
+                    exp_uses_question_mark(ec, ctx, top_level)
+                    || body_emits_extra_question_mark(eb, out_name, self_name, ctx, top_level))
+                || body_emits_extra_question_mark(else_, out_name, self_name, ctx, top_level)
+        }
+        // Anything else as the last stmt fails the structural lowerability
+        // check earlier; the caller should never reach this arm. Be loud.
+        _ => true,
+    }
+}
+
+/// Decide whether `typed_stmts` qualifies for the tail-call lowering
+/// described at the top of this section. Returns the plan when it does,
+/// `None` otherwise.
+fn plan_tail_call_lowering<'a>(
+    typed_stmts: &[typedexp::TypedStmt],
+    outputs: &[(String, Ty, Option<Absyn::Modification>, bool)],
+    fn_short_name: &str,
+    is_fallible_fn: bool,
+    ctx: &GenCtx,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+) -> Option<TailCallPlan> {
+    // Multi-output functions return tuples and would require a much more
+    // invasive rewrite (each branch must produce a tuple literal). Skip
+    // until a real use-case shows up.
+    if outputs.len() != 1 { return None; }
+    let (out_name, _, _, _) = &outputs[0];
+
+    if !stmts_lowerable_as_tail_expr(typed_stmts, out_name) { return None; }
+    if !stmts_have_tail_self_call(typed_stmts, out_name, fn_short_name) { return None; }
+
+    // We deliberately do *not* pre-check the body for `?`-emitting calls
+    // here. The earlier `body_emits_extra_question_mark` analysis was too
+    // conservative: it treated every call whose callee wasn't a
+    // known-infallible user function as a `?`-emitter, even though many
+    // builtins (`valueEq` → `==`, `referenceEq` as a binary operator,
+    // `intMod`, etc.) lower without going through `ctx.q(...)` and never
+    // emit `?` at all. That over-approximation was throwing away the
+    // bulk of OMC's `List`/`Avl*` tail-recursive functions. We now rely on
+    // a *dry-run emission* in `emit_function` to make the final
+    // accept/reject decision against the actual emitted text — the only
+    // ground truth for what `?` characters the macro will see.
+    //
+    // A non-exhaustive match outside tail position would be lowered to
+    // `unreachable!()` because the macro forbids `bail!`/`?`/`return Err(_)`
+    // and the surrounding `T`-typed local can't accept an `Err(...)` value.
+    // That replaces MM's "fail()-on-miss" semantics with a Rust panic — a
+    // new failure mode the codebase otherwise avoids. Refuse here so the
+    // generated code remains panic-free.
+    //
+    // The same restriction applies to a tail-position match in an
+    // *infallible* tail-lowered function: there's no `Result<T>` slot for
+    // an `Err(...)` value, so the fallback would again have to panic.
+    // Fallible tail-position matches are fine — their fallback is a
+    // plain `Err(anyhow::anyhow!(...))` value.
+    if body_has_nonexhaustive_nontail_match(typed_stmts, out_name, fn_short_name, is_fallible_fn) {
+        return None;
+    }
+
+    Some(TailCallPlan { suppressed_out: out_name.clone(), fallible: is_fallible_fn })
+}
+
+/// Emit `stmts` as a function body whose value is the value the source
+/// would have assigned to `out_name`. The last statement of `stmts` (and,
+/// recursively, the last statement of each `If` branch) is consumed and
+/// rewritten into expression form. Preceding statements emit normally via
+/// [`emit_stmts`].
+///
+/// `fallible` controls how tail-position leaves are wrapped:
+///   * a self-call leaf is emitted bare — its `Result<T>` is the function's
+///     return type, so no `?` and no `Ok(...)` is needed.
+///   * any *other* tail leaf in a fallible function is wrapped in `Ok(...)`
+///     so the surrounding `Result<T>` slot is satisfied.
+///   * in an infallible function, both leaf kinds emit verbatim.
+///
+/// Precondition: `stmts_lowerable_as_tail_expr(stmts, out_name)` is true.
+/// Violating it falls into the wildcard arm which emits a `todo!()` so the
+/// failure is visible at build time rather than silently producing wrong
+/// code.
+fn emit_stmts_as_tail<'a>(
+    out: &mut String,
+    stmts: &[typedexp::TypedStmt],
+    out_name: &str,
+    self_name: &str,
+    fallible: bool,
+    indent: &str,
+    ctx: &mut GenCtx,
+    env: &mut LocalEnv,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+    fresh: &mut u32,
+) {
+    let Some((last, head)) = stmts.split_last() else {
+        writeln!(out, "{indent}todo!(\"tail-call lowering: empty body for `{out_name}`\")").unwrap();
+        return;
+    };
+    emit_stmts(out, indent, head, FailureMode::Function, ctx, env, top_level, fresh);
+    match last {
+        typedexp::TypedStmt::Assign { lhs: TypedPat::Var(name), rhs } if name == out_name => {
+            let s = emit_tail_value_exp(rhs, self_name, fallible, ctx, top_level);
+            writeln!(out, "{indent}{s}").unwrap();
+        }
+        typedexp::TypedStmt::If { cond, then_, elseif, else_ } => {
+            // Each branch is itself lowered recursively. We emit
+            //   if <cond> { <then branch as tail expr> }
+            //   else if <cond_i> { <elseif_i as tail expr> } ...
+            //   else { <else branch as tail expr> }
+            // Inner indentation matches the surrounding `if {` block. We
+            // clone `env` per branch because each branch may locally rebind
+            // pattern variables (mirroring what `emit_stmt` does for an
+            // ordinary `if`).
+            let c = emit_exp(cond, /*is_const=*/false, ctx, top_level);
+            let inner = format!("{indent}    ");
+            writeln!(out, "{indent}if {c} {{").unwrap();
+            let mut tenv = env.clone();
+            emit_stmts_as_tail(out, then_, out_name, self_name, fallible, &inner, ctx, &mut tenv, top_level, fresh);
+            for (ec, eb) in elseif {
+                let cs = emit_exp(ec, /*is_const=*/false, ctx, top_level);
+                writeln!(out, "{indent}}} else if {cs} {{").unwrap();
+                let mut eenv = env.clone();
+                emit_stmts_as_tail(out, eb, out_name, self_name, fallible, &inner, ctx, &mut eenv, top_level, fresh);
+            }
+            writeln!(out, "{indent}}} else {{").unwrap();
+            let mut elenv = env.clone();
+            emit_stmts_as_tail(out, else_, out_name, self_name, fallible, &inner, ctx, &mut elenv, top_level, fresh);
+            writeln!(out, "{indent}}}").unwrap();
+        }
+        other => {
+            // Should be unreachable if `stmts_lowerable_as_tail_expr` was
+            // honoured. Emit a loud `todo!()` rather than fall through to a
+            // silently-wrong body.
+            writeln!(out, "{indent}todo!(\"tail-call lowering: unsupported last stmt: {:?}\")",
+                std::mem::discriminant(other)).unwrap();
+        }
+    }
+}
+
+/// Emit a tail-position expression for the lowering: the self-call is
+/// emitted bare (its `Result<T>` is the function's return value, no `?`
+/// needed), tail-position `if`-expressions are recursed into, `match`
+/// expressions are emitted via [`emit_match`] with `ctx.tail_lowering` set
+/// so each case's result is itself emitted in tail context, and everything
+/// else is emitted via the normal [`emit_exp`] and wrapped in `Ok(...)` if
+/// the enclosing function is fallible.
+fn emit_tail_value_exp<'a>(
+    exp: &TypedExp,
+    self_name: &str,
+    fallible: bool,
+    ctx: &mut GenCtx,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+) -> String {
+    match exp {
+        TypedExp::Call { func, .. } if func == self_name => {
+            // Emit the call via the normal path so import/arg formatting is
+            // shared, then strip the trailing `?` (only present when the
+            // enclosing function is fallible). We *can't* use
+            // `QMode::Bare` for the call because that would also propagate
+            // into the argument sub-expressions, suppressing `?` on
+            // non-tail sub-calls — which would be incorrect.
+            //
+            // The `tailcall` v2 API requires the recursive call to be
+            // wrapped in `tailcall::call!{ … }` so the macro's body
+            // rewrite knows to thread this call through the trampoline.
+            // An *unwrapped* recursive call would still compile (and the
+            // function would still be correct) but the macro would not
+            // turn it into a loop, defeating the point of the
+            // annotation.
+            ctx.with_tail_lowering(None, |ctx| {
+                let s = emit_exp(exp, /*is_const=*/false, ctx, top_level);
+                let bare = s.strip_suffix('?').map(str::to_owned).unwrap_or(s);
+                format!("tailcall::call!{{ {bare} }}")
+            })
+        }
+        TypedExp::If { cond, then_, elseif, else_, .. } => {
+            // The condition is *not* in tail position — clear `tail_lowering`
+            // so that any self-call inside it goes through the normal
+            // fallibility-handling path.
+            let c = ctx.with_tail_lowering(None, |ctx| emit_exp(cond, /*is_const=*/false, ctx, top_level));
+            let t = emit_tail_value_exp(then_, self_name, fallible, ctx, top_level);
+            let mut ei = String::new();
+            for (ec, eb) in elseif {
+                let cs = ctx.with_tail_lowering(None, |ctx| emit_exp(ec, /*is_const=*/false, ctx, top_level));
+                let bs = emit_tail_value_exp(eb, self_name, fallible, ctx, top_level);
+                ei.push_str(&format!(" else if ({cs}) {{{bs}}}"));
+            }
+            let e = emit_tail_value_exp(else_, self_name, fallible, ctx, top_level);
+            format!("if ({c}) {{{t}}}{ei} else {{{e}}}")
+        }
+        TypedExp::Match { .. } => {
+            // Signal `emit_match` to lower each case's result (or
+            // algorithm-side terminal assign) in tail context. The
+            // surrounding match expression's value flows out as the
+            // function's return — *no* outer `Ok(...)` wrap, because each
+            // case is already responsible for producing `Result<T>` (when
+            // fallible) or `T` (infallible).
+            ctx.with_tail_lowering(Some((self_name.to_owned(), fallible)), |ctx| {
+                emit_exp(exp, /*is_const=*/false, ctx, top_level)
+            })
+        }
+        _ => {
+            // Non-control-flow leaf. The body's `?`-freedom has already
+            // been verified, so `emit_exp` won't emit `?` here.
+            let s = ctx.with_tail_lowering(None, |ctx| emit_exp(exp, /*is_const=*/false, ctx, top_level));
+            if fallible { format!("Ok({s})") } else { s }
+        }
+    }
+}
+
 fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Class, indent: &str, ctx: &mut GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) {
     // Short class definition: `function Alias = Base[(arg=default, ...)]`.
     // Resolved by hierarchy::resolve_function_type to Ty::FunctionAlias.
@@ -1818,6 +2641,62 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
         format!("<{}>", bounded.join(", "))
     };
 
+    // Plan tail-call lowering before emitting the body so we can (a) annotate
+    // the function with `#[tailcall::tailcall]`, (b) suppress the `let mut
+    // <out>;` declaration that would otherwise turn the recursive call into a
+    // non-tail expression on the RHS of an assignment, and (c) splice the
+    // assignment's RHS in as the function's trailing expression.
+    //
+    // The `tailcall` crate rewrites *syntactic* tail-position self-calls into
+    // a loop. Our generated bodies normally end with `outVar := …; outVar`,
+    // which is not a syntactic tail call; the lowering below converts the
+    // common `outVar := <expr>;` shape into the equivalent expression form.
+    let mut tail_plan = plan_tail_call_lowering(&typed_stmts, &outputs, name, is_fallible_fn, ctx, top_level);
+
+    // Dry-run the tail-lowered body emission so we can validate it against
+    // the macro's "no `?` anywhere" constraint *after* all the per-builtin
+    // and per-arg emission decisions have been made — which is the only
+    // ground truth. The structural analysis in `body_emits_extra_question_mark`
+    // is necessarily approximate: it treats every fallible-call site as if
+    // it would emit `?`, but several builtins (e.g. `valueEq`, `referenceEq`
+    // when used as a binary operator, simple arithmetic) lower without
+    // going through `ctx.q(...)` and therefore do not actually produce a
+    // `?` even in a fallible enclosing function. Without the dry-run we
+    // would refuse the lowering for every recursive function whose body
+    // contains such a call — `List::isEqual`, `List::merge`, and most of
+    // the tree-walking infallible-after-lowering family.
+    //
+    // The dry-run is done with cloned `env` / `fresh` so it cannot
+    // influence the upcoming real emission. `ctx.qmode` / `tail_lowering`
+    // are save/restored by the helpers themselves; `ctx.implicit_modules`
+    // accumulates monotonically (any imports the dry-run discovers are
+    // also needed by the real emission, whether tail-lowered or not), so
+    // letting it grow is correct.
+    let mut tail_lowered_body: Option<String> = None;
+    if let Some(plan) = &tail_plan {
+        let mut scratch = String::new();
+        let mut scratch_env = env.clone();
+        let mut scratch_fresh: u32 = 0;
+        let saved_in_tc_dry = std::mem::replace(&mut ctx.in_tail_lowered_fn, true);
+        emit_stmts_as_tail(&mut scratch, &typed_stmts, &plan.suppressed_out, name, plan.fallible, &format!("{indent}    "), ctx, &mut scratch_env, top_level, &mut scratch_fresh);
+        ctx.in_tail_lowered_fn = saved_in_tc_dry;
+        if scratch.contains('?') {
+            // `?` survived the lowering — the macro would reject the body.
+            // Drop the plan; the regular non-lowered emission runs below.
+            tail_plan = None;
+        } else {
+            tail_lowered_body = Some(scratch);
+        }
+    }
+
+    if tail_plan.is_some() {
+        writeln!(out, "{indent}#[tailcall::tailcall]").unwrap();
+    }
+    // Set the ambient "we're inside a tail-lowered body" flag so that
+    // helpers called during body emission (notably [`emit_match`]) can
+    // adjust their output — see the field's doc comment.
+    let saved_in_tc = std::mem::replace(&mut ctx.in_tail_lowered_fn, tail_plan.is_some());
+
     writeln!(out, "{indent}{pub_kw}fn {ename}{type_params}({params}) -> {sig_ret} {{").unwrap();
     let body_indent = format!("{indent}    ");
 
@@ -1866,6 +2745,14 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
     }
 
     for (n, t, modif, is_const_local) in outputs.iter().chain(protected.iter()) {
+        // The output `n` is consumed by the tail-call lowering: its declaration
+        // would otherwise force `let mut <n>: …;`, but `<n>` never appears in
+        // the rewritten body — the RHS of `<n> := <tail-expr>;` becomes the
+        // function's trailing expression directly. Suppressing the declaration
+        // also avoids an `unused_variables` lint after `unused_mut` is allowed.
+        if let Some(plan) = &tail_plan {
+            if &plan.suppressed_out == n { continue; }
+        }
         // When the local's type is unknown, omit the annotation entirely and
         // let Rust infer from the later assignment. `fmt_ty(Ty::Unknown)`
         // produces `/* ? */`, which is not a valid type, so emitting
@@ -1978,13 +2865,28 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
             writeln!(out).unwrap();
             ctx.current_fn_fallible = saved_fn_fallible;
             ctx.current_fn_qname = saved_fn_qname;
+            ctx.in_tail_lowered_fn = saved_in_tc;
             return;
         }
-        _ => emit_stmts(out, &body_indent, &typed_stmts, FailureMode::Function, ctx, &mut env, top_level, &mut fresh)
+        _ => {
+            // When the tail-call lowering survived the dry-run, splice the
+            // pre-emitted body text straight in. We never re-run
+            // `emit_stmts_as_tail` here because that would do all the
+            // per-builtin work twice — wasteful, and a non-monotonic ctx
+            // change in the recursive emitter could differ between runs.
+            if let Some(body_str) = tail_lowered_body.take() {
+                out.push_str(&body_str);
+                writeln!(out, "{indent}}}").unwrap();
+                writeln!(out).unwrap();
+                ctx.current_fn_fallible = saved_fn_fallible;
+                ctx.current_fn_qname = saved_fn_qname;
+                ctx.in_tail_lowered_fn = saved_in_tc;
+                return;
+            }
+            emit_stmts(out, &body_indent, &typed_stmts, FailureMode::Function, ctx, &mut env, top_level, &mut fresh);
+        }
     };
 
-    // Tail expression. For fallible functions we wrap in `Ok(...)`; infallible
-    // functions yield the raw value (or unit).
     let tail_val: String = match outputs.len() {
         0 => "()".to_owned(),
         1 => escape_ident(&outputs[0].0),
@@ -2002,6 +2904,7 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
     writeln!(out).unwrap();
     ctx.current_fn_fallible = saved_fn_fallible;
     ctx.current_fn_qname = saved_fn_qname;
+    ctx.in_tail_lowered_fn = saved_in_tc;
 }
 
 // ── Expression and pattern emission ──────────────────────────────────────────
@@ -4464,6 +5367,13 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
     } else {
         input_str.clone()
     };
+    // The tail-call lowering applies *to this match* (not to nested matches
+    // inside guards / locals / stmts). Snapshot it now and clear `ctx`'s
+    // copy so deeper emit_exp calls — including those used to render the
+    // match scrutinee and per-case guards/stmts — see no tail context. We
+    // re-introduce the signal *just* when rendering the tail-position
+    // pieces (the case result, or the algorithm-side terminal assign).
+    let active_tail = ctx.tail_lowering.take();
     let body_str = match kind {
         MatchKind::Match => {
             let has_wild = cases.iter().any(|c| matches!(c.pattern, TypedPat::Wildcard) && c.guard.is_none());
@@ -4501,8 +5411,33 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
                 let guard = case.guard.as_ref()
                     .map(|g| format!(" if {}", emit_exp(g, is_const, ctx, top_level)))
                     .unwrap_or_default();
-                let result = emit_exp(&case.result, is_const, ctx, top_level);
-                let arm_str = if case.stmts.is_empty() {
+                // Tail-call lowering: detect the algorithm-side terminal
+                // self-assign pattern. When the case ends with
+                // `<name> := <rhs>;` and the case `result` is just
+                // `<name>`, the *rhs* is the case's tail expression — emit
+                // that as a tail value and elide both the last assign and
+                // the trailing `result` reference.
+                let algo_tail_rhs: Option<&TypedExp> = if active_tail.is_some() && !case.stmts.is_empty() {
+                    if let (typedexp::TypedStmt::Assign { lhs: TypedPat::Var(asg_name), rhs }, TypedExp::Var { name: res_name, .. }) =
+                        (case.stmts.last().unwrap(), &case.result)
+                    {
+                        if asg_name == res_name { Some(rhs) } else { None }
+                    } else { None }
+                } else { None };
+                let result = match (active_tail.as_ref(), algo_tail_rhs) {
+                    (Some((sn, fb)), None) => emit_tail_value_exp(&case.result, sn, *fb, ctx, top_level),
+                    (Some((sn, fb)), Some(rhs)) => emit_tail_value_exp(rhs, sn, *fb, ctx, top_level),
+                    (None, _) => emit_exp(&case.result, is_const, ctx, top_level),
+                };
+                let stmts_for_arm: &[typedexp::TypedStmt] = if algo_tail_rhs.is_some() {
+                    // Drop the terminal assignment — its rhs is the tail
+                    // expression and is emitted below as the arm's trailing
+                    // expression instead.
+                    &case.stmts[..case.stmts.len() - 1]
+                } else {
+                    &case.stmts[..]
+                };
+                let arm_str = if stmts_for_arm.is_empty() {
                     format!("        {pat}{guard} => {result}")
                 } else {
                     // Seed the arm's local env from the enclosing function scope:
@@ -4590,7 +5525,7 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
                     // Use emit_stmts (not a raw emit_stmt loop) so consecutive
                     // record-field updates within the arm get batched into one
                     // `assign_field!` / `assign_variant_field!` call.
-                    emit_stmts(&mut body, "            ", &case.stmts, FailureMode::Function, ctx, &mut local_env, top_level, &mut fresh_local);
+                    emit_stmts(&mut body, "            ", stmts_for_arm, FailureMode::Function, ctx, &mut local_env, top_level, &mut fresh_local);
                     format!("        {pat}{guard} => {{\n{body}            {result}\n        }}")
                 };
                 ctx.fn_env_vars = saved_fn_env_vars;
@@ -4598,13 +5533,59 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
                 ctx.variant_shapes = saved_shapes;
                 arm_str
             }).collect();
-            let fallback = if has_wild { String::new() } else {
+            // Inside a `#[tailcall::tailcall]` body the macro rewrites the
+            // function so that early returns (`return`, `?`, `bail!`)
+            // don't typecheck — every arm has to yield a value, not jump
+            // out. The fallback for a non-exhaustive match is therefore
+            // emitted differently inside such a function:
+            //
+            //   * In the *tail-position* match of a fallible function the
+            //     arms each yield `Result<T>` (either a bare self-call or
+            //     an `Ok(...)`-wrapped non-self leaf). The fallback is an
+            //     `Err(...)` *value* of the same type — error
+            //     propagation still happens because the match expression
+            //     is the function's trailing return.
+            //
+            //   * In a *non-tail* match — bound to a `T`-typed local in
+            //     the preamble, for example — the arms yield `T`, so the
+            //     fallback must too. `unreachable!()` produces `!` which
+            //     unifies with any expected type and panics if reached.
+            //     `body_emits_extra_question_mark` only allows us to
+            //     lower a function when every reachable path's value is
+            //     known, so a runtime miss here is a real bug, not a
+            //     soft error worth `bail!`-recovering from.
+            let fallback = if has_wild {
+                String::new()
+            } else if ctx.in_tail_lowered_fn {
+                if active_tail.is_some() && ctx.current_fn_fallible {
+                    ",\n        _ => Err(anyhow::anyhow!(\"match: no arm matched\"))".to_owned()
+                } else {
+                    ",\n        _ => unreachable!(\"tail-call lowered match: no arm matched\")".to_owned()
+                }
+            } else {
                 ",\n        _ => bail!(\"match: no arm matched\")".to_owned()
             };
-            format!(
-                "(match {match_subject} {{\n{}{fallback},\n    }})",
-                arms.join(",\n"),
-            )
+            // When the match is itself the tail expression of a
+            // `#[tailcall::tailcall]` body, drop the outer parentheses.
+            // The macro's tail-position detector matches on the literal
+            // shape of the function's trailing expression and does *not*
+            // peek through grouping parens — emitting `(match …)` would
+            // make every `tailcall::call!{…}` inside an arm fail with
+            // "tailcall::call! must be used in tail position". In any
+            // non-tail context the parens are needed for precedence
+            // (the match expression is often the operand of a wider
+            // expression, e.g. `(match …).clone()`).
+            if active_tail.is_some() {
+                format!(
+                    "match {match_subject} {{\n{}{fallback},\n    }}",
+                    arms.join(",\n"),
+                )
+            } else {
+                format!(
+                    "(match {match_subject} {{\n{}{fallback},\n    }})",
+                    arms.join(",\n"),
+                )
+            }
         }
         MatchKind::MatchContinue => {
             // Each arm is an IIFE returning anyhow::Result<T>; first Ok wins.

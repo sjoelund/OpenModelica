@@ -9,6 +9,7 @@ const-str = "1.1.0"
 rayon = "1"
 winnow = "0.7"
 loop_unwrap = "0.2.0"
+tailcall = "2.3.0"
 mmtorust = {path = "mmtorust"}
 mmwinnow = {path = "mmwinnow"}
 metamodelica = {path = "metamodelica"}

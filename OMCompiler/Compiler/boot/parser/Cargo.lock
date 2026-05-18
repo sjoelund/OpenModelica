@@ -248,6 +248,7 @@ dependencies = [
  "openmodelica_susan",
  "openmodelica_util",
  "openmodelica_util_datatypes_basic",
+ "tailcall",
 ]
 
 [[package]]
@@ -261,6 +262,7 @@ dependencies = [
  "openmodelica_susan",
  "openmodelica_util",
  "openmodelica_util_datatypes_basic",
+ "tailcall",
 ]
 
 [[package]]
@@ -297,6 +299,7 @@ dependencies = [
  "loop_unwrap",
  "metamodelica",
  "openmodelica_util_datatypes_basic",
+ "tailcall",
 ]
 
 [[package]]
@@ -308,6 +311,25 @@ dependencies = [
  "const-str",
  "loop_unwrap",
  "metamodelica",
+ "tailcall",
+]
+
+[[package]]
+name = "proc-macro2"
+version = "1.0.106"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8fd00f0bb2e90d81d1044c2b32617f68fcb9fa3bb7640c23e9c748e53fb30934"
+dependencies = [
+ "unicode-ident",
+]
+
+[[package]]
+name = "quote"
+version = "1.0.45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "41f2619966050689382d2b44f664f4bc593e129785a36d6ee376ddf37259b924"
+dependencies = [
+ "proc-macro2",
 ]
 
 [[package]]
@@ -341,6 +363,43 @@ name = "shlex"
 version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0fda2ff0d084019ba4d7c6f371c95d8fd75ce3524c3cb8fb653a3023f6323e64"
+
+[[package]]
+name = "syn"
+version = "2.0.117"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e665b8803e7b1d2a727f4023456bbbbe74da67099c585258af0ad9c5013b9b99"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "unicode-ident",
+]
+
+[[package]]
+name = "tailcall"
+version = "2.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c6be08989072ee5adeece48612b4f43ecf8ffce901dee274c33f7310c89f18de"
+dependencies = [
+ "tailcall-impl",
+]
+
+[[package]]
+name = "tailcall-impl"
+version = "2.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "44f72925e9aaaefcfbef1cf809d408e8a80bdb644ebe9fff0b94714d1d2d8e4d"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "unicode-ident"
+version = "1.0.24"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e6e4313cd5fcd3dad5cafa179702e2b244f760991f45397d14d4ebf38247da75"
 
 [[package]]
 name = "windows-link"

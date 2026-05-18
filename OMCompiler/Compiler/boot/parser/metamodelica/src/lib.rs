@@ -1281,8 +1281,8 @@ pub fn tick() -> Result<i32> {
 }
 
 /// Structural equality for any PartialEq value.
-pub fn valueEq<A: PartialEq>(a1: A, a2: A) -> Result<bool> {
-    Ok(a1 == a2)
+pub fn valueEq<A: PartialEq>(a1: A, a2: A) -> bool {
+    a1 == a2
 }
 
 /// Compares two Ord values.
@@ -2388,8 +2388,8 @@ mod tests {
             let a = vec![1, 2, 3];
             let b = vec![1, 2, 3];
             let c = vec![1, 2, 4];
-            assert!(valueEq(&a, &b).unwrap());
-            assert!(!valueEq(&a, &c).unwrap());
+            assert!(valueEq(&a, &b));
+            assert!(!valueEq(&a, &c));
         }
 
         #[test]

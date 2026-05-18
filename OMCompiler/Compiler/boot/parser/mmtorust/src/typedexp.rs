@@ -528,6 +528,21 @@ pub fn builtin_function_ty(name: &str) -> Option<Ty> {
             Some(f(vec![inp("o", Ty::Option(Box::new(tv("T"))))], Ty::Bool, vec!["T".to_owned()])),
         "listEmpty" =>
             Some(f(vec![inp("l", Ty::List(Box::new(tv("T"))))], Ty::Bool, vec!["T".to_owned()])),
+        // `listGet(list<T>, Integer) -> T`. Without this entry the result type
+        // is `Ty::Unknown`, which then propagates into surrounding expressions
+        // — most visibly into `+` chains where `binop_ty` can no longer route
+        // `listGet(strs, i) + listGet(strs, j)` to the ArcStr concat path.
+        //
+        // `listHead` / `listFirst` / `listRest` are *deliberately* NOT added
+        // here: they are also common local-variable names in MetaModelica
+        // (e.g. `case listHead :: listRest`), and the bare-CREF inference
+        // promotes any in-env name with `Ty::Unknown` to its builtin
+        // signature, which would then make codegen treat
+        // `cons(listHead, ...)` as passing a function pointer (no `.clone()`).
+        // `call_ty` below handles the result types when those names appear in
+        // call position (which is the only context where it matters).
+        "listGet" =>
+            Some(f(vec![inp("l", Ty::List(Box::new(tv("T")))), inp("i", Ty::I32)], tv("T"), vec!["T".to_owned()])),
         "arrayEmpty" =>
             Some(f(vec![inp("a", Ty::Array(Box::new(tv("T"))))], Ty::Bool, vec!["T".to_owned()])),
 
@@ -638,7 +653,7 @@ fn call_ty(func: &str, args: &[TypedExp], top_level: &BTreeMap<String, NameNode<
         | "boolAnd" | "boolOr" | "boolNot" | "boolEq"
         | "referenceEq" | "valueEq" | "isEmpty" | "isSome" | "isNone"
         | "arrayEmpty" | "listEmpty" => Ty::Bool,
-        "listHead" | "listFirst" => {
+        "listHead" | "listFirst" | "listGet" => {
             match args.first().map(|a| a.ty()) {
                 Some(Ty::List(inner)) => *inner,
                 _ => Ty::Unknown,

@@ -1649,6 +1649,15 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
     // information and fallibility state are saved/restored by the
     // recursive `emit_function` call itself.
     if let MM::ClassDef::Parts { members: parent_members, .. } | MM::ClassDef::ClassExtends { members: parent_members, .. } = &c.body {
+        // Nested `emit_function` overwrites `ctx.fn_env_vars` / `ctx.fn_outputs`
+        // with its own scope and does not restore them. Without this snapshot,
+        // the outer body that follows would consult the *inner* function's
+        // environment for things like the `Ty::Array` check in
+        // `emit_var_segments` — so a `dom[i]` access on the outer function's
+        // array would lose the `.borrow()` prefix whenever a nested helper
+        // omitted the same local.
+        let saved_fn_env_vars = ctx.fn_env_vars.clone();
+        let saved_fn_outputs = ctx.fn_outputs.clone();
         for member in parent_members.iter() {
             if let MM::ClassMember::ClassDef(cdm) = member {
                 if matches!(&cdm.class_def.restriction, Absyn::Restriction::R_FUNCTION { .. }) {
@@ -1660,6 +1669,8 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
                 }
             }
         }
+        ctx.fn_env_vars = saved_fn_env_vars;
+        ctx.fn_outputs = saved_fn_outputs;
     }
 
     for (n, t, modif, is_const_local) in outputs.iter().chain(protected.iter()) {

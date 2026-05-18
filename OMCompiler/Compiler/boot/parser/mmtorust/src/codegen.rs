@@ -713,7 +713,7 @@ fn generate_lib_file(hier: &InstanceHierarchy<'_>, this_dir: &str, default_dir: 
     writeln!(out, "// Auto-generated lib file").unwrap();
     writeln!(out, "// TODO: Decide if we go with nightly rust for deref patterns, or https://crates.io/crates/match_deref").unwrap();
     writeln!(out, "#![feature(deref_patterns)]").unwrap(); // We have long lists to macro through...
-    writeln!(out, "#![recursion_limit = \"65536\"]").unwrap(); // We have long lists to macro through...
+    writeln!(out, "#![recursion_limit = \"1024\"]").unwrap(); // We have long lists to macro through...
     for (name, node) in &hier.top_level {
         let node_dir = if let NodeKind::Class(c) = &node.kind {
             if let Some(cn) = &c.crate_name { format!("{cn}/src") } else { default_dir.to_owned() }
@@ -1711,21 +1711,38 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
         let is_unknown_ty = matches!(t, Ty::Unknown);
         let ty_s = fmt_ty(t, ctx);
         let modif_opt: Option<Absyn::Modification> = modif.clone();
-        let init_raw = extract_default_exp(&modif_opt).map(|exp| {
+        // Carry along the inferred type of the initializer so we can detect a
+        // multi-output call assigned into a single-valued local. MetaModelica
+        // silently drops the extra outputs in that case; we model it as a
+        // tuple destructure (`let (mut x, _, _): (T1, T2, T3) = call;`).
+        let init_raw: Option<(String, Ty)> = extract_default_exp(&modif_opt).map(|exp| {
             let typed = typedexp::infer_exp(exp, &infer_env, top_level, &pkg_prefix, &all_type_vars);
-            emit_exp(&typed, false, ctx, top_level)
+            let init_ty = typed.ty();
+            (emit_exp(&typed, false, ctx, top_level), init_ty)
         });
-        let init = if input_names.contains(n) {
-            Some(escape_ident(n))
+        let init: Option<(String, Ty)> = if input_names.contains(n) {
+            Some((escape_ident(n).to_string(), t.clone()))
         } else {
             let cloned_s = format!("{}.clone()", escape_ident(n));
-            init_raw.filter(|s| s != &escape_ident(n) && s != &cloned_s)
+            init_raw.filter(|(s, _)| s != &escape_ident(n) && s != &cloned_s)
         };
         let ty_annot = if is_unknown_ty { String::new() } else { format!(": {ty_s}") };
         match (is_const_local, init) {
-            (true, Some(s)) => writeln!(out, "{body_indent}let {}{ty_annot} = {s};", escape_ident(n)).unwrap(),
+            (true, Some((s, init_ty))) => {
+                if let Some(line) = emit_multi_output_let(/*is_mut=*/false, n, t, &init_ty, &s, &body_indent, ctx) {
+                    out.push_str(&line);
+                } else {
+                    writeln!(out, "{body_indent}let {}{ty_annot} = {s};", escape_ident(n)).unwrap();
+                }
+            },
             (true, None) => writeln!(out, "{body_indent}let mut {}{ty_annot}; // TODO: local with unresolved type", escape_ident(n)).unwrap(),
-            (false, Some(s)) => writeln!(out, "{body_indent}let mut {}{ty_annot} = {s};", escape_ident(n)).unwrap(),
+            (false, Some((s, init_ty))) => {
+                if let Some(line) = emit_multi_output_let(/*is_mut=*/true, n, t, &init_ty, &s, &body_indent, ctx) {
+                    out.push_str(&line);
+                } else {
+                    writeln!(out, "{body_indent}let mut {}{ty_annot} = {s};", escape_ident(n)).unwrap();
+                }
+            },
             (false, None) => {
                 if is_unknown_ty {
                     writeln!(out, "{body_indent}let mut {}; // TODO: local with unresolved type", escape_ident(n)).unwrap();
@@ -3173,12 +3190,15 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
             Ok(format!("({}.len() as i32)", arg))
         },
         "floor" => {
+            // Wrap the argument in parens: the emitted expression may be a sum
+            // or other operator chain, and `.floor()` would otherwise bind to
+            // the rightmost subterm (e.g. `a + 5e-15.floor()`).
             let arg = args.first().map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
-            Ok(format!("{}.floor()", arg))
+            Ok(format!("({}).floor()", arg))
         },
         "ceil" => {
             let arg = args.first().map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
-            Ok(format!("{}.ceil()", arg))
+            Ok(format!("({}).ceil()", arg))
         },
         "mod" if args.len()==2 => {
             let a1 = args.get(0).unwrap();
@@ -4318,7 +4338,12 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
                         match default {
                             Some(d) => {
                                 let init = emit_exp(d, is_const, ctx, top_level);
-                                body.push_str(&format!("            let mut {}: {ty_s} = {init};\n", escape_ident(name)));
+                                let init_ty = d.ty();
+                                if let Some(line) = emit_multi_output_let(true, name, ty, &init_ty, &init, "            ", ctx) {
+                                    body.push_str(&line);
+                                } else {
+                                    body.push_str(&format!("            let mut {}: {ty_s} = {init};\n", escape_ident(name)));
+                                }
                             }
                             None => {
                                 body.push_str(&format!("            let mut {}: {ty_s};\n", escape_ident(name)));
@@ -4425,7 +4450,12 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
                         match default {
                             Some(d) => {
                                 let init = emit_exp(d, is_const, ctx, top_level);
-                                body.push_str(&format!("            let mut {}: {ty_s} = {init};\n", escape_ident(name)));
+                                let init_ty = d.ty();
+                                if let Some(line) = emit_multi_output_let(true, name, ty, &init_ty, &init, "            ", ctx) {
+                                    body.push_str(&line);
+                                } else {
+                                    body.push_str(&format!("            let mut {}: {ty_s} = {init};\n", escape_ident(name)));
+                                }
                             }
                             None => {
                                 body.push_str(&format!("            let mut {}: {ty_s};\n", escape_ident(name)));
@@ -4913,16 +4943,25 @@ fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, mu
         }
 
         TypedPat::As { var, pat } => {
+            // `var @ pat` binds the whole value to `var` AND introduces any
+            // sub-bindings declared in `pat`. If both sides take ownership
+            // (move) of overlapping memory the borrow checker rejects it
+            // (E0382/E0505). Rust's only way out is to make *every* binding
+            // in the construct a borrow: `ref var @ (..., ref name, ...)`.
+            // We then rely on the lowering's `.clone()`-everywhere style at
+            // use sites to coerce `&T` back to owned `T` where needed.
+            let pat_has_subbinding = pat_introduces_binding(pat);
+            let force_ref = pat_has_subbinding && !implicit_ref;
             let outer = if implicit_ref {
                 escape_ident(var)
-            } else if in_deref {
+            } else if in_deref || force_ref {
                 format!("ref {}", escape_ident(var))
             } else if mut_bindings {
                 format!("mut {}", escape_ident(var))
             } else {
                 escape_ident(var)
             };
-            format!("{} @ {}", outer, emit_pat_with_implicit_bind(pat, false, mut_bindings, in_deref, implicit_ref, None, ctx, top_level))
+            format!("{} @ {}", outer, emit_pat_with_implicit_bind(pat, false, false, in_deref || force_ref, implicit_ref, None, ctx, top_level))
         }
 
         TypedPat::Index { base, index } => {
@@ -5101,6 +5140,25 @@ fn is_infallible_builtin(func: &str) -> bool {
         | "Dangerous.arrayCreateNoInit"
         | "print" | "printError"
     )
+}
+
+/// True if `pat` contains any identifier binding (Var or nested As). Used by
+/// the As-pattern emitter to decide whether to force `ref` semantics on the
+/// outer binding to avoid partial-move conflicts.
+fn pat_introduces_binding(pat: &TypedPat) -> bool {
+    match pat {
+        TypedPat::Var(_) | TypedPat::As { .. } => true,
+        TypedPat::Wildcard | TypedPat::EmptyList | TypedPat::None_
+        | TypedPat::Lit(_) | TypedPat::FieldAccess { .. } | TypedPat::Index { .. }
+        | TypedPat::Todo(_) => false,
+        TypedPat::Some_(inner) => pat_introduces_binding(inner),
+        TypedPat::Cons { head, tail } => pat_introduces_binding(head) || pat_introduces_binding(tail),
+        TypedPat::Tuple(ps) => ps.iter().any(pat_introduces_binding),
+        TypedPat::Constructor { fields, named_fields, .. } => {
+            fields.iter().any(pat_introduces_binding)
+                || named_fields.iter().any(|(_, p)| pat_introduces_binding(p))
+        }
+    }
 }
 
 fn pat_is_irrefutable(pat: &TypedPat) -> bool {
@@ -5499,14 +5557,15 @@ fn emit_pat_assign<'a>(
                         emit_pat_assign($out, $ind, &sub_pat, &sub_ty, &sub_expr, $fm, ctx, env, top_level, fresh);
                     }
                     for (orig, fresh_name) in &reassign_pairs {
-                        let orig_ty = env.vars.get(orig).cloned().unwrap_or(Ty::Unknown);
-                        let arc_shaped = matches!(&orig_ty, Ty::List(_)) || is_arc_wrapped(&orig_ty, ctx);
-                        let needs_clone = needs_borrow || arc_shaped;
-                        if needs_clone {
-                            writeln!($out, "{}{} = {}.clone();", $ind, escape_ident(orig), escape_ident(fresh_name)).unwrap();
-                        } else {
-                            writeln!($out, "{}{} = {};", $ind, escape_ident(orig), escape_ident(fresh_name)).unwrap();
-                        }
+                        // Always `.clone()`. The `fresh_name` may have been
+                        // emitted with `ref` (e.g. an `As` pattern with inner
+                        // sub-bindings forced to `ref` to dodge a partial
+                        // move), in which case it has type `&T` and a plain
+                        // assignment would mismatch. `T::clone()` is defined
+                        // on both `T` and `&T` so this is a safe blanket
+                        // coercion and keeps with the codegen's clone-heavy
+                        // lowering style elsewhere.
+                        writeln!($out, "{}{} = {}.clone();", $ind, escape_ident(orig), escape_ident(fresh_name)).unwrap();
                     }
                 };
             }
@@ -5857,7 +5916,15 @@ fn render_shallow<'a>(
         TypedPat::As { var, pat: inner } => {
             env.vars.insert(var.clone(), scrut_ty.clone());
             let inner_s = render_shallow(inner, scrut_ty, ctx, env, top_level, fresh, deferrals);
-            format!("{} @ {}", escape_ident(var), inner_s)
+            // Mirror `emit_pat_with_implicit_bind`: if the inner sub-pattern
+            // introduces bindings, both outer and inner would move out of
+            // overlapping memory (E0382). Make the outer a borrow so the
+            // partial moves become borrows the body's `.clone()` uses resolve.
+            if pat_introduces_binding(inner) {
+                format!("ref {} @ {}", escape_ident(var), inner_s)
+            } else {
+                format!("{} @ {}", escape_ident(var), inner_s)
+            }
         }
         TypedPat::Index { base, index } => {
             // Array index in pattern position — emit as lvalue access.
@@ -6159,6 +6226,40 @@ impl FieldAssignKind {
 
 /// Same as the nested `coerce_assign_expr` inside `emit_stmt`, lifted out so
 /// the classification helper can use the same coercion logic.
+/// MetaModelica permits assigning the result of a multi-output function call
+/// to a single-valued variable; the remaining outputs are silently discarded.
+/// When we detect that the initializer type is a tuple but the declared local
+/// is scalar, emit a destructuring let `let (mut name, _, _) : (T1, T2, T3) = init;`
+/// so the discard is explicit and the call is still evaluated exactly once.
+/// Returns `None` when the regular `let mut name: T = init;` form is fine.
+fn emit_multi_output_let(
+    is_mut: bool,
+    name: &str,
+    decl_ty: &Ty,
+    init_ty: &Ty,
+    init_expr: &str,
+    indent: &str,
+    ctx: &mut GenCtx,
+) -> Option<String> {
+    let elems = match init_ty {
+        Ty::Tuple(es) if es.len() >= 2 => es,
+        _ => return None,
+    };
+    if matches!(decl_ty, Ty::Tuple(_)) {
+        return None;
+    }
+    let elem_tys: Vec<String> = elems.iter().map(|t| fmt_ty(t, ctx)).collect();
+    let m = if is_mut { "mut " } else { "" };
+    let mut slots: Vec<String> = Vec::with_capacity(elems.len());
+    slots.push(format!("{m}{}", escape_ident(name)));
+    for _ in 1..elems.len() { slots.push("_".to_owned()); }
+    Some(format!(
+        "{indent}let ({}): ({}) = {init_expr};\n",
+        slots.join(", "),
+        elem_tys.join(", "),
+    ))
+}
+
 fn coerce_assign_expr_pub(scrut_expr: String, scrut_ty: &Ty, lhs_ty: Option<&Ty>) -> String {
     let mut expr = scrut_expr;
     if let Ty::Tuple(_) = scrut_ty {
@@ -6647,7 +6748,28 @@ fn emit_stmt<'a>(
             // Because the else diverges, Rust's flow analysis proves that any
             // variable assigned in the then-branch is definitely initialised
             // after the statement — no tuple-yield machinery needed.
-            if body.len() == 1 && matches!(stmts_flow(else_body), FlowResult::Diverges) {
+            // The fast path emits `if let Ok(PAT) = CALL { body } else { else }`
+            // which requires the call to actually return `Result<T>`. When the
+            // RHS is a known-infallible user call (returning `T` directly),
+            // wrapping it in `Ok(..)` is a type error — fall through to the
+            // general labeled-block lowering instead. We can't classify
+            // builtins as infallible here (they all return `Result<T>` in the
+            // current Rust signatures), so the check is restricted to
+            // user-defined `Call` exprs.
+            // Resolve through `resolve_call_qname` so unqualified call names
+            // (e.g. `systemCall` inside `System.mo` calling a sibling) are
+            // looked up in the right package scope before consulting the
+            // fallibility map.
+            let rhs_is_known_infallible = if body.len() == 1 {
+                if let typedexp::TypedStmt::Assign { rhs: typedexp::TypedExp::Call { func, .. }, .. } = &body[0] {
+                    resolve_call_qname(func, ctx, top_level)
+                        .map(|q| ctx.is_known_infallible_user_fn(&q, top_level))
+                        .unwrap_or(false)
+                } else { false }
+            } else { false };
+            if !rhs_is_known_infallible
+                && body.len() == 1 && matches!(stmts_flow(else_body), FlowResult::Diverges)
+            {
                 if let typedexp::TypedStmt::Assign { lhs, rhs } = &body[0] {
                     let scrut_ty = rhs.ty();
                     let scrut_expr = ctx.with_qmode(QMode::Bare, |ctx| {

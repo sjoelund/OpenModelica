@@ -856,12 +856,24 @@ fn resolve_first_segment_type<'a>(
             }
             // Multi-record uniontype rendered as a Rust enum. Field access on an
             // enum value is only legal in MetaModelica when the field exists in
-            // the matched record-variant (the compiler is supposed to have
-            // narrowed the value by pattern matching). At the type level we
-            // don't carry the narrowing, so search all record variants for the
-            // field — MetaModelica requires same-named fields across variants
-            // to have the same type, so any matching record gives the answer.
+            // the matched record-variant. When `infer_case` has narrowed the
+            // scrutinee variable to a specific variant we'll see
+            // `Ty::UnionTypeVariant` below — that's the precise path. The
+            // fallback here (`Ty::RustEnum` without narrowing) walks all record
+            // variants and returns the *first* hit; this is only correct when
+            // the field has the same type in every variant (most uniontypes,
+            // e.g. SourceInfo) but is wrong for cases like JSON where `values`
+            // has different types per variant. Such expressions must rely on
+            // the variant being narrowed by an enclosing case pattern.
             Ty::RustEnum(qname) => uniontype_variant_field_ty(qname, &seg.name, top_level),
+            // Narrowed by pattern matching to a specific record variant: look
+            // up the field directly on that record (with the union's type
+            // parameters substituted in, mirroring the `Ty::Generic` arm).
+            Ty::UnionTypeVariant(union_qname, variant_name) => {
+                let variant_qname = format!("{union_qname}.{variant_name}");
+                let field_tys = record_field_tys(&variant_qname, top_level);
+                field_tys.iter().find(|(n, _)| n == &seg.name).map(|(_, t)| t.clone())
+            }
             Ty::Generic(rust_name, args) => {
                 // `rust_name` uses `::` separators; the hierarchy is dotted.
                 let dotted = rust_name.replace("::", ".");
@@ -888,6 +900,38 @@ fn resolve_first_segment_type<'a>(
     }
 
     Some(ty)
+}
+
+/// If `pat` fixes the scrutinee to a specific record-variant of the scrutinee
+/// uniontype, return the narrowed `Ty::UnionTypeVariant`. Otherwise `None`.
+///
+/// Used to narrow the scrutinee variable's type inside a `case CTOR(...)` arm
+/// so that field-type resolution picks fields from the *matched* record rather
+/// than walking every variant of the uniontype. Walks `As`-wrappers since the
+/// outer `var as PAT` does not change which variant `PAT` matches.
+fn narrow_scrutinee_for_pat<'a>(
+    pat: &TypedPat,
+    scrut_ty: &Ty,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+) -> Option<Ty> {
+    let ctor_name = match pat {
+        TypedPat::Constructor { name, .. } => name.as_str(),
+        TypedPat::As { pat, .. } => return narrow_scrutinee_for_pat(pat, scrut_ty, top_level),
+        _ => return None,
+    };
+    // Use the simple (last) name segment since constructor patterns in
+    // MetaModelica are written with the bare record name (e.g. `LIST_OBJECT()`).
+    let simple = ctor_name.rsplit('.').next().unwrap_or(ctor_name);
+    let union_qname = match scrut_ty {
+        Ty::RustEnum(q) => q,
+        _ => return None,
+    };
+    let node = lookup_node(union_qname, top_level)?;
+    if node.children.contains_key(simple) {
+        Some(Ty::UnionTypeVariant(union_qname.clone(), simple.to_string()))
+    } else {
+        None
+    }
 }
 
 /// Look up a field on a multi-record uniontype by searching each record-variant.
@@ -1328,8 +1372,28 @@ pub fn infer_exp<'a>(
                     (n, t, td)
                 })
                 .collect();
+            // Identify a scrutinee variable that can be narrowed inside each arm:
+            // either `match x as y ...` (use `y`) or `match x ...` where `x` is
+            // a plain variable reference. Carries that variable's pre-narrowing
+            // type so `infer_case` can replace it with `Ty::UnionTypeVariant`
+            // for arms whose pattern fixes the variant.
+            // A scrutinee is narrowable when the input is a simple variable
+            // reference (single segment, no subscripts). We don't try to
+            // narrow on `match foo.bar` or `match arr[i]` since narrowing a
+            // sub-expression would require synthesising a fresh local.
+            let scrut_name_owned: Option<String> = match (&as_binding, &input) {
+                (Some(name), _) => Some(name.clone()),
+                (None, TypedExp::Var { segments, .. })
+                    if segments.len() == 1 && segments[0].subscripts.is_empty() =>
+                {
+                    Some(segments[0].name.clone())
+                }
+                _ => None,
+            };
+            let scrut_ty = input.ty();
+            let scrutinee_for_arm = scrut_name_owned.as_deref().map(|n| (n, &scrut_ty));
             let typed_cases: Vec<TypedCase> = (&**cases).into_iter()
-                .map(|c| infer_case(c, &case_env, top_level, pkg_prefix, &match_locals, type_vars))
+                .map(|c| infer_case(c, &case_env, top_level, pkg_prefix, &match_locals, type_vars, scrutinee_for_arm))
                 .collect();
             let ty = typed_cases.iter()
                 .map(|c| c.result.ty())
@@ -1387,6 +1451,12 @@ fn infer_case<'a>(
     // Match-level locals already incorporated into `env` by the caller.
     extra_locals: &[(String, Ty, Option<TypedExp>)],
     type_vars: &[String],
+    // If the scrutinee was a plain variable reference (or `match x as x ...`),
+    // pass `(name, ty)` so we can narrow that variable to a `Ty::UnionTypeVariant`
+    // inside each arm whose pattern fixes the variant. This is what allows
+    // downstream field-type resolution to pick the *correct* variant's field
+    // type for fields whose declared type differs per variant (e.g. JSON.values).
+    scrutinee: Option<(&str, &Ty)>,
 ) -> TypedCase {
     fn path_to_dotted(path: &Absyn::Path) -> String {
         match path {
@@ -1646,6 +1716,19 @@ fn infer_case<'a>(
             let pat = infer_pat(pattern, &pat_env, top_level, pkg_prefix, type_vars);
             let mut inner_env = env.clone();
             inner_env.extend(pat_bindings(&pat));
+            // Narrow the scrutinee variable's type to the matched record-variant
+            // when the pattern is a constructor on a multi-record uniontype.
+            // Without this, `obj.values` inside a `case LIST_OBJECT() ...` arm
+            // would resolve via `Ty::RustEnum` (which picks the first variant
+            // declaring `values`) and pick the wrong field type for uniontypes
+            // where same-named fields differ across variants (e.g. JSON, where
+            // `values` is `UnorderedMap` in OBJECT, `list<tuple<...>>` in
+            // LIST_OBJECT, `Vector<JSON>` in ARRAY, and `list<JSON>` in LIST).
+            if let Some((scrut_name, scrut_ty)) = scrutinee {
+                if let Some(narrowed) = narrow_scrutinee_for_pat(&pat, scrut_ty, top_level) {
+                    inner_env.insert(scrut_name.to_string(), narrowed);
+                }
+            }
             // Start with match-level locals (already in env), then add case-level locals.
             // Dedup: case-level locals shadow match-level ones with the same name.
             let mut locals: Vec<(String, Ty, Option<TypedExp>)> = extra_locals.to_vec();

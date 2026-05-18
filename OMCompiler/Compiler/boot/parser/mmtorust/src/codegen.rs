@@ -3098,7 +3098,18 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
             if args.len() == 2 {
                 let arg1 = args.first().map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
                 let arg2 = args.get(1).map(|a| emit_builtin_call_arg_raw(func, 1, a, is_const, ctx, top_level)).unwrap_or_default();
-                Ok(format!("std::cmp::{func}({arg1}, {arg2})"))
+                // `std::cmp::max/min` requires `Ord`, which `f64` does not
+                // implement (NaN ordering is partial). MetaModelica `max`/`min`
+                // on Reals must lower to the inherent `f64::max`/`f64::min`
+                // method, which uses `total_cmp`-equivalent NaN handling and
+                // matches the MM runtime semantics.
+                let is_real = matches!(args.first().map(|a| a.ty()), Some(Ty::F64))
+                    || matches!(args.get(1).map(|a| a.ty()), Some(Ty::F64));
+                if is_real {
+                    Ok(format!("f64::{func}({arg1}, {arg2})"))
+                } else {
+                    Ok(format!("std::cmp::{func}({arg1}, {arg2})"))
+                }
             } else {
                 let parts: Vec<String> = args.iter().enumerate()
                     .map(|(i, a)| emit_builtin_call_arg_raw(func, i, a, is_const, ctx, top_level))
@@ -3466,7 +3477,16 @@ fn emit_var<'a>(
 
     if pkg_segs.len() == 1 && !field_segs.is_empty() {
         let var_name = &pkg_segs[0].name;
-        if let Some((enum_qname, variant_name)) = ctx.variants.get(var_name).cloned() {
+        if let Some((enum_qname, variant_name)) = ctx.variants.get(var_name).cloned()
+            // Only emit `var_field!` when `enum_qname` truly names a Rust enum
+            // (a multi-record uniontype). Single-record uniontypes are
+            // transparent `Ty::AliasTo` structs — there is no enum to
+            // destructure, and emitting `var_field!(v.x, Pkg::Foo::CTOR)` for
+            // them produces ambiguous-associated-type errors because `Foo`
+            // resolves to the underlying struct, not an enum. We can't filter
+            // on the variable's own `fn_env_vars` type because nested-As
+            // bindings (e.g. `right: child @ NODE { .. }`) don't appear there.
+            && uniontype_is_enum(&enum_qname, top_level) {
             let first = field_iter.next().unwrap();
             // Resolve the enum path through the same shorten/import machinery
             // we use for constructor calls so the emitted path is valid in the
@@ -3554,8 +3574,36 @@ fn lookup_field_ty(ty: &Ty, field: &str, top_level: &BTreeMap<String, NameNode<'
                 .find(|(n, _)| n == field)
                 .map(|(_, t)| t)
         }
+        // Pattern-narrowed uniontype scrutinee — look up the field directly on
+        // the specific record variant. This is the precise path; the
+        // `Ty::RustEnum` arm above is the fallback when narrowing is not
+        // available and is only correct when all variants agree on the field's
+        // type (which MetaModelica does not enforce — see e.g. JSON.values).
+        Ty::UnionTypeVariant(union_qname, variant_name) => {
+            let variant_qname = format!("{union_qname}.{variant_name}");
+            record_field_tys(&variant_qname, top_level)?
+                .into_iter()
+                .find(|(n, _)| n == field)
+                .map(|(_, t)| t)
+        }
         _ => None,
     }
+}
+
+/// Does `qname` name a uniontype with ≥2 record variants — i.e. one that is
+/// rendered as a Rust enum (so `var_field!(value, Qname::VARIANT)` is valid)?
+/// Single-record uniontypes are rendered as transparent struct aliases
+/// (`Ty::AliasTo`) and return `false` here.
+fn uniontype_is_enum(qname: &str, top_level: &BTreeMap<String, NameNode<'_>>) -> bool {
+    let Some(node) = lookup_node(qname, top_level) else { return false };
+    let NodeKind::Class(c) = &node.kind else { return false };
+    if !matches!(c.restriction, Absyn::Restriction::R_UNIONTYPE) { return false; }
+    let record_count = node.children.values()
+        .filter(|child| matches!(&child.kind,
+            NodeKind::Class(rc) if matches!(rc.restriction,
+                Absyn::Restriction::R_RECORD | Absyn::Restriction::R_METARECORD { .. })))
+        .count();
+    record_count >= 2
 }
 
 /// Return a simple-name reference for a child node — used only as a key in the
@@ -3836,7 +3884,12 @@ fn emit_call_arg_with_formal<'a>(
     // arithmetic, container types) is left to the surrounding emit logic so
     // we don't accidentally cast things that aren't pure scalars.
     if matches!(formal_ty, Some(&Ty::F64)) && matches!(arg.ty(), Ty::I32) {
-        return format!("({raw} as f64)");
+        // Wrap in an extra paren-pair so the `as` binds to the whole `raw`
+        // expression. Rust's `as` has higher precedence than `-`/`+`/etc., so
+        // for an actual like `a - b`, `(a - b as f64)` would parse as
+        // `a - (b as f64)` and re-introduce the very i32/f64 mismatch the cast
+        // was meant to eliminate.
+        return format!("(({raw}) as f64)");
     }
     raw
 }
@@ -5526,7 +5579,7 @@ fn emit_pat_assign<'a>(
             // see the stale outer value. Substitute fresh names for any pattern
             // bindings that collide with the current scope and emit follow-up
             // assignments to copy the new value back.
-            let mut reassign_pairs: Vec<(String, String)> = Vec::new();
+            let mut reassign_pairs: Vec<(String, String, Ty)> = Vec::new();
             let pat_owned = rewrite_pat_for_existing_bindings(pat, env, fresh, &mut reassign_pairs);
             let pat_for_render = &pat_owned;
             // Render shallow with deferrals for Arc-edge crossings.
@@ -5556,7 +5609,7 @@ fn emit_pat_assign<'a>(
                     for (sub_expr, sub_pat, sub_ty) in deferrals {
                         emit_pat_assign($out, $ind, &sub_pat, &sub_ty, &sub_expr, $fm, ctx, env, top_level, fresh);
                     }
-                    for (orig, fresh_name) in &reassign_pairs {
+                    for (orig, fresh_name, orig_ty) in &reassign_pairs {
                         // Always `.clone()`. The `fresh_name` may have been
                         // emitted with `ref` (e.g. an `As` pattern with inner
                         // sub-bindings forced to `ref` to dodge a partial
@@ -5565,7 +5618,19 @@ fn emit_pat_assign<'a>(
                         // on both `T` and `&T` so this is a safe blanket
                         // coercion and keeps with the codegen's clone-heavy
                         // lowering style elsewhere.
-                        writeln!($out, "{}{} = {}.clone();", $ind, escape_ident(orig), escape_ident(fresh_name)).unwrap();
+                        //
+                        // MetaModelica allows `Integer → Real` promotion in
+                        // pattern-let LHSs (e.g. `Real lo; INTERVAL(lo,..) :=
+                        // int_with_integer_lo;`). Coerce the clone-expression
+                        // to the original variable's declared type so the
+                        // generated Rust assignment type-checks.
+                        let rhs = format!("{}.clone()", escape_ident(fresh_name));
+                        let rhs = if matches!(orig_ty, Ty::F64) {
+                            format!("({rhs} as f64)")
+                        } else {
+                            rhs
+                        };
+                        writeln!($out, "{}{} = {};", $ind, escape_ident(orig), rhs).unwrap();
                     }
                 };
             }
@@ -5625,11 +5690,16 @@ fn emit_pat_assign<'a>(
 /// the existing variable is updated rather than shadowed. This is needed because
 /// MetaModelica pattern-lets reassign existing names (e.g. `l :: ll := ll;`)
 /// while Rust's `let` always introduces a new binding.
+///
+/// Each reassign entry also carries the original variable's declared type (from
+/// the caller's `env`). Used downstream to coerce the value before assigning,
+/// e.g. `Real lo; INTERVAL(lo,..) := int;` where `int.lo : Integer` requires an
+/// `as f64` cast in the synthesised `lo = __paN.clone()` assignment.
 fn rewrite_pat_for_existing_bindings(
     pat: &TypedPat,
     env: &LocalEnv,
     fresh: &mut u32,
-    reassign: &mut Vec<(String, String)>,
+    reassign: &mut Vec<(String, String, Ty)>,
 ) -> TypedPat {
     let mk_fresh = |fresh: &mut u32| -> String {
         let n = *fresh; *fresh += 1;
@@ -5638,7 +5708,8 @@ fn rewrite_pat_for_existing_bindings(
     match pat {
         TypedPat::Var(name) if env.vars.contains_key(name) => {
             let new_name = mk_fresh(fresh);
-            reassign.push((name.clone(), new_name.clone()));
+            let orig_ty = env.vars.get(name).cloned().unwrap_or(Ty::Unknown);
+            reassign.push((name.clone(), new_name.clone(), orig_ty));
             TypedPat::Var(new_name)
         }
         TypedPat::Some_(inner) => TypedPat::Some_(Box::new(
@@ -5665,7 +5736,8 @@ fn rewrite_pat_for_existing_bindings(
             let inner = rewrite_pat_for_existing_bindings(pat, env, fresh, reassign);
             if env.vars.contains_key(var) {
                 let new_name = mk_fresh(fresh);
-                reassign.push((var.clone(), new_name.clone()));
+                let orig_ty = env.vars.get(var).cloned().unwrap_or(Ty::Unknown);
+                reassign.push((var.clone(), new_name.clone(), orig_ty));
                 TypedPat::As { var: new_name, pat: Box::new(inner) }
             } else {
                 TypedPat::As { var: var.clone(), pat: Box::new(inner) }
@@ -6057,7 +6129,17 @@ impl<'s> FieldAssignPlan<'s> {
 
         if let Some((enum_qname, variant_name)) = variant {
             let variant_path = build_variant_path(&enum_qname, &variant_name, ctx);
-            FieldAssignKind::ArcVariant { base: base_safe, variant_path, field: field_safe, value }
+            // Multi-record uniontypes that aren't recursive are stored by
+            // value, not behind an `Arc`. The `assign_variant_field!` macro
+            // unconditionally rewraps via `Arc::new`, so for owned values we
+            // emit an explicit `if let` destructure instead. `is_arc_wrapped`
+            // returns true only for recursive types, so this also covers
+            // mutable-locals of non-recursive enums like `IOStreamData`.
+            if is_arc_wrapped(&base_ty, ctx) {
+                FieldAssignKind::ArcVariant { base: base_safe, variant_path, field: field_safe, value }
+            } else {
+                FieldAssignKind::OwnedVariant { base: base_safe, variant_path, field: field_safe, value }
+            }
         } else if constructor_needs_arc(&base_ty, ctx) {
             FieldAssignKind::ArcStruct { base: base_safe, field: field_safe, value }
         } else {
@@ -6150,13 +6232,20 @@ enum FieldAssignKind {
     ArcStruct { base: String, field: String, value: String },
     /// `assign_variant_field!(<base> => <variant_path>; <field> = <value>);`
     ArcVariant { base: String, variant_path: String, field: String, value: String },
+    /// Field assignment on an *owned* (not Arc-wrapped) uniontype enum value.
+    /// `if let <variant_path> { <field>, .. } = &mut <base> { *<field> = <value>; }`
+    /// — used for non-recursive uniontypes (e.g. `IOStreamData`) where the
+    /// variable is stored by value rather than behind an `Arc`. The
+    /// `assign_variant_field!` macro is hard-coded to call `Arc::new` and
+    /// cannot lower these owned cases.
+    OwnedVariant { base: String, variant_path: String, field: String, value: String },
     /// `<base>.<field> = <value>;` — plain owned struct, no macro needed.
     Plain { base: String, field: String, value: String },
 }
 
 impl FieldAssignKind {
     fn is_macro(&self) -> bool {
-        matches!(self, FieldAssignKind::ArcStruct { .. } | FieldAssignKind::ArcVariant { .. })
+        matches!(self, FieldAssignKind::ArcStruct { .. } | FieldAssignKind::ArcVariant { .. } | FieldAssignKind::OwnedVariant { .. })
     }
 
     /// Same base variable AND same macro path → safe to batch into one call.
@@ -6168,6 +6257,10 @@ impl FieldAssignKind {
                 FieldAssignKind::ArcVariant { base: a, variant_path: va, .. },
                 FieldAssignKind::ArcVariant { base: b, variant_path: vb, .. },
             ) => a == b && va == vb,
+            (
+                FieldAssignKind::OwnedVariant { base: a, variant_path: va, .. },
+                FieldAssignKind::OwnedVariant { base: b, variant_path: vb, .. },
+            ) => a == b && va == vb,
             _ => false,
         }
     }
@@ -6178,6 +6271,7 @@ impl FieldAssignKind {
         match self {
             FieldAssignKind::ArcStruct { base, field, value } => format!("{base}.{field} = {value}"),
             FieldAssignKind::ArcVariant { field, value, .. } => format!("{field} = {value}"),
+            FieldAssignKind::OwnedVariant { field, value, .. } => format!("{field} = {value}"),
             FieldAssignKind::Plain { base, field, value } => format!("{base}.{field} = {value}"),
         }
     }
@@ -6212,6 +6306,36 @@ impl FieldAssignKind {
                     }
                     writeln!(out, "{indent});").unwrap();
                 }
+            }
+            FieldAssignKind::OwnedVariant { base, variant_path, .. } => {
+                // Owned (non-Arc) uniontype: lower to an `if let <variant_path>
+                // { <field>, .. } = &mut <base>` destructure and mutate the
+                // matched bindings in place.
+                //
+                // Two correctness concerns:
+                //   1. The RHS often reads the *current* value of the same field
+                //      (`s_data.data := listAppend(..., s_data.data)`); evaluating
+                //      it after taking `&mut base` would violate borrow rules.
+                //   2. The destructure introduces bindings named after the fields,
+                //      which can shadow names used inside the RHS (a parameter
+                //      named `data` is shadowed by the field binding `data`).
+                // Both are solved by computing each RHS into a fresh local first,
+                // then mutating inside a single destructure.
+                let parsed: Vec<(String, String, String)> = clauses.iter().enumerate().map(|(i, c)| {
+                    let (lhs, rhs) = c.split_once('=').unwrap_or((c.as_str(), ""));
+                    let field = lhs.trim().to_string();
+                    let tmp = format!("__owned_variant_{}_{}", field, i);
+                    (field, tmp, rhs.trim().to_string())
+                }).collect();
+                for (_field, tmp, rhs) in &parsed {
+                    writeln!(out, "{indent}let {tmp} = {rhs};").unwrap();
+                }
+                let field_pat = parsed.iter().map(|(f, _, _)| f.clone()).collect::<Vec<_>>().join(", ");
+                writeln!(out, "{indent}if let {variant_path} {{ {field_pat}, .. }} = &mut {base} {{").unwrap();
+                for (field, tmp, _) in &parsed {
+                    writeln!(out, "{inner_indent}*{field} = {tmp};").unwrap();
+                }
+                writeln!(out, "{indent}}} else {{ panic!(\"owned-variant field-assign: value held a different variant than {variant_path}\"); }}").unwrap();
             }
             FieldAssignKind::Plain { .. } => {
                 // Plain assigns are not batched; emit each on its own line.

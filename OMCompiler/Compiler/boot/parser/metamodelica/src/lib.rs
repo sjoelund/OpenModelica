@@ -159,31 +159,31 @@ pub struct SourceInfo {
 
 /// Logically combine two Booleans with 'and' operator.
 #[inline(always)]
-pub fn boolAnd(b1: bool, b2: bool) -> Result<bool> {
-    Ok(b1 && b2)
+pub fn boolAnd(b1: bool, b2: bool) -> bool {
+    b1 && b2
 }
 
 /// Logically combine two Booleans with 'or' operator.
 #[inline(always)]
-pub fn boolOr(b1: bool, b2: bool) -> Result<bool> {
-    Ok(b1 || b2)
+pub fn boolOr(b1: bool, b2: bool) -> bool {
+    b1 || b2
 }
 
 /// Logically invert Boolean value using 'not' operator.
 #[inline(always)]
-pub fn boolNot(b: bool) -> Result<bool> {
-    Ok(!b)
+pub fn boolNot(b: bool) -> bool {
+    !b
 }
 
 /// Compares two Booleans for equality.
 #[inline(always)]
-pub fn boolEq(b1: bool, b2: bool) -> Result<bool> {
-    Ok(b1 == b2)
+pub fn boolEq(b1: bool, b2: bool) -> bool {
+    b1 == b2
 }
 
 /// Returns "true" or "false" string from a boolean.
-pub fn boolString(b: bool) -> Result<ArcStr> {
-    Ok(if b { literal!("true") } else { literal!("false") })
+pub fn boolString(b: bool) -> ArcStr {
+    if b { literal!("true") } else { literal!("false") }
 }
 
 /// MetaModelica `print` builtin: writes the argument to stdout *without*
@@ -208,53 +208,53 @@ pub fn print(s: ArcStr) -> Result<()> {
 
 /// Adds two Integer values.
 #[inline(always)]
-pub fn intAdd(i1: i32, i2: i32) -> Result<i32> {
-    Ok(i1 + i2)
+pub fn intAdd(i1: i32, i2: i32) -> i32 {
+    i1 + i2
 }
 
 /// Subtracts two Integer values.
 #[inline(always)]
-pub fn intSub(i1: i32, i2: i32) -> Result<i32> {
-    Ok(i1 - i2)
+pub fn intSub(i1: i32, i2: i32) -> i32 {
+    i1 - i2
 }
 
 /// Multiplies two Integer values.
 #[inline(always)]
-pub fn intMul(i1: i32, i2: i32) -> Result<i32> {
-    Ok(i1 * i2)
+pub fn intMul(i1: i32, i2: i32) -> i32 {
+    i1 * i2
 }
 
 /// Divides two Integer values (truncated division).
 /// Matches Modelica's div() semantics: truncates toward zero.
-pub fn intDiv(i1: i32, i2: i32) -> Result<i32> {
-    Ok(i1 / i2)
+pub fn intDiv(i1: i32, i2: i32) -> i32 {
+    i1 / i2
 }
 
 /// Calculates remainder of Integer division i1/i2.
 /// Matches Modelica's mod() semantics: same sign as dividend.
-pub fn intMod(i1: i32, i2: i32) -> Result<i32> {
-    Ok(i1 % i2)
+pub fn intMod(i1: i32, i2: i32) -> i32 {
+    i1 % i2
 }
 
 /// Returns the bigger one of two Integer values.
-pub fn intMax(i1: i32, i2: i32) -> Result<i32> {
-    Ok(i1.max(i2))
+pub fn intMax(i1: i32, i2: i32) -> i32 {
+    i1.max(i2)
 }
 
 /// Returns the smaller one of two Integer values.
-pub fn intMin(i1: i32, i2: i32) -> Result<i32> {
-    Ok(i1.min(i2))
+pub fn intMin(i1: i32, i2: i32) -> i32 {
+    i1.min(i2)
 }
 
 /// Returns the absolute value of Integer i.
-pub fn intAbs(i: i32) -> Result<i32> {
-    Ok(i.abs())
+pub fn intAbs(i: i32) -> i32 {
+    i.abs()
 }
 
 /// Returns negative value of Integer i.
 #[inline(always)]
-pub fn intNeg(i: i32) -> Result<i32> {
-    Ok(-i)
+pub fn intNeg(i: i32) -> i32 {
+    -i
 }
 
 // ============================================================================
@@ -263,38 +263,38 @@ pub fn intNeg(i: i32) -> Result<i32> {
 
 /// Returns whether Integer i1 is smaller than Integer i2.
 #[inline(always)]
-pub fn intLt(i1: i32, i2: i32) -> Result<bool> {
-    Ok(i1 < i2)
+pub fn intLt(i1: i32, i2: i32) -> bool {
+    i1 < i2
 }
 
 /// Returns whether Integer i1 is smaller than or equal to Integer i2.
 #[inline(always)]
-pub fn intLe(i1: i32, i2: i32) -> Result<bool> {
-    Ok(i1 <= i2)
+pub fn intLe(i1: i32, i2: i32) -> bool {
+    i1 <= i2
 }
 
 /// Returns whether Integer i1 is equal to Integer i2.
 #[inline(always)]
-pub fn intEq(i1: i32, i2: i32) -> Result<bool> {
-    Ok(i1 == i2)
+pub fn intEq(i1: i32, i2: i32) -> bool {
+    i1 == i2
 }
 
 /// Returns whether Integer i1 is not equal to Integer i2.
 #[inline(always)]
-pub fn intNe(i1: i32, i2: i32) -> Result<bool> {
-    Ok(i1 != i2)
+pub fn intNe(i1: i32, i2: i32) -> bool {
+    i1 != i2
 }
 
 /// Returns whether Integer i1 is greater than or equal to Integer i2.
 #[inline(always)]
-pub fn intGe(i1: i32, i2: i32) -> Result<bool> {
-    Ok(i1 >= i2)
+pub fn intGe(i1: i32, i2: i32) -> bool {
+    i1 >= i2
 }
 
 /// Returns whether Integer i1 is greater than Integer i2.
 #[inline(always)]
-pub fn intGt(i1: i32, i2: i32) -> Result<bool> {
-    Ok(i1 > i2)
+pub fn intGt(i1: i32, i2: i32) -> bool {
+    i1 > i2
 }
 
 // ============================================================================
@@ -303,38 +303,38 @@ pub fn intGt(i1: i32, i2: i32) -> Result<bool> {
 
 /// Returns bitwise inverted Integer number of i (~i in C).
 #[inline(always)]
-pub const fn intBitNot(i: i32) -> Result<i32> {
-    Ok(!i)
+pub const fn intBitNot(i: i32) -> i32 {
+    !i
 }
 
 /// Returns bitwise 'and' of Integers i1 and i2 (i1 & i2 in C).
 #[inline(always)]
-pub const fn intBitAnd(i1: i32, i2: i32) -> Result<i32> {
-    Ok(i1 & i2)
+pub const fn intBitAnd(i1: i32, i2: i32) -> i32 {
+    i1 & i2
 }
 
 /// Returns bitwise 'or' of Integers i1 and i2 (i1 | i2 in C).
 #[inline(always)]
-pub const fn intBitOr(i1: i32, i2: i32) -> Result<i32> {
-    Ok(i1 | i2)
+pub const fn intBitOr(i1: i32, i2: i32) -> i32 {
+    i1 | i2
 }
 
 /// Returns bitwise 'xor' of Integers i1 and i2 (i1 ^ i2 in C).
 #[inline(always)]
-pub const fn intBitXor(i1: i32, i2: i32) -> Result<i32> {
-    Ok(i1 ^ i2)
+pub const fn intBitXor(i1: i32, i2: i32) -> i32 {
+    i1 ^ i2
 }
 
 /// Returns bitwise left shift of Integer i by s bits (i << s in C).
 #[inline(always)]
-pub const fn intBitLShift(i: i32, s: i32) -> Result<i32> {
-    Ok(i << s)
+pub const fn intBitLShift(i: i32, s: i32) -> i32 {
+    i << s
 }
 
 /// Returns bitwise right shift of Integer i by s bits (i >> s in C).
 #[inline(always)]
-pub const fn intBitRShift(i: i32, s: i32) -> Result<i32> {
-    Ok(i >> s)
+pub const fn intBitRShift(i: i32, s: i32) -> i32 {
+    i >> s
 }
 
 // ============================================================================
@@ -343,13 +343,13 @@ pub const fn intBitRShift(i: i32, s: i32) -> Result<i32> {
 
 /// Converts Integer to Real.
 #[inline(always)]
-pub fn intReal(i: i32) -> Result<f64> {
-    Ok(i as f64)
+pub fn intReal(i: i32) -> f64 {
+    i as f64
 }
 
 /// Converts Integer to String.
-pub fn intString(i: i32) -> Result<ArcStr> {
-    Ok(format!("{}", i))
+pub fn intString(i: i32) -> ArcStr {
+    format!("{}", i)
 }
 
 // ============================================================================
@@ -358,65 +358,65 @@ pub fn intString(i: i32) -> Result<ArcStr> {
 
 /// Adds two Real values.
 #[inline(always)]
-pub fn realAdd(r1: f64, r2: f64) -> Result<f64> {
-    Ok(r1 + r2)
+pub fn realAdd(r1: f64, r2: f64) -> f64 {
+    r1 + r2
 }
 
 /// Subtracts two Real values.
 #[inline(always)]
-pub fn realSub(r1: f64, r2: f64) -> Result<f64> {
-    Ok(r1 - r2)
+pub fn realSub(r1: f64, r2: f64) -> f64 {
+    r1 - r2
 }
 
 /// Multiplies two Real values.
 #[inline(always)]
-pub fn realMul(r1: f64, r2: f64) -> Result<f64> {
-    Ok(r1 * r2)
+pub fn realMul(r1: f64, r2: f64) -> f64 {
+    r1 * r2
 }
 
 /// Divides two Real values.
 #[inline(always)]
-pub fn realDiv(r1: f64, r2: f64) -> Result<f64> {
-    Ok(r1 / r2)
+pub fn realDiv(r1: f64, r2: f64) -> f64 {
+    r1 / r2
 }
 
 /// Calculates remainder of Real division r1/r2.
-pub fn realMod(r1: f64, r2: f64) -> Result<f64> {
-    Ok(r1 - (r1/r2).floor()*r2)
+pub fn realMod(r1: f64, r2: f64) -> f64 {
+    r1 - (r1/r2).floor()*r2
 }
 
 /// Raises r1 to the power r2 (r1^r2).
-pub fn realPow(r1: f64, r2: f64) -> Result<f64> {
-    Ok(r1.powf(r2))
+pub fn realPow(r1: f64, r2: f64) -> f64 {
+    r1.powf(r2)
 }
 
 /// Returns the bigger one of two Real values.
 #[inline(always)]
-pub fn realMax(r1: f64, r2: f64) -> Result<f64> {
-    Ok(r1.max(r2))
+pub fn realMax(r1: f64, r2: f64) -> f64 {
+    r1.max(r2)
 }
 
 /// Returns the smaller one of two Real values.
 #[inline(always)]
-pub fn realMin(r1: f64, r2: f64) -> Result<f64> {
-    Ok(r1.min(r2))
+pub fn realMin(r1: f64, r2: f64) -> f64 {
+    r1.min(r2)
 }
 
 /// Returns the absolute value of Real x.
 #[inline(always)]
-pub fn realAbs(x: f64) -> Result<f64> {
-    Ok(x.abs())
+pub fn realAbs(x: f64) -> f64 {
+    x.abs()
 }
 
 /// Returns whether two Real values are approximately equal within absTol.
-pub fn realAlmostEq(a: f64, b: f64, abs_tol: f64) -> Result<bool> {
-    Ok(abs_tol > (a - b).abs())
+pub fn realAlmostEq(a: f64, b: f64, abs_tol: f64) -> bool {
+    abs_tol > (a - b).abs()
 }
 
 /// Returns negative value of Real x.
 #[inline(always)]
-pub fn realNeg(x: f64) -> Result<f64> {
-    Ok(-x)
+pub fn realNeg(x: f64) -> f64 {
+    -x
 }
 
 // ============================================================================
@@ -425,38 +425,38 @@ pub fn realNeg(x: f64) -> Result<f64> {
 
 /// Returns whether Real x1 is smaller than Real x2.
 #[inline(always)]
-pub fn realLt(x1: f64, x2: f64) -> Result<bool> {
-    Ok(x1 < x2)
+pub fn realLt(x1: f64, x2: f64) -> bool {
+    x1 < x2
 }
 
 /// Returns whether Real x1 is smaller than or equal to Real x2.
 #[inline(always)]
-pub fn realLe(x1: f64, x2: f64) -> Result<bool> {
-    Ok(x1 <= x2)
+pub fn realLe(x1: f64, x2: f64) -> bool {
+    x1 <= x2
 }
 
 /// Returns whether Real x1 is equal to Real x2.
 #[inline(always)]
-pub fn realEq(x1: f64, x2: f64) -> Result<bool> {
-    Ok(x1 == x2)
+pub fn realEq(x1: f64, x2: f64) -> bool {
+    x1 == x2
 }
 
 /// Returns whether Real x1 is not equal to Real x2.
 #[inline(always)]
-pub fn realNe(x1: f64, x2: f64) -> Result<bool> {
-    Ok(x1 != x2)
+pub fn realNe(x1: f64, x2: f64) -> bool {
+    x1 != x2
 }
 
 /// Returns whether Real x1 is greater than or equal to Real x2.
 #[inline(always)]
-pub fn realGe(x1: f64, x2: f64) -> Result<bool> {
-    Ok(x1 >= x2)
+pub fn realGe(x1: f64, x2: f64) -> bool {
+    x1 >= x2
 }
 
 /// Returns whether Real x1 is greater than Real x2.
 #[inline(always)]
-pub fn realGt(x1: f64, x2: f64) -> Result<bool> {
-    Ok(x1 > x2)
+pub fn realGt(x1: f64, x2: f64) -> bool {
+    x1 > x2
 }
 
 // ============================================================================
@@ -464,13 +464,13 @@ pub fn realGt(x1: f64, x2: f64) -> Result<bool> {
 // ============================================================================
 
 /// Converts Real to Integer (truncates toward zero, matching Modelica integer() function).
-pub fn realInt(r: f64) -> Result<i32> {
-    Ok(r as i32)
+pub fn realInt(r: f64) -> i32 {
+    r as i32
 }
 
 /// Converts Real to String.
-pub fn realString(r: f64) -> Result<ArcStr> {
-    Ok(format!("{}", r))
+pub fn realString(r: f64) -> ArcStr {
+    format!("{}", r)
 }
 
 // ============================================================================
@@ -488,8 +488,8 @@ pub fn stringCharInt(ch: ArcStr) -> Result<i32> {
 }
 
 /// Returns a single-character string from an ASCII code point.
-pub fn intStringChar(i: i32) -> Result<ArcStr> {
-    Ok(format!("{}", std::char::from_u32(i as u32).unwrap()))
+pub fn intStringChar(i: i32) -> ArcStr {
+    format!("{}", std::char::from_u32(i as u32).unwrap())
 }
 
 /// Parses an integer from a string. Fails if the string is not a valid integer.
@@ -510,7 +510,7 @@ pub fn stringListStringChar(str: ArcStr) -> Result<Arc<List<ArcStr>>> {
 }
 
 /// Appends a list of strings into a single string.
-pub fn stringAppendList(strs: Arc<List<ArcStr>>) -> Result<ArcStr> {
+pub fn stringAppendList(strs: Arc<List<ArcStr>>) -> ArcStr {
     let mut len = 0;
     for s in &*strs {
         len += s.len();
@@ -519,12 +519,12 @@ pub fn stringAppendList(strs: Arc<List<ArcStr>>) -> Result<ArcStr> {
     for s in &*strs {
         result.push_str(&s);
     }
-    Ok(result.into())
+    result.into()
 }
 
 /// Takes a list of strings and a delimiter and joins them with the delimiter inserted between elements.
 /// Example: stringDelimitList({"x","y","z"}, ", ") => "x, y, z"
-pub fn stringDelimitList(strs: Arc<List<ArcStr>>, delimiter: ArcStr) -> Result<ArcStr> {
+pub fn stringDelimitList(strs: Arc<List<ArcStr>>, delimiter: ArcStr) -> ArcStr {
     let mut len = 0;
     let delimiter_len = delimiter.len();
     for s in &*strs {
@@ -542,17 +542,17 @@ pub fn stringDelimitList(strs: Arc<List<ArcStr>>, delimiter: ArcStr) -> Result<A
         first = false;
     }
 
-    Ok(result.into())
+    result.into()
 }
 
 /// Returns the length of the string (number of bytes).
-pub fn stringLength(str: ArcStr) -> Result<i32> {
-    Ok(str.len() as i32)
+pub fn stringLength(str: ArcStr) -> i32 {
+    str.len() as i32
 }
 
 /// Returns true if the string is empty.
-pub fn stringEmpty(str: ArcStr) -> Result<bool> {
-    Ok(str.is_empty())
+pub fn stringEmpty(str: ArcStr) -> bool {
+    str.is_empty()
 }
 
 /// Returns the byte value at the given 1-based index.
@@ -588,92 +588,92 @@ pub fn stringUpdateStringChar(str: ArcStr, newch: ArcStr, index: i32) -> Result<
 }
 
 /// Concatenates two strings (s1 + s2).
-pub fn stringAppend(s1: ArcStr, s2: ArcStr) -> Result<ArcStr> {
-    Ok(format!("{}{}", s1, s2))
+pub fn stringAppend(s1: ArcStr, s2: ArcStr) -> ArcStr {
+    format!("{}{}", s1, s2)
 }
 
 /// Compares two strings for equality.
 #[inline(always)]
-pub fn stringEq(s1: ArcStr, s2: ArcStr) -> Result<bool> {
-    Ok(s1 == s2)
+pub fn stringEq(s1: ArcStr, s2: ArcStr) -> bool {
+    s1 == s2
 }
 #[inline(always)]
-pub fn stringEqual(s1: ArcStr, s2: ArcStr) -> Result<bool> {
-    Ok(s1 == s2)
+pub fn stringEqual(s1: ArcStr, s2: ArcStr) -> bool {
+    s1 == s2
 }
 
 /// Compares two strings lexicographically.
 /// Returns negative if s1 < s2, zero if s1 == s2, positive if s1 > s2.
-pub fn stringCompare(s1: ArcStr, s2: ArcStr) -> Result<i32> {
+pub fn stringCompare(s1: ArcStr, s2: ArcStr) -> i32 {
     // Byte-by-byte comparison for consistency
     let bytes1 = s1.as_bytes();
     let bytes2 = s2.as_bytes();
     let len = bytes1.len().min(bytes2.len());
     for i in 0..len {
         if bytes1[i] < bytes2[i] {
-            return Ok(-1);
+            return -1;
         }
         if bytes1[i] > bytes2[i] {
-            return Ok(1);
+            return 1;
         }
     }
     // Length comparison if all compared bytes were equal
     match bytes1.len().cmp(&bytes2.len()) {
-        std::cmp::Ordering::Less => Ok(-1),
-        std::cmp::Ordering::Equal => Ok(0),
-        std::cmp::Ordering::Greater => Ok(1),
+        std::cmp::Ordering::Less => -1,
+        std::cmp::Ordering::Equal => 0,
+        std::cmp::Ordering::Greater => 1,
     }
 }
 
 /// Returns a hash of the string using Rust's built-in hash.
-pub fn stringHash(str: ArcStr) -> Result<i32> {
+pub fn stringHash(str: ArcStr) -> i32 {
     use std::collections::hash_map::DefaultHasher;
     use std::hash::Hash;
     use std::hash::Hasher;
     let mut hasher = DefaultHasher::new();
     str.hash(&mut hasher);
-    Ok(hasher.finish() as i32)
+    hasher.finish() as i32
 }
 
 /// Returns a DJB2 hash of the string.
 /// DJB2 algorithm: hash = hash * 33 + byte
-pub fn stringHashDjb2(str: ArcStr) -> Result<i32> {
+pub fn stringHashDjb2(str: ArcStr) -> i32 {
     let mut hash: i32 = 5381;
     for &byte in str.as_bytes() {
         hash = hash.wrapping_mul(33).wrapping_add(byte as i32);
     }
-    Ok(hash)
+    hash
 }
 
 /// Continues computing a DJB2 hash by adding another string to it.
-pub fn stringHashDjb2Continue(str: ArcStr, hash: i32) -> Result<i32> {
+pub fn stringHashDjb2Continue(str: ArcStr, hash: i32) -> i32 {
     let mut h = hash;
     for &byte in str.as_bytes() {
         h = h.wrapping_mul(33).wrapping_add(byte as i32);
     }
-    Ok(h)
+    h
 }
 
 /// Computes a DJB2 hash and applies modulo without intermediate overflow issues.
-pub fn stringHashDjb2Mod(str: ArcStr, mod_val: i32) -> Result<i32> {
+pub fn stringHashDjb2Mod(str: ArcStr, mod_val: i32) -> i32 {
     if mod_val == 0 {
-        return Ok(0);
+        return 0;
     }
     let mut hash: i64 = 5381;
     for &byte in str.as_bytes() {
         hash = hash.wrapping_mul(33).wrapping_add(byte as i64);
     }
-    Ok((hash % mod_val as i64) as i32)
+    (hash % mod_val as i64) as i32
 }
 
 /// Returns an SDBM hash of the string.
 /// SDBM algorithm: hash = byte + (hash << 6) + (hash << 16) - hash
-pub fn stringHashSdbm(str: ArcStr) -> Result<i32> {
+pub fn stringHashSdbm(str: ArcStr) -> i32 {
     let mut hash: i32 = 0;
     for &byte in str.as_bytes() {
         hash = byte as i32 + (hash << 6) + (hash << 16) - hash;
     }
-    Ok(hash)
+    hash
 }
 
 /// Extracts a substring from str.
@@ -693,12 +693,12 @@ pub fn substring(str: ArcStr, start: i32, stop: i32) -> Result<ArcStr> {
 }
 
 /// Alias for string_append_list (maps a list of single-char strings to one string).
-pub fn listStringCharString(strs: Arc<List<ArcStr>>) -> Result<ArcStr> {
+pub fn listStringCharString(strs: Arc<List<ArcStr>>) -> ArcStr {
     stringAppendList(strs)
 }
 
 /// Alias for string_append_list (maps a list of single-char strings to one string).
-pub fn stringCharListString(strs: Arc<List<ArcStr>>) -> Result<ArcStr> {
+pub fn stringCharListString(strs: Arc<List<ArcStr>>) -> ArcStr {
     stringAppendList(strs)
 }
 
@@ -1055,12 +1055,12 @@ impl<T: PartialEq + Clone> List<T> {
     }
 }
 
-pub fn listAppend<T: Clone>(lst1: Arc<List<T>>, lst2: Arc<List<T>>) -> Result<Arc<List<T>>> {
-    Ok(lst1.append(&lst2))
+pub fn listAppend<T: Clone>(lst1: Arc<List<T>>, lst2: Arc<List<T>>) -> Arc<List<T>> {
+    lst1.append(&lst2)
 }
 
-pub fn listMember<T: Clone+PartialEq>(element: T, lst: Arc<List<T>>) -> Result<bool> {
-    Ok(lst.contains(&element))
+pub fn listMember<T: Clone+PartialEq>(element: T, lst: Arc<List<T>>) -> bool {
+    lst.contains(&element)
 }
 
 pub fn listHead<T: Clone>(lst: Arc<List<T>>) -> Result<T> {
@@ -1075,8 +1075,8 @@ pub fn listRest<T: Clone>(lst: Arc<List<T>>) -> Result<Arc<List<T>>> {
     }
 }
 
-pub fn listLength<T: Clone>(lst: Arc<List<T>>) -> Result<i32> {
-    Ok(lst.len())
+pub fn listLength<T: Clone>(lst: Arc<List<T>>) -> i32 {
+    lst.len()
 }
 
 // ============================================================================
@@ -1095,13 +1095,13 @@ pub fn arrayFromVec<A>(v: Vec<A>) -> Array<A> {
 // without needing an explicit `&` prefix.
 
 /// Returns the length of the array. O(1).
-pub fn arrayLength<A>(arr: Array<A>) -> Result<i32> {
-    Ok(arr.borrow().len() as i32)
+pub fn arrayLength<A>(arr: Array<A>) -> i32 {
+    arr.borrow().len() as i32
 }
 
 /// Returns true if the array is empty. O(1).
-pub fn arrayEmpty<A>(arr: Array<A>) -> Result<bool> {
-    Ok(arr.borrow().is_empty())
+pub fn arrayEmpty<A>(arr: Array<A>) -> bool {
+    arr.borrow().is_empty()
 }
 
 /// Gets the element at the given 1-based index. O(1).
@@ -1114,29 +1114,29 @@ pub fn arrayGet<A: Clone>(arr: Array<A>, index: i32) -> Result<A> {
 }
 
 /// Creates a new array of the given size, initialized with initialValue. O(size).
-pub fn arrayCreate<A: Clone>(size: i32, initial_value: A) -> Result<Array<A>> {
+pub fn arrayCreate<A: Clone>(size: i32, initial_value: A) -> Array<A> {
     if size <= 0 {
-        return Ok(arrayFromVec(Vec::new()));
+        return arrayFromVec(Vec::new());
     }
-    Ok(arrayFromVec(vec![initial_value; size as usize]))
+    arrayFromVec(vec![initial_value; size as usize])
 }
 
 /// Converts an array to a list. O(n).
-pub fn arrayList<A: Clone>(arr: Array<A>) -> Result<Arc<List<A>>> {
+pub fn arrayList<A: Clone>(arr: Array<A>) -> Arc<List<A>> {
     let mut result = Arc::new(List::Nil);
     for item in arr.borrow().iter().rev().cloned() {
         result = List::cons(result, item);
     }
-    Ok(result)
+    result
 }
 
 /// Converts a list to an array. O(n).
-pub fn listArray<A: Clone>(lst: Arc<List<A>>) -> Result<Array<A>> {
+pub fn listArray<A: Clone>(lst: Arc<List<A>>) -> Array<A> {
     let mut result = Vec::new();
     for item in &*lst {
         result.push(item.clone());
     }
-    Ok(arrayFromVec(result))
+    arrayFromVec(result)
 }
 
 /// Updates the value at the given 1-based index. O(1).
@@ -1158,16 +1158,16 @@ pub fn arrayUpdate<A: Clone>(arr: Array<A>, index: i32, new_value: A) -> Result<
 
 /// Creates a (deep, by-element) copy of the array. O(n).
 /// The returned array does NOT share storage with the input.
-pub fn arrayCopy<A: Clone>(arr: Array<A>) -> Result<Array<A>> {
-    Ok(arrayFromVec(arr.borrow().clone()))
+pub fn arrayCopy<A: Clone>(arr: Array<A>) -> Array<A> {
+    arrayFromVec(arr.borrow().clone())
 }
 
 /// Appends arr2 to arr1, creating a new array. O(length(arr1) + length(arr2)).
 /// The result does not share storage with either input.
-pub fn arrayAppend<A: Clone>(arr1: Array<A>, arr2: Array<A>) -> Result<Array<A>> {
+pub fn arrayAppend<A: Clone>(arr1: Array<A>, arr2: Array<A>) -> Array<A> {
     let mut result = arr1.borrow().clone();
     result.extend(arr2.borrow().iter().cloned());
-    Ok(arrayFromVec(result))
+    arrayFromVec(result)
 }
 
 // ============================================================================
@@ -1262,8 +1262,8 @@ impl<T: Clone> StaticArray<T> {
 
 /// Returns the string representation of any Debug-printable value.
 /// Rather slow; only use this for debugging!
-pub fn anyString<A: std::fmt::Debug>(a: A) -> Result<ArcStr> {
-    Ok(format!("{:?}", a))
+pub fn anyString<A: std::fmt::Debug>(a: A) -> ArcStr {
+    format!("{:?}", a)
 }
 
 thread_local! {
@@ -1272,11 +1272,11 @@ thread_local! {
 
 /// Returns a monotonically increasing tick counter.
 /// Uses a thread-local counter for simulation purposes.
-pub fn tick() -> Result<i32> {
+pub fn tick() -> i32 {
     TICK_COUNTER.with(|counter| {
         let current = counter.get();
         counter.set(current.wrapping_add(1));
-        Ok(current as i32)
+        current as i32
     })
 }
 
@@ -1287,11 +1287,11 @@ pub fn valueEq<A: PartialEq>(a1: A, a2: A) -> bool {
 
 /// Compares two Ord values.
 /// Returns -1 if a1 < a2, 0 if a1 == a2, 1 if a1 > a2.
-pub fn valueCompare<A: Ord>(a1: A, a2: A) -> Result<i32> {
+pub fn valueCompare<A: Ord>(a1: A, a2: A) -> i32 {
     match a1.cmp(&a2) {
-        std::cmp::Ordering::Less => Ok(-1),
-        std::cmp::Ordering::Equal => Ok(0),
-        std::cmp::Ordering::Greater => Ok(1),
+        std::cmp::Ordering::Less => -1,
+        std::cmp::Ordering::Equal => 0,
+        std::cmp::Ordering::Greater => 1,
     }
 }
 
@@ -1302,8 +1302,8 @@ pub fn valueCompare<A: Ord>(a1: A, a2: A) -> Result<i32> {
 /// This is a very fast comparison to speed up comparisons.
 /// If you know that all occurrences of a value are the same pointer,
 /// you can use reference_eq instead of structural equality.
-pub fn referenceEq<A: PartialEq>(a1: &A, a2: &A) -> Result<bool> {
-    Ok(std::ptr::eq(a1 as *const A, a2 as *const A))
+pub fn referenceEq<A: PartialEq>(a1: &A, a2: &A) -> bool {
+    std::ptr::eq(a1 as *const A, a2 as *const A)
 }
 
 /// Returns the pointer address of a reference as a hexadecimal string for debugging.
@@ -1396,13 +1396,13 @@ pub fn clock() -> Result<f64> {
 // ============================================================================
 
 /// Returns true if the Option is NONE.
-pub fn isNone<A>(opt: Option<A>) -> Result<bool> {
-    Ok(matches!(opt, None))
+pub fn isNone<A>(opt: Option<A>) -> bool {
+    matches!(opt, None)
 }
 
 /// Returns true if the Option is SOME.
-pub fn isSome<A>(opt: Option<A>) -> Result<bool> {
-    Ok(matches!(opt, Some(_)))
+pub fn isSome<A>(opt: Option<A>) -> bool {
+    matches!(opt, Some(_))
 }
 
 // ============================================================================
@@ -1435,26 +1435,28 @@ pub mod Dangerous {
     pub use super::*;
     /// Unsafe array get without bounds checking.
     /// Panics in debug mode if index is out of bounds due to Rust's bounds checking on indexing.
-    pub fn arrayGetNoBoundsChecking<A: Clone>(arr: Array<A>, index: i32) -> Result<A> {
+    pub fn arrayGetNoBoundsChecking<A: Clone>(arr: Array<A>, index: i32) -> A {
         let idx = (index - 1) as usize; // 1-based to 0-based
         let v = arr.borrow();
         // SAFETY: Caller must ensure index is in bounds.
-        unsafe { Ok(v.get_unchecked(idx).clone()) }
+        unsafe { v.get_unchecked(idx).clone() }
     }
 
     /// Unsafe array update without bounds checking.
     /// Mutates the underlying storage in place; visible through every alias.
-    pub fn arrayUpdateNoBoundsChecking<A: Clone>(arr: Array<A>, index: i32, new_value: A) -> Result<()> {
+    pub fn arrayUpdateNoBoundsChecking<A: Clone>(arr: Array<A>, index: i32, new_value: A) -> Array<A> {
         let idx = (index - 1) as usize; // 1-based to 0-based
-        let mut v = arr.borrow_mut();
-        // SAFETY: Caller must ensure index is in bounds.
-        unsafe { *v.get_unchecked_mut(idx) = new_value }
-        Ok(())
+        {
+            let mut v = arr.borrow_mut();
+            // SAFETY: Caller must ensure index is in bounds.
+            unsafe { *v.get_unchecked_mut(idx) = new_value; }
+        }
+        arr
     }
 
     /// Unsafe array clearing without bounds checking.
     /// Mutates the underlying storage in place; visible through every alias.
-    pub fn arrayClearIndex<A: Clone>(arr: Array<A>, index: i32) -> Result<()> {
+    pub fn arrayClearIndex<A: Clone>(arr: Array<A>, index: i32) {
         let idx = (index - 1) as usize; // 1-based to 0-based
         let mut v = arr.borrow_mut();
         // SAFETY: Caller must ensure idx is in bounds. We drop the existing
@@ -1466,16 +1468,12 @@ pub mod Dangerous {
             std::ptr::drop_in_place(p);
             std::ptr::write_bytes(p, 0u8, 1);
         }
-        Ok(())
     }
 
     /// Creates a new array with uninitialized elements.
     /// The MetaModelica signature takes a `dummy` argument purely as a type witness;
     /// the codegen drops it because Rust generics already carry the element type.
-    pub fn arrayCreateNoInit<A: Clone>(size: i32) -> Result<Array<A>> {
-        if size < 0 {
-            bail!("Size must be non-negative, got {}", size);
-        }
+    pub fn arrayCreateNoInit<A: Clone>(size: i32) -> Array<A> {
         let mut v = Vec::with_capacity(size as usize);
         // SAFETY:
         // 1. We allocated capacity for `size` elements.
@@ -1483,7 +1481,7 @@ pub mod Dangerous {
         unsafe {
             v.set_len(size as usize);
         }
-        Ok(arrayFromVec(v))
+        arrayFromVec(v)
     }
     /// Unsafe string get without bounds checking.
     pub fn stringGetNoBoundsChecking(str: String, index: i32) -> Result<i32> {
@@ -1492,8 +1490,8 @@ pub mod Dangerous {
         unsafe { Ok((*str.as_bytes().get_unchecked(idx)) as i32) }
     }
     /// Reverses a list in place.
-    pub fn listReverseInPlace<T: Clone>(list: Arc<List<T>>) -> Result<Arc<List<T>>>{
-        Ok(list.reverse())
+    pub fn listReverseInPlace<T: Clone>(list: Arc<List<T>>) -> Arc<List<T>> {
+        list.reverse()
     }
     /// Overwrites the `tail` field of the given Cons cell.
     ///
@@ -1541,38 +1539,38 @@ mod tests {
 
         #[test]
         fn test_bool_and() {
-            assert!(boolAnd(true, true).unwrap());
-            assert!(!boolAnd(true, false).unwrap());
-            assert!(!boolAnd(false, true).unwrap());
-            assert!(!boolAnd(false, false).unwrap());
+            assert!(boolAnd(true, true));
+            assert!(!boolAnd(true, false));
+            assert!(!boolAnd(false, true));
+            assert!(!boolAnd(false, false));
         }
 
         #[test]
         fn test_bool_or() {
-            assert!(boolOr(true, false).unwrap());
-            assert!(boolOr(false, true).unwrap());
-            assert!(boolOr(true, true).unwrap());
-            assert!(!boolOr(false, false).unwrap());
+            assert!(boolOr(true, false));
+            assert!(boolOr(false, true));
+            assert!(boolOr(true, true));
+            assert!(!boolOr(false, false));
         }
 
         #[test]
         fn test_bool_not() {
-            assert!(boolNot(false).unwrap());
-            assert!(!boolNot(true).unwrap());
+            assert!(boolNot(false));
+            assert!(!boolNot(true));
         }
 
         #[test]
         fn test_bool_eq() {
-            assert!(boolEq(true, true).unwrap());
-            assert!(boolEq(false, false).unwrap());
-            assert!(!boolEq(true, false).unwrap());
-            assert!(!boolEq(false, true).unwrap());
+            assert!(boolEq(true, true));
+            assert!(boolEq(false, false));
+            assert!(!boolEq(true, false));
+            assert!(!boolEq(false, true));
         }
 
         #[test]
         fn test_bool_string() {
-            assert_eq!(&*boolString(true).unwrap(), "true");
-            assert_eq!(&*boolString(false).unwrap(), "false");
+            assert_eq!(&*boolString(true), "true");
+            assert_eq!(&*boolString(false), "false");
         }
     }
 
@@ -1585,70 +1583,70 @@ mod tests {
 
         #[test]
         fn test_int_add() {
-            assert_eq!(intAdd(1, 2).unwrap(), 3);
-            assert_eq!(intAdd(-1, 1).unwrap(), 0);
-            assert_eq!(intAdd(-1, -2).unwrap(), -3);
+            assert_eq!(intAdd(1, 2), 3);
+            assert_eq!(intAdd(-1, 1), 0);
+            assert_eq!(intAdd(-1, -2), -3);
         }
 
         #[test]
         fn test_int_sub() {
-            assert_eq!(intSub(5, 3).unwrap(), 2);
-            assert_eq!(intSub(3, 5).unwrap(), -2);
-            assert_eq!(intSub(0, 0).unwrap(), 0);
+            assert_eq!(intSub(5, 3), 2);
+            assert_eq!(intSub(3, 5), -2);
+            assert_eq!(intSub(0, 0), 0);
         }
 
         #[test]
         fn test_int_mul() {
-            assert_eq!(intMul(3, 4).unwrap(), 12);
-            assert_eq!(intMul(-3, 4).unwrap(), -12);
-            assert_eq!(intMul(-3, -4).unwrap(), 12);
-            assert_eq!(intMul(0, 100).unwrap(), 0);
+            assert_eq!(intMul(3, 4), 12);
+            assert_eq!(intMul(-3, 4), -12);
+            assert_eq!(intMul(-3, -4), 12);
+            assert_eq!(intMul(0, 100), 0);
         }
 
         #[test]
         fn test_int_div() {
-            assert_eq!(intDiv(10, 3).unwrap(), 3);
-            assert_eq!(intDiv(10, -3).unwrap(), -3);
-            assert_eq!(intDiv(-10, 3).unwrap(), -3);
-            assert_eq!(intDiv(-10, -3).unwrap(), 3);
+            assert_eq!(intDiv(10, 3), 3);
+            assert_eq!(intDiv(10, -3), -3);
+            assert_eq!(intDiv(-10, 3), -3);
+            assert_eq!(intDiv(-10, -3), 3);
         }
 
         #[test]
         fn test_int_mod() {
-            assert_eq!(intMod(10, 3).unwrap(), 1);
-            assert_eq!(intMod(10, -3).unwrap(), 1);
-            assert_eq!(intMod(-10, 3).unwrap(), -1);
-            assert_eq!(intMod(-10, -3).unwrap(), -1);
+            assert_eq!(intMod(10, 3), 1);
+            assert_eq!(intMod(10, -3), 1);
+            assert_eq!(intMod(-10, 3), -1);
+            assert_eq!(intMod(-10, -3), -1);
         }
 
         #[test]
         fn test_int_max() {
-            assert_eq!(intMax(1, 2).unwrap(), 2);
-            assert_eq!(intMax(2, 1).unwrap(), 2);
-            assert_eq!(intMax(5, 5).unwrap(), 5);
-            assert_eq!(intMax(-1, -2).unwrap(), -1);
+            assert_eq!(intMax(1, 2), 2);
+            assert_eq!(intMax(2, 1), 2);
+            assert_eq!(intMax(5, 5), 5);
+            assert_eq!(intMax(-1, -2), -1);
         }
 
         #[test]
         fn test_int_min() {
-            assert_eq!(intMin(1, 2).unwrap(), 1);
-            assert_eq!(intMin(2, 1).unwrap(), 1);
-            assert_eq!(intMin(5, 5).unwrap(), 5);
-            assert_eq!(intMin(-1, -2).unwrap(), -2);
+            assert_eq!(intMin(1, 2), 1);
+            assert_eq!(intMin(2, 1), 1);
+            assert_eq!(intMin(5, 5), 5);
+            assert_eq!(intMin(-1, -2), -2);
         }
 
         #[test]
         fn test_int_abs() {
-            assert_eq!(intAbs(-5).unwrap(), 5);
-            assert_eq!(intAbs(5).unwrap(), 5);
-            assert_eq!(intAbs(0).unwrap(), 0);
+            assert_eq!(intAbs(-5), 5);
+            assert_eq!(intAbs(5), 5);
+            assert_eq!(intAbs(0), 0);
         }
 
         #[test]
         fn test_int_neg() {
-            assert_eq!(intNeg(5).unwrap(), -5);
-            assert_eq!(intNeg(-5).unwrap(), 5);
-            assert_eq!(intNeg(0).unwrap(), 0);
+            assert_eq!(intNeg(5), -5);
+            assert_eq!(intNeg(-5), 5);
+            assert_eq!(intNeg(0), 0);
         }
     }
 
@@ -1661,42 +1659,42 @@ mod tests {
 
         #[test]
         fn test_int_lt() {
-            assert!(intLt(1, 2).unwrap());
-            assert!(!intLt(2, 2).unwrap());
-            assert!(!intLt(2, 1).unwrap());
+            assert!(intLt(1, 2));
+            assert!(!intLt(2, 2));
+            assert!(!intLt(2, 1));
         }
 
         #[test]
         fn test_int_le() {
-            assert!(intLe(1, 2).unwrap());
-            assert!(intLe(2, 2).unwrap());
-            assert!(!intLe(2, 1).unwrap());
+            assert!(intLe(1, 2));
+            assert!(intLe(2, 2));
+            assert!(!intLe(2, 1));
         }
 
         #[test]
         fn test_int_eq() {
-            assert!(intEq(5, 5).unwrap());
-            assert!(!intEq(5, 6).unwrap());
+            assert!(intEq(5, 5));
+            assert!(!intEq(5, 6));
         }
 
         #[test]
         fn test_int_ne() {
-            assert!(intNe(5, 6).unwrap());
-            assert!(!intNe(5, 5).unwrap());
+            assert!(intNe(5, 6));
+            assert!(!intNe(5, 5));
         }
 
         #[test]
         fn test_int_ge() {
-            assert!(intGe(2, 1).unwrap());
-            assert!(intGe(2, 2).unwrap());
-            assert!(!intGe(1, 2).unwrap());
+            assert!(intGe(2, 1));
+            assert!(intGe(2, 2));
+            assert!(!intGe(1, 2));
         }
 
         #[test]
         fn test_int_gt() {
-            assert!(intGt(2, 1).unwrap());
-            assert!(!intGt(2, 2).unwrap());
-            assert!(!intGt(1, 2).unwrap());
+            assert!(intGt(2, 1));
+            assert!(!intGt(2, 2));
+            assert!(!intGt(1, 2));
         }
     }
 
@@ -1709,39 +1707,39 @@ mod tests {
 
         #[test]
         fn test_int_bit_not() {
-            assert_eq!(intBitNot(0i32).unwrap(), -1);
-            assert_eq!(intBitNot(-1i32).unwrap(), 0);
-            assert_eq!(intBitNot(1).unwrap(), !1);
+            assert_eq!(intBitNot(0i32), -1);
+            assert_eq!(intBitNot(-1i32), 0);
+            assert_eq!(intBitNot(1), !1);
         }
 
         #[test]
         fn test_int_bit_and() {
-            assert_eq!(intBitAnd(0b1100, 0b1010).unwrap(), 0b1000);
-            assert_eq!(intBitAnd(0, 5).unwrap(), 0);
+            assert_eq!(intBitAnd(0b1100, 0b1010), 0b1000);
+            assert_eq!(intBitAnd(0, 5), 0);
         }
 
         #[test]
         fn test_int_bit_or() {
-            assert_eq!(intBitOr(0b1100, 0b1010).unwrap(), 0b1110);
-            assert_eq!(intBitOr(0, 5).unwrap(), 5);
+            assert_eq!(intBitOr(0b1100, 0b1010), 0b1110);
+            assert_eq!(intBitOr(0, 5), 5);
         }
 
         #[test]
         fn test_int_bit_xor() {
-            assert_eq!(intBitXor(0b1100, 0b1010).unwrap(), 0b0110);
-            assert_eq!(intBitXor(5, 5).unwrap(), 0);
+            assert_eq!(intBitXor(0b1100, 0b1010), 0b0110);
+            assert_eq!(intBitXor(5, 5), 0);
         }
 
         #[test]
         fn test_int_bit_l_shift() {
-            assert_eq!(intBitLShift(1, 3).unwrap(), 8);
-            assert_eq!(intBitLShift(3, 1).unwrap(), 6);
+            assert_eq!(intBitLShift(1, 3), 8);
+            assert_eq!(intBitLShift(3, 1), 6);
         }
 
         #[test]
         fn test_int_bit_r_shift() {
-            assert_eq!(intBitRShift(8, 3).unwrap(), 1);
-            assert_eq!(intBitRShift(6, 1).unwrap(), 3);
+            assert_eq!(intBitRShift(8, 3), 1);
+            assert_eq!(intBitRShift(6, 1), 3);
         }
     }
 
@@ -1754,15 +1752,15 @@ mod tests {
 
         #[test]
         fn test_int_real() {
-            assert_eq!(intReal(42).unwrap(), 42.0_f64);
-            assert_eq!(intReal(-7).unwrap(), -7.0_f64);
+            assert_eq!(intReal(42), 42.0_f64);
+            assert_eq!(intReal(-7), -7.0_f64);
         }
 
         #[test]
         fn test_int_string() {
-            assert_eq!(&*intString(42).unwrap(), "42");
-            assert_eq!(&*intString(-7).unwrap(), "-7");
-            assert_eq!(&*intString(0).unwrap(), "0");
+            assert_eq!(&*intString(42), "42");
+            assert_eq!(&*intString(-7), "-7");
+            assert_eq!(&*intString(0), "0");
         }
     }
 
@@ -1775,69 +1773,69 @@ mod tests {
 
         #[test]
         fn test_real_add() {
-            assert_eq!(realAdd(1.5, 2.5).unwrap(), 4.0);
-            assert_eq!(realAdd(-1.0, 1.0).unwrap(), 0.0);
+            assert_eq!(realAdd(1.5, 2.5), 4.0);
+            assert_eq!(realAdd(-1.0, 1.0), 0.0);
         }
 
         #[test]
         fn test_real_sub() {
-            assert_eq!(realSub(5.0, 3.0).unwrap(), 2.0);
-            assert_eq!(realSub(3.0, 5.0).unwrap(), -2.0);
+            assert_eq!(realSub(5.0, 3.0), 2.0);
+            assert_eq!(realSub(3.0, 5.0), -2.0);
         }
 
         #[test]
         fn test_real_mul() {
-            assert_eq!(realMul(3.0, 4.0).unwrap(), 12.0);
-            assert_eq!(realMul(-3.0, 4.0).unwrap(), -12.0);
+            assert_eq!(realMul(3.0, 4.0), 12.0);
+            assert_eq!(realMul(-3.0, 4.0), -12.0);
         }
 
         #[test]
         fn test_real_div() {
-            assert_eq!(realDiv(10.0, 3.0).unwrap(), 10.0 / 3.0);
-            assert_eq!(realDiv(6.0, 2.0).unwrap(), 3.0);
+            assert_eq!(realDiv(10.0, 3.0), 10.0 / 3.0);
+            assert_eq!(realDiv(6.0, 2.0), 3.0);
         }
 
         #[test]
         fn test_real_mod() {
-            assert_eq!(realMod(10.0, 3.0).unwrap(), 1.0);
-            assert_eq!(realMod(10.5, 3.0).unwrap(), 1.5);
+            assert_eq!(realMod(10.0, 3.0), 1.0);
+            assert_eq!(realMod(10.5, 3.0), 1.5);
         }
 
         #[test]
         fn test_real_pow() {
-            assert_eq!(realPow(2.0, 3.0).unwrap(), 8.0);
-            assert_eq!(realPow(9.0, 0.5).unwrap(), 3.0);
+            assert_eq!(realPow(2.0, 3.0), 8.0);
+            assert_eq!(realPow(9.0, 0.5), 3.0);
         }
 
         #[test]
         fn test_real_max() {
-            assert_eq!(realMax(1.5, 2.5).unwrap(), 2.5);
-            assert_eq!(realMax(5.0, 5.0).unwrap(), 5.0);
+            assert_eq!(realMax(1.5, 2.5), 2.5);
+            assert_eq!(realMax(5.0, 5.0), 5.0);
         }
 
         #[test]
         fn test_real_min() {
-            assert_eq!(realMin(1.5, 2.5).unwrap(), 1.5);
-            assert_eq!(realMin(5.0, 5.0).unwrap(), 5.0);
+            assert_eq!(realMin(1.5, 2.5), 1.5);
+            assert_eq!(realMin(5.0, 5.0), 5.0);
         }
 
         #[test]
         fn test_real_abs() {
-            assert_eq!(realAbs(-5.5).unwrap(), 5.5);
-            assert_eq!(realAbs(5.5).unwrap(), 5.5);
+            assert_eq!(realAbs(-5.5), 5.5);
+            assert_eq!(realAbs(5.5), 5.5);
         }
 
         #[test]
         fn test_real_almost_eq() {
-            assert!(realAlmostEq(1.0, 1.0000001, 1e-5).unwrap());
-            assert!(!realAlmostEq(1.0, 1.1, 1e-5).unwrap());
-            assert!(realAlmostEq(1.0, 1.0, 1e-6).unwrap());
+            assert!(realAlmostEq(1.0, 1.0000001, 1e-5));
+            assert!(!realAlmostEq(1.0, 1.1, 1e-5));
+            assert!(realAlmostEq(1.0, 1.0, 1e-6));
         }
 
         #[test]
         fn test_real_neg() {
-            assert_eq!(realNeg(5.5).unwrap(), -5.5);
-            assert_eq!(realNeg(-5.5).unwrap(), 5.5);
+            assert_eq!(realNeg(5.5), -5.5);
+            assert_eq!(realNeg(-5.5), 5.5);
         }
     }
 
@@ -1850,42 +1848,42 @@ mod tests {
 
         #[test]
         fn test_real_lt() {
-            assert!(realLt(1.0, 2.0).unwrap());
-            assert!(!realLt(2.0, 2.0).unwrap());
-            assert!(!realLt(2.0, 1.0).unwrap());
+            assert!(realLt(1.0, 2.0));
+            assert!(!realLt(2.0, 2.0));
+            assert!(!realLt(2.0, 1.0));
         }
 
         #[test]
         fn test_real_le() {
-            assert!(realLe(1.0, 2.0).unwrap());
-            assert!(realLe(2.0, 2.0).unwrap());
-            assert!(!realLe(2.0, 1.0).unwrap());
+            assert!(realLe(1.0, 2.0));
+            assert!(realLe(2.0, 2.0));
+            assert!(!realLe(2.0, 1.0));
         }
 
         #[test]
         fn test_real_eq() {
-            assert!(realEq(1.0, 1.0).unwrap());
-            assert!(!realEq(1.0, 2.0).unwrap());
+            assert!(realEq(1.0, 1.0));
+            assert!(!realEq(1.0, 2.0));
         }
 
         #[test]
         fn test_real_ne() {
-            assert!(realNe(1.0, 2.0).unwrap());
-            assert!(!realNe(1.0, 1.0).unwrap());
+            assert!(realNe(1.0, 2.0));
+            assert!(!realNe(1.0, 1.0));
         }
 
         #[test]
         fn test_real_ge() {
-            assert!(realGe(2.0, 1.0).unwrap());
-            assert!(realGe(2.0, 2.0).unwrap());
-            assert!(!realGe(1.0, 2.0).unwrap());
+            assert!(realGe(2.0, 1.0));
+            assert!(realGe(2.0, 2.0));
+            assert!(!realGe(1.0, 2.0));
         }
 
         #[test]
         fn test_real_gt() {
-            assert!(realGt(2.0, 1.0).unwrap());
-            assert!(!realGt(2.0, 2.0).unwrap());
-            assert!(!realGt(1.0, 2.0).unwrap());
+            assert!(realGt(2.0, 1.0));
+            assert!(!realGt(2.0, 2.0));
+            assert!(!realGt(1.0, 2.0));
         }
     }
 
@@ -1898,16 +1896,16 @@ mod tests {
 
         #[test]
         fn test_real_int() {
-            assert_eq!(realInt(3.7).unwrap(), 3);
-            assert_eq!(realInt(-3.7).unwrap(), -3);
-            assert_eq!(realInt(3.0).unwrap(), 3);
+            assert_eq!(realInt(3.7), 3);
+            assert_eq!(realInt(-3.7), -3);
+            assert_eq!(realInt(3.0), 3);
         }
 
         #[test]
         fn test_real_string() {
-            assert_eq!(&*realString(3.14).unwrap(), "3.14");
-            assert_eq!(&*realString(0.0).unwrap(), "0");
-            assert_eq!(&*realString(-1.5).unwrap(), "-1.5");
+            assert_eq!(&*realString(3.14), "3.14");
+            assert_eq!(&*realString(0.0), "0");
+            assert_eq!(&*realString(-1.5), "-1.5");
         }
     }
 
@@ -1927,10 +1925,10 @@ mod tests {
 
         #[test]
         fn test_int_string_char() {
-            assert_eq!(&*intStringChar(65).unwrap(), "A");
-            assert_eq!(&*intStringChar(97).unwrap(), "a");
-            assert_eq!(&*intStringChar(48).unwrap(), "0");
-            assert_eq!(&*intStringChar(0).unwrap(), "\0");
+            assert_eq!(&*intStringChar(65), "A");
+            assert_eq!(&*intStringChar(97), "a");
+            assert_eq!(&*intStringChar(48), "0");
+            assert_eq!(&*intStringChar(0), "\0");
         }
 
         #[test]
@@ -1956,13 +1954,13 @@ mod tests {
         #[test]
         fn test_string_append_list() {
             let strs = list![literal!("hello"), literal!(" "), literal!("world")];
-            assert_eq!(&*stringAppendList(strs).unwrap(), "hello world");
+            assert_eq!(&*stringAppendList(strs), "hello world");
         }
 
         #[test]
         fn test_string_delimit_list() {
             let strs: Arc<List<ArcStr>> = list![literal!("x"), literal!("y"), literal!("z")];
-            assert_eq!(stringDelimitList(strs, literal!(", ")).unwrap(), "x, y, z");
+            assert_eq!(stringDelimitList(strs, literal!(", ")), "x, y, z");
         }
     }
 
@@ -1975,14 +1973,14 @@ mod tests {
 
         #[test]
         fn test_string_length() {
-            assert_eq!(stringLength("hello".into()).unwrap(), 5);
-            assert_eq!(stringLength("".into()).unwrap(), 0);
+            assert_eq!(stringLength("hello".into()), 5);
+            assert_eq!(stringLength("".into()), 0);
         }
 
         #[test]
         fn test_string_empty() {
-            assert!(stringEmpty("".into()).unwrap());
-            assert!(!stringEmpty("hello".into()).unwrap());
+            assert!(stringEmpty("".into()));
+            assert!(!stringEmpty("hello".into()));
         }
     }
 
@@ -2030,22 +2028,22 @@ mod tests {
 
         #[test]
         fn test_string_append() {
-            assert_eq!(stringAppend(literal!("hello"), literal!(" world")).unwrap(), literal!("hello world"));
-            assert_eq!(stringAppend(literal!(""), literal!("hello")).unwrap(), literal!("hello"));
-            assert_eq!(stringAppend(literal!("hello"), literal!("")).unwrap(), literal!("hello"));
+            assert_eq!(stringAppend(literal!("hello"), literal!(" world")), literal!("hello world"));
+            assert_eq!(stringAppend(literal!(""), literal!("hello")), literal!("hello"));
+            assert_eq!(stringAppend(literal!("hello"), literal!("")), literal!("hello"));
         }
 
         #[test]
         fn test_string_eq() {
-            assert!(stringEq(literal!("abc"), literal!("abc")).unwrap());
-            assert!(!stringEq(literal!("abc"), literal!("abd")).unwrap());
-            assert!(!stringEq(literal!(""), literal!("abc")).unwrap());
+            assert!(stringEq(literal!("abc"), literal!("abc")));
+            assert!(!stringEq(literal!("abc"), literal!("abd")));
+            assert!(!stringEq(literal!(""), literal!("abc")));
         }
 
         #[test]
         fn test_string_equal() {
-            assert!(stringEqual(literal!("abc"), literal!("abc")).unwrap());
-            assert!(!stringEqual(literal!("abc"), literal!("abd")).unwrap());
+            assert!(stringEqual(literal!("abc"), literal!("abc")));
+            assert!(!stringEqual(literal!("abc"), literal!("abd")));
         }
     }
 
@@ -2058,11 +2056,11 @@ mod tests {
 
         #[test]
         fn test_string_compare() {
-            assert!(stringCompare(literal!("abc"), literal!("abd")).unwrap() < 0);
-            assert_eq!(stringCompare(literal!("abc"), literal!("abc")).unwrap(), 0);
-            assert!(stringCompare(literal!("abd"), literal!("abc")).unwrap() > 0);
-            assert!(stringCompare(literal!("ab"), literal!("abc")).unwrap() < 0);
-            assert!(stringCompare(literal!("abc"), literal!("ab")).unwrap() > 0);
+            assert!(stringCompare(literal!("abc"), literal!("abd")) < 0);
+            assert_eq!(stringCompare(literal!("abc"), literal!("abc")), 0);
+            assert!(stringCompare(literal!("abd"), literal!("abc")) > 0);
+            assert!(stringCompare(literal!("ab"), literal!("abc")) < 0);
+            assert!(stringCompare(literal!("abc"), literal!("ab")) > 0);
         }
     }
 
@@ -2076,38 +2074,38 @@ mod tests {
         #[test]
         fn test_string_hash_djb2() {
             // DJB2 of "a" = 5381 * 33 + 97 = 177700 + 97 = 177797
-            assert_eq!(stringHashDjb2(literal!("a")).unwrap(), 5381_i32.wrapping_mul(33).wrapping_add(97));
-            assert_eq!(stringHashDjb2(literal!("")).unwrap(), 5381);
+            assert_eq!(stringHashDjb2(literal!("a")), 5381_i32.wrapping_mul(33).wrapping_add(97));
+            assert_eq!(stringHashDjb2(literal!("")), 5381);
         }
 
         #[test]
         fn test_string_hash_djb2_continue() {
-            let h1 = stringHashDjb2(literal!("hello")).unwrap();
-            let _h2 = stringHashDjb2(literal!(" world")).unwrap();
-            let combined = stringHashDjb2Continue(literal!(" world"), h1).unwrap();
+            let h1 = stringHashDjb2(literal!("hello"));
+            let _h2 = stringHashDjb2(literal!(" world"));
+            let combined = stringHashDjb2Continue(literal!(" world"), h1);
             // Starting from h1 and adding " world" should give the same
             // as hashing "hello world" from scratch
-            assert_eq!(combined, stringHashDjb2(literal!("hello world")).unwrap());
+            assert_eq!(combined, stringHashDjb2(literal!("hello world")));
         }
 
         #[test]
         fn test_string_hash_djb2_mod() {
-            let h = stringHashDjb2Mod(literal!("hello"), 100).unwrap();
+            let h = stringHashDjb2Mod(literal!("hello"), 100);
             assert!(h >= 0 && h < 100);
-            assert_eq!(stringHashDjb2Mod(literal!("hello"), 0).unwrap(), 0);
+            assert_eq!(stringHashDjb2Mod(literal!("hello"), 0), 0);
         }
 
         #[test]
         fn test_string_hash_sdbm() {
             // SDBM of "a" = 97 + 0 + 0 - 0 = 97
-            assert_eq!(stringHashSdbm(literal!("a")).unwrap(), 97);
-            assert_eq!(stringHashSdbm(literal!("")).unwrap(), 0);
+            assert_eq!(stringHashSdbm(literal!("a")), 97);
+            assert_eq!(stringHashSdbm(literal!("")), 0);
         }
 
         #[test]
         fn test_string_hash_consistency() {
             // Same string should produce same hash
-            assert_eq!(stringHash(literal!("test")).unwrap(), stringHash(literal!("test")).unwrap());
+            assert_eq!(stringHash(literal!("test")), stringHash(literal!("test")));
         }
     }
 
@@ -2145,13 +2143,13 @@ mod tests {
         #[test]
         fn test_list_string_char_string() {
             let strs: Arc<List<ArcStr>> = list![literal!("a"), literal!("b"), literal!("c")];
-            assert_eq!(&*listStringCharString(strs).unwrap(), "abc");
+            assert_eq!(&*listStringCharString(strs), "abc");
         }
 
         #[test]
         fn test_string_char_list_string() {
             let strs: Arc<List<ArcStr>> = list![literal!("a"), literal!("b"), literal!("c")];
-            assert_eq!(&*stringCharListString(strs).unwrap(), "abc");
+            assert_eq!(&*stringCharListString(strs), "abc");
         }
     }
 
@@ -2281,14 +2279,14 @@ mod tests {
 
         #[test]
         fn test_array_length() {
-            assert_eq!(arrayLength(arr(vec![1, 2, 3])).unwrap(), 3);
-            assert_eq!(arrayLength(arr::<i32>(vec![])).unwrap(), 0);
+            assert_eq!(arrayLength(arr(vec![1, 2, 3])), 3);
+            assert_eq!(arrayLength(arr::<i32>(vec![])), 0);
         }
 
         #[test]
         fn test_array_empty() {
-            assert!(!arrayEmpty(arr(vec![1, 2, 3])).unwrap());
-            assert!(arrayEmpty(arr::<i32>(vec![])).unwrap());
+            assert!(!arrayEmpty(arr(vec![1, 2, 3])));
+            assert!(arrayEmpty(arr::<i32>(vec![])));
         }
 
         #[test]
@@ -2303,23 +2301,23 @@ mod tests {
 
         #[test]
         fn test_array_create() {
-            let a = arrayCreate(5, 0).unwrap();
+            let a = arrayCreate(5, 0);
             assert_eq!(*a.borrow(), vec![0, 0, 0, 0, 0]);
-            let empty: Array<i32> = arrayCreate(0, 42).unwrap();
+            let empty: Array<i32> = arrayCreate(0, 42);
             assert!(empty.borrow().is_empty());
         }
 
         #[test]
         fn test_array_list() {
             let a = arr(vec![1, 2, 3]);
-            let lst = arrayList(a).unwrap();
+            let lst = arrayList(a);
             assert_eq!(lst, list![1, 2, 3]);
         }
 
         #[test]
         fn test_list_array() {
             let lst = list![1, 2, 3];
-            let a = listArray(lst).unwrap();
+            let a = listArray(lst);
             assert_eq!(*a.borrow(), vec![1, 2, 3]);
         }
 
@@ -2340,7 +2338,7 @@ mod tests {
         #[test]
         fn test_array_copy() {
             let a = arr(vec![1, 2, 3]);
-            let copy = arrayCopy(a.clone()).unwrap();
+            let copy = arrayCopy(a.clone());
             assert_eq!(*copy.borrow(), vec![1, 2, 3]);
             // arrayCopy must NOT share storage with the source.
             arrayUpdate(a, 1, 99).unwrap();
@@ -2351,11 +2349,11 @@ mod tests {
         fn test_array_append() {
             let a = arr(vec![1, 2]);
             let b = arr(vec![3, 4]);
-            assert_eq!(*arrayAppend(a.clone(), b.clone()).unwrap().borrow(), vec![1, 2, 3, 4]);
+            assert_eq!(*arrayAppend(a.clone(), b.clone()).borrow(), vec![1, 2, 3, 4]);
 
             let empty: Array<i32> = arr(vec![]);
-            assert_eq!(*arrayAppend(empty.clone(), b).unwrap().borrow(), vec![3, 4]);
-            assert_eq!(*arrayAppend(a, empty).unwrap().borrow(), vec![1, 2]);
+            assert_eq!(*arrayAppend(empty.clone(), b).borrow(), vec![3, 4]);
+            assert_eq!(*arrayAppend(a, empty).borrow(), vec![1, 2]);
         }
     }
 
@@ -2370,16 +2368,16 @@ mod tests {
         fn test_any_string() {
             let val = 42i32;
             let result = anyString(&val);
-            assert_eq!(&*result.unwrap(), "42");
+            assert_eq!(&*result, "42");
 
             let s = "hello";
-            assert!(anyString(&s).unwrap().contains("hello"));
+            assert!(anyString(&s).contains("hello"));
         }
 
         #[test]
         fn test_tick() {
-            let t1 = tick().unwrap();
-            let t2 = tick().unwrap();
+            let t1 = tick();
+            let t2 = tick();
             assert_eq!(t2, t1+1);
         }
 
@@ -2394,13 +2392,13 @@ mod tests {
 
         #[test]
         fn test_value_compare() {
-            assert_eq!(valueCompare(&1, &2).unwrap(), -1);
-            assert_eq!(valueCompare(&2, &2).unwrap(), 0);
-            assert_eq!(valueCompare(&3, &2).unwrap(), 1);
+            assert_eq!(valueCompare(&1, &2), -1);
+            assert_eq!(valueCompare(&2, &2), 0);
+            assert_eq!(valueCompare(&3, &2), 1);
 
-            assert_eq!(valueCompare(&"abc", &"abd").unwrap(), -1);
-            assert_eq!(valueCompare(&"abc", &"abc").unwrap(), 0);
-            assert_eq!(valueCompare(&"abd", &"abc").unwrap(), 1);
+            assert_eq!(valueCompare(&"abc", &"abd"), -1);
+            assert_eq!(valueCompare(&"abc", &"abc"), 0);
+            assert_eq!(valueCompare(&"abd", &"abc"), 1);
         }
 
         #[test]
@@ -2408,10 +2406,10 @@ mod tests {
             let a = 42;
             let b = 42;
             // Same reference should be equal
-            assert!(referenceEq(&a, &a).unwrap());
+            assert!(referenceEq(&a, &a));
             // Different references with same value
             // reference_eq checks pointer equality, so different vars may not be equal
-            assert!(referenceEq(&a, &b).unwrap() || !referenceEq(&a, &b).unwrap()); // either is valid
+            assert!(referenceEq(&a, &b) || !referenceEq(&a, &b)); // either is valid
         }
 
         #[test]
@@ -2503,21 +2501,21 @@ mod tests {
         fn test_array_get_no_bounds_checking() {
             let arr = arrayFromVec(vec![10, 20, 30]);
             // Valid 1-based indices
-            assert_eq!(arrayGetNoBoundsChecking(arr.clone(), 1).unwrap(), 10);
-            assert_eq!(arrayGetNoBoundsChecking(arr.clone(), 2).unwrap(), 20);
-            assert_eq!(arrayGetNoBoundsChecking(arr, 3).unwrap(), 30);
+            assert_eq!(arrayGetNoBoundsChecking(arr.clone(), 1), 10);
+            assert_eq!(arrayGetNoBoundsChecking(arr.clone(), 2), 20);
+            assert_eq!(arrayGetNoBoundsChecking(arr, 3), 30);
         }
 
         #[test]
         fn test_array_update_no_bounds_checking() {
             let arr = arrayFromVec(vec![1, 2, 3]);
-            arrayUpdateNoBoundsChecking(arr.clone(), 2, 99).unwrap();
+            arrayUpdateNoBoundsChecking(arr.clone(), 2, 99);
             assert_eq!(*arr.borrow(), vec![1, 99, 3]);
         }
 
         #[test]
         fn test_array_create_no_init() {
-            let arr: Array<i32> = arrayCreateNoInit(5).unwrap();
+            let arr: Array<i32> = arrayCreateNoInit(5);
             assert_eq!(arr.borrow().len(), 5);
         }
 

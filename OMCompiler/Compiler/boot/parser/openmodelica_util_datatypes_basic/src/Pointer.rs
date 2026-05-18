@@ -76,7 +76,7 @@ pub fn clone<T: Clone + PartialEq>(mutable: Pointer<T>) -> Pointer<T> {
 // fails. Surface a misuse as a panic, consistent with the C runtime.
 pub fn apply<T: Clone + PartialEq>(mutable: Pointer<T>, func: fn(T) -> anyhow::Result<T>) -> Pointer<T> {
     let new = func(access(mutable.clone())).unwrap();
-    if !referenceEq(&new, &access(mutable.clone())).unwrap() {
+    if !referenceEq(&new, &access(mutable.clone())) {
         update(mutable.clone(), new);
     }
     mutable

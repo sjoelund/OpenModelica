@@ -2989,10 +2989,20 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                 _ => None,
             };
 
+            // A reference is infallible if:
+            //   (a) it resolves to a user-defined function that the fallibility
+            //       analysis classified as infallible, OR
+            //   (b) it is one of the builtins that `is_infallible_builtin`
+            //       recognises (e.g. `valueEq`, `intEq`). Builtins are not in
+            //       `top_level`, so `resolve_call_qname` returns `None` for
+            //       them; we fall back to checking the bare `name` directly.
+            //       When the name *does* resolve (qualified path in `top_level`),
+            //       the qualified form is checked against both sources so that
+            //       e.g. `MetaModelica.valueEq` still matches.
             let infallible_ref = resolved_fn_qname
                 .as_deref()
-                .map(|q| ctx.is_known_infallible_user_fn(q, top_level))
-                .unwrap_or(false);
+                .map(|q| ctx.is_known_infallible_user_fn(q, top_level) || is_infallible_builtin(q))
+                .unwrap_or_else(|| is_infallible_builtin(name));
 
             // Some MetaModelica builtins share a name with a Rust language
             // construct (`print` is a macro, `String` is a struct, etc.).
@@ -3287,24 +3297,25 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
             // the generated Rust returns:
             //   * `T`         — if the callee is an *infallible user function*
             //                   (its Rust signature was generated without
-            //                   `Result<>` by `emit_function`).
-            //   * `Result<T>` — otherwise (builtins still uniformly return
-            //                   `Result`; fallible user functions return
-            //                   `Result`).
+            //                   `Result<>` by `emit_function`), or if it is an
+            //                   infallible builtin (whose lib.rs signature now
+            //                   returns bare `T`).
+            //   * `Result<T>` — otherwise (fallible user functions or fallible
+            //                   builtins return `Result`).
             //
             // We can only resolve "infallible user function" from the dotted
-            // name through the hierarchy (builtins are not in the hierarchy
-            // and never qualify). Const contexts produce constant expressions
-            // and never wrap.
+            // name through the hierarchy. Const contexts produce constant
+            // expressions and never wrap.
             if is_const {
                 call
             } else {
                 let callee_qname = resolve_call_qname(func, ctx, top_level);
-                let infallible_user = callee_qname
+                let infallible = callee_qname
                     .as_deref()
                     .map(|q| ctx.is_known_infallible_user_fn(q, top_level))
-                    .unwrap_or(false);
-                if infallible_user {
+                    .unwrap_or(false)
+                    || is_infallible_builtin(func);
+                if infallible {
                     call
                 } else {
                     ctx.q(&call)
@@ -4286,7 +4297,8 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
             // unpacked via `.0` against the correct scalar formal type.
             let arg1 = emit_builtin_call_arg(f, 0, a1, is_const, ctx, top_level);
             let arg2 = emit_builtin_call_arg(f, 1, a2, is_const, ctx, top_level);
-            Ok(ctx.q(&format!("{f}({arg1}, {arg2})")))
+            // intMod and realMod are both infallible: no ctx.q() needed
+            Ok(format!("{f}({arg1}, {arg2})"))
         },
         "div" => {
             let arg1 = args.first().map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
@@ -4317,7 +4329,8 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
         "referenceEq" => {
             let arg1 = args.first().map(|a| emit_builtin_call_arg_raw(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
             let arg2 = args.get(1).map(|a| emit_builtin_call_arg_raw(func, 1, a, is_const, ctx, top_level)).unwrap_or_default();
-            Ok(ctx.q(&format!("referenceEq(&{arg1},&{arg2})")))
+            // referenceEq is infallible: returns bool directly, no ctx.q() needed
+            Ok(format!("referenceEq(&{arg1},&{arg2})"))
         },
         "isPresent" => {
             Ok(format!("true /* isPresent not implemented in Rust */"))
@@ -4338,14 +4351,14 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
         // ctx.q for non-const contexts.
         "arrayCreateNoInit" => {
             let arg1 = args.first().map(|a| emit_builtin_call_arg_raw(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
-            let call = format!("metamodelica::Dangerous::arrayCreateNoInit({arg1})");
-            if is_const { Ok(call) } else { Ok(ctx.q(&call)) }
+            // arrayCreateNoInit is infallible: returns Array<A> directly
+            Ok(format!("metamodelica::Dangerous::arrayCreateNoInit({arg1})"))
         },
         "arrayClearIndex" => {
             let arg1 = args.first().map(|a| emit_builtin_call_arg_raw(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
             let arg2 = args.get(1).map(|a| emit_builtin_call_arg_raw(func, 1, a, is_const, ctx, top_level)).unwrap_or_default();
-            let call = format!("metamodelica::Dangerous::arrayClearIndex({arg1}, {arg2})");
-            if is_const { Ok(call) } else { Ok(ctx.q(&call)) }
+            // arrayClearIndex is infallible: returns () directly
+            Ok(format!("metamodelica::Dangerous::arrayClearIndex({arg1}, {arg2})"))
         },
         "arrayUpdate"| "arrayUpdateNoBoundsChecking" => {
             // MM semantics: mutate in place, return the same array (aliases see the change).
@@ -6303,40 +6316,13 @@ fn sourceinfo_field_name_by_index(i: usize) -> &'static str {
 }
 
 fn is_infallible_builtin(func: &str) -> bool {
-    if func.ends_with("Dangerous.arrayGetNoBoundsChecking")
-        || func.ends_with("Dangerous.arrayUpdateNoBoundsChecking")
-        || func.ends_with("Dangerous.arrayCreateNoInit")
-        || func.ends_with("Dangerous::arrayGetNoBoundsChecking")
-        || func.ends_with("Dangerous::arrayUpdateNoBoundsChecking")
-        || func.ends_with("Dangerous::arrayCreateNoInit")
-    {
-        return true;
-    }
-
-    matches!(func,
-        "intAdd" | "intSub" | "intMul" | "intDiv" | "intMod" | "intAbs"
-        | "intMax" | "intMin" | "intNeg" | "intBitAnd" | "intBitOr" | "intBitXor"
-        | "intBitNot" | "intBitLShift" | "intBitRShift" | "intReal" | "intString"
-        | "realAdd" | "realSub" | "realMul" | "realDiv" | "realMod" | "realPow"
-        | "realAbs" | "realMax" | "realMin" | "realNeg" | "realFloor" | "realCeil"
-        | "realInt" | "realString"
-        | "boolAnd" | "boolOr" | "boolNot" | "boolEq" | "boolString"
-        | "intEq" | "intNe" | "intLt" | "intLe" | "intGt" | "intGe"
-        | "realEq" | "realNe" | "realLt" | "realLe" | "realGt" | "realGe"
-        | "stringEq" | "stringEqual" | "stringCompare" | "stringHash" | "stringHashDjb2"
-        | "stringLength" | "stringAppend" | "stringAppendList" | "anyString"
-        | "referenceEq" | "valueEq" | "isEmpty" | "isSome" | "isNone"
-        | "listLength" | "listEmpty" | "listMember" | "listAppend"
-        | "listReverse" | "listHead" | "listFirst" | "listRest" | "listTail"
-        | "arrayLength" | "arrayCreate" | "arrayGet" | "arrayUpdate" | "arrayCopy"
-        | "MetaModelica.Dangerous.arrayGetNoBoundsChecking"
-        | "MetaModelica.Dangerous.arrayUpdateNoBoundsChecking"
-        | "MetaModelica.Dangerous.arrayCreateNoInit"
-        | "Dangerous.arrayGetNoBoundsChecking"
-        | "Dangerous.arrayUpdateNoBoundsChecking"
-        | "Dangerous.arrayCreateNoInit"
-        | "print" | "printError"
-    )
+    use crate::external_c_calls::Fallibility;
+    use crate::fallibility::builtin_fallibility;
+    // Strip any module prefix so "MetaModelica.Dangerous.arrayGetNoBoundsChecking"
+    // → "arrayGetNoBoundsChecking", "Dangerous.arrayCreateNoInit" → "arrayCreateNoInit",
+    // and plain "intMul" → "intMul".
+    let bare = func.rsplit('.').next().unwrap_or(func);
+    matches!(builtin_fallibility(bare), Some(Fallibility::Infallible))
 }
 
 /// True if `pat` contains any identifier binding (Var or nested As). Used by

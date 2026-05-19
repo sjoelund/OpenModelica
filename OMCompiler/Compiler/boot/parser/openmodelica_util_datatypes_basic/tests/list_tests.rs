@@ -160,11 +160,9 @@ fn test_combination() -> Result<()> {
 fn combination_map_fn(pair: Arc<metamodelica::List<i32>>) -> Result<i32> { Ok(pair.len()) }
 #[test]
 fn test_combination_map() -> Result<()> {
-    // TODO: combinationMap has a compiler recursion limit bug in List.rs internals
-    // let lst = list![list![1i32, 2], list![3i32, 4]];
-    // let result = L::combinationMap(Arc::clone(&lst), &combination_map_fn)?;
-    // assert!(result.len() >= 0);
-    assert!(false, "combinationMap hits infinite monomorphization recursion (codegen bug: &(inMapFunc) in recursive call)");
+    let lst = list![list![1i32, 2], list![3i32, 4]];
+    let result = L::combinationMap(Arc::clone(&lst), &combination_map_fn);
+    assert!(result.len() >= 0);
     Ok(())
 }
 
@@ -296,24 +294,20 @@ fn test_delete_member_on_true() -> Result<()> {
 // ── DeletePositions ──
 #[test]
 fn test_delete_positions() -> Result<()> {
-    // TODO: deletePositions internally calls sort(), which hits infinite monomorphization recursion (codegen bug)
-    // let lst = list![1i32, 2, 3, 4, 5];
-    // let positions = list![2i32, 4];
-    // let result = L::deletePositions(Arc::clone(&lst), Arc::clone(&positions), false)?;
-    // assert_eq!(result, list![1i32, 3, 5]);
-    assert!(false, "deletePositions internally calls sort() which hits infinite monomorphization recursion (codegen bug: &(inCompFunc))");
+    let lst = list![1i32, 2, 3, 4, 5];
+    let positions = list![2i32, 4];
+    let result = L::deletePositions(Arc::clone(&lst), Arc::clone(&positions), false)?;
+    assert_eq!(result, list![1i32, 3, 5]);
     Ok(())
 }
 
 // ── DeletePositionsSorted ──
 #[test]
 fn test_delete_positions_sorted() -> Result<()> {
-    // TODO: deletePositionsSorted internally calls sort(), which hits infinite monomorphization recursion (codegen bug)
-    // let lst = list![1i32, 2, 3, 4, 5];
-    // let positions = list![1i32, 3, 5];
-    // let result = L::deletePositionsSorted(Arc::clone(&lst), Arc::clone(&positions), false)?;
-    // assert_eq!(result, list![2i32, 4]);
-    assert!(false, "deletePositionsSorted internally calls sort() which hits infinite monomorphization recursion (codegen bug: &(inCompFunc))");
+    let lst = list![1i32, 2, 3, 4, 5];
+    let positions = list![1i32, 3, 5];
+    let result = L::deletePositionsSorted(Arc::clone(&lst), Arc::clone(&positions), false)?;
+    assert_eq!(result, list![2i32, 4]);
     Ok(())
 }
 
@@ -804,12 +798,10 @@ fn test_insert() -> Result<()> {
 // ── InsertListSorted ──
 #[test]
 fn test_insert_list_sorted() -> Result<()> {
-    // TODO: insertListSorted1 hits infinite monomorphization recursion (codegen bug: &(inCompFunc) in recursive call)
-    // let lst = list![1i32, 3, 5];
-    // let to_insert = list![2i32, 4];
-    // let result = L::insertListSorted(Arc::clone(&lst), Arc::clone(&to_insert), &less_i)?;
-    // assert_eq!(result, list![1i32, 2, 3, 4, 5]);
-    assert!(false, "insertListSorted1 hits infinite monomorphization recursion (codegen bug: &(inCompFunc) in recursive call)");
+    let lst = list![1i32, 3, 5];
+    let to_insert = list![2i32, 4];
+    let result = L::insertListSorted(Arc::clone(&lst), Arc::clone(&to_insert), &less_i)?;
+    assert_eq!(result, list![1i32, 2, 3, 4, 5]);
     Ok(())
 }
 
@@ -880,10 +872,8 @@ fn test_is_equal_false() -> Result<()> {
 // ── IsEqualOnTrue ──
 #[test]
 fn test_is_equal_on_true() -> Result<()> {
-    // TODO: isEqualOnTrue hits infinite monomorphization recursion (codegen bug: &(inCompFunc) in recursive call)
-    // assert!(L::isEqualOnTrue(list![1i32, 2], list![1i32, 2], &eq_i)?);
-    // assert!(!L::isEqualOnTrue(list![1i32, 2], list![1i32, 3], &eq_i)?);
-    assert!(false, "isEqualOnTrue hits infinite monomorphization recursion (codegen bug: &(inCompFunc) in recursive call)");
+    assert!(L::isEqualOnTrue(list![1i32, 2], list![1i32, 2], &eq_i));
+    assert!(!L::isEqualOnTrue(list![1i32, 2], list![1i32, 3], &eq_i));
     Ok(())
 }
 
@@ -898,36 +888,30 @@ fn test_is_member_on_true() {
 // ── IsPrefixOnTrue ──
 #[test]
 fn test_is_prefix_on_true() -> Result<()> {
-    // TODO: isPrefixOnTrue hits infinite monomorphization recursion (codegen bug: &(inCompFunc) in recursive call)
-    // let prefix = list![1i32, 2];
-    // let full = list![1i32, 2, 3, 4];
-    // assert!(L::isPrefixOnTrue(Arc::clone(&prefix), Arc::clone(&full), &eq_i)?);
-    // assert!(!L::isPrefixOnTrue(list![1i32, 3], full, &eq_i)?);
-    assert!(false, "isPrefixOnTrue hits infinite monomorphization recursion (codegen bug: &(inCompFunc) in recursive call)");
+    let prefix = list![1i32, 2];
+    let full = list![1i32, 2, 3, 4];
+    assert!(L::isPrefixOnTrue(Arc::clone(&prefix), Arc::clone(&full), &eq_i));
+    assert!(!L::isPrefixOnTrue(list![1i32, 3], full, &eq_i));
     Ok(())
 }
 
 // ── KeepPositions ──
 #[test]
 fn test_keep_positions() -> Result<()> {
-    // TODO: keepPositions internally calls sort(), which hits infinite monomorphization recursion (codegen bug)
-    // let lst = list![1i32, 2, 3, 4, 5];
-    // let positions = list![1i32, 3, 5];
-    // let result = L::keepPositions(Arc::clone(&lst), Arc::clone(&positions), false)?;
-    // assert_eq!(result, list![1i32, 3, 5]);
-    assert!(false, "keepPositions internally calls sort() which hits infinite monomorphization recursion (codegen bug: &(inCompFunc))");
+    let lst = list![1i32, 2, 3, 4, 5];
+    let positions = list![1i32, 3, 5];
+    let result = L::keepPositions(Arc::clone(&lst), Arc::clone(&positions), false)?;
+    assert_eq!(result, list![1i32, 3, 5]);
     Ok(())
 }
 
 // ── KeepPositionsSorted ──
 #[test]
 fn test_keep_positions_sorted() -> Result<()> {
-    // TODO: keepPositionsSorted internally calls sort(), which hits infinite monomorphization recursion (codegen bug)
-    // let lst = list![1i32, 2, 3, 4, 5];
-    // let positions = list![1i32, 3, 5];
-    // let result = L::keepPositionsSorted(Arc::clone(&lst), Arc::clone(&positions), false)?;
-    // assert_eq!(result, list![1i32, 3, 5]);
-    assert!(false, "keepPositionsSorted internally calls sort() which hits infinite monomorphization recursion (codegen bug: &(inCompFunc))");
+    let lst = list![1i32, 2, 3, 4, 5];
+    let positions = list![1i32, 3, 5];
+    let result = L::keepPositionsSorted(Arc::clone(&lst), Arc::clone(&positions), false)?;
+    assert_eq!(result, list![1i32, 3, 5]);
     Ok(())
 }
 
@@ -1600,11 +1584,9 @@ fn test_set_equal_on_true() {
 // ── Sort ──
 #[test]
 fn test_sort() -> Result<()> {
-    // TODO: sort hits infinite monomorphization recursion (codegen bug: &(inCompFunc) in recursive call)
-    // let lst = list![3i32, 1, 4, 1, 5, 9, 2, 6];
-    // let result = L::sort(Arc::clone(&lst), &less_i)?;
-    // assert_eq!(result, list![9i32, 6, 5, 4, 3, 2, 1, 1]);
-    assert!(false, "sort hits infinite monomorphization recursion (codegen bug: &(inCompFunc) in recursive call)");
+    let lst = list![3i32, 1, 4, 1, 5, 9, 2, 6];
+    let result = L::sort(Arc::clone(&lst), &less_i)?;
+    assert_eq!(result, list![9i32, 6, 5, 4, 3, 2, 1, 1]);
     Ok(())
 }
 
@@ -1808,48 +1790,40 @@ fn test_thread3_map_fold() -> Result<()> {
 // ── ThreadFold ──
 #[test]
 fn test_thread_fold() -> Result<()> {
-    // TODO: threadFold hits infinite monomorphization recursion (codegen bug: &(inFoldFunc) in recursive call)
-    // let a = list![1i32, 2, 3];
-    // let b = list![4i32, 5, 6];
-    // let result = L::threadFold(Arc::clone(&a), Arc::clone(&b), &|x, y, acc| Ok(acc + x + y), 0i32)?;
-    // assert_eq!(result, 21);
-    assert!(false, "threadFold hits infinite monomorphization recursion (codegen bug: &(inFoldFunc) in recursive call)");
+    let a = list![1i32, 2, 3];
+    let b = list![4i32, 5, 6];
+    let result = L::threadFold(Arc::clone(&a), Arc::clone(&b), &|x, y, acc| Ok(acc + x + y), 0i32)?;
+    assert_eq!(result, 21);
     Ok(())
 }
 
 // ── ThreadFold1 ──
 #[test]
 fn test_thread_fold1() -> Result<()> {
-    // TODO: threadFold1 hits infinite monomorphization recursion (codegen bug: &(inFoldFunc) in recursive call)
-    // let a = list![1i32, 2];
-    // let b = list![3i32, 4];
-    // let result = L::threadFold1(Arc::clone(&a), Arc::clone(&b), &|x, y, _arg: i32, acc| Ok(acc + x + y), 0i32, 0i32)?;
-    // assert_eq!(result, 10);
-    assert!(false, "threadFold1 hits infinite monomorphization recursion (codegen bug: &(inFoldFunc) in recursive call)");
+    let a = list![1i32, 2];
+    let b = list![3i32, 4];
+    let result = L::threadFold1(Arc::clone(&a), Arc::clone(&b), &|x, y, _arg: i32, acc| Ok(acc + x + y), 0i32, 0i32)?;
+    assert_eq!(result, 10);
     Ok(())
 }
 
 // ── ThreadFold2 ──
 #[test]
 fn test_thread_fold2() -> Result<()> {
-    // TODO: threadFold2 hits infinite monomorphization recursion (codegen bug: &(inFoldFunc) in recursive call)
-    // let a = list![1i32];
-    // let b = list![2i32];
-    // let result = L::threadFold2(Arc::clone(&a), Arc::clone(&b), &|x, y, _a: i32, _b: i32, acc| Ok(acc + x + y), 0i32, 0i32, 0i32)?;
-    // assert_eq!(result, 3);
-    assert!(false, "threadFold2 hits infinite monomorphization recursion (codegen bug: &(inFoldFunc) in recursive call)");
+    let a = list![1i32];
+    let b = list![2i32];
+    let result = L::threadFold2(Arc::clone(&a), Arc::clone(&b), &|x, y, _a: i32, _b: i32, acc| Ok(acc + x + y), 0i32, 0i32, 0i32)?;
+    assert_eq!(result, 3);
     Ok(())
 }
 
 // ── ThreadFold3 ──
 #[test]
 fn test_thread_fold3() -> Result<()> {
-    // TODO: threadFold3 hits infinite monomorphization recursion (codegen bug: &(inFoldFunc) in recursive call)
-    // let a = list![1i32];
-    // let b = list![2i32];
-    // let result = L::threadFold3(Arc::clone(&a), Arc::clone(&b), &|x, y, _a: i32, _b: i32, _c: i32, acc| Ok(acc + x + y), 0i32, 0i32, 0i32, 0i32)?;
-    // assert_eq!(result, 3);
-    assert!(false, "threadFold3 hits infinite monomorphization recursion (codegen bug: &(inFoldFunc) in recursive call)");
+    let a = list![1i32];
+    let b = list![2i32];
+    let result = L::threadFold3(Arc::clone(&a), Arc::clone(&b), &|x, y, _a: i32, _b: i32, _c: i32, acc| Ok(acc + x + y), 0i32, 0i32, 0i32, 0i32)?;
+    assert_eq!(result, 3);
     Ok(())
 }
 
@@ -1874,10 +1848,9 @@ fn test_thread_map1() {
 // ── ThreadMap1_0 ──
 #[test]
 fn test_thread_map1_0() -> Result<()> {
-    // TODO: threadMap1_0 hits infinite monomorphization recursion (codegen bug: &(inMapFunc) in recursive call)
-    // let a = list![1i32, 2];
-    // let b = list![3i32, 4];
-    // L::threadMap1_0(Arc::clone(&a), Arc::clone(&b), &|_x, _y, _arg: i32| Ok(()), 0i32)?;
+    let a = list![1i32, 2];
+    let b = list![3i32, 4];
+    L::threadMap1_0(Arc::clone(&a), Arc::clone(&b), &|_x, _y, _arg: i32| Ok(()), 0i32)?;
     assert!(false, "threadMap1_0 hits infinite monomorphization recursion (codegen bug: &(inMapFunc) in recursive call)");
     Ok(())
 }
@@ -1894,10 +1867,9 @@ fn test_thread_map2() {
 // ── ThreadMapAllValue ──
 #[test]
 fn test_thread_map_all_value() -> Result<()> {
-    // TODO: threadMapAllValue is not implemented in List.rs
-    // let a = list![1i32, 2, 3];
-    // let b = list![1i32, 2, 3];
-    // L::threadMapAllValue(Arc::clone(&a), Arc::clone(&b), &|x, y| Ok(x == y), true)?;
+    let a = list![1i32, 2, 3];
+    let b = list![1i32, 2, 3];
+    L::threadMapAllValue(Arc::clone(&a), Arc::clone(&b), &|x, y| Ok(x == y), true);
     assert!(false, "threadMapAllValue is missing from List.rs implementation");
     Ok(())
 }
@@ -2236,21 +2208,17 @@ fn test_set_difference_all_in_b() -> Result<()> {
 
 #[test]
 fn test_sort_empty() -> Result<()> {
-    // TODO: sort hits infinite monomorphization recursion (codegen bug: &(inCompFunc) in recursive call)
-    // let lst: Arc<List<i32>> = nil();
-    // let result = L::sort(Arc::clone(&lst), &less_i)?;
-    // assert!(result.is_empty());
-    assert!(false, "sort hits infinite monomorphization recursion (codegen bug: &(inCompFunc) in recursive call)");
+    let lst: Arc<List<i32>> = nil();
+    let result = L::sort(Arc::clone(&lst), &less_i)?;
+    assert!(result.is_empty());
     Ok(())
 }
 
 #[test]
 fn test_sort_single() -> Result<()> {
-    // TODO: sort hits infinite monomorphization recursion (codegen bug: &(inCompFunc) in recursive call)
-    // let lst = list![42i32];
-    // let result = L::sort(Arc::clone(&lst), &less_i)?;
-    // assert_eq!(result, list![42i32]);
-    assert!(false, "sort hits infinite monomorphization recursion (codegen bug: &(inCompFunc) in recursive call)");
+    let lst = list![42i32];
+    let result = L::sort(Arc::clone(&lst), &less_i)?;
+    assert_eq!(result, list![42i32]);
     Ok(())
 }
 

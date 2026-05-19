@@ -1455,18 +1455,42 @@ pub mod Dangerous {
 
     /// Unsafe array clearing without bounds checking.
     /// Mutates the underlying storage in place; visible through every alias.
-    pub fn arrayClearIndex<A: Clone>(arr: Array<A>, index: i32) {
-        let idx = (index - 1) as usize; // 1-based to 0-based
-        let mut v = arr.borrow_mut();
-        // SAFETY: Caller must ensure idx is in bounds. We drop the existing
-        // value in place, then overwrite its storage with zero bytes. The
-        // slot must not be read as an `A` again before being reinitialized,
-        // since the all-zero bit-pattern is not a valid value for arbitrary A.
-        unsafe {
-            let p = v.get_unchecked_mut(idx) as *mut A;
-            std::ptr::drop_in_place(p);
-            std::ptr::write_bytes(p, 0u8, 1);
+    ///
+    /// This is intentionally a **no-op** in the Rust translation.
+    ///
+    /// In the original MetaModelica C/GC runtime the function nulled out the
+    /// slot to release the GC reference early.  In Rust we rely on `Arc<T>`
+    /// for lifetime management: the slot holds a valid, live `Arc<T>`, and it
+    /// will be properly decremented when the slot is overwritten or when the
+    /// backing `Vec<T>` is freed.  Calling `drop_in_place` here and then
+    /// writing zero bytes would leave an invalid (null) `Arc<T>` in the slot;
+    /// `Vec::drop` would later try to drop that zeroed value, which dereferences
+    /// a null pointer → SIGSEGV.
+    #[inline(always)]
+    pub fn arrayClearIndex<A: Clone>(_arr: Array<A>, _index: i32) {}
+
+    /// Write `val` into an uninitialised slot created by `arrayCreateNoInit`.
+    ///
+    /// Uses `std::ptr::write` so the garbage bytes that occupy the slot are
+    /// **not** interpreted as a live `A` value (no drop is called on them).
+    /// Returns the array so the call can be used as an expression, matching
+    /// the shape of the regular `arrayUpdate` codegen.
+    ///
+    /// # Safety
+    /// * `index` is 1-based and must be in bounds.
+    /// * The slot at `index - 1` must be genuinely uninitialised — it must
+    ///   never have been written via this function or via a regular assignment.
+    ///   Writing into an already-initialised slot leaks the old value.
+    pub unsafe fn arrayInitSlot<A>(arr: Array<A>, index: i32, val: A) -> Array<A> {
+        {
+            let mut borrow = arr.borrow_mut();
+            // SAFETY: contract requires index to be in-bounds and the slot uninitialised.
+            #[allow(unsafe_op_in_unsafe_fn)]
+            let p = unsafe { borrow.get_unchecked_mut((index - 1) as usize) as *mut A };
+            #[allow(unsafe_op_in_unsafe_fn)]
+            unsafe { std::ptr::write(p, val) };
         }
+        arr
     }
 
     /// Creates a new array with uninitialized elements.

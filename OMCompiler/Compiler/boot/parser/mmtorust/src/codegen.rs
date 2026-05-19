@@ -109,6 +109,14 @@ struct GenCtx {
     /// restoring this field around the recursive `emit_exp` call (see
     /// [`GenCtx::with_qmode`]).
     qmode: QMode,
+    /// Variables whose current value was created by `arrayCreateNoInit` and
+    /// whose slots have not yet all been initialised. Indexed writes to such
+    /// variables must use `ptr::write` (via `Dangerous::arrayInitSlot`) rather
+    /// than a plain `=` assignment, because `=` would drop the uninitialised
+    /// garbage value that occupies the slot — UB for non-trivially-destructed
+    /// types such as `Arc<T>`. Cleared / updated in `emit_stmt` alongside
+    /// `fn_env_vars`; saved and restored around nested-function emissions.
+    uninit_arrays: HashSet<String>,
     /// Variables in scope at the enclosing function level: inputs, outputs,
     /// and protected locals. Used to seed the per-arm `LocalEnv` when entering
     /// a match-expression case body, so assignments to function-level outputs
@@ -243,6 +251,7 @@ impl GenCtx {
             no_mod_uniontypes: HashSet::new(),
             fn_type_vars,
             qmode: QMode::Function,
+            uninit_arrays: HashSet::new(),
             fn_env_vars: HashMap::new(),
             fn_input_names: HashSet::new(),
             fn_outputs: Vec::new(),
@@ -2810,6 +2819,7 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
     ctx.fn_env_vars = env.vars.clone();
     ctx.fn_input_names = fn_inputs_eff.iter().map(|inp| inp.name.clone()).collect();
     ctx.fn_outputs = env.outputs.clone();
+    ctx.uninit_arrays.clear(); // fresh function scope — no uninitialised arrays yet
 
     // Infallible functions drop the `Result<>` wrapper — the surrounding code
     // can then call them without `?` and use the value directly. Fallible
@@ -2943,6 +2953,7 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
         let saved_fn_env_vars = ctx.fn_env_vars.clone();
         let saved_fn_input_names = ctx.fn_input_names.clone();
         let saved_fn_outputs = ctx.fn_outputs.clone();
+        let saved_uninit_arrays = ctx.uninit_arrays.clone();
         for member in parent_members.iter() {
             if let MM::ClassMember::ClassDef(cdm) = member {
                 if matches!(&cdm.class_def.restriction, Absyn::Restriction::R_FUNCTION { .. }) {
@@ -2957,6 +2968,7 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
         ctx.fn_env_vars = saved_fn_env_vars;
         ctx.fn_input_names = saved_fn_input_names;
         ctx.fn_outputs = saved_fn_outputs;
+        ctx.uninit_arrays = saved_uninit_arrays;
     }
 
     for (n, t, modif, is_const_local) in outputs.iter().chain(protected.iter()) {
@@ -4769,10 +4781,23 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
             // We bind the array once so {arg1} (which may be a non-trivial expression) is
             // evaluated only once, mutate through `borrow_mut()`, then yield the same Rc.
             // NoBoundsChecking uses checked indexing here; same TODO as arrayGet.
+            //
+            // If the target array was created by arrayCreateNoInit its slots hold
+            // uninitialised bytes. A plain `slot = value` would first DROP the garbage
+            // bytes as if they were a live Arc<T> → SIGSEGV. We use arrayInitSlot
+            // (which calls ptr::write) so the old bytes are not touched.
+            let arr_is_uninit = matches!(
+                args.get(0),
+                Some(TypedExp::Var { name, .. }) if ctx.uninit_arrays.contains(name.as_str())
+            );
             let arg1 = args.get(0).map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
             let arg2 = args.get(1).map(|a| emit_builtin_call_arg_raw(func, 1, a, is_const, ctx, top_level)).unwrap_or_default();
             let arg3 = args.get(2).map(|a| emit_builtin_call_arg(func, 2, a, is_const, ctx, top_level)).unwrap_or_default();
-            Ok(format!("{{let _arr = {}; _arr.borrow_mut()[({}-1) as usize] = {}; _arr}}", arg1, arg2, arg3))
+            if arr_is_uninit {
+                Ok(format!("unsafe {{ metamodelica::Dangerous::arrayInitSlot({arg1}, {arg2}, {arg3}) }}"))
+            } else {
+                Ok(format!("{{let _arr = {}; _arr.borrow_mut()[({}-1) as usize] = {}; _arr}}", arg1, arg2, arg3))
+            }
         },
         "arrayEmpty" => {
             let arg = args.first().map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
@@ -5889,6 +5914,7 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
                 // to see the binding's type (e.g. to decide whether an Array
                 // requires a `.borrow()`). Saved/restored around the arm.
                 let saved_fn_env_vars = ctx.fn_env_vars.clone();
+                let saved_uninit_arrays_match = ctx.uninit_arrays.clone();
                 let typed_pat_bindings: Vec<(String, Ty)> =
                     typedexp::pat_bindings_with_scrut_ty(&case.pattern, &input_ty);
                 for (n, t) in &typed_pat_bindings {
@@ -6019,6 +6045,7 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
                 ctx.fn_env_vars = saved_fn_env_vars;
                 ctx.variants = saved_variants;
                 ctx.variant_shapes = saved_shapes;
+                ctx.uninit_arrays = saved_uninit_arrays_match;
                 arm_str
             }).collect();
             // Inside a `#[tailcall::tailcall]` body the macro rewrites the
@@ -8357,6 +8384,12 @@ fn emit_stmt<'a>(
     use typedexp::TypedStmt as S;
     match stmt {
         S::Assign { lhs, rhs } => {
+            // True when the RHS is an arrayCreateNoInit call.  Slots of the
+            // resulting array are uninitialised; the first write to each slot
+            // must use ptr::write (Dangerous::arrayInitSlot) rather than plain
+            // `=` assignment so Rust does not drop the garbage bytes as if
+            // they were a live Arc<T> value.
+            let rhs_is_no_init = matches!(rhs, TypedExp::Call { func, .. } if func == "arrayCreateNoInit");
             let scrut_ty = rhs.ty();
             let scrut_expr = emit_exp(rhs, /*is_const=*/false, ctx, top_level);
             // For irrefutable patterns we still want a single binding form.
@@ -8369,6 +8402,14 @@ fn emit_stmt<'a>(
                     // Plain reassignment may switch to a different variant — the
                     // previously-known variant assertion no longer holds.
                     env.variants.remove(name);
+                    // Keep uninit_arrays in sync: if this variable is now
+                    // holding a freshly-created noInit array, mark it;
+                    // otherwise clear any prior mark (the slots are now valid).
+                    if rhs_is_no_init {
+                        ctx.uninit_arrays.insert(name.clone());
+                    } else {
+                        ctx.uninit_arrays.remove(name.as_str());
+                    }
                     let lhs_ty = env.vars.get(name).cloned();
                     // MetaModelica permits assigning a multi-output call to a single
                     // variable; the unmentioned outputs are silently discarded.
@@ -8425,9 +8466,19 @@ fn emit_stmt<'a>(
                         let n = *fresh; *fresh += 1;
                         let tmp = format!("__cell{n}");
                         let base_str = emit_exp(base, /*is_const=*/false, ctx, top_level);
+                        // Check if the base array is uninitialised (from arrayCreateNoInit).
+                        // If so, use ptr::write via arrayInitSlot to avoid dropping garbage bytes.
+                        let base_is_uninit = matches!(
+                            base,
+                            TypedExp::Var { name, .. } if ctx.uninit_arrays.contains(name.as_str())
+                        );
                         writeln!(out, "{indent}{{").unwrap();
                         writeln!(out, "{indent}    let {tmp} = {scrut_expr};").unwrap();
-                        writeln!(out, "{indent}    {base_str}.borrow_mut()[({idx_str}-1) as usize] = {tmp};").unwrap();
+                        if base_is_uninit {
+                            writeln!(out, "{indent}    unsafe {{ metamodelica::Dangerous::arrayInitSlot({base_str}.clone(), {idx_str}, {tmp}); }}").unwrap();
+                        } else {
+                            writeln!(out, "{indent}    {base_str}.borrow_mut()[({idx_str}-1) as usize] = {tmp};").unwrap();
+                        }
                         writeln!(out, "{indent}}}").unwrap();
                     }
                     _ => {
@@ -8459,6 +8510,15 @@ fn emit_stmt<'a>(
                 let scrut_expr = coerce_assign_expr(scrut_expr, &scrut_ty, lhs_ty.as_ref());
                 writeln!(out, "{indent}{lhs_str} = {scrut_expr}; // TODO: unhandled field-assign shape").unwrap();
                 return;
+            }
+            // For a fresh `let` binding of a single variable, also update
+            // uninit_arrays so subsequent indexed writes use ptr::write.
+            if let TypedPat::Var(name) = lhs {
+                if rhs_is_no_init {
+                    ctx.uninit_arrays.insert(name.clone());
+                } else {
+                    ctx.uninit_arrays.remove(name.as_str());
+                }
             }
             emit_pat_assign(out, indent, lhs, &scrut_ty, &scrut_expr, fail_mode, ctx, env, top_level, fresh);
         }

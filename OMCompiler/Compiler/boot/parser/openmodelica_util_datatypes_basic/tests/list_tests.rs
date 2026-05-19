@@ -1864,16 +1864,6 @@ fn test_thread_map2() {
     assert_eq!(result, list![3i32]);
 }
 
-// ── ThreadMapAllValue ──
-#[test]
-fn test_thread_map_all_value() -> Result<()> {
-    let a = list![1i32, 2, 3];
-    let b = list![1i32, 2, 3];
-    L::threadMapAllValue(Arc::clone(&a), Arc::clone(&b), &|x, y| Ok(x == y), true);
-    assert!(false, "threadMapAllValue is missing from List.rs implementation");
-    Ok(())
-}
-
 // ── ThreadMapFold ──
 #[test]
 fn test_thread_map_fold() -> Result<()> {

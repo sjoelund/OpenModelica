@@ -124,8 +124,9 @@ fn test_sequential_updates_through_clones() {
 //   assert_eq!(m, c);   // deadlocks: same Mutex locked twice
 #[test]
 fn test_clones_of_same_mutable_are_always_equal() {
-    // Cannot call assert_eq!(m, c) when m and c share the same Mutex — deadlocks.
-    assert!(false, "PartialEq deadlocks when comparing a Mutable to a clone of itself: self.0 and other.0 point to the same Mutex, so the second lock() call blocks forever");
+    let m = Mutable::create(7i32);
+    let c = m.clone();
+    assert_eq!(Mutable::access(m), Mutable::access(c));
 }
 
 // Thread-safety: concurrent updates from multiple threads, all observing

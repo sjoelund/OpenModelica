@@ -115,6 +115,16 @@ struct GenCtx {
     /// or protected components are recognised as re-assignments (plain `=`)
     /// rather than fresh `let` shadowings. Cleared between functions.
     fn_env_vars: HashMap<String, Ty>,
+    /// Names of the enclosing function's INPUT parameters (subset of
+    /// `fn_env_vars`). Input parameters of an anonymous function type are
+    /// declared `&impl Fn(...)` by [`fmt_param_ty`] — i.e. the binding's
+    /// Rust value is *already a reference*. Outputs / protected locals of the
+    /// same MM type use [`fmt_ty`], which emits the bare `fn(...)` pointer.
+    /// `emit_call_arg_with_formal` consults this set to avoid double-borrowing
+    /// (`&inCompFunc` → `&&F`) when forwarding such a parameter into another
+    /// `&impl Fn(...)` slot, which is what triggers infinite recursive
+    /// monomorphization on functions like `List.sort`.
+    fn_input_names: HashSet<String>,
     /// Output component names (in declaration order) of the enclosing function.
     /// Used by `S::Return` inside a match-arm body to expand `return;` into
     /// `return Ok((outputs...));`. The arm body is emitted with a fresh
@@ -234,6 +244,7 @@ impl GenCtx {
             fn_type_vars,
             qmode: QMode::Function,
             fn_env_vars: HashMap::new(),
+            fn_input_names: HashSet::new(),
             fn_outputs: Vec::new(),
             variants: HashMap::new(),
             variant_shapes: HashMap::new(),
@@ -2797,6 +2808,7 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
     // re-assignments to outputs/protected components and so `return;` inside
     // a match arm can expand to the same Ok(...) tuple as the function tail.
     ctx.fn_env_vars = env.vars.clone();
+    ctx.fn_input_names = fn_inputs_eff.iter().map(|inp| inp.name.clone()).collect();
     ctx.fn_outputs = env.outputs.clone();
 
     // Infallible functions drop the `Result<>` wrapper — the surrounding code
@@ -2929,6 +2941,7 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
         // array would lose the `.borrow()` prefix whenever a nested helper
         // omitted the same local.
         let saved_fn_env_vars = ctx.fn_env_vars.clone();
+        let saved_fn_input_names = ctx.fn_input_names.clone();
         let saved_fn_outputs = ctx.fn_outputs.clone();
         for member in parent_members.iter() {
             if let MM::ClassMember::ClassDef(cdm) = member {
@@ -2942,6 +2955,7 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
             }
         }
         ctx.fn_env_vars = saved_fn_env_vars;
+        ctx.fn_input_names = saved_fn_input_names;
         ctx.fn_outputs = saved_fn_outputs;
     }
 
@@ -5290,6 +5304,27 @@ fn emit_cloned_call_arg<'a>(arg: &TypedExp, is_const: bool, ctx: &mut GenCtx, to
     if is_const { arg_str } else { maybe_clone_string_value(arg_str, &arg.ty()) }
 }
 
+/// True when `arg` is a bare reference to an INPUT parameter of the surrounding
+/// function whose static type is an anonymous function (`Ty::Function { name:
+/// None, .. }`). Such parameters are declared with the `&impl Fn(...)` shape by
+/// [`fmt_param_ty`], so their Rust value is *already a shared reference*.
+/// Forwarding them into another `&impl Fn(...)` slot must NOT prefix another
+/// `&`, or the binding's type widens to `&&F`, then `&&&F`, etc., on each
+/// recursive call — Rust monomorphizes a fresh `sort::<T, &F>` /
+/// `sort::<T, &&F>` instance per level and quickly hits the recursion limit.
+///
+/// We only match a single-segment CREF: a dotted path (`obj.callback`) is not
+/// a direct parameter forward — its first segment is the parameter, but the
+/// path itself produces a field value, not the parameter's binding. Multi-segment
+/// paths fall through to the default `&(raw)` borrow.
+fn arg_is_input_fn_param(arg: &TypedExp, ctx: &GenCtx) -> bool {
+    let TypedExp::Var { name, segments, ty, .. } = arg else { return false };
+    if segments.len() > 1 { return false; }
+    if !matches!(ty, Ty::Function { name: None, .. }) { return false; }
+    let base = name.split('.').next().unwrap_or(name);
+    ctx.fn_input_names.contains(base)
+}
+
 /// MetaModelica implicitly extracts the first element of a tuple-returning call
 /// when it is used in a single-value context (e.g. as an argument whose formal
 /// expects a non-tuple type). We mirror that here by wrapping the emitted call
@@ -5326,34 +5361,45 @@ fn emit_call_arg_with_formal<'a>(
     };
 
     // When the formal is an anonymous callback slot (`&impl Fn(...)`) the
-    // argument must be a shared reference. `emit_var`'s `Ty::Function { name:
-    // None, .. }` arm already prefixes a `&` for plain variable forwards,
-    // so don't double-borrow in that case. Everything else (PartEval
-    // closures, `fnptr!(...)` macro expansions, freshly synthesized
-    // `move |..| ..` closures) is produced as a value expression and needs
-    // the borrow added here. `&` on a temporary is fine for a call argument:
-    // Rust extends the temporary's lifetime to the end of the enclosing
-    // statement, which strictly outlives the callee invocation.
-    // When the formal is an anonymous callback slot the receiver
-    // signature is `&impl Fn(...)` (see `fmt_param_ty`), so the
-    // argument must be a shared reference. `emit_var`'s
-    // `Ty::Function { name: None, .. }` arm already prefixes `&` for
-    // plain variable forwards, so don't double-borrow in that case.
-    // Everything else (PartEval closures, `fnptr!(...)` macro
-    // expansions, freshly synthesized `move |..| ..` closures) is
-    // produced as a value expression and needs the borrow added here.
-    // `&` on a temporary is fine for a call argument: Rust extends the
-    // temporary's lifetime to the end of the enclosing statement, which
-    // strictly outlives the callee invocation.
+    // argument must be a shared reference. There are three argument shapes:
     //
-    // We only add `&` when the formal is `name: None` because named
-    // `partial function` aliases (e.g. `ConflictFunc`) keep their
-    // concrete `fn(...)` shape in `fmt_param_ty` — passing `&fn_ptr`
-    // into a `fn(...)` slot would be a type error. `resolve_call_formals`
-    // pulls the formal type from `node.ty.inputs`, which matches what
-    // `fmt_param_ty` saw at the function-definition site.
-    if matches!(formal_ty, Some(&Ty::Function { name: None, .. })) && !raw.trim_start().starts_with('&') {
-        return format!("&({raw})");
+    //   1. `emit_var`'s `Ty::Function { name: None, .. }` arm has already
+    //      prefixed `&` for a plain local forward (e.g. a fn-pointer local
+    //      of type `fn(...)`). Re-borrowing here would yield `&&...`; skip.
+    //
+    //   2. The argument is an INPUT parameter of the surrounding function
+    //      whose declared shape is *already* `&impl Fn(...)` (see
+    //      [`fmt_param_ty`]). The binding's Rust value is already a reference,
+    //      so `&inCompFunc` would become `&&F`. Each level of `&` is a fresh
+    //      type, so a recursive call (`sort(left, &inCompFunc)`) re-instantiates
+    //      `sort::<T, &F>` then `sort::<T, &&F>` and on, blowing the
+    //      monomorphization recursion limit (observed on `List::sort`). Detect
+    //      this case via `fn_input_names` and forward by value.
+    //
+    //   3. Everything else (PartEval closures, `fnptr!(...)` macro expansions,
+    //      freshly synthesized `move |..| ..` closures, outputs / protected
+    //      locals of `Ty::Function { name: None, .. }` — those use `fmt_ty`,
+    //      which emits `fn(...)`, a Copy fn pointer that needs borrowing to
+    //      satisfy the `&impl Fn(...)` slot) is produced as a value expression
+    //      and needs `&` added here. `&` on a temporary is fine for a call
+    //      argument: Rust extends the temporary's lifetime to the end of the
+    //      enclosing statement, which strictly outlives the callee invocation.
+    //
+    // We only intervene when the formal is `name: None`. Named `partial
+    // function` aliases (e.g. `ConflictFunc`) keep their concrete `fn(...)`
+    // shape in `fmt_param_ty` — passing `&fn_ptr` into a `fn(...)` slot would
+    // be a type error. `resolve_call_formals` pulls the formal type from
+    // `node.ty.inputs`, which matches what `fmt_param_ty` saw at the
+    // function-definition site.
+    if matches!(formal_ty, Some(&Ty::Function { name: None, .. })) {
+        if raw.trim_start().starts_with('&') {
+            // case 1
+        } else if arg_is_input_fn_param(arg, ctx) {
+            // case 2: forward the existing `&impl Fn(...)` reference as-is.
+        } else {
+            // case 3
+            return format!("&({raw})");
+        }
     }
     // Implicit Integer→Real promotion: MetaModelica silently widens i32 actuals
     // to f64 when the formal is declared `Real`. Without this the generated

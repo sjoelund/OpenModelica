@@ -915,14 +915,38 @@ fn emit_node<'a>(out: &mut String, name: &str, node: &NameNode<'_>, indent: &str
                 let typed = typedexp::infer_exp(exp, &HashMap::new(), top_level, &pkg_prefix, &[]);
                 let ename = escape_ident(name);
 
+                // String `pub const`s are emitted as `&'static str`, not
+                // `ArcStr`, so that:
+                //   1. Their *names* survive `const_str::equal!` calls in
+                //      other const initializers (an `ArcStr` cref can't be
+                //      passed to `const_str::equal!` because the macro
+                //      requires const `&str` arguments, and `ArcStr::Deref`
+                //      isn't a `const` trait).
+                //   2. Runtime use sites recover an `ArcStr` cheaply via
+                //      `arcstr::literal!(<cref>)`, which constructs a static
+                //      `ArcStr` from any const `&'static str` expression with
+                //      zero allocation (see the macro definition for
+                //      details). That wrap is added by [`emit_exp`]'s `Var`
+                //      arm whenever the cref resolves to a string `pub const`
+                //      (see [`is_const_str_cref`]).
                 let rust_ty = match &node.ty {
-                    Ty::Str => Some("ArcStr"),
                     Ty::I32 => Some("i32"),
                     Ty::F64 => Some("f64"),
                     Ty::Bool => Some("bool"),
                     _ => None,
                 };
-                if let Some(r_ty) = rust_ty {
+                if matches!(&node.ty, Ty::Str) {
+                    let val = emit_const_str_operand(&typed, ctx, top_level).unwrap_or_else(|| {
+                        // Same surface as the `==`/`!=` fallback: surface the
+                        // unhandled shape with a Rust `compile_error!` rather
+                        // than producing wrong code. Extend
+                        // `emit_const_str_operand` when new shapes appear.
+                        let dump = format!("{typed:?}");
+                        format!("{{ compile_error!(\"const string init not reducible to &'static str: {dump}\"); \"\" }}")
+                    });
+                    writeln!(out, "{indent}pub const {ename}: &'static str = {val};").unwrap();
+                    writeln!(out).unwrap();
+                } else if let Some(r_ty) = rust_ty {
                     let val = emit_exp(&typed, /*is_const=*/true, ctx, top_level);
                     writeln!(out, "{indent}pub const {ename}: {r_ty} = {val};").unwrap();
                     writeln!(out).unwrap();
@@ -3204,6 +3228,89 @@ fn resolve_with_path<'a>(prefix_dotted: &str, ctx: &GenCtx, top_level: &'a BTree
     None
 }
 
+/// Emit `exp` as a Rust expression of type `&'static str` suitable for use as
+/// either:
+///   * an operand to `const_str::equal!` inside a `pub const Bool` initializer
+///     of a `==` / `!=` of strings, or
+///   * the initializer of a top-level `pub const FOO: &'static str = …` item.
+///
+/// Both use sites need a const-evaluable `&str` expression. `arcstr::ArcStr`
+/// doesn't fit because `Deref<Target=str>` is not a `const` trait — so we emit
+/// raw `&str` from literals and from sibling string `pub const`s (which are
+/// themselves `&'static str`; see [`emit_node`]).
+///
+/// Coverage today:
+///   * `Lit::Str(s)`        → `"escaped"` — a raw `&str` literal (no `literal!`
+///                            wrapping; that's the `ArcStr` form used only for
+///                            non-const emission in [`emit_exp`]).
+///   * `Var` (CONST `Ty::Str` cref) → the cref emitted by its full name. The
+///                            referenced item is `pub const X: &'static str =
+///                            "…";`, so a Rust path expression of the right
+///                            type works directly.
+///   * `If / elseif / else` (Ty::Str) → lowered as a Rust `if/else if/else`
+///                            chain, with each branch recursively emitted as
+///                            a `&'static str` and the condition emitted in
+///                            `is_const=true` context. Rust const-eval handles
+///                            `if` over const conditions since 1.46, so this
+///                            preserves the named `isWindows`/`is64Bit` refs
+///                            in the declaration text rather than collapsing
+///                            to the live arm.
+///
+/// Returns `None` if any sub-expression doesn't fit one of the above shapes
+/// (string concat, runtime call, …) — the caller emits `compile_error!` so
+/// the unhandled case is visible at the use site.
+fn emit_const_str_operand<'a>(exp: &TypedExp, ctx: &mut GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) -> Option<String> {
+    match exp {
+        TypedExp::Lit(Lit::Str(s)) => Some(format!("{s:?}")),
+        TypedExp::Var { name, segments, ty, .. } if segments.iter().all(|s| s.subscripts.is_empty()) => {
+            let node = resolve_fully_qualified(name, ctx, top_level)?;
+            let NodeKind::Component(comp) = &node.kind else { return None };
+            if comp.variability != Absyn::Variability::CONST { return None; }
+            if node.ty != Ty::Str { return None; }
+            Some(emit_var(name, segments, ty, ctx, top_level))
+        }
+        TypedExp::If { cond, then_, elseif, else_, .. } => {
+            // Lower to a Rust `if … else if … else` chain so the condition
+            // identifiers (e.g. `isWindows`) show up in the emitted declaration
+            // instead of collapsing to whichever literal the build happens to
+            // resolve. The condition is emitted in `is_const=true` context so
+            // any nested string compare goes through the same `const_str::equal!`
+            // path as the top-level boolean `==` lowering.
+            let c = emit_exp(cond, /*is_const=*/true, ctx, top_level);
+            let t = emit_const_str_operand(then_, ctx, top_level)?;
+            let mut out = format!("if {c} {{ {t} }}");
+            for (ec, eb) in elseif {
+                let ec_s = emit_exp(ec, /*is_const=*/true, ctx, top_level);
+                let eb_s = emit_const_str_operand(eb, ctx, top_level)?;
+                out.push_str(&format!(" else if {ec_s} {{ {eb_s} }}"));
+            }
+            let e = emit_const_str_operand(else_, ctx, top_level)?;
+            out.push_str(&format!(" else {{ {e} }}"));
+            Some(out)
+        }
+        _ => None,
+    }
+}
+
+/// True iff `name`/`segments` resolve to a `constant String` package item in
+/// the hierarchy — i.e. a Rust `pub const FOO: &'static str = …` item that
+/// `emit_node` will emit. Used by `emit_exp`'s `Var` arm to decide when a
+/// runtime use site needs to wrap the reference in `arcstr::literal!(…)` to
+/// recover an `ArcStr` (the type the surrounding generated code expects for
+/// string values). Returns false for local string variables, function inputs,
+/// match-arm pattern bindings, and non-constant components.
+fn is_const_str_cref<'a>(name: &str, segments: &[CrefSegment], ctx: &GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) -> bool {
+    // Local-scope short-circuit: a bare name that's an entry in `fn_env_vars`
+    // is a function-local binding, not a package-level pub const.
+    if segments.len() <= 1 {
+        let first: &str = segments.first().map(|s| s.name.as_str()).unwrap_or(name);
+        if ctx.fn_env_vars.contains_key(first) { return false; }
+    }
+    let Some(node) = resolve_fully_qualified(name, ctx, top_level) else { return false };
+    let NodeKind::Component(comp) = &node.kind else { return false };
+    comp.variability == Absyn::Variability::CONST && node.ty == Ty::Str
+}
+
 /// Fold a `TypedExp` to a literal `String` at codegen time when it is a chain of
 /// constants that bottoms out in string literals (with `If` branching folded
 /// through). Returns `None` if any node along the way is not foldable — callers
@@ -3430,6 +3537,15 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                 // sites we know about (const initializers using other
                 // const values) don't need it.
                 _ if is_const => var_str,
+                // Runtime use of a string `pub const` cref: the item is
+                // `pub const X: &'static str = …` (see `emit_node` for the
+                // rationale), but the surrounding generated code expects an
+                // `ArcStr`. `arcstr::literal!(<cref>)` recovers an `ArcStr`
+                // from a const `&'static str` expression with zero allocation
+                // — it constructs the same kind of static-storage `ArcStr`
+                // that `arcstr::literal!("foo")` produces from a literal.
+                Ty::Str if is_const_str_cref(name, segments, ctx, top_level) =>
+                    format!("arcstr::literal!({var_str})"),
                 _ => format!("{var_str}.clone()"),
             }
         }
@@ -3459,43 +3575,43 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
             }
             match op {
                 BinOpKind::Eq => {
-                    // String `==` in a `const` initializer can't lower to either
-                    // `*l == *r` (PartialEq isn't const) nor `const_str::equal!`
-                    // (the macro needs `&str`, and ArcStr's `Deref` isn't const
-                    // either — there is no way to extract `&str` from `ArcStr`
-                    // at const-eval time). Constant-fold the comparison at
-                    // codegen time instead: resolve both sides through sibling
-                    // constants and `if` branches down to literal `String`s.
-                    // This is what the C bootstrap does for the same expressions
-                    // (see e.g. `Autoconf.isWindows` folded to `0` in the .c
-                    // output). If folding fails we emit `compile_error!` so the
-                    // unhandled case is visible at the use site rather than
-                    // silently producing broken code.
+                    // String `==` in a `const` initializer can't lower to
+                    // `*l == *r` (PartialEq isn't const). The runtime emission
+                    // above wraps string literals in `arcstr::literal!(...)`,
+                    // producing `ArcStr` values whose `Deref` to `&str` isn't
+                    // const either. Re-emit each operand as a raw `&'static str`
+                    // expression (literals lose the `literal!()` wrapper; const
+                    // crefs of string-typed `pub const`s resolve through their
+                    // chain via [`resolve_const_str`] to the underlying `&str`),
+                    // then defer the comparison itself to `const_str::equal!`
+                    // — which is a true const-eval string compare.
+                    // If we can't reduce an operand to a `&'static str` (e.g. a
+                    // function call), we emit `compile_error!` so the unhandled
+                    // case is visible at the use site rather than silently
+                    // producing broken code.
                     if is_const && (lhs.ty() == Ty::Str || rhs.ty() == Ty::Str) {
-                        if let (Some(ls), Some(rs)) = (
-                            resolve_const_str(lhs, ctx, top_level),
-                            resolve_const_str(rhs, ctx, top_level),
-                        ) {
-                            return (ls == rs).to_string();
-                        }
-                        return format!(
-                            "{{ compile_error!(\"const string `==` operand not const-foldable; extend resolve_const_str: {l} == {r}\"); false }}"
-                        );
+                        let lstr = emit_const_str_operand(lhs, ctx, top_level);
+                        let rstr = emit_const_str_operand(rhs, ctx, top_level);
+                        return match (lstr, rstr) {
+                            (Some(ls), Some(rs)) => format!("const_str::equal!({ls}, {rs})"),
+                            _ => format!(
+                                "{{ compile_error!(\"const string `==` operand not const-foldable; extend emit_const_str_operand: {l} == {r}\"); false }}"
+                            ),
+                        };
                     }
                     format!("{l} == {r}")
                 }
                 BinOpKind::NEq => {
                     // Mirror the `==` case for `!=` — same const-eval constraint.
                     if is_const && (lhs.ty() == Ty::Str || rhs.ty() == Ty::Str) {
-                        if let (Some(ls), Some(rs)) = (
-                            resolve_const_str(lhs, ctx, top_level),
-                            resolve_const_str(rhs, ctx, top_level),
-                        ) {
-                            return (ls != rs).to_string();
-                        }
-                        return format!(
-                            "{{ compile_error!(\"const string `!=` operand not const-foldable; extend resolve_const_str: {l} != {r}\"); false }}"
-                        );
+                        let lstr = emit_const_str_operand(lhs, ctx, top_level);
+                        let rstr = emit_const_str_operand(rhs, ctx, top_level);
+                        return match (lstr, rstr) {
+                            (Some(ls), Some(rs)) => format!("!const_str::equal!({ls}, {rs})"),
+                            _ => format!(
+                                "{{ compile_error!(\"const string `!=` operand not const-foldable; extend emit_const_str_operand: {l} != {r}\"); false }}"
+                            ),
+                        };
                     }
                     format!("{l} != {r}")
                 }
@@ -4493,36 +4609,32 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
         //   use a process-wide static while values may contain non-Send
         //   `Rc<RefCell<…>>`).
         //
-        // Two things matter for the codegen here:
-        //   1. If the index argument is a *constant integer cref* (e.g.
-        //      `Global.instHashIndex`), resolve it to the literal value at
-        //      compile time. The C bootstrap does this and the resulting
-        //      slot accesses become `setGlobalRoot(9, …)` — easier to read,
-        //      and lets future per-index slot specialisation hook off a
-        //      static integer rather than a name resolution.
-        //   2. Pin the type parameter `A` of the runtime function with an
-        //      explicit turbofish whenever the value's type is known. The
-        //      Rust runtime function is
-        //        `setGlobalRoot<A: Any + 'static>(idx: i32, value: A)`
-        //      and without the turbofish the inference fails when `value`
-        //      is `None` (E0282 on the `Option::T` parameter, exactly the
-        //      shape seen in `Global::initialize`) or when the value is a
-        //      tuple/`Some(…)` of a type that the surrounding context
-        //      doesn't pin.
+        // We pin the type parameter `A` of the runtime function with an
+        // explicit turbofish whenever the value's type is known. The Rust
+        // runtime function is
+        //   `setGlobalRoot<A: Any + 'static>(idx: i32, value: A)`
+        // and without the turbofish the inference fails when `value` is
+        // `None` (E0282 on the `Option::T` parameter, exactly the shape seen
+        // in `Global::initialize`) or when the value is a tuple/`Some(…)` of
+        // a type that the surrounding context doesn't pin.
         //
-        // TODO(per-index typed slots): the user's longer-term design is to
-        // resolve each *known* index to its own typed `LazyLock`/thread-local
-        // (e.g. `Global.instHashIndex` → a dedicated
+        // The index argument is emitted as-is. We deliberately do *not*
+        // constant-fold a `constant Integer` cref like `Global.instHashIndex`
+        // to its literal value: the generated Rust module already exposes
+        // these as `pub const` items, and emitting `Global::instHashIndex`
+        // keeps the call site in sync with future edits to Global.mo. (The
+        // C bootstrap folds them, but here the const item is right there in
+        // the same crate.)
+        //
+        // TODO(per-index typed slots): the longer-term design is to resolve
+        // each *known* index to its own typed `LazyLock`/thread-local (e.g.
+        // `Global.instHashIndex` → a dedicated
         // `LazyLock<RefCell<InstHashTable::HashTable>>` initialised from
-        // `InstHashTable::emptyInstHashTable()`). That requires a whole-program
-        // pre-pass to gather (idx_const_qname, value_type) pairs across files
-        // and resolve type-variable indirection, which is a non-trivial
-        // refactor. The constant-index folding here is the shared first step.
+        // `InstHashTable::emptyInstHashTable()`). That requires a
+        // whole-program pre-pass to gather (idx_const_qname, value_type)
+        // pairs across files and resolve type-variable indirection.
         "setGlobalRoot" if args.len() == 2 => {
-            let idx_expr = match resolve_const_int(&args[0], ctx, top_level) {
-                Some(v) => v.to_string(),
-                None => emit_builtin_call_arg_raw(func, 0, &args[0], is_const, ctx, top_level),
-            };
+            let idx_expr = emit_builtin_call_arg_raw(func, 0, &args[0], is_const, ctx, top_level);
             let val_ty = args[1].ty();
             let val_expr = emit_builtin_call_arg(func, 1, &args[1], is_const, ctx, top_level);
             let turbofish = if ty_contains_unknown(&val_ty) {
@@ -4551,10 +4663,9 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
         // generated generic type-parameter carries `: 'static` via
         // `DEFAULT_TRAITS`.
         "getGlobalRoot" if args.len() == 1 => {
-            let idx_expr = match resolve_const_int(&args[0], ctx, top_level) {
-                Some(v) => v.to_string(),
-                None => emit_builtin_call_arg_raw(func, 0, &args[0], is_const, ctx, top_level),
-            };
+            // See the comment on `setGlobalRoot` above for why we don't
+            // constant-fold the index here.
+            let idx_expr = emit_builtin_call_arg_raw(func, 0, &args[0], is_const, ctx, top_level);
             let q = if ctx.current_fn_fallible { "?" } else { ".unwrap()" };
             Ok(format!("metamodelica::getGlobalRoot({idx_expr}){q}"))
         }
@@ -5152,42 +5263,6 @@ fn ty_contains_unknown(ty: &Ty) -> bool {
         Ty::Function { inputs, output, .. } => {
             inputs.iter().any(|i| ty_contains_unknown(&i.ty)) || ty_contains_unknown(output)
         }
-    }
-}
-
-/// If `exp` is (or transparently resolves to) a compile-time `constant Integer`
-/// cref, return its literal value. Otherwise return `None`.
-///
-/// This mirrors what the C bootstrap (and the original MMC backend) does for
-/// `setGlobalRoot(Global.instHashIndex, …)` → it emits the integer literal
-/// `9` rather than reading the constant at runtime. Used by the set/getGlobalRoot
-/// lowering to make the generated code easier to inspect and to keep the call
-/// open to future per-index slot specialisation that hooks off a static int.
-fn resolve_const_int<'a>(exp: &TypedExp, ctx: &GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) -> Option<i32> {
-    use crate::typedexp::{Lit, TypedExp as E};
-    match exp {
-        E::Lit(Lit::Int(v)) => Some(*v),
-        E::Var { name, segments, .. } if segments.iter().all(|s| s.subscripts.is_empty()) => {
-            // Look up the cref in the hierarchy and require:
-            //   * NodeKind::Component
-            //   * variability == CONST
-            //   * type i32 (Modelica Integer)
-            //   * an INTEGER literal in the modification
-            let node = resolve_fully_qualified(name, ctx, top_level)?;
-            let NodeKind::Component(comp) = &node.kind else { return None };
-            if comp.variability != Absyn::Variability::CONST { return None }
-            if node.ty != Ty::I32 { return None }
-            let default = extract_default_exp(&comp.modification)?;
-            match default {
-                Absyn::Exp::INTEGER { value } => Some(*value),
-                // A negated literal, e.g. `constant Integer foo = -1;`.
-                Absyn::Exp::UNARY { op: Absyn::Operator::UMINUS, exp } => {
-                    if let Absyn::Exp::INTEGER { value } = &**exp { Some(-value) } else { None }
-                }
-                _ => None,
-            }
-        }
-        _ => None,
     }
 }
 

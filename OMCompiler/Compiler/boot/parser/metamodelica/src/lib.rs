@@ -194,12 +194,11 @@ pub fn boolString(b: bool) -> ArcStr {
 /// inline lowering for direct calls because it avoids an extra trait-object
 /// hop and keeps the formatting macro behaviour identical to the prior
 /// generated code.
-pub fn print(s: ArcStr) -> Result<()> {
+pub fn print(s: ArcStr) {
     use std::io::Write;
     let stdout = std::io::stdout();
     let mut handle = stdout.lock();
     handle.write_all(s.as_bytes()).ok();
-    Ok(())
 }
 
 // ============================================================================
@@ -504,9 +503,9 @@ pub fn stringReal(str: ArcStr) -> Result<f64> {
 }
 
 /// Converts a string to a list of single-character strings.
-pub fn stringListStringChar(str: ArcStr) -> Result<Arc<List<ArcStr>>> {
+pub fn stringListStringChar(str: ArcStr) -> Arc<List<ArcStr>> {
     // TODO: We could have constants for all these short strings to avoid allocations.
-    Ok(Arc::new(str.chars().map(|c| format!("{}", c)).collect()))
+    Arc::new(str.chars().map(|c| format!("{}", c)).collect())
 }
 
 /// Appends a list of strings into a single string.
@@ -1947,7 +1946,7 @@ mod tests {
 
         #[test]
         fn test_string_list_string_char() {
-            let result = stringListStringChar(literal!("abc ")).unwrap();
+            let result = stringListStringChar(literal!("abc "));
             assert_eq!(&*result, &List::from_iter([literal!("a"), literal!("b"), literal!("c")]));
         }
 

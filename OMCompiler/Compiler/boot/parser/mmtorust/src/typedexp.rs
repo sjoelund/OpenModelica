@@ -553,6 +553,14 @@ pub fn builtin_function_ty(name: &str) -> Option<Ty> {
             Some(f(vec![inp("a", Ty::Array(Box::new(tv("T"))))], Ty::I32, vec!["T".to_owned()])),
         "stringLength" =>
             Some(f(vec![inp("s", Ty::Str)], Ty::I32, vec![])),
+        // String hashing builtins: String -> Integer. Listed so that bare-CREF
+        // references like `(stringHashDjb2, stringEq, ...)` passed to
+        // `BaseHashSet::emptyHashSetWork` / `UnorderedMap::new` get wrapped by
+        // `fnptr!(stringHashDjb2, ArcStr)` instead of falling through as a
+        // value (which the surrounding `Hash<K> = fn(K) -> Result<i32>` slot
+        // then rejects).
+        "stringHash" | "stringHashDjb2" | "stringHashSdbm" =>
+            Some(f(vec![inp("s", Ty::Str)], Ty::I32, vec![])),
 
         // Arithmetic: (T, T) -> T
         "intAdd" | "intSub" | "intMul" | "intDiv" | "intMod" | "intMax" | "intMin" =>
@@ -1099,7 +1107,22 @@ pub fn infer_exp<'a>(
                 let first = segments.first().map(|s| s.name.as_str()).unwrap_or(&name);
                 let ty = lookup_ty_in_hierarchy(first, top_level);
                 if ty == Ty::Unknown && !pkg_prefix.is_empty() && !name.contains('.') {
-                    lookup_ty_in_hierarchy(&format!("{pkg_prefix}.{name}"), top_level)
+                    // Walk up enclosing scopes so that bare references to siblings
+                    // (e.g. a module-level `constant list<...> allConfigFlags` referenced
+                    // from inside `FlagsUtil.checkConfigFlags`) resolve, not just direct
+                    // children of the innermost scope. Mirrors `resolve_type_name`.
+                    let mut parts: Vec<&str> = pkg_prefix.split('.').collect();
+                    loop {
+                        let prefixed = if parts.is_empty() {
+                            name.clone()
+                        } else {
+                            format!("{}.{name}", parts.join("."))
+                        };
+                        let t = lookup_ty_in_hierarchy(&prefixed, top_level);
+                        if !matches!(t, Ty::Unknown) { break t; }
+                        if parts.is_empty() { break Ty::Unknown; }
+                        parts.pop();
+                    }
                 } else {
                     ty
                 }

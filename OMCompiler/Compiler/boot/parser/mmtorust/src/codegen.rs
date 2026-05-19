@@ -2983,6 +2983,7 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
                 if let Some(line) = emit_multi_output_let(/*is_mut=*/false, n, t, &init_ty, &s, &body_indent, ctx) {
                     out.push_str(&line);
                 } else {
+                    let s = coerce_assign_expr_pub(s, &init_ty, Some(t));
                     writeln!(out, "{body_indent}let {}{ty_annot} = {s};", escape_ident(n)).unwrap();
                 }
             },
@@ -2991,6 +2992,7 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
                 if let Some(line) = emit_multi_output_let(/*is_mut=*/true, n, t, &init_ty, &s, &body_indent, ctx) {
                     out.push_str(&line);
                 } else {
+                    let s = coerce_assign_expr_pub(s, &init_ty, Some(t));
                     writeln!(out, "{body_indent}let mut {}{ty_annot} = {s};", escape_ident(n)).unwrap();
                 }
             },
@@ -3563,25 +3565,38 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
         TypedExp::Constructor { name, args, named_args, ty, field_names } => {
             let mut arg_strs = Vec::new();
             if let Ty::RustStruct(qname) | Ty::RustEnum(qname) = ty {
-                let mut remaining_named = named_args.clone();
+                let remaining_named = named_args.clone();
+                // Look up the struct's declared field types so we can apply
+                // type-driven coercions (e.g. Integer-literal arguments
+                // assigned to a `Real` field need `as f64`).
+                let field_tys_map: Vec<(String, Ty)> = record_field_tys(qname, top_level)
+                    .or_else(|| {
+                        // Fall back to walking through a parent uniontype (records
+                        // inside multi-record uniontypes live one level deeper).
+                        lookup_record_through_unions(qname, top_level)
+                            .and_then(|(canonical, _)| record_field_tys(&canonical, top_level))
+                    })
+                    .unwrap_or_default();
+                let field_ty_lookup = |fname: &str| -> Option<Ty> {
+                    field_tys_map.iter().find(|(n, _)| n == fname).map(|(_, t)| t.clone())
+                };
                 for (i, fa) in args.iter().enumerate() {
                     let val = emit_cloned_call_arg(fa, is_const, ctx, top_level);
                     if i < field_names.len() {
                         let fname = &field_names[i];
                         let fname_safe = escape_ident(fname);
-                        // Wrap in Arc::new if the struct field is stored as Arc<T> due to
-                        // size-recursive cycles.  String fields are excluded: their expressions
-                        // already yield ArcStr from emit_exp / emit_cloned_call_arg.
-                        // Skip the wrap when the argument's expression already evaluates to
-                        // `Arc<T>` (e.g. a constructor of the recursive uniontype, or a
-                        // variable typed as the recursive enum) — otherwise we'd produce
-                        // `Arc::new(Arc::new(...))`.
                         let val = if struct_field_is_arc(qname, fname, top_level, ctx)
                             && !value_emitted_as_arc(fa, ctx)
                         {
                             format!("Arc::new({val})")
                         } else {
-                            val
+                            // Apply Integer→Real / tuple→first coercion based on
+                            // the declared field type. Without this, MetaModelica
+                            // constructors like `SOURCEINFO(...,0)` whose last
+                            // argument is `0: Integer` going into a `Real` field
+                            // emit `lastModification: 0` and rustc rejects.
+                            let ft = field_ty_lookup(fname);
+                            coerce_assign_expr_pub(val, &fa.ty(), ft.as_ref())
                         };
                         arg_strs.push(format!("{fname_safe}: {val}"));
                     } else {
@@ -3596,7 +3611,8 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                     {
                         format!("Arc::new({val})")
                     } else {
-                        val
+                        let ft = field_ty_lookup(&n);
+                        coerce_assign_expr_pub(val, &na.ty(), ft.as_ref())
                     };
                     arg_strs.push(format!("{}: {val}", escape_ident(&n)));
                 }
@@ -3852,8 +3868,8 @@ fn emit_parteval<'a>(
     let callee_qname = resolve_call_qname(func, ctx, top_level);
     let inner_infallible = callee_qname
         .as_deref()
-        .map(|q| ctx.is_known_infallible_user_fn(q, top_level))
-        .unwrap_or(false);
+        .map(|q| ctx.is_known_infallible_user_fn(q, top_level) || is_infallible_builtin(q))
+        .unwrap_or_else(|| is_infallible_builtin(func));
     let body_expr = if inner_infallible {
         format!("Ok({call_expr})")
     } else {
@@ -4586,7 +4602,13 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
             let a3 = args.get(3).map(|a| emit_builtin_call_arg_raw(func, 3, a, is_const, ctx, top_level)).unwrap_or_else(|| "0".to_owned());
             let a4 = args.get(4).map(|a| emit_builtin_call_arg_raw(func, 4, a, is_const, ctx, top_level)).unwrap_or_else(|| "0".to_owned());
             let a5 = args.get(5).map(|a| emit_builtin_call_arg_raw(func, 5, a, is_const, ctx, top_level)).unwrap_or_else(|| "0".to_owned());
-            let a6 = args.get(6).map(|a| emit_builtin_call_arg_raw(func, 6, a, is_const, ctx, top_level)).unwrap_or_else(|| "0.0".to_owned());
+            let a6 = args.get(6).map(|a| {
+                let s = emit_builtin_call_arg_raw(func, 6, a, is_const, ctx, top_level);
+                // The `lastModification` field is Real (f64); MetaModelica callers
+                // routinely pass an Integer literal (`SOURCEINFO(...,0)`). Coerce
+                // to f64 so the struct initializer typechecks.
+                coerce_assign_expr_pub(s, &a.ty(), Some(&Ty::F64))
+            }).unwrap_or_else(|| "0.0".to_owned());
             Ok(format!(
                 "SourceInfo {{ fileName: {a0}, isReadOnly: {a1}, lineNumberStart: {a2}, columnNumberStart: {a3}, lineNumberEnd: {a4}, columnNumberEnd: {a5}, lastModification: {a6} }}"
             ))
@@ -5313,6 +5335,29 @@ fn resolve_call_formals<'a>(
     let NodeKind::Class(c) = &node.kind else { return None };
     if !matches!(c.restriction, Absyn::Restriction::R_FUNCTION { .. }) {
         return None;
+    }
+
+    // Follow MetaModelica function aliases (`function select = filterOnTrue;`)
+    // to the underlying function so callers see the real formal list — the
+    // alias node carries no `Component` members of its own, so without this
+    // we'd return an empty formal list and call sites would lose the type
+    // information needed to e.g. wrap callback args with `&(fnptr!(..))`.
+    if let Ty::FunctionAlias { base, .. } = &node.ty {
+        // Resolve the alias's base name relative to the alias's containing
+        // module. `base` is the dotted path as written in the source (often
+        // bare, e.g. `filterOnTrue`); try the alias's own module first, then
+        // fall back to top-level resolution.
+        let alias_module = qname.rsplit_once('.').map_or("", |(p, _)| p);
+        let candidates = [
+            format!("{alias_module}.{base}"),
+            base.clone(),
+        ];
+        for cand in &candidates {
+            if cand.is_empty() { continue; }
+            if let Some(formals) = resolve_call_formals(cand, ctx, top_level) {
+                return Some(formals);
+            }
+        }
     }
 
     let module_prefix = qname.rsplit_once('.').map_or("", |(p, _)| p).to_owned();
@@ -6921,7 +6966,7 @@ fn emit_pat_assign<'a>(
             let pat_for_render = &pat_owned;
             // Render shallow with deferrals for Arc-edge crossings.
             let mut deferrals: Vec<(String, TypedPat, Ty)> = Vec::new();
-            let surface = render_shallow(pat_for_render, scrut_ty, ctx, env, top_level, fresh, &mut deferrals);
+            let surface = render_shallow(pat_for_render, scrut_ty, ctx, env, top_level, fresh, &mut deferrals, /*force_ref=*/false);
             // When the scrutinee is Arc-wrapped (list<T> → Arc<List<T>>; recursive
             // uniontypes wrapped in Arc), destructuring a variant pattern such as
             // `Cons { head, tail }` only succeeds via the `deref_patterns`
@@ -7095,12 +7140,22 @@ fn render_shallow<'a>(
     top_level: &'a BTreeMap<String, NameNode<'a>>,
     fresh: &mut u32,
     deferrals: &mut Vec<(String, TypedPat, Ty)>,
+    // When true, every name binding rendered by this call (and its recursive
+    // descendants) is emitted with a leading `ref`. Set by the As-pattern
+    // arm when the outer `ref var @ ...` borrows the whole scrutinee — without
+    // it, the inner field bindings would try to move out of memory that the
+    // outer `ref` is already borrowing (E0382/E0507).
+    force_ref: bool,
 ) -> String {
     match pat {
         TypedPat::Wildcard => "_".to_owned(),
         TypedPat::Var(name) => {
             env.vars.insert(name.clone(), scrut_ty.clone());
-            escape_ident(name)
+            if force_ref {
+                format!("ref {}", escape_ident(name))
+            } else {
+                escape_ident(name)
+            }
         }
         TypedPat::EmptyList => "metamodelica::List::Nil".to_owned(),
         TypedPat::None_ => "None".to_owned(),
@@ -7109,7 +7164,7 @@ fn render_shallow<'a>(
                 Ty::Option(t) => (**t).clone(),
                 _ => Ty::Unknown,
             };
-            let inner_s = render_shallow(inner, &inner_ty, ctx, env, top_level, fresh, deferrals);
+            let inner_s = render_shallow(inner, &inner_ty, ctx, env, top_level, fresh, deferrals, force_ref);
             format!("Some({inner_s})")
         }
         TypedPat::Lit(Lit::Int(v)) => if *v < 0 { format!("({v})") } else { v.to_string() },
@@ -7117,7 +7172,7 @@ fn render_shallow<'a>(
         TypedPat::Lit(_) => "_ /* lit — guard not yet implemented */".to_owned(),
         TypedPat::Cons { head, tail } => {
             let elem_ty = match scrut_ty { Ty::List(t) => (**t).clone(), _ => Ty::Unknown };
-            let h = render_shallow(head, &elem_ty, ctx, env, top_level, fresh, deferrals);
+            let h = render_shallow(head, &elem_ty, ctx, env, top_level, fresh, deferrals, force_ref);
             // The `tail` field of `metamodelica::List::Cons` is `Arc<List<T>>`, and
             // the surface MetaModelica type `list<T>` is also lowered to
             // `Arc<List<T>>`, so binding the tail directly in the pattern yields a
@@ -7141,7 +7196,7 @@ fn render_shallow<'a>(
             // into the original user variable.
             let t = match tail.as_ref() {
                 TypedPat::Wildcard => "_".to_owned(),
-                TypedPat::Var(_) => render_shallow(tail, scrut_ty, ctx, env, top_level, fresh, deferrals),
+                TypedPat::Var(_) => render_shallow(tail, scrut_ty, ctx, env, top_level, fresh, deferrals, force_ref),
                 _ => {
                     let n = *fresh; *fresh += 1;
                     let tmp = format!("__t{n}");
@@ -7157,7 +7212,7 @@ fn render_shallow<'a>(
                 _ => vec![Ty::Unknown; pats.len()],
             };
             let parts: Vec<String> = pats.iter().zip(tys.iter())
-                .map(|(p, t)| render_shallow(p, t, ctx, env, top_level, fresh, deferrals))
+                .map(|(p, t)| render_shallow(p, t, ctx, env, top_level, fresh, deferrals, force_ref))
                 .collect();
             format!("({})", parts.join(", "))
         }
@@ -7244,7 +7299,7 @@ fn render_shallow<'a>(
                     deferrals.push((format!("(*{tmp}).clone()"), sub.clone(), fty.clone()));
                     tmp
                 } else {
-                    render_shallow(sub, fty, ctx, env, top_level, fresh, deferrals)
+                    render_shallow(sub, fty, ctx, env, top_level, fresh, deferrals, force_ref)
                 }
             };
 
@@ -7324,12 +7379,15 @@ fn render_shallow<'a>(
         }
         TypedPat::As { var, pat: inner } => {
             env.vars.insert(var.clone(), scrut_ty.clone());
-            let inner_s = render_shallow(inner, scrut_ty, ctx, env, top_level, fresh, deferrals);
-            // Mirror `emit_pat_with_implicit_bind`: if the inner sub-pattern
-            // introduces bindings, both outer and inner would move out of
-            // overlapping memory (E0382). Make the outer a borrow so the
-            // partial moves become borrows the body's `.clone()` uses resolve.
-            if pat_introduces_binding(inner) {
+            // When the inner sub-pattern introduces bindings, both outer and inner
+            // would move out of overlapping memory (E0382). Make the outer a borrow
+            // AND propagate `force_ref` into the inner sub-pattern so its bindings
+            // also borrow rather than move. Without that propagation, the inner
+            // field bindings (e.g. `description: __pa0`) would still move out of
+            // the value while the outer `ref __pa2` is borrowing it.
+            let inner_force_ref = force_ref || pat_introduces_binding(inner);
+            let inner_s = render_shallow(inner, scrut_ty, ctx, env, top_level, fresh, deferrals, inner_force_ref);
+            if pat_introduces_binding(inner) || force_ref {
                 format!("ref {} @ {}", escape_ident(var), inner_s)
             } else {
                 format!("{} @ {}", escape_ident(var), inner_s)

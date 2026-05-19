@@ -1386,8 +1386,8 @@ fn getStartInstant() -> std::time::Instant {
     *START.get_or_init(|| std::time::Instant::now())
 }
 
-pub fn clock() -> Result<f64> {
-    Ok(getStartInstant().elapsed().as_secs_f64())
+pub fn clock() -> f64 {
+    getStartInstant().elapsed().as_secs_f64()
 }
 
 // ============================================================================

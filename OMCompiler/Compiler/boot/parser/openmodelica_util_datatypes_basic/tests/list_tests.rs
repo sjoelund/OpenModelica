@@ -67,14 +67,14 @@ fn test_all_reference_eq_true() -> Result<()> {
     // Empty lists are trivially equal
     let lst: Arc<List<Arc<List<i32>>>> = nil();
     let lst2: Arc<List<Arc<List<i32>>>> = nil();
-    assert!(L::allReferenceEq(Arc::clone(&lst), Arc::clone(&lst2))?);
+    assert!(L::allReferenceEq(Arc::clone(&lst), Arc::clone(&lst2)));
     Ok(())
 }
 #[test]
 fn test_all_reference_eq_false() -> Result<()> {
     let lst = list![list![1i32], list![1i32]];
     let lst2 = list![list![1i32, 2], list![1i32]];
-    assert!(!L::allReferenceEq(Arc::clone(&lst), Arc::clone(&lst2))?);
+    assert!(!L::allReferenceEq(Arc::clone(&lst), Arc::clone(&lst2)));
     Ok(())
 }
 
@@ -151,7 +151,7 @@ fn test_balanced_partition() -> Result<()> {
 #[test]
 fn test_combination() -> Result<()> {
     let lst = list![list![1i32, 2], list![3i32, 4]];
-    let result = L::combination(Arc::clone(&lst))?;
+    let result = L::combination(Arc::clone(&lst));
     assert!(result.len() >= 0);
     Ok(())
 }
@@ -229,13 +229,13 @@ fn test_cons_on_true_false() {
 // ── ConsOption ──
 #[test]
 fn test_cons_option_some() -> Result<()> {
-    let result = L::consOption(Some(1i32), nil())?;
+    let result = L::consOption(Some(1i32), nil());
     assert_eq!(result, list![1i32]);
     Ok(())
 }
 #[test]
 fn test_cons_option_none() -> Result<()> {
-    let result = L::consOption(Option::<i32>::None, nil())?;
+    let result = L::consOption(Option::<i32>::None, nil());
     assert!(result.is_empty());
     Ok(())
 }
@@ -271,7 +271,7 @@ fn test_count() {
 #[test]
 fn test_counting_sort() -> Result<()> {
     let lst = list![3i32, 1, 4, 1, 5, 9, 2, 6];
-    let result = L::countingSort(Arc::clone(&lst), 9)?;
+    let result = L::countingSort(Arc::clone(&lst), 9);
     assert_eq!(result, list![1i32, 1, 2, 3, 4, 5, 6, 9]);
     Ok(())
 }
@@ -568,14 +568,14 @@ fn test_first_n() -> Result<()> {
 #[test]
 fn test_first_or_empty_some() -> Result<()> {
     let lst = list![1i32, 2];
-    let result = L::firstOrEmpty(Arc::clone(&lst))?;
+    let result = L::firstOrEmpty(Arc::clone(&lst));
     assert_eq!(result.len(), 1);
     Ok(())
 }
 #[test]
 fn test_first_or_empty_none() -> Result<()> {
     let lst: Arc<List<i32>> = nil();
-    let result = L::firstOrEmpty(Arc::clone(&lst))?;
+    let result = L::firstOrEmpty(Arc::clone(&lst));
     assert_eq!(result.len(), 0);
     Ok(())
 }
@@ -714,13 +714,13 @@ fn test_fold22() {
 // ── FromOption ──
 #[test]
 fn test_from_option_some() -> Result<()> {
-    let result = L::fromOption(Some(42i32))?;
+    let result = L::fromOption(Some(42i32));
     assert_eq!(result, list![42i32]);
     Ok(())
 }
 #[test]
 fn test_from_option_none() -> Result<()> {
-    let result = L::fromOption(Option::<i32>::None)?;
+    let result = L::fromOption(Option::<i32>::None);
     assert!(result.is_empty());
     Ok(())
 }
@@ -760,26 +760,26 @@ fn test_get_member_on_true() -> Result<()> {
 // ── HasOneElement ──
 #[test]
 fn test_has_one_element_true() -> Result<()> {
-    assert!(L::hasOneElement(list![1i32])?);
+    assert!(L::hasOneElement(list![1i32]));
     Ok(())
 }
 #[test]
 fn test_has_one_element_false() -> Result<()> {
-    assert!(!L::hasOneElement(list![1i32, 2])?);
-    assert!(!L::hasOneElement(nil::<i32>())?);
+    assert!(!L::hasOneElement(list![1i32, 2]));
+    assert!(!L::hasOneElement(nil::<i32>()));
     Ok(())
 }
 
 // ── HasSeveralElements ──
 #[test]
 fn test_has_several_elements_true() -> Result<()> {
-    assert!(L::hasSeveralElements(list![1i32, 2])?);
+    assert!(L::hasSeveralElements(list![1i32, 2]));
     Ok(())
 }
 #[test]
 fn test_has_several_elements_false() -> Result<()> {
-    assert!(!L::hasSeveralElements(list![1i32])?);
-    assert!(!L::hasSeveralElements(nil::<i32>())?);
+    assert!(!L::hasSeveralElements(list![1i32]));
+    assert!(!L::hasSeveralElements(nil::<i32>()));
     Ok(())
 }
 
@@ -787,7 +787,7 @@ fn test_has_several_elements_false() -> Result<()> {
 #[test]
 fn test_heap_sort_int_list() -> Result<()> {
     let lst = list![3i32, 1, 4, 1, 5, 9, 2, 6];
-    let result = L::heapSortIntList(Arc::clone(&lst))?;
+    let result = L::heapSortIntList(Arc::clone(&lst));
     assert_eq!(result, list![1i32, 1, 2, 3, 4, 5, 6, 9]);
     Ok(())
 }
@@ -868,12 +868,12 @@ fn test_intersection_on_true() {
 // ── IsEqual ──
 #[test]
 fn test_is_equal_true() -> Result<()> {
-    assert!(L::isEqual(list![1i32, 2], list![1i32, 2], true)?);
+    assert!(L::isEqual(list![1i32, 2], list![1i32, 2], true));
     Ok(())
 }
 #[test]
 fn test_is_equal_false() -> Result<()> {
-    assert!(!L::isEqual(list![1i32, 2], list![1i32, 3], true)?);
+    assert!(!L::isEqual(list![1i32, 2], list![1i32, 3], true));
     Ok(())
 }
 

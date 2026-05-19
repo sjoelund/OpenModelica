@@ -282,6 +282,7 @@ dependencies = [
 name = "openmodelica_susan"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "arcstr",
  "const-str",
  "metamodelica",

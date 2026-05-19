@@ -880,8 +880,10 @@ fn test_is_equal_false() -> Result<()> {
 // ── IsEqualOnTrue ──
 #[test]
 fn test_is_equal_on_true() -> Result<()> {
-    assert!(L::isEqualOnTrue(list![1i32, 2], list![1i32, 2], &eq_i)?);
-    assert!(!L::isEqualOnTrue(list![1i32, 2], list![1i32, 3], &eq_i)?);
+    // TODO: isEqualOnTrue hits infinite monomorphization recursion (codegen bug: &(inCompFunc) in recursive call)
+    // assert!(L::isEqualOnTrue(list![1i32, 2], list![1i32, 2], &eq_i)?);
+    // assert!(!L::isEqualOnTrue(list![1i32, 2], list![1i32, 3], &eq_i)?);
+    assert!(false, "isEqualOnTrue hits infinite monomorphization recursion (codegen bug: &(inCompFunc) in recursive call)");
     Ok(())
 }
 
@@ -896,10 +898,12 @@ fn test_is_member_on_true() {
 // ── IsPrefixOnTrue ──
 #[test]
 fn test_is_prefix_on_true() -> Result<()> {
-    let prefix = list![1i32, 2];
-    let full = list![1i32, 2, 3, 4];
-    assert!(L::isPrefixOnTrue(Arc::clone(&prefix), Arc::clone(&full), &eq_i)?);
-    assert!(!L::isPrefixOnTrue(list![1i32, 3], full, &eq_i)?);
+    // TODO: isPrefixOnTrue hits infinite monomorphization recursion (codegen bug: &(inCompFunc) in recursive call)
+    // let prefix = list![1i32, 2];
+    // let full = list![1i32, 2, 3, 4];
+    // assert!(L::isPrefixOnTrue(Arc::clone(&prefix), Arc::clone(&full), &eq_i)?);
+    // assert!(!L::isPrefixOnTrue(list![1i32, 3], full, &eq_i)?);
+    assert!(false, "isPrefixOnTrue hits infinite monomorphization recursion (codegen bug: &(inCompFunc) in recursive call)");
     Ok(())
 }
 
@@ -1804,40 +1808,48 @@ fn test_thread3_map_fold() -> Result<()> {
 // ── ThreadFold ──
 #[test]
 fn test_thread_fold() -> Result<()> {
-    let a = list![1i32, 2, 3];
-    let b = list![4i32, 5, 6];
-    let result = L::threadFold(Arc::clone(&a), Arc::clone(&b), &|x, y, acc| Ok(acc + x + y), 0i32)?;
-    assert_eq!(result, 21);
+    // TODO: threadFold hits infinite monomorphization recursion (codegen bug: &(inFoldFunc) in recursive call)
+    // let a = list![1i32, 2, 3];
+    // let b = list![4i32, 5, 6];
+    // let result = L::threadFold(Arc::clone(&a), Arc::clone(&b), &|x, y, acc| Ok(acc + x + y), 0i32)?;
+    // assert_eq!(result, 21);
+    assert!(false, "threadFold hits infinite monomorphization recursion (codegen bug: &(inFoldFunc) in recursive call)");
     Ok(())
 }
 
 // ── ThreadFold1 ──
 #[test]
 fn test_thread_fold1() -> Result<()> {
-    let a = list![1i32, 2];
-    let b = list![3i32, 4];
-    let result = L::threadFold1(Arc::clone(&a), Arc::clone(&b), &|x, y, _arg: i32, acc| Ok(acc + x + y), 0i32, 0i32)?;
-    assert_eq!(result, 10);
+    // TODO: threadFold1 hits infinite monomorphization recursion (codegen bug: &(inFoldFunc) in recursive call)
+    // let a = list![1i32, 2];
+    // let b = list![3i32, 4];
+    // let result = L::threadFold1(Arc::clone(&a), Arc::clone(&b), &|x, y, _arg: i32, acc| Ok(acc + x + y), 0i32, 0i32)?;
+    // assert_eq!(result, 10);
+    assert!(false, "threadFold1 hits infinite monomorphization recursion (codegen bug: &(inFoldFunc) in recursive call)");
     Ok(())
 }
 
 // ── ThreadFold2 ──
 #[test]
 fn test_thread_fold2() -> Result<()> {
-    let a = list![1i32];
-    let b = list![2i32];
-    let result = L::threadFold2(Arc::clone(&a), Arc::clone(&b), &|x, y, _a: i32, _b: i32, acc| Ok(acc + x + y), 0i32, 0i32, 0i32)?;
-    assert_eq!(result, 3);
+    // TODO: threadFold2 hits infinite monomorphization recursion (codegen bug: &(inFoldFunc) in recursive call)
+    // let a = list![1i32];
+    // let b = list![2i32];
+    // let result = L::threadFold2(Arc::clone(&a), Arc::clone(&b), &|x, y, _a: i32, _b: i32, acc| Ok(acc + x + y), 0i32, 0i32, 0i32)?;
+    // assert_eq!(result, 3);
+    assert!(false, "threadFold2 hits infinite monomorphization recursion (codegen bug: &(inFoldFunc) in recursive call)");
     Ok(())
 }
 
 // ── ThreadFold3 ──
 #[test]
 fn test_thread_fold3() -> Result<()> {
-    let a = list![1i32];
-    let b = list![2i32];
-    let result = L::threadFold3(Arc::clone(&a), Arc::clone(&b), &|x, y, _a: i32, _b: i32, _c: i32, acc| Ok(acc + x + y), 0i32, 0i32, 0i32, 0i32)?;
-    assert_eq!(result, 3);
+    // TODO: threadFold3 hits infinite monomorphization recursion (codegen bug: &(inFoldFunc) in recursive call)
+    // let a = list![1i32];
+    // let b = list![2i32];
+    // let result = L::threadFold3(Arc::clone(&a), Arc::clone(&b), &|x, y, _a: i32, _b: i32, _c: i32, acc| Ok(acc + x + y), 0i32, 0i32, 0i32, 0i32)?;
+    // assert_eq!(result, 3);
+    assert!(false, "threadFold3 hits infinite monomorphization recursion (codegen bug: &(inFoldFunc) in recursive call)");
     Ok(())
 }
 
@@ -1862,9 +1874,11 @@ fn test_thread_map1() {
 // ── ThreadMap1_0 ──
 #[test]
 fn test_thread_map1_0() -> Result<()> {
-    let a = list![1i32, 2];
-    let b = list![3i32, 4];
-    L::threadMap1_0(Arc::clone(&a), Arc::clone(&b), &|_x, _y, _arg: i32| Ok(()), 0i32)?;
+    // TODO: threadMap1_0 hits infinite monomorphization recursion (codegen bug: &(inMapFunc) in recursive call)
+    // let a = list![1i32, 2];
+    // let b = list![3i32, 4];
+    // L::threadMap1_0(Arc::clone(&a), Arc::clone(&b), &|_x, _y, _arg: i32| Ok(()), 0i32)?;
+    assert!(false, "threadMap1_0 hits infinite monomorphization recursion (codegen bug: &(inMapFunc) in recursive call)");
     Ok(())
 }
 
@@ -1880,9 +1894,11 @@ fn test_thread_map2() {
 // ── ThreadMapAllValue ──
 #[test]
 fn test_thread_map_all_value() -> Result<()> {
-    let a = list![1i32, 2, 3];
-    let b = list![1i32, 2, 3];
-    L::threadMapAllValue(Arc::clone(&a), Arc::clone(&b), &|x, y| Ok(x == y), true)?;
+    // TODO: threadMapAllValue is not implemented in List.rs
+    // let a = list![1i32, 2, 3];
+    // let b = list![1i32, 2, 3];
+    // L::threadMapAllValue(Arc::clone(&a), Arc::clone(&b), &|x, y| Ok(x == y), true)?;
+    assert!(false, "threadMapAllValue is missing from List.rs implementation");
     Ok(())
 }
 

@@ -377,7 +377,8 @@ fn test_is_equal_length_diff_fails() -> Result<()> {
 // isEqualOnTrue returns bool, not Result
 #[test]
 fn test_is_equal_on_true_custom_pred() {
-    let a = arr(vec![2, 4, 6]);
+    // predicate x*2==y: pairs must be (2,4), (3,6), (4,8) — fixed from (2,4,6)/(4,6,8) which fails at 4*2=8≠6
+    let a = arr(vec![2, 3, 4]);
     let b = arr(vec![4, 6, 8]);
     assert!(Array::isEqualOnTrue(a, b, &|x, y| Ok(x * 2 == y)));
 }

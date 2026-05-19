@@ -794,6 +794,14 @@ fn generate_lib_file(hier: &InstanceHierarchy<'_>, this_dir: &str, default_dir: 
             _ => continue,
         }
     }
+    // Include the manually-maintained Globals module when the file exists.
+    // Globals.rs is not auto-generated because its declarations require
+    // hand-written type annotations that cannot be inferred from MetaModelica
+    // alone (in particular, the types stored at each global-root slot).
+    let globals_path = format!("{this_dir}/Globals.rs");
+    if std::path::Path::new(&globals_path).exists() {
+        writeln!(out, "pub mod Globals;").unwrap();
+    }
     out
 }
 
@@ -4634,6 +4642,21 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
         // whole-program pre-pass to gather (idx_const_qname, value_type)
         // pairs across files and resolve type-variable indirection.
         "setGlobalRoot" if args.len() == 2 => {
+            // Fast path: if the index argument resolves to a named `constant Integer`
+            // in a package that has a typed `Globals` module, emit a direct
+            // thread-local assignment.  The `thread_local!` / `RefCell` pair is
+            // infallible, so no `?` is needed.
+            if let Some(grc) = try_resolve_global_root_const(&args[0], top_level) {
+                let val_expr = emit_builtin_call_arg(func, 1, &args[1], is_const, ctx, top_level);
+                let var_path = global_root_var_path(&grc, ctx);
+                // Both thread-local (index 0..=8) and process-global (index 9..)
+                // roots use `thread_local!` + `RefCell` because `Array<T> =
+                // Rc<RefCell<Vec<T>>>` is not `Send`, preventing `Mutex<T>`.
+                // TODO: when `Array<T>` is made `Send`, upgrade index-9+ roots
+                // to `static Mutex<T>` and change the emitted accessor here.
+                return Ok(format!("{var_path}.with(|__root| *__root.borrow_mut() = {val_expr})"));
+            }
+            // Fallback: dynamic / unresolved index — keep the type-erased runtime call.
             let idx_expr = emit_builtin_call_arg_raw(func, 0, &args[0], is_const, ctx, top_level);
             let val_ty = args[1].ty();
             let val_expr = emit_builtin_call_arg(func, 1, &args[1], is_const, ctx, top_level);
@@ -4663,8 +4686,13 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
         // generated generic type-parameter carries `: 'static` via
         // `DEFAULT_TRAITS`.
         "getGlobalRoot" if args.len() == 1 => {
-            // See the comment on `setGlobalRoot` above for why we don't
-            // constant-fold the index here.
+            // Fast path: named constant → typed thread-local read.
+            if let Some(grc) = try_resolve_global_root_const(&args[0], top_level) {
+                let var_path = global_root_var_path(&grc, ctx);
+                // `.borrow().clone()` is infallible; no `?` needed.
+                return Ok(format!("{var_path}.with(|__root| __root.borrow().clone())"));
+            }
+            // Fallback: dynamic / unresolved index.
             let idx_expr = emit_builtin_call_arg_raw(func, 0, &args[0], is_const, ctx, top_level);
             let q = if ctx.current_fn_fallible { "?" } else { ".unwrap()" };
             Ok(format!("metamodelica::getGlobalRoot({idx_expr}){q}"))
@@ -5240,6 +5268,74 @@ fn child_qname_simple(child: &NameNode<'_>) -> String {
         NodeKind::Class(c) => c.name.clone(),
         _ => String::new(),
     }
+}
+
+// ── Global-root typed-slot helpers ───────────────────────────────────────────
+
+/// A resolved reference to a `constant Integer` component in a MetaModelica
+/// package that names a global-root slot (e.g. `Global.currentInstVar = 23`).
+struct GlobalRootConst {
+    /// Top-level package plus any sub-path segments, dot-separated
+    /// (e.g. `"Global"`).
+    pkg: String,
+    /// Simple name of the constant within that package (e.g. `"currentInstVar"`).
+    const_name: String,
+    /// Integer value of the constant; 0–8 are thread-local (C `localRoots`),
+    /// 9+ are process-global (C `global_roots`). Both use `thread_local!` in
+    /// Rust for now because `Array<T> = Rc<RefCell<Vec<T>>>` is not `Send`.
+    #[allow(dead_code)]
+    index_value: i32,
+}
+
+/// Attempt to resolve `arg` as a reference to a `constant Integer` component
+/// in a known package (e.g. `Global.currentInstVar`).
+///
+/// Returns `None` when:
+///   * `arg` is not a `TypedExp::Var` (e.g. it's a literal integer),
+///   * the name has no dot (local variable, not a qualified constant),
+///   * the name contains subscripts,
+///   * the referenced node is not a `CONST` component, or
+///   * the component's initialiser is not an `INTEGER` literal.
+fn try_resolve_global_root_const<'a>(
+    arg: &TypedExp,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+) -> Option<GlobalRootConst> {
+    let TypedExp::Var { name, segments, .. } = arg else { return None; };
+    // Reject names that carry subscripts on any segment.
+    if segments.iter().any(|s| !s.subscripts.is_empty()) {
+        return None;
+    }
+    // Must be a qualified name with at least one dot (e.g. "Global.flagsIndex").
+    let dot = name.rfind('.')?;
+    let (pkg, const_name) = (&name[..dot], &name[dot + 1..]);
+    let node = lookup_node(name, top_level)?;
+    let NodeKind::Component(m) = &node.kind else { return None; };
+    if m.variability != Absyn::Variability::CONST {
+        return None;
+    }
+    let exp = extract_default_exp(&m.modification)?;
+    let Absyn::Exp::INTEGER { value } = exp else { return None; };
+    Some(GlobalRootConst {
+        pkg: pkg.to_owned(),
+        const_name: const_name.to_owned(),
+        index_value: *value,
+    })
+}
+
+/// Compute the Rust path to the named global-root variable for `grc` in the
+/// appropriate crate's `Globals` module.
+///
+/// Emits `crate::Globals::NAME` when the constant's top-level package belongs
+/// to the crate currently being generated, and `some_crate::Globals::NAME`
+/// otherwise. Uses the same `crate_map` as the rest of codegen.
+fn global_root_var_path(grc: &GlobalRootConst, ctx: &GenCtx) -> String {
+    let pkg_top = grc.pkg.split('.').next().unwrap_or(&grc.pkg);
+    let globals_prefix = match ctx.crate_map.get(pkg_top) {
+        Some(mc) if Some(mc) == ctx.current_crate.as_ref() => "crate::Globals".to_owned(),
+        Some(mc) => format!("{mc}::Globals"),
+        None => "crate::Globals".to_owned(),
+    };
+    format!("{globals_prefix}::{}", grc.const_name)
 }
 
 /// Find the index at which to split segments into [package prefix] and [record fields].

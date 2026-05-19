@@ -42,9 +42,11 @@
 #![allow(non_snake_case, non_upper_case_globals)]
 
 use std::cell::RefCell;
+use std::sync::Arc;
 use anyhow::Result;
 use arcstr::ArcStr;
 use metamodelica::{Array, SourceInfo};
+use openmodelica_util_datatypes_basic::DoubleEnded;
 
 // ── Thread-local roots (index 0–8, C: threadData->localRoots) ────────────────
 
@@ -61,14 +63,25 @@ thread_local! {
     pub static instOnlyForcedFunctions: RefCell<Option<bool>> =
         const { RefCell::new(None) };
 
-    // Index 1 — codegenTryThrowIndex
-    // Type: TODO — used in SimCodeFunctionUtil.mo. Determine from usage.
+    /// Index 1 — Codegen try/throw list.
+    ///
+    /// Stores the list of active try/throw levels during code generation.
+    /// Source: `SimCodeFunctionUtil.mo`.
+    pub static codegenTryThrowIndex: RefCell<Arc<metamodelica::List<i32>>> =
+        RefCell::new(metamodelica::nil());
 
-    // Index 2 — codegenFunctionList
-    // Type: TODO — used in SimCode.mo / SimCodeFunctionUtil.mo.
+    /// Index 2 — Codegen function list.
+    ///
+    /// A double-ended mutable list of function names accumulated during
+    /// SimCode generation.  Initialised to an empty list by
+    /// `SimCodeUtil.initFunctionListIndex`.
+    /// Source: `SimCodeUtil.mo`.
+    pub static codegenFunctionList: RefCell<DoubleEnded::MutableList<ArcStr>> =
+        RefCell::new(DoubleEnded::fromList(metamodelica::nil()).expect("DoubleEnded::fromList(nil) is infallible"));
 
     // Index 3 — symbolTable
-    // Type: TODO — used in multiple frontend files.
+    // Declared in openmodelica_backend::Globals (type Arc<SymbolTable::SymbolTable>
+    // from openmodelica_backend::SymbolTable; circular dep if declared here).
 
     // Indices 4–8 are unused in the MetaModelica sources seen so far.
 }
@@ -81,40 +94,56 @@ thread_local! {
 
 thread_local! {
     // Index 9  — instHashIndex
-    // Type: lives in openmodelica_frontend; not declared here.
+    // Declared in openmodelica_frontend::Globals.
+    // Type: crate::InstHashTable::HashTable (from openmodelica_frontend).
 
     // Index 10 — instNFInstCacheIndex
-    // Type: TODO.
+    // Declared in openmodelica_frontend::Globals.
+    // Type: Arc<List<((Absyn::Program, Arc<Absyn::Path>),
+    //               (Arc<List<Arc<SCode::Element>>>, ArcStr, Arc<InstNode::InstNode>))>>
 
     // Index 11 — instNFNodeCacheIndex
-    // Type: TODO.
+    // Declared in openmodelica_frontend::Globals.
+    // Type: Arc<List<(Absyn::Program,
+    //               (Arc<List<Arc<SCode::Element>>>, Arc<InstNode::InstNode>))>>
 
     // Index 12 — instNFLookupCacheIndex
-    // Type: TODO.
+    // Declared in openmodelica_frontend::Globals. Same type as index 10.
 
     // Index 13 — builtinIndex
-    // Type: lives in openmodelica_frontend; not declared here.
+    // Declared in openmodelica_frontend::Globals.
+    // Type: Arc<List<((i32, bool), (Absyn::Program, Arc<List<Arc<SCode::Element>>>))>>
 
     // Index 14 — builtinEnvIndex
-    // Type: TODO.
+    // Type: unknown; not used in generated code seen so far.
 
-    // Index 15 — profilerTime1Index
-    // Type: TODO.
+    /// Index 15 — Profiler timer 1.
+    ///
+    /// Accumulated wall-clock time for the first profiling slot.
+    /// Initialised to 0.0; incremented by `Util.mo`.
+    pub static profilerTime1Index: RefCell<f64> =
+        const { RefCell::new(0.0) };
 
-    // Index 16 — profilerTime2Index
-    // Type: TODO.
+    /// Index 16 — Profiler timer 2.
+    ///
+    /// Accumulated wall-clock time for the second profiling slot.
+    pub static profilerTime2Index: RefCell<f64> =
+        const { RefCell::new(0.0) };
 
     /// Index 17 — Compiler flags.
     ///
     /// Initialised by `FlagsUtil.loadFlags`; read by `Flags.getFlags`.
-    pub static flagsIndex: RefCell<Option<crate::Flags::Flag>> =
-        const { RefCell::new(None) };
+    /// Defaults to `Flag::NO_FLAGS` before initialisation.
+    pub static flagsIndex: RefCell<crate::Flags::Flag> =
+        const { RefCell::new(crate::Flags::Flag::NO_FLAGS) };
 
     // Index 18 — builtinGraphIndex
-    // Type: lives in openmodelica_frontend; not declared here.
+    // Declared in openmodelica_frontend::Globals.
+    // Type: Arc<List<(i32, FCore::Graph)>> — from openmodelica_frontend::Builtin.
 
     // Index 19 — rewriteRulesIndex
-    // Type: TODO — used in RewriteRules.mo (Script package).
+    // Declared in openmodelica_backend::Globals.
+    // Type: Option<Arc<List<RewriteRules::Rule>>> — from openmodelica_backend::RewriteRules.
 
     /// Index 20 — Stack-overflow sentinel.
     ///
@@ -131,11 +160,13 @@ thread_local! {
     ///
     /// Stores the GC stats snapshot at the last call to `execStatReset`.
     /// Set and read by `ExecStat.mo`.
-    pub static gcProfilingIndex: RefCell<Option<openmodelica_util_datatypes_basic::GCExt::ProfStats>> =
-        const { RefCell::new(None) };
+    pub static gcProfilingIndex: RefCell<openmodelica_util_datatypes_basic::GCExt::ProfStats> =
+        RefCell::new(openmodelica_util_datatypes_basic::GCExt::getProfStats());
 
     // Index 22 — inlineHashTable
-    // Type: TODO — used in Inline.mo (FrontEnd package).
+    // Declared in openmodelica_frontend::Globals.
+    // Type: Option<(HashTableCG::HashTable, VarTransform::VariableReplacements)>
+    // from openmodelica_frontend::Inline.
 
     /// Index 23 — Current component being instantiated.
     ///
@@ -152,26 +183,47 @@ thread_local! {
     > = const { RefCell::new(None) };
 
     // Index 24 — operatorOverloadingCache
-    // Type: AVL-tree structures — OperatorOverloading.mo (FrontEnd package).
+    // Declared in openmodelica_frontend::Globals.
+    // Type: (Arc<OperatorOverloading::AvlTreePathPathEnv::Tree>,
+    //        Arc<OperatorOverloading::AvlTreePathOperatorTypes::Tree>)
 
     // Index 25 — optionSimCode
-    // Type: Option<SimCode> — lives in openmodelica_backend (SimCode package).
+    // Declared in openmodelica_backend::Globals.
+    // Type: Option<SimCode::SimCode> — from openmodelica_backend::SimCode.
 
     // Index 26 — interactiveCache
-    // Type: TODO — Interactive.mo (Script package).
+    // Declared in openmodelica_backend::Globals.
+    // Type: Option<Arc<List<(Absyn::Program, Arc<Absyn::Path>, Interactive::GraphicEnvCache)>>>
 
-    // Index 27 — isInStream
-    // Type: TODO — NFConnectEquations.mo / BackendDAEUtil.mo.
+    /// Index 27 — Whether currently processing stream connectors.
+    ///
+    /// Set to `Some(true)` during stream-connector processing;
+    /// `None` otherwise.
+    /// Source: `NFConnectEquations.mo`, `ConnectUtil.mo`.
+    pub static isInStream: RefCell<Option<bool>> =
+        const { RefCell::new(None) };
 
     // Index 28 — MMToJLListIndex
-    // Type: TODO — JuliaLink list.
+    // Type: unknown — JuliaLink list. Not used in known generated code.
 
     // Index 29 — packageIndexCacheIndex
-    // Type: TODO — PackageManagement.mo (Script package).
+    // Type: Arc<openmodelica_util::JSON::JSON> — JSON is in openmodelica_util so
+    // no circular dep.  However the generated code contains both
+    // `= obj.clone()` (Arc<JSON::JSON>) and `= 0` (integer reset) at different
+    // call sites, which is a codegen bug.  Declared as Option<Arc<JSON::JSON>>
+    // to handle both; the `= 0` line will need a manual fix after next codegen run.
+    pub static packageIndexCacheIndex: RefCell<Option<Arc<crate::JSON::JSON>>> =
+        const { RefCell::new(None) };
 
-    // Index 30 — sharedLibraryCacheIndex
-    // Type: TODO — NFEvalFunction.mo.
+    /// Index 30 — Shared-library lookup cache.
+    ///
+    /// Stores a list of `(library_path, handle)` pairs for already-opened
+    /// shared libraries.  Initialised to `nil()` by `Global.initialize`.
+    /// Source: `NFEvalFunction.mo`.
+    pub static sharedLibraryCacheIndex: RefCell<Arc<metamodelica::List<(ArcStr, i32)>>> =
+        RefCell::new(metamodelica::nil());
 
     // Index 31 — backendInterface
-    // Type: TODO — BackendInterface.mo (FrontEnd package).
+    // Declared in openmodelica_frontend::Globals.
+    // Type: BackendInterface::BackendInterfaceFunctions
 }

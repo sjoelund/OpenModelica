@@ -173,3 +173,4 @@ pub mod VisualXML;
 pub mod VisualXMLTpl;
 pub mod XMLDump;
 pub mod ZeroCrossings;
+pub mod Globals;

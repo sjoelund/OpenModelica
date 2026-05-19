@@ -724,7 +724,12 @@ pub fn generate_all(hier: &InstanceHierarchy<'_>, output_dir: &str) -> std::io::
                 // handle + reference count) are hand-written in
                 // `openmodelica_util/src/File.rs`. Skip codegen so the manual
                 // implementation isn't overwritten.
-                "Mutable" | "GCExt" | "Pointer" | "File" => continue,
+                //
+                // `Global` contains index constants and an `initialize()`
+                // function; it is hand-written in
+                // `openmodelica_util/src/Global.rs` so that `initialize()` can
+                // reference typed `Globals::` variables correctly.
+                "Mutable" | "GCExt" | "Pointer" | "File" | "Global" => continue,
                 _ => {}
             };
             file_jobs.push((dir.as_str(), name, node));
@@ -4646,7 +4651,7 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
             // in a package that has a typed `Globals` module, emit a direct
             // thread-local assignment.  The `thread_local!` / `RefCell` pair is
             // infallible, so no `?` is needed.
-            if let Some(grc) = try_resolve_global_root_const(&args[0], top_level) {
+            if let Some(grc) = try_resolve_global_root_const(&args[0], ctx, top_level) {
                 let val_expr = emit_builtin_call_arg(func, 1, &args[1], is_const, ctx, top_level);
                 let var_path = global_root_var_path(&grc, ctx);
                 // Both thread-local (index 0..=8) and process-global (index 9..)
@@ -4687,7 +4692,7 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
         // `DEFAULT_TRAITS`.
         "getGlobalRoot" if args.len() == 1 => {
             // Fast path: named constant → typed thread-local read.
-            if let Some(grc) = try_resolve_global_root_const(&args[0], top_level) {
+            if let Some(grc) = try_resolve_global_root_const(&args[0], ctx, top_level) {
                 let var_path = global_root_var_path(&grc, ctx);
                 // `.borrow().clone()` is infallible; no `?` needed.
                 return Ok(format!("{var_path}.with(|__root| __root.borrow().clone())"));
@@ -5292,12 +5297,17 @@ struct GlobalRootConst {
 ///
 /// Returns `None` when:
 ///   * `arg` is not a `TypedExp::Var` (e.g. it's a literal integer),
-///   * the name has no dot (local variable, not a qualified constant),
 ///   * the name contains subscripts,
-///   * the referenced node is not a `CONST` component, or
-///   * the component's initialiser is not an `INTEGER` literal.
+///   * no matching `CONST` component with an `INTEGER` initialiser is found, or
+///   * the reference is a local variable (not resolvable in the hierarchy).
+///
+/// Both qualified names (`Global.flagsIndex`) and unqualified names
+/// (`flagsIndex` used inside the `Global` package itself) are handled.
+/// Unqualified names are resolved by trying each scope from innermost to
+/// outermost: `{top_name}.{current_path[0]}.…{name}`, …, `{top_name}.{name}`.
 fn try_resolve_global_root_const<'a>(
     arg: &TypedExp,
+    ctx: &GenCtx,
     top_level: &'a BTreeMap<String, NameNode<'a>>,
 ) -> Option<GlobalRootConst> {
     let TypedExp::Var { name, segments, .. } = arg else { return None; };
@@ -5305,21 +5315,47 @@ fn try_resolve_global_root_const<'a>(
     if segments.iter().any(|s| !s.subscripts.is_empty()) {
         return None;
     }
-    // Must be a qualified name with at least one dot (e.g. "Global.flagsIndex").
-    let dot = name.rfind('.')?;
-    let (pkg, const_name) = (&name[..dot], &name[dot + 1..]);
-    let node = lookup_node(name, top_level)?;
-    let NodeKind::Component(m) = &node.kind else { return None; };
-    if m.variability != Absyn::Variability::CONST {
-        return None;
+
+    // Build the list of fully-qualified candidate names to try, in order from
+    // innermost scope to outermost.
+    let candidates: Vec<String> = if name.contains('.') {
+        // Already qualified — use as-is.
+        vec![name.clone()]
+    } else {
+        // Unqualified name: try qualifying it with each enclosing scope,
+        // starting from the most specific (deepest) and working outward.
+        //
+        // For ctx.top_name = "Global", ctx.current_path = ["initialize"],
+        // name = "instOnlyForcedFunctions":
+        //   ["Global.initialize.instOnlyForcedFunctions",
+        //    "Global.instOnlyForcedFunctions"]
+        let mut scopes: Vec<String> = Vec::new();
+        let mut scope = ctx.top_name.clone();
+        scopes.push(scope.clone());
+        for seg in &ctx.current_path {
+            scope = format!("{scope}.{seg}");
+            scopes.push(scope.clone());
+        }
+        scopes.reverse(); // innermost first
+        scopes.iter().map(|s| format!("{s}.{name}")).collect()
+    };
+
+    for fqn in &candidates {
+        let dot = fqn.rfind('.').unwrap(); // safe: all candidates contain a dot
+        let pkg = &fqn[..dot];
+        let const_name_str = &fqn[dot + 1..];
+        let Some(node) = lookup_node(fqn, top_level) else { continue };
+        let NodeKind::Component(m) = &node.kind else { continue };
+        if m.variability != Absyn::Variability::CONST { continue; }
+        let Some(exp) = extract_default_exp(&m.modification) else { continue };
+        let Absyn::Exp::INTEGER { value } = exp else { continue };
+        return Some(GlobalRootConst {
+            pkg: pkg.to_owned(),
+            const_name: const_name_str.to_owned(),
+            index_value: *value,
+        });
     }
-    let exp = extract_default_exp(&m.modification)?;
-    let Absyn::Exp::INTEGER { value } = exp else { return None; };
-    Some(GlobalRootConst {
-        pkg: pkg.to_owned(),
-        const_name: const_name.to_owned(),
-        index_value: *value,
-    })
+    None
 }
 
 /// Compute the Rust path to the named global-root variable for `grc` in the
@@ -5329,9 +5365,30 @@ fn try_resolve_global_root_const<'a>(
 /// to the crate currently being generated, and `some_crate::Globals::NAME`
 /// otherwise. Uses the same `crate_map` as the rest of codegen.
 fn global_root_var_path(grc: &GlobalRootConst, ctx: &GenCtx) -> String {
+    // Per-name overrides: some roots whose *index* constant lives in
+    // Global.mo (→ openmodelica_util) but whose *value type* lives in a
+    // downstream crate.  The thread_local! declaration was placed in the
+    // downstream crate's Globals.rs to avoid circular dependencies.
+    let crate_override: Option<&str> = match grc.const_name.as_str() {
+        // openmodelica_frontend — types from Absyn, SCode, FCore, etc.
+        "instHashIndex"
+        | "instNFInstCacheIndex"
+        | "instNFNodeCacheIndex"
+        | "instNFLookupCacheIndex"
+        | "builtinIndex"
+        | "builtinGraphIndex"
+        | "inlineHashTable"
+        | "operatorOverloadingCache"
+        | "backendInterface" => Some("openmodelica_frontend"),
+        // openmodelica_backend — types from SymbolTable, SimCode, etc.
+        "symbolTable" | "rewriteRulesIndex" | "optionSimCode" | "interactiveCache" => {
+            Some("openmodelica_backend")
+        }
+        _ => None,
+    };
     let pkg_top = grc.pkg.split('.').next().unwrap_or(&grc.pkg);
-    let globals_prefix = match ctx.crate_map.get(pkg_top) {
-        Some(mc) if Some(mc) == ctx.current_crate.as_ref() => "crate::Globals".to_owned(),
+    let globals_prefix = match crate_override.or_else(|| ctx.crate_map.get(pkg_top).map(|s| s.as_str())) {
+        Some(mc) if Some(mc) == ctx.current_crate.as_deref() => "crate::Globals".to_owned(),
         Some(mc) => format!("{mc}::Globals"),
         None => "crate::Globals".to_owned(),
     };

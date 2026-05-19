@@ -1244,7 +1244,14 @@ fn emit_uniontype<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM:
             }
             writeln!(out, "{inner}}}").unwrap();
             let variant_list = emitted_variants.join(",");
-            writeln!(out, "{inner}pub use {ename}::{{{variant_list}}};").unwrap();
+            // Use `self::<Enum>::{...}` so the inner module name and the
+            // outer module wrapping it (we emit a `pub mod {ename}` around
+            // each uniontype that needs sibling imports) don't shadow each
+            // other: `Entry::{CLASS,...}` is ambiguous when both
+            // `mod Entry` and `enum Entry` are in scope, but
+            // `self::Entry::{CLASS,...}` resolves uniquely to the inner
+            // type because `self::` skips the value namespace altogether.
+            writeln!(out, "{inner}pub use self::{ename}::{{{variant_list}}};").unwrap();
         }
         Ty::AliasTo(_) => {
             // Single-record uniontype: emit one struct named after the uniontype.
@@ -1356,7 +1363,7 @@ fn emit_struct(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Class,
     let type_params = if type_vars.is_empty() {
         String::new()
     } else {
-        let bounded: Vec<String> = type_vars.iter().map(|v| format!("{v}: Clone + 'static")).collect();
+        let bounded: Vec<String> = type_vars.iter().map(|v| format!("{v}: Clone")).collect();
         format!("<{}>", bounded.join(", "))
     };
     let derives = match &node.ty {
@@ -2087,6 +2094,98 @@ fn last_stmt_emits_extra_question_mark<'a>(
 /// Decide whether `typed_stmts` qualifies for the tail-call lowering
 /// described at the top of this section. Returns the plan when it does,
 /// `None` otherwise.
+/// Return true if `name` is read anywhere in `stmts` — either as a bare
+/// variable reference on the RHS of an assignment, as a function/sub-call
+/// argument, or as part of a more complex expression. Used by
+/// [`plan_tail_call_lowering`] to refuse suppressing the declaration of an
+/// output that the body reads (e.g. an accumulator threaded through
+/// self-calls in `fold`).
+///
+/// The "LHS-only" position of an `Assign { lhs: TypedPat::Var(n), .. }` does
+/// not count as a read, but if `name` appears in a *destructuring* pattern
+/// (`(a, b) = ...`) or in a tuple/multi-output LHS, it's still being
+/// assigned, not read. The single-output suppression case is the only one
+/// we generate today, so we treat any non-top-level reference as a read.
+fn stmts_read_name(stmts: &[typedexp::TypedStmt], name: &str) -> bool {
+    stmts.iter().any(|s| stmt_reads_name(s, name))
+}
+
+fn stmt_reads_name(stmt: &typedexp::TypedStmt, name: &str) -> bool {
+    use typedexp::TypedStmt as S;
+    match stmt {
+        S::Assign { lhs, rhs } => {
+            // The LHS being exactly `Var(name)` is a write, not a read. Any
+            // other LHS shape (tuple destructure, segments) doesn't have the
+            // name at top-level — but if it appears nested (e.g. as a tuple
+            // element on the LHS), that's still a write site; the codegen
+            // for tuple destructure doesn't read.
+            let lhs_write_only = matches!(lhs, TypedPat::Var(n) if n == name);
+            (!lhs_write_only && pat_reads_name(lhs, name)) || exp_reads_name(rhs, name)
+        }
+        S::NoRetCall { call } => exp_reads_name(call, name),
+        S::If { cond, then_, elseif, else_ } => {
+            exp_reads_name(cond, name)
+                || stmts_read_name(then_, name)
+                || elseif.iter().any(|(c, b)| exp_reads_name(c, name) || stmts_read_name(b, name))
+                || stmts_read_name(else_, name)
+        }
+        S::For { range, body, .. } => exp_reads_name(range, name) || stmts_read_name(body, name),
+        S::While { cond, body } => exp_reads_name(cond, name) || stmts_read_name(body, name),
+        S::Try { body, else_body } => stmts_read_name(body, name) || stmts_read_name(else_body, name),
+        S::Failure { body } => stmts_read_name(body, name),
+        S::Return | S::Break | S::Continue | S::Todo(_) => false,
+    }
+}
+
+fn pat_reads_name(_pat: &TypedPat, _name: &str) -> bool {
+    // Patterns are write positions (binders). They don't read prior values.
+    false
+}
+
+fn exp_reads_name(exp: &typedexp::TypedExp, name: &str) -> bool {
+    use typedexp::TypedExp as E;
+    match exp {
+        E::Lit(_) | E::Todo(_) => false,
+        E::Var { name: n, segments, .. } => {
+            // Bare reference, or a base reference of a segmented path
+            // (`outResult.something`). Either way it's a read of `name`.
+            if n == name { return true; }
+            segments.iter().any(|seg| seg.subscripts.iter().any(|s| exp_reads_name(s, name)))
+        }
+        E::BinOp { lhs, rhs, .. } => exp_reads_name(lhs, name) || exp_reads_name(rhs, name),
+        E::UnOp { operand, .. } => exp_reads_name(operand, name),
+        E::Call { args, named_args, .. }
+        | E::Constructor { args, named_args, .. }
+        | E::PartEval { args, named_args, .. } => {
+            args.iter().any(|a| exp_reads_name(a, name))
+                || named_args.iter().any(|(_, v)| exp_reads_name(v, name))
+        }
+        E::If { cond, then_, elseif, else_, .. } => {
+            exp_reads_name(cond, name)
+                || exp_reads_name(then_, name)
+                || elseif.iter().any(|(c, b)| exp_reads_name(c, name) || exp_reads_name(b, name))
+                || exp_reads_name(else_, name)
+        }
+        E::Cons { head, tail, .. } => exp_reads_name(head, name) || exp_reads_name(tail, name),
+        E::Tuple(elems) | E::Array { elems, .. } => elems.iter().any(|e| exp_reads_name(e, name)),
+        E::Match { input, cases, .. } => {
+            if exp_reads_name(input, name) { return true; }
+            cases.iter().any(|c| {
+                c.guard.as_ref().is_some_and(|g| exp_reads_name(g, name))
+                    || c.locals.iter().any(|(_, _, d)| d.as_ref().is_some_and(|d| exp_reads_name(d, name)))
+                    || stmts_read_name(&c.stmts, name)
+                    || exp_reads_name(&c.result, name)
+            })
+        }
+        E::Range { start, step, stop, .. } => {
+            exp_reads_name(start, name)
+                || step.as_ref().is_some_and(|s| exp_reads_name(s, name))
+                || exp_reads_name(stop, name)
+        }
+        _ => false,
+    }
+}
+
 fn plan_tail_call_lowering<'a>(
     typed_stmts: &[typedexp::TypedStmt],
     outputs: &[(String, Ty, Option<Absyn::Modification>, bool)],
@@ -2103,6 +2202,21 @@ fn plan_tail_call_lowering<'a>(
 
     if !stmts_lowerable_as_tail_expr(typed_stmts, out_name) { return None; }
     if !stmts_have_tail_self_call(typed_stmts, out_name, fn_short_name) { return None; }
+
+    // Suppressing the output's `let mut <n>` declaration only works if the
+    // body never reads `<n>` as a value — every reference becomes a
+    // "cannot find value" error otherwise. Fold-style functions
+    // (`BaseAvlTree.fold`) declare an accumulator output and thread it
+    // through self-calls (`outResult := f(left, outResult); outResult :=
+    // step(outResult); outResult := f(right, outResult)`); the RHS of each
+    // assignment reads the prior value, so we cannot drop the declaration.
+    // The tail-call rewrite would still be valid in principle (keep the
+    // declaration *and* emit the trailing assignment as a tail expression),
+    // but the current `emit_stmts_as_tail` is structured around full
+    // suppression; refuse the plan in this case and fall back to the
+    // ordinary `let mut out; out = match ...; out` emission, which compiles
+    // (no `#[tailcall]` optimisation for accumulator-threading folds).
+    if stmts_read_name(typed_stmts, out_name) { return None; }
 
     // We deliberately do *not* pre-check the body for `?`-emitting calls
     // here. The earlier `body_emits_extra_question_mark` analysis was too
@@ -2464,7 +2578,7 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
         let type_params = if all_type_vars.is_empty() {
             String::new()
         } else {
-            let bounded: Vec<String> = all_type_vars.iter().map(|v| format!("{v}: Clone + 'static")).collect();
+            let bounded: Vec<String> = all_type_vars.iter().map(|v| format!("{v}: Clone")).collect();
             format!("<{}>", bounded.join(", "))
         };
         let ins = fn_inputs.iter().map(|inp| fmt_ty(&inp.ty, ctx)).collect::<Vec<_>>().join(", ");
@@ -2644,10 +2758,20 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
         }
     }
 
+    // Include the *function's own name* in `pkg_prefix` so that nested
+    // function definitions (e.g. `function is_equal_dim ... end is_equal_dim`
+    // declared in `SBSet.new`'s protected section, with `function-instance` qname
+    // `SBSet.new.is_equal_dim`) resolve when referenced as a bare name from
+    // inside the enclosing function's body — including `function-instance`
+    // partial-application call sites like `function is_equal_dim(dim = dim)`.
+    // Without this the bare name only resolved against the *parent package*'s
+    // scope, which doesn't see the nested function and so `resolve_call_node`
+    // returned `None`, dropping the `PartEval` signature and producing a
+    // `todo!()` at codegen time.
     let pkg_prefix = if ctx.current_path.is_empty() {
-        ctx.top_name.clone()
+        format!("{}.{}", ctx.top_name, name)
     } else {
-        format!("{}.{}", ctx.top_name, ctx.current_path.join("."))
+        format!("{}.{}.{}", ctx.top_name, ctx.current_path.join("."), name)
     };
 
     let mut infer_env: HashMap<String, Ty> = HashMap::new();
@@ -2698,12 +2822,22 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
     } else {
         let empty: HashSet<String> = HashSet::new();
         let eq_vars = ctx.partial_eq_required.get(&fn_qname).unwrap_or(&empty);
+        // `'static` is added per-type-var only when the body uses one of the
+        // type-erased builtins listed in [`STATIC_REQUIRING_BUILTINS`]
+        // (`getGlobalRoot`/`setGlobalRoot`/`referenceEq`/…). Those downcast
+        // through `dyn Any`, which carries an implicit `'static` bound.
+        // For every *other* type var we emit just `Clone` (+ `PartialEq` if
+        // required): adding `'static` blanket-style breaks forwarding of
+        // function-typed parameters (`&impl Fn(...)`) through HOFs like
+        // `List::map1(.., extra_arg, ..)`, because the borrowed callback
+        // reference has a function-local lifetime, not `'static`, which
+        // surfaces as E0521 ("borrowed data escapes outside of function").
+        let static_vars = analyze_static_required_in_body(&typed_stmts);
         let bounded: Vec<String> = all_type_vars.iter().map(|v| {
-            if eq_vars.contains(v) {
-                format!("{v}: Clone + PartialEq + 'static")
-            } else {
-                format!("{v}: Clone + 'static")
-            }
+            let mut bounds = vec!["Clone"];
+            if eq_vars.contains(v) { bounds.push("PartialEq"); }
+            if static_vars.contains(v) { bounds.push("'static"); }
+            format!("{v}: {}", bounds.join(" + "))
         }).collect();
         format!("<{}>", bounded.join(", "))
     };
@@ -8786,6 +8920,134 @@ fn typedexp_lookup_node<'a>(
 /// type, so a body that never reaches one of these (and never uses `==`
 /// directly) genuinely does not need `PartialEq` on its type parameters.
 const PARTIAL_EQ_REQUIRING_BUILTINS: &[&str] = &["valueEq", "listMember", "referenceEq"];
+
+/// Builtins that require `T: 'static` on the type vars flowing into them.
+/// These cross a `dyn Any` type-erased boundary in the metamodelica runtime:
+///   * `getGlobalRoot`/`setGlobalRoot` store/recover values through
+///     `Rc<dyn Any>` (and `Any: 'static`).
+///   * `referenceEq`/`referenceDebugString` lower to pointer comparisons that
+///     need the value to outlive the comparison; we keep them in this set to
+///     match the runtime's `'static` bound.
+const STATIC_REQUIRING_BUILTINS: &[&str] = &[
+    "getGlobalRoot",
+    "setGlobalRoot",
+    "valueConstructor", // also touches Any
+    "referenceEq",
+    "referenceDebugString",
+];
+
+/// Walk a function body looking for builtins that require `T: 'static` on
+/// their type arguments. Returns the set of caller type-variable names that
+/// flow into such builtin call sites. Used by [`emit_function`] to add the
+/// `'static` bound only to type parameters that actually need it.
+fn analyze_static_required_in_body(stmts: &[typedexp::TypedStmt]) -> std::collections::HashSet<String> {
+    let mut out = std::collections::HashSet::new();
+    for s in stmts { visit_stmt_for_static(s, &mut out); }
+    out
+}
+
+fn visit_stmt_for_static(stmt: &typedexp::TypedStmt, out: &mut std::collections::HashSet<String>) {
+    use typedexp::TypedStmt as S;
+    match stmt {
+        S::Assign { rhs, .. } => visit_exp_for_static(rhs, out),
+        S::NoRetCall { call } => visit_exp_for_static(call, out),
+        S::If { cond, then_, elseif, else_ } => {
+            visit_exp_for_static(cond, out);
+            for s in then_ { visit_stmt_for_static(s, out); }
+            for (c, body) in elseif {
+                visit_exp_for_static(c, out);
+                for s in body { visit_stmt_for_static(s, out); }
+            }
+            for s in else_ { visit_stmt_for_static(s, out); }
+        }
+        S::For { range, body, .. } => {
+            visit_exp_for_static(range, out);
+            for s in body { visit_stmt_for_static(s, out); }
+        }
+        S::While { cond, body } => {
+            visit_exp_for_static(cond, out);
+            for s in body { visit_stmt_for_static(s, out); }
+        }
+        S::Try { body, else_body } => {
+            for s in body { visit_stmt_for_static(s, out); }
+            for s in else_body { visit_stmt_for_static(s, out); }
+        }
+        S::Failure { body } => {
+            for s in body { visit_stmt_for_static(s, out); }
+        }
+        S::Return | S::Break | S::Continue | S::Todo(_) => {}
+    }
+}
+
+fn visit_exp_for_static(exp: &typedexp::TypedExp, out: &mut std::collections::HashSet<String>) {
+    use typedexp::TypedExp as E;
+    match exp {
+        E::Lit(_) | E::Todo(_) => {}
+        E::Var { name, segments, ty } => {
+            let bare = name.rsplit('.').next().unwrap_or(name);
+            if STATIC_REQUIRING_BUILTINS.contains(&bare) {
+                let mut tvs = Vec::new();
+                crate::hierarchy::collect_type_vars_in_ty(ty, &mut tvs);
+                out.extend(tvs);
+            }
+            for seg in segments {
+                for sub in &seg.subscripts {
+                    visit_exp_for_static(sub, out);
+                }
+            }
+        }
+        E::BinOp { lhs, rhs, .. } => { visit_exp_for_static(lhs, out); visit_exp_for_static(rhs, out); }
+        E::UnOp { operand, .. } => visit_exp_for_static(operand, out),
+        E::Call { func, args, named_args, ty, .. } => {
+            let bare = func.rsplit('.').next().unwrap_or(func);
+            if STATIC_REQUIRING_BUILTINS.contains(&bare) {
+                // Result type (e.g. `getGlobalRoot(): Option<(Array<T>, ...)>`)
+                // carries the most precise type-arg info; arguments do too
+                // (e.g. `setGlobalRoot(idx, val)` — `val.ty()` mentions T).
+                let mut tvs = Vec::new();
+                crate::hierarchy::collect_type_vars_in_ty(ty, &mut tvs);
+                for a in args {
+                    crate::hierarchy::collect_type_vars_in_ty(&a.ty(), &mut tvs);
+                }
+                for (_, v) in named_args {
+                    crate::hierarchy::collect_type_vars_in_ty(&v.ty(), &mut tvs);
+                }
+                out.extend(tvs);
+            }
+            for a in args { visit_exp_for_static(a, out); }
+            for (_, v) in named_args { visit_exp_for_static(v, out); }
+        }
+        E::Constructor { args, named_args, .. } | E::PartEval { args, named_args, .. } => {
+            for a in args { visit_exp_for_static(a, out); }
+            for (_, v) in named_args { visit_exp_for_static(v, out); }
+        }
+        E::If { cond, then_, elseif, else_, .. } => {
+            visit_exp_for_static(cond, out);
+            visit_exp_for_static(then_, out);
+            for (c, b) in elseif { visit_exp_for_static(c, out); visit_exp_for_static(b, out); }
+            visit_exp_for_static(else_, out);
+        }
+        E::Cons { head, tail, .. } => { visit_exp_for_static(head, out); visit_exp_for_static(tail, out); }
+        E::Tuple(elems) | E::Array { elems, .. } => { for e in elems { visit_exp_for_static(e, out); } }
+        E::Match { input, cases, .. } => {
+            visit_exp_for_static(input, out);
+            for c in cases {
+                if let Some(g) = &c.guard { visit_exp_for_static(g, out); }
+                for (_, _, d) in &c.locals {
+                    if let Some(d) = d { visit_exp_for_static(d, out); }
+                }
+                for s in &c.stmts { visit_stmt_for_static(s, out); }
+                visit_exp_for_static(&c.result, out);
+            }
+        }
+        E::Range { start, step, stop, .. } => {
+            visit_exp_for_static(start, out);
+            if let Some(s) = step { visit_exp_for_static(s, out); }
+            visit_exp_for_static(stop, out);
+        }
+        _ => {}
+    }
+}
 
 /// Walk a list of [`TypedStmt`]s (typically the algorithm body of a
 /// function) and collect the names of type variables that appear in

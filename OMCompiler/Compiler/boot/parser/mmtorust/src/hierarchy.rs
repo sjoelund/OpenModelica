@@ -737,6 +737,17 @@ pub fn resolve_pass(hier: &mut InstanceHierarchy<'_>, warnings: &mut BTreeSet<St
     collect_scope_imports(&hier.top_level, "", &hier.top_level, &mut scope_imports);
     let mut wctx = WarnCtx { warnings, scope_imports: &scope_imports };
     collect_extends_known(&hier.top_level, "", &hier.top_level, &mut known, &mut wctx);
+    // Apply `redeclare type X = Y` overrides directly onto the child nodes
+    // they refer to. `seed_primitive_type_aliases` and `seed_metarecords` may
+    // already have set the inherited child's `ty` to the *base*'s type (e.g.
+    // `BaseAvlTree.Value = Integer` → `NFLookupTree.Value.ty = I32`). The
+    // `try_resolve` short-circuit only fires for `ty == Unknown` nodes, so
+    // without this pass the seeded primitive type wins and the redeclare is
+    // ignored when body locals look up `Value`. We propagate the known-map
+    // override into the node's `ty` field so `lookup_ty_in_hierarchy`
+    // (used by `resolve_type_name` during body inference) returns the
+    // redeclared type.
+    apply_redeclare_overrides(&mut hier.top_level, "", &known, &mut changed);
     collect_wildcard_import_known(&hier.top_level, "", &hier.top_level, &mut known);
     let mut aliases: ScopedAliases = BTreeMap::new();
     collect_package_aliases(&hier.top_level, "", &mut aliases);
@@ -788,6 +799,29 @@ fn seed_builtins(known: &mut ScopedKnown) {
 /// this pass they stay Unknown and `collect_known` skips them. A sibling import alias
 /// (e.g. `import Type = NFType`) would then shadow the local definition during bare-name
 /// lookup in `sk_lookup_bare`, producing a wrong type for function outputs.
+/// Walk the hierarchy and, for every child node whose qname is keyed in
+/// `known`, replace its `ty` with the `known` value. Used after
+/// `collect_extends_known` to propagate `redeclare type X = Y` overrides
+/// (which only landed in the `known` map) into the actual node tree, so
+/// later lookups via `lookup_ty_in_hierarchy`/`node.ty` see the redeclared
+/// type. We only overwrite when the override is a concrete type (not
+/// `Unknown` or a stand-in `TypeVar`); that protects against accidentally
+/// regressing a node we've already resolved more precisely.
+fn apply_redeclare_overrides(nodes: &mut BTreeMap<String, NameNode<'_>>, prefix: &str, known: &ScopedKnown, changed: &mut bool) {
+    for (name, node) in nodes.iter_mut() {
+        let qname = qualify(prefix, name);
+        if let Some((scope, key)) = qname.rsplit_once('.') {
+            if let Some(ty) = known.get(scope).and_then(|m| m.get(key)) {
+                if !matches!(ty, Ty::Unknown | Ty::TypeVar(_)) && node.ty != *ty {
+                    node.ty = ty.clone();
+                    *changed = true;
+                }
+            }
+        }
+        apply_redeclare_overrides(&mut node.children, &qname, known, changed);
+    }
+}
+
 fn seed_primitive_type_aliases(nodes: &mut BTreeMap<String, NameNode<'_>>, prefix: &str, changed: &mut bool) {
     for (name, node) in nodes.iter_mut() {
         let qname = qualify(prefix, name);
@@ -1026,6 +1060,22 @@ fn collect_extends_known<'a>(
                 }
             }
             // Process `redeclare type X = Y` modifications in the extends clause.
+            //
+            // The redeclare must *override* the type that the base class
+            // contributes for `X` (e.g. `BaseAvlTree.Value = Integer` is
+            // overridden in `NFLookupTree extends BaseAvlTree(redeclare
+            // type Value = Entry)`). The earlier base-children pass already
+            // inserted the *base*'s type for `X` into both `qname.X` and
+            // `name.X`, so we use unconditional insert here (not
+            // `_if_absent`) to replace it. Without this, inherited function
+            // signatures like `valueStr(inValue: Value)` keep resolving to
+            // the base's `Integer` rather than the redeclared `Entry`.
+            //
+            // The redeclared `typeSpec` (`Entry`) is resolved in the
+            // *redeclaring* scope (`qname` — the package that contains the
+            // extends clause). That scope is where `Entry` is declared
+            // (here, as a sibling of the extends inside `NFLookupTree`); a
+            // top-level lookup ("" prefix) would never find it.
             let empty_aliases: ScopedAliases = BTreeMap::new();
             for arg in &ext.element_args {
                 if let Absyn::ElementArg::REDECLARATION {
@@ -1033,9 +1083,9 @@ fn collect_extends_known<'a>(
                 } = arg {
                     let Absyn::Class::CLASS { name: child_name, body, .. } = class_.as_ref();
                     if let Absyn::ClassDef::DERIVED { typeSpec, .. } = body.as_ref() {
-                        if let Some(ty) = resolve_type_spec(typeSpec, known, &empty_aliases, &[], "", wctx) {
-                            sk_insert_if_absent(known, &qualify(&qname, child_name), ty.clone());
-                            sk_insert_if_absent(known, &qualify(name, child_name), ty);
+                        if let Some(ty) = resolve_type_spec(typeSpec, known, &empty_aliases, &[], &qname, wctx) {
+                            known.entry(qname.clone()).or_default().insert(child_name.to_string(), ty.clone());
+                            known.entry(name.to_owned()).or_default().insert(child_name.to_string(), ty);
                         }
                     }
                 }
@@ -1122,6 +1172,26 @@ fn resolve_nodes_inner(nodes: &mut BTreeMap<String, NameNode<'_>>, prefix: &str,
 
 fn try_resolve(node: &NameNode<'_>, qname: &str, known: &ScopedKnown, aliases: &ScopedAliases, outer_type_vars: &[String], wctx: &mut WarnCtx<'_>) -> Option<Ty> {
     let module_prefix = qname.rsplit_once('.').map_or("", |(p, _)| p);
+    // An explicit `known[qname]` entry overrides whatever the node's own
+    // declaration would resolve to. The only producer of such entries is
+    // `collect_extends_known`, which records `redeclare type X = Y` modifications
+    // in an `extends` clause: e.g. `NFLookupTree extends BaseAvlTree(redeclare
+    // type Value = Entry)` writes `NFLookupTree.Value -> Entry` into `known`.
+    // The inherited `Value` node, however, was copied from the base
+    // (`clone_and_reset`) and still has `c.body = Derived(Integer)`; without
+    // this short-circuit, `try_resolve` would re-resolve it to `Integer` and
+    // erase the redeclare. We check `known[scope][name]` directly (rather
+    // than via `sk_lookup_bare`, which walks parents) so this only triggers
+    // when the entry is *exactly* at this scope — i.e. when a redeclare
+    // applied here, not when an enclosing scope happens to have a matching
+    // name.
+    if let Some((scope, name)) = qname.rsplit_once('.') {
+        if let Some(ty) = known.get(scope).and_then(|m| m.get(name)) {
+            if !matches!(ty, Ty::Unknown | Ty::TypeVar(_)) {
+                return Some(ty.clone());
+            }
+        }
+    }
     match &node.kind {
         NodeKind::Class(c) if is_function_class(&c.restriction) => {
             resolve_function_type(c, node, known, aliases, outer_type_vars, qname, wctx, /*nested_in_function=*/false)

@@ -34,7 +34,6 @@ pub mod HashSetString;
 pub mod IOStream;
 pub mod IOStreamExt;
 pub mod JSON;
-pub mod JSONExt;
 pub mod Lapack;
 pub mod LexerJSON;
 pub mod NFLookupTree;

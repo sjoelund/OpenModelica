@@ -3138,6 +3138,131 @@ fn ty_mentions_typevar(ty: &Ty) -> bool {
     !tvs.is_empty()
 }
 
+/// Resolve a top-level dotted name from the current emission context AND return the
+/// fully-qualified path that succeeded. Mirrors `resolve_fully_qualified` but also
+/// hands back the resolved path so callers can use the *target's* package as the
+/// `pkg_prefix` when re-typing its default expression. Without that, an inner
+/// reference to a sibling constant of the target would fail to resolve.
+fn resolve_with_path<'a>(prefix_dotted: &str, ctx: &GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) -> Option<(String, &'a NameNode<'a>)> {
+    if let Some(n) = lookup_node(prefix_dotted, top_level) {
+        return Some((prefix_dotted.to_owned(), n));
+    }
+    let mut scope_parts: Vec<&str> = std::iter::once(ctx.top_name.as_str())
+        .chain(ctx.current_path.iter().map(|s| s.as_str()))
+        .collect();
+    while !scope_parts.is_empty() {
+        let path = format!("{}.{}", scope_parts.join("."), prefix_dotted);
+        if let Some(n) = lookup_node(&path, top_level) {
+            return Some((path, n));
+        }
+        scope_parts.pop();
+    }
+    for (fq, local) in &ctx.named {
+        if prefix_dotted == local {
+            if let Some(n) = lookup_node(fq, top_level) {
+                return Some((fq.clone(), n));
+            }
+        } else if let Some(rest) = prefix_dotted.strip_prefix(&format!("{}.", local)) {
+            let path = format!("{}.{}", fq, rest);
+            if let Some(n) = lookup_node(&path, top_level) {
+                return Some((path, n));
+            }
+        }
+    }
+    for unq in &ctx.unqual_modules {
+        let path = format!("{}.{}", unq, prefix_dotted);
+        if let Some(n) = lookup_node(&path, top_level) {
+            return Some((path, n));
+        }
+    }
+    None
+}
+
+/// Fold a `TypedExp` to a literal `String` at codegen time when it is a chain of
+/// constants that bottoms out in string literals (with `If` branching folded
+/// through). Returns `None` if any node along the way is not foldable — callers
+/// should treat that as "not const-evaluable" and emit a hard error rather than
+/// silently producing broken code, since ArcStr's `Deref` is not a `const`
+/// trait and runtime string equality cannot appear in a `const` initializer.
+///
+/// Coverage today: `Lit::Str`, references to a sibling/imported `constant String`,
+/// and `if/elseif/else` whose conditions fold via [`resolve_const_bool`].
+/// Anything else (string concat, function calls, ...) is intentionally a `None`
+/// — extend as the need arises.
+fn resolve_const_str<'a>(exp: &TypedExp, ctx: &GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) -> Option<String> {
+    match exp {
+        TypedExp::Lit(Lit::Str(s)) => Some(s.clone()),
+        TypedExp::Var { name, segments, .. } if segments.iter().all(|s| s.subscripts.is_empty()) => {
+            let (path, node) = resolve_with_path(name, ctx, top_level)?;
+            let NodeKind::Component(comp) = &node.kind else { return None };
+            if comp.variability != Absyn::Variability::CONST { return None; }
+            if node.ty != Ty::Str { return None; }
+            let default = extract_default_exp(&comp.modification)?;
+            let parent_pkg = path.rsplit_once('.').map(|(p, _)| p.to_owned()).unwrap_or_default();
+            let typed = typedexp::infer_exp(default, &HashMap::new(), top_level, &parent_pkg, &[]);
+            resolve_const_str(&typed, ctx, top_level)
+        }
+        TypedExp::If { cond, then_, elseif, else_, .. } => {
+            let c = resolve_const_bool(cond, ctx, top_level)?;
+            if c { return resolve_const_str(then_, ctx, top_level); }
+            for (ec, eb) in elseif {
+                let cb = resolve_const_bool(ec, ctx, top_level)?;
+                if cb { return resolve_const_str(eb, ctx, top_level); }
+            }
+            resolve_const_str(else_, ctx, top_level)
+        }
+        _ => None,
+    }
+}
+
+/// Fold a `TypedExp` to a literal `bool` at codegen time. Mirrors
+/// [`resolve_const_str`] in structure. Used both to choose the live branch of an
+/// `If` when folding strings, and (for completeness) when a `BinOpKind::Eq` /
+/// `BinOpKind::NEq` of strings appears in a `const Boolean` initializer.
+///
+/// Coverage today: `Lit::Bool`, references to a sibling/imported `constant
+/// Boolean`, `not` on a foldable bool, string `==` / `!=`, and `if/elseif/else`.
+/// Integer / real comparisons, `and` / `or` short-circuits, and other binops are
+/// intentionally `None` — extend as the need arises.
+fn resolve_const_bool<'a>(exp: &TypedExp, ctx: &GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) -> Option<bool> {
+    match exp {
+        TypedExp::Lit(Lit::Bool(b)) => Some(*b),
+        TypedExp::Var { name, segments, .. } if segments.iter().all(|s| s.subscripts.is_empty()) => {
+            let (path, node) = resolve_with_path(name, ctx, top_level)?;
+            let NodeKind::Component(comp) = &node.kind else { return None };
+            if comp.variability != Absyn::Variability::CONST { return None; }
+            if node.ty != Ty::Bool { return None; }
+            let default = extract_default_exp(&comp.modification)?;
+            let parent_pkg = path.rsplit_once('.').map(|(p, _)| p.to_owned()).unwrap_or_default();
+            let typed = typedexp::infer_exp(default, &HashMap::new(), top_level, &parent_pkg, &[]);
+            resolve_const_bool(&typed, ctx, top_level)
+        }
+        TypedExp::UnOp { op: UnOpKind::Not, operand, .. } => {
+            Some(!resolve_const_bool(operand, ctx, top_level)?)
+        }
+        TypedExp::BinOp { op, lhs, rhs, .. } if lhs.ty() == Ty::Str => {
+            match op {
+                BinOpKind::Eq | BinOpKind::NEq => {
+                    let l = resolve_const_str(lhs, ctx, top_level)?;
+                    let r = resolve_const_str(rhs, ctx, top_level)?;
+                    Some(if *op == BinOpKind::Eq { l == r } else { l != r })
+                }
+                _ => None,
+            }
+        }
+        TypedExp::If { cond, then_, elseif, else_, .. } => {
+            let c = resolve_const_bool(cond, ctx, top_level)?;
+            if c { return resolve_const_bool(then_, ctx, top_level); }
+            for (ec, eb) in elseif {
+                let cb = resolve_const_bool(ec, ctx, top_level)?;
+                if cb { return resolve_const_bool(eb, ctx, top_level); }
+            }
+            resolve_const_bool(else_, ctx, top_level)
+        }
+        _ => None,
+    }
+}
+
 fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) -> String {
     match exp {
         TypedExp::Lit(Lit::Int(v))  => v.to_string(),
@@ -3308,12 +3433,46 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
             }
             match op {
                 BinOpKind::Eq => {
+                    // String `==` in a `const` initializer can't lower to either
+                    // `*l == *r` (PartialEq isn't const) nor `const_str::equal!`
+                    // (the macro needs `&str`, and ArcStr's `Deref` isn't const
+                    // either — there is no way to extract `&str` from `ArcStr`
+                    // at const-eval time). Constant-fold the comparison at
+                    // codegen time instead: resolve both sides through sibling
+                    // constants and `if` branches down to literal `String`s.
+                    // This is what the C bootstrap does for the same expressions
+                    // (see e.g. `Autoconf.isWindows` folded to `0` in the .c
+                    // output). If folding fails we emit `compile_error!` so the
+                    // unhandled case is visible at the use site rather than
+                    // silently producing broken code.
                     if is_const && (lhs.ty() == Ty::Str || rhs.ty() == Ty::Str) {
-                        return format!("const_str::equal!({l},{r})");
+                        if let (Some(ls), Some(rs)) = (
+                            resolve_const_str(lhs, ctx, top_level),
+                            resolve_const_str(rhs, ctx, top_level),
+                        ) {
+                            return (ls == rs).to_string();
+                        }
+                        return format!(
+                            "{{ compile_error!(\"const string `==` operand not const-foldable; extend resolve_const_str: {l} == {r}\"); false }}"
+                        );
                     }
                     format!("{l} == {r}")
                 }
-                BinOpKind::NEq => format!("{l} != {r}"),
+                BinOpKind::NEq => {
+                    // Mirror the `==` case for `!=` — same const-eval constraint.
+                    if is_const && (lhs.ty() == Ty::Str || rhs.ty() == Ty::Str) {
+                        if let (Some(ls), Some(rs)) = (
+                            resolve_const_str(lhs, ctx, top_level),
+                            resolve_const_str(rhs, ctx, top_level),
+                        ) {
+                            return (ls != rs).to_string();
+                        }
+                        return format!(
+                            "{{ compile_error!(\"const string `!=` operand not const-foldable; extend resolve_const_str: {l} != {r}\"); false }}"
+                        );
+                    }
+                    format!("{l} != {r}")
+                }
                 BinOpKind::Lt  => format!("{l} < {r}"),
                 BinOpKind::LEq => format!("{l} <= {r}"),
                 BinOpKind::Gt  => format!("{l} > {r}"),

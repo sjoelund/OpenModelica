@@ -58,10 +58,6 @@ pub enum Escape {
     XML = 4,
 }
 
-pub mod Examples {
-    use super::*;
-}
-
 struct FileInner {
     file: Option<std::fs::File>,
     name: ArcStr,

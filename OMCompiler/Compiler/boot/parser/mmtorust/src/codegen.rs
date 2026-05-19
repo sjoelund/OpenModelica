@@ -3426,10 +3426,10 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                 r = format!("({r}).0");
             }
             if lhs.ty() == Ty::I32 && rhs.ty() == Ty::F64 {
-                l = format!("({l} as f64)");
+                l = format!("(({l}) as f64)");
             }
             if rhs.ty() == Ty::I32 && lhs.ty() == Ty::F64 {
-                r = format!("({r} as f64)");
+                r = format!("(({r}) as f64)");
             }
             match op {
                 BinOpKind::Eq => {
@@ -3494,29 +3494,29 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                 }
                 BinOpKind::Add if *ty == Ty::Str => format!("(*{l}).clone() + &*{r}"),
                 BinOpKind::Add => {
-                    let lp = if lhs.ty() == Ty::I32 && rhs.ty() == Ty::F64 { format!("({l} as f64)") } else { l };
-                    let rp = if rhs.ty() == Ty::I32 && lhs.ty() == Ty::F64 { format!("({r} as f64)") } else { r };
+                    let lp = if lhs.ty() == Ty::I32 && rhs.ty() == Ty::F64 { format!("(({l}) as f64)") } else { l };
+                    let rp = if rhs.ty() == Ty::I32 && lhs.ty() == Ty::F64 { format!("(({r}) as f64)") } else { r };
                     format!("{lp} + {rp}")
                 },
                 BinOpKind::Sub => {
-                    let lp = if lhs.ty() == Ty::I32 && rhs.ty() == Ty::F64 { format!("({l} as f64)") } else { l };
-                    let rp = if rhs.ty() == Ty::I32 && lhs.ty() == Ty::F64 { format!("({r} as f64)") } else { r };
+                    let lp = if lhs.ty() == Ty::I32 && rhs.ty() == Ty::F64 { format!("(({l}) as f64)") } else { l };
+                    let rp = if rhs.ty() == Ty::I32 && lhs.ty() == Ty::F64 { format!("(({r}) as f64)") } else { r };
                     format!("{lp} - {rp}")
 
                 },
                 BinOpKind::Mul => {
-                    let lp = if lhs.ty() == Ty::I32 && rhs.ty() == Ty::F64 { format!("({l} as f64)") } else { l };
-                    let rp = if rhs.ty() == Ty::I32 && lhs.ty() == Ty::F64 { format!("({r} as f64)") } else { r };
+                    let lp = if lhs.ty() == Ty::I32 && rhs.ty() == Ty::F64 { format!("(({l}) as f64)") } else { l };
+                    let rp = if rhs.ty() == Ty::I32 && lhs.ty() == Ty::F64 { format!("(({r}) as f64)") } else { r };
                     format!("{lp} * {rp}")
                 },
                 BinOpKind::Div => {
-                    let lp = if lhs.ty() == Ty::I32 && rhs.ty() == Ty::F64 { format!("({l} as f64)") } else { l };
-                    let rp = if rhs.ty() == Ty::I32 && lhs.ty() == Ty::F64 { format!("({r} as f64)") } else { r };
+                    let lp = if lhs.ty() == Ty::I32 && rhs.ty() == Ty::F64 { format!("(({l}) as f64)") } else { l };
+                    let rp = if rhs.ty() == Ty::I32 && lhs.ty() == Ty::F64 { format!("(({r}) as f64)") } else { r };
                     format!("{lp} / {rp}")
                 },
                 BinOpKind::Pow => {
-                    let lp = if lhs.ty() == Ty::I32 { format!("({l} as f64)") } else { l };
-                    let rp = if rhs.ty() == Ty::I32 { format!("({r} as f64)") } else { r };
+                    let lp = if lhs.ty() == Ty::I32 { format!("(({l}) as f64)") } else { l };
+                    let rp = if rhs.ty() == Ty::I32 { format!("(({r}) as f64)") } else { r };
                     format!("({lp}).powf({rp})")
                 }
                 BinOpKind::And => format!("{l} && {r}"),
@@ -4432,7 +4432,7 @@ fn emit_builtin_call_arg_raw<'a>(
     // it, builtins like `SOURCEINFO(_,_,_,_,_,_,lastModification)` reject a
     // bare integer literal for the `Real` slot.
     if matches!(formal, Some(Ty::F64)) && matches!(arg.ty(), Ty::I32) {
-        return format!("({raw} as f64)");
+        return format!("(({raw}) as f64)");
     }
     raw
 }
@@ -4618,7 +4618,7 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
                 "realSub" => "-",
                 _ => unreachable!()
             };
-            Ok(format!("({} as f64) {} ({} as f64)", arg1, op, arg2))
+            Ok(format!("(({}) as f64) {} (({}) as f64)", arg1, op, arg2))
         },
         "realInt" => {
             let arg = args.first().map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
@@ -7964,7 +7964,7 @@ fn coerce_assign_expr_pub(scrut_expr: String, scrut_ty: &Ty, lhs_ty: Option<&Ty>
         }
     }
     if matches!(lhs_ty, Some(Ty::F64)) && *scrut_ty == Ty::I32 {
-        expr = format!("({expr} as f64)");
+        expr = format!("(({expr}) as f64)");
     }
     expr
 }
@@ -8251,7 +8251,7 @@ fn emit_stmt<'a>(
             }
         }
         if matches!(lhs_ty, Some(Ty::F64)) && *scrut_ty == Ty::I32 {
-            expr = format!("({expr} as f64)");
+            expr = format!("(({expr}) as f64)");
         }
         // A range can't be stored in an Array/List binding without
         // materialising it. We haven't lowered that path yet; emit a TODO so

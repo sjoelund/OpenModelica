@@ -1781,17 +1781,85 @@ fn case_uses_question_mark<'a>(
     exp_uses_question_mark(&case.result, ctx, top_level)
 }
 
+/// Do `pats` (treated as a sum-of-cases pattern with no guard between them)
+/// cover every value of `ty`? Conservative: returns `false` for types whose
+/// constructor space we cannot enumerate (uniontypes, enumerations, the
+/// scalar number types — exhaustiveness over those requires either a
+/// hierarchy lookup, which we have not yet wired up here, or an irrefutable
+/// fallback case, which is handled by the leading `pat_is_irrefutable`
+/// check).
+fn pats_cover_ty(pats: &[&TypedPat], ty: &Ty) -> bool {
+    if pats.iter().any(|p| pat_is_irrefutable(p)) { return true; }
+    match ty {
+        Ty::Bool => {
+            pats.iter().any(|p| matches!(p, TypedPat::Lit(Lit::Bool(true))))
+                && pats.iter().any(|p| matches!(p, TypedPat::Lit(Lit::Bool(false))))
+        }
+        Ty::List(_) => {
+            // Exhaustive iff some case matches Nil AND some case matches every
+            // Cons. A `Cons{head, tail}` with both subpatterns irrefutable
+            // covers every Cons; richer coverage (a finite union of length-
+            // pinned Cons cases plus a recursive Cons that handles the rest)
+            // is not yet attempted.
+            let nil = pats.iter().any(|p| matches!(p, TypedPat::EmptyList));
+            let cons = pats.iter().any(|p| matches!(p,
+                TypedPat::Cons { head, tail }
+                    if pat_is_irrefutable(head) && pat_is_irrefutable(tail)));
+            nil && cons
+        }
+        Ty::Option(_) => {
+            let none = pats.iter().any(|p| matches!(p, TypedPat::None_));
+            let some = pats.iter().any(|p| matches!(p,
+                TypedPat::Some_(inner) if pat_is_irrefutable(inner)));
+            none && some
+        }
+        Ty::Tuple(elem_tys) => {
+            // A single `Tuple(ps)` case is exhaustive iff every component
+            // covers its respective element type.
+            pats.iter().any(|p| match p {
+                TypedPat::Tuple(ps) if ps.len() == elem_tys.len() => {
+                    ps.iter().zip(elem_tys.iter()).all(|(p, t)| pats_cover_ty(&[p], t))
+                }
+                _ => false,
+            })
+        }
+        // TODO: Ty::RustEnum / Ty::AliasTo — would need to enumerate the
+        // variants via the hierarchy and check that each is covered by a
+        // Constructor pattern whose fields are themselves covering. Left
+        // unhandled for now; callers fall through to "non-exhaustive".
+        //
+        // TODO: Ty::Enumeration — same, need the enum's literal list.
+        //
+        // Numeric / string scalars can only be made exhaustive by an
+        // irrefutable case (handled at the top of this function).
+        _ => false,
+    }
+}
+
+/// Are `cases` exhaustive over `scrut_ty`? Excludes guarded cases (a guard
+/// can fail, so a guarded case never *covers* anything in the
+/// exhaustiveness sense). `matchcontinue` is never considered exhaustive
+/// because any arm body may `fail()` and fall through to the next arm,
+/// eventually exhausting all arms even with full pattern coverage.
+fn cases_exhaustive(kind: &MatchKind, cases: &[TypedCase], scrut_ty: &Ty) -> bool {
+    if !matches!(kind, MatchKind::Match) { return false; }
+    let pats: Vec<&TypedPat> = cases.iter()
+        .filter(|c| c.guard.is_none())
+        .map(|c| &c.pattern)
+        .collect();
+    pats_cover_ty(&pats, scrut_ty)
+}
+
 /// Return true if `exp` contains a non-tail-position match whose cases do
-/// not include a universally-matching arm (wildcard, no guard). Such a
-/// match would lower its fallback to `unreachable!()` inside a
-/// `#[tailcall]` body — see [`emit_match`] — converting MM's "fail when no
-/// arm matches" semantics into a Rust panic. We refuse the lowering when
-/// that would happen so the generated code stays panic-free.
+/// not exhaustively cover the scrutinee type. Such a match would lower its
+/// fallback to `unreachable!()` inside a `#[tailcall]` body — see
+/// [`emit_match`] — converting MM's "fail when no arm matches" semantics
+/// into a Rust panic. We refuse the lowering when that would happen so the
+/// generated code stays panic-free.
 fn exp_has_nonexhaustive_match(exp: &TypedExp) -> bool {
     match exp {
-        TypedExp::Match { input, cases, .. } => {
-            let has_wild = cases.iter().any(|c| matches!(c.pattern, TypedPat::Wildcard) && c.guard.is_none());
-            if !has_wild { return true; }
+        TypedExp::Match { kind, input, cases, .. } => {
+            if !cases_exhaustive(kind, cases, &input.ty()) { return true; }
             exp_has_nonexhaustive_match(input)
                 || cases.iter().any(|c| {
                     c.guard.as_ref().is_some_and(exp_has_nonexhaustive_match)
@@ -1879,13 +1947,12 @@ fn tail_exp_has_nonexhaustive_nontail_match(
                     || tail_exp_has_nonexhaustive_nontail_match(e, self_name, fallible))
                 || tail_exp_has_nonexhaustive_nontail_match(else_, self_name, fallible)
         }
-        TypedExp::Match { input, cases, .. } => {
+        TypedExp::Match { kind, input, cases, .. } => {
             // Tail-position match: its own fallback is `Err(...)` (fallible)
             // or `unreachable!()` (infallible). Only the fallible case is
             // panic-free, so for an infallible tail-lowered function we
             // still reject a non-exhaustive tail-position match.
-            let has_wild = cases.iter().any(|c| matches!(c.pattern, TypedPat::Wildcard) && c.guard.is_none());
-            if !has_wild && !fallible { return true; }
+            if !cases_exhaustive(kind, cases, &input.ty()) && !fallible { return true; }
             if exp_has_nonexhaustive_match(input) { return true; }
             cases.iter().any(|c| {
                 if c.guard.as_ref().is_some_and(exp_has_nonexhaustive_match) { return true; }
@@ -5389,7 +5456,13 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
     let active_tail = ctx.tail_lowering.take();
     let body_str = match kind {
         MatchKind::Match => {
-            let has_wild = cases.iter().any(|c| matches!(c.pattern, TypedPat::Wildcard) && c.guard.is_none());
+            // True when the case patterns cover every value of the scrutinee
+            // type — see [`cases_exhaustive`]. When exhaustive we elide the
+            // fallback `_ => bail!(...)` arm entirely, both to silence Rust's
+            // unreachable-pattern lint and to keep the lowered function
+            // infallible (the fallibility analysis uses the same predicate
+            // on the Absyn side; the two must agree).
+            let exhaustive = cases_exhaustive(kind, cases, &input_ty);
             let arms: Vec<String> = cases.iter().map(|case| {
                 let pat = emit_pat_with_implicit_bind(&case.pattern, /*allow_implicit_bind=*/true, /*mut_bindings=*/true, /*in_deref=*/false, /*implicit_ref=*/input_is_arc, Some(&input_ty), ctx, top_level);
                 // Compute the variant narrowing established by this arm's pattern so
@@ -5567,7 +5640,7 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
             //     lower a function when every reachable path's value is
             //     known, so a runtime miss here is a real bug, not a
             //     soft error worth `bail!`-recovering from.
-            let fallback = if has_wild {
+            let fallback = if exhaustive {
                 String::new()
             } else if ctx.in_tail_lowered_fn {
                 if active_tail.is_some() && ctx.current_fn_fallible {

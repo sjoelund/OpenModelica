@@ -272,21 +272,39 @@ struct Walk {
     /// True if the body contains an explicit `fail()` call outside a catch
     /// boundary.  (Catch boundaries are not yet tracked; see module docs.)
     has_fail: bool,
+    /// Function-level variable names (inputs/outputs/protected component
+    /// declarations) that are visible as bindings inside any match in this
+    /// function. Used by [`match_is_exhaustive`] / [`absyn_pat_is_irrefutable`]
+    /// to decide whether a bare identifier in pattern position refers to a
+    /// declared local (irrefutable variable binding) or a constructor
+    /// (refutable). This is the scope-aware replacement for the historical
+    /// case-sensitivity heuristic.
+    outer_scope: BTreeSet<String>,
 }
 
 impl Walk {
     fn scan_class(c: &MM::Class) -> Self {
         let mut w = Walk::default();
-        let algorithms: &[Absyn::AlgorithmItem] = match &c.body {
-            MM::ClassDef::Parts { algorithms, external, .. } => {
+        let (algorithms, members): (&[Absyn::AlgorithmItem], &[MM::ClassMember]) = match &c.body {
+            MM::ClassDef::Parts { algorithms, external, members, .. } => {
                 if let Some(ext) = external {
                     w.external = Some(external_symbol_name(&ext.decl, &c.name));
                 }
-                algorithms
+                (algorithms, members)
             }
-            MM::ClassDef::ClassExtends { algorithms, .. } => algorithms,
+            MM::ClassDef::ClassExtends { algorithms, members, .. } => (algorithms, members),
             _ => return w,
         };
+        // Function-level variable declarations contribute to the binding
+        // scope visible inside any nested match expression. Collect their
+        // names up-front; per-match additions (matchExp.localDecls and
+        // each case's localDecls) are layered on top inside
+        // `match_is_exhaustive`.
+        for m in members {
+            if let MM::ClassMember::Component(cm) = m {
+                w.outer_scope.insert(cm.name.clone());
+            }
+        }
         for it in algorithms {
             w.scan_algorithm_item(it);
         }
@@ -415,10 +433,20 @@ impl Walk {
             }
             AS { exp, .. } => self.scan_exp(exp),
             CONS { head, rest } => { self.scan_exp(head); self.scan_exp(rest); }
-            MATCHEXP { inputExp, cases, .. } => {
-                // Plain `match` and `matchcontinue` can both raise a failure
-                // when no case matches; mark the surrounding function fallible.
-                self.has_match = true;
+            MATCHEXP { matchTy, inputExp, localDecls, cases, .. } => {
+                // A `match` raises a failure only when no arm matches the
+                // scrutinee. If the patterns exhaustively cover every value
+                // of the scrutinee's type, the match cannot fail, so the
+                // surrounding function stays infallible. `matchcontinue` is
+                // never considered exhaustive — any arm body may explicitly
+                // `fail()` and fall through, exhausting all arms even with
+                // full pattern coverage. See codegen `cases_exhaustive` for
+                // the typed-IR counterpart; the two must agree.
+                if !matches!(matchTy, Absyn::MatchType::MATCH { .. })
+                    || !match_is_exhaustive(&**cases, &**localDecls, &self.outer_scope)
+                {
+                    self.has_match = true;
+                }
                 self.scan_exp(inputExp);
                 for case in &**cases {
                     match case {
@@ -505,6 +533,187 @@ fn exp_is_refutable_lhs(e: &Absyn::Exp) -> bool {
         // ranges, and even bare literals.
         _ => true,
     }
+}
+
+/// Collect the bare component names declared in a `localDecls` block of a
+/// `match` expression or a `case`. Each declaration takes the shape
+/// `ELEMENTITEM { element: ELEMENT { specification: COMPONENTS { components, .. } } }`
+/// where each component is a `COMPONENTITEM { component: COMPONENT { name } }`.
+///
+/// Lexer comment / TEXT / DEFINEUNIT items are silently skipped — they
+/// don't introduce variable bindings.
+fn collect_local_decl_names(
+    decls: &metamodelica::List<std::sync::Arc<Absyn::ElementItem>>,
+    out: &mut BTreeSet<String>,
+) {
+    for item in decls {
+        let Absyn::ElementItem::ELEMENTITEM { element } = item.as_ref() else { continue };
+        let Absyn::Element::ELEMENT { specification, .. } = element else { continue };
+        let Absyn::ElementSpec::COMPONENTS { components, .. } = specification else { continue };
+        for ci in &**components {
+            let Absyn::ComponentItem::COMPONENTITEM { component, .. } = ci.as_ref();
+            let Absyn::Component::COMPONENT { name, .. } = component;
+            out.insert(name.to_string());
+        }
+    }
+}
+
+// ── Exhaustiveness on Absyn patterns ─────────────────────────────────────────
+//
+// This is the Absyn-IR counterpart to codegen's `cases_exhaustive` /
+// `pats_cover_ty`. The two analyses run on different IRs (Absyn here,
+// typedexp::TypedPat there) but MUST classify the same set of matches as
+// exhaustive — otherwise the fallibility verdict for a function disagrees
+// with whether codegen emits a `_ => bail!(...)` fallback, producing
+// uncompilable lowered code.
+//
+// Conservative: we underapproximate exhaustiveness. A `false` here just
+// keeps the surrounding function flagged fallible (the historical default);
+// a spurious `true` would let codegen elide a needed fallback and break the
+// build. Type info is not available at this phase, so we only recognise
+// the type-independent shapes whose pattern coverage is decidable purely
+// from the constructor names involved (List, Option, Bool).
+
+/// Is an Absyn-level pattern *irrefutable* — i.e. does it match every
+/// possible value of whichever type the scrutinee turns out to have?
+///
+/// MetaModelica resolves bare identifiers in pattern position to either
+/// "fresh variable binding" or "unit constructor reference" depending on
+/// whether the name is declared as a local in the enclosing scope (match-
+/// level or case-level `localDecls`, plus the surrounding function's
+/// inputs/outputs/protected variables). `binding_names` carries that set
+/// of names, gathered upstream by [`collect_match_binding_names`]. An
+/// identifier in the set is treated as a variable binding (irrefutable);
+/// any other identifier might be a constructor and is conservatively
+/// classified refutable.
+///
+/// This is the sound replacement for the historical "first letter
+/// uppercase ⇒ constructor" heuristic — we now consult the actual
+/// declared scope.
+fn absyn_pat_is_irrefutable(e: &Absyn::Exp, binding_names: &BTreeSet<String>) -> bool {
+    use Absyn::Exp::*;
+    match e {
+        CREF { componentRef } => match componentRef.as_ref() {
+            Absyn::ComponentRef::WILD | Absyn::ComponentRef::ALLWILD => true,
+            Absyn::ComponentRef::CREF_IDENT { name, subscripts } if subscripts.is_empty() => {
+                &**name == "_" || binding_names.contains(&**name as &str)
+            }
+            _ => false,
+        }
+        AS { exp, .. } => absyn_pat_is_irrefutable(exp, binding_names),
+        TUPLE { expressions } => (&**expressions).into_iter().all(|e| absyn_pat_is_irrefutable(e, binding_names)),
+        _ => false,
+    }
+}
+
+/// A `SOME(<pat>)` pattern whose inner sub-pattern is itself irrefutable
+/// covers every `SOME(_)` value. We recognise the Absyn-level shape: a
+/// `CALL` whose callee dottifies to `SOME` with exactly one positional
+/// argument that is irrefutable. (Named-argument forms or multi-arg
+/// shapes are rejected as not-a-canonical-SOME-pattern.)
+fn absyn_pat_is_full_some(e: &Absyn::Exp, binding_names: &BTreeSet<String>) -> bool {
+    if let Absyn::Exp::CALL { function_, functionArgs, .. } = e {
+        if cref_to_dotted(function_) != "SOME" { return false; }
+        if let Absyn::FunctionArgs::FUNCTIONARGS { args, argNames } = functionArgs {
+            let args_vec: Vec<&Absyn::Exp> = (&**args).into_iter().map(|a| a.as_ref()).collect();
+            let names_empty = (&**argNames).into_iter().next().is_none();
+            return names_empty
+                && args_vec.len() == 1
+                && absyn_pat_is_irrefutable(args_vec[0], binding_names);
+        }
+    }
+    false
+}
+
+/// Does an Absyn case set exhaustively cover the scrutinee? Handles the
+/// type-independent shapes:
+///   * any case is `ELSE` or has an irrefutable pattern → exhaustive
+///   * `{}` (Nil) + `_ :: _` with both subpatterns irrefutable → List
+///   * `NONE()` + `SOME(_)` with irrefutable inner → Option
+///   * boolean literals `true` and `false` → Bool
+/// Cases with a guard never contribute coverage — a guard can fail.
+fn match_is_exhaustive(
+    cases: &metamodelica::List<Absyn::Case>,
+    match_local_decls: &metamodelica::List<std::sync::Arc<Absyn::ElementItem>>,
+    outer_scope: &BTreeSet<String>,
+) -> bool {
+    // The full set of names in scope as variable bindings for any pattern
+    // in this match: outer scope (function inputs/outputs/protected) ∪
+    // match-level localDecls ∪ per-case localDecls.  Built once for the
+    // match, augmented per-case below.
+    let mut match_scope: BTreeSet<String> = outer_scope.clone();
+    collect_local_decl_names(match_local_decls, &mut match_scope);
+
+    // ELSE / leading irrefutable case → exhaustive regardless of type.
+    for case in cases {
+        match case {
+            Absyn::Case::ELSE { .. } => return true,
+            Absyn::Case::CASE { pattern, patternGuard, localDecls, .. } => {
+                if patternGuard.is_none() {
+                    let mut scope = match_scope.clone();
+                    collect_local_decl_names(localDecls, &mut scope);
+                    if absyn_pat_is_irrefutable(pattern, &scope) {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+
+    // Collect un-guarded (pattern, per-case scope) pairs for the structural
+    // checks below. Each case's pattern is checked against the union of the
+    // match scope and that case's own localDecls.
+    let pats: Vec<(&Absyn::Exp, BTreeSet<String>)> = cases.into_iter().filter_map(|c| match c {
+        Absyn::Case::CASE { pattern, patternGuard, localDecls, .. } if patternGuard.is_none() => {
+            let mut scope = match_scope.clone();
+            collect_local_decl_names(localDecls, &mut scope);
+            Some((pattern.as_ref(), scope))
+        }
+        _ => None,
+    }).collect();
+
+    // List: Nil + fully-irrefutable Cons.
+    //
+    // The parser surface for the empty list literal `{}` is currently
+    // `Absyn::Exp::ARRAY { arrayExp: [] }` (the MetaModelica `{...}`
+    // syntax always produces an ARRAY node; the dedicated LIST variant is
+    // emitted for the `list(...)` builtin or list-comprehension forms).
+    // We accept either shape so a future parser change to emit LIST for
+    // `{}` continues to be recognised. A non-empty `{l}` literal would
+    // desugar to a Cons chain in pattern position, but the parser keeps
+    // the literal form here — `{l}` is therefore ARRAY/LIST with a single
+    // element and does NOT contribute to Cons coverage.
+    let is_empty_literal = |p: &Absyn::Exp| matches!(p,
+        Absyn::Exp::ARRAY { arrayExp } if arrayExp.is_empty()
+    ) || matches!(p,
+        Absyn::Exp::LIST { exps } if exps.is_empty()
+    );
+    let has_nil = pats.iter().any(|(p, _)| is_empty_literal(p));
+    let has_full_cons = pats.iter().any(|(p, scope)| match p {
+        Absyn::Exp::CONS { head, rest } =>
+            absyn_pat_is_irrefutable(head, scope) && absyn_pat_is_irrefutable(rest, scope),
+        _ => false,
+    });
+    if has_nil && has_full_cons { return true; }
+
+    // Option: NONE() + SOME(irrefutable).
+    let has_none = pats.iter().any(|(p, _)| matches!(
+        p,
+        Absyn::Exp::CALL { function_, .. } if cref_to_dotted(function_) == "NONE"
+    ));
+    let has_full_some = pats.iter().any(|(p, scope)| absyn_pat_is_full_some(p, scope));
+    if has_none && has_full_some { return true; }
+
+    // Bool: both literals present.
+    let has_true = pats.iter().any(|(p, _)| matches!(p, Absyn::Exp::BOOL { value: true }));
+    let has_false = pats.iter().any(|(p, _)| matches!(p, Absyn::Exp::BOOL { value: false }));
+    if has_true && has_false { return true; }
+
+    // TODO: uniontype / record exhaustiveness — requires looking up the
+    // scrutinee's type to enumerate constructors, which needs the typed IR.
+    // See the typedexp::TypedPat counterpart in codegen for the analogous
+    // gap.
+    false
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────

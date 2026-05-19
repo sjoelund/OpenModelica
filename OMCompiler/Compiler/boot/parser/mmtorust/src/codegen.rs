@@ -4940,7 +4940,16 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
             if arr_is_uninit {
                 Ok(format!("unsafe {{ metamodelica::Dangerous::arrayInitSlot({arg1}, {arg2}, {arg3}) }}"))
             } else {
-                Ok(format!("{{let _arr = {}; _arr.borrow_mut()[({}-1) as usize] = {}; _arr}}", arg1, arg2, arg3))
+                // If the value expression reads from any RefCell (`.borrow(`) it may
+                // alias the array we're about to `borrow_mut()` — hoist to a temp first
+                // so the read finishes before the mutable borrow is acquired. Otherwise
+                // emit the compact form without a temp.
+                let rhs_may_alias = arg3.contains(".borrow(") || arg3.contains(".borrow_mut(");
+                if rhs_may_alias {
+                    Ok(format!("{{let _arr = {}; let _val = {}; _arr.borrow_mut()[({}-1) as usize] = _val; _arr}}", arg1, arg3, arg2))
+                } else {
+                    Ok(format!("{{let _arr = {}; _arr.borrow_mut()[({}-1) as usize] = {}; _arr}}", arg1, arg2, arg3))
+                }
             }
         },
         "arrayEmpty" => {
@@ -8783,7 +8792,18 @@ fn emit_stmt<'a>(
                 // `(a..=b).step_by(..)`), so feed it straight to `for ... in`.
                 t => format!("{r} /* Unknown type for iterator {:?} */", t),
             };
-            writeln!(out, "{indent}for {} in {r} {{", escape_ident(var)).unwrap();
+            // Rust extends temporaries in a `for` operand to the entire loop scope.
+            // If the operand reads through a `RefCell` (`.borrow()`), that Ref stays
+            // alive across every iteration — and any `borrow_mut()` on the same cell
+            // inside the body panics. Hoist into a local first so the Ref dies at
+            // the `;` before the loop runs.
+            if r.contains(".borrow(") || r.contains(".borrow_mut(") {
+                let n = *fresh; *fresh += 1;
+                writeln!(out, "{indent}let __range{n} = {r};").unwrap();
+                writeln!(out, "{indent}for {} in __range{n} {{", escape_ident(var)).unwrap();
+            } else {
+                writeln!(out, "{indent}for {} in {r} {{", escape_ident(var)).unwrap();
+            }
             // Element type: peel List/Array.
             let elem_ty = match range.ty() { Ty::List(t) | Ty::Array(t) | Ty::Range(t) => *t, _ => Ty::Unknown };
             let mut inner = env.clone();

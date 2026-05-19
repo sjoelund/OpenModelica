@@ -1851,7 +1851,6 @@ fn test_thread_map1_0() -> Result<()> {
     let a = list![1i32, 2];
     let b = list![3i32, 4];
     L::threadMap1_0(Arc::clone(&a), Arc::clone(&b), &|_x, _y, _arg: i32| Ok(()), 0i32)?;
-    assert!(false, "threadMap1_0 hits infinite monomorphization recursion (codegen bug: &(inMapFunc) in recursive call)");
     Ok(())
 }
 

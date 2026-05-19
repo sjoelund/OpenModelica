@@ -44,8 +44,8 @@
 use std::cell::RefCell;
 use std::sync::Arc;
 use anyhow::Result;
-use arcstr::ArcStr;
-use metamodelica::{Array, SourceInfo};
+use arcstr::{ArcStr, literal};
+use metamodelica::{SourceInfo, sourceInfo};
 use openmodelica_util_datatypes_basic::DoubleEnded;
 
 // ── Thread-local roots (index 0–8, C: threadData->localRoots) ────────────────
@@ -175,12 +175,12 @@ thread_local! {
     /// `Error.updateCurrentComponent`; read by
     /// `Error.getCurrentComponent` / `Error.addMessage`.
     pub static currentInstVar: RefCell<
-        Option<(
-            Array<ArcStr>,
-            Array<SourceInfo>,
-            Array<fn(ArcStr) -> Result<ArcStr>>,
-        )>
-    > = const { RefCell::new(None) };
+        (
+            ArcStr,
+            SourceInfo,
+            fn(ArcStr) -> Result<ArcStr>,
+        )
+    > = RefCell::new((literal!(""), sourceInfo!(), |_| Ok(literal!("")) ));
 
     // Index 24 — operatorOverloadingCache
     // Declared in openmodelica_frontend::Globals.

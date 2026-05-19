@@ -7,8 +7,8 @@
 #![allow(warnings)]
 #![allow(unreachable_patterns, unreachable_code, non_camel_case_types, non_snake_case, dead_code, unused_imports, unused_variables, non_upper_case_globals, unused_mut)]
 
-use metamodelica;
-use arcstr::ArcStr;
+use metamodelica::{sourceInfo};
+use arcstr::{ArcStr, literal};
 
 pub const MMToJLListIndex: i32 = 28;
 
@@ -46,7 +46,7 @@ pub fn initialize() -> () {
     // ── Roots declared in openmodelica_util::Globals ───────────────────────
     crate::Globals::instOnlyForcedFunctions.with(|__root| *__root.borrow_mut() = None);
     crate::Globals::stackoverFlowIndex.with(|__root| *__root.borrow_mut() = None);
-    crate::Globals::currentInstVar.with(|__root| *__root.borrow_mut() = None);
+    crate::Globals::currentInstVar.with(|__root| *__root.borrow_mut() = (literal!(""), sourceInfo!(), |_| Ok(literal!("")) ));
     crate::Globals::isInStream.with(|__root| *__root.borrow_mut() = None);
     crate::Globals::sharedLibraryCacheIndex.with(|__root| *__root.borrow_mut() = metamodelica::nil());
     crate::Globals::codegenTryThrowIndex.with(|__root| *__root.borrow_mut() = metamodelica::nil());

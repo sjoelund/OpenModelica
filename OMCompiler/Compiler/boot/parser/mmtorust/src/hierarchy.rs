@@ -1370,6 +1370,61 @@ fn resolve_function_type(
     let mut inputs: Vec<FunctionInput> = Vec::new();
     let mut outputs: Vec<Ty> = Vec::new();
 
+    // `function F ... extends G; ... end F;` (an Extends member inside a
+    // function-body's Parts) inherits G's inputs/outputs in declaration order
+    // ahead of F's own components. Without this merge, callers that read the
+    // function's resolved `Ty::Function` (e.g. `call_ty` for type inference at
+    // call sites) see an empty inputs list and `Unit` output, which silently
+    // miscompiles destructure-assignments of the call's tuple result.
+    //
+    // Local components (handled by the loop below) come *after* the inherited
+    // ones so the parameter and output order matches Modelica's
+    // base-then-derived convention. If F locally redeclares a name from G,
+    // the local declaration wins — we skip the inherited entry by name.
+    let local_component_names: std::collections::HashSet<String> = members.iter()
+        .filter_map(|m| match m {
+            MM::ClassMember::Component(cm) => Some(cm.name.clone()),
+            _ => None,
+        })
+        .collect();
+    let mut seen_inherited: std::collections::HashSet<String> = std::collections::HashSet::new();
+    for ext in &node.extends {
+        let ext_path_owned = fmt_path(&ext.path);
+        let ext_path = ext_path_owned.trim_start_matches('.');
+        // Resolve the base function's type. Use the dotted-path lookup for
+        // qualified names (`Pkg.Foo`); for bare names walk scopes outward
+        // from `module_prefix` so a sibling `partialParser` is found in
+        // the same package.
+        let base_ty = if ext_path.contains('.') {
+            sk_get(known, ext_path).cloned()
+        } else {
+            sk_lookup_bare(known, ext_path, module_prefix).map(|(t, _)| t.clone())
+        };
+        match base_ty {
+            Some(Ty::Function { inputs: base_inputs, output: base_output, .. }) => {
+                for inp in base_inputs {
+                    if local_component_names.contains(&inp.name) { continue; }
+                    if !seen_inherited.insert(inp.name.clone()) { continue; }
+                    inputs.push(inp);
+                }
+                match *base_output {
+                    Ty::Unit => {}
+                    Ty::Tuple(ts) => outputs.extend(ts),
+                    t => outputs.push(t),
+                }
+            }
+            // Base resolved to something that isn't a function (e.g. a uniontype
+            // extends — handled elsewhere). Skip; the local-member loop below
+            // still runs.
+            Some(_) => {}
+            // Base function type isn't ready yet (still `Ty::Unknown` in
+            // `known`). Defer this function so it gets re-resolved on the
+            // next `resolve_pass` iteration, by which time the base will
+            // have its signature populated.
+            None => return None,
+        }
+    }
+
     for member in members {
         let MM::ClassMember::Component(m) = member else { continue };
         let child = node.children.get(&m.name)?;

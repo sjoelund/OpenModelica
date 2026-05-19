@@ -6976,6 +6976,25 @@ fn is_arc_wrapped(ty: &Ty, ctx: &GenCtx) -> bool {
     ctx.recursive_types.contains(qname)
 }
 
+/// Return true if a pattern-let against a scrutinee of this type needs the
+/// scrutinee borrowed (`&(...)`) so that match ergonomics auto-refs bindings
+/// inside any sub-pattern that destructures through an `Arc<T>` deref_pattern.
+/// We must recurse through `Tuple` (and other transparent wrappers) because a
+/// non-Arc Tuple can contain an Arc-wrapped element whose Constructor sub-pattern
+/// would otherwise try to move a non-Copy field out of a shared reference.
+/// `Option<T>` doesn't need recursion: its built-in `Some` pattern doesn't
+/// auto-deref through `Arc`, so an inner Arc-wrapped sub-pattern would already
+/// be handled by its own Constructor rendering.
+fn type_destructure_needs_borrow(ty: &Ty, ctx: &GenCtx) -> bool {
+    if matches!(ty, Ty::List(_)) || is_arc_wrapped(ty, ctx) {
+        return true;
+    }
+    if let Ty::Tuple(elems) = ty {
+        return elems.iter().any(|t| type_destructure_needs_borrow(t, ctx));
+    }
+    false
+}
+
 /// Return true if the value produced by emitting `arg` will already be wrapped
 /// in `Arc<T>`. Used by struct-field emission to avoid emitting a redundant
 /// outer `Arc::new(...)` around an expression that already yields `Arc<T>`.
@@ -7154,7 +7173,17 @@ fn emit_pat_assign<'a>(
             // by-reference nature visible — and then `.clone()` each binding
             // at the point of use. For non-Arc scrutinees (tuples, plain
             // records, primitives), the bindings remain owned moves.
-            let needs_borrow = matches!(scrut_ty, Ty::List(_)) || is_arc_wrapped(scrut_ty, ctx);
+            //
+            // We must also recurse through Tuple types: a let-let pattern
+            // `(STRING{r#str=key}, tokens) := parse_string(..)` has
+            // scrut_ty = (Arc<JSON>, Arc<List<Token>>), where the outer tuple
+            // itself isn't Arc-wrapped but the first element is. Without
+            // borrowing the whole tuple, the inner Constructor pattern would
+            // still trigger Arc deref_patterns and fail to move non-Copy
+            // fields (`ArcStr`, `Arc<T>`, …) out of the shared reference.
+            // Borrowing the whole tuple makes match ergonomics auto-ref all
+            // bindings uniformly.
+            let needs_borrow = type_destructure_needs_borrow(scrut_ty, ctx);
             let scrut_for_pat = if needs_borrow {
                 format!("&({scrut_expr})")
             } else {

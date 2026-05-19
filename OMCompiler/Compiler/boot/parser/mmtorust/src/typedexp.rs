@@ -2052,46 +2052,50 @@ pub fn infer_pat<'a>(
                         TypedPat::Var(name.to_string())
                     }
                 }
-                // Qualified reference with subscripts (e.g. `a.b[1]` on LHS of `:=`).
-                Absyn::ComponentRef::CREF_QUAL { name, subscripts, componentRef: rest } => {
-                    let has_subs = (&**subscripts).into_iter().any(|s| matches!(s.as_ref(), Absyn::Subscript::SUBSCRIPT { .. }));
-                    if has_subs {
-                        let dotted = cref_to_dotted(rest);
-                        // The subscripted part is the tail of the qualified ref.
-                        // Build the full dotted name (without subscript info for type lookup)
-                        // and emit as Index pattern.
-                        let full_dotted = cref_to_dotted(componentRef);
-                        let sub = (&**subscripts).into_iter()
-                            .filter_map(|s| {
-                                if let Absyn::Subscript::SUBSCRIPT { subscript } = s.as_ref() {
-                                    Some(subscript.as_ref().clone())
-                                } else {
-                                    None
-                                }
-                            })
-                            .next();
-                        if let Some(sub_exp) = sub {
-                            // Check if inner ref resolves to a local variable — if so, build
-                            // the base expression as a chain of field accesses, not a package path.
-                            let inner_pat = infer_pat(&Absyn::Exp::CREF { componentRef: rest.clone() }, env, top_level, pkg_prefix, type_vars);
-                            let base = if is_local_base(&inner_pat, env) {
-                                pat_to_exp(&inner_pat, top_level)
-                            } else {
-                                TypedExp::Var { name: dotted.clone(), segments: vec![], ty: lookup_ty_in_hierarchy(&dotted, top_level) }
-                            };
-                            TypedPat::Index {
-                                base,
-                                index: infer_exp(&sub_exp, env, top_level, pkg_prefix, type_vars),
-                            }
-                        } else {
-                            let ty = lookup_ty_in_hierarchy(&full_dotted, top_level);
-                            TypedPat::Constructor { name: full_dotted, fields: vec![], named_fields: vec![], ty }
+                // Qualified reference, possibly subscripted at some segment.
+                // Examples (LHS of `:=`):
+                //   `a.b.c`     — plain field chain, no subscript anywhere.
+                //   `a.b.c[i]`  — subscript on the LAST segment; lift to Index pattern.
+                //   `a[i].b`    — subscript followed by field access; not handled
+                //                 (TypedPat::Todo so the issue is visible at the call site).
+                Absyn::ComponentRef::CREF_QUAL { .. } => {
+                    // Walk the entire cref into structured segments. The outer `subscripts`
+                    // field of CREF_QUAL only carries the head's subscripts; subscripts on
+                    // deeper segments live inside `rest`. A pure CREF_QUAL match on the head
+                    // misses them — segment-based walk captures every level uniformly.
+                    let (full_dotted, segs) = extract_cref_segments(componentRef, env, top_level, pkg_prefix);
+                    let sub_pos = segs.iter().position(|s| !s.subscripts.is_empty());
+
+                    if let Some(idx) = sub_pos {
+                        // Only handle the common shape `a.b...x[i]` (subscripts on the LAST
+                        // segment, one index). Other shapes need additional lowering work
+                        // (field access after subscript, multidim) — flag explicitly.
+                        if idx != segs.len() - 1 {
+                            return TypedPat::Todo(format!(
+                                "LHS subscript followed by field access not yet supported: {full_dotted}"
+                            ));
+                        }
+                        if segs[idx].subscripts.len() > 1 {
+                            return TypedPat::Todo(format!(
+                                "LHS multidim subscript not yet supported: {full_dotted}"
+                            ));
+                        }
+                        let sub_exp = segs[idx].subscripts[0].clone();
+                        // Base is the field chain WITHOUT the trailing subscript, so its type
+                        // remains `Ty::Array(_)` / `Ty::List(_)`. `emit_stmt` then dispatches
+                        // through the `Ty::Array` branch which emits `.borrow_mut()[..] = ..`.
+                        let mut base_segs = segs.clone();
+                        base_segs[idx].subscripts.clear();
+                        let base_dotted: String = base_segs.iter().map(|s| s.name.clone()).collect::<Vec<_>>().join(".");
+                        let base_ty = resolve_first_segment_type(&base_dotted, &base_segs, env, top_level)
+                            .unwrap_or_else(|| lookup_ty_in_hierarchy(&base_dotted, top_level));
+                        TypedPat::Index {
+                            base: TypedExp::Var { name: base_dotted, segments: base_segs, ty: base_ty },
+                            index: sub_exp,
                         }
                     } else {
-                        // For non-subscripted qualified refs, preserve source order in local
-                        // field chains (e.g. `exarray.lastUsedIndex`), otherwise treat as
-                        // constructor path.
-                        let full_dotted = cref_to_dotted(componentRef);
+                        // No subscript anywhere: plain field chain when the head is a local,
+                        // otherwise a fully-qualified constructor path (e.g. `Pkg.CTOR`).
                         let mut parts = full_dotted.split('.');
                         let first = parts.next().unwrap_or("");
                         if !first.is_empty() && env.contains_key(first) {

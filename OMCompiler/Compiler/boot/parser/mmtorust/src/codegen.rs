@@ -3285,10 +3285,24 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
 
         TypedExp::BinOp { op, lhs, rhs, ty, .. } => {
             let mut l = emit_exp(lhs, is_const, ctx, top_level);
+            let mut r = emit_exp(rhs, is_const, ctx, top_level);
+            // MetaModelica implicitly takes the first output of a tuple-returning
+            // expression when it appears in scalar context (e.g. `find(k,m) > 0`,
+            // where `find` returns `(Integer, Integer)`). Both operands of a
+            // binary op are scalar slots, so when one side has tuple type but the
+            // other doesn't, apply `.0` to unpack. Type vars are deliberately not
+            // unpacked — they could be instantiated as a tuple downstream.
+            let lhs_is_tuple = matches!(lhs.ty(), Ty::Tuple(_));
+            let rhs_is_tuple = matches!(rhs.ty(), Ty::Tuple(_));
+            if lhs_is_tuple && !rhs_is_tuple && !matches!(rhs.ty(), Ty::Unknown | Ty::TypeVar(_)) {
+                l = format!("({l}).0");
+            }
+            if rhs_is_tuple && !lhs_is_tuple && !matches!(lhs.ty(), Ty::Unknown | Ty::TypeVar(_)) {
+                r = format!("({r}).0");
+            }
             if lhs.ty() == Ty::I32 && rhs.ty() == Ty::F64 {
                 l = format!("({l} as f64)");
             }
-            let mut r = emit_exp(rhs, is_const, ctx, top_level);
             if rhs.ty() == Ty::I32 && lhs.ty() == Ty::F64 {
                 r = format!("({r} as f64)");
             }
@@ -4252,7 +4266,7 @@ fn emit_builtin_call_arg_raw<'a>(
 ) -> String {
     let formal = builtin_formal_ty(func, idx);
     let needs_first = matches!(arg.ty(), Ty::Tuple(_))
-        && matches!(&formal, Some(t) if !matches!(t, Ty::Tuple(_) | Ty::Unknown));
+        && matches!(&formal, Some(t) if !matches!(t, Ty::Tuple(_) | Ty::Unknown | Ty::TypeVar(_)));
     let raw = emit_exp(arg, is_const, ctx, top_level);
     let raw = if needs_first { format!("({raw}).0") } else { raw };
     // Mirror the Integer→Real widening in `emit_call_arg_with_formal`. Without
@@ -5131,8 +5145,12 @@ fn emit_call_arg_with_formal<'a>(
     ctx: &mut GenCtx,
     top_level: &'a BTreeMap<String, NameNode<'a>>,
 ) -> String {
+    // Tuple→first coercion only kicks in when the formal is a *concrete* scalar
+    // slot. TypeVar formals (e.g. `Vector.updateNoBounds<T>`) may be instantiated
+    // with a tuple type at the call site (here, `T = (K, V)`), so applying `.0`
+    // would corrupt a legitimately-tupled argument.
     let needs_first = matches!(arg.ty(), Ty::Tuple(_))
-        && matches!(formal_ty, Some(t) if !matches!(t, Ty::Tuple(_) | Ty::Unknown));
+        && matches!(formal_ty, Some(t) if !matches!(t, Ty::Tuple(_) | Ty::Unknown | Ty::TypeVar(_)));
     let raw = if !needs_first {
         emit_cloned_call_arg(arg, is_const, ctx, top_level)
     } else {

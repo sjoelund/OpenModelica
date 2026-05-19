@@ -156,8 +156,11 @@ fn test_copy_n() -> Result<()> {
     let src = arr(vec![10, 20, 30, 40]);
     let dest = arr(vec![0, 0, 0, 0, 0]);
     // Copy 2 elements from src offset 1 to dest offset 2
+    // MM: dest[i+dstOffset] := src[i+srcOffset] for i in 1..=N
+    //   i=1: dest[3] := src[2] = 20
+    //   i=2: dest[4] := src[3] = 30
     let result = Array::copyN(src, dest, 2, 1, 2)?;
-    assert_eq!(*result.borrow(), vec![0, 10, 20, 0, 0]);
+    assert_eq!(*result.borrow(), vec![0, 0, 20, 30, 0]);
     Ok(())
 }
 
@@ -197,8 +200,9 @@ fn test_expand_negative() -> Result<()> {
 #[test]
 fn test_expand_on_demand_grow() -> Result<()> {
     let a = arr(vec![1, 2, 3]);
+    // MM: new_size = realInt(len * factor) = realInt(3 * 2.0) = 6 (not inNewSize)
     let result = Array::expandOnDemand(5, a, 2.0, 0)?;
-    assert_eq!(*result.borrow(), vec![1, 2, 3, 0, 0]);
+    assert_eq!(*result.borrow(), vec![1, 2, 3, 0, 0, 0]);
     Ok(())
 }
 

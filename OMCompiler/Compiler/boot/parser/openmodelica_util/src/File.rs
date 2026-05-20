@@ -230,14 +230,14 @@ pub fn seek(file: File, offset: i32, whence: Whence) -> Result<bool> {
     Ok(f.seek(from).is_ok())
 }
 
-pub fn tell(file: File) -> Result<i32> {
+pub fn tell(file: File) -> i32 {
     let mut guard = file.inner.lock().unwrap();
     match guard.file.as_mut() {
         Some(f) => match f.stream_position() {
-            Ok(p) => Ok(p as i32),
-            Err(_) => Ok(-1),
+            Ok(p) => p as i32,
+            Err(_) => -1,
         },
-        None => Ok(-1),
+        None => -1,
     }
 }
 

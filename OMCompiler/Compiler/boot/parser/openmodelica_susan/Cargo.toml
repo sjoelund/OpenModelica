@@ -10,3 +10,5 @@ openmodelica_util_datatypes_basic.workspace=true
 const-str.workspace=true
 arcstr.workspace=true
 anyhow.workspace=true
+loop_unwrap.workspace=true
+tailcall.workspace=true

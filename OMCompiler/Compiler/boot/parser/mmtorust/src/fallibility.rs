@@ -845,24 +845,28 @@ pub fn analyze(hier: &InstanceHierarchy<'_>) -> FallibilityInfo {
     for (qname, w) in &walks {
         let mut set: BTreeSet<String> = BTreeSet::new();
         for raw in &w.calls {
-            // Builtin first: a known builtin classification short-circuits
-            // both the hierarchy lookup and the fixed-point edge — the
-            // verdict is decided right now.
+            // Resolve user-defined callee first: a user function shadows any
+            // same-named builtin (e.g. `exp` inside `Template.TplMain`
+            // refers to the AST-printer, not the math `exp` builtin).
+            // If the name resolves to a node in the hierarchy, record the
+            // edge for fixed-point propagation. Otherwise fall through to
+            // the builtin table.
+            if let Some(target) = resolve_called_qname(raw, qname, &hier.top_level) {
+                if walks.contains_key(&target) {
+                    set.insert(target);
+                    continue;
+                }
+                // Target resolves to a non-function node (record/type
+                // constructor, partial-application reference, etc.) — drop
+                // the edge, constructors never fail in our lowering.
+                continue;
+            }
+            // Unresolved as a user function: consult the builtin table.
             if let Some(b) = builtin_fallibility(raw) {
                 if matches!(b, Fallibility::Fallible) {
                     fallible.insert(qname.clone());
                 }
                 continue;
-            }
-            // User-defined callee — record an edge so the fixed point can
-            // propagate fallibility transitively.
-            if let Some(target) = resolve_called_qname(raw, qname, &hier.top_level) {
-                if walks.contains_key(&target) {
-                    set.insert(target);
-                }
-                // If `target` resolves to a non-function node (record/type
-                // constructor, partial-application reference, etc.), we drop
-                // the edge — constructors never fail in our lowering.
             }
             // Unresolved names: conservatively ignored at this stage. They
             // typically correspond to user-supplied callback parameters

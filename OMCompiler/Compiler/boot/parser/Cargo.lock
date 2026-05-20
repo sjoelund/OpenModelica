@@ -285,9 +285,11 @@ dependencies = [
  "anyhow",
  "arcstr",
  "const-str",
+ "loop_unwrap",
  "metamodelica",
  "openmodelica_util",
  "openmodelica_util_datatypes_basic",
+ "tailcall",
 ]
 
 [[package]]

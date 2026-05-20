@@ -3474,10 +3474,14 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
             //       When the name *does* resolve (qualified path in `top_level`),
             //       the qualified form is checked against both sources so that
             //       e.g. `MetaModelica.valueEq` still matches.
-            let infallible_ref = resolved_fn_qname
-                .as_deref()
-                .map(|q| ctx.is_known_infallible_user_fn(q, top_level) || is_infallible_builtin(q))
-                .unwrap_or_else(|| is_infallible_builtin(name));
+            // When the name resolves to a user function in the hierarchy, that
+            // function shadows any same-named builtin: do not consult the
+            // builtin table. Only fall back to the builtin classification
+            // when the name does not resolve to a user-defined function.
+            let infallible_ref = match resolved_fn_qname.as_deref() {
+                Some(q) => ctx.is_known_infallible_user_fn(q, top_level),
+                None => is_infallible_builtin(name),
+            };
 
             // Some MetaModelica builtins share a name with a Rust language
             // construct (`print` is a macro, `String` is a struct, etc.).
@@ -3864,11 +3868,16 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                 call
             } else {
                 let callee_qname = resolve_call_qname(func, ctx, top_level);
-                let infallible = callee_qname
-                    .as_deref()
-                    .map(|q| ctx.is_known_infallible_user_fn(q, top_level))
-                    .unwrap_or(false)
-                    || is_infallible_builtin(func);
+                // A user-defined function shadows any same-named builtin. We
+                // must NOT fall through to `is_infallible_builtin` when the
+                // name resolves to a user function — e.g. `exp` in
+                // `Template.TplMain` is a recursive AST-printer, not the
+                // math exponential. Only consult the builtin table when the
+                // name didn't resolve to a user function in the hierarchy.
+                let infallible = match callee_qname.as_deref() {
+                    Some(q) => ctx.is_known_infallible_user_fn(q, top_level),
+                    None => is_infallible_builtin(func),
+                };
                 if infallible {
                     call
                 } else {
@@ -4217,10 +4226,12 @@ fn emit_parteval<'a>(
     // re-wrap it in `Ok(...)` to satisfy the slot. The fallible case yields a
     // `Result<T>` from the call directly and needs no extra wrapping.
     let callee_qname = resolve_call_qname(func, ctx, top_level);
-    let inner_infallible = callee_qname
-        .as_deref()
-        .map(|q| ctx.is_known_infallible_user_fn(q, top_level) || is_infallible_builtin(q))
-        .unwrap_or_else(|| is_infallible_builtin(func));
+    // User functions shadow same-named builtins — only consult the builtin
+    // table when the name does not resolve to a user function.
+    let inner_infallible = match callee_qname.as_deref() {
+        Some(q) => ctx.is_known_infallible_user_fn(q, top_level),
+        None => is_infallible_builtin(func),
+    };
     let body_expr = if inner_infallible {
         format!("Ok({call_expr})")
     } else {
@@ -8700,11 +8711,19 @@ fn emit_stmt<'a>(
                     _ => false,
                 });
                 if all_existing_vars {
-                    let slots: Vec<String> = pats.iter().map(|p| match p {
+                    let mut slots: Vec<String> = pats.iter().map(|p| match p {
                         TypedPat::Var(n) => escape_ident(n).to_string(),
                         TypedPat::Wildcard => "_".to_owned(),
                         _ => unreachable!(),
                     }).collect();
+                    // MetaModelica permits destructuring a wider tuple into a
+                    // narrower LHS — trailing outputs are silently discarded.
+                    // Pad the Rust pattern with `_` so the arities match.
+                    if let Ty::Tuple(tys) = &scrut_ty {
+                        if tys.len() > slots.len() {
+                            for _ in slots.len()..tys.len() { slots.push("_".to_owned()); }
+                        }
+                    }
                     writeln!(out, "{indent}({}) = {scrut_expr};", slots.join(", ")).unwrap();
                     return;
                 }

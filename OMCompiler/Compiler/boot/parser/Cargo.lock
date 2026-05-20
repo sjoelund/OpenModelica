@@ -258,6 +258,7 @@ dependencies = [
  "anyhow",
  "arcstr",
  "const-str",
+ "loop_unwrap",
  "metamodelica",
  "openmodelica_susan",
  "openmodelica_util",

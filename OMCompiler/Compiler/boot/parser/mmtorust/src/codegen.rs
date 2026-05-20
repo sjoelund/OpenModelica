@@ -1074,7 +1074,7 @@ fn emit_node<'a>(out: &mut String, name: &str, node: &NameNode<'_>, indent: &str
         }
         R_UNIONTYPE => emit_uniontype(out, name, node, c, indent, &mut *ctx, top_level),
         R_TYPE | R_ENUMERATION => emit_type_item(out, name, node, c, indent, &mut *ctx),
-        R_RECORD | R_METARECORD { .. } => emit_struct(out, name, node, c, indent, &mut *ctx),
+        R_RECORD | R_METARECORD { .. } => emit_struct(out, name, node, c, indent, &mut *ctx, top_level),
         R_FUNCTION { .. } => emit_function(out, name, node, c, indent, &mut *ctx, top_level),
         R_CLASS if crate::hierarchy::is_external_object_class(node) => {
             emit_external_object(out, name, node, c, indent, &mut *ctx, top_level)
@@ -1281,13 +1281,23 @@ fn emit_uniontype<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM:
                         emitted_variants.push(rec_name.clone());
                     }
                     Ty::RustStruct(_) => {
-                        let fields = component_fields(rc, &rec_node.children);
+                        let fields = component_fields_with_spec(rc, &rec_node.children);
                         if fields.is_empty() {
                             writeln!(out, "{inner}    {rec_name},").unwrap();
                         } else {
+                            // Look up the enclosing-package scope so a field whose
+                            // declared type is a bare alias name (e.g. `Value value`)
+                            // can be emitted as that alias rather than its resolved
+                            // concrete type. The lookup is done once per record;
+                            // failure (e.g. top-level package not in `top_level`)
+                            // simply falls back to the resolved-type path.
+                            let scope = current_scope_children(ctx, top_level);
                             writeln!(out, "{inner}    {rec_name} {{").unwrap();
-                            for (fname, fty) in &fields {
-                                writeln!(out, "{inner}        {}: {},", escape_ident(fname), fmt_ty(fty, &mut *ctx)).unwrap();
+                            for (fname, fty, fspec) in &fields {
+                                let ty_str = scope
+                                    .and_then(|sc| field_type_alias_name(fspec, sc))
+                                    .unwrap_or_else(|| fmt_ty(fty, &mut *ctx));
+                                writeln!(out, "{inner}        {}: {},", escape_ident(fname), ty_str).unwrap();
                             }
                             writeln!(out, "{inner}    }},").unwrap();
                         }
@@ -1318,7 +1328,7 @@ fn emit_uniontype<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM:
             let rec_name = recs.into_iter().next().unwrap_or_default();
             if let Some(rec_node) = node.children.get(&rec_name) {
                 if let NodeKind::Class(rc) = &rec_node.kind {
-                    emit_struct(out, name, rec_node, rc, &inner, &mut *ctx);
+                    emit_struct(out, name, rec_node, rc, &inner, &mut *ctx, top_level);
                 }
             }
             // Emit a type alias from the record name to the struct so that code
@@ -1399,11 +1409,11 @@ fn emit_uniontype<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM:
     writeln!(out).unwrap();
 }
 
-fn emit_struct(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Class, indent: &str, ctx: &mut GenCtx) {
-    let fields = component_fields(c, &node.children);
+fn emit_struct<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Class, indent: &str, ctx: &mut GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) {
+    let fields = component_fields_with_spec(c, &node.children);
     let ename = escape_ident(name);
     let mut type_vars: Vec<String> = Vec::new();
-    for (_, fty) in &fields {
+    for (_, fty, _) in &fields {
         collect_type_vars_in_ty(fty, &mut type_vars);
     }
     // Use the minimum bound `Clone + 'static` on struct type parameters.
@@ -1431,9 +1441,13 @@ fn emit_struct(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Class,
     if fields.is_empty() {
         writeln!(out, "{indent}pub struct {ename}{type_params};").unwrap();
     } else {
+        let scope = current_scope_children(ctx, top_level);
         writeln!(out, "{indent}pub struct {ename}{type_params} {{").unwrap();
-        for (fname, fty) in &fields {
-            writeln!(out, "{indent}    pub {}: {},", escape_ident(fname), fmt_ty(fty, &mut *ctx)).unwrap();
+        for (fname, fty, fspec) in &fields {
+            let ty_str = scope
+                .and_then(|sc| field_type_alias_name(fspec, sc))
+                .unwrap_or_else(|| fmt_ty(fty, &mut *ctx));
+            writeln!(out, "{indent}    pub {}: {},", escape_ident(fname), ty_str).unwrap();
         }
         writeln!(out, "{indent}}}").unwrap();
     }
@@ -10421,6 +10435,82 @@ fn component_fields<'a>(c: &'a MM::Class, children: &'a BTreeMap<String, NameNod
             }
         })
         .collect()
+}
+
+/// Same as [`component_fields`] but also returns each component's original
+/// AST `TypeSpec`. The TypeSpec lets the emitter recover the type *name as
+/// written* (e.g. `Key`, `Value`) rather than its fully resolved Rust type
+/// (e.g. `ArcStr`, `Arc<metamodelica::List<TplAbsyn::ASTDef>>`). This is what
+/// lets uniontype record fields reference sibling type aliases instead of
+/// inlining the resolved type — keeping the generated code stable across
+/// future redeclarations of the alias.
+fn component_fields_with_spec<'a>(
+    c: &'a MM::Class,
+    children: &'a BTreeMap<String, NameNode<'_>>,
+) -> Vec<(&'a str, &'a Ty, &'a Absyn::TypeSpec)> {
+    let members: &[MM::ClassMember] = match &c.body {
+        MM::ClassDef::Parts { members, .. } | MM::ClassDef::ClassExtends { members, .. } => members,
+        _ => return vec![],
+    };
+    members.iter()
+        .filter_map(|m| {
+            if let MM::ClassMember::Component(comp) = m {
+                let ty = children.get(&comp.name).map(|n| &n.ty)?;
+                Some((comp.name.as_str(), ty, &comp.type_spec))
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
+/// Return the `BTreeMap` of children for the package/uniontype currently
+/// being emitted, i.e. the scope where this uniontype/struct's siblings
+/// (such as type aliases) live. Walks `top_level` along `ctx.top_name` +
+/// `ctx.current_path`; returns `None` if any segment is missing.
+fn current_scope_children<'a, 'b>(
+    ctx: &GenCtx,
+    top_level: &'a BTreeMap<String, NameNode<'b>>,
+) -> Option<&'a BTreeMap<String, NameNode<'b>>> {
+    let root = top_level.get(ctx.top_name.as_str())?;
+    let mut node = root;
+    for seg in &ctx.current_path {
+        node = node.children.get(seg.as_str())?;
+    }
+    Some(&node.children)
+}
+
+/// If the given `type_spec` is a single-identifier reference to a sibling
+/// type alias in `scope_children` (i.e. a `(redeclare) type Foo = …` class
+/// member at the enclosing-package scope), return that identifier escaped
+/// as a Rust ident. Otherwise return `None`.
+///
+/// Preserves alias references in uniontype record fields: `Key key;` /
+/// `Value value;` in a MetaModelica `extends BaseAvlTree` package emits
+/// `key: Key,` / `value: Value,` instead of the resolved concrete type. The
+/// alias still expands to the correct Rust type via the `pub type Key = …;`
+/// / `pub type Value = …;` emitted at the package level by `emit_type_item`.
+fn field_type_alias_name(
+    type_spec: &Absyn::TypeSpec,
+    scope_children: &BTreeMap<String, NameNode<'_>>,
+) -> Option<String> {
+    // Only a bare TPATH with one segment (no module prefix, no generics) can
+    // be an alias to a sibling — anything else (e.g. `Pkg.Type`, `list<T>`)
+    // already names what it means.
+    let path = match type_spec {
+        Absyn::TypeSpec::TPATH { path, arrayDim: None, .. } => path,
+        _ => return None,
+    };
+    let name = match path {
+        Absyn::Path::IDENT { name } => name.to_string(),
+        _ => return None,
+    };
+    let child = scope_children.get(&name)?;
+    let NodeKind::Class(cc) = &child.kind else { return None };
+    if !matches!(cc.restriction, Absyn::Restriction::R_TYPE) { return None; }
+    // The child must itself be a type alias (Derived) — not an enumeration etc.
+    if !matches!(cc.body, MM::ClassDef::Derived { .. }) { return None; }
+    Some(escape_ident(&name))
 }
 
 /// Prefix Rust keywords with `r#` so they are valid identifiers.

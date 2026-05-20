@@ -1044,6 +1044,22 @@ fn collect_extends_known<'a>(
                     if child_node.ty == Ty::Unknown || matches!(child_node.ty, Ty::TypeVar(_)) {
                         continue;
                     }
+                    // If the derived node has its own child by this name, do not
+                    // contribute the base's type for it. The local declaration
+                    // either (a) was copied from the base by `flatten_extends`
+                    // (same definition; it'll resolve to the right type in the
+                    // derived scope via `collect_known`), or (b) is a *redeclare*
+                    // that overrides the base (e.g. `redeclare type Value =
+                    // list<TplAbsyn.ASTDef>` in `CacheTree extends BaseAvlTree`).
+                    // In case (b), letting the base's type win here would
+                    // propagate through `apply_redeclare_overrides` and replace
+                    // the (still-Unknown, pending re-resolution) local node's
+                    // type — silently demoting the redeclare. Until the local
+                    // resolves on a later pass, leave its known-map slot empty
+                    // rather than fill it with a value we know is wrong.
+                    if node.children.contains_key(child_name) {
+                        continue;
+                    }
                     // Full qualified key: ZeroCrossings.ZeroCrossingTree.Tree
                     sk_insert_if_absent(known, &qualify(&qname, child_name), child_node.ty.clone());
                     // Relative key (no enclosing package prefix): ZeroCrossingTree.Tree

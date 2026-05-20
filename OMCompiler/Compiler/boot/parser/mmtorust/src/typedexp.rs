@@ -439,6 +439,40 @@ pub fn resolve_call_node<'a>(
     None
 }
 
+/// If `ty` is the record-struct type of a multi-record uniontype variant,
+/// return the parent uniontype's `Ty::RustEnum`; otherwise return `ty`
+/// unchanged. The hierarchy stores variant records as `Ty::RustStruct(qname)`
+/// where qname is the variant's full path (e.g. `"Absyn.Exp.STRING"`). When
+/// that ty escapes into an *expression* context (the result type of a
+/// reduction body, etc.), `fmt_ty` would render `Absyn::Exp::STRING` — a
+/// variant path, which is not a valid Rust type. Promotion is needed at all
+/// such sites; single-record uniontypes already encode the record under the
+/// uniontype's own qname, so this is a no-op there.
+fn promote_variant_to_enum_ty(ty: Ty, top_level: &BTreeMap<String, NameNode<'_>>) -> Ty {
+    match &ty {
+        // A narrowed variant: `Ty::UnionTypeVariant(parent, _)` is a Rust path
+        // (`Parent::Variant`), not a type. The parent enum is the actual type
+        // of any value of that variant.
+        Ty::UnionTypeVariant(parent, _) => {
+            match lookup_ty_in_hierarchy(parent, top_level) {
+                Ty::RustEnum(_) => Ty::RustEnum(parent.clone()),
+                _ => ty,
+            }
+        }
+        // A record-struct of a multi-record uniontype: hierarchy stores it as
+        // `Ty::RustStruct(<variant-qname>)`, which `fmt_ty` would render as the
+        // variant path. Promote to the parent's `Ty::RustEnum`.
+        Ty::RustStruct(qname) => {
+            let Some((parent, _)) = qname.rsplit_once('.') else { return ty };
+            match lookup_ty_in_hierarchy(parent, top_level) {
+                parent_ty @ Ty::RustEnum(_) => parent_ty,
+                _ => ty,
+            }
+        }
+        _ => ty,
+    }
+}
+
 fn lookup_ty_in_hierarchy<'a>(dotted: &str, top_level: &'a BTreeMap<String, NameNode<'a>>) -> Ty {
     let mut parts = dotted.split('.');
     let first = parts.next().unwrap_or("");
@@ -1242,7 +1276,13 @@ pub fn infer_exp<'a>(
                 //  - min / max → body_ty itself
                 //  - sum / product → body_ty (numeric)
                 //  - user function → the function's output type
-                let body_ty = body.ty();
+                // When the body is a constructor for a multi-record uniontype
+                // variant, `body.ty()` is `Ty::RustStruct(<variant-qname>)`. As
+                // an *expression* type that's not a Rust type — `Mod::Enum::Var`
+                // is a variant path, not a struct. Promote it to the parent
+                // `Ty::RustEnum` so that `list(...)` infers as `List<Enum>`,
+                // which `fmt_ty` renders as a valid Rust type.
+                let body_ty = promote_variant_to_enum_ty(body.ty(), top_level);
                 let ty = match func.as_str() {
                     "list" | "listReverse" => Ty::List(Box::new(body_ty.clone())),
                     "listAppend" => body_ty.clone(),
@@ -1429,8 +1469,14 @@ pub fn infer_exp<'a>(
             let typed_cases: Vec<TypedCase> = (&**cases).into_iter()
                 .map(|c| infer_case(c, &case_env, top_level, pkg_prefix, &match_locals, type_vars, scrutinee_for_arm))
                 .collect();
+            // Promote each arm's type from a narrowed variant struct to its
+            // parent uniontype enum: an arm that returned the scrutinee under a
+            // narrowed pattern would otherwise type the whole `match` as the
+            // variant struct (e.g. `Absyn.ClassPart.PUBLIC`), which renders as
+            // a variant *path* — not a valid Rust type when this match's value
+            // is later used (e.g. as a `list(...)` element type).
             let ty = typed_cases.iter()
-                .map(|c| c.result.ty())
+                .map(|c| promote_variant_to_enum_ty(c.result.ty(), top_level))
                 .find(|t| *t != Ty::Unknown)
                 .unwrap_or(Ty::Unknown);
             TypedExp::Match { kind, input: Box::new(input), cases: typed_cases, ty, as_binding }

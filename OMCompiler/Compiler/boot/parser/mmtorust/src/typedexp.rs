@@ -447,6 +447,18 @@ fn lookup_ty_in_hierarchy<'a>(dotted: &str, top_level: &'a BTreeMap<String, Name
     node.ty.clone()
 }
 
+/// Extract the Rust-form (`::`-separated) name from a resolved nominal type,
+/// matching `hierarchy::ty_rust_name`. Used when wrapping a user-defined
+/// generic instantiation in `Ty::Generic` so that downstream `fmt_ty`
+/// produces the correct path (including doubling for top-level uniontypes).
+fn ty_rust_name(ty: &Ty) -> Option<String> {
+    match ty {
+        Ty::AliasTo(n) | Ty::RustEnum(n) | Ty::RustStruct(n) | Ty::Enumeration(n) => Some(n.replace('.', "::")),
+        Ty::ExternalObject(n) => Some(n.replace('.', "::")),
+        _ => None,
+    }
+}
+
 /// Scope-aware type-name resolution for use by `typespec_to_ty`.
 ///
 /// MetaModelica scopes name lookup from the inside out: a simple name inside
@@ -1545,9 +1557,23 @@ fn infer_case<'a>(
                     "polymorphic" if args.len() == 1 => {
                         typespec_to_ty(args[0].as_ref(), type_vars, top_level, pkg_prefix)
                     }
-                    // Unknown generic — look up the base name scope-aware.
-                    // The type arguments are not represented in Ty yet; this is a known limitation.
-                    _ => resolve_type_name(&ctor, top_level, pkg_prefix),
+                    // User-defined generic (e.g. `Mutable<T>`, `UnorderedSet<T>`).
+                    // Preserve the type arguments as `Ty::Generic` so `fmt_ty`
+                    // emits `Base<Arg>` instead of dropping the parameter and
+                    // generating a bare `Base` — which would fail to compile
+                    // (e.g. `let mut i0: Mutable;`).
+                    "Mutable" if args.len() == 1 => {
+                        let inner = typespec_to_ty(args[0].as_ref(), type_vars, top_level, pkg_prefix);
+                        Ty::Generic("Mutable".to_owned(), vec![inner])
+                    }
+                    _ => {
+                        let base_ty = resolve_type_name(&ctor, top_level, pkg_prefix);
+                        let resolved: Vec<Ty> = args.iter()
+                            .map(|a| typespec_to_ty(a.as_ref(), type_vars, top_level, pkg_prefix))
+                            .collect();
+                        let base_name = ty_rust_name(&base_ty).unwrap_or_else(|| ctor.clone());
+                        Ty::Generic(base_name, resolved)
+                    }
                 }
             }
         }
@@ -1874,7 +1900,20 @@ fn infer_case_locals_standalone(
                     "polymorphic" if args.len() == 1 => {
                         typespec_to_ty(args[0].as_ref(), type_vars, top_level, pkg_prefix)
                     }
-                    _ => resolve_type_name(&ctor, top_level, pkg_prefix),
+                    // User-defined generic — preserve type arguments via `Ty::Generic`.
+                    // See the inner `typespec_to_ty` in `infer_case` for the rationale.
+                    "Mutable" if args.len() == 1 => {
+                        let inner = typespec_to_ty(args[0].as_ref(), type_vars, top_level, pkg_prefix);
+                        Ty::Generic("Mutable".to_owned(), vec![inner])
+                    }
+                    _ => {
+                        let base_ty = resolve_type_name(&ctor, top_level, pkg_prefix);
+                        let resolved: Vec<Ty> = args.iter()
+                            .map(|a| typespec_to_ty(a.as_ref(), type_vars, top_level, pkg_prefix))
+                            .collect();
+                        let base_name = ty_rust_name(&base_ty).unwrap_or_else(|| ctor.clone());
+                        Ty::Generic(base_name, resolved)
+                    }
                 }
             }
         }
@@ -1948,7 +1987,20 @@ pub fn resolve_typespec<'a>(
                 "polymorphic" if args.len() == 1 => {
                     resolve_typespec(args[0].as_ref(), type_vars, top_level, pkg_prefix)
                 }
-                _ => resolve_type_name(&ctor, top_level, pkg_prefix),
+                // User-defined generic — preserve type arguments via `Ty::Generic`.
+                // See the inner `typespec_to_ty` in `infer_case` for the rationale.
+                "Mutable" if args.len() == 1 => {
+                    let inner = resolve_typespec(args[0].as_ref(), type_vars, top_level, pkg_prefix);
+                    Ty::Generic("Mutable".to_owned(), vec![inner])
+                }
+                _ => {
+                    let base_ty = resolve_type_name(&ctor, top_level, pkg_prefix);
+                    let resolved: Vec<Ty> = args.iter()
+                        .map(|a| resolve_typespec(a.as_ref(), type_vars, top_level, pkg_prefix))
+                        .collect();
+                    let base_name = ty_rust_name(&base_ty).unwrap_or_else(|| ctor.clone());
+                    Ty::Generic(base_name, resolved)
+                }
             }
         }
     }

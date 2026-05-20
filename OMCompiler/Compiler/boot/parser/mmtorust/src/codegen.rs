@@ -3432,10 +3432,25 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
             // otherwise treat a function path like a value.
             //
             // We only attempt the promotion when the inferred ty is Unknown
-            // and the source has dotted form (segments give us the path).
-            // Anything that already inferred to a concrete ty (record value,
-            // local var, etc.) is left alone.
-            let promoted_ty: Option<Ty> = if matches!(ty, Ty::Unknown) && !segments.is_empty() {
+            // and the source has dotted form with more than one segment (a
+            // genuinely qualified path). Anything that already inferred to a
+            // concrete ty (record value, local var, etc.) is left alone.
+            //
+            // We deliberately exclude single-segment bare references: those
+            // are either local pattern bindings (whose typedexp-derived type
+            // is Ty::Unknown because `pat_bindings` doesn't propagate the
+            // scrutinee type) or top-level value/function references that
+            // typedexp already classified. Promoting a bare name would lift
+            // a local pattern binding into a same-named imported function
+            // (e.g. `tell` bound by `case BT_FILE_TEXT(tell=tell)` getting
+            // resolved to `File.tell` because `Tpl.mo` imports `File`).
+            // Additionally skip when the first segment is a known local
+            // binding even at length>1, in case a future change adds field
+            // access on a pattern-bound record.
+            let first_seg_is_local = segments.first()
+                .map(|s| ctx.fn_env_vars.contains_key(&s.name))
+                .unwrap_or(false);
+            let promoted_ty: Option<Ty> = if matches!(ty, Ty::Unknown) && segments.len() > 1 && !first_seg_is_local {
                 let dotted: String = segments.iter().map(|s| s.name.clone()).collect::<Vec<_>>().join(".");
                 resolve_call_qname(&dotted, ctx, top_level)
                     .and_then(|q| lookup_node(&q, top_level).map(|n| n.ty.clone()))

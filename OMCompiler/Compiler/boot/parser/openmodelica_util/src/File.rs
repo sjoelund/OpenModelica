@@ -252,14 +252,16 @@ pub fn getFilename(file: Option<i32>) -> Result<ArcStr> {
     todo!("File.getFilename: opaque-pointer punning via Option<Integer> is not yet bridged in the Rust runtime")
 }
 
-pub fn noReference() -> Result<Option<i32>> {
+pub fn noReference() -> Option<i32> {
     // In C this returns NULL — a void* that the constructor recognizes as
     // "make a new file". The Rust constructor's `_fromID` is ignored, so
-    // `None` is a faithful stand-in for the default-value path.
-    Ok(None)
+    // `None` is a faithful stand-in for the default-value path. The .mo
+    // declares this `external "C"` without an error path, so we return the
+    // bare value (not `Result<_>`) to match what the codegen expects.
+    None
 }
 
-pub fn getReference(file: File) -> Result<Option<i32>> {
+pub fn getReference(file: File) -> Option<i32> {
     // Same caveat as `getFilename`: the return value is really a pointer,
     // not an integer. Anyone who consumes the result expects to round-trip
     // it back to the constructor, which we cannot do without C runtime help.

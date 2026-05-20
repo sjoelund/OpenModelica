@@ -3966,11 +3966,23 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
             format!("({})", parts.join(", "))
         }
 
-        TypedExp::Array { elems, .. } => {
+        TypedExp::Array { elems, ty } => {
             if elems.is_empty() {
                 "metamodelica::nil()".to_owned()
             } else {
-                let parts: Vec<String> = elems.iter().map(|e| emit_exp(e, is_const, ctx, top_level)).collect();
+                // The list's declared element type acts as the "formal" for each
+                // element expression. Route through `emit_call_arg_with_formal`
+                // so multi-output calls used in single-value context (e.g.
+                // `{System.dladdr(func)}` where `dladdr` returns a 3-tuple but
+                // each list element must be a scalar `String`) get the
+                // implicit first-element extraction applied (Tuple → `.0`).
+                let elem_ty = match ty {
+                    Ty::List(inner) => Some((**inner).clone()),
+                    _ => None,
+                };
+                let parts: Vec<String> = elems.iter().map(|e| {
+                    emit_call_arg_with_formal(e, elem_ty.as_ref(), is_const, ctx, top_level)
+                }).collect();
                 format!("list![{}]", parts.join(", "))
             }
         }
@@ -5677,14 +5689,32 @@ fn emit_cloned_call_arg<'a>(arg: &TypedExp, is_const: bool, ctx: &mut GenCtx, to
 fn arg_is_input_fn_param(arg: &TypedExp, ctx: &GenCtx) -> bool {
     let TypedExp::Var { name, segments, ty, .. } = arg else { return false };
     if segments.len() > 1 { return false; }
-    if !matches!(ty, Ty::Function { name: None, .. }) { return false; }
+    // Whether the binding's Rust value is already shaped as `Arc<dyn Fn>` (as
+    // opposed to a bare `fn(...)` pointer). [`fmt_param_ty`] emits `Arc<dyn Fn>`
+    // for `Ty::Function { name: None, .. }` and for named partial-function
+    // aliases declared *inside* another function (tracked in
+    // `nested_partial_aliases`); top-level named aliases stay as `fn(...)`
+    // pointers and DO need an outer `Arc::new(...)` when fed into an anonymous
+    // `Arc<dyn Fn>` slot.
+    let stored_as_arc_dyn = |ty: &Ty| -> bool {
+        match ty {
+            Ty::Function { name: None, .. } => true,
+            Ty::Function { name: Some(qn), .. } => ctx.nested_partial_aliases.contains(qn),
+            _ => false,
+        }
+    };
+    if !stored_as_arc_dyn(ty) { return false; }
     let base = name.split('.').next().unwrap_or(name);
-    // Input parameters AND function-typed local variables (outputs/protected) are
-    // all declared as `Arc<dyn Fn + 'static>` (see `fmt_param_ty` / `fmt_ty`).
-    // Forwarding them with `.clone()` is correct in both cases; wrapping in
-    // `Arc::new(...)` would produce a double-wrapped `Arc<Arc<dyn Fn>>`.
-    ctx.fn_input_names.contains(base)
-        || matches!(ctx.fn_env_vars.get(base), Some(Ty::Function { name: None, .. }))
+    // Input parameters AND function-typed local variables (outputs/protected /
+    // pattern bindings) are declared with the same shape `fmt_param_ty` chose
+    // for the formal — already `Arc<dyn Fn + 'static>`. Forward with
+    // `.clone()`; wrapping in `Arc::new(...)` would produce
+    // `Arc<Arc<dyn Fn>>` and fail typeck (E0277).
+    if ctx.fn_input_names.contains(base) { return true; }
+    match ctx.fn_env_vars.get(base) {
+        Some(env_ty) => stored_as_arc_dyn(env_ty),
+        None => false,
+    }
 }
 
 /// MetaModelica implicitly extracts the first element of a tuple-returning call
@@ -5701,6 +5731,25 @@ fn emit_call_arg_with_formal<'a>(
     ctx: &mut GenCtx,
     top_level: &'a BTreeMap<String, NameNode<'a>>,
 ) -> String {
+    // Array literals: the actual's element type comes from the local inference
+    // of the literal, but the *call-site formal* (`list<String>`, etc.) is the
+    // type the elements must conform to. Re-route through `emit_call_arg_with_formal`
+    // per element using the formal's element type, so multi-output calls used
+    // as single-value list elements (e.g. `{System.dladdr(func)}` where
+    // `dladdr` returns a 3-tuple but the list expects `String`) get the
+    // implicit first-element extraction applied.
+    if let TypedExp::Array { elems, .. } = arg {
+        if let Some(Ty::List(inner)) = formal_ty {
+            if elems.is_empty() {
+                return "metamodelica::nil()".to_owned();
+            }
+            let elem_formal = (**inner).clone();
+            let parts: Vec<String> = elems.iter().map(|e| {
+                emit_call_arg_with_formal(e, Some(&elem_formal), is_const, ctx, top_level)
+            }).collect();
+            return format!("list![{}]", parts.join(", "));
+        }
+    }
     // Tuple→first coercion only kicks in when the formal is a *concrete* scalar
     // slot. TypeVar formals (e.g. `Vector.updateNoBounds<T>`) may be instantiated
     // with a tuple type at the call site (here, `T = (K, V)`), so applying `.0`
@@ -5979,6 +6028,15 @@ fn resolve_call_formals<'a>(
     let node = lookup_node(&qname, top_level)?;
     let NodeKind::Class(c) = &node.kind else { return None };
     if !matches!(c.restriction, Absyn::Restriction::R_FUNCTION { .. }) {
+        // ExternalObject classes are constructed via `ClassName(...)`. The
+        // formals live on the inner `constructor` function (which carries the
+        // .mo's default values). Without forwarding here, calls like
+        // `File.File()` would fall through to the no-formal fallback path,
+        // losing the constructor's `fromID = noReference()` default.
+        if crate::hierarchy::is_external_object_class(node) {
+            let ctor_qname = format!("{qname}.constructor");
+            return resolve_call_formals(&ctor_qname, ctx, top_level);
+        }
         return None;
     }
 
@@ -6040,7 +6098,8 @@ fn resolve_call_formals<'a>(
         let mut fn_type_vars: Vec<String> = Vec::new();
         collect_type_vars_in_ty(&node.ty, &mut fn_type_vars);
         let default = extract_default_exp(&m.modification)
-            .map(|exp| typedexp::infer_exp(exp, &infer_env, top_level, &module_prefix, &fn_type_vars));
+            .map(|exp| typedexp::infer_exp(exp, &infer_env, top_level, &module_prefix, &fn_type_vars))
+            .map(|tpl| canonicalize_call_funcs(tpl, &module_prefix, top_level));
         out.push((m.name.clone(), ty.clone(), default));
         infer_env.insert(m.name.clone(), ty);
     }
@@ -6066,7 +6125,8 @@ fn resolve_call_formals<'a>(
             let mut fn_type_vars: Vec<String> = Vec::new();
             collect_type_vars_in_ty(&node.ty, &mut fn_type_vars);
             let default = extract_default_exp(&m.modification)
-                .map(|exp| typedexp::infer_exp(exp, &base_infer_env, top_level, &module_prefix, &fn_type_vars));
+                .map(|exp| typedexp::infer_exp(exp, &base_infer_env, top_level, &module_prefix, &fn_type_vars))
+                .map(|tpl| canonicalize_call_funcs(tpl, &module_prefix, top_level));
 
             if let Some(idx) = out.iter().position(|(name, _, _)| name == &m.name) {
                 if out[idx].2.is_none() {
@@ -6088,6 +6148,67 @@ fn resolve_call_formals<'a>(
     }
 
     Some(out)
+}
+
+/// Resolve every `TypedExp::Call.func` in `exp` to its canonical (fully-qualified)
+/// name using `module_prefix` as the lookup context.
+///
+/// `infer_exp` keeps `Call.func` as the bare/dotted name written in the source.
+/// That is fine when the codegen later re-emits the call from the same module
+/// the source lives in, because `resolve_call_qname` will walk the current path
+/// and find the target. But default expressions cross module boundaries: a
+/// default like `fromID = noReference()` written inside `File.File.constructor`
+/// gets substituted at every call site, including ones in modules where
+/// `noReference` does not resolve. By rewriting bare names to their qualified
+/// form *while* we still have the callee's module context, the resulting
+/// `TypedExp` is self-contained and can be emitted from any call site.
+fn canonicalize_call_funcs<'a>(exp: TypedExp, module_prefix: &str, top_level: &'a BTreeMap<String, NameNode<'a>>) -> TypedExp {
+    use TypedExp as E;
+    let recur = |e: TypedExp| canonicalize_call_funcs(e, module_prefix, top_level);
+    match exp {
+        E::Call { func, args, named_args, ty, sig_ty } => {
+            let canonical = match typedexp::resolve_call_node(&func, top_level, module_prefix) {
+                Some((q, _)) => q,
+                None => func,
+            };
+            E::Call {
+                func: canonical,
+                args: args.into_iter().map(recur).collect(),
+                named_args: named_args.into_iter().map(|(n, a)| (n, recur(a))).collect(),
+                ty,
+                sig_ty,
+            }
+        }
+        E::Constructor { name, args, named_args, ty, field_names } => E::Constructor {
+            name,
+            args: args.into_iter().map(recur).collect(),
+            named_args: named_args.into_iter().map(|(n, a)| (n, recur(a))).collect(),
+            ty,
+            field_names,
+        },
+        E::BinOp { op, lhs, rhs, ty } => E::BinOp {
+            op,
+            lhs: Box::new(recur(*lhs)),
+            rhs: Box::new(recur(*rhs)),
+            ty,
+        },
+        E::UnOp { op, operand, ty } => E::UnOp { op, operand: Box::new(recur(*operand)), ty },
+        E::If { cond, then_, elseif, else_, ty } => E::If {
+            cond: Box::new(recur(*cond)),
+            then_: Box::new(recur(*then_)),
+            elseif: elseif.into_iter().map(|(c, e)| (recur(c), recur(e))).collect(),
+            else_: Box::new(recur(*else_)),
+            ty,
+        },
+        E::Tuple(elems) => E::Tuple(elems.into_iter().map(recur).collect()),
+        E::Array { elems, ty } => E::Array { elems: elems.into_iter().map(recur).collect(), ty },
+        E::Cons { head, tail, ty } => E::Cons {
+            head: Box::new(recur(*head)),
+            tail: Box::new(recur(*tail)),
+            ty,
+        },
+        other => other,
+    }
 }
 
 /// Substitute references to formal parameter names in `exp` using concrete
@@ -6628,11 +6749,28 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
                     for name in &assigned {
                         if shadow_seen.contains(name) { continue; }
                         let Some(ty) = ctx.fn_env_vars.get(name).cloned() else { continue };
+                        let id = escape_ident(name);
+                        // If the variable is a function input parameter it is
+                        // already initialised at the outer scope, so the shadow
+                        // must carry that value in — otherwise reads inside the
+                        // arm that precede the first assignment would see an
+                        // uninitialised binding. For purely-local outer
+                        // declarations we cannot assume initialisation, so we
+                        // keep the bare `let mut` (existing behaviour).
+                        let init_from_outer = ctx.fn_input_names.contains(name);
                         if matches!(ty, Ty::Unknown) {
-                            body.push_str(&format!("            let mut {}; // TODO: shadow of function-scope local with unresolved type\n", escape_ident(name)));
+                            if init_from_outer {
+                                body.push_str(&format!("            let mut {id} = {id}.clone(); // TODO: shadow of function-scope input with unresolved type\n"));
+                            } else {
+                                body.push_str(&format!("            let mut {id}; // TODO: shadow of function-scope local with unresolved type\n"));
+                            }
                         } else {
                             let ty_s = fmt_ty(&ty, ctx);
-                            body.push_str(&format!("            let mut {}: {ty_s};\n", escape_ident(name)));
+                            if init_from_outer {
+                                body.push_str(&format!("            let mut {id}: {ty_s} = {id}.clone();\n"));
+                            } else {
+                                body.push_str(&format!("            let mut {id}: {ty_s};\n"));
+                            }
                         }
                     }
                     let mut fresh_local: u32 = 0;
@@ -6644,7 +6782,25 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
                 }
                 let result = emit_exp(&case.result, is_const, ctx, top_level);
                 s.push_str("        if let Ok(__v) = (|| -> Result<_> {\n");
-                if input_is_arc {
+                // Whole-input Var binding under an Arc-wrapped scrutinee: bind
+                // directly to the Arc instead of going through `.as_ref()`.
+                // The default path (`.as_ref()` + match ergonomics) is needed
+                // when the pattern destructures into an enum variant, because
+                // the variant patterns can only match `&T`, not `Arc<T>`. But
+                // a bare `Var` doesn't destructure — and routing it through
+                // `.as_ref()` would bind the name as `&T`, so a downstream
+                // `name.clone()` would clone `T` instead of the `Arc<T>` the
+                // formal parameter type expects. (Wildcard: same reasoning,
+                // but no name needs to keep the Arc, so `.as_ref()` is fine.)
+                let bind_arc_directly = input_is_arc && matches!(&case.pattern, TypedPat::Var(_));
+                if bind_arc_directly {
+                    let var_name = match &case.pattern {
+                        TypedPat::Var(n) => escape_ident(n),
+                        _ => unreachable!(),
+                    };
+                    let mut_prefix = if true { "mut " } else { "" };
+                    s.push_str(&format!("            let {mut_prefix}{var_name} = __mc_input.clone();\n"));
+                } else if input_is_arc {
                     s.push_str(&format!("            let {pat} = __mc_input.as_ref() else {{ bail!(\"nomatch\") }};\n"));
                 } else {
                     s.push_str(&format!("            let {pat} = __mc_input.clone() else {{ bail!(\"nomatch\") }};\n"));
@@ -6767,7 +6923,19 @@ fn pat_deref_bindings(pat: &TypedPat, scrut_ty: &Ty, ctx: &GenCtx, top_level: &B
                 pat_deref_bindings(p, &fty, ctx, top_level, out);
             }
         }
-        TypedPat::As { pat, .. } => pat_deref_bindings(pat, scrut_ty, ctx, top_level, out),
+        TypedPat::As { var, pat } => {
+            // Mirror `emit_pat_with_implicit_bind`'s `force_ref`: when the
+            // inner pattern introduces a sub-binding, the @-bound `var` is
+            // emitted as `ref var` to avoid a move-overlap with that
+            // sub-binding. That means `var` is `&T` and any subsequent
+            // assignment (including `var.field := …`) needs an owned
+            // `let mut var = var.clone();` rebind. Treat the @-bound name
+            // like a deref binding so the existing rebind path picks it up.
+            if pat_introduces_binding(pat) {
+                out.push(var.clone());
+            }
+            pat_deref_bindings(pat, scrut_ty, ctx, top_level, out);
+        }
         _ => {}
     }
 }
@@ -6780,6 +6948,12 @@ fn pat_assigned_names(p: &TypedPat, out: &mut HashSet<String>) {
     match p {
         TypedPat::Var(n) => { out.insert(n.clone()); }
         TypedPat::As { var, pat } => { out.insert(var.clone()); pat_assigned_names(pat, out); }
+        // `base.field := rhs` is a destructive mutation of `base`'s value, so
+        // record `base` as assigned. Without this, an outer `ref`-bound base
+        // would never be re-rebinned to an owned `mut` shadow, and
+        // `assign_variant_field!` would later emit `&mut base` against an
+        // immutable binding (E0596 / E0594).
+        TypedPat::FieldAccess { base, .. } => pat_assigned_names(base, out),
         TypedPat::Tuple(pats) => pats.iter().for_each(|p| pat_assigned_names(p, out)),
         // A compound LHS pattern like `l :: ll := ll` is lowered by
         // `emit_pat_assign` to synthetic `name = __paN.clone();` writes

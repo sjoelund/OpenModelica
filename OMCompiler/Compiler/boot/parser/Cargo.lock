@@ -151,6 +151,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0904e6304e9caf24ea4948779e2dda92122bd7d3e98ae1926867df97093b9f9e"
 
 [[package]]
+name = "match_deref"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6653e44fdfe194f0276ecec9460aff0dfbe621f87097984d1816bd62ec626a53"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
 name = "memchr"
 version = "2.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -242,6 +253,7 @@ dependencies = [
  "anyhow",
  "arcstr",
  "const-str",
+ "match_deref",
  "metamodelica",
  "openmodelica_frontend",
  "openmodelica_nf_frontend",
@@ -259,6 +271,7 @@ dependencies = [
  "arcstr",
  "const-str",
  "loop_unwrap",
+ "match_deref",
  "metamodelica",
  "openmodelica_susan",
  "openmodelica_util",
@@ -273,6 +286,7 @@ dependencies = [
  "anyhow",
  "arcstr",
  "const-str",
+ "match_deref",
  "metamodelica",
  "openmodelica_frontend",
  "openmodelica_util",
@@ -287,6 +301,7 @@ dependencies = [
  "arcstr",
  "const-str",
  "loop_unwrap",
+ "match_deref",
  "metamodelica",
  "openmodelica_util",
  "openmodelica_util_datatypes_basic",
@@ -301,6 +316,7 @@ dependencies = [
  "arcstr",
  "const-str",
  "loop_unwrap",
+ "match_deref",
  "metamodelica",
  "openmodelica_util_datatypes_basic",
  "tailcall",
@@ -314,6 +330,7 @@ dependencies = [
  "arcstr",
  "const-str",
  "loop_unwrap",
+ "match_deref",
  "metamodelica",
  "tailcall",
 ]
@@ -370,6 +387,17 @@ checksum = "0fda2ff0d084019ba4d7c6f371c95d8fd75ce3524c3cb8fb653a3023f6323e64"
 
 [[package]]
 name = "syn"
+version = "1.0.109"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "72b64191b275b66ffe2469e8af2c1cfe3bafa67b529ead792a6d0160888b4237"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "unicode-ident",
+]
+
+[[package]]
+name = "syn"
 version = "2.0.117"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e665b8803e7b1d2a727f4023456bbbbe74da67099c585258af0ad9c5013b9b99"
@@ -396,7 +424,7 @@ checksum = "44f72925e9aaaefcfbef1cf809d408e8a80bdb644ebe9fff0b94714d1d2d8e4d"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn",
+ "syn 2.0.117",
 ]
 
 [[package]]

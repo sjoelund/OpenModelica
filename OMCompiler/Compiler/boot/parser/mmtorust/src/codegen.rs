@@ -781,8 +781,12 @@ pub fn generate_all(hier: &InstanceHierarchy<'_>, output_dir: &str) -> std::io::
 fn generate_lib_file(hier: &InstanceHierarchy<'_>, this_dir: &str, default_dir: &str) -> String {
     let mut out = String::new();
     writeln!(out, "// Auto-generated lib file").unwrap();
-    writeln!(out, "// TODO: Decide if we go with nightly rust for deref patterns, or https://crates.io/crates/match_deref").unwrap();
-    writeln!(out, "#![feature(deref_patterns)]").unwrap(); // We have long lists to macro through...
+    // Match patterns that cross an `Arc<…>` boundary are lowered through the
+    // `match_deref` crate's `match_deref!{ match X { Deref @ Pat => … } }`
+    // syntax — stable Rust replacement for the nightly-only `deref_patterns`
+    // feature. The macro is invoked through its full path
+    // (`::match_deref::match_deref!`) inside generated code, so no `use`
+    // re-export is needed at the crate root.
     writeln!(out, "#![recursion_limit = \"1024\"]").unwrap(); // We have long lists to macro through...
     for (name, node) in &hier.top_level {
         let node_dir = if let NodeKind::Class(c) = &node.kind {
@@ -6530,13 +6534,95 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
     } else {
         (raw_input_str, None)
     };
-    // If the match scrutinee is a recursive enum/struct wrapped in Arc, we must use
-    // `.as_ref()` to obtain a `&T` reference that Rust can match against enum patterns.
-    // Without this, the match subject is `Arc<T>` and the enum patterns cannot match it.
-    // With `as_ref()`, Rust's match ergonomics automatically adds `ref` to pattern
-    // bindings, so bound variables become `&FieldType`; `.clone()` on them still works.
-    let input_is_arc = is_arc_wrapped(&input_ty, ctx);
-    let match_subject = if input_is_arc {
+    // Decide whether this match needs to be wrapped in `::match_deref::match_deref!{}`.
+    // The macro provides stable-Rust replacements for nightly's `deref_patterns`:
+    // a `::match_deref::Deref @ <inner>` token sequence inside an arm pattern
+    // desugars to `if let inner = Deref::deref(binding) { … }`. This lets us match
+    // through `Arc<List<T>>`, recursive `Arc<Enum>` variants, and `ArcStr` literal
+    // patterns — all of which were the previous use cases for the
+    // `#![feature(deref_patterns)]` attribute.
+    //
+    // When match_deref is in scope:
+    //   * The match subject is wrapped in `&(…)` so that the binding the macro
+    //     hands to `Deref::deref(…)` is `&T` (required by `Deref::deref` taking
+    //     `&self`).
+    //   * Every name binding inside the arm pattern is by reference (match
+    //     ergonomics on `&T` plus the macro's own `Deref::deref` returns).
+    //     `emit_pat_with_implicit_bind` is told this via `implicit_ref = true`,
+    //     which makes it emit bare names (Rust 2024 rejects an explicit
+    //     `ref <name>` inside an implicit-borrow pattern).
+    //
+    // When NOT in match_deref scope, we keep the legacy `match subject { … }`
+    // form. `match_uses_match_deref` covers every case the old `input_is_arc`
+    // check covered (recursive Arc<Enum>) plus tuples-containing-Arc and
+    // string-literal patterns, so this is a strict broadening.
+    // `#[tailcall::tailcall]` is an outer attribute proc-macro that rewrites
+    // the function so each `tailcall::call!{…}` site becomes a `Thunk`
+    // constructor and the *outer* trailing expression must itself produce a
+    // `Thunk`. Wrapping the match in `match_deref!{ match … }` hides the arms
+    // from tailcall's rewriter — the arms keep returning raw `T` values
+    // (e.g. `iacc.clone().reverse()`), and Rust then complains they aren't
+    // `Thunk<…>`. Until match_deref grows tailcall integration we cannot use
+    // it inside tail-call lowered bodies, so fall back to the legacy
+    // `.as_ref()` approach there. This means tail-call functions whose
+    // scrutinees were previously decoded via the nightly `deref_patterns`
+    // feature (tuple-of-Arc, ArcStr literal patterns, …) will not compile on
+    // stable — those are pre-existing limitations of the lowering, not
+    // regressions of this change, and will be addressed by a separate pass.
+    let use_match_deref = !ctx.in_tail_lowered_fn
+        && match_uses_match_deref(&input_ty, cases, ctx);
+    // Even when we're not opting into the full `match_deref!{…}` wrapping,
+    // an `Arc<…>` scrutinee still needs `.as_ref()` to obtain a `&T`
+    // reference that Rust can match against the inner enum patterns. Rust's
+    // own match ergonomics on `&T` then makes the bindings by-reference,
+    // which matches the implicit_ref regime in
+    // `emit_pat_with_implicit_bind`. We extend this to `Ty::List`
+    // (`Arc<metamodelica::List<T>>`) so tail-call lowered bodies — where
+    // `match_deref!` is unavailable because it hides arms from `tailcall`'s
+    // rewrite pass — can still destructure list-typed scrutinees.
+    let input_is_arc_recursive = is_arc_wrapped(&input_ty, ctx)
+        || matches!(input_ty, Ty::List(_));
+    // Special case: `#[tailcall::tailcall]` body with a tuple scrutinee whose
+    // elements include `Arc<…>` values. The legacy path can't handle these
+    // (the bare tuple-of-Arc pattern needs `deref_patterns` to descend through
+    // each Arc), and we've ruled out `match_deref!` for tailcall bodies.
+    // Rebuild the subject as a tuple of references: each `Arc<List<T>>` /
+    // `Arc<Enum>` element gets `.as_ref()` (yielding `&List<T>` / `&Enum`),
+    // every other element is passed by value. Rust's match ergonomics then
+    // makes all bindings inside the tuple pattern by-reference, which is
+    // exactly the regime `emit_pat_with_implicit_bind` already supports via
+    // `implicit_ref = true`. We re-emit each element with `emit_exp` so
+    // expressions that have side effects only get evaluated once each.
+    let tuple_arc_rewrite: Option<String> = if ctx.in_tail_lowered_fn
+        && let TypedExp::Tuple(elems) = input
+        && elems.iter().any(|e| {
+            let t = e.ty();
+            is_arc_wrapped(&t, ctx) || matches!(t, Ty::List(_))
+        })
+    {
+        let parts: Vec<String> = elems.iter().map(|e| {
+            let et = e.ty();
+            let s = emit_exp(e, is_const, ctx, top_level);
+            if is_arc_wrapped(&et, ctx) || matches!(et, Ty::List(_)) {
+                // `(…).as_ref()` works on a temporary `Arc<T>` because the
+                // returned `&T` borrows the temporary, and Rust extends the
+                // temp's lifetime to the end of the enclosing statement —
+                // which is the match expression itself. After the match
+                // finishes the borrow is no longer needed.
+                format!("({s}).as_ref()")
+            } else {
+                s
+            }
+        }).collect();
+        Some(format!("({})", parts.join(", ")))
+    } else {
+        None
+    };
+    let match_subject = if let Some(s) = tuple_arc_rewrite {
+        s
+    } else if use_match_deref {
+        format!("&({input_str})")
+    } else if input_is_arc_recursive {
         format!("{input_str}.as_ref()")
     } else if as_prefix.is_some() {
         // `id` is a fresh let-binding that arm bodies will read — clone so
@@ -6545,6 +6631,16 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
     } else {
         input_str.clone()
     };
+    // `input_is_arc` is the "bindings are by-ref" flag for the legacy
+    // pattern-emit path: true whenever the subject is presented as `&T` to
+    // the match arms (either via `.as_ref()` on a recursive uniontype Arc,
+    // via `&(…)` under match_deref, or via the per-element `.as_ref()`
+    // rewrite for tail-call tuple subjects).
+    let input_is_arc = use_match_deref || input_is_arc_recursive
+        || (ctx.in_tail_lowered_fn && matches!(input, TypedExp::Tuple(elems) if elems.iter().any(|e| {
+            let t = e.ty();
+            is_arc_wrapped(&t, ctx) || matches!(t, Ty::List(_))
+        })));
     // The tail-call lowering applies *to this match* (not to nested matches
     // inside guards / locals / stmts). Snapshot it now and clear `ctx`'s
     // copy so deeper emit_exp calls — including those used to render the
@@ -6562,7 +6658,7 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
             // on the Absyn side; the two must agree).
             let exhaustive = cases_exhaustive(kind, cases, &input_ty);
             let arms: Vec<String> = cases.iter().map(|case| {
-                let pat = emit_pat_with_implicit_bind(&case.pattern, /*allow_implicit_bind=*/true, /*mut_bindings=*/true, /*in_deref=*/false, /*implicit_ref=*/input_is_arc, Some(&input_ty), ctx, top_level);
+                let pat = emit_pat_with_implicit_bind_md(&case.pattern, /*allow_implicit_bind=*/true, /*mut_bindings=*/true, /*in_deref=*/false, /*implicit_ref=*/input_is_arc, /*in_match_deref=*/use_match_deref, Some(&input_ty), ctx, top_level);
                 // Compute the variant narrowing established by this arm's pattern so
                 // that reads of `v.field` inside the guard and the case result use
                 // `var_field!`. Save ctx.variants to restore after the arm so sibling
@@ -6763,7 +6859,18 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
             //     lower a function when every reachable path's value is
             //     known, so a runtime miss here is a real bug, not a
             //     soft error worth `bail!`-recovering from.
-            let fallback = if exhaustive {
+            // `match_deref!{ … }` disables Rust's exhaustiveness check for any
+            // arm whose pattern contains a `Deref @ …`. Per the crate's own
+            // README: "all arms with Deref @ are ignored when compiler
+            // performs exhaustiveness checking. So sometimes you will need to
+            // add `_ => unreachable!()` to the end." Even when our analysis
+            // determined `cases_exhaustive`, the compiler will report the
+            // match as non-exhaustive when wrapped — so we always emit a
+            // catch-all fallback under match_deref. Outside match_deref we
+            // keep the existing behaviour (no fallback for proven-exhaustive
+            // matches, since Rust's own check handles it).
+            let force_fallback = use_match_deref;
+            let fallback = if exhaustive && !force_fallback {
                 String::new()
             } else if ctx.in_tail_lowered_fn {
                 if active_tail.is_some() && ctx.current_fn_fallible {
@@ -6771,6 +6878,12 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
                 } else {
                     ",\n        _ => unreachable!(\"tail-call lowered match: no arm matched\")".to_owned()
                 }
+            } else if exhaustive {
+                // We *proved* exhaustiveness; a runtime miss is a codegen bug.
+                // `unreachable!` keeps the expression-typed (yields `!`,
+                // unifies with any T) and avoids `bail!`-style return-out
+                // semantics that wouldn't typecheck in every callsite.
+                ",\n        _ => unreachable!(\"match_deref! exhaustiveness placeholder\")".to_owned()
             } else {
                 ",\n        _ => bail!(\"match: no arm matched\")".to_owned()
             };
@@ -6784,7 +6897,14 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
             // non-tail context the parens are needed for precedence
             // (the match expression is often the operand of a wider
             // expression, e.g. `(match …).clone()`).
-            if active_tail.is_some() {
+            // When `use_match_deref` is set, wrap the assembled match in the
+            // `::match_deref::match_deref!{ … }` proc-macro. The macro rewrites
+            // each `Deref @ pat` token sequence into an `if let` guard plus
+            // body, which is what gives us "deref patterns" on stable. The
+            // wrapping is at the *outermost* level of this match expression —
+            // nested matches inside arm bodies decide independently whether
+            // they need their own wrapping.
+            let raw = if active_tail.is_some() {
                 format!(
                     "match {match_subject} {{\n{}{fallback},\n    }}",
                     arms.join(",\n"),
@@ -6794,6 +6914,22 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
                     "(match {match_subject} {{\n{}{fallback},\n    }})",
                     arms.join(",\n"),
                 )
+            };
+            if use_match_deref {
+                // The macro tokenises the entire `match { … }` block, so the
+                // surrounding parens (added when not in tail position) must be
+                // *outside* the macro invocation — otherwise the proc-macro
+                // sees a parenthesised expression where it expects `match …`.
+                if active_tail.is_some() {
+                    format!("::match_deref::match_deref! {{ {raw} }}")
+                } else {
+                    format!("(::match_deref::match_deref! {{ {} }})",
+                        // Strip the outer `(` / `)` we added — re-add them
+                        // around the macro call instead.
+                        &raw[1..raw.len()-1])
+                }
+            } else {
+                raw
             }
         }
         MatchKind::MatchContinue => {
@@ -7024,6 +7160,48 @@ fn ty_needs_arc_match_deref(ty: &Ty, ctx: &GenCtx) -> bool {
     matches!(ty, Ty::List(_)) || is_arc_wrapped(ty, ctx)
 }
 
+/// True when at least one pattern subtree contains a `Lit::Str(_)` literal.
+/// String literals in patterns always require `match_deref!{ ... }` because
+/// `ArcStr` (the lowered representation of MetaModelica `String`) is a
+/// `Deref<Target = str>` smart pointer and the literal lives behind that
+/// deref. We use this as one of the triggers for the outer `emit_match` to
+/// switch into match_deref mode.
+fn pat_has_str_lit(pat: &TypedPat) -> bool {
+    match pat {
+        TypedPat::Lit(Lit::Str(_)) => true,
+        TypedPat::Some_(inner) => pat_has_str_lit(inner),
+        TypedPat::As { pat: inner, .. } => pat_has_str_lit(inner),
+        TypedPat::Cons { head, tail } => pat_has_str_lit(head) || pat_has_str_lit(tail),
+        TypedPat::Tuple(ps) => ps.iter().any(pat_has_str_lit),
+        TypedPat::Constructor { fields, named_fields, .. } => {
+            fields.iter().any(pat_has_str_lit)
+                || named_fields.iter().any(|(_, p)| pat_has_str_lit(p))
+        }
+        _ => false,
+    }
+}
+
+/// Decide whether the match expression's outer scrutinee needs to be wrapped
+/// in `match_deref!{ ... }`. We switch into match_deref mode whenever any of
+/// the following holds for the input or its destructured sub-elements:
+///
+///   * The scrutinee is `Arc<…>` over a recursive uniontype (`is_arc_wrapped`).
+///   * The scrutinee is `Arc<metamodelica::List<T>>` (every `Ty::List`).
+///   * A `(_, _, …)` tuple scrutinee contains at least one Arc-crossing
+///     element — `type_destructure_needs_borrow` already recurses through
+///     tuples.
+///   * A case pattern contains a string literal — see `pat_has_str_lit`.
+///
+/// When this returns true, `emit_match` uses `&(subject)` as the match
+/// expression (so the macro can call `Deref::deref(binding)` against a `&T`)
+/// AND passes `implicit_ref = true` to `emit_pat_with_implicit_bind`. The
+/// pattern emitter then prefixes each Arc-crossing variant pattern with
+/// `::match_deref::Deref @ `.
+fn match_uses_match_deref(input_ty: &Ty, cases: &[TypedCase], ctx: &GenCtx) -> bool {
+    type_destructure_needs_borrow(input_ty, ctx)
+        || cases.iter().any(|c| pat_has_str_lit(&c.pattern))
+}
+
 /// Collect every binding name in `pat` that lies inside an Arc-deref path
 /// (across an `Arc<T>` edge) when the pattern is matched against a value of
 /// type `scrut_ty`. Such bindings *cannot* be `mut` directly: the
@@ -7185,6 +7363,14 @@ fn stmts_assigned_var_names(stmts: &[typedexp::TypedStmt], out: &mut HashSet<Str
 /// lint is allowed for generated code, marking *all* such bindings as `mut` is
 /// always safe.
 fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, mut_bindings: bool, in_deref: bool, implicit_ref: bool, scrut_ty: Option<&Ty>, ctx: &mut GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) -> String {
+    // Outer wrapper that omits the new `in_match_deref` flag; existing call
+    // sites that don't yet know about match_deref get the legacy behaviour
+    // (no `Deref @` prefix, no string-literal-via-Deref).
+    emit_pat_with_implicit_bind_md(pat, allow_implicit_bind, mut_bindings, in_deref, implicit_ref, /*in_match_deref=*/false, scrut_ty, ctx, top_level)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn emit_pat_with_implicit_bind_md<'a>(pat: &TypedPat, allow_implicit_bind: bool, mut_bindings: bool, in_deref: bool, implicit_ref: bool, in_match_deref: bool, scrut_ty: Option<&Ty>, ctx: &mut GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) -> String {
     // Two distinct match-ergonomics regimes — see also `emit_match`:
     //
     // 1. `implicit_ref`: the outer subject was wrapped in `.as_ref()` by
@@ -7200,11 +7386,12 @@ fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, mu
     //    we emit explicit `ref x`.
     //
     // `implicit_ref` only enters via the outer `emit_match` call (which
-    // tracks whether it wrapped the subject in `.as_ref()`). Don't re-derive
-    // it from inner scrut_ty: a nested `(Arc<List<T>>, Arc<Tree>)` tuple
-    // scrutinee is *not* implicit-borrowed even though its second element
-    // is a recursive Arc-wrapped uniontype — `emit_match` doesn't insert
-    // `.as_ref()` on a tuple. Just propagate what the caller told us.
+    // tracks whether the match is wrapped in `match_deref!{ ... }`). Don't
+    // re-derive it from inner scrut_ty: a nested `(Arc<List<T>>, Arc<Tree>)`
+    // tuple scrutinee is *not* implicit-borrowed even though its second
+    // element is a recursive Arc-wrapped uniontype — `emit_match` decides at
+    // the outer level whether match_deref is in scope. Just propagate what
+    // the caller told us.
     let in_deref = in_deref
         || (!implicit_ref && scrut_ty.map(|t| ty_needs_arc_match_deref(t, ctx)).unwrap_or(false));
     let bind_var = |name: &str| -> String {
@@ -7218,18 +7405,62 @@ fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, mu
             escape_ident(name)
         }
     };
+    // Inside `match_deref!{ match &(subject) { ... } }` (signalled by
+    // `implicit_ref = true`), an `Arc<T>` value matched against the inner
+    // `T`'s constructor pattern must be peeled with `::match_deref::Deref @`.
+    // Likewise an `ArcStr` value matched against a string literal — ArcStr is
+    // a Deref smart pointer to `str`, so the literal lives behind the deref.
+    // Outside a match_deref scope (`implicit_ref = false`) these prefixes are
+    // invalid (`Deref @ ...` is only meaningful inside the macro), so we fall
+    // back to the legacy plain patterns there; the caller is expected to set
+    // `implicit_ref` whenever the match contains any Arc edge or string-literal
+    // pattern (see `match_uses_match_deref` in `emit_match`).
+    let at_arc_edge = scrut_ty.map(|t| ty_needs_arc_match_deref(t, ctx)).unwrap_or(false);
+    // `match_deref!` recognises the literal token `Deref` in pattern position
+    // (it looks for an `i.ident == "Deref"` syn::PatIdent) and rewrites the
+    // `Deref @ <subpat>` into an `if let <subpat> = ::core::ops::Deref::deref(binding)`
+    // guard. The token must therefore be emitted as the bare identifier `Deref` —
+    // a path like `::match_deref::Deref @ …` is parsed as `PatPath` rather than
+    // `PatIdent` and the macro silently skips it (the resulting pattern then
+    // fails to compile with "expected `,`"). No `use match_deref::Deref;` is
+    // needed at the crate root because the macro hardcodes
+    // `::core::ops::Deref::deref` in its expansion.
+    //
+    // The `Deref @` prefix is only valid inside a `match_deref!{ … }` block
+    // (`in_match_deref = true`). For the legacy `.as_ref()` path (used in
+    // `#[tailcall::tailcall]` bodies where match_deref would hide arms from
+    // the tailcall rewriter), the OUTER scrutinee has already been peeled
+    // by `.as_ref()` — and inner Arc edges (e.g. `Cons.tail` typed
+    // `Arc<List<T>>`) are not destructured further by the legacy lowering,
+    // so no Deref prefix is needed there either. Hence we gate the prefix
+    // on `in_match_deref` alone, not on `implicit_ref`.
+    let arc_prefix: &str = if in_match_deref && at_arc_edge { "Deref @ " } else { "" };
     match pat {
         TypedPat::Wildcard    => "_".to_owned(),
         TypedPat::Var(name)   => bind_var(name),
-        TypedPat::EmptyList   => "metamodelica::List::Nil".to_owned(),
-        TypedPat::Some_(inner) => format!("Some({})", emit_pat_with_implicit_bind(inner, allow_implicit_bind, mut_bindings, in_deref, implicit_ref, None, ctx, top_level)),
+        TypedPat::EmptyList   => format!("{arc_prefix}metamodelica::List::Nil"),
+        TypedPat::Some_(inner) => format!("Some({})", emit_pat_with_implicit_bind_md(inner, allow_implicit_bind, mut_bindings, in_deref, implicit_ref, in_match_deref, None, ctx, top_level)),
         TypedPat::None_       => "None".to_owned(),
 
         TypedPat::Lit(Lit::Int(v))  => {
             if *v < 0 { format!("({v})") } else { v.to_string() }
         }
         TypedPat::Lit(Lit::Bool(v)) => v.to_string(),
-        TypedPat::Lit(Lit::Str(_))  => "_ /* string — move to guard */".to_owned(),
+        TypedPat::Lit(Lit::Str(s))  => {
+            // String literal patterns match against `ArcStr` (always — every
+            // MetaModelica `String` lowers to `arcstr::ArcStr`). `ArcStr`
+            // implements `Deref<Target = str>`, and `match_deref!` translates
+            // `Deref @ "abc"` into an `if let "abc" = Deref::deref(binding)`
+            // guard. Outside a match_deref scope we have no way to make a
+            // string literal match an `ArcStr`, so we emit a TODO marker that
+            // the user can grep for — better than silently emitting a
+            // wildcard that would let the wrong arm fire.
+            if in_match_deref {
+                format!("Deref @ {s:?}")
+            } else {
+                format!("_ /* TODO: string literal pattern {s:?} requires the enclosing match to use match_deref!{{ ... }} */")
+            }
+        }
         TypedPat::Lit(Lit::Real(_)) => "_ /* real — move to guard */".to_owned(),
 
         TypedPat::Cons { head, tail } => {
@@ -7239,14 +7470,15 @@ fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, mu
             let elem_ty: Ty = match scrut_ty { Some(Ty::List(t)) => (**t).clone(), _ => Ty::Unknown };
             // The `tail` field of `metamodelica::List::Cons` is `Arc<List<T>>`
             // (itself an Arc edge), so emit the tail sub-pattern with a
-            // synthetic `Ty::List(elem)` scrutinee. This is what makes a
-            // nested tail-side `Cons` or `Var` get `ref` binding rather
-            // than `mut` (which would fail to compile as a move out of a
-            // shared reference under `deref_patterns`).
+            // synthetic `Ty::List(elem)` scrutinee. Inside `match_deref!`
+            // this triggers another `::match_deref::Deref @` prefix on the
+            // tail's variant pattern; outside it forces `ref <name>` binding
+            // (the legacy Arc<List> behavior).
             let tail_ty = Ty::List(Box::new(elem_ty.clone()));
-            format!("metamodelica::List::Cons {{ head: {}, tail: {} }}",
-                emit_pat_with_implicit_bind(head, allow_implicit_bind, mut_bindings, in_deref, implicit_ref, Some(&elem_ty), ctx, top_level),
-                emit_pat_with_implicit_bind(tail, allow_implicit_bind, mut_bindings, true, implicit_ref, Some(&tail_ty), ctx, top_level))
+            let body = format!("metamodelica::List::Cons {{ head: {}, tail: {} }}",
+                emit_pat_with_implicit_bind_md(head, allow_implicit_bind, mut_bindings, in_deref, implicit_ref, in_match_deref, Some(&elem_ty), ctx, top_level),
+                emit_pat_with_implicit_bind_md(tail, allow_implicit_bind, mut_bindings, true, implicit_ref, in_match_deref, Some(&tail_ty), ctx, top_level));
+            format!("{arc_prefix}{body}")
         }
 
         TypedPat::Tuple(pats) => {
@@ -7259,13 +7491,21 @@ fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, mu
                         Some(Ty::Tuple(ts)) => ts.get(i),
                         _ => None,
                     };
-                    emit_pat_with_implicit_bind(p, /*allow_implicit_bind=*/false, mut_bindings, in_deref, implicit_ref, elem_ty, ctx, top_level)
+                    emit_pat_with_implicit_bind_md(p, /*allow_implicit_bind=*/false, mut_bindings, in_deref, implicit_ref, in_match_deref, elem_ty, ctx, top_level)
                 })
                 .collect();
             format!("({})", parts.join(", "))
         }
 
         TypedPat::Constructor { name, fields, named_fields, ty, .. } => {
+            // The Constructor arm emits a record-style pattern (`Foo { f: p, .. }`)
+            // or a bare-name variant. When the value being matched is an
+            // `Arc<Enum>` (recursive uniontype) AND we're inside a `match_deref!`
+            // block, the variant pattern lives behind the Arc and needs a
+            // `::match_deref::Deref @` prefix; that's what `arc_prefix` carries.
+            // We compute the inner pattern body first then apply the prefix
+            // uniformly at the end, instead of sprinkling it through every
+            // branch (and the early-return path for empty patterns).
             let rust_raw = if name.contains('.') { ctx.shorten(name) } else { normalize_builtin_ctor_name(name) };
             let rust = escape_ident(&rust_raw);
             let field_tys_for_ctor = || {
@@ -7304,7 +7544,7 @@ fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, mu
                     }
                 Some(record_field_tys_by_simple_name(name, top_level))
             };
-            if named_fields.is_empty() && fields.is_empty() {
+            let body = if named_fields.is_empty() && fields.is_empty() {
                 // Empty MetaModelica pattern `case NODE()` or `case NODE` —
                 // decide based on the type: struct/variant types need `{ .. }` to avoid
                 // E0532; constants and unknown types use the bare name.
@@ -7313,7 +7553,7 @@ fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, mu
                 // empty fall-through emits a bare `SourceInfo` that Rust reads
                 // as a variable binding and rejects as a repeated identifier.
                 if is_sourceinfo_ctor(name) {
-                    return format!("{rust} {{ .. }}");
+                    return format!("{arc_prefix}{rust} {{ .. }}");
                 }
                 let is_struct_ty = matches!(ty,
                     Ty::RustStruct(_) | Ty::UnionTypeVariant(_, _) | Ty::RustUnitVariant
@@ -7338,7 +7578,7 @@ fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, mu
                         if fname.is_empty() {
                             "_".to_owned()
                         } else {
-                            format!("{fname}: {}", emit_pat_with_implicit_bind(p, allow_implicit_bind, mut_bindings, in_deref, implicit_ref, None, ctx, top_level))
+                            format!("{fname}: {}", emit_pat_with_implicit_bind_md(p, allow_implicit_bind, mut_bindings, in_deref, implicit_ref, in_match_deref, None, ctx, top_level))
                         }
                     }).collect();
                     format!("{rust} {{ {} }}", pats.join(", "))
@@ -7355,7 +7595,7 @@ fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, mu
                             // inside `INDEX(...)`) can disambiguate against other records
                             // sharing the same simple name (e.g. an empty `Dimension.BOOLEAN`).
                             let inner_scrut = field_tys.get(i).map(|(_, t)| t);
-                            let pstr = emit_pat_with_implicit_bind(p, allow_implicit_bind, mut_bindings, in_deref, implicit_ref, inner_scrut, ctx, top_level);
+                            let pstr = emit_pat_with_implicit_bind_md(p, allow_implicit_bind, mut_bindings, in_deref, implicit_ref, in_match_deref, inner_scrut, ctx, top_level);
                             if matches!(p, TypedPat::Var(v) if v == fname) {
                                 if implicit_ref {
                                     escape_ident(fname)
@@ -7382,7 +7622,7 @@ fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, mu
                         // This will likely fail to compile; it is better than silently
                         // emitting wrong code.
                         let pats: Vec<String> = fields.iter()
-                            .map(|p| emit_pat_with_implicit_bind(p, allow_implicit_bind, mut_bindings, in_deref, implicit_ref, None, ctx, top_level))
+                            .map(|p| emit_pat_with_implicit_bind_md(p, allow_implicit_bind, mut_bindings, in_deref, implicit_ref, in_match_deref, None, ctx, top_level))
                             .collect();
                         format!("/* TODO: unknown fields for {name} */ {rust}({})", pats.join(", "))
                     }
@@ -7395,7 +7635,7 @@ fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, mu
                         // disambiguate against similarly-named records — same reason
                         // as the positional branch above.
                         let inner_scrut = field_tys.iter().find(|(n, _)| n == fname).map(|(_, t)| t);
-                        let pstr = emit_pat_with_implicit_bind(p, allow_implicit_bind, mut_bindings, in_deref, implicit_ref, inner_scrut, ctx, top_level);
+                        let pstr = emit_pat_with_implicit_bind_md(p, allow_implicit_bind, mut_bindings, in_deref, implicit_ref, in_match_deref, inner_scrut, ctx, top_level);
                         if matches!(p, TypedPat::Var(v) if v == fname) {
                             if implicit_ref {
                                 escape_ident(fname)
@@ -7421,7 +7661,8 @@ fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, mu
                     pats.push("..".to_owned());
                 }
                 format!("{rust} {{ {} }}", pats.join(", "))
-            }
+            };
+            format!("{arc_prefix}{body}")
         }
 
         TypedPat::As { var, pat } => {
@@ -7443,7 +7684,15 @@ fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, mu
             } else {
                 escape_ident(var)
             };
-            format!("{} @ {}", outer, emit_pat_with_implicit_bind(pat, false, false, in_deref || force_ref, implicit_ref, None, ctx, top_level))
+            // Propagate the scrutinee type into the inner sub-pattern.
+            // `var @ inner` matches the same value against both sides, so the
+            // inner needs the same `scrut_ty` to decide whether to emit a
+            // `Deref @ ` prefix (e.g. an `As` pattern sitting on `Cons.tail`,
+            // which is itself `Arc<List<T>>`, must wrap its inner Cons/Nil
+            // sub-pattern in `Deref @ …`). Passing `None` here previously
+            // dropped that information, producing `tail: rest @ List::Cons{…}`
+            // and a `&Arc<…>` vs `List<…>` mismatch.
+            format!("{} @ {}", outer, emit_pat_with_implicit_bind_md(pat, false, false, in_deref || force_ref, implicit_ref, in_match_deref, scrut_ty, ctx, top_level))
         }
 
         TypedPat::Index { base, index } => {
@@ -8059,6 +8308,108 @@ fn emit_pat_assign<'a>(
                 };
             }
 
+            // Match-deref transform for refutable Arc-crossing pattern-lets.
+            //
+            // The legacy `let PAT = &(expr) else { fail };` form relied on the
+            // nightly `deref_patterns` feature to peel the `Arc<…>` around
+            // `&Arc<List<T>>` etc. On stable we have no auto-deref, so the
+            // raw pattern fails to compile (E0308 "expected `Arc<List<T>>`,
+            // found `List<_>`"). Replace it with a `::match_deref::match_deref!`
+            // wrapped `match` that yields a tuple of the pattern's clones:
+            //
+            //     let (b1, b2, …) = ::match_deref::match_deref! { match &(expr) {
+            //         <emit_pat with implicit_ref=true>  => (b1.clone(), b2.clone(), …),
+            //         _ => bail!(…),
+            //     } };
+            //
+            // We re-emit the pattern through `emit_pat_with_implicit_bind`
+            // (which now inserts `Deref @ …` at Arc edges) instead of
+            // `render_shallow`'s deferral machinery — recursion through
+            // nested Arc fields is handled directly by the macro's repeated
+            // `Deref @ …` instead of follow-up `emit_pat_assign` calls.
+            let pat_needs_match_deref =
+                !pat_is_irrefutable(pat_for_render)
+                && !matches!(fail_mode, FailureMode::IfLetElse(_))
+                && (type_destructure_needs_borrow(scrut_ty, ctx)
+                    || pat_has_str_lit(pat_for_render));
+            if pat_needs_match_deref {
+                let fail_owned;
+                let fail: &str = match &fail_mode {
+                    FailureMode::Function => "bail!(\"pattern mismatch\")",
+                    FailureMode::TryArm => match &ctx.qmode {
+                        QMode::TryBlock(label) => {
+                            fail_owned = format!("break {label} Err::<_, _>(anyhow::anyhow!(\"pattern mismatch\"))");
+                            &fail_owned
+                        }
+                        _ => "bail!(\"pattern mismatch\")",
+                    },
+                    FailureMode::Failure => "()",
+                    FailureMode::IfLetElse(_) => unreachable!(),
+                };
+                // Collect all binding names introduced by the (possibly
+                // re-named) pattern, together with their owned types. The
+                // owned type is what the outer `let` binding will see after
+                // each `<name>.clone()` in the arm body.
+                let bindings = typedexp::pat_bindings_with_scrut_ty(pat_for_render, scrut_ty);
+                // Render the pattern with match_deref semantics in scope.
+                // `implicit_ref = true` turns on the `Deref @` prefix at Arc
+                // edges and emits bare names (match ergonomics gives them
+                // `&T`, which `.clone()` then promotes to owned `T`).
+                let inner_pat = emit_pat_with_implicit_bind_md(
+                    pat_for_render,
+                    /*allow_implicit_bind=*/false,
+                    /*mut_bindings=*/false,
+                    /*in_deref=*/false,
+                    /*implicit_ref=*/true,
+                    /*in_match_deref=*/true,
+                    Some(scrut_ty),
+                    ctx,
+                    top_level,
+                );
+                // Register the binding types into the surrounding env so
+                // later statements (and the reassign-back step) see them.
+                for (n, t) in &bindings {
+                    env.vars.insert(n.clone(), t.clone());
+                }
+                if bindings.is_empty() {
+                    // Pattern destructures only for the side effect of the
+                    // refutability check (no names bound). Use `match` with
+                    // unit-valued arms; the let-binding to `()` would be
+                    // wasteful, so emit a bare match expression.
+                    writeln!(out, "{indent}::match_deref::match_deref! {{ match &({scrut_expr}) {{").unwrap();
+                    writeln!(out, "{indent}    {inner_pat} => (),").unwrap();
+                    writeln!(out, "{indent}    _ => {fail},").unwrap();
+                    writeln!(out, "{indent}}} }};").unwrap();
+                } else if bindings.len() == 1 {
+                    let (n, _) = &bindings[0];
+                    let id = escape_ident(n);
+                    writeln!(out, "{indent}let {id} = ::match_deref::match_deref! {{ match &({scrut_expr}) {{").unwrap();
+                    writeln!(out, "{indent}    {inner_pat} => {id}.clone(),").unwrap();
+                    writeln!(out, "{indent}    _ => {fail},").unwrap();
+                    writeln!(out, "{indent}}} }};").unwrap();
+                } else {
+                    let lhs: Vec<String> = bindings.iter().map(|(n, _)| escape_ident(n)).collect();
+                    let rhs: Vec<String> = bindings.iter().map(|(n, _)| format!("{}.clone()", escape_ident(n))).collect();
+                    writeln!(out, "{indent}let ({}) = ::match_deref::match_deref! {{ match &({scrut_expr}) {{", lhs.join(", ")).unwrap();
+                    writeln!(out, "{indent}    {inner_pat} => ({}),", rhs.join(", ")).unwrap();
+                    writeln!(out, "{indent}    _ => {fail},").unwrap();
+                    writeln!(out, "{indent}}} }};").unwrap();
+                }
+                // No deferrals to emit — emit_pat_with_implicit_bind already
+                // produced the full nested pattern. Still write back any
+                // reassign pairs (`name = __paN.clone();`) for pattern
+                // names that collided with the surrounding scope.
+                for (orig, fresh_name, orig_ty) in &reassign_pairs {
+                    let rhs = format!("{}.clone()", escape_ident(fresh_name));
+                    let rhs = if matches!(orig_ty, Ty::F64) {
+                        format!("({rhs} as f64)")
+                    } else {
+                        rhs
+                    };
+                    writeln!(out, "{indent}{} = {};", escape_ident(orig), rhs).unwrap();
+                }
+                return;
+            }
             if pat_is_irrefutable(pat_for_render) {
                 match pat_for_render {
                     TypedPat::Tuple(_) => {

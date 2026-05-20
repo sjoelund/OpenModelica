@@ -1752,7 +1752,7 @@ fn tail_exp_has_non_tail_question_mark<'a>(
             if exp_uses_question_mark(input, ctx, top_level) { return true; }
             cases.iter().any(|case| {
                 if case.guard.as_ref().is_some_and(|g| exp_uses_question_mark(g, ctx, top_level)) { return true; }
-                if case.locals.iter().any(|(_, _, d)| d.as_ref().is_some_and(|e| exp_uses_question_mark(e, ctx, top_level))) {
+                if case.locals.iter().any(|(_, _, d, _)| d.as_ref().is_some_and(|e| exp_uses_question_mark(e, ctx, top_level))) {
                     return true;
                 }
                 // Detect the algorithm-side tail pattern. When present, the
@@ -1852,7 +1852,7 @@ fn case_uses_question_mark<'a>(
     if let Some(g) = &case.guard {
         if exp_uses_question_mark(g, ctx, top_level) { return true; }
     }
-    if case.locals.iter().any(|(_, _, d)| d.as_ref().is_some_and(|e| exp_uses_question_mark(e, ctx, top_level))) {
+    if case.locals.iter().any(|(_, _, d, _)| d.as_ref().is_some_and(|e| exp_uses_question_mark(e, ctx, top_level))) {
         return true;
     }
     if case.stmts.iter().any(|s| stmt_uses_question_mark(s, ctx, top_level)) { return true; }
@@ -1941,7 +1941,7 @@ fn exp_has_nonexhaustive_match(exp: &TypedExp) -> bool {
             exp_has_nonexhaustive_match(input)
                 || cases.iter().any(|c| {
                     c.guard.as_ref().is_some_and(exp_has_nonexhaustive_match)
-                        || c.locals.iter().any(|(_, _, d)| d.as_ref().is_some_and(exp_has_nonexhaustive_match))
+                        || c.locals.iter().any(|(_, _, d, _)| d.as_ref().is_some_and(exp_has_nonexhaustive_match))
                         || c.stmts.iter().any(stmt_has_nonexhaustive_match)
                         || exp_has_nonexhaustive_match(&c.result)
                 })
@@ -2034,7 +2034,7 @@ fn tail_exp_has_nonexhaustive_nontail_match(
             if exp_has_nonexhaustive_match(input) { return true; }
             cases.iter().any(|c| {
                 if c.guard.as_ref().is_some_and(exp_has_nonexhaustive_match) { return true; }
-                if c.locals.iter().any(|(_, _, d)| d.as_ref().is_some_and(exp_has_nonexhaustive_match)) { return true; }
+                if c.locals.iter().any(|(_, _, d, _)| d.as_ref().is_some_and(exp_has_nonexhaustive_match)) { return true; }
                 // Detect algorithm-side tail (last stmt is `Assign(name, rhs)` + result `Var(name)`).
                 let algo_tail_rhs = if !c.stmts.is_empty() {
                     if let (typedexp::TypedStmt::Assign { lhs: TypedPat::Var(an), rhs }, TypedExp::Var { name: rn, .. }) =
@@ -2243,7 +2243,7 @@ fn exp_reads_name(exp: &typedexp::TypedExp, name: &str) -> bool {
             if exp_reads_name(input, name) { return true; }
             cases.iter().any(|c| {
                 c.guard.as_ref().is_some_and(|g| exp_reads_name(g, name))
-                    || c.locals.iter().any(|(_, _, d)| d.as_ref().is_some_and(|d| exp_reads_name(d, name)))
+                    || c.locals.iter().any(|(_, _, d, _)| d.as_ref().is_some_and(|d| exp_reads_name(d, name)))
                     || stmts_read_name(&c.stmts, name)
                     || exp_reads_name(&c.result, name)
             })
@@ -6570,7 +6570,8 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
                     // stale. See appendLastList's inner `l :: ll := ll;` loop.
                     let pat_binding_names: std::collections::HashSet<String> =
                         typedexp::pat_bindings(&case.pattern).iter().map(|(n, _)| n.clone()).collect();
-                    for (name, ty, default) in &case.locals {
+                    let arm_alias_scope = current_scope_children(ctx, top_level);
+                    for (name, ty, default, type_spec) in &case.locals {
                         // Always register the local in the arm's env so any later
                         // `name := ...` becomes a plain re-assignment and not a
                         // `let mut name = ...` that would only live inside the
@@ -6589,7 +6590,13 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
                             body.push_str(&format!("            let mut {}; // TODO: local with unresolved type\n", escape_ident(name)));
                             continue;
                         }
-                        let ty_s = fmt_ty(ty, ctx);
+                        // Prefer the alias name written in the MM source (e.g.
+                        // `Value value;` → `let mut value: Value;`) when the
+                        // declaration's TypeSpec refers to a sibling type alias
+                        // in scope. Falls back to the resolved concrete type.
+                        let ty_s = type_spec.as_ref()
+                            .and_then(|ts| arm_alias_scope.and_then(|sc| field_type_alias_name(ts, sc)))
+                            .unwrap_or_else(|| fmt_ty(ty, ctx));
                         match default {
                             Some(d) => {
                                 let init = emit_exp(d, is_const, ctx, top_level);
@@ -6739,7 +6746,7 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
                 // local binding. Save/restore around the arm to keep
                 // sibling arms isolated.
                 let saved_fn_env_vars_mc = ctx.fn_env_vars.clone();
-                for (n, t, _) in &case.locals {
+                for (n, t, _, _) in &case.locals {
                     if !matches!(t, Ty::Unknown) {
                         ctx.fn_env_vars.insert(n.clone(), t.clone());
                     }
@@ -6759,7 +6766,8 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
                     record_pattern_variants(&case.pattern, input, &mut local_env, top_level);
                     let pat_binding_names: std::collections::HashSet<String> =
                         typedexp::pat_bindings(&case.pattern).iter().map(|(n, _)| n.clone()).collect();
-                    for (name, ty, default) in &case.locals {
+                    let arm_alias_scope = current_scope_children(ctx, top_level);
+                    for (name, ty, default, type_spec) in &case.locals {
                         local_env.vars.insert(name.clone(), ty.clone());
                         if pat_binding_names.contains(name) {
                             continue;
@@ -6768,7 +6776,9 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
                             body.push_str(&format!("            let mut {}; // TODO: local with unresolved type\n", escape_ident(name)));
                             continue;
                         }
-                        let ty_s = fmt_ty(ty, ctx);
+                        let ty_s = type_spec.as_ref()
+                            .and_then(|ts| arm_alias_scope.and_then(|sc| field_type_alias_name(ts, sc)))
+                            .unwrap_or_else(|| fmt_ty(ty, ctx));
                         match default {
                             Some(d) => {
                                 let init = emit_exp(d, is_const, ctx, top_level);
@@ -6815,7 +6825,7 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
                     // (handled above), since each of those already introduces
                     // an in-scope local.
                     let mut shadow_seen: HashSet<String> = HashSet::new();
-                    for (case_local_name, _, _) in &case.locals { shadow_seen.insert(case_local_name.clone()); }
+                    for (case_local_name, _, _, _) in &case.locals { shadow_seen.insert(case_local_name.clone()); }
                     for n in &deref_names { shadow_seen.insert(n.clone()); }
                     for (n, _) in typedexp::pat_bindings(&case.pattern) { shadow_seen.insert(n); }
                     for name in &assigned {
@@ -9864,7 +9874,7 @@ fn propagate_exp_partial_eq<'a>(
             propagate_exp_partial_eq(input, required, top_level, pkg_prefix, out);
             for c in cases {
                 if let Some(g) = &c.guard { propagate_exp_partial_eq(g, required, top_level, pkg_prefix, out); }
-                for (_, _, d) in &c.locals {
+                for (_, _, d, _) in &c.locals {
                     if let Some(d) = d { propagate_exp_partial_eq(d, required, top_level, pkg_prefix, out); }
                 }
                 for s in &c.stmts { propagate_stmt_partial_eq(s, required, top_level, pkg_prefix, out); }
@@ -10083,7 +10093,7 @@ fn visit_exp_for_static(exp: &typedexp::TypedExp, out: &mut std::collections::Ha
             visit_exp_for_static(input, out);
             for c in cases {
                 if let Some(g) = &c.guard { visit_exp_for_static(g, out); }
-                for (_, _, d) in &c.locals {
+                for (_, _, d, _) in &c.locals {
                     if let Some(d) = d { visit_exp_for_static(d, out); }
                 }
                 for s in &c.stmts { visit_stmt_for_static(s, out); }
@@ -10249,7 +10259,7 @@ fn visit_exp_for_eq(exp: &typedexp::TypedExp, out: &mut std::collections::HashSe
             visit_exp_for_eq(input, out);
             for c in cases {
                 if let Some(g) = &c.guard { visit_exp_for_eq(g, out); }
-                for (_, _, d) in &c.locals {
+                for (_, _, d, _) in &c.locals {
                     if let Some(d) = d { visit_exp_for_eq(d, out); }
                 }
                 for s in &c.stmts { visit_stmt_for_eq(s, out); }
@@ -10568,14 +10578,27 @@ fn field_type_alias_name(
     if !matches!(cc.restriction, Absyn::Restriction::R_TYPE) { return None; }
     // The child must itself be a type alias (Derived) — not an enumeration etc.
     if !matches!(cc.body, MM::ClassDef::Derived { .. }) { return None; }
-    // Skip aliases that are generic over type variables (e.g. `type HashSet<K>
-    // = …`): emitting the bare name without supplied type arguments would
-    // produce E0107 ("missing generics for type alias"). We can only reuse an
-    // alias when its expansion has no free type parameters.
+    // Skip aliases that ARE a type variable themselves
+    // (`replaceable type T subtypeof Any` — child.ty == Ty::TypeVar(T)). The
+    // generated Rust already has `T` as a function/struct type parameter,
+    // and emitting `T<T>` would be a non-existent generic — `escape_ident`
+    // already handles the bare-T case via the normal fmt_ty path.
+    if matches!(child.ty, Ty::TypeVar(_)) { return None; }
+    // Generic aliases (`type HashSet<K> = …`) emit `pub type Name<T1, T2> = …`
+    // with the TypeVars collected from the alias body in
+    // `collect_type_vars_in_ty` order — mirror that here so the use-site
+    // `Name<T1, T2>` references match the declaration. The names refer to
+    // the package's `replaceable type T subtypeof Any` declarations, which
+    // are in scope at every sibling function — so emitting the bare TypeVar
+    // names is valid wherever this helper is used.
     let mut tvs = Vec::new();
     collect_type_vars_in_ty(&child.ty, &mut tvs);
-    if !tvs.is_empty() { return None; }
-    Some(escape_ident(&name))
+    let base = escape_ident(&name);
+    if tvs.is_empty() {
+        Some(base)
+    } else {
+        Some(format!("{base}<{}>", tvs.join(", ")))
+    }
 }
 
 /// Prefix Rust keywords with `r#` so they are valid identifiers.

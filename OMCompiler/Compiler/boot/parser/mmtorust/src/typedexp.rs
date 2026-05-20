@@ -54,12 +54,16 @@ pub struct ReductionIter {
 pub struct TypedCase {
     pub pattern: TypedPat,
     pub guard: Option<TypedExp>,
-    /// Case-local declarations.  Each entry is `(name, type, default)` where
-    /// `default` is the optional binding expression from the MetaModelica source
-    /// (e.g. `list<list<T>> ol = {};`).  When present, codegen emits the local
-    /// as `let mut <name>: <ty> = <default>;` so that the body may read it
+    /// Case-local declarations.  Each entry is
+    /// `(name, type, default, original TypeSpec)` where `default` is the
+    /// optional binding expression from the MetaModelica source (e.g.
+    /// `list<list<T>> ol = {};`) and `type_spec` is the syntactic source
+    /// type used at declaration (kept so codegen can recover a `Key`/`Value`
+    /// alias reference instead of inlining the resolved concrete type).
+    /// When `default` is present, codegen emits the local as
+    /// `let mut <name>: <ty> = <default>;` so that the body may read it
     /// before any explicit assignment, matching MetaModelica semantics.
-    pub locals: Vec<(String, Ty, Option<TypedExp>)>,
+    pub locals: Vec<(String, Ty, Option<TypedExp>, Option<Absyn::TypeSpec>)>,
     pub stmts: Vec<TypedStmt>,
     pub result: TypedExp,
 }
@@ -1389,7 +1393,7 @@ pub fn infer_exp<'a>(
             // before inferring the case bodies so that their types are known inside arms.
             let match_locals_raw = infer_case_locals_standalone(localDecls, type_vars, top_level, pkg_prefix);
             let mut case_env = env.clone();
-            for (n, t, _) in &match_locals_raw {
+            for (n, t, _, _) in &match_locals_raw {
                 case_env.insert(n.clone(), t.clone());
             }
             // The `as` binding is in scope inside every arm; its type is
@@ -1401,10 +1405,10 @@ pub fn infer_exp<'a>(
             // an environment where the surrounding scope and all match-level
             // locals are visible.  Pattern bindings are *not* — match-level
             // locals are evaluated once per arm entry, before patterns bind.
-            let match_locals: Vec<(String, Ty, Option<TypedExp>)> = match_locals_raw.into_iter()
-                .map(|(n, t, d)| {
+            let match_locals: Vec<(String, Ty, Option<TypedExp>, Option<Absyn::TypeSpec>)> = match_locals_raw.into_iter()
+                .map(|(n, t, d, ts)| {
                     let td = d.as_ref().map(|e| infer_exp(e, &case_env, top_level, pkg_prefix, type_vars));
-                    (n, t, td)
+                    (n, t, td, ts)
                 })
                 .collect();
             // Identify a scrutinee variable that can be narrowed inside each arm:
@@ -1484,7 +1488,7 @@ fn infer_case<'a>(
     top_level: &'a BTreeMap<String, NameNode<'a>>,
     pkg_prefix: &str,
     // Match-level locals already incorporated into `env` by the caller.
-    extra_locals: &[(String, Ty, Option<TypedExp>)],
+    extra_locals: &[(String, Ty, Option<TypedExp>, Option<Absyn::TypeSpec>)],
     type_vars: &[String],
     // If the scrutinee was a plain variable reference (or `match x as x ...`),
     // pass `(name, ty)` so we can narrow that variable to a `Ty::UnionTypeVariant`
@@ -1579,7 +1583,7 @@ fn infer_case<'a>(
         }
     }
 
-    fn infer_case_locals(local_decls: &std::sync::Arc<mmwinnow::List<std::sync::Arc<Absyn::ElementItem>>>, type_vars: &[String], top_level: &BTreeMap<String, NameNode<'_>>, pkg_prefix: &str) -> Vec<(String, Ty, Option<Absyn::Exp>)> {
+    fn infer_case_locals(local_decls: &std::sync::Arc<mmwinnow::List<std::sync::Arc<Absyn::ElementItem>>>, type_vars: &[String], top_level: &BTreeMap<String, NameNode<'_>>, pkg_prefix: &str) -> Vec<(String, Ty, Option<Absyn::Exp>, Option<Absyn::TypeSpec>)> {
         let mut out = Vec::new();
         for item in (&**local_decls).into_iter() {
             let Absyn::ElementItem::ELEMENTITEM { element } = item.as_ref() else { continue };
@@ -1590,7 +1594,7 @@ fn infer_case<'a>(
                 let Absyn::ComponentItem::COMPONENTITEM { component, .. } = comp_item.as_ref();
                 let Absyn::Component::COMPONENT { name, modification, .. } = component;
                 let default = extract_default_exp(modification).cloned();
-                out.push((name.to_string(), ty.clone(), default));
+                out.push((name.to_string(), ty.clone(), default, Some(typeSpec.clone())));
             }
         }
         out
@@ -1759,7 +1763,7 @@ fn infer_case<'a>(
             // ref-binding through the surrounding `Cons.tail` Arc edge.
             let case_locals_pre = infer_case_locals(localDecls, type_vars, top_level, pkg_prefix);
             let mut pat_env = env.clone();
-            for (n, t, _) in &case_locals_pre {
+            for (n, t, _, _) in &case_locals_pre {
                 pat_env.insert(n.clone(), t.clone());
             }
             let pat = infer_pat(pattern, &pat_env, top_level, pkg_prefix, type_vars);
@@ -1780,25 +1784,25 @@ fn infer_case<'a>(
             }
             // Start with match-level locals (already in env), then add case-level locals.
             // Dedup: case-level locals shadow match-level ones with the same name.
-            let mut locals: Vec<(String, Ty, Option<TypedExp>)> = extra_locals.to_vec();
+            let mut locals: Vec<(String, Ty, Option<TypedExp>, Option<Absyn::TypeSpec>)> = extra_locals.to_vec();
             // Build the environment in which case-local default expressions are
             // type-checked: surrounding scope + pattern bindings + all
             // case-locals (so a later local can mention an earlier one).
             // This mirrors MetaModelica's case-local evaluation rules.
             let mut local_init_env = inner_env.clone();
-            for (n, t, _) in &case_locals_pre {
+            for (n, t, _, _) in &case_locals_pre {
                 local_init_env.insert(n.clone(), t.clone());
             }
-            for (n, t, default_exp) in &case_locals_pre {
+            for (n, t, default_exp, ts) in &case_locals_pre {
                 let typed_default = default_exp.as_ref()
                     .map(|e| infer_exp(e, &local_init_env, top_level, pkg_prefix, type_vars));
-                if let Some(pos) = locals.iter().position(|(ln, _, _)| ln == n) {
-                    locals[pos] = (n.clone(), t.clone(), typed_default); // case-level shadows match-level
+                if let Some(pos) = locals.iter().position(|(ln, _, _, _)| ln == n) {
+                    locals[pos] = (n.clone(), t.clone(), typed_default, ts.clone()); // case-level shadows match-level
                 } else {
-                    locals.push((n.clone(), t.clone(), typed_default));
+                    locals.push((n.clone(), t.clone(), typed_default, ts.clone()));
                 }
             }
-            for (n, t, _) in &locals {
+            for (n, t, _, _) in &locals {
                 inner_env.insert(n.clone(), t.clone());
             }
             let guard = patternGuard.as_ref().map(|g| infer_exp(g, &inner_env, top_level, pkg_prefix, type_vars));
@@ -1808,38 +1812,38 @@ fn infer_case<'a>(
             // anywhere). These arise when the MetaModelica source omits explicit local
             // declarations for intermediate variables that are only assigned once.
             for (n, t) in case_env.iter() {
-                if !inner_env.contains_key(n) && !locals.iter().any(|(ln, _, _)| ln == n) {
-                    locals.push((n.clone(), t.clone(), None));
+                if !inner_env.contains_key(n) && !locals.iter().any(|(ln, _, _, _)| ln == n) {
+                    locals.push((n.clone(), t.clone(), None, None));
                 }
             }
             TypedCase { pattern: pat, guard, locals, stmts, result: infer_exp(result, &case_env, top_level, pkg_prefix, type_vars) }
         }
         Absyn::Case::ELSE { localDecls, classPart, result, .. } => {
             let mut case_env = env.clone();
-            let mut locals: Vec<(String, Ty, Option<TypedExp>)> = extra_locals.to_vec();
+            let mut locals: Vec<(String, Ty, Option<TypedExp>, Option<Absyn::TypeSpec>)> = extra_locals.to_vec();
             let case_locals = infer_case_locals(localDecls, type_vars, top_level, pkg_prefix);
             // Build the environment in which case-local default expressions
             // are type-checked: surrounding scope + all case-locals.
             let mut local_init_env = env.clone();
-            for (n, t, _) in &case_locals {
+            for (n, t, _, _) in &case_locals {
                 local_init_env.insert(n.clone(), t.clone());
             }
-            for (n, t, default_exp) in &case_locals {
+            for (n, t, default_exp, ts) in &case_locals {
                 let typed_default = default_exp.as_ref()
                     .map(|e| infer_exp(e, &local_init_env, top_level, pkg_prefix, type_vars));
-                if let Some(pos) = locals.iter().position(|(ln, _, _)| ln == n) {
-                    locals[pos] = (n.clone(), t.clone(), typed_default);
+                if let Some(pos) = locals.iter().position(|(ln, _, _, _)| ln == n) {
+                    locals[pos] = (n.clone(), t.clone(), typed_default, ts.clone());
                 } else {
-                    locals.push((n.clone(), t.clone(), typed_default));
+                    locals.push((n.clone(), t.clone(), typed_default, ts.clone()));
                 }
             }
-            for (n, t, _) in &locals {
+            for (n, t, _, _) in &locals {
                 case_env.insert(n.clone(), t.clone());
             }
             let stmts = infer_case_class_part(classPart, &mut case_env, top_level, pkg_prefix, type_vars);
             for (n, t) in case_env.iter() {
-                if !env.contains_key(n) && !locals.iter().any(|(ln, _, _)| ln == n) {
-                    locals.push((n.clone(), t.clone(), None));
+                if !env.contains_key(n) && !locals.iter().any(|(ln, _, _, _)| ln == n) {
+                    locals.push((n.clone(), t.clone(), None, None));
                 }
             }
             TypedCase { pattern: TypedPat::Wildcard, guard: None, locals, stmts, result: infer_exp(result, &case_env, top_level, pkg_prefix, type_vars) }
@@ -1858,7 +1862,7 @@ fn infer_case_locals_standalone(
     type_vars: &[String],
     top_level: &BTreeMap<String, NameNode<'_>>,
     pkg_prefix: &str,
-) -> Vec<(String, Ty, Option<Absyn::Exp>)> {
+) -> Vec<(String, Ty, Option<Absyn::Exp>, Option<Absyn::TypeSpec>)> {
     fn path_to_dotted(path: &Absyn::Path) -> String {
         match path {
             Absyn::Path::IDENT { name } => name.to_string(),
@@ -1929,7 +1933,7 @@ fn infer_case_locals_standalone(
             let Absyn::ComponentItem::COMPONENTITEM { component, .. } = comp_item.as_ref();
             let Absyn::Component::COMPONENT { name, modification, .. } = component;
             let default = extract_default_exp(modification).cloned();
-            out.push((name.to_string(), ty.clone(), default));
+            out.push((name.to_string(), ty.clone(), default, Some(typeSpec.clone())));
         }
     }
     out

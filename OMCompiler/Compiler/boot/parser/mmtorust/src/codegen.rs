@@ -5148,6 +5148,39 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
             let arg = args.first().map(|a| emit_builtin_call_arg_raw(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
             Ok(format!("Arc::new({arg}.borrow().iter().cloned().collect())"))
         },
+        // Modelica trigonometric, exponential and square-root builtins.
+        // The MetaModelica compiler accepts these bare-name builtins (declared
+        // in the Modelica standard, used e.g. in BackendDAE inverse-derivation
+        // tables). They are pure (Real, Real) -> Real or Real -> Real and have
+        // identical Rust equivalents on `f64`. We coerce the operand to `f64`
+        // because the upstream typed-exp inference sometimes reports
+        // `Ty::Unknown` (the call is forwarded through a generic helper) which
+        // would otherwise leave the `.sin()` etc. method call unresolved.
+        "sin" | "cos" | "tan" | "asin" | "acos" | "atan"
+        | "sinh" | "cosh" | "tanh" | "exp" | "log" | "log10" | "sqrt" if args.len() == 1 => {
+            let arg = args.first().map(|a| emit_builtin_call_arg_raw(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
+            // `ln` in Rust is the natural log; Modelica calls it `log`.
+            let method = match func { "log" => "ln", other => other };
+            Ok(format!("(({arg}) as f64).{method}()"))
+        },
+        "atan2" if args.len() == 2 => {
+            let a1 = args.first().map(|a| emit_builtin_call_arg_raw(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
+            let a2 = args.get(1).map(|a| emit_builtin_call_arg_raw(func, 1, a, is_const, ctx, top_level)).unwrap_or_default();
+            Ok(format!("(({a1}) as f64).atan2(({a2}) as f64)"))
+        },
+        // Modelica `assert(condition, message[, level])`. The optional level
+        // argument is an AssertionLevel enum (error|warning); we don't yet
+        // distinguish severities, so it's accepted but ignored. The Rust
+        // `assert!` macro panics on failure, which matches the Modelica
+        // `AssertionLevel.error` default — non-fatal `warning` assertions
+        // would need a different lowering (TODO).
+        "assert" if args.len() >= 2 => {
+            let cond = emit_builtin_call_arg_raw(func, 0, &args[0], is_const, ctx, top_level);
+            let msg = emit_builtin_call_arg(func, 1, &args[1], is_const, ctx, top_level);
+            // The message lowers to `ArcStr`; `assert!` requires a `&str` or
+            // a format string, so deref into `&str` via `&*`.
+            Ok(format!("assert!({cond}, \"{{}}\", &*{msg})"))
+        },
         _ => bail!("Not a builtin function")
     }
 }
@@ -10614,6 +10647,22 @@ fn field_type_alias_name(
 /// Prefix Rust keywords with `r#` so they are valid identifiers.
 /// `self`, `super`, `crate`, and `Self` cannot be raw identifiers and are left as-is.
 fn escape_ident(name: &str) -> String {
+    // Path-style identifiers (e.g. `Expression::typeof`, `crate::Foo`) must
+    // have *every* segment checked for keyword collisions, not just the whole
+    // string. Without this, a path whose tail is a Rust reserved keyword
+    // (`Expression::typeof`, `Foo::r#try::bar`, …) fails to parse. We handle
+    // the `MetaModelica::Dangerous` rewrite before the split so the special
+    // case still fires.
+    if name.starts_with("MetaModelica::Dangerous") {
+        let rewritten = name.replace("MetaModelica::Dangerous", "metamodelica::Dangerous");
+        if rewritten.contains("::") {
+            return rewritten.split("::").map(escape_ident).collect::<Vec<_>>().join("::");
+        }
+        return rewritten;
+    }
+    if name.contains("::") {
+        return name.split("::").map(escape_ident).collect::<Vec<_>>().join("::");
+    }
     if let Some(start) = name.find('\'') {
         // Find the next quote relative to the first one.
         // We slice from start + 1 to ensure we find the *next* quote, not the current one.

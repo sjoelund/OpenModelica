@@ -233,7 +233,7 @@ fn test_map_fold_no_copy() -> Result<()> {
     DoubleEnded::push_back(de.clone(), 3);
     let result = DoubleEnded::mapFoldNoCopy(
         de.clone(),
-        &|x, acc: i32| Ok((x * 10, acc + x)),
+        Arc::new(|x, acc: i32| Ok((x * 10, acc + x))),
         0i32
     )?;
     assert_eq!(result, 6);
@@ -250,7 +250,7 @@ fn test_map_no_copy_1() -> Result<()> {
     DoubleEnded::push_back(de.clone(), 3);
     DoubleEnded::mapNoCopy_1(
         de.clone(),
-        &|x, _arg: i32| Ok(x * 2),
+        Arc::new(|x, _arg: i32| Ok(x * 2)),
         0i32
     )?;
     assert_eq!(DoubleEnded::pop_front(de.clone())?, 2);
@@ -404,7 +404,7 @@ fn test_map_fold_no_copy_empty() -> Result<()> {
     let de = DoubleEnded::empty(0i32);
     let result = DoubleEnded::mapFoldNoCopy(
         de.clone(),
-        &|x: i32, acc: i32| Ok((x * 2, acc + 1)),
+        Arc::new(|x: i32, acc: i32| Ok((x * 2, acc + 1))),
         42i32,
     )?;
     assert_eq!(result, 42);

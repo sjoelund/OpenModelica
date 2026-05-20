@@ -5958,6 +5958,31 @@ fn resolve_call_qname<'a>(
         if exists(func) {
             return Some(func.to_owned());
         }
+        // For qualified calls whose head segment names a *nested* package or
+        // class of the current module (e.g. `CacheTree.add` from inside
+        // `TplParser`, where `CacheTree` is a nested package), walk outward
+        // from the current scope until we find a match. Without this, formals
+        // and default values of inherited members of nested packages are
+        // invisible at the call site (the default-injection path in emit_exp
+        // depends on resolve_call_formals → resolve_call_qname succeeding).
+        let cur_prefix = if ctx.current_path.is_empty() {
+            ctx.top_name.clone()
+        } else {
+            format!("{}.{}", ctx.top_name, ctx.current_path.join("."))
+        };
+        let mut scope: &str = &cur_prefix;
+        loop {
+            if !scope.is_empty() {
+                let candidate = format!("{scope}.{func}");
+                if exists(&candidate) {
+                    return Some(candidate);
+                }
+            }
+            match scope.rfind('.') {
+                Some(dot) => scope = &scope[..dot],
+                None => break,
+            }
+        }
         // Handle named-import aliases in the first path segment.
         let mut parts = func.splitn(2, '.');
         let head = parts.next().unwrap_or(func);
@@ -6217,6 +6242,31 @@ fn canonicalize_call_funcs<'a>(exp: TypedExp, module_prefix: &str, top_level: &'
     use TypedExp as E;
     let recur = |e: TypedExp| canonicalize_call_funcs(e, module_prefix, top_level);
     match exp {
+        // A bare `Var` whose name resolves to a function in the callee's
+        // scope is a function reference used as a value (e.g. the default
+        // for `conflictFunc = addConflictDefault` in BaseAvlTree). When the
+        // call site inlines that default, the bare name has to be rewritten
+        // to its fully-qualified form so the call-site shorten step can
+        // resolve it to e.g. `CacheTree::addConflictDefault` — otherwise it
+        // emits as a bare identifier and Rust reports E0425 ("cannot find
+        // value `addConflictDefault` in this scope").
+        E::Var { ref name, ref segments, ref ty }
+            if !name.contains('.')
+                && segments.len() <= 1
+                && segments.iter().all(|s| s.subscripts.is_empty() && s.name == *name) =>
+        {
+            if let Some((qname, node)) = typedexp::resolve_call_node(name, top_level, module_prefix)
+                && matches!(&node.kind, NodeKind::Class(c) if matches!(c.restriction, Absyn::Restriction::R_FUNCTION { .. }))
+            {
+                // Rewrite the bare function-reference to its fully-qualified
+                // path. Keep `segments` empty so the call-site emit path
+                // (`emit_var`) re-splits the dotted name and applies
+                // `ctx.shorten`, producing e.g. `CacheTree::addConflictDefault`.
+                E::Var { name: qname, segments: Vec::new(), ty: ty.clone() }
+            } else {
+                exp
+            }
+        }
         E::Call { func, args, named_args, ty, sig_ty } => {
             let canonical = match typedexp::resolve_call_node(&func, top_level, module_prefix) {
                 Some((q, _)) => q,
@@ -6486,6 +6536,22 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
                 let typed_pat_bindings: Vec<(String, Ty)> =
                     typedexp::pat_bindings_with_scrut_ty(&case.pattern, &input_ty);
                 for (n, t) in &typed_pat_bindings {
+                    if !matches!(t, Ty::Unknown) {
+                        ctx.fn_env_vars.insert(n.clone(), t.clone());
+                    }
+                }
+                // Register this arm's case-locals (declared in the match's
+                // `local` section) into ctx.fn_env_vars so any *nested* match
+                // / function-call codegen inside the arm body recognises them
+                // as in-scope locals. Without this, an assignment to an
+                // outer-arm local from inside a nested match arm (which seeds
+                // its own LocalEnv from ctx.fn_env_vars) would not find the
+                // name and would emit a shadowing `let` instead of a plain
+                // reassignment. See Tpl.nextIter: txt2/haveToken declared in
+                // the outer `match txt` locals and assigned inside an inner
+                // `match listGet(...)` algorithm. Mirrors the MatchContinue
+                // path. Saved/restored alongside saved_fn_env_vars.
+                for (n, t, _, _) in &case.locals {
                     if !matches!(t, Ty::Unknown) {
                         ctx.fn_env_vars.insert(n.clone(), t.clone());
                     }

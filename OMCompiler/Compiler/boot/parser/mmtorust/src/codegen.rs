@@ -2624,6 +2624,27 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
     // Child node .ty values are resolved without that context and may be Unknown for ArgT etc.
     let Ty::Function { type_vars, inputs: fn_inputs, output: fn_output, .. } = &node.ty else { return };
 
+    // Build a (component-name → original TypeSpec) lookup. The TypeSpec lets
+    // us recover the type *name as written* (e.g. `Key`/`Value`) when emitting
+    // a parameter, return, or local — so the signature reads
+    // `fn add(inKey: Key, inValue: Value, ...)` instead of the resolved
+    // concrete types. The alias still expands correctly via the sibling
+    // `pub type Key = …;` declarations.
+    let comp_type_specs: HashMap<String, &Absyn::TypeSpec> = members.iter()
+        .filter_map(|m| if let MM::ClassMember::Component(cm) = m { Some((cm.name.clone(), &cm.type_spec)) } else { None })
+        .collect();
+    let alias_scope = current_scope_children(ctx, top_level);
+    // Closure-equivalent: given a component name and its resolved `Ty`,
+    // return the alias name if the component's original TypeSpec refers to
+    // a sibling type alias in scope; otherwise fall back to `fmt_ty`.
+    // (Written as an inline helper rather than a closure so each call site
+    // can pass `&mut ctx`.)
+    let try_alias = |comp_name: &str, ts_override: Option<&Absyn::TypeSpec>| -> Option<String> {
+        let ts = ts_override.or_else(|| comp_type_specs.get(comp_name).copied())?;
+        let sc = alias_scope?;
+        field_type_alias_name(ts, sc)
+    };
+
     // `partial function` declarations are MetaModelica's way of naming a function
     // signature — they have no body and are used as a type for function-valued
     // parameters (e.g. `KeyEq` inside `UnorderedSet`). Emit them as a Rust type
@@ -2652,8 +2673,21 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
             let bounded: Vec<String> = all_type_vars.iter().map(|v| format!("{v}: Clone")).collect();
             format!("<{}>", bounded.join(", "))
         };
-        let ins = fn_inputs.iter().map(|inp| fmt_ty(&inp.ty, ctx)).collect::<Vec<_>>().join(", ");
-        let out_ty = fmt_ty(fn_output, ctx);
+        let ins = fn_inputs.iter()
+            .map(|inp| try_alias(&inp.name, None).unwrap_or_else(|| fmt_ty(&inp.ty, ctx)))
+            .collect::<Vec<_>>()
+            .join(", ");
+        // Single-output: the partial function's `output X out` component name
+        // gives us its TypeSpec for alias preservation. Multi-output partial
+        // functions are uncommon; fall back to the resolved tuple type.
+        let output_name = members.iter().find_map(|m| match m {
+            MM::ClassMember::Component(cm) if matches!(cm.direction, Absyn::Direction::OUTPUT | Absyn::Direction::INPUT_OUTPUT)
+                => Some(cm.name.as_str()),
+            _ => None,
+        });
+        let out_ty = output_name
+            .and_then(|n| try_alias(n, None))
+            .unwrap_or_else(|| fmt_ty(fn_output, ctx));
         let pub_kw = if node.visibility == MM::Visibility::Public { "pub " } else { "" };
         let ename = escape_ident(name);
         writeln!(out, "{indent}{pub_kw}type {ename}{type_params} = fn({ins}) -> Result<{out_ty}>;").unwrap();
@@ -2746,11 +2780,35 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
     };
 
     let params = fn_inputs_eff.iter()
-        .map(|inp| format!("{}: {}", escape_ident(&inp.name), fmt_param_ty(&inp.ty, ctx)))
+        .map(|inp| {
+            let ty_s = try_alias(&inp.name, None)
+                .unwrap_or_else(|| fmt_param_ty(&inp.ty, ctx));
+            format!("{}: {}", escape_ident(&inp.name), ty_s)
+        })
         .collect::<Vec<_>>()
         .join(", ");
 
-    let ret_ty = fmt_ty(fn_output_eff, ctx);
+    // Return type: prefer a sibling type alias when the (single) output's
+    // declared TypeSpec is a bare alias reference. Multi-output functions
+    // lower to a tuple — substitute element-wise so `(Key, Value)` survives
+    // rather than collapsing to the resolved types.
+    let output_specs: Vec<(&str, &Absyn::TypeSpec)> = members.iter()
+        .filter_map(|m| match m {
+            MM::ClassMember::Component(cm) if matches!(cm.direction, Absyn::Direction::OUTPUT | Absyn::Direction::INPUT_OUTPUT)
+                => Some((cm.name.as_str(), &cm.type_spec)),
+            _ => None,
+        })
+        .collect();
+    let ret_ty = match (fn_output_eff, output_specs.as_slice()) {
+        (_, [(name, _ts)]) => try_alias(name, None).unwrap_or_else(|| fmt_ty(fn_output_eff, ctx)),
+        (Ty::Tuple(elems), specs) if elems.len() == specs.len() => {
+            let parts: Vec<String> = elems.iter().zip(specs.iter())
+                .map(|(t, (n, _))| try_alias(n, None).unwrap_or_else(|| fmt_ty(t, ctx)))
+                .collect();
+            format!("({})", parts.join(", "))
+        }
+        _ => fmt_ty(fn_output_eff, ctx),
+    };
     let ename = escape_ident(name);
 
     let pub_kw = if node.visibility == MM::Visibility::Public { "pub " } else { "" };
@@ -3038,7 +3096,7 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
         // `let mut x: /* ? */;` would fail to parse. Match-arm locals use the
         // same fallback (see "TODO: local with unresolved type" below).
         let is_unknown_ty = matches!(t, Ty::Unknown);
-        let ty_s = fmt_ty(t, ctx);
+        let ty_s = try_alias(n, None).unwrap_or_else(|| fmt_ty(t, ctx));
         let modif_opt: Option<Absyn::Modification> = modif.clone();
         // Carry along the inferred type of the initializer so we can detect a
         // multi-output call assigned into a single-valued local. MetaModelica
@@ -10510,6 +10568,13 @@ fn field_type_alias_name(
     if !matches!(cc.restriction, Absyn::Restriction::R_TYPE) { return None; }
     // The child must itself be a type alias (Derived) — not an enumeration etc.
     if !matches!(cc.body, MM::ClassDef::Derived { .. }) { return None; }
+    // Skip aliases that are generic over type variables (e.g. `type HashSet<K>
+    // = …`): emitting the bare name without supplied type arguments would
+    // produce E0107 ("missing generics for type alias"). We can only reuse an
+    // alias when its expansion has no free type parameters.
+    let mut tvs = Vec::new();
+    collect_type_vars_in_ty(&child.ty, &mut tvs);
+    if !tvs.is_empty() { return None; }
     Some(escape_ident(&name))
 }
 

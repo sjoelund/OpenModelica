@@ -633,7 +633,7 @@ impl<'s> Lexer<'s> {
             }
         } else {
             s.parse::<i32>()
-                .map(|n| TokenKind::Int(n))
+                .map(TokenKind::Int)
                 .map_err(|e| self.err(format!("integer literal '{}' out of i32 range: {}", s, e)))
         }
     }

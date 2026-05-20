@@ -420,14 +420,13 @@ pub fn resolve_call_node<'a>(
             let scope_path = parts.join(".");
             if let Some(scope_node) = lookup_node(&scope_path, top_level) {
                 for child in scope_node.children.values() {
-                    if let NodeKind::Import(m) = &child.kind {
-                        if let Some(target) = import_any_target_path(&m.import) {
+                    if let NodeKind::Import(m) = &child.kind
+                        && let Some(target) = import_any_target_path(&m.import) {
                             let candidate = format!("{target}.{func}");
                             if let Some(r) = walk_dotted_with_imports(&candidate, top_level, 0) {
                                 return Some(r);
                             }
                         }
-                    }
                 }
             }
             if parts.is_empty() {
@@ -483,10 +482,7 @@ fn resolve_type_name<'a>(
     // MetaModelica builtin types not declared in any source file. The hierarchy
     // seeds these into a separate `ScopedKnown` map and not into `top_level`,
     // so we resolve them here directly. Mirrors `seed_builtins` in hierarchy.rs.
-    match name {
-        "SourceInfo" => return Ty::RustStruct("SourceInfo".into()),
-        _ => {}
-    }
+    if name == "SourceInfo" { return Ty::RustStruct("SourceInfo".into()) }
     if !pkg_prefix.is_empty() {
         let mut parts: Vec<&str> = pkg_prefix.split('.').collect();
         loop {
@@ -990,11 +986,10 @@ fn uniontype_variant_field_ty<'a>(
         };
         for m in rec_members {
             let MM::ClassMember::Component(cm) = m else { continue };
-            if cm.name == field {
-                if let Some(comp_node) = child.children.get(&cm.name) {
+            if cm.name == field
+                && let Some(comp_node) = child.children.get(&cm.name) {
                     return Some(comp_node.ty.clone());
                 }
-            }
         }
     }
     None
@@ -1277,7 +1272,7 @@ pub fn infer_exp<'a>(
                 Ty::RustStruct(_) | Ty::RustEnum(_) => true,
                 _ => {
                     if let Some((_, node)) = &resolved {
-                        matches!(node.kind, NodeKind::Class(ref c) if matches!(c.restriction, Absyn::Restriction::R_RECORD | Absyn::Restriction::R_UNIONTYPE))
+                        matches!(node.kind, NodeKind::Class(c) if matches!(c.restriction, Absyn::Restriction::R_RECORD | Absyn::Restriction::R_UNIONTYPE))
                     } else {
                         false
                     }
@@ -1589,7 +1584,7 @@ fn infer_case<'a>(
             let Absyn::ElementItem::ELEMENTITEM { element } = item.as_ref() else { continue };
             let Absyn::Element::ELEMENT { specification, .. } = element else { continue };
             let Absyn::ElementSpec::COMPONENTS { typeSpec, components, .. } = specification else { continue };
-            let ty = typespec_to_ty(&typeSpec, type_vars, top_level, pkg_prefix);
+            let ty = typespec_to_ty(typeSpec, type_vars, top_level, pkg_prefix);
             for comp_item in (&**components).into_iter() {
                 let Absyn::ComponentItem::COMPONENTITEM { component, .. } = comp_item.as_ref();
                 let Absyn::Component::COMPONENT { name, modification, .. } = component;
@@ -1629,7 +1624,7 @@ fn infer_case<'a>(
                     Ty::RustStruct(_) | Ty::RustEnum(_) => true,
                     _ => {
                         if let Some((_, node)) = &resolved {
-                            matches!(node.kind, NodeKind::Class(ref c) if matches!(c.restriction, Absyn::Restriction::R_RECORD | Absyn::Restriction::R_UNIONTYPE))
+                            matches!(node.kind, NodeKind::Class(c) if matches!(c.restriction, Absyn::Restriction::R_RECORD | Absyn::Restriction::R_UNIONTYPE))
                         } else {
                             false
                         }
@@ -1777,11 +1772,10 @@ fn infer_case<'a>(
             // where same-named fields differ across variants (e.g. JSON, where
             // `values` is `UnorderedMap` in OBJECT, `list<tuple<...>>` in
             // LIST_OBJECT, `Vector<JSON>` in ARRAY, and `list<JSON>` in LIST).
-            if let Some((scrut_name, scrut_ty)) = scrutinee {
-                if let Some(narrowed) = narrow_scrutinee_for_pat(&pat, scrut_ty, top_level) {
+            if let Some((scrut_name, scrut_ty)) = scrutinee
+                && let Some(narrowed) = narrow_scrutinee_for_pat(&pat, scrut_ty, top_level) {
                     inner_env.insert(scrut_name.to_string(), narrowed);
                 }
-            }
             // Start with match-level locals (already in env), then add case-level locals.
             // Dedup: case-level locals shadow match-level ones with the same name.
             let mut locals: Vec<(String, Ty, Option<TypedExp>, Option<Absyn::TypeSpec>)> = extra_locals.to_vec();
@@ -1928,7 +1922,7 @@ fn infer_case_locals_standalone(
         let Absyn::ElementItem::ELEMENTITEM { element } = item.as_ref() else { continue };
         let Absyn::Element::ELEMENT { specification, .. } = element else { continue };
         let Absyn::ElementSpec::COMPONENTS { typeSpec, components, .. } = specification else { continue };
-        let ty = typespec_to_ty(&typeSpec, type_vars, top_level, pkg_prefix);
+        let ty = typespec_to_ty(typeSpec, type_vars, top_level, pkg_prefix);
         for comp_item in (&**components).into_iter() {
             let Absyn::ComponentItem::COMPONENTITEM { component, .. } = comp_item.as_ref();
             let Absyn::Component::COMPONENT { name, modification, .. } = component;
@@ -2420,7 +2414,7 @@ fn infer_stmt<'a>(
                 Ty::RustStruct(_) | Ty::RustEnum(_) => true,
                 _ => {
                     if let Some((_, node)) = &resolved {
-                        matches!(node.kind, NodeKind::Class(ref c) if matches!(c.restriction, Absyn::Restriction::R_RECORD | Absyn::Restriction::R_UNIONTYPE))
+                        matches!(node.kind, NodeKind::Class(c) if matches!(c.restriction, Absyn::Restriction::R_RECORD | Absyn::Restriction::R_UNIONTYPE))
                     } else {
                         false
                     }

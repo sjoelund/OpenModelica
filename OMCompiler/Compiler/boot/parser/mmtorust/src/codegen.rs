@@ -482,7 +482,7 @@ impl GenCtx {
         let top = dotted.split('.').next().unwrap_or(dotted);
         match top {
             "MetaModelica" => {
-                format!("metamodelica{}", &dotted[top.len()..].replace('.', "::"))
+                format!("metamodelica{}", dotted[top.len()..].replace('.', "::"))
             }
             _ => match self.crate_map.get(top) {
                 Some(mc) if Some(mc) == self.current_crate.as_ref() => {
@@ -866,14 +866,13 @@ fn collect_nested_partial_aliases(
 fn collect_no_mod_uniontypes(nodes: &BTreeMap<String, NameNode<'_>>, prefix: &str, out: &mut HashSet<String>) {
     for (name, node) in nodes {
         let qname = if prefix.is_empty() { name.clone() } else { format!("{prefix}.{name}") };
-        if let NodeKind::Class(c) = &node.kind {
-            if matches!(c.restriction, Absyn::Restriction::R_UNIONTYPE)
+        if let NodeKind::Class(c) = &node.kind
+            && matches!(c.restriction, Absyn::Restriction::R_UNIONTYPE)
                 && !prefix.is_empty()
                 && !uniontype_needs_mod(node)
             {
                 out.insert(qname.clone());
             }
-        }
         collect_no_mod_uniontypes(&node.children, &qname, out);
     }
 }
@@ -896,13 +895,13 @@ fn generate_file<'a>(top_name: &str, node: &NameNode<'_>, crate_map: &BTreeMap<S
     writeln!(out, "// Auto-generated from MetaModelica source").unwrap();
     writeln!(out, "#![allow(warnings)]").unwrap();
     writeln!(out, "#![allow(unreachable_patterns, unreachable_code, non_camel_case_types, non_snake_case, dead_code, unused_imports, unused_variables, non_upper_case_globals, unused_mut)]").unwrap();
-    writeln!(out, "{}", "
+    writeln!(out, "
 use std::sync::Arc;
-use anyhow::{Result, bail};
+use anyhow::{{Result, bail}};
 use loop_unwrap::unwrap_break_err;
 use metamodelica::*; // Built-in types and functions
 use const_str;
-use arcstr::{ArcStr, literal, format};
+use arcstr::{{ArcStr, literal, format}};
 ").unwrap();
     for line in ctx.use_lines() {
         writeln!(out, "{line}").unwrap();
@@ -918,8 +917,8 @@ use arcstr::{ArcStr, literal, format};
 
 fn emit_node<'a>(out: &mut String, name: &str, node: &NameNode<'_>, indent: &str, ctx: &mut GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) {
     if let NodeKind::Component(m) = &node.kind {
-        if m.variability == Absyn::Variability::CONST {
-            if let Some(exp) = extract_default_exp(&m.modification) {
+        if m.variability == Absyn::Variability::CONST
+            && let Some(exp) = extract_default_exp(&m.modification) {
                 let pkg_prefix = if ctx.current_path.is_empty() {
                     ctx.top_name.to_owned()
                 } else {
@@ -1023,7 +1022,6 @@ fn emit_node<'a>(out: &mut String, name: &str, node: &NameNode<'_>, indent: &str
                     writeln!(out).unwrap();
                 }
             }
-        }
         return;
     }
     let NodeKind::Class(c) = &node.kind else { return };
@@ -1228,13 +1226,11 @@ fn emit_external_object<'a>(
             if matches!(cdm.class_def.name.as_str(), "constructor" | "destructor") {
                 continue;
             }
-            if let Some(child_node) = node.children.get(&cdm.class_def.name) {
-                if let NodeKind::Class(child_class) = &child_node.kind {
-                    if matches!(child_class.restriction, Absyn::Restriction::R_FUNCTION { .. }) {
+            if let Some(child_node) = node.children.get(&cdm.class_def.name)
+                && let NodeKind::Class(child_class) = &child_node.kind
+                    && matches!(child_class.restriction, Absyn::Restriction::R_FUNCTION { .. }) {
                         emit_function(out, &cdm.class_def.name, child_node, child_class, indent, &mut *ctx, top_level);
                     }
-                }
-            }
         }
     }
 }
@@ -1326,11 +1322,10 @@ fn emit_uniontype<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM:
             // uniontype's qname, so all constructor/pattern references already resolve here.
             let recs = records_in_order(c);
             let rec_name = recs.into_iter().next().unwrap_or_default();
-            if let Some(rec_node) = node.children.get(&rec_name) {
-                if let NodeKind::Class(rc) = &rec_node.kind {
+            if let Some(rec_node) = node.children.get(&rec_name)
+                && let NodeKind::Class(rc) = &rec_node.kind {
                     emit_struct(out, name, rec_node, rc, &inner, &mut *ctx, top_level);
                 }
-            }
             // Emit a type alias from the record name to the struct so that code
             // written as `RECORD_NAME { field: ... }` or `let RECORD_NAME { field } = ...`
             // continues to work after the struct is renamed to the uniontype name.
@@ -1382,9 +1377,9 @@ fn emit_uniontype<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM:
         _ => &[],
     };
     for member in members {
-        if let MM::ClassMember::ClassDef(cdm) = member {
-            if let Some(child_node) = node.children.get(&cdm.class_def.name) {
-                if let NodeKind::Class(child_class) = &child_node.kind {
+        if let MM::ClassMember::ClassDef(cdm) = member
+            && let Some(child_node) = node.children.get(&cdm.class_def.name)
+                && let NodeKind::Class(child_class) = &child_node.kind {
                     match &cdm.class_def.restriction {
                         Absyn::Restriction::R_FUNCTION { .. } => {
                             emit_function(out, &cdm.class_def.name, child_node, child_class, &inner, &mut *ctx, top_level);
@@ -1398,8 +1393,6 @@ fn emit_uniontype<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM:
                         _ => {}
                     }
                 }
-            }
-        }
     }
 
     if wrap_in_mod {
@@ -1493,7 +1486,7 @@ fn emit_type_item(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Cla
                 for lit in &**enumLiterals {
                     let Absyn::EnumLiteral::ENUMLITERAL { literal, .. } = lit;
                     i += 1;
-                    writeln!(out, "{indent}    {} = {i},", escape_ident(&**literal)).unwrap();
+                    writeln!(out, "{indent}    {} = {i},", escape_ident(literal)).unwrap();
                 }
                 writeln!(out, "{indent}}}").unwrap();
                 writeln!(out, "{indent}impl PartialOrd for {ename} {{").unwrap();
@@ -1605,13 +1598,11 @@ fn exp_has_tail_self_call(exp: &TypedExp, self_short_name: &str) -> bool {
 ///     case `<expr>` is what the case yields, so it *is* in tail position
 ///     even though `result` is just a variable reference.
 fn case_tail_has_self_call(case: &TypedCase, self_short_name: &str) -> bool {
-    if let TypedExp::Var { name: result_name, .. } = &case.result {
-        if let Some(typedexp::TypedStmt::Assign { lhs: TypedPat::Var(asg_name), rhs }) = case.stmts.last() {
-            if asg_name == result_name && exp_has_tail_self_call(rhs, self_short_name) {
+    if let TypedExp::Var { name: result_name, .. } = &case.result
+        && let Some(typedexp::TypedStmt::Assign { lhs: TypedPat::Var(asg_name), rhs }) = case.stmts.last()
+            && asg_name == result_name && exp_has_tail_self_call(rhs, self_short_name) {
                 return true;
             }
-        }
-    }
     exp_has_tail_self_call(&case.result, self_short_name)
 }
 
@@ -1849,9 +1840,8 @@ fn case_uses_question_mark<'a>(
     ctx: &GenCtx,
     top_level: &'a BTreeMap<String, NameNode<'a>>,
 ) -> bool {
-    if let Some(g) = &case.guard {
-        if exp_uses_question_mark(g, ctx, top_level) { return true; }
-    }
+    if let Some(g) = &case.guard
+        && exp_uses_question_mark(g, ctx, top_level) { return true; }
     if case.locals.iter().any(|(_, _, d, _)| d.as_ref().is_some_and(|e| exp_uses_question_mark(e, ctx, top_level))) {
         return true;
     }
@@ -2553,13 +2543,11 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
                 if local_names.contains(&cm.name) || !seen.insert(cm.name.clone()) {
                     continue;
                 }
-                if let Some(bc) = base_children {
-                    if let Some(child) = bc.get(&cm.name) {
-                        if child.ty != Ty::Unknown {
+                if let Some(bc) = base_children
+                    && let Some(child) = bc.get(&cm.name)
+                        && child.ty != Ty::Unknown {
                             tys.insert(cm.name.clone(), child.ty.clone());
                         }
-                    }
-                }
                 sink.push(m.clone());
             }
         }
@@ -2604,11 +2592,10 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
                 let last = dotted.rsplit('.').next().unwrap_or(&dotted);
                 lookup_node(last, top_level)
             });
-        if let Some(bn) = base_node {
-            if let NodeKind::Class(base_c) = &bn.kind {
+        if let Some(bn) = base_node
+            && let NodeKind::Class(base_c) = &bn.kind {
                 collect_from_class(base_c, Some(&bn.children), &mut inherited_components, &mut seen, &mut inherited_tys);
             }
-        }
     }
     let members: &[MM::ClassMember] = if inherited_components.is_empty() {
         local_members
@@ -2873,8 +2860,8 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
                     cm.modification.clone(),
                     cm.variability == Absyn::Variability::CONST,
                 )),
-            Absyn::Direction::BIDIR => {
-                if !input_names.contains(&cm.name) {
+            Absyn::Direction::BIDIR
+                if !input_names.contains(&cm.name) => {
                     protected.push((
                         cm.name.clone(),
                         child_ty,
@@ -2882,7 +2869,6 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
                         cm.variability == Absyn::Variability::CONST,
                     ));
                 }
-            }
             _ => {}
         }
     }
@@ -3065,15 +3051,12 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
         let saved_fn_outputs = ctx.fn_outputs.clone();
         let saved_uninit_arrays = ctx.uninit_arrays.clone();
         for member in parent_members.iter() {
-            if let MM::ClassMember::ClassDef(cdm) = member {
-                if matches!(&cdm.class_def.restriction, Absyn::Restriction::R_FUNCTION { .. }) {
-                    if let Some(child_node) = node.children.get(&cdm.class_def.name) {
-                        if let NodeKind::Class(child_class) = &child_node.kind {
+            if let MM::ClassMember::ClassDef(cdm) = member
+                && matches!(&cdm.class_def.restriction, Absyn::Restriction::R_FUNCTION { .. })
+                    && let Some(child_node) = node.children.get(&cdm.class_def.name)
+                        && let NodeKind::Class(child_class) = &child_node.kind {
                             emit_function(out, &cdm.class_def.name, child_node, child_class, &body_indent, ctx, top_level);
                         }
-                    }
-                }
-            }
         }
         ctx.fn_env_vars = saved_fn_env_vars;
         ctx.fn_input_names = saved_fn_input_names;
@@ -3087,9 +3070,8 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
         // the rewritten body — the RHS of `<n> := <tail-expr>;` becomes the
         // function's trailing expression directly. Suppressing the declaration
         // also avoids an `unused_variables` lint after `unused_mut` is allowed.
-        if let Some(plan) = &tail_plan {
-            if &plan.suppressed_out == n { continue; }
-        }
+        if let Some(plan) = &tail_plan
+            && &plan.suppressed_out == n { continue; }
         // When the local's type is unknown, omit the annotation entirely and
         // let Rust infer from the later assignment. `fmt_ty(Ty::Unknown)`
         // produces `/* ? */`, which is not a valid type, so emitting
@@ -3175,7 +3157,7 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
         MM::ClassDef::Parts { algorithms, .. } | MM::ClassDef::ClassExtends { algorithms, .. } => algorithms.is_empty(),
         _ => true,
     };
-    let header_form_inherits_alg = node.base_fn.is_some_and(|b| base_alg_nonempty(b));
+    let header_form_inherits_alg = node.base_fn.is_some_and(&base_alg_nonempty);
     let member_form_inherits_alg = !node.extends.is_empty() && node.extends.iter().any(|ext| {
         let dotted = absyn_path_to_dotted(&ext.path);
         let lookup = lookup_node(&dotted, top_level)
@@ -3804,11 +3786,10 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
         // TODO: Comprehensions
         TypedExp::Call { func, args, named_args, sig_ty, .. } => {
             let num_named = named_args.len();
-            if named_args.is_empty() {
-                if let Ok(res) = emit_builtin_call(func, args, is_const, ctx, top_level) {
+            if named_args.is_empty()
+                && let Ok(res) = emit_builtin_call(func, args, is_const, ctx, top_level) {
                     return res;
                 }
-            }
             // `String(value, significantDigits=N, ...)` is the MetaModelica
             // value-to-string builtin with optional named formatting args.
             // Rust's `String` is a struct, not a function — falling through to
@@ -3824,7 +3805,7 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                 // wrong call. The block returns an `ArcStr` so the
                 // surrounding string-concat path (`&*expr`) still
                 // type-checks against the deref target.
-                let names: Vec<String> = named_args.iter().map(|(n, _)| format!("{n}")).collect();
+                let names: Vec<String> = named_args.iter().map(|(n, _)| n.to_string()).collect();
                 let msg = format!("String() builtin with named args [{}] not yet lowered", names.join(","));
                 let escaped = format!("{msg:?}");
                 return format!("{{ let __mm_unimpl: ArcStr = todo!({escaped}); __mm_unimpl }}");
@@ -4158,7 +4139,7 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                     }
                 };
                 let ctor_expr = if arg_strs.is_empty() {
-                    format!("{c_rust}")
+                    c_rust.to_string()
                 } else if field_names.is_empty() {
                     // if we failed to get fields, assume tuple-like variant/struct (rare in MM)
                     format!("{c_rust}({})", arg_strs.join(", "))
@@ -4220,16 +4201,16 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                     arg_strs.push(format!("{}: {val}", escape_ident(fname)));
                 }
                 for (n, na) in named_args {
-                    let val = emit_cloned_call_arg(&na, is_const, ctx, top_level);
-                    let val = if struct_field_is_arc(enum_qname, &n, top_level, ctx)
-                        && !value_emitted_as_arc(&na, ctx)
+                    let val = emit_cloned_call_arg(na, is_const, ctx, top_level);
+                    let val = if struct_field_is_arc(enum_qname, n, top_level, ctx)
+                        && !value_emitted_as_arc(na, ctx)
                     {
                         format!("Arc::new({val})")
                     } else { val };
-                    arg_strs.push(format!("{}: {val}", escape_ident(&n)));
+                    arg_strs.push(format!("{}: {val}", escape_ident(n)));
                 }
                 let ctor_expr = if arg_strs.is_empty() {
-                    format!("{variant_rust}")
+                    variant_rust.to_string()
                 } else {
                     format!("{variant_rust} {{ {} }}", arg_strs.join(", "))
                 };
@@ -5028,7 +5009,7 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
             Ok(format!("({}).ceil()", arg))
         },
         "mod" if args.len()==2 => {
-            let a1 = args.get(0).unwrap();
+            let a1 = args.first().unwrap();
             let a2 = args.get(1).unwrap();
             let f = if a1.ty() == Ty::I32 && a2.ty() == Ty::I32 {"intMod"} else {"realMod"};
             // Route through the typed-formal helper for the resolved underlying
@@ -5072,7 +5053,7 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
             Ok(format!("referenceEq(&{arg1},&{arg2})"))
         },
         "isPresent" => {
-            Ok(format!("true /* isPresent not implemented in Rust */"))
+            Ok("true /* isPresent not implemented in Rust */".to_string())
         },
         "listReverse" | "listReverseInPlace" => {
             let arg = args.first().map(|a| emit_builtin_call_arg_raw(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
@@ -5110,10 +5091,10 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
             // bytes as if they were a live Arc<T> → SIGSEGV. We use arrayInitSlot
             // (which calls ptr::write) so the old bytes are not touched.
             let arr_is_uninit = matches!(
-                args.get(0),
+                args.first(),
                 Some(TypedExp::Var { name, .. }) if ctx.uninit_arrays.contains(name.as_str())
             );
-            let arg1 = args.get(0).map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
+            let arg1 = args.first().map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
             let arg2 = args.get(1).map(|a| emit_builtin_call_arg_raw(func, 1, a, is_const, ctx, top_level)).unwrap_or_default();
             let arg3 = args.get(2).map(|a| emit_builtin_call_arg(func, 2, a, is_const, ctx, top_level)).unwrap_or_default();
             if arr_is_uninit {
@@ -5140,7 +5121,7 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
             Ok(format!("{}.is_empty()", arg))
         },
         "SOURCEINFO" | "SourceInfo" => {
-            let a0 = args.get(0).map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_else(|| "Arc::new(\"\".to_string())".to_owned());
+            let a0 = args.first().map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_else(|| "Arc::new(\"\".to_string())".to_owned());
             let a1 = args.get(1).map(|a| emit_builtin_call_arg_raw(func, 1, a, is_const, ctx, top_level)).unwrap_or_else(|| "false".to_owned());
             let a2 = args.get(2).map(|a| emit_builtin_call_arg_raw(func, 2, a, is_const, ctx, top_level)).unwrap_or_else(|| "0".to_owned());
             let a3 = args.get(3).map(|a| emit_builtin_call_arg_raw(func, 3, a, is_const, ctx, top_level)).unwrap_or_else(|| "0".to_owned());
@@ -5404,12 +5385,11 @@ fn lookup_field_ty(ty: &Ty, field: &str, top_level: &BTreeMap<String, NameNode<'
             let node = lookup_node(qname, top_level)?;
             let NodeKind::Class(c) = &node.kind else { return None };
             if !matches!(c.restriction, Absyn::Restriction::R_UNIONTYPE) { return None; }
-            for (_, child) in &node.children {
-                if let Some(field_tys) = record_field_tys(&format!("{qname}.{}", child_qname_simple(child)), top_level) {
-                    if let Some((_, t)) = field_tys.into_iter().find(|(n, _)| n == field) {
+            for child in node.children.values() {
+                if let Some(field_tys) = record_field_tys(&format!("{qname}.{}", child_qname_simple(child)), top_level)
+                    && let Some((_, t)) = field_tys.into_iter().find(|(n, _)| n == field) {
                         return Some(t);
                     }
-                }
             }
             None
         }
@@ -5810,8 +5790,8 @@ fn emit_call_arg_with_formal<'a>(
     // as single-value list elements (e.g. `{System.dladdr(func)}` where
     // `dladdr` returns a 3-tuple but the list expects `String`) get the
     // implicit first-element extraction applied.
-    if let TypedExp::Array { elems, .. } = arg {
-        if let Some(Ty::List(inner)) = formal_ty {
+    if let TypedExp::Array { elems, .. } = arg
+        && let Some(Ty::List(inner)) = formal_ty {
             if elems.is_empty() {
                 return "metamodelica::nil()".to_owned();
             }
@@ -5821,7 +5801,6 @@ fn emit_call_arg_with_formal<'a>(
             }).collect();
             return format!("list![{}]", parts.join(", "));
         }
-    }
     // Tuple→first coercion only kicks in when the formal is a *concrete* scalar
     // slot. TypeVar formals (e.g. `Vector.updateNoBounds<T>`) may be instantiated
     // with a tuple type at the call site (here, `T = (K, V)`), so applying `.0`
@@ -6289,11 +6268,10 @@ fn substitute_formal_refs(exp: &TypedExp, bindings: &HashMap<String, TypedExp>) 
     match exp {
         TypedExp::Lit(l) => TypedExp::Lit(l.clone()),
         TypedExp::Var { name, segments, ty } => {
-            if segments.is_empty() && !name.contains('.') {
-                if let Some(repl) = bindings.get(name) {
+            if segments.is_empty() && !name.contains('.')
+                && let Some(repl) = bindings.get(name) {
                     return repl.clone();
                 }
-            }
             let new_segments = segments.iter().map(|seg| CrefSegment {
                 name: seg.name.clone(),
                 subscripts: seg.subscripts.iter().map(|s| substitute_formal_refs(s, bindings)).collect(),
@@ -7201,11 +7179,10 @@ fn emit_pat_with_implicit_bind<'a>(pat: &TypedPat, allow_implicit_bind: bool, mu
                     }
                     return None;
                 }
-                if let Some(ty) = scrut_ty {
-                    if let Some(from_scrut) = record_field_tys_from_scrutinee_ctor(name, ty, top_level) {
+                if let Some(ty) = scrut_ty
+                    && let Some(from_scrut) = record_field_tys_from_scrutinee_ctor(name, ty, top_level) {
                         return Some(from_scrut);
                     }
-                }
                 Some(record_field_tys_by_simple_name(name, top_level))
             };
             if named_fields.is_empty() && fields.is_empty() {
@@ -7454,17 +7431,16 @@ fn is_constructor(func: &str, ctx: &GenCtx, top_level: &BTreeMap<String, NameNod
         });
 
     if let Some(node) = node_opt {
-        if let NodeKind::Class(c) = &node.kind {
-            if matches!(c.restriction, Absyn::Restriction::R_RECORD | Absyn::Restriction::R_UNIONTYPE { .. }) {
+        if let NodeKind::Class(c) = &node.kind
+            && matches!(c.restriction, Absyn::Restriction::R_RECORD | Absyn::Restriction::R_UNIONTYPE) {
                 return true;
             }
-        }
         // Node was found in the hierarchy and is NOT a record/uniontype (e.g., it is a
         // function, package, import, etc.). Return false without applying any heuristic.
         return false;
     }
     // Shouldn't reach here. But let's assume it's not a constructor in that case
-    return false;
+    false
 }
 
 fn normalize_builtin_ctor_name(name: &str) -> String {
@@ -7534,12 +7510,12 @@ fn pat_is_irrefutable(pat: &TypedPat) -> bool {
 /// Convert a FieldAccess pattern chain to dotted expression syntax (e.g., `a.b.c`).
 fn field_access_to_dotted(base: &TypedPat, field: &str) -> String {
     match base {
-        TypedPat::Var(name) => format!("{}.{}", escape_ident(name), escape_ident(&field)),
+        TypedPat::Var(name) => format!("{}.{}", escape_ident(name), escape_ident(field)),
         TypedPat::FieldAccess { base: inner, field: f } => {
             let inner_str = field_access_to_dotted(inner, f);
-            format!("{}.{}", inner_str, escape_ident(&field))
+            format!("{}.{}", inner_str, escape_ident(field))
         },
-        _ => format!("/*?*/.{}", escape_ident(&field)),
+        _ => format!("/*?*/.{}", escape_ident(field)),
     }
 }
 
@@ -7562,11 +7538,10 @@ fn resolve_single_record_qname<'a>(
     // Find the single record child.
     let mut record_children: Vec<&str> = Vec::new();
     for (child_name, child) in &node.children {
-        if let NodeKind::Class(cc) = &child.kind {
-            if matches!(cc.restriction, Absyn::Restriction::R_RECORD | Absyn::Restriction::R_METARECORD { .. }) {
+        if let NodeKind::Class(cc) = &child.kind
+            && matches!(cc.restriction, Absyn::Restriction::R_RECORD | Absyn::Restriction::R_METARECORD { .. }) {
                 record_children.push(child_name.as_str());
             }
-        }
     }
     if record_children.len() == 1 {
         Some(format!("{qname}.{}", record_children[0]))
@@ -7631,8 +7606,8 @@ fn record_field_tys_by_simple_name<'a>(
 ) -> Vec<(String, Ty)> {
     fn walk<'a>(node: &'a NameNode<'a>, simple_name: &str) -> Option<Vec<(String, Ty)>> {
         for (child_name, child) in &node.children {
-            if child_name == simple_name {
-                if let NodeKind::Class(c) = &child.kind {
+            if child_name == simple_name
+                && let NodeKind::Class(c) = &child.kind {
                     let members: &[MM::ClassMember] = match &c.body {
                         MM::ClassDef::Parts { members, .. } | MM::ClassDef::ClassExtends { members, .. } => members,
                         _ => &[],
@@ -7644,7 +7619,6 @@ fn record_field_tys_by_simple_name<'a>(
                     }).collect();
                     return Some(tys);
                 }
-            }
             if let Some(found) = walk(child, simple_name) {
                 return Some(found);
             }
@@ -7701,9 +7675,8 @@ fn is_static_const_emittable(exp: &TypedExp, ctx: &GenCtx, top_level: &BTreeMap<
             // field; a future refinement could check field-by-field.
             if let Ty::RustStruct(qname) | Ty::RustEnum(qname) = ty {
                 if ctx.recursive_types.contains(qname.as_str()) { return false; }
-                if let Some((parent, _)) = qname.rsplit_once('.') {
-                    if ctx.recursive_types.contains(parent) { return false; }
-                }
+                if let Some((parent, _)) = qname.rsplit_once('.')
+                    && ctx.recursive_types.contains(parent) { return false; }
             }
             args.iter().all(|a| is_static_const_emittable(a, ctx, top_level))
                 && named_args.iter().all(|(_, a)| is_static_const_emittable(a, ctx, top_level))
@@ -7758,15 +7731,12 @@ fn value_emitted_as_arc(arg: &TypedExp, ctx: &GenCtx) -> bool {
     if is_arc_wrapped(&ty, ctx) || constructor_needs_arc(&ty, ctx) {
         return true;
     }
-    if matches!(&ty, Ty::RustUnitVariant) {
-        if let TypedExp::Constructor { name, .. } = arg {
-            if let Some((parent, _)) = name.rsplit_once('.') {
-                if ctx.recursive_types.contains(parent) {
+    if matches!(&ty, Ty::RustUnitVariant)
+        && let TypedExp::Constructor { name, .. } = arg
+            && let Some((parent, _)) = name.rsplit_once('.')
+                && ctx.recursive_types.contains(parent) {
                     return true;
                 }
-            }
-        }
-    }
     false
 }
 
@@ -8219,16 +8189,13 @@ fn render_shallow<'a>(
                 .as_deref()
                 .and_then(|q| record_field_tys(q, top_level))
                 .unwrap_or_default();
-            if field_tys.is_empty() {
-                if let Some(q) = resolved_qname.as_deref() {
-                    if let Some((canonical, _)) = lookup_record_through_unions(q, top_level) {
-                        if let Some(tys) = record_field_tys(&canonical, top_level) {
+            if field_tys.is_empty()
+                && let Some(q) = resolved_qname.as_deref()
+                    && let Some((canonical, _)) = lookup_record_through_unions(q, top_level)
+                        && let Some(tys) = record_field_tys(&canonical, top_level) {
                             field_tys = tys;
                             resolved_qname = Some(canonical);
                         }
-                    }
-                }
-            }
             if field_tys.is_empty() {
                 // Last-resort search by simple name (handles cases where neither the
                 // dotted path nor the uniontype walk yields a hit, e.g. records
@@ -8262,9 +8229,9 @@ fn render_shallow<'a>(
                     let s = handle(sp, &fty, ctx, env, fresh, deferrals);
                     let rust_field = fname;
                     if matches!(sp, TypedPat::Var(v) if v == fname) {
-                        escape_ident(&rust_field)
+                        escape_ident(rust_field)
                     } else {
-                        format!("{}: {s}", escape_ident(&rust_field))
+                        format!("{}: {s}", escape_ident(rust_field))
                     }
                 }).collect();
                 // Add `..` if not all fields are covered (or if the field list is
@@ -8380,8 +8347,8 @@ fn emit_stmts<'a>(
         // We pre-screen without rendering expressions (which would mutate
         // `ctx` state and double-emit `use` markers): only render rhs values
         // once we're committed to the macro path.
-        if let Some(plan) = plan_field_assign(&stmts[i], env, top_level) {
-            if plan.is_macro(ctx) {
+        if let Some(plan) = plan_field_assign(&stmts[i], env, top_level)
+            && plan.is_macro(ctx) {
                 let mut plans: Vec<FieldAssignPlan> = vec![plan];
                 let mut j = i + 1;
                 while j < stmts.len() {
@@ -8398,7 +8365,6 @@ fn emit_stmts<'a>(
                 i = j;
                 continue;
             }
-        }
         emit_stmt(out, indent, &stmts[i], fail_mode.clone(), ctx, env, top_level, fresh);
         i += 1;
     }
@@ -8734,11 +8700,10 @@ fn emit_multi_output_let(
 
 fn coerce_assign_expr_pub(scrut_expr: String, scrut_ty: &Ty, lhs_ty: Option<&Ty>) -> String {
     let mut expr = scrut_expr;
-    if let Ty::Tuple(_) = scrut_ty {
-        if !matches!(lhs_ty, Some(Ty::Tuple(_))) {
+    if let Ty::Tuple(_) = scrut_ty
+        && !matches!(lhs_ty, Some(Ty::Tuple(_))) {
             expr = format!("{expr}.0");
         }
-    }
     if matches!(lhs_ty, Some(Ty::F64)) && *scrut_ty == Ty::I32 {
         expr = format!("(({expr}) as f64)");
     }
@@ -8788,34 +8753,31 @@ fn record_pattern_variants_inner<'a>(
 ) {
     let scrut_ty = scrutinee.ty();
     // (1) Outer `as` binding.
-    if let TypedPat::As { var, pat: inner } = pat {
-        if let Some((enum_q, variant)) = variant_of_pat(inner, &scrut_ty, top_level) {
+    if let TypedPat::As { var, pat: inner } = pat
+        && let Some((enum_q, variant)) = variant_of_pat(inner, &scrut_ty, top_level) {
             env.variants.insert(var.clone(), (enum_q, variant));
         }
-    }
     // (2) Scrutinee that's a bare variable narrowed by the arm's pattern.
     let inner_pat = match pat {
         TypedPat::As { pat: inner, .. } => inner.as_ref(),
         other => other,
     };
-    if let Some((enum_q, variant)) = variant_of_pat(inner_pat, &scrut_ty, top_level) {
-        if let TypedExp::Var { name, .. } = scrutinee {
+    if let Some((enum_q, variant)) = variant_of_pat(inner_pat, &scrut_ty, top_level)
+        && let TypedExp::Var { name, .. } = scrutinee {
             env.variants.insert(name.clone(), (enum_q, variant));
         }
-    }
     // (3) Tuple scrutinee + tuple pattern: pair each element. This is the
     //     common MetaModelica idiom
     //         match (v1, v2) { (CTOR_A { .. }, CTOR_B { .. }) => ... }
     //     where the arm body wants to read `v1.field_of_A` and
     //     `v2.field_of_B`. Without this pass those reads would not know
     //     which variant each element holds.
-    if let (TypedPat::Tuple(pat_elems), TypedExp::Tuple(scrut_elems)) = (inner_pat, scrutinee) {
-        if pat_elems.len() == scrut_elems.len() {
+    if let (TypedPat::Tuple(pat_elems), TypedExp::Tuple(scrut_elems)) = (inner_pat, scrutinee)
+        && pat_elems.len() == scrut_elems.len() {
             for (sub_pat, sub_scrut) in pat_elems.iter().zip(scrut_elems.iter()) {
                 record_pattern_variants_inner(sub_pat, sub_scrut, env, top_level, shapes, ctx);
             }
         }
-    }
     // (4) Nested `As` bindings inside a Constructor pattern. The matched
     //     record carries field types; if a named-field pattern is
     //     `As { var, pat: Constructor(..) }` and that pattern asserts a
@@ -8899,14 +8861,13 @@ fn variant_of_pat<'a>(
     if let Ty::UnionTypeVariant(enum_q, variant) = ty {
         return Some((enum_q.clone(), variant.clone()));
     }
-    if let Ty::RustStruct(qname) = ty {
-        if let Some((parent, variant)) = qname.rsplit_once('.') {
+    if let Ty::RustStruct(qname) = ty
+        && let Some((parent, variant)) = qname.rsplit_once('.') {
             let simple_name = name.rsplit('.').next().unwrap_or(name);
             if simple_name == variant {
                 return Some((parent.to_owned(), variant.to_owned()));
             }
         }
-    }
     // Fall back to scrutinee type: find the uniontype's record whose simple
     // name equals the pattern's name.
     let enum_qname = match scrut_ty {
@@ -8920,14 +8881,13 @@ fn variant_of_pat<'a>(
         return None;
     }
     for (child_name, child_node) in &enum_node.children {
-        if let NodeKind::Class(cc) = &child_node.kind {
-            if matches!(cc.restriction,
+        if let NodeKind::Class(cc) = &child_node.kind
+            && matches!(cc.restriction,
                 Absyn::Restriction::R_RECORD | Absyn::Restriction::R_METARECORD { .. })
                 && child_name == simple_name
             {
                 return Some((enum_qname.clone(), child_name.clone()));
             }
-        }
     }
     None
 }
@@ -9021,11 +8981,10 @@ fn emit_stmt<'a>(
 ) {
     fn coerce_assign_expr(scrut_expr: String, scrut_ty: &Ty, lhs_ty: Option<&Ty>) -> String {
         let mut expr = scrut_expr;
-        if let Ty::Tuple(_) = scrut_ty {
-            if !matches!(lhs_ty, Some(Ty::Tuple(_))) {
+        if let Ty::Tuple(_) = scrut_ty
+            && !matches!(lhs_ty, Some(Ty::Tuple(_))) {
                 expr = format!("{expr}.0");
             }
-        }
         if matches!(lhs_ty, Some(Ty::F64)) && *scrut_ty == Ty::I32 {
             expr = format!("(({expr}) as f64)");
         }
@@ -9071,8 +9030,8 @@ fn emit_stmt<'a>(
             // or `protected` components). For a Var pattern we emit a plain `<name> = expr;`
             // when the binding is already in scope, else a `let`. Heuristic: if env has it,
             // it's an output or earlier protected — emit assignment.
-            if let TypedPat::Var(name) = lhs {
-                if env.vars.contains_key(name) {
+            if let TypedPat::Var(name) = lhs
+                && env.vars.contains_key(name) {
                     // Plain reassignment may switch to a different variant — the
                     // previously-known variant assertion no longer holds.
                     env.variants.remove(name);
@@ -9090,20 +9049,18 @@ fn emit_stmt<'a>(
                     // Emit `(name, _, _, ...) = expr;` so the user-visible binding
                     // gets the first output and the rest are dropped, while keeping
                     // the call expression evaluated exactly once.
-                    if let Ty::Tuple(tys) = &scrut_ty {
-                        if !matches!(lhs_ty, Some(Ty::Tuple(_))) && tys.len() >= 2 {
+                    if let Ty::Tuple(tys) = &scrut_ty
+                        && !matches!(lhs_ty, Some(Ty::Tuple(_))) && tys.len() >= 2 {
                             let mut slots: Vec<String> = Vec::with_capacity(tys.len());
                             slots.push(escape_ident(name).to_string());
                             for _ in 1..tys.len() { slots.push("_".to_owned()); }
                             writeln!(out, "{indent}({}) = {scrut_expr};", slots.join(", ")).unwrap();
                             return;
                         }
-                    }
                     let scrut_expr = coerce_assign_expr(scrut_expr, &scrut_ty, lhs_ty.as_ref());
                     writeln!(out, "{indent}{} = {scrut_expr};", escape_ident(name)).unwrap();
                     return;
                 }
-            }
             // Special case: tuple of plain variables, all already in scope. Emit a
             // direct destructuring assignment so we don't need fresh temporaries.
             // This handles patterns like `(e1, e2, e3) := t;` where e1/e2/e3 were
@@ -9123,11 +9080,10 @@ fn emit_stmt<'a>(
                     // MetaModelica permits destructuring a wider tuple into a
                     // narrower LHS — trailing outputs are silently discarded.
                     // Pad the Rust pattern with `_` so the arities match.
-                    if let Ty::Tuple(tys) = &scrut_ty {
-                        if tys.len() > slots.len() {
+                    if let Ty::Tuple(tys) = &scrut_ty
+                        && tys.len() > slots.len() {
                             for _ in slots.len()..tys.len() { slots.push("_".to_owned()); }
                         }
-                    }
                     writeln!(out, "{indent}({}) = {scrut_expr};", slots.join(", ")).unwrap();
                     return;
                 }
@@ -9293,8 +9249,7 @@ fn emit_stmt<'a>(
             } else { false };
             if !rhs_is_known_infallible
                 && body.len() == 1 && matches!(stmts_flow(else_body), FlowResult::Diverges)
-            {
-                if let typedexp::TypedStmt::Assign { lhs, rhs } = &body[0] {
+                && let typedexp::TypedStmt::Assign { lhs, rhs } = &body[0] {
                     let scrut_ty = rhs.ty();
                     let scrut_expr = ctx.with_qmode(QMode::Bare, |ctx| {
                         emit_exp(rhs, /*is_const=*/false, ctx, top_level)
@@ -9306,7 +9261,6 @@ fn emit_stmt<'a>(
                         FailureMode::IfLetElse(else_str), ctx, env, top_level, fresh);
                     return;
                 }
-            }
 
             // Lower `try body else else_body end try;` to a labeled Rust block
             // rather than an IIFE. The IIFE form (`(|| -> Result<_> { .. })()`)
@@ -9526,11 +9480,10 @@ fn rewrite_array_init_for_static(init: &str) -> String {
             );
         }
     }
-    if let Some(rest) = trimmed.strip_prefix(prefix_arrayfromvec) {
-        if let Some((arg, _tail)) = split_balanced_call_arg(rest) {
+    if let Some(rest) = trimmed.strip_prefix(prefix_arrayfromvec)
+        && let Some((arg, _tail)) = split_balanced_call_arg(rest) {
             return format!("metamodelica::StaticArray::new({arg})");
         }
-    }
     // Unknown shape: keep the original initializer (which will not compile
     // as a `StaticArray<T>`) and annotate it so the failure is loud and
     // self-describing rather than a confusing type mismatch.
@@ -9673,11 +9626,10 @@ fn collect_all_function_nodes<'a>(
 ) {
     for (name, node) in nodes {
         let qname = if prefix.is_empty() { name.clone() } else { format!("{prefix}.{name}") };
-        if let NodeKind::Class(c) = &node.kind {
-            if matches!(c.restriction, Absyn::Restriction::R_FUNCTION { .. }) {
+        if let NodeKind::Class(c) = &node.kind
+            && matches!(c.restriction, Absyn::Restriction::R_FUNCTION { .. }) {
                 out.push((qname.clone(), node));
             }
-        }
         collect_all_function_nodes(&node.children, &qname, out);
     }
 }
@@ -9794,10 +9746,10 @@ fn propagate_exp_partial_eq<'a>(
             } else {
                 name.clone()
             };
-            if let Some(qname) = typedexp::resolve_call_node(&lookup_name, top_level, pkg_prefix).map(|(q, _)| q) {
-                if let Some(callee_req) = required.get(&qname) {
-                    if !callee_req.is_empty() {
-                        if let Some(callee_node) = typedexp_lookup_node(&qname, top_level) {
+            if let Some(qname) = typedexp::resolve_call_node(&lookup_name, top_level, pkg_prefix).map(|(q, _)| q)
+                && let Some(callee_req) = required.get(&qname)
+                    && !callee_req.is_empty()
+                        && let Some(callee_node) = typedexp_lookup_node(&qname, top_level) {
                             let mut subst: HashMap<String, HashSet<String>> = HashMap::new();
                             unify_subst_collect(&callee_node.ty, ty, &mut subst);
                             for callee_tv in callee_req {
@@ -9806,9 +9758,6 @@ fn propagate_exp_partial_eq<'a>(
                                 }
                             }
                         }
-                    }
-                }
-            }
             for seg in segments {
                 for sub in &seg.subscripts {
                     propagate_exp_partial_eq(sub, required, top_level, pkg_prefix, out);
@@ -9821,11 +9770,11 @@ fn propagate_exp_partial_eq<'a>(
         }
         E::UnOp { operand, .. } => propagate_exp_partial_eq(operand, required, top_level, pkg_prefix, out),
         E::Call { func, args, named_args, .. } => {
-            if let Some(qname) = typedexp::resolve_call_node(func, top_level, pkg_prefix).map(|(q, _)| q) {
-                if let Some(callee_req) = required.get(&qname) {
-                    if !callee_req.is_empty() {
-                        if let Some(callee_node) = typedexp_lookup_node(&qname, top_level) {
-                            if let Ty::Function { inputs: formals, .. } = &callee_node.ty {
+            if let Some(qname) = typedexp::resolve_call_node(func, top_level, pkg_prefix).map(|(q, _)| q)
+                && let Some(callee_req) = required.get(&qname)
+                    && !callee_req.is_empty()
+                        && let Some(callee_node) = typedexp_lookup_node(&qname, top_level)
+                            && let Ty::Function { inputs: formals, .. } = &callee_node.ty {
                                 let mut subst: HashMap<String, HashSet<String>> = HashMap::new();
                                 for (i, arg) in args.iter().enumerate() {
                                     if let Some(formal) = formals.get(i) {
@@ -9843,10 +9792,6 @@ fn propagate_exp_partial_eq<'a>(
                                     }
                                 }
                             }
-                        }
-                    }
-                }
-            }
             for a in args { propagate_exp_partial_eq(a, required, top_level, pkg_prefix, out); }
             for (_, v) in named_args { propagate_exp_partial_eq(v, required, top_level, pkg_prefix, out); }
         }
@@ -10476,13 +10421,12 @@ fn records_in_order(c: &MM::Class) -> Vec<String> {
     };
     members.iter()
         .filter_map(|m| {
-            if let MM::ClassMember::ClassDef(cdm) = m {
-                if matches!(cdm.class_def.restriction,
+            if let MM::ClassMember::ClassDef(cdm) = m
+                && matches!(cdm.class_def.restriction,
                     Absyn::Restriction::R_RECORD | Absyn::Restriction::R_METARECORD { .. })
                 {
                     return Some(cdm.class_def.name.clone());
                 }
-            }
             None
         })
         .collect()
@@ -10622,7 +10566,7 @@ fn escape_ident(name: &str) -> String {
         };
     };
     if name.starts_with("MetaModelica::Dangerous") {
-        return format!("{}", name.replace("MetaModelica::Dangerous", "metamodelica::Dangerous"));
+        return name.replace("MetaModelica::Dangerous", "metamodelica::Dangerous").to_string();
     }
     match name {
         // strict keywords (edition-independent)

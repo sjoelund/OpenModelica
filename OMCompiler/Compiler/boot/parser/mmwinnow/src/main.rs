@@ -2,7 +2,7 @@ use mmwinnow::parse;
 use mmwinnow::Grammar;
 use rayon::prelude::*;
 
-fn parse_file_with_list(sources_path: &str, grammar: Grammar, test_name: &str) -> () {
+fn parse_file_with_list(sources_path: &str, grammar: Grammar, test_name: &str) {
     let sources = std::fs::read_to_string(sources_path).expect("compilerSources.txt not found");
     let files: Vec<&str> = sources.lines().filter(|l| !l.trim().is_empty()).collect();
 
@@ -12,7 +12,7 @@ fn parse_file_with_list(sources_path: &str, grammar: Grammar, test_name: &str) -
         .map(|path| {
             let result = std::fs::read_to_string(path)
                 .map_err(|e| format!("read error: {e}"))
-                .and_then(|code: String| parse(&code, path, grammar.clone()).map(|_| ()).map_err(|e| format!("{e}")));
+                .and_then(|code: String| parse(&code, path, grammar).map(|_| ()).map_err(|e| format!("{e}")));
             (*path, result)
         })
         .collect();

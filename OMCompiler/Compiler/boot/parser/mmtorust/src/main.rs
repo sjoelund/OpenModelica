@@ -94,7 +94,7 @@ fn main() {
     let grammar = Grammar::MetaModelica;
     let sources = std::fs::read_to_string(source_path).expect("compilerSources.txt not found");
     let mut i = 0;
-    let files: Vec<(&str, usize)> = sources.lines().filter(|l| !l.trim().is_empty()).map(|f| {i=i+1;(f,i-1)}).collect();
+    let files: Vec<(&str, usize)> = sources.lines().filter(|l| !l.trim().is_empty()).map(|f| {i += 1;(f,i-1)}).collect();
 
     let programs: Vec<std::sync::Mutex<Absyn::Program>> = files.iter().map(|_| std::sync::Mutex::new(Absyn::Program::PROGRAM{classes: nil(), within_: Absyn::Within::TOP})).collect();
 
@@ -103,7 +103,7 @@ fn main() {
         .map(|(path, ix)| {
             let result = std::fs::read_to_string(path)
                 .map_err(|e| format!("read error: {e}"))
-                .and_then(|code: String| parse(&code, path, if path.contains("NFBuiltin.mo") {Grammar::Modelica3} else {grammar.clone()}).map_err(|e| format!("{e}")));
+                .and_then(|code: String| parse(&code, path, if path.contains("NFBuiltin.mo") {Grammar::Modelica3} else {grammar}).map_err(|e| format!("{e}")));
             match result {
                 Ok(program) => {
                     *programs[*ix].lock().unwrap() = program;

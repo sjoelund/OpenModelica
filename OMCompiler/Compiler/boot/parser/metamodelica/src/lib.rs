@@ -516,7 +516,7 @@ pub fn stringAppendList(strs: Arc<List<ArcStr>>) -> ArcStr {
     }
     let mut result = String::with_capacity(len);
     for s in &*strs {
-        result.push_str(&s);
+        result.push_str(s);
     }
     result.into()
 }
@@ -537,7 +537,7 @@ pub fn stringDelimitList(strs: Arc<List<ArcStr>>, delimiter: ArcStr) -> ArcStr {
         if !first {
             result.push_str(&delimiter);
         }
-        result.push_str(&s);
+        result.push_str(s);
         first = false;
     }
 
@@ -706,8 +706,10 @@ pub fn stringCharListString(strs: Arc<List<ArcStr>>) -> ArcStr {
 // ============================================================================
 
 #[derive(Debug, Clone, PartialEq)]
+#[derive(Default)]
 pub enum List<T: Clone> {
     Cons{head: T, tail: Arc<List<T>>},
+    #[default]
     Nil,
 }
 use List::{Cons, Nil};
@@ -867,11 +869,6 @@ pub fn cons<T: Clone>(head: T, tail: Arc<List<T>>) -> Arc<List<T>> {
     Arc::new(Cons{head, tail})
 }
 
-impl<T: Clone> Default for List<T> {
-    fn default() -> List<T> {
-        Nil
-    }
-}
 pub struct ListRefIterator<'a, T: Clone> {
     curr: &'a List<T>,
 }
@@ -934,7 +931,7 @@ impl<'a, T: Clone> Iterator for ListRefIterator<'a, T> {
 
     fn next(&mut self) -> Option<Self::Item> {
         match self.curr {
-            Nil => return None,
+            Nil => None,
             Cons { head, tail } => {
                 self.curr = tail;
                 Some(head)
@@ -1000,7 +997,7 @@ impl<T: Clone> List<T> {
                 Nil => bail!("Index {} out of bounds for list", index),
                 Cons{head, tail} => (head, tail)
             };
-            iter = &tail;
+            iter = tail;
             if cur_index == 0 {
                 return Ok(iter.prepend_reverse(&result));
             }
@@ -1050,7 +1047,7 @@ impl<T: PartialEq + Clone> List<T> {
         for item in &**self {
             if element.eq(item) { return true; }
         }
-        return false;
+        false
     }
 }
 
@@ -1383,7 +1380,7 @@ pub fn valueConstructor<A>() -> Result<i32> {
 fn getStartInstant() -> std::time::Instant {
     use std::sync::OnceLock;
     static START: OnceLock<std::time::Instant> = OnceLock::new();
-    *START.get_or_init(|| std::time::Instant::now())
+    *START.get_or_init(std::time::Instant::now)
 }
 
 pub fn clock() -> f64 {
@@ -1396,12 +1393,12 @@ pub fn clock() -> f64 {
 
 /// Returns true if the Option is NONE.
 pub fn isNone<A>(opt: Option<A>) -> bool {
-    matches!(opt, None)
+    opt.is_none()
 }
 
 /// Returns true if the Option is SOME.
 pub fn isSome<A>(opt: Option<A>) -> bool {
-    matches!(opt, Some(_))
+    opt.is_some()
 }
 
 // ============================================================================

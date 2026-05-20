@@ -442,8 +442,8 @@ impl Walk {
                 // `fail()` and fall through, exhausting all arms even with
                 // full pattern coverage. See codegen `cases_exhaustive` for
                 // the typed-IR counterpart; the two must agree.
-                if !matches!(matchTy, Absyn::MatchType::MATCH { .. })
-                    || !match_is_exhaustive(&**cases, &**localDecls, &self.outer_scope)
+                if !matches!(matchTy, Absyn::MatchType::MATCH)
+                    || !match_is_exhaustive(cases, localDecls, &self.outer_scope)
                 {
                     self.has_match = true;
                 }
@@ -757,11 +757,10 @@ fn collect_functions<'a>(
 ) {
     for (name, node) in nodes {
         let qname = if prefix.is_empty() { name.clone() } else { format!("{prefix}.{name}") };
-        if let NodeKind::Class(c) = &node.kind {
-            if matches!(c.restriction, Absyn::Restriction::R_FUNCTION { .. }) {
+        if let NodeKind::Class(c) = &node.kind
+            && matches!(c.restriction, Absyn::Restriction::R_FUNCTION { .. }) {
                 out.push((qname.clone(), *c));
             }
-        }
         collect_functions(&node.children, &qname, out);
     }
 }

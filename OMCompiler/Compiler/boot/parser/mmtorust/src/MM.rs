@@ -180,13 +180,11 @@ fn extract_crate_name(body: &ClassDef) -> Option<String> {
                 path: Absyn::Path::IDENT { name },
                 modification: Some(Absyn::Modification::CLASSMOD { eqMod: Absyn::EqMod::EQMOD { exp, .. }, .. }),
                 ..
-            } = arg.as_ref() {
-                if &**name == "__OpenModelica_Interface" {
-                    if let Absyn::Exp::STRING { value } = exp.as_ref() {
+            } = arg.as_ref()
+                && &**name == "__OpenModelica_Interface"
+                    && let Absyn::Exp::STRING { value } = exp.as_ref() {
                         return interface_to_crate(value);
                     }
-                }
-            }
         }
     }
     None
@@ -217,10 +215,7 @@ fn convert_class(class: Absyn::Class) -> Result<Option<Class>, Error> {
         commentsAfterEnd,
         info,
     } = class;
-    match restriction {
-        Absyn::Restriction::R_MODEL{} => return Ok(None),
-        _ => (),
-    };
+    if restriction == Absyn::Restriction::R_MODEL { return Ok(None) };
     let converted_body = convert_class_def(body.as_ref(), &info)?;
     Ok(Some(Class {
         name: name.to_string(),

@@ -323,17 +323,13 @@ fn flatten_nested_package_extends<'a>(top_level: &mut BTreeMap<String, NameNode<
                         .collect();
                     base_fn_updates = child.children.iter()
                         .filter_map(|(cn, child_node)| {
-                            if let NodeKind::Class(c) = &child_node.kind {
-                                if let MM::ClassDef::ClassExtends { base_class_name, .. } = &c.body {
-                                    if let Some(base_fn_node) = base.children.get(base_class_name.as_str()) {
-                                        if let NodeKind::Class(base_c) = &base_fn_node.kind {
-                                            if is_function_class(&base_c.restriction) {
+                            if let NodeKind::Class(c) = &child_node.kind
+                                && let MM::ClassDef::ClassExtends { base_class_name, .. } = &c.body
+                                    && let Some(base_fn_node) = base.children.get(base_class_name.as_str())
+                                        && let NodeKind::Class(base_c) = &base_fn_node.kind
+                                            && is_function_class(&base_c.restriction) {
                                                 return Some((cn.clone(), *base_c));
                                             }
-                                        }
-                                    }
-                                }
-                            }
                             None
                         })
                         .collect();
@@ -391,17 +387,13 @@ fn flatten_package_node<'a>(
                     // the corresponding function in the base class and record it.
                     base_fn_updates = cur.children.iter()
                         .filter_map(|(cn, child_node)| {
-                            if let NodeKind::Class(c) = &child_node.kind {
-                                if let MM::ClassDef::ClassExtends { base_class_name, .. } = &c.body {
-                                    if let Some(base_fn_node) = base_node.children.get(base_class_name.as_str()) {
-                                        if let NodeKind::Class(base_c) = &base_fn_node.kind {
-                                            if is_function_class(&base_c.restriction) {
+                            if let NodeKind::Class(c) = &child_node.kind
+                                && let MM::ClassDef::ClassExtends { base_class_name, .. } = &c.body
+                                    && let Some(base_fn_node) = base_node.children.get(base_class_name.as_str())
+                                        && let NodeKind::Class(base_c) = &base_fn_node.kind
+                                            && is_function_class(&base_c.restriction) {
                                                 return Some((cn.clone(), *base_c));
                                             }
-                                        }
-                                    }
-                                }
-                            }
                             None
                         })
                         .collect()
@@ -521,11 +513,10 @@ fn class_type_vars(c: &MM::Class) -> Vec<String> {
         MM::ClassDef::Parts { type_vars, members, .. } => {
             let mut vars: Vec<String> = type_vars.clone();
             for m in members {
-                if let MM::ClassMember::ClassDef(cdm) = m {
-                    if is_type_var_decl(&cdm.class_def) {
+                if let MM::ClassMember::ClassDef(cdm) = m
+                    && is_type_var_decl(&cdm.class_def) {
                         vars.push(cdm.class_def.name.clone());
                     }
-                }
             }
             vars
         }
@@ -544,11 +535,10 @@ fn record_child_names(node: &NameNode<'_>) -> Vec<String> {
     node.children
         .iter()
         .filter_map(|(name, child)| {
-            if let NodeKind::Class(c) = &child.kind {
-                if matches!(c.restriction, Absyn::Restriction::R_RECORD | Absyn::Restriction::R_METARECORD { .. }) {
+            if let NodeKind::Class(c) = &child.kind
+                && matches!(c.restriction, Absyn::Restriction::R_RECORD | Absyn::Restriction::R_METARECORD { .. }) {
                     return Some(name.clone());
                 }
-            }
             None
         })
         .collect()
@@ -649,11 +639,10 @@ fn sk_lookup_bare<'a>(known: &'a ScopedKnown, name: &str, module_prefix: &str) -
 fn variant_promotion(scope: &str, name: &str, ty: &Ty, known: &ScopedKnown) -> Ty {
     if matches!(ty, Ty::RustStruct(_) | Ty::RustUnitVariant) && !scope.is_empty() {
         let (parent_scope, scope_name) = split_qname(scope);
-        if let Some(parent_ty) = known.get(parent_scope).and_then(|m| m.get(scope_name)) {
-            if matches!(parent_ty, Ty::RustEnum(_)) {
+        if let Some(parent_ty) = known.get(parent_scope).and_then(|m| m.get(scope_name))
+            && matches!(parent_ty, Ty::RustEnum(_)) {
                 return Ty::UnionTypeVariant(scope.to_owned(), name.to_owned());
             }
-        }
     }
     ty.clone()
 }
@@ -672,8 +661,8 @@ fn collect_scope_imports<'a>(
         let qname = qualify(prefix, name);
         for (child_name, child_node) in &node.children {
             if child_name == "*" {
-                if let NodeKind::Import(m) = &child_node.kind {
-                    if let Absyn::Import::UNQUAL_IMPORT { path } = &m.import {
+                if let NodeKind::Import(m) = &child_node.kind
+                    && let Absyn::Import::UNQUAL_IMPORT { path } = &m.import {
                         let pkg = fmt_path(path);
                         let pkg_path = pkg.trim_start_matches('.');
                         if let Some(pkg_node) = find_node_by_path(top_level, pkg_path) {
@@ -683,7 +672,6 @@ fn collect_scope_imports<'a>(
                             }
                         }
                     }
-                }
             } else {
                 out.entry(qname.clone()).or_default().insert(child_name.clone());
             }
@@ -760,14 +748,12 @@ pub fn resolve_pass(hier: &mut InstanceHierarchy<'_>, warnings: &mut BTreeSet<St
 fn seed_imports(nodes: &mut BTreeMap<String, NameNode<'_>>, prefix: &str, known: &ScopedKnown, changed: &mut bool) {
     for (name, node) in nodes.iter_mut() {
         let qname = qualify(prefix, name);
-        if node.ty == Ty::Unknown {
-            if let NodeKind::Import(m) = &node.kind {
-                if let Some(ty) = try_resolve_import(m, &qname, known) {
+        if node.ty == Ty::Unknown
+            && let NodeKind::Import(m) = &node.kind
+                && let Some(ty) = try_resolve_import(m, &qname, known) {
                     node.ty = ty;
                     *changed = true;
                 }
-            }
-        }
         seed_imports(&mut node.children, &qname, known, changed);
     }
 }
@@ -810,14 +796,12 @@ fn seed_builtins(known: &mut ScopedKnown) {
 fn apply_redeclare_overrides(nodes: &mut BTreeMap<String, NameNode<'_>>, prefix: &str, known: &ScopedKnown, changed: &mut bool) {
     for (name, node) in nodes.iter_mut() {
         let qname = qualify(prefix, name);
-        if let Some((scope, key)) = qname.rsplit_once('.') {
-            if let Some(ty) = known.get(scope).and_then(|m| m.get(key)) {
-                if !matches!(ty, Ty::Unknown | Ty::TypeVar(_)) && node.ty != *ty {
+        if let Some((scope, key)) = qname.rsplit_once('.')
+            && let Some(ty) = known.get(scope).and_then(|m| m.get(key))
+                && !matches!(ty, Ty::Unknown | Ty::TypeVar(_)) && node.ty != *ty {
                     node.ty = ty.clone();
                     *changed = true;
                 }
-            }
-        }
         apply_redeclare_overrides(&mut node.children, &qname, known, changed);
     }
 }
@@ -825,10 +809,10 @@ fn apply_redeclare_overrides(nodes: &mut BTreeMap<String, NameNode<'_>>, prefix:
 fn seed_primitive_type_aliases(nodes: &mut BTreeMap<String, NameNode<'_>>, prefix: &str, changed: &mut bool) {
     for (name, node) in nodes.iter_mut() {
         let qname = qualify(prefix, name);
-        if node.ty == Ty::Unknown {
-            if let NodeKind::Class(c) = &node.kind {
-                if matches!(c.restriction, Absyn::Restriction::R_TYPE) {
-                    if let MM::ClassDef::Derived { type_spec, .. } = &c.body {
+        if node.ty == Ty::Unknown
+            && let NodeKind::Class(c) = &node.kind
+                && matches!(c.restriction, Absyn::Restriction::R_TYPE)
+                    && let MM::ClassDef::Derived { type_spec, .. } = &c.body {
                         let ty = match path_last(type_spec_path(type_spec)) {
                             "Integer" => Some(Ty::I32),
                             "Real" => Some(Ty::F64),
@@ -841,9 +825,6 @@ fn seed_primitive_type_aliases(nodes: &mut BTreeMap<String, NameNode<'_>>, prefi
                             *changed = true;
                         }
                     }
-                }
-            }
-        }
         seed_primitive_type_aliases(&mut node.children, &qname, changed);
     }
 }
@@ -851,8 +832,8 @@ fn seed_primitive_type_aliases(nodes: &mut BTreeMap<String, NameNode<'_>>, prefi
 fn seed_enumerations(nodes: &mut BTreeMap<String, NameNode<'_>>, prefix: &str, changed: &mut bool) {
     for (name, node) in nodes.iter_mut() {
         let qname = qualify(prefix, name);
-        if node.ty == Ty::Unknown {
-            if let NodeKind::Class(c) = &node.kind {
+        if node.ty == Ty::Unknown
+            && let NodeKind::Class(c) = &node.kind {
                 let is_enum = matches!(c.restriction, Absyn::Restriction::R_ENUMERATION)
                     || (matches!(c.restriction, Absyn::Restriction::R_TYPE)
                         && matches!(c.body, MM::ClassDef::Enumeration { .. }));
@@ -868,7 +849,6 @@ fn seed_enumerations(nodes: &mut BTreeMap<String, NameNode<'_>>, prefix: &str, c
                     *changed = true;
                 }
             }
-        }
         seed_enumerations(&mut node.children, &qname, changed);
     }
 }
@@ -880,8 +860,8 @@ fn seed_enumerations(nodes: &mut BTreeMap<String, NameNode<'_>>, prefix: &str, c
 fn seed_metarecords(nodes: &mut BTreeMap<String, NameNode<'_>>, prefix: &str, changed: &mut bool) {
     for (name, node) in nodes.iter_mut() {
         let qname = qualify(prefix, name);
-        if let NodeKind::Class(c) = &node.kind {
-            if matches!(c.restriction, Absyn::Restriction::R_UNIONTYPE) {
+        if let NodeKind::Class(c) = &node.kind
+            && matches!(c.restriction, Absyn::Restriction::R_UNIONTYPE) {
                 let rec_names: Vec<String> = record_child_names(node);
                 for rec_name in &rec_names {
                     let rec_qname = qualify(&qname, rec_name);
@@ -899,7 +879,7 @@ fn seed_metarecords(nodes: &mut BTreeMap<String, NameNode<'_>>, prefix: &str, ch
                 // collect_known can include it before functions in the same module are resolved.
                 if node.ty == Ty::Unknown {
                     let all_seeded = rec_names.iter().all(|n| {
-                        node.children.get(n).map_or(false, |c| c.ty != Ty::Unknown)
+                        node.children.get(n).is_some_and(|c| c.ty != Ty::Unknown)
                     });
                     if all_seeded {
                         let mut sorted = rec_names.clone();
@@ -922,7 +902,6 @@ fn seed_metarecords(nodes: &mut BTreeMap<String, NameNode<'_>>, prefix: &str, ch
                     }
                 }
             }
-        }
         seed_metarecords(&mut node.children, &qname, changed);
     }
 }
@@ -933,12 +912,11 @@ fn seed_type_vars(nodes: &mut BTreeMap<String, NameNode<'_>>, changed: &mut bool
         if let NodeKind::Class(c) = &node.kind {
             let vars = class_type_vars(c);
             for var_name in vars {
-                if let Some(child) = node.children.get_mut(&var_name) {
-                    if child.ty == Ty::Unknown {
+                if let Some(child) = node.children.get_mut(&var_name)
+                    && child.ty == Ty::Unknown {
                         child.ty = Ty::TypeVar(var_name.clone());
                         *changed = true;
                     }
-                }
             }
         }
         seed_type_vars(&mut node.children, changed);
@@ -1008,17 +986,15 @@ fn collect_wildcard_import_known(
 ) {
     for (name, node) in nodes {
         let qname = qualify(prefix, name);
-        if let Some(star_child) = node.children.get("*") {
-            if let NodeKind::Import(m) = &star_child.kind {
-                if let Absyn::Import::UNQUAL_IMPORT { path } = &m.import {
+        if let Some(star_child) = node.children.get("*")
+            && let NodeKind::Import(m) = &star_child.kind
+                && let Absyn::Import::UNQUAL_IMPORT { path } = &m.import {
                     let pkg = fmt_path(path);
                     let pkg_path = pkg.trim_start_matches('.');
                     if let Some(pkg_node) = find_node_by_path(top_level, pkg_path) {
                         copy_wildcard_children(pkg_node, pkg_path, &qname, known);
                     }
                 }
-            }
-        }
         collect_wildcard_import_known(&node.children, &qname, top_level, known);
     }
 }
@@ -1098,12 +1074,11 @@ fn collect_extends_known<'a>(
                     elementSpec: Absyn::ElementSpec::CLASSDEF { class_, .. }, ..
                 } = arg {
                     let Absyn::Class::CLASS { name: child_name, body, .. } = class_.as_ref();
-                    if let Absyn::ClassDef::DERIVED { typeSpec, .. } = body.as_ref() {
-                        if let Some(ty) = resolve_type_spec(typeSpec, known, &empty_aliases, &[], &qname, wctx) {
+                    if let Absyn::ClassDef::DERIVED { typeSpec, .. } = body.as_ref()
+                        && let Some(ty) = resolve_type_spec(typeSpec, known, &empty_aliases, &[], &qname, wctx) {
                             known.entry(qname.clone()).or_default().insert(child_name.to_string(), ty.clone());
                             known.entry(name.to_owned()).or_default().insert(child_name.to_string(), ty);
                         }
-                    }
                 }
             }
         }
@@ -1164,12 +1139,11 @@ fn resolve_nodes(nodes: &mut BTreeMap<String, NameNode<'_>>, prefix: &str, known
 fn resolve_nodes_inner(nodes: &mut BTreeMap<String, NameNode<'_>>, prefix: &str, known: &ScopedKnown, aliases: &ScopedAliases, outer_type_vars: &[String], changed: &mut bool, wctx: &mut WarnCtx<'_>) {
     for (name, node) in nodes.iter_mut() {
         let qname = qualify(prefix, name);
-        if node.ty == Ty::Unknown {
-            if let Some(ty) = try_resolve(node, &qname, known, aliases, outer_type_vars, wctx) {
+        if node.ty == Ty::Unknown
+            && let Some(ty) = try_resolve(node, &qname, known, aliases, outer_type_vars, wctx) {
                 node.ty = ty;
                 *changed = true;
             }
-        }
         // Collect this node's own type vars and merge with inherited outer ones.
         let child_outer: Vec<String> = {
             let mut vars: Vec<String> = if let NodeKind::Class(c) = &node.kind {
@@ -1201,13 +1175,11 @@ fn try_resolve(node: &NameNode<'_>, qname: &str, known: &ScopedKnown, aliases: &
     // when the entry is *exactly* at this scope — i.e. when a redeclare
     // applied here, not when an enclosing scope happens to have a matching
     // name.
-    if let Some((scope, name)) = qname.rsplit_once('.') {
-        if let Some(ty) = known.get(scope).and_then(|m| m.get(name)) {
-            if !matches!(ty, Ty::Unknown | Ty::TypeVar(_)) {
+    if let Some((scope, name)) = qname.rsplit_once('.')
+        && let Some(ty) = known.get(scope).and_then(|m| m.get(name))
+            && !matches!(ty, Ty::Unknown | Ty::TypeVar(_)) {
                 return Some(ty.clone());
             }
-        }
-    }
     match &node.kind {
         NodeKind::Class(c) if is_function_class(&c.restriction) => {
             resolve_function_type(c, node, known, aliases, outer_type_vars, qname, wctx, /*nested_in_function=*/false)
@@ -1262,7 +1234,7 @@ fn try_resolve_uniontype(node: &NameNode<'_>, qname: &str) -> Option<Ty> {
 
     // Defer if any record child is still Unknown (seeding hasn't run yet).
     for name in &record_names {
-        if node.children.get(name).map_or(true, |c| c.ty == Ty::Unknown) {
+        if node.children.get(name).is_none_or(|c| c.ty == Ty::Unknown) {
             return None;
         }
     }
@@ -1374,13 +1346,11 @@ fn resolve_function_type(
     // can reference type variables declared in the outer function.
     let mut local_fns: BTreeMap<String, Ty> = BTreeMap::new();
     for (child_name, child_node) in &node.children {
-        if let NodeKind::Class(fn_class) = &child_node.kind {
-            if is_function_class(&fn_class.restriction) {
-                if let Some(fn_ty) = resolve_function_type(fn_class, child_node, known, aliases, &type_vars, &format!("{fn_qname}.{child_name}"), wctx, /*nested_in_function=*/true) {
+        if let NodeKind::Class(fn_class) = &child_node.kind
+            && is_function_class(&fn_class.restriction)
+                && let Some(fn_ty) = resolve_function_type(fn_class, child_node, known, aliases, &type_vars, &format!("{fn_qname}.{child_name}"), wctx, /*nested_in_function=*/true) {
                     local_fns.insert(child_name.clone(), fn_ty);
                 }
-            }
-        }
     }
 
     let mut inputs: Vec<FunctionInput> = Vec::new();
@@ -1600,11 +1570,9 @@ fn resolve_path(path: &Absyn::Path, known: &ScopedKnown, aliases: &ScopedAliases
         if !first_is_type && !is_ancestor
             && !is_imported_in_scope(wctx.scope_imports, module_prefix, first)
             && sk_get(known, effective).is_some()
-        {
-            if !module_prefix.is_empty() {
+            && !module_prefix.is_empty() {
                 wctx.warnings.insert(format!("warning: in '{module_prefix}': '{qname}' uses package '{first}' which is not imported"));
             };
-        }
     }
 
     let (scope, name) = split_qname(effective);
@@ -1679,14 +1647,12 @@ pub(crate) fn lookup_record_through_unions<'a>(
 
     // Try all direct children that are uniontypes.
     for (child_name, child_node) in &parent.children {
-        if let NodeKind::Class(c) = &child_node.kind {
-            if matches!(c.restriction, Absyn::Restriction::R_UNIONTYPE) {
-                if let Some(rec_node) = child_node.children.get(last) {
+        if let NodeKind::Class(c) = &child_node.kind
+            && matches!(c.restriction, Absyn::Restriction::R_UNIONTYPE)
+                && let Some(rec_node) = child_node.children.get(last) {
                     let full = format!("{parent_dotted}.{child_name}.{last}");
                     return Some((full, rec_node));
                 }
-            }
-        }
     }
 
     None
@@ -1729,12 +1695,9 @@ fn fmt_exp(exp: &Absyn::Exp) -> String {
         Absyn::Exp::LBINARY { exp1, op, exp2 } |
         Absyn::Exp::RELATION { exp1, op, exp2 } |
         Absyn::Exp::BINARY { exp1, op, exp2 } => {
-            match op {
-                Absyn::Operator::EQUAL => {
-                    // Constant-time string equality
-                    return format!("const_str::equal!({},{})", fmt_exp(exp1), fmt_exp(exp2));
-                },
-                _ => {}
+            if op == &Absyn::Operator::EQUAL {
+                // Constant-time string equality
+                return format!("const_str::equal!({},{})", fmt_exp(exp1), fmt_exp(exp2));
             };
             let s = match op {
                 Absyn::Operator::ADD | Absyn::Operator::ADD_EW => "+",
@@ -1890,7 +1853,7 @@ fn ty_direct_deps(ty: &Ty) -> Vec<String> {
         // Option<T> embeds T inline in Rust — follow through.
         Ty::Option(inner) => ty_direct_deps(inner),
         // Tuple embeds all elements.
-        Ty::Tuple(tys) => tys.iter().flat_map(|t| ty_direct_deps(t)).collect(),
+        Ty::Tuple(tys) => tys.iter().flat_map(ty_direct_deps).collect(),
         // List<T> has head: T inline (only tail is Arc); follow through.
         Ty::List(inner) => ty_direct_deps(inner),
         // Array (Vec<T>) is fully heap-allocated — skip.
@@ -1900,7 +1863,7 @@ fn ty_direct_deps(ty: &Ty) -> Vec<String> {
         // `name` is stored in `::` form; convert to dotted form to match graph keys.
         Ty::Generic(name, args) => {
             let mut deps = vec![name.replace("::", ".")];
-            deps.extend(args.iter().flat_map(|t| ty_direct_deps(t)));
+            deps.extend(args.iter().flat_map(ty_direct_deps));
             deps
         }
         _ => vec![],

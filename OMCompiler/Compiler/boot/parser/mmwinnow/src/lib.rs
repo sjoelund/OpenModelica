@@ -25,7 +25,7 @@ use std::cell::RefCell;
 use arcstr::{ArcStr, literal};
 
 thread_local! {
-    static CURRENT_FILE: RefCell<ArcStr> = RefCell::new(literal!(""));
+    static CURRENT_FILE: RefCell<ArcStr> = const { RefCell::new(literal!("")) };
 }
 
 // ---------------------------------------------------------------------------
@@ -226,7 +226,7 @@ fn split_annotations(items: Arc<List<ClassBodyItem>>) -> (Arc<List<ClassBodyItem
                 // class-level annotations (function-level ones are nested inside element bodies).
                 let (inner_parts, inner_anns) = split_annotations(Arc::clone(sec_items));
                 for ann in &*inner_anns { anns = cons(ann.clone(), anns); }
-                parts = cons(ClassBodyItem::Section { section: section.clone(), items: inner_parts }, parts);
+                parts = cons(ClassBodyItem::Section { section: *section, items: inner_parts }, parts);
             }
             other => parts = cons(other.clone(), parts),
         }
@@ -629,7 +629,7 @@ fn element_list(input: &mut TokenInput) -> ModalResult<Arc<List<ClassBodyItem>>>
             let elem = Absyn::Element::ELEMENT {
                 finalPrefix: false, redeclareKeywords: None,
                 innerOuter: InnerOuter::NOT_INNER_OUTER, specification: ElementSpec::IMPORT { import_: imp, comment, info: info.clone() },
-                info: info, constrainClass: None,
+                info, constrainClass: None,
             };
             items = cons(ClassBodyItem::Element(elem), items); continue;
         }
@@ -689,7 +689,7 @@ fn element_list(input: &mut TokenInput) -> ModalResult<Arc<List<ClassBodyItem>>>
             cut_err(t(TK::Semi)).context(StrContext::Label("';' after class definition")).parse_next(input)?;
             let elem = Absyn::Element::ELEMENT {
                 finalPrefix: final_, redeclareKeywords, innerOuter,
-                specification: ElementSpec::CLASSDEF { replaceable_: replaceable_, class_: Arc::new(cls) },
+                specification: ElementSpec::CLASSDEF { replaceable_, class_: Arc::new(cls) },
                 info: source_info(first_tok, last_tok), constrainClass,
             };
             items = cons(ClassBodyItem::Element(elem), items); continue;
@@ -739,7 +739,7 @@ fn element(input: &mut TokenInput) -> ModalResult<Absyn::Element> {
         let elem = Absyn::Element::ELEMENT {
             finalPrefix: false, redeclareKeywords: None,
             innerOuter: InnerOuter::NOT_INNER_OUTER, specification: ElementSpec::IMPORT { import_: imp, comment, info: info.clone() },
-            info: info, constrainClass: None,
+            info, constrainClass: None,
         };
         return Ok(elem);
     }
@@ -799,7 +799,7 @@ fn element(input: &mut TokenInput) -> ModalResult<Absyn::Element> {
         cut_err(t(TK::Semi)).context(StrContext::Label("';' after class definition")).parse_next(input)?;
         let elem = Absyn::Element::ELEMENT {
             finalPrefix: final_, redeclareKeywords, innerOuter,
-            specification: ElementSpec::CLASSDEF { replaceable_: replaceable_, class_: Arc::new(cls) },
+            specification: ElementSpec::CLASSDEF { replaceable_, class_: Arc::new(cls) },
             info: source_info(first_tok, last_tok), constrainClass,
         };
         return Ok(elem);
@@ -1109,7 +1109,7 @@ fn import_clause(input: &mut TokenInput) -> ModalResult<Import> {
                 )))
             };
             let path = name_path.parse_next(input)?;
-            return Ok(Import::NAMED_IMPORT { name, path });
+            Ok(Import::NAMED_IMPORT { name, path })
         }
         _ => Ok(Import::QUAL_IMPORT { path }),
     }
@@ -1738,7 +1738,7 @@ fn match_expression(input: &mut TokenInput) -> ModalResult<Absyn::Exp> {
     let comment    = None; // string_comment(input)?;
     let localDecls = local_clause(input)?;
     let cases      = cut_err(match_cases).
-        context(StrContext::Label(match matchTy {MatchType::MATCH{} => "match", MatchType::MATCHCONTINUE{} => "matchcontinue" })).parse_next(input)?;
+        context(StrContext::Label(match matchTy {MatchType::MATCH => "match", MatchType::MATCHCONTINUE => "matchcontinue" })).parse_next(input)?;
     match next_tok(input)? {
         TK::End => {}
         _       => return Err(ErrMode::Backtrack(ContextError::default())),
@@ -1944,8 +1944,8 @@ fn code_expression(input: &mut TokenInput) -> ModalResult<Absyn::Exp> {
                 }
 
                 // Try expression followed by ')'
-                if let Ok(e) = expression.parse_next(input) {
-                    if matches!(peek_kind(input), Some(TK::RParen)) {
+                if let Ok(e) = expression.parse_next(input)
+                    && matches!(peek_kind(input), Some(TK::RParen)) {
                         cut_err(t(TK::RParen))
                             .context(StrContext::Label("')' closing $Code expression"))
                             .parse_next(input)?;
@@ -1953,7 +1953,6 @@ fn code_expression(input: &mut TokenInput) -> ModalResult<Absyn::Exp> {
                             code: CodeNode::C_EXPRESSION { exp: Arc::new(e) },
                         });
                     }
-                }
 
                 // Try element (SEMICOLON)?
                 if let Ok(element) = element.parse_next(input) {

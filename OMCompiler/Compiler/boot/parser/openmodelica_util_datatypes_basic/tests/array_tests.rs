@@ -523,19 +523,21 @@ fn test_reduce() -> Result<()> {
     Ok(())
 }
 
-// remove returns Array<T>, not Result
+// remove is fail-able because Array.mo asserts `true := index <= len and index >= 1`.
 #[test]
-fn test_remove() {
+fn test_remove() -> Result<()> {
     let a = arr(vec![1, 2, 3, 4]);
-    let result = Array::remove(a, 2);
+    let result = Array::remove(a, 2)?;
     assert_eq!(*result.borrow(), vec![1, 3, 4]);
+    Ok(())
 }
 
 #[test]
-fn test_remove_single_element() {
+fn test_remove_single_element() -> Result<()> {
     let a = arr(vec![1]);
-    let result = Array::remove(a, 1);
+    let result = Array::remove(a, 1)?;
     assert!(result.borrow().is_empty());
+    Ok(())
 }
 
 #[test]

@@ -6288,14 +6288,34 @@ fn canonicalize_call_funcs<'a>(exp: TypedExp, module_prefix: &str, top_level: &'
                 && segments.len() <= 1
                 && segments.iter().all(|s| s.subscripts.is_empty() && s.name == *name) =>
         {
-            if let Some((qname, node)) = typedexp::resolve_call_node(name, top_level, module_prefix)
-                && matches!(&node.kind, NodeKind::Class(c) if matches!(c.restriction, Absyn::Restriction::R_FUNCTION { .. }))
-            {
-                // Rewrite the bare function-reference to its fully-qualified
-                // path. Keep `segments` empty so the call-site emit path
-                // (`emit_var`) re-splits the dotted name and applies
-                // `ctx.shorten`, producing e.g. `CacheTree::addConflictDefault`.
-                E::Var { name: qname, segments: Vec::new(), ty: ty.clone() }
+            if let Some((qname, node)) = typedexp::resolve_call_node(name, top_level, module_prefix) {
+                let is_function = matches!(&node.kind, NodeKind::Class(c) if matches!(c.restriction, Absyn::Restriction::R_FUNCTION { .. }));
+                // A bare reference to a package-level constant (e.g.
+                // `defaultOptions` declared in `SCodeDump`) must also be
+                // qualified — when the default expression is inlined at a
+                // call site in a different module, the bare name has no
+                // binding there. We accept any `Component` whose qualified
+                // parent is NOT a function (function parameters are also
+                // stored as `Component` children, so without the parent
+                // check we would mis-qualify a formal-parameter reference
+                // that `substitute_formal_refs` should later replace with
+                // a concrete argument).
+                let is_pkg_constant = matches!(&node.kind, NodeKind::Component(_))
+                    && qname.rsplit_once('.').is_some_and(|(parent, _)| {
+                        lookup_node(parent, top_level)
+                            .map(|p| !matches!(&p.kind, NodeKind::Class(c) if matches!(c.restriction, Absyn::Restriction::R_FUNCTION { .. })))
+                            .unwrap_or(false)
+                    });
+                if is_function || is_pkg_constant {
+                    // Rewrite the bare reference to its fully-qualified path.
+                    // Keep `segments` empty so the call-site emit path
+                    // (`emit_var`) re-splits the dotted name and applies
+                    // `ctx.shorten`, producing e.g. `SCodeDump::defaultOptions`
+                    // or `CacheTree::addConflictDefault`.
+                    E::Var { name: qname, segments: Vec::new(), ty: ty.clone() }
+                } else {
+                    exp
+                }
             } else {
                 exp
             }

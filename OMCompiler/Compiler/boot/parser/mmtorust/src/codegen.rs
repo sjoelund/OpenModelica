@@ -3757,12 +3757,58 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                 let escaped = format!("{msg:?}");
                 return format!("{{ let __mm_unimpl: ArcStr = todo!({escaped}); __mm_unimpl }}");
             }
-            let func_str = if func.contains('.') {
-                &ctx.shorten(func)
-            } else {
-                func
+            // When the call target is a bare name that collides with an
+            // in-scope local binding (typically an output parameter that
+            // shares its name with a sibling function — a common
+            // MetaModelica pattern, e.g. `isAlwaysMatchedBool` whose output
+            // is `isAlwaysMatched` and whose body calls function
+            // `isAlwaysMatched`), Rust resolves the bare identifier to the
+            // local binding instead of the function item. Re-resolve the
+            // call name through the hierarchy and emit the shortened FQN so
+            // the call lands on the function. Only apply when the resolved
+            // qname names a different path than the local (i.e. it is a
+            // real function), and only for bare (non-dotted) names — dotted
+            // forms are already qualified.
+            // Only rewrite when the local binding is NOT itself a function
+            // (callbacks parameters are legitimately invoked by name).
+            let local_shadows_fn = match ctx.fn_env_vars.get(func) {
+                Some(Ty::Function { .. }) | Some(Ty::FunctionAlias { .. }) | None => false,
+                Some(_) => true,
             };
-            let func_str = escape_ident(func_str);
+            // Walk hierarchy scopes for the first match that is actually a
+            // function. `resolve_call_qname` would return the shadowing
+            // local-output child first and stop, defeating the purpose.
+            let resolved_fn_qname = if local_shadows_fn {
+                resolve_call_qname_fn(func, ctx, top_level)
+            } else {
+                None
+            };
+            // For the shadow-disambiguation case we cannot use `ctx.shorten`
+            // because it strips the current-module prefix and leaves a bare
+            // name that still collides with the local. Use `self::<func>` to
+            // force module-scope name resolution; this works regardless of
+            // whether the function lives in the top-level module or a
+            // nested `mod` block (both cases resolve `self::` to the
+            // currently-being-emitted module). For cross-module functions
+            // (different module than the current one) `ctx.shorten` already
+            // produces a non-colliding `Mod::func` path, so we use that.
+            let func_str = if func.contains('.') {
+                ctx.shorten(func)
+            } else if let Some(qname) = resolved_fn_qname {
+                let cur_prefix = if ctx.current_path.is_empty() {
+                    ctx.top_name.clone()
+                } else {
+                    format!("{}.{}", ctx.top_name, ctx.current_path.join("."))
+                };
+                if qname == format!("{cur_prefix}.{func}") {
+                    format!("self::{func}")
+                } else {
+                    ctx.shorten(&qname)
+                }
+            } else {
+                func.to_owned()
+            };
+            let func_str = escape_ident(&func_str);
             let formals = resolve_call_formals(func, ctx, top_level);
             let parts: Vec<String> = if let Some(formals) = formals {
                 // Reorder positional + named arguments into formal-declaration
@@ -5729,6 +5775,72 @@ fn emit_call_arg_with_formal<'a>(
     raw
 }
 
+/// Like [`resolve_call_qname`] but only accepts qnames that point at a real
+/// function-typed node. Used when the bare call name collides with an in-scope
+/// non-function local (typically an output parameter — see
+/// `TplAbsyn.isAlwaysMatchedBool`, whose output `isAlwaysMatched` shadows the
+/// sibling function of the same name). The plain `resolve_call_qname` returns
+/// the first hierarchy match, which for nested-children resolution (line ~5812
+/// in this file) is the output parameter itself — so we'd never escape the
+/// shadow. This variant walks the same scopes but rejects matches that aren't
+/// `Ty::Function` / `Ty::FunctionAlias`.
+fn resolve_call_qname_fn<'a>(
+    func: &str,
+    ctx: &GenCtx,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+) -> Option<String> {
+    let is_fn = |name: &str| -> bool {
+        lookup_node(name, top_level)
+            .map(|n| matches!(n.ty, Ty::Function { .. } | Ty::FunctionAlias { .. }))
+            .unwrap_or(false)
+    };
+    if func.is_empty() { return None; }
+    if func.contains('.') {
+        if is_fn(func) { return Some(func.to_owned()); }
+        let mut parts = func.splitn(2, '.');
+        let head = parts.next().unwrap_or(func);
+        let tail = parts.next().unwrap_or("");
+        for (dotted, local) in &ctx.named {
+            if local == head {
+                let candidate = if tail.is_empty() { dotted.clone() } else { format!("{dotted}.{tail}") };
+                if is_fn(&candidate) { return Some(candidate); }
+            }
+        }
+        return None;
+    }
+    let cur_prefix = if ctx.current_path.is_empty() {
+        ctx.top_name.clone()
+    } else {
+        format!("{}.{}", ctx.top_name, ctx.current_path.join("."))
+    };
+    if !ctx.current_fn_qname.is_empty() {
+        let candidate = format!("{}.{}", ctx.current_fn_qname, func);
+        if is_fn(&candidate) { return Some(candidate); }
+    }
+    let mut scope: &str = &cur_prefix;
+    loop {
+        let candidate = format!("{scope}.{func}");
+        if is_fn(&candidate) { return Some(candidate); }
+        match scope.rfind('.') {
+            Some(dot) => scope = &scope[..dot],
+            None => break,
+        }
+    }
+    for module in &ctx.unqual_modules {
+        let candidate = format!("{module}.{func}");
+        if is_fn(&candidate) { return Some(candidate); }
+    }
+    for (dotted, local) in &ctx.named {
+        if local == func {
+            if is_fn(dotted) { return Some(dotted.clone()); }
+            continue;
+        }
+        let candidate = format!("{dotted}.{func}");
+        if is_fn(&candidate) { return Some(candidate); }
+    }
+    if is_fn(func) { Some(func.to_owned()) } else { None }
+}
+
 /// Resolve a function name as written at a call site to a fully-qualified dotted
 /// name in the hierarchy.
 fn resolve_call_qname<'a>(
@@ -6424,6 +6536,26 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
                 // the result of an unmodified scrutinee — silently dropping work
                 // such as recursive computations into the variable that the
                 // result expression references. Mirrors the MatchKind::Match path.
+                //
+                // Register case-locals and pattern bindings in `ctx.fn_env_vars`
+                // for the duration of the arm body so that `emit_exp` recognises
+                // them as in-scope locals. Without this, a call whose callee
+                // name collides with a case-local (e.g. `annotationFooter` —
+                // both a sibling function and a local `String` declared in the
+                // arm) is emitted as a bare call that Rust resolves to the
+                // local binding. Save/restore around the arm to keep
+                // sibling arms isolated.
+                let saved_fn_env_vars_mc = ctx.fn_env_vars.clone();
+                for (n, t, _) in &case.locals {
+                    if !matches!(t, Ty::Unknown) {
+                        ctx.fn_env_vars.insert(n.clone(), t.clone());
+                    }
+                }
+                for (n, t) in typedexp::pat_bindings_with_scrut_ty(&case.pattern, &input_ty) {
+                    if !matches!(t, Ty::Unknown) {
+                        ctx.fn_env_vars.insert(n, t);
+                    }
+                }
                 let mut body = String::new();
                 if !case.stmts.is_empty() || !case.locals.is_empty() {
                     let mut local_env = LocalEnv {
@@ -6523,6 +6655,7 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
                 s.push_str("        })() { break 'mc __v; }\n");
                 ctx.variants = saved_variants;
                 ctx.variant_shapes = saved_shapes;
+                ctx.fn_env_vars = saved_fn_env_vars_mc;
             }
             s.push_str("        bail!(\"matchcontinue: no arm matched\")\n");
             s.push_str("    }");

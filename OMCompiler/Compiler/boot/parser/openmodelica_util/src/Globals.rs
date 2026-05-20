@@ -178,9 +178,9 @@ thread_local! {
         (
             ArcStr,
             SourceInfo,
-            fn(ArcStr) -> Result<ArcStr>,
+            Arc<dyn Fn(ArcStr) -> Result<ArcStr> + 'static>,
         )
-    > = RefCell::new((literal!(""), sourceInfo!(), |_| Ok(literal!("")) ));
+    > = RefCell::new((literal!(""), sourceInfo!(), Arc::new(|_| Ok(literal!(""))) ));
 
     // Index 24 — operatorOverloadingCache
     // Declared in openmodelica_frontend::Globals.

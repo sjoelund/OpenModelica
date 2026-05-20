@@ -125,13 +125,13 @@ struct GenCtx {
     fn_env_vars: HashMap<String, Ty>,
     /// Names of the enclosing function's INPUT parameters (subset of
     /// `fn_env_vars`). Input parameters of an anonymous function type are
-    /// declared `&impl Fn(...)` by [`fmt_param_ty`] — i.e. the binding's
-    /// Rust value is *already a reference*. Outputs / protected locals of the
-    /// same MM type use [`fmt_ty`], which emits the bare `fn(...)` pointer.
-    /// `emit_call_arg_with_formal` consults this set to avoid double-borrowing
-    /// (`&inCompFunc` → `&&F`) when forwarding such a parameter into another
-    /// `&impl Fn(...)` slot, which is what triggers infinite recursive
-    /// monomorphization on functions like `List.sort`.
+    /// declared `Arc<dyn Fn(...) + 'static>` by [`fmt_param_ty`] — i.e. the
+    /// binding's Rust value is already an `Arc`. Outputs / protected locals of
+    /// the same MM type use [`fmt_ty`], which emits the bare `fn(...)` pointer.
+    /// `emit_call_arg_with_formal` consults this set to forward such a
+    /// parameter with `.clone()` rather than wrapping it in `Arc::new(...)`,
+    /// which is what keeps recursive HOFs like `List.sort` working (each
+    /// recursive call gets a clone of the same `Arc`, staying at one type level).
     fn_input_names: HashSet<String>,
     /// Output component names (in declaration order) of the enclosing function.
     /// Used by `S::Return` inside a match-arm body to expand `return;` into
@@ -2874,28 +2874,29 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
     // builtins) and transitive propagation through user-function call
     // sites. Type parameters not in that set are emitted with
     // `Clone + 'static` only, which lets MM callbacks
-    // (`&impl Fn(...)`, which is not `PartialEq`) flow through generic
-    // forwarders like `List::map3(.., extra_arg, ..)`.
+    // (`Arc<dyn Fn(...) + 'static>`, which is not `PartialEq`) flow through
+    // generic forwarders like `List::map3(.., extra_arg, ..)`.
     let type_params = if all_type_vars.is_empty() {
         String::new()
     } else {
         let empty: HashSet<String> = HashSet::new();
         let eq_vars = ctx.partial_eq_required.get(&fn_qname).unwrap_or(&empty);
-        // `'static` is added per-type-var only when the body uses one of the
-        // type-erased builtins listed in [`STATIC_REQUIRING_BUILTINS`]
-        // (`getGlobalRoot`/`setGlobalRoot`/`referenceEq`/…). Those downcast
-        // through `dyn Any`, which carries an implicit `'static` bound.
-        // For every *other* type var we emit just `Clone` (+ `PartialEq` if
-        // required): adding `'static` blanket-style breaks forwarding of
-        // function-typed parameters (`&impl Fn(...)`) through HOFs like
-        // `List::map1(.., extra_arg, ..)`, because the borrowed callback
-        // reference has a function-local lifetime, not `'static`, which
-        // surfaces as E0521 ("borrowed data escapes outside of function").
-        let static_vars = analyze_static_required_in_body(&typed_stmts);
+        // We used to add `'static` only selectively (per-var analysis for
+        // `getGlobalRoot`/`setGlobalRoot`/`referenceEq` builtins and for
+        // type-vars appearing in `Arc<dyn Fn + 'static>` callback params).
+        // That was necessary when callbacks were `&impl Fn` (borrowed,
+        // non-`'static`) — blanket `'static` caused E0521.
+        //
+        // Now that callbacks are `Arc<dyn Fn + 'static>` (owned), all MM
+        // runtime values are either primitive (Copy) or owned (Arc/ArcStr/Vec).
+        // None carry a lifetime shorter than `'static`, so adding `T: 'static`
+        // to every type var is always safe AND necessary for the transitive
+        // case: e.g. `allCombinations<T>` calls `applyAndFold<T: 'static>`,
+        // which requires `T: 'static` at the call site — a dependency the
+        // per-var analysis couldn't detect.
         let bounded: Vec<String> = all_type_vars.iter().map(|v| {
-            let mut bounds = vec!["Clone"];
+            let mut bounds = vec!["Clone", "'static"];
             if eq_vars.contains(v) { bounds.push("PartialEq"); }
-            if static_vars.contains(v) { bounds.push("'static"); }
             format!("{v}: {}", bounds.join(" + "))
         }).collect();
         format!("<{}>", bounded.join(", "))
@@ -3531,9 +3532,31 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                 // surrounding function's variable environment (`fn_env_vars`
                 // is populated for inputs/protected locals — see
                 // `emit_function`).
-                Ty::Function { name: None, .. } if resolved_fn_qname.is_none()
-                    && ctx.fn_env_vars.contains_key(&name.split('.').next().unwrap_or(name).to_owned()) =>
-                    format!("&{var_str}"),
+                //
+                // Note: we no longer prefix `&` here. Input params are now
+                // `Arc<dyn Fn + 'static>` (see `fmt_param_ty`). We emit
+                // `.clone()` on every reference to an Arc<dyn Fn> binding so
+                // that the original binding is not moved when it appears in a
+                // match scrutinee tuple (e.g. `(list, inCompFunc, ...)`) — the
+                // `.clone()` leaves the original binding alive for subsequent
+                // uses in match-arm bodies. At call sites,
+                // `emit_call_arg_with_formal` receives the already-cloned raw
+                // string and forwards it as-is (no double `.clone()`).
+                // Anonymous-function-typed INPUT PARAMETER: `inCompFunc`, `inMapFunc`, etc.
+                // These are `Arc<dyn Fn + 'static>` (see `fmt_param_ty`).  Emit `.clone()`
+                // on every reference so the binding is not moved into a match-scrutinee
+                // tuple or a for-loop call and thus unavailable for subsequent uses.
+                //
+                // We detect callback parameters by their presence in `fn_env_vars` (which
+                // holds ALL local bindings: inputs, outputs, protected).  We do NOT gate
+                // on `resolved_fn_qname.is_none()` because function parameters ARE
+                // registered as child nodes in the hierarchy (e.g. the FQN
+                // `List.insertListSorted1.inCompFunc` resolves), so the qname is often
+                // Some — but that does not make the parameter a concrete fn-item (Copy).
+                // The guard below is therefore just the `fn_env_vars` membership check.
+                Ty::Function { name: None, .. }
+                    if ctx.fn_env_vars.contains_key(&name.split('.').next().unwrap_or(name).to_owned()) =>
+                    format!("{var_str}.clone()"),
                 // Named `partial function` aliases (e.g. `KeyEq`) lower to a
                 // concrete `fn(...)` pointer — that *is* `Copy`, so the move
                 // hazard above doesn't apply and we keep emitting the bare
@@ -5584,7 +5607,12 @@ fn arg_is_input_fn_param(arg: &TypedExp, ctx: &GenCtx) -> bool {
     if segments.len() > 1 { return false; }
     if !matches!(ty, Ty::Function { name: None, .. }) { return false; }
     let base = name.split('.').next().unwrap_or(name);
+    // Input parameters AND function-typed local variables (outputs/protected) are
+    // all declared as `Arc<dyn Fn + 'static>` (see `fmt_param_ty` / `fmt_ty`).
+    // Forwarding them with `.clone()` is correct in both cases; wrapping in
+    // `Arc::new(...)` would produce a double-wrapped `Arc<Arc<dyn Fn>>`.
     ctx.fn_input_names.contains(base)
+        || matches!(ctx.fn_env_vars.get(base), Some(Ty::Function { name: None, .. }))
 }
 
 /// MetaModelica implicitly extracts the first element of a tuple-returning call
@@ -5622,45 +5650,39 @@ fn emit_call_arg_with_formal<'a>(
         if is_const { extracted } else { maybe_clone_string_value(extracted, &first_ty) }
     };
 
-    // When the formal is an anonymous callback slot (`&impl Fn(...)`) the
-    // argument must be a shared reference. There are three argument shapes:
+    // When the formal is an anonymous callback slot (`Arc<dyn Fn(...) + 'static>`)
+    // the argument must be an owned `Arc`. There are two argument shapes:
     //
-    //   1. `emit_var`'s `Ty::Function { name: None, .. }` arm has already
-    //      prefixed `&` for a plain local forward (e.g. a fn-pointer local
-    //      of type `fn(...)`). Re-borrowing here would yield `&&...`; skip.
+    //   1. The argument is an INPUT parameter of the surrounding function
+    //      whose declared shape is already `Arc<dyn Fn(...) + 'static>` (see
+    //      [`fmt_param_ty`]). The binding's Rust value is already an `Arc`;
+    //      forward it with `.clone()` so ownership is preserved without
+    //      moving and so that the same callback can be passed to multiple
+    //      call sites (e.g. recursive left + right calls in `List.sort`).
     //
-    //   2. The argument is an INPUT parameter of the surrounding function
-    //      whose declared shape is *already* `&impl Fn(...)` (see
-    //      [`fmt_param_ty`]). The binding's Rust value is already a reference,
-    //      so `&inCompFunc` would become `&&F`. Each level of `&` is a fresh
-    //      type, so a recursive call (`sort(left, &inCompFunc)`) re-instantiates
-    //      `sort::<T, &F>` then `sort::<T, &&F>` and on, blowing the
-    //      monomorphization recursion limit (observed on `List::sort`). Detect
-    //      this case via `fn_input_names` and forward by value.
-    //
-    //   3. Everything else (PartEval closures, `fnptr!(...)` macro expansions,
-    //      freshly synthesized `move |..| ..` closures, outputs / protected
-    //      locals of `Ty::Function { name: None, .. }` — those use `fmt_ty`,
-    //      which emits `fn(...)`, a Copy fn pointer that needs borrowing to
-    //      satisfy the `&impl Fn(...)` slot) is produced as a value expression
-    //      and needs `&` added here. `&` on a temporary is fine for a call
-    //      argument: Rust extends the temporary's lifetime to the end of the
-    //      enclosing statement, which strictly outlives the callee invocation.
+    //   2. Everything else (PartEval closures, `fnptr!(...)` macro expansions,
+    //      freshly synthesized `move |..| ..` closures, `fn`-pointer locals
+    //      emitted by `fmt_ty` for outputs / protected locals) is produced
+    //      as a bare value expression and needs `Arc::new(...)` so the
+    //      closure is heap-allocated and reference-counted before entering
+    //      the `Arc<dyn Fn>` slot.
     //
     // We only intervene when the formal is `name: None`. Named `partial
     // function` aliases (e.g. `ConflictFunc`) keep their concrete `fn(...)`
-    // shape in `fmt_param_ty` — passing `&fn_ptr` into a `fn(...)` slot would
-    // be a type error. `resolve_call_formals` pulls the formal type from
-    // `node.ty.inputs`, which matches what `fmt_param_ty` saw at the
-    // function-definition site.
+    // shape in `fmt_param_ty` — wrapping a `fn` pointer in `Arc::new` and
+    // passing it into a `fn(...)` slot would be a type error.
+    // `resolve_call_formals` pulls the formal type from `node.ty.inputs`,
+    // which matches what `fmt_param_ty` saw at the function-definition site.
     if matches!(formal_ty, Some(&Ty::Function { name: None, .. })) {
-        if raw.trim_start().starts_with('&') {
-            // case 1
-        } else if arg_is_input_fn_param(arg, ctx) {
-            // case 2: forward the existing `&impl Fn(...)` reference as-is.
+        if arg_is_input_fn_param(arg, ctx) {
+            // case 1: `raw` is already `"inCompFunc.clone()"` (emit_exp appends
+            // `.clone()` for every Ty::Function{name:None} var reference — see
+            // the Var arm in emit_exp). Forward as-is; do NOT add another
+            // `.clone()` or we'd produce `inCompFunc.clone().clone()`.
+            return raw;
         } else {
-            // case 3
-            return format!("&({raw})");
+            // case 2: wrap the fresh closure / fn-pointer in Arc::new.
+            return format!("Arc::new({raw})");
         }
     }
     // Implicit Integer→Real promotion: MetaModelica silently widens i32 actuals
@@ -9000,53 +9022,50 @@ fn emit_stmt<'a>(
 /// Format a type as it appears in a function-parameter position.
 ///
 /// Differs from `fmt_ty` only for function-typed parameters: we emit
-/// `impl Fn(...) -> Result<...>` rather than a concrete `fn(...)` pointer
-/// or a named `partial function` alias (`KeyEq<T>`). The `impl Fn` form
-/// accepts:
-///   * a function item / `fn` pointer (a plain function name),
-///   * a closure (e.g. emitted by PARTEVALFUNCTION lowering), and
-///   * any other `Fn(...) -> ...` implementor.
+/// `Arc<dyn Fn(...) -> Result<...> + 'static>` rather than a concrete
+/// `fn(...)` pointer or a named `partial function` alias (`KeyEq<T>`).
+/// The `Arc<dyn Fn + 'static>` form:
+///   * accepts a function item / `fn` pointer, a closure, or any other
+///     `Fn(...) -> ...` implementor wrapped in `Arc::new(...)`,
+///   * is `Clone` so callbacks can be forwarded freely through HOF chains
+///     via `.clone()` without the `&&F` / monomorphisation-depth hazard
+///     that `&impl Fn` caused, and
+///   * is `'static` so a callback can be stored in a thread-local global
+///     (e.g. `Error.updateCurrentComponent` stores its `prefixToStr`
+///     parameter into `Globals::currentInstVar`).
 ///
 /// `Fn` (not `FnMut`/`FnOnce`) is chosen because callbacks in this codebase
 /// are invoked repeatedly inside `fold`/`map`/`forEach` loops and must not
-/// consume their captures. If we ever lower a partial application that
-/// needs to consume its captures (or mutate them), the bound must be
-/// relaxed at that point rather than tightened ad hoc.
+/// consume their captures.
 ///
 /// Notes / limitations:
 ///   * Named `partial function` aliases (e.g. `KeyEq<T>`) are still emitted
 ///     by `fmt_ty` itself, so they continue to work as struct field types
 ///     and `type X = ...` aliases. Inside such aliases the function value
 ///     is still a `fn` pointer; closures cannot be stored there. Lifting
-///     that limitation requires switching the alias to `Rc<dyn Fn(...)>`
-///     (or similar) and updating every passing convention — out of scope
-///     for this change.
+///     that limitation requires switching the alias to `Arc<dyn Fn(...)>`
+///     and updating every passing convention — out of scope for this change.
 ///   * `Ty::FunctionAlias` (re-export `function Foo = Bar`) is treated
 ///     identically to a plain function pointer; we still emit it by alias
-///     name here, since lifting the same restriction needs the same
-///     refactor.
+///     name here, since lifting the same restriction needs the same refactor.
 fn fmt_param_ty(ty: &Ty, ctx: &mut GenCtx) -> String {
     match ty {
-        // Anonymous function-typed parameters are taken by *shared
-        // reference* (`&impl Fn(...)`). MM-translated code routinely
-        // forwards the same callback through several helper calls and
-        // into recursive children, which under a by-value `impl Fn`
-        // produces "use of moved value" errors (and `inCompFunc.clone()`
-        // doesn't help because `impl Fn` is not `Clone`). `&F` for
-        // `F: Fn` is itself `Fn` and is `Copy`, so it forwards freely.
-        // The borrow's lifetime is the function-input elision, which
-        // strictly outlives the function body — no escape hazard.
+        // Anonymous function-typed parameters are taken as
+        // `Arc<dyn Fn(...) + 'static>`. Using `Arc` (rather than the
+        // earlier `&impl Fn`) lets callers:
+        //   * forward the same callback through nested HOF calls via
+        //     `.clone()` without the `&&F`-type explosion that a raw
+        //     reference caused (each `.clone()` produces the same
+        //     `Arc<dyn Fn>`, so recursive monomorphisation stays
+        //     at a single type level), and
+        //   * store the callback in a `'static` thread-local slot.
         //
         // Named `partial function` aliases (e.g. `KeyEq`) are emitted
         // as the alias type directly because they may also live in
-        // record fields where `impl Trait` is illegal. The two paths
-        // happen to agree at the call site: a fn-pointer alias value
-        // is `Copy` (so the move hazard above does not apply), and an
-        // `&impl Fn` slot still accepts a fn pointer because every
-        // `fn(...)` implements `Fn`.
+        // record fields where `impl Trait` / `dyn Trait` is undesired.
         Ty::Function { inputs, output, name: None, .. } => {
             let ins = inputs.iter().map(|inp| fmt_ty(&inp.ty, ctx)).collect::<Vec<_>>().join(", ");
-            format!("&impl Fn({ins}) -> Result<{}>", fmt_ty(output, ctx))
+            format!("Arc<dyn Fn({ins}) -> Result<{}> + 'static>", fmt_ty(output, ctx))
         }
         _ => fmt_ty(ty, ctx),
     }
@@ -9924,7 +9943,7 @@ fn fmt_ty(ty: &Ty, ctx: &mut GenCtx) -> String {
                 // `fn(...) -> Result<...>` form for those.
                 if ctx.nested_partial_aliases.contains(qname.as_str()) {
                     let ins = inputs.iter().map(|inp| fmt_ty(&inp.ty, ctx)).collect::<Vec<_>>().join(", ");
-                    return format!("fn({ins}) -> Result<{}>", fmt_ty(output, ctx));
+                    return format!("Arc<dyn Fn({ins}) -> Result<{}> + 'static>", fmt_ty(output, ctx));
                 }
                 let short = ctx.shorten(qname);
                 let mut tvs: Vec<Ty> = Vec::new();

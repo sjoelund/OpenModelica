@@ -1064,6 +1064,10 @@ pub fn listHead<T: Clone>(lst: Arc<List<T>>) -> Result<T> {
     Ok(head.clone())
 }
 
+pub fn listGet<T: Clone>(lst: Arc<List<T>>, i: i32) -> Result<T> {
+    lst.get(i)
+}
+
 pub fn listRest<T: Clone>(lst: Arc<List<T>>) -> Result<Arc<List<T>>> {
     match &*lst {
         Nil => bail!("Cannot get rest of empty list"),

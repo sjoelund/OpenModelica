@@ -6487,89 +6487,90 @@ fn resolve_call_formals<'a>(
     }
 
     let module_prefix = qname.rsplit_once('.').map_or("", |(p, _)| p).to_owned();
-    let members: &[MM::ClassMember] = match &c.body {
+    let direct_members: &[MM::ClassMember] = match &c.body {
         MM::ClassDef::Parts { members, .. } | MM::ClassDef::ClassExtends { members, .. } => members,
         _ => &[],
     };
+    // For `function extends Base` the canonical input order is the one
+    // `emit_function` writes from `node.ty.inputs`: inherited inputs come
+    // first, then any additionally-declared ones (with redeclared inputs
+    // keeping their inherited position). We use that order as the source
+    // of truth here so positional call arguments line up with the right
+    // formal slot — earlier this list was built from the directly-declared
+    // members only, which dropped inherited slots and forced calls like
+    // `f(a, b, c, isLhs=true)` against a `function extends` to fall into
+    // the failure path that re-emits `isLhs=true` (invalid Rust syntax,
+    // E0425). Defaults still come from the AST modifications (either the
+    // direct declaration's `= v` or the base function's), since
+    // `node.ty.inputs` records only types and names.
+    let base_members: &[MM::ClassMember] = node.base_fn
+        .and_then(|bf| match &bf.body {
+            MM::ClassDef::Parts { members, .. } | MM::ClassDef::ClassExtends { members, .. } => Some(members.as_slice()),
+            _ => None,
+        })
+        .unwrap_or(&[]);
+    let find_component = |name: &str| -> Option<&MM::ComponentMember> {
+        // Direct declaration wins because it can tighten the default;
+        // fall back to the base function for the inherited modifier.
+        for m in direct_members.iter().chain(base_members.iter()) {
+            if let MM::ClassMember::Component(cm) = m
+                && cm.name == name {
+                return Some(cm);
+            }
+        }
+        None
+    };
 
+    let mut fn_type_vars: Vec<String> = Vec::new();
+    collect_type_vars_in_ty(&node.ty, &mut fn_type_vars);
+
+    let inputs_from_ty: Vec<(String, Ty)> = if let Ty::Function { inputs, .. } = &node.ty {
+        inputs.iter().map(|inp| (inp.name.clone(), inp.ty.clone())).collect()
+    } else {
+        Vec::new()
+    };
+
+    if !inputs_from_ty.is_empty() {
+        let mut infer_env: HashMap<String, Ty> = HashMap::new();
+        let mut out: Vec<CallFormal> = Vec::with_capacity(inputs_from_ty.len());
+        for (name, ty) in inputs_from_ty {
+            let default = find_component(&name)
+                .and_then(|cm| {
+                    // Only consider INPUT/INPUT_OUTPUT components: a same-named
+                    // OUTPUT in the base would have no default value relevant
+                    // to call sites.
+                    if !matches!(cm.direction, Absyn::Direction::INPUT | Absyn::Direction::INPUT_OUTPUT) {
+                        return None;
+                    }
+                    extract_default_exp(&cm.modification)
+                })
+                .map(|exp| typedexp::infer_exp(exp, &infer_env, top_level, &module_prefix, &fn_type_vars))
+                .map(|tpl| canonicalize_call_funcs(tpl, &module_prefix, top_level));
+            infer_env.insert(name.clone(), ty.clone());
+            out.push((name, ty, default));
+        }
+        return Some(out);
+    }
+
+    // Fall back to walking AST members when no `Ty::Function` is available
+    // (rare — typically only for nodes whose type wasn't fully inferred).
     let mut infer_env: HashMap<String, Ty> = HashMap::new();
     let mut out: Vec<CallFormal> = Vec::new();
-
-    for member in members {
+    for member in direct_members {
         let MM::ClassMember::Component(m) = member else { continue };
         if !matches!(m.direction, Absyn::Direction::INPUT | Absyn::Direction::INPUT_OUTPUT) {
             continue;
         }
-
-        // Prefer the type recorded on the function's `node.ty.inputs` —
-        // that's the version `emit_function` actually emits the signature
-        // from (via `fmt_param_ty`), so it stays in sync with what the
-        // callee declares. The per-component `node.children[name].ty`
-        // can differ for callbacks: for some functions (notably ones
-        // whose `partial function` alias is declared inside the function
-        // body) the def-side normalises the alias away in
-        // `node.ty.inputs` while `node.children` keeps the alias name.
-        // Using the children type here would make the call-site formal
-        // lookup disagree with the emitted signature for those cases.
-        let ty = if let Ty::Function { inputs: fn_inputs, .. } = &node.ty {
-            fn_inputs.iter().find(|i| i.name == m.name).map(|i| i.ty.clone())
-                .or_else(|| node.children.get(&m.name).map(|n| n.ty.clone()))
-                .unwrap_or(Ty::Unknown)
-        } else {
-            node.children.get(&m.name).map(|n| n.ty.clone()).unwrap_or(Ty::Unknown)
-        };
-        let mut fn_type_vars: Vec<String> = Vec::new();
-        collect_type_vars_in_ty(&node.ty, &mut fn_type_vars);
+        let ty = node.children.get(&m.name).map(|n| n.ty.clone()).unwrap_or(Ty::Unknown);
         let default = extract_default_exp(&m.modification)
             .map(|exp| typedexp::infer_exp(exp, &infer_env, top_level, &module_prefix, &fn_type_vars))
             .map(|tpl| canonicalize_call_funcs(tpl, &module_prefix, top_level));
         out.push((m.name.clone(), ty.clone(), default));
         infer_env.insert(m.name.clone(), ty);
     }
-
-    // For `function extends` redeclarations, defaults can live on the inherited
-    // base signature. Fill missing defaults from `base_fn` when available.
-    if let Some(base_fn) = node.base_fn {
-        let base_members: &[MM::ClassMember] = match &base_fn.body {
-            MM::ClassDef::Parts { members, .. } | MM::ClassDef::ClassExtends { members, .. } => members,
-            _ => &[],
-        };
-
-        let mut base_infer_env: HashMap<String, Ty> = HashMap::new();
-        for member in base_members {
-            let MM::ClassMember::Component(m) = member else { continue };
-            if !matches!(m.direction, Absyn::Direction::INPUT | Absyn::Direction::INPUT_OUTPUT) {
-                continue;
-            }
-
-            let ty = node.children.get(&m.name)
-                .map(|n| n.ty.clone())
-                .unwrap_or(Ty::Unknown);
-            let mut fn_type_vars: Vec<String> = Vec::new();
-            collect_type_vars_in_ty(&node.ty, &mut fn_type_vars);
-            let default = extract_default_exp(&m.modification)
-                .map(|exp| typedexp::infer_exp(exp, &base_infer_env, top_level, &module_prefix, &fn_type_vars))
-                .map(|tpl| canonicalize_call_funcs(tpl, &module_prefix, top_level));
-
-            if let Some(idx) = out.iter().position(|(name, _, _)| name == &m.name) {
-                if out[idx].2.is_none() {
-                    out[idx].2 = default;
-                }
-            } else {
-                out.push((m.name.clone(), ty.clone(), default));
-            }
-            base_infer_env.insert(m.name.clone(), ty);
-        }
-    }
-
     if out.is_empty() {
-        // Fallback: use resolved function type inputs when AST members are unavailable.
-        if let Ty::Function { inputs, .. } = &node.ty {
-            return Some(inputs.iter().map(|inp| (inp.name.clone(), inp.ty.clone(), None)).collect());
-        }
         return None;
     }
-
     Some(out)
 }
 
@@ -8280,7 +8281,17 @@ fn emit_pat_with_implicit_bind_md<'a>(pat: &TypedPat, allow_implicit_bind: bool,
                     // Positional patterns for named-field struct variants must use struct
                     // syntax in Rust; tuple syntax only applies to tuple-style variants.
                     // Look up field names so we can emit `Ctor { f1: p1, f2: p2 }`.
-                    let field_tys = field_tys_for_ctor().unwrap_or_default();
+                    let field_tys_opt = field_tys_for_ctor();
+                    // Distinguish "known to have zero fields" (Some(empty), a unit
+                    // variant whose MetaModelica pattern was written as `CTOR(__)`)
+                    // from "lookup failed" (None). For the former, emit the bare
+                    // variant name — Rust unit variants reject `(_)` (E0532).
+                    if let Some(tys) = &field_tys_opt
+                        && tys.is_empty()
+                        && fields.iter().all(|p| matches!(p, TypedPat::Wildcard)) {
+                        return format!("{arc_prefix}{rust}");
+                    }
+                    let field_tys = field_tys_opt.unwrap_or_default();
                     if !field_tys.is_empty() {
                         let pats: Vec<String> = fields.iter().enumerate().map(|(i, p)| {
                             let fname = field_tys.get(i).map(|(n, _)| n.as_str()).unwrap_or("_");
@@ -10641,7 +10652,10 @@ fn fmt_param_ty(ty: &Ty, ctx: &mut GenCtx) -> String {
         // record fields where `impl Trait` / `dyn Trait` is undesired.
         Ty::Function { inputs, output, name: None, .. } => {
             let ins = inputs.iter().map(|inp| fmt_ty(&inp.ty, ctx)).collect::<Vec<_>>().join(", ");
-            format!("Arc<dyn Fn({ins}) -> Result<{}> + 'static>", fmt_ty(output, ctx))
+            // Use a fully-qualified path so the trait reference doesn't collide
+// with a same-named MetaModelica `partial function` type alias that
+// may be brought into scope as `type Fn = fn(...);` (E0404).
+format!("Arc<dyn ::std::ops::Fn({ins}) -> Result<{}> + 'static>", fmt_ty(output, ctx))
         }
         _ => fmt_ty(ty, ctx),
     }
@@ -11510,7 +11524,10 @@ fn fmt_ty(ty: &Ty, ctx: &mut GenCtx) -> String {
                 // `fn(...) -> Result<...>` form for those.
                 if ctx.nested_partial_aliases.contains(qname.as_str()) {
                     let ins = inputs.iter().map(|inp| fmt_ty(&inp.ty, ctx)).collect::<Vec<_>>().join(", ");
-                    return format!("Arc<dyn Fn({ins}) -> Result<{}> + 'static>", fmt_ty(output, ctx));
+                    return // Use a fully-qualified path so the trait reference doesn't collide
+// with a same-named MetaModelica `partial function` type alias that
+// may be brought into scope as `type Fn = fn(...);` (E0404).
+format!("Arc<dyn ::std::ops::Fn({ins}) -> Result<{}> + 'static>", fmt_ty(output, ctx));
                 }
                 let short = ctx.shorten(qname);
                 let mut tvs: Vec<Ty> = Vec::new();

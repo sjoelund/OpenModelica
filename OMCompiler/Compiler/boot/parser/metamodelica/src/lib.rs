@@ -1968,7 +1968,7 @@ mod tests {
         #[test]
         fn test_string_list_string_char() {
             let result = stringListStringChar(literal!("abc "));
-            assert_eq!(&*result, &List::from_iter([literal!("a"), literal!("b"), literal!("c")]));
+            assert_eq!(&*result, &List::from_iter([literal!("a"), literal!("b"), literal!("c"), literal!(" ")]));
         }
 
         #[test]
@@ -2461,8 +2461,8 @@ mod tests {
 
         #[test]
         fn test_clock() {
-            let t1 = clock().unwrap();
-            let t2 = clock().unwrap();
+            let t1 = clock();
+            let t2 = clock();
             assert!(t1 >= 0.0);
             assert!(t2 >= t1);
         }

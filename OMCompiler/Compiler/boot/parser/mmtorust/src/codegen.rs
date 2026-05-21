@@ -95,6 +95,21 @@ struct GenCtx {
     /// / `Hash` because `Mutex<T>` doesn't implement those traits. Populated
     /// from `InstanceHierarchy::types_containing_mutable`.
     types_containing_mutable: BTreeSet<String>,
+    /// Fully-qualified names of types that transitively contain a `metamodelica::Array<T>`
+    /// field. Such types are not `Sync` (because `Array<T> = Rc<RefCell<Vec<T>>>`) and
+    /// therefore cannot be the type of a `pub static`. Populated from
+    /// `InstanceHierarchy::types_containing_array`. Consulted by `ty_is_sync`.
+    types_containing_array: BTreeSet<String>,
+    /// Fully-qualified MetaModelica names (dot-separated) of `constant`
+    /// components emitted as `pub const fn name() -> T { ... }` getters rather
+    /// than as `pub static`. These are constants whose value is const-emittable
+    /// but whose type is not `Sync` (because it transitively contains
+    /// `Array<T>`); a `pub static` of that type fails to compile, and the value
+    /// has no allocations so a `const fn` getter is the right escape hatch.
+    /// References to such names in expression position must be emitted as a
+    /// function call (`name()`) rather than as a bare value — see the `Var`
+    /// arm of [`emit_exp`].
+    const_fn_getters: BTreeSet<String>,
     /// Fully-qualified names of nested uniontypes that are NOT wrapped in a `pub mod`
     /// (because they contain only records). These must NOT get the `::TypeName` doubling
     /// that mod-wrapped uniontypes require.
@@ -235,7 +250,7 @@ enum VarShape {
 }
 
 impl GenCtx {
-    fn new(top_name: &str, current_crate: Option<String>, crate_map: BTreeMap<String, String>, top_level_uniontype_names: HashSet<String>, recursive_types: BTreeSet<String>, types_containing_mutable: BTreeSet<String>, fn_type_vars: BTreeMap<String, Vec<String>>, fallible_functions: BTreeSet<String>, partial_eq_required: BTreeMap<String, HashSet<String>>) -> Self {
+    fn new(top_name: &str, current_crate: Option<String>, crate_map: BTreeMap<String, String>, top_level_uniontype_names: HashSet<String>, recursive_types: BTreeSet<String>, types_containing_mutable: BTreeSet<String>, types_containing_array: BTreeSet<String>, fn_type_vars: BTreeMap<String, Vec<String>>, fallible_functions: BTreeSet<String>, partial_eq_required: BTreeMap<String, HashSet<String>>) -> Self {
         Self {
             top_name: top_name.to_owned(),
             current_path: Vec::new(),
@@ -248,6 +263,8 @@ impl GenCtx {
             top_level_uniontype_names,
             recursive_types,
             types_containing_mutable,
+            types_containing_array,
+            const_fn_getters: BTreeSet::new(),
             no_mod_uniontypes: HashSet::new(),
             fn_type_vars,
             qmode: QMode::Function,
@@ -748,7 +765,7 @@ pub fn generate_all(hier: &InstanceHierarchy<'_>, output_dir: &str) -> std::io::
             eprintln!("[mmtorust] codegen start {file_path}");
         }
         let file_t0 = std::time::Instant::now();
-        let content = generate_file(name, node, &crate_map, current_crate, &top_level_uniontype_names, hier.recursive_types.clone(), hier.types_containing_mutable.clone(), &no_mod_uniontypes, &hier.top_level, &fn_type_vars, &hier.fallible_functions, &hier.partial_eq_required);
+        let content = generate_file(name, node, &crate_map, current_crate, &top_level_uniontype_names, hier.recursive_types.clone(), hier.types_containing_mutable.clone(), hier.types_containing_array.clone(), &no_mod_uniontypes, &hier.top_level, &fn_type_vars, &hier.fallible_functions, &hier.partial_eq_required);
         let file_elapsed = file_t0.elapsed();
         if trace_codegen {
             eprintln!("[mmtorust] codegen done  {file_path} ({:.2}s)", file_elapsed.as_secs_f64());
@@ -867,6 +884,47 @@ fn collect_nested_partial_aliases(
     }
 }
 
+/// Pre-pass mirror of the `pub static` vs. `pub const fn` decision in [`emit_node`]:
+/// walk every component in the hierarchy and record the FQNs of those that will
+/// be emitted as `pub const fn` getters. These are constant components whose
+/// value expression is const-emittable but whose type is *not* `Sync` (it
+/// transitively contains `metamodelica::Array<T>`). We run this before any
+/// expression emission so that `emit_exp`'s `Var` arm can decide, at every
+/// reference site, whether to append `()` to dereference the getter.
+///
+/// The conditions must stay in sync with [`emit_node`]; if a new emission path
+/// for `constant` components is added there, mirror it here.
+fn collect_const_fn_getters<'a>(
+    nodes: &BTreeMap<String, NameNode<'a>>,
+    prefix: &str,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+    ctx: &GenCtx,
+    out: &mut BTreeSet<String>,
+) {
+    for (name, node) in nodes {
+        let qname = if prefix.is_empty() { name.clone() } else { format!("{prefix}.{name}") };
+        if let NodeKind::Component(m) = &node.kind
+            && m.variability == Absyn::Variability::CONST
+            && extract_default_exp(&m.modification).is_some()
+        {
+            // The primitive/string emission paths in `emit_node` go through
+            // `pub const` (not `pub static`) regardless of Sync-ness, so they
+            // never need a getter. Skip them.
+            let primitive = matches!(node.ty, Ty::Str | Ty::I32 | Ty::F64 | Ty::Bool);
+            let is_array_const = matches!(node.ty, Ty::Array(_));
+            // Two emission paths in `emit_node` produce a getter (not a value):
+            //   1. Non-Sync, const-emittable initializer  → `pub const fn`
+            //   2. Non-Sync, non-const-emittable, non-Array → `pub fn { todo!(...) }`
+            // The direct `Ty::Array(_)` case takes the `StaticArray<T>` rewrite
+            // (a `pub static`, Sync via the wrapper) so it does NOT become a getter.
+            if !primitive && !is_array_const && !ty_is_sync(&node.ty, ctx) {
+                out.insert(qname.clone());
+            }
+        }
+        collect_const_fn_getters(&node.children, &qname, top_level, ctx, out);
+    }
+}
+
 fn collect_no_mod_uniontypes(nodes: &BTreeMap<String, NameNode<'_>>, prefix: &str, out: &mut HashSet<String>) {
     for (name, node) in nodes {
         let qname = if prefix.is_empty() { name.clone() } else { format!("{prefix}.{name}") };
@@ -881,13 +939,21 @@ fn collect_no_mod_uniontypes(nodes: &BTreeMap<String, NameNode<'_>>, prefix: &st
     }
 }
 
-fn generate_file<'a>(top_name: &str, node: &NameNode<'_>, crate_map: &BTreeMap<String, String>, current_crate: Option<String>, top_level_uniontype_names: &HashSet<String>, recursive_types: BTreeSet<String>, types_containing_mutable: BTreeSet<String>, no_mod_uniontypes: &HashSet<String>, top_level: &'a BTreeMap<String, NameNode<'a>>, fn_type_vars: &BTreeMap<String, Vec<String>>, fallible_functions: &BTreeSet<String>, partial_eq_required: &BTreeMap<String, HashSet<String>>) -> String {
-    let mut ctx = GenCtx::new(top_name, current_crate, crate_map.clone(), top_level_uniontype_names.clone(), recursive_types, types_containing_mutable, fn_type_vars.clone(), fallible_functions.clone(), partial_eq_required.clone());
+fn generate_file<'a>(top_name: &str, node: &NameNode<'_>, crate_map: &BTreeMap<String, String>, current_crate: Option<String>, top_level_uniontype_names: &HashSet<String>, recursive_types: BTreeSet<String>, types_containing_mutable: BTreeSet<String>, types_containing_array: BTreeSet<String>, no_mod_uniontypes: &HashSet<String>, top_level: &'a BTreeMap<String, NameNode<'a>>, fn_type_vars: &BTreeMap<String, Vec<String>>, fallible_functions: &BTreeSet<String>, partial_eq_required: &BTreeMap<String, HashSet<String>>) -> String {
+    let mut ctx = GenCtx::new(top_name, current_crate, crate_map.clone(), top_level_uniontype_names.clone(), recursive_types, types_containing_mutable, types_containing_array, fn_type_vars.clone(), fallible_functions.clone(), partial_eq_required.clone());
     ctx.no_mod_uniontypes = no_mod_uniontypes.clone();
     // Pre-walk the *whole* hierarchy (not just this file's node) so that
     // function-nested partial-function aliases are recognised regardless of
     // whether they live in the file currently being emitted or in a sibling.
     collect_nested_partial_aliases(top_level, "", false, &mut ctx.nested_partial_aliases);
+    // Identify constants emitted as `pub const fn` getters (see fn doc) so that
+    // `emit_exp`'s `Var` arm can append `()` at reference sites. Run after the
+    // module-context-independent fields of `ctx` are populated; this pre-pass
+    // only reads `recursive_types` and `types_containing_array`, both of which
+    // are set in `GenCtx::new`.
+    let mut getters = BTreeSet::new();
+    collect_const_fn_getters(top_level, "", top_level, &ctx, &mut getters);
+    ctx.const_fn_getters = getters;
     collect_imports(node, &mut ctx, top_level);
 
     // First pass: emit the body so that shorten() can populate implicit_modules.
@@ -967,12 +1033,37 @@ fn emit_node<'a>(out: &mut String, name: &str, node: &NameNode<'_>, indent: &str
                     writeln!(out, "{indent}pub const {ename}: {r_ty} = {val};").unwrap();
                     writeln!(out).unwrap();
                 } else if is_static_const_emittable(&typed, ctx, top_level) {
-                    // Record/struct of pure literals and other const-emittable values:
-                    // emit a plain `pub static` whose initializer is a const expression.
-                    // No `LazyLock` indirection needed — the value can be built at compile time.
+                    // Record/struct of pure literals and other const-emittable values.
+                    //
+                    // Two sub-cases depending on whether the type is `Sync`:
+                    //
+                    //   * Sync — emit as a plain `pub static`. No `LazyLock`
+                    //     indirection needed; the value is built at compile time
+                    //     and shared across threads.
+                    //
+                    //   * Non-Sync (the type transitively embeds an
+                    //     `Array<T> = Rc<RefCell<Vec<T>>>`) — `pub static`
+                    //     requires `T: Sync` and would fail to compile, even
+                    //     though the *value* we are storing (e.g. a unit-variant
+                    //     constructor like `InstStore::NOSTORE`) doesn't actually
+                    //     use the non-Sync variant. Emit a `pub const fn` getter
+                    //     instead: the body is a `const` expression so the call
+                    //     is free, and the getter sidesteps the `Sync` bound
+                    //     because there is no shared static storage. References
+                    //     to such symbols are rewritten by `emit_exp`'s `Var`
+                    //     arm to append `()` (the FQN is registered in
+                    //     `ctx.const_fn_getters` by `collect_const_fn_getters`).
+                    //
+                    // `LazyLock` is the wrong tool for the non-Sync case too:
+                    // `LazyLock<T>` also requires `T: Sync` to be a `pub static`,
+                    // and the value is const-buildable so caching is pointless.
                     let r_ty = fmt_ty(&node.ty, ctx);
                     let val = emit_exp(&typed, /*is_const=*/true, ctx, top_level);
-                    writeln!(out, "{indent}pub static {ename}: {r_ty} = {val};").unwrap();
+                    if ty_is_sync(&node.ty, ctx) {
+                        writeln!(out, "{indent}pub static {ename}: {r_ty} = {val};").unwrap();
+                    } else {
+                        writeln!(out, "{indent}pub const fn {ename}() -> {r_ty} {{ {val} }}").unwrap();
+                    }
                     writeln!(out).unwrap();
                 } else {
                     // Top-level `pub static` of type `Array<T>` is special-cased
@@ -986,6 +1077,28 @@ fn emit_node<'a>(out: &mut String, name: &str, node: &NameNode<'_>, indent: &str
                     // expects from an `Array<T>`. See `metamodelica::StaticArray`
                     // for the full rationale.
                     let is_array_const = matches!(&node.ty, Ty::Array(_));
+                    // Non-Sync, non-const-emittable, and not a top-level `Array<T>`:
+                    // there is no good emission path today. The `LazyLock<T>` route
+                    // below requires `T: Sync`; the `StaticArray<T>` rewrite only
+                    // applies to a direct `Ty::Array(_)`; a `pub const fn` getter
+                    // would require the initializer to be a const expression, which
+                    // by definition it isn't here. Surface the case with a
+                    // `compile_error!` so it's visible at the use site rather than
+                    // silently producing a `pub static` that won't compile. When this
+                    // ever fires in practice, extend the emission (e.g. by collecting
+                    // initializer-side allocations into a `StaticArray`-equivalent
+                    // wrapper, or by lowering to a `thread_local!` getter if MM
+                    // semantics permit).
+                    if !is_array_const && !ty_is_sync(&node.ty, ctx) {
+                        let r_ty = fmt_ty(&node.ty, ctx);
+                        let dump = format!("{typed:?}").replace('"', "'");
+                        writeln!(out, "{indent}// TODO: non-Sync, non-const-emittable constant — needs new emission path.").unwrap();
+                        writeln!(out, "{indent}// Type: {r_ty}").unwrap();
+                        writeln!(out, "{indent}// Expr: {dump}").unwrap();
+                        writeln!(out, "{indent}pub fn {ename}() -> {r_ty} {{ todo!(\"non-Sync, non-const-emittable constant {ename} — extend codegen\") }}").unwrap();
+                        writeln!(out).unwrap();
+                        return;
+                    }
                     let r_ty = if is_array_const {
                         let inner = match &node.ty { Ty::Array(t) => t.as_ref(), _ => unreachable!() };
                         format!("metamodelica::StaticArray<{}>", fmt_ty(inner, ctx))
@@ -3498,7 +3611,38 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
         TypedExp::Lit(Lit::Bool(v)) => v.to_string(),
 
         TypedExp::Var { name, segments, ty, .. } => {
-            let var_str = emit_var(name, segments, ty, ctx, top_level);
+            let mut var_str = emit_var(name, segments, ty, ctx, top_level);
+            // If this reference resolves to a `pub const fn` / `pub fn` getter
+            // emitted by `emit_node` for a non-Sync constant (see
+            // `collect_const_fn_getters` + the const-emittable/non-Sync branch),
+            // we must call it to get the value. Append `()` to `var_str` and let
+            // the existing `.clone()` fallthrough emit `name().clone()` — calling
+            // a getter that returns owned `T` and then cloning is a no-op clone
+            // on an owned value (the consumer of this expression expects an
+            // owned value the same way it would from a plain `pub static`).
+            //
+            // Resolution: the symbol may be referenced by bare name (resolved
+            // through the scope chain) or by a fully-qualified dotted path.
+            // We use the dotted segments first if present, otherwise the bare
+            // name. Pattern bindings shadowing a const are not a concern here:
+            // `const_fn_getters` only contains FQNs of constants at module/
+            // class scope, and `resolve_call_qname` does not promote shadowed
+            // first-segment locals (see its `fn_env_vars` check).
+            let first_seg_is_local = segments.first()
+                .map(|s| ctx.fn_env_vars.contains_key(&s.name))
+                .unwrap_or(false);
+            if !first_seg_is_local {
+                let lookup_name: String = if !segments.is_empty() {
+                    segments.iter().map(|s| s.name.clone()).collect::<Vec<_>>().join(".")
+                } else {
+                    name.clone()
+                };
+                if let Some(qn) = resolve_call_qname(&lookup_name, ctx, top_level)
+                    && ctx.const_fn_getters.contains(&qn)
+                {
+                    var_str = format!("{var_str}()");
+                }
+            }
             // typedexp::infer_exp only consults the *first* segment when typing
             // a dotted CREF (see `Absyn::Exp::CREF` arm), so a path like
             // `Util.tuple21` carries `ty = Ty::Unknown` even though the path
@@ -8436,6 +8580,41 @@ fn is_static_const_emittable(exp: &TypedExp, ctx: &GenCtx, top_level: &BTreeMap<
         // Unit variants of an enum are const-constructable when the enum is not Arc-wrapped.
         TypedExp::Var { ty: Ty::RustUnitVariant, .. } => true,
         _ => false,
+    }
+}
+
+/// True if the lowered Rust type for `ty` implements `Sync` for the purposes of
+/// `pub static` storage. The only non-`Sync` MetaModelica primitive we generate
+/// today is `Array<T> = Rc<RefCell<Vec<T>>>` (see `metamodelica::Array`); every
+/// other built-in maps to a `Sync` Rust type (`Arc<List<T>>`, `ArcStr`,
+/// `Mutable<T> = Arc<Mutex<T>>`, primitives, function pointers, etc.).
+///
+/// User-defined struct/enum types are checked against
+/// [`GenCtx::types_containing_array`], which is the closure of "transitively
+/// embeds an `Array<T>` field" computed once in
+/// [`crate::hierarchy::detect_types_containing_array`].
+///
+/// Type variables (`Ty::TypeVar`) are conservatively treated as `Sync` here —
+/// the only call site is the `pub static` decision in [`emit_node`], where the
+/// type of a top-level `constant` is always concrete; if a generic ever flows
+/// in, the surrounding `pub static` would have to declare a `T: Sync` bound
+/// itself, and we'd want a separate analysis at that point.
+fn ty_is_sync(ty: &Ty, ctx: &GenCtx) -> bool {
+    match ty {
+        Ty::Array(_) => false,
+        Ty::Option(t) | Ty::List(t) | Ty::Range(t) => ty_is_sync(t, ctx),
+        Ty::Tuple(ts) => ts.iter().all(|t| ty_is_sync(t, ctx)),
+        Ty::Generic(name, args) => {
+            let dotted = name.replace("::", ".");
+            if ctx.types_containing_array.contains(&dotted) { return false; }
+            args.iter().all(|a| ty_is_sync(a, ctx))
+        }
+        Ty::RustStruct(qname) | Ty::RustEnum(qname) | Ty::AliasTo(qname) | Ty::ExternalObject(qname) => {
+            !ctx.types_containing_array.contains(qname)
+        }
+        Ty::UnionTypeVariant(qname, _) => !ctx.types_containing_array.contains(qname),
+        // Primitives, function types, type variables, Unknown — all Sync (see fn doc).
+        _ => true,
     }
 }
 

@@ -209,6 +209,14 @@ pub struct InstanceHierarchy<'a> {
     /// for the derive to apply.
     /// Populated by `detect_types_containing_mutable` after resolve_pass converges.
     pub types_containing_mutable: BTreeSet<String>,
+    /// Fully-qualified names of user-defined struct/enum types that transitively
+    /// embed a MetaModelica `Array<T>` (= `Rc<RefCell<Vec<T>>>`) field. `Rc`/`RefCell`
+    /// are not `Sync`, so values whose type is in this set cannot be stored in a
+    /// `pub static` (which requires `T: Sync`). Codegen uses this to choose between
+    /// `pub static` and `pub const fn` getter emission for constant components.
+    /// Propagation follows the same container rules as
+    /// [`Self::types_containing_mutable`].
+    pub types_containing_array: BTreeSet<String>,
     /// Fully-qualified names of every user-defined function that the
     /// fallibility analysis classified as fallible (i.e. lowers to a Rust
     /// function returning `anyhow::Result<T>`).  Functions absent from this
@@ -249,6 +257,7 @@ impl<'a> InstanceHierarchy<'a> {
             top_level,
             recursive_types: BTreeSet::new(),
             types_containing_mutable: BTreeSet::new(),
+            types_containing_array: BTreeSet::new(),
             fallible_functions: BTreeSet::new(),
             partial_eq_required: BTreeMap::new(),
         }
@@ -2042,6 +2051,47 @@ pub fn detect_types_containing_mutable(hier: &mut InstanceHierarchy<'_>) {
         if !changed { break; }
     }
     hier.types_containing_mutable = tainted;
+}
+
+/// True if `ty` mentions a MetaModelica `Array<...>` anywhere in its structure,
+/// considering the (currently known) set of `tainted` user-defined types as also
+/// containing `Array`. `Array<T> = Rc<RefCell<Vec<T>>>` is not `Sync`, so a
+/// `pub static` of such a type fails to compile. Mirrors [`ty_contains_mutable`]
+/// but for the `Array<_>` constructor specifically.
+fn ty_contains_array(ty: &Ty, tainted: &BTreeSet<String>) -> bool {
+    match ty {
+        Ty::Array(_) => true,
+        Ty::Option(t) | Ty::List(t) | Ty::Range(t) => ty_contains_array(t, tainted),
+        Ty::Tuple(ts) => ts.iter().any(|t| ty_contains_array(t, tainted)),
+        Ty::Generic(_, args) => args.iter().any(|a| ty_contains_array(a, tainted)),
+        Ty::RustStruct(qname) | Ty::RustEnum(qname) | Ty::AliasTo(qname) => tainted.contains(qname),
+        Ty::UnionTypeVariant(qname, _) => tainted.contains(qname),
+        _ => false,
+    }
+}
+
+/// Detect which named types transitively contain a `metamodelica::Array<T>` field.
+/// Such types are not `Sync` (because `Rc`/`RefCell` aren't), so they cannot be
+/// stored in a `pub static`. Codegen consults the result to pick `pub const fn`
+/// getter emission instead of `pub static` for affected constants. Must be called
+/// after `resolve_pass` has converged so all field types are populated.
+pub fn detect_types_containing_array(hier: &mut InstanceHierarchy<'_>) {
+    let mut graph: BTreeMap<String, Vec<Ty>> = BTreeMap::new();
+    collect_struct_field_tys(&hier.top_level, "", &mut graph);
+
+    let mut tainted: BTreeSet<String> = BTreeSet::new();
+    loop {
+        let mut changed = false;
+        for (qname, field_tys) in &graph {
+            if tainted.contains(qname) { continue; }
+            if field_tys.iter().any(|t| ty_contains_array(t, &tainted)) {
+                tainted.insert(qname.clone());
+                changed = true;
+            }
+        }
+        if !changed { break; }
+    }
+    hier.types_containing_array = tainted;
 }
 
 // ── Pretty-printing ───────────────────────────────────────────────────────────

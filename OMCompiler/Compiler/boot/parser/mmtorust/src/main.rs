@@ -39,6 +39,7 @@ fn start_compilation(results: Vec<Absyn::Program>) {
     let t0 = std::time::Instant::now();
     hierarchy::detect_recursive_types(&mut hier);
     hierarchy::detect_types_containing_mutable(&mut hier);
+    hierarchy::detect_types_containing_array(&mut hier);
     println!("Hierarchy recursive+mutable detection: {:.2}s", t0.elapsed().as_secs_f64());
     // println!("{hier}");
 

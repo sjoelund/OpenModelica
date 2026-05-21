@@ -2592,6 +2592,91 @@ fn emit_tail_value_exp<'a>(
     }
 }
 
+/// Collect `Ty::TypeVar(name)` names referenced by match-arm `local`
+/// declarations inside a list of typed statements (recursively walking
+/// nested control flow and the cases of every `Match` expression). Used by
+/// [`emit_function`] to add module-scope `replaceable type X subtypeof Any`
+/// names — those that `resolve_function_type` only sees through a function's
+/// input/output types — to the function's generic parameter list when they
+/// only appear on a local like `tuple<TraverseFunc, Argument> tup;`. Without
+/// this, that local emits as `let mut tup: (.., Argument);` inside a
+/// function generic over `<ArgT>` and `Argument` is undefined. See
+/// `SCodeUtil.mapFoldStatementExps` for the canonical case.
+///
+/// We deliberately *do not* harvest type vars from arbitrary subexpressions'
+/// `ty()` or from `Call::sig_ty`: builtin generic signatures (e.g.
+/// `Array::expand<T>`, `valueEq<T>`) carry placeholder `Ty::TypeVar("T")`
+/// parameters that are resolved away at the call site, and exposing them as
+/// the caller's generic would create a phantom `T` whose binding cannot be
+/// inferred (E0283).
+fn collect_type_vars_in_typed_stmts(stmts: &[typedexp::TypedStmt], out: &mut Vec<String>) {
+    use typedexp::{TypedStmt, TypedExp};
+
+    fn visit_exp(e: &TypedExp, out: &mut Vec<String>) {
+        match e {
+            TypedExp::BinOp  { lhs, rhs, .. } => { visit_exp(lhs, out); visit_exp(rhs, out); }
+            TypedExp::UnOp   { operand, .. } => visit_exp(operand, out),
+            TypedExp::Call   { args, named_args, .. }
+            | TypedExp::Constructor { args, named_args, .. }
+            | TypedExp::PartEval { args, named_args, .. } => {
+                for a in args { visit_exp(a, out); }
+                for (_, a) in named_args { visit_exp(a, out); }
+            }
+            TypedExp::If { cond, then_, elseif, else_, .. } => {
+                visit_exp(cond, out); visit_exp(then_, out); visit_exp(else_, out);
+                for (c, e) in elseif { visit_exp(c, out); visit_exp(e, out); }
+            }
+            TypedExp::Cons { head, tail, .. } => { visit_exp(head, out); visit_exp(tail, out); }
+            TypedExp::Tuple(v) => for e in v { visit_exp(e, out); },
+            TypedExp::Array { elems, .. } => for e in elems { visit_exp(e, out); },
+            TypedExp::Match { input, cases, .. } => {
+                visit_exp(input, out);
+                for case in cases {
+                    if let Some(g) = &case.guard { visit_exp(g, out); }
+                    for (_, t, default, _) in &case.locals {
+                        collect_type_vars_in_ty(t, out);
+                        if let Some(d) = default { visit_exp(d, out); }
+                    }
+                    visit_stmts(&case.stmts, out);
+                    visit_exp(&case.result, out);
+                }
+            }
+            TypedExp::Range { start, step, stop, .. } => {
+                visit_exp(start, out); visit_exp(stop, out);
+                if let Some(s) = step { visit_exp(s, out); }
+            }
+            TypedExp::Reduction { body, iterators, .. } => {
+                visit_exp(body, out);
+                for it in iterators {
+                    visit_exp(&it.range, out);
+                    if let Some(g) = &it.guard { visit_exp(g, out); }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn visit_stmts(stmts: &[TypedStmt], out: &mut Vec<String>) {
+        for s in stmts {
+            match s {
+                TypedStmt::Assign { rhs, .. } => visit_exp(rhs, out),
+                TypedStmt::NoRetCall { call } => visit_exp(call, out),
+                TypedStmt::If { cond, then_, elseif, else_ } => {
+                    visit_exp(cond, out); visit_stmts(then_, out); visit_stmts(else_, out);
+                    for (c, body) in elseif { visit_exp(c, out); visit_stmts(body, out); }
+                }
+                TypedStmt::For { range, body, .. } => { visit_exp(range, out); visit_stmts(body, out); }
+                TypedStmt::While { cond, body } => { visit_exp(cond, out); visit_stmts(body, out); }
+                TypedStmt::Try { body, else_body } => { visit_stmts(body, out); visit_stmts(else_body, out); }
+                TypedStmt::Failure { body } => visit_stmts(body, out),
+                _ => {}
+            }
+        }
+    }
+
+    visit_stmts(stmts, out);
+}
+
 fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Class, indent: &str, ctx: &mut GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) {
     // Short class definition: `function Alias = Base[(arg=default, ...)]`.
     // Resolved by hierarchy::resolve_function_type to Ty::FunctionAlias.
@@ -3026,6 +3111,25 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
         format!("{}.{}.{}", ctx.top_name, ctx.current_path.join("."), name)
     };
 
+    // Protected locals (and inherited outputs whose types weren't reflected in
+    // the resolved `Ty::Function` signature) may reference module-level
+    // `replaceable type X subtypeof Any` declarations that aren't in scope as
+    // an own type-variable of this function. `hierarchy::resolve_type_spec`
+    // resolves such names to `Ty::TypeVar("X")`, but the function signature
+    // computed by `resolve_function_type` only carries this function's *own*
+    // type vars (`class_type_vars(c)`) plus those reached through input/output
+    // types — protected components' types are never inspected there.
+    //
+    // Without this merge, a local like `tuple<TraverseFunc, Argument> tup;` in
+    // a function generic over `<ArgT>` (e.g. `SCodeUtil.mapFoldStatementExps`)
+    // emits `let mut tup: (..., Argument);` while the function header is still
+    // `fn mapFoldStatementExps<ArgT: …>(…)` — `Argument` is then an undefined
+    // type. Add every type-var reachable through outputs/protected component
+    // types to `all_type_vars` before we compute the final `type_params`.
+    for (_, t, _, _) in outputs.iter().chain(protected.iter()) {
+        collect_type_vars_in_ty(t, &mut all_type_vars);
+    }
+
     let mut infer_env: HashMap<String, Ty> = HashMap::new();
     for inp in fn_inputs_eff.iter() { infer_env.insert(inp.name.clone(), inp.ty.clone()); }
     for (n, t, _, _) in &outputs { infer_env.insert(n.clone(), t.clone()); }
@@ -3037,6 +3141,14 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
     };
 
     let typed_stmts = typedexp::infer_stmts(alg_items, &mut infer_env, top_level, &pkg_prefix, &all_type_vars);
+
+    // Also collect type vars referenced inside the body — most importantly,
+    // those declared on match-arm `local` components like
+    // `tuple<TraverseFunc, Argument> tup;`. These are typed by `infer_stmts`
+    // against the module's hierarchy and can resolve to `Ty::TypeVar(name)`
+    // for module-level `replaceable type X subtypeof Any` declarations that
+    // aren't part of this function's own signature.
+    collect_type_vars_in_typed_stmts(&typed_stmts, &mut all_type_vars);
 
     let mut env = LocalEnv::default();
     for inp in fn_inputs_eff.iter() { env.vars.insert(inp.name.clone(), inp.ty.clone()); }

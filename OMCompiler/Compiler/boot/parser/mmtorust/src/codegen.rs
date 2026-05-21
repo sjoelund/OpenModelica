@@ -232,6 +232,24 @@ struct GenCtx {
     /// `None` outside the tail-expression of a tail-call-lowered function;
     /// the field is restored on exit (see `emit_tail_value_exp`).
     tail_lowering: Option<(String, bool)>,
+    /// Extra match-arm guard expressions accumulated while emitting a
+    /// pattern. Some patterns (currently only `TypedPat::Lit(Lit::Real)`)
+    /// cannot be expressed directly as Rust patterns: f64 literal patterns
+    /// were deprecated in edition 2024. We lower such a literal into a
+    /// fresh binding *plus* a guard expression that compares the bound
+    /// value to the literal, and stash the comparison here for the
+    /// surrounding arm-emission code to combine with `case.guard`. The
+    /// match-arm emitter is responsible for clearing this vector before
+    /// emitting a pattern and draining it after. In non-arm contexts
+    /// (e.g. function parameter patterns, `let` bindings) real-literal
+    /// patterns are nonsensical anyway; the codegen still produces a
+    /// fresh binding but the guards will simply accumulate until the
+    /// next arm clears them — verifying that no such guards leak is
+    /// outside the scope of this hook.
+    pat_extra_guards: Vec<String>,
+    /// Monotonic counter for synthesizing fresh names for real-literal
+    /// pattern bindings (see `pat_extra_guards`).
+    pat_lit_counter: u32,
 }
 
 /// Binding-shape classification for variables tracked in `GenCtx::variants`.
@@ -281,6 +299,8 @@ impl GenCtx {
             nested_partial_aliases: BTreeSet::new(),
             in_tail_lowered_fn: false,
             tail_lowering: None,
+            pat_extra_guards: Vec::new(),
+            pat_lit_counter: 0,
         }
     }
 
@@ -6857,7 +6877,12 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
             // on the Absyn side; the two must agree).
             let exhaustive = cases_exhaustive(kind, cases, &input_ty);
             let arms: Vec<String> = cases.iter().map(|case| {
+                // Real-literal patterns lower to a binding + guard. Clear the
+                // accumulator before emitting the pattern, drain after so
+                // they can be merged into the arm's guard below.
+                ctx.pat_extra_guards.clear();
                 let pat = emit_pat_with_implicit_bind_md(&case.pattern, /*allow_implicit_bind=*/true, /*mut_bindings=*/true, /*in_deref=*/false, /*implicit_ref=*/input_is_arc, /*in_match_deref=*/use_match_deref, Some(&input_ty), ctx, top_level);
+                let pat_extra_guards: Vec<String> = std::mem::take(&mut ctx.pat_extra_guards);
                 // Compute the variant narrowing established by this arm's pattern so
                 // that reads of `v.field` inside the guard and the case result use
                 // `var_field!`. Save ctx.variants to restore after the arm so sibling
@@ -6904,9 +6929,15 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
                         ctx.fn_env_vars.insert(n.clone(), t.clone());
                     }
                 }
-                let guard = case.guard.as_ref()
-                    .map(|g| format!(" if {}", emit_exp(g, is_const, ctx, top_level)))
-                    .unwrap_or_default();
+                let user_guard = case.guard.as_ref()
+                    .map(|g| emit_exp(g, is_const, ctx, top_level));
+                // Combine pattern-induced guards (e.g. from real-literal
+                // patterns) with any user-written guard via `&&`.
+                let guard = {
+                    let mut parts: Vec<String> = pat_extra_guards.clone();
+                    if let Some(g) = user_guard { parts.push(format!("({g})")); }
+                    if parts.is_empty() { String::new() } else { format!(" if {}", parts.join(" && ")) }
+                };
                 // Tail-call lowering: detect the algorithm-side terminal
                 // self-assign pattern. When the case ends with
                 // `<name> := <rhs>;` and the case `result` is just
@@ -7233,7 +7264,12 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
                 // keeps the binding rules uniform.
                 let arm_needs_match_deref = any_arm_needs_match_deref
                     || match_uses_match_deref(&input_ty, std::slice::from_ref(case), ctx, top_level);
+                // See the MatchKind::Match path: real-literal patterns
+                // synthesize extra guards which must be merged with
+                // `case.guard` below.
+                ctx.pat_extra_guards.clear();
                 let pat = emit_pat_with_implicit_bind_md(&case.pattern, /*allow_implicit_bind=*/true, /*mut_bindings=*/true, /*in_deref=*/false, /*implicit_ref=*/input_is_arc || arm_needs_match_deref, /*in_match_deref=*/arm_needs_match_deref, Some(&input_ty), ctx, top_level);
+                let pat_extra_guards: Vec<String> = std::mem::take(&mut ctx.pat_extra_guards);
                 let saved_variants = ctx.variants.clone();
                 let saved_shapes = ctx.variant_shapes.clone();
                 {
@@ -7247,9 +7283,17 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
                         ctx.variant_shapes.insert(k, s);
                     }
                 }
-                let guard_check = case.guard.as_ref()
-                    .map(|g| format!("            if !({}) {{ bail!(\"guard\") }}\n", emit_exp(g, is_const, ctx, top_level)))
-                    .unwrap_or_default();
+                let guard_check = {
+                    let mut parts: Vec<String> = pat_extra_guards.clone();
+                    if let Some(g) = case.guard.as_ref() {
+                        parts.push(format!("({})", emit_exp(g, is_const, ctx, top_level)));
+                    }
+                    if parts.is_empty() {
+                        String::new()
+                    } else {
+                        format!("            if !({}) {{ bail!(\"guard\") }}\n", parts.join(" && "))
+                    }
+                };
 
                 // Case-body statements & locals. MetaModelica `matchcontinue` arms
                 // can carry an `algorithm` block (declarations + statements) that
@@ -7977,18 +8021,28 @@ fn emit_pat_with_implicit_bind_md<'a>(pat: &TypedPat, allow_implicit_bind: bool,
             }
         }
         TypedPat::Lit(Lit::Real(v)) => {
-            // Rust does not permit `f64` literal patterns directly (deprecated
-            // since edition 2024). The old lowering emitted a bare `_` plus a
-            // "/* real — move to guard */" comment, but nothing ever appended
-            // such a guard, so every Real-literal case silently matched any
-            // value and the wrong arm fired. Until guard plumbing exists,
-            // emit a wildcard with a never-true guard so the arm reliably
-            // never matches AND the unreachable-pattern lint draws attention
-            // to it. If the case carries its own guard, the resulting
-            // `_ if false … if <userguard>` is invalid syntax, which fails
-            // the build loudly — exactly the right behaviour for an
-            // unsupported feature.
-            format!("_ if false /* TODO: real literal pattern {v} — plumb into arm guard */")
+            // Rust does not permit `f64` literal patterns directly
+            // (deprecated since edition 2024). Lower the literal to a
+            // fresh binding plus an equality guard that the surrounding
+            // match-arm emitter will splice into the arm's guard
+            // (alongside `case.guard`). The binding name is unique
+            // per-codegen so it cannot collide with user names.
+            //
+            // The guard uses `.eq(&(<v>) as f64)` rather than `==` so
+            // it works regardless of the binding mode: `match_deref!`
+            // / `&`-rooted matches bind struct fields as `&f64`,
+            // whereas plain matches bind by copy as `f64`. Method-call
+            // resolution auto-refs/derefs the receiver in both cases.
+            //
+            // Wrapping `<v>` in `(<...>) as f64` keeps the literal
+            // syntactically self-contained: it tolerates exponent or
+            // leading-minus forms (`1e-3`, `-1.0`) that don't accept
+            // a bare `_f64` suffix.
+            let id = ctx.pat_lit_counter;
+            ctx.pat_lit_counter += 1;
+            let name = format!("__rlit_{id}");
+            ctx.pat_extra_guards.push(format!("{name}.eq(&(({v}) as f64))"));
+            name
         }
 
         TypedPat::Cons { head, tail } => {

@@ -3653,12 +3653,27 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                 Ty::Function { name: None, .. }
                     if ctx.fn_env_vars.contains_key(&name.split('.').next().unwrap_or(name).to_owned()) =>
                     format!("{var_str}.clone()"),
-                // Named `partial function` aliases (e.g. `KeyEq`) lower to a
-                // concrete `fn(...)` pointer — that *is* `Copy`, so the move
-                // hazard above doesn't apply and we keep emitting the bare
-                // identifier. `Ty::FunctionAlias` (re-export aliases) is the
-                // same case. Concrete function references (resolved through
-                // the hierarchy above) follow the same path.
+                // Nested `partial function` aliases (declared inside another
+                // function — see `nested_partial_aliases`) are stored as
+                // `Arc<dyn Fn(...) + 'static>` by `fmt_param_ty`, not as
+                // bare `fn(...)` pointers. They share the same move-hazard
+                // as the anonymous-callback case above: a pattern binding
+                // for one is `&Arc<dyn Fn>` under `match_deref!` (or owned
+                // `Arc<dyn Fn>` outside), so forwarding it to another call
+                // without `.clone()` either passes a reference (wrong type)
+                // or moves the binding (preventing further use). Emit
+                // `.clone()` so the right `<Arc<T>>::clone` impl fires.
+                Ty::Function { name: Some(qn), .. }
+                    if ctx.nested_partial_aliases.contains(qn)
+                    && ctx.fn_env_vars.contains_key(&name.split('.').next().unwrap_or(name).to_owned()) =>
+                    format!("{var_str}.clone()"),
+                // Other named `partial function` aliases (e.g. top-level
+                // `KeyEq`) lower to a concrete `fn(...)` pointer — that
+                // *is* `Copy`, so the move hazard above doesn't apply and
+                // we keep emitting the bare identifier. `Ty::FunctionAlias`
+                // (re-export aliases) is the same case. Concrete function
+                // references (resolved through the hierarchy above) follow
+                // the same path.
                 Ty::Function { .. } | Ty::FunctionAlias { .. } => var_str,
                 // Inside a `const` initializer Rust can't call `.clone()` —
                 // `Clone` isn't a stable const trait yet (E0658 + "Clone is

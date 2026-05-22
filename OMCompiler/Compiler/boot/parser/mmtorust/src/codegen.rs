@@ -1052,7 +1052,16 @@ fn emit_node<'a>(out: &mut String, name: &str, node: &NameNode<'_>, indent: &str
                     let val = emit_exp(&typed, /*is_const=*/true, ctx, top_level);
                     writeln!(out, "{indent}pub const {ename}: {r_ty} = {val};").unwrap();
                     writeln!(out).unwrap();
-                } else if is_static_const_emittable(&typed, ctx, top_level) {
+                } else if is_static_const_emittable(&typed, ctx, top_level)
+                    && !is_arc_wrapped(&node.ty, ctx)
+                {
+                    // If the destination type is Arc-wrapped (recursive uniontype
+                    // stored as `Arc<Enum>` everywhere), the unit-variant expression
+                    // `Enum::VARIANT` needs an `Arc::new(...)` wrap to match — but
+                    // `Arc::new` is not a const fn, so we cannot emit a `pub static`
+                    // / `pub const`. Fall through to the `LazyLock` path below,
+                    // where `emit_exp` (with `is_const=false`) wraps unit variants
+                    // in `Arc::new` automatically.
                     // Record/struct of pure literals and other const-emittable values.
                     //
                     // Two sub-cases depending on whether the type is `Sync`:

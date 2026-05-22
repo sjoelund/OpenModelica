@@ -382,6 +382,22 @@ fn walk_dotted_with_imports<'a>(
 ///
 /// This function does NOT use heuristics (case/prefix); all decisions are based on the
 /// hierarchy.
+fn find_record_in_package_unions<'a>(
+    pkg_node: &'a NameNode<'a>,
+    pkg_qname: &str,
+    simple: &str,
+) -> Option<(String, &'a NameNode<'a>)> {
+    for (child_name, child) in &pkg_node.children {
+        if let NodeKind::Class(c) = &child.kind
+            && matches!(c.restriction, Absyn::Restriction::R_UNIONTYPE)
+            && let Some(rec) = child.children.get(simple)
+        {
+            return Some((format!("{pkg_qname}.{child_name}.{simple}"), rec));
+        }
+    }
+    None
+}
+
 pub fn resolve_call_node<'a>(
     func: &str,
     top_level: &'a BTreeMap<String, NameNode<'a>>,
@@ -389,6 +405,19 @@ pub fn resolve_call_node<'a>(
 ) -> Option<(String, &'a NameNode<'a>)> {
     // 1. Direct lookup (handles fully-qualified top-level names).
     if let Some(r) = walk_dotted_with_imports(func, top_level, 0) {
+        // Packages are not callable. If the direct lookup landed on a package
+        // and that package contains a uniontype whose record-variant has the
+        // same simple name as `func`, prefer that record — this is the only
+        // valid interpretation in a call position. Without this, a constant
+        // like `emptyDae = DAE({})` inside the `DAE` package would resolve
+        // `DAE` to the package itself instead of to the `DAElist.DAE` record.
+        if let NodeKind::Class(c) = &r.1.kind
+            && matches!(c.restriction, Absyn::Restriction::R_PACKAGE)
+            && let Some(simple) = func.rsplit('.').next()
+            && let Some((qname, rec)) = find_record_in_package_unions(r.1, &r.0, simple)
+        {
+            return Some((qname, rec));
+        }
         return Some(r);
     }
 

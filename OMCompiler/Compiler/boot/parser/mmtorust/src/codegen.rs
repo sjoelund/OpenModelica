@@ -7229,6 +7229,18 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
                                 } else {
                                     body.push_str(&format!("            let mut {id} = {id}.clone();\n"));
                                 }
+                                // The rebind drops one level of indirection:
+                                // a `RefArc` (&Arc<T>) name becomes a plain
+                                // `Arc<T>` value, so subsequent `var_field!`
+                                // emits must use `(*v)` not `(**v)`. Without
+                                // this update the codegen still believes
+                                // `n` is `&Arc<T>` and produces an extra
+                                // deref that doesn't typecheck (E0614).
+                                if let Some(shape) = ctx.variant_shapes.get_mut(n) {
+                                    if matches!(*shape, VarShape::RefArc) {
+                                        *shape = VarShape::Arc;
+                                    }
+                                }
                             }
                         }
                     }

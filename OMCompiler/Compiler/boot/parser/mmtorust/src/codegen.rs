@@ -8595,13 +8595,13 @@ fn is_sourceinfo_ctor(name: &str) -> bool {
 
 fn sourceinfo_field_name_by_index(i: usize) -> &'static str {
     match i {
-        0 => "file_name",
-        1 => "is_read_only",
-        2 => "line_number_start",
-        3 => "column_number_start",
-        4 => "line_number_end",
-        5 => "column_number_end",
-        6 => "last_modification",
+        0 => "fileName",
+        1 => "isReadOnly",
+        2 => "lineNumberStart",
+        3 => "columnNumberStart",
+        4 => "lineNumberEnd",
+        5 => "columnNumberEnd",
+        6 => "lastModification",
         _ => "",
     }
 }

@@ -8227,7 +8227,18 @@ fn emit_pat_with_implicit_bind_md<'a>(pat: &TypedPat, allow_implicit_bind: bool,
             // We compute the inner pattern body first then apply the prefix
             // uniformly at the end, instead of sprinkling it through every
             // branch (and the early-return path for empty patterns).
-            let rust_raw = if name.contains('.') { ctx.shorten(name) } else { normalize_builtin_ctor_name(name) };
+            // Resolve to the canonical Rust path. For a single-record uniontype
+            // the record gets folded onto the parent name (Absyn.Comment.COMMENT
+            // becomes the struct `Absyn::Comment`), and typed inference has
+            // already collapsed it onto `Ty::RustStruct(parent_qname)`. Use that
+            // when available so the pattern path matches the struct's Rust path
+            // exactly; fall back to shortening the raw constructor name when
+            // typing left the variant as RustEnum / Unknown.
+            let rust_raw = match ty {
+                Ty::RustStruct(qname) if name.contains('.') => ctx.shorten(qname),
+                _ if name.contains('.') => ctx.shorten(name),
+                _ => normalize_builtin_ctor_name(name),
+            };
             let rust = escape_ident(&rust_raw);
             let field_tys_for_ctor = || {
                 if name.contains('.') {
@@ -9716,8 +9727,16 @@ fn plan_field_assign<'a, 's>(
     // specific uniontype variant, lower through `assign_variant_field!`.
     if let Some((enum_qname, variant_name)) = env.variants.get(base_name).cloned() {
         let record_qname = format!("{enum_qname}.{variant_name}");
+        // Single-record uniontypes are collapsed to a plain struct named after
+        // the parent. There is no variant to select, so emitting
+        // `assign_variant_field!(.. => Parent::ONLY; ..)` produces an invalid
+        // path. Skip the variant branch in that case and fall through to the
+        // plain `assign_field!` lowering below, which uses the struct path.
+        let is_single_record_uniontype = uniontype_is_enum(&enum_qname, top_level) == false
+            && resolve_single_record_qname(&enum_qname, top_level).is_some();
         // Only commit to the variant path if the record actually exists.
-        if record_field_tys(&record_qname, top_level).is_some() {
+        if !is_single_record_uniontype
+            && record_field_tys(&record_qname, top_level).is_some() {
             return Some(FieldAssignPlan {
                 stmt,
                 base_name: base_name.clone(),

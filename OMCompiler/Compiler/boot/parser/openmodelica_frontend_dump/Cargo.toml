@@ -9,6 +9,7 @@ openmodelica_ast.workspace = true
 openmodelica_frontend_types.workspace = true
 openmodelica_susan.workspace = true
 openmodelica_util_datatypes_basic.workspace=true
+openmodelica_util.workspace = true
 anyhow.workspace = true
 const-str.workspace=true
 tailcall.workspace=true

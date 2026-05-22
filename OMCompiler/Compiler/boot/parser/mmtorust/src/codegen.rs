@@ -10395,13 +10395,18 @@ fn emit_stmt<'a>(
                     kind.emit_batch(out, indent, &[kind.clause()]);
                     return;
                 }
-                // Fallback: direct field assignment. Works only when `base` is not
-                // an Arc-wrapped record (rare); kept so unhandled shapes surface as
-                // a Rust error rather than a silent miscompile.
+                // Fallback: emit `todo!()` instead of a broken direct assignment.
+                // The previous version emitted `base.field = rhs;` so unhandled
+                // shapes would surface as Rust errors, but for an Arc-wrapped
+                // record (which is the usual case here) `base.field` does not
+                // exist as a place — the assignment fails with E0609 and the
+                // entire crate then fails to compile. A `todo!()` keeps the
+                // surrounding function callable while still flagging the gap.
                 let lhs_str = field_access_to_dotted(base, field);
                 let lhs_ty = lhs_assignment_ty(lhs, env);
                 let scrut_expr = coerce_assign_expr(scrut_expr, &scrut_ty, lhs_ty.as_ref());
-                writeln!(out, "{indent}{lhs_str} = {scrut_expr}; // TODO: unhandled field-assign shape").unwrap();
+                writeln!(out, "{indent}// TODO: unhandled field-assign shape: {lhs_str} = {scrut_expr};").unwrap();
+                writeln!(out, "{indent}todo!(\"unhandled field-assign shape: {lhs_str}\");").unwrap();
                 return;
             }
             // For a fresh `let` binding of a single variable, also update

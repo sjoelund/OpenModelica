@@ -7029,7 +7029,7 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
                 let saved_fn_env_vars = ctx.fn_env_vars.clone();
                 let saved_uninit_arrays_match = ctx.uninit_arrays.clone();
                 let typed_pat_bindings: Vec<(String, Ty)> =
-                    typedexp::pat_bindings_with_scrut_ty(&case.pattern, &input_ty);
+                    typedexp::pat_bindings_with_scrut_ty_tl(&case.pattern, &input_ty, top_level);
                 for (n, t) in &typed_pat_bindings {
                     if !matches!(t, Ty::Unknown) {
                         ctx.fn_env_vars.insert(n.clone(), t.clone());

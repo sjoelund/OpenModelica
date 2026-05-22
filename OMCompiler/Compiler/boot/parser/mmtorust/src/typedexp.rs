@@ -2345,6 +2345,20 @@ pub fn pat_bindings_with_scrut_ty(pat: &TypedPat, scrut: &Ty) -> Vec<(String, Ty
     out
 }
 
+/// Like [`pat_bindings_with_scrut_ty`] but resolves Constructor field types
+/// via `top_level`, so a binding for a record field (e.g. `EQMOD { exp: x }`)
+/// gets `x`'s real type rather than `Ty::Unknown`. The codegen relies on
+/// these types to choose `Deref @` prefixes for downstream Arc-edge patterns.
+pub fn pat_bindings_with_scrut_ty_tl<'a>(
+    pat: &TypedPat,
+    scrut: &Ty,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+) -> Vec<(String, Ty)> {
+    let mut out = Vec::new();
+    collect_bindings_typed_tl(pat, scrut, top_level, &mut out);
+    out
+}
+
 fn collect_bindings_typed(pat: &TypedPat, scrut: &Ty, out: &mut Vec<(String, Ty)>) {
     match pat {
         TypedPat::Var(name) => out.push((name.clone(), scrut.clone())),
@@ -2375,6 +2389,70 @@ fn collect_bindings_typed(pat: &TypedPat, scrut: &Ty, out: &mut Vec<(String, Ty)
         TypedPat::As { var, pat } => {
             out.push((var.clone(), scrut.clone()));
             collect_bindings_typed(pat, scrut, out);
+        }
+        _ => {}
+    }
+}
+
+fn collect_bindings_typed_tl<'a>(
+    pat: &TypedPat,
+    scrut: &Ty,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+    out: &mut Vec<(String, Ty)>,
+) {
+    match pat {
+        TypedPat::Var(name) => out.push((name.clone(), scrut.clone())),
+        TypedPat::Some_(inner) => {
+            let inner_ty = match scrut { Ty::Option(t) => (**t).clone(), _ => Ty::Unknown };
+            collect_bindings_typed_tl(inner, &inner_ty, top_level, out);
+        }
+        TypedPat::Cons { head, tail } => {
+            let elem_ty = match scrut { Ty::List(t) => (**t).clone(), _ => Ty::Unknown };
+            collect_bindings_typed_tl(head, &elem_ty, top_level, out);
+            collect_bindings_typed_tl(tail, scrut, top_level, out);
+        }
+        TypedPat::Tuple(pats) => {
+            let tys: Vec<Ty> = match scrut {
+                Ty::Tuple(ts) if ts.len() == pats.len() => ts.clone(),
+                _ => vec![Ty::Unknown; pats.len()],
+            };
+            for (p, ty) in pats.iter().zip(tys.iter()) {
+                collect_bindings_typed_tl(p, ty, top_level, out);
+            }
+        }
+        TypedPat::Constructor { name, fields, named_fields, .. } => {
+            // Resolve field types via the hierarchy. For a qualified path we
+            // can look up the record directly; otherwise, if the scrutinee's
+            // type names a uniontype, search for the record by simple name
+            // among its variants — the codegen-side `record_field_tys_*`
+            // helpers use the same fallback chain.
+            let field_tys: Vec<(String, Ty)> = {
+                let direct = if name.contains('.') {
+                    record_field_tys(name, top_level)
+                } else { vec![] };
+                if !direct.is_empty() {
+                    direct
+                } else if let Some((canonical, _)) = lookup_record_through_unions(name, top_level) {
+                    record_field_tys(&canonical, top_level)
+                } else if let Ty::RustEnum(parent) = scrut {
+                    let simple = name.rsplit_once('.').map_or(name.as_str(), |(_, s)| s);
+                    let candidate = format!("{parent}.{simple}");
+                    record_field_tys(&candidate, top_level)
+                } else { vec![] }
+            };
+            for (i, p) in fields.iter().enumerate() {
+                let ty = field_tys.get(i).map(|(_, t)| t.clone()).unwrap_or(Ty::Unknown);
+                collect_bindings_typed_tl(p, &ty, top_level, out);
+            }
+            for (fname, p) in named_fields {
+                let ty = field_tys.iter().find(|(n, _)| n == fname)
+                    .map(|(_, t)| t.clone()).unwrap_or(Ty::Unknown);
+                collect_bindings_typed_tl(p, &ty, top_level, out);
+            }
+        }
+        TypedPat::As { var, pat } => {
+            out.push((var.clone(), scrut.clone()));
+            collect_bindings_typed_tl(pat, scrut, top_level, out);
         }
         _ => {}
     }

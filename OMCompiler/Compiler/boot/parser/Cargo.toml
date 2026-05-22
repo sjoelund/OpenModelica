@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["mmwinnow", "mmtorust", "openmodelica", "openmodelica_util", "metamodelica", "openmodelica_frontend", "openmodelica_backend", "openmodelica_susan", "openmodelica_nf_frontend", "openmodelica_util_datatypes_basic"]
+members = ["mmwinnow", "mmtorust", "openmodelica", "openmodelica_util", "metamodelica", "openmodelica_frontend", "openmodelica_backend", "openmodelica_susan", "openmodelica_nf_frontend", "openmodelica_util_datatypes_basic", "openmodelica_ast", "openmodelica_frontend_types", "openmodelica_frontend_dump"]
 [workspace.dependencies]
 anyhow = "1.0.102"
 arcstr = "1.2.0"
@@ -14,7 +14,10 @@ match_deref = "0.1.2"
 mmtorust = {path = "mmtorust"}
 mmwinnow = {path = "mmwinnow"}
 metamodelica = {path = "metamodelica"}
+openmodelica_ast = {path = "openmodelica_ast"}
 openmodelica_frontend = {path = "openmodelica_frontend"}
+openmodelica_frontend_types = {path = "openmodelica_frontend_types"}
+openmodelica_frontend_dump = {path = "openmodelica_frontend_dump"}
 openmodelica_nf_frontend = {path = "openmodelica_nf_frontend"}
 openmodelica_util = {path = "openmodelica_util"}
 openmodelica_backend = {path = "openmodelica_backend"}

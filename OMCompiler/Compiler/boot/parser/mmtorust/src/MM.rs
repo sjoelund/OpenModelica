@@ -195,9 +195,12 @@ fn interface_to_crate(interface: &str) -> Option<String> {
         "backend" => Some("openmodelica_backend".to_owned()),
         "nf_frontend" => Some("openmodelica_nf_frontend".to_owned()),
         "frontend" => Some("openmodelica_frontend".to_owned()),
+        "parser" => Some("openmodelica_ast".to_owned()),
         "susan" => Some("openmodelica_susan".to_owned()),
         "util" => Some("openmodelica_util".to_owned()),
         "util_datatypes_basic" => Some("openmodelica_util_datatypes_basic".to_owned()),
+        "frontend_types" => Some("openmodelica_frontend_types".to_owned()),
+        "frontend_dump" => Some("openmodelica_frontend_dump".to_owned()),
         _ => None,
     }
 }

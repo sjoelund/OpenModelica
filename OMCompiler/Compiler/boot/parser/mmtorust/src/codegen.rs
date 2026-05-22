@@ -2997,11 +2997,18 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
         format!("<{}>", all_type_vars.iter().map(|v| format!("{v}: {DEFAULT_TRAITS}")).collect::<Vec<_>>().join(", "))
     };
 
+    // Mark every parameter `mut`. MetaModelica freely reassigns inputs
+    // (e.g. `classPart` rewritten via `assign_variant_field!`), and detecting
+    // every shape of reassignment (plain assigns, macro-based field updates,
+    // pattern lets that re-bind the name) would require walking the full
+    // typed body twice. Since `#![allow(unused_mut)]` covers the case where
+    // the body never actually mutates the binding, emitting `mut` everywhere
+    // is correct and avoids E0384 across the corpus.
     let params = fn_inputs_eff.iter()
         .map(|inp| {
             let ty_s = try_alias(&inp.name, None)
                 .unwrap_or_else(|| fmt_param_ty(&inp.ty, ctx));
-            format!("{}: {}", escape_ident(&inp.name), ty_s)
+            format!("mut {}: {}", escape_ident(&inp.name), ty_s)
         })
         .collect::<Vec<_>>()
         .join(", ");
@@ -4760,7 +4767,7 @@ fn emit_reduction<'a>(
             Ty::Array(_) => format!("({range_s}).borrow().iter()"),
             _ => format!("({range_s}).into_iter()"),
         };
-        format!("for {} in {iter_expr} {{\n", escape_ident(&it.name))
+        format!("for mut {} in {iter_expr} {{\n", escape_ident(&it.name))
     }
 
     // Emit guard check as `if !(...) { continue; }`. Guards may be fallible,
@@ -10547,9 +10554,9 @@ fn emit_stmt<'a>(
             if r.contains(".borrow(") || r.contains(".borrow_mut(") {
                 let n = *fresh; *fresh += 1;
                 writeln!(out, "{indent}let __range{n} = {r};").unwrap();
-                writeln!(out, "{indent}for {} in __range{n} {{", escape_ident(var)).unwrap();
+                writeln!(out, "{indent}for mut {} in __range{n} {{", escape_ident(var)).unwrap();
             } else {
-                writeln!(out, "{indent}for {} in {r} {{", escape_ident(var)).unwrap();
+                writeln!(out, "{indent}for mut {} in {r} {{", escape_ident(var)).unwrap();
             }
             // Element type: peel List/Array.
             let elem_ty = match range.ty() { Ty::List(t) | Ty::Array(t) | Ty::Range(t) => *t, _ => Ty::Unknown };

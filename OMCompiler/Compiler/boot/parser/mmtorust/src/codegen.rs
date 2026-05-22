@@ -8263,8 +8263,28 @@ fn emit_pat_with_implicit_bind_md<'a>(pat: &TypedPat, allow_implicit_bind: bool,
             // when available so the pattern path matches the struct's Rust path
             // exactly; fall back to shortening the raw constructor name when
             // typing left the variant as RustEnum / Unknown.
+            // When `ty` didn't resolve to a RustStruct (e.g. RustEnum or Unknown),
+            // detect the single-record uniontype shape directly from the hierarchy:
+            // if `name`'s parent is a uniontype with exactly one record child, the
+            // record was folded into the parent struct's Rust path (no enum
+            // wrapper), so shorten the parent qname rather than the record's. Without
+            // this the pattern emits `Parent::Record` which doesn't exist (E0223).
+            let folded_parent_qname: Option<String> = (|| {
+                if !name.contains('.') { return None; }
+                let parent = name.rsplit_once('.').map(|(p, _)| p.to_owned())?;
+                let parent_node = lookup_node(&parent, top_level)?;
+                let NodeKind::Class(c) = &parent_node.kind else { return None };
+                if !matches!(c.restriction, Absyn::Restriction::R_UNIONTYPE) { return None; }
+                if uniontype_needs_mod(parent_node) { return None; }
+                let record_count = parent_node.children.values().filter(|ch| {
+                    matches!(&ch.kind, NodeKind::Class(cc)
+                        if matches!(cc.restriction, Absyn::Restriction::R_RECORD | Absyn::Restriction::R_METARECORD { .. }))
+                }).count();
+                if record_count == 1 { Some(parent) } else { None }
+            })();
             let rust_raw = match ty {
                 Ty::RustStruct(qname) if name.contains('.') => ctx.shorten(qname),
+                _ if folded_parent_qname.is_some() => ctx.shorten(folded_parent_qname.as_ref().unwrap()),
                 _ if name.contains('.') => ctx.shorten(name),
                 _ => normalize_builtin_ctor_name(name),
             };
@@ -9482,7 +9502,32 @@ fn render_shallow<'a>(
                     field_tys = by_simple;
                 }
             }
-            let rust_ctor_raw = if name.contains('.') { ctx.shorten(name) } else { normalize_builtin_ctor_name(name) };
+            // When the record's parent is a single-record uniontype, the record was
+            // folded onto the parent struct (no enum wrapper); the path stops at
+            // the parent, not at `Parent::Record`. Same logic as the let-pattern
+            // emission path above — kept in sync so render_shallow and
+            // emit_pat_with_implicit_bind_md agree on the canonical Rust path.
+            let folded_parent_qname: Option<String> = (|| {
+                let qname = resolved_qname.as_deref()?;
+                if !qname.contains('.') { return None; }
+                let parent = qname.rsplit_once('.').map(|(p, _)| p.to_owned())?;
+                let parent_node = lookup_node(&parent, top_level)?;
+                let NodeKind::Class(c) = &parent_node.kind else { return None };
+                if !matches!(c.restriction, Absyn::Restriction::R_UNIONTYPE) { return None; }
+                if uniontype_needs_mod(parent_node) { return None; }
+                let record_count = parent_node.children.values().filter(|ch| {
+                    matches!(&ch.kind, NodeKind::Class(cc)
+                        if matches!(cc.restriction, Absyn::Restriction::R_RECORD | Absyn::Restriction::R_METARECORD { .. }))
+                }).count();
+                if record_count == 1 { Some(parent) } else { None }
+            })();
+            let rust_ctor_raw = if let Some(p) = &folded_parent_qname {
+                ctx.shorten(p)
+            } else if name.contains('.') {
+                ctx.shorten(name)
+            } else {
+                normalize_builtin_ctor_name(name)
+            };
             let rust_ctor = escape_ident(&rust_ctor_raw);
 
             // Helper: render one sub-pattern, splitting on Arc edge.

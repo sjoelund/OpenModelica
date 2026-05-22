@@ -5185,6 +5185,18 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
             let q = if ctx.current_fn_fallible { "?" } else { ".unwrap()" };
             Ok(format!("metamodelica::getGlobalRoot({idx_expr}){q}"))
         }
+        "valueConstructor" if args.len() == 1 => {
+            // MetaModelica `valueConstructor(x)` returns the boxed value's
+            // constructor tag. The Rust runtime exposes it as a type-parameter
+            // form `valueConstructor::<A>() -> Result<i32>` because the only
+            // input it needs is the static type — there is no boxed `dyn Any`
+            // discriminator at runtime. Lower by dropping the value argument
+            // and pinning the type with a turbofish.
+            let arg_ty = args[0].ty();
+            let ty_str = fmt_ty(&arg_ty, ctx);
+            let q = if ctx.current_fn_fallible { "?" } else { ".unwrap()" };
+            Ok(format!("metamodelica::valueConstructor::<{ty_str}>(){q}"))
+        }
         "getInstanceName" if args.is_empty() => {
             // MetaModelicaBuiltin.mo: returns a String literal with the
             // fully-qualified name of the enclosing function. The MMC bootstrap

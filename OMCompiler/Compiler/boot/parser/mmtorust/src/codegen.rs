@@ -10446,8 +10446,17 @@ fn emit_stmt<'a>(
                 writeln!(out, "{indent}    let {0} = {0}.clone();", escape_ident(var)).unwrap();
             }
             let mut inner = env.clone();
-            inner.vars.insert(var.clone(), elem_ty);
+            inner.vars.insert(var.clone(), elem_ty.clone());
+            // Register the loop binding in ctx.fn_env_vars so emit_var's
+            // variant-shape lookup can see its type (e.g. recognise an
+            // Arc-wrapped element and select VarShape::Arc for var_field!).
+            // Saved/restored so sibling scopes don't see the binding.
+            let saved_arg_ty = ctx.fn_env_vars.insert(var.clone(), elem_ty);
             emit_stmts(out, &format!("{indent}    "), body, fail_mode, ctx, &mut inner, top_level, fresh);
+            match saved_arg_ty {
+                Some(t) => { ctx.fn_env_vars.insert(var.clone(), t); }
+                None => { ctx.fn_env_vars.remove(var); }
+            }
             writeln!(out, "{indent}}}").unwrap();
         }
         S::While { cond, body } => {

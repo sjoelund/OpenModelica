@@ -8120,7 +8120,13 @@ fn emit_pat_with_implicit_bind_md<'a>(pat: &TypedPat, allow_implicit_bind: bool,
         TypedPat::Wildcard    => "_".to_owned(),
         TypedPat::Var(name)   => bind_var(name),
         TypedPat::EmptyList   => format!("{arc_prefix}metamodelica::List::Nil"),
-        TypedPat::Some_(inner) => format!("Some({})", emit_pat_with_implicit_bind_md(inner, allow_implicit_bind, mut_bindings, in_deref, implicit_ref, in_match_deref, None, ctx, top_level)),
+        TypedPat::Some_(inner) => {
+            // Propagate the Option's inner type into the sub-pattern so it can
+            // decide whether a `Deref @` prefix is required at an Arc edge
+            // (`Option<Arc<T>>` is the common case for uniontype fields).
+            let inner_scrut = match scrut_ty { Some(Ty::Option(t)) => Some(&**t), _ => None };
+            format!("Some({})", emit_pat_with_implicit_bind_md(inner, allow_implicit_bind, mut_bindings, in_deref, implicit_ref, in_match_deref, inner_scrut, ctx, top_level))
+        }
         TypedPat::None_       => "None".to_owned(),
 
         TypedPat::Lit(Lit::Int(v))  => {
@@ -10426,6 +10432,19 @@ fn emit_stmt<'a>(
             }
             // Element type: peel List/Array.
             let elem_ty = match range.ty() { Ty::List(t) | Ty::Array(t) | Ty::Range(t) => *t, _ => Ty::Unknown };
+            // The `&*lst`/`arr.borrow().iter().cloned()` iterators above yield
+            // `&T` for List and `T` for the cloned Array path; integer ranges
+            // yield `T` directly. To present a uniform owned binding to the
+            // body — so downstream codegen (e.g. `var_field!` shape selection)
+            // can assume `var: T` rather than threading a `&T` borrow shape —
+            // we shadow the loop variable with an owned clone for the List
+            // case. For Arc-wrapped element types this is a cheap atomic
+            // increment; for primitives/ArcStr it is also cheap. For other
+            // types, MetaModelica semantics already treat list elements as
+            // independent copies.
+            if matches!(range.ty(), Ty::List(_)) {
+                writeln!(out, "{indent}    let {0} = {0}.clone();", escape_ident(var)).unwrap();
+            }
             let mut inner = env.clone();
             inner.vars.insert(var.clone(), elem_ty);
             emit_stmts(out, &format!("{indent}    "), body, fail_mode, ctx, &mut inner, top_level, fresh);

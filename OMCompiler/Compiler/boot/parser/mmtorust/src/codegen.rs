@@ -7704,6 +7704,17 @@ fn pat_crosses_arc_edge(pat: &TypedPat, scrut_ty: &Ty, ctx: &GenCtx, top_level: 
     fn sub_destructures(p: &TypedPat) -> bool {
         !matches!(p, TypedPat::Wildcard | TypedPat::Var(_))
     }
+    // A Constructor / Cons / EmptyList pattern matched against an Arc-wrapped
+    // (or List, which is itself Arc<List<...>>) scrutinee must peel the smart
+    // pointer with `Deref @ ...`. This applies whether the Arc edge is the
+    // outer scrutinee or sits behind a Some/Cons.tail; the caller already
+    // recurses with the inner type, so checking the *current* scrutinee here
+    // covers every Arc edge uniformly.
+    if matches!(pat, TypedPat::Constructor { .. } | TypedPat::Cons { .. } | TypedPat::EmptyList)
+        && ty_needs_arc_match_deref(scrut_ty, ctx)
+    {
+        return true;
+    }
     match pat {
         TypedPat::Constructor { name, fields, named_fields, .. } => {
             let field_tys = record_field_tys(name, top_level)

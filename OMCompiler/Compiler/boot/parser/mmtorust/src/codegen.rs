@@ -4928,7 +4928,24 @@ fn emit_reduction<'a>(
     let mut s = String::new();
     s.push_str("{\n");
     s.push_str(&format!("        {acc_decl}\n"));
+    // Register iterator bindings in fn_env_vars so the body's emit_exp can
+    // resolve their types (e.g. for `var_field!` shape selection on Arc-wrapped
+    // element types). Saved + restored so iterators don't leak.
+    let saved_iter_tys: Vec<(String, Option<Ty>)> = iterators.iter().map(|it| {
+        let elem_ty = match it.range.ty() {
+            Ty::List(t) | Ty::Array(t) | Ty::Range(t) => *t,
+            _ => Ty::Unknown,
+        };
+        let prev = ctx.fn_env_vars.insert(it.name.clone(), elem_ty);
+        (it.name.clone(), prev)
+    }).collect();
     let body_s = emit_exp(body, is_const, ctx, top_level);
+    for (name, prev) in saved_iter_tys.into_iter().rev() {
+        match prev {
+            Some(t) => { ctx.fn_env_vars.insert(name, t); }
+            None => { ctx.fn_env_vars.remove(&name); }
+        }
+    }
 
     match iter_kind {
         ReductionIterKind::Thread => {
@@ -10490,7 +10507,11 @@ fn emit_stmt<'a>(
             // types, MetaModelica semantics already treat list elements as
             // independent copies.
             if matches!(range.ty(), Ty::List(_)) {
-                writeln!(out, "{indent}    let {0} = {0}.clone();", escape_ident(var)).unwrap();
+                // `mut` because the loop body may rebind the variable
+                // (assign_variant_field! mutates through &mut on the binding,
+                // and MetaModelica's `for x in xs loop x := ... end for;`
+                // semantics are translated as reassignments to the loop var).
+                writeln!(out, "{indent}    let mut {0} = {0}.clone();", escape_ident(var)).unwrap();
             }
             let mut inner = env.clone();
             inner.vars.insert(var.clone(), elem_ty.clone());

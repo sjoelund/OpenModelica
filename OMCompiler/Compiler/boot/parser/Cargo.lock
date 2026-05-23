@@ -305,6 +305,7 @@ dependencies = [
  "openmodelica_ast",
  "openmodelica_frontend_types",
  "openmodelica_susan",
+ "openmodelica_util",
  "openmodelica_util_datatypes_basic",
  "tailcall",
 ]

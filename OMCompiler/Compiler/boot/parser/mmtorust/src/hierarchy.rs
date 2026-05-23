@@ -183,11 +183,16 @@ pub struct NameNode<'a> {
     /// `flatten_extends` so that `resolve_function_type` can re-resolve the signature
     /// in the derived class's type context.
     pub base_fn: Option<&'a MM::Class>,
+    /// Override for the default value of a `Component` node, applied by a parent
+    /// package's `extends Base(field=expr)` modification. When set, codegen uses
+    /// this expression instead of the underlying `m.modification` from the AST.
+    /// Only meaningful when `kind` is `NodeKind::Component`.
+    pub override_default_exp: Option<&'a Absyn::Exp>,
 }
 
 impl<'a> NameNode<'a> {
     fn new(kind: NodeKind<'a>) -> Self {
-        Self { kind, ty: Ty::default(), children: BTreeMap::new(), extends: Vec::new(), visibility: MM::Visibility::Public, base_fn: None }
+        Self { kind, ty: Ty::default(), children: BTreeMap::new(), extends: Vec::new(), visibility: MM::Visibility::Public, base_fn: None, override_default_exp: None }
     }
 }
 
@@ -276,6 +281,7 @@ fn clone_and_reset<'a>(node: &NameNode<'a>) -> NameNode<'a> {
         extends: node.extends.clone(),
         visibility: node.visibility.clone(),
         base_fn: None,
+        override_default_exp: None,
     }
 }
 
@@ -292,6 +298,97 @@ pub fn flatten_extends(hier: &mut InstanceHierarchy<'_>) {
         flatten_package_node(&name, &mut hier.top_level, &mut visited);
     }
     flatten_nested_package_extends(&mut hier.top_level);
+    flatten_sibling_package_extends(&mut hier.top_level);
+}
+
+/// Flatten `extends` for nested packages whose base is another *sibling* package
+/// living in the same parent. Without this, derived packages such as
+/// `CompareWithoutSubscripts extends CompareWithGenericSubscript(...)` end up as
+/// empty `pub mod {}` blocks because neither `flatten_package_node` (top-level)
+/// nor `flatten_nested_package_extends` (top-level base) sees them.
+///
+/// Behaviour:
+///   * Copy children of the base into the derived package, but only those the
+///     derived doesn't already declare locally (a local declaration with the
+///     same name is treated as an override).
+///   * Apply `extends Base(field=expr)` modifications to the copied components
+///     by setting `override_default_exp` on the matching child node — codegen
+///     reads that field to override the component's initial value. This makes
+///     the derived package's constant pick up the modified value instead of
+///     the base's, which is essential when functions inherited from the base
+///     read the constant by simple name (Rust name resolution finds the
+///     overridden one in the derived module first).
+fn flatten_sibling_package_extends<'a>(top_level: &mut BTreeMap<String, NameNode<'a>>) {
+    let parent_names: Vec<String> = top_level.keys().cloned().collect();
+    for parent_name in &parent_names {
+        // Build the per-parent worklist: for each child with `extends` whose
+        // base is a *sibling* of the child (i.e. another child of this parent
+        // resolvable by the bare path written in `extends`), record the work.
+        // The base resolution here only accepts a single-segment path matching
+        // a sibling; nested or fully-qualified paths fall back to the other
+        // flatten passes.
+        let work: Vec<(String, String, &'a MM::ExtendsMember)> = {
+            let Some(parent) = top_level.get(parent_name.as_str()) else { continue };
+            let sibling_names: std::collections::HashSet<&str> =
+                parent.children.keys().map(|s| s.as_str()).collect();
+            let mut out = Vec::new();
+            for (child_name, child) in &parent.children {
+                for ext in &child.extends {
+                    let base_path = fmt_path(&ext.path);
+                    let base_simple = base_path.trim_start_matches('.');
+                    // Single-segment path that resolves to a sibling.
+                    if !base_simple.contains('.') && sibling_names.contains(base_simple)
+                        && base_simple != child_name {
+                        out.push((child_name.clone(), base_simple.to_owned(), *ext));
+                    }
+                }
+            }
+            out
+        };
+
+        for (child_name, base_name, ext) in work {
+            // Phase 1: collect missing children to copy from base.
+            let to_copy: Vec<(String, NameNode<'a>)> = {
+                let parent = top_level.get(parent_name.as_str()).unwrap();
+                let base = parent.children.get(base_name.as_str()).unwrap();
+                let child = parent.children.get(child_name.as_str()).unwrap();
+                base.children.iter()
+                    .filter(|(cn, _)| !child.children.contains_key(cn.as_str()))
+                    .map(|(cn, n)| (cn.clone(), clone_and_reset(n)))
+                    .collect()
+            };
+
+            // Phase 2: insert copies, then apply modifications by setting
+            // override_default_exp on each targeted component child.
+            let parent_mut = top_level.get_mut(parent_name.as_str()).unwrap();
+            let child_mut = parent_mut.children.get_mut(child_name.as_str()).unwrap();
+            for (cn, n) in to_copy {
+                child_mut.children.insert(cn, n);
+            }
+            for arg in &ext.element_args {
+                let Absyn::ElementArg::MODIFICATION { path, modification, .. } = arg else {
+                    // REDECLARATION / INHERITANCEBREAK / ELEMENTARGCOMMENT are
+                    // not yet supported here — they would require structural
+                    // overrides beyond a simple value swap. Leave as a no-op
+                    // so the existing codegen surfaces any resulting mismatch
+                    // at the use site rather than silently miscompiling.
+                    continue;
+                };
+                // Only handle single-segment modification paths
+                // (`compareSubscript = ...`); a dotted path would target a
+                // sub-component and is not exercised by the current corpus.
+                let target_name = match path {
+                    Absyn::Path::IDENT { name } => name.to_string(),
+                    _ => continue,
+                };
+                let Some(target) = child_mut.children.get_mut(&target_name) else { continue };
+                let Some(modif) = modification.as_ref() else { continue };
+                if let Absyn::Modification::CLASSMOD { eqMod: Absyn::EqMod::EQMOD { exp, .. }, .. } = modif {
+                    target.override_default_exp = Some(exp);
+                }
+            }
+        }
+    }
 }
 
 /// Flatten `extends` for packages nested one level inside a top-level package,

@@ -946,7 +946,7 @@ fn collect_const_fn_getters<'a>(
         let qname = if prefix.is_empty() { name.clone() } else { format!("{prefix}.{name}") };
         if let NodeKind::Component(m) = &node.kind
             && m.variability == Absyn::Variability::CONST
-            && extract_default_exp(&m.modification).is_some()
+            && (node.override_default_exp.is_some() || extract_default_exp(&m.modification).is_some())
         {
             // The primitive/string emission paths in `emit_node` go through
             // `pub const` (not `pub static`) regardless of Sync-ness, so they
@@ -1029,7 +1029,13 @@ use arcstr::{{ArcStr, literal, format}};
 fn emit_node<'a>(out: &mut String, name: &str, node: &NameNode<'_>, indent: &str, ctx: &mut GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) {
     if let NodeKind::Component(m) = &node.kind {
         if m.variability == Absyn::Variability::CONST
-            && let Some(exp) = extract_default_exp(&m.modification) {
+            // `override_default_exp` wins over the AST default. It carries the
+            // RHS of a parent package's `extends Base(field=expr)` modification
+            // and was attached by `flatten_sibling_package_extends`. Without
+            // this, the derived package's constant would silently emit the
+            // base's value (e.g. `WithGenericSubscript`) instead of the
+            // overridden one (`WithoutSubscripts`, etc.).
+            && let Some(exp) = node.override_default_exp.or_else(|| extract_default_exp(&m.modification)) {
                 let pkg_prefix = if ctx.current_path.is_empty() {
                     ctx.top_name.to_owned()
                 } else {

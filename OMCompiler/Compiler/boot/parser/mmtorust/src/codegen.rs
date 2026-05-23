@@ -4645,9 +4645,20 @@ fn emit_parteval<'a>(
     };
     let func_str = escape_ident(&func_str);
 
-    // Pull the formal-name order from the resolved signature.
-    let formal_names: Vec<String> = match sig_ty {
-        Ty::Function { inputs, .. } => inputs.iter().map(|i| i.name.clone()).collect(),
+    // Pull the formal-name order *and* declared types from the resolved
+    // signature. The types let us route each captured binding through
+    // `emit_call_arg_with_formal`, which applies the same actual→formal
+    // coercions the inner call site does (e.g. wrap a bare `fnptr!(...)`
+    // closure in `Arc::new(...)` when the formal is `Arc<dyn Fn(...)>`).
+    // Without that, `__pe_b{i}` would hold a raw closure and the inner call
+    // would fail with `expected Arc<dyn Fn>, found closure` (see e.g.
+    // `findIteratorIndexedCrefs` in `AbsynUtil.mo`, which partial-applies
+    // `List.unionEltOnTrue(inCompFunc = iteratorIndexedCrefsEqual)`).
+    let (formal_names, formal_tys): (Vec<String>, Vec<Ty>) = match sig_ty {
+        Ty::Function { inputs, .. } => (
+            inputs.iter().map(|i| i.name.clone()).collect(),
+            inputs.iter().map(|i| i.ty.clone()).collect(),
+        ),
         _ => {
             // We have no signature info, so we can't tell how many formals
             // remain unbound or which ones the named-args refer to. Emit a
@@ -4676,18 +4687,47 @@ fn emit_parteval<'a>(
     let mut call_arg_exprs: Vec<String> = Vec::new();
     let mut closure_params: Vec<String> = Vec::new();
 
+    // When the formal is an anonymous callback slot (`Arc<dyn Fn(...) -> Result<_>>`),
+    // give the capture an explicit `Arc<dyn Fn(...)>` annotation so the
+    // `Arc::new(closure)` emitted by `emit_call_arg_with_formal` unsizes to
+    // a trait object at the binding site. Without the annotation Rust would
+    // infer `Arc<ClosureType>` for `__pe_b{i}` (no unsizing in a let without
+    // a target type) and the inner call would still see a concrete closure
+    // type, not `Arc<dyn Fn>` — failing with "expected Arc<dyn Fn>, found
+    // closure" (see `findIteratorIndexedCrefs` in `AbsynUtil.mo`).
+    //
+    // For inputs / outputs that mention type variables not in scope at this
+    // partial-application site (e.g. a generic `Fn(T) -> bool`), we emit `_`
+    // so the compiler infers them from the inner call's signature.
+    fn dyn_fn_annot(ty: &Ty, ctx: &mut GenCtx) -> Option<String> {
+        let Ty::Function { inputs, output, name: None, .. } = ty else { return None };
+        let ins = inputs.iter().map(|i| {
+            if ty_mentions_typevar(&i.ty) { "_".to_owned() } else { fmt_ty(&i.ty, ctx) }
+        }).collect::<Vec<_>>().join(", ");
+        let out = if ty_mentions_typevar(output) { "_".to_owned() } else { fmt_ty(output, ctx) };
+        Some(format!("Arc<dyn ::std::ops::Fn({ins}) -> Result<{out}> + 'static>"))
+    }
+
     for (i, formal_name) in formal_names.iter().enumerate() {
+        let formal_ty = formal_tys.get(i).cloned();
+        let cap_annot = formal_ty.as_ref().and_then(|t| dyn_fn_annot(t, ctx));
+        let cap_decl = |cap_name: &str, v: &str| -> String {
+            match &cap_annot {
+                Some(ann) => format!("let {cap_name}: {ann} = {v};"),
+                None => format!("let {cap_name} = {v};"),
+            }
+        };
         if i < bound_pos {
             // Positional binding.
-            let v = emit_exp(&args[i], is_const, ctx, top_level);
+            let v = emit_call_arg_with_formal(&args[i], formal_ty.as_ref(), is_const, ctx, top_level);
             let cap_name = format!("__pe_b{i}");
-            captures.push(format!("let {cap_name} = {v};"));
+            captures.push(cap_decl(&cap_name, &v));
             call_arg_exprs.push(format!("{cap_name}.clone()"));
         } else if let Some(named_expr) = named_map.remove(formal_name.as_str()) {
             // Named binding (looked up by formal name).
-            let v = emit_exp(named_expr, is_const, ctx, top_level);
+            let v = emit_call_arg_with_formal(named_expr, formal_ty.as_ref(), is_const, ctx, top_level);
             let cap_name = format!("__pe_b{i}");
-            captures.push(format!("let {cap_name} = {v};"));
+            captures.push(cap_decl(&cap_name, &v));
             call_arg_exprs.push(format!("{cap_name}.clone()"));
         } else {
             // Unbound — becomes a closure parameter.

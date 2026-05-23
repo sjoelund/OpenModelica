@@ -148,6 +148,14 @@ struct GenCtx {
     /// which is what keeps recursive HOFs like `List.sort` working (each
     /// recursive call gets a clone of the same `Arc`, staying at one type level).
     fn_input_names: HashSet<String>,
+    /// Names of function-scope locals (and inputs) whose Rust declaration is
+    /// emitted with an initialiser. Used by matchcontinue arm codegen to
+    /// decide whether the per-arm shadow `let mut x: T = x.clone();` is safe
+    /// — if the outer binding has no initialiser and the matchcontinue itself
+    /// is the first write to it, the shadow's RHS would be uninitialised and
+    /// fail to compile. Populated in [`emit_function`] alongside `fn_env_vars`;
+    /// saved/restored around nested-function emissions.
+    fn_initialized_vars: HashSet<String>,
     /// Output component names (in declaration order) of the enclosing function.
     /// Used by `S::Return` inside a match-arm body to expand `return;` into
     /// `return Ok((outputs...));`. The arm body is emitted with a fresh
@@ -289,6 +297,7 @@ impl GenCtx {
             uninit_arrays: HashSet::new(),
             fn_env_vars: HashMap::new(),
             fn_input_names: HashSet::new(),
+            fn_initialized_vars: HashSet::new(),
             fn_outputs: Vec::new(),
             variants: HashMap::new(),
             variant_shapes: HashMap::new(),
@@ -3178,6 +3187,9 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
     // a match arm can expand to the same Ok(...) tuple as the function tail.
     ctx.fn_env_vars = env.vars.clone();
     ctx.fn_input_names = fn_inputs_eff.iter().map(|inp| inp.name.clone()).collect();
+    // Inputs are always initialised at the outer scope. Locals are added as
+    // we emit their declarations below.
+    ctx.fn_initialized_vars = ctx.fn_input_names.clone();
     ctx.fn_outputs = env.outputs.clone();
     ctx.uninit_arrays.clear(); // fresh function scope — no uninitialised arrays yet
 
@@ -3332,6 +3344,7 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
         // omitted the same local.
         let saved_fn_env_vars = ctx.fn_env_vars.clone();
         let saved_fn_input_names = ctx.fn_input_names.clone();
+        let saved_fn_initialized_vars = ctx.fn_initialized_vars.clone();
         let saved_fn_outputs = ctx.fn_outputs.clone();
         let saved_uninit_arrays = ctx.uninit_arrays.clone();
         for member in parent_members.iter() {
@@ -3344,6 +3357,7 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
         }
         ctx.fn_env_vars = saved_fn_env_vars;
         ctx.fn_input_names = saved_fn_input_names;
+        ctx.fn_initialized_vars = saved_fn_initialized_vars;
         ctx.fn_outputs = saved_fn_outputs;
         ctx.uninit_arrays = saved_uninit_arrays;
     }
@@ -3382,6 +3396,7 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
         let ty_annot = if is_unknown_ty { String::new() } else { format!(": {ty_s}") };
         match (is_const_local, init) {
             (true, Some((s, init_ty))) => {
+                ctx.fn_initialized_vars.insert(n.to_string());
                 if let Some(line) = emit_multi_output_let(/*is_mut=*/false, n, t, &init_ty, &s, &body_indent, ctx) {
                     out.push_str(&line);
                 } else {
@@ -3391,6 +3406,7 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
             },
             (true, None) => writeln!(out, "{body_indent}let mut {}{ty_annot}; // TODO: local with unresolved type", escape_ident(n)).unwrap(),
             (false, Some((s, init_ty))) => {
+                ctx.fn_initialized_vars.insert(n.to_string());
                 if let Some(line) = emit_multi_output_let(/*is_mut=*/true, n, t, &init_ty, &s, &body_indent, ctx) {
                     out.push_str(&line);
                 } else {
@@ -7584,14 +7600,19 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
                         if shadow_seen.contains(name) { continue; }
                         let Some(ty) = ctx.fn_env_vars.get(name).cloned() else { continue };
                         let id = escape_ident(name);
-                        // If the variable is a function input parameter it is
-                        // already initialised at the outer scope, so the shadow
-                        // must carry that value in — otherwise reads inside the
-                        // arm that precede the first assignment would see an
-                        // uninitialised binding. For purely-local outer
-                        // declarations we cannot assume initialisation, so we
-                        // keep the bare `let mut` (existing behaviour).
-                        let init_from_outer = ctx.fn_input_names.contains(name);
+                        // The shadow carries the outer value in (`let mut x =
+                        // x.clone();`) when the outer binding is known to have
+                        // been initialised at its declaration — i.e. it's a
+                        // function input, or a local declared with `= init`.
+                        // For bare `let mut x: T;` outer locals the outer is
+                        // uninitialised at the point the matchcontinue runs
+                        // when the matchcontinue itself is the first writer:
+                        // a shadow `= x.clone()` there would use uninitialised
+                        // memory. The bare-shadow fallback lets arms freely
+                        // assign such locals (matching MM matchcontinue
+                        // semantics where the arm body's writes propagate to
+                        // the outer scope via the `'mc:` block's tuple return).
+                        let init_from_outer = ctx.fn_initialized_vars.contains(name);
                         if matches!(ty, Ty::Unknown) {
                             if init_from_outer {
                                 body.push_str(&format!("            let mut {id} = {id}.clone(); // TODO: shadow of function-scope input with unresolved type\n"));

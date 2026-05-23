@@ -18,7 +18,7 @@ pub static ASSERTIONLEVEL_ERROR: std::sync::LazyLock<Arc<Exp>> = std::sync::Lazy
 
 pub static ASSERTIONLEVEL_WARNING: std::sync::LazyLock<Arc<Exp>> = std::sync::LazyLock::new(|| { Arc::new(Exp::ENUM_LITERAL { name: Arc::new(Absyn::Path::QUALIFIED { name: (literal!("AssertionLevel")).clone(), path: Arc::new(Absyn::Path::IDENT { name: (literal!("warning")).clone() }) }), index: 1 }) });
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Algorithm {
     pub statementLst: Arc<metamodelica::List<Arc<Statement>>>,
 }
@@ -26,7 +26,7 @@ pub struct Algorithm {
 pub type ALGORITHM_STMTS = Algorithm;
 
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Attributes {
     pub connectorType: Arc<ConnectorType>,
     pub parallelism: SCode::Parallelism,
@@ -39,7 +39,7 @@ pub struct Attributes {
 pub type ATTR = Attributes;
 
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Binding {
     UNBOUND,
     EQBOUND {
@@ -55,7 +55,7 @@ pub enum Binding {
 }
 pub use self::Binding::{UNBOUND,EQBOUND,VALBOUND};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum BindingSource {
     BINDING_FROM_DEFAULT_VALUE,
     BINDING_FROM_START_VALUE,
@@ -64,7 +64,7 @@ pub enum BindingSource {
 }
 pub use self::BindingSource::{BINDING_FROM_DEFAULT_VALUE,BINDING_FROM_START_VALUE,BINDING_FROM_RECORD_SUBMODS,BINDING_FROM_DERIVED_RECORD_DECL};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct CallAttributes {
     pub ty: Arc<Type>,
     pub tuple_: bool,
@@ -78,7 +78,7 @@ pub struct CallAttributes {
 pub type CALL_ATTR = CallAttributes;
 
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ClassAttributes {
     pub objetiveE: Option<Arc<Exp>>,
     pub objectiveIntegrandE: Option<Arc<Exp>>,
@@ -89,7 +89,7 @@ pub struct ClassAttributes {
 pub type OPTIMIZATION_ATTRS = ClassAttributes;
 
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ClassPrefix {
     pub variability: SCode::Variability,
 }
@@ -97,7 +97,7 @@ pub struct ClassPrefix {
 pub type CLASSPRE = ClassPrefix;
 
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ClockKind {
     INFERRED_CLOCK,
     RATIONAL_CLOCK {
@@ -118,7 +118,7 @@ pub enum ClockKind {
 }
 pub use self::ClockKind::{INFERRED_CLOCK,RATIONAL_CLOCK,REAL_CLOCK,EVENT_CLOCK,SOLVER_CLOCK};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum CodeType {
     C_EXPRESSION,
     C_EXPRESSION_OR_MODIFICATION,
@@ -129,7 +129,7 @@ pub enum CodeType {
 }
 pub use self::CodeType::{C_EXPRESSION,C_EXPRESSION_OR_MODIFICATION,C_MODIFICATION,C_TYPENAME,C_VARIABLENAME,C_VARIABLENAMES};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ComponentPrefix {
     PRE {
         prefix: ArcStr,
@@ -145,7 +145,7 @@ pub use self::ComponentPrefix::{PRE,NOCOMPPRE};
 
 pub type ComponentPrefixOpt = Option<Arc<ComponentPrefix>>;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ComponentRef {
     CREF_QUAL {
         ident: Ident,
@@ -168,7 +168,7 @@ pub use self::ComponentRef::{CREF_QUAL,CREF_IDENT,OPTIMICA_ATTR_INST_CREF,WILD};
 
 pub mod Connect {
     use super::*;
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
     pub struct ConnectorElement {
         pub name: Arc<ComponentRef>,
         pub face: Face,
@@ -180,7 +180,7 @@ pub mod Connect {
     pub type CONNECTOR_ELEMENT = ConnectorElement;
 
 
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
     pub enum ConnectorType {
         EQU,
         FLOW,
@@ -191,7 +191,7 @@ pub mod Connect {
     }
     pub use self::ConnectorType::{EQU,FLOW,STREAM,NO_TYPE};
 
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
     pub enum Face {
         INSIDE,
         OUTSIDE,
@@ -201,7 +201,7 @@ pub mod Connect {
 
     pub const NEW_SET: i32 = -1;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
     pub struct OuterConnect {
         pub scope: Prefix,
         pub cr1: Arc<ComponentRef>,
@@ -216,7 +216,7 @@ pub mod Connect {
     pub type OUTERCONNECT = OuterConnect;
 
 
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
     pub enum Set {
         SET {
             ty: ConnectorType,
@@ -232,7 +232,7 @@ pub mod Connect {
 
     pub type SetTrie = Arc<SetTrieNode>;
 
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
     pub enum SetTrieNode {
         SET_TRIE_NODE {
             name: ArcStr,
@@ -250,7 +250,7 @@ pub mod Connect {
     }
     pub use self::SetTrieNode::{SET_TRIE_NODE,SET_TRIE_LEAF};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
     pub struct Sets {
         pub sets: SetTrie,
         pub setCount: i32,
@@ -265,7 +265,7 @@ pub mod Connect {
 
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ConnectorType {
     POTENTIAL,
     FLOW,
@@ -276,7 +276,7 @@ pub enum ConnectorType {
 }
 pub use self::ConnectorType::{POTENTIAL,FLOW,STREAM,NON_CONNECTOR};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Const {
     C_CONST,
     C_PARAM,
@@ -285,7 +285,7 @@ pub enum Const {
 }
 pub use self::Const::{C_CONST,C_PARAM,C_VAR,C_UNKNOWN};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Constraint {
     CONSTRAINT_EXPS {
         constraintLst: Arc<metamodelica::List<Arc<Exp>>>,
@@ -297,7 +297,7 @@ pub enum Constraint {
 }
 pub use self::Constraint::{CONSTRAINT_EXPS,CONSTRAINT_DT};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct DAElist {
     pub elementLst: Arc<metamodelica::List<Arc<Element>>>,
 }
@@ -305,7 +305,7 @@ pub struct DAElist {
 pub type DAE = DAElist;
 
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Dimension {
     DIM_INTEGER {
         integer: i32,
@@ -323,7 +323,7 @@ pub enum Dimension {
 }
 pub use self::Dimension::{DIM_INTEGER,DIM_BOOLEAN,DIM_ENUM,DIM_EXP,DIM_UNKNOWN};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum DimensionBinding {
     DIM_UNBOUND,
     DIM_BOUND {
@@ -335,7 +335,7 @@ pub use self::DimensionBinding::{DIM_UNBOUND,DIM_BOUND};
 
 pub type Dimensions = Arc<metamodelica::List<Arc<Dimension>>>;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Distribution {
     pub name: Arc<Exp>,
     pub params: Arc<Exp>,
@@ -345,7 +345,7 @@ pub struct Distribution {
 pub type DISTRIBUTION = Distribution;
 
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Element {
     VAR {
         componentRef: Arc<ComponentRef>,
@@ -525,7 +525,7 @@ pub enum Element {
 }
 pub use self::Element::{VAR,DEFINE,INITIALDEFINE,EQUATION,EQUEQUATION,ARRAY_EQUATION,INITIAL_ARRAY_EQUATION,CONNECT_EQUATION,COMPLEX_EQUATION,INITIAL_COMPLEX_EQUATION,WHEN_EQUATION,INITIAL_FOR_EQUATION,FOR_EQUATION,IF_EQUATION,INITIAL_IF_EQUATION,INITIALEQUATION,ALGORITHM,INITIALALGORITHM,COMP,EXTOBJECTCLASS,ASSERT,INITIAL_ASSERT,TERMINATE,INITIAL_TERMINATE,REINIT,NORETCALL,INITIAL_NORETCALL,CONSTRAINT,CLASS_ATTRIBUTES,FLAT_SM,SM_COMP,COMMENT};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ElementSource {
     pub info: SourceInfo,
     pub partOfLst: Arc<metamodelica::List<Absyn::Within>>,
@@ -539,7 +539,7 @@ pub struct ElementSource {
 pub type SOURCE = ElementSource;
 
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Else {
     NOELSE,
     ELSEIF {
@@ -553,7 +553,7 @@ pub enum Else {
 }
 pub use self::Else::{NOELSE,ELSEIF,ELSE};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum EqMod {
     TYPED {
         modifierAsExp: Arc<Exp>,
@@ -570,7 +570,7 @@ pub use self::EqMod::{TYPED,UNTYPED};
 
 pub type EqualityConstraint = Option<(Arc<Absyn::Path>, i32, InlineType)>;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum EquationExp {
     PARTIAL_EQUATION {
         exp: Arc<Exp>,
@@ -585,7 +585,7 @@ pub enum EquationExp {
 }
 pub use self::EquationExp::{PARTIAL_EQUATION,RESIDUAL_EXP,EQUALITY_EXPS};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum EvaluateSingletonType {
     EVAL_SINGLETON_TYPE_FUNCTION {
         fun: EvaluateSingletonTypeFunction,
@@ -599,13 +599,13 @@ pub use self::EvaluateSingletonType::{EVAL_SINGLETON_TYPE_FUNCTION,EVAL_SINGLETO
 
 pub type EvaluateSingletonTypeFunction = fn() -> Result<Arc<Type>>;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Exp {
     ICONST {
         integer: i32,
     },
     RCONST {
-        real: f64,
+        real: metamodelica::Real,
     },
     SCONST {
         string: ArcStr,
@@ -773,14 +773,14 @@ pub enum Exp {
 }
 pub use self::Exp::{ICONST,RCONST,SCONST,BCONST,CLKCONST,ENUM_LITERAL,CREF,BINARY,UNARY,LBINARY,LUNARY,RELATION,IFEXP,CALL,RECORD,PARTEVALFUNCTION,ARRAY,MATRIX,RANGE,TUPLE,CAST,ASUB,TSUB,RSUB,SIZE,CODE,EMPTY,REDUCTION,LIST,CONS,META_TUPLE,META_OPTION,METARECORDCALL,MATCHEXPRESSION,BOX,UNBOX,SHARED_LITERAL,PATTERN};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Expand {
     EXPAND,
     NOT_EXPAND,
 }
 pub use self::Expand::{EXPAND,NOT_EXPAND};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ExtArg {
     EXTARG {
         componentRef: Arc<ComponentRef>,
@@ -800,7 +800,7 @@ pub enum ExtArg {
 }
 pub use self::ExtArg::{EXTARG,EXTARGEXP,EXTARGSIZE,NOEXTARG};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ExternalDecl {
     pub name: ArcStr,
     pub args: Arc<metamodelica::List<ExtArg>>,
@@ -820,7 +820,7 @@ pub static FUNCTION_ATTRIBUTES_DEFAULT: std::sync::LazyLock<FunctionAttributes> 
 
 pub static FUNCTION_ATTRIBUTES_IMPURE: std::sync::LazyLock<FunctionAttributes> = std::sync::LazyLock::new(|| { FunctionAttributes { inline: crate::DAE::InlineType::NO_INLINE, generateEvents: false, purity: Purity::IMPURE.clone(), isFunctionPointer: false, isBuiltin: crate::DAE::FunctionBuiltin::FUNCTION_NOT_BUILTIN, functionParallelism: crate::DAE::FunctionParallelism::FP_NON_PARALLEL } });
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct FuncArg {
     pub name: ArcStr,
     pub ty: Arc<Type>,
@@ -832,7 +832,7 @@ pub struct FuncArg {
 pub type FUNCARG = FuncArg;
 
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Function {
     FUNCTION {
         path: Arc<Absyn::Path>,
@@ -854,7 +854,7 @@ pub enum Function {
 }
 pub use self::Function::{FUNCTION,RECORD_CONSTRUCTOR};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct FunctionAttributes {
     pub inline: InlineType,
     pub generateEvents: bool,
@@ -867,7 +867,7 @@ pub struct FunctionAttributes {
 pub type FUNCTION_ATTRIBUTES = FunctionAttributes;
 
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum FunctionBuiltin {
     FUNCTION_NOT_BUILTIN,
     FUNCTION_BUILTIN {
@@ -878,7 +878,7 @@ pub enum FunctionBuiltin {
 }
 pub use self::FunctionBuiltin::{FUNCTION_NOT_BUILTIN,FUNCTION_BUILTIN,FUNCTION_BUILTIN_PTR};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum FunctionDefinition {
     FUNCTION_DEF {
         body: Arc<metamodelica::List<Arc<Element>>>,
@@ -906,7 +906,7 @@ pub enum FunctionDefinition {
 }
 pub use self::FunctionDefinition::{FUNCTION_DEF,FUNCTION_EXT,FUNCTION_DER_MAPPER,FUNCTION_INVERSE,FUNCTION_PARTIAL_DERIVATIVE};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum FunctionParallelism {
     FP_NON_PARALLEL,
     FP_PARALLEL_FUNCTION,
@@ -916,7 +916,7 @@ pub use self::FunctionParallelism::{FP_NON_PARALLEL,FP_PARALLEL_FUNCTION,FP_KERN
 
 pub type Ident = ArcStr;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum InlineType {
     NORM_INLINE,
     BUILTIN_EARLY_INLINE,
@@ -929,7 +929,7 @@ pub use self::InlineType::{NORM_INLINE,BUILTIN_EARLY_INLINE,EARLY_INLINE,DEFAULT
 
 pub type InstDims = Arc<metamodelica::List<Arc<Dimension>>>;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct MatchCase {
     pub patterns: Arc<metamodelica::List<Arc<Pattern>>>,
     pub patternGuard: Option<Arc<Exp>>,
@@ -944,7 +944,7 @@ pub struct MatchCase {
 pub type CASE = MatchCase;
 
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum MatchType {
     MATCHCONTINUE,
     TRY_STACKOVERFLOW,
@@ -954,7 +954,7 @@ pub enum MatchType {
 }
 pub use self::MatchType::{MATCHCONTINUE,TRY_STACKOVERFLOW,MATCH};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Mod {
     MOD {
         finalPrefix: SCode::Final,
@@ -973,7 +973,7 @@ pub enum Mod {
 }
 pub use self::Mod::{MOD,REDECL,NOMOD};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Operator {
     ADD {
         ty: Arc<Type>,
@@ -1074,9 +1074,9 @@ pub enum Operator {
 }
 pub use self::Operator::{ADD,SUB,MUL,DIV,POW,UMINUS,UMINUS_ARR,ADD_ARR,SUB_ARR,MUL_ARR,DIV_ARR,MUL_ARRAY_SCALAR,ADD_ARRAY_SCALAR,SUB_SCALAR_ARRAY,MUL_SCALAR_PRODUCT,MUL_MATRIX_PRODUCT,DIV_ARRAY_SCALAR,DIV_SCALAR_ARRAY,POW_ARRAY_SCALAR,POW_SCALAR_ARRAY,POW_ARR,POW_ARR2,AND,OR,NOT,LESS,LESSEQ,GREATER,GREATEREQ,EQUAL,NEQUAL,USERDEFINED};
 
-pub static PI: std::sync::LazyLock<Arc<Exp>> = std::sync::LazyLock::new(|| { Arc::new(Exp::RCONST { real: 3.1415926535897932384626433832795028841971693993751058 }) });
+pub static PI: std::sync::LazyLock<Arc<Exp>> = std::sync::LazyLock::new(|| { Arc::new(Exp::RCONST { real: metamodelica::OrderedFloat(3.1415926535897932384626433832795028841971693993751058_f64) }) });
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Pattern {
     PAT_WILD,
     PAT_CONSTANT {
@@ -1121,7 +1121,7 @@ pub enum Pattern {
 }
 pub use self::Pattern::{PAT_WILD,PAT_CONSTANT,PAT_AS,PAT_AS_FUNC_PTR,PAT_META_TUPLE,PAT_CALL_TUPLE,PAT_CONS,PAT_CALL,PAT_CALL_NAMED,PAT_SOME};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Prefix {
     NOPRE,
     PREFIX {
@@ -1131,7 +1131,7 @@ pub enum Prefix {
 }
 pub use self::Prefix::{NOPRE,PREFIX};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Properties {
     PROP {
         type_: Arc<Type>,
@@ -1159,7 +1159,7 @@ impl Ord for Purity {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering { (*self as i32).cmp(&(*other as i32)) }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ReductionInfo {
     pub path: Arc<Absyn::Path>,
     pub iterType: Absyn::ReductionIterType,
@@ -1173,7 +1173,7 @@ pub struct ReductionInfo {
 pub type REDUCTIONINFO = ReductionInfo;
 
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ReductionIterator {
     pub id: ArcStr,
     pub exp: Arc<Exp>,
@@ -1188,7 +1188,7 @@ pub type ReductionIterators = Arc<metamodelica::List<Arc<ReductionIterator>>>;
 
 pub type StartValue = Option<Arc<Exp>>;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum StateSelect {
     NEVER,
     AVOID,
@@ -1198,7 +1198,7 @@ pub enum StateSelect {
 }
 pub use self::StateSelect::{NEVER,AVOID,DEFAULT,PREFER,ALWAYS};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Statement {
     STMT_ASSIGN {
         type_: Arc<Type>,
@@ -1294,7 +1294,7 @@ pub enum Statement {
 }
 pub use self::Statement::{STMT_ASSIGN,STMT_TUPLE_ASSIGN,STMT_ASSIGN_ARR,STMT_IF,STMT_FOR,STMT_PARFOR,STMT_WHILE,STMT_WHEN,STMT_ASSERT,STMT_TERMINATE,STMT_REINIT,STMT_NORETCALL,STMT_RETURN,STMT_BREAK,STMT_CONTINUE,STMT_ARRAY_INIT,STMT_FAILURE};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct SubMod {
     pub ident: Ident,
     pub r#mod: Arc<Mod>,
@@ -1303,7 +1303,7 @@ pub struct SubMod {
 pub type NAMEMOD = SubMod;
 
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Subscript {
     WHOLEDIM,
     SLICE {
@@ -1318,7 +1318,7 @@ pub enum Subscript {
 }
 pub use self::Subscript::{WHOLEDIM,SLICE,INDEX,WHOLE_NONEXP};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum SymbolicOperation {
     FLATTEN {
         scode: Arc<SCode::Equation>,
@@ -1359,9 +1359,9 @@ pub enum SymbolicOperation {
     },
     LINEAR_SOLVED {
         vars: Arc<metamodelica::List<Arc<ComponentRef>>>,
-        jac: Arc<metamodelica::List<Arc<metamodelica::List<f64>>>>,
-        rhs: Arc<metamodelica::List<f64>>,
-        result: Arc<metamodelica::List<f64>>,
+        jac: Arc<metamodelica::List<Arc<metamodelica::List<metamodelica::Real>>>>,
+        rhs: Arc<metamodelica::List<metamodelica::Real>>,
+        result: Arc<metamodelica::List<metamodelica::Real>>,
     },
     NEW_DUMMY_DER {
         chosen: Arc<ComponentRef>,
@@ -1427,7 +1427,7 @@ pub static T_STRING_DEFAULT: std::sync::LazyLock<Arc<Type>> = std::sync::LazyLoc
 
 pub static T_UNKNOWN_DEFAULT: std::sync::LazyLock<Arc<Type>> = std::sync::LazyLock::new(|| { Arc::new(crate::DAE::Type::T_UNKNOWN) });
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum TailCall {
     NO_TAIL,
     TAIL {
@@ -1437,7 +1437,7 @@ pub enum TailCall {
 }
 pub use self::TailCall::{NO_TAIL,TAIL};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum TupleConst {
     SINGLE_CONST {
         r#const: Const,
@@ -1448,7 +1448,7 @@ pub enum TupleConst {
 }
 pub use self::TupleConst::{SINGLE_CONST,TUPLE_CONST};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Type {
     T_INTEGER {
         varLst: Arc<metamodelica::List<Arc<Var>>>,
@@ -1554,7 +1554,7 @@ pub use self::Type::{T_INTEGER,T_REAL,T_STRING,T_BOOL,T_CLOCK,T_ENUMERATION,T_AR
 
 pub const UNIQUEIO: &'static str = "$unique$outer$";
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Uncertainty {
     GIVEN,
     SOUGHT,
@@ -1563,7 +1563,7 @@ pub enum Uncertainty {
 }
 pub use self::Uncertainty::{GIVEN,SOUGHT,REFINE,PROPAGATE};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Var {
     pub name: Ident,
     pub attributes: Arc<Attributes>,
@@ -1576,7 +1576,7 @@ pub struct Var {
 pub type TYPES_VAR = Var;
 
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum VarDirection {
     INPUT,
     OUTPUT,
@@ -1584,7 +1584,7 @@ pub enum VarDirection {
 }
 pub use self::VarDirection::{INPUT,OUTPUT,BIDIR};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum VarInnerOuter {
     INNER,
     OUTER,
@@ -1593,7 +1593,7 @@ pub enum VarInnerOuter {
 }
 pub use self::VarInnerOuter::{INNER,OUTER,INNER_OUTER,NOT_INNER_OUTER};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum VarKind {
     VARIABLE,
     DISCRETE,
@@ -1602,7 +1602,7 @@ pub enum VarKind {
 }
 pub use self::VarKind::{VARIABLE,DISCRETE,PARAM,CONST};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum VarParallelism {
     PARGLOBAL,
     PARLOCAL,
@@ -1610,14 +1610,14 @@ pub enum VarParallelism {
 }
 pub use self::VarParallelism::{PARGLOBAL,PARLOCAL,NON_PARALLEL};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum VarVisibility {
     PUBLIC,
     PROTECTED,
 }
 pub use self::VarVisibility::{PUBLIC,PROTECTED};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum VariableAttributes {
     VAR_ATTR_REAL {
         quantity: Option<Arc<Exp>>,
@@ -1711,7 +1711,7 @@ pub static crefTime: std::sync::LazyLock<Arc<ComponentRef>> = std::sync::LazyLoc
 
 pub static crefTimeState: std::sync::LazyLock<Arc<ComponentRef>> = std::sync::LazyLock::new(|| { Arc::new(ComponentRef::CREF_IDENT { ident: (literal!("$time")).clone(), identType: T_REAL_DEFAULT.clone(), subscriptLst: metamodelica::nil() }) });
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum derivativeCond {
     ZERO_DERIVATIVE,
     NO_DERIVATIVE {

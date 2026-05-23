@@ -11,6 +11,7 @@ winnow = "0.7"
 loop_unwrap = "0.2.0"
 tailcall = "2.3.0"
 match_deref = "0.1.2"
+ordered-float = "5.3.0"
 mmtorust = {path = "mmtorust"}
 mmwinnow = {path = "mmwinnow"}
 metamodelica = {path = "metamodelica"}

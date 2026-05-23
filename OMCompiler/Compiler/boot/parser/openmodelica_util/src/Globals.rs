@@ -121,14 +121,14 @@ thread_local! {
     ///
     /// Accumulated wall-clock time for the first profiling slot.
     /// Initialised to 0.0; incremented by `Util.mo`.
-    pub static profilerTime1Index: RefCell<f64> =
-        const { RefCell::new(0.0) };
+    pub static profilerTime1Index: RefCell<metamodelica::Real> =
+        const { RefCell::new(metamodelica::OrderedFloat(0.0_f64)) };
 
     /// Index 16 — Profiler timer 2.
     ///
     /// Accumulated wall-clock time for the second profiling slot.
-    pub static profilerTime2Index: RefCell<f64> =
-        const { RefCell::new(0.0) };
+    pub static profilerTime2Index: RefCell<metamodelica::Real> =
+        const { RefCell::new(metamodelica::OrderedFloat(0.0_f64)) };
 
     /// Index 17 — Compiler flags.
     ///

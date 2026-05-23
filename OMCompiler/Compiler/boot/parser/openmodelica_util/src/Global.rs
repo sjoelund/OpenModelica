@@ -54,8 +54,8 @@ pub fn initialize() -> () {
     crate::Globals::sharedLibraryCacheIndex.with(|__root| *__root.borrow_mut() = metamodelica::nil());
     crate::Globals::codegenTryThrowIndex.with(|__root| *__root.borrow_mut() = metamodelica::nil());
     crate::Globals::packageIndexCacheIndex.with(|__root| *__root.borrow_mut() = None);
-    crate::Globals::profilerTime1Index.with(|__root| *__root.borrow_mut() = 0.0);
-    crate::Globals::profilerTime2Index.with(|__root| *__root.borrow_mut() = 0.0);
+    crate::Globals::profilerTime1Index.with(|__root| *__root.borrow_mut() = metamodelica::OrderedFloat(0.0_f64));
+    crate::Globals::profilerTime2Index.with(|__root| *__root.borrow_mut() = metamodelica::OrderedFloat(0.0_f64));
     crate::Globals::flagsIndex.with(|__root| *__root.borrow_mut() = crate::Flags::Flag::NO_FLAGS);
     crate::Globals::gcProfilingIndex.with(|__root| *__root.borrow_mut() = openmodelica_util_datatypes_basic::GCExt::getProfStats());
     // ── Cross-crate roots — reset by the owning crate, not here ───────────

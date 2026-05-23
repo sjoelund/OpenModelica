@@ -2458,6 +2458,18 @@ fn collect_bindings_typed_tl<'a>(
                     let simple = name.rsplit_once('.').map_or(name.as_str(), |(_, s)| s);
                     let candidate = format!("{parent}.{simple}");
                     record_field_tys(&candidate, top_level)
+                } else if let Ty::RustStruct(parent) | Ty::AliasTo(parent) = scrut {
+                    // Standalone record (no uniontype wrapper): the constructor
+                    // name is the type name itself or a child record. Try the
+                    // scrut's qname directly first, then `<scrut>.<name>`.
+                    let direct = record_field_tys(parent, top_level);
+                    if !direct.is_empty() {
+                        direct
+                    } else {
+                        let simple = name.rsplit_once('.').map_or(name.as_str(), |(_, s)| s);
+                        let candidate = format!("{parent}.{simple}");
+                        record_field_tys(&candidate, top_level)
+                    }
                 } else { vec![] }
             };
             for (i, p) in fields.iter().enumerate() {

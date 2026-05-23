@@ -202,7 +202,7 @@ fn source_info(tok1: &Token, tok2: &Token) -> SourceInfo {
         columnNumberStart: tok1.col as i32,
         lineNumberEnd: end_line as i32,
         columnNumberEnd: end_col as i32,
-        lastModification: 0.0,
+        lastModification: metamodelica::Real::from(0.0_f64),
     }
 }
 

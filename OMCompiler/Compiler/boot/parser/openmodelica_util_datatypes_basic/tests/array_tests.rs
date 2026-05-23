@@ -201,7 +201,7 @@ fn test_expand_negative() -> Result<()> {
 fn test_expand_on_demand_grow() -> Result<()> {
     let a = arr(vec![1, 2, 3]);
     // MM: new_size = realInt(len * factor) = realInt(3 * 2.0) = 6 (not inNewSize)
-    let result = Array::expandOnDemand(5, a, 2.0, 0)?;
+    let result = Array::expandOnDemand(5, a, metamodelica::Real::from(2.0_f64), 0)?;
     assert_eq!(*result.borrow(), vec![1, 2, 3, 0, 0, 0]);
     Ok(())
 }
@@ -209,7 +209,7 @@ fn test_expand_on_demand_grow() -> Result<()> {
 #[test]
 fn test_expand_on_demand_no_grow() -> Result<()> {
     let a = arr(vec![1, 2, 3]);
-    let result = Array::expandOnDemand(2, a, 2.0, 0)?;
+    let result = Array::expandOnDemand(2, a, metamodelica::Real::from(2.0_f64), 0)?;
     assert_eq!(*result.borrow(), vec![1, 2, 3]);
     Ok(())
 }

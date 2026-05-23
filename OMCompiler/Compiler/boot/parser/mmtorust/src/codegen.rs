@@ -367,11 +367,23 @@ impl GenCtx {
     /// by `qname`. Types whose fields transitively embed `Mutable<T>` cannot
     /// derive `PartialEq` / `Eq` / `Hash`; they get only `Clone, Debug`.
     fn derives_for(&self, qname: &str) -> &'static str {
-        // We added a custom implementation for PartialEq for Mutable<T>, so we can still derive PartialEq for types containing it.
-        if self.types_containing_mutable.contains(qname) {
+        // Interior-mutability container fields (`Mutable<T>`,
+        // `Array<T>` = `Rc<RefCell<Vec<T>>>`) cannot derive
+        // `Eq`/`Ord`/`Hash` — `RefCell` is excluded by design because
+        // it breaks the immutability assumption those traits require.
+        // `PartialEq` is still derivable: we hand-roll a `Mutable<T>: PartialEq`
+        // that returns `false`, and `RefCell` itself derives `PartialEq` via
+        // a `borrow()` comparison.
+        // Otherwise emit the full algebraic set so `valueCompare`, hash
+        // containers, and `Eq`-bounded generics work.
+        // (`Real` is `OrderedFloat<f64>`, so containing a Real does not block
+        // Ord/Eq/Hash.)
+        if self.types_containing_mutable.contains(qname)
+            || self.types_containing_array.contains(qname)
+        {
             "#[derive(Clone, Debug, PartialEq)]"
         } else {
-            "#[derive(Clone, Debug, PartialEq)]"
+            "#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]"
         }
     }
 
@@ -1042,7 +1054,7 @@ fn emit_node<'a>(out: &mut String, name: &str, node: &NameNode<'_>, indent: &str
                 //      (see [`is_const_str_cref`]).
                 let rust_ty = match &node.ty {
                     Ty::I32 => Some("i32"),
-                    Ty::F64 => Some("f64"),
+                    Ty::F64 => Some("metamodelica::Real"),
                     Ty::Bool => Some("bool"),
                     _ => None,
                 };
@@ -3767,7 +3779,12 @@ fn resolve_const_bool<'a>(exp: &TypedExp, ctx: &GenCtx, top_level: &'a BTreeMap<
 fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) -> String {
     match exp {
         TypedExp::Lit(Lit::Int(v))  => v.to_string(),
-        TypedExp::Lit(Lit::Real(v)) => v.clone(),
+        // MetaModelica `Real` literal — wrap in `metamodelica::Real` (alias for
+        // `OrderedFloat<f64>`) so values containing Real can derive `Ord` / `Eq` / `Hash`.
+        // We use the tuple-struct constructor (`OrderedFloat(...)`) instead of
+        // `Real::from(...)` because the latter is not a `const fn`, and Real
+        // literals appear in `static`/`const` initializers.
+        TypedExp::Lit(Lit::Real(v)) => format!("metamodelica::OrderedFloat({v}_f64)"),
         TypedExp::Lit(Lit::Str(v))  => {
             let escaped = format!("{v:?}");
             format!("literal!({escaped})")
@@ -4023,10 +4040,10 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                 r = format!("({r}).0");
             }
             if lhs.ty() == Ty::I32 && rhs.ty() == Ty::F64 {
-                l = format!("(({l}) as f64)");
+                l = format!("metamodelica::Real::from(({l}) as f64)");
             }
             if rhs.ty() == Ty::I32 && lhs.ty() == Ty::F64 {
-                r = format!("(({r}) as f64)");
+                r = format!("metamodelica::Real::from(({r}) as f64)");
             }
             match op {
                 BinOpKind::Eq => {
@@ -4090,31 +4107,23 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                     }
                 }
                 BinOpKind::Add if *ty == Ty::Str => format!("(*{l}).clone() + &*{r}"),
-                BinOpKind::Add => {
-                    let lp = if lhs.ty() == Ty::I32 && rhs.ty() == Ty::F64 { format!("(({l}) as f64)") } else { l };
-                    let rp = if rhs.ty() == Ty::I32 && lhs.ty() == Ty::F64 { format!("(({r}) as f64)") } else { r };
-                    format!("{lp} + {rp}")
-                },
-                BinOpKind::Sub => {
-                    let lp = if lhs.ty() == Ty::I32 && rhs.ty() == Ty::F64 { format!("(({l}) as f64)") } else { l };
-                    let rp = if rhs.ty() == Ty::I32 && lhs.ty() == Ty::F64 { format!("(({r}) as f64)") } else { r };
-                    format!("{lp} - {rp}")
-
-                },
-                BinOpKind::Mul => {
-                    let lp = if lhs.ty() == Ty::I32 && rhs.ty() == Ty::F64 { format!("(({l}) as f64)") } else { l };
-                    let rp = if rhs.ty() == Ty::I32 && lhs.ty() == Ty::F64 { format!("(({r}) as f64)") } else { r };
-                    format!("{lp} * {rp}")
-                },
-                BinOpKind::Div => {
-                    let lp = if lhs.ty() == Ty::I32 && rhs.ty() == Ty::F64 { format!("(({l}) as f64)") } else { l };
-                    let rp = if rhs.ty() == Ty::I32 && lhs.ty() == Ty::F64 { format!("(({r}) as f64)") } else { r };
-                    format!("{lp} / {rp}")
-                },
+                // For +,-,*,/ the i32→Real promotion was already applied to
+                // `l`/`r` by the general block above; don't wrap twice.
+                BinOpKind::Add => format!("{l} + {r}"),
+                BinOpKind::Sub => format!("{l} - {r}"),
+                BinOpKind::Mul => format!("{l} * {r}"),
+                BinOpKind::Div => format!("{l} / {r}"),
                 BinOpKind::Pow => {
-                    let lp = if lhs.ty() == Ty::I32 { format!("(({l}) as f64)") } else { l };
-                    let rp = if rhs.ty() == Ty::I32 { format!("(({r}) as f64)") } else { r };
-                    format!("({lp}).powf({rp})")
+                    // `powf` is on f64. Reduce each operand to a raw `f64`:
+                    //   • i32 already-promoted to `Real` by the general block
+                    //     above (when the other side is F64): use `.0`.
+                    //   • i32 not promoted (e.g. I32^I32): cast `as f64`.
+                    //   • F64 operand: already `Real`, use `.0`.
+                    let general_promoted_l = lhs.ty() == Ty::I32 && rhs.ty() == Ty::F64;
+                    let general_promoted_r = rhs.ty() == Ty::I32 && lhs.ty() == Ty::F64;
+                    let lp = if lhs.ty() == Ty::I32 && !general_promoted_l { format!("(({l}) as f64)") } else { format!("(({l}).0)") };
+                    let rp = if rhs.ty() == Ty::I32 && !general_promoted_r { format!("(({r}) as f64)") } else { format!("(({r}).0)") };
+                    format!("metamodelica::Real::from(({lp}).powf({rp}))")
                 }
                 BinOpKind::And => format!("{l} && {r}"),
                 BinOpKind::Or  => format!("{l} || {r}"),
@@ -4863,7 +4872,7 @@ fn emit_reduction<'a>(
                 )
             } else {
                 let ty_s = numeric_sum_ty(&body_ty);
-                let zero = if ty_s == "f64" { "0.0" } else { "0" };
+                let zero = if ty_s == "metamodelica::Real" { "metamodelica::Real::from(0.0_f64)" } else { "0" };
                 (
                     format!("let mut __acc: {ty_s} = {zero};"),
                     "__acc += __x;".to_owned(),
@@ -4873,7 +4882,7 @@ fn emit_reduction<'a>(
         }
         "product" => {
             let ty_s = numeric_sum_ty(&body_ty);
-            let one = if ty_s == "f64" { "1.0" } else { "1" };
+            let one = if ty_s == "metamodelica::Real" { "metamodelica::Real::from(1.0_f64)" } else { "1" };
             (
                 format!("let mut __acc: {ty_s} = {one};"),
                 "__acc *= __x;".to_owned(),
@@ -5056,7 +5065,7 @@ fn iter_pair(prev: &[ReductionIter], cur: &str) -> String {
 /// the wider value path will surface any mismatch at compile time.
 fn numeric_sum_ty(ty: &Ty) -> &'static str {
     match ty {
-        Ty::F64 => "f64",
+        Ty::F64 => "metamodelica::Real",
         Ty::I32 => "i32",
         _ => "i32",
     }
@@ -5110,7 +5119,7 @@ fn emit_builtin_call_arg_raw<'a>(
     // it, builtins like `SOURCEINFO(_,_,_,_,_,_,lastModification)` reject a
     // bare integer literal for the `Real` slot.
     if matches!(formal, Some(Ty::F64)) && matches!(arg.ty(), Ty::I32) {
-        return format!("(({raw}) as f64)");
+        return format!("metamodelica::Real::from(({raw}) as f64)");
     }
     raw
 }
@@ -5270,18 +5279,10 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
             if args.len() == 2 {
                 let arg1 = args.first().map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
                 let arg2 = args.get(1).map(|a| emit_builtin_call_arg_raw(func, 1, a, is_const, ctx, top_level)).unwrap_or_default();
-                // `std::cmp::max/min` requires `Ord`, which `f64` does not
-                // implement (NaN ordering is partial). MetaModelica `max`/`min`
-                // on Reals must lower to the inherent `f64::max`/`f64::min`
-                // method, which uses `total_cmp`-equivalent NaN handling and
-                // matches the MM runtime semantics.
-                let is_real = matches!(args.first().map(|a| a.ty()), Some(Ty::F64))
-                    || matches!(args.get(1).map(|a| a.ty()), Some(Ty::F64));
-                if is_real {
-                    Ok(format!("f64::{func}({arg1}, {arg2})"))
-                } else {
-                    Ok(format!("std::cmp::{func}({arg1}, {arg2})"))
-                }
+                // Both `metamodelica::Real` (OrderedFloat<f64>) and `i32` impl
+                // `Ord`, so `std::cmp::max/min` works uniformly. NaN ordering
+                // follows `ordered_float` semantics.
+                Ok(format!("std::cmp::{func}({arg1}, {arg2})"))
             } else {
                 let parts: Vec<String> = args.iter().enumerate()
                     .map(|(i, a)| emit_builtin_call_arg_raw(func, i, a, is_const, ctx, top_level))
@@ -5312,7 +5313,7 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
         },
         "realNeg" => {
             let arg1 = args.first().map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
-            Ok(format!("-( {} as f64)", arg1))
+            Ok(format!("-({arg1})"))
         },
         "realMul" | "realAdd" | "realSub" => {
             let arg1 = args.first().map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
@@ -5323,11 +5324,12 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
                 "realSub" => "-",
                 _ => unreachable!()
             };
-            Ok(format!("(({}) as f64) {} (({}) as f64)", arg1, op, arg2))
+            Ok(format!("({arg1}) {op} ({arg2})"))
         },
         "realInt" => {
+            // metamodelica::Real wraps f64; access via `.0` then truncate to i32.
             let arg = args.first().map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
-            Ok(format!("(({arg}) as i32)"))
+            Ok(format!("(({arg}).0 as i32)"))
         },
         // Integer(x) is a Modelica/MetaModelica built-in type cast.
         // For Real → Integer: floor to i32.
@@ -5337,7 +5339,9 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
             let arg = args.first().map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
             // Check the argument type to emit the right conversion.
             match args.first().map(|a| a.ty()).as_ref() {
-                Some(crate::hierarchy::Ty::F64) => Ok(format!("(({arg}) as i32)")),
+                // Real value is `metamodelica::Real` (OrderedFloat<f64>):
+                // reach the inner f64 via `.0` before truncating.
+                Some(crate::hierarchy::Ty::F64) => Ok(format!("(({arg}).0 as i32)")),
                 Some(crate::hierarchy::Ty::Bool) => Ok(format!("(({arg}) as i32)")),
                 Some(crate::hierarchy::Ty::Enumeration(_)) => Ok(format!("(({arg}) as i32)")),
                 // Unknown argument type — emit a generic cast; it may need manual review.
@@ -5373,15 +5377,15 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
             Ok(format!("({}.len() as i32)", arg))
         },
         "floor" => {
-            // Wrap the argument in parens: the emitted expression may be a sum
-            // or other operator chain, and `.floor()` would otherwise bind to
-            // the rightmost subterm (e.g. `a + 5e-15.floor()`).
+            // floor/ceil are Real-only. Compute on the inner f64 (via `.0`)
+            // and rewrap as `metamodelica::Real`. Parens around the argument:
+            // the emitted expression may be a sum or other operator chain.
             let arg = args.first().map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
-            Ok(format!("({}).floor()", arg))
+            Ok(format!("metamodelica::Real::from(({arg}).0.floor())"))
         },
         "ceil" => {
             let arg = args.first().map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
-            Ok(format!("({}).ceil()", arg))
+            Ok(format!("metamodelica::Real::from(({arg}).0.ceil())"))
         },
         "mod" if args.len()==2 => {
             let a1 = args.first().unwrap();
@@ -5401,12 +5405,20 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
             Ok(format!("{arg1} / {arg2}"))
         },
         "abs" => {
-            let arg = args.first().map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
-            Ok(format!("{}.abs()", arg))
+            let a = args.first();
+            let arg = a.map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
+            // `abs` is i32-or-Real overloaded. For Real, `.abs()` is on f64
+            // (OrderedFloat doesn't impl Deref); go through `.0` and rewrap.
+            match a.map(|a| a.ty()) {
+                Some(Ty::F64) => Ok(format!("metamodelica::Real::from(({arg}).0.abs())")),
+                _ => Ok(format!("{arg}.abs()")),
+            }
         },
         "integer" => {
+            // Modelica `integer(Real)` truncates toward -inf. `metamodelica::Real`
+            // wraps `f64`; reach the inner value via `.0`.
             let arg = args.first().map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
-            Ok(format!("(({} as f64).floor() as i32)", arg))
+            Ok(format!("(({arg}).0.floor() as i32)"))
         },
         "listHead" => {
             let arg = args.first().map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
@@ -5508,7 +5520,7 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
                 // routinely pass an Integer literal (`SOURCEINFO(...,0)`). Coerce
                 // to f64 so the struct initializer typechecks.
                 coerce_assign_expr_pub(s, &a.ty(), Some(&Ty::F64))
-            }).unwrap_or_else(|| "0.0".to_owned());
+            }).unwrap_or_else(|| "metamodelica::Real::from(0.0_f64)".to_owned());
             Ok(format!(
                 "SourceInfo {{ fileName: {a0}, isReadOnly: {a1}, lineNumberStart: {a2}, columnNumberStart: {a3}, lineNumberEnd: {a4}, columnNumberEnd: {a5}, lastModification: {a6} }}"
             ))
@@ -5533,15 +5545,16 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
         // would otherwise leave the `.sin()` etc. method call unresolved.
         "sin" | "cos" | "tan" | "asin" | "acos" | "atan"
         | "sinh" | "cosh" | "tanh" | "exp" | "log" | "log10" | "sqrt" if args.len() == 1 => {
-            let arg = args.first().map(|a| emit_builtin_call_arg_raw(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
+            // Compute on the inner f64 (via `.0`) and rewrap as `metamodelica::Real`.
             // `ln` in Rust is the natural log; Modelica calls it `log`.
+            let arg = args.first().map(|a| emit_builtin_call_arg_raw(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
             let method = match func { "log" => "ln", other => other };
-            Ok(format!("(({arg}) as f64).{method}()"))
+            Ok(format!("metamodelica::Real::from(({arg}).0.{method}())"))
         },
         "atan2" if args.len() == 2 => {
             let a1 = args.first().map(|a| emit_builtin_call_arg_raw(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
             let a2 = args.get(1).map(|a| emit_builtin_call_arg_raw(func, 1, a, is_const, ctx, top_level)).unwrap_or_default();
-            Ok(format!("(({a1}) as f64).atan2(({a2}) as f64)"))
+            Ok(format!("metamodelica::Real::from(({a1}).0.atan2(({a2}).0))"))
         },
         // Modelica `assert(condition, message[, level])`. The optional level
         // argument is an AssertionLevel enum (error|warning); we don't yet
@@ -6277,12 +6290,12 @@ fn emit_call_arg_with_formal<'a>(
     // arithmetic, container types) is left to the surrounding emit logic so
     // we don't accidentally cast things that aren't pure scalars.
     if matches!(formal_ty, Some(&Ty::F64)) && matches!(arg.ty(), Ty::I32) {
-        // Wrap in an extra paren-pair so the `as` binds to the whole `raw`
-        // expression. Rust's `as` has higher precedence than `-`/`+`/etc., so
-        // for an actual like `a - b`, `(a - b as f64)` would parse as
-        // `a - (b as f64)` and re-introduce the very i32/f64 mismatch the cast
-        // was meant to eliminate.
-        return format!("(({raw}) as f64)");
+        // Wrap in `metamodelica::Real::from(... as f64)` so the i32 actual is
+        // promoted to the `Real` (`OrderedFloat<f64>`) the formal expects. The
+        // extra paren-pair around `raw` ensures the `as` binds to the whole
+        // expression — `as` has higher precedence than `-`/`+`/etc., so an
+        // actual like `a - b` would otherwise parse as `a - (b as f64)`.
+        return format!("metamodelica::Real::from(({raw}) as f64)");
     }
     raw
 }
@@ -8253,7 +8266,11 @@ fn emit_pat_with_implicit_bind_md<'a>(pat: &TypedPat, allow_implicit_bind: bool,
             let id = ctx.pat_lit_counter;
             ctx.pat_lit_counter += 1;
             let name = format!("__rlit_{id}");
-            ctx.pat_extra_guards.push(format!("{name}.eq(&(({v}) as f64))"));
+            // Compare against `metamodelica::Real` (OrderedFloat<f64>). `.eq` is
+            // chosen over `==` for the same auto-ref/auto-deref reason described
+            // above; both binding modes (`&Real` from match_deref!, copy from a
+            // plain match) resolve through method-call auto-deref.
+            ctx.pat_extra_guards.push(format!("{name}.eq(&metamodelica::Real::from(({v}) as f64))"));
             name
         }
 
@@ -9176,8 +9193,16 @@ fn emit_pat_assign<'a>(
                         // to the original variable's declared type so the
                         // generated Rust assignment type-checks.
                         let rhs = format!("{}.clone()", escape_ident(fresh_name));
-                        let rhs = if matches!(orig_ty, Ty::F64) {
-                            format!("({rhs} as f64)")
+                        // MetaModelica allows silent `Integer → Real`
+                        // promotion in pattern LHSs (e.g. `Real lo;
+                        // INTERVAL(lo,..) := int_with_integer_lo;`). If the
+                        // outer variable is `Real` and the pattern binding
+                        // (looked up via env after the pattern emit) is i32,
+                        // wrap through f64 and rewrap as `metamodelica::Real`.
+                        // Same-type rebinds (Real-into-Real) leave `rhs` as-is.
+                        let src_ty = env.vars.get(fresh_name.as_str()).cloned().unwrap_or(Ty::Unknown);
+                        let rhs = if matches!(orig_ty, Ty::F64) && matches!(src_ty, Ty::I32) {
+                            format!("metamodelica::Real::from(({rhs}) as f64)")
                         } else {
                             rhs
                         };
@@ -9228,7 +9253,12 @@ fn emit_pat_assign<'a>(
                 // re-named) pattern, together with their owned types. The
                 // owned type is what the outer `let` binding will see after
                 // each `<name>.clone()` in the arm body.
-                let bindings = typedexp::pat_bindings_with_scrut_ty(pat_for_render, scrut_ty);
+                // Use the `_tl` variant so constructor field types resolve to
+                // their declared types (e.g. INTERVAL.lo: Integer) instead of
+                // `Ty::Unknown`. The reassign-back step at end of this block
+                // reads these types from `env.vars` to decide whether an
+                // Integer-into-Real promotion wrap is needed.
+                let bindings = typedexp::pat_bindings_with_scrut_ty_tl(pat_for_render, scrut_ty, top_level);
                 // Render the pattern with match_deref semantics in scope.
                 // `implicit_ref = true` turns on the `Deref @` prefix at Arc
                 // edges and emits bare names (match ergonomics gives them
@@ -9278,9 +9308,11 @@ fn emit_pat_assign<'a>(
                 // reassign pairs (`name = __paN.clone();`) for pattern
                 // names that collided with the surrounding scope.
                 for (orig, fresh_name, orig_ty) in &reassign_pairs {
+                    // Mirror the Integer→Real promotion in the shallow path.
                     let rhs = format!("{}.clone()", escape_ident(fresh_name));
-                    let rhs = if matches!(orig_ty, Ty::F64) {
-                        format!("({rhs} as f64)")
+                    let src_ty = env.vars.get(fresh_name.as_str()).cloned().unwrap_or(Ty::Unknown);
+                    let rhs = if matches!(orig_ty, Ty::F64) && matches!(src_ty, Ty::I32) {
+                        format!("metamodelica::Real::from(({rhs}) as f64)")
                     } else {
                         rhs
                     };
@@ -10086,7 +10118,7 @@ fn coerce_assign_expr_pub(scrut_expr: String, scrut_ty: &Ty, lhs_ty: Option<&Ty>
             expr = format!("{expr}.0");
         }
     if matches!(lhs_ty, Some(Ty::F64)) && *scrut_ty == Ty::I32 {
-        expr = format!("(({expr}) as f64)");
+        expr = format!("metamodelica::Real::from(({expr}) as f64)");
     }
     expr
 }
@@ -10367,7 +10399,7 @@ fn emit_stmt<'a>(
                 expr = format!("{expr}.0");
             }
         if matches!(lhs_ty, Some(Ty::F64)) && *scrut_ty == Ty::I32 {
-            expr = format!("(({expr}) as f64)");
+            expr = format!("metamodelica::Real::from(({expr}) as f64)");
         }
         // A range can't be stored in an Array/List binding without
         // materialising it. We haven't lowered that path yet; emit a TODO so
@@ -11645,7 +11677,7 @@ fn fmt_ty(ty: &Ty, ctx: &mut GenCtx) -> String {
     match ty {
         Ty::Unknown => "/* ? */".to_owned(),
         Ty::I32 => "i32".to_owned(),
-        Ty::F64 => "f64".to_owned(),
+        Ty::F64 => "metamodelica::Real".to_owned(),
         Ty::Bool => "bool".to_owned(),
         Ty::Str => "ArcStr".to_owned(),
         Ty::Unit => "()".to_owned(),

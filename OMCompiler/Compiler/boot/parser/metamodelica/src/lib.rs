@@ -7,7 +7,7 @@
 //!
 //! Datatype mapping:
 //!   Integer -> i32
-//!   Real -> f64
+//!   Real -> OrderedFloat<f64> (aliased as `metamodelica::Real`)
 //!   Boolean -> bool
 //!   String -> String
 //!   List<T> -> Arc<List<T>>           (persistent singly-linked list)
@@ -31,9 +31,16 @@ use std::cell::RefCell;
 use anyhow::Result;
 use anyhow::bail;
 use arcstr::{ArcStr, literal, format};
+pub use ordered_float::OrderedFloat;
 
 /// MetaModelica `array<T>`. See module-level docs for rationale.
 pub type Array<A> = Rc<RefCell<Vec<A>>>;
+
+/// MetaModelica `Real`. Wraps `f64` with `OrderedFloat` so that values
+/// containing `Real` can implement `Ord` / `Eq` / `Hash` — required for
+/// derived `valueCompare` on enums such as `DAE::Exp` and `DAE::Type`.
+/// NaN ordering follows `ordered_float` semantics (`NaN` > any non-NaN).
+pub type Real = OrderedFloat<f64>;
 
 // ============================================================================
 // SourceInfo - Location information for elements and classes
@@ -128,14 +135,14 @@ macro_rules! sourceInfo {
             columnNumberStart: column!() as i32,
             lineNumberEnd: line!() as i32,
             columnNumberEnd: column!() as i32,
-            lastModification: 0.0,
+            lastModification: $crate::OrderedFloat(0.0_f64),
         }
     };
 }
 
 /// The Info attribute provides location information for elements and classes.
 /// Mapped from the SOURCEINFO record in MetaModelicaBuiltin.mo.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct SourceInfo {
     /// File name where the class is defined in.
     pub fileName: ArcStr,
@@ -150,7 +157,7 @@ pub struct SourceInfo {
     /// End column number (1-based).
     pub columnNumberEnd: i32,
     /// mtime in stat(2), stored as a double for increased precision on 32-bit platforms.
-    pub lastModification: f64,
+    pub lastModification: Real,
 }
 
 // ============================================================================
@@ -342,8 +349,8 @@ pub const fn intBitRShift(i: i32, s: i32) -> i32 {
 
 /// Converts Integer to Real.
 #[inline(always)]
-pub fn intReal(i: i32) -> f64 {
-    i as f64
+pub fn intReal(i: i32) -> Real {
+    OrderedFloat(i as f64)
 }
 
 /// Converts Integer to String.
@@ -357,64 +364,64 @@ pub fn intString(i: i32) -> ArcStr {
 
 /// Adds two Real values.
 #[inline(always)]
-pub fn realAdd(r1: f64, r2: f64) -> f64 {
+pub fn realAdd(r1: Real, r2: Real) -> Real {
     r1 + r2
 }
 
 /// Subtracts two Real values.
 #[inline(always)]
-pub fn realSub(r1: f64, r2: f64) -> f64 {
+pub fn realSub(r1: Real, r2: Real) -> Real {
     r1 - r2
 }
 
 /// Multiplies two Real values.
 #[inline(always)]
-pub fn realMul(r1: f64, r2: f64) -> f64 {
+pub fn realMul(r1: Real, r2: Real) -> Real {
     r1 * r2
 }
 
 /// Divides two Real values.
 #[inline(always)]
-pub fn realDiv(r1: f64, r2: f64) -> f64 {
+pub fn realDiv(r1: Real, r2: Real) -> Real {
     r1 / r2
 }
 
 /// Calculates remainder of Real division r1/r2.
-pub fn realMod(r1: f64, r2: f64) -> f64 {
-    r1 - (r1/r2).floor()*r2
+pub fn realMod(r1: Real, r2: Real) -> Real {
+    OrderedFloat(r1.0 - (r1.0/r2.0).floor()*r2.0)
 }
 
 /// Raises r1 to the power r2 (r1^r2).
-pub fn realPow(r1: f64, r2: f64) -> f64 {
-    r1.powf(r2)
+pub fn realPow(r1: Real, r2: Real) -> Real {
+    OrderedFloat(r1.0.powf(r2.0))
 }
 
 /// Returns the bigger one of two Real values.
 #[inline(always)]
-pub fn realMax(r1: f64, r2: f64) -> f64 {
-    r1.max(r2)
+pub fn realMax(r1: Real, r2: Real) -> Real {
+    OrderedFloat(r1.0.max(r2.0))
 }
 
 /// Returns the smaller one of two Real values.
 #[inline(always)]
-pub fn realMin(r1: f64, r2: f64) -> f64 {
-    r1.min(r2)
+pub fn realMin(r1: Real, r2: Real) -> Real {
+    OrderedFloat(r1.0.min(r2.0))
 }
 
 /// Returns the absolute value of Real x.
 #[inline(always)]
-pub fn realAbs(x: f64) -> f64 {
-    x.abs()
+pub fn realAbs(x: Real) -> Real {
+    OrderedFloat(x.0.abs())
 }
 
 /// Returns whether two Real values are approximately equal within absTol.
-pub fn realAlmostEq(a: f64, b: f64, abs_tol: f64) -> bool {
-    abs_tol > (a - b).abs()
+pub fn realAlmostEq(a: Real, b: Real, abs_tol: Real) -> bool {
+    abs_tol.0 > (a.0 - b.0).abs()
 }
 
 /// Returns negative value of Real x.
 #[inline(always)]
-pub fn realNeg(x: f64) -> f64 {
+pub fn realNeg(x: Real) -> Real {
     -x
 }
 
@@ -424,37 +431,37 @@ pub fn realNeg(x: f64) -> f64 {
 
 /// Returns whether Real x1 is smaller than Real x2.
 #[inline(always)]
-pub fn realLt(x1: f64, x2: f64) -> bool {
+pub fn realLt(x1: Real, x2: Real) -> bool {
     x1 < x2
 }
 
 /// Returns whether Real x1 is smaller than or equal to Real x2.
 #[inline(always)]
-pub fn realLe(x1: f64, x2: f64) -> bool {
+pub fn realLe(x1: Real, x2: Real) -> bool {
     x1 <= x2
 }
 
 /// Returns whether Real x1 is equal to Real x2.
 #[inline(always)]
-pub fn realEq(x1: f64, x2: f64) -> bool {
+pub fn realEq(x1: Real, x2: Real) -> bool {
     x1 == x2
 }
 
 /// Returns whether Real x1 is not equal to Real x2.
 #[inline(always)]
-pub fn realNe(x1: f64, x2: f64) -> bool {
+pub fn realNe(x1: Real, x2: Real) -> bool {
     x1 != x2
 }
 
 /// Returns whether Real x1 is greater than or equal to Real x2.
 #[inline(always)]
-pub fn realGe(x1: f64, x2: f64) -> bool {
+pub fn realGe(x1: Real, x2: Real) -> bool {
     x1 >= x2
 }
 
 /// Returns whether Real x1 is greater than Real x2.
 #[inline(always)]
-pub fn realGt(x1: f64, x2: f64) -> bool {
+pub fn realGt(x1: Real, x2: Real) -> bool {
     x1 > x2
 }
 
@@ -463,13 +470,13 @@ pub fn realGt(x1: f64, x2: f64) -> bool {
 // ============================================================================
 
 /// Converts Real to Integer (truncates toward zero, matching Modelica integer() function).
-pub fn realInt(r: f64) -> i32 {
-    r as i32
+pub fn realInt(r: Real) -> i32 {
+    r.0 as i32
 }
 
 /// Converts Real to String.
-pub fn realString(r: f64) -> ArcStr {
-    format!("{}", r)
+pub fn realString(r: Real) -> ArcStr {
+    format!("{}", r.0)
 }
 
 // ============================================================================
@@ -496,10 +503,10 @@ pub fn stringInt(str: ArcStr) -> Result<i32> {
     str.parse::<i32>().map_err(|_| anyhow::anyhow!("Failed to parse integer from string: {}", str))
 }
 
-/// Parses a real (f64) from a string.
+/// Parses a real from a string.
 /// Fails unless the whole string can be consumed.
-pub fn stringReal(str: ArcStr) -> Result<f64> {
-    str.parse::<f64>().map_err(|_| anyhow::anyhow!("Failed to parse real from string: {}", str))
+pub fn stringReal(str: ArcStr) -> Result<Real> {
+    str.parse::<f64>().map(OrderedFloat).map_err(|_| anyhow::anyhow!("Failed to parse real from string: {}", str))
 }
 
 /// Converts a string to a list of single-character strings.
@@ -705,7 +712,7 @@ pub fn stringCharListString(strs: Arc<List<ArcStr>>) -> ArcStr {
 // List functions
 // ============================================================================
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[derive(Default)]
 pub enum List<T: Clone> {
     Cons{head: T, tail: Arc<List<T>>},
@@ -1400,8 +1407,8 @@ fn getStartInstant() -> std::time::Instant {
     *START.get_or_init(std::time::Instant::now)
 }
 
-pub fn clock() -> f64 {
-    getStartInstant().elapsed().as_secs_f64()
+pub fn clock() -> Real {
+    OrderedFloat(getStartInstant().elapsed().as_secs_f64())
 }
 
 // ============================================================================
@@ -1789,8 +1796,8 @@ mod tests {
 
         #[test]
         fn test_int_real() {
-            assert_eq!(intReal(42), 42.0_f64);
-            assert_eq!(intReal(-7), -7.0_f64);
+            assert_eq!(intReal(42), OrderedFloat(42.0_f64));
+            assert_eq!(intReal(-7), OrderedFloat(-7.0_f64));
         }
 
         #[test]
@@ -1807,72 +1814,73 @@ mod tests {
 
     mod real_arithmetic_tests {
         use super::*;
+        fn r(x: f64) -> Real { OrderedFloat(x) }
 
         #[test]
         fn test_real_add() {
-            assert_eq!(realAdd(1.5, 2.5), 4.0);
-            assert_eq!(realAdd(-1.0, 1.0), 0.0);
+            assert_eq!(realAdd(r(1.5), r(2.5)), r(4.0));
+            assert_eq!(realAdd(r(-1.0), r(1.0)), r(0.0));
         }
 
         #[test]
         fn test_real_sub() {
-            assert_eq!(realSub(5.0, 3.0), 2.0);
-            assert_eq!(realSub(3.0, 5.0), -2.0);
+            assert_eq!(realSub(r(5.0), r(3.0)), r(2.0));
+            assert_eq!(realSub(r(3.0), r(5.0)), r(-2.0));
         }
 
         #[test]
         fn test_real_mul() {
-            assert_eq!(realMul(3.0, 4.0), 12.0);
-            assert_eq!(realMul(-3.0, 4.0), -12.0);
+            assert_eq!(realMul(r(3.0), r(4.0)), r(12.0));
+            assert_eq!(realMul(r(-3.0), r(4.0)), r(-12.0));
         }
 
         #[test]
         fn test_real_div() {
-            assert_eq!(realDiv(10.0, 3.0), 10.0 / 3.0);
-            assert_eq!(realDiv(6.0, 2.0), 3.0);
+            assert_eq!(realDiv(r(10.0), r(3.0)), r(10.0 / 3.0));
+            assert_eq!(realDiv(r(6.0), r(2.0)), r(3.0));
         }
 
         #[test]
         fn test_real_mod() {
-            assert_eq!(realMod(10.0, 3.0), 1.0);
-            assert_eq!(realMod(10.5, 3.0), 1.5);
+            assert_eq!(realMod(r(10.0), r(3.0)), r(1.0));
+            assert_eq!(realMod(r(10.5), r(3.0)), r(1.5));
         }
 
         #[test]
         fn test_real_pow() {
-            assert_eq!(realPow(2.0, 3.0), 8.0);
-            assert_eq!(realPow(9.0, 0.5), 3.0);
+            assert_eq!(realPow(r(2.0), r(3.0)), r(8.0));
+            assert_eq!(realPow(r(9.0), r(0.5)), r(3.0));
         }
 
         #[test]
         fn test_real_max() {
-            assert_eq!(realMax(1.5, 2.5), 2.5);
-            assert_eq!(realMax(5.0, 5.0), 5.0);
+            assert_eq!(realMax(r(1.5), r(2.5)), r(2.5));
+            assert_eq!(realMax(r(5.0), r(5.0)), r(5.0));
         }
 
         #[test]
         fn test_real_min() {
-            assert_eq!(realMin(1.5, 2.5), 1.5);
-            assert_eq!(realMin(5.0, 5.0), 5.0);
+            assert_eq!(realMin(r(1.5), r(2.5)), r(1.5));
+            assert_eq!(realMin(r(5.0), r(5.0)), r(5.0));
         }
 
         #[test]
         fn test_real_abs() {
-            assert_eq!(realAbs(-5.5), 5.5);
-            assert_eq!(realAbs(5.5), 5.5);
+            assert_eq!(realAbs(r(-5.5)), r(5.5));
+            assert_eq!(realAbs(r(5.5)), r(5.5));
         }
 
         #[test]
         fn test_real_almost_eq() {
-            assert!(realAlmostEq(1.0, 1.0000001, 1e-5));
-            assert!(!realAlmostEq(1.0, 1.1, 1e-5));
-            assert!(realAlmostEq(1.0, 1.0, 1e-6));
+            assert!(realAlmostEq(r(1.0), r(1.0000001), r(1e-5)));
+            assert!(!realAlmostEq(r(1.0), r(1.1), r(1e-5)));
+            assert!(realAlmostEq(r(1.0), r(1.0), r(1e-6)));
         }
 
         #[test]
         fn test_real_neg() {
-            assert_eq!(realNeg(5.5), -5.5);
-            assert_eq!(realNeg(-5.5), 5.5);
+            assert_eq!(realNeg(r(5.5)), r(-5.5));
+            assert_eq!(realNeg(r(-5.5)), r(5.5));
         }
     }
 
@@ -1882,45 +1890,46 @@ mod tests {
 
     mod real_comparison_tests {
         use super::*;
+        fn r(x: f64) -> Real { OrderedFloat(x) }
 
         #[test]
         fn test_real_lt() {
-            assert!(realLt(1.0, 2.0));
-            assert!(!realLt(2.0, 2.0));
-            assert!(!realLt(2.0, 1.0));
+            assert!(realLt(r(1.0), r(2.0)));
+            assert!(!realLt(r(2.0), r(2.0)));
+            assert!(!realLt(r(2.0), r(1.0)));
         }
 
         #[test]
         fn test_real_le() {
-            assert!(realLe(1.0, 2.0));
-            assert!(realLe(2.0, 2.0));
-            assert!(!realLe(2.0, 1.0));
+            assert!(realLe(r(1.0), r(2.0)));
+            assert!(realLe(r(2.0), r(2.0)));
+            assert!(!realLe(r(2.0), r(1.0)));
         }
 
         #[test]
         fn test_real_eq() {
-            assert!(realEq(1.0, 1.0));
-            assert!(!realEq(1.0, 2.0));
+            assert!(realEq(r(1.0), r(1.0)));
+            assert!(!realEq(r(1.0), r(2.0)));
         }
 
         #[test]
         fn test_real_ne() {
-            assert!(realNe(1.0, 2.0));
-            assert!(!realNe(1.0, 1.0));
+            assert!(realNe(r(1.0), r(2.0)));
+            assert!(!realNe(r(1.0), r(1.0)));
         }
 
         #[test]
         fn test_real_ge() {
-            assert!(realGe(2.0, 1.0));
-            assert!(realGe(2.0, 2.0));
-            assert!(!realGe(1.0, 2.0));
+            assert!(realGe(r(2.0), r(1.0)));
+            assert!(realGe(r(2.0), r(2.0)));
+            assert!(!realGe(r(1.0), r(2.0)));
         }
 
         #[test]
         fn test_real_gt() {
-            assert!(realGt(2.0, 1.0));
-            assert!(!realGt(2.0, 2.0));
-            assert!(!realGt(1.0, 2.0));
+            assert!(realGt(r(2.0), r(1.0)));
+            assert!(!realGt(r(2.0), r(2.0)));
+            assert!(!realGt(r(1.0), r(2.0)));
         }
     }
 
@@ -1930,19 +1939,20 @@ mod tests {
 
     mod real_conversion_tests {
         use super::*;
+        fn r(x: f64) -> Real { OrderedFloat(x) }
 
         #[test]
         fn test_real_int() {
-            assert_eq!(realInt(3.7), 3);
-            assert_eq!(realInt(-3.7), -3);
-            assert_eq!(realInt(3.0), 3);
+            assert_eq!(realInt(r(3.7)), 3);
+            assert_eq!(realInt(r(-3.7)), -3);
+            assert_eq!(realInt(r(3.0)), 3);
         }
 
         #[test]
         fn test_real_string() {
-            assert_eq!(&*realString(3.14), "3.14");
-            assert_eq!(&*realString(0.0), "0");
-            assert_eq!(&*realString(-1.5), "-1.5");
+            assert_eq!(&*realString(r(3.14)), "3.14");
+            assert_eq!(&*realString(r(0.0)), "0");
+            assert_eq!(&*realString(r(-1.5)), "-1.5");
         }
     }
 
@@ -1977,8 +1987,8 @@ mod tests {
 
         #[test]
         fn test_string_real() {
-            assert_eq!(stringReal(literal!("3.14")).unwrap(), 3.14);
-            assert_eq!(stringReal(literal!("-2.5")).unwrap(), -2.5);
+            assert_eq!(stringReal(literal!("3.14")).unwrap(), OrderedFloat(3.14));
+            assert_eq!(stringReal(literal!("-2.5")).unwrap(), OrderedFloat(-2.5));
             assert!(stringReal(literal!("not_a_number")).is_err());
         }
 
@@ -2480,7 +2490,7 @@ mod tests {
         fn test_clock() {
             let t1 = clock();
             let t2 = clock();
-            assert!(t1 >= 0.0);
+            assert!(t1 >= OrderedFloat(0.0));
             assert!(t2 >= t1);
         }
     }
@@ -2519,7 +2529,7 @@ mod tests {
                 columnNumberStart: 1,
                 lineNumberEnd: 10,
                 columnNumberEnd: 50,
-                lastModification: 1234567890.0,
+                lastModification: OrderedFloat(1234567890.0),
             };
             assert_eq!(info.fileName, "test.mo");
             assert!(info.isReadOnly);

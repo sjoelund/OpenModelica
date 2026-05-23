@@ -4040,10 +4040,10 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                 r = format!("({r}).0");
             }
             if lhs.ty() == Ty::I32 && rhs.ty() == Ty::F64 {
-                l = format!("metamodelica::Real::from(({l}) as f64)");
+                l = format!("metamodelica::OrderedFloat(({l}) as f64)");
             }
             if rhs.ty() == Ty::I32 && lhs.ty() == Ty::F64 {
-                r = format!("metamodelica::Real::from(({r}) as f64)");
+                r = format!("metamodelica::OrderedFloat(({r}) as f64)");
             }
             match op {
                 BinOpKind::Eq => {
@@ -4114,16 +4114,18 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                 BinOpKind::Mul => format!("{l} * {r}"),
                 BinOpKind::Div => format!("{l} / {r}"),
                 BinOpKind::Pow => {
-                    // `powf` is on f64. Reduce each operand to a raw `f64`:
-                    //   • i32 already-promoted to `Real` by the general block
-                    //     above (when the other side is F64): use `.0`.
-                    //   • i32 not promoted (e.g. I32^I32): cast `as f64`.
-                    //   • F64 operand: already `Real`, use `.0`.
-                    let general_promoted_l = lhs.ty() == Ty::I32 && rhs.ty() == Ty::F64;
-                    let general_promoted_r = rhs.ty() == Ty::I32 && lhs.ty() == Ty::F64;
-                    let lp = if lhs.ty() == Ty::I32 && !general_promoted_l { format!("(({l}) as f64)") } else { format!("(({l}).0)") };
-                    let rp = if rhs.ty() == Ty::I32 && !general_promoted_r { format!("(({r}) as f64)") } else { format!("(({r}).0)") };
-                    format!("metamodelica::Real::from(({lp}).powf({rp}))")
+                    // `Float::powf` (via `num_traits::Float` re-export) works on
+                    // Real directly and returns Real. The general i32→Real
+                    // promotion above already widens mixed I32/F64 operands; the
+                    // only remaining case where promotion is missing is I32^I32,
+                    // which we widen here so both sides are Real.
+                    let lp = if lhs.ty() == Ty::I32 && rhs.ty() == Ty::I32 {
+                        format!("metamodelica::OrderedFloat(({l}) as f64)")
+                    } else { l };
+                    let rp = if lhs.ty() == Ty::I32 && rhs.ty() == Ty::I32 {
+                        format!("metamodelica::OrderedFloat(({r}) as f64)")
+                    } else { r };
+                    format!("({lp}).powf({rp})")
                 }
                 BinOpKind::And => format!("{l} && {r}"),
                 BinOpKind::Or  => format!("{l} || {r}"),
@@ -4872,7 +4874,7 @@ fn emit_reduction<'a>(
                 )
             } else {
                 let ty_s = numeric_sum_ty(&body_ty);
-                let zero = if ty_s == "metamodelica::Real" { "metamodelica::Real::from(0.0_f64)" } else { "0" };
+                let zero = if ty_s == "metamodelica::Real" { "metamodelica::OrderedFloat(0.0_f64)" } else { "0" };
                 (
                     format!("let mut __acc: {ty_s} = {zero};"),
                     "__acc += __x;".to_owned(),
@@ -4882,7 +4884,7 @@ fn emit_reduction<'a>(
         }
         "product" => {
             let ty_s = numeric_sum_ty(&body_ty);
-            let one = if ty_s == "metamodelica::Real" { "metamodelica::Real::from(1.0_f64)" } else { "1" };
+            let one = if ty_s == "metamodelica::Real" { "metamodelica::OrderedFloat(1.0_f64)" } else { "1" };
             (
                 format!("let mut __acc: {ty_s} = {one};"),
                 "__acc *= __x;".to_owned(),
@@ -5119,7 +5121,7 @@ fn emit_builtin_call_arg_raw<'a>(
     // it, builtins like `SOURCEINFO(_,_,_,_,_,_,lastModification)` reject a
     // bare integer literal for the `Real` slot.
     if matches!(formal, Some(Ty::F64)) && matches!(arg.ty(), Ty::I32) {
-        return format!("metamodelica::Real::from(({raw}) as f64)");
+        return format!("metamodelica::OrderedFloat(({raw}) as f64)");
     }
     raw
 }
@@ -5377,15 +5379,15 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
             Ok(format!("({}.len() as i32)", arg))
         },
         "floor" => {
-            // floor/ceil are Real-only. Compute on the inner f64 (via `.0`)
-            // and rewrap as `metamodelica::Real`. Parens around the argument:
-            // the emitted expression may be a sum or other operator chain.
+            // floor/ceil are Real-only. `num_traits::Float` (re-exported by
+            // metamodelica) lets us call `.floor()` directly on Real; the
+            // result is Real, no rewrap needed.
             let arg = args.first().map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
-            Ok(format!("metamodelica::Real::from(({arg}).0.floor())"))
+            Ok(format!("({arg}).floor()"))
         },
         "ceil" => {
             let arg = args.first().map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
-            Ok(format!("metamodelica::Real::from(({arg}).0.ceil())"))
+            Ok(format!("({arg}).ceil()"))
         },
         "mod" if args.len()==2 => {
             let a1 = args.first().unwrap();
@@ -5405,14 +5407,11 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
             Ok(format!("{arg1} / {arg2}"))
         },
         "abs" => {
-            let a = args.first();
-            let arg = a.map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
-            // `abs` is i32-or-Real overloaded. For Real, `.abs()` is on f64
-            // (OrderedFloat doesn't impl Deref); go through `.0` and rewrap.
-            match a.map(|a| a.ty()) {
-                Some(Ty::F64) => Ok(format!("metamodelica::Real::from(({arg}).0.abs())")),
-                _ => Ok(format!("{arg}.abs()")),
-            }
+            let arg = args.first().map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
+            // `abs` is i32-or-Real overloaded. For both: with `num_traits::Float`
+            // in scope `.abs()` resolves on Real directly and returns Real;
+            // i32::abs returns i32. Same syntax either way.
+            Ok(format!("{arg}.abs()"))
         },
         "integer" => {
             // Modelica `integer(Real)` truncates toward -inf. `metamodelica::Real`
@@ -5520,7 +5519,7 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
                 // routinely pass an Integer literal (`SOURCEINFO(...,0)`). Coerce
                 // to f64 so the struct initializer typechecks.
                 coerce_assign_expr_pub(s, &a.ty(), Some(&Ty::F64))
-            }).unwrap_or_else(|| "metamodelica::Real::from(0.0_f64)".to_owned());
+            }).unwrap_or_else(|| "metamodelica::OrderedFloat(0.0_f64)".to_owned());
             Ok(format!(
                 "SourceInfo {{ fileName: {a0}, isReadOnly: {a1}, lineNumberStart: {a2}, columnNumberStart: {a3}, lineNumberEnd: {a4}, columnNumberEnd: {a5}, lastModification: {a6} }}"
             ))
@@ -5545,16 +5544,18 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
         // would otherwise leave the `.sin()` etc. method call unresolved.
         "sin" | "cos" | "tan" | "asin" | "acos" | "atan"
         | "sinh" | "cosh" | "tanh" | "exp" | "log" | "log10" | "sqrt" if args.len() == 1 => {
-            // Compute on the inner f64 (via `.0`) and rewrap as `metamodelica::Real`.
-            // `ln` in Rust is the natural log; Modelica calls it `log`.
+            // `num_traits::Float` (re-exported by metamodelica) provides these
+            // methods directly on Real, returning Real — no `.0`/rewrap needed.
+            // `ln` in Rust / `num_traits::Float` is the natural log; Modelica
+            // calls it `log`.
             let arg = args.first().map(|a| emit_builtin_call_arg_raw(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
             let method = match func { "log" => "ln", other => other };
-            Ok(format!("metamodelica::Real::from(({arg}).0.{method}())"))
+            Ok(format!("({arg}).{method}()"))
         },
         "atan2" if args.len() == 2 => {
             let a1 = args.first().map(|a| emit_builtin_call_arg_raw(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
             let a2 = args.get(1).map(|a| emit_builtin_call_arg_raw(func, 1, a, is_const, ctx, top_level)).unwrap_or_default();
-            Ok(format!("metamodelica::Real::from(({a1}).0.atan2(({a2}).0))"))
+            Ok(format!("({a1}).atan2({a2})"))
         },
         // Modelica `assert(condition, message[, level])`. The optional level
         // argument is an AssertionLevel enum (error|warning); we don't yet
@@ -6290,12 +6291,14 @@ fn emit_call_arg_with_formal<'a>(
     // arithmetic, container types) is left to the surrounding emit logic so
     // we don't accidentally cast things that aren't pure scalars.
     if matches!(formal_ty, Some(&Ty::F64)) && matches!(arg.ty(), Ty::I32) {
-        // Wrap in `metamodelica::Real::from(... as f64)` so the i32 actual is
-        // promoted to the `Real` (`OrderedFloat<f64>`) the formal expects. The
-        // extra paren-pair around `raw` ensures the `as` binds to the whole
-        // expression — `as` has higher precedence than `-`/`+`/etc., so an
-        // actual like `a - b` would otherwise parse as `a - (b as f64)`.
-        return format!("metamodelica::Real::from(({raw}) as f64)");
+        // Wrap in `metamodelica::OrderedFloat(... as f64)` so the i32 actual is
+        // promoted to the `Real` (`OrderedFloat<f64>`) the formal expects. We
+        // use the tuple-struct constructor (a const fn) rather than `Real::from`
+        // (not const) so this form also works inside `static`/`const`
+        // initializers. The extra paren-pair around `raw` ensures the `as` binds
+        // to the whole expression — `as` has higher precedence than `-`/`+`/etc.,
+        // so an actual like `a - b` would otherwise parse as `a - (b as f64)`.
+        return format!("metamodelica::OrderedFloat(({raw}) as f64)");
     }
     raw
 }
@@ -8270,7 +8273,7 @@ fn emit_pat_with_implicit_bind_md<'a>(pat: &TypedPat, allow_implicit_bind: bool,
             // chosen over `==` for the same auto-ref/auto-deref reason described
             // above; both binding modes (`&Real` from match_deref!, copy from a
             // plain match) resolve through method-call auto-deref.
-            ctx.pat_extra_guards.push(format!("{name}.eq(&metamodelica::Real::from(({v}) as f64))"));
+            ctx.pat_extra_guards.push(format!("{name}.eq(&metamodelica::OrderedFloat(({v}) as f64))"));
             name
         }
 
@@ -9202,7 +9205,7 @@ fn emit_pat_assign<'a>(
                         // Same-type rebinds (Real-into-Real) leave `rhs` as-is.
                         let src_ty = env.vars.get(fresh_name.as_str()).cloned().unwrap_or(Ty::Unknown);
                         let rhs = if matches!(orig_ty, Ty::F64) && matches!(src_ty, Ty::I32) {
-                            format!("metamodelica::Real::from(({rhs}) as f64)")
+                            format!("metamodelica::OrderedFloat(({rhs}) as f64)")
                         } else {
                             rhs
                         };
@@ -9312,7 +9315,7 @@ fn emit_pat_assign<'a>(
                     let rhs = format!("{}.clone()", escape_ident(fresh_name));
                     let src_ty = env.vars.get(fresh_name.as_str()).cloned().unwrap_or(Ty::Unknown);
                     let rhs = if matches!(orig_ty, Ty::F64) && matches!(src_ty, Ty::I32) {
-                        format!("metamodelica::Real::from(({rhs}) as f64)")
+                        format!("metamodelica::OrderedFloat(({rhs}) as f64)")
                     } else {
                         rhs
                     };
@@ -10118,7 +10121,7 @@ fn coerce_assign_expr_pub(scrut_expr: String, scrut_ty: &Ty, lhs_ty: Option<&Ty>
             expr = format!("{expr}.0");
         }
     if matches!(lhs_ty, Some(Ty::F64)) && *scrut_ty == Ty::I32 {
-        expr = format!("metamodelica::Real::from(({expr}) as f64)");
+        expr = format!("metamodelica::OrderedFloat(({expr}) as f64)");
     }
     expr
 }
@@ -10399,7 +10402,7 @@ fn emit_stmt<'a>(
                 expr = format!("{expr}.0");
             }
         if matches!(lhs_ty, Some(Ty::F64)) && *scrut_ty == Ty::I32 {
-            expr = format!("metamodelica::Real::from(({expr}) as f64)");
+            expr = format!("metamodelica::OrderedFloat(({expr}) as f64)");
         }
         // A range can't be stored in an Array/List binding without
         // materialising it. We haven't lowered that path yet; emit a TODO so

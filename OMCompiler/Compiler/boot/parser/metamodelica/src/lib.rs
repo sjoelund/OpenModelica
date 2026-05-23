@@ -32,6 +32,7 @@ use anyhow::Result;
 use anyhow::bail;
 use arcstr::{ArcStr, literal, format};
 pub use ordered_float::OrderedFloat;
+pub use num_traits::Float;
 
 /// MetaModelica `array<T>`. See module-level docs for rationale.
 pub type Array<A> = Rc<RefCell<Vec<A>>>;

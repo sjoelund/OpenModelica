@@ -6077,6 +6077,18 @@ fn find_record_split<'a>(segments: &[CrefSegment], ctx: &GenCtx, top_level: &'a 
         return 1;
     }
 
+    // A local variable in scope always shadows any same-named module / function
+    // / package at the top level. Without this short-circuit a CREF like
+    // `prefixPath.path` — where `prefixPath` is both an input parameter and a
+    // sibling function name (e.g. AbsynUtil.removePrefixOpt referencing the
+    // sibling `prefixPath` function) — emits as `prefixPath::path`, which Rust
+    // resolves to the sibling function's `path` item and not to the local's
+    // field. Detect the shadowing here so the field-access path is taken
+    // instead.
+    if ctx.fn_env_vars.contains_key(&segments[0].name) {
+        return 1;
+    }
+
     // Walk backwards from the longest possible split point
     for i in (1..=segments.len()).rev() {
         let prefix_dotted: String = segments[..i].iter().map(|s| s.name.clone()).collect::<Vec<_>>().join(".");

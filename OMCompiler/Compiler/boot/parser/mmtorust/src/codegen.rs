@@ -9038,6 +9038,14 @@ fn is_arc_wrapped(ty: &Ty, ctx: &GenCtx) -> bool {
     let qname = match ty {
         Ty::RustStruct(n) | Ty::RustEnum(n) | Ty::AliasTo(n) | Ty::ExternalObject(n) => n.as_str(),
         Ty::Generic(name, _) => return ctx.recursive_types.contains(&name.replace("::", ".")),
+        // Variant-narrowed types (a uniontype field narrowed to one of its
+        // records by an outer match) still live behind an `Arc<Enum>` at the
+        // Rust level — the narrowing is a typing-level concept that doesn't
+        // change the runtime representation. Without this, a nested `match`
+        // on the narrowed variable emits patterns without the `Deref @`
+        // prefix even though the scrutinee is still `&Arc<Enum>` (see e.g.
+        // `filterSubMods` in `SCodeUtil.mo`).
+        Ty::UnionTypeVariant(parent, _) => return ctx.recursive_types.contains(parent.as_str()),
         _ => return false,
     };
     ctx.recursive_types.contains(qname)

@@ -1471,6 +1471,42 @@ pub fn fail() -> Result<()> {
 }
 
 // ============================================================================
+// metamodelica::ext - Hand-written replacements for `external "C"` runtime
+//                     functions that the MetaModelica source declares as
+//                     FFI shims. The codegen consults
+//                     `mmtorust::external_c_calls::external_c_impl_path`
+//                     and emits delegating calls into this module.
+// ============================================================================
+
+#[allow(non_snake_case)]
+pub mod ext {
+    use anyhow::Result;
+    use arcstr::ArcStr;
+
+    /// MetaModelica `System.stringFind(str, searchStr)`: returns the 0-based
+    /// index of the first occurrence of `searchStr` in `str`, or `-1` if
+    /// the substring is absent. Matches the C++ runtime's signature
+    /// (`return haystack.find(needle);` with `std::string::npos` reported
+    /// as `-1` by the wrapper).
+    pub fn System_stringFind(s: ArcStr, search: ArcStr) -> Result<i32> {
+        Ok(match s.find(search.as_str()) {
+            Some(idx) => idx as i32,
+            None => -1,
+        })
+    }
+
+    /// MetaModelica `System.stringFindString(str, searchStr)`: returns the
+    /// substring of `str` starting at the first occurrence of `searchStr`
+    /// (inclusive), or the empty string if the substring is absent.
+    pub fn System_stringFindString(s: ArcStr, search: ArcStr) -> ArcStr {
+        match s.find(search.as_str()) {
+            Some(idx) => ArcStr::from(&s[idx..]),
+            None => ArcStr::new(),
+        }
+    }
+}
+
+// ============================================================================
 // MetaModelica::Dangerous - Functions that skip bounds checking
 // ============================================================================
 

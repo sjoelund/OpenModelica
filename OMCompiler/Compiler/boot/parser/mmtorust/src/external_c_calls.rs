@@ -721,3 +721,22 @@ fn record_lenient_miss(c_name: &str, mm_qname: &str) {
 pub fn registered_count() -> usize {
     registry().len()
 }
+
+/// Map a C function name (the symbol in `external "C" foo(...)`) to the
+/// Rust path of a hand-written replacement. When `Some`, the codegen emits
+/// a delegating call instead of the default `todo!()` stub.
+///
+/// Implementations live in `metamodelica::ext` (see
+/// `metamodelica/src/ext.rs`) so every generated crate can reach them
+/// through the runtime crate it already imports.
+///
+/// The Rust signature is expected to match the *MetaModelica* signature
+/// of the wrapper function (the `threadData` argument the C side takes is
+/// not part of the MM side, so it is dropped here too).
+pub fn external_c_impl_path(c_name: &str) -> Option<&'static str> {
+    match c_name {
+        "System_stringFind" => Some("metamodelica::ext::System_stringFind"),
+        "System_stringFindString" => Some("metamodelica::ext::System_stringFindString"),
+        _ => None,
+    }
+}

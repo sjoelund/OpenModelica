@@ -787,7 +787,19 @@ pub fn generate_all(hier: &InstanceHierarchy<'_>, output_dir: &str) -> std::io::
                 // function; it is hand-written in
                 // `openmodelica_util/src/Global.rs` so that `initialize()` can
                 // reference typed `Globals::` variables correctly.
-                "Mutable" | "GCExt" | "Pointer" | "File" | "Global" | "Vector" => continue,
+                // `ErrorExt` declares only `external "C"` functions that
+                // implement OMC's per-thread error/warning message buffer
+                // (mirrors `OMCompiler/Compiler/runtime/errorext.cpp`).
+                // The generated `todo!()` stubs panic the moment any code
+                // path queries error counts (e.g. `Tpl::tplString*`), so we
+                // hand-write the runtime in `openmodelica_util/src/ErrorExt.rs`
+                // and skip codegen for it here.
+                // `Print` mirrors the per-thread print/error string buffer
+                // from `OMCompiler/Compiler/runtime/printimpl.c` — every
+                // function is `external "C"` so the auto-generated body is
+                // a useless `todo!()`. Hand-write in
+                // `openmodelica_util/src/Print.rs`.
+                "Mutable" | "GCExt" | "Pointer" | "File" | "Global" | "Vector" | "ErrorExt" | "Print" => continue,
                 _ => {}
             };
             file_jobs.push((dir.as_str(), name, node));
@@ -3494,7 +3506,31 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
         && (header_form_inherits_alg || member_form_inherits_alg);
     match &c.body {
         MM::ClassDef::Parts { external: Some(ext), .. } => {
-            writeln!(out, "{body_indent}todo!(); // {:?}", ext).unwrap();
+            // If the C function has a hand-written Rust replacement (see
+            // `external_c_calls::external_c_impl_path`), delegate to it; the
+            // arguments are the function's input parameters in declaration
+            // order. Otherwise fall back to a `todo!()` placeholder so
+            // calling the function panics loudly at runtime rather than
+            // returning garbage.
+            let Absyn::ExternalDecl::EXTERNALDECL { funcName, output_, args, .. } = &ext.decl;
+            let func_name = funcName.as_deref().unwrap_or("");
+            if let Some(rust_path) = crate::external_c_calls::external_c_impl_path(func_name) {
+                let arg_names: Vec<String> = collect_external_arg_names(args);
+                let arg_list = arg_names.iter()
+                    .map(|n| format!("{}.clone()", escape_ident(n)))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                if let Some(out_cref) = output_ {
+                    let out_name = component_ref_simple_name(out_cref);
+                    let q = if ctx.current_fn_fallible { "?" } else { "" };
+                    writeln!(out, "{body_indent}{} = {rust_path}({arg_list}){q};", escape_ident(&out_name)).unwrap();
+                } else {
+                    let q = if ctx.current_fn_fallible { "?" } else { "" };
+                    writeln!(out, "{body_indent}{rust_path}({arg_list}){q};").unwrap();
+                }
+            } else {
+                writeln!(out, "{body_indent}todo!(); // {:?}", ext).unwrap();
+            }
         },
         _ if inherit_from_base_unimplemented => {
             writeln!(out, "{body_indent}// TODO: inherit algorithm from base function via `extends` clause.").unwrap();
@@ -12237,4 +12273,55 @@ fn path_to_dotted(path: &Absyn::Path) -> String {
         Absyn::Path::QUALIFIED { name, path } => format!("{name}.{}", path_to_dotted(path)),
         Absyn::Path::FULLYQUALIFIED { path } => path_to_dotted(path),
     }
+}
+
+/// Walk the trailing simple name of a `ComponentRef`. External output
+/// declarations are always a bare identifier (no subscripts, no
+/// qualification), so we ignore the recursive arms — they would indicate
+/// a malformed `external` clause and should be surfaced as `_unknown`.
+fn component_ref_simple_name(cref: &Absyn::ComponentRef) -> String {
+    match cref {
+        Absyn::ComponentRef::CREF_IDENT { name, .. } => name.to_string(),
+        Absyn::ComponentRef::CREF_QUAL { name, .. } => name.to_string(),
+        Absyn::ComponentRef::CREF_FULLYQUALIFIED { componentRef } => {
+            component_ref_simple_name(componentRef)
+        }
+        Absyn::ComponentRef::WILD => "_".to_owned(),
+        _ => "_unknown".to_owned(),
+    }
+}
+
+/// Extract the argument identifiers from an external "C" call's argument
+/// list. The C side typically receives `OpenModelica.threadData()` as the
+/// first argument; that call has no MetaModelica-visible value, so we
+/// drop it. Everything else is expected to be a plain `CREF` to a
+/// function input parameter — anything more complex (a literal, a nested
+/// expression) is rejected with a placeholder so the broken case shows
+/// up at compile time instead of silently dropping arguments.
+fn collect_external_arg_names(args: &std::sync::Arc<metamodelica::List<std::sync::Arc<Absyn::Exp>>>) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut cur = args.clone();
+    while let metamodelica::List::Cons { head, tail } = &*cur {
+        match &**head {
+            // `OpenModelica.threadData()` — drop.
+            Absyn::Exp::CALL { function_, .. }
+                if matches!(&**function_,
+                    Absyn::ComponentRef::CREF_QUAL { name, componentRef, .. }
+                        if name.as_str() == "OpenModelica"
+                            && matches!(&**componentRef,
+                                Absyn::ComponentRef::CREF_IDENT { name: inner, .. }
+                                    if inner.as_str() == "threadData")) =>
+            {
+                // skip
+            }
+            Absyn::Exp::CREF { componentRef } => {
+                out.push(component_ref_simple_name(componentRef));
+            }
+            _ => {
+                out.push("/* unsupported external arg */".to_owned());
+            }
+        }
+        cur = tail.clone();
+    }
+    out
 }

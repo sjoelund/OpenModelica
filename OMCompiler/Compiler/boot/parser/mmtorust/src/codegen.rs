@@ -10169,10 +10169,22 @@ fn record_pattern_variants_inner<'a>(
 ) {
     let scrut_ty = scrutinee.ty();
     // (1) Outer `as` binding.
-    if let TypedPat::As { var, pat: inner } = pat
-        && let Some((enum_q, variant)) = variant_of_pat(inner, &scrut_ty, top_level) {
+    if let TypedPat::As { var, pat: inner } = pat {
+        if let Some((enum_q, variant)) = variant_of_pat(inner, &scrut_ty, top_level) {
             env.variants.insert(var.clone(), (enum_q, variant));
         }
+        // The `as` binding is `var @ pat`; when the surrounding match crosses
+        // an Arc edge (and so emits `match_deref!{ match &x ...}`), the binding
+        // has Rust type `&Arc<T>` — VarShape::RefArc. Without recording this,
+        // a downstream `var_field!` on `var` would default to VarShape::Arc
+        // (from fn_env_vars storing the *value* type) and emit `(*var).f`,
+        // producing the wrong number of derefs.
+        if let Some(c) = ctx {
+            if ty_needs_arc_match_deref(&scrut_ty, c) && is_arc_wrapped(&scrut_ty, c) {
+                shapes.insert(var.clone(), VarShape::RefArc);
+            }
+        }
+    }
     // (2) Scrutinee that's a bare variable narrowed by the arm's pattern.
     let inner_pat = match pat {
         TypedPat::As { pat: inner, .. } => inner.as_ref(),
@@ -10225,30 +10237,49 @@ fn record_pattern_variants_inner<'a>(
         if let Some(field_tys) = record_qname_opt {
             let scrut_crosses_arc = ctx.map(|c| ty_needs_arc_match_deref(&scrut_ty, c)).unwrap_or(false);
             for (fname, fpat) in named_fields {
-                let TypedPat::As { var, pat: inner_as } = fpat else { continue };
                 let Some(field_ty) = field_tys.iter().find(|(n, _)| n == fname).map(|(_, t)| t.clone()) else { continue };
-                if let Some((enum_q, variant)) = variant_of_pat(inner_as, &field_ty, top_level) {
-                    env.variants.insert(var.clone(), (enum_q, variant));
-                    if let Some(c) = ctx {
-                        let field_is_arc = is_arc_wrapped(&field_ty, c);
-                        let shape = match (scrut_crosses_arc, field_is_arc) {
-                            (true, true)   => VarShape::RefArc,
-                            // Other combinations are not yet implemented:
-                            //   (true, false)  → &T (would need a `var_field!(*v.f, ..)` arm)
-                            //   (false, true)  → Arc<T> by-value (already handled by emit_var fallback)
-                            //   (false, false) → owned T  (same)
-                            // For (false, true)/(false, false) we leave the
-                            // shape unset; emit_var's fn_env_vars fallback
-                            // applies — though for pattern bindings that
-                            // fallback returns Unknown ⇒ Owned, which is
-                            // wrong for Arc fields. That case is not
-                            // exercised by the current corpus; if it shows
-                            // up, add `VarShape::Arc` here and the right
-                            // arm above.
-                            _ => continue,
-                        };
-                        shapes.insert(var.clone(), shape);
+                // Two sub-cases share the binding-shape logic:
+                //  (a) `field = var as inner_pat` — `As` binding with a sub-pattern
+                //      that may further narrow the variant.
+                //  (b) `field = var` — bare `Var` binding. No further constraint
+                //      on `var` from this pattern, but the binding's Rust shape
+                //      is still determined by whether scrut crosses Arc and the
+                //      field itself is Arc-wrapped. Later narrowing (e.g. an
+                //      inner match's scrutinee being this same var) may add a
+                //      variant to `ctx.variants`; without the shape, `emit_var`
+                //      would fall back to `fn_env_vars`, which records the
+                //      logical value type (e.g. `Arc<Exp>`) and not the binding
+                //      type (`&Arc<Exp>`), producing `(*v).f` where `(**v).f`
+                //      is required.
+                let (var, inner_as_opt) = match fpat {
+                    TypedPat::As { var, pat: inner_as } => (var, Some(inner_as.as_ref())),
+                    TypedPat::Var(var) => (var, None),
+                    _ => continue,
+                };
+                if let Some(inner_as) = inner_as_opt {
+                    if let Some((enum_q, variant)) = variant_of_pat(inner_as, &field_ty, top_level) {
+                        env.variants.insert(var.clone(), (enum_q, variant));
                     }
+                }
+                if let Some(c) = ctx {
+                    let field_is_arc = is_arc_wrapped(&field_ty, c);
+                    let shape = match (scrut_crosses_arc, field_is_arc) {
+                        (true, true)   => VarShape::RefArc,
+                        // Other combinations are not yet implemented:
+                        //   (true, false)  → &T (would need a `var_field!(*v.f, ..)` arm)
+                        //   (false, true)  → Arc<T> by-value (already handled by emit_var fallback)
+                        //   (false, false) → owned T  (same)
+                        // For (false, true)/(false, false) we leave the
+                        // shape unset; emit_var's fn_env_vars fallback
+                        // applies — though for pattern bindings that
+                        // fallback returns Unknown ⇒ Owned, which is
+                        // wrong for Arc fields. That case is not
+                        // exercised by the current corpus; if it shows
+                        // up, add `VarShape::Arc` here and the right
+                        // arm above.
+                        _ => continue,
+                    };
+                    shapes.insert(var.clone(), shape);
                 }
             }
         }

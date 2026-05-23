@@ -72,7 +72,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use mmwinnow::Absyn;
 
 use crate::external_c_calls::{self, Fallibility};
-use crate::hierarchy::{InstanceHierarchy, NameNode, NodeKind};
+use crate::hierarchy::{InstanceHierarchy, NameNode, NodeKind, Ty};
 use crate::typedexp::resolve_call_node;
 use crate::MM;
 
@@ -750,16 +750,24 @@ fn external_symbol_name(decl: &Absyn::ExternalDecl, fallback_fn_name: &str) -> S
 /// Walk the hierarchy and collect every R_FUNCTION class together with its
 /// fully-qualified MM name. Mirrors the convention used throughout codegen
 /// (dot-separated, top-level package first).
+///
+/// Also records the resolved [`Ty::FunctionAlias`] base name (if any), so the
+/// fallibility analysis can propagate fallibility through `function Foo = Bar`
+/// aliases without re-resolving them later.
 fn collect_functions<'a>(
     nodes: &BTreeMap<String, NameNode<'a>>,
     prefix: &str,
-    out: &mut Vec<(String, &'a MM::Class)>,
+    out: &mut Vec<(String, &'a MM::Class, Option<String>)>,
 ) {
     for (name, node) in nodes {
         let qname = if prefix.is_empty() { name.clone() } else { format!("{prefix}.{name}") };
         if let NodeKind::Class(c) = &node.kind
             && matches!(c.restriction, Absyn::Restriction::R_FUNCTION { .. }) {
-                out.push((qname.clone(), *c));
+                let alias_base = match &node.ty {
+                    Ty::FunctionAlias { base, .. } => Some(base.clone()),
+                    _ => None,
+                };
+                out.push((qname.clone(), *c, alias_base));
             }
         collect_functions(&node.children, &qname, out);
     }
@@ -792,19 +800,27 @@ fn resolve_called_qname<'a>(
 /// the fixed point of "is fallible".  Panics if it encounters an unlisted
 /// external "C" symbol — see [`crate::external_c_calls::lookup_or_panic`].
 pub fn analyze(hier: &InstanceHierarchy<'_>) -> FallibilityInfo {
-    let mut functions: Vec<(String, &MM::Class)> = Vec::new();
+    let mut functions: Vec<(String, &MM::Class, Option<String>)> = Vec::new();
     collect_functions(&hier.top_level, "", &mut functions);
 
     // Per-function scan results, keyed by FQN. Storing the Walk separately
     // from the fallibility set keeps the propagation loop allocation-free.
     let mut walks: BTreeMap<String, Walk> = BTreeMap::new();
     let mut external_count = 0usize;
-    for (qname, class) in &functions {
+    // Function-alias edges, keyed by alias FQN → unresolved base name (as
+    // written in `function Foo = Bar(...)`). Resolved to FQN below alongside
+    // the rest of the call edges so the alias inherits its target's
+    // fallibility classification.
+    let mut alias_bases: BTreeMap<String, String> = BTreeMap::new();
+    for (qname, class, alias_base) in &functions {
         let w = Walk::scan_class(class);
         if w.external.is_some() {
             external_count += 1;
         }
         walks.insert(qname.clone(), w);
+        if let Some(base) = alias_base {
+            alias_bases.insert(qname.clone(), base.clone());
+        }
     }
 
     let mut fallible: BTreeSet<String> = BTreeSet::new();
@@ -872,6 +888,21 @@ pub fn analyze(hier: &InstanceHierarchy<'_>) -> FallibilityInfo {
             // (function-typed arguments) whose target is only known at the
             // call site. A precise treatment requires the typed IR — see
             // module-level docs.
+        }
+        // `function Foo = Bar(...)` aliases have no body of their own; their
+        // fallibility comes from the base function. Add the resolved edge so
+        // the fixed-point loop propagates it. Unresolved bases fall through
+        // to the builtin table — pathStringNoQual → pathString, for example.
+        if let Some(base) = alias_bases.get(qname) {
+            if let Some(target) = resolve_called_qname(base, qname, &hier.top_level) {
+                if walks.contains_key(&target) {
+                    set.insert(target);
+                }
+            } else if let Some(b) = builtin_fallibility(base) {
+                if matches!(b, Fallibility::Fallible) {
+                    fallible.insert(qname.clone());
+                }
+            }
         }
         callees.insert(qname.clone(), set);
     }

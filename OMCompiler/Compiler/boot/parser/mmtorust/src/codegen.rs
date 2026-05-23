@@ -8929,6 +8929,14 @@ fn type_destructure_needs_borrow(ty: &Ty, ctx: &GenCtx) -> bool {
     if let Ty::Tuple(elems) = ty {
         return elems.iter().any(|t| type_destructure_needs_borrow(t, ctx));
     }
+    // A pattern like `Some(Pkg::Foo { … })` on a scrutinee typed
+    // `Option<Arc<Foo>>` needs the same `match_deref!` treatment as a bare
+    // `Arc<Foo>` scrutinee, because the inner Arc still needs to be peeled
+    // for the destructure to match the enum/struct shape. The Option layer
+    // itself is fine, but propagate the check through its inner type.
+    if let Ty::Option(inner) = ty {
+        return type_destructure_needs_borrow(inner, ctx);
+    }
     false
 }
 

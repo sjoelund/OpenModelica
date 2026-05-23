@@ -10256,25 +10256,46 @@ fn record_pattern_variants_inner<'a>(
     //     record a shape when the caller provided a `ctx` (so we can
     //     consult `recursive_types`); without it, `emit_var` falls back to
     //     the type-table-driven default.
-    if let TypedPat::Constructor { name, named_fields, .. } = inner_pat {
-        // Resolve the record's qname so we can look up field types. The
-        // pattern's `ty` may already carry it; otherwise look it up against
-        // the scrutinee's enum.
-        let record_qname_opt = match record_field_tys_from_scrutinee_ctor(
-            name.rsplit('.').next().unwrap_or(name),
-            &scrut_ty,
-            top_level,
-        ) {
-            Some(tys) => Some(tys),
-            None => {
-                let v = record_field_tys_by_simple_name(name.rsplit('.').next().unwrap_or(name), top_level);
-                if v.is_empty() { None } else { Some(v) }
-            }
-        };
-        if let Some(field_tys) = record_qname_opt {
-            let scrut_crosses_arc = ctx.map(|c| ty_needs_arc_match_deref(&scrut_ty, c)).unwrap_or(false);
-            for (fname, fpat) in named_fields {
-                let Some(field_ty) = field_tys.iter().find(|(n, _)| n == fname).map(|(_, t)| t.clone()) else { continue };
+    record_constructor_pattern_bindings(inner_pat, &scrut_ty, env, top_level, shapes, ctx);
+}
+
+/// Walk a `Constructor` pattern and register variants + shapes for any name
+/// bindings it carries (including in nested constructor / `As` sub-patterns).
+///
+/// The original logic lived inline in `record_pattern_variants_inner`'s
+/// step (4) and only inspected the *outermost* constructor. Patterns of the
+/// form `el @ ELEMENT { specification: spec @ CLASSDEF { .. } }` (common in
+/// MM's traversal code) carry a nested constructor pattern that asserts the
+/// inner variant — without recursion, the inner `spec` binding's variant is
+/// never recorded and `emit_var` falls back to a plain `.field` access that
+/// doesn't typecheck against the enum scrutinee.
+fn record_constructor_pattern_bindings<'a>(
+    pat: &TypedPat,
+    scrut_ty: &Ty,
+    env: &mut LocalEnv,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+    shapes: &mut HashMap<String, VarShape>,
+    ctx: Option<&GenCtx>,
+) {
+    let TypedPat::Constructor { name, named_fields, .. } = pat else { return };
+    // Resolve the record's qname so we can look up field types. The
+    // pattern's `ty` may already carry it; otherwise look it up against
+    // the scrutinee's enum.
+    let record_qname_opt = match record_field_tys_from_scrutinee_ctor(
+        name.rsplit('.').next().unwrap_or(name),
+        scrut_ty,
+        top_level,
+    ) {
+        Some(tys) => Some(tys),
+        None => {
+            let v = record_field_tys_by_simple_name(name.rsplit('.').next().unwrap_or(name), top_level);
+            if v.is_empty() { None } else { Some(v) }
+        }
+    };
+    if let Some(field_tys) = record_qname_opt {
+        let scrut_crosses_arc = ctx.map(|c| ty_needs_arc_match_deref(scrut_ty, c)).unwrap_or(false);
+        for (fname, fpat) in named_fields {
+            let Some(field_ty) = field_tys.iter().find(|(n, _)| n == fname).map(|(_, t)| t.clone()) else { continue };
                 // Two sub-cases share the binding-shape logic:
                 //  (a) `field = var as inner_pat` — `As` binding with a sub-pattern
                 //      that may further narrow the variant.
@@ -10298,27 +10319,39 @@ fn record_pattern_variants_inner<'a>(
                         env.variants.insert(var.clone(), (enum_q, variant));
                     }
                 }
-                if let Some(c) = ctx {
-                    let field_is_arc = is_arc_wrapped(&field_ty, c);
-                    let shape = match (scrut_crosses_arc, field_is_arc) {
-                        (true, true)   => VarShape::RefArc,
-                        // Other combinations are not yet implemented:
-                        //   (true, false)  → &T (would need a `var_field!(*v.f, ..)` arm)
-                        //   (false, true)  → Arc<T> by-value (already handled by emit_var fallback)
-                        //   (false, false) → owned T  (same)
-                        // For (false, true)/(false, false) we leave the
-                        // shape unset; emit_var's fn_env_vars fallback
-                        // applies — though for pattern bindings that
-                        // fallback returns Unknown ⇒ Owned, which is
-                        // wrong for Arc fields. That case is not
-                        // exercised by the current corpus; if it shows
-                        // up, add `VarShape::Arc` here and the right
-                        // arm above.
-                        _ => continue,
-                    };
-                    shapes.insert(var.clone(), shape);
-                }
+            if let Some(c) = ctx {
+                let field_is_arc = is_arc_wrapped(&field_ty, c);
+                let shape = match (scrut_crosses_arc, field_is_arc) {
+                    (true, true)   => VarShape::RefArc,
+                    // Other combinations are not yet implemented:
+                    //   (true, false)  → &T (would need a `var_field!(*v.f, ..)` arm)
+                    //   (false, true)  → Arc<T> by-value (already handled by emit_var fallback)
+                    //   (false, false) → owned T  (same)
+                    // For (false, true)/(false, false) we leave the
+                    // shape unset; emit_var's fn_env_vars fallback
+                    // applies — though for pattern bindings that
+                    // fallback returns Unknown ⇒ Owned, which is
+                    // wrong for Arc fields. That case is not
+                    // exercised by the current corpus; if it shows
+                    // up, add `VarShape::Arc` here and the right
+                    // arm above.
+                    _ => continue,
+                };
+                shapes.insert(var.clone(), shape);
             }
+            // Recurse into the field's sub-pattern. When the sub-pattern is
+            // itself a constructor (directly, or wrapped in `As`), its named
+            // fields may bind further names whose variants/shapes we also need
+            // to register. Without this, e.g. `el @ ELEMENT { specification:
+            // spec @ CLASSDEF { .. } }` registers `el` but never registers
+            // `spec`'s CLASSDEF variant — and a later `spec.class_` access
+            // emits as a plain field access against the enum scrutinee
+            // (E0609), instead of the required `var_field!`.
+            let sub_pat = match fpat {
+                TypedPat::As { pat: inner_as, .. } => inner_as.as_ref(),
+                other => other,
+            };
+            record_constructor_pattern_bindings(sub_pat, &field_ty, env, top_level, shapes, ctx);
         }
     }
 }

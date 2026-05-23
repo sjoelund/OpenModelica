@@ -345,7 +345,8 @@ dependencies = [
  "const-str",
  "match_deref",
  "metamodelica",
- "openmodelica_frontend",
+ "openmodelica_frontend_dump",
+ "openmodelica_frontend_types",
  "openmodelica_util",
  "openmodelica_util_datatypes_basic",
 ]

@@ -1303,7 +1303,8 @@ pub fn valueCompare<A: Ord>(a1: A, a2: A) -> i32 {
 /// If you know that all occurrences of a value are the same pointer,
 /// you can use reference_eq instead of structural equality.
 pub fn referenceEq<A: PartialEq>(a1: &A, a2: &A) -> bool {
-    std::ptr::eq(a1 as *const A, a2 as *const A)
+    // std::ptr::eq(a1 as *const A, a2 as *const A)
+    false
 }
 
 /// Returns the pointer address of a reference as a hexadecimal string for debugging.

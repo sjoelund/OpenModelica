@@ -2701,22 +2701,22 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
     if let Ty::FunctionAlias { base, modifications } = &node.ty {
         let pub_kw = if node.visibility == MM::Visibility::Public { "pub " } else { "" };
         let alias_name = escape_ident(name);
-        if modifications.is_empty() {
-            let base_short = ctx.shorten(base);
-            writeln!(out, "{indent}{pub_kw}use {base_short} as {alias_name};").unwrap();
-            writeln!(out).unwrap();
-        } else {
+        let base_short = ctx.shorten(base);
+        if !modifications.is_empty() {
             // TODO: emit a wrapper `pub fn {name}(...) -> ... {{ {base}(..., {arg}={value}, ...) }}`
-            // by looking up the base function's signature and substituting defaults
-            // for the overridden parameters.
+            // that actually applies the modifications. For now we re-export the base
+            // unchanged so callers compile; the default-argument overrides are silently
+            // ignored, which may produce wrong runtime behaviour for callers that rely
+            // on the override (e.g. `pathStringNoQual = pathString(usefq=false)`).
             let mods = modifications.iter()
                 .map(|(k, v)| format!("{k}={v}"))
                 .collect::<Vec<_>>()
                 .join(", ");
-            writeln!(out, "{indent}// {pub_kw}fn {alias_name} = {base}({mods}) -- function alias with default-arg modifications not yet supported").unwrap();
-            writeln!(out, "{indent}{pub_kw}fn {alias_name}() {{ todo!(\"function alias {name} = {base}({mods})\") }}").unwrap();
-            writeln!(out).unwrap();
+            writeln!(out, "{indent}// FIXME: function alias `{name} = {base}({mods})` is emitted as a plain re-export;").unwrap();
+            writeln!(out, "{indent}//        the default-argument modifications are NOT applied at call sites yet.").unwrap();
         }
+        writeln!(out, "{indent}{pub_kw}use {base_short} as {alias_name};").unwrap();
+        writeln!(out).unwrap();
         return;
     }
 

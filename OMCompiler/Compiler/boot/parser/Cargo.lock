@@ -350,7 +350,6 @@ dependencies = [
  "match_deref",
  "metamodelica",
  "openmodelica_ast",
- "openmodelica_frontend",
  "openmodelica_frontend_dump",
  "openmodelica_frontend_types",
  "openmodelica_util",

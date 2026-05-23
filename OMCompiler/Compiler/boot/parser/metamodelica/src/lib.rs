@@ -1399,16 +1399,27 @@ pub fn getGlobalRoot<A: std::any::Any + Clone + 'static>(index: i32) -> Result<A
     })
 }
 
-/// Returns the constructor tag for a boxed value.
-/// In Rust, returns a type-based discriminator.
-pub fn valueConstructor<A>() -> Result<i32> {
-    // Use a hash of the type name as a stable discriminator
-    let type_name = std::any::type_name::<A>();
-    let mut hash: i32 = 5381;
-    for &byte in type_name.as_bytes() {
-        hash = hash.wrapping_mul(33).wrapping_add(byte as i32);
-    }
-    Ok(hash)
+/// Returns the constructor tag for a value.
+///
+/// In MetaModelica `valueConstructor(v)` returns the variant index of a
+/// boxed uniontype value (it is the *value* that matters, not its static
+/// type — two values of the same uniontype but different records produce
+/// different tags). In Rust we implement this using
+/// [`std::mem::discriminant`], hashed into an `i32`.
+///
+/// For enums this yields a stable, distinct number per variant.  For
+/// non-enum types `mem::discriminant` returns a single constant value (so
+/// all instances hash to the same `i32`), which matches MetaModelica's
+/// "records have a single constructor" semantics.
+///
+/// The caller is expected to pass `&value` — for `Arc<T>`-wrapped values
+/// generated code must deref through the `Arc` (`&*arc`) so that the
+/// inspected discriminant belongs to the inner enum, not to `Arc` itself.
+pub fn valueConstructor<A>(value: &A) -> Result<i32> {
+    use std::hash::{Hash, Hasher};
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    std::mem::discriminant(value).hash(&mut hasher);
+    Ok((hasher.finish() & 0x7FFF_FFFF) as i32)
 }
 
 /// Returns the current time in seconds relative to process start.
@@ -2489,14 +2500,21 @@ mod tests {
 
         #[test]
         fn test_value_constructor() {
-            // Should return a stable value for the same type
-            let c1 = valueConstructor::<i32>().unwrap();
-            let c2 = valueConstructor::<i32>().unwrap();
-            assert_eq!(c1, c2);
-
-            // Different types should likely have different constructors
-            let c3 = valueConstructor::<String>().unwrap();
-            assert_ne!(c1, c3);
+            // MetaModelica semantics: same variant → same tag; different
+            // variants of the same uniontype → different tags. Implemented
+            // via `std::mem::discriminant`, so values of the same enum
+            // variant compare equal (e.g. `Some(1)` and `Some(2)`), while
+            // values of different variants compare unequal.
+            #[allow(dead_code)]
+            enum E { A(i32), B(i32), C }
+            let a1 = valueConstructor(&E::A(1)).unwrap();
+            let a2 = valueConstructor(&E::A(99)).unwrap();
+            let b  = valueConstructor(&E::B(1)).unwrap();
+            let c  = valueConstructor(&E::C).unwrap();
+            assert_eq!(a1, a2);
+            assert_ne!(a1, b);
+            assert_ne!(a1, c);
+            assert_ne!(b, c);
         }
 
         #[test]

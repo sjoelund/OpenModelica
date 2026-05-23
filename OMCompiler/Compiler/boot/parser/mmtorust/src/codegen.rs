@@ -5283,16 +5283,32 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
             Ok(format!("metamodelica::getGlobalRoot({idx_expr}){q}"))
         }
         "valueConstructor" if args.len() == 1 => {
-            // MetaModelica `valueConstructor(x)` returns the boxed value's
-            // constructor tag. The Rust runtime exposes it as a type-parameter
-            // form `valueConstructor::<A>() -> Result<i32>` because the only
-            // input it needs is the static type — there is no boxed `dyn Any`
-            // discriminator at runtime. Lower by dropping the value argument
-            // and pinning the type with a turbofish.
+            // MetaModelica `valueConstructor(x)` returns the variant index of
+            // the *value* `x` — for two values of the same uniontype but
+            // different records it must yield distinct integers. We lower it
+            // to `metamodelica::valueConstructor(&x)`, which inspects the
+            // value at runtime via `std::mem::discriminant`.
+            //
+            // For `Arc<T>`-wrapped values we deref through the `Arc` so that
+            // the discriminant belongs to the inner enum rather than to
+            // `Arc` itself (`Arc` is a struct, so `mem::discriminant` would
+            // collapse every variant onto a single value, reproducing the
+            // bug this code replaces).
             let arg_ty = args[0].ty();
-            let ty_str = fmt_ty(&arg_ty, ctx);
+            let arg_expr = emit_builtin_call_arg_raw(func, 0, &args[0], is_const, ctx, top_level);
+            let is_arc_wrapped = match &arg_ty {
+                Ty::RustEnum(n) | Ty::AliasTo(n) | Ty::RustStruct(n) => {
+                    ctx.recursive_types.contains(n.as_str())
+                }
+                _ => false,
+            };
+            let ref_expr = if is_arc_wrapped {
+                format!("(&*{arg_expr})")
+            } else {
+                format!("(&{arg_expr})")
+            };
             let q = if ctx.current_fn_fallible { "?" } else { ".unwrap()" };
-            Ok(format!("metamodelica::valueConstructor::<{ty_str}>(){q}"))
+            Ok(format!("metamodelica::valueConstructor({ref_expr}){q}"))
         }
         "getInstanceName" if args.is_empty() => {
             // MetaModelicaBuiltin.mo: returns a String literal with the

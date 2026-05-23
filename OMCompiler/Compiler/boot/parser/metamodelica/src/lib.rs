@@ -779,28 +779,41 @@ macro_rules! assign_variant_field {
     // bindings are then assigned in sequence on the owned copy. A runtime
     // variant mismatch panics — that would indicate a codegen bug.
     (
-        $base:ident => $($variant:ident)::+ ;
+        $base:ident => $variant:path ;
         $first_field:ident = $first_value:expr
         $(, $field:ident = $value:expr)*
         $(,)?
     ) => {{
         let mut __owned = (*$base).clone();
-        // Field-shorthand destructure: each captured binding takes the same
-        // name as the field, so the macro doesn't need to invent unique
-        // identifiers per repetition.
-        if let $($variant)::+ {
-            $first_field,
-            $($field,)*
-            ..
-        } = &mut __owned {
-            *$first_field = $first_value;
-            $( *$field = $value; )*
+        // Evaluate every value expression BEFORE entering an `if let` that
+        // would introduce field-shorthand pattern bindings with the same name
+        // as the field. Otherwise a call site like
+        //   `assign_variant_field!(t => T::N; value = value.clone())`
+        // would have `value.clone()` resolve to the &mut FieldType binding
+        // produced by the destructure, not the outer local — silently turning
+        // the assignment into a self-copy. We capture each value into `__v`
+        // immediately before its assignment; `__v` is shadowed each iteration,
+        // which is fine because it's consumed before the next `let __v = ...`.
+        let __v = $first_value;
+        if let $variant { $first_field, .. } = &mut __owned {
+            *$first_field = __v;
         } else {
             panic!(
                 "assign_variant_field!: expected variant {} but value held a different variant",
-                stringify!($($variant)::+),
+                stringify!($variant),
             );
         }
+        $(
+            let __v = $value;
+            if let $variant { $field, .. } = &mut __owned {
+                *$field = __v;
+            } else {
+                panic!(
+                    "assign_variant_field!: expected variant {} but value held a different variant",
+                    stringify!($variant),
+                );
+            }
+        )*
         $base = ::std::sync::Arc::new(__owned);
     }};
 }

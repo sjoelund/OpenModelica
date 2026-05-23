@@ -476,9 +476,28 @@ impl GenCtx {
         // Fully-qualified Rust path — record the top-level module as implicitly needed,
         // but only for known MM packages (those in crate_map). Bare names like `SourceInfo`
         // that fall through here are builtins provided by `metamodelica::*`, not modules.
+        //
+        // Skip the insertion when `top` is the same string as a local import alias
+        // (e.g. `Binding` from `import Binding = NFBinding`): such names are already
+        // bound to the aliased target by a `use … as Binding;` line, and pulling in
+        // a same-named top-level package from another crate (e.g. `Script/Binding.mo`
+        // in `openmodelica_backend`) would both collide with the alias and, worse,
+        // create a cross-crate dependency cycle. The presence of a literal "Binding"
+        // here means upstream code did not resolve the alias to its canonical qname;
+        // log a diagnostic so the underlying resolution gap can be fixed.
         let top = dotted.split('.').next().unwrap_or(dotted);
         if top != self.top_name && self.crate_map.contains_key(top) {
-            self.implicit_modules.insert(top.to_owned());
+            let shadowed_by_alias = self.named.values().any(|local| local == top);
+            if !shadowed_by_alias {
+                self.implicit_modules.insert(top.to_owned());
+            } else if std::env::var("MMTORUST_TRACE_ALIAS_SHADOW").is_ok() {
+                eprintln!(
+                    "[mmtorust] shorten: skipping implicit_modules insert of '{top}' \
+                     (shadowed by local alias) for dotted='{dotted}' in {}::{}",
+                    self.top_name,
+                    self.current_path.join("::"),
+                );
+            }
         }
         dotted.replace('.', "::")
     }

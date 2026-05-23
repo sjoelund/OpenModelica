@@ -7310,7 +7310,14 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
                     let mut local_env = LocalEnv {
                         vars: ctx.fn_env_vars.clone(),
                         outputs: ctx.fn_outputs.clone(),
-                        variants: HashMap::new(),
+                        // Inherit any variant narrowings established by enclosing
+                        // match arms. `ctx.variants` is the global accumulator
+                        // updated at every arm boundary; without seeding here the
+                        // inner arm's plan_field_assign would not see that e.g.
+                        // `call` was already narrowed to TYPED_CALL by the outer
+                        // arm, and would fall back to a broken `todo!()` for
+                        // `call.field := ..` shapes.
+                        variants: ctx.variants.clone(),
                     };
                     // The match arm guarantees that the scrutinee (when it is a
                     // simple variable reference) holds the matched variant for
@@ -7674,7 +7681,11 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
                     let mut local_env = LocalEnv {
                         vars: ctx.fn_env_vars.clone(),
                         outputs: ctx.fn_outputs.clone(),
-                        variants: HashMap::new(),
+                        // See the MatchKind::Match branch above for why we seed
+                        // from ctx.variants: nested match arms must inherit the
+                        // enclosing arm's variant narrowings so field-assigns
+                        // route through the variant-aware macro.
+                        variants: ctx.variants.clone(),
                     };
                     record_pattern_variants(&case.pattern, input, &mut local_env, top_level);
                     let pat_binding_names: std::collections::HashSet<String> =
@@ -10777,9 +10788,13 @@ fn emit_stmt<'a>(
                 // entire crate then fails to compile. A `todo!()` keeps the
                 // surrounding function callable while still flagging the gap.
                 let lhs_str = field_access_to_dotted(base, field);
-                let lhs_ty = lhs_assignment_ty(lhs, env);
-                let scrut_expr = coerce_assign_expr(scrut_expr, &scrut_ty, lhs_ty.as_ref());
-                writeln!(out, "{indent}// TODO: unhandled field-assign shape: {lhs_str} = {scrut_expr};").unwrap();
+                // Intentionally NOT embedding the rhs in the emitted comment:
+                // `coerce_assign_expr` may return a multi-line rendering (e.g.
+                // a list-comprehension lowered to a `{ let __acc; for ... {} }`
+                // block). Pasting that into a `//` comment lets the body lines
+                // escape the comment and break the surrounding parse. The
+                // identifier in the `todo!` message is enough to locate the
+                // gap; the full shape is recoverable from the MM source.
                 writeln!(out, "{indent}todo!(\"unhandled field-assign shape: {lhs_str}\");").unwrap();
                 return;
             }

@@ -1838,7 +1838,27 @@ fn infer_case<'a>(
             }
             let pat = infer_pat(pattern, &pat_env, top_level, pkg_prefix, type_vars);
             let mut inner_env = env.clone();
-            inner_env.extend(pat_bindings(&pat));
+            // Use the typed scrutinee (when we have one) so constructor-field
+            // bindings get the field's real type rather than `Ty::Unknown`.
+            // Without this, a binding like `subModLst = submods` inside a
+            // `SCode.MOD { … }` pattern shadows any like-named function-level
+            // protected local with `Unknown` — which then propagates to the
+            // for-loop iteratee type and disables the List/Array iteration
+            // dispatch in codegen. Keep the un-typed fallback so we don't
+            // overwrite an existing rich type with `Unknown` for patterns
+            // whose scrutinee is itself untyped.
+            let pat_binds: Vec<(String, Ty)> = if let Some((_, sty)) = scrutinee {
+                pat_bindings_with_scrut_ty_tl(&pat, sty, top_level)
+            } else {
+                pat_bindings(&pat)
+            };
+            for (n, t) in pat_binds {
+                if matches!(t, Ty::Unknown) {
+                    inner_env.entry(n).or_insert(t);
+                } else {
+                    inner_env.insert(n, t);
+                }
+            }
             // Narrow the scrutinee variable's type to the matched record-variant
             // when the pattern is a constructor on a multi-record uniontype.
             // Without this, `obj.values` inside a `case LIST_OBJECT() ...` arm

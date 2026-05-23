@@ -787,7 +787,7 @@ pub fn generate_all(hier: &InstanceHierarchy<'_>, output_dir: &str) -> std::io::
                 // function; it is hand-written in
                 // `openmodelica_util/src/Global.rs` so that `initialize()` can
                 // reference typed `Globals::` variables correctly.
-                "Mutable" | "GCExt" | "Pointer" | "File" | "Global" => continue,
+                "Mutable" | "GCExt" | "Pointer" | "File" | "Global" | "Vector" => continue,
                 _ => {}
             };
             file_jobs.push((dir.as_str(), name, node));

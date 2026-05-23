@@ -6277,17 +6277,48 @@ fn emit_call_arg_with_formal<'a>(
     // passing it into a `fn(...)` slot would be a type error.
     // `resolve_call_formals` pulls the formal type from `node.ty.inputs`,
     // which matches what `fmt_param_ty` saw at the function-definition site.
-    if matches!(formal_ty, Some(&Ty::Function { name: None, .. })) {
+    if let Some(Ty::Function { inputs, output, name: None, .. }) = formal_ty {
         if arg_is_input_fn_param(arg, ctx) {
             // case 1: `raw` is already `"inCompFunc.clone()"` (emit_exp appends
             // `.clone()` for every Ty::Function{name:None} var reference — see
             // the Var arm in emit_exp). Forward as-is; do NOT add another
             // `.clone()` or we'd produce `inCompFunc.clone().clone()`.
             return raw;
-        } else {
-            // case 2: wrap the fresh closure / fn-pointer in Arc::new.
-            return format!("Arc::new({raw})");
         }
+        // case 2 (special): an `if … else …` whose branches are different
+        // closure types. Wrapping the whole if-expression in a single
+        // `Arc::new(...)` doesn't help — the *inner* if branches each have a
+        // unique anonymous closure type, so the if-expression itself fails
+        // to typecheck before the outer Arc::new can promote anything to
+        // `Arc<dyn Fn>`. Push the Arc::new + dyn-Fn coercion *inside* each
+        // branch so the if-expression's branch types unify as the same
+        // `Arc<dyn Fn(..) -> ..>` slot type. See `mergeAnnotations2`
+        // (`if mergeSubMods then function mergeAnnotations3(...) else
+        // function subModsInSameOrder(...)`) for the trigger shape.
+        if let TypedExp::If { cond, then_, elseif, else_, .. } = arg {
+            // Use `as _` so the Rust compiler infers the concrete `Arc<dyn Fn>`
+            // slot type from the surrounding call's parameter type. We can't
+            // spell the cast explicitly here because the formal's `inputs` /
+            // `output` may still reference uninstantiated type variables
+            // (e.g. `findAndMap<T>`'s `Fn(T) -> bool`) that are not in scope at
+            // this call site.
+            let _ = (inputs, output);
+            let wrap = |branch: &TypedExp, ctx: &mut GenCtx| -> String {
+                let inner = emit_call_arg_with_formal(branch, formal_ty, is_const, ctx, top_level);
+                format!("({inner} as _)")
+            };
+            let cond_s = emit_exp(cond, is_const, ctx, top_level);
+            let then_s = wrap(then_, ctx);
+            let elseif_parts: Vec<String> = elseif.iter().map(|(c, e)| {
+                let cs = emit_exp(c, is_const, ctx, top_level);
+                let es = wrap(e, ctx);
+                format!(" else if ({cs}) {{ {es} }}")
+            }).collect();
+            let else_s = wrap(else_, ctx);
+            return format!("(if ({cond_s}) {{ {then_s} }}{} else {{ {else_s} }})", elseif_parts.join(""));
+        }
+        // case 2 (default): wrap the fresh closure / fn-pointer in Arc::new.
+        return format!("Arc::new({raw})");
     }
     // Implicit Integer→Real promotion: MetaModelica silently widens i32 actuals
     // to f64 when the formal is declared `Real`. Without this the generated

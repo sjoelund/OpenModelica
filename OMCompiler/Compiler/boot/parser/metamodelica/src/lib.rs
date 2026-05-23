@@ -237,10 +237,21 @@ pub fn intDiv(i1: i32, i2: i32) -> i32 {
     i1 / i2
 }
 
-/// Calculates remainder of Integer division i1/i2.
-/// Matches Modelica's mod() semantics: same sign as dividend.
+/// Calculates `mod(i1, i2)` with Modelica semantics: the result has the
+/// same sign as the divisor (Euclidean-style), not the dividend.
+///
+/// This mirrors `modelica_mod_integer` in the C runtime:
+/// `let tmp = i1 % i2; if (i2>0 && tmp<0) || (i2<0 && tmp>0) { tmp + i2 } else { tmp }`.
+/// Rust's `%` (like C's) returns the sign of the dividend, so a plain
+/// `i1 % i2` is wrong for negative dividends — callers like the hash-set
+/// bucket index `intMod(hash, bsize)` then dereference negative indices.
 pub fn intMod(i1: i32, i2: i32) -> i32 {
-    i1 % i2
+    let tmp = i1 % i2;
+    if (i2 > 0 && tmp < 0) || (i2 < 0 && tmp > 0) {
+        tmp + i2
+    } else {
+        tmp
+    }
 }
 
 /// Returns the bigger one of two Integer values.
@@ -1658,9 +1669,10 @@ mod tests {
 
         #[test]
         fn test_int_mod() {
+            // Modelica mod: result has the same sign as the divisor.
             assert_eq!(intMod(10, 3), 1);
-            assert_eq!(intMod(10, -3), 1);
-            assert_eq!(intMod(-10, 3), -1);
+            assert_eq!(intMod(10, -3), -2);
+            assert_eq!(intMod(-10, 3), 2);
             assert_eq!(intMod(-10, -3), -1);
         }
 

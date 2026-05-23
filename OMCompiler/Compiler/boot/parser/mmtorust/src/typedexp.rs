@@ -324,7 +324,7 @@ fn import_target_path(import: &Absyn::Import) -> Option<String> {
 /// Also handles `Ty::AliasTo` type aliases (e.g. `type ParameterTree = NFCallParameterTree.Tree`).
 ///
 /// Depth-limited to avoid infinite loops from mutually-recursive import aliases.
-fn walk_dotted_with_imports<'a>(
+pub(crate) fn walk_dotted_with_imports<'a>(
     dotted: &str,
     top_level: &'a BTreeMap<String, NameNode<'a>>,
     depth: u32,

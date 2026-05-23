@@ -8505,8 +8505,25 @@ fn emit_pat_with_implicit_bind_md<'a>(pat: &TypedPat, allow_implicit_bind: bool,
                 _ => normalize_builtin_ctor_name(name),
             };
             let rust = escape_ident(&rust_raw);
+            // Scope-aware constructor resolution: the same mechanism `infer_call`
+            // uses, which follows `import Foo = NFFoo;` aliases declared in the
+            // enclosing package. Without this, a pattern like `Expression.ARRAY`
+            // in a file whose package imports `import Expression = NFExpression`
+            // would fail direct hierarchy lookup and fall back to a simple-name
+            // search, which can match an unrelated same-named record in another
+            // package.
+            let pkg_prefix_for_lookup = if ctx.current_path.is_empty() {
+                ctx.top_name.clone()
+            } else {
+                format!("{}.{}", ctx.top_name, ctx.current_path.join("."))
+            };
             let field_tys_for_ctor = || {
                 if name.contains('.') {
+                    if let Some((qname, _)) = crate::typedexp::resolve_call_node(name, top_level, &pkg_prefix_for_lookup)
+                        && let Some(tys) = record_field_tys(&qname, top_level)
+                    {
+                        return Some(tys);
+                    }
                     // Direct lookup first; fall back to lookup-through-unions for names
                     // like "Flags.FLAGS" where the record is at "Flags.Flag.FLAGS".
                     if let Some(tys) = record_field_tys(name, top_level) {
@@ -8594,6 +8611,15 @@ fn emit_pat_with_implicit_bind_md<'a>(pat: &TypedPat, allow_implicit_bind: bool,
                         return format!("{arc_prefix}{rust}");
                     }
                     let field_tys = field_tys_opt.unwrap_or_default();
+                    // If our lookup returned fewer fields than the pattern has,
+                    // the lookup found the wrong record (e.g. simple-name fallback
+                    // matched an unrelated same-named record). Emit a TODO marker
+                    // rather than synthesising `_:` field labels which are invalid
+                    // Rust ("expected identifier or integer").
+                    if !field_tys.is_empty() && field_tys.len() < fields.len() {
+                        return format!("/* TODO: field-name lookup for {name} returned {} fields but pattern has {} */ {rust} {{ .. }}",
+                            field_tys.len(), fields.len());
+                    }
                     if !field_tys.is_empty() {
                         let pats: Vec<String> = fields.iter().enumerate().map(|(i, p)| {
                             let fname = field_tys.get(i).map(|(n, _)| n.as_str()).unwrap_or("_");
@@ -8931,7 +8957,15 @@ fn record_field_tys<'a>(
     qname: &str,
     top_level: &'a BTreeMap<String, NameNode<'a>>,
 ) -> Option<Vec<(String, Ty)>> {
-    let node = lookup_node(qname, top_level)?;
+    // Follow import aliases. A pattern's constructor is recorded in its
+    // MetaModelica spelling (e.g. `Expression.ARRAY`) which only resolves once
+    // an enclosing `import Expression = NFExpression` is applied. Without this
+    // pass, `lookup_node` would miss it and we'd fall through to a simple-name
+    // search that can match a same-named record from an unrelated package
+    // (e.g. `Absyn.Exp.ARRAY`), producing patterns with wrong field names.
+    let node = crate::typedexp::walk_dotted_with_imports(qname, top_level, 0)
+        .map(|(_, n)| n)
+        .or_else(|| lookup_node(qname, top_level))?;
     let NodeKind::Class(c) = &node.kind else { return None };
     let members: &[MM::ClassMember] = match &c.body {
         MM::ClassDef::Parts { members, .. } | MM::ClassDef::ClassExtends { members, .. } => members,

@@ -21,6 +21,8 @@ pub const backendDAE_jacobianSeq: i32 = 21;
 
 pub const backendInterface: i32 = 31;
 
+pub const backendCevalInterface: i32 = 32;
+
 pub const builtinEnvIndex: i32 = 14;
 
 pub const builtinGraphIndex: i32 = 18;

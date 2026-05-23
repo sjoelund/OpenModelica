@@ -84,11 +84,12 @@ thread_local! {
         Arc::new(crate::OperatorOverloading::AvlTreePathOperatorTypes::Tree::EMPTY),
     ));
 
-    // Index 31 — backendInterface
+    // Index 32 — backendCevalInterface
     //
-    // Function table populated by backend registration before any backend
-    // operation.  Uses todo!() since there is no meaningful empty state;
-    // always set before first use.
-    pub static backendInterface: RefCell<crate::BackendInterface::BackendInterfaceFunctions> =
-        RefCell::new(todo!("backendInterface must be registered before first use"));
+    // Function table populated by backend registration before any ceval-from-
+    // backend operation (cevalCallFunction, cevalInteractiveFunctions,
+    // elabCallInteractive).  Uses todo!() since there is no meaningful empty
+    // state; always set before first use.
+    pub static backendCevalInterface: RefCell<crate::BackendCevalInterface::BackendInterfaceFunctions> =
+        RefCell::new(todo!("backendCevalInterface must be registered before first use"));
 }

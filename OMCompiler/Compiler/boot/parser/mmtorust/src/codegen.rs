@@ -5939,7 +5939,11 @@ fn global_root_var_path(grc: &GlobalRootConst, ctx: &GenCtx) -> String {
         | "builtinGraphIndex"
         | "inlineHashTable"
         | "operatorOverloadingCache"
-        | "backendInterface" => Some("openmodelica_frontend"),
+        | "backendCevalInterface" => Some("openmodelica_frontend"),
+        // openmodelica_frontend_dump — backendInterface root holds the
+        // function table populated by the frontend_dump-side interface
+        // (see FrontEnd/BackendInterface.mo and its `__OpenModelica_Interface`).
+        "backendInterface" => Some("openmodelica_frontend_dump"),
         // openmodelica_backend — types from SymbolTable, SimCode, etc.
         "symbolTable" | "rewriteRulesIndex" | "optionSimCode" | "interactiveCache" => {
             Some("openmodelica_backend")

@@ -4,6 +4,7 @@ pub mod AbsynJLDumpTpl;
 pub mod Algorithm;
 pub mod AvlSetCR;
 pub mod AvlSetPath;
+pub mod BackendCevalInterface;
 pub mod BlockCallRewrite;
 pub mod Builtin;
 pub mod Ceval;

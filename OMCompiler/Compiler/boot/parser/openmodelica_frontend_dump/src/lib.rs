@@ -19,4 +19,5 @@ pub mod SCodeDumpTpl;
 pub mod SCodeUtil;
 pub mod TypesDump;
 pub mod ValuesDump;
+pub mod ValuesMake;
 pub mod Globals;

@@ -17,6 +17,7 @@ if true then /* Suppress output */
     "../FrontEnd/CevalFunction.mo",
     "../FrontEnd/Ceval.mo",
     "../FrontEnd/ClassInf.mo",
+    "../FrontEnd/ClassInfUtil.mo",
     "../FrontEnd/ClassLoader.mo",
     "../FrontEnd/ComponentReference.mo",
     "../FrontEnd/ComponentReferenceBasics.mo",
@@ -71,6 +72,7 @@ if true then /* Suppress output */
     "../FrontEnd/UnitParserExt.mo",
     "../FrontEnd/Values.mo",
     "../FrontEnd/ValuesDump.mo",
+    "../FrontEnd/ValuesMake.mo",
     "../FrontEnd/ValuesUtil.mo",
 
   // Only files needed for compiling MetaModelica

@@ -1724,22 +1724,37 @@ fn emit_uniontype<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM:
         _ => &[],
     };
     for member in members {
-        if let MM::ClassMember::ClassDef(cdm) = member
-            && let Some(child_node) = node.children.get(&cdm.class_def.name)
-                && let NodeKind::Class(child_class) = &child_node.kind {
-                    match &cdm.class_def.restriction {
-                        Absyn::Restriction::R_FUNCTION { .. } => {
-                            emit_function(out, &cdm.class_def.name, child_node, child_class, &inner, &mut *ctx, top_level);
+        match member {
+            MM::ClassMember::ClassDef(cdm) => {
+                if let Some(child_node) = node.children.get(&cdm.class_def.name)
+                    && let NodeKind::Class(child_class) = &child_node.kind {
+                        match &cdm.class_def.restriction {
+                            Absyn::Restriction::R_FUNCTION { .. } => {
+                                emit_function(out, &cdm.class_def.name, child_node, child_class, &inner, &mut *ctx, top_level);
+                            }
+                            Absyn::Restriction::R_TYPE | Absyn::Restriction::R_ENUMERATION => {
+                                emit_type_item(out, &cdm.class_def.name, child_node, child_class, &inner, &mut *ctx);
+                            }
+                            Absyn::Restriction::R_UNIONTYPE => {
+                                emit_uniontype(out, &cdm.class_def.name, child_node, child_class, &inner, &mut *ctx, top_level);
+                            }
+                            _ => {}
                         }
-                        Absyn::Restriction::R_TYPE | Absyn::Restriction::R_ENUMERATION => {
-                            emit_type_item(out, &cdm.class_def.name, child_node, child_class, &inner, &mut *ctx);
-                        }
-                        Absyn::Restriction::R_UNIONTYPE => {
-                            emit_uniontype(out, &cdm.class_def.name, child_node, child_class, &inner, &mut *ctx, top_level);
-                        }
-                        _ => {}
                     }
+            }
+            // Constants declared directly inside the uniontype body
+            // (e.g. `constant Binding EMPTY_BINDING = UNBOUND();` in
+            // NFBinding.mo) must still be emitted. The `pub mod` wrapper
+            // created above gives them a stable lookup path
+            // (`Binding::EMPTY_BINDING`); without this dispatch they were
+            // silently dropped and every use site failed with E0425.
+            MM::ClassMember::Component(comp) => {
+                if let Some(child_node) = node.children.get(&comp.name) {
+                    emit_node(out, &comp.name, child_node, &inner, &mut *ctx, top_level);
                 }
+            }
+            MM::ClassMember::Extends(_) | MM::ClassMember::Import(_) | MM::ClassMember::LexerComment(_) => {}
+        }
     }
 
     if wrap_in_mod {

@@ -6922,6 +6922,20 @@ fn resolve_call_qname<'a>(
                 }
             }
         }
+        // Wildcard imports (`import M.*`) make M's nested packages/classes
+        // visible as bare names — including in the head segment of a dotted
+        // call. For `ConnectorType.isFlow` in a scope with `import NFPrefixes.*`,
+        // the head `ConnectorType` is a nested package of `NFPrefixes`, so the
+        // full path is `NFPrefixes.ConnectorType.isFlow`. Without this lookup,
+        // such calls go unresolved and the call site falls back to treating
+        // the callee as fallible (emitting `?` / `.unwrap()`), even when the
+        // target function returns a plain value.
+        for module in &ctx.unqual_modules {
+            let candidate = format!("{module}.{func}");
+            if exists(&candidate) {
+                return Some(candidate);
+            }
+        }
         return None;
     }
 

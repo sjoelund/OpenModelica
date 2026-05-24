@@ -6454,7 +6454,19 @@ fn find_record_split<'a>(segments: &[CrefSegment], ctx: &GenCtx, top_level: &'a 
         if let Some(node) = resolved_opt {
             if let crate::hierarchy::NodeKind::Class(c) = &node.kind {
                 use openmodelica_ast::Absyn::Restriction::*;
+                // `type X = enumeration(...)` carries restriction `R_TYPE` in
+                // the AST even though the body is an enumeration. emit_type_item
+                // emits it as a Rust `enum`, so its variants must be accessed
+                // via `::`. Treat it the same as `R_ENUMERATION` for splitting.
+                let is_enum_body = matches!(&c.body, MM::ClassDef::Enumeration { .. });
                 match c.restriction {
+                    _ if is_enum_body => {
+                        if i < segments.len() {
+                            return i + 1;
+                        } else {
+                            return i;
+                        }
+                    }
                     // uniontypes and enums act as namespaces for their constructors.
                     // If we found the uniontype/enum itself, the VERY NEXT segment is its constructor!
                     // so the rust module path covers up to the constructor.
@@ -7108,6 +7120,48 @@ fn canonicalize_call_funcs<'a>(exp: TypedExp, module_prefix: &str, top_level: &'
         // resolve it to e.g. `CacheTree::addConflictDefault` — otherwise it
         // emits as a bare identifier and Rust reports E0425 ("cannot find
         // value `addConflictDefault` in this scope").
+        // A dotted Var whose head segment names a type defined in the callee's
+        // enclosing scope (e.g. `ScopeType.RELATIVE` where
+        // `type ScopeType = enumeration(RELATIVE, …)` is declared in the
+        // same uniontype/package as the callee). When the default is inlined
+        // at a call site in another module, the bare head segment `ScopeType`
+        // is not in scope there. Qualify the head to its FQN
+        // (e.g. `NFInstNode.ScopeType`) so the call-site `emit_var` /
+        // `ctx.shorten` step can resolve it.
+        E::Var { ref name, ref segments, ref ty }
+            if segments.len() >= 2
+                && segments.iter().all(|s| s.subscripts.is_empty()) =>
+        {
+            let head = &segments[0].name;
+            if let Some((qname, node)) = typedexp::resolve_call_node(head, top_level, module_prefix) {
+                let is_type_like = matches!(&node.kind, NodeKind::Class(c) if matches!(
+                    c.restriction,
+                    Absyn::Restriction::R_TYPE
+                        | Absyn::Restriction::R_ENUMERATION
+                        | Absyn::Restriction::R_UNIONTYPE
+                        | Absyn::Restriction::R_PACKAGE
+                        | Absyn::Restriction::R_RECORD
+                ));
+                if is_type_like && qname != *head {
+                    let mut new_segments: Vec<CrefSegment> = qname
+                        .split('.')
+                        .map(|p| CrefSegment { name: p.to_owned(), subscripts: vec![] })
+                        .collect();
+                    new_segments.extend(segments.iter().skip(1).cloned());
+                    let new_name = new_segments
+                        .iter()
+                        .map(|s| s.name.clone())
+                        .collect::<Vec<_>>()
+                        .join(".");
+                    return E::Var {
+                        name: new_name,
+                        segments: new_segments,
+                        ty: ty.clone(),
+                    };
+                }
+            }
+            return exp;
+        }
         E::Var { ref name, ref segments, ref ty }
             if !name.contains('.')
                 && segments.len() <= 1

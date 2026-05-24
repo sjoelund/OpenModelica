@@ -74,6 +74,13 @@ struct GenCtx {
     unqual_modules: HashSet<String>,
     /// Explicit imports: dotted qualified name → local name.""
     named: BTreeMap<String, String>,
+    /// Local names that alias the current module itself (e.g. `import Type = NFType;`
+    /// inside `NFType.mo`). MetaModelica lets you self-alias a uniontype so the
+    /// source can refer to it as `Type.ANY` instead of `NFType.ANY`. We don't emit
+    /// a `use` line for self-aliases (a `use crate::NFType as Type;` from inside
+    /// NFType.rs would be a cycle), but we still need to *recognise* the local
+    /// name in lookups so dotted refs like `Type.ANY` resolve to `NFType::ANY`.
+    self_aliases: BTreeSet<String>,
     /// Uniontypes (Rust enums) whose variants are referenced via UnionTypeVariant.
     /// Their qualified names need to be imported so the generated code can use `UnionType::Variant`.
     uniontype_imports: HashSet<String>,
@@ -283,6 +290,7 @@ impl GenCtx {
             current_path: Vec::new(),
             unqual_modules: HashSet::new(),
             named: BTreeMap::new(),
+            self_aliases: BTreeSet::new(),
             uniontype_imports: HashSet::new(),
             implicit_modules: BTreeSet::new(),
             current_crate,
@@ -441,6 +449,26 @@ impl GenCtx {
             self.top_name.clone()
         } else {
             format!("{}.{}", self.top_name, self.current_path.join("."))
+        };
+
+        // Self-alias rewrite: `Type.ANY` inside NFType.mo (where `import Type = NFType;`
+        // declares `Type` as a self-alias) → `NFType.ANY` so the same-module strip
+        // below catches it. Without this the bare `Type` head survives shorten and
+        // ends up emitted as `Type::ANY` — `Type` is not bound in Rust, so E0433.
+        let dotted_owned;
+        let dotted: &str = {
+            let mut parts = dotted.splitn(2, '.');
+            let head = parts.next().unwrap_or(dotted);
+            let tail = parts.next();
+            if self.self_aliases.contains(head) {
+                dotted_owned = match tail {
+                    Some(t) => format!("{}.{}", self.top_name, t),
+                    None => self.top_name.clone(),
+                };
+                &dotted_owned
+            } else {
+                dotted
+            }
         };
 
         // Exact same-module item: strip the current prefix (longest match first).
@@ -681,7 +709,12 @@ fn collect_imports<'a>(node: &NameNode<'_>, ctx: &mut GenCtx, top_level: &'a BTr
                 }
                 Absyn::Import::NAMED_IMPORT { name, path } => {
                     let dotted = path_to_dotted(path);
-                    if dotted != ctx.top_name && !dotted.starts_with(&same_file_prefix) && path_exists_in_hierarchy(&dotted, top_level) {
+                    if dotted == ctx.top_name {
+                        // `import Type = NFType;` inside NFType.mo: the alias names
+                        // the current module. No `use` line, but record the local
+                        // name so lookups (`Type.ANY` → `NFType.ANY`) succeed.
+                        ctx.self_aliases.insert(name.to_string());
+                    } else if !dotted.starts_with(&same_file_prefix) && path_exists_in_hierarchy(&dotted, top_level) {
                         let effective = resolve_through_import_node(&dotted, top_level)
                             .unwrap_or(dotted.clone());
                         // Same renamed-record correction as for QUAL_IMPORT.
@@ -6399,6 +6432,27 @@ fn resolve_fully_qualified<'a>(prefix_dotted: &str, ctx: &GenCtx, top_level: &'a
     let path_top = format!("{}.{}", ctx.top_name, prefix_dotted);
     if let Some(n) = lookup_node(&path_top, top_level) {
         return Some(n);
+    }
+    // 2c. Self-alias of the current module (e.g. `import Type = NFType;` inside
+    // NFType.mo). The head segment is the local alias; the rest is a path inside
+    // the current module. Rewrite the head to `top_name` and try again. Without
+    // this, `Type.ANY` references in NFType.rs fall through to the bare-name
+    // fallback in `find_record_split` and emit `Type.ANY` (field access) — but
+    // `Type` is not in scope anywhere, surfacing as E0433.
+    {
+        let mut head_parts = prefix_dotted.splitn(2, '.');
+        let head = head_parts.next().unwrap_or(prefix_dotted);
+        let tail = head_parts.next().unwrap_or("");
+        if ctx.self_aliases.contains(head) {
+            let candidate = if tail.is_empty() {
+                ctx.top_name.clone()
+            } else {
+                format!("{}.{}", ctx.top_name, tail)
+            };
+            if let Some(n) = lookup_node(&candidate, top_level) {
+                return Some(n);
+            }
+        }
     }
     // 3. Named imports (reverse lookup: named values are the local names)
     // Wait, ctx.named maps "Fully.Qualified" => "Local"

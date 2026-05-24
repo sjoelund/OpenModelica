@@ -51,6 +51,33 @@ pub struct Token {
     pub col: u32,
 }
 
+/// A line (`//…`) or block (`/*…*/`) comment captured by the lexer.
+///
+/// Unlike `Token`, comments are not passed to the grammar parser. Instead they
+/// are kept in a parallel stream and inserted into the AST at "checkpoint"
+/// points where the parser is past any backtracking — mirroring the ANTLR3
+/// `HIDDEN` channel approach used by `Modelica.g`.
+///
+/// `text` is the *raw* comment, including the leading `//` or `/* */`
+/// delimiters, so the code generator can re-emit it verbatim.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CommentToken {
+    pub kind: CommentKind,
+    pub line: u32,
+    pub col: u32,
+    pub end_line: u32,
+    pub end_col: u32,
+    pub text: arcstr::ArcStr,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CommentKind {
+    /// `// …` — terminated by newline or EOF, never crosses lines.
+    Line,
+    /// `/* … */` — may span multiple lines.
+    Block,
+}
+
 /// All possible token kinds produced by the lexer.
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenKind {
@@ -359,11 +386,17 @@ struct Lexer<'s> {
     line: u32,
     col: u32,
     grammar: &'s Grammar,
+    /// Parallel stream of `//` and `/*` comments encountered between tokens.
+    /// Only populated when [`lex_with_comments`] is used; otherwise the lexer
+    /// is configured to discard them via `record_comments == false`.
+    comments: Vec<CommentToken>,
+    record_comments: bool,
 }
 
 impl<'s> Lexer<'s> {
     fn new(src: &'s str, grammar: &'s Grammar) -> Self {
-        Lexer { src, pos: 0, line: 1, col: 1, grammar }
+        Lexer { src, pos: 0, line: 1, col: 1, grammar,
+                comments: Vec::new(), record_comments: false }
     }
 
     fn peek(&self) -> Option<char> {
@@ -401,15 +434,32 @@ impl<'s> Lexer<'s> {
                 }
                 Some('/') => match self.peek2() {
                     Some('/') => {
-                        // Line comment: skip to end of line.
+                        // Line comment: record up to (but not including) the
+                        // terminating newline. The position recorded is the
+                        // position of the leading `/`.
+                        let start_line = self.line;
+                        let start_col = self.col;
+                        let start_pos = self.pos;
                         while !matches!(self.peek(), None | Some('\n')) {
                             self.advance();
+                        }
+                        if self.record_comments {
+                            let text: arcstr::ArcStr = self.src[start_pos..self.pos].into();
+                            // For a single-line comment, end col is one before
+                            // current col (current col is on the newline / EOF).
+                            self.comments.push(CommentToken {
+                                kind: CommentKind::Line,
+                                line: start_line, col: start_col,
+                                end_line: self.line, end_col: self.col.saturating_sub(1).max(start_col),
+                                text,
+                            });
                         }
                     }
                     Some('*') => {
                         // Block comment.
                         let err_line = self.line;
                         let err_col = self.col;
+                        let start_pos = self.pos;
                         self.advance(); // '/'
                         self.advance(); // '*'
                         loop {
@@ -427,6 +477,17 @@ impl<'s> Lexer<'s> {
                                 }
                                 _ => {}
                             }
+                        }
+                        if self.record_comments {
+                            let text: arcstr::ArcStr = self.src[start_pos..self.pos].into();
+                            // End position points at the closing '/'.
+                            let end_col = self.col.saturating_sub(1).max(1);
+                            self.comments.push(CommentToken {
+                                kind: CommentKind::Block,
+                                line: err_line, col: err_col,
+                                end_line: self.line, end_col,
+                                text,
+                            });
                         }
                     }
                     _ => break,
@@ -808,6 +869,23 @@ pub fn lex(src: &str, grammar: Grammar) -> Result<Vec<Token>, LexError> {
     Ok(tokens)
 }
 
+/// Same as [`lex`], but also returns the line/block comments encountered
+/// between tokens, in source order. The comment stream is independent of the
+/// token stream so the parser can choose checkpoint boundaries (places where
+/// no further backtracking is possible) and splice the captured comments back
+/// into the AST.
+pub fn lex_with_comments(src: &str, grammar: Grammar)
+    -> Result<(Vec<Token>, Vec<CommentToken>), LexError>
+{
+    let mut lexer = Lexer::new(src, &grammar);
+    lexer.record_comments = true;
+    let mut tokens = Vec::new();
+    while let Some(tok) = lexer.next_token()? {
+        tokens.push(tok);
+    }
+    Ok((tokens, lexer.comments))
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -966,6 +1044,28 @@ mod tests {
             &TokenKind::Code, &TokenKind::CodeName, &TokenKind::CodeExp,
             &TokenKind::CodeVar, &TokenKind::Overload,
         ]);
+    }
+
+    #[test]
+    fn test_comments_captured() {
+        let (toks, comments) = lex_with_comments(
+            "a // hi\nb /* block\ncomment */ c",
+            Grammar::Modelica3,
+        ).unwrap();
+        let ks: Vec<_> = toks.iter().map(|t| &t.kind).collect();
+        assert_eq!(ks, vec![
+            &TokenKind::Ident("a".into()),
+            &TokenKind::Ident("b".into()),
+            &TokenKind::Ident("c".into()),
+        ]);
+        assert_eq!(comments.len(), 2);
+        assert_eq!(comments[0].kind, CommentKind::Line);
+        assert_eq!(&*comments[0].text, "// hi");
+        assert_eq!((comments[0].line, comments[0].col), (1, 3));
+        assert_eq!(comments[1].kind, CommentKind::Block);
+        assert_eq!(&*comments[1].text, "/* block\ncomment */");
+        assert_eq!((comments[1].line, comments[1].col), (2, 3));
+        assert_eq!(comments[1].end_line, 3);
     }
 
     #[test]

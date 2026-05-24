@@ -9875,22 +9875,37 @@ fn emit_pat_assign<'a>(
             }
         }
         TypedPat::Var(name) => {
-            let (actual_ty, actual_expr) = if let Ty::Tuple(tys) = scrut_ty {
-                (tys.first().cloned().unwrap_or(Ty::Unknown), format!("{scrut_expr}.0"))
+            // First-output extraction (`.0`) for tuple-typed scrutinees must
+            // happen *after* the `Result` is unwrapped — the `Result<(...)>`
+            // itself has no `.0` field. In the failure mode we bind the whole
+            // tuple, then extract; in the infallible let we can append `.0`
+            // to the expression directly.
+            let actual_ty = if let Ty::Tuple(tys) = scrut_ty {
+                tys.first().cloned().unwrap_or(Ty::Unknown)
             } else {
-                (scrut_ty.clone(), scrut_expr.to_string())
+                scrut_ty.clone()
             };
+            let extract_tuple = matches!(scrut_ty, Ty::Tuple(_));
             env.vars.insert(name.clone(), actual_ty);
             if let FailureMode::IfLetElse(else_code) = fail_mode {
                 let n = *fresh; *fresh += 1;
                 let tmp = format!("__iflet{n}");
                 let inner = format!("{indent}    ");
-                writeln!(out, "{indent}if let Ok({tmp}) = {actual_expr} {{").unwrap();
-                writeln!(out, "{inner}{} = {tmp};", escape_ident(name)).unwrap();
+                writeln!(out, "{indent}if let Ok({tmp}) = {scrut_expr} {{").unwrap();
+                if extract_tuple {
+                    writeln!(out, "{inner}{} = {tmp}.0;", escape_ident(name)).unwrap();
+                } else {
+                    writeln!(out, "{inner}{} = {tmp};", escape_ident(name)).unwrap();
+                }
                 writeln!(out, "{indent}}} else {{").unwrap();
                 out.push_str(else_code.as_str());
                 writeln!(out, "{indent}}}").unwrap();
             } else {
+                let actual_expr = if extract_tuple {
+                    format!("{scrut_expr}.0")
+                } else {
+                    scrut_expr.to_string()
+                };
                 writeln!(out, "{indent}let {} = {actual_expr};", escape_ident(name)).unwrap();
             }
         }

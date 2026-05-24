@@ -3837,6 +3837,25 @@ fn resolve_const_bool<'a>(exp: &TypedExp, ctx: &GenCtx, top_level: &'a BTreeMap<
     }
 }
 
+/// Rust binary-operator precedence levels, used by [`emit_exp`] to decide
+/// when an operand needs parenthesization. Higher numbers bind tighter.
+/// Matches Rust's published precedence table (so re-parsing the emitted
+/// expression keeps the original associativity).
+fn binop_prec(op: BinOpKind) -> u8 {
+    match op {
+        BinOpKind::Or                                                                 => 1,
+        BinOpKind::And                                                                => 2,
+        BinOpKind::Eq | BinOpKind::NEq
+        | BinOpKind::Lt | BinOpKind::LEq | BinOpKind::Gt | BinOpKind::GEq             => 3,
+        BinOpKind::Add | BinOpKind::Sub                                               => 4,
+        BinOpKind::Mul | BinOpKind::Div                                               => 5,
+        // `Pow` is lowered to `.powf(..)`, a method call whose receiver is
+        // already grouped; treat it as the tightest level so callers don't
+        // double-parenthesize it.
+        BinOpKind::Pow                                                                => 6,
+    }
+}
+
 /// Decode MetaModelica string escape sequences (per BaseModelica_Lexer.g
 /// `SESCAPE`) into their character values. The lexer preserves escapes
 /// verbatim in the token (so `"\n"` is stored as the two chars `\` + `n`)
@@ -4154,6 +4173,21 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
             }
             if rhs.ty() == Ty::I32 && lhs.ty() == Ty::F64 {
                 r = format!("metamodelica::OrderedFloat(({r}) as f64)");
+            }
+            // Parenthesize operands when the inner operator binds more loosely
+            // than the outer, or — for the right-hand side of a left-associative
+            // op — when it binds equally. Without this, `(a - b) / c` would
+            // re-emit as `a - b / c`, silently changing the meaning.
+            let parent_prec = binop_prec(*op);
+            if let TypedExp::BinOp { op: lop, .. } = &**lhs {
+                if binop_prec(*lop) < parent_prec {
+                    l = format!("({l})");
+                }
+            }
+            if let TypedExp::BinOp { op: rop, .. } = &**rhs {
+                if binop_prec(*rop) <= parent_prec {
+                    r = format!("({r})");
+                }
             }
             match op {
                 BinOpKind::Eq => {

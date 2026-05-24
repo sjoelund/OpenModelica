@@ -37,6 +37,7 @@ if true then /* Suppress output */
     "../FrontEnd/ExpressionSimplifyTypes.mo",
     "../FrontEnd/Graphviz.mo",
     "../FrontEnd/Inline.mo",
+    "../FrontEnd/InstBasics.mo",
     "../FrontEnd/InnerOuter.mo",
     "../FrontEnd/Inst.mo",
     "../FrontEnd/InstVar.mo",

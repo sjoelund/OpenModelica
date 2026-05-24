@@ -9117,8 +9117,55 @@ fn emit_pat_with_implicit_bind_md<'a>(pat: &TypedPat, allow_implicit_bind: bool,
                 }).count();
                 if record_count == 1 { Some(parent) } else { None }
             })();
+            // Helper: shorten a struct qname, then append `::<inner>` when the
+            // qname is a `pub mod`-wrapped uniontype whose only record was
+            // folded into a struct of the same name (e.g. `NFFunction.Slot`
+            // → mod `Slot { pub struct Slot; pub type SLOT = Slot; }`). A bare
+            // shortened path (`Slot`) names the module, not the struct — the
+            // pattern path must be `Slot::Slot` (or `Slot::SLOT`, both work via
+            // the type alias). For uniontypes without a mod wrapper (records
+            // only, no nested functions/constants), the shorten alone is
+            // correct since the parent struct lives directly in the parent
+            // scope.
+            let shorten_struct_qname = |ctx: &mut GenCtx, qname: &str, ctor_name: &str| -> String {
+                let short = ctx.shorten(qname);
+                if let Some(parent_node) = lookup_node(qname, top_level)
+                    && let NodeKind::Class(c) = &parent_node.kind
+                    && matches!(c.restriction, Absyn::Restriction::R_UNIONTYPE)
+                    && uniontype_needs_mod(parent_node)
+                {
+                    // `emit_uniontype` skips the `pub mod` wrapper when the
+                    // uniontype is the file's top-level name (e.g. `SBInterval`
+                    // declared inside `SBInterval.mo`): the struct lives
+                    // directly at the file's top scope, not inside a same-named
+                    // mod. Don't double the segment in that case.
+                    let parent_simple = qname.rsplit('.').next().unwrap_or(qname);
+                    let qname_top = qname.split('.').next().unwrap_or(qname);
+                    let is_file_top = qname_top == parent_simple && qname_top == ctx.top_name;
+                    // Already inside the parent's `pub mod` (e.g. emitting from
+                    // a method of the uniontype itself): `pub type CTOR =
+                    // Parent;` etc. are in scope by simple name, so doubling
+                    // would point at an associated item of the struct (E0223).
+                    let in_parent_mod = ctx.current_path.last().map(|p| p == parent_simple).unwrap_or(false);
+                    if is_file_top || in_parent_mod {
+                        return short;
+                    }
+                    // Prefer the original constructor's simple name when it
+                    // differs from the parent — the mod exposes it via
+                    // `pub type CTOR = ParentStruct;`, giving an unambiguous
+                    // path `Parent::CTOR`. If the constructor's name matches
+                    // the parent (single-record uniontype whose record was
+                    // renamed during folding), fall back to repeating the
+                    // parent name.
+                    let ctor_simple = ctor_name.rsplit('.').next().unwrap_or(ctor_name);
+                    let last = if ctor_simple != parent_simple { ctor_simple } else { parent_simple };
+                    format!("{short}::{last}")
+                } else {
+                    short
+                }
+            };
             let rust_raw = match ty {
-                Ty::RustStruct(qname) if name.contains('.') => ctx.shorten(qname),
+                Ty::RustStruct(qname) if name.contains('.') => shorten_struct_qname(ctx, qname, name),
                 _ if folded_parent_qname.is_some() => ctx.shorten(folded_parent_qname.as_ref().unwrap()),
                 _ if name.contains('.') => ctx.shorten(name),
                 _ => normalize_builtin_ctor_name(name),

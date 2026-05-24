@@ -2366,8 +2366,38 @@ pub fn infer_pat<'a>(
                         }
                         _ => (vec![], vec![]),
                     };
-                    let ty = lookup_ty_in_hierarchy(&func, top_level);
-                    TypedPat::Constructor { name: func, fields, named_fields, ty }
+                    // Resolve *bare* constructor names to their canonical qname
+                    // through the same scope/import machinery expression-position
+                    // calls use. Without this, a pattern like `case SLOT(...)`
+                    // for a uniontype record `SLOT` nested under
+                    // `NFFunction.Slot` keeps the bare name `SLOT` and codegen
+                    // can't qualify it (it needs `Slot::SLOT` or, for
+                    // single-record uniontypes that collapse to the parent
+                    // struct, `Slot { ... }`).
+                    //
+                    // Only triggered for names without a `.`: already-dotted
+                    // names like `Class.Prefixes.PREFIXES` have their own
+                    // shorten/alias-aware codegen path that we must not
+                    // disturb — re-canonicalising them can swap an import
+                    // alias for the uniontype's canonical qname and then
+                    // shorten back to the alias's *module* name (not the
+                    // struct), producing E0574.
+                    let canonical = if func.contains('.') {
+                        func.clone()
+                    } else {
+                        // Only re-canonicalise; leave `ty` to the lookup below.
+                        // Setting `ty` from the canonical qname would tempt the
+                        // codegen pattern emitter into the `Ty::RustStruct`
+                        // shortcut which folds to the parent struct's path —
+                        // wrong when the parent is a `pub mod`-wrapped
+                        // single-record uniontype (the struct is at
+                        // `Mod::Struct`, not at the bare `Mod`).
+                        resolve_call_node(&func, top_level, pkg_prefix)
+                            .map(|(qname, _)| qname)
+                            .unwrap_or_else(|| func.clone())
+                    };
+                    let ty = lookup_ty_in_hierarchy(&canonical, top_level);
+                    TypedPat::Constructor { name: canonical, fields, named_fields, ty }
                 }
             }
         }

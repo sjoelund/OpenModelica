@@ -26,6 +26,76 @@ use arcstr::{ArcStr, literal};
 
 thread_local! {
     static CURRENT_FILE: RefCell<ArcStr> = const { RefCell::new(literal!("")) };
+    /// Comments collected by the lexer alongside the token stream.
+    ///
+    /// Stored as a thread-local because the parser is built on winnow
+    /// combinators with the input type fixed to `&[Token]`; threading an
+    /// extra mutable cursor through every parser function would be a
+    /// large mechanical change. This mirrors the ANTLR3 grammar, which
+    /// used the global `omc_first_comment` to drive comment splicing.
+    ///
+    /// Mutated **only** at strategic checkpoints in the parser (between
+    /// `;`-delimited items, after a class definition, etc.), so it is
+    /// safe under winnow's backtracking: backtracking does not move the
+    /// cursor backwards, and we only consume comments once their
+    /// surrounding tokens have been committed to.
+    static COMMENT_STREAM: RefCell<CommentStream> = RefCell::new(CommentStream::empty());
+}
+
+/// Parser-side view over the lexer's parallel comment stream.
+#[derive(Debug, Default)]
+pub struct CommentStream {
+    comments: Vec<lexer::CommentToken>,
+    /// Index of the next comment that has not yet been spliced into the AST.
+    cursor: usize,
+}
+
+impl CommentStream {
+    pub fn empty() -> Self { CommentStream { comments: Vec::new(), cursor: 0 } }
+    pub fn new(comments: Vec<lexer::CommentToken>) -> Self {
+        CommentStream { comments, cursor: 0 }
+    }
+}
+
+/// Drain all comments whose start position is *strictly before* `(line, col)`,
+/// in source order, and clone their text payloads.
+///
+/// Used at AST checkpoint points (between elements, equations, etc.) to flush
+/// any pending comments into the surrounding container before the next item.
+fn take_comments_before(line: u32, col: u32) -> Vec<ArcStr> {
+    COMMENT_STREAM.with(|s| {
+        let mut s = s.borrow_mut();
+        let mut out = Vec::new();
+        while s.cursor < s.comments.len() {
+            let c = &s.comments[s.cursor];
+            if c.line < line || (c.line == line && c.col < col) {
+                out.push(c.text.clone());
+                s.cursor += 1;
+            } else {
+                break;
+            }
+        }
+        out
+    })
+}
+
+/// Drain every remaining comment. Used at end-of-stream / after the last
+/// `end ClassName;` for `commentsAfterEnd`.
+fn take_comments_remaining() -> Vec<ArcStr> {
+    COMMENT_STREAM.with(|s| {
+        let mut s = s.borrow_mut();
+        let out: Vec<ArcStr> = s.comments[s.cursor..].iter().map(|c| c.text.clone()).collect();
+        s.cursor = s.comments.len();
+        out
+    })
+}
+
+/// Position helper: `(line, col)` of the *next* token, or one past EOF.
+fn next_pos(input: &TokenInput) -> (u32, u32) {
+    match input.first() {
+        Some(t) => (t.line, t.col),
+        None => (u32::MAX, u32::MAX),
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -116,10 +186,14 @@ impl std::error::Error for ParserError {}
 /// Lex then parse `src`.  Returns the AST or the first error encountered.
 pub fn parse(src: &str, filename: &str, grammar: Grammar) -> Result<Program, Box<dyn std::error::Error>> {
     CURRENT_FILE.with(|f| *f.borrow_mut() = ArcStr::from(filename));
-    let tokens = lexer::lex(src, grammar)?;
-    stored_definition
+    let (tokens, comments) = lexer::lex_with_comments(src, grammar)?;
+    COMMENT_STREAM.with(|s| *s.borrow_mut() = CommentStream::new(comments));
+    let result = stored_definition
         .parse(tokens.as_slice())
-        .map_err(|e| Box::new(ParserError::from_parse_error(e, &tokens)) as Box<dyn std::error::Error>)
+        .map_err(|e| Box::new(ParserError::from_parse_error(e, &tokens)) as Box<dyn std::error::Error>);
+    // Don't keep references to the previous file's comments alive across calls.
+    COMMENT_STREAM.with(|s| *s.borrow_mut() = CommentStream::empty());
+    result
 }
 
 // ---------------------------------------------------------------------------
@@ -131,6 +205,10 @@ pub enum ClassBodyItem {
     Section { section: SectionKind, items: Arc<List<ClassBodyItem>> },
     Element(Absyn::Element),
     Annotation(Absyn::Annotation),
+    /// A `//` or `/*` lexer comment captured between elements. Lowered to
+    /// `ElementItem::LEXER_COMMENT` inside a class section, preserving the
+    /// comment's relative source position next to the surrounding elements.
+    LexerComment(ArcStr),
     Equations(Arc<List<EquationItem>>),
     InitialEquations(Arc<List<EquationItem>>),
     Algorithms(Arc<List<AlgorithmItem>>),
@@ -249,6 +327,10 @@ fn body_items_to_classparts(items: Arc<List<ClassBodyItem>>) -> Arc<List<ClassPa
                 let ei = ElementItem::ELEMENTITEM { element: elem.clone() };
                 ClassPart::PUBLIC { contents: cons(ei, Arc::new(List::Nil)) }
             }
+            ClassBodyItem::LexerComment(text) => {
+                let ei = ElementItem::LEXER_COMMENT { comment: text.clone() };
+                ClassPart::PUBLIC { contents: cons(ei, Arc::new(List::Nil)) }
+            }
             ClassBodyItem::Annotation(_) => unreachable!("annotations should be split out before body_items_to_classparts"),
             ClassBodyItem::Equations(items)        => ClassPart::EQUATIONS        { contents: items.clone() },
             ClassBodyItem::InitialEquations(items) => ClassPart::INITIALEQUATIONS { contents: items.clone() },
@@ -276,8 +358,9 @@ fn body_items_to_element_items(items: Arc<List<ClassBodyItem>>) -> Arc<List<Elem
         List::Nil => Arc::new(List::Nil),
         List::Cons { head, tail } => {
             let converted = match head {
-                ClassBodyItem::Element(elem)   => ElementItem::ELEMENTITEM { element: elem.clone() },
-                _ => panic!("only Element items can appear inside public/protected sections, but found {:?}", head),
+                ClassBodyItem::Element(elem)         => ElementItem::ELEMENTITEM { element: elem.clone() },
+                ClassBodyItem::LexerComment(text)    => ElementItem::LEXER_COMMENT { comment: text.clone() },
+                _ => panic!("only Element/LexerComment items can appear inside public/protected sections, but found {:?}", head),
             };
             cons(converted, body_items_to_element_items(tail.clone()))
         }
@@ -338,15 +421,80 @@ fn class_definition_list(input: &mut TokenInput) -> ModalResult<Arc<List<Class>>
     let mut defs: Arc<List<Class>> = Arc::new(List::Nil);
     loop {
         if input.is_empty() { break; }
+        // Take everything that lies textually before the next class header
+        // (and its FINAL prefix, if present). These are this class's
+        // commentsBeforeClass per ANTLR3 `Modelica.g`.
+        let (next_l, next_c) = next_pos(input);
+        let before: Vec<ArcStr> = take_comments_before(next_l, next_c);
         let _final = opt(t(TK::Final)).parse_next(input)?.is_some();
         if let Some(def) = opt(class_definition).parse_next(input)? {
+            let def = attach_comments_before(def, before);
             defs = cons(def, defs);
             t(TK::Semi).parse_next(input)?;
         } else {
+            // No further class: any comments we already drained from the
+            // lookahead belong to the previously-parsed last class as
+            // commentsAfterEnd.
+            if !before.is_empty() {
+                defs = attach_comments_after_end_on_head(defs, before);
+            }
             break;
         }
     }
+    // Drain anything left after the last `end Name;` (e.g. trailing
+    // comments at EOF) onto the last class's commentsAfterEnd.
+    let trailing = take_comments_remaining();
+    if !trailing.is_empty() {
+        defs = attach_comments_after_end_on_head(defs, trailing);
+    }
     Ok(defs.reverse())
+}
+
+/// Returns `c` with its `commentsBeforeClass` field set to `before` (in source
+/// order). Used by [`class_definition_list`].
+fn attach_comments_before(c: Class, before: Vec<ArcStr>) -> Class {
+    if before.is_empty() { return c; }
+    let Class::CLASS {
+        name, partialPrefix, finalPrefix, encapsulatedPrefix, restriction,
+        body, commentsBeforeClass: _old, commentsBeforeEnd, commentsAfterEnd, info,
+    } = c;
+    let mut lst: Arc<List<ArcStr>> = Arc::new(List::Nil);
+    for txt in before.into_iter().rev() { lst = cons(txt, lst); }
+    Class::CLASS {
+        name, partialPrefix, finalPrefix, encapsulatedPrefix, restriction,
+        body, commentsBeforeClass: lst, commentsBeforeEnd, commentsAfterEnd, info,
+    }
+}
+
+/// `defs` is a reverse-order list — its head is the most-recently-parsed
+/// class. Append `tail` to that class's `commentsAfterEnd` list.
+fn attach_comments_after_end_on_head(
+    defs: Arc<List<Class>>,
+    tail: Vec<ArcStr>,
+) -> Arc<List<Class>> {
+    match &*defs {
+        List::Nil => defs, // no class to attach to; drop comments silently
+        List::Cons { head, tail: rest } => {
+            let Class::CLASS {
+                name, partialPrefix, finalPrefix, encapsulatedPrefix, restriction,
+                body, commentsBeforeClass, commentsBeforeEnd, commentsAfterEnd, info,
+            } = head.clone();
+            let lst = commentsAfterEnd;
+            // Existing list ordering follows the source; append the new
+            // entries to the end.
+            let mut new_tail: Arc<List<ArcStr>> = Arc::new(List::Nil);
+            for txt in tail.into_iter().rev() { new_tail = cons(txt, new_tail); }
+            // Concatenate lst ++ new_tail.
+            let mut acc = new_tail;
+            let existing: Vec<ArcStr> = (&*lst).into_iter().cloned().collect();
+            for txt in existing.into_iter().rev() { acc = cons(txt, acc); }
+            let new_head = Class::CLASS {
+                name, partialPrefix, finalPrefix, encapsulatedPrefix, restriction,
+                body, commentsBeforeClass, commentsBeforeEnd, commentsAfterEnd: acc, info,
+            };
+            cons(new_head, rest.clone())
+        }
+    }
 }
 
 /// class_definition: ENCAPSULATED? PARTIAL? FINAL? class_type class_specifier
@@ -606,6 +754,23 @@ fn composition2(input: &mut TokenInput) -> ModalResult<Arc<List<ClassBodyItem>>>
 fn element_list(input: &mut TokenInput) -> ModalResult<Arc<List<ClassBodyItem>>> {
     let mut items: Arc<List<ClassBodyItem>> = Arc::new(List::Nil);
     loop {
+        if input.is_empty() {
+            // Flush any comments that follow the last element so they are
+            // still preserved at the tail of the list.
+            for txt in take_comments_before(u32::MAX, u32::MAX) {
+                items = cons(ClassBodyItem::LexerComment(txt), items);
+            }
+            break;
+        }
+        // Drain any lexer comments whose source position precedes the next
+        // token. They get spliced into the element list as LexerComment
+        // items, preserving source order. This is a safe checkpoint because
+        // `element_list` only commits forward through `;`-terminated items;
+        // no caller backtracks across an entire element.
+        let (next_l, next_c) = (input[0].line, input[0].col);
+        for txt in take_comments_before(next_l, next_c) {
+            items = cons(ClassBodyItem::LexerComment(txt), items);
+        }
         let first_tok = &input[0];
         match peek_kind(input) {
             Some(TK::Public) | Some(TK::Protected) | Some(TK::Equation) | Some(TK::Algorithm)
@@ -1219,6 +1384,10 @@ fn external_part(input: &mut TokenInput) -> ModalResult<ClassBodyItem> {
 fn equation_section_items(input: &mut TokenInput) -> ModalResult<Arc<List<EquationItem>>> {
     let mut items: Arc<List<EquationItem>> = Arc::new(List::Nil);
     loop {
+        let (next_l, next_c) = next_pos(input);
+        for txt in take_comments_before(next_l, next_c) {
+            items = cons(EquationItem::EQUATIONITEMCOMMENT { comment: txt }, items);
+        }
         if input.is_empty() { break; }
         match peek_kind(input) {
             Some(TK::Public) | Some(TK::Protected) | Some(TK::Equation) | Some(TK::Algorithm)
@@ -1234,6 +1403,10 @@ fn equation_section_items(input: &mut TokenInput) -> ModalResult<Arc<List<Equati
 fn algorithm_section_items(input: &mut TokenInput) -> ModalResult<Arc<List<AlgorithmItem>>> {
     let mut items: Arc<List<AlgorithmItem>> = Arc::new(List::Nil);
     loop {
+        let (next_l, next_c) = next_pos(input);
+        for txt in take_comments_before(next_l, next_c) {
+            items = cons(AlgorithmItem::ALGORITHMITEMCOMMENT { comment: txt }, items);
+        }
         if input.is_empty() { break; }
         match peek_kind(input) {
             Some(TK::Public) | Some(TK::Protected) | Some(TK::Equation) | Some(TK::Algorithm)
@@ -1250,6 +1423,14 @@ fn algorithm_section_items(input: &mut TokenInput) -> ModalResult<Arc<List<Algor
 fn equation_list(input: &mut TokenInput) -> ModalResult<Arc<List<EquationItem>>> {
     let mut items: Arc<List<EquationItem>> = Arc::new(List::Nil);
     loop {
+        // Flush lexer comments before the next token (or after the last
+        // equation if we are about to break). They become EQUATIONITEMCOMMENT
+        // entries interleaved with the parsed equations, preserving the
+        // original source order.
+        let (next_l, next_c) = next_pos(input);
+        for txt in take_comments_before(next_l, next_c) {
+            items = cons(EquationItem::EQUATIONITEMCOMMENT { comment: txt }, items);
+        }
         if input.is_empty() { break; }
         match peek_kind(input) {
             Some(TK::Then) | Some(TK::Else) | Some(TK::Elseif)
@@ -1431,6 +1612,12 @@ fn connect_equation(input: &mut TokenInput) -> ModalResult<Equation> {
 fn algorithm_list(input: &mut TokenInput) -> ModalResult<Arc<List<AlgorithmItem>>> {
     let mut items: Arc<List<AlgorithmItem>> = Arc::new(List::Nil);
     loop {
+        // Mirror equation_list: drain lexer comments interleaved with
+        // the algorithm statements so they round-trip through the AST.
+        let (next_l, next_c) = next_pos(input);
+        for txt in take_comments_before(next_l, next_c) {
+            items = cons(AlgorithmItem::ALGORITHMITEMCOMMENT { comment: txt }, items);
+        }
         if input.is_empty() { break; }
         match peek_kind(input) {
             Some(TK::Then) | Some(TK::Else) | Some(TK::Elseif)
@@ -2660,6 +2847,58 @@ mod tests {
         if let Err(e) = parse(&code, "Absyn.mo", Grammar::MetaModelica) {
             panic!("expected Absyn.mo to parse: {e}");
         }
+    }
+
+    #[test]
+    fn comments_spliced_into_ast() {
+        // Three distinct comment placements that round-trip through the
+        // parser: between classes (commentsBeforeClass / commentsAfterEnd),
+        // between elements (LEXER_COMMENT inside a PUBLIC section), and
+        // between algorithm statements (ALGORITHMITEMCOMMENT).
+        let code = "\
+// before A\n\
+package A\n\
+  // between elements\n\
+  Real x;\n\
+algorithm\n\
+  // between statements\n\
+  x := 1.0;\n\
+end A;\n\
+// after A\n\
+";
+        let prog = parse(code, "t.mo", Grammar::MetaModelica).expect("parse");
+        let Program::PROGRAM { classes, .. } = prog;
+        let first = match &*classes { List::Cons { head, .. } => head.clone(), _ => panic!("no classes") };
+        let Class::CLASS { commentsBeforeClass, commentsAfterEnd, body, .. } = first;
+        assert!((&*commentsBeforeClass).into_iter().any(|c| c.contains("before A")),
+                "commentsBeforeClass = {:?}", commentsBeforeClass);
+        assert!((&*commentsAfterEnd).into_iter().any(|c| c.contains("after A")),
+                "commentsAfterEnd = {:?}", commentsAfterEnd);
+        // Walk the body for the embedded comments.
+        let ClassDef::PARTS { classParts, .. } = &*body else { panic!("expected PARTS"); };
+        let mut saw_lexer_comment = false;
+        let mut saw_alg_comment = false;
+        for cp in &**classParts {
+            match &*cp {
+                ClassPart::PUBLIC { contents } => {
+                    for ei in &**contents {
+                        if let ElementItem::LEXER_COMMENT { comment } = &*ei {
+                            if comment.contains("between elements") { saw_lexer_comment = true; }
+                        }
+                    }
+                }
+                ClassPart::ALGORITHMS { contents } => {
+                    for ai in &**contents {
+                        if let AlgorithmItem::ALGORITHMITEMCOMMENT { comment } = &*ai {
+                            if comment.contains("between statements") { saw_alg_comment = true; }
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        assert!(saw_lexer_comment, "expected LEXER_COMMENT in element list");
+        assert!(saw_alg_comment, "expected ALGORITHMITEMCOMMENT in algorithm list");
     }
 
     #[test]

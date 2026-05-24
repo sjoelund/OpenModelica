@@ -79,6 +79,21 @@ fn take_comments_before(line: u32, col: u32) -> Vec<ArcStr> {
     })
 }
 
+/// Snapshot the current comment cursor index. Paired with
+/// [`restore_comment_cursor`] to make speculative parses (e.g. `expression`,
+/// which winnow may attempt and then backtrack) leave the comment stream
+/// untouched on failure.
+fn save_comment_cursor() -> usize {
+    COMMENT_STREAM.with(|s| s.borrow().cursor)
+}
+
+/// Reset the comment cursor to a previously saved index. Used by callers that
+/// drained comments during a speculative parse that ultimately backtracked,
+/// so the comments are still available to the next parse attempt.
+fn restore_comment_cursor(idx: usize) {
+    COMMENT_STREAM.with(|s| s.borrow_mut().cursor = idx);
+}
+
 /// Drain every remaining comment. Used at end-of-stream / after the last
 /// `end ClassName;` for `commentsAfterEnd`.
 fn take_comments_remaining() -> Vec<ArcStr> {
@@ -1998,7 +2013,9 @@ fn component_reference2(input: &mut TokenInput) -> ModalResult<Absyn::ComponentR
 // Expression parsers
 // ---------------------------------------------------------------------------
 
-fn expression(input: &mut TokenInput) -> ModalResult<Absyn::Exp> {
+/// Inner expression parser without comment splicing. Kept private so external
+/// callers can't bypass the EXPRESSIONCOMMENT wrapper.
+fn expression_inner(input: &mut TokenInput) -> ModalResult<Absyn::Exp> {
     match peek_kind(input) {
         Some(TK::If)                             => return if_expression(input),
         Some(TK::Match) | Some(TK::Matchcontinue) => return match_expression(input),
@@ -2007,6 +2024,58 @@ fn expression(input: &mut TokenInput) -> ModalResult<Absyn::Exp> {
         _ => {}
     }
     simple_expression(input)
+}
+
+/// Parse an expression, splicing any preceding/trailing lexer comments into
+/// an `EXPRESSIONCOMMENT` wrapper that matches the ANTLR3 grammar's
+/// non-bootstrap behaviour at `grammars/Modelica.g:1554-1599`.
+///
+/// Backtracking safety: `expression` is called speculatively in many places
+/// (`opt(expression)`, `alt((..., expression))`, etc.). The comment cursor
+/// is therefore snapshotted on entry and restored if the inner parse fails,
+/// so a backtracked attempt leaves the parallel comment stream as if we had
+/// never run.
+fn expression(input: &mut TokenInput) -> ModalResult<Absyn::Exp> {
+    let cursor_save = save_comment_cursor();
+    let input_save  = *input;
+
+    // Comments immediately before the next token (the expression's first
+    // token) become `commentsBefore`. We must drain — not peek — because a
+    // nested `expression` call would otherwise re-claim the same comments.
+    let (line, col) = next_pos(input);
+    let before = take_comments_before(line, col);
+
+    match expression_inner(input) {
+        Ok(exp) => {
+            // Comments between the expression's last token and whatever
+            // follows are `commentsAfter`. We only treat comments adjacent
+            // to the expression as "after"; anything past the next non-
+            // comment token belongs to a later checkpoint.
+            let (line, col) = next_pos(input);
+            let after = take_comments_before(line, col);
+
+            if before.is_empty() && after.is_empty() {
+                Ok(exp)
+            } else {
+                let mut b: Arc<List<ArcStr>> = Arc::new(List::Nil);
+                for t in before.into_iter().rev() { b = cons(t, b); }
+                let mut a: Arc<List<ArcStr>> = Arc::new(List::Nil);
+                for t in after.into_iter().rev() { a = cons(t, a); }
+                Ok(Absyn::Exp::EXPRESSIONCOMMENT {
+                    commentsBefore: b,
+                    exp: Arc::new(exp),
+                    commentsAfter: a,
+                })
+            }
+        }
+        Err(e) => {
+            // Restore both streams so a higher-level `alt` / `opt` retry sees
+            // exactly the same state we started with.
+            *input = input_save;
+            restore_comment_cursor(cursor_save);
+            Err(e)
+        }
+    }
 }
 
 fn if_expression(input: &mut TokenInput) -> ModalResult<Absyn::Exp> {
@@ -2899,6 +2968,76 @@ end A;\n\
         }
         assert!(saw_lexer_comment, "expected LEXER_COMMENT in element list");
         assert!(saw_alg_comment, "expected ALGORITHMITEMCOMMENT in algorithm list");
+    }
+
+    #[test]
+    fn expression_comment_wraps_inner_expression() {
+        // A `/* … */` comment placed immediately before/after an expression
+        // should round-trip as an `EXPRESSIONCOMMENT` wrapper, mirroring the
+        // ANTLR3 non-bootstrap behaviour at `grammars/Modelica.g:1554`.
+        let code = "\
+package P\n\
+algorithm\n\
+  x := /* before */ 1 /* after */;\n\
+end P;\n\
+";
+        let prog = parse(code, "t.mo", Grammar::MetaModelica).expect("parse");
+        let Program::PROGRAM { classes, .. } = prog;
+        let first = match &*classes { List::Cons { head, .. } => head.clone(), _ => panic!("no classes") };
+        let Class::CLASS { body, .. } = first;
+        let ClassDef::PARTS { classParts, .. } = &*body else { panic!("expected PARTS"); };
+        let mut saw_wrapper = false;
+        for cp in &**classParts {
+            if let ClassPart::ALGORITHMS { contents } = &*cp {
+                for ai in &**contents {
+                    if let AlgorithmItem::ALGORITHMITEM { algorithm_, .. } = &*ai
+                        && let Algorithm::ALG_ASSIGN { value, .. } = &**algorithm_
+                        && let Exp::EXPRESSIONCOMMENT { commentsBefore, commentsAfter, .. } = value
+                    {
+                        assert!((&*commentsBefore.clone()).into_iter().any(|c| c.contains("before")),
+                                "commentsBefore = {commentsBefore:?}");
+                        assert!((&*commentsAfter.clone()).into_iter().any(|c| c.contains("after")),
+                                "commentsAfter = {commentsAfter:?}");
+                        saw_wrapper = true;
+                    }
+                }
+            }
+        }
+        assert!(saw_wrapper, "expected an EXPRESSIONCOMMENT wrapper around the RHS");
+    }
+
+    #[test]
+    fn expression_comment_backtracks_cleanly() {
+        // `equality_or_noretcall_equation` does a speculative `simple_expression`
+        // probe followed by `opt(Equal)`. If `expression`'s comment drain were
+        // not undone on backtrack, the trailing `/* …` comment could land on
+        // the wrong node depending on which alt branch wins. This test pins
+        // down that the comment ends up on the EQUATIONITEM, not lost.
+        let code = "\
+package P\n\
+equation\n\
+  /* eq-comment */\n\
+  x = 1;\n\
+end P;\n\
+";
+        let prog = parse(code, "t.mo", Grammar::MetaModelica).expect("parse");
+        let Program::PROGRAM { classes, .. } = prog;
+        let first = match &*classes { List::Cons { head, .. } => head.clone(), _ => panic!("no classes") };
+        let Class::CLASS { body, .. } = first;
+        let ClassDef::PARTS { classParts, .. } = &*body else { panic!("expected PARTS"); };
+        let mut saw = false;
+        for cp in &**classParts {
+            if let ClassPart::EQUATIONS { contents } = &*cp {
+                for eq in &**contents {
+                    if let EquationItem::EQUATIONITEMCOMMENT { comment } = &*eq
+                        && comment.contains("eq-comment")
+                    {
+                        saw = true;
+                    }
+                }
+            }
+        }
+        assert!(saw, "expected the /* eq-comment */ to surface as an EQUATIONITEMCOMMENT");
     }
 
     #[test]

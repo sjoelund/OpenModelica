@@ -1524,6 +1524,20 @@ pub fn infer_exp<'a>(
             }
         }
 
+        // EXPRESSIONCOMMENT is a transparent wrapper added by the parser to
+        // preserve `//` / `/*…*/` comments that appear immediately before /
+        // after an expression. The codegen's typed expression layer does not
+        // (yet) carry per-expression comments, so we recurse into the inner
+        // expression. Comments are still retained at the surrounding item
+        // level (LEXER_COMMENT, *ITEMCOMMENT, commentsBeforeClass, …) which
+        // is where the code generator actually emits them. If we later want
+        // comments anchored to individual expressions in the generated
+        // source, extend TypedExp with a `Commented { before, exp, after }`
+        // variant and propagate it through `emit_exp`.
+        Absyn::Exp::EXPRESSIONCOMMENT { exp, .. } => {
+            infer_exp(exp, env, top_level, pkg_prefix, type_vars)
+        }
+
         other => TypedExp::Todo(format!("{other:?}").chars().take(80).collect()),
     }
 }
@@ -2339,6 +2353,16 @@ pub fn infer_pat<'a>(
                 Absyn::Exp::REAL    { value } => TypedPat::Lit(Lit::Real(format!("-{value}"))),
                 other => TypedPat::Todo(format!("{other:?}").chars().take(40).collect()),
             }
+        }
+
+        // Patterns are written using the same Exp grammar as expressions, so
+        // a comment immediately before/after a pattern gets wrapped in
+        // EXPRESSIONCOMMENT by the parser. Strip the wrapper here — the
+        // comment is preserved at the surrounding `case`/algorithm level
+        // (or as a `LEXER_COMMENT` element) so we lose nothing at this
+        // layer.
+        Absyn::Exp::EXPRESSIONCOMMENT { exp, .. } => {
+            infer_pat(exp, env, top_level, pkg_prefix, type_vars)
         }
 
         other => TypedPat::Todo(format!("{other:?}").chars().take(80).collect()),

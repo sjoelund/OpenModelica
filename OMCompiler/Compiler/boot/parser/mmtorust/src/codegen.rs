@@ -901,6 +901,12 @@ fn generate_lib_file(hier: &InstanceHierarchy<'_>, this_dir: &str, default_dir: 
     if std::path::Path::new(&globals_path).exists() {
         writeln!(out, "pub mod Globals;").unwrap();
     }
+    // Include the hand-written `parser` submodule when present. Like Globals.rs,
+    // this lives next to the generated files but is not auto-generated.
+    let parser_path = format!("{this_dir}/parser/mod.rs");
+    if std::path::Path::new(&parser_path).exists() {
+        writeln!(out, "pub mod parser;").unwrap();
+    }
     out
 }
 
@@ -6767,6 +6773,30 @@ fn resolve_call_qname<'a>(
     let mut exists = |name: &str| lookup_node(name, top_level).is_some();
 
     if func.contains('.') {
+        // Named-import aliases on the head segment win over any globally-visible
+        // package with the same name. MetaModelica's `import Expression = NFExpression;`
+        // means a call written `Expression.makeArray` must resolve to
+        // `NFExpression.makeArray`, even though a top-level `Expression` package
+        // (the old frontend's) also exists with a same-named-but-differently-
+        // typed `makeArray`. Without this check, `resolve_call_qname` would
+        // happily return the global `Expression.makeArray` and downstream
+        // formal-resolution would pick the wrong formals — silently emitting
+        // `name=value` for the unmatched named arg.
+        let mut alias_head_parts = func.splitn(2, '.');
+        let alias_head = alias_head_parts.next().unwrap_or(func);
+        let alias_tail = alias_head_parts.next().unwrap_or("");
+        for (dotted, local) in &ctx.named {
+            if local == alias_head {
+                let candidate = if alias_tail.is_empty() {
+                    dotted.clone()
+                } else {
+                    format!("{dotted}.{alias_tail}")
+                };
+                if exists(&candidate) {
+                    return Some(candidate);
+                }
+            }
+        }
         if exists(func) {
             return Some(func.to_owned());
         }

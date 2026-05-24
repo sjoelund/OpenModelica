@@ -7020,6 +7020,22 @@ fn resolve_call_qname<'a>(
                 }
             }
         }
+        // Self-alias: `import Type = NFType;` inside `NFType.mo` lets the source
+        // refer to its own top class as `Type`. A call like `Type.isUnknown(...)`
+        // must resolve to `NFType.isUnknown`, not fall through to a non-existent
+        // top-level `Type` package. Without this, fallibility classification
+        // misses the user function and the call site wraps the result with
+        // `.unwrap()` even though `isUnknown` returns plain `bool`.
+        if ctx.self_aliases.contains(alias_head) {
+            let candidate = if alias_tail.is_empty() {
+                ctx.top_name.clone()
+            } else {
+                format!("{}.{alias_tail}", ctx.top_name)
+            };
+            if exists(&candidate) {
+                return Some(candidate);
+            }
+        }
         if exists(func) {
             return Some(func.to_owned());
         }

@@ -4685,7 +4685,18 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
             // (different module than the current one) `ctx.shorten` already
             // produces a non-colliding `Mod::func` path, so we use that.
             let func_str = if func.contains('.') {
-                ctx.shorten(func)
+                // A dotted source name like `FunctionTree.new` may need a
+                // type-alias-head rewrite to land on the right function (see
+                // `resolve_call_qname`'s type-alias branch: `type FunctionTree
+                // = FunctionTreeImpl.Tree;` makes `FunctionTree.new` shorthand
+                // for `FunctionTreeImpl.new`). Use the resolved qname when it
+                // names a *different* path than the literal source, since the
+                // literal would otherwise dispatch to a non-existent associated
+                // function on the alias's target type (E0061 / E0599).
+                match resolve_call_qname(func, ctx, top_level) {
+                    Some(qname) if qname.as_str() != func => ctx.shorten(&qname),
+                    _ => ctx.shorten(func),
+                }
             } else if let Some(qname) = resolved_fn_qname.clone() {
                 let cur_prefix = if ctx.current_path.is_empty() {
                     ctx.top_name.clone()
@@ -7099,6 +7110,64 @@ fn resolve_call_qname<'a>(
             match scope.rfind('.') {
                 Some(dot) => scope = &scope[..dot],
                 None => break,
+            }
+        }
+        // Type-alias head: `type FunctionTree = FunctionTreeImpl.Tree;` makes
+        // `FunctionTree.new()` shorthand for `FunctionTreeImpl.new()` — the
+        // function `new` lives in the package that contains the aliased type,
+        // not in the type itself. Detect this by walking outward from the
+        // current scope looking for a nested R_TYPE class whose `Derived`
+        // type_spec points to `Parent.SomeType`, then retry resolution with
+        // `Parent` substituted for the alias head.
+        {
+            let mut parts2 = func.splitn(2, '.');
+            let alias_head2 = parts2.next().unwrap_or(func);
+            let alias_tail2 = parts2.next().unwrap_or("");
+            if !alias_tail2.is_empty() {
+                let mut scope: &str = &cur_prefix;
+                // Pair: (parent of the aliased type's path, scope in which the
+                // alias was declared). The aliased path is interpreted
+                // relative to the alias's enclosing scope.
+                let alias_target: Option<(String, String)> = loop {
+                    let qual = if scope.is_empty() { alias_head2.to_owned() } else { format!("{scope}.{alias_head2}") };
+                    if let Some(node) = lookup_node(&qual, top_level)
+                        && let NodeKind::Class(c) = &node.kind
+                        && matches!(c.restriction, Absyn::Restriction::R_TYPE)
+                        && let MM::ClassDef::Derived { type_spec, .. } = &c.body
+                        && let Absyn::TypeSpec::TPATH { path, arrayDim: None, .. } = type_spec.as_ref()
+                    {
+                        let aliased_str = path_to_dotted(path);
+                        if let Some((parent_rel, _)) = aliased_str.rsplit_once('.') {
+                            break Some((parent_rel.to_owned(), scope.to_owned()));
+                        }
+                    }
+                    match scope.rfind('.') {
+                        Some(dot) => scope = &scope[..dot],
+                        None => break None,
+                    }
+                };
+                if let Some((parent_rel, alias_scope)) = alias_target {
+                    // Try absolute first (`Foo.bar`), then qualified by the
+                    // alias's scope (`NFFlatten.FunctionTreeImpl.new`) walking
+                    // outward, then fully-qualified through the alias's scope
+                    // chain — same name resolution pattern Modelica's own
+                    // lookup uses.
+                    let bare = format!("{parent_rel}.{alias_tail2}");
+                    if exists(&bare) { return Some(bare); }
+                    let mut s: &str = &alias_scope;
+                    loop {
+                        let cand = if s.is_empty() {
+                            format!("{parent_rel}.{alias_tail2}")
+                        } else {
+                            format!("{s}.{parent_rel}.{alias_tail2}")
+                        };
+                        if exists(&cand) { return Some(cand); }
+                        match s.rfind('.') {
+                            Some(d) => s = &s[..d],
+                            None => break,
+                        }
+                    }
+                }
             }
         }
         // Handle named-import aliases in the first path segment.

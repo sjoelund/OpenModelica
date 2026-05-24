@@ -7412,14 +7412,67 @@ fn substitute_formal_refs(exp: &TypedExp, bindings: &HashMap<String, TypedExp>) 
     match exp {
         TypedExp::Lit(l) => TypedExp::Lit(l.clone()),
         TypedExp::Var { name, segments, ty } => {
-            if segments.is_empty() && !name.contains('.')
-                && let Some(repl) = bindings.get(name) {
-                    return repl.clone();
-                }
-            let new_segments = segments.iter().map(|seg| CrefSegment {
+            // Recurse into subscript expressions in either branch.
+            let new_segments: Vec<CrefSegment> = segments.iter().map(|seg| CrefSegment {
                 name: seg.name.clone(),
                 subscripts: seg.subscripts.iter().map(|s| substitute_formal_refs(s, bindings)).collect(),
             }).collect();
+            // If the base `name` matches a formal binding, splice the binding's
+            // dotted path in front of the trailing segments. This is required
+            // for default-argument expressions like `Type returnType = fn.returnType`
+            // — at the call site the formal `fn` is replaced by the actual
+            // argument (e.g. `NFBuiltinFuncs.ABS_REAL`), so the substituted
+            // expression becomes `NFBuiltinFuncs.ABS_REAL.returnType`. Without
+            // this, the residual `fn` is emitted verbatim and renamed to
+            // `r#fn` (escaped because `fn` is a Rust keyword), failing with
+            // "cannot find value `r#fn`".
+            //
+            // Only handle Var bindings here — that covers the common case
+            // (callers pass a constant, a local variable, or a dotted path).
+            // A binding whose value is a Call or Constructor would need a
+            // FieldAccess shape in TypedExp, which it doesn't have yet; in
+            // that case fall through and emit `fn.returnType` literally so
+            // the failure is visible at compile time rather than silently
+            // wrong at runtime.
+            // Pick a canonical (head, tail_segs) view of this Var's dotted path.
+            // Typed inference can store the same path in several equivalent
+            // shapes:
+            //   * `name = "fn.returnType", segments = []`        (dotted in name)
+            //   * `name = "fn", segments = [returnType]`         (split)
+            //   * `name = "fn.returnType", segments = [fn, returnType]`  (duplicated; emit_var picks segments)
+            //
+            // `emit_var` consults `segments` when non-empty and falls back to
+            // parsing `name` otherwise. Mirror that here so the substitution
+            // doesn't double-count when both are present (which would splice
+            // the binding's path in *and* leave the original head in segments,
+            // producing nonsense like `NFBuiltinFuncs::ABS_REAL.returnType.r#fn.returnType`).
+            let (head, mut tail_segs): (String, Vec<CrefSegment>) = if !new_segments.is_empty() {
+                let mut it = new_segments.iter().cloned();
+                let h = it.next().unwrap().name;
+                (h, it.collect())
+            } else if name.contains('.') {
+                let mut it = name.splitn(2, '.');
+                let h = it.next().unwrap_or("").to_owned();
+                let rest = it.next().unwrap_or("");
+                let segs: Vec<CrefSegment> = if rest.is_empty() {
+                    Vec::new()
+                } else {
+                    rest.split('.').map(|n| CrefSegment { name: n.to_owned(), subscripts: vec![] }).collect()
+                };
+                (h, segs)
+            } else {
+                (name.clone(), Vec::new())
+            };
+            if let Some(repl) = bindings.get(&head) {
+                if tail_segs.is_empty() {
+                    return repl.clone();
+                }
+                if let TypedExp::Var { name: bname, segments: bsegments, ty: _bty } = repl {
+                    let mut joined: Vec<CrefSegment> = bsegments.clone();
+                    joined.append(&mut tail_segs);
+                    return TypedExp::Var { name: bname.clone(), segments: joined, ty: ty.clone() };
+                }
+            }
             TypedExp::Var { name: name.clone(), segments: new_segments, ty: ty.clone() }
         }
         TypedExp::BinOp { op, lhs, rhs, ty } => TypedExp::BinOp {

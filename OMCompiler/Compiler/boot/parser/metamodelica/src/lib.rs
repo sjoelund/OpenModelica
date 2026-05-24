@@ -701,13 +701,29 @@ pub fn substring(str: ArcStr, start: i32, stop: i32) -> Result<ArcStr> {
     if start < 1 || stop < start || start > stop {
         bail!("Invalid substring range: start={}, stop={}", start, stop);
     }
+    // `substring` is byte-indexed to match the rest of the MetaModelica
+    // string surface (stringLength returns bytes via `.len()`, stringGet
+    // returns a byte value). Treating these as char-based here caused
+    // bytes/chars mismatches when callers reach for the indices returned
+    // by `stringLength` — e.g. `stripBOM` would error with
+    // "Stop index 8 exceeds string length 6" on a UTF-8 BOM input
+    // because the BOM is 1 char but 3 bytes.
     let start_idx = (start - 1) as usize; // 1-based to 0-based
     let stop_idx = stop as usize;         // 1-based, inclusive -> exclusive
-    let chars: Vec<char> = str.chars().collect();
-    if stop_idx > chars.len() {
-        bail!("Stop index {} exceeds string length {}", stop, chars.len());
+    if stop_idx > str.len() {
+        bail!("Stop index {} exceeds string length {}", stop, str.len());
     }
-    Ok(format!("{}", chars[start_idx..stop_idx].iter().collect::<String>()))
+    match str.get(start_idx..stop_idx) {
+        Some(slice) => Ok(ArcStr::from(slice)),
+        // The byte range falls inside a multi-byte UTF-8 sequence — there is
+        // no valid string to return. Surface this rather than silently
+        // producing nonsense; the call site should be rewritten to use
+        // codepoint indices if that's what it meant.
+        None => bail!(
+            "substring({}, {}) does not fall on UTF-8 character boundaries",
+            start, stop
+        ),
+    }
 }
 
 /// Alias for string_append_list (maps a list of single-char strings to one string).

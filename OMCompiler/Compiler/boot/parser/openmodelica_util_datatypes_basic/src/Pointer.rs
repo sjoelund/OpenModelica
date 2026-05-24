@@ -20,6 +20,15 @@ impl<T> Clone for Pointer<T> {
     }
 }
 
+impl<T> std::fmt::Debug for Pointer<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Pointer::Mutable(a) => write!(f, "Pointer::Mutable({:p})", Arc::as_ptr(a)),
+            Pointer::Immutable(a) => write!(f, "Pointer::Immutable({:p})", Arc::as_ptr(a)),
+        }
+    }
+}
+
 impl<T: PartialEq> PartialEq for Pointer<T> {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {

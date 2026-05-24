@@ -667,89 +667,114 @@ fn resolve_through_import_node<'a>(
 /// Skips imports whose resolved path starts with `{top_name}.`: those refer to siblings
 /// within the same file and are already in scope through `use super::*;`.
 /// Skips imports that don't resolve to a real node in the hierarchy (dangling imports).
-fn collect_imports<'a>(node: &NameNode<'_>, ctx: &mut GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) {
+/// Apply a single Import node to `ctx`. Shared between top-level
+/// [`collect_imports`] and function-local imports (declared inside a
+/// function body via `import Foo.Bar;` between the signature and `algorithm`).
+fn apply_import<'a>(m: &MM::ImportMember, ctx: &mut GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) {
     let same_file_prefix = format!("{}.", ctx.top_name);
+    match &m.import {
+        Absyn::Import::UNQUAL_IMPORT { path } => {
+            let dotted = path_to_dotted(path);
+            if dotted != ctx.top_name && !dotted.starts_with(&same_file_prefix) && path_exists_in_hierarchy(&dotted, top_level) {
+                if is_const_component(&dotted, top_level) {
+                    let last = dotted.rsplit('.').next().unwrap_or(&dotted).to_owned();
+                    ctx.named.insert(dotted, last);
+                } else {
+                    ctx.unqual_modules.insert(dotted);
+                }
+            }
+        }
+        Absyn::Import::QUAL_IMPORT { path } => {
+            let dotted = path_to_dotted(path);
+            if dotted != ctx.top_name && !dotted.starts_with(&same_file_prefix) && path_exists_in_hierarchy(&dotted, top_level) {
+                let last = dotted.rsplit('.').next().unwrap_or(&dotted).to_owned();
+                let effective = resolve_through_import_node(&dotted, top_level)
+                    .unwrap_or(dotted.clone());
+                let effective = match lookup_node_ty(&effective, top_level) {
+                    Some(Ty::RustStruct(struct_qname)) if struct_qname != &effective => struct_qname.clone(),
+                    _ => effective,
+                };
+                if effective != ctx.top_name && !effective.starts_with(&same_file_prefix) {
+                    ctx.named.insert(effective, last);
+                }
+            }
+        }
+        Absyn::Import::NAMED_IMPORT { name, path } => {
+            let dotted = path_to_dotted(path);
+            if dotted == ctx.top_name {
+                ctx.self_aliases.insert(name.to_string());
+            } else if !dotted.starts_with(&same_file_prefix) && path_exists_in_hierarchy(&dotted, top_level) {
+                let effective = resolve_through_import_node(&dotted, top_level)
+                    .unwrap_or(dotted.clone());
+                let effective = match lookup_node_ty(&effective, top_level) {
+                    Some(Ty::RustStruct(struct_qname)) if struct_qname != &effective => struct_qname.clone(),
+                    _ => effective,
+                };
+                if effective != ctx.top_name && !effective.starts_with(&same_file_prefix) {
+                    ctx.named.insert(effective, name.to_string());
+                }
+            }
+        }
+        Absyn::Import::GROUP_IMPORT { prefix, groups } => {
+            let prefix_str = path_to_dotted(prefix);
+            if prefix_str != ctx.top_name && !prefix_str.starts_with(&same_file_prefix) {
+                for g in (&**groups).into_iter() {
+                    let (local, orig): (String, String) = match g {
+                        Absyn::GroupImport::GROUP_IMPORT_NAME { name } => (name.to_string(), name.to_string()),
+                        Absyn::GroupImport::GROUP_IMPORT_RENAME { rename, name } => (rename.to_string(), name.to_string()),
+                    };
+                    let full = format!("{prefix_str}.{orig}");
+                    if path_exists_in_hierarchy(&full, top_level) {
+                        let effective = match lookup_node_ty(&full, top_level) {
+                            Some(Ty::RustStruct(struct_qname)) if struct_qname != &full => struct_qname.clone(),
+                            _ => full,
+                        };
+                        ctx.named.insert(effective, local);
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Saved import-scope state for function-local imports. Returned by
+/// [`apply_local_imports`] and consumed by [`restore_imports`].
+struct ImportScope {
+    named: BTreeMap<String, String>,
+    unqual_modules: HashSet<String>,
+    self_aliases: BTreeSet<String>,
+}
+
+/// Apply Import children of `node` to `ctx`, returning a snapshot that
+/// [`restore_imports`] can use to undo the changes. Used to layer
+/// function-local imports on top of the file-level scope for the duration
+/// of one function body.
+fn apply_local_imports<'a>(node: &NameNode<'_>, ctx: &mut GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) -> ImportScope {
+    let saved = ImportScope {
+        named: ctx.named.clone(),
+        unqual_modules: ctx.unqual_modules.clone(),
+        self_aliases: ctx.self_aliases.clone(),
+    };
+    for child in node.children.values() {
+        if let NodeKind::Import(m) = &child.kind {
+            apply_import(m, ctx, top_level);
+        }
+    }
+    saved
+}
+
+fn restore_imports(ctx: &mut GenCtx, saved: &ImportScope) {
+    ctx.named = saved.named.clone();
+    ctx.unqual_modules = saved.unqual_modules.clone();
+    ctx.self_aliases = saved.self_aliases.clone();
+}
+
+fn collect_imports<'a>(node: &NameNode<'_>, ctx: &mut GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) {
     for child in node.children.values() {
         match &child.kind {
-            NodeKind::Import(m) => match &m.import {
-                Absyn::Import::UNQUAL_IMPORT { path } => {
-                    let dotted = path_to_dotted(path);
-                    if dotted != ctx.top_name && !dotted.starts_with(&same_file_prefix) && path_exists_in_hierarchy(&dotted, top_level) {
-                        if is_const_component(&dotted, top_level) {
-                            // `import Pkg.CONST;` — target is a constant, not a module; emit as named import.
-                            let last = dotted.rsplit('.').next().unwrap_or(&dotted).to_owned();
-                            ctx.named.insert(dotted, last);
-                        } else {
-                            ctx.unqual_modules.insert(dotted);
-                        }
-                    }
-                }
-                Absyn::Import::QUAL_IMPORT { path } => {
-                    let dotted = path_to_dotted(path);
-                    if dotted != ctx.top_name && !dotted.starts_with(&same_file_prefix) && path_exists_in_hierarchy(&dotted, top_level) {
-                        let last = dotted.rsplit('.').next().unwrap_or(&dotted).to_owned();
-                        // If the path ends at an Import alias node (e.g. `NFCall.Call` where
-                        // `Call = NFCall` inside NFCall), use the resolved target so we emit
-                        // `use crate::NFCall as Call` rather than `use crate::NFCall::Call`
-                        // (the latter would fail — the alias is a private `use` in that module).
-                        let effective = resolve_through_import_node(&dotted, top_level)
-                            .unwrap_or(dotted.clone());
-                        // If the node is a RustStruct whose qname differs from the import path,
-                        // the record was renamed to its parent uniontype (single-record uniontype).
-                        // Import the struct at its actual path (the uniontype) aliased to the
-                        // record's name, e.g. `use crate::SimCode::SimCode as SIMCODE;`.
-                        let effective = match lookup_node_ty(&effective, top_level) {
-                            Some(Ty::RustStruct(struct_qname)) if struct_qname != &effective => struct_qname.clone(),
-                            _ => effective,
-                        };
-                        if effective != ctx.top_name && !effective.starts_with(&same_file_prefix) {
-                            ctx.named.insert(effective, last);
-                        }
-                    }
-                }
-                Absyn::Import::NAMED_IMPORT { name, path } => {
-                    let dotted = path_to_dotted(path);
-                    if dotted == ctx.top_name {
-                        // `import Type = NFType;` inside NFType.mo: the alias names
-                        // the current module. No `use` line, but record the local
-                        // name so lookups (`Type.ANY` → `NFType.ANY`) succeed.
-                        ctx.self_aliases.insert(name.to_string());
-                    } else if !dotted.starts_with(&same_file_prefix) && path_exists_in_hierarchy(&dotted, top_level) {
-                        let effective = resolve_through_import_node(&dotted, top_level)
-                            .unwrap_or(dotted.clone());
-                        // Same renamed-record correction as for QUAL_IMPORT.
-                        let effective = match lookup_node_ty(&effective, top_level) {
-                            Some(Ty::RustStruct(struct_qname)) if struct_qname != &effective => struct_qname.clone(),
-                            _ => effective,
-                        };
-                        if effective != ctx.top_name && !effective.starts_with(&same_file_prefix) {
-                            ctx.named.insert(effective, name.to_string());
-                        }
-                    }
-                }
-                Absyn::Import::GROUP_IMPORT { prefix, groups } => {
-                    let prefix_str = path_to_dotted(prefix);
-                    if prefix_str != ctx.top_name && !prefix_str.starts_with(&same_file_prefix) {
-                        for g in (&**groups).into_iter() {
-                            let (local, orig): (String, String) = match g {
-                                Absyn::GroupImport::GROUP_IMPORT_NAME { name } => (name.to_string(), name.to_string()),
-                                Absyn::GroupImport::GROUP_IMPORT_RENAME { rename, name } => (rename.to_string(), name.to_string()),
-                            };
-                            let full = format!("{prefix_str}.{orig}");
-                            if path_exists_in_hierarchy(&full, top_level) {
-                                // Same renamed-record correction as for QUAL_IMPORT.
-                                let effective = match lookup_node_ty(&full, top_level) {
-                                    Some(Ty::RustStruct(struct_qname)) if struct_qname != &full => struct_qname.clone(),
-                                    _ => full,
-                                };
-                                ctx.named.insert(effective, local);
-                            }
-                        }
-                    }
-                }
-            },
+            NodeKind::Import(m) => { apply_import(m, ctx, top_level); continue; }
             NodeKind::Class(c) if matches!(c.restriction, Absyn::Restriction::R_FUNCTION { .. }) => {
-                // Don't recurse into functions — their imports are local to that function.
+                continue;
             }
             _ => collect_imports(child, ctx, top_level),
         }
@@ -3315,6 +3340,13 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
     let saved_fn_qname = std::mem::replace(&mut ctx.current_fn_qname, fn_qname.clone());
     let is_fallible_fn = ctx.current_fn_fallible;
 
+    // Function-local imports (`import Foo.Bar;` between the signature and
+    // `algorithm`) extend the import scope for the body of this function only.
+    // Without this, references like `Op.ADD` inside `expandBinary` — which
+    // declares `import NFOperator.Op;` locally — fail to resolve and the
+    // codegen falls back to emitting the bare identifier.
+    let saved_imports = apply_local_imports(node, ctx, top_level);
+
     // Walk components to find outputs (with names) and protected locals.
     let mut outputs: Vec<(String, Ty, Option<Arc<Absyn::Modification>>, bool)> = Vec::new();
     let mut protected: Vec<(String, Ty, Option<Arc<Absyn::Modification>>, bool)> = Vec::new();
@@ -3559,6 +3591,30 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
     writeln!(out, "{indent}{pub_kw}fn {ename}{type_params}({params}) -> {sig_ret} {{").unwrap();
     let body_indent = format!("{indent}    ");
 
+    // Emit `use` statements for function-local imports — those declared
+    // inside this function class via `import Foo.Bar;` (between the
+    // signature and `algorithm`). They've been added to `ctx.named` /
+    // `ctx.unqual_modules` by [`apply_local_imports`] but the file-level
+    // [`GenCtx::use_lines`] doesn't see them. Emitting them as
+    // function-scoped `use` statements keeps the rewrite that [`Self::shorten`]
+    // performs (e.g. `Op.MUL` → `Op::MUL`) consistent with what's actually
+    // in scope at the call site, without polluting the enclosing module.
+    for (dotted, local) in &ctx.named {
+        if saved_imports.named.contains_key(dotted) { continue; }
+        let rust = ctx.dotted_to_rust_path(dotted);
+        let last = dotted.rsplit('.').next().unwrap_or(dotted);
+        if local == last {
+            writeln!(out, "{body_indent}use {rust};").unwrap();
+        } else {
+            writeln!(out, "{body_indent}use {rust} as {local};").unwrap();
+        }
+    }
+    for module in &ctx.unqual_modules {
+        if saved_imports.unqual_modules.contains(module) { continue; }
+        let rust = ctx.module_rust_prefix(module);
+        writeln!(out, "{body_indent}use {rust}::*;").unwrap();
+    }
+
     // Emit nested `function ... end ...;` definitions as Rust inner-`fn`
     // items declared at the top of the parent function's body.
     //
@@ -3755,6 +3811,7 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
             ctx.current_fn_fallible = saved_fn_fallible;
             ctx.current_fn_qname = saved_fn_qname;
             ctx.in_tail_lowered_fn = saved_in_tc;
+            restore_imports(ctx, &saved_imports);
             return;
         }
         _ => {
@@ -3770,6 +3827,7 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
                 ctx.current_fn_fallible = saved_fn_fallible;
                 ctx.current_fn_qname = saved_fn_qname;
                 ctx.in_tail_lowered_fn = saved_in_tc;
+                restore_imports(ctx, &saved_imports);
                 return;
             }
             emit_stmts(out, &body_indent, &typed_stmts, FailureMode::Function, ctx, &mut env, top_level, &mut fresh);
@@ -3794,6 +3852,7 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
     ctx.current_fn_fallible = saved_fn_fallible;
     ctx.current_fn_qname = saved_fn_qname;
     ctx.in_tail_lowered_fn = saved_in_tc;
+    restore_imports(ctx, &saved_imports);
 }
 
 // ── Expression and pattern emission ──────────────────────────────────────────

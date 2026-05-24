@@ -4871,10 +4871,18 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                 // Look up the struct's declared field types so we can apply
                 // type-driven coercions (e.g. Integer-literal arguments
                 // assigned to a `Real` field need `as f64`).
-                let field_tys_map: Vec<(String, Ty)> = record_field_tys(qname, top_level)
+                // For multi-record uniontype variant constructors the `ty`
+                // carries the parent enum qname (e.g.
+                // `NFExpression.NFExpression`) whose `record_field_tys` is
+                // empty (the parent has no fields of its own — they live on
+                // each variant record). Always try the variant's own qname
+                // (the constructor `name`) first so we get the variant
+                // record's actual field types; fall back to the enum qname
+                // for the single-record-folded case.
+                let field_tys_map: Vec<(String, Ty)> = record_field_tys(name, top_level)
+                    .filter(|v| !v.is_empty())
+                    .or_else(|| record_field_tys(qname, top_level))
                     .or_else(|| {
-                        // Fall back to walking through a parent uniontype (records
-                        // inside multi-record uniontypes live one level deeper).
                         lookup_record_through_unions(qname, top_level)
                             .and_then(|(canonical, _)| record_field_tys(&canonical, top_level))
                     })
@@ -5005,6 +5013,9 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                 // Look up field names from the record in the hierarchy.
                 let field_tys = record_field_tys(name, top_level)
                     .unwrap_or_else(|| record_field_tys_by_simple_name(name, top_level));
+                let field_ty_lookup = |fname: &str| -> Option<Ty> {
+                    field_tys.iter().find(|(n, _)| n == fname).map(|(_, t)| t.clone())
+                };
                 let variant_rust = ctx.dotted_to_rust_path(name);
                 for (i, a) in args.iter().enumerate() {
                     let val = emit_cloned_call_arg(a, is_const, ctx, top_level);
@@ -5013,7 +5024,15 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                         && !value_emitted_as_arc(a, ctx)
                     {
                         format!("Arc::new({val})")
-                    } else { val };
+                    } else {
+                        // Same Int→Real coercion as the RustStruct/RustEnum
+                        // branch above — without it, an `Integer` expression
+                        // (e.g. `intExp1 / intExp2`) flowing into a `Real`
+                        // variant field is emitted as `value: i32 / i32` and
+                        // rustc rejects (expected OrderedFloat<f64>).
+                        let ft = field_ty_lookup(fname);
+                        coerce_assign_expr_pub(val, &a.ty(), ft.as_ref())
+                    };
                     arg_strs.push(format!("{}: {val}", escape_ident(fname)));
                 }
                 for (n, na) in named_args {
@@ -5022,7 +5041,10 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                         && !value_emitted_as_arc(na, ctx)
                     {
                         format!("Arc::new({val})")
-                    } else { val };
+                    } else {
+                        let ft = field_ty_lookup(n);
+                        coerce_assign_expr_pub(val, &na.ty(), ft.as_ref())
+                    };
                     arg_strs.push(format!("{}: {val}", escape_ident(n)));
                 }
                 let ctor_expr = if arg_strs.is_empty() {

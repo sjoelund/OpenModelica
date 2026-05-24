@@ -69,7 +69,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use mmwinnow::Absyn;
+use openmodelica_ast::Absyn;
 
 use crate::external_c_calls::{self, Fallibility};
 use crate::hierarchy::{InstanceHierarchy, NameNode, NodeKind, Ty};

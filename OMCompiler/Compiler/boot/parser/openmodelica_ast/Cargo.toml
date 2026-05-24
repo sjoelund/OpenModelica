@@ -11,3 +11,9 @@ tailcall.workspace=true
 arcstr.workspace=true
 loop_unwrap.workspace=true
 match_deref.workspace=true
+winnow.workspace = true
+rayon.workspace = true
+list_comprehension_macro.workspace = true
+
+[dev-dependencies]
+backtrace-on-stack-overflow = "0.3.0"

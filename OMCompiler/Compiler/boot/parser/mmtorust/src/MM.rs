@@ -1,6 +1,8 @@
 #![allow(non_snake_case, unused)]
 
-use mmwinnow::Absyn;
+use std::sync::Arc;
+
+use openmodelica_ast::Absyn;
 
 pub type Info = Absyn::Info;
 
@@ -11,7 +13,7 @@ pub enum Error {
     InitialAlgorithmsNotAllowed { info: Info },
     PderNotAllowed { info: Info },
     OverloadNotAllowed { info: Info },
-    WithinNotAllowed { path: Absyn::Path },
+    WithinNotAllowed { path: Arc<Absyn::Path> },
     ConstraintsNotAllowed { info: Info },
     DefineUnitNotAllowed { info: Info },
     TextElementNotAllowed { info: Info },
@@ -56,30 +58,30 @@ pub struct Class {
 pub enum ClassDef {
     Parts {
         type_vars: Vec<String>,
-        class_attrs: Vec<Absyn::NamedArg>,
+        class_attrs: Vec<Arc<Absyn::NamedArg>>,
         members: Vec<ClassMember>,
-        algorithms: Vec<Absyn::AlgorithmItem>,
+        algorithms: Vec<Arc<Absyn::AlgorithmItem>>,
         external: Option<ExternalSection>,
-        annotations: Vec<Absyn::Annotation>,
+        annotations: Vec<Arc<Absyn::Annotation>>,
         comment: Option<String>,
     },
     Derived {
-        type_spec: Absyn::TypeSpec,
+        type_spec: Arc<Absyn::TypeSpec>,
         attributes: Absyn::ElementAttributes,
         arguments: Vec<Absyn::ElementArg>,
-        comment: Option<Absyn::Comment>,
+        comment: Option<Arc<Absyn::Comment>>,
     },
     Enumeration {
-        enum_literals: Absyn::EnumDef,
-        comment: Option<Absyn::Comment>,
+        enum_literals: Arc<Absyn::EnumDef>,
+        comment: Option<Arc<Absyn::Comment>>,
     },
     ClassExtends {
         base_class_name: String,
         modifications: Vec<Absyn::ElementArg>,
         comment: Option<String>,
         members: Vec<ClassMember>,
-        algorithms: Vec<Absyn::AlgorithmItem>,
-        annotations: Vec<Absyn::Annotation>,
+        algorithms: Vec<Arc<Absyn::AlgorithmItem>>,
+        annotations: Vec<Arc<Absyn::Annotation>>,
     },
 }
 
@@ -107,11 +109,11 @@ pub struct ComponentMember {
     pub info: Info,
     pub variability: Absyn::Variability,
     pub direction: Absyn::Direction,
-    pub type_spec: Absyn::TypeSpec,
+    pub type_spec: Arc<Absyn::TypeSpec>,
     pub name: String,
-    pub modification: Option<Absyn::Modification>,
-    pub condition: Option<Absyn::Exp>,
-    pub comment: Option<Absyn::Comment>,
+    pub modification: Option<Arc<Absyn::Modification>>,
+    pub condition: Option<Arc<Absyn::Exp>>,
+    pub comment: Option<Arc<Absyn::Comment>>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -130,9 +132,9 @@ pub struct ExtendsMember {
     pub final_prefix: bool,
     pub redeclare_keywords: Option<Absyn::RedeclareKeywords>,
     pub info: Info,
-    pub path: Absyn::Path,
+    pub path: Arc<Absyn::Path>,
     pub element_args: Vec<Absyn::ElementArg>,
-    pub annotation: Option<Absyn::Annotation>,
+    pub annotation: Option<Arc<Absyn::Annotation>>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -140,24 +142,24 @@ pub struct ImportMember {
     pub visibility: Visibility,
     pub info: Info,
     pub import: Absyn::Import,
-    pub comment: Option<Absyn::Comment>,
+    pub comment: Option<Arc<Absyn::Comment>>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ExternalSection {
-    pub decl: Absyn::ExternalDecl,
-    pub annotation: Option<Absyn::Annotation>,
+    pub decl: Arc<Absyn::ExternalDecl>,
+    pub annotation: Option<Arc<Absyn::Annotation>>,
 }
 
 pub fn from_program(prog: &Absyn::Program) -> Result<Program, Error> {
-    let Absyn::Program::PROGRAM { classes, within_ } = prog;
+    let Absyn::Program { classes, within_ } = prog;
     if let Absyn::Within::WITHIN { path } = within_ {
         return Err(Error::WithinNotAllowed { path: path.clone() });
     }
     (&**classes).into_iter().map(|class| {
-        let is_nf_builtin = matches!(class, Absyn::Class::CLASS { info, .. } if is_nf_builtin(info));
-        let result = convert_class(class.clone());
-        if is_nf_builtin { Ok(result.ok().flatten()) } else { result }
+        let is_nf_b = is_nf_builtin(&class.info);
+        let result = convert_class((**class).clone());
+        if is_nf_b { Ok(result.ok().flatten()) } else { result }
     }).filter_map(|r| r.transpose())
     .map(|r| r.map(|mut c| {
         if c.name != "OpenModelica" {
@@ -174,17 +176,20 @@ fn extract_crate_name(body: &ClassDef) -> Option<String> {
         _ => return None,
     };
     for ann in annotations {
-        let Absyn::Annotation::ANNOTATION { elementArgs } = ann;
+        let Absyn::Annotation { elementArgs } = &**ann;
         for arg in &**elementArgs {
             if let Absyn::ElementArg::MODIFICATION {
-                path: Absyn::Path::IDENT { name },
-                modification: Some(Absyn::Modification::CLASSMOD { eqMod: Absyn::EqMod::EQMOD { exp, .. }, .. }),
+                path,
+                modification: Some(modification),
                 ..
             } = arg.as_ref()
+                && let Absyn::Path::IDENT { name } = &**path
                 && &**name == "__OpenModelica_Interface"
-                    && let Absyn::Exp::STRING { value } = exp.as_ref() {
-                        return interface_to_crate(value);
-                    }
+                && let Absyn::Modification { eqMod, .. } = &**modification
+                && let Absyn::EqMod::EQMOD { exp, .. } = &**eqMod
+                && let Absyn::Exp::STRING { value } = exp.as_ref() {
+                    return interface_to_crate(value);
+                }
         }
     }
     None
@@ -206,7 +211,7 @@ fn interface_to_crate(interface: &str) -> Option<String> {
 }
 
 fn convert_class(class: Absyn::Class) -> Result<Option<Class>, Error> {
-    let Absyn::Class::CLASS {
+    let Absyn::Class {
         name,
         partialPrefix,
         finalPrefix,
@@ -243,7 +248,7 @@ fn convert_class_def(def: &Absyn::ClassDef, class_info: &Info) -> Result<ClassDe
             let mut external = None;
             let lenient = is_nf_builtin(class_info);
             for part in &**classParts {
-                let result = convert_class_part(part.clone(), class_info, &mut members, &mut algorithms, &mut external);
+                let result = convert_class_part((**part).clone(), class_info, &mut members, &mut algorithms, &mut external);
                 if !lenient {
                     result?;
                 }
@@ -264,7 +269,7 @@ fn convert_class_def(def: &Absyn::ClassDef, class_info: &Info) -> Result<ClassDe
             Ok(ClassDef::Derived {
                 type_spec: typeSpec.clone(),
                 attributes: attributes.clone(),
-                arguments: (&**arguments).into_iter().map(|a| a.as_ref().clone()).collect(),
+                arguments: (&**arguments).into_iter().map(|a| (**a).clone()).collect(),
                 comment: comment.clone(),
             })
         }
@@ -282,11 +287,11 @@ fn convert_class_def(def: &Absyn::ClassDef, class_info: &Info) -> Result<ClassDe
             let mut algorithms = Vec::new();
             let mut external = None;
             for part in &**parts {
-                convert_class_part(part.clone(), class_info, &mut members, &mut algorithms, &mut external)?;
+                convert_class_part((**part).clone(), class_info, &mut members, &mut algorithms, &mut external)?;
             }
             Ok(ClassDef::ClassExtends {
                 base_class_name: baseClassName.to_string(),
-                modifications: (&**modifications).into_iter().map(|m| m.as_ref().clone()).collect(),
+                modifications: (&**modifications).into_iter().map(|m| (**m).clone()).collect(),
                 comment: comment.as_ref().map(|s| s.to_string()),
                 members,
                 algorithms,
@@ -303,7 +308,7 @@ fn convert_class_part(
     part: Absyn::ClassPart,
     class_info: &Info,
     members: &mut Vec<ClassMember>,
-    algorithms: &mut Vec<Absyn::AlgorithmItem>,
+    algorithms: &mut Vec<Arc<Absyn::AlgorithmItem>>,
     external: &mut Option<ExternalSection>,
 ) -> Result<(), Error> {
     match part {
@@ -337,19 +342,19 @@ fn is_nf_builtin(info: &Info) -> bool {
 }
 
 fn convert_element_items(
-    items: std::sync::Arc<mmwinnow::List<Absyn::ElementItem>>,
+    items: Arc<metamodelica::List<Arc<Absyn::ElementItem>>>,
     visibility: Visibility,
     class_info: &Info,
     members: &mut Vec<ClassMember>,
 ) -> Result<(), Error> {
     let lenient = is_nf_builtin(class_info);
     for item in &*items {
-        match item {
+        match &**item {
             Absyn::ElementItem::LEXER_COMMENT { comment } => {
                 members.push(ClassMember::LexerComment(comment.to_string()));
             }
             Absyn::ElementItem::ELEMENTITEM { element } => {
-                let result = convert_element(element.clone(), visibility.clone(), class_info, members);
+                let result = convert_element((**element).clone(), visibility.clone(), class_info, members);
                 if result.is_err() && !lenient {
                     return result;
                 }
@@ -372,10 +377,10 @@ fn convert_element(
         Absyn::Element::TEXT { info, .. } => {
             return Err(Error::TextElementNotAllowed { info });
         }
-        Absyn::Element::ELEMENT { finalPrefix, redeclareKeywords, innerOuter, specification, info, constrainClass } => {
-            match specification {
+        Absyn::Element::ELEMENT { finalPrefix, redeclareKeywords, innerOuter, specification, info, constrainClass: _constrainClass } => {
+            match (*specification).clone() {
                 Absyn::ElementSpec::CLASSDEF { replaceable_, class_ } => {
-                    if let Some(converted) = convert_class(class_.as_ref().clone())? {
+                    if let Some(converted) = convert_class((*class_).clone())? {
                         members.push(ClassMember::ClassDef(ClassDefMember {
                             visibility,
                             final_prefix: finalPrefix,
@@ -393,7 +398,7 @@ fn convert_element(
                         redeclare_keywords: redeclareKeywords,
                         info,
                         path,
-                        element_args: (&*elementArg).into_iter().map(|a| a.as_ref().clone()).collect(),
+                        element_args: (&*elementArg).into_iter().map(|a| (**a).clone()).collect(),
                         annotation: annotationOpt,
                     }));
                 }
@@ -408,14 +413,14 @@ fn convert_element(
                 Absyn::ElementSpec::COMPONENTS { attributes, typeSpec, components } => {
                     check_type_spec_array_dim(&typeSpec, &info)?;
                     check_element_attributes_array_dim(&attributes, &info)?;
-                    let Absyn::ElementAttributes::ATTR {
+                    let Absyn::ElementAttributes {
                         variability,
                         direction,
                         ..
                     } = attributes;
                     for comp_item in &*components {
-                        let Absyn::ComponentItem::COMPONENTITEM { component, condition, comment } = comp_item.as_ref().clone();
-                        let Absyn::Component::COMPONENT { name, arrayDim, modification } = component;
+                        let Absyn::ComponentItem { component, condition, comment } = (**comp_item).clone();
+                        let Absyn::Component { name, arrayDim, modification } = component;
                         check_array_dim(&arrayDim, &info)?;
                         members.push(ClassMember::Component(ComponentMember {
                             visibility: visibility.clone(),
@@ -457,6 +462,6 @@ fn check_type_spec_array_dim(ts: &Absyn::TypeSpec, info: &Info) -> Result<(), Er
 }
 
 fn check_element_attributes_array_dim(attr: &Absyn::ElementAttributes, info: &Info) -> Result<(), Error> {
-    let Absyn::ElementAttributes::ATTR { arrayDim, .. } = attr;
+    let Absyn::ElementAttributes { arrayDim, .. } = attr;
     check_array_dim(arrayDim, info)
 }

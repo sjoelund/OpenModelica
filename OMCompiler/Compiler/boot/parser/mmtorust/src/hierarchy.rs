@@ -3,7 +3,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::sync::Arc;
-use mmwinnow::Absyn;
+use openmodelica_ast::Absyn;
 use crate::MM;
 
 // ── Ty ───────────────────────────────────────────────────────────────────────
@@ -377,14 +377,15 @@ fn flatten_sibling_package_extends<'a>(top_level: &mut BTreeMap<String, NameNode
                 // Only handle single-segment modification paths
                 // (`compareSubscript = ...`); a dotted path would target a
                 // sub-component and is not exercised by the current corpus.
-                let target_name = match path {
+                let target_name = match &**path {
                     Absyn::Path::IDENT { name } => name.to_string(),
                     _ => continue,
                 };
                 let Some(target) = child_mut.children.get_mut(&target_name) else { continue };
                 let Some(modif) = modification.as_ref() else { continue };
-                if let Absyn::Modification::CLASSMOD { eqMod: Absyn::EqMod::EQMOD { exp, .. }, .. } = modif {
-                    target.override_default_exp = Some(exp);
+                if let Absyn::Modification { eqMod, .. } = &**modif
+                    && let Absyn::EqMod::EQMOD { exp, .. } = &**eqMod {
+                    target.override_default_exp = Some(&**exp);
                 }
             }
         }
@@ -535,9 +536,9 @@ fn populate_from_class_def<'a>(def: &'a MM::ClassDef, node: &mut NameNode<'a>) {
         MM::ClassDef::Parts { members, .. } => members,
         MM::ClassDef::ClassExtends { members, .. } => members,
         MM::ClassDef::Enumeration { enum_literals, .. } => {
-            if let Absyn::EnumDef::ENUMLITERALS { enumLiterals } = enum_literals {
+            if let Absyn::EnumDef::ENUMLITERALS { enumLiterals } = &**enum_literals {
                 for lit in &**enumLiterals {
-                    let Absyn::EnumLiteral::ENUMLITERAL { literal, .. } = lit;
+                    let Absyn::EnumLiteral { literal, .. } = &**lit;
                     node.children.insert(literal.to_string(), NameNode::new(NodeKind::EnumLiteral));
                 }
             }
@@ -604,7 +605,7 @@ fn is_type_var_decl(class: &MM::Class) -> bool {
         return false;
     }
     match &class.body {
-        MM::ClassDef::Derived { type_spec, .. } => match type_spec {
+        MM::ClassDef::Derived { type_spec, .. } => match &**type_spec {
             Absyn::TypeSpec::TPATH { path, .. } => path_last(path) == "Any",
             Absyn::TypeSpec::TCOMPLEX { path, .. } => path_last(path) == "polymorphic",
         },
@@ -1071,7 +1072,7 @@ fn copy_wildcard_children(
                 .entry(child_name.clone()).or_insert_with(|| child_node.ty.clone());
         }
         // Recurse into sub-packages so `Pkg.SubPkg.Type` is reachable as `SubPkg.Type`.
-        if matches!(child_node.kind, NodeKind::Class(crate::MM::Class { restriction: mmwinnow::Absyn::Restriction::R_PACKAGE, .. })) {
+        if matches!(child_node.kind, NodeKind::Class(crate::MM::Class { restriction: openmodelica_ast::Absyn::Restriction::R_PACKAGE, .. })) {
             copy_wildcard_children(child_node, &child_pkg_scope, &child_import_scope, known);
         }
     }
@@ -1176,12 +1177,12 @@ fn collect_extends_known<'a>(
             // top-level lookup ("" prefix) would never find it.
             let empty_aliases: ScopedAliases = BTreeMap::new();
             for arg in &ext.element_args {
-                if let Absyn::ElementArg::REDECLARATION {
-                    elementSpec: Absyn::ElementSpec::CLASSDEF { class_, .. }, ..
-                } = arg {
-                    let Absyn::Class::CLASS { name: child_name, body, .. } = class_.as_ref();
+                if let Absyn::ElementArg::REDECLARATION { elementSpec, .. } = arg
+                    && let Absyn::ElementSpec::CLASSDEF { class_, .. } = &**elementSpec
+                {
+                    let Absyn::Class { name: child_name, body, .. } = class_.as_ref();
                     if let Absyn::ClassDef::DERIVED { typeSpec, .. } = body.as_ref()
-                        && let Some(ty) = resolve_type_spec(typeSpec, known, &empty_aliases, &[], &qname, wctx) {
+                        && let Some(ty) = resolve_type_spec(&**typeSpec, known, &empty_aliases, &[], &qname, wctx) {
                             known.entry(qname.clone()).or_default().insert(child_name.to_string(), ty.clone());
                             known.entry(name.to_owned()).or_default().insert(child_name.to_string(), ty);
                         }
@@ -1425,7 +1426,7 @@ fn resolve_function_type(
         let modifications = arguments.iter()
             .filter_map(|arg| {
                 let Absyn::ElementArg::MODIFICATION { path, modification: Some(m), .. } = arg else { return None };
-                let Absyn::Modification::CLASSMOD { eqMod: Absyn::EqMod::EQMOD { exp, .. }, .. } = m else { return None };
+                let Absyn::EqMod::EQMOD { exp, .. } = &*m.eqMod else { return None };
                 Some((fmt_path(path), fmt_exp(exp)))
             })
             .collect();
@@ -1765,20 +1766,24 @@ pub(crate) fn lookup_record_through_unions<'a>(
 }
 
 /// Extract the raw `Absyn::Exp` from a modification, for typed inference in codegen.
-pub(crate) fn extract_default_exp(modification: &Option<Absyn::Modification>) -> Option<&Absyn::Exp> {
+pub(crate) fn extract_default_exp(modification: &Option<std::sync::Arc<Absyn::Modification>>) -> Option<&Absyn::Exp> {
     match modification {
-        Some(Absyn::Modification::CLASSMOD { eqMod: Absyn::EqMod::EQMOD { exp, .. }, .. }) => Some(exp),
+        Some(m) => match &*m.eqMod {
+            Absyn::EqMod::EQMOD { exp, .. } => Some(&**exp),
+            _ => None,
+        },
         _ => None,
     }
 }
 
 // ── Expression helpers ────────────────────────────────────────────────────────
 
-pub(crate) fn extract_default(modification: &Option<Absyn::Modification>) -> Option<String> {
+pub(crate) fn extract_default(modification: &Option<std::sync::Arc<Absyn::Modification>>) -> Option<String> {
     match modification {
-        Some(Absyn::Modification::CLASSMOD { eqMod: Absyn::EqMod::EQMOD { exp, .. }, .. }) => {
-            Some(fmt_exp(exp))
-        }
+        Some(m) => match &*m.eqMod {
+            Absyn::EqMod::EQMOD { exp, .. } => Some(fmt_exp(exp)),
+            _ => None,
+        },
         _ => None,
     }
 }
@@ -1822,10 +1827,11 @@ fn fmt_exp(exp: &Absyn::Exp) -> String {
             };
             format!("{} {s} {}", fmt_exp(exp1), fmt_exp(exp2))
         }
-        Absyn::Exp::CALL { function_, functionArgs: Absyn::FunctionArgs::FUNCTIONARGS { args, argNames }, .. } => {
+        Absyn::Exp::CALL { function_, functionArgs, .. } if matches!(&**functionArgs, Absyn::FunctionArgs::FUNCTIONARGS { .. }) => {
+            let Absyn::FunctionArgs::FUNCTIONARGS { args, argNames } = &**functionArgs else { unreachable!() };
             let mut parts: Vec<String> = (&**args).into_iter().map(|a| fmt_exp(a.as_ref())).collect();
             for named in &**argNames {
-                let Absyn::NamedArg::NAMEDARG { argName, argValue } = named.as_ref();
+                let Absyn::NamedArg { argName, argValue } = &**named;
                 parts.push(format!("{argName}={}", fmt_exp(argValue.as_ref())));
             }
             format!("{}({})", fmt_cref(function_), parts.join(", "))

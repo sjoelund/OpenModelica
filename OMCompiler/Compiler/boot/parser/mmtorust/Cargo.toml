@@ -5,6 +5,6 @@ edition = "2024"
 
 [dependencies]
 metamodelica.workspace = true
-mmwinnow.workspace = true
+openmodelica_ast.workspace = true
 rayon.workspace = true
 anyhow.workspace = true

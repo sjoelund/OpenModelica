@@ -1,6 +1,6 @@
-use mmwinnow::parse;
-use mmwinnow::Grammar;
-use mmwinnow::Absyn;
+use openmodelica_ast::parser::parse;
+use openmodelica_ast::parser::Grammar;
+use openmodelica_ast::Absyn;
 use metamodelica::nil;
 
 mod MM;

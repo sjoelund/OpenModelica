@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 use std::collections::BTreeMap;
-use mmwinnow::Absyn;
+use openmodelica_ast::Absyn;
 use crate::MM;
 use crate::hierarchy::{FunctionInput, NameNode, NodeKind, Ty, extract_default_exp, lookup_record_through_unions, collect_type_vars_in_ty, collect_type_vars_in_env};
 
@@ -1273,7 +1273,7 @@ pub fn infer_exp<'a>(
             // Detect reduction syntax `f(expr for it in range, ...)` and lower it
             // into a dedicated TypedExp::Reduction node rather than a Call with
             // missing arguments.
-            if let Absyn::FunctionArgs::FOR_ITER_FARG { exp: body_exp, iterType, iterators } = functionArgs {
+            if let Absyn::FunctionArgs::FOR_ITER_FARG { exp: body_exp, iterType, iterators } = &**functionArgs {
                 let iter_kind = match iterType {
                     Absyn::ReductionIterType::COMBINE => ReductionIterKind::Combine,
                     Absyn::ReductionIterType::THREAD  => ReductionIterKind::Thread,
@@ -1284,7 +1284,7 @@ pub fn infer_exp<'a>(
                 let mut iter_env = env.clone();
                 let mut iters: Vec<ReductionIter> = Vec::new();
                 for it in (&**iterators).into_iter() {
-                    let Absyn::ForIterator::ITERATOR { name: it_name, guardExp, range } = it;
+                    let Absyn::ForIterator { name: it_name, guardExp, range } = &**it;
                     let range_e = match range {
                         Some(r) => infer_exp(r.as_ref(), &iter_env, top_level, pkg_prefix, type_vars),
                         // A reduction iterator without an explicit range is the implicit-array
@@ -1556,7 +1556,7 @@ fn extract_call_args<'a>(
                 .collect();
             let named: Vec<(String, TypedExp)> = (&**argNames).into_iter()
                 .map(|na| {
-                    let Absyn::NamedArg::NAMEDARG { argName, argValue } = na.as_ref();
+                    let Absyn::NamedArg { argName, argValue } = na.as_ref();
                     (argName.to_string(), infer_exp(argValue.as_ref(), env, top_level, pkg_prefix, type_vars))
                 })
                 .collect();
@@ -1667,18 +1667,18 @@ fn infer_case<'a>(
         }
     }
 
-    fn infer_case_locals(local_decls: &std::sync::Arc<mmwinnow::List<std::sync::Arc<Absyn::ElementItem>>>, type_vars: &[String], top_level: &BTreeMap<String, NameNode<'_>>, pkg_prefix: &str) -> Vec<(String, Ty, Option<Absyn::Exp>, Option<Absyn::TypeSpec>)> {
+    fn infer_case_locals(local_decls: &std::sync::Arc<metamodelica::List<std::sync::Arc<Absyn::ElementItem>>>, type_vars: &[String], top_level: &BTreeMap<String, NameNode<'_>>, pkg_prefix: &str) -> Vec<(String, Ty, Option<Absyn::Exp>, Option<Absyn::TypeSpec>)> {
         let mut out = Vec::new();
         for item in (&**local_decls).into_iter() {
             let Absyn::ElementItem::ELEMENTITEM { element } = item.as_ref() else { continue };
-            let Absyn::Element::ELEMENT { specification, .. } = element else { continue };
-            let Absyn::ElementSpec::COMPONENTS { typeSpec, components, .. } = specification else { continue };
+            let Absyn::Element::ELEMENT { specification, .. } = &**element else { continue };
+            let Absyn::ElementSpec::COMPONENTS { typeSpec, components, .. } = &**specification else { continue };
             let ty = typespec_to_ty(typeSpec, type_vars, top_level, pkg_prefix);
             for comp_item in (&**components).into_iter() {
-                let Absyn::ComponentItem::COMPONENTITEM { component, .. } = comp_item.as_ref();
-                let Absyn::Component::COMPONENT { name, modification, .. } = component;
+                let Absyn::ComponentItem { component, .. } = comp_item.as_ref();
+                let Absyn::Component { name, modification, .. } = component;
                 let default = extract_default_exp(modification).cloned();
-                out.push((name.to_string(), ty.clone(), default, Some(typeSpec.clone())));
+                out.push((name.to_string(), ty.clone(), default, Some((**typeSpec).clone())));
             }
         }
         out
@@ -1753,9 +1753,9 @@ fn infer_case<'a>(
                 TypedStmt::If { cond, then_, elseif, else_ }
             }
             Absyn::Equation::EQ_FOR { iterators, forEquations } => {
-                let iters: Vec<Absyn::ForIterator> = (&**iterators).into_iter().cloned().collect();
+                let iters: Vec<std::sync::Arc<Absyn::ForIterator>> = (&**iterators).into_iter().cloned().collect();
                 if iters.len() == 1 {
-                    let Absyn::ForIterator::ITERATOR { name, range, .. } = &iters[0];
+                    let Absyn::ForIterator { name, range, .. } = &*iters[0];
                     let range_e = match range {
                         Some(r) => infer_exp(r.as_ref(), env, top_level, pkg_prefix, type_vars),
                         None => TypedExp::Todo("for-without-range".to_owned()),
@@ -1784,7 +1784,7 @@ fn infer_case<'a>(
     }
 
     fn infer_eq_items_list<'a>(
-        items: &std::sync::Arc<mmwinnow::List<Absyn::EquationItem>>,
+        items: &std::sync::Arc<metamodelica::List<Absyn::EquationItem>>,
         env: &mut HashMap<String, Ty>,
         top_level: &'a BTreeMap<String, NameNode<'a>>,
         pkg_prefix: &str,
@@ -1800,7 +1800,7 @@ fn infer_case<'a>(
     }
 
     fn infer_eq_items_list_arc<'a>(
-        items: &std::sync::Arc<mmwinnow::List<std::sync::Arc<Absyn::EquationItem>>>,
+        items: &std::sync::Arc<metamodelica::List<std::sync::Arc<Absyn::EquationItem>>>,
         env: &mut HashMap<String, Ty>,
         top_level: &'a BTreeMap<String, NameNode<'a>>,
         pkg_prefix: &str,
@@ -1829,7 +1829,7 @@ fn infer_case<'a>(
             }
             Absyn::ClassPart::EQUATIONS { contents }
             | Absyn::ClassPart::INITIALEQUATIONS { contents } => {
-                infer_eq_items_list(contents, env, top_level, pkg_prefix, type_vars)
+                infer_eq_items_list_arc(contents, env, top_level, pkg_prefix, type_vars)
             }
             _ => vec![],
         }
@@ -1961,7 +1961,7 @@ fn infer_case<'a>(
 ///
 /// `type_vars` must be the function-level type variable names (e.g. `["Key"]`).
 fn infer_case_locals_standalone(
-    local_decls: &std::sync::Arc<mmwinnow::List<std::sync::Arc<Absyn::ElementItem>>>,
+    local_decls: &std::sync::Arc<metamodelica::List<std::sync::Arc<Absyn::ElementItem>>>,
     type_vars: &[String],
     top_level: &BTreeMap<String, NameNode<'_>>,
     pkg_prefix: &str,
@@ -2029,14 +2029,14 @@ fn infer_case_locals_standalone(
     let mut out = Vec::new();
     for item in (&**local_decls).into_iter() {
         let Absyn::ElementItem::ELEMENTITEM { element } = item.as_ref() else { continue };
-        let Absyn::Element::ELEMENT { specification, .. } = element else { continue };
-        let Absyn::ElementSpec::COMPONENTS { typeSpec, components, .. } = specification else { continue };
+        let Absyn::Element::ELEMENT { specification, .. } = &**element else { continue };
+        let Absyn::ElementSpec::COMPONENTS { typeSpec, components, .. } = &**specification else { continue };
         let ty = typespec_to_ty(typeSpec, type_vars, top_level, pkg_prefix);
         for comp_item in (&**components).into_iter() {
-            let Absyn::ComponentItem::COMPONENTITEM { component, .. } = comp_item.as_ref();
-            let Absyn::Component::COMPONENT { name, modification, .. } = component;
+            let Absyn::ComponentItem { component, .. } = comp_item.as_ref();
+            let Absyn::Component { name, modification, .. } = component;
             let default = extract_default_exp(modification).cloned();
-            out.push((name.to_string(), ty.clone(), default, Some(typeSpec.clone())));
+            out.push((name.to_string(), ty.clone(), default, Some((**typeSpec).clone())));
         }
     }
     out
@@ -2301,7 +2301,7 @@ pub fn infer_pat<'a>(
                                 .collect();
                             let named: Vec<(String, TypedPat)> = (&**argNames).into_iter()
                                 .map(|na| {
-                                    let Absyn::NamedArg::NAMEDARG { argName, argValue } = na.as_ref();
+                                    let Absyn::NamedArg { argName, argValue } = na.as_ref();
                                     (argName.to_string(), infer_pat(argValue.as_ref(), env, top_level, pkg_prefix, type_vars))
                                 })
                                 .collect();
@@ -2710,7 +2710,7 @@ fn infer_stmt<'a>(
 }
 
 fn infer_stmts_list<'a>(
-    items: &std::sync::Arc<mmwinnow::List<Absyn::AlgorithmItem>>,
+    items: &std::sync::Arc<metamodelica::List<std::sync::Arc<Absyn::AlgorithmItem>>>,
     env: &mut HashMap<String, Ty>,
     top_level: &'a BTreeMap<String, NameNode<'a>>,
     pkg_prefix: &str,
@@ -2718,7 +2718,7 @@ fn infer_stmts_list<'a>(
 ) -> Vec<TypedStmt> {
     let mut out = Vec::new();
     for it in (&**items).into_iter() {
-        if let Some(s) = infer_stmt(it, env, top_level, pkg_prefix, type_vars) {
+        if let Some(s) = infer_stmt(&**it, env, top_level, pkg_prefix, type_vars) {
             out.push(s);
         }
     }

@@ -201,7 +201,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "metamodelica",
- "mmwinnow",
+ "openmodelica_ast",
  "rayon",
 ]
 
@@ -263,11 +263,15 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "arcstr",
+ "backtrace-on-stack-overflow",
  "const-str",
+ "list_comprehension_macro",
  "loop_unwrap",
  "match_deref",
  "metamodelica",
+ "rayon",
  "tailcall",
+ "winnow",
 ]
 
 [[package]]

@@ -3,7 +3,7 @@
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::fmt::Write;
 use rayon::prelude::*;
-use mmwinnow::Absyn;
+use openmodelica_ast::Absyn;
 use crate::MM;
 use std::collections::HashMap;
 use crate::hierarchy::{InstanceHierarchy, FunctionInput, NameNode, NodeKind, Ty, extract_default, extract_default_exp, lookup_node, lookup_node_ty, lookup_record_through_unions, uniontype_needs_mod, collect_type_vars_in_ty};
@@ -6427,12 +6427,12 @@ fn find_record_split<'a>(segments: &[CrefSegment], ctx: &GenCtx, top_level: &'a 
         let resolved_opt = resolve_fully_qualified(&prefix_dotted, ctx, top_level);
         if let Some(node) = resolved_opt {
             if let crate::hierarchy::NodeKind::Class(c) = &node.kind {
-                use mmwinnow::Absyn::Restriction::*;
+                use openmodelica_ast::Absyn::Restriction::*;
                 match c.restriction {
                     // uniontypes and enums act as namespaces for their constructors.
                     // If we found the uniontype/enum itself, the VERY NEXT segment is its constructor!
                     // so the rust module path covers up to the constructor.
-                    mmwinnow::Absyn::Restriction::R_ENUMERATION | mmwinnow::Absyn::Restriction::R_UNIONTYPE => {
+                    openmodelica_ast::Absyn::Restriction::R_ENUMERATION | openmodelica_ast::Absyn::Restriction::R_UNIONTYPE => {
                         if i < segments.len() {
                             return i + 1;
                         } else {
@@ -6441,9 +6441,9 @@ fn find_record_split<'a>(segments: &[CrefSegment], ctx: &GenCtx, top_level: &'a 
                     }
                     // A package acts as a transparent namespace.
                     // If the path exactly resolves to a package, it's a module path.
-                    mmwinnow::Absyn::Restriction::R_PACKAGE => return i,
+                    openmodelica_ast::Absyn::Restriction::R_PACKAGE => return i,
                     // Records and classes have fields.
-                    mmwinnow::Absyn::Restriction::R_RECORD | mmwinnow::Absyn::Restriction::R_METARECORD { .. } | mmwinnow::Absyn::Restriction::R_CLASS | mmwinnow::Absyn::Restriction::R_MODEL | mmwinnow::Absyn::Restriction::R_BLOCK | mmwinnow::Absyn::Restriction::R_CONNECTOR => {
+                    openmodelica_ast::Absyn::Restriction::R_RECORD | openmodelica_ast::Absyn::Restriction::R_METARECORD { .. } | openmodelica_ast::Absyn::Restriction::R_CLASS | openmodelica_ast::Absyn::Restriction::R_MODEL | openmodelica_ast::Absyn::Restriction::R_BLOCK | openmodelica_ast::Absyn::Restriction::R_CONNECTOR => {
                         return i;
                     }
                     // Functions, variables, or anything else: they are NOT Rust modules.

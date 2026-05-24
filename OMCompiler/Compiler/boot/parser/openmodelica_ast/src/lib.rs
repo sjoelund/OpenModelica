@@ -3,3 +3,4 @@
 pub mod Absyn;
 pub mod GlobalScript;
 pub mod ParserExt;
+pub mod parser;

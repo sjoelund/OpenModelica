@@ -1246,6 +1246,16 @@ fn emit_node<'a>(out: &mut String, name: &str, node: &NameNode<'_>, indent: &str
         R_PACKAGE => {
             let nested_indent = format!("{indent}    ");
             let wrap = name != ctx.top_name;
+            // commentsBeforeClass / commentsAfterEnd for *nested* packages are
+            // emitted by the parent's `emit_package_body` loop because the
+            // parent knows where to place them relative to siblings. For the
+            // top-level class (no parent loop), we emit them ourselves so the
+            // first/last comments in the file survive.
+            if !wrap {
+                for txt in &c.comments_before_class {
+                    emit_lexer_comment(out, indent, txt);
+                }
+            }
             let child_indent = if wrap {
                 // Nested package: emit as a `pub mod` block so items don't
                 // collide with same-named items in the parent package.
@@ -1262,16 +1272,16 @@ fn emit_node<'a>(out: &mut String, name: &str, node: &NameNode<'_>, indent: &str
                 indent.to_owned()
             };
             if !c.partial_prefix {
-                let mut children: Vec<_> = node.children.iter().collect();
-                children.sort_by_key(|(n, _)| n.as_str());
-                for (child_name, child_node) in children {
-                    emit_node(out, child_name, child_node, &child_indent, &mut *ctx, top_level);
-                }
+                emit_package_body(out, node, c, &child_indent, &mut *ctx, top_level);
             }
             if wrap {
                 ctx.current_path.pop();
                 writeln!(out, "{indent}}}").unwrap();
                 writeln!(out).unwrap();
+            } else {
+                for txt in &c.comments_after_end {
+                    emit_lexer_comment(out, indent, txt);
+                }
             }
         }
         R_UNIONTYPE => emit_uniontype(out, name, node, c, indent, &mut *ctx, top_level),
@@ -1282,6 +1292,125 @@ fn emit_node<'a>(out: &mut String, name: &str, node: &NameNode<'_>, indent: &str
             emit_external_object(out, name, node, c, indent, &mut *ctx, top_level)
         }
         _ => {}
+    }
+}
+
+/// Emit a single captured lexer comment (line or block) with the surrounding
+/// indent and trailing newline. Comment text from
+/// `MM::ClassMember::LexerComment` and the `comments_*` lists already includes
+/// the `//` / `/* */` delimiters.
+///
+/// We must, however, neutralise comment forms that Rust reserves for
+/// documentation, otherwise the generated file fails to parse:
+///   * `///` and `//!` are *doc comments*; they must immediately precede an
+///     item, so a stray one in the middle of a file is a hard error.
+///   * `/** … */` and `/*! … */` are outer/inner block doc comments with the
+///     same constraint.
+/// MetaModelica freely uses `//!!! …`, `/***** …` separator banners and the
+/// like, so we rewrite the leading two-or-three character delimiter to a
+/// plain `// `/`/* ` form. The rest of the comment text is preserved
+/// verbatim so the reader still sees the original wording.
+fn emit_lexer_comment(out: &mut String, indent: &str, text: &str) {
+    let normalised = neutralise_doc_comment(text);
+    for line in normalised.lines() {
+        writeln!(out, "{indent}{line}").unwrap();
+    }
+}
+
+fn neutralise_doc_comment(text: &str) -> String {
+    // Line comments: only the *first* `//` of the comment can be misread as
+    // `///` / `//!` (subsequent lines of a line comment do not exist in our
+    // capture model — each `// …` is its own comment).
+    if let Some(rest) = text.strip_prefix("///") {
+        return format!("// /{rest}"); // turn `///foo` into `// /foo`
+    }
+    if let Some(rest) = text.strip_prefix("//!") {
+        return format!("// !{rest}"); // turn `//!foo` into `// !foo`
+    }
+    if let Some(rest) = text.strip_prefix("/**") {
+        // Distinguish the legitimate `/**/` empty comment (rare but seen).
+        if rest == "/" { return text.to_owned(); }
+        return format!("/* *{rest}");
+    }
+    if let Some(rest) = text.strip_prefix("/*!") {
+        return format!("/* !{rest}");
+    }
+    text.to_owned()
+}
+
+/// Walk a package class body in *source order*, dispatching named children to
+/// `emit_node` and emitting captured lexer comments as Rust comments at their
+/// original position.
+///
+/// Children added by `flatten_extends` (members copied in from a base class)
+/// are not present in the local `members` list — they are emitted after the
+/// in-source members, in alphabetical order for stable output.
+fn emit_package_body<'a>(
+    out: &mut String,
+    node: &NameNode<'_>,
+    c: &MM::Class,
+    indent: &str,
+    ctx: &mut GenCtx,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+) {
+    let members: &[MM::ClassMember] = match &c.body {
+        MM::ClassDef::Parts { members, .. } | MM::ClassDef::ClassExtends { members, .. } => members,
+        _ => &[],
+    };
+    let mut emitted: HashSet<&str> = HashSet::new();
+    for m in members {
+        match m {
+            MM::ClassMember::LexerComment(text) => {
+                emit_lexer_comment(out, indent, text);
+            }
+            MM::ClassMember::ClassDef(cdm) => {
+                let cn = cdm.class_def.name.as_str();
+                // MetaModelica allows the same class name to appear twice in
+                // a package via `redeclare package X` (e.g. LexerJSON
+                // declares `replaceable package LexTable` once at the top
+                // and redeclares it later with the actual table). The
+                // hierarchy collapses these into a single entry, so we must
+                // only emit the dispatch once — preferring the *last*
+                // occurrence's surrounding comments, mirroring how the
+                // hierarchy resolves the override.
+                if emitted.contains(cn) { continue; }
+                if let Some(child) = node.children.get(cn) {
+                    // commentsBeforeClass / commentsAfterEnd belong to this
+                    // specific child; emit them around the dispatch so they
+                    // appear lexically next to the class they document.
+                    for txt in &cdm.class_def.comments_before_class {
+                        emit_lexer_comment(out, indent, txt);
+                    }
+                    emit_node(out, cn, child, indent, &mut *ctx, top_level);
+                    for txt in &cdm.class_def.comments_after_end {
+                        emit_lexer_comment(out, indent, txt);
+                    }
+                    emitted.insert(cn);
+                }
+            }
+            MM::ClassMember::Component(comp) => {
+                let cn = comp.name.as_str();
+                if emitted.contains(cn) { continue; }
+                if let Some(child) = node.children.get(cn) {
+                    emit_node(out, cn, child, indent, &mut *ctx, top_level);
+                    emitted.insert(cn);
+                }
+            }
+            // Extends / Import members do not produce a hierarchy child
+            // visible at this iteration site — extends contents are pulled
+            // in by `flatten_extends`, and imports are resolved at use sites.
+            MM::ClassMember::Extends(_) | MM::ClassMember::Import(_) => {}
+        }
+    }
+    // Any children present in the hierarchy but not in the source members
+    // (typically pulled in by `flatten_extends` from a base package) are
+    // emitted after the source-ordered ones, alphabetically for determinism.
+    let mut leftover: Vec<(&String, &NameNode<'_>)> = node.children.iter()
+        .filter(|(n, _)| !emitted.contains(n.as_str()))
+        .collect();
+    leftover.sort_by_key(|(n, _)| n.as_str());
+    for (cn, child) in leftover {
+        emit_node(out, cn, child, indent, &mut *ctx, top_level);
     }
 }
 

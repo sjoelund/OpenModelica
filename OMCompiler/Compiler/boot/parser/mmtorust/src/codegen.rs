@@ -7856,7 +7856,7 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
                 } else {
                     &case.stmts[..]
                 };
-                let arm_str = if stmts_for_arm.is_empty() {
+                let arm_str = if stmts_for_arm.is_empty() && case.locals.is_empty() {
                     format!("        {pat}{guard} => {result}")
                 } else {
                     // Seed the arm's local env from the enclosing function scope:

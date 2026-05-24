@@ -72,6 +72,24 @@ struct GenCtx {
     current_path: Vec<String>,
     /// Modules imported with `.*`; their types are referenced by bare name.
     unqual_modules: HashSet<String>,
+    /// Maps the simple name of a member exposed by a wildcard (`.*`) import to
+    /// the dotted name of the module that exposes it (e.g. `InnerOuter` →
+    /// `NFPrefixes` when `import NFPrefixes.*;` is in scope and `NFPrefixes`
+    /// contains a uniontype `InnerOuter`). Consulted by [`Self::shorten`] to
+    /// avoid mis-qualifying a bare reference to such a member as a top-level
+    /// package — there may be an unrelated top-level package of the same name
+    /// (e.g. `FrontEnd/InnerOuter.mo`) which would otherwise be pulled in via
+    /// `implicit_modules` and shadow the wildcard-imported type.
+    wildcard_members: BTreeMap<String, String>,
+    /// Simple names of direct children of the file's top-level node (other
+    /// uniontypes / packages / functions defined inside the same `.mo` file).
+    /// These are reachable by bare name from anywhere in the file (Rust's
+    /// `use super::*;` in nested mods plus same-module scoping) and must not be
+    /// mistaken for a top-level package of the same name — otherwise a bare
+    /// reference like `InnerOuter.NOT_INNER_OUTER` from inside `NFPrefixes.mo`
+    /// (where `InnerOuter` is a sibling uniontype) would pull in
+    /// `openmodelica_frontend::InnerOuter` via `implicit_modules`.
+    self_members: HashSet<String>,
     /// Explicit imports: dotted qualified name → local name.""
     named: BTreeMap<String, String>,
     /// Local names that alias the current module itself (e.g. `import Type = NFType;`
@@ -289,6 +307,8 @@ impl GenCtx {
             top_name: top_name.to_owned(),
             current_path: Vec::new(),
             unqual_modules: HashSet::new(),
+            wildcard_members: BTreeMap::new(),
+            self_members: HashSet::new(),
             named: BTreeMap::new(),
             self_aliases: BTreeSet::new(),
             uniontype_imports: HashSet::new(),
@@ -517,7 +537,16 @@ impl GenCtx {
         let top = dotted.split('.').next().unwrap_or(dotted);
         if top != self.top_name && self.crate_map.contains_key(top) {
             let shadowed_by_alias = self.named.values().any(|local| local == top);
-            if !shadowed_by_alias {
+            // If `top` is the simple name of a member exposed by a wildcard
+            // import (e.g. `InnerOuter` brought in by `use NFPrefixes::*;`),
+            // the wildcard takes precedence over the top-level package of the
+            // same name. Skip the implicit-module insert so we don't emit a
+            // conflicting `use openmodelica_frontend::InnerOuter;` line, and
+            // emit the dotted path as-is (Rust resolves the head via the
+            // already-emitted wildcard `use`).
+            let shadowed_by_wildcard = self.wildcard_members.contains_key(top);
+            let shadowed_by_self = self.self_members.contains(top);
+            if !shadowed_by_alias && !shadowed_by_wildcard && !shadowed_by_self {
                 self.implicit_modules.insert(top.to_owned());
             } else if std::env::var("MMTORUST_TRACE_ALIAS_SHADOW").is_ok() {
                 eprintln!(
@@ -680,6 +709,16 @@ fn apply_import<'a>(m: &MM::ImportMember, ctx: &mut GenCtx, top_level: &'a BTree
                     let last = dotted.rsplit('.').next().unwrap_or(&dotted).to_owned();
                     ctx.named.insert(dotted, last);
                 } else {
+                    // Record each child member name so `shorten` can recognise
+                    // bare references to a wildcard-imported type/function and
+                    // avoid pulling in a same-named top-level package via
+                    // `implicit_modules` (which would generate a conflicting
+                    // `use` line and shadow the wildcard import).
+                    if let Some(node) = lookup_node(&dotted, top_level) {
+                        for child_name in node.children.keys() {
+                            ctx.wildcard_members.insert(child_name.clone(), dotted.clone());
+                        }
+                    }
                     ctx.unqual_modules.insert(dotted);
                 }
             }
@@ -742,6 +781,7 @@ fn apply_import<'a>(m: &MM::ImportMember, ctx: &mut GenCtx, top_level: &'a BTree
 struct ImportScope {
     named: BTreeMap<String, String>,
     unqual_modules: HashSet<String>,
+    wildcard_members: BTreeMap<String, String>,
     self_aliases: BTreeSet<String>,
 }
 
@@ -753,6 +793,7 @@ fn apply_local_imports<'a>(node: &NameNode<'_>, ctx: &mut GenCtx, top_level: &'a
     let saved = ImportScope {
         named: ctx.named.clone(),
         unqual_modules: ctx.unqual_modules.clone(),
+        wildcard_members: ctx.wildcard_members.clone(),
         self_aliases: ctx.self_aliases.clone(),
     };
     for child in node.children.values() {
@@ -766,6 +807,7 @@ fn apply_local_imports<'a>(node: &NameNode<'_>, ctx: &mut GenCtx, top_level: &'a
 fn restore_imports(ctx: &mut GenCtx, saved: &ImportScope) {
     ctx.named = saved.named.clone();
     ctx.unqual_modules = saved.unqual_modules.clone();
+    ctx.wildcard_members = saved.wildcard_members.clone();
     ctx.self_aliases = saved.self_aliases.clone();
 }
 
@@ -1092,6 +1134,14 @@ fn generate_file<'a>(top_name: &str, node: &NameNode<'_>, crate_map: &BTreeMap<S
     collect_const_fn_getters(top_level, "", top_level, &ctx, &mut getters);
     ctx.const_fn_getters = getters;
     collect_imports(node, &mut ctx, top_level);
+    // Same-file siblings: record names of the top node's direct children so
+    // bare references to them are not mistaken for top-level packages with the
+    // same name (e.g. `NFPrefixes.InnerOuter` referenced as plain `InnerOuter`
+    // from inside `NFPrefixes.mo`, while a top-level `InnerOuter.mo` exists in
+    // a different crate).
+    for child_name in node.children.keys() {
+        ctx.self_members.insert(child_name.clone());
+    }
 
     // First pass: emit the body so that shorten() can populate implicit_modules.
     let mut body = String::new();

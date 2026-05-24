@@ -7020,9 +7020,22 @@ fn resolve_call_qname<'a>(
     // (b) the fallibility analysis can't propagate "infallibility of
     //     `make_result`" to the caller because the call doesn't resolve.
     if !ctx.current_fn_qname.is_empty() {
-        let candidate = format!("{}.{}", ctx.current_fn_qname, func);
-        if exists(&candidate) {
-            return Some(candidate);
+        // Walk outward through enclosing function scopes. The current FQN is
+        // e.g. `NFComponentRef.isTopLevel.isTopLevelRecord` when emitting the
+        // body of a nested function; from there both `isTopLevelRecord` (self,
+        // recursion) and `isTopLevel` (parent) should resolve. Only the
+        // innermost-only test misses the recursive call to a *sibling* nested
+        // fn, so iterate.
+        let mut scope: &str = &ctx.current_fn_qname;
+        loop {
+            let candidate = format!("{scope}.{func}");
+            if exists(&candidate) {
+                return Some(candidate);
+            }
+            match scope.rfind('.') {
+                Some(dot) => scope = &scope[..dot],
+                None => break,
+            }
         }
     }
 

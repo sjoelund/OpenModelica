@@ -4602,7 +4602,7 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
             // produces a non-colliding `Mod::func` path, so we use that.
             let func_str = if func.contains('.') {
                 ctx.shorten(func)
-            } else if let Some(qname) = resolved_fn_qname {
+            } else if let Some(qname) = resolved_fn_qname.clone() {
                 let cur_prefix = if ctx.current_path.is_empty() {
                     ctx.top_name.clone()
                 } else {
@@ -4736,7 +4736,18 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
             if is_const {
                 call
             } else {
-                let callee_qname = resolve_call_qname(func, ctx, top_level);
+                // When a local binding shadows the function name, the general
+                // `resolve_call_qname` picks the local (a non-function child)
+                // and the fallibility check then falls through to
+                // `is_infallible_builtin` and (wrongly) wraps the call with
+                // `.unwrap()`. We already resolved the *function* qname via
+                // `resolve_call_qname_fn` for `func_str`; reuse it so the
+                // fallibility check matches the actual call target.
+                let callee_qname = if local_shadows_fn {
+                    resolved_fn_qname.clone().or_else(|| resolve_call_qname(func, ctx, top_level))
+                } else {
+                    resolve_call_qname(func, ctx, top_level)
+                };
                 // A user-defined function shadows any same-named builtin. We
                 // must NOT fall through to `is_infallible_builtin` when the
                 // name resolves to a user function — e.g. `exp` in

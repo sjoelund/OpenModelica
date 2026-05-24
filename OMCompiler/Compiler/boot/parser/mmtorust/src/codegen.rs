@@ -2721,6 +2721,40 @@ fn exp_reads_name(exp: &typedexp::TypedExp, name: &str) -> bool {
     }
 }
 
+/// Return true if the local named `name` is *needed* in this case arm.
+///
+/// MetaModelica `match` declares all locals in one `local …` block before the
+/// cases, and the same `case.locals` list is replicated onto every typed case
+/// by `infer_case`. Without filtering, the codegen would emit a `let mut …;`
+/// declaration for every match-level local in every Rust arm — for
+/// `Expression.traverseExpBottomUp` (~40 locals × ~80 arms) that bloats the
+/// generated file by tens of thousands of lines and slows `rustc` noticeably.
+///
+/// A local is "used" if it appears as a read (in the guard, an assignment RHS
+/// or no-return call, the case `result`, or another local's default
+/// initialiser), or as an assignment target inside the case body. Locals that
+/// appear only as pattern bindings are emitted separately by the match
+/// pattern, never as a `let mut`, so callers must filter pattern names out
+/// before consulting this helper.
+///
+/// Locals declared with a `Some(default)` initialiser are *always* required
+/// because their initialiser may have observable side effects; the caller
+/// emits those unconditionally and does not consult this helper for them.
+fn case_uses_local_name(case: &typedexp::TypedCase, name: &str) -> bool {
+    if case.guard.as_ref().is_some_and(|g| exp_reads_name(g, name)) { return true; }
+    if exp_reads_name(&case.result, name) { return true; }
+    if stmts_read_name(&case.stmts, name) { return true; }
+    for (other_name, _, default, _) in &case.locals {
+        if other_name == name { continue; }
+        if let Some(d) = default {
+            if exp_reads_name(d, name) { return true; }
+        }
+    }
+    let mut written: HashSet<String> = HashSet::new();
+    stmts_assigned_var_names(&case.stmts, &mut written);
+    written.contains(name)
+}
+
 fn plan_tail_call_lowering<'a>(
     typed_stmts: &[typedexp::TypedStmt],
     outputs: &[(String, Ty, Option<Arc<Absyn::Modification>>, bool)],
@@ -8006,6 +8040,15 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
                         if pat_binding_names.contains(name) {
                             continue;
                         }
+                        // Skip emitting a declaration for match-level locals
+                        // that are not referenced (read or written) anywhere
+                        // in this arm. Locals with a `Some(default)` are
+                        // emitted unconditionally — their initialiser may
+                        // have side effects we must not drop. See
+                        // `case_uses_local_name`.
+                        if default.is_none() && !case_uses_local_name(case, name) {
+                            continue;
+                        }
                         if matches!(ty, Ty::Unknown) {
                             // No usable type — let Rust infer from later assignment.
                             body.push_str(&format!("            let mut {}; // TODO: local with unresolved type\n", escape_ident(name)));
@@ -8350,6 +8393,13 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
                     for (name, ty, default, type_spec) in &case.locals {
                         local_env.vars.insert(name.clone(), ty.clone());
                         if pat_binding_names.contains(name) {
+                            continue;
+                        }
+                        // Skip declarations for match-level locals not
+                        // referenced in this arm. See `case_uses_local_name`
+                        // and the parallel filter on the MatchKind::Match
+                        // path above.
+                        if default.is_none() && !case_uses_local_name(case, name) {
                             continue;
                         }
                         if matches!(ty, Ty::Unknown) {

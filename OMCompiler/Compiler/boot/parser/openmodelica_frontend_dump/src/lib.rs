@@ -13,6 +13,7 @@ pub mod ElementSource;
 pub mod ExpressionBasics;
 pub mod ExpressionDumpTpl;
 pub mod Graphviz;
+pub mod InstBasics;
 pub mod MetaUtil;
 pub mod SCodeDump;
 pub mod SCodeDumpTpl;

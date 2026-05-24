@@ -1035,6 +1035,16 @@ fn generate_file<'a>(top_name: &str, node: &NameNode<'_>, crate_map: &BTreeMap<S
     // Second pass: emit header + complete use lines (now including implicit modules).
     let mut out = String::new();
     writeln!(out, "// Auto-generated from MetaModelica source").unwrap();
+    // The top-level class's `commentsBeforeClass` is typically the license
+    // header that the .mo source carries before its `package …` keyword.
+    // Emit it right after the auto-generated marker so it shows up at the
+    // top of the file, ahead of `#![allow]` and `use` lines, instead of
+    // being buried after the imports inside the body.
+    if let NodeKind::Class(c) = &node.kind {
+        for txt in &c.comments_before_class {
+            emit_lexer_comment(&mut out, "", txt);
+        }
+    }
     writeln!(out, "#![allow(warnings)]").unwrap();
     writeln!(out, "#![allow(unreachable_patterns, unreachable_code, non_camel_case_types, non_snake_case, dead_code, unused_imports, unused_variables, non_upper_case_globals, unused_mut)]").unwrap();
     writeln!(out, "
@@ -1249,13 +1259,10 @@ fn emit_node<'a>(out: &mut String, name: &str, node: &NameNode<'_>, indent: &str
             // commentsBeforeClass / commentsAfterEnd for *nested* packages are
             // emitted by the parent's `emit_package_body` loop because the
             // parent knows where to place them relative to siblings. For the
-            // top-level class (no parent loop), we emit them ourselves so the
-            // first/last comments in the file survive.
-            if !wrap {
-                for txt in &c.comments_before_class {
-                    emit_lexer_comment(out, indent, txt);
-                }
-            }
+            // *top-level* class, `commentsBeforeClass` is emitted by
+            // `generate_file` ahead of the `use` lines so the license/header
+            // appears at the top of the generated file; only
+            // `commentsAfterEnd` is emitted here.
             let child_indent = if wrap {
                 // Nested package: emit as a `pub mod` block so items don't
                 // collide with same-named items in the parent package.

@@ -5877,7 +5877,10 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
                 Some(Ty::I32) | Some(Ty::F64) | Some(Ty::Bool) | Some(Ty::Str) => "{}",
                 _ => "{:?}",
             };
-            Ok(format!("ArcStr::from(format!(\"{spec}\", {arg}))"))
+            // Use the fully-qualified path `::std::format` to avoid an
+            // ambiguity when a `use super::*;` line in the enclosing module
+            // also brings `arcstr::format!` into scope (E0659).
+            Ok(format!("ArcStr::from(::std::format!(\"{spec}\", {arg}))"))
         },
         "stringGet" => {
             let arg1 = args.first().map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();

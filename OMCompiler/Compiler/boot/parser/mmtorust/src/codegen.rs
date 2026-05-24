@@ -7187,7 +7187,29 @@ fn canonicalize_call_funcs<'a>(exp: TypedExp, module_prefix: &str, top_level: &'
                 && segments.iter().all(|s| s.subscripts.is_empty()) =>
         {
             let head = &segments[0].name;
-            if let Some((qname, node)) = typedexp::resolve_call_node(head, top_level, module_prefix) {
+            // Resolve the head as a *type* / module reference, not a call target.
+            // `typedexp::resolve_call_node` deliberately collapses a package to
+            // its same-named record (so `f(DAE(...))` resolves to the `DAElist.DAE`
+            // record); that's wrong for a `Var`-head, where `DAE.emptyCref` is
+            // a member of the *package* `DAE`, not the record. Walk the
+            // scope chain manually with plain `lookup_node` instead.
+            let resolved = (|| -> Option<(String, &NameNode<'_>)> {
+                if let Some(n) = lookup_node(head, top_level) {
+                    return Some((head.clone(), n));
+                }
+                if !module_prefix.is_empty() {
+                    let mut parts: Vec<&str> = module_prefix.split('.').collect();
+                    while !parts.is_empty() {
+                        let candidate = format!("{}.{head}", parts.join("."));
+                        if let Some(n) = lookup_node(&candidate, top_level) {
+                            return Some((candidate, n));
+                        }
+                        parts.pop();
+                    }
+                }
+                None
+            })();
+            if let Some((qname, node)) = resolved {
                 let is_type_like = matches!(&node.kind, NodeKind::Class(c) if matches!(
                     c.restriction,
                     Absyn::Restriction::R_TYPE

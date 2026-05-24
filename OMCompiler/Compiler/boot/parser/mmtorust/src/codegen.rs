@@ -3702,7 +3702,7 @@ fn resolve_with_path<'a>(prefix_dotted: &str, ctx: &GenCtx, top_level: &'a BTree
 /// the unhandled case is visible at the use site.
 fn emit_const_str_operand<'a>(exp: &TypedExp, ctx: &mut GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) -> Option<String> {
     match exp {
-        TypedExp::Lit(Lit::Str(s)) => Some(format!("{s:?}")),
+        TypedExp::Lit(Lit::Str(s)) => Some(format!("{:?}", unescape_mm_string(s))),
         TypedExp::Var { name, segments, ty, .. } if segments.iter().all(|s| s.subscripts.is_empty()) => {
             let node = resolve_fully_qualified(name, ctx, top_level)?;
             let NodeKind::Component(comp) = &node.kind else { return None };
@@ -3765,7 +3765,7 @@ fn is_const_str_cref<'a>(name: &str, segments: &[CrefSegment], ctx: &GenCtx, top
 /// — extend as the need arises.
 fn resolve_const_str<'a>(exp: &TypedExp, ctx: &GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) -> Option<String> {
     match exp {
-        TypedExp::Lit(Lit::Str(s)) => Some(s.clone()),
+        TypedExp::Lit(Lit::Str(s)) => Some(unescape_mm_string(s)),
         TypedExp::Var { name, segments, .. } if segments.iter().all(|s| s.subscripts.is_empty()) => {
             let (path, node) = resolve_with_path(name, ctx, top_level)?;
             let NodeKind::Component(comp) = &node.kind else { return None };
@@ -3837,6 +3837,55 @@ fn resolve_const_bool<'a>(exp: &TypedExp, ctx: &GenCtx, top_level: &'a BTreeMap<
     }
 }
 
+/// Decode MetaModelica string escape sequences (per BaseModelica_Lexer.g
+/// `SESCAPE`) into their character values. The lexer preserves escapes
+/// verbatim in the token (so `"\n"` is stored as the two chars `\` + `n`)
+/// for source-length tracking; this helper recovers the semantic string
+/// value so callers can hand it to Rust's `{:?}` formatter without producing
+/// a Rust literal that contains literal backslashes.
+///
+/// Recognised escapes: `\' \" \\ \? \a \b \f \n \r \t \v`.
+/// Anything else (including invalid escape sequences) is left as-is — the
+/// lexer in OMC emits a warning for these and treats them as a literal `\`,
+/// which is what we do here.
+fn unescape_mm_string(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let mut chars = s.chars();
+    while let Some(c) = chars.next() {
+        if c != '\\' {
+            out.push(c);
+            continue;
+        }
+        match chars.next() {
+            None => out.push('\\'),
+            Some(n) => {
+                let decoded = match n {
+                    '\'' => '\'',
+                    '"'  => '"',
+                    '\\' => '\\',
+                    '?'  => '?',
+                    'a'  => '\x07',
+                    'b'  => '\x08',
+                    'f'  => '\x0c',
+                    'n'  => '\n',
+                    'r'  => '\r',
+                    't'  => '\t',
+                    'v'  => '\x0b',
+                    other => {
+                        // Unknown escape — preserve as `\X` (matches OMC lexer's
+                        // warning behaviour of treating `\` as a literal char).
+                        out.push('\\');
+                        out.push(other);
+                        continue;
+                    }
+                };
+                out.push(decoded);
+            }
+        }
+    }
+    out
+}
+
 fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) -> String {
     match exp {
         TypedExp::Lit(Lit::Int(v))  => v.to_string(),
@@ -3847,7 +3896,7 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
         // literals appear in `static`/`const` initializers.
         TypedExp::Lit(Lit::Real(v)) => format!("metamodelica::OrderedFloat({v}_f64)"),
         TypedExp::Lit(Lit::Str(v))  => {
-            let escaped = format!("{v:?}");
+            let escaped = format!("{:?}", unescape_mm_string(v));
             format!("literal!({escaped})")
         }
         TypedExp::Lit(Lit::Bool(v)) => v.to_string(),
@@ -8413,10 +8462,11 @@ fn emit_pat_with_implicit_bind_md<'a>(pat: &TypedPat, allow_implicit_bind: bool,
             // string literal match an `ArcStr`, so we emit a TODO marker that
             // the user can grep for — better than silently emitting a
             // wildcard that would let the wrong arm fire.
+            let decoded = unescape_mm_string(s);
             if in_match_deref {
-                format!("Deref @ {s:?}")
+                format!("Deref @ {decoded:?}")
             } else {
-                format!("_ /* TODO: string literal pattern {s:?} requires the enclosing match to use match_deref!{{ ... }} */")
+                format!("_ /* TODO: string literal pattern {decoded:?} requires the enclosing match to use match_deref!{{ ... }} */")
             }
         }
         TypedPat::Lit(Lit::Real(v)) => {

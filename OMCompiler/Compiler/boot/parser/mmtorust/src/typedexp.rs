@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 use std::collections::BTreeMap;
+use std::sync::Arc;
 use openmodelica_ast::Absyn;
 use crate::MM;
 use crate::hierarchy::{FunctionInput, NameNode, NodeKind, Ty, extract_default_exp, lookup_record_through_unions, collect_type_vars_in_ty, collect_type_vars_in_env};
@@ -2284,7 +2285,7 @@ pub fn infer_pat<'a>(
             let func = cref_to_dotted(function_);
             match func.as_str() {
                 "SOME" => {
-                    let inner = match functionArgs {
+                    let inner = match &**functionArgs {
                         Absyn::FunctionArgs::FUNCTIONARGS { args, .. } => (&**args).into_iter().next()
                             .map(|a| infer_pat(a.as_ref(), env, top_level, pkg_prefix, type_vars))
                             .unwrap_or(TypedPat::Wildcard),
@@ -2294,7 +2295,7 @@ pub fn infer_pat<'a>(
                 }
                 "NONE" => TypedPat::None_,
                 _ => {
-                    let (fields, named_fields) = match functionArgs {
+                    let (fields, named_fields) = match &**functionArgs {
                         Absyn::FunctionArgs::FUNCTIONARGS { args, argNames } => {
                             let pos: Vec<TypedPat> = (&**args).into_iter()
                                 .map(|a| infer_pat(a.as_ref(), env, top_level, pkg_prefix, type_vars))
@@ -2565,7 +2566,7 @@ pub enum TypedStmt {
 /// Infer a list of algorithm items into typed statements, threading the env so that
 /// each pattern-assign extends bindings visible to subsequent stmts.
 pub fn infer_stmts<'a>(
-    items: &[Absyn::AlgorithmItem],
+    items: &[Arc<Absyn::AlgorithmItem>],
     env: &mut HashMap<String, Ty>,
     top_level: &'a BTreeMap<String, NameNode<'a>>,
     pkg_prefix: &str,
@@ -2573,7 +2574,7 @@ pub fn infer_stmts<'a>(
 ) -> Vec<TypedStmt> {
     let mut out = Vec::new();
     for it in items {
-        if let Some(s) = infer_stmt(it, env, top_level, pkg_prefix, type_vars) {
+        if let Some(s) = infer_stmt(&**it, env, top_level, pkg_prefix, type_vars) {
             out.push(s);
         }
     }
@@ -2665,9 +2666,9 @@ fn infer_stmt<'a>(
         Absyn::Algorithm::ALG_FOR { iterators, forBody }
         | Absyn::Algorithm::ALG_PARFOR { iterators, parforBody: forBody } => {
             // Single-iterator form only.
-            let iters: Vec<Absyn::ForIterator> = (&**iterators).into_iter().cloned().collect();
+            let iters: Vec<Arc<Absyn::ForIterator>> = (&**iterators).into_iter().cloned().collect();
             if iters.len() == 1 {
-                let Absyn::ForIterator::ITERATOR { name, range, .. } = &iters[0];
+                let Absyn::ForIterator { name, range, .. } = &*iters[0];
                 let range_e = match range {
                     Some(r) => infer_exp(r.as_ref(), env, top_level, pkg_prefix, type_vars),
                     None => TypedExp::Todo("for-without-range".to_owned()),

@@ -2,6 +2,7 @@
 
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::fmt::Write;
+use std::sync::Arc;
 use rayon::prelude::*;
 use openmodelica_ast::Absyn;
 use crate::MM;
@@ -1789,7 +1790,11 @@ fn emit_struct<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Cl
 
 fn emit_type_item(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Class, indent: &str, ctx: &mut GenCtx) {
     match &c.body {
-        MM::ClassDef::Derived { type_spec: Absyn::TypeSpec::TCOMPLEX { path: Absyn::Path::IDENT { name }, .. }, .. } if &**name == "polymorphic" => (),
+        MM::ClassDef::Derived { type_spec, .. } if {
+            if let Absyn::TypeSpec::TCOMPLEX { path, .. } = type_spec.as_ref() {
+                matches!(path.as_ref(), Absyn::Path::IDENT { name } if name.as_str() == "polymorphic")
+            } else { false }
+        } => (),
         MM::ClassDef::Derived { .. } => {
             let mut type_vars: Vec<String> = Vec::new();
             collect_type_vars_in_ty(&node.ty, &mut type_vars);
@@ -1798,7 +1803,7 @@ fn emit_type_item(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Cla
             writeln!(out).unwrap();
         }
         MM::ClassDef::Enumeration { enum_literals, .. } => {
-            if let Absyn::EnumDef::ENUMLITERALS { enumLiterals } = enum_literals {
+            if let Absyn::EnumDef::ENUMLITERALS { enumLiterals } = enum_literals.as_ref() {
                 // Modelica enumeration semantics (Modelica spec 4.8.5.2 and built-in
                 // `Integer(E.ei)`):
                 //   - Literals are ordered by declaration: Integer(E.e1) = 1, …,
@@ -1824,7 +1829,7 @@ fn emit_type_item(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Cla
                 writeln!(out, "{indent}pub enum {ename} {{").unwrap();
                 let mut i: i32 = 0;
                 for lit in &**enumLiterals {
-                    let Absyn::EnumLiteral::ENUMLITERAL { literal, .. } = lit;
+                    let Absyn::EnumLiteral { literal, .. } = &**lit;
                     i += 1;
                     writeln!(out, "{indent}    {} = {i},", escape_ident(literal)).unwrap();
                 }
@@ -2589,7 +2594,7 @@ fn exp_reads_name(exp: &typedexp::TypedExp, name: &str) -> bool {
 
 fn plan_tail_call_lowering<'a>(
     typed_stmts: &[typedexp::TypedStmt],
-    outputs: &[(String, Ty, Option<Absyn::Modification>, bool)],
+    outputs: &[(String, Ty, Option<Arc<Absyn::Modification>>, bool)],
     fn_short_name: &str,
     is_fallible_fn: bool,
     ctx: &GenCtx,
@@ -3043,7 +3048,7 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
     // concrete types. The alias still expands correctly via the sibling
     // `pub type Key = …;` declarations.
     let comp_type_specs: HashMap<String, &Absyn::TypeSpec> = members.iter()
-        .filter_map(|m| if let MM::ClassMember::Component(cm) = m { Some((cm.name.clone(), &cm.type_spec)) } else { None })
+        .filter_map(|m| if let MM::ClassMember::Component(cm) = m { Some((cm.name.clone(), cm.type_spec.as_ref())) } else { None })
         .collect();
     let alias_scope = current_scope_children(ctx, top_level);
     // Closure-equivalent: given a component name and its resolved `Ty`,
@@ -3214,7 +3219,7 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
     let output_specs: Vec<(&str, &Absyn::TypeSpec)> = members.iter()
         .filter_map(|m| match m {
             MM::ClassMember::Component(cm) if matches!(cm.direction, Absyn::Direction::OUTPUT | Absyn::Direction::INPUT_OUTPUT)
-                => Some((cm.name.as_str(), &cm.type_spec)),
+                => Some((cm.name.as_str(), cm.type_spec.as_ref())),
             _ => None,
         })
         .collect();
@@ -3257,8 +3262,8 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
     let is_fallible_fn = ctx.current_fn_fallible;
 
     // Walk components to find outputs (with names) and protected locals.
-    let mut outputs: Vec<(String, Ty, Option<Absyn::Modification>, bool)> = Vec::new();
-    let mut protected: Vec<(String, Ty, Option<Absyn::Modification>, bool)> = Vec::new();
+    let mut outputs: Vec<(String, Ty, Option<Arc<Absyn::Modification>>, bool)> = Vec::new();
+    let mut protected: Vec<(String, Ty, Option<Arc<Absyn::Modification>>, bool)> = Vec::new();
     let mut input_names: HashSet<String> = HashSet::new();
     for inp in fn_inputs_eff.iter() { input_names.insert(inp.name.clone()); }
     let pkg_prefix_for_typespec = if ctx.current_path.is_empty() {
@@ -3345,7 +3350,7 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
     for (n, t, _, _) in &outputs { infer_env.insert(n.clone(), t.clone()); }
     for (n, t, _, _) in &protected { infer_env.insert(n.clone(), t.clone()); }
 
-    let alg_items: &[Absyn::AlgorithmItem] = match &c.body {
+    let alg_items: &[Arc<Absyn::AlgorithmItem>] = match &c.body {
         MM::ClassDef::Parts { algorithms, .. } | MM::ClassDef::ClassExtends { algorithms, .. } => algorithms,
         _ => &[],
     };
@@ -3562,7 +3567,7 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
         // same fallback (see "TODO: local with unresolved type" below).
         let is_unknown_ty = matches!(t, Ty::Unknown);
         let ty_s = try_alias(n, None).unwrap_or_else(|| fmt_ty(t, ctx));
-        let modif_opt: Option<Absyn::Modification> = modif.clone();
+        let modif_opt: Option<Arc<Absyn::Modification>> = modif.clone();
         // Carry along the inferred type of the initializer so we can detect a
         // multi-output call assigned into a single-valued local. MetaModelica
         // silently drops the extra outputs in that case; we model it as a
@@ -3667,7 +3672,7 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
             // order. Otherwise fall back to a `todo!()` placeholder so
             // calling the function panics loudly at runtime rather than
             // returning garbage.
-            let Absyn::ExternalDecl::EXTERNALDECL { funcName, output_, args, .. } = &ext.decl;
+            let Absyn::ExternalDecl { funcName, output_, args, .. } = &*ext.decl;
             let func_name = funcName.as_deref().unwrap_or("");
             if let Some(rust_path) = crate::external_c_calls::external_c_impl_path(func_name) {
                 let arg_names: Vec<String> = collect_external_arg_names(args);
@@ -11612,7 +11617,7 @@ fn typedexp_function_body_for_analysis<'a>(
         env.insert(name.clone(), child.ty.clone());
     }
 
-    let alg_items: &[Absyn::AlgorithmItem] = match &c.body {
+    let alg_items: &[Arc<Absyn::AlgorithmItem>] = match &c.body {
         MM::ClassDef::Parts { algorithms, .. } | MM::ClassDef::ClassExtends { algorithms, .. } => algorithms,
         _ => return Vec::new(),
     };
@@ -12422,7 +12427,7 @@ fn component_fields_with_spec<'a>(
         .filter_map(|m| {
             if let MM::ClassMember::Component(comp) = m {
                 let ty = children.get(&comp.name).map(|n| &n.ty)?;
-                Some((comp.name.as_str(), ty, &comp.type_spec))
+                Some((comp.name.as_str(), ty, comp.type_spec.as_ref()))
             } else {
                 None
             }
@@ -12467,7 +12472,7 @@ fn field_type_alias_name(
         Absyn::TypeSpec::TPATH { path, arrayDim: None, .. } => path,
         _ => return None,
     };
-    let name = match path {
+    let name = match &**path {
         Absyn::Path::IDENT { name } => name.to_string(),
         _ => return None,
     };

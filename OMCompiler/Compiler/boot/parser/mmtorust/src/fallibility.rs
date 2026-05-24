@@ -68,6 +68,7 @@
 //!   inference out of codegen and share the result.
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::sync::Arc;
 
 use openmodelica_ast::Absyn;
 
@@ -285,7 +286,7 @@ struct Walk {
 impl Walk {
     fn scan_class(c: &MM::Class) -> Self {
         let mut w = Walk::default();
-        let (algorithms, members): (&[Absyn::AlgorithmItem], &[MM::ClassMember]) = match &c.body {
+        let (algorithms, members) = match &c.body {
             MM::ClassDef::Parts { algorithms, external, members, .. } => {
                 if let Some(ext) = external {
                     w.external = Some(external_symbol_name(&ext.decl, &c.name));
@@ -306,7 +307,7 @@ impl Walk {
             }
         }
         for it in algorithms {
-            w.scan_algorithm_item(it);
+            w.scan_algorithm_item(&**it);
         }
         w
     }
@@ -362,7 +363,7 @@ impl Walk {
             }
             Absyn::Algorithm::ALG_NORETCALL { functionCall, functionArgs } => {
                 self.record_call(&cref_to_dotted(functionCall));
-                self.scan_function_args(functionArgs);
+                self.scan_function_args(&**functionArgs);
             }
             Absyn::Algorithm::ALG_FAILURE { equ: _ } => {
                 // `failure(body)` *succeeds* iff `body` fails, which means it
@@ -404,7 +405,7 @@ impl Walk {
             }
             CALL { function_, functionArgs, .. } => {
                 self.record_call(&cref_to_dotted(function_));
-                self.scan_function_args(functionArgs);
+                self.scan_function_args(&**functionArgs);
             }
             PARTEVALFUNCTION { function_, functionArgs } => {
                 // Partial application produces a function value rather than
@@ -413,7 +414,7 @@ impl Walk {
                 // expressions are evaluated eagerly and therefore still need
                 // to be walked.
                 let _ = function_;
-                self.scan_function_args(functionArgs);
+                self.scan_function_args(&**functionArgs);
             }
             ARRAY { arrayExp } | LIST { exps: arrayExp } => {
                 for e in &**arrayExp { self.scan_exp(e); }
@@ -443,13 +444,13 @@ impl Walk {
                 // full pattern coverage. See codegen `cases_exhaustive` for
                 // the typed-IR counterpart; the two must agree.
                 if !matches!(matchTy, Absyn::MatchType::MATCH)
-                    || !match_is_exhaustive(cases, localDecls, &self.outer_scope)
+                    || !match_is_exhaustive(&**cases, &**localDecls, &self.outer_scope)
                 {
                     self.has_match = true;
                 }
                 self.scan_exp(inputExp);
                 for case in &**cases {
-                    match case {
+                    match &**case {
                         Absyn::Case::CASE { pattern, patternGuard, classPart, result, .. } => {
                             self.scan_exp(pattern);
                             if let Some(g) = patternGuard.as_deref() { self.scan_exp(g); }
@@ -483,14 +484,14 @@ impl Walk {
             Absyn::FunctionArgs::FUNCTIONARGS { args, argNames } => {
                 for e in &**args { self.scan_exp(e); }
                 for na in &**argNames {
-                    let Absyn::NamedArg::NAMEDARG { argValue, .. } = &**na;
+                    let Absyn::NamedArg { argValue, .. } = &**na;
                     self.scan_exp(argValue);
                 }
             }
             Absyn::FunctionArgs::FOR_ITER_FARG { exp, iterators, .. } => {
                 self.scan_exp(exp);
                 for it in &**iterators {
-                    let Absyn::ForIterator::ITERATOR { range, guardExp, .. } = it;
+                    let Absyn::ForIterator { range, guardExp, .. } = &**it;
                     if let Some(r) = range.as_deref() { self.scan_exp(r); }
                     if let Some(g) = guardExp.as_deref() { self.scan_exp(g); }
                 }
@@ -548,11 +549,11 @@ fn collect_local_decl_names(
 ) {
     for item in decls {
         let Absyn::ElementItem::ELEMENTITEM { element } = item.as_ref() else { continue };
-        let Absyn::Element::ELEMENT { specification, .. } = element else { continue };
-        let Absyn::ElementSpec::COMPONENTS { components, .. } = specification else { continue };
+        let Absyn::Element::ELEMENT { specification, .. } = &**element else { continue };
+        let Absyn::ElementSpec::COMPONENTS { components, .. } = &**specification else { continue };
         for ci in &**components {
-            let Absyn::ComponentItem::COMPONENTITEM { component, .. } = ci.as_ref();
-            let Absyn::Component::COMPONENT { name, .. } = component;
+            let Absyn::ComponentItem { component, .. } = ci.as_ref();
+            let Absyn::Component { name, .. } = component;
             out.insert(name.to_string());
         }
     }
@@ -614,7 +615,7 @@ fn absyn_pat_is_irrefutable(e: &Absyn::Exp, binding_names: &BTreeSet<String>) ->
 fn absyn_pat_is_full_some(e: &Absyn::Exp, binding_names: &BTreeSet<String>) -> bool {
     if let Absyn::Exp::CALL { function_, functionArgs, .. } = e {
         if cref_to_dotted(function_) != "SOME" { return false; }
-        if let Absyn::FunctionArgs::FUNCTIONARGS { args, argNames } = functionArgs {
+        if let Absyn::FunctionArgs::FUNCTIONARGS { args, argNames } = &**functionArgs {
             let args_vec: Vec<&Absyn::Exp> = (&**args).into_iter().map(|a| a.as_ref()).collect();
             let names_empty = (&**argNames).into_iter().next().is_none();
             return names_empty
@@ -633,26 +634,26 @@ fn absyn_pat_is_full_some(e: &Absyn::Exp, binding_names: &BTreeSet<String>) -> b
 ///   * boolean literals `true` and `false` → Bool
 /// Cases with a guard never contribute coverage — a guard can fail.
 fn match_is_exhaustive(
-    cases: &metamodelica::List<Absyn::Case>,
+    cases: &metamodelica::List<Arc<Absyn::Case>>,
     match_local_decls: &metamodelica::List<std::sync::Arc<Absyn::ElementItem>>,
     outer_scope: &BTreeSet<String>,
 ) -> bool {
     // The full set of names in scope as variable bindings for any pattern
-    // in this match: outer scope (function inputs/outputs/protected) ∪
-    // match-level localDecls ∪ per-case localDecls.  Built once for the
+    // in this match: outer scope (function inputs/outputs/protected) ∕
+    // match-level localDecls ∕ per-case localDecls.  Built once for the
     // match, augmented per-case below.
     let mut match_scope: BTreeSet<String> = outer_scope.clone();
     collect_local_decl_names(match_local_decls, &mut match_scope);
 
     // ELSE / leading irrefutable case → exhaustive regardless of type.
     for case in cases {
-        match case {
+        match &**case {
             Absyn::Case::ELSE { .. } => return true,
             Absyn::Case::CASE { pattern, patternGuard, localDecls, .. } => {
                 if patternGuard.is_none() {
                     let mut scope = match_scope.clone();
-                    collect_local_decl_names(localDecls, &mut scope);
-                    if absyn_pat_is_irrefutable(pattern, &scope) {
+                    collect_local_decl_names(&**localDecls, &mut scope);
+                    if absyn_pat_is_irrefutable(pattern.as_ref(), &scope) {
                         return true;
                     }
                 }
@@ -663,11 +664,11 @@ fn match_is_exhaustive(
     // Collect un-guarded (pattern, per-case scope) pairs for the structural
     // checks below. Each case's pattern is checked against the union of the
     // match scope and that case's own localDecls.
-    let pats: Vec<(&Absyn::Exp, BTreeSet<String>)> = cases.into_iter().filter_map(|c| match c {
+    let pats: Vec<(&Absyn::Exp, BTreeSet<String>)> = cases.into_iter().filter_map(|c| match &**c {
         Absyn::Case::CASE { pattern, patternGuard, localDecls, .. } if patternGuard.is_none() => {
             let mut scope = match_scope.clone();
-            collect_local_decl_names(localDecls, &mut scope);
-            Some((pattern.as_ref(), scope))
+            collect_local_decl_names(&**localDecls, &mut scope);
+            Some((&**pattern, scope))
         }
         _ => None,
     }).collect();
@@ -691,7 +692,7 @@ fn match_is_exhaustive(
     let has_nil = pats.iter().any(|(p, _)| is_empty_literal(p));
     let has_full_cons = pats.iter().any(|(p, scope)| match p {
         Absyn::Exp::CONS { head, rest } =>
-            absyn_pat_is_irrefutable(head, scope) && absyn_pat_is_irrefutable(rest, scope),
+            absyn_pat_is_irrefutable(&**head, scope) && absyn_pat_is_irrefutable(&**rest, scope),
         _ => false,
     });
     if has_nil && has_full_cons { return true; }
@@ -699,7 +700,7 @@ fn match_is_exhaustive(
     // Option: NONE() + SOME(irrefutable).
     let has_none = pats.iter().any(|(p, _)| matches!(
         p,
-        Absyn::Exp::CALL { function_, .. } if cref_to_dotted(function_) == "NONE"
+        Absyn::Exp::CALL { function_, .. } if cref_to_dotted(function_.as_ref()) == "NONE"
     ));
     let has_full_some = pats.iter().any(|(p, scope)| absyn_pat_is_full_some(p, scope));
     if has_none && has_full_some { return true; }
@@ -740,7 +741,7 @@ fn cref_to_dotted(cref: &Absyn::ComponentRef) -> String {
 /// Modelica allows omitting the explicit funcName, in which case the enclosing
 /// MM function's name is the C symbol — see the Modelica spec, §12.9.1.3.
 fn external_symbol_name(decl: &Absyn::ExternalDecl, fallback_fn_name: &str) -> String {
-    let Absyn::ExternalDecl::EXTERNALDECL { funcName, .. } = decl;
+    let Absyn::ExternalDecl { funcName, .. } = decl;
     match funcName.as_ref() {
         Some(n) if !n.is_empty() => n.to_string(),
         _ => fallback_fn_name.to_owned(),

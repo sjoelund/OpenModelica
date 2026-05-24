@@ -316,6 +316,39 @@ fn import_target_path(import: &Absyn::Import) -> Option<String> {
     }
 }
 
+/// Resolve the target dotted path for `local` under an import node. `local` is the
+/// local alias / simple name being looked up against the import.
+///
+/// - NAMED_IMPORT (`import X = A.B;`): always resolves to `A.B` (the local alias is
+///   already incorporated in the import declaration).
+/// - QUAL_IMPORT (`import A.B;`): resolves to `A.B`.
+/// - GROUP_IMPORT (`import P.{a, b as c};`): resolves to `P.<orig>` where `<orig>`
+///   is the entry whose local name (after rename, if any) matches `local`.
+/// - UNQUAL_IMPORT (`import P.*;`): not handled here — wildcard imports are resolved
+///   by separately scanning each child of the target package.
+fn import_target_for_local(import: &Absyn::Import, local: &str) -> Option<String> {
+    match import {
+        Absyn::Import::NAMED_IMPORT { path, .. } | Absyn::Import::QUAL_IMPORT { path } => {
+            let d = path_to_dotted(path);
+            if d.is_empty() { None } else { Some(d) }
+        }
+        Absyn::Import::GROUP_IMPORT { prefix, groups } => {
+            let prefix_str = path_to_dotted(prefix);
+            for g in &**groups {
+                let (is_match, orig) = match g {
+                    Absyn::GroupImport::GROUP_IMPORT_NAME { name } => (&**name == local, name.to_string()),
+                    Absyn::GroupImport::GROUP_IMPORT_RENAME { rename, name } => (&**rename == local, name.to_string()),
+                };
+                if is_match {
+                    return Some(if prefix_str.is_empty() { orig } else { format!("{prefix_str}.{orig}") });
+                }
+            }
+            None
+        }
+        _ => None,
+    }
+}
+
 /// Walk a dotted path through the hierarchy, transparently following import alias nodes.
 ///
 /// For example, if `NFBuiltin` has `import LookupTree = NFLookupTree`, then
@@ -336,10 +369,28 @@ pub(crate) fn walk_dotted_with_imports<'a>(
     }
 
     // Fast path: direct lookup (also checks through intermediate uniontype nodes).
-    if let Some(r) = lookup_record_through_unions(dotted, top_level)
+    if let Some((qname, node)) = lookup_record_through_unions(dotted, top_level)
         .or_else(|| lookup_node(dotted, top_level).map(|n| (dotted.to_owned(), n)))
     {
-        return Some(r);
+        // If the final node is an import alias, follow it so callers always see
+        // the *target* node (record/function/etc.), not the Import declaration.
+        // This covers function-scope imports like
+        //   `function F  import Pkg.{X, Y};  ... X(...) ... end F;`
+        // where bare `X` resolves to `F.X` — an Import node — but the user means
+        // the imported entity. Without following the import, `is_constructor`
+        // sees `NodeKind::Import` and falls through to "not a constructor",
+        // making the call emit as a function call instead of a record literal.
+        if let NodeKind::Import(m) = &node.kind {
+            // The local name to match against the import is the *last segment* of
+            // what we just looked up (e.g. `TOKEN` from `LexerModelicaDiff.filterModelicaDiff.TOKEN`).
+            let local = qname.rsplit('.').next().unwrap_or(&qname);
+            if let Some(target) = import_target_for_local(&m.import, local) {
+                if let Some(r) = walk_dotted_with_imports(&target, top_level, depth + 1) {
+                    return Some(r);
+                }
+            }
+        }
+        return Some((qname, node));
     }
 
     // Incremental walk: find the first prefix that exists in the hierarchy
@@ -349,8 +400,13 @@ pub(crate) fn walk_dotted_with_imports<'a>(
         let prefix = parts[..split].join(".");
         let Some(node) = lookup_node(&prefix, top_level) else { continue };
 
+        // For an Import node used as a prefix, the "local" name is the *last
+        // segment of the prefix* (which is what the user wrote to refer to it);
+        // for GROUP_IMPORT this picks the matching group entry.
+        let prefix_local = parts[split - 1];
         let target: Option<String> = match &node.kind {
-            NodeKind::Import(m) => import_target_path(&m.import),
+            NodeKind::Import(m) => import_target_for_local(&m.import, prefix_local)
+                .or_else(|| import_target_path(&m.import)),
             _ => None,
         }
         // Also follow type aliases recorded in the node's resolved type.

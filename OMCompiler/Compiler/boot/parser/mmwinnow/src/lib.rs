@@ -1085,11 +1085,15 @@ fn component_declaration(input: &mut TokenInput) -> ModalResult<ComponentItem> {
     let condition = if opt(t(TK::If)).parse_next(input)?.is_some() {
         Some(expression(input)?)
     } else { None };
-    let _comment  = string_comment(input)?;
-    let _ann      = opt(annotation).parse_next(input)?;
+    let cmt       = string_comment(input)?;
+    let ann       = opt(annotation).parse_next(input)?;
+    let comment   = match (&cmt, &ann) {
+        (None, None) => None,
+        _ => Some(Comment::COMMENT { comment: cmt, annotation_: ann }),
+    };
     Ok(ComponentItem::COMPONENTITEM {
         component: Component::COMPONENT { name, arrayDim, modification: m },
-        condition, comment: None,
+        condition, comment,
     })
 }
 
@@ -3038,6 +3042,42 @@ end P;\n\
             }
         }
         assert!(saw, "expected the /* eq-comment */ to surface as an EQUATIONITEMCOMMENT");
+    }
+
+    #[test]
+    fn component_string_comment_attached() {
+        // `Real x "the x" annotation(Foo=1);` should round-trip with the
+        // string comment landing on the COMPONENTITEM's Option<Comment>.
+        let code = "\
+package P\n\
+  Real x \"the x\";\n\
+end P;\n\
+";
+        let prog = parse(code, "t.mo", Grammar::MetaModelica).expect("parse");
+        let Program::PROGRAM { classes, .. } = prog;
+        let first = match &*classes { List::Cons { head, .. } => head.clone(), _ => panic!("no classes") };
+        let Class::CLASS { body, .. } = first;
+        let ClassDef::PARTS { classParts, .. } = &*body else { panic!("expected PARTS"); };
+        let mut saw = false;
+        for cp in &**classParts {
+            if let ClassPart::PUBLIC { contents } = &*cp {
+                for ei in &**contents {
+                    if let ElementItem::ELEMENTITEM { element } = &*ei
+                        && let Element::ELEMENT { specification, .. } = &*element
+                        && let ElementSpec::COMPONENTS { components, .. } = specification
+                    {
+                        for ci in &*components.clone() {
+                            if let ComponentItem::COMPONENTITEM { comment: Some(Comment::COMMENT { comment: Some(s), .. }), .. } = &**ci
+                                && s.contains("the x")
+                            {
+                                saw = true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        assert!(saw, "expected component string comment to be attached to COMPONENTITEM");
     }
 
     #[test]

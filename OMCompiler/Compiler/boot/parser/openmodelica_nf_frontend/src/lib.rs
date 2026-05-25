@@ -69,6 +69,7 @@ pub mod NFSimplifyExp;
 pub mod NFSimplifyModel;
 pub mod NFStateMachineFlatten;
 pub mod NFStatement;
+pub mod NFStreamFlowAlias;
 pub mod NFStructural;
 pub mod NFSubscript;
 pub mod NFType;

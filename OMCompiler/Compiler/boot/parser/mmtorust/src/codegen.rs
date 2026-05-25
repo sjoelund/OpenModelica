@@ -929,7 +929,7 @@ pub fn generate_all(hier: &InstanceHierarchy<'_>, output_dir: &str) -> std::io::
                 // function is `external "C"` so the auto-generated body is
                 // a useless `todo!()`. Hand-write in
                 // `openmodelica_util/src/Print.rs`.
-                "Mutable" | "GCExt" | "Pointer" | "File" | "Global" | "Vector" | "ErrorExt" | "Print" => continue,
+                "Mutable" | "GCExt" | "Pointer" | "File" | "Global" | "Vector" | "ErrorExt" | "Print" | "ParserExt" => continue,
                 _ => {}
             };
             file_jobs.push((dir.as_str(), name, node));

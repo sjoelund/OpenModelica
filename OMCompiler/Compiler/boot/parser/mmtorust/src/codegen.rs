@@ -187,6 +187,15 @@ struct GenCtx {
     /// `return Ok((outputs...));`. The arm body is emitted with a fresh
     /// `LocalEnv`, which would otherwise lose this information.
     fn_outputs: Vec<String>,
+    /// Subset of `fn_outputs` whose declarations carry no default modification
+    /// (`output T x;` with no `= expr`). These outputs are uninitialised at the
+    /// function entry — if a `try` body assigns one and the matching `else`
+    /// branch does not, MetaModelica semantics require the function to fail
+    /// (matchfailure) on reaching the tail. The codegen emits an explicit
+    /// `bail!` at the end of the `else` branch in that case (see the
+    /// `S::Try` lowering). Outputs *with* a default modification are pre-
+    /// initialised and need no such fallback.
+    fn_outputs_no_default: Vec<String>,
     /// Variables currently known to hold a specific uniontype variant. Mirrors
     /// `LocalEnv::variants` but is accessible from `emit_exp` / `emit_var`,
     /// which don't receive the per-statement `LocalEnv`. Populated around the
@@ -328,6 +337,7 @@ impl GenCtx {
             fn_input_names: HashSet::new(),
             fn_initialized_vars: HashSet::new(),
             fn_outputs: Vec::new(),
+            fn_outputs_no_default: Vec::new(),
             variants: HashMap::new(),
             variant_shapes: HashMap::new(),
             fallible_functions,
@@ -3551,6 +3561,19 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
     // we emit their declarations below.
     ctx.fn_initialized_vars = ctx.fn_input_names.clone();
     ctx.fn_outputs = env.outputs.clone();
+    // An output is "no default" if it has no `= expr` initializer. The
+    // Modification struct carries both `elementArgLst` (class modifications)
+    // and `eqMod` (the equation form). Only `eqMod` provides a value to
+    // initialize the output, so we check that field rather than treating
+    // every `Some(modification)` as "has default" — `Option::Some` is common
+    // even without an `= expr` initializer (e.g. for `output T x annotation(...);`).
+    ctx.fn_outputs_no_default = outputs.iter()
+        .filter(|(_, _, modif, _)| match modif {
+            None => true,
+            Some(m) => matches!(*m.eqMod, Absyn::EqMod::NOMOD),
+        })
+        .map(|(n, _, _, _)| n.clone())
+        .collect();
     ctx.uninit_arrays.clear(); // fresh function scope — no uninitialised arrays yet
 
     // Infallible functions drop the `Result<>` wrapper — the surrounding code
@@ -3730,6 +3753,7 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
         let saved_fn_input_names = ctx.fn_input_names.clone();
         let saved_fn_initialized_vars = ctx.fn_initialized_vars.clone();
         let saved_fn_outputs = ctx.fn_outputs.clone();
+        let saved_fn_outputs_no_default = ctx.fn_outputs_no_default.clone();
         let saved_uninit_arrays = ctx.uninit_arrays.clone();
         for member in parent_members.iter() {
             if let MM::ClassMember::ClassDef(cdm) = member
@@ -3743,6 +3767,7 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
         ctx.fn_input_names = saved_fn_input_names;
         ctx.fn_initialized_vars = saved_fn_initialized_vars;
         ctx.fn_outputs = saved_fn_outputs;
+        ctx.fn_outputs_no_default = saved_fn_outputs_no_default;
         ctx.uninit_arrays = saved_uninit_arrays;
     }
 
@@ -11842,12 +11867,32 @@ fn emit_stmt<'a>(
 
             let body_flow = stmts_flow(body);
             let else_flow = stmts_flow(else_body);
+            // MetaModelica semantics: if the body assigns a function output
+            // the else branch does not (and else falls through), reaching the
+            // function tail leaves outputs unset, which in MM is a matchfailure.
+            // Materialise that as an explicit `bail!`/`panic!` at the end of
+            // the else branch — see emission below. When this trigger fires
+            // the else branch effectively diverges for flow-analysis purposes,
+            // so treat it as Diverges in the yield-variable filter.
+            let else_needs_fail: bool = match (&body_flow, &else_flow) {
+                (FlowResult::FallsThrough(body_init), FlowResult::FallsThrough(else_init)) => {
+                    // Only outputs that lack a default modification are uninitialised
+                    // at function entry; an output declared `output T x = expr;` is
+                    // already set and a try-fail leaves it at the default rather
+                    // than unset. Restricting to no-default outputs avoids panicking
+                    // on idioms like `List.filter` where `output list<T> outList = {};`
+                    // is appended to in the try body and the else branch deliberately
+                    // skips failed elements.
+                    ctx.fn_outputs_no_default.iter().any(|o| body_init.contains(o) && !else_init.contains(o))
+                }
+                _ => false,
+            };
             let yield_vars: Vec<String> = match &body_flow {
                 FlowResult::Diverges => Vec::new(),
                 FlowResult::FallsThrough(body_init) => {
                     let mut v: Vec<String> = body_init.iter()
                         .filter(|name| env.vars.contains_key(*name))
-                        .filter(|name| match &else_flow {
+                        .filter(|name| else_needs_fail || match &else_flow {
                             FlowResult::Diverges => true,
                             FlowResult::FallsThrough(else_init) => else_init.contains(*name),
                         })
@@ -11868,6 +11913,13 @@ fn emit_stmt<'a>(
                 writeln!(out, "{indent}}}.is_err() {{").unwrap();
                 let mut eenv = env.clone();
                 emit_stmts(out, &format!("{indent}    "), else_body, fail_mode, ctx, &mut eenv, top_level, fresh);
+                if else_needs_fail {
+                    if ctx.current_fn_fallible {
+                        writeln!(out, "{indent}    bail!(\"try/else: outputs not set in else branch\");").unwrap();
+                    } else {
+                        writeln!(out, "{indent}    panic!(\"try/else: outputs not set in else branch\");").unwrap();
+                    }
+                }
                 writeln!(out, "{indent}}}").unwrap();
             } else {
                 let escaped_vars: Vec<String> = yield_vars.iter().map(|n| escape_ident(n)).collect();
@@ -11900,6 +11952,13 @@ fn emit_stmt<'a>(
                 writeln!(out, "{indent}    Err(_) => {{").unwrap();
                 let mut eenv = env.clone();
                 emit_stmts(out, &format!("{indent}        "), else_body, fail_mode, ctx, &mut eenv, top_level, fresh);
+                if else_needs_fail {
+                    if ctx.current_fn_fallible {
+                        writeln!(out, "{indent}        bail!(\"try/else: outputs not set in else branch\");").unwrap();
+                    } else {
+                        writeln!(out, "{indent}        panic!(\"try/else: outputs not set in else branch\");").unwrap();
+                    }
+                }
                 writeln!(out, "{indent}    }}").unwrap();
                 writeln!(out, "{indent}}}").unwrap();
             }

@@ -11190,8 +11190,21 @@ impl<'s> FieldAssignPlan<'s> {
         // recursive-record constructor argument path avoids the same
         // double-wrap (see the `struct_field_is_arc && !value_emitted_as_arc`
         // check around line 2127).
+        //
+        // When `coerce_assign_expr_pub` extracted `.0` from a tuple-returning
+        // call (MetaModelica's implicit "first-output" coercion for
+        // multi-output functions like `evalExpPartial`), the *materialised*
+        // value type is the first tuple element, not the tuple itself. Check
+        // that element's Arc-ness so we don't re-wrap an `Arc<NFExpression>`
+        // returned as `(Arc<NFExpression>, Boolean)`'s first slot.
+        let post_coerce_is_arc = match (&scrut_ty, lhs_ty.as_ref()) {
+            (Ty::Tuple(elems), lhs) if !matches!(lhs, Some(Ty::Tuple(_))) => {
+                elems.first().is_some_and(|t| is_arc_wrapped(t, ctx))
+            }
+            _ => value_emitted_as_arc(rhs, ctx),
+        };
         let value = if struct_field_is_arc(&record_qname, field, top_level, ctx)
-            && !value_emitted_as_arc(rhs, ctx)
+            && !post_coerce_is_arc
         {
             format!("Arc::new({expr})")
         } else {

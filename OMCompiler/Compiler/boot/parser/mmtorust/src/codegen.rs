@@ -1101,12 +1101,25 @@ fn collect_const_fn_getters<'a>(
             // never need a getter. Skip them.
             let primitive = matches!(node.ty, Ty::Str | Ty::I32 | Ty::F64 | Ty::Bool);
             let is_array_const = matches!(node.ty, Ty::Array(_));
-            // Two emission paths in `emit_node` produce a getter (not a value):
+            // An `Array<T>` constant becomes a `pub static StaticArray<T>` only
+            // when T itself is Sync. When the element type transitively contains
+            // another `Array<U>`, even the `StaticArray<T>` wrapper is non-Sync,
+            // and `emit_node` falls back to a `thread_local! + pub fn` getter
+            // pair (see the matching block there). Those names must also be
+            // registered here so call sites get the trailing `()`.
+            let array_inner_non_sync = if let Ty::Array(inner) = &node.ty {
+                !ty_is_sync(inner, ctx)
+            } else {
+                false
+            };
+            // Three emission paths in `emit_node` produce a getter (not a value):
             //   1. Non-Sync, const-emittable initializer  → `pub const fn`
             //   2. Non-Sync, non-const-emittable, non-Array → `pub fn { todo!(...) }`
-            // The direct `Ty::Array(_)` case takes the `StaticArray<T>` rewrite
-            // (a `pub static`, Sync via the wrapper) so it does NOT become a getter.
-            if !primitive && !is_array_const && !ty_is_sync(&node.ty, ctx) {
+            //   3. `Array<T>` where T is non-Sync → `thread_local!` + getter
+            // The plain `Ty::Array(_)` with Sync element type takes the
+            // `StaticArray<T>` rewrite (a `pub static`, Sync via the wrapper)
+            // so it does NOT become a getter.
+            if !primitive && ((!is_array_const && !ty_is_sync(&node.ty, ctx)) || array_inner_non_sync) {
                 out.insert(qname.clone());
             }
         }
@@ -1299,6 +1312,40 @@ fn emit_node<'a>(out: &mut String, name: &str, node: &NameNode<'_>, indent: &str
                     // expects from an `Array<T>`. See `metamodelica::StaticArray`
                     // for the full rationale.
                     let is_array_const = matches!(&node.ty, Ty::Array(_));
+                    // For a constant of type `Array<T>` (lowered to `StaticArray<T>`),
+                    // the LazyLock wrapping requires the *element* type to be `Sync`.
+                    // When T transitively embeds another `Array<U>` (non-Sync), the
+                    // outer `StaticArray<T>` is still non-Sync and cannot be a
+                    // `pub static`. NFBuiltin's `EMPTY_NODE_CACHE: Array<CachedData>`
+                    // is the canonical case — CachedData has `Array<...>` fields.
+                    // Emit a `thread_local!` + getter pair instead: per-thread
+                    // storage sidesteps the `Sync` bound, and `StaticArray::share`
+                    // is a cheap Arc bump so callers paying the per-call cost is
+                    // acceptable for these tables.
+                    let array_inner_non_sync = if let Ty::Array(inner) = &node.ty {
+                        !ty_is_sync(inner, ctx)
+                    } else {
+                        false
+                    };
+                    if is_array_const && array_inner_non_sync {
+                        let inner_ty_s = match &node.ty { Ty::Array(t) => fmt_ty(t, ctx), _ => unreachable!() };
+                        let r_ty = format!("metamodelica::StaticArray<{inner_ty_s}>");
+                        let saved_fallible = ctx.current_fn_fallible;
+                        ctx.current_fn_fallible = false;
+                        let mut val = emit_exp(&typed, /*is_const=*/false, ctx, top_level);
+                        ctx.current_fn_fallible = saved_fallible;
+                        val = rewrite_array_init_for_static(&val);
+                        // `thread_local!` defines a `LocalKey<T>` keyed by the
+                        // const's name. The public getter clones via `share()`
+                        // (Arc refcount bump) and returns a fresh `StaticArray`
+                        // handle so call sites match the `pub static` API shape.
+                        // The getter is registered in `ctx.const_fn_getters` so
+                        // `emit_var` appends `()` at every reference.
+                        writeln!(out, "{indent}thread_local! {{ static __{ename}_TLS: {r_ty} = {val}; }}").unwrap();
+                        writeln!(out, "{indent}pub fn {ename}() -> {r_ty} {{ __{ename}_TLS.with(|__t| __t.share()) }}").unwrap();
+                        writeln!(out).unwrap();
+                        return;
+                    }
                     // Non-Sync, non-const-emittable, and not a top-level `Array<T>`:
                     // there is no good emission path today. The `LazyLock<T>` route
                     // below requires `T: Sync`; the `StaticArray<T>` rewrite only

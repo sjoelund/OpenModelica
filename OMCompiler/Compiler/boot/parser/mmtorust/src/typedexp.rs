@@ -1626,8 +1626,28 @@ pub fn infer_exp<'a>(
             };
             let scrut_ty = input.ty();
             let scrutinee_for_arm = scrut_name_owned.as_deref().map(|n| (n, &scrut_ty));
+            // Tuple scrutinee: collect (name, ty) for each tuple element that
+            // is itself a plain variable reference, so each can be narrowed
+            // independently inside arms whose tuple-pattern fixes that
+            // element's variant. Without this, an arm pattern like
+            // `(Expression.REAL(), Expression.INTEGER())` over the synthetic
+            // tuple `(exp1, exp2)` leaves both `exp1` and `exp2` typed as the
+            // wide `Ty::RustEnum(Expression)` — and field-type resolution on
+            // `exp1.value` / `exp2.value` returns the *first* enum variant's
+            // field type (often Integer), so mixed-numeric arithmetic at the
+            // typedexp level looks like `i32 + i32` even though the emitted
+            // var_field! calls produce mismatched OrderedFloat/i32 operands.
+            let tuple_scrutinees: Vec<(String, Ty)> = match &input {
+                TypedExp::Tuple(elems) => elems.iter().filter_map(|e| match e {
+                    TypedExp::Var { segments, ty, .. } if segments.len() == 1 && segments[0].subscripts.is_empty() => {
+                        Some((segments[0].name.clone(), ty.clone()))
+                    }
+                    _ => None,
+                }).collect(),
+                _ => Vec::new(),
+            };
             let typed_cases: Vec<TypedCase> = (&**cases).into_iter()
-                .map(|c| infer_case(c, &case_env, top_level, pkg_prefix, &match_locals, type_vars, scrutinee_for_arm))
+                .map(|c| infer_case(c, &case_env, top_level, pkg_prefix, &match_locals, type_vars, scrutinee_for_arm, &tuple_scrutinees))
                 .collect();
             // Promote each arm's type from a narrowed variant struct to its
             // parent uniontype enum: an arm that returned the scrutinee under a
@@ -1711,6 +1731,10 @@ fn infer_case<'a>(
     // downstream field-type resolution to pick the *correct* variant's field
     // type for fields whose declared type differs per variant (e.g. JSON.values).
     scrutinee: Option<(&str, &Ty)>,
+    // Per-element scrutinees for a tuple input — each tuple position whose
+    // input expression was a plain variable reference. Used to narrow each
+    // such variable independently when the arm's pattern is also a tuple.
+    tuple_scrutinees: &[(String, Ty)],
 ) -> TypedCase {
     fn path_to_dotted(path: &Absyn::Path) -> String {
         match path {
@@ -2015,6 +2039,19 @@ fn infer_case<'a>(
             if let Some((scrut_name, scrut_ty)) = scrutinee
                 && let Some(narrowed) = narrow_scrutinee_for_pat(&pat, scrut_ty, top_level) {
                     inner_env.insert(scrut_name.to_string(), narrowed);
+                }
+            // Tuple-element narrowing: for each tuple-position variable, if
+            // the arm's pattern is also a tuple of the same arity and the
+            // corresponding sub-pattern fixes the variant, narrow that
+            // variable in `inner_env`.
+            if !tuple_scrutinees.is_empty()
+                && let TypedPat::Tuple(pat_elems) = &pat
+                && pat_elems.len() >= tuple_scrutinees.len() {
+                    for ((name, ty), sub_pat) in tuple_scrutinees.iter().zip(pat_elems.iter()) {
+                        if let Some(narrowed) = narrow_scrutinee_for_pat(sub_pat, ty, top_level) {
+                            inner_env.insert(name.clone(), narrowed);
+                        }
+                    }
                 }
             // Start with match-level locals (already in env), then add case-level locals.
             // Dedup: case-level locals shadow match-level ones with the same name.

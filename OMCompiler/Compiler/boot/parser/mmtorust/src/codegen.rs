@@ -6451,8 +6451,26 @@ fn emit_var<'a>(
                 VarShape::RefArc => format!("(**{base}).{field_id}"),
             };
             res = format!("var_field!({macro_call}, {variant_path})");
-            for sub in &first.subscripts {
-                res = format!("{}[({}-1) as usize]", res, emit_exp(sub, false, ctx, top_level));
+            if !first.subscripts.is_empty() {
+                // Look up the field's declared type on the variant. If it's
+                // Array<T> (= Rc<RefCell<Vec<T>>>), insert `.borrow()` before
+                // indexing — matching the package-path and inherited-field
+                // branches below. Without this, `[i]` is applied directly to
+                // an `&Rc<RefCell<Vec<T>>>` reference, which doesn't impl
+                // `Index` (E0608).
+                let variant_qname = format!("{enum_qname}.{variant_name}");
+                let field_ty = record_field_tys(&variant_qname, top_level)
+                    .unwrap_or_default()
+                    .into_iter()
+                    .find(|(n, _)| n == &first.name)
+                    .map(|(_, t)| t)
+                    .unwrap_or(Ty::Unknown);
+                if matches!(field_ty, Ty::Array(_)) {
+                    res = format!("{res}.borrow()");
+                }
+                for sub in &first.subscripts {
+                    res = format!("{}[({}-1) as usize]", res, emit_exp(sub, false, ctx, top_level));
+                }
             }
         }
     }

@@ -7272,6 +7272,56 @@ fn resolve_call_qname<'a>(
                 return Some(candidate);
             }
         }
+        // Modelica enclosing-scope fallback: `Variability.variabilityMax` —
+        // `variabilityMax` is a function in the same package that declares
+        // `Variability` (the enum). Modelica's lookup, when a qualified name
+        // does not resolve as written, retries by treating the head segment
+        // as a name in scope and looking up the tail in the head's enclosing
+        // package. Replicate that here: resolve the head to its FQN, then
+        // strip one segment to get the package and look up `package.tail`.
+        {
+            let mut parts = func.splitn(2, '.');
+            let head = parts.next().unwrap_or(func);
+            let tail = parts.next().unwrap_or("");
+            if !tail.is_empty() {
+                // Find the FQN of the head segment using the same resolution
+                // order: named imports, self-alias, in-scope, wildcard.
+                let head_fqn: Option<String> = {
+                    let mut found: Option<String> = None;
+                    for (dotted, local) in &ctx.named {
+                        if local == head && exists(dotted) {
+                            found = Some(dotted.clone());
+                            break;
+                        }
+                    }
+                    if found.is_none() && ctx.self_aliases.contains(head) {
+                        found = Some(ctx.top_name.clone());
+                    }
+                    if found.is_none() {
+                        let mut s: &str = &cur_prefix;
+                        loop {
+                            let cand = if s.is_empty() { head.to_owned() } else { format!("{s}.{head}") };
+                            if exists(&cand) { found = Some(cand); break; }
+                            match s.rfind('.') { Some(d) => s = &s[..d], None => break }
+                        }
+                    }
+                    if found.is_none() {
+                        for module in &ctx.unqual_modules {
+                            let cand = format!("{module}.{head}");
+                            if exists(&cand) { found = Some(cand); break; }
+                        }
+                    }
+                    found
+                };
+                if let Some(head_fqn) = head_fqn
+                    && let Some((parent_pkg, _)) = head_fqn.rsplit_once('.') {
+                    let candidate = format!("{parent_pkg}.{tail}");
+                    if exists(&candidate) {
+                        return Some(candidate);
+                    }
+                }
+            }
+        }
         return None;
     }
 

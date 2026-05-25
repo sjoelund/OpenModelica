@@ -49,7 +49,7 @@ pub fn initialize() -> () {
     // ── Roots declared in openmodelica_util::Globals ───────────────────────
     crate::Globals::instOnlyForcedFunctions.with(|__root| *__root.borrow_mut() = None);
     crate::Globals::stackoverFlowIndex.with(|__root| *__root.borrow_mut() = None);
-    crate::Globals::currentInstVar.with(|__root| *__root.borrow_mut() = (literal!(""), sourceInfo!(), Arc::new(|_| Ok(literal!("")))));
+    crate::Globals::currentInstVar.with(|__root| *__root.borrow_mut() = None);
     crate::Globals::isInStream.with(|__root| *__root.borrow_mut() = None);
     crate::Globals::sharedLibraryCacheIndex.with(|__root| *__root.borrow_mut() = metamodelica::nil());
     crate::Globals::codegenTryThrowIndex.with(|__root| *__root.borrow_mut() = metamodelica::nil());

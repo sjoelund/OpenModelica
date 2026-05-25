@@ -7030,7 +7030,21 @@ fn emit_call_arg_with_formal<'a>(
     // passing it into a `fn(...)` slot would be a type error.
     // `resolve_call_formals` pulls the formal type from `node.ty.inputs`,
     // which matches what `fmt_param_ty` saw at the function-definition site.
-    if let Some(Ty::Function { inputs, output, name: None, .. }) = formal_ty {
+    // The formal slot is `Arc<dyn Fn(...) + 'static>` for two `fmt_param_ty`
+    // shapes (kept in sync with [`fmt_param_ty`]):
+    //   * `Ty::Function { name: None, .. }` — an anonymous callback signature
+    //     (e.g. `input function(...) f`).
+    //   * `Ty::Function { name: Some(qn), .. }` where `qn` is a
+    //     function-NESTED `partial function` alias (recorded in
+    //     `nested_partial_aliases`). Top-level partial aliases stay as bare
+    //     `fn(...)` pointers and must NOT trigger Arc::new wrapping here.
+    let formal_is_arc_dyn = match formal_ty {
+        Some(Ty::Function { name: None, .. }) => true,
+        Some(Ty::Function { name: Some(qn), .. }) => ctx.nested_partial_aliases.contains(qn),
+        _ => false,
+    };
+    if let Some(Ty::Function { inputs, output, .. }) = formal_ty
+        && formal_is_arc_dyn {
         if arg_is_input_fn_param(arg, ctx) {
             // case 1: `raw` is already `"inCompFunc.clone()"` (emit_exp appends
             // `.clone()` for every Ty::Function{name:None} var reference — see

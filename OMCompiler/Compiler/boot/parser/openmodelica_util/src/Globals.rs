@@ -45,7 +45,7 @@ use std::cell::RefCell;
 use std::sync::Arc;
 use anyhow::Result;
 use arcstr::{ArcStr, literal};
-use metamodelica::{SourceInfo, sourceInfo};
+use metamodelica::SourceInfo;
 use openmodelica_util_datatypes_basic::DoubleEnded;
 
 // ── Thread-local roots (index 0–8, C: threadData->localRoots) ────────────────
@@ -174,13 +174,20 @@ thread_local! {
     /// records, and prefix-to-string functions.  Written by
     /// `Error.updateCurrentComponent`; read by
     /// `Error.getCurrentComponent` / `Error.addMessage`.
+    ///
+    /// The MetaModelica declaration (`Util/Error.mo`) is
+    /// `Option<tuple<array<String>, array<SourceInfo>, array<prefixToStr>>>`
+    /// and `Global.reset` initialises the slot to `NONE()`. The shape stored
+    /// here must match what the generated code expects on the read side, so
+    /// it is `Option<(Array<...>, Array<...>, Array<...>)>` rather than a
+    /// flat triple.
     pub static currentInstVar: RefCell<
-        (
-            ArcStr,
-            SourceInfo,
-            Arc<dyn Fn(ArcStr) -> Result<ArcStr> + 'static>,
-        )
-    > = RefCell::new((literal!(""), sourceInfo!(), Arc::new(|_| Ok(literal!(""))) ));
+        Option<(
+            metamodelica::Array<ArcStr>,
+            metamodelica::Array<SourceInfo>,
+            metamodelica::Array<Arc<dyn Fn(ArcStr) -> Result<ArcStr> + 'static>>,
+        )>
+    > = RefCell::new(None);
 
     // Index 24 — operatorOverloadingCache
     // Declared in openmodelica_frontend::Globals.

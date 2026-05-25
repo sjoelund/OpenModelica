@@ -694,6 +694,82 @@ pub fn stringHashSdbm(str: ArcStr) -> i32 {
     hash
 }
 
+/// Converts a Modelica URI to an absolute filename.
+///
+/// Mirrors `OpenModelica_uriToFilename_impl` in
+/// `OMCompiler/SimulationRuntime/c/util/utility.c`. The MM-source-level
+/// `OpenModelica.Scripting.uriToFilename(uri)` lowers to this when called
+/// from generated code (see the rewrite in `mmtorust::typedexp::cref_to_dotted`).
+///
+/// Schemes handled:
+/// * `modelica://Package/...` — not implemented in the bootstrap: looking up
+///   a package's source directory requires `threadData->localRoots[LOCAL_ROOT_URI_LOOKUP]`,
+///   which is populated by the OMC runtime when classes are loaded. The
+///   bootstrap loads sources directly from disk and has no such table; we
+///   `todo!` rather than silently return a wrong path.
+/// * `file://path` — strip the prefix and treat as a regular path.
+/// * Other `xxx://` URIs — panic, matching the C runtime's `MMC_THROW`.
+/// * Plain paths — canonicalize through `std::fs::canonicalize` if the path
+///   exists; otherwise return as-is when absolute, or prepend the current
+///   working directory when relative.
+///
+/// Returns the empty string only when canonicalization fails on a path that
+/// also has no usable fallback (matches the MM `output String filename = "";`
+/// default behaviour).
+pub fn uriToFilename(uri_om: ArcStr) -> ArcStr {
+    let uri = &*uri_om;
+    if uri.is_empty() {
+        panic!("Malformed URI (got an empty string)");
+    }
+    // Scheme matching is case-insensitive per the C implementation
+    // (`strncasecmp`). Only the prefix is lowercased — paths on
+    // case-sensitive filesystems must keep their original casing.
+    let scheme_match = |prefix: &str| -> bool {
+        uri.len() >= prefix.len()
+            && uri[..prefix.len()].eq_ignore_ascii_case(prefix)
+    };
+    if scheme_match("modelica://") {
+        todo!("uriToFilename: modelica:// URI scheme requires package source-directory lookup that is not populated in the bootstrap")
+    }
+    let path: &str = if scheme_match("file://") {
+        &uri[7..]
+    } else if uri.contains("://") {
+        panic!("Unknown URI schema: {uri}");
+    } else {
+        uri
+    };
+
+    let p = std::path::Path::new(path);
+    match std::fs::canonicalize(p) {
+        Ok(canon) => {
+            let mut s = canon.to_string_lossy().into_owned();
+            // Preserve trailing slash for directory URIs, matching the C
+            // implementation (which appends '/' when the resolved path is
+            // a directory and the original URI ended with '/').
+            if path.ends_with('/') && !s.ends_with('/') && p.is_dir() {
+                s.push('/');
+            }
+            ArcStr::from(s)
+        }
+        Err(_) => {
+            // Path does not exist (yet). For absolute paths, return as-is;
+            // for relative paths, prepend the current working directory.
+            let is_absolute = p.is_absolute()
+                || (path.len() >= 2 && path.as_bytes()[1] == b':'
+                    && path.as_bytes()[0].is_ascii_alphabetic());
+            if is_absolute {
+                uri_om.clone()
+            } else if let Ok(cwd) = std::env::current_dir() {
+                let mut joined = cwd;
+                joined.push(path);
+                ArcStr::from(joined.to_string_lossy().into_owned())
+            } else {
+                uri_om.clone()
+            }
+        }
+    }
+}
+
 /// Extracts a substring from str.
 /// start and stop are 1-based indices (first character is at index 1).
 /// Fails for bogus start/stop values.

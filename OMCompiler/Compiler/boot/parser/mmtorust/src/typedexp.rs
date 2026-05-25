@@ -219,6 +219,19 @@ pub fn cref_to_dotted(cref: &Absyn::ComponentRef) -> String {
         // and is dropped at codegen time).
         "MetaModelica.Dangerous.arrayCreateNoInit" | "Dangerous.arrayCreateNoInit" => "arrayCreateNoInit".to_owned(),
         "MetaModelica.Dangerous.listArrayLiteral" | "Dangerous.listArrayLiteral" | "listArrayLiteral" => "listArray".to_owned(),
+        // OpenModelica scripting builtins. These live in `package OpenModelica
+        // package Scripting ... function uriToFilename ... external "builtin"
+        // ... end uriToFilename;` in NFModelicaBuiltin.mo, which the codegen
+        // excludes from compilation (we don't emit a Rust `pub mod OpenModelica`).
+        // Route the source-level qualified call to the runtime port in the
+        // `metamodelica` crate.
+        // The 2-segment `OpenModelica.uriToFilename` form appears when the
+        // Absyn parser collapses the intermediate `Scripting` package (and
+        // for the matching reference in CevalScriptBackend / NFCeval the
+        // shape is consistently shorter than the source spelling).
+        "OpenModelica.Scripting.uriToFilename"
+        | "OpenModelica.uriToFilename"
+        | "Scripting.uriToFilename" => "uriToFilename".to_owned(),
         _ => raw,
     }
 }
@@ -729,6 +742,11 @@ pub fn builtin_function_ty(name: &str) -> Option<Ty> {
             Some(f(vec![inp("a", Ty::Array(Box::new(tv("T"))))], Ty::I32, vec!["T".to_owned()])),
         "stringLength" =>
             Some(f(vec![inp("s", Ty::Str)], Ty::I32, vec![])),
+        // OpenModelica.Scripting.uriToFilename — see the cref_to_dotted
+        // rewrite above. Signature mirrors the MM declaration in
+        // NFModelicaBuiltin.mo: `(String) -> String`.
+        "uriToFilename" =>
+            Some(f(vec![inp("uri", Ty::Str)], Ty::Str, vec![])),
         // String hashing builtins: String -> Integer. Listed so that bare-CREF
         // references like `(stringHashDjb2, stringEq, ...)` passed to
         // `BaseHashSet::emptyHashSetWork` / `UnorderedMap::new` get wrapped by

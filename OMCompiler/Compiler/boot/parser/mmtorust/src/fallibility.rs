@@ -124,6 +124,10 @@ pub fn builtin_fallibility(name: &str) -> Option<Fallibility> {
         "stringListStringChar" => Infallible,
         "stringAppendList" | "stringDelimitList" => Infallible,
         "stringLength" | "stringEmpty" => Infallible,
+        // `metamodelica::uriToFilename`: panics on malformed/unknown URIs
+        // (matching the C `MMC_THROW`), but its Rust return type is plain
+        // `ArcStr`, not `Result<ArcStr>` — so the caller must not emit `?`.
+        "uriToFilename" => Infallible,
         "stringGet" => Fallible,           // index OOB
         "stringGetStringChar" => Fallible, // index OOB
         "stringUpdateStringChar" => Fallible, // bails on empty / OOB

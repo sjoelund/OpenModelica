@@ -3873,6 +3873,16 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
             (false, None) => {
                 if is_unknown_ty {
                     writeln!(out, "{body_indent}let mut {}; // TODO: local with unresolved type", escape_ident(n)).unwrap();
+                } else if let Some(def) = ty_default_init(t) {
+                    // Modelica/MetaModelica gives every output and protected
+                    // local an implicit initial value equal to its type's
+                    // default (Boolean → false, Integer → 0, list → nil, …).
+                    // Bodies that only assign the variable on some branches
+                    // (a common MM idiom) then rely on that default in the
+                    // remaining branches. Without the explicit initialiser
+                    // Rust rejects those uses as E0381.
+                    ctx.fn_initialized_vars.insert(n.to_string());
+                    writeln!(out, "{body_indent}let mut {}{ty_annot} = {def};", escape_ident(n)).unwrap();
                 } else {
                     writeln!(out, "{body_indent}let mut {}{ty_annot};", escape_ident(n)).unwrap();
                 }
@@ -12961,6 +12971,25 @@ fn visit_exp_for_eq(exp: &typedexp::TypedExp, out: &mut std::collections::HashSe
                 if let Some(g) = &it.guard { visit_exp_for_eq(g, out); }
             }
         }
+    }
+}
+
+/// Return a Rust expression for the Modelica default value of `ty`, when one
+/// exists. Used to mimic MetaModelica's implicit type-default initialisation
+/// of outputs and protected locals: `Boolean` defaults to `false`, `Integer`
+/// to `0`, lists to `nil`, etc. Returns `None` for types whose default is
+/// either undefined (function types, type variables) or non-trivial to emit
+/// (records, enums, generics) — those locals stay uninitialised and rely on
+/// every code path assigning them before use.
+fn ty_default_init(ty: &Ty) -> Option<String> {
+    match ty {
+        Ty::Bool => Some("false".to_owned()),
+        Ty::I32 => Some("0".to_owned()),
+        Ty::F64 => Some("metamodelica::OrderedFloat(0.0_f64)".to_owned()),
+        Ty::Str => Some("arcstr::literal!(\"\")".to_owned()),
+        Ty::Option(_) => Some("None".to_owned()),
+        Ty::List(_) => Some("metamodelica::nil()".to_owned()),
+        _ => None,
     }
 }
 

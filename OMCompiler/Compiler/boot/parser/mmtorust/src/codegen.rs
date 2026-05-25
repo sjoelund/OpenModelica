@@ -2774,7 +2774,15 @@ fn exp_reads_name(exp: &typedexp::TypedExp, name: &str) -> bool {
                 || step.as_ref().is_some_and(|s| exp_reads_name(s, name))
                 || exp_reads_name(stop, name)
         }
-        _ => false,
+        // List comprehension / reduction `f(body for it in r, ...)`. The body
+        // and iterator ranges are expressions that can read `name`. The
+        // iterators themselves *bind* new names but a shadowed binding only
+        // matters at write-position detection, not for reads.
+        E::Reduction { body, iterators, .. } => {
+            if exp_reads_name(body, name) { return true; }
+            iterators.iter().any(|it| exp_reads_name(&it.range, name)
+                || it.guard.as_ref().is_some_and(|g| exp_reads_name(g, name)))
+        }
     }
 }
 

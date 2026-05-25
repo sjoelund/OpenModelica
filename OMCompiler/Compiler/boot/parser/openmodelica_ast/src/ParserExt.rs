@@ -1,120 +1,197 @@
-// Auto-generated from MetaModelica source
-/*
- * This file is part of OpenModelica.
- *
- * Copyright (c) 1998-2026, Open Source Modelica Consortium (OSMC),
- * c/o Linköpings universitet, Department of Computer and Information Science,
- * SE-58183 Linköping, Sweden.
- *
- * All rights reserved.
- *
- * THIS PROGRAM IS PROVIDED UNDER THE TERMS OF AGPL VERSION 3 LICENSE OR
- * THIS OSMC PUBLIC LICENSE (OSMC-PL) VERSION 1.8.
- * ANY USE, REPRODUCTION OR DISTRIBUTION OF THIS PROGRAM CONSTITUTES
- * RECIPIENT'S ACCEPTANCE OF THE OSMC PUBLIC LICENSE OR THE GNU AGPL
- * VERSION 3, ACCORDING TO RECIPIENTS CHOICE.
- *
- * The OpenModelica software and the OSMC (Open Source Modelica Consortium)
- * Public License (OSMC-PL) are obtained from OSMC, either from the above
- * address, from the URLs:
- * http://www.openmodelica.org or
- * https://github.com/OpenModelica/ or
- * http://www.ida.liu.se/projects/OpenModelica,
- * and in the OpenModelica distribution.
- *
- * GNU AGPL version 3 is obtained from:
- * https://www.gnu.org/licenses/licenses.html#GPL
- *
- * This program is distributed WITHOUT ANY WARRANTY; without
- * even the implied warranty of MERCHANTABILITY or FITNESS
- * FOR A PARTICULAR PURPOSE, EXCEPT AS EXPRESSLY SET FORTH
- * IN THE BY RECIPIENT SELECTED SUBSIDIARY LICENSE CONDITIONS OF OSMC-PL.
- *
- * See the full OSMC Public License conditions for more details.
- *
- */
-#![allow(warnings)]
-#![allow(unreachable_patterns, unreachable_code, non_camel_case_types, non_snake_case, dead_code, unused_imports, unused_variables, non_upper_case_globals, unused_mut)]
+// Manually written file.
+//
+// Rust port of `OMCompiler/Compiler/FrontEnd/ParserExt.mo`'s
+// `external "C"` declarations.  The MetaModelica module is a thin shim
+// over the C entry points defined in `OMCompiler/Parser/Parser_omc.c`
+// (which in turn drive the ANTLR3 grammar at `grammars/Modelica.g`).
+//
+// Here we forward to the winnow-based parser already living in the
+// same crate at `crate::parser`, so callers like `Parser.mo` /
+// `openmodelica_frontend::Parser` keep working without going through
+// any C runtime.
+//
+// Grammar selection (`acceptedGram`) follows the integer encoding used
+// by `Flags.GRAMMAR` (see `OMCompiler/Compiler/Util/Flags.mo:154-158`):
+//
+//   1 = Modelica       → `Grammar::Modelica2` if `languageStandardInt < 30`
+//                        otherwise `Grammar::Modelica3`
+//   2 = MetaModelica   → `Grammar::MetaModelica`
+//   3 = ParModelica    → `Grammar::MetaModelica`     (parmodelica keywords are
+//                        lexed by the MetaModelica lexer in mmwinnow)
+//   4 = Optimica       → `Grammar::Optimica`
+//   5 = PDEModelica    → `Grammar::Modelica3`        (no dedicated grammar yet)
+//
+// Functions that are not yet implementable on top of the current parser
+// (e.g. statement / .mos parsing, the library-vendor-executable hooks)
+// stay as `todo!()` with a comment so the gap is explicit.
+
+#![allow(non_snake_case)]
 
 use std::sync::Arc;
-use anyhow::{Result, bail};
-use loop_unwrap::unwrap_break_err;
-use metamodelica::*; // Built-in types and functions
-use const_str;
-use arcstr::{ArcStr, literal, format};
+
+use anyhow::{anyhow, Context, Result};
+use arcstr::ArcStr;
 
 use crate::Absyn;
 use crate::GlobalScript;
+use crate::parser::{self, Grammar};
 
-pub fn parse(mut filename: ArcStr, mut infoFilename: ArcStr, mut acceptedGram: i32, mut encoding: ArcStr, mut languageStandardInt: i32, mut strict: bool, mut runningTestsuite: bool, mut libraryPath: ArcStr, mut lveInstance: Option<i32>) -> Result<Absyn::Program> {
-    let mut outProgram: Absyn::Program;
-    todo!(); // ExternalSection { decl: EXTERNALDECL { funcName: Some("ParserExt_parse"), lang: Some("C"), output_: Some(CREF_IDENT { name: "outProgram", subscripts: Nil }), args: Cons { head: CREF { componentRef: CREF_IDENT { name: "filename", subscripts: Nil } }, tail: Cons { head: CREF { componentRef: CREF_IDENT { name: "infoFilename", subscripts: Nil } }, tail: Cons { head: CREF { componentRef: CREF_IDENT { name: "acceptedGram", subscripts: Nil } }, tail: Cons { head: CREF { componentRef: CREF_IDENT { name: "languageStandardInt", subscripts: Nil } }, tail: Cons { head: CREF { componentRef: CREF_IDENT { name: "strict", subscripts: Nil } }, tail: Cons { head: CREF { componentRef: CREF_IDENT { name: "encoding", subscripts: Nil } }, tail: Cons { head: CREF { componentRef: CREF_IDENT { name: "runningTestsuite", subscripts: Nil } }, tail: Cons { head: CREF { componentRef: CREF_IDENT { name: "libraryPath", subscripts: Nil } }, tail: Cons { head: CREF { componentRef: CREF_IDENT { name: "lveInstance", subscripts: Nil } }, tail: Nil } } } } } } } } }, annotation_: Some(ANNOTATION { elementArgs: Cons { head: MODIFICATION { finalPrefix: false, eachPrefix: NON_EACH, path: IDENT { name: "Library" }, modification: Some(CLASSMOD { elementArgLst: Nil, eqMod: EQMOD { exp: ARRAY { arrayExp: Cons { head: STRING { value: "omparse" }, tail: Cons { head: STRING { value: "omantlr3" }, tail: Cons { head: STRING { value: "omcruntime" }, tail: Nil } } } }, info: SourceInfo { fileName: "/home/martin/OpenModelica/OMCompiler/Compiler/FrontEnd/ParserExt.mo", isReadOnly: false, lineNumberStart: 61, columnNumberStart: 183, lineNumberEnd: 61, columnNumberEnd: 219, lastModification: 0.0 } } }), comment: None, info: SourceInfo { fileName: "/home/martin/OpenModelica/OMCompiler/Compiler/FrontEnd/ParserExt.mo", isReadOnly: false, lineNumberStart: 61, columnNumberStart: 175, lineNumberEnd: 61, columnNumberEnd: 219, lastModification: 0.0 } }, tail: Nil } }) }, annotation: None }
-    Ok(outProgram)
+/// Map `(acceptedGram, languageStandardInt)` to the parser's [`Grammar`]
+/// enum. Mirrors the `set_grammar_flag` switch in
+/// `OMCompiler/Parser/Parser_omc.c`.
+fn select_grammar(acceptedGram: i32, languageStandardInt: i32) -> Grammar {
+    match acceptedGram {
+        2 | 3 => Grammar::MetaModelica,
+        4 => Grammar::Optimica,
+        // 1 = Modelica, 5 = PDEModelica, and anything unknown falls back
+        // to the Modelica grammar.  The language-standard integer follows
+        // `Flags.LANGUAGE_STANDARD`: values 10/20 are Modelica 1.x / 2.x,
+        // 30+ are Modelica 3.x.
+        _ => {
+            if languageStandardInt < 30 {
+                Grammar::Modelica2
+            } else {
+                Grammar::Modelica3
+            }
+        }
+    }
 }
 
-pub fn parseexp(mut filename: ArcStr, mut infoFilename: ArcStr, mut acceptedGram: i32, mut languageStandardInt: i32, mut runningTestsuite: bool) -> Result<GlobalScript::Statements> {
-    let mut outStatements: GlobalScript::Statements;
-    todo!(); // ExternalSection { decl: EXTERNALDECL { funcName: Some("ParserExt_parseexp"), lang: Some("C"), output_: Some(CREF_IDENT { name: "outStatements", subscripts: Nil }), args: Cons { head: CREF { componentRef: CREF_IDENT { name: "filename", subscripts: Nil } }, tail: Cons { head: CREF { componentRef: CREF_IDENT { name: "infoFilename", subscripts: Nil } }, tail: Cons { head: CREF { componentRef: CREF_IDENT { name: "acceptedGram", subscripts: Nil } }, tail: Cons { head: CREF { componentRef: CREF_IDENT { name: "languageStandardInt", subscripts: Nil } }, tail: Cons { head: CREF { componentRef: CREF_IDENT { name: "runningTestsuite", subscripts: Nil } }, tail: Nil } } } } }, annotation_: Some(ANNOTATION { elementArgs: Cons { head: MODIFICATION { finalPrefix: false, eachPrefix: NON_EACH, path: IDENT { name: "Library" }, modification: Some(CLASSMOD { elementArgLst: Nil, eqMod: EQMOD { exp: ARRAY { arrayExp: Cons { head: STRING { value: "omparse" }, tail: Cons { head: STRING { value: "omantlr3" }, tail: Cons { head: STRING { value: "omcruntime" }, tail: Nil } } } }, info: SourceInfo { fileName: "/home/martin/OpenModelica/OMCompiler/Compiler/FrontEnd/ParserExt.mo", isReadOnly: false, lineNumberStart: 72, columnNumberStart: 145, lineNumberEnd: 72, columnNumberEnd: 181, lastModification: 0.0 } } }), comment: None, info: SourceInfo { fileName: "/home/martin/OpenModelica/OMCompiler/Compiler/FrontEnd/ParserExt.mo", isReadOnly: false, lineNumberStart: 72, columnNumberStart: 137, lineNumberEnd: 72, columnNumberEnd: 181, lastModification: 0.0 } }, tail: Nil } }) }, annotation: None }
-    Ok(outStatements)
+/// Wrap [`parser::parse`]'s `Box<dyn Error>` into an `anyhow::Error` so
+/// the MetaModelica-facing signatures (which return `anyhow::Result`)
+/// can use `?` directly.
+fn run_parse(src: &str, filename: &str, grammar: Grammar) -> Result<Absyn::Program> {
+    parser::parse(src, filename, grammar).map_err(|e| anyhow!(e.to_string()))
 }
 
-pub fn parsestring(mut r#str: ArcStr, mut infoFilename: ArcStr, mut acceptedGram: i32, mut languageStandardInt: i32, mut strict: bool, mut runningTestsuite: bool) -> Result<Absyn::Program> {
-    let mut outProgram: Absyn::Program;
-    todo!(); // ExternalSection { decl: EXTERNALDECL { funcName: Some("ParserExt_parsestring"), lang: Some("C"), output_: Some(CREF_IDENT { name: "outProgram", subscripts: Nil }), args: Cons { head: CREF { componentRef: CREF_IDENT { name: "str", subscripts: Nil } }, tail: Cons { head: CREF { componentRef: CREF_IDENT { name: "infoFilename", subscripts: Nil } }, tail: Cons { head: CREF { componentRef: CREF_IDENT { name: "acceptedGram", subscripts: Nil } }, tail: Cons { head: CREF { componentRef: CREF_IDENT { name: "languageStandardInt", subscripts: Nil } }, tail: Cons { head: CREF { componentRef: CREF_IDENT { name: "strict", subscripts: Nil } }, tail: Cons { head: CREF { componentRef: CREF_IDENT { name: "runningTestsuite", subscripts: Nil } }, tail: Nil } } } } } }, annotation_: Some(ANNOTATION { elementArgs: Cons { head: MODIFICATION { finalPrefix: false, eachPrefix: NON_EACH, path: IDENT { name: "Library" }, modification: Some(CLASSMOD { elementArgLst: Nil, eqMod: EQMOD { exp: ARRAY { arrayExp: Cons { head: STRING { value: "omparse" }, tail: Cons { head: STRING { value: "omantlr3" }, tail: Cons { head: STRING { value: "omcruntime" }, tail: Nil } } } }, info: SourceInfo { fileName: "/home/martin/OpenModelica/OMCompiler/Compiler/FrontEnd/ParserExt.mo", isReadOnly: false, lineNumberStart: 83, columnNumberStart: 147, lineNumberEnd: 83, columnNumberEnd: 183, lastModification: 0.0 } } }), comment: None, info: SourceInfo { fileName: "/home/martin/OpenModelica/OMCompiler/Compiler/FrontEnd/ParserExt.mo", isReadOnly: false, lineNumberStart: 83, columnNumberStart: 139, lineNumberEnd: 83, columnNumberEnd: 183, lastModification: 0.0 } }, tail: Nil } }) }, annotation: None }
-    Ok(outProgram)
+pub fn parse(
+    filename: ArcStr,
+    infoFilename: ArcStr,
+    acceptedGram: i32,
+    encoding: ArcStr,
+    languageStandardInt: i32,
+    _strict: bool,
+    _runningTestsuite: bool,
+    _libraryPath: ArcStr,
+    _lveInstance: Option<i32>,
+) -> Result<Absyn::Program> {
+    // The Rust parser operates on UTF-8 `&str` directly.  Anything else
+    // would need transcoding via the `encoding_rs` crate; bail explicitly
+    // rather than silently misinterpreting the bytes.
+    if !encoding.is_empty() && !encoding.eq_ignore_ascii_case("UTF-8") && !encoding.eq_ignore_ascii_case("UTF8") {
+        return Err(anyhow!(
+            "ParserExt::parse: only UTF-8 input is supported, got encoding {:?}",
+            encoding.as_str()
+        ));
+    }
+    let src = std::fs::read_to_string(filename.as_str())
+        .with_context(|| format!("ParserExt::parse: cannot read {filename}"))?;
+    let grammar = select_grammar(acceptedGram, languageStandardInt);
+    run_parse(&src, infoFilename.as_str(), grammar)
 }
 
-pub fn parsestringexp(mut r#str: ArcStr, mut infoFilename: ArcStr, mut acceptedGram: i32, mut languageStandardInt: i32, mut runningTestsuite: bool) -> Result<GlobalScript::Statements> {
-    let mut outStatements: GlobalScript::Statements;
-    todo!(); // ExternalSection { decl: EXTERNALDECL { funcName: Some("ParserExt_parsestringexp"), lang: Some("C"), output_: Some(CREF_IDENT { name: "outStatements", subscripts: Nil }), args: Cons { head: CREF { componentRef: CREF_IDENT { name: "str", subscripts: Nil } }, tail: Cons { head: CREF { componentRef: CREF_IDENT { name: "infoFilename", subscripts: Nil } }, tail: Cons { head: CREF { componentRef: CREF_IDENT { name: "acceptedGram", subscripts: Nil } }, tail: Cons { head: CREF { componentRef: CREF_IDENT { name: "languageStandardInt", subscripts: Nil } }, tail: Cons { head: CREF { componentRef: CREF_IDENT { name: "runningTestsuite", subscripts: Nil } }, tail: Nil } } } } }, annotation_: Some(ANNOTATION { elementArgs: Cons { head: MODIFICATION { finalPrefix: false, eachPrefix: NON_EACH, path: IDENT { name: "Library" }, modification: Some(CLASSMOD { elementArgLst: Nil, eqMod: EQMOD { exp: ARRAY { arrayExp: Cons { head: STRING { value: "omparse" }, tail: Cons { head: STRING { value: "omantlr3" }, tail: Cons { head: STRING { value: "omcruntime" }, tail: Nil } } } }, info: SourceInfo { fileName: "/home/martin/OpenModelica/OMCompiler/Compiler/FrontEnd/ParserExt.mo", isReadOnly: false, lineNumberStart: 93, columnNumberStart: 145, lineNumberEnd: 93, columnNumberEnd: 181, lastModification: 0.0 } } }), comment: None, info: SourceInfo { fileName: "/home/martin/OpenModelica/OMCompiler/Compiler/FrontEnd/ParserExt.mo", isReadOnly: false, lineNumberStart: 93, columnNumberStart: 137, lineNumberEnd: 93, columnNumberEnd: 181, lastModification: 0.0 } }, tail: Nil } }) }, annotation: None }
-    Ok(outStatements)
+pub fn parsestring(
+    r#str: ArcStr,
+    infoFilename: ArcStr,
+    acceptedGram: i32,
+    languageStandardInt: i32,
+    _strict: bool,
+    _runningTestsuite: bool,
+) -> Result<Absyn::Program> {
+    let grammar = select_grammar(acceptedGram, languageStandardInt);
+    run_parse(r#str.as_str(), infoFilename.as_str(), grammar)
 }
 
-pub fn stringPath(mut r#str: ArcStr, mut infoFilename: ArcStr, mut acceptedGram: i32, mut languageStandardInt: i32, mut runningTestsuite: bool) -> Result<Arc<Absyn::Path>> {
-    let mut path: Arc<Absyn::Path>;
-    todo!(); // ExternalSection { decl: EXTERNALDECL { funcName: Some("ParserExt_stringPath"), lang: Some("C"), output_: Some(CREF_IDENT { name: "path", subscripts: Nil }), args: Cons { head: CREF { componentRef: CREF_IDENT { name: "str", subscripts: Nil } }, tail: Cons { head: CREF { componentRef: CREF_IDENT { name: "infoFilename", subscripts: Nil } }, tail: Cons { head: CREF { componentRef: CREF_IDENT { name: "acceptedGram", subscripts: Nil } }, tail: Cons { head: CREF { componentRef: CREF_IDENT { name: "languageStandardInt", subscripts: Nil } }, tail: Cons { head: CREF { componentRef: CREF_IDENT { name: "runningTestsuite", subscripts: Nil } }, tail: Nil } } } } }, annotation_: Some(ANNOTATION { elementArgs: Cons { head: MODIFICATION { finalPrefix: false, eachPrefix: NON_EACH, path: IDENT { name: "Library" }, modification: Some(CLASSMOD { elementArgLst: Nil, eqMod: EQMOD { exp: ARRAY { arrayExp: Cons { head: STRING { value: "omparse" }, tail: Cons { head: STRING { value: "omantlr3" }, tail: Cons { head: STRING { value: "omcruntime" }, tail: Nil } } } }, info: SourceInfo { fileName: "/home/martin/OpenModelica/OMCompiler/Compiler/FrontEnd/ParserExt.mo", isReadOnly: false, lineNumberStart: 103, columnNumberStart: 133, lineNumberEnd: 103, columnNumberEnd: 169, lastModification: 0.0 } } }), comment: None, info: SourceInfo { fileName: "/home/martin/OpenModelica/OMCompiler/Compiler/FrontEnd/ParserExt.mo", isReadOnly: false, lineNumberStart: 103, columnNumberStart: 125, lineNumberEnd: 103, columnNumberEnd: 169, lastModification: 0.0 } }, tail: Nil } }) }, annotation: None }
-    Ok(path)
+// ---------------------------------------------------------------------
+// The remaining entry points are interactive-mode helpers (parse a
+// single expression / path / cref / equation, or drive the .mos script
+// front-end).  The winnow parser currently only exposes a top-level
+// `stored_definition` entry point; the per-construct entry points need
+// to be added before these can be implemented properly.  Leaving them
+// as `todo!()` keeps callers honest instead of silently returning
+// garbage AST.
+// ---------------------------------------------------------------------
+
+pub fn parseexp(
+    _filename: ArcStr,
+    _infoFilename: ArcStr,
+    _acceptedGram: i32,
+    _languageStandardInt: i32,
+    _runningTestsuite: bool,
+) -> Result<GlobalScript::Statements> {
+    todo!("ParserExt::parseexp: .mos / interactive statement parsing not yet ported")
 }
 
-pub fn stringCref(mut r#str: ArcStr, mut infoFilename: ArcStr, mut acceptedGram: i32, mut languageStandardInt: i32, mut runningTestsuite: bool) -> Result<Arc<Absyn::ComponentRef>> {
-    let mut cref: Arc<Absyn::ComponentRef>;
-    todo!(); // ExternalSection { decl: EXTERNALDECL { funcName: Some("ParserExt_stringCref"), lang: Some("C"), output_: Some(CREF_IDENT { name: "cref", subscripts: Nil }), args: Cons { head: CREF { componentRef: CREF_IDENT { name: "str", subscripts: Nil } }, tail: Cons { head: CREF { componentRef: CREF_IDENT { name: "infoFilename", subscripts: Nil } }, tail: Cons { head: CREF { componentRef: CREF_IDENT { name: "acceptedGram", subscripts: Nil } }, tail: Cons { head: CREF { componentRef: CREF_IDENT { name: "languageStandardInt", subscripts: Nil } }, tail: Cons { head: CREF { componentRef: CREF_IDENT { name: "runningTestsuite", subscripts: Nil } }, tail: Nil } } } } }, annotation_: Some(ANNOTATION { elementArgs: Cons { head: MODIFICATION { finalPrefix: false, eachPrefix: NON_EACH, path: IDENT { name: "Library" }, modification: Some(CLASSMOD { elementArgLst: Nil, eqMod: EQMOD { exp: ARRAY { arrayExp: Cons { head: STRING { value: "omparse" }, tail: Cons { head: STRING { value: "omantlr3" }, tail: Cons { head: STRING { value: "omcruntime" }, tail: Nil } } } }, info: SourceInfo { fileName: "/home/martin/OpenModelica/OMCompiler/Compiler/FrontEnd/ParserExt.mo", isReadOnly: false, lineNumberStart: 113, columnNumberStart: 133, lineNumberEnd: 113, columnNumberEnd: 169, lastModification: 0.0 } } }), comment: None, info: SourceInfo { fileName: "/home/martin/OpenModelica/OMCompiler/Compiler/FrontEnd/ParserExt.mo", isReadOnly: false, lineNumberStart: 113, columnNumberStart: 125, lineNumberEnd: 113, columnNumberEnd: 169, lastModification: 0.0 } }, tail: Nil } }) }, annotation: None }
-    Ok(cref)
+pub fn parsestringexp(
+    _str: ArcStr,
+    _infoFilename: ArcStr,
+    _acceptedGram: i32,
+    _languageStandardInt: i32,
+    _runningTestsuite: bool,
+) -> Result<GlobalScript::Statements> {
+    todo!("ParserExt::parsestringexp: interactive statement parsing not yet ported")
 }
 
-pub fn stringMod(mut r#str: ArcStr, mut infoFilename: ArcStr, mut acceptedGram: i32, mut languageStandardInt: i32, mut runningTestsuite: bool) -> Result<Arc<Absyn::ElementArg>> {
-    let mut cref: Arc<Absyn::ElementArg>;
-    todo!(); // ExternalSection { decl: EXTERNALDECL { funcName: Some("ParserExt_stringMod"), lang: Some("C"), output_: Some(CREF_IDENT { name: "cref", subscripts: Nil }), args: Cons { head: CREF { componentRef: CREF_IDENT { name: "str", subscripts: Nil } }, tail: Cons { head: CREF { componentRef: CREF_IDENT { name: "infoFilename", subscripts: Nil } }, tail: Cons { head: CREF { componentRef: CREF_IDENT { name: "acceptedGram", subscripts: Nil } }, tail: Cons { head: CREF { componentRef: CREF_IDENT { name: "languageStandardInt", subscripts: Nil } }, tail: Cons { head: CREF { componentRef: CREF_IDENT { name: "runningTestsuite", subscripts: Nil } }, tail: Nil } } } } }, annotation_: Some(ANNOTATION { elementArgs: Cons { head: MODIFICATION { finalPrefix: false, eachPrefix: NON_EACH, path: IDENT { name: "Library" }, modification: Some(CLASSMOD { elementArgLst: Nil, eqMod: EQMOD { exp: ARRAY { arrayExp: Cons { head: STRING { value: "omparse" }, tail: Cons { head: STRING { value: "omantlr3" }, tail: Cons { head: STRING { value: "omcruntime" }, tail: Nil } } } }, info: SourceInfo { fileName: "/home/martin/OpenModelica/OMCompiler/Compiler/FrontEnd/ParserExt.mo", isReadOnly: false, lineNumberStart: 123, columnNumberStart: 132, lineNumberEnd: 123, columnNumberEnd: 168, lastModification: 0.0 } } }), comment: None, info: SourceInfo { fileName: "/home/martin/OpenModelica/OMCompiler/Compiler/FrontEnd/ParserExt.mo", isReadOnly: false, lineNumberStart: 123, columnNumberStart: 124, lineNumberEnd: 123, columnNumberEnd: 168, lastModification: 0.0 } }, tail: Nil } }) }, annotation: None }
-    Ok(cref)
+pub fn stringPath(
+    _str: ArcStr,
+    _infoFilename: ArcStr,
+    _acceptedGram: i32,
+    _languageStandardInt: i32,
+    _runningTestsuite: bool,
+) -> Result<Arc<Absyn::Path>> {
+    todo!("ParserExt::stringPath: no `name_path` entry point exposed on the parser yet")
 }
 
-pub fn stringEq(mut r#str: ArcStr, mut infoFilename: ArcStr, mut acceptedGram: i32, mut languageStandardInt: i32, mut runningTestsuite: bool) -> Arc<Absyn::EquationItem> {
-    let mut eq: Arc<Absyn::EquationItem>;
-    todo!(); // ExternalSection { decl: EXTERNALDECL { funcName: Some("ParserExt_stringEq"), lang: Some("C"), output_: Some(CREF_IDENT { name: "eq", subscripts: Nil }), args: Cons { head: CREF { componentRef: CREF_IDENT { name: "str", subscripts: Nil } }, tail: Cons { head: CREF { componentRef: CREF_IDENT { name: "infoFilename", subscripts: Nil } }, tail: Cons { head: CREF { componentRef: CREF_IDENT { name: "acceptedGram", subscripts: Nil } }, tail: Cons { head: CREF { componentRef: CREF_IDENT { name: "languageStandardInt", subscripts: Nil } }, tail: Cons { head: CREF { componentRef: CREF_IDENT { name: "runningTestsuite", subscripts: Nil } }, tail: Nil } } } } }, annotation_: Some(ANNOTATION { elementArgs: Cons { head: MODIFICATION { finalPrefix: false, eachPrefix: NON_EACH, path: IDENT { name: "Library" }, modification: Some(CLASSMOD { elementArgLst: Nil, eqMod: EQMOD { exp: ARRAY { arrayExp: Cons { head: STRING { value: "omparse" }, tail: Cons { head: STRING { value: "omantlr3" }, tail: Cons { head: STRING { value: "omcruntime" }, tail: Nil } } } }, info: SourceInfo { fileName: "/home/martin/OpenModelica/OMCompiler/Compiler/FrontEnd/ParserExt.mo", isReadOnly: false, lineNumberStart: 133, columnNumberStart: 129, lineNumberEnd: 133, columnNumberEnd: 165, lastModification: 0.0 } } }), comment: None, info: SourceInfo { fileName: "/home/martin/OpenModelica/OMCompiler/Compiler/FrontEnd/ParserExt.mo", isReadOnly: false, lineNumberStart: 133, columnNumberStart: 121, lineNumberEnd: 133, columnNumberEnd: 165, lastModification: 0.0 } }, tail: Nil } }) }, annotation: None }
-    eq
+pub fn stringCref(
+    _str: ArcStr,
+    _infoFilename: ArcStr,
+    _acceptedGram: i32,
+    _languageStandardInt: i32,
+    _runningTestsuite: bool,
+) -> Result<Arc<Absyn::ComponentRef>> {
+    todo!("ParserExt::stringCref: no `component_reference` entry point exposed on the parser yet")
 }
 
-pub fn startLibraryVendorExecutable(mut lvePath: ArcStr) -> (bool, Option<i32>) {
-    let mut success: bool;
-    let mut lveInstance: Option<i32>;
-    todo!(); // ExternalSection { decl: EXTERNALDECL { funcName: Some("ParserExt_startLibraryVendorExecutable"), lang: Some("C"), output_: Some(CREF_IDENT { name: "success", subscripts: Nil }), args: Cons { head: CREF { componentRef: CREF_IDENT { name: "lvePath", subscripts: Nil } }, tail: Cons { head: CREF { componentRef: CREF_IDENT { name: "lveInstance", subscripts: Nil } }, tail: Nil } }, annotation_: Some(ANNOTATION { elementArgs: Cons { head: MODIFICATION { finalPrefix: false, eachPrefix: NON_EACH, path: IDENT { name: "Library" }, modification: Some(CLASSMOD { elementArgLst: Nil, eqMod: EQMOD { exp: ARRAY { arrayExp: Cons { head: STRING { value: "omparse" }, tail: Cons { head: STRING { value: "omantlr3" }, tail: Cons { head: STRING { value: "omcruntime" }, tail: Nil } } } }, info: SourceInfo { fileName: "/home/martin/OpenModelica/OMCompiler/Compiler/FrontEnd/ParserExt.mo", isReadOnly: false, lineNumberStart: 141, columnNumberStart: 104, lineNumberEnd: 141, columnNumberEnd: 140, lastModification: 0.0 } } }), comment: None, info: SourceInfo { fileName: "/home/martin/OpenModelica/OMCompiler/Compiler/FrontEnd/ParserExt.mo", isReadOnly: false, lineNumberStart: 141, columnNumberStart: 96, lineNumberEnd: 141, columnNumberEnd: 140, lastModification: 0.0 } }, tail: Nil } }) }, annotation: None }
-    (success, lveInstance)
+pub fn stringMod(
+    _str: ArcStr,
+    _infoFilename: ArcStr,
+    _acceptedGram: i32,
+    _languageStandardInt: i32,
+    _runningTestsuite: bool,
+) -> Result<Arc<Absyn::ElementArg>> {
+    todo!("ParserExt::stringMod: no `element_modification` entry point exposed on the parser yet")
 }
 
-pub fn checkLVEToolLicense(mut lveInstance: Option<i32>, mut packageName: ArcStr) -> bool {
-    let mut status: bool;
-    todo!(); // ExternalSection { decl: EXTERNALDECL { funcName: Some("ParserExt_checkLVEToolLicense"), lang: Some("C"), output_: Some(CREF_IDENT { name: "status", subscripts: Nil }), args: Cons { head: CREF { componentRef: CREF_IDENT { name: "lveInstance", subscripts: Nil } }, tail: Cons { head: CREF { componentRef: CREF_IDENT { name: "packageName", subscripts: Nil } }, tail: Nil } }, annotation_: Some(ANNOTATION { elementArgs: Cons { head: MODIFICATION { finalPrefix: false, eachPrefix: NON_EACH, path: IDENT { name: "Library" }, modification: Some(CLASSMOD { elementArgLst: Nil, eqMod: EQMOD { exp: ARRAY { arrayExp: Cons { head: STRING { value: "omparse" }, tail: Cons { head: STRING { value: "omantlr3" }, tail: Cons { head: STRING { value: "omcruntime" }, tail: Nil } } } }, info: SourceInfo { fileName: "/home/martin/OpenModelica/OMCompiler/Compiler/FrontEnd/ParserExt.mo", isReadOnly: false, lineNumberStart: 149, columnNumberStart: 98, lineNumberEnd: 149, columnNumberEnd: 134, lastModification: 0.0 } } }), comment: None, info: SourceInfo { fileName: "/home/martin/OpenModelica/OMCompiler/Compiler/FrontEnd/ParserExt.mo", isReadOnly: false, lineNumberStart: 149, columnNumberStart: 90, lineNumberEnd: 149, columnNumberEnd: 134, lastModification: 0.0 } }, tail: Nil } }) }, annotation: None }
-    status
+pub fn stringEq(
+    _str: ArcStr,
+    _infoFilename: ArcStr,
+    _acceptedGram: i32,
+    _languageStandardInt: i32,
+    _runningTestsuite: bool,
+) -> Arc<Absyn::EquationItem> {
+    todo!("ParserExt::stringEq: no `equation` entry point exposed on the parser yet")
 }
 
-pub fn checkLVEToolFeature(mut lveInstance: Option<i32>, mut feature: ArcStr) -> bool {
-    let mut status: bool;
-    todo!(); // ExternalSection { decl: EXTERNALDECL { funcName: Some("ParserExt_checkLVEToolFeature"), lang: Some("C"), output_: Some(CREF_IDENT { name: "status", subscripts: Nil }), args: Cons { head: CREF { componentRef: CREF_IDENT { name: "lveInstance", subscripts: Nil } }, tail: Cons { head: CREF { componentRef: CREF_IDENT { name: "feature", subscripts: Nil } }, tail: Nil } }, annotation_: Some(ANNOTATION { elementArgs: Cons { head: MODIFICATION { finalPrefix: false, eachPrefix: NON_EACH, path: IDENT { name: "Library" }, modification: Some(CLASSMOD { elementArgLst: Nil, eqMod: EQMOD { exp: ARRAY { arrayExp: Cons { head: STRING { value: "omparse" }, tail: Cons { head: STRING { value: "omantlr3" }, tail: Cons { head: STRING { value: "omcruntime" }, tail: Nil } } } }, info: SourceInfo { fileName: "/home/martin/OpenModelica/OMCompiler/Compiler/FrontEnd/ParserExt.mo", isReadOnly: false, lineNumberStart: 157, columnNumberStart: 94, lineNumberEnd: 157, columnNumberEnd: 130, lastModification: 0.0 } } }), comment: None, info: SourceInfo { fileName: "/home/martin/OpenModelica/OMCompiler/Compiler/FrontEnd/ParserExt.mo", isReadOnly: false, lineNumberStart: 157, columnNumberStart: 86, lineNumberEnd: 157, columnNumberEnd: 130, lastModification: 0.0 } }, tail: Nil } }) }, annotation: None }
-    status
+// ---------------------------------------------------------------------
+// Library Vendor Executable (LVE) hooks.  These wrap a proprietary
+// shared library used by some commercial libraries to validate license
+// tokens; OpenModelica's open-source builds disable the feature by
+// returning "not started".  Mirror that behaviour here so unrelated
+// flows still type-check without dragging in dlopen plumbing.
+// ---------------------------------------------------------------------
+
+pub fn startLibraryVendorExecutable(_lvePath: ArcStr) -> (bool, Option<i32>) {
+    (false, None)
 }
 
-pub fn stopLibraryVendorExecutable(mut lveInstance: Option<i32>) -> () {
-    todo!(); // ExternalSection { decl: EXTERNALDECL { funcName: Some("ParserExt_stopLibraryVendorExecutable"), lang: Some("C"), output_: None, args: Cons { head: CREF { componentRef: CREF_IDENT { name: "lveInstance", subscripts: Nil } }, tail: Nil }, annotation_: Some(ANNOTATION { elementArgs: Cons { head: MODIFICATION { finalPrefix: false, eachPrefix: NON_EACH, path: IDENT { name: "Library" }, modification: Some(CLASSMOD { elementArgLst: Nil, eqMod: EQMOD { exp: ARRAY { arrayExp: Cons { head: STRING { value: "omparse" }, tail: Cons { head: STRING { value: "omantlr3" }, tail: Cons { head: STRING { value: "omcruntime" }, tail: Nil } } } }, info: SourceInfo { fileName: "/home/martin/OpenModelica/OMCompiler/Compiler/FrontEnd/ParserExt.mo", isReadOnly: false, lineNumberStart: 163, columnNumberStart: 86, lineNumberEnd: 163, columnNumberEnd: 122, lastModification: 0.0 } } }), comment: None, info: SourceInfo { fileName: "/home/martin/OpenModelica/OMCompiler/Compiler/FrontEnd/ParserExt.mo", isReadOnly: false, lineNumberStart: 163, columnNumberStart: 78, lineNumberEnd: 163, columnNumberEnd: 122, lastModification: 0.0 } }, tail: Nil } }) }, annotation: None }
+pub fn checkLVEToolLicense(_lveInstance: Option<i32>, _packageName: ArcStr) -> bool {
+    false
+}
+
+pub fn checkLVEToolFeature(_lveInstance: Option<i32>, _feature: ArcStr) -> bool {
+    false
+}
+
+pub fn stopLibraryVendorExecutable(_lveInstance: Option<i32>) -> () {
     ()
 }
-

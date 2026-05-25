@@ -9837,7 +9837,14 @@ fn record_field_tys_from_scrutinee_ctor<'a>(
     top_level: &'a BTreeMap<String, NameNode<'a>>,
 ) -> Option<Vec<(String, Ty)>> {
     let mut bases: Vec<String> = Vec::new();
-    match scrut_ty {
+    // Peel Arc / Box / Mutable wrappers to reach the underlying enum/struct.
+    fn peel<'a>(t: &'a Ty) -> &'a Ty {
+        match t {
+            Ty::Generic(_, args) => args.first().map(peel).unwrap_or(t),
+            other => other,
+        }
+    }
+    match peel(scrut_ty) {
         Ty::RustEnum(q) | Ty::AliasTo(q) | Ty::RustStruct(q) => {
             bases.push(q.clone());
             if let Some((parent, _)) = q.rsplit_once('.') {
@@ -10896,8 +10903,33 @@ fn render_shallow<'a>(
             let folded_parent_qname: Option<String> = (|| {
                 let qname = resolved_qname.as_deref()?;
                 if !qname.contains('.') { return None; }
-                let parent = qname.rsplit_once('.').map(|(p, _)| p.to_owned())?;
-                let parent_node = lookup_node(&parent, top_level)?;
+                let parent_str = qname.rsplit_once('.').map(|(p, _)| p.to_owned())?;
+                // Look up parent directly, falling back to alias-aware walk
+                // for import-qualified names like `Sets.DISJOINT_SETS` whose
+                // parent is reachable only via an `extends`/`import` alias
+                // (e.g. canonical `DisjointSets.Sets`).
+                let (canonical_parent, parent_node) = match lookup_node(&parent_str, top_level) {
+                    Some(n) => (parent_str.clone(), n),
+                    None => crate::typedexp::walk_dotted_with_imports(&parent_str, top_level, 0)
+                        // Last-resort: use the scrutinee's static type. When
+                        // the pattern is a bare or alias-qualified constructor
+                        // (e.g. `Sets.DISJOINT_SETS` from an `extends`-inherited
+                        // uniontype), the parent's canonical qname isn't
+                        // directly reachable from the import scope here, but
+                        // the value's own type already names it.
+                        .or_else(|| {
+                            let scrut_qname = match scrut_ty {
+                                Ty::AliasTo(q) | Ty::RustStruct(q) | Ty::RustEnum(q) => Some(q.clone()),
+                                Ty::Generic(_, args) => args.first().and_then(|t| match t {
+                                    Ty::AliasTo(q) | Ty::RustStruct(q) | Ty::RustEnum(q) => Some(q.clone()),
+                                    _ => None,
+                                }),
+                                _ => None,
+                            }?;
+                            let n = lookup_node(&scrut_qname, top_level)?;
+                            Some((scrut_qname, n))
+                        })?,
+                };
                 let NodeKind::Class(c) = &parent_node.kind else { return None };
                 if !matches!(c.restriction, Absyn::Restriction::R_UNIONTYPE) { return None; }
                 if uniontype_needs_mod(parent_node) { return None; }
@@ -10905,7 +10937,7 @@ fn render_shallow<'a>(
                     matches!(&ch.kind, NodeKind::Class(cc)
                         if matches!(cc.restriction, Absyn::Restriction::R_RECORD | Absyn::Restriction::R_METARECORD { .. }))
                 }).count();
-                if record_count == 1 { Some(parent) } else { None }
+                if record_count == 1 { Some(canonical_parent) } else { None }
             })();
             let rust_ctor_raw = if let Some(p) = &folded_parent_qname {
                 ctx.shorten(p)

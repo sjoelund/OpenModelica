@@ -5646,6 +5646,11 @@ fn emit_reduction<'a>(
                 let range_s = emit_exp(&it.range, is_const, ctx, top_level);
                 let part = match it.range.ty() {
                     Ty::List(_) => format!("(&({range_s})).into_iter()"),
+                    // Array<T> = Rc<RefCell<Vec<T>>>; iterate through .borrow().
+                    // Clone elements so the loop body owns its value, matching
+                    // the List branch and the open_for() helper used by
+                    // Combine iteration.
+                    Ty::Array(_) => format!("({range_s}).borrow().iter().cloned()"),
                     _ => format!("({range_s}).into_iter()"),
                 };
                 if i == 0 {

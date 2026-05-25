@@ -6361,6 +6361,22 @@ fn emit_var<'a>(
         }
     };
 
+    // If the package portion resolves to a `pub fn`/`pub const fn` getter for
+    // a non-Sync constant (see `collect_const_fn_getters`) AND we have
+    // subsequent field accesses (`.returnType`, etc.), inject `()` here so
+    // the field chain runs on the *called* value rather than on the function-
+    // item type itself. The bare-reference case (no field segments) is
+    // handled instead by the Var arm in emit_exp.
+    let base = if !field_segs.is_empty()
+        && !pkg_dotted.is_empty()
+        && let Some(qn) = resolve_call_qname(&pkg_dotted, ctx, top_level)
+        && ctx.const_fn_getters.contains(&qn)
+    {
+        format!("{base}()")
+    } else {
+        base
+    };
+
     // Emit field access for the remaining segments.
     //
     // Special case: if the base is a single local variable known to currently

@@ -7557,15 +7557,44 @@ fn canonicalize_call_funcs<'a>(exp: TypedExp, module_prefix: &str, top_level: &'
             // a member of the *package* `DAE`, not the record. Walk the
             // scope chain manually with plain `lookup_node` instead.
             let resolved = (|| -> Option<(String, &NameNode<'_>)> {
+                // Helper: a lookup that follows Import nodes to their target.
+                // Inside a module, a named/qual import registers a child node
+                // (e.g. `NFDimension.Variability`) whose kind is `Import`, not
+                // `Class`. We must follow it to the actual class so the
+                // `is_type_like` check below sees the real declaration.
+                let follow = |start_qname: String, n: &'a NameNode<'a>| -> Option<(String, &'a NameNode<'a>)> {
+                    if let NodeKind::Import(m) = &n.kind {
+                        let local = start_qname.rsplit('.').next().unwrap_or(&start_qname);
+                        let target_dotted: Option<String> = match &m.import {
+                            Absyn::Import::NAMED_IMPORT { path, .. }
+                            | Absyn::Import::QUAL_IMPORT { path } => Some(path_to_dotted(path)),
+                            Absyn::Import::GROUP_IMPORT { prefix, groups } => {
+                                let prefix_str = path_to_dotted(prefix);
+                                (&**groups).into_iter().find_map(|g| match g {
+                                    Absyn::GroupImport::GROUP_IMPORT_NAME { name } if &**name == local =>
+                                        Some(format!("{prefix_str}.{name}")),
+                                    Absyn::GroupImport::GROUP_IMPORT_RENAME { rename, name } if &**rename == local =>
+                                        Some(format!("{prefix_str}.{name}")),
+                                    _ => None,
+                                })
+                            }
+                            Absyn::Import::UNQUAL_IMPORT { .. } => None,
+                        };
+                        target_dotted
+                            .and_then(|t| lookup_node(&t, top_level).map(|tn| (t, tn)))
+                    } else {
+                        Some((start_qname, n))
+                    }
+                };
                 if let Some(n) = lookup_node(head, top_level) {
-                    return Some((head.clone(), n));
+                    if let Some(r) = follow(head.clone(), n) { return Some(r); }
                 }
                 if !module_prefix.is_empty() {
                     let mut parts: Vec<&str> = module_prefix.split('.').collect();
                     while !parts.is_empty() {
                         let candidate = format!("{}.{head}", parts.join("."));
                         if let Some(n) = lookup_node(&candidate, top_level) {
-                            return Some((candidate, n));
+                            if let Some(r) = follow(candidate, n) { return Some(r); }
                         }
                         parts.pop();
                     }

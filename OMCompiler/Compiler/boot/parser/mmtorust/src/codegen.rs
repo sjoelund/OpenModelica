@@ -12276,10 +12276,17 @@ fn emit_stmt<'a>(
                 writeln!(out, "{indent}}}").unwrap();
             } else {
                 let escaped_vars: Vec<String> = yield_vars.iter().map(|n| escape_ident(n)).collect();
-                let yield_tuple = if yield_vars.len() == 1 {
-                    format!("({},)", escaped_vars[0])
+                // Yield via `.clone()` so the else branch (which reads the
+                // pre-try value of these vars) still sees an owned value.
+                // Without this, building `(exp,)` would move out of `exp` and
+                // the Err arm's `exp.clone()` would fail with E0382.
+                let yielded_exprs: Vec<String> = escaped_vars.iter()
+                    .map(|n| format!("{n}.clone()"))
+                    .collect();
+                let yield_tuple = if yielded_exprs.len() == 1 {
+                    format!("({},)", yielded_exprs[0])
                 } else {
-                    format!("({})", escaped_vars.join(", "))
+                    format!("({})", yielded_exprs.join(", "))
                 };
                 let temp_names: Vec<String> = (0..yield_vars.len())
                     .map(|i| format!("__try{label_n}_o{i}"))

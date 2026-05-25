@@ -12850,11 +12850,34 @@ fn fmt_ty(ty: &Ty, ctx: &mut GenCtx) -> String {
         Ty::RustUnitVariant => "()".to_owned(),
         Ty::Enumeration(name) => ctx.shorten(name),
         Ty::RustStruct(name) => {
-            let short = ctx.shorten(name);
-            if ctx.recursive_types.contains(name.as_str()) {
-                format!("Arc<{short}>")
+            // Single-record uniontypes at file top level have their record's
+            // hierarchy-resolved type set to `Ty::RustStruct(<uniontype-qname>)`
+            // (see the uniontype seeding in hierarchy.rs). The actual Rust
+            // emission is `pub struct <Name>` inside the file's own module
+            // `<Name>.rs` — so from another file, an `import Local = <Name>;`
+            // binds the *module*, and the type is reached as `Local::<Name>`.
+            // `shorten` matches the named import and returns just `Local`, so
+            // we need the same `::<Name>` doubling the RustEnum branch applies.
+            //
+            // We only double for the top-level same-name case: nested records
+            // (`UnionType.Record1`) already shorten to `UnionType::Record1`,
+            // which is correct.
+            let first = name.split('.').next().unwrap_or(name);
+            let last = name.rsplit('.').next().unwrap_or(name);
+            let shortened = ctx.shorten(name);
+            let in_own_mod = ctx.current_path.last().map(|p| p == last).unwrap_or(false);
+            let needs_doubling = !in_own_mod && !ctx.no_mod_uniontypes.contains(name.as_str()) && (
+                (ctx.top_level_uniontype_names.contains(first) && first != ctx.top_name && first == last)
+            );
+            let base = if needs_doubling {
+                format!("{shortened}::{last}")
             } else {
-                short
+                shortened
+            };
+            if ctx.recursive_types.contains(name.as_str()) {
+                format!("Arc<{base}>")
+            } else {
+                base
             }
         }
         Ty::RustEnum(name) | Ty::AliasTo(name) => {

@@ -8598,6 +8598,13 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
                 // local binding. Save/restore around the arm to keep
                 // sibling arms isolated.
                 let saved_fn_env_vars_mc = ctx.fn_env_vars.clone();
+                // Each matchcontinue arm is a fresh closure scope. Arm-local
+                // declarations and assignments must not pollute the outer
+                // function's initialised-vars map: a same-named local in arm 1
+                // being assigned would otherwise make arm 2's shadow logic
+                // emit `let mut x: T = x.clone();`, reading the outer (still
+                // uninitialised) binding.
+                let saved_fn_initialized_vars_mc = ctx.fn_initialized_vars.clone();
                 for (n, t, _, _) in &case.locals {
                     if !matches!(t, Ty::Unknown) {
                         ctx.fn_env_vars.insert(n.clone(), t.clone());
@@ -8795,6 +8802,7 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
                 ctx.variants = saved_variants;
                 ctx.variant_shapes = saved_shapes;
                 ctx.fn_env_vars = saved_fn_env_vars_mc;
+                ctx.fn_initialized_vars = saved_fn_initialized_vars_mc;
             }
             s.push_str("        bail!(\"matchcontinue: no arm matched\")\n");
             s.push_str("    }");
@@ -11735,6 +11743,13 @@ fn emit_stmt<'a>(
                         }
                     let scrut_expr = coerce_assign_expr(scrut_expr, &scrut_ty, lhs_ty.as_ref());
                     writeln!(out, "{indent}{} = {scrut_expr};", escape_ident(name)).unwrap();
+                    // Track that this function-scope variable now holds a value.
+                    // Used by the matchcontinue-arm shadow logic (see
+                    // `init_from_outer`) to decide whether to seed the arm-local
+                    // shadow with `id.clone()` or leave it bare — the latter
+                    // would propagate the outer's pre-init state, causing E0381
+                    // when the arm reads `id` before assigning it again.
+                    ctx.fn_initialized_vars.insert(name.clone());
                     return;
                 }
             // Special case: tuple of plain variables, all already in scope. Emit a
@@ -11761,6 +11776,11 @@ fn emit_stmt<'a>(
                             for _ in slots.len()..tys.len() { slots.push("_".to_owned()); }
                         }
                     writeln!(out, "{indent}({}) = {scrut_expr};", slots.join(", ")).unwrap();
+                    for p in pats {
+                        if let TypedPat::Var(n) = p {
+                            ctx.fn_initialized_vars.insert(n.clone());
+                        }
+                    }
                     return;
                 }
             }

@@ -9480,9 +9480,29 @@ fn emit_pat_with_implicit_bind_md<'a>(pat: &TypedPat, allow_implicit_bind: bool,
             // record was folded into the parent struct's Rust path (no enum
             // wrapper), so shorten the parent qname rather than the record's. Without
             // this the pattern emits `Parent::Record` which doesn't exist (E0223).
+            // Resolve `name` to its canonical hierarchy path so the emitted
+            // Rust path reflects nested-uniontype structure (e.g.
+            // `ClassTree.FLAT_TREE` → `NFClassTree.ClassTree.FLAT_TREE` once
+            // import aliases and the inner `uniontype ClassTree` are walked).
+            // Used both by the folded-parent detection below (so it can locate
+            // a uniontype parent reachable only via import alias) and by the
+            // shorten-name path further down.
+            let pkg_prefix_for_lookup = if ctx.current_path.is_empty() {
+                ctx.top_name.clone()
+            } else {
+                format!("{}.{}", ctx.top_name, ctx.current_path.join("."))
+            };
+            let canonical_ctor_name: String = if name.contains('.') {
+                crate::typedexp::resolve_call_node(name, top_level, &pkg_prefix_for_lookup)
+                    .map(|(q, _)| q)
+                    .or_else(|| lookup_record_through_unions(name, top_level).map(|(q, _)| q))
+                    .unwrap_or_else(|| name.clone())
+            } else {
+                name.clone()
+            };
             let folded_parent_qname: Option<String> = (|| {
-                if !name.contains('.') { return None; }
-                let parent = name.rsplit_once('.').map(|(p, _)| p.to_owned())?;
+                if !canonical_ctor_name.contains('.') { return None; }
+                let parent = canonical_ctor_name.rsplit_once('.').map(|(p, _)| p.to_owned())?;
                 let parent_node = lookup_node(&parent, top_level)?;
                 let NodeKind::Class(c) = &parent_node.kind else { return None };
                 if !matches!(c.restriction, Absyn::Restriction::R_UNIONTYPE) { return None; }
@@ -9543,7 +9563,7 @@ fn emit_pat_with_implicit_bind_md<'a>(pat: &TypedPat, allow_implicit_bind: bool,
             let rust_raw = match ty {
                 Ty::RustStruct(qname) if name.contains('.') => shorten_struct_qname(ctx, qname, name),
                 _ if folded_parent_qname.is_some() => ctx.shorten(folded_parent_qname.as_ref().unwrap()),
-                _ if name.contains('.') => ctx.shorten(name),
+                _ if name.contains('.') => ctx.shorten(&canonical_ctor_name),
                 _ => normalize_builtin_ctor_name(name),
             };
             let rust = escape_ident(&rust_raw);

@@ -559,6 +559,50 @@ fn promote_variant_to_enum_ty(ty: Ty, top_level: &BTreeMap<String, NameNode<'_>>
     }
 }
 
+/// Rewrite a dotted call name whose head segment is a local variable into a
+/// type-qualified call. MetaModelica's `obj.member(args)` syntax desugars to
+/// looking up `member` in the *type of `obj`* — i.e. for `cls : Class`, the
+/// expression `cls.setSections(s, c)` denotes the function `Class.setSections`
+/// applied to `(s, c)`. The user is responsible for passing `obj` explicitly
+/// when required (no implicit self).
+///
+/// If `func`'s head segment names a local binding in `env` whose type carries
+/// a qname (record / uniontype / type alias), and the resulting `<TyQname>.<tail>`
+/// resolves to a real node in the hierarchy, return the rewritten name. Otherwise
+/// return `None` and let the caller fall through to normal resolution.
+///
+/// This is only invoked for dotted names with at least one `.`; bare names cannot
+/// be method-style calls.
+fn rewrite_method_call_head<'a>(
+    func: &str,
+    env: &HashMap<String, Ty>,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+    pkg_prefix: &str,
+) -> Option<String> {
+    let (head, tail) = func.split_once('.')?;
+    let head_ty = env.get(head)?;
+    let qname = match head_ty {
+        Ty::RustStruct(n) | Ty::RustEnum(n) | Ty::Enumeration(n) | Ty::ExternalObject(n) => n.clone(),
+        // `AliasTo(n)` is a single-record uniontype that aliases its sole record.
+        // Use `n` (the record's qname) which carries the member functions.
+        Ty::AliasTo(n) => n.clone(),
+        // Generic instantiations: the package containing member functions is the
+        // generic head, e.g. `ExpandableArray<Expression>` -> `ExpandableArray`.
+        Ty::Generic(n, _) => n.clone(),
+        // Variant of a multi-record uniontype: member functions live on the
+        // parent uniontype.
+        Ty::UnionTypeVariant(parent, _) => parent.clone(),
+        _ => return None,
+    };
+    let candidate = format!("{qname}.{tail}");
+    // Confirm the rewritten path resolves to a node in the hierarchy. If not,
+    // fall back to letting normal resolution try its own path (named imports,
+    // wildcard imports, type-alias-head walks, etc.) — the head might still
+    // happen to be a package even though it shadows a local variable, though
+    // this is unusual.
+    resolve_call_node(&candidate, top_level, pkg_prefix).map(|(q, _)| q)
+}
+
 fn lookup_ty_in_hierarchy<'a>(dotted: &str, top_level: &'a BTreeMap<String, NameNode<'a>>) -> Ty {
     let mut parts = dotted.split('.');
     let first = parts.next().unwrap_or("");
@@ -1326,7 +1370,19 @@ pub fn infer_exp<'a>(
         }
 
         Absyn::Exp::CALL { function_, functionArgs, .. } => {
-            let func = cref_to_dotted(function_);
+            let mut func = cref_to_dotted(function_);
+            // Method-style call rewriting: `obj.member(args)` where `obj` is a
+            // local variable means "call `member` on the type of `obj`". The
+            // head segment of `func` is the variable name, but MetaModelica
+            // resolves the member through the variable's *type*. Rewrite the
+            // head to the type's qname so downstream call resolution finds
+            // the function. Only applied when the rewritten path resolves;
+            // otherwise we leave the original form for normal resolution.
+            if func.contains('.')
+                && let Some(rewritten) = rewrite_method_call_head(&func, env, top_level, pkg_prefix)
+            {
+                func = rewritten;
+            }
             // Detect reduction syntax `f(expr for it in range, ...)` and lower it
             // into a dedicated TypedExp::Reduction node rather than a Call with
             // missing arguments.

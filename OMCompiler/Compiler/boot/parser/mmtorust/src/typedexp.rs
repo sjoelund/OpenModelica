@@ -484,6 +484,37 @@ fn find_record_in_package_unions<'a>(
     None
 }
 
+/// Whether `func` resolves to a function class with more than one OUTPUT or
+/// INPUT_OUTPUT direction member. A single-output function whose result type
+/// happens to be a Tuple (e.g. `output tuple<A, B> branch`) returns false —
+/// the tuple is the value, not a synthesized multi-output return.
+///
+/// Used by reduction inference to apply MetaModelica's implicit "first-output"
+/// coercion only to genuine multi-output calls.
+fn function_has_multiple_outputs<'a>(
+    func: &str,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+    pkg_prefix: &str,
+) -> bool {
+    let Some((_, node)) = resolve_call_node(func, top_level, pkg_prefix) else {
+        return false;
+    };
+    let NodeKind::Class(c) = &node.kind else { return false; };
+    let members = match &c.body {
+        crate::MM::ClassDef::Parts { members, .. } | crate::MM::ClassDef::ClassExtends { members, .. } => members,
+        _ => return false,
+    };
+    let mut count: usize = 0;
+    for m in members.iter() {
+        let crate::MM::ClassMember::Component(comp) = m else { continue };
+        if matches!(comp.direction, Absyn::Direction::OUTPUT | Absyn::Direction::INPUT_OUTPUT) {
+            count += 1;
+            if count > 1 { return true; }
+        }
+    }
+    false
+}
+
 pub fn resolve_call_node<'a>(
     func: &str,
     top_level: &'a BTreeMap<String, NameNode<'a>>,
@@ -1484,7 +1515,24 @@ pub fn infer_exp<'a>(
                 // is a variant path, not a struct. Promote it to the parent
                 // `Ty::RustEnum` so that `list(...)` infers as `List<Enum>`,
                 // which `fmt_ty` renders as a valid Rust type.
-                let body_ty = promote_variant_to_enum_ty(body.ty(), top_level);
+                let raw_body_ty = promote_variant_to_enum_ty(body.ty(), top_level);
+                // MetaModelica implicit "first-output" coercion: when the body is
+                // a call to a multi-output function but the reduction (and the
+                // surrounding assignment) expects a single value, the secondary
+                // outputs are dropped. We model that by collapsing a Call's
+                // tuple result type to its first element here, so the reduction's
+                // overall type infers as `list<T>` (not `list<(T, ...)>`) — and
+                // codegen later appends `.0` to the body expression.
+                //
+                // Only Call/Constructor with a tuple-typed result is collapsed —
+                // an explicit `(a, b)` tuple body keeps its type so users can
+                // still build `list<tuple<...>>` when intended.
+                let body_ty = match (&body, &raw_body_ty) {
+                    (TypedExp::Call { func, .. }, Ty::Tuple(ts))
+                        if !ts.is_empty() && function_has_multiple_outputs(func, top_level, pkg_prefix)
+                        => ts[0].clone(),
+                    _ => raw_body_ty,
+                };
                 let ty = match func.as_str() {
                     "list" | "listReverse" => Ty::List(Box::new(body_ty.clone())),
                     "listAppend" => body_ty.clone(),

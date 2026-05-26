@@ -5669,11 +5669,46 @@ fn emit_reduction<'a>(
         let prev = ctx.fn_env_vars.insert(it.name.clone(), elem_ty);
         (it.name.clone(), prev)
     }).collect();
-    let body_s = emit_exp(body, is_const, ctx, top_level);
+    let mut body_s = emit_exp(body, is_const, ctx, top_level);
     for (name, prev) in saved_iter_tys.into_iter().rev() {
         match prev {
             Some(t) => { ctx.fn_env_vars.insert(name, t); }
             None => { ctx.fn_env_vars.remove(&name); }
+        }
+    }
+
+    // MetaModelica implicitly takes the first output of a multi-return call
+    // when the result flows into a scalar slot. The reduction body here is
+    // exactly such a slot — each iteration's value feeds the accumulator's
+    // element type (the list element, the numeric sum, etc.). If the body's
+    // typed result is a tuple but the reduction expects a single value,
+    // append `.0` so the cons/update sees the primary output. Without this,
+    // `list(obfuscateCref(c, m) for c in cs)` builds
+    // `list<(ComponentRef, Boolean)>` instead of `list<ComponentRef>`.
+    let body_is_tuple = matches!(body.ty(), Ty::Tuple(ts) if !ts.is_empty());
+    let expected_elem: Option<&Ty> = match func {
+        "list" | "listReverse" | "listAppend" => match ty {
+            Ty::List(t) => Some(t.as_ref()),
+            _ => None,
+        },
+        "array" => match ty {
+            Ty::Array(t) => Some(t.as_ref()),
+            _ => None,
+        },
+        _ => None,
+    };
+    if body_is_tuple {
+        let extract_first = match (body.ty(), expected_elem) {
+            (Ty::Tuple(ts), Some(elem)) if !matches!(elem, Ty::Unknown | Ty::TypeVar(_) | Ty::Tuple(_)) => {
+                !ts.is_empty() && &ts[0] == elem
+            }
+            // For sum/product/min/max/etc. that operate on scalars, any tuple
+            // body must collapse to its first element.
+            (Ty::Tuple(_), None) if matches!(func, "sum" | "product" | "min" | "max") => true,
+            _ => false,
+        };
+        if extract_first {
+            body_s = format!("({body_s}).0");
         }
     }
 

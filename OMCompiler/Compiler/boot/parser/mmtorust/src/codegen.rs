@@ -8592,7 +8592,18 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
                                 }
                             }
                             None => {
-                                body.push_str(&format!("            let mut {}: {ty_s};\n", escape_ident(name)));
+                                // Match MetaModelica's implicit default: every
+                                // protected local is initialised to its type's
+                                // zero before any branch runs. Without this Rust
+                                // E0381's any path that reads the local without
+                                // unconditionally assigning it first — a
+                                // common MM pattern (`if … then x := …; end if;
+                                // … use(x)`).
+                                if let Some(def) = ty_default_init_with_hier(ty, ctx, top_level) {
+                                    body.push_str(&format!("            let mut {}: {ty_s} = {def};\n", escape_ident(name)));
+                                } else {
+                                    body.push_str(&format!("            let mut {}: {ty_s};\n", escape_ident(name)));
+                                }
                             }
                         }
                     }
@@ -8961,7 +8972,14 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
                                 }
                             }
                             None => {
-                                body.push_str(&format!("            let mut {}: {ty_s};\n", escape_ident(name)));
+                                // Mirror function-locals default-init so arms
+                                // that conditionally assign protected locals
+                                // type-check on the unconditional read paths.
+                                if let Some(def) = ty_default_init_with_hier(ty, ctx, top_level) {
+                                    body.push_str(&format!("            let mut {}: {ty_s} = {def};\n", escape_ident(name)));
+                                } else {
+                                    body.push_str(&format!("            let mut {}: {ty_s};\n", escape_ident(name)));
+                                }
                             }
                         }
                     }

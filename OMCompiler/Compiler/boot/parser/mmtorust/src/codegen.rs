@@ -4837,12 +4837,32 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                     format!("{var_str}.clone()"),
                 // Other named `partial function` aliases (e.g. top-level
                 // `KeyEq`) lower to a concrete `fn(...)` pointer — that
-                // *is* `Copy`, so the move hazard above doesn't apply and
-                // we keep emitting the bare identifier. `Ty::FunctionAlias`
-                // (re-export aliases) is the same case. Concrete function
-                // references (resolved through the hierarchy above) follow
-                // the same path.
-                Ty::Function { .. } | Ty::FunctionAlias { .. } => var_str,
+                // *is* `Copy`, so the move hazard above doesn't apply.
+                // Concrete function references resolved through the
+                // hierarchy follow the same path. We DO add an
+                // `as fn(...) -> Result<...>` cast here: bare function
+                // items have a unique zero-sized type (one per function),
+                // which means match/if arms returning different functions
+                // — even ones with identical signatures, e.g. `("sum" =>
+                // evalBinaryAdd, "product" => evalBinaryMul)` in
+                // NFCeval.evalReduction — fail to unify their arm types.
+                // Coercing every fallible fn-item reference to its named
+                // `fn(...)` pointer at the value-position emission site
+                // gives all such arms the same pointer type. Rust auto-
+                // coerces fn items to fn pointers at argument-passing
+                // sites, so the cast is redundant there but harmless.
+                Ty::Function { inputs, output, .. } => {
+                    let input_tys: Vec<String> = inputs.iter().map(|i| {
+                        if ty_mentions_typevar(&i.ty) { "_".to_owned() } else { fmt_ty(&i.ty, ctx) }
+                    }).collect();
+                    let out_ty = if ty_mentions_typevar(output) {
+                        "_".to_owned()
+                    } else {
+                        fmt_ty(output, ctx)
+                    };
+                    format!("({var_str} as fn({}) -> Result<{out_ty}>)", input_tys.join(", "))
+                }
+                Ty::FunctionAlias { .. } => var_str,
                 // Inside a `const` initializer Rust can't call `.clone()` —
                 // `Clone` isn't a stable const trait yet (E0658 + "Clone is
                 // not yet stable as a const trait"). For const operands of

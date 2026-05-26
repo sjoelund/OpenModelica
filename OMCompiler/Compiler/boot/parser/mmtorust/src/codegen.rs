@@ -442,19 +442,18 @@ impl GenCtx {
     fn derives_for(&self, qname: &str) -> &'static str {
         // Interior-mutability container fields (`Mutable<T>`,
         // `Array<T>` = `Rc<RefCell<Vec<T>>>`) cannot derive
-        // `Eq`/`Ord`/`Hash` — `RefCell` is excluded by design because
-        // it breaks the immutability assumption those traits require.
-        // `PartialEq` is still derivable: we hand-roll a `Mutable<T>: PartialEq`
-        // that returns `false`, and `RefCell` itself derives `PartialEq` via
-        // a `borrow()` comparison.
-        // Otherwise emit the full algebraic set so `valueCompare`, hash
-        // containers, and `Eq`-bounded generics work.
-        // (`Real` is `OrderedFloat<f64>`, so containing a Real does not block
-        // Ord/Eq/Hash.)
+        // `Mutable<T>` and `Array<T> = Rc<RefCell<Vec<T>>>` both implement
+        // `PartialEq`/`Eq`/`PartialOrd`/`Ord` via the inner contents (see
+        // `openmodelica_util_datatypes_basic/src/Mutable.rs` and the std
+        // `RefCell` impls) but deliberately omit `Hash` — the interior
+        // value can change between hashing and use. Any type that
+        // transitively contains either of these therefore gets the
+        // full algebraic set minus `Hash`.
+        // `Real` is `OrderedFloat<f64>` and never blocks these checks.
         if self.types_containing_mutable.contains(qname)
             || self.types_containing_array.contains(qname)
         {
-            "#[derive(Clone, Debug, PartialEq)]"
+            "#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]"
         } else {
             "#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]"
         }

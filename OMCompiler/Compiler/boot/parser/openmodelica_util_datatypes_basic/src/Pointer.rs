@@ -39,6 +39,47 @@ impl<T: PartialEq> PartialEq for Pointer<T> {
     }
 }
 
+/// `Eq` follows trivially from pointer equality — `Arc::ptr_eq` is
+/// reflexive/symmetric/transitive — but we still gate it on `T: Eq` so
+/// the bound stays in lockstep with `PartialEq` for callers.
+impl<T: Eq> Eq for Pointer<T> {}
+
+/// Total order by ctor tag (`Mutable` < `Immutable`) and then by the
+/// pointer's numeric address. Used so types transitively containing a
+/// `Pointer` (e.g. anything wrapping an `NFVariable`) can derive `Ord`
+/// for hash-free containers like `BTreeMap` and the generated
+/// `valueCompare` lowering. The ordering is stable across `clone()` of
+/// the same `Pointer` because pointer-equal clones share the same
+/// `Arc::as_ptr` address.
+fn pointer_key<T>(p: &Pointer<T>) -> (u8, usize) {
+    match p {
+        Pointer::Mutable(a) => (0, Arc::as_ptr(a) as usize),
+        Pointer::Immutable(a) => (1, Arc::as_ptr(a) as usize),
+    }
+}
+
+impl<T: PartialOrd + PartialEq> PartialOrd for Pointer<T> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(pointer_key(self).cmp(&pointer_key(other)))
+    }
+}
+
+impl<T: Ord> Ord for Pointer<T> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        pointer_key(self).cmp(&pointer_key(other))
+    }
+}
+
+/// `Hash` mirrors the pointer-equality semantics: hash the ctor tag plus
+/// the pointer address. Two pointers compare equal via [`PartialEq`] iff
+/// they have the same tag and the same address, so this satisfies the
+/// `k1 == k2 ⇒ hash(k1) == hash(k2)` contract.
+impl<T> std::hash::Hash for Pointer<T> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        pointer_key(self).hash(state);
+    }
+}
+
 pub fn create<T: Clone + PartialEq>(data: T) -> Pointer<T> {
     Pointer::Mutable(Arc::new(Mutex::new(data)))
 }

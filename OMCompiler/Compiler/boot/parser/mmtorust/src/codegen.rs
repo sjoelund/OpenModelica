@@ -5910,7 +5910,21 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
             Ok(format!("Some({arg})"))
         }
         "NONE" => Ok("None".to_owned()),
-        "fail" => if is_const { Ok("{ panic!(\"fail\") }".to_owned()) } else { Ok("bail!(\"fail\")".to_owned()) },
+        "fail" => if is_const {
+            Ok("{ panic!(\"fail\") }".to_owned())
+        } else {
+            // Inside a try-block lowered to a labeled `match '__try0: { … }`,
+            // `bail!` would `return Err` out of the surrounding function —
+            // wrong for non-Result functions, and wrong even for Result fns
+            // because it skips the `else` arm. Break the labeled block with
+            // an Err instead.
+            match &ctx.qmode {
+                QMode::TryBlock(label) => {
+                    Ok(format!("break {label} Err::<_, _>(anyhow::anyhow!(\"fail\"))"))
+                }
+                _ => Ok("bail!(\"fail\")".to_owned()),
+            }
+        },
         // setGlobalRoot(index, value)
         //   MetaModelicaBuiltin.mo: writes `value` into the process-wide
         //   global-root table at the integer slot `index`. The MMC C runtime

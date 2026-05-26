@@ -80,6 +80,23 @@ impl<T> std::hash::Hash for Pointer<T> {
     }
 }
 
+/// Codegen synthesizes `Default::default()` for record fields whose type
+/// transitively involves a `Pointer<...>` (e.g. NFFunction's `status:
+/// Pointer<FunctionStatus>`, `callCounter: Pointer<Integer>`). The
+/// MetaModelica/C runtime never allocates an "empty" pointer slot — every
+/// `Pointer` is materialised by `Mutable.create(value)` or
+/// `Pointer.create(value)`. We mirror that by initialising the slot with
+/// `T::default()` boxed in a fresh `Mutable` cell, so downstream
+/// `Mutable.update` / `Mutable.access` operate against a real cell rather
+/// than panicking. The `T: Default` bound is the only one strictly
+/// required; placeholders for non-`Default` `T` would have to come from
+/// the caller anyway.
+impl<T: Default> Default for Pointer<T> {
+    fn default() -> Self {
+        Pointer::Mutable(Arc::new(Mutex::new(T::default())))
+    }
+}
+
 pub fn create<T: Clone + PartialEq>(data: T) -> Pointer<T> {
     Pointer::Mutable(Arc::new(Mutex::new(data)))
 }

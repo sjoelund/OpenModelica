@@ -6286,8 +6286,13 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
         },
         "arrayList" /* | "stringAppendList" */ => {
             // Array -> List: borrow the inner Vec, clone elements into a fresh List.
+            // Annotate the collect target so type inference doesn't stall when the
+            // result is consumed by code that doesn't itself pin the list element
+            // type (e.g. fed straight into `for x in &*arrayList(arr) { ... }`,
+            // where the loop binds a `&_` whose `_` Rust can't resolve from the
+            // body alone).
             let arg = args.first().map(|a| emit_builtin_call_arg_raw(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
-            Ok(format!("Arc::new({arg}.borrow().iter().cloned().collect())"))
+            Ok(format!("Arc::new({arg}.borrow().iter().cloned().collect::<metamodelica::List<_>>())"))
         },
         // Modelica trigonometric, exponential and square-root builtins.
         // The MetaModelica compiler accepts these bare-name builtins (declared

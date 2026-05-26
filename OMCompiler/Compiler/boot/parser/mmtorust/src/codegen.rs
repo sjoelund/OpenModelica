@@ -5100,7 +5100,17 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                     .and_then(|p| lookup_node_ty(p, top_level))
                     .map(|t| matches!(t, Ty::RustEnum(_)))
                     .unwrap_or(false);
-                let c_rust = if parent_is_enum {
+                // `parent_is_enum` only proves the parent path resolves to an enum
+                // — it does NOT prove that `last` is one of the enum's *variants*.
+                // For a *nested uniontype* like `NFClass.Prefixes`, the parent path
+                // `NFClass` is itself an enum, but `Prefixes` is a sibling uniontype
+                // module, not a variant. Detect this by looking up the qname itself
+                // and checking whether it's a uniontype (R_UNIONTYPE) declaration.
+                let last_is_nested_uniontype = lookup_node(qname, top_level)
+                    .map(|n| matches!(&n.kind, NodeKind::Class(c)
+                        if matches!(c.restriction, Absyn::Restriction::R_UNIONTYPE)))
+                    .unwrap_or(false);
+                let c_rust = if parent_is_enum && !last_is_nested_uniontype {
                     build_variant_path(parent_qname.unwrap(), last, ctx)
                 } else {
                     let first = qname.split('.').next().unwrap_or(qname);
@@ -8020,6 +8030,22 @@ fn substitute_formal_refs(exp: &TypedExp, bindings: &HashMap<String, TypedExp>) 
 fn emit_range<'a>(start: &TypedExp, step: Option<&TypedExp>, stop: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) -> String {
     let s = emit_exp(start, is_const, ctx, top_level);
     let e = emit_exp(stop, is_const, ctx, top_level);
+
+    // Modelica allows `Boolean` ranges (`false:true`), but Rust's
+    // `RangeInclusive<bool>` is not an iterator. Materialize the bool range as
+    // an explicit slice iterator: start..=stop with false<true. This matches
+    // the MM semantics: `false:false` → [false], `false:true` → [false, true],
+    // `true:true` → [true], `true:false` → [] (empty).
+    if matches!(start.ty(), Ty::Bool) && matches!(stop.ty(), Ty::Bool) {
+        // step is irrelevant for bool ranges in Modelica.
+        return format!(
+            "({{let __bs = {s}; let __be = {e}; \
+             if !__bs && !__be {{ vec![false] }} \
+             else if !__bs && __be {{ vec![false, true] }} \
+             else if __bs && __be {{ vec![true] }} \
+             else {{ Vec::<bool>::new() }}}})"
+        );
+    }
 
     match step {
         // `start:stop` — default step of 1, forward.

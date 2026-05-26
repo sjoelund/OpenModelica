@@ -18,6 +18,16 @@ impl<T: Clone + PartialEq> PartialEq for Mutable<T> {
     }
 }
 
+/// `Default` is exposed so records containing a `Mutable<T>` can themselves
+/// derive `Default` (used by the codegen lowering of `arrayCreateNoInit`
+/// when the type-witness dummy is unassigned). The default `Mutable` holds a
+/// freshly-locked `T::default()`.
+impl<T: Clone + Default> Default for Mutable<T> {
+    fn default() -> Self {
+        Mutable(Arc::from(std::sync::Mutex::new(T::default())))
+    }
+}
+
 pub fn create<T: Clone>(data: T) -> Mutable<T> {
     Mutable(Arc::from(std::sync::Mutex::new(data)))
 }

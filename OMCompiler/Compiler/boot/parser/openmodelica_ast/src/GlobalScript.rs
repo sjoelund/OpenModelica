@@ -45,6 +45,9 @@ use arcstr::{ArcStr, literal, format};
 
 use crate::Absyn;
 
+/// An Statement given in the interactive environment can either be
+/// an Algorithm statement or an expression.
+/// - GlobalScript.Statement
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Statement {
     IALG {
@@ -57,10 +60,23 @@ pub enum Statement {
 }
 pub use self::Statement::{IALG,IEXP};
 
+/// Several interactive statements are used in Modelica scripts.
+///  - GlobalScript.Statements
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Statements {
+    /// interactiveStmtLst
     pub interactiveStmtLst: Arc<metamodelica::List<Statement>>,
+    /// semicolon; true = statement ending with a semicolon. The result will not be shown in the interactive environment.
     pub semicolon: bool,
+}
+
+impl Default for Statements {
+    fn default() -> Self {
+        Self {
+            interactiveStmtLst: Default::default(),
+            semicolon: Default::default(),
+        }
+    }
 }
 
 pub type ISTMTS = Statements;

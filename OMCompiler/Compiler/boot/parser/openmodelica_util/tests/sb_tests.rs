@@ -783,13 +783,16 @@ fn partb_sbmi_cardinality_2d_sums_not_product() {
 
 /// intersection of two 1D MIs: [1:1:5] ∩ [3:1:7] = [3:1:5].
 ///
-/// Bug: SBMultiInterval::intersection causes a SIGSEGV (signal 11) when called
-/// with valid non-empty multi-intervals, even when those intervals are
-/// constructed directly (bypassing System::intMaxLit).  The crash originates
-/// inside the intersection computation before reaching any intMaxLit call.
-/// Marked `ignore` to prevent the SIGSEGV from aborting the whole test runner.
+/// Historical note: this test (and the non-overlapping variant in the
+/// SBAtomicSet section) used to SIGSEGV. The root cause was the codegen
+/// emitting the unsafe form `Dangerous::arrayCreateNoInit(size)` for all MM
+/// `arrayCreateNoInit(size, dummy)` calls. Slots stayed uninitialised, and
+/// when `intersection` returned early after computing an empty
+/// inner-interval intersection, `Vec::drop` interpreted garbage bytes as live
+/// `Arc<SBInterval>` values, corrupting the heap. The fix forwards the MM
+/// dummy to the safe runtime variant `arrayCreateNoInitWithDummy` when the
+/// dummy expression is known-initialised (here, `arrayGet(mi1.intervals, 1)`).
 #[test]
-#[ignore = "SBMultiInterval::intersection segfaults (SIGSEGV) with valid inputs"]
 fn partb_sbmi_intersection_1d_overlapping() -> anyhow::Result<()> {
     let mi1 = raw_mi1d(1, 1, 5);
     let mi2 = raw_mi1d(3, 1, 7);

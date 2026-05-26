@@ -69,12 +69,26 @@ fn start_compilation(results: Vec<Absyn::Program>) {
     // (breaking callbacks forwarded through generic helpers like
     // `List.map3`) or under-require it (breaking transitive callers of
     // `valueEq`/`listMember`).
+    //
+    // `analyze_default` is a sibling pass that computes which type
+    // parameters need a `+ Default` bound, driven by
+    // `arrayCreateNoInit(size, <unassigned dummy>)` call sites that lower
+    // to `arrayCreateDefault(size)`. The two passes share no mutable state
+    // and only read `hier.top_level`, so we run them concurrently via
+    // `rayon::join` to overlap their costs.
     let t0 = std::time::Instant::now();
-    hier.partial_eq_required = codegen::analyze_partial_eq(&hier.top_level);
+    let (partial_eq_required, default_required) = rayon::join(
+        || codegen::analyze_partial_eq(&hier.top_level),
+        || codegen::analyze_default(&hier.top_level),
+    );
+    hier.partial_eq_required = partial_eq_required;
+    hier.default_required = default_required;
     let with_eq = hier.partial_eq_required.values().filter(|s| !s.is_empty()).count();
+    let with_default = hier.default_required.values().filter(|s| !s.is_empty()).count();
     println!(
-        "PartialEq analysis: {} functions with PartialEq-bounded type params; {:.2}s",
+        "PartialEq + Default analysis: {} PartialEq-bounded, {} Default-bounded; {:.2}s",
         with_eq,
+        with_default,
         t0.elapsed().as_secs_f64(),
     );
 

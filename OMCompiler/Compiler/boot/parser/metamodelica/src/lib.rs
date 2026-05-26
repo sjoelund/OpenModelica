@@ -1245,6 +1245,24 @@ pub fn arrayCreate<A: Clone>(size: i32, initial_value: A) -> Array<A> {
     arrayFromVec(vec![initial_value; size as usize])
 }
 
+/// Creates a new array of the given size, initialized with `A::default()`.
+///
+/// Used by codegen to lower `arrayCreateNoInit(size, dummy)` when the MM
+/// dummy expression is a bare reference to a function-scope variable that
+/// is never assigned at the call point (a common MM idiom: declare a
+/// `protected SBInterval dummyi;` and pass it as the type witness only).
+/// Such a reference cannot be forwarded as a Rust value, so we discard it
+/// and rely on the `Default` impl for the element type instead. Types that
+/// lack a `Default` impl will fail to compile at the use site — the fix is
+/// to add a sensible `Default` for that type (often the "empty" or "first
+/// variant" form).
+pub fn arrayCreateDefault<A: Clone + Default>(size: i32) -> Array<A> {
+    if size <= 0 {
+        return arrayFromVec(Vec::new());
+    }
+    arrayFromVec(vec![A::default(); size as usize])
+}
+
 /// Converts an array to a list. O(n).
 pub fn arrayList<A: Clone>(arr: Array<A>) -> Arc<List<A>> {
     let mut result = Arc::new(List::Nil);

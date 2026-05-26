@@ -214,6 +214,20 @@ struct GenCtx {
     /// [`emit_function`] when formatting the signature's type parameters.
     /// Keyed by FQN (same convention as `fallible_functions`).
     partial_eq_required: BTreeMap<String, HashSet<String>>,
+    /// Per-function set of type-parameter names that need a `+ Default` bound.
+    /// Populated by [`analyze_default`] (mirrors [`analyze_partial_eq`]) and
+    /// consulted by [`emit_function`] when formatting the signature's type
+    /// parameters. Keyed by FQN.
+    default_required: BTreeMap<String, HashSet<String>>,
+    /// FQNs of `Ty::RustStruct` records that can safely derive `Default` —
+    /// every field type is itself defaultable (primitives, `Vec`/`Array`/`HashMap`,
+    /// `Arc<T>` with defaultable `T`, `Option<T>`, …). Populated by
+    /// [`compute_defaultable_struct_qnames`] before code generation.  Records
+    /// not in this set must not get `#[derive(Default)]` because the derive
+    /// requires every field to implement `Default`; uniontype enums lack a
+    /// `#[default]` variant marker so any record holding an `Arc<Enum>` field
+    /// would fail to compile.
+    defaultable_struct_qnames: HashSet<String>,
     /// Fallibility of the function currently being emitted. Set at the start
     /// of [`emit_function`] and consulted by the return-statement emitter and
     /// by the implicit-return tail in [`emit_function`] to decide whether to
@@ -311,7 +325,7 @@ enum VarShape {
 }
 
 impl GenCtx {
-    fn new(top_name: &str, current_crate: Option<String>, crate_map: BTreeMap<String, String>, top_level_uniontype_names: HashSet<String>, recursive_types: BTreeSet<String>, types_containing_mutable: BTreeSet<String>, types_containing_array: BTreeSet<String>, fn_type_vars: BTreeMap<String, Vec<String>>, fallible_functions: BTreeSet<String>, partial_eq_required: BTreeMap<String, HashSet<String>>) -> Self {
+    fn new(top_name: &str, current_crate: Option<String>, crate_map: BTreeMap<String, String>, top_level_uniontype_names: HashSet<String>, recursive_types: BTreeSet<String>, types_containing_mutable: BTreeSet<String>, types_containing_array: BTreeSet<String>, fn_type_vars: BTreeMap<String, Vec<String>>, fallible_functions: BTreeSet<String>, partial_eq_required: BTreeMap<String, HashSet<String>>, default_required: BTreeMap<String, HashSet<String>>, defaultable_struct_qnames: HashSet<String>) -> Self {
         Self {
             top_name: top_name.to_owned(),
             current_path: Vec::new(),
@@ -342,6 +356,8 @@ impl GenCtx {
             variant_shapes: HashMap::new(),
             fallible_functions,
             partial_eq_required,
+            default_required,
+            defaultable_struct_qnames,
             current_fn_fallible: true,
             current_fn_qname: String::new(),
             nested_partial_aliases: BTreeSet::new(),
@@ -903,6 +919,12 @@ pub fn generate_all(hier: &InstanceHierarchy<'_>, output_dir: &str) -> std::io::
         collect_fn_type_vars(top_node, top_name, &mut fn_type_vars);
     }
 
+    // Compute the set of record qnames whose fields are all defaultable, so
+    // each such record can carry `#[derive(Default)]`. Used by codegen to add
+    // `Default` only to records that won't break on the derive (uniontype
+    // enums have no `#[default]` marker and so any record holding one fails).
+    let defaultable_struct_qnames = compute_defaultable_struct_qnames(&hier.top_level);
+
     // Group top-level classes by their output directory.
     let mut dir_classes: BTreeMap<String, Vec<(&str, &NameNode<'_>)>> = BTreeMap::new();
     for (name, node) in &hier.top_level {
@@ -974,7 +996,7 @@ pub fn generate_all(hier: &InstanceHierarchy<'_>, output_dir: &str) -> std::io::
             eprintln!("[mmtorust] codegen start {file_path}");
         }
         let file_t0 = std::time::Instant::now();
-        let content = generate_file(name, node, &crate_map, current_crate, &top_level_uniontype_names, hier.recursive_types.clone(), hier.types_containing_mutable.clone(), hier.types_containing_array.clone(), &no_mod_uniontypes, &hier.top_level, &fn_type_vars, &hier.fallible_functions, &hier.partial_eq_required);
+        let content = generate_file(name, node, &crate_map, current_crate, &top_level_uniontype_names, hier.recursive_types.clone(), hier.types_containing_mutable.clone(), hier.types_containing_array.clone(), &no_mod_uniontypes, &hier.top_level, &fn_type_vars, &hier.fallible_functions, &hier.partial_eq_required, &hier.default_required, &defaultable_struct_qnames);
         let file_elapsed = file_t0.elapsed();
         if trace_codegen {
             eprintln!("[mmtorust] codegen done  {file_path} ({:.2}s)", file_elapsed.as_secs_f64());
@@ -1167,8 +1189,8 @@ fn collect_no_mod_uniontypes(nodes: &BTreeMap<String, NameNode<'_>>, prefix: &st
     }
 }
 
-fn generate_file<'a>(top_name: &str, node: &NameNode<'_>, crate_map: &BTreeMap<String, String>, current_crate: Option<String>, top_level_uniontype_names: &HashSet<String>, recursive_types: BTreeSet<String>, types_containing_mutable: BTreeSet<String>, types_containing_array: BTreeSet<String>, no_mod_uniontypes: &HashSet<String>, top_level: &'a BTreeMap<String, NameNode<'a>>, fn_type_vars: &BTreeMap<String, Vec<String>>, fallible_functions: &BTreeSet<String>, partial_eq_required: &BTreeMap<String, HashSet<String>>) -> String {
-    let mut ctx = GenCtx::new(top_name, current_crate, crate_map.clone(), top_level_uniontype_names.clone(), recursive_types, types_containing_mutable, types_containing_array, fn_type_vars.clone(), fallible_functions.clone(), partial_eq_required.clone());
+fn generate_file<'a>(top_name: &str, node: &NameNode<'_>, crate_map: &BTreeMap<String, String>, current_crate: Option<String>, top_level_uniontype_names: &HashSet<String>, recursive_types: BTreeSet<String>, types_containing_mutable: BTreeSet<String>, types_containing_array: BTreeSet<String>, no_mod_uniontypes: &HashSet<String>, top_level: &'a BTreeMap<String, NameNode<'a>>, fn_type_vars: &BTreeMap<String, Vec<String>>, fallible_functions: &BTreeSet<String>, partial_eq_required: &BTreeMap<String, HashSet<String>>, default_required: &BTreeMap<String, HashSet<String>>, defaultable_struct_qnames: &HashSet<String>) -> String {
+    let mut ctx = GenCtx::new(top_name, current_crate, crate_map.clone(), top_level_uniontype_names.clone(), recursive_types, types_containing_mutable, types_containing_array, fn_type_vars.clone(), fallible_functions.clone(), partial_eq_required.clone(), default_required.clone(), defaultable_struct_qnames.clone());
     ctx.no_mod_uniontypes = no_mod_uniontypes.clone();
     // Pre-walk the *whole* hierarchy (not just this file's node) so that
     // function-nested partial-function aliases are recognised regardless of
@@ -1906,6 +1928,22 @@ fn emit_uniontype<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM:
                 }
             }
             writeln!(out, "{inner}}}").unwrap();
+            // Emit a manual `Default` impl when this enum is in the
+            // defaultable set. The codegen seed picks any unit variant
+            // (`Ty::RustUnitVariant`) as the default-payload-free choice —
+            // we redo that selection here to avoid recomputing the analysis.
+            // Required so e.g. `Arc<JSON>: Default` works (transitively
+            // needed by `UnorderedMap::add` callers that flow `JSON` into a
+            // generic `T: Default`).
+            if ctx.defaultable_struct_qnames.contains(qname) {
+                let default_variant = node.children.iter()
+                    .find_map(|(n, child)| matches!(child.ty, Ty::RustUnitVariant).then(|| n.clone()));
+                if let Some(dv) = default_variant {
+                    writeln!(out, "{inner}impl{type_params} Default for {ename}{type_params} {{").unwrap();
+                    writeln!(out, "{inner}    fn default() -> Self {{ Self::{dv} }}").unwrap();
+                    writeln!(out, "{inner}}}").unwrap();
+                }
+            }
             let variant_list = emitted_variants.join(",");
             // Use `self::<Enum>::{...}` so the inner module name and the
             // outer module wrapping it (we emit a `pub mod {ename}` around
@@ -2047,9 +2085,16 @@ fn emit_struct<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Cl
         let bounded: Vec<String> = type_vars.iter().map(|v| format!("{v}: Clone")).collect();
         format!("<{}>", bounded.join(", "))
     };
+    // `Default` is added to record derives so they can flow as element types
+    // through `arrayCreateDefault` (the lowering codegen picks for
+    // `arrayCreateNoInit(size, dummy)` when `dummy` is a type-witness-only
+    // unassigned MM local). `#[derive(Default)]` requires every field to
+    // implement `Default`; if a field type lacks the impl the error surfaces
+    // here at the struct definition and the fix is to add `Default` upstream.
+    // Hand-written `RustStruct` mappings keep their existing derives.
     let derives = match &node.ty {
-        Ty::RustStruct(qname) => ctx.derives_for(qname),
-        _ => "#[derive(Clone, Debug, PartialEq)]",
+        Ty::RustStruct(qname) => ctx.derives_for(qname).to_owned(),
+        _ => "#[derive(Clone, Debug, PartialEq)]".to_owned(),
     };
     emit_doc_comment(out, indent, class_doc(c));
     writeln!(out, "{derives}").unwrap();
@@ -2068,6 +2113,86 @@ fn emit_struct<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Cl
         writeln!(out, "{indent}}}").unwrap();
     }
     writeln!(out).unwrap();
+
+    // Manual `Default` impl for records the analysis identified as
+    // defaultable. Always hand-rolled (never derived) so we can handle
+    // function-pointer fields, which have no std `Default` — we substitute
+    // a non-capturing closure that panics if ever called, coerced to the
+    // declared `fn(...)` pointer type. Records without fn fields just see
+    // `Default::default()` per field, semantically equivalent to the
+    // `#[derive(Default)]` expansion.
+    if let Ty::RustStruct(qname) = &node.ty {
+        if ctx.defaultable_struct_qnames.contains(qname) {
+            // Same type-parameter bound shape as the struct declaration; if
+            // any field's type needs `Default` to construct, that bound
+            // propagates implicitly through field `Default::default()` calls.
+            let impl_params = if type_vars.is_empty() {
+                String::new()
+            } else {
+                let bounded: Vec<String> = type_vars.iter().map(|v| format!("{v}: Clone")).collect();
+                format!("<{}>", bounded.join(", "))
+            };
+            let use_params = if type_vars.is_empty() {
+                String::new()
+            } else {
+                format!("<{}>", type_vars.join(", "))
+            };
+            writeln!(out, "{indent}impl{impl_params} Default for {ename}{use_params} {{").unwrap();
+            writeln!(out, "{indent}    fn default() -> Self {{").unwrap();
+            if fields.is_empty() {
+                writeln!(out, "{indent}        Self").unwrap();
+            } else {
+                writeln!(out, "{indent}        Self {{").unwrap();
+                for (fname, fty, _) in &fields {
+                    let value = default_value_expr_for_field_ty(fty, &mut *ctx, top_level);
+                    writeln!(out, "{indent}            {}: {value},", escape_ident(fname)).unwrap();
+                }
+                writeln!(out, "{indent}        }}").unwrap();
+            }
+            writeln!(out, "{indent}    }}").unwrap();
+            writeln!(out, "{indent}}}").unwrap();
+            writeln!(out).unwrap();
+        }
+    }
+}
+
+/// Return the Rust expression used to default-initialise a struct field of
+/// type `fty` inside a generated `impl Default for Record`.  For most types
+/// this is just `Default::default()`, but function-pointer types (`fn(...)`)
+/// have no std `Default` so we emit a non-capturing closure that panics if
+/// ever called — coerced to the fn-pointer type. Such fields exist because
+/// MM `partial function` declarations lower to `fn(...) -> Result<...>` and
+/// records can carry one (e.g. `UnorderedSet<T>::hashFn: fn(T) -> Result<i32>`).
+fn default_value_expr_for_field_ty(fty: &Ty, ctx: &mut GenCtx, top_level: &BTreeMap<String, NameNode<'_>>) -> String {
+    // For function-pointer fields, emit a non-capturing closure that panics
+    // if called, and let Rust coerce it to the target `fn(...)` type via a
+    // typed local binding. The closure's arity is taken from the declared
+    // signature so a `fn(T, T) -> ...` field gets a `|_, _| panic!()` shape.
+    let arity: Option<usize> = match fty {
+        Ty::Function { inputs, .. } => Some(inputs.len()),
+        // Resolve a function alias (`Hash<T> = fn(T) -> Result<i32>`) so we
+        // can emit a closure of the same arity. The base name is a dotted
+        // FQN of the underlying function declaration; if lookup fails the
+        // codegen falls back to `Default::default()` which is wrong but
+        // surfaces a clear compile error at the use site rather than
+        // silently emitting an arity-mismatched closure.
+        Ty::FunctionAlias { base, .. } => {
+            crate::hierarchy::lookup_node_ty(base, top_level).and_then(|ty| match ty {
+                Ty::Function { inputs, .. } => Some(inputs.len()),
+                _ => None,
+            })
+        }
+        _ => None,
+    };
+    if let Some(n) = arity {
+        let placeholder_params: Vec<&'static str> = (0..n).map(|_| "_").collect();
+        let ty_str = fmt_ty(fty, ctx);
+        return format!(
+            "{{ let __placeholder: {ty_str} = |{}| panic!(\"default-constructed placeholder fn must not be called\"); __placeholder }}",
+            placeholder_params.join(", ")
+        );
+    }
+    "Default::default()".to_owned()
 }
 
 fn emit_type_item(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Class, indent: &str, ctx: &mut GenCtx) {
@@ -3768,9 +3893,18 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
         // case: e.g. `allCombinations<T>` calls `applyAndFold<T: 'static>`,
         // which requires `T: 'static` at the call site — a dependency the
         // per-var analysis couldn't detect.
+        // Type parameters that need a `+ Default` bound. The workspace-wide
+        // [`analyze_default`] pass already computed both the direct uses
+        // (`arrayCreateNoInit(size, <unassigned dummy>)` in this function) and
+        // the transitive uses (calls to other functions that themselves
+        // require a `Default` bound, e.g. `Array::filter` ⟶ this function's
+        // `T`). Mirrors the per-function lookup used for `PartialEq` above.
+        let empty_def: HashSet<String> = HashSet::new();
+        let default_vars = ctx.default_required.get(&fn_qname).unwrap_or(&empty_def);
         let bounded: Vec<String> = all_type_vars.iter().map(|v| {
             let mut bounds = vec!["Clone", "'static"];
             if eq_vars.contains(v) { bounds.push("PartialEq"); }
+            if default_vars.contains(v) { bounds.push("Default"); }
             format!("{v}: {}", bounds.join(" + "))
         }).collect();
         format!("<{}>", bounded.join(", "))
@@ -6324,15 +6458,46 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
             let arg = args.first().map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
             Ok(format!("metamodelica::arrayFromVec({}.borrow().clone())", arg))
         },
-        // MetaModelica.Dangerous.arrayCreateNoInit(size, dummy): the `dummy`
-        // argument is a type witness only in the MM signature — the Rust
-        // counterpart is generic, so we drop the second argument here. The
-        // function is fallible (returns Result), hence wrapped with `?` via
-        // ctx.q for non-const contexts.
+        // MetaModelica.Dangerous.arrayCreateNoInit(size, dummy) — there is no
+        // safe direct Rust equivalent. We rewrite the call here based on a
+        // static "is the dummy a real value?" analysis:
+        //
+        //   * If the dummy is a bare reference to a function-scope variable
+        //     that has not yet been assigned at this program point, it is a
+        //     pure type-witness in MM and cannot be lowered to a Rust value.
+        //     Emit `arrayCreate*Default*(size)` which fills slots with
+        //     `Default::default()`. This requires `A: Default`; types
+        //     lacking a Default impl must be given one (often the "empty"
+        //     form) as a follow-up.
+        //
+        //   * Otherwise the dummy is an evaluable expression (call,
+        //     arrayGet, field, literal, or an already-assigned var), so emit
+        //     plain `arrayCreate(size, dummy)`. That is the standard safe
+        //     constructor and fully replaces the previous unsafe path — slot
+        //     drops on early-return / `?` / panic now walk valid clones
+        //     instead of garbage bytes, eliminating the SIGSEGV in e.g.
+        //     `SBMultiInterval::intersection`.
+        //
+        // Init-tracking uses `ctx.fn_initialized_vars` + `ctx.fn_input_names`,
+        // the same sets used elsewhere to decide whether a name is in scope
+        // as an assigned value.
         "arrayCreateNoInit" => {
             let arg1 = args.first().map(|a| emit_builtin_call_arg_raw(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
-            // arrayCreateNoInit is infallible: returns Array<A> directly
-            Ok(format!("metamodelica::Dangerous::arrayCreateNoInit({arg1})"))
+            let dummy = args.get(1);
+            let dummy_is_unassigned_var = matches!(
+                dummy,
+                Some(TypedExp::Var { name, .. })
+                    if ctx.fn_env_vars.contains_key(name.as_str())
+                        && !ctx.fn_initialized_vars.contains(name.as_str())
+                        && !ctx.fn_input_names.contains(name.as_str())
+            );
+            if let Some(d) = dummy
+                && !dummy_is_unassigned_var {
+                let arg2 = emit_builtin_call_arg(func, 1, d, is_const, ctx, top_level);
+                Ok(format!("metamodelica::arrayCreate({arg1}, {arg2})"))
+            } else {
+                Ok(format!("metamodelica::arrayCreateDefault({arg1})"))
+            }
         },
         "arrayClearIndex" => {
             let arg1 = args.first().map(|a| emit_builtin_call_arg_raw(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
@@ -10841,6 +11006,12 @@ fn emit_pat_assign<'a>(
                             rhs
                         };
                         writeln!($out, "{}{} = {};", $ind, escape_ident(orig), rhs).unwrap();
+                        // Pattern-destructure write-back counts as an assignment
+                        // for init-tracking. Without this, downstream code that
+                        // inspects whether `orig` is initialised (e.g. the
+                        // `arrayCreateNoInit`/`arrayCreateDefault` dispatch
+                        // analysis) would mis-classify `orig` as never-assigned.
+                        ctx.fn_initialized_vars.insert(orig.clone());
                     }
                 };
             }
@@ -10951,6 +11122,10 @@ fn emit_pat_assign<'a>(
                         rhs
                     };
                     writeln!(out, "{indent}{} = {};", escape_ident(orig), rhs).unwrap();
+                    // See the comment on the parallel emit_body!() write-back:
+                    // pattern-destructure assignments are real assignments for
+                    // init-tracking purposes.
+                    ctx.fn_initialized_vars.insert(orig.clone());
                 }
                 return;
             }
@@ -12950,6 +13125,111 @@ pub fn analyze_partial_eq<'a>(
     required
 }
 
+/// Workspace-wide analysis: for each user-defined function, decide which of
+/// its declared type parameters need a `+ Default` bound in the emitted Rust
+/// signature.
+///
+/// The contribution sources mirror [`analyze_partial_eq`] in structure:
+///
+///   1. *Direct uses* — `arrayCreateNoInit(size, <unassigned-dummy>)` calls in
+///      the function body. The dispatch in [`emit_builtin_call`] lowers these
+///      to `arrayCreateDefault(size)`, which requires `A: Default` on the
+///      element type. If the element type resolves to one of the enclosing
+///      function's own type parameters, that type parameter must be bounded
+///      `Default` for the body to typecheck.
+///
+///   2. *Transitive uses* — calls to other user functions whose own
+///      requirement set is non-empty. The callee's bound flows back through
+///      the same `unify_subst_collect` machinery used for `PartialEq`.
+///
+/// Fixed-point termination matches the PartialEq pass.
+pub fn analyze_default<'a>(
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+) -> BTreeMap<String, HashSet<String>> {
+    let mut all_fns: Vec<(String, &'a NameNode<'a>)> = Vec::new();
+    collect_all_function_nodes(top_level, "", &mut all_fns);
+
+    let mut cache: BTreeMap<String, Vec<typedexp::TypedStmt>> = BTreeMap::new();
+    let mut required: BTreeMap<String, HashSet<String>> = BTreeMap::new();
+
+    // First pass: compute the "ever_assigned" snapshot for each function and
+    // collect direct requirements.
+    for (qname, node) in &all_fns {
+        let has_type_vars = matches!(&node.ty, Ty::Function { inputs, output, type_vars, .. }
+            if !type_vars.is_empty()
+                || inputs.iter().any(|inp| ty_has_type_var(&inp.ty))
+                || ty_has_type_var(output));
+        if !has_type_vars {
+            required.insert(qname.clone(), HashSet::new());
+            continue;
+        }
+        let stmts = typedexp_function_body_for_analysis(qname, node, top_level);
+        let ever_assigned = ever_assigned_for_fn(node, &stmts);
+        let mut direct: HashSet<String> = HashSet::new();
+        collect_default_needs_in_stmts(&stmts, &ever_assigned, &mut direct);
+        required.insert(qname.clone(), direct);
+        cache.insert(qname.clone(), stmts);
+    }
+
+    // Fixed-point propagation: callee's Default requirements flow into the
+    // caller's via the call's type substitution.
+    loop {
+        let mut changed = false;
+        let qnames: Vec<String> = cache.keys().cloned().collect();
+        for qname in &qnames {
+            let pkg_prefix = qname.rsplit_once('.').map_or("", |(p, _)| p).to_owned();
+            let stmts = &cache[qname];
+            let mut current = required[qname].clone();
+            let before = current.len();
+            for s in stmts {
+                // Reuse the PartialEq propagator — it walks the call graph
+                // and applies `unify_subst_collect` between formal and actual
+                // argument types, projecting callee type-var names onto
+                // caller type-var names. The mechanism is bound-agnostic;
+                // passing `required` here means it propagates *Default*
+                // requirements, not PartialEq ones.
+                propagate_stmt_partial_eq(s, &required, top_level, &pkg_prefix, &mut current);
+            }
+            if current.len() > before {
+                changed = true;
+                required.insert(qname.clone(), current);
+            }
+        }
+        if !changed { break; }
+    }
+
+    required
+}
+
+/// Re-create the "ever assigned" set used by the codegen-time analyzer so
+/// both passes agree on which dummy references trigger `arrayCreateDefault`.
+fn ever_assigned_for_fn(node: &NameNode<'_>, stmts: &[typedexp::TypedStmt]) -> std::collections::HashSet<String> {
+    let mut ever_assigned: std::collections::HashSet<String> = std::collections::HashSet::new();
+    if let NodeKind::Class(c) = &node.kind
+        && let MM::ClassDef::Parts { members, .. } = &c.body {
+        for cm in members.iter() {
+            if let MM::ClassMember::Component(comp) = cm {
+                // Inputs are always assigned (by the caller).
+                if matches!(comp.direction, Absyn::Direction::INPUT) {
+                    ever_assigned.insert(comp.name.clone());
+                    continue;
+                }
+                // Outputs / protected with a concrete (non-self-ref) default
+                // modification are initialised at declaration time.
+                // Self-references (`T dummy = dummy;`) are dropped at codegen
+                // time and must NOT count as assignments — mirroring the
+                // codegen filter in `emit_function`.
+                if let Some(exp) = crate::hierarchy::extract_default_exp(&comp.modification)
+                    && !is_self_ref_exp(exp, &comp.name) {
+                    ever_assigned.insert(comp.name.clone());
+                }
+            }
+        }
+    }
+    collect_assigned_vars_in_stmts(stmts, &mut ever_assigned);
+    ever_assigned
+}
+
 fn collect_all_function_nodes<'a>(
     nodes: &'a BTreeMap<String, NameNode<'a>>,
     prefix: &str,
@@ -13552,6 +13832,349 @@ fn visit_exp_for_eq(exp: &typedexp::TypedExp, out: &mut std::collections::HashSe
             for it in iterators {
                 visit_exp_for_eq(&it.range, out);
                 if let Some(g) = &it.guard { visit_exp_for_eq(g, out); }
+            }
+        }
+    }
+}
+
+/// Collect the set of this function's own type parameters that need a
+/// `+ Default` bound.
+///
+/// The `arrayCreateNoInit` builtin dispatches at codegen time to either
+/// `arrayCreate(size, dummy)` (when the MM dummy is a non-trivial expression
+/// or a variable that gets assigned somewhere in the function body) or
+/// `arrayCreateDefault(size)` (when the MM dummy is a bare reference to a
+/// function-scope local that is **never** assigned — the MM idiom of
+/// declaring `T dummy;` purely for type witnessing).  The Default-path
+/// requires `A: Default` on the array element type.  When that element type
+/// resolves to one of this function's own type vars `T`, the function
+/// signature must carry `T: Default` — otherwise the body fails to typecheck.
+///
+/// Soundness/precision trade-off: we approximate "never assigned" with
+/// "no MM `Assign` statement anywhere in this function body writes to
+/// `dummy`".  That matches the runtime codegen check, which inspects
+/// `fn_initialized_vars` at the call point — if a var is *never* added to
+/// that set during emission, the call will be dispatched to
+/// `arrayCreateDefault` regardless of textual order.  Vars that have at least
+/// one assignment somewhere may still reach the call uninitialised on a
+/// given control-flow path, but in that case codegen will (correctly) emit
+/// `arrayCreate` with a value, so no Default bound is needed.
+/// Compute the set of `Ty::RustStruct` qnames whose fields are all
+/// "defaultable" — i.e. `#[derive(Default)]` on the struct will type-check.
+///
+/// Defaultability of types is decided by:
+///   * Primitives, `String`, `Option<T>`, `List<T>`, `Array<T>`, `Tuple<...>`,
+///     `Generic` containers (Vec/HashMap/etc.) — always defaultable. (For
+///     parameterised containers we conservatively recurse: if every type
+///     argument is defaultable, so is the container; if not, we still mark
+///     the container as defaultable because the standard container `Default`
+///     impls in Rust don't actually require their `T: Default` for `default`
+///     to produce an empty collection. The recursion serves the `Arc<T>` and
+///     similar wrappers below.)
+///   * `Ty::RustStruct(q)` — defaultable iff `q` is in the computed set
+///     (fixed-point iteration starting from primitives).
+///   * `Ty::AliasTo(record_q)` — defaults through the aliased record's
+///     defaultability.
+///   * `Ty::Function`, `Ty::FunctionAlias` — function pointers are NOT
+///     defaultable in stable Rust (no `Default` for `fn(...)` types), so
+///     records carrying a function field are excluded.
+///   * `Ty::RustEnum`, `Ty::Enumeration`, `Ty::UnionTypeVariant`,
+///     `Ty::ExternalObject`, `Ty::TypeVar`, `Ty::Unknown`, `Ty::Unit`,
+///     `Ty::Range` — NOT defaultable in this analysis (enums need a
+///     `#[default]` variant marker; TypeVar resolution is per-use).
+///
+/// The traversal walks `top_level` to find all record classes (Ty::RustStruct)
+/// and iterates a fixed point until no new record is added.
+fn compute_defaultable_struct_qnames<'a>(
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+) -> HashSet<String> {
+    // Collect every record's field types AND every enum that has at least
+    // one unit variant (the latter become defaultable seeds — emit_uniontype
+    // emits an `impl Default for E { fn default() -> Self { Self::FIRST_UNIT } }`
+    // for them). Then iterate a fixed point: a record is defaultable iff all
+    // its fields are.
+    let mut records: BTreeMap<String, Vec<Ty>> = BTreeMap::new();
+    let mut enum_seeds: HashSet<String> = HashSet::new();
+    fn collect_types<'a>(
+        node: &NameNode<'a>,
+        records: &mut BTreeMap<String, Vec<Ty>>,
+        enum_seeds: &mut HashSet<String>,
+    ) {
+        if let NodeKind::Class(c) = &node.kind {
+            match &node.ty {
+                Ty::RustStruct(qname) => {
+                    let fields = component_fields_with_spec(c, &node.children);
+                    records.insert(qname.clone(), fields.iter().map(|f| f.1.clone()).collect());
+                }
+                Ty::RustEnum(qname) => {
+                    // Walk children; if any child is `Ty::RustUnitVariant`,
+                    // we can default to it. This is what emit_uniontype
+                    // emits as the `Self::VARIANT` choice.
+                    let has_unit = node.children.values().any(|child|
+                        matches!(child.ty, Ty::RustUnitVariant));
+                    if has_unit {
+                        enum_seeds.insert(qname.clone());
+                    }
+                }
+                _ => {}
+            }
+        }
+        for (_, child) in &node.children {
+            collect_types(child, records, enum_seeds);
+        }
+    }
+    for (_, n) in top_level {
+        collect_types(n, &mut records, &mut enum_seeds);
+    }
+
+    let mut defaultable: HashSet<String> = enum_seeds;
+    let mut changed = true;
+    while changed {
+        changed = false;
+        for (qname, fields) in &records {
+            if defaultable.contains(qname) { continue; }
+            if fields.iter().all(|t| is_ty_defaultable(t, &defaultable)) {
+                defaultable.insert(qname.clone());
+                changed = true;
+            }
+        }
+    }
+    defaultable
+}
+
+fn is_ty_defaultable(ty: &Ty, defaultable_qnames: &HashSet<String>) -> bool {
+    match ty {
+        Ty::I32 | Ty::F64 | Ty::Bool | Ty::Str => true,
+        Ty::Option(_) | Ty::List(_) | Ty::Array(_) => true,
+        Ty::Tuple(elems) => elems.iter().all(|t| is_ty_defaultable(t, defaultable_qnames)),
+        // Container generics (Vec, HashMap, HashSet, ExpandableArray, ...) — empty
+        // containers default fine regardless of element type.
+        Ty::Generic(_, _) => true,
+        // Both structs and enums use the same defaultability map. Enums are
+        // included iff codegen will emit an `impl Default for E` for them
+        // (currently: those that have at least one unit variant).
+        Ty::RustStruct(qname) | Ty::AliasTo(qname) | Ty::RustEnum(qname) => defaultable_qnames.contains(qname),
+        // Function-pointer fields don't have a `Default` impl in std, but the
+        // codegen-emitted manual `impl Default` (for structs in the
+        // defaultable set with fn fields) substitutes a non-capturing
+        // closure that panics if ever called, coerced to the fn-pointer
+        // type. Treat them as defaultable for the purposes of marking the
+        // surrounding record defaultable.
+        Ty::Function { .. } | Ty::FunctionAlias { .. } => true,
+        // MM `enumeration`s lower to fieldless Rust enums with no `#[default]`
+        // marker — not defaultable here. Unit-variant placeholders inside a
+        // uniontype handling are accessed through `RustEnum(qname)` above.
+        Ty::Enumeration(_) | Ty::RustUnitVariant | Ty::UnionTypeVariant(_, _) => false,
+        // Opaque or unresolved — conservatively NOT defaultable.
+        Ty::ExternalObject(_) | Ty::TypeVar(_) | Ty::Unknown | Ty::Unit | Ty::Range(_) => false,
+    }
+}
+
+fn collect_default_type_vars_for_fn(
+    stmts: &[typedexp::TypedStmt],
+    inputs: &[crate::hierarchy::FunctionInput],
+    outputs: &[(String, crate::hierarchy::Ty, Option<Arc<crate::Absyn::Modification>>, bool)],
+    protected: &[(String, crate::hierarchy::Ty, Option<Arc<crate::Absyn::Modification>>, bool)],
+) -> std::collections::HashSet<String> {
+    // Vars that are inputs are always assigned (by the caller).
+    let mut ever_assigned: std::collections::HashSet<String> =
+        inputs.iter().map(|i| i.name.clone()).collect();
+    // Outputs / protected components with a default-value modification are
+    // initialised at declaration time — unless the modification is a
+    // self-reference (`T dummy = dummy;`, an MM idiom to fool the type
+    // checker into accepting an uninitialised value as the type witness for
+    // `arrayCreateNoInit`). The codegen drops self-refs in the same way
+    // (see the `init_raw.filter(...)` in `emit_function`); we must mirror
+    // that filter here so the Default-bound analysis stays consistent with
+    // what gets emitted.
+    for (n, _, modif, _) in outputs.iter().chain(protected.iter()) {
+        if let Some(exp) = crate::hierarchy::extract_default_exp(modif) {
+            if !is_self_ref_exp(exp, n) {
+                ever_assigned.insert(n.clone());
+            }
+        }
+    }
+    collect_assigned_vars_in_stmts(stmts, &mut ever_assigned);
+
+    let mut out = std::collections::HashSet::new();
+    collect_default_needs_in_stmts(stmts, &ever_assigned, &mut out);
+    out
+}
+
+/// True when `exp` is a bare component reference to the variable `var`.
+/// Matches `T dummy = dummy;` shaped self-initialisations.
+fn is_self_ref_exp(exp: &crate::Absyn::Exp, var: &str) -> bool {
+    use crate::Absyn::{Exp, ComponentRef};
+    matches!(exp,
+        Exp::CREF { componentRef } if matches!(
+            componentRef.as_ref(),
+            ComponentRef::CREF_IDENT { name, subscripts } if name.as_str() == var && subscripts.is_empty()
+        )
+    )
+}
+
+fn collect_assigned_vars_in_stmts(stmts: &[typedexp::TypedStmt], out: &mut std::collections::HashSet<String>) {
+    use typedexp::{TypedStmt as S, TypedPat as P};
+    fn visit_pat(p: &P, out: &mut std::collections::HashSet<String>) {
+        match p {
+            P::Var(n) => { out.insert(n.clone()); }
+            P::As { var, pat } => { out.insert(var.clone()); visit_pat(pat, out); }
+            P::Tuple(ps) => { for p in ps { visit_pat(p, out); } }
+            P::Constructor { fields, named_fields, .. } => {
+                for p in fields { visit_pat(p, out); }
+                for (_, p) in named_fields { visit_pat(p, out); }
+            }
+            P::Cons { head, tail } => { visit_pat(head, out); visit_pat(tail, out); }
+            P::Some_(inner) => visit_pat(inner, out),
+            P::FieldAccess { base, .. } => visit_pat(base, out),
+            P::Index { .. } | P::Lit(_) | P::Wildcard | P::None_ | P::EmptyList | P::Todo(_) => {}
+        }
+    }
+    for s in stmts {
+        match s {
+            S::Assign { lhs, .. } => visit_pat(lhs, out),
+            S::If { then_, elseif, else_, .. } => {
+                collect_assigned_vars_in_stmts(then_, out);
+                for (_, b) in elseif { collect_assigned_vars_in_stmts(b, out); }
+                collect_assigned_vars_in_stmts(else_, out);
+            }
+            S::For { var, body, .. } => {
+                out.insert(var.clone());
+                collect_assigned_vars_in_stmts(body, out);
+            }
+            S::While { body, .. } => collect_assigned_vars_in_stmts(body, out),
+            S::Try { body, else_body } => {
+                collect_assigned_vars_in_stmts(body, out);
+                collect_assigned_vars_in_stmts(else_body, out);
+            }
+            S::Failure { body } => collect_assigned_vars_in_stmts(body, out),
+            S::NoRetCall { .. } | S::Return | S::Break | S::Continue | S::Todo(_) => {}
+        }
+    }
+}
+
+fn collect_default_needs_in_stmts(
+    stmts: &[typedexp::TypedStmt],
+    ever_assigned: &std::collections::HashSet<String>,
+    out: &mut std::collections::HashSet<String>,
+) {
+    use typedexp::TypedStmt as S;
+    for s in stmts {
+        match s {
+            S::Assign { rhs, .. } => collect_default_needs_in_exp(rhs, ever_assigned, out),
+            S::NoRetCall { call } => collect_default_needs_in_exp(call, ever_assigned, out),
+            S::If { cond, then_, elseif, else_ } => {
+                collect_default_needs_in_exp(cond, ever_assigned, out);
+                collect_default_needs_in_stmts(then_, ever_assigned, out);
+                for (c, b) in elseif {
+                    collect_default_needs_in_exp(c, ever_assigned, out);
+                    collect_default_needs_in_stmts(b, ever_assigned, out);
+                }
+                collect_default_needs_in_stmts(else_, ever_assigned, out);
+            }
+            S::For { range, body, .. } => {
+                collect_default_needs_in_exp(range, ever_assigned, out);
+                collect_default_needs_in_stmts(body, ever_assigned, out);
+            }
+            S::While { cond, body } => {
+                collect_default_needs_in_exp(cond, ever_assigned, out);
+                collect_default_needs_in_stmts(body, ever_assigned, out);
+            }
+            S::Try { body, else_body } => {
+                collect_default_needs_in_stmts(body, ever_assigned, out);
+                collect_default_needs_in_stmts(else_body, ever_assigned, out);
+            }
+            S::Failure { body } => collect_default_needs_in_stmts(body, ever_assigned, out),
+            S::Return | S::Break | S::Continue | S::Todo(_) => {}
+        }
+    }
+}
+
+fn collect_default_needs_in_exp(
+    exp: &typedexp::TypedExp,
+    ever_assigned: &std::collections::HashSet<String>,
+    out: &mut std::collections::HashSet<String>,
+) {
+    use typedexp::TypedExp as E;
+    if let E::Call { func, args, ty, .. } = exp {
+        if func == "arrayCreateNoInit" {
+            let dummy = args.get(1);
+            let dummy_is_unassigned_var = matches!(
+                dummy,
+                Some(E::Var { name, .. }) if !ever_assigned.contains(name)
+            );
+            if dummy_is_unassigned_var {
+                // Result type is Array<A>. Add A's type vars to the bound set.
+                if let crate::hierarchy::Ty::Array(elem) = ty {
+                    let mut tvs = Vec::new();
+                    crate::hierarchy::collect_type_vars_in_ty(elem, &mut tvs);
+                    out.extend(tvs);
+                }
+            }
+        }
+    }
+    // Recurse into sub-expressions regardless.
+    match exp {
+        E::Lit(_) | E::Todo(_) => {}
+        E::Var { segments, .. } => {
+            for seg in segments {
+                for sub in &seg.subscripts {
+                    collect_default_needs_in_exp(sub, ever_assigned, out);
+                }
+            }
+        }
+        E::BinOp { lhs, rhs, .. } => {
+            collect_default_needs_in_exp(lhs, ever_assigned, out);
+            collect_default_needs_in_exp(rhs, ever_assigned, out);
+        }
+        E::UnOp { operand, .. } => collect_default_needs_in_exp(operand, ever_assigned, out),
+        E::Call { args, named_args, .. }
+        | E::Constructor { args, named_args, .. }
+        | E::PartEval { args, named_args, .. } => {
+            for a in args { collect_default_needs_in_exp(a, ever_assigned, out); }
+            for (_, v) in named_args { collect_default_needs_in_exp(v, ever_assigned, out); }
+        }
+        E::If { cond, then_, elseif, else_, .. } => {
+            collect_default_needs_in_exp(cond, ever_assigned, out);
+            collect_default_needs_in_exp(then_, ever_assigned, out);
+            for (c, b) in elseif {
+                collect_default_needs_in_exp(c, ever_assigned, out);
+                collect_default_needs_in_exp(b, ever_assigned, out);
+            }
+            collect_default_needs_in_exp(else_, ever_assigned, out);
+        }
+        E::Cons { head, tail, .. } => {
+            collect_default_needs_in_exp(head, ever_assigned, out);
+            collect_default_needs_in_exp(tail, ever_assigned, out);
+        }
+        E::Tuple(elems) | E::Array { elems, .. } => {
+            for e in elems { collect_default_needs_in_exp(e, ever_assigned, out); }
+        }
+        E::Match { input, cases, .. } => {
+            collect_default_needs_in_exp(input, ever_assigned, out);
+            for c in cases {
+                if let Some(g) = &c.guard { collect_default_needs_in_exp(g, ever_assigned, out); }
+                for (_, _, d, _) in &c.locals {
+                    if let Some(d) = d { collect_default_needs_in_exp(d, ever_assigned, out); }
+                }
+                for s in &c.stmts {
+                    let mut tmp = std::collections::HashSet::new();
+                    collect_default_needs_in_stmts(std::slice::from_ref(s), ever_assigned, &mut tmp);
+                    out.extend(tmp);
+                }
+                collect_default_needs_in_exp(&c.result, ever_assigned, out);
+            }
+        }
+        E::Range { start, step, stop, .. } => {
+            collect_default_needs_in_exp(start, ever_assigned, out);
+            if let Some(s) = step { collect_default_needs_in_exp(s, ever_assigned, out); }
+            collect_default_needs_in_exp(stop, ever_assigned, out);
+        }
+        E::Reduction { body, iterators, .. } => {
+            collect_default_needs_in_exp(body, ever_assigned, out);
+            for it in iterators {
+                collect_default_needs_in_exp(&it.range, ever_assigned, out);
+                if let Some(g) = &it.guard { collect_default_needs_in_exp(g, ever_assigned, out); }
             }
         }
     }

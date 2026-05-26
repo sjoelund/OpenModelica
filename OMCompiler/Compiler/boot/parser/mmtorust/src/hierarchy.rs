@@ -250,6 +250,12 @@ pub struct InstanceHierarchy<'a> {
     /// Populated by [`crate::partial_eq_analysis::analyze`] after
     /// [`crate::fallibility::analyze`].
     pub partial_eq_required: BTreeMap<String, std::collections::HashSet<String>>,
+    /// Per-function set of type-parameter names that need a `+ Default`
+    /// bound, populated by [`crate::codegen::analyze_default`].  Companion to
+    /// [`Self::partial_eq_required`] — same shape, different bound; required
+    /// because `arrayCreateNoInit(size, <unassigned dummy>)` lowers to
+    /// `arrayCreateDefault(size)` which requires `A: Default`.
+    pub default_required: BTreeMap<String, std::collections::HashSet<String>>,
 }
 
 impl<'a> InstanceHierarchy<'a> {
@@ -265,6 +271,7 @@ impl<'a> InstanceHierarchy<'a> {
             types_containing_array: BTreeSet::new(),
             fallible_functions: BTreeSet::new(),
             partial_eq_required: BTreeMap::new(),
+            default_required: BTreeMap::new(),
         }
     }
 }

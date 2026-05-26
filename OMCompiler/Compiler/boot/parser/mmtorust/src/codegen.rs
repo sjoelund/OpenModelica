@@ -32,6 +32,15 @@ use anyhow::{Result,bail};
 ///    making it part of the default bound is honest, not a shortcut.
 const DEFAULT_TRAITS: &str = "Clone + PartialEq + 'static";
 
+/// Qnames of runtime/built-in types that aren't defined in the MM hierarchy
+/// the generator walks but DO have a hand-written `Default` impl somewhere
+/// in the workspace (e.g. `metamodelica::SourceInfo`). Seeding these into
+/// the defaultability fixed point lets records that reference them propagate
+/// defaultability correctly. Keep in sync with the actual impls.
+const EXTERNAL_DEFAULTABLE_QNAMES: &[&str] = &[
+    "SOURCEINFO", "SourceInfo",
+];
+
 /// How to propagate a Result error from a fallible sub-expression.
 ///
 /// MetaModelica calls return `Result<T>` in our lowering. The Rust expression
@@ -2281,6 +2290,20 @@ fn emit_type_item(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Cla
                 writeln!(out, "{indent}impl Ord for {ename} {{").unwrap();
                 writeln!(out, "{indent}    fn cmp(&self, other: &Self) -> std::cmp::Ordering {{ (*self as i32).cmp(&(*other as i32)) }}").unwrap();
                 writeln!(out, "{indent}}}").unwrap();
+                // Emit `Default` for enumerations the demand-side analysis
+                // marked as needed (e.g. a field of a uniontype record that
+                // is itself in `types_needing_default`). Modelica enumeration
+                // literals are ordered by declaration and `Integer(E.e1) = 1`,
+                // so the first declared literal is the natural default.
+                if let Ty::Enumeration(qname) = &node.ty
+                    && ctx.types_needing_default.contains(qname)
+                    && let Some(first) = (&**enumLiterals).into_iter().next()
+                {
+                    let Absyn::EnumLiteral { literal, .. } = &**first;
+                    writeln!(out, "{indent}impl Default for {ename} {{").unwrap();
+                    writeln!(out, "{indent}    fn default() -> Self {{ Self::{} }}", escape_ident(literal)).unwrap();
+                    writeln!(out, "{indent}}}").unwrap();
+                }
                 writeln!(out).unwrap();
             }
         }
@@ -13953,7 +13976,20 @@ fn compute_defaultable_struct_qnames<'a>(
                         };
                         variants.push((rec_name.clone(), field_tys));
                     }
-                    enums.insert(qname.clone(), variants);
+                    // The same uniontype qname can appear multiple times in
+                    // the hierarchy (e.g. via `extends`-like re-exports that
+                    // introduce a node carrying the same `Ty::RustEnum(qname)`
+                    // but with no records of its own). The first traversal to
+                    // visit the *defining* node populates `variants`; later
+                    // visits to re-export nodes find no records and would
+                    // otherwise overwrite the populated entry with an empty
+                    // one. Only overwrite when the incoming entry is at
+                    // least as informative as the existing one.
+                    enums.entry(qname.clone())
+                        .and_modify(|e| if e.is_empty() && !variants.is_empty() {
+                            *e = variants.clone();
+                        })
+                        .or_insert(variants);
                 }
                 _ => {}
             }
@@ -13967,6 +14003,12 @@ fn compute_defaultable_struct_qnames<'a>(
     }
 
     let mut defaultable: HashSet<String> = HashSet::new();
+    // Built-in / runtime types that have a hand-written `Default` impl in a
+    // crate the generator doesn't walk (e.g. `metamodelica::SourceInfo`).
+    // Seeding them here lets defaultability propagate through records that
+    // reference them as field types. Keep this list in sync with the actual
+    // `Default` impls in the metamodelica/util crates.
+    for q in EXTERNAL_DEFAULTABLE_QNAMES { defaultable.insert((*q).to_owned()); }
     let mut changed = true;
     while changed {
         changed = false;
@@ -14146,7 +14188,7 @@ fn compute_types_needing_default<'a>(
 /// function pointers, and `Unknown`. Used by `compute_types_needing_default`.
 fn collect_concrete_qnames_in_ty(ty: &Ty, out: &mut HashSet<String>) {
     match ty {
-        Ty::RustStruct(q) | Ty::RustEnum(q) | Ty::AliasTo(q) => { out.insert(q.clone()); }
+        Ty::RustStruct(q) | Ty::RustEnum(q) | Ty::AliasTo(q) | Ty::Enumeration(q) => { out.insert(q.clone()); }
         Ty::Option(t) | Ty::List(t) | Ty::Array(t) | Ty::Range(t) => collect_concrete_qnames_in_ty(t, out),
         Ty::Tuple(elems) => for t in elems { collect_concrete_qnames_in_ty(t, out); }
         // `Generic(name, args)` covers user-defined parameterised types like
@@ -14356,10 +14398,16 @@ fn is_ty_defaultable(ty: &Ty, defaultable_qnames: &HashSet<String>) -> bool {
         // type. Treat them as defaultable for the purposes of marking the
         // surrounding record defaultable.
         Ty::Function { .. } | Ty::FunctionAlias { .. } => true,
-        // MM `enumeration`s lower to fieldless Rust enums with no `#[default]`
-        // marker — not defaultable here. Unit-variant placeholders inside a
-        // uniontype handling are accessed through `RustEnum(qname)` above.
-        Ty::Enumeration(_) | Ty::RustUnitVariant | Ty::UnionTypeVariant(_, _) => false,
+        // MM `enumeration`s always have at least one literal (parsing rejects
+        // an empty literal list), so the first declared literal is a sound
+        // default. We emit a manual `impl Default` for every enumeration that
+        // ends up in `types_needing_default`, so always treat them as
+        // defaultable here.
+        Ty::Enumeration(_) => true,
+        // Unit-variant placeholders inside a uniontype: handled through
+        // `Ty::RustEnum(qname)` above when the surrounding uniontype is
+        // considered. Standalone they're not defaultable.
+        Ty::RustUnitVariant | Ty::UnionTypeVariant(_, _) => false,
         // Opaque or unresolved — conservatively NOT defaultable.
         Ty::ExternalObject(_) | Ty::TypeVar(_) | Ty::Unknown | Ty::Unit | Ty::Range(_) => false,
     }

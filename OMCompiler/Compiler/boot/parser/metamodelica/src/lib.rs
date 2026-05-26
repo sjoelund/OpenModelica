@@ -143,7 +143,7 @@ macro_rules! sourceInfo {
 
 /// The Info attribute provides location information for elements and classes.
 /// Mapped from the SOURCEINFO record in MetaModelicaBuiltin.mo.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub struct SourceInfo {
     /// File name where the class is defined in.
     pub fileName: ArcStr,

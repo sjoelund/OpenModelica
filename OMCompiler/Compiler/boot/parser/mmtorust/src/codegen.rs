@@ -8208,6 +8208,17 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
     } else {
         (raw_input_str, None)
     };
+    // Register the as_binding's type so subsequent `var_field!` inside arm
+    // bodies picks `VarShape::Arc` (vs `Owned`) based on whether the scrutinee
+    // expression is Arc-wrapped. Without this, `cls.elements` inside a
+    // `match cls as expr` arm emits as `var_field!(cls.elements, …)` which
+    // expands to `match &cls { … }` — but `cls: Arc<Enum>` doesn't auto-deref
+    // through Arc on stable Rust, so the variant match fails to bind fields.
+    let saved_as_binding_env = if let Some(name) = as_binding {
+        Some((name.to_string(), ctx.fn_env_vars.insert(name.to_string(), input_ty.clone())))
+    } else {
+        None
+    };
     // Decide whether this match needs to be wrapped in `::match_deref::match_deref!{}`.
     // The macro provides stable-Rust replacements for nightly's `deref_patterns`:
     // a `::match_deref::Deref @ <inner>` token sequence inside an arm pattern
@@ -9055,6 +9066,12 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
             s
         }
     };
+    if let Some((name, prev)) = saved_as_binding_env {
+        match prev {
+            Some(t) => { ctx.fn_env_vars.insert(name, t); }
+            None => { ctx.fn_env_vars.remove(&name); }
+        }
+    }
     match as_prefix {
         Some(prefix) => format!("{prefix}{body_str} }}"),
         None => body_str,

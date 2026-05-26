@@ -319,7 +319,7 @@ fn import_any_target_path(import: &Absyn::Import) -> Option<String> {
 
 /// Extract the target dotted path from a named or qualified import statement.
 /// Returns `None` for wildcard (`import Pkg.*`) and group imports.
-fn import_target_path(import: &Absyn::Import) -> Option<String> {
+pub(crate) fn import_target_path(import: &Absyn::Import) -> Option<String> {
     match import {
         Absyn::Import::NAMED_IMPORT { path, .. } | Absyn::Import::QUAL_IMPORT { path } => {
             let d = path_to_dotted(path);
@@ -339,7 +339,7 @@ fn import_target_path(import: &Absyn::Import) -> Option<String> {
 ///   is the entry whose local name (after rename, if any) matches `local`.
 /// - UNQUAL_IMPORT (`import P.*;`): not handled here — wildcard imports are resolved
 ///   by separately scanning each child of the target package.
-fn import_target_for_local(import: &Absyn::Import, local: &str) -> Option<String> {
+pub(crate) fn import_target_for_local(import: &Absyn::Import, local: &str) -> Option<String> {
     match import {
         Absyn::Import::NAMED_IMPORT { path, .. } | Absyn::Import::QUAL_IMPORT { path } => {
             let d = path_to_dotted(path);
@@ -431,9 +431,25 @@ pub(crate) fn walk_dotted_with_imports<'a>(
 
         if let Some(target) = target {
             let rest = parts[split..].join(".");
-            let resolved = if rest.is_empty() { target } else { format!("{target}.{rest}") };
+            let resolved = if rest.is_empty() { target.clone() } else { format!("{target}.{rest}") };
             if let Some(r) = walk_dotted_with_imports(&resolved, top_level, depth + 1) {
                 return Some(r);
+            }
+            // MetaModelica name resolution for `T = M.X` (a type alias to a type
+            // declared inside a package): `T.foo(...)` first looks up `foo` as a
+            // member of `X` (the type itself) and then *also* as a member of the
+            // enclosing package `M`. This is how `extends BaseAvlTree` produces
+            // a package with members like `new`, `listValues`, `hasKey`, etc.,
+            // which are then reached through the renamed `FunctionTree` alias.
+            // Without this fall-through, dotted calls like `FunctionTree.new()`
+            // fail to resolve and the call emits as if `new` were an associated
+            // function of `Arc<FunctionTreeImpl::Tree>`.
+            if !rest.is_empty()
+                && let Some((parent_target, _)) = target.rsplit_once('.') {
+                let alt = format!("{parent_target}.{rest}");
+                if let Some(r) = walk_dotted_with_imports(&alt, top_level, depth + 1) {
+                    return Some(r);
+                }
             }
         }
     }

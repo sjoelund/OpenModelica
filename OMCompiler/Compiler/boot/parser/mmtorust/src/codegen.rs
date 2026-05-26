@@ -7300,18 +7300,59 @@ fn resolve_call_qname<'a>(
                 // Pair: (parent of the aliased type's path, scope in which the
                 // alias was declared). The aliased path is interpreted
                 // relative to the alias's enclosing scope.
-                let alias_target: Option<(String, String)> = loop {
-                    let qual = if scope.is_empty() { alias_head2.to_owned() } else { format!("{scope}.{alias_head2}") };
-                    if let Some(node) = lookup_node(&qual, top_level)
-                        && let NodeKind::Class(c) = &node.kind
+                // `find_alias_at` returns the (parent_of_aliased_path, alias_scope)
+                // for an R_TYPE alias node located at `qual`. Imports that bring an
+                // R_TYPE alias into scope are followed transparently, so
+                // `import Pkg.T;` (T being a type alias) is treated identically
+                // to a local `type T = Pkg.X.SomeType;` declaration.
+                let find_alias_at = |qual: &str, alias_scope: &str| -> Option<(String, String)> {
+                    let node = lookup_node(qual, top_level)?;
+                    // R_TYPE alias declared at this location.
+                    if let NodeKind::Class(c) = &node.kind
                         && matches!(c.restriction, Absyn::Restriction::R_TYPE)
                         && let MM::ClassDef::Derived { type_spec, .. } = &c.body
                         && let Absyn::TypeSpec::TPATH { path, arrayDim: None, .. } = type_spec.as_ref()
                     {
                         let aliased_str = path_to_dotted(path);
-                        if let Some((parent_rel, _)) = aliased_str.rsplit_once('.') {
-                            break Some((parent_rel.to_owned(), scope.to_owned()));
+                        let parent_rel = aliased_str.rsplit_once('.')
+                            .map(|(p, _)| p.to_owned())
+                            .unwrap_or(aliased_str);
+                        return Some((parent_rel, alias_scope.to_owned()));
+                    }
+                    // Import that resolves to an R_TYPE alias elsewhere.
+                    // `import NFFlatten.FunctionTree;` followed to
+                    // `NFFlatten.FunctionTree` (an R_TYPE alias to
+                    // `NFFlatten.FunctionTreeImpl.Tree`).
+                    if let NodeKind::Import(m) = &node.kind {
+                        let local = qual.rsplit('.').next().unwrap_or(qual);
+                        let target = crate::typedexp::import_target_for_local(&m.import, local)
+                            .or_else(|| crate::typedexp::import_target_path(&m.import))?;
+                        if let Some(tnode) = lookup_node(&target, top_level)
+                            && let NodeKind::Class(c) = &tnode.kind
+                            && matches!(c.restriction, Absyn::Restriction::R_TYPE)
+                            && let MM::ClassDef::Derived { type_spec, .. } = &c.body
+                            && let Absyn::TypeSpec::TPATH { path, arrayDim: None, .. } = type_spec.as_ref()
+                        {
+                            let aliased_str = path_to_dotted(path);
+                            // The alias's type_spec is interpreted relative to the
+                            // package that declares the alias (target's parent).
+                            // Pass that scope along so the outward-walking lookup
+                            // below qualifies correctly.
+                            let parent_rel = aliased_str.rsplit_once('.')
+                                .map(|(p, _)| p.to_owned())
+                                .unwrap_or(aliased_str);
+                            let alias_decl_scope = target.rsplit_once('.')
+                                .map(|(p, _)| p.to_owned())
+                                .unwrap_or_default();
+                            return Some((parent_rel, alias_decl_scope));
                         }
+                    }
+                    None
+                };
+                let alias_target: Option<(String, String)> = loop {
+                    let qual = if scope.is_empty() { alias_head2.to_owned() } else { format!("{scope}.{alias_head2}") };
+                    if let Some(r) = find_alias_at(&qual, scope) {
+                        break Some(r);
                     }
                     match scope.rfind('.') {
                         Some(dot) => scope = &scope[..dot],

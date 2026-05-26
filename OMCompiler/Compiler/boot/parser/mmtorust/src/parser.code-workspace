@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"path": "../.."
+		}
+	],
+	"settings": {
+		"chat.tools.terminal.autoApprove": {
+			"cargo check": true,
+			"cargo run": true
+		}
+	}
+}

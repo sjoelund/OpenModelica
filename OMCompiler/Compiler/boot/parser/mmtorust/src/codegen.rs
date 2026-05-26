@@ -10800,6 +10800,21 @@ fn emit_pat_assign<'a>(
                 }
                 return;
             }
+            // Irrefutable patterns under IfLetElse fail-mode: scrut_expr was
+            // emitted in Bare mode (raw `Result<T>`), so we still need an
+            // `Ok(..)` unwrap. The else-branch only runs on the Err case;
+            // pattern mismatch is impossible by construction.
+            if pat_is_irrefutable(pat_for_render)
+                && let FailureMode::IfLetElse(else_code) = &fail_mode
+            {
+                let inner = format!("{indent}    ");
+                writeln!(out, "{indent}if let Ok({surface}) = {scrut_expr} {{").unwrap();
+                emit_body!(out, inner.as_str(), FailureMode::Function);
+                writeln!(out, "{indent}}} else {{").unwrap();
+                out.push_str(else_code.as_str());
+                writeln!(out, "{indent}}}").unwrap();
+                return;
+            }
             if pat_is_irrefutable(pat_for_render) {
                 match pat_for_render {
                     TypedPat::Tuple(_) => {

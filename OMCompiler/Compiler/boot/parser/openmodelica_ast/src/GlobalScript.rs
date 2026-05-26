@@ -58,6 +58,13 @@ pub enum Statement {
         info: SourceInfo,
     },
 }
+impl Default for Statement {
+    fn default() -> Self {
+        Self::IALG {
+            algItem: Default::default(),
+        }
+    }
+}
 pub use self::Statement::{IALG,IEXP};
 
 /// Several interactive statements are used in Modelica scripts.

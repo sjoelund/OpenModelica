@@ -1,0 +1,770 @@
+// Auto-generated from MetaModelica source
+/*
+ * This file is part of OpenModelica.
+ *
+ * Copyright (c) 1998-2026, Open Source Modelica Consortium (OSMC),
+ * c/o Linköpings universitet, Department of Computer and Information Science,
+ * SE-58183 Linköping, Sweden.
+ *
+ * All rights reserved.
+ *
+ * THIS PROGRAM IS PROVIDED UNDER THE TERMS OF AGPL VERSION 3 LICENSE OR
+ * THIS OSMC PUBLIC LICENSE (OSMC-PL) VERSION 1.8.
+ * ANY USE, REPRODUCTION OR DISTRIBUTION OF THIS PROGRAM CONSTITUTES
+ * RECIPIENT'S ACCEPTANCE OF THE OSMC PUBLIC LICENSE OR THE GNU AGPL
+ * VERSION 3, ACCORDING TO RECIPIENTS CHOICE.
+ *
+ * The OpenModelica software and the OSMC (Open Source Modelica Consortium)
+ * Public License (OSMC-PL) are obtained from OSMC, either from the above
+ * address, from the URLs:
+ * http://www.openmodelica.org or
+ * https://github.com/OpenModelica/ or
+ * http://www.ida.liu.se/projects/OpenModelica,
+ * and in the OpenModelica distribution.
+ *
+ * GNU AGPL version 3 is obtained from:
+ * https://www.gnu.org/licenses/licenses.html#GPL
+ *
+ * This program is distributed WITHOUT ANY WARRANTY; without
+ * even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE, EXCEPT AS EXPRESSLY SET FORTH
+ * IN THE BY RECIPIENT SELECTED SUBSIDIARY LICENSE CONDITIONS OF OSMC-PL.
+ *
+ * See the full OSMC Public License conditions for more details.
+ *
+ */
+#![allow(warnings)]
+#![allow(unreachable_patterns, unreachable_code, non_camel_case_types, non_snake_case, dead_code, unused_imports, unused_variables, non_upper_case_globals, unused_mut)]
+
+use std::sync::Arc;
+use anyhow::{Result, bail};
+use loop_unwrap::unwrap_break_err;
+use metamodelica::*; // Built-in types and functions
+use const_str;
+use arcstr::{ArcStr, literal, format};
+
+use crate::NFAlgorithm as Algorithm;
+use crate::NFBinding as Binding;
+use crate::NFCeval as Ceval;
+use crate::NFClass as Class;
+use crate::NFClassTree as ClassTree;
+use crate::NFComponent as Component;
+use crate::NFComponentRef as ComponentRef;
+use crate::NFEquation as Equation;
+use crate::NFExpression as Expression;
+use crate::NFFlatModel as FlatModel;
+use crate::NFFlatten as Flatten;
+use crate::NFFlatten::FunctionTree;
+use crate::NFFunction::Function;
+use crate::NFInstContext as InstContext;
+use crate::NFInstNode::InstNode;
+use crate::NFSections as Sections;
+use crate::NFStatement as Statement;
+use crate::NFType as Type;
+use crate::NFTyping as Typing;
+use crate::NFVariable as Variable;
+use openmodelica_ast::Absyn;
+use openmodelica_util::BaseAvlSet;
+use openmodelica_util::ExecStat::execStat;
+use openmodelica_util_datatypes_basic::List;
+
+pub type Constants = Arc<ConstantsSetImpl::Tree>;
+
+pub mod ConstantsSetImpl {
+    use super::*;
+    pub type Key = Arc<ComponentRef::NFComponentRef>;
+
+    pub fn keyStr(mut inKey: Key) -> Result<ArcStr> {
+        let mut outString: ArcStr = arcstr::literal!("");
+        outString = (ComponentRef::toString(inKey.clone())?).clone();
+        Ok(outString)
+    }
+
+    pub fn keyCompare(mut inKey1: Key, mut inKey2: Key) -> Result<i32> {
+        let mut outResult: i32 = 0;
+        outResult = ComponentRef::compare(inKey1.clone(), inKey2.clone())?;
+        Ok(outResult)
+    }
+
+    /// The binary tree data structure.
+    #[derive(Clone, Debug, PartialEq)]
+    pub enum Tree {
+        NODE {
+            /// The key of the node.
+            key: Key,
+            /// Height of tree, used for balancing
+            height: i32,
+            /// Left subtree.
+            left: Arc<Tree>,
+            /// Right subtree.
+            right: Arc<Tree>,
+        },
+        LEAF {
+            /// The key of the node.
+            key: Key,
+        },
+        EMPTY,
+    }
+    impl Default for Tree {
+        fn default() -> Self { Self::EMPTY }
+    }
+    pub use self::Tree::{NODE,LEAF,EMPTY};
+
+    pub type ValueNode = Arc<ComponentRef::NFComponentRef>;
+
+    pub fn add(mut inTree: Arc<Tree>, mut inKey: Key) -> Result<Arc<Tree>> {
+        let mut tree: Arc<Tree> = inTree.clone();
+        tree = (::match_deref::match_deref! { match &(tree.clone()) {
+        Deref @ Tree::EMPTY { .. } => {
+            Arc::new(Tree::LEAF { key: inKey.clone() })
+        },
+        Deref @ Tree::NODE { key, .. } => {
+            let mut key_comp: i32 = 0;
+            key_comp = keyCompare(inKey.clone(), key.clone())?;
+            if key_comp.clone() == -1 {
+                assign_variant_field!(tree => Tree::NODE; left = add(var_field!((*tree).left, Tree::NODE).clone(), inKey.clone())?);
+            } else if key_comp.clone() == 1 {
+                assign_variant_field!(tree => Tree::NODE; right = add(var_field!((*tree).right, Tree::NODE).clone(), inKey.clone())?);
+            }
+            if (key_comp.clone() == 0) {tree.clone()} else {balance(tree.clone())?}
+        },
+        Deref @ Tree::LEAF { key } => {
+            let mut key_comp: i32 = 0;
+            let mut outTree: Arc<Tree> = Arc::new(Tree::EMPTY);
+            key_comp = keyCompare(inKey.clone(), key.clone())?;
+            if key_comp.clone() == -1 {
+                outTree = Arc::new(Tree::NODE { key: var_field!((*tree).key, Tree::LEAF).clone(), height: 2, left: Arc::new(Tree::LEAF { key: inKey.clone() }), right: Arc::new(crate::NFPackage::ConstantsSetImpl::Tree::EMPTY) });
+            } else if key_comp.clone() == 1 {
+                outTree = Arc::new(Tree::NODE { key: var_field!((*tree).key, Tree::LEAF).clone(), height: 2, left: Arc::new(crate::NFPackage::ConstantsSetImpl::Tree::EMPTY), right: Arc::new(Tree::LEAF { key: inKey.clone() }) });
+            } else {
+                outTree = tree.clone();
+            }
+            outTree.clone()
+        },
+        _ => bail!("match: no arm matched"),
+    } });
+        Ok(tree)
+    }
+
+    pub fn addList(mut tree: Arc<Tree>, mut inValues: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>) -> Result<Arc<Tree>> {
+        let mut tree: Arc<Tree> = tree;
+        for mut key in &*inValues.clone() {
+            let mut key = key.clone();
+            tree = add(tree.clone(), key.clone())?;
+        }
+        Ok(tree)
+    }
+
+    fn balance(mut inTree: Arc<Tree>) -> Result<Arc<Tree>> {
+        let mut outTree: Arc<Tree> = inTree.clone();
+        outTree = (::match_deref::match_deref! { match &(outTree.clone()) {
+        Deref @ Tree::LEAF { .. } => {
+            inTree.clone()
+        },
+        Deref @ Tree::NODE { .. } => {
+            let mut lh: i32 = 0;
+            let mut rh: i32 = 0;
+            let mut diff: i32 = 0;
+            let mut balanced_tree: Arc<Tree> = Arc::new(Tree::EMPTY);
+            lh = height(var_field!((*outTree).left, Tree::NODE).clone());
+            rh = height(var_field!((*outTree).right, Tree::NODE).clone());
+            diff = lh.clone() - rh.clone();
+            if diff.clone() < -1 {
+                balanced_tree = if (calculateBalance(var_field!((*outTree).right, Tree::NODE).clone()) > 0) {rotateLeft(setTreeLeftRight(outTree.clone(), var_field!((*outTree).left, Tree::NODE).clone(), rotateRight(var_field!((*outTree).right, Tree::NODE).clone())?)?)?} else {rotateLeft(outTree.clone())?};
+            } else if diff.clone() > 1 {
+                balanced_tree = if (calculateBalance(var_field!((*outTree).left, Tree::NODE).clone()) < 0) {rotateRight(setTreeLeftRight(outTree.clone(), rotateLeft(var_field!((*outTree).left, Tree::NODE).clone())?, var_field!((*outTree).right, Tree::NODE).clone())?)?} else {rotateRight(outTree.clone())?};
+            } else if var_field!((*outTree).height, Tree::NODE).clone() != std::cmp::max(lh.clone(), rh.clone()) + 1 {
+                assign_variant_field!(outTree => Tree::NODE; height = std::cmp::max(lh.clone(), rh.clone()) + 1);
+                balanced_tree = outTree.clone();
+            } else {
+                balanced_tree = outTree.clone();
+            }
+            balanced_tree.clone()
+        },
+        _ => bail!("match: no arm matched"),
+    } });
+        Ok(outTree)
+    }
+
+    fn calculateBalance(mut inNode: Arc<Tree>) -> i32 {
+        let mut outBalance: i32 = 0;
+        outBalance = (::match_deref::match_deref! { match &(inNode.clone()) {
+        Deref @ Tree::NODE { .. } => height(var_field!((*inNode).left, Tree::NODE).clone()) - height(var_field!((*inNode).right, Tree::NODE).clone()),
+        Deref @ Tree::LEAF { .. } => 0,
+        _ => 0,
+        _ => unreachable!("match_deref! exhaustiveness placeholder"),
+    } });
+        outBalance
+    }
+
+    pub fn hasKey(mut inTree: Arc<Tree>, mut inKey: Key) -> Result<bool> {
+        let mut comp: bool = false;
+        let mut key: Key = Arc::new(ComponentRef::EMPTY);
+        let mut key_comp: i32 = 0;
+        let mut tree: Arc<Tree> = Arc::new(Tree::EMPTY);
+        key = (::match_deref::match_deref! { match &(inTree.clone()) {
+        Deref @ Tree::NODE { .. } => var_field!((*inTree).key, Tree::NODE).clone(),
+        Deref @ Tree::LEAF { .. } => var_field!((*inTree).key, Tree::LEAF).clone(),
+        Deref @ Tree::EMPTY { .. } => {
+            return Ok(comp);
+            bail!("fail")
+        },
+        _ => bail!("match: no arm matched"),
+    } });
+        key_comp = keyCompare(inKey.clone(), key.clone())?;
+        comp = (::match_deref::match_deref! { match &((key_comp.clone(), inTree.clone())) {
+        (0, _) => true,
+        (1, Deref @ Tree::NODE { right: tree, .. }) => hasKey(tree.clone(), inKey.clone())?,
+        ((-1), Deref @ Tree::NODE { left: tree, .. }) => hasKey(tree.clone(), inKey.clone())?,
+        _ => false,
+        _ => unreachable!("match_deref! exhaustiveness placeholder"),
+    } });
+        Ok(comp)
+    }
+
+    fn height(mut inNode: Arc<Tree>) -> i32 {
+        let mut outHeight: i32 = 0;
+        outHeight = (::match_deref::match_deref! { match &(inNode.clone()) {
+        Deref @ Tree::NODE { .. } => var_field!((*inNode).height, Tree::NODE).clone(),
+        Deref @ Tree::LEAF { .. } => 1,
+        _ => 0,
+        _ => unreachable!("match_deref! exhaustiveness placeholder"),
+    } });
+        outHeight
+    }
+
+    pub fn intersection(mut tree1: Arc<Tree>, mut tree2: Arc<Tree>) -> Result<(Arc<Tree>, Arc<Tree>, Arc<Tree>)> {
+        let mut intersect: Arc<Tree> = Arc::new(crate::NFPackage::ConstantsSetImpl::Tree::EMPTY);
+        let mut rest1: Arc<Tree> = Arc::new(crate::NFPackage::ConstantsSetImpl::Tree::EMPTY);
+        let mut rest2: Arc<Tree> = Arc::new(crate::NFPackage::ConstantsSetImpl::Tree::EMPTY);
+        let mut keylist1: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = metamodelica::nil();
+        let mut keylist2: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = metamodelica::nil();
+        let mut k1: Key = Arc::new(ComponentRef::EMPTY);
+        let mut k2: Key = Arc::new(ComponentRef::EMPTY);
+        let mut key_comp: i32 = 0;
+        if isEmpty(tree1.clone()) {
+            rest2 = tree2.clone();
+            return Ok((intersect, rest1, rest2));
+        }
+        if isEmpty(tree2.clone()) {
+            rest1 = tree1.clone();
+            return Ok((intersect, rest1, rest2));
+        }
+        let (__pa0, __pa1) = ::match_deref::match_deref! { match &(listKeys(tree1.clone(), metamodelica::nil())) {
+            Deref @ metamodelica::List::Cons { head: __pa0, tail: __pa1 } => (__pa0.clone(), __pa1.clone()),
+            _ => bail!("pattern mismatch"),
+        } };
+        k1 = __pa0.clone();
+        keylist1 = __pa1.clone();
+        let (__pa2, __pa3) = ::match_deref::match_deref! { match &(listKeys(tree2.clone(), metamodelica::nil())) {
+            Deref @ metamodelica::List::Cons { head: __pa2, tail: __pa3 } => (__pa2.clone(), __pa3.clone()),
+            _ => bail!("pattern mismatch"),
+        } };
+        k2 = __pa2.clone();
+        keylist2 = __pa3.clone();
+        while true {
+            key_comp = keyCompare(k1.clone(), k2.clone())?;
+            if key_comp.clone() > 0 {
+                if true /* isPresent not implemented in Rust */ {
+                    rest2 = add(rest2.clone(), k2.clone())?;
+                }
+                if keylist2.clone().is_empty() {
+                    break;
+                }
+                let (__pa4, __pa5) = ::match_deref::match_deref! { match &(keylist2.clone()) {
+                    Deref @ metamodelica::List::Cons { head: __pa4, tail: __pa5 } => (__pa4.clone(), __pa5.clone()),
+                    _ => bail!("pattern mismatch"),
+                } };
+                k2 = __pa4.clone();
+                keylist2 = __pa5.clone();
+            } else if key_comp.clone() < 0 {
+                if true /* isPresent not implemented in Rust */ {
+                    rest1 = add(rest1.clone(), k1.clone())?;
+                }
+                if keylist1.clone().is_empty() {
+                    break;
+                }
+                let (__pa6, __pa7) = ::match_deref::match_deref! { match &(keylist1.clone()) {
+                    Deref @ metamodelica::List::Cons { head: __pa6, tail: __pa7 } => (__pa6.clone(), __pa7.clone()),
+                    _ => bail!("pattern mismatch"),
+                } };
+                k1 = __pa6.clone();
+                keylist1 = __pa7.clone();
+            } else {
+                intersect = add(intersect.clone(), k1.clone())?;
+                if keylist1.clone().is_empty() || keylist2.clone().is_empty() {
+                    break;
+                }
+                let (__pa8, __pa9) = ::match_deref::match_deref! { match &(keylist1.clone()) {
+                    Deref @ metamodelica::List::Cons { head: __pa8, tail: __pa9 } => (__pa8.clone(), __pa9.clone()),
+                    _ => bail!("pattern mismatch"),
+                } };
+                k1 = __pa8.clone();
+                keylist1 = __pa9.clone();
+                let (__pa10, __pa11) = ::match_deref::match_deref! { match &(keylist2.clone()) {
+                    Deref @ metamodelica::List::Cons { head: __pa10, tail: __pa11 } => (__pa10.clone(), __pa11.clone()),
+                    _ => bail!("pattern mismatch"),
+                } };
+                k2 = __pa10.clone();
+                keylist2 = __pa11.clone();
+            }
+        }
+        if true /* isPresent not implemented in Rust */ && !(keylist1.clone().is_empty()) {
+            for mut key in &*keylist1.clone() {
+                let mut key = key.clone();
+                rest1 = add(rest1.clone(), key.clone())?;
+            }
+        }
+        if true /* isPresent not implemented in Rust */ && !(keylist2.clone().is_empty()) {
+            for mut key in &*keylist2.clone() {
+                let mut key = key.clone();
+                rest2 = add(rest2.clone(), key.clone())?;
+            }
+        }
+        Ok((intersect, rest1, rest2))
+    }
+
+    pub fn isEmpty(mut tree: Arc<Tree>) -> bool {
+        let mut isEmpty: bool = false;
+        isEmpty = (::match_deref::match_deref! { match &(tree.clone()) {
+        Deref @ Tree::EMPTY { .. } => true,
+        _ => false,
+        _ => unreachable!("match_deref! exhaustiveness placeholder"),
+    } });
+        isEmpty
+    }
+
+    pub fn join(mut tree: Arc<Tree>, mut treeToJoin: Arc<Tree>) -> Result<Arc<Tree>> {
+        let mut tree: Arc<Tree> = tree;
+        tree = (::match_deref::match_deref! { match &(treeToJoin.clone()) {
+        Deref @ Tree::EMPTY { .. } => tree.clone(),
+        Deref @ Tree::NODE { .. } => {
+            tree = add(tree.clone(), var_field!((*treeToJoin).key, Tree::NODE).clone())?;
+            tree = join(tree.clone(), var_field!((*treeToJoin).left, Tree::NODE).clone())?;
+            tree = join(tree.clone(), var_field!((*treeToJoin).right, Tree::NODE).clone())?;
+            tree.clone()
+        },
+        Deref @ Tree::LEAF { .. } => add(tree.clone(), var_field!((*treeToJoin).key, Tree::LEAF).clone())?,
+        _ => bail!("match: no arm matched"),
+    } });
+        Ok(tree)
+    }
+
+    pub fn listKeys(mut inTree: Arc<Tree>, mut lst: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>) -> Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> {
+        let mut lst: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = lst;
+        lst = (::match_deref::match_deref! { match &(inTree.clone()) {
+        Deref @ Tree::LEAF { .. } => cons(var_field!((*inTree).key, Tree::LEAF).clone(), lst.clone()),
+        Deref @ Tree::NODE { .. } => {
+            lst = listKeys(var_field!((*inTree).right, Tree::NODE).clone(), lst.clone());
+            lst = cons(var_field!((*inTree).key, Tree::NODE).clone(), lst.clone());
+            lst = listKeys(var_field!((*inTree).left, Tree::NODE).clone(), lst.clone());
+            lst.clone()
+        },
+        _ => lst.clone(),
+        _ => unreachable!("match_deref! exhaustiveness placeholder"),
+    } });
+        lst
+    }
+
+    pub fn listKeysReverse(mut inTree: Arc<Tree>, mut lst: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>) -> Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> {
+        let mut lst: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = lst;
+        lst = (::match_deref::match_deref! { match &(inTree.clone()) {
+        Deref @ Tree::LEAF { .. } => cons(var_field!((*inTree).key, Tree::LEAF).clone(), lst.clone()),
+        Deref @ Tree::NODE { .. } => {
+            lst = listKeysReverse(var_field!((*inTree).left, Tree::NODE).clone(), lst.clone());
+            lst = cons(var_field!((*inTree).key, Tree::NODE).clone(), lst.clone());
+            lst = listKeysReverse(var_field!((*inTree).right, Tree::NODE).clone(), lst.clone());
+            lst.clone()
+        },
+        _ => lst.clone(),
+        _ => unreachable!("match_deref! exhaustiveness placeholder"),
+    } });
+        lst
+    }
+
+    pub fn new() -> Arc<Tree> {
+        let mut outTree: Arc<Tree> = Arc::new(crate::NFPackage::ConstantsSetImpl::Tree::EMPTY);
+        outTree
+    }
+
+    pub fn printNodeStr(mut inNode: Arc<Tree>) -> Result<ArcStr> {
+        let mut outString: ArcStr = arcstr::literal!("");
+        outString = ((::match_deref::match_deref! { match &(inNode.clone()) {
+        Deref @ Tree::NODE { .. } => keyStr(var_field!((*inNode).key, Tree::NODE).clone())?,
+        Deref @ Tree::LEAF { .. } => keyStr(var_field!((*inNode).key, Tree::LEAF).clone())?,
+        _ => bail!("match: no arm matched"),
+    } })).clone();
+        Ok(outString)
+    }
+
+    pub fn printTreeStr(mut inTree: Arc<Tree>) -> Result<ArcStr> {
+        let mut outString: ArcStr = arcstr::literal!("");
+        let mut left: Arc<Tree> = Arc::new(Tree::EMPTY);
+        let mut right: Arc<Tree> = Arc::new(Tree::EMPTY);
+        outString = ((::match_deref::match_deref! { match &(inTree.clone()) {
+        Deref @ Tree::EMPTY { .. } => literal!("EMPTY()"),
+        Deref @ Tree::LEAF { .. } => printNodeStr(inTree.clone())?,
+        Deref @ Tree::NODE { right, left, .. } => { let mut __mm_s = String::new(); __mm_s.push_str(&*printTreeStr2(left.clone(), true, (literal!("")).clone())?); __mm_s.push_str(&*printNodeStr(inTree.clone())?); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*printTreeStr2(right.clone(), false, (literal!("")).clone())?); ArcStr::from(__mm_s) },
+        _ => bail!("match: no arm matched"),
+    } })).clone();
+        Ok(outString)
+    }
+
+    fn printTreeStr2(mut inTree: Arc<Tree>, mut isLeft: bool, mut inIndent: ArcStr) -> Result<ArcStr> {
+        let mut outString: ArcStr = arcstr::literal!("");
+        let mut val_node: Option<Arc<ComponentRef::NFComponentRef>> = None;
+        let mut left: Option<Arc<Tree>> = None;
+        let mut right: Option<Arc<Tree>> = None;
+        let mut left_str: ArcStr = arcstr::literal!("");
+        let mut right_str: ArcStr = arcstr::literal!("");
+        outString = ((::match_deref::match_deref! { match &(inTree.clone()) {
+        Deref @ Tree::NODE { .. } => { let mut __mm_s = String::new(); __mm_s.push_str(&*printTreeStr2(var_field!((*inTree).left, Tree::NODE).clone(), true, ({ let mut __mm_s = String::new(); __mm_s.push_str(&*inIndent.clone()); __mm_s.push_str(&*if (isLeft.clone()) {literal!("     ")} else {literal!(" │   ")}); ArcStr::from(__mm_s) }).clone())?); __mm_s.push_str(&*inIndent.clone()); __mm_s.push_str(&*if (isLeft.clone()) {literal!(" ┌")} else {literal!(" └")}); __mm_s.push_str(&*literal!("────")); __mm_s.push_str(&*printNodeStr(inTree.clone())?); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*printTreeStr2(var_field!((*inTree).right, Tree::NODE).clone(), false, ({ let mut __mm_s = String::new(); __mm_s.push_str(&*inIndent.clone()); __mm_s.push_str(&*if (isLeft.clone()) {literal!(" │   ")} else {literal!("     ")}); ArcStr::from(__mm_s) }).clone())?); ArcStr::from(__mm_s) },
+        Deref @ Tree::LEAF { .. } => { let mut __mm_s = String::new(); __mm_s.push_str(&*inIndent.clone()); __mm_s.push_str(&*if (isLeft.clone()) {literal!(" ┌")} else {literal!(" └")}); __mm_s.push_str(&*literal!("────")); __mm_s.push_str(&*printNodeStr(inTree.clone())?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) },
+        _ => literal!(""),
+        _ => unreachable!("match_deref! exhaustiveness placeholder"),
+    } })).clone();
+        Ok(outString)
+    }
+
+    fn referenceEqOrEmpty(mut t1: Arc<Tree>, mut t2: Arc<Tree>) -> bool {
+        let mut b: bool = false;
+        b = (::match_deref::match_deref! { match &((t1.clone(), t2.clone())) {
+        (Deref @ Tree::EMPTY { .. }, Deref @ Tree::EMPTY { .. }) => true,
+        _ => referenceEq(&t1.clone(),&t2.clone()),
+        _ => unreachable!("match_deref! exhaustiveness placeholder"),
+    } });
+        b
+    }
+
+    fn rotateLeft(mut inNode: Arc<Tree>) -> Result<Arc<Tree>> {
+        let mut outNode: Arc<Tree> = inNode.clone();
+        outNode = (::match_deref::match_deref! { match &(outNode.clone()) {
+        Deref @ Tree::NODE { right: child @ Deref @ Tree::NODE { .. }, .. } => {
+            let mut node: Arc<Tree> = Arc::new(Tree::EMPTY);
+            node = setTreeLeftRight(outNode.clone(), var_field!((*outNode).left, Tree::NODE).clone(), var_field!((**child).left, Tree::NODE).clone())?;
+            setTreeLeftRight(child.clone(), node.clone(), var_field!((**child).right, Tree::NODE).clone())?
+        },
+        Deref @ Tree::NODE { right: child @ Deref @ Tree::LEAF { .. }, .. } => {
+            let mut node: Arc<Tree> = Arc::new(Tree::EMPTY);
+            node = setTreeLeftRight(outNode.clone(), var_field!((*outNode).left, Tree::NODE).clone(), Arc::new(crate::NFPackage::ConstantsSetImpl::Tree::EMPTY))?;
+            setTreeLeftRight(child.clone(), node.clone(), Arc::new(crate::NFPackage::ConstantsSetImpl::Tree::EMPTY))?
+        },
+        _ => {
+            inNode.clone()
+        },
+        _ => unreachable!("match_deref! exhaustiveness placeholder"),
+    } });
+        Ok(outNode)
+    }
+
+    fn rotateRight(mut inNode: Arc<Tree>) -> Result<Arc<Tree>> {
+        let mut outNode: Arc<Tree> = inNode.clone();
+        outNode = (::match_deref::match_deref! { match &(outNode.clone()) {
+        Deref @ Tree::NODE { left: child @ Deref @ Tree::NODE { .. }, .. } => {
+            let mut node: Arc<Tree> = Arc::new(Tree::EMPTY);
+            node = setTreeLeftRight(outNode.clone(), var_field!((**child).right, Tree::NODE).clone(), var_field!((*outNode).right, Tree::NODE).clone())?;
+            setTreeLeftRight(child.clone(), var_field!((**child).left, Tree::NODE).clone(), node.clone())?
+        },
+        Deref @ Tree::NODE { left: child @ Deref @ Tree::LEAF { .. }, .. } => {
+            let mut node: Arc<Tree> = Arc::new(Tree::EMPTY);
+            node = setTreeLeftRight(outNode.clone(), Arc::new(crate::NFPackage::ConstantsSetImpl::Tree::EMPTY), var_field!((*outNode).right, Tree::NODE).clone())?;
+            setTreeLeftRight(child.clone(), Arc::new(crate::NFPackage::ConstantsSetImpl::Tree::EMPTY), node.clone())?
+        },
+        _ => {
+            inNode.clone()
+        },
+        _ => unreachable!("match_deref! exhaustiveness placeholder"),
+    } });
+        Ok(outNode)
+    }
+
+    pub fn setTreeLeftRight(mut orig: Arc<Tree>, mut left: Arc<Tree>, mut right: Arc<Tree>) -> Result<Arc<Tree>> {
+        let mut res: Arc<Tree> = Arc::new(Tree::EMPTY);
+        res = (::match_deref::match_deref! { match &((orig.clone(), left.clone(), right.clone())) {
+        (Deref @ Tree::NODE { .. }, Deref @ Tree::EMPTY { .. }, Deref @ Tree::EMPTY { .. }) => Arc::new(Tree::LEAF { key: var_field!((*orig).key, Tree::NODE).clone() }),
+        (Deref @ Tree::LEAF { .. }, Deref @ Tree::EMPTY { .. }, Deref @ Tree::EMPTY { .. }) => orig.clone(),
+        (Deref @ Tree::NODE { .. }, _, _) => if (referenceEqOrEmpty(var_field!((*orig).left, Tree::NODE).clone(), left.clone()) && referenceEqOrEmpty(var_field!((*orig).right, Tree::NODE).clone(), right.clone())) {orig.clone()} else {Arc::new(Tree::NODE { key: var_field!((*orig).key, Tree::NODE).clone(), height: std::cmp::max(height(left.clone()), height(right.clone())) + 1, left: left.clone(), right: right.clone() })},
+        (Deref @ Tree::LEAF { .. }, _, _) => Arc::new(Tree::NODE { key: var_field!((*orig).key, Tree::LEAF).clone(), height: std::cmp::max(height(left.clone()), height(right.clone())) + 1, left: left.clone(), right: right.clone() }),
+        _ => bail!("match: no arm matched"),
+    } });
+        Ok(res)
+    }
+
+    // NOTE: #[tailcall::tailcall] disabled: function body contains a `match_deref!{…}` match,
+    // and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
+    pub fn smallestKey(mut tree: Arc<Tree>) -> Result<Key> {
+        let mut key: Key = Arc::new(ComponentRef::EMPTY);
+        key = (::match_deref::match_deref! { match &(tree.clone()) {
+        Deref @ Tree::NODE { right: Deref @ Tree::EMPTY { .. }, .. } => var_field!((*tree).key, Tree::NODE).clone(),
+        Deref @ Tree::NODE { .. } => smallestKey(var_field!((*tree).right, Tree::NODE).clone())?,
+        Deref @ Tree::LEAF { .. } => var_field!((*tree).key, Tree::LEAF).clone(),
+        _ => bail!("match: no arm matched"),
+    } });
+        Ok(key)
+    }
+
+}
+
+pub fn collectConstants(mut flatModel: Arc<FlatModel::NFFlatModel>) -> Result<Arc<FlatModel::NFFlatModel>> {
+    let mut flatModel: Arc<FlatModel::NFFlatModel> = flatModel;
+    let mut vars: Arc<metamodelica::List<Arc<Variable::NFVariable>>> = metamodelica::nil();
+    let mut constants: Constants = Arc::new(ConstantsSetImpl::Tree::EMPTY);
+    constants = ConstantsSetImpl::new();
+    constants = List::fold(flatModel.variables.clone(), Arc::new(collectVariableConstants), constants.clone());
+    constants = Equation::foldExpList(flatModel.equations.clone(), Arc::new(collectExpConstants), constants.clone())?;
+    constants = Equation::foldExpList(flatModel.initialEquations.clone(), Arc::new(collectExpConstants), constants.clone())?;
+    constants = Algorithm::foldExpList(flatModel.algorithms.clone(), Arc::new(collectExpConstants), constants.clone())?;
+    constants = Algorithm::foldExpList(flatModel.initialAlgorithms.clone(), Arc::new(collectExpConstants), constants.clone())?;
+    vars = {
+        let mut __acc: Arc<metamodelica::List<Arc<Variable::NFVariable>>> = metamodelica::nil();
+        for mut c in (ConstantsSetImpl::listKeys(constants.clone(), metamodelica::nil())).into_iter().cloned() {
+            let __x = Variable::fromCref(c.clone())?;
+            __acc = cons(__x, __acc);
+        }
+        __acc
+    };
+    vars = {
+        let mut __acc: Arc<metamodelica::List<Arc<Variable::NFVariable>>> = metamodelica::nil();
+        for mut v in (vars.clone()).into_iter().cloned() {
+            let __x = Variable::expand(v.clone(), false)?;
+            __acc = __x.append(&__acc);
+        }
+        __acc
+    };
+    assign_field!(flatModel.variables = listAppend(vars.clone(), flatModel.variables.clone()));
+    execStat((literal!("NFPackage.collectConstants")).clone())?;
+    Ok(flatModel)
+}
+
+pub fn replaceConstants(mut flatModel: Arc<FlatModel::NFFlatModel>, mut functions: Arc<Flatten::FunctionTreeImpl::Tree>) -> Result<(Arc<FlatModel::NFFlatModel>, Arc<Flatten::FunctionTreeImpl::Tree>)> {
+    let mut flatModel: Arc<FlatModel::NFFlatModel> = flatModel;
+    let mut functions: Arc<Flatten::FunctionTreeImpl::Tree> = functions;
+    assign_field!(
+        flatModel.variables = {
+        let mut __acc: Arc<metamodelica::List<Arc<Variable::NFVariable>>> = metamodelica::nil();
+        for mut c in (flatModel.variables.clone()).into_iter().cloned() {
+            let __x = replaceVariableConstants(c.clone())?;
+            __acc = cons(__x, __acc);
+        }
+        __acc.reverse()
+    },
+        flatModel.equations = Equation::mapExpList(flatModel.equations.clone(), replaceExpConstants),
+        flatModel.initialEquations = Equation::mapExpList(flatModel.initialEquations.clone(), replaceExpConstants),
+        flatModel.algorithms = Algorithm::mapExpList(flatModel.algorithms.clone(), Arc::new(replaceExpConstants)),
+        flatModel.initialAlgorithms = Algorithm::mapExpList(flatModel.initialAlgorithms.clone(), Arc::new(replaceExpConstants))
+    );
+    functions = Flatten::FunctionTreeImpl::map(functions.clone(), Arc::new(replaceFuncConstants));
+    execStat((literal!("NFPackage.replaceConstants")).clone())?;
+    Ok((flatModel, functions))
+}
+
+pub fn collectVariableConstants(mut var: Arc<Variable::NFVariable>, mut constants: Constants) -> Result<Constants> {
+    let mut constants: Constants = constants;
+    constants = collectBindingConstants(var.binding.clone(), constants.clone())?;
+    Ok(constants)
+}
+
+pub fn collectBindingConstants(mut binding: Arc<Binding::NFBinding>, mut constants: Constants) -> Result<Constants> {
+    let mut constants: Constants = constants;
+    if Binding::isExplicitlyBound(binding.clone()) {
+        constants = collectExpConstants(Binding::getTypedExp(binding.clone())?, constants.clone())?;
+    }
+    Ok(constants)
+}
+
+pub fn collectExpConstants(mut exp: Arc<Expression::NFExpression>, mut constants: Constants) -> Result<Constants> {
+    let mut constants: Constants = constants;
+    constants = Expression::fold(exp.clone(), Arc::new(collectExpConstants_traverser), constants.clone())?;
+    Ok(constants)
+}
+
+pub fn collectExpConstants_traverser(mut exp: Arc<Expression::NFExpression>, mut constants: Constants) -> Result<Constants> {
+    let mut constants: Constants = constants;
+    let mut cref: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
+    let mut binding: Arc<Binding::NFBinding> = Arc::new(Binding::UNBOUND);
+    let () = (::match_deref::match_deref! { match &(exp.clone()) {
+        Deref @ Expression::CREF { cref: cref @ Deref @ ComponentRef::CREF { .. }, .. } => {
+            if ComponentRef::isPackageConstant(cref.clone())? && !(Expression::isFunctionPointer(exp.clone())) {
+                binding = getPackageConstantBinding(cref.clone())?;
+                constants = ConstantsSetImpl::add(constants.clone(), ComponentRef::stripSubscriptsAll(cref.clone()))?;
+                constants = collectBindingConstants(binding.clone(), constants.clone())?;
+            }
+            ()
+        },
+        _ => (),
+        _ => unreachable!("match_deref! exhaustiveness placeholder"),
+    } });
+    Ok(constants)
+}
+
+pub fn getPackageConstantBinding(mut cref: Arc<ComponentRef::NFComponentRef>) -> Result<Arc<Binding::NFBinding>> {
+    let mut binding: Arc<Binding::NFBinding> = Arc::new(Binding::UNBOUND);
+    let mut cr_node: Arc<InstNode::InstNode> = ComponentRef::node(cref.clone())?;
+    Typing::typeComponentBinding(cr_node.clone(), InstContext::CLASS.clone(), true)?;
+    binding = Component::getImplicitBinding(InstNode::component(cr_node.clone())?, InstNode::instanceParent(cr_node.clone()));
+    if Binding::isUnbound(binding.clone()) {
+        binding = getPackageConstantBinding2(cr_node.clone(), ComponentRef::rest(cref.clone())?)?;
+        InstNode::componentApply(cr_node.clone(), Arc::new(Component::setBinding), binding.clone())?;
+    }
+    Ok(binding)
+}
+
+pub fn getPackageConstantBinding2(mut fieldNode: Arc<InstNode::InstNode>, mut cref: Arc<ComponentRef::NFComponentRef>) -> Result<Arc<Binding::NFBinding>> {
+    let mut binding: Arc<Binding::NFBinding> = Arc::new(Binding::UNBOUND);
+    let mut cr_node: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
+    let mut is_record: bool = false;
+    if !(ComponentRef::isCref(cref.clone())) {
+        binding = Binding::EMPTY_BINDING().clone();
+        return Ok(binding);
+    }
+    is_record = Type::isRecord(Type::arrayElementType(ComponentRef::nodeType(cref.clone())?));
+    cr_node = ComponentRef::node(cref.clone())?;
+    if !(InstNode::isComponent(cr_node.clone()) && is_record.clone()) {
+        binding = Binding::EMPTY_BINDING().clone();
+        return Ok(binding);
+    }
+    Typing::typeComponentBinding(cr_node.clone(), InstContext::CLASS.clone(), true)?;
+    binding = Component::getBinding(InstNode::component(cr_node.clone())?);
+    if Binding::isUnbound(binding.clone()) {
+        binding = getPackageConstantBinding2(cr_node.clone(), ComponentRef::rest(cref.clone())?)?;
+    }
+    if Binding::isBound(binding.clone()) {
+        binding = Binding::recordFieldBinding(fieldNode.clone(), binding.clone())?;
+    }
+    Ok(binding)
+}
+
+pub fn collectFuncConstants(mut name: Arc<Absyn::Path>, mut func: Arc<Function::Function>, mut constants: Constants) -> Result<Constants> {
+    let mut constants: Constants = constants;
+    let mut cls: Arc<Class::NFClass> = Arc::new(Class::NOT_INSTANTIATED);
+    let mut comps: metamodelica::Array<Arc<InstNode::InstNode>>;
+    let mut sections: Arc<Sections::NFSections> = Arc::new(Sections::EMPTY);
+    cls = InstNode::getClass(func.node.clone())?;
+    let () = (::match_deref::match_deref! { match &(cls.clone()) {
+        Deref @ Class::INSTANCED_CLASS { sections, elements: Deref @ ClassTree::ClassTree::FLAT_TREE { components: comps, .. }, .. } => {
+            let __range0 = comps.clone().borrow().iter().cloned().collect::<Vec<_>>();
+            for mut c in __range0 {
+                constants = collectBindingConstants(Component::getBinding(InstNode::component(c.clone())?), constants.clone())?;
+            }
+            let () = (::match_deref::match_deref! { match &(sections.clone()) {
+        Deref @ Sections::SECTIONS { .. } => {
+            constants = Algorithm::foldExpList(var_field!((**sections).algorithms, Sections::NFSections::SECTIONS).clone(), Arc::new(collectExpConstants), constants.clone())?;
+            ()
+        },
+        Deref @ Sections::EXTERNAL { .. } => {
+            for mut arg in &*var_field!((**sections).args, Sections::NFSections::EXTERNAL).clone() {
+                let mut arg = arg.clone();
+                constants = collectExpConstants(arg.clone(), constants.clone())?;
+            }
+            ()
+        },
+        _ => (),
+        _ => unreachable!("match_deref! exhaustiveness placeholder"),
+    } });
+            ()
+        },
+        _ => (),
+        _ => unreachable!("match_deref! exhaustiveness placeholder"),
+    } });
+    Ok(constants)
+}
+
+pub fn replaceVariableConstants(mut var: Arc<Variable::NFVariable>) -> Result<Arc<Variable::NFVariable>> {
+    let mut var: Arc<Variable::NFVariable> = var;
+    let mut cref: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
+    let mut binding: Arc<Binding::NFBinding> = Arc::new(Binding::UNBOUND);
+    binding = replaceBindingConstants(var.binding.clone())?;
+    if !(referenceEq(&binding.clone(),&var.binding.clone())) {
+        assign_field!(var.binding = binding.clone());
+    }
+    Ok(var)
+}
+
+pub fn replaceBindingConstants(mut binding: Arc<Binding::NFBinding>) -> Result<Arc<Binding::NFBinding>> {
+    let mut binding: Arc<Binding::NFBinding> = binding;
+    let () = (::match_deref::match_deref! { match &(binding.clone()) {
+        Deref @ Binding::TYPED_BINDING { .. } => {
+            assign_variant_field!(binding => Binding::NFBinding::TYPED_BINDING; bindingExp = replaceExpConstants(var_field!((*binding).bindingExp, Binding::NFBinding::TYPED_BINDING).clone())?);
+            ()
+        },
+        _ => (),
+        _ => unreachable!("match_deref! exhaustiveness placeholder"),
+    } });
+    Ok(binding)
+}
+
+pub fn replaceExpConstants(mut exp: Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> {
+    let mut exp: Arc<Expression::NFExpression> = exp;
+    exp = Expression::map(exp.clone(), Arc::new(replaceExpConstants_traverser))?;
+    Ok(exp)
+}
+
+pub fn replaceExpConstants_traverser(mut exp: Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> {
+    let mut exp: Arc<Expression::NFExpression> = exp;
+    let mut cref: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
+    exp = (::match_deref::match_deref! { match &(exp.clone()) {
+        Deref @ Expression::CREF { cref: cref @ Deref @ ComponentRef::CREF { .. }, .. } => if (ComponentRef::isPackageConstant(cref.clone())?) {Ceval::evalExp(exp.clone(), Ceval::noTarget().clone())?} else {exp.clone()},
+        _ => exp.clone(),
+        _ => unreachable!("match_deref! exhaustiveness placeholder"),
+    } });
+    Ok(exp)
+}
+
+pub fn replaceFuncConstants(mut name: Arc<Absyn::Path>, mut func: Arc<Function::Function>) -> Result<Arc<Function::Function>> {
+    let mut func: Arc<Function::Function> = func;
+    let mut cls: Arc<Class::NFClass> = Arc::new(Class::NOT_INSTANTIATED);
+    let mut comps: metamodelica::Array<Arc<InstNode::InstNode>>;
+    let mut sections: Arc<Sections::NFSections> = Arc::new(Sections::EMPTY);
+    let mut comp: Arc<Component::NFComponent> = Arc::new(Component::WILD);
+    let mut binding: Arc<Binding::NFBinding> = Arc::new(Binding::UNBOUND);
+    let mut eval_binding: Arc<Binding::NFBinding> = Arc::new(Binding::UNBOUND);
+    cls = InstNode::getClass(func.node.clone())?;
+    let () = (::match_deref::match_deref! { match &(cls.clone()) {
+        Deref @ Class::INSTANCED_CLASS { sections, elements: Deref @ ClassTree::ClassTree::FLAT_TREE { components: comps, .. }, .. } => {
+            let __range0 = comps.clone().borrow().iter().cloned().collect::<Vec<_>>();
+            for mut c in __range0 {
+                comp = InstNode::component(c.clone())?;
+                binding = Component::getBinding(comp.clone());
+                eval_binding = replaceBindingConstants(binding.clone())?;
+                if !(referenceEq(&binding.clone(),&eval_binding.clone())) {
+                    comp = Component::setBinding(eval_binding.clone(), comp.clone())?;
+                    InstNode::updateComponent(comp.clone(), c.clone())?;
+                }
+            }
+            let () = (::match_deref::match_deref! { match &(sections.clone()) {
+        Deref @ Sections::SECTIONS { .. } => {
+            assign_variant_field!(sections => Sections::NFSections::SECTIONS; algorithms = {
+        let mut __acc: Arc<metamodelica::List<Arc<Algorithm::NFAlgorithm>>> = metamodelica::nil();
+        for mut a in (var_field!((**sections).algorithms, Sections::NFSections::SECTIONS).clone()).into_iter().cloned() {
+            let __x = Algorithm::mapExp(a.clone(), Arc::new(replaceExpConstants));
+            __acc = cons(__x, __acc);
+        }
+        __acc.reverse()
+    });
+            assign_variant_field!(cls => Class::NFClass::INSTANCED_CLASS; sections = sections.clone());
+            InstNode::updateClass(cls.clone(), func.node.clone())?;
+            ()
+        },
+        Deref @ Sections::EXTERNAL { .. } => {
+            assign_variant_field!(sections => Sections::NFSections::EXTERNAL; args = {
+        let mut __acc: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
+        for mut arg in (var_field!((**sections).args, Sections::NFSections::EXTERNAL).clone()).into_iter().cloned() {
+            let __x = replaceExpConstants(arg.clone())?;
+            __acc = cons(__x, __acc);
+        }
+        __acc.reverse()
+    });
+            assign_variant_field!(cls => Class::NFClass::INSTANCED_CLASS; sections = sections.clone());
+            InstNode::updateClass(cls.clone(), func.node.clone())?;
+            ()
+        },
+        _ => (),
+        _ => unreachable!("match_deref! exhaustiveness placeholder"),
+    } });
+            ()
+        },
+        _ => bail!("match: no arm matched"),
+    } });
+    Ok(func)
+}
+

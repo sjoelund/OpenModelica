@@ -1929,20 +1929,31 @@ fn emit_uniontype<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM:
             }
             writeln!(out, "{inner}}}").unwrap();
             // Emit a manual `Default` impl when this enum is in the
-            // defaultable set. The codegen seed picks any unit variant
-            // (`Ty::RustUnitVariant`) as the default-payload-free choice —
-            // we redo that selection here to avoid recomputing the analysis.
-            // Required so e.g. `Arc<JSON>: Default` works (transitively
-            // needed by `UnorderedMap::add` callers that flow `JSON` into a
-            // generic `T: Default`).
-            if ctx.defaultable_struct_qnames.contains(qname) {
-                let default_variant = node.children.iter()
-                    .find_map(|(n, child)| matches!(child.ty, Ty::RustUnitVariant).then(|| n.clone()));
-                if let Some(dv) = default_variant {
-                    writeln!(out, "{inner}impl{type_params} Default for {ename}{type_params} {{").unwrap();
-                    writeln!(out, "{inner}    fn default() -> Self {{ Self::{dv} }}").unwrap();
-                    writeln!(out, "{inner}}}").unwrap();
+            // defaultable set. We pick the *smallest* variant whose fields
+            // are all themselves defaultable — fewest fields wins, ties
+            // broken by declaration order. Unit variants (zero fields)
+            // therefore beat record-shaped variants whenever present, but
+            // record-shaped variants are eligible too when no unit variant
+            // exists (e.g. uniontypes that only carry data). Required so
+            // `Arc<JSON>: Default` and similar transitively-needed bounds
+            // (e.g. `UnorderedMap::add(... value: T ...)` where `T = JSON`)
+            // type-check.
+            if ctx.defaultable_struct_qnames.contains(qname)
+                && let Some((variant_name, fields)) = pick_default_variant_for_enum(node, &ctx.defaultable_struct_qnames) {
+                writeln!(out, "{inner}impl{type_params} Default for {ename}{type_params} {{").unwrap();
+                if fields.is_empty() {
+                    writeln!(out, "{inner}    fn default() -> Self {{ Self::{variant_name} }}").unwrap();
+                } else {
+                    writeln!(out, "{inner}    fn default() -> Self {{").unwrap();
+                    writeln!(out, "{inner}        Self::{variant_name} {{").unwrap();
+                    for (fname, fty) in &fields {
+                        let value = default_value_expr_for_field_ty(fty, &mut *ctx, top_level);
+                        writeln!(out, "{inner}            {}: {value},", escape_ident(fname)).unwrap();
+                    }
+                    writeln!(out, "{inner}        }}").unwrap();
+                    writeln!(out, "{inner}    }}").unwrap();
                 }
+                writeln!(out, "{inner}}}").unwrap();
             }
             let variant_list = emitted_variants.join(",");
             // Use `self::<Enum>::{...}` so the inner module name and the
@@ -13888,17 +13899,20 @@ fn visit_exp_for_eq(exp: &typedexp::TypedExp, out: &mut std::collections::HashSe
 fn compute_defaultable_struct_qnames<'a>(
     top_level: &'a BTreeMap<String, NameNode<'a>>,
 ) -> HashSet<String> {
-    // Collect every record's field types AND every enum that has at least
-    // one unit variant (the latter become defaultable seeds — emit_uniontype
-    // emits an `impl Default for E { fn default() -> Self { Self::FIRST_UNIT } }`
-    // for them). Then iterate a fixed point: a record is defaultable iff all
-    // its fields are.
+    // Collect every record's field types AND every enum's variants' fields
+    // (variants are stored as ordered lists so `emit_uniontype` can later
+    // pick the "smallest" defaultable variant — fewest fields wins, ties
+    // broken by declaration order, with unit variants therefore preferred).
+    // Then iterate a fixed point: a record is defaultable iff every field is;
+    // an enum is defaultable iff *some* variant's fields are all defaultable.
     let mut records: BTreeMap<String, Vec<Ty>> = BTreeMap::new();
-    let mut enum_seeds: HashSet<String> = HashSet::new();
+    // Per-enum, ordered variants: (variant_name, field_types).  Unit variants
+    // carry an empty field-types vector.
+    let mut enums: BTreeMap<String, Vec<(String, Vec<Ty>)>> = BTreeMap::new();
     fn collect_types<'a>(
         node: &NameNode<'a>,
         records: &mut BTreeMap<String, Vec<Ty>>,
-        enum_seeds: &mut HashSet<String>,
+        enums: &mut BTreeMap<String, Vec<(String, Vec<Ty>)>>,
     ) {
         if let NodeKind::Class(c) = &node.kind {
             match &node.ty {
@@ -13907,27 +13921,34 @@ fn compute_defaultable_struct_qnames<'a>(
                     records.insert(qname.clone(), fields.iter().map(|f| f.1.clone()).collect());
                 }
                 Ty::RustEnum(qname) => {
-                    // Walk children; if any child is `Ty::RustUnitVariant`,
-                    // we can default to it. This is what emit_uniontype
-                    // emits as the `Self::VARIANT` choice.
-                    let has_unit = node.children.values().any(|child|
-                        matches!(child.ty, Ty::RustUnitVariant));
-                    if has_unit {
-                        enum_seeds.insert(qname.clone());
+                    // Iterate variants in declaration order so the
+                    // smallest-variant selection in `emit_uniontype` is
+                    // deterministic.
+                    let mut variants: Vec<(String, Vec<Ty>)> = Vec::new();
+                    for rec_name in records_in_order(c) {
+                        let Some(rec_node) = node.children.get(&rec_name) else { continue };
+                        let NodeKind::Class(rc) = &rec_node.kind else { continue };
+                        let field_tys: Vec<Ty> = match &rec_node.ty {
+                            Ty::RustUnitVariant => Vec::new(),
+                            _ => component_fields_with_spec(rc, &rec_node.children)
+                                .iter().map(|f| f.1.clone()).collect(),
+                        };
+                        variants.push((rec_name.clone(), field_tys));
                     }
+                    enums.insert(qname.clone(), variants);
                 }
                 _ => {}
             }
         }
         for (_, child) in &node.children {
-            collect_types(child, records, enum_seeds);
+            collect_types(child, records, enums);
         }
     }
     for (_, n) in top_level {
-        collect_types(n, &mut records, &mut enum_seeds);
+        collect_types(n, &mut records, &mut enums);
     }
 
-    let mut defaultable: HashSet<String> = enum_seeds;
+    let mut defaultable: HashSet<String> = HashSet::new();
     let mut changed = true;
     while changed {
         changed = false;
@@ -13938,8 +13959,50 @@ fn compute_defaultable_struct_qnames<'a>(
                 changed = true;
             }
         }
+        for (qname, variants) in &enums {
+            if defaultable.contains(qname) { continue; }
+            // An enum is defaultable iff *any* variant has fully-defaultable
+            // fields. The selection of *which* variant happens in
+            // `pick_default_variant_for_enum`, which uses the same rules so
+            // the choice is consistent.
+            let any = variants.iter().any(|(_, ftys)|
+                ftys.iter().all(|t| is_ty_defaultable(t, &defaultable)));
+            if any {
+                defaultable.insert(qname.clone());
+                changed = true;
+            }
+        }
     }
     defaultable
+}
+
+/// Pick the variant to use in a generated `impl Default for Enum`. Iterates
+/// the variants in declaration order (the same order
+/// `compute_defaultable_struct_qnames` consumed) and picks the one with the
+/// fewest fields whose fields are all defaultable; ties are broken by
+/// declaration order, so unit variants — which always have zero fields — are
+/// always preferred when present.  Returns `(variant_name, field_types)`.
+fn pick_default_variant_for_enum<'a>(
+    node: &NameNode<'a>,
+    defaultable_qnames: &HashSet<String>,
+) -> Option<(String, Vec<(String, Ty)>)> {
+    let NodeKind::Class(c) = &node.kind else { return None; };
+    let mut best: Option<(usize, String, Vec<(String, Ty)>)> = None;
+    for rec_name in records_in_order(c) {
+        let Some(rec_node) = node.children.get(&rec_name) else { continue };
+        let NodeKind::Class(rc) = &rec_node.kind else { continue };
+        let fields: Vec<(String, Ty)> = match &rec_node.ty {
+            Ty::RustUnitVariant => Vec::new(),
+            _ => component_fields_with_spec(rc, &rec_node.children)
+                .iter().map(|f| (f.0.to_string(), f.1.clone())).collect(),
+        };
+        if !fields.iter().all(|(_, t)| is_ty_defaultable(t, defaultable_qnames)) { continue; }
+        let n_fields = fields.len();
+        if best.as_ref().map_or(true, |(best_n, _, _)| n_fields < *best_n) {
+            best = Some((n_fields, rec_name.clone(), fields));
+        }
+    }
+    best.map(|(_, n, f)| (n, f))
 }
 
 fn is_ty_defaultable(ty: &Ty, defaultable_qnames: &HashSet<String>) -> bool {

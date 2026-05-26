@@ -209,6 +209,14 @@ pub enum ClassDef {
         comment: Option<Arc<Comment>>,
     },
 }
+impl Default for ClassDef {
+    fn default() -> Self {
+        Self::ENUMERATION {
+            enumLiterals: Default::default(),
+            comment: Default::default(),
+        }
+    }
+}
 pub use self::ClassDef::{PARTS,DERIVED,ENUMERATION,OVERLOAD,CLASS_EXTENDS,PDER};
 
 /// Component attributes are
@@ -305,6 +313,13 @@ pub enum ClassPart {
         annotation_: Option<Arc<Annotation>>,
     },
 }
+impl Default for ClassPart {
+    fn default() -> Self {
+        Self::PUBLIC {
+            contents: Default::default(),
+        }
+    }
+}
 pub use self::ClassPart::{PUBLIC,PROTECTED,CONSTRAINTS,EQUATIONS,INITIALEQUATIONS,ALGORITHMS,INITIALALGORITHMS,EXTERNAL};
 
 /// An element item is either an element or an annotation
@@ -316,6 +331,13 @@ pub enum ElementItem {
     LEXER_COMMENT {
         comment: ArcStr,
     },
+}
+impl Default for ElementItem {
+    fn default() -> Self {
+        Self::LEXER_COMMENT {
+            comment: Default::default(),
+        }
+    }
 }
 pub use self::ElementItem::{ELEMENTITEM,LEXER_COMMENT};
 
@@ -458,6 +480,13 @@ pub enum GroupImport {
         name: ArcStr,
     },
 }
+impl Default for GroupImport {
+    fn default() -> Self {
+        Self::GROUP_IMPORT_NAME {
+            name: Default::default(),
+        }
+    }
+}
 pub use self::GroupImport::{GROUP_IMPORT_NAME,GROUP_IMPORT_RENAME};
 
 /// A componentItem can have a condition that must be fulfilled if
@@ -529,6 +558,13 @@ pub enum EquationItem {
         comment: ArcStr,
     },
 }
+impl Default for EquationItem {
+    fn default() -> Self {
+        Self::EQUATIONITEMCOMMENT {
+            comment: Default::default(),
+        }
+    }
+}
 pub use self::EquationItem::{EQUATIONITEM,EQUATIONITEMCOMMENT};
 
 /// Info specific for an algorithm item.
@@ -546,6 +582,13 @@ pub enum AlgorithmItem {
     ALGORITHMITEMCOMMENT {
         comment: ArcStr,
     },
+}
+impl Default for AlgorithmItem {
+    fn default() -> Self {
+        Self::ALGORITHMITEMCOMMENT {
+            comment: Default::default(),
+        }
+    }
 }
 pub use self::AlgorithmItem::{ALGORITHMITEM,ALGORITHMITEMCOMMENT};
 
@@ -605,6 +648,13 @@ pub enum Equation {
     EQ_FAILURE {
         equ: Arc<EquationItem>,
     },
+}
+impl Default for Equation {
+    fn default() -> Self {
+        Self::EQ_FAILURE {
+            equ: Default::default(),
+        }
+    }
 }
 pub use self::Equation::{EQ_IF,EQ_EQUALS,EQ_PDE,EQ_CONNECT,EQ_FOR,EQ_WHEN_E,EQ_NORETCALL,EQ_FAILURE};
 
@@ -672,7 +722,7 @@ pub enum Algorithm {
     ALG_CONTINUE,
 }
 impl Default for Algorithm {
-    fn default() -> Self { Self::ALG_BREAK }
+    fn default() -> Self { Self::ALG_RETURN }
 }
 pub use self::Algorithm::{ALG_ASSIGN,ALG_IF,ALG_FOR,ALG_PARFOR,ALG_WHILE,ALG_WHEN_A,ALG_NORETCALL,ALG_RETURN,ALG_BREAK,ALG_FAILURE,ALG_TRY,ALG_CONTINUE};
 
@@ -753,6 +803,13 @@ pub enum ElementArg {
         info: Info,
     },
 }
+impl Default for ElementArg {
+    fn default() -> Self {
+        Self::ELEMENTARGCOMMENT {
+            comment: Default::default(),
+        }
+    }
+}
 pub use self::ElementArg::{MODIFICATION,REDECLARATION,ELEMENTARGCOMMENT,INHERITANCEBREAK};
 
 /// The keywords redeclare and replacable can be given in three different kombinations, each one by themself or the both combined.
@@ -824,7 +881,7 @@ pub enum IsField {
     FIELD,
 }
 impl Default for IsField {
-    fn default() -> Self { Self::FIELD }
+    fn default() -> Self { Self::NONFIELD }
 }
 pub use self::IsField::{NONFIELD,FIELD};
 
@@ -839,7 +896,7 @@ pub enum Parallelism {
     NON_PARALLEL,
 }
 impl Default for Parallelism {
-    fn default() -> Self { Self::NON_PARALLEL }
+    fn default() -> Self { Self::PARGLOBAL }
 }
 pub use self::Parallelism::{PARGLOBAL,PARLOCAL,NON_PARALLEL};
 
@@ -863,7 +920,7 @@ pub enum Variability {
     CONST,
 }
 impl Default for Variability {
-    fn default() -> Self { Self::CONST }
+    fn default() -> Self { Self::VAR }
 }
 pub use self::Variability::{VAR,DISCRETE,PARAM,CONST};
 
@@ -880,7 +937,7 @@ pub enum Direction {
     INPUT_OUTPUT,
 }
 impl Default for Direction {
-    fn default() -> Self { Self::BIDIR }
+    fn default() -> Self { Self::INPUT }
 }
 pub use self::Direction::{INPUT,OUTPUT,BIDIR,INPUT_OUTPUT};
 
@@ -1037,7 +1094,7 @@ pub enum Exp {
     BREAK,
 }
 impl Default for Exp {
-    fn default() -> Self { Self::BREAK }
+    fn default() -> Self { Self::END }
 }
 pub use self::Exp::{INTEGER,REAL,CREF,STRING,BOOL,BINARY,UNARY,LBINARY,LUNARY,RELATION,IFEXP,CALL,PARTEVALFUNCTION,ARRAY,MATRIX,RANGE,TUPLE,END,CODE,AS,CONS,MATCHEXP,LIST,DOT,EXPRESSIONCOMMENT,SUBSCRIPTED_EXP,BREAK};
 
@@ -1124,6 +1181,13 @@ pub enum CodeNode {
         modification: Arc<Modification>,
     },
 }
+impl Default for CodeNode {
+    fn default() -> Self {
+        Self::C_EXPRESSION {
+            exp: Default::default(),
+        }
+    }
+}
 pub use self::CodeNode::{C_TYPENAME,C_VARIABLENAME,C_CONSTRAINTSECTION,C_EQUATIONSECTION,C_ALGORITHMSECTION,C_ELEMENT,C_EXPRESSION,C_MODIFICATION};
 
 /// The FunctionArgs uniontype consists of a list of positional arguments
@@ -1142,6 +1206,14 @@ pub enum FunctionArgs {
         iterType: ReductionIterType,
         iterators: ForIterators,
     },
+}
+impl Default for FunctionArgs {
+    fn default() -> Self {
+        Self::FUNCTIONARGS {
+            args: Default::default(),
+            argNames: Default::default(),
+        }
+    }
 }
 pub use self::FunctionArgs::{FUNCTIONARGS,FOR_ITER_FARG};
 
@@ -1253,9 +1325,6 @@ pub enum Subscript {
         subscript: Arc<Exp>,
     },
 }
-impl Default for Subscript {
-    fn default() -> Self { Self::NOSUB }
-}
 pub use self::Subscript::{NOSUB,SUBSCRIPT};
 
 /// A component reference is the fully or partially qualified name of
@@ -1283,9 +1352,6 @@ pub enum ComponentRef {
     },
     WILD,
     ALLWILD,
-}
-impl Default for ComponentRef {
-    fn default() -> Self { Self::ALLWILD }
 }
 pub use self::ComponentRef::{CREF_FULLYQUALIFIED,CREF_QUAL,CREF_IDENT,WILD,ALLWILD};
 
@@ -1363,7 +1429,7 @@ pub enum Restriction {
     R_UNKNOWN,
 }
 impl Default for Restriction {
-    fn default() -> Self { Self::R_BLOCK }
+    fn default() -> Self { Self::R_CLASS }
 }
 pub use self::Restriction::{R_CLASS,R_OPTIMIZATION,R_MODEL,R_RECORD,R_BLOCK,R_CONNECTOR,R_EXP_CONNECTOR,R_TYPE,R_PACKAGE,R_FUNCTION,R_OPERATOR,R_OPERATOR_RECORD,R_ENUMERATION,R_PREDEFINED_INTEGER,R_PREDEFINED_REAL,R_PREDEFINED_STRING,R_PREDEFINED_BOOLEAN,R_PREDEFINED_ENUMERATION,R_PREDEFINED_CLOCK,R_UNIONTYPE,R_METARECORD,R_UNKNOWN};
 
@@ -1375,7 +1441,7 @@ pub enum FunctionPurity {
     NO_PURITY,
 }
 impl Default for FunctionPurity {
-    fn default() -> Self { Self::IMPURE }
+    fn default() -> Self { Self::PURE }
 }
 pub use self::FunctionPurity::{PURE,IMPURE,NO_PURITY};
 
@@ -1394,7 +1460,7 @@ pub enum FunctionRestriction {
     FR_KERNEL_FUNCTION,
 }
 impl Default for FunctionRestriction {
-    fn default() -> Self { Self::FR_KERNEL_FUNCTION }
+    fn default() -> Self { Self::FR_OPERATOR_FUNCTION }
 }
 pub use self::FunctionRestriction::{FR_NORMAL_FUNCTION,FR_OPERATOR_FUNCTION,FR_PARALLEL_FUNCTION,FR_KERNEL_FUNCTION};
 

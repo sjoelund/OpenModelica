@@ -84,7 +84,7 @@ pub enum JSON {
     NULL,
 }
 impl Default for JSON {
-    fn default() -> Self { Self::FALSE }
+    fn default() -> Self { Self::TRUE }
 }
 pub use self::JSON::{OBJECT,LIST_OBJECT,ARRAY,LIST,STRING,INTEGER,NUMBER,TRUE,FALSE,NULL};
 pub fn emptyObject() -> Arc<JSON> {

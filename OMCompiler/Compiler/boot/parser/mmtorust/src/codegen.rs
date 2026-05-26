@@ -724,8 +724,21 @@ fn apply_import<'a>(m: &MM::ImportMember, ctx: &mut GenCtx, top_level: &'a BTree
                     // avoid pulling in a same-named top-level package via
                     // `implicit_modules` (which would generate a conflicting
                     // `use` line and shadow the wildcard import).
+                    //
+                    // Skip `Import` children: an `import X;` inside the
+                    // wildcard-source module does NOT re-export `X` to
+                    // consumers of `import <source>.*;` — MetaModelica only
+                    // brings in the source module's *defined* members
+                    // (classes, functions, constants). Treating
+                    // an internal import as a wildcard member otherwise
+                    // shadows the real top-level package of the same name
+                    // and suppresses its `implicit_modules` registration
+                    // (e.g. `Absyn` being an internal import of `NFPrefixes`
+                    // made `shorten` drop the `use openmodelica_ast::Absyn;`
+                    // that downstream `Absyn::Exp::BOOL` patterns require).
                     if let Some(node) = lookup_node(&dotted, top_level) {
-                        for child_name in node.children.keys() {
+                        for (child_name, child) in &node.children {
+                            if matches!(child.kind, NodeKind::Import(_)) { continue; }
                             ctx.wildcard_members.insert(child_name.clone(), dotted.clone());
                         }
                     }

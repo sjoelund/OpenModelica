@@ -1304,6 +1304,20 @@ pub fn infer_exp<'a>(
                 // segment (a uniontype/package) and stop, dropping the
                 // function's type entirely.
                 if name.contains('.') {
+                    // Use scope-aware resolution so a name like
+                    // `Expression.isArray` inside `NFSimplifyExp` (which
+                    // declares `import Expression = NFExpression;`) types as
+                    // the NFExpression version — not the unrelated top-level
+                    // `Expression` package whose `isArray` takes `DAE.Exp`.
+                    // Falling back to a bare top-level `lookup_ty_in_hierarchy`
+                    // would silently produce the wrong function signature for
+                    // `fnptr!` wrapping at call sites.
+                    if let Some((qname, _)) = resolve_call_node(&name, top_level, pkg_prefix) {
+                        let resolved = lookup_ty_in_hierarchy(&qname, top_level);
+                        if !matches!(resolved, Ty::Unknown) {
+                            return resolved;
+                        }
+                    }
                     let full = lookup_ty_in_hierarchy(&name, top_level);
                     if !matches!(full, Ty::Unknown) {
                         return full;

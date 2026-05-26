@@ -473,7 +473,34 @@ pub fn resolve_call_node<'a>(
     top_level: &'a BTreeMap<String, NameNode<'a>>,
     pkg_prefix: &str,
 ) -> Option<(String, &'a NameNode<'a>)> {
-    // 1. Direct lookup (handles fully-qualified top-level names).
+    // MetaModelica name resolution looks up names from the innermost scope
+    // outwards. A local import alias must shadow any unrelated top-level
+    // package of the same head segment — e.g. `Expression.transposeArray`
+    // inside `NFCeval` (which declares `import Expression = NFExpression;`)
+    // must resolve to `NFExpression.transposeArray`, not to the unrelated
+    // top-level `Expression` package from `FrontEnd/Expression.mo`. So we
+    // try the scope-qualified lookups first and only fall back to the
+    // direct top-level form when nothing matches in any enclosing scope.
+    //
+    // 1. Qualify with each enclosing scope level (most-specific first). This
+    //    naturally picks up import aliases declared at that scope through
+    //    `walk_dotted_with_imports`'s incremental-walk import-follow step.
+    if !pkg_prefix.is_empty() {
+        let mut parts: Vec<&str> = pkg_prefix.split('.').collect();
+        loop {
+            let prefixed = format!("{}.{func}", parts.join("."));
+            if let Some(r) = walk_dotted_with_imports(&prefixed, top_level, 0) {
+                return Some(r);
+            }
+            if parts.is_empty() {
+                break;
+            }
+            parts.pop();
+        }
+    }
+
+    // 2. Direct lookup (handles fully-qualified top-level names not shadowed
+    //    by any scope-local alias).
     if let Some(r) = walk_dotted_with_imports(func, top_level, 0) {
         // Packages are not callable. If the direct lookup landed on a package
         // and that package contains a uniontype whose record-variant has the
@@ -489,21 +516,6 @@ pub fn resolve_call_node<'a>(
             return Some((qname, rec));
         }
         return Some(r);
-    }
-
-    // 2. Qualify with each enclosing scope level (most-specific first).
-    if !pkg_prefix.is_empty() {
-        let mut parts: Vec<&str> = pkg_prefix.split('.').collect();
-        loop {
-            let prefixed = format!("{}.{func}", parts.join("."));
-            if let Some(r) = walk_dotted_with_imports(&prefixed, top_level, 0) {
-                return Some(r);
-            }
-            if parts.is_empty() {
-                break;
-            }
-            parts.pop();
-        }
     }
 
     // 3. For each scope level, scan all import children and try to resolve `func`

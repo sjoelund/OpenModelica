@@ -7673,6 +7673,7 @@ fn resolve_call_formals<'a>(
 
     if !inputs_from_ty.is_empty() {
         let mut infer_env: HashMap<String, Ty> = HashMap::new();
+        let mut formal_names: std::collections::HashSet<String> = std::collections::HashSet::new();
         let mut out: Vec<CallFormal> = Vec::with_capacity(inputs_from_ty.len());
         for (name, ty) in inputs_from_ty {
             let default = find_component(&name)
@@ -7686,8 +7687,9 @@ fn resolve_call_formals<'a>(
                     extract_default_exp(&cm.modification)
                 })
                 .map(|exp| typedexp::infer_exp(exp, &infer_env, top_level, &module_prefix, &fn_type_vars))
-                .map(|tpl| canonicalize_call_funcs(tpl, &module_prefix, top_level));
+                .map(|tpl| canonicalize_call_funcs(tpl, &module_prefix, top_level, &formal_names));
             infer_env.insert(name.clone(), ty.clone());
+            formal_names.insert(name.clone());
             out.push((name, ty, default));
         }
         return Some(out);
@@ -7696,6 +7698,7 @@ fn resolve_call_formals<'a>(
     // Fall back to walking AST members when no `Ty::Function` is available
     // (rare — typically only for nodes whose type wasn't fully inferred).
     let mut infer_env: HashMap<String, Ty> = HashMap::new();
+    let mut formal_names: std::collections::HashSet<String> = std::collections::HashSet::new();
     let mut out: Vec<CallFormal> = Vec::new();
     for member in direct_members {
         let MM::ClassMember::Component(m) = member else { continue };
@@ -7705,9 +7708,10 @@ fn resolve_call_formals<'a>(
         let ty = node.children.get(&m.name).map(|n| n.ty.clone()).unwrap_or(Ty::Unknown);
         let default = extract_default_exp(&m.modification)
             .map(|exp| typedexp::infer_exp(exp, &infer_env, top_level, &module_prefix, &fn_type_vars))
-            .map(|tpl| canonicalize_call_funcs(tpl, &module_prefix, top_level));
+            .map(|tpl| canonicalize_call_funcs(tpl, &module_prefix, top_level, &formal_names));
         out.push((m.name.clone(), ty.clone(), default));
         infer_env.insert(m.name.clone(), ty);
+        formal_names.insert(m.name.clone());
     }
     if out.is_empty() {
         return None;
@@ -7727,9 +7731,14 @@ fn resolve_call_formals<'a>(
 /// `noReference` does not resolve. By rewriting bare names to their qualified
 /// form *while* we still have the callee's module context, the resulting
 /// `TypedExp` is self-contained and can be emitted from any call site.
-fn canonicalize_call_funcs<'a>(exp: TypedExp, module_prefix: &str, top_level: &'a BTreeMap<String, NameNode<'a>>) -> TypedExp {
+fn canonicalize_call_funcs<'a>(
+    exp: TypedExp,
+    module_prefix: &str,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+    formal_names: &std::collections::HashSet<String>,
+) -> TypedExp {
     use TypedExp as E;
-    let recur = |e: TypedExp| canonicalize_call_funcs(e, module_prefix, top_level);
+    let recur = |e: TypedExp| canonicalize_call_funcs(e, module_prefix, top_level, formal_names);
     match exp {
         // A bare `Var` whose name resolves to a function in the callee's
         // scope is a function reference used as a value (e.g. the default
@@ -7837,6 +7846,17 @@ fn canonicalize_call_funcs<'a>(exp: TypedExp, module_prefix: &str, top_level: &'
                 && segments.len() <= 1
                 && segments.iter().all(|s| s.subscripts.is_empty() && s.name == *name) =>
         {
+            // Bare names that match a formal parameter declared earlier in this
+            // function's signature must be left alone. `substitute_formal_refs`
+            // (called after this canonicalization at every call site) will
+            // splice the call-site argument in. Without this guard, a formal
+            // whose name happens to also resolve to a function/constant in
+            // scope (e.g. `node` ↔ `ComponentRef.node` via an import) gets
+            // rewritten to that qualified path, and the substitution then
+            // never fires because the head is no longer the formal's name.
+            if formal_names.contains(name) {
+                return exp;
+            }
             if let Some((qname, node)) = typedexp::resolve_call_node(name, top_level, module_prefix) {
                 let is_function = matches!(&node.kind, NodeKind::Class(c) if matches!(c.restriction, Absyn::Restriction::R_FUNCTION { .. }));
                 // A bare reference to a package-level constant (e.g.

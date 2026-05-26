@@ -509,6 +509,13 @@ impl GenCtx {
         // Item in the same top-level file but a different nested module.
         // With `use super::*;` in every nested mod, sibling/ancestor items and
         // modules are visible by their path relative to the top-level package.
+        //
+        // BUT: if the target is at the top level of the current file (e.g.
+        // `NFEquation.mapExp` from inside the nested `Branch` module that also
+        // declares its own `mapExp`), the wildcard `super::*` makes the
+        // top-level `mapExp` reachable as a bare name — which collides with
+        // the local function. Walk back up via `super::` so the path lands
+        // unambiguously on the outer item.
         if let Some(rest) = dotted.strip_prefix(&format!("{}.", self.top_name)) {
             return rest.replace('.', "::");
         }
@@ -4802,9 +4809,32 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                 // names a *different* path than the literal source, since the
                 // literal would otherwise dispatch to a non-existent associated
                 // function on the alias's target type (E0061 / E0599).
-                match resolve_call_qname(func, ctx, top_level) {
-                    Some(qname) if qname.as_str() != func => ctx.shorten(&qname),
+                let qname_opt = resolve_call_qname(func, ctx, top_level);
+                let shortened = match &qname_opt {
+                    Some(qname) if qname.as_str() != func => ctx.shorten(qname),
                     _ => ctx.shorten(func),
+                };
+                // Disambiguation: when shorten produced a bare name (single
+                // segment, no `::`) but a same-named item is also declared
+                // inside the currently-emitted nested module, the bare name
+                // resolves to the local item instead of the intended sibling.
+                // Walk up via `super::` per nesting level. Triggers e.g. for
+                // `Equation.mapExp` (top-level) called from inside the nested
+                // `Branch` module that also defines its own `mapExp`.
+                if !shortened.contains("::")
+                    && !ctx.current_path.is_empty()
+                    && let Some(qname) = qname_opt
+                    && qname == format!("{}.{}", ctx.top_name, shortened)
+                {
+                    let cur_dotted = format!("{}.{}.{}", ctx.top_name, ctx.current_path.join("."), shortened);
+                    if lookup_node(&cur_dotted, top_level).is_some() {
+                        let supers = "super::".repeat(ctx.current_path.len());
+                        format!("{supers}{shortened}")
+                    } else {
+                        shortened
+                    }
+                } else {
+                    shortened
                 }
             } else if let Some(qname) = resolved_fn_qname.clone() {
                 let cur_prefix = if ctx.current_path.is_empty() {

@@ -1543,6 +1543,62 @@ fn neutralise_doc_comment(text: &str) -> String {
     text.to_owned()
 }
 
+/// Return the MetaModelica "string comment" attached to a class, if any.
+/// `uniontype Foo "doc" … end Foo;`, `record FOO "doc" … end FOO;`,
+/// `type T = … "doc";`, and `type E = enumeration(…) "doc";` all surface
+/// here, regardless of which `ClassDef` variant the body lowered into.
+fn class_doc(c: &MM::Class) -> Option<&str> {
+    match &c.body {
+        MM::ClassDef::Parts { comment, .. } | MM::ClassDef::ClassExtends { comment, .. } => {
+            comment.as_deref()
+        }
+        MM::ClassDef::Derived { comment, .. } | MM::ClassDef::Enumeration { comment, .. } => {
+            comment.as_ref().and_then(|c| c.comment.as_deref())
+        }
+    }
+}
+
+/// Look up the string comment on a named component of `c` (e.g. a uniontype
+/// record's field or a struct field). Returns `None` if the component isn't
+/// found or has no comment.
+fn component_field_doc<'a>(c: &'a MM::Class, fname: &str) -> Option<&'a str> {
+    let members: &[MM::ClassMember] = match &c.body {
+        MM::ClassDef::Parts { members, .. } | MM::ClassDef::ClassExtends { members, .. } => members,
+        _ => return None,
+    };
+    for m in members {
+        if let MM::ClassMember::Component(comp) = m
+            && comp.name == fname
+        {
+            return comp.comment.as_ref().and_then(|c| c.comment.as_deref());
+        }
+    }
+    None
+}
+
+/// Emit a MetaModelica string comment as a Rust `///` doc comment block at
+/// `indent`. A trailing blank line is *not* added; the caller controls
+/// spacing. No-ops on `None` or whitespace-only text. Embedded `///`/`//!`
+/// sequences inside the text are neutralised so they don't accidentally
+/// promote inner lines into nested doc directives.
+fn emit_doc_comment(out: &mut String, indent: &str, text: Option<&str>) {
+    let Some(text) = text else { return };
+    if text.chars().all(char::is_whitespace) {
+        return;
+    }
+    for line in text.lines() {
+        let line = line.trim_end();
+        // Strip a single leading space so source comments that were padded
+        // for in-source readability don't produce ` ///` shifted output.
+        let line = line.strip_prefix(' ').unwrap_or(line);
+        if line.is_empty() {
+            writeln!(out, "{indent}///").unwrap();
+        } else {
+            writeln!(out, "{indent}/// {line}").unwrap();
+        }
+    }
+}
+
 /// Walk a package class body in *source order*, dispatching named children to
 /// `emit_node` and emitting captured lexer comments as Rust comments at their
 /// original position.
@@ -1804,18 +1860,22 @@ fn emit_uniontype<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM:
             };
             let type_params = if type_vars.is_empty() { String::new() } else { format!("<{}>", type_vars.join(", ")) };
             let mut emitted_variants: Vec<String> = Vec::new();
+            emit_doc_comment(out, &inner, class_doc(c));
             writeln!(out, "{inner}{}", ctx.derives_for(qname)).unwrap();
             writeln!(out, "{inner}pub enum {ename}{type_params} {{").unwrap();
+            let variant_indent = format!("{inner}    ");
             for rec_name in &records_in_order(c) {
                 let Some(rec_node) = node.children.get(rec_name) else { continue };
                 let NodeKind::Class(rc) = &rec_node.kind else { continue };
                 match &rec_node.ty {
                     Ty::RustUnitVariant => {
+                        emit_doc_comment(out, &variant_indent, class_doc(rc));
                         writeln!(out, "{inner}    {rec_name},").unwrap();
                         emitted_variants.push(rec_name.clone());
                     }
                     Ty::RustStruct(_) => {
                         let fields = component_fields_with_spec(rc, &rec_node.children);
+                        emit_doc_comment(out, &variant_indent, class_doc(rc));
                         if fields.is_empty() {
                             writeln!(out, "{inner}    {rec_name},").unwrap();
                         } else {
@@ -1827,10 +1887,12 @@ fn emit_uniontype<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM:
                             // simply falls back to the resolved-type path.
                             let scope = current_scope_children(ctx, top_level);
                             writeln!(out, "{inner}    {rec_name} {{").unwrap();
+                            let field_indent = format!("{inner}        ");
                             for (fname, fty, fspec) in &fields {
                                 let ty_str = scope
                                     .and_then(|sc| field_type_alias_name(fspec, sc))
                                     .unwrap_or_else(|| fmt_ty(fty, &mut *ctx));
+                                emit_doc_comment(out, &field_indent, component_field_doc(rc, fname));
                                 writeln!(out, "{inner}        {}: {},", escape_ident(fname), ty_str).unwrap();
                             }
                             writeln!(out, "{inner}    }},").unwrap();
@@ -1858,8 +1920,13 @@ fn emit_uniontype<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM:
             // Single-record uniontype: emit one struct named after the uniontype.
             // The record's Ty::RustStruct was updated in seed_metarecords to carry the
             // uniontype's qname, so all constructor/pattern references already resolve here.
+            //
+            // The uniontype's own string comment is emitted here so it appears above
+            // the struct; the record's comment (if any) is emitted by `emit_struct`
+            // immediately below the uniontype comment.
             let recs = records_in_order(c);
             let rec_name = recs.into_iter().next().unwrap_or_default();
+            emit_doc_comment(out, &inner, class_doc(c));
             if let Some(rec_node) = node.children.get(&rec_name)
                 && let NodeKind::Class(rc) = &rec_node.kind {
                     emit_struct(out, name, rec_node, rc, &inner, &mut *ctx, top_level);
@@ -1895,6 +1962,7 @@ fn emit_uniontype<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM:
                 MM::ClassDef::Parts { type_vars, .. } => type_vars.clone(),
                 _ => vec![],
             };
+            emit_doc_comment(out, &inner, class_doc(c));
             if type_vars.is_empty() {
                 writeln!(out, "{inner}pub struct {ename};").unwrap();
             } else {
@@ -1983,6 +2051,7 @@ fn emit_struct<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Cl
         Ty::RustStruct(qname) => ctx.derives_for(qname),
         _ => "#[derive(Clone, Debug, PartialEq)]",
     };
+    emit_doc_comment(out, indent, class_doc(c));
     writeln!(out, "{derives}").unwrap();
     if fields.is_empty() {
         writeln!(out, "{indent}pub struct {ename}{type_params};").unwrap();
@@ -1993,6 +2062,7 @@ fn emit_struct<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Cl
             let ty_str = scope
                 .and_then(|sc| field_type_alias_name(fspec, sc))
                 .unwrap_or_else(|| fmt_ty(fty, &mut *ctx));
+            emit_doc_comment(out, &format!("{indent}    "), component_field_doc(c, fname));
             writeln!(out, "{indent}    pub {}: {},", escape_ident(fname), ty_str).unwrap();
         }
         writeln!(out, "{indent}}}").unwrap();
@@ -2011,6 +2081,7 @@ fn emit_type_item(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Cla
             let mut type_vars: Vec<String> = Vec::new();
             collect_type_vars_in_ty(&node.ty, &mut type_vars);
             let type_params = if type_vars.is_empty() { String::new() } else { format!("<{}>", type_vars.join(", ")) };
+            emit_doc_comment(out, indent, class_doc(c));
             writeln!(out, "{indent}pub type {}{type_params} = {};", escape_ident(name), fmt_ty(&node.ty, &mut *ctx)).unwrap();
             writeln!(out).unwrap();
         }
@@ -2036,13 +2107,17 @@ fn emit_type_item(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Cla
                 // values; this also lets `*self as i32` in the comparison impls work
                 // without consuming `self`.
                 let ename = escape_ident(name);
+                emit_doc_comment(out, indent, class_doc(c));
                 writeln!(out, "{indent}#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]").unwrap();
                 writeln!(out, "{indent}#[repr(i32)]").unwrap();
                 writeln!(out, "{indent}pub enum {ename} {{").unwrap();
+                let lit_indent = format!("{indent}    ");
                 let mut i: i32 = 0;
                 for lit in &**enumLiterals {
-                    let Absyn::EnumLiteral { literal, .. } = &**lit;
+                    let Absyn::EnumLiteral { literal, comment } = &**lit;
                     i += 1;
+                    let doc = comment.as_ref().and_then(|c| c.comment.as_deref());
+                    emit_doc_comment(out, &lit_indent, doc);
                     writeln!(out, "{indent}    {} = {i},", escape_ident(literal)).unwrap();
                 }
                 writeln!(out, "{indent}}}").unwrap();

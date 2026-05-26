@@ -3900,7 +3900,7 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
             (false, None) => {
                 if is_unknown_ty {
                     writeln!(out, "{body_indent}let mut {}; // TODO: local with unresolved type", escape_ident(n)).unwrap();
-                } else if let Some(def) = ty_default_init(t) {
+                } else if let Some(def) = ty_default_init_with_hier(t, ctx, top_level) {
                     // Modelica/MetaModelica gives every output and protected
                     // local an implicit initial value equal to its type's
                     // default (Boolean → false, Integer → 0, list → nil, …).
@@ -13337,6 +13337,70 @@ fn ty_default_init(ty: &Ty) -> Option<String> {
         Ty::Str => Some("arcstr::literal!(\"\")".to_owned()),
         Ty::Option(_) => Some("None".to_owned()),
         Ty::List(_) => Some("metamodelica::nil()".to_owned()),
+        _ => None,
+    }
+}
+
+/// MetaModelica implicitly initialises output and protected locals to a
+/// type-defined default (Booleans to `false`, lists to `nil`, enumerations
+/// to their first literal, etc.). Bodies that only assign the variable on
+/// some branches rely on that default in the remaining branches. Rust's
+/// flow analysis can't recover those implicit defaults from MM control
+/// flow, so we emit one explicitly.
+///
+/// This extends [`ty_default_init`] to also synthesise defaults for named
+/// types whose first variant is known from the hierarchy:
+///   * `Ty::Enumeration` — the first declared enum literal.
+///   * `Ty::RustEnum`    — the first declared record (unit or with fields).
+///
+/// Single-variant struct types (`Ty::RustStruct`) require constructing the
+/// struct with default values for every field, which is not generally safe
+/// (a field's type might not have a default). We leave those uninitialised
+/// so a real E0381 surfaces rather than synthesising a wrong default.
+fn ty_default_init_with_hier<'a>(ty: &Ty, ctx: &mut GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) -> Option<String> {
+    if let Some(s) = ty_default_init(ty) {
+        return Some(s);
+    }
+    match ty {
+        Ty::Enumeration(qname) => {
+            let node = lookup_node(qname, top_level)?;
+            let NodeKind::Class(c) = &node.kind else { return None };
+            let MM::ClassDef::Enumeration { enum_literals, .. } = &c.body else { return None };
+            let Absyn::EnumDef::ENUMLITERALS { enumLiterals } = &**enum_literals else { return None };
+            // List<Arc<EnumLiteral>> — take the head.
+            let mut iter = (&**enumLiterals).into_iter();
+            let first = iter.next()?;
+            let path = ctx.shorten(qname);
+            Some(format!("{path}::{}", escape_ident(&first.literal)))
+        }
+        Ty::RustEnum(qname) => {
+            // Find the first *unit* record variant (no fields). We can't safely
+            // synthesise a default for variants with fields, since we'd need to
+            // invent values for arbitrary field types. Many MM union types
+            // include an EMPTY/NONE-style unit variant precisely so callers
+            // can use it as a sentinel; prefer that over bailing out.
+            let node = lookup_node(qname, top_level)?;
+            let first_unit_variant = node.children.iter().find_map(|(name, child)| {
+                let NodeKind::Class(c) = &child.kind else { return None };
+                if !matches!(c.restriction,
+                    Absyn::Restriction::R_RECORD
+                    | Absyn::Restriction::R_METARECORD { .. }) {
+                    return None;
+                }
+                let MM::ClassDef::Parts { members, .. } = &c.body else { return None };
+                let has_component = members.iter().any(|m| matches!(m, MM::ClassMember::Component(_)));
+                if has_component { None } else { Some(name.clone()) }
+            })?;
+            let enum_path = ctx.shorten(qname);
+            let bare = format!("{enum_path}::{}", escape_ident(&first_unit_variant));
+            // Recursive uniontypes are stored as `Arc<Enum>` everywhere they're
+            // referenced; wrap the unit-variant in `Arc::new(...)` to match.
+            if ctx.recursive_types.contains(qname.as_str()) {
+                Some(format!("Arc::new({bare})"))
+            } else {
+                Some(bare)
+            }
+        }
         _ => None,
     }
 }

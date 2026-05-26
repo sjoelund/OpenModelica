@@ -4822,7 +4822,17 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
             };
             let func_str = escape_ident(&func_str);
             let formals = resolve_call_formals(func, ctx, top_level);
-            let parts: Vec<String> = if let Some(formals) = formals {
+            // Argument expressions are sub-expressions that must propagate
+            // fallibility normally — the suppression of `?` (QMode::Bare or
+            // QMode::Filter) only applies to the *outermost* expression. A
+            // nested fallible call like `f(g(x))` evaluates `g(x)` first and
+            // its `?` must still bubble out of the surrounding fallible
+            // function; only `f(...)` itself (or its panic-on-fail equivalent)
+            // is governed by the outer QMode.
+            let outer_qmode = ctx.qmode.clone();
+            let parts: Vec<String> = ctx.with_qmode(QMode::Function, |ctx| -> Vec<String> {
+            let _ = &outer_qmode;
+            if let Some(formals) = formals {
                 // Reorder positional + named arguments into formal-declaration
                 // order. Rust calls are positional-only, so a MetaModelica
                 // call like `f(p, name=v)` has to be lowered to `f(p, v)` —
@@ -4915,7 +4925,8 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                     parts.push(format!("{n}={v}"));
                 }
                 parts
-            };
+            }
+            });
 
             let mut is_ctor = is_constructor(&func_str, ctx, top_level) || is_constructor(func, ctx, top_level);
             if is_ctor {

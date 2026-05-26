@@ -92,13 +92,6 @@ pub mod Field {
             name: ArcStr,
         },
     }
-    impl Default for Field {
-        fn default() -> Self {
-            Self::INPUT {
-                name: Default::default(),
-            }
-        }
-    }
     pub use self::Field::{INPUT,LOCAL};
     pub fn isInput(mut field: Arc<Field>) -> bool {
         let mut isInput: bool = false;

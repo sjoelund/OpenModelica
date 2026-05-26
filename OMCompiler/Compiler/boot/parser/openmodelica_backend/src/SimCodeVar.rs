@@ -83,43 +83,6 @@ pub struct SimVars {
     pub dataReconSetBVars: Arc<metamodelica::List<SimVar>>,
 }
 
-impl Default for SimVars {
-    fn default() -> Self {
-        Self {
-            stateVars: Default::default(),
-            derivativeVars: Default::default(),
-            algVars: Default::default(),
-            discreteAlgVars: Default::default(),
-            intAlgVars: Default::default(),
-            boolAlgVars: Default::default(),
-            inputVars: Default::default(),
-            outputVars: Default::default(),
-            aliasVars: Default::default(),
-            intAliasVars: Default::default(),
-            boolAliasVars: Default::default(),
-            paramVars: Default::default(),
-            intParamVars: Default::default(),
-            boolParamVars: Default::default(),
-            stringAlgVars: Default::default(),
-            stringParamVars: Default::default(),
-            stringAliasVars: Default::default(),
-            extObjVars: Default::default(),
-            constVars: Default::default(),
-            intConstVars: Default::default(),
-            boolConstVars: Default::default(),
-            stringConstVars: Default::default(),
-            jacobianVars: Default::default(),
-            seedVars: Default::default(),
-            realOptimizeConstraintsVars: Default::default(),
-            realOptimizeFinalConstraintsVars: Default::default(),
-            sensitivityVars: Default::default(),
-            dataReconSetcVars: Default::default(),
-            dataReconinputVars: Default::default(),
-            dataReconSetBVars: Default::default(),
-        }
-    }
-}
-
 pub type SIMVARS = SimVars;
 
 
@@ -186,9 +149,6 @@ pub enum AliasVariable {
         varName: Arc<DAE::ComponentRef>,
     },
 }
-impl Default for AliasVariable {
-    fn default() -> Self { Self::NOALIAS }
-}
 pub use self::AliasVariable::{NOALIAS,ALIAS,NEGATEDALIAS};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -201,9 +161,6 @@ pub enum Causality {
     PARAMETER,
     CALCULATED_PARAMETER,
 }
-impl Default for Causality {
-    fn default() -> Self { Self::NONECAUS }
-}
 pub use self::Causality::{NONECAUS,OUTPUT,INPUT,LOCAL,PARAMETER,CALCULATED_PARAMETER};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -212,9 +169,6 @@ pub enum Initial {
     EXACT,
     APPROX,
     CALCULATED,
-}
-impl Default for Initial {
-    fn default() -> Self { Self::NONE_INITIAL }
 }
 pub use self::Initial::{NONE_INITIAL,EXACT,APPROX,CALCULATED};
 
@@ -225,9 +179,6 @@ pub enum Variability {
     TUNABLE,
     DISCRETE,
     CONTINUOUS,
-}
-impl Default for Variability {
-    fn default() -> Self { Self::CONSTANT }
 }
 pub use self::Variability::{CONSTANT,FIXED,TUNABLE,DISCRETE,CONTINUOUS};
 

@@ -63,14 +63,6 @@ pub struct DumpOptions {
     pub fileName: ArcStr,
 }
 
-impl Default for DumpOptions {
-    fn default() -> Self {
-        Self {
-            fileName: Default::default(),
-        }
-    }
-}
-
 pub type DUMPOPTIONS = DumpOptions;
 
 

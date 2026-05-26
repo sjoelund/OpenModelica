@@ -486,9 +486,6 @@ pub enum InstanceTree {
     },
     EMPTY,
 }
-impl Default for InstanceTree {
-    fn default() -> Self { Self::EMPTY }
-}
 pub use self::InstanceTree::{COMPONENT,CLASS,BUILTIN_BASE_CLASS,EMPTY};
 
 // TODO: non-Sync, non-const-emittable constant — needs new emission path.
@@ -1791,8 +1788,8 @@ pub fn dumpJSONRedeclareType(mut element: Arc<SCode::Element>, mut scope: Arc<In
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ SCode::Element::COMPONENT { .. } => {
                     let mut context: i32 = context.clone();
-                    let mut cls: Arc<InstNode::InstNode> = cls.clone();
                     let mut path: Arc<Path>;
+                    let mut cls: Arc<InstNode::InstNode> = cls.clone();
                     let mut json: Arc<JSON::JSON> = json.clone();
                     path = AbsynUtil::typeSpecPath(var_field!((*element).typeSpec, SCode::Element::COMPONENT).clone())?;
                     context = InstContext::set(InstContext::RELAXED.clone(), InstContext::FAST_LOOKUP.clone());

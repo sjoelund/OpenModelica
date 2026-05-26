@@ -87,17 +87,6 @@ pub struct EqSys {
     pub vectorX: metamodelica::Array<BackendDAE::Var>,
 }
 
-impl Default for EqSys {
-    fn default() -> Self {
-        Self {
-            dim: Default::default(),
-            matrixA: Default::default(),
-            vectorB: Default::default(),
-            vectorX: Default::default(),
-        }
-    }
-}
-
 pub type LINSYS = EqSys;
 
 
@@ -1143,8 +1132,8 @@ fn getResidualExpressions1(mut i: i32, mut resExpsIn: Arc<metamodelica::List<Arc
             ::match_deref::match_deref! { match &__mc_input {
                 (_, _, _, _) => {
                     let mut repl: BackendVarTransform::VariableReplacements;
-                    let mut h_i: Arc<metamodelica::List<Arc<DAE::Exp>>> = h_i.clone();
                     let mut h_iArr: metamodelica::Array<Arc<metamodelica::List<Arc<DAE::Exp>>>>;
+                    let mut h_i: Arc<metamodelica::List<Arc<DAE::Exp>>> = h_i.clone();
                     repl = replArr.clone().borrow()[(i.clone() + 1-1) as usize].clone();
                     (h_i, _) = BackendVarTransform::replaceExpList1(resExpsIn.clone(), repl.clone(), None)?;
                     h_iArr = {let _arr = h_iArrIn.clone(); _arr.borrow_mut()[(i.clone() + 1-1) as usize] = h_i.clone(); _arr};

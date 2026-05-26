@@ -55,15 +55,6 @@ pub struct ReplacePattern {
     pub to: ArcStr,
 }
 
-impl Default for ReplacePattern {
-    fn default() -> Self {
-        Self {
-            from: Default::default(),
-            to: Default::default(),
-        }
-    }
-}
-
 pub type REPLACEPATTERN = ReplacePattern;
 
 

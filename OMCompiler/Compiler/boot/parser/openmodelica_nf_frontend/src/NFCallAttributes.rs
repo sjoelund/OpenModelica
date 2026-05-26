@@ -60,19 +60,6 @@ pub struct NFCallAttributes {
     pub tailCall: DAE::TailCall,
 }
 
-impl Default for NFCallAttributes {
-    fn default() -> Self {
-        Self {
-            tuple_: Default::default(),
-            builtin: Default::default(),
-            isImpure: Default::default(),
-            isFunctionPointerCall: Default::default(),
-            inlineType: Default::default(),
-            tailCall: Default::default(),
-        }
-    }
-}
-
 pub type CALL_ATTR = NFCallAttributes;
 
 pub fn toDAE(mut attr: Arc<NFCallAttributes>, mut returnType: Arc<NFType::NFType>) -> Result<Arc<DAE::CallAttributes>> {

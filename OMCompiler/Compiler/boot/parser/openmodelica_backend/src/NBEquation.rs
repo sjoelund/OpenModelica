@@ -3208,16 +3208,6 @@ pub mod IfEquationBody {
         pub else_if: Option<Arc<IfEquationBody>>,
     }
 
-    impl Default for IfEquationBody {
-        fn default() -> Self {
-            Self {
-                condition: Default::default(),
-                then_eqns: Default::default(),
-                else_if: Default::default(),
-            }
-        }
-    }
-
     pub type IF_EQUATION_BODY = IfEquationBody;
 
     pub fn toEquation(mut body: Arc<IfEquationBody>, mut source: Arc<DAE::ElementSource>, mut init: bool) -> Result<Pointer::Pointer<Arc<Equation::Equation>>> {
@@ -3603,16 +3593,6 @@ pub mod WhenEquationBody {
         pub when_stmts: Arc<metamodelica::List<Arc<WhenStatement::WhenStatement>>>,
         /// optional elsewhen body
         pub else_when: Option<Arc<WhenEquationBody>>,
-    }
-
-    impl Default for WhenEquationBody {
-        fn default() -> Self {
-            Self {
-                condition: Default::default(),
-                when_stmts: Default::default(),
-                else_when: Default::default(),
-            }
-        }
     }
 
     pub type WHEN_EQUATION_BODY = WhenEquationBody;
@@ -4952,9 +4932,6 @@ pub mod EqData {
             removed: Arc<EquationPointers::EquationPointers>,
         },
         EQ_DATA_EMPTY,
-    }
-    impl Default for EqData {
-        fn default() -> Self { Self::EQ_DATA_EMPTY }
     }
     pub use self::EqData::{EQ_DATA_SIM,EQ_DATA_JAC,EQ_DATA_HES,EQ_DATA_EMPTY};
     pub fn size(mut eqData: Arc<EqData>) -> Result<i32> {

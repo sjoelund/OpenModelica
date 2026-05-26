@@ -228,6 +228,14 @@ struct GenCtx {
     /// `#[default]` variant marker so any record holding an `Arc<Enum>` field
     /// would fail to compile.
     defaultable_struct_qnames: HashSet<String>,
+    /// Subset of [`Self::defaultable_struct_qnames`] for which the workspace
+    /// actually *needs* a `Default` impl — i.e. the type appears, directly or
+    /// transitively, as the element type of an `arrayCreateDefault` call
+    /// (the lowering for `arrayCreateNoInit(size, <unassigned dummy>)`).
+    /// Populated by [`compute_types_needing_default`]; consulted by
+    /// `emit_struct` / `emit_uniontype` to gate emission of the manual
+    /// `impl Default` block so we don't emit it for types nothing requires.
+    types_needing_default: HashSet<String>,
     /// Fallibility of the function currently being emitted. Set at the start
     /// of [`emit_function`] and consulted by the return-statement emitter and
     /// by the implicit-return tail in [`emit_function`] to decide whether to
@@ -325,7 +333,7 @@ enum VarShape {
 }
 
 impl GenCtx {
-    fn new(top_name: &str, current_crate: Option<String>, crate_map: BTreeMap<String, String>, top_level_uniontype_names: HashSet<String>, recursive_types: BTreeSet<String>, types_containing_mutable: BTreeSet<String>, types_containing_array: BTreeSet<String>, fn_type_vars: BTreeMap<String, Vec<String>>, fallible_functions: BTreeSet<String>, partial_eq_required: BTreeMap<String, HashSet<String>>, default_required: BTreeMap<String, HashSet<String>>, defaultable_struct_qnames: HashSet<String>) -> Self {
+    fn new(top_name: &str, current_crate: Option<String>, crate_map: BTreeMap<String, String>, top_level_uniontype_names: HashSet<String>, recursive_types: BTreeSet<String>, types_containing_mutable: BTreeSet<String>, types_containing_array: BTreeSet<String>, fn_type_vars: BTreeMap<String, Vec<String>>, fallible_functions: BTreeSet<String>, partial_eq_required: BTreeMap<String, HashSet<String>>, default_required: BTreeMap<String, HashSet<String>>, defaultable_struct_qnames: HashSet<String>, types_needing_default: HashSet<String>) -> Self {
         Self {
             top_name: top_name.to_owned(),
             current_path: Vec::new(),
@@ -358,6 +366,7 @@ impl GenCtx {
             partial_eq_required,
             default_required,
             defaultable_struct_qnames,
+            types_needing_default,
             current_fn_fallible: true,
             current_fn_qname: String::new(),
             nested_partial_aliases: BTreeSet::new(),
@@ -924,6 +933,13 @@ pub fn generate_all(hier: &InstanceHierarchy<'_>, output_dir: &str) -> std::io::
     // `Default` only to records that won't break on the derive (uniontype
     // enums have no `#[default]` marker and so any record holding one fails).
     let defaultable_struct_qnames = compute_defaultable_struct_qnames(&hier.top_level);
+    // ...and the demand-side: only types that something actually needs to be
+    // `Default` (via `arrayCreateDefault` element types, transitively) get
+    // an `impl Default` emitted. Without this filter every defaultable type
+    // would carry a `Default` impl regardless of whether anything used it.
+    let types_needing_default = compute_types_needing_default(
+        &hier.top_level, &hier.default_required, &defaultable_struct_qnames,
+    );
 
     // Group top-level classes by their output directory.
     let mut dir_classes: BTreeMap<String, Vec<(&str, &NameNode<'_>)>> = BTreeMap::new();
@@ -996,7 +1012,7 @@ pub fn generate_all(hier: &InstanceHierarchy<'_>, output_dir: &str) -> std::io::
             eprintln!("[mmtorust] codegen start {file_path}");
         }
         let file_t0 = std::time::Instant::now();
-        let content = generate_file(name, node, &crate_map, current_crate, &top_level_uniontype_names, hier.recursive_types.clone(), hier.types_containing_mutable.clone(), hier.types_containing_array.clone(), &no_mod_uniontypes, &hier.top_level, &fn_type_vars, &hier.fallible_functions, &hier.partial_eq_required, &hier.default_required, &defaultable_struct_qnames);
+        let content = generate_file(name, node, &crate_map, current_crate, &top_level_uniontype_names, hier.recursive_types.clone(), hier.types_containing_mutable.clone(), hier.types_containing_array.clone(), &no_mod_uniontypes, &hier.top_level, &fn_type_vars, &hier.fallible_functions, &hier.partial_eq_required, &hier.default_required, &defaultable_struct_qnames, &types_needing_default);
         let file_elapsed = file_t0.elapsed();
         if trace_codegen {
             eprintln!("[mmtorust] codegen done  {file_path} ({:.2}s)", file_elapsed.as_secs_f64());
@@ -1189,8 +1205,8 @@ fn collect_no_mod_uniontypes(nodes: &BTreeMap<String, NameNode<'_>>, prefix: &st
     }
 }
 
-fn generate_file<'a>(top_name: &str, node: &NameNode<'_>, crate_map: &BTreeMap<String, String>, current_crate: Option<String>, top_level_uniontype_names: &HashSet<String>, recursive_types: BTreeSet<String>, types_containing_mutable: BTreeSet<String>, types_containing_array: BTreeSet<String>, no_mod_uniontypes: &HashSet<String>, top_level: &'a BTreeMap<String, NameNode<'a>>, fn_type_vars: &BTreeMap<String, Vec<String>>, fallible_functions: &BTreeSet<String>, partial_eq_required: &BTreeMap<String, HashSet<String>>, default_required: &BTreeMap<String, HashSet<String>>, defaultable_struct_qnames: &HashSet<String>) -> String {
-    let mut ctx = GenCtx::new(top_name, current_crate, crate_map.clone(), top_level_uniontype_names.clone(), recursive_types, types_containing_mutable, types_containing_array, fn_type_vars.clone(), fallible_functions.clone(), partial_eq_required.clone(), default_required.clone(), defaultable_struct_qnames.clone());
+fn generate_file<'a>(top_name: &str, node: &NameNode<'_>, crate_map: &BTreeMap<String, String>, current_crate: Option<String>, top_level_uniontype_names: &HashSet<String>, recursive_types: BTreeSet<String>, types_containing_mutable: BTreeSet<String>, types_containing_array: BTreeSet<String>, no_mod_uniontypes: &HashSet<String>, top_level: &'a BTreeMap<String, NameNode<'a>>, fn_type_vars: &BTreeMap<String, Vec<String>>, fallible_functions: &BTreeSet<String>, partial_eq_required: &BTreeMap<String, HashSet<String>>, default_required: &BTreeMap<String, HashSet<String>>, defaultable_struct_qnames: &HashSet<String>, types_needing_default: &HashSet<String>) -> String {
+    let mut ctx = GenCtx::new(top_name, current_crate, crate_map.clone(), top_level_uniontype_names.clone(), recursive_types, types_containing_mutable, types_containing_array, fn_type_vars.clone(), fallible_functions.clone(), partial_eq_required.clone(), default_required.clone(), defaultable_struct_qnames.clone(), types_needing_default.clone());
     ctx.no_mod_uniontypes = no_mod_uniontypes.clone();
     // Pre-walk the *whole* hierarchy (not just this file's node) so that
     // function-nested partial-function aliases are recognised regardless of
@@ -1939,6 +1955,7 @@ fn emit_uniontype<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM:
             // (e.g. `UnorderedMap::add(... value: T ...)` where `T = JSON`)
             // type-check.
             if ctx.defaultable_struct_qnames.contains(qname)
+                && ctx.types_needing_default.contains(qname)
                 && let Some((variant_name, fields)) = pick_default_variant_for_enum(node, &ctx.defaultable_struct_qnames) {
                 writeln!(out, "{inner}impl{type_params} Default for {ename}{type_params} {{").unwrap();
                 if fields.is_empty() {
@@ -2133,7 +2150,8 @@ fn emit_struct<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Cl
     // `Default::default()` per field, semantically equivalent to the
     // `#[derive(Default)]` expansion.
     if let Ty::RustStruct(qname) = &node.ty {
-        if ctx.defaultable_struct_qnames.contains(qname) {
+        if ctx.defaultable_struct_qnames.contains(qname)
+            && ctx.types_needing_default.contains(qname) {
             // Same type-parameter bound shape as the struct declaration; if
             // any field's type needs `Default` to construct, that bound
             // propagates implicitly through field `Default::default()` calls.
@@ -14003,6 +14021,320 @@ fn pick_default_variant_for_enum<'a>(
         }
     }
     best.map(|(_, n, f)| (n, f))
+}
+
+/// Workspace-wide demand-side analysis: collect the set of concrete type
+/// qnames (records or enums) that something actually needs to have a
+/// `Default` impl. Used by `emit_struct` / `emit_uniontype` to gate the
+/// hand-rolled `impl Default` so it isn't emitted for types nothing uses
+/// as a `Default` constraint.
+///
+/// Sources:
+///
+///   1. *Direct uses* — `arrayCreateNoInit(size, <unassigned dummy>)` call
+///      sites lower to `arrayCreateDefault::<A>(size)` which requires
+///      `A: Default`.  Collect the concrete qnames inside `A`.
+///
+///   2. *Call-site instantiations* — when calling a user function `f<T>` for
+///      which [`analyze_default`] computed that `T` needs `Default`, the
+///      concrete type the caller substitutes for `T` at this call site
+///      must be `Default`.  Walk the unification of formal vs. actual
+///      argument types and propagate the concrete qnames.
+///
+///   3. *Field closure* — if a struct `S` needs `Default`, every field type
+///      of `S` whose default value is constructed via `Default::default()`
+///      (i.e. non-fn-pointer fields) also needs `Default`. Similarly for
+///      the picked variant's fields of an enum `E`.
+///
+/// Iterates a fixed point until no new qname is added.
+fn compute_types_needing_default<'a>(
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+    default_required: &BTreeMap<String, HashSet<String>>,
+    defaultable_qnames: &HashSet<String>,
+) -> HashSet<String> {
+    let mut all_fns: Vec<(String, &'a NameNode<'a>)> = Vec::new();
+    collect_all_function_nodes(top_level, "", &mut all_fns);
+
+    let mut needs: HashSet<String> = HashSet::new();
+
+    // Sources (1) + (2): scan every function body.
+    for (qname, node) in &all_fns {
+        let stmts = typedexp_function_body_for_analysis(qname, node, top_level);
+        if stmts.is_empty() { continue; }
+        let ever_assigned = ever_assigned_for_fn(node, &stmts);
+        let pkg_prefix = qname.rsplit_once('.').map_or("", |(p, _)| p).to_owned();
+        for s in &stmts {
+            collect_concrete_default_uses_in_stmt(
+                s, &ever_assigned, default_required, top_level, &pkg_prefix, &mut needs,
+            );
+        }
+    }
+
+    // Source (3): closure over the type graph.  An enum/struct that needs
+    // `Default` propagates its field-type qnames into the set.
+    let mut changed = true;
+    while changed {
+        changed = false;
+        let snapshot: Vec<String> = needs.iter().cloned().collect();
+        for q in &snapshot {
+            // Look up the node to find its definition. Some qnames may not
+            // resolve here (e.g. runtime placeholders like `SourceInfo` that
+            // aren't part of the MM hierarchy); skipping them is correct
+            // because there is nothing for the codegen to emit for them.
+            let Some(node) = crate::hierarchy::lookup_node(q, top_level) else { continue };
+            let NodeKind::Class(c) = &node.kind else { continue };
+            // Field-type collection differs for structs vs enums; both
+            // contribute the concrete types needed by their default impl.
+            // For `Ty::AliasTo` (single-record uniontype), the outer node
+            // carries no fields itself — the fields live on the inner
+            // record. Walk through to that record's class so the closure
+            // sees its field types (otherwise records like `Absyn.Program`,
+            // which is a single-record uniontype that aliases the inner
+            // record, would never propagate `within_: Within` and `Within`
+            // would not be added to the needs set).
+            // `Ty::AliasTo` (single-record uniontype) carries no fields on
+            // the outer node itself — they live on the inner record. Walk
+            // through so the closure sees the inner record's fields,
+            // otherwise types referenced only via a uniontype-aliased record
+            // (e.g. `Within` is only reached through `Program → PROGRAM →
+            // within_: Within`) would never be added to the needs set.
+            let (effective_ty, effective_class, effective_children) = match &node.ty {
+                Ty::AliasTo(_) => {
+                    let inner_node = records_in_order(c).into_iter().next()
+                        .and_then(|r| node.children.get(&r));
+                    let resolved = inner_node.and_then(|n| match (&n.kind, &n.ty) {
+                        (NodeKind::Class(rc), Ty::RustStruct(_)) => Some((n.ty.clone(), rc, &n.children)),
+                        _ => None,
+                    });
+                    if let Some(p) = resolved { p } else { continue; }
+                }
+                _ => (node.ty.clone(), c, &node.children),
+            };
+            match &effective_ty {
+                Ty::RustStruct(_) => {
+                    let fields = component_fields_with_spec(effective_class, effective_children);
+                    for (_, fty, _) in &fields {
+                        if !matches!(fty, Ty::Function { .. } | Ty::FunctionAlias { .. }) {
+                            let before = needs.len();
+                            collect_concrete_qnames_in_ty(fty, &mut needs);
+                            if needs.len() > before { changed = true; }
+                        }
+                    }
+                }
+                Ty::RustEnum(_) => {
+                    if let Some((_, fields)) = pick_default_variant_for_enum(node, defaultable_qnames) {
+                        for (_, fty) in &fields {
+                            if !matches!(fty, Ty::Function { .. } | Ty::FunctionAlias { .. }) {
+                                let before = needs.len();
+                                collect_concrete_qnames_in_ty(fty, &mut needs);
+                                if needs.len() > before { changed = true; }
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    needs
+}
+
+/// Walk a `Ty` and insert every concrete record/enum qname it carries into
+/// `out`. Recurses through wrappers (`Option`, `Arc`, `Array`, `List`,
+/// `Tuple`, `Generic<T...>`) but stops at primitives, type variables,
+/// function pointers, and `Unknown`. Used by `compute_types_needing_default`.
+fn collect_concrete_qnames_in_ty(ty: &Ty, out: &mut HashSet<String>) {
+    match ty {
+        Ty::RustStruct(q) | Ty::RustEnum(q) | Ty::AliasTo(q) => { out.insert(q.clone()); }
+        Ty::Option(t) | Ty::List(t) | Ty::Array(t) | Ty::Range(t) => collect_concrete_qnames_in_ty(t, out),
+        Ty::Tuple(elems) => for t in elems { collect_concrete_qnames_in_ty(t, out); }
+        // `Generic(name, args)` covers user-defined parameterised types like
+        // `UnorderedSet<T>` as well as runtime containers like `Mutable<T>`.
+        // For our purposes both shapes can flow into the needs-Default set —
+        // the runtime containers won't have a `defaultable_struct_qnames`
+        // entry so the emission gate filters them out, but a user struct
+        // like `UnorderedSet` IS in there and must be recorded here for the
+        // emission gate to fire. Recurse through the args either way.
+        Ty::Generic(name, args) => {
+            out.insert(name.clone());
+            for t in args { collect_concrete_qnames_in_ty(t, out); }
+        }
+        _ => {}
+    }
+}
+
+fn collect_concrete_default_uses_in_stmt<'a>(
+    stmt: &typedexp::TypedStmt,
+    ever_assigned: &HashSet<String>,
+    default_required: &BTreeMap<String, HashSet<String>>,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+    pkg_prefix: &str,
+    out: &mut HashSet<String>,
+) {
+    use typedexp::TypedStmt as S;
+    match stmt {
+        S::Assign { rhs, .. } => collect_concrete_default_uses_in_exp(rhs, ever_assigned, default_required, top_level, pkg_prefix, out),
+        S::NoRetCall { call } => collect_concrete_default_uses_in_exp(call, ever_assigned, default_required, top_level, pkg_prefix, out),
+        S::If { cond, then_, elseif, else_ } => {
+            collect_concrete_default_uses_in_exp(cond, ever_assigned, default_required, top_level, pkg_prefix, out);
+            for s in then_ { collect_concrete_default_uses_in_stmt(s, ever_assigned, default_required, top_level, pkg_prefix, out); }
+            for (c, b) in elseif {
+                collect_concrete_default_uses_in_exp(c, ever_assigned, default_required, top_level, pkg_prefix, out);
+                for s in b { collect_concrete_default_uses_in_stmt(s, ever_assigned, default_required, top_level, pkg_prefix, out); }
+            }
+            for s in else_ { collect_concrete_default_uses_in_stmt(s, ever_assigned, default_required, top_level, pkg_prefix, out); }
+        }
+        S::For { range, body, .. } => {
+            collect_concrete_default_uses_in_exp(range, ever_assigned, default_required, top_level, pkg_prefix, out);
+            for s in body { collect_concrete_default_uses_in_stmt(s, ever_assigned, default_required, top_level, pkg_prefix, out); }
+        }
+        S::While { cond, body } => {
+            collect_concrete_default_uses_in_exp(cond, ever_assigned, default_required, top_level, pkg_prefix, out);
+            for s in body { collect_concrete_default_uses_in_stmt(s, ever_assigned, default_required, top_level, pkg_prefix, out); }
+        }
+        S::Try { body, else_body } => {
+            for s in body { collect_concrete_default_uses_in_stmt(s, ever_assigned, default_required, top_level, pkg_prefix, out); }
+            for s in else_body { collect_concrete_default_uses_in_stmt(s, ever_assigned, default_required, top_level, pkg_prefix, out); }
+        }
+        S::Failure { body } => {
+            for s in body { collect_concrete_default_uses_in_stmt(s, ever_assigned, default_required, top_level, pkg_prefix, out); }
+        }
+        S::Return | S::Break | S::Continue | S::Todo(_) => {}
+    }
+}
+
+fn collect_concrete_default_uses_in_exp<'a>(
+    exp: &typedexp::TypedExp,
+    ever_assigned: &HashSet<String>,
+    default_required: &BTreeMap<String, HashSet<String>>,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+    pkg_prefix: &str,
+    out: &mut HashSet<String>,
+) {
+    use typedexp::TypedExp as E;
+    // Direct use (1): arrayCreateNoInit with an unassigned dummy lowers to
+    // arrayCreateDefault on the element type, which requires `A: Default`.
+    if let E::Call { func, args, ty, .. } = exp
+        && func == "arrayCreateNoInit" {
+        let dummy_is_unassigned_var = matches!(
+            args.get(1),
+            Some(E::Var { name, .. }) if !ever_assigned.contains(name)
+        );
+        if dummy_is_unassigned_var
+            && let Ty::Array(elem) = ty {
+            collect_concrete_qnames_in_ty(elem, out);
+        }
+    }
+    // Cross-function (2): calls to user functions with `T: Default` bounds
+    // pull the substituted-actual concrete type into the demand set.
+    if let E::Call { func, args, named_args, .. } = exp
+        && let Some(qname) = typedexp::resolve_call_node(func, top_level, pkg_prefix).map(|(q, _)| q)
+        && let Some(callee_req) = default_required.get(&qname)
+        && !callee_req.is_empty()
+        && let Some(callee_node) = crate::hierarchy::lookup_node(&qname, top_level)
+        && let Ty::Function { inputs: formals, .. } = &callee_node.ty {
+        // Walk each argument; for any callee TV that needs Default, project
+        // the actual argument's Ty at the corresponding formal position and
+        // accumulate concrete qnames.
+        for (i, arg) in args.iter().enumerate() {
+            if let Some(formal) = formals.get(i) {
+                propagate_default_into_concrete(&formal.ty, &arg.ty(), callee_req, out);
+            }
+        }
+        for (n, arg) in named_args {
+            if let Some(formal) = formals.iter().find(|f| &f.name == n) {
+                propagate_default_into_concrete(&formal.ty, &arg.ty(), callee_req, out);
+            }
+        }
+    }
+    // Recurse into sub-expressions.
+    match exp {
+        E::Lit(_) | E::Todo(_) | E::Var { .. } => {}
+        E::BinOp { lhs, rhs, .. } => {
+            collect_concrete_default_uses_in_exp(lhs, ever_assigned, default_required, top_level, pkg_prefix, out);
+            collect_concrete_default_uses_in_exp(rhs, ever_assigned, default_required, top_level, pkg_prefix, out);
+        }
+        E::UnOp { operand, .. } => collect_concrete_default_uses_in_exp(operand, ever_assigned, default_required, top_level, pkg_prefix, out),
+        E::Call { args, named_args, .. }
+        | E::Constructor { args, named_args, .. }
+        | E::PartEval { args, named_args, .. } => {
+            for a in args { collect_concrete_default_uses_in_exp(a, ever_assigned, default_required, top_level, pkg_prefix, out); }
+            for (_, v) in named_args { collect_concrete_default_uses_in_exp(v, ever_assigned, default_required, top_level, pkg_prefix, out); }
+        }
+        E::If { cond, then_, elseif, else_, .. } => {
+            collect_concrete_default_uses_in_exp(cond, ever_assigned, default_required, top_level, pkg_prefix, out);
+            collect_concrete_default_uses_in_exp(then_, ever_assigned, default_required, top_level, pkg_prefix, out);
+            for (c, b) in elseif {
+                collect_concrete_default_uses_in_exp(c, ever_assigned, default_required, top_level, pkg_prefix, out);
+                collect_concrete_default_uses_in_exp(b, ever_assigned, default_required, top_level, pkg_prefix, out);
+            }
+            collect_concrete_default_uses_in_exp(else_, ever_assigned, default_required, top_level, pkg_prefix, out);
+        }
+        E::Cons { head, tail, .. } => {
+            collect_concrete_default_uses_in_exp(head, ever_assigned, default_required, top_level, pkg_prefix, out);
+            collect_concrete_default_uses_in_exp(tail, ever_assigned, default_required, top_level, pkg_prefix, out);
+        }
+        E::Tuple(elems) | E::Array { elems, .. } => {
+            for e in elems { collect_concrete_default_uses_in_exp(e, ever_assigned, default_required, top_level, pkg_prefix, out); }
+        }
+        E::Match { input, cases, .. } => {
+            collect_concrete_default_uses_in_exp(input, ever_assigned, default_required, top_level, pkg_prefix, out);
+            for c in cases {
+                if let Some(g) = &c.guard { collect_concrete_default_uses_in_exp(g, ever_assigned, default_required, top_level, pkg_prefix, out); }
+                for (_, _, d, _) in &c.locals {
+                    if let Some(d) = d { collect_concrete_default_uses_in_exp(d, ever_assigned, default_required, top_level, pkg_prefix, out); }
+                }
+                for s in &c.stmts { collect_concrete_default_uses_in_stmt(s, ever_assigned, default_required, top_level, pkg_prefix, out); }
+                collect_concrete_default_uses_in_exp(&c.result, ever_assigned, default_required, top_level, pkg_prefix, out);
+            }
+        }
+        E::Range { start, step, stop, .. } => {
+            collect_concrete_default_uses_in_exp(start, ever_assigned, default_required, top_level, pkg_prefix, out);
+            if let Some(s) = step { collect_concrete_default_uses_in_exp(s, ever_assigned, default_required, top_level, pkg_prefix, out); }
+            collect_concrete_default_uses_in_exp(stop, ever_assigned, default_required, top_level, pkg_prefix, out);
+        }
+        E::Reduction { body, iterators, .. } => {
+            collect_concrete_default_uses_in_exp(body, ever_assigned, default_required, top_level, pkg_prefix, out);
+            for it in iterators {
+                collect_concrete_default_uses_in_exp(&it.range, ever_assigned, default_required, top_level, pkg_prefix, out);
+                if let Some(g) = &it.guard { collect_concrete_default_uses_in_exp(g, ever_assigned, default_required, top_level, pkg_prefix, out); }
+            }
+        }
+    }
+}
+
+/// Walk `formal`/`actual` in parallel. Whenever `formal` is a `TypeVar(tv)`
+/// whose callee FQN has `tv` in `callee_default_required`, accumulate the
+/// concrete qnames carried by the matching `actual` subterm into `out`.
+fn propagate_default_into_concrete(
+    formal: &Ty,
+    actual: &Ty,
+    callee_default_required: &HashSet<String>,
+    out: &mut HashSet<String>,
+) {
+    match (formal, actual) {
+        (Ty::TypeVar(tv), a) if callee_default_required.contains(tv) => {
+            collect_concrete_qnames_in_ty(a, out);
+        }
+        (Ty::Option(fa), Ty::Option(aa))
+        | (Ty::List(fa), Ty::List(aa))
+        | (Ty::Array(fa), Ty::Array(aa))
+        | (Ty::Range(fa), Ty::Range(aa)) => {
+            propagate_default_into_concrete(fa, aa, callee_default_required, out);
+        }
+        (Ty::Tuple(fas), Ty::Tuple(aas)) => {
+            for (fa, aa) in fas.iter().zip(aas.iter()) {
+                propagate_default_into_concrete(fa, aa, callee_default_required, out);
+            }
+        }
+        (Ty::Generic(_, fas), Ty::Generic(_, aas)) => {
+            for (fa, aa) in fas.iter().zip(aas.iter()) {
+                propagate_default_into_concrete(fa, aa, callee_default_required, out);
+            }
+        }
+        _ => {}
+    }
 }
 
 fn is_ty_defaultable(ty: &Ty, defaultable_qnames: &HashSet<String>) -> bool {

@@ -127,17 +127,6 @@ pub mod EventInfo {
         pub numberMathEvents: i32,
     }
 
-    impl Default for EventInfo {
-        fn default() -> Self {
-            Self {
-                time_set: Default::default(),
-                time_map: Default::default(),
-                state_map: Default::default(),
-                numberMathEvents: Default::default(),
-            }
-        }
-    }
-
     pub type EVENT_INFO = EventInfo;
 
     pub fn toString(mut eventInfo: Arc<EventInfo>) -> Result<ArcStr> {
@@ -301,14 +290,6 @@ pub mod TimeEvent {
             /// equidistant intervals
             interval: Arc<Expression::NFExpression>,
         },
-    }
-    impl Default for TimeEvent {
-        fn default() -> Self {
-            Self::SINGLE {
-                index: Default::default(),
-                trigger: Default::default(),
-            }
-        }
     }
     pub use self::TimeEvent::{SINGLE,SAMPLE};
     pub fn toString(mut timeEvent: Arc<TimeEvent>, mut printIndex: bool) -> Result<ArcStr> {
@@ -964,18 +945,6 @@ pub struct Bucket {
     pub aux_stmts: Option<Arc<metamodelica::List<(Arc<Condition::Condition>, Arc<ComponentRef::NFComponentRef>)>>>,
     /// index to be used for unique statement auxiliaries
     pub stmt_index: i32,
-}
-
-impl Default for Bucket {
-    fn default() -> Self {
-        Self {
-            time_set: Default::default(),
-            time_map: Default::default(),
-            state_map: Default::default(),
-            aux_stmts: Default::default(),
-            stmt_index: Default::default(),
-        }
-    }
 }
 
 pub type BUCKET = Bucket;

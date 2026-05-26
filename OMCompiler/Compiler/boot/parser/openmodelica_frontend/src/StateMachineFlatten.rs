@@ -103,23 +103,6 @@ pub struct FlatSmSemantics {
     pub enclosingState: Option<Arc<DAE::ComponentRef>>,
 }
 
-impl Default for FlatSmSemantics {
-    fn default() -> Self {
-        Self {
-            ident: Default::default(),
-            smComps: Default::default(),
-            t: Default::default(),
-            c: Default::default(),
-            vars: Default::default(),
-            knowns: Default::default(),
-            eqs: Default::default(),
-            pvars: Default::default(),
-            peqs: Default::default(),
-            enclosingState: Default::default(),
-        }
-    }
-}
-
 pub type FLAT_SM_SEMANTICS = FlatSmSemantics;
 
 

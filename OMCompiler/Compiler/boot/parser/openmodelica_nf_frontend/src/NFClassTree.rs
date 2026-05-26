@@ -127,9 +127,6 @@ pub mod ClassTree {
         },
         EMPTY_TREE,
     }
-    impl Default for ClassTree {
-        fn default() -> Self { Self::EMPTY_TREE }
-    }
     pub use self::ClassTree::{PARTIAL_TREE,EXPANDED_TREE,INSTANTIATED_TREE,FLAT_TREE,EMPTY_TREE};
     pub fn fromSCode(mut elements: Arc<metamodelica::List<Arc<SCode::Element>>>, mut isClassExtends: bool, mut parent: Arc<InstNode::InstNode>) -> Result<Arc<ClassTree>> {
         let mut tree: Arc<ClassTree> = Arc::new(ClassTree::EMPTY_TREE);

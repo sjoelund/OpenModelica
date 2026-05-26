@@ -61,24 +61,6 @@ pub struct Info {
     pub fmiNumberOfEventIndicators: Arc<metamodelica::List<i32>>,
 }
 
-impl Default for Info {
-    fn default() -> Self {
-        Self {
-            fmiVersion: Default::default(),
-            fmiType: Default::default(),
-            fmiModelName: Default::default(),
-            fmiModelIdentifier: Default::default(),
-            fmiGuid: Default::default(),
-            fmiDescription: Default::default(),
-            fmiGenerationTool: Default::default(),
-            fmiGenerationDateAndTime: Default::default(),
-            fmiVariableNamingConvention: Default::default(),
-            fmiNumberOfContinuousStates: Default::default(),
-            fmiNumberOfEventIndicators: Default::default(),
-        }
-    }
-}
-
 pub type INFO = Info;
 
 
@@ -92,19 +74,6 @@ pub struct TypeDefinitions {
     pub items: Arc<metamodelica::List<EnumerationItem>>,
 }
 
-impl Default for TypeDefinitions {
-    fn default() -> Self {
-        Self {
-            name: Default::default(),
-            description: Default::default(),
-            quantity: Default::default(),
-            min: Default::default(),
-            max: Default::default(),
-            items: Default::default(),
-        }
-    }
-}
-
 pub type ENUMERATIONTYPE = TypeDefinitions;
 
 
@@ -112,15 +81,6 @@ pub type ENUMERATIONTYPE = TypeDefinitions;
 pub struct EnumerationItem {
     pub name: ArcStr,
     pub description: ArcStr,
-}
-
-impl Default for EnumerationItem {
-    fn default() -> Self {
-        Self {
-            name: Default::default(),
-            description: Default::default(),
-        }
-    }
 }
 
 pub type ENUMERATIONITEM = EnumerationItem;
@@ -131,16 +91,6 @@ pub struct ExperimentAnnotation {
     pub fmiExperimentStartTime: metamodelica::Real,
     pub fmiExperimentStopTime: metamodelica::Real,
     pub fmiExperimentTolerance: metamodelica::Real,
-}
-
-impl Default for ExperimentAnnotation {
-    fn default() -> Self {
-        Self {
-            fmiExperimentStartTime: Default::default(),
-            fmiExperimentStopTime: Default::default(),
-            fmiExperimentTolerance: Default::default(),
-        }
-    }
 }
 
 pub type EXPERIMENTANNOTATION = ExperimentAnnotation;
@@ -229,26 +179,6 @@ pub enum ModelVariables {
         y2Placement: i32,
     },
 }
-impl Default for ModelVariables {
-    fn default() -> Self {
-        Self::REALVARIABLE {
-            instance: Default::default(),
-            name: Default::default(),
-            description: Default::default(),
-            baseType: Default::default(),
-            variability: Default::default(),
-            causality: Default::default(),
-            hasStartValue: Default::default(),
-            startValue: Default::default(),
-            isFixed: Default::default(),
-            valueReference: Default::default(),
-            x1Placement: Default::default(),
-            x2Placement: Default::default(),
-            y1Placement: Default::default(),
-            y2Placement: Default::default(),
-        }
-    }
-}
 pub use self::ModelVariables::{REALVARIABLE,INTEGERVARIABLE,BOOLEANVARIABLE,STRINGVARIABLE,ENUMERATIONVARIABLE};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -267,27 +197,6 @@ pub struct FmiImport {
     pub fmiModelVariablesList: Arc<metamodelica::List<ModelVariables>>,
     pub generateInputConnectors: bool,
     pub generateOutputConnectors: bool,
-}
-
-impl Default for FmiImport {
-    fn default() -> Self {
-        Self {
-            platform: Default::default(),
-            fmuFileName: Default::default(),
-            fmuWorkingDirectory: Default::default(),
-            fmiLogLevel: Default::default(),
-            fmiDebugOutput: Default::default(),
-            fmiContext: Default::default(),
-            fmiInstance: Default::default(),
-            fmiInfo: Default::default(),
-            fmiTypeDefinitionsList: Default::default(),
-            fmiExperimentAnnotation: Default::default(),
-            fmiModelVariablesInstance: Default::default(),
-            fmiModelVariablesList: Default::default(),
-            generateInputConnectors: Default::default(),
-            generateOutputConnectors: Default::default(),
-        }
-    }
 }
 
 pub type FMIIMPORT = FmiImport;

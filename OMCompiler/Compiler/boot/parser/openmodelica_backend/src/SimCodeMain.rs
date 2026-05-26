@@ -137,9 +137,6 @@ pub enum TranslateModelKind {
         targetName: ArcStr,
     },
 }
-impl Default for TranslateModelKind {
-    fn default() -> Self { Self::NORMAL }
-}
 pub use self::TranslateModelKind::{NORMAL,XML,FMU};
 
 pub fn createSimulationSettings(mut startTime: metamodelica::Real, mut stopTime: metamodelica::Real, mut inumberOfIntervals: i32, mut tolerance: metamodelica::Real, mut method: ArcStr, mut options: ArcStr, mut outputFormat: ArcStr, mut variableFilter: ArcStr, mut cflags: ArcStr, mut simflags: ArcStr) -> SimCode::SimulationSettings {
@@ -1080,11 +1077,11 @@ pub fn translateModelCallBackendOBDAEMode(mut cache: FCore::Cache, mut inEnv: FC
             let mut initDAE: Arc<BackendDAE::BackendDAE>;
             let mut initDAE_lambda0_option: Option<Arc<BackendDAE::BackendDAE>> = None;
             let mut removedInitialEquationLst: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
-            let mut cache: FCore::Cache = cache.clone();
             let mut timeBackend: metamodelica::Real = timeBackend.clone();
-            let mut timeSimCode: metamodelica::Real = timeSimCode.clone();
             let mut timeTemplates: metamodelica::Real = timeTemplates.clone();
             let mut generateFunctions: bool = generateFunctions.clone();
+            let mut cache: FCore::Cache = cache.clone();
+            let mut timeSimCode: metamodelica::Real = timeSimCode.clone();
             System::realtimeTick(ClockIndexes::RT_CLOCK_BACKEND.clone())?;
             dae = DAEUtil::transformationsBeforeBackend(cache.clone(), graph.clone(), inDae.clone())?;
             ExecStat::execStat((literal!("Transformations before backend")).clone())?;

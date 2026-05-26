@@ -124,19 +124,6 @@ pub struct NFOCConnectionGraph {
     pub connections: FlatEdges,
 }
 
-impl Default for NFOCConnectionGraph {
-    fn default() -> Self {
-        Self {
-            updateGraph: Default::default(),
-            definiteRoots: Default::default(),
-            potentialRoots: Default::default(),
-            uniqueRoots: Default::default(),
-            branches: Default::default(),
-            connections: Default::default(),
-        }
-    }
-}
-
 pub type GRAPH = NFOCConnectionGraph;
 
 
@@ -207,16 +194,6 @@ pub mod CrefSets {
         pub elements: IndexTable,
         /// The number of nodes stored in the sets.
         pub nodeCount: i32,
-    }
-
-    impl Default for Sets {
-        fn default() -> Self {
-            Self {
-                nodes: Default::default(),
-                elements: Default::default(),
-                nodeCount: Default::default(),
-            }
-        }
     }
 
     pub type DISJOINT_SETS = Sets;

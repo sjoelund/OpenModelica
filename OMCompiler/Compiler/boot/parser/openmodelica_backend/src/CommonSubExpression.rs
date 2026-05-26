@@ -1538,14 +1538,6 @@ pub enum CommonSubExp {
         sharedVar: i32,
     },
 }
-impl Default for CommonSubExp {
-    fn default() -> Self {
-        Self::SHORTCUT_CSE {
-            eqIdcs: Default::default(),
-            sharedVar: Default::default(),
-        }
-    }
-}
 pub use self::CommonSubExp::{ASSIGNMENT_CSE,SHORTCUT_CSE};
 
 pub fn commonSubExpressionReplacement(mut daeIn: Arc<BackendDAE::BackendDAE>) -> Result<Arc<BackendDAE::BackendDAE>> {

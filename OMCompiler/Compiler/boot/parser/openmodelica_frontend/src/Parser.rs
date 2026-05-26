@@ -186,15 +186,6 @@ pub struct ParserResult {
     pub program: Option<Absyn::Program>,
 }
 
-impl Default for ParserResult {
-    fn default() -> Self {
-        Self {
-            filename: Default::default(),
-            program: Default::default(),
-        }
-    }
-}
-
 pub type PARSERRESULT = ParserResult;
 
 

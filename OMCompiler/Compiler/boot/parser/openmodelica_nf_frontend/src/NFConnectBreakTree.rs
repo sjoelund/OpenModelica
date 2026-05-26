@@ -62,15 +62,6 @@ pub struct Entry {
     pub r#mod: Arc<SCode::Mod>,
 }
 
-impl Default for Entry {
-    fn default() -> Self {
-        Self {
-            hasMatch: Default::default(),
-            r#mod: Default::default(),
-        }
-    }
-}
-
 pub type ENTRY = Entry;
 
 
@@ -909,9 +900,6 @@ pub enum Tree {
         value: Value,
     },
     EMPTY,
-}
-impl Default for Tree {
-    fn default() -> Self { Self::EMPTY }
 }
 pub use self::Tree::{NODE,LEAF,EMPTY};
 

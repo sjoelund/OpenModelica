@@ -144,17 +144,6 @@ pub struct TopInstance {
     pub sm: (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<Arc<DAE::ComponentRef>>>), i32, i32, (HashSet::FuncHashCref, HashSet::FuncCrefEqual, HashSet::FuncCrefStr)),
 }
 
-impl Default for TopInstance {
-    fn default() -> Self {
-        Self {
-            path: Default::default(),
-            ht: Default::default(),
-            outerPrefixes: Default::default(),
-            sm: Default::default(),
-        }
-    }
-}
-
 pub type TOP_INSTANCE = TopInstance;
 
 
@@ -491,8 +480,8 @@ fn lookupVarInnerOuterAttr(mut cache: FCore::Cache, mut env: FCore::Graph, mut i
                     let mut isInner2: bool = false;
                     let mut isOuter1: bool = false;
                     let mut isOuter2: bool = false;
-                    let mut isOuter: bool = isOuter.clone();
                     let mut isInner: bool = isInner.clone();
+                    let mut isOuter: bool = isOuter.clone();
                     ErrorExt::setCheckpoint((literal!("lookupVarInnerOuterAttr")).clone());
                     let __pa0 = ::match_deref::match_deref! { match &(Lookup::lookupVar(cache.clone(), env.clone(), cr1.clone())?) {
                         (_, Deref @ DAE::Attributes { innerOuter: __pa0, .. }, _, _, _, _, _, _, _) => __pa0.clone(),
@@ -518,8 +507,8 @@ fn lookupVarInnerOuterAttr(mut cache: FCore::Cache, mut env: FCore::Graph, mut i
             ::match_deref::match_deref! { match &__mc_input {
                 (_, _, _, _, _) => {
                     let mut io: Absyn::InnerOuter = Absyn::InnerOuter::INNER;
-                    let mut isInner: bool = isInner.clone();
                     let mut isOuter: bool = isOuter.clone();
+                    let mut isInner: bool = isInner.clone();
                     let __pa0 = ::match_deref::match_deref! { match &(Lookup::lookupVar(cache.clone(), env.clone(), cr1.clone())?) {
                         (_, Deref @ DAE::Attributes { innerOuter: __pa0, .. }, _, _, _, _, _, _, _) => __pa0.clone(),
                         _ => bail!("pattern mismatch"),
@@ -536,8 +525,8 @@ fn lookupVarInnerOuterAttr(mut cache: FCore::Cache, mut env: FCore::Graph, mut i
             ::match_deref::match_deref! { match &__mc_input {
                 (_, _, _, _, _) => {
                     let mut io: Absyn::InnerOuter = Absyn::InnerOuter::INNER;
-                    let mut isOuter: bool = isOuter.clone();
                     let mut isInner: bool = isInner.clone();
+                    let mut isOuter: bool = isOuter.clone();
                     let __pa0 = ::match_deref::match_deref! { match &(Lookup::lookupVar(cache.clone(), env.clone(), cr2.clone())?) {
                         (_, Deref @ DAE::Attributes { innerOuter: __pa0, .. }, _, _, _, _, _, _, _) => __pa0.clone(),
                         _ => bail!("pattern mismatch"),
@@ -1188,17 +1177,6 @@ pub struct InstHierarchyHashTable {
     pub numberOfEntries: i32,
 }
 
-impl Default for InstHierarchyHashTable {
-    fn default() -> Self {
-        Self {
-            hashTable: Default::default(),
-            valueArr: Default::default(),
-            bucketSize: Default::default(),
-            numberOfEntries: Default::default(),
-        }
-    }
-}
-
 pub type HASHTABLE = InstHierarchyHashTable;
 
 
@@ -1210,15 +1188,6 @@ pub struct ValueArray {
     pub numberOfElements: i32,
     /// array of values
     pub valueArray: metamodelica::Array<Option<(Arc<DAE::ComponentRef>, InstInner)>>,
-}
-
-impl Default for ValueArray {
-    fn default() -> Self {
-        Self {
-            numberOfElements: Default::default(),
-            valueArray: Default::default(),
-        }
-    }
 }
 
 pub type VALUE_ARRAY = ValueArray;

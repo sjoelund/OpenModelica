@@ -76,16 +76,6 @@ pub struct ImportTable {
     pub unqualifiedImports: Arc<metamodelica::List<Absyn::Import>>,
 }
 
-impl Default for ImportTable {
-    fn default() -> Self {
-        Self {
-            hidden: Default::default(),
-            qualifiedImports: Default::default(),
-            unqualifiedImports: Default::default(),
-        }
-    }
-}
-
 pub type IMPORT_TABLE = ImportTable;
 
 
@@ -123,16 +113,6 @@ pub struct ExtendsTable {
     pub classExtendsInfo: Option<Arc<SCode::Element>>,
 }
 
-impl Default for ExtendsTable {
-    fn default() -> Self {
-        Self {
-            baseClasses: Default::default(),
-            redeclaredElements: Default::default(),
-            classExtendsInfo: Default::default(),
-        }
-    }
-}
-
 pub type EXTENDS_TABLE = ExtendsTable;
 
 
@@ -167,9 +147,6 @@ pub enum ClassType {
     BUILTIN,
     CLASS_EXTENDS,
     BASIC_TYPE,
-}
-impl Default for ClassType {
-    fn default() -> Self { Self::USERDEFINED }
 }
 pub use self::ClassType::{USERDEFINED,BUILTIN,CLASS_EXTENDS,BASIC_TYPE};
 
@@ -246,9 +223,6 @@ pub mod EnvTree {
             value: Value,
         },
         EMPTY,
-    }
-    impl Default for Tree {
-        fn default() -> Self { Self::EMPTY }
     }
     pub use self::Tree::{NODE,LEAF,EMPTY};
 

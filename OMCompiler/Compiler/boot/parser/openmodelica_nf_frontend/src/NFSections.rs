@@ -78,9 +78,6 @@ pub enum NFSections {
     },
     EMPTY,
 }
-impl Default for NFSections {
-    fn default() -> Self { Self::EMPTY }
-}
 pub use self::NFSections::{SECTIONS,EXTERNAL,EMPTY};
 pub fn new(mut equations: Arc<metamodelica::List<Arc<Equation::NFEquation>>>, mut initialEquations: Arc<metamodelica::List<Arc<Equation::NFEquation>>>, mut algorithms: Arc<metamodelica::List<Arc<Algorithm::NFAlgorithm>>>, mut initialAlgorithms: Arc<metamodelica::List<Arc<Algorithm::NFAlgorithm>>>) -> Arc<NFSections> {
     let mut sections: Arc<NFSections> = Arc::new(NFSections::EMPTY);

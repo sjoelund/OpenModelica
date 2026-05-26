@@ -101,15 +101,6 @@ pub struct FigaroClass {
     pub typeName: ArcStr,
 }
 
-impl Default for FigaroClass {
-    fn default() -> Self {
-        Self {
-            className: Default::default(),
-            typeName: Default::default(),
-        }
-    }
-}
-
 pub type FIGAROCLASS = FigaroClass;
 
 
@@ -121,16 +112,6 @@ pub struct FigaroObject {
     pub typeName: ArcStr,
     /// a piece of Figaro code that belongs to the object
     pub figaroCode: ArcStr,
-}
-
-impl Default for FigaroObject {
-    fn default() -> Self {
-        Self {
-            objectName: Default::default(),
-            typeName: Default::default(),
-            figaroCode: Default::default(),
-        }
-    }
 }
 
 pub type FIGAROOBJECT = FigaroObject;
@@ -760,13 +741,6 @@ pub enum Token {
     TEXT {
         text: ArcStr,
     },
-}
-impl Default for Token {
-    fn default() -> Self {
-        Self::OPENTAG {
-            tagName: Default::default(),
-        }
-    }
 }
 pub use self::Token::{OPENTAG,CLOSETAG,TEXT};
 

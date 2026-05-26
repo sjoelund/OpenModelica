@@ -172,9 +172,6 @@ pub mod FunctionTreeImpl {
         },
         EMPTY,
     }
-    impl Default for Tree {
-        fn default() -> Self { Self::EMPTY }
-    }
     pub use self::Tree::{NODE,LEAF,EMPTY};
 
     pub type ValueNode = Arc<Path>;
@@ -822,21 +819,6 @@ pub struct FlattenSettings {
     pub vectorizeBindings: bool,
     pub implicitStartAttribute: bool,
     pub minimalEval: bool,
-}
-
-impl Default for FlattenSettings {
-    fn default() -> Self {
-        Self {
-            scalarize: Default::default(),
-            arrayConnect: Default::default(),
-            nfAPI: Default::default(),
-            relaxedErrorChecking: Default::default(),
-            newBackend: Default::default(),
-            vectorizeBindings: Default::default(),
-            implicitStartAttribute: Default::default(),
-            minimalEval: Default::default(),
-        }
-    }
 }
 
 pub type SETTINGS = FlattenSettings;

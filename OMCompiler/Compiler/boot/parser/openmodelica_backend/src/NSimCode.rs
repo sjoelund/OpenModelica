@@ -140,38 +140,6 @@ pub struct SimCodeIndices {
     pub generic_call_map: Arc<UnorderedMap::UnorderedMap<Arc<Identifier::Identifier>, i32>>,
 }
 
-impl Default for SimCodeIndices {
-    fn default() -> Self {
-        Self {
-            uniqueIndex: Default::default(),
-            realVarIndex: Default::default(),
-            integerVarIndex: Default::default(),
-            booleanVarIndex: Default::default(),
-            stringVarIndex: Default::default(),
-            enumerationVarIndex: Default::default(),
-            realParamIndex: Default::default(),
-            integerParamIndex: Default::default(),
-            booleanParamIndex: Default::default(),
-            stringParamIndex: Default::default(),
-            enumerationParamIndex: Default::default(),
-            realAliasIndex: Default::default(),
-            integerAliasIndex: Default::default(),
-            booleanAliasIndex: Default::default(),
-            stringAliasIndex: Default::default(),
-            enumerationAliasIndex: Default::default(),
-            equationIndex: Default::default(),
-            linearSystemIndex: Default::default(),
-            nonlinearSystemIndex: Default::default(),
-            jacobianIndex: Default::default(),
-            residualIndex: Default::default(),
-            implicitIndex: Default::default(),
-            extObjIndex: Default::default(),
-            alias_map: Default::default(),
-            generic_call_map: Default::default(),
-        }
-    }
-}
-
 pub type SIM_CODE_INDICES = SimCodeIndices;
 
 

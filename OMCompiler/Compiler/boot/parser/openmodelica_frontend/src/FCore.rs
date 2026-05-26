@@ -82,16 +82,6 @@ pub struct ImportTable {
     pub unqualifiedImports: Arc<metamodelica::List<Absyn::Import>>,
 }
 
-impl Default for ImportTable {
-    fn default() -> Self {
-        Self {
-            hidden: Default::default(),
-            qualifiedImports: Default::default(),
-            unqualifiedImports: Default::default(),
-        }
-    }
-}
-
 pub type IMPORT_TABLE = ImportTable;
 
 
@@ -1022,15 +1012,6 @@ pub struct Visit {
     pub seq: Seq,
 }
 
-impl Default for Visit {
-    fn default() -> Self {
-        Self {
-            r#ref: Default::default(),
-            seq: Default::default(),
-        }
-    }
-}
-
 pub type VN = Visit;
 
 
@@ -1040,15 +1021,6 @@ pub struct Visited {
     pub tree: Arc<VAvlTree>,
     /// the next visit node id
     pub next: Next,
-}
-
-impl Default for Visited {
-    fn default() -> Self {
-        Self {
-            tree: Default::default(),
-            next: Default::default(),
-        }
-    }
 }
 
 pub type V = Visited;
@@ -1071,17 +1043,6 @@ pub struct VAvlTree {
     pub right: Option<Arc<VAvlTree>>,
 }
 
-impl Default for VAvlTree {
-    fn default() -> Self {
-        Self {
-            value: Default::default(),
-            height: Default::default(),
-            left: Default::default(),
-            right: Default::default(),
-        }
-    }
-}
-
 pub type VAVLTREENODE = VAvlTree;
 
 
@@ -1092,15 +1053,6 @@ pub struct VAvlTreeValue {
     pub key: VAvlKey,
     /// Value
     pub value: VAvlValue,
-}
-
-impl Default for VAvlTreeValue {
-    fn default() -> Self {
-        Self {
-            key: Default::default(),
-            value: Default::default(),
-        }
-    }
 }
 
 pub type VAVLTREEVALUE = VAvlTreeValue;
@@ -1208,9 +1160,6 @@ pub enum ScopeType {
     FUNCTION_SCOPE,
     CLASS_SCOPE,
     PARALLEL_SCOPE,
-}
-impl Default for ScopeType {
-    fn default() -> Self { Self::FUNCTION_SCOPE }
 }
 pub use self::ScopeType::{FUNCTION_SCOPE,CLASS_SCOPE,PARALLEL_SCOPE};
 

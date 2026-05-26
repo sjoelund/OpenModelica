@@ -55,9 +55,6 @@ pub enum UnitCheckResult {
         u2: SpecUnit,
     },
 }
-impl Default for UnitCheckResult {
-    fn default() -> Self { Self::CONSISTENT }
-}
 pub use self::UnitCheckResult::{CONSISTENT,INCONSISTENT};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -66,15 +63,6 @@ pub struct SpecUnit {
     pub typeParameters: Arc<metamodelica::List<(MMath::Rational, TypeParameter)>>,
     /// first seven elements are the SI base units
     pub units: Arc<metamodelica::List<MMath::Rational>>,
-}
-
-impl Default for SpecUnit {
-    fn default() -> Self {
-        Self {
-            typeParameters: Default::default(),
-            units: Default::default(),
-        }
-    }
 }
 
 pub type SPECUNIT = SpecUnit;
@@ -86,15 +74,6 @@ pub struct TypeParameter {
     pub name: ArcStr,
     /// indx in Store
     pub indx: i32,
-}
-
-impl Default for TypeParameter {
-    fn default() -> Self {
-        Self {
-            name: Default::default(),
-            indx: Default::default(),
-        }
-    }
 }
 
 pub type TYPEPARAMETER = TypeParameter;
@@ -109,9 +88,6 @@ pub enum Unit {
     },
     /// Unpspecified unit means that the unit is unknown and should be inferred
     UNSPECIFIED,
-}
-impl Default for Unit {
-    fn default() -> Self { Self::UNSPECIFIED }
 }
 pub use self::Unit::{SPECIFIED,UNSPECIFIED};
 
@@ -192,15 +168,6 @@ pub struct Store {
     pub numElts: i32,
 }
 
-impl Default for Store {
-    fn default() -> Self {
-        Self {
-            storeVector: Default::default(),
-            numElts: Default::default(),
-        }
-    }
-}
-
 pub type STORE = Store;
 
 
@@ -216,9 +183,6 @@ pub enum InstStore {
     },
     /// used to skip unit checking
     NOSTORE,
-}
-impl Default for InstStore {
-    fn default() -> Self { Self::NOSTORE }
 }
 pub use self::InstStore::{INSTSTORE,NOSTORE};
 

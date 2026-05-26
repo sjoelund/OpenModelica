@@ -99,13 +99,6 @@ pub enum ModScope {
         path: Arc<Absyn::Path>,
     },
 }
-impl Default for ModScope {
-    fn default() -> Self {
-        Self::COMPONENT {
-            name: Default::default(),
-        }
-    }
-}
 pub use self::ModScope::{COMPONENT,EXTENDS,DERIVED};
 
 /// used for error reporting

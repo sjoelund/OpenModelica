@@ -206,17 +206,6 @@ pub struct CrefTpl {
     pub cr_lst: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>,
 }
 
-impl Default for CrefTpl {
-    fn default() -> Self {
-        Self {
-            cont: Default::default(),
-            varCount: Default::default(),
-            paramCount: Default::default(),
-            cr_lst: Default::default(),
-        }
-    }
-}
-
 pub type CREF_TPL = CrefTpl;
 
 
@@ -1208,20 +1197,6 @@ pub mod AttributeCollector {
         pub stateSelect_map: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, StateSelect>>,
         /// set containing all tearingSelect values
         pub tearingSelect_map: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, TearingSelect>>,
-    }
-
-    impl Default for AttributeCollector {
-        fn default() -> Self {
-            Self {
-                min_val_map: Default::default(),
-                max_val_map: Default::default(),
-                start_map: Default::default(),
-                fixed_map: Default::default(),
-                nominal_map: Default::default(),
-                stateSelect_map: Default::default(),
-                tearingSelect_map: Default::default(),
-            }
-        }
     }
 
     pub type ATTRIBUTE_COLLECTOR = AttributeCollector;

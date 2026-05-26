@@ -83,15 +83,6 @@ pub struct Env {
     pub builtins: Builtins,
 }
 
-impl Default for Env {
-    fn default() -> Self {
-        Self {
-            mapping: Default::default(),
-            builtins: Default::default(),
-        }
-    }
-}
-
 pub type ENV = Env;
 
 

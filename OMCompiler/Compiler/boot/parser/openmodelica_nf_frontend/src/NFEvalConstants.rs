@@ -78,14 +78,6 @@ pub struct EvalSettings {
     pub scalarize: bool,
 }
 
-impl Default for EvalSettings {
-    fn default() -> Self {
-        Self {
-            scalarize: Default::default(),
-        }
-    }
-}
-
 pub type SETTINGS = EvalSettings;
 
 

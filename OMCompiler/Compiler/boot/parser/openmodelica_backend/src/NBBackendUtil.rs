@@ -73,15 +73,6 @@ pub mod Rational {
         pub d: i32,
     }
 
-    impl Default for Rational {
-        fn default() -> Self {
-            Self {
-                n: Default::default(),
-                d: Default::default(),
-            }
-        }
-    }
-
     pub type RATIONAL = Rational;
 
     pub fn toString(mut r: Arc<Rational>) -> ArcStr {

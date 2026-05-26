@@ -105,9 +105,6 @@ pub mod ConstantsSetImpl {
         },
         EMPTY,
     }
-    impl Default for Tree {
-        fn default() -> Self { Self::EMPTY }
-    }
     pub use self::Tree::{NODE,LEAF,EMPTY};
 
     pub type ValueNode = Arc<ComponentRef::NFComponentRef>;

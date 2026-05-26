@@ -862,13 +862,13 @@ fn handleundifferntiableMSS(mut b: bool, mut statesWithUnusedDer: Arc<metamodeli
                     let mut ilst: Arc<metamodelica::List<i32>> = metamodelica::nil();
                     let mut syst: Arc<BackendDAE::EqSystem>;
                     let mut varlst: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
+                    let mut outAss2: metamodelica::Array<i32>;
+                    let mut omapIncRowEqn: metamodelica::Array<i32>;
+                    let mut omapEqnIncRow: metamodelica::Array<Arc<metamodelica::List<i32>>>;
                     let mut oshared: Arc<BackendDAE::Shared>;
                     let mut outOrgEqnsLst: metamodelica::Array<Arc<metamodelica::List<Arc<BackendDAE::Equation>>>>;
                     let mut outStateOrd: BackendDAE::StateOrder = outStateOrd.clone();
                     let mut outAss1: metamodelica::Array<i32>;
-                    let mut omapEqnIncRow: metamodelica::Array<Arc<metamodelica::List<i32>>>;
-                    let mut outAss2: metamodelica::Array<i32>;
-                    let mut omapIncRowEqn: metamodelica::Array<i32>;
                     ilst = Matching::getUnassigned(BackendVariable::varsSize(v.clone())?, inAss1.clone(), metamodelica::nil());
                     ilst = List::fold1(ilst.clone(), Arc::new(statesWithUnusedDerivative), mt.clone(), metamodelica::nil());
                     varlst = List::map1r(ilst.clone(), Arc::new(BackendVariable::getVarAt), v.clone());

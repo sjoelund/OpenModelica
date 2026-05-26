@@ -108,19 +108,6 @@ pub struct ConnectionGraph {
     pub connections: DaeEdges,
 }
 
-impl Default for ConnectionGraph {
-    fn default() -> Self {
-        Self {
-            updateGraph: Default::default(),
-            definiteRoots: Default::default(),
-            potentialRoots: Default::default(),
-            uniqueRoots: Default::default(),
-            branches: Default::default(),
-            connections: Default::default(),
-        }
-    }
-}
-
 pub type GRAPH = ConnectionGraph;
 
 

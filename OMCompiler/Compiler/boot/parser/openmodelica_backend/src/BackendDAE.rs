@@ -97,22 +97,6 @@ pub struct EqSystem {
     pub removedEqs: EquationArray,
 }
 
-impl Default for EqSystem {
-    fn default() -> Self {
-        Self {
-            orderedVars: Default::default(),
-            orderedEqs: Default::default(),
-            m: Default::default(),
-            mT: Default::default(),
-            mapping: Default::default(),
-            matching: Default::default(),
-            stateSets: Default::default(),
-            partitionKind: Default::default(),
-            removedEqs: Default::default(),
-        }
-    }
-}
-
 pub type EQSYSTEM = EqSystem;
 
 
@@ -124,9 +108,6 @@ pub enum SubClock {
         solver: Option<ArcStr>,
     },
     INFERED_SUBCLOCK,
-}
-impl Default for SubClock {
-    fn default() -> Self { Self::INFERED_SUBCLOCK }
 }
 pub use self::SubClock::{SUBCLOCK,INFERED_SUBCLOCK};
 
@@ -141,9 +122,6 @@ pub enum BaseClockPartitionKind {
     CONTINUOUS_TIME_PARTITION,
     /// treated as CONTINUOUS_TIME_PARTITION
     UNSPECIFIED_PARTITION,
-}
-impl Default for BaseClockPartitionKind {
-    fn default() -> Self { Self::UNKNOWN_PARTITION }
 }
 pub use self::BaseClockPartitionKind::{UNKNOWN_PARTITION,CLOCKED_PARTITION,CONTINUOUS_TIME_PARTITION,UNSPECIFIED_PARTITION};
 
@@ -202,15 +180,6 @@ pub struct InlineData {
     pub knownVariables: Variables,
 }
 
-impl Default for InlineData {
-    fn default() -> Self {
-        Self {
-            inlineSystems: Default::default(),
-            knownVariables: Default::default(),
-        }
-    }
-}
-
 pub type INLINE_DATA = InlineData;
 
 
@@ -218,15 +187,6 @@ pub type INLINE_DATA = InlineData;
 pub struct BasePartition {
     pub clock: Arc<DAE::ClockKind>,
     pub nSubClocks: i32,
-}
-
-impl Default for BasePartition {
-    fn default() -> Self {
-        Self {
-            clock: Default::default(),
-            nSubClocks: Default::default(),
-        }
-    }
 }
 
 pub type BASE_PARTITION = BasePartition;
@@ -239,16 +199,6 @@ pub struct SubPartition {
     pub prevVars: Arc<metamodelica::List<Arc<DAE::ComponentRef>>>,
 }
 
-impl Default for SubPartition {
-    fn default() -> Self {
-        Self {
-            clock: Default::default(),
-            holdEvents: Default::default(),
-            prevVars: Default::default(),
-        }
-    }
-}
-
 pub type SUB_PARTITION = SubPartition;
 
 
@@ -256,15 +206,6 @@ pub type SUB_PARTITION = SubPartition;
 pub struct PartitionsInfo {
     pub basePartitions: metamodelica::Array<BasePartition>,
     pub subPartitions: metamodelica::Array<SubPartition>,
-}
-
-impl Default for PartitionsInfo {
-    fn default() -> Self {
-        Self {
-            basePartitions: Default::default(),
-            subPartitions: Default::default(),
-        }
-    }
 }
 
 pub type PARTITIONS_INFO = PartitionsInfo;
@@ -279,16 +220,6 @@ pub struct ExtraInfo {
     pub fileNamePrefix: ArcStr,
     /// simulation settings options needed for data reconciliation to apply start values from csv files
     pub simSettingsOption: Option<SimCode::SimulationSettings>,
-}
-
-impl Default for ExtraInfo {
-    fn default() -> Self {
-        Self {
-            description: Default::default(),
-            fileNamePrefix: Default::default(),
-            simSettingsOption: Default::default(),
-        }
-    }
 }
 
 pub type EXTRA_INFO = ExtraInfo;
@@ -315,9 +246,6 @@ pub enum BackendDAEType {
     /// Type for DAEmode system BackendDAE.DAE
     DAEMODESYSTEM,
 }
-impl Default for BackendDAEType {
-    fn default() -> Self { Self::SIMULATION }
-}
 pub use self::BackendDAEType::{SIMULATION,JACOBIAN,ALGEQSYSTEM,ARRAYSYSTEM,PARAMETERSYSTEM,INITIALSYSTEM,INLINESYSTEM,DAEMODESYSTEM};
 
 #[derive(Clone, Debug, PartialEq)]
@@ -333,19 +261,6 @@ pub struct DataReconciliationData {
     pub symbolicJacobianH: Option<Arc<Jacobian>>,
     /// count number of boundary conditions which failed the extraction algorithm
     pub relatedBoundaryConditions: i32,
-}
-
-impl Default for DataReconciliationData {
-    fn default() -> Self {
-        Self {
-            symbolicJacobian: Default::default(),
-            setcVars: Default::default(),
-            datareconinputs: Default::default(),
-            setBVars: Default::default(),
-            symbolicJacobianH: Default::default(),
-            relatedBoundaryConditions: Default::default(),
-        }
-    }
 }
 
 pub type DATA_RECON = DataReconciliationData;
@@ -364,17 +279,6 @@ pub struct Variables {
     pub bucketSize: i32,
     /// no. of vars
     pub numberOfVars: i32,
-}
-
-impl Default for Variables {
-    fn default() -> Self {
-        Self {
-            crefIndices: Default::default(),
-            varArr: Default::default(),
-            bucketSize: Default::default(),
-            numberOfVars: Default::default(),
-        }
-    }
 }
 
 pub type VARIABLES = Variables;
@@ -397,15 +301,6 @@ pub struct VariableArray {
     /// no. elements
     pub numberOfElements: i32,
     pub varOptArr: metamodelica::Array<Option<Var>>,
-}
-
-impl Default for VariableArray {
-    fn default() -> Self {
-        Self {
-            numberOfElements: Default::default(),
-            varOptArr: Default::default(),
-        }
-    }
 }
 
 pub type VARIABLE_ARRAY = VariableArray;
@@ -508,9 +403,6 @@ pub enum VarKind {
     /// used in SIMCODE, inner variables of a torn algebraic loop
     LOOP_SOLVED,
 }
-impl Default for VarKind {
-    fn default() -> Self { Self::VARIABLE }
-}
 pub use self::VarKind::{VARIABLE,STATE,STATE_DER,DUMMY_DER,DUMMY_STATE,CLOCKED_STATE,DISCRETE,PARAM,CONST,EXTOBJ,JAC_VAR,JAC_TMP_VAR,SEED_VAR,OPT_CONSTR,OPT_FCONSTR,OPT_INPUT_WITH_DER,OPT_INPUT_DER,OPT_TGRID,OPT_LOOP_INPUT,ALG_STATE,ALG_STATE_OLD,DAE_RESIDUAL_VAR,DAE_AUX_VAR,LOOP_ITERATION,LOOP_SOLVED};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -520,9 +412,6 @@ pub enum TearingSelect {
     DEFAULT,
     PREFER,
     ALWAYS,
-}
-impl Default for TearingSelect {
-    fn default() -> Self { Self::NEVER }
 }
 pub use self::TearingSelect::{NEVER,AVOID,DEFAULT,PREFER,ALWAYS};
 
@@ -541,9 +430,6 @@ pub enum EquationKind {
     AUX_EQUATION,
     UNKNOWN_EQUATION_KIND,
 }
-impl Default for EquationKind {
-    fn default() -> Self { Self::BINDING_EQUATION }
-}
 pub use self::EquationKind::{BINDING_EQUATION,DYNAMIC_EQUATION,INITIAL_EQUATION,CLOCKED_EQUATION,DISCRETE_EQUATION,AUX_EQUATION,UNKNOWN_EQUATION_KIND};
 
 /// evaluation stages
@@ -553,17 +439,6 @@ pub struct EvaluationStages {
     pub algebraicEval: bool,
     pub zerocrossEval: bool,
     pub discreteEval: bool,
-}
-
-impl Default for EvaluationStages {
-    fn default() -> Self {
-        Self {
-            dynamicEval: Default::default(),
-            algebraicEval: Default::default(),
-            zerocrossEval: Default::default(),
-            discreteEval: Default::default(),
-        }
-    }
 }
 
 pub type EVALUATION_STAGES = EvaluationStages;
@@ -577,16 +452,6 @@ pub struct EquationAttributes {
     pub differentiated: bool,
     pub kind: EquationKind,
     pub evalStages: EvaluationStages,
-}
-
-impl Default for EquationAttributes {
-    fn default() -> Self {
-        Self {
-            differentiated: Default::default(),
-            kind: Default::default(),
-            evalStages: Default::default(),
-        }
-    }
 }
 
 pub type EQUATION_ATTRIBUTES = EquationAttributes;
@@ -698,9 +563,6 @@ pub enum Equation {
     },
     DUMMY_EQUATION,
 }
-impl Default for Equation {
-    fn default() -> Self { Self::DUMMY_EQUATION }
-}
 pub use self::Equation::{EQUATION,ARRAY_EQUATION,SOLVED_EQUATION,RESIDUAL_EQUATION,ALGORITHM,WHEN_EQUATION,COMPLEX_EQUATION,IF_EQUATION,FOR_EQUATION,DUMMY_EQUATION};
 
 /// equation when condition then cr = exp, reinit(...), terminate(...) or assert(...)
@@ -791,9 +653,6 @@ pub enum Matching {
         comps: StrongComponents,
     },
 }
-impl Default for Matching {
-    fn default() -> Self { Self::NO_MATCHING }
-}
 pub use self::Matching::{NO_MATCHING,MATCHING};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -802,9 +661,6 @@ pub enum IndexReduction {
     INDEX_REDUCTION,
     /// do not use index reduction during matching
     NO_INDEX_REDUCTION,
-}
-impl Default for IndexReduction {
-    fn default() -> Self { Self::INDEX_REDUCTION }
 }
 pub use self::IndexReduction::{INDEX_REDUCTION,NO_INDEX_REDUCTION};
 
@@ -817,9 +673,6 @@ pub enum EquationConstraints {
     /// exact as many equations
     ///                   as variables
     EXACT,
-}
-impl Default for EquationConstraints {
-    fn default() -> Self { Self::ALLOW_UNDERCONSTRAINED }
 }
 pub use self::EquationConstraints::{ALLOW_UNDERCONSTRAINED,EXACT};
 
@@ -840,9 +693,6 @@ pub enum StateOrder {
     },
     /// Index reduction disabled; don't need big hashtables
     NOSTATEORDER,
-}
-impl Default for StateOrder {
-    fn default() -> Self { Self::NOSTATEORDER }
 }
 pub use self::StateOrder::{STATEORDER,NOSTATEORDER};
 
@@ -897,14 +747,6 @@ pub enum StrongComponent {
         mixedSystem: bool,
     },
 }
-impl Default for StrongComponent {
-    fn default() -> Self {
-        Self::SINGLEEQUATION {
-            eqn: Default::default(),
-            var: Default::default(),
-        }
-    }
-}
 pub use self::StrongComponent::{SINGLEEQUATION,EQUATIONSYSTEM,SINGLEARRAY,SINGLEALGORITHM,SINGLECOMPLEXEQUATION,SINGLEWHENEQUATION,SINGLEIFEQUATION,TORNSYSTEM};
 
 #[derive(Clone, Debug, PartialEq)]
@@ -914,17 +756,6 @@ pub struct TearingSet {
     /// list of matched equations and variables; these will be solved explicitly in the given order
     pub innerEquations: InnerEquations,
     pub jac: Arc<Jacobian>,
-}
-
-impl Default for TearingSet {
-    fn default() -> Self {
-        Self {
-            tearingvars: Default::default(),
-            residualequations: Default::default(),
-            innerEquations: Default::default(),
-            jac: Default::default(),
-        }
-    }
 }
 
 pub type TEARINGSET = TearingSet;
@@ -943,14 +774,6 @@ pub enum InnerEquation {
         vars: Arc<metamodelica::List<i32>>,
         cons: Constraints,
     },
-}
-impl Default for InnerEquation {
-    fn default() -> Self {
-        Self::INNEREQUATION {
-            eqn: Default::default(),
-            vars: Default::default(),
-        }
-    }
 }
 pub use self::InnerEquation::{INNEREQUATION,INNEREQUATIONCONSTRAINTS};
 
@@ -994,18 +817,6 @@ pub struct EventInfo {
     pub numberMathEvents: i32,
 }
 
-impl Default for EventInfo {
-    fn default() -> Self {
-        Self {
-            timeEvents: Default::default(),
-            zeroCrossings: Default::default(),
-            relations: Default::default(),
-            samples: Default::default(),
-            numberMathEvents: Default::default(),
-        }
-    }
-}
-
 pub type EVENT_INFO = EventInfo;
 
 
@@ -1013,15 +824,6 @@ pub type EVENT_INFO = EventInfo;
 pub struct ZeroCrossingSet {
     pub zc: DoubleEnded::MutableList<ZeroCrossing>,
     pub tree: metamodelica::Array<Arc<ZeroCrossings::ZeroCrossingTree::Tree>>,
-}
-
-impl Default for ZeroCrossingSet {
-    fn default() -> Self {
-        Self {
-            zc: Default::default(),
-            tree: Default::default(),
-        }
-    }
 }
 
 pub type ZERO_CROSSING_SET = ZeroCrossingSet;
@@ -1073,9 +875,6 @@ pub enum TimeEvent {
         startExp: Arc<DAE::Exp>,
         intervalExp: Arc<DAE::Exp>,
     },
-}
-impl Default for TimeEvent {
-    fn default() -> Self { Self::SIMPLE_TIME_EVENT }
 }
 pub use self::TimeEvent::{SIMPLE_TIME_EVENT,SAMPLE_TIME_EVENT};
 
@@ -1139,9 +938,6 @@ pub enum Solvability {
     ///                     how the variable occurs in the equation.
     SOLVABILITY_SOLVABLE,
 }
-impl Default for Solvability {
-    fn default() -> Self { Self::SOLVABILITY_SOLVED }
-}
 pub use self::Solvability::{SOLVABILITY_SOLVED,SOLVABILITY_CONSTONE,SOLVABILITY_CONST,SOLVABILITY_PARAMETER,SOLVABILITY_LINEAR,SOLVABILITY_NONLINEAR,SOLVABILITY_UNSOLVABLE,SOLVABILITY_SOLVABLE};
 
 /// Constraints on the solvability of the (casual) tearing set; needed for proper Dynamic Tearing
@@ -1161,9 +957,6 @@ pub enum IndexType {
     SUBCLOCK_IDX,
     /// adjacency matrix as normal, but add for inputs also a value
     SPARSE,
-}
-impl Default for IndexType {
-    fn default() -> Self { Self::ABSOLUTE }
 }
 pub use self::IndexType::{ABSOLUTE,NORMAL,SOLVABLE,BASECLOCK_IDX,SUBCLOCK_IDX,SPARSE};
 
@@ -1186,9 +979,6 @@ pub enum JacobianType {
     JAC_GENERIC,
     /// No analytic Jacobian available
     JAC_NO_ANALYTIC,
-}
-impl Default for JacobianType {
-    fn default() -> Self { Self::JAC_CONSTANT }
 }
 pub use self::JacobianType::{JAC_CONSTANT,JAC_LINEAR,JAC_NONLINEAR,JAC_GENERIC,JAC_NO_ANALYTIC};
 
@@ -1230,9 +1020,6 @@ pub enum Jacobian {
         nonlinearPattern: NonlinearPattern,
     },
     EMPTY_JACOBIAN,
-}
-impl Default for Jacobian {
-    fn default() -> Self { Self::EMPTY_JACOBIAN }
 }
 pub use self::Jacobian::{FULL_JACOBIAN,GENERIC_JACOBIAN,EMPTY_JACOBIAN};
 
@@ -1282,21 +1069,6 @@ pub struct DifferentiateInputData {
     pub diffedFunctions: Arc<AvlSetPath::Tree>,
 }
 
-impl Default for DifferentiateInputData {
-    fn default() -> Self {
-        Self {
-            independenentVars: Default::default(),
-            dependenentVars: Default::default(),
-            knownVars: Default::default(),
-            allVars: Default::default(),
-            controlVars: Default::default(),
-            diffCrefs: Default::default(),
-            matrixName: Default::default(),
-            diffedFunctions: Default::default(),
-        }
-    }
-}
-
 pub type DIFFINPUTDATA = DifferentiateInputData;
 
 
@@ -1324,9 +1096,6 @@ pub enum DifferentiationType {
         /// true if computing for dae mode
         daeMode: bool,
     },
-}
-impl Default for DifferentiationType {
-    fn default() -> Self { Self::DIFFERENTIATION_TIME }
 }
 pub use self::DifferentiationType::{DIFFERENTIATION_TIME,SIMPLE_DIFFERENTIATION,DIFFERENTIATION_FUNCTION,DIFF_FULL_JACOBIAN,GENERIC_GRADIENT};
 
@@ -1367,16 +1136,6 @@ pub enum CompInfo {
         funcCalls: i32,
     },
 }
-impl Default for CompInfo {
-    fn default() -> Self {
-        Self::SYSTEM {
-            comp: Default::default(),
-            allOperations: Default::default(),
-            size: Default::default(),
-            density: Default::default(),
-        }
-    }
-}
 pub use self::CompInfo::{COUNTER,SYSTEM,TORN_ANALYSE,NO_COMP};
 
 #[derive(Clone, Debug, PartialEq)]
@@ -1385,17 +1144,6 @@ pub struct BackendDAEModeData {
     pub algStateVars: Arc<metamodelica::List<Var>>,
     pub numResVars: i32,
     pub modelVars: Option<Variables>,
-}
-
-impl Default for BackendDAEModeData {
-    fn default() -> Self {
-        Self {
-            stateVars: Default::default(),
-            algStateVars: Default::default(),
-            numResVars: Default::default(),
-            modelVars: Default::default(),
-        }
-    }
 }
 
 pub type BDAE_MODE_DATA = BackendDAEModeData;

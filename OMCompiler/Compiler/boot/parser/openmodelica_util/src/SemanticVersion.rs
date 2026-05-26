@@ -62,13 +62,6 @@ pub enum Version {
         version: ArcStr,
     },
 }
-impl Default for Version {
-    fn default() -> Self {
-        Self::NONSEMVER {
-            version: Default::default(),
-        }
-    }
-}
 pub use self::Version::{SEMVER,NONSEMVER};
 
 pub fn parse(mut s: ArcStr, mut nonsemverAsZeroZeroZero: bool) -> Result<Version> {

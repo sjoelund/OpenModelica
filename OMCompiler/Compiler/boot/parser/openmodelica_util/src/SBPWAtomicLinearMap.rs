@@ -57,15 +57,6 @@ pub struct SBPWAtomicLinearMap {
     pub lmap: Arc<SBLinearMap::SBLinearMap>,
 }
 
-impl Default for SBPWAtomicLinearMap {
-    fn default() -> Self {
-        Self {
-            dom: Default::default(),
-            lmap: Default::default(),
-        }
-    }
-}
-
 pub type PW_ATOMIC_LINEAR_MAP = SBPWAtomicLinearMap;
 
 pub fn new(mut dom: Arc<SBAtomicSet::SBAtomicSet>, mut lmap: Arc<SBLinearMap::SBLinearMap>) -> Arc<SBPWAtomicLinearMap> {

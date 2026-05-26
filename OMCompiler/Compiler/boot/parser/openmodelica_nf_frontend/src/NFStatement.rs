@@ -135,9 +135,6 @@ pub enum ForType {
         vars: Arc<metamodelica::List<(Arc<ComponentRef::NFComponentRef>, SourceInfo)>>,
     },
 }
-impl Default for ForType {
-    fn default() -> Self { Self::NORMAL }
-}
 pub use self::ForType::{NORMAL,PARALLEL};
 
 pub fn isDiscrete(mut stmt: Arc<NFStatement>) -> bool {

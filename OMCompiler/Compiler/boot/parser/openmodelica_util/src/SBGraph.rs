@@ -97,20 +97,6 @@ pub mod IncidenceList {
         pub edgeToString: EdgeStr<EdgeT>,
     }
 
-    impl<VertexT: Clone, EdgeT: Clone> Default for IncidenceList<VertexT, EdgeT> {
-        fn default() -> Self {
-            Self {
-                vertices: Default::default(),
-                edges: Default::default(),
-                graph: Default::default(),
-                vertEqFn: { let __placeholder: VertexEq<VertexT> = |_, _| panic!("default-constructed placeholder fn must not be called"); __placeholder },
-                edgeEqFn: { let __placeholder: EdgeEq<EdgeT> = |_, _| panic!("default-constructed placeholder fn must not be called"); __placeholder },
-                vertToString: { let __placeholder: VertexStr<VertexT> = |_| panic!("default-constructed placeholder fn must not be called"); __placeholder },
-                edgeToString: { let __placeholder: EdgeStr<EdgeT> = |_| panic!("default-constructed placeholder fn must not be called"); __placeholder },
-            }
-        }
-    }
-
     pub type INCIDENCE_LIST<VertexT, EdgeT> = IncidenceList<VertexT, EdgeT>;
 
     pub fn new<VertexT: Clone + 'static, EdgeT: Clone + 'static>(mut vertexEq: VertexEq<VertexT>, mut edgeEq: EdgeEq<EdgeT>, mut vertexStr: VertexStr<VertexT>, mut edgeStr: EdgeStr<EdgeT>) -> Arc<IncidenceList<VertexT, EdgeT>> {
@@ -247,21 +233,6 @@ pub mod BipartiteIncidenceList {
         pub edgeEqFn: EdgeEq<EdgeT>,
         pub vertToString: VertexStr<VertexT>,
         pub edgeToString: EdgeStr<EdgeT>,
-    }
-
-    impl<VertexT: Clone, EdgeT: Clone> Default for BipartiteIncidenceList<VertexT, EdgeT> {
-        fn default() -> Self {
-            Self {
-                F_vertices: Default::default(),
-                U_vertices: Default::default(),
-                edges: Default::default(),
-                graph: Default::default(),
-                vertEqFn: { let __placeholder: VertexEq<VertexT> = |_, _| panic!("default-constructed placeholder fn must not be called"); __placeholder },
-                edgeEqFn: { let __placeholder: EdgeEq<EdgeT> = |_, _| panic!("default-constructed placeholder fn must not be called"); __placeholder },
-                vertToString: { let __placeholder: VertexStr<VertexT> = |_| panic!("default-constructed placeholder fn must not be called"); __placeholder },
-                edgeToString: { let __placeholder: EdgeStr<EdgeT> = |_| panic!("default-constructed placeholder fn must not be called"); __placeholder },
-            }
-        }
     }
 
     pub type BIPARTITE_INCIDENCE_LIST<VertexT, EdgeT> = BipartiteIncidenceList<VertexT, EdgeT>;

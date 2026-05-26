@@ -125,18 +125,6 @@ pub enum GraphInfo {
         graphEdgeKey: ArcStr,
     },
 }
-impl Default for GraphInfo {
-    fn default() -> Self {
-        Self::GRAPHINFOARR {
-            graphs: Default::default(),
-            nodes: Default::default(),
-            edges: Default::default(),
-            attributes: Default::default(),
-            graphNodeKey: Default::default(),
-            graphEdgeKey: Default::default(),
-        }
-    }
-}
 pub use self::GraphInfo::{GRAPHINFO,GRAPHINFOARR};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -145,17 +133,6 @@ pub struct Graph {
     pub directed: bool,
     pub nodeIdc: Arc<metamodelica::List<i32>>,
     pub attValues: Arc<metamodelica::List<(i32, ArcStr)>>,
-}
-
-impl Default for Graph {
-    fn default() -> Self {
-        Self {
-            id: Default::default(),
-            directed: Default::default(),
-            nodeIdc: Default::default(),
-            attValues: Default::default(),
-        }
-    }
 }
 
 pub type GRAPH = Graph;
@@ -179,16 +156,6 @@ pub enum Node {
         header: ArcStr,
     },
 }
-impl Default for Node {
-    fn default() -> Self {
-        Self::GROUPNODE {
-            id: Default::default(),
-            internalGraphIdx: Default::default(),
-            isFolded: Default::default(),
-            header: Default::default(),
-        }
-    }
-}
 pub use self::Node::{NODE,GROUPNODE};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -205,23 +172,6 @@ pub struct Edge {
     pub attValues: Arc<metamodelica::List<(i32, ArcStr)>>,
 }
 
-impl Default for Edge {
-    fn default() -> Self {
-        Self {
-            id: Default::default(),
-            target: Default::default(),
-            source: Default::default(),
-            color: Default::default(),
-            lineType: Default::default(),
-            lineWidth: Default::default(),
-            smooth: Default::default(),
-            edgeLabels: Default::default(),
-            arrows: Default::default(),
-            attValues: Default::default(),
-        }
-    }
-}
-
 pub type EDGE = Edge;
 
 
@@ -232,18 +182,6 @@ pub struct Attribute {
     pub name: ArcStr,
     pub attType: AttributeType,
     pub attTarget: AttributeTarget,
-}
-
-impl Default for Attribute {
-    fn default() -> Self {
-        Self {
-            attIdx: Default::default(),
-            defaultValue: Default::default(),
-            name: Default::default(),
-            attType: Default::default(),
-            attTarget: Default::default(),
-        }
-    }
 }
 
 pub type ATTRIBUTE = Attribute;
@@ -263,15 +201,6 @@ pub enum NodeLabel {
         position: ArcStr,
     },
 }
-impl Default for NodeLabel {
-    fn default() -> Self {
-        Self::NODELABEL_INTERNAL {
-            text: Default::default(),
-            backgroundColor: Default::default(),
-            fontStyle: Default::default(),
-        }
-    }
-}
 pub use self::NodeLabel::{NODELABEL_INTERNAL,NODELABEL_CORNER};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -279,16 +208,6 @@ pub struct EdgeLabel {
     pub text: ArcStr,
     pub backgroundColor: Option<ArcStr>,
     pub fontSize: i32,
-}
-
-impl Default for EdgeLabel {
-    fn default() -> Self {
-        Self {
-            text: Default::default(),
-            backgroundColor: Default::default(),
-            fontSize: Default::default(),
-        }
-    }
 }
 
 pub type EDGELABEL = EdgeLabel;
@@ -300,9 +219,6 @@ pub enum FontStyle {
     FONTBOLD,
     FONTITALIC,
     FONTBOLDITALIC,
-}
-impl Default for FontStyle {
-    fn default() -> Self { Self::FONTPLAIN }
 }
 pub use self::FontStyle::{FONTPLAIN,FONTBOLD,FONTITALIC,FONTBOLDITALIC};
 
@@ -319,9 +235,6 @@ pub enum ShapeType {
     TRAPEZOID,
     TRAPEZOID2,
 }
-impl Default for ShapeType {
-    fn default() -> Self { Self::RECTANGLE }
-}
 pub use self::ShapeType::{RECTANGLE,ROUNDRECTANGLE,ELLIPSE,PARALLELOGRAM,HEXAGON,TRIANGLE,OCTAGON,DIAMOND,TRAPEZOID,TRAPEZOID2};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -330,9 +243,6 @@ pub enum LineType {
     DASHED,
     DASHEDDOTTED,
 }
-impl Default for LineType {
-    fn default() -> Self { Self::LINE }
-}
 pub use self::LineType::{LINE,DASHED,DASHEDDOTTED};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -340,9 +250,6 @@ pub enum ArrowType {
     ARROWSTANDART,
     ARROWNONE,
     ARROWCONCAVE,
-}
-impl Default for ArrowType {
-    fn default() -> Self { Self::ARROWSTANDART }
 }
 pub use self::ArrowType::{ARROWSTANDART,ARROWNONE,ARROWCONCAVE};
 
@@ -353,9 +260,6 @@ pub enum AttributeType {
     TYPE_INTEGER,
     TYPE_DOUBLE,
 }
-impl Default for AttributeType {
-    fn default() -> Self { Self::TYPE_STRING }
-}
 pub use self::AttributeType::{TYPE_STRING,TYPE_BOOLEAN,TYPE_INTEGER,TYPE_DOUBLE};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -363,9 +267,6 @@ pub enum AttributeTarget {
     TARGET_NODE,
     TARGET_EDGE,
     TARGET_GRAPH,
-}
-impl Default for AttributeTarget {
-    fn default() -> Self { Self::TARGET_NODE }
 }
 pub use self::AttributeTarget::{TARGET_NODE,TARGET_EDGE,TARGET_GRAPH};
 

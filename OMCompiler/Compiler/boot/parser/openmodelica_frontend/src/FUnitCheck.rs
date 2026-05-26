@@ -74,18 +74,6 @@ pub struct Functionargs {
     pub outunits: Arc<metamodelica::List<ArcStr>>,
 }
 
-impl Default for Functionargs {
-    fn default() -> Self {
-        Self {
-            name: Default::default(),
-            invars: Default::default(),
-            outvars: Default::default(),
-            inunits: Default::default(),
-            outunits: Default::default(),
-        }
-    }
-}
-
 pub type FUNCTIONUNITS = Functionargs;
 
 

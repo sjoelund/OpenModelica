@@ -89,22 +89,6 @@ pub struct State {
     pub vars: Mutable::Mutable<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, MidCode::Var)>>), i32, (HashTableMidVar::FuncHashCref, HashTableMidVar::FuncCrefEqual, HashTableMidVar::FuncCrefStr, HashTableMidVar::FuncExpStr))>,
 }
 
-impl Default for State {
-    fn default() -> Self {
-        Self {
-            locals: Default::default(),
-            localBufs: Default::default(),
-            localBufPtrs: Default::default(),
-            blocks: Default::default(),
-            stmts: Default::default(),
-            blockid: Default::default(),
-            continuejumps: Default::default(),
-            breakjumps: Default::default(),
-            vars: Default::default(),
-        }
-    }
-}
-
 pub type STATE = State;
 
 

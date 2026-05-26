@@ -76,8 +76,5 @@ pub enum NFComplexType {
         destructor: Arc<InstNode::InstNode>,
     },
 }
-impl Default for NFComplexType {
-    fn default() -> Self { Self::CLASS }
-}
 pub use self::NFComplexType::{CLASS,EXTENDS_TYPE,CONNECTOR,EXPANDABLE_CONNECTOR,RECORD,EXTERNAL_OBJECT};
 

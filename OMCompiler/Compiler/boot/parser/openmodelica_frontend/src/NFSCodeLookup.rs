@@ -76,18 +76,12 @@ pub enum RedeclareReplaceStrategy {
     INSERT_REDECLARES,
     IGNORE_REDECLARES,
 }
-impl Default for RedeclareReplaceStrategy {
-    fn default() -> Self { Self::INSERT_REDECLARES }
-}
 pub use self::RedeclareReplaceStrategy::{INSERT_REDECLARES,IGNORE_REDECLARES};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum LookupStrategy {
     NO_BUILTIN_TYPES,
     LOOKUP_ANY,
-}
-impl Default for LookupStrategy {
-    fn default() -> Self { Self::NO_BUILTIN_TYPES }
 }
 pub use self::LookupStrategy::{NO_BUILTIN_TYPES,LOOKUP_ANY};
 

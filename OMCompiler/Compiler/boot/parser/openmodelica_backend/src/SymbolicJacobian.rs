@@ -547,10 +547,10 @@ fn gauss(mut A: metamodelica::Array<metamodelica::Array<metamodelica::Real>>, mu
                     let mut range: Arc<metamodelica::List<i32>> = range.clone();
                     let mut pivotIdx: i32 = pivotIdx.clone();
                     let mut pivot: metamodelica::Real = pivot.clone();
-                    let mut b_entry: metamodelica::Real = b_entry.clone();
                     let mut entry: metamodelica::Real = entry.clone();
-                    let mut pos: i32 = pos.clone();
+                    let mut b_entry: metamodelica::Real = b_entry.clone();
                     let mut first: metamodelica::Real = first.clone();
+                    let mut pos: i32 = pos.clone();
                     let true = (intLe(indxIn.clone(), n.clone())) else { bail!("pattern mismatch") };
                     (pivotIdx, pivot) = getPivotElement(A.clone(), rangeIn.clone(), indxIn.clone(), n.clone())?;
                     {let _arr = permutation.clone(); _arr.borrow_mut()[(indxIn.clone()-1) as usize] = pivotIdx.clone(); _arr};
@@ -3338,17 +3338,6 @@ pub mod LinearJacobian {
         pub ind: metamodelica::Array<(i32, i32)>,
         /// changed equations
         pub eq_marks: metamodelica::Array<bool>,
-    }
-
-    impl Default for LinearJacobian {
-        fn default() -> Self {
-            Self {
-                rows: Default::default(),
-                rhs: Default::default(),
-                ind: Default::default(),
-                eq_marks: Default::default(),
-            }
-        }
     }
 
     pub type LINEAR_REAL_JACOBIAN = LinearJacobian;

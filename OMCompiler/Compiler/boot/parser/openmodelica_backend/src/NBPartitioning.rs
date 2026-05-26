@@ -388,17 +388,6 @@ pub mod ClockedInfo {
         pub baseToSub: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>>>,
     }
 
-    impl Default for ClockedInfo {
-        fn default() -> Self {
-            Self {
-                baseClocks: Default::default(),
-                subClocks: Default::default(),
-                subToBase: Default::default(),
-                baseToSub: Default::default(),
-            }
-        }
-    }
-
     pub type CLOCKED_INFO = ClockedInfo;
 
     pub fn new() -> Arc<ClockedInfo> {
@@ -781,15 +770,6 @@ pub mod DisjointSetForest {
     pub struct DisjointSetForest {
         pub parent: Pointer::Pointer<metamodelica::Array<i32>>,
         pub rank: Pointer::Pointer<metamodelica::Array<i32>>,
-    }
-
-    impl Default for DisjointSetForest {
-        fn default() -> Self {
-            Self {
-                parent: Default::default(),
-                rank: Default::default(),
-            }
-        }
     }
 
     pub type FOREST = DisjointSetForest;

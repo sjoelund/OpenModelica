@@ -74,9 +74,6 @@ pub enum NFRestriction {
     TYPE,
     UNKNOWN,
 }
-impl Default for NFRestriction {
-    fn default() -> Self { Self::BLOCK }
-}
 pub use self::NFRestriction::{BLOCK,CLASS,CLOCK,CONNECTOR,ENUMERATION,EXTERNAL_OBJECT,FUNCTION,MODEL,PACKAGE,OPERATOR,RECORD,RECORD_CONSTRUCTOR,TYPE,UNKNOWN};
 pub fn fromSCode(mut sres: SCode::Restriction) -> Arc<NFRestriction> {
     let mut res: Arc<NFRestriction> = Arc::new(NFRestriction::BLOCK);

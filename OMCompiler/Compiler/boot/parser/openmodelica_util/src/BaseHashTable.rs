@@ -524,13 +524,13 @@ fn valueArrayAdd<Key: Clone + 'static, Value: Clone + 'static>(mut valueArray: V
 
 fn valueArraySet<Key: Clone + 'static, Value: Clone + 'static>(mut valueArray: ValueArray<Key, Value>, mut pos: i32, mut entry: HashEntry<Key, Value>) -> Result<ValueArray<Key, Value>> {
     let mut outValueArray: ValueArray<Key, Value>;
-    outValueArray = (match (valueArray.clone(), pos.clone(), entry.clone()) {
-        ((mut n, mut size, mut arr), _, _) => {
-            let true = (pos.clone() <= size.clone()) else { bail!("pattern mismatch") };
-            arr = {let _arr = arr.clone(); _arr.borrow_mut()[(pos.clone()-1) as usize] = Some(entry.clone()); _arr};
-            (n.clone(), size.clone(), arr.clone())
-        },
-    });
+    let mut arr: metamodelica::Array<Option<(Key, Value)>>;
+    let mut n: i32 = 0;
+    let mut size: i32 = 0;
+    (n, size, arr) = valueArray.clone();
+    let true = (pos.clone() <= size.clone()) else { bail!("pattern mismatch") };
+    arr = {let _arr = arr.clone(); _arr.borrow_mut()[(pos.clone()-1) as usize] = Some(entry.clone()); _arr};
+    outValueArray = (n.clone(), size.clone(), arr.clone());
     Ok(outValueArray)
 }
 

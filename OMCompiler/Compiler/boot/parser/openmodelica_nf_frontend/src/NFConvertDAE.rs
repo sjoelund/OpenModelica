@@ -114,15 +114,6 @@ pub struct VariableConversionSettings {
     pub addTypeToSource: bool,
 }
 
-impl Default for VariableConversionSettings {
-    fn default() -> Self {
-        Self {
-            isFunctionParameter: Default::default(),
-            addTypeToSource: Default::default(),
-        }
-    }
-}
-
 pub type VARIABLE_CONVERSION_SETTINGS = VariableConversionSettings;
 
 

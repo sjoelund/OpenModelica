@@ -139,8 +139,8 @@ pub fn elabExpList(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inExp
                     let mut path1: Arc<Absyn::Path>;
                     let mut name: ArcStr = arcstr::literal!("");
                     let mut idx: i32 = 0;
-                    let mut prop: DAE::Properties;
                     let mut exp: Arc<DAE::Exp>;
+                    let mut prop: DAE::Properties;
                     path = AbsynUtil::crefToPath(cr.clone())?;
                     let (__pa0, __pa1) = ::match_deref::match_deref! { match &(AbsynUtil::splitQualAndIdentPath(path.clone())?) {
                         (__pa0, Deref @ Absyn::Path::IDENT { name: __pa1 }) => (__pa0.clone(), __pa1.clone()),
@@ -160,9 +160,9 @@ pub fn elabExpList(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inExp
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 _ => {
-                    let mut outCache: FCore::Cache = outCache.clone();
-                    let mut exp: Arc<DAE::Exp>;
                     let mut prop: DAE::Properties;
+                    let mut exp: Arc<DAE::Exp>;
+                    let mut outCache: FCore::Cache = outCache.clone();
                     let mut last_ty: Arc<DAE::Type> = last_ty.clone();
                     (outCache, exp, prop) = elabExpInExpression(outCache.clone(), inEnv.clone(), e.clone(), inImplicit.clone(), inDoVect.clone(), inPrefix.clone(), inInfo.clone())?;
                     last_ty = Types::getPropType(prop.clone())?;
@@ -461,13 +461,13 @@ fn elabExp_If(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inExp: Arc
         let __mc_input = ();
         if let Ok(__v) = (|| -> Result<_> {
             let () = __mc_input.clone() else { bail!("nomatch") };
-            let mut outExp: Arc<DAE::Exp>;
-            let mut outProperties: DAE::Properties;
             let mut true_prop: DAE::Properties;
+            let mut false_prop: DAE::Properties;
+            let mut outProperties: DAE::Properties;
+            let mut true_exp: Arc<DAE::Exp>;
             let mut false_exp: Arc<DAE::Exp>;
             let mut outCache: FCore::Cache = outCache.clone();
-            let mut false_prop: DAE::Properties;
-            let mut true_exp: Arc<DAE::Exp>;
+            let mut outExp: Arc<DAE::Exp>;
             ErrorExt::setCheckpoint((literal!("Static.elabExp:IFEXP")).clone());
             (outCache, true_exp, true_prop) = elabExpInExpression(cache.clone(), inEnv.clone(), true_e.clone(), inImplicit.clone(), inDoVect.clone(), inPrefix.clone(), inInfo.clone())?;
             (outCache, false_exp, false_prop) = elabExpInExpression(outCache.clone(), inEnv.clone(), false_e.clone(), inImplicit.clone(), inDoVect.clone(), inPrefix.clone(), inInfo.clone())?;
@@ -477,8 +477,8 @@ fn elabExp_If(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inExp: Arc
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             let () = __mc_input.clone() else { bail!("nomatch") };
-            let mut outProperties: DAE::Properties;
             let mut outCache: FCore::Cache = outCache.clone();
+            let mut outProperties: DAE::Properties;
             let mut outExp: Arc<DAE::Exp>;
             let mut b: bool = b.clone();
             ErrorExt::setCheckpoint((literal!("Static.elabExp:IFEXP:HACK")).clone());
@@ -795,13 +795,13 @@ fn elabExp_Array(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inExp: 
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ Absyn::Exp::ARRAY { arrayExp: es } => {
-                    let mut outCache: FCore::Cache = outCache.clone();
-                    let mut c: DAE::Const = c.clone();
-                    let mut props: Arc<metamodelica::List<DAE::Properties>> = props.clone();
+                    let mut exp: Arc<DAE::Exp>;
                     let mut arr_ty: Arc<DAE::Type> = arr_ty.clone();
                     let mut expl: Arc<metamodelica::List<Arc<DAE::Exp>>> = expl.clone();
-                    let mut exp: Arc<DAE::Exp>;
                     let mut ty: Arc<DAE::Type> = ty.clone();
+                    let mut props: Arc<metamodelica::List<DAE::Properties>> = props.clone();
+                    let mut outCache: FCore::Cache = outCache.clone();
+                    let mut c: DAE::Const = c.clone();
                     (outCache, expl, props) = elabExpList(inCache.clone(), inEnv.clone(), es.clone(), inImplicit.clone(), inDoVect.clone(), inPrefix.clone(), inInfo.clone(), DAE::T_UNKNOWN_DEFAULT.clone())?;
                     let (__pa0, __pa1, __pa2) = ::match_deref::match_deref! { match &(elabArray(expl.clone(), props.clone(), inPrefix.clone(), inInfo.clone())?) {
                         (__pa0, DAE::Properties::PROP { type_: __pa1, constFlag: __pa2 }) => (__pa0.clone(), __pa1.clone(), __pa2.clone()),
@@ -823,9 +823,9 @@ fn elabExp_Array(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inExp: 
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ Absyn::Exp::ARRAY { arrayExp: es } => {
                     if !((Config::acceptMetaModelicaGrammar()?)) { bail!("guard") }
+                    let mut outProperties: DAE::Properties;
                     let mut outCache: FCore::Cache = outCache.clone();
                     let mut outExp: Arc<DAE::Exp>;
-                    let mut outProperties: DAE::Properties;
                     (outCache, outExp, outProperties) = elabExpInExpression(inCache.clone(), inEnv.clone(), Arc::new(Absyn::Exp::LIST { exps: es.clone() }), inImplicit.clone(), inDoVect.clone(), inPrefix.clone(), inInfo.clone())?;
                     Ok((outExp.clone(), outProperties.clone()))
                 }
@@ -6710,8 +6710,8 @@ fn elabCall(mut cache: FCore::Cache, mut env: FCore::Graph, mut r#fn: Arc<Absyn:
             let () = __mc_input.clone() else { bail!("nomatch") };
             let mut fn_1: Arc<Absyn::Path>;
             let mut e: Arc<DAE::Exp> = e.clone();
-            let mut prop: DAE::Properties = prop.clone();
             let mut cache: FCore::Cache = cache.clone();
+            let mut prop: DAE::Properties = prop.clone();
             ErrorExt::setCheckpoint((literal!("elabCall_InteractiveFunction")).clone());
             fn_1 = AbsynUtil::crefToPath(r#fn.clone())?;
             (cache, e, prop) = elabCallArgs(cache.clone(), env.clone(), fn_1.clone(), args.clone(), nargs.clone(), typeVars.clone(), r#impl.clone(), pre.clone(), info.clone())?;
@@ -7744,8 +7744,8 @@ fn elabCallArgsMetarecord(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mu
                     let mut prop: DAE::Properties;
                     let mut args: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
                     let mut bindings: Arc<metamodelica::List<(ArcStr, Arc<metamodelica::List<Arc<DAE::Type>>>)>> = metamodelica::nil();
-                    let mut ty: Arc<DAE::Type>;
                     let mut outCache: FCore::Cache = outCache.clone();
+                    let mut ty: Arc<DAE::Type>;
                     field_names = {
         let mut __acc: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
         for mut var in (var_field!((*inType).fields, DAE::Type::T_METARECORD).clone()).into_iter().cloned() {
@@ -7845,9 +7845,6 @@ pub enum ForceFunctionInst {
     FORCE_FUNCTION_INST,
     /// Used when blocking function instantiation to instantiate the function anyway
     NORMAL_FUNCTION_INST,
-}
-impl Default for ForceFunctionInst {
-    fn default() -> Self { Self::FORCE_FUNCTION_INST }
 }
 pub use self::ForceFunctionInst::{FORCE_FUNCTION_INST,NORMAL_FUNCTION_INST};
 
@@ -8855,8 +8852,8 @@ fn evaluateStructuralSlots2(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, 
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ metamodelica::List::Cons { head: slot, tail: rest } => {
-                    let mut cache: FCore::Cache = cache.clone();
                     let mut slots: Arc<metamodelica::List<Slot>> = slots.clone();
+                    let mut cache: FCore::Cache = cache.clone();
                     let false = (isSlotUsed(slot.clone(), usedSlots.clone())?) else { bail!("pattern mismatch") };
                     (cache, slots) = evaluateStructuralSlots2(inCache.clone(), inEnv.clone(), rest.clone(), usedSlots.clone(), cons(slot.clone(), acc.clone()))?;
                     Ok((cache.clone(), slots.clone()))
@@ -8870,8 +8867,8 @@ fn evaluateStructuralSlots2(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, 
                     let mut slot: Slot;
                     let mut val: Arc<Values::Value> = Arc::new(Values::Value::META_FAIL);
                     let mut exp = (*exp).clone();
-                    let mut cache: FCore::Cache = cache.clone();
                     let mut slots: Arc<metamodelica::List<Slot>> = slots.clone();
+                    let mut cache: FCore::Cache = cache.clone();
                     (cache, val) = Ceval::ceval(inCache.clone(), inEnv.clone(), exp.clone(), false, openmodelica_ast::Absyn::Msg::NO_MSG, 0)?;
                     exp = ValuesUtil::valueExp(val.clone(), Some(exp.clone()))?;
                     slot = Slot { defaultArg: defaultArg.clone(), slotFilled: true, arg: Some(exp.clone()), dims: dims.clone(), idx: idx.clone(), evalStatus: ses.clone() };
@@ -9413,14 +9410,14 @@ fn fillGraphicsDefaultSlots(mut inCache: FCore::Cache, mut inSlots: Arc<metamode
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 Slot { defaultArg: defarg @ Deref @ DAE::FuncArg { .. }, .. } => {
-                    let mut exp: Arc<DAE::Exp>;
-                    let mut ty: Arc<DAE::Type> = ty.clone();
-                    let mut slot: Slot;
                     let mut outCache: FCore::Cache = outCache.clone();
-                    let mut outConsts: Arc<metamodelica::List<DAE::Const>> = outConsts.clone();
-                    let mut e: Arc<Absyn::Exp> = e.clone();
-                    let mut c: DAE::Const = c.clone();
+                    let mut ty: Arc<DAE::Type> = ty.clone();
                     let mut outPolymorphicBindings: Arc<metamodelica::List<(ArcStr, Arc<metamodelica::List<Arc<DAE::Type>>>)>> = outPolymorphicBindings.clone();
+                    let mut outConsts: Arc<metamodelica::List<DAE::Const>> = outConsts.clone();
+                    let mut slot: Slot;
+                    let mut c: DAE::Const = c.clone();
+                    let mut e: Arc<Absyn::Exp> = e.clone();
+                    let mut exp: Arc<DAE::Exp>;
                     let __pa0 = ::match_deref::match_deref! { match &(SCodeUtil::getElementNamed((defarg.name.clone()).clone(), inClass.clone())?) {
                         Deref @ SCode::Element::COMPONENT { modifications: Deref @ SCode::Mod::MOD { binding: Some(__pa0), .. }, .. } => __pa0.clone(),
                         _ => bail!("pattern mismatch"),
@@ -12387,16 +12384,16 @@ pub fn elabCodeExp_dispatch(mut exp: Arc<Absyn::Exp>, mut cache: FCore::Cache, m
         let __mc_input = ();
         if let Ok(__v) = (|| -> Result<_> {
                     let () = __mc_input.clone() else { bail!("nomatch") };
-                    let mut dexp: Arc<DAE::Exp>;
                     let mut prop: DAE::Properties;
+                    let mut dexp: Arc<DAE::Exp>;
                     let true = (id.clone() == literal!("OpenModelica")) else { bail!("pattern mismatch") };
                     (_, dexp, prop) = elabExpInExpression(cache.clone(), env.clone(), exp.clone(), false, false, openmodelica_frontend_types::DAE::Prefix::NOPRE, info.clone())?;
                     Ok(())
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
                     let () = __mc_input.clone() else { bail!("nomatch") };
-                    let mut prop: DAE::Properties;
                     let mut dexp: Arc<DAE::Exp>;
+                    let mut prop: DAE::Properties;
                     if '__try0: {
                         (_, _, _) = unwrap_break_err!(Lookup::lookupClassIdent(cache.clone(), env.clone(), (id.clone()).clone(), None), '__try0);
                         Ok::<(), anyhow::Error>(())

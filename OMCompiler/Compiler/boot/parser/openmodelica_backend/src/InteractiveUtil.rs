@@ -484,9 +484,9 @@ fn setExtendsSubmodifierInElement(mut element: Arc<Absyn::Element>, mut extendsP
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ Absyn::Element::ELEMENT { specification: ext_spec @ Deref @ Absyn::ElementSpec::EXTENDS { elementArg: eargs, .. }, .. } => {
                     let mut ext_spec = (*ext_spec).clone();
-                    let mut opt_mod: Option<Arc<Absyn::Modification>> = opt_mod.clone();
                     let mut element: Arc<Absyn::Element> = element.clone();
                     let mut full_path: Arc<Absyn::Path>;
+                    let mut opt_mod: Option<Arc<Absyn::Modification>> = opt_mod.clone();
                     (_, full_path) = Interactive::mkFullyQual(env.clone(), var_field!((**ext_spec).path, Absyn::ElementSpec::EXTENDS).clone(), false)?;
                     let true = (AbsynUtil::pathEqual(extendsPath.clone(), full_path.clone())) else { bail!("pattern mismatch") };
                     if AbsynUtil::pathFirstIdent(elementName.clone())? == literal!("_") {
@@ -1676,8 +1676,8 @@ fn getElementitemsAnnotations(mut inElements: Arc<metamodelica::List<Arc<Absyn::
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ Absyn::Element::ELEMENT { constrainClass: cc, specification: Deref @ Absyn::ElementSpec::COMPONENTS { components: items, .. }, .. } => {
-                    let mut cache: Interactive::GraphicEnvCache = cache.clone();
                     let mut res: Arc<metamodelica::List<Arc<Values::Value>>> = res.clone();
+                    let mut cache: Interactive::GraphicEnvCache = cache.clone();
                     (res, cache) = getElementitemsAnnotationsFromItems(items.clone(), getAnnotationsFromConstraintClass(cc.clone()), inEnv.clone(), inClass.clone(), cache.clone())?;
                     Ok(listAppend(res.clone(), accum.clone()))
                 }
@@ -1687,9 +1687,9 @@ fn getElementitemsAnnotations(mut inElements: Arc<metamodelica::List<Arc<Absyn::
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ Absyn::Element::ELEMENT { constrainClass: cc, specification: Deref @ Absyn::ElementSpec::CLASSDEF { class_: Deref @ Absyn::Class { body: Deref @ Absyn::ClassDef::DERIVED { comment: cmt, .. }, .. }, .. }, .. } => {
-                    let mut res: Arc<metamodelica::List<Arc<Values::Value>>> = res.clone();
                     let mut cache: Interactive::GraphicEnvCache = cache.clone();
                     let mut annotations: Arc<metamodelica::List<Arc<Absyn::ElementArg>>> = annotations.clone();
+                    let mut res: Arc<metamodelica::List<Arc<Values::Value>>> = res.clone();
                     annotations = (::match_deref::match_deref! { match &(cmt.clone()) {
         Some(Deref @ Absyn::Comment { annotation_: Some(Deref @ Absyn::Annotation { elementArgs: annotations }), .. }) => annotations.clone(),
         _ => metamodelica::nil(),
@@ -1798,9 +1798,9 @@ pub fn getElementitemsAnnotationsElArgs(mut inElementArgs: Arc<metamodelica::Lis
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ Absyn::ElementArg::MODIFICATION { info, modification: Some(Deref @ Absyn::Modification { elementArgLst: Deref @ metamodelica::List::Nil, eqMod: Deref @ Absyn::EqMod::EQMOD { exp: eq_aexp, .. } }), path: Deref @ Absyn::Path::IDENT { name: ann_name }, .. } => {
                     let mut env: FCore::Graph;
+                    let mut prop: DAE::Properties;
                     let mut cache: FCore::Cache = cache.clone();
                     let mut outCache: Interactive::GraphicEnvCache = outCache.clone();
-                    let mut prop: DAE::Properties;
                     let mut eq_dexp: Arc<DAE::Exp>;
                     let mut r#str: ArcStr = r#str.clone();
                     (cache, env, _, outCache) = buildEnvForGraphicProgram(outCache.clone(), metamodelica::nil())?;
@@ -1817,24 +1817,24 @@ pub fn getElementitemsAnnotationsElArgs(mut inElementArgs: Arc<metamodelica::Lis
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ Absyn::ElementArg::MODIFICATION { info, modification: Some(Deref @ Absyn::Modification { elementArgLst: r#mod, eqMod: Deref @ Absyn::EqMod::NOMOD }), path: Deref @ Absyn::Path::IDENT { name: ann_name }, .. } => {
-                    let mut prop: DAE::Properties;
-                    let mut is_icon: bool = is_icon.clone();
                     let mut graphic_prog: Absyn::Program;
+                    let mut env: FCore::Graph;
+                    let mut graphic_dexp: Arc<DAE::Exp>;
+                    let mut graphic_mod: Arc<metamodelica::List<Arc<Absyn::ElementArg>>> = graphic_mod.clone();
                     let mut placement_cls: Arc<SCode::Element>;
-                    let mut graphic_exp: Arc<Absyn::Exp> = graphic_exp.clone();
                     let mut is_diagram: bool = is_diagram.clone();
-                    let mut r#str: ArcStr = r#str.clone();
+                    let mut dae: DAE::DAElist;
+                    let mut graphic_exp: Arc<Absyn::Exp> = graphic_exp.clone();
+                    let mut dmod: Arc<DAE::Mod> = dmod.clone();
                     let mut cache: FCore::Cache = cache.clone();
                     let mut c: Arc<SCode::Element>;
-                    let mut env2: FCore::Graph;
-                    let mut stripped_mod: Arc<metamodelica::List<Arc<Absyn::ElementArg>>> = stripped_mod.clone();
-                    let mut dmod: Arc<DAE::Mod> = dmod.clone();
-                    let mut graphic_dexp: Arc<DAE::Exp>;
-                    let mut smod: Arc<SCode::Mod> = smod.clone();
+                    let mut r#str: ArcStr = r#str.clone();
                     let mut outCache: Interactive::GraphicEnvCache = outCache.clone();
-                    let mut env: FCore::Graph;
-                    let mut dae: DAE::DAElist;
-                    let mut graphic_mod: Arc<metamodelica::List<Arc<Absyn::ElementArg>>> = graphic_mod.clone();
+                    let mut smod: Arc<SCode::Mod> = smod.clone();
+                    let mut stripped_mod: Arc<metamodelica::List<Arc<Absyn::ElementArg>>> = stripped_mod.clone();
+                    let mut prop: DAE::Properties;
+                    let mut env2: FCore::Graph;
+                    let mut is_icon: bool = is_icon.clone();
                     if !(listMember((ann_name.clone()).clone(), list![(literal!("Icon")).clone(), (literal!("Diagram")).clone(), (literal!("choices")).clone()])) {
                         (cache, env, _, outCache) = buildEnvForGraphicProgram(outCache.clone(), r#mod.clone())?;
                         (cache, c, env2) = Lookup::lookupClassIdent(cache.clone(), inEnv.clone(), (ann_name.clone()).clone(), None)?;
@@ -1898,11 +1898,11 @@ pub fn getElementitemsAnnotationsElArgs(mut inElementArgs: Arc<metamodelica::Lis
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ Absyn::ElementArg::MODIFICATION { modification: None, path: Deref @ Absyn::Path::IDENT { name: ann_name }, .. } => {
                     let mut c: Arc<SCode::Element>;
+                    let mut env: FCore::Graph;
+                    let mut dae: DAE::DAElist;
                     let mut cache: FCore::Cache = cache.clone();
                     let mut outCache: Interactive::GraphicEnvCache = outCache.clone();
-                    let mut env: FCore::Graph;
                     let mut r#str: ArcStr = r#str.clone();
-                    let mut dae: DAE::DAElist;
                     (cache, _, _, outCache) = buildEnvForGraphicProgram(outCache.clone(), metamodelica::nil())?;
                     (cache, c, env) = Lookup::lookupClassIdent(cache.clone(), inEnv.clone(), (ann_name.clone()).clone(), None)?;
                     c = SCodeUtil::classSetPartial(c.clone(), openmodelica_frontend_types::SCode::Partial::NOT_PARTIAL)?;
@@ -2446,10 +2446,10 @@ pub fn qualifyType(mut inEnv: FCore::Graph, mut p: Arc<Absyn::Path>) -> Result<A
         let __mc_input = ();
         if let Ok(__v) = (|| -> Result<_> {
             let () = __mc_input.clone() else { bail!("nomatch") };
-            let mut oenv_path: Option<Arc<Absyn::Path>> = oenv_path.clone();
             let mut env: FCore::Graph;
             let mut env_path: Arc<Absyn::Path>;
             let mut tp_name: ArcStr = tp_name.clone();
+            let mut oenv_path: Option<Arc<Absyn::Path>> = oenv_path.clone();
             let mut tp_path: Arc<Absyn::Path>;
             (_, _, env) = Lookup::lookupClass(FCore::emptyCache(), inEnv.clone(), p.clone(), None)?;
             oenv_path = FGraph::getScopePath(env.clone())?;
@@ -2468,11 +2468,11 @@ pub fn qualifyType(mut inEnv: FCore::Graph, mut p: Arc<Absyn::Path>) -> Result<A
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             let () = __mc_input.clone() else { bail!("nomatch") };
-            let mut env: FCore::Graph;
-            let mut oenv_path: Option<Arc<Absyn::Path>> = oenv_path.clone();
             let mut pkg_path: Arc<Absyn::Path>;
+            let mut oenv_path: Option<Arc<Absyn::Path>> = oenv_path.clone();
             let mut env_path: Arc<Absyn::Path>;
             let mut tp_path: Arc<Absyn::Path>;
+            let mut env: FCore::Graph;
             pkg_path = AbsynUtil::pathFirstPath(p.clone())?;
             (_, _, env) = Lookup::lookupClass(FCore::emptyCache(), inEnv.clone(), pkg_path.clone(), None)?;
             oenv_path = FGraph::getScopePath(env.clone())?;
@@ -6550,8 +6550,8 @@ pub fn addToProtected(mut cls: Arc<Absyn::Class>, mut element: Arc<Absyn::Elemen
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ Absyn::Class { body: cdef @ Deref @ Absyn::ClassDef::CLASS_EXTENDS { .. }, .. } => {
                     let mut cdef = (*cdef).clone();
-                    let mut cls: Arc<Absyn::Class> = cls.clone();
                     let mut elems: Arc<metamodelica::List<Arc<Absyn::ElementItem>>> = elems.clone();
+                    let mut cls: Arc<Absyn::Class> = cls.clone();
                     elems = getProtectedList(var_field!((**cdef).parts, Absyn::ClassDef::CLASS_EXTENDS).clone());
                     elems = List::appendElt(element.clone(), elems.clone());
                     let __owned_variant_parts_0 = replaceProtectedList(var_field!((**cdef).parts, Absyn::ClassDef::CLASS_EXTENDS).clone(), elems.clone())?;
@@ -6594,8 +6594,8 @@ pub fn addToEquation(mut cls: Arc<Absyn::Class>, mut eq: Arc<Absyn::EquationItem
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ Absyn::Class { body: cdef @ Deref @ Absyn::ClassDef::PARTS { .. }, .. } => {
                     let mut cdef = (*cdef).clone();
-                    let mut cls: Arc<Absyn::Class> = cls.clone();
                     let mut eqlst: Arc<metamodelica::List<Arc<Absyn::EquationItem>>> = eqlst.clone();
+                    let mut cls: Arc<Absyn::Class> = cls.clone();
                     eqlst = getEquationList(var_field!((**cdef).classParts, Absyn::ClassDef::PARTS).clone())?;
                     eqlst = List::appendElt(eq.clone(), eqlst.clone());
                     let __owned_variant_classParts_0 = replaceEquationList(var_field!((**cdef).classParts, Absyn::ClassDef::PARTS).clone(), eqlst.clone())?;

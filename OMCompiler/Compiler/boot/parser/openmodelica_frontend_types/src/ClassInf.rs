@@ -151,8 +151,5 @@ pub enum Event {
         name: ArcStr,
     },
 }
-impl Default for Event {
-    fn default() -> Self { Self::FOUND_EQUATION }
-}
 pub use self::Event::{FOUND_EQUATION,FOUND_ALGORITHM,FOUND_CONSTRAINT,FOUND_EXT_DECL,NEWDEF,FOUND_COMPONENT};
 

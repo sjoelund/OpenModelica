@@ -53,15 +53,6 @@ pub struct HpcOmData {
     pub hpcOmMemory: Option<MemoryMap>,
 }
 
-impl Default for HpcOmData {
-    fn default() -> Self {
-        Self {
-            schedules: Default::default(),
-            hpcOmMemory: Default::default(),
-        }
-    }
-}
-
 pub type HPCOMDATA = HpcOmData;
 
 
@@ -75,9 +66,6 @@ pub enum MemoryMap {
     },
     MEMORYMAP_UNIFORM,
 }
-impl Default for MemoryMap {
-    fn default() -> Self { Self::MEMORYMAP_UNIFORM }
-}
 pub use self::MemoryMap::{MEMORYMAP_ARRAY,MEMORYMAP_UNIFORM};
 
 #[derive(Clone, Debug, PartialEq)]
@@ -85,16 +73,6 @@ pub struct CommunicationInfo {
     pub floatVars: Arc<metamodelica::List<SimCodeVar::SimVar>>,
     pub intVars: Arc<metamodelica::List<SimCodeVar::SimVar>>,
     pub boolVars: Arc<metamodelica::List<SimCodeVar::SimVar>>,
-}
-
-impl Default for CommunicationInfo {
-    fn default() -> Self {
-        Self {
-            floatVars: Default::default(),
-            intVars: Default::default(),
-            boolVars: Default::default(),
-        }
-    }
 }
 
 pub type COMMUNICATION_INFO = CommunicationInfo;
@@ -133,9 +111,6 @@ pub enum Task {
     },
     TASKEMPTY,
 }
-impl Default for Task {
-    fn default() -> Self { Self::TASKEMPTY }
-}
 pub use self::Task::{SCHEDULED_TASK,CALCTASK,CALCTASK_LEVEL,DEPTASK,PREFETCHTASK,TASKEMPTY};
 
 #[derive(Clone, Debug, PartialEq)]
@@ -147,13 +122,6 @@ pub enum TaskList {
         tasks: Arc<metamodelica::List<Arc<Task>>>,
         masterOnly: bool,
     },
-}
-impl Default for TaskList {
-    fn default() -> Self {
-        Self::PARALLELTASKLIST {
-            tasks: Default::default(),
-        }
-    }
 }
 pub use self::TaskList::{PARALLELTASKLIST,SERIALTASKLIST};
 
@@ -176,13 +144,6 @@ pub enum Schedule {
     EMPTYSCHEDULE {
         tasks: TaskList,
     },
-}
-impl Default for Schedule {
-    fn default() -> Self {
-        Self::TASKDEPSCHEDULE {
-            tasks: Default::default(),
-        }
-    }
 }
 pub use self::Schedule::{LEVELSCHEDULE,THREADSCHEDULE,TASKDEPSCHEDULE,EMPTYSCHEDULE};
 

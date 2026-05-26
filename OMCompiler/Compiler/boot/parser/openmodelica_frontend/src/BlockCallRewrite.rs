@@ -471,10 +471,7 @@ fn getDefinition(mut id: ArcStr, mut instNo: i32, mut defs: Absyn::Program, mut 
     let mut newModif: Arc<metamodelica::List<Arc<Absyn::ElementArg>>> = metamodelica::nil();
     let mut found: bool = false;
     let mut newInstNo: i32 = 0;
-    (newEqs, newModif, found, newInstNo) = (match defs.clone() {
-        Absyn::Program { .. } => parseClassesDefs((id.clone()).clone(), instNo.clone(), defs.classes.clone(), fargs.clone(), oldEqs.clone(), oldModif.clone())?,
-        _ => bail!("match: no arm matched"),
-    });
+    (newEqs, newModif, found, newInstNo) = parseClassesDefs((id.clone()).clone(), instNo.clone(), defs.classes.clone(), fargs.clone(), oldEqs.clone(), oldModif.clone())?;
     Ok((newEqs, newModif, found, newInstNo))
 }
 

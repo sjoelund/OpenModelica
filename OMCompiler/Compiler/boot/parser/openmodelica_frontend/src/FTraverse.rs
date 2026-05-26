@@ -73,9 +73,6 @@ pub enum WalkOptions {
     /// depth first search
     DFS,
 }
-impl Default for WalkOptions {
-    fn default() -> Self { Self::BFS }
-}
 pub use self::WalkOptions::{BFS,DFS};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -84,9 +81,6 @@ pub enum VisitOptions {
     VISIT,
     /// do not mark as visited
     NO_VISIT,
-}
-impl Default for VisitOptions {
-    fn default() -> Self { Self::VISIT }
 }
 pub use self::VisitOptions::{VISIT,NO_VISIT};
 
@@ -97,9 +91,6 @@ pub enum Options {
         ws: WalkOptions,
         vs: VisitOptions,
     },
-}
-impl Default for Options {
-    fn default() -> Self { Self::NO_OPTIONS }
 }
 pub use self::Options::{NO_OPTIONS,OPTIONS};
 

@@ -2437,9 +2437,6 @@ pub mod VarData {
         },
         VAR_DATA_EMPTY,
     }
-    impl Default for VarData {
-        fn default() -> Self { Self::VAR_DATA_EMPTY }
-    }
     pub use self::VarData::{VAR_DATA_SIM,VAR_DATA_JAC,VAR_DATA_HES,VAR_DATA_EMPTY};
     pub fn size(mut varData: Arc<VarData>) -> Result<i32> {
         let mut s: i32 = 0;

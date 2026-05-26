@@ -1531,22 +1531,6 @@ pub mod NonlinearSystem {
         pub torn: bool,
     }
 
-    impl Default for NonlinearSystem {
-        fn default() -> Self {
-            Self {
-                index: Default::default(),
-                blcks: Default::default(),
-                crefs: Default::default(),
-                indexSystem: Default::default(),
-                size: Default::default(),
-                jacobian: Default::default(),
-                homotopy: Default::default(),
-                mixed: Default::default(),
-                torn: Default::default(),
-            }
-        }
-    }
-
     pub type NONLINEAR_SYSTEM = NonlinearSystem;
 
     pub fn getJacobian(mut syst: Arc<NonlinearSystem>) -> Option<Arc<SimJacobian::SimJacobian>> {

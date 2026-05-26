@@ -601,14 +601,6 @@ pub enum Statement {
         statements: Arc<metamodelica::List<Arc<Statement>>>,
     },
 }
-impl Default for Statement {
-    fn default() -> Self {
-        Self::ASSIGN {
-            lhs: Default::default(),
-            rhs: Default::default(),
-        }
-    }
-}
 pub use self::Statement::{ASSIGN,WHILE};
 
 /// Expression nodes
@@ -629,13 +621,6 @@ pub enum Exp {
         rhs: Arc<Exp>,
     },
 }
-impl Default for Exp {
-    fn default() -> Self {
-        Self::ICONST {
-            value: Default::default(),
-        }
-    }
-}
 pub use self::Exp::{ICONST,VARIABLE,BINARY};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -643,9 +628,6 @@ pub enum Operator {
     PLUS,
     TIMES,
     LESS,
-}
-impl Default for Operator {
-    fn default() -> Self { Self::PLUS }
 }
 pub use self::Operator::{PLUS,TIMES,LESS};
 

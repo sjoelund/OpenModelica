@@ -52,15 +52,6 @@ pub struct Rational {
     pub denom: i32,
 }
 
-impl Default for Rational {
-    fn default() -> Self {
-        Self {
-            nom: Default::default(),
-            denom: Default::default(),
-        }
-    }
-}
-
 pub type RATIONAL = Rational;
 
 

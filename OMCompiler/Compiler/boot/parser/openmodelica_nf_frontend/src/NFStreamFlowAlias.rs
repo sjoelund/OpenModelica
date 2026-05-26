@@ -636,16 +636,6 @@ pub struct Sets {
     pub nodeCount: i32,
 }
 
-impl Default for Sets {
-    fn default() -> Self {
-        Self {
-            nodes: Default::default(),
-            elements: Default::default(),
-            nodeCount: Default::default(),
-        }
-    }
-}
-
 pub type DISJOINT_SETS = Sets;
 
 

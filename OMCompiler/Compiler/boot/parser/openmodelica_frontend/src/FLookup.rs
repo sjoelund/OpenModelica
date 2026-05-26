@@ -95,16 +95,6 @@ pub struct Options {
     pub ignoreParents: bool,
 }
 
-impl Default for Options {
-    fn default() -> Self {
-        Self {
-            ignoreImports: Default::default(),
-            ignoreExtends: Default::default(),
-            ignoreParents: Default::default(),
-        }
-    }
-}
-
 pub type OPTIONS = Options;
 
 

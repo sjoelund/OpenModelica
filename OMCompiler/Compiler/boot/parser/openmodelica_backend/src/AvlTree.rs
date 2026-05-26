@@ -76,19 +76,6 @@ pub struct Tree<Key: Clone, Val: Clone> {
     pub name: ArcStr,
 }
 
-impl<Key: Clone, Val: Clone> Default for Tree<Key, Val> {
-    fn default() -> Self {
-        Self {
-            root: Default::default(),
-            keyCompareFunc: { let __placeholder: FuncTypeKeyCompare<Key> = |_, _| panic!("default-constructed placeholder fn must not be called"); __placeholder },
-            keyStrFuncOpt: Default::default(),
-            valStrFuncOpt: Default::default(),
-            updateCheckFuncOpt: Default::default(),
-            name: Default::default(),
-        }
-    }
-}
-
 pub type TREE<Key, Val> = Tree<Key, Val>;
 
 
@@ -108,9 +95,6 @@ pub enum Node<Key, Val> {
     /// no node, empty tree
     NO_NODE,
 }
-impl<Key, Val> Default for Node<Key, Val> {
-    fn default() -> Self { Self::NO_NODE }
-}
 pub use self::Node::{NODE,NO_NODE};
 
 /// Each node in the binary tree can have an item associated with it.
@@ -124,9 +108,6 @@ pub enum Item<Key, Val> {
     },
     /// no item
     NO_ITEM,
-}
-impl<Key, Val> Default for Item<Key, Val> {
-    fn default() -> Self { Self::NO_ITEM }
 }
 pub use self::Item::{ITEM,NO_ITEM};
 

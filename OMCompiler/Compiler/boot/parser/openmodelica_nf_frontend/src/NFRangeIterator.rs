@@ -74,13 +74,6 @@ pub enum NFRangeIterator {
         exp: Arc<Expression::NFExpression>,
     },
 }
-impl Default for NFRangeIterator {
-    fn default() -> Self {
-        Self::INVALID_RANGE {
-            exp: Default::default(),
-        }
-    }
-}
 pub use self::NFRangeIterator::{INT_RANGE,INT_STEP_RANGE,REAL_RANGE,ARRAY_RANGE,INVALID_RANGE};
 pub fn isValid(mut iterator: Arc<NFRangeIterator>) -> bool {
     let mut isValid: bool = false;

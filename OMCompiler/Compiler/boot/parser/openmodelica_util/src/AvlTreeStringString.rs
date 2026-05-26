@@ -91,9 +91,6 @@ pub enum Tree {
     },
     EMPTY,
 }
-impl Default for Tree {
-    fn default() -> Self { Self::EMPTY }
-}
 pub use self::Tree::{NODE,LEAF,EMPTY};
 
 pub type ValueNode = ArcStr;

@@ -73,18 +73,6 @@ pub struct Mediator {
     pub preferred: Arc<metamodelica::List<Preferred>>,
 }
 
-impl Default for Mediator {
-    fn default() -> Self {
-        Self {
-            mType: Default::default(),
-            template: Default::default(),
-            clients: Default::default(),
-            providers: Default::default(),
-            preferred: Default::default(),
-        }
-    }
-}
-
 pub type MEDIATOR = Mediator;
 
 
@@ -94,17 +82,6 @@ pub struct Client {
     pub component: ArcStr,
     pub template: ArcStr,
     pub isMandatory: bool,
-}
-
-impl Default for Client {
-    fn default() -> Self {
-        Self {
-            modelID: Default::default(),
-            component: Default::default(),
-            template: Default::default(),
-            isMandatory: Default::default(),
-        }
-    }
 }
 
 pub type CLIENT = Client;
@@ -117,16 +94,6 @@ pub struct Provider {
     pub template: ArcStr,
 }
 
-impl Default for Provider {
-    fn default() -> Self {
-        Self {
-            modelID: Default::default(),
-            component: Default::default(),
-            template: Default::default(),
-        }
-    }
-}
-
 pub type PROVIDER = Provider;
 
 
@@ -134,15 +101,6 @@ pub type PROVIDER = Provider;
 pub struct Preferred {
     pub clientInstancePath: ArcStr,
     pub providerInstancePath: ArcStr,
-}
-
-impl Default for Preferred {
-    fn default() -> Self {
-        Self {
-            clientInstancePath: Default::default(),
-            providerInstancePath: Default::default(),
-        }
-    }
 }
 
 pub type PREFERRED = Preferred;
@@ -161,9 +119,6 @@ pub enum Client_e {
         mediator: Arc<metamodelica::List<Mediator>>,
     },
     NO_PRED,
-}
-impl Default for Client_e {
-    fn default() -> Self { Self::NO_PRED }
 }
 pub use self::Client_e::{CLIENT_E,NO_PRED};
 

@@ -7082,10 +7082,10 @@ fn buildModel(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inValues: 
                     let mut simflags_mod: Option<Arc<Absyn::Modification>> = None;
                     let mut cache = (*cache).clone();
                     let mut vals = (*vals).clone();
-                    let mut outputFormat_str: ArcStr = outputFormat_str.clone();
-                    let mut success: bool = success.clone();
-                    let mut resultValues: Arc<metamodelica::List<(ArcStr, Arc<Values::Value>)>> = resultValues.clone();
                     let mut compileDir: ArcStr = compileDir.clone();
+                    let mut resultValues: Arc<metamodelica::List<(ArcStr, Arc<Values::Value>)>> = resultValues.clone();
+                    let mut success: bool = success.clone();
+                    let mut outputFormat_str: ArcStr = outputFormat_str.clone();
                     values = vals.clone();
                     let (__pa0, __pa1) = ::match_deref::match_deref! { match &(getListFirstShowError(vals.clone(), (literal!("while retrieving the className (1 arg) from the buildModel arguments")).clone())?) {
                         (Deref @ Values::Value::CODE { A: Deref @ Absyn::CodeNode::C_TYPENAME { path: __pa0 } }, __pa1) => (__pa0.clone(), __pa1.clone()),
@@ -10141,9 +10141,9 @@ fn instantiateModel(mut cache: FCore::Cache, mut env: FCore::Graph, mut path: Ar
         if let Ok(__v) = (|| -> Result<_> {
             let () = __mc_input.clone() else { bail!("nomatch") };
             let mut odae: Option<DAE::DAElist> = odae.clone();
-            let mut cache: FCore::Cache = cache.clone();
-            let mut r#str: ArcStr = r#str.clone();
             let mut flags: Flags::Flag = flags.clone();
+            let mut r#str: ArcStr = r#str.clone();
+            let mut cache: FCore::Cache = cache.clone();
             ExecStat::execStatReset()?;
             flags = loadCommandLineOptionsFromModel(path.clone())?;
             match '__try0: {

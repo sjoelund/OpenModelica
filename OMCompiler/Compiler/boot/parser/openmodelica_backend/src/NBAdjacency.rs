@@ -133,17 +133,6 @@ pub mod Mapping {
         pub var_AtS: metamodelica::Array<(i32, i32)>,
     }
 
-    impl Default for Mapping {
-        fn default() -> Self {
-            Self {
-                eqn_StA: Default::default(),
-                var_StA: Default::default(),
-                eqn_AtS: Default::default(),
-                var_AtS: Default::default(),
-            }
-        }
-    }
-
     pub type MAPPING = Mapping;
 
     pub fn toString(mut mapping: Arc<Mapping>) -> ArcStr {

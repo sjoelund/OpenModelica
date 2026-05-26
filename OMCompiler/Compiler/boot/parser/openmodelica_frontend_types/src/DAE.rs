@@ -80,9 +80,6 @@ pub enum VarKind {
     /// constant
     CONST,
 }
-impl Default for VarKind {
-    fn default() -> Self { Self::VARIABLE }
-}
 pub use self::VarKind::{VARIABLE,DISCRETE,PARAM,CONST};
 
 /// The type of a connector element.
@@ -95,9 +92,6 @@ pub enum ConnectorType {
     },
     NON_CONNECTOR,
 }
-impl Default for ConnectorType {
-    fn default() -> Self { Self::POTENTIAL }
-}
 pub use self::ConnectorType::{POTENTIAL,FLOW,STREAM,NON_CONNECTOR};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -108,9 +102,6 @@ pub enum VarDirection {
     OUTPUT,
     /// neither input or output
     BIDIR,
-}
-impl Default for VarDirection {
-    fn default() -> Self { Self::INPUT }
 }
 pub use self::VarDirection::{INPUT,OUTPUT,BIDIR};
 
@@ -123,9 +114,6 @@ pub enum VarParallelism {
     /// Non parallel/Normal variables
     NON_PARALLEL,
 }
-impl Default for VarParallelism {
-    fn default() -> Self { Self::PARGLOBAL }
-}
 pub use self::VarParallelism::{PARGLOBAL,PARLOCAL,NON_PARALLEL};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -134,9 +122,6 @@ pub enum VarVisibility {
     PUBLIC,
     /// protected variables
     PROTECTED,
-}
-impl Default for VarVisibility {
-    fn default() -> Self { Self::PUBLIC }
 }
 pub use self::VarVisibility::{PUBLIC,PROTECTED};
 
@@ -150,9 +135,6 @@ pub enum VarInnerOuter {
     INNER_OUTER,
     /// no inner outer prefix
     NOT_INNER_OUTER,
-}
-impl Default for VarInnerOuter {
-    fn default() -> Self { Self::INNER }
 }
 pub use self::VarInnerOuter::{INNER,OUTER,INNER_OUTER,NOT_INNER_OUTER};
 
@@ -554,13 +536,6 @@ pub enum Element {
         cmt: Arc<SCode::Comment>,
     },
 }
-impl Default for Element {
-    fn default() -> Self {
-        Self::CLASS_ATTRIBUTES {
-            classAttrs: Default::default(),
-        }
-    }
-}
 pub use self::Element::{VAR,DEFINE,INITIALDEFINE,EQUATION,EQUEQUATION,ARRAY_EQUATION,INITIAL_ARRAY_EQUATION,CONNECT_EQUATION,COMPLEX_EQUATION,INITIAL_COMPLEX_EQUATION,WHEN_EQUATION,INITIAL_FOR_EQUATION,FOR_EQUATION,IF_EQUATION,INITIAL_IF_EQUATION,INITIALEQUATION,ALGORITHM,INITIALALGORITHM,COMP,EXTOBJECTCLASS,ASSERT,INITIAL_ASSERT,TERMINATE,INITIAL_TERMINATE,REINIT,NORETCALL,INITIAL_NORETCALL,CONSTRAINT,CLASS_ATTRIBUTES,FLAT_SM,SM_COMP,COMMENT};
 
 pub static T_ASSERTIONLEVEL: std::sync::LazyLock<Arc<Type>> = std::sync::LazyLock::new(|| { Arc::new(Type::T_ENUMERATION { index: None, path: Arc::new(Absyn::Path::FULLYQUALIFIED { path: Arc::new(Absyn::Path::IDENT { name: (literal!("AssertionLevel")).clone() }) }), names: list![(literal!("warning")).clone(), (literal!("error")).clone()], literalVarLst: metamodelica::nil(), attributeLst: metamodelica::nil() }) });
@@ -655,13 +630,6 @@ pub enum FunctionDefinition {
         derivedVars: Arc<metamodelica::List<ArcStr>>,
     },
 }
-impl Default for FunctionDefinition {
-    fn default() -> Self {
-        Self::FUNCTION_DEF {
-            body: Default::default(),
-        }
-    }
-}
 pub use self::FunctionDefinition::{FUNCTION_DEF,FUNCTION_EXT,FUNCTION_DER_MAPPER,FUNCTION_INVERSE,FUNCTION_PARTIAL_DERIVATIVE};
 
 /// Different conditions on derivatives
@@ -671,9 +639,6 @@ pub enum derivativeCond {
     NO_DERIVATIVE {
         binding: Arc<Exp>,
     },
-}
-impl Default for derivativeCond {
-    fn default() -> Self { Self::ZERO_DERIVATIVE }
 }
 pub use self::derivativeCond::{ZERO_DERIVATIVE,NO_DERIVATIVE};
 
@@ -766,14 +731,6 @@ pub enum VariableAttributes {
         startOrigin: Option<Arc<Exp>>,
     },
 }
-impl Default for VariableAttributes {
-    fn default() -> Self {
-        Self::VAR_ATTR_CLOCK {
-            isProtected: Default::default(),
-            finalPrefix: Default::default(),
-        }
-    }
-}
 pub use self::VariableAttributes::{VAR_ATTR_REAL,VAR_ATTR_INT,VAR_ATTR_BOOL,VAR_ATTR_CLOCK,VAR_ATTR_STRING,VAR_ATTR_ENUMERATION};
 
 pub static emptyVarAttrReal: std::sync::LazyLock<Arc<VariableAttributes>> = std::sync::LazyLock::new(|| { Arc::new(VariableAttributes::VAR_ATTR_REAL { quantity: None, unit: None, displayUnit: None, min: None, max: None, start: None, fixed: None, nominal: None, stateSelectOption: None, uncertainOption: None, distributionOption: None, equationBound: None, isProtected: None, finalPrefix: None, startOrigin: None }) });
@@ -796,9 +753,6 @@ pub enum StateSelect {
     PREFER,
     ALWAYS,
 }
-impl Default for StateSelect {
-    fn default() -> Self { Self::NEVER }
-}
 pub use self::StateSelect::{NEVER,AVOID,DEFAULT,PREFER,ALWAYS};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -807,9 +761,6 @@ pub enum Uncertainty {
     SOUGHT,
     REFINE,
     PROPAGATE,
-}
-impl Default for Uncertainty {
-    fn default() -> Self { Self::GIVEN }
 }
 pub use self::Uncertainty::{GIVEN,SOUGHT,REFINE,PROPAGATE};
 
@@ -842,9 +793,6 @@ pub enum ExtArg {
     },
     NOEXTARG,
 }
-impl Default for ExtArg {
-    fn default() -> Self { Self::NOEXTARG }
-}
 pub use self::ExtArg::{EXTARG,EXTARGEXP,EXTARGSIZE,NOEXTARG};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -854,18 +802,6 @@ pub struct ExternalDecl {
     pub returnArg: ExtArg,
     pub language: ArcStr,
     pub ann: Option<Arc<SCode::Annotation>>,
-}
-
-impl Default for ExternalDecl {
-    fn default() -> Self {
-        Self {
-            name: Default::default(),
-            args: Default::default(),
-            returnArg: Default::default(),
-            language: Default::default(),
-            ann: Default::default(),
-        }
-    }
 }
 
 pub type EXTERNALDECL = ExternalDecl;
@@ -878,14 +814,6 @@ pub struct DAElist {
     pub elementLst: Arc<metamodelica::List<Arc<Element>>>,
 }
 
-impl Default for DAElist {
-    fn default() -> Self {
-        Self {
-            elementLst: Default::default(),
-        }
-    }
-}
-
 pub type DAE = DAElist;
 
 
@@ -895,14 +823,6 @@ pub type DAE = DAElist;
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Algorithm {
     pub statementLst: Arc<metamodelica::List<Arc<Statement>>>,
-}
-
-impl Default for Algorithm {
-    fn default() -> Self {
-        Self {
-            statementLst: Default::default(),
-        }
-    }
 }
 
 pub type ALGORITHM_STMTS = Algorithm;
@@ -922,13 +842,6 @@ pub enum Constraint {
         localCon: bool,
     },
 }
-impl Default for Constraint {
-    fn default() -> Self {
-        Self::CONSTRAINT_EXPS {
-            constraintLst: Default::default(),
-        }
-    }
-}
 pub use self::Constraint::{CONSTRAINT_EXPS,CONSTRAINT_DT};
 
 /// currently for Optimica extension: these are the objectives of optimization class
@@ -938,17 +851,6 @@ pub struct ClassAttributes {
     pub objectiveIntegrandE: Option<Arc<Exp>>,
     pub startTimeE: Option<Arc<Exp>>,
     pub finalTimeE: Option<Arc<Exp>>,
-}
-
-impl Default for ClassAttributes {
-    fn default() -> Self {
-        Self {
-            objetiveE: Default::default(),
-            objectiveIntegrandE: Default::default(),
-            startTimeE: Default::default(),
-            finalTimeE: Default::default(),
-        }
-    }
 }
 
 pub type OPTIMIZATION_ATTRS = ClassAttributes;
@@ -1103,9 +1005,6 @@ pub enum Else {
         statementLst: Arc<metamodelica::List<Arc<Statement>>>,
     },
 }
-impl Default for Else {
-    fn default() -> Self { Self::NOELSE }
-}
 pub use self::Else::{NOELSE,ELSEIF,ELSE};
 
 /* -- End Algorithm.mo -- */
@@ -1150,19 +1049,6 @@ pub struct Attributes {
     pub visibility: SCode::Visibility,
 }
 
-impl Default for Attributes {
-    fn default() -> Self {
-        Self {
-            connectorType: Default::default(),
-            parallelism: Default::default(),
-            variability: Default::default(),
-            direction: Default::default(),
-            innerOuter: Default::default(),
-            visibility: Default::default(),
-        }
-    }
-}
-
 pub type ATTR = Attributes;
 
 
@@ -1185,9 +1071,6 @@ pub enum BindingSource {
     BINDING_FROM_RECORD_SUBMODS,
     /// the binding is created from the submods of a DERIVED record DECLARATION e.g. 'record K = R(i=3)'
     BINDING_FROM_DERIVED_RECORD_DECL,
-}
-impl Default for BindingSource {
-    fn default() -> Self { Self::BINDING_FROM_DEFAULT_VALUE }
 }
 pub use self::BindingSource::{BINDING_FROM_DEFAULT_VALUE,BINDING_FROM_START_VALUE,BINDING_FROM_RECORD_SUBMODS,BINDING_FROM_DERIVED_RECORD_DECL};
 
@@ -1417,9 +1300,6 @@ pub enum CodeType {
     /// Array of VariableName
     C_VARIABLENAMES,
 }
-impl Default for CodeType {
-    fn default() -> Self { Self::C_EXPRESSION }
-}
 pub use self::CodeType::{C_EXPRESSION,C_EXPRESSION_OR_MODIFICATION,C_MODIFICATION,C_TYPENAME,C_VARIABLENAME,C_VARIABLENAMES};
 
 /// Is here because constants are not allowed to contain function pointers for some reason
@@ -1432,9 +1312,6 @@ pub enum EvaluateSingletonType {
         ty: Arc<Type>,
     },
     NOT_SINGLETON,
-}
-impl Default for EvaluateSingletonType {
-    fn default() -> Self { Self::NOT_SINGLETON }
 }
 pub use self::EvaluateSingletonType::{EVAL_SINGLETON_TYPE_FUNCTION,EVAL_SINGLETON_KNOWN_TYPE,NOT_SINGLETON};
 
@@ -1541,9 +1418,6 @@ pub enum Dimension {
     /// Dimension with unknown size.
     DIM_UNKNOWN,
 }
-impl Default for Dimension {
-    fn default() -> Self { Self::DIM_BOOLEAN }
-}
 pub use self::Dimension::{DIM_INTEGER,DIM_BOOLEAN,DIM_ENUM,DIM_EXP,DIM_UNKNOWN};
 
 // adrpo: this is used to bind unknown dimensions to an expression
@@ -1561,9 +1435,6 @@ pub enum DimensionBinding {
         /// the bound has these constrains (collected when doing subtyping)
         constrains: Dimensions,
     },
-}
-impl Default for DimensionBinding {
-    fn default() -> Self { Self::DIM_UNBOUND }
 }
 pub use self::DimensionBinding::{DIM_UNBOUND,DIM_BOUND};
 
@@ -1675,15 +1546,6 @@ pub struct SubMod {
     pub r#mod: Arc<Mod>,
 }
 
-impl Default for SubMod {
-    fn default() -> Self {
-        Self {
-            ident: Default::default(),
-            r#mod: Default::default(),
-        }
-    }
-}
-
 pub type NAMEMOD = SubMod;
 
 
@@ -1708,9 +1570,6 @@ pub enum Mod {
         r#mod: Arc<Mod>,
     },
     NOMOD,
-}
-impl Default for Mod {
-    fn default() -> Self { Self::NOMOD }
 }
 pub use self::Mod::{MOD,REDECL,NOMOD};
 
@@ -1738,9 +1597,6 @@ pub enum ClockKind {
         /// string type
         solverMethod: Arc<Exp>,
     },
-}
-impl Default for ClockKind {
-    fn default() -> Self { Self::INFERRED_CLOCK }
 }
 pub use self::ClockKind::{INFERRED_CLOCK,RATIONAL_CLOCK,REAL_CLOCK,EVENT_CLOCK,SOLVER_CLOCK};
 
@@ -2001,9 +1857,6 @@ pub enum TailCall {
         outVars: Arc<metamodelica::List<ArcStr>>,
     },
 }
-impl Default for TailCall {
-    fn default() -> Self { Self::NO_TAIL }
-}
 pub use self::TailCall::{NO_TAIL,TAIL};
 
 pub static callAttrBuiltinBool: std::sync::LazyLock<Arc<CallAttributes>> = std::sync::LazyLock::new(|| { Arc::new(CallAttributes { ty: T_BOOL_DEFAULT.clone(), tuple_: false, builtin: true, isImpure: false, isFunctionPointerCall: false, inlineType: crate::DAE::InlineType::NO_INLINE, tailCall: crate::DAE::TailCall::NO_TAIL }) });
@@ -2106,9 +1959,6 @@ pub enum MatchType {
         switch: Option<(i32, Arc<Type>, i32)>,
     },
 }
-impl Default for MatchType {
-    fn default() -> Self { Self::MATCHCONTINUE }
-}
 pub use self::MatchType::{MATCHCONTINUE,TRY_STACKOVERFLOW,MATCH};
 
 /// Patterns deconstruct expressions
@@ -2168,9 +2018,6 @@ pub enum Pattern {
     PAT_SOME {
         pat: Arc<Pattern>,
     },
-}
-impl Default for Pattern {
-    fn default() -> Self { Self::PAT_WILD }
 }
 pub use self::Pattern::{PAT_WILD,PAT_CONSTANT,PAT_AS,PAT_AS_FUNC_PTR,PAT_META_TUPLE,PAT_CALL_TUPLE,PAT_CONS,PAT_CALL,PAT_CALL_NAMED,PAT_SOME};
 
@@ -2366,9 +2213,6 @@ pub enum Expand {
     /// not expand crefs
     NOT_EXPAND,
 }
-impl Default for Expand {
-    fn default() -> Self { Self::EXPAND }
-}
 pub use self::Expand::{EXPAND,NOT_EXPAND};
 
 pub static emptyDae: std::sync::LazyLock<DAElist> = std::sync::LazyLock::new(|| { DAElist { elementLst: metamodelica::nil() } });
@@ -2386,9 +2230,6 @@ pub enum Prefix {
         /// the class prefix, i.e. variability, var, discrete, param, const
         classPre: ClassPrefix,
     },
-}
-impl Default for Prefix {
-    fn default() -> Self { Self::NOPRE }
 }
 pub use self::Prefix::{NOPRE,PREFIX};
 
@@ -2426,14 +2267,6 @@ pub struct ClassPrefix {
     pub variability: SCode::Variability,
 }
 
-impl Default for ClassPrefix {
-    fn default() -> Self {
-        Self {
-            variability: Default::default(),
-        }
-    }
-}
-
 pub type CLASSPRE = ClassPrefix;
 
 
@@ -2455,9 +2288,6 @@ pub mod Connect {
         OUTSIDE,
         NO_FACE,
     }
-    impl Default for Face {
-        fn default() -> Self { Self::INSIDE }
-    }
     pub use self::Face::{INSIDE,OUTSIDE,NO_FACE};
 
     /// The type of a connector element.
@@ -2469,9 +2299,6 @@ pub mod Connect {
             associatedFlow: Option<Arc<ComponentRef>>,
         },
         NO_TYPE,
-    }
-    impl Default for ConnectorType {
-        fn default() -> Self { Self::EQU }
     }
     pub use self::ConnectorType::{EQU,FLOW,STREAM,NO_TYPE};
 
@@ -2512,17 +2339,6 @@ pub mod Connect {
             /// How many times this connector has been connected.
             connectCount: i32,
         },
-    }
-    impl Default for SetTrieNode {
-        fn default() -> Self {
-            Self::SET_TRIE_LEAF {
-                name: Default::default(),
-                insideElement: Default::default(),
-                outsideElement: Default::default(),
-                flowAssociation: Default::default(),
-                connectCount: Default::default(),
-            }
-        }
     }
     pub use self::SetTrieNode::{SET_TRIE_NODE,SET_TRIE_LEAF};
 
@@ -2565,17 +2381,6 @@ pub mod Connect {
         pub outerConnects: Arc<metamodelica::List<OuterConnect>>,
     }
 
-    impl Default for Sets {
-        fn default() -> Self {
-            Self {
-                sets: Default::default(),
-                setCount: Default::default(),
-                connections: Default::default(),
-                outerConnects: Default::default(),
-            }
-        }
-    }
-
     pub type SETS = Sets;
 
 
@@ -2591,13 +2396,6 @@ pub mod Connect {
         SET_POINTER {
             index: i32,
         },
-    }
-    impl Default for Set {
-        fn default() -> Self {
-            Self::SET_POINTER {
-                index: Default::default(),
-            }
-        }
     }
     pub use self::Set::{SET,SET_POINTER};
 

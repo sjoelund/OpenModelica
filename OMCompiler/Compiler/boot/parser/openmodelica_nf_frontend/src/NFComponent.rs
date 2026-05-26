@@ -102,9 +102,6 @@ pub enum NFComponent {
     /// needed for new crefs in the backend
     WILD,
 }
-impl Default for NFComponent {
-    fn default() -> Self { Self::WILD }
-}
 pub use self::NFComponent::{COMPONENT_DEF,COMPONENT,ITERATOR,ENUM_LITERAL,TYPE_ATTRIBUTE,INVALID_COMPONENT,WILD};
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 #[repr(i32)]

@@ -54,17 +54,6 @@ pub struct BackendInterfaceFunctions {
     pub initInstHashTable: partialInitInstHashTable,
 }
 
-impl Default for BackendInterfaceFunctions {
-    fn default() -> Self {
-        Self {
-            noRewriteRulesFrontEnd: { let __placeholder: partialNoRewriteRulesFrontEnd = || panic!("default-constructed placeholder fn must not be called"); __placeholder },
-            rewriteFrontEnd: { let __placeholder: partialRewriteFrontEnd = |_| panic!("default-constructed placeholder fn must not be called"); __placeholder },
-            appendLibrary: { let __placeholder: partialAppendLibrary = |_, _| panic!("default-constructed placeholder fn must not be called"); __placeholder },
-            initInstHashTable: { let __placeholder: partialInitInstHashTable = || panic!("default-constructed placeholder fn must not be called"); __placeholder },
-        }
-    }
-}
-
 pub type BACKEND_INTERFACE_FUNCTIONS = BackendInterfaceFunctions;
 
 

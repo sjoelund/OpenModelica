@@ -1161,8 +1161,8 @@ pub fn prefixExpressionsInType(mut inCache: FCore::Cache, mut inEnv: FCore::Grap
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 _ => {
-                    let mut outCache: FCore::Cache = outCache.clone();
                     let mut outTy: Arc<DAE::Type> = outTy.clone();
+                    let mut outCache: FCore::Cache = outCache.clone();
                     let (__pa0, (__pa1, _, _, _)) = Types::traverseType(inTy.clone(), (inCache.clone(), inEnv.clone(), inIH.clone(), inPre.clone()), Arc::new(prefixArrayDimensions))?;
                     outTy = __pa0.clone();
                     outCache = __pa1.clone();

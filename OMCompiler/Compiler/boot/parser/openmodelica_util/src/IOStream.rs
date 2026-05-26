@@ -55,9 +55,6 @@ pub enum IOStreamType {
     LIST,
     BUFFER,
 }
-impl Default for IOStreamType {
-    fn default() -> Self { Self::LIST }
-}
 pub use self::IOStreamType::{FILE,LIST,BUFFER};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -72,13 +69,6 @@ pub enum IOStreamData {
         data: i32,
     },
 }
-impl Default for IOStreamData {
-    fn default() -> Self {
-        Self::FILE_DATA {
-            data: Default::default(),
-        }
-    }
-}
 pub use self::IOStreamData::{FILE_DATA,LIST_DATA,BUFFER_DATA};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -86,16 +76,6 @@ pub struct IOStream {
     pub name: ArcStr,
     pub ty: IOStreamType,
     pub data: IOStreamData,
-}
-
-impl Default for IOStream {
-    fn default() -> Self {
-        Self {
-            name: Default::default(),
-            ty: Default::default(),
-            data: Default::default(),
-        }
-    }
 }
 
 pub type IOSTREAM = IOStream;

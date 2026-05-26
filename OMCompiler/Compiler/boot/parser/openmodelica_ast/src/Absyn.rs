@@ -61,16 +61,6 @@ pub struct ForIterator {
     pub range: Option<Arc<Exp>>,
 }
 
-impl Default for ForIterator {
-    fn default() -> Self {
-        Self {
-            name: Default::default(),
-            guardExp: Default::default(),
-            range: Default::default(),
-        }
-    }
-}
-
 pub type ITERATOR = ForIterator;
 
 
@@ -266,15 +256,6 @@ pub struct EnumLiteral {
     pub comment: Option<Arc<Comment>>,
 }
 
-impl Default for EnumLiteral {
-    fn default() -> Self {
-        Self {
-            literal: Default::default(),
-            comment: Default::default(),
-        }
-    }
-}
-
 pub type ENUMLITERAL = EnumLiteral;
 
 
@@ -441,9 +422,6 @@ pub enum InnerOuter {
     /// no inner outer prefix
     NOT_INNER_OUTER,
 }
-impl Default for InnerOuter {
-    fn default() -> Self { Self::INNER }
-}
 pub use self::InnerOuter::{INNER,OUTER,INNER_OUTER,NOT_INNER_OUTER};
 
 /// Import statements, different kinds
@@ -480,13 +458,6 @@ pub enum GroupImport {
         name: ArcStr,
     },
 }
-impl Default for GroupImport {
-    fn default() -> Self {
-        Self::GROUP_IMPORT_NAME {
-            name: Default::default(),
-        }
-    }
-}
 pub use self::GroupImport::{GROUP_IMPORT_NAME,GROUP_IMPORT_RENAME};
 
 /// A componentItem can have a condition that must be fulfilled if
@@ -504,16 +475,6 @@ pub struct ComponentItem {
     pub comment: Option<Arc<Comment>>,
 }
 
-impl Default for ComponentItem {
-    fn default() -> Self {
-        Self {
-            component: Default::default(),
-            condition: Default::default(),
-            comment: Default::default(),
-        }
-    }
-}
-
 pub type COMPONENTITEM = ComponentItem;
 
 
@@ -526,16 +487,6 @@ pub struct Component {
     pub arrayDim: ArrayDim,
     /// Optional modification
     pub modification: Option<Arc<Modification>>,
-}
-
-impl Default for Component {
-    fn default() -> Self {
-        Self {
-            name: Default::default(),
-            arrayDim: Default::default(),
-            modification: Default::default(),
-        }
-    }
 }
 
 pub type COMPONENT = Component;
@@ -558,13 +509,6 @@ pub enum EquationItem {
         comment: ArcStr,
     },
 }
-impl Default for EquationItem {
-    fn default() -> Self {
-        Self::EQUATIONITEMCOMMENT {
-            comment: Default::default(),
-        }
-    }
-}
 pub use self::EquationItem::{EQUATIONITEM,EQUATIONITEMCOMMENT};
 
 /// Info specific for an algorithm item.
@@ -582,13 +526,6 @@ pub enum AlgorithmItem {
     ALGORITHMITEMCOMMENT {
         comment: ArcStr,
     },
-}
-impl Default for AlgorithmItem {
-    fn default() -> Self {
-        Self::ALGORITHMITEMCOMMENT {
-            comment: Default::default(),
-        }
-    }
 }
 pub use self::AlgorithmItem::{ALGORITHMITEM,ALGORITHMITEMCOMMENT};
 
@@ -648,13 +585,6 @@ pub enum Equation {
     EQ_FAILURE {
         equ: Arc<EquationItem>,
     },
-}
-impl Default for Equation {
-    fn default() -> Self {
-        Self::EQ_FAILURE {
-            equ: Default::default(),
-        }
-    }
 }
 pub use self::Equation::{EQ_IF,EQ_EQUALS,EQ_PDE,EQ_CONNECT,EQ_FOR,EQ_WHEN_E,EQ_NORETCALL,EQ_FAILURE};
 
@@ -721,9 +651,6 @@ pub enum Algorithm {
     },
     ALG_CONTINUE,
 }
-impl Default for Algorithm {
-    fn default() -> Self { Self::ALG_RETURN }
-}
 pub use self::Algorithm::{ALG_ASSIGN,ALG_IF,ALG_FOR,ALG_PARFOR,ALG_WHILE,ALG_WHEN_A,ALG_NORETCALL,ALG_RETURN,ALG_BREAK,ALG_FAILURE,ALG_TRY,ALG_CONTINUE};
 
 pub static emptyMod: std::sync::LazyLock<Arc<Modification>> = std::sync::LazyLock::new(|| { Arc::new(Modification { elementArgLst: metamodelica::nil(), eqMod: Arc::new(crate::Absyn::EqMod::NOMOD) }) });
@@ -738,15 +665,6 @@ pub struct Modification {
     pub eqMod: Arc<EqMod>,
 }
 
-impl Default for Modification {
-    fn default() -> Self {
-        Self {
-            elementArgLst: Default::default(),
-            eqMod: Default::default(),
-        }
-    }
-}
-
 pub type CLASSMOD = Modification;
 
 
@@ -757,9 +675,6 @@ pub enum EqMod {
         exp: Arc<Exp>,
         info: Info,
     },
-}
-impl Default for EqMod {
-    fn default() -> Self { Self::NOMOD }
 }
 pub use self::EqMod::{NOMOD,EQMOD};
 
@@ -819,9 +734,6 @@ pub enum RedeclareKeywords {
     REPLACEABLE,
     REDECLARE_REPLACEABLE,
 }
-impl Default for RedeclareKeywords {
-    fn default() -> Self { Self::REDECLARE }
-}
 pub use self::RedeclareKeywords::{REDECLARE,REPLACEABLE,REDECLARE_REPLACEABLE};
 
 /// The each keyword can be present in both MODIFICATION\'s and REDECLARATION\'s.
@@ -830,9 +742,6 @@ pub use self::RedeclareKeywords::{REDECLARE,REPLACEABLE,REDECLARE_REPLACEABLE};
 pub enum Each {
     EACH,
     NON_EACH,
-}
-impl Default for Each {
-    fn default() -> Self { Self::EACH }
 }
 pub use self::Each::{EACH,NON_EACH};
 
@@ -855,20 +764,6 @@ pub struct ElementAttributes {
     pub arrayDim: ArrayDim,
 }
 
-impl Default for ElementAttributes {
-    fn default() -> Self {
-        Self {
-            flowPrefix: Default::default(),
-            streamPrefix: Default::default(),
-            parallelism: Default::default(),
-            variability: Default::default(),
-            direction: Default::default(),
-            isField: Default::default(),
-            arrayDim: Default::default(),
-        }
-    }
-}
-
 pub type ATTR = ElementAttributes;
 
 
@@ -879,9 +774,6 @@ pub enum IsField {
     NONFIELD,
     /// variable is a field
     FIELD,
-}
-impl Default for IsField {
-    fn default() -> Self { Self::NONFIELD }
 }
 pub use self::IsField::{NONFIELD,FIELD};
 
@@ -895,9 +787,6 @@ pub enum Parallelism {
     /// Non parallel/Normal variables
     NON_PARALLEL,
 }
-impl Default for Parallelism {
-    fn default() -> Self { Self::PARGLOBAL }
-}
 pub use self::Parallelism::{PARGLOBAL,PARLOCAL,NON_PARALLEL};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -905,9 +794,6 @@ pub enum FlowStream {
     FLOW,
     STREAM,
     NOT_FLOW_STREAM,
-}
-impl Default for FlowStream {
-    fn default() -> Self { Self::FLOW }
 }
 pub use self::FlowStream::{FLOW,STREAM,NOT_FLOW_STREAM};
 
@@ -918,9 +804,6 @@ pub enum Variability {
     DISCRETE,
     PARAM,
     CONST,
-}
-impl Default for Variability {
-    fn default() -> Self { Self::VAR }
 }
 pub use self::Variability::{VAR,DISCRETE,PARAM,CONST};
 
@@ -935,9 +818,6 @@ pub enum Direction {
     BIDIR,
     /// direction is both input and output (OM extension; syntactic sugar for functions)
     INPUT_OUTPUT,
-}
-impl Default for Direction {
-    fn default() -> Self { Self::INPUT }
 }
 pub use self::Direction::{INPUT,OUTPUT,BIDIR,INPUT_OUTPUT};
 
@@ -1143,9 +1023,6 @@ pub enum MatchType {
     MATCH,
     MATCHCONTINUE,
 }
-impl Default for MatchType {
-    fn default() -> Self { Self::MATCH }
-}
 pub use self::MatchType::{MATCH,MATCHCONTINUE};
 
 /// The Code uniontype is used for Meta-programming. It originates from the $Code quoting mechanism. See paper in Modelica2003 conference
@@ -1181,13 +1058,6 @@ pub enum CodeNode {
         modification: Arc<Modification>,
     },
 }
-impl Default for CodeNode {
-    fn default() -> Self {
-        Self::C_EXPRESSION {
-            exp: Default::default(),
-        }
-    }
-}
 pub use self::CodeNode::{C_TYPENAME,C_VARIABLENAME,C_CONSTRAINTSECTION,C_EQUATIONSECTION,C_ALGORITHMSECTION,C_ELEMENT,C_EXPRESSION,C_MODIFICATION};
 
 /// The FunctionArgs uniontype consists of a list of positional arguments
@@ -1207,14 +1077,6 @@ pub enum FunctionArgs {
         iterators: ForIterators,
     },
 }
-impl Default for FunctionArgs {
-    fn default() -> Self {
-        Self::FUNCTIONARGS {
-            args: Default::default(),
-            argNames: Default::default(),
-        }
-    }
-}
 pub use self::FunctionArgs::{FUNCTIONARGS,FOR_ITER_FARG};
 
 pub static emptyFunctionArgs: std::sync::LazyLock<Arc<FunctionArgs>> = std::sync::LazyLock::new(|| { Arc::new(FunctionArgs::FUNCTIONARGS { args: metamodelica::nil(), argNames: metamodelica::nil() }) });
@@ -1226,9 +1088,6 @@ pub enum ReductionIterType {
     /// With this option, all iterators must have the same length
     THREAD,
 }
-impl Default for ReductionIterType {
-    fn default() -> Self { Self::COMBINE }
-}
 pub use self::ReductionIterType::{COMBINE,THREAD};
 
 /// The NamedArg uniontype consist of an Identifier for the argument and an expression
@@ -1239,15 +1098,6 @@ pub struct NamedArg {
     pub argName: Ident,
     /// argValue
     pub argValue: Arc<Exp>,
-}
-
-impl Default for NamedArg {
-    fn default() -> Self {
-        Self {
-            argName: Default::default(),
-            argValue: Default::default(),
-        }
-    }
 }
 
 pub type NAMEDARG = NamedArg;
@@ -1302,9 +1152,6 @@ pub enum Operator {
     EQUAL,
     /// relational not equal
     NEQUAL,
-}
-impl Default for Operator {
-    fn default() -> Self { Self::ADD }
 }
 pub use self::Operator::{ADD,SUB,MUL,DIV,POW,UPLUS,UMINUS,ADD_EW,SUB_EW,MUL_EW,DIV_EW,POW_EW,UPLUS_EW,UMINUS_EW,AND,OR,NOT,LESS,LESSEQ,GREATER,GREATEREQ,EQUAL,NEQUAL};
 
@@ -1440,9 +1287,6 @@ pub enum FunctionPurity {
     IMPURE,
     NO_PURITY,
 }
-impl Default for FunctionPurity {
-    fn default() -> Self { Self::PURE }
-}
 pub use self::FunctionPurity::{PURE,IMPURE,NO_PURITY};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -1458,9 +1302,6 @@ pub enum FunctionRestriction {
     FR_PARALLEL_FUNCTION,
     /// an OpenCL/CUDA kernel function
     FR_KERNEL_FUNCTION,
-}
-impl Default for FunctionRestriction {
-    fn default() -> Self { Self::FR_OPERATOR_FUNCTION }
 }
 pub use self::FunctionRestriction::{FR_NORMAL_FUNCTION,FR_OPERATOR_FUNCTION,FR_PARALLEL_FUNCTION,FR_KERNEL_FUNCTION};
 
@@ -1518,18 +1359,6 @@ pub struct ExternalDecl {
     pub annotation_: Option<Arc<Annotation>>,
 }
 
-impl Default for ExternalDecl {
-    fn default() -> Self {
-        Self {
-            funcName: Default::default(),
-            lang: Default::default(),
-            output_: Default::default(),
-            args: Default::default(),
-            annotation_: Default::default(),
-        }
-    }
-}
-
 pub type EXTERNALDECL = ExternalDecl;
 
 
@@ -1556,9 +1385,6 @@ pub enum Msg {
     },
     /// Do not give error message
     NO_MSG,
-}
-impl Default for Msg {
-    fn default() -> Self { Self::NO_MSG }
 }
 pub use self::Msg::{MSG,NO_MSG};
 

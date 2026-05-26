@@ -755,48 +755,6 @@ pub mod SimVars {
         pub dataReconSetBVars: Arc<metamodelica::List<Arc<SimVar::SimVar>>>,
     }
 
-    impl Default for SimVars {
-        fn default() -> Self {
-            Self {
-                stateVars: Default::default(),
-                derivativeVars: Default::default(),
-                algVars: Default::default(),
-                discreteAlgVars: Default::default(),
-                intAlgVars: Default::default(),
-                boolAlgVars: Default::default(),
-                stringAlgVars: Default::default(),
-                enumAlgVars: Default::default(),
-                inputVars: Default::default(),
-                outputVars: Default::default(),
-                aliasVars: Default::default(),
-                intAliasVars: Default::default(),
-                boolAliasVars: Default::default(),
-                stringAliasVars: Default::default(),
-                enumAliasVars: Default::default(),
-                paramVars: Default::default(),
-                intParamVars: Default::default(),
-                boolParamVars: Default::default(),
-                stringParamVars: Default::default(),
-                enumParamVars: Default::default(),
-                extObjVars: Default::default(),
-                constVars: Default::default(),
-                intConstVars: Default::default(),
-                boolConstVars: Default::default(),
-                stringConstVars: Default::default(),
-                enumConstVars: Default::default(),
-                residualVars: Default::default(),
-                jacobianVars: Default::default(),
-                seedVars: Default::default(),
-                realOptimizeConstraintsVars: Default::default(),
-                realOptimizeFinalConstraintsVars: Default::default(),
-                sensitivityVars: Default::default(),
-                dataReconSetcVars: Default::default(),
-                dataReconinputVars: Default::default(),
-                dataReconSetBVars: Default::default(),
-            }
-        }
-    }
-
     pub type SIMVARS = SimVars;
 
     pub fn toString(mut vars: Arc<SimVars>, mut r#str: ArcStr) -> Result<ArcStr> {
@@ -1361,48 +1319,6 @@ pub mod VarInfo {
         pub numRelatedBoundaryConditions: i32,
     }
 
-    impl Default for VarInfo {
-        fn default() -> Self {
-            Self {
-                numZeroCrossings: Default::default(),
-                numTimeEvents: Default::default(),
-                numRelations: Default::default(),
-                numMathEventFunctions: Default::default(),
-                numStateVars: Default::default(),
-                numAlgVars: Default::default(),
-                numDiscreteReal: Default::default(),
-                numIntAlgVars: Default::default(),
-                numBoolAlgVars: Default::default(),
-                numAlgAliasVars: Default::default(),
-                numIntAliasVars: Default::default(),
-                numBoolAliasVars: Default::default(),
-                numParams: Default::default(),
-                numIntParams: Default::default(),
-                numBoolParams: Default::default(),
-                numOutVars: Default::default(),
-                numInVars: Default::default(),
-                numExternalObjects: Default::default(),
-                numStringAlgVars: Default::default(),
-                numStringParamVars: Default::default(),
-                numStringAliasVars: Default::default(),
-                numEquations: Default::default(),
-                numLinearSystems: Default::default(),
-                numNonLinearSystems: Default::default(),
-                numMixedSystems: Default::default(),
-                numStateSets: Default::default(),
-                numJacobians: Default::default(),
-                numOptimizeConstraints: Default::default(),
-                numOptimizeFinalConstraints: Default::default(),
-                numSensitivityParameters: Default::default(),
-                numSetcVars: Default::default(),
-                numDataReconVars: Default::default(),
-                numRealIntputVars: Default::default(),
-                numSetbVars: Default::default(),
-                numRelatedBoundaryConditions: Default::default(),
-            }
-        }
-    }
-
     pub type VAR_INFO = VarInfo;
 
     pub fn create(mut vars: Arc<SimVars::SimVars>, mut eventInfo: Arc<EventInfo::EventInfo>, mut simCodeIndices: SimCodeIndices) -> Arc<VarInfo> {
@@ -1439,15 +1355,6 @@ pub mod ExtObjInfo {
     pub struct ExtObjInfo {
         pub objects: Arc<metamodelica::List<Arc<SimVar::SimVar>>>,
         pub aliases: Arc<metamodelica::List<(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>)>>,
-    }
-
-    impl Default for ExtObjInfo {
-        fn default() -> Self {
-            Self {
-                objects: Default::default(),
-                aliases: Default::default(),
-            }
-        }
     }
 
     pub type EXT_OBJ_INFO = ExtObjInfo;

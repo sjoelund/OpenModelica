@@ -98,9 +98,6 @@ pub enum Restriction {
         typeVars: Arc<metamodelica::List<ArcStr>>,
     },
 }
-impl Default for Restriction {
-    fn default() -> Self { Self::R_CLASS }
-}
 pub use self::Restriction::{R_CLASS,R_OPTIMIZATION,R_MODEL,R_RECORD,R_BLOCK,R_CONNECTOR,R_OPERATOR,R_TYPE,R_PACKAGE,R_FUNCTION,R_ENUMERATION,R_PREDEFINED_INTEGER,R_PREDEFINED_REAL,R_PREDEFINED_STRING,R_PREDEFINED_BOOLEAN,R_PREDEFINED_ENUMERATION,R_PREDEFINED_CLOCK,R_METARECORD,R_UNIONTYPE};
 
 // Same as Absyn.FunctionRestriction except this contains
@@ -123,9 +120,6 @@ pub enum FunctionRestriction {
     FR_PARALLEL_FUNCTION,
     /// an OpenCL/CUDA kernel function
     FR_KERNEL_FUNCTION,
-}
-impl Default for FunctionRestriction {
-    fn default() -> Self { Self::FR_OPERATOR_FUNCTION }
 }
 pub use self::FunctionRestriction::{FR_NORMAL_FUNCTION,FR_EXTERNAL_FUNCTION,FR_OPERATOR_FUNCTION,FR_RECORD_CONSTRUCTOR,FR_PARALLEL_FUNCTION,FR_KERNEL_FUNCTION};
 
@@ -175,15 +169,6 @@ pub struct SubMod {
     pub r#mod: Arc<Mod>,
 }
 
-impl Default for SubMod {
-    fn default() -> Self {
-        Self {
-            ident: Default::default(),
-            r#mod: Default::default(),
-        }
-    }
-}
-
 pub type NAMEMOD = SubMod;
 
 
@@ -196,15 +181,6 @@ pub type Program = Arc<metamodelica::List<Arc<Element>>>;
 pub struct Enum {
     pub literal: Ident,
     pub comment: Arc<Comment>,
-}
-
-impl Default for Enum {
-    fn default() -> Self {
-        Self {
-            literal: Default::default(),
-            comment: Default::default(),
-        }
-    }
 }
 
 pub type ENUM = Enum;
@@ -281,13 +257,6 @@ pub enum ClassDef {
         derivedVariables: Arc<metamodelica::List<ArcStr>>,
     },
 }
-impl Default for ClassDef {
-    fn default() -> Self {
-        Self::ENUMERATION {
-            enumLst: Default::default(),
-        }
-    }
-}
 pub use self::ClassDef::{PARTS,CLASS_EXTENDS,DERIVED,ENUMERATION,OVERLOAD,PDER};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -339,18 +308,6 @@ pub struct ExternalDecl {
     /// only positional arguments, i.e. expression list
     pub args: Arc<metamodelica::List<Arc<Absyn::Exp>>>,
     pub annotation_: Option<Arc<Annotation>>,
-}
-
-impl Default for ExternalDecl {
-    fn default() -> Self {
-        Self {
-            funcName: Default::default(),
-            lang: Default::default(),
-            output_: Default::default(),
-            args: Default::default(),
-            annotation_: Default::default(),
-        }
-    }
 }
 
 pub type EXTERNALDECL = ExternalDecl;
@@ -469,28 +426,12 @@ pub struct AlgorithmSection {
     pub statements: Arc<metamodelica::List<Arc<Statement>>>,
 }
 
-impl Default for AlgorithmSection {
-    fn default() -> Self {
-        Self {
-            statements: Default::default(),
-        }
-    }
-}
-
 pub type ALGORITHM = AlgorithmSection;
 
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ConstraintSection {
     pub constraints: Arc<metamodelica::List<Arc<Absyn::Exp>>>,
-}
-
-impl Default for ConstraintSection {
-    fn default() -> Self {
-        Self {
-            constraints: Default::default(),
-        }
-    }
 }
 
 pub type CONSTRAINTS = ConstraintSection;
@@ -606,9 +547,6 @@ pub enum Visibility {
     /// a protected element
     PROTECTED,
 }
-impl Default for Visibility {
-    fn default() -> Self { Self::PUBLIC }
-}
 pub use self::Visibility::{PUBLIC,PROTECTED};
 
 /// the redeclare prefix
@@ -618,9 +556,6 @@ pub enum Redeclare {
     REDECLARE,
     /// a non redeclare prefix
     NOT_REDECLARE,
-}
-impl Default for Redeclare {
-    fn default() -> Self { Self::REDECLARE }
 }
 pub use self::Redeclare::{REDECLARE,NOT_REDECLARE};
 
@@ -645,9 +580,6 @@ pub enum Replaceable {
     /// a non replaceable prefix
     NOT_REPLACEABLE,
 }
-impl Default for Replaceable {
-    fn default() -> Self { Self::NOT_REPLACEABLE }
-}
 pub use self::Replaceable::{REPLACEABLE,NOT_REPLACEABLE};
 
 /// the final prefix
@@ -657,9 +589,6 @@ pub enum Final {
     FINAL,
     /// a non final prefix
     NOT_FINAL,
-}
-impl Default for Final {
-    fn default() -> Self { Self::FINAL }
 }
 pub use self::Final::{FINAL,NOT_FINAL};
 
@@ -671,9 +600,6 @@ pub enum Each {
     /// a non each prefix
     NOT_EACH,
 }
-impl Default for Each {
-    fn default() -> Self { Self::EACH }
-}
 pub use self::Each::{EACH,NOT_EACH};
 
 /// the encapsulated prefix
@@ -683,9 +609,6 @@ pub enum Encapsulated {
     ENCAPSULATED,
     /// a non encapsulated prefix
     NOT_ENCAPSULATED,
-}
-impl Default for Encapsulated {
-    fn default() -> Self { Self::ENCAPSULATED }
 }
 pub use self::Encapsulated::{ENCAPSULATED,NOT_ENCAPSULATED};
 
@@ -697,9 +620,6 @@ pub enum Partial {
     /// a non partial prefix
     NOT_PARTIAL,
 }
-impl Default for Partial {
-    fn default() -> Self { Self::PARTIAL }
-}
 pub use self::Partial::{PARTIAL,NOT_PARTIAL};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -710,9 +630,6 @@ pub enum ConnectorType {
     FLOW,
     /// A stream prefix.
     STREAM,
-}
-impl Default for ConnectorType {
-    fn default() -> Self { Self::POTENTIAL }
 }
 pub use self::ConnectorType::{POTENTIAL,FLOW,STREAM};
 
@@ -730,18 +647,6 @@ pub struct Prefixes {
     pub innerOuter: Absyn::InnerOuter,
     /// replaceable prefix
     pub replaceablePrefix: Arc<Replaceable>,
-}
-
-impl Default for Prefixes {
-    fn default() -> Self {
-        Self {
-            visibility: Default::default(),
-            redeclarePrefix: Default::default(),
-            finalPrefix: Default::default(),
-            innerOuter: Default::default(),
-            replaceablePrefix: Default::default(),
-        }
-    }
 }
 
 pub type PREFIXES = Prefixes;
@@ -849,19 +754,6 @@ pub struct Attributes {
     pub isField: Absyn::IsField,
 }
 
-impl Default for Attributes {
-    fn default() -> Self {
-        Self {
-            arrayDims: Default::default(),
-            connectorType: Default::default(),
-            parallelism: Default::default(),
-            variability: Default::default(),
-            direction: Default::default(),
-            isField: Default::default(),
-        }
-    }
-}
-
 pub type ATTR = Attributes;
 
 
@@ -874,9 +766,6 @@ pub enum Parallelism {
     PARLOCAL,
     /// Non parallel/Normal variables
     NON_PARALLEL,
-}
-impl Default for Parallelism {
-    fn default() -> Self { Self::PARGLOBAL }
 }
 pub use self::Parallelism::{PARGLOBAL,PARLOCAL,NON_PARALLEL};
 
@@ -892,9 +781,6 @@ pub enum Variability {
     /// a constant
     CONST,
 }
-impl Default for Variability {
-    fn default() -> Self { Self::VAR }
-}
 pub use self::Variability::{VAR,DISCRETE,PARAM,CONST};
 
 /* adrpo: previously present in Inst.mo */
@@ -907,9 +793,6 @@ pub enum Initial {
     INITIAL,
     /// a normal equation or algorithm
     NON_INITIAL,
-}
-impl Default for Initial {
-    fn default() -> Self { Self::INITIAL }
 }
 pub use self::Initial::{INITIAL,NON_INITIAL};
 

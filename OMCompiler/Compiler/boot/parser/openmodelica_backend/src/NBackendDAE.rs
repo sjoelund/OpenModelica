@@ -179,14 +179,6 @@ pub enum NBackendDAE {
         eqData: Arc<EqData::EqData>,
     },
 }
-impl Default for NBackendDAE {
-    fn default() -> Self {
-        Self::HESSIAN {
-            varData: Default::default(),
-            eqData: Default::default(),
-        }
-    }
-}
 pub use self::NBackendDAE::{MAIN,JACOBIAN,HESSIAN};
 pub fn toString(mut bdae: Arc<NBackendDAE>, mut r#str: ArcStr) -> Result<ArcStr> {
     let mut r#str: ArcStr = r#str;

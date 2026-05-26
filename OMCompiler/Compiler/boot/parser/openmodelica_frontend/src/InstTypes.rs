@@ -56,9 +56,6 @@ pub enum CallingScope {
     /// a call to determine type of a class
     TYPE_CALL,
 }
-impl Default for CallingScope {
-    fn default() -> Self { Self::TOP_CALL }
-}
 pub use self::CallingScope::{TOP_CALL,INNER_CALL,TYPE_CALL};
 
 pub type PolymorphicBindings = Arc<metamodelica::List<(ArcStr, Arc<metamodelica::List<Arc<DAE::Type>>>)>>;
@@ -73,9 +70,6 @@ pub enum SearchStrategy {
     SEARCH_LOCAL_ONLY,
     /// this one searches also in the builtin scope, it will find *time* variable
     SEARCH_ALSO_BUILTIN,
-}
-impl Default for SearchStrategy {
-    fn default() -> Self { Self::SEARCH_LOCAL_ONLY }
 }
 pub use self::SearchStrategy::{SEARCH_LOCAL_ONLY,SEARCH_ALSO_BUILTIN};
 

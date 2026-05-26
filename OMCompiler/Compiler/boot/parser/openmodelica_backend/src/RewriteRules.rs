@@ -73,14 +73,6 @@ pub enum Rule {
         to: Arc<Absyn::Exp>,
     },
 }
-impl Default for Rule {
-    fn default() -> Self {
-        Self::FRONTEND_RULE {
-            from: Default::default(),
-            to: Default::default(),
-        }
-    }
-}
 pub use self::Rule::{FRONTEND_RULE,BACKEND_RULE};
 
 pub type Rules = Arc<metamodelica::List<Rule>>;
@@ -98,14 +90,6 @@ pub enum Bind {
         slot: Arc<DAE::Exp>,
         value: Arc<DAE::Exp>,
     },
-}
-impl Default for Bind {
-    fn default() -> Self {
-        Self::FRONTEND_BIND {
-            slot: Default::default(),
-            value: Default::default(),
-        }
-    }
 }
 pub use self::Bind::{FRONTEND_BIND,BACKEND_BIND};
 

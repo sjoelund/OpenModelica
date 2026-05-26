@@ -1641,16 +1641,6 @@ pub struct Distribution {
     pub paramNames: Arc<Expression::NFExpression>,
 }
 
-impl Default for Distribution {
-    fn default() -> Self {
-        Self {
-            name: Default::default(),
-            params: Default::default(),
-            paramNames: Default::default(),
-        }
-    }
-}
-
 pub type DISTRIBUTION = Distribution;
 
 

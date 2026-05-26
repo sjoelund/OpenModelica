@@ -68,16 +68,6 @@ pub struct NFConnections {
     pub broken: BrokenEdges,
 }
 
-impl Default for NFConnections {
-    fn default() -> Self {
-        Self {
-            connections: Default::default(),
-            flows: Default::default(),
-            broken: Default::default(),
-        }
-    }
-}
-
 pub type CONNECTIONS = NFConnections;
 
 #[derive(Clone, Debug, PartialEq)]

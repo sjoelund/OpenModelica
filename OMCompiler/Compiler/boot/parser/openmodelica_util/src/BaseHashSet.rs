@@ -213,8 +213,8 @@ pub fn delete<Key: Clone + 'static>(mut key: Key, mut hashSet: HashSet<Key>) -> 
 
 pub fn has<Key: Clone + 'static>(mut key: Key, mut hashSet: HashSet<Key>) -> Result<bool> {
     let mut b: bool = false;
-    b = (match (key.clone(), hashSet.clone()) {
-        (_, (_, (0, _, _), _, _, _)) => {
+    b = (match hashSet.clone() {
+        (_, (0, _, _), _, _, _) => {
             false
         },
         _ => {
@@ -302,11 +302,9 @@ pub fn dumpHashSet<Key: Clone + 'static>(mut hashSet: HashSet<Key>) -> Result<()
 
 pub fn hashSetList<Key: Clone + 'static>(mut hashSet: HashSet<Key>) -> Result<Arc<metamodelica::List<Key>>> {
     let mut lst: Arc<metamodelica::List<Key>> = metamodelica::nil();
-    lst = (match hashSet.clone() {
-        (_, mut varr, _, _, _) => {
-            valueArrayList(varr.clone())?
-        },
-    });
+    let mut varr: ValueArray<Key>;
+    (_, varr, _, _, _) = hashSet.clone();
+    lst = valueArrayList(varr.clone())?;
     Ok(lst)
 }
 

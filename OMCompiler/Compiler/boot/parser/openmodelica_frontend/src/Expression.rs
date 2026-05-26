@@ -12108,9 +12108,9 @@ pub fn isCrefListWithEqualIdents(mut iExpressions: Arc<metamodelica::List<Arc<DA
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ metamodelica::List::Cons { head: head, tail: _ } => {
+                    let mut crefs: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = crefs.clone();
                     let mut headCref: Arc<DAE::ComponentRef> = headCref.clone();
                     let mut tmpCrefWithEqualIdents: bool = tmpCrefWithEqualIdents.clone();
-                    let mut crefs: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = crefs.clone();
                     let true = (List::all(iExpressions.clone(), Arc::new(fnptr!(isCref, Arc<DAE::Exp>)))) else { bail!("pattern mismatch") };
                     crefs = List::map(iExpressions.clone(), Arc::new(expCref));
                     headCref = expCref(head.clone())?;

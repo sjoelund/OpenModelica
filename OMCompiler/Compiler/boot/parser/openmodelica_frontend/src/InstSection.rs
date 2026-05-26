@@ -138,11 +138,11 @@ fn instEquationCommon(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut in
         if let Ok(__v) = (|| -> Result<_> {
             let () = __mc_input.clone() else { bail!("nomatch") };
             let mut state: ClassInf::State;
-            let mut outGraph: ConnectionGraph::ConnectionGraph;
-            let mut outSets: DAE::Connect::Sets;
-            let mut outEnv: FCore::Graph;
-            let mut outCache: FCore::Cache = outCache.clone();
             let mut outIH: Arc<metamodelica::List<InnerOuter::TopInstance>> = outIH.clone();
+            let mut outSets: DAE::Connect::Sets;
+            let mut outGraph: ConnectionGraph::ConnectionGraph;
+            let mut outCache: FCore::Cache = outCache.clone();
+            let mut outEnv: FCore::Graph;
             let mut outState: ClassInf::State;
             let mut outDae: DAE::DAElist;
             state = ClassInfUtil::trans(inState.clone(), openmodelica_frontend_types::ClassInf::Event::FOUND_EQUATION)?;
@@ -187,13 +187,13 @@ fn instEquationCommonWork(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mu
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ SCode::Equation::EQ_CONNECT { info, crefRight: rhs_acr, crefLeft: lhs_acr, .. } => {
+                    let mut outGraph: ConnectionGraph::ConnectionGraph = outGraph.clone();
+                    let mut outCache: FCore::Cache = outCache.clone();
+                    let mut outState: ClassInf::State;
+                    let mut outSets: DAE::Connect::Sets = outSets.clone();
+                    let mut outIH: Arc<metamodelica::List<InnerOuter::TopInstance>> = outIH.clone();
                     let mut outDae: DAE::DAElist;
                     let mut outEnv: FCore::Graph = outEnv.clone();
-                    let mut outSets: DAE::Connect::Sets = outSets.clone();
-                    let mut outCache: FCore::Cache = outCache.clone();
-                    let mut outIH: Arc<metamodelica::List<InnerOuter::TopInstance>> = outIH.clone();
-                    let mut outGraph: ConnectionGraph::ConnectionGraph = outGraph.clone();
-                    let mut outState: ClassInf::State;
                     if SCodeUtil::isInitial(inInitial.clone()) {
                         Error::addSourceMessage(Error::CONNECT_IN_INITIAL_EQUATION.clone(), metamodelica::nil(), info.clone())?;
                         bail!("fail");
@@ -213,8 +213,8 @@ fn instEquationCommonWork(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mu
                     let mut lhs_prop: DAE::Properties;
                     let mut rhs_prop: DAE::Properties;
                     let mut source: Arc<DAE::ElementSource>;
-                    let mut outCache: FCore::Cache = outCache.clone();
                     let mut outDae: DAE::DAElist;
+                    let mut outCache: FCore::Cache = outCache.clone();
                     let mut outState: ClassInf::State;
                     checkTupleCallEquationMessage(lhs_aexp.clone(), rhs_aexp.clone(), info.clone())?;
                     (outCache, lhs_exp, lhs_prop) = Static::elabExpLHS(inCache.clone(), inEnv.clone(), lhs_aexp.clone(), inImpl.clone(), true, inPrefix.clone(), info.clone())?;
@@ -247,13 +247,13 @@ fn instEquationCommonWork(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mu
                     let mut ell: Arc<metamodelica::List<Arc<metamodelica::List<Arc<DAE::Element>>>>> = metamodelica::nil();
                     let mut el: Arc<metamodelica::List<Arc<DAE::Element>>> = metamodelica::nil();
                     let mut val: Arc<Values::Value> = Arc::new(Values::Value::META_FAIL);
+                    let mut outGraph: ConnectionGraph::ConnectionGraph = outGraph.clone();
+                    let mut outDae: DAE::DAElist;
+                    let mut outState: ClassInf::State;
+                    let mut outEnv: FCore::Graph = outEnv.clone();
                     let mut outIH: Arc<metamodelica::List<InnerOuter::TopInstance>> = outIH.clone();
                     let mut outCache: FCore::Cache = outCache.clone();
-                    let mut outDae: DAE::DAElist;
-                    let mut outGraph: ConnectionGraph::ConnectionGraph = outGraph.clone();
-                    let mut outEnv: FCore::Graph = outEnv.clone();
                     let mut outSets: DAE::Connect::Sets = outSets.clone();
-                    let mut outState: ClassInf::State;
                     (outCache, expl, props) = Static::elabExpList(outCache.clone(), outEnv.clone(), var_field!((*inEquation).condition, SCode::Equation::EQ_IF).clone(), inImpl.clone(), true, inPrefix.clone(), info.clone(), DAE::T_UNKNOWN_DEFAULT.clone())?;
                     prop = Types::propsAnd(props.clone())?;
                     checkIfConditionTypes(prop.clone(), var_field!((*inEquation).condition, SCode::Equation::EQ_IF).clone(), props.clone(), info.clone())?;
@@ -317,10 +317,10 @@ fn instEquationCommonWork(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mu
                     let mut el2: Arc<metamodelica::List<Arc<DAE::Element>>> = metamodelica::nil();
                     let mut else_when: Option<Arc<DAE::Element>> = None;
                     let mut outState: ClassInf::State;
-                    let mut outCache: FCore::Cache = outCache.clone();
-                    let mut outDae: DAE::DAElist;
-                    let mut outIH: Arc<metamodelica::List<InnerOuter::TopInstance>> = outIH.clone();
                     let mut outEnv: FCore::Graph = outEnv.clone();
+                    let mut outDae: DAE::DAElist;
+                    let mut outCache: FCore::Cache = outCache.clone();
+                    let mut outIH: Arc<metamodelica::List<InnerOuter::TopInstance>> = outIH.clone();
                     let mut outGraph: ConnectionGraph::ConnectionGraph = outGraph.clone();
                     if SCodeUtil::isInitial(inInitial.clone()) {
                         Error::addSourceMessageAndFail(Error::INITIAL_WHEN.clone(), metamodelica::nil(), info.clone())?;
@@ -351,11 +351,11 @@ fn instEquationCommonWork(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mu
                     let mut ty: Arc<DAE::Type> = Arc::new(DAE::Type::T_NORETCALL);
                     let mut env: FCore::Graph;
                     let mut val: Arc<Values::Value> = Arc::new(Values::Value::META_FAIL);
-                    let mut outGraph: ConnectionGraph::ConnectionGraph = outGraph.clone();
                     let mut outSets: DAE::Connect::Sets = outSets.clone();
-                    let mut outCache: FCore::Cache = outCache.clone();
+                    let mut outGraph: ConnectionGraph::ConnectionGraph = outGraph.clone();
                     let mut outDae: DAE::DAElist;
                     let mut outState: ClassInf::State;
+                    let mut outCache: FCore::Cache = outCache.clone();
                     if isSome(var_field!((*inEquation).range, SCode::Equation::EQ_FOR).clone()) {
                         let __pa0 = ::match_deref::match_deref! { match &(var_field!((*inEquation).range, SCode::Equation::EQ_FOR).clone()) {
                             Some(__pa0) => __pa0.clone(),
@@ -453,8 +453,8 @@ fn instEquationCommonWork(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mu
                     let mut el: Arc<metamodelica::List<Arc<DAE::Element>>> = metamodelica::nil();
                     let mut ty: Arc<DAE::Type> = Arc::new(DAE::Type::T_NORETCALL);
                     let mut cr: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
-                    let mut outDae: DAE::DAElist;
                     let mut outCache: FCore::Cache = outCache.clone();
+                    let mut outDae: DAE::DAElist;
                     let (__pa0, __pa3, __pa1, __pa2, __pa4) = ::match_deref::match_deref! { match &(Static::elabCrefNoEval(outCache.clone(), inEnv.clone(), acr.clone(), inImpl.clone(), false, inPrefix.clone(), info.clone())?) {
                         (__pa0, __pa3 @ Deref @ DAE::Exp::CREF { componentRef: __pa1, ty: __pa2 }, __pa4, _) => (__pa0.clone(), __pa3.clone(), __pa1.clone(), __pa2.clone(), __pa4.clone()),
                         _ => bail!("pattern mismatch"),
@@ -493,13 +493,13 @@ fn instEquationCommonWork(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mu
                 Deref @ SCode::Equation::EQ_NORETCALL { info, .. } => {
                     let mut exp: Arc<DAE::Exp>;
                     let mut source: Arc<DAE::ElementSource>;
-                    let mut outEnv: FCore::Graph = outEnv.clone();
-                    let mut outSets: DAE::Connect::Sets = outSets.clone();
-                    let mut outIH: Arc<metamodelica::List<InnerOuter::TopInstance>> = outIH.clone();
-                    let mut outGraph: ConnectionGraph::ConnectionGraph = outGraph.clone();
-                    let mut outState: ClassInf::State;
                     let mut outCache: FCore::Cache = outCache.clone();
+                    let mut outGraph: ConnectionGraph::ConnectionGraph = outGraph.clone();
+                    let mut outIH: Arc<metamodelica::List<InnerOuter::TopInstance>> = outIH.clone();
+                    let mut outEnv: FCore::Graph = outEnv.clone();
                     let mut outDae: DAE::DAElist;
+                    let mut outState: ClassInf::State;
+                    let mut outSets: DAE::Connect::Sets = outSets.clone();
                     if isConnectionsOperator(var_field!((*inEquation).exp, SCode::Equation::EQ_NORETCALL).clone()) {
                         (outCache, outEnv, outIH, outDae, outSets, outState, outGraph) = handleConnectionsOperators(inCache.clone(), inEnv.clone(), inIH.clone(), inPrefix.clone(), inSets.clone(), inState.clone(), inEquation.clone(), inInitial.clone(), inImpl.clone(), inGraph.clone(), inFlattenOp.clone())?;
                     } else {

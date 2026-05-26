@@ -123,13 +123,6 @@ pub enum Dimension {
         dimension: Arc<DAE::Dimension>,
     },
 }
-impl Default for Dimension {
-    fn default() -> Self {
-        Self::TYPED_DIMENSION {
-            dimension: Default::default(),
-        }
-    }
-}
 pub use self::Dimension::{UNTYPED_DIMENSION,TYPED_DIMENSION};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -156,9 +149,6 @@ pub enum Binding {
         propagatedDims: i32,
         info: SourceInfo,
     },
-}
-impl Default for Binding {
-    fn default() -> Self { Self::UNBOUND }
 }
 pub use self::Binding::{UNBOUND,RAW_BINDING,UNTYPED_BINDING,TYPED_BINDING};
 
@@ -213,13 +203,6 @@ pub enum Condition {
         conditions: Arc<metamodelica::List<Arc<Condition>>>,
     },
 }
-impl Default for Condition {
-    fn default() -> Self {
-        Self::SINGLE_CONDITION {
-            condition: Default::default(),
-        }
-    }
-}
 pub use self::Condition::{SINGLE_CONDITION,ARRAY_CONDITION};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -230,9 +213,6 @@ pub enum ParamType {
     NON_STRUCT_PARAM,
     /// A structural parameter.
     STRUCT_PARAM,
-}
-impl Default for ParamType {
-    fn default() -> Self { Self::NON_PARAM }
 }
 pub use self::ParamType::{NON_PARAM,NON_STRUCT_PARAM,STRUCT_PARAM};
 
@@ -255,9 +235,6 @@ pub enum Modifier {
         constrainingClass: Option<Arc<ConstrainingClass>>,
     },
     NOMOD,
-}
-impl Default for Modifier {
-    fn default() -> Self { Self::NOMOD }
 }
 pub use self::Modifier::{MODIFIER,REDECLARE,NOMOD};
 
@@ -283,9 +260,6 @@ pub enum Prefixes {
         varArgs: VarArgs,
     },
 }
-impl Default for Prefixes {
-    fn default() -> Self { Self::NO_PREFIXES }
-}
 pub use self::Prefixes::{NO_PREFIXES,PREFIXES};
 
 pub static DEFAULT_PROTECTED_PREFIXES: std::sync::LazyLock<Prefixes> = std::sync::LazyLock::new(|| { Prefixes::PREFIXES { visibility: openmodelica_frontend_types::SCode::Visibility::PROTECTED, variability: openmodelica_frontend_types::SCode::Variability::VAR, finalPrefix: openmodelica_frontend_types::SCode::Final::NOT_FINAL, innerOuter: openmodelica_ast::Absyn::InnerOuter::NOT_INNER_OUTER, direction: (openmodelica_ast::Absyn::Direction::BIDIR, Absyn::dummyInfo.clone()), connectorType: (openmodelica_frontend_types::SCode::ConnectorType::POTENTIAL, Absyn::dummyInfo.clone()), varArgs: crate::NFInstTypes::VarArgs::NO_VARARG } });
@@ -296,9 +270,6 @@ pub static DEFAULT_INPUT_PREFIXES: std::sync::LazyLock<Prefixes> = std::sync::La
 pub enum VarArgs {
     NO_VARARG,
     IS_VARARG,
-}
-impl Default for VarArgs {
-    fn default() -> Self { Self::NO_VARARG }
 }
 pub use self::VarArgs::{NO_VARARG,IS_VARARG};
 
@@ -313,9 +284,6 @@ pub enum DaePrefixes {
         direction: DAE::VarDirection,
         connectorType: Arc<DAE::ConnectorType>,
     },
-}
-impl Default for DaePrefixes {
-    fn default() -> Self { Self::NO_DAE_PREFIXES }
 }
 pub use self::DaePrefixes::{NO_DAE_PREFIXES,DAE_PREFIXES};
 
@@ -479,16 +447,6 @@ pub struct FunctionSlot {
     pub defaultValue: Option<Arc<DAE::Exp>>,
 }
 
-impl Default for FunctionSlot {
-    fn default() -> Self {
-        Self {
-            name: Default::default(),
-            arg: Default::default(),
-            defaultValue: Default::default(),
-        }
-    }
-}
-
 pub type SLOT = FunctionSlot;
 
 
@@ -526,9 +484,6 @@ pub enum EntryOrigin {
         originEnv: Env,
     },
 }
-impl Default for EntryOrigin {
-    fn default() -> Self { Self::LOCAL_ORIGIN }
-}
 pub use self::EntryOrigin::{LOCAL_ORIGIN,BUILTIN_ORIGIN,INHERITED_ORIGIN,REDECLARED_ORIGIN,IMPORTED_ORIGIN};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -554,9 +509,6 @@ pub enum ScopeType {
         iterIndex: i32,
     },
 }
-impl Default for ScopeType {
-    fn default() -> Self { Self::BUILTIN_SCOPE }
-}
 pub use self::ScopeType::{BUILTIN_SCOPE,TOP_SCOPE,NORMAL_SCOPE,IMPLICIT_SCOPE};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -565,17 +517,6 @@ pub struct Frame {
     pub prefix: Option<Arc<NFInstPrefix::Prefix>>,
     pub scopeType: ScopeType,
     pub entries: Arc<AvlTree>,
-}
-
-impl Default for Frame {
-    fn default() -> Self {
-        Self {
-            name: Default::default(),
-            prefix: Default::default(),
-            scopeType: Default::default(),
-            entries: Default::default(),
-        }
-    }
 }
 
 pub type FRAME = Frame;
@@ -598,17 +539,6 @@ pub struct AvlTree {
     pub left: Option<Arc<AvlTree>>,
     /// right subtree
     pub right: Option<Arc<AvlTree>>,
-}
-
-impl Default for AvlTree {
-    fn default() -> Self {
-        Self {
-            value: Default::default(),
-            height: Default::default(),
-            left: Default::default(),
-            right: Default::default(),
-        }
-    }
 }
 
 pub type AVLTREENODE = AvlTree;

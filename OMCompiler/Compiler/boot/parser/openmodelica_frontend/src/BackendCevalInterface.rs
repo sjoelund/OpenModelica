@@ -57,16 +57,6 @@ pub struct BackendInterfaceFunctions {
     pub elabCallInteractive: partialElabCallInteractive,
 }
 
-impl Default for BackendInterfaceFunctions {
-    fn default() -> Self {
-        Self {
-            cevalInteractiveFunctions: { let __placeholder: partialCevalInteractiveFunctions = |_, _, _, _, _| panic!("default-constructed placeholder fn must not be called"); __placeholder },
-            cevalCallFunction: { let __placeholder: partialCevalCallFunction = |_, _, _, _, _, _, _| panic!("default-constructed placeholder fn must not be called"); __placeholder },
-            elabCallInteractive: { let __placeholder: partialElabCallInteractive = |_, _, _, _, _, _, _, _| panic!("default-constructed placeholder fn must not be called"); __placeholder },
-        }
-    }
-}
-
 pub type BACKEND_INTERFACE_FUNCTIONS = BackendInterfaceFunctions;
 
 

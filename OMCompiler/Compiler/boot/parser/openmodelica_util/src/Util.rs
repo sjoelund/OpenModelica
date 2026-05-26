@@ -56,9 +56,6 @@ pub enum Status {
     SUCCESS,
     FAILURE,
 }
-impl Default for Status {
-    fn default() -> Self { Self::SUCCESS }
-}
 pub use self::Status::{SUCCESS,FAILURE};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -69,19 +66,6 @@ pub struct DateTime {
     pub mday: i32,
     pub mon: i32,
     pub year: i32,
-}
-
-impl Default for DateTime {
-    fn default() -> Self {
-        Self {
-            sec: Default::default(),
-            min: Default::default(),
-            hour: Default::default(),
-            mday: Default::default(),
-            mon: Default::default(),
-            year: Default::default(),
-        }
-    }
 }
 
 pub type DATETIME = DateTime;

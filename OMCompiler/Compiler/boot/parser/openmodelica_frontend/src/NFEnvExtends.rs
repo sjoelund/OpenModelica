@@ -97,9 +97,6 @@ pub enum ExtendsWrapper {
     },
     NO_EXTENDS,
 }
-impl Default for ExtendsWrapper {
-    fn default() -> Self { Self::NO_EXTENDS }
-}
 pub use self::ExtendsWrapper::{UNQUALIFIED_EXTENDS,QUALIFIED_EXTENDS,NO_EXTENDS};
 
 pub fn update(mut inEnv: Env) -> Result<Env> {

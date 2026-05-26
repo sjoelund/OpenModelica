@@ -158,9 +158,6 @@ pub enum Context {
         inputExp: Arc<Absyn::Exp>,
     },
 }
-impl Default for Context {
-    fn default() -> Self { Self::PACKAGE }
-}
 pub use self::Context::{FUNCTION,FUNCTION_RETURN_CONTEXT,PACKAGE,UNIONTYPE,NO_CONTEXT,INPUT_CONTEXT,MATCH_CONTEXT};
 
 pub static packageContext: Context = crate::MMToJuliaUtil::Context::PACKAGE;

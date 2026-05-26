@@ -79,8 +79,8 @@ pub fn readCalcTimesFromFile(mut iFileNamePrefix: ArcStr) -> Result<Arc<metamode
         let __mc_input = iFileNamePrefix.clone();
         if let Ok(__v) = (|| -> Result<_> {
             let _ = __mc_input.clone() else { bail!("nomatch") };
-            let mut tmpCalcTimes: Arc<metamodelica::List<(i32, i32, metamodelica::Real)>> = tmpCalcTimes.clone();
             let mut fullFileName: ArcStr = fullFileName.clone();
+            let mut tmpCalcTimes: Arc<metamodelica::List<(i32, i32, metamodelica::Real)>> = tmpCalcTimes.clone();
             fullFileName = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*iFileNamePrefix.clone()); __mm_s.push_str(&*literal!(".json")); ArcStr::from(__mm_s) }).clone();
             let Some(_) = (System::getFileModificationTime((fullFileName.clone()).clone())) else { bail!("pattern mismatch") };
             println!("{}", (literal!("Using json-file\n")).clone());
@@ -89,8 +89,8 @@ pub fn readCalcTimesFromFile(mut iFileNamePrefix: ArcStr) -> Result<Arc<metamode
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             let _ = __mc_input.clone() else { bail!("nomatch") };
-            let mut fullFileName: ArcStr = fullFileName.clone();
             let mut tmpCalcTimes: Arc<metamodelica::List<(i32, i32, metamodelica::Real)>> = tmpCalcTimes.clone();
+            let mut fullFileName: ArcStr = fullFileName.clone();
             fullFileName = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*iFileNamePrefix.clone()); __mm_s.push_str(&*literal!(".xml")); ArcStr::from(__mm_s) }).clone();
             let Some(_) = (System::getFileModificationTime((fullFileName.clone()).clone())) else { bail!("pattern mismatch") };
             tmpCalcTimes = readCalcTimesFromXml((fullFileName.clone()).clone())?;
@@ -138,9 +138,9 @@ fn expandCalcTimes(mut iList: Arc<metamodelica::List<metamodelica::Real>>, mut i
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ metamodelica::List::Cons { head: numOfCalcs, tail: Deref @ metamodelica::List::Cons { head: calcTimeSum, tail: Deref @ metamodelica::List::Cons { head: eqIdx, tail: rest } } }, _) => {
-                    let mut intEqIdx: i32 = intEqIdx.clone();
                     let mut intNumOfCalcs: i32 = intNumOfCalcs.clone();
                     let mut tmpTuples: Arc<metamodelica::List<(i32, i32, metamodelica::Real)>> = tmpTuples.clone();
+                    let mut intEqIdx: i32 = intEqIdx.clone();
                     intNumOfCalcs = ((numOfCalcs.clone()).0 as i32);
                     intEqIdx = ((eqIdx.clone()).0 as i32);
                     tmpTuples = expandCalcTimes(rest.clone(), cons((intEqIdx.clone(), intNumOfCalcs.clone(), calcTimeSum.clone()), iTuples.clone()))?;

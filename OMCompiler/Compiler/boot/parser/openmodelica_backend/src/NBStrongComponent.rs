@@ -290,25 +290,6 @@ pub struct CountCollector {
     pub loop_nlin: i32,
 }
 
-impl Default for CountCollector {
-    fn default() -> Self {
-        Self {
-            single_scalar: Default::default(),
-            single_array: Default::default(),
-            single_record: Default::default(),
-            multi_algorithm: Default::default(),
-            multi_when: Default::default(),
-            multi_if: Default::default(),
-            multi_tpl: Default::default(),
-            resizable_for: Default::default(),
-            generic_for: Default::default(),
-            entwined_for: Default::default(),
-            loop_lin: Default::default(),
-            loop_nlin: Default::default(),
-        }
-    }
-}
-
 pub type COUNT_COLLECTOR = CountCollector;
 
 

@@ -65,22 +65,6 @@ pub struct SCodeDumpOptions {
     pub stripOutputBindings: bool,
 }
 
-impl Default for SCodeDumpOptions {
-    fn default() -> Self {
-        Self {
-            stripAlgorithmSections: Default::default(),
-            stripProtectedImports: Default::default(),
-            stripProtectedClasses: Default::default(),
-            stripProtectedComponents: Default::default(),
-            stripMetaRecords: Default::default(),
-            stripGraphicalAnnotations: Default::default(),
-            stripStringComments: Default::default(),
-            stripExternalDecl: Default::default(),
-            stripOutputBindings: Default::default(),
-        }
-    }
-}
-
 pub type OPTIONS = SCodeDumpOptions;
 
 

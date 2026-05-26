@@ -102,9 +102,6 @@ pub mod CacheTree {
         },
         EMPTY,
     }
-    impl Default for Tree {
-        fn default() -> Self { Self::EMPTY }
-    }
     pub use self::Tree::{NODE,LEAF,EMPTY};
 
     pub type ValueNode = ArcStr;
@@ -751,16 +748,6 @@ pub struct ParseInfo {
     pub wasFatalError: bool,
 }
 
-impl Default for ParseInfo {
-    fn default() -> Self {
-        Self {
-            fileName: Default::default(),
-            errors: Default::default(),
-            wasFatalError: Default::default(),
-        }
-    }
-}
-
 pub type PARSE_INFO = ParseInfo;
 
 
@@ -770,17 +757,6 @@ pub struct LineInfo {
     pub lineNumber: i32,
     pub lineLength: i32,
     pub startOfLineChars: Arc<metamodelica::List<ArcStr>>,
-}
-
-impl Default for LineInfo {
-    fn default() -> Self {
-        Self {
-            parseInfo: Default::default(),
-            lineNumber: Default::default(),
-            lineLength: Default::default(),
-            startOfLineChars: Default::default(),
-        }
-    }
 }
 
 pub type LINE_INFO = LineInfo;

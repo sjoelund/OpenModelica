@@ -81,13 +81,6 @@ pub enum Unit {
         unit: ArcStr,
     },
 }
-impl Default for Unit {
-    fn default() -> Self {
-        Self::MASTER {
-            varList: Default::default(),
-        }
-    }
-}
 pub use self::Unit::{UNIT,MASTER,UNKNOWN};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -102,9 +95,6 @@ pub enum Token {
     T_DIV,
     T_LPAREN,
     T_RPAREN,
-}
-impl Default for Token {
-    fn default() -> Self { Self::T_MUL }
 }
 pub use self::Token::{T_NUMBER,T_UNIT,T_MUL,T_DIV,T_LPAREN,T_RPAREN};
 

@@ -62,15 +62,6 @@ pub struct Style {
     pub value: ArcStr,
 }
 
-impl Default for Style {
-    fn default() -> Self {
-        Self {
-            name: Default::default(),
-            value: Default::default(),
-        }
-    }
-}
-
 pub type STYLE = Style;
 
 
@@ -109,13 +100,6 @@ pub enum Tag {
         attr: Arc<metamodelica::List<ArcStr>>,
     },
 }
-impl Default for Tag {
-    fn default() -> Self {
-        Self::ANKER {
-            name: Default::default(),
-        }
-    }
-}
 pub use self::Tag::{HEADING,HYPERLINK,ANKER,LINE,DIVISION,SCRIPT,SCRIPT_BODY,CANVAS};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -125,16 +109,6 @@ pub struct Document {
     pub head: Arc<metamodelica::List<Arc<Tag>>>,
     /// because of performance issues tags in reverse order
     pub body: Arc<metamodelica::List<Arc<Tag>>>,
-}
-
-impl Default for Document {
-    fn default() -> Self {
-        Self {
-            docType: Default::default(),
-            head: Default::default(),
-            body: Default::default(),
-        }
-    }
 }
 
 pub type DOCUMENT = Document;

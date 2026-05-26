@@ -197,8 +197,8 @@ fn cevalWork2(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inExp: Arc
         let __mc_input = ();
         if let Ok(__v) = (|| -> Result<_> {
                     let () = __mc_input.clone() else { bail!("nomatch") };
-                    let mut v: Arc<Values::Value>;
                     let mut dims: Arc<metamodelica::List<i32>>;
+                    let mut v: Arc<Values::Value>;
                     dims = List::map(arrayDims.clone(), Arc::new(Expression::dimensionSize));
                     v = Arc::new(Values::Value::ARRAY { valueLst: es_1.clone(), dimLst: dims.clone() });
                     Ok(v.clone())
@@ -1443,8 +1443,8 @@ pub fn cevalIfConstant(mut cache: FCore::Cache, mut inEnv: FCore::Graph, mut exp
         if let Ok(__v) = (|| -> Result<_> {
             let DAE::Properties::PROP_TUPLE { .. } = __mc_input.clone() else { bail!("nomatch") };
             let mut v: Arc<Values::Value> = Arc::new(Values::Value::META_FAIL);
-            let mut cache: FCore::Cache = cache.clone();
             let mut exp: Arc<DAE::Exp> = exp.clone();
+            let mut cache: FCore::Cache = cache.clone();
             let DAE::C_CONST { .. } = (Types::propAllConst(prop.clone())?) else { bail!("pattern mismatch") };
             (cache, v) = ceval(cache.clone(), inEnv.clone(), exp.clone(), false, Absyn::Msg::MSG { info: inInfo.clone() }, 0)?;
             exp = ValuesUtil::valueExp(v.clone(), Some(exp.clone()))?;

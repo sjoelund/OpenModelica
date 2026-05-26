@@ -61,15 +61,6 @@ pub struct PathEntry {
     pub shadowed: bool,
 }
 
-impl Default for PathEntry {
-    fn default() -> Self {
-        Self {
-            tree: Default::default(),
-            shadowed: Default::default(),
-        }
-    }
-}
-
 pub type ENTRY = PathEntry;
 
 
@@ -119,9 +110,6 @@ pub mod PathTree {
             value: Value,
         },
         EMPTY,
-    }
-    impl Default for Tree {
-        fn default() -> Self { Self::EMPTY }
     }
     pub use self::Tree::{NODE,LEAF,EMPTY};
 
@@ -771,16 +759,6 @@ pub mod Paths {
         pub currentPath: Arc<metamodelica::List<ArcStr>>,
     }
 
-    impl Default for Paths {
-        fn default() -> Self {
-            Self {
-                tree: Default::default(),
-                relativePath: Default::default(),
-                currentPath: Default::default(),
-            }
-        }
-    }
-
     pub type PATHS = Paths;
 
     pub fn currentPathStr(mut paths: Arc<Paths>) -> ArcStr {
@@ -882,8 +860,8 @@ fn lookupPath(mut path: Arc<Absyn::Path>, mut paths: Arc<PathTree::Tree>, mut ex
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ Absyn::Path::QUALIFIED { .. } => {
-                    let mut entry: Arc<PathEntry>;
                     let mut found: bool = found.clone();
+                    let mut entry: Arc<PathEntry>;
                     entry = PathTree::get(paths.clone(), (var_field!((*path).name, Absyn::Path::QUALIFIED).clone()).clone())?;
                     if entry.shadowed.clone() && !(fullyQualified.clone()) {
                         found = false;

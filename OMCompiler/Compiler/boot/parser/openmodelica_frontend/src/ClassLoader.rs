@@ -75,13 +75,6 @@ pub enum PackageOrder {
         cl: ArcStr,
     },
 }
-impl Default for PackageOrder {
-    fn default() -> Self {
-        Self::CLASSPART {
-            cp: Default::default(),
-        }
-    }
-}
 pub use self::PackageOrder::{CLASSPART,ELEMENT,CLASSLOAD};
 
 #[derive(Clone, Debug, PartialEq)]
@@ -92,13 +85,6 @@ pub enum LoadFileStrategy {
     STRATEGY_ON_DEMAND {
         encoding: ArcStr,
     },
-}
-impl Default for LoadFileStrategy {
-    fn default() -> Self {
-        Self::STRATEGY_HASHTABLE {
-            ht: Default::default(),
-        }
-    }
 }
 pub use self::LoadFileStrategy::{STRATEGY_HASHTABLE,STRATEGY_ON_DEMAND};
 

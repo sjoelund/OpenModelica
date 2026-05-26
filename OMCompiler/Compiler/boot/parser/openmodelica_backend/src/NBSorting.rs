@@ -454,13 +454,6 @@ pub mod SuperNode {
             arr_idx: i32,
         },
     }
-    impl Default for SuperNode {
-        fn default() -> Self {
-            Self::SINGLE {
-                index: Default::default(),
-            }
-        }
-    }
     pub use self::SuperNode::{SINGLE,ELEMENT,ALGEBRAIC_LOOP,ARRAY_BUCKET};
     pub fn toString(mut node: Arc<SuperNode>) -> Result<ArcStr> {
         let mut r#str: ArcStr = arcstr::literal!("");

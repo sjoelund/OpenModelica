@@ -81,8 +81,8 @@ pub fn registerUnitWeights(mut cache: FCore::Cache, mut env: FCore::Graph, mut d
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             let (_, _, DAE::DAElist { elementLst: ref elts }) = __mc_input.clone() else { bail!("nomatch") };
-            let mut du: Arc<metamodelica::List<Arc<SCode::Element>>> = du.clone();
             let mut paths: Arc<metamodelica::List<Arc<Absyn::Path>>> = paths.clone();
+            let mut du: Arc<metamodelica::List<Arc<SCode::Element>>> = du.clone();
             paths = List::unionList(List::map(elts.clone(), Arc::new(fnptr!(DAEUtil::getClassList, Arc<DAE::Element>))))?;
             du = List::unionList(List::map1(paths.clone(), Arc::new(retrieveUnitsFromEnv), (cache.clone(), env.clone())))?;
             registerUnitWeightDefineunits(du.clone())?;
@@ -1480,8 +1480,8 @@ fn buildResultTerms(mut ifunctp: Arc<DAE::Type>, mut funcInstId: i32, mut funcCa
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ DAE::Type::T_FUNCTION { funcResultType: Deref @ DAE::Type::T_TUPLE { types: typeLst, .. }, .. }, _, _, store) => {
                     let mut store = (*store).clone();
-                    let mut terms: Arc<metamodelica::List<Arc<UnitAbsyn::UnitTerm>>> = terms.clone();
                     let mut extraTerms: Arc<metamodelica::List<Arc<UnitAbsyn::UnitTerm>>> = extraTerms.clone();
+                    let mut terms: Arc<metamodelica::List<Arc<UnitAbsyn::UnitTerm>>> = terms.clone();
                     (terms, extraTerms, store) = buildTupleResultTerms(typeLst.clone(), funcInstId.clone(), funcCallExp.clone(), store.clone())?;
                     Ok((terms.clone(), extraTerms.clone(), store.clone()))
                 }

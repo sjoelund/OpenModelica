@@ -75,14 +75,6 @@ pub enum Text {
         blocksStack: Mutable::Mutable<Arc<metamodelica::List<BlockTypeFileText>>>,
     },
 }
-impl Default for Text {
-    fn default() -> Self {
-        Self::MEM_TEXT {
-            tokens: Default::default(),
-            blocksStack: Default::default(),
-        }
-    }
-}
 pub use self::Text::{MEM_TEXT,FILE_TEXT};
 
 pub static emptyTxt: std::sync::LazyLock<Text> = std::sync::LazyLock::new(|| { Text::MEM_TEXT { tokens: metamodelica::nil(), blocksStack: metamodelica::nil() } });
@@ -97,19 +89,6 @@ pub struct BlockTypeFileText {
     /// Usage depends on bt; stores the last file position to know if it is empty or not.
     pub tell: Mutable::Mutable<i32>,
     pub septok: Mutable::Mutable<Option<Arc<StringToken>>>,
-}
-
-impl Default for BlockTypeFileText {
-    fn default() -> Self {
-        Self {
-            bt: Default::default(),
-            nchars: Default::default(),
-            aind: Default::default(),
-            isstart: Default::default(),
-            tell: Default::default(),
-            septok: Default::default(),
-        }
-    }
 }
 
 pub type BT_FILE_TEXT = BlockTypeFileText;
@@ -161,9 +140,6 @@ pub enum BlockType {
         options: Arc<IterOptions>,
         index0: Mutable::Mutable<i32>,
     },
-}
-impl Default for BlockType {
-    fn default() -> Self { Self::BT_TEXT }
 }
 pub use self::BlockType::{BT_TEXT,BT_INDENT,BT_ABS_INDENT,BT_REL_INDENT,BT_ANCHOR,BT_ITER};
 

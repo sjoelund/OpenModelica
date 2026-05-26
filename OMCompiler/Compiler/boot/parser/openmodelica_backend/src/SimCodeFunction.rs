@@ -84,20 +84,6 @@ pub struct FunctionCode {
     pub extraRecordDecls: Arc<metamodelica::List<RecordDeclaration>>,
 }
 
-impl Default for FunctionCode {
-    fn default() -> Self {
-        Self {
-            name: Default::default(),
-            mainFunction: Default::default(),
-            functions: Default::default(),
-            literals: Default::default(),
-            externalFunctionIncludes: Default::default(),
-            makefileParams: Default::default(),
-            extraRecordDecls: Default::default(),
-        }
-    }
-}
-
 pub type FUNCTIONCODE = FunctionCode;
 
 
@@ -277,27 +263,6 @@ pub struct MakefileParams {
     pub compileDir: ArcStr,
 }
 
-impl Default for MakefileParams {
-    fn default() -> Self {
-        Self {
-            ccompiler: Default::default(),
-            cxxcompiler: Default::default(),
-            linker: Default::default(),
-            exeext: Default::default(),
-            dllext: Default::default(),
-            omhome: Default::default(),
-            cflags: Default::default(),
-            ldflags: Default::default(),
-            runtimelibs: Default::default(),
-            includes: Default::default(),
-            libs: Default::default(),
-            libPaths: Default::default(),
-            platform: Default::default(),
-            compileDir: Default::default(),
-        }
-    }
-}
-
 pub type MAKEFILE_PARAMS = MakefileParams;
 
 
@@ -329,9 +294,6 @@ pub mod SimExtArg {
             exp: Arc<DAE::Exp>,
         },
         SIMNOEXTARG,
-    }
-    impl Default for SimExtArg {
-        fn default() -> Self { Self::SIMNOEXTARG }
     }
     pub use self::SimExtArg::{SIMEXTARG,SIMEXTARGEXP,SIMEXTARGSIZE,SIMNOEXTARG};
     pub fn toString(mut simExtArg: Arc<SimExtArg>) -> Result<ArcStr> {
@@ -466,9 +428,6 @@ pub enum Context {
         /// used to get local SimVars and corresponding value references
         hashTable: Option<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))>,
     },
-}
-impl Default for Context {
-    fn default() -> Self { Self::OTHER_CONTEXT }
 }
 pub use self::Context::{SIMULATION_CONTEXT,FUNCTION_CONTEXT,ALGLOOP_CONTEXT,JACOBIAN_CONTEXT,OTHER_CONTEXT,ZEROCROSSINGS_CONTEXT,OPTIMIZATION_CONTEXT,FMI_CONTEXT,DAE_MODE_CONTEXT,OMSI_CONTEXT};
 

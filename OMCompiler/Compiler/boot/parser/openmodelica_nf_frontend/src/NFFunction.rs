@@ -213,9 +213,6 @@ pub mod FunctionMatchKind {
         },
         NOT_COMPATIBLE,
     }
-    impl Default for FunctionMatchKind {
-        fn default() -> Self { Self::EXACT }
-    }
     pub use self::FunctionMatchKind::{EXACT,CAST,GENERIC,VECTORIZED,NOT_COMPATIBLE};
     pub fn isValid(mut mk: Arc<FunctionMatchKind>) -> bool {
         let mut b: bool = false;

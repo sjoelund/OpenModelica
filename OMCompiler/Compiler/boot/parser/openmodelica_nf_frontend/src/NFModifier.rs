@@ -108,9 +108,6 @@ pub mod ModTable {
         },
         EMPTY,
     }
-    impl Default for Tree {
-        fn default() -> Self { Self::EMPTY }
-    }
     pub use self::Tree::{NODE,LEAF,EMPTY};
 
     pub type Value = Arc<Modifier::Modifier>;
@@ -767,13 +764,6 @@ pub mod ModifierScope {
             path: Arc<Absyn::Path>,
         },
     }
-    impl Default for ModifierScope {
-        fn default() -> Self {
-            Self::COMPONENT {
-                name: Default::default(),
-            }
-        }
-    }
     pub use self::ModifierScope::{COMPONENT,CLASS,EXTENDS};
     pub fn fromElement(mut element: Arc<SCode::Element>) -> Result<Arc<ModifierScope>> {
         let mut scope: Arc<ModifierScope>;
@@ -842,9 +832,6 @@ pub mod Modifier {
             propagatedSubs: Arc<metamodelica::List<Arc<Subscript::NFSubscript>>>,
         },
         NOMOD,
-    }
-    impl Default for Modifier {
-        fn default() -> Self { Self::NOMOD }
     }
     pub use self::Modifier::{MODIFIER,REDECLARE,NOMOD};
     pub fn create(mut r#mod: Arc<SCode::Mod>, mut name: ArcStr, mut modScope: Arc<ModifierScope::ModifierScope>, mut scope: Arc<InstNode::InstNode>) -> Result<Arc<Modifier>> {

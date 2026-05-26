@@ -76,13 +76,6 @@ pub enum PathIdent {
         path: Arc<PathIdent>,
     },
 }
-impl Default for PathIdent {
-    fn default() -> Self {
-        Self::IDENT {
-            ident: Default::default(),
-        }
-    }
-}
 pub use self::PathIdent::{IDENT,PATH_IDENT};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -114,9 +107,6 @@ pub enum TypeSignature {
     UNRESOLVED_TYPE {
         reason: ArcStr,
     },
-}
-impl Default for TypeSignature {
-    fn default() -> Self { Self::STRING_TYPE }
 }
 pub use self::TypeSignature::{LIST_TYPE,ARRAY_TYPE,OPTION_TYPE,TUPLE_TYPE,NAMED_TYPE,STRING_TYPE,TEXT_TYPE,STRING_TOKEN_TYPE,INTEGER_TYPE,REAL_TYPE,BOOLEAN_TYPE,UNRESOLVED_TYPE};
 
@@ -194,9 +184,6 @@ pub enum ExpressionBase {
     /// Parse error expression used when parser error occured.
     ERROR_EXP,
 }
-impl Default for ExpressionBase {
-    fn default() -> Self { Self::SOFT_NEW_LINE }
-}
 pub use self::ExpressionBase::{TEMPLATE,STR_TOKEN,LITERAL,SOFT_NEW_LINE,BOUND_VALUE,FUN_CALL,CONDITION,MATCH,MAP,MAP_ARG_LIST,ESCAPED,INDENTATION,LET,TEXT_CREATE,TEXT_ADD,NORET_CALL,ERROR_EXP};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -236,9 +223,6 @@ pub enum MatchingExp {
     },
     REST_MATCH,
 }
-impl Default for MatchingExp {
-    fn default() -> Self { Self::NONE_MATCH }
-}
 pub use self::MatchingExp::{BIND_AS_MATCH,BIND_MATCH,RECORD_MATCH,SOME_MATCH,NONE_MATCH,TUPLE_MATCH,LIST_MATCH,LIST_CONS_MATCH,STRING_MATCH,LITERAL_MATCH,REST_MATCH};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -263,13 +247,6 @@ pub enum TypeInfo {
         constType: Arc<TypeSignature>,
     },
 }
-impl Default for TypeInfo {
-    fn default() -> Self {
-        Self::TI_UNION_TYPE {
-            recTags: Default::default(),
-        }
-    }
-}
 pub use self::TypeInfo::{TI_UNION_TYPE,TI_RECORD_TYPE,TI_ALIAS_TYPE,TI_FUN_TYPE,TI_CONST_TYPE};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -277,16 +254,6 @@ pub struct ASTDef {
     pub importPackage: Arc<PathIdent>,
     pub isDefault: bool,
     pub types: Arc<metamodelica::List<(ArcStr, TypeInfo)>>,
-}
-
-impl Default for ASTDef {
-    fn default() -> Self {
-        Self {
-            importPackage: Default::default(),
-            isDefault: Default::default(),
-            types: Default::default(),
-        }
-    }
 }
 
 pub type AST_DEF = ASTDef;
@@ -298,17 +265,6 @@ pub struct TemplPackage {
     pub astDefs: Arc<metamodelica::List<ASTDef>>,
     pub templateDefs: Arc<metamodelica::List<(ArcStr, TemplateDef)>>,
     pub annotationFooter: ArcStr,
-}
-
-impl Default for TemplPackage {
-    fn default() -> Self {
-        Self {
-            name: Default::default(),
-            astDefs: Default::default(),
-            templateDefs: Default::default(),
-            annotationFooter: Default::default(),
-        }
-    }
 }
 
 pub type TEMPL_PACKAGE = TemplPackage;
@@ -330,14 +286,6 @@ pub enum TemplateDef {
         exp: Expression,
     },
 }
-impl Default for TemplateDef {
-    fn default() -> Self {
-        Self::LITERAL_DEF {
-            value: Default::default(),
-            litType: Default::default(),
-        }
-    }
-}
 pub use self::TemplateDef::{STR_TOKEN_DEF,LITERAL_DEF,TEMPLATE_DEF};
 
 /* Output AST */
@@ -347,16 +295,6 @@ pub struct MMPackage {
     pub name: Arc<PathIdent>,
     pub mmDeclarations: Arc<metamodelica::List<MMDeclaration>>,
     pub annotationFooter: ArcStr,
-}
-
-impl Default for MMPackage {
-    fn default() -> Self {
-        Self {
-            name: Default::default(),
-            mmDeclarations: Default::default(),
-            annotationFooter: Default::default(),
-        }
-    }
 }
 
 pub type MM_PACKAGE = MMPackage;
@@ -389,14 +327,6 @@ pub enum MMDeclaration {
         /// internal use only - a type of elaboration of the funtion.
         genInfoOpt: GenInfo,
     },
-}
-impl Default for MMDeclaration {
-    fn default() -> Self {
-        Self::MM_IMPORT {
-            isPublic: Default::default(),
-            packageName: Default::default(),
-        }
-    }
 }
 pub use self::MMDeclaration::{MM_IMPORT,MM_STR_TOKEN_DECL,MM_LITERAL_DECL,MM_FUN};
 
@@ -434,13 +364,6 @@ pub enum MMExp {
         eltName: Ident,
         statements: Arc<metamodelica::List<Arc<MMExp>>>,
     },
-}
-impl Default for MMExp {
-    fn default() -> Self {
-        Self::MM_IDENT {
-            ident: Default::default(),
-        }
-    }
 }
 pub use self::MMExp::{MM_ASSIGN,MM_FN_CALL,MM_IDENT,MM_STR_TOKEN,MM_STRING,MM_LITERAL,MM_MATCH,MM_FOR_LOOP};
 
@@ -571,14 +494,6 @@ pub enum Scope {
         freshIdent: Ident,
     },
 }
-impl Default for Scope {
-    fn default() -> Self {
-        Self::FUN_SCOPE {
-            args: Default::default(),
-            localArgs: Default::default(),
-        }
-    }
-}
 pub use self::Scope::{FUN_SCOPE,CASE_SCOPE,LET_SCOPE,RECURSIVE_SCOPE};
 
 #[derive(Clone, Debug, PartialEq)]
@@ -603,9 +518,6 @@ pub enum GenInfo {
         mapType: Arc<TypeSignature>,
         mapContext: MapContext,
     },
-}
-impl Default for GenInfo {
-    fn default() -> Self { Self::GI_TEMPL_FUN }
 }
 pub use self::GenInfo::{GI_TEMPL_FUN,GI_MATCH_FUN,GI_MAP_FUN};
 
@@ -3323,8 +3235,8 @@ pub fn getMatchArgName(mut inArgExp: Expression) -> Result<(Ident, Ident)> {
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ ExpressionBase::BOUND_VALUE { boundPath: path }, _) => {
-                    let mut outMatchArgName: ArcStr = outMatchArgName.clone();
                     let mut outInputValueName: ArcStr = outInputValueName.clone();
+                    let mut outMatchArgName: ArcStr = outMatchArgName.clone();
                     outInputValueName = (pathIdentString(path.clone())?).clone();
                     outMatchArgName = (encodeIdent((outInputValueName.clone()).clone(), (arcstr::literal!(funArgNamePrefix)).clone())?).clone();
                     Ok((outInputValueName.clone(), outMatchArgName.clone()))

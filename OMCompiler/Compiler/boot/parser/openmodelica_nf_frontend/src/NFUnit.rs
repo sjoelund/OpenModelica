@@ -117,9 +117,6 @@ pub enum Token {
     T_LPAREN,
     T_RPAREN,
 }
-impl Default for Token {
-    fn default() -> Self { Self::T_MUL }
-}
 pub use self::Token::{T_NUMBER,T_UNIT,T_MUL,T_DIV,T_LPAREN,T_RPAREN};
 
 // TODO: non-Sync, non-const-emittable constant — needs new emission path.

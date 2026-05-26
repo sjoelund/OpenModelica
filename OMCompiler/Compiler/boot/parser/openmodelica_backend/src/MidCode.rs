@@ -53,15 +53,6 @@ pub struct Program {
     pub functions: Arc<metamodelica::List<Function>>,
 }
 
-impl Default for Program {
-    fn default() -> Self {
-        Self {
-            name: Default::default(),
-            functions: Default::default(),
-        }
-    }
-}
-
 pub type PROGRAM = Program;
 
 
@@ -81,28 +72,12 @@ pub struct VarBuf {
     pub name: ArcStr,
 }
 
-impl Default for VarBuf {
-    fn default() -> Self {
-        Self {
-            name: Default::default(),
-        }
-    }
-}
-
 pub type VARBUF = VarBuf;
 
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct VarBufPtr {
     pub name: ArcStr,
-}
-
-impl Default for VarBufPtr {
-    fn default() -> Self {
-        Self {
-            name: Default::default(),
-        }
-    }
 }
 
 pub type VARBUFPTR = VarBufPtr;
@@ -114,9 +89,6 @@ pub enum OutVar {
         var: Var,
     },
     OUT_WILD,
-}
-impl Default for OutVar {
-    fn default() -> Self { Self::OUT_WILD }
 }
 pub use self::OutVar::{OUT_VAR,OUT_WILD};
 
@@ -150,16 +122,6 @@ pub struct Block {
     pub id: i32,
     pub stmts: Arc<metamodelica::List<Stmt>>,
     pub terminator: Terminator,
-}
-
-impl Default for Block {
-    fn default() -> Self {
-        Self {
-            id: Default::default(),
-            stmts: Default::default(),
-            terminator: Default::default(),
-        }
-    }
 }
 
 pub type BLOCK = Block;
@@ -214,9 +176,6 @@ pub enum Terminator {
         message: Var,
     },
 }
-impl Default for Terminator {
-    fn default() -> Self { Self::RETURN }
-}
 pub use self::Terminator::{GOTO,BRANCH,CALL,RETURN,SWITCH,LONGJMP,PUSHJMP,POPJMP,ASSERT,TERMINATE};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -226,9 +185,6 @@ pub enum Stmt {
         dest: Var,
         src: RValue,
     },
-}
-impl Default for Stmt {
-    fn default() -> Self { Self::NOP }
 }
 pub use self::Stmt::{NOP,ASSIGN};
 
@@ -279,13 +235,6 @@ pub enum RValue {
         ty: Arc<DAE::Type>,
     },
 }
-impl Default for RValue {
-    fn default() -> Self {
-        Self::LITERALINTEGER {
-            value: Default::default(),
-        }
-    }
-}
 pub use self::RValue::{VARIABLE,UNARYOP,BINARYOP,LITERALINTEGER,LITERALREAL,LITERALBOOLEAN,LITERALSTRING,LITERALMETATYPE,UNIONTYPEVARIANT,ISSOME,ISCONS,METAFIELD};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -295,9 +244,6 @@ pub enum UnaryOp {
     NOT,
     UNBOX,
     BOX,
-}
-impl Default for UnaryOp {
-    fn default() -> Self { Self::MOVE }
 }
 pub use self::UnaryOp::{MOVE,UMINUS,NOT,UNBOX,BOX};
 
@@ -314,9 +260,6 @@ pub enum BinaryOp {
     GREATEREQ,
     EQUAL,
     NEQUAL,
-}
-impl Default for BinaryOp {
-    fn default() -> Self { Self::ADD }
 }
 pub use self::BinaryOp::{ADD,SUB,MUL,DIV,POW,LESS,LESSEQ,GREATER,GREATEREQ,EQUAL,NEQUAL};
 

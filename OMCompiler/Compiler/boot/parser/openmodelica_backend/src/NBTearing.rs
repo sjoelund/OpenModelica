@@ -103,17 +103,6 @@ pub struct NBTearing {
     pub jac: Option<Arc<Jacobian::NBackendDAE>>,
 }
 
-impl Default for NBTearing {
-    fn default() -> Self {
-        Self {
-            iteration_vars: Default::default(),
-            residual_eqns: Default::default(),
-            innerEquations: Default::default(),
-            jac: Default::default(),
-        }
-    }
-}
-
 pub type TEARING_SET = NBTearing;
 
 pub fn hash(mut set: Arc<NBTearing>) -> i32 {

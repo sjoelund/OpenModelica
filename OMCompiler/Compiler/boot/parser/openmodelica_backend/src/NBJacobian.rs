@@ -273,18 +273,6 @@ pub mod SparsityPattern {
         pub nnz: i32,
     }
 
-    impl Default for SparsityPattern {
-        fn default() -> Self {
-            Self {
-                col_wise_pattern: Default::default(),
-                row_wise_pattern: Default::default(),
-                seed_vars: Default::default(),
-                partial_vars: Default::default(),
-                nnz: Default::default(),
-            }
-        }
-    }
-
     pub type SPARSITY_PATTERN = SparsityPattern;
 
     pub fn toString(mut pattern: Arc<SparsityPattern>) -> Result<ArcStr> {
@@ -508,15 +496,6 @@ pub mod SparsityColoring {
     pub struct SparsityColoring {
         pub cols: metamodelica::Array<Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>>,
         pub rows: metamodelica::Array<Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>>,
-    }
-
-    impl Default for SparsityColoring {
-        fn default() -> Self {
-            Self {
-                cols: Default::default(),
-                rows: Default::default(),
-            }
-        }
     }
 
     pub type SPARSITY_COLORING = SparsityColoring;

@@ -58,15 +58,6 @@ pub struct Attribute {
     pub value: ArcStr,
 }
 
-impl Default for Attribute {
-    fn default() -> Self {
-        Self {
-            name: Default::default(),
-            value: Default::default(),
-        }
-    }
-}
-
 pub type ATTR = Attribute;
 
 
@@ -89,15 +80,6 @@ pub enum Node {
         attributes: Attributes,
         children: Arc<metamodelica::List<Arc<Node>>>,
     },
-}
-impl Default for Node {
-    fn default() -> Self {
-        Self::NODE {
-            type_: Default::default(),
-            attributes: Default::default(),
-            children: Default::default(),
-        }
-    }
 }
 pub use self::Node::{NODE,LNODE};
 

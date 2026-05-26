@@ -75,17 +75,6 @@ pub struct JacobianColumn {
     pub constantEqns: Arc<metamodelica::List<Arc<SimEqSystem>>>,
 }
 
-impl Default for JacobianColumn {
-    fn default() -> Self {
-        Self {
-            columnEqns: Default::default(),
-            columnVars: Default::default(),
-            numberOfResultVars: Default::default(),
-            constantEqns: Default::default(),
-        }
-    }
-}
-
 pub type JAC_COLUMN = JacobianColumn;
 
 
@@ -106,28 +95,6 @@ pub struct JacobianMatrix {
     pub generic_loop_calls: Arc<metamodelica::List<SimGenericCall>>,
     pub crefsHT: Option<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))>,
     pub isAdjoint: bool,
-}
-
-impl Default for JacobianMatrix {
-    fn default() -> Self {
-        Self {
-            columns: Default::default(),
-            seedVars: Default::default(),
-            matrixName: Default::default(),
-            sparsity: Default::default(),
-            sparsityT: Default::default(),
-            nonlinear: Default::default(),
-            nonlinearT: Default::default(),
-            coloredCols: Default::default(),
-            coloredRows: Default::default(),
-            maxColorCols: Default::default(),
-            jacobianIndex: Default::default(),
-            partitionIndex: Default::default(),
-            generic_loop_calls: Default::default(),
-            crefsHT: Default::default(),
-            isAdjoint: Default::default(),
-        }
-    }
 }
 
 pub type JAC_MATRIX = JacobianMatrix;
@@ -218,15 +185,6 @@ pub struct ClockedPartition {
     pub subPartitions: Arc<metamodelica::List<SubPartition>>,
 }
 
-impl Default for ClockedPartition {
-    fn default() -> Self {
-        Self {
-            baseClock: Default::default(),
-            subPartitions: Default::default(),
-        }
-    }
-}
-
 pub type CLOCKED_PARTITION = ClockedPartition;
 
 
@@ -237,18 +195,6 @@ pub struct SubPartition {
     pub removedEquations: Arc<metamodelica::List<Arc<SimEqSystem>>>,
     pub subClock: BackendDAE::SubClock,
     pub holdEvents: bool,
-}
-
-impl Default for SubPartition {
-    fn default() -> Self {
-        Self {
-            vars: Default::default(),
-            equations: Default::default(),
-            removedEquations: Default::default(),
-            subClock: Default::default(),
-            holdEvents: Default::default(),
-        }
-    }
 }
 
 pub type SUBPARTITION = SubPartition;
@@ -268,9 +214,6 @@ pub enum BackendMapping {
     },
     NO_MAPPING,
 }
-impl Default for BackendMapping {
-    fn default() -> Self { Self::NO_MAPPING }
-}
 pub use self::BackendMapping::{BACKENDMAPPING,NO_MAPPING};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -279,17 +222,6 @@ pub struct PartitionData {
     pub partitions: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>>,
     pub activatorsForPartitions: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>>,
     pub stateToActivators: Arc<metamodelica::List<i32>>,
-}
-
-impl Default for PartitionData {
-    fn default() -> Self {
-        Self {
-            numPartitions: Default::default(),
-            partitions: Default::default(),
-            activatorsForPartitions: Default::default(),
-            stateToActivators: Default::default(),
-        }
-    }
 }
 
 pub type PARTITIONDATA = PartitionData;
@@ -302,15 +234,6 @@ pub struct DelayedExpression {
     pub maxDelayedIndex: i32,
 }
 
-impl Default for DelayedExpression {
-    fn default() -> Self {
-        Self {
-            delayedExps: Default::default(),
-            maxDelayedIndex: Default::default(),
-        }
-    }
-}
-
 pub type DELAYED_EXPRESSIONS = DelayedExpression;
 
 
@@ -318,15 +241,6 @@ pub type DELAYED_EXPRESSIONS = DelayedExpression;
 pub struct SpatialDistributionInfo {
     pub spatialDistributions: Arc<metamodelica::List<SpatialDistribution>>,
     pub maxIndex: i32,
-}
-
-impl Default for SpatialDistributionInfo {
-    fn default() -> Self {
-        Self {
-            spatialDistributions: Default::default(),
-            maxIndex: Default::default(),
-        }
-    }
 }
 
 pub type SPATIAL_DISTRIBUTION_INFO = SpatialDistributionInfo;
@@ -362,15 +276,6 @@ pub struct UnitDefinition {
     pub baseUnit: BaseUnit,
 }
 
-impl Default for UnitDefinition {
-    fn default() -> Self {
-        Self {
-            name: Default::default(),
-            baseUnit: Default::default(),
-        }
-    }
-}
-
 pub type UNITDEFINITION = UnitDefinition;
 
 
@@ -398,9 +303,6 @@ pub enum BaseUnit {
     },
     /// no baseunit definition available
     NOBASEUNIT,
-}
-impl Default for BaseUnit {
-    fn default() -> Self { Self::NOBASEUNIT }
 }
 pub use self::BaseUnit::{BASEUNIT,NOBASEUNIT};
 
@@ -450,15 +352,6 @@ pub struct FileInfo {
     pub isReadOnly: bool,
 }
 
-impl Default for FileInfo {
-    fn default() -> Self {
-        Self {
-            fileName: Default::default(),
-            isReadOnly: Default::default(),
-        }
-    }
-}
-
 pub type FILEINFO = FileInfo;
 
 
@@ -505,48 +398,6 @@ pub struct VarInfo {
     pub numRelatedBoundaryConditions: i32,
 }
 
-impl Default for VarInfo {
-    fn default() -> Self {
-        Self {
-            numZeroCrossings: Default::default(),
-            numTimeEvents: Default::default(),
-            numRelations: Default::default(),
-            numMathEventFunctions: Default::default(),
-            numStateVars: Default::default(),
-            numAlgVars: Default::default(),
-            numDiscreteReal: Default::default(),
-            numIntAlgVars: Default::default(),
-            numBoolAlgVars: Default::default(),
-            numAlgAliasVars: Default::default(),
-            numIntAliasVars: Default::default(),
-            numBoolAliasVars: Default::default(),
-            numParams: Default::default(),
-            numIntParams: Default::default(),
-            numBoolParams: Default::default(),
-            numOutVars: Default::default(),
-            numInVars: Default::default(),
-            numExternalObjects: Default::default(),
-            numStringAlgVars: Default::default(),
-            numStringParamVars: Default::default(),
-            numStringAliasVars: Default::default(),
-            numEquations: Default::default(),
-            numLinearSystems: Default::default(),
-            numNonLinearSystems: Default::default(),
-            numMixedSystems: Default::default(),
-            numStateSets: Default::default(),
-            numJacobians: Default::default(),
-            numOptimizeConstraints: Default::default(),
-            numOptimizeFinalConstraints: Default::default(),
-            numSensitivityParameters: Default::default(),
-            numSetcVars: Default::default(),
-            numDataReconVars: Default::default(),
-            numRealInputVars: Default::default(),
-            numSetbVars: Default::default(),
-            numRelatedBoundaryConditions: Default::default(),
-        }
-    }
-}
-
 pub type VARINFO = VarInfo;
 
 
@@ -554,9 +405,6 @@ pub type VARINFO = VarInfo;
 pub enum DaeModeConfig {
     ALL_EQUATIONS,
     DYNAMIC_EQUATIONS,
-}
-impl Default for DaeModeConfig {
-    fn default() -> Self { Self::ALL_EQUATIONS }
 }
 pub use self::DaeModeConfig::{ALL_EQUATIONS,DYNAMIC_EQUATIONS};
 
@@ -574,19 +422,6 @@ pub struct DaeModeData {
     pub modeCreated: DaeModeConfig,
 }
 
-impl Default for DaeModeData {
-    fn default() -> Self {
-        Self {
-            daeEquations: Default::default(),
-            sparsityPattern: Default::default(),
-            residualVars: Default::default(),
-            algebraicVars: Default::default(),
-            auxiliaryVars: Default::default(),
-            modeCreated: Default::default(),
-        }
-    }
-}
-
 pub type DAEMODEDATA = DaeModeData;
 
 
@@ -597,15 +432,6 @@ pub struct OMSIData {
     pub initialization: Arc<OMSIFunction>,
     /// contains equations and variables for simulation problem
     pub simulation: Arc<OMSIFunction>,
-}
-
-impl Default for OMSIData {
-    fn default() -> Self {
-        Self {
-            initialization: Default::default(),
-            simulation: Default::default(),
-        }
-    }
 }
 
 pub type OMSI_DATA = OMSIData;
@@ -628,20 +454,6 @@ pub struct OMSIFunction {
     pub context: SimCodeFunction::Context,
     /// number of linear and non-linear algebraic systems in OMSI_FUNCTION.equations
     pub nAlgebraicSystems: i32,
-}
-
-impl Default for OMSIFunction {
-    fn default() -> Self {
-        Self {
-            equations: Default::default(),
-            inputVars: Default::default(),
-            outputVars: Default::default(),
-            innerVars: Default::default(),
-            nAllVars: Default::default(),
-            context: Default::default(),
-            nAlgebraicSystems: Default::default(),
-        }
-    }
 }
 
 pub type OMSI_FUNCTION = OMSIFunction;
@@ -817,14 +629,6 @@ pub enum SimEqSystem {
         eqAttr: BackendDAE::EquationAttributes,
     },
 }
-impl Default for SimEqSystem {
-    fn default() -> Self {
-        Self::SES_ALIAS {
-            index: Default::default(),
-            aliasOf: Default::default(),
-        }
-    }
-}
 pub use self::SimEqSystem::{SES_RESIDUAL,SES_FOR_RESIDUAL,SES_GENERIC_RESIDUAL,SES_SIMPLE_ASSIGN,SES_SIMPLE_ASSIGN_CONSTRAINTS,SES_ARRAY_CALL_ASSIGN,SES_RESIZABLE_ASSIGN,SES_GENERIC_ASSIGN,SES_ENTWINED_ASSIGN,SES_IFEQUATION,SES_ALGORITHM,SES_INVERSE_ALGORITHM,SES_LINEAR,SES_NONLINEAR,SES_MIXED,SES_WHEN,SES_FOR_LOOP,SES_FOR_EQUATION,SES_ALIAS,SES_ALGEBRAIC_SYSTEM};
 
 #[derive(Clone, Debug, PartialEq)]
@@ -849,16 +653,6 @@ pub enum SimGenericCall {
         resizable: bool,
     },
 }
-impl Default for SimGenericCall {
-    fn default() -> Self {
-        Self::IF_GENERIC_CALL {
-            index: Default::default(),
-            iters: Default::default(),
-            branches: Default::default(),
-            resizable: Default::default(),
-        }
-    }
-}
 pub use self::SimGenericCall::{SINGLE_GENERIC_CALL,IF_GENERIC_CALL,WHEN_GENERIC_CALL};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -872,14 +666,6 @@ pub enum SimBranch {
         body: Arc<metamodelica::List<Arc<DAE::Statement>>>,
     },
 }
-impl Default for SimBranch {
-    fn default() -> Self {
-        Self::SIM_BRANCH {
-            condition: Default::default(),
-            body: Default::default(),
-        }
-    }
-}
 pub use self::SimBranch::{SIM_BRANCH,SIM_BRANCH_STMT};
 
 /// represents directional derivatives with sparsity and coloring
@@ -892,19 +678,6 @@ pub struct DerivativeMatrix {
     pub sparsityT: SparsityPattern,
     pub coloredCols: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>>,
     pub maxColorCols: i32,
-}
-
-impl Default for DerivativeMatrix {
-    fn default() -> Self {
-        Self {
-            columns: Default::default(),
-            matrixName: Default::default(),
-            sparsity: Default::default(),
-            sparsityT: Default::default(),
-            coloredCols: Default::default(),
-            maxColorCols: Default::default(),
-        }
-    }
 }
 
 pub type DERIVATIVE_MATRIX = DerivativeMatrix;
@@ -928,25 +701,6 @@ pub struct LinearSystem {
     pub partOfJac: bool,
 }
 
-impl Default for LinearSystem {
-    fn default() -> Self {
-        Self {
-            index: Default::default(),
-            partOfMixed: Default::default(),
-            tornSystem: Default::default(),
-            vars: Default::default(),
-            beqs: Default::default(),
-            simJac: Default::default(),
-            residual: Default::default(),
-            jacobianMatrix: Default::default(),
-            sources: Default::default(),
-            indexLinearSystem: Default::default(),
-            nUnknowns: Default::default(),
-            partOfJac: Default::default(),
-        }
-    }
-}
-
 pub type LINEARSYSTEM = LinearSystem;
 
 
@@ -963,23 +717,6 @@ pub struct NonlinearSystem {
     pub mixedSystem: bool,
     pub tornSystem: bool,
     pub clockIndex: Option<i32>,
-}
-
-impl Default for NonlinearSystem {
-    fn default() -> Self {
-        Self {
-            index: Default::default(),
-            eqs: Default::default(),
-            crefs: Default::default(),
-            indexNonLinearSystem: Default::default(),
-            nUnknowns: Default::default(),
-            jacobianMatrix: Default::default(),
-            homotopySupport: Default::default(),
-            mixedSystem: Default::default(),
-            tornSystem: Default::default(),
-            clockIndex: Default::default(),
-        }
-    }
 }
 
 pub type NONLINEARSYSTEM = NonlinearSystem;
@@ -1005,15 +742,6 @@ pub struct ExtObjInfo {
     pub aliases: Arc<metamodelica::List<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>,
 }
 
-impl Default for ExtObjInfo {
-    fn default() -> Self {
-        Self {
-            vars: Default::default(),
-            aliases: Default::default(),
-        }
-    }
-}
-
 pub type EXTOBJINFO = ExtObjInfo;
 
 
@@ -1031,24 +759,6 @@ pub struct SimulationSettings {
     pub variableFilter: ArcStr,
     pub cflags: ArcStr,
     pub simflags: ArcStr,
-}
-
-impl Default for SimulationSettings {
-    fn default() -> Self {
-        Self {
-            startTime: Default::default(),
-            stopTime: Default::default(),
-            numberOfIntervals: Default::default(),
-            stepSize: Default::default(),
-            tolerance: Default::default(),
-            method: Default::default(),
-            options: Default::default(),
-            outputFormat: Default::default(),
-            variableFilter: Default::default(),
-            cflags: Default::default(),
-            simflags: Default::default(),
-        }
-    }
 }
 
 pub type SIMULATION_SETTINGS = SimulationSettings;
@@ -1069,30 +779,12 @@ pub struct FmiUnknown {
     pub dependenciesKind: Arc<metamodelica::List<ArcStr>>,
 }
 
-impl Default for FmiUnknown {
-    fn default() -> Self {
-        Self {
-            index: Default::default(),
-            dependencies: Default::default(),
-            dependenciesKind: Default::default(),
-        }
-    }
-}
-
 pub type FMIUNKNOWN = FmiUnknown;
 
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct FmiOutputs {
     pub fmiUnknownsList: Arc<metamodelica::List<FmiUnknown>>,
-}
-
-impl Default for FmiOutputs {
-    fn default() -> Self {
-        Self {
-            fmiUnknownsList: Default::default(),
-        }
-    }
 }
 
 pub type FMIOUTPUTS = FmiOutputs;
@@ -1103,28 +795,12 @@ pub struct FmiDerivatives {
     pub fmiUnknownsList: Arc<metamodelica::List<FmiUnknown>>,
 }
 
-impl Default for FmiDerivatives {
-    fn default() -> Self {
-        Self {
-            fmiUnknownsList: Default::default(),
-        }
-    }
-}
-
 pub type FMIDERIVATIVES = FmiDerivatives;
 
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct FmiDiscreteStates {
     pub fmiUnknownsList: Arc<metamodelica::List<FmiUnknown>>,
-}
-
-impl Default for FmiDiscreteStates {
-    fn default() -> Self {
-        Self {
-            fmiUnknownsList: Default::default(),
-        }
-    }
 }
 
 pub type FMIDISCRETESTATES = FmiDiscreteStates;
@@ -1137,16 +813,6 @@ pub struct FmiInitialUnknowns {
     pub sortedUnknownCrefs: Arc<metamodelica::List<(i32, Arc<DAE::ComponentRef>)>>,
     /// use the sorted crefs to get the ValueReference of knowns
     pub sortedknownCrefs: Arc<metamodelica::List<(i32, Arc<DAE::ComponentRef>)>>,
-}
-
-impl Default for FmiInitialUnknowns {
-    fn default() -> Self {
-        Self {
-            fmiUnknownsList: Default::default(),
-            sortedUnknownCrefs: Default::default(),
-            sortedknownCrefs: Default::default(),
-        }
-    }
 }
 
 pub type FMIINITIALUNKNOWNS = FmiInitialUnknowns;
@@ -1162,19 +828,6 @@ pub struct FmiModelStructure {
     pub fmiInitialUnknowns: FmiInitialUnknowns,
 }
 
-impl Default for FmiModelStructure {
-    fn default() -> Self {
-        Self {
-            fmiOutputs: Default::default(),
-            fmiDerivatives: Default::default(),
-            continuousPartialDerivatives: Default::default(),
-            initialPartialDerivatives: Default::default(),
-            fmiDiscreteStates: Default::default(),
-            fmiInitialUnknowns: Default::default(),
-        }
-    }
-}
-
 pub type FMIMODELSTRUCTURE = FmiModelStructure;
 
 
@@ -1186,13 +839,6 @@ pub enum FmiSimulationFlags {
     FMI_SIMULATION_FLAGS_FILE {
         path: ArcStr,
     },
-}
-impl Default for FmiSimulationFlags {
-    fn default() -> Self {
-        Self::FMI_SIMULATION_FLAGS {
-            nameValueTuples: Default::default(),
-        }
-    }
 }
 pub use self::FmiSimulationFlags::{FMI_SIMULATION_FLAGS,FMI_SIMULATION_FLAGS_FILE};
 

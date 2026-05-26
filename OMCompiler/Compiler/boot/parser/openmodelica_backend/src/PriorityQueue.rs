@@ -206,16 +206,6 @@ pub struct Tree {
     pub trees: T,
 }
 
-impl Default for Tree {
-    fn default() -> Self {
-        Self {
-            elt: Default::default(),
-            rank: Default::default(),
-            trees: Default::default(),
-        }
-    }
-}
-
 pub type NODE = Tree;
 
 

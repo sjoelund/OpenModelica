@@ -97,15 +97,6 @@ pub struct AdjacencyTable {
     pub adjacency: metamodelica::Array<metamodelica::Array<bool>>,
 }
 
-impl Default for AdjacencyTable {
-    fn default() -> Self {
-        Self {
-            cref2index: Default::default(),
-            adjacency: Default::default(),
-        }
-    }
-}
-
 pub type ADJACENCY_TABLE = AdjacencyTable;
 
 

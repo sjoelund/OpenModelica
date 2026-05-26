@@ -122,9 +122,6 @@ pub enum Value {
         tyStr: ArcStr,
     },
 }
-impl Default for Value {
-    fn default() -> Self { Self::NORETCALL }
-}
 pub use self::Value::{INTEGER,REAL,STRING,BOOL,ENUM_LITERAL,ARRAY,LIST,META_ARRAY,TUPLE,META_TUPLE,RECORD,OPTION,CODE,NORETCALL,META_BOX,META_FAIL,EMPTY};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -135,9 +132,6 @@ pub enum IntRealOp {
     SUBOP,
     POWOP,
     LESSEQOP,
-}
-impl Default for IntRealOp {
-    fn default() -> Self { Self::MULOP }
 }
 pub use self::IntRealOp::{MULOP,DIVOP,ADDOP,SUBOP,POWOP,LESSEQOP};
 

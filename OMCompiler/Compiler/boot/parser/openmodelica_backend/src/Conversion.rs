@@ -220,9 +220,6 @@ pub mod ImportTreeImpl {
         },
         EMPTY,
     }
-    impl Default for Tree {
-        fn default() -> Self { Self::EMPTY }
-    }
     pub use self::Tree::{NODE,LEAF,EMPTY};
 
     pub type ValueNode = ArcStr;
@@ -864,15 +861,6 @@ pub mod ImportTreeImpl {
 pub struct Env {
     pub components: TypeTable,
     pub imports: ImportTree,
-}
-
-impl Default for Env {
-    fn default() -> Self {
-        Self {
-            components: Default::default(),
-            imports: Default::default(),
-        }
-    }
 }
 
 pub type ENV = Env;

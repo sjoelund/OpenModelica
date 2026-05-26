@@ -61,9 +61,6 @@ pub enum IntOp {
     SUBOP,
     POWOP,
 }
-impl Default for IntOp {
-    fn default() -> Self { Self::MULOP }
-}
 pub use self::IntOp::{MULOP,DIVOP,ADDOP,SUBOP,POWOP};
 
 pub static optionSimplifyOnly: Evaluate = crate::ExpressionSimplifyTypes::Evaluate::NO_EVAL;

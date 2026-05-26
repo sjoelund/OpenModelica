@@ -108,9 +108,6 @@ pub mod AvailableLibraries {
         },
         EMPTY,
     }
-    impl Default for Tree {
-        fn default() -> Self { Self::EMPTY }
-    }
     pub use self::Tree::{NODE,LEAF,EMPTY};
 
     pub type ValueNode = ArcStr;
@@ -796,9 +793,6 @@ pub mod VersionMap {
             value: Value,
         },
         EMPTY,
-    }
-    impl Default for Tree {
-        fn default() -> Self { Self::EMPTY }
     }
     pub use self::Tree::{NODE,LEAF,EMPTY};
 
@@ -2061,21 +2055,6 @@ pub struct PackageInstallInfo {
     pub sha: ArcStr,
     pub singleFileStructureCopyAllFiles: bool,
     pub json: Arc<JSON::JSON>,
-}
-
-impl Default for PackageInstallInfo {
-    fn default() -> Self {
-        Self {
-            needsInstall: Default::default(),
-            pkg: Default::default(),
-            version: Default::default(),
-            urlToZipFile: Default::default(),
-            path: Default::default(),
-            sha: Default::default(),
-            singleFileStructureCopyAllFiles: Default::default(),
-            json: Default::default(),
-        }
-    }
 }
 
 pub type PKG_INSTALL_INFO = PackageInstallInfo;

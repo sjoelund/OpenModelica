@@ -74,9 +74,6 @@ pub enum ParseTree {
         token: Token,
     },
 }
-impl Default for ParseTree {
-    fn default() -> Self { Self::EMPTY }
-}
 pub use self::ParseTree::{EMPTY,NODE,LEAF};
 
 pub fn parseTreeStr(mut trees: Arc<metamodelica::List<Arc<ParseTree>>>) -> Result<ArcStr> {

@@ -141,9 +141,6 @@ pub mod LookupState {
             errorState: Arc<LookupState>,
         },
     }
-    impl Default for LookupState {
-        fn default() -> Self { Self::BEGIN }
-    }
     pub use self::LookupState::{BEGIN,COMP,CLASS_COMP,COMP_CLASS,COMP_FUNC,PACKAGE,CLASS,FUNC,PREDEF_COMP,PREDEF_CLASS,IMPORT,PARTIAL_CLASS,NON_CONSTANT,NON_ENCAPSULATED,ERROR};
     pub fn assertClass(mut endState: Arc<LookupState>, mut node: Arc<InstNode::InstNode>, mut name: Arc<Absyn::Path>, mut context: i32, mut info: SourceInfo) -> Result<()> {
         assertState(endState.clone(), Arc::new(crate::NFLookupState::LookupState::CLASS), node.clone(), Arc::new(LookupStateName::LookupStateName::PATH { path: name.clone() }), context.clone(), info.clone())?;

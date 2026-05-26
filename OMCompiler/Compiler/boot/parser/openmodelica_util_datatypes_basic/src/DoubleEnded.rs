@@ -53,16 +53,6 @@ pub struct MutableList<T: Clone> {
     pub back: Mutable::Mutable<Arc<metamodelica::List<T>>>,
 }
 
-impl<T: Clone> Default for MutableList<T> {
-    fn default() -> Self {
-        Self {
-            length: Default::default(),
-            front: Default::default(),
-            back: Default::default(),
-        }
-    }
-}
-
 pub type LIST<T> = MutableList<T>;
 
 

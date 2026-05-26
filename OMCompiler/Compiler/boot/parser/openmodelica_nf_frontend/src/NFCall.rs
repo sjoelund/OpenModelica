@@ -140,14 +140,6 @@ pub enum NFCall {
         foldExp: (Option<Arc<Expression::NFExpression>>, ArcStr, ArcStr),
     },
 }
-impl Default for NFCall {
-    fn default() -> Self {
-        Self::UNTYPED_ARRAY_CONSTRUCTOR {
-            exp: Default::default(),
-            iters: Default::default(),
-        }
-    }
-}
 pub use self::NFCall::{UNTYPED_CALL,ARG_TYPED_CALL,TYPED_CALL,UNTYPED_ARRAY_CONSTRUCTOR,TYPED_ARRAY_CONSTRUCTOR,UNTYPED_REDUCTION,TYPED_REDUCTION};
 pub type ParameterTree = Arc<NFCallParameterTree::Tree>;
 

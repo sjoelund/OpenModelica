@@ -73,15 +73,6 @@ pub struct VariableReplacements {
     pub invHashTable: (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>)>>), i32, (HashTable3::FuncHashCref, HashTable3::FuncCrefEqual, HashTable3::FuncCrefStr, HashTable3::FuncExpStr)),
 }
 
-impl Default for VariableReplacements {
-    fn default() -> Self {
-        Self {
-            hashTable: Default::default(),
-            invHashTable: Default::default(),
-        }
-    }
-}
-
 pub type REPLACEMENTS = VariableReplacements;
 
 

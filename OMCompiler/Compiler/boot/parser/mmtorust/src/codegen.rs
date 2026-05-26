@@ -12428,15 +12428,21 @@ fn emit_stmt<'a>(
             // (e.g. `systemCall` inside `System.mo` calling a sibling) are
             // looked up in the right package scope before consulting the
             // fallibility map.
-            let rhs_is_known_infallible = if body.len() == 1 {
+            // The fast path emits `if let Ok(PAT) = CALL { ... } else { ... }`,
+            // which requires the RHS to actually be a Result-returning call.
+            // For a plain `PAT := var` (a refutable pattern destructure on an
+            // already-typed value) this would wrap a non-Result in `Ok(..)`
+            // and type-error. Restrict to fallible Call RHS only.
+            let rhs_is_fallible_call = if body.len() == 1 {
                 if let typedexp::TypedStmt::Assign { rhs: typedexp::TypedExp::Call { func, .. }, .. } = &body[0] {
-                    resolve_call_qname(func, ctx, top_level)
-                        .map(|q| ctx.is_known_infallible_user_fn(&q, top_level))
-                        .unwrap_or(false)
+                    match resolve_call_qname(func, ctx, top_level) {
+                        Some(q) => !ctx.is_known_infallible_user_fn(&q, top_level),
+                        None => !is_infallible_builtin(func),
+                    }
                 } else { false }
             } else { false };
-            if !rhs_is_known_infallible
-                && body.len() == 1 && matches!(stmts_flow(else_body), FlowResult::Diverges)
+            if rhs_is_fallible_call
+                && matches!(stmts_flow(else_body), FlowResult::Diverges)
                 && let typedexp::TypedStmt::Assign { lhs, rhs } = &body[0] {
                     let scrut_ty = rhs.ty();
                     let scrut_expr = ctx.with_qmode(QMode::Bare, |ctx| {

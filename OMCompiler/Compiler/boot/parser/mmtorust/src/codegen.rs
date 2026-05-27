@@ -13581,6 +13581,22 @@ fn record_constructor_pattern_bindings<'a>(
         record_constructor_pattern_bindings(next_pat, &inner_ty, env, top_level, shapes, ctx);
         return;
     }
+    // A field whose pattern is a list-cons (e.g. `functions = fdef :: rest`,
+    // common when matching the head element of a record's list field). The
+    // head/tail slots may carry `@`-bindings that narrow a variant — without
+    // descending through `record_cons_subpattern` here, those bindings (e.g.
+    // `head = fdef @ FUNCTION_DEF { .. }`) never get their variant recorded and
+    // a downstream `fdef.body` lowers to a plain field access on the enum
+    // (E0609).
+    if let TypedPat::Cons { head, tail } = pat {
+        let elem_ty = match scrut_ty {
+            Ty::List(t) => (**t).clone(),
+            _ => Ty::Unknown,
+        };
+        record_cons_subpattern(head.as_ref(), &elem_ty, env, top_level, shapes, ctx);
+        record_cons_subpattern(tail.as_ref(), scrut_ty, env, top_level, shapes, ctx);
+        return;
+    }
     let TypedPat::Constructor { name, fields, named_fields, .. } = pat else { return };
     // Resolve the record's qname so we can look up field types. The
     // pattern's `ty` may already carry it; otherwise look it up against

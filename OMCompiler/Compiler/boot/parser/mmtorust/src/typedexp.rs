@@ -2408,6 +2408,45 @@ fn pat_to_exp(pat: &TypedPat, top_level: &BTreeMap<String, NameNode<'_>>) -> Typ
 
 /// Infer the pattern from an expression in case-pattern position.
 /// `env` and `pkg_prefix` are needed for subscripted refs (Index patterns) in assignment LHS.
+/// Fold a dotted name that refers to a `constant` declaration to the literal
+/// pattern its value represents. MetaModelica permits referring to a named
+/// `constant` in pattern position (e.g. `case DAE.CREF_QUAL(ident =
+/// DAE.derivativeNamePrefix)`), where the field is matched for equality against
+/// the constant's value. Rust struct patterns can't carry a `const` path in
+/// field position (and a `&str`/`ArcStr` mismatch would result anyway), so we
+/// resolve the constant to its literal value and lower it to a `TypedPat::Lit`,
+/// which the codegen renders as a `Deref @ <lit>` equality match.
+///
+/// Returns `None` when the name does not resolve to a constant with a literal
+/// value (including nested constant references); the caller then falls back to
+/// treating it as a constructor path.
+fn const_ref_to_lit_pat<'a>(
+    dotted: &str,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+) -> Option<TypedPat> {
+    let mut seen = 0u32;
+    fn fold<'a>(dotted: &str, top_level: &'a BTreeMap<String, NameNode<'a>>, seen: &mut u32) -> Option<TypedPat> {
+        *seen += 1;
+        if *seen > 16 { return None; }
+        let (_, node) = walk_dotted_with_imports(dotted, top_level, 0)?;
+        let NodeKind::Component(comp) = &node.kind else { return None };
+        if comp.variability != Absyn::Variability::CONST { return None; }
+        let default = extract_default_exp(&comp.modification)?;
+        match default {
+            Absyn::Exp::STRING { value }  => Some(TypedPat::Lit(Lit::Str(value.to_string()))),
+            Absyn::Exp::INTEGER { value } => Some(TypedPat::Lit(Lit::Int(*value))),
+            Absyn::Exp::BOOL { value }    => Some(TypedPat::Lit(Lit::Bool(*value))),
+            Absyn::Exp::REAL { value }    => Some(TypedPat::Lit(Lit::Real(value.to_string()))),
+            // A constant defined in terms of another constant — follow it.
+            Absyn::Exp::CREF { componentRef } => {
+                fold(&cref_to_dotted(componentRef), top_level, seen)
+            }
+            _ => None,
+        }
+    }
+    fold(dotted, top_level, &mut seen)
+}
+
 pub fn infer_pat<'a>(
     exp: &Absyn::Exp,
     env: &HashMap<String, Ty>,
@@ -2436,6 +2475,11 @@ pub fn infer_pat<'a>(
                         // local (e.g. `local list<X> M;` referenced as `node::M`)
                         // from being misclassified as a constructor.
                         TypedPat::Var(name.to_string())
+                    } else if let Some(lit) = const_ref_to_lit_pat(name, top_level) {
+                        // A bare reference to a `constant` (e.g. an imported
+                        // `constant String`) — match its value, not a binder or
+                        // constructor of the same name.
+                        lit
                     } else if name.chars().next().map(|c| c.is_uppercase()).unwrap_or(false) {
                         // Uppercase identifiers in pattern position are constructors in
                         // MetaModelica (variants/records), not variable binders.
@@ -2524,6 +2568,11 @@ pub fn infer_pat<'a>(
                                 };
                             }
                             pat
+                        } else if let Some(lit) = const_ref_to_lit_pat(&full_dotted, top_level) {
+                            // A qualified reference to a `constant` (e.g.
+                            // `DAE.derivativeNamePrefix`) — match its value, not
+                            // a constructor of the same name.
+                            lit
                         } else {
                             let ty = lookup_ty_in_hierarchy(&full_dotted, top_level);
                             TypedPat::Constructor { name: full_dotted, fields: vec![], named_fields: vec![], ty }

@@ -9373,6 +9373,54 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
     // re-introduce the signal *just* when rendering the tail-position
     // pieces (the case result, or the algorithm-side terminal assign).
     let active_tail = ctx.tail_lowering.take();
+
+    // Hoist case-locals with initializers to a block enclosing the match.
+    //
+    // In MetaModelica `match X local ... <Ty> <name> = <init>; ... case ...`,
+    // a case-local with an `=` initializer is *match-level*: it is evaluated
+    // once and is in scope for every arm's guard, body, and result. The
+    // canonical use is `Type ty = getSubscriptedType(cref); case CREF() guard
+    // Type.isArray(ty) algorithm ...`. Without hoisting we emit the let inside
+    // each arm body, so the guard above can't see `ty` (E0425).
+    //
+    // Per-case `locals` are replicated (same content on every typed case), so
+    // we read them off the first arm and skip them inside the per-arm body
+    // loop further down. Side-effecting initializers are evaluated exactly
+    // once, matching the MM semantics.
+    //
+    // Locals without an initializer are *not* hoisted: they remain per-arm so
+    // each arm sees the implicit type-zero re-init the existing per-arm path
+    // already emits, and so a name used only in some arms doesn't get a
+    // declaration in arms that don't reference it (an unused-variable lint
+    // would fire there even with `unused_mut` allowed).
+    let hoisted_locals: Vec<(String, Ty, TypedExp, Option<Absyn::TypeSpec>)> =
+        if let Some(first) = cases.first() {
+            first.locals.iter()
+                .filter_map(|(n, t, d, ts)| d.as_ref().map(|d| (n.clone(), t.clone(), d.clone(), ts.clone())))
+                .collect()
+        } else {
+            Vec::new()
+        };
+    let hoisted_names: std::collections::HashSet<String> =
+        hoisted_locals.iter().map(|(n, _, _, _)| n.clone()).collect();
+    let saved_fn_env_vars_hoist: Vec<(String, Option<Ty>)> = hoisted_locals.iter()
+        .map(|(n, t, _, _)| (n.clone(), ctx.fn_env_vars.insert(n.clone(), t.clone())))
+        .collect();
+    let hoist_alias_scope = current_scope_children(ctx, top_level);
+    let mut hoisted_prefix = String::new();
+    for (name, ty, default, type_spec) in &hoisted_locals {
+        let ty_s = type_spec.as_ref()
+            .and_then(|ts| hoist_alias_scope.and_then(|sc| field_type_alias_name(ts, sc)))
+            .unwrap_or_else(|| fmt_ty(ty, ctx));
+        let init = emit_exp(default, is_const, ctx, top_level);
+        let init_ty = default.ty();
+        if let Some(line) = emit_multi_output_let(true, name, ty, &init_ty, &init, "        ", ctx) {
+            hoisted_prefix.push_str(&line);
+        } else {
+            hoisted_prefix.push_str(&format!("        let mut {}: {ty_s} = {init};\n", escape_ident(name)));
+        }
+    }
+
     let body_str = match kind {
         MatchKind::Match => {
             // True when the case patterns cover every value of the scrutinee
@@ -9533,6 +9581,13 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
                         // after the `if`.
                         local_env.vars.insert(name.clone(), ty.clone());
                         if pat_binding_names.contains(name) {
+                            continue;
+                        }
+                        // Hoisted to the enclosing block (see `hoisted_locals`
+                        // above). The let is already emitted there; emitting
+                        // it again per-arm would shadow it and discard the
+                        // shared initializer's side effects.
+                        if hoisted_names.contains(name) {
                             continue;
                         }
                         // Skip emitting a declaration for match-level locals
@@ -9922,6 +9977,11 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
                         if pat_binding_names.contains(name) {
                             continue;
                         }
+                        // Hoisted before the matchcontinue block (see
+                        // `hoisted_locals`); skip per-arm re-declaration.
+                        if hoisted_names.contains(name) {
+                            continue;
+                        }
                         // Skip declarations for match-level locals not
                         // referenced in this arm. See `case_uses_local_name`
                         // and the parallel filter on the MatchKind::Match
@@ -10109,9 +10169,24 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
             None => { ctx.fn_env_vars.remove(&name); }
         }
     }
+    // Restore the fn_env_vars entries shadowed by hoisted locals; they only
+    // existed for the duration of the match expression.
+    for (name, prev) in saved_fn_env_vars_hoist {
+        match prev {
+            Some(t) => { ctx.fn_env_vars.insert(name, t); }
+            None => { ctx.fn_env_vars.remove(&name); }
+        }
+    }
+    let wrapped = if hoisted_prefix.is_empty() {
+        body_str
+    } else {
+        // Wrap the match in a block so the hoisted lets share scope with it.
+        // The outer parens keep the whole thing usable in expression position.
+        format!("({{\n{hoisted_prefix}        {body_str}\n    }})")
+    };
     match as_prefix {
-        Some(prefix) => format!("{prefix}{body_str} }}"),
-        None => body_str,
+        Some(prefix) => format!("{prefix}{wrapped} }}"),
+        None => wrapped,
     }
 }
 

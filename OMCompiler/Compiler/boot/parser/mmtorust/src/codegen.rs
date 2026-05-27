@@ -8245,7 +8245,18 @@ fn collect_string_concat_parts<'a>(exp: &TypedExp, is_const: bool, ctx: &mut Gen
         collect_string_concat_parts(lhs, is_const, ctx, top_level, parts);
         collect_string_concat_parts(rhs, is_const, ctx, top_level, parts);
     } else {
-        parts.push(emit_exp(exp, is_const, ctx, top_level));
+        let mut s = emit_exp(exp, is_const, ctx, top_level);
+        // MetaModelica implicitly takes the first output of a multi-output
+        // call when it flows into a scalar (here: String) slot. A string-concat
+        // operand whose static type is a tuple (e.g. `System.dladdr` returns
+        // `(info, file, name)` but only `info` is used) must be reduced to its
+        // first component, otherwise we emit `&*<tuple>` which cannot deref.
+        if let Ty::Tuple(ts) = &exp.ty()
+            && matches!(ts.first(), Some(Ty::Str))
+        {
+            s = format!("({s}).0");
+        }
+        parts.push(s);
     }
 }
 

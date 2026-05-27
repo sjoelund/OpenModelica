@@ -1192,6 +1192,14 @@ pub fn listGet<T: Clone>(lst: Arc<List<T>>, i: i32) -> Result<T> {
     lst.get(i)
 }
 
+pub fn listEmpty<T: Clone>(lst: Arc<List<T>>) -> bool {
+    lst.is_empty()
+}
+
+pub fn listDelete<T: Clone>(lst: Arc<List<T>>, index: i32) -> Result<Arc<List<T>>> {
+    lst.delete(index)
+}
+
 pub fn listRest<T: Clone>(lst: Arc<List<T>>) -> Result<Arc<List<T>>> {
     match &*lst {
         Nil => bail!("Cannot get rest of empty list"),

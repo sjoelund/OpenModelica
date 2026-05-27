@@ -142,11 +142,13 @@ pub fn builtin_fallibility(name: &str) -> Option<Fallibility> {
         // listHead / listRest fail on Nil; the .get/.delete methods on Arc<List>
         // are bounds-checked. Plain `listAppend` / `listMember` / `listLength`
         // are total over `List<T>`.
-        "listAppend" | "listMember" | "listLength" => Infallible,
+        "listAppend" | "listMember" | "listLength" | "listEmpty" => Infallible,
         // `cons(head, tail)` is the function-call form of `head :: tail`. It
         // wraps in Arc<List<_>> via a single allocation and never fails.
         "cons" | "nil" => Infallible,
         "listHead" | "listRest" => Fallible,
+        // `listDelete` bounds-checks the 1-based index and bails on OOB.
+        "listDelete" => Fallible,
 
         // ── Array ────────────────────────────────────────────────────────────
         // arrayLength / arrayEmpty / arrayList / listArray / arrayCopy /

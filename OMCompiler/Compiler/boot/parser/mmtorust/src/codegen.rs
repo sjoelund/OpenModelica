@@ -13313,10 +13313,21 @@ fn emit_stmt<'a>(
             writeln!(out, "{indent}}}").unwrap();
         }
         S::While { cond, body } => {
-            let c = emit_exp(cond, false, ctx, top_level);
-            writeln!(out, "{indent}while {c} {{").unwrap();
-            emit_stmts(out, &format!("{indent}    "), body, fail_mode, ctx, env, top_level, fresh);
-            writeln!(out, "{indent}}}").unwrap();
+            // `while true { ... }` doesn't get the `!` (never-falls-through)
+            // typing that Rust's `loop { ... }` does, so any variable
+            // assigned inside before a `break` stays "possibly uninitialized"
+            // for code after the loop (E0381). Use `loop` when the condition
+            // is literally `true` so post-loop reads typecheck.
+            if matches!(cond, TypedExp::Lit(typedexp::Lit::Bool(true))) {
+                writeln!(out, "{indent}loop {{").unwrap();
+                emit_stmts(out, &format!("{indent}    "), body, fail_mode, ctx, env, top_level, fresh);
+                writeln!(out, "{indent}}}").unwrap();
+            } else {
+                let c = emit_exp(cond, false, ctx, top_level);
+                writeln!(out, "{indent}while {c} {{").unwrap();
+                emit_stmts(out, &format!("{indent}    "), body, fail_mode, ctx, env, top_level, fresh);
+                writeln!(out, "{indent}}}").unwrap();
+            }
         }
         S::Try { body, else_body } => {
             // ── Single-statement fast path ──────────────────────────────────

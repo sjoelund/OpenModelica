@@ -15917,6 +15917,35 @@ fn ty_default_init_with_hier<'a>(ty: &Ty, ctx: &mut GenCtx, top_level: &'a BTree
                 Some(bare)
             }
         }
+        // Single-record uniontypes (lowered to a Rust `struct`) and type
+        // aliases — both get `impl Default for <Name>` emitted only when
+        // `types_needing_default` says some consumer requires it. Gate on
+        // that set (not the wider `defaultable_struct_qnames`, which is the
+        // analysis's "could be made defaultable" classification) — calling
+        // `<X>::default()` for an X whose impl wasn't emitted would fail
+        // to compile.
+        //
+        // We reuse `fmt_ty`'s rendering for the inner type path: it
+        // already handles `import T = Mod.T;` aliases, the `Mod::T`
+        // doubling for top-level same-name uniontypes, and Arc-wrapping
+        // for recursive uniontypes. To extract the bare type (without the
+        // Arc wrapper that fmt_ty adds for recursive types) we render
+        // and strip a leading `Arc<...>` when present, then re-add
+        // `Arc::new(...)` around the default-call. This keeps the
+        // resolution rules in lockstep with everywhere else `<Type>` is
+        // emitted.
+        Ty::RustStruct(qname) | Ty::AliasTo(qname)
+            if ctx.types_needing_default.contains(qname.as_str())
+                && ctx.defaultable_struct_qnames.contains(qname.as_str())
+        => {
+            let rendered = fmt_ty(ty, ctx);
+            let is_arc = ctx.recursive_types.contains(qname.as_str())
+                && rendered.starts_with("Arc<")
+                && rendered.ends_with('>');
+            let inner = if is_arc { rendered[4..rendered.len()-1].to_owned() } else { rendered };
+            let bare = format!("<{inner} as ::std::default::Default>::default()");
+            if is_arc { Some(format!("Arc::new({bare})")) } else { Some(bare) }
+        }
         _ => None,
     }
 }

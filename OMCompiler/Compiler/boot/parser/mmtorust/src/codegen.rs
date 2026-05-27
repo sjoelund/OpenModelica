@@ -162,6 +162,15 @@ struct GenCtx {
     /// (because they contain only records). These must NOT get the `::TypeName` doubling
     /// that mod-wrapped uniontypes require.
     no_mod_uniontypes: HashSet<String>,
+    /// Fully-qualified names of all types that lowered to `Ty::RustEnum` —
+    /// i.e. multi-record uniontypes whose records become Rust enum variants.
+    /// Used by [`constructor_needs_arc`] to distinguish a *variant struct*
+    /// `Ty::RustStruct("Parent.Variant")` (whose qname's parent IS in this
+    /// set, so wrapping at the constructor is needed when the parent is
+    /// recursive) from a *sibling nested type* whose qname happens to share
+    /// the same prefix (e.g. `NFConnections.BrokenEdge` is a separate
+    /// single-record uniontype, not a variant of `NFConnections`).
+    rust_enum_qnames: BTreeSet<String>,
     /// Maps fully-qualified function/partial-function names to their effective type variables
     /// (collected from inputs and output). Used at codegen time to emit generic arguments when
     /// a FunctionAlias type is referenced as a parameter type (e.g. `toStringT` → `toStringT<T>`).
@@ -376,6 +385,7 @@ impl GenCtx {
             types_directly_containing_dyn_fn,
             const_fn_getters: BTreeSet::new(),
             no_mod_uniontypes: HashSet::new(),
+            rust_enum_qnames: BTreeSet::new(),
             fn_type_vars,
             qmode: QMode::Function,
             uninit_arrays: HashSet::new(),
@@ -1241,6 +1251,23 @@ fn collect_no_mod_uniontypes(nodes: &BTreeMap<String, NameNode<'_>>, prefix: &st
 fn generate_file<'a>(top_name: &str, node: &NameNode<'_>, crate_map: &BTreeMap<String, String>, current_crate: Option<String>, top_level_uniontype_names: &HashSet<String>, recursive_types: BTreeSet<String>, types_containing_mutable: BTreeSet<String>, types_containing_array: BTreeSet<String>, types_containing_dyn_fn: BTreeSet<String>, types_directly_containing_dyn_fn: BTreeSet<String>, no_mod_uniontypes: &HashSet<String>, top_level: &'a BTreeMap<String, NameNode<'a>>, fn_type_vars: &BTreeMap<String, Vec<String>>, fallible_functions: &BTreeSet<String>, partial_eq_required: &BTreeMap<String, HashSet<String>>, default_required: &BTreeMap<String, HashSet<String>>, defaultable_struct_qnames: &HashSet<String>, types_needing_default: &HashSet<String>) -> String {
     let mut ctx = GenCtx::new(top_name, current_crate, crate_map.clone(), top_level_uniontype_names.clone(), recursive_types, types_containing_mutable, types_containing_array, types_containing_dyn_fn, types_directly_containing_dyn_fn, fn_type_vars.clone(), fallible_functions.clone(), partial_eq_required.clone(), default_required.clone(), defaultable_struct_qnames.clone(), types_needing_default.clone());
     ctx.no_mod_uniontypes = no_mod_uniontypes.clone();
+    // Build the set of all RustEnum qnames so `constructor_needs_arc` can
+    // tell variant records (parent is a RustEnum) from sibling nested types
+    // that just happen to share a qname prefix. Walks the whole hierarchy.
+    fn collect_rust_enum_qnames(
+        nodes: &BTreeMap<String, NameNode<'_>>,
+        prefix: &str,
+        out: &mut BTreeSet<String>,
+    ) {
+        for (name, node) in nodes {
+            let qname = if prefix.is_empty() { name.clone() } else { format!("{prefix}.{name}") };
+            if matches!(node.ty, Ty::RustEnum(_)) {
+                out.insert(qname.clone());
+            }
+            collect_rust_enum_qnames(&node.children, &qname, out);
+        }
+    }
+    collect_rust_enum_qnames(top_level, "", &mut ctx.rust_enum_qnames);
     // Pre-walk the *whole* hierarchy (not just this file's node) so that
     // function-nested partial-function aliases are recognised regardless of
     // whether they live in the file currently being emitted or in a sibling.
@@ -11406,45 +11433,40 @@ fn value_emitted_as_arc(arg: &TypedExp, ctx: &GenCtx) -> bool {
 /// `"Pkg.Tree"`. For a uniontype itself `Ty::RustEnum("Pkg.Tree")` the type is
 /// its own parent.
 fn constructor_needs_arc(ty: &Ty, ctx: &GenCtx) -> bool {
+    // The parent-qname check below only makes sense when this struct is
+    // actually a *variant of a multi-record uniontype enum* (its parent
+    // qname names a `Ty::RustEnum`). For sibling nested types — e.g.
+    // `NFConnections.BrokenEdge` is a separate single-record uniontype
+    // declared inside `NFConnections`, not a variant of it — the parent's
+    // recursive status is irrelevant: storage of these values is unwrapped
+    // (`is_arc_wrapped` returns false), so the constructor must also be
+    // unwrapped. Without this guard a constructor `BROKEN_EDGE { .. }`
+    // ended up `Arc::new(BrokenEdge { .. })` while the field type was
+    // bare `BrokenEdge`, tripping E0308.
+    let parent_qname_is_recursive_enum = |qname: &str| -> bool {
+        let Some((parent, _)) = qname.rsplit_once('.') else { return false; };
+        ctx.rust_enum_qnames.contains(parent) && ctx.recursive_types.contains(parent)
+    };
     match ty {
         // Direct enum type: wrapped when the type itself is recursive.
         Ty::RustEnum(qname) => ctx.recursive_types.contains(qname.as_str()),
-        // Variant record: wrapped when the PARENT enum/uniontype is recursive.
+        // Variant record: wrapped when the PARENT enum is recursive.
         Ty::RustStruct(qname) => {
-            if ctx.recursive_types.contains(qname.as_str()) {
-                return true;
-            }
-            // Strip the last segment to get the parent uniontype name.
-            if let Some((parent, _)) = qname.rsplit_once('.') {
-                ctx.recursive_types.contains(parent)
-            } else {
-                false
-            }
+            ctx.recursive_types.contains(qname.as_str())
+                || parent_qname_is_recursive_enum(qname)
         }
         Ty::AliasTo(qname) => {
-            if ctx.recursive_types.contains(qname.as_str()) {
-                return true;
-            }
-            if let Some((parent, _)) = qname.rsplit_once('.') {
-                ctx.recursive_types.contains(parent)
-            } else {
-                false
-            }
+            ctx.recursive_types.contains(qname.as_str())
+                || parent_qname_is_recursive_enum(qname)
         }
         // Generic instantiations of a user-defined record/uniontype carry their
         // base type's Rust-form qname (e.g. "ExpandableArray"). The wrapping
-        // rule mirrors `Ty::RustStruct`: wrap when the type itself or its
-        // parent uniontype is marked recursive.
+        // rule mirrors `Ty::RustStruct`: wrap when the type itself is recursive,
+        // or when its parent is a recursive uniontype enum (variant case).
         Ty::Generic(rust_name, _) => {
             let dotted = rust_name.replace("::", ".");
-            if ctx.recursive_types.contains(dotted.as_str()) {
-                return true;
-            }
-            if let Some((parent, _)) = dotted.rsplit_once('.') {
-                ctx.recursive_types.contains(parent)
-            } else {
-                false
-            }
+            ctx.recursive_types.contains(dotted.as_str())
+                || parent_qname_is_recursive_enum(&dotted)
         }
         _ => false,
     }

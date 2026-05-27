@@ -1249,6 +1249,24 @@ fn collect_package_aliases(nodes: &BTreeMap<String, NameNode<'_>>, prefix: &str,
                     let full = full.trim_start_matches('.');
                     scope_map.insert(alias_name.to_string(), full.to_owned());
                 }
+                // `import Pkg.{X, Y, Z};` and `import Pkg.{X = Orig, ...}` each
+                // bind one or more names in the importing scope, so they must
+                // contribute alias entries the same way QUAL_IMPORT does.
+                // Without this, downstream resolution of `X.field` in the
+                // importer never reaches `Pkg.X.field` (E0425 / silent fn-skip
+                // at `Ty::Unknown` for any signature that mentions `X.<sub>`).
+                Absyn::Import::GROUP_IMPORT { prefix, groups } => {
+                    let prefix_str_owned = fmt_path(prefix);
+                    let prefix_str = prefix_str_owned.trim_start_matches('.');
+                    for g in &**groups {
+                        let (local_name, original) = match g {
+                            Absyn::GroupImport::GROUP_IMPORT_NAME { name } => (name.to_string(), name.to_string()),
+                            Absyn::GroupImport::GROUP_IMPORT_RENAME { rename, name } => (rename.to_string(), name.to_string()),
+                        };
+                        let full = format!("{prefix_str}.{original}");
+                        scope_map.insert(local_name, full);
+                    }
+                }
                 _ => {}
             }
         }
@@ -1257,6 +1275,75 @@ fn collect_package_aliases(nodes: &BTreeMap<String, NameNode<'_>>, prefix: &str,
 }
 
 /// Scope-walk alias lookup: search from `module_prefix` up to the top-level scope.
+/// Resolve a dotted qname through chained import aliases, segment by segment.
+///
+/// Single-level expansion of the leading segment is not enough: an import like
+/// `import NFTyping.InstContext` re-exports a name that itself was introduced
+/// by a sibling import `import InstContext = NFInstContext` in NFTyping's
+/// scope. The first-level alias expands `InstContext` to `NFTyping.InstContext`
+/// (a path that has no entry in `known`); we then have to look up
+/// `InstContext` *within NFTyping's scope* to reach `NFInstContext`, the
+/// package that actually defines `Type`.
+///
+/// Each iteration peels one segment off the front, tries to expand it against
+/// the surrounding scope (which moves forward as segments are consumed), and
+/// stops as soon as the resulting full path is a `known` type — or when no
+/// further expansion is available. Returns `Some(expanded)` only when the
+/// resolved path is present in `known`; otherwise the caller falls back to
+/// the existing logic.
+fn expand_dotted_through_aliases(
+    qname: &str,
+    aliases: &ScopedAliases,
+    known: &ScopedKnown,
+    module_prefix: &str,
+) -> Option<String> {
+    // Iteratively rewrite the path: consume one segment at a time. Each step
+    // either expands the next segment via an alias (and re-anchors `scope` to
+    // the segment's parent so further aliases in *that* scope can fire) or
+    // treats the segment as a real package and advances `scope` into it.
+    // Stops as soon as the full `scope.tail` path lives in `known`.
+    //
+    // Bound by the original dot count plus a small safety margin so a cyclic
+    // alias graph terminates rather than spinning.
+    let mut scope = module_prefix.to_owned();
+    let mut tail = qname.to_owned();
+    let max_iters = qname.matches('.').count() * 2 + 8;
+    for _ in 0..max_iters {
+        let full = if scope.is_empty() {
+            tail.clone()
+        } else {
+            format!("{scope}.{tail}")
+        };
+        if sk_get(known, &full).is_some() {
+            return Some(full);
+        }
+        let dot = tail.find('.')?;
+        let (first, rest) = tail.split_at(dot);
+        let rest = &rest[1..]; // drop the leading '.'
+        if let Some(target) = alias_lookup(aliases, &scope, first) {
+            // Replace `first` with its alias target, then re-anchor `scope` to
+            // the target's parent so the next iteration's lookups see the
+            // aliases declared at that level. The remainder `rest` is left
+            // unconsumed so subsequent iterations can keep peeling it.
+            let target = target.to_owned();
+            let (target_scope, target_tail) = match target.rfind('.') {
+                Some(d) => (target[..d].to_owned(), target[d+1..].to_owned()),
+                None => (String::new(), target),
+            };
+            scope = target_scope;
+            tail = if rest.is_empty() { target_tail } else { format!("{target_tail}.{rest}") };
+        } else {
+            // Not aliased: descend into the segment as a real package. The
+            // next iteration looks up aliases at the new scope, which is how
+            // chained imports across packages get resolved.
+            scope = if scope.is_empty() { first.to_owned() } else { format!("{scope}.{first}") };
+            tail = rest.to_owned();
+            if tail.is_empty() { return None; }
+        }
+    }
+    None
+}
+
 fn alias_lookup<'a>(aliases: &'a ScopedAliases, module_prefix: &str, name: &str) -> Option<&'a str> {
     let mut scope = module_prefix;
     loop {
@@ -1687,14 +1774,7 @@ fn resolve_path(path: &Absyn::Path, known: &ScopedKnown, aliases: &ScopedAliases
         } else {
             None
         };
-        scope_walked.or_else(|| {
-            if let Some(dot) = qname.find('.') {
-                let (first, rest) = qname.split_at(dot); // rest starts with '.'
-                alias_lookup(aliases, module_prefix, first).map(|target| format!("{target}{rest}"))
-            } else {
-                None
-            }
-        })
+        scope_walked.or_else(|| expand_dotted_through_aliases(qname, aliases, known, module_prefix))
     };
     let effective = expanded.as_deref().unwrap_or(qname);
 

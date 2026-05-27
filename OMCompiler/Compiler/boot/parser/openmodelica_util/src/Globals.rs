@@ -214,11 +214,13 @@ thread_local! {
     // Type: unknown — JuliaLink list. Not used in known generated code.
 
     // Index 29 — packageIndexCacheIndex
-    // Type: Arc<openmodelica_util::JSON::JSON> — JSON is in openmodelica_util so
-    // no circular dep.  However the generated code contains both
-    // `= obj.clone()` (Arc<JSON::JSON>) and `= 0` (integer reset) at different
-    // call sites, which is a codegen bug.  Declared as Option<Arc<JSON::JSON>>
-    // to handle both; the `= 0` line will need a manual fix after next codegen run.
+    // Type: Option<Arc<openmodelica_util::JSON::JSON>> — JSON is in
+    // openmodelica_util so there is no circular dep.  This is a nullable root:
+    // `PackageManagement`/`CevalScript` clear it via `setGlobalRoot(idx, 0)`,
+    // the MetaModelica "empty" sentinel.  mmtorust detects that 0-clear
+    // program-wide (see `compute_nullable_global_roots` in codegen.rs) and
+    // lowers the slot as `Option`: clear → `None`, store → `Some(..)`, read →
+    // unwrap-or-fail (so the surrounding `try` recomputes on a miss).
     pub static packageIndexCacheIndex: RefCell<Option<Arc<crate::JSON::JSON>>> =
         const { RefCell::new(None) };
 

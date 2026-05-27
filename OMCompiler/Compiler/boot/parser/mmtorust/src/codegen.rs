@@ -119,6 +119,12 @@ struct GenCtx {
     current_crate: Option<String>,
     /// Maps top-level MM package names to their Rust crate names.
     crate_map: BTreeMap<String, String>,
+    /// Bare names of global-root index constants modeled as `Option<T>` slots
+    /// because the program clears them via `setGlobalRoot(idx, 0)`. The
+    /// `setGlobalRoot`/`getGlobalRoot` lowering wraps stores in `Some(..)`,
+    /// lowers a literal-`0` store to `None`, and makes reads unwrap-or-fail.
+    /// See [`compute_nullable_global_roots`].
+    nullable_global_roots: HashSet<String>,
     /// Simple names of top-level uniontypes (those emitted as their own module+type file).
     /// When used as a type from outside their module, they need `Name::Name` not just `Name`.
     top_level_uniontype_names: HashSet<String>,
@@ -372,7 +378,7 @@ enum VarShape {
 }
 
 impl GenCtx {
-    fn new(top_name: &str, current_crate: Option<String>, crate_map: BTreeMap<String, String>, top_level_uniontype_names: HashSet<String>, recursive_types: BTreeSet<String>, types_containing_mutable: BTreeSet<String>, types_containing_array: BTreeSet<String>, types_containing_dyn_fn: BTreeSet<String>, types_directly_containing_dyn_fn: BTreeSet<String>, fn_type_vars: BTreeMap<String, Vec<String>>, fallible_functions: BTreeSet<String>, partial_eq_required: BTreeMap<String, HashSet<String>>, default_required: BTreeMap<String, HashSet<String>>, defaultable_struct_qnames: HashSet<String>, types_needing_default: HashSet<String>) -> Self {
+    fn new(top_name: &str, current_crate: Option<String>, crate_map: BTreeMap<String, String>, nullable_global_roots: HashSet<String>, top_level_uniontype_names: HashSet<String>, recursive_types: BTreeSet<String>, types_containing_mutable: BTreeSet<String>, types_containing_array: BTreeSet<String>, types_containing_dyn_fn: BTreeSet<String>, types_directly_containing_dyn_fn: BTreeSet<String>, fn_type_vars: BTreeMap<String, Vec<String>>, fallible_functions: BTreeSet<String>, partial_eq_required: BTreeMap<String, HashSet<String>>, default_required: BTreeMap<String, HashSet<String>>, defaultable_struct_qnames: HashSet<String>, types_needing_default: HashSet<String>) -> Self {
         Self {
             top_name: top_name.to_owned(),
             current_path: Vec::new(),
@@ -385,6 +391,7 @@ impl GenCtx {
             implicit_modules: BTreeSet::new(),
             current_crate,
             crate_map,
+            nullable_global_roots,
             top_level_uniontype_names,
             recursive_types,
             types_containing_mutable,
@@ -993,6 +1000,11 @@ pub fn generate_all(hier: &InstanceHierarchy<'_>, output_dir: &str) -> std::io::
         &hier.top_level, &hier.default_required, &defaultable_struct_qnames,
     );
 
+    // Whole-program scan for global roots cleared via `setGlobalRoot(idx, 0)`;
+    // these are modeled as `Option<T>` slots (see comment on the function).
+    let mut nullable_global_roots: HashSet<String> = HashSet::new();
+    compute_nullable_global_roots(&hier.top_level, &mut nullable_global_roots);
+
     // Group top-level classes by their output directory.
     let mut dir_classes: BTreeMap<String, Vec<(&str, &NameNode<'_>)>> = BTreeMap::new();
     for (name, node) in &hier.top_level {
@@ -1064,7 +1076,7 @@ pub fn generate_all(hier: &InstanceHierarchy<'_>, output_dir: &str) -> std::io::
             eprintln!("[mmtorust] codegen start {file_path}");
         }
         let file_t0 = std::time::Instant::now();
-        let content = generate_file(name, node, &crate_map, current_crate, &top_level_uniontype_names, hier.recursive_types.clone(), hier.types_containing_mutable.clone(), hier.types_containing_array.clone(), hier.types_containing_dyn_fn.clone(), hier.types_directly_containing_dyn_fn.clone(), &no_mod_uniontypes, &hier.top_level, &fn_type_vars, &hier.fallible_functions, &hier.partial_eq_required, &hier.default_required, &defaultable_struct_qnames, &types_needing_default);
+        let content = generate_file(name, node, &crate_map, current_crate, &nullable_global_roots, &top_level_uniontype_names, hier.recursive_types.clone(), hier.types_containing_mutable.clone(), hier.types_containing_array.clone(), hier.types_containing_dyn_fn.clone(), hier.types_directly_containing_dyn_fn.clone(), &no_mod_uniontypes, &hier.top_level, &fn_type_vars, &hier.fallible_functions, &hier.partial_eq_required, &hier.default_required, &defaultable_struct_qnames, &types_needing_default);
         let file_elapsed = file_t0.elapsed();
         if trace_codegen {
             eprintln!("[mmtorust] codegen done  {file_path} ({:.2}s)", file_elapsed.as_secs_f64());
@@ -1189,6 +1201,96 @@ fn collect_nested_partial_aliases(
     }
 }
 
+/// Collect the *bare* names of global-root index constants that the program
+/// ever clears via `setGlobalRoot(<idx>, 0)`.
+///
+/// In MetaModelica the global-root table holds boxed `Any` values and integer
+/// `0` doubles as the "empty / uninitialised" sentinel: clearing a slot makes
+/// the next `getGlobalRoot` throw, which callers wrap in `try`/`else`. We model
+/// such roots in Rust as `Option<T>` thread-locals — clearing → `None`, storing
+/// a value → `Some(v)`, reading → unwrap-or-fail. Because the clear site and the
+/// store/read sites usually live in *different* functions (e.g.
+/// `PackageManagement.updateIndex` clears while `getPackageIndex` reads), the
+/// decision must be made program-wide and fed into the `setGlobalRoot`/
+/// `getGlobalRoot` lowering so every call site emits matching `Option` adaptors.
+///
+/// Keyed on the bare constant name (last cref segment) to match
+/// [`GlobalRootConst::const_name`], the same key the per-root crate-override
+/// table in [`global_root_var_path`] uses. Only statement-level no-return calls
+/// are scanned, which is where `setGlobalRoot` always appears.
+fn compute_nullable_global_roots(nodes: &BTreeMap<String, NameNode<'_>>, out: &mut HashSet<String>) {
+    for node in nodes.values() {
+        if let NodeKind::Class(c) = &node.kind {
+            let algos: &[Arc<Absyn::AlgorithmItem>] = match &c.body {
+                MM::ClassDef::Parts { algorithms, .. }
+                | MM::ClassDef::ClassExtends { algorithms, .. } => algorithms,
+                _ => &[],
+            };
+            for item in algos {
+                scan_algitem_for_root_clear(item, out);
+            }
+        }
+        compute_nullable_global_roots(&node.children, out);
+    }
+}
+
+/// Last identifier of a component reference (e.g. `Global.fooIndex` → `fooIndex`,
+/// `setGlobalRoot` → `setGlobalRoot`). Returns `None` for wildcards.
+fn cref_bare_name(cref: &Absyn::ComponentRef) -> Option<String> {
+    match cref {
+        Absyn::ComponentRef::CREF_IDENT { name, .. } => Some(name.to_string()),
+        Absyn::ComponentRef::CREF_QUAL { componentRef, .. }
+        | Absyn::ComponentRef::CREF_FULLYQUALIFIED { componentRef } => cref_bare_name(componentRef),
+        _ => None,
+    }
+}
+
+/// Recurse through an algorithm item (descending into all nested bodies) and
+/// record the index name of every `setGlobalRoot(<cref>, 0)` clear. See
+/// [`compute_nullable_global_roots`].
+fn scan_algitem_for_root_clear(item: &Absyn::AlgorithmItem, out: &mut HashSet<String>) {
+    let Absyn::AlgorithmItem::ALGORITHMITEM { algorithm_, .. } = item else { return; };
+    use Absyn::Algorithm as A;
+    match &**algorithm_ {
+        A::ALG_NORETCALL { functionCall, functionArgs } => {
+            if cref_bare_name(functionCall).as_deref() != Some("setGlobalRoot") {
+                return;
+            }
+            let Absyn::FunctionArgs::FUNCTIONARGS { args, .. } = &**functionArgs else { return; };
+            let positional: Vec<&Arc<Absyn::Exp>> = args.into_iter().collect();
+            if positional.len() == 2
+                && let Absyn::Exp::CREF { componentRef } = &**positional[0]
+                && let Some(idx_name) = cref_bare_name(componentRef)
+                && matches!(&**positional[1], Absyn::Exp::INTEGER { value: 0 })
+            {
+                out.insert(idx_name);
+            }
+        }
+        A::ALG_IF { trueBranch, elseIfAlgorithmBranch, elseBranch, .. } => {
+            for it in &**trueBranch { scan_algitem_for_root_clear(it, out); }
+            for (_, b) in &**elseIfAlgorithmBranch {
+                for it in &**b { scan_algitem_for_root_clear(it, out); }
+            }
+            for it in &**elseBranch { scan_algitem_for_root_clear(it, out); }
+        }
+        A::ALG_FOR { forBody, .. } => for it in &**forBody { scan_algitem_for_root_clear(it, out); },
+        A::ALG_PARFOR { parforBody, .. } => for it in &**parforBody { scan_algitem_for_root_clear(it, out); },
+        A::ALG_WHILE { whileBody, .. } => for it in &**whileBody { scan_algitem_for_root_clear(it, out); },
+        A::ALG_WHEN_A { whenBody, elseWhenAlgorithmBranch, .. } => {
+            for it in &**whenBody { scan_algitem_for_root_clear(it, out); }
+            for (_, b) in &**elseWhenAlgorithmBranch {
+                for it in &**b { scan_algitem_for_root_clear(it, out); }
+            }
+        }
+        A::ALG_TRY { body, elseBody } => {
+            for it in &**body { scan_algitem_for_root_clear(it, out); }
+            for it in &**elseBody { scan_algitem_for_root_clear(it, out); }
+        }
+        A::ALG_FAILURE { equ } => for it in &**equ { scan_algitem_for_root_clear(it, out); },
+        _ => {}
+    }
+}
+
 /// Pre-pass mirror of the `pub static` vs. `pub const fn` decision in [`emit_node`]:
 /// walk every component in the hierarchy and record the FQNs of those that will
 /// be emitted as `pub const fn` getters. These are constant components whose
@@ -1257,8 +1359,8 @@ fn collect_no_mod_uniontypes(nodes: &BTreeMap<String, NameNode<'_>>, prefix: &st
     }
 }
 
-fn generate_file<'a>(top_name: &str, node: &NameNode<'_>, crate_map: &BTreeMap<String, String>, current_crate: Option<String>, top_level_uniontype_names: &HashSet<String>, recursive_types: BTreeSet<String>, types_containing_mutable: BTreeSet<String>, types_containing_array: BTreeSet<String>, types_containing_dyn_fn: BTreeSet<String>, types_directly_containing_dyn_fn: BTreeSet<String>, no_mod_uniontypes: &HashSet<String>, top_level: &'a BTreeMap<String, NameNode<'a>>, fn_type_vars: &BTreeMap<String, Vec<String>>, fallible_functions: &BTreeSet<String>, partial_eq_required: &BTreeMap<String, HashSet<String>>, default_required: &BTreeMap<String, HashSet<String>>, defaultable_struct_qnames: &HashSet<String>, types_needing_default: &HashSet<String>) -> String {
-    let mut ctx = GenCtx::new(top_name, current_crate, crate_map.clone(), top_level_uniontype_names.clone(), recursive_types, types_containing_mutable, types_containing_array, types_containing_dyn_fn, types_directly_containing_dyn_fn, fn_type_vars.clone(), fallible_functions.clone(), partial_eq_required.clone(), default_required.clone(), defaultable_struct_qnames.clone(), types_needing_default.clone());
+fn generate_file<'a>(top_name: &str, node: &NameNode<'_>, crate_map: &BTreeMap<String, String>, current_crate: Option<String>, nullable_global_roots: &HashSet<String>, top_level_uniontype_names: &HashSet<String>, recursive_types: BTreeSet<String>, types_containing_mutable: BTreeSet<String>, types_containing_array: BTreeSet<String>, types_containing_dyn_fn: BTreeSet<String>, types_directly_containing_dyn_fn: BTreeSet<String>, no_mod_uniontypes: &HashSet<String>, top_level: &'a BTreeMap<String, NameNode<'a>>, fn_type_vars: &BTreeMap<String, Vec<String>>, fallible_functions: &BTreeSet<String>, partial_eq_required: &BTreeMap<String, HashSet<String>>, default_required: &BTreeMap<String, HashSet<String>>, defaultable_struct_qnames: &HashSet<String>, types_needing_default: &HashSet<String>) -> String {
+    let mut ctx = GenCtx::new(top_name, current_crate, crate_map.clone(), nullable_global_roots.clone(), top_level_uniontype_names.clone(), recursive_types, types_containing_mutable, types_containing_array, types_containing_dyn_fn, types_directly_containing_dyn_fn, fn_type_vars.clone(), fallible_functions.clone(), partial_eq_required.clone(), default_required.clone(), defaultable_struct_qnames.clone(), types_needing_default.clone());
     ctx.no_mod_uniontypes = no_mod_uniontypes.clone();
     // Build the set of all RustEnum qnames so `constructor_needs_arc` can
     // tell variant records (parent is a RustEnum) from sibling nested types
@@ -7009,13 +7111,25 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
             // thread-local assignment.  The `thread_local!` / `RefCell` pair is
             // infallible, so no `?` is needed.
             if let Some(grc) = try_resolve_global_root_const(&args[0], ctx, top_level) {
-                let val_expr = emit_builtin_call_arg(func, 1, &args[1], is_const, ctx, top_level);
                 let var_path = global_root_var_path(&grc, ctx);
                 // Both thread-local (index 0..=8) and process-global (index 9..)
                 // roots use `thread_local!` + `RefCell` because `Array<T> =
                 // Rc<RefCell<Vec<T>>>` is not `Send`, preventing `Mutex<T>`.
                 // TODO: when `Array<T>` is made `Send`, upgrade index-9+ roots
                 // to `static Mutex<T>` and change the emitted accessor here.
+                if ctx.nullable_global_roots.contains(&grc.const_name) {
+                    // `Option<T>` slot (cleared elsewhere via `setGlobalRoot(idx, 0)`).
+                    // A literal-`0` store is the MetaModelica "clear" sentinel → `None`;
+                    // any other value is wrapped in `Some(..)`.
+                    let rhs = if matches!(&args[1], TypedExp::Lit(Lit::Int(0))) {
+                        "None".to_owned()
+                    } else {
+                        let val_expr = emit_builtin_call_arg(func, 1, &args[1], is_const, ctx, top_level);
+                        format!("Some({val_expr})")
+                    };
+                    return Ok(format!("{var_path}.with(|__root| *__root.borrow_mut() = {rhs})"));
+                }
+                let val_expr = emit_builtin_call_arg(func, 1, &args[1], is_const, ctx, top_level);
                 return Ok(format!("{var_path}.with(|__root| *__root.borrow_mut() = {val_expr})"));
             }
             // Fallback: dynamic / unresolved index — keep the type-erased runtime call.
@@ -7051,6 +7165,18 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
             // Fast path: named constant → typed thread-local read.
             if let Some(grc) = try_resolve_global_root_const(&args[0], ctx, top_level) {
                 let var_path = global_root_var_path(&grc, ctx);
+                if ctx.nullable_global_roots.contains(&grc.const_name) {
+                    // `Option<T>` slot: reading an empty (`None`) slot must fail,
+                    // mirroring the C runtime's throw on an unset root so callers'
+                    // surrounding `try`/`else` recompute. `q_form` lowers the
+                    // resulting `Result` per the current `QMode` (`?`, `.unwrap()`,
+                    // or `unwrap_break_err!` inside a `try` block).
+                    let read = format!(
+                        "{var_path}.with(|__root| __root.borrow().clone()).ok_or_else(|| anyhow::anyhow!(\"getGlobalRoot: empty slot {}\"))",
+                        grc.const_name,
+                    );
+                    return Ok(ctx.q(&read));
+                }
                 // `.borrow().clone()` is infallible; no `?` needed.
                 return Ok(format!("{var_path}.with(|__root| __root.borrow().clone())"));
             }

@@ -13051,7 +13051,7 @@ fn record_constructor_pattern_bindings<'a>(
         record_constructor_pattern_bindings(next_pat, &inner_ty, env, top_level, shapes, ctx);
         return;
     }
-    let TypedPat::Constructor { name, named_fields, .. } = pat else { return };
+    let TypedPat::Constructor { name, fields, named_fields, .. } = pat else { return };
     // Resolve the record's qname so we can look up field types. The
     // pattern's `ty` may already carry it; otherwise look it up against
     // the scrutinee's enum.
@@ -13068,8 +13068,19 @@ fn record_constructor_pattern_bindings<'a>(
     };
     if let Some(field_tys) = record_qname_opt {
         let scrut_crosses_arc = ctx.map(|c| ty_needs_arc_match_deref(scrut_ty, c)).unwrap_or(false);
-        for (fname, fpat) in named_fields {
-            let Some(field_ty) = field_tys.iter().find(|(n, _)| n == fname).map(|(_, t)| t.clone()) else { continue };
+        // Positional fields align with `field_tys` by index. MetaModelica record
+        // patterns like `Expression.CALL(call as Call.TYPED_CALL(...))` carry
+        // the binding in `fields[0]`, not in `named_fields` — without this loop
+        // the variant narrowing for the binding (here `call -> TYPED_CALL`)
+        // would never be recorded and downstream `var_field!` on `call.<f>`
+        // would fall back to plain field access on an `Arc<Enum>` (E0609).
+        let positional: Vec<(String, &TypedPat)> = fields.iter().enumerate()
+            .filter_map(|(i, p)| field_tys.get(i).map(|(n, _)| (n.clone(), p)))
+            .collect();
+        let combined = positional.iter().map(|(n, p)| (n.clone(), *p))
+            .chain(named_fields.iter().map(|(n, p)| (n.clone(), p)));
+        for (fname, fpat) in combined {
+            let Some(field_ty) = field_tys.iter().find(|(n, _)| n == &fname).map(|(_, t)| t.clone()) else { continue };
             // (i) Register the field's own binding (if any) and its narrowing.
             //     `field = var as inner_pat` — `As` binding with a sub-pattern
             //     that may further narrow the variant.

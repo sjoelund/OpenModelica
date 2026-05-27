@@ -11,6 +11,7 @@ if true then /* Suppress output */
     "../FrontEnd/AbsynToSCode.mo",
     "../FrontEnd/AbsynUtil.mo",
     "../FrontEnd/Algorithm.mo",
+    "../FrontEnd/AvlTreePathFunction.mo",
     "../FrontEnd/BackendCevalInterface.mo",
     "../FrontEnd/BackendInterface.mo",
     "../FrontEnd/Builtin.mo",

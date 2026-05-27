@@ -12931,7 +12931,7 @@ fn emit_stmt<'a>(
     top_level: &'a BTreeMap<String, NameNode<'a>>,
     fresh: &mut u32,
 ) {
-    fn coerce_assign_expr(scrut_expr: String, scrut_ty: &Ty, lhs_ty: Option<&Ty>) -> String {
+    fn coerce_assign_expr(scrut_expr: String, scrut_ty: &Ty, lhs_ty: Option<&Ty>, rhs: &TypedExp) -> String {
         let mut expr = scrut_expr;
         if let Ty::Tuple(_) = scrut_ty
             && !matches!(lhs_ty, Some(Ty::Tuple(_))) {
@@ -12939,6 +12939,18 @@ fn emit_stmt<'a>(
             }
         if matches!(lhs_ty, Some(Ty::F64)) && *scrut_ty == Ty::I32 {
             expr = format!("metamodelica::OrderedFloat(({expr}) as f64)");
+        }
+        // Partial-application closures (`function f(...)`) are emitted as bare
+        // `move |..| ..` expressions by `emit_parteval`. When the assignment
+        // target is a function-typed slot (e.g. `LookupTree.ConflictFunc`,
+        // lowered to `Arc<dyn Fn(..) -> Result<..>>`), the closure must be
+        // wrapped in `Arc::new(...)` so the unsizing coercion to the trait
+        // object can fire at the assignment site. Mirror the same coercion
+        // `emit_call_arg_with_formal` applies for function-typed call args.
+        if matches!(lhs_ty, Some(Ty::Function { .. }) | Some(Ty::FunctionAlias { .. }))
+            && matches!(rhs, TypedExp::PartEval { .. })
+        {
+            expr = format!("Arc::new({expr})");
         }
         // A range can't be stored in an Array/List binding without
         // materialising it. We haven't lowered that path yet; emit a TODO so
@@ -13009,7 +13021,7 @@ fn emit_stmt<'a>(
                             writeln!(out, "{indent}({}) = {scrut_expr};", slots.join(", ")).unwrap();
                             return;
                         }
-                    let scrut_expr = coerce_assign_expr(scrut_expr, &scrut_ty, lhs_ty.as_ref());
+                    let scrut_expr = coerce_assign_expr(scrut_expr, &scrut_ty, lhs_ty.as_ref(), rhs);
                     writeln!(out, "{indent}{} = {scrut_expr};", escape_ident(name)).unwrap();
                     // Track that this function-scope variable now holds a value.
                     // Used by the matchcontinue-arm shadow logic (see
@@ -13054,7 +13066,7 @@ fn emit_stmt<'a>(
             }
             if let TypedPat::Index { base, index } = lhs {
                 let lhs_ty = lhs_assignment_ty(lhs, env);
-                let scrut_expr = coerce_assign_expr(scrut_expr, &scrut_ty, lhs_ty.as_ref());
+                let scrut_expr = coerce_assign_expr(scrut_expr, &scrut_ty, lhs_ty.as_ref(), rhs);
                 let idx_str = emit_exp(index, /*is_const=*/false, ctx, top_level);
                 match base.ty() {
                     Ty::Array(_) => {

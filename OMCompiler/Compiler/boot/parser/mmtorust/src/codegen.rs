@@ -2161,6 +2161,7 @@ fn emit_uniontype<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM:
                                 DynFnImplField {
                                     name: fname.to_owned(),
                                     is_dyn_fn: crate::hierarchy::ty_directly_contains_dyn_fn(fty),
+                                    ty: (*fty).clone(),
                                 }
                             }).collect();
                             impl_variants.push((rec_name.clone(), v));
@@ -2399,6 +2400,7 @@ fn emit_struct<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Cl
             DynFnImplField {
                 name: (*fname).to_owned(),
                 is_dyn_fn: crate::hierarchy::ty_directly_contains_dyn_fn(fty),
+                ty: (*fty).clone(),
             }
         }).collect();
         let variants = vec![(String::new(), impl_fields)];
@@ -2464,12 +2466,21 @@ fn emit_struct<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Cl
 struct DynFnImplField {
     /// The field's identifier as it appears in the struct/variant body.
     name: String,
-    /// True if the field's lowered Rust type is — directly — an
-    /// `Arc<dyn Fn(...) + 'static>` (or contains one without crossing
-    /// into another user-defined type). Equality, ordering and hashing
-    /// for such fields uses pointer identity on the `Arc` rather than
-    /// structural comparison, which `dyn Fn` does not support.
+    /// True if the field's lowered Rust type — directly, or after
+    /// destructuring lexical containers (tuples, options, …) without
+    /// crossing into another user-defined type — embeds at least one
+    /// `Arc<dyn Fn(...) + 'static>`. Such fields cannot use `==` /
+    /// `.cmp` / `.hash` / `Debug` directly (`dyn Fn` implements none of
+    /// those traits); a recursive emission strategy compares the
+    /// function-shaped leaves by pointer identity and the rest
+    /// structurally — see [`emit_dyn_field_eq`] / [`emit_dyn_field_cmp`]
+    /// / [`emit_dyn_field_hash`] / [`emit_dyn_field_debug_arg`].
     is_dyn_fn: bool,
+    /// The resolved field type. Used by the recursive emitters to know
+    /// where the `Arc<dyn Fn>` leaves live (e.g. a `HashTable` field
+    /// whose lowered type is a 4-tuple ending in a sub-tuple of
+    /// `Arc<dyn Fn>` aliases).
+    ty: Ty,
 }
 
 /// Hand-rolled PartialEq / Eq / PartialOrd / Ord / Hash / Debug impls for
@@ -2487,6 +2498,154 @@ struct DynFnImplField {
 ///
 /// `variants` is the list `(variant_name_or_empty, fields)` — pass a
 /// single entry with the empty `""` name for structs.
+///
+/// ── Recursive emission helpers ────────────────────────────────────────
+///
+/// A field whose Rust type is *literally* an `Arc<dyn Fn(...)>` can be
+/// compared with `Arc::ptr_eq` / ordered by `Arc::as_ptr` / hashed by
+/// the pointer address. But MetaModelica freely composes function types
+/// inside `tuple<...>` (e.g. the `HashTable` typedef: a 4-tuple whose
+/// last element is itself a tuple of `partial function` aliases). Such a
+/// field's lowered Rust type is a plain *value* tuple, NOT an Arc — so
+/// `Arc::ptr_eq` would be a type error. The structural alternative
+/// (`==`, `.cmp`, `.hash`, `Debug`) also fails because the leaves are
+/// `dyn Fn` (none of those traits are implemented).
+///
+/// The helpers below recursively descend the field type, structurally
+/// destructuring tuples and options until they reach the function leaves
+/// (handled by pointer identity) or a user-defined / opaque leaf
+/// (delegated to its own trait impl). They produce a single Rust
+/// expression / statement-sequence usable inside the surrounding match
+/// arm or impl body. `l_expr` / `r_expr` / `v_expr` must already be the
+/// reference form (`__l_<n>` / `&self.<n>` / …).
+fn ty_dyn_field_has_function(ty: &Ty) -> bool {
+    use Ty::*;
+    match ty {
+        Function { .. } | FunctionAlias { .. } => true,
+        Tuple(es) => es.iter().any(ty_dyn_field_has_function),
+        Option(t) | List(t) | Range(t) | Array(t) => ty_dyn_field_has_function(t),
+        Generic(_, args) => args.iter().any(ty_dyn_field_has_function),
+        _ => false,
+    }
+}
+
+fn emit_dyn_field_eq(ty: &Ty, l: &str, r: &str) -> String {
+    if !ty_dyn_field_has_function(ty) {
+        // `==` works directly on `&T` for any `T: PartialEq` (blanket
+        // impl). Leaves that are user-defined types — and any container
+        // whose contents are *not* function-tainted — go through here.
+        return format!("({l} == {r})");
+    }
+    match ty {
+        Ty::Function { .. } | Ty::FunctionAlias { .. } => {
+            format!("std::sync::Arc::ptr_eq({l}, {r})")
+        }
+        Ty::Tuple(elems) => {
+            let lpat = (0..elems.len()).map(|i| format!("__lt{i}")).collect::<Vec<_>>().join(", ");
+            let rpat = (0..elems.len()).map(|i| format!("__rt{i}")).collect::<Vec<_>>().join(", ");
+            let conds: Vec<String> = elems.iter().enumerate().map(|(i, t)| {
+                emit_dyn_field_eq(t, &format!("__lt{i}"), &format!("__rt{i}"))
+            }).collect();
+            let body = if conds.is_empty() { "true".to_owned() } else { conds.join(" && ") };
+            format!("(match ({l}, {r}) {{ (({lpat}), ({rpat})) => {body} }})")
+        }
+        Ty::Option(inner) => {
+            let inner_eq = emit_dyn_field_eq(inner, "__lo", "__ro");
+            format!("(match ({l}, {r}) {{ (Some(__lo), Some(__ro)) => {inner_eq}, (None, None) => true, _ => false }})")
+        }
+        _ => {
+            // Function-tainted container we can't structurally descend
+            // (e.g. a list / array of dyn-fn-bearing elements). The
+            // codegen has no way to compare these without a per-element
+            // call into the helpers; bail loudly rather than emit code
+            // that won't compile silently.
+            format!("compile_error!(\"emit_dyn_field_eq: unsupported dyn-fn-bearing shape: {ty:?}\")")
+        }
+    }
+}
+
+fn emit_dyn_field_cmp(ty: &Ty, l: &str, r: &str) -> String {
+    if !ty_dyn_field_has_function(ty) {
+        return format!("{l}.cmp({r})");
+    }
+    match ty {
+        Ty::Function { .. } | Ty::FunctionAlias { .. } => {
+            format!("(std::sync::Arc::as_ptr({l}) as *const ()).cmp(&(std::sync::Arc::as_ptr({r}) as *const ()))")
+        }
+        Ty::Tuple(elems) => {
+            let lpat = (0..elems.len()).map(|i| format!("__lt{i}")).collect::<Vec<_>>().join(", ");
+            let rpat = (0..elems.len()).map(|i| format!("__rt{i}")).collect::<Vec<_>>().join(", ");
+            let parts: Vec<String> = elems.iter().enumerate().map(|(i, t)| {
+                emit_dyn_field_cmp(t, &format!("__lt{i}"), &format!("__rt{i}"))
+            }).collect();
+            let body = if parts.is_empty() {
+                "std::cmp::Ordering::Equal".to_owned()
+            } else if parts.len() == 1 {
+                parts.into_iter().next().unwrap()
+            } else {
+                let joined = parts.join(".then_with(|| ");
+                format!("{joined}{}", ")".repeat(elems.len() - 1))
+            };
+            format!("(match ({l}, {r}) {{ (({lpat}), ({rpat})) => {body} }})")
+        }
+        Ty::Option(inner) => {
+            let inner_cmp = emit_dyn_field_cmp(inner, "__lo", "__ro");
+            format!("(match ({l}, {r}) {{ (Some(__lo), Some(__ro)) => {inner_cmp}, (None, None) => std::cmp::Ordering::Equal, (None, Some(_)) => std::cmp::Ordering::Less, (Some(_), None) => std::cmp::Ordering::Greater }})")
+        }
+        _ => format!("compile_error!(\"emit_dyn_field_cmp: unsupported dyn-fn-bearing shape: {ty:?}\")"),
+    }
+}
+
+fn emit_dyn_field_hash(ty: &Ty, v: &str, state: &str) -> String {
+    if !ty_dyn_field_has_function(ty) {
+        return format!("{v}.hash({state});");
+    }
+    match ty {
+        Ty::Function { .. } | Ty::FunctionAlias { .. } => {
+            format!("(std::sync::Arc::as_ptr({v}) as *const ()).hash({state});")
+        }
+        Ty::Tuple(elems) => {
+            let pat = (0..elems.len()).map(|i| format!("__ht{i}")).collect::<Vec<_>>().join(", ");
+            let stmts: Vec<String> = elems.iter().enumerate().map(|(i, t)| {
+                emit_dyn_field_hash(t, &format!("__ht{i}"), state)
+            }).collect();
+            format!("{{ let ({pat}) = {v}; {} }}", stmts.join(" "))
+        }
+        Ty::Option(inner) => {
+            let inner_h = emit_dyn_field_hash(inner, "__ho", state);
+            format!("match {v} {{ Some(__ho) => {{ 1u8.hash({state}); {inner_h} }}, None => 0u8.hash({state}), }}")
+        }
+        _ => format!("compile_error!(\"emit_dyn_field_hash: unsupported dyn-fn-bearing shape: {ty:?}\");"),
+    }
+}
+
+/// Produce the `&<arg>` that goes into `debug_struct::field("name", &<arg>)`.
+/// For literal `Arc<dyn Fn>` leaves this is `&format_args!("<fn@{:p}>", ...)`.
+/// For function-tainted containers (e.g. a `(Array<...>, ..., (FuncHash, ...))`
+/// tuple typedef) we wrap the value in a one-shot proxy struct whose `Debug`
+/// impl walks the type with the same recursion rules. For shapes the
+/// emitter can't structurally descend, we fall back to printing
+/// `<opaque>` rather than emitting un-compilable code — Debug output is
+/// diagnostic only.
+fn emit_dyn_field_debug_arg(ty: &Ty, v: &str) -> String {
+    if !ty_dyn_field_has_function(ty) {
+        return format!("{v}");
+    }
+    match ty {
+        Ty::Function { .. } | Ty::FunctionAlias { .. } => {
+            format!("&format_args!(\"<fn@{{:p}}>\", std::sync::Arc::as_ptr({v}))")
+        }
+        // Composite shapes (tuple/option/list/...) that transitively
+        // carry an `Arc<dyn Fn>`. A faithful pretty-print would need a
+        // recursive proxy struct; for diagnostic Debug output, an
+        // opaque placeholder is sufficient and avoids the lifetime
+        // gymnastics of building a borrowed `Arguments<'_>` inside a
+        // block. The pointer address of the field still uniquely
+        // identifies the value for log correlation.
+        _ => format!("&format_args!(\"<dyn-fn-container@{{:p}}>\", {v} as *const _)"),
+    }
+}
+
 fn emit_dyn_fn_container_impls(
     out: &mut String,
     indent: &str,
@@ -2547,7 +2706,7 @@ fn emit_dyn_fn_container_impls(
                 // __r` both work directly without a leading `&`.
                 let cond = fields.iter().map(|f| {
                     if f.is_dyn_fn {
-                        format!("std::sync::Arc::ptr_eq(__l_{n}, __r_{n})", n = f.name)
+                        emit_dyn_field_eq(&f.ty, &format!("__l_{}", f.name), &format!("__r_{}", f.name))
                     } else {
                         format!("__l_{n} == __r_{n}", n = f.name)
                     }
@@ -2567,7 +2726,7 @@ fn emit_dyn_fn_container_impls(
         } else {
             let cond = fields.iter().map(|f| {
                 if f.is_dyn_fn {
-                    format!("std::sync::Arc::ptr_eq(&self.{n}, &other.{n})", n = f.name)
+                    emit_dyn_field_eq(&f.ty, &format!("(&self.{})", f.name), &format!("(&other.{})", f.name))
                 } else {
                     format!("self.{n} == other.{n}", n = f.name)
                 }
@@ -2617,7 +2776,7 @@ fn emit_dyn_fn_container_impls(
                 let rhs = fields.iter().map(|f| format!("{n}: __r_{n}", n = f.name)).collect::<Vec<_>>().join(", ");
                 let parts: Vec<String> = fields.iter().map(|f| {
                     if f.is_dyn_fn {
-                        format!("(std::sync::Arc::as_ptr(__l_{n}) as *const ()).cmp(&(std::sync::Arc::as_ptr(__r_{n}) as *const ()))", n = f.name)
+                        emit_dyn_field_cmp(&f.ty, &format!("__l_{}", f.name), &format!("__r_{}", f.name))
                     } else {
                         format!("__l_{n}.cmp(__r_{n})", n = f.name)
                     }
@@ -2639,7 +2798,7 @@ fn emit_dyn_fn_container_impls(
         } else {
             let parts: Vec<String> = fields.iter().map(|f| {
                 if f.is_dyn_fn {
-                    format!("(std::sync::Arc::as_ptr(&self.{n}) as *const ()).cmp(&(std::sync::Arc::as_ptr(&other.{n}) as *const ()))", n = f.name)
+                    emit_dyn_field_cmp(&f.ty, &format!("(&self.{})", f.name), &format!("(&other.{})", f.name))
                 } else {
                     format!("self.{n}.cmp(&other.{n})", n = f.name)
                 }
@@ -2672,7 +2831,8 @@ fn emit_dyn_fn_container_impls(
                 writeln!(out, "{indent}            Self::{vname} {{ {pat} }} => {{").unwrap();
                 for f in fields {
                     if f.is_dyn_fn {
-                        writeln!(out, "{indent}                (std::sync::Arc::as_ptr(__h_{n}) as *const ()).hash(__state);", n = f.name).unwrap();
+                        let stmt = emit_dyn_field_hash(&f.ty, &format!("__h_{}", f.name), "__state");
+                        writeln!(out, "{indent}                {stmt}").unwrap();
                     } else {
                         writeln!(out, "{indent}                __h_{n}.hash(__state);", n = f.name).unwrap();
                     }
@@ -2685,7 +2845,8 @@ fn emit_dyn_fn_container_impls(
         let fields = &variants[0].1;
         for f in fields {
             if f.is_dyn_fn {
-                writeln!(out, "{indent}        (std::sync::Arc::as_ptr(&self.{n}) as *const ()).hash(__state);", n = f.name).unwrap();
+                let stmt = emit_dyn_field_hash(&f.ty, &format!("(&self.{})", f.name), "__state");
+                writeln!(out, "{indent}        {stmt}").unwrap();
             } else {
                 writeln!(out, "{indent}        self.{n}.hash(__state);", n = f.name).unwrap();
             }
@@ -2709,7 +2870,8 @@ fn emit_dyn_fn_container_impls(
                 writeln!(out, "{indent}                let mut __ds = __f.debug_struct(\"{vname}\");").unwrap();
                 for f in fields {
                     if f.is_dyn_fn {
-                        writeln!(out, "{indent}                __ds.field(\"{n}\", &format_args!(\"<fn@{{:p}}>\", std::sync::Arc::as_ptr(__d_{n})));", n = f.name).unwrap();
+                        let arg = emit_dyn_field_debug_arg(&f.ty, &format!("__d_{}", f.name));
+                        writeln!(out, "{indent}                __ds.field(\"{n}\", {arg});", n = f.name).unwrap();
                     } else {
                         writeln!(out, "{indent}                __ds.field(\"{n}\", __d_{n});", n = f.name).unwrap();
                     }
@@ -2724,7 +2886,8 @@ fn emit_dyn_fn_container_impls(
         writeln!(out, "{indent}        let mut __ds = __f.debug_struct(\"{name}\");").unwrap();
         for f in fields {
             if f.is_dyn_fn {
-                writeln!(out, "{indent}        __ds.field(\"{n}\", &format_args!(\"<fn@{{:p}}>\", std::sync::Arc::as_ptr(&self.{n})));", n = f.name).unwrap();
+                let arg = emit_dyn_field_debug_arg(&f.ty, &format!("(&self.{})", f.name));
+                writeln!(out, "{indent}        __ds.field(\"{n}\", {arg});", n = f.name).unwrap();
             } else {
                 writeln!(out, "{indent}        __ds.field(\"{n}\", &self.{n});", n = f.name).unwrap();
             }
@@ -4279,15 +4442,24 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
             _ => None,
         })
         .collect();
+    // A function-typed output (e.g. a nested `partial function` declared as
+    // the output of an enclosing function — see `cevalBuiltinHandler`'s
+    // `output HandlerFunc handler;` where `HandlerFunc` is the inline
+    // `partial function` type) must be emitted with the same shape as
+    // function-typed inputs: `Arc<dyn Fn(...) -> Result<...> + 'static>`.
+    // `fmt_ty` would otherwise produce a bare `fn(...) -> Result<...>`
+    // pointer, which the function body (which builds `Arc::new(...)` values)
+    // cannot satisfy. `fmt_param_ty` selects the trait-object shape for
+    // function types and delegates to `fmt_ty` for everything else.
     let ret_ty = match (fn_output_eff, output_specs.as_slice()) {
-        (_, [(name, _ts)]) => try_alias(name, None).unwrap_or_else(|| fmt_ty(fn_output_eff, ctx)),
+        (_, [(name, _ts)]) => try_alias(name, None).unwrap_or_else(|| fmt_param_ty(fn_output_eff, ctx)),
         (Ty::Tuple(elems), specs) if elems.len() == specs.len() => {
             let parts: Vec<String> = elems.iter().zip(specs.iter())
-                .map(|(t, (n, _))| try_alias(n, None).unwrap_or_else(|| fmt_ty(t, ctx)))
+                .map(|(t, (n, _))| try_alias(n, None).unwrap_or_else(|| fmt_param_ty(t, ctx)))
                 .collect();
             format!("({})", parts.join(", "))
         }
-        _ => fmt_ty(fn_output_eff, ctx),
+        _ => fmt_param_ty(fn_output_eff, ctx),
     };
     let ename = escape_ident(name);
 

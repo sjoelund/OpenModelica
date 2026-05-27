@@ -5738,6 +5738,69 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                     }
                 }
 
+                // Typevar instantiation: when a formal's type contains type
+                // variables (`T`, `K`, …) that the call site instantiates with
+                // a concrete actual type, substituting those typevars in the
+                // remaining formals lets `emit_call_arg_with_formal` apply
+                // implicit coercions (notably tuple→first for multi-output
+                // calls) on the now-concrete slot type. Without this, generic
+                // helpers like `UnorderedSet.add(stripSubscripts(c), set)`
+                // see the value-side formal as `T` and skip the unpack — the
+                // typevar formal could otherwise legitimately accept a tuple.
+                //
+                // The function's actual `type_vars` list is not threaded
+                // through `resolve_call_formals`; harvest the typevar names by
+                // scanning all formal types for `Ty::TypeVar(_)` occurrences.
+                // Within a single function's signature every TypeVar refers
+                // to that function's own parameters, so the harvest is sound.
+                let mut tv_set: std::collections::HashSet<String> = std::collections::HashSet::new();
+                fn collect_tv(t: &Ty, out: &mut std::collections::HashSet<String>) {
+                    match t {
+                        Ty::TypeVar(n) => { out.insert(n.clone()); }
+                        Ty::Option(i) | Ty::List(i) | Ty::Array(i) | Ty::Range(i) => collect_tv(i, out),
+                        Ty::Tuple(ts) => ts.iter().for_each(|t| collect_tv(t, out)),
+                        Ty::Generic(_, args) => args.iter().for_each(|t| collect_tv(t, out)),
+                        Ty::Function { inputs, output, .. } => {
+                            inputs.iter().for_each(|i| collect_tv(&i.ty, out));
+                            collect_tv(output, out);
+                        }
+                        _ => {}
+                    }
+                }
+                for f in &formals { collect_tv(&f.1, &mut tv_set); }
+                let type_vars: Vec<String> = tv_set.into_iter().collect();
+                let mut subst: HashMap<String, Ty> = HashMap::new();
+                if !type_vars.is_empty() {
+                    // Two-pass unification. The first pass binds typevars from
+                    // slots whose actual type is not itself a tuple lined up
+                    // against a bare-TypeVar formal — that combination is
+                    // ambiguous because the actual may be a multi-output call
+                    // whose *first* output is the value MetaModelica passes,
+                    // not the whole tuple. The second pass then fills in
+                    // anything left unbound (preserving the prior "bare
+                    // TypeVar receives a Tuple actual" semantics when no
+                    // other slot constrained the var).
+                    let is_ambiguous = |slot: &Option<TypedExp>, formal: Option<&CallFormal>| -> bool {
+                        matches!(slot.as_ref().map(|a| a.ty()), Some(Ty::Tuple(_)))
+                            && matches!(formal.map(|f| &f.1), Some(Ty::TypeVar(_)))
+                    };
+                    for (i, slot) in slots.iter().enumerate() {
+                        if is_ambiguous(slot, formals.get(i)) { continue; }
+                        if let (Some(actual), Some(formal)) = (slot.as_ref(), formals.get(i)) {
+                            typedexp::unify_collect(&formal.1, &actual.ty(), &type_vars, &mut subst);
+                        }
+                    }
+                    for (i, slot) in slots.iter().enumerate() {
+                        if !is_ambiguous(slot, formals.get(i)) { continue; }
+                        if let (Some(actual), Some(formal)) = (slot.as_ref(), formals.get(i)) {
+                            typedexp::unify_collect(&formal.1, &actual.ty(), &type_vars, &mut subst);
+                        }
+                    }
+                }
+                let formal_at = |i: usize| -> Option<Ty> {
+                    formals.get(i).map(|f| if subst.is_empty() { f.1.clone() } else { typedexp::apply_subst(&f.1, &subst) })
+                };
+
                 if failed {
                     // Last resort: emit positional args followed by `n=v`
                     // pairs. The `n=v` form is not valid Rust call syntax
@@ -5745,18 +5808,19 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                     // surfaces the residual case (typically an unresolved
                     // named arg) instead of silently dropping it.
                     let mut parts: Vec<String> = args.iter().enumerate().map(|(i, a)| {
-                        emit_call_arg_with_formal(a, formals.get(i).map(|f| &f.1), is_const, ctx, top_level)
+                        emit_call_arg_with_formal(a, formal_at(i).as_ref(), is_const, ctx, top_level)
                     }).collect();
                     for (n, v) in named_args {
-                        let formal_ty = formals.iter().find_map(|(fname, fty, _)| if fname == n { Some(fty) } else { None });
-                        let v = emit_call_arg_with_formal(v, formal_ty, is_const, ctx, top_level);
+                        let formal_ty = formals.iter().enumerate()
+                            .find_map(|(idx, (fname, _, _))| if fname == n { formal_at(idx) } else { None });
+                        let v = emit_call_arg_with_formal(v, formal_ty.as_ref(), is_const, ctx, top_level);
                         parts.push(format!("{n}={v}"));
                     }
                     parts
                 } else {
                     slots.into_iter().enumerate()
                         .map(|(i, s)| {
-                            emit_call_arg_with_formal(&s.unwrap(), formals.get(i).map(|f| &f.1), is_const, ctx, top_level)
+                            emit_call_arg_with_formal(&s.unwrap(), formal_at(i).as_ref(), is_const, ctx, top_level)
                         })
                         .collect()
                 }
@@ -12025,7 +12089,31 @@ fn render_shallow<'a>(
         TypedPat::Constructor { name, fields, named_fields, .. } => {
             // Field types: look up the record by qname.
             let mut resolved_qname = if name.contains('.') {
-                Some(name.clone())
+                // Try to resolve the dotted name through file-scope import
+                // aliases stored in `ctx.named`. A pattern like
+                // `Unit.UNIT(...)` written under `import Unit = NFUnit;`
+                // needs to land on the canonical `NFUnit.Unit.UNIT` so the
+                // per-record field-name lookup picks the right declaration;
+                // without this, the simple-name fallback further down may
+                // pick an unrelated same-named record (e.g. `FUnit.UNIT`)
+                // whose field order differs and corrupt the destructure.
+                let mut parts = name.splitn(2, '.');
+                let head = parts.next().unwrap_or(name);
+                let tail = parts.next().unwrap_or("");
+                let alias_resolved: Option<String> = ctx.named.iter()
+                    .find(|(_, local)| local.as_str() == head)
+                    .map(|(dotted, _)| {
+                        if tail.is_empty() { dotted.clone() } else { format!("{dotted}.{tail}") }
+                    });
+                // Prefer the alias-resolved path when the candidate also has
+                // a discoverable field list (direct hit or via uniontype
+                // walk); otherwise fall through to the literal name. We
+                // accept the canonical qname even if direct lookup fails —
+                // `record_field_tys` below already retries through
+                // `lookup_record_through_unions` for uniontype-nested
+                // records.
+                let candidate = alias_resolved.unwrap_or_else(|| name.clone());
+                Some(candidate)
             } else {
                 // Bare constructor: try current pkg prefix and ancestors.
                 let cur_prefix = if ctx.current_path.is_empty() {

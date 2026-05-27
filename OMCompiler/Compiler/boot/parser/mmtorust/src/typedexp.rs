@@ -1010,7 +1010,7 @@ fn call_ty(func: &str, args: &[TypedExp], top_level: &BTreeMap<String, NameNode<
 /// `actual` (first-binding wins; later inconsistent bindings are ignored — a
 /// proper compiler pass would report the conflict, but for return-type
 /// substitution alone any consistent witness suffices).
-fn unify_collect(sig: &Ty, actual: &Ty, type_vars: &[String], subst: &mut HashMap<String, Ty>) {
+pub fn unify_collect(sig: &Ty, actual: &Ty, type_vars: &[String], subst: &mut HashMap<String, Ty>) {
     match (sig, actual) {
         (Ty::TypeVar(name), other) if type_vars.iter().any(|v| v == name) => {
             if !matches!(other, Ty::Unknown) {
@@ -1045,7 +1045,7 @@ fn unify_collect(sig: &Ty, actual: &Ty, type_vars: &[String], subst: &mut HashMa
 }
 
 /// Apply a type-variable substitution to a type, recursively.
-fn apply_subst(ty: &Ty, subst: &HashMap<String, Ty>) -> Ty {
+pub fn apply_subst(ty: &Ty, subst: &HashMap<String, Ty>) -> Ty {
     if subst.is_empty() { return ty.clone(); }
     match ty {
         Ty::TypeVar(name) => subst.get(name).cloned().unwrap_or_else(|| ty.clone()),

@@ -10427,7 +10427,16 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
                             }
                         }
                     }
-                    for (n, t) in typedexp::pat_bindings(&case.pattern) {
+                    // Seed pattern bindings with their *resolved* types (mirroring
+                    // the MatchKind::Match path). Using the untyped `pat_bindings`
+                    // here would overwrite the well-typed entries seeded into
+                    // `ctx.fn_env_vars` (and thus `local_env.vars`) above with
+                    // `Ty::Unknown`. That mistyped a tuple-aliased binding (e.g. a
+                    // `HashTable`, which resolves to a 4-tuple) as scalar, which
+                    // then drove the multi-output-discard assignment heuristic in
+                    // `emit_stmt` to wrongly destructure `Ht := f(Ht)` into
+                    // `(Ht, _, _, _) = f(Ht)`.
+                    for (n, t) in typedexp::pat_bindings_with_scrut_ty_tl(&case.pattern, &input_ty, top_level) {
                         local_env.vars.insert(n, t);
                     }
                     let mut deref_names: Vec<String> = Vec::new();

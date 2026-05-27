@@ -27,24 +27,24 @@ thread_local! {
     //
     // NF instantiation cache (instance path → SCode elements, name, InstNode).
     pub static instNFInstCacheIndex: RefCell<Arc<metamodelica::List<(
-        (crate::Absyn::Program, Arc<crate::Absyn::Path>),
-        (Arc<metamodelica::List<Arc<crate::SCode::Element>>>, ArcStr, Arc<crate::NFInst::InstNode>),
+        (openmodelica_ast::Absyn::Program, Arc<openmodelica_ast::Absyn::Path>),
+        (Arc<metamodelica::List<Arc<openmodelica_frontend_types::SCode::Element>>>, ArcStr, Arc<crate::NFInstNode::InstNode>),
     )>>> = RefCell::new(metamodelica::nil());
 
     // Index 11 — instNFNodeCacheIndex
     //
     // NF node cache (program → SCode elements, InstNode).
     pub static instNFNodeCacheIndex: RefCell<Arc<metamodelica::List<(
-        crate::Absyn::Program,
-        (Arc<metamodelica::List<Arc<crate::SCode::Element>>>, Arc<crate::NFInst::InstNode>),
+        openmodelica_ast::Absyn::Program,
+        (Arc<metamodelica::List<Arc<openmodelica_frontend_types::SCode::Element>>>, Arc<crate::NFInstNode::InstNode>),
     )>>> = RefCell::new(metamodelica::nil());
 
     // Index 12 — instNFLookupCacheIndex
     //
     // NF lookup cache. Same type as instNFInstCacheIndex (index 10).
     pub static instNFLookupCacheIndex: RefCell<Arc<metamodelica::List<(
-        (crate::Absyn::Program, Arc<crate::Absyn::Path>),
-        (Arc<metamodelica::List<Arc<crate::SCode::Element>>>, ArcStr, Arc<crate::NFInst::InstNode>),
+        (openmodelica_ast::Absyn::Program, Arc<openmodelica_ast::Absyn::Path>),
+        (Arc<metamodelica::List<Arc<openmodelica_frontend_types::SCode::Element>>>, ArcStr, Arc<crate::NFInstNode::InstNode>),
     )>>> = RefCell::new(metamodelica::nil());
 
     // Index 13 — builtinIndex
@@ -53,7 +53,7 @@ thread_local! {
     // Initialised by FBuiltin.mo; reset to nil() between runs.
     pub static builtinIndex: RefCell<Arc<metamodelica::List<(
         (i32, bool),
-        (crate::Absyn::Program, Arc<metamodelica::List<Arc<crate::SCode::Element>>>),
+        (openmodelica_ast::Absyn::Program, Arc<metamodelica::List<Arc<openmodelica_frontend_types::SCode::Element>>>),
     )>>> = RefCell::new(metamodelica::nil());
 
     // Index 18 — builtinGraphIndex

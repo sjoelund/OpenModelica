@@ -53,12 +53,6 @@ const HANDWRITTEN_TOP_PACKAGES: &[&str] = &[
     "ErrorExt", "Print", "ParserExt", "System",
 ];
 
-/// True if `qname` is rooted in a hand-written top-level package.
-fn qname_in_handwritten_pkg(qname: &str) -> bool {
-    let top = qname.split('.').next().unwrap_or(qname);
-    HANDWRITTEN_TOP_PACKAGES.contains(&top)
-}
-
 /// How to propagate a Result error from a fallible sub-expression.
 ///
 /// MetaModelica calls return `Result<T>` in our lowering. The Rust expression
@@ -15548,13 +15542,6 @@ fn compute_types_needing_default<'a>(
             let mut qnames: HashSet<String> = HashSet::new();
             collect_concrete_qnames_in_ty(&ty, &mut qnames);
             for q in qnames {
-                // Only request a `Default` impl for types the codegen will
-                // actually emit one for: skip hand-written packages whose
-                // `.rs` we don't generate. Types from those packages that
-                // *do* carry a hand-written `Default` impl are listed in
-                // [`EXTERNAL_DEFAULTABLE_QNAMES`] and would be picked up by
-                // the consumer regardless of `types_needing_default`.
-                if qname_in_handwritten_pkg(&q) { continue; }
                 if defaultable_qnames.contains(&q) {
                     needs.insert(q);
                 }

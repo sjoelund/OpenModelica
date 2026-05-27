@@ -9,7 +9,7 @@ use loop_unwrap::unwrap_break_err;
 use metamodelica::*; // Built-in types and functions
 use const_str;
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
 pub struct ProfStats {
     pub heapsize_full: i32,
     pub free_bytes_full: i32,

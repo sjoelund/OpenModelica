@@ -5305,7 +5305,22 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                 // rustc infer each slot from the surrounding call. The
                 // arity comes from the resolved base.
                 Ty::FunctionAlias { base, .. } => {
-                    let resolved_base = resolve_call_qname(base, ctx, top_level);
+                    // `resolve_call_qname` searches relative to the *call
+                    // site's* function scope, but the alias's RHS name
+                    // (`addConflictKeep` in `function addConflictDefault =
+                    // addConflictKeep`) is written relative to the alias's
+                    // own enclosing package — which may be a different
+                    // module entirely (e.g. an alias in
+                    // `NFFlatten.FunctionTreeImpl` referenced from
+                    // `NFInstUtil`). Walk the alias's parent FQN segments
+                    // outward, like MetaModelica's lookup does at the
+                    // alias's declaration site, before falling back to the
+                    // call-site scope.
+                    let alias_scope_qname = resolve_alias_base_at_alias_scope(
+                        base, resolved_fn_qname.as_deref(), top_level,
+                    );
+                    let resolved_base = alias_scope_qname
+                        .or_else(|| resolve_call_qname(base, ctx, top_level));
                     let base_qname = resolved_base.as_deref().unwrap_or(base.as_str());
                     let arity = match crate::hierarchy::lookup_node_ty(base_qname, top_level) {
                         Some(Ty::Function { inputs, .. }) => Some(inputs.len()),
@@ -5313,7 +5328,27 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                     };
                     if let Some(n) = arity {
                         let underscores: Vec<&'static str> = (0..n).map(|_| "_").collect();
-                        format!("(std::sync::Arc::new({var_str}) as std::sync::Arc<dyn ::std::ops::Fn({}) -> Result<_> + 'static>)",
+                        // If the resolved base is an infallible function
+                        // (returns `T`, not `Result<T>`), the surrounding
+                        // `Arc<dyn Fn(..) -> Result<T>>` slot can't accept it
+                        // directly — we'd hit E0271. Wrap through
+                        // `fnptr!(path, _, ..)` first to produce a closure
+                        // that re-wraps the infallible result in `Ok(..)`,
+                        // matching what the fn-item arm above already does
+                        // for direct fn references.
+                        let infallible = resolved_base.as_deref()
+                            .map(|q| ctx.is_known_infallible_user_fn(q, top_level))
+                            .unwrap_or(false);
+                        let closure = if infallible {
+                            if underscores.is_empty() {
+                                format!("fnptr!({var_str})")
+                            } else {
+                                format!("fnptr!({var_str}, {})", underscores.join(", "))
+                            }
+                        } else {
+                            var_str
+                        };
+                        format!("(std::sync::Arc::new({closure}) as std::sync::Arc<dyn ::std::ops::Fn({}) -> Result<_> + 'static>)",
                             underscores.join(", "))
                     } else {
                         // Unresolved alias — leave the bare reference and
@@ -8065,6 +8100,38 @@ fn resolve_call_qname_fn<'a>(
         if is_fn(&candidate) { return Some(candidate); }
     }
     if is_fn(func) { Some(func.to_owned()) } else { None }
+}
+
+/// Resolve a `Ty::FunctionAlias` base name in the scope of the alias's own
+/// declaration, not the current call site. MetaModelica's lookup for the RHS
+/// of `function Foo = Bar(...)` walks outward from the alias's enclosing
+/// package, so a sibling re-export (`function addConflictDefault =
+/// addConflictKeep` inside `NFFlatten.FunctionTreeImpl`) resolves regardless
+/// of which module the reference to `addConflictDefault` appears in.
+///
+/// Returns the FQN if found in any ancestor scope of `alias_qname`. Returns
+/// `None` if `alias_qname` is missing or no ancestor scope contains `base`.
+fn resolve_alias_base_at_alias_scope<'a>(
+    base: &str,
+    alias_qname: Option<&str>,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+) -> Option<String> {
+    let alias_qn = alias_qname?;
+    let mut scope = alias_qn.rsplit_once('.').map_or("", |(p, _)| p);
+    loop {
+        let candidate = if scope.is_empty() {
+            base.to_owned()
+        } else {
+            format!("{scope}.{base}")
+        };
+        if lookup_node(&candidate, top_level).is_some() {
+            return Some(candidate);
+        }
+        if scope.is_empty() {
+            return None;
+        }
+        scope = scope.rsplit_once('.').map_or("", |(p, _)| p);
+    }
 }
 
 /// Resolve a function name as written at a call site to a fully-qualified dotted

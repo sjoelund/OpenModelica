@@ -5624,7 +5624,7 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                 // `Branch` module that also defines its own `mapExp`.
                 if !shortened.contains("::")
                     && !ctx.current_path.is_empty()
-                    && let Some(qname) = qname_opt
+                    && let Some(qname) = qname_opt.clone()
                     && qname == format!("{}.{}", ctx.top_name, shortened)
                 {
                     let cur_dotted = format!("{}.{}.{}", ctx.top_name, ctx.current_path.join("."), shortened);
@@ -5634,6 +5634,17 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                     } else {
                         shortened
                     }
+                } else if !shortened.contains("::")
+                    && matches!(ctx.fn_env_vars.get(&shortened),
+                                Some(t) if !matches!(t, Ty::Function { .. } | Ty::FunctionAlias { .. }))
+                {
+                    // The dotted source name shortened to a bare identifier
+                    // that collides with a local non-function binding (e.g.
+                    // `Modifier.name(...)` written inside `Modifier` shortens
+                    // to `name`, but `name` is also a `String` parameter of
+                    // the enclosing function). Rust resolves the bare name to
+                    // the local. Force module-scope resolution with `self::`.
+                    format!("self::{shortened}")
                 } else {
                     shortened
                 }
@@ -5814,10 +5825,36 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
 
         TypedExp::If { cond, then_, elseif, else_, .. } => {
             let c = emit_exp(cond, is_const, ctx, top_level);
-            let t = emit_exp(then_, is_const, ctx, top_level);
-            let e = emit_exp(else_, is_const, ctx, top_level);
+            let mut t = emit_exp(then_, is_const, ctx, top_level);
+            let mut e = emit_exp(else_, is_const, ctx, top_level);
+            // MetaModelica implicitly takes the first output of a multi-return
+            // call when the result flows into a scalar slot. In an if-expression
+            // arms with mismatched tuple-vs-scalar types fail to unify on the
+            // Rust side. Mirror the BinOp behaviour: when one arm yields a tuple
+            // (whose first component matches the other arm's concrete type) and
+            // the other yields a scalar, append `.0` to the tuple arm. Common
+            // shape: `if cond then arg else ExpandExp.expand(arg)` where
+            // `expand` returns `(Expression, Boolean)` but only the first
+            // output is used.
+            let then_ty = then_.ty();
+            let else_ty = else_.ty();
+            let unwrap_tuple_to = |arm: &mut String, arm_ty: &Ty, other_ty: &Ty| {
+                if let Ty::Tuple(ts) = arm_ty
+                    && !ts.is_empty()
+                    && !matches!(other_ty, Ty::Unknown | Ty::TypeVar(_) | Ty::Tuple(_))
+                    && &ts[0] == other_ty
+                {
+                    *arm = format!("({arm}).0");
+                }
+            };
+            unwrap_tuple_to(&mut t, &then_ty, &else_ty);
+            unwrap_tuple_to(&mut e, &else_ty, &then_ty);
             let ei: String = elseif.iter()
-                .map(|(ec, eb)| format!(" else if ({}) {{{}}}", emit_exp(ec, is_const, ctx, top_level), emit_exp(eb, is_const, ctx, top_level)))
+                .map(|(ec, eb)| {
+                    let mut eb_s = emit_exp(eb, is_const, ctx, top_level);
+                    unwrap_tuple_to(&mut eb_s, &eb.ty(), &then_ty);
+                    format!(" else if ({}) {{{}}}", emit_exp(ec, is_const, ctx, top_level), eb_s)
+                })
                 .collect();
             format!("if ({c}) {{{t}}}{ei} else {{{e}}}")
         }
@@ -7113,7 +7150,17 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
             );
             let arg1 = args.first().map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
             let arg2 = args.get(1).map(|a| emit_builtin_call_arg_raw(func, 1, a, is_const, ctx, top_level)).unwrap_or_default();
-            let arg3 = args.get(2).map(|a| emit_builtin_call_arg(func, 2, a, is_const, ctx, top_level)).unwrap_or_default();
+            // The value formal for arrayUpdate(arr, i, v) is the element type
+            // of `arr`. `builtin_formal_ty` cannot supply it because the
+            // builtin's signature is generic (`T`), so derive it from arg0's
+            // inferred Array<T>. Without this, a tuple-returning call passed
+            // for `v` (MetaModelica takes the first output implicitly) is not
+            // unpacked via `.0`.
+            let elem_formal: Option<Ty> = match args.first().map(|a| a.ty()) {
+                Some(Ty::Array(inner)) => Some(*inner),
+                _ => None,
+            };
+            let arg3 = args.get(2).map(|a| emit_call_arg_with_formal(a, elem_formal.as_ref(), is_const, ctx, top_level)).unwrap_or_default();
             if arr_is_uninit {
                 Ok(format!("unsafe {{ metamodelica::Dangerous::arrayInitSlot({arg1}, {arg2}, {arg3}) }}"))
             } else {
@@ -12800,9 +12847,21 @@ fn record_constructor_pattern_bindings<'a>(
             Ty::Option(t) => (**t).clone(),
             _ => Ty::Unknown,
         };
-        if let TypedPat::As { var, pat: inner_as } = inner_pat.as_ref()
-            && let Some((enum_q, variant)) = variant_of_pat(inner_as, &inner_ty, top_level) {
-            env.variants.insert(var.clone(), (enum_q, variant));
+        if let TypedPat::As { var, pat: inner_as } = inner_pat.as_ref() {
+            if let Some((enum_q, variant)) = variant_of_pat(inner_as, &inner_ty, top_level) {
+                env.variants.insert(var.clone(), (enum_q, variant));
+            }
+            // Shape of an `e @ ..` binding inside `Some(...)`: when the outer
+            // match crosses an Arc edge (here, through Option<Arc<T>>) the
+            // payload binding is itself `&Arc<T>` — VarShape::RefArc. Without
+            // recording this, `var_field!` on `e` would emit `(*e).field`
+            // instead of `(**e).field`, leaving a stray `&Arc<T>` where the
+            // call site expects `Arc<T>`.
+            if let Some(c) = ctx
+                && is_arc_wrapped(&inner_ty, c)
+            {
+                shapes.insert(var.clone(), VarShape::RefArc);
+            }
         }
         let next_pat = match inner_pat.as_ref() {
             TypedPat::As { pat: inner_as, .. } => inner_as.as_ref(),

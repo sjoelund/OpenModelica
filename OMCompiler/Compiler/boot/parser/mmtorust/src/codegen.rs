@@ -41,6 +41,24 @@ const EXTERNAL_DEFAULTABLE_QNAMES: &[&str] = &[
     "SOURCEINFO", "SourceInfo",
 ];
 
+/// Top-level package names whose generated `.rs` is *skipped* in the driver
+/// and replaced by a hand-written file (see the `match *name` near
+/// `dir_classes` in the driver). Types declared inside these packages get no
+/// auto-emitted `impl Default` (or any other trait impl), so the defaultability
+/// analysis must not classify them as defaultable just because their MM-side
+/// fields happen to be. Any hand-written `Default` impls for such types are
+/// registered via [`EXTERNAL_DEFAULTABLE_QNAMES`] instead.
+const HANDWRITTEN_TOP_PACKAGES: &[&str] = &[
+    "Mutable", "GCExt", "Pointer", "File", "Global", "Vector",
+    "ErrorExt", "Print", "ParserExt", "System",
+];
+
+/// True if `qname` is rooted in a hand-written top-level package.
+fn qname_in_handwritten_pkg(qname: &str) -> bool {
+    let top = qname.split('.').next().unwrap_or(qname);
+    HANDWRITTEN_TOP_PACKAGES.contains(&top)
+}
+
 /// How to propagate a Result error from a fallible sub-expression.
 ///
 /// MetaModelica calls return `Result<T>` in our lowering. The Rust expression
@@ -1057,7 +1075,7 @@ pub fn generate_all(hier: &InstanceHierarchy<'_>, output_dir: &str) -> std::io::
                 // ops, env vars, timers, dlopen, regex, ...). Same story as
                 // `Print` — codegen produces `todo!()` for every body.
                 // Hand-write in `openmodelica_util/src/System.rs`.
-                "Mutable" | "GCExt" | "Pointer" | "File" | "Global" | "Vector" | "ErrorExt" | "Print" | "ParserExt" | "System" => continue,
+                n if HANDWRITTEN_TOP_PACKAGES.contains(&n) => continue,
                 _ => {}
             };
             file_jobs.push((dir.as_str(), name, node));
@@ -1087,7 +1105,7 @@ pub fn generate_all(hier: &InstanceHierarchy<'_>, output_dir: &str) -> std::io::
                 format!("codegen for {file_path} exceeded {file_timeout_secs}s"),
             ));
         }
-        std::fs::write(&file_path, content)?;
+        write_if_changed(&file_path, &content)?;
         Ok(())
     })?;
 
@@ -1097,13 +1115,22 @@ pub fn generate_all(hier: &InstanceHierarchy<'_>, output_dir: &str) -> std::io::
             continue;
         }
         let lib_content = generate_lib_file(hier, dir, output_dir);
-        std::fs::write(format!("{dir}/lib.rs"), lib_content)?;
+        write_if_changed(&format!("{dir}/lib.rs"), &lib_content)?;
     }
     let all_file_elapsed = all_file_t0.elapsed();
     if trace_codegen {
         eprintln!("[mmtorust] codegen done all files ({:.2}s)", all_file_elapsed.as_secs_f64());
     }
     Ok(())
+}
+
+fn write_if_changed(path: &str, content: &str) -> std::io::Result<()> {
+    if let Ok(existing) = std::fs::read(path) {
+        if existing == content.as_bytes() {
+            return Ok(());
+        }
+    }
+    std::fs::write(path, content)
 }
 
 fn generate_lib_file(hier: &InstanceHierarchy<'_>, this_dir: &str, default_dir: &str) -> String {
@@ -15429,6 +15456,19 @@ fn pick_default_variant_for_enum<'a>(
 ///      (i.e. non-fn-pointer fields) also needs `Default`. Similarly for
 ///      the picked variant's fields of an enum `E`.
 ///
+///   4. *Implicit local init* — MetaModelica gives every protected local
+///      and output an implicit type-default initial value, which the
+///      bootstrap C runtime honours by zero-initialising the boxed slot.
+///      In Rust we surface that with `let mut x: T = Default::default();`
+///      (see [`ty_default_init_with_hier`]). For struct/alias types that
+///      consumer requires `T: Default` to be present, so any function
+///      that declares such a local without an explicit initialiser
+///      contributes its type to the needs set.  This fires regardless of
+///      whether the local is used on an unassigned path — the C bootstrap
+///      always allocates the default, and matching that lets correlated
+///      control-flow patterns (flag + assignment in the same branch)
+///      compile without needing a Rust-side definite-assignment proof.
+///
 /// Iterates a fixed point until no new qname is added.
 fn compute_types_needing_default<'a>(
     top_level: &'a BTreeMap<String, NameNode<'a>>,
@@ -15450,6 +15490,75 @@ fn compute_types_needing_default<'a>(
             collect_concrete_default_uses_in_stmt(
                 s, &ever_assigned, default_required, top_level, &pkg_prefix, &mut needs,
             );
+        }
+    }
+
+    // Source (4): function-local declarations without an explicit
+    // initialiser.  Mirrors the iteration in `emit_function` that builds
+    // `outputs`/`protected` (see the loop near "Walk components to find
+    // outputs and protected locals"): only `OUTPUT`, `INPUT_OUTPUT`, and
+    // `BIDIR` directions are candidates, and a `modification` (i.e. an
+    // `= expr` default in the MM source) suppresses the implicit init.
+    // We seed the type's concrete qnames so the field-closure pass (Source
+    // (3)) propagates the demand transitively (e.g. `PackageInstallInfo`
+    // → `SemanticVersion.Version`, `JSON.JSON`, …).
+    for (qn, node) in &all_fns {
+        let NodeKind::Class(c) = &node.kind else { continue };
+        let members: &[MM::ClassMember] = match &c.body {
+            MM::ClassDef::Parts { members, .. }
+            | MM::ClassDef::ClassExtends { members, .. } => members,
+            _ => &[],
+        };
+        // Collect this function's own type variables — protected locals can
+        // reference them (e.g. `output T result;`).
+        let mut all_type_vars: Vec<String> = Vec::new();
+        if let Ty::Function { type_vars, .. } = &node.ty {
+            all_type_vars.extend(type_vars.iter().cloned());
+        }
+        // pkg_prefix for typespec resolution: the function's *enclosing*
+        // package (everything before the function name in the qname).
+        let pkg_prefix = qn.rsplit_once('.').map_or("", |(p, _)| p).to_owned();
+        for member in members {
+            let MM::ClassMember::Component(cm) = member else { continue };
+            // `cm.modification` is `Some` whenever the source carries *any*
+            // modifier — including prefix annotations attached by the
+            // parser — even when there is no `= expr`. Mirror emit_function's
+            // gate and only treat the local as "initialised" when there's
+            // an actual default value expression.
+            if extract_default_exp(&cm.modification).is_some() { continue; }
+            match cm.direction {
+                Absyn::Direction::OUTPUT
+                | Absyn::Direction::INPUT_OUTPUT
+                | Absyn::Direction::BIDIR => {}
+                _ => continue,
+            }
+            // Resolve the component type. Prefer the hierarchy's resolved
+            // type when present (handles re-export / inherit cases); fall
+            // back to direct TypeSpec resolution otherwise.
+            let ty = node.children.get(&cm.name)
+                .map(|n| n.ty.clone())
+                .filter(|t| !matches!(t, Ty::Unknown))
+                .unwrap_or_else(|| typedexp::resolve_typespec(
+                    &cm.type_spec, &all_type_vars, top_level, &pkg_prefix,
+                ));
+            // Only struct/alias types need an `impl Default` emitted before
+            // `ty_default_init_with_hier` will return Some on them. Enums
+            // with a unit variant are handled unconditionally there.
+            if !matches!(&ty, Ty::RustStruct(_) | Ty::AliasTo(_)) { continue; }
+            let mut qnames: HashSet<String> = HashSet::new();
+            collect_concrete_qnames_in_ty(&ty, &mut qnames);
+            for q in qnames {
+                // Only request a `Default` impl for types the codegen will
+                // actually emit one for: skip hand-written packages whose
+                // `.rs` we don't generate. Types from those packages that
+                // *do* carry a hand-written `Default` impl are listed in
+                // [`EXTERNAL_DEFAULTABLE_QNAMES`] and would be picked up by
+                // the consumer regardless of `types_needing_default`.
+                if qname_in_handwritten_pkg(&q) { continue; }
+                if defaultable_qnames.contains(&q) {
+                    needs.insert(q);
+                }
+            }
         }
     }
 

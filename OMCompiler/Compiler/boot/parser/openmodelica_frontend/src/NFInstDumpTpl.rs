@@ -11,11 +11,11 @@ use arcstr::{ArcStr, literal, format};
 
 use crate::Expression;
 use crate::NFInstDump;
-use crate::NFInstPrefix;
 use crate::NFInstTypes;
 use openmodelica_ast::Absyn;
 use openmodelica_frontend_dump::AbsynDumpTpl;
 use openmodelica_frontend_dump::ExpressionDumpTpl;
+use openmodelica_frontend_inst::NFInstPrefix;
 use openmodelica_frontend_types::DAE;
 use openmodelica_susan::Tpl;
 

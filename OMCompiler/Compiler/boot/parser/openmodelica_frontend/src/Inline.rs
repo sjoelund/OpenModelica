@@ -43,7 +43,6 @@ use metamodelica::*; // Built-in types and functions
 use const_str;
 use arcstr::{ArcStr, literal, format};
 
-use crate::AvlSetPath;
 use crate::Ceval;
 use crate::ComponentReference;
 use crate::DAEDump;
@@ -55,6 +54,7 @@ use crate::HashTableCG;
 use crate::Types;
 use crate::VarTransform;
 use openmodelica_ast::Absyn;
+use openmodelica_ast_collections::AvlSetPath;
 use openmodelica_frontend_dump::AbsynUtil;
 use openmodelica_frontend_dump::ClassInfUtil;
 use openmodelica_frontend_dump::ComponentReferenceBasics;

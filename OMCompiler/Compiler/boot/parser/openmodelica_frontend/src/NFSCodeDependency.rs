@@ -43,7 +43,6 @@ use metamodelica::*; // Built-in types and functions
 use const_str;
 use arcstr::{ArcStr, literal, format};
 
-use crate::NFInstPrefix;
 use crate::NFSCodeCheck;
 use crate::NFSCodeEnv::EnvTree;
 use crate::NFSCodeEnv;
@@ -53,6 +52,7 @@ use openmodelica_ast::Absyn;
 use openmodelica_frontend_dump::AbsynUtil;
 use openmodelica_frontend_dump::SCodeDump;
 use openmodelica_frontend_dump::SCodeUtil;
+use openmodelica_frontend_inst::NFInstPrefix;
 use openmodelica_frontend_types::SCode;
 use openmodelica_util::Config;
 use openmodelica_util::Debug;

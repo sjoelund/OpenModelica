@@ -44,8 +44,8 @@ use const_str;
 use arcstr::{ArcStr, literal, format};
 
 use crate::HashTable;
-use crate::MMath;
 use openmodelica_frontend_types::DAE;
+use openmodelica_util::MMath;
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum UnitCheckResult {

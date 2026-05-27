@@ -44,8 +44,8 @@ use const_str;
 use arcstr::{ArcStr, literal, format};
 
 use crate::NFInstDumpTpl;
-use crate::NFInstPrefix;
 use crate::NFInstTypes;
+use openmodelica_frontend_inst::NFInstPrefix;
 use openmodelica_susan::Tpl;
 use openmodelica_util_datatypes_basic::Array;
 

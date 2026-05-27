@@ -301,14 +301,14 @@ pub fn getInitialFunctions() -> Result<(Absyn::Program, Arc<metamodelica::List<A
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             let () = __mc_input.clone() else { bail!("nomatch") };
-            let mut sp: Arc<metamodelica::List<Arc<SCode::Element>>> = sp.clone();
-            let mut assocLst: Arc<metamodelica::List<((i32, bool), (Absyn::Program, Arc<metamodelica::List<Arc<SCode::Element>>>))>> = assocLst.clone();
-            let mut spCF: Arc<metamodelica::List<Arc<SCode::Element>>> = spCF.clone();
-            let mut pCF: Absyn::Program = pCF.clone();
-            let mut p: Absyn::Program = p.clone();
             let mut pNF: Absyn::Program = pNF.clone();
             let mut pMM: Absyn::Program = pMM.clone();
             let mut spNF: Arc<metamodelica::List<Arc<SCode::Element>>> = spNF.clone();
+            let mut sp: Arc<metamodelica::List<Arc<SCode::Element>>> = sp.clone();
+            let mut spCF: Arc<metamodelica::List<Arc<SCode::Element>>> = spCF.clone();
+            let mut assocLst: Arc<metamodelica::List<((i32, bool), (Absyn::Program, Arc<metamodelica::List<Arc<SCode::Element>>>))>> = assocLst.clone();
+            let mut pCF: Absyn::Program = pCF.clone();
+            let mut p: Absyn::Program = p.clone();
             let true = (intEq(Flags::getConfigEnum(Flags::GRAMMAR.clone())?, Flags::METAMODELICA.clone())) else { bail!("pattern mismatch") };
             Error::assertionOrAddSourceMessage(System::regularFileExists((fileModelicaNF.clone()).clone()), Error::FILE_NOT_FOUND_ERROR.clone(), list![(fileModelicaNF.clone()).clone()], Absyn::dummyInfo.clone())?;
             Error::assertionOrAddSourceMessage(System::regularFileExists((fileModelicaCF.clone()).clone()), Error::FILE_NOT_FOUND_ERROR.clone(), list![(fileModelicaCF.clone()).clone()], Absyn::dummyInfo.clone())?;
@@ -343,14 +343,14 @@ pub fn getInitialFunctions() -> Result<(Absyn::Program, Arc<metamodelica::List<A
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             let () = __mc_input.clone() else { bail!("nomatch") };
-            let mut p: Absyn::Program = p.clone();
-            let mut spNF: Arc<metamodelica::List<Arc<SCode::Element>>> = spNF.clone();
-            let mut spCF: Arc<metamodelica::List<Arc<SCode::Element>>> = spCF.clone();
-            let mut sp: Arc<metamodelica::List<Arc<SCode::Element>>> = sp.clone();
             let mut pNF: Absyn::Program = pNF.clone();
             let mut pMM: Absyn::Program = pMM.clone();
-            let mut pCF: Absyn::Program = pCF.clone();
             let mut assocLst: Arc<metamodelica::List<((i32, bool), (Absyn::Program, Arc<metamodelica::List<Arc<SCode::Element>>>))>> = assocLst.clone();
+            let mut p: Absyn::Program = p.clone();
+            let mut spCF: Arc<metamodelica::List<Arc<SCode::Element>>> = spCF.clone();
+            let mut sp: Arc<metamodelica::List<Arc<SCode::Element>>> = sp.clone();
+            let mut pCF: Absyn::Program = pCF.clone();
+            let mut spNF: Arc<metamodelica::List<Arc<SCode::Element>>> = spNF.clone();
             let true = (intEq(Flags::getConfigEnum(Flags::GRAMMAR.clone())?, Flags::PARMODELICA.clone())) else { bail!("pattern mismatch") };
             Error::assertionOrAddSourceMessage(System::regularFileExists((fileModelicaNF.clone()).clone()), Error::FILE_NOT_FOUND_ERROR.clone(), list![(fileModelicaNF.clone()).clone()], Absyn::dummyInfo.clone())?;
             Error::assertionOrAddSourceMessage(System::regularFileExists((fileModelicaCF.clone()).clone()), Error::FILE_NOT_FOUND_ERROR.clone(), list![(fileModelicaCF.clone()).clone()], Absyn::dummyInfo.clone())?;
@@ -383,12 +383,12 @@ pub fn getInitialFunctions() -> Result<(Absyn::Program, Arc<metamodelica::List<A
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             let () = __mc_input.clone() else { bail!("nomatch") };
-            let mut pCF: Absyn::Program = pCF.clone();
+            let mut spCF: Arc<metamodelica::List<Arc<SCode::Element>>> = spCF.clone();
             let mut assocLst: Arc<metamodelica::List<((i32, bool), (Absyn::Program, Arc<metamodelica::List<Arc<SCode::Element>>>))>> = assocLst.clone();
             let mut spNF: Arc<metamodelica::List<Arc<SCode::Element>>> = spNF.clone();
+            let mut pCF: Absyn::Program = pCF.clone();
             let mut p: Absyn::Program = p.clone();
             let mut pNF: Absyn::Program = pNF.clone();
-            let mut spCF: Arc<metamodelica::List<Arc<SCode::Element>>> = spCF.clone();
             let mut sp: Arc<metamodelica::List<Arc<SCode::Element>>> = sp.clone();
             let true = (intEq(Flags::getConfigEnum(Flags::GRAMMAR.clone())?, Flags::MODELICA.clone()) || intEq(Flags::getConfigEnum(Flags::GRAMMAR.clone())?, Flags::OPTIMICA.clone())) else { bail!("pattern mismatch") };
             Error::assertionOrAddSourceMessage(System::regularFileExists((fileModelicaNF.clone()).clone()), Error::FILE_NOT_FOUND_ERROR.clone(), list![(fileModelicaNF.clone()).clone()], Absyn::dummyInfo.clone())?;
@@ -418,14 +418,14 @@ pub fn getInitialFunctions() -> Result<(Absyn::Program, Arc<metamodelica::List<A
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             let () = __mc_input.clone() else { bail!("nomatch") };
+            let mut assocLst: Arc<metamodelica::List<((i32, bool), (Absyn::Program, Arc<metamodelica::List<Arc<SCode::Element>>>))>> = assocLst.clone();
+            let mut spCF: Arc<metamodelica::List<Arc<SCode::Element>>> = spCF.clone();
+            let mut pNF: Absyn::Program = pNF.clone();
+            let mut pCF: Absyn::Program = pCF.clone();
             let mut sp: Arc<metamodelica::List<Arc<SCode::Element>>> = sp.clone();
             let mut p: Absyn::Program = p.clone();
-            let mut assocLst: Arc<metamodelica::List<((i32, bool), (Absyn::Program, Arc<metamodelica::List<Arc<SCode::Element>>>))>> = assocLst.clone();
-            let mut pNF: Absyn::Program = pNF.clone();
             let mut spNF: Arc<metamodelica::List<Arc<SCode::Element>>> = spNF.clone();
-            let mut spCF: Arc<metamodelica::List<Arc<SCode::Element>>> = spCF.clone();
             let mut pMM: Absyn::Program = pMM.clone();
-            let mut pCF: Absyn::Program = pCF.clone();
             let true = (intEq(Flags::getConfigEnum(Flags::GRAMMAR.clone())?, Flags::PDEMODELICA.clone())) else { bail!("pattern mismatch") };
             Error::assertionOrAddSourceMessage(System::regularFileExists((fileModelicaNF.clone()).clone()), Error::FILE_NOT_FOUND_ERROR.clone(), list![(fileModelicaNF.clone()).clone()], Absyn::dummyInfo.clone())?;
             Error::assertionOrAddSourceMessage(System::regularFileExists((fileModelicaCF.clone()).clone()), Error::FILE_NOT_FOUND_ERROR.clone(), list![(fileModelicaCF.clone()).clone()], Absyn::dummyInfo.clone())?;

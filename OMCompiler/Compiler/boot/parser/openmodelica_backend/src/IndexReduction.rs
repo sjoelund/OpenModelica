@@ -862,13 +862,13 @@ fn handleundifferntiableMSS(mut b: bool, mut statesWithUnusedDer: Arc<metamodeli
                     let mut ilst: Arc<metamodelica::List<i32>> = metamodelica::nil();
                     let mut syst: Arc<BackendDAE::EqSystem>;
                     let mut varlst: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
-                    let mut outStateOrd: BackendDAE::StateOrder = outStateOrd.clone();
-                    let mut omapEqnIncRow: metamodelica::Array<Arc<metamodelica::List<i32>>>;
-                    let mut outOrgEqnsLst: metamodelica::Array<Arc<metamodelica::List<Arc<BackendDAE::Equation>>>>;
-                    let mut oshared: Arc<BackendDAE::Shared>;
-                    let mut omapIncRowEqn: metamodelica::Array<i32>;
                     let mut outAss2: metamodelica::Array<i32>;
                     let mut outAss1: metamodelica::Array<i32>;
+                    let mut oshared: Arc<BackendDAE::Shared>;
+                    let mut outOrgEqnsLst: metamodelica::Array<Arc<metamodelica::List<Arc<BackendDAE::Equation>>>>;
+                    let mut omapEqnIncRow: metamodelica::Array<Arc<metamodelica::List<i32>>>;
+                    let mut omapIncRowEqn: metamodelica::Array<i32>;
+                    let mut outStateOrd: BackendDAE::StateOrder = outStateOrd.clone();
                     ilst = Matching::getUnassigned(BackendVariable::varsSize(v.clone())?, inAss1.clone(), metamodelica::nil());
                     ilst = List::fold1(ilst.clone(), (std::sync::Arc::new(statesWithUnusedDerivative) as std::sync::Arc<dyn ::std::ops::Fn(i32, metamodelica::Array<Arc<metamodelica::List<i32>>>, Arc<metamodelica::List<i32>>) -> Result<Arc<metamodelica::List<i32>>> + 'static>), mt.clone(), metamodelica::nil());
                     varlst = List::map1r(ilst.clone(), (std::sync::Arc::new(BackendVariable::getVarAt) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Variables, i32) -> Result<BackendDAE::Var> + 'static>), v.clone());

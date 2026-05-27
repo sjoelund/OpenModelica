@@ -52,8 +52,8 @@ use crate::SimCode;
 use crate::SymbolTable;
 use openmodelica_ast::Absyn;
 use openmodelica_ast::GlobalScript;
-use openmodelica_frontend::AbsynJLDumpTpl;
-use openmodelica_frontend::DumpGraphviz;
+use openmodelica_dump_extra::AbsynJLDumpTpl;
+use openmodelica_dump_extra::DumpGraphviz;
 use openmodelica_frontend::FCore;
 use openmodelica_frontend::FGraph;
 use openmodelica_frontend::Parser;
@@ -421,11 +421,11 @@ fn translateFile(mut inStringLst: Arc<metamodelica::List<ArcStr>>) -> Result<()>
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 libs => {
-                    let mut fileNamePrefix: ArcStr = fileNamePrefix.clone();
                     let mut runBackend: bool = runBackend.clone();
-                    let mut cls: ArcStr = cls.clone();
-                    let mut cname: Arc<Absyn::Path>;
                     let mut runSilent: bool = runSilent.clone();
+                    let mut cname: Arc<Absyn::Path>;
+                    let mut cls: ArcStr = cls.clone();
+                    let mut fileNamePrefix: ArcStr = fileNamePrefix.clone();
                     isEmptyOrFirstIsModelicaFile(libs.clone())?;
                     execStatReset()?;
                     for mut lib in &*libs.clone() {

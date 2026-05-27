@@ -1786,8 +1786,8 @@ pub fn dumpJSONRedeclareType(mut element: Arc<SCode::Element>, mut scope: Arc<In
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ SCode::Element::COMPONENT { .. } => {
                     let mut context: i32 = context.clone();
-                    let mut path: Arc<Path>;
                     let mut json: Arc<JSON::JSON> = json.clone();
+                    let mut path: Arc<Path>;
                     let mut cls: Arc<InstNode::InstNode> = cls.clone();
                     path = AbsynUtil::typeSpecPath(var_field!((*element).typeSpec, SCode::Element::COMPONENT).clone())?;
                     context = InstContext::set(InstContext::RELAXED.clone(), InstContext::FAST_LOOKUP.clone());

@@ -311,9 +311,9 @@ pub fn lookupLocalCref(mut cref: Arc<Absyn::ComponentRef>, mut scope: Arc<InstNo
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ Absyn::ComponentRef::CREF_IDENT { .. } => {
-                    let mut node: Arc<InstNode::InstNode> = node.clone();
                     let mut foundScope: Arc<InstNode::InstNode> = foundScope.clone();
                     let mut state: Arc<LookupState::LookupState> = state.clone();
+                    let mut node: Arc<InstNode::InstNode> = node.clone();
                     (node, foundScope) = lookupLocalSimpleCref((var_field!((*cref).name, Absyn::ComponentRef::CREF_IDENT).clone()).clone(), scope.clone())?;
                     state = LookupState::nodeState(node.clone())?;
                     Ok((ComponentRef::fromAbsyn(node.clone(), var_field!((*cref).subscripts, Absyn::ComponentRef::CREF_IDENT).clone(), Arc::new(crate::NFComponentRef::EMPTY)), foundScope.clone(), state.clone()))
@@ -324,10 +324,10 @@ pub fn lookupLocalCref(mut cref: Arc<Absyn::ComponentRef>, mut scope: Arc<InstNo
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ Absyn::ComponentRef::CREF_QUAL { .. } => {
-                    let mut node: Arc<InstNode::InstNode> = node.clone();
-                    let mut state: Arc<LookupState::LookupState> = state.clone();
-                    let mut foundScope: Arc<InstNode::InstNode> = foundScope.clone();
                     let mut foundCref: Arc<ComponentRef::NFComponentRef> = foundCref.clone();
+                    let mut foundScope: Arc<InstNode::InstNode> = foundScope.clone();
+                    let mut state: Arc<LookupState::LookupState> = state.clone();
+                    let mut node: Arc<InstNode::InstNode> = node.clone();
                     (node, foundScope) = lookupLocalSimpleCref((var_field!((*cref).name, Absyn::ComponentRef::CREF_QUAL).clone()).clone(), scope.clone())?;
                     state = LookupState::nodeState(node.clone())?;
                     foundCref = ComponentRef::fromAbsyn(node.clone(), var_field!((*cref).subscripts, Absyn::ComponentRef::CREF_QUAL).clone(), Arc::new(crate::NFComponentRef::EMPTY));

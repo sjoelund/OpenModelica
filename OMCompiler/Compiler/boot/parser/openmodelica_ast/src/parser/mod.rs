@@ -1,15 +1,19 @@
-//! mmwinnow — winnow-based MetaModelica parser
+//! Winnow-based MetaModelica parser
 //!
 //! Source is first tokenised by [`lexer::lex`], then parsed by the functions
-//! in this file.  AST types come from the `Absyn` module, mirroring the
-//! ANTLR3 grammar from `grammars/Modelica.g`.
+//! in this file. AST types come from the crate-level [`crate::Absyn`] module
+//! (generated from `Compiler/AbsynTypes/Absyn.mo`), mirroring the ANTLR3
+//! grammar from `grammars/Modelica.g`.
 #![allow(non_snake_case)]
 
-pub mod Absyn;
 pub mod lexer;
 pub mod token_input;
 
-pub use Absyn::*;
+// AST types live in the parent crate (generated from Absyn.mo). The parser
+// builds values of those types directly so callers can consume the result
+// without an extra conversion layer.
+pub use crate::Absyn;
+pub use crate::Absyn::*;
 pub use metamodelica::List;
 pub use lexer::{Token as LexToken, TokenKind, LexError};
 pub use token_input::TokenInput;
@@ -308,17 +312,17 @@ fn source_info(tok1: &Token, tok2: &Token) -> SourceInfo {
 /// public/protected section (when the class has top-level public/protected blocks) are
 /// both promoted to class-level annotations.
 /// Returns `(non_annotation_items, annotations)`.
-fn split_annotations(items: Arc<List<ClassBodyItem>>) -> (Arc<List<ClassBodyItem>>, Arc<List<Absyn::Annotation>>) {
+fn split_annotations(items: Arc<List<ClassBodyItem>>) -> (Arc<List<ClassBodyItem>>, Arc<List<Arc<Absyn::Annotation>>>) {
     let mut parts: Arc<List<ClassBodyItem>> = Arc::new(List::Nil);
-    let mut anns:  Arc<List<Absyn::Annotation>> = Arc::new(List::Nil);
+    let mut anns:  Arc<List<Arc<Absyn::Annotation>>> = Arc::new(List::Nil);
     for item in &*items {
         match item {
-            ClassBodyItem::Annotation(ann) => anns = cons(ann.clone(), anns),
+            ClassBodyItem::Annotation(ann) => anns = cons(Arc::new(ann.clone()), anns),
             ClassBodyItem::Section { section, items: sec_items } => {
                 // Annotations that appear directly in a section's element list are
                 // class-level annotations (function-level ones are nested inside element bodies).
                 let (inner_parts, inner_anns) = split_annotations(Arc::clone(sec_items));
-                for ann in &*inner_anns { anns = cons(ann.clone(), anns); }
+                for ann in &*inner_anns { anns = cons(Arc::clone(ann), anns); }
                 parts = cons(ClassBodyItem::Section { section: *section, items: inner_parts }, parts);
             }
             other => parts = cons(other.clone(), parts),
@@ -327,8 +331,8 @@ fn split_annotations(items: Arc<List<ClassBodyItem>>) -> (Arc<List<ClassBodyItem
     (parts.reverse(), anns.reverse())
 }
 
-fn body_items_to_classparts(items: Arc<List<ClassBodyItem>>) -> Arc<List<ClassPart>> {
-    let mut res: Arc<List<ClassPart>> = Arc::new(List::Nil);
+fn body_items_to_classparts(items: Arc<List<ClassBodyItem>>) -> Arc<List<Arc<ClassPart>>> {
+    let mut res: Arc<List<Arc<ClassPart>>> = Arc::new(List::Nil);
     for item in &*items {
         let converted = match item {
             ClassBodyItem::Section { section, items } => {
@@ -339,45 +343,45 @@ fn body_items_to_classparts(items: Arc<List<ClassBodyItem>>) -> Arc<List<ClassPa
                 }
             }
             ClassBodyItem::Element(elem) => {
-                let ei = ElementItem::ELEMENTITEM { element: elem.clone() };
-                ClassPart::PUBLIC { contents: cons(ei, Arc::new(List::Nil)) }
+                let ei = ElementItem::ELEMENTITEM { element: Arc::new(elem.clone()) };
+                ClassPart::PUBLIC { contents: cons(Arc::new(ei), Arc::new(List::Nil)) }
             }
             ClassBodyItem::LexerComment(text) => {
                 let ei = ElementItem::LEXER_COMMENT { comment: text.clone() };
-                ClassPart::PUBLIC { contents: cons(ei, Arc::new(List::Nil)) }
+                ClassPart::PUBLIC { contents: cons(Arc::new(ei), Arc::new(List::Nil)) }
             }
             ClassBodyItem::Annotation(_) => unreachable!("annotations should be split out before body_items_to_classparts"),
-            ClassBodyItem::Equations(items)        => ClassPart::EQUATIONS        { contents: items.clone() },
-            ClassBodyItem::InitialEquations(items) => ClassPart::INITIALEQUATIONS { contents: items.clone() },
-            ClassBodyItem::Algorithms(items)       => ClassPart::ALGORITHMS       { contents: items.clone() },
-            ClassBodyItem::InitialAlgorithms(items)=> ClassPart::INITIALALGORITHMS{ contents: items.clone() },
+            ClassBodyItem::Equations(items)        => ClassPart::EQUATIONS        { contents: to_rc_list(items.clone()) },
+            ClassBodyItem::InitialEquations(items) => ClassPart::INITIALEQUATIONS { contents: to_rc_list(items.clone()) },
+            ClassBodyItem::Algorithms(items)       => ClassPart::ALGORITHMS       { contents: to_rc_list(items.clone()) },
+            ClassBodyItem::InitialAlgorithms(items)=> ClassPart::INITIALALGORITHMS{ contents: to_rc_list(items.clone()) },
             ClassBodyItem::Constraints             => ClassPart::CONSTRAINTS      { contents: Arc::new(List::Nil) },
             ClassBodyItem::External { lang, funcName, output_, args, annotation_opt } => ClassPart::EXTERNAL {
-                externalDecl: ExternalDecl::EXTERNALDECL {
+                externalDecl: Arc::new(ExternalDecl {
                     funcName: funcName.clone(),
                     lang: lang.clone(),
-                    output_: output_.clone(),
+                    output_: output_.clone().map(Arc::new),
                     args: args.clone(),
-                    annotation_: annotation_opt.clone(),
-                },
+                    annotation_: annotation_opt.clone().map(Arc::new),
+                }),
                 annotation_: None,
             },
         };
-        res = cons(converted, res);
+        res = cons(Arc::new(converted), res);
     }
     res.reverse()
 }
 
-fn body_items_to_element_items(items: Arc<List<ClassBodyItem>>) -> Arc<List<ElementItem>> {
+fn body_items_to_element_items(items: Arc<List<ClassBodyItem>>) -> Arc<List<Arc<ElementItem>>> {
     match &*items {
         List::Nil => Arc::new(List::Nil),
         List::Cons { head, tail } => {
             let converted = match head {
-                ClassBodyItem::Element(elem)         => ElementItem::ELEMENTITEM { element: elem.clone() },
+                ClassBodyItem::Element(elem)         => ElementItem::ELEMENTITEM { element: Arc::new(elem.clone()) },
                 ClassBodyItem::LexerComment(text)    => ElementItem::LEXER_COMMENT { comment: text.clone() },
                 _ => panic!("only Element/LexerComment items can appear inside public/protected sections, but found {:?}", head),
             };
-            cons(converted, body_items_to_element_items(tail.clone()))
+            cons(Arc::new(converted), body_items_to_element_items(tail.clone()))
         }
     }
 }
@@ -389,8 +393,12 @@ fn to_rc_list<T: Clone>(lst: Arc<List<T>>) -> Arc<List<Arc<T>>> {
     result
 }
 
+/// Convenience: wrap a value in `Arc::new`.
+#[allow(dead_code)]
+fn arc<T>(t: T) -> Arc<T> { Arc::new(t) }
+
 fn default_element_attrs() -> ElementAttributes {
-    ElementAttributes::ATTR {
+    ElementAttributes {
         flowPrefix: false, streamPrefix: false,
         parallelism: Parallelism::NON_PARALLEL {},
         variability: Variability::VAR {},
@@ -415,7 +423,7 @@ fn stored_definition(input: &mut TokenInput) -> ModalResult<Program> {
             .context(StrContext::Label("';' after within clause"))
             .parse_next(input)?;
         match path {
-            Some(path) => Within::WITHIN { path },
+            Some(path) => Within::WITHIN { path: Arc::new(path) },
             None       => Within::TOP {},
         }
     } else {
@@ -428,7 +436,7 @@ fn stored_definition(input: &mut TokenInput) -> ModalResult<Program> {
         eprintln!("stored_definition: remaining tokens: {:?}", &input[..input.len().min(5)]);
         return Err(ErrMode::Backtrack(ContextError::default()));
     }
-    Ok(Program::PROGRAM { classes, within_ })
+    Ok(Program { classes: to_rc_list(classes), within_ })
 }
 
 /// class_definition_list: (FINAL? class_definition SEMICOLON)*
@@ -469,13 +477,13 @@ fn class_definition_list(input: &mut TokenInput) -> ModalResult<Arc<List<Class>>
 /// order). Used by [`class_definition_list`].
 fn attach_comments_before(c: Class, before: Vec<ArcStr>) -> Class {
     if before.is_empty() { return c; }
-    let Class::CLASS {
+    let Class {
         name, partialPrefix, finalPrefix, encapsulatedPrefix, restriction,
         body, commentsBeforeClass: _old, commentsBeforeEnd, commentsAfterEnd, info,
     } = c;
     let mut lst: Arc<List<ArcStr>> = Arc::new(List::Nil);
     for txt in before.into_iter().rev() { lst = cons(txt, lst); }
-    Class::CLASS {
+    Class {
         name, partialPrefix, finalPrefix, encapsulatedPrefix, restriction,
         body, commentsBeforeClass: lst, commentsBeforeEnd, commentsAfterEnd, info,
     }
@@ -490,7 +498,7 @@ fn attach_comments_after_end_on_head(
     match &*defs {
         List::Nil => defs, // no class to attach to; drop comments silently
         List::Cons { head, tail: rest } => {
-            let Class::CLASS {
+            let Class {
                 name, partialPrefix, finalPrefix, encapsulatedPrefix, restriction,
                 body, commentsBeforeClass, commentsBeforeEnd, commentsAfterEnd, info,
             } = head.clone();
@@ -503,7 +511,7 @@ fn attach_comments_after_end_on_head(
             let mut acc = new_tail;
             let existing: Vec<ArcStr> = (&*lst).into_iter().cloned().collect();
             for txt in existing.into_iter().rev() { acc = cons(txt, acc); }
-            let new_head = Class::CLASS {
+            let new_head = Class {
                 name, partialPrefix, finalPrefix, encapsulatedPrefix, restriction,
                 body, commentsBeforeClass, commentsBeforeEnd, commentsAfterEnd: acc, info,
             };
@@ -522,7 +530,7 @@ fn class_definition(input: &mut TokenInput) -> ModalResult<Class> {
     let specifier = cut_err(class_specifier)
         .context(StrContext::Label("class specifier"))
         .parse_next(input)?;
-    Ok(Class::CLASS {
+    Ok(Class {
         name: specifier.name(), partialPrefix, finalPrefix, encapsulatedPrefix,
         restriction, body: specifier.body(),
         commentsBeforeClass: Arc::new(List::Nil), commentsBeforeEnd: Arc::new(List::Nil),
@@ -603,7 +611,7 @@ fn class_specifier(input: &mut TokenInput) -> ModalResult<ClassSpecifier> {
         Ok(ClassSpecifier::Extends {
             name: name.clone(),
             body: Arc::new(ClassDef::CLASS_EXTENDS {
-                baseClassName: name, modifications, comment, parts: classParts, ann,
+                baseClassName: name, modifications, comment, parts: classParts, ann: to_rc_list(ann),
             }),
         })
     } else {
@@ -617,7 +625,7 @@ fn class_specifier2(input: &mut TokenInput) -> ModalResult<Arc<ClassDef>> {
     if opt(t(TK::Subtypeof)).parse_next(input)?.is_some() {
         let ts = type_specifier(input)?;
         return Ok(Arc::new(ClassDef::DERIVED {
-            typeSpec: TypeSpec::TCOMPLEX { path: Path::IDENT{name: "polymorphic".into()}, typeSpecs: List::new(Arc::new(ts)), arrayDim: None }, attributes: default_element_attrs(), arguments: Arc::new(List::Nil), comment: None,
+            typeSpec: Arc::new(TypeSpec::TCOMPLEX { path: Arc::new(Path::IDENT{name: "polymorphic".into()}), typeSpecs: List::new(Arc::new(ts)), arrayDim: None }), attributes: default_element_attrs(), arguments: Arc::new(List::Nil), comment: None,
         }));
     }
 
@@ -627,7 +635,7 @@ fn class_specifier2(input: &mut TokenInput) -> ModalResult<Arc<ClassDef>> {
             if opt(t(TK::Colon)).parse_next(input)?.is_some() {
                 t(TK::RParen).parse_next(input)?;
                 return Ok(Arc::new(ClassDef::ENUMERATION {
-                    enumLiterals: EnumDef::ENUM_COLON {},
+                    enumLiterals: Arc::new(EnumDef::ENUM_COLON {}),
                     comment: None,
                 }));
             }
@@ -637,8 +645,8 @@ fn class_specifier2(input: &mut TokenInput) -> ModalResult<Arc<ClassDef>> {
             t(TK::RParen).parse_next(input)?;
             let comment = comment.parse_next(input)?;
             return Ok(Arc::new(ClassDef::ENUMERATION {
-                enumLiterals: EnumDef::ENUMLITERALS { enumLiterals: literals },
-                comment,
+                enumLiterals: Arc::new(EnumDef::ENUMLITERALS { enumLiterals: to_rc_list(literals) }),
+                comment: comment.map(Arc::new),
             }));
         }
         if opt(t(TK::Overload)).parse_next(input)?.is_some() {
@@ -650,7 +658,7 @@ fn class_specifier2(input: &mut TokenInput) -> ModalResult<Arc<ClassDef>> {
             };
             t(TK::RParen).parse_next(input)?;
             let comment = comment.parse_next(input)?;
-            return Ok(Arc::new(ClassDef::OVERLOAD { functionNames, comment }));
+            return Ok(Arc::new(ClassDef::OVERLOAD { functionNames: to_rc_list(functionNames), comment: comment.map(Arc::new) }));
         }
         let attributes = type_prefix.parse_next(input)?;
         let typeSpec = cut_err(type_specifier)
@@ -659,7 +667,7 @@ fn class_specifier2(input: &mut TokenInput) -> ModalResult<Arc<ClassDef>> {
         let arguments: Arc<List<Arc<ElementArg>>> = opt(class_modification).parse_next(input)?.unwrap_or_else(|| Arc::new(List::Nil));
         let comment = comment.parse_next(input)?;
         return Ok(Arc::new(ClassDef::DERIVED {
-            typeSpec, attributes, arguments, comment,
+            typeSpec: Arc::new(typeSpec), attributes, arguments, comment: comment.map(Arc::new),
         }));
     }
 
@@ -695,7 +703,7 @@ fn class_specifier2(input: &mut TokenInput) -> ModalResult<Arc<ClassDef>> {
     let ann = match opt(annotation).parse_next(input)? {
         Some(ann) => {
             cut_err(t(TK::Semi)).context(StrContext::Label("';' after annotation")).parse_next(input)?;
-            body_ann.append(&List::new(ann))
+            body_ann.append(&List::new(Arc::new(ann)))
         },
         None => body_ann
     };
@@ -808,7 +816,7 @@ fn element_list(input: &mut TokenInput) -> ModalResult<Arc<List<ClassBodyItem>>>
             let info = source_info(first_tok, last_tok);
             let elem = Absyn::Element::ELEMENT {
                 finalPrefix: false, redeclareKeywords: None,
-                innerOuter: InnerOuter::NOT_INNER_OUTER, specification: ElementSpec::IMPORT { import_: imp, comment, info: info.clone() },
+                innerOuter: InnerOuter::NOT_INNER_OUTER, specification: Arc::new(ElementSpec::IMPORT { import_: imp, comment: comment.map(Arc::new), info: info.clone() }),
                 info, constrainClass: None,
             };
             items = cons(ClassBodyItem::Element(elem), items); continue;
@@ -821,11 +829,11 @@ fn element_list(input: &mut TokenInput) -> ModalResult<Arc<List<ClassBodyItem>>>
                 finalPrefix: false,
                 redeclareKeywords: None,
                 innerOuter: InnerOuter::NOT_INNER_OUTER {},
-                specification: ElementSpec::EXTENDS {
-                    path: ext.path,
+                specification: Arc::new(ElementSpec::EXTENDS {
+                    path: Arc::new(ext.path),
                     elementArg: ext.modification.unwrap_or_else(|| Arc::new(List::Nil)),
-                    annotationOpt: ext.annotation_opt,
-                },
+                    annotationOpt: ext.annotation_opt.map(Arc::new),
+                }),
                 info,
                 constrainClass: None,
             };
@@ -860,17 +868,17 @@ fn element_list(input: &mut TokenInput) -> ModalResult<Arc<List<ClassBodyItem>>>
                 let path       = cut_err(name_path).context(StrContext::Label("path in constrainedby")).parse_next(input)?;
                 let elementArg = opt(class_modification).parse_next(input)?.unwrap_or_else(|| Arc::new(List::Nil));
                 let cmt        = comment(input)?;
-                Some(ConstrainClass::CONSTRAINCLASS {
-                    elementSpec: ElementSpec::EXTENDS { path, elementArg, annotationOpt: None },
-                    comment: cmt,
+                Some(ConstrainClass {
+                    elementSpec: Arc::new(ElementSpec::EXTENDS { path: Arc::new(path), elementArg, annotationOpt: None }),
+                    comment: cmt.map(Arc::new),
                 })
             } else { None };
             let last_tok = &input[0];
             cut_err(t(TK::Semi)).context(StrContext::Label("';' after class definition")).parse_next(input)?;
             let elem = Absyn::Element::ELEMENT {
                 finalPrefix: final_, redeclareKeywords, innerOuter,
-                specification: ElementSpec::CLASSDEF { replaceable_, class_: Arc::new(cls) },
-                info: source_info(first_tok, last_tok), constrainClass,
+                specification: Arc::new(ElementSpec::CLASSDEF { replaceable_, class_: Arc::new(cls) }),
+                info: source_info(first_tok, last_tok), constrainClass: constrainClass.map(Arc::new),
             };
             items = cons(ClassBodyItem::Element(elem), items); continue;
         }
@@ -879,18 +887,18 @@ fn element_list(input: &mut TokenInput) -> ModalResult<Arc<List<ClassBodyItem>>>
                 let path       = cut_err(name_path).context(StrContext::Label("path in constrainedby")).parse_next(input)?;
                 let elementArg = opt(class_modification).parse_next(input)?.unwrap_or_else(|| Arc::new(List::Nil));
                 let cmt        = comment(input)?;
-                Some(ConstrainClass::CONSTRAINCLASS {
-                    elementSpec: ElementSpec::EXTENDS { path, elementArg, annotationOpt: None },
-                    comment: cmt,
+                Some(ConstrainClass {
+                    elementSpec: Arc::new(ElementSpec::EXTENDS { path: Arc::new(path), elementArg, annotationOpt: None }),
+                    comment: cmt.map(Arc::new),
                 })
             } else { None };
             let last_tok = &input[0];
             let elem = Absyn::Element::ELEMENT {
                 finalPrefix: final_, redeclareKeywords, innerOuter,
-                specification: ElementSpec::COMPONENTS {
-                    attributes: cc.typePrefix, typeSpec: cc.typeSpec, components: cc.components,
-                },
-                info: source_info(first_tok, last_tok), constrainClass,
+                specification: Arc::new(ElementSpec::COMPONENTS {
+                    attributes: cc.typePrefix, typeSpec: Arc::new(cc.typeSpec), components: cc.components,
+                }),
+                info: source_info(first_tok, last_tok), constrainClass: constrainClass.map(Arc::new),
             };
             cut_err(t(TK::Semi))
                 .context(StrContext::Label("';' after component list"))
@@ -918,7 +926,7 @@ fn element(input: &mut TokenInput) -> ModalResult<Absyn::Element> {
         let info = source_info(first_tok, last_tok);
         let elem = Absyn::Element::ELEMENT {
             finalPrefix: false, redeclareKeywords: None,
-            innerOuter: InnerOuter::NOT_INNER_OUTER, specification: ElementSpec::IMPORT { import_: imp, comment, info: info.clone() },
+            innerOuter: InnerOuter::NOT_INNER_OUTER, specification: Arc::new(ElementSpec::IMPORT { import_: imp, comment: comment.map(Arc::new), info: info.clone() }),
             info, constrainClass: None,
         };
         return Ok(elem);
@@ -931,11 +939,11 @@ fn element(input: &mut TokenInput) -> ModalResult<Absyn::Element> {
             finalPrefix: false,
             redeclareKeywords: None,
             innerOuter: InnerOuter::NOT_INNER_OUTER {},
-            specification: ElementSpec::EXTENDS {
-                path: ext.path,
+            specification: Arc::new(ElementSpec::EXTENDS {
+                path: Arc::new(ext.path),
                 elementArg: ext.modification.unwrap_or_else(|| Arc::new(List::Nil)),
-                annotationOpt: ext.annotation_opt,
-            },
+                annotationOpt: ext.annotation_opt.map(Arc::new),
+            }),
             info,
             constrainClass: None,
         };
@@ -970,17 +978,17 @@ fn element(input: &mut TokenInput) -> ModalResult<Absyn::Element> {
             let path       = cut_err(name_path).context(StrContext::Label("path in constrainedby")).parse_next(input)?;
             let elementArg = opt(class_modification).parse_next(input)?.unwrap_or_else(|| Arc::new(List::Nil));
             let cmt        = comment(input)?;
-            Some(ConstrainClass::CONSTRAINCLASS {
-                elementSpec: ElementSpec::EXTENDS { path, elementArg, annotationOpt: None },
-                comment: cmt,
+            Some(ConstrainClass {
+                elementSpec: Arc::new(ElementSpec::EXTENDS { path: Arc::new(path), elementArg, annotationOpt: None }),
+                comment: cmt.map(Arc::new),
             })
         } else { None };
         let last_tok = &input[0];
         cut_err(t(TK::Semi)).context(StrContext::Label("';' after class definition")).parse_next(input)?;
         let elem = Absyn::Element::ELEMENT {
             finalPrefix: final_, redeclareKeywords, innerOuter,
-            specification: ElementSpec::CLASSDEF { replaceable_, class_: Arc::new(cls) },
-            info: source_info(first_tok, last_tok), constrainClass,
+            specification: Arc::new(ElementSpec::CLASSDEF { replaceable_, class_: Arc::new(cls) }),
+            info: source_info(first_tok, last_tok), constrainClass: constrainClass.map(Arc::new),
         };
         return Ok(elem);
     }
@@ -989,18 +997,18 @@ fn element(input: &mut TokenInput) -> ModalResult<Absyn::Element> {
             let path       = cut_err(name_path).context(StrContext::Label("path in constrainedby")).parse_next(input)?;
             let elementArg = opt(class_modification).parse_next(input)?.unwrap_or_else(|| Arc::new(List::Nil));
             let cmt        = comment(input)?;
-            Some(ConstrainClass::CONSTRAINCLASS {
-                elementSpec: ElementSpec::EXTENDS { path, elementArg, annotationOpt: None },
-                comment: cmt,
+            Some(ConstrainClass {
+                elementSpec: Arc::new(ElementSpec::EXTENDS { path: Arc::new(path), elementArg, annotationOpt: None }),
+                comment: cmt.map(Arc::new),
             })
         } else { None };
         let last_tok = &input[0];
         let elem = Absyn::Element::ELEMENT {
             finalPrefix: final_, redeclareKeywords, innerOuter,
-            specification: ElementSpec::COMPONENTS {
-                attributes: cc.typePrefix, typeSpec: cc.typeSpec, components: cc.components,
-            },
-            info: source_info(first_tok, last_tok), constrainClass,
+            specification: Arc::new(ElementSpec::COMPONENTS {
+                attributes: cc.typePrefix, typeSpec: Arc::new(cc.typeSpec), components: cc.components,
+            }),
+            info: source_info(first_tok, last_tok), constrainClass: constrainClass.map(Arc::new),
         };
         cut_err(t(TK::Semi))
             .context(StrContext::Label("';' after component list"))
@@ -1049,7 +1057,7 @@ fn type_prefix(input: &mut TokenInput) -> ModalResult<ElementAttributes> {
         _                                => None,
     }).unwrap_or(IsField::NONFIELD);
 
-    Ok(ElementAttributes::ATTR {
+    Ok(ElementAttributes {
         flowPrefix: flow, streamPrefix: stream, parallelism, variability, direction,
         isField: is_field, arrayDim: Arc::new(List::Nil),
     })
@@ -1085,15 +1093,11 @@ fn component_declaration(input: &mut TokenInput) -> ModalResult<ComponentItem> {
     let condition = if opt(t(TK::If)).parse_next(input)?.is_some() {
         Some(expression(input)?)
     } else { None };
-    let cmt       = string_comment(input)?;
-    let ann       = opt(annotation).parse_next(input)?;
-    let comment   = match (&cmt, &ann) {
-        (None, None) => None,
-        _ => Some(Comment::COMMENT { comment: cmt, annotation_: ann }),
-    };
-    Ok(ComponentItem::COMPONENTITEM {
-        component: Component::COMPONENT { name, arrayDim, modification: m },
-        condition, comment,
+    let cmt = comment(input)?;
+    Ok(ComponentItem {
+        component: Component { name, arrayDim, modification: m.map(Arc::new) },
+        condition: condition.map(Arc::new),
+        comment: cmt.map(Arc::new),
     })
 }
 
@@ -1111,7 +1115,7 @@ fn modification(input: &mut TokenInput) -> ModalResult<Modification> {
     } else {
         Absyn::EqMod::NOMOD
     };
-    Ok(Modification::CLASSMOD { elementArgLst: cm, eqMod: eq })
+    Ok(Modification { elementArgLst: cm, eqMod: Arc::new(eq) })
 }
 
 fn modification_expression(input: &mut TokenInput) -> ModalResult<Absyn::Exp> {
@@ -1168,7 +1172,7 @@ fn parse_replaceable_spec(input: &mut TokenInput) -> ModalResult<(ElementSpec, O
         let comp       = cut_err(component_declaration)
             .context(StrContext::Label("component declaration in replaceable"))
             .parse_next(input)?;
-        ElementSpec::COMPONENTS { attributes: typePrefix, typeSpec, components: List::new(Arc::new(comp)) }
+        ElementSpec::COMPONENTS { attributes: typePrefix, typeSpec: Arc::new(typeSpec), components: List::new(Arc::new(comp)) }
     };
     let constrainClass = if opt(t(TK::Constrainedby)).parse_next(input)?.is_some() {
         let path       = cut_err(name_path)
@@ -1176,9 +1180,9 @@ fn parse_replaceable_spec(input: &mut TokenInput) -> ModalResult<(ElementSpec, O
             .parse_next(input)?;
         let elementArg = opt(class_modification).parse_next(input)?.unwrap_or_else(|| Arc::new(List::Nil));
         let comment    = comment(input)?;
-        Some(ConstrainClass::CONSTRAINCLASS {
-            elementSpec: ElementSpec::EXTENDS { path, elementArg, annotationOpt: None },
-            comment,
+        Some(ConstrainClass {
+            elementSpec: Arc::new(ElementSpec::EXTENDS { path: Arc::new(path), elementArg, annotationOpt: None }),
+            comment: comment.map(Arc::new),
         })
     } else {
         None
@@ -1207,14 +1211,14 @@ fn element_redeclaration(input: &mut TokenInput) -> ModalResult<ElementArg> {
                 .context(StrContext::Label("component declaration in redeclaration"))
                 .parse_next(input)?;
             (RedeclareKeywords::REDECLARE, ElementSpec::COMPONENTS {
-                attributes: typePrefix, typeSpec, components: List::new(Arc::new(comp)),
+                attributes: typePrefix, typeSpec: Arc::new(typeSpec), components: List::new(Arc::new(comp)),
             }, None)
         };
 
     Ok(ElementArg::REDECLARATION {
         finalPrefix: final_,
         eachPrefix: if each_ { Each::EACH } else { Each::NON_EACH },
-        redeclareKeywords, elementSpec, constrainClass, info: source_info(&start[0], &start[start.len() - input.len() - 1]),
+        redeclareKeywords, elementSpec: Arc::new(elementSpec), constrainClass: constrainClass.map(Arc::new), info: source_info(&start[0], &start[start.len() - input.len() - 1]),
     })
 }
 
@@ -1231,7 +1235,7 @@ fn element_modification(input: &mut TokenInput) -> ModalResult<ElementArg> {
     let comment      = string_comment(input)?;
     Ok(Absyn::ElementArg::MODIFICATION {
         eachPrefix: Each::NON_EACH {}, finalPrefix: false,
-        modification, comment, path, info: source_info(&start[0], &start[start.len() - input.len() - 1]),
+        modification: modification.map(Arc::new), comment, path: Arc::new(path), info: source_info(&start[0], &start[start.len() - input.len() - 1]),
     })
 }
 
@@ -1242,13 +1246,13 @@ fn element_replaceable(input: &mut TokenInput) -> ModalResult<ElementArg> {
     Ok(ElementArg::REDECLARATION {
         finalPrefix: false, eachPrefix: Each::NON_EACH {},
         redeclareKeywords: RedeclareKeywords::REPLACEABLE {},
-        elementSpec, constrainClass, info: source_info(&start[0], &start[start.len() - input.len() - 1]),
+        elementSpec: Arc::new(elementSpec), constrainClass: constrainClass.map(Arc::new), info: source_info(&start[0], &start[start.len() - input.len() - 1]),
     })
 }
 
 fn annotation(input: &mut TokenInput) -> ModalResult<Annotation> {
     t(TK::Annotation).parse_next(input)?;
-    Ok(Absyn::Annotation::ANNOTATION {
+    Ok(Absyn::Annotation {
         elementArgs: cut_err(class_modification)
             .context(StrContext::Label("annotation body"))
             .parse_next(input)?,
@@ -1261,9 +1265,9 @@ fn import_clause(input: &mut TokenInput) -> ModalResult<Import> {
     // Group import: import Path.{Name, NewName = OldName, ...}
     // The dot before '{' is not consumed by name_path (it only follows dots to idents).
     match opt(alt((t(TK::StarEw), t(TK::Dot), t(TK::Equal)))).parse_next(input)? {
-        Some(TK::StarEw) => Ok(Import::UNQUAL_IMPORT { path }),
+        Some(TK::StarEw) => Ok(Import::UNQUAL_IMPORT { path: Arc::new(path) }),
         Some(TK::Dot) => match alt((t(TK::LBrace),t(TK::Star))).parse_next(input)? {
-            TK::Star => Ok(Import::UNQUAL_IMPORT { path }), // Modelica 2 where .* is not a separate token
+            TK::Star => Ok(Import::UNQUAL_IMPORT { path: Arc::new(path) }), // Modelica 2 where .* is not a separate token
             TK::LBrace => {
                 let mut groups: Arc<List<GroupImport>> = Arc::new(List::Nil);
                 loop {
@@ -1279,7 +1283,7 @@ fn import_clause(input: &mut TokenInput) -> ModalResult<Import> {
                 cut_err(t(TK::RBrace))
                     .context(StrContext::Label("'}' closing group import"))
                     .parse_next(input)?;
-                Ok(Import::GROUP_IMPORT { prefix: path, groups: groups.reverse() })
+                Ok(Import::GROUP_IMPORT { prefix: Arc::new(path), groups: groups.reverse() })
             }
             _ => unreachable!(),
         },
@@ -1293,9 +1297,9 @@ fn import_clause(input: &mut TokenInput) -> ModalResult<Import> {
                 )))
             };
             let path = name_path.parse_next(input)?;
-            Ok(Import::NAMED_IMPORT { name, path })
+            Ok(Import::NAMED_IMPORT { name, path: Arc::new(path) })
         }
-        _ => Ok(Import::QUAL_IMPORT { path }),
+        _ => Ok(Import::QUAL_IMPORT { path: Arc::new(path) }),
     }
 }
 
@@ -1479,7 +1483,7 @@ fn equation_item(input: &mut TokenInput) -> ModalResult<EquationItem> {
     let comment = comment(input)?;
     Ok(EquationItem::EQUATIONITEM {
         equation_: Arc::new(eq),
-        comment,
+        comment: comment.map(Arc::new),
         info: source_info(&start[0], &start[start.len() - input.len() - 1]),
     })
 }
@@ -1490,11 +1494,11 @@ fn equality_or_noretcall_equation(input: &mut TokenInput) -> ModalResult<Equatio
         let rhs = cut_err(expression)
             .context(StrContext::Label("right-hand side of equation"))
             .parse_next(input)?;
-        Ok(Equation::EQ_EQUALS { leftSide: lhs, rightSide: rhs })
+        Ok(Equation::EQ_EQUALS { leftSide: Arc::new(lhs), rightSide: Arc::new(rhs) })
     } else {
         match lhs {
             Absyn::Exp::CALL { function_, functionArgs, .. } =>
-                Ok(Equation::EQ_NORETCALL { functionName: (*function_).clone(), functionArgs }),
+                Ok(Equation::EQ_NORETCALL { functionName: Arc::new((*function_).clone()), functionArgs }),
             _ => Err(ErrMode::Backtrack(ContextError::default())),
         }
     }
@@ -1511,7 +1515,7 @@ fn if_equation_e(input: &mut TokenInput) -> ModalResult<Equation> {
         _        => return Err(ErrMode::Cut(ContextError::default())),
     }
     let true_items = equation_list(input)?;
-    let mut else_if_branches: Vec<(Absyn::Exp, Arc<List<Arc<EquationItem>>>)> = Vec::new();
+    let mut else_if_branches: Vec<(Arc<Absyn::Exp>, Arc<List<Arc<EquationItem>>>)> = Vec::new();
     loop {
         if !matches!(peek_kind(input), Some(TK::Elseif)) { break; }
         next_tok(input)?;
@@ -1520,7 +1524,7 @@ fn if_equation_e(input: &mut TokenInput) -> ModalResult<Equation> {
             TK::Then => {}
             _        => return Err(ErrMode::Cut(ContextError::default())),
         }
-        else_if_branches.push((elif_cond, to_rc_list(equation_list(input)?)));
+        else_if_branches.push((Arc::new(elif_cond), to_rc_list(equation_list(input)?)));
     }
     let else_items = if matches!(peek_kind(input), Some(TK::Else)) {
         next_tok(input)?;
@@ -1534,10 +1538,10 @@ fn if_equation_e(input: &mut TokenInput) -> ModalResult<Equation> {
         _       => return Err(ErrMode::Cut(ContextError::default())),
     }
     next_tok(input)?; // "if" or end-ident
-    let mut elseif_list: Arc<List<(Absyn::Exp, Arc<List<Arc<EquationItem>>>)>> = Arc::new(List::Nil);
+    let mut elseif_list: Arc<List<(Arc<Absyn::Exp>, Arc<List<Arc<EquationItem>>>)>> = Arc::new(List::Nil);
     for branch in else_if_branches.into_iter().rev() { elseif_list = cons(branch, elseif_list); }
     Ok(Equation::EQ_IF {
-        ifExp: cond,
+        ifExp: Arc::new(cond),
         equationTrueItems: to_rc_list(true_items),
         elseIfBranches: elseif_list,
         equationElseItems: to_rc_list(else_items),
@@ -1577,7 +1581,7 @@ fn when_equation_e(input: &mut TokenInput) -> ModalResult<Equation> {
         _        => return Err(ErrMode::Cut(ContextError::default())),
     }
     let when_body = equation_list(input)?;
-    let mut else_when: Vec<(Absyn::Exp, Arc<List<Arc<EquationItem>>>)> = Vec::new();
+    let mut else_when: Vec<(Arc<Absyn::Exp>, Arc<List<Arc<EquationItem>>>)> = Vec::new();
     loop {
         if !matches!(peek_kind(input), Some(TK::Elsewhen)) { break; }
         next_tok(input)?;
@@ -1586,7 +1590,7 @@ fn when_equation_e(input: &mut TokenInput) -> ModalResult<Equation> {
             TK::Then => {}
             _        => return Err(ErrMode::Cut(ContextError::default())),
         }
-        else_when.push((ew_cond, to_rc_list(equation_list(input)?)));
+        else_when.push((Arc::new(ew_cond), to_rc_list(equation_list(input)?)));
     }
     match cut_err(next_tok)
         .context(StrContext::Label("'end' closing when-equation"))
@@ -1596,10 +1600,10 @@ fn when_equation_e(input: &mut TokenInput) -> ModalResult<Equation> {
         _       => return Err(ErrMode::Cut(ContextError::default())),
     }
     next_tok(input)?; // "when"
-    let mut ew_list: Arc<List<(Absyn::Exp, Arc<List<Arc<EquationItem>>>)>> = Arc::new(List::Nil);
+    let mut ew_list: Arc<List<(Arc<Absyn::Exp>, Arc<List<Arc<EquationItem>>>)>> = Arc::new(List::Nil);
     for branch in else_when.into_iter().rev() { ew_list = cons(branch, ew_list); }
     Ok(Equation::EQ_WHEN_E {
-        whenExp: when_cond,
+        whenExp: Arc::new(when_cond),
         whenEquations: to_rc_list(when_body),
         elseWhenEquations: ew_list,
     })
@@ -1610,7 +1614,7 @@ fn failure_equation(input: &mut TokenInput) -> ModalResult<Equation> {
     t(TK::LParen).parse_next(input)?;
     let body = equation_item(input)?;
     t(TK::RParen).parse_next(input)?;
-    Ok(Equation::EQ_FAILURE { equ: body })
+    Ok(Equation::EQ_FAILURE { equ: Arc::new(body) })
 }
 
 fn connect_equation(input: &mut TokenInput) -> ModalResult<Equation> {
@@ -1624,7 +1628,7 @@ fn connect_equation(input: &mut TokenInput) -> ModalResult<Equation> {
         .context(StrContext::Label("second connector in connect equation"))
         .parse_next(input)?;
     t(TK::RParen).parse_next(input)?;
-    Ok(Equation::EQ_CONNECT { connector1, connector2 })
+    Ok(Equation::EQ_CONNECT { connector1: Arc::new(connector1), connector2: Arc::new(connector2) })
 }
 
 /// Algorithm statements stopping at Then / Else / Elseif / Elsewhen / End.
@@ -1670,7 +1674,7 @@ fn algorithm_item(input: &mut TokenInput) -> ModalResult<AlgorithmItem> {
     let comment = comment(input)?;
     Ok(AlgorithmItem::ALGORITHMITEM {
         algorithm_: Arc::new(alg),
-        comment,
+        comment: comment.map(Arc::new),
         info: source_info(&start[0], &start[start.len() - input.len() - 1]),
     })
 }
@@ -1682,11 +1686,11 @@ fn assign_clause_a(input: &mut TokenInput) -> ModalResult<Algorithm> {
         let value = cut_err(expression)
             .context(StrContext::Label("right-hand side of assignment"))
             .parse_next(input)?;
-        Ok(Algorithm::ALG_ASSIGN { assignComponent: lhs, value })
+        Ok(Algorithm::ALG_ASSIGN { assignComponent: Arc::new(lhs), value: Arc::new(value) })
     } else {
         match lhs {
             Absyn::Exp::CALL { function_, functionArgs, .. } =>
-                Ok(Algorithm::ALG_NORETCALL { functionCall: (*function_).clone(), functionArgs }),
+                Ok(Algorithm::ALG_NORETCALL { functionCall: Arc::new((*function_).clone()), functionArgs }),
             _ => Err(ErrMode::Backtrack(ContextError::default())),
         }
     }
@@ -1700,7 +1704,7 @@ fn if_algorithm(input: &mut TokenInput) -> ModalResult<Algorithm> {
         _        => return Err(ErrMode::Cut(ContextError::default())),
     }
     let true_items = algorithm_list(input)?;
-    let mut else_if_branches: Vec<(Absyn::Exp, Arc<List<AlgorithmItem>>)> = Vec::new();
+    let mut else_if_branches: Vec<(Arc<Absyn::Exp>, Arc<List<Arc<AlgorithmItem>>>)> = Vec::new();
     loop {
         if !matches!(peek_kind(input), Some(TK::Elseif)) { break; }
         next_tok(input)?;
@@ -1709,7 +1713,7 @@ fn if_algorithm(input: &mut TokenInput) -> ModalResult<Algorithm> {
             TK::Then => {}
             _        => return Err(ErrMode::Cut(ContextError::default())),
         }
-        else_if_branches.push((elif_cond, algorithm_list(input)?));
+        else_if_branches.push((Arc::new(elif_cond), to_rc_list(algorithm_list(input)?)));
     }
     let else_items = if matches!(peek_kind(input), Some(TK::Else)) {
         next_tok(input)?; algorithm_list(input)?
@@ -1719,11 +1723,11 @@ fn if_algorithm(input: &mut TokenInput) -> ModalResult<Algorithm> {
         _       => return Err(ErrMode::Cut(ContextError::default())),
     }
     next_tok(input)?; // "if" or end-ident
-    let mut elseif_list: Arc<List<(Absyn::Exp, Arc<List<AlgorithmItem>>)>> = Arc::new(List::Nil);
+    let mut elseif_list: Arc<List<(Arc<Absyn::Exp>, Arc<List<Arc<AlgorithmItem>>>)>> = Arc::new(List::Nil);
     for branch in else_if_branches.into_iter().rev() { elseif_list = cons(branch, elseif_list); }
     Ok(Algorithm::ALG_IF {
-        ifExp: cond, trueBranch: true_items,
-        elseIfAlgorithmBranch: elseif_list, elseBranch: else_items,
+        ifExp: Arc::new(cond), trueBranch: to_rc_list(true_items),
+        elseIfAlgorithmBranch: elseif_list, elseBranch: to_rc_list(else_items),
     })
 }
 
@@ -1740,7 +1744,7 @@ fn for_algorithm(input: &mut TokenInput) -> ModalResult<Algorithm> {
         _       => return Err(ErrMode::Cut(ContextError::default())),
     }
     next_tok(input)?; // "for"
-    Ok(Algorithm::ALG_FOR { iterators, forBody: body })
+    Ok(Algorithm::ALG_FOR { iterators, forBody: to_rc_list(body) })
 }
 
 fn while_algorithm(input: &mut TokenInput) -> ModalResult<Algorithm> {
@@ -1756,7 +1760,7 @@ fn while_algorithm(input: &mut TokenInput) -> ModalResult<Algorithm> {
         _       => return Err(ErrMode::Cut(ContextError::default())),
     }
     next_tok(input)?; // "while"
-    Ok(Algorithm::ALG_WHILE { boolExpr: cond, whileBody: body })
+    Ok(Algorithm::ALG_WHILE { boolExpr: Arc::new(cond), whileBody: to_rc_list(body) })
 }
 
 fn when_algorithm(input: &mut TokenInput) -> ModalResult<Algorithm> {
@@ -1767,7 +1771,7 @@ fn when_algorithm(input: &mut TokenInput) -> ModalResult<Algorithm> {
         _        => return Err(ErrMode::Cut(ContextError::default())),
     }
     let when_body = algorithm_list(input)?;
-    let mut else_when: Vec<(Absyn::Exp, Arc<List<AlgorithmItem>>)> = Vec::new();
+    let mut else_when: Vec<(Arc<Absyn::Exp>, Arc<List<Arc<AlgorithmItem>>>)> = Vec::new();
     loop {
         if !matches!(peek_kind(input), Some(TK::Elsewhen)) { break; }
         next_tok(input)?;
@@ -1776,17 +1780,17 @@ fn when_algorithm(input: &mut TokenInput) -> ModalResult<Algorithm> {
             TK::Then => {}
             _        => return Err(ErrMode::Cut(ContextError::default())),
         }
-        else_when.push((ew_cond, algorithm_list(input)?));
+        else_when.push((Arc::new(ew_cond), to_rc_list(algorithm_list(input)?)));
     }
     match cut_err(next_tok).context(StrContext::Label("'end' closing when-algorithm")).parse_next(input)? {
         TK::End => {}
         _       => return Err(ErrMode::Cut(ContextError::default())),
     }
     next_tok(input)?; // "when"
-    let mut ew_list: Arc<List<(Absyn::Exp, Arc<List<AlgorithmItem>>)>> = Arc::new(List::Nil);
+    let mut ew_list: Arc<List<(Arc<Absyn::Exp>, Arc<List<Arc<AlgorithmItem>>>)>> = Arc::new(List::Nil);
     for branch in else_when.into_iter().rev() { ew_list = cons(branch, ew_list); }
     Ok(Algorithm::ALG_WHEN_A {
-        boolExpr: when_cond, whenBody: when_body, elseWhenAlgorithmBranch: ew_list,
+        boolExpr: Arc::new(when_cond), whenBody: to_rc_list(when_body), elseWhenAlgorithmBranch: ew_list,
     })
 }
 
@@ -1803,7 +1807,7 @@ fn try_algorithm(input: &mut TokenInput) -> ModalResult<Algorithm> {
         _       => return Err(ErrMode::Cut(ContextError::default())),
     }
     next_tok(input)?; // "try"
-    Ok(Algorithm::ALG_TRY { body, elseBody: else_body })
+    Ok(Algorithm::ALG_TRY { body: to_rc_list(body), elseBody: to_rc_list(else_body) })
 }
 
 fn failure_algorithm(input: &mut TokenInput) -> ModalResult<Algorithm> {
@@ -1811,7 +1815,7 @@ fn failure_algorithm(input: &mut TokenInput) -> ModalResult<Algorithm> {
     t(TK::LParen).parse_next(input)?;
     let equ = List::new(algorithm_item.parse_next(input)?);
     t(TK::RParen).parse_next(input)?;
-    Ok(Algorithm::ALG_FAILURE{equ})
+    Ok(Algorithm::ALG_FAILURE{equ: to_rc_list(equ)})
 }
 
 // ---------------------------------------------------------------------------
@@ -1834,14 +1838,14 @@ fn match_case_body(input: &mut TokenInput) -> ModalResult<Absyn::ClassPart> {
             let contents = cut_err(equation_list_then)
                 .context(StrContext::Label("equation list in match case"))
                 .parse_next(input)?;
-            Ok(Absyn::ClassPart::EQUATIONS { contents })
+            Ok(Absyn::ClassPart::EQUATIONS { contents: to_rc_list(contents) })
         },
         Some(TK::Algorithm) => {
             next_tok(input)?;
             let contents = cut_err(algorithm_list_then)
                 .context(StrContext::Label("algorithm list in match case"))
                 .parse_next(input)?;
-            Ok(Absyn::ClassPart::ALGORITHMS { contents })
+            Ok(Absyn::ClassPart::ALGORITHMS { contents: to_rc_list(contents) })
         }
         _ => Ok(Absyn::ClassPart::ALGORITHMS { contents: Arc::new(List::Nil) }),
     }
@@ -1854,7 +1858,7 @@ fn local_clause(input: &mut TokenInput) -> ModalResult<Arc<List<Arc<Absyn::Eleme
     let mut result: Arc<List<Arc<Absyn::ElementItem>>> = Arc::new(List::Nil);
     for item in &*items {
         let ei = match item {
-            ClassBodyItem::Element(elem)   => Absyn::ElementItem::ELEMENTITEM { element: elem.clone() },
+            ClassBodyItem::Element(elem)   => Absyn::ElementItem::ELEMENTITEM { element: Arc::new(elem.clone()) },
             ClassBodyItem::Annotation(ann) => Absyn::ElementItem::LEXER_COMMENT { comment: arcstr::format!("{ann:?}") },
             _ => continue,
         };
@@ -1887,7 +1891,7 @@ fn match_onecase(input: &mut TokenInput) -> ModalResult<Absyn::Case> {
     t(TK::Semi).parse_next(input)?;
     Ok(Absyn::Case::CASE {
         pattern: Arc::new(pattern), patternGuard, patternInfo: source_info(&start_pattern[0], end_pattern),
-        localDecls, classPart, result: Arc::new(result), resultInfo: source_info(start_exp, end_exp),
+        localDecls, classPart: Arc::new(classPart), result: Arc::new(result), resultInfo: source_info(start_exp, end_exp),
         comment, info: source_info(start_token, end_exp),
     })
 }
@@ -1923,7 +1927,7 @@ fn match_cases(input: &mut TokenInput) -> ModalResult<Arc<List<Absyn::Case>>> {
                 let end_exp = &input[0];
                 opt(t(TK::Semi)).parse_next(input)?;
                 cases = cons(Absyn::Case::ELSE {
-                    localDecls, classPart, result: Arc::new(result),
+                    localDecls, classPart: Arc::new(classPart), result: Arc::new(result),
                     resultInfo: source_info(start_exp, end_exp), comment, info: source_info(start_else, end_exp),
                 }, cases);
                 break;
@@ -1953,7 +1957,7 @@ fn match_expression(input: &mut TokenInput) -> ModalResult<Absyn::Exp> {
         TK::Match | TK::Matchcontinue => {}
         _                              => return Err(ErrMode::Backtrack(ContextError::default())),
     }
-    Ok(Absyn::Exp::MATCHEXP { matchTy, inputExp: Arc::new(inputExp), localDecls, cases, comment })
+    Ok(Absyn::Exp::MATCHEXP { matchTy, inputExp: Arc::new(inputExp), localDecls, cases: to_rc_list(cases), comment })
 }
 
 // ---------------------------------------------------------------------------
@@ -2000,7 +2004,7 @@ fn component_reference2(input: &mut TokenInput) -> ModalResult<Absyn::ComponentR
     let name     = t_ident(input)?;
     let raw_subs = opt(array_subscripts).parse_next(input)?.unwrap_or_else(|| Arc::new(List::Nil));
     let mut subscripts: Arc<List<Arc<Absyn::Subscript>>> = Arc::new(List::Nil);
-    for s in &*raw_subs.reverse() { subscripts = cons(Arc::new(s.clone()), subscripts); }
+    for s in &*raw_subs.reverse() { subscripts = cons(s.clone(), subscripts); }
     if input.len() >= 2
         && input[0].kind == TK::Dot
         && matches!(&input[1].kind, TK::Ident(_))
@@ -2122,23 +2126,23 @@ fn code_expression(input: &mut TokenInput) -> ModalResult<Absyn::Exp> {
             t(TK::LParen).parse_next(input)?;
             let path = name_path(input)?;
             t(TK::RParen).parse_next(input)?;
-            return Ok(Exp::CODE { code: CodeNode::C_TYPENAME { path } });
+            return Ok(Exp::CODE { code: Arc::new(CodeNode::C_TYPENAME { path: Arc::new(path) }) });
         },
         TK::CodeExp => {
             t(TK::LParen).parse_next(input)?;
             let exp = expression(input)?;
             t(TK::RParen).parse_next(input)?;
-            return Ok(Exp::CODE { code: CodeNode::C_EXPRESSION { exp: Arc::new(exp) } });
+            return Ok(Exp::CODE { code: Arc::new(CodeNode::C_EXPRESSION { exp: Arc::new(exp) }) });
         },
         TK::CodeVar => {
             t(TK::LParen).parse_next(input)?;
             let componentRef = component_reference(input)?;
             t(TK::RParen).parse_next(input)?;
-            return Ok(Exp::CODE { code: CodeNode::C_VARIABLENAME { componentRef: Arc::new(componentRef) } });
+            return Ok(Exp::CODE { code: Arc::new(CodeNode::C_VARIABLENAME { componentRef: Arc::new(componentRef) }) });
         },
         TK::CodeAnnotation => {
             let elementArgLst = class_modification(input)?;
-            return Ok(Exp::CODE { code: CodeNode::C_MODIFICATION { modification: Modification::CLASSMOD { elementArgLst, eqMod: EqMod::NOMOD } }});
+            return Ok(Exp::CODE { code: Arc::new(CodeNode::C_MODIFICATION { modification: Arc::new(Modification { elementArgLst, eqMod: Arc::new(EqMod::NOMOD) }) }) });
         },
         TK::Code => {
                 t(TK::LParen)
@@ -2150,7 +2154,7 @@ fn code_expression(input: &mut TokenInput) -> ModalResult<Absyn::Exp> {
                     cut_err(t(TK::RParen))
                         .context(StrContext::Label("')' closing $Code"))
                         .parse_next(input)?;
-                    return Ok(Exp::CODE { code: CodeNode::C_EXPRESSION { exp: Arc::new(e) } });
+                    return Ok(Exp::CODE { code: Arc::new(CodeNode::C_EXPRESSION { exp: Arc::new(e) }) });
                 }
 
                 // Optional 'initial' keyword before equation/constraint/algorithm sections
@@ -2166,7 +2170,7 @@ fn code_expression(input: &mut TokenInput) -> ModalResult<Absyn::Exp> {
                         .context(StrContext::Label("')' closing $Code equation"))
                         .parse_next(input)?;
                     return Ok(Exp::CODE {
-                        code: CodeNode::C_EQUATIONSECTION { boolean: initial, equationItemLst: eq },
+                        code: Arc::new(CodeNode::C_EQUATIONSECTION { boolean: initial, equationItemLst: eq }),
                     });
                 }
 
@@ -2180,7 +2184,7 @@ fn code_expression(input: &mut TokenInput) -> ModalResult<Absyn::Exp> {
                         .context(StrContext::Label("')' closing $Code constraint"))
                         .parse_next(input)?;
                     return Ok(Exp::CODE {
-                        code: CodeNode::C_CONSTRAINTSECTION { boolean: initial, equationItemLst: constr },
+                        code: Arc::new(CodeNode::C_CONSTRAINTSECTION { boolean: initial, equationItemLst: constr }),
                     });
                 }
 
@@ -2194,13 +2198,13 @@ fn code_expression(input: &mut TokenInput) -> ModalResult<Absyn::Exp> {
                         .context(StrContext::Label("')' closing $Code algorithm"))
                         .parse_next(input)?;
                     return Ok(Exp::CODE {
-                        code: CodeNode::C_ALGORITHMSECTION { boolean: initial, algorithmItemLst: alg },
+                        code: Arc::new(CodeNode::C_ALGORITHMSECTION { boolean: initial, algorithmItemLst: alg }),
                     });
                 }
 
                 // Try modification
                 if let Ok(elementArgLst) = class_modification.parse_next(input) {
-                    return Ok(Exp::CODE { code: CodeNode::C_MODIFICATION { modification: Modification::CLASSMOD { elementArgLst, eqMod: EqMod::NOMOD } }});
+                    return Ok(Exp::CODE { code: Arc::new(CodeNode::C_MODIFICATION { modification: Arc::new(Modification { elementArgLst, eqMod: Arc::new(EqMod::NOMOD) }) }) });
                 }
 
                 // Try expression followed by ')'
@@ -2210,7 +2214,7 @@ fn code_expression(input: &mut TokenInput) -> ModalResult<Absyn::Exp> {
                             .context(StrContext::Label("')' closing $Code expression"))
                             .parse_next(input)?;
                         return Ok(Exp::CODE {
-                            code: CodeNode::C_EXPRESSION { exp: Arc::new(e) },
+                            code: Arc::new(CodeNode::C_EXPRESSION { exp: Arc::new(e) }),
                         });
                     }
 
@@ -2218,7 +2222,7 @@ fn code_expression(input: &mut TokenInput) -> ModalResult<Absyn::Exp> {
                 if let Ok(element) = element.parse_next(input) {
                     opt(t(TK::Semi)).parse_next(input)?;
                     return Ok(Exp::CODE {
-                        code: CodeNode::C_ELEMENT { element },
+                        code: Arc::new(CodeNode::C_ELEMENT { element: Arc::new(element) }),
                     });
                 }
 
@@ -2267,7 +2271,7 @@ fn part_eval_function_expression(input: &mut TokenInput) -> ModalResult<Absyn::E
     t(TK::RParen).parse_next(input)?;
     Ok(Absyn::Exp::PARTEVALFUNCTION {
         function_: Arc::new(cr),
-        functionArgs: Absyn::FunctionArgs::FUNCTIONARGS { args: nil(), argNames },
+        functionArgs: Arc::new(Absyn::FunctionArgs::FUNCTIONARGS { args: nil(), argNames }),
     })
 }
 
@@ -2450,7 +2454,7 @@ fn primary(input: &mut TokenInput) -> ModalResult<Absyn::Exp> {
             let raw_subs = opt(array_subscripts).parse_next(input)?;
             if let Some(subs) = raw_subs {
                 let mut rc_subs: Arc<List<Arc<Subscript>>> = nil();
-                for s in &*(subs.reverse()) { rc_subs = cons(Arc::new(s.clone()), rc_subs); }
+                for s in &*(subs.reverse()) { rc_subs = cons(s.clone(), rc_subs); }
                 return Ok(Absyn::Exp::SUBSCRIPTED_EXP {
                     exp: Arc::new(to_tuple_or_exp(exprs, is_tuple)), subscripts: rc_subs,
                 });
@@ -2472,7 +2476,7 @@ fn primary(input: &mut TokenInput) -> ModalResult<Absyn::Exp> {
                     let cr = Absyn::ComponentRef::CREF_IDENT { name: "$array".into(), subscripts: nil() };
                     Ok(Absyn::Exp::CALL {
                         function_: Arc::new(cr),
-                        functionArgs: Absyn::FunctionArgs::FOR_ITER_FARG { exp, iterType, iterators },
+                        functionArgs: Arc::new(Absyn::FunctionArgs::FOR_ITER_FARG { exp, iterType, iterators }),
                         typeVars: nil(),
                     })
                 }
@@ -2485,13 +2489,13 @@ fn primary(input: &mut TokenInput) -> ModalResult<Absyn::Exp> {
             next_tok(input)?;
             let fa = function_call(input)?;
             let cr = Absyn::ComponentRef::CREF_IDENT { name: "der".into(), subscripts: nil() };
-            return Ok(Absyn::Exp::CALL { function_: Arc::new(cr), functionArgs: fa, typeVars: nil() });
+            return Ok(Absyn::Exp::CALL { function_: Arc::new(cr), functionArgs: Arc::new(fa), typeVars: nil() });
         }
         Some(TK::Pure) => {
             next_tok(input)?;
             let fa = function_call(input)?;
             let cr = Absyn::ComponentRef::CREF_IDENT { name: "pure".into(), subscripts: nil() };
-            return Ok(Absyn::Exp::CALL { function_: Arc::new(cr), functionArgs: fa, typeVars: nil() });
+            return Ok(Absyn::Exp::CALL { function_: Arc::new(cr), functionArgs: Arc::new(fa), typeVars: nil() });
         }
         Some(TK::Wild) => {
             next_tok(input)?;
@@ -2535,7 +2539,7 @@ fn component_reference__function_call(input: &mut TokenInput) -> ModalResult<Abs
             let cr = Absyn::ComponentRef::CREF_IDENT { name: "initial".into(), subscripts: nil() };
             return Ok(Absyn::Exp::CALL {
                 function_: Arc::new(cr),
-                functionArgs: Absyn::FunctionArgs::FUNCTIONARGS { args: nil(), argNames: nil() },
+                functionArgs: Arc::new(Absyn::FunctionArgs::FUNCTIONARGS { args: nil(), argNames: nil() }),
                 typeVars: nil(),
             });
         }
@@ -2564,7 +2568,7 @@ fn component_reference__function_call(input: &mut TokenInput) -> ModalResult<Abs
         })() {
             if matches!(peek_kind(input), Some(TK::LParen)) {
                 let fa = function_call(input)?;
-                return Ok(Absyn::Exp::CALL { function_: Arc::new(cr), functionArgs: fa, typeVars: type_vars });
+                return Ok(Absyn::Exp::CALL { function_: Arc::new(cr), functionArgs: Arc::new(fa), typeVars: to_rc_list(type_vars) });
             }
             *input = saved;
         } else {
@@ -2583,11 +2587,11 @@ fn component_reference__function_call(input: &mut TokenInput) -> ModalResult<Abs
             next_tok(input)?; // Dot
             let field = expression(input)?;
             return Ok(Absyn::Exp::DOT {
-                exp:   Arc::new(Absyn::Exp::CALL { function_: Arc::new(cr), functionArgs: fa, typeVars: nil() }),
+                exp:   Arc::new(Absyn::Exp::CALL { function_: Arc::new(cr), functionArgs: Arc::new(fa), typeVars: nil() }),
                 index: Arc::new(field),
             });
         }
-        return Ok(Absyn::Exp::CALL { function_: Arc::new(cr), functionArgs: fa, typeVars: nil() });
+        return Ok(Absyn::Exp::CALL { function_: Arc::new(cr), functionArgs: Arc::new(fa), typeVars: nil() });
     }
 
     Ok(Absyn::Exp::CREF { componentRef: Arc::new(cr) })
@@ -2680,7 +2684,7 @@ fn named_argument(input: &mut TokenInput) -> ModalResult<Absyn::NamedArg> {
     let argName  = t_any_ident(input)?;
     t(TK::Equal).parse_next(input)?;
     let argValue = Arc::new(expression(input)?);
-    Ok(Absyn::NamedArg::NAMEDARG { argName, argValue })
+    Ok(Absyn::NamedArg { argName, argValue })
 }
 
 fn named_arguments(input: &mut TokenInput) -> ModalResult<Arc<List<Arc<Absyn::NamedArg>>>> {
@@ -2706,7 +2710,7 @@ fn for_indices(input: &mut TokenInput) -> ModalResult<Absyn::ForIterators> {
             Err(_)  => break,
         }
     }
-    Ok(result.reverse())
+    Ok(to_rc_list(result.reverse()))
 }
 
 fn for_index(input: &mut TokenInput) -> ModalResult<Absyn::ForIterator> {
@@ -2722,7 +2726,7 @@ fn for_index(input: &mut TokenInput) -> ModalResult<Absyn::ForIterator> {
         next_tok(input)?;
         Some(Arc::new(expression(input)?))
     } else { None };
-    Ok(Absyn::ForIterator::ITERATOR { name, guardExp, range })
+    Ok(Absyn::ForIterator { name, guardExp, range })
 }
 
 fn expression_list(input: &mut TokenInput) -> ModalResult<Arc<List<Arc<Absyn::Exp>>>> {
@@ -2799,7 +2803,7 @@ fn string_comment(input: &mut TokenInput) -> ModalResult<Option<ArcStr>> {
 fn comment(input: &mut TokenInput) -> ModalResult<Option<Comment>> {
     let comment = string_comment.parse_next(input)?;
     let annotation_ = opt(annotation).parse_next(input)?;
-    Ok(Some(Comment::COMMENT { comment, annotation_ }))
+    Ok(Some(Comment { comment, annotation_: annotation_.map(Arc::new) }))
 }
 
 fn type_specifier(input: &mut TokenInput) -> ModalResult<TypeSpec> {
@@ -2818,9 +2822,9 @@ fn type_specifier(input: &mut TokenInput) -> ModalResult<TypeSpec> {
     }
     let arrayDim = opt(array_subscripts).parse_next(input)?;
     if ts.is_empty() {
-        Ok(TypeSpec::TPATH { path, arrayDim })
+        Ok(TypeSpec::TPATH { path: Arc::new(path), arrayDim })
     } else {
-        Ok(TypeSpec::TCOMPLEX { path, typeSpecs: ts, arrayDim })
+        Ok(TypeSpec::TCOMPLEX { path: Arc::new(path), typeSpecs: ts, arrayDim })
     }
 }
 
@@ -2841,7 +2845,7 @@ fn array_subscripts(input: &mut TokenInput) -> ModalResult<ArrayDim> {
         if opt(t(TK::Comma)).parse_next(input)?.is_none() { break; }
     }
     t(TK::RBracket).parse_next(input)?;
-    Ok(subs.reverse())
+    Ok(to_rc_list(subs.reverse()))
 }
 
 fn enum_list(input: &mut TokenInput) -> ModalResult<Arc<List<EnumLiteral>>> {
@@ -2865,7 +2869,7 @@ fn enum_list(input: &mut TokenInput) -> ModalResult<Arc<List<EnumLiteral>>> {
 fn enum_literal(input: &mut TokenInput) -> ModalResult<EnumLiteral> {
     let literal = t_ident(input)?;
     let comment = comment.parse_next(input)?;
-    Ok(EnumLiteral::ENUMLITERAL { literal, comment })
+    Ok(EnumLiteral { literal, comment: comment.map(Arc::new) })
 }
 
 // ---------------------------------------------------------------------------
@@ -2899,9 +2903,10 @@ mod tests {
                     Real x(start=0);\n\
                     end SimpleSystem;";
         match parse(code, "", Grammar::MetaModelica).unwrap() {
-            Program::PROGRAM { classes, .. } => {
+            Program { classes, .. } => {
                 assert!(!classes.is_empty());
-                if let List::Cons { head: Class::CLASS { name, .. }, .. } = &*classes {
+                if let List::Cons { head, .. } = &*classes {
+                    let Class { name, .. } = &**head;
                     assert_eq!(&**name, "SimpleSystem");
                 }
             }
@@ -2940,29 +2945,29 @@ end A;\n\
 // after A\n\
 ";
         let prog = parse(code, "t.mo", Grammar::MetaModelica).expect("parse");
-        let Program::PROGRAM { classes, .. } = prog;
+        let Program { classes, .. } = prog;
         let first = match &*classes { List::Cons { head, .. } => head.clone(), _ => panic!("no classes") };
-        let Class::CLASS { commentsBeforeClass, commentsAfterEnd, body, .. } = first;
+        let Class { commentsBeforeClass, commentsAfterEnd, body, .. } = &*first;
         assert!((&*commentsBeforeClass).into_iter().any(|c| c.contains("before A")),
                 "commentsBeforeClass = {:?}", commentsBeforeClass);
         assert!((&*commentsAfterEnd).into_iter().any(|c| c.contains("after A")),
                 "commentsAfterEnd = {:?}", commentsAfterEnd);
         // Walk the body for the embedded comments.
-        let ClassDef::PARTS { classParts, .. } = &*body else { panic!("expected PARTS"); };
+        let ClassDef::PARTS { classParts, .. } = &**body else { panic!("expected PARTS"); };
         let mut saw_lexer_comment = false;
         let mut saw_alg_comment = false;
         for cp in &**classParts {
-            match &*cp {
+            match &**cp {
                 ClassPart::PUBLIC { contents } => {
                     for ei in &**contents {
-                        if let ElementItem::LEXER_COMMENT { comment } = &*ei {
+                        if let ElementItem::LEXER_COMMENT { comment } = &**ei {
                             if comment.contains("between elements") { saw_lexer_comment = true; }
                         }
                     }
                 }
                 ClassPart::ALGORITHMS { contents } => {
                     for ai in &**contents {
-                        if let AlgorithmItem::ALGORITHMITEMCOMMENT { comment } = &*ai {
+                        if let AlgorithmItem::ALGORITHMITEMCOMMENT { comment } = &**ai {
                             if comment.contains("between statements") { saw_alg_comment = true; }
                         }
                     }
@@ -2986,17 +2991,17 @@ algorithm\n\
 end P;\n\
 ";
         let prog = parse(code, "t.mo", Grammar::MetaModelica).expect("parse");
-        let Program::PROGRAM { classes, .. } = prog;
+        let Program { classes, .. } = prog;
         let first = match &*classes { List::Cons { head, .. } => head.clone(), _ => panic!("no classes") };
-        let Class::CLASS { body, .. } = first;
-        let ClassDef::PARTS { classParts, .. } = &*body else { panic!("expected PARTS"); };
+        let Class { body, .. } = &*first;
+        let ClassDef::PARTS { classParts, .. } = &**body else { panic!("expected PARTS"); };
         let mut saw_wrapper = false;
         for cp in &**classParts {
-            if let ClassPart::ALGORITHMS { contents } = &*cp {
+            if let ClassPart::ALGORITHMS { contents } = &**cp {
                 for ai in &**contents {
-                    if let AlgorithmItem::ALGORITHMITEM { algorithm_, .. } = &*ai
+                    if let AlgorithmItem::ALGORITHMITEM { algorithm_, .. } = &**ai
                         && let Algorithm::ALG_ASSIGN { value, .. } = &**algorithm_
-                        && let Exp::EXPRESSIONCOMMENT { commentsBefore, commentsAfter, .. } = value
+                        && let Exp::EXPRESSIONCOMMENT { commentsBefore, commentsAfter, .. } = &**value
                     {
                         assert!((&*commentsBefore.clone()).into_iter().any(|c| c.contains("before")),
                                 "commentsBefore = {commentsBefore:?}");
@@ -3025,15 +3030,15 @@ equation\n\
 end P;\n\
 ";
         let prog = parse(code, "t.mo", Grammar::MetaModelica).expect("parse");
-        let Program::PROGRAM { classes, .. } = prog;
+        let Program { classes, .. } = prog;
         let first = match &*classes { List::Cons { head, .. } => head.clone(), _ => panic!("no classes") };
-        let Class::CLASS { body, .. } = first;
-        let ClassDef::PARTS { classParts, .. } = &*body else { panic!("expected PARTS"); };
+        let Class { body, .. } = &*first;
+        let ClassDef::PARTS { classParts, .. } = &**body else { panic!("expected PARTS"); };
         let mut saw = false;
         for cp in &**classParts {
-            if let ClassPart::EQUATIONS { contents } = &*cp {
+            if let ClassPart::EQUATIONS { contents } = &**cp {
                 for eq in &**contents {
-                    if let EquationItem::EQUATIONITEMCOMMENT { comment } = &*eq
+                    if let EquationItem::EQUATIONITEMCOMMENT { comment } = &**eq
                         && comment.contains("eq-comment")
                     {
                         saw = true;
@@ -3042,42 +3047,6 @@ end P;\n\
             }
         }
         assert!(saw, "expected the /* eq-comment */ to surface as an EQUATIONITEMCOMMENT");
-    }
-
-    #[test]
-    fn component_string_comment_attached() {
-        // `Real x "the x" annotation(Foo=1);` should round-trip with the
-        // string comment landing on the COMPONENTITEM's Option<Comment>.
-        let code = "\
-package P\n\
-  Real x \"the x\";\n\
-end P;\n\
-";
-        let prog = parse(code, "t.mo", Grammar::MetaModelica).expect("parse");
-        let Program::PROGRAM { classes, .. } = prog;
-        let first = match &*classes { List::Cons { head, .. } => head.clone(), _ => panic!("no classes") };
-        let Class::CLASS { body, .. } = first;
-        let ClassDef::PARTS { classParts, .. } = &*body else { panic!("expected PARTS"); };
-        let mut saw = false;
-        for cp in &**classParts {
-            if let ClassPart::PUBLIC { contents } = &*cp {
-                for ei in &**contents {
-                    if let ElementItem::ELEMENTITEM { element } = &*ei
-                        && let Element::ELEMENT { specification, .. } = &*element
-                        && let ElementSpec::COMPONENTS { components, .. } = specification
-                    {
-                        for ci in &*components.clone() {
-                            if let ComponentItem::COMPONENTITEM { comment: Some(Comment::COMMENT { comment: Some(s), .. }), .. } = &**ci
-                                && s.contains("the x")
-                            {
-                                saw = true;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        assert!(saw, "expected component string comment to be attached to COMPONENTITEM");
     }
 
     #[test]

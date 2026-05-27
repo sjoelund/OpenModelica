@@ -993,8 +993,8 @@ fn insertUnitInEquationCall(mut call: Arc<Call::NFCall>, mut unit: Unit::Unit, m
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ Absyn::Path::IDENT { name: Deref @ "pre" } => {
-                    let mut op_unit: Unit::Unit;
                     let mut inconsistentUnits: Arc<metamodelica::List<Arc<metamodelica::List<(Arc<Expression::NFExpression>, Unit::Unit)>>>> = inconsistentUnits.clone();
+                    let mut op_unit: Unit::Unit;
                     (op_unit, inconsistentUnits) = insertUnitInEquation(listHead(call_args.clone())?, unit.clone(), htCr2U.clone(), htS2U.clone(), htU2S.clone(), fnCache.clone())?;
                     Ok((Unit::Unit::MASTER { varList: metamodelica::nil() }, inconsistentUnits.clone()))
                 }
@@ -1004,9 +1004,9 @@ fn insertUnitInEquationCall(mut call: Arc<Call::NFCall>, mut unit: Unit::Unit, m
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ Absyn::Path::IDENT { name: Deref @ "der" } => {
-                    let mut vars: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = vars.clone();
                     let mut op_unit: Unit::Unit;
                     let mut inconsistentUnits: Arc<metamodelica::List<Arc<metamodelica::List<(Arc<Expression::NFExpression>, Unit::Unit)>>>> = inconsistentUnits.clone();
+                    let mut vars: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = vars.clone();
                     (op_unit, inconsistentUnits) = insertUnitInEquation(listHead(call_args.clone())?, Unit::Unit::MASTER { varList: metamodelica::nil() }, htCr2U.clone(), htS2U.clone(), htU2S.clone(), fnCache.clone())?;
                     if Unit::isUnit(op_unit.clone()) {
                         op_unit = Unit::unitDiv(op_unit.clone(), Unit::SECOND().clone())?;
@@ -1028,8 +1028,8 @@ fn insertUnitInEquationCall(mut call: Arc<Call::NFCall>, mut unit: Unit::Unit, m
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ Absyn::Path::IDENT { name: Deref @ "sqrt" } => {
-                    let mut vars: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = vars.clone();
                     let mut inconsistentUnits: Arc<metamodelica::List<Arc<metamodelica::List<(Arc<Expression::NFExpression>, Unit::Unit)>>>> = inconsistentUnits.clone();
+                    let mut vars: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = vars.clone();
                     let mut op_unit: Unit::Unit;
                     (op_unit, inconsistentUnits) = insertUnitInEquation(listHead(call_args.clone())?, Unit::Unit::MASTER { varList: metamodelica::nil() }, htCr2U.clone(), htS2U.clone(), htU2S.clone(), fnCache.clone())?;
                     if Unit::isUnit(op_unit.clone()) {
@@ -1064,10 +1064,10 @@ fn insertUnitInEquationCall(mut call: Arc<Call::NFCall>, mut unit: Unit::Unit, m
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 _ => {
+                    let mut fn_name: ArcStr = fn_name.clone();
                     let mut inconsistentUnits: Arc<metamodelica::List<Arc<metamodelica::List<(Arc<Expression::NFExpression>, Unit::Unit)>>>> = inconsistentUnits.clone();
                     let mut unit_names: Arc<metamodelica::List<ArcStr>> = unit_names.clone();
                     let mut var_names: Arc<metamodelica::List<ArcStr>> = var_names.clone();
-                    let mut fn_name: ArcStr = fn_name.clone();
                     fn_name = (AbsynUtil::pathString(AbsynUtil::makeNotFullyQualified(fn_path.clone()), (literal!(".")).clone(), true, false)?).clone();
                     (var_names, _, unit_names, _) = getCallUnits((fn_name.clone()).clone(), call.clone(), fnCache.clone())?;
                     inconsistentUnits = foldCallArg1(call_args.clone(), htCr2U.clone(), htS2U.clone(), htU2S.clone(), fnCache.clone(), unit.clone(), unit_names.clone(), var_names.clone(), (fn_name.clone()).clone())?;

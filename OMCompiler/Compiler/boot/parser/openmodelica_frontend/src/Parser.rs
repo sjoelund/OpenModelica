@@ -43,10 +43,10 @@ use metamodelica::*; // Built-in types and functions
 use const_str;
 use arcstr::{ArcStr, literal, format};
 
-use crate::HashTableStringToProgram;
 use openmodelica_ast::Absyn;
 use openmodelica_ast::GlobalScript;
 use openmodelica_ast::ParserExt;
+use openmodelica_ast_collections::HashTableStringToProgram;
 use openmodelica_frontend_dump::AbsynUtil;
 use openmodelica_util::BaseHashTable;
 use openmodelica_util::Config;

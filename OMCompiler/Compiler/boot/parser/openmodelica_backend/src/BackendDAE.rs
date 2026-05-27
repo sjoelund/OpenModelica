@@ -46,14 +46,14 @@ use arcstr::{ArcStr, literal, format};
 use crate::SimCode;
 use crate::ZeroCrossings;
 use openmodelica_ast::Absyn;
-use openmodelica_frontend::AvlSetPath;
+use openmodelica_ast_collections::AvlSetPath;
 use openmodelica_frontend::FCore;
 use openmodelica_frontend::HashTable3;
 use openmodelica_frontend::HashTableCG;
-use openmodelica_frontend::MMath;
 use openmodelica_frontend_types::DAE;
 use openmodelica_frontend_types::SCode;
 use openmodelica_util::ExpandableArray;
+use openmodelica_util::MMath;
 use openmodelica_util_datatypes_basic::DoubleEnded;
 
 /// Once we are in BackendDAE, the Type can be only basic types or enumeration.
@@ -1120,7 +1120,7 @@ pub struct DifferentiateInputData {
 pub type DIFFINPUTDATA = DifferentiateInputData;
 
 
-thread_local! { static __emptyInputData_TLS: DifferentiateInputData = DifferentiateInputData { independenentVars: None, dependenentVars: None, knownVars: None, allVars: None, controlVars: metamodelica::nil(), diffCrefs: metamodelica::nil(), matrixName: None, diffedFunctions: Arc::new(openmodelica_frontend::AvlSetPath::Tree::EMPTY) }; }
+thread_local! { static __emptyInputData_TLS: DifferentiateInputData = DifferentiateInputData { independenentVars: None, dependenentVars: None, knownVars: None, allVars: None, controlVars: metamodelica::nil(), diffCrefs: metamodelica::nil(), matrixName: None, diffedFunctions: Arc::new(openmodelica_ast_collections::AvlSetPath::Tree::EMPTY) }; }
 pub fn emptyInputData() -> DifferentiateInputData { __emptyInputData_TLS.with(|__t| __t.clone()) }
 
 pub type DifferentiateInputArguments = /* ? */;

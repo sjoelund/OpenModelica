@@ -216,16 +216,16 @@ pub fn FAILED_CREF_TPL() -> CrefTpl { __FAILED_CREF_TPL_TLS.with(|__t| __t.clone
 fn checkReplacements(mut replacements: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<Expression::NFExpression>>>, mut eqData: Arc<EqData::EqData>) -> Result<(Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<Expression::NFExpression>>>, Arc<metamodelica::List<Pointer::Pointer<Arc<Equation::Equation>>>>)> {
     let mut newReplacements: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<Expression::NFExpression>>> = UnorderedMap::new((std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), 1);
     let mut auxEquations: Arc<metamodelica::List<Pointer::Pointer<Arc<Equation::Equation>>>> = metamodelica::nil();
-    let mut exceptionSet: Arc<UnorderedSet::UnorderedSet<Arc<ComponentRef::NFComponentRef>>> = UnorderedSet::new((std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), 13);
+    let mut exceptionMap: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, ExceptionKind>> = UnorderedMap::new((std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), 1);
     let mut cref: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
     let mut exp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut eqPtr: Pointer::Pointer<Arc<Equation::Equation>>;
     let mut attr: Arc<EquationAttributes::EquationAttributes>;
-    BEquation::EqData::map(eqData.clone(), Arc::new({ let __pe_b1 = exceptionSet.clone(); move |__pe_a0| filterExceptionsEquation(__pe_a0, __pe_b1.clone()) }))?;
+    BEquation::EqData::map(eqData.clone(), Arc::new({ let __pe_b1 = exceptionMap.clone(); move |__pe_a0| filterExceptionsEquation(__pe_a0, __pe_b1.clone()) }))?;
     for mut keyValueTpl in &*UnorderedMap::toList(replacements.clone()) {
         let mut keyValueTpl = keyValueTpl.clone();
         (cref, exp) = keyValueTpl.clone();
-        if isValidReplacement(cref.clone(), exp.clone(), exceptionSet.clone())? {
+        if isValidReplacement(cref.clone(), exp.clone(), exceptionMap.clone()) {
             UnorderedMap::add(cref.clone(), exp.clone(), newReplacements.clone())?;
         } else {
             attr = BackendDAE::lowerEquationAttributes(ComponentRef::getSubscriptedType(cref.clone(), false)?, false);
@@ -239,21 +239,41 @@ fn checkReplacements(mut replacements: Arc<UnorderedMap::UnorderedMap<Arc<Compon
     Ok((newReplacements, auxEquations))
 }
 
-fn isValidReplacement(mut cref: Arc<ComponentRef::NFComponentRef>, mut exp: Arc<Expression::NFExpression>, mut exceptionSet: Arc<UnorderedSet::UnorderedSet<Arc<ComponentRef::NFComponentRef>>>) -> Result<bool> {
+fn isValidReplacement(mut cref: Arc<ComponentRef::NFComponentRef>, mut exp: Arc<Expression::NFExpression>, mut exceptionMap: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, ExceptionKind>>) -> bool {
     let mut b: bool = true;
-    if UnorderedSet::contains(cref.clone(), exceptionSet.clone())? {
-        b = false;
-    }
-    Ok(b)
+    b = (::match_deref::match_deref! { match &((UnorderedMap::get(cref.clone(), exceptionMap.clone()), exp.clone())) {
+        (None, _) => true,
+        (Some(ExceptionKind::CREF_ALIAS), Deref @ Expression::CREF { .. }) => true,
+        _ => false,
+        _ => unreachable!("match_deref! exhaustiveness placeholder"),
+    } });
+    b
 }
 
-fn filterExceptionsEquation(mut eqn: Arc<Equation::Equation>, mut acc: Arc<UnorderedSet::UnorderedSet<Arc<ComponentRef::NFComponentRef>>>) -> Result<Arc<Equation::Equation>> {
+// different kinds of exceptions
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
+#[repr(i32)]
+pub enum ExceptionKind {
+    NO_ALIAS = 1,
+    CREF_ALIAS = 2,
+}
+impl PartialOrd for ExceptionKind {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> { Some(self.cmp(other)) }
+}
+impl Ord for ExceptionKind {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering { (*self as i32).cmp(&(*other as i32)) }
+}
+impl Default for ExceptionKind {
+    fn default() -> Self { Self::NO_ALIAS }
+}
+
+fn filterExceptionsEquation(mut eqn: Arc<Equation::Equation>, mut acc: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, ExceptionKind>>) -> Result<Arc<Equation::Equation>> {
     let mut eqn: Arc<Equation::Equation> = eqn;
     let _ = (::match_deref::match_deref! { match &(eqn.clone()) {
         Deref @ BEquation::Equation::ALGORITHM { .. } => {
             for mut cref in &*var_field!((*eqn).alg, Equation::Equation::ALGORITHM).outputs.clone() {
                 let mut cref = cref.clone();
-                UnorderedSet::add(cref.clone(), acc.clone())?;
+                UnorderedMap::add(cref.clone(), ExceptionKind::NO_ALIAS.clone(), acc.clone())?;
             }
             ()
         },
@@ -264,14 +284,28 @@ fn filterExceptionsEquation(mut eqn: Arc<Equation::Equation>, mut acc: Arc<Unord
     Ok(eqn)
 }
 
-fn filterExceptions(mut exp: Arc<Expression::NFExpression>, mut acc: Arc<UnorderedSet::UnorderedSet<Arc<ComponentRef::NFComponentRef>>>) -> Result<Arc<Expression::NFExpression>> {
+fn filterExceptions(mut exp: Arc<Expression::NFExpression>, mut acc: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, ExceptionKind>>) -> Result<Arc<Expression::NFExpression>> {
     let mut exp: Arc<Expression::NFExpression> = exp;
     let _ = (::match_deref::match_deref! { match &(exp.clone()) {
         Deref @ Expression::CALL { call: call @ Deref @ Call::TYPED_CALL { arguments: Deref @ metamodelica::List::Cons { head: Deref @ Expression::CREF { cref, .. }, tail: Deref @ metamodelica::List::Nil }, .. } } if (AbsynUtil::pathString(Function::nameConsiderBuiltin(var_field!((**call).r#fn, Call::NFCall::TYPED_CALL).clone())?, (literal!(".")).clone(), true, false)? == literal!("pre")) => {
-            UnorderedSet::add(cref.clone(), acc.clone())?;
+            UnorderedMap::add(cref.clone(), ExceptionKind::NO_ALIAS.clone(), acc.clone())?;
             ()
         },
         Deref @ Expression::CREF { .. } => {
+            ()
+        },
+        Deref @ Expression::TUPLE { .. } => {
+            for mut elem in &*var_field!((*exp).elements, Expression::NFExpression::TUPLE).clone() {
+                let mut elem = elem.clone();
+                let _ = (::match_deref::match_deref! { match &(elem.clone()) {
+        Deref @ Expression::CREF { .. } => {
+            UnorderedMap::add(var_field!((*elem).cref, Expression::NFExpression::CREF).clone(), ExceptionKind::CREF_ALIAS.clone(), acc.clone())?;
+            ()
+        },
+        _ => (),
+        _ => unreachable!("match_deref! exhaustiveness placeholder"),
+    } });
+            }
             ()
         },
         _ => {

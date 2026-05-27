@@ -68,7 +68,7 @@ use crate::NBVariable;
 use crate::NBackendDAE as Jacobian;
 use crate::SymbolicJacobian;
 use openmodelica_ast::Absyn::Path;
-use openmodelica_frontend::AvlSetPath;
+use openmodelica_ast_collections::AvlSetPath;
 use openmodelica_nf_frontend::NFComponentRef as ComponentRef;
 use openmodelica_nf_frontend::NFExpression as Expression;
 use openmodelica_nf_frontend::NFFunction::Function;

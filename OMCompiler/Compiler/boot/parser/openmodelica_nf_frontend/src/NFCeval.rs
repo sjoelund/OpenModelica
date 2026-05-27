@@ -622,8 +622,8 @@ pub fn makeComponentBinding(mut component: Arc<Component::NFComponent>, mut node
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ Component::COMPONENT { ty: Deref @ Type::COMPLEX { complexTy: Deref @ ComplexType::RECORD { constructor: rec_node, .. }, .. }, .. } => {
-                    let mut binding: Arc<Binding::NFBinding> = binding.clone();
                     let mut exp: Arc<Expression::NFExpression> = exp.clone();
+                    let mut binding: Arc<Binding::NFBinding> = binding.clone();
                     exp = makeRecordBindingExp(var_field!((*component).classInst, Component::NFComponent::COMPONENT).clone(), rec_node.clone(), var_field!((*component).ty, Component::NFComponent::COMPONENT).clone(), cref.clone(), target.clone())?;
                     binding = Arc::new(Binding::NFBinding::CEVAL_BINDING { bindingExp: exp.clone() });
                     if !(ComponentRef::hasSubscripts(cref.clone())) {

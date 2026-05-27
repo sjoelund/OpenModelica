@@ -645,10 +645,10 @@ pub fn simplifyArrayConstructor(mut call: Arc<Call::NFCall>) -> Result<Arc<Expre
                 Deref @ metamodelica::List::Cons { head: (iter, e), tail: Deref @ metamodelica::List::Nil } => {
                     let mut e = (*e).clone();
                     let mut expanded: bool = expanded.clone();
-                    let mut outExp: Arc<Expression::NFExpression> = outExp.clone();
-                    let mut dim: Arc<Dimension::NFDimension> = dim.clone();
-                    let mut exp: Arc<Expression::NFExpression> = exp.clone();
                     let mut dim_size: i32 = dim_size.clone();
+                    let mut dim: Arc<Dimension::NFDimension> = dim.clone();
+                    let mut outExp: Arc<Expression::NFExpression> = outExp.clone();
+                    let mut exp: Arc<Expression::NFExpression> = exp.clone();
                     let __pa0 = ::match_deref::match_deref! { match &(Expression::typeOf(e.clone())) {
                         Deref @ Type::ARRAY { dimensions: Deref @ metamodelica::List::Cons { head: __pa0, tail: Deref @ metamodelica::List::Nil }, .. } => __pa0.clone(),
                         _ => bail!("pattern mismatch"),
@@ -679,8 +679,8 @@ pub fn simplifyArrayConstructor(mut call: Arc<Call::NFCall>) -> Result<Arc<Expre
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 _ => {
-                    let mut exp: Arc<Expression::NFExpression> = exp.clone();
                     let mut ty: Arc<Type::NFType> = ty.clone();
+                    let mut exp: Arc<Expression::NFExpression> = exp.clone();
                     exp = simplify(exp.clone(), false)?;
                     ty = Type::simplify(ty.clone())?;
                     Ok(Arc::new(Expression::NFExpression::CALL { call: Arc::new(Call::NFCall::TYPED_ARRAY_CONSTRUCTOR { ty: ty.clone(), var: var.clone(), purity: pur.clone(), exp: exp.clone(), iters: iters.clone() }) }))
@@ -726,9 +726,9 @@ pub fn simplifyReduction(mut call: Arc<Call::NFCall>) -> Result<Arc<Expression::
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ metamodelica::List::Cons { head: (iter, e), tail: Deref @ metamodelica::List::Nil } => {
                     let mut e = (*e).clone();
-                    let mut dim_size: i32;
-                    let mut outExp: Arc<Expression::NFExpression> = outExp.clone();
                     let mut dim: Arc<Dimension::NFDimension>;
+                    let mut outExp: Arc<Expression::NFExpression> = outExp.clone();
+                    let mut dim_size: i32;
                     let __pa0 = ::match_deref::match_deref! { match &(Expression::typeOf(e.clone())) {
                         Deref @ Type::ARRAY { dimensions: Deref @ metamodelica::List::Cons { head: __pa0, tail: Deref @ metamodelica::List::Nil }, .. } => __pa0.clone(),
                         _ => bail!("pattern mismatch"),

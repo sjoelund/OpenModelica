@@ -51,10 +51,8 @@ use crate::FGraph;
 use crate::FNode;
 use crate::HashTable;
 use crate::Lookup;
-use crate::MMath;
 use crate::Types;
 use crate::UnitAbsyn;
-use crate::UnitParserExt;
 use openmodelica_ast::Absyn;
 use openmodelica_frontend_dump::AbsynToSCode;
 use openmodelica_frontend_dump::AbsynUtil;
@@ -64,8 +62,10 @@ use openmodelica_frontend_dump::SCodeUtil;
 use openmodelica_frontend_dump::TypesDump;
 use openmodelica_frontend_types::DAE;
 use openmodelica_frontend_types::SCode;
+use openmodelica_script_util::UnitParserExt;
 use openmodelica_util::BaseHashTable;
 use openmodelica_util::Flags;
+use openmodelica_util::MMath;
 use openmodelica_util::Util;
 use openmodelica_util_datatypes_basic::Array;
 use openmodelica_util_datatypes_basic::List;
@@ -81,8 +81,8 @@ pub fn registerUnitWeights(mut cache: FCore::Cache, mut env: FCore::Graph, mut d
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             let (_, _, DAE::DAElist { elementLst: ref elts }) = __mc_input.clone() else { bail!("nomatch") };
-            let mut du: Arc<metamodelica::List<Arc<SCode::Element>>> = du.clone();
             let mut paths: Arc<metamodelica::List<Arc<Absyn::Path>>> = paths.clone();
+            let mut du: Arc<metamodelica::List<Arc<SCode::Element>>> = du.clone();
             paths = List::unionList(List::map(elts.clone(), (std::sync::Arc::new(fnptr!(DAEUtil::getClassList, Arc<DAE::Element>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Element>) -> Result<Arc<metamodelica::List<Arc<Absyn::Path>>>> + 'static>)))?;
             du = List::unionList(List::map1(paths.clone(), (std::sync::Arc::new(retrieveUnitsFromEnv) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Path>, (FCore::Cache, FCore::Graph)) -> Result<Arc<metamodelica::List<Arc<SCode::Element>>>> + 'static>), (cache.clone(), env.clone())))?;
             registerUnitWeightDefineunits(du.clone())?;

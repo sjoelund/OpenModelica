@@ -45,13 +45,13 @@ use arcstr::{ArcStr, literal, format};
 
 use crate::Expression;
 use crate::ExpressionSimplify;
-use crate::ExpressionSimplifyTypes;
 use crate::Types;
 use openmodelica_ast::Absyn;
 use openmodelica_frontend_dump::AbsynUtil;
 use openmodelica_frontend_dump::Dump;
 use openmodelica_frontend_dump::ValuesDump;
 use openmodelica_frontend_dump::ValuesMake;
+use openmodelica_frontend_inst::ExpressionSimplifyTypes;
 use openmodelica_frontend_types::ClassInf;
 use openmodelica_frontend_types::DAE;
 use openmodelica_frontend_types::Values;
@@ -242,7 +242,7 @@ pub fn safeIntRealOp(mut val1: Arc<Values::Value>, mut val2: Arc<Values::Value>,
                 (Deref @ Values::Value::INTEGER { integer: iv1 }, Deref @ Values::Value::INTEGER { integer: iv2 }, Values::IntRealOp::MULOP) => {
                     let mut e: Arc<DAE::Exp>;
                     let mut outv: Arc<Values::Value> = outv.clone();
-                    e = ExpressionSimplify::safeIntOp(iv1.clone(), iv2.clone(), crate::ExpressionSimplifyTypes::IntOp::MULOP)?;
+                    e = ExpressionSimplify::safeIntOp(iv1.clone(), iv2.clone(), openmodelica_frontend_inst::ExpressionSimplifyTypes::IntOp::MULOP)?;
                     outv = expValue(e.clone())?;
                     Ok(outv.clone())
                 }
@@ -288,7 +288,7 @@ pub fn safeIntRealOp(mut val1: Arc<Values::Value>, mut val2: Arc<Values::Value>,
                 (Deref @ Values::Value::INTEGER { integer: iv1 }, Deref @ Values::Value::INTEGER { integer: iv2 }, Values::IntRealOp::DIVOP) => {
                     let mut e: Arc<DAE::Exp>;
                     let mut outv: Arc<Values::Value> = outv.clone();
-                    e = ExpressionSimplify::safeIntOp(iv1.clone(), iv2.clone(), crate::ExpressionSimplifyTypes::IntOp::DIVOP)?;
+                    e = ExpressionSimplify::safeIntOp(iv1.clone(), iv2.clone(), openmodelica_frontend_inst::ExpressionSimplifyTypes::IntOp::DIVOP)?;
                     outv = expValue(e.clone())?;
                     Ok(outv.clone())
                 }
@@ -349,7 +349,7 @@ pub fn safeIntRealOp(mut val1: Arc<Values::Value>, mut val2: Arc<Values::Value>,
                 (Deref @ Values::Value::INTEGER { integer: iv1 }, Deref @ Values::Value::INTEGER { integer: iv2 }, Values::IntRealOp::POWOP) => {
                     let mut e: Arc<DAE::Exp>;
                     let mut outv: Arc<Values::Value> = outv.clone();
-                    e = ExpressionSimplify::safeIntOp(iv1.clone(), iv2.clone(), crate::ExpressionSimplifyTypes::IntOp::POWOP)?;
+                    e = ExpressionSimplify::safeIntOp(iv1.clone(), iv2.clone(), openmodelica_frontend_inst::ExpressionSimplifyTypes::IntOp::POWOP)?;
                     outv = expValue(e.clone())?;
                     Ok(outv.clone())
                 }
@@ -375,7 +375,7 @@ pub fn safeIntRealOp(mut val1: Arc<Values::Value>, mut val2: Arc<Values::Value>,
                     let mut e: Arc<DAE::Exp>;
                     let mut outv: Arc<Values::Value> = outv.clone();
                     iv2 = ((rv2.clone()).0 as i32);
-                    e = ExpressionSimplify::safeIntOp(iv1.clone(), iv2.clone(), crate::ExpressionSimplifyTypes::IntOp::POWOP)?;
+                    e = ExpressionSimplify::safeIntOp(iv1.clone(), iv2.clone(), openmodelica_frontend_inst::ExpressionSimplifyTypes::IntOp::POWOP)?;
                     outv = expValue(e.clone())?;
                     Ok(outv.clone())
                 }
@@ -409,7 +409,7 @@ pub fn safeIntRealOp(mut val1: Arc<Values::Value>, mut val2: Arc<Values::Value>,
                 (Deref @ Values::Value::INTEGER { integer: iv1 }, Deref @ Values::Value::INTEGER { integer: iv2 }, Values::IntRealOp::ADDOP) => {
                     let mut e: Arc<DAE::Exp>;
                     let mut outv: Arc<Values::Value> = outv.clone();
-                    e = ExpressionSimplify::safeIntOp(iv1.clone(), iv2.clone(), crate::ExpressionSimplifyTypes::IntOp::ADDOP)?;
+                    e = ExpressionSimplify::safeIntOp(iv1.clone(), iv2.clone(), openmodelica_frontend_inst::ExpressionSimplifyTypes::IntOp::ADDOP)?;
                     outv = expValue(e.clone())?;
                     Ok(outv.clone())
                 }
@@ -455,7 +455,7 @@ pub fn safeIntRealOp(mut val1: Arc<Values::Value>, mut val2: Arc<Values::Value>,
                 (Deref @ Values::Value::INTEGER { integer: iv1 }, Deref @ Values::Value::INTEGER { integer: iv2 }, Values::IntRealOp::SUBOP) => {
                     let mut e: Arc<DAE::Exp>;
                     let mut outv: Arc<Values::Value> = outv.clone();
-                    e = ExpressionSimplify::safeIntOp(iv1.clone(), iv2.clone(), crate::ExpressionSimplifyTypes::IntOp::SUBOP)?;
+                    e = ExpressionSimplify::safeIntOp(iv1.clone(), iv2.clone(), openmodelica_frontend_inst::ExpressionSimplifyTypes::IntOp::SUBOP)?;
                     outv = expValue(e.clone())?;
                     Ok(outv.clone())
                 }

@@ -1405,10 +1405,10 @@ fn mergeWhenEqns(mut trueEqnList: Arc<metamodelica::List<Arc<BackendDAE::Equatio
         let __mc_input = stmt.clone();
         if let Ok(__v) = (|| -> Result<_> {
                     let BackendDAE::WhenOperator::ASSIGN { left: ref eleft2, .. } = __mc_input.clone() else { bail!("nomatch") };
-                    let mut added: bool = added.clone();
+                    let mut whenEqRes: Arc<BackendDAE::WhenEquation>;
                     let mut result: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = result.clone();
                     let mut res: Arc<BackendDAE::Equation>;
-                    let mut whenEqRes: Arc<BackendDAE::WhenEquation>;
+                    let mut added: bool = added.clone();
                     let true = (ExpressionBasics::expEqual(eleft.clone(), eleft2.clone())?) else { bail!("pattern mismatch") };
                     whenEqRes = BackendEquation::setWhenElsePart(whenEq.clone(), eq.clone())?;
                     res = Arc::new(BackendDAE::Equation::WHEN_EQUATION { size: size.clone(), whenEquation: whenEqRes.clone(), source: source.clone(), attr: attr.clone() });
@@ -1434,10 +1434,10 @@ fn mergeWhenEqns(mut trueEqnList: Arc<metamodelica::List<Arc<BackendDAE::Equatio
         let __mc_input = stmt.clone();
         if let Ok(__v) = (|| -> Result<_> {
                     let BackendDAE::WhenOperator::REINIT { stateVar: ref crleft2, .. } = __mc_input.clone() else { bail!("nomatch") };
-                    let mut whenEqRes: Arc<BackendDAE::WhenEquation>;
                     let mut added: bool = added.clone();
-                    let mut result: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = result.clone();
+                    let mut whenEqRes: Arc<BackendDAE::WhenEquation>;
                     let mut res: Arc<BackendDAE::Equation>;
+                    let mut result: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = result.clone();
                     let true = (ComponentReferenceBasics::crefEqualNoStringCompare(crleft.clone(), crleft2.clone())?) else { bail!("pattern mismatch") };
                     whenEqRes = BackendEquation::setWhenElsePart(whenEq.clone(), eq.clone())?;
                     res = Arc::new(BackendDAE::Equation::WHEN_EQUATION { size: size.clone(), whenEquation: whenEqRes.clone(), source: source.clone(), attr: attr.clone() });

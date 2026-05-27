@@ -39,7 +39,7 @@
 //! Whitespace and comments are discarded. All keyword discrimination is
 //! grammar-dependent; see [`Grammar`].
 
-use crate::Grammar;
+use super::Grammar;
 use arcstr::{ArcStr};
 
 /// A single token with its start position in the source file.

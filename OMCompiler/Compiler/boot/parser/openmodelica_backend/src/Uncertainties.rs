@@ -2255,9 +2255,9 @@ fn reduceVariables(mut m: ExtAdjacencyMatrix, mut knowns: Arc<metamodelica::List
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (_, _) => {
-                    let mut nvar: i32 = nvar.clone();
                     let mut neq: i32 = neq.clone();
                     let mut variables: Arc<metamodelica::List<i32>> = variables.clone();
+                    let mut nvar: i32 = nvar.clone();
                     neq = (getEquationsNumber(m.clone()).len() as i32);
                     variables = getVariables(m.clone());
                     nvar = (variables.clone().len() as i32);
@@ -2271,11 +2271,11 @@ fn reduceVariables(mut m: ExtAdjacencyMatrix, mut knowns: Arc<metamodelica::List
             ::match_deref::match_deref! { match &__mc_input {
                 (_, _) => {
                     let mut newM: Arc<metamodelica::List<(i32, Arc<metamodelica::List<i32>>)>> = newM.clone();
+                    let mut variables: Arc<metamodelica::List<i32>> = variables.clone();
+                    let mut neq: i32 = neq.clone();
                     let mut reducedVars: Arc<metamodelica::List<(Arc<metamodelica::List<i32>>, Arc<metamodelica::List<i32>>)>> = reducedVars.clone();
                     let mut nvar: i32 = nvar.clone();
                     let mut occurrences: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>> = occurrences.clone();
-                    let mut neq: i32 = neq.clone();
-                    let mut variables: Arc<metamodelica::List<i32>> = variables.clone();
                     let mut candidates: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>> = candidates.clone();
                     neq = (getEquationsNumber(m.clone()).len() as i32);
                     variables = getVariables(m.clone());

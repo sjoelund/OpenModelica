@@ -47,7 +47,6 @@ use crate::ComponentReference;
 use crate::DAEUtil;
 use crate::Expression;
 use crate::ExpressionDump;
-use crate::ExpressionSimplifyTypes;
 use crate::FCore;
 use crate::FGraph;
 use crate::Static;
@@ -59,6 +58,7 @@ use openmodelica_frontend_dump::ComponentReferenceBasics;
 use openmodelica_frontend_dump::ElementSource;
 use openmodelica_frontend_dump::ExpressionBasics;
 use openmodelica_frontend_dump::TypesDump;
+use openmodelica_frontend_inst::ExpressionSimplifyTypes;
 use openmodelica_frontend_types::ClassInf;
 use openmodelica_frontend_types::DAE;
 use openmodelica_frontend_types::Values;
@@ -4497,7 +4497,7 @@ fn simplifyBinaryConst(mut inOperator1: Operator, mut inExp2: Arc<DAE::Exp>, mut
     outExp = (::match_deref::match_deref! { match &((inOperator1.clone(), inExp2.clone(), inExp3.clone())) {
         (DAE::Operator::ADD { .. }, Deref @ DAE::Exp::ICONST { integer: ie1 }, Deref @ DAE::Exp::ICONST { integer: ie2 }) => {
             let mut val: Arc<DAE::Exp>;
-            val = safeIntOp(ie1.clone(), ie2.clone(), crate::ExpressionSimplifyTypes::IntOp::ADDOP)?;
+            val = safeIntOp(ie1.clone(), ie2.clone(), openmodelica_frontend_inst::ExpressionSimplifyTypes::IntOp::ADDOP)?;
             val.clone()
         },
         (DAE::Operator::ADD { .. }, Deref @ DAE::Exp::RCONST { real: re1 }, Deref @ DAE::Exp::RCONST { real: re2 }) => {
@@ -4526,7 +4526,7 @@ fn simplifyBinaryConst(mut inOperator1: Operator, mut inExp2: Arc<DAE::Exp>, mut
         },
         (DAE::Operator::SUB { .. }, Deref @ DAE::Exp::ICONST { integer: ie1 }, Deref @ DAE::Exp::ICONST { integer: ie2 }) => {
             let mut val: Arc<DAE::Exp>;
-            val = safeIntOp(ie1.clone(), ie2.clone(), crate::ExpressionSimplifyTypes::IntOp::SUBOP)?;
+            val = safeIntOp(ie1.clone(), ie2.clone(), openmodelica_frontend_inst::ExpressionSimplifyTypes::IntOp::SUBOP)?;
             val.clone()
         },
         (DAE::Operator::SUB { .. }, Deref @ DAE::Exp::RCONST { real: re1 }, Deref @ DAE::Exp::RCONST { real: re2 }) => {
@@ -4550,7 +4550,7 @@ fn simplifyBinaryConst(mut inOperator1: Operator, mut inExp2: Arc<DAE::Exp>, mut
         },
         (DAE::Operator::MUL { .. }, Deref @ DAE::Exp::ICONST { integer: ie1 }, Deref @ DAE::Exp::ICONST { integer: ie2 }) => {
             let mut val: Arc<DAE::Exp>;
-            val = safeIntOp(ie1.clone(), ie2.clone(), crate::ExpressionSimplifyTypes::IntOp::MULOP)?;
+            val = safeIntOp(ie1.clone(), ie2.clone(), openmodelica_frontend_inst::ExpressionSimplifyTypes::IntOp::MULOP)?;
             val.clone()
         },
         (DAE::Operator::MUL { .. }, Deref @ DAE::Exp::RCONST { real: re1 }, Deref @ DAE::Exp::RCONST { real: re2 }) => {
@@ -4574,7 +4574,7 @@ fn simplifyBinaryConst(mut inOperator1: Operator, mut inExp2: Arc<DAE::Exp>, mut
         },
         (DAE::Operator::DIV { .. }, Deref @ DAE::Exp::ICONST { integer: ie1 }, Deref @ DAE::Exp::ICONST { integer: ie2 }) => {
             let mut val: Arc<DAE::Exp>;
-            val = safeIntOp(ie1.clone(), ie2.clone(), crate::ExpressionSimplifyTypes::IntOp::DIVOP)?;
+            val = safeIntOp(ie1.clone(), ie2.clone(), openmodelica_frontend_inst::ExpressionSimplifyTypes::IntOp::DIVOP)?;
             val.clone()
         },
         (DAE::Operator::DIV { .. }, Deref @ DAE::Exp::RCONST { real: re1 }, Deref @ DAE::Exp::RCONST { real: re2 }) => {

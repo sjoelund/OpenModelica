@@ -57,7 +57,6 @@ use crate::InstBinding;
 use crate::InstDAE;
 use crate::InstFunction;
 use crate::InstSection;
-use crate::InstTypes;
 use crate::InstUtil;
 use crate::Lookup;
 use crate::Mod;
@@ -76,6 +75,7 @@ use openmodelica_frontend_dump::ExpressionBasics;
 use openmodelica_frontend_dump::SCodeDump;
 use openmodelica_frontend_dump::SCodeUtil;
 use openmodelica_frontend_dump::TypesDump;
+use openmodelica_frontend_inst::InstTypes;
 use openmodelica_frontend_types::ClassInf;
 use openmodelica_frontend_types::DAE::Connect;
 use openmodelica_frontend_types::DAE;
@@ -678,7 +678,7 @@ fn instVar2(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inIH: Arc<me
                     let mut csets = (*csets).clone();
                     let true = (ClassInfUtil::isFunction(ci_state.clone())) else { bail!("pattern mismatch") };
                     InstUtil::checkFunctionVar((n.clone()).clone(), attr.clone(), pf.clone(), info.clone())?;
-                    (cache, env_1, ih, store, _, csets, ty, _, _, graph) = Inst::instClass(cache.clone(), env.clone(), ih.clone(), store.clone(), Arc::new(openmodelica_frontend_types::DAE::Mod::NOMOD), pre.clone(), cl.clone(), inst_dims.clone(), r#impl.clone(), crate::InstTypes::CallingScope::INNER_CALL, graph.clone(), csets.clone())?;
+                    (cache, env_1, ih, store, _, csets, ty, _, _, graph) = Inst::instClass(cache.clone(), env.clone(), ih.clone(), store.clone(), Arc::new(openmodelica_frontend_types::DAE::Mod::NOMOD), pre.clone(), cl.clone(), inst_dims.clone(), r#impl.clone(), openmodelica_frontend_inst::InstTypes::CallingScope::INNER_CALL, graph.clone(), csets.clone())?;
                     ty_1 = InstUtil::makeArrayType(dims.clone(), ty.clone())?;
                     InstUtil::checkFunctionVarType(ty_1.clone(), ci_state.clone(), (n.clone()).clone(), info.clone())?;
                     (cache, dae_var_attr) = InstBinding::instDaeVariableAttributes(cache.clone(), env.clone(), r#mod.clone(), ty.clone(), metamodelica::nil())?;
@@ -732,7 +732,7 @@ fn instVar2(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inIH: Arc<me
                     let Some(DAE::TYPED { modifierAsExp: __pa0, modifierAsValue: _, properties: __pa1, modifierAsAbsynExp: _, .. }) = (Mod::modEquation(r#mod.clone())?) else { bail!("pattern mismatch") };
                     e = __pa0.clone();
                     p = __pa1.clone();
-                    (cache, env_1, ih, store, _, csets, ty, _, _, graph) = Inst::instClass(cache.clone(), env.clone(), ih.clone(), store.clone(), Arc::new(openmodelica_frontend_types::DAE::Mod::NOMOD), pre.clone(), cl.clone(), inst_dims.clone(), r#impl.clone(), crate::InstTypes::CallingScope::INNER_CALL, graph.clone(), csets.clone())?;
+                    (cache, env_1, ih, store, _, csets, ty, _, _, graph) = Inst::instClass(cache.clone(), env.clone(), ih.clone(), store.clone(), Arc::new(openmodelica_frontend_types::DAE::Mod::NOMOD), pre.clone(), cl.clone(), inst_dims.clone(), r#impl.clone(), openmodelica_frontend_inst::InstTypes::CallingScope::INNER_CALL, graph.clone(), csets.clone())?;
                     ty_1 = InstUtil::makeArrayType(dims.clone(), ty.clone())?;
                     InstUtil::checkFunctionVarType(ty_1.clone(), ci_state.clone(), (n.clone()).clone(), info.clone())?;
                     (cache, dae_var_attr) = InstBinding::instDaeVariableAttributes(cache.clone(), env.clone(), r#mod.clone(), ty.clone(), metamodelica::nil())?;
@@ -773,7 +773,7 @@ fn instVar2(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inIH: Arc<me
                     let mut csets = (*csets).clone();
                     let true = (ClassInfUtil::isFunction(ci_state.clone())) else { bail!("pattern mismatch") };
                     InstUtil::checkFunctionVar((n.clone()).clone(), attr.clone(), pf.clone(), info.clone())?;
-                    (cache, env_1, ih, store, _, csets, ty, _, _, _) = Inst::instClass(cache.clone(), env.clone(), ih.clone(), store.clone(), r#mod.clone(), pre.clone(), cl.clone(), inst_dims.clone(), r#impl.clone(), crate::InstTypes::CallingScope::INNER_CALL, ConnectionGraph::EMPTY().clone(), csets.clone())?;
+                    (cache, env_1, ih, store, _, csets, ty, _, _, _) = Inst::instClass(cache.clone(), env.clone(), ih.clone(), store.clone(), r#mod.clone(), pre.clone(), cl.clone(), inst_dims.clone(), r#impl.clone(), openmodelica_frontend_inst::InstTypes::CallingScope::INNER_CALL, ConnectionGraph::EMPTY().clone(), csets.clone())?;
                     arrty = InstUtil::makeArrayType(dims.clone(), ty.clone())?;
                     InstUtil::checkFunctionVarType(arrty.clone(), ci_state.clone(), (n.clone()).clone(), info.clone())?;
                     (cache, cr) = PrefixUtil::prefixCref(cache.clone(), env.clone(), ih.clone(), pre.clone(), ComponentReferenceBasics::makeCrefIdent((n.clone()).clone(), arrty.clone(), metamodelica::nil()))?;
@@ -985,12 +985,12 @@ pub fn instScalar(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inIH: 
                         implicitInstantiation = SCodeUtil::isUniontype(inClass.clone()) && SCodeUtil::isConstant(inAttributes.variability.clone()) && inStateAndClassNameIsEqual.clone();
                         if implicitInstantiation.clone() {
                             classWithElementsRemoved = SCodeUtil::setClassDef(Arc::new(SCode::ClassDef::PARTS { elementLst: metamodelica::nil(), normalEquationLst: metamodelica::nil(), initialEquationLst: metamodelica::nil(), normalAlgorithmLst: metamodelica::nil(), initialAlgorithmLst: metamodelica::nil(), constraintLst: metamodelica::nil(), clsattrs: metamodelica::nil(), externalDecl: None }), inClass.clone())?;
-                            (_, env_1, ih, store, dae1, csets, ty, _, opt_attr, graph) = Inst::instClass(cache.clone(), env.clone(), ih.clone(), store.clone(), inMod.clone(), pre.clone(), classWithElementsRemoved.clone(), inInstDims.clone(), inImpl.clone(), crate::InstTypes::CallingScope::INNER_CALL, inGraph.clone(), inSets.clone())?;
+                            (_, env_1, ih, store, dae1, csets, ty, _, opt_attr, graph) = Inst::instClass(cache.clone(), env.clone(), ih.clone(), store.clone(), inMod.clone(), pre.clone(), classWithElementsRemoved.clone(), inInstDims.clone(), inImpl.clone(), openmodelica_frontend_inst::InstTypes::CallingScope::INNER_CALL, inGraph.clone(), inSets.clone())?;
                         } else {
-                            (cache, env_1, ih, store, dae1, csets, ty, _, opt_attr, graph) = Inst::instClass(cache.clone(), env.clone(), ih.clone(), store.clone(), inMod.clone(), pre.clone(), inClass.clone(), inInstDims.clone(), inImpl.clone(), crate::InstTypes::CallingScope::INNER_CALL, inGraph.clone(), inSets.clone())?;
+                            (cache, env_1, ih, store, dae1, csets, ty, _, opt_attr, graph) = Inst::instClass(cache.clone(), env.clone(), ih.clone(), store.clone(), inMod.clone(), pre.clone(), inClass.clone(), inInstDims.clone(), inImpl.clone(), openmodelica_frontend_inst::InstTypes::CallingScope::INNER_CALL, inGraph.clone(), inSets.clone())?;
                         }
                     } else {
-                        (cache, env_1, ih, store, dae1, csets, ty, _, opt_attr, graph) = Inst::instClass(cache.clone(), env.clone(), ih.clone(), store.clone(), inMod.clone(), pre.clone(), inClass.clone(), inInstDims.clone(), inImpl.clone(), crate::InstTypes::CallingScope::INNER_CALL, inGraph.clone(), inSets.clone())?;
+                        (cache, env_1, ih, store, dae1, csets, ty, _, opt_attr, graph) = Inst::instClass(cache.clone(), env.clone(), ih.clone(), store.clone(), inMod.clone(), pre.clone(), inClass.clone(), inInstDims.clone(), inImpl.clone(), openmodelica_frontend_inst::InstTypes::CallingScope::INNER_CALL, inGraph.clone(), inSets.clone())?;
                     }
                     (cache, dae_var_attr) = InstBinding::instDaeVariableAttributes(cache.clone(), env_1.clone(), inMod.clone(), ty.clone(), metamodelica::nil())?;
                     attr = InstUtil::propagateAbSCDirection(vt.clone(), inAttributes.clone(), opt_attr.clone(), inInfo.clone())?;
@@ -1291,7 +1291,7 @@ fn instArray(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inIH: Arc<m
                     let Some(DAE::TYPED { properties: __pa0, modifierAsExp: __pa1, .. }) = (Mod::modEquation(r#mod.clone())?) else { bail!("pattern mismatch") };
                     p = __pa0.clone();
                     e = __pa1.clone();
-                    (cache, env_1, ih, store, _, _, ty, _, _, graph) = Inst::instClass(cache.clone(), env.clone(), ih.clone(), store.clone(), r#mod.clone(), pre.clone(), cl.clone(), inst_dims.clone(), true, crate::InstTypes::CallingScope::INNER_CALL, graph.clone(), csets.clone())?;
+                    (cache, env_1, ih, store, _, _, ty, _, _, graph) = Inst::instClass(cache.clone(), env.clone(), ih.clone(), store.clone(), r#mod.clone(), pre.clone(), cl.clone(), inst_dims.clone(), true, openmodelica_frontend_inst::InstTypes::CallingScope::INNER_CALL, graph.clone(), csets.clone())?;
                     ty_1 = Types::simplifyType(ty.clone())?;
                     (cache, cr) = PrefixUtil::prefixCref(cache.clone(), env.clone(), ih.clone(), pre.clone(), ComponentReferenceBasics::makeCrefIdent((n.clone()).clone(), ty_1.clone(), metamodelica::nil()))?;
                     (rhs, _) = Types::matchProp(e.clone(), p.clone(), DAE::Properties::PROP { type_: ty.clone(), constFlag: openmodelica_frontend_types::DAE::Const::C_VAR }, true)?;

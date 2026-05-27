@@ -44,12 +44,12 @@ use const_str;
 use arcstr::{ArcStr, literal, format};
 
 use crate::HashTable;
-use crate::MMath;
 use crate::UnitAbsyn;
 use crate::UnitAbsynBuilder;
 use openmodelica_util::Debug;
 use openmodelica_util::Error;
 use openmodelica_util::Flags;
+use openmodelica_util::MMath;
 
 // NOTE: #[tailcall::tailcall] disabled: function body contains a `match_deref!{…}` match,
 // and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.

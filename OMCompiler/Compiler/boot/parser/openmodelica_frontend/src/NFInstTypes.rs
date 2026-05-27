@@ -43,8 +43,8 @@ use metamodelica::*; // Built-in types and functions
 use const_str;
 use arcstr::{ArcStr, literal, format};
 
-use crate::NFInstPrefix;
 use openmodelica_ast::Absyn;
+use openmodelica_frontend_inst::NFInstPrefix;
 use openmodelica_frontend_types::DAE;
 use openmodelica_frontend_types::SCode;
 

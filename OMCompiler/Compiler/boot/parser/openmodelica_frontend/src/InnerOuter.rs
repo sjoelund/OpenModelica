@@ -531,8 +531,8 @@ fn lookupVarInnerOuterAttr(mut cache: FCore::Cache, mut env: FCore::Graph, mut i
             ::match_deref::match_deref! { match &__mc_input {
                 (_, _, _, _, _) => {
                     let mut io: Absyn::InnerOuter = Absyn::InnerOuter::INNER;
-                    let mut isInner: bool = isInner.clone();
                     let mut isOuter: bool = isOuter.clone();
+                    let mut isInner: bool = isInner.clone();
                     let __pa0 = ::match_deref::match_deref! { match &(Lookup::lookupVar(cache.clone(), env.clone(), cr1.clone())?) {
                         (_, Deref @ DAE::Attributes { innerOuter: __pa0, .. }, _, _, _, _, _, _, _) => __pa0.clone(),
                         _ => bail!("pattern mismatch"),

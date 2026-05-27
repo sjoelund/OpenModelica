@@ -51,7 +51,6 @@ use crate::ExpressionSimplify;
 use crate::FCore;
 use crate::FGraph;
 use crate::InstBinding;
-use crate::InstTypes;
 use crate::InstUtil;
 use crate::Lookup;
 use crate::Static;
@@ -65,6 +64,7 @@ use openmodelica_frontend_dump::SCodeUtil;
 use openmodelica_frontend_dump::TypesDump;
 use openmodelica_frontend_dump::ValuesDump;
 use openmodelica_frontend_dump::ValuesMake;
+use openmodelica_frontend_inst::InstTypes;
 use openmodelica_frontend_types::ClassInf;
 use openmodelica_frontend_types::DAE;
 use openmodelica_frontend_types::SCode;
@@ -1433,8 +1433,8 @@ pub fn cevalIfConstant(mut cache: FCore::Cache, mut inEnv: FCore::Graph, mut exp
         if let Ok(__v) = (|| -> Result<_> {
             let DAE::Properties::PROP { type_: ref tp, constFlag: DAE::Const::C_CONST } = __mc_input.clone() else { bail!("nomatch") };
             let mut v: Arc<Values::Value> = Arc::new(Values::Value::META_FAIL);
-            let mut cache: FCore::Cache = cache.clone();
             let mut exp: Arc<DAE::Exp> = exp.clone();
+            let mut cache: FCore::Cache = cache.clone();
             (cache, v) = ceval(cache.clone(), inEnv.clone(), exp.clone(), r#impl.clone(), Absyn::Msg::MSG { info: inInfo.clone() }, 0)?;
             exp = ValuesUtil::valueExp(v.clone(), Some(exp.clone()))?;
             exp = ValuesUtil::fixZeroSizeArray(exp.clone(), tp.clone())?;
@@ -1443,8 +1443,8 @@ pub fn cevalIfConstant(mut cache: FCore::Cache, mut inEnv: FCore::Graph, mut exp
         if let Ok(__v) = (|| -> Result<_> {
             let DAE::Properties::PROP_TUPLE { .. } = __mc_input.clone() else { bail!("nomatch") };
             let mut v: Arc<Values::Value> = Arc::new(Values::Value::META_FAIL);
-            let mut cache: FCore::Cache = cache.clone();
             let mut exp: Arc<DAE::Exp> = exp.clone();
+            let mut cache: FCore::Cache = cache.clone();
             let DAE::C_CONST { .. } = (Types::propAllConst(prop.clone())?) else { bail!("pattern mismatch") };
             (cache, v) = ceval(cache.clone(), inEnv.clone(), exp.clone(), false, Absyn::Msg::MSG { info: inInfo.clone() }, 0)?;
             exp = ValuesUtil::valueExp(v.clone(), Some(exp.clone()))?;

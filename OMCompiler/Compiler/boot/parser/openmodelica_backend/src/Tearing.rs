@@ -655,8 +655,8 @@ fn omcTearing2(mut unsolvables: Arc<metamodelica::List<i32>>, mut tSel_always: A
                     let mut tvar: i32 = 0;
                     let mut unassigned: Arc<metamodelica::List<i32>> = metamodelica::nil();
                     let mut vareqns: Arc<metamodelica::List<(i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)>> = metamodelica::nil();
-                    let mut outTVars: Arc<metamodelica::List<i32>> = outTVars.clone();
                     let mut oMark: i32 = oMark.clone();
+                    let mut outTVars: Arc<metamodelica::List<i32>> = outTVars.clone();
                     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
                         println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*arcstr::literal!(BORDER)); __mm_s.push_str(&*literal!("\nBEGINNING of omcTearingSelectTearingVar\n\n\n")); ArcStr::from(__mm_s) }).clone());
                     }

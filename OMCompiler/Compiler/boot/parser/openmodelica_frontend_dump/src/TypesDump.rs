@@ -774,8 +774,8 @@ pub fn printConnectorTypeStr(mut it: Arc<DAE::Type>) -> Result<(ArcStr, ArcStr)>
                 Deref @ DAE::Type::T_SUBTYPE_BASIC { complexType: t, varLst: vars, complexClassType: ClassInf::State::CONNECTOR { path: connectorName, isExpandable }, .. } => {
                     let mut varNames: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
                     let mut isExpandableStr: ArcStr = arcstr::literal!("");
-                    let mut s: ArcStr = s.clone();
                     let mut s2: ArcStr = s2.clone();
+                    let mut s: ArcStr = s.clone();
                     varNames = List::map(vars.clone(), (std::sync::Arc::new(getVarName) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Var>) -> Result<ArcStr> + 'static>));
                     isExpandableStr = (if (isExpandable.clone()) {literal!("/* expandable */ ")} else {literal!("")}).clone();
                     s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*isExpandableStr.clone()); __mm_s.push_str(&*AbsynUtil::pathString(connectorName.clone(), (literal!(".")).clone(), true, false)?); ArcStr::from(__mm_s) }).clone();

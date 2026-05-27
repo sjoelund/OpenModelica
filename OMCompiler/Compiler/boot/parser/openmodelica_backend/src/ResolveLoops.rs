@@ -220,8 +220,8 @@ fn resolveLoops_cutNodes(mut mIn: metamodelica::Array<Arc<metamodelica::List<i32
             let mut loopVars: Arc<metamodelica::List<i32>> = metamodelica::nil();
             let mut loopEqs: Arc<metamodelica::List<i32>> = metamodelica::nil();
             let mut nonLoopVars: Arc<metamodelica::List<i32>> = metamodelica::nil();
-            let mut deadEndVarsMark: metamodelica::Array<i32>;
             let mut deadEndEqsMark: metamodelica::Array<i32>;
+            let mut deadEndVarsMark: metamodelica::Array<i32>;
             numVars = (mTIn.clone().borrow().len() as i32);
             numEqs = (mIn.clone().borrow().len() as i32);
             nonLoopVars = List::filter2OnTrue(List::intRange(numVars.clone()), (std::sync::Arc::new(arrayEntryLengthIs) as std::sync::Arc<dyn ::std::ops::Fn(i32, metamodelica::Array<Arc<metamodelica::List<i32>>>, i32) -> Result<bool> + 'static>), mTIn.clone(), 1);

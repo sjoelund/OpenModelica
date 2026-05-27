@@ -39,7 +39,7 @@
 //! so all winnow combinators (`opt`, `alt`, `cut_err`, `peek`, …) work out of
 //! the box.  This module adds typed helper combinators on top.
 
-use crate::lexer::{Token as LexToken, TokenKind as TK, keyword_as_str};
+use super::lexer::{Token as LexToken, TokenKind as TK, keyword_as_str};
 use winnow::{ModalResult, error::{ContextError, ErrMode}};
 use arcstr::{ArcStr, literal};
 

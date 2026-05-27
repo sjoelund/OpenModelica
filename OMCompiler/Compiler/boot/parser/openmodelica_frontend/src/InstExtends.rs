@@ -50,13 +50,13 @@ use crate::Inst;
 use crate::InstUtil;
 use crate::Lookup;
 use crate::Mod;
-use crate::SCodeInstUtil;
 use openmodelica_ast::Absyn;
 use openmodelica_frontend_dump::AbsynUtil;
 use openmodelica_frontend_dump::ClassInfUtil;
 use openmodelica_frontend_dump::Dump;
 use openmodelica_frontend_dump::SCodeDump;
 use openmodelica_frontend_dump::SCodeUtil;
+use openmodelica_frontend_inst::SCodeInstUtil;
 use openmodelica_frontend_types::ClassInf;
 use openmodelica_frontend_types::DAE;
 use openmodelica_frontend_types::SCode;
@@ -162,14 +162,14 @@ fn instExtendsList(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inIH:
                     let mut cacheArr: metamodelica::Array<FCore::Cache>;
                     let mut htHasEntries: bool = false;
                     let mut outNormalEqs: Arc<metamodelica::List<Arc<SCode::Equation>>> = outNormalEqs.clone();
-                    let mut outInitialEqs: Arc<metamodelica::List<Arc<SCode::Equation>>> = outInitialEqs.clone();
-                    let mut outComments: Arc<metamodelica::List<Arc<SCode::Comment>>> = outComments.clone();
                     let mut outIH: Arc<metamodelica::List<InnerOuter::TopInstance>> = outIH.clone();
-                    let mut outInitialAlgs: Arc<metamodelica::List<Arc<SCode::AlgorithmSection>>> = outInitialAlgs.clone();
-                    let mut outCache: FCore::Cache = outCache.clone();
-                    let mut outMod: Arc<DAE::Mod> = outMod.clone();
                     let mut outElements: Arc<metamodelica::List<(Arc<SCode::Element>, Arc<DAE::Mod>, bool)>> = outElements.clone();
                     let mut outNormalAlgs: Arc<metamodelica::List<Arc<SCode::AlgorithmSection>>> = outNormalAlgs.clone();
+                    let mut outMod: Arc<DAE::Mod> = outMod.clone();
+                    let mut outCache: FCore::Cache = outCache.clone();
+                    let mut outComments: Arc<metamodelica::List<Arc<SCode::Comment>>> = outComments.clone();
+                    let mut outInitialAlgs: Arc<metamodelica::List<Arc<SCode::AlgorithmSection>>> = outInitialAlgs.clone();
+                    let mut outInitialEqs: Arc<metamodelica::List<Arc<SCode::Equation>>> = outInitialEqs.clone();
                     emod = InstUtil::chainRedeclares(outMod.clone(), var_field!((*el).modifications, SCode::Element::EXTENDS).clone())?;
                     base_first_id = (AbsynUtil::pathFirstIdent(var_field!((*el).baseClassPath, SCode::Element::EXTENDS).clone())?).clone();
                     eq_name = stringEq((inClassName.clone()).clone(), (base_first_id.clone()).clone()) && AbsynUtil::pathEqual(ClassInfUtil::getStateName(inState.clone()), AbsynUtil::joinPaths(FGraph::getGraphName(outEnv.clone())?, AbsynUtil::makeIdentPathFromString((base_first_id.clone()).clone()))?);
@@ -275,8 +275,8 @@ fn instExtendsList(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inIH:
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ SCode::Element::CLASS { .. } => {
-                    let mut outElements: Arc<metamodelica::List<(Arc<SCode::Element>, Arc<DAE::Mod>, bool)>> = outElements.clone();
                     let mut outComments: Arc<metamodelica::List<Arc<SCode::Comment>>> = outComments.clone();
+                    let mut outElements: Arc<metamodelica::List<(Arc<SCode::Element>, Arc<DAE::Mod>, bool)>> = outElements.clone();
                     outElements = cons((el.clone(), Arc::new(openmodelica_frontend_types::DAE::Mod::NOMOD), false), outElements.clone());
                     outComments = list![var_field!((*el).cmt, SCode::Element::CLASS).clone()];
                     Ok(())

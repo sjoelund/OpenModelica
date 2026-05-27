@@ -44,13 +44,13 @@ use const_str;
 use arcstr::{ArcStr, literal, format};
 
 use crate::NFEnvExtends;
-use crate::NFInstPrefix;
 use crate::NFSCodeEnv::EnvTree;
 use crate::NFSCodeEnv;
 use crate::NFSCodeFlattenImports;
 use crate::NFSCodeFlattenRedeclare;
 use openmodelica_ast::Absyn;
 use openmodelica_frontend_dump::AbsynUtil;
+use openmodelica_frontend_inst::NFInstPrefix;
 use openmodelica_frontend_types::SCode;
 use openmodelica_util::Config;
 use openmodelica_util::Debug;

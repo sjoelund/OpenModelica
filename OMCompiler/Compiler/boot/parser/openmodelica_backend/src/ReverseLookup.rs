@@ -932,8 +932,8 @@ fn lookupCref(mut cref: Arc<Absyn::ComponentRef>, mut paths: Arc<PathTree::Tree>
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ Absyn::ComponentRef::CREF_QUAL { .. } => {
-                    let mut found: bool = found.clone();
                     let mut entry: Arc<PathEntry>;
+                    let mut found: bool = found.clone();
                     entry = PathTree::get(paths.clone(), (var_field!((*cref).name, Absyn::ComponentRef::CREF_QUAL).clone()).clone())?;
                     if entry.shadowed.clone() && !(fullyQualified.clone()) {
                         found = false;

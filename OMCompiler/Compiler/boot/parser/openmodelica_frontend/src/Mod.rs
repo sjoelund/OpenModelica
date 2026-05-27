@@ -56,7 +56,6 @@ use crate::Inst;
 use crate::InstUtil;
 use crate::Lookup;
 use crate::PrefixUtil;
-use crate::SCodeInstUtil;
 use crate::Static;
 use crate::Types;
 use crate::ValuesUtil;
@@ -70,6 +69,7 @@ use openmodelica_frontend_dump::SCodeDump;
 use openmodelica_frontend_dump::SCodeUtil;
 use openmodelica_frontend_dump::TypesDump;
 use openmodelica_frontend_dump::ValuesDump;
+use openmodelica_frontend_inst::SCodeInstUtil;
 use openmodelica_frontend_types::ClassInf;
 use openmodelica_frontend_types::DAE;
 use openmodelica_frontend_types::SCode;
@@ -2825,8 +2825,8 @@ pub fn getClassModifier(mut inEnv: FCore::Graph, mut inName: ArcStr) -> Result<A
         let __mc_input = (inEnv.clone(), inName.clone());
         if let Ok(__v) = (|| -> Result<_> {
             let (_, _) = __mc_input.clone() else { bail!("nomatch") };
-            let mut r#mod: Arc<DAE::Mod> = r#mod.clone();
             let mut n: FCore::Node;
+            let mut r#mod: Arc<DAE::Mod> = r#mod.clone();
             n = FNode::fromRef(FNode::child(FGraph::lastScopeRef(inEnv.clone())?, (inName.clone()).clone())?)?;
             if !(FNode::isInstance(FNode::fromRef(FGraph::lastScopeRef(inEnv.clone())?)?)) {
                 let FCore::N { data: FCore::CL { r#mod: __pa0, .. }, .. } = (n.clone()) else { bail!("pattern mismatch") };

@@ -67,10 +67,8 @@ pub type Element = (i32, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>);
 
 pub type T = Arc<metamodelica::List<Arc<Tree>>>;
 
-// TODO: non-Sync, non-const-emittable constant — needs new emission path.
-// Type: Arc<metamodelica::List<Arc<Tree>>>
-// Expr: Array { elems: [], ty: List(Unknown) }
-pub fn empty() -> Arc<metamodelica::List<Arc<Tree>>> { todo!("non-Sync, non-const-emittable constant empty — extend codegen") }
+thread_local! { static __empty_TLS: Arc<metamodelica::List<Arc<Tree>>> = metamodelica::nil(); }
+pub fn empty() -> Arc<metamodelica::List<Arc<Tree>>> { __empty_TLS.with(|__t| __t.clone()) }
 
 /*
 function isEmpty = listEmpty;
@@ -199,7 +197,7 @@ pub fn elements2(mut its: T, mut acc: Arc<metamodelica::List<(i32, Arc<metamodel
 /* TODO: Hide from user when we remove RML... */
 pub type Rank = i32;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Tree {
     pub elt: Element,
     pub rank: Rank,

@@ -80,7 +80,7 @@ use openmodelica_util::StringUtil;
 use openmodelica_util::Util;
 use openmodelica_util_datatypes_basic::List;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct NFVariable {
     pub name: Arc<ComponentRef::NFComponentRef>,
     pub ty: Arc<Type::NFType>,
@@ -95,10 +95,27 @@ pub struct NFVariable {
     pub backendinfo: Arc<BackendInfo::BackendInfo>,
 }
 
+impl Default for NFVariable {
+    fn default() -> Self {
+        Self {
+            name: Default::default(),
+            ty: Default::default(),
+            binding: Default::default(),
+            visibility: Default::default(),
+            attributes: Default::default(),
+            typeAttributes: Default::default(),
+            children: Default::default(),
+            comment: Default::default(),
+            info: Default::default(),
+            backendinfo: Default::default(),
+        }
+    }
+}
+
 pub type VARIABLE = NFVariable;
 
 pub fn fromCref(mut cref: Arc<ComponentRef::NFComponentRef>) -> Result<Arc<NFVariable>> {
-    let mut variable: Arc<NFVariable>;
+    let mut variable: Arc<NFVariable> = Arc::new(<NFVariable as ::std::default::Default>::default());
     let mut crefs: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = metamodelica::nil();
     let mut node: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
     let mut class_node: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
@@ -106,9 +123,9 @@ pub fn fromCref(mut cref: Arc<ComponentRef::NFComponentRef>) -> Result<Arc<NFVar
     let mut ty: Arc<Type::NFType> = Arc::new(Type::ANY);
     let mut binding: Arc<Binding::NFBinding> = Arc::new(Binding::UNBOUND);
     let mut vis: Visibility = Visibility::PUBLIC;
-    let mut attr: Arc<Attributes::NFAttributes>;
-    let mut cmt: Arc<SCode::Comment>;
-    let mut info: SourceInfo;
+    let mut attr: Arc<Attributes::NFAttributes> = Arc::new(<Attributes::NFAttributes as ::std::default::Default>::default());
+    let mut cmt: Arc<SCode::Comment> = Arc::new(<SCode::Comment as ::std::default::Default>::default());
+    let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
     let mut binfo: Arc<BackendInfo::BackendInfo> = NFBackendExtension::DUMMY_BACKEND_INFO().clone();
     let mut child_nodes: metamodelica::Array<Arc<InstNode::InstNode>>;
     let mut children: Arc<metamodelica::List<Arc<NFVariable>>> = metamodelica::nil();
@@ -170,7 +187,7 @@ pub fn equalName(mut var1: Arc<NFVariable>, mut var2: Arc<NFVariable>) -> bool {
 pub fn expand(mut var: Arc<NFVariable>, mut backend: bool) -> Result<Arc<metamodelica::List<Arc<NFVariable>>>> {
     let mut vars: Arc<metamodelica::List<Arc<NFVariable>>> = metamodelica::nil();
     let mut crefs: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = metamodelica::nil();
-    let mut v: Arc<NFVariable>;
+    let mut v: Arc<NFVariable> = Arc::new(<NFVariable as ::std::default::Default>::default());
     let mut binding: Arc<Binding::NFBinding> = Arc::new(Binding::UNBOUND);
     let mut bind_var: Variability = Variability::CONSTANT;
     let mut bind_src: Binding::Source = Binding::Source::BINDING;
@@ -269,7 +286,7 @@ pub fn variability(mut variable: Arc<NFVariable>) -> Variability {
 
 pub fn setVariability(mut variable: Arc<NFVariable>, mut variability: Variability) -> Arc<NFVariable> {
     let mut variable: Arc<NFVariable> = variable;
-    let mut attr: Arc<Attributes::NFAttributes>;
+    let mut attr: Arc<Attributes::NFAttributes> = Arc::new(<Attributes::NFAttributes as ::std::default::Default>::default());
     attr = variable.attributes.clone();
     assign_field!(attr.variability = variability.clone());
     assign_field!(variable.attributes = attr.clone());
@@ -352,7 +369,7 @@ pub fn isProtected(mut variable: Arc<NFVariable>) -> bool {
 pub fn isEncrypted(mut variable: Arc<NFVariable>) -> Result<bool> {
     let mut isEncrypted: bool = false;
     let mut name: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
-    let mut info: SourceInfo;
+    let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
     name = variable.name.clone();
     while ComponentRef::isCref(name.clone()) {
         info = InstNode::info(ComponentRef::node(name.clone())?)?;
@@ -401,7 +418,7 @@ pub fn lookupTypeAttribute(mut name: ArcStr, mut var: Arc<NFVariable>) -> Arc<Bi
 }
 
 pub fn applyToType(mut var: Arc<NFVariable>, mut func: Arc<dyn ::std::ops::Fn(Arc<Type::NFType>) -> Result<Arc<Type::NFType>> + 'static>) -> Arc<NFVariable> {
-    pub type typeFunc = fn(Arc<Type::NFType>) -> Result<Arc<Type::NFType>>;
+    pub type typeFunc = std::sync::Arc<dyn ::std::ops::Fn(Arc<Type::NFType>) -> Result<Arc<Type::NFType>> + 'static>;
 
     let mut var: Arc<NFVariable> = var;
     assign_field!(
@@ -417,7 +434,7 @@ pub fn propagateAnnotation(mut name: ArcStr, mut overwrite: bool, mut evaluate: 
     let mut r#mod: Arc<SCode::Mod> = Arc::new(SCode::Mod::NOMOD);
     let mut aexp: Arc<Absyn::Exp> = Arc::new(Absyn::Exp::BREAK);
     let mut exp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-    let mut anno: Arc<SCode::Annotation>;
+    let mut anno: Arc<SCode::Annotation> = Arc::new(<SCode::Annotation as ::std::default::Default>::default());
     let mut scope: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
     if ComponentRef::isCref(var.name.clone()) {
         node = ComponentRef::node(var.name.clone())?;
@@ -432,8 +449,8 @@ pub fn propagateAnnotation(mut name: ArcStr, mut overwrite: bool, mut evaluate: 
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ SCode::Mod::MOD { binding: Some(aexp), .. } => {
-                    let mut r#mod: Arc<SCode::Mod> = r#mod.clone();
                     let mut exp: Arc<Expression::NFExpression> = exp.clone();
+                    let mut r#mod: Arc<SCode::Mod> = r#mod.clone();
                     exp = Inst::instExp(aexp.clone(), scope.clone(), NFInstContext::ANNOTATION.clone(), var_field!((*r#mod).info, SCode::Mod::MOD).clone())?;
                     (exp, _, _, _) = Typing::typeExp(exp.clone(), NFInstContext::ANNOTATION.clone(), var_field!((*r#mod).info, SCode::Mod::MOD).clone(), false)?;
                     exp = Ceval::evalExp(exp.clone(), Ceval::noTarget().clone())?;
@@ -465,7 +482,7 @@ pub fn removeNonTopLevelDirection(mut var: Arc<NFVariable>) -> Result<Arc<NFVari
     let mut var: Arc<NFVariable> = var;
     let mut rest_name: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
     let mut node: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
-    let mut attr: Arc<Attributes::NFAttributes>;
+    let mut attr: Arc<Attributes::NFAttributes> = Arc::new(<Attributes::NFAttributes as ::std::default::Default>::default());
     if var.attributes.direction.clone() == Direction::NONE.clone() {
         return Ok(var);
     }
@@ -483,44 +500,44 @@ pub fn removeNonTopLevelDirection(mut var: Arc<NFVariable>) -> Result<Arc<NFVari
     Ok(var)
 }
 
-pub type ApplyFn = fn(Arc<Expression::NFExpression>) -> Result<()>;
+pub type ApplyFn = std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<()> + 'static>;
 
-pub fn applyExp(mut var: Arc<NFVariable>, mut r#fn: ApplyFn) -> Result<()> {
-    Binding::applyExp(var.binding.clone(), Arc::new(r#fn))?;
+pub fn applyExp(mut var: Arc<NFVariable>, mut r#fn: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<()> + 'static>) -> Result<()> {
+    Binding::applyExp(var.binding.clone(), r#fn.clone())?;
     for mut ty_attr in &*var.typeAttributes.clone() {
         let mut ty_attr = ty_attr.clone();
-        Binding::applyExp(Util::tuple22(ty_attr.clone()), Arc::new(r#fn))?;
+        Binding::applyExp(Util::tuple22(ty_attr.clone()), r#fn.clone())?;
     }
     for mut c in &*var.children.clone() {
         let mut c = c.clone();
-        applyExp(c.clone(), r#fn)?;
+        applyExp(c.clone(), r#fn.clone())?;
     }
     Ok(())
 }
 
-pub fn applyExpShallow(mut var: Arc<NFVariable>, mut r#fn: ApplyFn) -> () {
-    Binding::applyExpShallow(var.binding.clone(), Arc::new(r#fn));
+pub fn applyExpShallow(mut var: Arc<NFVariable>, mut r#fn: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<()> + 'static>) -> () {
+    Binding::applyExpShallow(var.binding.clone(), r#fn.clone());
     for mut ty_attr in &*var.typeAttributes.clone() {
         let mut ty_attr = ty_attr.clone();
-        Binding::applyExpShallow(Util::tuple22(ty_attr.clone()), Arc::new(r#fn));
+        Binding::applyExpShallow(Util::tuple22(ty_attr.clone()), r#fn.clone());
     }
     for mut c in &*var.children.clone() {
         let mut c = c.clone();
-        applyExpShallow(c.clone(), r#fn);
+        applyExpShallow(c.clone(), r#fn.clone());
     }
     ()
 }
 
-pub type MapFn = fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>>;
+pub type MapFn = std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>;
 
-pub fn mapExp(mut var: Arc<NFVariable>, mut r#fn: MapFn) -> Result<Arc<NFVariable>> {
+pub fn mapExp(mut var: Arc<NFVariable>, mut r#fn: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Result<Arc<NFVariable>> {
     let mut var: Arc<NFVariable> = var;
     assign_field!(
-        var.binding = Binding::mapExp(var.binding.clone(), Arc::new(r#fn))?,
+        var.binding = Binding::mapExp(var.binding.clone(), r#fn.clone())?,
         var.typeAttributes = {
         let mut __acc: Arc<metamodelica::List<(ArcStr, Arc<Binding::NFBinding>)>> = metamodelica::nil();
         for mut a in (var.typeAttributes.clone()).into_iter().cloned() {
-            let __x = (Util::tuple21(a.clone()), Binding::mapExp(Util::tuple22(a.clone()), Arc::new(r#fn))?);
+            let __x = (Util::tuple21(a.clone()), Binding::mapExp(Util::tuple22(a.clone()), r#fn.clone())?);
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
@@ -528,26 +545,26 @@ pub fn mapExp(mut var: Arc<NFVariable>, mut r#fn: MapFn) -> Result<Arc<NFVariabl
         var.children = {
         let mut __acc: Arc<metamodelica::List<Arc<NFVariable>>> = metamodelica::nil();
         for mut v in (var.children.clone()).into_iter().cloned() {
-            let __x = mapExp(v.clone(), r#fn)?;
+            let __x = mapExp(v.clone(), r#fn.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
     },
-        var.backendinfo = BackendInfo::map(var.backendinfo.clone(), Arc::new(r#fn)),
-        var.ty = Type::applyToDims(var.ty.clone(), Arc::new({ let __pe_b1: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static> = Arc::new(r#fn); move |__pe_a0| Dimension::mapExp(__pe_a0, __pe_b1.clone()) }))?,
-        var.name = ComponentRef::mapTypes(var.name.clone(), Arc::new({ let __pe_b1: Arc<dyn ::std::ops::Fn(Arc<Dimension::NFDimension>) -> Result<Arc<Dimension::NFDimension>> + 'static> = Arc::new({ let __pe_b1: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static> = Arc::new(r#fn); move |__pe_a0| Dimension::mapExp(__pe_a0, __pe_b1.clone()) }); move |__pe_a0| Type::applyToDims(__pe_a0, __pe_b1.clone()) }))
+        var.backendinfo = BackendInfo::map(var.backendinfo.clone(), r#fn.clone()),
+        var.ty = Type::applyToDims(var.ty.clone(), Arc::new({ let __pe_b1: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static> = r#fn.clone(); move |__pe_a0| Dimension::mapExp(__pe_a0, __pe_b1.clone()) }))?,
+        var.name = ComponentRef::mapTypes(var.name.clone(), Arc::new({ let __pe_b1: Arc<dyn ::std::ops::Fn(Arc<Dimension::NFDimension>) -> Result<Arc<Dimension::NFDimension>> + 'static> = Arc::new({ let __pe_b1: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static> = r#fn.clone(); move |__pe_a0| Dimension::mapExp(__pe_a0, __pe_b1.clone()) }); move |__pe_a0| Type::applyToDims(__pe_a0, __pe_b1.clone()) }))
     );
     Ok(var)
 }
 
-pub fn mapExpShallow(mut var: Arc<NFVariable>, mut r#fn: MapFn) -> Arc<NFVariable> {
+pub fn mapExpShallow(mut var: Arc<NFVariable>, mut r#fn: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Arc<NFVariable> {
     let mut var: Arc<NFVariable> = var;
     assign_field!(
-        var.binding = Binding::mapExpShallow(var.binding.clone(), Arc::new(r#fn)),
+        var.binding = Binding::mapExpShallow(var.binding.clone(), r#fn.clone()),
         var.typeAttributes = {
         let mut __acc: Arc<metamodelica::List<(ArcStr, Arc<Binding::NFBinding>)>> = metamodelica::nil();
         for mut a in (var.typeAttributes.clone()).into_iter().cloned() {
-            let __x = (Util::tuple21(a.clone()), Binding::mapExpShallow(Util::tuple22(a.clone()), Arc::new(r#fn)));
+            let __x = (Util::tuple21(a.clone()), Binding::mapExpShallow(Util::tuple22(a.clone()), r#fn.clone()));
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
@@ -555,7 +572,7 @@ pub fn mapExpShallow(mut var: Arc<NFVariable>, mut r#fn: MapFn) -> Arc<NFVariabl
         var.children = {
         let mut __acc: Arc<metamodelica::List<Arc<NFVariable>>> = metamodelica::nil();
         for mut v in (var.children.clone()).into_iter().cloned() {
-            let __x = mapExpShallow(v.clone(), r#fn);
+            let __x = mapExpShallow(v.clone(), r#fn.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
@@ -700,7 +717,7 @@ pub fn moveBinding(mut var: Arc<NFVariable>, mut equations: Arc<metamodelica::Li
     let mut var: Arc<NFVariable> = var;
     let mut equations: Arc<metamodelica::List<Arc<Equation::NFEquation>>> = equations;
     if variability(var.clone()) >= Variability::DISCRETE.clone() && Binding::isBound(var.binding.clone()) {
-        equations = cons(Equation::makeEquality(Expression::fromCref(var.name.clone(), false)?, Binding::getExp(var.binding.clone())?, var.ty.clone(), ElementSource::createElementSource(var.info.clone(), None, openmodelica_frontend_types::DAE::Prefix::NOPRE, (DAE::emptyCref.clone(), DAE::emptyCref.clone()))?, Arc::new(crate::NFInstNode::InstNode::EMPTY_NODE), Equation::ScalarizeMode::NO_PREFERENCE.clone()), equations.clone());
+        equations = cons(Equation::makeEquality(Expression::fromCref(var.name.clone(), false)?, Binding::getExp(var.binding.clone())?, var.ty.clone(), ElementSource::createElementSource(var.info.clone(), None, openmodelica_frontend_types::DAE::Prefix::NOPRE, (DAE::emptyCref().clone(), DAE::emptyCref().clone()))?, Arc::new(crate::NFInstNode::InstNode::EMPTY_NODE), Equation::ScalarizeMode::NO_PREFERENCE.clone()), equations.clone());
         assign_field!(var.binding = Binding::EMPTY_BINDING().clone());
     }
     Ok((var, equations))

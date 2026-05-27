@@ -86,7 +86,7 @@ pub fn daeDeclare(mut inCache: FCore::Cache, mut inParentEnv: FCore::Graph, mut 
                     let mut ct1: Arc<DAE::ConnectorType> = Arc::new(DAE::ConnectorType::FLOW);
                     let mut dae: DAE::DAElist;
                     let mut daeParallelism: DAE::VarParallelism = DAE::VarParallelism::NON_PARALLEL;
-                    let mut info: SourceInfo;
+                    let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
                     let mut vk: DAE::VarKind = DAE::VarKind::CONST;
                     let mut vd: DAE::VarDirection = DAE::VarDirection::BIDIR;
                     let mut vv: DAE::VarVisibility = DAE::VarVisibility::PROTECTED;
@@ -142,7 +142,7 @@ fn showDAE(mut inCache: FCore::Cache, mut inParentEnv: FCore::Graph, mut inClass
             els = DAEUtil::daeElements(inDAE.clone())?;
             sstr = (ClassInfUtil::printStateStr(inState.clone())).clone();
             sstr = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("'")); __mm_s.push_str(&*sstr.clone()); __mm_s.push_str(&*literal!("'")); ArcStr::from(__mm_s) }).clone();
-            comp = Arc::new(DAE::Element::COMP { ident: (sstr.clone()).clone(), dAElist: els.clone(), source: DAE::emptyElementSource.clone(), comment: None });
+            comp = Arc::new(DAE::Element::COMP { ident: (sstr.clone()).clone(), dAElist: els.clone(), source: DAE::emptyElementSource().clone(), comment: None });
             dae = DAE::DAElist { elementLst: list![comp.clone()] };
             r#str = (if (System::getPartialInstantiation()) {literal!(" partial")} else {literal!(" full")}).clone();
             println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("DAE: parent: ")); __mm_s.push_str(&*FGraph::getGraphNameStr(inParentEnv.clone())?); __mm_s.push_str(&*literal!(" class: ")); __mm_s.push_str(&*FGraph::getGraphNameStr(inClassEnv.clone())?); __mm_s.push_str(&*literal!(" state: ")); __mm_s.push_str(&*sstr.clone()); __mm_s.push_str(&*r#str.clone()); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*DAEDump::dumpStr(dae.clone(), AvlTreePathFunction::Tree::EMPTY()?)?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
@@ -175,7 +175,7 @@ fn daeDeclare2(mut inComponentRef: Arc<DAE::ComponentRef>, mut inType: Arc<DAE::
                 (vn, Deref @ DAE::Type::T_INTEGER { .. }, ct, kind, dir, daePrl, prot, e, inst_dims, _, dae_var_attr, comment, _, _, _) => {
                     let mut finst_dims: Arc<metamodelica::List<Arc<DAE::Dimension>>> = metamodelica::nil();
                     finst_dims = List::flatten(inst_dims.clone());
-                    Ok(DAE::DAElist { elementLst: list![Arc::new(DAE::Element::VAR { componentRef: vn.clone(), kind: kind.clone(), direction: dir.clone(), parallelism: daePrl.clone(), protection: prot.clone(), ty: DAE::T_INTEGER_DEFAULT.clone(), binding: e.clone(), dims: finst_dims.clone(), connectorType: ct.clone(), source: source.clone(), variableAttributesOption: dae_var_attr.clone(), comment: comment.clone(), innerOuter: io.clone(), encrypted: false })] })
+                    Ok(DAE::DAElist { elementLst: list![Arc::new(DAE::Element::VAR { componentRef: vn.clone(), kind: kind.clone(), direction: dir.clone(), parallelism: daePrl.clone(), protection: prot.clone(), ty: DAE::T_INTEGER_DEFAULT().clone(), binding: e.clone(), dims: finst_dims.clone(), connectorType: ct.clone(), source: source.clone(), variableAttributesOption: dae_var_attr.clone(), comment: comment.clone(), innerOuter: io.clone(), encrypted: false })] })
                 }
                 _ => bail!("nomatch"),
             }}
@@ -185,7 +185,7 @@ fn daeDeclare2(mut inComponentRef: Arc<DAE::ComponentRef>, mut inType: Arc<DAE::
                 (vn, Deref @ DAE::Type::T_REAL { .. }, ct, kind, dir, daePrl, prot, e, inst_dims, _, dae_var_attr, comment, _, _, _) => {
                     let mut finst_dims: Arc<metamodelica::List<Arc<DAE::Dimension>>> = metamodelica::nil();
                     finst_dims = List::flatten(inst_dims.clone());
-                    Ok(DAE::DAElist { elementLst: list![Arc::new(DAE::Element::VAR { componentRef: vn.clone(), kind: kind.clone(), direction: dir.clone(), parallelism: daePrl.clone(), protection: prot.clone(), ty: DAE::T_REAL_DEFAULT.clone(), binding: e.clone(), dims: finst_dims.clone(), connectorType: ct.clone(), source: source.clone(), variableAttributesOption: dae_var_attr.clone(), comment: comment.clone(), innerOuter: io.clone(), encrypted: false })] })
+                    Ok(DAE::DAElist { elementLst: list![Arc::new(DAE::Element::VAR { componentRef: vn.clone(), kind: kind.clone(), direction: dir.clone(), parallelism: daePrl.clone(), protection: prot.clone(), ty: DAE::T_REAL_DEFAULT().clone(), binding: e.clone(), dims: finst_dims.clone(), connectorType: ct.clone(), source: source.clone(), variableAttributesOption: dae_var_attr.clone(), comment: comment.clone(), innerOuter: io.clone(), encrypted: false })] })
                 }
                 _ => bail!("nomatch"),
             }}
@@ -195,7 +195,7 @@ fn daeDeclare2(mut inComponentRef: Arc<DAE::ComponentRef>, mut inType: Arc<DAE::
                 (vn, Deref @ DAE::Type::T_BOOL { .. }, ct, kind, dir, daePrl, prot, e, inst_dims, _, dae_var_attr, comment, _, _, _) => {
                     let mut finst_dims: Arc<metamodelica::List<Arc<DAE::Dimension>>> = metamodelica::nil();
                     finst_dims = List::flatten(inst_dims.clone());
-                    Ok(DAE::DAElist { elementLst: list![Arc::new(DAE::Element::VAR { componentRef: vn.clone(), kind: kind.clone(), direction: dir.clone(), parallelism: daePrl.clone(), protection: prot.clone(), ty: DAE::T_BOOL_DEFAULT.clone(), binding: e.clone(), dims: finst_dims.clone(), connectorType: ct.clone(), source: source.clone(), variableAttributesOption: dae_var_attr.clone(), comment: comment.clone(), innerOuter: io.clone(), encrypted: false })] })
+                    Ok(DAE::DAElist { elementLst: list![Arc::new(DAE::Element::VAR { componentRef: vn.clone(), kind: kind.clone(), direction: dir.clone(), parallelism: daePrl.clone(), protection: prot.clone(), ty: DAE::T_BOOL_DEFAULT().clone(), binding: e.clone(), dims: finst_dims.clone(), connectorType: ct.clone(), source: source.clone(), variableAttributesOption: dae_var_attr.clone(), comment: comment.clone(), innerOuter: io.clone(), encrypted: false })] })
                 }
                 _ => bail!("nomatch"),
             }}
@@ -205,7 +205,7 @@ fn daeDeclare2(mut inComponentRef: Arc<DAE::ComponentRef>, mut inType: Arc<DAE::
                 (vn, Deref @ DAE::Type::T_CLOCK { .. }, ct, kind, dir, daePrl, prot, e, inst_dims, _, dae_var_attr, comment, _, _, _) => {
                     let mut finst_dims: Arc<metamodelica::List<Arc<DAE::Dimension>>> = metamodelica::nil();
                     finst_dims = List::flatten(inst_dims.clone());
-                    Ok(DAE::DAElist { elementLst: list![Arc::new(DAE::Element::VAR { componentRef: vn.clone(), kind: kind.clone(), direction: dir.clone(), parallelism: daePrl.clone(), protection: prot.clone(), ty: DAE::T_CLOCK_DEFAULT.clone(), binding: e.clone(), dims: finst_dims.clone(), connectorType: ct.clone(), source: source.clone(), variableAttributesOption: dae_var_attr.clone(), comment: comment.clone(), innerOuter: io.clone(), encrypted: false })] })
+                    Ok(DAE::DAElist { elementLst: list![Arc::new(DAE::Element::VAR { componentRef: vn.clone(), kind: kind.clone(), direction: dir.clone(), parallelism: daePrl.clone(), protection: prot.clone(), ty: DAE::T_CLOCK_DEFAULT().clone(), binding: e.clone(), dims: finst_dims.clone(), connectorType: ct.clone(), source: source.clone(), variableAttributesOption: dae_var_attr.clone(), comment: comment.clone(), innerOuter: io.clone(), encrypted: false })] })
                 }
                 _ => bail!("nomatch"),
             }}
@@ -215,7 +215,7 @@ fn daeDeclare2(mut inComponentRef: Arc<DAE::ComponentRef>, mut inType: Arc<DAE::
                 (vn, Deref @ DAE::Type::T_STRING { .. }, ct, kind, dir, daePrl, prot, e, inst_dims, _, dae_var_attr, comment, _, _, _) => {
                     let mut finst_dims: Arc<metamodelica::List<Arc<DAE::Dimension>>> = metamodelica::nil();
                     finst_dims = List::flatten(inst_dims.clone());
-                    Ok(DAE::DAElist { elementLst: list![Arc::new(DAE::Element::VAR { componentRef: vn.clone(), kind: kind.clone(), direction: dir.clone(), parallelism: daePrl.clone(), protection: prot.clone(), ty: DAE::T_STRING_DEFAULT.clone(), binding: e.clone(), dims: finst_dims.clone(), connectorType: ct.clone(), source: source.clone(), variableAttributesOption: dae_var_attr.clone(), comment: comment.clone(), innerOuter: io.clone(), encrypted: false })] })
+                    Ok(DAE::DAElist { elementLst: list![Arc::new(DAE::Element::VAR { componentRef: vn.clone(), kind: kind.clone(), direction: dir.clone(), parallelism: daePrl.clone(), protection: prot.clone(), ty: DAE::T_STRING_DEFAULT().clone(), binding: e.clone(), dims: finst_dims.clone(), connectorType: ct.clone(), source: source.clone(), variableAttributesOption: dae_var_attr.clone(), comment: comment.clone(), innerOuter: io.clone(), encrypted: false })] })
                 }
                 _ => bail!("nomatch"),
             }}
@@ -223,7 +223,7 @@ fn daeDeclare2(mut inComponentRef: Arc<DAE::ComponentRef>, mut inType: Arc<DAE::
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (_, Deref @ DAE::Type::T_ENUMERATION { index: Some(_), .. }, _, _, _, _, _, _, _, _, _, _, _, _, _) => {
-                    Ok(DAE::emptyDae.clone())
+                    Ok(DAE::emptyDae().clone())
                 }
                 _ => bail!("nomatch"),
             }}
@@ -295,7 +295,7 @@ fn daeDeclare2(mut inComponentRef: Arc<DAE::ComponentRef>, mut inType: Arc<DAE::
             ::match_deref::match_deref! { match &__mc_input {
                 (vn, Deref @ DAE::Type::T_ARRAY { dims: Deref @ metamodelica::List::Cons { head: Deref @ DAE::Dimension::DIM_UNKNOWN, tail: Deref @ metamodelica::List::Nil }, .. }, _, _, _, _, _, _, _, _, _, _, _, _, _) => {
                     let mut s: ArcStr = arcstr::literal!("");
-                    let mut info: SourceInfo;
+                    let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
                     let true = (Config::splitArrays()?) else { bail!("pattern mismatch") };
                     s = (ComponentReferenceBasics::printComponentRefStr(vn.clone())?).clone();
                     info = ElementSource::getElementSourceFileInfo(source.clone());
@@ -347,7 +347,7 @@ fn daeDeclare2(mut inComponentRef: Arc<DAE::ComponentRef>, mut inType: Arc<DAE::
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 _ => {
-                    Ok(DAE::emptyDae.clone())
+                    Ok(DAE::emptyDae().clone())
                 }
                 _ => bail!("nomatch"),
             }}

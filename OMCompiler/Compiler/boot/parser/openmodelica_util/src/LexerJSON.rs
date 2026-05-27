@@ -73,7 +73,7 @@ pub fn action(mut act: i32, mut startSt: i32, mut mm_currSt: i32, mut mm_pos: i3
     let mut mm_startSt: i32 = 0;
     let mut bufferRet: i32 = 0;
     let mut errorTokens: Arc<metamodelica::List<Token>> = inErrorTokens.clone();
-    let mut info: SourceInfo;
+    let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
     let mut sToken: ArcStr = arcstr::literal!("");
     mm_startSt = startSt.clone();
     bufferRet = 0;
@@ -259,7 +259,7 @@ pub fn tokenContentEq(mut token1: Token, mut token2: Token) -> Result<bool> {
 }
 
 pub fn tokenSourceInfo(mut token: Token) -> Result<SourceInfo> {
-    let mut info: SourceInfo;
+    let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
     info = { let t = token.clone(); (match t.clone() {
         Token { .. } => SourceInfo { fileName: (t.fileName.clone()).clone(), isReadOnly: false, lineNumberStart: t.lineNumberStart.clone(), columnNumberStart: t.columnNumberStart.clone(), lineNumberEnd: t.lineNumberEnd.clone(), columnNumberEnd: t.columnNumberEnd.clone(), lastModification: metamodelica::OrderedFloat(0.0_f64) },
         _ => bail!("match: no arm matched"),

@@ -11196,7 +11196,7 @@ pub fn functionUpdateBoundVariableAttributesFunctionsSimpleAssign(mut in_txt: Tp
     let mut out_a_auxFunction: Tpl::Text;
     (out_txt, out_a_varDecls, out_a_auxFunction) = (::match_deref::match_deref! { match &((in_txt.clone(), in_a_eq.clone(), in_a_attribute.clone(), in_a_context.clone(), in_a_varDecls.clone(), in_a_auxFunction.clone())) {
         (txt, i_eq @ Deref @ SimCode::SimEqSystem::SES_SIMPLE_ASSIGN { cref: i_cref, exp: i_exp, .. }, a_attribute, a_context, a_varDecls, a_auxFunction) => {
-            let mut ret_6: SourceInfo;
+            let mut ret_6: SourceInfo = <SourceInfo as ::std::default::Default>::default();
             let mut l_updateEqs: Tpl::Text;
             let mut ret_4: bool = false;
             let mut l_postExp: Tpl::Text;
@@ -11225,7 +11225,7 @@ pub fn functionUpdateBoundVariableAttributesFunctionsSimpleAssign(mut in_txt: Tp
             (txt.clone(), a_varDecls.clone(), a_auxFunction.clone())
         },
         (txt, i_eq @ Deref @ SimCode::SimEqSystem::SES_SIMPLE_ASSIGN_CONSTRAINTS { cref: i_cref, exp: i_exp, .. }, a_attribute, a_context, a_varDecls, a_auxFunction) => {
-            let mut ret_8: SourceInfo;
+            let mut ret_8: SourceInfo = <SourceInfo as ::std::default::Default>::default();
             let mut ret_7: bool = false;
             let mut l_updateEqs: Tpl::Text;
             let mut l_postExp: Tpl::Text;
@@ -19542,7 +19542,7 @@ pub fn equationSimpleAssign(mut in_txt: Tpl::Text, mut in_a_eq: Arc<SimCode::Sim
             (txt.clone(), a_varDecls.clone(), a_auxFunction.clone())
         },
         (txt, i_eq @ Deref @ SimCode::SimEqSystem::SES_SIMPLE_ASSIGN { cref: i_cref, exp: i_exp, .. }, a_context, a_varDecls, a_auxFunction) => {
-            let mut ret_5: SourceInfo;
+            let mut ret_5: SourceInfo = <SourceInfo as ::std::default::Default>::default();
             let mut ret_4: bool = false;
             let mut l_postExp: Tpl::Text;
             let mut l_expPart: Tpl::Text;
@@ -19571,7 +19571,7 @@ pub fn equationSimpleAssign(mut in_txt: Tpl::Text, mut in_a_eq: Arc<SimCode::Sim
             (txt.clone(), a_varDecls.clone(), a_auxFunction.clone())
         },
         (txt, i_eq @ Deref @ SimCode::SimEqSystem::SES_SIMPLE_ASSIGN_CONSTRAINTS { cref: i_cref, exp: i_exp, .. }, a_context, a_varDecls, a_auxFunction) => {
-            let mut ret_7: SourceInfo;
+            let mut ret_7: SourceInfo = <SourceInfo as ::std::default::Default>::default();
             let mut ret_6: bool = false;
             let mut l_postExp: Tpl::Text;
             let mut l_expPart: Tpl::Text;
@@ -19613,7 +19613,7 @@ pub fn equationForLoop(mut in_txt: Tpl::Text, mut in_a_eq: Arc<SimCode::SimEqSys
     let mut out_a_auxFunction: Tpl::Text;
     (out_txt, out_a_varDecls, out_a_auxFunction) = (::match_deref::match_deref! { match &((in_txt.clone(), in_a_eq.clone(), in_a_context.clone(), in_a_varDecls.clone(), in_a_auxFunction.clone())) {
         (txt, i_eq @ Deref @ SimCode::SimEqSystem::SES_FOR_LOOP { iter: i_iter, endIt: i_endIt, startIt: i_startIt, cref: i_cref, exp: i_exp, .. }, a_context, a_varDecls, a_auxFunction) => {
-            let mut ret_7: SourceInfo;
+            let mut ret_7: SourceInfo = <SourceInfo as ::std::default::Default>::default();
             let mut l_iterVar: Tpl::Text;
             let mut l_stop: Tpl::Text;
             let mut l_start: Tpl::Text;
@@ -19794,7 +19794,7 @@ pub fn equationArrayCallAssign(mut txt: Tpl::Text, mut a_eq: Arc<SimCode::SimEqS
     let mut out_txt: Tpl::Text;
     let mut out_a_varDecls: Tpl::Text;
     let mut out_a_auxFunction: Tpl::Text;
-    let mut ret_0: SourceInfo;
+    let mut ret_0: SourceInfo = <SourceInfo as ::std::default::Default>::default();
     ret_0 = SimCodeUtil::eqInfo(a_eq.clone())?;
     out_txt = CodegenCFunctions::modelicaLine(txt.clone(), ret_0.clone())?;
     out_txt = Tpl::softNewLine(out_txt.clone())?;
@@ -20050,7 +20050,7 @@ pub fn equationGenericAssign(mut txt: Tpl::Text, mut a_eq: Arc<SimCode::SimEqSys
     let mut out_txt: Tpl::Text;
     let mut out_a_varDecls: Tpl::Text;
     let mut out_a_auxFunction: Tpl::Text;
-    let mut ret_2: SourceInfo;
+    let mut ret_2: SourceInfo = <SourceInfo as ::std::default::Default>::default();
     let mut l_sub__name: Tpl::Text;
     let mut l_jac: Tpl::Text;
     l_jac = fun_751(Tpl::emptyTxt.clone(), a_context.clone())?;
@@ -20156,7 +20156,7 @@ fn fun_763(mut in_txt: Tpl::Text, mut in_a_eq: Arc<SimCode::SimEqSystem>, mut in
     let mut out_a_auxFunction: Tpl::Text;
     (out_txt, out_a_varDecls, out_a_auxFunction) = (::match_deref::match_deref! { match &((in_txt.clone(), in_a_eq.clone(), in_a_context.clone(), in_a_varDecls.clone(), in_a_auxFunction.clone(), in_a_modelNamePrefix.clone())) {
         (txt, i_eqn @ Deref @ SimCode::SimEqSystem::SES_ENTWINED_ASSIGN { call_order: i_call__order, single_calls: i_single__calls, .. }, a_context, a_varDecls, a_auxFunction, a_modelNamePrefix) => {
-            let mut ret_4: SourceInfo;
+            let mut ret_4: SourceInfo = <SourceInfo as ::std::default::Default>::default();
             let mut ret_3: i32 = 0;
             let mut l_call__order__len: Tpl::Text;
             let mut ret_1: i32 = 0;
@@ -20217,7 +20217,7 @@ pub fn equationEntwinedAssign(mut txt: Tpl::Text, mut a_eq: Arc<SimCode::SimEqSy
     let mut out_txt: Tpl::Text;
     let mut out_a_varDecls: Tpl::Text;
     let mut out_a_auxFunction: Tpl::Text;
-    let mut ret_0: SourceInfo;
+    let mut ret_0: SourceInfo = <SourceInfo as ::std::default::Default>::default();
     ret_0 = SimCodeUtil::eqInfo(a_eq.clone())?;
     out_txt = CodegenCFunctions::modelicaLine(txt.clone(), ret_0.clone())?;
     out_txt = Tpl::softNewLine(out_txt.clone())?;
@@ -21485,7 +21485,7 @@ pub fn equationWhen(mut in_txt: Tpl::Text, mut in_a_eq: Arc<SimCode::SimEqSystem
     let mut out_a_auxFunction: Tpl::Text;
     (out_txt, out_a_varDecls, out_a_auxFunction) = (::match_deref::match_deref! { match &((in_txt.clone(), in_a_eq.clone(), in_a_context.clone(), in_a_varDecls.clone(), in_a_auxFunction.clone())) {
         (txt, i_eq @ Deref @ SimCode::SimEqSystem::SES_WHEN { elseWhen: None, conditions: i_conditions, whenStmtLst: i_whenStmtLst, .. }, a_context, a_varDecls, a_auxFunction) => {
-            let mut ret_4: SourceInfo;
+            let mut ret_4: SourceInfo = <SourceInfo as ::std::default::Default>::default();
             let mut l_assign: Tpl::Text;
             let mut ret_2: bool = false;
             let mut l_helpIf: Tpl::Text;
@@ -21513,7 +21513,7 @@ pub fn equationWhen(mut in_txt: Tpl::Text, mut in_a_eq: Arc<SimCode::SimEqSystem
             (txt.clone(), a_varDecls.clone(), a_auxFunction.clone())
         },
         (txt, i_eq @ Deref @ SimCode::SimEqSystem::SES_WHEN { elseWhen: Some(i_elseWhenEq), conditions: i_conditions, whenStmtLst: i_whenStmtLst, .. }, a_context, a_varDecls, a_auxFunction) => {
-            let mut ret_7: SourceInfo;
+            let mut ret_7: SourceInfo = <SourceInfo as ::std::default::Default>::default();
             let mut l_elseWhen: Tpl::Text;
             let mut ret_5: bool = false;
             let mut l_assign: Tpl::Text;
@@ -21579,7 +21579,7 @@ fn fun_818(mut in_txt: Tpl::Text, mut in_mArg: bool, mut in_a_assign: Tpl::Text,
     let mut out_txt: Tpl::Text;
     out_txt = (::match_deref::match_deref! { match &((in_txt.clone(), in_mArg.clone(), in_a_assign.clone(), in_a_eq.clone(), in_a_helpIf.clone())) {
         (txt, false, a_assign, a_eq, a_helpIf) => {
-            let mut ret_0: SourceInfo;
+            let mut ret_0: SourceInfo = <SourceInfo as ::std::default::Default>::default();
             let mut txt = (*txt).clone();
             txt = Tpl::writeTok(txt.clone(), Arc::new(Tpl::StringToken::ST_STRING { value: (literal!("else if(")).clone() }))?;
             txt = Tpl::writeText(txt.clone(), a_helpIf.clone())?;
@@ -21632,7 +21632,7 @@ fn fun_820(mut in_txt: Tpl::Text, mut in_mArg: bool, mut in_a_assign: Tpl::Text,
     let mut out_txt: Tpl::Text;
     out_txt = (::match_deref::match_deref! { match &((in_txt.clone(), in_mArg.clone(), in_a_assign.clone(), in_a_eq.clone(), in_a_helpIf.clone())) {
         (txt, false, a_assign, a_eq, a_helpIf) => {
-            let mut ret_0: SourceInfo;
+            let mut ret_0: SourceInfo = <SourceInfo as ::std::default::Default>::default();
             let mut txt = (*txt).clone();
             txt = Tpl::writeTok(txt.clone(), Arc::new(Tpl::StringToken::ST_STRING { value: (literal!("else if(")).clone() }))?;
             txt = Tpl::writeText(txt.clone(), a_helpIf.clone())?;
@@ -21885,7 +21885,7 @@ fn fun_827(mut in_txt: Tpl::Text, mut in_a_whenOp: BackendDAE::WhenOperator, mut
             (txt.clone(), a_auxFunction.clone(), a_varDecls.clone())
         },
         (txt, BackendDAE::WhenOperator::TERMINATE { source: i_source, message: i_message }, a_auxFunction, a_varDecls, _) => {
-            let mut ret_18: SourceInfo;
+            let mut ret_18: SourceInfo = <SourceInfo as ::std::default::Default>::default();
             let mut l_msgVar: Tpl::Text;
             let mut l_preExp: Tpl::Text;
             let mut txt = (*txt).clone();

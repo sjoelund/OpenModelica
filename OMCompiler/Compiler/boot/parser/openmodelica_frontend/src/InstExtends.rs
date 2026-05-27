@@ -88,9 +88,9 @@ fn instExtendsList(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inIH:
     let mut outComments: Arc<metamodelica::List<Arc<SCode::Comment>>> = metamodelica::nil();
     let mut duplicates: Arc<metamodelica::List<Arc<SCode::Element>>> = metamodelica::nil();
     let mut duplicateUnparseStrings: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
-    duplicates = List::sortedDuplicates(List::sort(inElementsFromExtendsScope.clone(), Arc::new(SCodeUtil::elementEqual))?, Arc::new(SCodeUtil::elementEqual))?;
+    duplicates = List::sortedDuplicates(List::sort(inElementsFromExtendsScope.clone(), (std::sync::Arc::new(SCodeUtil::elementEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SCode::Element>, Arc<SCode::Element>) -> Result<bool> + 'static>))?, (std::sync::Arc::new(SCodeUtil::elementEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SCode::Element>, Arc<SCode::Element>) -> Result<bool> + 'static>))?;
     if Config::acceptMetaModelicaGrammar()? {
-        duplicates = List::filterOnFalse(duplicates.clone(), Arc::new(fnptr!(SCodeUtil::isTypeVar, Arc<SCode::Element>)));
+        duplicates = List::filterOnFalse(duplicates.clone(), (std::sync::Arc::new(fnptr!(SCodeUtil::isTypeVar, Arc<SCode::Element>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SCode::Element>) -> Result<bool> + 'static>));
     }
     if !(duplicates.clone().is_empty()) {
         duplicateUnparseStrings = {
@@ -102,7 +102,7 @@ fn instExtendsList(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inIH:
         __acc.reverse()
     };
         if (duplicates.clone().len() as i32) > 1 {
-            Error::addMultiSourceMessage(Error::DUPLICATE_VARIABLE_ERROR.clone(), duplicateUnparseStrings.clone(), List::map(duplicates.clone(), Arc::new(fnptr!(SCodeUtil::elementInfo, Arc<SCode::Element>))))?;
+            Error::addMultiSourceMessage(Error::DUPLICATE_VARIABLE_ERROR.clone(), duplicateUnparseStrings.clone(), List::map(duplicates.clone(), (std::sync::Arc::new(fnptr!(SCodeUtil::elementInfo, Arc<SCode::Element>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SCode::Element>) -> Result<SourceInfo> + 'static>)))?;
         } else {
             Error::addSourceMessage(Error::DUPLICATE_VARIABLE_ERROR.clone(), duplicateUnparseStrings.clone(), SCodeUtil::elementInfo(listHead(duplicates.clone())?))?;
         }
@@ -156,20 +156,20 @@ fn instExtendsList(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inIH:
                     let mut ialg2: Arc<metamodelica::List<Arc<SCode::AlgorithmSection>>> = metamodelica::nil();
                     let mut comments1: Arc<metamodelica::List<Arc<SCode::Comment>>> = metamodelica::nil();
                     let mut comments2: Arc<metamodelica::List<Arc<SCode::Comment>>> = metamodelica::nil();
-                    let mut cmt: Arc<SCode::Comment>;
+                    let mut cmt: Arc<SCode::Comment> = Arc::new(<SCode::Comment as ::std::default::Default>::default());
                     let mut r#mod: Arc<DAE::Mod> = Arc::new(DAE::Mod::NOMOD);
                     let mut tree: Arc<AvlSetString::Tree> = Arc::new(AvlSetString::Tree::EMPTY);
                     let mut cacheArr: metamodelica::Array<FCore::Cache>;
                     let mut htHasEntries: bool = false;
-                    let mut outInitialAlgs: Arc<metamodelica::List<Arc<SCode::AlgorithmSection>>> = outInitialAlgs.clone();
-                    let mut outComments: Arc<metamodelica::List<Arc<SCode::Comment>>> = outComments.clone();
-                    let mut outMod: Arc<DAE::Mod> = outMod.clone();
-                    let mut outNormalAlgs: Arc<metamodelica::List<Arc<SCode::AlgorithmSection>>> = outNormalAlgs.clone();
-                    let mut outCache: FCore::Cache = outCache.clone();
-                    let mut outInitialEqs: Arc<metamodelica::List<Arc<SCode::Equation>>> = outInitialEqs.clone();
-                    let mut outElements: Arc<metamodelica::List<(Arc<SCode::Element>, Arc<DAE::Mod>, bool)>> = outElements.clone();
-                    let mut outIH: Arc<metamodelica::List<InnerOuter::TopInstance>> = outIH.clone();
                     let mut outNormalEqs: Arc<metamodelica::List<Arc<SCode::Equation>>> = outNormalEqs.clone();
+                    let mut outInitialEqs: Arc<metamodelica::List<Arc<SCode::Equation>>> = outInitialEqs.clone();
+                    let mut outComments: Arc<metamodelica::List<Arc<SCode::Comment>>> = outComments.clone();
+                    let mut outIH: Arc<metamodelica::List<InnerOuter::TopInstance>> = outIH.clone();
+                    let mut outInitialAlgs: Arc<metamodelica::List<Arc<SCode::AlgorithmSection>>> = outInitialAlgs.clone();
+                    let mut outCache: FCore::Cache = outCache.clone();
+                    let mut outMod: Arc<DAE::Mod> = outMod.clone();
+                    let mut outElements: Arc<metamodelica::List<(Arc<SCode::Element>, Arc<DAE::Mod>, bool)>> = outElements.clone();
+                    let mut outNormalAlgs: Arc<metamodelica::List<Arc<SCode::AlgorithmSection>>> = outNormalAlgs.clone();
                     emod = InstUtil::chainRedeclares(outMod.clone(), var_field!((*el).modifications, SCode::Element::EXTENDS).clone())?;
                     base_first_id = (AbsynUtil::pathFirstIdent(var_field!((*el).baseClassPath, SCode::Element::EXTENDS).clone())?).clone();
                     eq_name = stringEq((inClassName.clone()).clone(), (base_first_id.clone()).clone()) && AbsynUtil::pathEqual(ClassInfUtil::getStateName(inState.clone()), AbsynUtil::joinPaths(FGraph::getGraphName(outEnv.clone())?, AbsynUtil::makeIdentPathFromString((base_first_id.clone()).clone()))?);
@@ -198,8 +198,8 @@ fn instExtendsList(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inIH:
                     (outCache, cenv, outIH, els1, eq1, ieq1, alg1, ialg1, r#mod, comments1) = instDerivedClasses(outCache.clone(), cenv.clone(), outIH.clone(), outMod.clone(), inPrefix.clone(), cls.clone(), inImpl.clone(), var_field!((*el).info, SCode::Element::EXTENDS).clone())?;
                     els1 = updateElementListVisibility(els1.clone(), var_field!((*el).visibility, SCode::Element::EXTENDS).clone());
                     tree = AvlSetString::new();
-                    tree = getLocalIdentList(InstUtil::constantAndParameterEls(inElementsFromExtendsScope.clone())?, tree.clone(), Arc::new(getLocalIdentElement));
-                    tree = getLocalIdentList(InstUtil::constantAndParameterEls(els1.clone())?, tree.clone(), Arc::new(getLocalIdentElement));
+                    tree = getLocalIdentList(InstUtil::constantAndParameterEls(inElementsFromExtendsScope.clone())?, tree.clone(), (std::sync::Arc::new(getLocalIdentElement) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SCode::Element>, Arc<AvlSetString::Tree>) -> Result<Arc<AvlSetString::Tree>> + 'static>));
+                    tree = getLocalIdentList(InstUtil::constantAndParameterEls(els1.clone())?, tree.clone(), (std::sync::Arc::new(getLocalIdentElement) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SCode::Element>, Arc<AvlSetString::Tree>) -> Result<Arc<AvlSetString::Tree>> + 'static>));
                     cacheArr = arrayCreate(1, outCache.clone());
                     emod = fixModifications(cacheArr.clone(), inEnv.clone(), emod.clone(), tree.clone())?;
                     cenv = FGraph::openScope(cenv.clone(), encf.clone(), (cn.clone()).clone(), FGraph::classInfToScopeType(inState.clone()))?;
@@ -219,31 +219,31 @@ fn instExtendsList(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inIH:
                     outMod = Mod::merge(r#mod.clone(), outMod.clone(), (literal!("")).clone(), false)?;
                     (outCache, _, outIH, _, els2, eq2, ieq2, alg2, ialg2, comments2) = instExtendsAndClassExtendsList2(outCache.clone(), cenv.clone(), outIH.clone(), outMod.clone(), inPrefix.clone(), rest_els.clone(), clsext_els.clone(), els1.clone(), inState.clone(), (inClassName.clone()).clone(), inImpl.clone(), inPartialInst.clone())?;
                     tree = AvlSetString::new();
-                    tree = getLocalIdentList(els2.clone(), tree.clone(), Arc::new(getLocalIdentElementTpl));
-                    tree = getLocalIdentList(cdef_els.clone(), tree.clone(), Arc::new(getLocalIdentElement));
-                    tree = getLocalIdentList(import_els.clone(), tree.clone(), Arc::new(getLocalIdentElement));
+                    tree = getLocalIdentList(els2.clone(), tree.clone(), (std::sync::Arc::new(getLocalIdentElementTpl) as std::sync::Arc<dyn ::std::ops::Fn((Arc<SCode::Element>, Arc<DAE::Mod>, bool), Arc<AvlSetString::Tree>) -> Result<Arc<AvlSetString::Tree>> + 'static>));
+                    tree = getLocalIdentList(cdef_els.clone(), tree.clone(), (std::sync::Arc::new(getLocalIdentElement) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SCode::Element>, Arc<AvlSetString::Tree>) -> Result<Arc<AvlSetString::Tree>> + 'static>));
+                    tree = getLocalIdentList(import_els.clone(), tree.clone(), (std::sync::Arc::new(getLocalIdentElement) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SCode::Element>, Arc<AvlSetString::Tree>) -> Result<Arc<AvlSetString::Tree>> + 'static>));
                     htHasEntries = !(AvlSetString::isEmpty(tree.clone()));
                     {let _arr = cacheArr.clone(); _arr.borrow_mut()[(1-1) as usize] = outCache.clone(); _arr};
                     if htHasEntries.clone() {
-                        els2 = fixList(cacheArr.clone(), cenv.clone(), els2.clone(), tree.clone(), Arc::new(fixLocalIdent));
+                        els2 = fixList(cacheArr.clone(), cenv.clone(), els2.clone(), tree.clone(), (std::sync::Arc::new(fixLocalIdent) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, (Arc<SCode::Element>, Arc<DAE::Mod>, bool), Arc<AvlSetString::Tree>) -> Result<(Arc<SCode::Element>, Arc<DAE::Mod>, bool)> + 'static>));
                     }
                     outElements = listAppend(els2.clone(), outElements.clone());
-                    outNormalEqs = List::unionAppendListOnTrue(eq2.clone().reverse(), outNormalEqs.clone(), Arc::new(fnptr!(valueEq, _, _)));
-                    outInitialEqs = List::unionAppendListOnTrue(ieq2.clone().reverse(), outInitialEqs.clone(), Arc::new(fnptr!(valueEq, _, _)));
-                    outNormalAlgs = List::unionAppendListOnTrue(alg2.clone().reverse(), outNormalAlgs.clone(), Arc::new(fnptr!(valueEq, _, _)));
-                    outInitialAlgs = List::unionAppendListOnTrue(ialg2.clone().reverse(), outInitialAlgs.clone(), Arc::new(fnptr!(valueEq, _, _)));
+                    outNormalEqs = List::unionAppendListOnTrue(eq2.clone().reverse(), outNormalEqs.clone(), std::sync::Arc::new(fnptr!(valueEq, _, _)));
+                    outInitialEqs = List::unionAppendListOnTrue(ieq2.clone().reverse(), outInitialEqs.clone(), std::sync::Arc::new(fnptr!(valueEq, _, _)));
+                    outNormalAlgs = List::unionAppendListOnTrue(alg2.clone().reverse(), outNormalAlgs.clone(), std::sync::Arc::new(fnptr!(valueEq, _, _)));
+                    outInitialAlgs = List::unionAppendListOnTrue(ialg2.clone().reverse(), outInitialAlgs.clone(), std::sync::Arc::new(fnptr!(valueEq, _, _)));
                     outComments = listAppend(comments1.clone(), listAppend(comments2.clone(), cons(cmt.clone(), outComments.clone())));
                     if !(inPartialInst.clone()) {
                         if htHasEntries.clone() {
-                            eq1 = fixList(cacheArr.clone(), cenv.clone(), eq1.clone(), tree.clone(), Arc::new(fixEquation));
-                            ieq1 = fixList(cacheArr.clone(), cenv.clone(), ieq1.clone(), tree.clone(), Arc::new(fixEquation));
-                            alg1 = fixList(cacheArr.clone(), cenv.clone(), alg1.clone(), tree.clone(), Arc::new(fixAlgorithm));
-                            ialg1 = fixList(cacheArr.clone(), cenv.clone(), ialg1.clone(), tree.clone(), Arc::new(fixAlgorithm));
+                            eq1 = fixList(cacheArr.clone(), cenv.clone(), eq1.clone(), tree.clone(), (std::sync::Arc::new(fixEquation) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Arc<SCode::Equation>, Arc<AvlSetString::Tree>) -> Result<Arc<SCode::Equation>> + 'static>));
+                            ieq1 = fixList(cacheArr.clone(), cenv.clone(), ieq1.clone(), tree.clone(), (std::sync::Arc::new(fixEquation) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Arc<SCode::Equation>, Arc<AvlSetString::Tree>) -> Result<Arc<SCode::Equation>> + 'static>));
+                            alg1 = fixList(cacheArr.clone(), cenv.clone(), alg1.clone(), tree.clone(), (std::sync::Arc::new(fixAlgorithm) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Arc<SCode::AlgorithmSection>, Arc<AvlSetString::Tree>) -> Result<Arc<SCode::AlgorithmSection>> + 'static>));
+                            ialg1 = fixList(cacheArr.clone(), cenv.clone(), ialg1.clone(), tree.clone(), (std::sync::Arc::new(fixAlgorithm) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Arc<SCode::AlgorithmSection>, Arc<AvlSetString::Tree>) -> Result<Arc<SCode::AlgorithmSection>> + 'static>));
                         }
-                        outNormalEqs = List::unionAppendListOnTrue(eq1.clone().reverse(), outNormalEqs.clone(), Arc::new(fnptr!(valueEq, _, _)));
-                        outInitialEqs = List::unionAppendListOnTrue(ieq1.clone().reverse(), outInitialEqs.clone(), Arc::new(fnptr!(valueEq, _, _)));
-                        outNormalAlgs = List::unionAppendListOnTrue(alg1.clone().reverse(), outNormalAlgs.clone(), Arc::new(fnptr!(valueEq, _, _)));
-                        outInitialAlgs = List::unionAppendListOnTrue(ialg1.clone().reverse(), outInitialAlgs.clone(), Arc::new(fnptr!(valueEq, _, _)));
+                        outNormalEqs = List::unionAppendListOnTrue(eq1.clone().reverse(), outNormalEqs.clone(), std::sync::Arc::new(fnptr!(valueEq, _, _)));
+                        outInitialEqs = List::unionAppendListOnTrue(ieq1.clone().reverse(), outInitialEqs.clone(), std::sync::Arc::new(fnptr!(valueEq, _, _)));
+                        outNormalAlgs = List::unionAppendListOnTrue(alg1.clone().reverse(), outNormalAlgs.clone(), std::sync::Arc::new(fnptr!(valueEq, _, _)));
+                        outInitialAlgs = List::unionAppendListOnTrue(ialg1.clone().reverse(), outInitialAlgs.clone(), std::sync::Arc::new(fnptr!(valueEq, _, _)));
                     }
                     outCache = cacheArr.clone().borrow()[(1-1) as usize].clone();
                     Ok(())
@@ -370,10 +370,10 @@ pub fn instExtendsAndClassExtendsList(mut inCache: FCore::Cache, mut inEnv: FCor
     let mut cdefelts: Arc<metamodelica::List<Arc<SCode::Element>>> = metamodelica::nil();
     let mut tmpelts: Arc<metamodelica::List<Arc<SCode::Element>>> = metamodelica::nil();
     let mut extendselts: Arc<metamodelica::List<Arc<SCode::Element>>> = metamodelica::nil();
-    extendselts = List::map(inExtendsElementLst.clone(), Arc::new(SCodeInstUtil::expandEnumerationClass));
+    extendselts = List::map(inExtendsElementLst.clone(), (std::sync::Arc::new(SCodeInstUtil::expandEnumerationClass) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SCode::Element>) -> Result<Arc<SCode::Element>> + 'static>));
     (outCache, outEnv, outIH, outMod, elts, outNormalEqs, outInitialEqs, outNormalAlgs, outInitialAlgs, outComments) = instExtendsAndClassExtendsList2(inCache.clone(), inEnv.clone(), inIH.clone(), inMod.clone(), inPrefix.clone(), extendselts.clone(), inClassExtendsElementLst.clone(), inElementsFromExtendsScope.clone(), inState.clone(), (inClassName.clone()).clone(), inImpl.clone(), isPartialInst.clone())?;
-    outElements = List::map(elts.clone(), Arc::new(fnptr!(Util::tuple312, _)));
-    tmpelts = List::map(outElements.clone(), Arc::new(fnptr!(Util::tuple21, _)));
+    outElements = List::map(elts.clone(), std::sync::Arc::new(fnptr!(Util::tuple312, _)));
+    tmpelts = List::map(outElements.clone(), std::sync::Arc::new(fnptr!(Util::tuple21, _)));
     (_, cdefelts, _, _) = InstUtil::splitEltsNoComponents(tmpelts.clone())?;
     (outCache, outEnv, outIH) = InstUtil::addClassdefsToEnv(outCache.clone(), outEnv.clone(), outIH.clone(), inPrefix.clone(), cdefelts.clone(), inImpl.clone(), Some(outMod.clone()), false)?;
     Ok((outCache, outEnv, outIH, outMod, outElements, outNormalEqs, outInitialEqs, outNormalAlgs, outInitialAlgs, outComments))
@@ -428,8 +428,8 @@ fn instClassExtendsList(mut inEnv: FCore::Graph, mut inMod: Arc<DAE::Mod>, mut i
                     let true = (Flags::isSet(Flags::FAILTRACE.clone())?) else { bail!("pattern mismatch") };
                     Debug::traceln(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("- Inst.instClassExtendsList failed ")); __mm_s.push_str(&*name.clone()); ArcStr::from(__mm_s) }).clone())?;
                     Debug::traceln((literal!("  Candidate classes: ")).clone())?;
-                    els = List::map(compelts.clone(), Arc::new(fnptr!(Util::tuple31, _)));
-                    names = List::map(els.clone(), Arc::new(SCodeUtil::elementName));
+                    els = List::map(compelts.clone(), std::sync::Arc::new(fnptr!(Util::tuple31, _)));
+                    names = List::map(els.clone(), (std::sync::Arc::new(SCodeUtil::elementName) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SCode::Element>) -> Result<ArcStr> + 'static>));
                     Debug::traceln(stringDelimitList(names.clone(), (literal!(",")).clone()))?;
                     Ok(bail!("fail"))
                 }
@@ -471,8 +471,8 @@ fn instClassExtendsList2(mut inEnv: FCore::Graph, mut inMod: Arc<DAE::Mod>, mut 
                     let mut env_path: ArcStr = arcstr::literal!("");
                     let mut externalDecl1: Option<Arc<SCode::ExternalDecl>> = None;
                     let mut externalDecl2: Option<Arc<SCode::ExternalDecl>> = None;
-                    let mut comment1: Arc<SCode::Comment>;
-                    let mut comment2: Arc<SCode::Comment>;
+                    let mut comment1: Arc<SCode::Comment> = Arc::new(<SCode::Comment as ::std::default::Default>::default());
+                    let mut comment2: Arc<SCode::Comment> = Arc::new(<SCode::Comment as ::std::default::Default>::default());
                     let mut els1: Arc<metamodelica::List<Arc<SCode::Element>>> = metamodelica::nil();
                     let mut els2: Arc<metamodelica::List<Arc<SCode::Element>>> = metamodelica::nil();
                     let mut nEqn1: Arc<metamodelica::List<Arc<SCode::Equation>>> = metamodelica::nil();
@@ -487,8 +487,8 @@ fn instClassExtendsList2(mut inEnv: FCore::Graph, mut inMod: Arc<DAE::Mod>, mut 
                     let mut inCons2: Arc<metamodelica::List<SCode::ConstraintSection>> = metamodelica::nil();
                     let mut clats: Arc<metamodelica::List<Arc<Absyn::NamedArg>>> = metamodelica::nil();
                     let mut mods: Arc<SCode::Mod> = Arc::new(SCode::Mod::NOMOD);
-                    let mut info1: SourceInfo;
-                    let mut info2: SourceInfo;
+                    let mut info1: SourceInfo = <SourceInfo as ::std::default::Default>::default();
+                    let mut info2: SourceInfo = <SourceInfo as ::std::default::Default>::default();
                     let mut emod = (*emod).clone();
                     let mut name2 = (*name2).clone();
                     let true = (name1.clone() == name2.clone()) else { bail!("pattern mismatch") };
@@ -565,8 +565,8 @@ fn instClassExtendsList2(mut inEnv: FCore::Graph, mut inMod: Arc<DAE::Mod>, mut 
                     let mut vis2: SCode::Visibility = SCode::Visibility::PROTECTED;
                     let mut env_path: ArcStr = arcstr::literal!("");
                     let mut externalDecl1: Option<Arc<SCode::ExternalDecl>> = None;
-                    let mut comment1: Arc<SCode::Comment>;
-                    let mut comment2: Arc<SCode::Comment>;
+                    let mut comment1: Arc<SCode::Comment> = Arc::new(<SCode::Comment as ::std::default::Default>::default());
+                    let mut comment2: Arc<SCode::Comment> = Arc::new(<SCode::Comment as ::std::default::Default>::default());
                     let mut els1: Arc<metamodelica::List<Arc<SCode::Element>>> = metamodelica::nil();
                     let mut nEqn1: Arc<metamodelica::List<Arc<SCode::Equation>>> = metamodelica::nil();
                     let mut inEqn1: Arc<metamodelica::List<Arc<SCode::Equation>>> = metamodelica::nil();
@@ -575,8 +575,8 @@ fn instClassExtendsList2(mut inEnv: FCore::Graph, mut inMod: Arc<DAE::Mod>, mut 
                     let mut inCons1: Arc<metamodelica::List<SCode::ConstraintSection>> = metamodelica::nil();
                     let mut mods: Arc<SCode::Mod> = Arc::new(SCode::Mod::NOMOD);
                     let mut derivedMod: Arc<SCode::Mod> = Arc::new(SCode::Mod::NOMOD);
-                    let mut info1: SourceInfo;
-                    let mut info2: SourceInfo;
+                    let mut info1: SourceInfo = <SourceInfo as ::std::default::Default>::default();
+                    let mut info2: SourceInfo = <SourceInfo as ::std::default::Default>::default();
                     let mut attrs: SCode::Attributes;
                     let mut derivedTySpec: Arc<Absyn::TypeSpec>;
                     let mut emod = (*emod).clone();
@@ -796,7 +796,7 @@ fn noImportElements(mut inElements: Arc<metamodelica::List<Arc<SCode::Element>>>
 fn updateComponentsAndClassdefs(mut inComponents: Arc<metamodelica::List<(Arc<SCode::Element>, Arc<DAE::Mod>, bool)>>, mut inMod: Arc<DAE::Mod>, mut inEnv: FCore::Graph) -> (Arc<metamodelica::List<(Arc<SCode::Element>, Arc<DAE::Mod>, bool)>>, Arc<DAE::Mod>) {
     let mut outComponents: Arc<metamodelica::List<(Arc<SCode::Element>, Arc<DAE::Mod>, bool)>> = metamodelica::nil();
     let mut outRestMod: Arc<DAE::Mod> = Arc::new(DAE::Mod::NOMOD);
-    (outComponents, outRestMod) = List::map1Fold(inComponents.clone(), Arc::new(updateComponentsAndClassdefs2), inEnv.clone(), inMod.clone());
+    (outComponents, outRestMod) = List::map1Fold(inComponents.clone(), (std::sync::Arc::new(updateComponentsAndClassdefs2) as std::sync::Arc<dyn ::std::ops::Fn((Arc<SCode::Element>, Arc<DAE::Mod>, bool), FCore::Graph, Arc<DAE::Mod>) -> Result<((Arc<SCode::Element>, Arc<DAE::Mod>, bool), Arc<DAE::Mod>)> + 'static>), inEnv.clone(), inMod.clone());
     (outComponents, outRestMod)
 }
 
@@ -886,7 +886,7 @@ fn updateComponentsAndClassdefs2(mut inComponent: (Arc<SCode::Element>, Arc<DAE:
 }
 
 fn getLocalIdentList<Type_A: Clone + 'static>(mut ielts: Arc<metamodelica::List<Type_A>>, mut tree: Arc<AvlSetString::Tree>, mut getIdent: Arc<dyn ::std::ops::Fn(Type_A, Arc<AvlSetString::Tree>) -> Result<Arc<AvlSetString::Tree>> + 'static>) -> Arc<AvlSetString::Tree> {
-    pub type getIdentFn<Type_A: Clone> = fn(Type_A, Arc<AvlSetString::Tree>) -> Result<Arc<AvlSetString::Tree>>;
+    pub type getIdentFn<Type_A: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Type_A, Arc<AvlSetString::Tree>) -> Result<Arc<AvlSetString::Tree>> + 'static>;
 
     let mut tree: Arc<AvlSetString::Tree> = tree;
     for mut elt in &*ielts.clone() {
@@ -948,9 +948,9 @@ fn fixElement(mut inCache: metamodelica::Array<FCore::Cache>, mut inEnv: FCore::
                     let mut typeSpec2: Arc<Absyn::TypeSpec>;
                     let mut modifications1: Arc<SCode::Mod> = Arc::new(SCode::Mod::NOMOD);
                     let mut modifications2: Arc<SCode::Mod> = Arc::new(SCode::Mod::NOMOD);
-                    let mut comment: Arc<SCode::Comment>;
+                    let mut comment: Arc<SCode::Comment> = Arc::new(<SCode::Comment as ::std::default::Default>::default());
                     let mut condition: Option<Arc<Absyn::Exp>> = None;
-                    let mut info: SourceInfo;
+                    let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
                     let mut ad: Arc<metamodelica::List<Arc<Absyn::Subscript>>> = metamodelica::nil();
                     let mut elt2: Arc<SCode::Element>;
                     let mut attr: SCode::Attributes;
@@ -1137,13 +1137,13 @@ fn fixClassdef(mut cache: metamodelica::Array<FCore::Cache>, mut inEnv: FCore::G
                     let mut ia_1: Arc<metamodelica::List<Arc<SCode::AlgorithmSection>>> = metamodelica::nil();
                     let mut nc_1: Arc<metamodelica::List<SCode::ConstraintSection>> = metamodelica::nil();
                     let mut tree: Arc<AvlSetString::Tree> = tree.clone();
-                    tree = getLocalIdentList(elts.clone(), tree.clone(), Arc::new(getLocalIdentElement));
-                    elts_1 = fixList(cache.clone(), env.clone(), elts.clone(), tree.clone(), Arc::new(fixElement));
-                    ne_1 = fixList(cache.clone(), env.clone(), ne.clone(), tree.clone(), Arc::new(fixEquation));
-                    ie_1 = fixList(cache.clone(), env.clone(), ie.clone(), tree.clone(), Arc::new(fixEquation));
-                    na_1 = fixList(cache.clone(), env.clone(), na.clone(), tree.clone(), Arc::new(fixAlgorithm));
-                    ia_1 = fixList(cache.clone(), env.clone(), ia.clone(), tree.clone(), Arc::new(fixAlgorithm));
-                    nc_1 = fixList(cache.clone(), env.clone(), nc.clone(), tree.clone(), Arc::new(fixConstraint));
+                    tree = getLocalIdentList(elts.clone(), tree.clone(), (std::sync::Arc::new(getLocalIdentElement) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SCode::Element>, Arc<AvlSetString::Tree>) -> Result<Arc<AvlSetString::Tree>> + 'static>));
+                    elts_1 = fixList(cache.clone(), env.clone(), elts.clone(), tree.clone(), (std::sync::Arc::new(fixElement) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Arc<SCode::Element>, Arc<AvlSetString::Tree>) -> Result<Arc<SCode::Element>> + 'static>));
+                    ne_1 = fixList(cache.clone(), env.clone(), ne.clone(), tree.clone(), (std::sync::Arc::new(fixEquation) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Arc<SCode::Equation>, Arc<AvlSetString::Tree>) -> Result<Arc<SCode::Equation>> + 'static>));
+                    ie_1 = fixList(cache.clone(), env.clone(), ie.clone(), tree.clone(), (std::sync::Arc::new(fixEquation) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Arc<SCode::Equation>, Arc<AvlSetString::Tree>) -> Result<Arc<SCode::Equation>> + 'static>));
+                    na_1 = fixList(cache.clone(), env.clone(), na.clone(), tree.clone(), (std::sync::Arc::new(fixAlgorithm) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Arc<SCode::AlgorithmSection>, Arc<AvlSetString::Tree>) -> Result<Arc<SCode::AlgorithmSection>> + 'static>));
+                    ia_1 = fixList(cache.clone(), env.clone(), ia.clone(), tree.clone(), (std::sync::Arc::new(fixAlgorithm) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Arc<SCode::AlgorithmSection>, Arc<AvlSetString::Tree>) -> Result<Arc<SCode::AlgorithmSection>> + 'static>));
+                    nc_1 = fixList(cache.clone(), env.clone(), nc.clone(), tree.clone(), (std::sync::Arc::new(fixConstraint) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, SCode::ConstraintSection, Arc<AvlSetString::Tree>) -> Result<SCode::ConstraintSection> + 'static>));
                     Ok(if (referenceEq(&elts.clone(),&elts_1.clone()) && referenceEq(&ne.clone(),&ne_1.clone()) && referenceEq(&ie.clone(),&ie_1.clone()) && referenceEq(&na.clone(),&na_1.clone()) && referenceEq(&ia.clone(),&ia_1.clone()) && referenceEq(&nc.clone(),&nc_1.clone())) {inCd.clone()} else {Arc::new(SCode::ClassDef::PARTS { elementLst: elts_1.clone(), normalEquationLst: ne_1.clone(), initialEquationLst: ie_1.clone(), normalAlgorithmLst: na_1.clone(), initialAlgorithmLst: ia_1.clone(), constraintLst: nc_1.clone(), clsattrs: clats.clone(), externalDecl: ed.clone() })})
                 }
                 _ => bail!("nomatch"),
@@ -1161,12 +1161,12 @@ fn fixClassdef(mut cache: metamodelica::Array<FCore::Cache>, mut inEnv: FCore::G
                     let mut mod_1: Arc<SCode::Mod> = Arc::new(SCode::Mod::NOMOD);
                     let mut cd_1: Arc<SCode::ClassDef>;
                     mod_1 = fixModifications(cache.clone(), env.clone(), r#mod.clone(), inTree.clone())?;
-                    elts_1 = fixList(cache.clone(), env.clone(), elts.clone(), tree.clone(), Arc::new(fixElement));
-                    ne_1 = fixList(cache.clone(), env.clone(), ne.clone(), tree.clone(), Arc::new(fixEquation));
-                    ie_1 = fixList(cache.clone(), env.clone(), ie.clone(), tree.clone(), Arc::new(fixEquation));
-                    na_1 = fixList(cache.clone(), env.clone(), na.clone(), tree.clone(), Arc::new(fixAlgorithm));
-                    ia_1 = fixList(cache.clone(), env.clone(), ia.clone(), tree.clone(), Arc::new(fixAlgorithm));
-                    nc_1 = fixList(cache.clone(), env.clone(), nc.clone(), tree.clone(), Arc::new(fixConstraint));
+                    elts_1 = fixList(cache.clone(), env.clone(), elts.clone(), tree.clone(), (std::sync::Arc::new(fixElement) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Arc<SCode::Element>, Arc<AvlSetString::Tree>) -> Result<Arc<SCode::Element>> + 'static>));
+                    ne_1 = fixList(cache.clone(), env.clone(), ne.clone(), tree.clone(), (std::sync::Arc::new(fixEquation) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Arc<SCode::Equation>, Arc<AvlSetString::Tree>) -> Result<Arc<SCode::Equation>> + 'static>));
+                    ie_1 = fixList(cache.clone(), env.clone(), ie.clone(), tree.clone(), (std::sync::Arc::new(fixEquation) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Arc<SCode::Equation>, Arc<AvlSetString::Tree>) -> Result<Arc<SCode::Equation>> + 'static>));
+                    na_1 = fixList(cache.clone(), env.clone(), na.clone(), tree.clone(), (std::sync::Arc::new(fixAlgorithm) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Arc<SCode::AlgorithmSection>, Arc<AvlSetString::Tree>) -> Result<Arc<SCode::AlgorithmSection>> + 'static>));
+                    ia_1 = fixList(cache.clone(), env.clone(), ia.clone(), tree.clone(), (std::sync::Arc::new(fixAlgorithm) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Arc<SCode::AlgorithmSection>, Arc<AvlSetString::Tree>) -> Result<Arc<SCode::AlgorithmSection>> + 'static>));
+                    nc_1 = fixList(cache.clone(), env.clone(), nc.clone(), tree.clone(), (std::sync::Arc::new(fixConstraint) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, SCode::ConstraintSection, Arc<AvlSetString::Tree>) -> Result<SCode::ConstraintSection> + 'static>));
                     cd_1 = if (referenceEq(&elts.clone(),&elts_1.clone()) && referenceEq(&ne.clone(),&ne_1.clone()) && referenceEq(&ie.clone(),&ie_1.clone()) && referenceEq(&na.clone(),&na_1.clone()) && referenceEq(&ia.clone(),&ia_1.clone()) && referenceEq(&nc.clone(),&nc_1.clone())) {cd.clone()} else {Arc::new(SCode::ClassDef::PARTS { elementLst: elts_1.clone(), normalEquationLst: ne_1.clone(), initialEquationLst: ie_1.clone(), normalAlgorithmLst: na_1.clone(), initialAlgorithmLst: ia_1.clone(), constraintLst: nc_1.clone(), clsattrs: clats.clone(), externalDecl: ed.clone() })};
                     Ok(if (referenceEq(&cd.clone(),&cd_1.clone()) && referenceEq(&r#mod.clone(),&mod_1.clone())) {inCd.clone()} else {Arc::new(SCode::ClassDef::CLASS_EXTENDS { modifications: mod_1.clone(), composition: cd_1.clone() })})
                 }
@@ -1231,9 +1231,9 @@ fn fixEquation(mut cache: metamodelica::Array<FCore::Cache>, mut inEnv: FCore::G
             let mut expl = (*expl).clone();
             let mut eqll = (*eqll).clone();
             let mut eql = (*eql).clone();
-            expl = fixList(cache.clone(), inEnv.clone(), expl.clone(), tree.clone(), Arc::new(fixExp));
-            eqll = fixListList(cache.clone(), inEnv.clone(), eqll.clone(), tree.clone(), Arc::new(fixEquation));
-            eql = fixList(cache.clone(), inEnv.clone(), eql.clone(), tree.clone(), Arc::new(fixEquation));
+            expl = fixList(cache.clone(), inEnv.clone(), expl.clone(), tree.clone(), (std::sync::Arc::new(fixExp) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Arc<Absyn::Exp>, Arc<AvlSetString::Tree>) -> Result<Arc<Absyn::Exp>> + 'static>));
+            eqll = fixListList(cache.clone(), inEnv.clone(), eqll.clone(), tree.clone(), (std::sync::Arc::new(fixEquation) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Arc<SCode::Equation>, Arc<AvlSetString::Tree>) -> Result<Arc<SCode::Equation>> + 'static>));
+            eql = fixList(cache.clone(), inEnv.clone(), eql.clone(), tree.clone(), (std::sync::Arc::new(fixEquation) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Arc<SCode::Equation>, Arc<AvlSetString::Tree>) -> Result<Arc<SCode::Equation>> + 'static>));
             Arc::new(SCode::Equation::EQ_IF { condition: expl.clone(), thenBranch: eqll.clone(), elseBranch: eql.clone(), comment: comment.clone(), info: info.clone() })
         },
         Deref @ SCode::Equation::EQ_EQUALS { expLeft: exp1, expRight: exp2, comment, info } => {
@@ -1262,8 +1262,8 @@ fn fixEquation(mut cache: metamodelica::Array<FCore::Cache>, mut inEnv: FCore::G
         Deref @ SCode::Equation::EQ_FOR { index: id, range: optExp, eEquationLst: eql, comment, info } => {
             let mut optExp = (*optExp).clone();
             let mut eql = (*eql).clone();
-            optExp = fixOption(cache.clone(), inEnv.clone(), optExp.clone(), tree.clone(), Arc::new(fixExp));
-            eql = fixList(cache.clone(), inEnv.clone(), eql.clone(), tree.clone(), Arc::new(fixEquation));
+            optExp = fixOption(cache.clone(), inEnv.clone(), optExp.clone(), tree.clone(), (std::sync::Arc::new(fixExp) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Arc<Absyn::Exp>, Arc<AvlSetString::Tree>) -> Result<Arc<Absyn::Exp>> + 'static>));
+            eql = fixList(cache.clone(), inEnv.clone(), eql.clone(), tree.clone(), (std::sync::Arc::new(fixEquation) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Arc<SCode::Equation>, Arc<AvlSetString::Tree>) -> Result<Arc<SCode::Equation>> + 'static>));
             Arc::new(SCode::Equation::EQ_FOR { index: (id.clone()).clone(), range: optExp.clone(), eEquationLst: eql.clone(), comment: comment.clone(), info: info.clone() })
         },
         Deref @ SCode::Equation::EQ_WHEN { condition: exp, eEquationLst: eql, elseBranches: whenlst, comment, info } => {
@@ -1271,8 +1271,8 @@ fn fixEquation(mut cache: metamodelica::Array<FCore::Cache>, mut inEnv: FCore::G
             let mut eql = (*eql).clone();
             let mut whenlst = (*whenlst).clone();
             exp = fixExp(cache.clone(), inEnv.clone(), exp.clone(), tree.clone())?;
-            eql = fixList(cache.clone(), inEnv.clone(), eql.clone(), tree.clone(), Arc::new(fixEquation));
-            whenlst = fixListTuple2(cache.clone(), inEnv.clone(), whenlst.clone(), tree.clone(), Arc::new(fixExp), Arc::new(fnptr!(fixListEquation, metamodelica::Array<FCore::Cache>, FCore::Graph, Arc<metamodelica::List<Arc<SCode::Equation>>>, Arc<AvlSetString::Tree>)));
+            eql = fixList(cache.clone(), inEnv.clone(), eql.clone(), tree.clone(), (std::sync::Arc::new(fixEquation) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Arc<SCode::Equation>, Arc<AvlSetString::Tree>) -> Result<Arc<SCode::Equation>> + 'static>));
+            whenlst = fixListTuple2(cache.clone(), inEnv.clone(), whenlst.clone(), tree.clone(), (std::sync::Arc::new(fixExp) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Arc<Absyn::Exp>, Arc<AvlSetString::Tree>) -> Result<Arc<Absyn::Exp>> + 'static>), (std::sync::Arc::new(fnptr!(fixListEquation, metamodelica::Array<FCore::Cache>, FCore::Graph, Arc<metamodelica::List<Arc<SCode::Equation>>>, Arc<AvlSetString::Tree>)) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Arc<metamodelica::List<Arc<SCode::Equation>>>, Arc<AvlSetString::Tree>) -> Result<Arc<metamodelica::List<Arc<SCode::Equation>>>> + 'static>));
             Arc::new(SCode::Equation::EQ_WHEN { condition: exp.clone(), eEquationLst: eql.clone(), elseBranches: whenlst.clone(), comment: comment.clone(), info: info.clone() })
         },
         Deref @ SCode::Equation::EQ_ASSERT { condition: exp1, message: exp2, level: exp3, comment, info } => {
@@ -1308,7 +1308,7 @@ fn fixEquation(mut cache: metamodelica::Array<FCore::Cache>, mut inEnv: FCore::G
 
 fn fixListEquation(mut cache: metamodelica::Array<FCore::Cache>, mut env: FCore::Graph, mut eeq: Arc<metamodelica::List<Arc<SCode::Equation>>>, mut tree: Arc<AvlSetString::Tree>) -> Arc<metamodelica::List<Arc<SCode::Equation>>> {
     let mut outEeq: Arc<metamodelica::List<Arc<SCode::Equation>>> = metamodelica::nil();
-    outEeq = fixList(cache.clone(), env.clone(), eeq.clone(), tree.clone(), Arc::new(fixEquation));
+    outEeq = fixList(cache.clone(), env.clone(), eeq.clone(), tree.clone(), (std::sync::Arc::new(fixEquation) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Arc<SCode::Equation>, Arc<AvlSetString::Tree>) -> Result<Arc<SCode::Equation>> + 'static>));
     outEeq
 }
 
@@ -1321,7 +1321,7 @@ fn fixAlgorithm(mut inCache: metamodelica::Array<FCore::Cache>, mut inEnv: FCore
         _ => bail!("pattern mismatch"),
     } };
     stmts1 = __pa0.clone();
-    stmts2 = fixList(inCache.clone(), inEnv.clone(), stmts1.clone(), tree.clone(), Arc::new(fixStatement));
+    stmts2 = fixList(inCache.clone(), inEnv.clone(), stmts1.clone(), tree.clone(), (std::sync::Arc::new(fixStatement) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Arc<SCode::Statement>, Arc<AvlSetString::Tree>) -> Result<Arc<SCode::Statement>> + 'static>));
     outAlg = if (referenceEq(&stmts1.clone(),&stmts2.clone())) {inAlg.clone()} else {Arc::new(SCode::AlgorithmSection { statements: stmts2.clone() })};
     Ok(outAlg)
 }
@@ -1331,14 +1331,14 @@ fn fixConstraint(mut inCache: metamodelica::Array<FCore::Cache>, mut inEnv: FCor
     let mut exps: Arc<metamodelica::List<Arc<Absyn::Exp>>> = metamodelica::nil();
     let SCode::CONSTRAINTS { constraints: __pa0 } = (inConstrs.clone()) else { bail!("pattern mismatch") };
     exps = __pa0.clone();
-    exps = fixList(inCache.clone(), inEnv.clone(), exps.clone(), tree.clone(), Arc::new(fixExp));
+    exps = fixList(inCache.clone(), inEnv.clone(), exps.clone(), tree.clone(), (std::sync::Arc::new(fixExp) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Arc<Absyn::Exp>, Arc<AvlSetString::Tree>) -> Result<Arc<Absyn::Exp>> + 'static>));
     outConstrs = SCode::ConstraintSection { constraints: exps.clone() };
     Ok(outConstrs)
 }
 
 fn fixListAlgorithmItem(mut cache: metamodelica::Array<FCore::Cache>, mut env: FCore::Graph, mut alg: Arc<metamodelica::List<Arc<SCode::Statement>>>, mut tree: Arc<AvlSetString::Tree>) -> Arc<metamodelica::List<Arc<SCode::Statement>>> {
     let mut outAlg: Arc<metamodelica::List<Arc<SCode::Statement>>> = metamodelica::nil();
-    outAlg = fixList(cache.clone(), env.clone(), alg.clone(), tree.clone(), Arc::new(fixStatement));
+    outAlg = fixList(cache.clone(), env.clone(), alg.clone(), tree.clone(), (std::sync::Arc::new(fixStatement) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Arc<SCode::Statement>, Arc<AvlSetString::Tree>) -> Result<Arc<SCode::Statement>> + 'static>));
     outAlg
 }
 
@@ -1366,9 +1366,9 @@ fn fixStatement(mut cache: metamodelica::Array<FCore::Cache>, mut inEnv: FCore::
                     let mut truebranch2: Arc<metamodelica::List<Arc<SCode::Statement>>> = metamodelica::nil();
                     let mut elsebranch2: Arc<metamodelica::List<Arc<SCode::Statement>>> = metamodelica::nil();
                     exp2 = fixExp(cache.clone(), inEnv.clone(), exp1.clone(), tree.clone())?;
-                    truebranch2 = fixList(cache.clone(), inEnv.clone(), truebranch1.clone(), tree.clone(), Arc::new(fixStatement));
-                    elseifbranch2 = fixListTuple2(cache.clone(), inEnv.clone(), elseifbranch1.clone(), tree.clone(), Arc::new(fixExp), Arc::new(fnptr!(fixListAlgorithmItem, metamodelica::Array<FCore::Cache>, FCore::Graph, Arc<metamodelica::List<Arc<SCode::Statement>>>, Arc<AvlSetString::Tree>)));
-                    elsebranch2 = fixList(cache.clone(), inEnv.clone(), elsebranch1.clone(), tree.clone(), Arc::new(fixStatement));
+                    truebranch2 = fixList(cache.clone(), inEnv.clone(), truebranch1.clone(), tree.clone(), (std::sync::Arc::new(fixStatement) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Arc<SCode::Statement>, Arc<AvlSetString::Tree>) -> Result<Arc<SCode::Statement>> + 'static>));
+                    elseifbranch2 = fixListTuple2(cache.clone(), inEnv.clone(), elseifbranch1.clone(), tree.clone(), (std::sync::Arc::new(fixExp) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Arc<Absyn::Exp>, Arc<AvlSetString::Tree>) -> Result<Arc<Absyn::Exp>> + 'static>), (std::sync::Arc::new(fnptr!(fixListAlgorithmItem, metamodelica::Array<FCore::Cache>, FCore::Graph, Arc<metamodelica::List<Arc<SCode::Statement>>>, Arc<AvlSetString::Tree>)) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Arc<metamodelica::List<Arc<SCode::Statement>>>, Arc<AvlSetString::Tree>) -> Result<Arc<metamodelica::List<Arc<SCode::Statement>>>> + 'static>));
+                    elsebranch2 = fixList(cache.clone(), inEnv.clone(), elsebranch1.clone(), tree.clone(), (std::sync::Arc::new(fixStatement) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Arc<SCode::Statement>, Arc<AvlSetString::Tree>) -> Result<Arc<SCode::Statement>> + 'static>));
                     Ok(if (referenceEq(&exp1.clone(),&exp2.clone()) && referenceEq(&truebranch1.clone(),&truebranch2.clone()) && referenceEq(&elseifbranch1.clone(),&elseifbranch2.clone()) && referenceEq(&elsebranch1.clone(),&elsebranch2.clone())) {inStmt.clone()} else {Arc::new(SCode::Statement::ALG_IF { boolExpr: exp2.clone(), trueBranch: truebranch2.clone(), elseIfBranch: elseifbranch2.clone(), elseBranch: elsebranch2.clone(), comment: comment.clone(), info: info.clone() })})
                 }
                 _ => bail!("nomatch"),
@@ -1379,8 +1379,8 @@ fn fixStatement(mut cache: metamodelica::Array<FCore::Cache>, mut inEnv: FCore::
                 Deref @ SCode::Statement::ALG_FOR { index: iter, range: optExp1, forBody: body1, comment, info } => {
                     let mut optExp2: Option<Arc<Absyn::Exp>> = None;
                     let mut body2: Arc<metamodelica::List<Arc<SCode::Statement>>> = metamodelica::nil();
-                    optExp2 = fixOption(cache.clone(), inEnv.clone(), optExp1.clone(), tree.clone(), Arc::new(fixExp));
-                    body2 = fixList(cache.clone(), inEnv.clone(), body1.clone(), tree.clone(), Arc::new(fixStatement));
+                    optExp2 = fixOption(cache.clone(), inEnv.clone(), optExp1.clone(), tree.clone(), (std::sync::Arc::new(fixExp) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Arc<Absyn::Exp>, Arc<AvlSetString::Tree>) -> Result<Arc<Absyn::Exp>> + 'static>));
+                    body2 = fixList(cache.clone(), inEnv.clone(), body1.clone(), tree.clone(), (std::sync::Arc::new(fixStatement) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Arc<SCode::Statement>, Arc<AvlSetString::Tree>) -> Result<Arc<SCode::Statement>> + 'static>));
                     Ok(if (referenceEq(&optExp1.clone(),&optExp2.clone()) && referenceEq(&body1.clone(),&body2.clone())) {inStmt.clone()} else {Arc::new(SCode::Statement::ALG_FOR { index: (iter.clone()).clone(), range: optExp2.clone(), forBody: body2.clone(), comment: comment.clone(), info: info.clone() })})
                 }
                 _ => bail!("nomatch"),
@@ -1391,8 +1391,8 @@ fn fixStatement(mut cache: metamodelica::Array<FCore::Cache>, mut inEnv: FCore::
                 Deref @ SCode::Statement::ALG_PARFOR { index: iter, range: optExp1, parforBody: body1, comment, info } => {
                     let mut optExp2: Option<Arc<Absyn::Exp>> = None;
                     let mut body2: Arc<metamodelica::List<Arc<SCode::Statement>>> = metamodelica::nil();
-                    optExp2 = fixOption(cache.clone(), inEnv.clone(), optExp1.clone(), tree.clone(), Arc::new(fixExp));
-                    body2 = fixList(cache.clone(), inEnv.clone(), body1.clone(), tree.clone(), Arc::new(fixStatement));
+                    optExp2 = fixOption(cache.clone(), inEnv.clone(), optExp1.clone(), tree.clone(), (std::sync::Arc::new(fixExp) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Arc<Absyn::Exp>, Arc<AvlSetString::Tree>) -> Result<Arc<Absyn::Exp>> + 'static>));
+                    body2 = fixList(cache.clone(), inEnv.clone(), body1.clone(), tree.clone(), (std::sync::Arc::new(fixStatement) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Arc<SCode::Statement>, Arc<AvlSetString::Tree>) -> Result<Arc<SCode::Statement>> + 'static>));
                     Ok(if (referenceEq(&optExp1.clone(),&optExp2.clone()) && referenceEq(&body1.clone(),&body2.clone())) {inStmt.clone()} else {Arc::new(SCode::Statement::ALG_PARFOR { index: (iter.clone()).clone(), range: optExp2.clone(), parforBody: body2.clone(), comment: comment.clone(), info: info.clone() })})
                 }
                 _ => bail!("nomatch"),
@@ -1404,7 +1404,7 @@ fn fixStatement(mut cache: metamodelica::Array<FCore::Cache>, mut inEnv: FCore::
                     let mut exp2: Arc<Absyn::Exp> = Arc::new(Absyn::Exp::BREAK);
                     let mut body2: Arc<metamodelica::List<Arc<SCode::Statement>>> = metamodelica::nil();
                     exp2 = fixExp(cache.clone(), inEnv.clone(), exp1.clone(), tree.clone())?;
-                    body2 = fixList(cache.clone(), inEnv.clone(), body1.clone(), tree.clone(), Arc::new(fixStatement));
+                    body2 = fixList(cache.clone(), inEnv.clone(), body1.clone(), tree.clone(), (std::sync::Arc::new(fixStatement) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Arc<SCode::Statement>, Arc<AvlSetString::Tree>) -> Result<Arc<SCode::Statement>> + 'static>));
                     Ok(if (referenceEq(&exp1.clone(),&exp2.clone()) && referenceEq(&body1.clone(),&body2.clone())) {inStmt.clone()} else {Arc::new(SCode::Statement::ALG_WHILE { boolExpr: exp2.clone(), whileBody: body2.clone(), comment: comment.clone(), info: info.clone() })})
                 }
                 _ => bail!("nomatch"),
@@ -1414,7 +1414,7 @@ fn fixStatement(mut cache: metamodelica::Array<FCore::Cache>, mut inEnv: FCore::
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ SCode::Statement::ALG_WHEN_A { branches: whenlst, comment, info } => {
                     let mut whenlst = (*whenlst).clone();
-                    whenlst = fixListTuple2(cache.clone(), inEnv.clone(), whenlst.clone(), tree.clone(), Arc::new(fixExp), Arc::new(fnptr!(fixListAlgorithmItem, metamodelica::Array<FCore::Cache>, FCore::Graph, Arc<metamodelica::List<Arc<SCode::Statement>>>, Arc<AvlSetString::Tree>)));
+                    whenlst = fixListTuple2(cache.clone(), inEnv.clone(), whenlst.clone(), tree.clone(), (std::sync::Arc::new(fixExp) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Arc<Absyn::Exp>, Arc<AvlSetString::Tree>) -> Result<Arc<Absyn::Exp>> + 'static>), (std::sync::Arc::new(fnptr!(fixListAlgorithmItem, metamodelica::Array<FCore::Cache>, FCore::Graph, Arc<metamodelica::List<Arc<SCode::Statement>>>, Arc<AvlSetString::Tree>)) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Arc<metamodelica::List<Arc<SCode::Statement>>>, Arc<AvlSetString::Tree>) -> Result<Arc<metamodelica::List<Arc<SCode::Statement>>>> + 'static>));
                     Ok(Arc::new(SCode::Statement::ALG_WHEN_A { branches: whenlst.clone(), comment: comment.clone(), info: info.clone() }))
                 }
                 _ => bail!("nomatch"),
@@ -1486,7 +1486,7 @@ fn fixStatement(mut cache: metamodelica::Array<FCore::Cache>, mut inEnv: FCore::
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ SCode::Statement::ALG_FAILURE { stmts: body1, comment, info } => {
                     let mut body2: Arc<metamodelica::List<Arc<SCode::Statement>>> = metamodelica::nil();
-                    body2 = fixList(cache.clone(), inEnv.clone(), body1.clone(), tree.clone(), Arc::new(fixStatement));
+                    body2 = fixList(cache.clone(), inEnv.clone(), body1.clone(), tree.clone(), (std::sync::Arc::new(fixStatement) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Arc<SCode::Statement>, Arc<AvlSetString::Tree>) -> Result<Arc<SCode::Statement>> + 'static>));
                     Ok(if (referenceEq(&body1.clone(),&body2.clone())) {inStmt.clone()} else {Arc::new(SCode::Statement::ALG_FAILURE { stmts: body2.clone(), comment: comment.clone(), info: info.clone() })})
                 }
                 _ => bail!("nomatch"),
@@ -1497,8 +1497,8 @@ fn fixStatement(mut cache: metamodelica::Array<FCore::Cache>, mut inEnv: FCore::
                 Deref @ SCode::Statement::ALG_TRY { body: truebranch1, elseBody: elsebranch1, comment, info } => {
                     let mut truebranch2: Arc<metamodelica::List<Arc<SCode::Statement>>> = metamodelica::nil();
                     let mut elsebranch2: Arc<metamodelica::List<Arc<SCode::Statement>>> = metamodelica::nil();
-                    truebranch2 = fixList(cache.clone(), inEnv.clone(), truebranch1.clone(), tree.clone(), Arc::new(fixStatement));
-                    elsebranch2 = fixList(cache.clone(), inEnv.clone(), elsebranch1.clone(), tree.clone(), Arc::new(fixStatement));
+                    truebranch2 = fixList(cache.clone(), inEnv.clone(), truebranch1.clone(), tree.clone(), (std::sync::Arc::new(fixStatement) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Arc<SCode::Statement>, Arc<AvlSetString::Tree>) -> Result<Arc<SCode::Statement>> + 'static>));
+                    elsebranch2 = fixList(cache.clone(), inEnv.clone(), elsebranch1.clone(), tree.clone(), (std::sync::Arc::new(fixStatement) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Arc<SCode::Statement>, Arc<AvlSetString::Tree>) -> Result<Arc<SCode::Statement>> + 'static>));
                     Ok(if (referenceEq(&truebranch1.clone(),&truebranch2.clone()) && referenceEq(&elsebranch1.clone(),&elsebranch2.clone())) {inStmt.clone()} else {Arc::new(SCode::Statement::ALG_TRY { body: truebranch2.clone(), elseBody: elsebranch2.clone(), comment: comment.clone(), info: info.clone() })})
                 }
                 _ => bail!("nomatch"),
@@ -1528,7 +1528,7 @@ fn fixStatement(mut cache: metamodelica::Array<FCore::Cache>, mut inEnv: FCore::
 
 fn fixArrayDim(mut inCache: metamodelica::Array<FCore::Cache>, mut inEnv: FCore::Graph, mut ads: Arc<metamodelica::List<Arc<Absyn::Subscript>>>, mut tree: Arc<AvlSetString::Tree>) -> Arc<metamodelica::List<Arc<Absyn::Subscript>>> {
     let mut ads: Arc<metamodelica::List<Arc<Absyn::Subscript>>> = ads;
-    ads = fixList(inCache.clone(), inEnv.clone(), ads.clone(), tree.clone(), Arc::new(fixSubscript));
+    ads = fixList(inCache.clone(), inEnv.clone(), ads.clone(), tree.clone(), (std::sync::Arc::new(fixSubscript) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Arc<Absyn::Subscript>, Arc<AvlSetString::Tree>) -> Result<Arc<Absyn::Subscript>> + 'static>));
     ads
 }
 
@@ -1554,7 +1554,7 @@ fn fixTypeSpec(mut cache: metamodelica::Array<FCore::Cache>, mut inEnv: FCore::G
         Deref @ Absyn::TypeSpec::TPATH { path: path1, arrayDim: arrayDim1 } => {
             let mut path2: Arc<Absyn::Path>;
             let mut arrayDim2: Option<Arc<metamodelica::List<Arc<Absyn::Subscript>>>> = None;
-            arrayDim2 = fixOption(cache.clone(), inEnv.clone(), arrayDim1.clone(), tree.clone(), Arc::new(fnptr!(fixArrayDim, metamodelica::Array<FCore::Cache>, FCore::Graph, Arc<metamodelica::List<Arc<Absyn::Subscript>>>, Arc<AvlSetString::Tree>)));
+            arrayDim2 = fixOption(cache.clone(), inEnv.clone(), arrayDim1.clone(), tree.clone(), (std::sync::Arc::new(fnptr!(fixArrayDim, metamodelica::Array<FCore::Cache>, FCore::Graph, Arc<metamodelica::List<Arc<Absyn::Subscript>>>, Arc<AvlSetString::Tree>)) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Arc<metamodelica::List<Arc<Absyn::Subscript>>>, Arc<AvlSetString::Tree>) -> Result<Arc<metamodelica::List<Arc<Absyn::Subscript>>>> + 'static>));
             path2 = fixPath(cache.clone(), inEnv.clone(), path1.clone(), tree.clone())?;
             if (referenceEq(&arrayDim2.clone(),&arrayDim1.clone()) && referenceEq(&path1.clone(),&path2.clone())) {inTs.clone()} else {Arc::new(Absyn::TypeSpec::TPATH { path: path2.clone(), arrayDim: arrayDim2.clone() })}
         },
@@ -1562,9 +1562,9 @@ fn fixTypeSpec(mut cache: metamodelica::Array<FCore::Cache>, mut inEnv: FCore::G
             let mut path2: Arc<Absyn::Path>;
             let mut arrayDim2: Option<Arc<metamodelica::List<Arc<Absyn::Subscript>>>> = None;
             let mut typeSpecs2: Arc<metamodelica::List<Arc<Absyn::TypeSpec>>> = metamodelica::nil();
-            arrayDim2 = fixOption(cache.clone(), inEnv.clone(), arrayDim1.clone(), tree.clone(), Arc::new(fnptr!(fixArrayDim, metamodelica::Array<FCore::Cache>, FCore::Graph, Arc<metamodelica::List<Arc<Absyn::Subscript>>>, Arc<AvlSetString::Tree>)));
+            arrayDim2 = fixOption(cache.clone(), inEnv.clone(), arrayDim1.clone(), tree.clone(), (std::sync::Arc::new(fnptr!(fixArrayDim, metamodelica::Array<FCore::Cache>, FCore::Graph, Arc<metamodelica::List<Arc<Absyn::Subscript>>>, Arc<AvlSetString::Tree>)) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Arc<metamodelica::List<Arc<Absyn::Subscript>>>, Arc<AvlSetString::Tree>) -> Result<Arc<metamodelica::List<Arc<Absyn::Subscript>>>> + 'static>));
             path2 = fixPath(cache.clone(), inEnv.clone(), path1.clone(), tree.clone())?;
-            typeSpecs2 = fixList(cache.clone(), inEnv.clone(), typeSpecs1.clone(), tree.clone(), Arc::new(fixTypeSpec));
+            typeSpecs2 = fixList(cache.clone(), inEnv.clone(), typeSpecs1.clone(), tree.clone(), (std::sync::Arc::new(fixTypeSpec) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Arc<Absyn::TypeSpec>, Arc<AvlSetString::Tree>) -> Result<Arc<Absyn::TypeSpec>> + 'static>));
             if (referenceEq(&arrayDim2.clone(),&arrayDim1.clone()) && referenceEq(&path1.clone(),&path2.clone()) && referenceEq(&typeSpecs1.clone(),&typeSpecs2.clone())) {inTs.clone()} else {Arc::new(Absyn::TypeSpec::TCOMPLEX { path: path2.clone(), typeSpecs: typeSpecs2.clone(), arrayDim: arrayDim2.clone() })}
         },
         _ => bail!("match: no arm matched"),
@@ -1754,11 +1754,11 @@ fn fixModifications(mut inCache: metamodelica::Array<FCore::Cache>, mut inEnv: F
                     let mut subModLst: Arc<metamodelica::List<Arc<SCode::SubMod>>> = metamodelica::nil();
                     let mut exp: Option<Arc<Absyn::Exp>> = None;
                     let mut outMod: Arc<SCode::Mod> = outMod.clone();
-                    subModLst = fixList(inCache.clone(), inEnv.clone(), var_field!((*outMod).subModLst, SCode::Mod::MOD).clone(), tree.clone(), Arc::new(fixSubMod));
+                    subModLst = fixList(inCache.clone(), inEnv.clone(), var_field!((*outMod).subModLst, SCode::Mod::MOD).clone(), tree.clone(), (std::sync::Arc::new(fixSubMod) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Arc<SCode::SubMod>, Arc<AvlSetString::Tree>) -> Result<Arc<SCode::SubMod>> + 'static>));
                     if !(referenceEq(&var_field!((*outMod).subModLst, SCode::Mod::MOD).clone(),&subModLst.clone())) {
                         assign_variant_field!(outMod => SCode::Mod::MOD; subModLst = subModLst.clone());
                     }
-                    exp = fixOption(inCache.clone(), inEnv.clone(), var_field!((*outMod).binding, SCode::Mod::MOD).clone(), tree.clone(), Arc::new(fixExp));
+                    exp = fixOption(inCache.clone(), inEnv.clone(), var_field!((*outMod).binding, SCode::Mod::MOD).clone(), tree.clone(), (std::sync::Arc::new(fixExp) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Arc<Absyn::Exp>, Arc<AvlSetString::Tree>) -> Result<Arc<Absyn::Exp>> + 'static>));
                     if !(referenceEq(&exp.clone(),&var_field!((*outMod).binding, SCode::Mod::MOD).clone())) {
                         assign_variant_field!(outMod => SCode::Mod::MOD; binding = exp.clone());
                     }
@@ -1835,7 +1835,7 @@ fn fixSubMod(mut inCache: metamodelica::Array<FCore::Cache>, mut inEnv: FCore::G
 
 fn fixExp(mut cache: metamodelica::Array<FCore::Cache>, mut inEnv: FCore::Graph, mut inExp: Arc<Absyn::Exp>, mut tree: Arc<AvlSetString::Tree>) -> Result<Arc<Absyn::Exp>> {
     let mut outExp: Arc<Absyn::Exp> = Arc::new(Absyn::Exp::BREAK);
-    (outExp, _) = AbsynUtil::traverseExp(inExp.clone(), Arc::new(fixExpTraverse), (cache.clone(), inEnv.clone(), tree.clone()))?;
+    (outExp, _) = AbsynUtil::traverseExp(inExp.clone(), (std::sync::Arc::new(fixExpTraverse) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Exp>, (metamodelica::Array<FCore::Cache>, FCore::Graph, Arc<AvlSetString::Tree>)) -> Result<(Arc<Absyn::Exp>, (metamodelica::Array<FCore::Cache>, FCore::Graph, Arc<AvlSetString::Tree>))> + 'static>), (cache.clone(), inEnv.clone(), tree.clone()))?;
     Ok(outExp)
 }
 
@@ -1868,7 +1868,7 @@ fn fixExpTraverse(mut exp: Arc<Absyn::Exp>, mut tpl: (metamodelica::Array<FCore:
 }
 
 fn fixOption<Type_A: Clone + 'static + PartialEq>(mut inCache: metamodelica::Array<FCore::Cache>, mut inEnv: FCore::Graph, mut inA: Option<Type_A>, mut tree: Arc<AvlSetString::Tree>, mut fixA: Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Type_A, Arc<AvlSetString::Tree>) -> Result<Type_A> + 'static>) -> Option<Type_A> {
-    pub type FixAFn<Type_A: Clone> = fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Type_A, Arc<AvlSetString::Tree>) -> Result<Type_A>;
+    pub type FixAFn<Type_A: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Type_A, Arc<AvlSetString::Tree>) -> Result<Type_A> + 'static>;
 
     let mut outA: Option<Type_A> = None;
     outA = (match inA.clone() {
@@ -1885,7 +1885,7 @@ fn fixOption<Type_A: Clone + 'static + PartialEq>(mut inCache: metamodelica::Arr
 }
 
 fn fixList<Type_A: Clone + 'static + PartialEq>(mut inCache: metamodelica::Array<FCore::Cache>, mut inEnv: FCore::Graph, mut inA: Arc<metamodelica::List<Type_A>>, mut tree: Arc<AvlSetString::Tree>, mut fixA: Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Type_A, Arc<AvlSetString::Tree>) -> Result<Type_A> + 'static>) -> Arc<metamodelica::List<Type_A>> {
-    pub type FixAFn<Type_A: Clone> = fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Type_A, Arc<AvlSetString::Tree>) -> Result<Type_A>;
+    pub type FixAFn<Type_A: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Type_A, Arc<AvlSetString::Tree>) -> Result<Type_A> + 'static>;
 
     let mut outA: Arc<metamodelica::List<Type_A>> = metamodelica::nil();
     if inA.clone().is_empty() {
@@ -1897,7 +1897,7 @@ fn fixList<Type_A: Clone + 'static + PartialEq>(mut inCache: metamodelica::Array
 }
 
 fn fixListList<Type_A: Clone + 'static + PartialEq>(mut inCache: metamodelica::Array<FCore::Cache>, mut inEnv: FCore::Graph, mut inA: Arc<metamodelica::List<Arc<metamodelica::List<Type_A>>>>, mut tree: Arc<AvlSetString::Tree>, mut fixA: Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Type_A, Arc<AvlSetString::Tree>) -> Result<Type_A> + 'static>) -> Arc<metamodelica::List<Arc<metamodelica::List<Type_A>>>> {
-    pub type FixAFn<Type_A: Clone> = fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Type_A, Arc<AvlSetString::Tree>) -> Result<Type_A>;
+    pub type FixAFn<Type_A: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Type_A, Arc<AvlSetString::Tree>) -> Result<Type_A> + 'static>;
 
     let mut outA: Arc<metamodelica::List<Arc<metamodelica::List<Type_A>>>> = metamodelica::nil();
     if inA.clone().is_empty() {
@@ -1909,9 +1909,9 @@ fn fixListList<Type_A: Clone + 'static + PartialEq>(mut inCache: metamodelica::A
 }
 
 fn fixListTuple2<Type_A: Clone + 'static + PartialEq, Type_B: Clone + 'static + PartialEq>(mut inCache: metamodelica::Array<FCore::Cache>, mut inEnv: FCore::Graph, mut inRest: Arc<metamodelica::List<(Type_A, Type_B)>>, mut tree: Arc<AvlSetString::Tree>, mut fixA: Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Type_A, Arc<AvlSetString::Tree>) -> Result<Type_A> + 'static>, mut fixB: Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Type_B, Arc<AvlSetString::Tree>) -> Result<Type_B> + 'static>) -> Arc<metamodelica::List<(Type_A, Type_B)>> {
-    pub type FixAFn<Type_A: Clone> = fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Type_A, Arc<AvlSetString::Tree>) -> Result<Type_A>;
+    pub type FixAFn<Type_A: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Type_A, Arc<AvlSetString::Tree>) -> Result<Type_A> + 'static>;
 
-    pub type FixBFn<Type_B: Clone> = fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Type_B, Arc<AvlSetString::Tree>) -> Result<Type_B>;
+    pub type FixBFn<Type_B: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Type_B, Arc<AvlSetString::Tree>) -> Result<Type_B> + 'static>;
 
     let mut outA: Arc<metamodelica::List<(Type_A, Type_B)>> = metamodelica::nil();
     let mut a1: Type_A;
@@ -1923,9 +1923,9 @@ fn fixListTuple2<Type_A: Clone + 'static + PartialEq, Type_B: Clone + 'static + 
 }
 
 fn fixTuple2<Type_A: Clone + 'static + PartialEq, Type_B: Clone + 'static + PartialEq>(mut inCache: metamodelica::Array<FCore::Cache>, mut inEnv: FCore::Graph, mut tpl: (Type_A, Type_B), mut tree: Arc<AvlSetString::Tree>, mut fixA: Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Type_A, Arc<AvlSetString::Tree>) -> Result<Type_A> + 'static>, mut fixB: Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Type_B, Arc<AvlSetString::Tree>) -> Result<Type_B> + 'static>) -> (Type_A, Type_B) {
-    pub type FixAFn<Type_A: Clone> = fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Type_A, Arc<AvlSetString::Tree>) -> Result<Type_A>;
+    pub type FixAFn<Type_A: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Type_A, Arc<AvlSetString::Tree>) -> Result<Type_A> + 'static>;
 
-    pub type FixBFn<Type_B: Clone> = fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Type_B, Arc<AvlSetString::Tree>) -> Result<Type_B>;
+    pub type FixBFn<Type_B: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Cache>, FCore::Graph, Type_B, Arc<AvlSetString::Tree>) -> Result<Type_B> + 'static>;
 
     let mut tpl: (Type_A, Type_B) = tpl;
     let mut a1: Type_A;

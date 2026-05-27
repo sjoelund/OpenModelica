@@ -76,9 +76,9 @@ pub fn scalarize(mut flatModel: Arc<FlatModel::NFFlatModel>) -> Result<Arc<FlatM
     let mut flatModel: Arc<FlatModel::NFFlatModel> = flatModel;
     assign_field!(
         flatModel.variables = scalarizeVariables(flatModel.variables.clone(), false)?,
-        flatModel.equations = Equation::mapExpList(flatModel.equations.clone(), expandComplexCref),
+        flatModel.equations = Equation::mapExpList(flatModel.equations.clone(), (std::sync::Arc::new(expandComplexCref) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>)),
         flatModel.equations = scalarizeEquations(flatModel.equations.clone(), false)?,
-        flatModel.initialEquations = Equation::mapExpList(flatModel.initialEquations.clone(), expandComplexCref),
+        flatModel.initialEquations = Equation::mapExpList(flatModel.initialEquations.clone(), (std::sync::Arc::new(expandComplexCref) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>)),
         flatModel.initialEquations = scalarizeEquations(flatModel.initialEquations.clone(), false)?,
         flatModel.algorithms = {
         let mut __acc: Arc<metamodelica::List<Arc<Algorithm::NFAlgorithm>>> = metamodelica::nil();
@@ -118,10 +118,10 @@ pub fn scalarizeVariable(mut var: Arc<Variable::NFVariable>, mut vars: Arc<metam
     let mut ty: Arc<Type::NFType> = Arc::new(Type::ANY);
     let mut elem_ty: Arc<Type::NFType> = Arc::new(Type::ANY);
     let mut vis: Visibility = Visibility::PUBLIC;
-    let mut attr: Arc<Attributes::NFAttributes>;
+    let mut attr: Arc<Attributes::NFAttributes> = Arc::new(<Attributes::NFAttributes as ::std::default::Default>::default());
     let mut ty_attr: Arc<metamodelica::List<(ArcStr, Arc<Binding::NFBinding>)>> = metamodelica::nil();
-    let mut cmt: Arc<SCode::Comment>;
-    let mut info: SourceInfo;
+    let mut cmt: Arc<SCode::Comment> = Arc::new(<SCode::Comment as ::std::default::Default>::default());
+    let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
     let mut binding_iter: Arc<ExpressionIterator::NFExpressionIterator> = Arc::new(ExpressionIterator::NONE_ITERATOR);
     let mut crefs: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = metamodelica::nil();
     let mut exp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
@@ -129,10 +129,10 @@ pub fn scalarizeVariable(mut var: Arc<Variable::NFVariable>, mut vars: Arc<metam
     let mut ty_attr_iters: metamodelica::Array<Arc<ExpressionIterator::NFExpressionIterator>>;
     let mut backend_attributes: Arc<metamodelica::List<Arc<BackendInfo::BackendInfo>>> = metamodelica::nil();
     let mut bind_var: Variability = Variability::CONSTANT;
-    let mut binfo: Arc<BackendInfo::BackendInfo>;
+    let mut binfo: Arc<BackendInfo::BackendInfo> = Arc::new(<BackendInfo::BackendInfo as ::std::default::Default>::default());
     let mut bind_src: Binding::Source = Binding::Source::BINDING;
     let mut has_binding: bool = false;
-    assign_field!(var.binding = Binding::mapExp(var.binding.clone(), Arc::new(expandComplexCref_traverser))?);
+    assign_field!(var.binding = Binding::mapExp(var.binding.clone(), (std::sync::Arc::new(expandComplexCref_traverser) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>))?);
     if Type::isArray(var.ty.clone()) && Type::hasKnownSize(var.ty.clone()) {
         if '__try0: {
             let (__pa1, __pa2, __pa3, __pa4, __pa5, __pa6, __pa7, __pa8, __pa9) = ::match_deref::match_deref! { match &(var.clone()) {
@@ -201,7 +201,7 @@ pub fn scalarizeBackendVariable(mut var: Arc<Variable::NFVariable>, mut indices:
     let mut bind_src: Binding::Source = Binding::Source::BINDING;
     let mut exp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut elem_ty: Arc<Type::NFType> = Arc::new(Type::ANY);
-    let mut binfo: Arc<BackendInfo::BackendInfo>;
+    let mut binfo: Arc<BackendInfo::BackendInfo> = Arc::new(<BackendInfo::BackendInfo as ::std::default::Default>::default());
     let mut backend_attributes: Arc<metamodelica::List<Arc<BackendInfo::BackendInfo>>> = metamodelica::nil();
     if '__try0: {
         crefs = unwrap_break_err!(ComponentRef::scalarizeAll(ComponentRef::stripSubscriptsAll(var.name.clone()), false), '__try0).reverse();
@@ -269,7 +269,7 @@ pub fn scalarizeComplexVariable(mut var: Arc<Variable::NFVariable>, mut vars: Ar
         attr @ Deref @ VariableAttributes::VAR_ATTR_RECORD { .. } => {
             let mut name: ArcStr = arcstr::literal!("");
             let mut index: i32 = 0;
-            let mut elem_var: Arc<Variable::NFVariable>;
+            let mut elem_var: Arc<Variable::NFVariable> = Arc::new(<Variable::NFVariable as ::std::default::Default>::default());
             for mut tpl in &*UnorderedMap::toList(var_field!((**attr).indexMap, VariableAttributes::VariableAttributes::VAR_ATTR_RECORD).clone()) {
                 let mut tpl = tpl.clone();
                 (name, index) = tpl.clone();
@@ -305,7 +305,7 @@ pub fn scalarizeTypeAttributes(mut attrs: Arc<metamodelica::List<(ArcStr, Arc<Bi
     for mut attr in &*attrs.clone() {
         let mut attr = attr.clone();
         (name, binding) = attr.clone();
-        names = cons(name.clone(), names.clone());
+        names = cons((name.clone()).clone(), names.clone());
         unsafe { metamodelica::Dangerous::arrayInitSlot(iters.clone(), i.clone(), ExpressionIterator::fromBinding(binding.clone())?) };
         i = i.clone() - 1;
     }
@@ -329,7 +329,7 @@ pub fn nextTypeAttributes(mut names: Arc<metamodelica::List<ArcStr>>, mut iters:
 
 pub fn expandComplexCref(mut exp: Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> {
     let mut exp: Arc<Expression::NFExpression> = exp;
-    exp = Expression::map(exp.clone(), Arc::new(expandComplexCref_traverser))?;
+    exp = Expression::map(exp.clone(), (std::sync::Arc::new(expandComplexCref_traverser) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>))?;
     Ok(exp)
 }
 

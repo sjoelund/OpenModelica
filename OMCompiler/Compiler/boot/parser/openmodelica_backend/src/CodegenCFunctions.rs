@@ -993,7 +993,7 @@ pub fn functionHeader(mut in_txt: Tpl::Text, mut in_a_fn: Arc<SimCodeFunction::F
             txt = fun_82(txt.clone(), ret_12.clone(), l_funArgsStr.clone(), l_fname.clone(), l_vis.clone())?;
             txt = Tpl::softNewLine(txt.clone())?;
             txt = Tpl::writeTok(txt.clone(), Arc::new(openmodelica_susan::Tpl::StringToken::ST_NEW_LINE))?;
-            (txt, a_staticPrototypes) = functionHeaderBoxed(txt.clone(), (Tpl::textString(l_fname.clone())?).clone(), i_funArgs.clone(), SimCodeFunction::boxedRecordOutVars.clone(), a_inFunc.clone(), false, i_visibility.clone(), false, a_isSimulation.clone(), a_staticPrototypes.clone())?;
+            (txt, a_staticPrototypes) = functionHeaderBoxed(txt.clone(), (Tpl::textString(l_fname.clone())?).clone(), i_funArgs.clone(), SimCodeFunction::boxedRecordOutVars().clone(), a_inFunc.clone(), false, i_visibility.clone(), false, a_isSimulation.clone(), a_staticPrototypes.clone())?;
             (txt.clone(), a_staticPrototypes.clone())
         },
         (txt, _, _, _, a_staticPrototypes) => {
@@ -12153,8 +12153,8 @@ fn fun_491(mut in_txt: Tpl::Text, mut in_mArg: i32, mut in_a_stmt: Arc<DAE::Stat
     let mut out_a_auxFunction: Tpl::Text;
     (out_txt, out_a_varDecls, out_a_auxFunction) = (::match_deref::match_deref! { match &((in_txt.clone(), in_mArg.clone(), in_a_stmt.clone(), in_a_context.clone(), in_a_varDecls.clone(), in_a_auxFunction.clone())) {
         (txt, i_oldIndex, a_stmt, a_context, a_varDecls, a_auxFunction) => {
-            let mut ret_2: SourceInfo;
-            let mut ret_1: Arc<DAE::ElementSource>;
+            let mut ret_2: SourceInfo = <SourceInfo as ::std::default::Default>::default();
+            let mut ret_1: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
             let mut l_res: Tpl::Text;
             let mut txt = (*txt).clone();
             let mut a_varDecls = (*a_varDecls).clone();
@@ -15096,7 +15096,7 @@ pub fn algStmtTerminate(mut in_txt: Tpl::Text, mut in_a_stmt: Arc<DAE::Statement
     let mut out_a_auxFunction: Tpl::Text;
     (out_txt, out_a_varDecls, out_a_auxFunction) = (::match_deref::match_deref! { match &((in_txt.clone(), in_a_stmt.clone(), in_a_context.clone(), in_a_varDecls.clone(), in_a_auxFunction.clone())) {
         (txt, Deref @ DAE::Statement::STMT_TERMINATE { source: i_source, msg: i_msg }, a_context, a_varDecls, a_auxFunction) => {
-            let mut ret_2: SourceInfo;
+            let mut ret_2: SourceInfo = <SourceInfo as ::std::default::Default>::default();
             let mut l_msgVar: Tpl::Text;
             let mut l_preExp: Tpl::Text;
             let mut txt = (*txt).clone();
@@ -15228,7 +15228,7 @@ pub fn algStmtNoretcall(mut in_txt: Tpl::Text, mut in_a_stmt: Arc<DAE::Statement
             let mut a_varDecls = (*a_varDecls).clone();
             let mut a_auxFunction = (*a_auxFunction).clone();
             l_preExp = Tpl::emptyTxt.clone();
-            (l_expPart, _, _, l_preExp, a_varDecls, a_auxFunction) = daeExpMatch2(Tpl::emptyTxt.clone(), i_exp.clone(), SimCodeFunction::listExpLength1.clone(), Tpl::strTokText(Arc::new(Tpl::StringToken::ST_STRING { value: (literal!("")).clone() })), Tpl::strTokText(Arc::new(Tpl::StringToken::ST_STRING { value: (literal!("")).clone() })), a_context.clone(), l_preExp.clone(), a_varDecls.clone(), a_auxFunction.clone())?;
+            (l_expPart, _, _, l_preExp, a_varDecls, a_auxFunction) = daeExpMatch2(Tpl::emptyTxt.clone(), i_exp.clone(), SimCodeFunction::listExpLength1().clone(), Tpl::strTokText(Arc::new(Tpl::StringToken::ST_STRING { value: (literal!("")).clone() })), Tpl::strTokText(Arc::new(Tpl::StringToken::ST_STRING { value: (literal!("")).clone() })), a_context.clone(), l_preExp.clone(), a_varDecls.clone(), a_auxFunction.clone())?;
             txt = Tpl::writeText(txt.clone(), l_preExp.clone())?;
             txt = Tpl::softNewLine(txt.clone())?;
             txt = Tpl::writeText(txt.clone(), l_expPart.clone())?;
@@ -36681,7 +36681,7 @@ pub fn daeExpMatch(mut in_txt: Tpl::Text, mut in_a_exp: Arc<DAE::Exp>, mut in_a_
             let mut a_auxFunction = (*a_auxFunction).clone();
             (l_res, a_varDecls) = fun_1183(Tpl::emptyTxt.clone(), i_et.clone(), a_varDecls.clone(), i_exp.clone())?;
             l_startIndexOutputs = Tpl::writeTok(Tpl::emptyTxt.clone(), Arc::new(Tpl::StringToken::ST_STRING { value: (literal!("ERROR_INDEX")).clone() }))?;
-            (txt, l_res, l_startIndexOutputs, a_preExp, a_varDecls, a_auxFunction) = daeExpMatch2(txt.clone(), i_exp.clone(), SimCodeFunction::listExpLength1.clone(), l_res.clone(), l_startIndexOutputs.clone(), a_context.clone(), a_preExp.clone(), a_varDecls.clone(), a_auxFunction.clone())?;
+            (txt, l_res, l_startIndexOutputs, a_preExp, a_varDecls, a_auxFunction) = daeExpMatch2(txt.clone(), i_exp.clone(), SimCodeFunction::listExpLength1().clone(), l_res.clone(), l_startIndexOutputs.clone(), a_context.clone(), a_preExp.clone(), a_varDecls.clone(), a_auxFunction.clone())?;
             (txt.clone(), a_preExp.clone(), a_varDecls.clone(), a_auxFunction.clone())
         },
         (txt, _, _, a_preExp, a_varDecls, a_auxFunction) => {

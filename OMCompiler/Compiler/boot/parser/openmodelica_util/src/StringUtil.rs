@@ -195,13 +195,13 @@ pub fn wordWrap(mut inString: ArcStr, mut inWrapLength: i32, mut inDelimiter: Ar
                 r#str = substring((line.clone()).clone(), start_pos.clone(), end_pos.clone())?;
                 start_pos = end_pos.clone() + if (next_char.clone() == CHAR_SPACE.clone()) {2} else {1};
             }
-            outStrings = cons({ let mut __mm_s = String::new(); __mm_s.push_str(&*delim.clone()); __mm_s.push_str(&*r#str.clone()); ArcStr::from(__mm_s) }, outStrings.clone());
+            outStrings = cons(({ let mut __mm_s = String::new(); __mm_s.push_str(&*delim.clone()); __mm_s.push_str(&*r#str.clone()); ArcStr::from(__mm_s) }).clone(), outStrings.clone());
             end_pos = start_pos.clone() + line_len.clone();
             delim = (inDelimiter.clone()).clone();
         }
         if start_pos.clone() < ((line.clone()).clone().len() as i32) {
             r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*delim.clone()); __mm_s.push_str(&*substring((line.clone()).clone(), start_pos.clone(), ((line.clone()).clone().len() as i32))?); ArcStr::from(__mm_s) }).clone();
-            outStrings = cons(r#str.clone(), outStrings.clone());
+            outStrings = cons((r#str.clone()).clone(), outStrings.clone());
         }
         start_pos = 1;
         end_pos = line_len.clone();

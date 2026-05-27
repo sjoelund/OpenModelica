@@ -161,7 +161,7 @@ pub use self::UnitTerm::{ADD,SUB,MUL,DIV,EQN,LOC,POW};
 
 pub type UnitTerms = Arc<metamodelica::List<Arc<UnitTerm>>>;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Store {
     pub storeVector: metamodelica::Array<Option<Unit>>,
     /// Number of elements stored in vector
@@ -173,7 +173,7 @@ pub type STORE = Store;
 
 /// A store used in Inst.mo
 /// requires a mapping from variable names to locations. Unit checking can be turned off using NOSTORE
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone)]
 pub enum InstStore {
     INSTSTORE {
         store: Store,
@@ -184,6 +184,53 @@ pub enum InstStore {
     /// used to skip unit checking
     NOSTORE,
 }
+impl PartialEq for InstStore {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::INSTSTORE { store: __l_store, ht: __l_ht, checkResult: __l_checkResult }, Self::INSTSTORE { store: __r_store, ht: __r_ht, checkResult: __r_checkResult }) => __l_store == __r_store && std::sync::Arc::ptr_eq(__l_ht, __r_ht) && __l_checkResult == __r_checkResult,
+            (Self::NOSTORE, Self::NOSTORE) => true,
+            _ => false,
+        }
+    }
+}
+impl Eq for InstStore {}
+impl PartialOrd for InstStore {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> { Some(self.cmp(other)) }
+}
+impl Ord for InstStore {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        fn __variant_idx(__v: &InstStore) -> u32 {
+            match __v {
+                InstStore::INSTSTORE { .. } => 0,
+                InstStore::NOSTORE => 1,
+            }
+        }
+        match __variant_idx(self).cmp(&__variant_idx(other)) {
+            std::cmp::Ordering::Equal => {}
+            non_eq => return non_eq,
+        }
+        match (self, other) {
+            (Self::INSTSTORE { store: __l_store, ht: __l_ht, checkResult: __l_checkResult }, Self::INSTSTORE { store: __r_store, ht: __r_ht, checkResult: __r_checkResult }) => __l_store.cmp(__r_store).then_with(|| (std::sync::Arc::as_ptr(__l_ht) as *const ()).cmp(&(std::sync::Arc::as_ptr(__r_ht) as *const ())).then_with(|| __l_checkResult.cmp(__r_checkResult))),
+            (Self::NOSTORE, Self::NOSTORE) => std::cmp::Ordering::Equal,
+            _ => unreachable!("variant-index equality already implies same variant"),
+        }
+    }
+}
+impl std::fmt::Debug for InstStore {
+    fn fmt(&self, __f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::INSTSTORE { store: __d_store, ht: __d_ht, checkResult: __d_checkResult } => {
+                let mut __ds = __f.debug_struct("INSTSTORE");
+                __ds.field("store", __d_store);
+                __ds.field("ht", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr(__d_ht)));
+                __ds.field("checkResult", __d_checkResult);
+                __ds.finish()
+            }
+            Self::NOSTORE => __f.debug_struct("NOSTORE").finish(),
+        }
+    }
+}
+
 pub use self::InstStore::{INSTSTORE,NOSTORE};
 
 pub const fn noStore() -> InstStore { crate::UnitAbsyn::InstStore::NOSTORE }

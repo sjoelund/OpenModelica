@@ -52,7 +52,7 @@ use openmodelica_util_datatypes_basic::Mutable;
 ///
 ///   This implementation uses separate chaining and automatically rehashes the set
 ///   when the load factor becomes too large to keep the performance up.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone)]
 pub struct UnorderedSet<T: Clone> {
     pub buckets: Mutable::Mutable<metamodelica::Array<Arc<metamodelica::List<T>>>>,
     pub size: Mutable::Mutable<i32>,
@@ -60,34 +60,59 @@ pub struct UnorderedSet<T: Clone> {
     pub eqFn: KeyEq<T>,
 }
 
+impl<T: Clone + 'static + PartialEq> PartialEq for UnorderedSet<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.buckets == other.buckets && self.size == other.size && std::sync::Arc::ptr_eq(&self.hashFn, &other.hashFn) && std::sync::Arc::ptr_eq(&self.eqFn, &other.eqFn)
+    }
+}
+impl<T: Clone + 'static + PartialEq + Eq> Eq for UnorderedSet<T> {}
+impl<T: Clone + 'static + PartialEq + Eq + PartialOrd + Ord> PartialOrd for UnorderedSet<T> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> { Some(self.cmp(other)) }
+}
+impl<T: Clone + 'static + PartialEq + Eq + PartialOrd + Ord> Ord for UnorderedSet<T> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.buckets.cmp(&other.buckets).then_with(|| self.size.cmp(&other.size).then_with(|| (std::sync::Arc::as_ptr(&self.hashFn) as *const ()).cmp(&(std::sync::Arc::as_ptr(&other.hashFn) as *const ())).then_with(|| (std::sync::Arc::as_ptr(&self.eqFn) as *const ()).cmp(&(std::sync::Arc::as_ptr(&other.eqFn) as *const ())))))
+    }
+}
+impl<T: Clone + 'static + std::fmt::Debug> std::fmt::Debug for UnorderedSet<T> {
+    fn fmt(&self, __f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut __ds = __f.debug_struct("UnorderedSet");
+        __ds.field("buckets", &self.buckets);
+        __ds.field("size", &self.size);
+        __ds.field("hashFn", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr(&self.hashFn)));
+        __ds.field("eqFn", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr(&self.eqFn)));
+        __ds.finish()
+    }
+}
+
 impl<T: Clone> Default for UnorderedSet<T> {
     fn default() -> Self {
         Self {
             buckets: Default::default(),
             size: Default::default(),
-            hashFn: { let __placeholder: Hash<T> = |_| panic!("default-constructed placeholder fn must not be called"); __placeholder },
-            eqFn: { let __placeholder: KeyEq<T> = |_, _| panic!("default-constructed placeholder fn must not be called"); __placeholder },
+            hashFn: { let __placeholder: Hash<T> = std::sync::Arc::new(|_| panic!("default-constructed placeholder fn must not be called")); __placeholder },
+            eqFn: { let __placeholder: KeyEq<T> = std::sync::Arc::new(|_, _| panic!("default-constructed placeholder fn must not be called")); __placeholder },
         }
     }
 }
 
 pub type UNORDERED_SET<T> = UnorderedSet<T>;
 
-pub type Hash<T: Clone> = fn(T) -> Result<i32>;
+pub type Hash<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T) -> Result<i32> + 'static>;
 
-pub type KeyEq<T: Clone> = fn(T, T) -> Result<bool>;
+pub type KeyEq<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T, T) -> Result<bool> + 'static>;
 
-pub fn new<T: Clone + 'static>(mut hash: Hash<T>, mut keyEq: KeyEq<T>, mut bucketCount: i32) -> Arc<UnorderedSet<T>> {
+pub fn new<T: Clone + 'static>(mut hash: Arc<dyn ::std::ops::Fn(T) -> Result<i32> + 'static>, mut keyEq: Arc<dyn ::std::ops::Fn(T, T) -> Result<bool> + 'static>, mut bucketCount: i32) -> Arc<UnorderedSet<T>> {
     let mut set: Arc<UnorderedSet<T>>;
     let mut buckets: Mutable::Mutable<metamodelica::Array<Arc<metamodelica::List<T>>>>;
     buckets = Mutable::create(arrayCreate(bucketCount.clone(), metamodelica::nil()));
-    set = Arc::new(UnorderedSet { buckets: buckets.clone(), size: Mutable::create(0), hashFn: hash, eqFn: keyEq });
+    set = Arc::new(UnorderedSet { buckets: buckets.clone(), size: Mutable::create(0), hashFn: hash.clone(), eqFn: keyEq.clone() });
     set
 }
 
-pub fn fromList<T: Clone + 'static>(mut elements: Arc<metamodelica::List<T>>, mut hash: Hash<T>, mut keyEq: KeyEq<T>) -> Result<Arc<UnorderedSet<T>>> {
+pub fn fromList<T: Clone + 'static>(mut elements: Arc<metamodelica::List<T>>, mut hash: Arc<dyn ::std::ops::Fn(T) -> Result<i32> + 'static>, mut keyEq: Arc<dyn ::std::ops::Fn(T, T) -> Result<bool> + 'static>) -> Result<Arc<UnorderedSet<T>>> {
     let mut set: Arc<UnorderedSet<T>>;
-    set = new(hash, keyEq, Util::nextPrime((elements.clone().len() as i32)));
+    set = new(hash.clone(), keyEq.clone(), Util::nextPrime((elements.clone().len() as i32)));
     for mut e in &*elements.clone() {
         let mut e = e.clone();
         add(e.clone(), set.clone())?;
@@ -97,7 +122,7 @@ pub fn fromList<T: Clone + 'static>(mut elements: Arc<metamodelica::List<T>>, mu
 
 pub fn copy<T: Clone + 'static>(mut set: Arc<UnorderedSet<T>>) -> Arc<UnorderedSet<T>> {
     let mut outSet: Arc<UnorderedSet<T>>;
-    outSet = Arc::new(UnorderedSet { buckets: Mutable::create(metamodelica::arrayFromVec(Mutable::access(set.buckets.clone()).borrow().clone())), size: Mutable::create(Mutable::access(set.size.clone())), hashFn: set.hashFn, eqFn: set.eqFn });
+    outSet = Arc::new(UnorderedSet { buckets: Mutable::create(metamodelica::arrayFromVec(Mutable::access(set.buckets.clone()).borrow().clone())), size: Mutable::create(Mutable::access(set.size.clone())), hashFn: set.hashFn.clone(), eqFn: set.eqFn.clone() });
     outSet
 }
 
@@ -113,7 +138,7 @@ pub fn add<T: Clone + 'static>(mut key: T, mut set: Arc<UnorderedSet<T>>) -> Res
 }
 
 pub fn addNew<T: Clone + 'static>(mut key: T, mut set: Arc<UnorderedSet<T>>) -> Result<()> {
-    let mut hashfn: Hash<T> = set.hashFn;
+    let mut hashfn: Hash<T> = set.hashFn.clone();
     let mut hash: i32 = 0;
     let mut pos: i32 = 0;
     hash = intMod(hashfn(key.clone())?, (Mutable::access(set.buckets.clone()).borrow().len() as i32));
@@ -132,14 +157,14 @@ pub fn addUnique<T: Clone + 'static>(mut key: T, mut set: Arc<UnorderedSet<T>>) 
 pub fn remove<T: Clone + 'static>(mut key: T, mut set: Arc<UnorderedSet<T>>) -> Result<bool> {
     let mut removed: bool = false;
     let mut buckets: metamodelica::Array<Arc<metamodelica::List<T>>> = Mutable::access(set.buckets.clone());
-    let mut hashfn: Hash<T> = set.hashFn;
-    let mut eqfn: KeyEq<T> = set.eqFn;
+    let mut hashfn: Hash<T> = set.hashFn.clone();
+    let mut eqfn: KeyEq<T> = set.eqFn.clone();
     let mut hash: i32 = 0;
     let mut bucket: Arc<metamodelica::List<T>> = metamodelica::nil();
     let mut okey: Option<T> = None;
     hash = intMod(hashfn(key.clone())?, (buckets.clone().borrow().len() as i32));
     bucket = buckets.clone().borrow()[(hash.clone() + 1-1) as usize].clone();
-    (bucket, okey) = List::deleteMemberOnTrue(key.clone(), bucket.clone(), Arc::new(eqfn))?;
+    (bucket, okey) = List::deleteMemberOnTrue(key.clone(), bucket.clone(), eqfn.clone())?;
     removed = isSome(okey.clone());
     if removed.clone() {
         {let _arr = buckets.clone(); _arr.borrow_mut()[(hash.clone() + 1-1) as usize] = bucket.clone(); _arr};
@@ -231,7 +256,7 @@ pub fn toArray<T: Clone + 'static + Default>(mut set: Arc<UnorderedSet<T>>) -> m
 }
 
 pub fn fold<FT: Clone + 'static, T: Clone + 'static>(mut set: Arc<UnorderedSet<T>>, mut r#fn: Arc<dyn ::std::ops::Fn(T, FT) -> Result<FT> + 'static>, mut startValue: FT) -> FT {
-    pub type FoldFn<T: Clone, FT: Clone> = fn(T, FT) -> Result<FT>;
+    pub type FoldFn<T: Clone + 'static, FT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T, FT) -> Result<FT> + 'static>;
 
     let mut result: FT = startValue.clone();
     let __range0 = Mutable::access(set.buckets.clone()).borrow().iter().cloned().collect::<Vec<_>>();
@@ -245,10 +270,10 @@ pub fn fold<FT: Clone + 'static, T: Clone + 'static>(mut set: Arc<UnorderedSet<T
 }
 
 pub fn apply<T: Clone + 'static>(mut set: Arc<UnorderedSet<T>>, mut r#fn: Arc<dyn ::std::ops::Fn(T) -> Result<T> + 'static>) -> Result<()> {
-    pub type ApplyFn<T: Clone> = fn(T) -> Result<T>;
+    pub type ApplyFn<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T) -> Result<T> + 'static>;
 
-    let mut hashfn: Hash<T> = set.hashFn;
-    let mut eqfn: KeyEq<T> = set.eqFn;
+    let mut hashfn: Hash<T> = set.hashFn.clone();
+    let mut eqfn: KeyEq<T> = set.eqFn.clone();
     let mut bucket_count: i32 = 0;
     let mut hash: i32 = 0;
     let mut size: i32 = 0;
@@ -285,7 +310,7 @@ pub fn apply<T: Clone + 'static>(mut set: Arc<UnorderedSet<T>>, mut r#fn: Arc<dy
 }
 
 pub fn all<T: Clone + 'static>(mut set: Arc<UnorderedSet<T>>, mut r#fn: Arc<dyn ::std::ops::Fn(T) -> Result<bool> + 'static>) -> bool {
-    pub type PredFn<T: Clone> = fn(T) -> Result<bool>;
+    pub type PredFn<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T) -> Result<bool> + 'static>;
 
     let mut res: bool = false;
     if isEmpty(set.clone()) {
@@ -307,7 +332,7 @@ pub fn all<T: Clone + 'static>(mut set: Arc<UnorderedSet<T>>, mut r#fn: Arc<dyn 
 }
 
 pub fn any<T: Clone + 'static>(mut set: Arc<UnorderedSet<T>>, mut r#fn: Arc<dyn ::std::ops::Fn(T) -> Result<bool> + 'static>) -> bool {
-    pub type PredFn<T: Clone> = fn(T) -> Result<bool>;
+    pub type PredFn<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T) -> Result<bool> + 'static>;
 
     let mut res: bool = false;
     if isEmpty(set.clone()) {
@@ -329,7 +354,7 @@ pub fn any<T: Clone + 'static>(mut set: Arc<UnorderedSet<T>>, mut r#fn: Arc<dyn 
 }
 
 pub fn none<T: Clone + 'static>(mut set: Arc<UnorderedSet<T>>, mut r#fn: Arc<dyn ::std::ops::Fn(T) -> Result<bool> + 'static>) -> bool {
-    pub type PredFn<T: Clone> = fn(T) -> Result<bool>;
+    pub type PredFn<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T) -> Result<bool> + 'static>;
 
     let mut res: bool = false;
     if isEmpty(set.clone()) {
@@ -351,9 +376,9 @@ pub fn none<T: Clone + 'static>(mut set: Arc<UnorderedSet<T>>, mut r#fn: Arc<dyn
 }
 
 pub fn filterOnFalse<T: Clone + 'static>(mut set: Arc<UnorderedSet<T>>, mut r#fn: Arc<dyn ::std::ops::Fn(T) -> Result<bool> + 'static>) -> Result<Arc<UnorderedSet<T>>> {
-    pub type PredFn<T: Clone> = fn(T) -> Result<bool>;
+    pub type PredFn<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T) -> Result<bool> + 'static>;
 
-    let mut falseSet: Arc<UnorderedSet<T>> = new(set.hashFn, set.eqFn, 13);
+    let mut falseSet: Arc<UnorderedSet<T>> = new(set.hashFn.clone(), set.eqFn.clone(), 13);
     let __range0 = Mutable::access(set.buckets.clone()).borrow().iter().cloned().collect::<Vec<_>>();
     for mut b in __range0 {
         for mut k in &*b.clone() {
@@ -367,10 +392,10 @@ pub fn filterOnFalse<T: Clone + 'static>(mut set: Arc<UnorderedSet<T>>, mut r#fn
 }
 
 pub fn splitOnTrue<T: Clone + 'static>(mut set: Arc<UnorderedSet<T>>, mut r#fn: Arc<dyn ::std::ops::Fn(T) -> Result<bool> + 'static>) -> Result<(Arc<UnorderedSet<T>>, Arc<UnorderedSet<T>>)> {
-    pub type PredFn<T: Clone> = fn(T) -> Result<bool>;
+    pub type PredFn<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T) -> Result<bool> + 'static>;
 
-    let mut trueSet: Arc<UnorderedSet<T>> = new(set.hashFn, set.eqFn, 13);
-    let mut falseSet: Arc<UnorderedSet<T>> = new(set.hashFn, set.eqFn, 13);
+    let mut trueSet: Arc<UnorderedSet<T>> = new(set.hashFn.clone(), set.eqFn.clone(), 13);
+    let mut falseSet: Arc<UnorderedSet<T>> = new(set.hashFn.clone(), set.eqFn.clone(), 13);
     let __range0 = Mutable::access(set.buckets.clone()).borrow().iter().cloned().collect::<Vec<_>>();
     for mut b in __range0 {
         for mut k in &*b.clone() {
@@ -406,7 +431,7 @@ pub fn rehash<T: Clone + 'static>(mut set: Arc<UnorderedSet<T>>) -> Result<()> {
     let mut new_buckets: metamodelica::Array<Arc<metamodelica::List<T>>>;
     let mut bucket_count: i32 = 0;
     let mut hash: i32 = 0;
-    let mut hashfn: Hash<T> = set.hashFn;
+    let mut hashfn: Hash<T> = set.hashFn.clone();
     bucket_count = Util::nextPrime(Mutable::access(set.size.clone()) * 2);
     new_buckets = arrayCreate(bucket_count.clone(), metamodelica::nil());
     let __range0 = old_buckets.clone().borrow().iter().cloned().collect::<Vec<_>>();
@@ -422,7 +447,7 @@ pub fn rehash<T: Clone + 'static>(mut set: Arc<UnorderedSet<T>>) -> Result<()> {
 }
 
 pub fn toString<T: Clone + 'static + Default>(mut set: Arc<UnorderedSet<T>>, mut stringFn: Arc<dyn ::std::ops::Fn(T) -> Result<ArcStr> + 'static>, mut delimiter: ArcStr) -> ArcStr {
-    pub type StringFn<T: Clone> = fn(T) -> Result<ArcStr>;
+    pub type StringFn<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T) -> Result<ArcStr> + 'static>;
 
     let mut r#str: ArcStr = arcstr::literal!("");
     r#str = stringDelimitList({
@@ -437,15 +462,15 @@ pub fn toString<T: Clone + 'static + Default>(mut set: Arc<UnorderedSet<T>>, mut
 }
 
 pub fn dump<T: Clone + 'static + Default>(mut set: Arc<UnorderedSet<T>>, mut stringFn: Arc<dyn ::std::ops::Fn(T) -> Result<ArcStr> + 'static>) -> () {
-    pub type StringFn<T: Clone> = fn(T) -> Result<ArcStr>;
+    pub type StringFn<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T) -> Result<ArcStr> + 'static>;
 
     println!("{}", (toString(set.clone(), stringFn.clone(), (literal!("\n")).clone())).clone());
     println!("{}", (literal!("\n")).clone());
     ()
 }
 
-pub fn unique_list<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut hashFunc: Hash<T>, mut keyEqFunc: KeyEq<T>) -> Arc<metamodelica::List<T>> {
-    let mut outList: Arc<metamodelica::List<T>> = if (List::hasSeveralElements(inList.clone())) {toList(fromList(inList.clone(), hashFunc, keyEqFunc).unwrap())} else {inList.clone()};
+pub fn unique_list<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut hashFunc: Arc<dyn ::std::ops::Fn(T) -> Result<i32> + 'static>, mut keyEqFunc: Arc<dyn ::std::ops::Fn(T, T) -> Result<bool> + 'static>) -> Arc<metamodelica::List<T>> {
+    let mut outList: Arc<metamodelica::List<T>> = if (List::hasSeveralElements(inList.clone())) {toList(fromList(inList.clone(), hashFunc.clone(), keyEqFunc.clone()).unwrap())} else {inList.clone()};
     outList
 }
 
@@ -469,13 +494,13 @@ pub fn union<T: Clone + 'static>(mut set1: Arc<UnorderedSet<T>>, mut set2: Arc<U
     Ok(set)
 }
 
-pub fn union_list<T: Clone + 'static>(mut set_lst: Arc<metamodelica::List<Arc<UnorderedSet<T>>>>, mut hashFunc: Hash<T>, mut keyEqFunc: KeyEq<T>) -> Result<Arc<UnorderedSet<T>>> {
+pub fn union_list<T: Clone + 'static>(mut set_lst: Arc<metamodelica::List<Arc<UnorderedSet<T>>>>, mut hashFunc: Arc<dyn ::std::ops::Fn(T) -> Result<i32> + 'static>, mut keyEqFunc: Arc<dyn ::std::ops::Fn(T, T) -> Result<bool> + 'static>) -> Result<Arc<UnorderedSet<T>>> {
     let mut set: Arc<UnorderedSet<T>>;
     let mut rest: Arc<metamodelica::List<Arc<UnorderedSet<T>>>> = metamodelica::nil();
     if set_lst.clone().is_empty() {
-        set = new(hashFunc, keyEqFunc, 13);
+        set = new(hashFunc.clone(), keyEqFunc.clone(), 13);
     } else {
-        (set, rest) = extractFromLst(set_lst.clone(), Arc::new(fnptr!(intGt, i32, i32)))?;
+        (set, rest) = extractFromLst(set_lst.clone(), (std::sync::Arc::new(fnptr!(intGt, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
         for mut tmp in &*rest.clone() {
             let mut tmp = tmp.clone();
             set = union(set.clone(), tmp.clone())?;
@@ -517,17 +542,17 @@ pub fn intersection<T: Clone + 'static>(mut set1: Arc<UnorderedSet<T>>, mut set2
             }
         }
     }
-    set = fromList(acc.clone(), set1.hashFn, set1.eqFn)?;
+    set = fromList(acc.clone(), set1.hashFn.clone(), set1.eqFn.clone())?;
     Ok(set)
 }
 
-pub fn intersection_list<T: Clone + 'static>(mut set_lst: Arc<metamodelica::List<Arc<UnorderedSet<T>>>>, mut hashFunc: Hash<T>, mut keyEqFunc: KeyEq<T>) -> Result<Arc<UnorderedSet<T>>> {
+pub fn intersection_list<T: Clone + 'static>(mut set_lst: Arc<metamodelica::List<Arc<UnorderedSet<T>>>>, mut hashFunc: Arc<dyn ::std::ops::Fn(T) -> Result<i32> + 'static>, mut keyEqFunc: Arc<dyn ::std::ops::Fn(T, T) -> Result<bool> + 'static>) -> Result<Arc<UnorderedSet<T>>> {
     let mut set: Arc<UnorderedSet<T>>;
     let mut set_small: Arc<UnorderedSet<T>>;
     let mut rest: Arc<metamodelica::List<Arc<UnorderedSet<T>>>> = metamodelica::nil();
     let mut acc: Arc<metamodelica::List<T>> = metamodelica::nil();
     if !(set_lst.clone().is_empty()) {
-        (set_small, rest) = extractFromLst(set_lst.clone(), Arc::new(fnptr!(intLt, i32, i32)))?;
+        (set_small, rest) = extractFromLst(set_lst.clone(), (std::sync::Arc::new(fnptr!(intLt, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
         let __range0 = Mutable::access(set_small.buckets.clone()).borrow().iter().cloned().collect::<Vec<_>>();
         for mut b in __range0 {
             for mut k in &*b.clone() {
@@ -538,11 +563,11 @@ pub fn intersection_list<T: Clone + 'static>(mut set_lst: Arc<metamodelica::List
             }
         }
     }
-    set = fromList(acc.clone(), hashFunc, keyEqFunc)?;
+    set = fromList(acc.clone(), hashFunc.clone(), keyEqFunc.clone())?;
     Ok(set)
 }
 
-pub fn difference_list<T: Clone + 'static>(mut inList1: Arc<metamodelica::List<T>>, mut inList2: Arc<metamodelica::List<T>>, mut hashFunc: Hash<T>, mut keyEqFunc: KeyEq<T>) -> Result<Arc<metamodelica::List<T>>> {
+pub fn difference_list<T: Clone + 'static>(mut inList1: Arc<metamodelica::List<T>>, mut inList2: Arc<metamodelica::List<T>>, mut hashFunc: Arc<dyn ::std::ops::Fn(T) -> Result<i32> + 'static>, mut keyEqFunc: Arc<dyn ::std::ops::Fn(T, T) -> Result<bool> + 'static>) -> Result<Arc<metamodelica::List<T>>> {
     let mut acc: Arc<metamodelica::List<T>> = metamodelica::nil();
     let mut set2: Arc<UnorderedSet<T>>;
     let mut lst1: Arc<metamodelica::List<T>> = inList1.clone();
@@ -555,7 +580,7 @@ pub fn difference_list<T: Clone + 'static>(mut inList1: Arc<metamodelica::List<T
         acc = lst1.clone();
         return Ok(acc);
     }
-    set2 = fromList(lst2.clone(), hashFunc, keyEqFunc)?;
+    set2 = fromList(lst2.clone(), hashFunc.clone(), keyEqFunc.clone())?;
     for mut k in &*lst1.clone() {
         let mut k = k.clone();
         if !(contains(k.clone(), set2.clone())?) {
@@ -565,10 +590,10 @@ pub fn difference_list<T: Clone + 'static>(mut inList1: Arc<metamodelica::List<T
     Ok(acc)
 }
 
-pub fn equal_list<T: Clone + 'static>(mut inList1: Arc<metamodelica::List<T>>, mut inList2: Arc<metamodelica::List<T>>, mut hashFunc: Hash<T>, mut keyEqFunc: KeyEq<T>) -> Result<bool> {
+pub fn equal_list<T: Clone + 'static>(mut inList1: Arc<metamodelica::List<T>>, mut inList2: Arc<metamodelica::List<T>>, mut hashFunc: Arc<dyn ::std::ops::Fn(T) -> Result<i32> + 'static>, mut keyEqFunc: Arc<dyn ::std::ops::Fn(T, T) -> Result<bool> + 'static>) -> Result<bool> {
     let mut b: bool = false;
-    let mut set1: Arc<UnorderedSet<T>> = fromList(inList1.clone(), hashFunc, keyEqFunc)?;
-    let mut set2: Arc<UnorderedSet<T>> = fromList(inList2.clone(), hashFunc, keyEqFunc)?;
+    let mut set1: Arc<UnorderedSet<T>> = fromList(inList1.clone(), hashFunc.clone(), keyEqFunc.clone())?;
+    let mut set2: Arc<UnorderedSet<T>> = fromList(inList2.clone(), hashFunc.clone(), keyEqFunc.clone())?;
     if Mutable::access(set1.size.clone()) != Mutable::access(set2.size.clone()) {
         return Ok(b);
     }
@@ -594,7 +619,7 @@ pub fn difference<T: Clone + 'static>(mut set1: Arc<UnorderedSet<T>>, mut set2: 
             }
         }
     }
-    set = fromList(acc.clone(), set1.hashFn, set1.eqFn)?;
+    set = fromList(acc.clone(), set1.hashFn.clone(), set1.eqFn.clone())?;
     Ok(set)
 }
 
@@ -619,7 +644,7 @@ pub fn sym_difference<T: Clone + 'static>(mut set1: Arc<UnorderedSet<T>>, mut se
             }
         }
     }
-    set = fromList(acc.clone(), set1.hashFn, set1.eqFn)?;
+    set = fromList(acc.clone(), set1.hashFn.clone(), set1.eqFn.clone())?;
     Ok(set)
 }
 
@@ -650,8 +675,8 @@ pub fn isDisjoint<T: Clone + 'static>(mut set1: Arc<UnorderedSet<T>>, mut set2: 
 fn find<T: Clone + 'static>(mut key: T, mut set: Arc<UnorderedSet<T>>) -> Result<(Option<T>, i32)> {
     let mut outKey: Option<T> = None;
     let mut hash: i32 = 0;
-    let mut hashfn: Hash<T> = set.hashFn;
-    let mut eqfn: KeyEq<T> = set.eqFn;
+    let mut hashfn: Hash<T> = set.hashFn.clone();
+    let mut eqfn: KeyEq<T> = set.eqFn.clone();
     let mut buckets: metamodelica::Array<Arc<metamodelica::List<T>>> = Mutable::access(set.buckets.clone());
     let mut bucket: Arc<metamodelica::List<T>> = metamodelica::nil();
     hash = intMod(hashfn(key.clone())?, (buckets.clone().borrow().len() as i32));
@@ -672,7 +697,7 @@ fn addKey<T: Clone + 'static>(mut key: T, mut hash: i32, mut set: Arc<UnorderedS
     let mut hashfn: Hash<T>;
     if loadFactor(set.clone()) > metamodelica::OrderedFloat((1) as f64) {
         rehash(set.clone())?;
-        hashfn = set.hashFn;
+        hashfn = set.hashFn.clone();
         buckets = Mutable::access(set.buckets.clone());
         h = intMod(hashfn(key.clone())?, (buckets.clone().borrow().len() as i32));
     } else {
@@ -685,7 +710,7 @@ fn addKey<T: Clone + 'static>(mut key: T, mut hash: i32, mut set: Arc<UnorderedS
 }
 
 fn extractFromLst<T: Clone + 'static>(mut lst: Arc<metamodelica::List<Arc<UnorderedSet<T>>>>, mut func: Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>) -> Result<(Arc<UnorderedSet<T>>, Arc<metamodelica::List<Arc<UnorderedSet<T>>>>)> {
-    type size_compare = fn(i32, i32) -> Result<bool>;
+    type size_compare = std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>;
 
     let mut single: Arc<UnorderedSet<T>>;
     let mut rest: Arc<metamodelica::List<Arc<UnorderedSet<T>>>> = metamodelica::nil();

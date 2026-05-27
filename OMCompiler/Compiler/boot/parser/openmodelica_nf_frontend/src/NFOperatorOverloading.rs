@@ -201,7 +201,7 @@ fn checkOperatorConstructorOutput(mut r#fn: Arc<Function::Function>, mut recordN
 
 fn patchOperatorRecordConstructorBinding_traverser(mut exp: Arc<Expression::NFExpression>, mut constructorFn: Arc<Function::Function>) -> Arc<Expression::NFExpression> {
     let mut outExp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-    let mut r#fn: Arc<Function::Function>;
+    let mut r#fn: Arc<Function::Function> = Arc::new(<Function::Function as ::std::default::Default>::default());
     let mut args: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
     let mut ty: Arc<Type::NFType> = Arc::new(Type::ANY);
     outExp = (::match_deref::match_deref! { match &(exp.clone()) {

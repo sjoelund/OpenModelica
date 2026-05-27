@@ -81,10 +81,10 @@ pub fn registerUnitWeights(mut cache: FCore::Cache, mut env: FCore::Graph, mut d
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             let (_, _, DAE::DAElist { elementLst: ref elts }) = __mc_input.clone() else { bail!("nomatch") };
-            let mut paths: Arc<metamodelica::List<Arc<Absyn::Path>>> = paths.clone();
             let mut du: Arc<metamodelica::List<Arc<SCode::Element>>> = du.clone();
-            paths = List::unionList(List::map(elts.clone(), Arc::new(fnptr!(DAEUtil::getClassList, Arc<DAE::Element>))))?;
-            du = List::unionList(List::map1(paths.clone(), Arc::new(retrieveUnitsFromEnv), (cache.clone(), env.clone())))?;
+            let mut paths: Arc<metamodelica::List<Arc<Absyn::Path>>> = paths.clone();
+            paths = List::unionList(List::map(elts.clone(), (std::sync::Arc::new(fnptr!(DAEUtil::getClassList, Arc<DAE::Element>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Element>) -> Result<Arc<metamodelica::List<Arc<Absyn::Path>>>> + 'static>)))?;
+            du = List::unionList(List::map1(paths.clone(), (std::sync::Arc::new(retrieveUnitsFromEnv) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Path>, (FCore::Cache, FCore::Graph)) -> Result<Arc<metamodelica::List<Arc<SCode::Element>>>> + 'static>), (cache.clone(), env.clone())))?;
             registerUnitWeightDefineunits(du.clone())?;
             Ok(())
         })() { break 'mc __v; }
@@ -474,7 +474,7 @@ pub fn printTerms(mut terms: Arc<metamodelica::List<Arc<UnitAbsyn::UnitTerm>>>) 
 
 pub fn printTermsStr(mut terms: Arc<metamodelica::List<Arc<UnitAbsyn::UnitTerm>>>) -> ArcStr {
     let mut r#str: ArcStr = arcstr::literal!("");
-    r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("{")); __mm_s.push_str(&*stringDelimitList(List::map(terms.clone(), Arc::new(printTermStr)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("}")); ArcStr::from(__mm_s) }).clone();
+    r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("{")); __mm_s.push_str(&*stringDelimitList(List::map(terms.clone(), (std::sync::Arc::new(printTermStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<UnitAbsyn::UnitTerm>) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("}")); ArcStr::from(__mm_s) }).clone();
     r#str
 }
 
@@ -590,7 +590,7 @@ fn printUnit(mut unit: UnitAbsyn::Unit) -> Result<()> {
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 UnitAbsyn::Unit::SPECIFIED { specified: UnitAbsyn::SpecUnit { typeParameters: typeparams, units: baseunits } } => {
-                    println!("{}", stringDelimitList(List::map(typeparams.clone(), Arc::new(printTypeParameterStr)), (literal!(",")).clone()));
+                    println!("{}", stringDelimitList(List::map(typeparams.clone(), (std::sync::Arc::new(printTypeParameterStr) as std::sync::Arc<dyn ::std::ops::Fn((MMath::Rational, UnitAbsyn::TypeParameter)) -> Result<ArcStr> + 'static>)), (literal!(",")).clone()));
                     println!("{}", (printBaseUnitsStr(baseunits.clone())?).clone());
                     println!("{}", (literal!(" [")).clone());
                     println!("{}", (unit2str(unit.clone())?).clone());
@@ -710,7 +710,7 @@ pub fn joinTypeParams(mut inums: Arc<metamodelica::List<i32>>, mut idenoms: Arc<
             let mut s: ArcStr = arcstr::literal!("");
             let mut tpParam = (*tpParam).clone();
             typeParams = joinTypeParams(nums.clone(), denoms.clone(), tpstrs.clone(), funcInstIdOpt.clone())?;
-            s = (Util::applyOptionOrDefault(funcInstIdOpt.clone(), Arc::new(fnptr!(intString, i32)), (literal!("")).clone())).clone();
+            s = (Util::applyOptionOrDefault(funcInstIdOpt.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>), (literal!("")).clone())).clone();
             tpParam = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*tpParam.clone()); __mm_s.push_str(&*s.clone()); ArcStr::from(__mm_s) }).clone();
             cons((MMath::Rational { nom: i1.clone(), denom: i2.clone() }, UnitAbsyn::TypeParameter { name: (tpParam.clone()).clone(), indx: 0 }), typeParams.clone())
         },
@@ -729,7 +729,7 @@ pub fn splitTypeParams(mut iTypeParams: Arc<metamodelica::List<(MMath::Rational,
         },
         Deref @ metamodelica::List::Cons { head: (MMath::Rational { nom: i1, denom: i2 }, UnitAbsyn::TypeParameter { name: tpParam, indx: _ }), tail: typeParams } => {
             (nums, denoms, tpstrs) = splitTypeParams(typeParams.clone())?;
-            (cons(i1.clone(), nums.clone()), cons(i2.clone(), denoms.clone()), cons(tpParam.clone(), tpstrs.clone()))
+            (cons(i1.clone(), nums.clone()), cons(i2.clone(), denoms.clone()), cons((tpParam.clone()).clone(), tpstrs.clone()))
         },
         _ => bail!("match: no arm matched"),
     } });
@@ -798,6 +798,7 @@ pub fn instAddStore(mut istore: UnitAbsyn::InstStore, mut itp: Arc<DAE::Type>, m
                     let mut indx: i32 = 0;
                     let mut st = (*st).clone();
                     let mut ht = (*ht).clone();
+                    let mut outStore: UnitAbsyn::InstStore = outStore.clone();
                     for mut v in &*varLst.clone() {
                         let mut v = v.clone();
                         let _ = (::match_deref::match_deref! { match &(v.clone()) {
@@ -959,7 +960,7 @@ fn createTypeParameterLocations4(mut iparams: Arc<metamodelica::List<(MMath::Rat
                     let mut params = (*params).clone();
                     let mut ht = (*ht).clone();
                     let mut nextElt = (*nextElt).clone();
-                    cref_ = ComponentReferenceBasics::makeCrefIdent((name.clone()).clone(), DAE::T_UNKNOWN_DEFAULT.clone(), metamodelica::nil());
+                    cref_ = ComponentReferenceBasics::makeCrefIdent((name.clone()).clone(), DAE::T_UNKNOWN_DEFAULT().clone(), metamodelica::nil());
                     indx = BaseHashTable::get(cref_.clone(), ht.clone())?;
                     (params, ht, nextElt) = createTypeParameterLocations4(params.clone(), ht.clone(), nextElt.clone())?;
                     Ok((cons((r.clone(), UnitAbsyn::TypeParameter { name: (name.clone()).clone(), indx: indx.clone() }), params.clone()), ht.clone(), nextElt.clone()))
@@ -974,7 +975,7 @@ fn createTypeParameterLocations4(mut iparams: Arc<metamodelica::List<(MMath::Rat
                     let mut params = (*params).clone();
                     let mut ht = (*ht).clone();
                     let mut nextElt = (*nextElt).clone();
-                    cref_ = ComponentReferenceBasics::makeCrefIdent((name.clone()).clone(), DAE::T_UNKNOWN_DEFAULT.clone(), metamodelica::nil());
+                    cref_ = ComponentReferenceBasics::makeCrefIdent((name.clone()).clone(), DAE::T_UNKNOWN_DEFAULT().clone(), metamodelica::nil());
                     (ht, _, _, _) = BaseHashTable::add((cref_.clone(), nextElt.clone()), ht.clone())?;
                     (params, ht, nextElt) = createTypeParameterLocations4(params.clone(), ht.clone(), nextElt.clone())?;
                     Ok((cons((r.clone(), UnitAbsyn::TypeParameter { name: (name.clone()).clone(), indx: nextElt.clone() }), params.clone()), ht.clone(), nextElt.clone() + 1))
@@ -1042,7 +1043,7 @@ fn buildTerms(mut env: FCore::Graph, mut dae: DAE::DAElist, mut ht: (metamodelic
                     (ut2, terms2, store) = buildTermExp(env.clone(), e2.clone(), false, ht.clone(), store.clone())?;
                     (terms, store) = buildTerms(env.clone(), DAE::DAElist { elementLst: elts.clone() }, ht.clone(), store.clone())?;
                     terms = listAppend(terms1.clone(), listAppend(terms2.clone(), terms.clone()));
-                    Ok((cons(Arc::new(UnitAbsyn::UnitTerm::EQN { ut1: ut1.clone(), ut2: ut2.clone(), origExp: Arc::new(DAE::Exp::BINARY { exp1: e1.clone(), operator: DAE::Operator::SUB { ty: DAE::T_REAL_DEFAULT.clone() }, exp2: e2.clone() }) }), terms.clone()), store.clone()))
+                    Ok((cons(Arc::new(UnitAbsyn::UnitTerm::EQN { ut1: ut1.clone(), ut2: ut2.clone(), origExp: Arc::new(DAE::Exp::BINARY { exp1: e1.clone(), operator: DAE::Operator::SUB { ty: DAE::T_REAL_DEFAULT().clone() }, exp2: e2.clone() }) }), terms.clone()), store.clone()))
                 }
                 _ => bail!("nomatch"),
             }}
@@ -1064,7 +1065,7 @@ fn buildTerms(mut env: FCore::Graph, mut dae: DAE::DAElist, mut ht: (metamodelic
                     (ut2, terms2, store) = buildTermExp(env.clone(), crefExp2.clone(), false, ht.clone(), store.clone())?;
                     (terms, store) = buildTerms(env.clone(), DAE::DAElist { elementLst: elts.clone() }, ht.clone(), store.clone())?;
                     terms = listAppend(terms1.clone(), listAppend(terms2.clone(), terms.clone()));
-                    Ok((cons(Arc::new(UnitAbsyn::UnitTerm::EQN { ut1: ut1.clone(), ut2: ut2.clone(), origExp: Arc::new(DAE::Exp::BINARY { exp1: crefExp1.clone(), operator: DAE::Operator::SUB { ty: DAE::T_REAL_DEFAULT.clone() }, exp2: crefExp2.clone() }) }), terms.clone()), store.clone()))
+                    Ok((cons(Arc::new(UnitAbsyn::UnitTerm::EQN { ut1: ut1.clone(), ut2: ut2.clone(), origExp: Arc::new(DAE::Exp::BINARY { exp1: crefExp1.clone(), operator: DAE::Operator::SUB { ty: DAE::T_REAL_DEFAULT().clone() }, exp2: crefExp2.clone() }) }), terms.clone()), store.clone()))
                 }
                 _ => bail!("nomatch"),
             }}
@@ -1084,7 +1085,7 @@ fn buildTerms(mut env: FCore::Graph, mut dae: DAE::DAElist, mut ht: (metamodelic
                     (ut2, terms2, store) = buildTermExp(env.clone(), e1.clone(), false, ht.clone(), store.clone())?;
                     (terms, store) = buildTerms(env.clone(), DAE::DAElist { elementLst: elts.clone() }, ht.clone(), store.clone())?;
                     terms = listAppend(terms1.clone(), listAppend(terms2.clone(), terms.clone()));
-                    Ok((cons(Arc::new(UnitAbsyn::UnitTerm::EQN { ut1: ut1.clone(), ut2: ut2.clone(), origExp: Arc::new(DAE::Exp::BINARY { exp1: crefExp1.clone(), operator: DAE::Operator::SUB { ty: DAE::T_REAL_DEFAULT.clone() }, exp2: e1.clone() }) }), terms.clone()), store.clone()))
+                    Ok((cons(Arc::new(UnitAbsyn::UnitTerm::EQN { ut1: ut1.clone(), ut2: ut2.clone(), origExp: Arc::new(DAE::Exp::BINARY { exp1: crefExp1.clone(), operator: DAE::Operator::SUB { ty: DAE::T_REAL_DEFAULT().clone() }, exp2: e1.clone() }) }), terms.clone()), store.clone()))
                 }
                 _ => bail!("nomatch"),
             }}
@@ -1104,7 +1105,7 @@ fn buildTerms(mut env: FCore::Graph, mut dae: DAE::DAElist, mut ht: (metamodelic
                     (ut2, terms2, store) = buildTermExp(env.clone(), e1.clone(), false, ht.clone(), store.clone())?;
                     (terms, store) = buildTerms(env.clone(), DAE::DAElist { elementLst: elts.clone() }, ht.clone(), store.clone())?;
                     terms = listAppend(terms1.clone(), listAppend(terms2.clone(), terms.clone()));
-                    Ok((cons(Arc::new(UnitAbsyn::UnitTerm::EQN { ut1: ut1.clone(), ut2: ut2.clone(), origExp: Arc::new(DAE::Exp::BINARY { exp1: crefExp1.clone(), operator: DAE::Operator::SUB { ty: DAE::T_REAL_DEFAULT.clone() }, exp2: e1.clone() }) }), terms.clone()), store.clone()))
+                    Ok((cons(Arc::new(UnitAbsyn::UnitTerm::EQN { ut1: ut1.clone(), ut2: ut2.clone(), origExp: Arc::new(DAE::Exp::BINARY { exp1: crefExp1.clone(), operator: DAE::Operator::SUB { ty: DAE::T_REAL_DEFAULT().clone() }, exp2: e1.clone() }) }), terms.clone()), store.clone()))
                 }
                 _ => bail!("nomatch"),
             }}
@@ -1142,7 +1143,7 @@ fn buildTermExp(mut env: FCore::Graph, mut exp: Arc<DAE::Exp>, mut idivOrMul: bo
                     s1 = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("$")); __mm_s.push_str(&*intString(tick())); __mm_s.push_str(&*literal!("_")); __mm_s.push_str(&*intString(i.clone())); ArcStr::from(__mm_s) }).clone();
                     u = if (divOrMul.clone()) {str2unit((literal!("1")).clone(), None)?} else {crate::UnitAbsyn::Unit::UNSPECIFIED};
                     (store, indx) = add(u.clone(), store.clone())?;
-                    (ht, _, _, _) = BaseHashTable::add((ComponentReferenceBasics::makeCrefIdent((s1.clone()).clone(), DAE::T_UNKNOWN_DEFAULT.clone(), metamodelica::nil()), indx.clone()), ht.clone())?;
+                    (ht, _, _, _) = BaseHashTable::add((ComponentReferenceBasics::makeCrefIdent((s1.clone()).clone(), DAE::T_UNKNOWN_DEFAULT().clone(), metamodelica::nil()), indx.clone()), ht.clone())?;
                     Ok((Arc::new(UnitAbsyn::UnitTerm::LOC { loc: indx.clone(), origExp: e.clone() }), metamodelica::nil(), store.clone()))
                 }
                 _ => bail!("nomatch"),
@@ -1159,7 +1160,7 @@ fn buildTermExp(mut env: FCore::Graph, mut exp: Arc<DAE::Exp>, mut idivOrMul: bo
                     s1 = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("$")); __mm_s.push_str(&*intString(tick())); __mm_s.push_str(&*literal!("_")); __mm_s.push_str(&*realString(r.clone())); ArcStr::from(__mm_s) }).clone();
                     u = if (divOrMul.clone()) {str2unit((literal!("1")).clone(), None)?} else {crate::UnitAbsyn::Unit::UNSPECIFIED};
                     (store, indx) = add(u.clone(), store.clone())?;
-                    (ht, _, _, _) = BaseHashTable::add((ComponentReferenceBasics::makeCrefIdent((s1.clone()).clone(), DAE::T_UNKNOWN_DEFAULT.clone(), metamodelica::nil()), indx.clone()), ht.clone())?;
+                    (ht, _, _, _) = BaseHashTable::add((ComponentReferenceBasics::makeCrefIdent((s1.clone()).clone(), DAE::T_UNKNOWN_DEFAULT().clone(), metamodelica::nil()), indx.clone()), ht.clone())?;
                     Ok((Arc::new(UnitAbsyn::UnitTerm::LOC { loc: indx.clone(), origExp: e.clone() }), metamodelica::nil(), store.clone()))
                 }
                 _ => bail!("nomatch"),
@@ -1480,8 +1481,8 @@ fn buildResultTerms(mut ifunctp: Arc<DAE::Type>, mut funcInstId: i32, mut funcCa
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ DAE::Type::T_FUNCTION { funcResultType: Deref @ DAE::Type::T_TUPLE { types: typeLst, .. }, .. }, _, _, store) => {
                     let mut store = (*store).clone();
-                    let mut extraTerms: Arc<metamodelica::List<Arc<UnitAbsyn::UnitTerm>>> = extraTerms.clone();
                     let mut terms: Arc<metamodelica::List<Arc<UnitAbsyn::UnitTerm>>> = terms.clone();
+                    let mut extraTerms: Arc<metamodelica::List<Arc<UnitAbsyn::UnitTerm>>> = extraTerms.clone();
                     (terms, extraTerms, store) = buildTupleResultTerms(typeLst.clone(), funcInstId.clone(), funcCallExp.clone(), store.clone())?;
                     Ok((terms.clone(), extraTerms.clone(), store.clone()))
                 }
@@ -1883,7 +1884,7 @@ fn buildStoreExp(mut exp: Arc<DAE::Exp>, mut inStore: UnitAbsyn::Store, mut inHt
                     unit = selectConstantUnit(parentOp.clone())?;
                     (store, indx) = add(unit.clone(), store.clone())?;
                     s1 = (realString(r.clone())).clone();
-                    cref_ = ComponentReferenceBasics::makeCrefIdent((s1.clone()).clone(), DAE::T_UNKNOWN_DEFAULT.clone(), metamodelica::nil());
+                    cref_ = ComponentReferenceBasics::makeCrefIdent((s1.clone()).clone(), DAE::T_UNKNOWN_DEFAULT().clone(), metamodelica::nil());
                     (ht, _, _, _) = BaseHashTable::add((cref_.clone(), indx.clone()), ht.clone())?;
                     Ok((store.clone(), ht.clone()))
                 }
@@ -1902,7 +1903,7 @@ fn buildStoreExp(mut exp: Arc<DAE::Exp>, mut inStore: UnitAbsyn::Store, mut inHt
                     unit = selectConstantUnit(parentOp.clone())?;
                     (store, indx) = add(unit.clone(), store.clone())?;
                     s1 = (intString(i.clone())).clone();
-                    cref_ = ComponentReferenceBasics::makeCrefIdent((s1.clone()).clone(), DAE::T_UNKNOWN_DEFAULT.clone(), metamodelica::nil());
+                    cref_ = ComponentReferenceBasics::makeCrefIdent((s1.clone()).clone(), DAE::T_UNKNOWN_DEFAULT().clone(), metamodelica::nil());
                     (ht, _, _, _) = BaseHashTable::add((cref_.clone(), indx.clone()), ht.clone())?;
                     Ok((store.clone(), ht.clone()))
                 }
@@ -1964,7 +1965,7 @@ pub fn unitMultiply(mut u1: UnitAbsyn::Unit, mut u2: UnitAbsyn::Unit) -> Result<
             let mut tparams: Arc<metamodelica::List<(MMath::Rational, UnitAbsyn::TypeParameter)>> = metamodelica::nil();
             let mut units: Arc<metamodelica::List<MMath::Rational>> = metamodelica::nil();
             tparams = listAppend(tparams1.clone(), tparams2.clone());
-            units = List::threadMap(units1.clone(), units2.clone(), Arc::new(MMath::addRational));
+            units = List::threadMap(units1.clone(), units2.clone(), (std::sync::Arc::new(MMath::addRational) as std::sync::Arc<dyn ::std::ops::Fn(MMath::Rational, MMath::Rational) -> Result<MMath::Rational> + 'static>));
             UnitAbsyn::Unit::SPECIFIED { specified: UnitAbsyn::SpecUnit { typeParameters: tparams.clone(), units: units.clone() } }
         },
         _ => bail!("match: no arm matched"),
@@ -2046,7 +2047,7 @@ fn getDerivedUnitsHelper(mut baseUnit: UnitAbsyn::Unit, mut baseUnitStr: ArcStr,
             unit = str2unit((unitStr.clone()).clone(), None)?;
             b = baseUnit.clone() == unit.clone();
             if b.clone() {
-                outUnits = cons(unitStr.clone(), outUnits.clone());
+                outUnits = cons((unitStr.clone()).clone(), outUnits.clone());
             }
         }
     }

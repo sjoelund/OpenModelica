@@ -67,7 +67,7 @@ use openmodelica_util_datatypes_basic::Pointer;
 /// file:        NSimGenericCall.mo
 /// package:     NSimGenericCall
 /// description: This file contains the data types and functions for generic for loop calls.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum NSimGenericCall {
     SINGLE_GENERIC_CALL {
         index: i32,
@@ -101,7 +101,7 @@ impl Default for NSimGenericCall {
 }
 pub use self::NSimGenericCall::{SINGLE_GENERIC_CALL,IF_GENERIC_CALL,WHEN_GENERIC_CALL};
 pub fn mapShallow(mut call: Arc<NSimGenericCall>, mut func: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Arc<NSimGenericCall> {
-    pub type mapExp = fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>>;
+    pub type mapExp = std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>;
 
     let mut call: Arc<NSimGenericCall> = call;
     call = (::match_deref::match_deref! { match &(call.clone()) {
@@ -143,9 +143,9 @@ pub fn mapShallow(mut call: Arc<NSimGenericCall>, mut func: Arc<dyn ::std::ops::
 pub fn toString(mut call: Arc<NSimGenericCall>) -> Result<ArcStr> {
     let mut r#str: ArcStr = arcstr::literal!("");
     r#str = ((::match_deref::match_deref! { match &(call.clone()) {
-        Deref @ SINGLE_GENERIC_CALL { .. } => { let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("(")); __mm_s.push_str(&*intString(var_field!((*call).index, NSimGenericCall::SINGLE_GENERIC_CALL).clone())); __mm_s.push_str(&*literal!(") [SNGL]: ")); __mm_s.push_str(&*List::toString(var_field!((*call).iters, NSimGenericCall::SINGLE_GENERIC_CALL).clone(), Arc::new(SimIterator::toString), (literal!("")).clone(), (literal!("{")).clone(), (literal!(", ")).clone(), (literal!("}")).clone(), true, 0)?); __mm_s.push_str(&*literal!("\n\t")); __mm_s.push_str(&*Expression::toString(var_field!((*call).lhs, NSimGenericCall::SINGLE_GENERIC_CALL).clone())?); __mm_s.push_str(&*literal!(" = ")); __mm_s.push_str(&*Expression::toString(var_field!((*call).rhs, NSimGenericCall::SINGLE_GENERIC_CALL).clone())?); ArcStr::from(__mm_s) },
-        Deref @ IF_GENERIC_CALL { .. } => { let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("(")); __mm_s.push_str(&*intString(var_field!((*call).index, NSimGenericCall::IF_GENERIC_CALL).clone())); __mm_s.push_str(&*literal!(") [-IF-]: ")); __mm_s.push_str(&*List::toString(var_field!((*call).iters, NSimGenericCall::IF_GENERIC_CALL).clone(), Arc::new(SimIterator::toString), (literal!("")).clone(), (literal!("{")).clone(), (literal!(", ")).clone(), (literal!("}")).clone(), true, 0)?); __mm_s.push_str(&*literal!("\n\t")); __mm_s.push_str(&*List::toString(var_field!((*call).branches, NSimGenericCall::IF_GENERIC_CALL).clone(), Arc::new(SimBranch::toString), (literal!("")).clone(), (literal!("")).clone(), (literal!("\telse")).clone(), (literal!("")).clone(), true, 0)?); ArcStr::from(__mm_s) },
-        Deref @ WHEN_GENERIC_CALL { .. } => { let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("(")); __mm_s.push_str(&*intString(var_field!((*call).index, NSimGenericCall::WHEN_GENERIC_CALL).clone())); __mm_s.push_str(&*literal!(") [WHEN]: ")); __mm_s.push_str(&*List::toString(var_field!((*call).iters, NSimGenericCall::WHEN_GENERIC_CALL).clone(), Arc::new(SimIterator::toString), (literal!("")).clone(), (literal!("{")).clone(), (literal!(", ")).clone(), (literal!("}")).clone(), true, 0)?); __mm_s.push_str(&*literal!("\n\t")); __mm_s.push_str(&*List::toString(var_field!((*call).branches, NSimGenericCall::WHEN_GENERIC_CALL).clone(), Arc::new(SimBranch::toString), (literal!("")).clone(), (literal!("")).clone(), (literal!("\telse")).clone(), (literal!("")).clone(), true, 0)?); ArcStr::from(__mm_s) },
+        Deref @ SINGLE_GENERIC_CALL { .. } => { let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("(")); __mm_s.push_str(&*intString(var_field!((*call).index, NSimGenericCall::SINGLE_GENERIC_CALL).clone())); __mm_s.push_str(&*literal!(") [SNGL]: ")); __mm_s.push_str(&*List::toString(var_field!((*call).iters, NSimGenericCall::SINGLE_GENERIC_CALL).clone(), (std::sync::Arc::new(SimIterator::toString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SimIterator::SimIterator>) -> Result<ArcStr> + 'static>), (literal!("")).clone(), (literal!("{")).clone(), (literal!(", ")).clone(), (literal!("}")).clone(), true, 0)?); __mm_s.push_str(&*literal!("\n\t")); __mm_s.push_str(&*Expression::toString(var_field!((*call).lhs, NSimGenericCall::SINGLE_GENERIC_CALL).clone())?); __mm_s.push_str(&*literal!(" = ")); __mm_s.push_str(&*Expression::toString(var_field!((*call).rhs, NSimGenericCall::SINGLE_GENERIC_CALL).clone())?); ArcStr::from(__mm_s) },
+        Deref @ IF_GENERIC_CALL { .. } => { let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("(")); __mm_s.push_str(&*intString(var_field!((*call).index, NSimGenericCall::IF_GENERIC_CALL).clone())); __mm_s.push_str(&*literal!(") [-IF-]: ")); __mm_s.push_str(&*List::toString(var_field!((*call).iters, NSimGenericCall::IF_GENERIC_CALL).clone(), (std::sync::Arc::new(SimIterator::toString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SimIterator::SimIterator>) -> Result<ArcStr> + 'static>), (literal!("")).clone(), (literal!("{")).clone(), (literal!(", ")).clone(), (literal!("}")).clone(), true, 0)?); __mm_s.push_str(&*literal!("\n\t")); __mm_s.push_str(&*List::toString(var_field!((*call).branches, NSimGenericCall::IF_GENERIC_CALL).clone(), (std::sync::Arc::new(SimBranch::toString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SimBranch::SimBranch>) -> Result<ArcStr> + 'static>), (literal!("")).clone(), (literal!("")).clone(), (literal!("\telse")).clone(), (literal!("")).clone(), true, 0)?); ArcStr::from(__mm_s) },
+        Deref @ WHEN_GENERIC_CALL { .. } => { let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("(")); __mm_s.push_str(&*intString(var_field!((*call).index, NSimGenericCall::WHEN_GENERIC_CALL).clone())); __mm_s.push_str(&*literal!(") [WHEN]: ")); __mm_s.push_str(&*List::toString(var_field!((*call).iters, NSimGenericCall::WHEN_GENERIC_CALL).clone(), (std::sync::Arc::new(SimIterator::toString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SimIterator::SimIterator>) -> Result<ArcStr> + 'static>), (literal!("")).clone(), (literal!("{")).clone(), (literal!(", ")).clone(), (literal!("}")).clone(), true, 0)?); __mm_s.push_str(&*literal!("\n\t")); __mm_s.push_str(&*List::toString(var_field!((*call).branches, NSimGenericCall::WHEN_GENERIC_CALL).clone(), (std::sync::Arc::new(SimBranch::toString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SimBranch::SimBranch>) -> Result<ArcStr> + 'static>), (literal!("")).clone(), (literal!("")).clone(), (literal!("\telse")).clone(), (literal!("")).clone(), true, 0)?); ArcStr::from(__mm_s) },
         _ => literal!("CALL_NOT_SUPPORTED"),
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
     } })).clone();
@@ -244,7 +244,7 @@ pub fn convert(mut call: Arc<NSimGenericCall>) -> Result<OldSimCode::SimGenericC
 
 pub mod SimIterator {
     use super::*;
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
     pub enum SimIterator {
         SIM_ITERATOR_RANGE {
             name: Arc<ComponentRef::NFComponentRef>,
@@ -261,6 +261,16 @@ pub mod SimIterator {
             sub_iter: Arc<metamodelica::List<(Arc<ComponentRef::NFComponentRef>, metamodelica::Array<Arc<Expression::NFExpression>>)>>,
         },
     }
+    impl Default for SimIterator {
+        fn default() -> Self {
+            Self::SIM_ITERATOR_LIST {
+                name: Default::default(),
+                lst: Default::default(),
+                size: Default::default(),
+                sub_iter: Default::default(),
+            }
+        }
+    }
     pub use self::SimIterator::{SIM_ITERATOR_RANGE,SIM_ITERATOR_LIST};
     pub fn toString(mut iter: Arc<SimIterator>) -> Result<ArcStr> {
         pub fn subIterString(mut sub_iter: Arc<metamodelica::List<(Arc<ComponentRef::NFComponentRef>, metamodelica::Array<Arc<Expression::NFExpression>>)>>) -> ArcStr {
@@ -271,14 +281,14 @@ pub mod SimIterator {
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, Arc::new(ComponentRef::toString), (literal!("")).clone(), (literal!("(")).clone(), (literal!(", ")).clone(), (literal!(")")).clone(), false, 0).unwrap();
+    }, (std::sync::Arc::new(ComponentRef::toString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<ArcStr> + 'static>), (literal!("")).clone(), (literal!("(")).clone(), (literal!(", ")).clone(), (literal!(")")).clone(), false, 0).unwrap();
             r#str
         }
 
         let mut r#str: ArcStr = arcstr::literal!("");
         r#str = ((::match_deref::match_deref! { match &(iter.clone()) {
         Deref @ SIM_ITERATOR_RANGE { .. } => { let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("{")); __mm_s.push_str(&*ComponentRef::toString(var_field!((*iter).name, SimIterator::SIM_ITERATOR_RANGE).clone())?); __mm_s.push_str(&*literal!(" | start:")); __mm_s.push_str(&*Expression::toString(var_field!((*iter).start, SimIterator::SIM_ITERATOR_RANGE).clone())?); __mm_s.push_str(&*literal!(", step:")); __mm_s.push_str(&*Expression::toString(var_field!((*iter).step, SimIterator::SIM_ITERATOR_RANGE).clone())?); __mm_s.push_str(&*literal!(", stop:")); __mm_s.push_str(&*Expression::toString(var_field!((*iter).stop, SimIterator::SIM_ITERATOR_RANGE).clone())?); __mm_s.push_str(&*literal!(", size: ")); __mm_s.push_str(&*Expression::toString(var_field!((*iter).size, SimIterator::SIM_ITERATOR_RANGE).clone())?); __mm_s.push_str(&*literal!("}")); __mm_s.push_str(&*subIterString(var_field!((*iter).sub_iter, SimIterator::SIM_ITERATOR_RANGE).clone())); ArcStr::from(__mm_s) },
-        Deref @ SIM_ITERATOR_LIST { .. } => { let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("{")); __mm_s.push_str(&*ComponentRef::toString(var_field!((*iter).name, SimIterator::SIM_ITERATOR_LIST).clone())?); __mm_s.push_str(&*literal!(" | list: ")); __mm_s.push_str(&*List::toString(var_field!((*iter).lst, SimIterator::SIM_ITERATOR_LIST).clone(), Arc::new(fnptr!(intString, i32)), (literal!("")).clone(), (literal!("{")).clone(), (literal!(", ")).clone(), (literal!("}")).clone(), true, 10)?); __mm_s.push_str(&*literal!("}")); __mm_s.push_str(&*subIterString(var_field!((*iter).sub_iter, SimIterator::SIM_ITERATOR_LIST).clone())); ArcStr::from(__mm_s) },
+        Deref @ SIM_ITERATOR_LIST { .. } => { let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("{")); __mm_s.push_str(&*ComponentRef::toString(var_field!((*iter).name, SimIterator::SIM_ITERATOR_LIST).clone())?); __mm_s.push_str(&*literal!(" | list: ")); __mm_s.push_str(&*List::toString(var_field!((*iter).lst, SimIterator::SIM_ITERATOR_LIST).clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>), (literal!("")).clone(), (literal!("{")).clone(), (literal!(", ")).clone(), (literal!("}")).clone(), true, 10)?); __mm_s.push_str(&*literal!("}")); __mm_s.push_str(&*subIterString(var_field!((*iter).sub_iter, SimIterator::SIM_ITERATOR_LIST).clone())); ArcStr::from(__mm_s) },
         _ => bail!("match: no arm matched"),
     } })).clone();
         Ok(r#str)
@@ -401,7 +411,7 @@ pub type DependentIterator = (Arc<ComponentRef::NFComponentRef>, metamodelica::A
 
 pub mod SimBranch {
     use super::*;
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
     pub enum SimBranch {
         SIM_BRANCH {
             condition: Arc<Expression::NFExpression>,
@@ -422,7 +432,7 @@ pub mod SimBranch {
     }
     pub use self::SimBranch::{SIM_BRANCH,SIM_BRANCH_STMT};
     pub fn mapShallow(mut branch: Arc<SimBranch>, mut func: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Arc<SimBranch> {
-        type mapExp = fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>>;
+        type mapExp = std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>;
 
         let mut branch: Arc<SimBranch> = branch;
         branch = (::match_deref::match_deref! { match &(branch.clone()) {

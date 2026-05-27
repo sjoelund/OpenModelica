@@ -94,7 +94,7 @@ pub fn ext(mut inRef: Ref, mut ig: Graph) -> Result<Graph> {
     let mut og: Graph;
     og = (match (inRef.clone(), ig.clone()) {
         (_, mut g) => {
-            g = FNode::apply1(inRef.clone(), Arc::new(ext_one), g.clone())?;
+            g = FNode::apply1(inRef.clone(), (std::sync::Arc::new(ext_one) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, metamodelica::Array<FCore::Node>, FCore::Graph) -> Result<FCore::Graph> + 'static>), g.clone())?;
             g.clone()
         },
     });
@@ -158,7 +158,7 @@ pub fn derived(mut inRef: Ref, mut ig: Graph) -> Result<Graph> {
     let mut og: Graph;
     og = (match (inRef.clone(), ig.clone()) {
         (_, mut g) => {
-            g = FNode::apply1(inRef.clone(), Arc::new(derived_one), g.clone())?;
+            g = FNode::apply1(inRef.clone(), (std::sync::Arc::new(derived_one) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, metamodelica::Array<FCore::Node>, FCore::Graph) -> Result<FCore::Graph> + 'static>), g.clone())?;
             g.clone()
         },
     });
@@ -221,7 +221,7 @@ pub fn ty(mut inRef: Ref, mut ig: Graph) -> Result<Graph> {
     let mut og: Graph;
     og = (match (inRef.clone(), ig.clone()) {
         (_, mut g) => {
-            g = FNode::apply1(inRef.clone(), Arc::new(ty_one), g.clone())?;
+            g = FNode::apply1(inRef.clone(), (std::sync::Arc::new(ty_one) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, metamodelica::Array<FCore::Node>, FCore::Graph) -> Result<FCore::Graph> + 'static>), g.clone())?;
             g.clone()
         },
     });
@@ -280,7 +280,7 @@ pub fn cc(mut inRef: Ref, mut ig: Graph) -> Result<Graph> {
     let mut og: Graph;
     og = (match (inRef.clone(), ig.clone()) {
         (_, mut g) => {
-            g = FNode::apply1(inRef.clone(), Arc::new(cc_one), g.clone())?;
+            g = FNode::apply1(inRef.clone(), (std::sync::Arc::new(cc_one) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, metamodelica::Array<FCore::Node>, FCore::Graph) -> Result<FCore::Graph> + 'static>), g.clone())?;
             g.clone()
         },
     });
@@ -343,7 +343,7 @@ pub fn clsext(mut inRef: Ref, mut ig: Graph) -> Result<Graph> {
     let mut og: Graph;
     og = (match (inRef.clone(), ig.clone()) {
         (_, mut g) => {
-            g = FNode::apply1(inRef.clone(), Arc::new(clsext_one), g.clone())?;
+            g = FNode::apply1(inRef.clone(), (std::sync::Arc::new(clsext_one) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, metamodelica::Array<FCore::Node>, FCore::Graph) -> Result<FCore::Graph> + 'static>), g.clone())?;
             g.clone()
         },
     });
@@ -402,7 +402,7 @@ pub fn clsext_one(mut name: Name, mut inRef: Ref, mut ig: Graph) -> Result<Graph
                 Ok::<(), anyhow::Error>(())
             }.is_ok() { bail!("failure(): body succeeded") }
             println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("FResolve.clsext_one: class extends: ")); __mm_s.push_str(&*id.clone()); __mm_s.push_str(&*literal!(" scope: ")); __mm_s.push_str(&*FNode::toPathStr(FNode::fromRef(r.clone())?)?); __mm_s.push_str(&*literal!(" not found in extends of: ")); __mm_s.push_str(&*FNode::toPathStr(FNode::fromRef(p.clone())?)?); __mm_s.push_str(&*literal!(":\n")); ArcStr::from(__mm_s) }).clone());
-            println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\t")); __mm_s.push_str(&*stringDelimitList(List::map(List::map(FNode::extendsRefs(p.clone())?, Arc::new(FNode::fromRef)), Arc::new(FNode::toPathStr)), (literal!("\n\t")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+            println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\t")); __mm_s.push_str(&*stringDelimitList(List::map(List::map(FNode::extendsRefs(p.clone())?, (std::sync::Arc::new(FNode::fromRef) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Node>) -> Result<FCore::Node> + 'static>)), (std::sync::Arc::new(FNode::toPathStr) as std::sync::Arc<dyn ::std::ops::Fn(FCore::Node) -> Result<ArcStr> + 'static>)), (literal!("\n\t")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
             g = FGraphBuild::mkRefNode((arcstr::literal!(FNode::refNodeName)).clone(), metamodelica::nil(), r.clone(), g.clone())?;
             Ok(g.clone())
         })() { break 'mc __v; }
@@ -419,7 +419,7 @@ pub fn cr(mut inRef: Ref, mut ig: Graph) -> Result<Graph> {
     let mut og: Graph;
     og = (match (inRef.clone(), ig.clone()) {
         (_, mut g) => {
-            g = FNode::apply1(inRef.clone(), Arc::new(cr_one), g.clone())?;
+            g = FNode::apply1(inRef.clone(), (std::sync::Arc::new(cr_one) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, metamodelica::Array<FCore::Node>, FCore::Graph) -> Result<FCore::Graph> + 'static>), g.clone())?;
             g.clone()
         },
     });
@@ -474,7 +474,7 @@ pub fn r#mod(mut inRef: Ref, mut ig: Graph) -> Result<Graph> {
     let mut og: Graph;
     og = (match (inRef.clone(), ig.clone()) {
         (_, mut g) => {
-            g = FNode::apply1(inRef.clone(), Arc::new(mod_one), g.clone())?;
+            g = FNode::apply1(inRef.clone(), (std::sync::Arc::new(mod_one) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, metamodelica::Array<FCore::Node>, FCore::Graph) -> Result<FCore::Graph> + 'static>), g.clone())?;
             g.clone()
         },
     });
@@ -527,7 +527,7 @@ pub fn elred(mut inRef: Ref, mut ig: Graph) -> Result<Graph> {
     let mut og: Graph;
     og = (match (inRef.clone(), ig.clone()) {
         (_, mut g) => {
-            g = FNode::apply1(inRef.clone(), Arc::new(elred_one), g.clone())?;
+            g = FNode::apply1(inRef.clone(), (std::sync::Arc::new(elred_one) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, metamodelica::Array<FCore::Node>, FCore::Graph) -> Result<FCore::Graph> + 'static>), g.clone())?;
             g.clone()
         },
     });
@@ -579,7 +579,7 @@ pub fn elred_one(mut name: Name, mut inRef: Ref, mut ig: Graph) -> Result<Graph>
                 Ok::<(), anyhow::Error>(())
             }.is_ok() { bail!("failure(): body succeeded") }
             println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("FResolve.elred_one: redeclare as element: ")); __mm_s.push_str(&*id.clone()); __mm_s.push_str(&*literal!(" scope: ")); __mm_s.push_str(&*FNode::toPathStr(FNode::fromRef(r.clone())?)?); __mm_s.push_str(&*literal!(" not found in extends of: ")); __mm_s.push_str(&*FNode::toPathStr(FNode::fromRef(p.clone())?)?); __mm_s.push_str(&*literal!(":\n")); ArcStr::from(__mm_s) }).clone());
-            println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\t")); __mm_s.push_str(&*stringDelimitList(List::map(List::map(FNode::extendsRefs(p.clone())?, Arc::new(FNode::fromRef)), Arc::new(FNode::toPathStr)), (literal!("\n\t")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+            println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\t")); __mm_s.push_str(&*stringDelimitList(List::map(List::map(FNode::extendsRefs(p.clone())?, (std::sync::Arc::new(FNode::fromRef) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Node>) -> Result<FCore::Node> + 'static>)), (std::sync::Arc::new(FNode::toPathStr) as std::sync::Arc<dyn ::std::ops::Fn(FCore::Node) -> Result<ArcStr> + 'static>)), (literal!("\n\t")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
             g = FGraphBuild::mkRefNode((arcstr::literal!(FNode::refNodeName)).clone(), metamodelica::nil(), r.clone(), g.clone())?;
             Ok(g.clone())
         })() { break 'mc __v; }

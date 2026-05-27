@@ -276,7 +276,7 @@ fn mkTop(mut absynProgram: Absyn::Program, mut name: ArcStr) -> Result<(Arc<meta
     let mut top: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
     let mut scode_builtin: Arc<metamodelica::List<Arc<SCode::Element>>> = metamodelica::nil();
     let mut graphicProgramSCode: Arc<metamodelica::List<Arc<SCode::Element>>> = metamodelica::nil();
-    let mut placementProgram: Absyn::Program;
+    let mut placementProgram: Absyn::Program = <Absyn::Program as ::std::default::Default>::default();
     let mut cls: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
     let mut cache: Arc<metamodelica::List<(Absyn::Program, (Arc<metamodelica::List<Arc<SCode::Element>>>, Arc<InstNode::InstNode>))>> = metamodelica::nil();
     let mut update: bool = true;
@@ -371,7 +371,7 @@ fn frontEndLookup_dispatch(mut absynProgram: Absyn::Program, mut classPath: Arc<
     let mut expanded_cls: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
     let mut scode_builtin: Arc<metamodelica::List<Arc<SCode::Element>>> = metamodelica::nil();
     let mut graphicProgramSCode: Arc<metamodelica::List<Arc<SCode::Element>>> = metamodelica::nil();
-    let mut placementProgram: Absyn::Program;
+    let mut placementProgram: Absyn::Program = <Absyn::Program as ::std::default::Default>::default();
     let mut top: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
     let mut cls: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
     let mut cache: Arc<metamodelica::List<(Absyn::Program, (Arc<metamodelica::List<Arc<SCode::Element>>>, Arc<InstNode::InstNode>))>> = metamodelica::nil();
@@ -469,7 +469,7 @@ pub fn getNthInheritedClass(mut classPath: Arc<Path>, mut index: i32, mut progra
     Ok(result)
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum InstanceTree {
     COMPONENT {
         node: Arc<InstNode::InstNode>,
@@ -488,10 +488,8 @@ pub enum InstanceTree {
 }
 pub use self::InstanceTree::{COMPONENT,CLASS,BUILTIN_BASE_CLASS,EMPTY};
 
-// TODO: non-Sync, non-const-emittable constant — needs new emission path.
-// Type: Arc<InstanceTree>
-// Expr: Constructor { name: 'NFApi.InstanceTree.BUILTIN_BASE_CLASS', args: [Lit(Str('enumeration'))], named_args: [], ty: RustStruct('NFApi.InstanceTree.BUILTIN_BASE_CLASS'), field_names: ['name'] }
-pub fn ENUM_BASE() -> Arc<InstanceTree> { todo!("non-Sync, non-const-emittable constant ENUM_BASE — extend codegen") }
+thread_local! { static __ENUM_BASE_TLS: Arc<InstanceTree> = Arc::new(InstanceTree::BUILTIN_BASE_CLASS { name: (literal!("enumeration")).clone() }); }
+pub fn ENUM_BASE() -> Arc<InstanceTree> { __ENUM_BASE_TLS.with(|__t| __t.clone()) }
 
 pub fn getModelInstance(mut classPath: Arc<Path>, mut contextPath: Arc<Path>, mut modifier: ArcStr, mut prettyPrint: bool) -> Result<Arc<Values::Value>> {
     let mut res: Arc<Values::Value> = Arc::new(Values::Value::META_FAIL);
@@ -692,7 +690,7 @@ pub fn buildInstanceTreeElements(mut classDefinition: Arc<SCode::Element>, mut c
             cons(tree.clone(), elements.clone())
         },
         Deref @ SCode::Element::COMPONENT { .. } => {
-            while true {
+            loop {
                 node = Mutable::access(comps.borrow()[(comp_index.clone()-1) as usize].clone());
                 if InstNode::name(node.clone())? == var_field!((*e).name, SCode::Element::COMPONENT).clone() && !(InstNode::isGeneratedInner(node.clone())) {
                     break;
@@ -809,7 +807,7 @@ pub fn dumpJSONInstanceTree(mut tree: Arc<InstanceTree>, mut scope: Arc<InstNode
 pub fn dumpJSONInstanceAnnotation(mut node: Arc<InstNode::InstNode>, mut filter: Arc<metamodelica::List<ArcStr>>) -> Result<Arc<JSON::JSON>> {
     let mut json: Arc<JSON::JSON> = JSON::makeNull();
     let mut cmt: Option<Arc<SCode::Comment>> = None;
-    let mut ann: Arc<SCode::Annotation>;
+    let mut ann: Arc<SCode::Annotation> = Arc::new(<SCode::Annotation as ::std::default::Default>::default());
     let mut exts: metamodelica::Array<Arc<InstNode::InstNode>>;
     let mut j: Arc<JSON::JSON> = Arc::new(JSON::FALSE);
     let mut scope: Arc<InstNode::InstNode> = node.clone();
@@ -968,7 +966,7 @@ pub fn dumpJSONReplaceableClass(mut cls: Arc<InstNode::InstNode>, mut scope: Arc
     let mut derivedNode: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
     let mut path: Arc<Path>;
     let mut odims: Option<Arc<metamodelica::List<Arc<Absyn::Subscript>>>> = None;
-    let mut cmt: Arc<SCode::Comment>;
+    let mut cmt: Arc<SCode::Comment> = Arc::new(<SCode::Comment as ::std::default::Default>::default());
     node = InstNode::getRedeclaredNode(cls.clone());
     elem = InstNode::definition(node.clone())?;
     json = dumpJSONSCodeClass(elem.clone(), scope.clone(), node.clone(), true, json.clone())?;
@@ -984,8 +982,8 @@ pub fn dumpJSONComponent(mut component: Arc<InstNode::InstNode>, mut originalBin
     let mut comp: Arc<Component::NFComponent> = Arc::new(Component::WILD);
     let mut elem: Arc<SCode::Element>;
     let mut is_constant: bool = false;
-    let mut cmt: Arc<SCode::Comment>;
-    let mut ann: Arc<SCode::Annotation>;
+    let mut cmt: Arc<SCode::Comment> = Arc::new(<SCode::Comment as ::std::default::Default>::default());
+    let mut ann: Arc<SCode::Annotation> = Arc::new(<SCode::Annotation as ::std::default::Default>::default());
     let mut j: Arc<JSON::JSON> = Arc::new(JSON::FALSE);
     let mut path: Arc<Path>;
     node = InstNode::resolveOuter(component.clone());
@@ -1149,13 +1147,13 @@ pub fn dumpJSONBinding(mut binding: Arc<Binding::NFBinding>, mut originalBinding
         }
     }
     exp = Binding::getExp(bind.clone())?;
-    exp = Expression::map(exp.clone(), Arc::new(Expression::expandSplitIndices))?;
+    exp = Expression::map(exp.clone(), (std::sync::Arc::new(Expression::expandSplitIndices) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>))?;
     json = JSON::addPair((literal!("binding")).clone(), Expression::toJSON(exp.clone())?, json.clone())?;
     if evaluate.clone() && !(Expression::isLiteral(exp.clone())) {
         ErrorExt::setCheckpoint((literal!("NFApi.dumpJSONBinding")).clone());
         if '__try1: {
             exp = unwrap_break_err!(Ceval::evalExp(exp.clone(), Ceval::EvalTarget::new(Absyn::dummyInfo.clone(), InstContext::INSTANCE_API.clone(), None)), '__try1);
-            exp = unwrap_break_err!(Expression::map(exp.clone(), Arc::new(Expression::expandSplitIndices)), '__try1);
+            exp = unwrap_break_err!(Expression::map(exp.clone(), (std::sync::Arc::new(Expression::expandSplitIndices) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>)), '__try1);
             json = unwrap_break_err!(JSON::addPair((literal!("value")).clone(), Expression::toJSON(exp.clone())?, json.clone()), '__try1);
             Ok::<(), anyhow::Error>(())
         }.is_err() {
@@ -1311,7 +1309,7 @@ pub fn dumpJSONComment(mut cmt: Arc<SCode::Comment>, mut scope: Arc<InstNode::In
 
 pub fn dumpJSONCommentAnnotation(mut cmtOpt: Option<Arc<SCode::Comment>>, mut scope: Arc<InstNode::InstNode>, mut json: Arc<JSON::JSON>, mut filter: Arc<metamodelica::List<ArcStr>>, mut failOnError: bool) -> Result<Arc<JSON::JSON>> {
     let mut json: Arc<JSON::JSON> = json;
-    let mut cmt: Arc<SCode::Comment>;
+    let mut cmt: Arc<SCode::Comment> = Arc::new(<SCode::Comment as ::std::default::Default>::default());
     if isSome(cmtOpt.clone()) {
         let __pa0 = ::match_deref::match_deref! { match &(cmtOpt.clone()) {
             Some(__pa0) => __pa0.clone(),
@@ -1325,7 +1323,7 @@ pub fn dumpJSONCommentAnnotation(mut cmtOpt: Option<Arc<SCode::Comment>>, mut sc
 
 pub fn dumpJSONAnnotationOpt(mut annOpt: Option<Arc<SCode::Annotation>>, mut scope: Arc<InstNode::InstNode>, mut filter: Arc<metamodelica::List<ArcStr>>, mut failOnError: bool, mut json: Arc<JSON::JSON>) -> Result<Arc<JSON::JSON>> {
     let mut json: Arc<JSON::JSON> = json;
-    let mut ann: Arc<SCode::Annotation>;
+    let mut ann: Arc<SCode::Annotation> = Arc::new(<SCode::Annotation as ::std::default::Default>::default());
     if isSome(annOpt.clone()) {
         let __pa0 = ::match_deref::match_deref! { match &(annOpt.clone()) {
             Some(__pa0) => __pa0.clone(),
@@ -1351,7 +1349,7 @@ pub fn dumpJSONAnnotationSubMods(mut subMods: Arc<metamodelica::List<Arc<SCode::
     let mut json: Arc<JSON::JSON> = JSON::makeNull();
     for mut m in &*subMods.clone() {
         let mut m = m.clone();
-        if filter.clone().is_empty() || List::contains(filter.clone(), (m.ident.clone()).clone(), Arc::new(stringEq)) {
+        if filter.clone().is_empty() || List::contains(filter.clone(), (m.ident.clone()).clone(), (std::sync::Arc::new(stringEq) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>)) {
             json = dumpJSONAnnotationSubMod(m.clone(), scope.clone(), failOnError.clone(), json.clone())?;
         }
     }
@@ -1656,7 +1654,7 @@ pub fn dumpJSONConnection(mut connEq: Arc<Equation::NFEquation>, mut scope: Arc<
     let mut json: Arc<JSON::JSON> = JSON::makeNull();
     let mut lhs: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut rhs: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-    let mut src: Arc<DAE::ElementSource>;
+    let mut src: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
     let (__pa0, __pa1, __pa2) = ::match_deref::match_deref! { match &(connEq.clone()) {
         Deref @ Equation::CONNECT { source: __pa0, rhs: __pa1, lhs: __pa2, .. } => (__pa0.clone(), __pa1.clone(), __pa2.clone()),
         _ => bail!("pattern mismatch"),
@@ -1683,7 +1681,7 @@ pub fn dumpJSONStateCall(mut callEq: Arc<Equation::NFEquation>, mut scope: Arc<I
     let mut json: Arc<JSON::JSON> = JSON::makeNull();
     let mut call: Arc<Call::NFCall>;
     let mut args: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
-    let mut src: Arc<DAE::ElementSource>;
+    let mut src: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
     let mut j: Arc<JSON::JSON> = Arc::new(JSON::FALSE);
     let () = (::match_deref::match_deref! { match &(callEq.clone()) {
         Deref @ Equation::NORETCALL { source: src, exp: Deref @ Expression::CALL { call: call @ Deref @ Call::TYPED_CALL { arguments: args, .. } }, .. } => {
@@ -1789,8 +1787,8 @@ pub fn dumpJSONRedeclareType(mut element: Arc<SCode::Element>, mut scope: Arc<In
                 Deref @ SCode::Element::COMPONENT { .. } => {
                     let mut context: i32 = context.clone();
                     let mut path: Arc<Path>;
-                    let mut cls: Arc<InstNode::InstNode> = cls.clone();
                     let mut json: Arc<JSON::JSON> = json.clone();
+                    let mut cls: Arc<InstNode::InstNode> = cls.clone();
                     path = AbsynUtil::typeSpecPath(var_field!((*element).typeSpec, SCode::Element::COMPONENT).clone())?;
                     context = InstContext::set(InstContext::RELAXED.clone(), InstContext::FAST_LOOKUP.clone());
                     (cls, _) = Lookup::lookupName(path.clone(), scope.clone(), context.clone(), false)?;
@@ -2012,7 +2010,7 @@ pub fn modifierToJSON(mut modifier: ArcStr, mut prettyPrint: bool) -> Result<Arc
     Ok(jsonString)
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct MoveEnv {
     pub scope: Arc<InstNode::InstNode>,
     pub destinationPath: Arc<Path>,
@@ -2370,13 +2368,13 @@ pub fn updateMovedComponent(mut component: Absyn::Component, mut env: MoveEnv) -
 
 pub fn updateMovedEquationItems(mut items: Arc<metamodelica::List<Arc<Absyn::EquationItem>>>, mut env: MoveEnv) -> Arc<metamodelica::List<Arc<Absyn::EquationItem>>> {
     let mut items: Arc<metamodelica::List<Arc<Absyn::EquationItem>>> = items;
-    (items, _) = AbsynUtil::traverseEquationItemListBidir(items.clone(), Arc::new(updateMovedExp_traverser), Arc::new(fnptr!(AbsynUtil::dummyTraverseExp, Arc<Absyn::Exp>, _)), env.clone());
+    (items, _) = AbsynUtil::traverseEquationItemListBidir(items.clone(), (std::sync::Arc::new(updateMovedExp_traverser) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Exp>, MoveEnv) -> Result<(Arc<Absyn::Exp>, MoveEnv)> + 'static>), std::sync::Arc::new(fnptr!(AbsynUtil::dummyTraverseExp, Arc<Absyn::Exp>, _)), env.clone());
     items
 }
 
 pub fn updateMovedAlgorithmItems(mut items: Arc<metamodelica::List<Arc<Absyn::AlgorithmItem>>>, mut env: MoveEnv) -> Arc<metamodelica::List<Arc<Absyn::AlgorithmItem>>> {
     let mut items: Arc<metamodelica::List<Arc<Absyn::AlgorithmItem>>> = items;
-    (items, _) = AbsynUtil::traverseAlgorithmItemListBidir(items.clone(), Arc::new(updateMovedExp_traverser), Arc::new(fnptr!(AbsynUtil::dummyTraverseExp, Arc<Absyn::Exp>, _)), env.clone());
+    (items, _) = AbsynUtil::traverseAlgorithmItemListBidir(items.clone(), (std::sync::Arc::new(updateMovedExp_traverser) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Exp>, MoveEnv) -> Result<(Arc<Absyn::Exp>, MoveEnv)> + 'static>), std::sync::Arc::new(fnptr!(AbsynUtil::dummyTraverseExp, Arc<Absyn::Exp>, _)), env.clone());
     items
 }
 
@@ -2498,7 +2496,7 @@ pub fn updateMovedSubscript(mut sub: Arc<Absyn::Subscript>, mut env: MoveEnv) ->
 
 pub fn updateMovedExp(mut exp: Arc<Absyn::Exp>, mut env: MoveEnv) -> Result<Arc<Absyn::Exp>> {
     let mut exp: Arc<Absyn::Exp> = exp;
-    (exp, _) = AbsynUtil::traverseExp(exp.clone(), Arc::new(updateMovedExp_traverser), env.clone())?;
+    (exp, _) = AbsynUtil::traverseExp(exp.clone(), (std::sync::Arc::new(updateMovedExp_traverser) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Exp>, MoveEnv) -> Result<(Arc<Absyn::Exp>, MoveEnv)> + 'static>), env.clone())?;
     Ok(exp)
 }
 

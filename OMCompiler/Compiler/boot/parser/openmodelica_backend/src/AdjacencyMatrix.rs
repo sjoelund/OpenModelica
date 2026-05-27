@@ -66,7 +66,7 @@ pub fn copyAdjacencyMatrix(mut inAdjacencyMatrix: Option<metamodelica::Array<Arc
 pub use copyAdjacencyMatrix as copyAdjacencyMatrixT;
 
 pub fn traverseAdjacencyMatrix<T: Clone + 'static>(mut inM: metamodelica::Array<Arc<metamodelica::List<i32>>>, mut func: Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<i32>>, i32, T) -> Result<(Arc<metamodelica::List<i32>>, T)> + 'static>, mut inTypeA: T) -> Result<(metamodelica::Array<Arc<metamodelica::List<i32>>>, T)> {
-    pub type FuncType<T: Clone> = fn(Arc<metamodelica::List<i32>>, i32, T) -> Result<(Arc<metamodelica::List<i32>>, T)>;
+    pub type FuncType<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<i32>>, i32, T) -> Result<(Arc<metamodelica::List<i32>>, T)> + 'static>;
 
     let mut outM: metamodelica::Array<Arc<metamodelica::List<i32>>>;
     let mut outTypeA: T;
@@ -75,7 +75,7 @@ pub fn traverseAdjacencyMatrix<T: Clone + 'static>(mut inM: metamodelica::Array<
 }
 
 fn traverseAdjacencyMatrix1<T: Clone + 'static>(mut inM: metamodelica::Array<Arc<metamodelica::List<i32>>>, mut func: Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<i32>>, i32, T) -> Result<(Arc<metamodelica::List<i32>>, T)> + 'static>, mut pos: i32, mut len: i32, mut inTypeA: T) -> Result<(metamodelica::Array<Arc<metamodelica::List<i32>>>, T)> {
-    pub type FuncType<T: Clone> = fn(Arc<metamodelica::List<i32>>, i32, T) -> Result<(Arc<metamodelica::List<i32>>, T)>;
+    pub type FuncType<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<i32>>, i32, T) -> Result<(Arc<metamodelica::List<i32>>, T)> + 'static>;
 
     let mut outM: metamodelica::Array<Arc<metamodelica::List<i32>>>;
     let mut outTypeA: T;
@@ -84,7 +84,7 @@ fn traverseAdjacencyMatrix1<T: Clone + 'static>(mut inM: metamodelica::Array<Arc
 }
 
 fn traverseAdjacencyMatrix2<T: Clone + 'static>(mut inM: metamodelica::Array<Arc<metamodelica::List<i32>>>, mut func: Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<i32>>, i32, T) -> Result<(Arc<metamodelica::List<i32>>, T)> + 'static>, mut pos: i32, mut len: i32, mut stop: bool, mut inTypeA: T) -> Result<(metamodelica::Array<Arc<metamodelica::List<i32>>>, T)> {
-    pub type FuncType<T: Clone> = fn(Arc<metamodelica::List<i32>>, i32, T) -> Result<(Arc<metamodelica::List<i32>>, T)>;
+    pub type FuncType<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<i32>>, i32, T) -> Result<(Arc<metamodelica::List<i32>>, T)> + 'static>;
 
     let mut outM: metamodelica::Array<Arc<metamodelica::List<i32>>>;
     let mut outTypeA: T;
@@ -101,7 +101,7 @@ fn traverseAdjacencyMatrix2<T: Clone + 'static>(mut inM: metamodelica::Array<Arc
             let mut eqns: Arc<metamodelica::List<i32>> = metamodelica::nil();
             let mut eqns1: Arc<metamodelica::List<i32>> = metamodelica::nil();
             (eqns, extArg) = func(inM.borrow()[(pos.clone()-1) as usize].clone(), pos.clone(), inTypeA.clone())?;
-            eqns1 = List::removeOnTrue(pos.clone(), Arc::new(fnptr!(intLt, i32, i32)), eqns.clone());
+            eqns1 = List::removeOnTrue(pos.clone(), (std::sync::Arc::new(fnptr!(intLt, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>), eqns.clone());
             (m1, extArg1) = traverseAdjacencyMatrixList(eqns1.clone(), inM.clone(), func.clone(), (inM.clone().borrow().len() as i32), pos.clone(), extArg.clone())?;
             (m2, extArg2) = traverseAdjacencyMatrix2(m1.clone(), func.clone(), pos.clone() + 1, len.clone(), intGt(pos.clone() + 1, len.clone()), extArg1.clone())?;
             (m2.clone(), extArg2.clone())
@@ -111,7 +111,7 @@ fn traverseAdjacencyMatrix2<T: Clone + 'static>(mut inM: metamodelica::Array<Arc
 }
 
 fn traverseAdjacencyMatrixList<T: Clone + 'static>(mut inLst: Arc<metamodelica::List<i32>>, mut inM: metamodelica::Array<Arc<metamodelica::List<i32>>>, mut func: Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<i32>>, i32, T) -> Result<(Arc<metamodelica::List<i32>>, T)> + 'static>, mut len: i32, mut maxpos: i32, mut inTypeA: T) -> Result<(metamodelica::Array<Arc<metamodelica::List<i32>>>, T)> {
-    pub type FuncType<T: Clone> = fn(Arc<metamodelica::List<i32>>, i32, T) -> Result<(Arc<metamodelica::List<i32>>, T)>;
+    pub type FuncType<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<i32>>, i32, T) -> Result<(Arc<metamodelica::List<i32>>, T)> + 'static>;
 
     let mut outM: metamodelica::Array<Arc<metamodelica::List<i32>>>;
     let mut outTypeA: T;
@@ -137,8 +137,8 @@ fn traverseAdjacencyMatrixList<T: Clone + 'static>(mut inLst: Arc<metamodelica::
                     let true = (intLt(pos.clone(), len.clone() + 1)) else { bail!("pattern mismatch") };
                     let true = (intLt(pos.clone(), maxpos.clone())) else { bail!("pattern mismatch") };
                     (eqns, extArg) = func(inM.borrow()[(pos.clone()-1) as usize].clone(), pos.clone(), inTypeA.clone())?;
-                    eqns1 = List::removeOnTrue(maxpos.clone(), Arc::new(fnptr!(intLt, i32, i32)), eqns.clone());
-                    alleqns = List::unionOnTrueList(list![rest.clone(), eqns1.clone()], Arc::new(fnptr!(intEq, i32, i32)))?;
+                    eqns1 = List::removeOnTrue(maxpos.clone(), (std::sync::Arc::new(fnptr!(intLt, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>), eqns.clone());
+                    alleqns = List::unionOnTrueList(list![rest.clone(), eqns1.clone()], (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
                     (m, extArg1) = traverseAdjacencyMatrixList(alleqns.clone(), inM.clone(), func.clone(), len.clone(), maxpos.clone(), extArg.clone())?;
                     Ok((m.clone(), extArg1.clone()))
                 }
@@ -248,7 +248,7 @@ pub fn absAdjacencyMatrix(mut m: metamodelica::Array<Arc<metamodelica::List<i32>
     res = metamodelica::arrayCreate((m.clone().borrow().len() as i32), metamodelica::nil());
     let __range0 = m.clone().borrow().iter().cloned().collect::<Vec<_>>();
     for mut v in __range0 {
-        minn = List::fold(v.clone(), Arc::new(fnptr!(intMin, i32, i32)), 0);
+        minn = List::fold(v.clone(), (std::sync::Arc::new(fnptr!(intMin, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<i32> + 'static>), 0);
         if minn.clone() < 0 {
             Dangerous::arrayUpdate(res.clone(), i.clone(), List::map(v.clone(), Arc::new(intAbs.clone()))).unwrap();
         } else {

@@ -77,7 +77,7 @@ use openmodelica_util_datatypes_basic::Pointer;
 // Util imports
 pub mod BackendInfo {
     use super::*;
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
     pub struct BackendInfo {
         /// Structural kind: state, algebraic...
         pub varKind: Arc<VariableKind::VariableKind>,
@@ -122,7 +122,7 @@ pub mod BackendInfo {
     }
 
     pub fn map(mut binfo: Arc<BackendInfo>, mut func: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Arc<BackendInfo> {
-        pub type expFunc = fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>>;
+        pub type expFunc = std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>;
 
         let mut binfo: Arc<BackendInfo> = binfo;
         assign_field!(binfo.attributes = VariableAttributes::map(binfo.attributes.clone(), func.clone()));
@@ -152,7 +152,7 @@ pub mod BackendInfo {
         binfo
     }
 
-    pub type setPartner = fn(Arc<BackendInfo>, Option<Pointer::Pointer<Arc<Variable::NFVariable>>>) -> Result<Arc<BackendInfo>>;
+    pub type setPartner = std::sync::Arc<dyn ::std::ops::Fn(Arc<BackendInfo>, Option<Pointer::Pointer<Arc<Variable::NFVariable>>>) -> Result<Arc<BackendInfo>> + 'static>;
 
     pub fn setVarPre(mut binfo: Arc<BackendInfo>, mut var_ptr: Option<Pointer::Pointer<Arc<Variable::NFVariable>>>) -> Arc<BackendInfo> {
         let mut binfo: Arc<BackendInfo> = binfo;
@@ -229,14 +229,12 @@ pub mod BackendInfo {
 
 }
 
-// TODO: non-Sync, non-const-emittable constant — needs new emission path.
-// Type: Arc<BackendInfo::BackendInfo>
-// Expr: Constructor { name: 'NFBackendExtension.BackendInfo.BACKEND_INFO', args: [Constructor { name: 'NFBackendExtension.VariableKind.FRONTEND_DUMMY', args: [], named_args: [], ty: RustUnitVariant, field_names: [] }, Var { name: 'EMPTY_VAR_ATTR_REAL', segments: [CrefSegment { name: 'EMPTY_VAR_ATTR_REAL', subscripts: [] }], ty: RustEnum('NFBackendExtension.VariableAttributes') }, Var { name: 'EMPTY_ANNOTATIONS', segments: [CrefSegment { name: 'EMPTY_ANNOTATIONS', subscripts: [] }], ty: AliasTo('NFBackendExtension.Annotations') }, Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }, Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }, Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }, Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }, Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }], named_args: [], ty: RustStruct('NFBackendExtension.BackendInfo'), field_names: ['varKind', 'attributes', 'annotations', 'var_pre', 'var_seed', 'var_pder', 'var_start', 'parent'] }
-pub fn DUMMY_BACKEND_INFO() -> Arc<BackendInfo::BackendInfo> { todo!("non-Sync, non-const-emittable constant DUMMY_BACKEND_INFO — extend codegen") }
+thread_local! { static __DUMMY_BACKEND_INFO_TLS: Arc<BackendInfo::BackendInfo> = Arc::new(BackendInfo::BackendInfo { varKind: Arc::new(crate::NFBackendExtension::VariableKind::FRONTEND_DUMMY), attributes: EMPTY_VAR_ATTR_REAL().clone(), annotations: EMPTY_ANNOTATIONS.clone(), var_pre: None, var_seed: None, var_pder: None, var_start: None, parent: None }); }
+pub fn DUMMY_BACKEND_INFO() -> Arc<BackendInfo::BackendInfo> { __DUMMY_BACKEND_INFO_TLS.with(|__t| __t.clone()) }
 
 pub mod VariableKind {
     use super::*;
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
     pub enum VariableKind {
         TIME,
         ALGEBRAIC,
@@ -388,7 +386,7 @@ pub mod VariableKind {
 
 pub mod VariableAttributes {
     use super::*;
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
     pub enum VariableAttributes {
         VAR_ATTR_REAL {
             /// quantity
@@ -583,7 +581,7 @@ pub mod VariableAttributes {
     }
 
     pub fn map(mut attributes: Arc<VariableAttributes>, mut func: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Arc<VariableAttributes> {
-        pub type expFunc = fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>>;
+        pub type expFunc = std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>;
 
         let mut attributes: Arc<VariableAttributes> = attributes;
         attributes = (::match_deref::match_deref! { match &(attributes.clone()) {
@@ -1100,7 +1098,7 @@ pub mod VariableAttributes {
                 _ => bail!("pattern mismatch"),
             } };
             attr = __pa0.clone();
-            buffer = cons({ let mut __mm_s = String::new(); __mm_s.push_str(&*name.clone()); __mm_s.push_str(&*literal!(" = ")); __mm_s.push_str(&*Expression::toString(attr.clone())?); ArcStr::from(__mm_s) }, buffer.clone());
+            buffer = cons(({ let mut __mm_s = String::new(); __mm_s.push_str(&*name.clone()); __mm_s.push_str(&*literal!(" = ")); __mm_s.push_str(&*Expression::toString(attr.clone())?); ArcStr::from(__mm_s) }).clone(), buffer.clone());
         }
         Ok(buffer)
     }
@@ -1137,7 +1135,7 @@ pub mod VariableAttributes {
         if isSome(optStateSelect.clone()) {
             let Some(__pa0) = (optStateSelect.clone()) else { bail!("pattern mismatch") };
             stateSelect = __pa0.clone();
-            buffer = cons(stateSelectString(stateSelect.clone())?, buffer.clone());
+            buffer = cons((stateSelectString(stateSelect.clone())?).clone(), buffer.clone());
         }
         Ok(buffer)
     }
@@ -1148,7 +1146,7 @@ pub mod VariableAttributes {
         if isSome(optTearingSelect.clone()) {
             let Some(__pa0) = (optTearingSelect.clone()) else { bail!("pattern mismatch") };
             tearingSelect = __pa0.clone();
-            buffer = cons(tearingSelectString(tearingSelect.clone())?, buffer.clone());
+            buffer = cons((tearingSelectString(tearingSelect.clone())?).clone(), buffer.clone());
         }
         Ok(buffer)
     }
@@ -1487,12 +1485,12 @@ pub mod VariableAttributes {
     fn createTearingSelect(mut cmt: Arc<SCode::Comment>) -> Result<Option<TearingSelect>> {
         let mut tearingSelect: Option<TearingSelect> = None;
         let mut opt_anno: Option<Arc<SCode::Annotation>> = None;
-        let mut anno: Arc<SCode::Annotation>;
+        let mut anno: Arc<SCode::Annotation> = Arc::new(<SCode::Annotation as ::std::default::Default>::default());
         let mut r#mod: Arc<SCode::Mod> = Arc::new(SCode::Mod::NOMOD);
         let mut opt_val: Option<Arc<Absyn::Exp>> = None;
         let mut val: Arc<Absyn::Exp> = Arc::new(Absyn::Exp::BREAK);
         let mut name: ArcStr = arcstr::literal!("");
-        let mut info: SourceInfo;
+        let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
         opt_anno = SCodeUtil::commentAnnotation(cmt.clone());
         if isNone(opt_anno.clone()) {
             return Ok(tearingSelect);
@@ -1557,35 +1555,23 @@ pub mod VariableAttributes {
 
 }
 
-// TODO: non-Sync, non-const-emittable constant — needs new emission path.
-// Type: Arc<VariableAttributes::VariableAttributes>
-// Expr: Constructor { name: 'NFBackendExtension.VariableAttributes.VAR_ATTR_REAL', args: [Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }, Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }, Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }, Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }, Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }, Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }, Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }, Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }, Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }, Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }, Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }, Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }, Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }, Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }, Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }, Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }], named_args: [], ty: RustStruct('NFBackendExtension.VariableAttributes.VAR_ATTR_REAL'), field_names: ['quantity', 'unit', 'displayUnit', 'min', 'max', 'start', 'fixed', 'nominal', 'stateSelect', 'tearingSelect', 'uncertainty', 'distribution', 'binding', 'isProtected', 'finalPrefix', 'startOrigin'] }
-pub fn EMPTY_VAR_ATTR_REAL() -> Arc<VariableAttributes::VariableAttributes> { todo!("non-Sync, non-const-emittable constant EMPTY_VAR_ATTR_REAL — extend codegen") }
+thread_local! { static __EMPTY_VAR_ATTR_REAL_TLS: Arc<VariableAttributes::VariableAttributes> = Arc::new(VariableAttributes::VariableAttributes::VAR_ATTR_REAL { quantity: None, unit: None, displayUnit: None, min: None, max: None, start: None, fixed: None, nominal: None, stateSelect: None, tearingSelect: None, uncertainty: None, distribution: None, binding: None, isProtected: None, finalPrefix: None, startOrigin: None }); }
+pub fn EMPTY_VAR_ATTR_REAL() -> Arc<VariableAttributes::VariableAttributes> { __EMPTY_VAR_ATTR_REAL_TLS.with(|__t| __t.clone()) }
 
-// TODO: non-Sync, non-const-emittable constant — needs new emission path.
-// Type: Arc<VariableAttributes::VariableAttributes>
-// Expr: Constructor { name: 'NFBackendExtension.VariableAttributes.VAR_ATTR_INT', args: [Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }, Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }, Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }, Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }, Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }, Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }, Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }, Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }, Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }, Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }, Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }], named_args: [], ty: RustStruct('NFBackendExtension.VariableAttributes.VAR_ATTR_INT'), field_names: ['quantity', 'min', 'max', 'start', 'fixed', 'uncertainty', 'distribution', 'binding', 'isProtected', 'finalPrefix', 'startOrigin'] }
-pub fn EMPTY_VAR_ATTR_INT() -> Arc<VariableAttributes::VariableAttributes> { todo!("non-Sync, non-const-emittable constant EMPTY_VAR_ATTR_INT — extend codegen") }
+thread_local! { static __EMPTY_VAR_ATTR_INT_TLS: Arc<VariableAttributes::VariableAttributes> = Arc::new(VariableAttributes::VariableAttributes::VAR_ATTR_INT { quantity: None, min: None, max: None, start: None, fixed: None, uncertainty: None, distribution: None, binding: None, isProtected: None, finalPrefix: None, startOrigin: None }); }
+pub fn EMPTY_VAR_ATTR_INT() -> Arc<VariableAttributes::VariableAttributes> { __EMPTY_VAR_ATTR_INT_TLS.with(|__t| __t.clone()) }
 
-// TODO: non-Sync, non-const-emittable constant — needs new emission path.
-// Type: Arc<VariableAttributes::VariableAttributes>
-// Expr: Constructor { name: 'NFBackendExtension.VariableAttributes.VAR_ATTR_BOOL', args: [Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }, Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }, Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }, Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }, Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }, Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }, Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }], named_args: [], ty: RustStruct('NFBackendExtension.VariableAttributes.VAR_ATTR_BOOL'), field_names: ['quantity', 'start', 'fixed', 'binding', 'isProtected', 'finalPrefix', 'startOrigin'] }
-pub fn EMPTY_VAR_ATTR_BOOL() -> Arc<VariableAttributes::VariableAttributes> { todo!("non-Sync, non-const-emittable constant EMPTY_VAR_ATTR_BOOL — extend codegen") }
+thread_local! { static __EMPTY_VAR_ATTR_BOOL_TLS: Arc<VariableAttributes::VariableAttributes> = Arc::new(VariableAttributes::VariableAttributes::VAR_ATTR_BOOL { quantity: None, start: None, fixed: None, binding: None, isProtected: None, finalPrefix: None, startOrigin: None }); }
+pub fn EMPTY_VAR_ATTR_BOOL() -> Arc<VariableAttributes::VariableAttributes> { __EMPTY_VAR_ATTR_BOOL_TLS.with(|__t| __t.clone()) }
 
-// TODO: non-Sync, non-const-emittable constant — needs new emission path.
-// Type: Arc<VariableAttributes::VariableAttributes>
-// Expr: Constructor { name: 'NFBackendExtension.VariableAttributes.VAR_ATTR_CLOCK', args: [Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }, Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }], named_args: [], ty: RustStruct('NFBackendExtension.VariableAttributes.VAR_ATTR_CLOCK'), field_names: ['isProtected', 'finalPrefix'] }
-pub fn EMPTY_VAR_ATTR_CLOCK() -> Arc<VariableAttributes::VariableAttributes> { todo!("non-Sync, non-const-emittable constant EMPTY_VAR_ATTR_CLOCK — extend codegen") }
+thread_local! { static __EMPTY_VAR_ATTR_CLOCK_TLS: Arc<VariableAttributes::VariableAttributes> = Arc::new(VariableAttributes::VariableAttributes::VAR_ATTR_CLOCK { isProtected: None, finalPrefix: None }); }
+pub fn EMPTY_VAR_ATTR_CLOCK() -> Arc<VariableAttributes::VariableAttributes> { __EMPTY_VAR_ATTR_CLOCK_TLS.with(|__t| __t.clone()) }
 
-// TODO: non-Sync, non-const-emittable constant — needs new emission path.
-// Type: Arc<VariableAttributes::VariableAttributes>
-// Expr: Constructor { name: 'NFBackendExtension.VariableAttributes.VAR_ATTR_STRING', args: [Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }, Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }, Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }, Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }, Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }, Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }, Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }], named_args: [], ty: RustStruct('NFBackendExtension.VariableAttributes.VAR_ATTR_STRING'), field_names: ['quantity', 'start', 'fixed', 'binding', 'isProtected', 'finalPrefix', 'startOrigin'] }
-pub fn EMPTY_VAR_ATTR_STRING() -> Arc<VariableAttributes::VariableAttributes> { todo!("non-Sync, non-const-emittable constant EMPTY_VAR_ATTR_STRING — extend codegen") }
+thread_local! { static __EMPTY_VAR_ATTR_STRING_TLS: Arc<VariableAttributes::VariableAttributes> = Arc::new(VariableAttributes::VariableAttributes::VAR_ATTR_STRING { quantity: None, start: None, fixed: None, binding: None, isProtected: None, finalPrefix: None, startOrigin: None }); }
+pub fn EMPTY_VAR_ATTR_STRING() -> Arc<VariableAttributes::VariableAttributes> { __EMPTY_VAR_ATTR_STRING_TLS.with(|__t| __t.clone()) }
 
-// TODO: non-Sync, non-const-emittable constant — needs new emission path.
-// Type: Arc<VariableAttributes::VariableAttributes>
-// Expr: Constructor { name: 'NFBackendExtension.VariableAttributes.VAR_ATTR_ENUMERATION', args: [Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }, Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }, Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }, Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }, Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }, Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }, Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }, Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }, Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }], named_args: [], ty: RustStruct('NFBackendExtension.VariableAttributes.VAR_ATTR_ENUMERATION'), field_names: ['quantity', 'min', 'max', 'start', 'fixed', 'binding', 'isProtected', 'finalPrefix', 'startOrigin'] }
-pub fn EMPTY_VAR_ATTR_ENUMERATION() -> Arc<VariableAttributes::VariableAttributes> { todo!("non-Sync, non-const-emittable constant EMPTY_VAR_ATTR_ENUMERATION — extend codegen") }
+thread_local! { static __EMPTY_VAR_ATTR_ENUMERATION_TLS: Arc<VariableAttributes::VariableAttributes> = Arc::new(VariableAttributes::VariableAttributes::VAR_ATTR_ENUMERATION { quantity: None, min: None, max: None, start: None, fixed: None, binding: None, isProtected: None, finalPrefix: None, startOrigin: None }); }
+pub fn EMPTY_VAR_ATTR_ENUMERATION() -> Arc<VariableAttributes::VariableAttributes> { __EMPTY_VAR_ATTR_ENUMERATION_TLS.with(|__t| __t.clone()) }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 #[repr(i32)]
@@ -1601,6 +1587,9 @@ impl PartialOrd for StateSelect {
 }
 impl Ord for StateSelect {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering { (*self as i32).cmp(&(*other as i32)) }
+}
+impl Default for StateSelect {
+    fn default() -> Self { Self::NEVER }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
@@ -1618,6 +1607,9 @@ impl PartialOrd for TearingSelect {
 impl Ord for TearingSelect {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering { (*self as i32).cmp(&(*other as i32)) }
 }
+impl Default for TearingSelect {
+    fn default() -> Self { Self::NEVER }
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 #[repr(i32)]
@@ -1634,7 +1626,7 @@ impl Ord for Uncertainty {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering { (*self as i32).cmp(&(*other as i32)) }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Distribution {
     pub name: Arc<Expression::NFExpression>,
     pub params: Arc<Expression::NFExpression>,
@@ -1648,7 +1640,7 @@ pub mod Annotations {
     use super::*;
     /// all annotations that are vendor specific
     ///      note: doesn't include __OpenModelica_tearingSelect, this is considered a first class attribute
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
     pub struct Annotations {
         pub hideResult: bool,
         pub resizable: bool,
@@ -1670,7 +1662,7 @@ pub mod Annotations {
     pub type ANNOTATIONS = Annotations;
 
     pub fn create(mut comment: Arc<SCode::Comment>, mut attributes: Arc<Attributes::NFAttributes>) -> Arc<Annotations> {
-        let mut annotations: Arc<Annotations> = EMPTY_ANNOTATIONS().clone();
+        let mut annotations: Arc<Annotations> = EMPTY_ANNOTATIONS.clone();
         let mut r#mod: Arc<SCode::Mod> = Arc::new(SCode::Mod::NOMOD);
         let mut b: bool = false;
         if attributes.isResizable.clone() {
@@ -1753,9 +1745,9 @@ impl PartialOrd for OptimizerExpression {
 impl Ord for OptimizerExpression {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering { (*self as i32).cmp(&(*other as i32)) }
 }
+impl Default for OptimizerExpression {
+    fn default() -> Self { Self::MAYER }
+}
 
-// TODO: non-Sync, non-const-emittable constant — needs new emission path.
-// Type: Arc<Annotations::Annotations>
-// Expr: Constructor { name: 'NFBackendExtension.Annotations.ANNOTATIONS', args: [Lit(Bool(false)), Lit(Bool(false)), Lit(Bool(false)), Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }], named_args: [], ty: RustStruct('NFBackendExtension.Annotations'), field_names: ['hideResult', 'resizable', 'optimizable', 'optimizerExpression'] }
-pub fn EMPTY_ANNOTATIONS() -> Arc<Annotations::Annotations> { todo!("non-Sync, non-const-emittable constant EMPTY_ANNOTATIONS — extend codegen") }
+pub static EMPTY_ANNOTATIONS: std::sync::LazyLock<Arc<Annotations::Annotations>> = std::sync::LazyLock::new(|| { Arc::new(Annotations::Annotations { hideResult: false, resizable: false, optimizable: false, optimizerExpression: None }) });
 

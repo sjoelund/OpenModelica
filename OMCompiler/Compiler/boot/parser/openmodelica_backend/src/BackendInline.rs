@@ -231,12 +231,12 @@ fn createEqnSysfromFunction(mut fns: Arc<metamodelica::List<Arc<DAE::Element>>>,
         __acc.reverse()
     };
             outEqs = BackendVariable::addVarsDAE(varLst.clone(), outEqs.clone());
-            eq = BackendEquation::generateEquation(eVar.clone(), eBind.clone(), DAE::emptyElementSource.clone(), BackendDAE::EQ_ATTR_DEFAULT_UNKNOWN.clone())?;
+            eq = BackendEquation::generateEquation(eVar.clone(), eBind.clone(), DAE::emptyElementSource().clone(), BackendDAE::EQ_ATTR_DEFAULT_UNKNOWN.clone())?;
             outEqs = BackendEquation::equationAddDAE(eq.clone(), outEqs.clone())?;
             ()
         },
         Deref @ DAE::Element::ALGORITHM { algorithm_: Deref @ DAE::Algorithm { statementLst: st }, .. } => {
-            eqlst = List::map(st.clone(), Arc::new(BackendEquation::statementEq));
+            eqlst = List::map(st.clone(), (std::sync::Arc::new(BackendEquation::statementEq) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Statement>) -> Result<Arc<BackendDAE::Equation>> + 'static>));
             outEqs = BackendEquation::equationsAddDAE(eqlst.clone(), outEqs.clone())?;
             ()
         },
@@ -265,7 +265,7 @@ fn createEqnSysfromFunction(mut fns: Arc<metamodelica::List<Arc<DAE::Element>>>,
     }
     argmap = List::zip(fnInputs.clone().reverse(), args.clone());
     (argmap, checkcr) = Inline::extendCrefRecords(argmap.clone(), HashTableCG::emptyHashTable())?;
-    BackendDAEUtil::traverseBackendDAEExpsEqSystemWithUpdate(outEqs.clone(), Arc::new(replaceArgs), (argmap.clone(), checkcr.clone(), true))?;
+    BackendDAEUtil::traverseBackendDAEExpsEqSystemWithUpdate(outEqs.clone(), (std::sync::Arc::new(replaceArgs) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, (Arc<metamodelica::List<(Arc<DAE::ComponentRef>, Arc<DAE::Exp>)>>, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>), i32, (HashTableCG::FuncHashCref, HashTableCG::FuncCrefEqual, HashTableCG::FuncCrefStr, HashTableCG::FuncExpStr)), bool)) -> Result<(Arc<DAE::Exp>, (Arc<metamodelica::List<(Arc<DAE::ComponentRef>, Arc<DAE::Exp>)>>, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>), i32, (HashTableCG::FuncHashCref, HashTableCG::FuncCrefEqual, HashTableCG::FuncCrefStr, HashTableCG::FuncExpStr)), bool))> + 'static>), (argmap.clone(), checkcr.clone(), true))?;
     if Flags::isSet(Flags::DUMPBACKENDINLINE_VERBOSE.clone())? {
         println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nreplaced input arguments for: ")); __mm_s.push_str(&*funcname.clone()); ArcStr::from(__mm_s) }).clone());
         BackendDump::printEqSystem(outEqs.clone())?;
@@ -275,11 +275,11 @@ fn createEqnSysfromFunction(mut fns: Arc<metamodelica::List<Arc<DAE::Element>>>,
 
 fn addReplacement(mut iCr: Arc<DAE::ComponentRef>, mut iExp: Arc<DAE::Exp>, mut iRepl: BackendVarTransform::VariableReplacements) -> Result<BackendVarTransform::VariableReplacements> {
     let mut oRepl: BackendVarTransform::VariableReplacements;
-    oRepl = (::match_deref::match_deref! { match &(iCr.clone()) {
-        Deref @ DAE::ComponentRef::CREF_IDENT { identType: tp, .. } if (!(Expression::isRecordType(tp.clone())) && !(Expression::isArrayType(tp.clone()))) => {
+    oRepl = (::match_deref::match_deref! { match &((iCr.clone(), iExp.clone(), iRepl.clone())) {
+        (Deref @ DAE::ComponentRef::CREF_IDENT { identType: tp, .. }, _, _) if (!(Expression::isRecordType(tp.clone())) && !(Expression::isArrayType(tp.clone()))) => {
             BackendVarTransform::addReplacement(iRepl.clone(), iCr.clone(), iExp.clone(), None)?
         },
-        Deref @ DAE::ComponentRef::CREF_IDENT { identType: tp, .. } if (Expression::isArrayType(tp.clone())) => {
+        (Deref @ DAE::ComponentRef::CREF_IDENT { identType: tp, .. }, _, _) if (Expression::isArrayType(tp.clone())) => {
             let mut repl: BackendVarTransform::VariableReplacements;
             let mut crefs: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
             let mut arrExp: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
@@ -310,7 +310,7 @@ fn addReplacement(mut iCr: Arc<DAE::ComponentRef>, mut iExp: Arc<DAE::Exp>, mut 
 fn replaceArgs(mut inExp: Arc<DAE::Exp>, mut inTuple: (Arc<metamodelica::List<(Arc<DAE::ComponentRef>, Arc<DAE::Exp>)>>, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>), i32, (HashTableCG::FuncHashCref, HashTableCG::FuncCrefEqual, HashTableCG::FuncCrefStr, HashTableCG::FuncExpStr)), bool)) -> Result<(Arc<DAE::Exp>, (Arc<metamodelica::List<(Arc<DAE::ComponentRef>, Arc<DAE::Exp>)>>, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>), i32, (HashTableCG::FuncHashCref, HashTableCG::FuncCrefEqual, HashTableCG::FuncCrefStr, HashTableCG::FuncExpStr)), bool))> {
     let mut outExp: Arc<DAE::Exp>;
     let mut outTuple: (Arc<metamodelica::List<(Arc<DAE::ComponentRef>, Arc<DAE::Exp>)>>, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>), i32, (HashTableCG::FuncHashCref, HashTableCG::FuncCrefEqual, HashTableCG::FuncCrefStr, HashTableCG::FuncExpStr)), bool);
-    (outExp, outTuple) = Expression::Expression::traverseExpBottomUp(inExp.clone(), Inline::replaceArgs, inTuple.clone())?;
+    (outExp, outTuple) = Expression::Expression::traverseExpBottomUp(inExp.clone(), (std::sync::Arc::new(Inline::replaceArgs) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, (Arc<metamodelica::List<(Arc<DAE::ComponentRef>, Arc<DAE::Exp>)>>, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>), i32, (HashTableCG::FuncHashCref, HashTableCG::FuncCrefEqual, HashTableCG::FuncCrefStr, HashTableCG::FuncExpStr)), bool)) -> Result<(Arc<DAE::Exp>, (Arc<metamodelica::List<(Arc<DAE::ComponentRef>, Arc<DAE::Exp>)>>, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>), i32, (HashTableCG::FuncHashCref, HashTableCG::FuncCrefEqual, HashTableCG::FuncCrefStr, HashTableCG::FuncExpStr)), bool))> + 'static>), inTuple.clone())?;
     if !(Util::tuple33(outTuple.clone())) {
         if Flags::isSet(Flags::FAILTRACE.clone())? {
             Debug::traceln((literal!("BackendInline.replaceArgs failed")).clone())?;

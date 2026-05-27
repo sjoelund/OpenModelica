@@ -46,12 +46,45 @@ use arcstr::{ArcStr, literal, format};
 use openmodelica_ast::Absyn;
 use openmodelica_util::Global;
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone)]
 pub struct BackendInterfaceFunctions {
     pub noRewriteRulesFrontEnd: partialNoRewriteRulesFrontEnd,
     pub rewriteFrontEnd: partialRewriteFrontEnd,
     pub appendLibrary: partialAppendLibrary,
     pub initInstHashTable: partialInitInstHashTable,
+}
+
+impl PartialEq for BackendInterfaceFunctions {
+    fn eq(&self, other: &Self) -> bool {
+        std::sync::Arc::ptr_eq(&self.noRewriteRulesFrontEnd, &other.noRewriteRulesFrontEnd) && std::sync::Arc::ptr_eq(&self.rewriteFrontEnd, &other.rewriteFrontEnd) && std::sync::Arc::ptr_eq(&self.appendLibrary, &other.appendLibrary) && std::sync::Arc::ptr_eq(&self.initInstHashTable, &other.initInstHashTable)
+    }
+}
+impl Eq for BackendInterfaceFunctions {}
+impl PartialOrd for BackendInterfaceFunctions {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> { Some(self.cmp(other)) }
+}
+impl Ord for BackendInterfaceFunctions {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        (std::sync::Arc::as_ptr(&self.noRewriteRulesFrontEnd) as *const ()).cmp(&(std::sync::Arc::as_ptr(&other.noRewriteRulesFrontEnd) as *const ())).then_with(|| (std::sync::Arc::as_ptr(&self.rewriteFrontEnd) as *const ()).cmp(&(std::sync::Arc::as_ptr(&other.rewriteFrontEnd) as *const ())).then_with(|| (std::sync::Arc::as_ptr(&self.appendLibrary) as *const ()).cmp(&(std::sync::Arc::as_ptr(&other.appendLibrary) as *const ())).then_with(|| (std::sync::Arc::as_ptr(&self.initInstHashTable) as *const ()).cmp(&(std::sync::Arc::as_ptr(&other.initInstHashTable) as *const ())))))
+    }
+}
+impl std::hash::Hash for BackendInterfaceFunctions {
+    fn hash<__H: std::hash::Hasher>(&self, __state: &mut __H) {
+        (std::sync::Arc::as_ptr(&self.noRewriteRulesFrontEnd) as *const ()).hash(__state);
+        (std::sync::Arc::as_ptr(&self.rewriteFrontEnd) as *const ()).hash(__state);
+        (std::sync::Arc::as_ptr(&self.appendLibrary) as *const ()).hash(__state);
+        (std::sync::Arc::as_ptr(&self.initInstHashTable) as *const ()).hash(__state);
+    }
+}
+impl std::fmt::Debug for BackendInterfaceFunctions {
+    fn fmt(&self, __f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut __ds = __f.debug_struct("BackendInterfaceFunctions");
+        __ds.field("noRewriteRulesFrontEnd", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr(&self.noRewriteRulesFrontEnd)));
+        __ds.field("rewriteFrontEnd", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr(&self.rewriteFrontEnd)));
+        __ds.field("appendLibrary", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr(&self.appendLibrary)));
+        __ds.field("initInstHashTable", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr(&self.initInstHashTable)));
+        __ds.finish()
+    }
 }
 
 pub type BACKEND_INTERFACE_FUNCTIONS = BackendInterfaceFunctions;
@@ -67,7 +100,7 @@ pub fn noRewriteRulesFrontEnd() -> bool {
     let mut functions: BackendInterfaceFunctions;
     let mut func: partialNoRewriteRulesFrontEnd;
     functions = crate::Globals::backendInterface.with(|__root| __root.borrow().clone());
-    func = functions.noRewriteRulesFrontEnd;
+    func = functions.noRewriteRulesFrontEnd.clone();
     noRules = func().unwrap();
     noRules
 }
@@ -78,18 +111,18 @@ pub fn rewriteFrontEnd(mut inExp: Arc<Absyn::Exp>) -> (Arc<Absyn::Exp>, bool) {
     let mut functions: BackendInterfaceFunctions;
     let mut func: partialRewriteFrontEnd;
     functions = crate::Globals::backendInterface.with(|__root| __root.borrow().clone());
-    func = functions.rewriteFrontEnd;
+    func = functions.rewriteFrontEnd.clone();
     (outExp, isChanged) = func(inExp.clone()).unwrap();
     (outExp, isChanged)
 }
 
 pub fn appendLibrary(mut modelName: Arc<Absyn::Path>, mut modelicaPath: ArcStr) -> (Absyn::Program, bool) {
-    let mut program: Absyn::Program;
+    let mut program: Absyn::Program = <Absyn::Program as ::std::default::Default>::default();
     let mut success: bool = false;
     let mut functions: BackendInterfaceFunctions;
     let mut func: partialAppendLibrary;
     functions = crate::Globals::backendInterface.with(|__root| __root.borrow().clone());
-    func = functions.appendLibrary;
+    func = functions.appendLibrary.clone();
     (program, success) = func(modelName.clone(), (modelicaPath.clone()).clone()).unwrap();
     (program, success)
 }
@@ -98,16 +131,16 @@ pub fn initInstHashTable() -> () {
     let mut functions: BackendInterfaceFunctions;
     let mut func: partialInitInstHashTable;
     functions = crate::Globals::backendInterface.with(|__root| __root.borrow().clone());
-    func = functions.initInstHashTable;
+    func = functions.initInstHashTable.clone();
     func().unwrap();
     ()
 }
 
-pub type partialNoRewriteRulesFrontEnd = fn() -> Result<bool>;
+pub type partialNoRewriteRulesFrontEnd = std::sync::Arc<dyn ::std::ops::Fn() -> Result<bool> + 'static>;
 
-pub type partialRewriteFrontEnd = fn(Arc<Absyn::Exp>) -> Result<(Arc<Absyn::Exp>, bool)>;
+pub type partialRewriteFrontEnd = std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Exp>) -> Result<(Arc<Absyn::Exp>, bool)> + 'static>;
 
-pub type partialAppendLibrary = fn(Arc<Absyn::Path>, ArcStr) -> Result<(Absyn::Program, bool)>;
+pub type partialAppendLibrary = std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Path>, ArcStr) -> Result<(Absyn::Program, bool)> + 'static>;
 
-pub type partialInitInstHashTable = fn() -> Result<()>;
+pub type partialInitInstHashTable = std::sync::Arc<dyn ::std::ops::Fn() -> Result<()> + 'static>;
 

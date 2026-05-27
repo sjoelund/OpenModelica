@@ -70,7 +70,7 @@ use openmodelica_util_datatypes_basic::List;
 //----------------------------
 //  Visualization types
 //----------------------------
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Visualization {
     SHAPE {
         ident: Arc<DAE::ComponentRef>,
@@ -140,20 +140,20 @@ pub fn visualizationInfoXML(mut daeIn: Arc<BackendDAE::BackendDAE>, mut fileName
     } };
     aliasVars = __pa2.clone();
     globalKnownVars = __pa3.clone();
-    eqs = List::map(eqs0.clone(), Arc::new(BackendDAEUtil::copyEqSystem));
-    eqs = List::map(eqs.clone(), Arc::new(fnptr!(setBindingForProtectedVars, Arc<BackendDAE::EqSystem>)));
+    eqs = List::map(eqs0.clone(), (std::sync::Arc::new(BackendDAEUtil::copyEqSystem) as std::sync::Arc<dyn ::std::ops::Fn(Arc<BackendDAE::EqSystem>) -> Result<Arc<BackendDAE::EqSystem>> + 'static>));
+    eqs = List::map(eqs.clone(), (std::sync::Arc::new(fnptr!(setBindingForProtectedVars, Arc<BackendDAE::EqSystem>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<BackendDAE::EqSystem>) -> Result<Arc<BackendDAE::EqSystem>> + 'static>));
     globalKnownVarLst = BackendVariable::varList(globalKnownVars.clone())?;
     aliasVarLst = BackendVariable::varList(aliasVars.clone())?;
-    allVarLst = List::flatten(List::mapMap(eqs.clone(), Arc::new(fnptr!(BackendVariable::daeVars, Arc<BackendDAE::EqSystem>)), Arc::new(BackendVariable::varList)));
-    (globalKnownVarLst, allVisuals) = List::fold(globalKnownVarLst.clone(), Arc::new(isVisualizationVarFold), (metamodelica::nil(), metamodelica::nil()));
-    (allVarLst, allVisuals) = List::fold(allVarLst.clone(), Arc::new(isVisualizationVarFold), (metamodelica::nil(), allVisuals.clone()));
-    (aliasVarLst, allVisuals) = List::fold(aliasVarLst.clone(), Arc::new(isVisualizationVarFold), (metamodelica::nil(), allVisuals.clone()));
+    allVarLst = List::flatten(List::mapMap(eqs.clone(), (std::sync::Arc::new(fnptr!(BackendVariable::daeVars, Arc<BackendDAE::EqSystem>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<BackendDAE::EqSystem>) -> Result<BackendDAE::Variables> + 'static>), (std::sync::Arc::new(BackendVariable::varList) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Variables) -> Result<Arc<metamodelica::List<BackendDAE::Var>>> + 'static>)));
+    (globalKnownVarLst, allVisuals) = List::fold(globalKnownVarLst.clone(), (std::sync::Arc::new(isVisualizationVarFold) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, (Arc<metamodelica::List<BackendDAE::Var>>, Arc<metamodelica::List<(Arc<DAE::ComponentRef>, ArcStr)>>)) -> Result<(Arc<metamodelica::List<BackendDAE::Var>>, Arc<metamodelica::List<(Arc<DAE::ComponentRef>, ArcStr)>>)> + 'static>), (metamodelica::nil(), metamodelica::nil()));
+    (allVarLst, allVisuals) = List::fold(allVarLst.clone(), (std::sync::Arc::new(isVisualizationVarFold) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, (Arc<metamodelica::List<BackendDAE::Var>>, Arc<metamodelica::List<(Arc<DAE::ComponentRef>, ArcStr)>>)) -> Result<(Arc<metamodelica::List<BackendDAE::Var>>, Arc<metamodelica::List<(Arc<DAE::ComponentRef>, ArcStr)>>)> + 'static>), (metamodelica::nil(), allVisuals.clone()));
+    (aliasVarLst, allVisuals) = List::fold(aliasVarLst.clone(), (std::sync::Arc::new(isVisualizationVarFold) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, (Arc<metamodelica::List<BackendDAE::Var>>, Arc<metamodelica::List<(Arc<DAE::ComponentRef>, ArcStr)>>)) -> Result<(Arc<metamodelica::List<BackendDAE::Var>>, Arc<metamodelica::List<(Arc<DAE::ComponentRef>, ArcStr)>>)> + 'static>), (metamodelica::nil(), allVisuals.clone()));
     allVarLst = listAppend(globalKnownVarLst.clone(), listAppend(allVarLst.clone(), aliasVarLst.clone()));
-    (visuals, _, _) = List::mapFold2(allVisuals.clone(), Arc::new(fillVisualizationObjects), allVarLst.clone(), program.clone());
-    visuals = List::map2(visuals.clone(), Arc::new(replaceVisualBinding), globalKnownVars.clone(), program.clone());
+    (visuals, _, _) = List::mapFold2(allVisuals.clone(), (std::sync::Arc::new(fillVisualizationObjects) as std::sync::Arc<dyn ::std::ops::Fn((Arc<DAE::ComponentRef>, ArcStr), Arc<metamodelica::List<BackendDAE::Var>>, Absyn::Program) -> Result<(Visualization, Arc<metamodelica::List<BackendDAE::Var>>, Absyn::Program)> + 'static>), allVarLst.clone(), program.clone());
+    visuals = List::map2(visuals.clone(), (std::sync::Arc::new(replaceVisualBinding) as std::sync::Arc<dyn ::std::ops::Fn(Visualization, BackendDAE::Variables, Absyn::Program) -> Result<Visualization> + 'static>), globalKnownVars.clone(), program.clone());
     dumpVis(metamodelica::arrayFromVec(visuals.clone().into_iter().cloned().collect()), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*fileName.clone()); __mm_s.push_str(&*literal!("_visual.xml")); ArcStr::from(__mm_s) }).clone())?;
-    (globalKnownVars, _) = BackendVariable::traverseBackendDAEVarsWithUpdate(globalKnownVars.clone(), Arc::new(setVisVarsPublic), (literal!("")).clone())?;
-    (aliasVars, _) = BackendVariable::traverseBackendDAEVarsWithUpdate(aliasVars.clone(), Arc::new(setVisVarsPublic), (literal!("")).clone())?;
+    (globalKnownVars, _) = BackendVariable::traverseBackendDAEVarsWithUpdate(globalKnownVars.clone(), (std::sync::Arc::new(setVisVarsPublic) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, ArcStr) -> Result<(BackendDAE::Var, ArcStr)> + 'static>), (literal!("")).clone())?;
+    (aliasVars, _) = BackendVariable::traverseBackendDAEVarsWithUpdate(aliasVars.clone(), (std::sync::Arc::new(setVisVarsPublic) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, ArcStr) -> Result<(BackendDAE::Var, ArcStr)> + 'static>), (literal!("")).clone())?;
     daeOut = BackendDAE::DAE(shared=shared.clone(), eqs=eqs.clone())?;
     Ok(daeOut)
 }
@@ -290,7 +290,7 @@ fn setBindingForProtectedVars(mut eqSysIn: Arc<BackendDAE::EqSystem>) -> Arc<Bac
         ass1 = __pa1.clone();
         vars = __pa2.clone();
         eqs = __pa3.clone();
-        unwrap_break_err!(BackendVariable::traverseBackendDAEVarsWithUpdate(vars.clone(), Arc::new(setBindingForProtectedVars1), (1, ass1.clone(), eqs.clone())), '__try0);
+        unwrap_break_err!(BackendVariable::traverseBackendDAEVarsWithUpdate(vars.clone(), (std::sync::Arc::new(setBindingForProtectedVars1) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, (i32, metamodelica::Array<i32>, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>)) -> Result<(BackendDAE::Var, (i32, metamodelica::Array<i32>, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>))> + 'static>), (1, ass1.clone(), eqs.clone())), '__try0);
         Ok::<(), anyhow::Error>(())
     }.is_err() {
     }
@@ -359,7 +359,7 @@ fn fillVisualizationObjects(mut visVar: (Arc<DAE::ComponentRef>, ArcStr), mut al
     match '__try0: {
         (cref, vis_name) = visVar.clone();
         vis = unwrap_break_err!(newVisualizer(cref.clone(), (vis_name.clone()).clone()), '__try0);
-        (_, visOut) = List::fold2(allVarsIn.clone(), Arc::new(fillVisualizationObjects1), true, programIn.clone(), (metamodelica::nil(), vis.clone()));
+        (_, visOut) = List::fold2(allVarsIn.clone(), (std::sync::Arc::new(fillVisualizationObjects1) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, bool, Absyn::Program, (Arc<metamodelica::List<BackendDAE::Var>>, Visualization)) -> Result<(Arc<metamodelica::List<BackendDAE::Var>>, Visualization)> + 'static>), true, programIn.clone(), (metamodelica::nil(), vis.clone()));
         Ok::<_, anyhow::Error>((cref.clone(), vis.clone(), visOut.clone(), vis_name.clone()))
     } {
         Ok((__try0_o0, __try0_o1, __try0_o2, __try0_o3)) => {
@@ -397,14 +397,14 @@ fn makeCrefQualFromString(mut s: ArcStr) -> Result<Arc<DAE::ComponentRef>> {
     let mut cref: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
     let mut crefs: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
     sLst = Util::stringSplitAtChar((s.clone()).clone(), (literal!(".")).clone())?;
-    crefs = List::map2(sLst.clone(), Arc::new(fnptr!(ComponentReferenceBasics::makeCrefIdent, ArcStr, Arc<DAE::Type>, Arc<metamodelica::List<Arc<DAE::Subscript>>>)), DAE::T_REAL_DEFAULT.clone(), metamodelica::nil());
+    crefs = List::map2(sLst.clone(), (std::sync::Arc::new(fnptr!(ComponentReferenceBasics::makeCrefIdent, ArcStr, Arc<DAE::Type>, Arc<metamodelica::List<Arc<DAE::Subscript>>>)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, Arc<DAE::Type>, Arc<metamodelica::List<Arc<DAE::Subscript>>>) -> Result<Arc<DAE::ComponentRef>> + 'static>), DAE::T_REAL_DEFAULT().clone(), metamodelica::nil());
     let (__pa0, __pa1) = ::match_deref::match_deref! { match &(crefs.clone()) {
         Deref @ metamodelica::List::Cons { head: __pa0, tail: __pa1 } => (__pa0.clone(), __pa1.clone()),
         _ => bail!("pattern mismatch"),
     } };
     cref = __pa0.clone();
     crefs = __pa1.clone();
-    crefOut = List::foldr(crefs.clone(), Arc::new(ComponentReference::joinCrefs), cref.clone());
+    crefOut = List::foldr(crefs.clone(), (std::sync::Arc::new(ComponentReference::joinCrefs) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>) -> Result<Arc<DAE::ComponentRef>> + 'static>), cref.clone());
     Ok(crefOut)
 }
 
@@ -983,7 +983,7 @@ fn printVisualization(mut vis: Visualization) -> Result<ArcStr> {
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, (literal!(",")).clone())); __mm_s.push_str(&*literal!("}")); __mm_s.push_str(&*literal!("\nlD{")); __mm_s.push_str(&*stringDelimitList(List::mapArray(lengthDir.clone(), Arc::new(ExpressionBasics::printExpStr)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("}")); __mm_s.push_str(&*literal!(" wD{")); __mm_s.push_str(&*stringDelimitList(List::mapArray(widthDir.clone(), Arc::new(ExpressionBasics::printExpStr)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("}")); __mm_s.push_str(&*literal!("\ncolor(")); __mm_s.push_str(&*stringDelimitList(List::mapArray(color.clone(), Arc::new(ExpressionBasics::printExpStr)), (literal!(",")).clone())); __mm_s.push_str(&*literal!(")")); __mm_s.push_str(&*literal!(" w: ")); __mm_s.push_str(&*ExpressionBasics::printExpStr(width.clone())?); __mm_s.push_str(&*literal!(" h: ")); __mm_s.push_str(&*ExpressionBasics::printExpStr(height.clone())?); __mm_s.push_str(&*literal!(" l: ")); __mm_s.push_str(&*ExpressionBasics::printExpStr(length.clone())?); __mm_s.push_str(&*literal!("\nT {")); __mm_s.push_str(&*stringDelimitList(List::map(List::flatten(Arc::new(T.clone().borrow().iter().cloned().collect::<metamodelica::List<_>>())), Arc::new(ExpressionBasics::printExpStr)), (literal!(", ")).clone())); __mm_s.push_str(&*literal!("}")); __mm_s.push_str(&*literal!("\nextra{")); __mm_s.push_str(&*ExpressionBasics::printExpStr(extra.clone())?); __mm_s.push_str(&*literal!("}")); ArcStr::from(__mm_s) }
+    }, (literal!(",")).clone())); __mm_s.push_str(&*literal!("}")); __mm_s.push_str(&*literal!("\nlD{")); __mm_s.push_str(&*stringDelimitList(List::mapArray(lengthDir.clone(), (std::sync::Arc::new(ExpressionBasics::printExpStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("}")); __mm_s.push_str(&*literal!(" wD{")); __mm_s.push_str(&*stringDelimitList(List::mapArray(widthDir.clone(), (std::sync::Arc::new(ExpressionBasics::printExpStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("}")); __mm_s.push_str(&*literal!("\ncolor(")); __mm_s.push_str(&*stringDelimitList(List::mapArray(color.clone(), (std::sync::Arc::new(ExpressionBasics::printExpStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!(")")); __mm_s.push_str(&*literal!(" w: ")); __mm_s.push_str(&*ExpressionBasics::printExpStr(width.clone())?); __mm_s.push_str(&*literal!(" h: ")); __mm_s.push_str(&*ExpressionBasics::printExpStr(height.clone())?); __mm_s.push_str(&*literal!(" l: ")); __mm_s.push_str(&*ExpressionBasics::printExpStr(length.clone())?); __mm_s.push_str(&*literal!("\nT {")); __mm_s.push_str(&*stringDelimitList(List::map(List::flatten(Arc::new(T.clone().borrow().iter().cloned().collect::<metamodelica::List<_>>())), (std::sync::Arc::new(ExpressionBasics::printExpStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<ArcStr> + 'static>)), (literal!(", ")).clone())); __mm_s.push_str(&*literal!("}")); __mm_s.push_str(&*literal!("\nextra{")); __mm_s.push_str(&*ExpressionBasics::printExpStr(extra.clone())?); __mm_s.push_str(&*literal!("}")); ArcStr::from(__mm_s) }
         },
         _ => {
             literal!("-")
@@ -1099,7 +1099,7 @@ fn hasVisPath(mut pathsIn: Arc<metamodelica::List<Arc<Absyn::Path>>>, mut numIn:
 
 fn dumpVis(mut visIn: metamodelica::Array<Visualization>, mut iFileName: ArcStr) -> Result<()> {
     println!("{}", (literal!("")).clone());
-    Tpl::tplNoret2(Arc::new(VisualXMLTpl::dumpVisXML), visIn.clone(), (iFileName.clone()).clone())?;
+    Tpl::tplNoret2((std::sync::Arc::new(VisualXMLTpl::dumpVisXML) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, metamodelica::Array<Visualization>, ArcStr) -> Result<Tpl::Text> + 'static>), visIn.clone(), (iFileName.clone()).clone())?;
     Ok(())
 }
 

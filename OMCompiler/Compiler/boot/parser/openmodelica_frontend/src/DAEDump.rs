@@ -104,7 +104,7 @@ pub fn functionNameStr(mut inElement: DAE::Function) -> Result<ArcStr> {
 
 fn sortFunctions(mut funcs: Arc<metamodelica::List<DAE::Function>>) -> Result<Arc<metamodelica::List<DAE::Function>>> {
     let mut sortedFuncs: Arc<metamodelica::List<DAE::Function>> = metamodelica::nil();
-    sortedFuncs = List::sort(funcs.clone(), Arc::new(funcGreaterThan))?;
+    sortedFuncs = List::sort(funcs.clone(), (std::sync::Arc::new(funcGreaterThan) as std::sync::Arc<dyn ::std::ops::Fn(DAE::Function, DAE::Function) -> Result<bool> + 'static>))?;
     Ok(sortedFuncs)
 }
 
@@ -402,7 +402,7 @@ pub fn dumpExtDeclStr(mut inExternalDecl: DAE::ExternalDecl) -> Result<ArcStr> {
             let mut extargsstr: ArcStr = arcstr::literal!("");
             let mut rettystr: ArcStr = arcstr::literal!("");
             let mut r#str: ArcStr = arcstr::literal!("");
-            extargsstr = (List::toString(extargs.clone(), Arc::new(dumpExtArgStr), (literal!("")).clone(), (literal!("")).clone(), (literal!(", ")).clone(), (literal!("")).clone(), true, 0)?).clone();
+            extargsstr = (List::toString(extargs.clone(), (std::sync::Arc::new(dumpExtArgStr) as std::sync::Arc<dyn ::std::ops::Fn(DAE::ExtArg) -> Result<ArcStr> + 'static>), (literal!("")).clone(), (literal!("")).clone(), (literal!(", ")).clone(), (literal!("")).clone(), true, 0)?).clone();
             rettystr = (dumpExtArgStr(retty.clone())?).clone();
             rettystr = (if (stringEq((rettystr.clone()).clone(), (literal!("")).clone())) {rettystr.clone()} else {{ let mut __mm_s = String::new(); __mm_s.push_str(&*rettystr.clone()); __mm_s.push_str(&*literal!(" = ")); ArcStr::from(__mm_s) }}).clone();
             r#str = stringAppendList(list![(literal!("external \"")).clone(), (lang.clone()).clone(), (literal!("\" ")).clone(), (rettystr.clone()).clone(), (id.clone()).clone(), (literal!("(")).clone(), (extargsstr.clone()).clone(), (literal!(");")).clone()]);
@@ -477,20 +477,20 @@ fn dumpCompElement(mut inElement: Arc<DAE::Element>) -> Result<()> {
 
 pub fn dumpElements(mut l: Arc<metamodelica::List<Arc<DAE::Element>>>) -> Result<()> {
     dumpVars(l.clone(), false)?;
-    List::map_0(l.clone(), Arc::new(dumpExtObjectClass));
+    List::map_0(l.clone(), (std::sync::Arc::new(dumpExtObjectClass) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Element>) -> Result<()> + 'static>));
     Print::printBuf((literal!("initial equation\n")).clone())?;
-    List::map_0(l.clone(), Arc::new(dumpInitialEquation));
+    List::map_0(l.clone(), (std::sync::Arc::new(dumpInitialEquation) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Element>) -> Result<()> + 'static>));
     Print::printBuf((literal!("equation\n")).clone())?;
-    List::map_0(l.clone(), Arc::new(dumpEquation));
-    List::map_0(l.clone(), Arc::new(dumpInitialAlgorithm));
-    List::map_0(l.clone(), Arc::new(dumpAlgorithm));
-    List::map_0(l.clone(), Arc::new(dumpCompElement));
+    List::map_0(l.clone(), (std::sync::Arc::new(dumpEquation) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Element>) -> Result<()> + 'static>));
+    List::map_0(l.clone(), (std::sync::Arc::new(dumpInitialAlgorithm) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Element>) -> Result<()> + 'static>));
+    List::map_0(l.clone(), (std::sync::Arc::new(dumpAlgorithm) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Element>) -> Result<()> + 'static>));
+    List::map_0(l.clone(), (std::sync::Arc::new(dumpCompElement) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Element>) -> Result<()> + 'static>));
     Ok(())
 }
 
 pub fn dumpFunctionElements(mut l: Arc<metamodelica::List<Arc<DAE::Element>>>) -> Result<()> {
     dumpVars(l.clone(), true)?;
-    List::map_0(l.clone(), Arc::new(dumpAlgorithm));
+    List::map_0(l.clone(), (std::sync::Arc::new(dumpAlgorithm) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Element>) -> Result<()> + 'static>));
     Ok(())
 }
 
@@ -658,17 +658,17 @@ pub fn dumpVariableAttributesStr(mut inVariableAttributesOption: Option<Arc<DAE:
                     let mut res_1: ArcStr = arcstr::literal!("");
                     let mut res: ArcStr = arcstr::literal!("");
                     let mut startOriginStr: ArcStr = arcstr::literal!("");
-                    quantity = (getOptionWithConcatStr(quant.clone(), Arc::new(ExpressionBasics::printExpStr), (literal!("quantity = ")).clone())?).clone();
-                    unit_str = (getOptionWithConcatStr(unit.clone(), Arc::new(ExpressionBasics::printExpStr), (literal!("unit = ")).clone())?).clone();
-                    displayUnit_str = (getOptionWithConcatStr(displayUnit.clone(), Arc::new(ExpressionBasics::printExpStr), (literal!("displayUnit = ")).clone())?).clone();
-                    stateSel_str = (getOptionWithConcatStr(stateSel.clone(), Arc::new(dumpStateSelectStr), (literal!("stateSelect = ")).clone())?).clone();
-                    min_str = (getOptionWithConcatStr(min.clone(), Arc::new(ExpressionBasics::printExpStr), (literal!("min = ")).clone())?).clone();
-                    max_str = (getOptionWithConcatStr(max.clone(), Arc::new(ExpressionBasics::printExpStr), (literal!("max = ")).clone())?).clone();
-                    nominal_str = (getOptionWithConcatStr(nominal.clone(), Arc::new(ExpressionBasics::printExpStr), (literal!("nominal = ")).clone())?).clone();
-                    initial_str = (getOptionWithConcatStr(initialExp.clone(), Arc::new(ExpressionBasics::printExpStr), (literal!("start = ")).clone())?).clone();
-                    fixed_str = (getOptionWithConcatStr(fixed.clone(), Arc::new(ExpressionBasics::printExpStr), (literal!("fixed = ")).clone())?).clone();
-                    uncertainty_str = (getOptionWithConcatStr(uncertainty.clone(), Arc::new(dumpUncertaintyStr), (literal!("uncertainty = ")).clone())?).clone();
-                    dist_str = (getOptionWithConcatStr(dist.clone(), Arc::new(dumpDistributionStr), (literal!("distribution = ")).clone())?).clone();
+                    quantity = (getOptionWithConcatStr(quant.clone(), (std::sync::Arc::new(ExpressionBasics::printExpStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<ArcStr> + 'static>), (literal!("quantity = ")).clone())?).clone();
+                    unit_str = (getOptionWithConcatStr(unit.clone(), (std::sync::Arc::new(ExpressionBasics::printExpStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<ArcStr> + 'static>), (literal!("unit = ")).clone())?).clone();
+                    displayUnit_str = (getOptionWithConcatStr(displayUnit.clone(), (std::sync::Arc::new(ExpressionBasics::printExpStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<ArcStr> + 'static>), (literal!("displayUnit = ")).clone())?).clone();
+                    stateSel_str = (getOptionWithConcatStr(stateSel.clone(), (std::sync::Arc::new(dumpStateSelectStr) as std::sync::Arc<dyn ::std::ops::Fn(DAE::StateSelect) -> Result<ArcStr> + 'static>), (literal!("stateSelect = ")).clone())?).clone();
+                    min_str = (getOptionWithConcatStr(min.clone(), (std::sync::Arc::new(ExpressionBasics::printExpStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<ArcStr> + 'static>), (literal!("min = ")).clone())?).clone();
+                    max_str = (getOptionWithConcatStr(max.clone(), (std::sync::Arc::new(ExpressionBasics::printExpStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<ArcStr> + 'static>), (literal!("max = ")).clone())?).clone();
+                    nominal_str = (getOptionWithConcatStr(nominal.clone(), (std::sync::Arc::new(ExpressionBasics::printExpStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<ArcStr> + 'static>), (literal!("nominal = ")).clone())?).clone();
+                    initial_str = (getOptionWithConcatStr(initialExp.clone(), (std::sync::Arc::new(ExpressionBasics::printExpStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<ArcStr> + 'static>), (literal!("start = ")).clone())?).clone();
+                    fixed_str = (getOptionWithConcatStr(fixed.clone(), (std::sync::Arc::new(ExpressionBasics::printExpStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<ArcStr> + 'static>), (literal!("fixed = ")).clone())?).clone();
+                    uncertainty_str = (getOptionWithConcatStr(uncertainty.clone(), (std::sync::Arc::new(dumpUncertaintyStr) as std::sync::Arc<dyn ::std::ops::Fn(DAE::Uncertainty) -> Result<ArcStr> + 'static>), (literal!("uncertainty = ")).clone())?).clone();
+                    dist_str = (getOptionWithConcatStr(dist.clone(), (std::sync::Arc::new(dumpDistributionStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Distribution>) -> Result<ArcStr> + 'static>), (literal!("distribution = ")).clone())?).clone();
                     startOriginStr = (getStartOrigin(startOrigin.clone())?).clone();
                     res_1 = (Util::stringDelimitListNonEmptyElts(list![(quantity.clone()).clone(), (unit_str.clone()).clone(), (displayUnit_str.clone()).clone(), (min_str.clone()).clone(), (max_str.clone()).clone(), (initial_str.clone()).clone(), (fixed_str.clone()).clone(), (nominal_str.clone()).clone(), (stateSel_str.clone()).clone(), (uncertainty_str.clone()).clone(), (dist_str.clone()).clone(), (startOriginStr.clone()).clone()], (literal!(", ")).clone())).clone();
                     res = (if (stringEmpty((res_1.clone()).clone())) {literal!("")} else {stringAppendList(list![(literal!("(")).clone(), (res_1.clone()).clone(), (literal!(")")).clone()])}).clone();
@@ -690,13 +690,13 @@ pub fn dumpVariableAttributesStr(mut inVariableAttributesOption: Option<Arc<DAE:
                     let mut res_1: ArcStr = arcstr::literal!("");
                     let mut res: ArcStr = arcstr::literal!("");
                     let mut startOriginStr: ArcStr = arcstr::literal!("");
-                    quantity = (getOptionWithConcatStr(quant.clone(), Arc::new(ExpressionBasics::printExpStr), (literal!("quantity = ")).clone())?).clone();
-                    min_str = (getOptionWithConcatStr(min.clone(), Arc::new(ExpressionBasics::printExpStr), (literal!("min = ")).clone())?).clone();
-                    max_str = (getOptionWithConcatStr(max.clone(), Arc::new(ExpressionBasics::printExpStr), (literal!("max = ")).clone())?).clone();
-                    initial_str = (getOptionWithConcatStr(initialExp.clone(), Arc::new(ExpressionBasics::printExpStr), (literal!("start = ")).clone())?).clone();
-                    fixed_str = (getOptionWithConcatStr(fixed.clone(), Arc::new(ExpressionBasics::printExpStr), (literal!("fixed = ")).clone())?).clone();
-                    uncertainty_str = (getOptionWithConcatStr(uncertainty.clone(), Arc::new(dumpUncertaintyStr), (literal!("uncertainty = ")).clone())?).clone();
-                    dist_str = (getOptionWithConcatStr(dist.clone(), Arc::new(dumpDistributionStr), (literal!("distribution = ")).clone())?).clone();
+                    quantity = (getOptionWithConcatStr(quant.clone(), (std::sync::Arc::new(ExpressionBasics::printExpStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<ArcStr> + 'static>), (literal!("quantity = ")).clone())?).clone();
+                    min_str = (getOptionWithConcatStr(min.clone(), (std::sync::Arc::new(ExpressionBasics::printExpStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<ArcStr> + 'static>), (literal!("min = ")).clone())?).clone();
+                    max_str = (getOptionWithConcatStr(max.clone(), (std::sync::Arc::new(ExpressionBasics::printExpStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<ArcStr> + 'static>), (literal!("max = ")).clone())?).clone();
+                    initial_str = (getOptionWithConcatStr(initialExp.clone(), (std::sync::Arc::new(ExpressionBasics::printExpStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<ArcStr> + 'static>), (literal!("start = ")).clone())?).clone();
+                    fixed_str = (getOptionWithConcatStr(fixed.clone(), (std::sync::Arc::new(ExpressionBasics::printExpStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<ArcStr> + 'static>), (literal!("fixed = ")).clone())?).clone();
+                    uncertainty_str = (getOptionWithConcatStr(uncertainty.clone(), (std::sync::Arc::new(dumpUncertaintyStr) as std::sync::Arc<dyn ::std::ops::Fn(DAE::Uncertainty) -> Result<ArcStr> + 'static>), (literal!("uncertainty = ")).clone())?).clone();
+                    dist_str = (getOptionWithConcatStr(dist.clone(), (std::sync::Arc::new(dumpDistributionStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Distribution>) -> Result<ArcStr> + 'static>), (literal!("distribution = ")).clone())?).clone();
                     startOriginStr = (getStartOrigin(startOrigin.clone())?).clone();
                     res_1 = (Util::stringDelimitListNonEmptyElts(list![(quantity.clone()).clone(), (min_str.clone()).clone(), (max_str.clone()).clone(), (initial_str.clone()).clone(), (fixed_str.clone()).clone(), (uncertainty_str.clone()).clone(), (dist_str.clone()).clone(), (startOriginStr.clone()).clone()], (literal!(", ")).clone())).clone();
                     res = (if (stringEmpty((res_1.clone()).clone())) {literal!("")} else {stringAppendList(list![(literal!("(")).clone(), (res_1.clone()).clone(), (literal!(")")).clone()])}).clone();
@@ -714,9 +714,9 @@ pub fn dumpVariableAttributesStr(mut inVariableAttributesOption: Option<Arc<DAE:
                     let mut res_1: ArcStr = arcstr::literal!("");
                     let mut res: ArcStr = arcstr::literal!("");
                     let mut startOriginStr: ArcStr = arcstr::literal!("");
-                    quantity = (getOptionWithConcatStr(quant.clone(), Arc::new(ExpressionBasics::printExpStr), (literal!("quantity = ")).clone())?).clone();
-                    initial_str = (getOptionWithConcatStr(initialExp.clone(), Arc::new(ExpressionBasics::printExpStr), (literal!("start = ")).clone())?).clone();
-                    fixed_str = (getOptionWithConcatStr(fixed.clone(), Arc::new(ExpressionBasics::printExpStr), (literal!("fixed = ")).clone())?).clone();
+                    quantity = (getOptionWithConcatStr(quant.clone(), (std::sync::Arc::new(ExpressionBasics::printExpStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<ArcStr> + 'static>), (literal!("quantity = ")).clone())?).clone();
+                    initial_str = (getOptionWithConcatStr(initialExp.clone(), (std::sync::Arc::new(ExpressionBasics::printExpStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<ArcStr> + 'static>), (literal!("start = ")).clone())?).clone();
+                    fixed_str = (getOptionWithConcatStr(fixed.clone(), (std::sync::Arc::new(ExpressionBasics::printExpStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<ArcStr> + 'static>), (literal!("fixed = ")).clone())?).clone();
                     startOriginStr = (getStartOrigin(startOrigin.clone())?).clone();
                     res_1 = (Util::stringDelimitListNonEmptyElts(list![(quantity.clone()).clone(), (initial_str.clone()).clone(), (fixed_str.clone()).clone(), (startOriginStr.clone()).clone()], (literal!(", ")).clone())).clone();
                     res = (if (stringEmpty((res_1.clone()).clone())) {literal!("")} else {stringAppendList(list![(literal!("(")).clone(), (res_1.clone()).clone(), (literal!(")")).clone()])}).clone();
@@ -734,9 +734,9 @@ pub fn dumpVariableAttributesStr(mut inVariableAttributesOption: Option<Arc<DAE:
                     let mut res_1: ArcStr = arcstr::literal!("");
                     let mut res: ArcStr = arcstr::literal!("");
                     let mut startOriginStr: ArcStr = arcstr::literal!("");
-                    quantity = (getOptionWithConcatStr(quant.clone(), Arc::new(ExpressionBasics::printExpStr), (literal!("quantity = ")).clone())?).clone();
-                    initial_str = (getOptionWithConcatStr(initialExp.clone(), Arc::new(ExpressionBasics::printExpStr), (literal!("start = ")).clone())?).clone();
-                    fixed_str = (getOptionWithConcatStr(fixed.clone(), Arc::new(ExpressionBasics::printExpStr), (literal!("fixed = ")).clone())?).clone();
+                    quantity = (getOptionWithConcatStr(quant.clone(), (std::sync::Arc::new(ExpressionBasics::printExpStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<ArcStr> + 'static>), (literal!("quantity = ")).clone())?).clone();
+                    initial_str = (getOptionWithConcatStr(initialExp.clone(), (std::sync::Arc::new(ExpressionBasics::printExpStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<ArcStr> + 'static>), (literal!("start = ")).clone())?).clone();
+                    fixed_str = (getOptionWithConcatStr(fixed.clone(), (std::sync::Arc::new(ExpressionBasics::printExpStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<ArcStr> + 'static>), (literal!("fixed = ")).clone())?).clone();
                     startOriginStr = (getStartOrigin(startOrigin.clone())?).clone();
                     res_1 = (Util::stringDelimitListNonEmptyElts(list![(quantity.clone()).clone(), (initial_str.clone()).clone(), (fixed_str.clone()).clone(), (startOriginStr.clone()).clone()], (literal!(", ")).clone())).clone();
                     res = (if (stringEmpty((res_1.clone()).clone())) {literal!("")} else {stringAppendList(list![(literal!("(")).clone(), (res_1.clone()).clone(), (literal!(")")).clone()])}).clone();
@@ -756,11 +756,11 @@ pub fn dumpVariableAttributesStr(mut inVariableAttributesOption: Option<Arc<DAE:
                     let mut res_1: ArcStr = arcstr::literal!("");
                     let mut res: ArcStr = arcstr::literal!("");
                     let mut startOriginStr: ArcStr = arcstr::literal!("");
-                    quantity = (getOptionWithConcatStr(quant.clone(), Arc::new(ExpressionBasics::printExpStr), (literal!("quantity = ")).clone())?).clone();
-                    min_str = (getOptionWithConcatStr(min.clone(), Arc::new(ExpressionBasics::printExpStr), (literal!("min = ")).clone())?).clone();
-                    max_str = (getOptionWithConcatStr(max.clone(), Arc::new(ExpressionBasics::printExpStr), (literal!("max = ")).clone())?).clone();
-                    initial_str = (getOptionWithConcatStr(initialExp.clone(), Arc::new(ExpressionBasics::printExpStr), (literal!("start = ")).clone())?).clone();
-                    fixed_str = (getOptionWithConcatStr(fixed.clone(), Arc::new(ExpressionBasics::printExpStr), (literal!("fixed = ")).clone())?).clone();
+                    quantity = (getOptionWithConcatStr(quant.clone(), (std::sync::Arc::new(ExpressionBasics::printExpStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<ArcStr> + 'static>), (literal!("quantity = ")).clone())?).clone();
+                    min_str = (getOptionWithConcatStr(min.clone(), (std::sync::Arc::new(ExpressionBasics::printExpStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<ArcStr> + 'static>), (literal!("min = ")).clone())?).clone();
+                    max_str = (getOptionWithConcatStr(max.clone(), (std::sync::Arc::new(ExpressionBasics::printExpStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<ArcStr> + 'static>), (literal!("max = ")).clone())?).clone();
+                    initial_str = (getOptionWithConcatStr(initialExp.clone(), (std::sync::Arc::new(ExpressionBasics::printExpStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<ArcStr> + 'static>), (literal!("start = ")).clone())?).clone();
+                    fixed_str = (getOptionWithConcatStr(fixed.clone(), (std::sync::Arc::new(ExpressionBasics::printExpStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<ArcStr> + 'static>), (literal!("fixed = ")).clone())?).clone();
                     startOriginStr = (getStartOrigin(startOrigin.clone())?).clone();
                     res_1 = (Util::stringDelimitListNonEmptyElts(list![(quantity.clone()).clone(), (min_str.clone()).clone(), (max_str.clone()).clone(), (initial_str.clone()).clone(), (fixed_str.clone()).clone(), (startOriginStr.clone()).clone()], (literal!(", ")).clone())).clone();
                     res = (if (stringEmpty((res_1.clone()).clone())) {literal!("")} else {stringAppendList(list![(literal!("(")).clone(), (res_1.clone()).clone(), (literal!(")")).clone()])}).clone();
@@ -799,7 +799,7 @@ fn getStartOrigin(mut inStartOrigin: Option<Arc<DAE::Exp>>) -> Result<ArcStr> {
         _ => {
             let mut r#str: ArcStr = arcstr::literal!("");
             if Flags::isSet(Flags::SHOW_START_ORIGIN.clone())? {
-                r#str = (getOptionWithConcatStr(inStartOrigin.clone(), Arc::new(ExpressionBasics::printExpStr), (literal!("startOrigin = ")).clone())?).clone();
+                r#str = (getOptionWithConcatStr(inStartOrigin.clone(), (std::sync::Arc::new(ExpressionBasics::printExpStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<ArcStr> + 'static>), (literal!("startOrigin = ")).clone())?).clone();
             } else {
                 r#str = (literal!("")).clone();
             }
@@ -1028,12 +1028,12 @@ fn dumpInitialEquation(mut inElement: Arc<DAE::Element>) -> Result<()> {
                     Print::printBuf((literal!("  if ")).clone())?;
                     ExpressionDump::printExp(e.clone())?;
                     Print::printBuf((literal!(" then\n")).clone())?;
-                    List::map_0(xs1.clone(), Arc::new(dumpInitialEquation));
+                    List::map_0(xs1.clone(), (std::sync::Arc::new(dumpInitialEquation) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Element>) -> Result<()> + 'static>));
                     r#str = dumpIfEquationsStream(conds.clone(), trueBranches.clone(), IOStream::emptyStreamOfTypeList.clone())?;
                     s = (IOStream::string(r#str.clone())?).clone();
                     Print::printBuf((s.clone()).clone())?;
                     Print::printBuf((literal!("  else\n")).clone())?;
-                    List::map_0(xs2.clone(), Arc::new(dumpInitialEquation));
+                    List::map_0(xs2.clone(), (std::sync::Arc::new(dumpInitialEquation) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Element>) -> Result<()> + 'static>));
                     Print::printBuf((literal!("end if;\n")).clone())?;
                     Ok(())
                 }
@@ -1269,7 +1269,7 @@ pub fn dumpAlgorithm(mut inElement: Arc<DAE::Element>) -> Result<()> {
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ DAE::Element::ALGORITHM { algorithm_: Deref @ DAE::Algorithm { statementLst: stmts }, .. } => {
                     Print::printBuf((literal!("algorithm\n")).clone())?;
-                    Dump::printList(stmts.clone(), Arc::new(ppStatement), (literal!("")).clone())?;
+                    Dump::printList(stmts.clone(), (std::sync::Arc::new(ppStatement) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Statement>) -> Result<()> + 'static>), (literal!("")).clone())?;
                     Ok(())
                 }
                 _ => bail!("nomatch"),
@@ -1295,7 +1295,7 @@ fn dumpInitialAlgorithm(mut inElement: Arc<DAE::Element>) -> Result<()> {
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ DAE::Element::INITIALALGORITHM { algorithm_: Deref @ DAE::Algorithm { statementLst: stmts }, .. } => {
                     Print::printBuf((literal!("initial algorithm\n")).clone())?;
-                    Dump::printList(stmts.clone(), Arc::new(ppStatement), (literal!("")).clone())?;
+                    Dump::printList(stmts.clone(), (std::sync::Arc::new(ppStatement) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Statement>) -> Result<()> + 'static>), (literal!("")).clone())?;
                     Ok(())
                 }
                 _ => bail!("nomatch"),
@@ -1509,7 +1509,7 @@ fn printRecordConstructorInputsStr(mut itp: Arc<DAE::Type>) -> Result<ArcStr> {
     r#str = ((::match_deref::match_deref! { match &(itp.clone()) {
         Deref @ DAE::Type::T_COMPLEX { varLst: vars, .. } => {
             let mut var_strl: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
-            var_strl = List::map(vars.clone(), Arc::new(printRecordConstructorInputStr));
+            var_strl = List::map(vars.clone(), (std::sync::Arc::new(printRecordConstructorInputStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Var>) -> Result<ArcStr> + 'static>));
             stringAppendList(var_strl.clone())
         },
         Deref @ DAE::Type::T_FUNCTION { funcResultType: tp, .. } => {
@@ -1632,7 +1632,7 @@ fn ppStmt(mut inStatement: Arc<DAE::Statement>, mut inInteger: i32) -> Result<()
                     let mut es: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
                     s1 = (indentStr(i.clone())?).clone();
                     s2 = (ExpressionBasics::printExpStr(e.clone())?).clone();
-                    es = List::map(expl.clone(), Arc::new(ExpressionBasics::printExpStr));
+                    es = List::map(expl.clone(), (std::sync::Arc::new(ExpressionBasics::printExpStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<ArcStr> + 'static>));
                     s3 = stringDelimitList(es.clone(), (literal!(", ")).clone());
                     r#str = stringAppendList(list![(s1.clone()).clone(), (literal!("(")).clone(), (s3.clone()).clone(), (literal!(") := ")).clone(), (s2.clone()).clone(), (literal!(";\n")).clone()]);
                     Print::printBuf((r#str.clone()).clone())?;
@@ -1928,7 +1928,7 @@ pub fn ppStmtStr(mut inStatement: Arc<DAE::Statement>, mut inInteger: i32) -> Re
                     let mut es: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
                     s1 = (indentStr(i.clone())?).clone();
                     s2 = (ExpressionBasics::printExpStr(e.clone())?).clone();
-                    es = List::map(expl.clone(), Arc::new(ExpressionBasics::printExpStr));
+                    es = List::map(expl.clone(), (std::sync::Arc::new(ExpressionBasics::printExpStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<ArcStr> + 'static>));
                     s3 = stringDelimitList(es.clone(), (literal!(", ")).clone());
                     r#str = stringAppendList(list![(s1.clone()).clone(), (literal!("(")).clone(), (s3.clone()).clone(), (literal!(") := ")).clone(), (s2.clone()).clone(), (literal!(";\n")).clone()]);
                     Ok(r#str.clone())
@@ -2757,8 +2757,8 @@ fn buildGraphviz(mut inDAElist: DAE::DAElist) -> Result<Arc<Graphviz::Node>> {
             let mut nonvarnodes: Arc<metamodelica::List<Arc<Graphviz::Node>>> = metamodelica::nil();
             let mut varnodes: Arc<metamodelica::List<Arc<Graphviz::Node>>> = metamodelica::nil();
             let mut nodelist: Arc<metamodelica::List<Arc<Graphviz::Node>>> = metamodelica::nil();
-            vars = DAEUtil::getMatchingElements(els.clone(), Arc::new(fnptr!(DAEUtil::isVar, Arc<DAE::Element>)));
-            nonvars = DAEUtil::getMatchingElements(els.clone(), Arc::new(fnptr!(DAEUtil::isNotVar, Arc<DAE::Element>)));
+            vars = DAEUtil::getMatchingElements(els.clone(), (std::sync::Arc::new(fnptr!(DAEUtil::isVar, Arc<DAE::Element>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Element>) -> Result<bool> + 'static>));
+            nonvars = DAEUtil::getMatchingElements(els.clone(), (std::sync::Arc::new(fnptr!(DAEUtil::isNotVar, Arc<DAE::Element>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Element>) -> Result<bool> + 'static>));
             nonvarnodes = buildGrList(nonvars.clone())?;
             varnodes = buildGrVars(vars.clone())?;
             nodelist = listAppend(nonvarnodes.clone(), varnodes.clone());
@@ -2803,7 +2803,7 @@ fn buildGrVars(mut inElementLst: Arc<metamodelica::List<Arc<DAE::Element>>>) -> 
             ::match_deref::match_deref! { match &__mc_input {
                 vars => {
                     let mut strlist: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
-                    (strlist, _) = buildGrStrlist(vars.clone(), Arc::new(buildGrVarStr), 10)?;
+                    (strlist, _) = buildGrStrlist(vars.clone(), (std::sync::Arc::new(buildGrVarStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Element>) -> Result<ArcStr> + 'static>), 10)?;
                     Ok(list![Arc::new(Graphviz::Node::LNODE { type_: (literal!("VARS")).clone(), labelLst: strlist.clone(), attributes: list![Graphviz::r#box.clone()], children: metamodelica::nil() })])
                 }
                 _ => bail!("nomatch"),
@@ -2815,7 +2815,7 @@ fn buildGrVars(mut inElementLst: Arc<metamodelica::List<Arc<DAE::Element>>>) -> 
 }
 
 pub fn buildGrStrlist<Type_a: Clone + 'static>(mut inTypeALst: Arc<metamodelica::List<Type_a>>, mut inFuncTypeTypeAToString: Arc<dyn ::std::ops::Fn(Type_a) -> Result<ArcStr> + 'static>, mut inInteger: i32) -> Result<(Arc<metamodelica::List<ArcStr>>, Arc<metamodelica::List<Type_a>>)> {
-    pub type FuncTypeType_aToString<Type_a: Clone> = fn(Type_a) -> Result<ArcStr>;
+    pub type FuncTypeType_aToString<Type_a: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Type_a) -> Result<ArcStr> + 'static>;
 
     let mut outStringLst: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
     let mut outTypeALst: Arc<metamodelica::List<Type_a>> = metamodelica::nil();
@@ -2834,7 +2834,7 @@ pub fn buildGrStrlist<Type_a: Clone + 'static>(mut inTypeALst: Arc<metamodelica:
             count_1 = count.clone() - 1;
             (strlist, ignored) = buildGrStrlist(rest.clone(), printer.clone(), count_1.clone())?;
             r#str = printer(var.clone())?;
-            (cons(r#str.clone(), strlist.clone()), ignored.clone())
+            (cons((r#str.clone()).clone(), strlist.clone()), ignored.clone())
         },
         _ => bail!("match: no arm matched"),
     } });
@@ -3002,7 +3002,7 @@ fn unparseType(mut tp: Arc<DAE::Type>) -> Result<ArcStr> {
                     path = __pa0.clone();
                     dims = TypesDump::getDimensions(tp.clone());
                     name = AbsynUtil::pathStringNoQual(path.clone(), (literal!(".")).clone(), true, false)?;
-                    dim_str = (List::toString(dims.clone(), Arc::new(ExpressionBasics::dimensionString), (literal!("")).clone(), (literal!("[")).clone(), (literal!(", ")).clone(), (literal!("]")).clone(), false, 0)?).clone();
+                    dim_str = (List::toString(dims.clone(), (std::sync::Arc::new(ExpressionBasics::dimensionString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Dimension>) -> Result<ArcStr> + 'static>), (literal!("")).clone(), (literal!("[")).clone(), (literal!(", ")).clone(), (literal!("]")).clone(), false, 0)?).clone();
                     Ok({ let mut __mm_s = String::new(); __mm_s.push_str(&*name.clone()); __mm_s.push_str(&*dim_str.clone()); ArcStr::from(__mm_s) })
                 }
                 _ => bail!("nomatch"),
@@ -3061,7 +3061,7 @@ pub fn unparseDimensions(mut dims: Arc<metamodelica::List<Arc<DAE::Dimension>>>,
             ::match_deref::match_deref! { match &__mc_input {
                 (_, true) => {
                     let mut r#str: ArcStr = arcstr::literal!("");
-                    r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("[")); __mm_s.push_str(&*stringDelimitList(List::map(dims.clone(), Arc::new(ExpressionBasics::dimensionString)), (literal!(", ")).clone())); __mm_s.push_str(&*literal!("]")); ArcStr::from(__mm_s) }).clone();
+                    r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("[")); __mm_s.push_str(&*stringDelimitList(List::map(dims.clone(), (std::sync::Arc::new(ExpressionBasics::dimensionString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Dimension>) -> Result<ArcStr> + 'static>)), (literal!(", ")).clone())); __mm_s.push_str(&*literal!("]")); ArcStr::from(__mm_s) }).clone();
                     Ok(r#str.clone())
                 }
                 _ => bail!("nomatch"),
@@ -3316,7 +3316,7 @@ pub fn dumpAlgorithmsStream(mut inElementLst: Arc<metamodelica::List<Arc<DAE::El
                 (Deref @ metamodelica::List::Cons { head: Deref @ DAE::Element::ALGORITHM { algorithm_: Deref @ DAE::Algorithm { statementLst: stmts }, .. }, tail: xs }, r#str) => {
                     let mut r#str = (*r#str).clone();
                     r#str = IOStream::append(r#str.clone(), (literal!("algorithm\n")).clone())?;
-                    r#str = IOStream::appendList(r#str.clone(), List::map(stmts.clone(), Arc::new(ppStatementStr)));
+                    r#str = IOStream::appendList(r#str.clone(), List::map(stmts.clone(), (std::sync::Arc::new(ppStatementStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Statement>) -> Result<ArcStr> + 'static>)));
                     r#str = dumpAlgorithmsStream(xs.clone(), r#str.clone())?;
                     Ok(r#str.clone())
                 }
@@ -3357,7 +3357,7 @@ fn dumpInitialAlgorithmsStream(mut inElementLst: Arc<metamodelica::List<Arc<DAE:
                 (Deref @ metamodelica::List::Cons { head: Deref @ DAE::Element::INITIALALGORITHM { algorithm_: Deref @ DAE::Algorithm { statementLst: stmts }, .. }, tail: xs }, r#str) => {
                     let mut r#str = (*r#str).clone();
                     r#str = IOStream::append(r#str.clone(), (literal!("initial algorithm\n")).clone())?;
-                    r#str = IOStream::appendList(r#str.clone(), List::map(stmts.clone(), Arc::new(ppStatementStr)));
+                    r#str = IOStream::appendList(r#str.clone(), List::map(stmts.clone(), (std::sync::Arc::new(ppStatementStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Statement>) -> Result<ArcStr> + 'static>)));
                     r#str = dumpInitialAlgorithmsStream(xs.clone(), r#str.clone())?;
                     Ok(r#str.clone())
                 }
@@ -3776,7 +3776,7 @@ pub fn dumpConstraintStream(mut inElementLst: Arc<metamodelica::List<Arc<DAE::El
                 (Deref @ metamodelica::List::Cons { head: Deref @ DAE::Element::CONSTRAINT { constraints: Deref @ DAE::Constraint::CONSTRAINT_EXPS { constraintLst: exps }, .. }, tail: xs }, r#str) => {
                     let mut r#str = (*r#str).clone();
                     r#str = IOStream::append(r#str.clone(), (literal!("  ")).clone())?;
-                    r#str = IOStream::append(r#str.clone(), stringDelimitList(List::map(exps.clone(), Arc::new(ExpressionBasics::printExpStr)), (literal!(";\n  ")).clone()))?;
+                    r#str = IOStream::append(r#str.clone(), stringDelimitList(List::map(exps.clone(), (std::sync::Arc::new(ExpressionBasics::printExpStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<ArcStr> + 'static>)), (literal!(";\n  ")).clone()))?;
                     r#str = IOStream::append(r#str.clone(), (literal!(";\n")).clone())?;
                     r#str = dumpConstraintStream(xs.clone(), r#str.clone())?;
                     Ok(r#str.clone())
@@ -3850,7 +3850,7 @@ pub fn printTypeStr(mut inType: Arc<DAE::Type>) -> Result<(ArcStr, ArcStr)> {
     let mut ty_vars: Arc<metamodelica::List<Arc<DAE::Var>>> = metamodelica::nil();
     (ty, ty_vars) = TypesDump::stripTypeVars(inType.clone());
     outTypeStr = (unparseType(ty.clone())?).clone();
-    outTypeAttrStr = (List::toString(ty_vars.clone(), Arc::new(TypesDump::unparseVarAttr), (literal!("")).clone(), (literal!("(")).clone(), (literal!(", ")).clone(), (literal!(")")).clone(), false, 0)?).clone();
+    outTypeAttrStr = (List::toString(ty_vars.clone(), (std::sync::Arc::new(TypesDump::unparseVarAttr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Var>) -> Result<ArcStr> + 'static>), (literal!("")).clone(), (literal!("(")).clone(), (literal!(", ")).clone(), (literal!(")")).clone(), false, 0)?).clone();
     Ok((outTypeStr, outTypeAttrStr))
 }
 
@@ -3958,7 +3958,7 @@ pub fn dumpAlgorithmStream(mut inElement: Arc<DAE::Element>, mut inStream: IOStr
                 (Deref @ DAE::Element::ALGORITHM { algorithm_: Deref @ DAE::Algorithm { statementLst: stmts }, .. }, r#str) => {
                     let mut r#str = (*r#str).clone();
                     r#str = IOStream::append(r#str.clone(), (literal!("algorithm\n")).clone())?;
-                    r#str = List::fold(stmts.clone(), Arc::new(ppStatementStream), r#str.clone());
+                    r#str = List::fold(stmts.clone(), (std::sync::Arc::new(ppStatementStream) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Statement>, IOStream::IOStream) -> Result<IOStream::IOStream> + 'static>), r#str.clone());
                     Ok(r#str.clone())
                 }
                 _ => bail!("nomatch"),
@@ -3986,7 +3986,7 @@ pub fn dumpInitialAlgorithmStream(mut inElement: Arc<DAE::Element>, mut inStream
                 (Deref @ DAE::Element::INITIALALGORITHM { algorithm_: Deref @ DAE::Algorithm { statementLst: stmts }, .. }, r#str) => {
                     let mut r#str = (*r#str).clone();
                     r#str = IOStream::append(r#str.clone(), (literal!("initial algorithm\n")).clone())?;
-                    r#str = List::fold(stmts.clone(), Arc::new(ppStatementStream), r#str.clone());
+                    r#str = List::fold(stmts.clone(), (std::sync::Arc::new(ppStatementStream) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Statement>, IOStream::IOStream) -> Result<IOStream::IOStream> + 'static>), r#str.clone());
                     Ok(r#str.clone())
                 }
                 _ => bail!("nomatch"),
@@ -4171,7 +4171,7 @@ fn dumpFunctionStream(mut inElement: DAE::Function, mut inStream: IOStream::IOSt
 pub fn dumpFunctionElementsStream(mut l: Arc<metamodelica::List<Arc<DAE::Element>>>, mut inStream: IOStream::IOStream) -> Result<IOStream::IOStream> {
     let mut outStream: IOStream::IOStream;
     outStream = dumpVarsStream(l.clone(), true, inStream.clone())?;
-    outStream = List::fold(l.clone(), Arc::new(dumpAlgorithmStream), outStream.clone());
+    outStream = List::fold(l.clone(), (std::sync::Arc::new(dumpAlgorithmStream) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Element>, IOStream::IOStream) -> Result<IOStream::IOStream> + 'static>), outStream.clone());
     Ok(outStream)
 }
 
@@ -4227,7 +4227,7 @@ pub fn getSourceInformationStr(mut inSource: Arc<DAE::ElementSource>) -> Result<
                 Deref @ DAE::ElementSource { info: _, partOfLst: po, instance: _, connectEquationOptLst: ceol, typeLst: _, operations: _, comment: cmt } => {
                     let mut r#str: ArcStr = arcstr::literal!("");
                     r#str = (cmtListToString(cmt.clone())?).clone();
-                    r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*r#str.clone()); __mm_s.push_str(&*literal!(" /* models: {")); __mm_s.push_str(&*stringDelimitList(List::map(po.clone(), Arc::new(withinString)), (literal!(", ")).clone())); __mm_s.push_str(&*literal!("}")); __mm_s.push_str(&*literal!(" connects: {")); __mm_s.push_str(&*stringDelimitList(connectsStr(ceol.clone())?, (literal!(", ")).clone())); __mm_s.push_str(&*literal!("} */")); ArcStr::from(__mm_s) }).clone();
+                    r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*r#str.clone()); __mm_s.push_str(&*literal!(" /* models: {")); __mm_s.push_str(&*stringDelimitList(List::map(po.clone(), (std::sync::Arc::new(withinString) as std::sync::Arc<dyn ::std::ops::Fn(Absyn::Within) -> Result<ArcStr> + 'static>)), (literal!(", ")).clone())); __mm_s.push_str(&*literal!("}")); __mm_s.push_str(&*literal!(" connects: {")); __mm_s.push_str(&*stringDelimitList(connectsStr(ceol.clone())?, (literal!(", ")).clone())); __mm_s.push_str(&*literal!("} */")); ArcStr::from(__mm_s) }).clone();
                     Ok(r#str.clone())
                 }
                 _ => bail!("nomatch"),
@@ -4269,7 +4269,7 @@ fn connectsStr(mut inLst: Arc<metamodelica::List<(Arc<DAE::ComponentRef>, Arc<DA
                     r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*ComponentReferenceBasics::printComponentRefStr(c1.clone())?); __mm_s.push_str(&*literal!(",")); __mm_s.push_str(&*ComponentReferenceBasics::printComponentRefStr(c2.clone())?); ArcStr::from(__mm_s) }).clone();
                     r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("connect(")); __mm_s.push_str(&*r#str.clone()); __mm_s.push_str(&*literal!(")")); ArcStr::from(__mm_s) }).clone();
                     slst = connectsStr(rest.clone())?;
-                    Ok(cons(r#str.clone(), slst.clone()))
+                    Ok(cons((r#str.clone()).clone(), slst.clone()))
                 }
                 _ => bail!("nomatch"),
             }}
@@ -4617,7 +4617,7 @@ pub fn dumpDebugElementStr(mut inElement: Arc<DAE::Element>) -> Result<ArcStr> {
                     let mut cmt: Arc<metamodelica::List<Arc<SCode::Comment>>> = metamodelica::nil();
                     cmt = ElementSource::getComments(src.clone())?;
                     sourceStr = (cmtListToString(cmt.clone())?).clone();
-                    s1 = stringDelimitList(List::map(elst.clone(), Arc::new(dumpDebugElementStr)), (literal!("\n")).clone());
+                    s1 = stringDelimitList(List::map(elst.clone(), (std::sync::Arc::new(dumpDebugElementStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Element>) -> Result<ArcStr> + 'static>)), (literal!("\n")).clone());
                     r#str = stringAppendList(list![(literal!("COMP  ")).clone(), (s1.clone()).clone(), (sourceStr.clone()).clone(), (literal!(";\n")).clone()]);
                     Ok(r#str.clone())
                 }
@@ -4752,7 +4752,7 @@ pub fn dumpDebugElementStr(mut inElement: Arc<DAE::Element>) -> Result<ArcStr> {
 }
 
 fn getOptionWithConcatStr<Type_a: Clone + 'static>(mut inTypeAOption: Option<Type_a>, mut inFuncTypeTypeAToString: Arc<dyn ::std::ops::Fn(Type_a) -> Result<ArcStr> + 'static>, mut inString: ArcStr) -> Result<ArcStr> {
-    pub type FuncTypeType_aToString<Type_a: Clone> = fn(Type_a) -> Result<ArcStr>;
+    pub type FuncTypeType_aToString<Type_a: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Type_a) -> Result<ArcStr> + 'static>;
 
     let mut outString: ArcStr = arcstr::literal!("");
     outString = ((match (inTypeAOption.clone(), inFuncTypeTypeAToString.clone(), inString.clone()) {

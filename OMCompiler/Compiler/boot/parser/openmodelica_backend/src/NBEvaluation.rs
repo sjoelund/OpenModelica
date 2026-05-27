@@ -122,7 +122,7 @@ pub fn removeDummies(mut bdae: Arc<BackendDAE::NBackendDAE>) -> Arc<BackendDAE::
 
 pub fn removeDummyComponents(mut part: Arc<Partition::Partition>) -> Arc<Partition::Partition> {
     let mut part: Arc<Partition::Partition> = part;
-    assign_field!(part.strongComponents = Util::applyOption(part.strongComponents.clone(), Arc::new({ let __pe_b1: Arc<dyn ::std::ops::Fn(_) -> Result<bool> + 'static> = Arc::new(fnptr!(StrongComponent::isDummy, Arc<StrongComponent::NBStrongComponent>)); move |__pe_a0| Ok(Array::filter(__pe_a0, __pe_b1.clone())) })));
+    assign_field!(part.strongComponents = Util::applyOption(part.strongComponents.clone(), Arc::new({ let __pe_b1: Arc<dyn ::std::ops::Fn(_) -> Result<bool> + 'static> = (std::sync::Arc::new(fnptr!(StrongComponent::isDummy, Arc<StrongComponent::NBStrongComponent>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<StrongComponent::NBStrongComponent>) -> Result<bool> + 'static>); move |__pe_a0| Ok(Array::filter(__pe_a0, __pe_b1.clone())) })));
     part
 }
 

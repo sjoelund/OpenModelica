@@ -121,7 +121,7 @@ pub fn binary(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inOperator
                 (cache, exp, _, otype) = binaryUserdef(cache.clone(), env.clone(), aboper.clone(), inExp1.clone(), inExp2.clone(), type1.clone(), type2.clone(), inImpl.clone(), inPre.clone(), inInfo.clone())?;
                 functionTree = FCore::getFunctionTree(cache.clone());
                 (exp, _) = ExpressionSimplify::simplify1(exp.clone())?;
-                (exp, _, didInline, _) = Inline::inlineExp(exp.clone(), (Some(functionTree.clone()), list![openmodelica_frontend_types::DAE::InlineType::BUILTIN_EARLY_INLINE, openmodelica_frontend_types::DAE::InlineType::EARLY_INLINE]), DAE::emptyElementSource.clone())?;
+                (exp, _, didInline, _) = Inline::inlineExp(exp.clone(), (Some(functionTree.clone()), list![openmodelica_frontend_types::DAE::InlineType::BUILTIN_EARLY_INLINE, openmodelica_frontend_types::DAE::InlineType::EARLY_INLINE]), DAE::emptyElementSource().clone())?;
                 (exp, _) = ExpressionSimplify::condsimplify(didInline.clone(), exp.clone())?;
                 r#const = Types::constAnd(const1.clone(), const2.clone());
                 prop = DAE::Properties::PROP { type_: otype.clone(), constFlag: r#const.clone() };
@@ -320,20 +320,27 @@ pub fn initCache() -> () {
  * because it takes a long time to generate these types over and over again.
  * The types are a bit hard to read, but they are simply 1 through 9-dimensional
  * arrays of the basic types. */
-pub static intarrtypes: std::sync::LazyLock<Arc<metamodelica::List<Arc<DAE::Type>>>> = std::sync::LazyLock::new(|| { list![Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_INTEGER_DEFAULT.clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_INTEGER_DEFAULT.clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_INTEGER_DEFAULT.clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_INTEGER_DEFAULT.clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_INTEGER_DEFAULT.clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_INTEGER_DEFAULT.clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_INTEGER_DEFAULT.clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_INTEGER_DEFAULT.clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_INTEGER_DEFAULT.clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] })] });
+thread_local! { static __intarrtypes_TLS: Arc<metamodelica::List<Arc<DAE::Type>>> = list![Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_INTEGER_DEFAULT().clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_INTEGER_DEFAULT().clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_INTEGER_DEFAULT().clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_INTEGER_DEFAULT().clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_INTEGER_DEFAULT().clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_INTEGER_DEFAULT().clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_INTEGER_DEFAULT().clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_INTEGER_DEFAULT().clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_INTEGER_DEFAULT().clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] })]; }
+pub fn intarrtypes() -> Arc<metamodelica::List<Arc<DAE::Type>>> { __intarrtypes_TLS.with(|__t| __t.clone()) }
 
-pub static realarrtypes: std::sync::LazyLock<Arc<metamodelica::List<Arc<DAE::Type>>>> = std::sync::LazyLock::new(|| { list![Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_REAL_DEFAULT.clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_REAL_DEFAULT.clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_REAL_DEFAULT.clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_REAL_DEFAULT.clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_REAL_DEFAULT.clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_REAL_DEFAULT.clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_REAL_DEFAULT.clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_REAL_DEFAULT.clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_REAL_DEFAULT.clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] })] });
+thread_local! { static __realarrtypes_TLS: Arc<metamodelica::List<Arc<DAE::Type>>> = list![Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_REAL_DEFAULT().clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_REAL_DEFAULT().clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_REAL_DEFAULT().clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_REAL_DEFAULT().clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_REAL_DEFAULT().clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_REAL_DEFAULT().clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_REAL_DEFAULT().clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_REAL_DEFAULT().clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_REAL_DEFAULT().clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] })]; }
+pub fn realarrtypes() -> Arc<metamodelica::List<Arc<DAE::Type>>> { __realarrtypes_TLS.with(|__t| __t.clone()) }
 
-pub static boolarrtypes: std::sync::LazyLock<Arc<metamodelica::List<Arc<DAE::Type>>>> = std::sync::LazyLock::new(|| { list![Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_BOOL_DEFAULT.clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_BOOL_DEFAULT.clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_BOOL_DEFAULT.clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_BOOL_DEFAULT.clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_BOOL_DEFAULT.clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_BOOL_DEFAULT.clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_BOOL_DEFAULT.clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_BOOL_DEFAULT.clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_BOOL_DEFAULT.clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] })] });
+thread_local! { static __boolarrtypes_TLS: Arc<metamodelica::List<Arc<DAE::Type>>> = list![Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_BOOL_DEFAULT().clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_BOOL_DEFAULT().clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_BOOL_DEFAULT().clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_BOOL_DEFAULT().clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_BOOL_DEFAULT().clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_BOOL_DEFAULT().clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_BOOL_DEFAULT().clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_BOOL_DEFAULT().clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_BOOL_DEFAULT().clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] })]; }
+pub fn boolarrtypes() -> Arc<metamodelica::List<Arc<DAE::Type>>> { __boolarrtypes_TLS.with(|__t| __t.clone()) }
 
-pub static stringarrtypes: std::sync::LazyLock<Arc<metamodelica::List<Arc<DAE::Type>>>> = std::sync::LazyLock::new(|| { list![Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_STRING_DEFAULT.clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_STRING_DEFAULT.clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_STRING_DEFAULT.clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_STRING_DEFAULT.clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_STRING_DEFAULT.clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_STRING_DEFAULT.clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_STRING_DEFAULT.clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_STRING_DEFAULT.clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_STRING_DEFAULT.clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] })] });
+thread_local! { static __stringarrtypes_TLS: Arc<metamodelica::List<Arc<DAE::Type>>> = list![Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_STRING_DEFAULT().clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_STRING_DEFAULT().clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_STRING_DEFAULT().clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_STRING_DEFAULT().clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_STRING_DEFAULT().clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_STRING_DEFAULT().clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_STRING_DEFAULT().clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_STRING_DEFAULT().clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_STRING_DEFAULT().clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] })]; }
+pub fn stringarrtypes() -> Arc<metamodelica::List<Arc<DAE::Type>>> { __stringarrtypes_TLS.with(|__t| __t.clone()) }
 
 /* Simply a list of 9 of that basic type; used to match with the array types */
-pub static inttypes: std::sync::LazyLock<Arc<metamodelica::List<Arc<DAE::Type>>>> = std::sync::LazyLock::new(|| { list![DAE::T_INTEGER_DEFAULT.clone(), DAE::T_INTEGER_DEFAULT.clone(), DAE::T_INTEGER_DEFAULT.clone(), DAE::T_INTEGER_DEFAULT.clone(), DAE::T_INTEGER_DEFAULT.clone(), DAE::T_INTEGER_DEFAULT.clone(), DAE::T_INTEGER_DEFAULT.clone(), DAE::T_INTEGER_DEFAULT.clone(), DAE::T_INTEGER_DEFAULT.clone()] });
+thread_local! { static __inttypes_TLS: Arc<metamodelica::List<Arc<DAE::Type>>> = list![DAE::T_INTEGER_DEFAULT().clone(), DAE::T_INTEGER_DEFAULT().clone(), DAE::T_INTEGER_DEFAULT().clone(), DAE::T_INTEGER_DEFAULT().clone(), DAE::T_INTEGER_DEFAULT().clone(), DAE::T_INTEGER_DEFAULT().clone(), DAE::T_INTEGER_DEFAULT().clone(), DAE::T_INTEGER_DEFAULT().clone(), DAE::T_INTEGER_DEFAULT().clone()]; }
+pub fn inttypes() -> Arc<metamodelica::List<Arc<DAE::Type>>> { __inttypes_TLS.with(|__t| __t.clone()) }
 
-pub static realtypes: std::sync::LazyLock<Arc<metamodelica::List<Arc<DAE::Type>>>> = std::sync::LazyLock::new(|| { list![DAE::T_REAL_DEFAULT.clone(), DAE::T_REAL_DEFAULT.clone(), DAE::T_REAL_DEFAULT.clone(), DAE::T_REAL_DEFAULT.clone(), DAE::T_REAL_DEFAULT.clone(), DAE::T_REAL_DEFAULT.clone(), DAE::T_REAL_DEFAULT.clone(), DAE::T_REAL_DEFAULT.clone(), DAE::T_REAL_DEFAULT.clone()] });
+thread_local! { static __realtypes_TLS: Arc<metamodelica::List<Arc<DAE::Type>>> = list![DAE::T_REAL_DEFAULT().clone(), DAE::T_REAL_DEFAULT().clone(), DAE::T_REAL_DEFAULT().clone(), DAE::T_REAL_DEFAULT().clone(), DAE::T_REAL_DEFAULT().clone(), DAE::T_REAL_DEFAULT().clone(), DAE::T_REAL_DEFAULT().clone(), DAE::T_REAL_DEFAULT().clone(), DAE::T_REAL_DEFAULT().clone()]; }
+pub fn realtypes() -> Arc<metamodelica::List<Arc<DAE::Type>>> { __realtypes_TLS.with(|__t| __t.clone()) }
 
-pub static stringtypes: std::sync::LazyLock<Arc<metamodelica::List<Arc<DAE::Type>>>> = std::sync::LazyLock::new(|| { list![DAE::T_STRING_DEFAULT.clone(), DAE::T_STRING_DEFAULT.clone(), DAE::T_STRING_DEFAULT.clone(), DAE::T_STRING_DEFAULT.clone(), DAE::T_STRING_DEFAULT.clone(), DAE::T_STRING_DEFAULT.clone(), DAE::T_STRING_DEFAULT.clone(), DAE::T_STRING_DEFAULT.clone(), DAE::T_STRING_DEFAULT.clone()] });
+thread_local! { static __stringtypes_TLS: Arc<metamodelica::List<Arc<DAE::Type>>> = list![DAE::T_STRING_DEFAULT().clone(), DAE::T_STRING_DEFAULT().clone(), DAE::T_STRING_DEFAULT().clone(), DAE::T_STRING_DEFAULT().clone(), DAE::T_STRING_DEFAULT().clone(), DAE::T_STRING_DEFAULT().clone(), DAE::T_STRING_DEFAULT().clone(), DAE::T_STRING_DEFAULT().clone(), DAE::T_STRING_DEFAULT().clone()]; }
+pub fn stringtypes() -> Arc<metamodelica::List<Arc<DAE::Type>>> { __stringtypes_TLS.with(|__t| __t.clone()) }
 
 // NOTE: #[tailcall::tailcall] disabled: function body contains a `match_deref!{…}` match,
 // and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
@@ -494,7 +501,7 @@ fn binaryUserdef(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inOper:
                 (cache, types1) = getOperatorFuncsOrEmpty(cache.clone(), env.clone(), list![type1.clone()], (opStr.clone()).clone(), info.clone(), metamodelica::nil())?;
                 (cache, types2) = getOperatorFuncsOrEmpty(cache.clone(), env.clone(), list![type2.clone()], (opStr.clone()).clone(), info.clone(), metamodelica::nil())?;
                 types = List::union(types1.clone(), types2.clone());
-                types = List::select1(types.clone(), Arc::new(fnptr!(isOperatorBinaryFunctionOrWarn, Arc<DAE::Type>, SourceInfo)), info.clone());
+                types = List::select1(types.clone(), (std::sync::Arc::new(fnptr!(isOperatorBinaryFunctionOrWarn, Arc<DAE::Type>, SourceInfo)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Type>, SourceInfo) -> Result<bool> + 'static>), info.clone());
             }
             exps = deoverloadBinaryUserdefNoConstructor(types.clone(), exp1.clone(), exp2.clone(), type1.clone(), type2.clone(), metamodelica::nil())?;
             (cache, exps) = binaryCastConstructor(cache.clone(), env.clone(), inExp1.clone(), inExp2.clone(), inType1.clone(), inType2.clone(), exps.clone(), types.clone(), info.clone())?;
@@ -539,7 +546,7 @@ fn binaryUserdefArray(mut inCache: FCore::Cache, mut env: FCore::Graph, mut inEx
             (cache.clone(), exps.clone())
         },
         _ => {
-            errorMultipleValid(List::map(inExps.clone(), Arc::new(fnptr!(Util::tuple21, _))), info.clone())?;
+            errorMultipleValid(List::map(inExps.clone(), std::sync::Arc::new(fnptr!(Util::tuple21, _))), info.clone())?;
             bail!("fail")
         },
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
@@ -678,7 +685,7 @@ fn binaryUserdefArray2(mut inCache: FCore::Cache, mut env: FCore::Graph, mut isS
             resType = __pa12.clone();
             (cache, foldExp, _, _) = binaryUserdef(cache.clone(), env.clone(), openmodelica_ast::Absyn::Operator::ADD, cr3.clone(), cr4.clone(), ty.clone(), ty.clone(), r#impl.clone(), pre.clone(), info.clone())?;
             (cache, zeroTypes) = getOperatorFuncsOrEmpty(cache.clone(), env.clone(), list![ty.clone()], (literal!("'0'")).clone(), info.clone(), metamodelica::nil())?;
-            (cache, zeroConstructor) = getZeroConstructor(cache.clone(), env.clone(), List::filterMap(zeroTypes.clone(), Arc::new(getZeroConstructorExpression)), r#impl.clone(), info.clone())?;
+            (cache, zeroConstructor) = getZeroConstructor(cache.clone(), env.clone(), List::filterMap(zeroTypes.clone(), (std::sync::Arc::new(getZeroConstructorExpression) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Type>) -> Result<Arc<DAE::Exp>> + 'static>)), r#impl.clone(), info.clone())?;
             resType = Arc::new(DAE::Type::T_ARRAY { ty: resType.clone(), dims: list![dim1_1.clone()] });
             iter = Arc::new(DAE::ReductionIterator { id: (iterName1.clone()).clone(), exp: cr.clone(), guardExp: None, ty: newType1.clone() });
             iter1 = Arc::new(DAE::ReductionIterator { id: (iterName.clone()).clone(), exp: inExp1.clone(), guardExp: None, ty: newType1.clone() });
@@ -774,7 +781,7 @@ fn binaryUserdefArray2(mut inCache: FCore::Cache, mut env: FCore::Graph, mut isS
             foldExp = __pa13.clone();
             ty = __pa14.clone();
             (cache, zeroTypes) = getOperatorFuncsOrEmpty(cache.clone(), env.clone(), list![ty.clone()], (literal!("'0'")).clone(), info.clone(), metamodelica::nil())?;
-            (cache, zeroConstructor) = getZeroConstructor(cache.clone(), env.clone(), List::filterMap(zeroTypes.clone(), Arc::new(getZeroConstructorExpression)), r#impl.clone(), info.clone())?;
+            (cache, zeroConstructor) = getZeroConstructor(cache.clone(), env.clone(), List::filterMap(zeroTypes.clone(), (std::sync::Arc::new(getZeroConstructorExpression) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Type>) -> Result<Arc<DAE::Exp>> + 'static>)), r#impl.clone(), info.clone())?;
             iter1 = Arc::new(DAE::ReductionIterator { id: (iterName1.clone()).clone(), exp: inExp1.clone(), guardExp: None, ty: newType1_1.clone() });
             iter2 = Arc::new(DAE::ReductionIterator { id: (iterName2.clone()).clone(), exp: transposed.clone(), guardExp: None, ty: newType2_1.clone() });
             iter3 = Arc::new(DAE::ReductionIterator { id: (iterName3.clone()).clone(), exp: cr1.clone(), guardExp: None, ty: newType1_1.clone() });
@@ -897,10 +904,10 @@ fn operatorsBinary(mut inOperator: Absyn::Operator, mut t1: Arc<DAE::Type>, mut 
             let mut types: Arc<metamodelica::List<(DAE::Operator, Arc<metamodelica::List<Arc<DAE::Type>>>, Arc<DAE::Type>)>> = metamodelica::nil();
             let mut realscalararrs: Arc<metamodelica::List<(DAE::Operator, Arc<metamodelica::List<Arc<DAE::Type>>>, Arc<DAE::Type>)>> = metamodelica::nil();
             let mut realarrsscalar: Arc<metamodelica::List<(DAE::Operator, Arc<metamodelica::List<Arc<DAE::Type>>>, Arc<DAE::Type>)>> = metamodelica::nil();
-            realarrs = operatorReturn(DAE::Operator::POW_ARR2 { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_REAL_DEFAULT.clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }) }, realarrtypes.clone(), realarrtypes.clone(), realarrtypes.clone());
-            scalars = list![(DAE::Operator::POW { ty: DAE::T_REAL_DEFAULT.clone() }, list![DAE::T_REAL_DEFAULT.clone(), DAE::T_REAL_DEFAULT.clone()], DAE::T_REAL_DEFAULT.clone())];
-            realscalararrs = operatorReturn(DAE::Operator::POW_SCALAR_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_REAL_DEFAULT.clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }) }, realtypes.clone(), realarrtypes.clone(), realarrtypes.clone());
-            realarrsscalar = operatorReturn(DAE::Operator::POW_ARRAY_SCALAR { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_REAL_DEFAULT.clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }) }, realarrtypes.clone(), realtypes.clone(), realarrtypes.clone());
+            realarrs = operatorReturn(DAE::Operator::POW_ARR2 { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_REAL_DEFAULT().clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }) }, realarrtypes().clone(), realarrtypes().clone(), realarrtypes().clone());
+            scalars = list![(DAE::Operator::POW { ty: DAE::T_REAL_DEFAULT().clone() }, list![DAE::T_REAL_DEFAULT().clone(), DAE::T_REAL_DEFAULT().clone()], DAE::T_REAL_DEFAULT().clone())];
+            realscalararrs = operatorReturn(DAE::Operator::POW_SCALAR_ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_REAL_DEFAULT().clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }) }, realtypes().clone(), realarrtypes().clone(), realarrtypes().clone());
+            realarrsscalar = operatorReturn(DAE::Operator::POW_ARRAY_SCALAR { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_REAL_DEFAULT().clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }) }, realarrtypes().clone(), realtypes().clone(), realarrtypes().clone());
             types = List::flatten(list![scalars.clone(), realscalararrs.clone(), realarrsscalar.clone(), realarrs.clone()]);
             types.clone()
         },
@@ -914,8 +921,8 @@ fn operatorsBinary(mut inOperator: Absyn::Operator, mut t1: Arc<DAE::Type>, mut 
             let mut scalars: Arc<metamodelica::List<(DAE::Operator, Arc<metamodelica::List<Arc<DAE::Type>>>, Arc<DAE::Type>)>> = metamodelica::nil();
             let mut types: Arc<metamodelica::List<(DAE::Operator, Arc<metamodelica::List<Arc<DAE::Type>>>, Arc<DAE::Type>)>> = metamodelica::nil();
             let mut enum_op: (DAE::Operator, Arc<metamodelica::List<Arc<DAE::Type>>>, Arc<DAE::Type>);
-            enum_op = unwrap_break_err!(makeEnumOperator(DAE::Operator::LESS { ty: DAE::T_ENUMERATION_DEFAULT.clone() }, t1.clone(), t2.clone()), '__try0);
-            scalars = list![(DAE::Operator::LESS { ty: DAE::T_INTEGER_DEFAULT.clone() }, list![DAE::T_INTEGER_DEFAULT.clone(), DAE::T_INTEGER_DEFAULT.clone()], DAE::T_BOOL_DEFAULT.clone()), enum_op.clone(), (DAE::Operator::LESS { ty: DAE::T_REAL_DEFAULT.clone() }, list![DAE::T_REAL_DEFAULT.clone(), DAE::T_REAL_DEFAULT.clone()], DAE::T_BOOL_DEFAULT.clone()), (DAE::Operator::LESS { ty: DAE::T_BOOL_DEFAULT.clone() }, list![DAE::T_BOOL_DEFAULT.clone(), DAE::T_BOOL_DEFAULT.clone()], DAE::T_BOOL_DEFAULT.clone()), (DAE::Operator::LESS { ty: DAE::T_STRING_DEFAULT.clone() }, list![DAE::T_STRING_DEFAULT.clone(), DAE::T_STRING_DEFAULT.clone()], DAE::T_BOOL_DEFAULT.clone())];
+            enum_op = unwrap_break_err!(makeEnumOperator(DAE::Operator::LESS { ty: DAE::T_ENUMERATION_DEFAULT().clone() }, t1.clone(), t2.clone()), '__try0);
+            scalars = list![(DAE::Operator::LESS { ty: DAE::T_INTEGER_DEFAULT().clone() }, list![DAE::T_INTEGER_DEFAULT().clone(), DAE::T_INTEGER_DEFAULT().clone()], DAE::T_BOOL_DEFAULT().clone()), enum_op.clone(), (DAE::Operator::LESS { ty: DAE::T_REAL_DEFAULT().clone() }, list![DAE::T_REAL_DEFAULT().clone(), DAE::T_REAL_DEFAULT().clone()], DAE::T_BOOL_DEFAULT().clone()), (DAE::Operator::LESS { ty: DAE::T_BOOL_DEFAULT().clone() }, list![DAE::T_BOOL_DEFAULT().clone(), DAE::T_BOOL_DEFAULT().clone()], DAE::T_BOOL_DEFAULT().clone()), (DAE::Operator::LESS { ty: DAE::T_STRING_DEFAULT().clone() }, list![DAE::T_STRING_DEFAULT().clone(), DAE::T_STRING_DEFAULT().clone()], DAE::T_BOOL_DEFAULT().clone())];
             types = List::flatten(list![scalars.clone()]);
             types.clone()
         },
@@ -923,8 +930,8 @@ fn operatorsBinary(mut inOperator: Absyn::Operator, mut t1: Arc<DAE::Type>, mut 
             let mut scalars: Arc<metamodelica::List<(DAE::Operator, Arc<metamodelica::List<Arc<DAE::Type>>>, Arc<DAE::Type>)>> = metamodelica::nil();
             let mut types: Arc<metamodelica::List<(DAE::Operator, Arc<metamodelica::List<Arc<DAE::Type>>>, Arc<DAE::Type>)>> = metamodelica::nil();
             let mut enum_op: (DAE::Operator, Arc<metamodelica::List<Arc<DAE::Type>>>, Arc<DAE::Type>);
-            enum_op = unwrap_break_err!(makeEnumOperator(DAE::Operator::LESSEQ { ty: DAE::T_ENUMERATION_DEFAULT.clone() }, t1.clone(), t2.clone()), '__try0);
-            scalars = list![(DAE::Operator::LESSEQ { ty: DAE::T_INTEGER_DEFAULT.clone() }, list![DAE::T_INTEGER_DEFAULT.clone(), DAE::T_INTEGER_DEFAULT.clone()], DAE::T_BOOL_DEFAULT.clone()), enum_op.clone(), (DAE::Operator::LESSEQ { ty: DAE::T_REAL_DEFAULT.clone() }, list![DAE::T_REAL_DEFAULT.clone(), DAE::T_REAL_DEFAULT.clone()], DAE::T_BOOL_DEFAULT.clone()), (DAE::Operator::LESSEQ { ty: DAE::T_BOOL_DEFAULT.clone() }, list![DAE::T_BOOL_DEFAULT.clone(), DAE::T_BOOL_DEFAULT.clone()], DAE::T_BOOL_DEFAULT.clone()), (DAE::Operator::LESSEQ { ty: DAE::T_STRING_DEFAULT.clone() }, list![DAE::T_STRING_DEFAULT.clone(), DAE::T_STRING_DEFAULT.clone()], DAE::T_BOOL_DEFAULT.clone())];
+            enum_op = unwrap_break_err!(makeEnumOperator(DAE::Operator::LESSEQ { ty: DAE::T_ENUMERATION_DEFAULT().clone() }, t1.clone(), t2.clone()), '__try0);
+            scalars = list![(DAE::Operator::LESSEQ { ty: DAE::T_INTEGER_DEFAULT().clone() }, list![DAE::T_INTEGER_DEFAULT().clone(), DAE::T_INTEGER_DEFAULT().clone()], DAE::T_BOOL_DEFAULT().clone()), enum_op.clone(), (DAE::Operator::LESSEQ { ty: DAE::T_REAL_DEFAULT().clone() }, list![DAE::T_REAL_DEFAULT().clone(), DAE::T_REAL_DEFAULT().clone()], DAE::T_BOOL_DEFAULT().clone()), (DAE::Operator::LESSEQ { ty: DAE::T_BOOL_DEFAULT().clone() }, list![DAE::T_BOOL_DEFAULT().clone(), DAE::T_BOOL_DEFAULT().clone()], DAE::T_BOOL_DEFAULT().clone()), (DAE::Operator::LESSEQ { ty: DAE::T_STRING_DEFAULT().clone() }, list![DAE::T_STRING_DEFAULT().clone(), DAE::T_STRING_DEFAULT().clone()], DAE::T_BOOL_DEFAULT().clone())];
             types = List::flatten(list![scalars.clone()]);
             types.clone()
         },
@@ -932,8 +939,8 @@ fn operatorsBinary(mut inOperator: Absyn::Operator, mut t1: Arc<DAE::Type>, mut 
             let mut scalars: Arc<metamodelica::List<(DAE::Operator, Arc<metamodelica::List<Arc<DAE::Type>>>, Arc<DAE::Type>)>> = metamodelica::nil();
             let mut types: Arc<metamodelica::List<(DAE::Operator, Arc<metamodelica::List<Arc<DAE::Type>>>, Arc<DAE::Type>)>> = metamodelica::nil();
             let mut enum_op: (DAE::Operator, Arc<metamodelica::List<Arc<DAE::Type>>>, Arc<DAE::Type>);
-            enum_op = unwrap_break_err!(makeEnumOperator(DAE::Operator::GREATER { ty: DAE::T_ENUMERATION_DEFAULT.clone() }, t1.clone(), t2.clone()), '__try0);
-            scalars = list![(DAE::Operator::GREATER { ty: DAE::T_INTEGER_DEFAULT.clone() }, list![DAE::T_INTEGER_DEFAULT.clone(), DAE::T_INTEGER_DEFAULT.clone()], DAE::T_BOOL_DEFAULT.clone()), enum_op.clone(), (DAE::Operator::GREATER { ty: DAE::T_REAL_DEFAULT.clone() }, list![DAE::T_REAL_DEFAULT.clone(), DAE::T_REAL_DEFAULT.clone()], DAE::T_BOOL_DEFAULT.clone()), (DAE::Operator::GREATER { ty: DAE::T_BOOL_DEFAULT.clone() }, list![DAE::T_BOOL_DEFAULT.clone(), DAE::T_BOOL_DEFAULT.clone()], DAE::T_BOOL_DEFAULT.clone()), (DAE::Operator::GREATER { ty: DAE::T_STRING_DEFAULT.clone() }, list![DAE::T_STRING_DEFAULT.clone(), DAE::T_STRING_DEFAULT.clone()], DAE::T_BOOL_DEFAULT.clone())];
+            enum_op = unwrap_break_err!(makeEnumOperator(DAE::Operator::GREATER { ty: DAE::T_ENUMERATION_DEFAULT().clone() }, t1.clone(), t2.clone()), '__try0);
+            scalars = list![(DAE::Operator::GREATER { ty: DAE::T_INTEGER_DEFAULT().clone() }, list![DAE::T_INTEGER_DEFAULT().clone(), DAE::T_INTEGER_DEFAULT().clone()], DAE::T_BOOL_DEFAULT().clone()), enum_op.clone(), (DAE::Operator::GREATER { ty: DAE::T_REAL_DEFAULT().clone() }, list![DAE::T_REAL_DEFAULT().clone(), DAE::T_REAL_DEFAULT().clone()], DAE::T_BOOL_DEFAULT().clone()), (DAE::Operator::GREATER { ty: DAE::T_BOOL_DEFAULT().clone() }, list![DAE::T_BOOL_DEFAULT().clone(), DAE::T_BOOL_DEFAULT().clone()], DAE::T_BOOL_DEFAULT().clone()), (DAE::Operator::GREATER { ty: DAE::T_STRING_DEFAULT().clone() }, list![DAE::T_STRING_DEFAULT().clone(), DAE::T_STRING_DEFAULT().clone()], DAE::T_BOOL_DEFAULT().clone())];
             types = List::flatten(list![scalars.clone()]);
             types.clone()
         },
@@ -941,23 +948,23 @@ fn operatorsBinary(mut inOperator: Absyn::Operator, mut t1: Arc<DAE::Type>, mut 
             let mut scalars: Arc<metamodelica::List<(DAE::Operator, Arc<metamodelica::List<Arc<DAE::Type>>>, Arc<DAE::Type>)>> = metamodelica::nil();
             let mut types: Arc<metamodelica::List<(DAE::Operator, Arc<metamodelica::List<Arc<DAE::Type>>>, Arc<DAE::Type>)>> = metamodelica::nil();
             let mut enum_op: (DAE::Operator, Arc<metamodelica::List<Arc<DAE::Type>>>, Arc<DAE::Type>);
-            enum_op = unwrap_break_err!(makeEnumOperator(DAE::Operator::GREATEREQ { ty: DAE::T_ENUMERATION_DEFAULT.clone() }, t1.clone(), t2.clone()), '__try0);
-            scalars = list![(DAE::Operator::GREATEREQ { ty: DAE::T_INTEGER_DEFAULT.clone() }, list![DAE::T_INTEGER_DEFAULT.clone(), DAE::T_INTEGER_DEFAULT.clone()], DAE::T_BOOL_DEFAULT.clone()), enum_op.clone(), (DAE::Operator::GREATEREQ { ty: DAE::T_REAL_DEFAULT.clone() }, list![DAE::T_REAL_DEFAULT.clone(), DAE::T_REAL_DEFAULT.clone()], DAE::T_BOOL_DEFAULT.clone()), (DAE::Operator::GREATEREQ { ty: DAE::T_BOOL_DEFAULT.clone() }, list![DAE::T_BOOL_DEFAULT.clone(), DAE::T_BOOL_DEFAULT.clone()], DAE::T_BOOL_DEFAULT.clone()), (DAE::Operator::GREATEREQ { ty: DAE::T_STRING_DEFAULT.clone() }, list![DAE::T_STRING_DEFAULT.clone(), DAE::T_STRING_DEFAULT.clone()], DAE::T_BOOL_DEFAULT.clone())];
+            enum_op = unwrap_break_err!(makeEnumOperator(DAE::Operator::GREATEREQ { ty: DAE::T_ENUMERATION_DEFAULT().clone() }, t1.clone(), t2.clone()), '__try0);
+            scalars = list![(DAE::Operator::GREATEREQ { ty: DAE::T_INTEGER_DEFAULT().clone() }, list![DAE::T_INTEGER_DEFAULT().clone(), DAE::T_INTEGER_DEFAULT().clone()], DAE::T_BOOL_DEFAULT().clone()), enum_op.clone(), (DAE::Operator::GREATEREQ { ty: DAE::T_REAL_DEFAULT().clone() }, list![DAE::T_REAL_DEFAULT().clone(), DAE::T_REAL_DEFAULT().clone()], DAE::T_BOOL_DEFAULT().clone()), (DAE::Operator::GREATEREQ { ty: DAE::T_BOOL_DEFAULT().clone() }, list![DAE::T_BOOL_DEFAULT().clone(), DAE::T_BOOL_DEFAULT().clone()], DAE::T_BOOL_DEFAULT().clone()), (DAE::Operator::GREATEREQ { ty: DAE::T_STRING_DEFAULT().clone() }, list![DAE::T_STRING_DEFAULT().clone(), DAE::T_STRING_DEFAULT().clone()], DAE::T_BOOL_DEFAULT().clone())];
             types = List::flatten(list![scalars.clone()]);
             types.clone()
         },
         Absyn::Operator::EQUAL => {
             let mut types: Arc<metamodelica::List<(DAE::Operator, Arc<metamodelica::List<Arc<DAE::Type>>>, Arc<DAE::Type>)>> = metamodelica::nil();
             let mut enum_op: (DAE::Operator, Arc<metamodelica::List<Arc<DAE::Type>>>, Arc<DAE::Type>);
-            enum_op = unwrap_break_err!(makeEnumOperator(DAE::Operator::EQUAL { ty: DAE::T_ENUMERATION_DEFAULT.clone() }, t1.clone(), t2.clone()), '__try0);
-            types = cons((DAE::Operator::EQUAL { ty: DAE::T_INTEGER_DEFAULT.clone() }, list![DAE::T_INTEGER_DEFAULT.clone(), DAE::T_INTEGER_DEFAULT.clone()], DAE::T_BOOL_DEFAULT.clone()), cons(enum_op.clone(), cons((DAE::Operator::EQUAL { ty: DAE::T_REAL_DEFAULT.clone() }, list![DAE::T_REAL_DEFAULT.clone(), DAE::T_REAL_DEFAULT.clone()], DAE::T_BOOL_DEFAULT.clone()), cons((DAE::Operator::EQUAL { ty: DAE::T_STRING_DEFAULT.clone() }, list![DAE::T_STRING_DEFAULT.clone(), DAE::T_STRING_DEFAULT.clone()], DAE::T_BOOL_DEFAULT.clone()), cons((DAE::Operator::EQUAL { ty: DAE::T_BOOL_DEFAULT.clone() }, list![DAE::T_BOOL_DEFAULT.clone(), DAE::T_BOOL_DEFAULT.clone()], DAE::T_BOOL_DEFAULT.clone()), metamodelica::nil())))));
+            enum_op = unwrap_break_err!(makeEnumOperator(DAE::Operator::EQUAL { ty: DAE::T_ENUMERATION_DEFAULT().clone() }, t1.clone(), t2.clone()), '__try0);
+            types = cons((DAE::Operator::EQUAL { ty: DAE::T_INTEGER_DEFAULT().clone() }, list![DAE::T_INTEGER_DEFAULT().clone(), DAE::T_INTEGER_DEFAULT().clone()], DAE::T_BOOL_DEFAULT().clone()), cons(enum_op.clone(), cons((DAE::Operator::EQUAL { ty: DAE::T_REAL_DEFAULT().clone() }, list![DAE::T_REAL_DEFAULT().clone(), DAE::T_REAL_DEFAULT().clone()], DAE::T_BOOL_DEFAULT().clone()), cons((DAE::Operator::EQUAL { ty: DAE::T_STRING_DEFAULT().clone() }, list![DAE::T_STRING_DEFAULT().clone(), DAE::T_STRING_DEFAULT().clone()], DAE::T_BOOL_DEFAULT().clone()), cons((DAE::Operator::EQUAL { ty: DAE::T_BOOL_DEFAULT().clone() }, list![DAE::T_BOOL_DEFAULT().clone(), DAE::T_BOOL_DEFAULT().clone()], DAE::T_BOOL_DEFAULT().clone()), metamodelica::nil())))));
             types.clone()
         },
         Absyn::Operator::NEQUAL => {
             let mut types: Arc<metamodelica::List<(DAE::Operator, Arc<metamodelica::List<Arc<DAE::Type>>>, Arc<DAE::Type>)>> = metamodelica::nil();
             let mut enum_op: (DAE::Operator, Arc<metamodelica::List<Arc<DAE::Type>>>, Arc<DAE::Type>);
-            enum_op = unwrap_break_err!(makeEnumOperator(DAE::Operator::NEQUAL { ty: DAE::T_ENUMERATION_DEFAULT.clone() }, t1.clone(), t2.clone()), '__try0);
-            types = cons((DAE::Operator::NEQUAL { ty: DAE::T_INTEGER_DEFAULT.clone() }, list![DAE::T_INTEGER_DEFAULT.clone(), DAE::T_INTEGER_DEFAULT.clone()], DAE::T_BOOL_DEFAULT.clone()), cons(enum_op.clone(), cons((DAE::Operator::NEQUAL { ty: DAE::T_REAL_DEFAULT.clone() }, list![DAE::T_REAL_DEFAULT.clone(), DAE::T_REAL_DEFAULT.clone()], DAE::T_BOOL_DEFAULT.clone()), cons((DAE::Operator::NEQUAL { ty: DAE::T_STRING_DEFAULT.clone() }, list![DAE::T_STRING_DEFAULT.clone(), DAE::T_STRING_DEFAULT.clone()], DAE::T_BOOL_DEFAULT.clone()), cons((DAE::Operator::NEQUAL { ty: DAE::T_BOOL_DEFAULT.clone() }, list![DAE::T_BOOL_DEFAULT.clone(), DAE::T_BOOL_DEFAULT.clone()], DAE::T_BOOL_DEFAULT.clone()), metamodelica::nil())))));
+            enum_op = unwrap_break_err!(makeEnumOperator(DAE::Operator::NEQUAL { ty: DAE::T_ENUMERATION_DEFAULT().clone() }, t1.clone(), t2.clone()), '__try0);
+            types = cons((DAE::Operator::NEQUAL { ty: DAE::T_INTEGER_DEFAULT().clone() }, list![DAE::T_INTEGER_DEFAULT().clone(), DAE::T_INTEGER_DEFAULT().clone()], DAE::T_BOOL_DEFAULT().clone()), cons(enum_op.clone(), cons((DAE::Operator::NEQUAL { ty: DAE::T_REAL_DEFAULT().clone() }, list![DAE::T_REAL_DEFAULT().clone(), DAE::T_REAL_DEFAULT().clone()], DAE::T_BOOL_DEFAULT().clone()), cons((DAE::Operator::NEQUAL { ty: DAE::T_STRING_DEFAULT().clone() }, list![DAE::T_STRING_DEFAULT().clone(), DAE::T_STRING_DEFAULT().clone()], DAE::T_BOOL_DEFAULT().clone()), cons((DAE::Operator::NEQUAL { ty: DAE::T_BOOL_DEFAULT().clone() }, list![DAE::T_BOOL_DEFAULT().clone(), DAE::T_BOOL_DEFAULT().clone()], DAE::T_BOOL_DEFAULT().clone()), metamodelica::nil())))));
             types.clone()
         },
         _ => bail!("match: no arm matched"),
@@ -984,9 +991,9 @@ fn operatorsUnary(mut op: Absyn::Operator) -> Result<Arc<metamodelica::List<(DAE
             let mut realarrs: Arc<metamodelica::List<(DAE::Operator, Arc<metamodelica::List<Arc<DAE::Type>>>, Arc<DAE::Type>)>> = metamodelica::nil();
             let mut scalars: Arc<metamodelica::List<(DAE::Operator, Arc<metamodelica::List<Arc<DAE::Type>>>, Arc<DAE::Type>)>> = metamodelica::nil();
             let mut types: Arc<metamodelica::List<(DAE::Operator, Arc<metamodelica::List<Arc<DAE::Type>>>, Arc<DAE::Type>)>> = metamodelica::nil();
-            scalars = list![(DAE::Operator::UMINUS { ty: DAE::T_INTEGER_DEFAULT.clone() }, list![DAE::T_INTEGER_DEFAULT.clone()], DAE::T_INTEGER_DEFAULT.clone()), (DAE::Operator::UMINUS { ty: DAE::T_REAL_DEFAULT.clone() }, list![DAE::T_REAL_DEFAULT.clone()], DAE::T_REAL_DEFAULT.clone())];
-            intarrs = operatorReturnUnary(DAE::Operator::UMINUS_ARR { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_INTEGER_DEFAULT.clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }) }, intarrtypes.clone(), intarrtypes.clone())?;
-            realarrs = operatorReturnUnary(DAE::Operator::UMINUS_ARR { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_REAL_DEFAULT.clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }) }, realarrtypes.clone(), realarrtypes.clone())?;
+            scalars = list![(DAE::Operator::UMINUS { ty: DAE::T_INTEGER_DEFAULT().clone() }, list![DAE::T_INTEGER_DEFAULT().clone()], DAE::T_INTEGER_DEFAULT().clone()), (DAE::Operator::UMINUS { ty: DAE::T_REAL_DEFAULT().clone() }, list![DAE::T_REAL_DEFAULT().clone()], DAE::T_REAL_DEFAULT().clone())];
+            intarrs = operatorReturnUnary(DAE::Operator::UMINUS_ARR { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_INTEGER_DEFAULT().clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }) }, intarrtypes().clone(), intarrtypes().clone())?;
+            realarrs = operatorReturnUnary(DAE::Operator::UMINUS_ARR { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_REAL_DEFAULT().clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }) }, realarrtypes().clone(), realarrtypes().clone())?;
             types = List::flatten(list![scalars.clone(), intarrs.clone(), realarrs.clone()]);
             types.clone()
         },
@@ -994,8 +1001,8 @@ fn operatorsUnary(mut op: Absyn::Operator) -> Result<Arc<metamodelica::List<(DAE
             let mut boolarrs: Arc<metamodelica::List<(DAE::Operator, Arc<metamodelica::List<Arc<DAE::Type>>>, Arc<DAE::Type>)>> = metamodelica::nil();
             let mut scalars: Arc<metamodelica::List<(DAE::Operator, Arc<metamodelica::List<Arc<DAE::Type>>>, Arc<DAE::Type>)>> = metamodelica::nil();
             let mut types: Arc<metamodelica::List<(DAE::Operator, Arc<metamodelica::List<Arc<DAE::Type>>>, Arc<DAE::Type>)>> = metamodelica::nil();
-            scalars = list![(DAE::Operator::NOT { ty: DAE::T_BOOL_DEFAULT.clone() }, list![DAE::T_BOOL_DEFAULT.clone()], DAE::T_BOOL_DEFAULT.clone())];
-            boolarrs = operatorReturnUnary(DAE::Operator::NOT { ty: DAE::T_BOOL_DEFAULT.clone() }, boolarrtypes.clone(), boolarrtypes.clone())?;
+            scalars = list![(DAE::Operator::NOT { ty: DAE::T_BOOL_DEFAULT().clone() }, list![DAE::T_BOOL_DEFAULT().clone()], DAE::T_BOOL_DEFAULT().clone())];
+            boolarrs = operatorReturnUnary(DAE::Operator::NOT { ty: DAE::T_BOOL_DEFAULT().clone() }, boolarrtypes().clone(), boolarrtypes().clone())?;
             types = List::flatten(list![scalars.clone(), boolarrs.clone()]);
             types.clone()
         },
@@ -1019,7 +1026,7 @@ fn makeEnumOperator(mut inOp: DAE::Operator, mut inType1: Arc<DAE::Type>, mut in
                     let mut op: DAE::Operator;
                     op_ty = Types::simplifyType(inType1.clone())?;
                     op = Expression::setOpType(inOp.clone(), op_ty.clone())?;
-                    Ok((op.clone(), list![inType1.clone(), inType2.clone()], DAE::T_BOOL_DEFAULT.clone()))
+                    Ok((op.clone(), list![inType1.clone(), inType2.clone()], DAE::T_BOOL_DEFAULT().clone()))
                 }
                 _ => bail!("nomatch"),
             }}
@@ -1031,7 +1038,7 @@ fn makeEnumOperator(mut inOp: DAE::Operator, mut inType1: Arc<DAE::Type>, mut in
                     let mut op: DAE::Operator;
                     op_ty = Types::simplifyType(inType1.clone())?;
                     op = Expression::setOpType(inOp.clone(), op_ty.clone())?;
-                    Ok((op.clone(), list![inType1.clone(), inType1.clone()], DAE::T_BOOL_DEFAULT.clone()))
+                    Ok((op.clone(), list![inType1.clone(), inType1.clone()], DAE::T_BOOL_DEFAULT().clone()))
                 }
                 _ => bail!("nomatch"),
             }}
@@ -1043,7 +1050,7 @@ fn makeEnumOperator(mut inOp: DAE::Operator, mut inType1: Arc<DAE::Type>, mut in
                     let mut op: DAE::Operator;
                     op_ty = Types::simplifyType(inType2.clone())?;
                     op = Expression::setOpType(inOp.clone(), op_ty.clone())?;
-                    Ok((op.clone(), list![inType2.clone(), inType2.clone()], DAE::T_BOOL_DEFAULT.clone()))
+                    Ok((op.clone(), list![inType2.clone(), inType2.clone()], DAE::T_BOOL_DEFAULT().clone()))
                 }
                 _ => bail!("nomatch"),
             }}
@@ -1051,7 +1058,7 @@ fn makeEnumOperator(mut inOp: DAE::Operator, mut inType1: Arc<DAE::Type>, mut in
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 _ => {
-                    Ok((inOp.clone(), list![DAE::T_ENUMERATION_DEFAULT.clone(), DAE::T_ENUMERATION_DEFAULT.clone()], DAE::T_BOOL_DEFAULT.clone()))
+                    Ok((inOp.clone(), list![DAE::T_ENUMERATION_DEFAULT().clone(), DAE::T_ENUMERATION_DEFAULT().clone()], DAE::T_BOOL_DEFAULT().clone()))
                 }
                 _ => bail!("nomatch"),
             }}
@@ -1070,7 +1077,7 @@ fn buildOperatorTypes(mut inTypes: Arc<metamodelica::List<Arc<DAE::Type>>>, mut 
         (Deref @ metamodelica::List::Cons { head: Deref @ DAE::Type::T_FUNCTION { funcResultType: tp, funcArg: args, .. }, tail: tps }, funcname) => {
             let mut argtypes: Arc<metamodelica::List<Arc<DAE::Type>>> = metamodelica::nil();
             let mut rest: Arc<metamodelica::List<(DAE::Operator, Arc<metamodelica::List<Arc<DAE::Type>>>, Arc<DAE::Type>)>> = metamodelica::nil();
-            argtypes = List::map(args.clone(), Arc::new(Types::funcArgType));
+            argtypes = List::map(args.clone(), (std::sync::Arc::new(Types::funcArgType) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::FuncArg>) -> Result<Arc<DAE::Type>> + 'static>));
             rest = buildOperatorTypes(tps.clone(), funcname.clone())?;
             cons((DAE::Operator::USERDEFINED { fqName: funcname.clone() }, argtypes.clone(), tp.clone()), rest.clone())
         },
@@ -1145,7 +1152,7 @@ fn getOperatorFuncsOrEmpty(mut inCache: FCore::Cache, mut env: FCore::Graph, mut
                     let mut cache: FCore::Cache = cache.clone();
                     let (__pa0, Util::SUCCESS { .. }) = (Static::instantiateDaeFunctionFromTypes(inCache.clone(), env.clone(), acc.clone(), false, None, true, openmodelica_util::Util::Status::SUCCESS)?) else { bail!("pattern mismatch") };
                     cache = __pa0.clone();
-                    let __pa1 = ::match_deref::match_deref! { match &(Types::traverseType(Arc::new(DAE::Type::T_TUPLE { types: acc.clone(), names: None }), -1, Arc::new(fnptr!(Types::makeExpDimensionsUnknown, Arc<DAE::Type>, i32)))?) {
+                    let __pa1 = ::match_deref::match_deref! { match &(Types::traverseType(Arc::new(DAE::Type::T_TUPLE { types: acc.clone(), names: None }), -1, (std::sync::Arc::new(fnptr!(Types::makeExpDimensionsUnknown, Arc<DAE::Type>, i32)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Type>, i32) -> Result<(Arc<DAE::Type>, i32)> + 'static>))?) {
                         (Deref @ DAE::Type::T_TUPLE { types: __pa1, names: _ }, _) => __pa1.clone(),
                         _ => bail!("pattern mismatch"),
                     } };
@@ -1186,7 +1193,7 @@ pub mod AvlTreePathPathEnv {
 
     pub use addConflictKeep as addConflictDefault;
 
-    pub type ConflictFunc = fn(Value, Value, Key) -> Result<Value>;
+    pub type ConflictFunc = std::sync::Arc<dyn ::std::ops::Fn(Value, Value, Key) -> Result<Value> + 'static>;
 
     /// The binary tree data structure.
     #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -1213,7 +1220,7 @@ pub mod AvlTreePathPathEnv {
 
     pub type ValueNode = Arc<Absyn::Path>;
 
-    pub fn add(mut inTree: Arc<Tree>, mut inKey: Key, mut inValue: Value, mut conflictFunc: ConflictFunc) -> Result<Arc<Tree>> {
+    pub fn add(mut inTree: Arc<Tree>, mut inKey: Key, mut inValue: Value, mut conflictFunc: Arc<dyn ::std::ops::Fn(Arc<Absyn::Path>, Arc<Absyn::Path>, Arc<Absyn::Path>) -> Result<Arc<Absyn::Path>> + 'static>) -> Result<Arc<Tree>> {
         let mut tree: Arc<Tree> = inTree.clone();
         tree = (::match_deref::match_deref! { match &(tree.clone()) {
         Deref @ Tree::EMPTY { .. } => {
@@ -1224,9 +1231,9 @@ pub mod AvlTreePathPathEnv {
             let mut key_comp: i32 = 0;
             key_comp = keyCompare(inKey.clone(), key.clone())?;
             if key_comp.clone() == -1 {
-                assign_variant_field!(tree => Tree::NODE; left = add(var_field!((*tree).left, Tree::NODE).clone(), inKey.clone(), inValue.clone(), conflictFunc)?);
+                assign_variant_field!(tree => Tree::NODE; left = add(var_field!((*tree).left, Tree::NODE).clone(), inKey.clone(), inValue.clone(), conflictFunc.clone())?);
             } else if key_comp.clone() == 1 {
-                assign_variant_field!(tree => Tree::NODE; right = add(var_field!((*tree).right, Tree::NODE).clone(), inKey.clone(), inValue.clone(), conflictFunc)?);
+                assign_variant_field!(tree => Tree::NODE; right = add(var_field!((*tree).right, Tree::NODE).clone(), inKey.clone(), inValue.clone(), conflictFunc.clone())?);
             } else {
                 value = conflictFunc(inValue.clone(), var_field!((*tree).value, Tree::NODE).clone(), key.clone())?;
                 if !(referenceEq(&var_field!((*tree).value, Tree::NODE).clone(),&value.clone())) {
@@ -1274,20 +1281,20 @@ pub mod AvlTreePathPathEnv {
         value
     }
 
-    pub fn addList(mut tree: Arc<Tree>, mut inValues: Arc<metamodelica::List<(Arc<Absyn::Path>, Arc<Absyn::Path>)>>, mut conflictFunc: ConflictFunc) -> Result<Arc<Tree>> {
+    pub fn addList(mut tree: Arc<Tree>, mut inValues: Arc<metamodelica::List<(Arc<Absyn::Path>, Arc<Absyn::Path>)>>, mut conflictFunc: Arc<dyn ::std::ops::Fn(Arc<Absyn::Path>, Arc<Absyn::Path>, Arc<Absyn::Path>) -> Result<Arc<Absyn::Path>> + 'static>) -> Result<Arc<Tree>> {
         let mut tree: Arc<Tree> = tree;
         let mut key: Key;
         let mut value: Value;
         for mut t in &*inValues.clone() {
             let mut t = t.clone();
             (key, value) = t.clone();
-            tree = add(tree.clone(), key.clone(), value.clone(), conflictFunc)?;
+            tree = add(tree.clone(), key.clone(), value.clone(), conflictFunc.clone())?;
         }
         Ok(tree)
     }
 
     pub fn addUpdate(mut tree: Arc<Tree>, mut key: Key, mut r#fn: Arc<dyn ::std::ops::Fn(Option<Arc<Absyn::Path>>) -> Result<Arc<Absyn::Path>> + 'static>) -> Result<Arc<Tree>> {
-        pub type UpdateFn = fn(Option<Arc<Absyn::Path>>) -> Result<Value>;
+        pub type UpdateFn = std::sync::Arc<dyn ::std::ops::Fn(Option<Arc<Absyn::Path>>) -> Result<Value> + 'static>;
 
         let mut tree: Arc<Tree> = tree;
         let mut key_comp: i32 = 0;
@@ -1365,7 +1372,7 @@ pub mod AvlTreePathPathEnv {
     }
 
     pub fn fold<FT: Clone + 'static>(mut inTree: Arc<Tree>, mut inFunc: Arc<dyn ::std::ops::Fn(Arc<Absyn::Path>, Arc<Absyn::Path>, FT) -> Result<FT> + 'static>, mut inStartValue: FT) -> FT {
-        pub type FoldFunc<FT: Clone> = fn(Key, Value, FT) -> Result<FT>;
+        pub type FoldFunc<FT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Key, Value, FT) -> Result<FT> + 'static>;
 
         let mut outResult: FT = inStartValue.clone();
         outResult = (::match_deref::match_deref! { match &(inTree.clone()) {
@@ -1388,7 +1395,7 @@ pub mod AvlTreePathPathEnv {
     }
 
     pub fn foldCond<FT: Clone + 'static>(mut tree: Arc<Tree>, mut foldFunc: Arc<dyn ::std::ops::Fn(Arc<Absyn::Path>, Arc<Absyn::Path>, FT) -> Result<(FT, bool)> + 'static>, mut value: FT) -> FT {
-        pub type FoldFunc<FT: Clone> = fn(Key, Value, FT) -> Result<(FT, bool)>;
+        pub type FoldFunc<FT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Key, Value, FT) -> Result<(FT, bool)> + 'static>;
 
         let mut value: FT = value;
         value = (::match_deref::match_deref! { match &(tree.clone()) {
@@ -1415,7 +1422,7 @@ pub mod AvlTreePathPathEnv {
     }
 
     pub fn fold_2<FT1: Clone + 'static, FT2: Clone + 'static>(mut tree: Arc<Tree>, mut foldFunc: Arc<dyn ::std::ops::Fn(Arc<Absyn::Path>, Arc<Absyn::Path>, FT1, FT2) -> Result<(FT1, FT2)> + 'static>, mut foldArg1: FT1, mut foldArg2: FT2) -> (FT1, FT2) {
-        pub type FoldFunc<FT1: Clone, FT2: Clone> = fn(Key, Value, FT1, FT2) -> Result<(FT1, FT2)>;
+        pub type FoldFunc<FT1: Clone + 'static, FT2: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Key, Value, FT1, FT2) -> Result<(FT1, FT2)> + 'static>;
 
         let mut foldArg1: FT1 = foldArg1;
         let mut foldArg2: FT2 = foldArg2;
@@ -1437,7 +1444,7 @@ pub mod AvlTreePathPathEnv {
     }
 
     pub fn forEach(mut tree: Arc<Tree>, mut func: Arc<dyn ::std::ops::Fn(Arc<Absyn::Path>, Arc<Absyn::Path>) -> Result<()> + 'static>) -> Result<()> {
-        pub type EachFunc = fn(Key, Value) -> Result<()>;
+        pub type EachFunc = std::sync::Arc<dyn ::std::ops::Fn(Key, Value) -> Result<()> + 'static>;
 
         let _ = (::match_deref::match_deref! { match &(tree.clone()) {
         Deref @ Tree::NODE { .. } => {
@@ -1456,14 +1463,14 @@ pub mod AvlTreePathPathEnv {
         Ok(())
     }
 
-    pub fn fromList(mut inValues: Arc<metamodelica::List<(Arc<Absyn::Path>, Arc<Absyn::Path>)>>, mut conflictFunc: ConflictFunc) -> Result<Arc<Tree>> {
+    pub fn fromList(mut inValues: Arc<metamodelica::List<(Arc<Absyn::Path>, Arc<Absyn::Path>)>>, mut conflictFunc: Arc<dyn ::std::ops::Fn(Arc<Absyn::Path>, Arc<Absyn::Path>, Arc<Absyn::Path>) -> Result<Arc<Absyn::Path>> + 'static>) -> Result<Arc<Tree>> {
         let mut tree: Arc<Tree> = Arc::new(crate::OperatorOverloading::AvlTreePathPathEnv::Tree::EMPTY);
         let mut key: Key;
         let mut value: Value;
         for mut t in &*inValues.clone() {
             let mut t = t.clone();
             (key, value) = t.clone();
-            tree = add(tree.clone(), key.clone(), value.clone(), conflictFunc)?;
+            tree = add(tree.clone(), key.clone(), value.clone(), conflictFunc.clone())?;
         }
         Ok(tree)
     }
@@ -1559,17 +1566,17 @@ pub mod AvlTreePathPathEnv {
         isEmpty
     }
 
-    pub fn join(mut tree: Arc<Tree>, mut treeToJoin: Arc<Tree>, mut conflictFunc: ConflictFunc) -> Result<Arc<Tree>> {
+    pub fn join(mut tree: Arc<Tree>, mut treeToJoin: Arc<Tree>, mut conflictFunc: Arc<dyn ::std::ops::Fn(Arc<Absyn::Path>, Arc<Absyn::Path>, Arc<Absyn::Path>) -> Result<Arc<Absyn::Path>> + 'static>) -> Result<Arc<Tree>> {
         let mut tree: Arc<Tree> = tree;
         tree = (::match_deref::match_deref! { match &(treeToJoin.clone()) {
         Deref @ Tree::EMPTY { .. } => tree.clone(),
         Deref @ Tree::NODE { .. } => {
-            tree = add(tree.clone(), var_field!((*treeToJoin).key, Tree::NODE).clone(), var_field!((*treeToJoin).value, Tree::NODE).clone(), conflictFunc)?;
-            tree = join(tree.clone(), var_field!((*treeToJoin).left, Tree::NODE).clone(), conflictFunc)?;
-            tree = join(tree.clone(), var_field!((*treeToJoin).right, Tree::NODE).clone(), conflictFunc)?;
+            tree = add(tree.clone(), var_field!((*treeToJoin).key, Tree::NODE).clone(), var_field!((*treeToJoin).value, Tree::NODE).clone(), conflictFunc.clone())?;
+            tree = join(tree.clone(), var_field!((*treeToJoin).left, Tree::NODE).clone(), conflictFunc.clone())?;
+            tree = join(tree.clone(), var_field!((*treeToJoin).right, Tree::NODE).clone(), conflictFunc.clone())?;
             tree.clone()
         },
-        Deref @ Tree::LEAF { .. } => add(tree.clone(), var_field!((*treeToJoin).key, Tree::LEAF).clone(), var_field!((*treeToJoin).value, Tree::LEAF).clone(), conflictFunc)?,
+        Deref @ Tree::LEAF { .. } => add(tree.clone(), var_field!((*treeToJoin).key, Tree::LEAF).clone(), var_field!((*treeToJoin).value, Tree::LEAF).clone(), conflictFunc.clone())?,
         _ => bail!("match: no arm matched"),
     } });
         Ok(tree)
@@ -1632,7 +1639,7 @@ pub mod AvlTreePathPathEnv {
     }
 
     pub fn map(mut inTree: Arc<Tree>, mut inFunc: Arc<dyn ::std::ops::Fn(Arc<Absyn::Path>, Arc<Absyn::Path>) -> Result<Arc<Absyn::Path>> + 'static>) -> Arc<Tree> {
-        pub type MapFunc = fn(Key, Value) -> Result<Value>;
+        pub type MapFunc = std::sync::Arc<dyn ::std::ops::Fn(Key, Value) -> Result<Value> + 'static>;
 
         let mut outTree: Arc<Tree> = inTree.clone();
         outTree = (::match_deref::match_deref! { match &(outTree.clone()) {
@@ -1665,7 +1672,7 @@ pub mod AvlTreePathPathEnv {
     }
 
     pub fn mapFold<FT: Clone + 'static>(mut inTree: Arc<Tree>, mut inFunc: Arc<dyn ::std::ops::Fn(Arc<Absyn::Path>, Arc<Absyn::Path>, FT) -> Result<(Arc<Absyn::Path>, FT)> + 'static>, mut inStartValue: FT) -> (Arc<Tree>, FT) {
-        pub type MapFunc<FT: Clone> = fn(Key, Value, FT) -> Result<Value>;
+        pub type MapFunc<FT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Key, Value, FT) -> Result<Value> + 'static>;
 
         let mut outTree: Arc<Tree> = inTree.clone();
         let mut outResult: FT = inStartValue.clone();
@@ -1840,7 +1847,7 @@ pub mod AvlTreePathPathEnv {
     }
 
     pub fn update(mut tree: Arc<Tree>, mut key: Key, mut value: Value) -> Arc<Tree> {
-        let mut outTree: Arc<Tree> = add(tree.clone(), key.clone(), value.clone(), fnptr!(addConflictReplace, Arc<Absyn::Path>, Arc<Absyn::Path>, Arc<Absyn::Path>)).unwrap();
+        let mut outTree: Arc<Tree> = add(tree.clone(), key.clone(), value.clone(), (std::sync::Arc::new(fnptr!(addConflictReplace, Arc<Absyn::Path>, Arc<Absyn::Path>, Arc<Absyn::Path>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Path>, Arc<Absyn::Path>, Arc<Absyn::Path>) -> Result<Arc<Absyn::Path>> + 'static>)).unwrap();
         outTree
     }
 
@@ -1872,7 +1879,7 @@ pub mod AvlTreePathOperatorTypes {
 
     pub use addConflictKeep as addConflictDefault;
 
-    pub type ConflictFunc = fn(Value, Value, Key) -> Result<Value>;
+    pub type ConflictFunc = std::sync::Arc<dyn ::std::ops::Fn(Value, Value, Key) -> Result<Value> + 'static>;
 
     /// The binary tree data structure.
     #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -1899,7 +1906,7 @@ pub mod AvlTreePathOperatorTypes {
 
     pub type ValueNode = Arc<Absyn::Path>;
 
-    pub fn add(mut inTree: Arc<Tree>, mut inKey: Key, mut inValue: Value, mut conflictFunc: ConflictFunc) -> Result<Arc<Tree>> {
+    pub fn add(mut inTree: Arc<Tree>, mut inKey: Key, mut inValue: Value, mut conflictFunc: Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<Arc<DAE::Type>>>, Arc<metamodelica::List<Arc<DAE::Type>>>, Arc<Absyn::Path>) -> Result<Arc<metamodelica::List<Arc<DAE::Type>>>> + 'static>) -> Result<Arc<Tree>> {
         let mut tree: Arc<Tree> = inTree.clone();
         tree = (::match_deref::match_deref! { match &(tree.clone()) {
         Deref @ Tree::EMPTY { .. } => {
@@ -1910,9 +1917,9 @@ pub mod AvlTreePathOperatorTypes {
             let mut key_comp: i32 = 0;
             key_comp = keyCompare(inKey.clone(), key.clone())?;
             if key_comp.clone() == -1 {
-                assign_variant_field!(tree => Tree::NODE; left = add(var_field!((*tree).left, Tree::NODE).clone(), inKey.clone(), inValue.clone(), conflictFunc)?);
+                assign_variant_field!(tree => Tree::NODE; left = add(var_field!((*tree).left, Tree::NODE).clone(), inKey.clone(), inValue.clone(), conflictFunc.clone())?);
             } else if key_comp.clone() == 1 {
-                assign_variant_field!(tree => Tree::NODE; right = add(var_field!((*tree).right, Tree::NODE).clone(), inKey.clone(), inValue.clone(), conflictFunc)?);
+                assign_variant_field!(tree => Tree::NODE; right = add(var_field!((*tree).right, Tree::NODE).clone(), inKey.clone(), inValue.clone(), conflictFunc.clone())?);
             } else {
                 value = conflictFunc(inValue.clone(), var_field!((*tree).value, Tree::NODE).clone(), key.clone())?;
                 if !(referenceEq(&var_field!((*tree).value, Tree::NODE).clone(),&value.clone())) {
@@ -1960,20 +1967,20 @@ pub mod AvlTreePathOperatorTypes {
         value
     }
 
-    pub fn addList(mut tree: Arc<Tree>, mut inValues: Arc<metamodelica::List<(Arc<Absyn::Path>, Arc<metamodelica::List<Arc<DAE::Type>>>)>>, mut conflictFunc: ConflictFunc) -> Result<Arc<Tree>> {
+    pub fn addList(mut tree: Arc<Tree>, mut inValues: Arc<metamodelica::List<(Arc<Absyn::Path>, Arc<metamodelica::List<Arc<DAE::Type>>>)>>, mut conflictFunc: Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<Arc<DAE::Type>>>, Arc<metamodelica::List<Arc<DAE::Type>>>, Arc<Absyn::Path>) -> Result<Arc<metamodelica::List<Arc<DAE::Type>>>> + 'static>) -> Result<Arc<Tree>> {
         let mut tree: Arc<Tree> = tree;
         let mut key: Key;
         let mut value: Value = metamodelica::nil();
         for mut t in &*inValues.clone() {
             let mut t = t.clone();
             (key, value) = t.clone();
-            tree = add(tree.clone(), key.clone(), value.clone(), conflictFunc)?;
+            tree = add(tree.clone(), key.clone(), value.clone(), conflictFunc.clone())?;
         }
         Ok(tree)
     }
 
     pub fn addUpdate(mut tree: Arc<Tree>, mut key: Key, mut r#fn: Arc<dyn ::std::ops::Fn(Option<Arc<metamodelica::List<Arc<DAE::Type>>>>) -> Result<Arc<metamodelica::List<Arc<DAE::Type>>>> + 'static>) -> Result<Arc<Tree>> {
-        pub type UpdateFn = fn(Option<Arc<metamodelica::List<Arc<DAE::Type>>>>) -> Result<Value>;
+        pub type UpdateFn = std::sync::Arc<dyn ::std::ops::Fn(Option<Arc<metamodelica::List<Arc<DAE::Type>>>>) -> Result<Value> + 'static>;
 
         let mut tree: Arc<Tree> = tree;
         let mut key_comp: i32 = 0;
@@ -2051,7 +2058,7 @@ pub mod AvlTreePathOperatorTypes {
     }
 
     pub fn fold<FT: Clone + 'static>(mut inTree: Arc<Tree>, mut inFunc: Arc<dyn ::std::ops::Fn(Arc<Absyn::Path>, Arc<metamodelica::List<Arc<DAE::Type>>>, FT) -> Result<FT> + 'static>, mut inStartValue: FT) -> FT {
-        pub type FoldFunc<FT: Clone> = fn(Key, Value, FT) -> Result<FT>;
+        pub type FoldFunc<FT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Key, Value, FT) -> Result<FT> + 'static>;
 
         let mut outResult: FT = inStartValue.clone();
         outResult = (::match_deref::match_deref! { match &(inTree.clone()) {
@@ -2074,7 +2081,7 @@ pub mod AvlTreePathOperatorTypes {
     }
 
     pub fn foldCond<FT: Clone + 'static>(mut tree: Arc<Tree>, mut foldFunc: Arc<dyn ::std::ops::Fn(Arc<Absyn::Path>, Arc<metamodelica::List<Arc<DAE::Type>>>, FT) -> Result<(FT, bool)> + 'static>, mut value: FT) -> FT {
-        pub type FoldFunc<FT: Clone> = fn(Key, Value, FT) -> Result<(FT, bool)>;
+        pub type FoldFunc<FT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Key, Value, FT) -> Result<(FT, bool)> + 'static>;
 
         let mut value: FT = value;
         value = (::match_deref::match_deref! { match &(tree.clone()) {
@@ -2101,7 +2108,7 @@ pub mod AvlTreePathOperatorTypes {
     }
 
     pub fn fold_2<FT1: Clone + 'static, FT2: Clone + 'static>(mut tree: Arc<Tree>, mut foldFunc: Arc<dyn ::std::ops::Fn(Arc<Absyn::Path>, Arc<metamodelica::List<Arc<DAE::Type>>>, FT1, FT2) -> Result<(FT1, FT2)> + 'static>, mut foldArg1: FT1, mut foldArg2: FT2) -> (FT1, FT2) {
-        pub type FoldFunc<FT1: Clone, FT2: Clone> = fn(Key, Value, FT1, FT2) -> Result<(FT1, FT2)>;
+        pub type FoldFunc<FT1: Clone + 'static, FT2: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Key, Value, FT1, FT2) -> Result<(FT1, FT2)> + 'static>;
 
         let mut foldArg1: FT1 = foldArg1;
         let mut foldArg2: FT2 = foldArg2;
@@ -2123,7 +2130,7 @@ pub mod AvlTreePathOperatorTypes {
     }
 
     pub fn forEach(mut tree: Arc<Tree>, mut func: Arc<dyn ::std::ops::Fn(Arc<Absyn::Path>, Arc<metamodelica::List<Arc<DAE::Type>>>) -> Result<()> + 'static>) -> Result<()> {
-        pub type EachFunc = fn(Key, Value) -> Result<()>;
+        pub type EachFunc = std::sync::Arc<dyn ::std::ops::Fn(Key, Value) -> Result<()> + 'static>;
 
         let _ = (::match_deref::match_deref! { match &(tree.clone()) {
         Deref @ Tree::NODE { .. } => {
@@ -2142,14 +2149,14 @@ pub mod AvlTreePathOperatorTypes {
         Ok(())
     }
 
-    pub fn fromList(mut inValues: Arc<metamodelica::List<(Arc<Absyn::Path>, Arc<metamodelica::List<Arc<DAE::Type>>>)>>, mut conflictFunc: ConflictFunc) -> Result<Arc<Tree>> {
+    pub fn fromList(mut inValues: Arc<metamodelica::List<(Arc<Absyn::Path>, Arc<metamodelica::List<Arc<DAE::Type>>>)>>, mut conflictFunc: Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<Arc<DAE::Type>>>, Arc<metamodelica::List<Arc<DAE::Type>>>, Arc<Absyn::Path>) -> Result<Arc<metamodelica::List<Arc<DAE::Type>>>> + 'static>) -> Result<Arc<Tree>> {
         let mut tree: Arc<Tree> = Arc::new(crate::OperatorOverloading::AvlTreePathOperatorTypes::Tree::EMPTY);
         let mut key: Key;
         let mut value: Value = metamodelica::nil();
         for mut t in &*inValues.clone() {
             let mut t = t.clone();
             (key, value) = t.clone();
-            tree = add(tree.clone(), key.clone(), value.clone(), conflictFunc)?;
+            tree = add(tree.clone(), key.clone(), value.clone(), conflictFunc.clone())?;
         }
         Ok(tree)
     }
@@ -2245,17 +2252,17 @@ pub mod AvlTreePathOperatorTypes {
         isEmpty
     }
 
-    pub fn join(mut tree: Arc<Tree>, mut treeToJoin: Arc<Tree>, mut conflictFunc: ConflictFunc) -> Result<Arc<Tree>> {
+    pub fn join(mut tree: Arc<Tree>, mut treeToJoin: Arc<Tree>, mut conflictFunc: Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<Arc<DAE::Type>>>, Arc<metamodelica::List<Arc<DAE::Type>>>, Arc<Absyn::Path>) -> Result<Arc<metamodelica::List<Arc<DAE::Type>>>> + 'static>) -> Result<Arc<Tree>> {
         let mut tree: Arc<Tree> = tree;
         tree = (::match_deref::match_deref! { match &(treeToJoin.clone()) {
         Deref @ Tree::EMPTY { .. } => tree.clone(),
         Deref @ Tree::NODE { .. } => {
-            tree = add(tree.clone(), var_field!((*treeToJoin).key, Tree::NODE).clone(), var_field!((*treeToJoin).value, Tree::NODE).clone(), conflictFunc)?;
-            tree = join(tree.clone(), var_field!((*treeToJoin).left, Tree::NODE).clone(), conflictFunc)?;
-            tree = join(tree.clone(), var_field!((*treeToJoin).right, Tree::NODE).clone(), conflictFunc)?;
+            tree = add(tree.clone(), var_field!((*treeToJoin).key, Tree::NODE).clone(), var_field!((*treeToJoin).value, Tree::NODE).clone(), conflictFunc.clone())?;
+            tree = join(tree.clone(), var_field!((*treeToJoin).left, Tree::NODE).clone(), conflictFunc.clone())?;
+            tree = join(tree.clone(), var_field!((*treeToJoin).right, Tree::NODE).clone(), conflictFunc.clone())?;
             tree.clone()
         },
-        Deref @ Tree::LEAF { .. } => add(tree.clone(), var_field!((*treeToJoin).key, Tree::LEAF).clone(), var_field!((*treeToJoin).value, Tree::LEAF).clone(), conflictFunc)?,
+        Deref @ Tree::LEAF { .. } => add(tree.clone(), var_field!((*treeToJoin).key, Tree::LEAF).clone(), var_field!((*treeToJoin).value, Tree::LEAF).clone(), conflictFunc.clone())?,
         _ => bail!("match: no arm matched"),
     } });
         Ok(tree)
@@ -2318,7 +2325,7 @@ pub mod AvlTreePathOperatorTypes {
     }
 
     pub fn map(mut inTree: Arc<Tree>, mut inFunc: Arc<dyn ::std::ops::Fn(Arc<Absyn::Path>, Arc<metamodelica::List<Arc<DAE::Type>>>) -> Result<Arc<metamodelica::List<Arc<DAE::Type>>>> + 'static>) -> Arc<Tree> {
-        pub type MapFunc = fn(Key, Value) -> Result<Value>;
+        pub type MapFunc = std::sync::Arc<dyn ::std::ops::Fn(Key, Value) -> Result<Value> + 'static>;
 
         let mut outTree: Arc<Tree> = inTree.clone();
         outTree = (::match_deref::match_deref! { match &(outTree.clone()) {
@@ -2351,7 +2358,7 @@ pub mod AvlTreePathOperatorTypes {
     }
 
     pub fn mapFold<FT: Clone + 'static>(mut inTree: Arc<Tree>, mut inFunc: Arc<dyn ::std::ops::Fn(Arc<Absyn::Path>, Arc<metamodelica::List<Arc<DAE::Type>>>, FT) -> Result<(Arc<metamodelica::List<Arc<DAE::Type>>>, FT)> + 'static>, mut inStartValue: FT) -> (Arc<Tree>, FT) {
-        pub type MapFunc<FT: Clone> = fn(Key, Value, FT) -> Result<Value>;
+        pub type MapFunc<FT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Key, Value, FT) -> Result<Value> + 'static>;
 
         let mut outTree: Arc<Tree> = inTree.clone();
         let mut outResult: FT = inStartValue.clone();
@@ -2526,7 +2533,7 @@ pub mod AvlTreePathOperatorTypes {
     }
 
     pub fn update(mut tree: Arc<Tree>, mut key: Key, mut value: Value) -> Arc<Tree> {
-        let mut outTree: Arc<Tree> = add(tree.clone(), key.clone(), value.clone(), fnptr!(addConflictReplace, Arc<metamodelica::List<Arc<DAE::Type>>>, Arc<metamodelica::List<Arc<DAE::Type>>>, Arc<Absyn::Path>)).unwrap();
+        let mut outTree: Arc<Tree> = add(tree.clone(), key.clone(), value.clone(), (std::sync::Arc::new(fnptr!(addConflictReplace, Arc<metamodelica::List<Arc<DAE::Type>>>, Arc<metamodelica::List<Arc<DAE::Type>>>, Arc<Absyn::Path>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<Arc<DAE::Type>>>, Arc<metamodelica::List<Arc<DAE::Type>>>, Arc<Absyn::Path>) -> Result<Arc<metamodelica::List<Arc<DAE::Type>>>> + 'static>)).unwrap();
         outTree
     }
 
@@ -2560,7 +2567,7 @@ fn getOperatorFuncsOrEmptySingleTy(mut cache: FCore::Cache, mut env: FCore::Grap
         Err(_) => {
             (cache, operatorCl, recordEnv) = Lookup::lookupClass(cache.clone(), env.clone(), pathIn.clone(), None)?;
             (cache, path, recordEnv) = lookupOperatorBaseClass(cache.clone(), recordEnv.clone(), operatorCl.clone())?;
-            tree1 = AvlTreePathPathEnv::add(tree1.clone(), pathIn.clone(), path.clone(), AvlTreePathPathEnv::addConflictDefault)?;
+            tree1 = AvlTreePathPathEnv::add(tree1.clone(), pathIn.clone(), path.clone(), (std::sync::Arc::new(fnptr!(AvlTreePathPathEnv::addConflictDefault, _, _, _)) as std::sync::Arc<dyn ::std::ops::Fn(_, _, _) -> Result<_> + 'static>))?;
             crate::Globals::operatorOverloadingCache.with(|__root| *__root.borrow_mut() = (tree1.clone(), tree2.clone()));
         }
     }
@@ -2578,8 +2585,8 @@ fn getOperatorFuncsOrEmptySingleTy(mut cache: FCore::Cache, mut env: FCore::Grap
             let true = (SCodeUtil::isOperator(operatorCl.clone())) else { bail!("pattern mismatch") };
             paths = AbsynToSCode::getListofQualOperatorFuncsfromOperator(operatorCl.clone())?;
             (cache, funcs) = Lookup::lookupFunctionsListInEnv(cache.clone(), operEnv.clone(), paths.clone(), info.clone(), metamodelica::nil())?;
-            funcs = List::select2(funcs.clone(), (if (opName.clone() == literal!("'constructor'") || opName.clone() == literal!("'0'")) { (Arc::new(checkOperatorFunctionOutput) as _) } else { (Arc::new(checkOperatorFunctionOneOutput) as _) }), scalarType.clone(), info.clone());
-            tree2 = AvlTreePathOperatorTypes::add(tree2.clone(), path.clone(), funcs.clone(), AvlTreePathOperatorTypes::addConflictDefault)?;
+            funcs = List::select2(funcs.clone(), (if (opName.clone() == literal!("'constructor'") || opName.clone() == literal!("'0'")) { ((std::sync::Arc::new(checkOperatorFunctionOutput) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Type>, Arc<DAE::Type>, SourceInfo) -> Result<bool> + 'static>) as _) } else { ((std::sync::Arc::new(checkOperatorFunctionOneOutput) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Type>, Arc<DAE::Type>, SourceInfo) -> Result<bool> + 'static>) as _) }), scalarType.clone(), info.clone());
+            tree2 = AvlTreePathOperatorTypes::add(tree2.clone(), path.clone(), funcs.clone(), (std::sync::Arc::new(fnptr!(AvlTreePathOperatorTypes::addConflictDefault, _, _, _)) as std::sync::Arc<dyn ::std::ops::Fn(_, _, _) -> Result<_> + 'static>))?;
             crate::Globals::operatorOverloadingCache.with(|__root| *__root.borrow_mut() = (tree1.clone(), tree2.clone()));
         }
     }
@@ -2675,7 +2682,7 @@ fn isOperatorBinaryFunctionOrWarn(mut ty: Arc<DAE::Type>, mut info: SourceInfo) 
             false
         },
         (Deref @ DAE::Type::T_FUNCTION { funcArg: Deref @ metamodelica::List::Cons { head: Deref @ DAE::FuncArg { defaultBinding: None, .. }, tail: Deref @ metamodelica::List::Cons { head: Deref @ DAE::FuncArg { defaultBinding: None, .. }, tail: rest } }, .. }, _) => {
-            isBinaryFunc = List::mapMapBoolAnd(rest.clone(), Arc::new(Types::funcArgDefaultBinding), Arc::new(fnptr!(isSome, _)));
+            isBinaryFunc = List::mapMapBoolAnd(rest.clone(), (std::sync::Arc::new(Types::funcArgDefaultBinding) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::FuncArg>) -> Result<Option<Arc<DAE::Exp>>> + 'static>), std::sync::Arc::new(fnptr!(isSome, _)));
             isBinaryFunc.clone()
         },
         _ => {
@@ -2690,7 +2697,7 @@ fn isOperatorUnaryFunction(mut ty: Arc<DAE::Type>) -> bool {
     let mut isBinaryFunc: bool = false;
     isBinaryFunc = (::match_deref::match_deref! { match &(ty.clone()) {
         Deref @ DAE::Type::T_FUNCTION { funcArg: Deref @ metamodelica::List::Cons { head: Deref @ DAE::FuncArg { defaultBinding: None, .. }, tail: rest }, .. } => {
-            isBinaryFunc = List::mapMapBoolAnd(rest.clone(), Arc::new(Types::funcArgDefaultBinding), Arc::new(fnptr!(isSome, _)));
+            isBinaryFunc = List::mapMapBoolAnd(rest.clone(), (std::sync::Arc::new(Types::funcArgDefaultBinding) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::FuncArg>) -> Result<Option<Arc<DAE::Exp>>> + 'static>), std::sync::Arc::new(fnptr!(isSome, _)));
             isBinaryFunc.clone()
         },
         _ => {
@@ -2716,7 +2723,7 @@ fn getZeroConstructorExpression(mut ty: Arc<DAE::Type>) -> Result<Arc<DAE::Exp>>
 fn makeCallFillRestDefaults(mut path: Arc<Absyn::Path>, mut inExps: Arc<metamodelica::List<Arc<DAE::Exp>>>, mut restArgs: Arc<metamodelica::List<Arc<DAE::FuncArg>>>, mut attr: Arc<DAE::CallAttributes>) -> Arc<DAE::Exp> {
     let mut exp: Arc<DAE::Exp>;
     let mut exps: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
-    exps = listAppend(inExps.clone(), List::mapMap(restArgs.clone(), Arc::new(Types::funcArgDefaultBinding), Arc::new(Util::getOption)));
+    exps = listAppend(inExps.clone(), List::mapMap(restArgs.clone(), (std::sync::Arc::new(Types::funcArgDefaultBinding) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::FuncArg>) -> Result<Option<Arc<DAE::Exp>>> + 'static>), (std::sync::Arc::new(Util::getOption) as std::sync::Arc<dyn ::std::ops::Fn(_) -> Result<_> + 'static>)));
     exp = Arc::new(DAE::Exp::CALL { path: path.clone(), expLst: exps.clone(), attr: attr.clone() });
     exp
 }
@@ -2777,11 +2784,11 @@ fn deoverload(mut inOperators: Arc<metamodelica::List<(DAE::Operator, Arc<metamo
                     let mut s: ArcStr = arcstr::literal!("");
                     let mut tpsstr: ArcStr = arcstr::literal!("");
                     s = (Dump::printExpStr(aexp.clone())?).clone();
-                    exps = List::map(args.clone(), Arc::new(fnptr!(Util::tuple21, _)));
-                    tps = List::map(args.clone(), Arc::new(fnptr!(Util::tuple22, _)));
-                    exps_str = List::map(exps.clone(), Arc::new(ExpressionBasics::printExpStr));
+                    exps = List::map(args.clone(), std::sync::Arc::new(fnptr!(Util::tuple21, _)));
+                    tps = List::map(args.clone(), std::sync::Arc::new(fnptr!(Util::tuple22, _)));
+                    exps_str = List::map(exps.clone(), (std::sync::Arc::new(ExpressionBasics::printExpStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<ArcStr> + 'static>));
                     let _ = stringDelimitList(exps_str.clone(), (literal!(", ")).clone());
-                    tps_str = List::map(tps.clone(), Arc::new(TypesDump::unparseType));
+                    tps_str = List::map(tps.clone(), (std::sync::Arc::new(TypesDump::unparseType) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Type>) -> Result<ArcStr> + 'static>));
                     tpsstr = stringDelimitList(tps_str.clone(), (literal!(", ")).clone());
                     pre_str = (PrefixUtil::printPrefixStr3(pre.clone())?).clone();
                     Error::addSourceMessage(Error::UNRESOLVABLE_TYPE.clone(), list![(s.clone()).clone(), (tpsstr.clone()).clone(), (pre_str.clone()).clone()], info.clone())?;
@@ -3397,7 +3404,7 @@ fn replaceOperatorWithFcall(mut AbExp: Arc<Absyn::Exp>, mut inExp1: Arc<DAE::Exp
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ Absyn::Exp::BINARY { exp1: _, op: _, exp2: _ }, e1, DAE::Operator::USERDEFINED { fqName: funcname }, Some(e2), _) => {
-                    Ok(Arc::new(DAE::Exp::CALL { path: funcname.clone(), expLst: list![e1.clone(), e2.clone()], attr: DAE::callAttrOther.clone() }))
+                    Ok(Arc::new(DAE::Exp::CALL { path: funcname.clone(), expLst: list![e1.clone(), e2.clone()], attr: DAE::callAttrOther().clone() }))
                 }
                 _ => bail!("nomatch"),
             }}
@@ -3413,7 +3420,7 @@ fn replaceOperatorWithFcall(mut AbExp: Arc<Absyn::Exp>, mut inExp1: Arc<DAE::Exp
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ Absyn::Exp::UNARY { op: _, exp: _ }, e1, DAE::Operator::USERDEFINED { fqName: funcname }, None, _) => {
-                    Ok(Arc::new(DAE::Exp::CALL { path: funcname.clone(), expLst: list![e1.clone()], attr: DAE::callAttrOther.clone() }))
+                    Ok(Arc::new(DAE::Exp::CALL { path: funcname.clone(), expLst: list![e1.clone()], attr: DAE::callAttrOther().clone() }))
                 }
                 _ => bail!("nomatch"),
             }}
@@ -3429,7 +3436,7 @@ fn replaceOperatorWithFcall(mut AbExp: Arc<Absyn::Exp>, mut inExp1: Arc<DAE::Exp
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ Absyn::Exp::LBINARY { exp1: _, op: _, exp2: _ }, e1, DAE::Operator::USERDEFINED { fqName: funcname }, Some(e2), _) => {
-                    Ok(Arc::new(DAE::Exp::CALL { path: funcname.clone(), expLst: list![e1.clone(), e2.clone()], attr: DAE::callAttrOther.clone() }))
+                    Ok(Arc::new(DAE::Exp::CALL { path: funcname.clone(), expLst: list![e1.clone(), e2.clone()], attr: DAE::callAttrOther().clone() }))
                 }
                 _ => bail!("nomatch"),
             }}
@@ -3445,7 +3452,7 @@ fn replaceOperatorWithFcall(mut AbExp: Arc<Absyn::Exp>, mut inExp1: Arc<DAE::Exp
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ Absyn::Exp::LUNARY { op: _, exp: _ }, e1, DAE::Operator::USERDEFINED { fqName: funcname }, None, _) => {
-                    Ok(Arc::new(DAE::Exp::CALL { path: funcname.clone(), expLst: list![e1.clone()], attr: DAE::callAttrOther.clone() }))
+                    Ok(Arc::new(DAE::Exp::CALL { path: funcname.clone(), expLst: list![e1.clone()], attr: DAE::callAttrOther().clone() }))
                 }
                 _ => bail!("nomatch"),
             }}
@@ -3461,7 +3468,7 @@ fn replaceOperatorWithFcall(mut AbExp: Arc<Absyn::Exp>, mut inExp1: Arc<DAE::Exp
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ Absyn::Exp::RELATION { exp1: _, op: _, exp2: _ }, e1, DAE::Operator::USERDEFINED { fqName: funcname }, Some(e2), _) => {
-                    Ok(Arc::new(DAE::Exp::CALL { path: funcname.clone(), expLst: list![e1.clone(), e2.clone()], attr: DAE::callAttrOther.clone() }))
+                    Ok(Arc::new(DAE::Exp::CALL { path: funcname.clone(), expLst: list![e1.clone(), e2.clone()], attr: DAE::callAttrOther().clone() }))
                 }
                 _ => bail!("nomatch"),
             }}
@@ -3536,7 +3543,7 @@ fn errorMultipleValid(mut exps: Arc<metamodelica::List<Arc<DAE::Exp>>>, mut info
     let mut str1: ArcStr = arcstr::literal!("");
     let mut str2: ArcStr = arcstr::literal!("");
     str1 = (intString((exps.clone().len() as i32))).clone();
-    str2 = stringDelimitList(List::map(exps.clone(), Arc::new(ExpressionBasics::printExpStr)), (literal!(",")).clone());
+    str2 = stringDelimitList(List::map(exps.clone(), (std::sync::Arc::new(ExpressionBasics::printExpStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<ArcStr> + 'static>)), (literal!(",")).clone());
     Error::addSourceMessage(Error::OP_OVERLOAD_MULTIPLE_VALID.clone(), list![(str1.clone()).clone(), (str2.clone()).clone()], info.clone())?;
     Ok(())
 }
@@ -3554,16 +3561,16 @@ fn binaryCastConstructor(mut inCache: FCore::Cache, mut env: FCore::Graph, mut i
             let mut tys2: Arc<metamodelica::List<Arc<DAE::Type>>> = metamodelica::nil();
             let mut exps1: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
             let mut exps2: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
-            args = List::map(types.clone(), Arc::new(Types::getFuncArg));
-            tys1 = List::mapMap(args.clone(), Arc::new(listHead.clone()), Arc::new(Types::funcArgType));
+            args = List::map(types.clone(), (std::sync::Arc::new(Types::getFuncArg) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Type>) -> Result<Arc<metamodelica::List<Arc<DAE::FuncArg>>>> + 'static>));
+            tys1 = List::mapMap(args.clone(), Arc::new(listHead.clone()), (std::sync::Arc::new(Types::funcArgType) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::FuncArg>) -> Result<Arc<DAE::Type>> + 'static>));
             args = List::map(args.clone(), Arc::new(listRest.clone()));
-            tys2 = List::mapMap(args.clone(), Arc::new(listHead.clone()), Arc::new(Types::funcArgType));
+            tys2 = List::mapMap(args.clone(), Arc::new(listHead.clone()), (std::sync::Arc::new(Types::funcArgType) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::FuncArg>) -> Result<Arc<DAE::Type>> + 'static>));
             tys1 = List::setDifference(List::union(tys1.clone(), metamodelica::nil()), list![inType1.clone()])?;
             tys2 = List::setDifference(List::union(tys2.clone(), metamodelica::nil()), list![inType2.clone()])?;
             (cache, tys1) = getOperatorFuncsOrEmpty(inCache.clone(), env.clone(), tys1.clone(), (literal!("'constructor'")).clone(), info.clone(), metamodelica::nil())?;
             (cache, tys2) = getOperatorFuncsOrEmpty(cache.clone(), env.clone(), tys2.clone(), (literal!("'constructor'")).clone(), info.clone(), metamodelica::nil())?;
-            tys1 = List::select(tys1.clone(), Arc::new(fnptr!(isOperatorUnaryFunction, Arc<DAE::Type>)));
-            tys2 = List::select(tys2.clone(), Arc::new(fnptr!(isOperatorUnaryFunction, Arc<DAE::Type>)));
+            tys1 = List::select(tys1.clone(), (std::sync::Arc::new(fnptr!(isOperatorUnaryFunction, Arc<DAE::Type>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Type>) -> Result<bool> + 'static>));
+            tys2 = List::select(tys2.clone(), (std::sync::Arc::new(fnptr!(isOperatorUnaryFunction, Arc<DAE::Type>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Type>) -> Result<bool> + 'static>));
             exps1 = deoverloadUnaryUserdefNoConstructor(tys1.clone(), inExp1.clone(), inType1.clone(), metamodelica::nil())?;
             exps2 = deoverloadUnaryUserdefNoConstructor(tys2.clone(), inExp2.clone(), inType2.clone(), metamodelica::nil())?;
             resExps = deoverloadBinaryUserdefNoConstructorListLhs(types.clone(), exps1.clone(), inExp2.clone(), inType2.clone(), metamodelica::nil())?;
@@ -3571,7 +3578,7 @@ fn binaryCastConstructor(mut inCache: FCore::Cache, mut env: FCore::Graph, mut i
             (cache.clone(), resExps.clone())
         },
         _ => {
-            errorMultipleValid(List::map(exps.clone(), Arc::new(fnptr!(Util::tuple21, _))), info.clone())?;
+            errorMultipleValid(List::map(exps.clone(), std::sync::Arc::new(fnptr!(Util::tuple21, _))), info.clone())?;
             bail!("fail")
         },
         _ => unreachable!("match_deref! exhaustiveness placeholder"),

@@ -82,10 +82,10 @@ pub mod ZeroCrossingTree {
         Ok(outResult)
     }
 
-    pub type ConflictFunc = fn(Value, Value, Key) -> Result<Value>;
+    pub type ConflictFunc = std::sync::Arc<dyn ::std::ops::Fn(Value, Value, Key) -> Result<Value> + 'static>;
 
     /// The binary tree data structure.
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
     pub enum Tree {
         NODE {
             /// The key of the node.
@@ -109,7 +109,7 @@ pub mod ZeroCrossingTree {
 
     pub type ValueNode = ZeroCrossing;
 
-    pub fn add(mut inTree: Arc<Tree>, mut inKey: Key, mut inValue: Value, mut conflictFunc: ConflictFunc) -> Result<Arc<Tree>> {
+    pub fn add(mut inTree: Arc<Tree>, mut inKey: Key, mut inValue: Value, mut conflictFunc: Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<ZeroCrossing>>, Arc<metamodelica::List<ZeroCrossing>>, ZeroCrossing) -> Result<Arc<metamodelica::List<ZeroCrossing>>> + 'static>) -> Result<Arc<Tree>> {
         let mut tree: Arc<Tree> = inTree.clone();
         tree = (::match_deref::match_deref! { match &(tree.clone()) {
         Deref @ Tree::EMPTY { .. } => {
@@ -120,9 +120,9 @@ pub mod ZeroCrossingTree {
             let mut key_comp: i32 = 0;
             key_comp = keyCompare(inKey.clone(), key.clone())?;
             if key_comp.clone() == -1 {
-                assign_variant_field!(tree => Tree::NODE; left = add(var_field!((*tree).left, Tree::NODE).clone(), inKey.clone(), inValue.clone(), conflictFunc)?);
+                assign_variant_field!(tree => Tree::NODE; left = add(var_field!((*tree).left, Tree::NODE).clone(), inKey.clone(), inValue.clone(), conflictFunc.clone())?);
             } else if key_comp.clone() == 1 {
-                assign_variant_field!(tree => Tree::NODE; right = add(var_field!((*tree).right, Tree::NODE).clone(), inKey.clone(), inValue.clone(), conflictFunc)?);
+                assign_variant_field!(tree => Tree::NODE; right = add(var_field!((*tree).right, Tree::NODE).clone(), inKey.clone(), inValue.clone(), conflictFunc.clone())?);
             } else {
                 value = conflictFunc(inValue.clone(), var_field!((*tree).value, Tree::NODE).clone(), key.clone())?;
                 if !(referenceEq(&var_field!((*tree).value, Tree::NODE).clone(),&value.clone())) {
@@ -172,20 +172,20 @@ pub mod ZeroCrossingTree {
         value
     }
 
-    pub fn addList(mut tree: Arc<Tree>, mut inValues: Arc<metamodelica::List<(ZeroCrossing, Arc<metamodelica::List<ZeroCrossing>>)>>, mut conflictFunc: ConflictFunc) -> Result<Arc<Tree>> {
+    pub fn addList(mut tree: Arc<Tree>, mut inValues: Arc<metamodelica::List<(ZeroCrossing, Arc<metamodelica::List<ZeroCrossing>>)>>, mut conflictFunc: Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<ZeroCrossing>>, Arc<metamodelica::List<ZeroCrossing>>, ZeroCrossing) -> Result<Arc<metamodelica::List<ZeroCrossing>>> + 'static>) -> Result<Arc<Tree>> {
         let mut tree: Arc<Tree> = tree;
         let mut key: Key;
         let mut value: Value = metamodelica::nil();
         for mut t in &*inValues.clone() {
             let mut t = t.clone();
             (key, value) = t.clone();
-            tree = add(tree.clone(), key.clone(), value.clone(), conflictFunc)?;
+            tree = add(tree.clone(), key.clone(), value.clone(), conflictFunc.clone())?;
         }
         Ok(tree)
     }
 
     pub fn addUpdate(mut tree: Arc<Tree>, mut key: Key, mut r#fn: Arc<dyn ::std::ops::Fn(Option<Arc<metamodelica::List<ZeroCrossing>>>) -> Result<Arc<metamodelica::List<ZeroCrossing>>> + 'static>) -> Result<Arc<Tree>> {
-        pub type UpdateFn = fn(Option<Arc<metamodelica::List<ZeroCrossing>>>) -> Result<Value>;
+        pub type UpdateFn = std::sync::Arc<dyn ::std::ops::Fn(Option<Arc<metamodelica::List<ZeroCrossing>>>) -> Result<Value> + 'static>;
 
         let mut tree: Arc<Tree> = tree;
         let mut key_comp: i32 = 0;
@@ -263,7 +263,7 @@ pub mod ZeroCrossingTree {
     }
 
     pub fn fold<FT: Clone + 'static>(mut inTree: Arc<Tree>, mut inFunc: Arc<dyn ::std::ops::Fn(ZeroCrossing, Arc<metamodelica::List<ZeroCrossing>>, FT) -> Result<FT> + 'static>, mut inStartValue: FT) -> FT {
-        pub type FoldFunc<FT: Clone> = fn(Key, Value, FT) -> Result<FT>;
+        pub type FoldFunc<FT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Key, Value, FT) -> Result<FT> + 'static>;
 
         let mut outResult: FT = inStartValue.clone();
         outResult = (::match_deref::match_deref! { match &(inTree.clone()) {
@@ -286,7 +286,7 @@ pub mod ZeroCrossingTree {
     }
 
     pub fn foldCond<FT: Clone + 'static>(mut tree: Arc<Tree>, mut foldFunc: Arc<dyn ::std::ops::Fn(ZeroCrossing, Arc<metamodelica::List<ZeroCrossing>>, FT) -> Result<(FT, bool)> + 'static>, mut value: FT) -> FT {
-        pub type FoldFunc<FT: Clone> = fn(Key, Value, FT) -> Result<(FT, bool)>;
+        pub type FoldFunc<FT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Key, Value, FT) -> Result<(FT, bool)> + 'static>;
 
         let mut value: FT = value;
         value = (::match_deref::match_deref! { match &(tree.clone()) {
@@ -313,7 +313,7 @@ pub mod ZeroCrossingTree {
     }
 
     pub fn fold_2<FT1: Clone + 'static, FT2: Clone + 'static>(mut tree: Arc<Tree>, mut foldFunc: Arc<dyn ::std::ops::Fn(ZeroCrossing, Arc<metamodelica::List<ZeroCrossing>>, FT1, FT2) -> Result<(FT1, FT2)> + 'static>, mut foldArg1: FT1, mut foldArg2: FT2) -> (FT1, FT2) {
-        pub type FoldFunc<FT1: Clone, FT2: Clone> = fn(Key, Value, FT1, FT2) -> Result<(FT1, FT2)>;
+        pub type FoldFunc<FT1: Clone + 'static, FT2: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Key, Value, FT1, FT2) -> Result<(FT1, FT2)> + 'static>;
 
         let mut foldArg1: FT1 = foldArg1;
         let mut foldArg2: FT2 = foldArg2;
@@ -335,7 +335,7 @@ pub mod ZeroCrossingTree {
     }
 
     pub fn forEach(mut tree: Arc<Tree>, mut func: Arc<dyn ::std::ops::Fn(ZeroCrossing, Arc<metamodelica::List<ZeroCrossing>>) -> Result<()> + 'static>) -> Result<()> {
-        pub type EachFunc = fn(Key, Value) -> Result<()>;
+        pub type EachFunc = std::sync::Arc<dyn ::std::ops::Fn(Key, Value) -> Result<()> + 'static>;
 
         let _ = (::match_deref::match_deref! { match &(tree.clone()) {
         Deref @ Tree::NODE { .. } => {
@@ -354,14 +354,14 @@ pub mod ZeroCrossingTree {
         Ok(())
     }
 
-    pub fn fromList(mut inValues: Arc<metamodelica::List<(ZeroCrossing, Arc<metamodelica::List<ZeroCrossing>>)>>, mut conflictFunc: ConflictFunc) -> Result<Arc<Tree>> {
+    pub fn fromList(mut inValues: Arc<metamodelica::List<(ZeroCrossing, Arc<metamodelica::List<ZeroCrossing>>)>>, mut conflictFunc: Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<ZeroCrossing>>, Arc<metamodelica::List<ZeroCrossing>>, ZeroCrossing) -> Result<Arc<metamodelica::List<ZeroCrossing>>> + 'static>) -> Result<Arc<Tree>> {
         let mut tree: Arc<Tree> = Arc::new(crate::ZeroCrossings::ZeroCrossingTree::Tree::EMPTY);
         let mut key: Key;
         let mut value: Value = metamodelica::nil();
         for mut t in &*inValues.clone() {
             let mut t = t.clone();
             (key, value) = t.clone();
-            tree = add(tree.clone(), key.clone(), value.clone(), conflictFunc)?;
+            tree = add(tree.clone(), key.clone(), value.clone(), conflictFunc.clone())?;
         }
         Ok(tree)
     }
@@ -457,17 +457,17 @@ pub mod ZeroCrossingTree {
         isEmpty
     }
 
-    pub fn join(mut tree: Arc<Tree>, mut treeToJoin: Arc<Tree>, mut conflictFunc: ConflictFunc) -> Result<Arc<Tree>> {
+    pub fn join(mut tree: Arc<Tree>, mut treeToJoin: Arc<Tree>, mut conflictFunc: Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<ZeroCrossing>>, Arc<metamodelica::List<ZeroCrossing>>, ZeroCrossing) -> Result<Arc<metamodelica::List<ZeroCrossing>>> + 'static>) -> Result<Arc<Tree>> {
         let mut tree: Arc<Tree> = tree;
         tree = (::match_deref::match_deref! { match &(treeToJoin.clone()) {
         Deref @ Tree::EMPTY { .. } => tree.clone(),
         Deref @ Tree::NODE { .. } => {
-            tree = add(tree.clone(), var_field!((*treeToJoin).key, Tree::NODE).clone(), var_field!((*treeToJoin).value, Tree::NODE).clone(), conflictFunc)?;
-            tree = join(tree.clone(), var_field!((*treeToJoin).left, Tree::NODE).clone(), conflictFunc)?;
-            tree = join(tree.clone(), var_field!((*treeToJoin).right, Tree::NODE).clone(), conflictFunc)?;
+            tree = add(tree.clone(), var_field!((*treeToJoin).key, Tree::NODE).clone(), var_field!((*treeToJoin).value, Tree::NODE).clone(), conflictFunc.clone())?;
+            tree = join(tree.clone(), var_field!((*treeToJoin).left, Tree::NODE).clone(), conflictFunc.clone())?;
+            tree = join(tree.clone(), var_field!((*treeToJoin).right, Tree::NODE).clone(), conflictFunc.clone())?;
             tree.clone()
         },
-        Deref @ Tree::LEAF { .. } => add(tree.clone(), var_field!((*treeToJoin).key, Tree::LEAF).clone(), var_field!((*treeToJoin).value, Tree::LEAF).clone(), conflictFunc)?,
+        Deref @ Tree::LEAF { .. } => add(tree.clone(), var_field!((*treeToJoin).key, Tree::LEAF).clone(), var_field!((*treeToJoin).value, Tree::LEAF).clone(), conflictFunc.clone())?,
         _ => bail!("match: no arm matched"),
     } });
         Ok(tree)
@@ -530,7 +530,7 @@ pub mod ZeroCrossingTree {
     }
 
     pub fn map(mut inTree: Arc<Tree>, mut inFunc: Arc<dyn ::std::ops::Fn(ZeroCrossing, Arc<metamodelica::List<ZeroCrossing>>) -> Result<Arc<metamodelica::List<ZeroCrossing>>> + 'static>) -> Arc<Tree> {
-        pub type MapFunc = fn(Key, Value) -> Result<Value>;
+        pub type MapFunc = std::sync::Arc<dyn ::std::ops::Fn(Key, Value) -> Result<Value> + 'static>;
 
         let mut outTree: Arc<Tree> = inTree.clone();
         outTree = (::match_deref::match_deref! { match &(outTree.clone()) {
@@ -563,7 +563,7 @@ pub mod ZeroCrossingTree {
     }
 
     pub fn mapFold<FT: Clone + 'static>(mut inTree: Arc<Tree>, mut inFunc: Arc<dyn ::std::ops::Fn(ZeroCrossing, Arc<metamodelica::List<ZeroCrossing>>, FT) -> Result<(Arc<metamodelica::List<ZeroCrossing>>, FT)> + 'static>, mut inStartValue: FT) -> (Arc<Tree>, FT) {
-        pub type MapFunc<FT: Clone> = fn(Key, Value, FT) -> Result<Value>;
+        pub type MapFunc<FT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Key, Value, FT) -> Result<Value> + 'static>;
 
         let mut outTree: Arc<Tree> = inTree.clone();
         let mut outResult: FT = inStartValue.clone();
@@ -738,7 +738,7 @@ pub mod ZeroCrossingTree {
     }
 
     pub fn update(mut tree: Arc<Tree>, mut key: Key, mut value: Value) -> Arc<Tree> {
-        let mut outTree: Arc<Tree> = add(tree.clone(), key.clone(), value.clone(), fnptr!(addConflictReplace, Arc<metamodelica::List<ZeroCrossing>>, Arc<metamodelica::List<ZeroCrossing>>, ZeroCrossing)).unwrap();
+        let mut outTree: Arc<Tree> = add(tree.clone(), key.clone(), value.clone(), (std::sync::Arc::new(fnptr!(addConflictReplace, Arc<metamodelica::List<ZeroCrossing>>, Arc<metamodelica::List<ZeroCrossing>>, ZeroCrossing)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<ZeroCrossing>>, Arc<metamodelica::List<ZeroCrossing>>, ZeroCrossing) -> Result<Arc<metamodelica::List<ZeroCrossing>>> + 'static>)).unwrap();
         outTree
     }
 
@@ -783,7 +783,7 @@ pub fn add(mut zc_set: ZeroCrossingSet, mut zc: ZeroCrossing) -> Result<()> {
     if !(contains(zc_set.clone(), zc.clone())?) {
         DoubleEnded::push_back(zc_set.zc.clone(), zc.clone());
         addedCell = DoubleEnded::currentBackCell(zc_set.zc.clone());
-        {let _arr = zc_set.tree.clone(); let _val = ZeroCrossingTree::add(zc_set.tree.clone().borrow()[(1-1) as usize].clone(), zc.clone(), addedCell.clone(), ZeroCrossingTree::addConflictDefault)?; _arr.borrow_mut()[(1-1) as usize] = _val; _arr};
+        {let _arr = zc_set.tree.clone(); let _val = ZeroCrossingTree::add(zc_set.tree.clone().borrow()[(1-1) as usize].clone(), zc.clone(), addedCell.clone(), (std::sync::Arc::new(ZeroCrossingTree::addConflictDefault) as std::sync::Arc<dyn ::std::ops::Fn(_, _, _) -> Result<_> + 'static>))?; _arr.borrow_mut()[(1-1) as usize] = _val; _arr};
     }
     Ok(())
 }

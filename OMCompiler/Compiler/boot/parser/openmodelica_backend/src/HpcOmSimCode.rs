@@ -47,7 +47,7 @@ use crate::SimCodeVar;
 
 pub const fn emptyHpcomData() -> HpcOmData { HpcOmData { schedules: None, hpcOmMemory: None } }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct HpcOmData {
     pub schedules: Option<(Arc<Schedule>, Arc<Schedule>, Arc<Schedule>)>,
     pub hpcOmMemory: Option<MemoryMap>,
@@ -68,7 +68,7 @@ pub enum MemoryMap {
 }
 pub use self::MemoryMap::{MEMORYMAP_ARRAY,MEMORYMAP_UNIFORM};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct CommunicationInfo {
     pub floatVars: Arc<metamodelica::List<SimCodeVar::SimVar>>,
     pub intVars: Arc<metamodelica::List<SimCodeVar::SimVar>>,
@@ -78,7 +78,7 @@ pub struct CommunicationInfo {
 pub type COMMUNICATION_INFO = CommunicationInfo;
 
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Task {
     SCHEDULED_TASK {
         compIdx: i32,
@@ -113,7 +113,7 @@ pub enum Task {
 }
 pub use self::Task::{SCHEDULED_TASK,CALCTASK,CALCTASK_LEVEL,DEPTASK,PREFETCHTASK,TASKEMPTY};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum TaskList {
     PARALLELTASKLIST {
         tasks: Arc<metamodelica::List<Arc<Task>>>,
@@ -126,7 +126,7 @@ pub enum TaskList {
 pub use self::TaskList::{PARALLELTASKLIST,SERIALTASKLIST};
 
 //TODO: Use the TaskList for the other schedulers, too
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Schedule {
     LEVELSCHEDULE {
         tasksOfLevels: Arc<metamodelica::List<TaskList>>,

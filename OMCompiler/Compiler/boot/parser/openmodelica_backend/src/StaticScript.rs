@@ -144,7 +144,7 @@ fn elabCallInteractive_work(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, 
                     let mut simulationArgs: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
                     let mut cache = (*cache).clone();
                     (cache, simulationArgs) = getSimulationArguments(cache.clone(), env.clone(), inExps.clone(), args.clone(), inImplInst.clone(), inPrefix.clone(), (literal!("translateModel")).clone(), info.clone(), None)?;
-                    Ok((cache.clone(), Expression::makePureBuiltinCall((literal!("translateModel")).clone(), simulationArgs.clone(), DAE::T_STRING_DEFAULT.clone()), DAE::Properties::PROP { type_: DAE::T_STRING_DEFAULT.clone(), constFlag: openmodelica_frontend_types::DAE::Const::C_VAR }))
+                    Ok((cache.clone(), Expression::makePureBuiltinCall((literal!("translateModel")).clone(), simulationArgs.clone(), DAE::T_STRING_DEFAULT().clone()), DAE::Properties::PROP { type_: DAE::T_STRING_DEFAULT().clone(), constFlag: openmodelica_frontend_types::DAE::Const::C_VAR }))
                 }
                 _ => bail!("nomatch"),
             }}
@@ -159,9 +159,9 @@ fn elabCallInteractive_work(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, 
                     let mut cache = (*cache).clone();
                     (cache, cr_1) = Static::elabUntypedCref(cache.clone(), env.clone(), cr.clone(), r#impl.clone(), pre.clone(), info.clone())?;
                     className = ComponentReference::crefToPathIgnoreSubs(cr_1.clone())?;
-                    (cache, outputFile) = Static::getOptionalNamedArg(cache.clone(), env.clone(), r#impl.clone(), (literal!("outputFile")).clone(), DAE::T_STRING_DEFAULT.clone(), args.clone(), Arc::new(DAE::Exp::SCONST { string: (literal!("")).clone() }), pre.clone(), info.clone())?;
-                    (cache, dumpExtractionSteps) = Static::getOptionalNamedArg(cache.clone(), env.clone(), r#impl.clone(), (literal!("dumpSteps")).clone(), DAE::T_BOOL_DEFAULT.clone(), args.clone(), Arc::new(DAE::Exp::BCONST { bool: false }), pre.clone(), info.clone())?;
-                    Ok((cache.clone(), Expression::makePureBuiltinCall((literal!("modelEquationsUC")).clone(), list![Arc::new(DAE::Exp::CODE { code: Arc::new(Absyn::CodeNode::C_TYPENAME { path: className.clone() }), ty: DAE::T_UNKNOWN_DEFAULT.clone() }), outputFile.clone(), dumpExtractionSteps.clone()], DAE::T_STRING_DEFAULT.clone()), DAE::Properties::PROP { type_: DAE::T_STRING_DEFAULT.clone(), constFlag: openmodelica_frontend_types::DAE::Const::C_VAR }))
+                    (cache, outputFile) = Static::getOptionalNamedArg(cache.clone(), env.clone(), r#impl.clone(), (literal!("outputFile")).clone(), DAE::T_STRING_DEFAULT().clone(), args.clone(), Arc::new(DAE::Exp::SCONST { string: (literal!("")).clone() }), pre.clone(), info.clone())?;
+                    (cache, dumpExtractionSteps) = Static::getOptionalNamedArg(cache.clone(), env.clone(), r#impl.clone(), (literal!("dumpSteps")).clone(), DAE::T_BOOL_DEFAULT().clone(), args.clone(), Arc::new(DAE::Exp::BCONST { bool: false }), pre.clone(), info.clone())?;
+                    Ok((cache.clone(), Expression::makePureBuiltinCall((literal!("modelEquationsUC")).clone(), list![Arc::new(DAE::Exp::CODE { code: Arc::new(Absyn::CodeNode::C_TYPENAME { path: className.clone() }), ty: DAE::T_UNKNOWN_DEFAULT().clone() }), outputFile.clone(), dumpExtractionSteps.clone()], DAE::T_STRING_DEFAULT().clone()), DAE::Properties::PROP { type_: DAE::T_STRING_DEFAULT().clone(), constFlag: openmodelica_frontend_types::DAE::Const::C_VAR }))
                 }
                 _ => bail!("nomatch"),
             }}
@@ -176,9 +176,9 @@ fn elabCallInteractive_work(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, 
                     let mut cache = (*cache).clone();
                     className = AbsynUtil::crefToPath(cr.clone())?;
                     cname_str = (AbsynUtil::pathString(className.clone(), (literal!(".")).clone(), true, false)?).clone();
-                    (cache, filenameprefix) = Static::getOptionalNamedArg(cache.clone(), env.clone(), r#impl.clone(), (literal!("fileNamePrefix")).clone(), DAE::T_STRING_DEFAULT.clone(), args.clone(), Arc::new(DAE::Exp::SCONST { string: (cname_str.clone()).clone() }), pre.clone(), info.clone())?;
-                    recordtype = Arc::new(DAE::Type::T_COMPLEX { complexClassType: ClassInf::State::RECORD { path: Arc::new(Absyn::Path::IDENT { name: (literal!("SimulationObject")).clone() }) }, varLst: list![Arc::new(DAE::Var { name: (literal!("flatClass")).clone(), attributes: DAE::dummyAttrVar.clone(), ty: DAE::T_STRING_DEFAULT.clone(), binding: Arc::new(openmodelica_frontend_types::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None }), Arc::new(DAE::Var { name: (literal!("exeFile")).clone(), attributes: DAE::dummyAttrVar.clone(), ty: DAE::T_STRING_DEFAULT.clone(), binding: Arc::new(openmodelica_frontend_types::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None })], equalityConstraint: None, usedExternally: false });
-                    Ok((cache.clone(), Expression::makePureBuiltinCall((literal!("translateModelCPP")).clone(), list![Arc::new(DAE::Exp::CODE { code: Arc::new(Absyn::CodeNode::C_TYPENAME { path: className.clone() }), ty: DAE::T_UNKNOWN_DEFAULT.clone() }), filenameprefix.clone()], DAE::T_STRING_DEFAULT.clone()), DAE::Properties::PROP { type_: recordtype.clone(), constFlag: openmodelica_frontend_types::DAE::Const::C_VAR }))
+                    (cache, filenameprefix) = Static::getOptionalNamedArg(cache.clone(), env.clone(), r#impl.clone(), (literal!("fileNamePrefix")).clone(), DAE::T_STRING_DEFAULT().clone(), args.clone(), Arc::new(DAE::Exp::SCONST { string: (cname_str.clone()).clone() }), pre.clone(), info.clone())?;
+                    recordtype = Arc::new(DAE::Type::T_COMPLEX { complexClassType: ClassInf::State::RECORD { path: Arc::new(Absyn::Path::IDENT { name: (literal!("SimulationObject")).clone() }) }, varLst: list![Arc::new(DAE::Var { name: (literal!("flatClass")).clone(), attributes: DAE::dummyAttrVar().clone(), ty: DAE::T_STRING_DEFAULT().clone(), binding: Arc::new(openmodelica_frontend_types::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None }), Arc::new(DAE::Var { name: (literal!("exeFile")).clone(), attributes: DAE::dummyAttrVar().clone(), ty: DAE::T_STRING_DEFAULT().clone(), binding: Arc::new(openmodelica_frontend_types::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None })], equalityConstraint: None, usedExternally: false });
+                    Ok((cache.clone(), Expression::makePureBuiltinCall((literal!("translateModelCPP")).clone(), list![Arc::new(DAE::Exp::CODE { code: Arc::new(Absyn::CodeNode::C_TYPENAME { path: className.clone() }), ty: DAE::T_UNKNOWN_DEFAULT().clone() }), filenameprefix.clone()], DAE::T_STRING_DEFAULT().clone()), DAE::Properties::PROP { type_: recordtype.clone(), constFlag: openmodelica_frontend_types::DAE::Const::C_VAR }))
                 }
                 _ => bail!("nomatch"),
             }}
@@ -193,9 +193,9 @@ fn elabCallInteractive_work(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, 
                     let mut cache = (*cache).clone();
                     className = AbsynUtil::crefToPath(cr.clone())?;
                     cname_str = (AbsynUtil::pathString(className.clone(), (literal!(".")).clone(), true, false)?).clone();
-                    (cache, filenameprefix) = Static::getOptionalNamedArg(cache.clone(), env.clone(), r#impl.clone(), (literal!("fileNamePrefix")).clone(), DAE::T_STRING_DEFAULT.clone(), args.clone(), Arc::new(DAE::Exp::SCONST { string: (cname_str.clone()).clone() }), pre.clone(), info.clone())?;
-                    recordtype = Arc::new(DAE::Type::T_COMPLEX { complexClassType: ClassInf::State::RECORD { path: Arc::new(Absyn::Path::IDENT { name: (literal!("SimulationObject")).clone() }) }, varLst: list![Arc::new(DAE::Var { name: (literal!("flatClass")).clone(), attributes: DAE::dummyAttrVar.clone(), ty: DAE::T_STRING_DEFAULT.clone(), binding: Arc::new(openmodelica_frontend_types::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None }), Arc::new(DAE::Var { name: (literal!("exeFile")).clone(), attributes: DAE::dummyAttrVar.clone(), ty: DAE::T_STRING_DEFAULT.clone(), binding: Arc::new(openmodelica_frontend_types::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None })], equalityConstraint: None, usedExternally: false });
-                    Ok((cache.clone(), Expression::makePureBuiltinCall((literal!("translateModelXML")).clone(), list![Arc::new(DAE::Exp::CODE { code: Arc::new(Absyn::CodeNode::C_TYPENAME { path: className.clone() }), ty: DAE::T_UNKNOWN_DEFAULT.clone() }), filenameprefix.clone()], DAE::T_STRING_DEFAULT.clone()), DAE::Properties::PROP { type_: recordtype.clone(), constFlag: openmodelica_frontend_types::DAE::Const::C_VAR }))
+                    (cache, filenameprefix) = Static::getOptionalNamedArg(cache.clone(), env.clone(), r#impl.clone(), (literal!("fileNamePrefix")).clone(), DAE::T_STRING_DEFAULT().clone(), args.clone(), Arc::new(DAE::Exp::SCONST { string: (cname_str.clone()).clone() }), pre.clone(), info.clone())?;
+                    recordtype = Arc::new(DAE::Type::T_COMPLEX { complexClassType: ClassInf::State::RECORD { path: Arc::new(Absyn::Path::IDENT { name: (literal!("SimulationObject")).clone() }) }, varLst: list![Arc::new(DAE::Var { name: (literal!("flatClass")).clone(), attributes: DAE::dummyAttrVar().clone(), ty: DAE::T_STRING_DEFAULT().clone(), binding: Arc::new(openmodelica_frontend_types::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None }), Arc::new(DAE::Var { name: (literal!("exeFile")).clone(), attributes: DAE::dummyAttrVar().clone(), ty: DAE::T_STRING_DEFAULT().clone(), binding: Arc::new(openmodelica_frontend_types::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None })], equalityConstraint: None, usedExternally: false });
+                    Ok((cache.clone(), Expression::makePureBuiltinCall((literal!("translateModelXML")).clone(), list![Arc::new(DAE::Exp::CODE { code: Arc::new(Absyn::CodeNode::C_TYPENAME { path: className.clone() }), ty: DAE::T_UNKNOWN_DEFAULT().clone() }), filenameprefix.clone()], DAE::T_STRING_DEFAULT().clone()), DAE::Properties::PROP { type_: recordtype.clone(), constFlag: openmodelica_frontend_types::DAE::Const::C_VAR }))
                 }
                 _ => bail!("nomatch"),
             }}
@@ -210,9 +210,9 @@ fn elabCallInteractive_work(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, 
                     let mut cache = (*cache).clone();
                     className = AbsynUtil::crefToPath(cr.clone())?;
                     cname_str = (AbsynUtil::pathString(className.clone(), (literal!(".")).clone(), true, false)?).clone();
-                    (cache, filenameprefix) = Static::getOptionalNamedArg(cache.clone(), env.clone(), r#impl.clone(), (literal!("fileNamePrefix")).clone(), DAE::T_STRING_DEFAULT.clone(), args.clone(), Arc::new(DAE::Exp::SCONST { string: (cname_str.clone()).clone() }), pre.clone(), info.clone())?;
-                    recordtype = Arc::new(DAE::Type::T_COMPLEX { complexClassType: ClassInf::State::RECORD { path: Arc::new(Absyn::Path::IDENT { name: (literal!("SimulationObject")).clone() }) }, varLst: list![Arc::new(DAE::Var { name: (literal!("flatClass")).clone(), attributes: DAE::dummyAttrVar.clone(), ty: DAE::T_STRING_DEFAULT.clone(), binding: Arc::new(openmodelica_frontend_types::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None }), Arc::new(DAE::Var { name: (literal!("exeFile")).clone(), attributes: DAE::dummyAttrVar.clone(), ty: DAE::T_STRING_DEFAULT.clone(), binding: Arc::new(openmodelica_frontend_types::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None })], equalityConstraint: None, usedExternally: false });
-                    Ok((cache.clone(), Expression::makePureBuiltinCall((literal!("exportDAEtoMatlab")).clone(), list![Arc::new(DAE::Exp::CODE { code: Arc::new(Absyn::CodeNode::C_TYPENAME { path: className.clone() }), ty: DAE::T_UNKNOWN_DEFAULT.clone() }), filenameprefix.clone()], DAE::T_STRING_DEFAULT.clone()), DAE::Properties::PROP { type_: recordtype.clone(), constFlag: openmodelica_frontend_types::DAE::Const::C_VAR }))
+                    (cache, filenameprefix) = Static::getOptionalNamedArg(cache.clone(), env.clone(), r#impl.clone(), (literal!("fileNamePrefix")).clone(), DAE::T_STRING_DEFAULT().clone(), args.clone(), Arc::new(DAE::Exp::SCONST { string: (cname_str.clone()).clone() }), pre.clone(), info.clone())?;
+                    recordtype = Arc::new(DAE::Type::T_COMPLEX { complexClassType: ClassInf::State::RECORD { path: Arc::new(Absyn::Path::IDENT { name: (literal!("SimulationObject")).clone() }) }, varLst: list![Arc::new(DAE::Var { name: (literal!("flatClass")).clone(), attributes: DAE::dummyAttrVar().clone(), ty: DAE::T_STRING_DEFAULT().clone(), binding: Arc::new(openmodelica_frontend_types::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None }), Arc::new(DAE::Var { name: (literal!("exeFile")).clone(), attributes: DAE::dummyAttrVar().clone(), ty: DAE::T_STRING_DEFAULT().clone(), binding: Arc::new(openmodelica_frontend_types::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None })], equalityConstraint: None, usedExternally: false });
+                    Ok((cache.clone(), Expression::makePureBuiltinCall((literal!("exportDAEtoMatlab")).clone(), list![Arc::new(DAE::Exp::CODE { code: Arc::new(Absyn::CodeNode::C_TYPENAME { path: className.clone() }), ty: DAE::T_UNKNOWN_DEFAULT().clone() }), filenameprefix.clone()], DAE::T_STRING_DEFAULT().clone()), DAE::Properties::PROP { type_: recordtype.clone(), constFlag: openmodelica_frontend_types::DAE::Const::C_VAR }))
                 }
                 _ => bail!("nomatch"),
             }}
@@ -223,7 +223,7 @@ fn elabCallInteractive_work(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, 
                     let mut simulationArgs: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
                     let mut cache = (*cache).clone();
                     (cache, simulationArgs) = getSimulationArguments(cache.clone(), env.clone(), inExps.clone(), args.clone(), inImplInst.clone(), inPrefix.clone(), (literal!("buildModel")).clone(), info.clone(), None)?;
-                    Ok((cache.clone(), Expression::makePureBuiltinCall((literal!("buildModel")).clone(), simulationArgs.clone(), DAE::T_UNKNOWN_DEFAULT.clone()), DAE::Properties::PROP { type_: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_STRING_DEFAULT.clone(), dims: list![Arc::new(DAE::Dimension::DIM_INTEGER { integer: 2 })] }), constFlag: openmodelica_frontend_types::DAE::Const::C_VAR }))
+                    Ok((cache.clone(), Expression::makePureBuiltinCall((literal!("buildModel")).clone(), simulationArgs.clone(), DAE::T_UNKNOWN_DEFAULT().clone()), DAE::Properties::PROP { type_: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_STRING_DEFAULT().clone(), dims: list![Arc::new(DAE::Dimension::DIM_INTEGER { integer: 2 })] }), constFlag: openmodelica_frontend_types::DAE::Const::C_VAR }))
                 }
                 _ => bail!("nomatch"),
             }}
@@ -234,7 +234,7 @@ fn elabCallInteractive_work(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, 
                     let mut simulationArgs: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
                     let mut cache = (*cache).clone();
                     (cache, simulationArgs) = getSimulationArguments(cache.clone(), env.clone(), inExps.clone(), args.clone(), inImplInst.clone(), inPrefix.clone(), (literal!("buildModelBeast")).clone(), info.clone(), None)?;
-                    Ok((cache.clone(), Expression::makePureBuiltinCall((literal!("buildModelBeast")).clone(), simulationArgs.clone(), DAE::T_UNKNOWN_DEFAULT.clone()), DAE::Properties::PROP { type_: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_STRING_DEFAULT.clone(), dims: list![Arc::new(DAE::Dimension::DIM_INTEGER { integer: 2 })] }), constFlag: openmodelica_frontend_types::DAE::Const::C_VAR }))
+                    Ok((cache.clone(), Expression::makePureBuiltinCall((literal!("buildModelBeast")).clone(), simulationArgs.clone(), DAE::T_UNKNOWN_DEFAULT().clone()), DAE::Properties::PROP { type_: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_STRING_DEFAULT().clone(), dims: list![Arc::new(DAE::Dimension::DIM_INTEGER { integer: 2 })] }), constFlag: openmodelica_frontend_types::DAE::Const::C_VAR }))
                 }
                 _ => bail!("nomatch"),
             }}
@@ -247,7 +247,7 @@ fn elabCallInteractive_work(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, 
                     let mut cache = (*cache).clone();
                     (cache, simulationArgs) = getSimulationArguments(cache.clone(), env.clone(), inExps.clone(), args.clone(), inImplInst.clone(), inPrefix.clone(), (literal!("simulate")).clone(), info.clone(), None)?;
                     recordtype = CevalScriptBackend::getSimulationResultType()?;
-                    Ok((cache.clone(), Expression::makePureBuiltinCall((literal!("simulate")).clone(), simulationArgs.clone(), DAE::T_UNKNOWN_DEFAULT.clone()), DAE::Properties::PROP { type_: recordtype.clone(), constFlag: openmodelica_frontend_types::DAE::Const::C_VAR }))
+                    Ok((cache.clone(), Expression::makePureBuiltinCall((literal!("simulate")).clone(), simulationArgs.clone(), DAE::T_UNKNOWN_DEFAULT().clone()), DAE::Properties::PROP { type_: recordtype.clone(), constFlag: openmodelica_frontend_types::DAE::Const::C_VAR }))
                 }
                 _ => bail!("nomatch"),
             }}
@@ -260,7 +260,7 @@ fn elabCallInteractive_work(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, 
                     let mut cache = (*cache).clone();
                     (cache, simulationArgs) = getSimulationArguments(cache.clone(), env.clone(), inExps.clone(), args.clone(), inImplInst.clone(), inPrefix.clone(), (literal!("simulation")).clone(), info.clone(), None)?;
                     recordtype = CevalScriptBackend::getDrModelicaSimulationResultType()?;
-                    Ok((cache.clone(), Expression::makePureBuiltinCall((literal!("simulation")).clone(), simulationArgs.clone(), DAE::T_UNKNOWN_DEFAULT.clone()), DAE::Properties::PROP { type_: recordtype.clone(), constFlag: openmodelica_frontend_types::DAE::Const::C_VAR }))
+                    Ok((cache.clone(), Expression::makePureBuiltinCall((literal!("simulation")).clone(), simulationArgs.clone(), DAE::T_UNKNOWN_DEFAULT().clone()), DAE::Properties::PROP { type_: recordtype.clone(), constFlag: openmodelica_frontend_types::DAE::Const::C_VAR }))
                 }
                 _ => bail!("nomatch"),
             }}
@@ -273,7 +273,7 @@ fn elabCallInteractive_work(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, 
                     let mut cache = (*cache).clone();
                     (cache, simulationArgs) = getSimulationArguments(cache.clone(), env.clone(), inExps.clone(), args.clone(), inImplInst.clone(), inPrefix.clone(), (literal!("linearize")).clone(), info.clone(), None)?;
                     recordtype = CevalScriptBackend::getSimulationResultType()?;
-                    Ok((cache.clone(), Expression::makePureBuiltinCall((literal!("linearize")).clone(), simulationArgs.clone(), DAE::T_UNKNOWN_DEFAULT.clone()), DAE::Properties::PROP { type_: recordtype.clone(), constFlag: openmodelica_frontend_types::DAE::Const::C_VAR }))
+                    Ok((cache.clone(), Expression::makePureBuiltinCall((literal!("linearize")).clone(), simulationArgs.clone(), DAE::T_UNKNOWN_DEFAULT().clone()), DAE::Properties::PROP { type_: recordtype.clone(), constFlag: openmodelica_frontend_types::DAE::Const::C_VAR }))
                 }
                 _ => bail!("nomatch"),
             }}
@@ -286,7 +286,7 @@ fn elabCallInteractive_work(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, 
                     let mut cache = (*cache).clone();
                     (cache, simulationArgs) = getSimulationArguments(cache.clone(), env.clone(), inExps.clone(), args.clone(), inImplInst.clone(), inPrefix.clone(), (literal!("optimize")).clone(), info.clone(), None)?;
                     recordtype = CevalScriptBackend::getSimulationResultType()?;
-                    Ok((cache.clone(), Expression::makePureBuiltinCall((literal!("optimize")).clone(), simulationArgs.clone(), DAE::T_UNKNOWN_DEFAULT.clone()), DAE::Properties::PROP { type_: recordtype.clone(), constFlag: openmodelica_frontend_types::DAE::Const::C_VAR }))
+                    Ok((cache.clone(), Expression::makePureBuiltinCall((literal!("optimize")).clone(), simulationArgs.clone(), DAE::T_UNKNOWN_DEFAULT().clone()), DAE::Properties::PROP { type_: recordtype.clone(), constFlag: openmodelica_frontend_types::DAE::Const::C_VAR }))
                 }
                 _ => bail!("nomatch"),
             }}
@@ -299,7 +299,7 @@ fn elabCallInteractive_work(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, 
                     let mut cache = (*cache).clone();
                     (cache, simulationArgs) = getSimulationArguments(cache.clone(), env.clone(), inExps.clone(), args.clone(), inImplInst.clone(), inPrefix.clone(), (literal!("moo")).clone(), info.clone(), None)?;
                     recordtype = CevalScriptBackend::getSimulationResultType()?;
-                    Ok((cache.clone(), Expression::makePureBuiltinCall((literal!("moo")).clone(), simulationArgs.clone(), DAE::T_UNKNOWN_DEFAULT.clone()), DAE::Properties::PROP { type_: recordtype.clone(), constFlag: openmodelica_frontend_types::DAE::Const::C_VAR }))
+                    Ok((cache.clone(), Expression::makePureBuiltinCall((literal!("moo")).clone(), simulationArgs.clone(), DAE::T_UNKNOWN_DEFAULT().clone()), DAE::Properties::PROP { type_: recordtype.clone(), constFlag: openmodelica_frontend_types::DAE::Const::C_VAR }))
                 }
                 _ => bail!("nomatch"),
             }}
@@ -312,7 +312,7 @@ fn elabCallInteractive_work(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, 
                     let mut cache = (*cache).clone();
                     (cache, cr_1) = Static::elabUntypedCref(cache.clone(), env.clone(), cr.clone(), r#impl.clone(), pre.clone(), info.clone())?;
                     crefExp = Expression::crefExp(cr_1.clone())?;
-                    Ok((cache.clone(), Expression::makePureBuiltinCall((literal!("jacobian")).clone(), list![crefExp.clone()], DAE::T_STRING_DEFAULT.clone()), DAE::Properties::PROP { type_: DAE::T_STRING_DEFAULT.clone(), constFlag: openmodelica_frontend_types::DAE::Const::C_VAR }))
+                    Ok((cache.clone(), Expression::makePureBuiltinCall((literal!("jacobian")).clone(), list![crefExp.clone()], DAE::T_STRING_DEFAULT().clone()), DAE::Properties::PROP { type_: DAE::T_STRING_DEFAULT().clone(), constFlag: openmodelica_frontend_types::DAE::Const::C_VAR }))
                 }
                 _ => bail!("nomatch"),
             }}
@@ -323,7 +323,7 @@ fn elabCallInteractive_work(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, 
                     let mut exp_1: Arc<DAE::Exp>;
                     let mut cache = (*cache).clone();
                     (cache, exp_1, _) = elabExp(cache.clone(), env.clone(), exp.clone(), r#impl.clone(), true, pre.clone(), info.clone())?;
-                    Ok((cache.clone(), Expression::makePureBuiltinCall((literal!("timing")).clone(), list![exp_1.clone()], DAE::T_REAL_DEFAULT.clone()), DAE::Properties::PROP { type_: DAE::T_REAL_DEFAULT.clone(), constFlag: openmodelica_frontend_types::DAE::Const::C_VAR }))
+                    Ok((cache.clone(), Expression::makePureBuiltinCall((literal!("timing")).clone(), list![exp_1.clone()], DAE::T_REAL_DEFAULT().clone()), DAE::Properties::PROP { type_: DAE::T_REAL_DEFAULT().clone(), constFlag: openmodelica_frontend_types::DAE::Const::C_VAR }))
                 }
                 _ => bail!("nomatch"),
             }}
@@ -335,7 +335,7 @@ fn elabCallInteractive_work(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, 
                     let mut excludeListSize: i32 = 0;
                     excludeList = Static::getOptionalNamedArgExpList((literal!("exclude")).clone(), args.clone())?;
                     excludeListSize = (excludeList.clone().len() as i32);
-                    Ok((cache.clone(), Expression::makePureBuiltinCall((literal!("checkExamplePackages")).clone(), list![Arc::new(DAE::Exp::ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_UNKNOWN_DEFAULT.clone(), dims: list![Arc::new(DAE::Dimension::DIM_INTEGER { integer: excludeListSize.clone() })] }), scalar: false, array: excludeList.clone() })], DAE::T_STRING_DEFAULT.clone()), DAE::Properties::PROP { type_: DAE::T_BOOL_DEFAULT.clone(), constFlag: openmodelica_frontend_types::DAE::Const::C_CONST }))
+                    Ok((cache.clone(), Expression::makePureBuiltinCall((literal!("checkExamplePackages")).clone(), list![Arc::new(DAE::Exp::ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_UNKNOWN_DEFAULT().clone(), dims: list![Arc::new(DAE::Dimension::DIM_INTEGER { integer: excludeListSize.clone() })] }), scalar: false, array: excludeList.clone() })], DAE::T_STRING_DEFAULT().clone()), DAE::Properties::PROP { type_: DAE::T_BOOL_DEFAULT().clone(), constFlag: openmodelica_frontend_types::DAE::Const::C_CONST }))
                 }
                 _ => bail!("nomatch"),
             }}
@@ -347,7 +347,7 @@ fn elabCallInteractive_work(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, 
                     let mut excludeListSize: i32 = 0;
                     excludeList = Static::getOptionalNamedArgExpList((literal!("exclude")).clone(), args.clone())?;
                     excludeListSize = (excludeList.clone().len() as i32);
-                    Ok((cache.clone(), Expression::makePureBuiltinCall((literal!("checkExamplePackages")).clone(), list![Arc::new(DAE::Exp::ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_UNKNOWN_DEFAULT.clone(), dims: list![Arc::new(DAE::Dimension::DIM_INTEGER { integer: excludeListSize.clone() })] }), scalar: false, array: excludeList.clone() }), Arc::new(DAE::Exp::SCONST { string: (r#str.clone()).clone() })], DAE::T_STRING_DEFAULT.clone()), DAE::Properties::PROP { type_: DAE::T_BOOL_DEFAULT.clone(), constFlag: openmodelica_frontend_types::DAE::Const::C_CONST }))
+                    Ok((cache.clone(), Expression::makePureBuiltinCall((literal!("checkExamplePackages")).clone(), list![Arc::new(DAE::Exp::ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_UNKNOWN_DEFAULT().clone(), dims: list![Arc::new(DAE::Dimension::DIM_INTEGER { integer: excludeListSize.clone() })] }), scalar: false, array: excludeList.clone() }), Arc::new(DAE::Exp::SCONST { string: (r#str.clone()).clone() })], DAE::T_STRING_DEFAULT().clone()), DAE::Properties::PROP { type_: DAE::T_BOOL_DEFAULT().clone(), constFlag: openmodelica_frontend_types::DAE::Const::C_CONST }))
                 }
                 _ => bail!("nomatch"),
             }}
@@ -361,7 +361,7 @@ fn elabCallInteractive_work(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, 
                     className = AbsynUtil::crefToPath(cr.clone())?;
                     excludeList = Static::getOptionalNamedArgExpList((literal!("exclude")).clone(), args.clone())?;
                     excludeListSize = (excludeList.clone().len() as i32);
-                    Ok((cache.clone(), Expression::makePureBuiltinCall((literal!("checkExamplePackages")).clone(), list![Arc::new(DAE::Exp::ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_UNKNOWN_DEFAULT.clone(), dims: list![Arc::new(DAE::Dimension::DIM_INTEGER { integer: excludeListSize.clone() })] }), scalar: false, array: excludeList.clone() }), Arc::new(DAE::Exp::CODE { code: Arc::new(Absyn::CodeNode::C_TYPENAME { path: className.clone() }), ty: DAE::T_UNKNOWN_DEFAULT.clone() })], DAE::T_STRING_DEFAULT.clone()), DAE::Properties::PROP { type_: DAE::T_BOOL_DEFAULT.clone(), constFlag: openmodelica_frontend_types::DAE::Const::C_CONST }))
+                    Ok((cache.clone(), Expression::makePureBuiltinCall((literal!("checkExamplePackages")).clone(), list![Arc::new(DAE::Exp::ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_UNKNOWN_DEFAULT().clone(), dims: list![Arc::new(DAE::Dimension::DIM_INTEGER { integer: excludeListSize.clone() })] }), scalar: false, array: excludeList.clone() }), Arc::new(DAE::Exp::CODE { code: Arc::new(Absyn::CodeNode::C_TYPENAME { path: className.clone() }), ty: DAE::T_UNKNOWN_DEFAULT().clone() })], DAE::T_STRING_DEFAULT().clone()), DAE::Properties::PROP { type_: DAE::T_BOOL_DEFAULT().clone(), constFlag: openmodelica_frontend_types::DAE::Const::C_CONST }))
                 }
                 _ => bail!("nomatch"),
             }}
@@ -375,7 +375,7 @@ fn elabCallInteractive_work(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, 
                     className = AbsynUtil::crefToPath(cr.clone())?;
                     excludeList = Static::getOptionalNamedArgExpList((literal!("exclude")).clone(), args.clone())?;
                     excludeListSize = (excludeList.clone().len() as i32);
-                    Ok((cache.clone(), Expression::makePureBuiltinCall((literal!("checkExamplePackages")).clone(), list![Arc::new(DAE::Exp::ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_UNKNOWN_DEFAULT.clone(), dims: list![Arc::new(DAE::Dimension::DIM_INTEGER { integer: excludeListSize.clone() })] }), scalar: false, array: excludeList.clone() }), Arc::new(DAE::Exp::CODE { code: Arc::new(Absyn::CodeNode::C_TYPENAME { path: className.clone() }), ty: DAE::T_UNKNOWN_DEFAULT.clone() }), Arc::new(DAE::Exp::SCONST { string: (r#str.clone()).clone() })], DAE::T_STRING_DEFAULT.clone()), DAE::Properties::PROP { type_: DAE::T_BOOL_DEFAULT.clone(), constFlag: openmodelica_frontend_types::DAE::Const::C_CONST }))
+                    Ok((cache.clone(), Expression::makePureBuiltinCall((literal!("checkExamplePackages")).clone(), list![Arc::new(DAE::Exp::ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_UNKNOWN_DEFAULT().clone(), dims: list![Arc::new(DAE::Dimension::DIM_INTEGER { integer: excludeListSize.clone() })] }), scalar: false, array: excludeList.clone() }), Arc::new(DAE::Exp::CODE { code: Arc::new(Absyn::CodeNode::C_TYPENAME { path: className.clone() }), ty: DAE::T_UNKNOWN_DEFAULT().clone() }), Arc::new(DAE::Exp::SCONST { string: (r#str.clone()).clone() })], DAE::T_STRING_DEFAULT().clone()), DAE::Properties::PROP { type_: DAE::T_BOOL_DEFAULT().clone(), constFlag: openmodelica_frontend_types::DAE::Const::C_CONST }))
                 }
                 _ => bail!("nomatch"),
             }}

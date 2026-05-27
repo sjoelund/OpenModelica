@@ -111,7 +111,7 @@ use openmodelica_util_datatypes_basic::Pointer;
 // Util imports
 // Script imports
 /// Unique simulation code indices
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct SimCodeIndices {
     pub uniqueIndex: i32,
     pub realVarIndex: i32,
@@ -145,11 +145,21 @@ pub type SIM_CODE_INDICES = SimCodeIndices;
 
 pub mod Identifier {
     use super::*;
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
     pub struct Identifier {
         pub eqn: Pointer::Pointer<Arc<Equation::Equation>>,
         pub var_cref: Arc<ComponentRef::NFComponentRef>,
         pub resizable: bool,
+    }
+
+    impl Default for Identifier {
+        fn default() -> Self {
+            Self {
+                eqn: Default::default(),
+                var_cref: Default::default(),
+                resizable: Default::default(),
+            }
+        }
     }
 
     pub type IDENTIFIER = Identifier;
@@ -172,13 +182,13 @@ pub mod Identifier {
 }
 
 pub fn EMPTY_SIM_CODE_INDICES() -> SimCodeIndices {
-    let mut indices: SimCodeIndices = SimCodeIndices { uniqueIndex: 1, realVarIndex: 0, integerVarIndex: 0, booleanVarIndex: 0, stringVarIndex: 0, enumerationVarIndex: 0, realParamIndex: 0, integerParamIndex: 0, booleanParamIndex: 0, stringParamIndex: 0, enumerationParamIndex: 0, realAliasIndex: 0, integerAliasIndex: 0, booleanAliasIndex: 0, stringAliasIndex: 0, enumerationAliasIndex: 0, equationIndex: 1, linearSystemIndex: 0, nonlinearSystemIndex: 0, jacobianIndex: 0, residualIndex: 0, implicitIndex: 0, extObjIndex: 0, alias_map: UnorderedMap::new(fnptr!(AliasInfo::hash, Arc<AliasInfo::AliasInfo>), fnptr!(AliasInfo::isEqual, Arc<AliasInfo::AliasInfo>, Arc<AliasInfo::AliasInfo>), 1), generic_call_map: UnorderedMap::new(fnptr!(Identifier::hash, Arc<Identifier::Identifier>), fnptr!(Identifier::isEqual, Arc<Identifier::Identifier>, Arc<Identifier::Identifier>), 1) };
+    let mut indices: SimCodeIndices = SimCodeIndices { uniqueIndex: 1, realVarIndex: 0, integerVarIndex: 0, booleanVarIndex: 0, stringVarIndex: 0, enumerationVarIndex: 0, realParamIndex: 0, integerParamIndex: 0, booleanParamIndex: 0, stringParamIndex: 0, enumerationParamIndex: 0, realAliasIndex: 0, integerAliasIndex: 0, booleanAliasIndex: 0, stringAliasIndex: 0, enumerationAliasIndex: 0, equationIndex: 1, linearSystemIndex: 0, nonlinearSystemIndex: 0, jacobianIndex: 0, residualIndex: 0, implicitIndex: 0, extObjIndex: 0, alias_map: UnorderedMap::new((std::sync::Arc::new(fnptr!(AliasInfo::hash, Arc<AliasInfo::AliasInfo>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<AliasInfo::AliasInfo>) -> Result<i32> + 'static>), (std::sync::Arc::new(fnptr!(AliasInfo::isEqual, Arc<AliasInfo::AliasInfo>, Arc<AliasInfo::AliasInfo>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<AliasInfo::AliasInfo>, Arc<AliasInfo::AliasInfo>) -> Result<bool> + 'static>), 1), generic_call_map: UnorderedMap::new((std::sync::Arc::new(fnptr!(Identifier::hash, Arc<Identifier::Identifier>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Identifier::Identifier>) -> Result<i32> + 'static>), (std::sync::Arc::new(fnptr!(Identifier::isEqual, Arc<Identifier::Identifier>, Arc<Identifier::Identifier>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Identifier::Identifier>, Arc<Identifier::Identifier>) -> Result<bool> + 'static>), 1) };
     indices
 }
 
 pub mod SimCode {
     use super::*;
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
     pub struct SimCode {
         pub modelInfo: Arc<ModelInfo::ModelInfo>,
         /// shared literals
@@ -267,11 +277,11 @@ pub mod SimCode {
         }
         if !(simCode.literals.clone().is_empty()) {
             r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*r#str.clone()); __mm_s.push_str(&*StringUtil::headline_3((literal!("Shared Literals")).clone())); ArcStr::from(__mm_s) }).clone();
-            r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*r#str.clone()); __mm_s.push_str(&*List::toString(simCode.literals.clone(), Arc::new(OldExpression::toString), (literal!("")).clone(), (literal!("  ")).clone(), (literal!("\n  ")).clone(), (literal!("\n\n")).clone(), true, 0)?); ArcStr::from(__mm_s) }).clone();
+            r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*r#str.clone()); __mm_s.push_str(&*List::toString(simCode.literals.clone(), (std::sync::Arc::new(OldExpression::toString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<ArcStr> + 'static>), (literal!("")).clone(), (literal!("  ")).clone(), (literal!("\n  ")).clone(), (literal!("\n\n")).clone(), true, 0)?); ArcStr::from(__mm_s) }).clone();
         }
         if !(simCode.generic_loop_calls.clone().is_empty()) {
             r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*r#str.clone()); __mm_s.push_str(&*StringUtil::headline_3((literal!("Generic Calls")).clone())); ArcStr::from(__mm_s) }).clone();
-            r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*r#str.clone()); __mm_s.push_str(&*List::toString(simCode.generic_loop_calls.clone(), Arc::new(SimGenericCall::toString), (literal!("")).clone(), (literal!("  ")).clone(), (literal!("\n  ")).clone(), (literal!("\n\n")).clone(), true, 0)?); ArcStr::from(__mm_s) }).clone();
+            r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*r#str.clone()); __mm_s.push_str(&*List::toString(simCode.generic_loop_calls.clone(), (std::sync::Arc::new(SimGenericCall::toString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SimGenericCall::NSimGenericCall>) -> Result<ArcStr> + 'static>), (literal!("")).clone(), (literal!("  ")).clone(), (literal!("\n  ")).clone(), (literal!("\n\n")).clone(), true, 0)?); ArcStr::from(__mm_s) }).clone();
         }
         if isSome(simCode.daeModeData.clone()) {
             r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*r#str.clone()); __mm_s.push_str(&*DaeModeData::toString(Util::getOption(simCode.daeModeData.clone())?)?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone();
@@ -306,7 +316,7 @@ pub mod SimCode {
                 _ => bail!("pattern mismatch"),
             } };
             residualVars = __pa0.clone();
-            crefToSimVarHT = List::fold(SimVar::convertList(residualVars.clone()), Arc::new(HashTableCrefSimVar::addSimVarToHashTable), crefToSimVarHT.clone());
+            crefToSimVarHT = List::fold(SimVar::convertList(residualVars.clone()), (std::sync::Arc::new(HashTableCrefSimVar::addSimVarToHashTable) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))> + 'static>), crefToSimVarHT.clone());
         }
         crefToClockIndexHT = HashTable::emptyHashTable();
         for mut cref in &*simCode.discreteVars.clone() {
@@ -383,7 +393,7 @@ pub mod SimCode {
 
 pub mod ModelInfo {
     use super::*;
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
     pub struct ModelInfo {
         pub name: Arc<Absyn::Path>,
         pub description: ArcStr,
@@ -456,7 +466,7 @@ pub mod ModelInfo {
 pub mod DaeModeData {
     use super::*;
     /// contains data that belongs to the dae mode
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
     pub struct DaeModeData {
         /// daeMode blocks
         pub blcks: Arc<metamodelica::List<Arc<metamodelica::List<Arc<SimStrongComponent::Block::Block>>>>>,
@@ -516,7 +526,7 @@ pub mod DaeModeData {
         let mut oldData: OldSimCode::DaeModeData;
         let mut simEqSystems: Arc<metamodelica::List<Arc<metamodelica::List<Arc<OldSimCode::SimEqSystem>>>>> = metamodelica::nil();
         simEqSystems = SimStrongComponent::Block::convertListList(data.blcks.clone());
-        oldData = OldSimCode::DaeModeData { modeCreated: convertMode(data.modeCreated.clone())?, auxiliaryVars: SimVar::convertList(data.auxiliaryVars.clone()), algebraicVars: SimVar::convertList(data.algebraicVars.clone()), residualVars: SimVar::convertList(data.residualVars.clone()), sparsityPattern: Util::applyOption(data.sparsityPattern.clone(), Arc::new(SimJacobian::convert)), daeEquations: simEqSystems.clone() };
+        oldData = OldSimCode::DaeModeData { modeCreated: convertMode(data.modeCreated.clone())?, auxiliaryVars: SimVar::convertList(data.auxiliaryVars.clone()), algebraicVars: SimVar::convertList(data.algebraicVars.clone()), residualVars: SimVar::convertList(data.residualVars.clone()), sparsityPattern: Util::applyOption(data.sparsityPattern.clone(), (std::sync::Arc::new(SimJacobian::convert) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SimJacobian::SimJacobian>) -> Result<Arc<OldSimCode::JacobianMatrix>> + 'static>)), daeEquations: simEqSystems.clone() };
         Ok(oldData)
     }
 
@@ -533,7 +543,7 @@ pub mod DaeModeData {
     fn createSparsityJacobian(mut daeModeDataOpt: Option<Arc<DaeModeData>>, mut modelInfo: Arc<ModelInfo::ModelInfo>, mut systems: Arc<metamodelica::List<Arc<Partition::Partition::Partition>>>, mut simcode_map: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<SimVar::SimVar>>>, mut simCodeIndices: SimCodeIndices) -> Result<(Option<Arc<DaeModeData>>, Arc<ModelInfo::ModelInfo>, Arc<SimJacobian::SimJacobian>, Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<SimVar::SimVar>>>, SimCodeIndices)> {
         let mut daeModeDataOpt: Option<Arc<DaeModeData>> = daeModeDataOpt;
         let mut modelInfo: Arc<ModelInfo::ModelInfo> = modelInfo;
-        let mut jacobian: Arc<SimJacobian::SimJacobian>;
+        let mut jacobian: Arc<SimJacobian::SimJacobian> = Arc::new(<SimJacobian::SimJacobian as ::std::default::Default>::default());
         let mut simcode_map: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<SimVar::SimVar>>> = simcode_map;
         let mut simCodeIndices: SimCodeIndices = simCodeIndices;
         daeModeDataOpt = (::match_deref::match_deref! { match &(daeModeDataOpt.clone()) {
@@ -570,12 +580,12 @@ pub mod DaeModeData {
         sys = (::match_deref::match_deref! { match &(sys.clone()) {
         qual @ Deref @ OldSimCode::SimEqSystem::SES_RESIDUAL { .. } => {
             let mut qual = (*qual).clone();
-            let (qual.exp, _) = OldExpression::traverseExpTopDown(var_field!((*qual).exp, OldSimCode::SimEqSystem::SES_RESIDUAL).clone(), Arc::new(replaceDerCref), 0)?;
+            let (qual.exp, _) = OldExpression::traverseExpTopDown(var_field!((*qual).exp, OldSimCode::SimEqSystem::SES_RESIDUAL).clone(), (std::sync::Arc::new(replaceDerCref) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, i32) -> Result<(Arc<DAE::Exp>, bool, i32)> + 'static>), 0)?;
             qual.clone()
         },
         qual @ Deref @ OldSimCode::SimEqSystem::SES_SIMPLE_ASSIGN { .. } => {
             let mut qual = (*qual).clone();
-            let (qual.exp, _) = OldExpression::traverseExpTopDown(var_field!((*qual).exp, OldSimCode::SimEqSystem::SES_SIMPLE_ASSIGN).clone(), Arc::new(replaceDerCref), 0)?;
+            let (qual.exp, _) = OldExpression::traverseExpTopDown(var_field!((*qual).exp, OldSimCode::SimEqSystem::SES_SIMPLE_ASSIGN).clone(), (std::sync::Arc::new(replaceDerCref) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, i32) -> Result<(Arc<DAE::Exp>, bool, i32)> + 'static>), 0)?;
             qual.clone()
         },
         _ => bail!("match: no arm matched"),
@@ -589,7 +599,7 @@ pub mod DaeModeData {
         let mut i: i32 = i;
         (exp, b) = (::match_deref::match_deref! { match &(exp.clone()) {
         Deref @ DAE::Exp::CREF { componentRef: Deref @ DAE::ComponentRef::CREF_QUAL { componentRef: cref, ident: Deref @ "$DER", .. }, .. } => {
-            (Arc::new(DAE::Exp::CALL { path: Arc::new(Absyn::Path::IDENT { name: (literal!("der")).clone() }), expLst: list![Arc::new(DAE::Exp::CREF { componentRef: cref.clone(), ty: ComponentReference::crefTypeFull(cref.clone())? })], attr: DAE::callAttrBuiltinReal.clone() }), false)
+            (Arc::new(DAE::Exp::CALL { path: Arc::new(Absyn::Path::IDENT { name: (literal!("der")).clone() }), expLst: list![Arc::new(DAE::Exp::CREF { componentRef: cref.clone(), ty: ComponentReference::crefTypeFull(cref.clone())? })], attr: DAE::callAttrBuiltinReal().clone() }), false)
         },
         _ => {
             (exp.clone(), true)

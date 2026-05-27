@@ -47,7 +47,7 @@ use crate::System;
 use crate::UnorderedSet;
 
 /// Interval type for set based graphs.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct SBInterval {
     pub lo: i32,
     pub step: i32,
@@ -94,7 +94,7 @@ fn euclid(mut a: i32, mut b: i32) -> (i32, i32, i32, i32) {
 }
 
 pub fn new(mut lo: i32, mut step: i32, mut hi: i32) -> Arc<SBInterval> {
-    let mut int: Arc<SBInterval>;
+    let mut int: Arc<SBInterval> = Arc::new(<SBInterval as ::std::default::Default>::default());
     let mut r: i32 = 0;
     if lo.clone() >= 0 && step.clone() > 0 && hi.clone() >= 0 {
         if lo.clone() <= hi.clone() && hi.clone() < System::intMaxLit() {
@@ -151,7 +151,7 @@ pub fn crop(mut int: Arc<SBInterval>) -> Arc<SBInterval> {
 }
 
 pub fn intersection(mut int1: Arc<SBInterval>, mut int2: Arc<SBInterval>) -> Arc<SBInterval> {
-    let mut int: Arc<SBInterval>;
+    let mut int: Arc<SBInterval> = Arc::new(<SBInterval as ::std::default::Default>::default());
     let mut new_lo: i32 = 0;
     let mut new_step: i32 = 0;
     let mut new_hi: i32 = 0;
@@ -185,10 +185,10 @@ pub fn intersection(mut int1: Arc<SBInterval>, mut int2: Arc<SBInterval>) -> Arc
 
 pub fn complement(mut int1: Arc<SBInterval>, mut int2: Arc<SBInterval>) -> Result<Arc<UnorderedSet::UnorderedSet<Arc<SBInterval>>>> {
     let mut ints: Arc<UnorderedSet::UnorderedSet<Arc<SBInterval>>>;
-    let mut i2: Arc<SBInterval>;
+    let mut i2: Arc<SBInterval> = Arc::new(<SBInterval as ::std::default::Default>::default());
     let mut count_r: i32 = 0;
     let mut count_s: i32 = 0;
-    ints = UnorderedSet::new(fnptr!(hash, Arc<SBInterval>), fnptr!(isEqual, Arc<SBInterval>, Arc<SBInterval>), 13);
+    ints = UnorderedSet::new((std::sync::Arc::new(fnptr!(hash, Arc<SBInterval>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SBInterval>) -> Result<i32> + 'static>), (std::sync::Arc::new(fnptr!(isEqual, Arc<SBInterval>, Arc<SBInterval>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SBInterval>, Arc<SBInterval>) -> Result<bool> + 'static>), 13);
     i2 = intersection(int1.clone(), int2.clone());
     if isEmpty(i2.clone()) {
         UnorderedSet::add(int1.clone(), ints.clone())?;
@@ -221,7 +221,7 @@ pub fn complement(mut int1: Arc<SBInterval>, mut int2: Arc<SBInterval>) -> Resul
 }
 
 pub fn affine(mut int: Arc<SBInterval>, mut gain: metamodelica::Real, mut offset: i32) -> Result<Arc<SBInterval>> {
-    let mut res: Arc<SBInterval>;
+    let mut res: Arc<SBInterval> = Arc::new(<SBInterval as ::std::default::Default>::default());
     let mut lo: metamodelica::Real = metamodelica::OrderedFloat(0.0_f64);
     let mut step: metamodelica::Real = metamodelica::OrderedFloat(0.0_f64);
     let mut hi: metamodelica::Real = metamodelica::OrderedFloat(0.0_f64);

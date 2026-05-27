@@ -53,7 +53,7 @@ use openmodelica_util::Error;
 use openmodelica_util_datatypes_basic::Array;
 use openmodelica_util_datatypes_basic::List;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum NFExpressionIterator {
     ARRAY_ITERATOR {
         arr: metamodelica::Array<Arc<Expression::NFExpression>>,
@@ -76,8 +76,8 @@ pub use self::NFExpressionIterator::{ARRAY_ITERATOR,SCALAR_ITERATOR,EACH_ITERATO
 pub fn toString(mut iter: Arc<NFExpressionIterator>) -> Result<ArcStr> {
     let mut r#str: ArcStr = arcstr::literal!("");
     r#str = ((::match_deref::match_deref! { match &(iter.clone()) {
-        Deref @ ARRAY_ITERATOR { .. } => List::toString(var_field!((*iter).arrays, NFExpressionIterator::ARRAY_ITERATOR).clone(), Arc::new({ let __pe_b1: Arc<dyn ::std::ops::Fn(_) -> Result<ArcStr> + 'static> = Arc::new(Expression::toString); let __pe_b2 = (literal!("")).clone(); let __pe_b3 = (literal!("{")).clone(); let __pe_b4 = (literal!(", ")).clone(); let __pe_b5 = (literal!("}")).clone(); let __pe_b6 = false; let __pe_b7 = 0; move |__pe_a0| Array::toString(__pe_a0, __pe_b1.clone(), __pe_b2.clone(), __pe_b3.clone(), __pe_b4.clone(), __pe_b5.clone(), __pe_b6.clone(), __pe_b7.clone()) }), (literal!("[ARRY] array iterator:\n")).clone(), (literal!("")).clone(), (literal!("\n")).clone(), (literal!("")).clone(), true, 0)?,
-        Deref @ REPEAT_ITERATOR { .. } => { let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("[REAP] repeat iterator:\n")); __mm_s.push_str(&*List::toString(var_field!((*iter).all, NFExpressionIterator::REPEAT_ITERATOR).clone(), Arc::new(Expression::toString), (literal!("")).clone(), (literal!("{")).clone(), (literal!(", ")).clone(), (literal!("}")).clone(), true, 0)?); ArcStr::from(__mm_s) },
+        Deref @ ARRAY_ITERATOR { .. } => List::toString(var_field!((*iter).arrays, NFExpressionIterator::ARRAY_ITERATOR).clone(), Arc::new({ let __pe_b1: Arc<dyn ::std::ops::Fn(_) -> Result<ArcStr> + 'static> = (std::sync::Arc::new(Expression::toString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<ArcStr> + 'static>); let __pe_b2 = (literal!("")).clone(); let __pe_b3 = (literal!("{")).clone(); let __pe_b4 = (literal!(", ")).clone(); let __pe_b5 = (literal!("}")).clone(); let __pe_b6 = false; let __pe_b7 = 0; move |__pe_a0| Array::toString(__pe_a0, __pe_b1.clone(), __pe_b2.clone(), __pe_b3.clone(), __pe_b4.clone(), __pe_b5.clone(), __pe_b6.clone(), __pe_b7.clone()) }), (literal!("[ARRY] array iterator:\n")).clone(), (literal!("")).clone(), (literal!("\n")).clone(), (literal!("")).clone(), true, 0)?,
+        Deref @ REPEAT_ITERATOR { .. } => { let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("[REAP] repeat iterator:\n")); __mm_s.push_str(&*List::toString(var_field!((*iter).all, NFExpressionIterator::REPEAT_ITERATOR).clone(), (std::sync::Arc::new(Expression::toString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<ArcStr> + 'static>), (literal!("")).clone(), (literal!("{")).clone(), (literal!(", ")).clone(), (literal!("}")).clone(), true, 0)?); ArcStr::from(__mm_s) },
         Deref @ SCALAR_ITERATOR { .. } => { let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("[SCAL] scalar iterator: ")); __mm_s.push_str(&*Expression::toString(var_field!((*iter).exp, NFExpressionIterator::SCALAR_ITERATOR).clone())?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) },
         Deref @ EACH_ITERATOR { .. } => { let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("[EACH] each iterator: ")); __mm_s.push_str(&*Expression::toString(var_field!((*iter).exp, NFExpressionIterator::EACH_ITERATOR).clone())?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) },
         Deref @ NONE_ITERATOR { .. } => literal!("[NONE] no iterator.\n"),

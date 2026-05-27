@@ -114,7 +114,7 @@ pub fn apply(mut inTargetRef: Ref, mut inModRef: Ref, mut inGraph: Graph) -> (Gr
 pub fn compactSubMods(mut inSubMods: Arc<metamodelica::List<Arc<SCode::SubMod>>>, mut inModScope: ModScope) -> Arc<metamodelica::List<Arc<SCode::SubMod>>> {
     let mut outSubMods: Arc<metamodelica::List<Arc<SCode::SubMod>>> = metamodelica::nil();
     let mut submods: Arc<metamodelica::List<Arc<SCode::SubMod>>> = metamodelica::nil();
-    submods = List::fold2(inSubMods.clone(), Arc::new(compactSubMod), inModScope.clone(), metamodelica::nil(), metamodelica::nil());
+    submods = List::fold2(inSubMods.clone(), (std::sync::Arc::new(compactSubMod) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SCode::SubMod>, FCore::ModScope, Arc<metamodelica::List<ArcStr>>, Arc<metamodelica::List<Arc<SCode::SubMod>>>) -> Result<Arc<metamodelica::List<Arc<SCode::SubMod>>>> + 'static>), inModScope.clone(), metamodelica::nil(), metamodelica::nil());
     outSubMods = submods.clone().reverse();
     outSubMods
 }
@@ -152,7 +152,7 @@ fn compactSubMod2(mut inExistingMod: Arc<SCode::SubMod>, mut inNewMod: Arc<SCode
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ SCode::SubMod { ident: name1, .. }, _, _, _) => {
                     let mut submod: Arc<SCode::SubMod>;
-                    submod = mergeSubModsInSameScope(inExistingMod.clone(), inNewMod.clone(), cons(name1.clone(), inName.clone()), inModScope.clone())?;
+                    submod = mergeSubModsInSameScope(inExistingMod.clone(), inNewMod.clone(), cons((name1.clone()).clone(), inName.clone()), inModScope.clone())?;
                     Ok((submod.clone(), true))
                 }
                 _ => bail!("nomatch"),
@@ -168,17 +168,17 @@ fn mergeSubModsInSameScope(mut inMod1: Arc<SCode::SubMod>, mut inMod2: Arc<SCode
     let mut scope: ArcStr = arcstr::literal!("");
     let mut name: ArcStr = arcstr::literal!("");
     let mut submods: Arc<metamodelica::List<Arc<SCode::SubMod>>> = metamodelica::nil();
-    let mut info1: SourceInfo;
-    let mut info2: SourceInfo;
+    let mut info1: SourceInfo = <SourceInfo as ::std::default::Default>::default();
+    let mut info2: SourceInfo = <SourceInfo as ::std::default::Default>::default();
     let mut mod1: Arc<SCode::Mod> = inMod1.r#mod.clone();
     let mut mod2: Arc<SCode::Mod> = inMod2.r#mod.clone();
     outMod = (::match_deref::match_deref! { match &((mod1.clone(), mod2.clone())) {
         (Deref @ SCode::Mod::MOD { .. }, Deref @ SCode::Mod::MOD { binding: None, .. }) => {
-            submods = List::fold2(var_field!((*mod1).subModLst, SCode::Mod::MOD).clone(), Arc::new(compactSubMod), inModScope.clone(), inElementName.clone(), var_field!((*mod2).subModLst, SCode::Mod::MOD).clone());
+            submods = List::fold2(var_field!((*mod1).subModLst, SCode::Mod::MOD).clone(), (std::sync::Arc::new(compactSubMod) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SCode::SubMod>, FCore::ModScope, Arc<metamodelica::List<ArcStr>>, Arc<metamodelica::List<Arc<SCode::SubMod>>>) -> Result<Arc<metamodelica::List<Arc<SCode::SubMod>>>> + 'static>), inModScope.clone(), inElementName.clone(), var_field!((*mod2).subModLst, SCode::Mod::MOD).clone());
             Arc::new(SCode::SubMod { ident: (inMod1.ident.clone()).clone(), r#mod: Arc::new(SCode::Mod::MOD { finalPrefix: var_field!((*mod1).finalPrefix, SCode::Mod::MOD).clone(), eachPrefix: var_field!((*mod1).eachPrefix, SCode::Mod::MOD).clone(), subModLst: submods.clone(), binding: var_field!((*mod1).binding, SCode::Mod::MOD).clone(), comment: var_field!((*mod1).comment, SCode::Mod::MOD).clone(), info: var_field!((*mod1).info, SCode::Mod::MOD).clone() }) })
         },
         (Deref @ SCode::Mod::MOD { binding: None, .. }, Deref @ SCode::Mod::MOD { .. }) => {
-            submods = List::fold2(var_field!((*mod1).subModLst, SCode::Mod::MOD).clone(), Arc::new(compactSubMod), inModScope.clone(), inElementName.clone(), var_field!((*mod2).subModLst, SCode::Mod::MOD).clone());
+            submods = List::fold2(var_field!((*mod1).subModLst, SCode::Mod::MOD).clone(), (std::sync::Arc::new(compactSubMod) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SCode::SubMod>, FCore::ModScope, Arc<metamodelica::List<ArcStr>>, Arc<metamodelica::List<Arc<SCode::SubMod>>>) -> Result<Arc<metamodelica::List<Arc<SCode::SubMod>>>> + 'static>), inModScope.clone(), inElementName.clone(), var_field!((*mod2).subModLst, SCode::Mod::MOD).clone());
             Arc::new(SCode::SubMod { ident: (inMod2.ident.clone()).clone(), r#mod: Arc::new(SCode::Mod::MOD { finalPrefix: var_field!((*mod2).finalPrefix, SCode::Mod::MOD).clone(), eachPrefix: var_field!((*mod2).eachPrefix, SCode::Mod::MOD).clone(), subModLst: submods.clone(), binding: var_field!((*mod2).binding, SCode::Mod::MOD).clone(), comment: var_field!((*mod2).comment, SCode::Mod::MOD).clone(), info: var_field!((*mod2).info, SCode::Mod::MOD).clone() }) })
         },
         _ => {

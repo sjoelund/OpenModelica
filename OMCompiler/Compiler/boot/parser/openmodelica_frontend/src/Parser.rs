@@ -58,11 +58,11 @@ use openmodelica_util::Util;
 use openmodelica_util_datatypes_basic::List;
 
 pub fn parse(mut filename: ArcStr, mut encoding: ArcStr, mut libraryPath: ArcStr, mut lveInstance: Option<i32>, mut acceptedGram: i32, mut languageStandardInt: i32, mut strict: bool) -> Result<Absyn::Program> {
-    let mut outProgram: Absyn::Program;
+    let mut outProgram: Absyn::Program = <Absyn::Program as ::std::default::Default>::default();
     let mut classes: Arc<metamodelica::List<Arc<Absyn::Class>>> = metamodelica::nil();
     let mut classes1: Arc<metamodelica::List<Arc<Absyn::Class>>> = metamodelica::nil();
     let mut w: Absyn::Within = Absyn::Within::TOP;
-    let mut cs: Arc<Absyn::Class>;
+    let mut cs: Arc<Absyn::Class> = Arc::new(<Absyn::Class as ::std::default::Default>::default());
     let mut realpath: ArcStr = arcstr::literal!("");
     realpath = (Util::replaceWindowsBackSlashWithPathDelimiter((System::realpath((filename.clone()).clone())?).clone())?).clone();
     outProgram = ParserExt::parse((realpath.clone()).clone(), (Testsuite::friendly((realpath.clone()).clone())?).clone(), acceptedGram.clone(), (encoding.clone()).clone(), languageStandardInt.clone(), strict.clone(), Testsuite::isRunning()?, (libraryPath.clone()).clone(), lveInstance.clone())?;
@@ -89,7 +89,7 @@ pub fn parseexp(mut filename: ArcStr) -> Result<GlobalScript::Statements> {
 }
 
 pub fn parsestring(mut r#str: ArcStr, mut infoFilename: ArcStr, mut grammar: i32, mut languageStd: i32, mut strict: bool) -> Result<Absyn::Program> {
-    let mut outProgram: Absyn::Program;
+    let mut outProgram: Absyn::Program = <Absyn::Program as ::std::default::Default>::default();
     outProgram = ParserExt::parsestring((r#str.clone()).clone(), (infoFilename.clone()).clone(), grammar.clone(), languageStd.clone(), strict.clone(), Testsuite::isRunning()?)?;
     Ok(outProgram)
 }
@@ -209,7 +209,7 @@ fn parallelParseFilesWork(mut filenames: Arc<metamodelica::List<ArcStr>>, mut en
         __acc.reverse()
     };
     } else {
-        partialResults = System::launchParallelTasks(std::cmp::min(8, numThreads.clone()), workList.clone(), Arc::new(loadFileThread))?;
+        partialResults = System::launchParallelTasks(std::cmp::min(8, numThreads.clone()), workList.clone(), (std::sync::Arc::new(loadFileThread) as std::sync::Arc<dyn ::std::ops::Fn((ArcStr, ArcStr, ArcStr, Option<i32>)) -> Result<ParserResult> + 'static>))?;
     }
     Ok(partialResults)
 }
@@ -261,7 +261,7 @@ pub fn checkLicenseAndFeatures(mut c1: Arc<Absyn::Class>, mut lveInstance: Optio
 fn getLicenseAnnotation(mut className: Arc<Absyn::Class>) -> Result<(ArcStr, ArcStr)> {
     let mut license: (ArcStr, ArcStr);
     let mut opt_license: Option<(ArcStr, ArcStr)> = None;
-    opt_license = AbsynUtil::getNamedAnnotationInClass(className.clone(), Arc::new(Absyn::Path::IDENT { name: (literal!("Protection")).clone() }), Arc::new(getLicenseAnnotationWork1))?;
+    opt_license = AbsynUtil::getNamedAnnotationInClass(className.clone(), Arc::new(Absyn::Path::IDENT { name: (literal!("Protection")).clone() }), (std::sync::Arc::new(getLicenseAnnotationWork1) as std::sync::Arc<dyn ::std::ops::Fn(Option<Arc<Absyn::Modification>>) -> Result<(ArcStr, ArcStr)> + 'static>))?;
     license = Util::getOptionOrDefault(opt_license.clone(), (literal!(""), literal!("")));
     Ok(license)
 }
@@ -363,7 +363,7 @@ fn getLicenseAnnotationLicenseFile(mut eltArgs: Arc<metamodelica::List<Arc<Absyn
 fn getFeaturesAnnotation(mut className: Arc<Absyn::Class>) -> Result<Arc<metamodelica::List<ArcStr>>> {
     let mut features: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
     let mut opt_featuresList: Option<Arc<metamodelica::List<ArcStr>>> = None;
-    opt_featuresList = AbsynUtil::getNamedAnnotationInClass(className.clone(), Arc::new(Absyn::Path::IDENT { name: (literal!("Protection")).clone() }), Arc::new(getFeaturesAnnotationList))?;
+    opt_featuresList = AbsynUtil::getNamedAnnotationInClass(className.clone(), Arc::new(Absyn::Path::IDENT { name: (literal!("Protection")).clone() }), (std::sync::Arc::new(getFeaturesAnnotationList) as std::sync::Arc<dyn ::std::ops::Fn(Option<Arc<Absyn::Modification>>) -> Result<Arc<metamodelica::List<ArcStr>>> + 'static>))?;
     features = Util::getOptionOrDefault(opt_featuresList.clone(), metamodelica::nil());
     Ok(features)
 }
@@ -389,7 +389,7 @@ fn getFeaturesAnnotationList2(mut eltArgs: Arc<metamodelica::List<Arc<Absyn::Ele
         },
         Deref @ metamodelica::List::Cons { head: Deref @ Absyn::ElementArg::MODIFICATION { modification: Some(Deref @ Absyn::Modification { eqMod: Deref @ Absyn::EqMod::EQMOD { exp: Deref @ Absyn::Exp::ARRAY { arrayExp: expList }, .. }, .. }), path: Deref @ Absyn::Path::IDENT { name: Deref @ "features" }, .. }, tail: _ } => {
             let mut featuresList: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
-            featuresList = List::map(expList.clone(), Arc::new(fnptr!(expToString, Arc<Absyn::Exp>)));
+            featuresList = List::map(expList.clone(), (std::sync::Arc::new(fnptr!(expToString, Arc<Absyn::Exp>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Exp>) -> Result<ArcStr> + 'static>));
             featuresList.clone()
         },
         Deref @ metamodelica::List::Cons { head: _, tail: xs } => {

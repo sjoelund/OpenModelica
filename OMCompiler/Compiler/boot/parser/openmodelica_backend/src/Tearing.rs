@@ -258,7 +258,7 @@ fn tearingSystemWork(mut tearingMethod: TearingMethod, mut isyst: Arc<BackendDAE
     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
         println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nEND of traverseComponents\n")); __mm_s.push_str(&*arcstr::literal!(BORDER)); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
     }
-    osyst = if (runMatching.clone()) {BackendDAEUtil::setEqSystMatching(isyst.clone(), Arc::new(BackendDAE::Matching::MATCHING { ass1: ass1.clone(), ass2: ass2.clone(), comps: comps.clone() }))} else {isyst.clone()};
+    osyst = if (runMatching.clone()) {BackendDAEUtil::setEqSystMatching(isyst.clone(), Arc::new(BackendDAE::Matching::MATCHING { ass1: ass1.clone(), ass2: ass2.clone(), comps: comps.clone() }))?} else {isyst.clone()};
     Ok((osyst, outShared, outStrongComponentIndex))
 }
 
@@ -514,7 +514,7 @@ fn getDependenciesOfVars(mut iComps: Arc<metamodelica::List<Arc<metamodelica::Li
             let mut tvars: Arc<metamodelica::List<i32>> = metamodelica::nil();
             let mut vars: Arc<metamodelica::List<i32>> = metamodelica::nil();
             v = ass2.borrow()[(c.clone()-1) as usize].clone();
-            vars = List::select(m.borrow()[(c.clone()-1) as usize].clone(), Arc::new(fnptr!(Util::intPositive, i32)));
+            vars = List::select(m.borrow()[(c.clone()-1) as usize].clone(), (std::sync::Arc::new(fnptr!(Util::intPositive, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<bool> + 'static>));
             tvars = tVarsofEqn(vars.clone(), ass1.clone(), mT.clone(), visited.clone(), iMark.clone(), metamodelica::nil())?;
             {let _arr = mT.clone(); _arr.borrow_mut()[(v.clone()-1) as usize] = tvars.clone(); _arr};
             getDependenciesOfVars(comps.clone(), ass1.clone(), ass2.clone(), m.clone(), mT.clone(), visited.clone(), iMark.clone() + 1)?
@@ -537,7 +537,7 @@ fn tVarsofEqns(mut iEqns: Arc<metamodelica::List<i32>>, mut m: metamodelica::Arr
     let mut vars: Arc<metamodelica::List<i32>> = metamodelica::nil();
     for mut e in &*iEqns.clone() {
         let mut e = e.clone();
-        vars = List::select(m.borrow()[(e.clone()-1) as usize].clone(), Arc::new(fnptr!(Util::intPositive, i32)));
+        vars = List::select(m.borrow()[(e.clone()-1) as usize].clone(), (std::sync::Arc::new(fnptr!(Util::intPositive, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<bool> + 'static>));
         oAcc = tVarsofEqn(vars.clone(), ass1.clone(), mT.clone(), visited.clone(), iMark.clone(), oAcc.clone())?;
     }
     Ok(oAcc)
@@ -550,7 +550,7 @@ fn tVarsofEqn(mut iVars: Arc<metamodelica::List<i32>>, mut ass1: metamodelica::A
         if intLt(ass1.borrow()[(v.clone()-1) as usize].clone(), 0) {
             oAcc = uniqueIntLst(v.clone(), iMark.clone(), visited.clone(), oAcc.clone())?;
         } else {
-            oAcc = List::fold2(mT.borrow()[(v.clone()-1) as usize].clone(), Arc::new(uniqueIntLst), iMark.clone(), visited.clone(), oAcc.clone());
+            oAcc = List::fold2(mT.borrow()[(v.clone()-1) as usize].clone(), (std::sync::Arc::new(uniqueIntLst) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32, metamodelica::Array<i32>, Arc<metamodelica::List<i32>>) -> Result<Arc<metamodelica::List<i32>>> + 'static>), iMark.clone(), visited.clone(), oAcc.clone());
         }
     }
     Ok(oAcc)
@@ -611,7 +611,7 @@ fn tVarsofResidualEqns(mut iEqns: Arc<metamodelica::List<i32>>, mut m: metamodel
         mut e => {
             let mut vars: Arc<metamodelica::List<i32>> = metamodelica::nil();
             let mut tvars: Arc<metamodelica::List<i32>> = metamodelica::nil();
-            vars = List::select(m.borrow()[(e.clone()-1) as usize].clone(), Arc::new(fnptr!(Util::intPositive, i32)));
+            vars = List::select(m.borrow()[(e.clone()-1) as usize].clone(), (std::sync::Arc::new(fnptr!(Util::intPositive, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<bool> + 'static>));
             tvars = tVarsofEqn(vars.clone(), ass1.clone(), mT.clone(), visited.clone(), oMark.clone(), metamodelica::nil())?;
             tvars = List::map1r(tvars.clone(), Arc::new(arrayGet.clone()), varGlobalLocal.clone());
             oMark = oMark.clone() + 1;
@@ -665,7 +665,7 @@ fn omcTearing2(mut unsolvables: Arc<metamodelica::List<i32>>, mut tSel_always: A
                         println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nEND of omcTearingSelectTearingVar\n")); __mm_s.push_str(&*arcstr::literal!(BORDER)); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
                     }
                     {let _arr = ass1.clone(); _arr.borrow_mut()[(tvar.clone()-1) as usize] = size.clone() * 2; _arr};
-                    vareqns = List::removeOnTrue(ass2.clone(), Arc::new(fnptr!(isAssignedSaveEnhanced, metamodelica::Array<i32>, (i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>))), mt.borrow()[(tvar.clone()-1) as usize].clone());
+                    vareqns = List::removeOnTrue(ass2.clone(), (std::sync::Arc::new(fnptr!(isAssignedSaveEnhanced, metamodelica::Array<i32>, (i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>))) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<i32>, (i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)) -> Result<bool> + 'static>), mt.borrow()[(tvar.clone()-1) as usize].clone());
                     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
                         println!("{}", (literal!("Assignable equations containing new tvar:\n")).clone());
                         BackendDump::dumpAdjacencyRowEnhanced(vareqns.clone())?;
@@ -684,8 +684,8 @@ fn omcTearing2(mut unsolvables: Arc<metamodelica::List<i32>>, mut tSel_always: A
                 (Deref @ metamodelica::List::Cons { head: tvar, tail: rest }, Deref @ metamodelica::List::Nil) => {
                     let mut unassigned: Arc<metamodelica::List<i32>> = metamodelica::nil();
                     let mut vareqns: Arc<metamodelica::List<(i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)>> = metamodelica::nil();
-                    let mut outTVars: Arc<metamodelica::List<i32>> = outTVars.clone();
                     let mut oMark: i32 = oMark.clone();
+                    let mut outTVars: Arc<metamodelica::List<i32>> = outTVars.clone();
                     if listMember(tvar.clone(), tSel_never.clone()) {
                         Error::addCompilerWarning((literal!("There are tearing variables with annotation attribute '__OpenModelica_tearingSelect = TearingSelect.never'. Use -d=tearingdump and -d=tearingdumpV for more information.")).clone())?;
                     }
@@ -694,7 +694,7 @@ fn omcTearing2(mut unsolvables: Arc<metamodelica::List<i32>>, mut tSel_always: A
                         println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("tVar: ")); __mm_s.push_str(&*intString(tvar.clone())); __mm_s.push_str(&*literal!(" (unsolvable in omcTearing2)\n\n\n")); ArcStr::from(__mm_s) }).clone());
                     }
                     {let _arr = ass1.clone(); _arr.borrow_mut()[(tvar.clone()-1) as usize] = size.clone() * 2; _arr};
-                    vareqns = List::removeOnTrue(ass2.clone(), Arc::new(fnptr!(isAssignedSaveEnhanced, metamodelica::Array<i32>, (i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>))), mt.borrow()[(tvar.clone()-1) as usize].clone());
+                    vareqns = List::removeOnTrue(ass2.clone(), (std::sync::Arc::new(fnptr!(isAssignedSaveEnhanced, metamodelica::Array<i32>, (i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>))) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<i32>, (i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)) -> Result<bool> + 'static>), mt.borrow()[(tvar.clone()-1) as usize].clone());
                     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
                         println!("{}", (literal!("Assignable equations containing new tvar:\n")).clone());
                         BackendDump::dumpAdjacencyRowEnhanced(vareqns.clone())?;
@@ -714,15 +714,15 @@ fn omcTearing2(mut unsolvables: Arc<metamodelica::List<i32>>, mut tSel_always: A
                     let mut unassigned: Arc<metamodelica::List<i32>> = metamodelica::nil();
                     let mut unsolv: Arc<metamodelica::List<i32>> = metamodelica::nil();
                     let mut vareqns: Arc<metamodelica::List<(i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)>> = metamodelica::nil();
-                    let mut oMark: i32 = oMark.clone();
                     let mut outTVars: Arc<metamodelica::List<i32>> = outTVars.clone();
+                    let mut oMark: i32 = oMark.clone();
                     if Flags::isSet(Flags::TEARING_DUMP.clone())? || Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
                         println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nForced selection of Tearing Variables:\n")); __mm_s.push_str(&*arcstr::literal!(UNDERLINE)); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
-                        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Variables with annotation attribute 'always' as tVars: ")); __mm_s.push_str(&*stringDelimitList(List::map(tSel_always.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+                        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Variables with annotation attribute 'always' as tVars: ")); __mm_s.push_str(&*stringDelimitList(List::map(tSel_always.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
                     }
                     markTVarsOrResiduals(tSel_always.clone(), ass1.clone())?;
-                    (_, unsolv, _) = List::intersection1OnTrue(unsolvables.clone(), tSel_always.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
-                    vareqns = findVareqns(ass2.clone(), Arc::new(fnptr!(isAssignedSaveEnhanced, metamodelica::Array<i32>, (i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>))), mt.clone(), tSel_always.clone());
+                    (_, unsolv, _) = List::intersection1OnTrue(unsolvables.clone(), tSel_always.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
+                    vareqns = findVareqns(ass2.clone(), (std::sync::Arc::new(fnptr!(isAssignedSaveEnhanced, metamodelica::Array<i32>, (i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>))) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<i32>, (i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)) -> Result<bool> + 'static>), mt.clone(), tSel_always.clone());
                     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
                         println!("{}", (literal!("Assignable equations containing new tvars:\n")).clone());
                         BackendDump::dumpAdjacencyRowEnhanced(vareqns.clone())?;
@@ -751,7 +751,7 @@ fn omcTearing2(mut unsolvables: Arc<metamodelica::List<i32>>, mut tSel_always: A
 }
 
 fn findVareqns(mut ass2In: metamodelica::Array<i32>, mut inCompFunc: Arc<dyn ::std::ops::Fn(metamodelica::Array<i32>, (i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)) -> Result<bool> + 'static>, mut mt: metamodelica::Array<Arc<metamodelica::List<(i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)>>>, mut tSel_alwaysIn: Arc<metamodelica::List<i32>>) -> Arc<metamodelica::List<(i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)>> {
-    pub type CompFunc = fn(metamodelica::Array<i32>, (i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)) -> Result<bool>;
+    pub type CompFunc = std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<i32>, (i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)) -> Result<bool> + 'static>;
 
     let mut vareqnsOut: Arc<metamodelica::List<(i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)>> = metamodelica::nil();
     for mut tvar in &*tSel_alwaysIn.clone() {
@@ -801,35 +801,35 @@ fn omcTearingSelectTearingVar(mut vars: BackendDAE::Variables, mut ass1: metamod
                     freeVars = Matching::getUnassigned(varsize.clone(), ass1.clone(), metamodelica::nil());
                     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
                         println!("{}", (literal!("omcTearingSelectTearingVar Candidates(unassigned vars):\n")).clone());
-                        BackendDump::debuglst(freeVars.clone(), Arc::new(fnptr!(intString, i32)), (literal!(", ")).clone(), (literal!("\n")).clone());
+                        BackendDump::debuglst(freeVars.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>), (literal!(", ")).clone(), (literal!("\n")).clone());
                     }
-                    (_, freeVars, _) = List::intersection1OnTrue(freeVars.clone(), tSel_never.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
+                    (_, freeVars, _) = List::intersection1OnTrue(freeVars.clone(), tSel_never.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
                     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
                         println!("{}", (literal!("Candidates without variables with annotation attribute 'never':\n")).clone());
-                        BackendDump::debuglst(freeVars.clone(), Arc::new(fnptr!(intString, i32)), (literal!(", ")).clone(), (literal!("\n")).clone());
+                        BackendDump::debuglst(freeVars.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>), (literal!(", ")).clone(), (literal!("\n")).clone());
                     }
                     let false = (freeVars.clone().is_empty()) else { bail!("pattern mismatch") };
                     points = arrayCreate(varsize.clone(), 0);
-                    points = List::fold2(freeVars.clone(), Arc::new(calcVarWeights), mt.clone(), ass2.clone(), points.clone());
+                    points = List::fold2(freeVars.clone(), (std::sync::Arc::new(calcVarWeights) as std::sync::Arc<dyn ::std::ops::Fn(i32, metamodelica::Array<Arc<metamodelica::List<(i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)>>>, metamodelica::Array<i32>, metamodelica::Array<i32>) -> Result<metamodelica::Array<i32>> + 'static>), mt.clone(), ass2.clone(), points.clone());
                     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-                        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nPoints after 'calcVarWeights':\n")); __mm_s.push_str(&*stringDelimitList(List::mapArray(points.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
+                        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nPoints after 'calcVarWeights':\n")); __mm_s.push_str(&*stringDelimitList(List::mapArray(points.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
                     }
                     eqns = Matching::getUnassigned((m.clone().borrow().len() as i32), ass2.clone(), metamodelica::nil());
-                    points = List::fold2(eqns.clone(), Arc::new(addEqnWeights), m.clone(), ass1.clone(), points.clone());
+                    points = List::fold2(eqns.clone(), (std::sync::Arc::new(addEqnWeights) as std::sync::Arc<dyn ::std::ops::Fn(i32, metamodelica::Array<Arc<metamodelica::List<(i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)>>>, metamodelica::Array<i32>, metamodelica::Array<i32>) -> Result<metamodelica::Array<i32>> + 'static>), m.clone(), ass1.clone(), points.clone());
                     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-                        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Points after 'addEqnWeights':\n")); __mm_s.push_str(&*stringDelimitList(List::mapArray(points.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
+                        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Points after 'addEqnWeights':\n")); __mm_s.push_str(&*stringDelimitList(List::mapArray(points.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
                     }
-                    points = List::fold1(freeVars.clone(), Arc::new(discriminateDiscrete), vars.clone(), points.clone());
+                    points = List::fold1(freeVars.clone(), (std::sync::Arc::new(discriminateDiscrete) as std::sync::Arc<dyn ::std::ops::Fn(i32, BackendDAE::Variables, metamodelica::Array<i32>) -> Result<metamodelica::Array<i32>> + 'static>), vars.clone(), points.clone());
                     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-                        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Points after 'discriminateDiscrete':\n")); __mm_s.push_str(&*stringDelimitList(List::mapArray(points.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
+                        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Points after 'discriminateDiscrete':\n")); __mm_s.push_str(&*stringDelimitList(List::mapArray(points.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
                     }
                     pointsLst = preferAvoidVariables(freeVars.clone(), Arc::new(points.clone().borrow().iter().cloned().collect::<metamodelica::List<_>>()), tSel_prefer.clone(), metamodelica::OrderedFloat(3.0_f64));
                     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-                        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Points after preferring variables with attribute 'prefer':\n")); __mm_s.push_str(&*stringDelimitList(List::map(pointsLst.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
+                        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Points after preferring variables with attribute 'prefer':\n")); __mm_s.push_str(&*stringDelimitList(List::map(pointsLst.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
                     }
                     pointsLst = preferAvoidVariables(freeVars.clone(), pointsLst.clone(), tSel_avoid.clone(), metamodelica::OrderedFloat(0.334_f64));
                     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-                        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Points after discrimination against variables with attribute 'avoid':\n")); __mm_s.push_str(&*stringDelimitList(List::map(pointsLst.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
+                        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Points after discrimination against variables with attribute 'avoid':\n")); __mm_s.push_str(&*stringDelimitList(List::map(pointsLst.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
                     }
                     tvar = selectVarWithMostPoints(freeVars.clone(), pointsLst.clone());
                     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
@@ -896,7 +896,7 @@ fn calcVarWeights(mut v: i32, mut mt: metamodelica::Array<Arc<metamodelica::List
 
 fn calcSolvabilityWeight(mut inRow: Arc<metamodelica::List<(i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)>>, mut ass2: metamodelica::Array<i32>) -> i32 {
     let mut w: i32 = 0;
-    w = List::fold1(inRow.clone(), Arc::new(fnptr!(solvabilityWeightsnoStates, (i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>), metamodelica::Array<i32>, i32)), ass2.clone(), 0);
+    w = List::fold1(inRow.clone(), (std::sync::Arc::new(fnptr!(solvabilityWeightsnoStates, (i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>), metamodelica::Array<i32>, i32)) as std::sync::Arc<dyn ::std::ops::Fn((i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>), metamodelica::Array<i32>, i32) -> Result<i32> + 'static>), ass2.clone(), 0);
     w
 }
 
@@ -942,7 +942,7 @@ fn addEqnWeights(mut e: i32, mut m: metamodelica::Array<Arc<metamodelica::List<(
             let mut v1: i32 = 0;
             let mut v2: i32 = 0;
             let mut points: metamodelica::Array<i32>;
-            let (__pa0, __pa1) = ::match_deref::match_deref! { match &(List::removeOnTrue(ass1.clone(), Arc::new(fnptr!(isAssignedSaveEnhanced, metamodelica::Array<i32>, (i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>))), m.borrow()[(e.clone()-1) as usize].clone())) {
+            let (__pa0, __pa1) = ::match_deref::match_deref! { match &(List::removeOnTrue(ass1.clone(), (std::sync::Arc::new(fnptr!(isAssignedSaveEnhanced, metamodelica::Array<i32>, (i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>))) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<i32>, (i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)) -> Result<bool> + 'static>), m.borrow()[(e.clone()-1) as usize].clone())) {
                 Deref @ metamodelica::List::Cons { head: (__pa0, _, _), tail: Deref @ metamodelica::List::Cons { head: (__pa1, _, _), tail: Deref @ metamodelica::List::Nil } } => (__pa0.clone(), __pa1.clone()),
                 _ => bail!("pattern mismatch"),
             } };
@@ -1010,7 +1010,7 @@ fn tearingBFS(mut queue: Arc<metamodelica::List<(i32, BackendDAE::Solvability, A
         },
         (Deref @ metamodelica::List::Nil, _, _, _, _, _, _, _, _) => {
             let mut newqueue: Arc<metamodelica::List<(i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)>> = metamodelica::nil();
-            newqueue = List::removeOnTrue(ass2.clone(), Arc::new(fnptr!(isAssignedSaveEnhanced, metamodelica::Array<i32>, (i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>))), nextQueue.clone());
+            newqueue = List::removeOnTrue(ass2.clone(), (std::sync::Arc::new(fnptr!(isAssignedSaveEnhanced, metamodelica::Array<i32>, (i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>))) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<i32>, (i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)) -> Result<bool> + 'static>), nextQueue.clone());
             newqueue = sortEqnsSolvable(newqueue.clone(), m.clone());
             if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
                 println!("{}", (literal!("Use next Queue!\n")).clone());
@@ -1028,7 +1028,7 @@ fn tearingBFS(mut queue: Arc<metamodelica::List<(i32, BackendDAE::Solvability, A
                 BackendDump::dumpAdjacencyRowEnhanced(queue.clone())?;
                 println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Process Eqn: ")); __mm_s.push_str(&*intString(c.clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
             }
-            rows = List::removeOnTrue(ass1.clone(), Arc::new(fnptr!(isAssignedSaveEnhanced, metamodelica::Array<i32>, (i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>))), m.borrow()[(c.clone()-1) as usize].clone());
+            rows = List::removeOnTrue(ass1.clone(), (std::sync::Arc::new(fnptr!(isAssignedSaveEnhanced, metamodelica::Array<i32>, (i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>))) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<i32>, (i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)) -> Result<bool> + 'static>), m.borrow()[(c.clone()-1) as usize].clone());
             cnonscalar = mapIncRowEqn.borrow()[(c.clone()-1) as usize].clone();
             eqnsize = (mapEqnIncRow.borrow()[(cnonscalar.clone()-1) as usize].clone().len() as i32);
             if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
@@ -1055,7 +1055,7 @@ fn sortEqnsSolvable(mut queue: Arc<metamodelica::List<(i32, BackendDAE::Solvabil
     let mut nextQueue: Arc<metamodelica::List<(i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)>> = metamodelica::nil();
     let mut qnon: Arc<metamodelica::List<(i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)>> = metamodelica::nil();
     let mut qsolv: Arc<metamodelica::List<(i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)>> = metamodelica::nil();
-    (qnon, qsolv) = List::split1OnTrue(queue.clone(), Arc::new(fnptr!(hasnonlinearVars, (i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>), metamodelica::Array<Arc<metamodelica::List<(i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)>>>)), m.clone());
+    (qnon, qsolv) = List::split1OnTrue(queue.clone(), (std::sync::Arc::new(fnptr!(hasnonlinearVars, (i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>), metamodelica::Array<Arc<metamodelica::List<(i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)>>>)) as std::sync::Arc<dyn ::std::ops::Fn((i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>), metamodelica::Array<Arc<metamodelica::List<(i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)>>>) -> Result<bool> + 'static>), m.clone());
     nextQueue = listAppend(qsolv.clone(), qnon.clone());
     nextQueue
 }
@@ -1094,7 +1094,7 @@ fn tearingBFS1(mut rows: Arc<metamodelica::List<(i32, BackendDAE::Solvability, A
     outNextQueue = (::match_deref::match_deref! { match &((rows.clone(), size.clone(), c.clone(), mt.clone(), ass1.clone(), ass2.clone(), inNextQueue.clone())) {
         (_, _, _, _, _, _, _) if (intEq((rows.clone().len() as i32), size.clone()) && solvableLst(rows.clone())) => {
             if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-                println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Assign Eqns: ")); __mm_s.push_str(&*stringDelimitList(List::map(c.clone(), Arc::new(fnptr!(intString, i32))), (literal!(", ")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+                println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Assign Eqns: ")); __mm_s.push_str(&*stringDelimitList(List::map(c.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(", ")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
             }
             tearingBFS2(rows.clone(), c.clone(), mt.clone(), ass1.clone(), ass2.clone(), inNextQueue.clone())?
         },
@@ -1171,10 +1171,10 @@ fn tearingBFS2(mut rows: Arc<metamodelica::List<(i32, BackendDAE::Solvability, A
             {let _arr = ass1.clone(); _arr.borrow_mut()[(r.clone()-1) as usize] = c.clone(); _arr};
             {let _arr = ass2.clone(); _arr.borrow_mut()[(c.clone()-1) as usize] = r.clone(); _arr};
             if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-                println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("ass1: ")); __mm_s.push_str(&*stringDelimitList(List::mapArray(ass1.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
-                println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("ass2: ")); __mm_s.push_str(&*stringDelimitList(List::mapArray(ass2.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+                println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("ass1: ")); __mm_s.push_str(&*stringDelimitList(List::mapArray(ass1.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+                println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("ass2: ")); __mm_s.push_str(&*stringDelimitList(List::mapArray(ass2.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
             }
-            vareqns = List::removeOnTrue(ass2.clone(), Arc::new(fnptr!(isAssignedSaveEnhanced, metamodelica::Array<i32>, (i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>))), mt.borrow()[(r.clone()-1) as usize].clone());
+            vareqns = List::removeOnTrue(ass2.clone(), (std::sync::Arc::new(fnptr!(isAssignedSaveEnhanced, metamodelica::Array<i32>, (i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>))) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<i32>, (i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)) -> Result<bool> + 'static>), mt.borrow()[(r.clone()-1) as usize].clone());
             newqueue = listAppend(inNextQueue.clone(), vareqns.clone());
             tearingBFS2(rest.clone(), ilst.clone(), mt.clone(), ass1.clone(), ass2.clone(), newqueue.clone())?
         },
@@ -1216,7 +1216,7 @@ fn omcTearing4(mut jacType: BackendDAE::JacobianType, mut isyst: Arc<BackendDAE:
                         println!("{}", (literal!("handle torn System\n")).clone());
                     }
                     residual1 = List::map1r(residual.clone(), Arc::new(arrayGet.clone()), mapIncRowEqn.clone());
-                    residual1 = List::fold2(residual1.clone(), Arc::new(uniqueIntLst), mark.clone(), columark.clone(), metamodelica::nil());
+                    residual1 = List::fold2(residual1.clone(), (std::sync::Arc::new(uniqueIntLst) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32, metamodelica::Array<i32>, Arc<metamodelica::List<i32>>) -> Result<Arc<metamodelica::List<i32>>> + 'static>), mark.clone(), columark.clone(), metamodelica::nil());
                     eindxarr = metamodelica::arrayFromVec(eindex.clone().into_iter().cloned().collect());
                     ores = List::map1r(residual1.clone(), Arc::new(arrayGet.clone()), eindxarr.clone());
                     varindxarr = metamodelica::arrayFromVec(vindx.clone().into_iter().cloned().collect());
@@ -1261,7 +1261,7 @@ fn omcTearing4_1(mut othercomps: Arc<metamodelica::List<Arc<metamodelica::List<i
             let mut elst: Arc<metamodelica::List<i32>> = metamodelica::nil();
             let mut e: i32 = 0;
             elst = List::map1r(clst.clone(), Arc::new(arrayGet.clone()), mapIncRowEqn.clone());
-            elst = List::fold2(elst.clone(), Arc::new(uniqueIntLst), mark.clone(), columark.clone(), metamodelica::nil());
+            elst = List::fold2(elst.clone(), (std::sync::Arc::new(uniqueIntLst) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32, metamodelica::Array<i32>, Arc<metamodelica::List<i32>>) -> Result<Arc<metamodelica::List<i32>>> + 'static>), mark.clone(), columark.clone(), metamodelica::nil());
             let __pa0 = ::match_deref::match_deref! { match &(elst.clone()) {
                 Deref @ metamodelica::List::Cons { head: __pa0, tail: Deref @ metamodelica::List::Nil } => __pa0.clone(),
                 _ => bail!("pattern mismatch"),
@@ -1315,7 +1315,7 @@ fn minimalTearing(mut isyst: Arc<BackendDAE::EqSystem>, mut ishared: Arc<Backend
     match '__try0: {
         eqn_lst = BackendEquation::getList(eindex.clone(), BackendEquation::getEqnsFromEqSystem(isyst.clone()));
         eqns = unwrap_break_err!(BackendEquation::listEquation(eqn_lst.clone()), '__try0);
-        var_lst = List::map1r(vindx.clone(), Arc::new(BackendVariable::getVarAt), BackendVariable::daeVars(isyst.clone()));
+        var_lst = List::map1r(vindx.clone(), (std::sync::Arc::new(BackendVariable::getVarAt) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Variables, i32) -> Result<BackendDAE::Var> + 'static>), BackendVariable::daeVars(isyst.clone()));
         vars = BackendVariable::listVar1(var_lst.clone());
         subsyst = BackendDAEUtil::createEqSystem(vars.clone(), eqns.clone(), metamodelica::nil(), crate::BackendDAE::BaseClockPartitionKind::UNKNOWN_PARTITION, BackendEquation::emptyEqns());
         (adjEnh, adjEnhT) = unwrap_break_err!(BackendDAEUtil::getAdjacencyMatrixEnhanced(subsyst.clone(), ishared.clone(), BackendDAEUtil::isInitializationDAE(ishared.clone())), '__try0);
@@ -1342,7 +1342,7 @@ fn minimalTearing(mut isyst: Arc<BackendDAE::EqSystem>, mut ishared: Arc<Backend
                     if unwrap_break_err!(isEntrySolved(entr.clone()), '__try0) {
                         (vidx, _, _) = entr.clone();
                         algSolvedVars = cons(vidx.clone(), algSolvedVars.clone());
-                        (unsolvedCombined, _) = unwrap_break_err!(List::deleteMemberOnTrue(vidx.clone(), unsolvedCombined.clone(), Arc::new(fnptr!(intEq, i32, i32))), '__try0);
+                        (unsolvedCombined, _) = unwrap_break_err!(List::deleteMemberOnTrue(vidx.clone(), unsolvedCombined.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>)), '__try0);
                         {
                             let __cell3 = false;
                             varArray.clone().borrow_mut()[(vidx.clone()-1) as usize] = __cell3;
@@ -1604,15 +1604,15 @@ fn CellierTearing(mut isyst: Arc<BackendDAE::EqSystem>, mut ishared: Arc<Backend
     size = (vindx.clone().len() as i32);
     eqn_lst = BackendEquation::getList(eindex.clone(), BackendEquation::getEqnsFromEqSystem(isyst.clone()));
     eqns = BackendEquation::listEquation(eqn_lst.clone())?;
-    var_lst = List::map1r(vindx.clone(), Arc::new(BackendVariable::getVarAt), BackendVariable::daeVars(isyst.clone()));
+    var_lst = List::map1r(vindx.clone(), (std::sync::Arc::new(BackendVariable::getVarAt) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Variables, i32) -> Result<BackendDAE::Var> + 'static>), BackendVariable::daeVars(isyst.clone()));
     vars = BackendVariable::listVar1(var_lst.clone());
     subsyst = BackendDAEUtil::createEqSystem(vars.clone(), eqns.clone(), metamodelica::nil(), crate::BackendDAE::BaseClockPartitionKind::UNKNOWN_PARTITION, BackendEquation::emptyEqns());
     (subsyst, m, mt, _, _) = BackendDAEUtil::getAdjacencyMatrixScalar(subsyst.clone(), crate::BackendDAE::IndexType::NORMAL, None, BackendDAEUtil::isInitializationDAE(ishared.clone()))?;
     if debug.clone() {
         execStat((literal!("Tearing.CellierTearing -> 1")).clone())?;
     }
-    m = Array::map(m.clone(), Arc::new(fnptr!(deleteNegativeEntries, Arc<metamodelica::List<i32>>)));
-    mt = Array::map(mt.clone(), Arc::new(fnptr!(deleteNegativeEntries, Arc<metamodelica::List<i32>>)));
+    m = Array::map(m.clone(), (std::sync::Arc::new(fnptr!(deleteNegativeEntries, Arc<metamodelica::List<i32>>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<i32>>) -> Result<Arc<metamodelica::List<i32>>> + 'static>));
+    mt = Array::map(mt.clone(), (std::sync::Arc::new(fnptr!(deleteNegativeEntries, Arc<metamodelica::List<i32>>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<i32>>) -> Result<Arc<metamodelica::List<i32>>> + 'static>));
     if Flags::isSet(Flags::TEARING_DUMP.clone())? || Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
         println!("{}", (literal!("\n\n###BEGIN print Strong Component#####################\n(Function:CellierTearing)\n")).clone());
         BackendDump::printEqSystem(subsyst.clone())?;
@@ -1636,17 +1636,17 @@ fn CellierTearing(mut isyst: Arc<BackendDAE::EqSystem>, mut ishared: Arc<Backend
         BackendDump::dumpAdjacencyMatrixEnhanced(me.clone())?;
         println!("{}", (literal!("\nAdjacencyMatrixTransposedEnhanced:\n")).clone());
         BackendDump::dumpAdjacencyMatrixTEnhanced(meT.clone())?;
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\neqLinPoints:\n")); __mm_s.push_str(&*stringDelimitList(List::mapArray(eqnNonlinPoints.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\neqLinPoints:\n")); __mm_s.push_str(&*stringDelimitList(List::mapArray(eqnNonlinPoints.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
     }
     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
         println!("{}", (literal!("mapEqnIncRow:")).clone());
         BackendDump::dumpAdjacencyMatrix(mapEqnIncRow.clone());
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nmapIncRowEqn:\n")); __mm_s.push_str(&*stringDelimitList(List::mapArray(mapIncRowEqn.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n\nUNSOLVABLES:\n")); __mm_s.push_str(&*stringDelimitList(List::map(unsolvables.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nmapIncRowEqn:\n")); __mm_s.push_str(&*stringDelimitList(List::mapArray(mapIncRowEqn.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n\nUNSOLVABLES:\n")); __mm_s.push_str(&*stringDelimitList(List::map(unsolvables.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
     }
     discreteVars = findDiscrete(var_lst.clone());
     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nDiscrete Vars:\n")); __mm_s.push_str(&*stringDelimitList(List::map(discreteVars.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nDiscrete Vars:\n")); __mm_s.push_str(&*stringDelimitList(List::map(discreteVars.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
     }
     (tSel_always, tSel_prefer, tSel_avoid, tSel_never, tSel_alwaysByUser) = tearingSelect(var_lst.clone(), tearingSelect_always.clone(), (DAEtypeStr.clone()).clone())?;
     if !(tSel_alwaysByUser.clone().is_empty()) {
@@ -1706,8 +1706,8 @@ fn CellierTearing(mut isyst: Arc<BackendDAE::EqSystem>, mut ishared: Arc<Backend
             println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n\nDetermine CASUAL TEARING SET\n")); __mm_s.push_str(&*arcstr::literal!(BORDER)); __mm_s.push_str(&*arcstr::literal!(BORDER)); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
         }
         (_, m, mt, _, _) = BackendDAEUtil::getAdjacencyMatrixScalar(subsyst.clone(), crate::BackendDAE::IndexType::NORMAL, None, BackendDAEUtil::isInitializationDAE(ishared.clone()))?;
-        m = Array::map(m.clone(), Arc::new(fnptr!(deleteNegativeEntries, Arc<metamodelica::List<i32>>)));
-        mt = Array::map(mt.clone(), Arc::new(fnptr!(deleteNegativeEntries, Arc<metamodelica::List<i32>>)));
+        m = Array::map(m.clone(), (std::sync::Arc::new(fnptr!(deleteNegativeEntries, Arc<metamodelica::List<i32>>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<i32>>) -> Result<Arc<metamodelica::List<i32>>> + 'static>));
+        mt = Array::map(mt.clone(), (std::sync::Arc::new(fnptr!(deleteNegativeEntries, Arc<metamodelica::List<i32>>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<i32>>) -> Result<Arc<metamodelica::List<i32>>> + 'static>));
         (me, meT, mapEqnIncRow, mapIncRowEqn) = BackendDAEUtil::getAdjacencyMatrixEnhancedScalar(subsyst.clone(), ishared.clone(), true)?;
         unsolvables = getUnsolvableVars(size.clone(), meT.clone())?;
         if Flags::isSet(Flags::TEARING_DUMP.clone())? || Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
@@ -1715,14 +1715,14 @@ fn CellierTearing(mut isyst: Arc<BackendDAE::EqSystem>, mut ishared: Arc<Backend
             BackendDump::dumpAdjacencyMatrixEnhanced(me.clone())?;
             println!("{}", (literal!("\nAdjacencyMatrixTransposedEnhanced:\n")).clone());
             BackendDump::dumpAdjacencyMatrixTEnhanced(meT.clone())?;
-            println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\neqLinPoints:\n")); __mm_s.push_str(&*stringDelimitList(List::mapArray(eqnNonlinPoints.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
+            println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\neqLinPoints:\n")); __mm_s.push_str(&*stringDelimitList(List::mapArray(eqnNonlinPoints.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
         }
         if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
             println!("{}", (literal!("mapEqnIncRow:")).clone());
             BackendDump::dumpAdjacencyMatrix(mapEqnIncRow.clone());
-            println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nmapIncRowEqn:\n")); __mm_s.push_str(&*stringDelimitList(List::mapArray(mapIncRowEqn.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
-            println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n\nUNSOLVABLES:\n")); __mm_s.push_str(&*stringDelimitList(List::map(unsolvables.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
-            println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nDiscrete Vars:\n")); __mm_s.push_str(&*stringDelimitList(List::map(discreteVars.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
+            println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nmapIncRowEqn:\n")); __mm_s.push_str(&*stringDelimitList(List::mapArray(mapIncRowEqn.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
+            println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n\nUNSOLVABLES:\n")); __mm_s.push_str(&*stringDelimitList(List::map(unsolvables.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
+            println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nDiscrete Vars:\n")); __mm_s.push_str(&*stringDelimitList(List::map(discreteVars.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
         }
         ass1 = arrayCreate(size.clone(), -1);
         ass2 = arrayCreate(size.clone(), -1);
@@ -1760,7 +1760,7 @@ fn CellierTearing(mut isyst: Arc<BackendDAE::EqSystem>, mut ishared: Arc<Backend
             if Flags::isSet(Flags::TEARING_DUMP.clone())? || Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
                 println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*arcstr::literal!(BORDER)); __mm_s.push_str(&*literal!("\n* TEARING RESULTS (CASUAL SET):\n*\n* No of equations in strong component: ")); __mm_s.push_str(&*intString(size.clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
                 println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("* No of tVars: ")); __mm_s.push_str(&*intString((OutTVars.clone().len() as i32))); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
-                println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("*\n* tVars: ")); __mm_s.push_str(&*stringDelimitList(List::map(OutTVars.clone().reverse(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+                println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("*\n* tVars: ")); __mm_s.push_str(&*stringDelimitList(List::map(OutTVars.clone().reverse(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
                 println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("*\n* The casual tearing set is not smaller\n* than the strict tearing set and there-\n* fore it is discarded.\n*")); __mm_s.push_str(&*arcstr::literal!(BORDER)); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
             }
             if !(b.clone()) && !(Flags::getConfigBool(Flags::FORCE_TEARING.clone())?) {
@@ -1849,10 +1849,10 @@ fn tearingSelect(mut var_lstIn: Arc<metamodelica::List<BackendDAE::Var>>, mut al
     }
     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
         println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nExternal influence on selection of iteration variables by variable annotations (__OpenModelica_tearingSelect)")); __mm_s.push_str(&*if (preferTVarsWithStartValue.clone()) {literal!(" and preference of variables with start attribute")} else {literal!("")}); __mm_s.push_str(&*literal!(":\n")); ArcStr::from(__mm_s) }).clone());
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Always: ")); __mm_s.push_str(&*stringDelimitList(List::map(always.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Prefer: ")); __mm_s.push_str(&*stringDelimitList(List::map(prefer.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Avoid: ")); __mm_s.push_str(&*stringDelimitList(List::map(avoid.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Never: ")); __mm_s.push_str(&*stringDelimitList(List::map(never.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Always: ")); __mm_s.push_str(&*stringDelimitList(List::map(always.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Prefer: ")); __mm_s.push_str(&*stringDelimitList(List::map(prefer.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Avoid: ")); __mm_s.push_str(&*stringDelimitList(List::map(avoid.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Never: ")); __mm_s.push_str(&*stringDelimitList(List::map(never.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
     }
     Ok((always, prefer, avoid, never, alwaysByUser))
 }
@@ -2011,20 +2011,20 @@ fn CellierTearing2(mut inCausal: bool, mut mIn: metamodelica::Array<Arc<metamode
             }
             if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
                 println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nEND of TarjanMatching\n")); __mm_s.push_str(&*arcstr::literal!(BORDER)); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
-                println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*arcstr::literal!(BORDER)); __mm_s.push_str(&*literal!("\n* TARJAN RESULTS:\n* ass1: ")); __mm_s.push_str(&*stringDelimitList(List::mapArray(ass1In.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
-                println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("* ass2: ")); __mm_s.push_str(&*stringDelimitList(List::mapArray(ass2In.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
-                println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("* order: ")); __mm_s.push_str(&*stringDelimitList(List::map(order.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*arcstr::literal!(BORDER)); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
+                println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*arcstr::literal!(BORDER)); __mm_s.push_str(&*literal!("\n* TARJAN RESULTS:\n* ass1: ")); __mm_s.push_str(&*stringDelimitList(List::mapArray(ass1In.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+                println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("* ass2: ")); __mm_s.push_str(&*stringDelimitList(List::mapArray(ass2In.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+                println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("* order: ")); __mm_s.push_str(&*stringDelimitList(List::map(order.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*arcstr::literal!(BORDER)); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
             }
             if causal.clone() && (Flags::isSet(Flags::TEARING_DUMP.clone())? || Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())?) {
                 println!("{}", (literal!("\n")).clone());
                 BackendDump::dumpMatching(ass1In.clone())?;
-                println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\norder: ")); __mm_s.push_str(&*stringDelimitList(List::map(order.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*arcstr::literal!(UNDERLINE)); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
+                println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\norder: ")); __mm_s.push_str(&*stringDelimitList(List::map(order.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*arcstr::literal!(UNDERLINE)); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
             }
             unsolvables = getUnsolvableVarsConsiderMatching((meTIn.clone().borrow().len() as i32), meTIn.clone(), ass1In.clone(), ass2In.clone())?;
             if debug.clone() {
                 execStat((literal!("Tearing.CellierTearing2 - 1.3")).clone())?;
             }
-            (_, unsolvables, _) = List::intersection1OnTrue(unsolvables.clone(), tvars.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
+            (_, unsolvables, _) = List::intersection1OnTrue(unsolvables.clone(), tvars.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
             if debug.clone() {
                 execStat((literal!("Tearing.CellierTearing2 - 1 done")).clone())?;
             }
@@ -2039,8 +2039,8 @@ fn CellierTearing2(mut inCausal: bool, mut mIn: metamodelica::Array<Arc<metamode
             let mut order: Arc<metamodelica::List<i32>> = metamodelica::nil();
             let mut causal: bool = false;
             tvars = List::unique(listAppend(Unsolvables.clone(), tSel_always.clone()));
-            tVar_never = List::intersectionOnTrue(tSel_never.clone(), tvars.clone(), Arc::new(fnptr!(intEq, i32, i32)));
-            tVar_discrete = List::intersectionOnTrue(discreteVars.clone(), tvars.clone(), Arc::new(fnptr!(intEq, i32, i32)));
+            tVar_never = List::intersectionOnTrue(tSel_never.clone(), tvars.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>));
+            tVar_discrete = List::intersectionOnTrue(discreteVars.clone(), tvars.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>));
             if !(tVar_never.clone().is_empty()) {
                 Error::addCompilerWarning((literal!("There are tearing variables with annotation attribute '__OpenModelica_tearingSelect = TearingSelect.never'. Use -d=tearingdump and -d=tearingdumpV for more information.")).clone())?;
             }
@@ -2048,8 +2048,8 @@ fn CellierTearing2(mut inCausal: bool, mut mIn: metamodelica::Array<Arc<metamode
                 Error::addCompilerWarning((literal!("There are discrete tearing variables because otherwise the system could not have been torn (unsolvables). This may lead to problems during simulation.")).clone())?;
             }
             if Flags::isSet(Flags::TEARING_DUMP.clone())? || Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-                println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nForced selection of Tearing Variables:\n")); __mm_s.push_str(&*arcstr::literal!(UNDERLINE)); __mm_s.push_str(&*literal!("\nUnsolvables as tVars: ")); __mm_s.push_str(&*stringDelimitList(List::map(Unsolvables.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
-                println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Variables with annotation attribute 'always' as tVars: ")); __mm_s.push_str(&*stringDelimitList(List::map(tSel_always.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+                println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nForced selection of Tearing Variables:\n")); __mm_s.push_str(&*arcstr::literal!(UNDERLINE)); __mm_s.push_str(&*literal!("\nUnsolvables as tVars: ")); __mm_s.push_str(&*stringDelimitList(List::map(Unsolvables.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+                println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Variables with annotation attribute 'always' as tVars: ")); __mm_s.push_str(&*stringDelimitList(List::map(tSel_always.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
             }
             markTVarsOrResiduals(tvars.clone(), ass1In.clone())?;
             deleteEntriesFromAdjacencyMatrix(mIn.clone(), mtIn.clone(), tvars.clone())?;
@@ -2065,17 +2065,17 @@ fn CellierTearing2(mut inCausal: bool, mut mIn: metamodelica::Array<Arc<metamode
             (order, causal) = TarjanMatching(mIn.clone(), mtIn.clone(), meIn.clone(), ass1In.clone(), ass2In.clone(), orderIn.clone(), mapEqnIncRow.clone(), mapIncRowEqn.clone(), eqnNonlinPoints.clone())?;
             if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
                 println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nEND of TarjanMatching\n")); __mm_s.push_str(&*arcstr::literal!(BORDER)); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
-                println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*arcstr::literal!(BORDER)); __mm_s.push_str(&*literal!("\n* TARJAN RESULTS:\n* ass1: ")); __mm_s.push_str(&*stringDelimitList(List::mapArray(ass1In.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
-                println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("* ass2: ")); __mm_s.push_str(&*stringDelimitList(List::mapArray(ass2In.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
-                println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("* order: ")); __mm_s.push_str(&*stringDelimitList(List::map(order.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*arcstr::literal!(BORDER)); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
+                println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*arcstr::literal!(BORDER)); __mm_s.push_str(&*literal!("\n* TARJAN RESULTS:\n* ass1: ")); __mm_s.push_str(&*stringDelimitList(List::mapArray(ass1In.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+                println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("* ass2: ")); __mm_s.push_str(&*stringDelimitList(List::mapArray(ass2In.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+                println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("* order: ")); __mm_s.push_str(&*stringDelimitList(List::map(order.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*arcstr::literal!(BORDER)); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
             }
             if causal.clone() && (Flags::isSet(Flags::TEARING_DUMP.clone())? || Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())?) {
                 println!("{}", (literal!("\n")).clone());
                 BackendDump::dumpMatching(ass1In.clone())?;
-                println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\norder: ")); __mm_s.push_str(&*stringDelimitList(List::map(order.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*arcstr::literal!(UNDERLINE)); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
+                println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\norder: ")); __mm_s.push_str(&*stringDelimitList(List::map(order.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*arcstr::literal!(UNDERLINE)); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
             }
             unsolvables = getUnsolvableVarsConsiderMatching((meTIn.clone().borrow().len() as i32), meTIn.clone(), ass1In.clone(), ass2In.clone())?;
-            (_, unsolvables, _) = List::intersection1OnTrue(unsolvables.clone(), tvars.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
+            (_, unsolvables, _) = List::intersection1OnTrue(unsolvables.clone(), tvars.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
             if debug.clone() {
                 execStat((literal!("Tearing.CellierTearing2 - 2")).clone())?;
             }
@@ -2094,17 +2094,17 @@ fn selectTearingVar(mut me: metamodelica::Array<Arc<metamodelica::List<(i32, Bac
     let mut tearingHeuristic: TearingHeuristic;
     heuristic = (Config::getTearingHeuristic()?).clone();
     tearingHeuristic = (::match_deref::match_deref! { match &(heuristic.clone()) {
-        Deref @ "MC1" => ModifiedCellierHeuristic_1,
-        Deref @ "MC2" => ModifiedCellierHeuristic_2,
-        Deref @ "MC11" => ModifiedCellierHeuristic_1_1,
-        Deref @ "MC21" => ModifiedCellierHeuristic_2_1,
-        Deref @ "MC12" => ModifiedCellierHeuristic_1_2,
-        Deref @ "MC22" => ModifiedCellierHeuristic_2_2,
-        Deref @ "MC13" => ModifiedCellierHeuristic_1_3,
-        Deref @ "MC23" => ModifiedCellierHeuristic_2_3,
-        Deref @ "MC231" => ModifiedCellierHeuristic_2_3_1,
-        Deref @ "MC3" => ModifiedCellierHeuristic_3,
-        Deref @ "MC4" => ModifiedCellierHeuristic_4,
+        Deref @ "MC1" => (std::sync::Arc::new(ModifiedCellierHeuristic_1) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<Arc<metamodelica::List<(i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)>>>, metamodelica::Array<Arc<metamodelica::List<(i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)>>>, metamodelica::Array<i32>, metamodelica::Array<i32>, Arc<metamodelica::List<i32>>, Arc<metamodelica::List<i32>>, Arc<metamodelica::List<i32>>, Arc<metamodelica::List<i32>>, metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<i32>) -> Result<Arc<metamodelica::List<i32>>> + 'static>),
+        Deref @ "MC2" => (std::sync::Arc::new(ModifiedCellierHeuristic_2) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<Arc<metamodelica::List<(i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)>>>, metamodelica::Array<Arc<metamodelica::List<(i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)>>>, metamodelica::Array<i32>, metamodelica::Array<i32>, Arc<metamodelica::List<i32>>, Arc<metamodelica::List<i32>>, Arc<metamodelica::List<i32>>, Arc<metamodelica::List<i32>>, metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<i32>) -> Result<Arc<metamodelica::List<i32>>> + 'static>),
+        Deref @ "MC11" => (std::sync::Arc::new(ModifiedCellierHeuristic_1_1) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<Arc<metamodelica::List<(i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)>>>, metamodelica::Array<Arc<metamodelica::List<(i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)>>>, metamodelica::Array<i32>, metamodelica::Array<i32>, Arc<metamodelica::List<i32>>, Arc<metamodelica::List<i32>>, Arc<metamodelica::List<i32>>, Arc<metamodelica::List<i32>>, metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<i32>) -> Result<Arc<metamodelica::List<i32>>> + 'static>),
+        Deref @ "MC21" => (std::sync::Arc::new(ModifiedCellierHeuristic_2_1) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<Arc<metamodelica::List<(i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)>>>, metamodelica::Array<Arc<metamodelica::List<(i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)>>>, metamodelica::Array<i32>, metamodelica::Array<i32>, Arc<metamodelica::List<i32>>, Arc<metamodelica::List<i32>>, Arc<metamodelica::List<i32>>, Arc<metamodelica::List<i32>>, metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<i32>) -> Result<Arc<metamodelica::List<i32>>> + 'static>),
+        Deref @ "MC12" => (std::sync::Arc::new(ModifiedCellierHeuristic_1_2) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<Arc<metamodelica::List<(i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)>>>, metamodelica::Array<Arc<metamodelica::List<(i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)>>>, metamodelica::Array<i32>, metamodelica::Array<i32>, Arc<metamodelica::List<i32>>, Arc<metamodelica::List<i32>>, Arc<metamodelica::List<i32>>, Arc<metamodelica::List<i32>>, metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<i32>) -> Result<Arc<metamodelica::List<i32>>> + 'static>),
+        Deref @ "MC22" => (std::sync::Arc::new(ModifiedCellierHeuristic_2_2) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<Arc<metamodelica::List<(i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)>>>, metamodelica::Array<Arc<metamodelica::List<(i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)>>>, metamodelica::Array<i32>, metamodelica::Array<i32>, Arc<metamodelica::List<i32>>, Arc<metamodelica::List<i32>>, Arc<metamodelica::List<i32>>, Arc<metamodelica::List<i32>>, metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<i32>) -> Result<Arc<metamodelica::List<i32>>> + 'static>),
+        Deref @ "MC13" => (std::sync::Arc::new(ModifiedCellierHeuristic_1_3) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<Arc<metamodelica::List<(i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)>>>, metamodelica::Array<Arc<metamodelica::List<(i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)>>>, metamodelica::Array<i32>, metamodelica::Array<i32>, Arc<metamodelica::List<i32>>, Arc<metamodelica::List<i32>>, Arc<metamodelica::List<i32>>, Arc<metamodelica::List<i32>>, metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<i32>) -> Result<Arc<metamodelica::List<i32>>> + 'static>),
+        Deref @ "MC23" => (std::sync::Arc::new(ModifiedCellierHeuristic_2_3) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<Arc<metamodelica::List<(i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)>>>, metamodelica::Array<Arc<metamodelica::List<(i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)>>>, metamodelica::Array<i32>, metamodelica::Array<i32>, Arc<metamodelica::List<i32>>, Arc<metamodelica::List<i32>>, Arc<metamodelica::List<i32>>, Arc<metamodelica::List<i32>>, metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<i32>) -> Result<Arc<metamodelica::List<i32>>> + 'static>),
+        Deref @ "MC231" => (std::sync::Arc::new(ModifiedCellierHeuristic_2_3_1) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<Arc<metamodelica::List<(i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)>>>, metamodelica::Array<Arc<metamodelica::List<(i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)>>>, metamodelica::Array<i32>, metamodelica::Array<i32>, Arc<metamodelica::List<i32>>, Arc<metamodelica::List<i32>>, Arc<metamodelica::List<i32>>, Arc<metamodelica::List<i32>>, metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<i32>) -> Result<Arc<metamodelica::List<i32>>> + 'static>),
+        Deref @ "MC3" => (std::sync::Arc::new(ModifiedCellierHeuristic_3) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<Arc<metamodelica::List<(i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)>>>, metamodelica::Array<Arc<metamodelica::List<(i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)>>>, metamodelica::Array<i32>, metamodelica::Array<i32>, Arc<metamodelica::List<i32>>, Arc<metamodelica::List<i32>>, Arc<metamodelica::List<i32>>, Arc<metamodelica::List<i32>>, metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<i32>) -> Result<Arc<metamodelica::List<i32>>> + 'static>),
+        Deref @ "MC4" => (std::sync::Arc::new(ModifiedCellierHeuristic_4) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<Arc<metamodelica::List<(i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)>>>, metamodelica::Array<Arc<metamodelica::List<(i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)>>>, metamodelica::Array<i32>, metamodelica::Array<i32>, Arc<metamodelica::List<i32>>, Arc<metamodelica::List<i32>>, Arc<metamodelica::List<i32>>, Arc<metamodelica::List<i32>>, metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<i32>) -> Result<Arc<metamodelica::List<i32>>> + 'static>),
         _ => {
             Error::addInternalError(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Unknown tearing heuristic: ")); __mm_s.push_str(&*heuristic.clone()); ArcStr::from(__mm_s) }).clone(), metamodelica::sourceInfo!())?;
             bail!("fail")
@@ -2143,7 +2143,7 @@ fn selectTearingVar(mut me: metamodelica::Array<Arc<metamodelica::List<(i32, Bac
     Ok(OutTVar)
 }
 
-type TearingHeuristic = fn(metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<Arc<metamodelica::List<(i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)>>>, metamodelica::Array<Arc<metamodelica::List<(i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)>>>, metamodelica::Array<i32>, metamodelica::Array<i32>, Arc<metamodelica::List<i32>>, Arc<metamodelica::List<i32>>, Arc<metamodelica::List<i32>>, Arc<metamodelica::List<i32>>, metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<i32>) -> Result<Arc<metamodelica::List<i32>>>;
+type TearingHeuristic = std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<Arc<metamodelica::List<(i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)>>>, metamodelica::Array<Arc<metamodelica::List<(i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)>>>, metamodelica::Array<i32>, metamodelica::Array<i32>, Arc<metamodelica::List<i32>>, Arc<metamodelica::List<i32>>, Arc<metamodelica::List<i32>>, Arc<metamodelica::List<i32>>, metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<i32>) -> Result<Arc<metamodelica::List<i32>>> + 'static>;
 
 fn ModifiedCellierHeuristic_1(mut mIn: metamodelica::Array<Arc<metamodelica::List<i32>>>, mut mtIn: metamodelica::Array<Arc<metamodelica::List<i32>>>, mut meIn: metamodelica::Array<Arc<metamodelica::List<(i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)>>>, mut metIn: metamodelica::Array<Arc<metamodelica::List<(i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)>>>, mut ass1In: metamodelica::Array<i32>, mut ass2In: metamodelica::Array<i32>, mut discreteVars: Arc<metamodelica::List<i32>>, mut tSel_prefer: Arc<metamodelica::List<i32>>, mut tSel_avoid: Arc<metamodelica::List<i32>>, mut tSel_never: Arc<metamodelica::List<i32>>, mut mapEqnIncRow: metamodelica::Array<Arc<metamodelica::List<i32>>>, mut mapIncRowEqn: metamodelica::Array<i32>) -> Result<Arc<metamodelica::List<i32>>> {
     let mut potentials: Arc<metamodelica::List<i32>> = metamodelica::nil();
@@ -2153,23 +2153,23 @@ fn ModifiedCellierHeuristic_1(mut mIn: metamodelica::Array<Arc<metamodelica::Lis
     selectedcols1 = getUnassigned(ass1In.clone());
     selectedcols1 = getVarsOfEqnsWithMostVars(selectedcols1.clone(), mIn.clone(), mtIn.clone());
     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("1st: ")); __mm_s.push_str(&*stringDelimitList(List::map(selectedcols1.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("1st: ")); __mm_s.push_str(&*stringDelimitList(List::map(selectedcols1.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
     }
-    (_, selectedcols1, _) = List::intersection1OnTrue(selectedcols1.clone(), discreteVars.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
+    (_, selectedcols1, _) = List::intersection1OnTrue(selectedcols1.clone(), discreteVars.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Without Discrete: ")); __mm_s.push_str(&*stringDelimitList(List::map(selectedcols1.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Variables in the equation(s) with most Variables)\n\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Without Discrete: ")); __mm_s.push_str(&*stringDelimitList(List::map(selectedcols1.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Variables in the equation(s) with most Variables)\n\n")); ArcStr::from(__mm_s) }).clone());
     }
     (edges, selectedcols1) = getVarsOccurringInMostEquations(mtIn.clone(), selectedcols1.clone())?;
     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("2nd: ")); __mm_s.push_str(&*stringDelimitList(List::map(selectedcols1.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Variables from (1st) with most occurrence in equations (")); __mm_s.push_str(&*intString(edges.clone())); __mm_s.push_str(&*literal!(" times))\n\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("2nd: ")); __mm_s.push_str(&*stringDelimitList(List::map(selectedcols1.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Variables from (1st) with most occurrence in equations (")); __mm_s.push_str(&*intString(edges.clone())); __mm_s.push_str(&*literal!(" times))\n\n")); ArcStr::from(__mm_s) }).clone());
     }
     selectedrows = traverseSingleEqnsforAssignable(ass2In.clone(), mIn.clone(), mapEqnIncRow.clone(), mapIncRowEqn.clone())?;
     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*stringDelimitList(List::map(selectedrows.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Equations which could be causalized by knowing one more Var)\n\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*stringDelimitList(List::map(selectedrows.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Equations which could be causalized by knowing one more Var)\n\n")); ArcStr::from(__mm_s) }).clone());
     }
     (potentials, edges) = selectOneMostCausalizingVar(mtIn.clone(), selectedcols1.clone(), meIn.clone(), ass1In.clone(), selectCausalVarsPrepareSelectionSet(selectedrows.clone(), (ass1In.clone().borrow().len() as i32))?)?;
     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n3rd: ")); __mm_s.push_str(&*stringDelimitList(List::map(potentials.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Chosen tearing variable. One from (2nd) causalizing most equations [")); __mm_s.push_str(&*intString(edges.clone())); __mm_s.push_str(&*literal!("])\n\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n3rd: ")); __mm_s.push_str(&*stringDelimitList(List::map(potentials.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Chosen tearing variable. One from (2nd) causalizing most equations [")); __mm_s.push_str(&*intString(edges.clone())); __mm_s.push_str(&*literal!("])\n\n")); ArcStr::from(__mm_s) }).clone());
     }
     Ok(potentials)
 }
@@ -2181,18 +2181,18 @@ fn ModifiedCellierHeuristic_2(mut mIn: metamodelica::Array<Arc<metamodelica::Lis
     let mut selectedcols1: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut selectedrows: Arc<metamodelica::List<i32>> = metamodelica::nil();
     varlst = getUnassigned(ass1In.clone());
-    (_, selectedcols1, _) = List::intersection1OnTrue(varlst.clone(), discreteVars.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
+    (_, selectedcols1, _) = List::intersection1OnTrue(varlst.clone(), discreteVars.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
     (edges, selectedcols1) = getVarsOccurringInMostEquations(mtIn.clone(), selectedcols1.clone())?;
     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("1st: ")); __mm_s.push_str(&*stringDelimitList(List::map(selectedcols1.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Non-discrete variables with most occurrence in equations (")); __mm_s.push_str(&*intString(edges.clone())); __mm_s.push_str(&*literal!(" times))\n\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("1st: ")); __mm_s.push_str(&*stringDelimitList(List::map(selectedcols1.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Non-discrete variables with most occurrence in equations (")); __mm_s.push_str(&*intString(edges.clone())); __mm_s.push_str(&*literal!(" times))\n\n")); ArcStr::from(__mm_s) }).clone());
     }
     selectedrows = traverseSingleEqnsforAssignable(ass2In.clone(), mIn.clone(), mapEqnIncRow.clone(), mapIncRowEqn.clone())?;
     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*stringDelimitList(List::map(selectedrows.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Equations which could be causalized by knowing one more Var)\n\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*stringDelimitList(List::map(selectedrows.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Equations which could be causalized by knowing one more Var)\n\n")); ArcStr::from(__mm_s) }).clone());
     }
     (potentials, edges) = selectOneMostCausalizingVar(mtIn.clone(), selectedcols1.clone(), meIn.clone(), ass1In.clone(), selectCausalVarsPrepareSelectionSet(selectedrows.clone(), (ass1In.clone().borrow().len() as i32))?)?;
     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n2nd: ")); __mm_s.push_str(&*stringDelimitList(List::map(potentials.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Chosen tearing variable. One from (1st) causalizing most equations [")); __mm_s.push_str(&*intString(edges.clone())); __mm_s.push_str(&*literal!("])\n\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n2nd: ")); __mm_s.push_str(&*stringDelimitList(List::map(potentials.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Chosen tearing variable. One from (1st) causalizing most equations [")); __mm_s.push_str(&*intString(edges.clone())); __mm_s.push_str(&*literal!("])\n\n")); ArcStr::from(__mm_s) }).clone());
     }
     Ok(potentials)
 }
@@ -2205,27 +2205,27 @@ fn ModifiedCellierHeuristic_1_1(mut mIn: metamodelica::Array<Arc<metamodelica::L
     selectedcols1 = getUnassigned(ass1In.clone());
     selectedcols1 = getVarsOfEqnsWithMostVars(selectedcols1.clone(), mIn.clone(), mtIn.clone());
     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("1st: ")); __mm_s.push_str(&*stringDelimitList(List::map(selectedcols1.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("1st: ")); __mm_s.push_str(&*stringDelimitList(List::map(selectedcols1.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
     }
-    (_, selectedcols1, _) = List::intersection1OnTrue(selectedcols1.clone(), discreteVars.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
+    (_, selectedcols1, _) = List::intersection1OnTrue(selectedcols1.clone(), discreteVars.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Without Discrete: ")); __mm_s.push_str(&*stringDelimitList(List::map(selectedcols1.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Variables in the equation(s) with most Variables)\n\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Without Discrete: ")); __mm_s.push_str(&*stringDelimitList(List::map(selectedcols1.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Variables in the equation(s) with most Variables)\n\n")); ArcStr::from(__mm_s) }).clone());
     }
     (edges, selectedcols1) = getVarsOccurringInMostEquations(mtIn.clone(), selectedcols1.clone())?;
     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("2nd: ")); __mm_s.push_str(&*stringDelimitList(List::map(selectedcols1.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Variables from (1st) with most occurrence in equations (")); __mm_s.push_str(&*intString(edges.clone())); __mm_s.push_str(&*literal!(" times))\n\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("2nd: ")); __mm_s.push_str(&*stringDelimitList(List::map(selectedcols1.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Variables from (1st) with most occurrence in equations (")); __mm_s.push_str(&*intString(edges.clone())); __mm_s.push_str(&*literal!(" times))\n\n")); ArcStr::from(__mm_s) }).clone());
     }
     selectedrows = traverseSingleEqnsforAssignable(ass2In.clone(), mIn.clone(), mapEqnIncRow.clone(), mapIncRowEqn.clone())?;
     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*stringDelimitList(List::map(selectedrows.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Equations which could be causalized by knowing one more Var)\n\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*stringDelimitList(List::map(selectedrows.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Equations which could be causalized by knowing one more Var)\n\n")); ArcStr::from(__mm_s) }).clone());
     }
     (potentials, _) = selectMostCausalizingVars(mtIn.clone(), selectedcols1.clone(), meIn.clone(), ass1In.clone(), selectCausalVarsPrepareSelectionSet(selectedrows.clone(), (ass1In.clone().borrow().len() as i32))?)?;
     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n3rd: ")); __mm_s.push_str(&*stringDelimitList(List::map(potentials.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Variables from (2nd) causalizing most equations)\n\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n3rd: ")); __mm_s.push_str(&*stringDelimitList(List::map(potentials.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Variables from (2nd) causalizing most equations)\n\n")); ArcStr::from(__mm_s) }).clone());
     }
     (potentials, edges) = getOneVarWithMostImpAss(potentials.clone(), ass2In.clone(), metIn.clone())?;
     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n4th: ")); __mm_s.push_str(&*stringDelimitList(List::map(potentials.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Chosen tearing variable. One from from (3rd) with most incident impossible assignments [")); __mm_s.push_str(&*intString(edges.clone())); __mm_s.push_str(&*literal!("])\n\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n4th: ")); __mm_s.push_str(&*stringDelimitList(List::map(potentials.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Chosen tearing variable. One from from (3rd) with most incident impossible assignments [")); __mm_s.push_str(&*intString(edges.clone())); __mm_s.push_str(&*literal!("])\n\n")); ArcStr::from(__mm_s) }).clone());
     }
     Ok(potentials)
 }
@@ -2237,22 +2237,22 @@ fn ModifiedCellierHeuristic_2_1(mut mIn: metamodelica::Array<Arc<metamodelica::L
     let mut selectedcols1: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut selectedrows: Arc<metamodelica::List<i32>> = metamodelica::nil();
     varlst = getUnassigned(ass1In.clone());
-    (_, selectedcols1, _) = List::intersection1OnTrue(varlst.clone(), discreteVars.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
+    (_, selectedcols1, _) = List::intersection1OnTrue(varlst.clone(), discreteVars.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
     (edges, selectedcols1) = getVarsOccurringInMostEquations(mtIn.clone(), selectedcols1.clone())?;
     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("1st: ")); __mm_s.push_str(&*stringDelimitList(List::map(selectedcols1.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Non-discrete variables with most occurrence in equations (")); __mm_s.push_str(&*intString(edges.clone())); __mm_s.push_str(&*literal!(" times))\n\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("1st: ")); __mm_s.push_str(&*stringDelimitList(List::map(selectedcols1.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Non-discrete variables with most occurrence in equations (")); __mm_s.push_str(&*intString(edges.clone())); __mm_s.push_str(&*literal!(" times))\n\n")); ArcStr::from(__mm_s) }).clone());
     }
     selectedrows = traverseSingleEqnsforAssignable(ass2In.clone(), mIn.clone(), mapEqnIncRow.clone(), mapIncRowEqn.clone())?;
     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*stringDelimitList(List::map(selectedrows.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Equations which could be causalized by knowing one more Var)\n\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*stringDelimitList(List::map(selectedrows.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Equations which could be causalized by knowing one more Var)\n\n")); ArcStr::from(__mm_s) }).clone());
     }
     (potentials, _) = selectMostCausalizingVars(mtIn.clone(), selectedcols1.clone(), meIn.clone(), ass1In.clone(), selectCausalVarsPrepareSelectionSet(selectedrows.clone(), (ass1In.clone().borrow().len() as i32))?)?;
     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n2nd: ")); __mm_s.push_str(&*stringDelimitList(List::map(potentials.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Variables from (1st) causalizing most equations)\n\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n2nd: ")); __mm_s.push_str(&*stringDelimitList(List::map(potentials.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Variables from (1st) causalizing most equations)\n\n")); ArcStr::from(__mm_s) }).clone());
     }
     (potentials, edges) = getOneVarWithMostImpAss(potentials.clone(), ass2In.clone(), metIn.clone())?;
     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n3rd: ")); __mm_s.push_str(&*stringDelimitList(List::map(potentials.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Chosen tearing variable. One from (2nd) with most incident impossible assignments [")); __mm_s.push_str(&*intString(edges.clone())); __mm_s.push_str(&*literal!("])\n\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n3rd: ")); __mm_s.push_str(&*stringDelimitList(List::map(potentials.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Chosen tearing variable. One from (2nd) with most incident impossible assignments [")); __mm_s.push_str(&*intString(edges.clone())); __mm_s.push_str(&*literal!("])\n\n")); ArcStr::from(__mm_s) }).clone());
     }
     Ok(potentials)
 }
@@ -2265,27 +2265,27 @@ fn ModifiedCellierHeuristic_1_2(mut mIn: metamodelica::Array<Arc<metamodelica::L
     selectedcols1 = getUnassigned(ass1In.clone());
     selectedcols1 = getVarsOfEqnsWithMostVars(selectedcols1.clone(), mIn.clone(), mtIn.clone());
     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("1st: ")); __mm_s.push_str(&*stringDelimitList(List::map(selectedcols1.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("1st: ")); __mm_s.push_str(&*stringDelimitList(List::map(selectedcols1.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
     }
-    (_, selectedcols1, _) = List::intersection1OnTrue(selectedcols1.clone(), discreteVars.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
+    (_, selectedcols1, _) = List::intersection1OnTrue(selectedcols1.clone(), discreteVars.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Without Discrete: ")); __mm_s.push_str(&*stringDelimitList(List::map(selectedcols1.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Variables in the equation(s) with most Variables)\n\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Without Discrete: ")); __mm_s.push_str(&*stringDelimitList(List::map(selectedcols1.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Variables in the equation(s) with most Variables)\n\n")); ArcStr::from(__mm_s) }).clone());
     }
     (edges, selectedcols1) = getVarsOccurringInMostEquations(mtIn.clone(), selectedcols1.clone())?;
     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("2nd: ")); __mm_s.push_str(&*stringDelimitList(List::map(selectedcols1.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Variables from (1st) with most occurrence in equations (")); __mm_s.push_str(&*intString(edges.clone())); __mm_s.push_str(&*literal!(" times))\n\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("2nd: ")); __mm_s.push_str(&*stringDelimitList(List::map(selectedcols1.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Variables from (1st) with most occurrence in equations (")); __mm_s.push_str(&*intString(edges.clone())); __mm_s.push_str(&*literal!(" times))\n\n")); ArcStr::from(__mm_s) }).clone());
     }
     (selectedcols1, _, _) = getAllVarsWithMostImpAss(selectedcols1.clone(), ass2In.clone(), metIn.clone())?;
     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n3rd: ")); __mm_s.push_str(&*stringDelimitList(List::map(selectedcols1.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Variables from (2nd) with most incident impossible assignments)\n\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n3rd: ")); __mm_s.push_str(&*stringDelimitList(List::map(selectedcols1.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Variables from (2nd) with most incident impossible assignments)\n\n")); ArcStr::from(__mm_s) }).clone());
     }
     selectedrows = traverseSingleEqnsforAssignable(ass2In.clone(), mIn.clone(), mapEqnIncRow.clone(), mapIncRowEqn.clone())?;
     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*stringDelimitList(List::map(selectedrows.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Equations which could be causalized by knowing one more Var)\n\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*stringDelimitList(List::map(selectedrows.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Equations which could be causalized by knowing one more Var)\n\n")); ArcStr::from(__mm_s) }).clone());
     }
     (potentials, edges) = selectOneMostCausalizingVar(mtIn.clone(), selectedcols1.clone(), meIn.clone(), ass1In.clone(), selectCausalVarsPrepareSelectionSet(selectedrows.clone(), (ass1In.clone().borrow().len() as i32))?)?;
     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n4th: ")); __mm_s.push_str(&*stringDelimitList(List::map(potentials.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Chosen tearing variable.One from (3rd) causalizing most equations [")); __mm_s.push_str(&*intString(edges.clone())); __mm_s.push_str(&*literal!("])\n\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n4th: ")); __mm_s.push_str(&*stringDelimitList(List::map(potentials.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Chosen tearing variable.One from (3rd) causalizing most equations [")); __mm_s.push_str(&*intString(edges.clone())); __mm_s.push_str(&*literal!("])\n\n")); ArcStr::from(__mm_s) }).clone());
     }
     Ok(potentials)
 }
@@ -2297,22 +2297,22 @@ fn ModifiedCellierHeuristic_2_2(mut mIn: metamodelica::Array<Arc<metamodelica::L
     let mut selectedcols1: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut selectedrows: Arc<metamodelica::List<i32>> = metamodelica::nil();
     varlst = getUnassigned(ass1In.clone());
-    (_, selectedcols1, _) = List::intersection1OnTrue(varlst.clone(), discreteVars.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
+    (_, selectedcols1, _) = List::intersection1OnTrue(varlst.clone(), discreteVars.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
     (edges, selectedcols1) = getVarsOccurringInMostEquations(mtIn.clone(), selectedcols1.clone())?;
     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("1st: ")); __mm_s.push_str(&*stringDelimitList(List::map(selectedcols1.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Non-discrete variables with most occurrence in equations (")); __mm_s.push_str(&*intString(edges.clone())); __mm_s.push_str(&*literal!(" times))\n\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("1st: ")); __mm_s.push_str(&*stringDelimitList(List::map(selectedcols1.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Non-discrete variables with most occurrence in equations (")); __mm_s.push_str(&*intString(edges.clone())); __mm_s.push_str(&*literal!(" times))\n\n")); ArcStr::from(__mm_s) }).clone());
     }
     (selectedcols1, _, _) = getAllVarsWithMostImpAss(selectedcols1.clone(), ass2In.clone(), metIn.clone())?;
     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n2nd: ")); __mm_s.push_str(&*stringDelimitList(List::map(selectedcols1.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Variables from (1st) with most incident impossible assignments)\n\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n2nd: ")); __mm_s.push_str(&*stringDelimitList(List::map(selectedcols1.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Variables from (1st) with most incident impossible assignments)\n\n")); ArcStr::from(__mm_s) }).clone());
     }
     selectedrows = traverseSingleEqnsforAssignable(ass2In.clone(), mIn.clone(), mapEqnIncRow.clone(), mapIncRowEqn.clone())?;
     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*stringDelimitList(List::map(selectedrows.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Equations which could be causalized by knowing one more Var)\n\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*stringDelimitList(List::map(selectedrows.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Equations which could be causalized by knowing one more Var)\n\n")); ArcStr::from(__mm_s) }).clone());
     }
     (potentials, edges) = selectOneMostCausalizingVar(mtIn.clone(), selectedcols1.clone(), meIn.clone(), ass1In.clone(), selectCausalVarsPrepareSelectionSet(selectedrows.clone(), (ass1In.clone().borrow().len() as i32))?)?;
     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n3rd: ")); __mm_s.push_str(&*stringDelimitList(List::map(potentials.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Chosen tearing variable. One from (2nd) causalizing most equations [")); __mm_s.push_str(&*intString(edges.clone())); __mm_s.push_str(&*literal!("])\n\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n3rd: ")); __mm_s.push_str(&*stringDelimitList(List::map(potentials.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Chosen tearing variable. One from (2nd) causalizing most equations [")); __mm_s.push_str(&*intString(edges.clone())); __mm_s.push_str(&*literal!("])\n\n")); ArcStr::from(__mm_s) }).clone());
     }
     Ok(potentials)
 }
@@ -2329,30 +2329,30 @@ fn ModifiedCellierHeuristic_1_3(mut mIn: metamodelica::Array<Arc<metamodelica::L
     selectedcols1 = getUnassigned(ass1In.clone());
     selectedcols1 = getVarsOfEqnsWithMostVars(selectedcols1.clone(), mIn.clone(), mtIn.clone());
     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("1st: ")); __mm_s.push_str(&*stringDelimitList(List::map(selectedcols1.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("1st: ")); __mm_s.push_str(&*stringDelimitList(List::map(selectedcols1.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
     }
-    (_, selectedcols1, _) = List::intersection1OnTrue(selectedcols1.clone(), discreteVars.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
+    (_, selectedcols1, _) = List::intersection1OnTrue(selectedcols1.clone(), discreteVars.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Without Discrete: ")); __mm_s.push_str(&*stringDelimitList(List::map(selectedcols1.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Variables in the equation(s) with most Variables)\n\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Without Discrete: ")); __mm_s.push_str(&*stringDelimitList(List::map(selectedcols1.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Variables in the equation(s) with most Variables)\n\n")); ArcStr::from(__mm_s) }).clone());
     }
     (edges, selectedcols1) = getVarsOccurringInMostEquations(mtIn.clone(), selectedcols1.clone())?;
     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("2nd: ")); __mm_s.push_str(&*stringDelimitList(List::map(selectedcols1.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Variables from (1st) with most occurrence in equations (")); __mm_s.push_str(&*intString(edges.clone())); __mm_s.push_str(&*literal!(" times))\n\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("2nd: ")); __mm_s.push_str(&*stringDelimitList(List::map(selectedcols1.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Variables from (1st) with most occurrence in equations (")); __mm_s.push_str(&*intString(edges.clone())); __mm_s.push_str(&*literal!(" times))\n\n")); ArcStr::from(__mm_s) }).clone());
     }
     selectedrows = traverseSingleEqnsforAssignable(ass2In.clone(), mIn.clone(), mapEqnIncRow.clone(), mapIncRowEqn.clone())?;
     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*stringDelimitList(List::map(selectedrows.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Equations which could be causalized by knowing one more Var)\n\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*stringDelimitList(List::map(selectedrows.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Equations which could be causalized by knowing one more Var)\n\n")); ArcStr::from(__mm_s) }).clone());
     }
     (_, counts1) = selectMostCausalizingVars(mtIn.clone(), selectedcols1.clone(), meIn.clone(), ass1In.clone(), selectCausalVarsPrepareSelectionSet(selectedrows.clone(), (ass1In.clone().borrow().len() as i32))?)?;
     counts1 = counts1.clone().reverse();
     (_, counts2, _) = getAllVarsWithMostImpAss(selectedcols1.clone(), ass2In.clone(), metIn.clone())?;
-    points = List::threadMap(counts1.clone(), counts2.clone(), Arc::new(fnptr!(intAdd, i32, i32)));
+    points = List::threadMap(counts1.clone(), counts2.clone(), (std::sync::Arc::new(fnptr!(intAdd, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<i32> + 'static>));
     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nPoints: ")); __mm_s.push_str(&*stringDelimitList(List::map(points.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Sum of impossible assignments and causalizable equations)\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nPoints: ")); __mm_s.push_str(&*stringDelimitList(List::map(points.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Sum of impossible assignments and causalizable equations)\n")); ArcStr::from(__mm_s) }).clone());
     }
     (potentials, maxPoints) = getOneVarWithMostPoints(selectedcols1.clone(), points.clone());
     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n3rd: ")); __mm_s.push_str(&*stringDelimitList(List::map(potentials.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Chosen tearing variable. One from (2nd) with most points [")); __mm_s.push_str(&*intString(maxPoints.clone())); __mm_s.push_str(&*literal!("])\n\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n3rd: ")); __mm_s.push_str(&*stringDelimitList(List::map(potentials.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Chosen tearing variable. One from (2nd) with most points [")); __mm_s.push_str(&*intString(maxPoints.clone())); __mm_s.push_str(&*literal!("])\n\n")); ArcStr::from(__mm_s) }).clone());
     }
     Ok(potentials)
 }
@@ -2368,25 +2368,25 @@ fn ModifiedCellierHeuristic_2_3(mut mIn: metamodelica::Array<Arc<metamodelica::L
     let mut counts1: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut counts2: Arc<metamodelica::List<i32>> = metamodelica::nil();
     varlst = getUnassigned(ass1In.clone());
-    (_, selectedcols1, _) = List::intersection1OnTrue(varlst.clone(), discreteVars.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
+    (_, selectedcols1, _) = List::intersection1OnTrue(varlst.clone(), discreteVars.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
     (edges, selectedcols1) = getVarsOccurringInMostEquations(mtIn.clone(), selectedcols1.clone())?;
     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("1st: ")); __mm_s.push_str(&*stringDelimitList(List::map(selectedcols1.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Non-discrete variables with most occurrence in equations (")); __mm_s.push_str(&*intString(edges.clone())); __mm_s.push_str(&*literal!(" times))\n\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("1st: ")); __mm_s.push_str(&*stringDelimitList(List::map(selectedcols1.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Non-discrete variables with most occurrence in equations (")); __mm_s.push_str(&*intString(edges.clone())); __mm_s.push_str(&*literal!(" times))\n\n")); ArcStr::from(__mm_s) }).clone());
     }
     selectedrows = traverseSingleEqnsforAssignable(ass2In.clone(), mIn.clone(), mapEqnIncRow.clone(), mapIncRowEqn.clone())?;
     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*stringDelimitList(List::map(selectedrows.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Equations which could be causalized by knowing one more Var)\n\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*stringDelimitList(List::map(selectedrows.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Equations which could be causalized by knowing one more Var)\n\n")); ArcStr::from(__mm_s) }).clone());
     }
     (_, counts1) = selectMostCausalizingVars(mtIn.clone(), selectedcols1.clone(), meIn.clone(), ass1In.clone(), selectCausalVarsPrepareSelectionSet(selectedrows.clone(), (ass1In.clone().borrow().len() as i32))?)?;
     counts1 = counts1.clone().reverse();
     (_, counts2, _) = getAllVarsWithMostImpAss(selectedcols1.clone(), ass2In.clone(), metIn.clone())?;
-    points = List::threadMap(counts1.clone(), counts2.clone(), Arc::new(fnptr!(intAdd, i32, i32)));
+    points = List::threadMap(counts1.clone(), counts2.clone(), (std::sync::Arc::new(fnptr!(intAdd, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<i32> + 'static>));
     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nPoints: ")); __mm_s.push_str(&*stringDelimitList(List::map(points.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Sum of impossible assignments and causalizable equations)\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nPoints: ")); __mm_s.push_str(&*stringDelimitList(List::map(points.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Sum of impossible assignments and causalizable equations)\n")); ArcStr::from(__mm_s) }).clone());
     }
     (potentials, maxPoints) = getOneVarWithMostPoints(selectedcols1.clone(), points.clone());
     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n2nd: ")); __mm_s.push_str(&*stringDelimitList(List::map(potentials.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Chosen tearing variable. One from (1st) with most points [")); __mm_s.push_str(&*intString(maxPoints.clone())); __mm_s.push_str(&*literal!("])\n\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n2nd: ")); __mm_s.push_str(&*stringDelimitList(List::map(potentials.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Chosen tearing variable. One from (1st) with most points [")); __mm_s.push_str(&*intString(maxPoints.clone())); __mm_s.push_str(&*literal!("])\n\n")); ArcStr::from(__mm_s) }).clone());
     }
     Ok(potentials)
 }
@@ -2410,29 +2410,29 @@ fn ModifiedCellierHeuristic_2_3_1(mut mIn: metamodelica::Array<Arc<metamodelica:
         println!("{}", (literal!("Start round 1:\n==============\n\n")).clone());
     }
     varlst = getUnassigned(ass1In.clone());
-    (_, selectedcols0, _) = List::intersection1OnTrue(varlst.clone(), discreteVars.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
+    (_, selectedcols0, _) = List::intersection1OnTrue(varlst.clone(), discreteVars.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
     (edges, selectedcols1) = getVarsOccurringInMostEquations(mtIn.clone(), selectedcols0.clone())?;
     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("1st: ")); __mm_s.push_str(&*stringDelimitList(List::map(selectedcols1.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Non-discrete variables with most occurrence in equations (")); __mm_s.push_str(&*intString(edges.clone())); __mm_s.push_str(&*literal!(" times))\n\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("1st: ")); __mm_s.push_str(&*stringDelimitList(List::map(selectedcols1.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Non-discrete variables with most occurrence in equations (")); __mm_s.push_str(&*intString(edges.clone())); __mm_s.push_str(&*literal!(" times))\n\n")); ArcStr::from(__mm_s) }).clone());
     }
     selectedrows = traverseSingleEqnsforAssignable(ass2In.clone(), mIn.clone(), mapEqnIncRow.clone(), mapIncRowEqn.clone())?;
     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*stringDelimitList(List::map(selectedrows.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Equations which could be causalized by knowing one more Var)\n\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*stringDelimitList(List::map(selectedrows.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Equations which could be causalized by knowing one more Var)\n\n")); ArcStr::from(__mm_s) }).clone());
     }
     (_, counts1) = selectMostCausalizingVars(mtIn.clone(), selectedcols1.clone(), meIn.clone(), ass1In.clone(), selectCausalVarsPrepareSelectionSet(selectedrows.clone(), (ass1In.clone().borrow().len() as i32))?)?;
     counts1 = counts1.clone().reverse();
     (_, counts2, _) = getAllVarsWithMostImpAss(selectedcols1.clone(), ass2In.clone(), metIn.clone())?;
-    points1 = List::threadMap(counts1.clone(), counts2.clone(), Arc::new(fnptr!(intAdd, i32, i32)));
+    points1 = List::threadMap(counts1.clone(), counts2.clone(), (std::sync::Arc::new(fnptr!(intAdd, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<i32> + 'static>));
     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nPoints: ")); __mm_s.push_str(&*stringDelimitList(List::map(points1.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Sum of impossible assignments and causalizable equations)\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nPoints: ")); __mm_s.push_str(&*stringDelimitList(List::map(points1.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Sum of impossible assignments and causalizable equations)\n")); ArcStr::from(__mm_s) }).clone());
     }
     (potentials1, potpoints1) = getOneVarWithMostPoints(selectedcols1.clone(), points1.clone());
     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n2nd: ")); __mm_s.push_str(&*stringDelimitList(List::map(potentials1.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Chosen tearing variable. One from (1st) with most points (")); __mm_s.push_str(&*intString(potpoints1.clone())); __mm_s.push_str(&*literal!(" points))\n\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n2nd: ")); __mm_s.push_str(&*stringDelimitList(List::map(potentials1.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Chosen tearing variable. One from (1st) with most points (")); __mm_s.push_str(&*intString(potpoints1.clone())); __mm_s.push_str(&*literal!(" points))\n\n")); ArcStr::from(__mm_s) }).clone());
     }
     selectedcols1 = findNEntries(mtIn.clone(), selectedcols0.clone(), edges.clone() - 1)?;
     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nStart round 2:\n==============\n\n1st: ")); __mm_s.push_str(&*stringDelimitList(List::map(selectedcols1.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Variables with occurrence in ")); __mm_s.push_str(&*intString(edges.clone() - 1)); __mm_s.push_str(&*literal!(" equations)\n\n")); __mm_s.push_str(&*stringDelimitList(List::map(selectedrows.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Equations which could be causalized by knowing one more Var)\n\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nStart round 2:\n==============\n\n1st: ")); __mm_s.push_str(&*stringDelimitList(List::map(selectedcols1.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Variables with occurrence in ")); __mm_s.push_str(&*intString(edges.clone() - 1)); __mm_s.push_str(&*literal!(" equations)\n\n")); __mm_s.push_str(&*stringDelimitList(List::map(selectedrows.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Equations which could be causalized by knowing one more Var)\n\n")); ArcStr::from(__mm_s) }).clone());
     }
     if selectedcols1.clone().is_empty() {
         if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
@@ -2444,18 +2444,18 @@ fn ModifiedCellierHeuristic_2_3_1(mut mIn: metamodelica::Array<Arc<metamodelica:
         (_, counts1) = selectMostCausalizingVars(mtIn.clone(), selectedcols1.clone(), meIn.clone(), ass1In.clone(), selectCausalVarsPrepareSelectionSet(selectedrows.clone(), (ass1In.clone().borrow().len() as i32))?)?;
         counts1 = counts1.clone().reverse();
         (_, counts2, _) = getAllVarsWithMostImpAss(selectedcols1.clone(), ass2In.clone(), metIn.clone())?;
-        points2 = List::threadMap(counts1.clone(), counts2.clone(), Arc::new(fnptr!(intAdd, i32, i32)));
+        points2 = List::threadMap(counts1.clone(), counts2.clone(), (std::sync::Arc::new(fnptr!(intAdd, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<i32> + 'static>));
         if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-            println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nPoints: ")); __mm_s.push_str(&*stringDelimitList(List::map(points2.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Sum of impossible assignments and causalizable equations)\n")); ArcStr::from(__mm_s) }).clone());
+            println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nPoints: ")); __mm_s.push_str(&*stringDelimitList(List::map(points2.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Sum of impossible assignments and causalizable equations)\n")); ArcStr::from(__mm_s) }).clone());
         }
         (potentials2, potpoints2) = getOneVarWithMostPoints(selectedcols1.clone(), points2.clone());
         if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-            println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n2nd: ")); __mm_s.push_str(&*stringDelimitList(List::map(potentials2.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Chosen tearing variable. One from (1st) with most points (")); __mm_s.push_str(&*intString(potpoints2.clone())); __mm_s.push_str(&*literal!(" points))\n\n")); ArcStr::from(__mm_s) }).clone());
+            println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n2nd: ")); __mm_s.push_str(&*stringDelimitList(List::map(potentials2.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Chosen tearing variable. One from (1st) with most points (")); __mm_s.push_str(&*intString(potpoints2.clone())); __mm_s.push_str(&*literal!(" points))\n\n")); ArcStr::from(__mm_s) }).clone());
         }
         potentials = if (intGe(potpoints1.clone(), potpoints2.clone())) {potentials1.clone()} else {potentials2.clone()};
     }
     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n=====================\nChosen tearing variable: ")); __mm_s.push_str(&*stringDelimitList(List::map(potentials.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n=====================\n(from round 1: ")); __mm_s.push_str(&*boolString(intGe(potpoints1.clone(), potpoints2.clone()))); __mm_s.push_str(&*literal!(")\n\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n=====================\nChosen tearing variable: ")); __mm_s.push_str(&*stringDelimitList(List::map(potentials.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n=====================\n(from round 1: ")); __mm_s.push_str(&*boolString(intGe(potpoints1.clone(), potpoints2.clone()))); __mm_s.push_str(&*literal!(")\n\n")); ArcStr::from(__mm_s) }).clone());
     }
     Ok(potentials)
 }
@@ -2478,33 +2478,33 @@ fn ModifiedCellierHeuristic_3(mut mIn: metamodelica::Array<Arc<metamodelica::Lis
     }
     causEq = traverseSingleEqnsforAssignable(ass2In.clone(), mIn.clone(), mapEqnIncRow.clone(), mapIncRowEqn.clone())?;
     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("1st: ")); __mm_s.push_str(&*stringDelimitList(List::map(causEq.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Equations which could be causalized by knowing one more variable)\n\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("1st: ")); __mm_s.push_str(&*stringDelimitList(List::map(causEq.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Equations which could be causalized by knowing one more variable)\n\n")); ArcStr::from(__mm_s) }).clone());
     }
     if debug.clone() {
         execStat((literal!("TEARINGHEURISTIC1")).clone())?;
     }
     potentialTVars = getUnassigned(ass1In.clone());
     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("2nd: ")); __mm_s.push_str(&*stringDelimitList(List::map(potentialTVars.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(All unassigned variables)\n\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("2nd: ")); __mm_s.push_str(&*stringDelimitList(List::map(potentialTVars.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(All unassigned variables)\n\n")); ArcStr::from(__mm_s) }).clone());
     }
     if debug.clone() {
         execStat((literal!("TEARINGHEURISTIC2")).clone())?;
     }
-    (_, potentialTVars, _) = List::intersection1OnTrue(potentialTVars.clone(), tSel_never.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
+    (_, potentialTVars, _) = List::intersection1OnTrue(potentialTVars.clone(), tSel_never.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
     if potentialTVars.clone().is_empty() {
         Error::addCompilerError((literal!("It is not possible to select a new tearing variable, because all remaining variables have the attribute '__OpenModelica_tearingSelect = TearingSelect.never'.")).clone())?;
         return Ok(potentials);
     }
-    (_, potentialTVars2, _) = List::intersection1OnTrue(potentialTVars.clone(), discreteVars.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
+    (_, potentialTVars2, _) = List::intersection1OnTrue(potentialTVars.clone(), discreteVars.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
     if potentialTVars2.clone().is_empty() {
         potentialTVars2 = potentialTVars.clone();
         Error::addCompilerWarning((literal!("The tearing heuristic was not able to avoid discrete iteration variables because otherwise the system could not have been torn. This may lead to problems during simulation.")).clone())?;
         if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-            println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("3rd: ")); __mm_s.push_str(&*stringDelimitList(List::map(potentialTVars2.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(All unassigned variables without attribute 'never' (only discrete variables left))\n\n")); ArcStr::from(__mm_s) }).clone());
+            println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("3rd: ")); __mm_s.push_str(&*stringDelimitList(List::map(potentialTVars2.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(All unassigned variables without attribute 'never' (only discrete variables left))\n\n")); ArcStr::from(__mm_s) }).clone());
         }
     } else {
         if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-            println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("3rd: ")); __mm_s.push_str(&*stringDelimitList(List::map(potentialTVars2.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(All non-discrete variables from (2nd) without attribute 'never')\n\n")); ArcStr::from(__mm_s) }).clone());
+            println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("3rd: ")); __mm_s.push_str(&*stringDelimitList(List::map(potentialTVars2.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(All non-discrete variables from (2nd) without attribute 'never')\n\n")); ArcStr::from(__mm_s) }).clone());
         }
     }
     if debug.clone() {
@@ -2522,9 +2522,9 @@ fn ModifiedCellierHeuristic_3(mut mIn: metamodelica::Array<Arc<metamodelica::Lis
     if debug.clone() {
         execStat((literal!("TEARINGHEURISTIC4_2")).clone())?;
     }
-    points = List::threadMap(counts1.clone(), counts2.clone(), Arc::new(fnptr!(intAdd, i32, i32)));
+    points = List::threadMap(counts1.clone(), counts2.clone(), (std::sync::Arc::new(fnptr!(intAdd, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<i32> + 'static>));
     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n4th (Points): ")); __mm_s.push_str(&*stringDelimitList(List::map(points.clone().reverse(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Sum of impossible assignments and causalizable equations)\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n4th (Points): ")); __mm_s.push_str(&*stringDelimitList(List::map(points.clone().reverse(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Sum of impossible assignments and causalizable equations)\n")); ArcStr::from(__mm_s) }).clone());
     }
     if debug.clone() {
         execStat((literal!("TEARINGHEURISTIC4_3")).clone())?;
@@ -2532,7 +2532,7 @@ fn ModifiedCellierHeuristic_3(mut mIn: metamodelica::Array<Arc<metamodelica::Lis
     if !(tSel_prefer.clone().is_empty()) {
         points = preferAvoidVariables(potentialTVars.clone(), points.clone(), tSel_prefer.clone(), metamodelica::OrderedFloat(3.0_f64));
         if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-            println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("    (Points): ")); __mm_s.push_str(&*stringDelimitList(List::map(points.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Points after preferring variables with attribute 'prefer')\n")); ArcStr::from(__mm_s) }).clone());
+            println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("    (Points): ")); __mm_s.push_str(&*stringDelimitList(List::map(points.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Points after preferring variables with attribute 'prefer')\n")); ArcStr::from(__mm_s) }).clone());
         }
     }
     if debug.clone() {
@@ -2541,7 +2541,7 @@ fn ModifiedCellierHeuristic_3(mut mIn: metamodelica::Array<Arc<metamodelica::Lis
     if !(tSel_avoid.clone().is_empty()) {
         points = preferAvoidVariables(potentialTVars.clone(), points.clone(), tSel_avoid.clone(), metamodelica::OrderedFloat(0.334_f64));
         if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-            println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("    (Points): ")); __mm_s.push_str(&*stringDelimitList(List::map(points.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Points after discrimination against variables with attribute 'avoid')\n")); ArcStr::from(__mm_s) }).clone());
+            println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("    (Points): ")); __mm_s.push_str(&*stringDelimitList(List::map(points.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Points after discrimination against variables with attribute 'avoid')\n")); ArcStr::from(__mm_s) }).clone());
         }
     }
     if debug.clone() {
@@ -2549,14 +2549,14 @@ fn ModifiedCellierHeuristic_3(mut mIn: metamodelica::Array<Arc<metamodelica::Lis
     }
     (bestPotentialTVars, maxPoints) = getAllVarsWithMostPoints(potentialTVars.clone(), points.clone(), metamodelica::nil(), -1)?;
     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n5th: ")); __mm_s.push_str(&*stringDelimitList(List::map(bestPotentialTVars.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Variables from (3rd) with most points [")); __mm_s.push_str(&*intString(maxPoints.clone())); __mm_s.push_str(&*literal!("])\n\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n5th: ")); __mm_s.push_str(&*stringDelimitList(List::map(bestPotentialTVars.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Variables from (3rd) with most points [")); __mm_s.push_str(&*intString(maxPoints.clone())); __mm_s.push_str(&*literal!("])\n\n")); ArcStr::from(__mm_s) }).clone());
     }
     if debug.clone() {
         execStat((literal!("TEARINGHEURISTIC5")).clone())?;
     }
     (edges, potentials) = getVarOccurringInMostEquations(mtIn.clone(), bestPotentialTVars.clone())?;
     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("6th: ")); __mm_s.push_str(&*stringDelimitList(List::map(potentials.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Chosen tearing variable. One from (5th) with most occurrence in equations (")); __mm_s.push_str(&*intString(edges.clone())); __mm_s.push_str(&*literal!(" times))\n\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("6th: ")); __mm_s.push_str(&*stringDelimitList(List::map(potentials.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Chosen tearing variable. One from (5th) with most occurrence in equations (")); __mm_s.push_str(&*intString(edges.clone())); __mm_s.push_str(&*literal!(" times))\n\n")); ArcStr::from(__mm_s) }).clone());
     }
     if debug.clone() {
         execStat((literal!("TEARINGHEURISTIC6")).clone())?;
@@ -2620,28 +2620,28 @@ fn ModifiedCellierHeuristic_4(mut mIn: metamodelica::Array<Arc<metamodelica::Lis
     }
     potentials10 = ModifiedCellierHeuristic_3(mIn.clone(), mtIn.clone(), meIn.clone(), metIn.clone(), ass1In.clone(), ass2In.clone(), discreteVars.clone(), tSel_prefer.clone(), tSel_avoid.clone(), tSel_never.clone(), mapEqnIncRow.clone(), mapIncRowEqn.clone())?;
     if Flags::isSet(Flags::TEARING_DUMP.clone())? || Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*arcstr::literal!(BORDER)); __mm_s.push_str(&*literal!("\n\nSynopsis:\n=========\n[MC1]: ")); __mm_s.push_str(&*stringDelimitList(List::map(potentials1.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("[MC2]: ")); __mm_s.push_str(&*stringDelimitList(List::map(potentials2.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("[MC11]: ")); __mm_s.push_str(&*stringDelimitList(List::map(potentials3.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("[MC21]: ")); __mm_s.push_str(&*stringDelimitList(List::map(potentials4.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("[MC12]: ")); __mm_s.push_str(&*stringDelimitList(List::map(potentials5.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("[MC22]: ")); __mm_s.push_str(&*stringDelimitList(List::map(potentials6.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("[MC13]: ")); __mm_s.push_str(&*stringDelimitList(List::map(potentials7.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("[MC23]: ")); __mm_s.push_str(&*stringDelimitList(List::map(potentials8.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("[MC231]: ")); __mm_s.push_str(&*stringDelimitList(List::map(potentials9.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("[MC3]: ")); __mm_s.push_str(&*stringDelimitList(List::map(potentials10.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*arcstr::literal!(BORDER)); __mm_s.push_str(&*literal!("\n\nSynopsis:\n=========\n[MC1]: ")); __mm_s.push_str(&*stringDelimitList(List::map(potentials1.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("[MC2]: ")); __mm_s.push_str(&*stringDelimitList(List::map(potentials2.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("[MC11]: ")); __mm_s.push_str(&*stringDelimitList(List::map(potentials3.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("[MC21]: ")); __mm_s.push_str(&*stringDelimitList(List::map(potentials4.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("[MC12]: ")); __mm_s.push_str(&*stringDelimitList(List::map(potentials5.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("[MC22]: ")); __mm_s.push_str(&*stringDelimitList(List::map(potentials6.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("[MC13]: ")); __mm_s.push_str(&*stringDelimitList(List::map(potentials7.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("[MC23]: ")); __mm_s.push_str(&*stringDelimitList(List::map(potentials8.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("[MC231]: ")); __mm_s.push_str(&*stringDelimitList(List::map(potentials9.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("[MC3]: ")); __mm_s.push_str(&*stringDelimitList(List::map(potentials10.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
     }
     selectedvars = listAppend(potentials1.clone(), listAppend(potentials2.clone(), listAppend(potentials3.clone(), listAppend(potentials4.clone(), listAppend(potentials5.clone(), listAppend(potentials6.clone(), listAppend(potentials7.clone(), listAppend(potentials8.clone(), listAppend(potentials9.clone(), potentials10.clone())))))))));
     if Flags::isSet(Flags::TEARING_DUMP.clone())? || Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("1st: ")); __mm_s.push_str(&*stringDelimitList(List::map(selectedvars.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(All potentials)\n\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("1st: ")); __mm_s.push_str(&*stringDelimitList(List::map(selectedvars.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(All potentials)\n\n")); ArcStr::from(__mm_s) }).clone());
     }
     (count, selectedvars, _) = countMultiples(arrayCreate(1, selectedvars.clone()));
     if Flags::isSet(Flags::TEARING_DUMP.clone())? || Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("2nd: ")); __mm_s.push_str(&*stringDelimitList(List::map(selectedvars.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Variables from (1st) occurring in most potential-sets (")); __mm_s.push_str(&*stringDelimitList(List::map(count.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!(" sets))\n\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("2nd: ")); __mm_s.push_str(&*stringDelimitList(List::map(selectedvars.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Variables from (1st) occurring in most potential-sets (")); __mm_s.push_str(&*stringDelimitList(List::map(count.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!(" sets))\n\n")); ArcStr::from(__mm_s) }).clone());
     }
     (edges, potentials) = getVarOccurringInMostEquations(mtIn.clone(), selectedvars.clone())?;
     if Flags::isSet(Flags::TEARING_DUMP.clone())? || Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("3rd: ")); __mm_s.push_str(&*stringDelimitList(List::map(potentials.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Chosen tearing variable. One from from (2nd) with most occurrence in equations (")); __mm_s.push_str(&*intString(edges.clone())); __mm_s.push_str(&*literal!(" times))\n\n\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("3rd: ")); __mm_s.push_str(&*stringDelimitList(List::map(potentials.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n(Chosen tearing variable. One from from (2nd) with most occurrence in equations (")); __mm_s.push_str(&*intString(edges.clone())); __mm_s.push_str(&*literal!(" times))\n\n\n")); ArcStr::from(__mm_s) }).clone());
     }
     Ok(potentials)
 }
@@ -2831,7 +2831,7 @@ fn sizeOfAssignable(mut Eqn: i32, mut me: metamodelica::Array<Arc<metamodelica::
     let mut outSize: i32 = 0;
     let mut vars: Arc<metamodelica::List<(i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)>> = metamodelica::nil();
     let mut b: bool = false;
-    vars = List::removeOnTrue(ass1.clone(), Arc::new(fnptr!(isAssignedSaveEnhanced, metamodelica::Array<i32>, (i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>))), me.borrow()[(Eqn.clone()-1) as usize].clone());
+    vars = List::removeOnTrue(ass1.clone(), (std::sync::Arc::new(fnptr!(isAssignedSaveEnhanced, metamodelica::Array<i32>, (i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>))) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<i32>, (i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)) -> Result<bool> + 'static>), me.borrow()[(Eqn.clone()-1) as usize].clone());
     b = solvableLst(vars.clone());
     outSize = if (b.clone()) {inSize.clone() + 1} else {inSize.clone()};
     outSize
@@ -2845,7 +2845,7 @@ fn getAllVarsWithMostImpAss(mut inPotentials: Arc<metamodelica::List<i32>>, mut 
     let mut elem: Arc<metamodelica::List<(i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)>> = metamodelica::nil();
     for mut v in &*inPotentials.clone() {
         let mut v = v.clone();
-        elem = List::removeOnTrue(ass2.clone(), Arc::new(fnptr!(isAssignedSaveEnhanced, metamodelica::Array<i32>, (i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>))), meT.borrow()[(v.clone()-1) as usize].clone());
+        elem = List::removeOnTrue(ass2.clone(), (std::sync::Arc::new(fnptr!(isAssignedSaveEnhanced, metamodelica::Array<i32>, (i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>))) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<i32>, (i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)) -> Result<bool> + 'static>), meT.borrow()[(v.clone()-1) as usize].clone());
         count = countImpossibleAss(elem.clone())?;
         if count.clone() > outMax.clone() {
             outPotentials = list![v.clone()];
@@ -2869,7 +2869,7 @@ fn getOneVarWithMostImpAss(mut inPotentials: Arc<metamodelica::List<i32>>, mut a
     let mut elem: Arc<metamodelica::List<(i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)>> = metamodelica::nil();
     for mut v in &*inPotentials.clone() {
         let mut v = v.clone();
-        elem = List::removeOnTrue(ass2.clone(), Arc::new(fnptr!(isAssignedSaveEnhanced, metamodelica::Array<i32>, (i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>))), meT.borrow()[(v.clone()-1) as usize].clone());
+        elem = List::removeOnTrue(ass2.clone(), (std::sync::Arc::new(fnptr!(isAssignedSaveEnhanced, metamodelica::Array<i32>, (i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>))) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<i32>, (i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)) -> Result<bool> + 'static>), meT.borrow()[(v.clone()-1) as usize].clone());
         count = countImpossibleAss(elem.clone())?;
         if count.clone() > outMax.clone() {
             outPotentials = list![v.clone()];
@@ -2941,7 +2941,7 @@ fn TarjanAssignment(mut mIn: metamodelica::Array<Arc<metamodelica::List<i32>>>, 
     let mut vars: Arc<metamodelica::List<i32>> = metamodelica::nil();
     assEq_coll = traverseCollectiveEqnsforAssignable(ass2In.clone(), mIn.clone(), mapEqnIncRow.clone())?;
     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("New assEq_coll: ")); __mm_s.push_str(&*stringDelimitList(List::map(assEq_coll.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("New assEq_coll: ")); __mm_s.push_str(&*stringDelimitList(List::map(assEq_coll.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
     }
     if '__try0: {
         (eq_coll, eqns, vars) = unwrap_break_err!(getNextSolvableEqn(assEq_coll.clone(), mIn.clone(), meIn.clone(), ass1In.clone(), ass2In.clone(), mapEqnIncRow.clone(), mapIncRowEqn.clone(), eqnNonlinPoints.clone()), '__try0);
@@ -2954,7 +2954,7 @@ fn TarjanAssignment(mut mIn: metamodelica::Array<Arc<metamodelica::List<i32>>>, 
         makeAssignment(eqns.clone(), vars.clone(), ass1In.clone(), ass2In.clone(), mIn.clone(), mtIn.clone())?;
     }
     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("order: ")); __mm_s.push_str(&*stringDelimitList(List::map(orderOut.clone().reverse(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("order: ")); __mm_s.push_str(&*stringDelimitList(List::map(orderOut.clone().reverse(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
     }
     Ok((orderOut, assignable))
 }
@@ -3039,7 +3039,7 @@ fn getNextSolvableEqn(mut assEq_coll: Arc<metamodelica::List<i32>>, mut m: metam
     while !(eqns.clone().is_empty()) {
         eqOut = getMostNonlinearEquation(eqnNonlinPoints.clone(), eqns.clone(), mapEqnIncRow.clone(), mapIncRowEqn.clone())?;
         (solvable, eqnsOut, varsOut) = eqnSolvableCheck(eqOut.clone(), mapEqnIncRow.clone(), ass1.clone(), m.clone(), me.clone())?;
-        (eqns, _) = List::deleteMemberOnTrue(eqOut.clone(), eqns.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
+        (eqns, _) = List::deleteMemberOnTrue(eqOut.clone(), eqns.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
         if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
             println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Most nonlinear equation: ")); __mm_s.push_str(&*intString(eqOut.clone())); __mm_s.push_str(&*literal!(" - solvable?: ")); __mm_s.push_str(&*boolString(solvable.clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
         }
@@ -3068,7 +3068,7 @@ fn eqnSolvableCheck(mut eqn_coll: i32, mut mapEqnIncRow: metamodelica::Array<Arc
     eqns = mapEqnIncRow.borrow()[(eqn_coll.clone()-1) as usize].clone();
     eqn = listHead(eqns.clone())?;
     vars = m.clone().borrow()[(eqn.clone()-1) as usize].clone();
-    vars_enh = List::removeOnTrue(ass1.clone(), Arc::new(fnptr!(isAssignedSaveEnhanced, metamodelica::Array<i32>, (i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>))), me.borrow()[(eqn.clone()-1) as usize].clone());
+    vars_enh = List::removeOnTrue(ass1.clone(), (std::sync::Arc::new(fnptr!(isAssignedSaveEnhanced, metamodelica::Array<i32>, (i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>))) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<i32>, (i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)) -> Result<bool> + 'static>), me.borrow()[(eqn.clone()-1) as usize].clone());
     solvable = solvableLst(vars_enh.clone());
     Ok((solvable, eqns, vars))
 }
@@ -3147,7 +3147,7 @@ fn countMultiples(mut inArr: metamodelica::Array<Arc<metamodelica::List<i32>>>) 
     let mut counter: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut numbers: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut values: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    (counter, numbers, values, _) = Array::fold(inArr.clone(), Arc::new(countMultiples2), (metamodelica::nil(), metamodelica::nil(), metamodelica::nil(), 1));
+    (counter, numbers, values, _) = Array::fold(inArr.clone(), (std::sync::Arc::new(countMultiples2) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<i32>>, (Arc<metamodelica::List<i32>>, Arc<metamodelica::List<i32>>, Arc<metamodelica::List<i32>>, i32)) -> Result<(Arc<metamodelica::List<i32>>, Arc<metamodelica::List<i32>>, Arc<metamodelica::List<i32>>, i32)> + 'static>), (metamodelica::nil(), metamodelica::nil(), metamodelica::nil(), 1));
     (counter, numbers, values)
 }
 
@@ -3166,7 +3166,7 @@ fn countMultiples2(mut rowIn: Arc<metamodelica::List<i32>>, mut valIn: (Arc<meta
     let mut number: i32 = 0;
     let mut position: i32 = 0;
     (counter, _, values, indx) = valIn.clone();
-    row = List::removeOnTrue(0, Arc::new(fnptr!(intEq, i32, i32)), rowIn.clone());
+    row = List::removeOnTrue(0, (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>), rowIn.clone());
     set = List::unique(row.clone());
     if set.clone().is_empty() {
         val = list![0];
@@ -3193,7 +3193,7 @@ fn countMultiples3(mut lstIn: Arc<metamodelica::List<i32>>, mut set: Arc<metamod
             let mut number: i32 = 0;
             let mut val: Arc<metamodelica::List<i32>> = metamodelica::nil();
             let mut num: Arc<metamodelica::List<i32>> = metamodelica::nil();
-            number = (lstIn.clone().len() as i32) - (List::removeOnTrue(value.clone(), Arc::new(fnptr!(intEq, i32, i32)), lstIn.clone()).len() as i32);
+            number = (lstIn.clone().len() as i32) - (List::removeOnTrue(value.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>), lstIn.clone()).len() as i32);
             (val, num) = countMultiples3(lstIn.clone(), rest.clone(), cons(value.clone(), valIn.clone()), cons(number.clone(), numIn.clone()));
             (val.clone(), num.clone())
         },
@@ -3294,7 +3294,7 @@ fn deleteEntriesFromAdjacencyMatrix(mut mUpdate: metamodelica::Array<Arc<metamod
         for mut rowIndx in &*rowsIndx.clone() {
             let mut rowIndx = rowIndx.clone();
             row = mUpdate.clone().borrow()[(rowIndx.clone()-1) as usize].clone();
-            (row, _) = List::deleteMemberOnTrue(entry.clone(), row.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
+            (row, _) = List::deleteMemberOnTrue(entry.clone(), row.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
             Array::replaceAtWithFill(rowIndx.clone(), row.clone(), row.clone(), mUpdate.clone())?;
         }
     }
@@ -3485,7 +3485,7 @@ fn dumpTearingSetLocalIndexes(mut tVars: Arc<metamodelica::List<i32>>, mut resid
     let mut s: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*arcstr::literal!(BORDER)); __mm_s.push_str(&*literal!("\n* TEARING RESULTS")); __mm_s.push_str(&*setString.clone()); __mm_s.push_str(&*literal!(":\n* (Local Indexes)\n*\n* No of equations in strong component: ")); __mm_s.push_str(&*intString(size.clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("* No of tVars: ")); __mm_s.push_str(&*intString((tVars.clone().len() as i32))); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
-    println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("*\n* tVars: ")); __mm_s.push_str(&*stringDelimitList(List::map(tVars.clone().reverse(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+    println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("*\n* tVars: ")); __mm_s.push_str(&*stringDelimitList(List::map(tVars.clone().reverse(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
     if Flags::isSet(Flags::ITERATION_VARS.clone())? {
         s = {
         let mut __acc: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
@@ -3497,7 +3497,7 @@ fn dumpTearingSetLocalIndexes(mut tVars: Arc<metamodelica::List<i32>>, mut resid
     };
         println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*stringDelimitList(s.clone(), (literal!("\n")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
     }
-    println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("*\n* resEq: ")); __mm_s.push_str(&*stringDelimitList(List::map(residuals.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+    println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("*\n* resEq: ")); __mm_s.push_str(&*stringDelimitList(List::map(residuals.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
     if Flags::isSet(Flags::ITERATION_VARS.clone())? && Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
         s = {
         let mut __acc: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
@@ -3512,7 +3512,7 @@ fn dumpTearingSetLocalIndexes(mut tVars: Arc<metamodelica::List<i32>>, mut resid
     s = {
         let mut __acc: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
         for mut e in (order.clone()).into_iter().cloned() {
-            let __x = { let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("{")); __mm_s.push_str(&*intString(e.clone())); __mm_s.push_str(&*literal!(":")); __mm_s.push_str(&*stringDelimitList(List::map(List::map1r(mapEqnIncRow.borrow()[(e.clone()-1) as usize].clone(), Arc::new(arrayGet.clone()), ass2.clone()), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("}")); ArcStr::from(__mm_s) };
+            let __x = { let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("{")); __mm_s.push_str(&*intString(e.clone())); __mm_s.push_str(&*literal!(":")); __mm_s.push_str(&*stringDelimitList(List::map(List::map1r(mapEqnIncRow.borrow()[(e.clone()-1) as usize].clone(), Arc::new(arrayGet.clone()), ass2.clone()), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("}")); ArcStr::from(__mm_s) };
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
@@ -3531,9 +3531,9 @@ fn dumpTearingSetGlobalIndexes(mut tearingSet: BackendDAE::TearingSet, mut size:
     tVars = __pa2.clone();
     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*arcstr::literal!(BORDER)); __mm_s.push_str(&*literal!("\n* TEARING RESULTS")); __mm_s.push_str(&*setString.clone()); __mm_s.push_str(&*literal!(":\n* (Global Indexes)\n*\n* No of equations in strong component: ")); __mm_s.push_str(&*intString(size.clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("* No of tVars: ")); __mm_s.push_str(&*intString((tVars.clone().len() as i32))); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
-    println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("*\n* tVars: ")); __mm_s.push_str(&*stringDelimitList(List::map(tVars.clone().reverse(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
-    println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("*\n* resEq: ")); __mm_s.push_str(&*stringDelimitList(List::map(residuals.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
-    println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("*\n* innerEquations ({eqn,vars}):\n* ")); __mm_s.push_str(&*stringDelimitList(List::map(innerEquations.clone(), Arc::new(BackendDump::innerEquationString)), (literal!(", ")).clone())); __mm_s.push_str(&*literal!("\n*\n*")); __mm_s.push_str(&*arcstr::literal!(BORDER)); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
+    println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("*\n* tVars: ")); __mm_s.push_str(&*stringDelimitList(List::map(tVars.clone().reverse(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+    println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("*\n* resEq: ")); __mm_s.push_str(&*stringDelimitList(List::map(residuals.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+    println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("*\n* innerEquations ({eqn,vars}):\n* ")); __mm_s.push_str(&*stringDelimitList(List::map(innerEquations.clone(), (std::sync::Arc::new(BackendDump::innerEquationString) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::InnerEquation) -> Result<ArcStr> + 'static>)), (literal!(", ")).clone())); __mm_s.push_str(&*literal!("\n*\n*")); __mm_s.push_str(&*arcstr::literal!(BORDER)); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
     Ok(())
 }
 
@@ -3598,12 +3598,12 @@ fn totalTearing(mut isyst: Arc<BackendDAE::EqSystem>, mut ishared: Arc<BackendDA
     size = (vindx.clone().len() as i32);
     eqn_lst = BackendEquation::getList(eindex.clone(), BackendEquation::getEqnsFromEqSystem(isyst.clone()));
     eqns = BackendEquation::listEquation(eqn_lst.clone())?;
-    var_lst = List::map1r(vindx.clone(), Arc::new(BackendVariable::getVarAt), BackendVariable::daeVars(isyst.clone()));
+    var_lst = List::map1r(vindx.clone(), (std::sync::Arc::new(BackendVariable::getVarAt) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Variables, i32) -> Result<BackendDAE::Var> + 'static>), BackendVariable::daeVars(isyst.clone()));
     vars = BackendVariable::listVar1(var_lst.clone());
     subsyst = BackendDAEUtil::createEqSystem(vars.clone(), eqns.clone(), metamodelica::nil(), crate::BackendDAE::BaseClockPartitionKind::UNKNOWN_PARTITION, BackendEquation::emptyEqns());
     (subsyst, m, mt, _, _) = BackendDAEUtil::getAdjacencyMatrixScalar(subsyst.clone(), crate::BackendDAE::IndexType::NORMAL, None, BackendDAEUtil::isInitializationDAE(ishared.clone()))?;
-    m = Array::map(m.clone(), Arc::new(fnptr!(deleteNegativeEntries, Arc<metamodelica::List<i32>>)));
-    mt = Array::map(mt.clone(), Arc::new(fnptr!(deleteNegativeEntries, Arc<metamodelica::List<i32>>)));
+    m = Array::map(m.clone(), (std::sync::Arc::new(fnptr!(deleteNegativeEntries, Arc<metamodelica::List<i32>>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<i32>>) -> Result<Arc<metamodelica::List<i32>>> + 'static>));
+    mt = Array::map(mt.clone(), (std::sync::Arc::new(fnptr!(deleteNegativeEntries, Arc<metamodelica::List<i32>>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<i32>>) -> Result<Arc<metamodelica::List<i32>>> + 'static>));
     if Flags::isSet(Flags::TEARING_DUMP.clone())? || Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
         println!("{}", (literal!("\n\n###BEGIN print Strong Component#####################\n(Function:totalTearing)\n")).clone());
         BackendDump::printEqSystem(subsyst.clone())?;
@@ -3620,12 +3620,12 @@ fn totalTearing(mut isyst: Arc<BackendDAE::EqSystem>, mut ishared: Arc<BackendDA
     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
         println!("{}", (literal!("\n\nmapEqnIncRow:")).clone());
         BackendDump::dumpAdjacencyMatrix(mapEqnIncRow.clone());
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nmapIncRowEqn:\n")); __mm_s.push_str(&*stringDelimitList(List::mapArray(mapIncRowEqn.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n\nUNSOLVABLES:\n")); __mm_s.push_str(&*stringDelimitList(List::map(unsolvables.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nmapIncRowEqn:\n")); __mm_s.push_str(&*stringDelimitList(List::mapArray(mapIncRowEqn.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n\nUNSOLVABLES:\n")); __mm_s.push_str(&*stringDelimitList(List::map(unsolvables.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
     }
     discreteVars = findDiscrete(var_lst.clone());
     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nDiscrete Vars:\n")); __mm_s.push_str(&*stringDelimitList(List::map(discreteVars.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nDiscrete Vars:\n")); __mm_s.push_str(&*stringDelimitList(List::map(discreteVars.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
     }
     for mut i in (1..=Util::intPow(2, size.clone())? - 1).rev() {
         powerSet = cons(getPowerSetElement(i.clone()), powerSet.clone());
@@ -3640,7 +3640,7 @@ fn totalTearing(mut isyst: Arc<BackendDAE::EqSystem>, mut ishared: Arc<BackendDA
     for mut tVars in &*powerSet.clone() {
         let mut tVars = tVars.clone();
         if Flags::isSet(Flags::TOTAL_TEARING_DUMPVERBOSE.clone())? {
-            println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\ntVars:\n")); __mm_s.push_str(&*stringDelimitList(List::map(tVars.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
+            println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\ntVars:\n")); __mm_s.push_str(&*stringDelimitList(List::map(tVars.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
         }
         ass1 = arrayCreate(size.clone(), -1);
         ass2 = arrayCreate(size.clone(), -1);
@@ -3761,8 +3761,8 @@ fn createTearingSets(mut tVarsIn: Arc<metamodelica::List<i32>>, mut matchingList
         innerEquations = assignInnerEquations(order.clone(), eindex.clone(), vindx.clone(), ass2.clone(), mapEqnIncRow.clone(), None)?;
         tearingSetsOut = cons(BackendDAE::TearingSet { tearingvars: tVars.clone(), residualequations: residual.clone(), innerEquations: innerEquations.clone(), jac: Arc::new(crate::BackendDAE::Jacobian::EMPTY_JACOBIAN) }, tearingSetsOut.clone());
         if Flags::isSet(Flags::TEARING_DUMP.clone())? || Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-            println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nTearing Variables:\n")); __mm_s.push_str(&*stringDelimitList(List::map(tVarsIn.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
-            println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Residual Equations:\n")); __mm_s.push_str(&*stringDelimitList(List::map(residual_coll.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
+            println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nTearing Variables:\n")); __mm_s.push_str(&*stringDelimitList(List::map(tVarsIn.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+            println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Residual Equations:\n")); __mm_s.push_str(&*stringDelimitList(List::map(residual_coll.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
         }
     }
     Ok(tearingSetsOut)
@@ -3779,9 +3779,9 @@ fn dumpMatchingList(mut matchingList: Arc<metamodelica::List<(metamodelica::Arra
         c = c.clone() + 1;
         (ass1, ass2, order) = matching.clone();
         println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Matching ")); __mm_s.push_str(&*intString(c.clone())); __mm_s.push_str(&*literal!(":\n")); ArcStr::from(__mm_s) }).clone());
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("ass1: ")); __mm_s.push_str(&*stringDelimitList(List::mapArray(ass1.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("ass2: ")); __mm_s.push_str(&*stringDelimitList(List::mapArray(ass2.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("order: ")); __mm_s.push_str(&*stringDelimitList(List::map(order.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("ass1: ")); __mm_s.push_str(&*stringDelimitList(List::mapArray(ass1.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("ass2: ")); __mm_s.push_str(&*stringDelimitList(List::mapArray(ass2.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("order: ")); __mm_s.push_str(&*stringDelimitList(List::map(order.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
     }
     ()
 }
@@ -3831,12 +3831,12 @@ fn userDefinedTearing(mut isyst: Arc<BackendDAE::EqSystem>, mut ishared: Arc<Bac
     size = (vindx.clone().len() as i32);
     eqn_lst = BackendEquation::getList(eindex.clone(), BackendEquation::getEqnsFromEqSystem(isyst.clone()));
     eqns = BackendEquation::listEquation(eqn_lst.clone())?;
-    var_lst = List::map1r(vindx.clone(), Arc::new(BackendVariable::getVarAt), BackendVariable::daeVars(isyst.clone()));
+    var_lst = List::map1r(vindx.clone(), (std::sync::Arc::new(BackendVariable::getVarAt) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Variables, i32) -> Result<BackendDAE::Var> + 'static>), BackendVariable::daeVars(isyst.clone()));
     vars = BackendVariable::listVar1(var_lst.clone());
     subsyst = BackendDAEUtil::createEqSystem(vars.clone(), eqns.clone(), metamodelica::nil(), crate::BackendDAE::BaseClockPartitionKind::UNKNOWN_PARTITION, BackendEquation::emptyEqns());
     (subsyst, m, mt, _, _) = BackendDAEUtil::getAdjacencyMatrixScalar(subsyst.clone(), crate::BackendDAE::IndexType::NORMAL, None, BackendDAEUtil::isInitializationDAE(ishared.clone()))?;
-    m = Array::map(m.clone(), Arc::new(fnptr!(deleteNegativeEntries, Arc<metamodelica::List<i32>>)));
-    mt = Array::map(mt.clone(), Arc::new(fnptr!(deleteNegativeEntries, Arc<metamodelica::List<i32>>)));
+    m = Array::map(m.clone(), (std::sync::Arc::new(fnptr!(deleteNegativeEntries, Arc<metamodelica::List<i32>>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<i32>>) -> Result<Arc<metamodelica::List<i32>>> + 'static>));
+    mt = Array::map(mt.clone(), (std::sync::Arc::new(fnptr!(deleteNegativeEntries, Arc<metamodelica::List<i32>>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<i32>>) -> Result<Arc<metamodelica::List<i32>>> + 'static>));
     (me, meT, mapEqnIncRow, mapIncRowEqn) = BackendDAEUtil::getAdjacencyMatrixEnhancedScalar(subsyst.clone(), ishared.clone(), false)?;
     match '__try2: {
         userResiduals_exp = List::flatten({
@@ -3861,9 +3861,9 @@ fn userDefinedTearing(mut isyst: Arc<BackendDAE::EqSystem>, mut ishared: Arc<Bac
         println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*arcstr::literal!(BORDER)); __mm_s.push_str(&*literal!("\nBEGINNING of userDefinedTearing\n\n")); ArcStr::from(__mm_s) }).clone());
     }
     if Flags::isSet(Flags::TEARING_DUMP.clone())? || Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nUsers tearing vars: ")); __mm_s.push_str(&*stringDelimitList(List::map(userTVars.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nUsers residual equations: ")); __mm_s.push_str(&*stringDelimitList(List::map(userResiduals.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nUsers residual equations expanded: ")); __mm_s.push_str(&*stringDelimitList(List::map(userResiduals_exp.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nUsers tearing vars: ")); __mm_s.push_str(&*stringDelimitList(List::map(userTVars.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nUsers residual equations: ")); __mm_s.push_str(&*stringDelimitList(List::map(userResiduals.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nUsers residual equations expanded: ")); __mm_s.push_str(&*stringDelimitList(List::map(userResiduals_exp.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
         println!("{}", (literal!("\n\n###BEGIN print Strong Component#####################\n(Function:userDefinedTearing)\n")).clone());
         BackendDump::printEqSystem(subsyst.clone())?;
         println!("{}", (literal!("\n###END print Strong Component#######################\n(Function:userDefinedTearing)\n\n\n")).clone());
@@ -3883,9 +3883,9 @@ fn userDefinedTearing(mut isyst: Arc<BackendDAE::EqSystem>, mut ishared: Arc<Bac
     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
         println!("{}", (literal!("\n\nmapEqnIncRow:")).clone());
         BackendDump::dumpAdjacencyMatrix(mapEqnIncRow.clone());
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nmapIncRowEqn:\n")); __mm_s.push_str(&*stringDelimitList(List::mapArray(mapIncRowEqn.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n\nUNSOLVABLES:\n")); __mm_s.push_str(&*stringDelimitList(List::map(unsolvables.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nDiscrete Vars:\n")); __mm_s.push_str(&*stringDelimitList(List::map(discreteVars.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nmapIncRowEqn:\n")); __mm_s.push_str(&*stringDelimitList(List::mapArray(mapIncRowEqn.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n\nUNSOLVABLES:\n")); __mm_s.push_str(&*stringDelimitList(List::map(unsolvables.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nDiscrete Vars:\n")); __mm_s.push_str(&*stringDelimitList(List::map(discreteVars.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
     }
     ass1 = arrayCreate(size.clone(), -1);
     ass2 = arrayCreate(size.clone(), -1);
@@ -3893,8 +3893,8 @@ fn userDefinedTearing(mut isyst: Arc<BackendDAE::EqSystem>, mut ishared: Arc<Bac
     markTVarsOrResiduals(userTVars.clone(), ass1.clone())?;
     markTVarsOrResiduals(userResiduals_exp.clone(), ass2.clone())?;
     if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nass1: ")); __mm_s.push_str(&*stringDelimitList(List::mapArray(ass1.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("ass2: ")); __mm_s.push_str(&*stringDelimitList(List::mapArray(ass2.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nass1: ")); __mm_s.push_str(&*stringDelimitList(List::mapArray(ass1.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("ass2: ")); __mm_s.push_str(&*stringDelimitList(List::mapArray(ass2.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
     }
     deleteEntriesFromAdjacencyMatrix(m.clone(), mt.clone(), userTVars.clone())?;
     deleteRowsFromAdjacencyMatrix(mt.clone(), userTVars.clone())?;
@@ -3966,7 +3966,7 @@ fn simpleMatching(mut ass1: metamodelica::Array<i32>, mut ass2: metamodelica::Ar
             bail!("fail");
         }
         if Flags::isSet(Flags::TEARING_DUMPVERBOSE.clone())? {
-            println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("causEq: ")); __mm_s.push_str(&*stringDelimitList(List::map(causEq.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\nProcess ")); __mm_s.push_str(&*intString(e.clone())); __mm_s.push_str(&*literal!(":\ne_exp: ")); __mm_s.push_str(&*stringDelimitList(List::map(e_exp.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+            println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("causEq: ")); __mm_s.push_str(&*stringDelimitList(List::map(causEq.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\nProcess ")); __mm_s.push_str(&*intString(e.clone())); __mm_s.push_str(&*literal!(":\ne_exp: ")); __mm_s.push_str(&*stringDelimitList(List::map(e_exp.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
         }
         makeAssignment(e_exp.clone(), vars.clone(), ass1.clone(), ass2.clone(), m.clone(), mt.clone())?;
         orderOut = cons(e.clone(), orderOut.clone());

@@ -102,7 +102,7 @@ pub fn instantiateExternalObject(mut inCache: FCore::Cache, mut inEnv: FCore::Gr
                     let mut classNameFQ: Arc<Absyn::Path>;
                     let mut functp: Arc<DAE::Type> = Arc::new(DAE::Type::T_NORETCALL);
                     let mut r: metamodelica::Array<FCore::Node>;
-                    let mut source: Arc<DAE::ElementSource>;
+                    let mut source: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
                     let mut cache = (*cache).clone();
                     let mut env = (*env).clone();
                     let mut ih = (*ih).clone();
@@ -122,7 +122,7 @@ pub fn instantiateExternalObject(mut inCache: FCore::Cache, mut inEnv: FCore::Gr
                     (env, r) = FGraph::stripLastScopeRef(env.clone())?;
                     env = FGraph::mkTypeNode(env.clone(), (className.clone()).clone(), functp.clone())?;
                     env = FGraph::pushScopeRef(env.clone(), r.clone())?;
-                    source = ElementSource::addElementSourcePartOfOpt(DAE::emptyElementSource.clone(), FGraph::getScopePath(env.clone())?)?;
+                    source = ElementSource::addElementSourcePartOfOpt(DAE::emptyElementSource().clone(), FGraph::getScopePath(env.clone())?)?;
                     source = ElementSource::addCommentToSource(source.clone(), Some(comment.clone()));
                     source = ElementSource::addElementSourceFileInfo(source.clone(), info.clone());
                     Ok((cache.clone(), env.clone(), ih.clone(), DAE::DAElist { elementLst: list![Arc::new(DAE::Element::EXTOBJECTCLASS { path: classNameFQ.clone(), source: source.clone() })] }, ClassInf::State::EXTERNAL_OBJ { path: classNameFQ.clone() }))
@@ -139,7 +139,7 @@ pub fn instantiateExternalObject(mut inCache: FCore::Cache, mut inEnv: FCore::Gr
                         _ => bail!("pattern mismatch"),
                     } };
                     classNameFQ = __pa0.clone();
-                    Ok((cache.clone(), inEnv.clone(), ih.clone(), DAE::emptyDae.clone(), ClassInf::State::EXTERNAL_OBJ { path: classNameFQ.clone() }))
+                    Ok((cache.clone(), inEnv.clone(), ih.clone(), DAE::emptyDae().clone(), ClassInf::State::EXTERNAL_OBJ { path: classNameFQ.clone() }))
                 }
                 _ => bail!("nomatch"),
             }}
@@ -168,7 +168,7 @@ fn checkExternalObjectMod(mut inMod: Arc<DAE::Mod>, mut inClassName: ArcStr) -> 
             ()
         },
         (Deref @ DAE::Mod::MOD { subModLst: Deref @ metamodelica::List::Cons { head: Deref @ DAE::SubMod { r#mod, ident: id }, tail: _ }, .. }, _) => {
-            let mut info: SourceInfo;
+            let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
             info = Mod::getModInfo(r#mod.clone());
             Error::addSourceMessage(Error::MISSING_MODIFIED_ELEMENT.clone(), list![(id.clone()).clone(), (inClassName.clone()).clone()], info.clone())?;
             bail!("fail")
@@ -253,7 +253,7 @@ pub fn implicitFunctionInstantiation(mut inCache: FCore::Cache, mut inEnv: FCore
             let mut ty1: Arc<DAE::Type> = Arc::new(DAE::Type::T_NORETCALL);
             let mut cenv: FCore::Graph;
             let mut fpath: Arc<Absyn::Path>;
-            let mut source: Arc<DAE::ElementSource>;
+            let mut source: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
             let mut fun: DAE::Function;
             let mut cache = (*cache).clone();
             let mut env = (*env).clone();
@@ -314,13 +314,13 @@ fn implicitFunctionInstantiation2(mut inCache: FCore::Cache, mut inEnv: FCore::G
                     let mut cenv: FCore::Graph;
                     let mut fpath: Arc<Absyn::Path>;
                     let mut c: Arc<SCode::Element>;
-                    let mut source: Arc<DAE::ElementSource>;
+                    let mut source: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
                     let mut daeElts: Arc<metamodelica::List<Arc<DAE::Element>>> = metamodelica::nil();
                     let mut derFuncs: Arc<metamodelica::List<DAE::FunctionDefinition>> = metamodelica::nil();
                     let mut inlineType: DAE::InlineType = DAE::InlineType::AFTER_INDEX_RED_INLINE;
                     let mut partialPrefixBool: bool = false;
                     let mut isImpure: bool = false;
-                    let mut cmt: Arc<SCode::Comment>;
+                    let mut cmt: Arc<SCode::Comment> = Arc::new(<SCode::Comment as ::std::default::Default>::default());
                     let mut cs: InstTypes::CallingScope = InstTypes::CallingScope::INNER_CALL;
                     let mut cache = (*cache).clone();
                     let mut ih = (*ih).clone();
@@ -328,7 +328,7 @@ fn implicitFunctionInstantiation2(mut inCache: FCore::Cache, mut inEnv: FCore::G
                     isImpure = SCodeUtil::isImpureFunctionRestriction(funcRest.clone());
                     c = if (Config::acceptMetaModelicaGrammar()?) {inClass.clone()} else {SCodeUtil::setClassPartialPrefix(openmodelica_frontend_types::SCode::Partial::NOT_PARTIAL, inClass.clone())?};
                     cs = if (instFunctionTypeOnly.clone()) {crate::InstTypes::CallingScope::TYPE_CALL} else {crate::InstTypes::CallingScope::INNER_CALL};
-                    let (__pa0, __pa1, __pa2, __pa3, __pa4) = ::match_deref::match_deref! { match &(Inst::instClass(cache.clone(), env.clone(), ih.clone(), UnitAbsynBuilder::emptyInstStore(), r#mod.clone(), pre.clone(), c.clone(), inst_dims.clone(), true, cs.clone(), ConnectionGraph::EMPTY.clone(), Connect::emptySet.clone())?) {
+                    let (__pa0, __pa1, __pa2, __pa3, __pa4) = ::match_deref::match_deref! { match &(Inst::instClass(cache.clone(), env.clone(), ih.clone(), UnitAbsynBuilder::emptyInstStore(), r#mod.clone(), pre.clone(), c.clone(), inst_dims.clone(), true, cs.clone(), ConnectionGraph::EMPTY().clone(), Connect::emptySet().clone())?) {
                         (__pa0, __pa1, __pa2, _, DAE::DAElist { elementLst: __pa3 }, _, __pa4, _, _, _) => (__pa0.clone(), __pa1.clone(), __pa2.clone(), __pa3.clone(), __pa4.clone()),
                         _ => bail!("pattern mismatch"),
                     } };
@@ -337,7 +337,7 @@ fn implicitFunctionInstantiation2(mut inCache: FCore::Cache, mut inEnv: FCore::G
                     ih = __pa2.clone();
                     daeElts = __pa3.clone();
                     ty = __pa4.clone();
-                    List::map2_0(daeElts.clone(), Arc::new(InstUtil::checkFunctionElement), false, info.clone());
+                    List::map2_0(daeElts.clone(), (std::sync::Arc::new(InstUtil::checkFunctionElement) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Element>, bool, SourceInfo) -> Result<()> + 'static>), false, info.clone());
                     env_1 = env.clone();
                     (cache, fpath) = Inst::makeFullyQualifiedIdent(cache.clone(), env_1.clone(), (n.clone()).clone(), Arc::new(Absyn::Path::IDENT { name: (literal!("")).clone() }))?;
                     cmt = InstUtil::extractComment(daeElts.clone())?;
@@ -346,7 +346,7 @@ fn implicitFunctionInstantiation2(mut inCache: FCore::Cache, mut inEnv: FCore::G
                     ty1 = InstUtil::setFullyQualifiedTypename(ty.clone(), fpath.clone());
                     checkExtObjOutput(ty1.clone(), info.clone())?;
                     env_1 = FGraph::mkTypeNode(env_1.clone(), (n.clone()).clone(), ty1.clone())?;
-                    source = ElementSource::createElementSource(info.clone(), FGraph::getScopePath(env.clone())?, pre.clone(), (DAE::emptyCref.clone(), DAE::emptyCref.clone()))?;
+                    source = ElementSource::createElementSource(info.clone(), FGraph::getScopePath(env.clone())?, pre.clone(), (DAE::emptyCref().clone(), DAE::emptyCref().clone()))?;
                     inlineType = InstBasics::commentIsInlineFunc(cmt.clone())?;
                     partialPrefixBool = SCodeUtil::partialBool(partialPrefix.clone())?;
                     daeElts = InstUtil::optimizeFunctionCheckForLocals(fpath.clone(), daeElts.clone(), None, metamodelica::nil(), metamodelica::nil(), metamodelica::nil())?;
@@ -378,15 +378,15 @@ fn implicitFunctionInstantiation2(mut inCache: FCore::Cache, mut inEnv: FCore::G
                     let mut fpath: Arc<Absyn::Path>;
                     let mut vis: SCode::Visibility = SCode::Visibility::PROTECTED;
                     let mut extdecl: DAE::ExternalDecl;
-                    let mut source: Arc<DAE::ElementSource>;
+                    let mut source: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
                     let mut daeElts: Arc<metamodelica::List<Arc<DAE::Element>>> = metamodelica::nil();
                     let mut derFuncs: Arc<metamodelica::List<DAE::FunctionDefinition>> = metamodelica::nil();
                     let mut partialPrefixBool: bool = false;
                     let mut isImpure: bool = false;
-                    let mut cmt: Arc<SCode::Comment>;
+                    let mut cmt: Arc<SCode::Comment> = Arc::new(<SCode::Comment as ::std::default::Default>::default());
                     let mut cache = (*cache).clone();
                     let mut ih = (*ih).clone();
-                    let (__pa0, __pa1, __pa2, __pa3, __pa4) = ::match_deref::match_deref! { match &(Inst::instClass(cache.clone(), env.clone(), ih.clone(), UnitAbsynBuilder::emptyInstStore(), r#mod.clone(), pre.clone(), c.clone(), inst_dims.clone(), true, crate::InstTypes::CallingScope::INNER_CALL, ConnectionGraph::EMPTY.clone(), Connect::emptySet.clone())?) {
+                    let (__pa0, __pa1, __pa2, __pa3, __pa4) = ::match_deref::match_deref! { match &(Inst::instClass(cache.clone(), env.clone(), ih.clone(), UnitAbsynBuilder::emptyInstStore(), r#mod.clone(), pre.clone(), c.clone(), inst_dims.clone(), true, crate::InstTypes::CallingScope::INNER_CALL, ConnectionGraph::EMPTY().clone(), Connect::emptySet().clone())?) {
                         (__pa0, __pa1, __pa2, _, DAE::DAElist { elementLst: __pa3 }, _, __pa4, _, _, _) => (__pa0.clone(), __pa1.clone(), __pa2.clone(), __pa3.clone(), __pa4.clone()),
                         _ => bail!("pattern mismatch"),
                     } };
@@ -395,7 +395,7 @@ fn implicitFunctionInstantiation2(mut inCache: FCore::Cache, mut inEnv: FCore::G
                     ih = __pa2.clone();
                     daeElts = __pa3.clone();
                     ty = __pa4.clone();
-                    List::map2_0(daeElts.clone(), Arc::new(InstUtil::checkFunctionElement), true, info.clone());
+                    List::map2_0(daeElts.clone(), (std::sync::Arc::new(InstUtil::checkFunctionElement) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Element>, bool, SourceInfo) -> Result<()> + 'static>), true, info.clone());
                     (cache, fpath) = Inst::makeFullyQualifiedIdent(cache.clone(), env.clone(), (n.clone()).clone(), Arc::new(Absyn::Path::IDENT { name: (literal!("")).clone() }))?;
                     cmt = InstUtil::extractComment(daeElts.clone())?;
                     derFuncs = InstUtil::getDeriveAnnotation(cd.clone(), cmt.clone(), fpath.clone(), cache.clone(), env.clone(), ih.clone(), pre.clone(), info.clone())?;
@@ -405,9 +405,9 @@ fn implicitFunctionInstantiation2(mut inCache: FCore::Cache, mut inEnv: FCore::G
                     env_1 = FGraph::mkTypeNode(cenv.clone(), (n.clone()).clone(), ty1.clone())?;
                     vis = openmodelica_frontend_types::SCode::Visibility::PUBLIC;
                     isImpure = AbsynUtil::isImpure(purity.clone(), false);
-                    (cache, tempenv, ih, _, _, _, _, _, _, _, _, _) = Inst::instClassdef(cache.clone(), env_1.clone(), ih.clone(), UnitAbsyn::noStore().clone(), r#mod.clone(), pre.clone(), ClassInf::State::FUNCTION { path: fpath.clone(), isImpure: isImpure.clone() }, (n.clone()).clone(), parts.clone(), restr.clone(), vis.clone(), partialPrefix.clone(), encapsulatedPrefix.clone(), inst_dims.clone(), true, crate::InstTypes::CallingScope::INNER_CALL, ConnectionGraph::EMPTY.clone(), Connect::emptySet.clone(), None, cmt.clone(), info.clone())?;
+                    (cache, tempenv, ih, _, _, _, _, _, _, _, _, _) = Inst::instClassdef(cache.clone(), env_1.clone(), ih.clone(), UnitAbsyn::noStore().clone(), r#mod.clone(), pre.clone(), ClassInf::State::FUNCTION { path: fpath.clone(), isImpure: isImpure.clone() }, (n.clone()).clone(), parts.clone(), restr.clone(), vis.clone(), partialPrefix.clone(), encapsulatedPrefix.clone(), inst_dims.clone(), true, crate::InstTypes::CallingScope::INNER_CALL, ConnectionGraph::EMPTY().clone(), Connect::emptySet().clone(), None, cmt.clone(), info.clone())?;
                     (cache, ih, extdecl) = instExtDecl(cache.clone(), tempenv.clone(), ih.clone(), (n.clone()).clone(), scExtdecl.clone(), daeElts.clone(), ty1.clone(), true, pre.clone(), info.clone())?;
-                    source = ElementSource::createElementSource(info.clone(), FGraph::getScopePath(env.clone())?, pre.clone(), (DAE::emptyCref.clone(), DAE::emptyCref.clone()))?;
+                    source = ElementSource::createElementSource(info.clone(), FGraph::getScopePath(env.clone())?, pre.clone(), (DAE::emptyCref().clone(), DAE::emptyCref().clone()))?;
                     partialPrefixBool = SCodeUtil::partialBool(partialPrefix.clone())?;
                     InstUtil::checkExternalFunction(daeElts.clone(), extdecl.clone(), (AbsynUtil::pathString(fpath.clone(), (literal!(".")).clone(), true, false)?).clone())?;
                     Ok((cache.clone(), env_1.clone(), ih.clone(), list![DAE::Function::FUNCTION { path: fpath.clone(), functions: cons(DAE::FunctionDefinition::FUNCTION_EXT { body: daeElts.clone(), externalDecl: extdecl.clone() }, derFuncs.clone()), type_: ty1.clone(), visibility: visibility.clone(), partialPrefix: partialPrefixBool.clone(), isImpure: isImpure.clone(), inlineType: openmodelica_frontend_types::DAE::InlineType::NO_INLINE, unusedInputs: metamodelica::nil(), source: source.clone(), comment: Some(cmt.clone()) }]))
@@ -427,7 +427,7 @@ fn implicitFunctionInstantiation2(mut inCache: FCore::Cache, mut inEnv: FCore::G
                     (cache, env, ih, resfns) = instOverloadedFunctions(cache.clone(), env.clone(), ih.clone(), pre.clone(), funcnames.clone(), var_field!((*inClass).info, SCode::Element::CLASS).clone())?;
                     (cache, fpath) = Inst::makeFullyQualifiedIdent(cache.clone(), env.clone(), (n.clone()).clone(), Arc::new(Absyn::Path::IDENT { name: (literal!("")).clone() }))?;
                     isImpure = AbsynUtil::isImpure(purity.clone(), false);
-                    resfns = cons(DAE::Function::FUNCTION { path: fpath.clone(), functions: list![DAE::FunctionDefinition::FUNCTION_DEF { body: metamodelica::nil() }], type_: DAE::T_UNKNOWN_DEFAULT.clone(), visibility: visibility.clone(), partialPrefix: true, isImpure: isImpure.clone(), inlineType: openmodelica_frontend_types::DAE::InlineType::NO_INLINE, unusedInputs: metamodelica::nil(), source: DAE::emptyElementSource.clone(), comment: Some(cmt.clone()) }, resfns.clone());
+                    resfns = cons(DAE::Function::FUNCTION { path: fpath.clone(), functions: list![DAE::FunctionDefinition::FUNCTION_DEF { body: metamodelica::nil() }], type_: DAE::T_UNKNOWN_DEFAULT().clone(), visibility: visibility.clone(), partialPrefix: true, isImpure: isImpure.clone(), inlineType: openmodelica_frontend_types::DAE::InlineType::NO_INLINE, unusedInputs: metamodelica::nil(), source: DAE::emptyElementSource().clone(), comment: Some(cmt.clone()) }, resfns.clone());
                     Ok((cache.clone(), env.clone(), ih.clone(), resfns.clone()))
                 }
                 _ => bail!("nomatch"),
@@ -474,6 +474,7 @@ fn instantiateDerivativeFuncs2(mut inCache: FCore::Cache, mut inEnv: FCore::Grap
                     let mut cenv: FCore::Graph;
                     let mut cdef: Arc<SCode::Element>;
                     let mut cache = (*cache).clone();
+                    let mut ih = (*ih).clone();
                     let mut p = (*p).clone();
                     (cache, cdef, cenv) = Lookup::lookupClass(cache.clone(), env.clone(), p.clone(), Some(info.clone()))?;
                     (cache, p) = Inst::makeFullyQualified(cache.clone(), cenv.clone(), p.clone())?;
@@ -486,9 +487,9 @@ fn instantiateDerivativeFuncs2(mut inCache: FCore::Cache, mut inEnv: FCore::Grap
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
                     let _ = __mc_input.clone() else { bail!("nomatch") };
+                    let mut cache: FCore::Cache = cache.clone();
                     let mut ih: Arc<metamodelica::List<InnerOuter::TopInstance>>;
                     let mut funcs: Arc<metamodelica::List<DAE::Function>>;
-                    let mut cache: FCore::Cache = cache.clone();
                     cache = FCore::addCachedInstFuncGuard(cache.clone(), p.clone())?;
                     (cache, _, ih, funcs) = implicitFunctionInstantiation2(cache.clone(), cenv.clone(), ih.clone(), Arc::new(openmodelica_frontend_types::DAE::Mod::NOMOD), openmodelica_frontend_types::DAE::Prefix::NOPRE, cdef.clone(), metamodelica::nil(), false)?;
                     funcs = InstUtil::addNameToDerivativeMapping(funcs.clone(), path.clone());
@@ -554,7 +555,7 @@ pub fn implicitFunctionTypeInstantiation(mut inCache: FCore::Cache, mut inEnv: F
                     let mut cache = (*cache).clone();
                     let mut ih = (*ih).clone();
                     let mut elts = (*elts).clone();
-                    elts = List::select(elts.clone(), Arc::new(fnptr!(isElementImportantForFunction, Arc<SCode::Element>)));
+                    elts = List::select(elts.clone(), (std::sync::Arc::new(fnptr!(isElementImportantForFunction, Arc<SCode::Element>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SCode::Element>) -> Result<bool> + 'static>));
                     stripped_class = Arc::new(SCode::Element::CLASS { name: (id.clone()).clone(), prefixes: prefixes.clone(), encapsulatedPrefix: e.clone(), partialPrefix: p.clone(), restriction: r.clone(), classDef: Arc::new(SCode::ClassDef::PARTS { elementLst: elts.clone(), normalEquationLst: metamodelica::nil(), initialEquationLst: metamodelica::nil(), normalAlgorithmLst: metamodelica::nil(), initialAlgorithmLst: metamodelica::nil(), constraintLst: metamodelica::nil(), clsattrs: metamodelica::nil(), externalDecl: extDecl.clone() }), cmt: cmt.clone(), info: info.clone() });
                     (cache, env_1, ih, _) = implicitFunctionInstantiation2(cache.clone(), env.clone(), ih.clone(), Arc::new(openmodelica_frontend_types::DAE::Mod::NOMOD), openmodelica_frontend_types::DAE::Prefix::NOPRE, stripped_class.clone(), metamodelica::nil(), true)?;
                     Ok((cache.clone(), env_1.clone(), ih.clone()))
@@ -582,7 +583,7 @@ pub fn implicitFunctionTypeInstantiation(mut inCache: FCore::Cache, mut inEnv: F
                     c = __pa1.clone();
                     cenv = __pa2.clone();
                     (cache, mod2) = Mod::elabMod(cache.clone(), env.clone(), ih.clone(), openmodelica_frontend_types::DAE::Prefix::NOPRE, mod1.clone(), false, Mod::ModScope::DERIVED { path: cn.clone() }, info.clone())?;
-                    (cache, _, ih, _, _, _, ty, _, _, _) = Inst::instClass(cache.clone(), cenv.clone(), ih.clone(), UnitAbsynBuilder::emptyInstStore(), mod2.clone(), openmodelica_frontend_types::DAE::Prefix::NOPRE, c.clone(), metamodelica::nil(), true, crate::InstTypes::CallingScope::INNER_CALL, ConnectionGraph::EMPTY.clone(), Connect::emptySet.clone())?;
+                    (cache, _, ih, _, _, _, ty, _, _, _) = Inst::instClass(cache.clone(), cenv.clone(), ih.clone(), UnitAbsynBuilder::emptyInstStore(), mod2.clone(), openmodelica_frontend_types::DAE::Prefix::NOPRE, c.clone(), metamodelica::nil(), true, crate::InstTypes::CallingScope::INNER_CALL, ConnectionGraph::EMPTY().clone(), Connect::emptySet().clone())?;
                     env_1 = env.clone();
                     (cache, fpath) = Inst::makeFullyQualifiedIdent(cache.clone(), env_1.clone(), (id.clone()).clone(), Arc::new(Absyn::Path::IDENT { name: (literal!("")).clone() }))?;
                     ty1 = InstUtil::setFullyQualifiedTypename(ty.clone(), fpath.clone());
@@ -720,7 +721,7 @@ fn instExtMakeDefaultExternalCall(mut elements: Arc<metamodelica::List<Arc<DAE::
         },
         Deref @ DAE::Type::T_FUNCTION { funcResultType: Deref @ DAE::Type::T_TUPLE { .. }, .. } => (openmodelica_frontend_types::DAE::ExtArg::NOEXTARG, false),
         Deref @ DAE::Type::T_FUNCTION { funcResultType: Deref @ DAE::Type::T_NORETCALL, .. } => (openmodelica_frontend_types::DAE::ExtArg::NOEXTARG, false),
-        Deref @ DAE::Type::T_FUNCTION { funcResultType: ty, .. } => (DAE::ExtArg::EXTARG { componentRef: DAEUtil::varCref(List::find(elements.clone(), Arc::new(fnptr!(DAEUtil::isOutputVar, Arc<DAE::Element>)))?)?, direction: openmodelica_ast::Absyn::Direction::OUTPUT, type_: ty.clone() }, true),
+        Deref @ DAE::Type::T_FUNCTION { funcResultType: ty, .. } => (DAE::ExtArg::EXTARG { componentRef: DAEUtil::varCref(List::find(elements.clone(), (std::sync::Arc::new(fnptr!(DAEUtil::isOutputVar, Arc<DAE::Element>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Element>) -> Result<bool> + 'static>))?)?, direction: openmodelica_ast::Absyn::Direction::OUTPUT, type_: ty.clone() }, true),
         _ => {
             Error::addInternalError(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("instExtMakeDefaultExternalCall failed for ")); __mm_s.push_str(&*TypesDump::unparseType(funcType.clone())?); ArcStr::from(__mm_s) }).clone(), info.clone())?;
             bail!("fail")
@@ -791,7 +792,7 @@ pub fn getRecordConstructorFunction(mut inCache: FCore::Cache, mut inEnv: FCore:
                     name = (SCodeUtil::getElementName(recordCl.clone())?).clone();
                     newName = (FGraph::getInstanceOriginalName(recordEnv.clone(), (name.clone()).clone())?).clone();
                     recordCl = SCodeUtil::setClassName((newName.clone()).clone(), recordCl.clone())?;
-                    (cache, _, _, _, _, _, recType, _, _, _) = Inst::instClass(inCache.clone(), recordEnv.clone(), InnerOuter::emptyInstHierarchy().clone(), UnitAbsynBuilder::emptyInstStore(), Arc::new(openmodelica_frontend_types::DAE::Mod::NOMOD), openmodelica_frontend_types::DAE::Prefix::NOPRE, recordCl.clone(), metamodelica::nil(), true, crate::InstTypes::CallingScope::INNER_CALL, ConnectionGraph::EMPTY.clone(), Connect::emptySet.clone())?;
+                    (cache, _, _, _, _, _, recType, _, _, _) = Inst::instClass(inCache.clone(), recordEnv.clone(), InnerOuter::emptyInstHierarchy().clone(), UnitAbsynBuilder::emptyInstStore(), Arc::new(openmodelica_frontend_types::DAE::Mod::NOMOD), openmodelica_frontend_types::DAE::Prefix::NOPRE, recordCl.clone(), metamodelica::nil(), true, crate::InstTypes::CallingScope::INNER_CALL, ConnectionGraph::EMPTY().clone(), Connect::emptySet().clone())?;
                     let (__pa0, __pa1, __pa2, __pa3) = ::match_deref::match_deref! { match &(recType.clone()) {
                         Deref @ DAE::Type::T_COMPLEX { complexClassType: ClassInf::State::RECORD { path: __pa0 }, varLst: __pa1, equalityConstraint: __pa2, usedExternally: __pa3 } => (__pa0.clone(), __pa1.clone(), __pa2.clone(), __pa3.clone()),
                         _ => bail!("pattern mismatch"),
@@ -801,21 +802,21 @@ pub fn getRecordConstructorFunction(mut inCache: FCore::Cache, mut inEnv: FCore:
                     eqCo = __pa2.clone();
                     extConvert = __pa3.clone();
                     vars = Types::filterRecordComponents(vars.clone(), SCodeUtil::elementInfo(recordCl.clone()))?;
-                    (inputs, locals) = List::extractOnTrue(vars.clone(), Arc::new(Types::isModifiableTypesVar));
-                    inputs = List::map(inputs.clone(), Arc::new(fnptr!(Types::setVarDefaultInput, Arc<DAE::Var>)));
-                    locals = List::map(locals.clone(), Arc::new(fnptr!(Types::setVarProtected, Arc<DAE::Var>)));
+                    (inputs, locals) = List::extractOnTrue(vars.clone(), (std::sync::Arc::new(Types::isModifiableTypesVar) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Var>) -> Result<bool> + 'static>));
+                    inputs = List::map(inputs.clone(), (std::sync::Arc::new(fnptr!(Types::setVarDefaultInput, Arc<DAE::Var>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Var>) -> Result<Arc<DAE::Var>> + 'static>));
+                    locals = List::map(locals.clone(), (std::sync::Arc::new(fnptr!(Types::setVarProtected, Arc<DAE::Var>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Var>) -> Result<Arc<DAE::Var>> + 'static>));
                     vars = listAppend(inputs.clone(), locals.clone());
                     path = AbsynUtil::makeFullyQualified(path.clone());
                     fixedTy = Arc::new(DAE::Type::T_COMPLEX { complexClassType: ClassInf::State::RECORD { path: path.clone() }, varLst: vars.clone(), equalityConstraint: eqCo.clone(), usedExternally: extConvert.clone() });
                     fargs = Types::makeFargsList(inputs.clone());
                     funcTy = Arc::new(DAE::Type::T_FUNCTION { funcArg: fargs.clone(), funcResultType: fixedTy.clone(), functionAttributes: DAE::FUNCTION_ATTRIBUTES_DEFAULT.clone(), path: path.clone() });
-                    func = DAE::Function::RECORD_CONSTRUCTOR { path: path.clone(), type_: funcTy.clone(), source: DAE::emptyElementSource.clone() };
+                    func = DAE::Function::RECORD_CONSTRUCTOR { path: path.clone(), type_: funcTy.clone(), source: DAE::emptyElementSource().clone() };
                     cache = InstUtil::addFunctionsToDAE(cache.clone(), list![func.clone()], openmodelica_frontend_types::SCode::Partial::NOT_PARTIAL)?;
                     path = AbsynUtil::pathSetLastIdent(path.clone(), (name.clone()).clone())?;
                     fixedTy = Arc::new(DAE::Type::T_COMPLEX { complexClassType: ClassInf::State::RECORD { path: path.clone() }, varLst: vars.clone(), equalityConstraint: eqCo.clone(), usedExternally: extConvert.clone() });
                     fargs = Types::makeFargsList(inputs.clone());
                     funcTy = Arc::new(DAE::Type::T_FUNCTION { funcArg: fargs.clone(), funcResultType: fixedTy.clone(), functionAttributes: DAE::FUNCTION_ATTRIBUTES_DEFAULT.clone(), path: path.clone() });
-                    func = DAE::Function::RECORD_CONSTRUCTOR { path: path.clone(), type_: funcTy.clone(), source: DAE::emptyElementSource.clone() };
+                    func = DAE::Function::RECORD_CONSTRUCTOR { path: path.clone(), type_: funcTy.clone(), source: DAE::emptyElementSource().clone() };
                     cache = InstUtil::addFunctionsToDAE(cache.clone(), list![func.clone()], openmodelica_frontend_types::SCode::Partial::NOT_PARTIAL)?;
                     Ok((cache.clone(), func.clone()))
                 }
@@ -867,14 +868,14 @@ pub fn addRecordConstructorFunction(mut inCache: FCore::Cache, mut inEnv: FCore:
                     let mut vars = (*vars).clone();
                     path = AbsynUtil::makeFullyQualified(path.clone());
                     vars = Types::filterRecordComponents(vars.clone(), inInfo.clone())?;
-                    (inputs, locals) = List::extractOnTrue(vars.clone(), Arc::new(Types::isModifiableTypesVar));
-                    inputs = List::map(inputs.clone(), Arc::new(fnptr!(Types::setVarDefaultInput, Arc<DAE::Var>)));
-                    locals = List::map(locals.clone(), Arc::new(fnptr!(Types::setVarProtected, Arc<DAE::Var>)));
+                    (inputs, locals) = List::extractOnTrue(vars.clone(), (std::sync::Arc::new(Types::isModifiableTypesVar) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Var>) -> Result<bool> + 'static>));
+                    inputs = List::map(inputs.clone(), (std::sync::Arc::new(fnptr!(Types::setVarDefaultInput, Arc<DAE::Var>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Var>) -> Result<Arc<DAE::Var>> + 'static>));
+                    locals = List::map(locals.clone(), (std::sync::Arc::new(fnptr!(Types::setVarProtected, Arc<DAE::Var>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Var>) -> Result<Arc<DAE::Var>> + 'static>));
                     vars = listAppend(inputs.clone(), locals.clone());
                     fixedTy = Arc::new(DAE::Type::T_COMPLEX { complexClassType: ClassInf::State::RECORD { path: path.clone() }, varLst: vars.clone(), equalityConstraint: eqCo.clone(), usedExternally: extConvert.clone() });
                     fargs = Types::makeFargsList(inputs.clone());
                     funcTy = Arc::new(DAE::Type::T_FUNCTION { funcArg: fargs.clone(), funcResultType: fixedTy.clone(), functionAttributes: DAE::FUNCTION_ATTRIBUTES_DEFAULT.clone(), path: path.clone() });
-                    func = DAE::Function::RECORD_CONSTRUCTOR { path: path.clone(), type_: funcTy.clone(), source: DAE::emptyElementSource.clone() };
+                    func = DAE::Function::RECORD_CONSTRUCTOR { path: path.clone(), type_: funcTy.clone(), source: DAE::emptyElementSource().clone() };
                     cache = InstUtil::addFunctionsToDAE(cache.clone(), list![func.clone()], openmodelica_frontend_types::SCode::Partial::NOT_PARTIAL)?;
                     Ok(cache.clone())
                 }
@@ -907,7 +908,7 @@ fn isElementImportantForFunction(mut elt: Arc<SCode::Element>) -> bool {
 fn checkExtObjOutput(mut inType: Arc<DAE::Type>, mut info: SourceInfo) -> Result<()> {
     let _ = (::match_deref::match_deref! { match &((inType.clone(), info.clone())) {
         (Deref @ DAE::Type::T_FUNCTION { path, funcResultType: ty, .. }, _) => {
-            ::match_deref::match_deref! { match &(Types::traverseType(ty.clone(), (path.clone(), info.clone(), true), Arc::new(checkExtObjOutputWork))?) {
+            ::match_deref::match_deref! { match &(Types::traverseType(ty.clone(), (path.clone(), info.clone(), true), (std::sync::Arc::new(checkExtObjOutputWork) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Type>, (Arc<Absyn::Path>, SourceInfo, bool)) -> Result<(Arc<DAE::Type>, (Arc<Absyn::Path>, SourceInfo, bool))> + 'static>))?) {
                 (_, (_, _, true)) => (),
                 _ => bail!("pattern mismatch"),
             } };

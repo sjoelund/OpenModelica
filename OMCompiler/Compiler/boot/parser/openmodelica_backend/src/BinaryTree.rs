@@ -93,7 +93,8 @@ pub type Key = Arc<DAE::ComponentRef>;
 /// - Value
 pub type Value = i32;
 
-pub static emptyBinTree: std::sync::LazyLock<Arc<BinTree>> = std::sync::LazyLock::new(|| { Arc::new(BinTree { value: None, leftSubTree: None, rightSubTree: None }) });
+thread_local! { static __emptyBinTree_TLS: Arc<BinTree> = Arc::new(BinTree { value: None, leftSubTree: None, rightSubTree: None }); }
+pub fn emptyBinTree() -> Arc<BinTree> { __emptyBinTree_TLS.with(|__t| __t.clone()) }
 
 /* *************************
   implementation
@@ -117,8 +118,8 @@ pub fn treeGet(mut bt: Arc<BinTree>, mut key: Key) -> Result<Value> {
 
 fn treeGet2(mut inBinTree: Arc<BinTree>, mut keystr: ArcStr, mut keyhash: i32) -> Result<i32> {
     let mut compResult: i32 = 0;
-    compResult = (::match_deref::match_deref! { match &(inBinTree.clone()) {
-        Deref @ BinTree { value: Some(TreeValue { hash: rkeyhash, r#str: rkeystr, .. }), .. } => {
+    compResult = (::match_deref::match_deref! { match &((inBinTree.clone(), keystr.clone(), keyhash.clone())) {
+        (Deref @ BinTree { value: Some(TreeValue { hash: rkeyhash, r#str: rkeystr, .. }), .. }, _, _) => {
             keyCompareNinjaSecretHashTricks((rkeystr.clone()).clone(), rkeyhash.clone(), (keystr.clone()).clone(), keyhash.clone())
         },
         _ => bail!("match: no arm matched"),
@@ -130,16 +131,16 @@ fn treeGet2(mut inBinTree: Arc<BinTree>, mut keystr: ArcStr, mut keyhash: i32) -
 // and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
 fn treeGet3(mut inBinTree: Arc<BinTree>, mut keystr: ArcStr, mut keyhash: i32, mut inCompResult: i32) -> Result<Value> {
     let mut outValue: Value = 0;
-    outValue = (::match_deref::match_deref! { match &((inBinTree.clone(), inCompResult.clone())) {
-        (Deref @ BinTree { value: Some(TreeValue { value: rval, .. }), .. }, 0) => {
+    outValue = (::match_deref::match_deref! { match &((inBinTree.clone(), keystr.clone(), keyhash.clone(), inCompResult.clone())) {
+        (Deref @ BinTree { value: Some(TreeValue { value: rval, .. }), .. }, _, _, 0) => {
             rval.clone()
         },
-        (Deref @ BinTree { rightSubTree: Some(right), .. }, 1) => {
+        (Deref @ BinTree { rightSubTree: Some(right), .. }, _, _, 1) => {
             let mut compResult: i32 = 0;
             compResult = treeGet2(right.clone(), (keystr.clone()).clone(), keyhash.clone())?;
             treeGet3(right.clone(), (keystr.clone()).clone(), keyhash.clone(), compResult.clone())?
         },
-        (Deref @ BinTree { leftSubTree: Some(left), .. }, (-1)) => {
+        (Deref @ BinTree { leftSubTree: Some(left), .. }, _, _, (-1)) => {
             let mut compResult: i32 = 0;
             compResult = treeGet2(left.clone(), (keystr.clone()).clone(), keyhash.clone())?;
             treeGet3(left.clone(), (keystr.clone()).clone(), keyhash.clone(), compResult.clone())?
@@ -180,10 +181,10 @@ pub fn treeAdd(mut inBinTree: Arc<BinTree>, mut inKey: Key, mut inValue: Value) 
 fn treeAdd2(mut inBinTree: Arc<BinTree>, mut inKey: Key, mut keyhash: i32, mut keystr: ArcStr, mut inValue: Value) -> Result<Arc<BinTree>> {
     let mut outBinTree: Arc<BinTree>;
     outBinTree = 'mc: {
-        let __mc_input = (inBinTree.clone(), inKey.clone(), inValue.clone());
+        let __mc_input = (inBinTree.clone(), inKey.clone(), keyhash.clone(), keystr.clone(), inValue.clone());
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ BinTree { rightSubTree: None, leftSubTree: None, value: None }, key, value) => {
+                (Deref @ BinTree { rightSubTree: None, leftSubTree: None, value: None }, key, _, _, value) => {
                     Ok(Arc::new(BinTree { value: Some(TreeValue { key: key.clone(), r#str: (keystr.clone()).clone(), hash: keyhash.clone(), value: value.clone() }), leftSubTree: None, rightSubTree: None }))
                 }
                 _ => bail!("nomatch"),
@@ -191,7 +192,7 @@ fn treeAdd2(mut inBinTree: Arc<BinTree>, mut inKey: Key, mut keyhash: i32, mut k
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ BinTree { rightSubTree: right, leftSubTree: left, value: Some(TreeValue { key: rkey, r#str: rkeystr, hash: rhash, value: _ }) }, _, value) => {
+                (Deref @ BinTree { rightSubTree: right, leftSubTree: left, value: Some(TreeValue { key: rkey, r#str: rkeystr, hash: rhash, value: _ }) }, _, _, _, value) => {
                     let 0 = (keyCompareNinjaSecretHashTricks((rkeystr.clone()).clone(), rhash.clone(), (keystr.clone()).clone(), keyhash.clone())) else { bail!("pattern mismatch") };
                     Ok(Arc::new(BinTree { value: Some(TreeValue { key: rkey.clone(), r#str: (rkeystr.clone()).clone(), hash: rhash.clone(), value: value.clone() }), leftSubTree: left.clone(), rightSubTree: right.clone() }))
                 }
@@ -200,7 +201,7 @@ fn treeAdd2(mut inBinTree: Arc<BinTree>, mut inKey: Key, mut keyhash: i32, mut k
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ BinTree { rightSubTree: Some(t), leftSubTree: left, value: optVal @ Some(TreeValue { key: _, r#str: rkeystr, hash: rhash, value: _ }) }, key, value) => {
+                (Deref @ BinTree { rightSubTree: Some(t), leftSubTree: left, value: optVal @ Some(TreeValue { key: _, r#str: rkeystr, hash: rhash, value: _ }) }, key, _, _, value) => {
                     let mut t_1: Arc<BinTree>;
                     let 1 = (keyCompareNinjaSecretHashTricks((rkeystr.clone()).clone(), rhash.clone(), (keystr.clone()).clone(), keyhash.clone())) else { bail!("pattern mismatch") };
                     t_1 = treeAdd2(t.clone(), key.clone(), keyhash.clone(), (keystr.clone()).clone(), value.clone())?;
@@ -211,7 +212,7 @@ fn treeAdd2(mut inBinTree: Arc<BinTree>, mut inKey: Key, mut keyhash: i32, mut k
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ BinTree { rightSubTree: None, leftSubTree: left, value: optVal @ Some(TreeValue { key: _, r#str: rkeystr, hash: rhash, value: _ }) }, key, value) => {
+                (Deref @ BinTree { rightSubTree: None, leftSubTree: left, value: optVal @ Some(TreeValue { key: _, r#str: rkeystr, hash: rhash, value: _ }) }, key, _, _, value) => {
                     let mut right_1: Arc<BinTree>;
                     let 1 = (keyCompareNinjaSecretHashTricks((rkeystr.clone()).clone(), rhash.clone(), (keystr.clone()).clone(), keyhash.clone())) else { bail!("pattern mismatch") };
                     right_1 = treeAdd2(Arc::new(BinTree { value: None, leftSubTree: None, rightSubTree: None }), key.clone(), keyhash.clone(), (keystr.clone()).clone(), value.clone())?;
@@ -222,7 +223,7 @@ fn treeAdd2(mut inBinTree: Arc<BinTree>, mut inKey: Key, mut keyhash: i32, mut k
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ BinTree { rightSubTree: right, leftSubTree: Some(t), value: optVal @ Some(TreeValue { key: _, r#str: rkeystr, hash: rhash, value: _ }) }, key, value) => {
+                (Deref @ BinTree { rightSubTree: right, leftSubTree: Some(t), value: optVal @ Some(TreeValue { key: _, r#str: rkeystr, hash: rhash, value: _ }) }, key, _, _, value) => {
                     let mut t_1: Arc<BinTree>;
                     let (-1) = (keyCompareNinjaSecretHashTricks((rkeystr.clone()).clone(), rhash.clone(), (keystr.clone()).clone(), keyhash.clone())) else { bail!("pattern mismatch") };
                     t_1 = treeAdd2(t.clone(), key.clone(), keyhash.clone(), (keystr.clone()).clone(), value.clone())?;
@@ -233,7 +234,7 @@ fn treeAdd2(mut inBinTree: Arc<BinTree>, mut inKey: Key, mut keyhash: i32, mut k
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ BinTree { rightSubTree: right, leftSubTree: None, value: optVal @ Some(TreeValue { key: _, r#str: rkeystr, hash: rhash, value: _ }) }, key, value) => {
+                (Deref @ BinTree { rightSubTree: right, leftSubTree: None, value: optVal @ Some(TreeValue { key: _, r#str: rkeystr, hash: rhash, value: _ }) }, key, _, _, value) => {
                     let mut left_1: Arc<BinTree>;
                     let (-1) = (keyCompareNinjaSecretHashTricks((rkeystr.clone()).clone(), rhash.clone(), (keystr.clone()).clone(), keyhash.clone())) else { bail!("pattern mismatch") };
                     left_1 = treeAdd2(Arc::new(BinTree { value: None, leftSubTree: None, rightSubTree: None }), key.clone(), keyhash.clone(), (keystr.clone()).clone(), value.clone())?;
@@ -448,10 +449,10 @@ fn bintreeToList2(mut inBinTree: Arc<BinTree>, mut inKeyLst: Arc<metamodelica::L
     let mut outKeyLst: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
     let mut outValueLst: Arc<metamodelica::List<i32>> = metamodelica::nil();
     (outKeyLst, outValueLst) = 'mc: {
-        let __mc_input = inBinTree.clone();
+        let __mc_input = (inBinTree.clone(), inKeyLst.clone(), inValueLst.clone());
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                Deref @ BinTree { rightSubTree: None, leftSubTree: None, value: None } => {
+                (Deref @ BinTree { rightSubTree: None, leftSubTree: None, value: None }, _, _) => {
                     Ok((inKeyLst.clone(), inValueLst.clone()))
                 }
                 _ => bail!("nomatch"),
@@ -459,7 +460,7 @@ fn bintreeToList2(mut inBinTree: Arc<BinTree>, mut inKeyLst: Arc<metamodelica::L
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                Deref @ BinTree { rightSubTree: right, leftSubTree: left, value: Some(TreeValue { value, key, .. }) } => {
+                (Deref @ BinTree { rightSubTree: right, leftSubTree: left, value: Some(TreeValue { value, key, .. }) }, _, _) => {
                     let mut klst: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
                     let mut vlst: Arc<metamodelica::List<i32>> = metamodelica::nil();
                     (klst, vlst) = bintreeToListOpt(left.clone(), cons(key.clone(), inKeyLst.clone()), cons(value.clone(), inValueLst.clone()))?;
@@ -471,7 +472,7 @@ fn bintreeToList2(mut inBinTree: Arc<BinTree>, mut inKeyLst: Arc<metamodelica::L
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                Deref @ BinTree { leftSubTree: left, value: None, .. } => {
+                (Deref @ BinTree { leftSubTree: left, value: None, .. }, _, _) => {
                     let mut klst: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
                     let mut vlst: Arc<metamodelica::List<i32>> = metamodelica::nil();
                     (klst, vlst) = bintreeToListOpt(left.clone(), inKeyLst.clone(), inValueLst.clone())?;
@@ -489,17 +490,17 @@ fn bintreeToList2(mut inBinTree: Arc<BinTree>, mut inKeyLst: Arc<metamodelica::L
 fn bintreeToListOpt(mut inBinTreeOption: Option<Arc<BinTree>>, mut inKeyLst: Arc<metamodelica::List<Arc<DAE::ComponentRef>>>, mut inValueLst: Arc<metamodelica::List<i32>>) -> Result<(Arc<metamodelica::List<Arc<DAE::ComponentRef>>>, Arc<metamodelica::List<i32>>)> {
     let mut outKeyLst: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
     let mut outValueLst: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    (outKeyLst, outValueLst) = (::match_deref::match_deref! { match &(inBinTreeOption.clone()) {
-        None => {
+    (outKeyLst, outValueLst) = (::match_deref::match_deref! { match &((inBinTreeOption.clone(), inKeyLst.clone(), inValueLst.clone())) {
+        (None, _, _) => {
             (inKeyLst.clone(), inValueLst.clone())
         },
-        Some(bt) => {
+        (Some(bt), _, _) => {
             let mut klst: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
             let mut vlst: Arc<metamodelica::List<i32>> = metamodelica::nil();
             (klst, vlst) = bintreeToList2(bt.clone(), inKeyLst.clone(), inValueLst.clone())?;
             (klst.clone(), vlst.clone())
         },
-        _ => unreachable!("match_deref! exhaustiveness placeholder"),
+        _ => bail!("match: no arm matched"),
     } });
     Ok((outKeyLst, outValueLst))
 }
@@ -508,17 +509,17 @@ pub fn binTreeintersection(mut bt1: Arc<BinTree>, mut bt2: Arc<BinTree>, mut iBt
     let mut oBt: Arc<BinTree>;
     let mut keys: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
     (keys, _) = bintreeToList(bt1.clone())?;
-    oBt = List::fold1(keys.clone(), Arc::new(binTreeintersection1), bt2.clone(), iBt.clone());
+    oBt = List::fold1(keys.clone(), (std::sync::Arc::new(binTreeintersection1) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Arc<BinTree>, Arc<BinTree>) -> Result<Arc<BinTree>> + 'static>), bt2.clone(), iBt.clone());
     Ok(oBt)
 }
 
 fn binTreeintersection1(mut key: Arc<DAE::ComponentRef>, mut bt2: Arc<BinTree>, mut iBt: Arc<BinTree>) -> Result<Arc<BinTree>> {
     let mut oBt: Arc<BinTree>;
     oBt = 'mc: {
-        let __mc_input = iBt.clone();
+        let __mc_input = (key.clone(), bt2.clone(), iBt.clone());
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                _ => {
+                (_, _, _) => {
                     let mut bt: Arc<BinTree>;
                     let _ = treeGet(bt2.clone(), key.clone())?;
                     bt = treeAdd(iBt.clone(), key.clone(), 0)?;

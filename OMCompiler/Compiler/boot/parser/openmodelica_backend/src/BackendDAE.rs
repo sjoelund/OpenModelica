@@ -66,7 +66,7 @@ pub type Type = Arc<DAE::Type>;
 ///  constants and parameters.
 ///  The equations are also split into two lists, one with simple equations, a=b, a-b=0, etc., that
 ///  are removed from  the set of equations to speed up calculations.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct BackendDAE {
     pub eqs: EqSystems,
     pub shared: Arc<Shared>,
@@ -78,7 +78,7 @@ pub type DAE = BackendDAE;
 pub type EqSystems = Arc<metamodelica::List<Arc<EqSystem>>>;
 
 /// An independent system of equations (and their corresponding variables)
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct EqSystem {
     /// ordered Variables, only states and alg. vars
     pub orderedVars: Variables,
@@ -126,7 +126,7 @@ pub enum BaseClockPartitionKind {
 pub use self::BaseClockPartitionKind::{UNKNOWN_PARTITION,CLOCKED_PARTITION,CONTINUOUS_TIME_PARTITION,UNSPECIFIED_PARTITION};
 
 /// Data shared for all equation-systems
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Shared {
     /// variables only depending on parameters and constants [TODO: move stuff (like inputs) to localKnownVars]
     pub globalKnownVars: Variables,
@@ -174,7 +174,7 @@ pub struct Shared {
 pub type SHARED = Shared;
 
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct InlineData {
     pub inlineSystems: EqSystems,
     pub knownVariables: Variables,
@@ -202,7 +202,7 @@ pub struct SubPartition {
 pub type SUB_PARTITION = SubPartition;
 
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct PartitionsInfo {
     pub basePartitions: metamodelica::Array<BasePartition>,
     pub subPartitions: metamodelica::Array<SubPartition>,
@@ -248,7 +248,7 @@ pub enum BackendDAEType {
 }
 pub use self::BackendDAEType::{SIMULATION,JACOBIAN,ALGEQSYSTEM,ARRAYSYSTEM,PARAMETERSYSTEM,INITIALSYSTEM,INLINESYSTEM,DAEMODESYSTEM};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct DataReconciliationData {
     /// jacobians for set-C and set-S
     pub symbolicJacobian: Arc<Jacobian>,
@@ -269,7 +269,7 @@ pub type DATA_RECON = DataReconciliationData;
 //
 //  variables and equations definition
 //
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Variables {
     /// HashTB, cref->indx
     pub crefIndices: metamodelica::Array<Arc<metamodelica::List<CrefIndex>>>,
@@ -296,7 +296,7 @@ pub type CREFINDEX = CrefIndex;
 
 /// array of Equations are expandable, to amortize the cost of adding
 ///  equations in a more efficient manner
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct VariableArray {
     /// no. elements
     pub numberOfElements: i32,
@@ -640,7 +640,7 @@ pub type EXTOBJCLASS = ExternalObjectClass;
 //
 //  Matching, strong components and StateSets
 //
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Matching {
     /// matching has not yet been performed
     NO_MATCHING,
@@ -683,7 +683,7 @@ pub type StructurallySingularSystemHandlerArg = (StateOrder, metamodelica::Array
 
 pub type ConstraintEquations = metamodelica::Array<Arc<metamodelica::List<Arc<Equation>>>>;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone)]
 pub enum StateOrder {
     STATEORDER {
         /// x -> dx
@@ -694,12 +694,58 @@ pub enum StateOrder {
     /// Index reduction disabled; don't need big hashtables
     NOSTATEORDER,
 }
+impl PartialEq for StateOrder {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::STATEORDER { hashTable: __l_hashTable, invHashTable: __l_invHashTable }, Self::STATEORDER { hashTable: __r_hashTable, invHashTable: __r_invHashTable }) => std::sync::Arc::ptr_eq(__l_hashTable, __r_hashTable) && std::sync::Arc::ptr_eq(__l_invHashTable, __r_invHashTable),
+            (Self::NOSTATEORDER, Self::NOSTATEORDER) => true,
+            _ => false,
+        }
+    }
+}
+impl Eq for StateOrder {}
+impl PartialOrd for StateOrder {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> { Some(self.cmp(other)) }
+}
+impl Ord for StateOrder {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        fn __variant_idx(__v: &StateOrder) -> u32 {
+            match __v {
+                StateOrder::STATEORDER { .. } => 0,
+                StateOrder::NOSTATEORDER => 1,
+            }
+        }
+        match __variant_idx(self).cmp(&__variant_idx(other)) {
+            std::cmp::Ordering::Equal => {}
+            non_eq => return non_eq,
+        }
+        match (self, other) {
+            (Self::STATEORDER { hashTable: __l_hashTable, invHashTable: __l_invHashTable }, Self::STATEORDER { hashTable: __r_hashTable, invHashTable: __r_invHashTable }) => (std::sync::Arc::as_ptr(__l_hashTable) as *const ()).cmp(&(std::sync::Arc::as_ptr(__r_hashTable) as *const ())).then_with(|| (std::sync::Arc::as_ptr(__l_invHashTable) as *const ()).cmp(&(std::sync::Arc::as_ptr(__r_invHashTable) as *const ()))),
+            (Self::NOSTATEORDER, Self::NOSTATEORDER) => std::cmp::Ordering::Equal,
+            _ => unreachable!("variant-index equality already implies same variant"),
+        }
+    }
+}
+impl std::fmt::Debug for StateOrder {
+    fn fmt(&self, __f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::STATEORDER { hashTable: __d_hashTable, invHashTable: __d_invHashTable } => {
+                let mut __ds = __f.debug_struct("STATEORDER");
+                __ds.field("hashTable", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr(__d_hashTable)));
+                __ds.field("invHashTable", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr(__d_invHashTable)));
+                __ds.finish()
+            }
+            Self::NOSTATEORDER => __f.debug_struct("NOSTATEORDER").finish(),
+        }
+    }
+}
+
 pub use self::StateOrder::{STATEORDER,NOSTATEORDER};
 
 /// Order of the equations the have to be solved
 pub type StrongComponents = Arc<metamodelica::List<Arc<StrongComponent>>>;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum StrongComponent {
     SINGLEEQUATION {
         eqn: i32,
@@ -749,7 +795,7 @@ pub enum StrongComponent {
 }
 pub use self::StrongComponent::{SINGLEEQUATION,EQUATIONSYSTEM,SINGLEARRAY,SINGLEALGORITHM,SINGLECOMPLEXEQUATION,SINGLEWHENEQUATION,SINGLEIFEQUATION,TORNSYSTEM};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct TearingSet {
     pub tearingvars: Arc<metamodelica::List<i32>>,
     pub residualequations: Arc<metamodelica::List<i32>>,
@@ -780,7 +826,7 @@ pub use self::InnerEquation::{INNEREQUATION,INNEREQUATIONCONSTRAINTS};
 /// List of StateSets
 pub type StateSets = Arc<metamodelica::List<StateSet>>;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct StateSet {
     pub index: i32,
     pub rang: i32,
@@ -803,7 +849,7 @@ pub type STATESET = StateSet;
 //
 // event info and stuff
 //
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct EventInfo {
     /// stores all information related to time events
     pub timeEvents: Arc<metamodelica::List<TimeEvent>>,
@@ -820,7 +866,7 @@ pub struct EventInfo {
 pub type EVENT_INFO = EventInfo;
 
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ZeroCrossingSet {
     pub zc: DoubleEnded::MutableList<ZeroCrossing>,
     pub tree: metamodelica::Array<Arc<ZeroCrossings::ZeroCrossingTree::Tree>>,
@@ -829,7 +875,7 @@ pub struct ZeroCrossingSet {
 pub type ZERO_CROSSING_SET = ZeroCrossingSet;
 
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ZeroCrossing {
     /// zero crossing index
     pub index: i32,
@@ -844,7 +890,7 @@ pub struct ZeroCrossing {
 pub type ZERO_CROSSING = ZeroCrossing;
 
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum SimIterator {
     SIM_ITERATOR_RANGE {
         name: Arc<DAE::ComponentRef>,
@@ -1008,7 +1054,7 @@ pub const homotopyLambda: &'static str = "__HOM_LAMBDA";
 
 pub type FullJacobian = Option<Arc<metamodelica::List<(i32, i32, Arc<Equation>)>>>;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Jacobian {
     FULL_JACOBIAN {
         jacobian: FullJacobian,
@@ -1050,14 +1096,16 @@ pub type SparsePattern = (Arc<metamodelica::List<(Arc<DAE::ComponentRef>, Arc<me
 // nonZeroElements
 pub type NonlinearPattern = (Arc<metamodelica::List<(Arc<DAE::ComponentRef>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>)>>, Arc<metamodelica::List<(Arc<DAE::ComponentRef>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>)>>, (Arc<metamodelica::List<Arc<DAE::ComponentRef>>>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>), i32);
 
-pub static emptySparsePattern: std::sync::LazyLock<(Arc<metamodelica::List<(Arc<DAE::ComponentRef>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>)>>, Arc<metamodelica::List<(Arc<DAE::ComponentRef>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>)>>, (Arc<metamodelica::List<Arc<DAE::ComponentRef>>>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>), i32)> = std::sync::LazyLock::new(|| { (metamodelica::nil(), metamodelica::nil(), (metamodelica::nil(), metamodelica::nil()), 0) });
+thread_local! { static __emptySparsePattern_TLS: (Arc<metamodelica::List<(Arc<DAE::ComponentRef>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>)>>, Arc<metamodelica::List<(Arc<DAE::ComponentRef>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>)>>, (Arc<metamodelica::List<Arc<DAE::ComponentRef>>>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>), i32) = (metamodelica::nil(), metamodelica::nil(), (metamodelica::nil(), metamodelica::nil()), 0); }
+pub fn emptySparsePattern() -> (Arc<metamodelica::List<(Arc<DAE::ComponentRef>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>)>>, Arc<metamodelica::List<(Arc<DAE::ComponentRef>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>)>>, (Arc<metamodelica::List<Arc<DAE::ComponentRef>>>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>), i32) { __emptySparsePattern_TLS.with(|__t| __t.clone()) }
 
-pub static emptyNonlinearPattern: std::sync::LazyLock<(Arc<metamodelica::List<(Arc<DAE::ComponentRef>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>)>>, Arc<metamodelica::List<(Arc<DAE::ComponentRef>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>)>>, (Arc<metamodelica::List<Arc<DAE::ComponentRef>>>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>), i32)> = std::sync::LazyLock::new(|| { (metamodelica::nil(), metamodelica::nil(), (metamodelica::nil(), metamodelica::nil()), 0) });
+thread_local! { static __emptyNonlinearPattern_TLS: (Arc<metamodelica::List<(Arc<DAE::ComponentRef>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>)>>, Arc<metamodelica::List<(Arc<DAE::ComponentRef>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>)>>, (Arc<metamodelica::List<Arc<DAE::ComponentRef>>>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>), i32) = (metamodelica::nil(), metamodelica::nil(), (metamodelica::nil(), metamodelica::nil()), 0); }
+pub fn emptyNonlinearPattern() -> (Arc<metamodelica::List<(Arc<DAE::ComponentRef>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>)>>, Arc<metamodelica::List<(Arc<DAE::ComponentRef>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>)>>, (Arc<metamodelica::List<Arc<DAE::ComponentRef>>>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>), i32) { __emptyNonlinearPattern_TLS.with(|__t| __t.clone()) }
 
 pub type SparseColoring = Arc<metamodelica::List<Arc<metamodelica::List<Arc<DAE::ComponentRef>>>>>;
 
 // colouring
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct DifferentiateInputData {
     pub independenentVars: Option<Variables>,
     pub dependenentVars: Option<Variables>,
@@ -1072,10 +1120,8 @@ pub struct DifferentiateInputData {
 pub type DIFFINPUTDATA = DifferentiateInputData;
 
 
-// TODO: non-Sync, non-const-emittable constant — needs new emission path.
-// Type: DifferentiateInputData
-// Expr: Constructor { name: 'BackendDAE.DifferentiateInputData.DIFFINPUTDATA', args: [Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }, Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }, Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }, Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }, Array { elems: [], ty: List(Unknown) }, Array { elems: [], ty: List(Unknown) }, Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }, Constructor { name: 'AvlSetPath.Tree.EMPTY', args: [], named_args: [], ty: RustUnitVariant, field_names: [] }], named_args: [], ty: RustStruct('BackendDAE.DifferentiateInputData'), field_names: ['independenentVars', 'dependenentVars', 'knownVars', 'allVars', 'controlVars', 'diffCrefs', 'matrixName', 'diffedFunctions'] }
-pub fn emptyInputData() -> DifferentiateInputData { todo!("non-Sync, non-const-emittable constant emptyInputData — extend codegen") }
+thread_local! { static __emptyInputData_TLS: DifferentiateInputData = DifferentiateInputData { independenentVars: None, dependenentVars: None, knownVars: None, allVars: None, controlVars: metamodelica::nil(), diffCrefs: metamodelica::nil(), matrixName: None, diffedFunctions: Arc::new(openmodelica_frontend::AvlSetPath::Tree::EMPTY) }; }
+pub fn emptyInputData() -> DifferentiateInputData { __emptyInputData_TLS.with(|__t| __t.clone()) }
 
 pub type DifferentiateInputArguments = /* ? */;
 
@@ -1100,7 +1146,7 @@ pub enum DifferentiationType {
 pub use self::DifferentiationType::{DIFFERENTIATION_TIME,SIMPLE_DIFFERENTIATION,DIFFERENTIATION_FUNCTION,DIFF_FULL_JACOBIAN,GENERIC_GRADIENT};
 
 /// types to count operations for the components
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum CompInfo {
     COUNTER {
         comp: Arc<StrongComponent>,
@@ -1138,7 +1184,7 @@ pub enum CompInfo {
 }
 pub use self::CompInfo::{COUNTER,SYSTEM,TORN_ANALYSE,NO_COMP};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct BackendDAEModeData {
     pub stateVars: Arc<metamodelica::List<Var>>,
     pub algStateVars: Arc<metamodelica::List<Var>>,
@@ -1149,8 +1195,6 @@ pub struct BackendDAEModeData {
 pub type BDAE_MODE_DATA = BackendDAEModeData;
 
 
-// TODO: non-Sync, non-const-emittable constant — needs new emission path.
-// Type: BackendDAEModeData
-// Expr: Constructor { name: 'BackendDAE.BackendDAEModeData.BDAE_MODE_DATA', args: [Array { elems: [], ty: List(Unknown) }, Array { elems: [], ty: List(Unknown) }, Lit(Int(0)), Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }], named_args: [], ty: RustStruct('BackendDAE.BackendDAEModeData'), field_names: ['stateVars', 'algStateVars', 'numResVars', 'modelVars'] }
-pub fn emptyDAEModeData() -> BackendDAEModeData { todo!("non-Sync, non-const-emittable constant emptyDAEModeData — extend codegen") }
+thread_local! { static __emptyDAEModeData_TLS: BackendDAEModeData = BackendDAEModeData { stateVars: metamodelica::nil(), algStateVars: metamodelica::nil(), numResVars: 0, modelVars: None }; }
+pub fn emptyDAEModeData() -> BackendDAEModeData { __emptyDAEModeData_TLS.with(|__t| __t.clone()) }
 

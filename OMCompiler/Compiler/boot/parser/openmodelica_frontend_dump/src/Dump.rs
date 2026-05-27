@@ -83,7 +83,7 @@ pub fn unparseStr(mut inProgram: Absyn::Program, mut markup: bool, mut options: 
     let mut status: bool = false;
     status = Flags::getConfigBool(Flags::MODELICA_OUTPUT.clone())?;
     FlagsUtil::setConfigBool(Flags::MODELICA_OUTPUT.clone(), false)?;
-    outString = (Tpl::tplString2(Arc::new(AbsynDumpTpl::dump), inProgram.clone(), options.clone())?).clone();
+    outString = (Tpl::tplString2((std::sync::Arc::new(AbsynDumpTpl::dump) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, Absyn::Program, DumpOptions) -> Result<Tpl::Text> + 'static>), inProgram.clone(), options.clone())?).clone();
     FlagsUtil::setConfigBool(Flags::MODELICA_OUTPUT.clone(), status.clone())?;
     Ok(outString)
 }
@@ -93,7 +93,7 @@ pub fn unparseClassList(mut inClasses: Arc<metamodelica::List<Arc<Absyn::Class>>
     let mut status: bool = false;
     status = Flags::getConfigBool(Flags::MODELICA_OUTPUT.clone())?;
     FlagsUtil::setConfigBool(Flags::MODELICA_OUTPUT.clone(), false)?;
-    outString = (Tpl::tplString2(Arc::new(AbsynDumpTpl::dump), Absyn::Program { classes: inClasses.clone(), within_: openmodelica_ast::Absyn::Within::TOP }, defaultDumpOptions.clone())?).clone();
+    outString = (Tpl::tplString2((std::sync::Arc::new(AbsynDumpTpl::dump) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, Absyn::Program, DumpOptions) -> Result<Tpl::Text> + 'static>), Absyn::Program { classes: inClasses.clone(), within_: openmodelica_ast::Absyn::Within::TOP }, defaultDumpOptions.clone())?).clone();
     FlagsUtil::setConfigBool(Flags::MODELICA_OUTPUT.clone(), status.clone())?;
     Ok(outString)
 }
@@ -103,7 +103,7 @@ pub fn unparseClassStr(mut inClass: Arc<Absyn::Class>) -> Result<ArcStr> {
     let mut status: bool = false;
     status = Flags::getConfigBool(Flags::MODELICA_OUTPUT.clone())?;
     FlagsUtil::setConfigBool(Flags::MODELICA_OUTPUT.clone(), false)?;
-    outString = (Tpl::tplString3(Arc::new(AbsynDumpTpl::dumpClass), inClass.clone(), (literal!("")).clone(), defaultDumpOptions.clone())?).clone();
+    outString = (Tpl::tplString3((std::sync::Arc::new(AbsynDumpTpl::dumpClass) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, Arc<Absyn::Class>, ArcStr, DumpOptions) -> Result<Tpl::Text> + 'static>), inClass.clone(), (literal!("")).clone(), defaultDumpOptions.clone())?).clone();
     FlagsUtil::setConfigBool(Flags::MODELICA_OUTPUT.clone(), status.clone())?;
     Ok(outString)
 }
@@ -113,7 +113,7 @@ pub fn unparseWithin(mut inWithin: Absyn::Within) -> Result<ArcStr> {
     let mut status: bool = false;
     status = Flags::getConfigBool(Flags::MODELICA_OUTPUT.clone())?;
     FlagsUtil::setConfigBool(Flags::MODELICA_OUTPUT.clone(), false)?;
-    outString = (Tpl::tplString(Arc::new(AbsynDumpTpl::dumpWithin), inWithin.clone())?).clone();
+    outString = (Tpl::tplString((std::sync::Arc::new(AbsynDumpTpl::dumpWithin) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, Absyn::Within) -> Result<Tpl::Text> + 'static>), inWithin.clone())?).clone();
     FlagsUtil::setConfigBool(Flags::MODELICA_OUTPUT.clone(), status.clone())?;
     Ok(outString)
 }
@@ -141,13 +141,13 @@ pub fn unparseClassAttributesStr(mut inClass: Arc<Absyn::Class>) -> Result<ArcSt
 
 pub fn unparseCommentOption(mut inComment: Option<Arc<Absyn::Comment>>) -> Result<ArcStr> {
     let mut outString: ArcStr = arcstr::literal!("");
-    outString = (Tpl::tplString(Arc::new(AbsynDumpTpl::dumpCommentOpt), inComment.clone())?).clone();
+    outString = (Tpl::tplString((std::sync::Arc::new(AbsynDumpTpl::dumpCommentOpt) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, Option<Arc<Absyn::Comment>>) -> Result<Tpl::Text> + 'static>), inComment.clone())?).clone();
     Ok(outString)
 }
 
 pub fn unparseRestrictionStr(mut inRestriction: Absyn::Restriction) -> Result<ArcStr> {
     let mut outString: ArcStr = arcstr::literal!("");
-    outString = (Tpl::tplString(Arc::new(AbsynDumpTpl::dumpRestriction), inRestriction.clone())?).clone();
+    outString = (Tpl::tplString((std::sync::Arc::new(AbsynDumpTpl::dumpRestriction) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, Absyn::Restriction) -> Result<Tpl::Text> + 'static>), inRestriction.clone())?).clone();
     Ok(outString)
 }
 
@@ -166,7 +166,7 @@ pub fn unparseElementArgStr(mut inElementArg: Arc<Absyn::ElementArg>) -> Result<
     let mut status: bool = false;
     status = Flags::getConfigBool(Flags::MODELICA_OUTPUT.clone())?;
     FlagsUtil::setConfigBool(Flags::MODELICA_OUTPUT.clone(), false)?;
-    outString = (Tpl::tplString(Arc::new(AbsynDumpTpl::dumpElementArg), inElementArg.clone())?).clone();
+    outString = (Tpl::tplString((std::sync::Arc::new(AbsynDumpTpl::dumpElementArg) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, Arc<Absyn::ElementArg>) -> Result<Tpl::Text> + 'static>), inElementArg.clone())?).clone();
     FlagsUtil::setConfigBool(Flags::MODELICA_OUTPUT.clone(), status.clone())?;
     Ok(outString)
 }
@@ -206,7 +206,7 @@ pub fn unparseElementItemStr(mut inElementItem: Arc<Absyn::ElementItem>) -> Resu
     let mut status: bool = false;
     status = Flags::getConfigBool(Flags::MODELICA_OUTPUT.clone())?;
     FlagsUtil::setConfigBool(Flags::MODELICA_OUTPUT.clone(), false)?;
-    outString = (Tpl::tplString2(Arc::new(AbsynDumpTpl::dumpElementItem), inElementItem.clone(), defaultDumpOptions.clone())?).clone();
+    outString = (Tpl::tplString2((std::sync::Arc::new(AbsynDumpTpl::dumpElementItem) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, Arc<Absyn::ElementItem>, DumpOptions) -> Result<Tpl::Text> + 'static>), inElementItem.clone(), defaultDumpOptions.clone())?).clone();
     FlagsUtil::setConfigBool(Flags::MODELICA_OUTPUT.clone(), status.clone())?;
     Ok(outString)
 }
@@ -216,7 +216,7 @@ pub fn unparseAnnotation(mut inAnnotation: Arc<Absyn::Annotation>) -> Result<Arc
     let mut status: bool = false;
     status = Flags::getConfigBool(Flags::MODELICA_OUTPUT.clone())?;
     FlagsUtil::setConfigBool(Flags::MODELICA_OUTPUT.clone(), false)?;
-    outString = (Tpl::tplString(Arc::new(AbsynDumpTpl::dumpAnnotation), inAnnotation.clone())?).clone();
+    outString = (Tpl::tplString((std::sync::Arc::new(AbsynDumpTpl::dumpAnnotation) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, Arc<Absyn::Annotation>) -> Result<Tpl::Text> + 'static>), inAnnotation.clone())?).clone();
     FlagsUtil::setConfigBool(Flags::MODELICA_OUTPUT.clone(), status.clone())?;
     Ok(outString)
 }
@@ -266,7 +266,7 @@ pub fn unparseImportStr(mut inImport: Absyn::Import) -> Result<ArcStr> {
     let mut status: bool = false;
     status = Flags::getConfigBool(Flags::MODELICA_OUTPUT.clone())?;
     FlagsUtil::setConfigBool(Flags::MODELICA_OUTPUT.clone(), false)?;
-    outString = (Tpl::tplString(Arc::new(AbsynDumpTpl::dumpImport), inImport.clone())?).clone();
+    outString = (Tpl::tplString((std::sync::Arc::new(AbsynDumpTpl::dumpImport) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, Absyn::Import) -> Result<Tpl::Text> + 'static>), inImport.clone())?).clone();
     FlagsUtil::setConfigBool(Flags::MODELICA_OUTPUT.clone(), status.clone())?;
     Ok(outString)
 }
@@ -321,7 +321,7 @@ pub fn unparseComponentCondition(mut inComponentCondition: Option<Arc<Absyn::Exp
     let mut status: bool = false;
     status = Flags::getConfigBool(Flags::MODELICA_OUTPUT.clone())?;
     FlagsUtil::setConfigBool(Flags::MODELICA_OUTPUT.clone(), false)?;
-    outString = (Tpl::tplString(Arc::new(AbsynDumpTpl::dumpComponentCondition), inComponentCondition.clone())?).clone();
+    outString = (Tpl::tplString((std::sync::Arc::new(AbsynDumpTpl::dumpComponentCondition) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, Option<Arc<Absyn::Exp>>) -> Result<Tpl::Text> + 'static>), inComponentCondition.clone())?).clone();
     FlagsUtil::setConfigBool(Flags::MODELICA_OUTPUT.clone(), status.clone())?;
     Ok(outString)
 }
@@ -353,7 +353,7 @@ pub fn unparseModificationStr(mut inModification: Arc<Absyn::Modification>) -> R
     let mut status: bool = false;
     status = Flags::getConfigBool(Flags::MODELICA_OUTPUT.clone())?;
     FlagsUtil::setConfigBool(Flags::MODELICA_OUTPUT.clone(), false)?;
-    outString = (Tpl::tplString(Arc::new(AbsynDumpTpl::dumpModification), inModification.clone())?).clone();
+    outString = (Tpl::tplString((std::sync::Arc::new(AbsynDumpTpl::dumpModification) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, Arc<Absyn::Modification>) -> Result<Tpl::Text> + 'static>), inModification.clone())?).clone();
     FlagsUtil::setConfigBool(Flags::MODELICA_OUTPUT.clone(), status.clone())?;
     Ok(outString)
 }
@@ -378,7 +378,7 @@ pub fn unparseClassPart(mut classPart: Arc<Absyn::ClassPart>) -> Result<ArcStr> 
     let mut status: bool = false;
     status = Flags::getConfigBool(Flags::MODELICA_OUTPUT.clone())?;
     FlagsUtil::setConfigBool(Flags::MODELICA_OUTPUT.clone(), false)?;
-    outString = (Tpl::tplString3(Arc::new(AbsynDumpTpl::dumpClassPart), classPart.clone(), 0, defaultDumpOptions.clone())?).clone();
+    outString = (Tpl::tplString3((std::sync::Arc::new(AbsynDumpTpl::dumpClassPart) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, Arc<Absyn::ClassPart>, i32, DumpOptions) -> Result<Tpl::Text> + 'static>), classPart.clone(), 0, defaultDumpOptions.clone())?).clone();
     FlagsUtil::setConfigBool(Flags::MODELICA_OUTPUT.clone(), status.clone())?;
     Ok(outString)
 }
@@ -388,7 +388,7 @@ pub fn unparseEquationStr(mut inEquation: Arc<Absyn::Equation>) -> Result<ArcStr
     let mut status: bool = false;
     status = Flags::getConfigBool(Flags::MODELICA_OUTPUT.clone())?;
     FlagsUtil::setConfigBool(Flags::MODELICA_OUTPUT.clone(), false)?;
-    outString = (Tpl::tplString(Arc::new(AbsynDumpTpl::dumpEquation), inEquation.clone())?).clone();
+    outString = (Tpl::tplString((std::sync::Arc::new(AbsynDumpTpl::dumpEquation) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, Arc<Absyn::Equation>) -> Result<Tpl::Text> + 'static>), inEquation.clone())?).clone();
     FlagsUtil::setConfigBool(Flags::MODELICA_OUTPUT.clone(), status.clone())?;
     Ok(outString)
 }
@@ -398,20 +398,20 @@ pub fn unparseEquationItemStr(mut inEquation: Arc<Absyn::EquationItem>) -> Resul
     let mut status: bool = false;
     status = Flags::getConfigBool(Flags::MODELICA_OUTPUT.clone())?;
     FlagsUtil::setConfigBool(Flags::MODELICA_OUTPUT.clone(), false)?;
-    outString = (Tpl::tplString(Arc::new(AbsynDumpTpl::dumpEquationItem), inEquation.clone())?).clone();
+    outString = (Tpl::tplString((std::sync::Arc::new(AbsynDumpTpl::dumpEquationItem) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, Arc<Absyn::EquationItem>) -> Result<Tpl::Text> + 'static>), inEquation.clone())?).clone();
     FlagsUtil::setConfigBool(Flags::MODELICA_OUTPUT.clone(), status.clone())?;
     Ok(outString)
 }
 
 pub fn unparseEquationItemStrLst(mut inEquationItems: Arc<metamodelica::List<Arc<Absyn::EquationItem>>>, mut inSeparator: ArcStr) -> ArcStr {
     let mut outString: ArcStr = arcstr::literal!("");
-    outString = stringDelimitList(List::map(inEquationItems.clone(), Arc::new(unparseEquationItemStr)), (inSeparator.clone()).clone());
+    outString = stringDelimitList(List::map(inEquationItems.clone(), (std::sync::Arc::new(unparseEquationItemStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::EquationItem>) -> Result<ArcStr> + 'static>)), (inSeparator.clone()).clone());
     outString
 }
 
 pub fn unparseAlgorithmStrLst(mut inAlgorithmItems: Arc<metamodelica::List<Arc<Absyn::AlgorithmItem>>>, mut inSeparator: ArcStr) -> ArcStr {
     let mut outString: ArcStr = arcstr::literal!("");
-    outString = stringDelimitList(List::map(inAlgorithmItems.clone(), Arc::new(unparseAlgorithmStr)), (inSeparator.clone()).clone());
+    outString = stringDelimitList(List::map(inAlgorithmItems.clone(), (std::sync::Arc::new(unparseAlgorithmStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::AlgorithmItem>) -> Result<ArcStr> + 'static>)), (inSeparator.clone()).clone());
     outString
 }
 
@@ -420,7 +420,7 @@ pub fn unparseAlgorithmStr(mut inAlgorithmItem: Arc<Absyn::AlgorithmItem>) -> Re
     let mut status: bool = false;
     status = Flags::getConfigBool(Flags::MODELICA_OUTPUT.clone())?;
     FlagsUtil::setConfigBool(Flags::MODELICA_OUTPUT.clone(), false)?;
-    outString = (Tpl::tplString(Arc::new(AbsynDumpTpl::dumpAlgorithmItem), inAlgorithmItem.clone())?).clone();
+    outString = (Tpl::tplString((std::sync::Arc::new(AbsynDumpTpl::dumpAlgorithmItem) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, Arc<Absyn::AlgorithmItem>) -> Result<Tpl::Text> + 'static>), inAlgorithmItem.clone())?).clone();
     FlagsUtil::setConfigBool(Flags::MODELICA_OUTPUT.clone(), status.clone())?;
     Ok(outString)
 }
@@ -484,7 +484,7 @@ pub fn printSubscriptsStr(mut inAbsynSubscriptLst: Arc<metamodelica::List<Arc<Ab
                     let mut s: ArcStr = arcstr::literal!("");
                     let mut s_1: ArcStr = arcstr::literal!("");
                     let mut s_2: ArcStr = arcstr::literal!("");
-                    s = (printListStr(l.clone(), Arc::new(printSubscriptStr), (literal!(",")).clone())?).clone();
+                    s = (printListStr(l.clone(), (std::sync::Arc::new(printSubscriptStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Subscript>) -> Result<ArcStr> + 'static>), (literal!(",")).clone())?).clone();
                     s_1 = (stringAppend((literal!("[")).clone(), (s.clone()).clone())).clone();
                     s_2 = (stringAppend((s_1.clone()).clone(), (literal!("]")).clone())).clone();
                     Ok(s_2.clone())
@@ -508,9 +508,9 @@ pub fn printFunctionArgsStr(mut inFunctionArgs: Arc<Absyn::FunctionArgs>) -> Res
                     let mut s2: ArcStr = arcstr::literal!("");
                     let mut s3: ArcStr = arcstr::literal!("");
                     let mut r#str: ArcStr = arcstr::literal!("");
-                    s1 = (printListStr(expargs.clone(), Arc::new(printExpStr), (literal!(", ")).clone())?).clone();
+                    s1 = (printListStr(expargs.clone(), (std::sync::Arc::new(printExpStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Exp>) -> Result<ArcStr> + 'static>), (literal!(", ")).clone())?).clone();
                     s2 = (stringAppend((s1.clone()).clone(), (literal!(", ")).clone())).clone();
-                    s3 = (printListStr(nargs.clone(), Arc::new(printNamedArgStr), (literal!(", ")).clone())?).clone();
+                    s3 = (printListStr(nargs.clone(), (std::sync::Arc::new(printNamedArgStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::NamedArg>) -> Result<ArcStr> + 'static>), (literal!(", ")).clone())?).clone();
                     r#str = (stringAppend((s2.clone()).clone(), (s3.clone()).clone())).clone();
                     Ok(r#str.clone())
                 }
@@ -521,7 +521,7 @@ pub fn printFunctionArgsStr(mut inFunctionArgs: Arc<Absyn::FunctionArgs>) -> Res
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ Absyn::FunctionArgs::FUNCTIONARGS { argNames: nargs, args: Deref @ metamodelica::List::Nil } => {
                     let mut r#str: ArcStr = arcstr::literal!("");
-                    r#str = (printListStr(nargs.clone(), Arc::new(printNamedArgStr), (literal!(", ")).clone())?).clone();
+                    r#str = (printListStr(nargs.clone(), (std::sync::Arc::new(printNamedArgStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::NamedArg>) -> Result<ArcStr> + 'static>), (literal!(", ")).clone())?).clone();
                     Ok(r#str.clone())
                 }
                 _ => bail!("nomatch"),
@@ -531,7 +531,7 @@ pub fn printFunctionArgsStr(mut inFunctionArgs: Arc<Absyn::FunctionArgs>) -> Res
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ Absyn::FunctionArgs::FUNCTIONARGS { argNames: Deref @ metamodelica::List::Nil, args: expargs } => {
                     let mut r#str: ArcStr = arcstr::literal!("");
-                    r#str = (printListStr(expargs.clone(), Arc::new(printExpStr), (literal!(", ")).clone())?).clone();
+                    r#str = (printListStr(expargs.clone(), (std::sync::Arc::new(printExpStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Exp>) -> Result<ArcStr> + 'static>), (literal!(", ")).clone())?).clone();
                     Ok(r#str.clone())
                 }
                 _ => bail!("nomatch"),
@@ -837,7 +837,7 @@ fn printOperandStr(mut inOperand: Arc<Absyn::Exp>, mut inOperation: Arc<Absyn::E
 
 pub fn printExpLstStr(mut expl: Arc<metamodelica::List<Arc<Absyn::Exp>>>) -> ArcStr {
     let mut outString: ArcStr = arcstr::literal!("");
-    outString = stringDelimitList(List::map(expl.clone(), Arc::new(printExpStr)), (literal!(", ")).clone());
+    outString = stringDelimitList(List::map(expl.clone(), (std::sync::Arc::new(printExpStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Exp>) -> Result<ArcStr> + 'static>)), (literal!(", ")).clone());
     outString
 }
 
@@ -846,7 +846,7 @@ pub fn printExpStr(mut inExp: Arc<Absyn::Exp>) -> Result<ArcStr> {
     let mut status: bool = false;
     status = Flags::getConfigBool(Flags::MODELICA_OUTPUT.clone())?;
     FlagsUtil::setConfigBool(Flags::MODELICA_OUTPUT.clone(), false)?;
-    outString = (Tpl::tplString(Arc::new(AbsynDumpTpl::dumpExp), inExp.clone())?).clone();
+    outString = (Tpl::tplString((std::sync::Arc::new(AbsynDumpTpl::dumpExp) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, Arc<Absyn::Exp>) -> Result<Tpl::Text> + 'static>), inExp.clone())?).clone();
     FlagsUtil::setConfigBool(Flags::MODELICA_OUTPUT.clone(), status.clone())?;
     Ok(outString)
 }
@@ -856,13 +856,13 @@ pub fn printCodeStr(mut inCode: Arc<Absyn::CodeNode>) -> Result<ArcStr> {
     let mut status: bool = false;
     status = Flags::getConfigBool(Flags::MODELICA_OUTPUT.clone())?;
     FlagsUtil::setConfigBool(Flags::MODELICA_OUTPUT.clone(), false)?;
-    outString = (Tpl::tplString(Arc::new(AbsynDumpTpl::dumpCodeNode), inCode.clone())?).clone();
+    outString = (Tpl::tplString((std::sync::Arc::new(AbsynDumpTpl::dumpCodeNode) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, Arc<Absyn::CodeNode>) -> Result<Tpl::Text> + 'static>), inCode.clone())?).clone();
     FlagsUtil::setConfigBool(Flags::MODELICA_OUTPUT.clone(), status.clone())?;
     Ok(outString)
 }
 
 fn printListStr<Type_a: Clone + 'static>(mut inTypeALst: Arc<metamodelica::List<Type_a>>, mut inFuncTypeTypeAToString: Arc<dyn ::std::ops::Fn(Type_a) -> Result<ArcStr> + 'static>, mut inString: ArcStr) -> Result<ArcStr> {
-    pub type FuncTypeType_aToString<Type_a: Clone> = fn(Type_a) -> Result<ArcStr>;
+    pub type FuncTypeType_aToString<Type_a: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Type_a) -> Result<ArcStr> + 'static>;
 
     let mut outString: ArcStr = arcstr::literal!("");
     outString = ('mc: {
@@ -974,7 +974,7 @@ pub fn opSymbolCompact(mut inOperator: Absyn::Operator) -> Result<ArcStr> {
  *
  */
 pub fn printOption<Type_a: Clone + 'static>(mut inTypeAOption: Option<Type_a>, mut inFuncTypeTypeATo: Arc<dyn ::std::ops::Fn(Type_a) -> Result<()> + 'static>) -> Result<()> {
-    pub type FuncTypeType_aTo<Type_a: Clone> = fn(Type_a) -> Result<()>;
+    pub type FuncTypeType_aTo<Type_a: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Type_a) -> Result<()> + 'static>;
 
     let _ = (match inTypeAOption.clone() {
         None => {
@@ -992,7 +992,7 @@ pub fn printOption<Type_a: Clone + 'static>(mut inTypeAOption: Option<Type_a>, m
 }
 
 pub fn printList<Type_a: Clone + 'static>(mut inTypeALst: Arc<metamodelica::List<Type_a>>, mut inFuncTypeTypeATo: Arc<dyn ::std::ops::Fn(Type_a) -> Result<()> + 'static>, mut inString: ArcStr) -> Result<()> {
-    pub type FuncTypeType_aTo<Type_a: Clone> = fn(Type_a) -> Result<()>;
+    pub type FuncTypeType_aTo<Type_a: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Type_a) -> Result<()> + 'static>;
 
     let _ = 'mc: {
         let __mc_input = (inTypeALst.clone(), inFuncTypeTypeATo.clone(), inString.clone());
@@ -1050,7 +1050,7 @@ pub fn unparseTypeSpec(mut inTypeSpec: Arc<Absyn::TypeSpec>) -> Result<ArcStr> {
     let mut status: bool = false;
     status = Flags::getConfigBool(Flags::MODELICA_OUTPUT.clone())?;
     FlagsUtil::setConfigBool(Flags::MODELICA_OUTPUT.clone(), false)?;
-    outString = (Tpl::tplString(Arc::new(AbsynDumpTpl::dumpTypeSpec), inTypeSpec.clone())?).clone();
+    outString = (Tpl::tplString((std::sync::Arc::new(AbsynDumpTpl::dumpTypeSpec) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, Arc<Absyn::TypeSpec>) -> Result<Tpl::Text> + 'static>), inTypeSpec.clone())?).clone();
     FlagsUtil::setConfigBool(Flags::MODELICA_OUTPUT.clone(), status.clone())?;
     Ok(outString)
 }
@@ -1074,7 +1074,7 @@ pub fn getAstAsCorbaString(mut program: Absyn::Program) -> Result<()> {
     let _ = (match program.clone() {
         Absyn::Program { within_: mut within_, classes: mut classes } => {
             Print::printBuf((literal!("record Absyn.PROGRAM\nclasses = ")).clone())?;
-            printListAsCorbaString(classes.clone(), Arc::new(printClassAsCorbaString), (literal!(",\n")).clone())?;
+            printListAsCorbaString(classes.clone(), (std::sync::Arc::new(printClassAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Class>) -> Result<()> + 'static>), (literal!(",\n")).clone())?;
             Print::printBuf((literal!(",\nwithin_ = ")).clone())?;
             printWithinAsCorbaString(within_.clone())?;
             Print::printBuf((literal!("\nend Absyn.PROGRAM;")).clone())?;
@@ -1118,7 +1118,7 @@ fn printComponentRefAsCorbaString(mut cref: Arc<Absyn::ComponentRef>) -> Result<
             Print::printBuf((literal!("record Absyn.CREF_QUAL name = \"")).clone())?;
             Print::printBuf((s.clone()).clone())?;
             Print::printBuf((literal!("\", subscripts = ")).clone())?;
-            printListAsCorbaString(subscripts.clone(), Arc::new(printSubscriptAsCorbaString), (literal!(",")).clone())?;
+            printListAsCorbaString(subscripts.clone(), (std::sync::Arc::new(printSubscriptAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Subscript>) -> Result<()> + 'static>), (literal!(",")).clone())?;
             Print::printBuf((literal!(", componentRef = ")).clone())?;
             printComponentRefAsCorbaString(p.clone())?;
             Print::printBuf((literal!(" end Absyn.CREF_QUAL;")).clone())?;
@@ -1128,7 +1128,7 @@ fn printComponentRefAsCorbaString(mut cref: Arc<Absyn::ComponentRef>) -> Result<
             Print::printBuf((literal!("record Absyn.CREF_IDENT name = \"")).clone())?;
             Print::printBuf((s.clone()).clone())?;
             Print::printBuf((literal!("\", subscripts = ")).clone())?;
-            printListAsCorbaString(subscripts.clone(), Arc::new(printSubscriptAsCorbaString), (literal!(",")).clone())?;
+            printListAsCorbaString(subscripts.clone(), (std::sync::Arc::new(printSubscriptAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Subscript>) -> Result<()> + 'static>), (literal!(",")).clone())?;
             Print::printBuf((literal!(" end Absyn.CREF_IDENT;")).clone())?;
             ()
         },
@@ -1225,9 +1225,9 @@ fn printClassDefAsCorbaString(mut classDef: Arc<Absyn::ClassDef>) -> Result<()> 
             Print::printBuf((literal!("record Absyn.PARTS typeVars = {")).clone())?;
             Print::printBuf(stringDelimitList(typeVars.clone(), (literal!(",")).clone()))?;
             Print::printBuf((literal!("}, classParts = ")).clone())?;
-            printListAsCorbaString(classParts.clone(), Arc::new(printClassPartAsCorbaString), (literal!(",")).clone())?;
+            printListAsCorbaString(classParts.clone(), (std::sync::Arc::new(printClassPartAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::ClassPart>) -> Result<()> + 'static>), (literal!(",")).clone())?;
             Print::printBuf((literal!(", ann = ")).clone())?;
-            printListAsCorbaString(ann.clone(), Arc::new(printAnnotationAsCorbaString), (literal!(",")).clone())?;
+            printListAsCorbaString(ann.clone(), (std::sync::Arc::new(printAnnotationAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Annotation>) -> Result<()> + 'static>), (literal!(",")).clone())?;
             Print::printBuf((literal!(", comment = ")).clone())?;
             printStringCommentOption(optString.clone())?;
             Print::printBuf((literal!(" end Absyn.PARTS;")).clone())?;
@@ -1239,9 +1239,9 @@ fn printClassDefAsCorbaString(mut classDef: Arc<Absyn::ClassDef>) -> Result<()> 
             Print::printBuf((literal!(", attributes = ")).clone())?;
             printElementAttributesAsCorbaString(attributes.clone())?;
             Print::printBuf((literal!(", arguments = ")).clone())?;
-            printListAsCorbaString(arguments.clone(), Arc::new(printElementArgAsCorbaString), (literal!(",")).clone())?;
+            printListAsCorbaString(arguments.clone(), (std::sync::Arc::new(printElementArgAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::ElementArg>) -> Result<()> + 'static>), (literal!(",")).clone())?;
             Print::printBuf((literal!(", comment = ")).clone())?;
-            printOption(comment.clone(), Arc::new(printCommentAsCorbaString))?;
+            printOption(comment.clone(), (std::sync::Arc::new(printCommentAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Comment>) -> Result<()> + 'static>))?;
             Print::printBuf((literal!("end Absyn.DERIVED;")).clone())?;
             ()
         },
@@ -1249,15 +1249,15 @@ fn printClassDefAsCorbaString(mut classDef: Arc<Absyn::ClassDef>) -> Result<()> 
             Print::printBuf((literal!("record Absyn.ENUMERATION enumLiterals = ")).clone())?;
             printEnumDefAsCorbaString(enumLiterals.clone())?;
             Print::printBuf((literal!(", comment = ")).clone())?;
-            printOption(comment.clone(), Arc::new(printCommentAsCorbaString))?;
+            printOption(comment.clone(), (std::sync::Arc::new(printCommentAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Comment>) -> Result<()> + 'static>))?;
             Print::printBuf((literal!("end Absyn.ENUMERATION;")).clone())?;
             ()
         },
         Deref @ Absyn::ClassDef::OVERLOAD { functionNames, comment } => {
             Print::printBuf((literal!("record Absyn.OVERLOAD functionNames = ")).clone())?;
-            printListAsCorbaString(functionNames.clone(), Arc::new(printPathAsCorbaString), (literal!(",")).clone())?;
+            printListAsCorbaString(functionNames.clone(), (std::sync::Arc::new(printPathAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Path>) -> Result<()> + 'static>), (literal!(",")).clone())?;
             Print::printBuf((literal!(", comment = ")).clone())?;
-            printOption(comment.clone(), Arc::new(printCommentAsCorbaString))?;
+            printOption(comment.clone(), (std::sync::Arc::new(printCommentAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Comment>) -> Result<()> + 'static>))?;
             Print::printBuf((literal!("end Absyn.OVERLOAD;")).clone())?;
             ()
         },
@@ -1265,13 +1265,13 @@ fn printClassDefAsCorbaString(mut classDef: Arc<Absyn::ClassDef>) -> Result<()> 
             Print::printBuf((literal!("record Absyn.CLASS_EXTENDS baseClassName = \"")).clone())?;
             Print::printBuf((baseClassName.clone()).clone())?;
             Print::printBuf((literal!("\", modifications = ")).clone())?;
-            printListAsCorbaString(modifications.clone(), Arc::new(printElementArgAsCorbaString), (literal!(",")).clone())?;
+            printListAsCorbaString(modifications.clone(), (std::sync::Arc::new(printElementArgAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::ElementArg>) -> Result<()> + 'static>), (literal!(",")).clone())?;
             Print::printBuf((literal!(", comment = ")).clone())?;
             printStringCommentOption(optString.clone())?;
             Print::printBuf((literal!(", parts = ")).clone())?;
-            printListAsCorbaString(classParts.clone(), Arc::new(printClassPartAsCorbaString), (literal!(",")).clone())?;
+            printListAsCorbaString(classParts.clone(), (std::sync::Arc::new(printClassPartAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::ClassPart>) -> Result<()> + 'static>), (literal!(",")).clone())?;
             Print::printBuf((literal!(", ann = ")).clone())?;
-            printListAsCorbaString(ann.clone(), Arc::new(printAnnotationAsCorbaString), (literal!(",")).clone())?;
+            printListAsCorbaString(ann.clone(), (std::sync::Arc::new(printAnnotationAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Annotation>) -> Result<()> + 'static>), (literal!(",")).clone())?;
             Print::printBuf((literal!("end Absyn.CLASS_EXTENDS;")).clone())?;
             ()
         },
@@ -1279,9 +1279,9 @@ fn printClassDefAsCorbaString(mut classDef: Arc<Absyn::ClassDef>) -> Result<()> 
             Print::printBuf((literal!("record Absyn.PDER functionName = ")).clone())?;
             printPathAsCorbaString(functionName.clone())?;
             Print::printBuf((literal!(", vars = ")).clone())?;
-            printListAsCorbaString(vars.clone(), Arc::new(printStringAsCorbaString), (literal!(",")).clone())?;
+            printListAsCorbaString(vars.clone(), (std::sync::Arc::new(printStringAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr) -> Result<()> + 'static>), (literal!(",")).clone())?;
             Print::printBuf((literal!(", comment = ")).clone())?;
-            printOption(comment.clone(), Arc::new(printCommentAsCorbaString))?;
+            printOption(comment.clone(), (std::sync::Arc::new(printCommentAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Comment>) -> Result<()> + 'static>))?;
             Print::printBuf((literal!("end Absyn.PDER;")).clone())?;
             ()
         },
@@ -1298,7 +1298,7 @@ fn printEnumDefAsCorbaString(mut enumDef: Arc<Absyn::EnumDef>) -> Result<()> {
     let _ = (::match_deref::match_deref! { match &(enumDef.clone()) {
         Deref @ Absyn::EnumDef::ENUMLITERALS { enumLiterals } => {
             Print::printBuf((literal!("record Absyn.ENUMLITERALS enumLiterals = ")).clone())?;
-            printListAsCorbaString(enumLiterals.clone(), Arc::new(printEnumLiteralAsCorbaString), (literal!(",")).clone())?;
+            printListAsCorbaString(enumLiterals.clone(), (std::sync::Arc::new(printEnumLiteralAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::EnumLiteral>) -> Result<()> + 'static>), (literal!(",")).clone())?;
             Print::printBuf((literal!("end Absyn.ENUMLITERALS;")).clone())?;
             ()
         },
@@ -1321,7 +1321,7 @@ fn printEnumLiteralAsCorbaString(mut enumLit: Arc<Absyn::EnumLiteral>) -> Result
             Print::printBuf((literal!("record Absyn.ENUMLITERAL literal = \"")).clone())?;
             Print::printBuf((literal.clone()).clone())?;
             Print::printBuf((literal!("\", comment = ")).clone())?;
-            printOption(comment.clone(), Arc::new(printCommentAsCorbaString))?;
+            printOption(comment.clone(), (std::sync::Arc::new(printCommentAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Comment>) -> Result<()> + 'static>))?;
             Print::printBuf((literal!("end Absyn.ENUMLITERAL;")).clone())?;
             ()
         },
@@ -1482,37 +1482,37 @@ fn printClassPartAsCorbaString(mut classPart: Arc<Absyn::ClassPart>) -> Result<(
     let _ = (::match_deref::match_deref! { match &(classPart.clone()) {
         Deref @ Absyn::ClassPart::PUBLIC { contents } => {
             Print::printBuf((literal!("\nrecord Absyn.PUBLIC contents = ")).clone())?;
-            printListAsCorbaString(contents.clone(), Arc::new(printElementItemAsCorbaString), (literal!(",")).clone())?;
+            printListAsCorbaString(contents.clone(), (std::sync::Arc::new(printElementItemAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::ElementItem>) -> Result<()> + 'static>), (literal!(",")).clone())?;
             Print::printBuf((literal!(" end Absyn.PUBLIC;")).clone())?;
             ()
         },
         Deref @ Absyn::ClassPart::PROTECTED { contents } => {
             Print::printBuf((literal!("\nrecord Absyn.PROTECTED contents = ")).clone())?;
-            printListAsCorbaString(contents.clone(), Arc::new(printElementItemAsCorbaString), (literal!(",")).clone())?;
+            printListAsCorbaString(contents.clone(), (std::sync::Arc::new(printElementItemAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::ElementItem>) -> Result<()> + 'static>), (literal!(",")).clone())?;
             Print::printBuf((literal!(" end Absyn.PROTECTED;")).clone())?;
             ()
         },
         Deref @ Absyn::ClassPart::EQUATIONS { contents: eqContents } => {
             Print::printBuf((literal!("\nrecord Absyn.EQUATIONS contents = ")).clone())?;
-            printListAsCorbaString(eqContents.clone(), Arc::new(printEquationItemAsCorbaString), (literal!(",")).clone())?;
+            printListAsCorbaString(eqContents.clone(), (std::sync::Arc::new(printEquationItemAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::EquationItem>) -> Result<()> + 'static>), (literal!(",")).clone())?;
             Print::printBuf((literal!(" end Absyn.EQUATIONS;")).clone())?;
             ()
         },
         Deref @ Absyn::ClassPart::INITIALEQUATIONS { contents: eqContents } => {
             Print::printBuf((literal!("\nrecord Absyn.INITIALEQUATIONS contents = ")).clone())?;
-            printListAsCorbaString(eqContents.clone(), Arc::new(printEquationItemAsCorbaString), (literal!(",")).clone())?;
+            printListAsCorbaString(eqContents.clone(), (std::sync::Arc::new(printEquationItemAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::EquationItem>) -> Result<()> + 'static>), (literal!(",")).clone())?;
             Print::printBuf((literal!(" end Absyn.INITIALEQUATIONS;")).clone())?;
             ()
         },
         Deref @ Absyn::ClassPart::ALGORITHMS { contents: algContents } => {
             Print::printBuf((literal!("\nrecord Absyn.ALGORITHMS contents = ")).clone())?;
-            printListAsCorbaString(algContents.clone(), Arc::new(printAlgorithmItemAsCorbaString), (literal!(",")).clone())?;
+            printListAsCorbaString(algContents.clone(), (std::sync::Arc::new(printAlgorithmItemAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::AlgorithmItem>) -> Result<()> + 'static>), (literal!(",")).clone())?;
             Print::printBuf((literal!(" end Absyn.ALGORITHMS;")).clone())?;
             ()
         },
         Deref @ Absyn::ClassPart::INITIALALGORITHMS { contents: algContents } => {
             Print::printBuf((literal!("\nrecord Absyn.INITIALALGORITHMS contents = ")).clone())?;
-            printListAsCorbaString(algContents.clone(), Arc::new(printAlgorithmItemAsCorbaString), (literal!(",")).clone())?;
+            printListAsCorbaString(algContents.clone(), (std::sync::Arc::new(printAlgorithmItemAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::AlgorithmItem>) -> Result<()> + 'static>), (literal!(",")).clone())?;
             Print::printBuf((literal!(" end Absyn.INITIALALGORITHMS;")).clone())?;
             ()
         },
@@ -1520,7 +1520,7 @@ fn printClassPartAsCorbaString(mut classPart: Arc<Absyn::ClassPart>) -> Result<(
             Print::printBuf((literal!("\nrecord Absyn.EXTERNAL externalDecl = ")).clone())?;
             printExternalDeclAsCorbaString(externalDecl.clone())?;
             Print::printBuf((literal!(", annotation_ = ")).clone())?;
-            printOption(annotation_.clone(), Arc::new(printAnnotationAsCorbaString))?;
+            printOption(annotation_.clone(), (std::sync::Arc::new(printAnnotationAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Annotation>) -> Result<()> + 'static>))?;
             Print::printBuf((literal!(" end Absyn.EXTERNAL;")).clone())?;
             ()
         },
@@ -1541,11 +1541,11 @@ fn printExternalDeclAsCorbaString(mut decl: Arc<Absyn::ExternalDecl>) -> Result<
             Print::printBuf((literal!(", lang = ")).clone())?;
             printStringCommentOption(lang.clone())?;
             Print::printBuf((literal!(", output_ = ")).clone())?;
-            printOption(output_.clone(), Arc::new(printComponentRefAsCorbaString))?;
+            printOption(output_.clone(), (std::sync::Arc::new(printComponentRefAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::ComponentRef>) -> Result<()> + 'static>))?;
             Print::printBuf((literal!(", args = ")).clone())?;
-            printListAsCorbaString(args.clone(), Arc::new(printExpAsCorbaString), (literal!(",")).clone())?;
+            printListAsCorbaString(args.clone(), (std::sync::Arc::new(printExpAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Exp>) -> Result<()> + 'static>), (literal!(",")).clone())?;
             Print::printBuf((literal!(", annotation_ = ")).clone())?;
-            printOption(annotation_.clone(), Arc::new(printAnnotationAsCorbaString))?;
+            printOption(annotation_.clone(), (std::sync::Arc::new(printAnnotationAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Annotation>) -> Result<()> + 'static>))?;
             Print::printBuf((literal!(" end Absyn.EXTERNALDECL;")).clone())?;
             ()
         },
@@ -1587,7 +1587,7 @@ fn printElementAsCorbaString(mut el: Arc<Absyn::Element>) -> Result<()> {
             Print::printBuf((literal!("\nrecord Absyn.ELEMENT finalPrefix = ")).clone())?;
             Print::printBuf((boolString(finalPrefix.clone())).clone())?;
             Print::printBuf((literal!(",redeclareKeywords = ")).clone())?;
-            printOption(redeclareKeywords.clone(), Arc::new(printRedeclareKeywordsAsCorbaString))?;
+            printOption(redeclareKeywords.clone(), (std::sync::Arc::new(printRedeclareKeywordsAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Absyn::RedeclareKeywords) -> Result<()> + 'static>))?;
             Print::printBuf((literal!(",innerOuter = ")).clone())?;
             printInnerOuterAsCorbaString(innerOuter.clone())?;
             Print::printBuf((literal!(",specification = ")).clone())?;
@@ -1595,7 +1595,7 @@ fn printElementAsCorbaString(mut el: Arc<Absyn::Element>) -> Result<()> {
             Print::printBuf((literal!(",info = ")).clone())?;
             printInfoAsCorbaString(info.clone())?;
             Print::printBuf((literal!(",constrainClass = ")).clone())?;
-            printOption(constrainClass.clone(), Arc::new(printConstrainClassAsCorbaString))?;
+            printOption(constrainClass.clone(), (std::sync::Arc::new(printConstrainClassAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::ConstrainClass>) -> Result<()> + 'static>))?;
             Print::printBuf((literal!(" end Absyn.ELEMENT;")).clone())?;
             ()
         },
@@ -1603,7 +1603,7 @@ fn printElementAsCorbaString(mut el: Arc<Absyn::Element>) -> Result<()> {
             Print::printBuf((literal!("\nrecord Absyn.DEFINEUNIT name = \"")).clone())?;
             Print::printBuf((name.clone()).clone())?;
             Print::printBuf((literal!("\", args = ")).clone())?;
-            printListAsCorbaString(args.clone(), Arc::new(printNamedArgAsCorbaString), (literal!(",")).clone())?;
+            printListAsCorbaString(args.clone(), (std::sync::Arc::new(printNamedArgAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::NamedArg>) -> Result<()> + 'static>), (literal!(",")).clone())?;
             Print::printBuf((literal!(" end Absyn.DEFINEUNIT;")).clone())?;
             ()
         },
@@ -1674,7 +1674,7 @@ fn printConstrainClassAsCorbaString(mut constrainClass: Arc<Absyn::ConstrainClas
             Print::printBuf((literal!("record Absyn.CONSTRAINCLASS elementSpec = ")).clone())?;
             printElementSpecAsCorbaString(elementSpec.clone())?;
             Print::printBuf((literal!(", comment = ")).clone())?;
-            printOption(comment.clone(), Arc::new(printCommentAsCorbaString))?;
+            printOption(comment.clone(), (std::sync::Arc::new(printCommentAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Comment>) -> Result<()> + 'static>))?;
             Print::printBuf((literal!(" end Absyn.CONSTRAINCLASS;")).clone())?;
             ()
         },
@@ -1697,9 +1697,9 @@ fn printElementSpecAsCorbaString(mut spec: Arc<Absyn::ElementSpec>) -> Result<()
             Print::printBuf((literal!("record Absyn.EXTENDS path = ")).clone())?;
             printPathAsCorbaString(path.clone())?;
             Print::printBuf((literal!(", elementArg = ")).clone())?;
-            printListAsCorbaString(elementArg.clone(), Arc::new(printElementArgAsCorbaString), (literal!(",")).clone())?;
+            printListAsCorbaString(elementArg.clone(), (std::sync::Arc::new(printElementArgAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::ElementArg>) -> Result<()> + 'static>), (literal!(",")).clone())?;
             Print::printBuf((literal!(", annotationOpt = ")).clone())?;
-            printOption(annotationOpt.clone(), Arc::new(printAnnotationAsCorbaString))?;
+            printOption(annotationOpt.clone(), (std::sync::Arc::new(printAnnotationAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Annotation>) -> Result<()> + 'static>))?;
             Print::printBuf((literal!(" end Absyn.EXTENDS;")).clone())?;
             ()
         },
@@ -1707,7 +1707,7 @@ fn printElementSpecAsCorbaString(mut spec: Arc<Absyn::ElementSpec>) -> Result<()
             Print::printBuf((literal!("record Absyn.IMPORT import_ = ")).clone())?;
             printImportAsCorbaString(import_.clone())?;
             Print::printBuf((literal!(", comment = ")).clone())?;
-            printOption(comment.clone(), Arc::new(printCommentAsCorbaString))?;
+            printOption(comment.clone(), (std::sync::Arc::new(printCommentAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Comment>) -> Result<()> + 'static>))?;
             Print::printBuf((literal!(", info = ")).clone())?;
             printInfoAsCorbaString(info.clone())?;
             Print::printBuf((literal!(" end Absyn.IMPORT;")).clone())?;
@@ -1719,7 +1719,7 @@ fn printElementSpecAsCorbaString(mut spec: Arc<Absyn::ElementSpec>) -> Result<()
             Print::printBuf((literal!(", typeSpec = ")).clone())?;
             printTypeSpecAsCorbaString(typeSpec.clone())?;
             Print::printBuf((literal!(", components = ")).clone())?;
-            printListAsCorbaString(components.clone(), Arc::new(printComponentItemAsCorbaString), (literal!(",")).clone())?;
+            printListAsCorbaString(components.clone(), (std::sync::Arc::new(printComponentItemAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::ComponentItem>) -> Result<()> + 'static>), (literal!(",")).clone())?;
             Print::printBuf((literal!(" end Absyn.COMPONENTS;")).clone())?;
             ()
         },
@@ -1734,9 +1734,9 @@ fn printComponentItemAsCorbaString(mut componentItem: Arc<Absyn::ComponentItem>)
             Print::printBuf((literal!("record Absyn.COMPONENTITEM component = ")).clone())?;
             printComponentAsCorbaString(component.clone())?;
             Print::printBuf((literal!(", condition = ")).clone())?;
-            printOption(condition.clone(), Arc::new(printExpAsCorbaString))?;
+            printOption(condition.clone(), (std::sync::Arc::new(printExpAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Exp>) -> Result<()> + 'static>))?;
             Print::printBuf((literal!(", comment = ")).clone())?;
-            printOption(comment.clone(), Arc::new(printCommentAsCorbaString))?;
+            printOption(comment.clone(), (std::sync::Arc::new(printCommentAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Comment>) -> Result<()> + 'static>))?;
             Print::printBuf((literal!(" end Absyn.COMPONENTITEM;")).clone())?;
             ()
         },
@@ -1753,7 +1753,7 @@ fn printComponentAsCorbaString(mut component: Absyn::Component) -> Result<()> {
             Print::printBuf((literal!("\", arrayDim = ")).clone())?;
             printArrayDimAsCorbaString(arrayDim.clone())?;
             Print::printBuf((literal!(", modification = ")).clone())?;
-            printOption(modification.clone(), Arc::new(printModificationAsCorbaString))?;
+            printOption(modification.clone(), (std::sync::Arc::new(printModificationAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Modification>) -> Result<()> + 'static>))?;
             Print::printBuf((literal!(" end Absyn.COMPONENT;")).clone())?;
             ()
         },
@@ -1766,7 +1766,7 @@ fn printModificationAsCorbaString(mut r#mod: Arc<Absyn::Modification>) -> Result
     let _ = (::match_deref::match_deref! { match &(r#mod.clone()) {
         Deref @ Absyn::Modification { elementArgLst, eqMod } => {
             Print::printBuf((literal!("record Absyn.CLASSMOD elementArgLst = ")).clone())?;
-            printListAsCorbaString(elementArgLst.clone(), Arc::new(printElementArgAsCorbaString), (literal!(",")).clone())?;
+            printListAsCorbaString(elementArgLst.clone(), (std::sync::Arc::new(printElementArgAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::ElementArg>) -> Result<()> + 'static>), (literal!(",")).clone())?;
             Print::printBuf((literal!(", eqMod = ")).clone())?;
             printEqModAsCorbaString(eqMod.clone())?;
             Print::printBuf((literal!(" end Absyn.CLASSMOD;")).clone())?;
@@ -1802,7 +1802,7 @@ fn printEquationItemAsCorbaString(mut el: Arc<Absyn::EquationItem>) -> Result<()
             Print::printBuf((literal!("\nrecord Absyn.EQUATIONITEM equation_ = ")).clone())?;
             printEquationAsCorbaString(equation_.clone())?;
             Print::printBuf((literal!(", comment = ")).clone())?;
-            printOption(comment.clone(), Arc::new(printCommentAsCorbaString))?;
+            printOption(comment.clone(), (std::sync::Arc::new(printCommentAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Comment>) -> Result<()> + 'static>))?;
             Print::printBuf((literal!(", info = ")).clone())?;
             printInfoAsCorbaString(info.clone())?;
             Print::printBuf((literal!(" end Absyn.EQUATIONITEM;")).clone())?;
@@ -1819,11 +1819,11 @@ fn printEquationAsCorbaString(mut eq: Arc<Absyn::Equation>) -> Result<()> {
             Print::printBuf((literal!("record Absyn.EQ_IF ifExp = ")).clone())?;
             printExpAsCorbaString(ifExp.clone())?;
             Print::printBuf((literal!(", equationTrueItems = ")).clone())?;
-            printListAsCorbaString(equationTrueItems.clone(), Arc::new(printEquationItemAsCorbaString), (literal!(",")).clone())?;
+            printListAsCorbaString(equationTrueItems.clone(), (std::sync::Arc::new(printEquationItemAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::EquationItem>) -> Result<()> + 'static>), (literal!(",")).clone())?;
             Print::printBuf((literal!(", elseIfBranches = ")).clone())?;
-            printListAsCorbaString(elseIfBranches.clone(), Arc::new(printEquationBranchAsCorbaString), (literal!(",")).clone())?;
+            printListAsCorbaString(elseIfBranches.clone(), (std::sync::Arc::new(printEquationBranchAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn((Arc<Absyn::Exp>, Arc<metamodelica::List<Arc<Absyn::EquationItem>>>)) -> Result<()> + 'static>), (literal!(",")).clone())?;
             Print::printBuf((literal!(", equationElseItems = ")).clone())?;
-            printListAsCorbaString(equationElseItems.clone(), Arc::new(printEquationItemAsCorbaString), (literal!(",")).clone())?;
+            printListAsCorbaString(equationElseItems.clone(), (std::sync::Arc::new(printEquationItemAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::EquationItem>) -> Result<()> + 'static>), (literal!(",")).clone())?;
             Print::printBuf((literal!(" end Absyn.EQ_IF;")).clone())?;
             ()
         },
@@ -1855,9 +1855,9 @@ fn printEquationAsCorbaString(mut eq: Arc<Absyn::Equation>) -> Result<()> {
         },
         Deref @ Absyn::Equation::EQ_FOR { iterators, forEquations } => {
             Print::printBuf((literal!("record Absyn.EQ_FOR iterators = ")).clone())?;
-            printListAsCorbaString(iterators.clone(), Arc::new(printForIteratorAsCorbaString), (literal!(",")).clone())?;
+            printListAsCorbaString(iterators.clone(), (std::sync::Arc::new(printForIteratorAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::ForIterator>) -> Result<()> + 'static>), (literal!(",")).clone())?;
             Print::printBuf((literal!(", forEquations = ")).clone())?;
-            printListAsCorbaString(forEquations.clone(), Arc::new(printEquationItemAsCorbaString), (literal!(",")).clone())?;
+            printListAsCorbaString(forEquations.clone(), (std::sync::Arc::new(printEquationItemAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::EquationItem>) -> Result<()> + 'static>), (literal!(",")).clone())?;
             Print::printBuf((literal!(" end Absyn.EQ_FOR;")).clone())?;
             ()
         },
@@ -1865,9 +1865,9 @@ fn printEquationAsCorbaString(mut eq: Arc<Absyn::Equation>) -> Result<()> {
             Print::printBuf((literal!("record Absyn.EQ_WHEN_E whenExp = ")).clone())?;
             printExpAsCorbaString(whenExp.clone())?;
             Print::printBuf((literal!(", whenEquations = ")).clone())?;
-            printListAsCorbaString(whenEquations.clone(), Arc::new(printEquationItemAsCorbaString), (literal!(",")).clone())?;
+            printListAsCorbaString(whenEquations.clone(), (std::sync::Arc::new(printEquationItemAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::EquationItem>) -> Result<()> + 'static>), (literal!(",")).clone())?;
             Print::printBuf((literal!(", elseWhenEquations = ")).clone())?;
-            printListAsCorbaString(elseWhenEquations.clone(), Arc::new(printEquationBranchAsCorbaString), (literal!(",")).clone())?;
+            printListAsCorbaString(elseWhenEquations.clone(), (std::sync::Arc::new(printEquationBranchAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn((Arc<Absyn::Exp>, Arc<metamodelica::List<Arc<Absyn::EquationItem>>>)) -> Result<()> + 'static>), (literal!(",")).clone())?;
             Print::printBuf((literal!(" end Absyn.EQ_WHEN_E;")).clone())?;
             ()
         },
@@ -1896,7 +1896,7 @@ fn printAlgorithmItemAsCorbaString(mut el: Arc<Absyn::AlgorithmItem>) -> Result<
             Print::printBuf((literal!("\nrecord Absyn.ALGORITHMITEM algorithm_ = ")).clone())?;
             printAlgorithmAsCorbaString(algorithm_.clone())?;
             Print::printBuf((literal!(", comment = ")).clone())?;
-            printOption(comment.clone(), Arc::new(printCommentAsCorbaString))?;
+            printOption(comment.clone(), (std::sync::Arc::new(printCommentAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Comment>) -> Result<()> + 'static>))?;
             Print::printBuf((literal!(", info = ")).clone())?;
             printInfoAsCorbaString(info.clone())?;
             Print::printBuf((literal!(" end Absyn.ALGORITHMITEM;")).clone())?;
@@ -1921,27 +1921,27 @@ fn printAlgorithmAsCorbaString(mut alg: Arc<Absyn::Algorithm>) -> Result<()> {
             Print::printBuf((literal!("record Absyn.ALG_IF ifExp = ")).clone())?;
             printExpAsCorbaString(ifExp.clone())?;
             Print::printBuf((literal!(", trueBranch = ")).clone())?;
-            printListAsCorbaString(trueBranch.clone(), Arc::new(printAlgorithmItemAsCorbaString), (literal!(",")).clone())?;
+            printListAsCorbaString(trueBranch.clone(), (std::sync::Arc::new(printAlgorithmItemAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::AlgorithmItem>) -> Result<()> + 'static>), (literal!(",")).clone())?;
             Print::printBuf((literal!(", elseIfAlgorithmBranch = ")).clone())?;
-            printListAsCorbaString(elseIfAlgorithmBranch.clone(), Arc::new(printAlgorithmBranchAsCorbaString), (literal!(",")).clone())?;
+            printListAsCorbaString(elseIfAlgorithmBranch.clone(), (std::sync::Arc::new(printAlgorithmBranchAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn((Arc<Absyn::Exp>, Arc<metamodelica::List<Arc<Absyn::AlgorithmItem>>>)) -> Result<()> + 'static>), (literal!(",")).clone())?;
             Print::printBuf((literal!(", elseBranch = ")).clone())?;
-            printListAsCorbaString(elseBranch.clone(), Arc::new(printAlgorithmItemAsCorbaString), (literal!(",")).clone())?;
+            printListAsCorbaString(elseBranch.clone(), (std::sync::Arc::new(printAlgorithmItemAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::AlgorithmItem>) -> Result<()> + 'static>), (literal!(",")).clone())?;
             Print::printBuf((literal!(" end Absyn.ALG_IF;")).clone())?;
             ()
         },
         Deref @ Absyn::Algorithm::ALG_FOR { iterators, forBody } => {
             Print::printBuf((literal!("record Absyn.ALG_FOR iterators = ")).clone())?;
-            printListAsCorbaString(iterators.clone(), Arc::new(printForIteratorAsCorbaString), (literal!(",")).clone())?;
+            printListAsCorbaString(iterators.clone(), (std::sync::Arc::new(printForIteratorAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::ForIterator>) -> Result<()> + 'static>), (literal!(",")).clone())?;
             Print::printBuf((literal!(", forBody = ")).clone())?;
-            printListAsCorbaString(forBody.clone(), Arc::new(printAlgorithmItemAsCorbaString), (literal!(",")).clone())?;
+            printListAsCorbaString(forBody.clone(), (std::sync::Arc::new(printAlgorithmItemAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::AlgorithmItem>) -> Result<()> + 'static>), (literal!(",")).clone())?;
             Print::printBuf((literal!(" end Absyn.ALG_FOR;")).clone())?;
             ()
         },
         Deref @ Absyn::Algorithm::ALG_PARFOR { iterators, parforBody: forBody } => {
             Print::printBuf((literal!("record Absyn.ALG_PARFOR iterators = ")).clone())?;
-            printListAsCorbaString(iterators.clone(), Arc::new(printForIteratorAsCorbaString), (literal!(",")).clone())?;
+            printListAsCorbaString(iterators.clone(), (std::sync::Arc::new(printForIteratorAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::ForIterator>) -> Result<()> + 'static>), (literal!(",")).clone())?;
             Print::printBuf((literal!(", parforBody = ")).clone())?;
-            printListAsCorbaString(forBody.clone(), Arc::new(printAlgorithmItemAsCorbaString), (literal!(",")).clone())?;
+            printListAsCorbaString(forBody.clone(), (std::sync::Arc::new(printAlgorithmItemAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::AlgorithmItem>) -> Result<()> + 'static>), (literal!(",")).clone())?;
             Print::printBuf((literal!(" end Absyn.ALG_PARFOR;")).clone())?;
             ()
         },
@@ -1949,7 +1949,7 @@ fn printAlgorithmAsCorbaString(mut alg: Arc<Absyn::Algorithm>) -> Result<()> {
             Print::printBuf((literal!("record Absyn.ALG_WHILE boolExpr = ")).clone())?;
             printExpAsCorbaString(boolExpr.clone())?;
             Print::printBuf((literal!(", whileBody = ")).clone())?;
-            printListAsCorbaString(whileBody.clone(), Arc::new(printAlgorithmItemAsCorbaString), (literal!(",")).clone())?;
+            printListAsCorbaString(whileBody.clone(), (std::sync::Arc::new(printAlgorithmItemAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::AlgorithmItem>) -> Result<()> + 'static>), (literal!(",")).clone())?;
             Print::printBuf((literal!(" end Absyn.ALG_WHILE;")).clone())?;
             ()
         },
@@ -1957,9 +1957,9 @@ fn printAlgorithmAsCorbaString(mut alg: Arc<Absyn::Algorithm>) -> Result<()> {
             Print::printBuf((literal!("record Absyn.ALG_WHEN_A boolExpr = ")).clone())?;
             printExpAsCorbaString(boolExpr.clone())?;
             Print::printBuf((literal!(", whenBody = ")).clone())?;
-            printListAsCorbaString(whenBody.clone(), Arc::new(printAlgorithmItemAsCorbaString), (literal!(",")).clone())?;
+            printListAsCorbaString(whenBody.clone(), (std::sync::Arc::new(printAlgorithmItemAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::AlgorithmItem>) -> Result<()> + 'static>), (literal!(",")).clone())?;
             Print::printBuf((literal!(", elseWhenAlgorithmBranch = ")).clone())?;
-            printListAsCorbaString(elseWhenAlgorithmBranch.clone(), Arc::new(printAlgorithmBranchAsCorbaString), (literal!(",")).clone())?;
+            printListAsCorbaString(elseWhenAlgorithmBranch.clone(), (std::sync::Arc::new(printAlgorithmBranchAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn((Arc<Absyn::Exp>, Arc<metamodelica::List<Arc<Absyn::AlgorithmItem>>>)) -> Result<()> + 'static>), (literal!(",")).clone())?;
             Print::printBuf((literal!(" end Absyn.ALG_WHEN_A;")).clone())?;
             ()
         },
@@ -1981,7 +1981,7 @@ fn printAlgorithmAsCorbaString(mut alg: Arc<Absyn::Algorithm>) -> Result<()> {
         },
         Deref @ Absyn::Algorithm::ALG_FAILURE { equ: body } => {
             Print::printBuf((literal!("record Absyn.ALG_FAILURE body = ")).clone())?;
-            printListAsCorbaString(body.clone(), Arc::new(printAlgorithmItemAsCorbaString), (literal!(",")).clone())?;
+            printListAsCorbaString(body.clone(), (std::sync::Arc::new(printAlgorithmItemAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::AlgorithmItem>) -> Result<()> + 'static>), (literal!(",")).clone())?;
             Print::printBuf((literal!(" end Absyn.ALG_FAILURE;")).clone())?;
             ()
         },
@@ -1991,22 +1991,22 @@ fn printAlgorithmAsCorbaString(mut alg: Arc<Absyn::Algorithm>) -> Result<()> {
 }
 
 fn printAlgorithmBranchAsCorbaString(mut inBranch: (Arc<Absyn::Exp>, Arc<metamodelica::List<Arc<Absyn::AlgorithmItem>>>)) -> Result<()> {
-    printTupleAsCorbaString(inBranch.clone(), Arc::new(printExpAsCorbaString), Arc::new(printAlgorithmItemListAsCorbaString))?;
+    printTupleAsCorbaString(inBranch.clone(), (std::sync::Arc::new(printExpAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Exp>) -> Result<()> + 'static>), (std::sync::Arc::new(printAlgorithmItemListAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<Arc<Absyn::AlgorithmItem>>>) -> Result<()> + 'static>))?;
     Ok(())
 }
 
 fn printAlgorithmItemListAsCorbaString(mut inLst: Arc<metamodelica::List<Arc<Absyn::AlgorithmItem>>>) -> Result<()> {
-    printListAsCorbaString(inLst.clone(), Arc::new(printAlgorithmItemAsCorbaString), (literal!(",")).clone())?;
+    printListAsCorbaString(inLst.clone(), (std::sync::Arc::new(printAlgorithmItemAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::AlgorithmItem>) -> Result<()> + 'static>), (literal!(",")).clone())?;
     Ok(())
 }
 
 fn printEquationBranchAsCorbaString(mut inBranch: (Arc<Absyn::Exp>, Arc<metamodelica::List<Arc<Absyn::EquationItem>>>)) -> Result<()> {
-    printTupleAsCorbaString(inBranch.clone(), Arc::new(printExpAsCorbaString), Arc::new(printEquationItemListAsCorbaString))?;
+    printTupleAsCorbaString(inBranch.clone(), (std::sync::Arc::new(printExpAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Exp>) -> Result<()> + 'static>), (std::sync::Arc::new(printEquationItemListAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<Arc<Absyn::EquationItem>>>) -> Result<()> + 'static>))?;
     Ok(())
 }
 
 fn printEquationItemListAsCorbaString(mut inLst: Arc<metamodelica::List<Arc<Absyn::EquationItem>>>) -> Result<()> {
-    printListAsCorbaString(inLst.clone(), Arc::new(printEquationItemAsCorbaString), (literal!(",")).clone())?;
+    printListAsCorbaString(inLst.clone(), (std::sync::Arc::new(printEquationItemAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::EquationItem>) -> Result<()> + 'static>), (literal!(",")).clone())?;
     Ok(())
 }
 
@@ -2014,7 +2014,7 @@ fn printAnnotationAsCorbaString(mut annotation_: Arc<Absyn::Annotation>) -> Resu
     let _ = (::match_deref::match_deref! { match &(annotation_.clone()) {
         Deref @ Absyn::Annotation { elementArgs } => {
             Print::printBuf((literal!("record Absyn.ANNOTATION elementArgs = ")).clone())?;
-            printListAsCorbaString(elementArgs.clone(), Arc::new(printElementArgAsCorbaString), (literal!(",")).clone())?;
+            printListAsCorbaString(elementArgs.clone(), (std::sync::Arc::new(printElementArgAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::ElementArg>) -> Result<()> + 'static>), (literal!(",")).clone())?;
             Print::printBuf((literal!(" end Absyn.ANNOTATION;")).clone())?;
             ()
         },
@@ -2027,7 +2027,7 @@ fn printCommentAsCorbaString(mut inComment: Arc<Absyn::Comment>) -> Result<()> {
     let _ = (::match_deref::match_deref! { match &(inComment.clone()) {
         Deref @ Absyn::Comment { annotation_, comment } => {
             Print::printBuf((literal!("record Absyn.COMMENT annotation_ = ")).clone())?;
-            printOption(annotation_.clone(), Arc::new(printAnnotationAsCorbaString))?;
+            printOption(annotation_.clone(), (std::sync::Arc::new(printAnnotationAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Annotation>) -> Result<()> + 'static>))?;
             Print::printBuf((literal!(", comment = ")).clone())?;
             printStringCommentOption(comment.clone())?;
             Print::printBuf((literal!(" end Absyn.COMMENT;")).clone())?;
@@ -2044,7 +2044,7 @@ fn printTypeSpecAsCorbaString(mut typeSpec: Arc<Absyn::TypeSpec>) -> Result<()> 
             Print::printBuf((literal!("record Absyn.TPATH path = ")).clone())?;
             printPathAsCorbaString(path.clone())?;
             Print::printBuf((literal!(", arrayDim = ")).clone())?;
-            printOption(arrayDim.clone(), Arc::new(printArrayDimAsCorbaString))?;
+            printOption(arrayDim.clone(), (std::sync::Arc::new(printArrayDimAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<Arc<Absyn::Subscript>>>) -> Result<()> + 'static>))?;
             Print::printBuf((literal!(" end Absyn.TPATH;")).clone())?;
             ()
         },
@@ -2052,9 +2052,9 @@ fn printTypeSpecAsCorbaString(mut typeSpec: Arc<Absyn::TypeSpec>) -> Result<()> 
             Print::printBuf((literal!("record Absyn.TPATH path = ")).clone())?;
             printPathAsCorbaString(path.clone())?;
             Print::printBuf((literal!(", typeSpecs = ")).clone())?;
-            printListAsCorbaString(typeSpecs.clone(), Arc::new(printTypeSpecAsCorbaString), (literal!(",")).clone())?;
+            printListAsCorbaString(typeSpecs.clone(), (std::sync::Arc::new(printTypeSpecAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::TypeSpec>) -> Result<()> + 'static>), (literal!(",")).clone())?;
             Print::printBuf((literal!(", arrayDim = ")).clone())?;
-            printOption(arrayDim.clone(), Arc::new(printArrayDimAsCorbaString))?;
+            printOption(arrayDim.clone(), (std::sync::Arc::new(printArrayDimAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<Arc<Absyn::Subscript>>>) -> Result<()> + 'static>))?;
             Print::printBuf((literal!(" end Absyn.TPATH;")).clone())?;
             ()
         },
@@ -2064,7 +2064,7 @@ fn printTypeSpecAsCorbaString(mut typeSpec: Arc<Absyn::TypeSpec>) -> Result<()> 
 }
 
 fn printArrayDimAsCorbaString(mut arrayDim: Arc<metamodelica::List<Arc<Absyn::Subscript>>>) -> Result<()> {
-    printListAsCorbaString(arrayDim.clone(), Arc::new(printSubscriptAsCorbaString), (literal!(",")).clone())?;
+    printListAsCorbaString(arrayDim.clone(), (std::sync::Arc::new(printSubscriptAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Subscript>) -> Result<()> + 'static>), (literal!(",")).clone())?;
     Ok(())
 }
 
@@ -2225,7 +2225,7 @@ fn printElementArgAsCorbaString(mut arg: Arc<Absyn::ElementArg>) -> Result<()> {
             Print::printBuf((literal!(", path = ")).clone())?;
             printPathAsCorbaString(p.clone())?;
             Print::printBuf((literal!(", modification = ")).clone())?;
-            printOption(modification.clone(), Arc::new(printModificationAsCorbaString))?;
+            printOption(modification.clone(), (std::sync::Arc::new(printModificationAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Modification>) -> Result<()> + 'static>))?;
             Print::printBuf((literal!(", comment = ")).clone())?;
             printStringCommentOption(comment.clone())?;
             Print::printBuf((literal!(", info = ")).clone())?;
@@ -2243,7 +2243,7 @@ fn printElementArgAsCorbaString(mut arg: Arc<Absyn::ElementArg>) -> Result<()> {
             Print::printBuf((literal!(", elementSpec = ")).clone())?;
             printElementSpecAsCorbaString(elementSpec.clone())?;
             Print::printBuf((literal!(", constrainClass = ")).clone())?;
-            printOption(constrainClass.clone(), Arc::new(printConstrainClassAsCorbaString))?;
+            printOption(constrainClass.clone(), (std::sync::Arc::new(printConstrainClassAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::ConstrainClass>) -> Result<()> + 'static>))?;
             Print::printBuf((literal!(", info = ")).clone())?;
             printInfoAsCorbaString(info.clone())?;
             Print::printBuf((literal!(" end Absyn.REDECLARATION;")).clone())?;
@@ -2258,9 +2258,9 @@ fn printFunctionArgsAsCorbaString(mut fargs: Arc<Absyn::FunctionArgs>) -> Result
     let _ = (::match_deref::match_deref! { match &(fargs.clone()) {
         Deref @ Absyn::FunctionArgs::FUNCTIONARGS { args, argNames } => {
             Print::printBuf((literal!("record Absyn.FUNCTIONARGS args = ")).clone())?;
-            printListAsCorbaString(args.clone(), Arc::new(printExpAsCorbaString), (literal!(",")).clone())?;
+            printListAsCorbaString(args.clone(), (std::sync::Arc::new(printExpAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Exp>) -> Result<()> + 'static>), (literal!(",")).clone())?;
             Print::printBuf((literal!(", argNames = ")).clone())?;
-            printListAsCorbaString(argNames.clone(), Arc::new(printNamedArgAsCorbaString), (literal!(",")).clone())?;
+            printListAsCorbaString(argNames.clone(), (std::sync::Arc::new(printNamedArgAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::NamedArg>) -> Result<()> + 'static>), (literal!(",")).clone())?;
             Print::printBuf((literal!(" end Absyn.FUNCTIONARGS;")).clone())?;
             ()
         },
@@ -2268,7 +2268,7 @@ fn printFunctionArgsAsCorbaString(mut fargs: Arc<Absyn::FunctionArgs>) -> Result
             Print::printBuf((literal!("record Absyn.FOR_ITER_FARG exp = ")).clone())?;
             printExpAsCorbaString(exp.clone())?;
             Print::printBuf((literal!(", iterators = ")).clone())?;
-            printListAsCorbaString(iterators.clone(), Arc::new(printForIteratorAsCorbaString), (literal!(",")).clone())?;
+            printListAsCorbaString(iterators.clone(), (std::sync::Arc::new(printForIteratorAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::ForIterator>) -> Result<()> + 'static>), (literal!(",")).clone())?;
             Print::printBuf((literal!(" end Absyn.FOR_ITER_FARG;")).clone())?;
             ()
         },
@@ -2283,9 +2283,9 @@ fn printForIteratorAsCorbaString(mut iter: Arc<Absyn::ForIterator>) -> Result<()
             Print::printBuf((literal!("record Absyn.ITERATOR name = \"")).clone())?;
             Print::printBuf((id.clone()).clone())?;
             Print::printBuf((literal!("\", guardExp = ")).clone())?;
-            printOption(guardExp.clone(), Arc::new(printExpAsCorbaString))?;
+            printOption(guardExp.clone(), (std::sync::Arc::new(printExpAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Exp>) -> Result<()> + 'static>))?;
             Print::printBuf((literal!(", range = ")).clone())?;
-            printOption(range.clone(), Arc::new(printExpAsCorbaString))?;
+            printOption(range.clone(), (std::sync::Arc::new(printExpAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Exp>) -> Result<()> + 'static>))?;
             Print::printBuf((literal!("end Absyn.ITERATOR;")).clone())?;
             ()
         },
@@ -2395,7 +2395,7 @@ fn printExpAsCorbaString(mut inExp: Arc<Absyn::Exp>) -> Result<()> {
             Print::printBuf((literal!(", elseBranch = ")).clone())?;
             printExpAsCorbaString(elseBranch.clone())?;
             Print::printBuf((literal!(", elseIfBranch = ")).clone())?;
-            printListAsCorbaString(elseIfBranch.clone(), Arc::new(printTupleExpExpAsCorbaString), (literal!(",")).clone())?;
+            printListAsCorbaString(elseIfBranch.clone(), (std::sync::Arc::new(printTupleExpExpAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn((Arc<Absyn::Exp>, Arc<Absyn::Exp>)) -> Result<()> + 'static>), (literal!(",")).clone())?;
             Print::printBuf((literal!(" end Absyn.IFEXP;")).clone())?;
             ()
         },
@@ -2417,13 +2417,13 @@ fn printExpAsCorbaString(mut inExp: Arc<Absyn::Exp>) -> Result<()> {
         },
         Deref @ Absyn::Exp::ARRAY { arrayExp } => {
             Print::printBuf((literal!("record Absyn.ARRAY arrayExp = ")).clone())?;
-            printListAsCorbaString(arrayExp.clone(), Arc::new(printExpAsCorbaString), (literal!(",")).clone())?;
+            printListAsCorbaString(arrayExp.clone(), (std::sync::Arc::new(printExpAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Exp>) -> Result<()> + 'static>), (literal!(",")).clone())?;
             Print::printBuf((literal!(" end Absyn.ARRAY;")).clone())?;
             ()
         },
         Deref @ Absyn::Exp::MATRIX { matrix } => {
             Print::printBuf((literal!("record Absyn.MATRIX matrix = ")).clone())?;
-            printListAsCorbaString(matrix.clone(), Arc::new(printListExpAsCorbaString), (literal!(",")).clone())?;
+            printListAsCorbaString(matrix.clone(), (std::sync::Arc::new(printListExpAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<Arc<Absyn::Exp>>>) -> Result<()> + 'static>), (literal!(",")).clone())?;
             Print::printBuf((literal!(" end Absyn.MATRIX;")).clone())?;
             ()
         },
@@ -2431,7 +2431,7 @@ fn printExpAsCorbaString(mut inExp: Arc<Absyn::Exp>) -> Result<()> {
             Print::printBuf((literal!("record Absyn.RANGE start = ")).clone())?;
             printExpAsCorbaString(start.clone())?;
             Print::printBuf((literal!(", step = ")).clone())?;
-            printOption(step.clone(), Arc::new(printExpAsCorbaString))?;
+            printOption(step.clone(), (std::sync::Arc::new(printExpAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Exp>) -> Result<()> + 'static>))?;
             Print::printBuf((literal!(", stop = ")).clone())?;
             printExpAsCorbaString(stop.clone())?;
             Print::printBuf((literal!(" end Absyn.RANGE;")).clone())?;
@@ -2439,7 +2439,7 @@ fn printExpAsCorbaString(mut inExp: Arc<Absyn::Exp>) -> Result<()> {
         },
         Deref @ Absyn::Exp::TUPLE { expressions } => {
             Print::printBuf((literal!("record Absyn.TUPLE expressions = ")).clone())?;
-            printListAsCorbaString(expressions.clone(), Arc::new(printExpAsCorbaString), (literal!(",")).clone())?;
+            printListAsCorbaString(expressions.clone(), (std::sync::Arc::new(printExpAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Exp>) -> Result<()> + 'static>), (literal!(",")).clone())?;
             Print::printBuf((literal!(" end Absyn.TUPLE;")).clone())?;
             ()
         },
@@ -2475,9 +2475,9 @@ fn printExpAsCorbaString(mut inExp: Arc<Absyn::Exp>) -> Result<()> {
             Print::printBuf((literal!(", inputExp = ")).clone())?;
             printExpAsCorbaString(inputExp.clone())?;
             Print::printBuf((literal!(", localDecls = ")).clone())?;
-            printListAsCorbaString(localDecls.clone(), Arc::new(printElementItemAsCorbaString), (literal!(",\n")).clone())?;
+            printListAsCorbaString(localDecls.clone(), (std::sync::Arc::new(printElementItemAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::ElementItem>) -> Result<()> + 'static>), (literal!(",\n")).clone())?;
             Print::printBuf((literal!(", cases = ")).clone())?;
-            printListAsCorbaString(cases.clone(), Arc::new(printCaseAsCorbaString), (literal!(",\n")).clone())?;
+            printListAsCorbaString(cases.clone(), (std::sync::Arc::new(printCaseAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Case>) -> Result<()> + 'static>), (literal!(",\n")).clone())?;
             Print::printBuf((literal!(", comment = ")).clone())?;
             printStringCommentOption(comment.clone())?;
             Print::printBuf((literal!(" end Absyn.MATCHEXP;")).clone())?;
@@ -2509,11 +2509,11 @@ fn printCaseAsCorbaString(mut case_: Arc<Absyn::Case>) -> Result<()> {
             Print::printBuf((literal!("record Absyn.CASE pattern = ")).clone())?;
             printExpAsCorbaString(pattern.clone())?;
             Print::printBuf((literal!(", patternGuard = ")).clone())?;
-            printOption(patternGuard.clone(), Arc::new(printExpAsCorbaString))?;
+            printOption(patternGuard.clone(), (std::sync::Arc::new(printExpAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Exp>) -> Result<()> + 'static>))?;
             Print::printBuf((literal!(", patternInfo = ")).clone())?;
             printInfoAsCorbaString(patternInfo.clone())?;
             Print::printBuf((literal!(", localDecls = ")).clone())?;
-            printListAsCorbaString(localDecls.clone(), Arc::new(printElementItemAsCorbaString), (literal!(",")).clone())?;
+            printListAsCorbaString(localDecls.clone(), (std::sync::Arc::new(printElementItemAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::ElementItem>) -> Result<()> + 'static>), (literal!(",")).clone())?;
             Print::printBuf((literal!(", classPart = ")).clone())?;
             printClassPartAsCorbaString(classPart.clone())?;
             Print::printBuf((literal!(", result = ")).clone())?;
@@ -2529,7 +2529,7 @@ fn printCaseAsCorbaString(mut case_: Arc<Absyn::Case>) -> Result<()> {
         },
         Deref @ Absyn::Case::ELSE { localDecls, classPart, result, resultInfo, comment, info } => {
             Print::printBuf((literal!("record Absyn.ELSE localDecls = ")).clone())?;
-            printListAsCorbaString(localDecls.clone(), Arc::new(printElementItemAsCorbaString), (literal!(",")).clone())?;
+            printListAsCorbaString(localDecls.clone(), (std::sync::Arc::new(printElementItemAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::ElementItem>) -> Result<()> + 'static>), (literal!(",")).clone())?;
             Print::printBuf((literal!(", classPart = ")).clone())?;
             printClassPartAsCorbaString(classPart.clone())?;
             Print::printBuf((literal!(", result = ")).clone())?;
@@ -2566,7 +2566,7 @@ fn printCodeAsCorbaString(mut code: Arc<Absyn::CodeNode>) -> Result<()> {
             Print::printBuf((literal!("record Absyn.C_EQUATIONSECTION boolean = ")).clone())?;
             Print::printBuf((boolString(boolean.clone())).clone())?;
             Print::printBuf((literal!(", equationItemLst = ")).clone())?;
-            printListAsCorbaString(equationItemLst.clone(), Arc::new(printEquationItemAsCorbaString), (literal!(",")).clone())?;
+            printListAsCorbaString(equationItemLst.clone(), (std::sync::Arc::new(printEquationItemAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::EquationItem>) -> Result<()> + 'static>), (literal!(",")).clone())?;
             Print::printBuf((literal!(" end Absyn.C_EQUATIONSECTION;")).clone())?;
             ()
         },
@@ -2574,7 +2574,7 @@ fn printCodeAsCorbaString(mut code: Arc<Absyn::CodeNode>) -> Result<()> {
             Print::printBuf((literal!("record Absyn.C_ALGORITHMSECTION boolean = ")).clone())?;
             Print::printBuf((boolString(boolean.clone())).clone())?;
             Print::printBuf((literal!(", algorithmItemLst = ")).clone())?;
-            printListAsCorbaString(algorithmItemLst.clone(), Arc::new(printAlgorithmItemAsCorbaString), (literal!(",")).clone())?;
+            printListAsCorbaString(algorithmItemLst.clone(), (std::sync::Arc::new(printAlgorithmItemAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::AlgorithmItem>) -> Result<()> + 'static>), (literal!(",")).clone())?;
             Print::printBuf((literal!(" end Absyn.C_ALGORITHMSECTION;")).clone())?;
             ()
         },
@@ -2602,12 +2602,12 @@ fn printCodeAsCorbaString(mut code: Arc<Absyn::CodeNode>) -> Result<()> {
 }
 
 fn printListExpAsCorbaString(mut inLst: Arc<metamodelica::List<Arc<Absyn::Exp>>>) -> Result<()> {
-    printListAsCorbaString(inLst.clone(), Arc::new(printExpAsCorbaString), (literal!(",")).clone())?;
+    printListAsCorbaString(inLst.clone(), (std::sync::Arc::new(printExpAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Exp>) -> Result<()> + 'static>), (literal!(",")).clone())?;
     Ok(())
 }
 
 fn printListAsCorbaString<Type_a: Clone + 'static>(mut inTypeALst: Arc<metamodelica::List<Type_a>>, mut inFuncTypeTypeATo: Arc<dyn ::std::ops::Fn(Type_a) -> Result<()> + 'static>, mut inString: ArcStr) -> Result<()> {
-    pub type FuncTypeType_aTo<Type_a: Clone> = fn(Type_a) -> Result<()>;
+    pub type FuncTypeType_aTo<Type_a: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Type_a) -> Result<()> + 'static>;
 
     Print::printBuf((literal!("{")).clone())?;
     printList(inTypeALst.clone(), inFuncTypeTypeATo.clone(), (inString.clone()).clone())?;
@@ -2616,9 +2616,9 @@ fn printListAsCorbaString<Type_a: Clone + 'static>(mut inTypeALst: Arc<metamodel
 }
 
 fn printTupleAsCorbaString<Type_a: Clone + 'static, Type_b: Clone + 'static>(mut inTpl: (Type_a, Type_b), mut fnA: Arc<dyn ::std::ops::Fn(Type_a) -> Result<()> + 'static>, mut fnB: Arc<dyn ::std::ops::Fn(Type_b) -> Result<()> + 'static>) -> Result<()> {
-    pub type FuncTypeType_a<Type_a: Clone> = fn(Type_a) -> Result<()>;
+    pub type FuncTypeType_a<Type_a: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Type_a) -> Result<()> + 'static>;
 
-    pub type FuncTypeType_b<Type_b: Clone> = fn(Type_b) -> Result<()>;
+    pub type FuncTypeType_b<Type_b: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Type_b) -> Result<()> + 'static>;
 
     let _ = (match (inTpl.clone(), fnA.clone(), fnB.clone()) {
         ((mut a, mut b), _, _) => {
@@ -2744,7 +2744,7 @@ fn printEachAsCorbaString(mut each_: Absyn::Each) -> Result<()> {
 }
 
 fn printTupleExpExpAsCorbaString(mut tpl: (Arc<Absyn::Exp>, Arc<Absyn::Exp>)) -> Result<()> {
-    printTupleAsCorbaString(tpl.clone(), Arc::new(printExpAsCorbaString), Arc::new(printExpAsCorbaString))?;
+    printTupleAsCorbaString(tpl.clone(), (std::sync::Arc::new(printExpAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Exp>) -> Result<()> + 'static>), (std::sync::Arc::new(printExpAsCorbaString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Exp>) -> Result<()> + 'static>))?;
     Ok(())
 }
 
@@ -2757,7 +2757,7 @@ fn printStringAsCorbaString(mut s: ArcStr) -> Result<()> {
 
 pub fn writePath(mut file: File::File, mut path: Arc<Absyn::Path>, mut escape: Escape, mut delimiter: ArcStr, mut initialDot: bool) -> Result<()> {
     let mut p: Arc<Absyn::Path> = path.clone();
-    while true {
+    loop {
         p = (::match_deref::match_deref! { match &(p.clone()) {
         Deref @ Absyn::Path::IDENT { .. } => {
             File::writeEscape(file.clone(), (var_field!((*p).name, Absyn::Path::IDENT).clone()).clone(), escape.clone());

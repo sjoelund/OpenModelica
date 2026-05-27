@@ -243,7 +243,7 @@ fn lookupSimpleName2(mut inName: ArcStr, mut inEnv: Env, mut inVisitedScopes: Ar
                     let mut opt_path: Option<Arc<Absyn::Path>> = None;
                     let mut opt_env: Option<Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>> = None;
                     frameNotEncapsulated(frame_type.clone())?;
-                    (opt_item, opt_path, opt_env) = lookupSimpleName2((inName.clone()).clone(), rest_env.clone(), cons(scope_name.clone(), inVisitedScopes.clone()))?;
+                    (opt_item, opt_path, opt_env) = lookupSimpleName2((inName.clone()).clone(), rest_env.clone(), cons((scope_name.clone()).clone(), inVisitedScopes.clone()))?;
                     Ok((opt_item.clone(), opt_path.clone(), opt_env.clone()))
                 }
                 _ => bail!("nomatch"),
@@ -776,7 +776,7 @@ pub fn lookupNameInItem(mut inName: Arc<Absyn::Path>, mut inItem: Item, mut inEn
             let mut env = (*env).clone();
             (item, _, type_env) = lookupTypeSpec(type_spec.clone(), env.clone(), info.clone())?;
             redeclares = NFSCodeFlattenRedeclare::extractRedeclaresFromModifier(mods.clone());
-            (item, type_env, _) = NFSCodeFlattenRedeclare::replaceRedeclaredElementsInEnv(redeclares.clone(), item.clone(), type_env.clone(), inEnv.clone(), NFInstPrefix::emptyPrefix.clone())?;
+            (item, type_env, _) = NFSCodeFlattenRedeclare::replaceRedeclaredElementsInEnv(redeclares.clone(), item.clone(), type_env.clone(), inEnv.clone(), NFInstPrefix::emptyPrefix().clone())?;
             (item, path, env) = lookupNameInItem(inName.clone(), item.clone(), type_env.clone())?;
             (item.clone(), path.clone(), env.clone())
         },
@@ -811,7 +811,7 @@ pub fn lookupCrefInItem(mut inCref: Arc<Absyn::ComponentRef>, mut inItem: Item, 
             let mut redeclares: Arc<metamodelica::List<Arc<NFSCodeEnv::Redeclaration>>> = metamodelica::nil();
             (item, _, type_env) = lookupTypeSpec(type_spec.clone(), inEnv.clone(), info.clone())?;
             redeclares = NFSCodeFlattenRedeclare::extractRedeclaresFromModifier(mods.clone());
-            (item, type_env, _) = NFSCodeFlattenRedeclare::replaceRedeclaredElementsInEnv(redeclares.clone(), item.clone(), type_env.clone(), inEnv.clone(), NFInstPrefix::emptyPrefix.clone())?;
+            (item, type_env, _) = NFSCodeFlattenRedeclare::replaceRedeclaredElementsInEnv(redeclares.clone(), item.clone(), type_env.clone(), inEnv.clone(), NFInstPrefix::emptyPrefix().clone())?;
             (item, cref) = lookupCrefInItem(inCref.clone(), item.clone(), type_env.clone())?;
             (item.clone(), cref.clone())
         },
@@ -842,7 +842,7 @@ pub fn lookupBaseClasses(mut inName: ArcStr, mut inEnv: Env) -> Result<Arc<metam
         _ => bail!("pattern mismatch"),
     } };
     bcl = __pa0.clone();
-    (_, outBaseClasses) = List::fold22(bcl.clone(), Arc::new(lookupBaseClasses2), (inName.clone()).clone(), inEnv.clone(), metamodelica::nil(), metamodelica::nil());
+    (_, outBaseClasses) = List::fold22(bcl.clone(), (std::sync::Arc::new(lookupBaseClasses2) as std::sync::Arc<dyn ::std::ops::Fn(Arc<NFSCodeEnv::Extends>, ArcStr, Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, Arc<metamodelica::List<Arc<NFSCodeEnv::Item>>>, Arc<metamodelica::List<Arc<Absyn::Path>>>) -> Result<(Arc<metamodelica::List<Arc<NFSCodeEnv::Item>>>, Arc<metamodelica::List<Arc<Absyn::Path>>>)> + 'static>), (inName.clone()).clone(), inEnv.clone(), metamodelica::nil(), metamodelica::nil());
     let false = (outBaseClasses.clone().is_empty()) else { bail!("pattern mismatch") };
     outBaseClasses = outBaseClasses.clone().reverse();
     Ok(outBaseClasses)
@@ -900,7 +900,7 @@ pub fn lookupInheritedNameAndBC(mut inName: ArcStr, mut inEnv: Env) -> Result<(A
         _ => bail!("pattern mismatch"),
     } };
     bcl = __pa0.clone();
-    (outItems, outBaseClasses) = List::fold22(bcl.clone(), Arc::new(lookupBaseClasses2), (inName.clone()).clone(), inEnv.clone(), metamodelica::nil(), metamodelica::nil());
+    (outItems, outBaseClasses) = List::fold22(bcl.clone(), (std::sync::Arc::new(lookupBaseClasses2) as std::sync::Arc<dyn ::std::ops::Fn(Arc<NFSCodeEnv::Extends>, ArcStr, Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, Arc<metamodelica::List<Arc<NFSCodeEnv::Item>>>, Arc<metamodelica::List<Arc<Absyn::Path>>>) -> Result<(Arc<metamodelica::List<Arc<NFSCodeEnv::Item>>>, Arc<metamodelica::List<Arc<Absyn::Path>>>)> + 'static>), (inName.clone()).clone(), inEnv.clone(), metamodelica::nil(), metamodelica::nil());
     outBaseClasses = outBaseClasses.clone().reverse();
     outItems = outItems.clone().reverse();
     Ok((outItems, outBaseClasses))

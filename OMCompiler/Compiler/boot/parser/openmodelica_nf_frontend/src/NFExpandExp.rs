@@ -415,7 +415,7 @@ pub fn expandBuiltinTranspose(mut arg: Arc<Expression::NFExpression>) -> Result<
 pub fn expandBuiltinGeneric(mut call: Arc<Call::NFCall>) -> Result<(Arc<Expression::NFExpression>, bool)> {
     let mut outExp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut expanded: bool = true;
-    let mut r#fn: Arc<Function::Function>;
+    let mut r#fn: Arc<Function::Function> = Arc::new(<Function::Function as ::std::default::Default>::default());
     let mut ty: Arc<Type::NFType> = Arc::new(Type::ANY);
     let mut var: Variability = Variability::CONSTANT;
     let mut pur: Purity = Purity::PURE;
@@ -599,7 +599,7 @@ pub fn expandBinaryElementWise(mut exp: Arc<Expression::NFExpression>) -> Result
             (exp2, expanded) = expand(exp2.clone(), false, false)?;
         }
         if expanded.clone() {
-            outExp = expandBinaryElementWise2(exp1.clone(), Operator::stripEW(op.clone()), exp2.clone(), Arc::new(SimplifyExp::simplifyBinaryOp))?;
+            outExp = expandBinaryElementWise2(exp1.clone(), Operator::stripEW(op.clone()), exp2.clone(), (std::sync::Arc::new(SimplifyExp::simplifyBinaryOp) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, Arc<Operator::NFOperator>, Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>))?;
         } else {
             outExp = exp.clone();
         }
@@ -611,7 +611,7 @@ pub fn expandBinaryElementWise(mut exp: Arc<Expression::NFExpression>) -> Result
 }
 
 pub fn expandBinaryElementWise2(mut exp1: Arc<Expression::NFExpression>, mut op: Arc<Operator::NFOperator>, mut exp2: Arc<Expression::NFExpression>, mut func: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, Arc<Operator::NFOperator>, Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Result<Arc<Expression::NFExpression>> {
-    pub type MakeFn = fn(Arc<Expression::NFExpression>, Arc<Operator::NFOperator>, Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>>;
+    pub type MakeFn = std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, Arc<Operator::NFOperator>, Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>;
 
     let mut exp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut expl1: metamodelica::Array<Arc<Expression::NFExpression>>;
@@ -984,7 +984,7 @@ pub fn expandLogicalBinary(mut exp: Arc<Expression::NFExpression>) -> Result<(Ar
             (exp2, expanded) = expand(exp2.clone(), false, false)?;
         }
         if expanded.clone() {
-            outExp = expandBinaryElementWise2(exp1.clone(), op.clone(), exp2.clone(), Arc::new(makeLBinaryOp))?;
+            outExp = expandBinaryElementWise2(exp1.clone(), op.clone(), exp2.clone(), (std::sync::Arc::new(makeLBinaryOp) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, Arc<Operator::NFOperator>, Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>))?;
         } else {
             outExp = exp.clone();
         }

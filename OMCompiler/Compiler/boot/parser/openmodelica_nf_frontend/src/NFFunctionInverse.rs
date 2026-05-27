@@ -61,11 +61,21 @@ use openmodelica_frontend_types::DAE;
 use openmodelica_frontend_types::SCode;
 use openmodelica_util::Error;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct NFFunctionInverse {
     pub inputParam: Arc<ComponentRef::NFComponentRef>,
     pub inverseCall: Arc<Expression::NFExpression>,
     pub info: SourceInfo,
+}
+
+impl Default for NFFunctionInverse {
+    fn default() -> Self {
+        Self {
+            inputParam: Default::default(),
+            inverseCall: Default::default(),
+            info: Default::default(),
+        }
+    }
 }
 
 pub type FUNCTION_INV = NFFunctionInverse;
@@ -113,7 +123,7 @@ pub fn toSubMod(mut fnInv: Arc<NFFunctionInverse>) -> Result<Arc<SCode::SubMod>>
 }
 
 pub fn getFunction(mut fnInv: Arc<NFFunctionInverse>) -> Result<Arc<Function::Function>> {
-    let mut r#fn: Arc<Function::Function>;
+    let mut r#fn: Arc<Function::Function> = Arc::new(<Function::Function as ::std::default::Default>::default());
     let mut call: Arc<Call::NFCall>;
     let __pa0 = ::match_deref::match_deref! { match &(fnInv.inverseCall.clone()) {
         Deref @ Expression::CALL { call: __pa0 } => __pa0.clone(),

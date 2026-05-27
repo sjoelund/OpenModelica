@@ -66,7 +66,7 @@ use openmodelica_util::JSON;
 use openmodelica_util::Util;
 use openmodelica_util_datatypes_basic::List;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum NFSubscript {
     RAW_SUBSCRIPT {
         subscript: Arc<Absyn::Subscript>,
@@ -441,7 +441,7 @@ pub fn compareList(mut subscripts1: Arc<metamodelica::List<Arc<NFSubscript>>>, m
 }
 
 pub fn containsExp(mut subscript: Arc<NFSubscript>, mut func: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<bool> + 'static>) -> Result<bool> {
-    pub type ContainsPred = fn(Arc<Expression::NFExpression>) -> Result<bool>;
+    pub type ContainsPred = std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<bool> + 'static>;
 
     let mut res: bool = false;
     res = (::match_deref::match_deref! { match &(subscript.clone()) {
@@ -455,7 +455,7 @@ pub fn containsExp(mut subscript: Arc<NFSubscript>, mut func: Arc<dyn ::std::ops
 }
 
 pub fn listContainsExp(mut subscripts: Arc<metamodelica::List<Arc<NFSubscript>>>, mut func: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<bool> + 'static>) -> Result<bool> {
-    pub type ContainsPred = fn(Arc<Expression::NFExpression>) -> Result<bool>;
+    pub type ContainsPred = std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<bool> + 'static>;
 
     let mut res: bool = false;
     for mut s in &*subscripts.clone() {
@@ -470,7 +470,7 @@ pub fn listContainsExp(mut subscripts: Arc<metamodelica::List<Arc<NFSubscript>>>
 }
 
 pub fn containsExpShallow(mut subscript: Arc<NFSubscript>, mut func: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<bool> + 'static>) -> bool {
-    pub type ContainsPred = fn(Arc<Expression::NFExpression>) -> Result<bool>;
+    pub type ContainsPred = std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<bool> + 'static>;
 
     let mut res: bool = false;
     res = (::match_deref::match_deref! { match &(subscript.clone()) {
@@ -484,7 +484,7 @@ pub fn containsExpShallow(mut subscript: Arc<NFSubscript>, mut func: Arc<dyn ::s
 }
 
 pub fn listContainsExpShallow(mut subscripts: Arc<metamodelica::List<Arc<NFSubscript>>>, mut func: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<bool> + 'static>) -> bool {
-    pub type ContainsPred = fn(Arc<Expression::NFExpression>) -> Result<bool>;
+    pub type ContainsPred = std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<bool> + 'static>;
 
     let mut res: bool = false;
     for mut s in &*subscripts.clone() {
@@ -499,7 +499,7 @@ pub fn listContainsExpShallow(mut subscripts: Arc<metamodelica::List<Arc<NFSubsc
 }
 
 pub fn applyExp(mut subscript: Arc<NFSubscript>, mut func: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<()> + 'static>) -> Result<()> {
-    pub type ApplyFunc = fn(Arc<Expression::NFExpression>) -> Result<()>;
+    pub type ApplyFunc = std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<()> + 'static>;
 
     let () = (::match_deref::match_deref! { match &(subscript.clone()) {
         Deref @ UNTYPED { .. } => {
@@ -521,7 +521,7 @@ pub fn applyExp(mut subscript: Arc<NFSubscript>, mut func: Arc<dyn ::std::ops::F
 }
 
 pub fn applyExpShallow(mut subscript: Arc<NFSubscript>, mut func: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<()> + 'static>) -> () {
-    pub type ApplyFunc = fn(Arc<Expression::NFExpression>) -> Result<()>;
+    pub type ApplyFunc = std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<()> + 'static>;
 
     let () = (::match_deref::match_deref! { match &(subscript.clone()) {
         Deref @ UNTYPED { .. } => {
@@ -543,7 +543,7 @@ pub fn applyExpShallow(mut subscript: Arc<NFSubscript>, mut func: Arc<dyn ::std:
 }
 
 pub fn mapExp(mut subscript: Arc<NFSubscript>, mut func: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Result<Arc<NFSubscript>> {
-    pub type MapFunc = fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>>;
+    pub type MapFunc = std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>;
 
     let mut outSubscript: Arc<NFSubscript> = Arc::new(NFSubscript::WHOLE);
     outSubscript = (::match_deref::match_deref! { match &(subscript.clone()) {
@@ -571,7 +571,7 @@ pub fn mapExp(mut subscript: Arc<NFSubscript>, mut func: Arc<dyn ::std::ops::Fn(
 }
 
 pub fn mapShallowExp(mut subscript: Arc<NFSubscript>, mut func: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Arc<NFSubscript> {
-    pub type MapFunc = fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>>;
+    pub type MapFunc = std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>;
 
     let mut outSubscript: Arc<NFSubscript> = Arc::new(NFSubscript::WHOLE);
     outSubscript = (::match_deref::match_deref! { match &(subscript.clone()) {
@@ -599,7 +599,7 @@ pub fn mapShallowExp(mut subscript: Arc<NFSubscript>, mut func: Arc<dyn ::std::o
 }
 
 pub fn foldExp<ArgT: Clone + 'static>(mut subscript: Arc<NFSubscript>, mut func: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, ArgT) -> Result<ArgT> + 'static>, mut arg: ArgT) -> Result<ArgT> {
-    pub type FoldFunc<ArgT: Clone> = fn(Arc<Expression::NFExpression>, ArgT) -> Result<ArgT>;
+    pub type FoldFunc<ArgT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, ArgT) -> Result<ArgT> + 'static>;
 
     let mut result: ArgT;
     result = (::match_deref::match_deref! { match &(subscript.clone()) {
@@ -613,7 +613,7 @@ pub fn foldExp<ArgT: Clone + 'static>(mut subscript: Arc<NFSubscript>, mut func:
 }
 
 pub fn mapFoldExp<ArgT: Clone + 'static>(mut subscript: Arc<NFSubscript>, mut func: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, ArgT) -> Result<(Arc<Expression::NFExpression>, ArgT)> + 'static>, mut arg: ArgT) -> Result<(Arc<NFSubscript>, ArgT)> {
-    pub type MapFunc<ArgT: Clone> = fn(Arc<Expression::NFExpression>, ArgT) -> Result<(Arc<Expression::NFExpression>, ArgT)>;
+    pub type MapFunc<ArgT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, ArgT) -> Result<(Arc<Expression::NFExpression>, ArgT)> + 'static>;
 
     let mut outSubscript: Arc<NFSubscript> = Arc::new(NFSubscript::WHOLE);
     let mut arg: ArgT = arg;
@@ -642,7 +642,7 @@ pub fn mapFoldExp<ArgT: Clone + 'static>(mut subscript: Arc<NFSubscript>, mut fu
 }
 
 pub fn mapFoldExpShallow<ArgT: Clone + 'static>(mut subscript: Arc<NFSubscript>, mut func: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, ArgT) -> Result<(Arc<Expression::NFExpression>, ArgT)> + 'static>, mut arg: ArgT) -> (Arc<NFSubscript>, ArgT) {
-    pub type MapFunc<ArgT: Clone> = fn(Arc<Expression::NFExpression>, ArgT) -> Result<(Arc<Expression::NFExpression>, ArgT)>;
+    pub type MapFunc<ArgT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, ArgT) -> Result<(Arc<Expression::NFExpression>, ArgT)> + 'static>;
 
     let mut outSubscript: Arc<NFSubscript> = Arc::new(NFSubscript::WHOLE);
     let mut arg: ArgT = arg;
@@ -709,7 +709,7 @@ pub fn toString(mut subscript: Arc<NFSubscript>) -> Result<ArcStr> {
         Deref @ UNTYPED { .. } => Expression::toString(var_field!((*subscript).exp, NFSubscript::UNTYPED).clone())?,
         Deref @ INDEX { .. } => Expression::toString(var_field!((*subscript).index, NFSubscript::INDEX).clone())?,
         Deref @ SLICE { .. } => Expression::toString(var_field!((*subscript).slice, NFSubscript::SLICE).clone())?,
-        Deref @ EXPANDED_SLICE { .. } => List::toString(var_field!((*subscript).indices, NFSubscript::EXPANDED_SLICE).clone(), Arc::new(toString), (literal!("")).clone(), (literal!("{")).clone(), (literal!(", ")).clone(), (literal!("}")).clone(), false, 0)?,
+        Deref @ EXPANDED_SLICE { .. } => List::toString(var_field!((*subscript).indices, NFSubscript::EXPANDED_SLICE).clone(), (std::sync::Arc::new(toString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<NFSubscript>) -> Result<ArcStr> + 'static>), (literal!("")).clone(), (literal!("{")).clone(), (literal!(", ")).clone(), (literal!("}")).clone(), false, 0)?,
         Deref @ WHOLE { .. } => literal!(":"),
         Deref @ SPLIT_PROXY { .. } => { let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("<")); __mm_s.push_str(&*InstNode::name(var_field!((*subscript).origin, NFSubscript::SPLIT_PROXY).clone())?); __mm_s.push_str(&*literal!(", ")); __mm_s.push_str(&*InstNode::name(var_field!((*subscript).parent, NFSubscript::SPLIT_PROXY).clone())?); __mm_s.push_str(&*literal!(">")); ArcStr::from(__mm_s) },
         Deref @ SPLIT_INDEX { .. } => { let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("<")); __mm_s.push_str(&*InstNode::name(var_field!((*subscript).node, NFSubscript::SPLIT_INDEX).clone())?); __mm_s.push_str(&*literal!(", ")); __mm_s.push_str(&*ArcStr::from(::std::format!("{}", var_field!((*subscript).dimIndex, NFSubscript::SPLIT_INDEX).clone()))); __mm_s.push_str(&*literal!(">")); ArcStr::from(__mm_s) },
@@ -720,7 +720,7 @@ pub fn toString(mut subscript: Arc<NFSubscript>) -> Result<ArcStr> {
 
 pub fn toStringList(mut subscripts: Arc<metamodelica::List<Arc<NFSubscript>>>) -> Result<ArcStr> {
     let mut string: ArcStr = arcstr::literal!("");
-    string = (List::toString(subscripts.clone(), Arc::new(toString), (literal!("")).clone(), (literal!("[")).clone(), (literal!(", ")).clone(), (literal!("]")).clone(), false, 0)?).clone();
+    string = (List::toString(subscripts.clone(), (std::sync::Arc::new(toString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<NFSubscript>) -> Result<ArcStr> + 'static>), (literal!("")).clone(), (literal!("[")).clone(), (literal!(", ")).clone(), (literal!("]")).clone(), false, 0)?).clone();
     Ok(string)
 }
 
@@ -731,7 +731,7 @@ pub fn toFlatString(mut subscript: Arc<NFSubscript>, mut format: BaseModelica::O
         Deref @ UNTYPED { .. } => Expression::toFlatString(var_field!((*subscript).exp, NFSubscript::UNTYPED).clone(), format.clone())?,
         Deref @ INDEX { .. } => Expression::toFlatString(var_field!((*subscript).index, NFSubscript::INDEX).clone(), format.clone())?,
         Deref @ SLICE { .. } => Expression::toFlatString(var_field!((*subscript).slice, NFSubscript::SLICE).clone(), format.clone())?,
-        Deref @ EXPANDED_SLICE { .. } => List::toString(var_field!((*subscript).indices, NFSubscript::EXPANDED_SLICE).clone(), Arc::new(toString), (literal!("")).clone(), (literal!("{")).clone(), (literal!(", ")).clone(), (literal!("}")).clone(), false, 0)?,
+        Deref @ EXPANDED_SLICE { .. } => List::toString(var_field!((*subscript).indices, NFSubscript::EXPANDED_SLICE).clone(), (std::sync::Arc::new(toString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<NFSubscript>) -> Result<ArcStr> + 'static>), (literal!("")).clone(), (literal!("{")).clone(), (literal!(", ")).clone(), (literal!("}")).clone(), false, 0)?,
         Deref @ WHOLE { .. } => literal!(":"),
         Deref @ SPLIT_INDEX { .. } => { let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("<")); __mm_s.push_str(&*InstNode::name(var_field!((*subscript).node, NFSubscript::SPLIT_INDEX).clone())?); __mm_s.push_str(&*literal!(", ")); __mm_s.push_str(&*ArcStr::from(::std::format!("{}", var_field!((*subscript).dimIndex, NFSubscript::SPLIT_INDEX).clone()))); __mm_s.push_str(&*literal!(">")); ArcStr::from(__mm_s) },
         _ => bail!("match: no arm matched"),
@@ -828,7 +828,7 @@ pub fn simplifyList(mut subscripts: Arc<metamodelica::List<Arc<NFSubscript>>>, m
             outSubscripts = cons(simplify(s.clone(), d.clone())?, outSubscripts.clone());
         }
         if trim.clone() {
-            outSubscripts = List::trim(outSubscripts.clone(), Arc::new(fnptr!(isWhole, Arc<NFSubscript>)))?.reverse();
+            outSubscripts = List::trim(outSubscripts.clone(), (std::sync::Arc::new(fnptr!(isWhole, Arc<NFSubscript>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<NFSubscript>) -> Result<bool> + 'static>))?.reverse();
         } else {
             outSubscripts = outSubscripts.clone().reverse();
         }
@@ -876,7 +876,7 @@ pub fn scalarize(mut subscript: Arc<NFSubscript>, mut dimension: Arc<Dimension::
         }
         __acc.reverse()
     },
-        Deref @ WHOLE { .. } => RangeIterator::map(RangeIterator::fromDim(dimension.clone(), resize.clone())?, Arc::new(makeIndex))?,
+        Deref @ WHOLE { .. } => RangeIterator::map(RangeIterator::fromDim(dimension.clone(), resize.clone())?, (std::sync::Arc::new(makeIndex) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<NFSubscript>> + 'static>))?,
         _ => list![subscript.clone()],
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
     } });
@@ -906,7 +906,7 @@ pub fn scalarizeList(mut subscripts: Arc<metamodelica::List<Arc<NFSubscript>>>, 
     }
     for mut d in &*rest_dims.clone() {
         let mut d = d.clone();
-        subs = RangeIterator::map(RangeIterator::fromDim(d.clone(), resize.clone())?, Arc::new(makeIndex))?;
+        subs = RangeIterator::map(RangeIterator::fromDim(d.clone(), resize.clone())?, (std::sync::Arc::new(makeIndex) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<NFSubscript>> + 'static>))?;
         if subs.clone().is_empty() {
             outSubscripts = metamodelica::nil();
             return Ok(outSubscripts);
@@ -929,7 +929,7 @@ pub fn expand(mut subscript: Arc<NFSubscript>, mut dimension: Arc<Dimension::NFD
             let mut iter: Arc<RangeIterator::NFRangeIterator>;
             iter = RangeIterator::fromDim(dimension.clone(), resize.clone())?;
             if RangeIterator::isValid(iter.clone()) {
-                outSubscript = Arc::new(NFSubscript::EXPANDED_SLICE { indices: RangeIterator::map(iter.clone(), Arc::new(makeIndex))? });
+                outSubscript = Arc::new(NFSubscript::EXPANDED_SLICE { indices: RangeIterator::map(iter.clone(), (std::sync::Arc::new(makeIndex) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<NFSubscript>> + 'static>))? });
                 expanded = true;
             } else {
                 outSubscript = subscript.clone();
@@ -994,7 +994,7 @@ pub fn expandList(mut subscripts: Arc<metamodelica::List<Arc<NFSubscript>>>, mut
     }
     for mut d in &*rest_dims.clone() {
         let mut d = d.clone();
-        sub = Arc::new(NFSubscript::EXPANDED_SLICE { indices: RangeIterator::map(RangeIterator::fromDim(d.clone(), resize.clone())?, Arc::new(makeIndex))? });
+        sub = Arc::new(NFSubscript::EXPANDED_SLICE { indices: RangeIterator::map(RangeIterator::fromDim(d.clone(), resize.clone())?, (std::sync::Arc::new(makeIndex) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<NFSubscript>> + 'static>))? });
         outSubscripts = cons(sub.clone(), outSubscripts.clone());
     }
     outSubscripts = outSubscripts.clone().reverse();
@@ -1051,7 +1051,7 @@ pub fn mergeList(mut newSubs: Arc<metamodelica::List<Arc<NFSubscript>>>, mut old
     let mut old_sub: Arc<NFSubscript> = Arc::new(NFSubscript::WHOLE);
     let mut rest_old_subs: Arc<metamodelica::List<Arc<NFSubscript>>> = metamodelica::nil();
     let mut merged: bool = true;
-    if backend.clone() && (oldSubs.clone().len() as i32) >= dimensions.clone() && List::all(List::firstN(oldSubs.clone(), dimensions.clone())?, Arc::new(fnptr!(isBackendIterator, Arc<NFSubscript>))) {
+    if backend.clone() && (oldSubs.clone().len() as i32) >= dimensions.clone() && List::all(List::firstN(oldSubs.clone(), dimensions.clone())?, (std::sync::Arc::new(fnptr!(isBackendIterator, Arc<NFSubscript>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<NFSubscript>) -> Result<bool> + 'static>)) {
         (_, remainingSubs) = List::split(newSubs.clone(), dimensions.clone())?;
         (outSubs, _) = List::split(oldSubs.clone(), dimensions.clone())?;
         return Ok((outSubs, remainingSubs));
@@ -1211,7 +1211,7 @@ pub fn expandSplitIndices(mut subs: Arc<metamodelica::List<Arc<NFSubscript>>>, m
         let mut s = s.clone();
         let () = (::match_deref::match_deref! { match &(s.clone()) {
         Deref @ SPLIT_INDEX { .. } => {
-            if List::isMemberOnTrue(var_field!((*s).node, NFSubscript::SPLIT_INDEX).clone(), indicesToKeep.clone(), Arc::new(fnptr!(InstNode::refEqual, Arc<InstNode::InstNode>, Arc<InstNode::InstNode>))) {
+            if List::isMemberOnTrue(var_field!((*s).node, NFSubscript::SPLIT_INDEX).clone(), indicesToKeep.clone(), (std::sync::Arc::new(fnptr!(InstNode::refEqual, Arc<InstNode::InstNode>, Arc<InstNode::InstNode>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<InstNode::InstNode>, Arc<InstNode::InstNode>) -> Result<bool> + 'static>)) {
                 outSubs = cons(s.clone(), outSubs.clone());
             } else {
                 outSubs = cons(Arc::new(crate::NFSubscript::WHOLE), outSubs.clone());
@@ -1227,7 +1227,7 @@ pub fn expandSplitIndices(mut subs: Arc<metamodelica::List<Arc<NFSubscript>>>, m
     } });
     }
     if changed.clone() {
-        outSubs = List::trim(outSubs.clone(), Arc::new(fnptr!(isWhole, Arc<NFSubscript>)))?;
+        outSubs = List::trim(outSubs.clone(), (std::sync::Arc::new(fnptr!(isWhole, Arc<NFSubscript>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<NFSubscript>) -> Result<bool> + 'static>))?;
         outSubs = outSubs.clone().reverse();
     } else {
         outSubs = subs.clone();

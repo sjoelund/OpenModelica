@@ -61,11 +61,11 @@ pub type HashSetCrefFunctionsType = (FuncHashCref, FuncCrefEqual, FuncCrefStr);
 
 pub type HashSet = (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::Exp>, i32)>>>, (i32, i32, metamodelica::Array<Option<Arc<DAE::Exp>>>), i32, i32, (FuncHashCref, FuncCrefEqual, FuncCrefStr));
 
-pub type FuncHashCref = fn(Key) -> Result<i32>;
+pub type FuncHashCref = std::sync::Arc<dyn ::std::ops::Fn(Key) -> Result<i32> + 'static>;
 
-pub type FuncCrefEqual = fn(Key, Key) -> Result<bool>;
+pub type FuncCrefEqual = std::sync::Arc<dyn ::std::ops::Fn(Key, Key) -> Result<bool> + 'static>;
 
-pub type FuncCrefStr = fn(Key) -> Result<ArcStr>;
+pub type FuncCrefStr = std::sync::Arc<dyn ::std::ops::Fn(Key) -> Result<ArcStr> + 'static>;
 
 pub fn emptyHashSet() -> HashSet {
     let mut hashSet: HashSet;
@@ -75,7 +75,7 @@ pub fn emptyHashSet() -> HashSet {
 
 pub fn emptyHashSetSized(mut size: i32) -> HashSet {
     let mut hashSet: HashSet;
-    hashSet = BaseHashSet::emptyHashSetWork(size.clone(), (Expression::hashExp, ExpressionBasics::expEqual, ExpressionBasics::printExpStr));
+    hashSet = BaseHashSet::emptyHashSetWork(size.clone(), ((std::sync::Arc::new(Expression::hashExp) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<i32> + 'static>), (std::sync::Arc::new(ExpressionBasics::expEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, Arc<DAE::Exp>) -> Result<bool> + 'static>), (std::sync::Arc::new(ExpressionBasics::printExpStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<ArcStr> + 'static>)));
     hashSet
 }
 

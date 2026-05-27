@@ -77,7 +77,7 @@ use openmodelica_util_datatypes_basic::List;
 // ============================================================
 // Internal data types
 // ============================================================
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Transition {
     pub from: i32,
     pub to: i32,
@@ -105,7 +105,7 @@ impl Default for Transition {
 pub type TRANSITION = Transition;
 
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct FlatSmSemantics {
     /// Cref of the initial state (used as prefix for smOf vars)
     pub initStateRef: Arc<ComponentRef::NFComponentRef>,
@@ -127,6 +127,23 @@ pub struct FlatSmSemantics {
     pub peqs: Arc<metamodelica::List<Arc<Equation::NFEquation>>>,
     /// Enclosing state if hierarchical SM
     pub enclosingState: Option<Arc<ComponentRef::NFComponentRef>>,
+}
+
+impl Default for FlatSmSemantics {
+    fn default() -> Self {
+        Self {
+            initStateRef: Default::default(),
+            smComps: Default::default(),
+            t: Default::default(),
+            c: Default::default(),
+            vars: Default::default(),
+            knowns: Default::default(),
+            eqs: Default::default(),
+            pvars: Default::default(),
+            peqs: Default::default(),
+            enclosingState: Default::default(),
+        }
+    }
 }
 
 pub type FLAT_SM_SEMANTICS = FlatSmSemantics;
@@ -151,13 +168,13 @@ pub fn flatten(mut flatModel: Arc<FlatModel::NFFlatModel>) -> Result<Arc<FlatMod
     let mut stateToSem: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, FlatSmSemantics>>;
     let mut smGroupPairs: Arc<metamodelica::List<(Arc<ComponentRef::NFComponentRef>, Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>)>> = metamodelica::nil();
     let mut smGroupsSorted: Arc<metamodelica::List<(Arc<ComponentRef::NFComponentRef>, Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>)>> = metamodelica::nil();
-    let mut sem: FlatSmSemantics;
+    let mut sem: FlatSmSemantics = <FlatSmSemantics as ::std::default::Default>::default();
     let mut initState: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
     let mut parentPrefix: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
     let mut stateCrefs: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = metamodelica::nil();
     let mut enclosingStateCrefOpt: Option<Arc<ComponentRef::NFComponentRef>> = None;
     let mut enclosingSmSemOpt: Option<FlatSmSemantics> = None;
-    if !(List::any(flatModel.equations.clone(), Arc::new(fnptr!(isTransitionOrInitialState, Arc<Equation::NFEquation>)))) && !(List::any(flatModel.initialEquations.clone(), Arc::new(fnptr!(isTransitionOrInitialState, Arc<Equation::NFEquation>)))) {
+    if !(List::any(flatModel.equations.clone(), (std::sync::Arc::new(fnptr!(isTransitionOrInitialState, Arc<Equation::NFEquation>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Equation::NFEquation>) -> Result<bool> + 'static>))) && !(List::any(flatModel.initialEquations.clone(), (std::sync::Arc::new(fnptr!(isTransitionOrInitialState, Arc<Equation::NFEquation>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Equation::NFEquation>) -> Result<bool> + 'static>))) {
         return Ok(flatModel);
     }
     (initStates, smGroups) = groupStateMachines(flatModel.equations.clone(), flatModel.initialEquations.clone())?;
@@ -165,12 +182,12 @@ pub fn flatten(mut flatModel: Arc<FlatModel::NFFlatModel>) -> Result<Arc<FlatMod
         return Ok(flatModel);
     }
     allStateCrefs = List::flatten(smGroups.clone());
-    otherEqs = List::filterOnFalse(flatModel.equations.clone(), Arc::new(fnptr!(isTransitionOrInitialState, Arc<Equation::NFEquation>)));
+    otherEqs = List::filterOnFalse(flatModel.equations.clone(), (std::sync::Arc::new(fnptr!(isTransitionOrInitialState, Arc<Equation::NFEquation>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Equation::NFEquation>) -> Result<bool> + 'static>));
     otherEqs = List::filterOnFalse(otherEqs.clone(), Arc::new({ let __pe_b1 = allStateCrefs.clone(); move |__pe_a0| isOuterStateEquation(__pe_a0, __pe_b1.clone()) }));
-    outerVarMap = UnorderedMap::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>), ComponentRef::isEqual, 1);
+    outerVarMap = UnorderedMap::new((std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), 1);
     smGroupPairs = List::zip(initStates.clone(), smGroups.clone());
-    smGroupsSorted = List::sort(smGroupPairs.clone(), Arc::new(fnptr!(smGroupDepthLt, (Arc<ComponentRef::NFComponentRef>, Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>), (Arc<ComponentRef::NFComponentRef>, Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>))))?;
-    stateToSem = UnorderedMap::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>), ComponentRef::isEqual, 1);
+    smGroupsSorted = List::sort(smGroupPairs.clone(), (std::sync::Arc::new(fnptr!(smGroupDepthLt, (Arc<ComponentRef::NFComponentRef>, Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>), (Arc<ComponentRef::NFComponentRef>, Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>))) as std::sync::Arc<dyn ::std::ops::Fn((Arc<ComponentRef::NFComponentRef>, Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>), (Arc<ComponentRef::NFComponentRef>, Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>)) -> Result<bool> + 'static>))?;
+    stateToSem = UnorderedMap::new((std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), 1);
     smVars = metamodelica::nil();
     smEqs = metamodelica::nil();
     for mut smPair in &*smGroupsSorted.clone() {
@@ -212,7 +229,7 @@ pub fn flatten(mut flatModel: Arc<FlatModel::NFFlatModel>) -> Result<Arc<FlatMod
     resultVars = listAppend(smVars.clone(), flatModel.variables.clone());
     assign_field!(
         flatModel.equations = resultEqs.clone(),
-        flatModel.initialEquations = List::filterOnFalse(flatModel.initialEquations.clone(), Arc::new(fnptr!(isTransitionOrInitialState, Arc<Equation::NFEquation>))),
+        flatModel.initialEquations = List::filterOnFalse(flatModel.initialEquations.clone(), (std::sync::Arc::new(fnptr!(isTransitionOrInitialState, Arc<Equation::NFEquation>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Equation::NFEquation>) -> Result<bool> + 'static>)),
         flatModel.variables = resultVars.clone()
     );
     execStat((literal!("NFStateMachineFlatten.flatten")).clone())?;
@@ -287,7 +304,7 @@ fn collectReachableStates(mut initCref: Arc<ComponentRef::NFComponentRef>, mut f
         } };
         cur = __pa0.clone();
         queue = __pa1.clone();
-        if !(List::isMemberOnTrue(cur.clone(), visited.clone(), Arc::new(ComponentRef::isEqual))) {
+        if !(List::isMemberOnTrue(cur.clone(), visited.clone(), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>))) {
             visited = cons(cur.clone(), visited.clone());
             states = cons(cur.clone(), states.clone());
             for mut i in 1..=(froms.clone().len() as i32) {
@@ -332,13 +349,13 @@ fn smGroupDepthLt(mut g1: (Arc<ComponentRef::NFComponentRef>, Arc<metamodelica::
 fn flatSmToDataFlow(mut initStateCref: Arc<ComponentRef::NFComponentRef>, mut stateCrefs: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>, mut allEquations: Arc<metamodelica::List<Arc<Equation::NFEquation>>>, mut allVariables: Arc<metamodelica::List<Arc<Variable::NFVariable>>>, mut enclosingStateCrefOpt: Option<Arc<ComponentRef::NFComponentRef>>, mut enclosingSmSemOpt: Option<FlatSmSemantics>, mut accEqs: Arc<metamodelica::List<Arc<Equation::NFEquation>>>, mut accVars: Arc<metamodelica::List<Arc<Variable::NFVariable>>>, mut outerVarMap: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<metamodelica::List<(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>)>>>>) -> Result<(Arc<metamodelica::List<Arc<Equation::NFEquation>>>, Arc<metamodelica::List<Arc<Variable::NFVariable>>>, FlatSmSemantics)> {
     let mut accEqs: Arc<metamodelica::List<Arc<Equation::NFEquation>>> = accEqs;
     let mut accVars: Arc<metamodelica::List<Arc<Variable::NFVariable>>> = accVars;
-    let mut outSem: FlatSmSemantics;
+    let mut outSem: FlatSmSemantics = <FlatSmSemantics as ::std::default::Default>::default();
     let mut transitionEqs: Arc<metamodelica::List<Arc<Equation::NFEquation>>> = metamodelica::nil();
     let mut initialStateEqs: Arc<metamodelica::List<Arc<Equation::NFEquation>>> = metamodelica::nil();
     let mut stateEqs: Arc<metamodelica::List<Arc<Equation::NFEquation>>> = metamodelica::nil();
-    let mut sem: FlatSmSemantics;
-    let mut semWithProp: FlatSmSemantics;
-    let mut semFinal: FlatSmSemantics;
+    let mut sem: FlatSmSemantics = <FlatSmSemantics as ::std::default::Default>::default();
+    let mut semWithProp: FlatSmSemantics = <FlatSmSemantics as ::std::default::Default>::default();
+    let mut semFinal: FlatSmSemantics = <FlatSmSemantics as ::std::default::Default>::default();
     let mut parentPrefix: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
     let mut varCrefStrings: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
     transitionEqs = List::filterOnTrue(allEquations.clone(), Arc::new({ let __pe_b1 = stateCrefs.clone(); move |__pe_a0| isTransitionForGroup(__pe_a0, __pe_b1.clone()) }));
@@ -356,7 +373,7 @@ fn flatSmToDataFlow(mut initStateCref: Arc<ComponentRef::NFComponentRef>, mut st
         }
         __acc.reverse()
     };
-        semFinal.eqs = List::map(semFinal.eqs.clone(), Arc::new({ let __pe_b1 = { let __pe_b1 = parentPrefix.clone(); let __pe_b2 = varCrefStrings.clone(); move |__pe_a0| qualifyOuterVarExpr(__pe_a0, __pe_b1.clone(), __pe_b2.clone()) }; move |__pe_a0| Ok(Equation::mapExp(__pe_a0, __pe_b1.clone())) }));
+        semFinal.eqs = List::map(semFinal.eqs.clone(), Arc::new({ let __pe_b1 = Arc::new({ let __pe_b1 = parentPrefix.clone(); let __pe_b2 = varCrefStrings.clone(); move |__pe_a0| qualifyOuterVarExpr(__pe_a0, __pe_b1.clone(), __pe_b2.clone()) }); move |__pe_a0| Ok(Equation::mapExp(__pe_a0, __pe_b1.clone())) }));
     }
     accVars = List::flatten(list![accVars.clone(), semFinal.vars.clone(), semFinal.knowns.clone(), semFinal.pvars.clone()]);
     accEqs = List::flatten(list![accEqs.clone(), semFinal.eqs.clone(), semFinal.peqs.clone()]);
@@ -404,7 +421,7 @@ fn smCompToDataFlow(mut stateCref: Arc<ComponentRef::NFComponentRef>, mut sem: F
     let mut extraVars: Arc<metamodelica::List<Arc<Variable::NFVariable>>> = metamodelica::nil();
     stateEqs = List::filterOnTrue(allEquations.clone(), Arc::new({ let __pe_b1 = stateCref.clone(); move |__pe_a0| isEquationOfState(__pe_a0, __pe_b1.clone()) }));
     stateVars = List::filterOnTrue(allVariables.clone(), Arc::new({ let __pe_b1 = stateCref.clone(); move |__pe_a0| isVariableOfState(__pe_a0, __pe_b1.clone()) }));
-    crToStart = UnorderedMap::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>), ComponentRef::isEqual, 1);
+    crToStart = UnorderedMap::new((std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), 1);
     for mut v in &*stateVars.clone() {
         let mut v = v.clone();
         if List::any(stateEqs.clone(), Arc::new({ let __pe_b1 = v.name.clone(); move |__pe_a0| equationHasPrevious(__pe_a0, __pe_b1.clone()) })) {
@@ -428,7 +445,7 @@ fn addHierarchicalPassThroughs(mut stateCref: Arc<ComponentRef::NFComponentRef>,
     let mut leafName: ArcStr = arcstr::literal!("");
     let mut activeRef: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
     let mut topVarCref: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
-    let mut topVar: Arc<Variable::NFVariable>;
+    let mut topVar: Arc<Variable::NFVariable> = Arc::new(<Variable::NFVariable as ::std::default::Default>::default());
     stateStr = (ComponentRef::toString(stateCref.clone())?).clone();
     activeRef = qCref((literal!("active")).clone(), Arc::new(crate::NFType::BOOLEAN), metamodelica::nil(), stateCref.clone())?;
     for mut v in &*allVariables.clone() {
@@ -553,7 +570,7 @@ fn transformWhenBranches(mut whenEq: Arc<Equation::NFEquation>, mut stateCref: A
     let mut transformedBody: Arc<metamodelica::List<Arc<Equation::NFEquation>>> = metamodelica::nil();
     let mut branchVars: Arc<metamodelica::List<Arc<Variable::NFVariable>>> = metamodelica::nil();
     let mut whenScope: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
-    let mut whenSource: Arc<DAE::ElementSource>;
+    let mut whenSource: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
     let mut branchCond: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut branchCondVar: Variability = Variability::CONSTANT;
     let mut branchBody: Arc<metamodelica::List<Arc<Equation::NFEquation>>> = metamodelica::nil();
@@ -597,7 +614,7 @@ fn addStateActivationAndReset1(mut inEq: Arc<Equation::NFEquation>, mut stateCre
     let mut stateActiveCref: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
     let mut lhsTy: Arc<Type::NFType> = Arc::new(Type::ANY);
     let mut eqScope: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
-    let mut eqSource: Arc<DAE::ElementSource>;
+    let mut eqSource: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
     let mut stateVarCrefs: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = metamodelica::nil();
     let mut hasStateVarOnLHS: bool = false;
     let mut isOuterOutput: bool = false;
@@ -605,7 +622,7 @@ fn addStateActivationAndReset1(mut inEq: Arc<Equation::NFEquation>, mut stateCre
     let mut perStateVarExp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut eq1: Arc<Equation::NFEquation>;
     let mut eq2: Arc<Equation::NFEquation>;
-    let mut perStateVar: Arc<Variable::NFVariable>;
+    let mut perStateVar: Arc<Variable::NFVariable> = Arc::new(<Variable::NFVariable as ::std::default::Default>::default());
     let mut prevList: Arc<metamodelica::List<(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>)>> = metamodelica::nil();
     let (__pa0, __pa1, __pa2, __pa3, __pa4) = ::match_deref::match_deref! { match &(inEq.clone()) {
         Deref @ Equation::EQUALITY { source: __pa0, scope: __pa1, ty: __pa2, rhs: __pa3, lhs: __pa4, .. } => (__pa0.clone(), __pa1.clone(), __pa2.clone(), __pa3.clone(), __pa4.clone()),
@@ -715,7 +732,7 @@ fn getDefaultStart(mut ty: Arc<Type::NFType>) -> Arc<Expression::NFExpression> {
 // basicFlatSmSemantics
 // ============================================================
 fn basicFlatSmSemantics(mut initStateCref: Arc<ComponentRef::NFComponentRef>, mut stateCrefs: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>, mut transitionEqs: Arc<metamodelica::List<Arc<Equation::NFEquation>>>) -> Result<FlatSmSemantics> {
-    let mut sem: FlatSmSemantics;
+    let mut sem: FlatSmSemantics = <FlatSmSemantics as ::std::default::Default>::default();
     let mut preRef: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
     let mut nStates: i32 = 0;
     let mut nTransitions: i32 = 0;
@@ -917,17 +934,17 @@ fn addPropagationEquations(mut inSem: FlatSmSemantics, mut enclosingStateCrefOpt
     let mut enclosingActiveResetRef: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
     let mut enclosingActiveStateRef: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
     let mut enclosingInitStateRef: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
-    let mut enclosingSem: FlatSmSemantics;
+    let mut enclosingSem: FlatSmSemantics = <FlatSmSemantics as ::std::default::Default>::default();
     let mut enclosingComps: metamodelica::Array<Arc<ComponentRef::NFComponentRef>>;
     let mut stateRef: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
     let mut activePlotRef: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
     let mut ticksRef: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
     let mut timeEnteredRef: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
     let mut timeInRef: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
-    let mut activePlotVar: Arc<Variable::NFVariable>;
-    let mut ticksVar: Arc<Variable::NFVariable>;
-    let mut timeEnteredVar: Arc<Variable::NFVariable>;
-    let mut timeInVar: Arc<Variable::NFVariable>;
+    let mut activePlotVar: Arc<Variable::NFVariable> = Arc::new(<Variable::NFVariable as ::std::default::Default>::default());
+    let mut ticksVar: Arc<Variable::NFVariable> = Arc::new(<Variable::NFVariable as ::std::default::Default>::default());
+    let mut timeEnteredVar: Arc<Variable::NFVariable> = Arc::new(<Variable::NFVariable as ::std::default::Default>::default());
+    let mut timeInVar: Arc<Variable::NFVariable> = Arc::new(<Variable::NFVariable as ::std::default::Default>::default());
     let mut activePlotEq: Arc<Equation::NFEquation>;
     let mut ticksEq: Arc<Equation::NFEquation>;
     let mut timeEnteredEq: Arc<Equation::NFEquation>;
@@ -1005,7 +1022,7 @@ fn elabXInStateOps(mut sem: FlatSmSemantics, mut enclosingStateCrefOpt: Option<A
     let mut c3: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut c4: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut found: bool = false;
-    let mut curT: Transition;
+    let mut curT: Transition = <Transition as ::std::default::Default>::default();
     let mut curFrom: i32 = 0;
     let mut curTo: i32 = 0;
     let mut curPriority: i32 = 0;
@@ -1141,7 +1158,7 @@ fn smeqsSubsXInState(mut eq: Arc<Equation::NFEquation>, mut initStateComp: Arc<C
 // State indicator helpers
 // ============================================================
 fn createActiveIndicator(mut stateRef: Arc<ComponentRef::NFComponentRef>, mut preRef: Arc<ComponentRef::NFComponentRef>, mut i: i32) -> Result<(Arc<Variable::NFVariable>, Arc<Equation::NFEquation>)> {
-    let mut activePlotVar: Arc<Variable::NFVariable>;
+    let mut activePlotVar: Arc<Variable::NFVariable> = Arc::new(<Variable::NFVariable as ::std::default::Default>::default());
     let mut eqn: Arc<Equation::NFEquation>;
     let mut activePlotRef: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
     let mut activeRef: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
@@ -1159,7 +1176,7 @@ fn createActiveIndicator(mut stateRef: Arc<ComponentRef::NFComponentRef>, mut pr
 }
 
 fn createTicksInStateIndicator(mut stateRef: Arc<ComponentRef::NFComponentRef>, mut stateActiveRef: Arc<ComponentRef::NFComponentRef>) -> Result<(Arc<Variable::NFVariable>, Arc<Equation::NFEquation>)> {
-    let mut ticksVar: Arc<Variable::NFVariable>;
+    let mut ticksVar: Arc<Variable::NFVariable> = Arc::new(<Variable::NFVariable as ::std::default::Default>::default());
     let mut ticksEq: Arc<Equation::NFEquation>;
     let mut ticksRef: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
     let mut ticksExp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
@@ -1177,7 +1194,7 @@ fn createTicksInStateIndicator(mut stateRef: Arc<ComponentRef::NFComponentRef>, 
 }
 
 fn createTimeEnteredStateIndicator(mut stateRef: Arc<ComponentRef::NFComponentRef>, mut stateActiveRef: Arc<ComponentRef::NFComponentRef>) -> Result<(Arc<Variable::NFVariable>, Arc<Equation::NFEquation>)> {
-    let mut timeEnteredVar: Arc<Variable::NFVariable>;
+    let mut timeEnteredVar: Arc<Variable::NFVariable> = Arc::new(<Variable::NFVariable as ::std::default::Default>::default());
     let mut timeEnteredEq: Arc<Equation::NFEquation>;
     let mut timeEnteredRef: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
     let mut timeEnteredExp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
@@ -1197,7 +1214,7 @@ fn createTimeEnteredStateIndicator(mut stateRef: Arc<ComponentRef::NFComponentRe
 }
 
 fn createTimeInStateIndicator(mut stateRef: Arc<ComponentRef::NFComponentRef>, mut stateActiveRef: Arc<ComponentRef::NFComponentRef>, mut timeEnteredVar: Arc<Variable::NFVariable>) -> Result<(Arc<Variable::NFVariable>, Arc<Equation::NFEquation>)> {
-    let mut timeInVar: Arc<Variable::NFVariable>;
+    let mut timeInVar: Arc<Variable::NFVariable> = Arc::new(<Variable::NFVariable as ::std::default::Default>::default());
     let mut timeInEq: Arc<Equation::NFEquation>;
     let mut timeInRef: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
     let mut timeInExp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
@@ -1228,7 +1245,7 @@ fn wrapInStateActivationConditional(mut inEq: Arc<Equation::NFEquation>, mut sta
     let mut lhsCref: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
     let mut ty: Arc<Type::NFType> = Arc::new(Type::ANY);
     let mut eqScope: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
-    let mut eqSource: Arc<DAE::ElementSource>;
+    let mut eqSource: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
     let (__pa0, __pa1, __pa2, __pa3, __pa4) = ::match_deref::match_deref! { match &(inEq.clone()) {
         Deref @ Equation::EQUALITY { source: __pa0, scope: __pa1, ty: __pa2, rhs: __pa3, lhs: __pa4, .. } => (__pa0.clone(), __pa1.clone(), __pa2.clone(), __pa3.clone(), __pa4.clone()),
         _ => bail!("pattern mismatch"),
@@ -1301,13 +1318,13 @@ fn createResetEquation(mut lhsCref: Arc<ComponentRef::NFComponentRef>, mut lhsTy
 // ============================================================
 fn subsActiveStateInEq(mut eq: Arc<Equation::NFEquation>) -> Arc<Equation::NFEquation> {
     let mut eq: Arc<Equation::NFEquation> = eq;
-    eq = Equation::mapExp(eq.clone(), subsActiveStateInExp);
+    eq = Equation::mapExp(eq.clone(), (std::sync::Arc::new(subsActiveStateInExp) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>));
     eq
 }
 
 fn subsActiveStateInExp(mut exp: Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> {
     let mut exp: Arc<Expression::NFExpression> = exp;
-    exp = Expression::map(exp.clone(), Arc::new(fnptr!(subsActiveStateHelper, Arc<Expression::NFExpression>)))?;
+    exp = Expression::map(exp.clone(), (std::sync::Arc::new(fnptr!(subsActiveStateHelper, Arc<Expression::NFExpression>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>))?;
     Ok(exp)
 }
 
@@ -1399,7 +1416,7 @@ fn createTandC(mut stateCrefs: Arc<metamodelica::List<Arc<ComponentRef::NFCompon
     let mut c: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
     let mut transitions: Arc<metamodelica::List<Transition>> = metamodelica::nil();
     transitions = List::filterMap(transitionEqs.clone(), Arc::new({ let __pe_b1 = stateCrefs.clone(); move |__pe_a0| extractTransition(__pe_a0, __pe_b1.clone()) }));
-    t = List::sort(transitions.clone(), Arc::new(fnptr!(priorityGt, Transition, Transition)))?;
+    t = List::sort(transitions.clone(), (std::sync::Arc::new(fnptr!(priorityGt, Transition, Transition)) as std::sync::Arc<dyn ::std::ops::Fn(Transition, Transition) -> Result<bool> + 'static>))?;
     c = {
         let mut __acc: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
         for mut tr in (t.clone()).into_iter().cloned() {
@@ -1412,7 +1429,7 @@ fn createTandC(mut stateCrefs: Arc<metamodelica::List<Arc<ComponentRef::NFCompon
 }
 
 fn extractTransition(mut eq: Arc<Equation::NFEquation>, mut stateCrefs: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>) -> Result<Transition> {
-    let mut trans: Transition;
+    let mut trans: Transition = <Transition as ::std::default::Default>::default();
     let mut crFrom: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
     let mut crTo: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
     let mut cond: Arc<Expression::NFExpression> = Arc::new(Expression::END);
@@ -1637,7 +1654,7 @@ fn generateMergeEquation(mut outerVarCref: Arc<ComponentRef::NFComponentRef>, mu
     let mut ty: Arc<Type::NFType> = Arc::new(Type::ANY);
     let mut activeRef: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
     let mut perStateVarRef: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
-    let mut src: Arc<DAE::ElementSource>;
+    let mut src: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
     stateEntries = UnorderedMap::getOrDefault(outerVarCref.clone(), outerVarMap.clone(), metamodelica::nil());
     if stateEntries.clone().is_empty() {
         return Ok((accEqs, accVars));
@@ -1657,7 +1674,7 @@ fn generateMergeEquation(mut outerVarCref: Arc<ComponentRef::NFComponentRef>, mu
         (activeRef, perStateVarRef) = entry.clone();
         mergeRhs = makeIfExp(makeCrefExp(activeRef.clone(), Arc::new(crate::NFType::BOOLEAN)), makeCrefExp(perStateVarRef.clone(), ty.clone()), mergeRhs.clone(), ty.clone());
     }
-    src = ElementSource::createElementSource(Absyn::dummyInfo.clone(), None, openmodelica_frontend_types::DAE::Prefix::NOPRE, (DAE::emptyCref.clone(), DAE::emptyCref.clone()))?;
+    src = ElementSource::createElementSource(Absyn::dummyInfo.clone(), None, openmodelica_frontend_types::DAE::Prefix::NOPRE, (DAE::emptyCref().clone(), DAE::emptyCref().clone()))?;
     accEqs = cons(Arc::new(Equation::NFEquation::EQUALITY { lhs: outerVarExp.clone(), rhs: mergeRhs.clone(), ty: ty.clone(), scope: Arc::new(crate::NFInstNode::InstNode::EMPTY_NODE), source: src.clone(), scalarizeMode: ScalarizeMode::NO_PREFERENCE.clone() }), accEqs.clone());
     Ok((accEqs, accVars))
 }
@@ -1683,8 +1700,8 @@ fn makeSMSPrefix(mut initStateCref: Arc<ComponentRef::NFComponentRef>) -> Result
 // Variable creation helpers
 // ============================================================
 fn makeVar(mut name: Arc<ComponentRef::NFComponentRef>, mut ty: Arc<Type::NFType>, mut var: Variability) -> Arc<Variable::NFVariable> {
-    let mut v: Arc<Variable::NFVariable>;
-    let mut attr: Arc<Attributes::NFAttributes>;
+    let mut v: Arc<Variable::NFVariable> = Arc::new(<Variable::NFVariable as ::std::default::Default>::default());
+    let mut attr: Arc<Attributes::NFAttributes> = Arc::new(<Attributes::NFAttributes as ::std::default::Default>::default());
     attr = Attributes::DEFAULT_ATTR().clone();
     assign_field!(attr.variability = var.clone());
     v = Arc::new(Variable::NFVariable { name: name.clone(), ty: ty.clone(), binding: Binding::EMPTY_BINDING().clone(), visibility: Visibility::PUBLIC.clone(), attributes: attr.clone(), typeAttributes: metamodelica::nil(), children: metamodelica::nil(), comment: Arc::new(SCode::Comment { annotation_: None, comment: None }), info: Absyn::dummyInfo.clone(), backendinfo: NFBackendExtension::DUMMY_BACKEND_INFO().clone() });
@@ -1692,14 +1709,14 @@ fn makeVar(mut name: Arc<ComponentRef::NFComponentRef>, mut ty: Arc<Type::NFType
 }
 
 fn makeVarWithStart(mut name: Arc<ComponentRef::NFComponentRef>, mut ty: Arc<Type::NFType>, mut var: Variability, mut startExp: Arc<Expression::NFExpression>) -> Arc<Variable::NFVariable> {
-    let mut v: Arc<Variable::NFVariable>;
+    let mut v: Arc<Variable::NFVariable> = Arc::new(<Variable::NFVariable as ::std::default::Default>::default());
     v = makeVar(name.clone(), ty.clone(), var.clone());
     assign_field!(v.typeAttributes = list![(literal!("start"), Arc::new(Binding::NFBinding::FLAT_BINDING { bindingExp: startExp.clone(), variability: Variability::CONSTANT.clone(), source: Binding::Source::GENERATED.clone() })), (literal!("fixed"), Arc::new(Binding::NFBinding::FLAT_BINDING { bindingExp: Arc::new(Expression::NFExpression::BOOLEAN { value: true }), variability: Variability::CONSTANT.clone(), source: Binding::Source::GENERATED.clone() }))]);
     v
 }
 
 fn makeVarWithBinding(mut name: Arc<ComponentRef::NFComponentRef>, mut ty: Arc<Type::NFType>, mut var: Variability, mut bindExp: Arc<Expression::NFExpression>) -> Arc<Variable::NFVariable> {
-    let mut v: Arc<Variable::NFVariable>;
+    let mut v: Arc<Variable::NFVariable> = Arc::new(<Variable::NFVariable as ::std::default::Default>::default());
     v = makeVar(name.clone(), ty.clone(), var.clone());
     assign_field!(v.binding = Arc::new(Binding::NFBinding::FLAT_BINDING { bindingExp: bindExp.clone(), variability: var.clone(), source: Binding::Source::GENERATED.clone() }));
     v
@@ -1710,7 +1727,7 @@ fn makeVarWithBinding(mut name: Arc<ComponentRef::NFComponentRef>, mut ty: Arc<T
 // ============================================================
 fn makeEq(mut lhs: Arc<Expression::NFExpression>, mut rhs: Arc<Expression::NFExpression>, mut ty: Arc<Type::NFType>) -> Arc<Equation::NFEquation> {
     let mut eq: Arc<Equation::NFEquation>;
-    eq = Arc::new(Equation::NFEquation::EQUALITY { lhs: lhs.clone(), rhs: rhs.clone(), ty: ty.clone(), scope: Arc::new(crate::NFInstNode::InstNode::EMPTY_NODE), source: DAE::emptyElementSource.clone(), scalarizeMode: ScalarizeMode::NO_PREFERENCE.clone() });
+    eq = Arc::new(Equation::NFEquation::EQUALITY { lhs: lhs.clone(), rhs: rhs.clone(), ty: ty.clone(), scope: Arc::new(crate::NFInstNode::InstNode::EMPTY_NODE), source: DAE::emptyElementSource().clone(), scalarizeMode: ScalarizeMode::NO_PREFERENCE.clone() });
     eq
 }
 

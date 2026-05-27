@@ -68,7 +68,7 @@ pub type Import = Absyn::Import;
 pub fn flattenProgram(mut inProgram: Arc<metamodelica::List<Arc<SCode::Element>>>, mut inEnv: Env) -> (Arc<metamodelica::List<Arc<SCode::Element>>>, Env) {
     let mut outProgram: Arc<metamodelica::List<Arc<SCode::Element>>> = metamodelica::nil();
     let mut outEnv: Env = metamodelica::nil();
-    (outProgram, outEnv) = List::mapFold(inProgram.clone(), Arc::new(flattenClass), inEnv.clone());
+    (outProgram, outEnv) = List::mapFold(inProgram.clone(), (std::sync::Arc::new(flattenClass) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SCode::Element>, Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>) -> Result<(Arc<SCode::Element>, Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>)> + 'static>), inEnv.clone());
     (outProgram, outEnv)
 }
 
@@ -135,13 +135,13 @@ fn flattenClassDef(mut inClassDef: Arc<SCode::ClassDef>, mut inEnv: Env, mut inI
             let mut nal = (*nal).clone();
             let mut ial = (*ial).clone();
             let mut nco = (*nco).clone();
-            el = List::filterOnTrue(el.clone(), Arc::new(fnptr!(isNotImport, Arc<SCode::Element>)));
-            (el, env) = List::mapFold(el.clone(), Arc::new(flattenElement), inEnv.clone());
-            neql = List::map1(neql.clone(), Arc::new(fnptr!(flattenEquation, Arc<SCode::Equation>, Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>)), env.clone());
-            ieql = List::map1(ieql.clone(), Arc::new(fnptr!(flattenEquation, Arc<SCode::Equation>, Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>)), env.clone());
-            nal = List::map1(nal.clone(), Arc::new(flattenAlgorithm), env.clone());
-            ial = List::map1(ial.clone(), Arc::new(flattenAlgorithm), env.clone());
-            nco = List::map2(nco.clone(), Arc::new(flattenConstraints), env.clone(), inInfo.clone());
+            el = List::filterOnTrue(el.clone(), (std::sync::Arc::new(fnptr!(isNotImport, Arc<SCode::Element>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SCode::Element>) -> Result<bool> + 'static>));
+            (el, env) = List::mapFold(el.clone(), (std::sync::Arc::new(flattenElement) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SCode::Element>, Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>) -> Result<(Arc<SCode::Element>, Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>)> + 'static>), inEnv.clone());
+            neql = List::map1(neql.clone(), (std::sync::Arc::new(fnptr!(flattenEquation, Arc<SCode::Equation>, Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SCode::Equation>, Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>) -> Result<Arc<SCode::Equation>> + 'static>), env.clone());
+            ieql = List::map1(ieql.clone(), (std::sync::Arc::new(fnptr!(flattenEquation, Arc<SCode::Equation>, Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SCode::Equation>, Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>) -> Result<Arc<SCode::Equation>> + 'static>), env.clone());
+            nal = List::map1(nal.clone(), (std::sync::Arc::new(flattenAlgorithm) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SCode::AlgorithmSection>, Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>) -> Result<Arc<SCode::AlgorithmSection>> + 'static>), env.clone());
+            ial = List::map1(ial.clone(), (std::sync::Arc::new(flattenAlgorithm) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SCode::AlgorithmSection>, Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>) -> Result<Arc<SCode::AlgorithmSection>> + 'static>), env.clone());
+            nco = List::map2(nco.clone(), (std::sync::Arc::new(flattenConstraints) as std::sync::Arc<dyn ::std::ops::Fn(SCode::ConstraintSection, Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo) -> Result<SCode::ConstraintSection> + 'static>), env.clone(), inInfo.clone());
             (Arc::new(SCode::ClassDef::PARTS { elementLst: el.clone(), normalEquationLst: neql.clone(), initialEquationLst: ieql.clone(), normalAlgorithmLst: nal.clone(), initialAlgorithmLst: ial.clone(), constraintLst: nco.clone(), clsattrs: clats.clone(), externalDecl: extdecl.clone() }), env.clone())
         },
         (Deref @ SCode::ClassDef::CLASS_EXTENDS { modifications: mods, composition: cdef }, _, _) => {
@@ -235,10 +235,10 @@ fn flattenComponent(mut inComponent: Arc<SCode::Element>, mut inEnv: Env) -> Res
     let mut attr: SCode::Attributes;
     let mut type_spec: Arc<Absyn::TypeSpec>;
     let mut r#mod: Arc<SCode::Mod> = Arc::new(SCode::Mod::NOMOD);
-    let mut cmt: Arc<SCode::Comment>;
+    let mut cmt: Arc<SCode::Comment> = Arc::new(<SCode::Comment as ::std::default::Default>::default());
     let mut cond: Option<Arc<Absyn::Exp>> = None;
     let mut cc: Option<Arc<Absyn::ConstrainClass>> = None;
-    let mut info: SourceInfo;
+    let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
     let (__pa0, __pa1, __pa2, __pa3, __pa4, __pa5, __pa6, __pa7) = ::match_deref::match_deref! { match &(inComponent.clone()) {
         Deref @ SCode::Element::COMPONENT { name: __pa0, prefixes: __pa1, attributes: __pa2, typeSpec: __pa3, modifications: __pa4, comment: __pa5, condition: __pa6, info: __pa7 } => (__pa0.clone(), __pa1.clone(), __pa2.clone(), __pa3.clone(), __pa4.clone(), __pa5.clone(), __pa6.clone(), __pa7.clone()),
         _ => bail!("pattern mismatch"),
@@ -274,7 +274,7 @@ fn flattenAttributes(mut inAttributes: SCode::Attributes, mut inEnv: Env, mut in
     var = __pa3.clone();
     dir = __pa4.clone();
     isf = __pa5.clone();
-    ad = List::map2(ad.clone(), Arc::new(flattenSubscript), inEnv.clone(), inInfo.clone());
+    ad = List::map2(ad.clone(), (std::sync::Arc::new(flattenSubscript) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Subscript>, Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo) -> Result<Arc<Absyn::Subscript>> + 'static>), inEnv.clone(), inInfo.clone());
     outAttributes = SCode::Attributes { arrayDims: ad.clone(), connectorType: ct.clone(), parallelism: prl.clone(), variability: var.clone(), direction: dir.clone(), isField: isf.clone() };
     Ok(outAttributes)
 }
@@ -292,7 +292,7 @@ fn flattenTypeSpec(mut inTypeSpec: Arc<Absyn::TypeSpec>, mut inEnv: Env, mut inI
         },
         (Deref @ Absyn::TypeSpec::TCOMPLEX { arrayDim: ad, typeSpecs: tys, path }, _, _) => {
             let mut tys = (*tys).clone();
-            tys = List::map2(tys.clone(), Arc::new(flattenTypeSpec), inEnv.clone(), inInfo.clone());
+            tys = List::map2(tys.clone(), (std::sync::Arc::new(flattenTypeSpec) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::TypeSpec>, Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo) -> Result<Arc<Absyn::TypeSpec>> + 'static>), inEnv.clone(), inInfo.clone());
             Arc::new(Absyn::TypeSpec::TCOMPLEX { path: path.clone(), typeSpecs: tys.clone(), arrayDim: ad.clone() })
         },
         _ => bail!("match: no arm matched"),
@@ -305,7 +305,7 @@ fn flattenExtends(mut inExtends: Arc<SCode::Element>, mut inEnv: Env) -> Result<
     let mut path: Arc<Absyn::Path>;
     let mut r#mod: Arc<SCode::Mod> = Arc::new(SCode::Mod::NOMOD);
     let mut ann: Option<Arc<SCode::Annotation>> = None;
-    let mut info: SourceInfo;
+    let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
     let mut env: Env = metamodelica::nil();
     let mut vis: SCode::Visibility = SCode::Visibility::PROTECTED;
     let (__pa0, __pa1, __pa2, __pa3, __pa4) = ::match_deref::match_deref! { match &(inExtends.clone()) {
@@ -326,7 +326,7 @@ fn flattenExtends(mut inExtends: Arc<SCode::Element>, mut inEnv: Env) -> Result<
 
 fn flattenEquation(mut inEquation: Arc<SCode::Equation>, mut inEnv: Env) -> Arc<SCode::Equation> {
     let mut outEquation: Arc<SCode::Equation>;
-    (outEquation, _) = SCodeUtil::mapFoldEquations(inEquation.clone(), Arc::new(flattenEquationTraverser), inEnv.clone());
+    (outEquation, _) = SCodeUtil::mapFoldEquations(inEquation.clone(), (std::sync::Arc::new(flattenEquationTraverser) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SCode::Equation>, Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>) -> Result<(Arc<SCode::Equation>, Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>)> + 'static>), inEnv.clone());
     outEquation
 }
 
@@ -336,20 +336,20 @@ fn flattenEquationTraverser(mut eq: Arc<SCode::Equation>, mut env: Env) -> Resul
     (eq, env) = (::match_deref::match_deref! { match &(eq.clone()) {
         Deref @ SCode::Equation::EQ_FOR { info, index: iter_name, .. } => {
             env = NFSCodeEnv::extendEnvWithIterators(list![Arc::new(Absyn::ForIterator { name: (iter_name.clone()).clone(), guardExp: None, range: None })], System::tmpTickIndex(NFSCodeEnv::tmpTickIndex.clone()), env.clone());
-            (eq, _) = SCodeUtil::mapFoldEquationExps(eq.clone(), Arc::new(traverseExp), (env.clone(), info.clone()))?;
+            (eq, _) = SCodeUtil::mapFoldEquationExps(eq.clone(), (std::sync::Arc::new(traverseExp) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Exp>, (Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo)) -> Result<(Arc<Absyn::Exp>, (Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo))> + 'static>), (env.clone(), info.clone()))?;
             (eq.clone(), env.clone())
         },
         Deref @ SCode::Equation::EQ_REINIT { info, comment: cmt, expReinit: exp, cref: crefExp @ Deref @ Absyn::Exp::CREF { componentRef: cref } } => {
             let mut cref = (*cref).clone();
             cref = NFSCodeLookup::lookupComponentRef(cref.clone(), env.clone(), info.clone())?;
             eq = Arc::new(SCode::Equation::EQ_REINIT { cref: crefExp.clone(), expReinit: exp.clone(), comment: cmt.clone(), info: info.clone() });
-            (eq, _) = SCodeUtil::mapFoldEquationExps(eq.clone(), Arc::new(traverseExp), (env.clone(), info.clone()))?;
+            (eq, _) = SCodeUtil::mapFoldEquationExps(eq.clone(), (std::sync::Arc::new(traverseExp) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Exp>, (Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo)) -> Result<(Arc<Absyn::Exp>, (Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo))> + 'static>), (env.clone(), info.clone()))?;
             (eq.clone(), env.clone())
         },
         _ => {
-            let mut info: SourceInfo;
+            let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
             info = SCodeUtil::getEquationInfo(eq.clone())?;
-            (eq, _) = SCodeUtil::mapFoldEquationExps(eq.clone(), Arc::new(traverseExp), (env.clone(), info.clone()))?;
+            (eq, _) = SCodeUtil::mapFoldEquationExps(eq.clone(), (std::sync::Arc::new(traverseExp) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Exp>, (Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo)) -> Result<(Arc<Absyn::Exp>, (Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo))> + 'static>), (env.clone(), info.clone()))?;
             (eq.clone(), env.clone())
         },
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
@@ -360,7 +360,7 @@ fn flattenEquationTraverser(mut eq: Arc<SCode::Equation>, mut env: Env) -> Resul
 fn traverseExp(mut inExp: Arc<Absyn::Exp>, mut inTuple: (Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo)) -> Result<(Arc<Absyn::Exp>, (Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo))> {
     let mut outExp: Arc<Absyn::Exp> = Arc::new(Absyn::Exp::BREAK);
     let mut outTuple: (Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo);
-    (outExp, outTuple) = AbsynUtil::traverseExpBidir(inExp.clone(), Arc::new(flattenExpTraverserEnter), Arc::new(fnptr!(flattenExpTraverserExit, Arc<Absyn::Exp>, (Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo))), inTuple.clone())?;
+    (outExp, outTuple) = AbsynUtil::traverseExpBidir(inExp.clone(), (std::sync::Arc::new(flattenExpTraverserEnter) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Exp>, (Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo)) -> Result<(Arc<Absyn::Exp>, (Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo))> + 'static>), (std::sync::Arc::new(fnptr!(flattenExpTraverserExit, Arc<Absyn::Exp>, (Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo))) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Exp>, (Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo)) -> Result<(Arc<Absyn::Exp>, (Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo))> + 'static>), inTuple.clone())?;
     Ok((outExp, outTuple))
 }
 
@@ -369,7 +369,7 @@ fn flattenConstraints(mut inConstraints: SCode::ConstraintSection, mut inEnv: En
     let mut exps: Arc<metamodelica::List<Arc<Absyn::Exp>>> = metamodelica::nil();
     let SCode::CONSTRAINTS { constraints: __pa0 } = (inConstraints.clone()) else { bail!("pattern mismatch") };
     exps = __pa0.clone();
-    exps = List::map2(exps.clone(), Arc::new(flattenExp), inEnv.clone(), inInfo.clone());
+    exps = List::map2(exps.clone(), (std::sync::Arc::new(flattenExp) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Exp>, Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo) -> Result<Arc<Absyn::Exp>> + 'static>), inEnv.clone(), inInfo.clone());
     outConstraints = SCode::ConstraintSection { constraints: exps.clone() };
     Ok(outConstraints)
 }
@@ -382,14 +382,14 @@ fn flattenAlgorithm(mut inAlgorithm: Arc<SCode::AlgorithmSection>, mut inEnv: En
         _ => bail!("pattern mismatch"),
     } };
     statements = __pa0.clone();
-    statements = List::map1(statements.clone(), Arc::new(fnptr!(flattenStatement, Arc<SCode::Statement>, Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>)), inEnv.clone());
+    statements = List::map1(statements.clone(), (std::sync::Arc::new(fnptr!(flattenStatement, Arc<SCode::Statement>, Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SCode::Statement>, Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>) -> Result<Arc<SCode::Statement>> + 'static>), inEnv.clone());
     outAlgorithm = Arc::new(SCode::AlgorithmSection { statements: statements.clone() });
     Ok(outAlgorithm)
 }
 
 fn flattenStatement(mut inStatement: Arc<SCode::Statement>, mut inEnv: Env) -> Arc<SCode::Statement> {
     let mut outStatement: Arc<SCode::Statement>;
-    (outStatement, _) = SCodeUtil::mapFoldStatements(inStatement.clone(), Arc::new(flattenStatementTraverser), inEnv.clone());
+    (outStatement, _) = SCodeUtil::mapFoldStatements(inStatement.clone(), (std::sync::Arc::new(flattenStatementTraverser) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SCode::Statement>, Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>) -> Result<(Arc<SCode::Statement>, Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>)> + 'static>), inEnv.clone());
     outStatement
 }
 
@@ -399,18 +399,18 @@ fn flattenStatementTraverser(mut stmt: Arc<SCode::Statement>, mut env: Env) -> R
     (stmt, env) = (::match_deref::match_deref! { match &(stmt.clone()) {
         Deref @ SCode::Statement::ALG_FOR { info, index: iter_name, .. } => {
             env = NFSCodeEnv::extendEnvWithIterators(list![Arc::new(Absyn::ForIterator { name: (iter_name.clone()).clone(), guardExp: None, range: None })], System::tmpTickIndex(NFSCodeEnv::tmpTickIndex.clone()), env.clone());
-            (stmt, _) = SCodeUtil::mapFoldStatementExps(stmt.clone(), Arc::new(traverseExp), (env.clone(), info.clone()));
+            (stmt, _) = SCodeUtil::mapFoldStatementExps(stmt.clone(), (std::sync::Arc::new(traverseExp) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Exp>, (Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo)) -> Result<(Arc<Absyn::Exp>, (Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo))> + 'static>), (env.clone(), info.clone()));
             (stmt.clone(), env.clone())
         },
         Deref @ SCode::Statement::ALG_PARFOR { info, index: iter_name, .. } => {
             env = NFSCodeEnv::extendEnvWithIterators(list![Arc::new(Absyn::ForIterator { name: (iter_name.clone()).clone(), guardExp: None, range: None })], System::tmpTickIndex(NFSCodeEnv::tmpTickIndex.clone()), env.clone());
-            (stmt, _) = SCodeUtil::mapFoldStatementExps(stmt.clone(), Arc::new(traverseExp), (env.clone(), info.clone()));
+            (stmt, _) = SCodeUtil::mapFoldStatementExps(stmt.clone(), (std::sync::Arc::new(traverseExp) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Exp>, (Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo)) -> Result<(Arc<Absyn::Exp>, (Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo))> + 'static>), (env.clone(), info.clone()));
             (stmt.clone(), env.clone())
         },
         _ => {
-            let mut info: SourceInfo;
+            let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
             info = SCodeUtil::getStatementInfo(stmt.clone())?;
-            (stmt, _) = SCodeUtil::mapFoldStatementExps(stmt.clone(), Arc::new(traverseExp), (env.clone(), info.clone()));
+            (stmt, _) = SCodeUtil::mapFoldStatementExps(stmt.clone(), (std::sync::Arc::new(traverseExp) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Exp>, (Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo)) -> Result<(Arc<Absyn::Exp>, (Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo))> + 'static>), (env.clone(), info.clone()));
             (stmt.clone(), env.clone())
         },
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
@@ -425,7 +425,7 @@ fn flattenModifier(mut inMod: Arc<SCode::Mod>, mut inEnv: Env, mut inInfo: Sourc
             let mut sub_mods = (*sub_mods).clone();
             let mut opt_exp = (*opt_exp).clone();
             opt_exp = flattenModOptExp(opt_exp.clone(), inEnv.clone(), inInfo.clone())?;
-            sub_mods = List::map2(sub_mods.clone(), Arc::new(flattenSubMod), inEnv.clone(), inInfo.clone());
+            sub_mods = List::map2(sub_mods.clone(), (std::sync::Arc::new(flattenSubMod) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SCode::SubMod>, Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo) -> Result<Arc<SCode::SubMod>> + 'static>), inEnv.clone(), inInfo.clone());
             Arc::new(SCode::Mod::MOD { finalPrefix: fp.clone(), eachPrefix: ep.clone(), subModLst: sub_mods.clone(), binding: opt_exp.clone(), comment: cmt.clone(), info: info.clone() })
         },
         (Deref @ SCode::Mod::REDECL { finalPrefix: fp, eachPrefix: ep, element: el }, _, _) => {
@@ -513,7 +513,7 @@ fn flattenSubscript(mut inSub: Arc<Absyn::Subscript>, mut inEnv: Env, mut inInfo
 
 fn flattenExp(mut inExp: Arc<Absyn::Exp>, mut inEnv: Env, mut inInfo: SourceInfo) -> Result<Arc<Absyn::Exp>> {
     let mut outExp: Arc<Absyn::Exp> = Arc::new(Absyn::Exp::BREAK);
-    (outExp, _) = AbsynUtil::traverseExpBidir(inExp.clone(), Arc::new(flattenExpTraverserEnter), Arc::new(fnptr!(flattenExpTraverserExit, Arc<Absyn::Exp>, (Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo))), (inEnv.clone(), inInfo.clone()))?;
+    (outExp, _) = AbsynUtil::traverseExpBidir(inExp.clone(), (std::sync::Arc::new(flattenExpTraverserEnter) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Exp>, (Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo)) -> Result<(Arc<Absyn::Exp>, (Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo))> + 'static>), (std::sync::Arc::new(fnptr!(flattenExpTraverserExit, Arc<Absyn::Exp>, (Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo))) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Exp>, (Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo)) -> Result<(Arc<Absyn::Exp>, (Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo))> + 'static>), (inEnv.clone(), inInfo.clone()))?;
     Ok(outExp)
 }
 
@@ -600,13 +600,13 @@ pub fn flattenComponentRefSubs(mut inCref: Arc<Absyn::ComponentRef>, mut inEnv: 
     outCref = (::match_deref::match_deref! { match &((inCref.clone(), inEnv.clone(), inInfo.clone())) {
         (Deref @ Absyn::ComponentRef::CREF_IDENT { name, subscripts: subs }, _, _) => {
             let mut subs = (*subs).clone();
-            subs = List::map2(subs.clone(), Arc::new(flattenSubscript), inEnv.clone(), inInfo.clone());
+            subs = List::map2(subs.clone(), (std::sync::Arc::new(flattenSubscript) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Subscript>, Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo) -> Result<Arc<Absyn::Subscript>> + 'static>), inEnv.clone(), inInfo.clone());
             Arc::new(Absyn::ComponentRef::CREF_IDENT { name: (name.clone()).clone(), subscripts: subs.clone() })
         },
         (Deref @ Absyn::ComponentRef::CREF_QUAL { name, subscripts: subs, componentRef: cref }, _, _) => {
             let mut subs = (*subs).clone();
             let mut cref = (*cref).clone();
-            subs = List::map2(subs.clone(), Arc::new(flattenSubscript), inEnv.clone(), inInfo.clone());
+            subs = List::map2(subs.clone(), (std::sync::Arc::new(flattenSubscript) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Subscript>, Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo) -> Result<Arc<Absyn::Subscript>> + 'static>), inEnv.clone(), inInfo.clone());
             cref = flattenComponentRefSubs(cref.clone(), inEnv.clone(), inInfo.clone())?;
             Arc::new(Absyn::ComponentRef::CREF_QUAL { name: (name.clone()).clone(), subscripts: subs.clone(), componentRef: cref.clone() })
         },

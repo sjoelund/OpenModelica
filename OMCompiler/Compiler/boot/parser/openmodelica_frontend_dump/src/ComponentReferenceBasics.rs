@@ -760,13 +760,13 @@ pub fn crefEqual(mut inComponentRef1: Arc<DAE::ComponentRef>, mut inComponentRef
 
 pub fn crefInLst(mut cref: Arc<DAE::ComponentRef>, mut lst: Arc<metamodelica::List<Arc<DAE::ComponentRef>>>) -> bool {
     let mut b: bool = false;
-    b = List::isMemberOnTrue(cref.clone(), lst.clone(), Arc::new(crefEqual));
+    b = List::isMemberOnTrue(cref.clone(), lst.clone(), (std::sync::Arc::new(crefEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>) -> Result<bool> + 'static>));
     b
 }
 
 pub fn crefNotInLst(mut cref: Arc<DAE::ComponentRef>, mut lst: Arc<metamodelica::List<Arc<DAE::ComponentRef>>>) -> bool {
     let mut b: bool = false;
-    b = !(List::isMemberOnTrue(cref.clone(), lst.clone(), Arc::new(crefEqual)));
+    b = !(List::isMemberOnTrue(cref.clone(), lst.clone(), (std::sync::Arc::new(crefEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>) -> Result<bool> + 'static>)));
     b
 }
 
@@ -807,7 +807,7 @@ pub fn crefEqualVerySlowStringCompareDoNotUse(mut inComponentRef1: Arc<DAE::Comp
                 (Deref @ DAE::ComponentRef::CREF_IDENT { subscriptLst: Deref @ metamodelica::List::Nil, ident: n1, .. }, Deref @ DAE::ComponentRef::CREF_IDENT { subscriptLst: idx2 @ Deref @ metamodelica::List::Cons { head: _, tail: _ }, ident: n2, .. }) => {
                     let mut s1: ArcStr = arcstr::literal!("");
                     let 0 = (System::stringFind((n1.clone()).clone(), (n2.clone()).clone())?) else { bail!("pattern mismatch") };
-                    s1 = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*n2.clone()); __mm_s.push_str(&*literal!("[")); __mm_s.push_str(&*ExpressionBasics::printListStr(idx2.clone(), Arc::new(ExpressionBasics::printSubscriptStr), (literal!(",")).clone())); __mm_s.push_str(&*literal!("]")); ArcStr::from(__mm_s) }).clone();
+                    s1 = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*n2.clone()); __mm_s.push_str(&*literal!("[")); __mm_s.push_str(&*ExpressionBasics::printListStr(idx2.clone(), (std::sync::Arc::new(ExpressionBasics::printSubscriptStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Subscript>) -> Result<ArcStr> + 'static>), (literal!(",")).clone())); __mm_s.push_str(&*literal!("]")); ArcStr::from(__mm_s) }).clone();
                     let true = (stringEq((s1.clone()).clone(), (n1.clone()).clone())) else { bail!("pattern mismatch") };
                     Ok(true)
                 }
@@ -819,7 +819,7 @@ pub fn crefEqualVerySlowStringCompareDoNotUse(mut inComponentRef1: Arc<DAE::Comp
                 (Deref @ DAE::ComponentRef::CREF_IDENT { subscriptLst: idx2 @ Deref @ metamodelica::List::Cons { head: _, tail: _ }, ident: n1, .. }, Deref @ DAE::ComponentRef::CREF_IDENT { subscriptLst: Deref @ metamodelica::List::Nil, ident: n2, .. }) => {
                     let mut s1: ArcStr = arcstr::literal!("");
                     let 0 = (System::stringFind((n2.clone()).clone(), (n1.clone()).clone())?) else { bail!("pattern mismatch") };
-                    s1 = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*n1.clone()); __mm_s.push_str(&*literal!("[")); __mm_s.push_str(&*ExpressionBasics::printListStr(idx2.clone(), Arc::new(ExpressionBasics::printSubscriptStr), (literal!(",")).clone())); __mm_s.push_str(&*literal!("]")); ArcStr::from(__mm_s) }).clone();
+                    s1 = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*n1.clone()); __mm_s.push_str(&*literal!("[")); __mm_s.push_str(&*ExpressionBasics::printListStr(idx2.clone(), (std::sync::Arc::new(ExpressionBasics::printSubscriptStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Subscript>) -> Result<ArcStr> + 'static>), (literal!(",")).clone())); __mm_s.push_str(&*literal!("]")); ArcStr::from(__mm_s) }).clone();
                     let true = (stringEq((s1.clone()).clone(), (n2.clone()).clone())) else { bail!("pattern mismatch") };
                     Ok(true)
                 }
@@ -1009,7 +1009,7 @@ pub fn printComponentRef2Str(mut inIdent: ArcStr, mut inSubscriptLst: Arc<metamo
             let mut strsebb: ArcStr = arcstr::literal!("");
             let mut b: bool = false;
             b = Config::modelicaOutput()?;
-            r#str = (ExpressionBasics::printListStr(l.clone(), Arc::new(ExpressionBasics::printSubscriptStr), (literal!(",")).clone())).clone();
+            r#str = (ExpressionBasics::printListStr(l.clone(), (std::sync::Arc::new(ExpressionBasics::printSubscriptStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Subscript>) -> Result<ArcStr> + 'static>), (literal!(",")).clone())).clone();
             (strseba, strsebb) = if (b.clone()) {(literal!("_L"), literal!("_R"))} else {(literal!("["), literal!("]"))};
             r#str = stringAppendList(list![(s.clone()).clone(), (strseba.clone()).clone(), (r#str.clone()).clone(), (strsebb.clone()).clone()]);
             r#str.clone()

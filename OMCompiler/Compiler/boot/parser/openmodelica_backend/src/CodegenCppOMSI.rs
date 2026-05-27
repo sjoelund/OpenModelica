@@ -44004,8 +44004,8 @@ pub fn algStatement(mut txt: Tpl::Text, mut a_stmt: Arc<DAE::Statement>, mut a_c
     let mut out_a_extraFuncsDecl: Tpl::Text;
     let mut out_a_extraFuncsNamespace: Tpl::Text;
     let mut out_a_stateDerVectorName: Tpl::Text;
-    let mut ret_2: SourceInfo;
-    let mut ret_1: Arc<DAE::ElementSource>;
+    let mut ret_2: SourceInfo = <SourceInfo as ::std::default::Default>::default();
+    let mut ret_1: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
     let mut l_res: Tpl::Text;
     (l_res, out_a_stateDerVectorName, out_a_extraFuncsNamespace, out_a_extraFuncsDecl, out_a_extraFuncs, out_a_varDecls) = fun_1621(Tpl::emptyTxt.clone(), a_stmt.clone(), a_useFlatArrayNotation.clone(), a_stateDerVectorName.clone(), a_extraFuncsNamespace.clone(), a_extraFuncsDecl.clone(), a_extraFuncs.clone(), a_simCode.clone(), a_varDecls.clone(), a_context.clone())?;
     ret_1 = Algorithm::getStatementSource(a_stmt.clone())?;

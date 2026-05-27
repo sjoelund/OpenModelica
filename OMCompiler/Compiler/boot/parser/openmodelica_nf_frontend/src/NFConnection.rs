@@ -47,7 +47,7 @@ use crate::NFConnector as Connector;
 use openmodelica_util::Error;
 use openmodelica_util_datatypes_basic::List;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct NFConnection {
     pub lhs: Arc<Connector::NFConnector>,
     pub rhs: Arc<Connector::NFConnector>,
@@ -59,7 +59,7 @@ pub fn split(mut conn: Arc<NFConnection>) -> Result<Arc<metamodelica::List<Arc<N
     let mut conns: Arc<metamodelica::List<Arc<NFConnection>>> = metamodelica::nil();
     let mut cls: Arc<metamodelica::List<Arc<Connector::NFConnector>>> = metamodelica::nil();
     let mut crs: Arc<metamodelica::List<Arc<Connector::NFConnector>>> = metamodelica::nil();
-    let mut cr: Arc<Connector::NFConnector>;
+    let mut cr: Arc<Connector::NFConnector> = Arc::new(<Connector::NFConnector as ::std::default::Default>::default());
     cls = Connector::split(conn.lhs.clone())?;
     crs = Connector::split(conn.rhs.clone())?;
     checkBalance(cls.clone(), crs.clone(), conn.clone())?;
@@ -83,7 +83,7 @@ pub fn scalarize(mut conn: Arc<NFConnection>) -> Result<Arc<metamodelica::List<A
     let mut conns: Arc<metamodelica::List<Arc<NFConnection>>> = metamodelica::nil();
     let mut cls: Arc<metamodelica::List<Arc<Connector::NFConnector>>> = metamodelica::nil();
     let mut crs: Arc<metamodelica::List<Arc<Connector::NFConnector>>> = metamodelica::nil();
-    let mut cr: Arc<Connector::NFConnector>;
+    let mut cr: Arc<Connector::NFConnector> = Arc::new(<Connector::NFConnector as ::std::default::Default>::default());
     if !(Connector::isArray(conn.lhs.clone())) {
         conns = list![conn.clone()];
         return Ok(conns);
@@ -109,7 +109,7 @@ pub fn scalarizePrefix(mut conn: Arc<NFConnection>) -> Result<Arc<metamodelica::
     let mut conns: Arc<metamodelica::List<Arc<NFConnection>>> = metamodelica::nil();
     let mut cls: Arc<metamodelica::List<Arc<Connector::NFConnector>>> = metamodelica::nil();
     let mut crs: Arc<metamodelica::List<Arc<Connector::NFConnector>>> = metamodelica::nil();
-    let mut cr: Arc<Connector::NFConnector>;
+    let mut cr: Arc<Connector::NFConnector> = Arc::new(<Connector::NFConnector as ::std::default::Default>::default());
     if !(Connector::isArray(conn.lhs.clone())) {
         conns = list![conn.clone()];
         return Ok(conns);
@@ -139,7 +139,7 @@ pub fn toString(mut conn: Arc<NFConnection>) -> ArcStr {
 
 fn checkBalance(mut leftConnectors: Arc<metamodelica::List<Arc<Connector::NFConnector>>>, mut rightConnectors: Arc<metamodelica::List<Arc<Connector::NFConnector>>>, mut conn: Arc<NFConnection>) -> Result<()> {
     if (leftConnectors.clone().len() as i32) != (rightConnectors.clone().len() as i32) {
-        Error::assertion(false, ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("NFConnection.checkBalance")); __mm_s.push_str(&*literal!(" got unbalanced connection ")); __mm_s.push_str(&*toString(conn.clone())); __mm_s.push_str(&*literal!(":")); __mm_s.push_str(&*List::toString(leftConnectors.clone(), Arc::new(fnptr!(Connector::toString, Arc<Connector::NFConnector>)), (literal!("\n  lhs: ")).clone(), (literal!("{")).clone(), (literal!(", ")).clone(), (literal!("}")).clone(), true, 0)?); __mm_s.push_str(&*List::toString(rightConnectors.clone(), Arc::new(fnptr!(Connector::toString, Arc<Connector::NFConnector>)), (literal!("\n  rhs: ")).clone(), (literal!("{")).clone(), (literal!(", ")).clone(), (literal!("}")).clone(), true, 0)?); ArcStr::from(__mm_s) }).clone(), metamodelica::sourceInfo!())?;
+        Error::assertion(false, ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("NFConnection.checkBalance")); __mm_s.push_str(&*literal!(" got unbalanced connection ")); __mm_s.push_str(&*toString(conn.clone())); __mm_s.push_str(&*literal!(":")); __mm_s.push_str(&*List::toString(leftConnectors.clone(), (std::sync::Arc::new(fnptr!(Connector::toString, Arc<Connector::NFConnector>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Connector::NFConnector>) -> Result<ArcStr> + 'static>), (literal!("\n  lhs: ")).clone(), (literal!("{")).clone(), (literal!(", ")).clone(), (literal!("}")).clone(), true, 0)?); __mm_s.push_str(&*List::toString(rightConnectors.clone(), (std::sync::Arc::new(fnptr!(Connector::toString, Arc<Connector::NFConnector>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Connector::NFConnector>) -> Result<ArcStr> + 'static>), (literal!("\n  rhs: ")).clone(), (literal!("{")).clone(), (literal!(", ")).clone(), (literal!("}")).clone(), true, 0)?); ArcStr::from(__mm_s) }).clone(), metamodelica::sourceInfo!())?;
         bail!("fail");
     }
     Ok(())

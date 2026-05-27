@@ -107,7 +107,7 @@ pub mod LookupState {
     use super::*;
     /// LookupState is used by the lookup to keep track of what state it's in so that
     ///  the rules for composite name lookup can be enforced.
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
     pub enum LookupState {
         /// The start state.
         BEGIN,
@@ -270,7 +270,7 @@ pub mod LookupState {
         },
         (Deref @ ERROR { errorState: Deref @ COMP_FUNC { .. } }, Deref @ FUNC { .. }) => {
             let mut name_str: ArcStr = arcstr::literal!("");
-            let mut info2: SourceInfo;
+            let mut info2: SourceInfo = <SourceInfo as ::std::default::Default>::default();
             name_str = (InstNode::name(node.clone())?).clone();
             info2 = InstNode::info(node.clone())?;
             Error::addSourceMessage(Error::NON_CLASS_IN_COMP_FUNC_NAME.clone(), list![(name_str.clone()).clone()], info2.clone())?;

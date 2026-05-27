@@ -55,7 +55,7 @@ use openmodelica_util_datatypes_basic::Mutable;
 ///
 ///   This implementation uses separate chaining and automatically rehashes the map
 ///   when the load factor becomes too large to keep the performance up.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone)]
 pub struct UnorderedMap<K: Clone, V: Clone> {
     pub buckets: Arc<Vector::Vector<Arc<metamodelica::List<i32>>>>,
     pub keys: Arc<Vector::Vector<K>>,
@@ -64,35 +64,61 @@ pub struct UnorderedMap<K: Clone, V: Clone> {
     pub eqFn: KeyEq<K>,
 }
 
+impl<K: Clone + 'static + PartialEq, V: Clone + 'static + PartialEq> PartialEq for UnorderedMap<K, V> {
+    fn eq(&self, other: &Self) -> bool {
+        self.buckets == other.buckets && self.keys == other.keys && self.values == other.values && std::sync::Arc::ptr_eq(&self.hashFn, &other.hashFn) && std::sync::Arc::ptr_eq(&self.eqFn, &other.eqFn)
+    }
+}
+impl<K: Clone + 'static + PartialEq + Eq, V: Clone + 'static + PartialEq + Eq> Eq for UnorderedMap<K, V> {}
+impl<K: Clone + 'static + PartialEq + Eq + PartialOrd + Ord, V: Clone + 'static + PartialEq + Eq + PartialOrd + Ord> PartialOrd for UnorderedMap<K, V> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> { Some(self.cmp(other)) }
+}
+impl<K: Clone + 'static + PartialEq + Eq + PartialOrd + Ord, V: Clone + 'static + PartialEq + Eq + PartialOrd + Ord> Ord for UnorderedMap<K, V> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.buckets.cmp(&other.buckets).then_with(|| self.keys.cmp(&other.keys).then_with(|| self.values.cmp(&other.values).then_with(|| (std::sync::Arc::as_ptr(&self.hashFn) as *const ()).cmp(&(std::sync::Arc::as_ptr(&other.hashFn) as *const ())).then_with(|| (std::sync::Arc::as_ptr(&self.eqFn) as *const ()).cmp(&(std::sync::Arc::as_ptr(&other.eqFn) as *const ()))))))
+    }
+}
+impl<K: Clone + 'static + std::fmt::Debug, V: Clone + 'static + std::fmt::Debug> std::fmt::Debug for UnorderedMap<K, V> {
+    fn fmt(&self, __f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut __ds = __f.debug_struct("UnorderedMap");
+        __ds.field("buckets", &self.buckets);
+        __ds.field("keys", &self.keys);
+        __ds.field("values", &self.values);
+        __ds.field("hashFn", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr(&self.hashFn)));
+        __ds.field("eqFn", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr(&self.eqFn)));
+        __ds.finish()
+    }
+}
+
 impl<K: Clone, V: Clone> Default for UnorderedMap<K, V> {
     fn default() -> Self {
         Self {
             buckets: Default::default(),
             keys: Default::default(),
             values: Default::default(),
-            hashFn: { let __placeholder: Hash<K> = |_| panic!("default-constructed placeholder fn must not be called"); __placeholder },
-            eqFn: { let __placeholder: KeyEq<K> = |_, _| panic!("default-constructed placeholder fn must not be called"); __placeholder },
+            hashFn: { let __placeholder: Hash<K> = std::sync::Arc::new(|_| panic!("default-constructed placeholder fn must not be called")); __placeholder },
+            eqFn: { let __placeholder: KeyEq<K> = std::sync::Arc::new(|_, _| panic!("default-constructed placeholder fn must not be called")); __placeholder },
         }
     }
 }
 
 pub type UNORDERED_MAP<K, V> = UnorderedMap<K, V>;
 
-pub type Hash<K: Clone> = fn(K) -> Result<i32>;
+pub type Hash<K: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(K) -> Result<i32> + 'static>;
 
-pub type KeyEq<K: Clone> = fn(K, K) -> Result<bool>;
+pub type KeyEq<K: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(K, K) -> Result<bool> + 'static>;
 
-pub type KeyStringFn<K: Clone> = fn(K) -> Result<ArcStr>;
+pub type KeyStringFn<K: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(K) -> Result<ArcStr> + 'static>;
 
-pub type ValueStringFn<V: Clone> = fn(V) -> Result<ArcStr>;
+pub type ValueStringFn<V: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(V) -> Result<ArcStr> + 'static>;
 
-pub fn new<V: Clone + 'static, K: Clone + 'static>(mut hash: Hash<K>, mut keyEq: KeyEq<K>, mut bucketCount: i32) -> Arc<UnorderedMap<K, V>> {
+pub fn new<V: Clone + 'static, K: Clone + 'static>(mut hash: Arc<dyn ::std::ops::Fn(K) -> Result<i32> + 'static>, mut keyEq: Arc<dyn ::std::ops::Fn(K, K) -> Result<bool> + 'static>, mut bucketCount: i32) -> Arc<UnorderedMap<K, V>> {
     let mut map: Arc<UnorderedMap<K, V>>;
-    map = Arc::new(UnorderedMap { buckets: Vector::newFill(bucketCount.clone(), metamodelica::nil()), keys: Vector::new(0), values: Vector::new(0), hashFn: hash, eqFn: keyEq });
+    map = Arc::new(UnorderedMap { buckets: Vector::newFill(bucketCount.clone(), metamodelica::nil()), keys: Vector::new(0), values: Vector::new(0), hashFn: hash.clone(), eqFn: keyEq.clone() });
     map
 }
 
-pub fn fromLists<V: Clone + 'static + Default, K: Clone + 'static + Default>(mut keys: Arc<metamodelica::List<K>>, mut values: Arc<metamodelica::List<V>>, mut hash: Hash<K>, mut keyEq: KeyEq<K>) -> Result<Arc<UnorderedMap<K, V>>> {
+pub fn fromLists<V: Clone + 'static + Default, K: Clone + 'static + Default>(mut keys: Arc<metamodelica::List<K>>, mut values: Arc<metamodelica::List<V>>, mut hash: Arc<dyn ::std::ops::Fn(K) -> Result<i32> + 'static>, mut keyEq: Arc<dyn ::std::ops::Fn(K, K) -> Result<bool> + 'static>) -> Result<Arc<UnorderedMap<K, V>>> {
     let mut map: Arc<UnorderedMap<K, V>>;
     let mut key_count: i32 = 0;
     let mut bucket_count: i32 = 0;
@@ -100,7 +126,7 @@ pub fn fromLists<V: Clone + 'static + Default, K: Clone + 'static + Default>(mut
     let mut rest_v: Arc<metamodelica::List<V>> = values.clone();
     key_count = (keys.clone().len() as i32);
     bucket_count = Util::nextPrime(key_count.clone());
-    map = Arc::new(UnorderedMap { buckets: Vector::newFill(bucket_count.clone(), metamodelica::nil()), keys: Vector::new(key_count.clone()), values: Vector::new(key_count.clone()), hashFn: hash, eqFn: keyEq });
+    map = Arc::new(UnorderedMap { buckets: Vector::newFill(bucket_count.clone(), metamodelica::nil()), keys: Vector::new(key_count.clone()), values: Vector::new(key_count.clone()), hashFn: hash.clone(), eqFn: keyEq.clone() });
     for mut k in &*keys.clone() {
         let mut k = k.clone();
         let (__pa0, __pa1) = ::match_deref::match_deref! { match &(rest_v.clone()) {
@@ -116,15 +142,15 @@ pub fn fromLists<V: Clone + 'static + Default, K: Clone + 'static + Default>(mut
 
 pub fn copy<K: Clone + 'static, V: Clone + 'static>(mut map: Arc<UnorderedMap<K, V>>) -> Arc<UnorderedMap<K, V>> {
     let mut outMap: Arc<UnorderedMap<K, V>>;
-    outMap = Arc::new(UnorderedMap { buckets: Vector::copy(map.buckets.clone()), keys: Vector::copy(map.keys.clone()), values: Vector::copy(map.values.clone()), hashFn: map.hashFn, eqFn: map.eqFn });
+    outMap = Arc::new(UnorderedMap { buckets: Vector::copy(map.buckets.clone()), keys: Vector::copy(map.keys.clone()), values: Vector::copy(map.values.clone()), hashFn: map.hashFn.clone(), eqFn: map.eqFn.clone() });
     outMap
 }
 
 pub fn deepCopy<K: Clone + 'static, V: Clone + 'static>(mut map: Arc<UnorderedMap<K, V>>, mut r#fn: Arc<dyn ::std::ops::Fn(V) -> Result<V> + 'static>) -> Arc<UnorderedMap<K, V>> {
-    pub type CopyFn<V: Clone> = fn(V) -> Result<V>;
+    pub type CopyFn<V: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(V) -> Result<V> + 'static>;
 
     let mut outMap: Arc<UnorderedMap<K, V>>;
-    outMap = Arc::new(UnorderedMap { buckets: Vector::copy(map.buckets.clone()), keys: Vector::copy(map.keys.clone()), values: Vector::deepCopy(map.values.clone(), r#fn.clone()), hashFn: map.hashFn, eqFn: map.eqFn });
+    outMap = Arc::new(UnorderedMap { buckets: Vector::copy(map.buckets.clone()), keys: Vector::copy(map.keys.clone()), values: Vector::deepCopy(map.values.clone(), r#fn.clone()), hashFn: map.hashFn.clone(), eqFn: map.eqFn.clone() });
     outMap
 }
 
@@ -141,7 +167,7 @@ pub fn add<K: Clone + 'static + Default, V: Clone + 'static + Default>(mut key: 
 }
 
 pub fn addNew<K: Clone + 'static + Default, V: Clone + 'static + Default>(mut key: K, mut value: V, mut map: Arc<UnorderedMap<K, V>>) -> Result<()> {
-    let mut hashfn: Hash<K> = map.hashFn;
+    let mut hashfn: Hash<K> = map.hashFn.clone();
     let mut hash: i32 = intMod(hashfn(key.clone())?, Vector::size(map.buckets.clone()));
     addEntry(key.clone(), value.clone(), hash.clone(), map.clone())?;
     Ok(())
@@ -183,7 +209,7 @@ pub fn tryUpdate<K: Clone + 'static, V: Clone + 'static>(mut key: K, mut value: 
 }
 
 pub fn addUpdate<K: Clone + 'static + Default, V: Clone + 'static + Default>(mut key: K, mut r#fn: Arc<dyn ::std::ops::Fn(Option<V>) -> Result<V> + 'static>, mut map: Arc<UnorderedMap<K, V>>) -> Result<V> {
-    pub type UpdateFn<V: Clone> = fn(Option<V>) -> Result<V>;
+    pub type UpdateFn<V: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Option<V>) -> Result<V> + 'static>;
 
     let mut value: V;
     let mut index: i32 = 0;
@@ -200,7 +226,7 @@ pub fn addUpdate<K: Clone + 'static + Default, V: Clone + 'static + Default>(mut
 }
 
 pub fn tryAddUpdate<K: Clone + 'static, V: Clone + 'static>(mut key: K, mut r#fn: Arc<dyn ::std::ops::Fn(Option<V>) -> Result<V> + 'static>, mut map: Arc<UnorderedMap<K, V>>) -> Result<bool> {
-    pub type UpdateFn<V: Clone> = fn(Option<V>) -> Result<V>;
+    pub type UpdateFn<V: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Option<V>) -> Result<V> + 'static>;
 
     let mut updated: bool = false;
     let mut index: i32 = 0;
@@ -239,7 +265,7 @@ pub fn remove<K: Clone + 'static, V: Clone + 'static>(mut key: K, mut map: Arc<U
         return Ok(removed);
     }
     bucket = Vector::get(map.buckets.clone(), hash.clone() + 1)?;
-    (bucket, _) = List::deleteMemberOnTrue(index.clone(), bucket.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
+    (bucket, _) = List::deleteMemberOnTrue(index.clone(), bucket.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
     Vector::updateNoBounds(map.buckets.clone(), hash.clone() + 1, bucket.clone());
     Vector::remove(map.keys.clone(), index.clone())?;
     Vector::remove(map.values.clone(), index.clone())?;
@@ -412,12 +438,12 @@ pub fn keySet<K: Clone + 'static, V: Clone + 'static>(mut map: Arc<UnorderedMap<
         __acc.reverse()
     }; _arr};
     }
-    set = Arc::new(UnorderedSet::UnorderedSet { buckets: Mutable::create(buckets.clone()), size: Mutable::create(Vector::size(map.keys.clone())), hashFn: map.hashFn, eqFn: map.eqFn });
+    set = Arc::new(UnorderedSet::UnorderedSet { buckets: Mutable::create(buckets.clone()), size: Mutable::create(Vector::size(map.keys.clone())), hashFn: map.hashFn.clone(), eqFn: map.eqFn.clone() });
     Ok(set)
 }
 
 pub fn fold<FT: Clone + 'static, K: Clone + 'static, V: Clone + 'static>(mut map: Arc<UnorderedMap<K, V>>, mut r#fn: Arc<dyn ::std::ops::Fn(V, FT) -> Result<FT> + 'static>, mut arg: FT) -> FT {
-    pub type FoldFn<V: Clone, FT: Clone> = fn(V, FT) -> Result<FT>;
+    pub type FoldFn<V: Clone + 'static, FT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(V, FT) -> Result<FT> + 'static>;
 
     let mut arg: FT = arg;
     arg = Vector::fold(map.values.clone(), r#fn.clone(), arg.clone());
@@ -425,17 +451,17 @@ pub fn fold<FT: Clone + 'static, K: Clone + 'static, V: Clone + 'static>(mut map
 }
 
 pub fn map<OT: Clone + 'static + Default, K: Clone + 'static, V: Clone + 'static>(mut map: Arc<UnorderedMap<K, V>>, mut r#fn: Arc<dyn ::std::ops::Fn(V) -> Result<OT> + 'static>) -> Arc<UnorderedMap<K, OT>> {
-    pub type MapFn<V: Clone, OT: Clone> = fn(V) -> Result<OT>;
+    pub type MapFn<V: Clone + 'static, OT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(V) -> Result<OT> + 'static>;
 
     let mut outMap: Arc<UnorderedMap<K, OT>>;
     let mut new_values: Arc<Vector::Vector<OT>>;
     new_values = Vector::map(map.values.clone(), r#fn.clone(), true);
-    outMap = Arc::new(UnorderedMap { buckets: Vector::copy(map.buckets.clone()), keys: Vector::copy(map.keys.clone()), values: new_values.clone(), hashFn: map.hashFn, eqFn: map.eqFn });
+    outMap = Arc::new(UnorderedMap { buckets: Vector::copy(map.buckets.clone()), keys: Vector::copy(map.keys.clone()), values: new_values.clone(), hashFn: map.hashFn.clone(), eqFn: map.eqFn.clone() });
     outMap
 }
 
 pub fn apply<K: Clone + 'static, V: Clone + 'static>(mut map: Arc<UnorderedMap<K, V>>, mut r#fn: Arc<dyn ::std::ops::Fn(V) -> Result<V> + 'static>) -> () {
-    pub type ApplyFn<V: Clone> = fn(V) -> Result<V>;
+    pub type ApplyFn<V: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(V) -> Result<V> + 'static>;
 
     Vector::apply(map.values.clone(), r#fn.clone());
     ()
@@ -470,7 +496,7 @@ pub fn subMap<K: Clone + 'static + Default, V: Clone + 'static + Default>(mut ma
     let mut sub_map: Arc<UnorderedMap<K, V>>;
     let mut len: i32 = 0;
     len = (lst.clone().len() as i32);
-    sub_map = Arc::new(UnorderedMap { buckets: Vector::newFill(Util::nextPrime(len.clone()), metamodelica::nil()), keys: Vector::new(len.clone()), values: Vector::new(len.clone()), hashFn: map.hashFn, eqFn: map.eqFn });
+    sub_map = Arc::new(UnorderedMap { buckets: Vector::newFill(Util::nextPrime(len.clone()), metamodelica::nil()), keys: Vector::new(len.clone()), values: Vector::new(len.clone()), hashFn: map.hashFn.clone(), eqFn: map.eqFn.clone() });
     for mut k in &*lst.clone() {
         let mut k = k.clone();
         add(k.clone(), getSafe(k.clone(), map.clone(), metamodelica::sourceInfo!())?, sub_map.clone())?;
@@ -479,7 +505,7 @@ pub fn subMap<K: Clone + 'static + Default, V: Clone + 'static + Default>(mut ma
 }
 
 pub fn all<K: Clone + 'static, V: Clone + 'static>(mut map: Arc<UnorderedMap<K, V>>, mut r#fn: Arc<dyn ::std::ops::Fn(V) -> Result<bool> + 'static>) -> bool {
-    pub type PredFn<V: Clone> = fn(V) -> Result<bool>;
+    pub type PredFn<V: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(V) -> Result<bool> + 'static>;
 
     let mut res: bool = false;
     res = Vector::all(map.values.clone(), r#fn.clone());
@@ -487,7 +513,7 @@ pub fn all<K: Clone + 'static, V: Clone + 'static>(mut map: Arc<UnorderedMap<K, 
 }
 
 pub fn any<K: Clone + 'static, V: Clone + 'static>(mut map: Arc<UnorderedMap<K, V>>, mut r#fn: Arc<dyn ::std::ops::Fn(V) -> Result<bool> + 'static>) -> bool {
-    pub type PredFn<V: Clone> = fn(V) -> Result<bool>;
+    pub type PredFn<V: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(V) -> Result<bool> + 'static>;
 
     let mut res: bool = false;
     res = Vector::any(map.values.clone(), r#fn.clone());
@@ -495,7 +521,7 @@ pub fn any<K: Clone + 'static, V: Clone + 'static>(mut map: Arc<UnorderedMap<K, 
 }
 
 pub fn none<K: Clone + 'static, V: Clone + 'static>(mut map: Arc<UnorderedMap<K, V>>, mut r#fn: Arc<dyn ::std::ops::Fn(V) -> Result<bool> + 'static>) -> bool {
-    pub type PredFn<V: Clone> = fn(V) -> Result<bool>;
+    pub type PredFn<V: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(V) -> Result<bool> + 'static>;
 
     let mut res: bool = false;
     res = Vector::none(map.values.clone(), r#fn.clone());
@@ -527,7 +553,7 @@ pub fn rehash<K: Clone + 'static, V: Clone + 'static>(mut map: Arc<UnorderedMap<
     let mut buckets: Arc<Vector::Vector<Arc<metamodelica::List<i32>>>> = map.buckets.clone();
     let mut bucket_count: i32 = 0;
     let mut bucket_id: i32 = 0;
-    let mut hashfn: Hash<K> = map.hashFn;
+    let mut hashfn: Hash<K> = map.hashFn.clone();
     Vector::clear(buckets.clone());
     bucket_count = Util::nextPrime(Vector::size(keys.clone()) * 2);
     Vector::resize(buckets.clone(), bucket_count.clone(), metamodelica::nil());
@@ -538,19 +564,19 @@ pub fn rehash<K: Clone + 'static, V: Clone + 'static>(mut map: Arc<UnorderedMap<
     Ok(())
 }
 
-pub fn toString<K: Clone + 'static, V: Clone + 'static>(mut map: Arc<UnorderedMap<K, V>>, mut keyStringFn: KeyStringFn<K>, mut valueStringFn: ValueStringFn<V>, mut delimiter: ArcStr, mut concatinator: ArcStr) -> Result<ArcStr> {
+pub fn toString<K: Clone + 'static, V: Clone + 'static>(mut map: Arc<UnorderedMap<K, V>>, mut keyStringFn: Arc<dyn ::std::ops::Fn(K) -> Result<ArcStr> + 'static>, mut valueStringFn: Arc<dyn ::std::ops::Fn(V) -> Result<ArcStr> + 'static>, mut delimiter: ArcStr, mut concatinator: ArcStr) -> Result<ArcStr> {
     let mut r#str: ArcStr = arcstr::literal!("");
     let mut strl: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
     let mut keys: Arc<Vector::Vector<K>> = map.keys.clone();
     let mut values: Arc<Vector::Vector<V>> = map.values.clone();
     for mut i in (1..=Vector::size(keys.clone())).rev() {
-        strl = cons({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("(")); __mm_s.push_str(&*keyStringFn(Vector::get(keys.clone(), i.clone())?)?); __mm_s.push_str(&*concatinator.clone()); __mm_s.push_str(&*valueStringFn(Vector::get(values.clone(), i.clone())?)?); __mm_s.push_str(&*literal!(")")); ArcStr::from(__mm_s) }, strl.clone());
+        strl = cons(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("(")); __mm_s.push_str(&*keyStringFn(Vector::get(keys.clone(), i.clone())?)?); __mm_s.push_str(&*concatinator.clone()); __mm_s.push_str(&*valueStringFn(Vector::get(values.clone(), i.clone())?)?); __mm_s.push_str(&*literal!(")")); ArcStr::from(__mm_s) }).clone(), strl.clone());
     }
     r#str = stringDelimitList(strl.clone(), (delimiter.clone()).clone());
     Ok(r#str)
 }
 
-pub fn toJSON<K: Clone + 'static, V: Clone + 'static>(mut map: Arc<UnorderedMap<K, V>>, mut keyStringFn: KeyStringFn<K>, mut valueStringFn: ValueStringFn<V>) -> Result<ArcStr> {
+pub fn toJSON<K: Clone + 'static, V: Clone + 'static>(mut map: Arc<UnorderedMap<K, V>>, mut keyStringFn: Arc<dyn ::std::ops::Fn(K) -> Result<ArcStr> + 'static>, mut valueStringFn: Arc<dyn ::std::ops::Fn(V) -> Result<ArcStr> + 'static>) -> Result<ArcStr> {
     let mut r#str: ArcStr = arcstr::literal!("");
     let mut io: IOStream::IOStream;
     let mut keys: Arc<Vector::Vector<K>> = map.keys.clone();
@@ -580,8 +606,8 @@ pub fn toJSON<K: Clone + 'static, V: Clone + 'static>(mut map: Arc<UnorderedMap<
 fn find<K: Clone + 'static, V: Clone + 'static>(mut key: K, mut map: Arc<UnorderedMap<K, V>>) -> Result<(i32, i32)> {
     let mut index: i32 = -1;
     let mut hash: i32 = 0;
-    let mut hashfn: Hash<K> = map.hashFn;
-    let mut eqfn: KeyEq<K> = map.eqFn;
+    let mut hashfn: Hash<K> = map.hashFn.clone();
+    let mut eqfn: KeyEq<K> = map.eqFn.clone();
     let mut bucket: Arc<metamodelica::List<i32>> = metamodelica::nil();
     if Vector::size(map.buckets.clone()) > 0 {
         hash = intMod(hashfn(key.clone())?, Vector::size(map.buckets.clone()));

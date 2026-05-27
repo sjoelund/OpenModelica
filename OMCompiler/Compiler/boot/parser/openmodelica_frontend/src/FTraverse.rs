@@ -95,7 +95,7 @@ pub enum Options {
 pub use self::Options::{NO_OPTIONS,OPTIONS};
 
 pub fn walk<Extra: Clone + 'static>(mut inGraph: Graph, mut inWalker: Arc<dyn ::std::ops::Fn((FCore::Graph, metamodelica::Array<FCore::Node>, Extra)) -> Result<(FCore::Graph, metamodelica::Array<FCore::Node>, Extra)> + 'static>, mut inExtra: Extra, mut inOptions: Options) -> (Graph, Extra) {
-    pub type Walker<Extra: Clone> = fn((FCore::Graph, metamodelica::Array<FCore::Node>, Extra)) -> Result<(FCore::Graph, metamodelica::Array<FCore::Node>, Extra)>;
+    pub type Walker<Extra: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn((FCore::Graph, metamodelica::Array<FCore::Node>, Extra)) -> Result<(FCore::Graph, metamodelica::Array<FCore::Node>, Extra)> + 'static>;
 
     let mut outGraph: Graph;
     let mut outExtra: Extra;

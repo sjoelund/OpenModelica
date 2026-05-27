@@ -411,7 +411,7 @@ fn stringDelimitListAndSeparate2(mut inStringLst1: Arc<metamodelica::List<ArcStr
 pub fn stringDelimitListNonEmptyElts(mut lst: Arc<metamodelica::List<ArcStr>>, mut delim: ArcStr) -> ArcStr {
     let mut r#str: ArcStr = arcstr::literal!("");
     let mut lst1: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
-    lst1 = List::select(lst.clone(), Arc::new(fnptr!(isNotEmptyString, ArcStr)));
+    lst1 = List::select(lst.clone(), (std::sync::Arc::new(fnptr!(isNotEmptyString, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr) -> Result<bool> + 'static>));
     r#str = stringDelimitList(lst1.clone(), (delim.clone()).clone());
     r#str
 }
@@ -421,9 +421,9 @@ pub fn mulStringDelimit2Int(mut inString: ArcStr, mut delim: ArcStr) -> Result<i
     let mut lst: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
     let mut lst2: Arc<metamodelica::List<i32>> = metamodelica::nil();
     lst = stringSplitAtChar((inString.clone()).clone(), (delim.clone()).clone())?;
-    lst2 = List::map(lst.clone(), Arc::new(stringInt));
+    lst2 = List::map(lst.clone(), (std::sync::Arc::new(stringInt) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr) -> Result<i32> + 'static>));
     if !(lst2.clone().is_empty()) {
-        i = List::fold(lst2.clone(), Arc::new(fnptr!(intMul, i32, i32)), 1);
+        i = List::fold(lst2.clone(), (std::sync::Arc::new(fnptr!(intMul, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<i32> + 'static>), 1);
     } else {
         i = 0;
     }
@@ -446,7 +446,7 @@ pub fn stringSplitAtChar(mut string: ArcStr, mut token: ArcStr) -> Result<Arc<me
             strings = cons(stringAppendList(cur.clone().reverse()), strings.clone());
             cur = metamodelica::nil();
         } else {
-            cur = cons(c.clone(), cur.clone());
+            cur = cons((c.clone()).clone(), cur.clone());
         }
     }
     if !(cur.clone().is_empty()) {
@@ -457,7 +457,7 @@ pub fn stringSplitAtChar(mut string: ArcStr, mut token: ArcStr) -> Result<Arc<me
 }
 
 pub fn optionToString<T: Clone + 'static>(mut ot: Option<T>, mut f: Arc<dyn ::std::ops::Fn(T) -> Result<ArcStr> + 'static>) -> ArcStr {
-    pub type FuncType<T: Clone> = fn(T) -> Result<ArcStr>;
+    pub type FuncType<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T) -> Result<ArcStr> + 'static>;
 
     let mut r#str: ArcStr = arcstr::literal!("");
     let mut t: T;
@@ -469,7 +469,7 @@ pub fn optionToString<T: Clone + 'static>(mut ot: Option<T>, mut f: Arc<dyn ::st
 }
 
 pub fn applyOption<TI: Clone + 'static, TO: Clone + 'static>(mut inOption: Option<TI>, mut inFunc: Arc<dyn ::std::ops::Fn(TI) -> Result<TO> + 'static>) -> Option<TO> {
-    pub type FuncType<TI: Clone, TO: Clone> = fn(TI) -> Result<TO>;
+    pub type FuncType<TI: Clone + 'static, TO: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(TI) -> Result<TO> + 'static>;
 
     let mut outOption: Option<TO> = None;
     outOption = (match inOption.clone() {
@@ -484,7 +484,7 @@ pub fn applyOption<TI: Clone + 'static, TO: Clone + 'static>(mut inOption: Optio
 }
 
 pub fn applyOption1<TI: Clone + 'static, TO: Clone + 'static, ArgT: Clone + 'static>(mut inOption: Option<TI>, mut inFunc: Arc<dyn ::std::ops::Fn(TI, ArgT) -> Result<TO> + 'static>, mut inArg: ArgT) -> Option<TO> {
-    pub type FuncType<TI: Clone, ArgT: Clone, TO: Clone> = fn(TI, ArgT) -> Result<TO>;
+    pub type FuncType<TI: Clone + 'static, ArgT: Clone + 'static, TO: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(TI, ArgT) -> Result<TO> + 'static>;
 
     let mut outOption: Option<TO> = None;
     outOption = (match inOption.clone() {
@@ -499,7 +499,7 @@ pub fn applyOption1<TI: Clone + 'static, TO: Clone + 'static, ArgT: Clone + 'sta
 }
 
 pub fn applyOptionOrDefault<TI: Clone + 'static, TO: Clone + 'static>(mut inValue: Option<TI>, mut inFunc: Arc<dyn ::std::ops::Fn(TI) -> Result<TO> + 'static>, mut inDefaultValue: TO) -> TO {
-    pub type FuncType<TI: Clone, TO: Clone> = fn(TI) -> Result<TO>;
+    pub type FuncType<TI: Clone + 'static, TO: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(TI) -> Result<TO> + 'static>;
 
     let mut outValue: TO;
     outValue = (match inValue.clone() {
@@ -514,7 +514,7 @@ pub fn applyOptionOrDefault<TI: Clone + 'static, TO: Clone + 'static>(mut inValu
 }
 
 pub fn applyOptionOrDefault1<TI: Clone + 'static, TO: Clone + 'static, ArgT: Clone + 'static>(mut inValue: Option<TI>, mut inFunc: Arc<dyn ::std::ops::Fn(TI, ArgT) -> Result<TO> + 'static>, mut inArg: ArgT, mut inDefaultValue: TO) -> TO {
-    pub type FuncType<TI: Clone, ArgT: Clone, TO: Clone> = fn(TI, ArgT) -> Result<TO>;
+    pub type FuncType<TI: Clone + 'static, ArgT: Clone + 'static, TO: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(TI, ArgT) -> Result<TO> + 'static>;
 
     let mut outValue: TO;
     outValue = (match inValue.clone() {
@@ -529,7 +529,7 @@ pub fn applyOptionOrDefault1<TI: Clone + 'static, TO: Clone + 'static, ArgT: Clo
 }
 
 pub fn applyOptionOrDefault2<TI: Clone + 'static, TO: Clone + 'static, ArgT1: Clone + 'static, ArgT2: Clone + 'static>(mut inValue: Option<TI>, mut inFunc: Arc<dyn ::std::ops::Fn(TI, ArgT1, ArgT2) -> Result<TO> + 'static>, mut inArg1: ArgT1, mut inArg2: ArgT2, mut inDefaultValue: TO) -> TO {
-    pub type FuncType<TI: Clone, ArgT1: Clone, ArgT2: Clone, TO: Clone> = fn(TI, ArgT1, ArgT2) -> Result<TO>;
+    pub type FuncType<TI: Clone + 'static, ArgT1: Clone + 'static, ArgT2: Clone + 'static, TO: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(TI, ArgT1, ArgT2) -> Result<TO> + 'static>;
 
     let mut outValue: TO;
     outValue = (match inValue.clone() {
@@ -544,7 +544,7 @@ pub fn applyOptionOrDefault2<TI: Clone + 'static, TO: Clone + 'static, ArgT1: Cl
 }
 
 pub fn applyOption_2<T: Clone + 'static>(mut inValue1: Option<T>, mut inValue2: Option<T>, mut inFunc: Arc<dyn ::std::ops::Fn(T, T) -> Result<T> + 'static>) -> Result<Option<T>> {
-    pub type FuncType<T: Clone> = fn(T, T) -> Result<T>;
+    pub type FuncType<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T, T) -> Result<T> + 'static>;
 
     let mut outValue: Option<T> = None;
     outValue = (match (inValue1.clone(), inValue2.clone()) {
@@ -792,7 +792,7 @@ pub fn setStatefulBoolean(mut sb: StatefulBoolean, mut b: bool) -> Result<()> {
 }
 
 pub fn optionEqual<T1: Clone + 'static, T2: Clone + 'static>(mut inOption1: Option<T1>, mut inOption2: Option<T2>, mut inFunc: Arc<dyn ::std::ops::Fn(T1, T2) -> Result<bool> + 'static>) -> bool {
-    pub type CompareFunc<T1: Clone, T2: Clone> = fn(T1, T2) -> Result<bool>;
+    pub type CompareFunc<T1: Clone + 'static, T2: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T1, T2) -> Result<bool> + 'static>;
 
     let mut outEqual: bool = false;
     outEqual = (match (inOption1.clone(), inOption2.clone()) {
@@ -810,7 +810,7 @@ pub fn optionEqual<T1: Clone + 'static, T2: Clone + 'static>(mut inOption1: Opti
 }
 
 pub fn makeValueOrDefault<TI: Clone + 'static, TO: Clone + 'static>(mut inFunc: Arc<dyn ::std::ops::Fn(TI) -> Result<TO> + 'static>, mut inArg: TI, mut inDefaultValue: TO) -> TO {
-    pub type FuncType<TI: Clone, TO: Clone> = fn(TI) -> Result<TO>;
+    pub type FuncType<TI: Clone + 'static, TO: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(TI) -> Result<TO> + 'static>;
 
     let mut outValue: TO;
     match '__try0: {
@@ -997,7 +997,7 @@ pub fn stringPadLeft(mut inString: ArcStr, mut inPadWidth: i32, mut inPadString:
 }
 
 pub fn intProduct(mut lst: Arc<metamodelica::List<i32>>) -> i32 {
-    let mut i: i32 = List::fold(lst.clone(), Arc::new(fnptr!(intMul, i32, i32)), 1);
+    let mut i: i32 = List::fold(lst.clone(), (std::sync::Arc::new(fnptr!(intMul, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<i32> + 'static>), 1);
     i
 }
 
@@ -1191,7 +1191,7 @@ pub fn hashFileNamePrefix(mut inFileNamePrefix: ArcStr) -> ArcStr {
 
 pub fn intLstString(mut lst: Arc<metamodelica::List<i32>>) -> ArcStr {
     let mut s: ArcStr = arcstr::literal!("");
-    s = stringDelimitList(List::map(lst.clone(), Arc::new(fnptr!(intString, i32))), (literal!(", ")).clone());
+    s = stringDelimitList(List::map(lst.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(", ")).clone());
     s
 }
 
@@ -1305,7 +1305,7 @@ pub fn profilertock2() -> Result<metamodelica::Real> {
 }
 
 pub fn applyTuple21<T1: Clone + 'static + PartialEq, T2: Clone + 'static>(mut inTuple: (T1, T2), mut func: Arc<dyn ::std::ops::Fn(T1) -> Result<T1> + 'static>) -> (T1, T2) {
-    pub type FuncT<T1: Clone> = fn(T1) -> Result<T1>;
+    pub type FuncT<T1: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T1) -> Result<T1> + 'static>;
 
     let mut outTuple: (T1, T2);
     let mut e1_1: T1;
@@ -1318,7 +1318,7 @@ pub fn applyTuple21<T1: Clone + 'static + PartialEq, T2: Clone + 'static>(mut in
 }
 
 pub fn applyTuple22<T1: Clone + 'static, T2: Clone + 'static + PartialEq>(mut inTuple: (T1, T2), mut func: Arc<dyn ::std::ops::Fn(T2) -> Result<T2> + 'static>) -> (T1, T2) {
-    pub type FuncT<T2: Clone> = fn(T2) -> Result<T2>;
+    pub type FuncT<T2: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T2) -> Result<T2> + 'static>;
 
     let mut outTuple: (T1, T2);
     let mut e1: T1;
@@ -1331,7 +1331,7 @@ pub fn applyTuple22<T1: Clone + 'static, T2: Clone + 'static + PartialEq>(mut in
 }
 
 pub fn applyTuple31<T1: Clone + 'static + PartialEq, T2: Clone + 'static, T3: Clone + 'static>(mut inTuple: (T1, T2, T3), mut func: Arc<dyn ::std::ops::Fn(T1) -> Result<T1> + 'static>) -> (T1, T2, T3) {
-    pub type FuncT<T1: Clone> = fn(T1) -> Result<T1>;
+    pub type FuncT<T1: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T1) -> Result<T1> + 'static>;
 
     let mut outTuple: (T1, T2, T3);
     let mut t1: T1;
@@ -1372,7 +1372,7 @@ pub fn msb(mut n: i32) -> i32 {
 }
 
 pub fn foldcallN<FT: Clone + 'static>(mut n: i32, mut inFoldFunc: Arc<dyn ::std::ops::Fn(FT) -> Result<FT> + 'static>, mut inStartValue: FT) -> FT {
-    pub type FoldFunc<FT: Clone> = fn(FT) -> Result<FT>;
+    pub type FoldFunc<FT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(FT) -> Result<FT> + 'static>;
 
     let mut outResult: FT = inStartValue.clone();
     for mut i in 1..=n.clone() {

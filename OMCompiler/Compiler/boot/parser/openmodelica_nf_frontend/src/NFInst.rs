@@ -198,7 +198,7 @@ pub fn instClassInProgram(mut classPath: Arc<Path>, mut program: Arc<metamodelic
         flatModel = Scalarize::scalarize(flatModel.clone())?;
     } else {
         assign_field!(
-            flatModel.variables = List::filterOnFalse(flatModel.variables.clone(), Arc::new(fnptr!(Variable::isEmptyArray, Arc<Variable::NFVariable>))),
+            flatModel.variables = List::filterOnFalse(flatModel.variables.clone(), (std::sync::Arc::new(fnptr!(Variable::isEmptyArray, Arc<Variable::NFVariable>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Variable::NFVariable>) -> Result<bool> + 'static>)),
             flatModel.variables = {
         let mut __acc: Arc<metamodelica::List<Arc<Variable::NFVariable>>> = metamodelica::nil();
         for mut v in (flatModel.variables.clone()).into_iter().cloned() {
@@ -218,11 +218,11 @@ pub fn instClassInProgram(mut classPath: Arc<Path>, mut program: Arc<metamodelic
         flatModel = SimplifyModel::combineBinaries(flatModel.clone())?;
         execStat((literal!("combineBinaries")).clone())?;
         assign_field!(
-            flatModel.equations = Equation::mapExpList(flatModel.equations.clone(), { let __pe_b1: Arc<dyn ::std::ops::Fn(Arc<Call::NFCall>) -> Result<Arc<Call::NFCall>> + 'static> = Arc::new({ let __pe_b1 = Pointer::create(1); move |__pe_a0| Call::toArrayConstructor(__pe_a0, __pe_b1.clone()) }); move |__pe_a0| Ok(Expression::wrapCall(__pe_a0, __pe_b1.clone())) }),
+            flatModel.equations = Equation::mapExpList(flatModel.equations.clone(), Arc::new({ let __pe_b1: Arc<dyn ::std::ops::Fn(Arc<Call::NFCall>) -> Result<Arc<Call::NFCall>> + 'static> = Arc::new({ let __pe_b1 = Pointer::create(1); move |__pe_a0| Call::toArrayConstructor(__pe_a0, __pe_b1.clone()) }); move |__pe_a0| Ok(Expression::wrapCall(__pe_a0, __pe_b1.clone())) })),
             flatModel.variables = {
         let mut __acc: Arc<metamodelica::List<Arc<Variable::NFVariable>>> = metamodelica::nil();
         for mut var in (flatModel.variables.clone()).into_iter().cloned() {
-            let __x = Variable::mapExp(var.clone(), { let __pe_b1: Arc<dyn ::std::ops::Fn(Arc<Call::NFCall>) -> Result<Arc<Call::NFCall>> + 'static> = Arc::new({ let __pe_b1 = Pointer::create(1); move |__pe_a0| Call::toArrayConstructor(__pe_a0, __pe_b1.clone()) }); move |__pe_a0| Ok(Expression::wrapCall(__pe_a0, __pe_b1.clone())) })?;
+            let __x = Variable::mapExp(var.clone(), Arc::new({ let __pe_b1: Arc<dyn ::std::ops::Fn(Arc<Call::NFCall>) -> Result<Arc<Call::NFCall>> + 'static> = Arc::new({ let __pe_b1 = Pointer::create(1); move |__pe_a0| Call::toArrayConstructor(__pe_a0, __pe_b1.clone()) }); move |__pe_a0| Ok(Expression::wrapCall(__pe_a0, __pe_b1.clone())) }))?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
@@ -368,7 +368,7 @@ pub fn instantiateRootFunction(mut funcNode: Arc<InstNode::InstNode>, mut contex
         let mut r#fn = r#fn.clone();
         functions = Flatten::flattenFunction(r#fn.clone(), functions.clone())?;
     }
-    flatModel = Arc::new(FlatModel::NFFlatModel { name: Arc::new(Path::IDENT { name: (InstNode::name(funcNode.clone())?).clone() }), variables: metamodelica::nil(), equations: metamodelica::nil(), initialEquations: metamodelica::nil(), algorithms: metamodelica::nil(), initialAlgorithms: metamodelica::nil(), source: ElementSource::createElementSource(InstNode::info(funcNode.clone())?, None, openmodelica_frontend_types::DAE::Prefix::NOPRE, (DAE::emptyCref.clone(), DAE::emptyCref.clone()))? });
+    flatModel = Arc::new(FlatModel::NFFlatModel { name: Arc::new(Path::IDENT { name: (InstNode::name(funcNode.clone())?).clone() }), variables: metamodelica::nil(), equations: metamodelica::nil(), initialEquations: metamodelica::nil(), algorithms: metamodelica::nil(), initialAlgorithms: metamodelica::nil(), source: ElementSource::createElementSource(InstNode::info(funcNode.clone())?, None, openmodelica_frontend_types::DAE::Prefix::NOPRE, (DAE::emptyCref().clone(), DAE::emptyCref().clone()))? });
     Ok((flatModel, functions, flatString))
 }
 
@@ -404,7 +404,7 @@ pub fn makeTopNode(mut topClasses: Arc<metamodelica::List<Arc<SCode::Element>>>,
         top_classes = cons(NFBuiltinFuncs::BASE_MODELICA_POSITIVE_MAX_SIMPLE.clone(), top_classes.clone());
     }
     cls_elem = Arc::new(SCode::Element::CLASS { name: (literal!("<top>")).clone(), prefixes: SCode::defaultPrefixes.clone(), encapsulatedPrefix: openmodelica_frontend_types::SCode::Encapsulated::NOT_ENCAPSULATED, partialPrefix: openmodelica_frontend_types::SCode::Partial::NOT_PARTIAL, restriction: openmodelica_frontend_types::SCode::Restriction::R_PACKAGE, classDef: Arc::new(SCode::ClassDef::PARTS { elementLst: top_classes.clone(), normalEquationLst: metamodelica::nil(), initialEquationLst: metamodelica::nil(), normalAlgorithmLst: metamodelica::nil(), initialAlgorithmLst: metamodelica::nil(), constraintLst: metamodelica::nil(), clsattrs: metamodelica::nil(), externalDecl: None }), cmt: Arc::new(SCode::Comment { annotation_: None, comment: None }), info: Absyn::dummyInfo.clone() });
-    generated_inners = UnorderedMap::new(fnptr!(stringHashDjb2, ArcStr), fnptr!(stringEq, ArcStr, ArcStr), 1);
+    generated_inners = UnorderedMap::new((std::sync::Arc::new(fnptr!(stringHashDjb2, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr) -> Result<i32> + 'static>), (std::sync::Arc::new(fnptr!(stringEq, ArcStr, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>), 1);
     node_ty = Arc::new(InstNodeType::TOP_SCOPE { annotationScope: Arc::new(crate::NFInstNode::InstNode::EMPTY_NODE), generatedInners: generated_inners.clone() });
     topNode = InstNode::newClass(cls_elem.clone(), Arc::new(crate::NFInstNode::InstNode::EMPTY_NODE), node_ty.clone())?;
     ann_package = Arc::new(SCode::Element::CLASS { name: (literal!("<annotations>")).clone(), prefixes: SCode::defaultPrefixes.clone(), encapsulatedPrefix: openmodelica_frontend_types::SCode::Encapsulated::ENCAPSULATED, partialPrefix: openmodelica_frontend_types::SCode::Partial::NOT_PARTIAL, restriction: openmodelica_frontend_types::SCode::Restriction::R_PACKAGE, classDef: Arc::new(SCode::ClassDef::PARTS { elementLst: annotationClasses.clone(), normalEquationLst: metamodelica::nil(), initialEquationLst: metamodelica::nil(), normalAlgorithmLst: metamodelica::nil(), initialAlgorithmLst: metamodelica::nil(), constraintLst: metamodelica::nil(), clsattrs: metamodelica::nil(), externalDecl: None }), cmt: Arc::new(SCode::Comment { annotation_: None, comment: None }), info: Absyn::dummyInfo.clone() });
@@ -412,14 +412,14 @@ pub fn makeTopNode(mut topClasses: Arc<metamodelica::List<Arc<SCode::Element>>>,
     expand(ann_node.clone(), InstContext::NO_CONTEXT.clone())?;
     cls = InstNode::getClass(ann_node.clone())?;
     elems = Class::classTree(cls.clone())?;
-    ClassTree::mapClasses(elems.clone(), Arc::new(fnptr!(markBuiltinTypeNodes, Arc<InstNode::InstNode>)));
+    ClassTree::mapClasses(elems.clone(), (std::sync::Arc::new(fnptr!(markBuiltinTypeNodes, Arc<InstNode::InstNode>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<InstNode::InstNode>) -> Result<Arc<InstNode::InstNode>> + 'static>));
     cls = Class::setClassTree(elems.clone(), cls.clone())?;
     ann_node = InstNode::updateClass(cls.clone(), ann_node.clone())?;
     node_ty = Arc::new(InstNodeType::TOP_SCOPE { annotationScope: ann_node.clone(), generatedInners: generated_inners.clone() });
     topNode = InstNode::setNodeType(node_ty.clone(), topNode.clone());
     cls = Class::fromSCode(top_classes.clone(), false, topNode.clone(), Class::DEFAULT_PREFIXES.clone())?;
     elems = Class::classTree(cls.clone())?;
-    ClassTree::mapClasses(elems.clone(), Arc::new(markBuiltinTypeNodesByAnnotation));
+    ClassTree::mapClasses(elems.clone(), (std::sync::Arc::new(markBuiltinTypeNodesByAnnotation) as std::sync::Arc<dyn ::std::ops::Fn(Arc<InstNode::InstNode>) -> Result<Arc<InstNode::InstNode>> + 'static>));
     ClassTree::replaceClass(Builtin::CLOCK_NODE().clone(), elems.clone())?;
     cls = Class::setClassTree(elems.clone(), cls.clone())?;
     topNode = InstNode::updateClass(cls.clone(), topNode.clone())?;
@@ -530,7 +530,7 @@ pub fn expandClass2(mut node: Arc<InstNode::InstNode>, mut context: i32) -> Resu
     let mut node: Arc<InstNode::InstNode> = node;
     let mut def: Arc<SCode::Element> = InstNode::definition(node.clone())?;
     let mut cdef: Arc<SCode::ClassDef>;
-    let mut info: SourceInfo;
+    let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
     let mut name_map: Option<Arc<UnorderedMap::UnorderedMap<ArcStr, Arc<Absyn::ComponentRef>>>> = None;
     let (__pa0, __pa1) = ::match_deref::match_deref! { match &(def.clone()) {
         Deref @ SCode::Element::CLASS { info: __pa0, classDef: __pa1, .. } => (__pa0.clone(), __pa1.clone()),
@@ -624,7 +624,7 @@ pub fn expandExtends(mut ext: Arc<InstNode::InstNode>, mut builtinExt: Arc<InstN
     let mut vis: SCode::Visibility = SCode::Visibility::PROTECTED;
     let mut smod: Arc<SCode::Mod> = Arc::new(SCode::Mod::NOMOD);
     let mut ann: Option<Arc<SCode::Annotation>> = None;
-    let mut info: SourceInfo;
+    let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
     if InstNode::isEmpty(ext.clone()) {
         return Ok((ext, builtinExt));
     }
@@ -807,7 +807,7 @@ pub fn expandClassDerived(mut element: Arc<SCode::Element>, mut definition: Arc<
     let mut cls: Arc<Class::NFClass> = Arc::new(Class::NOT_INSTANTIATED);
     let mut prefs: Arc<Class::Prefixes::Prefixes>;
     let mut sattrs: SCode::Attributes;
-    let mut attrs: Arc<Attributes::NFAttributes>;
+    let mut attrs: Arc<Attributes::NFAttributes> = Arc::new(<Attributes::NFAttributes as ::std::default::Default>::default());
     let mut dims: Arc<metamodelica::List<Arc<Dimension::NFDimension>>> = metamodelica::nil();
     let mut r#mod: Arc<Modifier::Modifier> = Arc::new(Modifier::NOMOD);
     let mut cc_mod: Arc<Modifier::Modifier> = Arc::new(Modifier::NOMOD);
@@ -905,7 +905,7 @@ pub fn instClassDef(mut cls: Arc<Class::NFClass>, mut outerMod: Arc<Modifier::Mo
     let mut outer_mod: Arc<Modifier::Modifier> = Arc::new(Modifier::NOMOD);
     let mut res: Arc<Restriction::NFRestriction> = Arc::new(Restriction::BLOCK);
     let mut ty: Arc<Type::NFType> = Arc::new(Type::ANY);
-    let mut attrs: Arc<Attributes::NFAttributes>;
+    let mut attrs: Arc<Attributes::NFAttributes> = Arc::new(<Attributes::NFAttributes as ::std::default::Default>::default());
     let () = (::match_deref::match_deref! { match &(cls.clone()) {
         Deref @ Class::EXPANDED_CLASS { restriction: res, .. } => {
             if InstNode::isBaseClass(node.clone()) {
@@ -1006,7 +1006,7 @@ pub fn instClassDef(mut cls: Arc<Class::NFClass>, mut outerMod: Arc<Modifier::Mo
 pub fn updateComponentType(mut component: Arc<InstNode::InstNode>, mut cls: Arc<InstNode::InstNode>) -> Result<Arc<InstNode::InstNode>> {
     let mut component: Arc<InstNode::InstNode> = component;
     if InstNode::isComponent(component.clone()) {
-        component = InstNode::componentApply(component.clone(), Arc::new(Component::setClassInstance), cls.clone())?;
+        component = InstNode::componentApply(component.clone(), (std::sync::Arc::new(Component::setClassInstance) as std::sync::Arc<dyn ::std::ops::Fn(Arc<InstNode::InstNode>, Arc<Component::NFComponent>) -> Result<Arc<Component::NFComponent>> + 'static>), cls.clone())?;
     }
     Ok(component)
 }
@@ -1015,7 +1015,7 @@ pub fn instExternalObjectStructors(mut ty: Arc<Type::NFType>, mut parent: Arc<In
     let mut constructor: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
     let mut destructor: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
     let mut par: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
-    let mut info: SourceInfo;
+    let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
     par = InstNode::parent(InstNode::parent(parent.clone()));
     if !(InstNode::isClass(par.clone()) && Class::isExternalObject(InstNode::getClass(par.clone())?)) {
         let (__pa0, __pa1) = ::match_deref::match_deref! { match &(ty.clone()) {
@@ -1069,7 +1069,7 @@ pub fn modifyExtends(mut extendsNode: Arc<InstNode::InstNode>, mut scope: Arc<In
     let mut elem: Arc<SCode::Element>;
     let mut ext_mod: Arc<Modifier::Modifier> = Arc::new(Modifier::NOMOD);
     let mut ext_node: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
-    let mut info: SourceInfo;
+    let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
     let mut cls: Arc<Class::NFClass> = Arc::new(Class::NOT_INSTANTIATED);
     let mut cls_tree: Arc<ClassTree::ClassTree> = Arc::new(ClassTree::EMPTY_TREE);
     cls = InstNode::getClass(extendsNode.clone())?;
@@ -1201,7 +1201,7 @@ pub fn applyModifier(mut modifier: Arc<Modifier::Modifier>, mut cls: Arc<ClassTr
                 let mut r#mod = r#mod.clone();
                 if '__try0: {
                     (node, _) = unwrap_break_err!(ClassTree::lookupElement((Modifier::name(r#mod.clone())?).clone(), cls.clone()), '__try0);
-                    unwrap_break_err!(InstNode::componentApply(node.clone(), Arc::new(Component::mergeModifier), r#mod.clone()), '__try0);
+                    unwrap_break_err!(InstNode::componentApply(node.clone(), (std::sync::Arc::new(Component::mergeModifier) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Modifier::Modifier>, Arc<Component::NFComponent>) -> Result<Arc<Component::NFComponent>> + 'static>), r#mod.clone()), '__try0);
                     Ok::<(), anyhow::Error>(())
                 }.is_err() {
                     Error::addSourceMessage(Error::MISSING_MODIFIED_ELEMENT.clone(), list![(Modifier::name(r#mod.clone())?).clone(), (InstNode::name(parent.clone())?).clone()], Modifier::info(r#mod.clone())?)?;
@@ -1252,7 +1252,7 @@ pub fn applyModifier(mut modifier: Arc<Modifier::Modifier>, mut cls: Arc<ClassTr
                         }
                     }
                     if InstNode::isComponent(node.clone()) {
-                        InstNode::componentApply(node.clone(), Arc::new(Component::mergeModifier), r#mod.clone())?;
+                        InstNode::componentApply(node.clone(), (std::sync::Arc::new(Component::mergeModifier) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Modifier::Modifier>, Arc<Component::NFComponent>) -> Result<Arc<Component::NFComponent>> + 'static>), r#mod.clone())?;
                     } else {
                         partialInstClass(node.clone())?;
                         node = InstNode::replaceClass(Class::mergeModifier(r#mod.clone(), InstNode::getClass(node.clone())?)?, node.clone())?;
@@ -1429,7 +1429,7 @@ pub fn redeclareEnum(mut redeclareClass: Arc<Class::NFClass>, mut originalClass:
             redeclaredClass.clone()
         },
         (Deref @ Class::PARTIAL_BUILTIN { ty: Deref @ Type::ENUMERATION { literals: lits1, .. }, .. }, Deref @ Class::PARTIAL_BUILTIN { ty: Deref @ Type::ENUMERATION { literals: lits2, .. }, .. }) => {
-            if !(lits2.clone().is_empty() || List::isEqualOnTrue(lits1.clone(), lits2.clone(), Arc::new(fnptr!(stringEq, ArcStr, ArcStr)))) {
+            if !(lits2.clone().is_empty() || List::isEqualOnTrue(lits1.clone(), lits2.clone(), (std::sync::Arc::new(fnptr!(stringEq, ArcStr, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>))) {
                 Error::addMultiSourceMessage(Error::REDECLARE_ENUM_NON_SUBTYPE.clone(), list![(InstNode::name(originalNode.clone())?).clone()], list![InstNode::info(redeclareNode.clone())?, InstNode::info(originalNode.clone())?])?;
                 bail!("fail");
             }
@@ -1509,15 +1509,15 @@ pub fn instComponentDef(mut component: Arc<SCode::Element>, mut outerMod: Arc<Mo
             let mut dims: Arc<metamodelica::List<Arc<Dimension::NFDimension>>> = metamodelica::nil();
             let mut binding: Arc<Binding::NFBinding> = Arc::new(Binding::UNBOUND);
             let mut condition: Arc<Binding::NFBinding> = Arc::new(Binding::UNBOUND);
-            let mut attr: Arc<Attributes::NFAttributes>;
-            let mut ty_attr: Arc<Attributes::NFAttributes>;
+            let mut attr: Arc<Attributes::NFAttributes> = Arc::new(<Attributes::NFAttributes as ::std::default::Default>::default());
+            let mut ty_attr: Arc<Attributes::NFAttributes> = Arc::new(<Attributes::NFAttributes as ::std::default::Default>::default());
             let mut inst_comp: Arc<Component::NFComponent> = Arc::new(Component::WILD);
             let mut ty_node: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
             let mut ty: Arc<Class::NFClass> = Arc::new(Class::NOT_INSTANTIATED);
             let mut elementDefinition: Arc<SCode::Element>;
             let mut parent_res: Arc<Restriction::NFRestriction> = Arc::new(Restriction::BLOCK);
             let mut res: Arc<Restriction::NFRestriction> = Arc::new(Restriction::BLOCK);
-            let mut cmt: Arc<SCode::Comment>;
+            let mut cmt: Arc<SCode::Comment> = Arc::new(<SCode::Comment as ::std::default::Default>::default());
             r#mod = instElementModifier(component.clone(), node.clone(), parent.clone())?;
             if !(propagatedSubs.clone().is_empty()) {
                 r#mod = Modifier::propagateSubs(r#mod.clone(), propagatedSubs.clone());
@@ -1548,7 +1548,7 @@ pub fn instComponentDef(mut component: Arc<SCode::Element>, mut outerMod: Arc<Mo
             InstNode::updateComponent(inst_comp.clone(), node.clone())?;
             r#mod = Modifier::propagate(r#mod.clone(), node.clone(), node.clone());
             (ty_node, ty_attr) = instTypeSpec(var_field!((*component).typeSpec, SCode::Element::COMPONENT).clone(), r#mod.clone(), attr.clone(), useBinding.clone() && !(Binding::isBound(binding.clone())), parent.clone(), node.clone(), info.clone(), instLevel.clone(), context.clone())?;
-            InstNode::componentApply(node.clone(), Arc::new(Component::setType), Arc::new(Type::NFType::UNTYPED { typeNode: ty_node.clone(), dimensions: metamodelica::arrayFromVec(dims.clone().into_iter().cloned().collect()) }))?;
+            InstNode::componentApply(node.clone(), (std::sync::Arc::new(Component::setType) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Type::NFType>, Arc<Component::NFComponent>) -> Result<Arc<Component::NFComponent>> + 'static>), Arc::new(Type::NFType::UNTYPED { typeNode: ty_node.clone(), dimensions: metamodelica::arrayFromVec(dims.clone().into_iter().cloned().collect()) }))?;
             if !(InstNode::isEmpty(ty_node.clone())) {
                 ty = InstNode::getClass(ty_node.clone())?;
                 res = Class::restriction(ty.clone());
@@ -1556,7 +1556,7 @@ pub fn instComponentDef(mut component: Arc<SCode::Element>, mut outerMod: Arc<Mo
                 if Restriction::isType(res.clone()) && SCodeUtil::optCommentHasBooleanNamedAnnotationFalse(SCodeUtil::getElementComment(elementDefinition.clone()), (literal!("absoluteValue")).clone())? {
                     cmt = Component::comment(InstNode::component(node.clone())?)?;
                     cmt = SCodeUtil::setAnnotationInComment((literal!("absoluteValue")).clone(), Arc::new(Absyn::Exp::BOOL { value: false }), cmt.clone(), false)?;
-                    InstNode::componentApply(node.clone(), Arc::new(Component::setComment), cmt.clone())?;
+                    InstNode::componentApply(node.clone(), (std::sync::Arc::new(Component::setComment) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SCode::Comment>, Arc<Component::NFComponent>) -> Result<Arc<Component::NFComponent>> + 'static>), cmt.clone())?;
                 }
                 if !(InstContext::inRedeclared(context.clone())) {
                     checkPartialComponent(node.clone(), attr.clone(), ty_node.clone(), Class::isPartial(ty.clone()), res.clone(), context.clone(), info.clone())?;
@@ -1565,7 +1565,7 @@ pub fn instComponentDef(mut component: Arc<SCode::Element>, mut outerMod: Arc<Mo
                 ty_attr = Attributes::updateVariability(ty_attr.clone(), ty.clone(), ty_node.clone(), node.clone(), context.clone())?;
                 ty_attr = Attributes::updateComponentConnectorType(ty_attr.clone(), res.clone(), context.clone(), node.clone())?;
                 if !(referenceEq(&attr.clone(),&ty_attr.clone())) {
-                    InstNode::componentApply(node.clone(), Arc::new(Component::setAttributes), ty_attr.clone())?;
+                    InstNode::componentApply(node.clone(), (std::sync::Arc::new(Component::setAttributes) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Attributes::NFAttributes>, Arc<Component::NFComponent>) -> Result<Arc<Component::NFComponent>> + 'static>), ty_attr.clone())?;
                 }
                 if useBinding.clone() && Binding::isUnbound(binding.clone()) && !(InstContext::inFunction(context.clone())) && ty_attr.variability.clone() <= Variability::PARAMETER.clone() && Restriction::isType(res.clone()) {
                     updateParameterBinding(node.clone(), context.clone())?;
@@ -1678,10 +1678,10 @@ pub fn redeclareComponent(mut redeclareNode: Arc<InstNode::InstNode>, mut origin
     let mut new_comp: Arc<Component::NFComponent> = Arc::new(Component::WILD);
     let mut binding: Arc<Binding::NFBinding> = Arc::new(Binding::UNBOUND);
     let mut condition: Arc<Binding::NFBinding> = Arc::new(Binding::UNBOUND);
-    let mut attr: Arc<Attributes::NFAttributes>;
+    let mut attr: Arc<Attributes::NFAttributes> = Arc::new(<Attributes::NFAttributes as ::std::default::Default>::default());
     let mut orig_ty: Arc<Type::NFType> = Arc::new(Type::ANY);
     let mut rdcl_ty: Arc<Type::NFType> = Arc::new(Type::ANY);
-    let mut cmt: Arc<SCode::Comment>;
+    let mut cmt: Arc<SCode::Comment> = Arc::new(<SCode::Comment as ::std::default::Default>::default());
     let mut orig_node: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
     let mut rdcl_node: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
     let mut rdcl_type: Arc<InstNodeType> = Arc::new(InstNodeType::BUILTIN_CLASS);
@@ -1750,13 +1750,13 @@ pub fn checkOuterComponentMod(mut node: Arc<InstNode::InstNode>, mut context: i3
 
 pub fn instTypeSpec(mut typeSpec: Arc<Absyn::TypeSpec>, mut modifier: Arc<Modifier::Modifier>, mut attributes: Arc<Attributes::NFAttributes>, mut useBinding: bool, mut scope: Arc<InstNode::InstNode>, mut parent: Arc<InstNode::InstNode>, mut info: SourceInfo, mut instLevel: i32, mut context: i32) -> Result<(Arc<InstNode::InstNode>, Arc<Attributes::NFAttributes>)> {
     let mut node: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
-    let mut outAttributes: Arc<Attributes::NFAttributes>;
+    let mut outAttributes: Arc<Attributes::NFAttributes> = Arc::new(<Attributes::NFAttributes as ::std::default::Default>::default());
     node = 'mc: {
         let __mc_input = typeSpec.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ Absyn::TypeSpec::TPATH { .. } => {
-                    let mut outAttributes: Arc<Attributes::NFAttributes>;
+                    let mut outAttributes: Arc<Attributes::NFAttributes> = outAttributes.clone();
                     let mut node: Arc<InstNode::InstNode> = node.clone();
                     node = Lookup::lookupClassName(var_field!((*typeSpec).path, Absyn::TypeSpec::TPATH).clone(), scope.clone(), context.clone(), info.clone(), true)?;
                     if instLevel.clone() >= 100 {
@@ -1773,7 +1773,7 @@ pub fn instTypeSpec(mut typeSpec: Arc<Absyn::TypeSpec>, mut modifier: Arc<Modifi
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ Absyn::TypeSpec::TPATH { .. } => {
                     if !((InstContext::inInstanceAPI(context.clone()))) { bail!("guard") }
-                    let mut outAttributes: Arc<Attributes::NFAttributes>;
+                    let mut outAttributes: Arc<Attributes::NFAttributes> = outAttributes.clone();
                     outAttributes = attributes.clone();
                     Ok(Arc::new(crate::NFInstNode::InstNode::EMPTY_NODE))
                 }
@@ -1802,7 +1802,7 @@ pub fn checkRecursiveDefinition(mut componentType: Arc<InstNode::InstNode>, mut 
             parent_type = InstNode::classScope(parent.clone());
             if referenceEq(&InstNode::definition(componentType.clone())?,&InstNode::definition(parent_type.clone())?) {
                 Error::addSourceMessage(Error::RECURSIVE_DEFINITION.clone(), list![(InstNode::name(component.clone())?).clone(), (InstNode::name(InstNode::classScope(InstNode::parent(component.clone())))?).clone()], InstNode::info(component.clone())?)?;
-                InstNode::componentApply(component.clone(), Arc::new(Component::setClassInstance), Arc::new(crate::NFInstNode::InstNode::EMPTY_NODE))?;
+                InstNode::componentApply(component.clone(), (std::sync::Arc::new(Component::setClassInstance) as std::sync::Arc<dyn ::std::ops::Fn(Arc<InstNode::InstNode>, Arc<Component::NFComponent>) -> Result<Arc<Component::NFComponent>> + 'static>), Arc::new(crate::NFInstNode::InstNode::EMPTY_NODE))?;
                 bail!("fail");
             }
             parent = InstNode::parent(parent.clone());
@@ -1810,7 +1810,7 @@ pub fn checkRecursiveDefinition(mut componentType: Arc<InstNode::InstNode>, mut 
     }
     if limitReached.clone() {
         Error::addSourceMessage(Error::INST_RECURSION_LIMIT_REACHED.clone(), list![(AbsynUtil::pathString(InstNode::scopePath(component.clone(), InstNode::ScopeType::RELATIVE.clone(), false)?, (literal!(".")).clone(), true, false)?).clone()], InstNode::info(component.clone())?)?;
-        InstNode::componentApply(component.clone(), Arc::new(Component::setClassInstance), Arc::new(crate::NFInstNode::InstNode::EMPTY_NODE))?;
+        InstNode::componentApply(component.clone(), (std::sync::Arc::new(Component::setClassInstance) as std::sync::Arc<dyn ::std::ops::Fn(Arc<InstNode::InstNode>, Arc<Component::NFComponent>) -> Result<Arc<Component::NFComponent>> + 'static>), Arc::new(crate::NFInstNode::InstNode::EMPTY_NODE))?;
         bail!("fail");
     }
     Ok(())
@@ -1865,7 +1865,7 @@ pub fn instDimension(mut dimension: Arc<Dimension::NFDimension>, mut context: i3
                     let mut exp: Arc<Expression::NFExpression>;
                     exp = instExp(var_field!((**dim).subscript, Absyn::Subscript::SUBSCRIPT).clone(), var_field!((*dimension).scope, Dimension::NFDimension::RAW_DIM).clone(), context.clone(), info.clone())?;
                     if settings.resizableArrays.clone() {
-                        exp = Expression::map(exp.clone(), Arc::new(fnptr!(instResizable, Arc<Expression::NFExpression>)))?;
+                        exp = Expression::map(exp.clone(), (std::sync::Arc::new(fnptr!(instResizable, Arc<Expression::NFExpression>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>))?;
                     }
                     Ok(Arc::new(Dimension::NFDimension::UNTYPED { dimension: exp.clone(), isProcessing: false }))
                 }
@@ -1897,7 +1897,7 @@ pub fn instResizable(mut exp: Arc<Expression::NFExpression>) -> Arc<Expression::
     let _ = (::match_deref::match_deref! { match &(exp.clone()) {
         Deref @ Expression::CREF { cref: Deref @ ComponentRef::CREF { node: node @ Deref @ InstNode::COMPONENT_NODE { .. }, .. }, .. } if (Component::variability(Pointer::access(var_field!((**node).component, InstNode::InstNode::COMPONENT_NODE).clone())) == Variability::PARAMETER.clone()) => {
             let mut comp: Arc<Component::NFComponent> = Arc::new(Component::WILD);
-            let mut attr: Arc<Attributes::NFAttributes>;
+            let mut attr: Arc<Attributes::NFAttributes> = Arc::new(<Attributes::NFAttributes as ::std::default::Default>::default());
             comp = Pointer::access(var_field!((**node).component, InstNode::InstNode::COMPONENT_NODE).clone());
             let _ = (::match_deref::match_deref! { match &(comp.clone()) {
         Deref @ Component::COMPONENT { attributes: attr, .. } => {
@@ -1931,7 +1931,7 @@ pub fn instExpressions(mut node: Arc<InstNode::InstNode>, mut scope: Arc<InstNod
     let mut exts: metamodelica::Array<Arc<InstNode::InstNode>>;
     let mut cls_tree: Arc<ClassTree::ClassTree> = Arc::new(ClassTree::EMPTY_TREE);
     let mut dims: metamodelica::Array<Arc<Dimension::NFDimension>>;
-    let mut info: SourceInfo;
+    let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
     let mut ty: Arc<Type::NFType> = Arc::new(Type::ANY);
     let mut next_context: i32 = 0;
     let mut connect_breaks: Arc<ConnectBreakTree::Tree> = Arc::new(ConnectBreakTree::Tree::EMPTY);
@@ -2031,7 +2031,7 @@ pub fn makeComplexType(mut restriction: Arc<Restriction::NFRestriction>, mut nod
 pub fn makeRecordComplexType(mut node: Arc<InstNode::InstNode>, mut cls: Arc<Class::NFClass>) -> Result<Arc<ComplexType::NFComplexType>> {
     let mut ty: Arc<ComplexType::NFComplexType> = Arc::new(ComplexType::CLASS);
     let mut cls_node: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
-    let mut indexMap: Arc<UnorderedMap::UnorderedMap<ArcStr, i32>> = UnorderedMap::new(fnptr!(stringHashDjb2, ArcStr), fnptr!(stringEq, ArcStr, ArcStr), 1);
+    let mut indexMap: Arc<UnorderedMap::UnorderedMap<ArcStr, i32>> = UnorderedMap::new((std::sync::Arc::new(fnptr!(stringHashDjb2, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr) -> Result<i32> + 'static>), (std::sync::Arc::new(fnptr!(stringEq, ArcStr, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>), 1);
     cls_node = if (SCodeUtil::isOperatorRecord(InstNode::definition(node.clone())?)) {InstNode::classScope(node.clone())} else {InstNode::classScope(InstNode::getDerivedNode(node.clone(), true))};
     ty = Arc::new(ComplexType::NFComplexType::RECORD { constructor: cls_node.clone(), fields: metamodelica::arrayFromVec(metamodelica::nil().into_iter().cloned().collect()), indexMap: indexMap.clone() });
     Ok(ty)
@@ -2575,7 +2575,7 @@ pub fn instExternalDecl(mut extDecl: Arc<SCode::ExternalDecl>, mut scope: Arc<In
             let mut lang: ArcStr = arcstr::literal!("");
             let mut args: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
             let mut ret_cref: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
-            let mut info: SourceInfo;
+            let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
             info = InstNode::info(scope.clone())?;
             name = (Util::getOptionOrDefault(extDecl.funcName.clone(), (InstNode::name(scope.clone())?).clone())).clone();
             lang = (Util::getOptionOrDefault(extDecl.lang.clone(), (literal!("C")).clone())).clone();
@@ -2660,7 +2660,7 @@ pub fn filterInstanceAPIEquations(mut eql: Arc<metamodelica::List<Arc<SCode::Equ
     },
                 elseBranch = filterInstanceAPIEquations(var_field!((*eq).elseBranch, SCode::Equation::EQ_IF).clone())
             );
-            if (List::all(var_field!((*eq).thenBranch, SCode::Equation::EQ_IF).clone(), Arc::new(listEmpty)) && var_field!((*eq).elseBranch, SCode::Equation::EQ_IF).clone().is_empty()) {outEql.clone()} else {cons(eq.clone(), outEql.clone())}
+            if (List::all(var_field!((*eq).thenBranch, SCode::Equation::EQ_IF).clone(), std::sync::Arc::new(fnptr!(listEmpty, _))) && var_field!((*eq).elseBranch, SCode::Equation::EQ_IF).clone().is_empty()) {outEql.clone()} else {cons(eq.clone(), outEql.clone())}
         },
         _ => outEql.clone(),
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
@@ -2823,7 +2823,7 @@ pub fn instConnectorCref(mut absynCref: Arc<Absyn::ComponentRef>, mut scope: Arc
 }
 
 pub fn makeSource(mut comment: Arc<SCode::Comment>, mut info: SourceInfo) -> Arc<DAE::ElementSource> {
-    let mut source: Arc<DAE::ElementSource>;
+    let mut source: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
     source = Arc::new(DAE::ElementSource { info: info.clone(), partOfLst: metamodelica::nil(), instance: Arc::new(openmodelica_frontend_types::DAE::ComponentPrefix::NOCOMPPRE), connectEquationOptLst: metamodelica::nil(), typeLst: metamodelica::nil(), operations: metamodelica::nil(), comment: list![comment.clone()] });
     source
 }
@@ -2849,7 +2849,7 @@ pub fn instAlgorithmSection(mut algorithmSection: Arc<SCode::AlgorithmSection>, 
     let mut alg: Arc<Algorithm::NFAlgorithm>;
     let mut statements: Arc<metamodelica::List<Arc<Statement::NFStatement>>> = metamodelica::nil();
     statements = instStatements(algorithmSection.statements.clone(), scope.clone(), context.clone())?;
-    alg = Arc::new(Algorithm::NFAlgorithm { statements: statements.clone(), inputs: metamodelica::nil(), outputs: metamodelica::nil(), stmtDiffInfo: None, scope: scope.clone(), source: DAE::emptyElementSource.clone() });
+    alg = Arc::new(Algorithm::NFAlgorithm { statements: statements.clone(), inputs: metamodelica::nil(), outputs: metamodelica::nil(), stmtDiffInfo: None, scope: scope.clone(), source: DAE::emptyElementSource().clone() });
     Ok(alg)
 }
 
@@ -3178,7 +3178,7 @@ pub fn updateImplicitVariability(mut node: Arc<InstNode::InstNode>, mut parentEv
             for mut c in __range0 {
                 updateImplicitVariabilityComp(c.clone(), parentEval.clone(), context.clone())?;
             }
-            Sections::apply(var_field!((*cls).sections, Class::NFClass::INSTANCED_CLASS).clone(), Arc::new({ let __pe_b1 = false; move |__pe_a0| updateImplicitVariabilityEq(__pe_a0, __pe_b1.clone()) }), Arc::new(updateImplicitVariabilityAlg), Arc::new({ let __pe_b1 = false; move |__pe_a0| updateImplicitVariabilityEq(__pe_a0, __pe_b1.clone()) }), Arc::new(updateImplicitVariabilityAlg));
+            Sections::apply(var_field!((*cls).sections, Class::NFClass::INSTANCED_CLASS).clone(), Arc::new({ let __pe_b1 = false; move |__pe_a0| updateImplicitVariabilityEq(__pe_a0, __pe_b1.clone()) }), (std::sync::Arc::new(updateImplicitVariabilityAlg) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Algorithm::NFAlgorithm>) -> Result<()> + 'static>), Arc::new({ let __pe_b1 = false; move |__pe_a0| updateImplicitVariabilityEq(__pe_a0, __pe_b1.clone()) }), (std::sync::Arc::new(updateImplicitVariabilityAlg) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Algorithm::NFAlgorithm>) -> Result<()> + 'static>));
             ()
         },
         Deref @ Class::EXPANDED_DERIVED { .. } => {
@@ -3369,7 +3369,7 @@ pub fn updateImplicitVariabilityStmt(mut stmt: Arc<Statement::NFStatement>, mut 
 }
 
 pub fn markImplicitWhenExp(mut exp: Arc<Expression::NFExpression>) -> Result<()> {
-    Expression::apply(exp.clone(), Arc::new(markImplicitWhenExp_traverser))?;
+    Expression::apply(exp.clone(), (std::sync::Arc::new(markImplicitWhenExp_traverser) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<()> + 'static>))?;
     Ok(())
 }
 

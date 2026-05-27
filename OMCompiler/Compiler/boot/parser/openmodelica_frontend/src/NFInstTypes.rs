@@ -51,7 +51,7 @@ use openmodelica_frontend_types::SCode;
 //public import NFConnect2;
 pub type Prefix = Arc<NFInstPrefix::Prefix>;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Element {
     ELEMENT {
         component: Arc<Component>,
@@ -71,7 +71,7 @@ pub enum Element {
 }
 pub use self::Element::{ELEMENT,CONDITIONAL_ELEMENT,EXTENDED_ELEMENTS};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Class {
     COMPLEX_CLASS {
         name: Arc<Absyn::Path>,
@@ -87,7 +87,7 @@ pub enum Class {
 }
 pub use self::Class::{COMPLEX_CLASS,BASIC_TYPE};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Function {
     /// A function has inputs, output and locals without binding.
     ///     These are resolved to statements in the algorithm section
@@ -152,7 +152,7 @@ pub enum Binding {
 }
 pub use self::Binding::{UNBOUND,RAW_BINDING,UNTYPED_BINDING,TYPED_BINDING};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Component {
     UNTYPED_COMPONENT {
         name: Arc<Absyn::Path>,
@@ -287,7 +287,7 @@ pub enum DaePrefixes {
 }
 pub use self::DaePrefixes::{NO_DAE_PREFIXES,DAE_PREFIXES};
 
-pub static DEFAULT_CONST_DAE_PREFIXES: DaePrefixes = DaePrefixes::DAE_PREFIXES { visibility: openmodelica_frontend_types::DAE::VarVisibility::PUBLIC, variability: openmodelica_frontend_types::DAE::VarKind::CONST, finalPrefix: openmodelica_frontend_types::SCode::Final::NOT_FINAL, innerOuter: openmodelica_ast::Absyn::InnerOuter::NOT_INNER_OUTER, direction: openmodelica_frontend_types::DAE::VarDirection::BIDIR, connectorType: openmodelica_frontend_types::DAE::ConnectorType::NON_CONNECTOR };
+pub const fn DEFAULT_CONST_DAE_PREFIXES() -> DaePrefixes { DaePrefixes::DAE_PREFIXES { visibility: openmodelica_frontend_types::DAE::VarVisibility::PUBLIC, variability: openmodelica_frontend_types::DAE::VarKind::CONST, finalPrefix: openmodelica_frontend_types::SCode::Final::NOT_FINAL, innerOuter: openmodelica_ast::Absyn::InnerOuter::NOT_INNER_OUTER, direction: openmodelica_frontend_types::DAE::VarDirection::BIDIR, connectorType: openmodelica_frontend_types::DAE::ConnectorType::NON_CONNECTOR } }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Equation {

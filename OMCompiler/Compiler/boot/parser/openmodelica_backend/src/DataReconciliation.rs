@@ -173,14 +173,14 @@ pub fn newExtractionAlgorithm(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result<
         BackendDump::dumpMatching(match1.clone())?;
         (solvedEqsAndVarsInfo, matchedEqsLst) = getSolvedEquationAndVarsInfo(match1.clone());
         bindingEquations = getBindingEquation(currentSystem.clone(), mapIncRowEqn.clone())?;
-        bindingEquations = List::flatten(List::map1r(bindingEquations.clone(), Arc::new(listGet), Arc::new(mapEqnIncRow.clone().borrow().iter().cloned().collect::<metamodelica::List<_>>())));
+        bindingEquations = List::flatten(List::map1r(bindingEquations.clone(), (std::sync::Arc::new(listGet) as std::sync::Arc<dyn ::std::ops::Fn(_, i32) -> Result<_> + 'static>), Arc::new(mapEqnIncRow.clone().borrow().iter().cloned().collect::<metamodelica::List<_>>())));
         (approximatedEquations, boundaryConditionEquations) = getEquationsTaggedApproximatedOrBoundaryCondition(BackendEquation::equationList(currentSystem.orderedEqs.clone()), 1)?;
         if debug.clone() {
-            BackendDump::dumpEquationList(List::map1r(approximatedEquations.clone(), Arc::new(fnptr!(BackendEquation::get, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, i32)), currentSystem.orderedEqs.clone()), (literal!("ApproximatedEquations")).clone());
-            BackendDump::dumpEquationList(List::map1r(boundaryConditionEquations.clone(), Arc::new(fnptr!(BackendEquation::get, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, i32)), currentSystem.orderedEqs.clone()), (literal!("boundaryConditionEquations")).clone());
+            BackendDump::dumpEquationList(List::map1r(approximatedEquations.clone(), (std::sync::Arc::new(fnptr!(BackendEquation::get, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, i32)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, i32) -> Result<Arc<BackendDAE::Equation>> + 'static>), currentSystem.orderedEqs.clone()), (literal!("ApproximatedEquations")).clone());
+            BackendDump::dumpEquationList(List::map1r(boundaryConditionEquations.clone(), (std::sync::Arc::new(fnptr!(BackendEquation::get, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, i32)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, i32) -> Result<Arc<BackendDAE::Equation>> + 'static>), currentSystem.orderedEqs.clone()), (literal!("boundaryConditionEquations")).clone());
         }
-        approximatedEquations = List::flatten(List::map1r(approximatedEquations.clone(), Arc::new(listGet), Arc::new(mapEqnIncRow.clone().borrow().iter().cloned().collect::<metamodelica::List<_>>())));
-        boundaryConditionEquations = List::flatten(List::map1r(boundaryConditionEquations.clone(), Arc::new(listGet), Arc::new(mapEqnIncRow.clone().borrow().iter().cloned().collect::<metamodelica::List<_>>())));
+        approximatedEquations = List::flatten(List::map1r(approximatedEquations.clone(), (std::sync::Arc::new(listGet) as std::sync::Arc<dyn ::std::ops::Fn(_, i32) -> Result<_> + 'static>), Arc::new(mapEqnIncRow.clone().borrow().iter().cloned().collect::<metamodelica::List<_>>())));
+        boundaryConditionEquations = List::flatten(List::map1r(boundaryConditionEquations.clone(), (std::sync::Arc::new(listGet) as std::sync::Arc<dyn ::std::ops::Fn(_, i32) -> Result<_> + 'static>), Arc::new(mapEqnIncRow.clone().borrow().iter().cloned().collect::<metamodelica::List<_>>())));
         boundaryConditionTaggedEquationSolvedVars = getBoundaryConditionVariables(boundaryConditionEquations.clone(), solvedEqsAndVarsInfo.clone());
         if debug.clone() {
             println!("{}", (literal!("\nApproximated and BoundaryCondition Equation Indexes :\n===========================================")).clone());
@@ -198,13 +198,13 @@ pub fn newExtractionAlgorithm(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result<
             println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nadjacencyMatrix              :")); __mm_s.push_str(&*anyString(adjacencyMatrix.clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
         }
         dumpSetSVarsSolvedInfo(matchedEqsLst.clone(), solvedEqsAndVarsInfo.clone(), mapIncRowEqn.clone(), currentSystem.orderedEqs.clone(), currentSystem.orderedVars.clone(), (literal!("Standard BLT of the original model")).clone())?;
-        BackendDump::dumpVarList(List::map1r(knowns.clone().reverse(), Arc::new(BackendVariable::getVarAt), currentSystem.orderedVars.clone()), (literal!("Variables of interest")).clone());
-        BackendDump::dumpVarList(List::map1r(boundaryConditionVars.clone().reverse(), Arc::new(BackendVariable::getVarAt), currentSystem.orderedVars.clone()), (literal!("Boundary conditions")).clone());
+        BackendDump::dumpVarList(List::map1r(knowns.clone().reverse(), (std::sync::Arc::new(BackendVariable::getVarAt) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Variables, i32) -> Result<BackendDAE::Var> + 'static>), currentSystem.orderedVars.clone()), (literal!("Variables of interest")).clone());
+        BackendDump::dumpVarList(List::map1r(boundaryConditionVars.clone().reverse(), (std::sync::Arc::new(BackendVariable::getVarAt) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Variables, i32) -> Result<BackendDAE::Var> + 'static>), currentSystem.orderedVars.clone()), (literal!("Boundary conditions")).clone());
         dumpSetSVarsSolvedInfo(bindingEquations.clone(), solvedEqsAndVarsInfo.clone(), mapIncRowEqn.clone(), currentSystem.orderedEqs.clone(), currentSystem.orderedVars.clone(), (literal!("Binding equations")).clone())?;
-        BackendDump::dumpEquationList(List::map1r(approximatedEquations.clone(), Arc::new(fnptr!(BackendEquation::get, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, i32)), currentSystem.orderedEqs.clone()), (literal!("Approximated equations")).clone());
-        BackendDump::dumpEquationList(List::map1r(boundaryConditionEquations.clone(), Arc::new(fnptr!(BackendEquation::get, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, i32)), currentSystem.orderedEqs.clone()), (literal!("boundary condition equations")).clone());
+        BackendDump::dumpEquationList(List::map1r(approximatedEquations.clone(), (std::sync::Arc::new(fnptr!(BackendEquation::get, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, i32)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, i32) -> Result<Arc<BackendDAE::Equation>> + 'static>), currentSystem.orderedEqs.clone()), (literal!("Approximated equations")).clone());
+        BackendDump::dumpEquationList(List::map1r(boundaryConditionEquations.clone(), (std::sync::Arc::new(fnptr!(BackendEquation::get, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, i32)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, i32) -> Result<Arc<BackendDAE::Equation>> + 'static>), currentSystem.orderedEqs.clone()), (literal!("boundary condition equations")).clone());
         ebltEqsLst = getEBLTEquations(knowns.clone(), solvedEqsAndVarsInfo.clone(), mapIncRowEqn.clone(), currentSystem.clone());
-        ebltEqsLst = List::setDifferenceOnTrue(ebltEqsLst.clone(), bindingEquations.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
+        ebltEqsLst = List::setDifferenceOnTrue(ebltEqsLst.clone(), bindingEquations.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
         dumpSetSVarsSolvedInfo(ebltEqsLst.clone(), solvedEqsAndVarsInfo.clone(), mapIncRowEqn.clone(), currentSystem.orderedEqs.clone(), currentSystem.orderedVars.clone(), (literal!("E-BLT: equations that compute the variables of interest")).clone())?;
         (currentSystem, tempSetS, mappedEbltSetS, status, setBFailedBoundaryConditionEquations) = traverseEBLTAndExtractSetCAndSetS(currentSystem.clone(), ebltEqsLst.clone(), sBltAdjacencyMatrix.clone(), knowns.clone(), boundaryConditionVars.clone(), currentSystem.orderedVars.clone(), currentSystem.orderedEqs.clone(), mapIncRowEqn.clone(), solvedEqsAndVarsInfo.clone(), debug.clone(), setBFailedBoundaryConditionEquations.clone(), bindingEquations.clone())?;
         if !(status.clone()) {
@@ -213,14 +213,14 @@ pub fn newExtractionAlgorithm(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result<
         procedureCount = procedureCount.clone() + 1;
     }
     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nExtraction procedure is successfully completed in iteration count: ")); __mm_s.push_str(&*intString(procedureCount.clone() - 1)); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*arcstr::literal!(UNDERLINE)); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
-    ebltEqsLst = List::setDifferenceOnTrue(ebltEqsLst.clone(), approximatedEquations.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
-    tempSetS = List::setDifferenceOnTrue(tempSetS.clone(), approximatedEquations.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
+    ebltEqsLst = List::setDifferenceOnTrue(ebltEqsLst.clone(), approximatedEquations.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
+    tempSetS = List::setDifferenceOnTrue(tempSetS.clone(), approximatedEquations.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
     (ebltEqsLst, tempSetS, complexEquationList, swappedEquationList) = swapComplexEquationsInSetC(ebltEqsLst.clone(), tempSetS.clone(), mappedEbltSetS.clone(), currentSystem.clone(), mapIncRowEqn.clone())?;
     if debug.clone() {
         dumpSetSVarsSolvedInfo(tempSetS.clone(), solvedEqsAndVarsInfo.clone(), mapIncRowEqn.clone(), currentSystem.orderedEqs.clone(), currentSystem.orderedVars.clone(), (literal!("Set-S Solved-Variables Information")).clone())?;
     }
     extractedVarsfromSetS = getVariablesAfterExtraction(metamodelica::nil(), tempSetS.clone(), sBltAdjacencyMatrix.clone());
-    extractedVarsfromSetS = List::setDifferenceOnTrue(extractedVarsfromSetS.clone(), knowns.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
+    extractedVarsfromSetS = List::setDifferenceOnTrue(extractedVarsfromSetS.clone(), knowns.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
     setC = List::unique(getAbsoluteIndexHelper(ebltEqsLst.clone(), mapIncRowEqn.clone()));
     setS = List::unique(getAbsoluteIndexHelper(tempSetS.clone(), mapIncRowEqn.clone()));
     setC_Eq = getEquationsFromSBLTAndEBLT(setC.clone(), currentSystem.orderedEqs.clone(), metamodelica::nil());
@@ -228,9 +228,9 @@ pub fn newExtractionAlgorithm(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result<
     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nFinal set of equations after extraction algorithm\n")); __mm_s.push_str(&*arcstr::literal!(UNDERLINE)); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*literal!("SET_C: ")); __mm_s.push_str(&*dumplistInteger(setC.clone())); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*literal!("SET_S: ")); __mm_s.push_str(&*dumplistInteger(setS.clone())); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
     BackendDump::dumpEquationArray(BackendEquation::listEquation(setC_Eq.clone())?, (literal!("SET_C")).clone())?;
     BackendDump::dumpEquationArray(BackendEquation::listEquation(setS_Eq.clone())?, (literal!("SET_S")).clone())?;
-    unMeasuredVariables = List::map1r(unMeasuredVariablesOfInterest.clone().reverse(), Arc::new(BackendVariable::getVarAt), currentSystem.orderedVars.clone());
-    outDiffVars = BackendVariable::listVar(List::map1r(knowns.clone(), Arc::new(BackendVariable::getVarAt), currentSystem.orderedVars.clone()));
-    outDiffVars = BackendVariable::listVar(List::map1(BackendVariable::varList(outDiffVars.clone())?, Arc::new(fnptr!(BackendVariable::setVarUnreplaceable, BackendDAE::Var, bool)), true));
+    unMeasuredVariables = List::map1r(unMeasuredVariablesOfInterest.clone().reverse(), (std::sync::Arc::new(BackendVariable::getVarAt) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Variables, i32) -> Result<BackendDAE::Var> + 'static>), currentSystem.orderedVars.clone());
+    outDiffVars = BackendVariable::listVar(List::map1r(knowns.clone(), (std::sync::Arc::new(BackendVariable::getVarAt) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Variables, i32) -> Result<BackendDAE::Var> + 'static>), currentSystem.orderedVars.clone()));
+    outDiffVars = BackendVariable::listVar(List::map1(BackendVariable::varList(outDiffVars.clone())?, (std::sync::Arc::new(fnptr!(BackendVariable::setVarUnreplaceable, BackendDAE::Var, bool)) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, bool) -> Result<BackendDAE::Var> + 'static>), true));
     (csvfileName, measurementcsvData) = readMeasurementsFromCSV(shared.clone())?;
     outDiffVars = setStartValuesToMeasurements(outDiffVars.clone(), measurementcsvData.clone(), (csvfileName.clone()).clone())?;
     (_, residualEquations) = BackendEquation::traverseEquationArray(BackendEquation::listEquation(setC_Eq.clone())?, Arc::new(BackendEquation::traverseEquationToScalarResidualForm.clone()), (shared.functionTree.clone(), metamodelica::nil()))?;
@@ -239,7 +239,7 @@ pub fn newExtractionAlgorithm(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result<
     outResidualEqns = BackendEquation::listEquation(residualEquations.clone())?;
     outOtherEqns = BackendEquation::listEquation(setS_Eq.clone())?;
     paramVars = BackendEquation::equationsVars(outOtherEqns.clone(), shared.globalKnownVars.clone())?;
-    outOtherVars = BackendVariable::listVar(List::map1r(extractedVarsfromSetS.clone(), Arc::new(BackendVariable::getVarAt), currentSystem.orderedVars.clone()));
+    outOtherVars = BackendVariable::listVar(List::map1r(extractedVarsfromSetS.clone(), (std::sync::Arc::new(BackendVariable::getVarAt) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Variables, i32) -> Result<BackendDAE::Var> + 'static>), currentSystem.orderedVars.clone()));
     dumpSetSVars(outOtherVars.clone(), (literal!("Unknown variables in SET_S")).clone())?;
     BackendDump::dumpVariables(BackendVariable::listVar(paramVars.clone()), (literal!("Parameters in SET_S")).clone())?;
     auxillaryConditionsFilename = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*shared.info.fileNamePrefix.clone()); __mm_s.push_str(&*literal!("_AuxiliaryConditions.html")); ArcStr::from(__mm_s) }).clone();
@@ -261,7 +261,7 @@ pub fn newExtractionAlgorithm(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result<
     assign_field!(shared.dataReconciliationData = Some(BackendDAE::DataReconciliationData { relatedBoundaryConditions: (setBFailedBoundaryConditionEquations.clone().len() as i32), symbolicJacobianH: None, setBVars: Some(BackendVariable::listVar(unMeasuredVariables.clone())), datareconinputs: outDiffVars.clone(), setcVars: outResidualVars.clone(), symbolicJacobian: simCodeJacobian.clone() }));
     currentSystem = BackendDAEUtil::setEqSystVars(currentSystem.clone(), BackendVariable::mergeVariables(outResidualVars.clone(), outOtherVars.clone(), true)?)?;
     currentSystem = BackendDAEUtil::setEqSystEqs(currentSystem.clone(), BackendEquation::merge(outResidualEqns.clone(), outOtherEqns.clone())?);
-    inputVars = BackendVariable::listVar(List::map1(BackendVariable::varList(outDiffVars.clone())?, Arc::new(fnptr!(BackendVariable::setVarDirection, BackendDAE::Var, DAE::VarDirection)), openmodelica_frontend_types::DAE::VarDirection::INPUT));
+    inputVars = BackendVariable::listVar(List::map1(BackendVariable::varList(outDiffVars.clone())?, (std::sync::Arc::new(fnptr!(BackendVariable::setVarDirection, BackendDAE::Var, DAE::VarDirection)) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, DAE::VarDirection) -> Result<BackendDAE::Var> + 'static>), openmodelica_frontend_types::DAE::VarDirection::INPUT));
     shared = BackendDAEUtil::setSharedGlobalKnownVars(shared.clone(), BackendVariable::mergeVariables(shared.globalKnownVars.clone(), inputVars.clone(), true)?);
     if !(System::regularFileExists(({ let mut __mm_s = String::new(); __mm_s.push_str(&*inDAE.shared.info.fileNamePrefix.clone()); __mm_s.push_str(&*literal!("_Inputs.csv")); ArcStr::from(__mm_s) }).clone())) {
         r#str = (literal!("Variable Names,Measured Value-x,HalfWidthConfidenceInterval\n")).clone();
@@ -332,7 +332,7 @@ fn readMeasurementsFromCSV(mut shared: Arc<BackendDAE::Shared>) -> Result<(ArcSt
     let mut tokens: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
     let mut lines: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
     let mut simulationSettings: SimCode::SimulationSettings;
-    let mut p: Absyn::Program;
+    let mut p: Absyn::Program = <Absyn::Program as ::std::default::Default>::default();
     if isNone(shared.info.simSettingsOption.clone()) {
         Error::addMessage(Error::INTERNAL_ERROR.clone(), list![(literal!(": SimulationSettings is NONE, expected SimulationSettings to be present in shared.info.simSettingsOption for reading measurements from csv file for data reconciliation initialization.")).clone()])?;
         bail!("fail");
@@ -533,14 +533,14 @@ pub fn extractBoundaryCondition(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Resul
         BackendDump::dumpMatching(match1.clone())?;
         (solvedEqsAndVarsInfo, matchedEqsLst) = getSolvedEquationAndVarsInfo(match1.clone());
         bindingEquations = getBindingEquation(currentSystem.clone(), mapIncRowEqn.clone())?;
-        bindingEquations = List::flatten(List::map1r(bindingEquations.clone(), Arc::new(listGet), Arc::new(mapEqnIncRow.clone().borrow().iter().cloned().collect::<metamodelica::List<_>>())));
+        bindingEquations = List::flatten(List::map1r(bindingEquations.clone(), (std::sync::Arc::new(listGet) as std::sync::Arc<dyn ::std::ops::Fn(_, i32) -> Result<_> + 'static>), Arc::new(mapEqnIncRow.clone().borrow().iter().cloned().collect::<metamodelica::List<_>>())));
         (approximatedEquations, boundaryConditionEquations) = getEquationsTaggedApproximatedOrBoundaryCondition(BackendEquation::equationList(currentSystem.orderedEqs.clone()), 1)?;
         if debug.clone() {
-            BackendDump::dumpEquationList(List::map1r(approximatedEquations.clone(), Arc::new(fnptr!(BackendEquation::get, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, i32)), currentSystem.orderedEqs.clone()), (literal!("ApproximatedEquations")).clone());
-            BackendDump::dumpEquationList(List::map1r(boundaryConditionEquations.clone(), Arc::new(fnptr!(BackendEquation::get, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, i32)), currentSystem.orderedEqs.clone()), (literal!("boundaryConditionEquations")).clone());
+            BackendDump::dumpEquationList(List::map1r(approximatedEquations.clone(), (std::sync::Arc::new(fnptr!(BackendEquation::get, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, i32)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, i32) -> Result<Arc<BackendDAE::Equation>> + 'static>), currentSystem.orderedEqs.clone()), (literal!("ApproximatedEquations")).clone());
+            BackendDump::dumpEquationList(List::map1r(boundaryConditionEquations.clone(), (std::sync::Arc::new(fnptr!(BackendEquation::get, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, i32)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, i32) -> Result<Arc<BackendDAE::Equation>> + 'static>), currentSystem.orderedEqs.clone()), (literal!("boundaryConditionEquations")).clone());
         }
-        approximatedEquations = List::flatten(List::map1r(approximatedEquations.clone(), Arc::new(listGet), Arc::new(mapEqnIncRow.clone().borrow().iter().cloned().collect::<metamodelica::List<_>>())));
-        boundaryConditionEquations = List::flatten(List::map1r(boundaryConditionEquations.clone(), Arc::new(listGet), Arc::new(mapEqnIncRow.clone().borrow().iter().cloned().collect::<metamodelica::List<_>>())));
+        approximatedEquations = List::flatten(List::map1r(approximatedEquations.clone(), (std::sync::Arc::new(listGet) as std::sync::Arc<dyn ::std::ops::Fn(_, i32) -> Result<_> + 'static>), Arc::new(mapEqnIncRow.clone().borrow().iter().cloned().collect::<metamodelica::List<_>>())));
+        boundaryConditionEquations = List::flatten(List::map1r(boundaryConditionEquations.clone(), (std::sync::Arc::new(listGet) as std::sync::Arc<dyn ::std::ops::Fn(_, i32) -> Result<_> + 'static>), Arc::new(mapEqnIncRow.clone().borrow().iter().cloned().collect::<metamodelica::List<_>>())));
         boundaryConditionTaggedEquationSolvedVars = getBoundaryConditionVariables(boundaryConditionEquations.clone(), solvedEqsAndVarsInfo.clone());
         if debug.clone() {
             println!("{}", (literal!("\nApproximated and BoundaryCondition Equation Indexes :\n===========================================")).clone());
@@ -558,13 +558,13 @@ pub fn extractBoundaryCondition(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Resul
             println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nadjacencyMatrix              :")); __mm_s.push_str(&*anyString(adjacencyMatrix.clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
         }
         dumpSetSVarsSolvedInfo(matchedEqsLst.clone(), solvedEqsAndVarsInfo.clone(), mapIncRowEqn.clone(), currentSystem.orderedEqs.clone(), currentSystem.orderedVars.clone(), (literal!("Standard BLT of the original model")).clone())?;
-        BackendDump::dumpVarList(List::map1r(knowns.clone().reverse(), Arc::new(BackendVariable::getVarAt), currentSystem.orderedVars.clone()), (literal!("Variables of interest")).clone());
-        BackendDump::dumpVarList(List::map1r(boundaryConditionVars.clone().reverse(), Arc::new(BackendVariable::getVarAt), currentSystem.orderedVars.clone()), (literal!("Boundary conditions")).clone());
+        BackendDump::dumpVarList(List::map1r(knowns.clone().reverse(), (std::sync::Arc::new(BackendVariable::getVarAt) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Variables, i32) -> Result<BackendDAE::Var> + 'static>), currentSystem.orderedVars.clone()), (literal!("Variables of interest")).clone());
+        BackendDump::dumpVarList(List::map1r(boundaryConditionVars.clone().reverse(), (std::sync::Arc::new(BackendVariable::getVarAt) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Variables, i32) -> Result<BackendDAE::Var> + 'static>), currentSystem.orderedVars.clone()), (literal!("Boundary conditions")).clone());
         dumpSetSVarsSolvedInfo(bindingEquations.clone(), solvedEqsAndVarsInfo.clone(), mapIncRowEqn.clone(), currentSystem.orderedEqs.clone(), currentSystem.orderedVars.clone(), (literal!("Binding equations")).clone())?;
-        BackendDump::dumpEquationList(List::map1r(approximatedEquations.clone(), Arc::new(fnptr!(BackendEquation::get, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, i32)), currentSystem.orderedEqs.clone()), (literal!("Approximated equations")).clone());
-        BackendDump::dumpEquationList(List::map1r(boundaryConditionEquations.clone(), Arc::new(fnptr!(BackendEquation::get, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, i32)), currentSystem.orderedEqs.clone()), (literal!("boundary condition equations")).clone());
+        BackendDump::dumpEquationList(List::map1r(approximatedEquations.clone(), (std::sync::Arc::new(fnptr!(BackendEquation::get, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, i32)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, i32) -> Result<Arc<BackendDAE::Equation>> + 'static>), currentSystem.orderedEqs.clone()), (literal!("Approximated equations")).clone());
+        BackendDump::dumpEquationList(List::map1r(boundaryConditionEquations.clone(), (std::sync::Arc::new(fnptr!(BackendEquation::get, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, i32)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, i32) -> Result<Arc<BackendDAE::Equation>> + 'static>), currentSystem.orderedEqs.clone()), (literal!("boundary condition equations")).clone());
         ebltEqsLst = getEBLTEquations(knowns.clone(), solvedEqsAndVarsInfo.clone(), mapIncRowEqn.clone(), currentSystem.clone());
-        ebltEqsLst = List::setDifferenceOnTrue(ebltEqsLst.clone(), bindingEquations.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
+        ebltEqsLst = List::setDifferenceOnTrue(ebltEqsLst.clone(), bindingEquations.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
         dumpSetSVarsSolvedInfo(ebltEqsLst.clone(), solvedEqsAndVarsInfo.clone(), mapIncRowEqn.clone(), currentSystem.orderedEqs.clone(), currentSystem.orderedVars.clone(), (literal!("E-BLT: equations that compute the variables of interest")).clone())?;
         (currentSystem, tempSetS, mappedEbltSetS, status, setBFailedBoundaryConditionEquations) = traverseEBLTAndExtractSetCAndSetS(currentSystem.clone(), ebltEqsLst.clone(), sBltAdjacencyMatrix.clone(), knowns.clone(), boundaryConditionVars.clone(), currentSystem.orderedVars.clone(), currentSystem.orderedEqs.clone(), mapIncRowEqn.clone(), solvedEqsAndVarsInfo.clone(), debug.clone(), setBFailedBoundaryConditionEquations.clone(), bindingEquations.clone())?;
         if !(status.clone()) {
@@ -575,7 +575,7 @@ pub fn extractBoundaryCondition(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Resul
     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nExtraction procedure is successfully completed in iteration count: ")); __mm_s.push_str(&*intString(procedureCount.clone() - 1)); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*arcstr::literal!(UNDERLINE)); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
     dumpFailedBoundaryConditionEquationAndVars(setBFailedBoundaryConditionEquations.clone(), currentSystem.orderedVars.clone(), metamodelica::nil(), false)?;
     (_, setSPrime, failedboundaryConditionEquations, failedboundaryConditionVars, status) = ExtractSetSPrime(currentSystem.clone(), setBFailedBoundaryConditionEquations.clone(), sBltAdjacencyMatrix.clone(), knowns.clone(), boundaryConditionVars.clone(), currentSystem.orderedVars.clone(), currentSystem.orderedEqs.clone(), mapIncRowEqn.clone(), solvedEqsAndVarsInfo.clone(), bindingEquations.clone(), debug.clone())?;
-    setSPrime = List::setDifferenceOnTrue(setSPrime.clone(), approximatedEquations.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
+    setSPrime = List::setDifferenceOnTrue(setSPrime.clone(), approximatedEquations.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
     if debug.clone() {
         dumpSetSVarsSolvedInfo(setSPrime.clone(), solvedEqsAndVarsInfo.clone(), mapIncRowEqn.clone(), currentSystem.orderedEqs.clone(), currentSystem.orderedVars.clone(), (literal!("Set-S Solved-Variables Information")).clone())?;
     }
@@ -586,19 +586,19 @@ pub fn extractBoundaryCondition(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Resul
     BackendDump::dumpEquationArray(BackendEquation::listEquation(setS_Eq.clone())?, (literal!("SET_S'")).clone())?;
     paramVars = BackendEquation::equationsVars(BackendEquation::listEquation(listAppend(failedboundaryConditionEquations.clone(), setS_Eq.clone()))?, shared.globalKnownVars.clone())?;
     setSVars = BackendEquation::equationsVars(BackendEquation::listEquation(listAppend(failedboundaryConditionEquations.clone(), setS_Eq.clone()))?, currentSystem.orderedVars.clone())?;
-    (knownVars, setSVars) = List::extractOnTrue(setSVars.clone(), Arc::new(fnptr!(BackendVariable::varHasUncertainValueRefine, BackendDAE::Var)));
-    (_, setSVars) = List::extract1OnTrue(setSVars.clone(), Arc::new(fnptr!(isBoundaryConditionVars, BackendDAE::Var, Arc<metamodelica::List<BackendDAE::Var>>)), failedboundaryConditionVars.clone());
-    (extraVarsinSetSPrime, _) = List::extract1OnTrue(setSVars.clone(), Arc::new(fnptr!(isBoundaryConditionVars, BackendDAE::Var, Arc<metamodelica::List<BackendDAE::Var>>)), List::map1r(boundaryConditionVars.clone().reverse(), Arc::new(BackendVariable::getVarAt), currentSystem.orderedVars.clone()));
+    (knownVars, setSVars) = List::extractOnTrue(setSVars.clone(), (std::sync::Arc::new(fnptr!(BackendVariable::varHasUncertainValueRefine, BackendDAE::Var)) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var) -> Result<bool> + 'static>));
+    (_, setSVars) = List::extract1OnTrue(setSVars.clone(), (std::sync::Arc::new(fnptr!(isBoundaryConditionVars, BackendDAE::Var, Arc<metamodelica::List<BackendDAE::Var>>)) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, Arc<metamodelica::List<BackendDAE::Var>>) -> Result<bool> + 'static>), failedboundaryConditionVars.clone());
+    (extraVarsinSetSPrime, _) = List::extract1OnTrue(setSVars.clone(), (std::sync::Arc::new(fnptr!(isBoundaryConditionVars, BackendDAE::Var, Arc<metamodelica::List<BackendDAE::Var>>)) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, Arc<metamodelica::List<BackendDAE::Var>>) -> Result<bool> + 'static>), List::map1r(boundaryConditionVars.clone().reverse(), (std::sync::Arc::new(BackendVariable::getVarAt) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Variables, i32) -> Result<BackendDAE::Var> + 'static>), currentSystem.orderedVars.clone()));
     BackendDump::dumpVarList(failedboundaryConditionVars.clone(), (literal!("Boundary condition Vars'")).clone());
     BackendDump::dumpVarList(setSVars.clone(), (literal!("Intermediate vars in set-S'")).clone());
     BackendDump::dumpVarList(knownVars.clone(), (literal!("Known vars in set-S'")).clone());
     BackendDump::dumpVarList(paramVars.clone(), (literal!("Param vars in set-S'")).clone());
-    unMeasuredVariables = List::map1r(unMeasuredVariablesOfInterest.clone().reverse(), Arc::new(BackendVariable::getVarAt), currentSystem.orderedVars.clone());
-    outDiffVars = BackendVariable::listVar(List::map1r(knowns.clone(), Arc::new(BackendVariable::getVarAt), currentSystem.orderedVars.clone()));
-    outDiffVars = BackendVariable::listVar(List::map1(BackendVariable::varList(outDiffVars.clone())?, Arc::new(fnptr!(BackendVariable::setVarUnreplaceable, BackendDAE::Var, bool)), true));
+    unMeasuredVariables = List::map1r(unMeasuredVariablesOfInterest.clone().reverse(), (std::sync::Arc::new(BackendVariable::getVarAt) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Variables, i32) -> Result<BackendDAE::Var> + 'static>), currentSystem.orderedVars.clone());
+    outDiffVars = BackendVariable::listVar(List::map1r(knowns.clone(), (std::sync::Arc::new(BackendVariable::getVarAt) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Variables, i32) -> Result<BackendDAE::Var> + 'static>), currentSystem.orderedVars.clone()));
+    outDiffVars = BackendVariable::listVar(List::map1(BackendVariable::varList(outDiffVars.clone())?, (std::sync::Arc::new(fnptr!(BackendVariable::setVarUnreplaceable, BackendDAE::Var, bool)) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, bool) -> Result<BackendDAE::Var> + 'static>), true));
     (csvfileName, measurementcsvData) = readMeasurementsFromCSV(shared.clone())?;
     outDiffVars = setStartValuesToMeasurements(outDiffVars.clone(), measurementcsvData.clone(), (csvfileName.clone()).clone())?;
-    outBoundaryConditionVars = BackendVariable::listVar(List::map1(failedboundaryConditionVars.clone().reverse(), Arc::new(fnptr!(BackendVariable::setVarUnreplaceable, BackendDAE::Var, bool)), true));
+    outBoundaryConditionVars = BackendVariable::listVar(List::map1(failedboundaryConditionVars.clone().reverse(), (std::sync::Arc::new(fnptr!(BackendVariable::setVarUnreplaceable, BackendDAE::Var, bool)) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, bool) -> Result<BackendDAE::Var> + 'static>), true));
     outBoundaryConditionEquations = BackendEquation::listEquation(failedboundaryConditionEquations.clone())?;
     outOtherEqns = BackendEquation::listEquation(setS_Eq.clone())?;
     outOtherVars = BackendVariable::listVar(setSVars.clone());
@@ -620,7 +620,7 @@ pub fn extractBoundaryCondition(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Resul
     assign_field!(shared.dataReconciliationData = Some(BackendDAE::DataReconciliationData { relatedBoundaryConditions: (setBFailedBoundaryConditionEquations.clone().len() as i32), symbolicJacobianH: None, setBVars: Some(BackendVariable::listVar(unMeasuredVariables.clone())), datareconinputs: outDiffVars.clone(), setcVars: outBoundaryConditionVars.clone(), symbolicJacobian: simCodeJacobian.clone() }));
     currentSystem = BackendDAEUtil::setEqSystEqs(currentSystem.clone(), BackendEquation::merge(outBoundaryConditionEquations.clone(), outOtherEqns.clone())?);
     currentSystem = BackendDAEUtil::setEqSystVars(currentSystem.clone(), BackendVariable::mergeVariables(outBoundaryConditionVars.clone(), outOtherVars.clone(), true)?)?;
-    inputVars = BackendVariable::listVar(List::map1(BackendVariable::varList(outDiffVars.clone())?, Arc::new(fnptr!(BackendVariable::setVarDirection, BackendDAE::Var, DAE::VarDirection)), openmodelica_frontend_types::DAE::VarDirection::INPUT));
+    inputVars = BackendVariable::listVar(List::map1(BackendVariable::varList(outDiffVars.clone())?, (std::sync::Arc::new(fnptr!(BackendVariable::setVarDirection, BackendDAE::Var, DAE::VarDirection)) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, DAE::VarDirection) -> Result<BackendDAE::Var> + 'static>), openmodelica_frontend_types::DAE::VarDirection::INPUT));
     shared = BackendDAEUtil::setSharedGlobalKnownVars(shared.clone(), BackendVariable::mergeVariables(shared.globalKnownVars.clone(), inputVars.clone(), true)?);
     r#str = (dumpToCsv((literal!("")).clone(), BackendVariable::varList(outBoundaryConditionVars.clone())?)?).clone();
     System::writeFile(({ let mut __mm_s = String::new(); __mm_s.push_str(&*shared.info.fileNamePrefix.clone()); __mm_s.push_str(&*literal!("_BoundaryConditionVars.txt")); ArcStr::from(__mm_s) }).clone(), (r#str.clone()).clone())?;
@@ -753,14 +753,14 @@ pub fn stateEstimation(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result<Arc<Bac
         BackendDump::dumpMatching(match1.clone())?;
         (solvedEqsAndVarsInfo, matchedEqsLst) = getSolvedEquationAndVarsInfo(match1.clone());
         bindingEquations = getBindingEquation(currentSystem.clone(), mapIncRowEqn.clone())?;
-        bindingEquations = List::flatten(List::map1r(bindingEquations.clone(), Arc::new(listGet), Arc::new(mapEqnIncRow.clone().borrow().iter().cloned().collect::<metamodelica::List<_>>())));
+        bindingEquations = List::flatten(List::map1r(bindingEquations.clone(), (std::sync::Arc::new(listGet) as std::sync::Arc<dyn ::std::ops::Fn(_, i32) -> Result<_> + 'static>), Arc::new(mapEqnIncRow.clone().borrow().iter().cloned().collect::<metamodelica::List<_>>())));
         (approximatedEquations, boundaryConditionEquations) = getEquationsTaggedApproximatedOrBoundaryCondition(BackendEquation::equationList(currentSystem.orderedEqs.clone()), 1)?;
         if debug.clone() {
-            BackendDump::dumpEquationList(List::map1r(approximatedEquations.clone(), Arc::new(fnptr!(BackendEquation::get, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, i32)), currentSystem.orderedEqs.clone()), (literal!("ApproximatedEquations")).clone());
-            BackendDump::dumpEquationList(List::map1r(boundaryConditionEquations.clone(), Arc::new(fnptr!(BackendEquation::get, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, i32)), currentSystem.orderedEqs.clone()), (literal!("boundaryConditionEquations")).clone());
+            BackendDump::dumpEquationList(List::map1r(approximatedEquations.clone(), (std::sync::Arc::new(fnptr!(BackendEquation::get, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, i32)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, i32) -> Result<Arc<BackendDAE::Equation>> + 'static>), currentSystem.orderedEqs.clone()), (literal!("ApproximatedEquations")).clone());
+            BackendDump::dumpEquationList(List::map1r(boundaryConditionEquations.clone(), (std::sync::Arc::new(fnptr!(BackendEquation::get, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, i32)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, i32) -> Result<Arc<BackendDAE::Equation>> + 'static>), currentSystem.orderedEqs.clone()), (literal!("boundaryConditionEquations")).clone());
         }
-        approximatedEquations = List::flatten(List::map1r(approximatedEquations.clone(), Arc::new(listGet), Arc::new(mapEqnIncRow.clone().borrow().iter().cloned().collect::<metamodelica::List<_>>())));
-        boundaryConditionEquations = List::flatten(List::map1r(boundaryConditionEquations.clone(), Arc::new(listGet), Arc::new(mapEqnIncRow.clone().borrow().iter().cloned().collect::<metamodelica::List<_>>())));
+        approximatedEquations = List::flatten(List::map1r(approximatedEquations.clone(), (std::sync::Arc::new(listGet) as std::sync::Arc<dyn ::std::ops::Fn(_, i32) -> Result<_> + 'static>), Arc::new(mapEqnIncRow.clone().borrow().iter().cloned().collect::<metamodelica::List<_>>())));
+        boundaryConditionEquations = List::flatten(List::map1r(boundaryConditionEquations.clone(), (std::sync::Arc::new(listGet) as std::sync::Arc<dyn ::std::ops::Fn(_, i32) -> Result<_> + 'static>), Arc::new(mapEqnIncRow.clone().borrow().iter().cloned().collect::<metamodelica::List<_>>())));
         boundaryConditionTaggedEquationSolvedVars = getBoundaryConditionVariables(boundaryConditionEquations.clone(), solvedEqsAndVarsInfo.clone());
         if debug.clone() {
             println!("{}", (literal!("\nApproximated and BoundaryCondition Equation Indexes :\n===========================================")).clone());
@@ -779,14 +779,14 @@ pub fn stateEstimation(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result<Arc<Bac
             println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nadjacencyMatrix              :")); __mm_s.push_str(&*anyString(adjacencyMatrix.clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
         }
         dumpSetSVarsSolvedInfo(matchedEqsLst.clone(), solvedEqsAndVarsInfo.clone(), mapIncRowEqn.clone(), currentSystem.orderedEqs.clone(), currentSystem.orderedVars.clone(), (literal!("Standard BLT of the original model")).clone())?;
-        BackendDump::dumpVarList(List::map1r(knowns.clone().reverse(), Arc::new(BackendVariable::getVarAt), currentSystem.orderedVars.clone()), (literal!("Variables of interest")).clone());
-        BackendDump::dumpVarList(List::map1r(unMeasuredVariablesOfInterest.clone().reverse(), Arc::new(BackendVariable::getVarAt), currentSystem.orderedVars.clone()), (literal!("unMeasured Variables of interest")).clone());
-        BackendDump::dumpVarList(List::map1r(boundaryConditionVars.clone().reverse(), Arc::new(BackendVariable::getVarAt), currentSystem.orderedVars.clone()), (literal!("Boundary conditions")).clone());
+        BackendDump::dumpVarList(List::map1r(knowns.clone().reverse(), (std::sync::Arc::new(BackendVariable::getVarAt) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Variables, i32) -> Result<BackendDAE::Var> + 'static>), currentSystem.orderedVars.clone()), (literal!("Variables of interest")).clone());
+        BackendDump::dumpVarList(List::map1r(unMeasuredVariablesOfInterest.clone().reverse(), (std::sync::Arc::new(BackendVariable::getVarAt) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Variables, i32) -> Result<BackendDAE::Var> + 'static>), currentSystem.orderedVars.clone()), (literal!("unMeasured Variables of interest")).clone());
+        BackendDump::dumpVarList(List::map1r(boundaryConditionVars.clone().reverse(), (std::sync::Arc::new(BackendVariable::getVarAt) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Variables, i32) -> Result<BackendDAE::Var> + 'static>), currentSystem.orderedVars.clone()), (literal!("Boundary conditions")).clone());
         dumpSetSVarsSolvedInfo(bindingEquations.clone(), solvedEqsAndVarsInfo.clone(), mapIncRowEqn.clone(), currentSystem.orderedEqs.clone(), currentSystem.orderedVars.clone(), (literal!("Binding equations")).clone())?;
-        BackendDump::dumpEquationList(List::map1r(approximatedEquations.clone(), Arc::new(fnptr!(BackendEquation::get, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, i32)), currentSystem.orderedEqs.clone()), (literal!("Approximated equations")).clone());
-        BackendDump::dumpEquationList(List::map1r(boundaryConditionEquations.clone(), Arc::new(fnptr!(BackendEquation::get, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, i32)), currentSystem.orderedEqs.clone()), (literal!("boundary condition equations")).clone());
+        BackendDump::dumpEquationList(List::map1r(approximatedEquations.clone(), (std::sync::Arc::new(fnptr!(BackendEquation::get, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, i32)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, i32) -> Result<Arc<BackendDAE::Equation>> + 'static>), currentSystem.orderedEqs.clone()), (literal!("Approximated equations")).clone());
+        BackendDump::dumpEquationList(List::map1r(boundaryConditionEquations.clone(), (std::sync::Arc::new(fnptr!(BackendEquation::get, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, i32)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, i32) -> Result<Arc<BackendDAE::Equation>> + 'static>), currentSystem.orderedEqs.clone()), (literal!("boundary condition equations")).clone());
         ebltEqsLst = getEBLTEquations(knowns.clone(), solvedEqsAndVarsInfo.clone(), mapIncRowEqn.clone(), currentSystem.clone());
-        ebltEqsLst = List::setDifferenceOnTrue(ebltEqsLst.clone(), bindingEquations.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
+        ebltEqsLst = List::setDifferenceOnTrue(ebltEqsLst.clone(), bindingEquations.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
         dumpSetSVarsSolvedInfo(ebltEqsLst.clone(), solvedEqsAndVarsInfo.clone(), mapIncRowEqn.clone(), currentSystem.orderedEqs.clone(), currentSystem.orderedVars.clone(), (literal!("E-BLT: equations that compute the variables of interest")).clone())?;
         (currentSystem, tempSetS, mappedEbltSetS, status, setBFailedBoundaryConditionEquations) = traverseEBLTAndExtractSetCAndSetS(currentSystem.clone(), ebltEqsLst.clone(), sBltAdjacencyMatrix.clone(), knowns.clone(), boundaryConditionVars.clone(), currentSystem.orderedVars.clone(), currentSystem.orderedEqs.clone(), mapIncRowEqn.clone(), solvedEqsAndVarsInfo.clone(), debug.clone(), setBFailedBoundaryConditionEquations.clone(), bindingEquations.clone())?;
         if !(status.clone()) {
@@ -795,10 +795,10 @@ pub fn stateEstimation(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result<Arc<Bac
         procedureCount = procedureCount.clone() + 1;
     }
     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nExtraction procedure is successfully completed in iteration count: ")); __mm_s.push_str(&*intString(procedureCount.clone() - 1)); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*arcstr::literal!(UNDERLINE)); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
-    ebltEqsLst = List::setDifferenceOnTrue(ebltEqsLst.clone(), approximatedEquations.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
-    tempSetS = List::setDifferenceOnTrue(tempSetS.clone(), approximatedEquations.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
+    ebltEqsLst = List::setDifferenceOnTrue(ebltEqsLst.clone(), approximatedEquations.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
+    tempSetS = List::setDifferenceOnTrue(tempSetS.clone(), approximatedEquations.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
     extractedVarsfromSetS = getVariablesAfterExtraction(metamodelica::nil(), tempSetS.clone(), sBltAdjacencyMatrix.clone());
-    extractedVarsfromSetS = List::setDifferenceOnTrue(extractedVarsfromSetS.clone(), knowns.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
+    extractedVarsfromSetS = List::setDifferenceOnTrue(extractedVarsfromSetS.clone(), knowns.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
     setC = List::unique(getAbsoluteIndexHelper(ebltEqsLst.clone(), mapIncRowEqn.clone()));
     setS = List::unique(getAbsoluteIndexHelper(tempSetS.clone(), mapIncRowEqn.clone()));
     setC_Eq = getEquationsFromSBLTAndEBLT(setC.clone(), currentSystem.orderedEqs.clone(), metamodelica::nil());
@@ -806,8 +806,8 @@ pub fn stateEstimation(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result<Arc<Bac
     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nFinal set of equations after extraction algorithm\n")); __mm_s.push_str(&*arcstr::literal!(UNDERLINE)); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*literal!("SET_C: ")); __mm_s.push_str(&*dumplistInteger(setC.clone())); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*literal!("SET_S: ")); __mm_s.push_str(&*dumplistInteger(setS.clone())); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
     BackendDump::dumpEquationArray(BackendEquation::listEquation(setC_Eq.clone())?, (literal!("SET_C")).clone())?;
     BackendDump::dumpEquationArray(BackendEquation::listEquation(setS_Eq.clone())?, (literal!("SET_S")).clone())?;
-    outDiffVars = BackendVariable::listVar(List::map1r(knowns.clone(), Arc::new(BackendVariable::getVarAt), currentSystem.orderedVars.clone()));
-    outDiffVars = BackendVariable::listVar(List::map1(BackendVariable::varList(outDiffVars.clone())?, Arc::new(fnptr!(BackendVariable::setVarUnreplaceable, BackendDAE::Var, bool)), true));
+    outDiffVars = BackendVariable::listVar(List::map1r(knowns.clone(), (std::sync::Arc::new(BackendVariable::getVarAt) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Variables, i32) -> Result<BackendDAE::Var> + 'static>), currentSystem.orderedVars.clone()));
+    outDiffVars = BackendVariable::listVar(List::map1(BackendVariable::varList(outDiffVars.clone())?, (std::sync::Arc::new(fnptr!(BackendVariable::setVarUnreplaceable, BackendDAE::Var, bool)) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, bool) -> Result<BackendDAE::Var> + 'static>), true));
     (csvfileName, measurementcsvData) = readMeasurementsFromCSV(shared.clone())?;
     outDiffVars = setStartValuesToMeasurements(outDiffVars.clone(), measurementcsvData.clone(), (csvfileName.clone()).clone())?;
     (_, residualEquations) = BackendEquation::traverseEquationArray(BackendEquation::listEquation(setC_Eq.clone())?, Arc::new(BackendEquation::traverseEquationToScalarResidualForm.clone()), (shared.functionTree.clone(), metamodelica::nil()))?;
@@ -816,7 +816,7 @@ pub fn stateEstimation(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result<Arc<Bac
     outResidualEqns = BackendEquation::listEquation(residualEquations.clone())?;
     outOtherEqns = BackendEquation::listEquation(setS_Eq.clone())?;
     paramVars = BackendEquation::equationsVars(outOtherEqns.clone(), shared.globalKnownVars.clone())?;
-    outOtherVars = BackendVariable::listVar(List::map1r(extractedVarsfromSetS.clone(), Arc::new(BackendVariable::getVarAt), currentSystem.orderedVars.clone()));
+    outOtherVars = BackendVariable::listVar(List::map1r(extractedVarsfromSetS.clone(), (std::sync::Arc::new(BackendVariable::getVarAt) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Variables, i32) -> Result<BackendDAE::Var> + 'static>), currentSystem.orderedVars.clone()));
     dumpSetSVars(outOtherVars.clone(), (literal!("Unknown variables in SET_S")).clone())?;
     BackendDump::dumpVariables(BackendVariable::listVar(paramVars.clone()), (literal!("Parameters in SET_S")).clone())?;
     auxillaryConditionsFilename = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*shared.info.fileNamePrefix.clone()); __mm_s.push_str(&*literal!("_AuxiliaryConditions.html")); ArcStr::from(__mm_s) }).clone();
@@ -829,15 +829,15 @@ pub fn stateEstimation(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result<Arc<Bac
     numRelatedBoundaryConditions = (setBFailedBoundaryConditionEquations.clone().len() as i32);
     VerifyDataReconciliation(ebltEqsLst.clone(), tempSetS.clone(), knowns.clone(), boundaryConditionVars.clone(), sBltAdjacencyMatrix.clone(), solvedEqsAndVarsInfo.clone(), exactEquationVars.clone(), approximatedEquations.clone(), currentSystem.orderedVars.clone(), currentSystem.orderedEqs.clone(), mapIncRowEqn.clone(), outOtherVars.clone(), setS_Eq.clone(), shared.clone(), setC.clone(), setS.clone(), (unMeasuredVariablesOfInterest.clone().len() as i32))?;
     unMeasuredEqsLst = getEBLTEquations(unMeasuredVariablesOfInterest.clone(), solvedEqsAndVarsInfo.clone(), mapIncRowEqn.clone(), currentSystem.clone());
-    unMeasuredEqsLst = List::setDifferenceOnTrue(unMeasuredEqsLst.clone(), bindingEquations.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
-    unMeasuredVariables = List::map1r(unMeasuredVariablesOfInterest.clone().reverse(), Arc::new(BackendVariable::getVarAt), currentSystem.orderedVars.clone());
+    unMeasuredEqsLst = List::setDifferenceOnTrue(unMeasuredEqsLst.clone(), bindingEquations.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
+    unMeasuredVariables = List::map1r(unMeasuredVariablesOfInterest.clone().reverse(), (std::sync::Arc::new(BackendVariable::getVarAt) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Variables, i32) -> Result<BackendDAE::Var> + 'static>), currentSystem.orderedVars.clone());
     dumpFailedBoundaryConditionEquationAndVars(setBFailedBoundaryConditionEquations.clone(), currentSystem.orderedVars.clone(), unMeasuredVariables.clone(), true)?;
     (setBFailedBoundaryConditionEquations, failedboundaryConditionEquationIndex) = prepareUnmeasuredVariablesEquations(unMeasuredEqsLst.clone(), sBltAdjacencyMatrix.clone(), knowns.clone(), solvedEqsAndVarsInfo.clone(), currentSystem.orderedEqs.clone(), currentSystem.orderedVars.clone(), mapIncRowEqn.clone(), setBFailedBoundaryConditionEquations.clone())?;
     dumpSetSVarsSolvedInfo(unMeasuredEqsLst.clone(), solvedEqsAndVarsInfo.clone(), mapIncRowEqn.clone(), currentSystem.orderedEqs.clone(), currentSystem.orderedVars.clone(), (literal!("E-BLT: equations in the BLT that compute the unmeasured variables of interest")).clone())?;
     (_, setSPrime, failedboundaryConditionEquations, failedboundaryConditionVars, status) = ExtractSetSPrime(currentSystem.clone(), setBFailedBoundaryConditionEquations.clone(), sBltAdjacencyMatrix.clone(), knowns.clone(), boundaryConditionVars.clone(), currentSystem.orderedVars.clone(), currentSystem.orderedEqs.clone(), mapIncRowEqn.clone(), solvedEqsAndVarsInfo.clone(), bindingEquations.clone(), debug.clone())?;
     setSPrime = List::unique(listAppend(failedboundaryConditionEquationIndex.clone(), setSPrime.clone()));
-    setSPrime = List::setDifferenceOnTrue(setSPrime.clone(), approximatedEquations.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
-    setSPrime = List::setDifferenceOnTrue(setSPrime.clone(), unMeasuredEqsLst.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
+    setSPrime = List::setDifferenceOnTrue(setSPrime.clone(), approximatedEquations.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
+    setSPrime = List::setDifferenceOnTrue(setSPrime.clone(), unMeasuredEqsLst.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
     if debug.clone() {
         dumpSetSVarsSolvedInfo(setSPrime.clone(), solvedEqsAndVarsInfo.clone(), mapIncRowEqn.clone(), currentSystem.orderedEqs.clone(), currentSystem.orderedVars.clone(), (literal!("Set-SPrime Solved-Variables Information")).clone())?;
     }
@@ -847,9 +847,9 @@ pub fn stateEstimation(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result<Arc<Bac
     BackendDump::dumpEquationArray(BackendEquation::listEquation(setSPrime_Eq.clone())?, (literal!("SET_SPrime")).clone())?;
     paramVars = BackendEquation::equationsVars(BackendEquation::listEquation(setSPrime_Eq.clone())?, shared.globalKnownVars.clone())?;
     setSVars = BackendEquation::equationsVars(BackendEquation::listEquation(setSPrime_Eq.clone())?, currentSystem.orderedVars.clone())?;
-    (knownVars, setSVars) = List::extractOnTrue(setSVars.clone(), Arc::new(fnptr!(BackendVariable::varHasUncertainValueRefine, BackendDAE::Var)));
-    (_, setSVars) = List::extract1OnTrue(setSVars.clone(), Arc::new(fnptr!(isBoundaryConditionVars, BackendDAE::Var, Arc<metamodelica::List<BackendDAE::Var>>)), failedboundaryConditionVars.clone());
-    (extraVarsinSetSPrime, _) = List::extract1OnTrue(setSVars.clone(), Arc::new(fnptr!(isBoundaryConditionVars, BackendDAE::Var, Arc<metamodelica::List<BackendDAE::Var>>)), List::map1r(boundaryConditionVars.clone().reverse(), Arc::new(BackendVariable::getVarAt), currentSystem.orderedVars.clone()));
+    (knownVars, setSVars) = List::extractOnTrue(setSVars.clone(), (std::sync::Arc::new(fnptr!(BackendVariable::varHasUncertainValueRefine, BackendDAE::Var)) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var) -> Result<bool> + 'static>));
+    (_, setSVars) = List::extract1OnTrue(setSVars.clone(), (std::sync::Arc::new(fnptr!(isBoundaryConditionVars, BackendDAE::Var, Arc<metamodelica::List<BackendDAE::Var>>)) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, Arc<metamodelica::List<BackendDAE::Var>>) -> Result<bool> + 'static>), failedboundaryConditionVars.clone());
+    (extraVarsinSetSPrime, _) = List::extract1OnTrue(setSVars.clone(), (std::sync::Arc::new(fnptr!(isBoundaryConditionVars, BackendDAE::Var, Arc<metamodelica::List<BackendDAE::Var>>)) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, Arc<metamodelica::List<BackendDAE::Var>>) -> Result<bool> + 'static>), List::map1r(boundaryConditionVars.clone().reverse(), (std::sync::Arc::new(BackendVariable::getVarAt) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Variables, i32) -> Result<BackendDAE::Var> + 'static>), currentSystem.orderedVars.clone()));
     if debug.clone() {
         BackendDump::dumpVarList(unMeasuredVariables.clone(), (literal!("unmeasured variables")).clone());
         BackendDump::dumpVarList(setSVars.clone(), (literal!("Intermediate vars in set-S'")).clone());
@@ -857,7 +857,7 @@ pub fn stateEstimation(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result<Arc<Bac
         BackendDump::dumpVarList(paramVars.clone(), (literal!("Param vars in set-S'")).clone());
         BackendDump::dumpVarList(extraVarsinSetSPrime.clone(), (literal!("extra vars in set-S'")).clone());
     }
-    outBoundaryConditionVars = BackendVariable::listVar(List::map1(unMeasuredVariables.clone().reverse(), Arc::new(fnptr!(BackendVariable::setVarUnreplaceable, BackendDAE::Var, bool)), true));
+    outBoundaryConditionVars = BackendVariable::listVar(List::map1(unMeasuredVariables.clone().reverse(), (std::sync::Arc::new(fnptr!(BackendVariable::setVarUnreplaceable, BackendDAE::Var, bool)) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, bool) -> Result<BackendDAE::Var> + 'static>), true));
     outBoundaryConditionEquations = BackendEquation::listEquation(failedboundaryConditionEquations.clone())?;
     outOtherEqnsSetSPrime = BackendEquation::listEquation(setSPrime_Eq.clone())?;
     outOtherVarsSetSPrime = BackendVariable::listVar(setSVars.clone());
@@ -892,14 +892,14 @@ pub fn stateEstimation(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result<Arc<Bac
     BackendDump::dumpEquationArray(BackendEquation::listEquation(allDaeEqs.clone())?, (literal!("Final DAE with set-c, set-S and set-SPrime combined")).clone())?;
     paramVars = BackendEquation::equationsVars(BackendEquation::listEquation(allDaeEqs.clone())?, shared.globalKnownVars.clone())?;
     setSVars = BackendEquation::equationsVars(BackendEquation::listEquation(allDaeEqs.clone())?, currentSystem.orderedVars.clone())?;
-    (knownVars, setSVars) = List::extractOnTrue(setSVars.clone(), Arc::new(fnptr!(BackendVariable::varHasUncertainValueRefine, BackendDAE::Var)));
-    (_, setSVars) = List::extractOnTrue(setSVars.clone(), Arc::new(fnptr!(BackendVariable::varHasUncertainValuePropagate, BackendDAE::Var)));
+    (knownVars, setSVars) = List::extractOnTrue(setSVars.clone(), (std::sync::Arc::new(fnptr!(BackendVariable::varHasUncertainValueRefine, BackendDAE::Var)) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var) -> Result<bool> + 'static>));
+    (_, setSVars) = List::extractOnTrue(setSVars.clone(), (std::sync::Arc::new(fnptr!(BackendVariable::varHasUncertainValuePropagate, BackendDAE::Var)) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var) -> Result<bool> + 'static>));
     setSVars = listAppend(BackendVariable::varList(outBoundaryConditionVars.clone())?, setSVars.clone());
     BackendDump::dumpVarList(listAppend(setSVars.clone(), residualVars.clone()), (literal!("Intermediate vars in final DAE updated'")).clone());
     BackendDump::dumpVarList(paramVars.clone(), (literal!("parameters in final DAE updated")).clone());
     currentSystem = BackendDAEUtil::setEqSystEqs(currentSystem.clone(), BackendEquation::listEquation(allDaeEqs.clone())?);
     currentSystem = BackendDAEUtil::setEqSystVars(currentSystem.clone(), BackendVariable::listVar(listAppend(setSVars.clone(), residualVars.clone())))?;
-    inputVars = BackendVariable::listVar(List::map1(BackendVariable::varList(outDiffVars.clone())?, Arc::new(fnptr!(BackendVariable::setVarDirection, BackendDAE::Var, DAE::VarDirection)), openmodelica_frontend_types::DAE::VarDirection::INPUT));
+    inputVars = BackendVariable::listVar(List::map1(BackendVariable::varList(outDiffVars.clone())?, (std::sync::Arc::new(fnptr!(BackendVariable::setVarDirection, BackendDAE::Var, DAE::VarDirection)) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, DAE::VarDirection) -> Result<BackendDAE::Var> + 'static>), openmodelica_frontend_types::DAE::VarDirection::INPUT));
     shared = BackendDAEUtil::setSharedGlobalKnownVars(shared.clone(), BackendVariable::mergeVariables(shared.globalKnownVars.clone(), inputVars.clone(), true)?);
     if debug.clone() {
         BackendDump::dumpVariables(currentSystem.orderedVars.clone(), (literal!("FinalOrderedVariables")).clone())?;
@@ -985,7 +985,7 @@ fn prepareUnmeasuredVariablesEquations(mut unMeasuredEqsLst: Arc<metamodelica::L
         let mut eq = eq.clone();
         varIndex = getSolvedVariableNumber(eq.clone(), solvedEqsAndVarsInfo.clone());
         intermediateVars = getVariablesAfterExtraction(list![eq.clone()], metamodelica::nil(), sBltAdjacencyMatrix.clone());
-        intermediateVars = List::setDifferenceOnTrue(intermediateVars.clone(), knownVars.clone(), Arc::new(fnptr!(intEq, i32, i32)))?.reverse();
+        intermediateVars = List::setDifferenceOnTrue(intermediateVars.clone(), knownVars.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?.reverse();
         unmeasuredEq = BackendEquation::get(orderedEqs.clone(), mapIncRowEqn.borrow()[(eq.clone()-1) as usize].clone());
         setBFailedBoundaryConditionEquations = cons((varIndex.clone(), unmeasuredEq.clone(), intermediateVars.clone()), setBFailedBoundaryConditionEquations.clone());
     }
@@ -1068,8 +1068,8 @@ fn swapComplexEquationsInSetC(mut ebltEqsLst: Arc<metamodelica::List<i32>>, mut 
                 let mut index = index.clone();
                 swapEq = BackendEquation::get(currentSystem.orderedEqs.clone(), mapIncRowEqn.borrow()[(index.clone()-1) as usize].clone());
                 if !(BackendEquation::isComplexEquation(swapEq.clone())) {
-                    ebltEqsLst = List::removeOnTrue(eqIndex.clone(), Arc::new(fnptr!(intEq, i32, i32)), ebltEqsLst.clone());
-                    tempSetS = List::removeOnTrue(index.clone(), Arc::new(fnptr!(intEq, i32, i32)), tempSetS.clone());
+                    ebltEqsLst = List::removeOnTrue(eqIndex.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>), ebltEqsLst.clone());
+                    tempSetS = List::removeOnTrue(index.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>), tempSetS.clone());
                     tempSetS = cons(eqIndex.clone(), tempSetS.clone());
                     ebltEqsLst = cons(index.clone(), ebltEqsLst.clone());
                     swappedEquationList = cons(swapEq.clone(), swappedEquationList.clone());
@@ -1115,7 +1115,7 @@ fn traverseEBLTAndExtractSetCAndSetS(mut currentSystem: Arc<BackendDAE::EqSystem
     for mut eq in &*ebltEquations.clone() {
         let mut eq = eq.clone();
         intermediateVars = getVariablesAfterExtraction(list![eq.clone()], metamodelica::nil(), sBltAdjacencyMatrix.clone());
-        intermediateVars = List::setDifferenceOnTrue(intermediateVars.clone(), knownVars.clone(), Arc::new(fnptr!(intEq, i32, i32)))?.reverse();
+        intermediateVars = List::setDifferenceOnTrue(intermediateVars.clone(), knownVars.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?.reverse();
         dumpSetSTargetEquations(eq.clone(), solvedEqsAndVarsInfo.clone(), mapIncRowEqn.clone(), orderedEqs.clone(), orderedVars.clone(), (literal!(">>>")).clone())?;
         minimalSetS = metamodelica::nil();
         visitedVars = metamodelica::nil();
@@ -1139,7 +1139,7 @@ fn traverseEBLTAndExtractSetCAndSetS(mut currentSystem: Arc<BackendDAE::EqSystem
                 setB = cons((varnumber.clone(), listHead(minimalSetS.clone())?), setB.clone());
                 if !(boundaryConditionVarExist(setBFailedBoundaryConditionEquations.clone(), boundaryConditionVarIndex.clone())) {
                     intermediateVarsInBoundaryConditionEquation = getVariablesAfterExtraction(list![listHead(minimalSetS.clone())?], metamodelica::nil(), sBltAdjacencyMatrix.clone());
-                    intermediateVarsInBoundaryConditionEquation = List::setDifferenceOnTrue(intermediateVarsInBoundaryConditionEquation.clone(), knownVars.clone(), Arc::new(fnptr!(intEq, i32, i32)))?.reverse();
+                    intermediateVarsInBoundaryConditionEquation = List::setDifferenceOnTrue(intermediateVarsInBoundaryConditionEquation.clone(), knownVars.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?.reverse();
                     failedboundaryConditionEquation = BackendEquation::get(orderedEqs.clone(), mapIncRowEqn.borrow()[(listHead(minimalSetS.clone())?-1) as usize].clone());
                     setBFailedBoundaryConditionEquations = cons((boundaryConditionVarIndex.clone(), failedboundaryConditionEquation.clone(), intermediateVarsInBoundaryConditionEquation.clone()), setBFailedBoundaryConditionEquations.clone());
                 }
@@ -1154,7 +1154,7 @@ fn traverseEBLTAndExtractSetCAndSetS(mut currentSystem: Arc<BackendDAE::EqSystem
             var = BackendVariable::getVarAt(orderedVars.clone(), varnumber.clone())?;
             lhs = BackendVariable::varExp(var.clone())?;
             rhs = Arc::new(DAE::Exp::RCONST { real: metamodelica::OrderedFloat((0) as f64) });
-            eqn = Arc::new(BackendDAE::Equation::EQUATION { exp: lhs.clone(), scalar: rhs.clone(), source: DAE::emptyElementSource.clone(), attr: BackendDAE::EQ_ATTR_DEFAULT_BINDING.clone() });
+            eqn = Arc::new(BackendDAE::Equation::EQUATION { exp: lhs.clone(), scalar: rhs.clone(), source: DAE::emptyElementSource().clone(), attr: BackendDAE::EQ_ATTR_DEFAULT_BINDING.clone() });
             newEqnLst = cons(eqn.clone(), newEqnLst.clone());
         }
         if debug.clone() {
@@ -1162,7 +1162,7 @@ fn traverseEBLTAndExtractSetCAndSetS(mut currentSystem: Arc<BackendDAE::EqSystem
             dumpSetSVarsSolvedInfo(eqlistToRemove.clone(), solvedEqsAndVarsInfo.clone(), mapIncRowEqn.clone(), currentSystem.orderedEqs.clone(), currentSystem.orderedVars.clone(), (literal!("Equations to remove")).clone())?;
             BackendDump::dumpEquationList(newEqnLst.clone(), (literal!("Equations to add")).clone());
         }
-        eqlistToRemove = List::unique(List::map1r(eqlistToRemove.clone(), Arc::new(listGet), Arc::new(mapIncRowEqn.clone().borrow().iter().cloned().collect::<metamodelica::List<_>>())));
+        eqlistToRemove = List::unique(List::map1r(eqlistToRemove.clone(), (std::sync::Arc::new(listGet) as std::sync::Arc<dyn ::std::ops::Fn(_, i32) -> Result<_> + 'static>), Arc::new(mapIncRowEqn.clone().borrow().iter().cloned().collect::<metamodelica::List<_>>())));
         currentSystem = deleteEquationsFromEqSyst(currentSystem.clone(), eqlistToRemove.clone())?;
         assign_field!(currentSystem.orderedEqs = BackendEquation::merge(currentSystem.orderedEqs.clone(), BackendEquation::listEquation(newEqnLst.clone().reverse())?)?);
     } else {
@@ -1201,7 +1201,7 @@ fn ExtractSetSPrime(mut currentSystem: Arc<BackendDAE::EqSystem>, mut setBFailed
         (boundaryConditionVarIndex, eq, intermediateVars) = items.clone();
         failedboundaryConditionEquations = cons(eq.clone(), failedboundaryConditionEquations.clone());
         failedboundaryConditionVars = cons(BackendVariable::getVarAt(orderedVars.clone(), boundaryConditionVarIndex.clone())?, failedboundaryConditionVars.clone());
-        intermediateVars = List::setDifferenceOnTrue(intermediateVars.clone(), knownVars.clone(), Arc::new(fnptr!(intEq, i32, i32)))?.reverse();
+        intermediateVars = List::setDifferenceOnTrue(intermediateVars.clone(), knownVars.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?.reverse();
         println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*literal!(">>>")); __mm_s.push_str(&*BackendDump::equationString(eq.clone())?); ArcStr::from(__mm_s) }).clone());
         minimalSetS = metamodelica::nil();
         visitedVars = metamodelica::nil();
@@ -1277,10 +1277,10 @@ fn extractNewMinimalSetS(mut unknownsInSetC: Arc<metamodelica::List<i32>>, mut s
             dumpSetSTargetEquations(mappedEq.clone(), solvedEqsAndVarsInfo.clone(), mapIncRowEqn.clone(), orderedEqs.clone(), orderedVars.clone(), (literal!("")).clone())?;
         }
         vars = getVariablesAfterExtraction(list![mappedEq.clone()], metamodelica::nil(), sBltAdjacencyMatrix.clone());
-        intermediateVarsInMatchedEquation = List::setDifferenceOnTrue(vars.clone(), knownVars.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
-        intermediateVars = List::setDifferenceOnTrue(intermediateVarsInMatchedEquation.clone(), list![varIndex.clone()], Arc::new(fnptr!(intEq, i32, i32)))?;
-        intermediateVars = List::setDifferenceOnTrue(intermediateVars.clone(), visitedVars.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
-        rest = List::setDifferenceOnTrue(rest.clone(), visitedVars.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
+        intermediateVarsInMatchedEquation = List::setDifferenceOnTrue(vars.clone(), knownVars.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
+        intermediateVars = List::setDifferenceOnTrue(intermediateVarsInMatchedEquation.clone(), list![varIndex.clone()], (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
+        intermediateVars = List::setDifferenceOnTrue(intermediateVars.clone(), visitedVars.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
+        rest = List::setDifferenceOnTrue(rest.clone(), visitedVars.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
         unknownsInSetC = List::unique(listAppend(intermediateVars.clone(), rest.clone()));
         if debug.clone() {
             dumpMininimalExtraction(varIndex.clone(), var.clone(), mappedEq.clone(), mapIncRowEqn.clone(), orderedEqs.clone(), minimalSetS.clone(), intermediateVarsInMatchedEquation.clone(), rest.clone(), unknownsInSetC.clone(), false, visitedVars.clone())?;
@@ -1418,19 +1418,19 @@ pub fn extractionAlgorithm(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result<Arc
     BackendDump::dumpMatching(match1.clone())?;
     (solvedEqsAndVarsInfo, matchedEqsLst) = getSolvedEquationAndVarsInfo(match1.clone());
     unMatchedEqsLst = List::setDifference(List::intRange(eqCount.clone()), matchedEqsLst.clone())?;
-    unMatchedEqsLstCorrectIndex = List::unique(List::map1r(unMatchedEqsLst.clone(), Arc::new(listGet), Arc::new(mapIncRowEqn.clone().borrow().iter().cloned().collect::<metamodelica::List<_>>())));
+    unMatchedEqsLstCorrectIndex = List::unique(List::map1r(unMatchedEqsLst.clone(), (std::sync::Arc::new(listGet) as std::sync::Arc<dyn ::std::ops::Fn(_, i32) -> Result<_> + 'static>), Arc::new(mapIncRowEqn.clone().borrow().iter().cloned().collect::<metamodelica::List<_>>())));
     if debug.clone() {
         println!("{}", (literal!("\nFinding unmatched subset of equations :\n=========================================\n")).clone());
         println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nSolvedEqsAndVarsInfo                   :")); __mm_s.push_str(&*anyString(solvedEqsAndVarsInfo.clone())); ArcStr::from(__mm_s) }).clone());
         println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nList of Equations                      :")); __mm_s.push_str(&*intString(BackendEquation::getNumberOfEquations(currentSystem.orderedEqs.clone()))); ArcStr::from(__mm_s) }).clone());
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nMatchedEquationsLst                    :")); __mm_s.push_str(&*anyString(List::sort(matchedEqsLst.clone(), Arc::new(fnptr!(intGt, i32, i32)))?)); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nMatchedEquationsLst                    :")); __mm_s.push_str(&*anyString(List::sort(matchedEqsLst.clone(), (std::sync::Arc::new(fnptr!(intGt, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?)); ArcStr::from(__mm_s) }).clone());
         println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nSizeofMatchedEquationLST               :")); __mm_s.push_str(&*intString((matchedEqsLst.clone().len() as i32))); ArcStr::from(__mm_s) }).clone());
         println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nUnMatchedSubSetOfEquations             :")); __mm_s.push_str(&*anyString(unMatchedEqsLst.clone())); ArcStr::from(__mm_s) }).clone());
         println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nUnMatchedSubSetOfEquationsMappedIndex  :")); __mm_s.push_str(&*anyString(unMatchedEqsLstCorrectIndex.clone())); ArcStr::from(__mm_s) }).clone());
         println!("{}", (literal!("\n")).clone());
     }
     (e_BLT_EquationsWithIndex, eBltAdjacencyMatrix, e_BLTSolvedEqsAndVars, e_BLTBlocks, e_BLTBlockRanks) = setEBLTEquationsWithIndexAndRank(unMatchedEqsLst.clone(), unMatchedEqsLstCorrectIndex.clone(), currentSystem.orderedEqs.clone(), adjacencyMatrix.clone())?;
-    BackendDump::dumpEquationList(List::map1r(unMatchedEqsLstCorrectIndex.clone(), Arc::new(fnptr!(BackendEquation::get, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, i32)), currentSystem.orderedEqs.clone()), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("E-BLT-Equations ")); __mm_s.push_str(&*dumplistInteger(unMatchedEqsLst.clone())); ArcStr::from(__mm_s) }).clone());
+    BackendDump::dumpEquationList(List::map1r(unMatchedEqsLstCorrectIndex.clone(), (std::sync::Arc::new(fnptr!(BackendEquation::get, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, i32)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, i32) -> Result<Arc<BackendDAE::Equation>> + 'static>), currentSystem.orderedEqs.clone()), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("E-BLT-Equations ")); __mm_s.push_str(&*dumplistInteger(unMatchedEqsLst.clone())); ArcStr::from(__mm_s) }).clone());
     if debug.clone() {
         println!("{}", (literal!("\nE-BLT Information\n================")).clone());
         println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nE-BLT-Blocks   :")); __mm_s.push_str(&*anyString(e_BLTBlocks.clone())); ArcStr::from(__mm_s) }).clone());
@@ -1476,11 +1476,11 @@ pub fn extractionAlgorithm(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result<Arc
     dumpListList(s_BLTBlocks.clone(), (literal!("BLT_BLOCKS")).clone());
     (approximatedEquations, boundaryConditionEquations) = getEquationsTaggedApproximatedOrBoundaryCondition(BackendEquation::equationList(currentSystem.orderedEqs.clone()), 1)?;
     if debug.clone() {
-        BackendDump::dumpEquationList(List::map1r(approximatedEquations.clone(), Arc::new(fnptr!(BackendEquation::get, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, i32)), currentSystem.orderedEqs.clone()), (literal!("ApproximatedEquations")).clone());
-        BackendDump::dumpEquationList(List::map1r(boundaryConditionEquations.clone(), Arc::new(fnptr!(BackendEquation::get, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, i32)), currentSystem.orderedEqs.clone()), (literal!("boundaryConditionEquations")).clone());
+        BackendDump::dumpEquationList(List::map1r(approximatedEquations.clone(), (std::sync::Arc::new(fnptr!(BackendEquation::get, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, i32)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, i32) -> Result<Arc<BackendDAE::Equation>> + 'static>), currentSystem.orderedEqs.clone()), (literal!("ApproximatedEquations")).clone());
+        BackendDump::dumpEquationList(List::map1r(boundaryConditionEquations.clone(), (std::sync::Arc::new(fnptr!(BackendEquation::get, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, i32)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, i32) -> Result<Arc<BackendDAE::Equation>> + 'static>), currentSystem.orderedEqs.clone()), (literal!("boundaryConditionEquations")).clone());
     }
-    approximatedEquations = List::flatten(List::map1r(approximatedEquations.clone(), Arc::new(listGet), Arc::new(mapEqnIncRow.clone().borrow().iter().cloned().collect::<metamodelica::List<_>>())));
-    boundaryConditionEquations = List::flatten(List::map1r(boundaryConditionEquations.clone(), Arc::new(listGet), Arc::new(mapEqnIncRow.clone().borrow().iter().cloned().collect::<metamodelica::List<_>>())));
+    approximatedEquations = List::flatten(List::map1r(approximatedEquations.clone(), (std::sync::Arc::new(listGet) as std::sync::Arc<dyn ::std::ops::Fn(_, i32) -> Result<_> + 'static>), Arc::new(mapEqnIncRow.clone().borrow().iter().cloned().collect::<metamodelica::List<_>>())));
+    boundaryConditionEquations = List::flatten(List::map1r(boundaryConditionEquations.clone(), (std::sync::Arc::new(listGet) as std::sync::Arc<dyn ::std::ops::Fn(_, i32) -> Result<_> + 'static>), Arc::new(mapEqnIncRow.clone().borrow().iter().cloned().collect::<metamodelica::List<_>>())));
     if debug.clone() {
         println!("{}", (literal!("\nApproximated and BoundaryCondition Equation Indexes :\n===========================================")).clone());
         println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nApproximatedEquationIndexes      :")); __mm_s.push_str(&*dumplistInteger(approximatedEquations.clone())); ArcStr::from(__mm_s) }).clone());
@@ -1489,9 +1489,9 @@ pub fn extractionAlgorithm(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result<Arc
     }
     boundaryConditionTaggedEquationSolvedVars = getBoundaryConditionVariables(boundaryConditionEquations.clone(), solvedEqsAndVarsInfo.clone());
     if debug.clone() {
-        BackendDump::dumpVarList(List::map1r(boundaryConditionTaggedEquationSolvedVars.clone().reverse(), Arc::new(BackendVariable::getVarAt), currentSystem.orderedVars.clone()), (literal!("boundaryConditionTaggedEquationSolvedVars")).clone());
+        BackendDump::dumpVarList(List::map1r(boundaryConditionTaggedEquationSolvedVars.clone().reverse(), (std::sync::Arc::new(BackendVariable::getVarAt) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Variables, i32) -> Result<BackendDAE::Var> + 'static>), currentSystem.orderedVars.clone()), (literal!("boundaryConditionTaggedEquationSolvedVars")).clone());
     }
-    exactEquationVars = List::setDifferenceOnTrue(exactEquationVars.clone(), boundaryConditionTaggedEquationSolvedVars.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
+    exactEquationVars = List::setDifferenceOnTrue(exactEquationVars.clone(), boundaryConditionTaggedEquationSolvedVars.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
     boundaryConditionVars = listAppend(boundaryConditionVars.clone(), boundaryConditionTaggedEquationSolvedVars.clone());
     if debug.clone() {
         println!("{}", (literal!("\nUpdatedVariablesCategories\n=============================")).clone());
@@ -1522,7 +1522,7 @@ pub fn extractionAlgorithm(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result<Arc
     BackendDump::dumpEquationArray(BackendEquation::listEquation(setC_Eq.clone())?, (literal!("SET_C")).clone())?;
     BackendDump::dumpEquationArray(BackendEquation::listEquation(setS_Eq.clone())?, (literal!("SET_S")).clone())?;
     unknownVarsInSetC = getVariablesAfterExtraction(tempSetC.clone(), metamodelica::nil(), sBltAdjacencyMatrix.clone());
-    unknownVarsInSetC = List::setDifferenceOnTrue(unknownVarsInSetC.clone(), knowns.clone(), Arc::new(fnptr!(intEq, i32, i32)))?.reverse();
+    unknownVarsInSetC = List::setDifferenceOnTrue(unknownVarsInSetC.clone(), knowns.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?.reverse();
     setS_BLTAdjacencyMatrix = getSetSAdjacencyMatrix(sBltAdjacencyMatrix.clone(), tempSetS.clone());
     if debug.clone() {
         println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nStart of Extract Minimal Set-S Algorithm\n")); __mm_s.push_str(&*arcstr::literal!(UNDERLINE)); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
@@ -1536,7 +1536,7 @@ pub fn extractionAlgorithm(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result<Arc
         println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nSet-S after running minimal extraction algorithm\n")); __mm_s.push_str(&*arcstr::literal!(UNDERLINE)); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*literal!("SET_S: ")); __mm_s.push_str(&*dumplistInteger(tempSetS.clone())); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
     }
     extractedVarsfromSetS = getVariablesAfterExtraction(metamodelica::nil(), tempSetS.clone(), sBltAdjacencyMatrix.clone());
-    extractedVarsfromSetS = List::setDifferenceOnTrue(extractedVarsfromSetS.clone(), knowns.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
+    extractedVarsfromSetS = List::setDifferenceOnTrue(extractedVarsfromSetS.clone(), knowns.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
     setC = List::unique(getAbsoluteIndexHelper(tempSetC.clone(), mapIncRowEqn.clone()));
     setS = List::unique(getAbsoluteIndexHelper(tempSetS.clone(), mapIncRowEqn.clone()));
     setC_Eq = getEquationsFromSBLTAndEBLT(setC.clone(), currentSystem.orderedEqs.clone(), e_BLT_EquationsWithIndex.clone());
@@ -1546,15 +1546,15 @@ pub fn extractionAlgorithm(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result<Arc
     } else {
         println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nSET_S_After_Minimal_Extraction (0, 0)\n")); __mm_s.push_str(&*arcstr::literal!(UNDERLINE)); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
     }
-    outDiffVars = BackendVariable::listVar(List::map1r(knowns.clone(), Arc::new(BackendVariable::getVarAt), currentSystem.orderedVars.clone()));
-    outDiffVars = BackendVariable::listVar(List::map1(BackendVariable::varList(outDiffVars.clone())?, Arc::new(fnptr!(BackendVariable::setVarUnreplaceable, BackendDAE::Var, bool)), true));
+    outDiffVars = BackendVariable::listVar(List::map1r(knowns.clone(), (std::sync::Arc::new(BackendVariable::getVarAt) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Variables, i32) -> Result<BackendDAE::Var> + 'static>), currentSystem.orderedVars.clone()));
+    outDiffVars = BackendVariable::listVar(List::map1(BackendVariable::varList(outDiffVars.clone())?, (std::sync::Arc::new(fnptr!(BackendVariable::setVarUnreplaceable, BackendDAE::Var, bool)) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, bool) -> Result<BackendDAE::Var> + 'static>), true));
     (_, residualEquations) = BackendEquation::traverseEquationArray(BackendEquation::listEquation(setC_Eq.clone())?, Arc::new(BackendEquation::traverseEquationToScalarResidualForm.clone()), (shared.functionTree.clone(), metamodelica::nil()))?;
     (residualEquations, residualVars, _) = BackendEquation::convertResidualsIntoSolvedEquations(residualEquations.clone().reverse(), (literal!("$res_F_")).clone(), 1, false)?;
     outResidualVars = BackendVariable::listVar(residualVars.clone().reverse());
     outResidualEqns = BackendEquation::listEquation(residualEquations.clone())?;
     outOtherEqns = BackendEquation::listEquation(setS_Eq.clone())?;
     paramVars = BackendEquation::equationsVars(outOtherEqns.clone(), shared.globalKnownVars.clone())?;
-    outOtherVars = BackendVariable::listVar(List::map1r(extractedVarsfromSetS.clone(), Arc::new(BackendVariable::getVarAt), currentSystem.orderedVars.clone()));
+    outOtherVars = BackendVariable::listVar(List::map1r(extractedVarsfromSetS.clone(), (std::sync::Arc::new(BackendVariable::getVarAt) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Variables, i32) -> Result<BackendDAE::Var> + 'static>), currentSystem.orderedVars.clone()));
     dumpSetSVars(outOtherVars.clone(), (literal!("Unknown variables in SET_S ")).clone())?;
     BackendDump::dumpVariables(BackendVariable::listVar(paramVars.clone()), (literal!("Parameters in SET_S")).clone())?;
     auxillaryConditionsFilename = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*shared.info.fileNamePrefix.clone()); __mm_s.push_str(&*literal!("_AuxiliaryConditions.html")); ArcStr::from(__mm_s) }).clone();
@@ -1575,7 +1575,7 @@ pub fn extractionAlgorithm(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result<Arc
     assign_field!(shared.dataReconciliationData = Some(BackendDAE::DataReconciliationData { relatedBoundaryConditions: 0, symbolicJacobianH: None, setBVars: None, datareconinputs: outDiffVars.clone(), setcVars: outResidualVars.clone(), symbolicJacobian: simCodeJacobian.clone() }));
     currentSystem = BackendDAEUtil::setEqSystVars(currentSystem.clone(), BackendVariable::mergeVariables(outResidualVars.clone(), outOtherVars.clone(), true)?)?;
     currentSystem = BackendDAEUtil::setEqSystEqs(currentSystem.clone(), BackendEquation::merge(outResidualEqns.clone(), outOtherEqns.clone())?);
-    inputVars = BackendVariable::listVar(List::map1(BackendVariable::varList(outDiffVars.clone())?, Arc::new(fnptr!(BackendVariable::setVarDirection, BackendDAE::Var, DAE::VarDirection)), openmodelica_frontend_types::DAE::VarDirection::INPUT));
+    inputVars = BackendVariable::listVar(List::map1(BackendVariable::varList(outDiffVars.clone())?, (std::sync::Arc::new(fnptr!(BackendVariable::setVarDirection, BackendDAE::Var, DAE::VarDirection)) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, DAE::VarDirection) -> Result<BackendDAE::Var> + 'static>), openmodelica_frontend_types::DAE::VarDirection::INPUT));
     shared = BackendDAEUtil::setSharedGlobalKnownVars(shared.clone(), BackendVariable::mergeVariables(shared.globalKnownVars.clone(), inputVars.clone(), true)?);
     if !(System::regularFileExists(({ let mut __mm_s = String::new(); __mm_s.push_str(&*inDAE.shared.info.fileNamePrefix.clone()); __mm_s.push_str(&*literal!("_Inputs.csv")); ArcStr::from(__mm_s) }).clone())) {
         r#str = (literal!("Variable Names,Measured Value-x,HalfWidthConfidenceInterval\n")).clone();
@@ -1641,7 +1641,7 @@ fn extractMinimalSetS(mut unknownsInSetC: Arc<metamodelica::List<i32>>, mut sBlt
         if !(intEq(firstMatchedEquation.clone(), 0)) {
             minimalSetS = cons(firstMatchedEquation.clone(), minimalSetS.clone());
             minimalSetS = List::unique(minimalSetS.clone());
-            intermediateVars = List::setDifferenceOnTrue(vars.clone(), knownVars.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
+            intermediateVars = List::setDifferenceOnTrue(vars.clone(), knownVars.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
             V_EQ = List::unique(listAppend(intermediateVars.clone(), rest.clone()));
             if debug.clone() {
                 dumpMininimalExtraction(varIndex.clone(), var.clone(), firstMatchedEquation.clone(), mapIncRowEqn.clone(), orderedEqs.clone(), minimalSetS.clone(), intermediateVars.clone(), rest.clone(), V_EQ.clone(), false, metamodelica::nil())?;
@@ -1740,7 +1740,7 @@ fn dumpExtractedVars(mut instring: ArcStr, mut invar: Arc<metamodelica::List<Bac
         } else if isRec.clone() && !(listMember((ComponentReference::crefStr(cr1.clone())?).clone(), recordvarlist.clone())) {
             creflast = ComponentReferenceBasics::crefLastCref(cr1.clone())?;
             path = Types::getRecordPath(ComponentReference::crefType(creflast.clone())?)?;
-            recordvarlist = cons(ComponentReference::crefStr(cr1.clone())?, recordvarlist.clone());
+            recordvarlist = cons((ComponentReference::crefStr(cr1.clone())?).clone(), recordvarlist.clone());
             outstring = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*outstring.clone()); __mm_s.push_str(&*literal!("\n  ")); __mm_s.push_str(&*AbsynUtil::pathString(path.clone(), (literal!(".")).clone(), true, false)?); __mm_s.push_str(&*literal!(" ")); __mm_s.push_str(&*System::stringReplace((ComponentReference::crefStr(cr1.clone())?).clone(), (literal!(".")).clone(), (literal!("_")).clone())?); __mm_s.push_str(&*literal!(";")); ArcStr::from(__mm_s) }).clone();
         } else if !(isRec.clone()) {
             outstring = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*outstring.clone()); __mm_s.push_str(&*literal!("\n  ")); __mm_s.push_str(&*DAEDump::daeTypeStr(var.varType.clone())?); __mm_s.push_str(&*literal!(" ")); __mm_s.push_str(&*System::stringReplace((ComponentReference::crefStr(cr.clone())?).clone(), (literal!(".")).clone(), (literal!("_")).clone())?); __mm_s.push_str(&*literal!(";")); ArcStr::from(__mm_s) }).clone();
@@ -1790,7 +1790,7 @@ pub fn setBoundaryConditionEquationsAndVars(mut currentSystem: Arc<BackendDAE::E
         if BackendVariable::isRealParam(var.clone()) && (BackendVariable::hasOpenModelicaBoundaryConditionAnnotation(var.clone())? || BackendVariable::varHasUncertainValueRefine(var.clone()) || BackendVariable::varHasUncertainValuePropagate(var.clone())) {
             lhs = BackendVariable::varExp(var.clone())?;
             rhs = BackendVariable::varBindExpStartValueNoFail(var.clone())?;
-            eqn = Arc::new(BackendDAE::Equation::EQUATION { exp: lhs.clone(), scalar: rhs.clone(), source: DAE::emptyElementSource.clone(), attr: BackendDAE::EQ_ATTR_DEFAULT_BINDING.clone() });
+            eqn = Arc::new(BackendDAE::Equation::EQUATION { exp: lhs.clone(), scalar: rhs.clone(), source: DAE::emptyElementSource().clone(), attr: BackendDAE::EQ_ATTR_DEFAULT_BINDING.clone() });
             eqnLst = cons(eqn.clone(), eqnLst.clone());
             var = BackendVariable::setVarKind(var.clone(), crate::BackendDAE::VarKind::VARIABLE)?;
             var = BackendVariable::setBindExp(var.clone(), None);
@@ -2074,10 +2074,10 @@ pub fn ExtractEquationsUsingSetOperations(mut predecessorBlockInfo: Arc<metamode
         println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nUnion-Red-TargetBlockInfo  (blocks with UnKnowns)      :")); __mm_s.push_str(&*dumplistInteger(targetBlocksWithUnknowns.clone())); ArcStr::from(__mm_s) }).clone());
         println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nUnion-Brown-TargetBlockInfo  (blocks with Exact eqns)  :")); __mm_s.push_str(&*dumplistInteger(targetBlocksWithConstants.clone())); ArcStr::from(__mm_s) }).clone());
     }
-    tmpSetC_1 = List::intersectionOnTrue(targetBlocksWithKnowns.clone(), e_BLTBlockRanksWithoutRanks.clone(), Arc::new(fnptr!(intEq, i32, i32)));
-    tmpSetC_2 = List::intersectionOnTrue(targetBlocksWithUnknowns.clone(), e_BLTBlockRanksWithoutRanks.clone(), Arc::new(fnptr!(intEq, i32, i32)));
-    setC = List::setDifferenceOnTrue(tmpSetC_1.clone(), tmpSetC_2.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
-    setC = List::setDifferenceOnTrue(setC.clone(), approximatedEquations.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
+    tmpSetC_1 = List::intersectionOnTrue(targetBlocksWithKnowns.clone(), e_BLTBlockRanksWithoutRanks.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>));
+    tmpSetC_2 = List::intersectionOnTrue(targetBlocksWithUnknowns.clone(), e_BLTBlockRanksWithoutRanks.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>));
+    setC = List::setDifferenceOnTrue(tmpSetC_1.clone(), tmpSetC_2.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
+    setC = List::setDifferenceOnTrue(setC.clone(), approximatedEquations.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
     if debug.clone() {
         println!("{}", (literal!("\n\nSetC-Operations\n====================")).clone());
         println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n(BlocksWithKnowns) intersection (e_BLTBlocks)   :")); __mm_s.push_str(&*dumplistInteger(tmpSetC_1.clone())); ArcStr::from(__mm_s) }).clone());
@@ -2085,12 +2085,12 @@ pub fn ExtractEquationsUsingSetOperations(mut predecessorBlockInfo: Arc<metamode
         println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nSetC                                            :")); __mm_s.push_str(&*dumplistInteger(setC.clone())); ArcStr::from(__mm_s) }).clone());
         println!("{}", (literal!("\n")).clone());
     }
-    tmpSetS_1 = List::setDifferenceOnTrue(targetBlocksWithKnowns.clone(), targetBlocksWithUnknowns.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
-    tmpSetS_2 = List::setDifferenceOnTrue(tmpSetS_1.clone(), e_BLTBlockRanksWithoutRanks.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
-    z1 = List::setDifferenceOnTrue(targetBlocksWithConstants.clone(), targetBlocksWithUnknowns.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
-    z2 = List::setDifferenceOnTrue(z1.clone(), e_BLTBlockRanksWithoutRanks.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
+    tmpSetS_1 = List::setDifferenceOnTrue(targetBlocksWithKnowns.clone(), targetBlocksWithUnknowns.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
+    tmpSetS_2 = List::setDifferenceOnTrue(tmpSetS_1.clone(), e_BLTBlockRanksWithoutRanks.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
+    z1 = List::setDifferenceOnTrue(targetBlocksWithConstants.clone(), targetBlocksWithUnknowns.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
+    z2 = List::setDifferenceOnTrue(z1.clone(), e_BLTBlockRanksWithoutRanks.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
     setS = List::unique(List::union(tmpSetS_2.clone(), z2.clone()));
-    setS = List::setDifferenceOnTrue(setS.clone(), approximatedEquations.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
+    setS = List::setDifferenceOnTrue(setS.clone(), approximatedEquations.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
     if debug.clone() {
         println!("{}", (literal!("\nSetS-Operations\n==================")).clone());
         println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n(BlocksWithKnowns - BlocksWithUnknowns)                  :")); __mm_s.push_str(&*dumplistInteger(tmpSetS_1.clone())); ArcStr::from(__mm_s) }).clone());
@@ -2130,7 +2130,7 @@ pub fn setEBLTEquationsWithIndexAndRank(mut unMatchedEqList: Arc<metamodelica::L
         eBLT_Equation_WithIndex = cons((index.clone(), BackendEquation::get(inEqArray.clone(), actualIndex.clone())), eBLT_Equation_WithIndex.clone());
         varsInfoList = adjacencyMatrix.clone().borrow()[(i.clone()-1) as usize].clone();
         e_BLTAdjacencyMatrix = cons((index.clone(), varsInfoList.clone()), e_BLTAdjacencyMatrix.clone());
-        e_BLTSolvedEqsAndVars = cons((index.clone(), (List::sort(varsInfoList.clone(), Arc::new(fnptr!(intLt, i32, i32)))?).get(1)?), e_BLTSolvedEqsAndVars.clone());
+        e_BLTSolvedEqsAndVars = cons((index.clone(), (List::sort(varsInfoList.clone(), (std::sync::Arc::new(fnptr!(intLt, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?).get(1)?), e_BLTSolvedEqsAndVars.clone());
         e_BLTBlocks = cons(list![index.clone()], e_BLTBlocks.clone());
         e_BLTBlockRanks = cons((list![index.clone()], index.clone()), e_BLTBlockRanks.clone());
         index = index.clone() - 1;
@@ -2149,12 +2149,12 @@ pub fn inverseModelicaModel(mut inVar: BackendDAE::Variables, mut knownVariables
     let mut variablesOfInterest: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
     let mut variablesOfInterestIndexes: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut eq: Arc<BackendDAE::Equation> = Arc::new(BackendDAE::Equation::DUMMY_EQUATION);
-    variablesOfInterest = List::filterOnTrue(BackendVariable::varList(inVar.clone())?, Arc::new(fnptr!(BackendVariable::varHasUncertainValueRefine, BackendDAE::Var)));
+    variablesOfInterest = List::filterOnTrue(BackendVariable::varList(inVar.clone())?, (std::sync::Arc::new(fnptr!(BackendVariable::varHasUncertainValueRefine, BackendDAE::Var)) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var) -> Result<bool> + 'static>));
     for mut var in &*variablesOfInterest.clone() {
         let mut var = var.clone();
         variablesOfInterestIndexes = BackendVariable::getVarIndexFromVars(list![var.clone()], inVar.clone());
-        if List::intersectionOnTrue(variablesOfInterestIndexes.clone(), knownVariablesWithEquationBinding.clone(), Arc::new(fnptr!(intEq, i32, i32))).is_empty() {
-            eq = Arc::new(BackendDAE::Equation::EQUATION { exp: Expression::crefExp(var.varName.clone())?, scalar: Arc::new(DAE::Exp::RCONST { real: metamodelica::OrderedFloat(0.0_f64) }), source: DAE::emptyElementSource.clone(), attr: BackendDAE::EQ_ATTR_DEFAULT_INITIAL.clone() });
+        if List::intersectionOnTrue(variablesOfInterestIndexes.clone(), knownVariablesWithEquationBinding.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>)).is_empty() {
+            eq = Arc::new(BackendDAE::Equation::EQUATION { exp: Expression::crefExp(var.varName.clone())?, scalar: Arc::new(DAE::Exp::RCONST { real: metamodelica::OrderedFloat(0.0_f64) }), source: DAE::emptyElementSource().clone(), attr: BackendDAE::EQ_ATTR_DEFAULT_INITIAL.clone() });
             eqnlst = cons(eq.clone(), eqnlst.clone());
         }
     }
@@ -2164,7 +2164,7 @@ pub fn inverseModelicaModel(mut inVar: BackendDAE::Variables, mut knownVariables
 pub fn dumplistInteger(mut inlist: Arc<metamodelica::List<i32>>) -> ArcStr {
     let mut outstring: ArcStr = arcstr::literal!("");
     let mut s: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
-    s = List::map(inlist.clone(), Arc::new(fnptr!(intString, i32)));
+    s = List::map(inlist.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>));
     outstring = stringDelimitList(s.clone(), (literal!(", ")).clone());
     outstring = stringAppendList(list![(literal!("{")).clone(), (outstring.clone()).clone(), (literal!("}")).clone()]);
     outstring
@@ -2194,13 +2194,13 @@ pub fn checkBlueOrRedOrBrownBlocks(mut inlist: Arc<metamodelica::List<i32>>, mut
         let mut i = i.clone();
         varNumber = getSolvedVariableNumber(i.clone(), solvedVar.clone());
         if listMember(varNumber.clone(), knowns.clone()) {
-            outStringList = cons(literal!("knowns"), outStringList.clone());
+            outStringList = cons((literal!("knowns")).clone(), outStringList.clone());
             outIntegerList = cons(i.clone(), outIntegerList.clone());
         } else if listMember(varNumber.clone(), exactEquationVars.clone()) {
-            outStringList = cons(literal!("constants"), outStringList.clone());
+            outStringList = cons((literal!("constants")).clone(), outStringList.clone());
             outIntegerList = cons(i.clone(), outIntegerList.clone());
         } else {
-            outStringList = cons(literal!("unknowns"), outStringList.clone());
+            outStringList = cons((literal!("unknowns")).clone(), outStringList.clone());
             outIntegerList = cons(i.clone(), outIntegerList.clone());
         }
     }
@@ -2286,7 +2286,7 @@ fn getUncertainRefineAndUnknownVariableIndexes(mut allVariables: BackendDAE::Var
 }
 
 pub fn dumpListList(mut lstLst: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>>, mut heading: ArcStr) -> () {
-    println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*heading.clone()); __mm_s.push_str(&*literal!(":\n")); __mm_s.push_str(&*arcstr::literal!(UNDERLINE)); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*literal!("{")); __mm_s.push_str(&*stringDelimitList(List::map(lstLst.clone(), Arc::new(fnptr!(dumplistInteger, Arc<metamodelica::List<i32>>))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("}")); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
+    println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*heading.clone()); __mm_s.push_str(&*literal!(":\n")); __mm_s.push_str(&*arcstr::literal!(UNDERLINE)); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*literal!("{")); __mm_s.push_str(&*stringDelimitList(List::map(lstLst.clone(), (std::sync::Arc::new(fnptr!(dumplistInteger, Arc<metamodelica::List<i32>>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<i32>>) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("}")); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
     ()
 }
 
@@ -2346,8 +2346,8 @@ fn isEquationTaggedApproximatedOrBoundaryConditionHelper(mut commentIn: Arc<meta
                 Deref @ metamodelica::List::Cons { head: Deref @ SCode::Comment { annotation_: Some(Deref @ SCode::Annotation { modification: Deref @ SCode::Mod::MOD { subModLst, .. } }), .. }, tail: t } => {
                     let mut isApproximatedEquation: bool = false;
                     let mut isboundaryConditionEquation: bool = false;
-                    isApproximatedEquation = List::any(subModLst.clone(), Arc::new(fnptr!(isEquationTaggedApproximated, Arc<SCode::SubMod>))) || (isEquationTaggedApproximatedOrBoundaryConditionHelper(t.clone())?).0;
-                    isboundaryConditionEquation = List::any(subModLst.clone(), Arc::new(fnptr!(isEquationTaggedBoundaryCondition, Arc<SCode::SubMod>))) || (isEquationTaggedApproximatedOrBoundaryConditionHelper(t.clone())?).0;
+                    isApproximatedEquation = List::any(subModLst.clone(), (std::sync::Arc::new(fnptr!(isEquationTaggedApproximated, Arc<SCode::SubMod>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SCode::SubMod>) -> Result<bool> + 'static>)) || (isEquationTaggedApproximatedOrBoundaryConditionHelper(t.clone())?).0;
+                    isboundaryConditionEquation = List::any(subModLst.clone(), (std::sync::Arc::new(fnptr!(isEquationTaggedBoundaryCondition, Arc<SCode::SubMod>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SCode::SubMod>) -> Result<bool> + 'static>)) || (isEquationTaggedApproximatedOrBoundaryConditionHelper(t.clone())?).0;
                     Ok((isApproximatedEquation.clone(), isboundaryConditionEquation.clone()))
                 }
                 _ => bail!("nomatch"),
@@ -2568,7 +2568,7 @@ pub fn findBlocksRanks(mut inlist1: Arc<metamodelica::List<(Arc<metamodelica::Li
         }
     }
     outlist = outlist.clone().reverse();
-    ranklist = listAppend(List::sort(s_BLTRanks.clone(), Arc::new(fnptr!(intGt, i32, i32)))?, e_BLTRanks.clone().reverse());
+    ranklist = listAppend(List::sort(s_BLTRanks.clone(), (std::sync::Arc::new(fnptr!(intGt, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?, e_BLTRanks.clone().reverse());
     Ok((outlist, ranklist))
 }
 
@@ -2597,7 +2597,7 @@ pub fn getBlockVarList(mut blocktofind: Arc<metamodelica::List<i32>>, mut inlist
     let mut blockFound: bool = false;
     for mut i in &*inlist1.clone() {
         let mut i = i.clone();
-        blockFound = List::setEqualOnTrue(i.clone(), blocktofind.clone(), Arc::new(fnptr!(intEq, i32, i32)));
+        blockFound = List::setEqualOnTrue(i.clone(), blocktofind.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>));
         if blockFound.clone() {
             outstringlist = (inlist2.clone()).get(count.clone()).unwrap();
         }
@@ -2610,7 +2610,7 @@ pub fn getActualBlocks(mut searchblock: Arc<metamodelica::List<i32>>, mut inlist
     let mut outlist: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>> = metamodelica::nil();
     for mut i in &*inlist1.clone() {
         let mut i = i.clone();
-        if !(List::intersectionOnTrue(searchblock.clone(), i.clone(), Arc::new(fnptr!(intEq, i32, i32))).is_empty()) {
+        if !(List::intersectionOnTrue(searchblock.clone(), i.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>)).is_empty()) {
             outlist = cons(i.clone(), outlist.clone());
         }
     }
@@ -2820,19 +2820,19 @@ fn VerifyDataReconciliation(mut setc: Arc<metamodelica::List<i32>>, mut sets: Ar
     let mut rule2: bool = true;
     let mut condition1_eqs: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n\nAutomatic Verification Steps of DataReconciliation Algorithm")); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*arcstr::literal!(UNDERLINE)); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
-    var = List::map1r(knowns.clone().reverse(), Arc::new(BackendVariable::getVarAt), allVars.clone());
+    var = List::map1r(knowns.clone().reverse(), (std::sync::Arc::new(BackendVariable::getVarAt) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Variables, i32) -> Result<BackendDAE::Var> + 'static>), allVars.clone());
     BackendDump::dumpVarList(var.clone(), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("knownVariables:")); __mm_s.push_str(&*dumplistInteger(knowns.clone().reverse())); ArcStr::from(__mm_s) }).clone());
     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("-SET_C:")); __mm_s.push_str(&*dumplistInteger(mappedSetC.clone())); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*literal!("-SET_S:")); __mm_s.push_str(&*dumplistInteger(mappedSetS.clone())); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
     auxilliaryConditions = (intString((mappedSetC.clone().len() as i32))).clone();
     varsToReconcile = (intString((knowns.clone().len() as i32))).clone();
     condition1 = (literal!("Condition-1 \"SET_C and SET_S must not have no equations in common\"")).clone();
     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*condition1.clone()); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*arcstr::literal!(UNDERLINE)); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
-    matchedeq = List::intersectionOnTrue(mappedSetC.clone(), mappedSetS.clone(), Arc::new(fnptr!(intEq, i32, i32)));
+    matchedeq = List::intersectionOnTrue(mappedSetC.clone(), mappedSetS.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>));
     if matchedeq.clone().is_empty() {
         println!("{}", (literal!("-Passed\n\n")).clone());
     } else {
         println!("{}", (literal!("-Failed\n")).clone());
-        condition1_eqs = List::map1r(matchedeq.clone(), Arc::new(fnptr!(BackendEquation::get, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, i32)), allEqs.clone());
+        condition1_eqs = List::map1r(matchedeq.clone(), (std::sync::Arc::new(fnptr!(BackendEquation::get, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, i32)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, i32) -> Result<Arc<BackendDAE::Equation>> + 'static>), allEqs.clone());
         BackendDump::dumpEquationList(condition1_eqs.clone(), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Sets C and S have equations in common")); __mm_s.push_str(&*dumplistInteger(matchedeq.clone())); ArcStr::from(__mm_s) }).clone());
         Error::addMessage(Error::INTERNAL_ERROR.clone(), list![(literal!(": Condition 1-Failed: SET_C and SET_S must not have no equations in common: The data reconciliation problem is ill-posed")).clone()])?;
         generateCompileTimeHtmlReport(shared.clone(), (literal!("Internal Error: Condition 1-Failed: \"SET_C and SET_S must not have no equations in common\": The data reconciliation problem is ill-posed")).clone(), (auxilliaryConditions.clone()).clone(), (varsToReconcile.clone()).clone(), (literal!("Sets C and S have equations in common"), condition1_eqs.clone()), (literal!(""), metamodelica::nil()), (literal!("")).clone(), (literal!(""), metamodelica::nil()), (literal!("")).clone(), false, false, 0, 0, unMeasuredVariablesOfInterest.clone())?;
@@ -2842,26 +2842,26 @@ fn VerifyDataReconciliation(mut setc: Arc<metamodelica::List<i32>>, mut sets: Ar
     (matchedknownssets, matchedunknownssets) = getVariableOccurence(sets.clone(), mExt.clone(), knowns.clone());
     condition2 = (literal!("Condition-2 \"All variables of interest must be involved in SET_C or SET_S\"")).clone();
     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*condition2.clone()); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*arcstr::literal!(UNDERLINE)); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
-    (tmplist1, tmplist2, tmplist3) = List::intersection1OnTrue(matchedknownssetc.clone(), knowns.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
+    (tmplist1, tmplist2, tmplist3) = List::intersection1OnTrue(matchedknownssetc.clone(), knowns.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
     if tmplist3.clone().is_empty() {
         println!("{}", (literal!("-Passed\n")).clone());
-        BackendDump::dumpVarList(List::map1r(tmplist1.clone(), Arc::new(BackendVariable::getVarAt), allVars.clone()), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("-SET_C has all known variables:")); __mm_s.push_str(&*dumplistInteger(tmplist1.clone())); ArcStr::from(__mm_s) }).clone());
+        BackendDump::dumpVarList(List::map1r(tmplist1.clone(), (std::sync::Arc::new(BackendVariable::getVarAt) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Variables, i32) -> Result<BackendDAE::Var> + 'static>), allVars.clone()), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("-SET_C has all known variables:")); __mm_s.push_str(&*dumplistInteger(tmplist1.clone())); ArcStr::from(__mm_s) }).clone());
     } else if !(tmplist3.clone().is_empty()) {
-        (tmplist1sets, tmplist2, _) = List::intersection1OnTrue(tmplist3.clone(), matchedknownssets.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
+        (tmplist1sets, tmplist2, _) = List::intersection1OnTrue(tmplist3.clone(), matchedknownssets.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
         if !(tmplist2.clone().is_empty()) {
             r#str = (dumplistInteger(tmplist2.clone())).clone();
             println!("{}", (literal!("-Failed\n")).clone());
-            BackendDump::dumpVarList(List::map1r(tmplist2.clone(), Arc::new(BackendVariable::getVarAt), allVars.clone()), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("knownVariables not Found:")); __mm_s.push_str(&*dumplistInteger(tmplist2.clone())); ArcStr::from(__mm_s) }).clone());
+            BackendDump::dumpVarList(List::map1r(tmplist2.clone(), (std::sync::Arc::new(BackendVariable::getVarAt) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Variables, i32) -> Result<BackendDAE::Var> + 'static>), allVars.clone()), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("knownVariables not Found:")); __mm_s.push_str(&*dumplistInteger(tmplist2.clone())); ArcStr::from(__mm_s) }).clone());
             Error::addMessage(Error::INTERNAL_ERROR.clone(), list![(literal!(": Condition 2-Failed: All variables of interest must be involved in Set-C or Set-S: The data reconciliation problem is ill-posed")).clone()])?;
             rule2 = false;
-            r#str = (dumpToCsv((literal!("")).clone(), List::map1r(tmplist2.clone(), Arc::new(BackendVariable::getVarAt), allVars.clone()))?).clone();
+            r#str = (dumpToCsv((literal!("")).clone(), List::map1r(tmplist2.clone(), (std::sync::Arc::new(BackendVariable::getVarAt) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Variables, i32) -> Result<BackendDAE::Var> + 'static>), allVars.clone()))?).clone();
             System::writeFile(({ let mut __mm_s = String::new(); __mm_s.push_str(&*shared.info.fileNamePrefix.clone()); __mm_s.push_str(&*literal!("_NonReconcilcedVars.txt")); ArcStr::from(__mm_s) }).clone(), (r#str.clone()).clone())?;
         }
         if rule2.clone() {
             println!("{}", (literal!("-Passed\n")).clone());
         }
-        BackendDump::dumpVarList(List::map1r(tmplist1.clone(), Arc::new(BackendVariable::getVarAt), allVars.clone()), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("-SET_C has known variables:")); __mm_s.push_str(&*dumplistInteger(tmplist1.clone())); ArcStr::from(__mm_s) }).clone());
-        BackendDump::dumpVarList(List::map1r(tmplist1sets.clone(), Arc::new(BackendVariable::getVarAt), allVars.clone()), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("-SET_S has known variables:")); __mm_s.push_str(&*dumplistInteger(tmplist1sets.clone())); ArcStr::from(__mm_s) }).clone());
+        BackendDump::dumpVarList(List::map1r(tmplist1.clone(), (std::sync::Arc::new(BackendVariable::getVarAt) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Variables, i32) -> Result<BackendDAE::Var> + 'static>), allVars.clone()), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("-SET_C has known variables:")); __mm_s.push_str(&*dumplistInteger(tmplist1.clone())); ArcStr::from(__mm_s) }).clone());
+        BackendDump::dumpVarList(List::map1r(tmplist1sets.clone(), (std::sync::Arc::new(BackendVariable::getVarAt) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Variables, i32) -> Result<BackendDAE::Var> + 'static>), allVars.clone()), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("-SET_S has known variables:")); __mm_s.push_str(&*dumplistInteger(tmplist1sets.clone())); ArcStr::from(__mm_s) }).clone());
     }
     condition3 = (literal!("Condition-3 \"SET_C equations must be strictly less than Variable of Interest\"")).clone();
     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*condition3.clone()); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*arcstr::literal!(UNDERLINE)); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
@@ -2882,19 +2882,19 @@ fn VerifyDataReconciliation(mut setc: Arc<metamodelica::List<i32>>, mut sets: Ar
     }
     condition4 = (literal!("Condition-4 \"SET_S should contain all intermediate variables involved in SET_C\"")).clone();
     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*condition4.clone()); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*arcstr::literal!(UNDERLINE)); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
-    (tmplistvar1, tmplistvar2, tmplistvar3) = List::intersection1OnTrue(matchedunknownssetc.clone(), matchedunknownssets.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
+    (tmplistvar1, tmplistvar2, tmplistvar3) = List::intersection1OnTrue(matchedunknownssetc.clone(), matchedunknownssets.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
     if matchedunknownssetc.clone().is_empty() {
         println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("-Passed")); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*literal!("-SET_C contains No Intermediate Variables\n\n")); ArcStr::from(__mm_s) }).clone());
         return Ok(());
     } else {
-        BackendDump::dumpVarList(List::map1r(matchedunknownssetc.clone(), Arc::new(BackendVariable::getVarAt), allVars.clone()), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("-SET_C has intermediate variables:")); __mm_s.push_str(&*dumplistInteger(matchedunknownssetc.clone())); ArcStr::from(__mm_s) }).clone());
+        BackendDump::dumpVarList(List::map1r(matchedunknownssetc.clone(), (std::sync::Arc::new(BackendVariable::getVarAt) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Variables, i32) -> Result<BackendDAE::Var> + 'static>), allVars.clone()), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("-SET_C has intermediate variables:")); __mm_s.push_str(&*dumplistInteger(matchedunknownssetc.clone())); ArcStr::from(__mm_s) }).clone());
         if tmplistvar2.clone().is_empty() {
-            BackendDump::dumpVarList(List::map1r(tmplistvar1.clone(), Arc::new(BackendVariable::getVarAt), allVars.clone()), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("-SET_S has intermediate variables involved in SET_C:")); __mm_s.push_str(&*dumplistInteger(tmplistvar1.clone())); ArcStr::from(__mm_s) }).clone());
+            BackendDump::dumpVarList(List::map1r(tmplistvar1.clone(), (std::sync::Arc::new(BackendVariable::getVarAt) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Variables, i32) -> Result<BackendDAE::Var> + 'static>), allVars.clone()), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("-SET_S has intermediate variables involved in SET_C:")); __mm_s.push_str(&*dumplistInteger(tmplistvar1.clone())); ArcStr::from(__mm_s) }).clone());
             println!("{}", (literal!("-Passed\n\n")).clone());
         } else {
-            BackendDump::dumpVarList(List::map1r(tmplistvar2.clone(), Arc::new(BackendVariable::getVarAt), allVars.clone()), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("-SET_S does not have intermediate variables involved in SET_C:")); __mm_s.push_str(&*dumplistInteger(tmplistvar2.clone())); ArcStr::from(__mm_s) }).clone());
+            BackendDump::dumpVarList(List::map1r(tmplistvar2.clone(), (std::sync::Arc::new(BackendVariable::getVarAt) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Variables, i32) -> Result<BackendDAE::Var> + 'static>), allVars.clone()), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("-SET_S does not have intermediate variables involved in SET_C:")); __mm_s.push_str(&*dumplistInteger(tmplistvar2.clone())); ArcStr::from(__mm_s) }).clone());
             Error::addMessage(Error::INTERNAL_ERROR.clone(), list![(literal!(": Condition 4-Failed: SET_S should contain all intermediate variables involved in SET_C: The data reconciliation problem is ill-posed")).clone()])?;
-            generateCompileTimeHtmlReport(shared.clone(), (literal!("<b>Internal Error:</b> Condition 4-Failed: \"SET_S should contain all intermediate variables involved in SET_C\": The data reconciliation problem is ill-posed")).clone(), (auxilliaryConditions.clone()).clone(), (varsToReconcile.clone()).clone(), (literal!(""), metamodelica::nil()), (literal!(""), metamodelica::nil()), (literal!("")).clone(), (literal!("Set-S does not have intermediate variables involved in Set-C"), List::map1r(tmplistvar2.clone(), Arc::new(BackendVariable::getVarAt), allVars.clone())), (literal!("")).clone(), false, false, 0, 0, unMeasuredVariablesOfInterest.clone())?;
+            generateCompileTimeHtmlReport(shared.clone(), (literal!("<b>Internal Error:</b> Condition 4-Failed: \"SET_S should contain all intermediate variables involved in SET_C\": The data reconciliation problem is ill-posed")).clone(), (auxilliaryConditions.clone()).clone(), (varsToReconcile.clone()).clone(), (literal!(""), metamodelica::nil()), (literal!(""), metamodelica::nil()), (literal!("")).clone(), (literal!("Set-S does not have intermediate variables involved in Set-C"), List::map1r(tmplistvar2.clone(), (std::sync::Arc::new(BackendVariable::getVarAt) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Variables, i32) -> Result<BackendDAE::Var> + 'static>), allVars.clone())), (literal!("")).clone(), false, false, 0, 0, unMeasuredVariablesOfInterest.clone())?;
             bail!("fail");
         }
     }
@@ -3120,7 +3120,7 @@ fn dumpEquationString(mut inEquation: Arc<BackendDAE::Equation>) -> Result<ArcSt
             let mut s3: ArcStr = arcstr::literal!("");
             let mut res: ArcStr = arcstr::literal!("");
             s1 = (ExpressionDump::printExp2Str(e1.clone(), (literal!("")).clone(), None, None)?).clone();
-            s2 = stringDelimitList(List::map(eqns.clone(), Arc::new(dumpEquationString)), (literal!("\n  ")).clone());
+            s2 = stringDelimitList(List::map(eqns.clone(), (std::sync::Arc::new(dumpEquationString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<BackendDAE::Equation>) -> Result<ArcStr> + 'static>)), (literal!("\n  ")).clone());
             s3 = stringAppendList(list![(literal!("if ")).clone(), (s1.clone()).clone(), (literal!(" then\n  ")).clone(), (s2.clone()).clone()]);
             res = (BackendDump::ifequationString(expl.clone(), eqnstrue.clone(), eqnsfalse.clone(), (s3.clone()).clone())?).clone();
             res.clone()

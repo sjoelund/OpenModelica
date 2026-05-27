@@ -67,13 +67,13 @@ use openmodelica_util::Vector;
 use openmodelica_util_datatypes_basic::Array;
 
 pub fn multiIntervalFromDimensions(mut dims: Arc<metamodelica::List<Arc<Dimension::NFDimension>>>, mut vCount: Arc<Vector::Vector<i32>>) -> Result<Arc<SBMultiInterval::SBMultiInterval>> {
-    let mut multiInt: Arc<SBMultiInterval::SBMultiInterval>;
+    let mut multiInt: Arc<SBMultiInterval::SBMultiInterval> = Arc::new(<SBMultiInterval::SBMultiInterval as ::std::default::Default>::default());
     let mut new_vCount: Arc<Vector::Vector<i32>>;
     let mut vc: i32 = 0;
     let mut dim_size: i32 = 0;
     let mut index: i32 = 0;
     let mut ints: metamodelica::Array<Arc<SBInterval::SBInterval>>;
-    let mut int: Arc<SBInterval::SBInterval>;
+    let mut int: Arc<SBInterval::SBInterval> = Arc::new(<SBInterval::SBInterval as ::std::default::Default>::default());
     if dims.clone().is_empty() {
         vc = Vector::get(vCount.clone(), 1)?;
         Vector::update(vCount.clone(), 1, vc.clone() + 1)?;
@@ -121,13 +121,13 @@ pub fn multiIntervalFromSubscripts(mut subs: Arc<metamodelica::List<Arc<Subscrip
     let mut multiInt: Arc<SBMultiInterval::SBMultiInterval> = multiInt;
     let mut mi: metamodelica::Array<Arc<SBInterval::SBInterval>>;
     let mut miv: metamodelica::Array<Arc<SBInterval::SBInterval>>;
-    let mut int: Arc<SBInterval::SBInterval>;
+    let mut int: Arc<SBInterval::SBInterval> = Arc::new(<SBInterval::SBInterval as ::std::default::Default>::default());
     let mut index: i32 = 0;
     let mut aux_lo: i32 = 0;
     let mut sub_exp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     miv = SBMultiInterval::intervals(multiInt.clone());
     if subs.clone().is_empty() {
-        mi = Array::map(miv.clone(), Arc::new(fnptr!(make_lo_interval, Arc<SBInterval::SBInterval>)));
+        mi = Array::map(miv.clone(), (std::sync::Arc::new(fnptr!(make_lo_interval, Arc<SBInterval::SBInterval>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SBInterval::SBInterval>) -> Result<Arc<SBInterval::SBInterval>> + 'static>));
     } else {
         index = 1;
         mi = metamodelica::arrayFromVec(miv.clone().borrow().clone());
@@ -162,7 +162,7 @@ pub fn multiIntervalFromSubscripts(mut subs: Arc<metamodelica::List<Arc<Subscrip
 }
 
 pub fn make_lo_interval(mut i: Arc<SBInterval::SBInterval>) -> Arc<SBInterval::SBInterval> {
-    let mut res: Arc<SBInterval::SBInterval>;
+    let mut res: Arc<SBInterval::SBInterval> = Arc::new(<SBInterval::SBInterval as ::std::default::Default>::default());
     let mut lo: i32 = SBInterval::lowerBound(i.clone());
     res = SBInterval::new(lo.clone(), 1, lo.clone());
     res
@@ -180,12 +180,12 @@ pub fn evalCrefs(mut e: Arc<Expression::NFExpression>) -> Result<Arc<Expression:
     }
 
     let mut e: Arc<Expression::NFExpression> = e;
-    e = Expression::map(e.clone(), Arc::new(evalCref))?;
+    e = Expression::map(e.clone(), (std::sync::Arc::new(evalCref) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>))?;
     Ok(e)
 }
 
 pub fn intervalFromExp(mut e: Arc<Expression::NFExpression>) -> Result<Arc<SBInterval::SBInterval>> {
-    let mut i: Arc<SBInterval::SBInterval>;
+    let mut i: Arc<SBInterval::SBInterval> = Arc::new(<SBInterval::SBInterval as ::std::default::Default>::default());
     i = (::match_deref::match_deref! { match &(e.clone()) {
         Deref @ Expression::INTEGER { .. } => SBInterval::new(var_field!((*e).value, Expression::NFExpression::INTEGER).clone(), 1, var_field!((*e).value, Expression::NFExpression::INTEGER).clone()),
         Deref @ Expression::BOOLEAN { .. } => SBInterval::new(Util::boolInt(var_field!((*e).value, Expression::NFExpression::BOOLEAN).clone()), 1, Util::boolInt(var_field!((*e).value, Expression::NFExpression::BOOLEAN).clone())),
@@ -203,9 +203,9 @@ pub fn intervalFromExp(mut e: Arc<Expression::NFExpression>) -> Result<Arc<SBInt
 }
 
 pub fn intervalFromBinaryExp(mut lhs: Arc<Expression::NFExpression>, mut op: Arc<Operator::NFOperator>, mut rhs: Arc<Expression::NFExpression>) -> Result<Arc<SBInterval::SBInterval>> {
-    let mut i: Arc<SBInterval::SBInterval>;
-    let mut lhs_i: Arc<SBInterval::SBInterval>;
-    let mut rhs_i: Arc<SBInterval::SBInterval>;
+    let mut i: Arc<SBInterval::SBInterval> = Arc::new(<SBInterval::SBInterval as ::std::default::Default>::default());
+    let mut lhs_i: Arc<SBInterval::SBInterval> = Arc::new(<SBInterval::SBInterval as ::std::default::Default>::default());
+    let mut rhs_i: Arc<SBInterval::SBInterval> = Arc::new(<SBInterval::SBInterval as ::std::default::Default>::default());
     let mut lhs_sz: i32 = 0;
     let mut rhs_sz: i32 = 0;
     let mut res: i32 = 0;
@@ -247,14 +247,14 @@ pub fn intervalFromBinaryExp(mut lhs: Arc<Expression::NFExpression>, mut op: Arc
 }
 
 pub fn intervalFromUnaryExp(mut e: Arc<Expression::NFExpression>) -> Result<Arc<SBInterval::SBInterval>> {
-    let mut i: Arc<SBInterval::SBInterval>;
+    let mut i: Arc<SBInterval::SBInterval> = Arc::new(<SBInterval::SBInterval as ::std::default::Default>::default());
     i = intervalFromExp(e.clone())?;
     i = SBInterval::new(-(SBInterval::lowerBound(i.clone())), 1, -(SBInterval::upperBound(i.clone())));
     Ok(i)
 }
 
 pub fn intervalFromRange(mut e: Arc<Expression::NFExpression>) -> Result<Arc<SBInterval::SBInterval>> {
-    let mut i: Arc<SBInterval::SBInterval>;
+    let mut i: Arc<SBInterval::SBInterval> = Arc::new(<SBInterval::SBInterval as ::std::default::Default>::default());
     let mut start: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut stop: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut ostep: Option<Arc<Expression::NFExpression>> = None;
@@ -281,8 +281,8 @@ pub fn intervalFromRange(mut e: Arc<Expression::NFExpression>) -> Result<Arc<SBI
 
 pub fn linearMapFromIntervals(mut d1: i32, mut d2: i32, mut mi1: Arc<SBMultiInterval::SBMultiInterval>, mut mi2: Arc<SBMultiInterval::SBMultiInterval>, mut eCount: Arc<Vector::Vector<i32>>) -> Result<(ArcStr, Arc<SBPWLinearMap::SBPWLinearMap>, Arc<SBPWLinearMap::SBPWLinearMap>)> {
     let mut name: ArcStr = arcstr::literal!("");
-    let mut pw1: Arc<SBPWLinearMap::SBPWLinearMap>;
-    let mut pw2: Arc<SBPWLinearMap::SBPWLinearMap>;
+    let mut pw1: Arc<SBPWLinearMap::SBPWLinearMap> = Arc::new(<SBPWLinearMap::SBPWLinearMap as ::std::default::Default>::default());
+    let mut pw2: Arc<SBPWLinearMap::SBPWLinearMap> = Arc::new(<SBPWLinearMap::SBPWLinearMap as ::std::default::Default>::default());
     let mut ints1: metamodelica::Array<Arc<SBInterval::SBInterval>>;
     let mut ints2: metamodelica::Array<Arc<SBInterval::SBInterval>>;
     let mut mi: metamodelica::Array<Arc<SBInterval::SBInterval>>;
@@ -301,12 +301,12 @@ pub fn linearMapFromIntervals(mut d1: i32, mut d2: i32, mut mi1: Arc<SBMultiInte
     let mut g2i: metamodelica::Real = metamodelica::OrderedFloat(0.0_f64);
     let mut o1i: metamodelica::Real = metamodelica::OrderedFloat(0.0_f64);
     let mut o2i: metamodelica::Real = metamodelica::OrderedFloat(0.0_f64);
-    let mut i1: Arc<SBInterval::SBInterval>;
-    let mut i2: Arc<SBInterval::SBInterval>;
+    let mut i1: Arc<SBInterval::SBInterval> = Arc::new(<SBInterval::SBInterval as ::std::default::Default>::default());
+    let mut i2: Arc<SBInterval::SBInterval> = Arc::new(<SBInterval::SBInterval as ::std::default::Default>::default());
     let mut new_ec: Arc<Vector::Vector<i32>>;
-    let mut s: Arc<SBSet::SBSet>;
-    let mut lm1: Arc<SBLinearMap::SBLinearMap>;
-    let mut lm2: Arc<SBLinearMap::SBLinearMap>;
+    let mut s: Arc<SBSet::SBSet> = Arc::new(<SBSet::SBSet as ::std::default::Default>::default());
+    let mut lm1: Arc<SBLinearMap::SBLinearMap> = Arc::new(<SBLinearMap::SBLinearMap as ::std::default::Default>::default());
+    let mut lm2: Arc<SBLinearMap::SBLinearMap> = Arc::new(<SBLinearMap::SBLinearMap as ::std::default::Default>::default());
     ints1 = SBMultiInterval::intervals(mi1.clone());
     mi1_sz = SBMultiInterval::size(mi1.clone());
     ints2 = SBMultiInterval::intervals(mi2.clone());

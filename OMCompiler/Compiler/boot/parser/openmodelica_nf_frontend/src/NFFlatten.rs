@@ -149,10 +149,10 @@ pub mod FunctionTreeImpl {
 
     pub use addConflictKeep as addConflictDefault;
 
-    pub type ConflictFunc = fn(Value, Value, Key) -> Result<Value>;
+    pub type ConflictFunc = std::sync::Arc<dyn ::std::ops::Fn(Value, Value, Key) -> Result<Value> + 'static>;
 
     /// The binary tree data structure.
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
     pub enum Tree {
         NODE {
             /// The key of the node.
@@ -176,20 +176,20 @@ pub mod FunctionTreeImpl {
 
     pub type ValueNode = Arc<Path>;
 
-    pub fn add(mut inTree: Arc<Tree>, mut inKey: Key, mut inValue: Value, mut conflictFunc: ConflictFunc) -> Result<Arc<Tree>> {
+    pub fn add(mut inTree: Arc<Tree>, mut inKey: Key, mut inValue: Value, mut conflictFunc: Arc<dyn ::std::ops::Fn(Arc<Function::Function>, Arc<Function::Function>, Arc<Path>) -> Result<Arc<Function::Function>> + 'static>) -> Result<Arc<Tree>> {
         let mut tree: Arc<Tree> = inTree.clone();
         tree = (::match_deref::match_deref! { match &(tree.clone()) {
         Deref @ Tree::EMPTY { .. } => {
             Arc::new(Tree::LEAF { key: inKey.clone(), value: inValue.clone() })
         },
         Deref @ Tree::NODE { key, .. } => {
-            let mut value: Value;
+            let mut value: Value = Arc::new(<Function::Function as ::std::default::Default>::default());
             let mut key_comp: i32 = 0;
             key_comp = keyCompare(inKey.clone(), key.clone())?;
             if key_comp.clone() == -1 {
-                assign_variant_field!(tree => Tree::NODE; left = add(var_field!((*tree).left, Tree::NODE).clone(), inKey.clone(), inValue.clone(), conflictFunc)?);
+                assign_variant_field!(tree => Tree::NODE; left = add(var_field!((*tree).left, Tree::NODE).clone(), inKey.clone(), inValue.clone(), conflictFunc.clone())?);
             } else if key_comp.clone() == 1 {
-                assign_variant_field!(tree => Tree::NODE; right = add(var_field!((*tree).right, Tree::NODE).clone(), inKey.clone(), inValue.clone(), conflictFunc)?);
+                assign_variant_field!(tree => Tree::NODE; right = add(var_field!((*tree).right, Tree::NODE).clone(), inKey.clone(), inValue.clone(), conflictFunc.clone())?);
             } else {
                 value = conflictFunc(inValue.clone(), var_field!((*tree).value, Tree::NODE).clone(), key.clone())?;
                 if !(referenceEq(&var_field!((*tree).value, Tree::NODE).clone(),&value.clone())) {
@@ -199,7 +199,7 @@ pub mod FunctionTreeImpl {
             if (key_comp.clone() == 0) {tree.clone()} else {balance(tree.clone())?}
         },
         Deref @ Tree::LEAF { .. } => {
-            let mut value: Value;
+            let mut value: Value = Arc::new(<Function::Function as ::std::default::Default>::default());
             let mut key_comp: i32 = 0;
             let mut outTree: Arc<Tree> = Arc::new(Tree::EMPTY);
             key_comp = keyCompare(inKey.clone(), var_field!((*tree).key, Tree::LEAF).clone())?;
@@ -222,7 +222,7 @@ pub mod FunctionTreeImpl {
     }
 
     pub fn addConflictFail(mut newValue: Value, mut oldValue: Value, mut key: Key) -> Result<Value> {
-        let mut value: Value;
+        let mut value: Value = Arc::new(<Function::Function as ::std::default::Default>::default());
         bail!("fail");
         Ok(value)
     }
@@ -237,20 +237,20 @@ pub mod FunctionTreeImpl {
         value
     }
 
-    pub fn addList(mut tree: Arc<Tree>, mut inValues: Arc<metamodelica::List<(Arc<Path>, Arc<Function::Function>)>>, mut conflictFunc: ConflictFunc) -> Result<Arc<Tree>> {
+    pub fn addList(mut tree: Arc<Tree>, mut inValues: Arc<metamodelica::List<(Arc<Path>, Arc<Function::Function>)>>, mut conflictFunc: Arc<dyn ::std::ops::Fn(Arc<Function::Function>, Arc<Function::Function>, Arc<Path>) -> Result<Arc<Function::Function>> + 'static>) -> Result<Arc<Tree>> {
         let mut tree: Arc<Tree> = tree;
         let mut key: Key;
-        let mut value: Value;
+        let mut value: Value = Arc::new(<Function::Function as ::std::default::Default>::default());
         for mut t in &*inValues.clone() {
             let mut t = t.clone();
             (key, value) = t.clone();
-            tree = add(tree.clone(), key.clone(), value.clone(), conflictFunc)?;
+            tree = add(tree.clone(), key.clone(), value.clone(), conflictFunc.clone())?;
         }
         Ok(tree)
     }
 
     pub fn addUpdate(mut tree: Arc<Tree>, mut key: Key, mut r#fn: Arc<dyn ::std::ops::Fn(Option<Arc<Function::Function>>) -> Result<Arc<Function::Function>> + 'static>) -> Result<Arc<Tree>> {
-        pub type UpdateFn = fn(Option<Arc<Function::Function>>) -> Result<Value>;
+        pub type UpdateFn = std::sync::Arc<dyn ::std::ops::Fn(Option<Arc<Function::Function>>) -> Result<Value> + 'static>;
 
         let mut tree: Arc<Tree> = tree;
         let mut key_comp: i32 = 0;
@@ -328,7 +328,7 @@ pub mod FunctionTreeImpl {
     }
 
     pub fn fold<FT: Clone + 'static>(mut inTree: Arc<Tree>, mut inFunc: Arc<dyn ::std::ops::Fn(Arc<Path>, Arc<Function::Function>, FT) -> Result<FT> + 'static>, mut inStartValue: FT) -> FT {
-        pub type FoldFunc<FT: Clone> = fn(Key, Value, FT) -> Result<FT>;
+        pub type FoldFunc<FT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Key, Value, FT) -> Result<FT> + 'static>;
 
         let mut outResult: FT = inStartValue.clone();
         outResult = (::match_deref::match_deref! { match &(inTree.clone()) {
@@ -351,7 +351,7 @@ pub mod FunctionTreeImpl {
     }
 
     pub fn foldCond<FT: Clone + 'static>(mut tree: Arc<Tree>, mut foldFunc: Arc<dyn ::std::ops::Fn(Arc<Path>, Arc<Function::Function>, FT) -> Result<(FT, bool)> + 'static>, mut value: FT) -> FT {
-        pub type FoldFunc<FT: Clone> = fn(Key, Value, FT) -> Result<(FT, bool)>;
+        pub type FoldFunc<FT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Key, Value, FT) -> Result<(FT, bool)> + 'static>;
 
         let mut value: FT = value;
         value = (::match_deref::match_deref! { match &(tree.clone()) {
@@ -378,7 +378,7 @@ pub mod FunctionTreeImpl {
     }
 
     pub fn fold_2<FT1: Clone + 'static, FT2: Clone + 'static>(mut tree: Arc<Tree>, mut foldFunc: Arc<dyn ::std::ops::Fn(Arc<Path>, Arc<Function::Function>, FT1, FT2) -> Result<(FT1, FT2)> + 'static>, mut foldArg1: FT1, mut foldArg2: FT2) -> (FT1, FT2) {
-        pub type FoldFunc<FT1: Clone, FT2: Clone> = fn(Key, Value, FT1, FT2) -> Result<(FT1, FT2)>;
+        pub type FoldFunc<FT1: Clone + 'static, FT2: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Key, Value, FT1, FT2) -> Result<(FT1, FT2)> + 'static>;
 
         let mut foldArg1: FT1 = foldArg1;
         let mut foldArg2: FT2 = foldArg2;
@@ -400,7 +400,7 @@ pub mod FunctionTreeImpl {
     }
 
     pub fn forEach(mut tree: Arc<Tree>, mut func: Arc<dyn ::std::ops::Fn(Arc<Path>, Arc<Function::Function>) -> Result<()> + 'static>) -> Result<()> {
-        pub type EachFunc = fn(Key, Value) -> Result<()>;
+        pub type EachFunc = std::sync::Arc<dyn ::std::ops::Fn(Key, Value) -> Result<()> + 'static>;
 
         let _ = (::match_deref::match_deref! { match &(tree.clone()) {
         Deref @ Tree::NODE { .. } => {
@@ -419,20 +419,20 @@ pub mod FunctionTreeImpl {
         Ok(())
     }
 
-    pub fn fromList(mut inValues: Arc<metamodelica::List<(Arc<Path>, Arc<Function::Function>)>>, mut conflictFunc: ConflictFunc) -> Result<Arc<Tree>> {
+    pub fn fromList(mut inValues: Arc<metamodelica::List<(Arc<Path>, Arc<Function::Function>)>>, mut conflictFunc: Arc<dyn ::std::ops::Fn(Arc<Function::Function>, Arc<Function::Function>, Arc<Path>) -> Result<Arc<Function::Function>> + 'static>) -> Result<Arc<Tree>> {
         let mut tree: Arc<Tree> = Arc::new(crate::NFFlatten::FunctionTreeImpl::Tree::EMPTY);
         let mut key: Key;
-        let mut value: Value;
+        let mut value: Value = Arc::new(<Function::Function as ::std::default::Default>::default());
         for mut t in &*inValues.clone() {
             let mut t = t.clone();
             (key, value) = t.clone();
-            tree = add(tree.clone(), key.clone(), value.clone(), conflictFunc)?;
+            tree = add(tree.clone(), key.clone(), value.clone(), conflictFunc.clone())?;
         }
         Ok(tree)
     }
 
     pub fn get(mut tree: Arc<Tree>, mut key: Key) -> Result<Value> {
-        let mut value: Value;
+        let mut value: Value = Arc::new(<Function::Function as ::std::default::Default>::default());
         let mut k: Key;
         k = (::match_deref::match_deref! { match &(tree.clone()) {
         Deref @ Tree::NODE { .. } => var_field!((*tree).key, Tree::NODE).clone(),
@@ -522,17 +522,17 @@ pub mod FunctionTreeImpl {
         isEmpty
     }
 
-    pub fn join(mut tree: Arc<Tree>, mut treeToJoin: Arc<Tree>, mut conflictFunc: ConflictFunc) -> Result<Arc<Tree>> {
+    pub fn join(mut tree: Arc<Tree>, mut treeToJoin: Arc<Tree>, mut conflictFunc: Arc<dyn ::std::ops::Fn(Arc<Function::Function>, Arc<Function::Function>, Arc<Path>) -> Result<Arc<Function::Function>> + 'static>) -> Result<Arc<Tree>> {
         let mut tree: Arc<Tree> = tree;
         tree = (::match_deref::match_deref! { match &(treeToJoin.clone()) {
         Deref @ Tree::EMPTY { .. } => tree.clone(),
         Deref @ Tree::NODE { .. } => {
-            tree = add(tree.clone(), var_field!((*treeToJoin).key, Tree::NODE).clone(), var_field!((*treeToJoin).value, Tree::NODE).clone(), conflictFunc)?;
-            tree = join(tree.clone(), var_field!((*treeToJoin).left, Tree::NODE).clone(), conflictFunc)?;
-            tree = join(tree.clone(), var_field!((*treeToJoin).right, Tree::NODE).clone(), conflictFunc)?;
+            tree = add(tree.clone(), var_field!((*treeToJoin).key, Tree::NODE).clone(), var_field!((*treeToJoin).value, Tree::NODE).clone(), conflictFunc.clone())?;
+            tree = join(tree.clone(), var_field!((*treeToJoin).left, Tree::NODE).clone(), conflictFunc.clone())?;
+            tree = join(tree.clone(), var_field!((*treeToJoin).right, Tree::NODE).clone(), conflictFunc.clone())?;
             tree.clone()
         },
-        Deref @ Tree::LEAF { .. } => add(tree.clone(), var_field!((*treeToJoin).key, Tree::LEAF).clone(), var_field!((*treeToJoin).value, Tree::LEAF).clone(), conflictFunc)?,
+        Deref @ Tree::LEAF { .. } => add(tree.clone(), var_field!((*treeToJoin).key, Tree::LEAF).clone(), var_field!((*treeToJoin).value, Tree::LEAF).clone(), conflictFunc.clone())?,
         _ => bail!("match: no arm matched"),
     } });
         Ok(tree)
@@ -595,12 +595,12 @@ pub mod FunctionTreeImpl {
     }
 
     pub fn map(mut inTree: Arc<Tree>, mut inFunc: Arc<dyn ::std::ops::Fn(Arc<Path>, Arc<Function::Function>) -> Result<Arc<Function::Function>> + 'static>) -> Arc<Tree> {
-        pub type MapFunc = fn(Key, Value) -> Result<Value>;
+        pub type MapFunc = std::sync::Arc<dyn ::std::ops::Fn(Key, Value) -> Result<Value> + 'static>;
 
         let mut outTree: Arc<Tree> = inTree.clone();
         outTree = (::match_deref::match_deref! { match &(outTree.clone()) {
         Deref @ Tree::NODE { value, key, .. } => {
-            let mut new_value: Value;
+            let mut new_value: Value = Arc::new(<Function::Function as ::std::default::Default>::default());
             let mut new_left: Arc<Tree> = Arc::new(Tree::EMPTY);
             let mut new_right: Arc<Tree> = Arc::new(Tree::EMPTY);
             new_left = map(var_field!((*outTree).left, Tree::NODE).clone(), inFunc.clone());
@@ -612,7 +612,7 @@ pub mod FunctionTreeImpl {
             outTree.clone()
         },
         Deref @ Tree::LEAF { value, key } => {
-            let mut new_value: Value;
+            let mut new_value: Value = Arc::new(<Function::Function as ::std::default::Default>::default());
             new_value = inFunc(key.clone(), value.clone()).unwrap();
             if !(referenceEq(&value.clone(),&new_value.clone())) {
                 assign_variant_field!(outTree => Tree::LEAF; value = new_value.clone());
@@ -628,13 +628,13 @@ pub mod FunctionTreeImpl {
     }
 
     pub fn mapFold<FT: Clone + 'static>(mut inTree: Arc<Tree>, mut inFunc: Arc<dyn ::std::ops::Fn(Arc<Path>, Arc<Function::Function>, FT) -> Result<(Arc<Function::Function>, FT)> + 'static>, mut inStartValue: FT) -> (Arc<Tree>, FT) {
-        pub type MapFunc<FT: Clone> = fn(Key, Value, FT) -> Result<Value>;
+        pub type MapFunc<FT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Key, Value, FT) -> Result<Value> + 'static>;
 
         let mut outTree: Arc<Tree> = inTree.clone();
         let mut outResult: FT = inStartValue.clone();
         outTree = (::match_deref::match_deref! { match &(outTree.clone()) {
         Deref @ Tree::NODE { value, key, .. } => {
-            let mut new_value: Value;
+            let mut new_value: Value = Arc::new(<Function::Function as ::std::default::Default>::default());
             let mut new_left: Arc<Tree> = Arc::new(Tree::EMPTY);
             let mut new_right: Arc<Tree> = Arc::new(Tree::EMPTY);
             (new_left, outResult) = mapFold(var_field!((*outTree).left, Tree::NODE).clone(), inFunc.clone(), outResult.clone());
@@ -646,7 +646,7 @@ pub mod FunctionTreeImpl {
             outTree.clone()
         },
         Deref @ Tree::LEAF { value, key } => {
-            let mut new_value: Value;
+            let mut new_value: Value = Arc::new(<Function::Function as ::std::default::Default>::default());
             (new_value, outResult) = inFunc(key.clone(), value.clone(), outResult.clone()).unwrap();
             if !(referenceEq(&value.clone(),&new_value.clone())) {
                 assign_variant_field!(outTree => Tree::LEAF; value = new_value.clone());
@@ -803,7 +803,7 @@ pub mod FunctionTreeImpl {
     }
 
     pub fn update(mut tree: Arc<Tree>, mut key: Key, mut value: Value) -> Arc<Tree> {
-        let mut outTree: Arc<Tree> = add(tree.clone(), key.clone(), value.clone(), fnptr!(addConflictReplace, Arc<Function::Function>, Arc<Function::Function>, Arc<Path>)).unwrap();
+        let mut outTree: Arc<Tree> = add(tree.clone(), key.clone(), value.clone(), (std::sync::Arc::new(fnptr!(addConflictReplace, Arc<Function::Function>, Arc<Function::Function>, Arc<Path>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Function::Function>, Arc<Function::Function>, Arc<Path>) -> Result<Arc<Function::Function>> + 'static>)).unwrap();
         outTree
     }
 
@@ -826,7 +826,7 @@ pub type SETTINGS = FlattenSettings;
 
 pub mod Prefix {
     use super::*;
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
     pub enum Prefix {
         PREFIX {
             root: Arc<InstNode::InstNode>,
@@ -982,15 +982,11 @@ pub mod Prefix {
 
 }
 
-// TODO: non-Sync, non-const-emittable constant — needs new emission path.
-// Type: Arc<Prefix::Prefix>
-// Expr: Constructor { name: 'NFFlatten.Prefix.PREFIX', args: [Constructor { name: 'NFInstNode.InstNode.EMPTY_NODE', args: [], named_args: [], ty: RustUnitVariant, field_names: [] }, Constructor { name: 'NFComponentRef.EMPTY', args: [], named_args: [], ty: RustUnitVariant, field_names: [] }], named_args: [], ty: RustStruct('NFFlatten.Prefix.PREFIX'), field_names: ['root', 'prefix'] }
-pub fn EMPTY_PREFIX() -> Arc<Prefix::Prefix> { todo!("non-Sync, non-const-emittable constant EMPTY_PREFIX — extend codegen") }
+thread_local! { static __EMPTY_PREFIX_TLS: Arc<Prefix::Prefix> = Arc::new(Prefix::Prefix::PREFIX { root: Arc::new(crate::NFInstNode::InstNode::EMPTY_NODE), prefix: Arc::new(crate::NFComponentRef::EMPTY) }); }
+pub fn EMPTY_PREFIX() -> Arc<Prefix::Prefix> { __EMPTY_PREFIX_TLS.with(|__t| __t.clone()) }
 
-// TODO: non-Sync, non-const-emittable constant — needs new emission path.
-// Type: Arc<Prefix::Prefix>
-// Expr: Constructor { name: 'NFFlatten.Prefix.INDEXED_PREFIX', args: [Constructor { name: 'NFInstNode.InstNode.EMPTY_NODE', args: [], named_args: [], ty: RustUnitVariant, field_names: [] }, Constructor { name: 'NFComponentRef.EMPTY', args: [], named_args: [], ty: RustUnitVariant, field_names: [] }, Constructor { name: 'NFComponentRef.EMPTY', args: [], named_args: [], ty: RustUnitVariant, field_names: [] }], named_args: [], ty: RustStruct('NFFlatten.Prefix.INDEXED_PREFIX'), field_names: ['root', 'prefix', 'indexedPrefix'] }
-pub fn EMPTY_INDEXED_PREFIX() -> Arc<Prefix::Prefix> { todo!("non-Sync, non-const-emittable constant EMPTY_INDEXED_PREFIX — extend codegen") }
+thread_local! { static __EMPTY_INDEXED_PREFIX_TLS: Arc<Prefix::Prefix> = Arc::new(Prefix::Prefix::INDEXED_PREFIX { root: Arc::new(crate::NFInstNode::InstNode::EMPTY_NODE), prefix: Arc::new(crate::NFComponentRef::EMPTY), indexedPrefix: Arc::new(crate::NFComponentRef::EMPTY) }); }
+pub fn EMPTY_INDEXED_PREFIX() -> Arc<Prefix::Prefix> { __EMPTY_INDEXED_PREFIX_TLS.with(|__t| __t.clone()) }
 
 pub fn flatten(mut classInst: Arc<InstNode::InstNode>, mut classPath: Arc<Path>, mut getConnectionResolved: bool) -> Result<Arc<FlatModel::NFFlatModel>> {
     let mut flatModel: Arc<FlatModel::NFFlatModel>;
@@ -1000,7 +996,7 @@ pub fn flatten(mut classInst: Arc<InstNode::InstNode>, mut classPath: Arc<Path>,
     let mut ieql: Arc<metamodelica::List<Arc<Equation::NFEquation>>> = metamodelica::nil();
     let mut alg: Arc<metamodelica::List<Arc<Algorithm::NFAlgorithm>>> = metamodelica::nil();
     let mut ialg: Arc<metamodelica::List<Arc<Algorithm::NFAlgorithm>>> = metamodelica::nil();
-    let mut src: Arc<DAE::ElementSource>;
+    let mut src: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
     let mut cmt: Option<Arc<SCode::Comment>> = None;
     let mut settings: FlattenSettings;
     let mut deleted_vars: DeletedVariables;
@@ -1008,9 +1004,9 @@ pub fn flatten(mut classInst: Arc<InstNode::InstNode>, mut classPath: Arc<Path>,
     settings = FlattenSettings { scalarize: Flags::isSet(Flags::NF_SCALARIZE.clone())?, arrayConnect: Flags::isSet(Flags::ARRAY_CONNECT.clone())?, nfAPI: Flags::isSet(Flags::NF_API.clone())?, relaxedErrorChecking: Flags::isSet(Flags::NF_API.clone())? || Flags::getConfigBool(Flags::CHECK_MODEL.clone())?, newBackend: Flags::getConfigBool(Flags::NEW_BACKEND.clone())?, vectorizeBindings: Flags::isSet(Flags::VECTORIZE_BINDINGS.clone())?, implicitStartAttribute: Flags::isConfigFlagSet(Flags::ALLOW_NON_STANDARD_MODELICA.clone(), (literal!("implicitParameterStartAttribute")).clone())?, minimalEval: Flags::getConfigString(Flags::EVALUATE_STRUCTURAL_PARAMETERS.clone())? != literal!("all") };
     prefix = Prefix::new(classInst.clone(), settings.vectorizeBindings.clone());
     sections = Arc::new(crate::NFSections::EMPTY);
-    src = ElementSource::createElementSource(InstNode::info(classInst.clone())?, None, openmodelica_frontend_types::DAE::Prefix::NOPRE, (DAE::emptyCref.clone(), DAE::emptyCref.clone()))?;
+    src = ElementSource::createElementSource(InstNode::info(classInst.clone())?, None, openmodelica_frontend_types::DAE::Prefix::NOPRE, (DAE::emptyCref().clone(), DAE::emptyCref().clone()))?;
     src = ElementSource::addCommentToSource(src.clone(), SCodeUtil::getElementComment(InstNode::definition(classInst.clone())?));
-    deleted_vars = UnorderedSet::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>), ComponentRef::isEqual, 13);
+    deleted_vars = UnorderedSet::new((std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), 13);
     (vars, sections) = flattenClass(InstNode::getClass(classInst.clone())?, prefix.clone(), Visibility::PUBLIC.clone(), None, metamodelica::nil(), sections.clone(), deleted_vars.clone(), settings.clone())?;
     vars = vars.clone().reverse();
     flatModel = (::match_deref::match_deref! { match &(sections.clone()) {
@@ -1074,7 +1070,7 @@ pub fn flattenConnection(mut classInst: Arc<InstNode::InstNode>, mut classPath: 
     let mut flatModel: Arc<FlatModel::NFFlatModel>;
     let mut deleted_vars: DeletedVariables;
     flatModel = flatten(classInst.clone(), classPath.clone(), false)?;
-    deleted_vars = UnorderedSet::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>), ComponentRef::isEqual, 13);
+    deleted_vars = UnorderedSet::new((std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), 13);
     (flatModel, conns) = Connections::collectConnections(flatModel.clone(), Arc::new({ let __pe_b1 = deleted_vars.clone(); move |__pe_a0| isDeletedCref(__pe_a0, __pe_b1.clone()) }))?;
     (_, conns) = ExpandableConnectors::elaborate(flatModel.clone(), conns.clone())?;
     conns = Connections::collectFlows(flatModel.clone(), conns.clone())?;
@@ -1084,11 +1080,11 @@ pub fn flattenConnection(mut classInst: Arc<InstNode::InstNode>, mut classPath: 
 pub fn collectFunctions(mut flatModel: Arc<FlatModel::NFFlatModel>) -> Result<FunctionTree> {
     let mut funcs: FunctionTree = Arc::new(FunctionTreeImpl::Tree::EMPTY);
     funcs = FunctionTreeImpl::new();
-    funcs = List::fold(flatModel.variables.clone(), Arc::new(collectComponentFuncs), funcs.clone());
-    funcs = List::fold(flatModel.equations.clone(), Arc::new(collectEquationFuncs), funcs.clone());
-    funcs = List::fold(flatModel.initialEquations.clone(), Arc::new(collectEquationFuncs), funcs.clone());
-    funcs = List::fold(flatModel.algorithms.clone(), Arc::new(fnptr!(collectAlgorithmFuncs, Arc<Algorithm::NFAlgorithm>, Arc<FunctionTreeImpl::Tree>)), funcs.clone());
-    funcs = List::fold(flatModel.initialAlgorithms.clone(), Arc::new(fnptr!(collectAlgorithmFuncs, Arc<Algorithm::NFAlgorithm>, Arc<FunctionTreeImpl::Tree>)), funcs.clone());
+    funcs = List::fold(flatModel.variables.clone(), (std::sync::Arc::new(collectComponentFuncs) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Variable::NFVariable>, Arc<FunctionTreeImpl::Tree>) -> Result<Arc<FunctionTreeImpl::Tree>> + 'static>), funcs.clone());
+    funcs = List::fold(flatModel.equations.clone(), (std::sync::Arc::new(collectEquationFuncs) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Equation::NFEquation>, Arc<FunctionTreeImpl::Tree>) -> Result<Arc<FunctionTreeImpl::Tree>> + 'static>), funcs.clone());
+    funcs = List::fold(flatModel.initialEquations.clone(), (std::sync::Arc::new(collectEquationFuncs) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Equation::NFEquation>, Arc<FunctionTreeImpl::Tree>) -> Result<Arc<FunctionTreeImpl::Tree>> + 'static>), funcs.clone());
+    funcs = List::fold(flatModel.algorithms.clone(), (std::sync::Arc::new(fnptr!(collectAlgorithmFuncs, Arc<Algorithm::NFAlgorithm>, Arc<FunctionTreeImpl::Tree>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Algorithm::NFAlgorithm>, Arc<FunctionTreeImpl::Tree>) -> Result<Arc<FunctionTreeImpl::Tree>> + 'static>), funcs.clone());
+    funcs = List::fold(flatModel.initialAlgorithms.clone(), (std::sync::Arc::new(fnptr!(collectAlgorithmFuncs, Arc<Algorithm::NFAlgorithm>, Arc<FunctionTreeImpl::Tree>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Algorithm::NFAlgorithm>, Arc<FunctionTreeImpl::Tree>) -> Result<Arc<FunctionTreeImpl::Tree>> + 'static>), funcs.clone());
     execStat((literal!("NFFlatten.collectFunctions")).clone())?;
     Ok(funcs)
 }
@@ -1282,16 +1278,16 @@ fn flattenSimpleComponent(mut node: Arc<InstNode::InstNode>, mut comp: Arc<Compo
     let mut name: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
     let mut binding: Arc<Binding::NFBinding> = Arc::new(Binding::UNBOUND);
     let mut ty: Arc<Type::NFType> = Arc::new(Type::ANY);
-    let mut cmt: Arc<SCode::Comment>;
-    let mut info: SourceInfo;
-    let mut comp_attr: Arc<Attributes::NFAttributes>;
+    let mut cmt: Arc<SCode::Comment> = Arc::new(<SCode::Comment as ::std::default::Default>::default());
+    let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
+    let mut comp_attr: Arc<Attributes::NFAttributes> = Arc::new(<Attributes::NFAttributes as ::std::default::Default>::default());
     let mut vis: Visibility = Visibility::PUBLIC;
     let mut eq: Arc<Equation::NFEquation>;
     let mut ty_attrs: Arc<metamodelica::List<(ArcStr, Arc<Binding::NFBinding>)>> = metamodelica::nil();
     let mut var: Variability = Variability::CONSTANT;
     let mut unfix: bool = false;
     let mut pre: Arc<Prefix::Prefix>;
-    let mut v: Arc<Variable::NFVariable>;
+    let mut v: Arc<Variable::NFVariable> = Arc::new(<Variable::NFVariable as ::std::default::Default>::default());
     let mut fillVectorizedBindingFails: bool = false;
     let (__pa0, __pa1, __pa2, __pa3, __pa4) = ::match_deref::match_deref! { match &(comp.clone()) {
         Deref @ Component::COMPONENT { info: __pa0, comment: __pa1, attributes: __pa2, binding: __pa3, ty: __pa4, .. } => (__pa0.clone(), __pa1.clone(), __pa2.clone(), __pa3.clone(), __pa4.clone()),
@@ -1321,7 +1317,7 @@ fn flattenSimpleComponent(mut node: Arc<InstNode::InstNode>, mut comp: Arc<Compo
     if !(settings.nfAPI.clone()) && settings.scalarize.clone() || fillVectorizedBindingFails.clone() {
         if var.clone() >= Variability::DISCRETE.clone() && Type::isArray(ty.clone()) && !(Type::isExternalObject(Type::arrayElementType(ty.clone()))) && Binding::isBound(binding.clone()) || fillVectorizedBindingFails.clone() {
             name = ComponentRef::prefixCref(comp_node.clone(), ty.clone(), metamodelica::nil(), Prefix::prefix(prefix.clone())?);
-            eq = Equation::makeEquality(Arc::new(Expression::NFExpression::CREF { ty: ty.clone(), cref: name.clone() }), Binding::getTypedExp(binding.clone())?, ty.clone(), ElementSource::createElementSource(info.clone(), None, openmodelica_frontend_types::DAE::Prefix::NOPRE, (DAE::emptyCref.clone(), DAE::emptyCref.clone()))?, Arc::new(crate::NFInstNode::InstNode::EMPTY_NODE), Equation::ScalarizeMode::DONT_SCALARIZE.clone());
+            eq = Equation::makeEquality(Arc::new(Expression::NFExpression::CREF { ty: ty.clone(), cref: name.clone() }), Binding::getTypedExp(binding.clone())?, ty.clone(), ElementSource::createElementSource(info.clone(), None, openmodelica_frontend_types::DAE::Prefix::NOPRE, (DAE::emptyCref().clone(), DAE::emptyCref().clone()))?, Arc::new(crate::NFInstNode::InstNode::EMPTY_NODE), Equation::ScalarizeMode::DONT_SCALARIZE.clone());
             sections = Sections::prependEquation(eq.clone(), sections.clone(), false)?;
             binding = Binding::EMPTY_BINDING().clone();
             if comp_attr.direction.clone() == Direction::INPUT.clone() && Prefix::isEmpty(prefix.clone())? {
@@ -1500,7 +1496,7 @@ fn flattenComplexComponent(mut node: Arc<InstNode::InstNode>, mut comp: Arc<Comp
     let mut binding_var: Variability = Variability::CONSTANT;
     let mut ty: Arc<Type::NFType> = Arc::new(Type::ANY);
     let mut pre: Arc<Prefix::Prefix>;
-    let mut info: SourceInfo;
+    let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
     info = InstNode::info(node.clone())?;
     ty = flattenType(nodeTy.clone(), prefix.clone(), info.clone());
     dims = Type::arrayDims(ty.clone());
@@ -1536,7 +1532,7 @@ fn flattenComplexComponent(mut node: Arc<InstNode::InstNode>, mut comp: Arc<Comp
         if !(Expression::isRecordOrRecordArray(binding_exp.clone())) {
             if !(settings.newBackend.clone()) {
                 name = ComponentRef::prefixCref(node.clone(), ty.clone(), metamodelica::nil(), Prefix::prefix(prefix.clone())?);
-                eq = Equation::makeEquality(Arc::new(Expression::NFExpression::CREF { ty: ty.clone(), cref: name.clone() }), binding_exp.clone(), ty.clone(), ElementSource::createElementSource(info.clone(), None, openmodelica_frontend_types::DAE::Prefix::NOPRE, (DAE::emptyCref.clone(), DAE::emptyCref.clone()))?, Arc::new(crate::NFInstNode::InstNode::EMPTY_NODE), Equation::ScalarizeMode::NO_PREFERENCE.clone());
+                eq = Equation::makeEquality(Arc::new(Expression::NFExpression::CREF { ty: ty.clone(), cref: name.clone() }), binding_exp.clone(), ty.clone(), ElementSource::createElementSource(info.clone(), None, openmodelica_frontend_types::DAE::Prefix::NOPRE, (DAE::emptyCref().clone(), DAE::emptyCref().clone()))?, Arc::new(crate::NFInstNode::InstNode::EMPTY_NODE), Equation::ScalarizeMode::NO_PREFERENCE.clone());
                 sections = Sections::prependEquation(eq.clone(), sections.clone(), comp_var.clone() <= Variability::PARAMETER.clone())?;
             }
             opt_binding = Some(Binding::EMPTY_BINDING().clone());
@@ -1591,7 +1587,7 @@ fn splitRecordCref(mut exp: Arc<Expression::NFExpression>) -> Result<Arc<Express
             Expression::makeRecord(InstNode::scopePath(cls.clone(), InstNode::ScopeType::RELATIVE.clone(), false)?, var_field!((*outExp).ty, Expression::NFExpression::CREF).clone(), fields.clone())
         },
         Deref @ Expression::ARRAY { .. } => {
-            assign_variant_field!(outExp => Expression::NFExpression::ARRAY; elements = Array::map(var_field!((*outExp).elements, Expression::NFExpression::ARRAY).clone(), Arc::new(splitRecordCref)));
+            assign_variant_field!(outExp => Expression::NFExpression::ARRAY; elements = Array::map(var_field!((*outExp).elements, Expression::NFExpression::ARRAY).clone(), (std::sync::Arc::new(splitRecordCref) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>)));
             outExp.clone()
         },
         Deref @ Expression::IF { .. } if (Expression::variability(var_field!((*outExp).condition, Expression::NFExpression::IF).clone())? <= Variability::PARAMETER.clone()) => {
@@ -1651,7 +1647,7 @@ fn vectorizeArray(mut cls: Arc<Class::NFClass>, mut cls_ty: Arc<Type::NFType>, m
     let mut alg: Arc<metamodelica::List<Arc<Algorithm::NFAlgorithm>>> = metamodelica::nil();
     let mut ialg: Arc<metamodelica::List<Arc<Algorithm::NFAlgorithm>>> = metamodelica::nil();
     let mut indexed_prefix: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
-    if List::any(dimensions.clone(), Arc::new(Dimension::isZero)) {
+    if List::any(dimensions.clone(), (std::sync::Arc::new(Dimension::isZero) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Dimension::NFDimension>) -> Result<bool> + 'static>)) {
         return Ok((vars, sections));
     }
     (vrs, sects) = flattenClass(cls.clone(), prefix.clone(), visibility.clone(), binding.clone(), metamodelica::nil(), Arc::new(Sections::NFSections::SECTIONS { equations: metamodelica::nil(), initialEquations: metamodelica::nil(), algorithms: metamodelica::nil(), initialAlgorithms: metamodelica::nil() }), deletedVars.clone(), settings.clone())?;
@@ -1741,7 +1737,7 @@ fn vectorizeBinding(mut binding: Arc<Binding::NFBinding>, mut prefix: Arc<Prefix
     dims = List::lastN(dims.clone(), (subs.clone().len() as i32))?;
     binding_ty = Type::liftArrayLeftList(binding_ty.clone(), dims.clone());
     if !(dims.clone().is_empty()) {
-        if Expression::isLiteral(exp.clone()) || !(Expression::contains(exp.clone(), Arc::new(fnptr!(Expression::isIterator, Arc<Expression::NFExpression>)))?) {
+        if Expression::isLiteral(exp.clone()) || !(Expression::contains(exp.clone(), (std::sync::Arc::new(fnptr!(Expression::isIterator, Arc<Expression::NFExpression>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<bool> + 'static>))?) {
             array_call = Call::makeTypedCall(NFBuiltinFuncs::FILL_FUNC().clone(), cons(exp.clone(), {
         let mut __acc: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
         for mut d in (dims.clone()).into_iter().cloned() {
@@ -1824,7 +1820,7 @@ fn vectorizeEquation(mut eqn: Arc<Equation::NFEquation>, mut dimensions: Arc<met
     for mut eq in &*eql.clone() {
         let mut eq = eq.clone();
         equations = (::match_deref::match_deref! { match &(eq.clone()) {
-        Deref @ Equation::EQUALITY { rhs: rhs @ Deref @ Expression::CREF { .. }, lhs: lhs @ Deref @ Expression::CREF { .. }, .. } if (!(Flags::getConfigBool(Flags::NEW_BACKEND.clone())?) || List::all(ComponentRef::subscriptsAllWithWholeFlat(var_field!((**lhs).cref, Expression::NFExpression::CREF).clone()), Arc::new(fnptr!(Subscript::isSimple, Arc<Subscript::NFSubscript>))) && List::all(ComponentRef::subscriptsAllWithWholeFlat(var_field!((**rhs).cref, Expression::NFExpression::CREF).clone()), Arc::new(fnptr!(Subscript::isSimple, Arc<Subscript::NFSubscript>)))) => {
+        Deref @ Equation::EQUALITY { rhs: rhs @ Deref @ Expression::CREF { .. }, lhs: lhs @ Deref @ Expression::CREF { .. }, .. } if (!(Flags::getConfigBool(Flags::NEW_BACKEND.clone())?) || List::all(ComponentRef::subscriptsAllWithWholeFlat(var_field!((**lhs).cref, Expression::NFExpression::CREF).clone()), (std::sync::Arc::new(fnptr!(Subscript::isSimple, Arc<Subscript::NFSubscript>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Subscript::NFSubscript>) -> Result<bool> + 'static>)) && List::all(ComponentRef::subscriptsAllWithWholeFlat(var_field!((**rhs).cref, Expression::NFExpression::CREF).clone()), (std::sync::Arc::new(fnptr!(Subscript::isSimple, Arc<Subscript::NFSubscript>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Subscript::NFSubscript>) -> Result<bool> + 'static>))) => {
             let mut rhs = (*rhs).clone();
             let mut lhs = (*lhs).clone();
             ty = Type::liftArrayLeftList(var_field!((*eq).ty, Equation::NFEquation::EQUALITY).clone(), dimensions.clone());
@@ -1851,10 +1847,10 @@ fn vectorizeEquationGeneric(mut eqn: Arc<Equation::NFEquation>, mut dimensions: 
     let mut ranges: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
     let mut subs: Arc<metamodelica::List<Arc<Subscript::NFSubscript>>> = metamodelica::nil();
     let mut scope: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
-    let mut src: Arc<DAE::ElementSource>;
+    let mut src: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
     (iters, ranges, subs) = makeIterators(Prefix::prefix(prefix.clone())?, dimensions.clone())?;
     subs = subs.clone().reverse();
-    vectorizedEqn = Equation::mapExp(eqn.clone(), { let __pe_b1 = prefix.clone(); let __pe_b2 = subs.clone(); move |__pe_a0| addIterator(__pe_a0, __pe_b1.clone(), __pe_b2.clone()) });
+    vectorizedEqn = Equation::mapExp(eqn.clone(), Arc::new({ let __pe_b1 = prefix.clone(); let __pe_b2 = subs.clone(); move |__pe_a0| addIterator(__pe_a0, __pe_b1.clone(), __pe_b2.clone()) }));
     scope = Equation::scope(eqn.clone())?;
     src = Equation::source(eqn.clone())?;
     while !(iters.clone().is_empty()) {
@@ -2054,7 +2050,7 @@ pub fn flattenBinding(mut binding: Arc<Binding::NFBinding>, mut prefix: Arc<Pref
     let mut bind_exp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut pars: Arc<metamodelica::List<Arc<InstNode::InstNode>>> = metamodelica::nil();
     let mut par: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
-    let mut info: SourceInfo;
+    let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
     binding = (::match_deref::match_deref! { match &(binding.clone()) {
         Deref @ Binding::UNBOUND => binding.clone(),
         Deref @ Binding::TYPED_BINDING { .. } => {
@@ -2155,7 +2151,7 @@ pub fn flattenCref(mut cref: Arc<ComponentRef::NFComponentRef>, mut prefix: Arc<
 pub fn flattenCrefSplitSubscripts(mut cref: Arc<ComponentRef::NFComponentRef>, mut prefix: Arc<Prefix::Prefix>) -> Result<Arc<ComponentRef::NFComponentRef>> {
     let mut cref: Arc<ComponentRef::NFComponentRef> = cref;
     let mut sub_map: Arc<UnorderedMap::UnorderedMap<Arc<InstNode::InstNode>, Arc<metamodelica::List<Arc<Subscript::NFSubscript>>>>>;
-    sub_map = UnorderedMap::new(fnptr!(InstNode::hash, Arc<InstNode::InstNode>), fnptr!(InstNode::refEqual, Arc<InstNode::InstNode>, Arc<InstNode::InstNode>), 1);
+    sub_map = UnorderedMap::new((std::sync::Arc::new(fnptr!(InstNode::hash, Arc<InstNode::InstNode>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<InstNode::InstNode>) -> Result<i32> + 'static>), (std::sync::Arc::new(fnptr!(InstNode::refEqual, Arc<InstNode::InstNode>, Arc<InstNode::InstNode>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<InstNode::InstNode>, Arc<InstNode::InstNode>) -> Result<bool> + 'static>), 1);
     for mut cr in &*ComponentRef::toListReverse(Prefix::indexedPrefix(prefix.clone())?, true, metamodelica::nil()) {
         let mut cr = cr.clone();
         if ComponentRef::hasSubscripts(cr.clone()) {
@@ -2375,8 +2371,8 @@ pub fn flattenIfEquation(mut eq: Arc<Equation::NFEquation>, mut prefix: Arc<Pref
     let mut has_connect: bool = false;
     let mut should_eval: bool = false;
     let mut structural: bool = true;
-    let mut src: Arc<DAE::ElementSource>;
-    let mut info: SourceInfo;
+    let mut src: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
+    let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
     let mut target: Arc<Ceval::EvalTarget::EvalTarget>;
     let mut scope: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
     let (__pa0, __pa1, __pa2) = ::match_deref::match_deref! { match &(eq.clone()) {
@@ -2386,7 +2382,7 @@ pub fn flattenIfEquation(mut eq: Arc<Equation::NFEquation>, mut prefix: Arc<Pref
     src = __pa0.clone();
     scope = __pa1.clone();
     branches = __pa2.clone();
-    has_connect = Equation::contains(eq.clone(), Arc::new(Equation::isConnection));
+    has_connect = Equation::contains(eq.clone(), (std::sync::Arc::new(Equation::isConnection) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Equation::NFEquation>) -> Result<bool> + 'static>));
     info = Equation::info(eq.clone());
     target = if (has_connect.clone()) {Ceval::EvalTarget::new(info.clone(), NFInstContext::NO_CONTEXT.clone(), None)} else {Ceval::noTarget().clone()};
     while !(branches.clone().is_empty()) {
@@ -2411,7 +2407,7 @@ pub fn flattenIfEquation(mut eq: Arc<Equation::NFEquation>, mut prefix: Arc<Pref
                         structural = false;
                     } else if settings.scalarize.clone() {
                         should_eval = true;
-                    } else if settings.newBackend.clone() || Expression::contains(cond.clone(), Arc::new(fnptr!(Expression::isIterator, Arc<Expression::NFExpression>)))? {
+                    } else if settings.newBackend.clone() || Expression::contains(cond.clone(), (std::sync::Arc::new(fnptr!(Expression::isIterator, Arc<Expression::NFExpression>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<bool> + 'static>))? {
                         should_eval = false;
                         structural = settings.newBackend.clone();
                     } else {
@@ -2492,7 +2488,7 @@ pub fn unrollForLoop(mut forLoop: Arc<Equation::NFEquation>, mut prefix: Arc<Pre
     let mut range: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut range_iter: Arc<RangeIterator::NFRangeIterator>;
     let mut val: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-    let mut info: SourceInfo;
+    let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
     let (__pa0, __pa1, __pa2) = ::match_deref::match_deref! { match &(forLoop.clone()) {
         Deref @ Equation::FOR { body: __pa0, range: Some(__pa1), iterator: __pa2, .. } => (__pa0.clone(), __pa1.clone(), __pa2.clone()),
         _ => bail!("pattern mismatch"),
@@ -2522,7 +2518,7 @@ pub fn splitForLoop(mut forLoop: Arc<Equation::NFEquation>, mut prefix: Arc<Pref
     let mut body: Arc<metamodelica::List<Arc<Equation::NFEquation>>> = metamodelica::nil();
     let mut connects: Arc<metamodelica::List<Arc<Equation::NFEquation>>> = metamodelica::nil();
     let mut non_connects: Arc<metamodelica::List<Arc<Equation::NFEquation>>> = metamodelica::nil();
-    let mut src: Arc<DAE::ElementSource>;
+    let mut src: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
     let mut eq: Arc<Equation::NFEquation>;
     let mut scope: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
     let (__pa0, __pa1, __pa2, __pa3, __pa4) = ::match_deref::match_deref! { match &(forLoop.clone()) {
@@ -2585,7 +2581,7 @@ pub fn splitForLoop2(mut forBody: Arc<metamodelica::List<Arc<Equation::NFEquatio
             ()
         },
         _ => {
-            if Equation::contains(eq.clone(), Arc::new(fnptr!(Equation::isConnect, Arc<Equation::NFEquation>))) || Equation::containsExp(eq.clone(), Arc::new({ let __pe_b1: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<bool> + 'static> = Arc::new(Expression::isConnectionCall); move |__pe_a0| Expression::contains(__pe_a0, __pe_b1.clone()) }))? {
+            if Equation::contains(eq.clone(), (std::sync::Arc::new(fnptr!(Equation::isConnect, Arc<Equation::NFEquation>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Equation::NFEquation>) -> Result<bool> + 'static>)) || Equation::containsExp(eq.clone(), Arc::new({ let __pe_b1: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<bool> + 'static> = (std::sync::Arc::new(Expression::isConnectionCall) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<bool> + 'static>); move |__pe_a0| Expression::contains(__pe_a0, __pe_b1.clone()) }))? {
                 connects = cons(eq.clone(), connects.clone());
             } else {
                 nonConnects = cons(eq.clone(), nonConnects.clone());
@@ -2618,7 +2614,7 @@ pub fn unrollForStatement(mut stmt: Arc<Statement::NFStatement>, mut statements:
     let mut statements: Arc<metamodelica::List<Arc<Statement::NFStatement>>> = statements;
     let mut range: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut val: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-    let mut info: SourceInfo;
+    let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
     let mut range_iter: Arc<RangeIterator::NFRangeIterator>;
     let mut stmts: Arc<metamodelica::List<Arc<Statement::NFStatement>>> = metamodelica::nil();
     let mut has_for: bool = false;
@@ -2626,14 +2622,21 @@ pub fn unrollForStatement(mut stmt: Arc<Statement::NFStatement>, mut statements:
         Deref @ Statement::FOR { range: Some(range), .. } => {
             let mut range = (*range).clone();
             info = Statement::info(stmt.clone());
-            if '__try0: {
+            match '__try0: {
                 range = unwrap_break_err!(Ceval::evalExp(range.clone(), Ceval::EvalTarget::new(info.clone(), NFInstContext::ITERATION_RANGE.clone(), None)), '__try0);
                 range_iter = unwrap_break_err!(RangeIterator::fromExp(range.clone()), '__try0);
-                Ok::<(), anyhow::Error>(())
-            }.is_err() {
-                Error::addSourceMessage(Error::UNROLL_FAILURE.clone(), list![(Statement::toString(stmt.clone(), (literal!("")).clone())?).clone()], info.clone())?;
+                Ok::<_, anyhow::Error>((range.clone(), range_iter.clone()))
+            } {
+                Ok((__try0_o0, __try0_o1)) => {
+                    range = __try0_o0;
+                    range_iter = __try0_o1;
+                }
+                Err(_) => {
+                    Error::addSourceMessage(Error::UNROLL_FAILURE.clone(), list![(Statement::toString(stmt.clone(), (literal!("")).clone())?).clone()], info.clone())?;
+                    bail!("fail");
+                }
             }
-            has_for = Statement::containsList(var_field!((*stmt).body, Statement::NFStatement::FOR).clone(), Arc::new(fnptr!(Statement::isFor, Arc<Statement::NFStatement>)));
+            has_for = Statement::containsList(var_field!((*stmt).body, Statement::NFStatement::FOR).clone(), (std::sync::Arc::new(fnptr!(Statement::isFor, Arc<Statement::NFStatement>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Statement::NFStatement>) -> Result<bool> + 'static>));
             while RangeIterator::hasNext(range_iter.clone())? {
                 (range_iter, val) = RangeIterator::next(range_iter.clone())?;
                 stmts = Statement::replaceIteratorList(var_field!((*stmt).body, Statement::NFStatement::FOR).clone(), var_field!((*stmt).iterator, Statement::NFStatement::FOR).clone(), val.clone());
@@ -2818,7 +2821,7 @@ pub fn resolveConnections(mut flatModel: Arc<FlatModel::NFFlatModel>, mut delete
     let mut vars: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<Variable::NFVariable>>>;
     let mut connectedLocalIOs: Arc<UnorderedSet::UnorderedSet<Arc<ComponentRef::NFComponentRef>>>;
     let mut exposeLocalIOs: i32 = 0;
-    vars = UnorderedMap::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>), ComponentRef::isEqual, (flatModel.variables.clone().len() as i32));
+    vars = UnorderedMap::new((std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), (flatModel.variables.clone().len() as i32));
     for mut v in &*flatModel.variables.clone() {
         let mut v = v.clone();
         UnorderedMap::addNew(v.name.clone(), v.clone(), vars.clone())?;
@@ -2837,7 +2840,7 @@ pub fn resolveConnections(mut flatModel: Arc<FlatModel::NFFlatModel>, mut delete
     });
     conns = Connections::collectFlows(flatModel.clone(), conns.clone())?;
     if System::getHasOverconstrainedConnectors() {
-        (flatModel, broken) = NFOCConnectionGraph::handleOverconstrainedConnections(flatModel.clone(), conns.clone(), { let __pe_b1 = deletedVars.clone(); move |__pe_a0| isDeletedCref(__pe_a0, __pe_b1.clone()) })?;
+        (flatModel, broken) = NFOCConnectionGraph::handleOverconstrainedConnections(flatModel.clone(), conns.clone(), Arc::new({ let __pe_b1 = deletedVars.clone(); move |__pe_a0| isDeletedCref(__pe_a0, __pe_b1.clone()) }))?;
     }
     conns = Connections::addBroken(broken.clone(), conns.clone());
     conns = Connections::split(conns.clone());
@@ -2878,8 +2881,8 @@ pub fn resolveConnections(mut flatModel: Arc<FlatModel::NFFlatModel>, mut delete
 pub fn generateTopLevelIOs(mut variables: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<Variable::NFVariable>>>, mut connectedLocalIOs: Arc<UnorderedSet::UnorderedSet<Arc<ComponentRef::NFComponentRef>>>, mut exposeLocalIOs: i32) -> Result<(Arc<metamodelica::List<Arc<Variable::NFVariable>>>, Arc<metamodelica::List<Arc<Equation::NFEquation>>>)> {
     let mut tlio_vars: Arc<metamodelica::List<Arc<Variable::NFVariable>>> = metamodelica::nil();
     let mut tlio_eql: Arc<metamodelica::List<Arc<Equation::NFEquation>>> = metamodelica::nil();
-    let mut attributes: Arc<Attributes::NFAttributes>;
-    let mut tlio_var: Arc<Variable::NFVariable>;
+    let mut attributes: Arc<Attributes::NFAttributes> = Arc::new(<Attributes::NFAttributes as ::std::default::Default>::default());
+    let mut tlio_var: Arc<Variable::NFVariable> = Arc::new(<Variable::NFVariable as ::std::default::Default>::default());
     let mut cref: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
     let mut name: ArcStr = arcstr::literal!("");
     let mut tlio_node: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
@@ -2907,7 +2910,7 @@ pub fn generateTopLevelIOs(mut variables: Arc<UnorderedMap::UnorderedMap<Arc<Com
                     name = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*name.clone()); __mm_s.push_str(&*literal!("_")); ArcStr::from(__mm_s) }).clone();
                 }
                 tlio_vars = cons(tlio_var.clone(), tlio_vars.clone());
-                tlio_eql = cons(Equation::makeCrefEquality(variable.name.clone(), tlio_var.name.clone(), Arc::new(crate::NFInstNode::InstNode::EMPTY_NODE), ElementSource::createElementSource(variable.info.clone(), None, openmodelica_frontend_types::DAE::Prefix::NOPRE, (DAE::emptyCref.clone(), DAE::emptyCref.clone()))?)?, tlio_eql.clone());
+                tlio_eql = cons(Equation::makeCrefEquality(variable.name.clone(), tlio_var.name.clone(), Arc::new(crate::NFInstNode::InstNode::EMPTY_NODE), ElementSource::createElementSource(variable.info.clone(), None, openmodelica_frontend_types::DAE::Prefix::NOPRE, (DAE::emptyCref().clone(), DAE::emptyCref().clone()))?)?, tlio_eql.clone());
             }
         }
     }
@@ -2965,7 +2968,7 @@ pub fn evaluateEquationsConnOp(mut equations: Arc<metamodelica::List<Arc<Equatio
 
 pub fn evaluateEquationConnOp(mut eq: Arc<Equation::NFEquation>, mut sets: ConnectionSets::Sets, mut setsArray: metamodelica::Array<Arc<metamodelica::List<Arc<Connector::NFConnector>>>>, mut variables: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<Variable::NFVariable>>>, mut ctable: Arc<UnorderedMap::UnorderedMap<ArcStr, i32>>) -> Result<Arc<Equation::NFEquation>> {
     let mut eq: Arc<Equation::NFEquation> = eq;
-    eq = Equation::mapExp(eq.clone(), { let __pe_b1 = sets.clone(); let __pe_b2 = setsArray.clone(); let __pe_b3 = variables.clone(); let __pe_b4 = ctable.clone(); move |__pe_a0| ConnectEquations::evaluateOperators(__pe_a0, __pe_b1.clone(), __pe_b2.clone(), __pe_b3.clone(), __pe_b4.clone()) });
+    eq = Equation::mapExp(eq.clone(), Arc::new({ let __pe_b1 = sets.clone(); let __pe_b2 = setsArray.clone(); let __pe_b3 = variables.clone(); let __pe_b4 = ctable.clone(); move |__pe_a0| ConnectEquations::evaluateOperators(__pe_a0, __pe_b1.clone(), __pe_b2.clone(), __pe_b3.clone(), __pe_b4.clone()) }));
     let () = (::match_deref::match_deref! { match &(eq.clone()) {
         Deref @ Equation::IF { .. } => {
             for mut b in &*var_field!((*eq).branches, Equation::NFEquation::IF).clone() {
@@ -3029,7 +3032,7 @@ pub fn collectTypeFuncs(mut ty: Arc<Type::NFType>, mut funcs: FunctionTree) -> R
     let mut funcs: FunctionTree = funcs;
     let () = (::match_deref::match_deref! { match &(ty.clone()) {
         Deref @ Type::ARRAY { .. } => {
-            funcs = Dimension::foldExpList(var_field!((*ty).dimensions, Type::NFType::ARRAY).clone(), Arc::new(collectExpFuncs_traverse), funcs.clone())?;
+            funcs = Dimension::foldExpList(var_field!((*ty).dimensions, Type::NFType::ARRAY).clone(), (std::sync::Arc::new(collectExpFuncs_traverse) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, Arc<FunctionTreeImpl::Tree>) -> Result<Arc<FunctionTreeImpl::Tree>> + 'static>), funcs.clone())?;
             funcs = collectTypeFuncs(var_field!((*ty).elementType, Type::NFType::ARRAY).clone(), funcs.clone())?;
             ()
         },
@@ -3083,15 +3086,15 @@ pub fn collectEquationFuncs(mut eq: Arc<Equation::NFEquation>, mut funcs: Functi
             ()
         },
         Deref @ Equation::FOR { .. } => {
-            funcs = List::fold(var_field!((*eq).body, Equation::NFEquation::FOR).clone(), Arc::new(collectEquationFuncs), funcs.clone());
+            funcs = List::fold(var_field!((*eq).body, Equation::NFEquation::FOR).clone(), (std::sync::Arc::new(collectEquationFuncs) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Equation::NFEquation>, Arc<FunctionTreeImpl::Tree>) -> Result<Arc<FunctionTreeImpl::Tree>> + 'static>), funcs.clone());
             ()
         },
         Deref @ Equation::IF { .. } => {
-            funcs = List::fold(var_field!((*eq).branches, Equation::NFEquation::IF).clone(), Arc::new(collectEqBranchFuncs), funcs.clone());
+            funcs = List::fold(var_field!((*eq).branches, Equation::NFEquation::IF).clone(), (std::sync::Arc::new(collectEqBranchFuncs) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Equation::Branch::Branch>, Arc<FunctionTreeImpl::Tree>) -> Result<Arc<FunctionTreeImpl::Tree>> + 'static>), funcs.clone());
             ()
         },
         Deref @ Equation::WHEN { .. } => {
-            funcs = List::fold(var_field!((*eq).branches, Equation::NFEquation::WHEN).clone(), Arc::new(collectEqBranchFuncs), funcs.clone());
+            funcs = List::fold(var_field!((*eq).branches, Equation::NFEquation::WHEN).clone(), (std::sync::Arc::new(collectEqBranchFuncs) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Equation::Branch::Branch>, Arc<FunctionTreeImpl::Tree>) -> Result<Arc<FunctionTreeImpl::Tree>> + 'static>), funcs.clone());
             ()
         },
         Deref @ Equation::ASSERT { .. } => {
@@ -3123,7 +3126,7 @@ pub fn collectEqBranchFuncs(mut branch: Arc<Equation::Branch::Branch>, mut funcs
     let () = (::match_deref::match_deref! { match &(branch.clone()) {
         Deref @ Equation::Branch::BRANCH { .. } => {
             funcs = collectExpFuncs(var_field!((*branch).condition, Equation::Branch::Branch::BRANCH).clone(), funcs.clone())?;
-            funcs = List::fold(var_field!((*branch).body, Equation::Branch::Branch::BRANCH).clone(), Arc::new(collectEquationFuncs), funcs.clone());
+            funcs = List::fold(var_field!((*branch).body, Equation::Branch::Branch::BRANCH).clone(), (std::sync::Arc::new(collectEquationFuncs) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Equation::NFEquation>, Arc<FunctionTreeImpl::Tree>) -> Result<Arc<FunctionTreeImpl::Tree>> + 'static>), funcs.clone());
             ()
         },
         _ => (),
@@ -3134,7 +3137,7 @@ pub fn collectEqBranchFuncs(mut branch: Arc<Equation::Branch::Branch>, mut funcs
 
 pub fn collectAlgorithmFuncs(mut alg: Arc<Algorithm::NFAlgorithm>, mut funcs: FunctionTree) -> FunctionTree {
     let mut funcs: FunctionTree = funcs;
-    funcs = List::fold(alg.statements.clone(), Arc::new(collectStatementFuncs), funcs.clone());
+    funcs = List::fold(alg.statements.clone(), (std::sync::Arc::new(collectStatementFuncs) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Statement::NFStatement>, Arc<FunctionTreeImpl::Tree>) -> Result<Arc<FunctionTreeImpl::Tree>> + 'static>), funcs.clone());
     funcs
 }
 
@@ -3148,16 +3151,16 @@ pub fn collectStatementFuncs(mut stmt: Arc<Statement::NFStatement>, mut funcs: F
             ()
         },
         Deref @ Statement::FOR { .. } => {
-            funcs = List::fold(var_field!((*stmt).body, Statement::NFStatement::FOR).clone(), Arc::new(collectStatementFuncs), funcs.clone());
+            funcs = List::fold(var_field!((*stmt).body, Statement::NFStatement::FOR).clone(), (std::sync::Arc::new(collectStatementFuncs) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Statement::NFStatement>, Arc<FunctionTreeImpl::Tree>) -> Result<Arc<FunctionTreeImpl::Tree>> + 'static>), funcs.clone());
             funcs = collectExpFuncs(Util::getOption(var_field!((*stmt).range, Statement::NFStatement::FOR).clone())?, funcs.clone())?;
             ()
         },
         Deref @ Statement::IF { .. } => {
-            funcs = List::fold(var_field!((*stmt).branches, Statement::NFStatement::IF).clone(), Arc::new(collectStmtBranchFuncs), funcs.clone());
+            funcs = List::fold(var_field!((*stmt).branches, Statement::NFStatement::IF).clone(), (std::sync::Arc::new(collectStmtBranchFuncs) as std::sync::Arc<dyn ::std::ops::Fn((Arc<Expression::NFExpression>, Arc<metamodelica::List<Arc<Statement::NFStatement>>>), Arc<FunctionTreeImpl::Tree>) -> Result<Arc<FunctionTreeImpl::Tree>> + 'static>), funcs.clone());
             ()
         },
         Deref @ Statement::WHEN { .. } => {
-            funcs = List::fold(var_field!((*stmt).branches, Statement::NFStatement::WHEN).clone(), Arc::new(collectStmtBranchFuncs), funcs.clone());
+            funcs = List::fold(var_field!((*stmt).branches, Statement::NFStatement::WHEN).clone(), (std::sync::Arc::new(collectStmtBranchFuncs) as std::sync::Arc<dyn ::std::ops::Fn((Arc<Expression::NFExpression>, Arc<metamodelica::List<Arc<Statement::NFStatement>>>), Arc<FunctionTreeImpl::Tree>) -> Result<Arc<FunctionTreeImpl::Tree>> + 'static>), funcs.clone());
             ()
         },
         Deref @ Statement::ASSERT { .. } => {
@@ -3181,7 +3184,7 @@ pub fn collectStatementFuncs(mut stmt: Arc<Statement::NFStatement>, mut funcs: F
         },
         Deref @ Statement::WHILE { .. } => {
             funcs = collectExpFuncs(var_field!((*stmt).condition, Statement::NFStatement::WHILE).clone(), funcs.clone())?;
-            funcs = List::fold(var_field!((*stmt).body, Statement::NFStatement::WHILE).clone(), Arc::new(collectStatementFuncs), funcs.clone());
+            funcs = List::fold(var_field!((*stmt).body, Statement::NFStatement::WHILE).clone(), (std::sync::Arc::new(collectStatementFuncs) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Statement::NFStatement>, Arc<FunctionTreeImpl::Tree>) -> Result<Arc<FunctionTreeImpl::Tree>> + 'static>), funcs.clone());
             ()
         },
         _ => (),
@@ -3193,13 +3196,13 @@ pub fn collectStatementFuncs(mut stmt: Arc<Statement::NFStatement>, mut funcs: F
 pub fn collectStmtBranchFuncs(mut branch: (Arc<Expression::NFExpression>, Arc<metamodelica::List<Arc<Statement::NFStatement>>>), mut funcs: FunctionTree) -> Result<FunctionTree> {
     let mut funcs: FunctionTree = funcs;
     funcs = collectExpFuncs(Util::tuple21(branch.clone()), funcs.clone())?;
-    funcs = List::fold(Util::tuple22(branch.clone()), Arc::new(collectStatementFuncs), funcs.clone());
+    funcs = List::fold(Util::tuple22(branch.clone()), (std::sync::Arc::new(collectStatementFuncs) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Statement::NFStatement>, Arc<FunctionTreeImpl::Tree>) -> Result<Arc<FunctionTreeImpl::Tree>> + 'static>), funcs.clone());
     Ok(funcs)
 }
 
 pub fn collectExpFuncs(mut exp: Arc<Expression::NFExpression>, mut funcs: FunctionTree) -> Result<FunctionTree> {
     let mut funcs: FunctionTree = funcs;
-    funcs = Expression::fold(exp.clone(), Arc::new(collectExpFuncs_traverse), funcs.clone())?;
+    funcs = Expression::fold(exp.clone(), (std::sync::Arc::new(collectExpFuncs_traverse) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, Arc<FunctionTreeImpl::Tree>) -> Result<Arc<FunctionTreeImpl::Tree>> + 'static>), funcs.clone())?;
     Ok(funcs)
 }
 
@@ -3237,12 +3240,12 @@ pub fn flattenFunction(mut func: Arc<Function::Function>, mut funcs: FunctionTre
     let mut funcs: FunctionTree = funcs;
     let mut r#fn: Arc<Function::Function> = func.clone();
     if !(Function::isCollected(r#fn.clone())) {
-        r#fn = Function::mapExp(r#fn.clone(), Arc::new(Expression::expandSplitIndices), Arc::new(Expression::expandSplitIndices), true, true)?;
+        r#fn = Function::mapExp(r#fn.clone(), (std::sync::Arc::new(Expression::expandSplitIndices) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>), (std::sync::Arc::new(Expression::expandSplitIndices) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>), true, true)?;
         r#fn = EvalConstants::evaluateFunction(r#fn.clone())?;
         SimplifyModel::simplifyFunction(r#fn.clone())?;
         Function::collect(r#fn.clone());
         if !(InstNode::isPartial(r#fn.node.clone())) {
-            funcs = FunctionTreeImpl::add(funcs.clone(), Function::name(r#fn.clone()), r#fn.clone(), FunctionTreeImpl::addConflictDefault)?;
+            funcs = FunctionTreeImpl::add(funcs.clone(), Function::name(r#fn.clone()), r#fn.clone(), (std::sync::Arc::new(fnptr!(FunctionTreeImpl::addConflictDefault, _, _, _)) as std::sync::Arc<dyn ::std::ops::Fn(_, _, _) -> Result<_> + 'static>))?;
             funcs = collectClassFunctions(r#fn.node.clone(), funcs.clone())?;
             for mut fn_der in &*r#fn.derivatives.clone() {
                 let mut fn_der = fn_der.clone();
@@ -3287,7 +3290,7 @@ pub fn collectClassFunctions(mut clsNode: Arc<InstNode::InstNode>, mut funcs: Fu
             }
             let () = (::match_deref::match_deref! { match &(sections.clone()) {
         Deref @ Sections::SECTIONS { .. } => {
-            funcs = List::fold(var_field!((**sections).algorithms, Sections::NFSections::SECTIONS).clone(), Arc::new(fnptr!(collectAlgorithmFuncs, Arc<Algorithm::NFAlgorithm>, Arc<FunctionTreeImpl::Tree>)), funcs.clone());
+            funcs = List::fold(var_field!((**sections).algorithms, Sections::NFSections::SECTIONS).clone(), (std::sync::Arc::new(fnptr!(collectAlgorithmFuncs, Arc<Algorithm::NFAlgorithm>, Arc<FunctionTreeImpl::Tree>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Algorithm::NFAlgorithm>, Arc<FunctionTreeImpl::Tree>) -> Result<Arc<FunctionTreeImpl::Tree>> + 'static>), funcs.clone());
             ()
         },
         _ => (),
@@ -3311,10 +3314,10 @@ pub fn updateForType(mut forType: Arc<Statement::ForType>, mut forBody: Arc<meta
     let () = (::match_deref::match_deref! { match &(forType.clone()) {
         Deref @ Statement::ForType::NORMAL => (),
         Deref @ Statement::ForType::PARALLEL { .. } => {
-            vars = UnorderedMap::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>), ComponentRef::isEqual, 1);
+            vars = UnorderedMap::new((std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), 1);
             for mut s in &*forBody.clone() {
                 let mut s = s.clone();
-                vars = Statement::fold(s.clone(), Arc::new(collectParallelVariables), vars.clone());
+                vars = Statement::fold(s.clone(), (std::sync::Arc::new(collectParallelVariables) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Statement::NFStatement>, Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, SourceInfo>>) -> Result<Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, SourceInfo>>> + 'static>), vars.clone());
             }
             assign_variant_field!(forType => Statement::ForType::PARALLEL; vars = UnorderedMap::toList(vars.clone()));
             for mut v in &*var_field!((*forType).vars, Statement::ForType::PARALLEL).clone() {
@@ -3330,7 +3333,7 @@ pub fn updateForType(mut forType: Arc<Statement::ForType>, mut forBody: Arc<meta
 
 pub fn collectParallelVariables(mut stmt: Arc<Statement::NFStatement>, mut vars: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, SourceInfo>>) -> Result<Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, SourceInfo>>> {
     let mut vars: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, SourceInfo>> = vars;
-    let mut info: SourceInfo;
+    let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
     info = Statement::info(stmt.clone());
     vars = Statement::foldExp(stmt.clone(), Arc::new({ let __pe_b1: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, _) -> Result<_> + 'static> = Arc::new({ let __pe_b1 = info.clone(); move |__pe_a0, __pe_a2| collectParallelVariablesExp(__pe_a0, __pe_b1.clone(), __pe_a2) }); move |__pe_a0, __pe_a2| Expression::fold(__pe_a0, __pe_b1.clone(), __pe_a2) }), vars.clone())?;
     Ok(vars)
@@ -3354,7 +3357,7 @@ pub fn collectParallelVariablesExp(mut exp: Arc<Expression::NFExpression>, mut i
 
 pub fn checkParGlobalCref(mut crefInfo: (Arc<ComponentRef::NFComponentRef>, SourceInfo)) -> Result<()> {
     let mut cref: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
-    let mut info: SourceInfo;
+    let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
     let mut node: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
     let mut errorString: ArcStr = arcstr::literal!("");
     (cref, info) = crefInfo.clone();
@@ -3420,7 +3423,7 @@ pub fn evaluateIfWithConnects2(mut eq: Arc<Equation::NFEquation>, mut equations:
     let mut target: Arc<Ceval::EvalTarget::EvalTarget>;
     let mut bl: Arc<metamodelica::List<Arc<Equation::Branch::Branch>>> = metamodelica::nil();
     equations = (::match_deref::match_deref! { match &(eq.clone()) {
-        Deref @ Equation::IF { .. } if (Equation::contains(eq.clone(), Arc::new(fnptr!(Equation::isConnect, Arc<Equation::NFEquation>))) || Equation::containsExp(eq.clone(), Arc::new({ let __pe_b1: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<bool> + 'static> = Arc::new(Expression::isConnectionCall); move |__pe_a0| Expression::contains(__pe_a0, __pe_b1.clone()) }))?) => {
+        Deref @ Equation::IF { .. } if (Equation::contains(eq.clone(), (std::sync::Arc::new(fnptr!(Equation::isConnect, Arc<Equation::NFEquation>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Equation::NFEquation>) -> Result<bool> + 'static>)) || Equation::containsExp(eq.clone(), Arc::new({ let __pe_b1: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<bool> + 'static> = (std::sync::Arc::new(Expression::isConnectionCall) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<bool> + 'static>); move |__pe_a0| Expression::contains(__pe_a0, __pe_b1.clone()) }))?) => {
             target = Ceval::EvalTarget::new(Equation::info(eq.clone()), NFInstContext::NO_CONTEXT.clone(), None);
             for mut branch in &*var_field!((*eq).branches, Equation::NFEquation::IF).clone() {
                 let mut branch = branch.clone();
@@ -3490,7 +3493,7 @@ pub fn checkDeletedVarRefs(mut flatModel: Arc<FlatModel::NFFlatModel>, mut delet
 }
 
 pub fn checkDeletedVarRefsInVar(mut var: Arc<Variable::NFVariable>, mut deletedVars: DeletedVariables, mut settings: FlattenSettings) -> () {
-    Variable::applyExpShallow(var.clone(), { let __pe_b1 = deletedVars.clone(); let __pe_b2 = settings.clone(); let __pe_b3 = var.info.clone(); move |__pe_a0| checkDeletedVarRefsInExp(__pe_a0, __pe_b1.clone(), __pe_b2.clone(), __pe_b3.clone()) });
+    Variable::applyExpShallow(var.clone(), Arc::new({ let __pe_b1 = deletedVars.clone(); let __pe_b2 = settings.clone(); let __pe_b3 = var.info.clone(); move |__pe_a0| checkDeletedVarRefsInExp(__pe_a0, __pe_b1.clone(), __pe_b2.clone(), __pe_b3.clone()) }));
     ()
 }
 

@@ -244,25 +244,25 @@ pub mod ConnectorType {
         let mut r#str: ArcStr = arcstr::literal!("");
         let mut strl: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
         if intBitAnd(cty.clone(), POTENTIAL.clone()) > 0 {
-            strl = cons(literal!("potential"), strl.clone());
+            strl = cons((literal!("potential")).clone(), strl.clone());
         }
         if intBitAnd(cty.clone(), FLOW.clone()) > 0 {
-            strl = cons(literal!("flow"), strl.clone());
+            strl = cons((literal!("flow")).clone(), strl.clone());
         }
         if intBitAnd(cty.clone(), STREAM.clone()) > 0 {
-            strl = cons(literal!("stream"), strl.clone());
+            strl = cons((literal!("stream")).clone(), strl.clone());
         }
         if intBitAnd(cty.clone(), POTENTIALLY_PRESENT.clone()) > 0 {
-            strl = cons(literal!("potentially present"), strl.clone());
+            strl = cons((literal!("potentially present")).clone(), strl.clone());
         }
         if intBitAnd(cty.clone(), VIRTUAL.clone()) > 0 {
-            strl = cons(literal!("virtual"), strl.clone());
+            strl = cons((literal!("virtual")).clone(), strl.clone());
         }
         if intBitAnd(cty.clone(), CONNECTOR.clone()) > 0 {
-            strl = cons(literal!("connector"), strl.clone());
+            strl = cons((literal!("connector")).clone(), strl.clone());
         }
         if intBitAnd(cty.clone(), EXPANDABLE.clone()) > 0 {
-            strl = cons(literal!("expandable"), strl.clone());
+            strl = cons((literal!("expandable")).clone(), strl.clone());
         }
         r#str = stringDelimitList(strl.clone(), (literal!(" ")).clone());
         r#str
@@ -283,6 +283,9 @@ impl PartialOrd for Parallelism {
 impl Ord for Parallelism {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering { (*self as i32).cmp(&(*other as i32)) }
 }
+impl Default for Parallelism {
+    fn default() -> Self { Self::NON_PARALLEL }
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 #[repr(i32)]
@@ -301,6 +304,9 @@ impl PartialOrd for Variability {
 impl Ord for Variability {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering { (*self as i32).cmp(&(*other as i32)) }
 }
+impl Default for Variability {
+    fn default() -> Self { Self::CONSTANT }
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 #[repr(i32)]
@@ -313,6 +319,9 @@ impl PartialOrd for Purity {
 }
 impl Ord for Purity {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering { (*self as i32).cmp(&(*other as i32)) }
+}
+impl Default for Purity {
+    fn default() -> Self { Self::PURE }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
@@ -327,6 +336,9 @@ impl PartialOrd for Direction {
 }
 impl Ord for Direction {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering { (*self as i32).cmp(&(*other as i32)) }
+}
+impl Default for Direction {
+    fn default() -> Self { Self::NONE }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
@@ -343,6 +355,9 @@ impl PartialOrd for InnerOuter {
 impl Ord for InnerOuter {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering { (*self as i32).cmp(&(*other as i32)) }
 }
+impl Default for InnerOuter {
+    fn default() -> Self { Self::NOT_INNER_OUTER }
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 #[repr(i32)]
@@ -355,6 +370,9 @@ impl PartialOrd for Visibility {
 }
 impl Ord for Visibility {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering { (*self as i32).cmp(&(*other as i32)) }
+}
+impl Default for Visibility {
+    fn default() -> Self { Self::PUBLIC }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
@@ -376,7 +394,7 @@ impl Ord for AccessLevel {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering { (*self as i32).cmp(&(*other as i32)) }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Replaceable {
     REPLACEABLE {
         constrainingClass: Option<Arc<InstNode::InstNode>>,

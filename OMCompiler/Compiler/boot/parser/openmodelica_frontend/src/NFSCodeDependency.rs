@@ -207,7 +207,7 @@ fn lookupNameInItem(mut inName: Arc<Absyn::Path>, mut inItem: Item, mut inEnv: E
             (item, type_env) = lookupClass(type_path.clone(), inEnv.clone(), true, info.clone(), inErrorType.clone())?;
             let true = (NFSCodeEnv::isClassItem(item.clone())) else { bail!("pattern mismatch") };
             redeclares = NFSCodeFlattenRedeclare::extractRedeclaresFromModifier(mods.clone());
-            (item, type_env, _) = NFSCodeFlattenRedeclare::replaceRedeclaredElementsInEnv(redeclares.clone(), item.clone(), type_env.clone(), inEnv.clone(), NFInstPrefix::emptyPrefix.clone())?;
+            (item, type_env, _) = NFSCodeFlattenRedeclare::replaceRedeclaredElementsInEnv(redeclares.clone(), item.clone(), type_env.clone(), inEnv.clone(), NFInstPrefix::emptyPrefix().clone())?;
             (item, env) = lookupNameInItem(inName.clone(), item.clone(), type_env.clone(), inErrorType.clone())?;
             (item.clone(), env.clone())
         },
@@ -450,10 +450,10 @@ fn analyseClassDef(mut inClassDef: Arc<SCode::ClassDef>, mut inRestriction: SCod
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ SCode::ClassDef::PARTS { externalDecl: ext_decl, initialAlgorithmLst: ial, normalAlgorithmLst: nal, initialEquationLst: iel, normalEquationLst: nel, elementLst: el, .. }, _, _, _, _) => {
                     analyseElements(el.clone(), inEnv.clone(), inRestriction.clone())?;
-                    List::map1_0(nel.clone(), Arc::new(fnptr!(analyseEquation, Arc<SCode::Equation>, Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>)), inEnv.clone());
-                    List::map1_0(iel.clone(), Arc::new(fnptr!(analyseEquation, Arc<SCode::Equation>, Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>)), inEnv.clone());
-                    List::map1_0(nal.clone(), Arc::new(analyseAlgorithm), inEnv.clone());
-                    List::map1_0(ial.clone(), Arc::new(analyseAlgorithm), inEnv.clone());
+                    List::map1_0(nel.clone(), (std::sync::Arc::new(fnptr!(analyseEquation, Arc<SCode::Equation>, Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SCode::Equation>, Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>) -> Result<()> + 'static>), inEnv.clone());
+                    List::map1_0(iel.clone(), (std::sync::Arc::new(fnptr!(analyseEquation, Arc<SCode::Equation>, Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SCode::Equation>, Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>) -> Result<()> + 'static>), inEnv.clone());
+                    List::map1_0(nal.clone(), (std::sync::Arc::new(analyseAlgorithm) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SCode::AlgorithmSection>, Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>) -> Result<()> + 'static>), inEnv.clone());
+                    List::map1_0(ial.clone(), (std::sync::Arc::new(analyseAlgorithm) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SCode::AlgorithmSection>, Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>) -> Result<()> + 'static>), inEnv.clone());
                     analyseExternalDecl(ext_decl.clone(), inEnv.clone(), inInfo.clone())?;
                     Ok(())
                 }
@@ -496,7 +496,7 @@ fn analyseClassDef(mut inClassDef: Arc<SCode::ClassDef>, mut inRestriction: SCod
                     (ty_item, ty_env, _) = NFSCodeEnv::resolveRedeclaredItem(ty_item.clone(), ty_env.clone());
                     ty_env = NFSCodeEnv::mergeItemEnv(ty_item.clone(), ty_env.clone());
                     redecls = NFSCodeFlattenRedeclare::extractRedeclaresFromModifier(mods.clone());
-                    (ty_item, ty_env, repls) = NFSCodeFlattenRedeclare::replaceRedeclaredElementsInEnv(redecls.clone(), ty_item.clone(), ty_env.clone(), inEnv.clone(), NFInstPrefix::emptyPrefix.clone())?;
+                    (ty_item, ty_env, repls) = NFSCodeFlattenRedeclare::replaceRedeclaredElementsInEnv(redecls.clone(), ty_item.clone(), ty_env.clone(), inEnv.clone(), NFInstPrefix::emptyPrefix().clone())?;
                     analyseItemIfRedeclares(repls.clone(), ty_item.clone(), ty_env.clone())?;
                     analyseModifier(mods.clone(), inEnv.clone(), ty_env.clone(), inInfo.clone())?;
                     Ok(())
@@ -516,9 +516,9 @@ fn analyseClassDef(mut inClassDef: Arc<SCode::ClassDef>, mut inRestriction: SCod
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ SCode::ClassDef::OVERLOAD { pathLst: paths }, _, _, _, _) => {
                     if !(Config::synchronousFeaturesAllowed()) && AbsynUtil::pathFirstIdent(listHead(paths.clone())?)? == literal!("OMC_NO_CLOCK") {
-                        List::map2_0(list![listHead(paths.clone())?], Arc::new(analyseClass), inEnv.clone(), inInfo.clone());
+                        List::map2_0(list![listHead(paths.clone())?], (std::sync::Arc::new(analyseClass) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Path>, Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo) -> Result<()> + 'static>), inEnv.clone(), inInfo.clone());
                     } else {
-                        List::map2_0(paths.clone(), Arc::new(analyseClass), inEnv.clone(), inInfo.clone());
+                        List::map2_0(paths.clone(), (std::sync::Arc::new(analyseClass) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Path>, Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo) -> Result<()> + 'static>), inEnv.clone(), inInfo.clone());
                     }
                     Ok(())
                 }
@@ -541,9 +541,9 @@ fn analyseClassDef(mut inClassDef: Arc<SCode::ClassDef>, mut inRestriction: SCod
 fn isExternalObject(mut inElements: Arc<metamodelica::List<Arc<SCode::Element>>>, mut inEnv: Env, mut inInfo: SourceInfo) -> Result<()> {
     let mut el: Arc<metamodelica::List<Arc<SCode::Element>>> = metamodelica::nil();
     let mut el_names: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
-    el = List::filterOnTrue(inElements.clone(), Arc::new(fnptr!(isNotExternalObject, Arc<SCode::Element>)));
+    el = List::filterOnTrue(inElements.clone(), (std::sync::Arc::new(fnptr!(isNotExternalObject, Arc<SCode::Element>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SCode::Element>) -> Result<bool> + 'static>));
     let false = ((el.clone().len() as i32) == (inElements.clone().len() as i32)) else { bail!("pattern mismatch") };
-    el_names = List::filterMap(el.clone(), Arc::new(elementName));
+    el_names = List::filterMap(el.clone(), (std::sync::Arc::new(elementName) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SCode::Element>) -> Result<ArcStr> + 'static>));
     checkExternalObject(el_names.clone(), inEnv.clone(), inInfo.clone())?;
     Ok(())
 }
@@ -593,8 +593,8 @@ fn checkExternalObject(mut inElements: Arc<metamodelica::List<ArcStr>>, mut inEn
             let mut env_str: ArcStr = arcstr::literal!("");
             let mut has_con: bool = false;
             let mut has_des: bool = false;
-            has_con = List::isMemberOnTrue((literal!("constructor")).clone(), inElements.clone(), Arc::new(fnptr!(stringEqual, ArcStr, ArcStr)));
-            has_des = List::isMemberOnTrue((literal!("destructor")).clone(), inElements.clone(), Arc::new(fnptr!(stringEqual, ArcStr, ArcStr)));
+            has_con = List::isMemberOnTrue((literal!("constructor")).clone(), inElements.clone(), (std::sync::Arc::new(fnptr!(stringEqual, ArcStr, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>));
+            has_des = List::isMemberOnTrue((literal!("destructor")).clone(), inElements.clone(), (std::sync::Arc::new(fnptr!(stringEqual, ArcStr, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>));
             env_str = (NFSCodeEnv::getEnvName(inEnv.clone())?).clone();
             checkExternalObject2(inElements.clone(), has_con.clone(), has_des.clone(), (env_str.clone()).clone(), inInfo.clone())?;
             bail!("fail")
@@ -609,8 +609,8 @@ fn checkExternalObject2(mut inElements: Arc<metamodelica::List<ArcStr>>, mut inH
         (el, true, true, _, _) => {
             let mut el_str: ArcStr = arcstr::literal!("");
             let mut el = (*el).clone();
-            (el, _) = List::deleteMemberOnTrue((literal!("constructor")).clone(), el.clone(), Arc::new(fnptr!(stringEqual, ArcStr, ArcStr)))?;
-            (el, _) = List::deleteMemberOnTrue((literal!("destructor")).clone(), el.clone(), Arc::new(fnptr!(stringEqual, ArcStr, ArcStr)))?;
+            (el, _) = List::deleteMemberOnTrue((literal!("constructor")).clone(), el.clone(), (std::sync::Arc::new(fnptr!(stringEqual, ArcStr, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>))?;
+            (el, _) = List::deleteMemberOnTrue((literal!("destructor")).clone(), el.clone(), (std::sync::Arc::new(fnptr!(stringEqual, ArcStr, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>))?;
             el_str = stringDelimitList(el.clone(), (literal!(", ")).clone());
             el_str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("contains invalid elements: ")); __mm_s.push_str(&*el_str.clone()); ArcStr::from(__mm_s) }).clone();
             Error::addSourceMessage(Error::INVALID_EXTERNAL_OBJECT.clone(), list![(inObjectName.clone()).clone(), (el_str.clone()).clone()], inInfo.clone())?;
@@ -755,7 +755,7 @@ fn analyseElement(mut inElement: Arc<SCode::Element>, mut inEnv: Env, mut inExte
             ty_env = NFSCodeEnv::mergeItemEnv(ty_item.clone(), ty_env.clone());
             NFSCodeCheck::checkRecursiveComponentDeclaration((name.clone()).clone(), info.clone(), ty_env.clone(), ty_item.clone(), inEnv.clone())?;
             redecls = NFSCodeFlattenRedeclare::extractRedeclaresFromModifier(mods.clone());
-            (ty_item, ty_env, _) = NFSCodeFlattenRedeclare::replaceRedeclaredElementsInEnv(redecls.clone(), ty_item.clone(), ty_env.clone(), inEnv.clone(), NFInstPrefix::emptyPrefix.clone())?;
+            (ty_item, ty_env, _) = NFSCodeFlattenRedeclare::replaceRedeclaredElementsInEnv(redecls.clone(), ty_item.clone(), ty_env.clone(), inEnv.clone(), NFInstPrefix::emptyPrefix().clone())?;
             analyseModifier(mods.clone(), inEnv.clone(), ty_env.clone(), info.clone())?;
             analyseOptExp(cond_exp.clone(), inEnv.clone(), info.clone())?;
             analyseConstrainClass(SCodeUtil::replaceableOptConstraint(SCodeUtil::prefixesReplaceable(prefixes.clone())?)?, inEnv.clone(), info.clone())?;
@@ -903,7 +903,7 @@ fn analyseAttributes(mut inAttributes: SCode::Attributes, mut inEnv: Env, mut in
     let mut ad: Arc<metamodelica::List<Arc<Absyn::Subscript>>> = metamodelica::nil();
     let SCode::ATTR { arrayDims: __pa0, .. } = (inAttributes.clone()) else { bail!("pattern mismatch") };
     ad = __pa0.clone();
-    List::map2_0(ad.clone(), Arc::new(analyseSubscript), inEnv.clone(), inInfo.clone());
+    List::map2_0(ad.clone(), (std::sync::Arc::new(analyseSubscript) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Subscript>, Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo) -> Result<()> + 'static>), inEnv.clone(), inInfo.clone());
     Ok(())
 }
 
@@ -913,7 +913,7 @@ fn analyseModifier(mut inModifier: Arc<SCode::Mod>, mut inEnv: Env, mut inTypeEn
             ()
         },
         (Deref @ SCode::Mod::MOD { binding: bind_exp, subModLst: sub_mods, .. }, _, _, _) => {
-            List::map2_0(sub_mods.clone(), Arc::new(analyseSubMod), (inEnv.clone(), inTypeEnv.clone()), inInfo.clone());
+            List::map2_0(sub_mods.clone(), (std::sync::Arc::new(analyseSubMod) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SCode::SubMod>, (Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>), SourceInfo) -> Result<()> + 'static>), (inEnv.clone(), inTypeEnv.clone()), inInfo.clone());
             analyseModBinding(bind_exp.clone(), inEnv.clone(), inInfo.clone())?;
             ()
         },
@@ -1077,7 +1077,7 @@ fn analyseTypeSpec(mut inTypeSpec: Arc<Absyn::TypeSpec>, mut inEnv: Env, mut inI
             ()
         },
         (Deref @ Absyn::TypeSpec::TCOMPLEX { typeSpecs: tys, .. }, _, _) => {
-            List::map2_0(tys.clone(), Arc::new(analyseTypeSpec), inEnv.clone(), inInfo.clone());
+            List::map2_0(tys.clone(), (std::sync::Arc::new(analyseTypeSpec) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::TypeSpec>, Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo) -> Result<()> + 'static>), inEnv.clone(), inInfo.clone());
             ()
         },
         _ => bail!("match: no arm matched"),
@@ -1088,7 +1088,7 @@ fn analyseTypeSpec(mut inTypeSpec: Arc<Absyn::TypeSpec>, mut inEnv: Env, mut inI
 fn analyseTypeSpecDims(mut inDims: Option<Arc<metamodelica::List<Arc<Absyn::Subscript>>>>, mut inEnv: Env, mut inInfo: SourceInfo) -> () {
     let _ = (::match_deref::match_deref! { match &((inDims.clone(), inEnv.clone(), inInfo.clone())) {
         (Some(dims), _, _) => {
-            List::map2_0(dims.clone(), Arc::new(analyseTypeSpecDim), inEnv.clone(), inInfo.clone());
+            List::map2_0(dims.clone(), (std::sync::Arc::new(analyseTypeSpecDim) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Subscript>, Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo) -> Result<()> + 'static>), inEnv.clone(), inInfo.clone());
             ()
         },
         _ => {
@@ -1116,11 +1116,11 @@ fn analyseTypeSpecDim(mut inDim: Arc<Absyn::Subscript>, mut inEnv: Env, mut inIn
 fn analyseExternalDecl(mut inExtDecl: Option<Arc<SCode::ExternalDecl>>, mut inEnv: Env, mut inInfo: SourceInfo) -> Result<()> {
     let _ = (::match_deref::match_deref! { match &((inExtDecl.clone(), inEnv.clone(), inInfo.clone())) {
         (Some(Deref @ SCode::ExternalDecl { annotation_: None, args, .. }), _, _) => {
-            List::map2_0(args.clone(), Arc::new(analyseExp), inEnv.clone(), inInfo.clone());
+            List::map2_0(args.clone(), (std::sync::Arc::new(analyseExp) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Exp>, Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo) -> Result<()> + 'static>), inEnv.clone(), inInfo.clone());
             ()
         },
         (Some(Deref @ SCode::ExternalDecl { annotation_: Some(ann), args, .. }), _, _) => {
-            List::map2_0(args.clone(), Arc::new(analyseExp), inEnv.clone(), inInfo.clone());
+            List::map2_0(args.clone(), (std::sync::Arc::new(analyseExp) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Exp>, Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo) -> Result<()> + 'static>), inEnv.clone(), inInfo.clone());
             analyseAnnotation(ann.clone(), inEnv.clone(), inInfo.clone())?;
             ()
         },
@@ -1149,7 +1149,7 @@ fn analyseComment(mut inComment: Arc<SCode::Comment>, mut inEnv: Env, mut inInfo
 fn analyseAnnotation(mut inAnnotation: Arc<SCode::Annotation>, mut inEnv: Env, mut inInfo: SourceInfo) -> Result<()> {
     let _ = (::match_deref::match_deref! { match &((inAnnotation.clone(), inEnv.clone(), inInfo.clone())) {
         (Deref @ SCode::Annotation { modification: Deref @ SCode::Mod::MOD { subModLst: sub_mods, .. } }, _, _) => {
-            List::map2_0(sub_mods.clone(), Arc::new(analyseAnnotationMod), inEnv.clone(), inInfo.clone());
+            List::map2_0(sub_mods.clone(), (std::sync::Arc::new(analyseAnnotationMod) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SCode::SubMod>, Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo) -> Result<()> + 'static>), inEnv.clone(), inInfo.clone());
             ()
         },
         _ => bail!("match: no arm matched"),
@@ -1211,7 +1211,7 @@ fn analyseAnnotationName(mut inName: ArcStr, mut inEnv: Env, mut inInfo: SourceI
 }
 
 fn analyseExp(mut inExp: Arc<Absyn::Exp>, mut inEnv: Env, mut inInfo: SourceInfo) -> Result<()> {
-    (_, _) = AbsynUtil::traverseExpBidir(inExp.clone(), Arc::new(analyseExpTraverserEnter), Arc::new(fnptr!(analyseExpTraverserExit, Arc<Absyn::Exp>, (Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo))), (inEnv.clone(), inInfo.clone()))?;
+    (_, _) = AbsynUtil::traverseExpBidir(inExp.clone(), (std::sync::Arc::new(analyseExpTraverserEnter) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Exp>, (Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo)) -> Result<(Arc<Absyn::Exp>, (Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo))> + 'static>), (std::sync::Arc::new(fnptr!(analyseExpTraverserExit, Arc<Absyn::Exp>, (Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo))) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Exp>, (Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo)) -> Result<(Arc<Absyn::Exp>, (Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo))> + 'static>), (inEnv.clone(), inInfo.clone()))?;
     Ok(())
 }
 
@@ -1233,7 +1233,7 @@ fn analyseExpTraverserEnter(mut inExp: Arc<Absyn::Exp>, mut inTuple: (Arc<metamo
     let mut outExp: Arc<Absyn::Exp> = Arc::new(Absyn::Exp::BREAK);
     let mut outTuple: (Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo);
     let mut env: Env = metamodelica::nil();
-    let mut info: SourceInfo;
+    let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
     (env, info) = inTuple.clone();
     env = analyseExp2(inExp.clone(), env.clone(), info.clone())?;
     outExp = inExp.clone();
@@ -1332,7 +1332,7 @@ fn analyseExpTraverserExit(mut inExp: Arc<Absyn::Exp>, mut inTuple: (Arc<metamod
 }
 
 fn analyseEquation(mut inEquation: Arc<SCode::Equation>, mut inEnv: Env) -> () {
-    (_, _) = SCodeUtil::mapFoldEquations(inEquation.clone(), Arc::new(analyseEquationTraverser), inEnv.clone());
+    (_, _) = SCodeUtil::mapFoldEquations(inEquation.clone(), (std::sync::Arc::new(analyseEquationTraverser) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SCode::Equation>, Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>) -> Result<(Arc<SCode::Equation>, Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>)> + 'static>), inEnv.clone());
     ()
 }
 
@@ -1342,18 +1342,18 @@ fn analyseEquationTraverser(mut eq: Arc<SCode::Equation>, mut env: Env) -> Resul
     (eq, env) = (::match_deref::match_deref! { match &(eq.clone()) {
         Deref @ SCode::Equation::EQ_FOR { info, index: iter_name, .. } => {
             env = NFSCodeEnv::extendEnvWithIterators(list![Arc::new(Absyn::ForIterator { name: (iter_name.clone()).clone(), guardExp: None, range: None })], System::tmpTickIndex(NFSCodeEnv::tmpTickIndex.clone()), env.clone());
-            (eq, _) = SCodeUtil::mapFoldEquationExps(eq.clone(), Arc::new(traverseExp), (env.clone(), info.clone()))?;
+            (eq, _) = SCodeUtil::mapFoldEquationExps(eq.clone(), (std::sync::Arc::new(traverseExp) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Exp>, (Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo)) -> Result<(Arc<Absyn::Exp>, (Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo))> + 'static>), (env.clone(), info.clone()))?;
             (eq.clone(), env.clone())
         },
         Deref @ SCode::Equation::EQ_REINIT { info, cref: Deref @ Absyn::Exp::CREF { componentRef: cref1 }, .. } => {
             analyseCref(cref1.clone(), env.clone(), info.clone())?;
-            (eq, _) = SCodeUtil::mapFoldEquationExps(eq.clone(), Arc::new(traverseExp), (env.clone(), info.clone()))?;
+            (eq, _) = SCodeUtil::mapFoldEquationExps(eq.clone(), (std::sync::Arc::new(traverseExp) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Exp>, (Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo)) -> Result<(Arc<Absyn::Exp>, (Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo))> + 'static>), (env.clone(), info.clone()))?;
             (eq.clone(), env.clone())
         },
         _ => {
-            let mut info: SourceInfo;
+            let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
             info = SCodeUtil::getEquationInfo(eq.clone())?;
-            (eq, _) = SCodeUtil::mapFoldEquationExps(eq.clone(), Arc::new(traverseExp), (env.clone(), info.clone()))?;
+            (eq, _) = SCodeUtil::mapFoldEquationExps(eq.clone(), (std::sync::Arc::new(traverseExp) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Exp>, (Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo)) -> Result<(Arc<Absyn::Exp>, (Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo))> + 'static>), (env.clone(), info.clone()))?;
             (eq.clone(), env.clone())
         },
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
@@ -1364,7 +1364,7 @@ fn analyseEquationTraverser(mut eq: Arc<SCode::Equation>, mut env: Env) -> Resul
 fn traverseExp(mut inExp: Arc<Absyn::Exp>, mut inTuple: (Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo)) -> Result<(Arc<Absyn::Exp>, (Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo))> {
     let mut outExp: Arc<Absyn::Exp> = Arc::new(Absyn::Exp::BREAK);
     let mut outTuple: (Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo);
-    (outExp, outTuple) = AbsynUtil::traverseExpBidir(inExp.clone(), Arc::new(analyseExpTraverserEnter), Arc::new(fnptr!(analyseExpTraverserExit, Arc<Absyn::Exp>, (Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo))), inTuple.clone())?;
+    (outExp, outTuple) = AbsynUtil::traverseExpBidir(inExp.clone(), (std::sync::Arc::new(analyseExpTraverserEnter) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Exp>, (Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo)) -> Result<(Arc<Absyn::Exp>, (Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo))> + 'static>), (std::sync::Arc::new(fnptr!(analyseExpTraverserExit, Arc<Absyn::Exp>, (Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo))) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Exp>, (Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo)) -> Result<(Arc<Absyn::Exp>, (Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo))> + 'static>), inTuple.clone())?;
     Ok((outExp, outTuple))
 }
 
@@ -1375,12 +1375,12 @@ fn analyseAlgorithm(mut inAlgorithm: Arc<SCode::AlgorithmSection>, mut inEnv: En
         _ => bail!("pattern mismatch"),
     } };
     stmts = __pa0.clone();
-    List::map1_0(stmts.clone(), Arc::new(fnptr!(analyseStatement, Arc<SCode::Statement>, Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>)), inEnv.clone());
+    List::map1_0(stmts.clone(), (std::sync::Arc::new(fnptr!(analyseStatement, Arc<SCode::Statement>, Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SCode::Statement>, Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>) -> Result<()> + 'static>), inEnv.clone());
     Ok(())
 }
 
 fn analyseStatement(mut inStatement: Arc<SCode::Statement>, mut inEnv: Env) -> () {
-    (_, _) = SCodeUtil::mapFoldStatements(inStatement.clone(), Arc::new(analyseStatementTraverser), inEnv.clone());
+    (_, _) = SCodeUtil::mapFoldStatements(inStatement.clone(), (std::sync::Arc::new(analyseStatementTraverser) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SCode::Statement>, Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>) -> Result<(Arc<SCode::Statement>, Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>)> + 'static>), inEnv.clone());
     ()
 }
 
@@ -1390,18 +1390,18 @@ fn analyseStatementTraverser(mut stmt: Arc<SCode::Statement>, mut env: Env) -> R
     (stmt, env) = (::match_deref::match_deref! { match &(stmt.clone()) {
         Deref @ SCode::Statement::ALG_FOR { info, index: iter_name, .. } => {
             env = NFSCodeEnv::extendEnvWithIterators(list![Arc::new(Absyn::ForIterator { name: (iter_name.clone()).clone(), guardExp: None, range: None })], System::tmpTickIndex(NFSCodeEnv::tmpTickIndex.clone()), env.clone());
-            (_, _) = SCodeUtil::mapFoldStatementExps(stmt.clone(), Arc::new(traverseExp), (env.clone(), info.clone()));
+            (_, _) = SCodeUtil::mapFoldStatementExps(stmt.clone(), (std::sync::Arc::new(traverseExp) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Exp>, (Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo)) -> Result<(Arc<Absyn::Exp>, (Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo))> + 'static>), (env.clone(), info.clone()));
             (stmt.clone(), env.clone())
         },
         Deref @ SCode::Statement::ALG_PARFOR { info, index: iter_name, .. } => {
             env = NFSCodeEnv::extendEnvWithIterators(list![Arc::new(Absyn::ForIterator { name: (iter_name.clone()).clone(), guardExp: None, range: None })], System::tmpTickIndex(NFSCodeEnv::tmpTickIndex.clone()), env.clone());
-            (_, _) = SCodeUtil::mapFoldStatementExps(stmt.clone(), Arc::new(traverseExp), (env.clone(), info.clone()));
+            (_, _) = SCodeUtil::mapFoldStatementExps(stmt.clone(), (std::sync::Arc::new(traverseExp) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Exp>, (Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo)) -> Result<(Arc<Absyn::Exp>, (Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo))> + 'static>), (env.clone(), info.clone()));
             (stmt.clone(), env.clone())
         },
         _ => {
-            let mut info: SourceInfo;
+            let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
             info = SCodeUtil::getStatementInfo(stmt.clone())?;
-            (_, _) = SCodeUtil::mapFoldStatementExps(stmt.clone(), Arc::new(traverseExp), (env.clone(), info.clone()));
+            (_, _) = SCodeUtil::mapFoldStatementExps(stmt.clone(), (std::sync::Arc::new(traverseExp) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Exp>, (Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo)) -> Result<(Arc<Absyn::Exp>, (Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, SourceInfo))> + 'static>), (env.clone(), info.clone()));
             (stmt.clone(), env.clone())
         },
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
@@ -1416,7 +1416,7 @@ fn analyseClassExtends(mut inEnv: Env) -> Result<()> {
         _ => bail!("pattern mismatch"),
     } };
     tree = __pa0.clone();
-    let _ = NFSCodeEnv::EnvTree::foldCond(tree.clone(), Arc::new(analyseAvlValue), inEnv.clone());
+    let _ = NFSCodeEnv::EnvTree::foldCond(tree.clone(), (std::sync::Arc::new(analyseAvlValue) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, Arc<NFSCodeEnv::Item>, Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>) -> Result<(Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>, bool)> + 'static>), inEnv.clone());
     Ok(())
 }
 
@@ -1769,7 +1769,7 @@ fn removeUnusedRedeclares(mut inEnv: Env, mut inTotalEnv: Env) -> Result<Env> {
     imps = __pa6.clone();
     is_used = __pa7.clone();
     env = NFSCodeEnv::removeRedeclaresFromLocalScope(inTotalEnv.clone())?;
-    bcl = List::map1(bcl.clone(), Arc::new(removeUnusedRedeclares2), env.clone());
+    bcl = List::map1(bcl.clone(), (std::sync::Arc::new(removeUnusedRedeclares2) as std::sync::Arc<dyn ::std::ops::Fn(Arc<NFSCodeEnv::Extends>, Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>) -> Result<Arc<NFSCodeEnv::Extends>> + 'static>), env.clone());
     outEnv = list![Arc::new(NFSCodeEnv::Frame { name: name.clone(), frameType: ty.clone(), clsAndVars: cls_and_vars.clone(), extendsTable: Arc::new(NFSCodeEnv::ExtendsTable { baseClasses: bcl.clone(), redeclaredElements: re.clone(), classExtendsInfo: cei.clone() }), importTable: imps.clone(), isUsed: is_used.clone() })];
     Ok(outEnv)
 }
@@ -1779,7 +1779,7 @@ fn removeUnusedRedeclares2(mut inExtends: Arc<NFSCodeEnv::Extends>, mut inEnv: E
     let mut bc: Arc<Absyn::Path>;
     let mut redeclares: Arc<metamodelica::List<Arc<NFSCodeEnv::Redeclaration>>> = metamodelica::nil();
     let mut index: i32 = 0;
-    let mut info: SourceInfo;
+    let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
     let mut env: Env = metamodelica::nil();
     let (__pa0, __pa1, __pa2, __pa3) = ::match_deref::match_deref! { match &(inExtends.clone()) {
         Deref @ NFSCodeEnv::Extends { baseClass: __pa0, redeclareModifiers: __pa1, index: __pa2, info: __pa3 } => (__pa0.clone(), __pa1.clone(), __pa2.clone(), __pa3.clone()),
@@ -1789,7 +1789,7 @@ fn removeUnusedRedeclares2(mut inExtends: Arc<NFSCodeEnv::Extends>, mut inEnv: E
     redeclares = __pa1.clone();
     index = __pa2.clone();
     info = __pa3.clone();
-    redeclares = List::filter1(redeclares.clone(), Arc::new(removeUnusedRedeclares3), inEnv.clone());
+    redeclares = List::filter1(redeclares.clone(), (std::sync::Arc::new(removeUnusedRedeclares3) as std::sync::Arc<dyn ::std::ops::Fn(Arc<NFSCodeEnv::Redeclaration>, Arc<metamodelica::List<Arc<NFSCodeEnv::Frame>>>) -> Result<()> + 'static>), inEnv.clone());
     outExtends = Arc::new(NFSCodeEnv::Extends { baseClass: bc.clone(), redeclareModifiers: redeclares.clone(), index: index.clone(), info: info.clone() });
     Ok(outExtends)
 }

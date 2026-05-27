@@ -185,7 +185,7 @@ pub fn noNameHashExp(mut exp: Arc<Expression::NFExpression>, mut r#mod: i32) -> 
             0
         },
         Deref @ Expression::CREF { .. } => {
-            let mut var: Arc<Variable::NFVariable>;
+            let mut var: Arc<Variable::NFVariable> = Arc::new(<Variable::NFVariable as ::std::default::Default>::default());
             var = BVariable::getVar(var_field!((*exp).cref, Expression::NFExpression::CREF).clone(), metamodelica::sourceInfo!())?;
             stringHashDjb2Mod((BackendInfo::toString(var.backendinfo.clone())?).clone(), r#mod.clone())
         },
@@ -338,7 +338,7 @@ pub fn noNameHashExp(mut exp: Arc<Expression::NFExpression>, mut r#mod: i32) -> 
 
 pub fn isOnlyTimeDependent(mut exp: Arc<Expression::NFExpression>) -> Result<bool> {
     let mut b: bool = false;
-    b = Expression::fold(exp.clone(), Arc::new(fnptr!(isOnlyTimeDependentFold, Arc<Expression::NFExpression>, bool)), true)?;
+    b = Expression::fold(exp.clone(), (std::sync::Arc::new(fnptr!(isOnlyTimeDependentFold, Arc<Expression::NFExpression>, bool)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, bool) -> Result<bool> + 'static>), true)?;
     Ok(b)
 }
 
@@ -346,7 +346,7 @@ pub fn isOnlyTimeDependentFold(mut exp: Arc<Expression::NFExpression>, mut b: bo
     let mut b: bool = b;
     if b.clone() {
         b = (::match_deref::match_deref! { match &(exp.clone()) {
-        Deref @ Expression::CREF { .. } => ComponentRef::isTime(var_field!((*exp).cref, Expression::NFExpression::CREF).clone()) || BVariable::checkCref(var_field!((*exp).cref, Expression::NFExpression::CREF).clone(), fnptr!(BVariable::isParamOrConst, Pointer::Pointer<Arc<Variable::NFVariable>>), metamodelica::sourceInfo!()),
+        Deref @ Expression::CREF { .. } => ComponentRef::isTime(var_field!((*exp).cref, Expression::NFExpression::CREF).clone()) || BVariable::checkCref(var_field!((*exp).cref, Expression::NFExpression::CREF).clone(), (std::sync::Arc::new(fnptr!(BVariable::isParamOrConst, Pointer::Pointer<Arc<Variable::NFVariable>>)) as std::sync::Arc<dyn ::std::ops::Fn(Pointer::Pointer<Arc<Variable::NFVariable>>) -> Result<bool> + 'static>), metamodelica::sourceInfo!()),
         _ => true,
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
     } });
@@ -364,7 +364,7 @@ pub fn isContinuousFold(mut exp: Arc<Expression::NFExpression>, mut init: bool, 
     let mut b: bool = b;
     if b.clone() {
         b = (::match_deref::match_deref! { match &(exp.clone()) {
-        Deref @ Expression::CREF { .. } => BVariable::checkCref(var_field!((*exp).cref, Expression::NFExpression::CREF).clone(), { let __pe_b1 = init.clone(); move |__pe_a0| BVariable::isContinuous(__pe_a0, __pe_b1.clone()) }, metamodelica::sourceInfo!()),
+        Deref @ Expression::CREF { .. } => BVariable::checkCref(var_field!((*exp).cref, Expression::NFExpression::CREF).clone(), Arc::new({ let __pe_b1 = init.clone(); move |__pe_a0| BVariable::isContinuous(__pe_a0, __pe_b1.clone()) }), metamodelica::sourceInfo!()),
         _ => true,
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
     } });
@@ -374,12 +374,12 @@ pub fn isContinuousFold(mut exp: Arc<Expression::NFExpression>, mut init: bool, 
 
 pub fn getLocalSystem(mut m: metamodelica::Array<Arc<metamodelica::List<i32>>>, mut matching: Arc<Matching::NBMatching>, mut eqn_indices: Arc<metamodelica::List<i32>>) -> Result<(metamodelica::Array<Arc<metamodelica::List<i32>>>, Arc<Matching::NBMatching>, metamodelica::Array<i32>)> {
     let mut m_loc: metamodelica::Array<Arc<metamodelica::List<i32>>>;
-    let mut matching_loc: Arc<Matching::NBMatching>;
+    let mut matching_loc: Arc<Matching::NBMatching> = Arc::new(<Matching::NBMatching as ::std::default::Default>::default());
     let mut map_back: metamodelica::Array<i32>;
     let N: i32 = (eqn_indices.clone().len() as i32);
     let mut var_to_eqn: metamodelica::Array<i32> = arrayCreate(N.clone(), -1);
     let mut eqn_to_var: metamodelica::Array<i32> = arrayCreate(N.clone(), -1);
-    let mut var_loc: Arc<UnorderedMap::UnorderedMap<i32, i32>> = UnorderedMap::new(fnptr!(Util::id, _), fnptr!(intEq, i32, i32), N.clone());
+    let mut var_loc: Arc<UnorderedMap::UnorderedMap<i32, i32>> = UnorderedMap::new(std::sync::Arc::new(fnptr!(Util::id, _)), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>), N.clone());
     let mut j: i32 = 1;
     map_back = arrayCreate(N.clone(), -1);
     for mut i in &*eqn_indices.clone() {

@@ -153,7 +153,7 @@ pub fn sortEqSystems(mut eqs: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>
         }
         __acc.reverse()
     });
-    outEqs = List::sort(outEqs.clone(), Arc::new(compareEqSystems))?;
+    outEqs = List::sort(outEqs.clone(), (std::sync::Arc::new(compareEqSystems) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SimCode::SimEqSystem>, Arc<SimCode::SimEqSystem>) -> Result<bool> + 'static>))?;
     Ok(outEqs)
 }
 
@@ -170,7 +170,7 @@ fn expandEntwined(mut eq: Arc<SimCode::SimEqSystem>) -> Arc<metamodelica::List<A
 fn simulationFindLiterals(mut fns: Arc<metamodelica::List<DAE::Function>>) -> (Arc<metamodelica::List<DAE::Function>>, (i32, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::Exp>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::Exp>, i32)>>), i32, (HashTableExpToIndex::FuncHashCref, HashTableExpToIndex::FuncCrefEqual, HashTableExpToIndex::FuncCrefStr, HashTableExpToIndex::FuncExpStr)), Arc<metamodelica::List<Arc<DAE::Exp>>>)) {
     let mut ofns: Arc<metamodelica::List<DAE::Function>> = metamodelica::nil();
     let mut literals: (i32, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::Exp>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::Exp>, i32)>>), i32, (HashTableExpToIndex::FuncHashCref, HashTableExpToIndex::FuncCrefEqual, HashTableExpToIndex::FuncCrefStr, HashTableExpToIndex::FuncExpStr)), Arc<metamodelica::List<Arc<DAE::Exp>>>);
-    (ofns, literals) = DAEUtil::traverseDAEFunctions(fns.clone(), Arc::new(SimCodeFunctionUtil::findLiteralsHelper), (0, HashTableExpToIndex::emptyHashTableSized(BaseHashTable::bigBucketSize.clone()), metamodelica::nil()));
+    (ofns, literals) = DAEUtil::traverseDAEFunctions(fns.clone(), (std::sync::Arc::new(SimCodeFunctionUtil::findLiteralsHelper) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, (i32, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::Exp>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::Exp>, i32)>>), i32, (HashTableExpToIndex::FuncHashCref, HashTableExpToIndex::FuncCrefEqual, HashTableExpToIndex::FuncCrefStr, HashTableExpToIndex::FuncExpStr)), Arc<metamodelica::List<Arc<DAE::Exp>>>)) -> Result<(Arc<DAE::Exp>, (i32, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::Exp>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::Exp>, i32)>>), i32, (HashTableExpToIndex::FuncHashCref, HashTableExpToIndex::FuncCrefEqual, HashTableExpToIndex::FuncCrefStr, HashTableExpToIndex::FuncExpStr)), Arc<metamodelica::List<Arc<DAE::Exp>>>))> + 'static>), (0, HashTableExpToIndex::emptyHashTableSized(BaseHashTable::bigBucketSize.clone()), metamodelica::nil()));
     (ofns, literals)
 }
 
@@ -409,7 +409,7 @@ pub fn createSimCode(mut inBackendDAE: Arc<BackendDAE::BackendDAE>, mut inInitDA
         if ifcpp.clone() {
             zeroCrossings = listAppend(relations.clone(), sampleZC.clone());
         }
-        (clockedSysts, contSysts) = List::splitOnTrue(dlow.eqs.clone(), Arc::new(fnptr!(BackendDAEUtil::isClockedSyst, Arc<BackendDAE::EqSystem>)));
+        (clockedSysts, contSysts) = List::splitOnTrue(dlow.eqs.clone(), (std::sync::Arc::new(fnptr!(BackendDAEUtil::isClockedSyst, Arc<BackendDAE::EqSystem>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<BackendDAE::EqSystem>) -> Result<bool> + 'static>));
         unwrap_break_err!(execStat((literal!("simCode: created event and clocks part")).clone()), '__try0);
         if unwrap_break_err!(Flags::getConfigEnum(Flags::SYM_SOLVER.clone()), '__try0) > 0 {
             SymEuler_help = unwrap_break_err!(Flags::getConfigEnum(Flags::SYM_SOLVER.clone()), '__try0);
@@ -431,7 +431,7 @@ pub fn createSimCode(mut inBackendDAE: Arc<BackendDAE::BackendDAE>, mut inInitDA
             eqBackendSimCodeMapping = metamodelica::nil();
             sccOffset = 0;
             (omsiSimEquations, uniqueEqIndex) = unwrap_break_err!(createAllEquationOMSI(contSysts.clone(), shared.clone(), zeroCrossings.clone(), uniqueEqIndex.clone()), '__try0);
-            (uniqueEqIndex, removedEquations) = unwrap_break_err!(BackendEquation::traverseEquationArray(removedEqs.clone(), Arc::new(traversedlowEqToSimEqSystem), (uniqueEqIndex.clone(), metamodelica::nil())), '__try0);
+            (uniqueEqIndex, removedEquations) = unwrap_break_err!(BackendEquation::traverseEquationArray(removedEqs.clone(), (std::sync::Arc::new(traversedlowEqToSimEqSystem) as std::sync::Arc<dyn ::std::ops::Fn(Arc<BackendDAE::Equation>, (i32, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>)) -> Result<(Arc<BackendDAE::Equation>, (i32, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>))> + 'static>), (uniqueEqIndex.clone(), metamodelica::nil())), '__try0);
             assign_field!(omsiSimEquations.equations = listAppend(omsiSimEquations.equations.clone(), removedEquations.clone()));
             omsiOptData = Some(SimCode::OMSIData { initialization: omsiInitEquations.clone(), simulation: omsiSimEquations.clone() });
             if debug.clone() {
@@ -452,7 +452,7 @@ pub fn createSimCode(mut inBackendDAE: Arc<BackendDAE::BackendDAE>, mut inInitDA
         }
         outMapping = (uniqueEqIndex.clone(), equationSccMapping.clone());
         unwrap_break_err!(execStat((literal!("simCode: created simulation system equations")).clone()), '__try0);
-        (uniqueEqIndex, removedEquations) = unwrap_break_err!(BackendEquation::traverseEquationArray(removedEqs.clone(), Arc::new(traversedlowEqToSimEqSystem), (uniqueEqIndex.clone(), metamodelica::nil())), '__try0);
+        (uniqueEqIndex, removedEquations) = unwrap_break_err!(BackendEquation::traverseEquationArray(removedEqs.clone(), (std::sync::Arc::new(traversedlowEqToSimEqSystem) as std::sync::Arc<dyn ::std::ops::Fn(Arc<BackendDAE::Equation>, (i32, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>)) -> Result<(Arc<BackendDAE::Equation>, (i32, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>))> + 'static>), (uniqueEqIndex.clone(), metamodelica::nil())), '__try0);
         if debug.clone() {
             unwrap_break_err!(execStat((literal!("simCode: traversedlowEqToSimEqSystem")).clone()), '__try0);
         }
@@ -460,31 +460,31 @@ pub fn createSimCode(mut inBackendDAE: Arc<BackendDAE::BackendDAE>, mut inInitDA
         if debug.clone() {
             unwrap_break_err!(execStat((literal!("simCode: translateClockedEquations")).clone()), '__try0);
         }
-        (uniqueEqIndex, startValueEquations, _) = unwrap_break_err!(BackendDAEUtil::foldEqSystem(dlow.clone(), Arc::new(createStartValueEquations), (uniqueEqIndex.clone(), metamodelica::nil(), globalKnownVars.clone())), '__try0);
+        (uniqueEqIndex, startValueEquations, _) = unwrap_break_err!(BackendDAEUtil::foldEqSystem(dlow.clone(), (std::sync::Arc::new(createStartValueEquations) as std::sync::Arc<dyn ::std::ops::Fn(Arc<BackendDAE::EqSystem>, Arc<BackendDAE::Shared>, (i32, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>, BackendDAE::Variables)) -> Result<(i32, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>, BackendDAE::Variables)> + 'static>), (uniqueEqIndex.clone(), metamodelica::nil(), globalKnownVars.clone())), '__try0);
         if debug.clone() {
             unwrap_break_err!(execStat((literal!("simCode: createStartValueEquations")).clone()), '__try0);
         }
-        (uniqueEqIndex, nominalValueEquations) = unwrap_break_err!(createValueEquationsShared(dlow.shared.clone(), Arc::new(createInitialAssignmentsFromNominal), (uniqueEqIndex.clone(), nominalValueEquations.clone())), '__try0);
+        (uniqueEqIndex, nominalValueEquations) = unwrap_break_err!(createValueEquationsShared(dlow.shared.clone(), (std::sync::Arc::new(createInitialAssignmentsFromNominal) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, (Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, BackendDAE::Variables)) -> Result<(BackendDAE::Var, (Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, BackendDAE::Variables))> + 'static>), (uniqueEqIndex.clone(), nominalValueEquations.clone())), '__try0);
         if debug.clone() {
             unwrap_break_err!(execStat((literal!("simCode: createNominalValueEquationsShared")).clone()), '__try0);
         }
-        (uniqueEqIndex, nominalValueEquations) = unwrap_break_err!(BackendDAEUtil::foldEqSystem(dlow.clone(), Arc::new(createNominalValueEquations), (uniqueEqIndex.clone(), nominalValueEquations.clone())), '__try0);
+        (uniqueEqIndex, nominalValueEquations) = unwrap_break_err!(BackendDAEUtil::foldEqSystem(dlow.clone(), (std::sync::Arc::new(createNominalValueEquations) as std::sync::Arc<dyn ::std::ops::Fn(Arc<BackendDAE::EqSystem>, Arc<BackendDAE::Shared>, (i32, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>)) -> Result<(i32, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>)> + 'static>), (uniqueEqIndex.clone(), nominalValueEquations.clone())), '__try0);
         if debug.clone() {
             unwrap_break_err!(execStat((literal!("simCode: createNominalValueEquations")).clone()), '__try0);
         }
-        (uniqueEqIndex, minValueEquations) = unwrap_break_err!(createValueEquationsShared(dlow.shared.clone(), Arc::new(createInitialAssignmentsFromMin), (uniqueEqIndex.clone(), minValueEquations.clone())), '__try0);
+        (uniqueEqIndex, minValueEquations) = unwrap_break_err!(createValueEquationsShared(dlow.shared.clone(), (std::sync::Arc::new(createInitialAssignmentsFromMin) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, (Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, BackendDAE::Variables)) -> Result<(BackendDAE::Var, (Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, BackendDAE::Variables))> + 'static>), (uniqueEqIndex.clone(), minValueEquations.clone())), '__try0);
         if debug.clone() {
             unwrap_break_err!(execStat((literal!("simCode: createMinValueEquationsShared")).clone()), '__try0);
         }
-        (uniqueEqIndex, minValueEquations) = unwrap_break_err!(BackendDAEUtil::foldEqSystem(dlow.clone(), Arc::new(createMinValueEquations), (uniqueEqIndex.clone(), minValueEquations.clone())), '__try0);
+        (uniqueEqIndex, minValueEquations) = unwrap_break_err!(BackendDAEUtil::foldEqSystem(dlow.clone(), (std::sync::Arc::new(createMinValueEquations) as std::sync::Arc<dyn ::std::ops::Fn(Arc<BackendDAE::EqSystem>, Arc<BackendDAE::Shared>, (i32, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>)) -> Result<(i32, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>)> + 'static>), (uniqueEqIndex.clone(), minValueEquations.clone())), '__try0);
         if debug.clone() {
             unwrap_break_err!(execStat((literal!("simCode: createMinValueEquations")).clone()), '__try0);
         }
-        (uniqueEqIndex, maxValueEquations) = unwrap_break_err!(createValueEquationsShared(dlow.shared.clone(), Arc::new(createInitialAssignmentsFromMax), (uniqueEqIndex.clone(), maxValueEquations.clone())), '__try0);
+        (uniqueEqIndex, maxValueEquations) = unwrap_break_err!(createValueEquationsShared(dlow.shared.clone(), (std::sync::Arc::new(createInitialAssignmentsFromMax) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, (Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, BackendDAE::Variables)) -> Result<(BackendDAE::Var, (Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, BackendDAE::Variables))> + 'static>), (uniqueEqIndex.clone(), maxValueEquations.clone())), '__try0);
         if debug.clone() {
             unwrap_break_err!(execStat((literal!("simCode: createMaxValueEquationsShared")).clone()), '__try0);
         }
-        (uniqueEqIndex, maxValueEquations) = unwrap_break_err!(BackendDAEUtil::foldEqSystem(dlow.clone(), Arc::new(createMaxValueEquations), (uniqueEqIndex.clone(), maxValueEquations.clone())), '__try0);
+        (uniqueEqIndex, maxValueEquations) = unwrap_break_err!(BackendDAEUtil::foldEqSystem(dlow.clone(), (std::sync::Arc::new(createMaxValueEquations) as std::sync::Arc<dyn ::std::ops::Fn(Arc<BackendDAE::EqSystem>, Arc<BackendDAE::Shared>, (i32, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>)) -> Result<(i32, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>)> + 'static>), (uniqueEqIndex.clone(), maxValueEquations.clone())), '__try0);
         if debug.clone() {
             unwrap_break_err!(execStat((literal!("simCode: createMaxValueEquations")).clone()), '__try0);
         }
@@ -492,11 +492,11 @@ pub fn createSimCode(mut inBackendDAE: Arc<BackendDAE::BackendDAE>, mut inInitDA
         if debug.clone() {
             unwrap_break_err!(execStat((literal!("simCode: createParameterEquations")).clone()), '__try0);
         }
-        (uniqueEqIndex, algorithmAndEquationAsserts) = unwrap_break_err!(BackendDAEUtil::foldEqSystem(dlow.clone(), Arc::new(createAlgorithmAndEquationAsserts), (uniqueEqIndex.clone(), metamodelica::nil())), '__try0);
+        (uniqueEqIndex, algorithmAndEquationAsserts) = unwrap_break_err!(BackendDAEUtil::foldEqSystem(dlow.clone(), (std::sync::Arc::new(createAlgorithmAndEquationAsserts) as std::sync::Arc<dyn ::std::ops::Fn(Arc<BackendDAE::EqSystem>, Arc<BackendDAE::Shared>, (i32, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>)) -> Result<(i32, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>)> + 'static>), (uniqueEqIndex.clone(), metamodelica::nil())), '__try0);
         if debug.clone() {
             unwrap_break_err!(execStat((literal!("simCode: createAlgorithmAndEquationAsserts")).clone()), '__try0);
         }
-        discreteModelVars = unwrap_break_err!(BackendDAEUtil::foldEqSystem(dlow.clone(), Arc::new(extractDiscreteModelVars), metamodelica::nil()), '__try0);
+        discreteModelVars = unwrap_break_err!(BackendDAEUtil::foldEqSystem(dlow.clone(), (std::sync::Arc::new(extractDiscreteModelVars) as std::sync::Arc<dyn ::std::ops::Fn(Arc<BackendDAE::EqSystem>, Arc<BackendDAE::Shared>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>) -> Result<Arc<metamodelica::List<Arc<DAE::ComponentRef>>>> + 'static>), metamodelica::nil()), '__try0);
         if debug.clone() {
             unwrap_break_err!(execStat((literal!("simCode: extractDiscreteModelVars")).clone()), '__try0);
         }
@@ -635,14 +635,14 @@ pub fn createSimCode(mut inBackendDAE: Arc<BackendDAE::BackendDAE>, mut inInitDA
         seedVars = unwrap_break_err!(collectAllSeedVars(SymbolicJacs.clone()), '__try0);
         modelInfo = setSeedVars(seedVars.clone(), modelInfo.clone());
         unwrap_break_err!(execStat((literal!("simCode: created linear, non-linear and system jacobian parts")).clone()), '__try0);
-        systemIndexMap = List::fold(allEquations.clone(), Arc::new(getSystemIndexMap), arrayCreate(uniqueEqIndex.clone(), -1));
-        odeEquations = List::map1List(odeEquations.clone(), Arc::new(setSystemIndexMap), systemIndexMap.clone());
-        algebraicEquations = List::map1List(algebraicEquations.clone(), Arc::new(setSystemIndexMap), systemIndexMap.clone());
+        systemIndexMap = List::fold(allEquations.clone(), (std::sync::Arc::new(getSystemIndexMap) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SimCode::SimEqSystem>, metamodelica::Array<i32>) -> Result<metamodelica::Array<i32>> + 'static>), arrayCreate(uniqueEqIndex.clone(), -1));
+        odeEquations = List::map1List(odeEquations.clone(), (std::sync::Arc::new(setSystemIndexMap) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SimCode::SimEqSystem>, metamodelica::Array<i32>) -> Result<Arc<SimCode::SimEqSystem>> + 'static>), systemIndexMap.clone());
+        algebraicEquations = List::map1List(algebraicEquations.clone(), (std::sync::Arc::new(setSystemIndexMap) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SimCode::SimEqSystem>, metamodelica::Array<i32>) -> Result<Arc<SimCode::SimEqSystem>> + 'static>), systemIndexMap.clone());
         modelInfo = addNumEqns(modelInfo.clone(), uniqueEqIndex.clone());
         odeEquations = unwrap_break_err!(makeEqualLengthLists(odeEquations.clone(), Config::noProc()?), '__try0);
         algebraicEquations = unwrap_break_err!(makeEqualLengthLists(algebraicEquations.clone(), Config::noProc()?), '__try0);
-        odeEquations = List::filterOnFalse(odeEquations.clone(), Arc::new(listEmpty));
-        algebraicEquations = List::filterOnFalse(algebraicEquations.clone(), Arc::new(listEmpty));
+        odeEquations = List::filterOnFalse(odeEquations.clone(), std::sync::Arc::new(fnptr!(listEmpty, _)));
+        algebraicEquations = List::filterOnFalse(algebraicEquations.clone(), std::sync::Arc::new(fnptr!(listEmpty, _)));
         if unwrap_break_err!(Flags::isSet(Flags::EXEC_HASH.clone()), '__try0) {
             println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("*** SimCode -> generate cref2simVar hashtable: ")); __mm_s.push_str(&*realString(clock())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
         }
@@ -655,7 +655,7 @@ pub fn createSimCode(mut inBackendDAE: Arc<BackendDAE::BackendDAE>, mut inInitDA
             inlineData = __pa25.clone();
             emptyVars = BackendVariable::emptyVars(BaseHashTable::bigBucketSize.clone());
             inlineSimKnVars = unwrap_break_err!(adjustStatesForInlineSolver(modelInfo.vars.stateVars.clone()), '__try0);
-            let __pa26 = ::match_deref::match_deref! { match &(unwrap_break_err!(BackendVariable::getVar(ComponentReferenceBasics::makeCrefIdent((arcstr::literal!(BackendDAE::symSolverDT)).clone(), DAE::T_REAL_DEFAULT.clone(), metamodelica::nil()), inlineData.knownVariables.clone()), '__try0)) {
+            let __pa26 = ::match_deref::match_deref! { match &(unwrap_break_err!(BackendVariable::getVar(ComponentReferenceBasics::makeCrefIdent((arcstr::literal!(BackendDAE::symSolverDT)).clone(), DAE::T_REAL_DEFAULT().clone(), metamodelica::nil()), inlineData.knownVariables.clone()), '__try0)) {
                 (Deref @ metamodelica::List::Cons { head: __pa26, tail: Deref @ metamodelica::List::Nil }, _) => __pa26.clone(),
                 _ => break '__try0 Err::<_, _>(anyhow::anyhow!("pattern mismatch")),
             } };
@@ -663,7 +663,7 @@ pub fn createSimCode(mut inBackendDAE: Arc<BackendDAE::BackendDAE>, mut inInitDA
             dtSimVar = unwrap_break_err!(dlowvarToSimvar(dtVar.clone(), None, emptyVars.clone(), None), '__try0);
             dtSimVar.index = (inlineSimKnVars.clone().len() as i32);
             inlineSimKnVars = cons(dtSimVar.clone(), inlineSimKnVars.clone());
-            crefToSimVarHT = List::fold(inlineSimKnVars.clone(), Arc::new(HashTableCrefSimVar::addSimVarToHashTable), crefToSimVarHT.clone());
+            crefToSimVarHT = List::fold(inlineSimKnVars.clone(), (std::sync::Arc::new(HashTableCrefSimVar::addSimVarToHashTable) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))> + 'static>), crefToSimVarHT.clone());
         }
         if unwrap_break_err!(Flags::getConfigBool(Flags::CALCULATE_SENSITIVITIES.clone()), '__try0) {
             tmpSimVars = modelInfo.vars.clone();
@@ -677,16 +677,16 @@ pub fn createSimCode(mut inBackendDAE: Arc<BackendDAE::BackendDAE>, mut inInitDA
         }
         if isSome(shared.dataReconciliationData.clone()) {
             tmpSimVars = modelInfo.vars.clone();
-            (tmpsetcVars, _) = unwrap_break_err!(BackendVariable::traverseBackendDAEVars(setcVars.clone(), Arc::new(traversingdlowvarToSimvar), (metamodelica::nil(), emptyVars.clone())), '__try0);
+            (tmpsetcVars, _) = unwrap_break_err!(BackendVariable::traverseBackendDAEVars(setcVars.clone(), (std::sync::Arc::new(traversingdlowvarToSimvar) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, (Arc<metamodelica::List<SimCodeVar::SimVar>>, BackendDAE::Variables)) -> Result<(BackendDAE::Var, (Arc<metamodelica::List<SimCodeVar::SimVar>>, BackendDAE::Variables))> + 'static>), (metamodelica::nil(), emptyVars.clone())), '__try0);
             (tmpsetcVars, _) = rewriteIndex(tmpsetcVars.clone(), 0);
             tmpSimVars.dataReconSetcVars = tmpsetcVars.clone();
             modelInfo.vars = tmpSimVars.clone();
-            (tmpdatareconinputvars, _) = unwrap_break_err!(BackendVariable::traverseBackendDAEVars(datareconinputvars.clone(), Arc::new(traversingdlowvarToSimvar), (metamodelica::nil(), emptyVars.clone())), '__try0);
+            (tmpdatareconinputvars, _) = unwrap_break_err!(BackendVariable::traverseBackendDAEVars(datareconinputvars.clone(), (std::sync::Arc::new(traversingdlowvarToSimvar) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, (Arc<metamodelica::List<SimCodeVar::SimVar>>, BackendDAE::Variables)) -> Result<(BackendDAE::Var, (Arc<metamodelica::List<SimCodeVar::SimVar>>, BackendDAE::Variables))> + 'static>), (metamodelica::nil(), emptyVars.clone())), '__try0);
             (tmpdatareconinputvars, _) = rewriteIndex(tmpdatareconinputvars.clone().reverse(), 0);
             tmpSimVars.dataReconinputVars = tmpdatareconinputvars.clone();
             modelInfo.vars = tmpSimVars.clone();
             if isSome(setBVars.clone()) {
-                (tmpsetBVars, _) = unwrap_break_err!(BackendVariable::traverseBackendDAEVars(Util::getOption(setBVars.clone())?, Arc::new(traversingdlowvarToSimvar), (metamodelica::nil(), emptyVars.clone())), '__try0);
+                (tmpsetBVars, _) = unwrap_break_err!(BackendVariable::traverseBackendDAEVars(Util::getOption(setBVars.clone())?, (std::sync::Arc::new(traversingdlowvarToSimvar) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, (Arc<metamodelica::List<SimCodeVar::SimVar>>, BackendDAE::Variables)) -> Result<(BackendDAE::Var, (Arc<metamodelica::List<SimCodeVar::SimVar>>, BackendDAE::Variables))> + 'static>), (metamodelica::nil(), emptyVars.clone())), '__try0);
                 (tmpsetBVars, _) = rewriteIndex(tmpsetBVars.clone(), 0);
                 tmpSimVars.dataReconSetBVars = tmpsetBVars.clone();
                 modelInfo.vars = tmpSimVars.clone();
@@ -702,7 +702,7 @@ pub fn createSimCode(mut inBackendDAE: Arc<BackendDAE::BackendDAE>, mut inInitDA
         }
         backendMapping = unwrap_break_err!(setBackendVarMapping(inBackendDAE.clone(), crefToSimVarHT.clone(), modelInfo.clone(), backendMapping.clone()), '__try0);
         (varToArrayIndexMapping, varToIndexMapping) = unwrap_break_err!(createVarToArrayIndexMapping(modelInfo.clone()), '__try0);
-        (crefToClockIndexHT, _) = List::fold(inBackendDAE.eqs.clone().reverse(), Arc::new(collectClockedVars), (HashTable::emptyHashTable(), 1));
+        (crefToClockIndexHT, _) = List::fold(inBackendDAE.eqs.clone().reverse(), (std::sync::Arc::new(collectClockedVars) as std::sync::Arc<dyn ::std::ops::Fn(Arc<BackendDAE::EqSystem>, ((metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, i32)>>), i32, (HashTable::FuncHashCref, HashTable::FuncCrefEqual, HashTable::FuncCrefStr, HashTable::FuncExpStr)), i32)) -> Result<((metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, i32)>>), i32, (HashTable::FuncHashCref, HashTable::FuncCrefEqual, HashTable::FuncCrefStr, HashTable::FuncExpStr)), i32)> + 'static>), (HashTable::emptyHashTable(), 1));
         unwrap_break_err!(execStat((literal!("simCode: some other stuff during SimCode phase")).clone()), '__try0);
         if unwrap_break_err!(Config::simCodeTarget(), '__try0) != literal!("Cpp") {
             reasonableSize = Util::nextPrime(10 + ((metamodelica::OrderedFloat(1.4_f64) * (metamodelica::OrderedFloat((BackendDAEUtil::equationArraySizeBDAE(inBackendDAE.clone()) + BackendDAEUtil::equationArraySizeBDAE(inInitDAE.clone()) + (parameterEquations.clone().len() as i32)) as f64))).0.floor() as i32));
@@ -730,7 +730,7 @@ pub fn createSimCode(mut inBackendDAE: Arc<BackendDAE::BackendDAE>, mut inInitDA
             fullPathPrefix = (literal!("")).clone();
         }
         simCode = SimCode::SimCode { scalarized: true, omsiData: omsiOptData.clone(), inlineEquations: inlineEquations.clone(), daeModeData: None, partitionData: SimCode::emptyPartitionData.clone(), fmiSimulationFlags: fmiSimulationFlags.clone(), modelStructure: modelStructure.clone(), backendMapping: Some(backendMapping.clone()), crefToClockIndexHT: crefToClockIndexHT.clone(), crefToSimVarHT: crefToSimVarHT.clone(), varToIndexMapping: varToIndexMapping.clone(), varToArrayIndexMapping: varToArrayIndexMapping.clone(), valueReferences: if (isFMU.clone()) {unwrap_break_err!(getValueReferenceMapping(modelInfo.clone()), '__try0)} else {Arc::new(crate::AvlTreeCRToInt::Tree::EMPTY)}, hpcomData: HpcOmSimCode::emptyHpcomData().clone(), fmuTargetName: (fmuTargetName.clone()).clone(), fullPathPrefix: (fullPathPrefix.clone()).clone(), fileNamePrefix: (filenamePrefix.clone()).clone(), simulationSettingsOpt: simSettingsOpt.clone(), jacobianMatrices: SymbolicJacs.clone(), spatialInfo: spatialInfo.clone(), delayedExps: SimCode::DelayedExpression { delayedExps: delayedExps.clone(), maxDelayedIndex: maxDelayedExpIndex.clone() }, makefileParams: makefileParams.clone(), extObjInfo: extObjInfo.clone(), discreteModelVars: discreteModelVars.clone(), timeEvents: timeEvents.clone(), relations: ZeroCrossings::updateIndices(relations.clone()), zeroCrossings: ZeroCrossings::updateIndices(zeroCrossings.clone()), classAttributes: classAttributes.clone(), constraints: constraints.clone(), stateSets: stateSets.clone(), jacobianEquations: jacobianEquations.clone(), equationsForZeroCrossings: equationsForZeroCrossings.clone(), algorithmAndEquationAsserts: algorithmAndEquationAsserts.clone(), removedEquations: removedEquations.clone(), parameterEquations: parameterEquations.clone(), maxValueEquations: maxValueEquations.clone(), minValueEquations: minValueEquations.clone(), nominalValueEquations: nominalValueEquations.clone(), startValueEquations: startValueEquations.clone(), removedInitialEquations: removedInitialEquations.clone(), initialEquations_lambda0: initialEquations_lambda0.clone(), initialEquations: initialEquations.clone(), clockedPartitions: clockedPartitions.clone(), algebraicEquations: algebraicEquations.clone(), odeEquations: odeEquations.clone(), allEquations: allEquations.clone(), localKnownVars: localKnownVars.clone(), generic_loop_calls: metamodelica::nil(), externalFunctionIncludes: externalFunctionIncludes.clone(), recordDecls: recordDecls.clone(), literals: metamodelica::nil(), modelInfo: modelInfo.clone() };
-        let (__pa28, (_, _, __pa29)) = unwrap_break_err!(traverseExpsSimCode(simCode.clone(), Arc::new(SimCodeFunctionUtil::findLiteralsHelper), literals.clone()), '__try0);
+        let (__pa28, (_, _, __pa29)) = unwrap_break_err!(traverseExpsSimCode(simCode.clone(), (std::sync::Arc::new(SimCodeFunctionUtil::findLiteralsHelper) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, (i32, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::Exp>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::Exp>, i32)>>), i32, (HashTableExpToIndex::FuncHashCref, HashTableExpToIndex::FuncCrefEqual, HashTableExpToIndex::FuncCrefStr, HashTableExpToIndex::FuncExpStr)), Arc<metamodelica::List<Arc<DAE::Exp>>>)) -> Result<(Arc<DAE::Exp>, (i32, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::Exp>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::Exp>, i32)>>), i32, (HashTableExpToIndex::FuncHashCref, HashTableExpToIndex::FuncCrefEqual, HashTableExpToIndex::FuncCrefStr, HashTableExpToIndex::FuncExpStr)), Arc<metamodelica::List<Arc<DAE::Exp>>>))> + 'static>), literals.clone()), '__try0);
         simCode = __pa28.clone();
         lits = __pa29.clone();
         simCode = setSimCodeLiterals(simCode.clone(), lits.clone().reverse());
@@ -829,10 +829,10 @@ fn getParamAsserts(mut eqIn: Arc<BackendDAE::Equation>, mut vars: BackendDAE::Va
                     let mut crefs: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
                     let mut varLst: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
                     let mut varLstLst: Arc<metamodelica::List<Arc<metamodelica::List<BackendDAE::Var>>>> = metamodelica::nil();
-                    crefs = List::fold(stmts.clone(), Arc::new(DAEUtil::getAssertConditionCrefs), metamodelica::nil());
-                    (varLstLst, _) = List::map1_2(crefs.clone(), Arc::new(BackendVariable::getVar), vars.clone());
+                    crefs = List::fold(stmts.clone(), (std::sync::Arc::new(DAEUtil::getAssertConditionCrefs) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Statement>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>) -> Result<Arc<metamodelica::List<Arc<DAE::ComponentRef>>>> + 'static>), metamodelica::nil());
+                    (varLstLst, _) = List::map1_2(crefs.clone(), (std::sync::Arc::new(BackendVariable::getVar) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, BackendDAE::Variables) -> Result<(Arc<metamodelica::List<BackendDAE::Var>>, Arc<metamodelica::List<i32>>)> + 'static>), vars.clone());
                     varLst = List::flatten(varLstLst.clone());
-                    let true = (List::any(varLst.clone(), Arc::new(fnptr!(BackendVariable::isParam, BackendDAE::Var)))) else { bail!("pattern mismatch") };
+                    let true = (List::any(varLst.clone(), (std::sync::Arc::new(fnptr!(BackendVariable::isParam, BackendDAE::Var)) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var) -> Result<bool> + 'static>))) else { bail!("pattern mismatch") };
                     Ok((varDep.clone(), cons(eqIn.clone(), paramDep.clone())))
                 }
                 _ => bail!("nomatch"),
@@ -863,7 +863,7 @@ fn createClockedSimPartitions(mut basePartitions: metamodelica::Array<BackendDAE
     for mut i in __range0 {
         basePartition = basePartitions.borrow()[(i.clone()-1) as usize].clone();
         if basePartition.nSubClocks.clone() > 0 {
-            simSubPartitions = List::map(Array::getRange(off.clone(), off.clone() + basePartition.nSubClocks.clone() - 1, subPartitions.clone())?, Arc::new(Util::getOption));
+            simSubPartitions = List::map(Array::getRange(off.clone(), off.clone() + basePartition.nSubClocks.clone() - 1, subPartitions.clone())?, (std::sync::Arc::new(Util::getOption) as std::sync::Arc<dyn ::std::ops::Fn(_) -> Result<_> + 'static>));
             simSubPartitions = simSubPartitions.clone().reverse();
         } else {
             simSubPartitions = metamodelica::nil();
@@ -883,7 +883,7 @@ pub fn collectClockedVars(mut inEqSystem: Arc<BackendDAE::EqSystem>, mut inTpl: 
     (inHT, clockIndex) = inTpl.clone();
     outTpl = (::match_deref::match_deref! { match &(inEqSystem.clone()) {
         Deref @ BackendDAE::EqSystem { partitionKind: BackendDAE::BaseClockPartitionKind::CLOCKED_PARTITION { subPartIdx: _ }, .. } => {
-            (outHT, _) = BackendVariable::traverseBackendDAEVars(inEqSystem.orderedVars.clone(), Arc::new(collectClockedVars1), (inHT.clone(), clockIndex.clone()))?;
+            (outHT, _) = BackendVariable::traverseBackendDAEVars(inEqSystem.orderedVars.clone(), (std::sync::Arc::new(collectClockedVars1) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, ((metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, i32)>>), i32, (HashTable::FuncHashCref, HashTable::FuncCrefEqual, HashTable::FuncCrefStr, HashTable::FuncExpStr)), i32)) -> Result<(BackendDAE::Var, ((metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, i32)>>), i32, (HashTable::FuncHashCref, HashTable::FuncCrefEqual, HashTable::FuncCrefStr, HashTable::FuncExpStr)), i32))> + 'static>), (inHT.clone(), clockIndex.clone()))?;
             (outHT.clone(), clockIndex.clone() + 1)
         },
         _ => inTpl.clone(),
@@ -930,7 +930,7 @@ fn getSimVarCompRef(mut inVar: SimCodeVar::SimVar) -> Arc<DAE::ComponentRef> {
 
 pub fn getSubPartitions(mut inPartitions: Arc<metamodelica::List<SimCode::ClockedPartition>>) -> Arc<metamodelica::List<SimCode::SubPartition>> {
     let mut outSubPartitions: Arc<metamodelica::List<SimCode::SubPartition>> = metamodelica::nil();
-    outSubPartitions = List::flatten(List::map(inPartitions.clone(), Arc::new(fnptr!(getSubPartition, SimCode::ClockedPartition))));
+    outSubPartitions = List::flatten(List::map(inPartitions.clone(), (std::sync::Arc::new(fnptr!(getSubPartition, SimCode::ClockedPartition)) as std::sync::Arc<dyn ::std::ops::Fn(SimCode::ClockedPartition) -> Result<Arc<metamodelica::List<SimCode::SubPartition>>> + 'static>)));
     outSubPartitions
 }
 
@@ -1006,7 +1006,7 @@ fn getSystemIndexMap(mut inEqn: Arc<SimCode::SimEqSystem>, mut inSysIndexMap: me
         },
         (Deref @ SimCode::SimEqSystem::SES_NONLINEAR { nlSystem: Deref @ SimCode::NonlinearSystem { indexNonLinearSystem: systemIndex, eqs, index, .. }, alternativeTearing: None, .. }, _) => {
             let mut sysIndexMap: metamodelica::Array<i32>;
-            sysIndexMap = List::fold(eqs.clone(), Arc::new(getSystemIndexMap), inSysIndexMap.clone());
+            sysIndexMap = List::fold(eqs.clone(), (std::sync::Arc::new(getSystemIndexMap) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SimCode::SimEqSystem>, metamodelica::Array<i32>) -> Result<metamodelica::Array<i32>> + 'static>), inSysIndexMap.clone());
             sysIndexMap = {let _arr = sysIndexMap.clone(); _arr.borrow_mut()[(index.clone()-1) as usize] = systemIndex.clone(); _arr};
             sysIndexMap.clone()
         },
@@ -1018,9 +1018,9 @@ fn getSystemIndexMap(mut inEqn: Arc<SimCode::SimEqSystem>, mut inSysIndexMap: me
         },
         (Deref @ SimCode::SimEqSystem::SES_NONLINEAR { nlSystem: Deref @ SimCode::NonlinearSystem { indexNonLinearSystem: systemIndex, eqs, index, .. }, alternativeTearing: Some(Deref @ SimCode::NonlinearSystem { indexNonLinearSystem: systemIndex2, eqs: eqs2, index: index2, .. }), .. }, _) => {
             let mut sysIndexMap: metamodelica::Array<i32>;
-            sysIndexMap = List::fold(eqs.clone(), Arc::new(getSystemIndexMap), inSysIndexMap.clone());
+            sysIndexMap = List::fold(eqs.clone(), (std::sync::Arc::new(getSystemIndexMap) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SimCode::SimEqSystem>, metamodelica::Array<i32>) -> Result<metamodelica::Array<i32>> + 'static>), inSysIndexMap.clone());
             sysIndexMap = {let _arr = sysIndexMap.clone(); _arr.borrow_mut()[(index.clone()-1) as usize] = systemIndex.clone(); _arr};
-            sysIndexMap = List::fold(eqs2.clone(), Arc::new(getSystemIndexMap), inSysIndexMap.clone());
+            sysIndexMap = List::fold(eqs2.clone(), (std::sync::Arc::new(getSystemIndexMap) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SimCode::SimEqSystem>, metamodelica::Array<i32>) -> Result<metamodelica::Array<i32>> + 'static>), inSysIndexMap.clone());
             sysIndexMap = {let _arr = sysIndexMap.clone(); _arr.borrow_mut()[(index2.clone()-1) as usize] = systemIndex2.clone(); _arr};
             sysIndexMap.clone()
         },
@@ -1392,10 +1392,10 @@ fn createEquationsForSystems(mut inSysts: Arc<metamodelica::List<Arc<BackendDAE:
     match '__try0: {
         arg = (shared.clone(), inAllZeroCrossings.clone(), createAlgebraicEquations.clone());
         foldArg = (iuniqueEqIndex.clone(), metamodelica::nil(), metamodelica::nil(), metamodelica::nil(), metamodelica::nil(), itempvars.clone(), metamodelica::nil(), metamodelica::nil(), iBackendMapping.clone(), iSccOffset.clone());
-        foldArg = List::fold1(inSysts.clone(), Arc::new(createEquationsForSystems1), arg.clone(), foldArg.clone());
+        foldArg = List::fold1(inSysts.clone(), (std::sync::Arc::new(createEquationsForSystems1) as std::sync::Arc<dyn ::std::ops::Fn(Arc<BackendDAE::EqSystem>, (Arc<BackendDAE::Shared>, Arc<metamodelica::List<BackendDAE::ZeroCrossing>>, bool), (i32, Arc<metamodelica::List<Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>>>, Arc<metamodelica::List<Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>>>, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>, Arc<metamodelica::List<SimCodeVar::SimVar>>, Arc<metamodelica::List<(i32, i32)>>, Arc<metamodelica::List<(i32, i32)>>, SimCode::BackendMapping, i32)) -> Result<(i32, Arc<metamodelica::List<Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>>>, Arc<metamodelica::List<Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>>>, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>, Arc<metamodelica::List<SimCodeVar::SimVar>>, Arc<metamodelica::List<(i32, i32)>>, Arc<metamodelica::List<(i32, i32)>>, SimCode::BackendMapping, i32)> + 'static>), arg.clone(), foldArg.clone());
         (ouniqueEqIndex, oodeEquations, oalgebraicEquations, oallEquations, oequationsForZeroCrossings, otempvars, oeqSccMapping, oeqBackendSimCodeMapping, obackendMapping, oSccOffset) = foldArg.clone();
         oequationsForZeroCrossings = Dangerous::listReverseInPlace(oequationsForZeroCrossings.clone());
-        (ouniqueEqIndex, olocalKnownVars) = unwrap_break_err!(BackendVariable::traverseBackendDAEVars(shared.localKnownVars.clone(), Arc::new(traverseKnVarsToSimEqSystem), (ouniqueEqIndex.clone(), metamodelica::nil())), '__try0);
+        (ouniqueEqIndex, olocalKnownVars) = unwrap_break_err!(BackendVariable::traverseBackendDAEVars(shared.localKnownVars.clone(), (std::sync::Arc::new(traverseKnVarsToSimEqSystem) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, (i32, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>)) -> Result<(BackendDAE::Var, (i32, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>))> + 'static>), (ouniqueEqIndex.clone(), metamodelica::nil())), '__try0);
         Ok::<_, anyhow::Error>((arg.clone(), foldArg.clone(), oSccOffset.clone(), oalgebraicEquations.clone(), oallEquations.clone(), obackendMapping.clone(), oeqBackendSimCodeMapping.clone(), oeqSccMapping.clone(), oequationsForZeroCrossings.clone(), olocalKnownVars.clone(), oodeEquations.clone(), otempvars.clone(), ouniqueEqIndex.clone()))
     } {
         Ok((__try0_o0, __try0_o1, __try0_o2, __try0_o3, __try0_o4, __try0_o5, __try0_o6, __try0_o7, __try0_o8, __try0_o9, __try0_o10, __try0_o11, __try0_o12)) => {
@@ -1510,7 +1510,7 @@ fn createEquationsForSystem(mut stateeqnsmark: metamodelica::Array<i32>, mut zce
     let mut equationsforZeroCrossings: Arc<metamodelica::List<Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>>> = metamodelica::nil();
     arg = (stateeqnsmark.clone(), zceqnsmark.clone(), syst.clone(), shared.clone(), createAlgebraicEquations.clone());
     foldArg = (iuniqueEqIndex.clone(), metamodelica::nil(), metamodelica::nil(), metamodelica::nil(), metamodelica::nil(), itempvars.clone(), ieqSccMapping.clone(), ieqBackendSimCodeMapping.clone(), iBackendMapping.clone(), iSccIndex.clone());
-    foldArg = List::fold2(comps.clone(), Arc::new(createEquationsForSystem1), arg.clone(), partitionKindToClockIndex(syst.partitionKind.clone()), foldArg.clone());
+    foldArg = List::fold2(comps.clone(), (std::sync::Arc::new(createEquationsForSystem1) as std::sync::Arc<dyn ::std::ops::Fn(Arc<BackendDAE::StrongComponent>, (metamodelica::Array<i32>, metamodelica::Array<i32>, Arc<BackendDAE::EqSystem>, Arc<BackendDAE::Shared>, bool), Option<i32>, (i32, Arc<metamodelica::List<Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>>>, Arc<metamodelica::List<Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>>>, Arc<metamodelica::List<Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>>>, Arc<metamodelica::List<Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>>>, Arc<metamodelica::List<SimCodeVar::SimVar>>, Arc<metamodelica::List<(i32, i32)>>, Arc<metamodelica::List<(i32, i32)>>, SimCode::BackendMapping, i32)) -> Result<(i32, Arc<metamodelica::List<Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>>>, Arc<metamodelica::List<Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>>>, Arc<metamodelica::List<Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>>>, Arc<metamodelica::List<Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>>>, Arc<metamodelica::List<SimCodeVar::SimVar>>, Arc<metamodelica::List<(i32, i32)>>, Arc<metamodelica::List<(i32, i32)>>, SimCode::BackendMapping, i32)> + 'static>), arg.clone(), partitionKindToClockIndex(syst.partitionKind.clone()), foldArg.clone());
     (ouniqueEqIndex, odeEquations, algebraicEquations, allEquations, equationsforZeroCrossings, otempvars, oeqSccMapping, oeqBackendSimCodeMapping, oBackendMapping, _) = foldArg.clone();
     outOdeEquations = List::flattenReverse(odeEquations.clone());
     outAlgebraicEquations = List::flattenReverse(algebraicEquations.clone());
@@ -1569,8 +1569,8 @@ fn createEquationsForSystem1(mut comp: Arc<BackendDAE::StrongComponent>, mut inA
         BackendDump::dumpEquationList(eqnlst.clone(), (literal!("Equations:")).clone());
         BackendDump::dumpVarList(varlst.clone(), (literal!("Variables:")).clone());
     }
-    skip = List::all(eqnlst.clone(), Arc::new(fnptr!(BackendEquation::isWhenEquation, Arc<BackendDAE::Equation>)));
-    skip = skip.clone() || List::all(varlst.clone(), Arc::new(fnptr!(BackendVariable::isVarDiscrete, BackendDAE::Var)));
+    skip = List::all(eqnlst.clone(), (std::sync::Arc::new(fnptr!(BackendEquation::isWhenEquation, Arc<BackendDAE::Equation>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<BackendDAE::Equation>) -> Result<bool> + 'static>));
+    skip = skip.clone() || List::all(varlst.clone(), (std::sync::Arc::new(fnptr!(BackendVariable::isVarDiscrete, BackendDAE::Var)) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var) -> Result<bool> + 'static>));
     outFold = (::match_deref::match_deref! { match &(comp.clone()) {
         _ if (!(createAlgebraicEquations.clone() || bdynamic.clone()) || skip.clone() && !(createAlgebraicEquations.clone())) => {
             (uniqueEqIndex.clone(), odeEquations.clone(), algebraicEquations.clone(), allEquations.clone(), equationsforZeroCrossings.clone(), tempvars.clone(), eqSccMapping.clone(), eqBackendSimCodeMapping.clone(), backendMapping.clone(), sccIndex.clone())
@@ -1599,7 +1599,7 @@ fn createEquationsForSystem1(mut comp: Arc<BackendDAE::StrongComponent>, mut inA
             let mut uniqueEqIndex1: i32 = 0;
             let mut equations1: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>> = metamodelica::nil();
             (eqnlst, varlst, _) = BackendDAETransform::getEquationAndSolvedVar(comp.clone(), syst.orderedEqs.clone(), syst.orderedVars.clone())?;
-            varlst = List::map(varlst.clone(), Arc::new(fnptr!(BackendVariable::transformXToXd, BackendDAE::Var)));
+            varlst = List::map(varlst.clone(), (std::sync::Arc::new(fnptr!(BackendVariable::transformXToXd, BackendDAE::Var)) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var) -> Result<BackendDAE::Var> + 'static>));
             (equations1, _, uniqueEqIndex1, tempvars) = createSingleArrayEqnCode(true, eqnlst.clone(), varlst.clone(), uniqueEqIndex.clone(), tempvars.clone(), shared.clone())?;
             eqSccMapping = appendSccIdxRange(uniqueEqIndex.clone(), uniqueEqIndex1.clone() - 1, sccIndex.clone(), eqSccMapping.clone());
             eqBackendSimCodeMapping = appendSccIdxRange(uniqueEqIndex.clone(), uniqueEqIndex1.clone() - 1, e.clone(), eqBackendSimCodeMapping.clone());
@@ -1610,7 +1610,7 @@ fn createEquationsForSystem1(mut comp: Arc<BackendDAE::StrongComponent>, mut inA
             let mut uniqueEqIndex1: i32 = 0;
             let mut equations1: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>> = metamodelica::nil();
             (eqnlst, varlst, _) = BackendDAETransform::getEquationAndSolvedVar(comp.clone(), syst.orderedEqs.clone(), syst.orderedVars.clone())?;
-            varlst = List::map(varlst.clone(), Arc::new(fnptr!(BackendVariable::transformXToXd, BackendDAE::Var)));
+            varlst = List::map(varlst.clone(), (std::sync::Arc::new(fnptr!(BackendVariable::transformXToXd, BackendDAE::Var)) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var) -> Result<BackendDAE::Var> + 'static>));
             (equations1, uniqueEqIndex1) = createSingleAlgorithmCode(eqnlst.clone(), varlst.clone(), false, uniqueEqIndex.clone(), clockIndex.clone())?;
             eqSccMapping = appendSccIdxRange(uniqueEqIndex.clone(), uniqueEqIndex1.clone() - 1, sccIndex.clone(), eqSccMapping.clone());
             eqBackendSimCodeMapping = appendSccIdxRange(uniqueEqIndex.clone(), uniqueEqIndex1.clone() - 1, e.clone(), eqBackendSimCodeMapping.clone());
@@ -1621,7 +1621,7 @@ fn createEquationsForSystem1(mut comp: Arc<BackendDAE::StrongComponent>, mut inA
             let mut uniqueEqIndex1: i32 = 0;
             let mut equations1: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>> = metamodelica::nil();
             (eqnlst, varlst, _) = BackendDAETransform::getEquationAndSolvedVar(comp.clone(), syst.orderedEqs.clone(), syst.orderedVars.clone())?;
-            varlst = List::map(varlst.clone(), Arc::new(fnptr!(BackendVariable::transformXToXd, BackendDAE::Var)));
+            varlst = List::map(varlst.clone(), (std::sync::Arc::new(fnptr!(BackendVariable::transformXToXd, BackendDAE::Var)) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var) -> Result<BackendDAE::Var> + 'static>));
             (equations1, uniqueEqIndex1, tempvars) = createSingleComplexEqnCode(listHead(eqnlst.clone())?, varlst.clone(), uniqueEqIndex.clone(), tempvars.clone(), shared.info.clone(), true, shared.functionTree.clone(), clockIndex.clone())?;
             eqSccMapping = appendSccIdx(uniqueEqIndex1.clone() - 1, sccIndex.clone(), eqSccMapping.clone());
             eqBackendSimCodeMapping = appendSccIdxRange(uniqueEqIndex.clone(), uniqueEqIndex1.clone() - 1, e.clone(), eqBackendSimCodeMapping.clone());
@@ -1633,7 +1633,7 @@ fn createEquationsForSystem1(mut comp: Arc<BackendDAE::StrongComponent>, mut inA
             let mut uniqueEqIndex1: i32 = 0;
             let mut equations1: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>> = metamodelica::nil();
             (eqnlst, varlst, index) = BackendDAETransform::getEquationAndSolvedVar(comp.clone(), syst.orderedEqs.clone(), syst.orderedVars.clone())?;
-            varlst = List::map(varlst.clone(), Arc::new(fnptr!(BackendVariable::transformXToXd, BackendDAE::Var)));
+            varlst = List::map(varlst.clone(), (std::sync::Arc::new(fnptr!(BackendVariable::transformXToXd, BackendDAE::Var)) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var) -> Result<BackendDAE::Var> + 'static>));
             (equations1, uniqueEqIndex1, tempvars) = createSingleWhenEqnCode(listHead(eqnlst.clone())?, varlst.clone(), shared.clone(), uniqueEqIndex.clone(), tempvars.clone())?;
             eqSccMapping = appendSccIdxRange(uniqueEqIndex.clone(), uniqueEqIndex1.clone() - 1, sccIndex.clone(), eqSccMapping.clone());
             eqBackendSimCodeMapping = appendSccIdxRange(uniqueEqIndex.clone(), uniqueEqIndex1.clone() - 1, index.clone(), eqBackendSimCodeMapping.clone());
@@ -1645,7 +1645,7 @@ fn createEquationsForSystem1(mut comp: Arc<BackendDAE::StrongComponent>, mut inA
             let mut uniqueEqIndex1: i32 = 0;
             let mut equations1: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>> = metamodelica::nil();
             (eqnlst, varlst, index) = BackendDAETransform::getEquationAndSolvedVar(comp.clone(), syst.orderedEqs.clone(), syst.orderedVars.clone())?;
-            varlst = List::map(varlst.clone(), Arc::new(fnptr!(BackendVariable::transformXToXd, BackendDAE::Var)));
+            varlst = List::map(varlst.clone(), (std::sync::Arc::new(fnptr!(BackendVariable::transformXToXd, BackendDAE::Var)) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var) -> Result<BackendDAE::Var> + 'static>));
             (equations1, uniqueEqIndex1, tempvars) = createSingleIfEqnCode(listHead(eqnlst.clone())?, varlst.clone(), shared.clone(), true, uniqueEqIndex.clone(), tempvars.clone())?;
             eqSccMapping = appendSccIdxRange(uniqueEqIndex.clone(), uniqueEqIndex1.clone() - 1, sccIndex.clone(), eqSccMapping.clone());
             eqBackendSimCodeMapping = appendSccIdxRange(uniqueEqIndex.clone(), uniqueEqIndex1.clone() - 1, index.clone(), eqBackendSimCodeMapping.clone());
@@ -1764,7 +1764,7 @@ fn createEquationsWork(mut includeWhen: bool, mut skipDiscInZc: bool, mut genDis
             let mut noDiscEquations1: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>> = metamodelica::nil();
             let mut tempvars: Arc<metamodelica::List<SimCodeVar::SimVar>> = metamodelica::nil();
             (eqnlst, varlst, _) = BackendDAETransform::getEquationAndSolvedVar(comp.clone(), eqns.clone(), vars.clone())?;
-            varlst = List::map(varlst.clone(), Arc::new(fnptr!(BackendVariable::transformXToXd, BackendDAE::Var)));
+            varlst = List::map(varlst.clone(), (std::sync::Arc::new(fnptr!(BackendVariable::transformXToXd, BackendDAE::Var)) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var) -> Result<BackendDAE::Var> + 'static>));
             (equations1, noDiscEquations1, uniqueEqIndex, tempvars) = createSingleArrayEqnCode(genDiscrete.clone(), eqnlst.clone(), varlst.clone(), iuniqueEqIndex.clone(), itempvars.clone(), shared.clone())?;
             (equations1.clone(), noDiscEquations1.clone(), uniqueEqIndex.clone(), tempvars.clone())
         },
@@ -1774,7 +1774,7 @@ fn createEquationsWork(mut includeWhen: bool, mut skipDiscInZc: bool, mut genDis
             let mut varlst: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
             let mut equations1: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>> = metamodelica::nil();
             (eqnlst, varlst, _) = BackendDAETransform::getEquationAndSolvedVar(comp.clone(), eqns.clone(), vars.clone())?;
-            varlst = List::map(varlst.clone(), Arc::new(fnptr!(BackendVariable::transformXToXd, BackendDAE::Var)));
+            varlst = List::map(varlst.clone(), (std::sync::Arc::new(fnptr!(BackendVariable::transformXToXd, BackendDAE::Var)) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var) -> Result<BackendDAE::Var> + 'static>));
             (equations1, uniqueEqIndex) = createSingleAlgorithmCode(eqnlst.clone(), varlst.clone(), skipDiscInAlgorithm.clone(), iuniqueEqIndex.clone(), partitionKindToClockIndex(syst.partitionKind.clone()))?;
             (equations1.clone(), equations1.clone(), uniqueEqIndex.clone(), itempvars.clone())
         },
@@ -1785,7 +1785,7 @@ fn createEquationsWork(mut includeWhen: bool, mut skipDiscInZc: bool, mut genDis
             let mut equations1: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>> = metamodelica::nil();
             let mut tempvars: Arc<metamodelica::List<SimCodeVar::SimVar>> = metamodelica::nil();
             (eqnlst, varlst, _) = BackendDAETransform::getEquationAndSolvedVar(comp.clone(), eqns.clone(), vars.clone())?;
-            varlst = List::map(varlst.clone(), Arc::new(fnptr!(BackendVariable::transformXToXd, BackendDAE::Var)));
+            varlst = List::map(varlst.clone(), (std::sync::Arc::new(fnptr!(BackendVariable::transformXToXd, BackendDAE::Var)) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var) -> Result<BackendDAE::Var> + 'static>));
             (equations1, uniqueEqIndex, tempvars) = createSingleComplexEqnCode(listHead(eqnlst.clone())?, varlst.clone(), iuniqueEqIndex.clone(), itempvars.clone(), ei.clone(), genDiscrete.clone(), shared.functionTree.clone(), partitionKindToClockIndex(syst.partitionKind.clone()))?;
             (equations1.clone(), equations1.clone(), uniqueEqIndex.clone(), tempvars.clone())
         },
@@ -1796,7 +1796,7 @@ fn createEquationsWork(mut includeWhen: bool, mut skipDiscInZc: bool, mut genDis
             let mut equations1: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>> = metamodelica::nil();
             let mut tempvars: Arc<metamodelica::List<SimCodeVar::SimVar>> = metamodelica::nil();
             (eqnlst, varlst, _) = BackendDAETransform::getEquationAndSolvedVar(comp.clone(), eqns.clone(), vars.clone())?;
-            varlst = List::map(varlst.clone(), Arc::new(fnptr!(BackendVariable::transformXToXd, BackendDAE::Var)));
+            varlst = List::map(varlst.clone(), (std::sync::Arc::new(fnptr!(BackendVariable::transformXToXd, BackendDAE::Var)) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var) -> Result<BackendDAE::Var> + 'static>));
             (equations1, uniqueEqIndex, tempvars) = createSingleWhenEqnCode(listHead(eqnlst.clone())?, varlst.clone(), shared.clone(), iuniqueEqIndex.clone(), itempvars.clone())?;
             (equations1.clone(), equations1.clone(), uniqueEqIndex.clone(), tempvars.clone())
         },
@@ -1807,7 +1807,7 @@ fn createEquationsWork(mut includeWhen: bool, mut skipDiscInZc: bool, mut genDis
             let mut equations1: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>> = metamodelica::nil();
             let mut tempvars: Arc<metamodelica::List<SimCodeVar::SimVar>> = metamodelica::nil();
             (eqnlst, varlst, _) = BackendDAETransform::getEquationAndSolvedVar(comp.clone(), eqns.clone(), vars.clone())?;
-            varlst = List::map(varlst.clone(), Arc::new(fnptr!(BackendVariable::transformXToXd, BackendDAE::Var)));
+            varlst = List::map(varlst.clone(), (std::sync::Arc::new(fnptr!(BackendVariable::transformXToXd, BackendDAE::Var)) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var) -> Result<BackendDAE::Var> + 'static>));
             (equations1, uniqueEqIndex, tempvars) = createSingleIfEqnCode(listHead(eqnlst.clone())?, varlst.clone(), shared.clone(), genDiscrete.clone(), iuniqueEqIndex.clone(), itempvars.clone())?;
             (equations1.clone(), equations1.clone(), uniqueEqIndex.clone(), tempvars.clone())
         },
@@ -1844,9 +1844,9 @@ pub fn sortSimVarsAndWriteIndex(mut inSimVar: Arc<metamodelica::List<SimCodeVar:
     let mut outSimVar: Arc<metamodelica::List<SimCodeVar::SimVar>> = metamodelica::nil();
     let mut crefs: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
     let mut sorted: Arc<metamodelica::List<SimCodeVar::SimVar>> = metamodelica::nil();
-    crefs = List::map(inSimVar.clone(), Arc::new(fnptr!(getSimVarCompRef, SimCodeVar::SimVar)));
+    crefs = List::map(inSimVar.clone(), (std::sync::Arc::new(fnptr!(getSimVarCompRef, SimCodeVar::SimVar)) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar) -> Result<Arc<DAE::ComponentRef>> + 'static>));
     sorted = getSimVars2Crefs(crefs.clone(), crefToSimVarHT.clone());
-    sorted = List::sort(sorted.clone(), Arc::new(compareVarIndexGt))?;
+    sorted = List::sort(sorted.clone(), (std::sync::Arc::new(compareVarIndexGt) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, SimCodeVar::SimVar) -> Result<bool> + 'static>))?;
     (outSimVar, _) = rewriteIndex(sorted.clone(), 0);
     Ok(outSimVar)
 }
@@ -1871,7 +1871,7 @@ fn zeroCrossingsEquations(mut syst: Arc<BackendDAE::EqSystem>, mut shared: Arc<B
         _ => bail!("pattern mismatch"),
     } };
     zeroCrossingLst = __pa1.clone();
-    zcEqns = List::map(ZeroCrossings::toList(zeroCrossingLst.clone()), Arc::new(zeroCrossingEquations));
+    zcEqns = List::map(ZeroCrossings::toList(zeroCrossingLst.clone()), (std::sync::Arc::new(zeroCrossingEquations) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::ZeroCrossing) -> Result<Arc<metamodelica::List<i32>>> + 'static>));
     wcEqns = whenEquationsIndices(orderedEqs.clone());
     eqns = List::unionList(listAppend(zcEqns.clone(), list![wcEqns.clone()]))?;
     Ok(eqns)
@@ -1931,7 +1931,7 @@ fn updateZeroCrossEqnIndexHelp(mut izeroCrossings: Arc<metamodelica::List<Backen
 fn convertListMappingToArray(mut iMapping: Arc<metamodelica::List<(i32, i32)>>, mut numOfBackendEqs: i32) -> metamodelica::Array<i32> {
     let mut outMapping: metamodelica::Array<i32>;
     outMapping = arrayCreate(numOfBackendEqs.clone(), -1);
-    outMapping = List::fold(iMapping.clone(), Arc::new(convertListMappingToArray1), outMapping.clone());
+    outMapping = List::fold(iMapping.clone(), (std::sync::Arc::new(convertListMappingToArray1) as std::sync::Arc<dyn ::std::ops::Fn((i32, i32), metamodelica::Array<i32>) -> Result<metamodelica::Array<i32>> + 'static>), outMapping.clone());
     outMapping
 }
 
@@ -1992,7 +1992,7 @@ fn createEquation(mut eqNum: i32, mut varNum: i32, mut syst: Arc<BackendDAE::EqS
     vars = __pa2.clone();
     eqn = BackendEquation::get(eqns.clone(), eqNum.clone());
     v = (::match_deref::match_deref! { match &(eqn.clone()) {
-        Deref @ BackendDAE::Equation::WHEN_EQUATION { .. } => BackendVariable::makeVar(DAE::emptyCref.clone()),
+        Deref @ BackendDAE::Equation::WHEN_EQUATION { .. } => BackendVariable::makeVar(DAE::emptyCref().clone()),
         _ => BackendVariable::getVarAt(vars.clone(), varNum.clone())?,
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
     } });
@@ -2038,7 +2038,7 @@ fn createEquationImpl(mut eqn: Arc<BackendDAE::Equation>, mut v: BackendDAE::Var
             } };
             iter = __pa0.clone();
             var = v.clone();
-            var.varName = ComponentReference::crefApplySubs(v.varName.clone(), list![Arc::new(DAE::Subscript::INDEX { exp: Arc::new(DAE::Exp::CREF { componentRef: Arc::new(DAE::ComponentRef::CREF_IDENT { ident: (iter.clone()).clone(), identType: DAE::T_INTEGER_DEFAULT.clone(), subscriptLst: metamodelica::nil() }), ty: DAE::T_INTEGER_DEFAULT.clone() }) })])?;
+            var.varName = ComponentReference::crefApplySubs(v.varName.clone(), list![Arc::new(DAE::Subscript::INDEX { exp: Arc::new(DAE::Exp::CREF { componentRef: Arc::new(DAE::ComponentRef::CREF_IDENT { ident: (iter.clone()).clone(), identType: DAE::T_INTEGER_DEFAULT().clone(), subscriptLst: metamodelica::nil() }), ty: DAE::T_INTEGER_DEFAULT().clone() }) })])?;
             if b.clone() {
                 cr = var.varName.clone();
                 let __pa2 = ::match_deref::match_deref! { match &(shared.clone()) {
@@ -2140,14 +2140,14 @@ fn createEquationImpl(mut eqn: Arc<BackendDAE::Equation>, mut v: BackendDAE::Var
                 solveCr = solveCr.clone().reverse();
                 cr = if (BackendVariable::isStateVar(v.clone())) {ComponentReference::crefPrefixDer(cr.clone())} else {cr.clone()};
                 source = ElementSource::addSymbolicTransformationSolve(true, source.clone(), cr.clone(), e1.clone(), e2.clone(), exp_.clone(), asserts.clone())?;
-                (eqs, uniqueEqIndex1) = List::mapFold(solveEqns.clone(), Arc::new(makeSolved), iuniqueEqIndex.clone());
+                (eqs, uniqueEqIndex1) = List::mapFold(solveEqns.clone(), (std::sync::Arc::new(makeSolved) as std::sync::Arc<dyn ::std::ops::Fn(Arc<BackendDAE::Equation>, i32) -> Result<(Arc<SimCode::SimEqSystem>, i32)> + 'static>), iuniqueEqIndex.clone());
                 if cons.clone().is_empty() {
                     (resEqs, uniqueEqIndex) = addAssertEqn(asserts.clone(), list![Arc::new(SimCode::SimEqSystem::SES_SIMPLE_ASSIGN { index: uniqueEqIndex1.clone(), cref: cr.clone(), exp: exp_.clone(), source: source.clone(), eqAttr: eqAttr.clone() })], uniqueEqIndex1.clone() + 1);
                 } else {
                     (resEqs, uniqueEqIndex) = addAssertEqn(asserts.clone(), list![Arc::new(SimCode::SimEqSystem::SES_SIMPLE_ASSIGN_CONSTRAINTS { index: uniqueEqIndex1.clone(), cref: cr.clone(), exp: exp_.clone(), source: source.clone(), cons: cons.clone(), eqAttr: eqAttr.clone() })], uniqueEqIndex1.clone() + 1);
                 }
                 eqSystlst = listAppend(eqs.clone(), resEqs.clone());
-                tempvars = createTempVarsforCrefs(List::map(solveCr.clone(), Arc::new(Expression::crefExp)), itempvars.clone())?;
+                tempvars = createTempVarsforCrefs(List::map(solveCr.clone(), (std::sync::Arc::new(Expression::crefExp) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<Arc<DAE::Exp>> + 'static>)), itempvars.clone())?;
             } else {
                 let (__pa2, (__pa3, _), __pa4) = createNonlinearResidualEquations(list![eqn.clone()], (iuniqueEqIndex.clone(), 0), itempvars.clone(), shared.functionTree.clone())?;
                 resEqs = __pa2.clone();
@@ -2155,7 +2155,7 @@ fn createEquationImpl(mut eqn: Arc<BackendDAE::Equation>, mut v: BackendDAE::Var
                 tempvars = __pa4.clone();
                 resEqs = fixNonlinearResidualIndices(resEqs.clone());
                 cr = if (BackendVariable::isStateVar(v.clone())) {ComponentReference::crefPrefixDer(cr.clone())} else {cr.clone()};
-                (_, homotopySupport) = BackendEquation::traverseExpsOfEquation(eqn.clone(), Arc::new(BackendDAEUtil::containsHomotopyCall), false)?;
+                (_, homotopySupport) = BackendEquation::traverseExpsOfEquation(eqn.clone(), (std::sync::Arc::new(BackendDAEUtil::containsHomotopyCall) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, bool) -> Result<(Arc<DAE::Exp>, bool)> + 'static>), false)?;
                 eqSystlst = list![Arc::new(SimCode::SimEqSystem::SES_NONLINEAR { nlSystem: Arc::new(SimCode::NonlinearSystem { index: uniqueEqIndex.clone(), eqs: resEqs.clone(), crefs: list![cr.clone()], indexNonLinearSystem: 0, nUnknowns: 1, jacobianMatrix: None, homotopySupport: homotopySupport.clone(), mixedSystem: false, tornSystem: false, clockIndex: partitionKindToClockIndex(partitionKind.clone()) }), alternativeTearing: None, eqAttr: eqAttr.clone() })];
                 uniqueEqIndex = uniqueEqIndex.clone() + 1;
             }
@@ -2285,9 +2285,9 @@ fn createNonlinearResidualEquationsComplex(mut inExp: Arc<DAE::Exp>, mut inExp1:
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ DAE::Exp::CAST { ty: _, exp: e1 }, _) => {
+                    let mut idx_tpl: (i32, i32) = idx_tpl.clone();
                     let mut tempvars: Arc<metamodelica::List<SimCodeVar::SimVar>> = tempvars.clone();
                     let mut equations_: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>> = equations_.clone();
-                    let mut idx_tpl: (i32, i32) = idx_tpl.clone();
                     (equations_, idx_tpl, tempvars) = createNonlinearResidualEquationsComplex(e1.clone(), inExp1.clone(), source.clone(), eqAttr.clone(), idx_tpl.clone(), tempvars.clone())?;
                     Ok((equations_.clone(), idx_tpl.clone(), tempvars.clone()))
                 }
@@ -2298,8 +2298,8 @@ fn createNonlinearResidualEquationsComplex(mut inExp: Arc<DAE::Exp>, mut inExp1:
             ::match_deref::match_deref! { match &__mc_input {
                 (_, Deref @ DAE::Exp::CAST { ty: _, exp: e2 }) => {
                     let mut tempvars: Arc<metamodelica::List<SimCodeVar::SimVar>> = tempvars.clone();
-                    let mut idx_tpl: (i32, i32) = idx_tpl.clone();
                     let mut equations_: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>> = equations_.clone();
+                    let mut idx_tpl: (i32, i32) = idx_tpl.clone();
                     (equations_, idx_tpl, tempvars) = createNonlinearResidualEquationsComplex(inExp.clone(), e2.clone(), source.clone(), eqAttr.clone(), idx_tpl.clone(), tempvars.clone())?;
                     Ok((equations_.clone(), idx_tpl.clone(), tempvars.clone()))
                 }
@@ -2321,8 +2321,8 @@ fn createNonlinearResidualEquationsComplex(mut inExp: Arc<DAE::Exp>, mut inExp1:
                     let mut exptl: Arc<metamodelica::List<(Arc<DAE::Exp>, Arc<DAE::Exp>)>> = metamodelica::nil();
                     let mut path: Arc<Absyn::Path>;
                     let mut ident: ArcStr = arcstr::literal!("");
-                    let mut tempvars: Arc<metamodelica::List<SimCodeVar::SimVar>> = tempvars.clone();
                     let mut eq_idx: i32 = eq_idx.clone();
+                    let mut tempvars: Arc<metamodelica::List<SimCodeVar::SimVar>> = tempvars.clone();
                     let mut res_idx: i32 = res_idx.clone();
                     (e2_1, _) = Expression::extendArrExp(inExp1.clone(), false)?;
                     let (__pa2, __pa0, __pa1) = ::match_deref::match_deref! { match &(Expression::r#typeof(inExp.clone())?) {
@@ -2335,10 +2335,10 @@ fn createNonlinearResidualEquationsComplex(mut inExp: Arc<DAE::Exp>, mut inExp1:
                     ident = (AbsynUtil::pathStringUnquoteReplaceDot(path.clone(), (literal!("_")).clone())?).clone();
                     crtmp = ComponentReferenceBasics::makeCrefIdent(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("$TMP_")); __mm_s.push_str(&*ident.clone()); __mm_s.push_str(&*intString(eq_idx.clone())); ArcStr::from(__mm_s) }).clone(), tp.clone(), metamodelica::nil());
                     tempvars = createTempVars(varLst.clone(), crtmp.clone(), tempvars.clone())?;
-                    e1lst = List::map1(varLst.clone(), Arc::new(Expression::generateCrefsExpFromExpVar), cr.clone());
-                    e2lst = List::map1(varLst.clone(), Arc::new(Expression::generateCrefsExpFromExpVar), crtmp.clone());
+                    e1lst = List::map1(varLst.clone(), (std::sync::Arc::new(Expression::generateCrefsExpFromExpVar) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Var>, Arc<DAE::ComponentRef>) -> Result<Arc<DAE::Exp>> + 'static>), cr.clone());
+                    e2lst = List::map1(varLst.clone(), (std::sync::Arc::new(Expression::generateCrefsExpFromExpVar) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Var>, Arc<DAE::ComponentRef>) -> Result<Arc<DAE::Exp>> + 'static>), crtmp.clone());
                     exptl = List::zip(e1lst.clone(), e2lst.clone());
-                    let (__pa3, (__pa4, __pa5)) = List::map2Fold(exptl.clone(), Arc::new(makeSES_RESIDUAL1), source.clone(), eqAttr.clone(), (eq_idx.clone(), res_idx.clone()), metamodelica::nil());
+                    let (__pa3, (__pa4, __pa5)) = List::map2Fold(exptl.clone(), (std::sync::Arc::new(makeSES_RESIDUAL1) as std::sync::Arc<dyn ::std::ops::Fn((Arc<DAE::Exp>, Arc<DAE::Exp>), Arc<DAE::ElementSource>, BackendDAE::EquationAttributes, (i32, i32)) -> Result<(Arc<SimCode::SimEqSystem>, (i32, i32))> + 'static>), source.clone(), eqAttr.clone(), (eq_idx.clone(), res_idx.clone()), metamodelica::nil());
                     eqSystlst = __pa3.clone();
                     eq_idx = __pa4.clone();
                     res_idx = __pa5.clone();
@@ -2379,10 +2379,10 @@ fn createNonlinearResidualEquationsComplex(mut inExp: Arc<DAE::Exp>, mut inExp1:
                     ident = (AbsynUtil::pathStringUnquoteReplaceDot(path.clone(), (literal!("_")).clone())?).clone();
                     crtmp = ComponentReferenceBasics::makeCrefIdent(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("$TMP_")); __mm_s.push_str(&*ident.clone()); __mm_s.push_str(&*intString(eq_idx.clone())); ArcStr::from(__mm_s) }).clone(), tp.clone(), metamodelica::nil());
                     tempvars = createTempVars(varLst.clone(), crtmp.clone(), tempvars.clone())?;
-                    e1lst = List::map1(varLst.clone(), Arc::new(Expression::generateCrefsExpFromExpVar), cr.clone());
-                    e2lst = List::map1(varLst.clone(), Arc::new(Expression::generateCrefsExpFromExpVar), crtmp.clone());
+                    e1lst = List::map1(varLst.clone(), (std::sync::Arc::new(Expression::generateCrefsExpFromExpVar) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Var>, Arc<DAE::ComponentRef>) -> Result<Arc<DAE::Exp>> + 'static>), cr.clone());
+                    e2lst = List::map1(varLst.clone(), (std::sync::Arc::new(Expression::generateCrefsExpFromExpVar) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Var>, Arc<DAE::ComponentRef>) -> Result<Arc<DAE::Exp>> + 'static>), crtmp.clone());
                     exptl = List::zip(e1lst.clone(), e2lst.clone());
-                    let (__pa3, (__pa4, __pa5)) = List::map2Fold(exptl.clone(), Arc::new(makeSES_RESIDUAL1), source.clone(), eqAttr.clone(), (eq_idx.clone(), res_idx.clone()), metamodelica::nil());
+                    let (__pa3, (__pa4, __pa5)) = List::map2Fold(exptl.clone(), (std::sync::Arc::new(makeSES_RESIDUAL1) as std::sync::Arc<dyn ::std::ops::Fn((Arc<DAE::Exp>, Arc<DAE::Exp>), Arc<DAE::ElementSource>, BackendDAE::EquationAttributes, (i32, i32)) -> Result<(Arc<SimCode::SimEqSystem>, (i32, i32))> + 'static>), source.clone(), eqAttr.clone(), (eq_idx.clone(), res_idx.clone()), metamodelica::nil());
                     eqSystlst = __pa3.clone();
                     eq_idx = __pa4.clone();
                     res_idx = __pa5.clone();
@@ -2407,9 +2407,9 @@ fn createNonlinearResidualEquationsComplex(mut inExp: Arc<DAE::Exp>, mut inExp1:
                     let mut exptl: Arc<metamodelica::List<(Arc<DAE::Exp>, Arc<DAE::Exp>)>> = metamodelica::nil();
                     let mut ident: ArcStr = arcstr::literal!("");
                     let mut e2lst = (*e2lst).clone();
+                    let mut eq_idx: i32 = eq_idx.clone();
                     let mut tempvars: Arc<metamodelica::List<SimCodeVar::SimVar>> = tempvars.clone();
                     let mut res_idx: i32 = res_idx.clone();
-                    let mut eq_idx: i32 = eq_idx.clone();
                     let true = (AbsynUtil::pathEqual(path.clone(), rpath.clone())) else { bail!("pattern mismatch") };
                     (e2_1, _) = Expression::extendArrExp(inExp1.clone(), false)?;
                     ident = (AbsynUtil::pathStringUnquoteReplaceDot(path.clone(), (literal!("_")).clone())?).clone();
@@ -2421,7 +2421,7 @@ fn createNonlinearResidualEquationsComplex(mut inExp: Arc<DAE::Exp>, mut inExp1:
                     e1lst = Expression::expandExpression(e1_1.clone(), true)?;
                     e2lst = List::mapFlat(e2lst.clone(), Arc::new({ let __pe_b1 = true; move |__pe_a0| Expression::expandExpression(__pe_a0, __pe_b1.clone()) }));
                     exptl = List::zip(e1lst.clone(), e2lst.clone());
-                    let (__pa0, (__pa1, __pa2)) = List::map2Fold(exptl.clone(), Arc::new(makeSES_RESIDUAL1), source.clone(), eqAttr.clone(), (eq_idx.clone(), res_idx.clone()), metamodelica::nil());
+                    let (__pa0, (__pa1, __pa2)) = List::map2Fold(exptl.clone(), (std::sync::Arc::new(makeSES_RESIDUAL1) as std::sync::Arc<dyn ::std::ops::Fn((Arc<DAE::Exp>, Arc<DAE::Exp>), Arc<DAE::ElementSource>, BackendDAE::EquationAttributes, (i32, i32)) -> Result<(Arc<SimCode::SimEqSystem>, (i32, i32))> + 'static>), source.clone(), eqAttr.clone(), (eq_idx.clone(), res_idx.clone()), metamodelica::nil());
                     eqSystlst = __pa0.clone();
                     eq_idx = __pa1.clone();
                     res_idx = __pa2.clone();
@@ -2445,8 +2445,8 @@ fn createNonlinearResidualEquationsComplex(mut inExp: Arc<DAE::Exp>, mut inExp1:
                     let mut exptl: Arc<metamodelica::List<(Arc<DAE::Exp>, Arc<DAE::Exp>)>> = metamodelica::nil();
                     let mut ident: ArcStr = arcstr::literal!("");
                     let mut e2lst = (*e2lst).clone();
-                    let mut tempvars: Arc<metamodelica::List<SimCodeVar::SimVar>> = tempvars.clone();
                     let mut res_idx: i32 = res_idx.clone();
+                    let mut tempvars: Arc<metamodelica::List<SimCodeVar::SimVar>> = tempvars.clone();
                     let mut eq_idx: i32 = eq_idx.clone();
                     (e2_1, _) = Expression::extendArrExp(inExp1.clone(), false)?;
                     ident = (AbsynUtil::pathStringUnquoteReplaceDot(path.clone(), (literal!("_")).clone())?).clone();
@@ -2458,7 +2458,7 @@ fn createNonlinearResidualEquationsComplex(mut inExp: Arc<DAE::Exp>, mut inExp1:
                     e1lst = Expression::expandExpression(e1_1.clone(), true)?;
                     e2lst = List::mapFlat(e2lst.clone(), Arc::new({ let __pe_b1 = true; move |__pe_a0| Expression::expandExpression(__pe_a0, __pe_b1.clone()) }));
                     exptl = List::zip(e1lst.clone(), e2lst.clone());
-                    let (__pa0, (__pa1, __pa2)) = List::map2Fold(exptl.clone(), Arc::new(makeSES_RESIDUAL1), source.clone(), eqAttr.clone(), (eq_idx.clone(), res_idx.clone()), metamodelica::nil());
+                    let (__pa0, (__pa1, __pa2)) = List::map2Fold(exptl.clone(), (std::sync::Arc::new(makeSES_RESIDUAL1) as std::sync::Arc<dyn ::std::ops::Fn((Arc<DAE::Exp>, Arc<DAE::Exp>), Arc<DAE::ElementSource>, BackendDAE::EquationAttributes, (i32, i32)) -> Result<(Arc<SimCode::SimEqSystem>, (i32, i32))> + 'static>), source.clone(), eqAttr.clone(), (eq_idx.clone(), res_idx.clone()), metamodelica::nil());
                     eqSystlst = __pa0.clone();
                     eq_idx = __pa1.clone();
                     res_idx = __pa2.clone();
@@ -2492,9 +2492,9 @@ fn createNonlinearResidualEquationsComplex(mut inExp: Arc<DAE::Exp>, mut inExp1:
                     stms = Arc::new(DAE::Statement::STMT_ASSIGN { type_: tp.clone(), exp1: e2_1.clone(), exp: e1_1.clone(), source: source.clone() });
                     simeqn_complex = Arc::new(SimCode::SimEqSystem::SES_ALGORITHM { index: eq_idx.clone(), statements: list![stms.clone()], eqAttr: eqAttr.clone() });
                     eq_idx = eq_idx.clone() + 1;
-                    e1lst = List::map1(varLst.clone(), Arc::new(Expression::generateCrefsExpFromExpVar), cr.clone());
+                    e1lst = List::map1(varLst.clone(), (std::sync::Arc::new(Expression::generateCrefsExpFromExpVar) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Var>, Arc<DAE::ComponentRef>) -> Result<Arc<DAE::Exp>> + 'static>), cr.clone());
                     exptl = List::zip(e1lst.clone(), e2lst.clone());
-                    let (__pa0, (__pa1, __pa2)) = List::map2Fold(exptl.clone(), Arc::new(makeSES_RESIDUAL1), source.clone(), eqAttr.clone(), (eq_idx.clone(), res_idx.clone()), metamodelica::nil());
+                    let (__pa0, (__pa1, __pa2)) = List::map2Fold(exptl.clone(), (std::sync::Arc::new(makeSES_RESIDUAL1) as std::sync::Arc<dyn ::std::ops::Fn((Arc<DAE::Exp>, Arc<DAE::Exp>), Arc<DAE::ElementSource>, BackendDAE::EquationAttributes, (i32, i32)) -> Result<(Arc<SimCode::SimEqSystem>, (i32, i32))> + 'static>), source.clone(), eqAttr.clone(), (eq_idx.clone(), res_idx.clone()), metamodelica::nil());
                     eqSystlst = __pa0.clone();
                     eq_idx = __pa1.clone();
                     res_idx = __pa2.clone();
@@ -2527,9 +2527,9 @@ fn createNonlinearResidualEquationsComplex(mut inExp: Arc<DAE::Exp>, mut inExp1:
                     stms = Arc::new(DAE::Statement::STMT_ASSIGN { type_: tp.clone(), exp1: e2_1.clone(), exp: e1_1.clone(), source: source.clone() });
                     simeqn_complex = Arc::new(SimCode::SimEqSystem::SES_ALGORITHM { index: eq_idx.clone(), statements: list![stms.clone()], eqAttr: eqAttr.clone() });
                     eq_idx = eq_idx.clone() + 1;
-                    e1lst = List::map1(varLst.clone(), Arc::new(Expression::generateCrefsExpFromExpVar), cr.clone());
+                    e1lst = List::map1(varLst.clone(), (std::sync::Arc::new(Expression::generateCrefsExpFromExpVar) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Var>, Arc<DAE::ComponentRef>) -> Result<Arc<DAE::Exp>> + 'static>), cr.clone());
                     exptl = List::zip(e1lst.clone(), e2lst.clone());
-                    let (__pa0, (__pa1, __pa2)) = List::map2Fold(exptl.clone(), Arc::new(makeSES_RESIDUAL1), source.clone(), eqAttr.clone(), (eq_idx.clone(), res_idx.clone()), metamodelica::nil());
+                    let (__pa0, (__pa1, __pa2)) = List::map2Fold(exptl.clone(), (std::sync::Arc::new(makeSES_RESIDUAL1) as std::sync::Arc<dyn ::std::ops::Fn((Arc<DAE::Exp>, Arc<DAE::Exp>), Arc<DAE::ElementSource>, BackendDAE::EquationAttributes, (i32, i32)) -> Result<(Arc<SimCode::SimEqSystem>, (i32, i32))> + 'static>), source.clone(), eqAttr.clone(), (eq_idx.clone(), res_idx.clone()), metamodelica::nil());
                     eqSystlst = __pa0.clone();
                     eq_idx = __pa1.clone();
                     res_idx = __pa2.clone();
@@ -2554,29 +2554,29 @@ fn createNonlinearResidualEquationsComplex(mut inExp: Arc<DAE::Exp>, mut inExp1:
                     let mut exptl: Arc<metamodelica::List<(Arc<DAE::Exp>, Arc<DAE::Exp>)>> = metamodelica::nil();
                     let mut ident: ArcStr = arcstr::literal!("");
                     let mut expl = (*expl).clone();
-                    let mut eq_idx: i32 = eq_idx.clone();
-                    let mut tempvars: Arc<metamodelica::List<SimCodeVar::SimVar>> = tempvars.clone();
                     let mut res_idx: i32 = res_idx.clone();
+                    let mut tempvars: Arc<metamodelica::List<SimCodeVar::SimVar>> = tempvars.clone();
+                    let mut eq_idx: i32 = eq_idx.clone();
                     tp = Expression::r#typeof(inExp.clone())?;
                     ident = (AbsynUtil::pathStringUnquoteReplaceDot(path.clone(), (literal!("_")).clone())?).clone();
                     cr = ComponentReferenceBasics::makeCrefIdent(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("$TMP_")); __mm_s.push_str(&*ident.clone()); __mm_s.push_str(&*intString(eq_idx.clone())); ArcStr::from(__mm_s) }).clone(), tp.clone(), metamodelica::nil());
-                    crexplst = List::map1(expl.clone(), Arc::new(Expression::generateCrefsExpFromExp), cr.clone());
+                    crexplst = List::map1(expl.clone(), (std::sync::Arc::new(Expression::generateCrefsExpFromExp) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, Arc<DAE::ComponentRef>) -> Result<Arc<DAE::Exp>> + 'static>), cr.clone());
                     stms = Arc::new(DAE::Statement::STMT_TUPLE_ASSIGN { type_: tp.clone(), expExpLst: crexplst.clone(), exp: inExp1.clone(), source: source.clone() });
                     simeqn_complex = Arc::new(SimCode::SimEqSystem::SES_ALGORITHM { index: eq_idx.clone(), statements: list![stms.clone()], eqAttr: eqAttr.clone() });
                     eq_idx = eq_idx.clone() + 1;
-                    expl = List::filterOnTrue(expl.clone(), Arc::new(fnptr!(Expression::isNotWild, Arc<DAE::Exp>)));
-                    expl = List::flatten(List::map1(expl.clone(), Arc::new(Expression::generateCrefsExpLstFromExp), None));
-                    crexplst = List::flatten(List::map1(expl.clone(), Arc::new(Expression::generateCrefsExpLstFromExp), Some(cr.clone())));
-                    crlst = List::map(crexplst.clone(), Arc::new(Expression::expCref));
-                    crlstlst = List::map1(crlst.clone(), Arc::new(ComponentReference::expandCref), true);
+                    expl = List::filterOnTrue(expl.clone(), (std::sync::Arc::new(fnptr!(Expression::isNotWild, Arc<DAE::Exp>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<bool> + 'static>));
+                    expl = List::flatten(List::map1(expl.clone(), (std::sync::Arc::new(Expression::generateCrefsExpLstFromExp) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, Option<Arc<DAE::ComponentRef>>) -> Result<Arc<metamodelica::List<Arc<DAE::Exp>>>> + 'static>), None));
+                    crexplst = List::flatten(List::map1(expl.clone(), (std::sync::Arc::new(Expression::generateCrefsExpLstFromExp) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, Option<Arc<DAE::ComponentRef>>) -> Result<Arc<metamodelica::List<Arc<DAE::Exp>>>> + 'static>), Some(cr.clone())));
+                    crlst = List::map(crexplst.clone(), (std::sync::Arc::new(Expression::expCref) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<Arc<DAE::ComponentRef>> + 'static>));
+                    crlstlst = List::map1(crlst.clone(), (std::sync::Arc::new(ComponentReference::expandCref) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, bool) -> Result<Arc<metamodelica::List<Arc<DAE::ComponentRef>>>> + 'static>), true);
                     crlst = List::flatten(crlstlst.clone());
-                    crexplst = List::map(crlst.clone(), Arc::new(Expression::crefExp));
-                    crlst = List::map(expl.clone(), Arc::new(Expression::expCref));
-                    crlstlst = List::map1(crlst.clone(), Arc::new(ComponentReference::expandCref), true);
+                    crexplst = List::map(crlst.clone(), (std::sync::Arc::new(Expression::crefExp) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<Arc<DAE::Exp>> + 'static>));
+                    crlst = List::map(expl.clone(), (std::sync::Arc::new(Expression::expCref) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<Arc<DAE::ComponentRef>> + 'static>));
+                    crlstlst = List::map1(crlst.clone(), (std::sync::Arc::new(ComponentReference::expandCref) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, bool) -> Result<Arc<metamodelica::List<Arc<DAE::ComponentRef>>>> + 'static>), true);
                     crlst = List::flatten(crlstlst.clone());
-                    expl = List::map(crlst.clone(), Arc::new(Expression::crefExp));
+                    expl = List::map(crlst.clone(), (std::sync::Arc::new(Expression::crefExp) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<Arc<DAE::Exp>> + 'static>));
                     exptl = List::zip(expl.clone(), crexplst.clone());
-                    let (__pa0, (__pa1, __pa2)) = List::map2Fold(exptl.clone(), Arc::new(makeSES_RESIDUAL1), source.clone(), eqAttr.clone(), (eq_idx.clone(), res_idx.clone()), metamodelica::nil());
+                    let (__pa0, (__pa1, __pa2)) = List::map2Fold(exptl.clone(), (std::sync::Arc::new(makeSES_RESIDUAL1) as std::sync::Arc<dyn ::std::ops::Fn((Arc<DAE::Exp>, Arc<DAE::Exp>), Arc<DAE::ElementSource>, BackendDAE::EquationAttributes, (i32, i32)) -> Result<(Arc<SimCode::SimEqSystem>, (i32, i32))> + 'static>), source.clone(), eqAttr.clone(), (eq_idx.clone(), res_idx.clone()), metamodelica::nil());
                     eqSystlst = __pa0.clone();
                     eq_idx = __pa1.clone();
                     res_idx = __pa2.clone();
@@ -2630,7 +2630,7 @@ fn createNonlinearResidualEquationsSingleComplex(mut inExp: Arc<DAE::Exp>, mut i
             let mut uniqueEqIndex: i32 = 0;
             let mut ident: ArcStr = arcstr::literal!("");
             let mut tempvars: Arc<metamodelica::List<SimCodeVar::SimVar>> = metamodelica::nil();
-            (_, callCrefs) = Expression::traverseExpList(callExps.clone(), Arc::new(fnptr!(Expression::traversingComponentRefFinder, Arc<DAE::Exp>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>)), metamodelica::nil())?;
+            (_, callCrefs) = Expression::traverseExpList(callExps.clone(), (std::sync::Arc::new(fnptr!(Expression::traversingComponentRefFinder, Arc<DAE::Exp>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>) -> Result<(Arc<DAE::Exp>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>)> + 'static>), metamodelica::nil())?;
             tp = Expression::r#typeof(inExp.clone())?;
             ident = (AbsynUtil::pathStringUnquoteReplaceDot(path.clone(), (literal!("_")).clone())?).clone();
             cr = ComponentReferenceBasics::makeCrefIdent(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("$TMP_")); __mm_s.push_str(&*ident.clone()); __mm_s.push_str(&*intString(iuniqueEqIndex.clone())); ArcStr::from(__mm_s) }).clone(), tp.clone(), metamodelica::nil());
@@ -2639,9 +2639,9 @@ fn createNonlinearResidualEquationsSingleComplex(mut inExp: Arc<DAE::Exp>, mut i
             simeqn_complex = Arc::new(SimCode::SimEqSystem::SES_ALGORITHM { index: iuniqueEqIndex.clone(), statements: list![stms.clone()], eqAttr: eqAttr.clone() });
             uniqueEqIndex = iuniqueEqIndex.clone() + 1;
             exptl = List::zip(lhsExpLstAss.clone(), rhsExpLstAss.clone());
-            (eqSystlst_simpAss, uniqueEqIndex) = List::map2Fold(exptl.clone(), Arc::new(makeSES_SIMPLE_ASSIGN), source.clone(), eqAttr.clone(), uniqueEqIndex.clone(), metamodelica::nil());
+            (eqSystlst_simpAss, uniqueEqIndex) = List::map2Fold(exptl.clone(), (std::sync::Arc::new(makeSES_SIMPLE_ASSIGN) as std::sync::Arc<dyn ::std::ops::Fn((Arc<DAE::Exp>, Arc<DAE::Exp>), Arc<DAE::ElementSource>, BackendDAE::EquationAttributes, i32) -> Result<(Arc<SimCode::SimEqSystem>, i32)> + 'static>), source.clone(), eqAttr.clone(), uniqueEqIndex.clone(), metamodelica::nil());
             exptl = List::zip(rhsExpLstRes.clone(), lhsExpLstRes.clone());
-            let (__pa0, (__pa1, _)) = List::map2Fold(exptl.clone(), Arc::new(makeSES_RESIDUAL1), source.clone(), eqAttr.clone(), (uniqueEqIndex.clone(), 0), metamodelica::nil());
+            let (__pa0, (__pa1, _)) = List::map2Fold(exptl.clone(), (std::sync::Arc::new(makeSES_RESIDUAL1) as std::sync::Arc<dyn ::std::ops::Fn((Arc<DAE::Exp>, Arc<DAE::Exp>), Arc<DAE::ElementSource>, BackendDAE::EquationAttributes, (i32, i32)) -> Result<(Arc<SimCode::SimEqSystem>, (i32, i32))> + 'static>), source.clone(), eqAttr.clone(), (uniqueEqIndex.clone(), 0), metamodelica::nil());
             eqSystlst = __pa0.clone();
             uniqueEqIndex = __pa1.clone();
             eqSystlst = cons(simeqn_complex.clone(), listAppend(eqSystlst_simpAss.clone(), eqSystlst.clone()));
@@ -2678,13 +2678,14 @@ fn createTmpCrefExpsForComplexEqnSys_work(mut inExp: Arc<DAE::Exp>, mut inCrefPr
     let mut rhsExpLstRes: Arc<metamodelica::List<Arc<DAE::Exp>>> = rhsExpLstRes;
     let mut lhsExpLstAss: Arc<metamodelica::List<Arc<DAE::Exp>>> = lhsExpLstAss;
     let mut rhsExpLstAss: Arc<metamodelica::List<Arc<DAE::Exp>>> = rhsExpLstAss;
-    outCrefExp = (::match_deref::match_deref! { match &(inExp.clone()) {
+    outCrefExp = ({
+        let mut tmp_lhsExpLstRes: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
+        let mut tmp_rhsExpLstRes: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
+        let mut tmp_lhsExpLstAss: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
+        let mut tmp_rhsExpLstAss: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
+        let mut createTmpVar: bool = false;
+        (::match_deref::match_deref! { match &(inExp.clone()) {
         Deref @ DAE::Exp::CREF { componentRef: Deref @ DAE::ComponentRef::WILD, .. } => {
-            let mut tmp_lhsExpLstRes: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
-            let mut tmp_rhsExpLstRes: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
-            let mut tmp_lhsExpLstAss: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
-            let mut tmp_rhsExpLstAss: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
-            let mut createTmpVar: bool = false;
             inExp.clone()
         },
         Deref @ DAE::Exp::CREF { componentRef: cr, .. } if (Expression::isArrayType(ComponentReference::crefTypeFull(cr.clone())?)) => {
@@ -2695,12 +2696,7 @@ fn createTmpCrefExpsForComplexEqnSys_work(mut inExp: Arc<DAE::Exp>, mut inCrefPr
             let mut e: Arc<DAE::Exp>;
             let mut exp: Arc<DAE::Exp>;
             let mut tmp_exp: Arc<DAE::Exp>;
-            let mut tmp_lhsExpLstRes: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
-            let mut tmp_rhsExpLstRes: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
-            let mut tmp_lhsExpLstAss: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
-            let mut tmp_rhsExpLstAss: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
             let mut isEqCref: bool = false;
-            let mut createTmpVar: bool = false;
             let mut cr = (*cr).clone();
             crlist = ComponentReference::expandCref(cr.clone(), true)?;
             for mut c in &*crlist.clone() {
@@ -2710,11 +2706,11 @@ fn createTmpCrefExpsForComplexEqnSys_work(mut inExp: Arc<DAE::Exp>, mut inCrefPr
                 c1 = ComponentReference::crefPrependIdent(inCrefPrefix.clone(), (name.clone()).clone(), ComponentReferenceBasics::crefSubs(c.clone())?, ty.clone())?;
                 tmp_exp = Expression::makeCrefExp(c1.clone(), ty.clone())?;
                 exp = Expression::makeCrefExp(c.clone(), ty.clone())?;
-                isEqCref = List::isMemberOnTrue(c.clone(), eqCrefs.clone(), Arc::new(ComponentReferenceBasics::crefEqual));
+                isEqCref = List::isMemberOnTrue(c.clone(), eqCrefs.clone(), (std::sync::Arc::new(ComponentReferenceBasics::crefEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>) -> Result<bool> + 'static>));
                 if isEqCref.clone() {
                     tmp_lhsExpLstAss = cons(exp.clone(), tmp_lhsExpLstAss.clone());
                     tmp_rhsExpLstAss = cons(tmp_exp.clone(), tmp_rhsExpLstAss.clone());
-                    (eqCrefs, _) = List::deleteMemberOnTrue(c.clone(), eqCrefs.clone(), Arc::new(ComponentReferenceBasics::crefEqual))?;
+                    (eqCrefs, _) = List::deleteMemberOnTrue(c.clone(), eqCrefs.clone(), (std::sync::Arc::new(ComponentReferenceBasics::crefEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>) -> Result<bool> + 'static>))?;
                 } else {
                     tmp_lhsExpLstRes = cons(tmp_exp.clone(), tmp_lhsExpLstRes.clone());
                     tmp_rhsExpLstRes = cons(exp.clone(), tmp_rhsExpLstRes.clone());
@@ -2739,13 +2735,8 @@ fn createTmpCrefExpsForComplexEqnSys_work(mut inExp: Arc<DAE::Exp>, mut inCrefPr
             let mut name: ArcStr = arcstr::literal!("");
             let mut ty: Arc<DAE::Type> = Arc::new(DAE::Type::T_NORETCALL);
             let mut e: Arc<DAE::Exp>;
-            let mut tmp_lhsExpLstRes: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
-            let mut tmp_rhsExpLstRes: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
-            let mut tmp_lhsExpLstAss: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
-            let mut tmp_rhsExpLstAss: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
-            let mut createTmpVar: bool = false;
             let mut cr = (*cr).clone();
-            if !(List::isMemberOnTrue(cr.clone(), eqCrefs.clone(), Arc::new(ComponentReferenceBasics::crefEqual))) || List::isMemberOnTrue(cr.clone(), callCrefs.clone(), Arc::new(ComponentReferenceBasics::crefEqual)) {
+            if !(List::isMemberOnTrue(cr.clone(), eqCrefs.clone(), (std::sync::Arc::new(ComponentReferenceBasics::crefEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>) -> Result<bool> + 'static>))) || List::isMemberOnTrue(cr.clone(), callCrefs.clone(), (std::sync::Arc::new(ComponentReferenceBasics::crefEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>) -> Result<bool> + 'static>)) {
                 name = (ComponentReference::crefModelicaStr(cr.clone())).clone();
                 ty = ComponentReference::crefTypeFull(cr.clone())?;
                 cr = ComponentReference::crefPrependIdent(inCrefPrefix.clone(), (name.clone()).clone(), ComponentReferenceBasics::crefSubs(cr.clone())?, ty.clone())?;
@@ -2754,21 +2745,17 @@ fn createTmpCrefExpsForComplexEqnSys_work(mut inExp: Arc<DAE::Exp>, mut inCrefPr
                 rhsExpLstRes = cons(inExp.clone(), rhsExpLstRes.clone());
             } else {
                 e = inExp.clone();
-                (eqCrefs, _) = List::deleteMemberOnTrue(cr.clone(), eqCrefs.clone(), Arc::new(ComponentReferenceBasics::crefEqual))?;
+                (eqCrefs, _) = List::deleteMemberOnTrue(cr.clone(), eqCrefs.clone(), (std::sync::Arc::new(ComponentReferenceBasics::crefEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>) -> Result<bool> + 'static>))?;
             }
             e.clone()
         },
         _ => {
-            let mut tmp_lhsExpLstRes: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
-            let mut tmp_rhsExpLstRes: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
-            let mut tmp_lhsExpLstAss: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
-            let mut tmp_rhsExpLstAss: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
-            let mut createTmpVar: bool = false;
             println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("SimCodeUtil.createTmpCrefExpsForComplexEqnSys_work: fail for")); __mm_s.push_str(&*ExpressionBasics::printExpStr(inExp.clone())?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
             bail!("fail")
         },
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
-    } });
+    } })
+    });
     Ok((eqCrefs, outCrefExp, lhsExpLstRes, rhsExpLstRes, lhsExpLstAss, rhsExpLstAss))
 }
 
@@ -2782,11 +2769,11 @@ fn createArrayTempVar(mut name: Arc<DAE::ComponentRef>, mut dims: Arc<metamodeli
             let mut tempvars: Arc<metamodelica::List<SimCodeVar::SimVar>> = metamodelica::nil();
             let mut var: SimCodeVar::SimVar;
             let mut slst: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
-            slst = List::map(dims.clone(), Arc::new(fnptr!(intString, i32)));
+            slst = List::map(dims.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>));
             if FMI::isFMIVersion20((FMI::getFMIVersionString()).clone()) {
-                var = SimCodeVar::SimVar { name: cr.clone(), varKind: crate::BackendDAE::VarKind::VARIABLE, comment: (literal!("")).clone(), unit: (literal!("")).clone(), displayUnit: (literal!("")).clone(), index: 0, minValue: None, maxValue: None, initialValue: None, nominalValue: None, isFixed: false, type_: ty.clone(), isDiscrete: false, arrayCref: Some(name.clone()), aliasvar: crate::SimCodeVar::AliasVariable::NOALIAS, source: DAE::emptyElementSource.clone(), causality: Some(crate::SimCodeVar::Causality::LOCAL), variable_index: None, fmi_index: None, numArrayElement: slst.clone(), isValueChangeable: false, isProtected: true, hideResult: Some(true), isEncrypted: false, inputIndex: None, initNonlinear: false, matrixName: None, variability: None, initial_: None, exportVar: Some(cr.clone()), relativeQuantity: false };
+                var = SimCodeVar::SimVar { name: cr.clone(), varKind: crate::BackendDAE::VarKind::VARIABLE, comment: (literal!("")).clone(), unit: (literal!("")).clone(), displayUnit: (literal!("")).clone(), index: 0, minValue: None, maxValue: None, initialValue: None, nominalValue: None, isFixed: false, type_: ty.clone(), isDiscrete: false, arrayCref: Some(name.clone()), aliasvar: crate::SimCodeVar::AliasVariable::NOALIAS, source: DAE::emptyElementSource().clone(), causality: Some(crate::SimCodeVar::Causality::LOCAL), variable_index: None, fmi_index: None, numArrayElement: slst.clone(), isValueChangeable: false, isProtected: true, hideResult: Some(true), isEncrypted: false, inputIndex: None, initNonlinear: false, matrixName: None, variability: None, initial_: None, exportVar: Some(cr.clone()), relativeQuantity: false };
             } else {
-                var = SimCodeVar::SimVar { name: cr.clone(), varKind: crate::BackendDAE::VarKind::VARIABLE, comment: (literal!("")).clone(), unit: (literal!("")).clone(), displayUnit: (literal!("")).clone(), index: 0, minValue: None, maxValue: None, initialValue: None, nominalValue: None, isFixed: false, type_: ty.clone(), isDiscrete: false, arrayCref: Some(name.clone()), aliasvar: crate::SimCodeVar::AliasVariable::NOALIAS, source: DAE::emptyElementSource.clone(), causality: Some(crate::SimCodeVar::Causality::NONECAUS), variable_index: None, fmi_index: None, numArrayElement: slst.clone(), isValueChangeable: false, isProtected: true, hideResult: Some(true), isEncrypted: false, inputIndex: None, initNonlinear: false, matrixName: None, variability: None, initial_: None, exportVar: Some(cr.clone()), relativeQuantity: false };
+                var = SimCodeVar::SimVar { name: cr.clone(), varKind: crate::BackendDAE::VarKind::VARIABLE, comment: (literal!("")).clone(), unit: (literal!("")).clone(), displayUnit: (literal!("")).clone(), index: 0, minValue: None, maxValue: None, initialValue: None, nominalValue: None, isFixed: false, type_: ty.clone(), isDiscrete: false, arrayCref: Some(name.clone()), aliasvar: crate::SimCodeVar::AliasVariable::NOALIAS, source: DAE::emptyElementSource().clone(), causality: Some(crate::SimCodeVar::Causality::NONECAUS), variable_index: None, fmi_index: None, numArrayElement: slst.clone(), isValueChangeable: false, isProtected: true, hideResult: Some(true), isEncrypted: false, inputIndex: None, initNonlinear: false, matrixName: None, variability: None, initial_: None, exportVar: Some(cr.clone()), relativeQuantity: false };
             }
             tempvars = createTempVarsforCrefs(rest.clone(), list![var.clone()])?;
             List::append_reverse(tempvars.clone(), itempvars.clone())
@@ -2821,11 +2808,11 @@ fn createTempVarsforCrefs(mut inTmpCrefsLst: Arc<metamodelica::List<Arc<DAE::Exp
             let mut inst_dims: Arc<metamodelica::List<Arc<DAE::Dimension>>> = metamodelica::nil();
             arrayCref = ComponentReference::getArrayCref(cr.clone())?;
             inst_dims = ComponentReferenceBasics::crefDims(cr.clone())?;
-            numArrayElement = List::map(inst_dims.clone(), Arc::new(ExpressionBasics::dimensionString));
+            numArrayElement = List::map(inst_dims.clone(), (std::sync::Arc::new(ExpressionBasics::dimensionString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Dimension>) -> Result<ArcStr> + 'static>));
             if FMI::isFMIVersion20((FMI::getFMIVersionString()).clone()) {
-                var = SimCodeVar::SimVar { name: cr.clone(), varKind: crate::BackendDAE::VarKind::VARIABLE, comment: (literal!("")).clone(), unit: (literal!("")).clone(), displayUnit: (literal!("")).clone(), index: 0, minValue: None, maxValue: None, initialValue: None, nominalValue: None, isFixed: false, type_: ty.clone(), isDiscrete: false, arrayCref: arrayCref.clone(), aliasvar: crate::SimCodeVar::AliasVariable::NOALIAS, source: DAE::emptyElementSource.clone(), causality: Some(crate::SimCodeVar::Causality::LOCAL), variable_index: None, fmi_index: None, numArrayElement: numArrayElement.clone(), isValueChangeable: false, isProtected: true, hideResult: Some(true), isEncrypted: false, inputIndex: None, initNonlinear: false, matrixName: None, variability: None, initial_: None, exportVar: Some(cr.clone()), relativeQuantity: false };
+                var = SimCodeVar::SimVar { name: cr.clone(), varKind: crate::BackendDAE::VarKind::VARIABLE, comment: (literal!("")).clone(), unit: (literal!("")).clone(), displayUnit: (literal!("")).clone(), index: 0, minValue: None, maxValue: None, initialValue: None, nominalValue: None, isFixed: false, type_: ty.clone(), isDiscrete: false, arrayCref: arrayCref.clone(), aliasvar: crate::SimCodeVar::AliasVariable::NOALIAS, source: DAE::emptyElementSource().clone(), causality: Some(crate::SimCodeVar::Causality::LOCAL), variable_index: None, fmi_index: None, numArrayElement: numArrayElement.clone(), isValueChangeable: false, isProtected: true, hideResult: Some(true), isEncrypted: false, inputIndex: None, initNonlinear: false, matrixName: None, variability: None, initial_: None, exportVar: Some(cr.clone()), relativeQuantity: false };
             } else {
-                var = SimCodeVar::SimVar { name: cr.clone(), varKind: crate::BackendDAE::VarKind::VARIABLE, comment: (literal!("")).clone(), unit: (literal!("")).clone(), displayUnit: (literal!("")).clone(), index: 0, minValue: None, maxValue: None, initialValue: None, nominalValue: None, isFixed: false, type_: ty.clone(), isDiscrete: false, arrayCref: arrayCref.clone(), aliasvar: crate::SimCodeVar::AliasVariable::NOALIAS, source: DAE::emptyElementSource.clone(), causality: Some(crate::SimCodeVar::Causality::NONECAUS), variable_index: None, fmi_index: None, numArrayElement: numArrayElement.clone(), isValueChangeable: false, isProtected: true, hideResult: Some(true), isEncrypted: false, inputIndex: None, initNonlinear: false, matrixName: None, variability: None, initial_: None, exportVar: Some(cr.clone()), relativeQuantity: false };
+                var = SimCodeVar::SimVar { name: cr.clone(), varKind: crate::BackendDAE::VarKind::VARIABLE, comment: (literal!("")).clone(), unit: (literal!("")).clone(), displayUnit: (literal!("")).clone(), index: 0, minValue: None, maxValue: None, initialValue: None, nominalValue: None, isFixed: false, type_: ty.clone(), isDiscrete: false, arrayCref: arrayCref.clone(), aliasvar: crate::SimCodeVar::AliasVariable::NOALIAS, source: DAE::emptyElementSource().clone(), causality: Some(crate::SimCodeVar::Causality::NONECAUS), variable_index: None, fmi_index: None, numArrayElement: numArrayElement.clone(), isValueChangeable: false, isProtected: true, hideResult: Some(true), isEncrypted: false, inputIndex: None, initNonlinear: false, matrixName: None, variability: None, initial_: None, exportVar: Some(cr.clone()), relativeQuantity: false };
             }
             createTempVarsforCrefs(rest.clone(), cons(var.clone(), itempvars.clone()))?
         },
@@ -2863,21 +2850,21 @@ fn createTempVars(mut varLst: Arc<metamodelica::List<Arc<DAE::Var>>>, mut inCref
             cr = __pa0.clone();
             crlst = __pa1.clone();
             arraycref = ComponentReference::crefStripSubs(cr.clone())?;
-            numArrayElement = List::map(ComponentReferenceBasics::crefDims(cr.clone())?, Arc::new(ExpressionBasics::dimensionString));
+            numArrayElement = List::map(ComponentReferenceBasics::crefDims(cr.clone())?, (std::sync::Arc::new(ExpressionBasics::dimensionString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Dimension>) -> Result<ArcStr> + 'static>));
             ty = ComponentReference::crefTypeFull(cr.clone())?;
             if FMI::isFMIVersion20((FMI::getFMIVersionString()).clone()) {
-                var = SimCodeVar::SimVar { name: cr.clone(), varKind: crate::BackendDAE::VarKind::VARIABLE, comment: (literal!("")).clone(), unit: (literal!("")).clone(), displayUnit: (literal!("")).clone(), index: 0, minValue: None, maxValue: None, initialValue: None, nominalValue: None, isFixed: false, type_: ty.clone(), isDiscrete: false, arrayCref: Some(arraycref.clone()), aliasvar: crate::SimCodeVar::AliasVariable::NOALIAS, source: DAE::emptyElementSource.clone(), causality: Some(crate::SimCodeVar::Causality::LOCAL), variable_index: None, fmi_index: None, numArrayElement: numArrayElement.clone(), isValueChangeable: false, isProtected: true, hideResult: Some(true), isEncrypted: false, inputIndex: None, initNonlinear: false, matrixName: None, variability: None, initial_: None, exportVar: Some(cr.clone()), relativeQuantity: false };
+                var = SimCodeVar::SimVar { name: cr.clone(), varKind: crate::BackendDAE::VarKind::VARIABLE, comment: (literal!("")).clone(), unit: (literal!("")).clone(), displayUnit: (literal!("")).clone(), index: 0, minValue: None, maxValue: None, initialValue: None, nominalValue: None, isFixed: false, type_: ty.clone(), isDiscrete: false, arrayCref: Some(arraycref.clone()), aliasvar: crate::SimCodeVar::AliasVariable::NOALIAS, source: DAE::emptyElementSource().clone(), causality: Some(crate::SimCodeVar::Causality::LOCAL), variable_index: None, fmi_index: None, numArrayElement: numArrayElement.clone(), isValueChangeable: false, isProtected: true, hideResult: Some(true), isEncrypted: false, inputIndex: None, initNonlinear: false, matrixName: None, variability: None, initial_: None, exportVar: Some(cr.clone()), relativeQuantity: false };
             } else {
-                var = SimCodeVar::SimVar { name: cr.clone(), varKind: crate::BackendDAE::VarKind::VARIABLE, comment: (literal!("")).clone(), unit: (literal!("")).clone(), displayUnit: (literal!("")).clone(), index: 0, minValue: None, maxValue: None, initialValue: None, nominalValue: None, isFixed: false, type_: ty.clone(), isDiscrete: false, arrayCref: Some(arraycref.clone()), aliasvar: crate::SimCodeVar::AliasVariable::NOALIAS, source: DAE::emptyElementSource.clone(), causality: Some(crate::SimCodeVar::Causality::NONECAUS), variable_index: None, fmi_index: None, numArrayElement: numArrayElement.clone(), isValueChangeable: false, isProtected: true, hideResult: Some(true), isEncrypted: false, inputIndex: None, initNonlinear: false, matrixName: None, variability: None, initial_: None, exportVar: Some(cr.clone()), relativeQuantity: false };
+                var = SimCodeVar::SimVar { name: cr.clone(), varKind: crate::BackendDAE::VarKind::VARIABLE, comment: (literal!("")).clone(), unit: (literal!("")).clone(), displayUnit: (literal!("")).clone(), index: 0, minValue: None, maxValue: None, initialValue: None, nominalValue: None, isFixed: false, type_: ty.clone(), isDiscrete: false, arrayCref: Some(arraycref.clone()), aliasvar: crate::SimCodeVar::AliasVariable::NOALIAS, source: DAE::emptyElementSource().clone(), causality: Some(crate::SimCodeVar::Causality::NONECAUS), variable_index: None, fmi_index: None, numArrayElement: numArrayElement.clone(), isValueChangeable: false, isProtected: true, hideResult: Some(true), isEncrypted: false, inputIndex: None, initNonlinear: false, matrixName: None, variability: None, initial_: None, exportVar: Some(cr.clone()), relativeQuantity: false };
             }
             ttmpvars = list![var.clone()];
             for mut cr in &*crlst.clone() {
                 let mut cr = cr.clone();
                 ty = ComponentReference::crefTypeFull(cr.clone())?;
                 if FMI::isFMIVersion20((FMI::getFMIVersionString()).clone()) {
-                    var = SimCodeVar::SimVar { name: cr.clone(), varKind: crate::BackendDAE::VarKind::VARIABLE, comment: (literal!("")).clone(), unit: (literal!("")).clone(), displayUnit: (literal!("")).clone(), index: 0, minValue: None, maxValue: None, initialValue: None, nominalValue: None, isFixed: false, type_: ty.clone(), isDiscrete: false, arrayCref: None, aliasvar: crate::SimCodeVar::AliasVariable::NOALIAS, source: DAE::emptyElementSource.clone(), causality: Some(crate::SimCodeVar::Causality::LOCAL), variable_index: None, fmi_index: None, numArrayElement: numArrayElement.clone(), isValueChangeable: false, isProtected: true, hideResult: Some(true), isEncrypted: false, inputIndex: None, initNonlinear: false, matrixName: None, variability: None, initial_: None, exportVar: Some(cr.clone()), relativeQuantity: false };
+                    var = SimCodeVar::SimVar { name: cr.clone(), varKind: crate::BackendDAE::VarKind::VARIABLE, comment: (literal!("")).clone(), unit: (literal!("")).clone(), displayUnit: (literal!("")).clone(), index: 0, minValue: None, maxValue: None, initialValue: None, nominalValue: None, isFixed: false, type_: ty.clone(), isDiscrete: false, arrayCref: None, aliasvar: crate::SimCodeVar::AliasVariable::NOALIAS, source: DAE::emptyElementSource().clone(), causality: Some(crate::SimCodeVar::Causality::LOCAL), variable_index: None, fmi_index: None, numArrayElement: numArrayElement.clone(), isValueChangeable: false, isProtected: true, hideResult: Some(true), isEncrypted: false, inputIndex: None, initNonlinear: false, matrixName: None, variability: None, initial_: None, exportVar: Some(cr.clone()), relativeQuantity: false };
                 } else {
-                    var = SimCodeVar::SimVar { name: cr.clone(), varKind: crate::BackendDAE::VarKind::VARIABLE, comment: (literal!("")).clone(), unit: (literal!("")).clone(), displayUnit: (literal!("")).clone(), index: 0, minValue: None, maxValue: None, initialValue: None, nominalValue: None, isFixed: false, type_: ty.clone(), isDiscrete: false, arrayCref: None, aliasvar: crate::SimCodeVar::AliasVariable::NOALIAS, source: DAE::emptyElementSource.clone(), causality: Some(crate::SimCodeVar::Causality::NONECAUS), variable_index: None, fmi_index: None, numArrayElement: numArrayElement.clone(), isValueChangeable: false, isProtected: true, hideResult: Some(true), isEncrypted: false, inputIndex: None, initNonlinear: false, matrixName: None, variability: None, initial_: None, exportVar: Some(cr.clone()), relativeQuantity: false };
+                    var = SimCodeVar::SimVar { name: cr.clone(), varKind: crate::BackendDAE::VarKind::VARIABLE, comment: (literal!("")).clone(), unit: (literal!("")).clone(), displayUnit: (literal!("")).clone(), index: 0, minValue: None, maxValue: None, initialValue: None, nominalValue: None, isFixed: false, type_: ty.clone(), isDiscrete: false, arrayCref: None, aliasvar: crate::SimCodeVar::AliasVariable::NOALIAS, source: DAE::emptyElementSource().clone(), causality: Some(crate::SimCodeVar::Causality::NONECAUS), variable_index: None, fmi_index: None, numArrayElement: numArrayElement.clone(), isValueChangeable: false, isProtected: true, hideResult: Some(true), isEncrypted: false, inputIndex: None, initNonlinear: false, matrixName: None, variability: None, initial_: None, exportVar: Some(cr.clone()), relativeQuantity: false };
                 }
                 ttmpvars = cons(var.clone(), ttmpvars.clone());
             }
@@ -2915,7 +2902,7 @@ pub fn dimsToAllIndexes(mut inDims: Arc<metamodelica::List<Arc<DAE::Dimension>>>
     let mut ilst: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut lstlst: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>> = metamodelica::nil();
     ilst = Expression::dimensionsSizes(inDims.clone());
-    lstlst = List::map(ilst.clone(), Arc::new(fnptr!(List::intRange, i32)));
+    lstlst = List::map(ilst.clone(), (std::sync::Arc::new(fnptr!(List::intRange, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<Arc<metamodelica::List<i32>>> + 'static>));
     outIndexes = dimsToAllIndexes1(lstlst.clone())?;
     Ok(outIndexes)
 }
@@ -2925,13 +2912,13 @@ fn dimsToAllIndexes1(mut inDims: Arc<metamodelica::List<Arc<metamodelica::List<i
     oAllIndex = (::match_deref::match_deref! { match &(inDims.clone()) {
         Deref @ metamodelica::List::Cons { head: dims, tail: Deref @ metamodelica::List::Nil } => {
             let mut indxes: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>> = metamodelica::nil();
-            indxes = List::map(dims.clone(), Arc::new(fnptr!(List::create, _)));
+            indxes = List::map(dims.clone(), std::sync::Arc::new(fnptr!(List::create, _)));
             indxes.clone()
         },
         Deref @ metamodelica::List::Cons { head: dims, tail: rest } => {
             let mut indxes: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>> = metamodelica::nil();
             indxes = dimsToAllIndexes1(rest.clone())?;
-            indxes = List::fold1(dims.clone(), Arc::new(fnptr!(dimsToAllIndexes2, i32, Arc<metamodelica::List<Arc<metamodelica::List<i32>>>>, Arc<metamodelica::List<Arc<metamodelica::List<i32>>>>)), indxes.clone(), metamodelica::nil());
+            indxes = List::fold1(dims.clone(), (std::sync::Arc::new(fnptr!(dimsToAllIndexes2, i32, Arc<metamodelica::List<Arc<metamodelica::List<i32>>>>, Arc<metamodelica::List<Arc<metamodelica::List<i32>>>>)) as std::sync::Arc<dyn ::std::ops::Fn(i32, Arc<metamodelica::List<Arc<metamodelica::List<i32>>>>, Arc<metamodelica::List<Arc<metamodelica::List<i32>>>>) -> Result<Arc<metamodelica::List<Arc<metamodelica::List<i32>>>>> + 'static>), indxes.clone(), metamodelica::nil());
             indxes.clone()
         },
         _ => bail!("match: no arm matched"),
@@ -2941,7 +2928,7 @@ fn dimsToAllIndexes1(mut inDims: Arc<metamodelica::List<Arc<metamodelica::List<i
 
 fn dimsToAllIndexes2(mut i: i32, mut iIndex: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>>, mut iAllIndex: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>>) -> Arc<metamodelica::List<Arc<metamodelica::List<i32>>>> {
     let mut oAllIndex: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>> = metamodelica::nil();
-    oAllIndex = List::map1(iIndex.clone(), Arc::new(fnptr!(List::consr, _, _)), i.clone());
+    oAllIndex = List::map1(iIndex.clone(), std::sync::Arc::new(fnptr!(List::consr, _, _)), i.clone());
     oAllIndex = listAppend(iAllIndex.clone(), oAllIndex.clone());
     oAllIndex
 }
@@ -2962,7 +2949,7 @@ fn createTmpCrefs(mut inCrefs: Arc<metamodelica::List<Arc<DAE::ComponentRef>>>, 
             ident = (ComponentReferenceBasics::printComponentRefStr(cref.clone())?).clone();
             tp = Types::arrayElementType(ComponentReference::crefLastType(cref.clone())?);
             crtmp = ComponentReferenceBasics::makeCrefIdent(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("$TMP_")); __mm_s.push_str(&*ident.clone()); __mm_s.push_str(&*literal!("_")); __mm_s.push_str(&*intString(iuniqueEqIndex.clone())); ArcStr::from(__mm_s) }).clone(), tp.clone(), metamodelica::nil());
-            repl = BackendVarTransform::addReplacement(iRepl.clone(), cref.clone(), Arc::new(DAE::Exp::CREF { componentRef: crtmp.clone(), ty: tp.clone() }), Some(fnptr!(BackendVarTransform::skipPreOperator, Arc<DAE::Exp>)))?;
+            repl = BackendVarTransform::addReplacement(iRepl.clone(), cref.clone(), Arc::new(DAE::Exp::CREF { componentRef: crtmp.clone(), ty: tp.clone() }), Some((std::sync::Arc::new(fnptr!(BackendVarTransform::skipPreOperator, Arc<DAE::Exp>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<bool> + 'static>)))?;
             (result, repl) = createTmpCrefs(rest.clone(), iuniqueEqIndex.clone(), cons(crtmp.clone(), inCrefsAcc.clone()), repl.clone())?;
             (result.clone(), repl.clone())
         },
@@ -3063,8 +3050,8 @@ fn makeSolved(mut eq: Arc<BackendDAE::Equation>, mut uniqueEqIndex: i32) -> Resu
         Deref @ BackendDAE::Equation::IF_EQUATION { .. } => {
             let mut ifbranches: Arc<metamodelica::List<(Arc<DAE::Exp>, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>)>> = metamodelica::nil();
             let mut elsebranch: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>> = metamodelica::nil();
-            (ifbranches, uniqueEqIndex) = List::threadMapFold(var_field!((*eq).conditions, BackendDAE::Equation::IF_EQUATION).clone(), var_field!((*eq).eqnstrue, BackendDAE::Equation::IF_EQUATION).clone(), Arc::new(fnptr!(makeSolvedIfBranch, Arc<DAE::Exp>, Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, i32)), uniqueEqIndex.clone())?;
-            (elsebranch, uniqueEqIndex) = List::mapFold(var_field!((*eq).eqnsfalse, BackendDAE::Equation::IF_EQUATION).clone(), Arc::new(makeSolved), uniqueEqIndex.clone());
+            (ifbranches, uniqueEqIndex) = List::threadMapFold(var_field!((*eq).conditions, BackendDAE::Equation::IF_EQUATION).clone(), var_field!((*eq).eqnstrue, BackendDAE::Equation::IF_EQUATION).clone(), (std::sync::Arc::new(fnptr!(makeSolvedIfBranch, Arc<DAE::Exp>, Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, i32)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, i32) -> Result<((Arc<DAE::Exp>, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>), i32)> + 'static>), uniqueEqIndex.clone())?;
+            (elsebranch, uniqueEqIndex) = List::mapFold(var_field!((*eq).eqnsfalse, BackendDAE::Equation::IF_EQUATION).clone(), (std::sync::Arc::new(makeSolved) as std::sync::Arc<dyn ::std::ops::Fn(Arc<BackendDAE::Equation>, i32) -> Result<(Arc<SimCode::SimEqSystem>, i32)> + 'static>), uniqueEqIndex.clone());
             Arc::new(SimCode::SimEqSystem::SES_IFEQUATION { index: uniqueEqIndex.clone(), ifbranches: ifbranches.clone(), elsebranch: elsebranch.clone(), source: var_field!((*eq).source, BackendDAE::Equation::IF_EQUATION).clone(), eqAttr: var_field!((*eq).attr, BackendDAE::Equation::IF_EQUATION).clone() })
         },
         Deref @ BackendDAE::Equation::ALGORITHM { alg: Deref @ DAE::Algorithm { statementLst: stmts }, .. } => {
@@ -3084,7 +3071,7 @@ fn makeSolvedIfBranch(mut cond: Arc<DAE::Exp>, mut ifbranch: Arc<metamodelica::L
     let mut result: (Arc<DAE::Exp>, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>);
     let mut uniqueEqIndex: i32 = uniqueEqIndex;
     let mut lst: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>> = metamodelica::nil();
-    (lst, uniqueEqIndex) = List::mapFold(ifbranch.clone(), Arc::new(makeSolved), uniqueEqIndex.clone());
+    (lst, uniqueEqIndex) = List::mapFold(ifbranch.clone(), (std::sync::Arc::new(makeSolved) as std::sync::Arc<dyn ::std::ops::Fn(Arc<BackendDAE::Equation>, i32) -> Result<(Arc<SimCode::SimEqSystem>, i32)> + 'static>), uniqueEqIndex.clone());
     result = (cond.clone(), lst.clone());
     (result, uniqueEqIndex)
 }
@@ -3121,7 +3108,7 @@ fn createOdeSystem(mut genDiscrete: bool, mut skipDiscInAlgorithm: bool, mut isy
                     }
                     (eqn_lst, var_lst, _) = BackendDAETransform::getEquationAndSolvedVar(comp.clone(), eqns.clone(), vars.clone())?;
                     eqn_lst = BackendEquation::replaceDerOpInEquationList(eqn_lst.clone())?;
-                    var_lst_1 = List::map(var_lst.clone(), Arc::new(fnptr!(BackendVariable::transformXToXd, BackendDAE::Var)));
+                    var_lst_1 = List::map(var_lst.clone(), (std::sync::Arc::new(fnptr!(BackendVariable::transformXToXd, BackendDAE::Var)) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var) -> Result<BackendDAE::Var> + 'static>));
                     vars_1 = BackendVariable::listVar1(var_lst_1.clone());
                     eqns_1 = BackendEquation::listEquation(eqn_lst.clone())?;
                     partOfJac = BackendDAEUtil::isJacobianDAE(ishared.clone());
@@ -3192,9 +3179,9 @@ fn checkLinearSystem(mut info: i32, mut vars: Arc<metamodelica::List<Arc<DAE::Co
                     let true = (info.clone() > 0) else { bail!("pattern mismatch") };
                     varname = (ComponentReferenceBasics::printComponentRefStr((vars.clone()).get(info.clone())?)?).clone();
                     infoStr = (intString(info.clone())).clone();
-                    varnames = stringDelimitList(List::map(vars.clone(), Arc::new(ComponentReferenceBasics::printComponentRefStr)), (literal!(" ;\n  ")).clone());
-                    rhsStr = stringDelimitList(List::map(rhs.clone(), Arc::new(fnptr!(realString, metamodelica::Real))), (literal!(" ;\n  ")).clone());
-                    jacStr = stringDelimitList(List::map1(List::mapList(jac.clone(), Arc::new(fnptr!(realString, metamodelica::Real))), Arc::new(fnptr!(stringDelimitList, Arc<metamodelica::List<ArcStr>>, ArcStr)), (literal!(" , ")).clone()), (literal!(" ;\n  ")).clone());
+                    varnames = stringDelimitList(List::map(vars.clone(), (std::sync::Arc::new(ComponentReferenceBasics::printComponentRefStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>)), (literal!(" ;\n  ")).clone());
+                    rhsStr = stringDelimitList(List::map(rhs.clone(), (std::sync::Arc::new(fnptr!(realString, metamodelica::Real)) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Real) -> Result<ArcStr> + 'static>)), (literal!(" ;\n  ")).clone());
+                    jacStr = stringDelimitList(List::map1(List::mapList(jac.clone(), (std::sync::Arc::new(fnptr!(realString, metamodelica::Real)) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Real) -> Result<ArcStr> + 'static>)), (std::sync::Arc::new(fnptr!(stringDelimitList, Arc<metamodelica::List<ArcStr>>, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<ArcStr>>, ArcStr) -> Result<ArcStr> + 'static>), (literal!(" , ")).clone()), (literal!(" ;\n  ")).clone());
                     syst = stringAppendList(list![(literal!("\n[\n  ")).clone(), (jacStr.clone()).clone(), (literal!("\n]\n  *\n[\n  ")).clone(), (varnames.clone()).clone(), (literal!("\n]\n  =\n[\n  ")).clone(), (rhsStr.clone()).clone(), (literal!("\n]")).clone()]);
                     Error::addMessage(Error::LINEAR_SYSTEM_SINGULAR.clone(), list![(syst.clone()).clone(), (infoStr.clone()).clone(), (varname.clone()).clone()])?;
                     Ok(bail!("fail"))
@@ -3210,9 +3197,9 @@ fn checkLinearSystem(mut info: i32, mut vars: Arc<metamodelica::List<Arc<DAE::Co
                     let mut rhsStr: ArcStr = arcstr::literal!("");
                     let mut jacStr: ArcStr = arcstr::literal!("");
                     let true = (info.clone() < 0) else { bail!("pattern mismatch") };
-                    varnames = stringDelimitList(List::map(vars.clone(), Arc::new(ComponentReferenceBasics::printComponentRefStr)), (literal!(" ;\n  ")).clone());
-                    rhsStr = stringDelimitList(List::map(rhs.clone(), Arc::new(fnptr!(realString, metamodelica::Real))), (literal!(" ; ")).clone());
-                    jacStr = stringDelimitList(List::map1(List::mapList(jac.clone(), Arc::new(fnptr!(realString, metamodelica::Real))), Arc::new(fnptr!(stringDelimitList, Arc<metamodelica::List<ArcStr>>, ArcStr)), (literal!(" , ")).clone()), (literal!(" ; ")).clone());
+                    varnames = stringDelimitList(List::map(vars.clone(), (std::sync::Arc::new(ComponentReferenceBasics::printComponentRefStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>)), (literal!(" ;\n  ")).clone());
+                    rhsStr = stringDelimitList(List::map(rhs.clone(), (std::sync::Arc::new(fnptr!(realString, metamodelica::Real)) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Real) -> Result<ArcStr> + 'static>)), (literal!(" ; ")).clone());
+                    jacStr = stringDelimitList(List::map1(List::mapList(jac.clone(), (std::sync::Arc::new(fnptr!(realString, metamodelica::Real)) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Real) -> Result<ArcStr> + 'static>)), (std::sync::Arc::new(fnptr!(stringDelimitList, Arc<metamodelica::List<ArcStr>>, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<ArcStr>>, ArcStr) -> Result<ArcStr> + 'static>), (literal!(" , ")).clone()), (literal!(" ; ")).clone());
                     syst = stringAppendList(list![(literal!("[")).clone(), (jacStr.clone()).clone(), (literal!("] * [")).clone(), (varnames.clone()).clone(), (literal!("] = [")).clone(), (rhsStr.clone()).clone(), (literal!("]")).clone()]);
                     Error::addMessage(Error::LINEAR_SYSTEM_INVALID.clone(), list![(literal!("LAPACK/dgesv")).clone(), (syst.clone()).clone()])?;
                     Ok(bail!("fail"))
@@ -3269,9 +3256,9 @@ fn createTornSystem(mut linear: bool, mut skipDiscInAlgorithm: bool, mut genDisc
                 Error::addMessage(Error::NO_JACONIAN_TORNLINEAR_SYSTEM.clone(), metamodelica::nil())?;
                 bail!("fail");
             }
-            tvars = List::map1r(tearingVars.clone(), Arc::new(BackendVariable::getVarAt), vars.clone());
-            tvars = List::map(tvars.clone(), Arc::new(fnptr!(BackendVariable::transformXToXd, BackendDAE::Var)));
-            (simVars, _) = List::fold(tvars.clone(), Arc::new(traversingdlowvarToSimvarFold), (metamodelica::nil(), globalKnownVars.clone()));
+            tvars = List::map1r(tearingVars.clone(), (std::sync::Arc::new(BackendVariable::getVarAt) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Variables, i32) -> Result<BackendDAE::Var> + 'static>), vars.clone());
+            tvars = List::map(tvars.clone(), (std::sync::Arc::new(fnptr!(BackendVariable::transformXToXd, BackendDAE::Var)) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var) -> Result<BackendDAE::Var> + 'static>));
+            (simVars, _) = List::fold(tvars.clone(), (std::sync::Arc::new(traversingdlowvarToSimvarFold) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, (Arc<metamodelica::List<SimCodeVar::SimVar>>, BackendDAE::Variables)) -> Result<(Arc<metamodelica::List<SimCodeVar::SimVar>>, BackendDAE::Variables)> + 'static>), (metamodelica::nil(), globalKnownVars.clone()));
             simVars = simVars.clone().reverse();
             reqns = BackendEquation::getList(residualEqns.clone(), eqns.clone());
             reqns = BackendEquation::replaceDerOpInEquationList(reqns.clone())?;
@@ -3292,9 +3279,9 @@ fn createTornSystem(mut linear: bool, mut skipDiscInAlgorithm: bool, mut genDisc
                 innerEquations = __pa8.clone();
                 residualEqns = __pa9.clone();
                 tearingVars = __pa10.clone();
-                tvars = List::map1r(tearingVars.clone(), Arc::new(BackendVariable::getVarAt), vars.clone());
-                tvars = List::map(tvars.clone(), Arc::new(fnptr!(BackendVariable::transformXToXd, BackendDAE::Var)));
-                (simVars, _) = List::fold(tvars.clone(), Arc::new(traversingdlowvarToSimvarFold), (metamodelica::nil(), globalKnownVars.clone()));
+                tvars = List::map1r(tearingVars.clone(), (std::sync::Arc::new(BackendVariable::getVarAt) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Variables, i32) -> Result<BackendDAE::Var> + 'static>), vars.clone());
+                tvars = List::map(tvars.clone(), (std::sync::Arc::new(fnptr!(BackendVariable::transformXToXd, BackendDAE::Var)) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var) -> Result<BackendDAE::Var> + 'static>));
+                (simVars, _) = List::fold(tvars.clone(), (std::sync::Arc::new(traversingdlowvarToSimvarFold) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, (Arc<metamodelica::List<SimCodeVar::SimVar>>, BackendDAE::Variables)) -> Result<(Arc<metamodelica::List<SimCodeVar::SimVar>>, BackendDAE::Variables)> + 'static>), (metamodelica::nil(), globalKnownVars.clone()));
                 simVars = simVars.clone().reverse();
                 reqns = BackendEquation::getList(residualEqns.clone(), eqns.clone());
                 reqns = BackendEquation::replaceDerOpInEquationList(reqns.clone())?;
@@ -3337,11 +3324,11 @@ fn createTornSystem(mut linear: bool, mut skipDiscInAlgorithm: bool, mut genDisc
             innerEquations = __pa1.clone();
             residualEqns = __pa2.clone();
             tearingVars = __pa3.clone();
-            tvars = List::map1r(tearingVars.clone(), Arc::new(BackendVariable::getVarAt), vars.clone());
-            tvars = List::map(tvars.clone(), Arc::new(fnptr!(BackendVariable::transformXToXd, BackendDAE::Var)));
+            tvars = List::map1r(tearingVars.clone(), (std::sync::Arc::new(BackendVariable::getVarAt) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Variables, i32) -> Result<BackendDAE::Var> + 'static>), vars.clone());
+            tvars = List::map(tvars.clone(), (std::sync::Arc::new(fnptr!(BackendVariable::transformXToXd, BackendDAE::Var)) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var) -> Result<BackendDAE::Var> + 'static>));
             reqns = BackendEquation::getList(residualEqns.clone(), eqns.clone());
             reqns = BackendEquation::replaceDerOpInEquationList(reqns.clone())?;
-            tcrs = List::map(tvars.clone(), Arc::new(BackendVariable::varCref));
+            tcrs = List::map(tvars.clone(), (std::sync::Arc::new(BackendVariable::varCref) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var) -> Result<Arc<DAE::ComponentRef>> + 'static>));
             (simequations, uniqueEqIndex, tempvars, nInnerVars, homotopySupport) = createTornSystemInnerEqns(innerEquations.clone(), skipDiscInAlgorithm.clone(), genDiscrete.clone(), isyst.clone(), ishared.clone(), iuniqueEqIndex.clone(), itempvars.clone(), metamodelica::nil())?;
             let (__pa4, (__pa5, _), __pa6) = createNonlinearResidualEquations(reqns.clone(), (uniqueEqIndex.clone(), 0), tempvars.clone(), ishared.functionTree.clone())?;
             resEqs = __pa4.clone();
@@ -3351,7 +3338,7 @@ fn createTornSystem(mut linear: bool, mut skipDiscInAlgorithm: bool, mut genDisc
             eqs = listAppend(simequations.clone(), resEqs.clone());
             (jacobianMatrix, uniqueEqIndex, tempvars) = createSymbolicSimulationJacobian(inJacobian.clone(), uniqueEqIndex.clone(), tempvars.clone(), true)?;
             if !(homotopySupport.clone()) {
-                (_, homotopySupport) = BackendEquation::traverseExpsOfEquationList(reqns.clone(), Arc::new(BackendDAEUtil::containsHomotopyCall), false)?;
+                (_, homotopySupport) = BackendEquation::traverseExpsOfEquationList(reqns.clone(), (std::sync::Arc::new(BackendDAEUtil::containsHomotopyCall) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, bool) -> Result<(Arc<DAE::Exp>, bool)> + 'static>), false)?;
             }
             clockIndex = partitionKindToClockIndex(isyst.partitionKind.clone());
             nlSystem = Arc::new(SimCode::NonlinearSystem { index: uniqueEqIndex.clone(), eqs: eqs.clone(), crefs: tcrs.clone(), indexNonLinearSystem: 0, nUnknowns: (tvars.clone().len() as i32) + nInnerVars.clone() + (tempvars.clone().len() as i32) - (itempvars.clone().len() as i32), jacobianMatrix: jacobianMatrix.clone(), homotopySupport: homotopySupport.clone(), mixedSystem: mixedSystem.clone(), tornSystem: true, clockIndex: clockIndex.clone() });
@@ -3362,11 +3349,11 @@ fn createTornSystem(mut linear: bool, mut skipDiscInAlgorithm: bool, mut genDisc
                 innerEquations = __pa8.clone();
                 residualEqns = __pa9.clone();
                 tearingVars = __pa10.clone();
-                tvars = List::map1r(tearingVars.clone(), Arc::new(BackendVariable::getVarAt), vars.clone());
-                tvars = List::map(tvars.clone(), Arc::new(fnptr!(BackendVariable::transformXToXd, BackendDAE::Var)));
+                tvars = List::map1r(tearingVars.clone(), (std::sync::Arc::new(BackendVariable::getVarAt) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Variables, i32) -> Result<BackendDAE::Var> + 'static>), vars.clone());
+                tvars = List::map(tvars.clone(), (std::sync::Arc::new(fnptr!(BackendVariable::transformXToXd, BackendDAE::Var)) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var) -> Result<BackendDAE::Var> + 'static>));
                 reqns = BackendEquation::getList(residualEqns.clone(), eqns.clone());
                 reqns = BackendEquation::replaceDerOpInEquationList(reqns.clone())?;
-                tcrs = List::map(tvars.clone(), Arc::new(BackendVariable::varCref));
+                tcrs = List::map(tvars.clone(), (std::sync::Arc::new(BackendVariable::varCref) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var) -> Result<Arc<DAE::ComponentRef>> + 'static>));
                 (simequations, uniqueEqIndex, tempvars2, nInnerVars, homotopySupport) = createTornSystemInnerEqns(innerEquations.clone(), skipDiscInAlgorithm.clone(), genDiscrete.clone(), isyst.clone(), ishared.clone(), uniqueEqIndex.clone() + 1, tempvars.clone(), metamodelica::nil())?;
                 let (__pa11, (__pa12, _), __pa13) = createNonlinearResidualEquations(reqns.clone(), (uniqueEqIndex.clone(), 0), tempvars2.clone(), ishared.functionTree.clone())?;
                 resEqs = __pa11.clone();
@@ -3376,7 +3363,7 @@ fn createTornSystem(mut linear: bool, mut skipDiscInAlgorithm: bool, mut genDisc
                 eqs = listAppend(simequations.clone(), resEqs.clone());
                 (jacobianMatrix, uniqueEqIndex, tempvars2) = createSymbolicSimulationJacobian(inJacobian.clone(), uniqueEqIndex.clone(), tempvars2.clone(), false)?;
                 if !(homotopySupport.clone()) {
-                    (_, homotopySupport) = BackendEquation::traverseExpsOfEquationList(reqns.clone(), Arc::new(BackendDAEUtil::containsHomotopyCall), false)?;
+                    (_, homotopySupport) = BackendEquation::traverseExpsOfEquationList(reqns.clone(), (std::sync::Arc::new(BackendDAEUtil::containsHomotopyCall) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, bool) -> Result<(Arc<DAE::Exp>, bool)> + 'static>), false)?;
                 }
                 alternativeTearingNl = Some(Arc::new(SimCode::NonlinearSystem { index: uniqueEqIndex.clone(), eqs: eqs.clone(), crefs: tcrs.clone(), indexNonLinearSystem: 0, nUnknowns: (tvars.clone().len() as i32) + nInnerVars.clone() + (tempvars2.clone().len() as i32) - (tempvars.clone().len() as i32), jacobianMatrix: jacobianMatrix.clone(), homotopySupport: homotopySupport.clone(), mixedSystem: mixedSystem.clone(), tornSystem: true, clockIndex: clockIndex.clone() }));
             } else {
@@ -3426,7 +3413,7 @@ fn solveInnerEquations(mut innerEquations: Arc<metamodelica::List<BackendDAE::In
             let (__pa5, metamodelica::List::Nil, metamodelica::List::Nil, metamodelica::List::Nil) = (ExpressionSolve::solve2(e1.clone(), e2.clone(), varexp.clone(), Some(funcs.clone()), None, true, BackendDAEUtil::isSimulationDAE(ishared.clone()))?) else { bail!("pattern mismatch") };
             expr = __pa5.clone();
             dcr = if (BackendVariable::isStateVar(var.clone())) {ComponentReference::crefPrefixDer(cr.clone())} else {cr.clone()};
-            repl = BackendVarTransform::addReplacement(inRepl.clone(), dcr.clone(), expr.clone(), Some(fnptr!(BackendVarTransform::skipPreOperator, Arc<DAE::Exp>)))?;
+            repl = BackendVarTransform::addReplacement(inRepl.clone(), dcr.clone(), expr.clone(), Some((std::sync::Arc::new(fnptr!(BackendVarTransform::skipPreOperator, Arc<DAE::Exp>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<bool> + 'static>)))?;
             repl = if (BackendVariable::isStateVar(var.clone())) {BackendVarTransform::addDerConstRepl(cr.clone(), expr.clone(), repl.clone())?} else {repl.clone()};
             solveInnerEquations(rest.clone(), inEqns.clone(), inVars.clone(), ishared.clone(), repl.clone())?
         },
@@ -3446,12 +3433,12 @@ fn solveInnerEquations(mut innerEquations: Arc<metamodelica::List<BackendDAE::In
             e2 = __pa0.clone();
             e1 = __pa1.clone();
             ds = __pa2.clone();
-            varlst = List::map1r(vlst.clone(), Arc::new(BackendVariable::getVarAt), inVars.clone());
+            varlst = List::map1r(vlst.clone(), (std::sync::Arc::new(BackendVariable::getVarAt) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Variables, i32) -> Result<BackendDAE::Var> + 'static>), inVars.clone());
             subslst = Expression::dimensionSizesSubscripts(ds.clone());
             subslst = Expression::rangesToSubscripts(subslst.clone())?;
-            explst1 = List::map1r(subslst.clone(), Arc::new(Expression::applyExpSubscripts), e1.clone());
+            explst1 = List::map1r(subslst.clone(), (std::sync::Arc::new(Expression::applyExpSubscripts) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, Arc<metamodelica::List<Arc<DAE::Subscript>>>) -> Result<Arc<DAE::Exp>> + 'static>), e1.clone());
             explst1 = ExpressionSimplify::simplifyList(explst1.clone())?;
-            explst2 = List::map1r(subslst.clone(), Arc::new(Expression::applyExpSubscripts), e2.clone());
+            explst2 = List::map1r(subslst.clone(), (std::sync::Arc::new(Expression::applyExpSubscripts) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, Arc<metamodelica::List<Arc<DAE::Subscript>>>) -> Result<Arc<DAE::Exp>> + 'static>), e2.clone());
             explst2 = ExpressionSimplify::simplifyList(explst2.clone())?;
             repl = solveInnerEquations1(explst1.clone(), explst2.clone(), varlst.clone(), inVars.clone(), ishared.clone(), inRepl.clone())?;
             solveInnerEquations(rest.clone(), inEqns.clone(), inVars.clone(), ishared.clone(), repl.clone())?
@@ -3485,7 +3472,7 @@ fn solveInnerEquations(mut innerEquations: Arc<metamodelica::List<BackendDAE::In
             let (__pa5, metamodelica::List::Nil, metamodelica::List::Nil, metamodelica::List::Nil) = (ExpressionSolve::solve2(e1.clone(), e2.clone(), varexp.clone(), Some(funcs.clone()), None, true, BackendDAEUtil::isSimulationDAE(ishared.clone()))?) else { bail!("pattern mismatch") };
             expr = __pa5.clone();
             dcr = if (BackendVariable::isStateVar(var.clone())) {ComponentReference::crefPrefixDer(cr.clone())} else {cr.clone()};
-            repl = BackendVarTransform::addReplacement(inRepl.clone(), dcr.clone(), expr.clone(), Some(fnptr!(BackendVarTransform::skipPreOperator, Arc<DAE::Exp>)))?;
+            repl = BackendVarTransform::addReplacement(inRepl.clone(), dcr.clone(), expr.clone(), Some((std::sync::Arc::new(fnptr!(BackendVarTransform::skipPreOperator, Arc<DAE::Exp>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<bool> + 'static>)))?;
             repl = if (BackendVariable::isStateVar(var.clone())) {BackendVarTransform::addDerConstRepl(cr.clone(), expr.clone(), repl.clone())?} else {repl.clone()};
             solveInnerEquations(rest.clone(), inEqns.clone(), inVars.clone(), ishared.clone(), repl.clone())?
         },
@@ -3505,12 +3492,12 @@ fn solveInnerEquations(mut innerEquations: Arc<metamodelica::List<BackendDAE::In
             e2 = __pa0.clone();
             e1 = __pa1.clone();
             ds = __pa2.clone();
-            varlst = List::map1r(vlst.clone(), Arc::new(BackendVariable::getVarAt), inVars.clone());
+            varlst = List::map1r(vlst.clone(), (std::sync::Arc::new(BackendVariable::getVarAt) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Variables, i32) -> Result<BackendDAE::Var> + 'static>), inVars.clone());
             subslst = Expression::dimensionSizesSubscripts(ds.clone());
             subslst = Expression::rangesToSubscripts(subslst.clone())?;
-            explst1 = List::map1r(subslst.clone(), Arc::new(Expression::applyExpSubscripts), e1.clone());
+            explst1 = List::map1r(subslst.clone(), (std::sync::Arc::new(Expression::applyExpSubscripts) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, Arc<metamodelica::List<Arc<DAE::Subscript>>>) -> Result<Arc<DAE::Exp>> + 'static>), e1.clone());
             explst1 = ExpressionSimplify::simplifyList(explst1.clone())?;
-            explst2 = List::map1r(subslst.clone(), Arc::new(Expression::applyExpSubscripts), e2.clone());
+            explst2 = List::map1r(subslst.clone(), (std::sync::Arc::new(Expression::applyExpSubscripts) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, Arc<metamodelica::List<Arc<DAE::Subscript>>>) -> Result<Arc<DAE::Exp>> + 'static>), e2.clone());
             explst2 = ExpressionSimplify::simplifyList(explst2.clone())?;
             repl = solveInnerEquations1(explst1.clone(), explst2.clone(), varlst.clone(), inVars.clone(), ishared.clone(), inRepl.clone())?;
             solveInnerEquations(rest.clone(), inEqns.clone(), inVars.clone(), ishared.clone(), repl.clone())?
@@ -3544,7 +3531,7 @@ fn solveInnerEquations1(mut iExps1: Arc<metamodelica::List<Arc<DAE::Exp>>>, mut 
             let (__pa1, metamodelica::List::Nil, metamodelica::List::Nil, metamodelica::List::Nil) = (ExpressionSolve::solve2(e1.clone(), e2.clone(), varexp.clone(), Some(funcs.clone()), None, true, BackendDAEUtil::isSimulationDAE(ishared.clone()))?) else { bail!("pattern mismatch") };
             expr = __pa1.clone();
             dcr = if (BackendVariable::isStateVar(var.clone())) {ComponentReference::crefPrefixDer(cr.clone())} else {cr.clone()};
-            repl = BackendVarTransform::addReplacement(inRepl.clone(), dcr.clone(), expr.clone(), Some(fnptr!(BackendVarTransform::skipPreOperator, Arc<DAE::Exp>)))?;
+            repl = BackendVarTransform::addReplacement(inRepl.clone(), dcr.clone(), expr.clone(), Some((std::sync::Arc::new(fnptr!(BackendVarTransform::skipPreOperator, Arc<DAE::Exp>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<bool> + 'static>)))?;
             repl = if (BackendVariable::isStateVar(var.clone())) {BackendVarTransform::addDerConstRepl(cr.clone(), expr.clone(), repl.clone())?} else {repl.clone()};
             solveInnerEquations1(explst1.clone(), explst2.clone(), rest.clone(), inVars.clone(), ishared.clone(), repl.clone())?
         },
@@ -3583,7 +3570,7 @@ fn createTornSystemInnerEqns(mut innerEquations: Arc<metamodelica::List<BackendD
         nVars = nVars.clone() + (vars.clone().len() as i32);
         eqn = BackendEquation::get(eqns.clone(), eqnindx.clone());
         if !(homotopySupport.clone()) {
-            (_, homotopySupport) = BackendEquation::traverseExpsOfEquation(eqn.clone(), Arc::new(BackendDAEUtil::containsHomotopyCall), false)?;
+            (_, homotopySupport) = BackendEquation::traverseExpsOfEquation(eqn.clone(), (std::sync::Arc::new(BackendDAEUtil::containsHomotopyCall) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, bool) -> Result<(Arc<DAE::Exp>, bool)> + 'static>), false)?;
         }
         comp = createTornSystemInnerEqns1(eqn.clone(), eqnindx.clone(), vars.clone())?;
         (simequations, _, ouniqueEqIndex, otempvars) = createEquationsWork(genDiscrete.clone(), false, genDiscrete.clone(), skipDiscInAlgorithm.clone(), isyst.clone(), ishared.clone(), comp.clone(), ouniqueEqIndex.clone(), otempvars.clone(), cons.clone())?;
@@ -3623,7 +3610,7 @@ fn createTornSystemInnerEqns1(mut eqn: Arc<BackendDAE::Equation>, mut eqnindx: i
         _ => {
             println!("{}", (literal!("SimCodeUtil.createTornSystemInnerEqns1 failed for\n")).clone());
             BackendDump::printEquationList(list![eqn.clone()]);
-            println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Eqn: ")); __mm_s.push_str(&*intString(eqnindx.clone())); __mm_s.push_str(&*literal!(" Vars: ")); __mm_s.push_str(&*stringDelimitList(List::map(varindx.clone(), Arc::new(fnptr!(intString, i32))), (literal!(", ")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+            println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Eqn: ")); __mm_s.push_str(&*intString(eqnindx.clone())); __mm_s.push_str(&*literal!(" Vars: ")); __mm_s.push_str(&*stringDelimitList(List::map(varindx.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(", ")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
             bail!("fail")
         },
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
@@ -3718,7 +3705,7 @@ fn generateEquationsForComponents(mut components: Arc<metamodelica::List<Arc<Bac
             let mut varlst: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
             let mut eqnlst: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
             (eqnlst, varlst, _) = BackendDAETransform::getEquationAndSolvedVar(component.clone(), constSyst.orderedEqs.clone(), constSyst.orderedVars.clone())?;
-            varlst = List::map(varlst.clone(), Arc::new(fnptr!(BackendVariable::transformXToXd, BackendDAE::Var)));
+            varlst = List::map(varlst.clone(), (std::sync::Arc::new(fnptr!(BackendVariable::transformXToXd, BackendDAE::Var)) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var) -> Result<BackendDAE::Var> + 'static>));
             (tmpEqns, uniqueEqIndex, _) = createSingleComplexEqnCode(listHead(eqnlst.clone())?, varlst.clone(), uniqueEqIndex.clone(), metamodelica::nil(), shared.info.clone(), true, shared.functionTree.clone(), clockIndex.clone())?;
             ()
         },
@@ -3726,7 +3713,7 @@ fn generateEquationsForComponents(mut components: Arc<metamodelica::List<Arc<Bac
             let mut varlst: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
             let mut eqnlst: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
             (eqnlst, varlst, _) = BackendDAETransform::getEquationAndSolvedVar(component.clone(), constSyst.orderedEqs.clone(), constSyst.orderedVars.clone())?;
-            varlst = List::map(varlst.clone(), Arc::new(fnptr!(BackendVariable::transformXToXd, BackendDAE::Var)));
+            varlst = List::map(varlst.clone(), (std::sync::Arc::new(fnptr!(BackendVariable::transformXToXd, BackendDAE::Var)) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var) -> Result<BackendDAE::Var> + 'static>));
             (tmpEqns, uniqueEqIndex) = createSingleAlgorithmCode(eqnlst.clone(), varlst.clone(), false, uniqueEqIndex.clone(), clockIndex.clone())?;
             ()
         },
@@ -3734,7 +3721,7 @@ fn generateEquationsForComponents(mut components: Arc<metamodelica::List<Arc<Bac
             let mut varlst: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
             let mut eqnlst: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
             (eqnlst, varlst, _) = BackendDAETransform::getEquationAndSolvedVar(component.clone(), constSyst.orderedEqs.clone(), constSyst.orderedVars.clone())?;
-            varlst = List::map(varlst.clone(), Arc::new(fnptr!(BackendVariable::transformXToXd, BackendDAE::Var)));
+            varlst = List::map(varlst.clone(), (std::sync::Arc::new(fnptr!(BackendVariable::transformXToXd, BackendDAE::Var)) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var) -> Result<BackendDAE::Var> + 'static>));
             (tmpEqns, _, uniqueEqIndex, _) = createSingleArrayEqnCode(true, eqnlst.clone(), varlst.clone(), uniqueEqIndex.clone(), metamodelica::nil(), shared.clone())?;
             ()
         },
@@ -3756,10 +3743,10 @@ fn generateEquationsForComponents(mut components: Arc<metamodelica::List<Arc<Bac
             }
             algEqIndex = uniqueEqIndex.clone();
             uniqueEqIndex = uniqueEqIndex.clone() + 1;
-            tvars = List::map1r(tearingVars.clone(), Arc::new(BackendVariable::getVarAt), constSyst.orderedVars.clone());
-            tvars = List::map(tvars.clone(), Arc::new(fnptr!(BackendVariable::transformXToXd, BackendDAE::Var)));
+            tvars = List::map1r(tearingVars.clone(), (std::sync::Arc::new(BackendVariable::getVarAt) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Variables, i32) -> Result<BackendDAE::Var> + 'static>), constSyst.orderedVars.clone());
+            tvars = List::map(tvars.clone(), (std::sync::Arc::new(fnptr!(BackendVariable::transformXToXd, BackendDAE::Var)) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var) -> Result<BackendDAE::Var> + 'static>));
             tvars = BackendVariable::setVarsKind(tvars.clone(), crate::BackendDAE::VarKind::LOOP_ITERATION);
-            (loopIterationVars, _) = List::fold(tvars.clone(), Arc::new(traversingdlowvarToSimvarFold), (metamodelica::nil(), BackendVariable::emptyVars(0)));
+            (loopIterationVars, _) = List::fold(tvars.clone(), (std::sync::Arc::new(traversingdlowvarToSimvarFold) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, (Arc<metamodelica::List<SimCodeVar::SimVar>>, BackendDAE::Variables)) -> Result<(Arc<metamodelica::List<SimCodeVar::SimVar>>, BackendDAE::Variables)> + 'static>), (metamodelica::nil(), BackendVariable::emptyVars(0)));
             loopIterationVars = loopIterationVars.clone().reverse();
             (simequations, loopSolvedVars, uniqueEqIndex) = generateInnerEqns(innerEquations.clone(), constSyst.clone(), shared.clone(), uniqueEqIndex.clone())?;
             reqns = BackendEquation::getList(residualEqns.clone(), constSyst.orderedEqs.clone());
@@ -3798,9 +3785,9 @@ fn generateEquationsForComponents(mut components: Arc<metamodelica::List<Arc<Bac
             let mut algEqIndex: i32 = 0;
             algEqIndex = uniqueEqIndex.clone();
             uniqueEqIndex = uniqueEqIndex.clone() + 1;
-            tvars = List::map1r(variables.clone(), Arc::new(BackendVariable::getVarAt), constSyst.orderedVars.clone());
-            tvars = List::map(tvars.clone(), Arc::new(fnptr!(BackendVariable::transformXToXd, BackendDAE::Var)));
-            (loopSolvedVars, _) = List::fold(tvars.clone(), Arc::new(traversingdlowvarToSimvarFold), (metamodelica::nil(), BackendVariable::emptyVars(0)));
+            tvars = List::map1r(variables.clone(), (std::sync::Arc::new(BackendVariable::getVarAt) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Variables, i32) -> Result<BackendDAE::Var> + 'static>), constSyst.orderedVars.clone());
+            tvars = List::map(tvars.clone(), (std::sync::Arc::new(fnptr!(BackendVariable::transformXToXd, BackendDAE::Var)) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var) -> Result<BackendDAE::Var> + 'static>));
+            (loopSolvedVars, _) = List::fold(tvars.clone(), (std::sync::Arc::new(traversingdlowvarToSimvarFold) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, (Arc<metamodelica::List<SimCodeVar::SimVar>>, BackendDAE::Variables)) -> Result<(Arc<metamodelica::List<SimCodeVar::SimVar>>, BackendDAE::Variables)> + 'static>), (metamodelica::nil(), BackendVariable::emptyVars(0)));
             loopSolvedVars = loopSolvedVars.clone().reverse();
             reqns = BackendEquation::getList(eqns.clone(), constSyst.orderedEqs.clone());
             reqns = BackendEquation::replaceDerOpInEquationList(reqns.clone())?;
@@ -3864,9 +3851,9 @@ fn generateInnerEqns(mut innerEquations: Arc<metamodelica::List<BackendDAE::Inne
     for mut eq in &*innerEquations.clone() {
         let mut eq = eq.clone();
         (eqnindx, vars, _) = BackendDAEUtil::getEqnAndVarsFromInnerEquation(eq.clone())?;
-        tmpVars = List::map1r(vars.clone(), Arc::new(BackendVariable::getVarAt), syst.orderedVars.clone());
+        tmpVars = List::map1r(vars.clone(), (std::sync::Arc::new(BackendVariable::getVarAt) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Variables, i32) -> Result<BackendDAE::Var> + 'static>), syst.orderedVars.clone());
         tmpVars = BackendVariable::setVarsKind(tmpVars.clone(), crate::BackendDAE::VarKind::LOOP_SOLVED);
-        (tmpOutputVars, _) = List::fold(tmpVars.clone(), Arc::new(traversingdlowvarToSimvarFold), (metamodelica::nil(), BackendVariable::emptyVars(0)));
+        (tmpOutputVars, _) = List::fold(tmpVars.clone(), (std::sync::Arc::new(traversingdlowvarToSimvarFold) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, (Arc<metamodelica::List<SimCodeVar::SimVar>>, BackendDAE::Variables)) -> Result<(Arc<metamodelica::List<SimCodeVar::SimVar>>, BackendDAE::Variables)> + 'static>), (metamodelica::nil(), BackendVariable::emptyVars(0)));
         outputVars = List::append_reverse(tmpOutputVars.clone(), outputVars.clone());
         eqn = BackendEquation::get(syst.orderedEqs.clone(), eqnindx.clone());
         comp = createTornSystemInnerEqns1(eqn.clone(), eqnindx.clone(), vars.clone())?;
@@ -3888,7 +3875,7 @@ fn appendOMSIFunction(mut omsiFunction_1: Arc<SimCode::OMSIFunction>, mut omsiFu
         omsiFunction_1.nAllVars = omsiFunction_1.nAllVars.clone() + omsiFunction_2.nAllVars.clone(),
         omsiFunction_1.context = (match omsiFunction_1.context.clone() {
         SimCodeFunction::Context::OMSI_CONTEXT { hashTable: Some(mut hashTable) } => {
-            hashTable = List::fold(omsiFunction_2.inputVars.clone(), Arc::new(HashTableCrefSimVar::addSimVarToHashTable), hashTable.clone());
+            hashTable = List::fold(omsiFunction_2.inputVars.clone(), (std::sync::Arc::new(HashTableCrefSimVar::addSimVarToHashTable) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))> + 'static>), hashTable.clone());
             for mut simVar in &*omsiFunction_2.outputVars.clone() {
                 let mut simVar = simVar.clone();
                 hashTable = HashTableCrefSimVar::addSimVarToHashTable(simVar.clone(), hashTable.clone())?;
@@ -3913,7 +3900,7 @@ fn fillLocalHashTable(mut varListList: Arc<metamodelica::List<Arc<metamodelica::
     hashTable = HashTableCrefSimVar::emptyHashTableSized(sizeHT.clone());
     for mut simVarList in &*varListList.clone() {
         let mut simVarList = simVarList.clone();
-        hashTable = List::fold(simVarList.clone(), Arc::new(HashTableCrefSimVar::addSimVarToHashTable), hashTable.clone());
+        hashTable = List::fold(simVarList.clone(), (std::sync::Arc::new(HashTableCrefSimVar::addSimVarToHashTable) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))> + 'static>), hashTable.clone());
     }
     hashTable
 }
@@ -3936,7 +3923,7 @@ pub fn createStateSets(mut inDAE: Arc<BackendDAE::BackendDAE>, mut iEquations: A
         otempvars = itempvars.clone();
         numStateSets = 0;
     } else {
-        let (__pa0, (__pa1, __pa2, __pa3, __pa4)) = BackendDAEUtil::mapEqSystemAndFold(inDAE.clone(), Arc::new(createStateSetsSystem), (iEquations.clone(), iuniqueEqIndex.clone(), itempvars.clone(), 0))?;
+        let (__pa0, (__pa1, __pa2, __pa3, __pa4)) = BackendDAEUtil::mapEqSystemAndFold(inDAE.clone(), (std::sync::Arc::new(createStateSetsSystem) as std::sync::Arc<dyn ::std::ops::Fn(Arc<BackendDAE::EqSystem>, Arc<BackendDAE::Shared>, (Arc<metamodelica::List<SimCode::StateSet>>, i32, Arc<metamodelica::List<SimCodeVar::SimVar>>, i32)) -> Result<(Arc<BackendDAE::EqSystem>, Arc<BackendDAE::Shared>, (Arc<metamodelica::List<SimCode::StateSet>>, i32, Arc<metamodelica::List<SimCodeVar::SimVar>>, i32))> + 'static>), (iEquations.clone(), iuniqueEqIndex.clone(), itempvars.clone(), 0))?;
         outDAE = __pa0.clone();
         oEquations = __pa1.clone();
         ouniqueEqIndex = __pa2.clone();
@@ -3994,8 +3981,8 @@ fn createStateSetsSets(mut iStateSets: Arc<metamodelica::List<BackendDAE::StateS
                     let mut simCodeAVars: Arc<metamodelica::List<SimCodeVar::SimVar>> = metamodelica::nil();
                     let mut uniqueEqIndex: i32 = 0;
                     let mut crA = (*crA).clone();
-                    crstates = List::map(statevars.clone(), Arc::new(BackendVariable::varCref));
-                    simCodeAVars = List::map3(aVars.clone(), Arc::new(dlowvarToSimvar), None, iVars.clone(), None);
+                    crstates = List::map(statevars.clone(), (std::sync::Arc::new(BackendVariable::varCref) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var) -> Result<Arc<DAE::ComponentRef>> + 'static>));
+                    simCodeAVars = List::map3(aVars.clone(), (std::sync::Arc::new(dlowvarToSimvar) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, Option<BackendDAE::Variables>, BackendDAE::Variables, Option<Arc<UnorderedSet::UnorderedSet<Arc<DAE::ComponentRef>>>>) -> Result<SimCodeVar::SimVar> + 'static>), None, iVars.clone(), None);
                     crA = ComponentReference::subscriptCrefWithInt(crA.clone(), 1)?;
                     crA = if (intGt((crset.clone().len() as i32), 1)) {ComponentReference::subscriptCrefWithInt(crA.clone(), 1)?} else {crA.clone()};
                     nCandidates = (statevars.clone().len() as i32);
@@ -4036,14 +4023,15 @@ pub fn createSymbolicSimulationJacobian(mut inJacobian: Arc<BackendDAE::Jacobian
     let mut res: Option<Arc<SimCode::JacobianMatrix>> = None;
     let mut ouniqueEqIndex: i32 = 0;
     let mut otempvars: Arc<metamodelica::List<SimCodeVar::SimVar>> = metamodelica::nil();
-    (res, ouniqueEqIndex, otempvars) = 'mc: {
+    (res, ouniqueEqIndex, otempvars) = ({
+        let mut allEquations: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>> = metamodelica::nil();
+        let mut constantEqns: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>> = metamodelica::nil();
+        let mut accEqns: Arc<metamodelica::List<Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>>> = metamodelica::nil();
+        'mc: {
         let __mc_input = (inJacobian.clone(), iuniqueEqIndex.clone(), itempvars.clone());
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ BackendDAE::Jacobian::EMPTY_JACOBIAN, _, _) => {
-                    let mut allEquations: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>> = metamodelica::nil();
-                    let mut constantEqns: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>> = metamodelica::nil();
-                    let mut accEqns: Arc<metamodelica::List<Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>>> = metamodelica::nil();
                     Ok((None, iuniqueEqIndex.clone(), itempvars.clone()))
                 }
                 _ => bail!("nomatch"),
@@ -4052,9 +4040,6 @@ pub fn createSymbolicSimulationJacobian(mut inJacobian: Arc<BackendDAE::Jacobian
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ BackendDAE::Jacobian::FULL_JACOBIAN { jacobian: _ }, _, _) => {
-                    let mut allEquations: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>> = metamodelica::nil();
-                    let mut constantEqns: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>> = metamodelica::nil();
-                    let mut accEqns: Arc<metamodelica::List<Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>>> = metamodelica::nil();
                     Ok((None, iuniqueEqIndex.clone(), itempvars.clone()))
                 }
                 _ => bail!("nomatch"),
@@ -4069,9 +4054,6 @@ pub fn createSymbolicSimulationJacobian(mut inJacobian: Arc<BackendDAE::Jacobian
                     let mut nonlinearPat: Arc<metamodelica::List<(i32, Arc<metamodelica::List<i32>>)>> = metamodelica::nil();
                     let mut nonlinearPatT: Arc<metamodelica::List<(i32, Arc<metamodelica::List<i32>>)>> = metamodelica::nil();
                     let mut maxColor: i32 = 0;
-                    let mut allEquations: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>> = metamodelica::nil();
-                    let mut constantEqns: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>> = metamodelica::nil();
-                    let mut accEqns: Arc<metamodelica::List<Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>>> = metamodelica::nil();
                     let mut varsSeedIndex: Arc<metamodelica::List<SimCodeVar::SimVar>> = metamodelica::nil();
                     let mut seedVars: Arc<metamodelica::List<SimCodeVar::SimVar>> = metamodelica::nil();
                     let mut indexVars: Arc<metamodelica::List<SimCodeVar::SimVar>> = metamodelica::nil();
@@ -4099,9 +4081,9 @@ pub fn createSymbolicSimulationJacobian(mut inJacobian: Arc<BackendDAE::Jacobian
                     (indexVars, _) = rewriteIndex(indexVars.clone(), 0);
                     if Flags::isSet(Flags::JAC_DUMP2.clone())? {
                         println!("{}", (literal!("\n---+++ seedVars variables +++---\n")).clone());
-                        println!("{}", (Tpl::tplString(Arc::new(SimCodeDump::dumpVarsShort), seedVars.clone())?).clone());
+                        println!("{}", (Tpl::tplString((std::sync::Arc::new(SimCodeDump::dumpVarsShort) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, Arc<metamodelica::List<SimCodeVar::SimVar>>) -> Result<Tpl::Text> + 'static>), seedVars.clone())?).clone());
                         println!("{}", (literal!("\n---+++ indexVars variables +++---\n")).clone());
-                        println!("{}", (Tpl::tplString(Arc::new(SimCodeDump::dumpVarsShort), indexVars.clone())?).clone());
+                        println!("{}", (Tpl::tplString((std::sync::Arc::new(SimCodeDump::dumpVarsShort) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, Arc<metamodelica::List<SimCodeVar::SimVar>>) -> Result<Tpl::Text> + 'static>), indexVars.clone())?).clone());
                     }
                     varsSeedIndex = listAppend(seedVars.clone(), indexVars.clone());
                     sparseInts = sortSparsePattern(varsSeedIndex.clone(), sparsepatternComRefs.clone(), false)?;
@@ -4135,9 +4117,6 @@ pub fn createSymbolicSimulationJacobian(mut inJacobian: Arc<BackendDAE::Jacobian
                     let mut dummyVar: ArcStr = arcstr::literal!("");
                     let mut maxColor: i32 = 0;
                     let mut nRows: i32 = 0;
-                    let mut allEquations: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>> = metamodelica::nil();
-                    let mut constantEqns: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>> = metamodelica::nil();
-                    let mut accEqns: Arc<metamodelica::List<Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>>> = metamodelica::nil();
                     let mut columnVars: Arc<metamodelica::List<SimCodeVar::SimVar>> = metamodelica::nil();
                     let mut varsSeedIndex: Arc<metamodelica::List<SimCodeVar::SimVar>> = metamodelica::nil();
                     let mut seedVars: Arc<metamodelica::List<SimCodeVar::SimVar>> = metamodelica::nil();
@@ -4146,32 +4125,32 @@ pub fn createSymbolicSimulationJacobian(mut inJacobian: Arc<BackendDAE::Jacobian
                     let mut uniqueEqIndex = (*uniqueEqIndex).clone();
                     let mut tempvars = (*tempvars).clone();
                     dummyVar = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("dummyVar")); __mm_s.push_str(&*name.clone()); ArcStr::from(__mm_s) }).clone();
-                    x = Arc::new(DAE::ComponentRef::CREF_IDENT { ident: (dummyVar.clone()).clone(), identType: DAE::T_REAL_DEFAULT.clone(), subscriptLst: metamodelica::nil() });
+                    x = Arc::new(DAE::ComponentRef::CREF_IDENT { ident: (dummyVar.clone()).clone(), identType: DAE::T_REAL_DEFAULT().clone(), subscriptLst: metamodelica::nil() });
                     emptyVars = BackendVariable::emptyVars(BaseHashTable::bigBucketSize.clone());
                     residualVars = BackendVariable::listVar1(residualVarsLst.clone());
                     independentVars = BackendVariable::listVar1(independentVarsLst.clone());
-                    (allVars, _) = BackendVariable::traverseBackendDAEVars(BackendVariable::listVar1(BackendVariable::equationSystemsVarsLst(systs.clone())?), Arc::new(getFurtherVars), (metamodelica::nil(), x.clone()))?;
+                    (allVars, _) = BackendVariable::traverseBackendDAEVars(BackendVariable::listVar1(BackendVariable::equationSystemsVarsLst(systs.clone())?), (std::sync::Arc::new(getFurtherVars) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, (Arc<metamodelica::List<BackendDAE::Var>>, Arc<DAE::ComponentRef>)) -> Result<(BackendDAE::Var, (Arc<metamodelica::List<BackendDAE::Var>>, Arc<DAE::ComponentRef>))> + 'static>), (metamodelica::nil(), x.clone()))?;
                     systvars = BackendVariable::listVar1(allVars.clone());
-                    (columnVars, _) = BackendVariable::traverseBackendDAEVars(systvars.clone(), Arc::new(traversingdlowvarToSimvar), (metamodelica::nil(), emptyVars.clone()))?;
-                    columnVars = List::map1(columnVars.clone(), Arc::new(fnptr!(setSimVarKind, SimCodeVar::SimVar, BackendDAE::VarKind)), crate::BackendDAE::VarKind::JAC_TMP_VAR);
-                    columnVars = List::map1(columnVars.clone(), Arc::new(fnptr!(setSimVarMatrixName, SimCodeVar::SimVar, Option<ArcStr>)), Some((name.clone()).clone()));
+                    (columnVars, _) = BackendVariable::traverseBackendDAEVars(systvars.clone(), (std::sync::Arc::new(traversingdlowvarToSimvar) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, (Arc<metamodelica::List<SimCodeVar::SimVar>>, BackendDAE::Variables)) -> Result<(BackendDAE::Var, (Arc<metamodelica::List<SimCodeVar::SimVar>>, BackendDAE::Variables))> + 'static>), (metamodelica::nil(), emptyVars.clone()))?;
+                    columnVars = List::map1(columnVars.clone(), (std::sync::Arc::new(fnptr!(setSimVarKind, SimCodeVar::SimVar, BackendDAE::VarKind)) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, BackendDAE::VarKind) -> Result<SimCodeVar::SimVar> + 'static>), crate::BackendDAE::VarKind::JAC_TMP_VAR);
+                    columnVars = List::map1(columnVars.clone(), (std::sync::Arc::new(fnptr!(setSimVarMatrixName, SimCodeVar::SimVar, Option<ArcStr>)) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, Option<ArcStr>) -> Result<SimCodeVar::SimVar> + 'static>), Some((name.clone()).clone()));
                     (columnVars, _) = rewriteIndex(columnVars.clone(), 0);
                     columnVars = createAllDiffedSimVars(dependentVarsLst.clone(), x.clone(), residualVars.clone(), 0, (columnVars.clone().len() as i32), (name.clone()).clone(), columnVars.clone())?;
                     columnVars = columnVars.clone().reverse();
                     if Flags::isSet(Flags::JAC_DUMP2.clone())? {
                         println!("{}", (literal!("\n---+++ all column variables +++---\n")).clone());
-                        println!("{}", (Tpl::tplString(Arc::new(SimCodeDump::dumpVarsShort), columnVars.clone())?).clone());
+                        println!("{}", (Tpl::tplString((std::sync::Arc::new(SimCodeDump::dumpVarsShort) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, Arc<metamodelica::List<SimCodeVar::SimVar>>) -> Result<Tpl::Text> + 'static>), columnVars.clone())?).clone());
                         println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("analytical Jacobians -> create all SimCode vars for Matrix ")); __mm_s.push_str(&*name.clone()); __mm_s.push_str(&*literal!(" time: ")); __mm_s.push_str(&*realString(clock())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
                     }
-                    (seedVars, _) = BackendVariable::traverseBackendDAEVars(independentVars.clone(), Arc::new(traversingdlowvarToSimvar), (metamodelica::nil(), emptyVars.clone()))?;
-                    (indexVars, _) = BackendVariable::traverseBackendDAEVars(residualVars.clone(), Arc::new(traversingdlowvarToSimvar), (metamodelica::nil(), emptyVars.clone()))?;
+                    (seedVars, _) = BackendVariable::traverseBackendDAEVars(independentVars.clone(), (std::sync::Arc::new(traversingdlowvarToSimvar) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, (Arc<metamodelica::List<SimCodeVar::SimVar>>, BackendDAE::Variables)) -> Result<(BackendDAE::Var, (Arc<metamodelica::List<SimCodeVar::SimVar>>, BackendDAE::Variables))> + 'static>), (metamodelica::nil(), emptyVars.clone()))?;
+                    (indexVars, _) = BackendVariable::traverseBackendDAEVars(residualVars.clone(), (std::sync::Arc::new(traversingdlowvarToSimvar) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, (Arc<metamodelica::List<SimCodeVar::SimVar>>, BackendDAE::Variables)) -> Result<(BackendDAE::Var, (Arc<metamodelica::List<SimCodeVar::SimVar>>, BackendDAE::Variables))> + 'static>), (metamodelica::nil(), emptyVars.clone()))?;
                     (seedVars, _) = rewriteIndex(seedVars.clone().reverse(), 0);
                     (indexVars, _) = rewriteIndex(indexVars.clone().reverse(), 0);
                     if Flags::isSet(Flags::JAC_DUMP2.clone())? {
                         println!("{}", (literal!("\n---+++ seedVars variables +++---\n")).clone());
-                        println!("{}", (Tpl::tplString(Arc::new(SimCodeDump::dumpVarsShort), seedVars.clone())?).clone());
+                        println!("{}", (Tpl::tplString((std::sync::Arc::new(SimCodeDump::dumpVarsShort) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, Arc<metamodelica::List<SimCodeVar::SimVar>>) -> Result<Tpl::Text> + 'static>), seedVars.clone())?).clone());
                         println!("{}", (literal!("\n---+++ indexVars variables +++---\n")).clone());
-                        println!("{}", (Tpl::tplString(Arc::new(SimCodeDump::dumpVarsShort), indexVars.clone())?).clone());
+                        println!("{}", (Tpl::tplString((std::sync::Arc::new(SimCodeDump::dumpVarsShort) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, Arc<metamodelica::List<SimCodeVar::SimVar>>) -> Result<Tpl::Text> + 'static>), indexVars.clone())?).clone());
                     }
                     varsSeedIndex = listAppend(seedVars.clone(), indexVars.clone());
                     sparseInts = sortSparsePattern(varsSeedIndex.clone(), sparsepatternComRefs.clone(), false)?;
@@ -4187,14 +4166,14 @@ pub fn createSymbolicSimulationJacobian(mut inJacobian: Arc<BackendDAE::Jacobian
                     maxColor = (sparseColoring.clone().len() as i32);
                     nRows = (residualVarsLst.clone().len() as i32);
                     seedVars = replaceSeedVarsName(seedVars.clone(), (name.clone()).clone());
-                    seedVars = List::map1(seedVars.clone(), Arc::new(fnptr!(setSimVarKind, SimCodeVar::SimVar, BackendDAE::VarKind)), crate::BackendDAE::VarKind::SEED_VAR);
-                    seedVars = List::map1(seedVars.clone(), Arc::new(fnptr!(setSimVarMatrixName, SimCodeVar::SimVar, Option<ArcStr>)), Some((name.clone()).clone()));
+                    seedVars = List::map1(seedVars.clone(), (std::sync::Arc::new(fnptr!(setSimVarKind, SimCodeVar::SimVar, BackendDAE::VarKind)) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, BackendDAE::VarKind) -> Result<SimCodeVar::SimVar> + 'static>), crate::BackendDAE::VarKind::SEED_VAR);
+                    seedVars = List::map1(seedVars.clone(), (std::sync::Arc::new(fnptr!(setSimVarMatrixName, SimCodeVar::SimVar, Option<ArcStr>)) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, Option<ArcStr>) -> Result<SimCodeVar::SimVar> + 'static>), Some((name.clone()).clone()));
                     if Flags::isSet(Flags::JAC_DUMP2.clone())? {
                         println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("analytical Jacobians -> transformed to SimCode for Matrix ")); __mm_s.push_str(&*name.clone()); __mm_s.push_str(&*literal!(" time: ")); __mm_s.push_str(&*realString(clock())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
                     }
                     crefToSimVarHTJacobian = HashTableCrefSimVar::emptyHashTableSized((seedVars.clone().len() as i32) + (columnVars.clone().len() as i32));
-                    crefToSimVarHTJacobian = List::fold(seedVars.clone(), Arc::new(HashTableCrefSimVar::addSimVarToHashTable), crefToSimVarHTJacobian.clone());
-                    crefToSimVarHTJacobian = List::fold(columnVars.clone(), Arc::new(HashTableCrefSimVar::addSimVarToHashTable), crefToSimVarHTJacobian.clone());
+                    crefToSimVarHTJacobian = List::fold(seedVars.clone(), (std::sync::Arc::new(HashTableCrefSimVar::addSimVarToHashTable) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))> + 'static>), crefToSimVarHTJacobian.clone());
+                    crefToSimVarHTJacobian = List::fold(columnVars.clone(), (std::sync::Arc::new(HashTableCrefSimVar::addSimVarToHashTable) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))> + 'static>), crefToSimVarHTJacobian.clone());
                     (allEquations, constantEqns, uniqueEqIndex, tempvars) = getSimEqSystemForJacobians(systs.clone(), shared.clone(), uniqueEqIndex.clone(), tempvars.clone())?;
                     Ok((Some(Arc::new(SimCode::JacobianMatrix { columns: list![Arc::new(SimCode::JacobianColumn { columnEqns: allEquations.clone(), columnVars: columnVars.clone(), numberOfResultVars: nRows.clone(), constantEqns: constantEqns.clone() })], seedVars: seedVars.clone(), matrixName: (name.clone()).clone(), sparsity: sparseInts.clone(), sparsityT: sparseIntsT.clone(), nonlinear: nonlinearPat.clone(), nonlinearT: nonlinearPatT.clone(), coloredCols: coloring.clone(), coloredRows: metamodelica::nil(), maxColorCols: maxColor.clone(), jacobianIndex: -1, partitionIndex: 0, generic_loop_calls: metamodelica::nil(), crefsHT: Some(crefToSimVarHTJacobian.clone()), isAdjoint: false })), uniqueEqIndex.clone(), tempvars.clone()))
                 }
@@ -4204,9 +4183,6 @@ pub fn createSymbolicSimulationJacobian(mut inJacobian: Arc<BackendDAE::Jacobian
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 _ => {
-                    let mut allEquations: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>> = metamodelica::nil();
-                    let mut constantEqns: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>> = metamodelica::nil();
-                    let mut accEqns: Arc<metamodelica::List<Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>>> = metamodelica::nil();
                     let mut errorMessage: ArcStr = arcstr::literal!("");
                     if Flags::isSet(Flags::JAC_DUMP.clone())? {
                         errorMessage = (literal!("function createSymbolicSimulationJacobian failed.")).clone();
@@ -4218,7 +4194,8 @@ pub fn createSymbolicSimulationJacobian(mut inJacobian: Arc<BackendDAE::Jacobian
             }}
         })() { break 'mc __v; }
         bail!("matchcontinue: no arm matched")
-    };
+    }
+    });
     Ok((res, ouniqueEqIndex, otempvars))
 }
 
@@ -4355,14 +4332,15 @@ fn checkForEmptyBDAE(mut inBDAE: Option<(Arc<BackendDAE::BackendDAE>, ArcStr, Ar
 pub fn createSymbolicJacobianssSimCode(mut inSymJacobians: Arc<metamodelica::List<(Option<(Arc<BackendDAE::BackendDAE>, ArcStr, Arc<metamodelica::List<BackendDAE::Var>>, Arc<metamodelica::List<BackendDAE::Var>>, Arc<metamodelica::List<BackendDAE::Var>>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>)>, (Arc<metamodelica::List<(Arc<DAE::ComponentRef>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>)>>, Arc<metamodelica::List<(Arc<DAE::ComponentRef>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>)>>, (Arc<metamodelica::List<Arc<DAE::ComponentRef>>>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>), i32), Arc<metamodelica::List<Arc<metamodelica::List<Arc<DAE::ComponentRef>>>>>, (Arc<metamodelica::List<(Arc<DAE::ComponentRef>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>)>>, Arc<metamodelica::List<(Arc<DAE::ComponentRef>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>)>>, (Arc<metamodelica::List<Arc<DAE::ComponentRef>>>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>), i32))>>, mut inSimVarHT: (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr)), mut iuniqueEqIndex: i32, mut inNames: Arc<metamodelica::List<ArcStr>>, mut inJacobianMatrices: Arc<metamodelica::List<Arc<SimCode::JacobianMatrix>>>) -> Result<(Arc<metamodelica::List<Arc<SimCode::JacobianMatrix>>>, i32)> {
     let mut outJacobianMatrices: Arc<metamodelica::List<Arc<SimCode::JacobianMatrix>>> = metamodelica::nil();
     let mut ouniqueEqIndex: i32 = 0;
-    (outJacobianMatrices, ouniqueEqIndex) = 'mc: {
+    (outJacobianMatrices, ouniqueEqIndex) = ({
+        let mut allEquations: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>> = metamodelica::nil();
+        let mut constantEqns: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>> = metamodelica::nil();
+        let mut accEqns: Arc<metamodelica::List<Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>>> = metamodelica::nil();
+        'mc: {
         let __mc_input = (inSymJacobians.clone(), inSimVarHT.clone(), iuniqueEqIndex.clone(), inNames.clone());
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (_, _, _, Deref @ metamodelica::List::Nil) => {
-                    let mut allEquations: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>> = metamodelica::nil();
-                    let mut constantEqns: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>> = metamodelica::nil();
-                    let mut accEqns: Arc<metamodelica::List<Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>>> = metamodelica::nil();
                     Ok((inJacobianMatrices.clone(), iuniqueEqIndex.clone()))
                 }
                 _ => bail!("nomatch"),
@@ -4372,9 +4350,6 @@ pub fn createSymbolicJacobianssSimCode(mut inSymJacobians: Arc<metamodelica::Lis
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ metamodelica::List::Nil, _, _, Deref @ metamodelica::List::Cons { head: name, tail: restnames }) => {
                     let mut uniqueEqIndex: i32 = 0;
-                    let mut allEquations: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>> = metamodelica::nil();
-                    let mut constantEqns: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>> = metamodelica::nil();
-                    let mut accEqns: Arc<metamodelica::List<Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>>> = metamodelica::nil();
                     let mut linearModelMatrices: Arc<metamodelica::List<Arc<SimCode::JacobianMatrix>>> = metamodelica::nil();
                     let mut tmpJac: Arc<SimCode::JacobianMatrix>;
                     tmpJac = SimCode::emptyJacobian().clone();
@@ -4390,9 +4365,6 @@ pub fn createSymbolicJacobianssSimCode(mut inSymJacobians: Arc<metamodelica::Lis
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ metamodelica::List::Cons { head: (None, (Deref @ metamodelica::List::Nil, Deref @ metamodelica::List::Nil, (Deref @ metamodelica::List::Nil, Deref @ metamodelica::List::Nil), _), Deref @ metamodelica::List::Nil, _), tail: rest }, _, _, Deref @ metamodelica::List::Cons { head: name, tail: restnames }) => {
                     let mut uniqueEqIndex: i32 = 0;
-                    let mut allEquations: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>> = metamodelica::nil();
-                    let mut constantEqns: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>> = metamodelica::nil();
-                    let mut accEqns: Arc<metamodelica::List<Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>>> = metamodelica::nil();
                     let mut linearModelMatrices: Arc<metamodelica::List<Arc<SimCode::JacobianMatrix>>> = metamodelica::nil();
                     let mut tmpJac: Arc<SimCode::JacobianMatrix>;
                     tmpJac = SimCode::emptyJacobian().clone();
@@ -4410,9 +4382,6 @@ pub fn createSymbolicJacobianssSimCode(mut inSymJacobians: Arc<metamodelica::Lis
                     if !((checkForEmptyBDAE(optionBDAE.clone()))) { bail!("guard") }
                     let mut uniqueEqIndex: i32 = 0;
                     let mut nRows: i32 = 0;
-                    let mut allEquations: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>> = metamodelica::nil();
-                    let mut constantEqns: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>> = metamodelica::nil();
-                    let mut accEqns: Arc<metamodelica::List<Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>>> = metamodelica::nil();
                     let mut seedVars: Arc<metamodelica::List<SimCodeVar::SimVar>> = metamodelica::nil();
                     let mut indexVars: Arc<metamodelica::List<SimCodeVar::SimVar>> = metamodelica::nil();
                     let mut seedIndexVars: Arc<metamodelica::List<SimCodeVar::SimVar>> = metamodelica::nil();
@@ -4428,18 +4397,18 @@ pub fn createSymbolicJacobianssSimCode(mut inSymJacobians: Arc<metamodelica::Lis
                         println!("{}", (literal!("Start sparse pattern without analytical Jacobians\n")).clone());
                     }
                     seedVars = getSimVars2Crefs(diffCompRefs.clone(), inSimVarHT.clone());
-                    seedVars = List::sort(seedVars.clone(), Arc::new(compareVarIndexGt))?;
+                    seedVars = List::sort(seedVars.clone(), (std::sync::Arc::new(compareVarIndexGt) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, SimCodeVar::SimVar) -> Result<bool> + 'static>))?;
                     if Flags::isSet(Flags::JAC_DUMP2.clone())? {
                         println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("diffCrefs: ")); __mm_s.push_str(&*ComponentReference::printComponentRefListStr(diffCompRefs.clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
                         println!("{}", (literal!("\n---+++  seedVars +++---\n")).clone());
-                        println!("{}", (Tpl::tplString(Arc::new(SimCodeDump::dumpVarsShort), seedVars.clone())?).clone());
+                        println!("{}", (Tpl::tplString((std::sync::Arc::new(SimCodeDump::dumpVarsShort) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, Arc<metamodelica::List<SimCodeVar::SimVar>>) -> Result<Tpl::Text> + 'static>), seedVars.clone())?).clone());
                     }
                     indexVars = getSimVars2Crefs(diffedCompRefs.clone(), inSimVarHT.clone());
-                    indexVars = List::sort(indexVars.clone(), Arc::new(compareVarIndexGt))?;
+                    indexVars = List::sort(indexVars.clone(), (std::sync::Arc::new(compareVarIndexGt) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, SimCodeVar::SimVar) -> Result<bool> + 'static>))?;
                     if Flags::isSet(Flags::JAC_DUMP2.clone())? {
                         println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("diffedCrefs: ")); __mm_s.push_str(&*ComponentReference::printComponentRefListStr(diffedCompRefs.clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
                         println!("{}", (literal!("\n---+++  indexVars +++---\n")).clone());
-                        println!("{}", (Tpl::tplString(Arc::new(SimCodeDump::dumpVarsShort), indexVars.clone())?).clone());
+                        println!("{}", (Tpl::tplString((std::sync::Arc::new(SimCodeDump::dumpVarsShort) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, Arc<metamodelica::List<SimCodeVar::SimVar>>) -> Result<Tpl::Text> + 'static>), indexVars.clone())?).clone());
                         println!("{}", (literal!("\n---+++  sparse pattern vars +++---\n")).clone());
                         dumpSparsePattern(sparsepattern.clone())?;
                         println!("{}", (literal!("\n---+++  sparse pattern transpose +++---\n")).clone());
@@ -4463,8 +4432,8 @@ pub fn createSymbolicJacobianssSimCode(mut inSymJacobians: Arc<metamodelica::Lis
                         dumpSparsePatternInt(sparseIntsT.clone());
                     }
                     seedVars = replaceSeedVarsName(seedVars.clone(), (name.clone()).clone());
-                    seedVars = List::map1(seedVars.clone(), Arc::new(fnptr!(setSimVarKind, SimCodeVar::SimVar, BackendDAE::VarKind)), crate::BackendDAE::VarKind::SEED_VAR);
-                    seedVars = List::map1(seedVars.clone(), Arc::new(fnptr!(setSimVarMatrixName, SimCodeVar::SimVar, Option<ArcStr>)), Some((name.clone()).clone()));
+                    seedVars = List::map1(seedVars.clone(), (std::sync::Arc::new(fnptr!(setSimVarKind, SimCodeVar::SimVar, BackendDAE::VarKind)) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, BackendDAE::VarKind) -> Result<SimCodeVar::SimVar> + 'static>), crate::BackendDAE::VarKind::SEED_VAR);
+                    seedVars = List::map1(seedVars.clone(), (std::sync::Arc::new(fnptr!(setSimVarMatrixName, SimCodeVar::SimVar, Option<ArcStr>)) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, Option<ArcStr>) -> Result<SimCodeVar::SimVar> + 'static>), Some((name.clone()).clone()));
                     tmpJac = Arc::new(SimCode::JacobianMatrix { columns: list![Arc::new(SimCode::JacobianColumn { columnEqns: metamodelica::nil(), columnVars: metamodelica::nil(), numberOfResultVars: nRows.clone(), constantEqns: metamodelica::nil() })], seedVars: seedVars.clone(), matrixName: (name.clone()).clone(), sparsity: sparseInts.clone(), sparsityT: sparseIntsT.clone(), nonlinear: nonlinearPat.clone(), nonlinearT: nonlinearPatT.clone(), coloredCols: coloring.clone(), coloredRows: metamodelica::nil(), maxColorCols: maxColor.clone(), jacobianIndex: -1, partitionIndex: 0, generic_loop_calls: metamodelica::nil(), crefsHT: None, isAdjoint: false });
                     linearModelMatrices = cons(tmpJac.clone(), inJacobianMatrices.clone());
                     (linearModelMatrices, uniqueEqIndex) = createSymbolicJacobianssSimCode(rest.clone(), inSimVarHT.clone(), iuniqueEqIndex.clone(), restnames.clone(), linearModelMatrices.clone())?;
@@ -4485,9 +4454,6 @@ pub fn createSymbolicJacobianssSimCode(mut inSymJacobians: Arc<metamodelica::Lis
                     let mut allCrefs: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
                     let mut nRows: i32 = 0;
                     let mut dummyVar: ArcStr = arcstr::literal!("");
-                    let mut allEquations: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>> = metamodelica::nil();
-                    let mut constantEqns: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>> = metamodelica::nil();
-                    let mut accEqns: Arc<metamodelica::List<Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>>> = metamodelica::nil();
                     let mut columnVars: Arc<metamodelica::List<SimCodeVar::SimVar>> = metamodelica::nil();
                     let mut otherColumnVars: Arc<metamodelica::List<SimCodeVar::SimVar>> = metamodelica::nil();
                     let mut seedVars: Arc<metamodelica::List<SimCodeVar::SimVar>> = metamodelica::nil();
@@ -4505,18 +4471,18 @@ pub fn createSymbolicJacobianssSimCode(mut inSymJacobians: Arc<metamodelica::Lis
                     let mut alldiffedVars = (*alldiffedVars).clone();
                     let mut uniqueEqIndex = (*uniqueEqIndex).clone();
                     dummyVar = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("dummyVar")); __mm_s.push_str(&*name.clone()); ArcStr::from(__mm_s) }).clone();
-                    x = Arc::new(DAE::ComponentRef::CREF_IDENT { ident: (dummyVar.clone()).clone(), identType: DAE::T_REAL_DEFAULT.clone(), subscriptLst: metamodelica::nil() });
+                    x = Arc::new(DAE::ComponentRef::CREF_IDENT { ident: (dummyVar.clone()).clone(), identType: DAE::T_REAL_DEFAULT().clone(), subscriptLst: metamodelica::nil() });
                     emptyVars = BackendVariable::emptyVars(BaseHashTable::bigBucketSize.clone());
-                    (allVars, _) = BackendVariable::traverseBackendDAEVars(BackendVariable::listVar1(BackendVariable::equationSystemsVarsLst(systs.clone())?), Arc::new(getFurtherVars), (metamodelica::nil(), x.clone()))?;
+                    (allVars, _) = BackendVariable::traverseBackendDAEVars(BackendVariable::listVar1(BackendVariable::equationSystemsVarsLst(systs.clone())?), (std::sync::Arc::new(getFurtherVars) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, (Arc<metamodelica::List<BackendDAE::Var>>, Arc<DAE::ComponentRef>)) -> Result<(BackendDAE::Var, (Arc<metamodelica::List<BackendDAE::Var>>, Arc<DAE::ComponentRef>))> + 'static>), (metamodelica::nil(), x.clone()))?;
                     systvars = BackendVariable::listVar1(allVars.clone());
-                    (otherColumnVars, _) = BackendVariable::traverseBackendDAEVars(systvars.clone(), Arc::new(traversingdlowvarToSimvar), (metamodelica::nil(), emptyVars.clone()))?;
-                    otherColumnVars = List::map1(otherColumnVars.clone(), Arc::new(fnptr!(setSimVarKind, SimCodeVar::SimVar, BackendDAE::VarKind)), crate::BackendDAE::VarKind::JAC_TMP_VAR);
-                    otherColumnVars = List::map1(otherColumnVars.clone(), Arc::new(fnptr!(setSimVarMatrixName, SimCodeVar::SimVar, Option<ArcStr>)), Some((name.clone()).clone()));
+                    (otherColumnVars, _) = BackendVariable::traverseBackendDAEVars(systvars.clone(), (std::sync::Arc::new(traversingdlowvarToSimvar) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, (Arc<metamodelica::List<SimCodeVar::SimVar>>, BackendDAE::Variables)) -> Result<(BackendDAE::Var, (Arc<metamodelica::List<SimCodeVar::SimVar>>, BackendDAE::Variables))> + 'static>), (metamodelica::nil(), emptyVars.clone()))?;
+                    otherColumnVars = List::map1(otherColumnVars.clone(), (std::sync::Arc::new(fnptr!(setSimVarKind, SimCodeVar::SimVar, BackendDAE::VarKind)) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, BackendDAE::VarKind) -> Result<SimCodeVar::SimVar> + 'static>), crate::BackendDAE::VarKind::JAC_TMP_VAR);
+                    otherColumnVars = List::map1(otherColumnVars.clone(), (std::sync::Arc::new(fnptr!(setSimVarMatrixName, SimCodeVar::SimVar, Option<ArcStr>)) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, Option<ArcStr>) -> Result<SimCodeVar::SimVar> + 'static>), Some((name.clone()).clone()));
                     (otherColumnVars, _) = rewriteIndex(otherColumnVars.clone(), 0);
                     empty = BackendVariable::listVar1(alldiffedVars.clone());
-                    allCrefs = List::map(alldiffedVars.clone(), Arc::new(BackendVariable::varCref));
+                    allCrefs = List::map(alldiffedVars.clone(), (std::sync::Arc::new(BackendVariable::varCref) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var) -> Result<Arc<DAE::ComponentRef>> + 'static>));
                     columnVars = getSimVars2Crefs(allCrefs.clone(), inSimVarHT.clone());
-                    columnVars = List::sort(columnVars.clone(), Arc::new(compareVarIndexGt))?;
+                    columnVars = List::sort(columnVars.clone(), (std::sync::Arc::new(compareVarIndexGt) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, SimCodeVar::SimVar) -> Result<bool> + 'static>))?;
                     alldiffedVars = {
         let mut __acc: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
         for mut v in (columnVars.clone()).into_iter().cloned() {
@@ -4529,27 +4495,27 @@ pub fn createSymbolicJacobianssSimCode(mut inSymJacobians: Arc<metamodelica::Lis
                     columnVars = createAllDiffedSimVars(alldiffedVars.clone(), x.clone(), vars.clone(), 0, (otherColumnVars.clone().len() as i32), (name.clone()).clone(), otherColumnVars.clone())?;
                     if Flags::isSet(Flags::JAC_DUMP2.clone())? {
                         println!("{}", (literal!("\n---+++ second columnVars +++---\n")).clone());
-                        println!("{}", (Tpl::tplString(Arc::new(SimCodeDump::dumpVarsShort), columnVars.clone())?).clone());
+                        println!("{}", (Tpl::tplString((std::sync::Arc::new(SimCodeDump::dumpVarsShort) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, Arc<metamodelica::List<SimCodeVar::SimVar>>) -> Result<Tpl::Text> + 'static>), columnVars.clone())?).clone());
                         println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("analytical Jacobians -> create column variables for matrix ")); __mm_s.push_str(&*name.clone()); __mm_s.push_str(&*literal!(" time: ")); __mm_s.push_str(&*realString(clock())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
                     }
                     if Flags::isSet(Flags::JAC_DUMP2.clone())? {
                         println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("analytical Jacobians -> create all SimCode vars for Matrix ")); __mm_s.push_str(&*name.clone()); __mm_s.push_str(&*literal!(" time: ")); __mm_s.push_str(&*realString(clock())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
                         println!("{}", (literal!("\n---+++  columnVars +++---\n")).clone());
-                        println!("{}", (Tpl::tplString(Arc::new(SimCodeDump::dumpVarsShort), columnVars.clone())?).clone());
+                        println!("{}", (Tpl::tplString((std::sync::Arc::new(SimCodeDump::dumpVarsShort) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, Arc<metamodelica::List<SimCodeVar::SimVar>>) -> Result<Tpl::Text> + 'static>), columnVars.clone())?).clone());
                     }
                     seedVars = getSimVars2Crefs(diffCompRefs.clone(), inSimVarHT.clone());
-                    seedVars = List::sort(seedVars.clone(), Arc::new(compareVarIndexGt))?;
+                    seedVars = List::sort(seedVars.clone(), (std::sync::Arc::new(compareVarIndexGt) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, SimCodeVar::SimVar) -> Result<bool> + 'static>))?;
                     if Flags::isSet(Flags::JAC_DUMP2.clone())? {
                         println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("diffCrefs: ")); __mm_s.push_str(&*ComponentReference::printComponentRefListStr(diffCompRefs.clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
                         println!("{}", (literal!("\n---+++  seedVars +++---\n")).clone());
-                        println!("{}", (Tpl::tplString(Arc::new(SimCodeDump::dumpVarsShort), seedVars.clone())?).clone());
+                        println!("{}", (Tpl::tplString((std::sync::Arc::new(SimCodeDump::dumpVarsShort) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, Arc<metamodelica::List<SimCodeVar::SimVar>>) -> Result<Tpl::Text> + 'static>), seedVars.clone())?).clone());
                     }
                     indexVars = getSimVars2Crefs(diffedCompRefs.clone(), inSimVarHT.clone());
-                    indexVars = List::sort(indexVars.clone(), Arc::new(compareVarIndexGt))?;
+                    indexVars = List::sort(indexVars.clone(), (std::sync::Arc::new(compareVarIndexGt) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, SimCodeVar::SimVar) -> Result<bool> + 'static>))?;
                     if Flags::isSet(Flags::JAC_DUMP2.clone())? {
                         println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("diffedCrefs: ")); __mm_s.push_str(&*ComponentReference::printComponentRefListStr(diffedCompRefs.clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
                         println!("{}", (literal!("\n---+++  indexVars +++---\n")).clone());
-                        println!("{}", (Tpl::tplString(Arc::new(SimCodeDump::dumpVarsShort), indexVars.clone())?).clone());
+                        println!("{}", (Tpl::tplString((std::sync::Arc::new(SimCodeDump::dumpVarsShort) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, Arc<metamodelica::List<SimCodeVar::SimVar>>) -> Result<Tpl::Text> + 'static>), indexVars.clone())?).clone());
                         println!("{}", (literal!("\n---+++  sparse pattern vars +++---\n")).clone());
                         dumpSparsePattern(sparsepattern.clone())?;
                         println!("{}", (literal!("\n---+++  sparse pattern transpose +++---\n")).clone());
@@ -4573,11 +4539,11 @@ pub fn createSymbolicJacobianssSimCode(mut inSymJacobians: Arc<metamodelica::Lis
                         dumpSparsePatternInt(sparseIntsT.clone());
                     }
                     seedVars = replaceSeedVarsName(seedVars.clone(), (name.clone()).clone());
-                    seedVars = List::map1(seedVars.clone(), Arc::new(fnptr!(setSimVarKind, SimCodeVar::SimVar, BackendDAE::VarKind)), crate::BackendDAE::VarKind::SEED_VAR);
-                    seedVars = List::map1(seedVars.clone(), Arc::new(fnptr!(setSimVarMatrixName, SimCodeVar::SimVar, Option<ArcStr>)), Some((name.clone()).clone()));
+                    seedVars = List::map1(seedVars.clone(), (std::sync::Arc::new(fnptr!(setSimVarKind, SimCodeVar::SimVar, BackendDAE::VarKind)) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, BackendDAE::VarKind) -> Result<SimCodeVar::SimVar> + 'static>), crate::BackendDAE::VarKind::SEED_VAR);
+                    seedVars = List::map1(seedVars.clone(), (std::sync::Arc::new(fnptr!(setSimVarMatrixName, SimCodeVar::SimVar, Option<ArcStr>)) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, Option<ArcStr>) -> Result<SimCodeVar::SimVar> + 'static>), Some((name.clone()).clone()));
                     crefToSimVarHTJacobian = HashTableCrefSimVar::emptyHashTableSized((seedVars.clone().len() as i32) + (columnVars.clone().len() as i32));
-                    crefToSimVarHTJacobian = List::fold(seedVars.clone(), Arc::new(HashTableCrefSimVar::addSimVarToHashTable), crefToSimVarHTJacobian.clone());
-                    crefToSimVarHTJacobian = List::fold(columnVars.clone(), Arc::new(HashTableCrefSimVar::addSimVarToHashTable), crefToSimVarHTJacobian.clone());
+                    crefToSimVarHTJacobian = List::fold(seedVars.clone(), (std::sync::Arc::new(HashTableCrefSimVar::addSimVarToHashTable) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))> + 'static>), crefToSimVarHTJacobian.clone());
+                    crefToSimVarHTJacobian = List::fold(columnVars.clone(), (std::sync::Arc::new(HashTableCrefSimVar::addSimVarToHashTable) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))> + 'static>), crefToSimVarHTJacobian.clone());
                     if Flags::isSet(Flags::JAC_DUMP2.clone())? {
                         println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("analytical Jacobians -> creating SimCode equations for Matrix ")); __mm_s.push_str(&*name.clone()); __mm_s.push_str(&*literal!(" time: ")); __mm_s.push_str(&*realString(clock())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
                     }
@@ -4596,9 +4562,6 @@ pub fn createSymbolicJacobianssSimCode(mut inSymJacobians: Arc<metamodelica::Lis
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 _ => {
-                    let mut allEquations: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>> = metamodelica::nil();
-                    let mut constantEqns: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>> = metamodelica::nil();
-                    let mut accEqns: Arc<metamodelica::List<Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>>> = metamodelica::nil();
                     Error::addInternalError((literal!("Generation of symbolic matrix SimCode (SimCodeUtil.createSymbolicJacobianssSimCode) failed")).clone(), metamodelica::sourceInfo!())?;
                     Ok(bail!("fail"))
                 }
@@ -4606,7 +4569,8 @@ pub fn createSymbolicJacobianssSimCode(mut inSymJacobians: Arc<metamodelica::Lis
             }}
         })() { break 'mc __v; }
         bail!("matchcontinue: no arm matched")
-    };
+    }
+    });
     Ok((outJacobianMatrices, ouniqueEqIndex))
 }
 
@@ -4643,18 +4607,17 @@ fn sortBackVarWithSimVarsOrder(mut var: SimCodeVar::SimVar, mut vars: BackendDAE
 fn createJacSimVarsColumn(mut inVars: Arc<metamodelica::List<BackendDAE::Var>>, mut inCref: Arc<DAE::ComponentRef>, mut inAllVars: BackendDAE::Variables, mut inResIndex: i32, mut inTmpIndex: i32, mut inMatrixName: ArcStr, mut tmpVars: Arc<metamodelica::List<SimCodeVar::SimVar>>, mut resVars: Arc<metamodelica::List<SimCodeVar::SimVar>>) -> Result<(Arc<metamodelica::List<SimCodeVar::SimVar>>, Arc<metamodelica::List<SimCodeVar::SimVar>>)> {
     let mut tmpVars: Arc<metamodelica::List<SimCodeVar::SimVar>> = tmpVars;
     let mut resVars: Arc<metamodelica::List<SimCodeVar::SimVar>> = resVars;
-    (tmpVars, resVars) = (::match_deref::match_deref! { match &(inVars.clone()) {
+    (tmpVars, resVars) = ({
+        let mut resIndex: i32 = inResIndex.clone();
+        let mut tmpIndex: i32 = inTmpIndex.clone();
+        (::match_deref::match_deref! { match &(inVars.clone()) {
         Deref @ metamodelica::List::Nil => {
-            let mut resIndex: i32 = inResIndex.clone();
-            let mut tmpIndex: i32 = inTmpIndex.clone();
             (tmpVars.clone().reverse(), resVars.clone().reverse())
         },
         Deref @ metamodelica::List::Cons { head: v @ BackendDAE::Var { varKind: varkind, varName: currVar, .. }, tail: restVar } => {
             let mut v1: BackendDAE::Var;
             let mut simVar: SimCodeVar::SimVar;
             let mut derivedCref: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
-            let mut resIndex: i32 = inResIndex.clone();
-            let mut tmpIndex: i32 = inTmpIndex.clone();
             let mut currVar = (*currVar).clone();
             match '__try0: {
                 unwrap_break_err!(BackendVariable::getVarSingle(currVar.clone(), inAllVars.clone()), '__try0);
@@ -4699,13 +4662,12 @@ fn createJacSimVarsColumn(mut inVars: Arc<metamodelica::List<BackendDAE::Var>>, 
             createJacSimVarsColumn(restVar.clone(), inCref.clone(), inAllVars.clone(), resIndex.clone(), tmpIndex.clone(), (inMatrixName.clone()).clone(), tmpVars.clone(), resVars.clone())?
         },
         _ => {
-            let mut resIndex: i32 = inResIndex.clone();
-            let mut tmpIndex: i32 = inTmpIndex.clone();
             Error::addInternalError((literal!("function createAllDiffedSimVars failed")).clone(), metamodelica::sourceInfo!())?;
             bail!("fail")
         },
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
-    } });
+    } })
+    });
     Ok((tmpVars, resVars))
 }
 
@@ -4780,7 +4742,7 @@ pub fn collectAllSeedVars(mut inJacobianMatrices: Arc<metamodelica::List<Arc<Sim
         seedVars = __pa0.clone();
         outVars = listAppend(seedVars.clone(), outVars.clone());
     }
-    outVars = List::map1(outVars.clone(), Arc::new(fnptr!(setSimVarKind, SimCodeVar::SimVar, BackendDAE::VarKind)), crate::BackendDAE::VarKind::SEED_VAR);
+    outVars = List::map1(outVars.clone(), (std::sync::Arc::new(fnptr!(setSimVarKind, SimCodeVar::SimVar, BackendDAE::VarKind)) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, BackendDAE::VarKind) -> Result<SimCodeVar::SimVar> + 'static>), crate::BackendDAE::VarKind::SEED_VAR);
     Ok(outVars)
 }
 
@@ -4799,9 +4761,9 @@ fn setSimVarMatrixName(mut simVar: SimCodeVar::SimVar, mut optName: Option<ArcSt
 fn makeTmpRealSimCodeVar(mut inName: Arc<DAE::ComponentRef>, mut inVarKind: BackendDAE::VarKind) -> SimCodeVar::SimVar {
     let mut outSimVar: SimCodeVar::SimVar;
     if FMI::isFMIVersion20((FMI::getFMIVersionString()).clone()) {
-        outSimVar = SimCodeVar::SimVar { name: inName.clone(), varKind: inVarKind.clone(), comment: (literal!("")).clone(), unit: (literal!("")).clone(), displayUnit: (literal!("")).clone(), index: -1, minValue: None, maxValue: None, initialValue: None, nominalValue: None, isFixed: false, type_: DAE::T_REAL_DEFAULT.clone(), isDiscrete: false, arrayCref: None, aliasvar: crate::SimCodeVar::AliasVariable::NOALIAS, source: DAE::emptyElementSource.clone(), causality: Some(crate::SimCodeVar::Causality::LOCAL), variable_index: None, fmi_index: None, numArrayElement: metamodelica::nil(), isValueChangeable: false, isProtected: false, hideResult: None, isEncrypted: false, inputIndex: None, initNonlinear: false, matrixName: None, variability: None, initial_: None, exportVar: Some(inName.clone()), relativeQuantity: false };
+        outSimVar = SimCodeVar::SimVar { name: inName.clone(), varKind: inVarKind.clone(), comment: (literal!("")).clone(), unit: (literal!("")).clone(), displayUnit: (literal!("")).clone(), index: -1, minValue: None, maxValue: None, initialValue: None, nominalValue: None, isFixed: false, type_: DAE::T_REAL_DEFAULT().clone(), isDiscrete: false, arrayCref: None, aliasvar: crate::SimCodeVar::AliasVariable::NOALIAS, source: DAE::emptyElementSource().clone(), causality: Some(crate::SimCodeVar::Causality::LOCAL), variable_index: None, fmi_index: None, numArrayElement: metamodelica::nil(), isValueChangeable: false, isProtected: false, hideResult: None, isEncrypted: false, inputIndex: None, initNonlinear: false, matrixName: None, variability: None, initial_: None, exportVar: Some(inName.clone()), relativeQuantity: false };
     } else {
-        outSimVar = SimCodeVar::SimVar { name: inName.clone(), varKind: inVarKind.clone(), comment: (literal!("")).clone(), unit: (literal!("")).clone(), displayUnit: (literal!("")).clone(), index: -1, minValue: None, maxValue: None, initialValue: None, nominalValue: None, isFixed: false, type_: DAE::T_REAL_DEFAULT.clone(), isDiscrete: false, arrayCref: None, aliasvar: crate::SimCodeVar::AliasVariable::NOALIAS, source: DAE::emptyElementSource.clone(), causality: Some(crate::SimCodeVar::Causality::NONECAUS), variable_index: None, fmi_index: None, numArrayElement: metamodelica::nil(), isValueChangeable: false, isProtected: false, hideResult: None, isEncrypted: false, inputIndex: None, initNonlinear: false, matrixName: None, variability: None, initial_: None, exportVar: Some(inName.clone()), relativeQuantity: false };
+        outSimVar = SimCodeVar::SimVar { name: inName.clone(), varKind: inVarKind.clone(), comment: (literal!("")).clone(), unit: (literal!("")).clone(), displayUnit: (literal!("")).clone(), index: -1, minValue: None, maxValue: None, initialValue: None, nominalValue: None, isFixed: false, type_: DAE::T_REAL_DEFAULT().clone(), isDiscrete: false, arrayCref: None, aliasvar: crate::SimCodeVar::AliasVariable::NOALIAS, source: DAE::emptyElementSource().clone(), causality: Some(crate::SimCodeVar::Causality::NONECAUS), variable_index: None, fmi_index: None, numArrayElement: metamodelica::nil(), isValueChangeable: false, isProtected: false, hideResult: None, isEncrypted: false, inputIndex: None, initNonlinear: false, matrixName: None, variability: None, initial_: None, exportVar: Some(inName.clone()), relativeQuantity: false };
     }
     outSimVar
 }
@@ -4819,7 +4781,7 @@ fn sortInitialUnknowsSimVars(mut inSimVars: Arc<metamodelica::List<SimCodeVar::S
         }
     }
     index = 0;
-    for mut i in &*List::sort(unsortedCrefs.clone(), Arc::new(fnptr!(Util::compareTupleIntGt, _, _))).unwrap() {
+    for mut i in &*List::sort(unsortedCrefs.clone(), std::sync::Arc::new(fnptr!(Util::compareTupleIntGt, _, _))).unwrap() {
         let mut i = i.clone();
         (_, cref) = i.clone();
         sortedCrefs = cons((index.clone(), cref.clone()), sortedCrefs.clone());
@@ -4883,7 +4845,7 @@ fn sortSparsePattern(mut inSimVars: Arc<metamodelica::List<SimCodeVar::SimVar>>,
                 outSparse = cons((i.clone(), intLst.clone()), outSparse.clone());
             }
         }
-        outSparse = List::sort(outSparse.clone(), Arc::new(fnptr!(Util::compareTupleIntGt, _, _)))?;
+        outSparse = List::sort(outSparse.clone(), std::sync::Arc::new(fnptr!(Util::compareTupleIntGt, _, _)))?;
     }
     Ok(outSparse)
 }
@@ -4927,7 +4889,7 @@ fn dumpSparsePatternInt(mut sparsePattern: Arc<metamodelica::List<(i32, Arc<meta
         let mut tpl = tpl.clone();
         (i, lst) = tpl.clone();
         println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Row   ")); __mm_s.push_str(&*intString(i.clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Cols: ")); __mm_s.push_str(&*stringDelimitList(List::map(lst.clone(), Arc::new(fnptr!(intString, i32))), (literal!(" ")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Cols: ")); __mm_s.push_str(&*stringDelimitList(List::map(lst.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(" ")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
     }
     ()
 }
@@ -4939,7 +4901,7 @@ fn dumpSparsePattern(mut sparsePattern: Arc<metamodelica::List<(Arc<DAE::Compone
         let mut tpl = tpl.clone();
         (cr, crefs) = tpl.clone();
         println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Row   ")); __mm_s.push_str(&*ComponentReferenceBasics::printComponentRefStr(cr.clone())?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Cols: ")); __mm_s.push_str(&*stringDelimitList(List::map(crefs.clone(), Arc::new(ComponentReferenceBasics::printComponentRefStr)), (literal!(" ")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Cols: ")); __mm_s.push_str(&*stringDelimitList(List::map(crefs.clone(), (std::sync::Arc::new(ComponentReferenceBasics::printComponentRefStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>)), (literal!(" ")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
     }
     Ok(())
 }
@@ -5001,9 +4963,9 @@ fn createDerivativeMatrix(mut inJacobian: Arc<BackendDAE::Jacobian>, mut iunique
                     (indexVars, index) = rewriteIndex(indexVars.clone(), index.clone());
                     if Flags::isSet(Flags::JAC_DUMP2.clone())? {
                         println!("{}", (literal!("\n---+++ seedVars variables +++---\n")).clone());
-                        println!("{}", (Tpl::tplString(Arc::new(SimCodeDump::dumpVarsShort), seedVars.clone())?).clone());
+                        println!("{}", (Tpl::tplString((std::sync::Arc::new(SimCodeDump::dumpVarsShort) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, Arc<metamodelica::List<SimCodeVar::SimVar>>) -> Result<Tpl::Text> + 'static>), seedVars.clone())?).clone());
                         println!("{}", (literal!("\n---+++ indexVars variables +++---\n")).clone());
-                        println!("{}", (Tpl::tplString(Arc::new(SimCodeDump::dumpVarsShort), indexVars.clone())?).clone());
+                        println!("{}", (Tpl::tplString((std::sync::Arc::new(SimCodeDump::dumpVarsShort) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, Arc<metamodelica::List<SimCodeVar::SimVar>>) -> Result<Tpl::Text> + 'static>), indexVars.clone())?).clone());
                     }
                     varsSeedIndex = listAppend(seedVars.clone(), indexVars.clone());
                     sparseInts = sortSparsePattern(varsSeedIndex.clone(), sparsepatternComRefs.clone(), false)?;
@@ -5051,31 +5013,31 @@ fn createDerivativeMatrix(mut inJacobian: Arc<BackendDAE::Jacobian>, mut iunique
                         println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("analytical Jacobians -> created all SimCode equations for Matrix ")); __mm_s.push_str(&*name.clone()); __mm_s.push_str(&*literal!(" time: ")); __mm_s.push_str(&*realString(clock())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
                     }
                     dummyVar = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("dummyVar")); __mm_s.push_str(&*name.clone()); ArcStr::from(__mm_s) }).clone();
-                    x = Arc::new(DAE::ComponentRef::CREF_IDENT { ident: (dummyVar.clone()).clone(), identType: DAE::T_REAL_DEFAULT.clone(), subscriptLst: metamodelica::nil() });
+                    x = Arc::new(DAE::ComponentRef::CREF_IDENT { ident: (dummyVar.clone()).clone(), identType: DAE::T_REAL_DEFAULT().clone(), subscriptLst: metamodelica::nil() });
                     emptyVars = BackendVariable::emptyVars(BaseHashTable::bigBucketSize.clone());
                     residualVars = BackendVariable::listVar1(residualVarsLst.clone());
                     independentVars = BackendVariable::listVar1(independentVarsLst.clone());
-                    (allVars, _) = BackendVariable::traverseBackendDAEVars(syst.orderedVars.clone(), Arc::new(getFurtherVars), (metamodelica::nil(), x.clone()))?;
+                    (allVars, _) = BackendVariable::traverseBackendDAEVars(syst.orderedVars.clone(), (std::sync::Arc::new(getFurtherVars) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, (Arc<metamodelica::List<BackendDAE::Var>>, Arc<DAE::ComponentRef>)) -> Result<(BackendDAE::Var, (Arc<metamodelica::List<BackendDAE::Var>>, Arc<DAE::ComponentRef>))> + 'static>), (metamodelica::nil(), x.clone()))?;
                     systvars = BackendVariable::listVar1(allVars.clone());
-                    (columnVars, _) = BackendVariable::traverseBackendDAEVars(systvars.clone(), Arc::new(traversingdlowvarToSimvar), (metamodelica::nil(), emptyVars.clone()))?;
-                    columnVars = List::map1(columnVars.clone(), Arc::new(fnptr!(setSimVarKind, SimCodeVar::SimVar, BackendDAE::VarKind)), crate::BackendDAE::VarKind::JAC_TMP_VAR);
-                    columnVars = List::map1(columnVars.clone(), Arc::new(fnptr!(setSimVarMatrixName, SimCodeVar::SimVar, Option<ArcStr>)), Some((name.clone()).clone()));
+                    (columnVars, _) = BackendVariable::traverseBackendDAEVars(systvars.clone(), (std::sync::Arc::new(traversingdlowvarToSimvar) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, (Arc<metamodelica::List<SimCodeVar::SimVar>>, BackendDAE::Variables)) -> Result<(BackendDAE::Var, (Arc<metamodelica::List<SimCodeVar::SimVar>>, BackendDAE::Variables))> + 'static>), (metamodelica::nil(), emptyVars.clone()))?;
+                    columnVars = List::map1(columnVars.clone(), (std::sync::Arc::new(fnptr!(setSimVarKind, SimCodeVar::SimVar, BackendDAE::VarKind)) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, BackendDAE::VarKind) -> Result<SimCodeVar::SimVar> + 'static>), crate::BackendDAE::VarKind::JAC_TMP_VAR);
+                    columnVars = List::map1(columnVars.clone(), (std::sync::Arc::new(fnptr!(setSimVarMatrixName, SimCodeVar::SimVar, Option<ArcStr>)) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, Option<ArcStr>) -> Result<SimCodeVar::SimVar> + 'static>), Some((name.clone()).clone()));
                     (innerVars, _) = rewriteIndex(columnVars.clone(), 0);
                     (innerVars, columnVars) = createJacSimVarsColumn(dependentVarsLst.clone(), x.clone(), residualVars.clone(), 0, (innerVars.clone().len() as i32), (name.clone()).clone(), innerVars.clone(), metamodelica::nil())?;
                     if Flags::isSet(Flags::JAC_DUMP2.clone())? {
                         println!("{}", (literal!("\n---+++ all column variables +++---\n")).clone());
-                        println!("{}", (Tpl::tplString(Arc::new(SimCodeDump::dumpVarsShort), columnVars.clone())?).clone());
+                        println!("{}", (Tpl::tplString((std::sync::Arc::new(SimCodeDump::dumpVarsShort) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, Arc<metamodelica::List<SimCodeVar::SimVar>>) -> Result<Tpl::Text> + 'static>), columnVars.clone())?).clone());
                         println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("analytical Jacobians -> create all SimCode vars for Matrix ")); __mm_s.push_str(&*name.clone()); __mm_s.push_str(&*literal!(" time: ")); __mm_s.push_str(&*realString(clock())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
                     }
-                    (seedVars, _) = BackendVariable::traverseBackendDAEVars(independentVars.clone(), Arc::new(traversingdlowvarToSimvar), (metamodelica::nil(), emptyVars.clone()))?;
-                    (indexVars, _) = BackendVariable::traverseBackendDAEVars(residualVars.clone(), Arc::new(traversingdlowvarToSimvar), (metamodelica::nil(), emptyVars.clone()))?;
+                    (seedVars, _) = BackendVariable::traverseBackendDAEVars(independentVars.clone(), (std::sync::Arc::new(traversingdlowvarToSimvar) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, (Arc<metamodelica::List<SimCodeVar::SimVar>>, BackendDAE::Variables)) -> Result<(BackendDAE::Var, (Arc<metamodelica::List<SimCodeVar::SimVar>>, BackendDAE::Variables))> + 'static>), (metamodelica::nil(), emptyVars.clone()))?;
+                    (indexVars, _) = BackendVariable::traverseBackendDAEVars(residualVars.clone(), (std::sync::Arc::new(traversingdlowvarToSimvar) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, (Arc<metamodelica::List<SimCodeVar::SimVar>>, BackendDAE::Variables)) -> Result<(BackendDAE::Var, (Arc<metamodelica::List<SimCodeVar::SimVar>>, BackendDAE::Variables))> + 'static>), (metamodelica::nil(), emptyVars.clone()))?;
                     (seedVars, _) = rewriteIndex(seedVars.clone().reverse(), 0);
                     (indexVars, _) = rewriteIndex(indexVars.clone().reverse(), 0);
                     if Flags::isSet(Flags::JAC_DUMP2.clone())? {
                         println!("{}", (literal!("\n---+++ seedVars variables +++---\n")).clone());
-                        println!("{}", (Tpl::tplString(Arc::new(SimCodeDump::dumpVarsShort), seedVars.clone())?).clone());
+                        println!("{}", (Tpl::tplString((std::sync::Arc::new(SimCodeDump::dumpVarsShort) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, Arc<metamodelica::List<SimCodeVar::SimVar>>) -> Result<Tpl::Text> + 'static>), seedVars.clone())?).clone());
                         println!("{}", (literal!("\n---+++ indexVars variables +++---\n")).clone());
-                        println!("{}", (Tpl::tplString(Arc::new(SimCodeDump::dumpVarsShort), indexVars.clone())?).clone());
+                        println!("{}", (Tpl::tplString((std::sync::Arc::new(SimCodeDump::dumpVarsShort) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, Arc<metamodelica::List<SimCodeVar::SimVar>>) -> Result<Tpl::Text> + 'static>), indexVars.clone())?).clone());
                     }
                     varsSeedIndex = listAppend(seedVars.clone(), indexVars.clone());
                     sparseInts = sortSparsePattern(varsSeedIndex.clone(), sparsepatternComRefs.clone(), false)?;
@@ -5083,8 +5045,8 @@ fn createDerivativeMatrix(mut inJacobian: Arc<BackendDAE::Jacobian>, mut iunique
                     coloring = sortColoring(varsSeedIndex.clone(), sparseColoring.clone())?;
                     maxColor = (sparseColoring.clone().len() as i32);
                     seedVars = replaceSeedVarsName(seedVars.clone(), (name.clone()).clone());
-                    seedVars = List::map1(seedVars.clone(), Arc::new(fnptr!(setSimVarKind, SimCodeVar::SimVar, BackendDAE::VarKind)), crate::BackendDAE::VarKind::SEED_VAR);
-                    seedVars = List::map1(seedVars.clone(), Arc::new(fnptr!(setSimVarMatrixName, SimCodeVar::SimVar, Option<ArcStr>)), Some((name.clone()).clone()));
+                    seedVars = List::map1(seedVars.clone(), (std::sync::Arc::new(fnptr!(setSimVarKind, SimCodeVar::SimVar, BackendDAE::VarKind)) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, BackendDAE::VarKind) -> Result<SimCodeVar::SimVar> + 'static>), crate::BackendDAE::VarKind::SEED_VAR);
+                    seedVars = List::map1(seedVars.clone(), (std::sync::Arc::new(fnptr!(setSimVarMatrixName, SimCodeVar::SimVar, Option<ArcStr>)) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, Option<ArcStr>) -> Result<SimCodeVar::SimVar> + 'static>), Some((name.clone()).clone()));
                     if Flags::isSet(Flags::JAC_DUMP2.clone())? {
                         println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("analytical Jacobians -> transformed to SimCode for Matrix ")); __mm_s.push_str(&*name.clone()); __mm_s.push_str(&*literal!(" time: ")); __mm_s.push_str(&*realString(clock())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
                     }
@@ -5183,9 +5145,9 @@ pub fn extractDelayedExpressions(mut dlow: Arc<BackendDAE::BackendDAE>) -> Resul
                     let mut exps: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
                     let mut delayedExps: Arc<metamodelica::List<(i32, (Arc<DAE::Exp>, Arc<DAE::Exp>, Arc<DAE::Exp>))>> = delayedExps.clone();
                     let mut maxDelayedExpIndex: i32 = maxDelayedExpIndex.clone();
-                    (_, exps) = BackendDAEUtil::traverseBackendDAEExps(dlow.clone(), Arc::new(Expression::traverseSubexpressionsHelper), (fnptr!(collectDelayExpressions, Arc<DAE::Exp>, Arc<metamodelica::List<Arc<DAE::Exp>>>), metamodelica::nil()))?;
-                    delayedExps = List::map(exps.clone(), Arc::new(extractIdAndExpFromDelayExp));
-                    maxDelayedExpIndex = List::applyAndFold(delayedExps.clone(), Arc::new(fnptr!(intMax, i32, i32)), Arc::new(fnptr!(Util::tuple21, _)), -1);
+                    (_, exps) = BackendDAEUtil::traverseBackendDAEExps(dlow.clone(), (std::sync::Arc::new(Expression::traverseSubexpressionsHelper) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, _) -> Result<_> + 'static>), ((std::sync::Arc::new(fnptr!(collectDelayExpressions, Arc<DAE::Exp>, Arc<metamodelica::List<Arc<DAE::Exp>>>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, Arc<metamodelica::List<Arc<DAE::Exp>>>) -> Result<(Arc<DAE::Exp>, Arc<metamodelica::List<Arc<DAE::Exp>>>)> + 'static>), metamodelica::nil()))?;
+                    delayedExps = List::map(exps.clone(), (std::sync::Arc::new(extractIdAndExpFromDelayExp) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<(i32, (Arc<DAE::Exp>, Arc<DAE::Exp>, Arc<DAE::Exp>))> + 'static>));
+                    maxDelayedExpIndex = List::applyAndFold(delayedExps.clone(), (std::sync::Arc::new(fnptr!(intMax, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<i32> + 'static>), std::sync::Arc::new(fnptr!(Util::tuple21, _)), -1);
                     Ok((delayedExps.clone(), maxDelayedExpIndex.clone() + 1))
                 }
                 _ => bail!("nomatch"),
@@ -5218,11 +5180,11 @@ pub fn extractJacobianDelayedExpressions(mut delayedExps: Arc<metamodelica::List
         tmpCols = metamodelica::nil();
         for mut col in &*jac.columns.clone().reverse() {
             let mut col = col.clone();
-            let (__pa0, (_, (__pa1, __pa2))) = traverseExpsEqSystems(col.columnEqns.clone(), Arc::new(Expression::traverseSubexpressionsHelper), (fnptr!(updateDelayExpressions, Arc<DAE::Exp>, (Arc<metamodelica::List<Arc<DAE::Exp>>>, i32)), (metamodelica::nil(), maxDelayedExpIndex.clone())), metamodelica::nil())?;
+            let (__pa0, (_, (__pa1, __pa2))) = traverseExpsEqSystems(col.columnEqns.clone(), (std::sync::Arc::new(Expression::traverseSubexpressionsHelper) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, _) -> Result<_> + 'static>), ((std::sync::Arc::new(fnptr!(updateDelayExpressions, Arc<DAE::Exp>, (Arc<metamodelica::List<Arc<DAE::Exp>>>, i32))) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, (Arc<metamodelica::List<Arc<DAE::Exp>>>, i32)) -> Result<(Arc<DAE::Exp>, (Arc<metamodelica::List<Arc<DAE::Exp>>>, i32))> + 'static>), (metamodelica::nil(), maxDelayedExpIndex.clone())), metamodelica::nil())?;
             tmpSysts = __pa0.clone();
             new_delayedExps = __pa1.clone();
             maxDelayedExpIndex = __pa2.clone();
-            delayedExps = listAppend(List::map(new_delayedExps.clone(), Arc::new(extractIdAndExpFromDelayExp)), delayedExps.clone());
+            delayedExps = listAppend(List::map(new_delayedExps.clone(), (std::sync::Arc::new(extractIdAndExpFromDelayExp) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<(i32, (Arc<DAE::Exp>, Arc<DAE::Exp>, Arc<DAE::Exp>))> + 'static>)), delayedExps.clone());
             assign_field!(col.columnEqns = tmpSysts.clone());
             tmpCols = cons(col.clone(), tmpCols.clone());
         }
@@ -5248,7 +5210,7 @@ pub fn extractSpatialDistributionInfo(mut dlow: Arc<BackendDAE::BackendDAE>) -> 
     let mut spatialInfo: SimCode::SpatialDistributionInfo;
     let mut spatial_lst: Arc<metamodelica::List<SimCode::SpatialDistribution>> = metamodelica::nil();
     let mut maxIndex_ptr: Mutable::Mutable<i32> = Mutable::create(-1);
-    (_, spatial_lst) = BackendDAEUtil::traverseBackendDAEExps(dlow.clone(), Arc::new(Expression::traverseSubexpressionsHelper), ({ let __pe_b2 = maxIndex_ptr.clone(); move |__pe_a0, __pe_a1| extractSpatialDistributionInfoExp(__pe_a0, __pe_a1, __pe_b2.clone()) }, metamodelica::nil()))?;
+    (_, spatial_lst) = BackendDAEUtil::traverseBackendDAEExps(dlow.clone(), (std::sync::Arc::new(Expression::traverseSubexpressionsHelper) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, _) -> Result<_> + 'static>), ({ let __pe_b2 = maxIndex_ptr.clone(); move |__pe_a0, __pe_a1| extractSpatialDistributionInfoExp(__pe_a0, __pe_a1, __pe_b2.clone()) }, metamodelica::nil()))?;
     spatialInfo = SimCode::SpatialDistributionInfo { spatialDistributions: spatial_lst.clone(), maxIndex: Mutable::access(maxIndex_ptr.clone()) };
     Ok(spatialInfo)
 }
@@ -5309,10 +5271,10 @@ fn orderExtVars(mut varLstIn: Arc<metamodelica::List<BackendDAE::Var>>, mut isIn
     let mut bindExps: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
     let mut eqs: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
     match '__try0: {
-        (varsWithBind, varsWithoutBind) = List::separateOnTrue(varLstIn.clone(), Arc::new(fnptr!(BackendVariable::varHasBindExp, BackendDAE::Var)));
+        (varsWithBind, varsWithoutBind) = List::separateOnTrue(varLstIn.clone(), (std::sync::Arc::new(fnptr!(BackendVariable::varHasBindExp, BackendDAE::Var)) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var) -> Result<bool> + 'static>));
         (comps, ass1, ass2) = unwrap_break_err!(BackendDAEUtil::causalizeVarBindSystem(varsWithBind.clone(), isInitial.clone()), '__try0);
-        order = List::map1(List::flatten(comps.clone()), Arc::new(fnptr!(Array::getIndexFirst, i32, _)), ass1.clone());
-        varsWithBind = List::map1(order.clone(), Arc::new(fnptr!(List::getIndexFirst, i32, _)), varsWithBind.clone());
+        order = List::map1(List::flatten(comps.clone()), std::sync::Arc::new(fnptr!(Array::getIndexFirst, i32, _)), ass1.clone());
+        varsWithBind = List::map1(order.clone(), std::sync::Arc::new(fnptr!(List::getIndexFirst, i32, _)), varsWithBind.clone());
         varLstOut = listAppend(varsWithoutBind.clone(), varsWithBind.clone());
         Ok::<_, anyhow::Error>((varLstOut.clone(),))
     } {
@@ -5360,8 +5322,8 @@ fn createAlgorithmAndEquationAsserts(mut syst: Arc<BackendDAE::EqSystem>, mut sh
                     let mut res: Arc<metamodelica::List<Arc<DAE::Algorithm>>> = metamodelica::nil();
                     let mut result: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>> = metamodelica::nil();
                     let mut uniqueEqIndex = (*uniqueEqIndex).clone();
-                    res = BackendVariable::traverseBackendDAEVars(vars.clone(), Arc::new(BackendVariable::getMinMaxAsserts), metamodelica::nil())?;
-                    (result, uniqueEqIndex) = List::mapFold(res.clone(), Arc::new(dlowAlgToSimEqSystem), uniqueEqIndex.clone());
+                    res = BackendVariable::traverseBackendDAEVars(vars.clone(), (std::sync::Arc::new(BackendVariable::getMinMaxAsserts) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, Arc<metamodelica::List<Arc<DAE::Algorithm>>>) -> Result<(BackendDAE::Var, Arc<metamodelica::List<Arc<DAE::Algorithm>>>)> + 'static>), metamodelica::nil())?;
+                    (result, uniqueEqIndex) = List::mapFold(res.clone(), (std::sync::Arc::new(dlowAlgToSimEqSystem) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Algorithm>, i32) -> Result<(Arc<SimCode::SimEqSystem>, i32)> + 'static>), uniqueEqIndex.clone());
                     Ok((uniqueEqIndex.clone(), listAppend(result.clone(), simeqns.clone())))
                 }
                 _ => bail!("nomatch"),
@@ -5418,7 +5380,7 @@ pub fn extractDiscreteModelVars(mut syst: Arc<BackendDAE::EqSystem>, mut shared:
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ BackendDAE::EqSystem { orderedVars: v, .. }, _, _) => {
                     let mut vLst2: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
-                    vLst2 = BackendVariable::traverseBackendDAEVars(v.clone(), Arc::new(traversingisVarDiscreteCrefFinder), acc.clone())?;
+                    vLst2 = BackendVariable::traverseBackendDAEVars(v.clone(), (std::sync::Arc::new(traversingisVarDiscreteCrefFinder) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>) -> Result<(BackendDAE::Var, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>)> + 'static>), acc.clone())?;
                     Ok(vLst2.clone())
                 }
                 _ => bail!("nomatch"),
@@ -5515,7 +5477,7 @@ fn createSingleWhenEqnCode(mut inEquation: Arc<BackendDAE::Equation>, mut inVars
                         let mut stmt = stmt.clone();
                         let _ = (::match_deref::match_deref! { match &(stmt.clone()) {
         BackendDAE::WhenOperator::ASSIGN { left: Deref @ DAE::Exp::CREF { componentRef: left, .. }, .. } => {
-                    crefs = List::map(inVars.clone(), Arc::new(BackendVariable::varCref));
+                    crefs = List::map(inVars.clone(), (std::sync::Arc::new(BackendVariable::varCref) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var) -> Result<Arc<DAE::ComponentRef>> + 'static>));
                     let true = (List::all(crefs.clone(), Arc::new({ let __pe_b0 = left.clone(); move |__pe_a1| ComponentReferenceBasics::crefPrefixOf(__pe_b0.clone(), __pe_a1) }))) else { bail!("pattern mismatch") };
                     ()
         },
@@ -5572,7 +5534,7 @@ fn createElseWhenEquation(mut inElseWhenEquation: Arc<BackendDAE::WhenEquation>,
                 let mut stmt = stmt.clone();
                 let _ = (::match_deref::match_deref! { match &(stmt.clone()) {
         BackendDAE::WhenOperator::ASSIGN { left: Deref @ DAE::Exp::CREF { componentRef: left, .. }, .. } => {
-            crefs = List::map(inVars.clone(), Arc::new(BackendVariable::varCref));
+            crefs = List::map(inVars.clone(), (std::sync::Arc::new(BackendVariable::varCref) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var) -> Result<Arc<DAE::ComponentRef>> + 'static>));
             let true = (List::all(crefs.clone(), Arc::new({ let __pe_b0 = left.clone(); move |__pe_a1| ComponentReferenceBasics::crefPrefixOf(__pe_b0.clone(), __pe_a1) }))) else { bail!("pattern mismatch") };
             ()
         },
@@ -5690,7 +5652,7 @@ pub fn createEquationsfromBackendDAE(mut inBDAE: Arc<BackendDAE::BackendDAE>, mu
         let mut syst = syst.clone();
         comps = BackendDAEUtil::getCompsOfMatching(syst.matching.clone());
         (simEqs, _, uniqueEqIndex, tempvars) = createEquations(includeWhen.clone(), skipDiscInZc.clone(), genDiscrete.clone(), skipDiscInAlgorithm.clone(), syst.clone(), inBDAE.shared.clone(), comps.clone(), uniqueEqIndex.clone(), tempvars.clone())?;
-        (uniqueEqIndex, zeroVarEquations) = BackendEquation::traverseEquationArray(syst.removedEqs.clone(), Arc::new(traversedlowEqToSimEqSystem), (uniqueEqIndex.clone(), metamodelica::nil()))?;
+        (uniqueEqIndex, zeroVarEquations) = BackendEquation::traverseEquationArray(syst.removedEqs.clone(), (std::sync::Arc::new(traversedlowEqToSimEqSystem) as std::sync::Arc<dyn ::std::ops::Fn(Arc<BackendDAE::Equation>, (i32, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>)) -> Result<(Arc<BackendDAE::Equation>, (i32, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>))> + 'static>), (uniqueEqIndex.clone(), metamodelica::nil()))?;
         outEquations = cons(listAppend(simEqs.clone(), zeroVarEquations.clone()), outEquations.clone());
     }
     outEquations = Dangerous::listReverseInPlace(outEquations.clone());
@@ -5766,9 +5728,9 @@ fn createSingleComplexEqnCode2(mut crefs: Arc<metamodelica::List<Arc<DAE::Compon
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (_, Deref @ DAE::Exp::CAST { exp: e1, .. }, _, _, _, _) => {
-                    let mut ouniqueEqIndex: i32 = ouniqueEqIndex.clone();
-                    let mut equations_: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>> = equations_.clone();
                     let mut otempvars: Arc<metamodelica::List<SimCodeVar::SimVar>> = otempvars.clone();
+                    let mut equations_: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>> = equations_.clone();
+                    let mut ouniqueEqIndex: i32 = ouniqueEqIndex.clone();
                     (equations_, ouniqueEqIndex, otempvars) = createSingleComplexEqnCode2(crefs.clone(), e1.clone(), inExp4.clone(), iuniqueEqIndex.clone(), itempvars.clone(), source.clone(), eqKind.clone(), iextra.clone(), genDiscrete.clone(), inVars.clone())?;
                     Ok((equations_.clone(), ouniqueEqIndex.clone(), otempvars.clone()))
                 }
@@ -5836,9 +5798,9 @@ fn createSingleComplexEqnCode2(mut crefs: Arc<metamodelica::List<Arc<DAE::Compon
                     let mut expLst = (*expLst).clone();
                     let true = (AbsynUtil::pathEqual(path.clone(), rpath.clone())) else { bail!("pattern mismatch") };
                     ht = HashSet::emptyHashSet();
-                    ht = List::fold(crefs.clone(), Arc::new(BaseHashSet::add), ht.clone());
+                    ht = List::fold(crefs.clone(), (std::sync::Arc::new(BaseHashSet::add) as std::sync::Arc<dyn ::std::ops::Fn(_, _) -> Result<_> + 'static>), ht.clone());
                     (expLst, _) = Expression::traverseExpList(expLst.clone(), Arc::new({ let __pe_b1 = true; move |__pe_a0, __pe_a2| Expression::expandCrefs(__pe_a0, __pe_b1.clone(), __pe_a2) }), 0)?;
-                    List::foldAllValue(expLst.clone(), Arc::new(createSingleComplexEqnCode3), true, ht.clone())?;
+                    List::foldAllValue(expLst.clone(), (std::sync::Arc::new(createSingleComplexEqnCode3) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<Arc<DAE::ComponentRef>>>), i32, i32, (HashSet::FuncHashCref, HashSet::FuncCrefEqual, HashSet::FuncCrefStr))) -> Result<(bool, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<Arc<DAE::ComponentRef>>>), i32, i32, (HashSet::FuncHashCref, HashSet::FuncCrefEqual, HashSet::FuncCrefStr)))> + 'static>), true, ht.clone())?;
                     (e2_1, _) = Expression::extendArrExp(e2.clone(), false)?;
                     ident = (AbsynUtil::pathStringUnquoteReplaceDot(path.clone(), (literal!("_")).clone())?).clone();
                     cr1 = ComponentReferenceBasics::makeCrefIdent(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("$TMP_")); __mm_s.push_str(&*ident.clone()); __mm_s.push_str(&*intString(iuniqueEqIndex.clone())); ArcStr::from(__mm_s) }).clone(), tp.clone(), metamodelica::nil());
@@ -5846,9 +5808,9 @@ fn createSingleComplexEqnCode2(mut crefs: Arc<metamodelica::List<Arc<DAE::Compon
                     stms = Arc::new(DAE::Statement::STMT_ASSIGN { type_: tp.clone(), exp1: e1_1.clone(), exp: e2_1.clone(), source: source.clone() });
                     simeqn_complex = Arc::new(SimCode::SimEqSystem::SES_ALGORITHM { index: iuniqueEqIndex.clone(), statements: list![stms.clone()], eqAttr: eqKind.clone() });
                     uniqueEqIndex = iuniqueEqIndex.clone() + 1;
-                    crexplst = List::map1(varLst.clone(), Arc::new(Expression::generateCrefsExpFromExpVar), cr1.clone());
+                    crexplst = List::map1(varLst.clone(), (std::sync::Arc::new(Expression::generateCrefsExpFromExpVar) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Var>, Arc<DAE::ComponentRef>) -> Result<Arc<DAE::Exp>> + 'static>), cr1.clone());
                     exptl = List::zip(expLst.clone(), crexplst.clone());
-                    (eqSystlst_nonflat, uniqueEqIndex) = List::map2Fold(exptl.clone(), Arc::new(makeSES_SIMPLE_ASSIGNwithArray), source.clone(), eqKind.clone(), uniqueEqIndex.clone(), metamodelica::nil());
+                    (eqSystlst_nonflat, uniqueEqIndex) = List::map2Fold(exptl.clone(), (std::sync::Arc::new(makeSES_SIMPLE_ASSIGNwithArray) as std::sync::Arc<dyn ::std::ops::Fn((Arc<DAE::Exp>, Arc<DAE::Exp>), Arc<DAE::ElementSource>, BackendDAE::EquationAttributes, i32) -> Result<(Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>, i32)> + 'static>), source.clone(), eqKind.clone(), uniqueEqIndex.clone(), metamodelica::nil());
                     eqSystlst = cons(simeqn_complex.clone(), List::flatten(eqSystlst_nonflat.clone()));
                     tempvars = createTempVars(varLst.clone(), cr1.clone(), itempvars.clone())?;
                     Ok((eqSystlst.clone(), uniqueEqIndex.clone(), tempvars.clone()))
@@ -5874,9 +5836,9 @@ fn createSingleComplexEqnCode2(mut crefs: Arc<metamodelica::List<Arc<DAE::Compon
                     let mut ht: (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<Arc<DAE::ComponentRef>>>), i32, i32, (HashSet::FuncHashCref, HashSet::FuncCrefEqual, HashSet::FuncCrefStr));
                     let mut expLst = (*expLst).clone();
                     ht = HashSet::emptyHashSet();
-                    ht = List::fold(crefs.clone(), Arc::new(BaseHashSet::add), ht.clone());
+                    ht = List::fold(crefs.clone(), (std::sync::Arc::new(BaseHashSet::add) as std::sync::Arc<dyn ::std::ops::Fn(_, _) -> Result<_> + 'static>), ht.clone());
                     (expLst, _) = Expression::traverseExpList(expLst.clone(), Arc::new({ let __pe_b1 = true; move |__pe_a0, __pe_a2| Expression::expandCrefs(__pe_a0, __pe_b1.clone(), __pe_a2) }), 0)?;
-                    List::foldAllValue(expLst.clone(), Arc::new(createSingleComplexEqnCode3), true, ht.clone())?;
+                    List::foldAllValue(expLst.clone(), (std::sync::Arc::new(createSingleComplexEqnCode3) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<Arc<DAE::ComponentRef>>>), i32, i32, (HashSet::FuncHashCref, HashSet::FuncCrefEqual, HashSet::FuncCrefStr))) -> Result<(bool, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<Arc<DAE::ComponentRef>>>), i32, i32, (HashSet::FuncHashCref, HashSet::FuncCrefEqual, HashSet::FuncCrefStr)))> + 'static>), true, ht.clone())?;
                     (e2_1, _) = Expression::extendArrExp(e2.clone(), false)?;
                     ident = (AbsynUtil::pathStringUnquoteReplaceDot(path.clone(), (literal!("_")).clone())?).clone();
                     cr1 = ComponentReferenceBasics::makeCrefIdent(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("$TMP_")); __mm_s.push_str(&*ident.clone()); __mm_s.push_str(&*intString(iuniqueEqIndex.clone())); ArcStr::from(__mm_s) }).clone(), tp.clone(), metamodelica::nil());
@@ -5884,9 +5846,9 @@ fn createSingleComplexEqnCode2(mut crefs: Arc<metamodelica::List<Arc<DAE::Compon
                     stms = Arc::new(DAE::Statement::STMT_ASSIGN { type_: tp.clone(), exp1: e1_1.clone(), exp: e2_1.clone(), source: source.clone() });
                     simeqn_complex = Arc::new(SimCode::SimEqSystem::SES_ALGORITHM { index: iuniqueEqIndex.clone(), statements: list![stms.clone()], eqAttr: eqKind.clone() });
                     uniqueEqIndex = iuniqueEqIndex.clone() + 1;
-                    crexplst = List::map1(varLst.clone(), Arc::new(Expression::generateCrefsExpFromExpVar), cr1.clone());
+                    crexplst = List::map1(varLst.clone(), (std::sync::Arc::new(Expression::generateCrefsExpFromExpVar) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Var>, Arc<DAE::ComponentRef>) -> Result<Arc<DAE::Exp>> + 'static>), cr1.clone());
                     exptl = List::zip(expLst.clone(), crexplst.clone());
-                    (eqSystlst_nonflat, uniqueEqIndex) = List::map2Fold(exptl.clone(), Arc::new(makeSES_SIMPLE_ASSIGNwithArray), source.clone(), eqKind.clone(), uniqueEqIndex.clone(), metamodelica::nil());
+                    (eqSystlst_nonflat, uniqueEqIndex) = List::map2Fold(exptl.clone(), (std::sync::Arc::new(makeSES_SIMPLE_ASSIGNwithArray) as std::sync::Arc<dyn ::std::ops::Fn((Arc<DAE::Exp>, Arc<DAE::Exp>), Arc<DAE::ElementSource>, BackendDAE::EquationAttributes, i32) -> Result<(Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>, i32)> + 'static>), source.clone(), eqKind.clone(), uniqueEqIndex.clone(), metamodelica::nil());
                     eqSystlst = cons(simeqn_complex.clone(), List::flatten(eqSystlst_nonflat.clone()));
                     tempvars = createTempVars(varLst.clone(), cr1.clone(), itempvars.clone())?;
                     Ok((eqSystlst.clone(), uniqueEqIndex.clone(), tempvars.clone()))
@@ -5913,9 +5875,9 @@ fn createSingleComplexEqnCode2(mut crefs: Arc<metamodelica::List<Arc<DAE::Compon
                     let mut expLst = (*expLst).clone();
                     let true = (AbsynUtil::pathEqual(path.clone(), rpath.clone())) else { bail!("pattern mismatch") };
                     ht = HashSet::emptyHashSet();
-                    ht = List::fold(crefs.clone(), Arc::new(BaseHashSet::add), ht.clone());
+                    ht = List::fold(crefs.clone(), (std::sync::Arc::new(BaseHashSet::add) as std::sync::Arc<dyn ::std::ops::Fn(_, _) -> Result<_> + 'static>), ht.clone());
                     (expLst, _) = Expression::traverseExpList(expLst.clone(), Arc::new({ let __pe_b1 = true; move |__pe_a0, __pe_a2| Expression::expandCrefs(__pe_a0, __pe_b1.clone(), __pe_a2) }), 0)?;
-                    List::foldAllValue(expLst.clone(), Arc::new(createSingleComplexEqnCode3), true, ht.clone())?;
+                    List::foldAllValue(expLst.clone(), (std::sync::Arc::new(createSingleComplexEqnCode3) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<Arc<DAE::ComponentRef>>>), i32, i32, (HashSet::FuncHashCref, HashSet::FuncCrefEqual, HashSet::FuncCrefStr))) -> Result<(bool, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<Arc<DAE::ComponentRef>>>), i32, i32, (HashSet::FuncHashCref, HashSet::FuncCrefEqual, HashSet::FuncCrefStr)))> + 'static>), true, ht.clone())?;
                     (e1_1, _) = Expression::extendArrExp(e1.clone(), false)?;
                     ident = (AbsynUtil::pathStringUnquoteReplaceDot(path.clone(), (literal!("_")).clone())?).clone();
                     cr1 = ComponentReferenceBasics::makeCrefIdent(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("$TMP_")); __mm_s.push_str(&*ident.clone()); __mm_s.push_str(&*intString(iuniqueEqIndex.clone())); ArcStr::from(__mm_s) }).clone(), tp.clone(), metamodelica::nil());
@@ -5923,9 +5885,9 @@ fn createSingleComplexEqnCode2(mut crefs: Arc<metamodelica::List<Arc<DAE::Compon
                     stms = Arc::new(DAE::Statement::STMT_ASSIGN { type_: tp.clone(), exp1: e2_1.clone(), exp: e1_1.clone(), source: source.clone() });
                     simeqn_complex = Arc::new(SimCode::SimEqSystem::SES_ALGORITHM { index: iuniqueEqIndex.clone(), statements: list![stms.clone()], eqAttr: eqKind.clone() });
                     uniqueEqIndex = iuniqueEqIndex.clone() + 1;
-                    crexplst = List::map1(varLst.clone(), Arc::new(Expression::generateCrefsExpFromExpVar), cr1.clone());
+                    crexplst = List::map1(varLst.clone(), (std::sync::Arc::new(Expression::generateCrefsExpFromExpVar) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Var>, Arc<DAE::ComponentRef>) -> Result<Arc<DAE::Exp>> + 'static>), cr1.clone());
                     exptl = List::zip(expLst.clone(), crexplst.clone());
-                    (eqSystlst_nonflat, uniqueEqIndex) = List::map2Fold(exptl.clone(), Arc::new(makeSES_SIMPLE_ASSIGNwithArray), source.clone(), eqKind.clone(), uniqueEqIndex.clone(), metamodelica::nil());
+                    (eqSystlst_nonflat, uniqueEqIndex) = List::map2Fold(exptl.clone(), (std::sync::Arc::new(makeSES_SIMPLE_ASSIGNwithArray) as std::sync::Arc<dyn ::std::ops::Fn((Arc<DAE::Exp>, Arc<DAE::Exp>), Arc<DAE::ElementSource>, BackendDAE::EquationAttributes, i32) -> Result<(Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>, i32)> + 'static>), source.clone(), eqKind.clone(), uniqueEqIndex.clone(), metamodelica::nil());
                     eqSystlst = cons(simeqn_complex.clone(), List::flatten(eqSystlst_nonflat.clone()));
                     tempvars = createTempVars(varLst.clone(), cr1.clone(), itempvars.clone())?;
                     Ok((eqSystlst.clone(), uniqueEqIndex.clone(), tempvars.clone()))
@@ -5951,9 +5913,9 @@ fn createSingleComplexEqnCode2(mut crefs: Arc<metamodelica::List<Arc<DAE::Compon
                     let mut ht: (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<Arc<DAE::ComponentRef>>>), i32, i32, (HashSet::FuncHashCref, HashSet::FuncCrefEqual, HashSet::FuncCrefStr));
                     let mut expLst = (*expLst).clone();
                     ht = HashSet::emptyHashSet();
-                    ht = List::fold(crefs.clone(), Arc::new(BaseHashSet::add), ht.clone());
+                    ht = List::fold(crefs.clone(), (std::sync::Arc::new(BaseHashSet::add) as std::sync::Arc<dyn ::std::ops::Fn(_, _) -> Result<_> + 'static>), ht.clone());
                     (expLst, _) = Expression::traverseExpList(expLst.clone(), Arc::new({ let __pe_b1 = true; move |__pe_a0, __pe_a2| Expression::expandCrefs(__pe_a0, __pe_b1.clone(), __pe_a2) }), 0)?;
-                    List::foldAllValue(expLst.clone(), Arc::new(createSingleComplexEqnCode3), true, ht.clone())?;
+                    List::foldAllValue(expLst.clone(), (std::sync::Arc::new(createSingleComplexEqnCode3) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<Arc<DAE::ComponentRef>>>), i32, i32, (HashSet::FuncHashCref, HashSet::FuncCrefEqual, HashSet::FuncCrefStr))) -> Result<(bool, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<Arc<DAE::ComponentRef>>>), i32, i32, (HashSet::FuncHashCref, HashSet::FuncCrefEqual, HashSet::FuncCrefStr)))> + 'static>), true, ht.clone())?;
                     (e1_1, _) = Expression::extendArrExp(e1.clone(), false)?;
                     ident = (AbsynUtil::pathStringUnquoteReplaceDot(path.clone(), (literal!("_")).clone())?).clone();
                     cr1 = ComponentReferenceBasics::makeCrefIdent(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("$TMP_")); __mm_s.push_str(&*ident.clone()); __mm_s.push_str(&*intString(iuniqueEqIndex.clone())); ArcStr::from(__mm_s) }).clone(), tp.clone(), metamodelica::nil());
@@ -5961,9 +5923,9 @@ fn createSingleComplexEqnCode2(mut crefs: Arc<metamodelica::List<Arc<DAE::Compon
                     stms = Arc::new(DAE::Statement::STMT_ASSIGN { type_: tp.clone(), exp1: e2_1.clone(), exp: e1_1.clone(), source: source.clone() });
                     simeqn_complex = Arc::new(SimCode::SimEqSystem::SES_ALGORITHM { index: iuniqueEqIndex.clone(), statements: list![stms.clone()], eqAttr: eqKind.clone() });
                     uniqueEqIndex = iuniqueEqIndex.clone() + 1;
-                    crexplst = List::map1(varLst.clone(), Arc::new(Expression::generateCrefsExpFromExpVar), cr1.clone());
+                    crexplst = List::map1(varLst.clone(), (std::sync::Arc::new(Expression::generateCrefsExpFromExpVar) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Var>, Arc<DAE::ComponentRef>) -> Result<Arc<DAE::Exp>> + 'static>), cr1.clone());
                     exptl = List::zip(expLst.clone(), crexplst.clone());
-                    (eqSystlst_nonflat, uniqueEqIndex) = List::map2Fold(exptl.clone(), Arc::new(makeSES_SIMPLE_ASSIGNwithArray), source.clone(), eqKind.clone(), uniqueEqIndex.clone(), metamodelica::nil());
+                    (eqSystlst_nonflat, uniqueEqIndex) = List::map2Fold(exptl.clone(), (std::sync::Arc::new(makeSES_SIMPLE_ASSIGNwithArray) as std::sync::Arc<dyn ::std::ops::Fn((Arc<DAE::Exp>, Arc<DAE::Exp>), Arc<DAE::ElementSource>, BackendDAE::EquationAttributes, i32) -> Result<(Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>, i32)> + 'static>), source.clone(), eqKind.clone(), uniqueEqIndex.clone(), metamodelica::nil());
                     eqSystlst = cons(simeqn_complex.clone(), List::flatten(eqSystlst_nonflat.clone()));
                     tempvars = createTempVars(varLst.clone(), cr1.clone(), itempvars.clone())?;
                     Ok((eqSystlst.clone(), uniqueEqIndex.clone(), tempvars.clone()))
@@ -5980,9 +5942,9 @@ fn createSingleComplexEqnCode2(mut crefs: Arc<metamodelica::List<Arc<DAE::Compon
                     let mut ht: (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<Arc<DAE::ComponentRef>>>), i32, i32, (HashSet::FuncHashCref, HashSet::FuncCrefEqual, HashSet::FuncCrefStr));
                     tp = Expression::r#typeof(e1.clone())?;
                     ht = HashSet::emptyHashSet();
-                    ht = List::fold(crefs.clone(), Arc::new(BaseHashSet::add), ht.clone());
+                    ht = List::fold(crefs.clone(), (std::sync::Arc::new(BaseHashSet::add) as std::sync::Arc<dyn ::std::ops::Fn(_, _) -> Result<_> + 'static>), ht.clone());
                     let false = (Expression::expHasCrefsNoPreOrStart(e2.clone(), crefs.clone())?) else { bail!("pattern mismatch") };
-                    List::foldAllValue(expl.clone(), Arc::new(createSingleComplexEqnCode3), true, ht.clone())?;
+                    List::foldAllValue(expl.clone(), (std::sync::Arc::new(createSingleComplexEqnCode3) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<Arc<DAE::ComponentRef>>>), i32, i32, (HashSet::FuncHashCref, HashSet::FuncCrefEqual, HashSet::FuncCrefStr))) -> Result<(bool, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<Arc<DAE::ComponentRef>>>), i32, i32, (HashSet::FuncHashCref, HashSet::FuncCrefEqual, HashSet::FuncCrefStr)))> + 'static>), true, ht.clone())?;
                     eqSystlst = list![Arc::new(SimCode::SimEqSystem::SES_ALGORITHM { index: iuniqueEqIndex.clone(), statements: list![Arc::new(DAE::Statement::STMT_TUPLE_ASSIGN { type_: tp.clone(), expExpLst: expl.clone(), exp: e2.clone(), source: source.clone() })], eqAttr: eqKind.clone() })];
                     uniqueEqIndex = iuniqueEqIndex.clone() + 1;
                     Ok((eqSystlst.clone(), uniqueEqIndex.clone(), itempvars.clone()))
@@ -5999,9 +5961,9 @@ fn createSingleComplexEqnCode2(mut crefs: Arc<metamodelica::List<Arc<DAE::Compon
                     let mut ht: (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<Arc<DAE::ComponentRef>>>), i32, i32, (HashSet::FuncHashCref, HashSet::FuncCrefEqual, HashSet::FuncCrefStr));
                     let mut eqnLst: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
                     ht = HashSet::emptyHashSet();
-                    ht = List::fold(crefs.clone(), Arc::new(BaseHashSet::add), ht.clone());
-                    List::foldAllValue(expl.clone(), Arc::new(createSingleComplexEqnCode3), true, ht.clone())?;
-                    eqnLst = List::threadMap2(expl.clone(), expl1.clone(), Arc::new(BackendEquation::generateEquation), source.clone(), eqKind.clone());
+                    ht = List::fold(crefs.clone(), (std::sync::Arc::new(BaseHashSet::add) as std::sync::Arc<dyn ::std::ops::Fn(_, _) -> Result<_> + 'static>), ht.clone());
+                    List::foldAllValue(expl.clone(), (std::sync::Arc::new(createSingleComplexEqnCode3) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<Arc<DAE::ComponentRef>>>), i32, i32, (HashSet::FuncHashCref, HashSet::FuncCrefEqual, HashSet::FuncCrefStr))) -> Result<(bool, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<Arc<DAE::ComponentRef>>>), i32, i32, (HashSet::FuncHashCref, HashSet::FuncCrefEqual, HashSet::FuncCrefStr)))> + 'static>), true, ht.clone())?;
+                    eqnLst = List::threadMap2(expl.clone(), expl1.clone(), (std::sync::Arc::new(BackendEquation::generateEquation) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, Arc<DAE::Exp>, Arc<DAE::ElementSource>, BackendDAE::EquationAttributes) -> Result<Arc<BackendDAE::Equation>> + 'static>), source.clone(), eqKind.clone());
                     (eqSystlst, uniqueEqIndex, tempvars) = createEquationsfromList(eqnLst.clone(), inVars.clone(), iuniqueEqIndex.clone(), itempvars.clone(), iextra.clone(), genDiscrete.clone(), false, false, false)?;
                     Ok((eqSystlst.clone(), uniqueEqIndex.clone(), tempvars.clone()))
                 }
@@ -6016,9 +5978,9 @@ fn createSingleComplexEqnCode2(mut crefs: Arc<metamodelica::List<Arc<DAE::Compon
                     let mut ht: (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<Arc<DAE::ComponentRef>>>), i32, i32, (HashSet::FuncHashCref, HashSet::FuncCrefEqual, HashSet::FuncCrefStr));
                     let mut eqnLst: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
                     ht = HashSet::emptyHashSet();
-                    ht = List::fold(crefs.clone(), Arc::new(BaseHashSet::add), ht.clone());
-                    List::foldAllValue(expl.clone(), Arc::new(createSingleComplexEqnCode3), true, ht.clone())?;
-                    eqnLst = List::threadMap2(expl.clone(), expl1.clone(), Arc::new(BackendEquation::generateEquation), source.clone(), eqKind.clone());
+                    ht = List::fold(crefs.clone(), (std::sync::Arc::new(BaseHashSet::add) as std::sync::Arc<dyn ::std::ops::Fn(_, _) -> Result<_> + 'static>), ht.clone());
+                    List::foldAllValue(expl.clone(), (std::sync::Arc::new(createSingleComplexEqnCode3) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<Arc<DAE::ComponentRef>>>), i32, i32, (HashSet::FuncHashCref, HashSet::FuncCrefEqual, HashSet::FuncCrefStr))) -> Result<(bool, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<Arc<DAE::ComponentRef>>>), i32, i32, (HashSet::FuncHashCref, HashSet::FuncCrefEqual, HashSet::FuncCrefStr)))> + 'static>), true, ht.clone())?;
+                    eqnLst = List::threadMap2(expl.clone(), expl1.clone(), (std::sync::Arc::new(BackendEquation::generateEquation) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, Arc<DAE::Exp>, Arc<DAE::ElementSource>, BackendDAE::EquationAttributes) -> Result<Arc<BackendDAE::Equation>> + 'static>), source.clone(), eqKind.clone());
                     (eqSystlst, uniqueEqIndex, _) = createEquationsfromList(eqnLst.clone(), inVars.clone(), iuniqueEqIndex.clone(), itempvars.clone(), iextra.clone(), genDiscrete.clone(), false, false, false)?;
                     Ok((eqSystlst.clone(), uniqueEqIndex.clone(), itempvars.clone()))
                 }
@@ -6071,8 +6033,8 @@ fn createSingleComplexEqnCode3(mut inExp: Arc<DAE::Exp>, mut iht: (metamodelica:
                     let mut expLst: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
                     crefs = ComponentReference::expandCref(cr.clone(), true)?;
                     let false = (list![cr.clone()] == crefs.clone()) else { bail!("pattern mismatch") };
-                    expLst = List::map(crefs.clone(), Arc::new(Expression::crefExp));
-                    List::foldAllValue(expLst.clone(), Arc::new(createSingleComplexEqnCode3), true, iht.clone())?;
+                    expLst = List::map(crefs.clone(), (std::sync::Arc::new(Expression::crefExp) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<Arc<DAE::Exp>> + 'static>));
+                    List::foldAllValue(expLst.clone(), (std::sync::Arc::new(createSingleComplexEqnCode3) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<Arc<DAE::ComponentRef>>>), i32, i32, (HashSet::FuncHashCref, HashSet::FuncCrefEqual, HashSet::FuncCrefStr))) -> Result<(bool, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<Arc<DAE::ComponentRef>>>), i32, i32, (HashSet::FuncHashCref, HashSet::FuncCrefEqual, HashSet::FuncCrefStr)))> + 'static>), true, iht.clone())?;
                     Ok((true, iht.clone()))
                 }
                 _ => bail!("nomatch"),
@@ -6113,7 +6075,7 @@ fn createSingleComplexEqnCode3(mut inExp: Arc<DAE::Exp>, mut iht: (metamodelica:
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ DAE::Exp::CALL { expLst, .. }, _) => {
-                    List::foldAllValue(expLst.clone(), Arc::new(createSingleComplexEqnCode3), true, iht.clone())?;
+                    List::foldAllValue(expLst.clone(), (std::sync::Arc::new(createSingleComplexEqnCode3) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<Arc<DAE::ComponentRef>>>), i32, i32, (HashSet::FuncHashCref, HashSet::FuncCrefEqual, HashSet::FuncCrefStr))) -> Result<(bool, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<Arc<DAE::ComponentRef>>>), i32, i32, (HashSet::FuncHashCref, HashSet::FuncCrefEqual, HashSet::FuncCrefStr)))> + 'static>), true, iht.clone())?;
                     Ok((true, iht.clone()))
                 }
                 _ => bail!("nomatch"),
@@ -6122,7 +6084,7 @@ fn createSingleComplexEqnCode3(mut inExp: Arc<DAE::Exp>, mut iht: (metamodelica:
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ DAE::Exp::RECORD { exps: expLst, .. }, _) => {
-                    List::foldAllValue(expLst.clone(), Arc::new(createSingleComplexEqnCode3), true, iht.clone())?;
+                    List::foldAllValue(expLst.clone(), (std::sync::Arc::new(createSingleComplexEqnCode3) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<Arc<DAE::ComponentRef>>>), i32, i32, (HashSet::FuncHashCref, HashSet::FuncCrefEqual, HashSet::FuncCrefStr))) -> Result<(bool, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<Arc<DAE::ComponentRef>>>), i32, i32, (HashSet::FuncHashCref, HashSet::FuncCrefEqual, HashSet::FuncCrefStr)))> + 'static>), true, iht.clone())?;
                     Ok((true, iht.clone()))
                 }
                 _ => bail!("nomatch"),
@@ -6131,7 +6093,7 @@ fn createSingleComplexEqnCode3(mut inExp: Arc<DAE::Exp>, mut iht: (metamodelica:
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ DAE::Exp::ARRAY { array: expLst, .. }, _) => {
-                    List::foldAllValue(expLst.clone(), Arc::new(createSingleComplexEqnCode3), true, iht.clone())?;
+                    List::foldAllValue(expLst.clone(), (std::sync::Arc::new(createSingleComplexEqnCode3) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<Arc<DAE::ComponentRef>>>), i32, i32, (HashSet::FuncHashCref, HashSet::FuncCrefEqual, HashSet::FuncCrefStr))) -> Result<(bool, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<Arc<DAE::ComponentRef>>>), i32, i32, (HashSet::FuncHashCref, HashSet::FuncCrefEqual, HashSet::FuncCrefStr)))> + 'static>), true, iht.clone())?;
                     Ok((true, iht.clone()))
                 }
                 _ => bail!("nomatch"),
@@ -6216,10 +6178,10 @@ fn createSingleArrayEqnCode(mut genDiscrete: bool, mut inEquations: Arc<metamode
                     left = ComponentReferenceBasics::makeCrefIdent(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("$TMP_")); __mm_s.push_str(&*intString(iuniqueEqIndex.clone())); ArcStr::from(__mm_s) }).clone(), ty.clone(), metamodelica::nil());
                     lhse = Arc::new(DAE::Exp::CREF { componentRef: left.clone(), ty: ty.clone() });
                     crefstmp = ComponentReference::expandCref(left.clone(), false)?;
-                    expLstTmp = List::map(crefstmp.clone(), Arc::new(Expression::crefExp));
+                    expLstTmp = List::map(crefstmp.clone(), (std::sync::Arc::new(Expression::crefExp) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<Arc<DAE::Exp>> + 'static>));
                     tempvars = createArrayTempVar(left.clone(), ds.clone(), expLstTmp.clone(), itempvars.clone())?;
                     exptl = List::zip(expLst.clone(), expLstTmp.clone());
-                    (eqSystlst, uniqueEqIndex) = List::map2Fold(exptl.clone(), Arc::new(makeSES_SIMPLE_ASSIGN), source.clone(), eqAttr.clone(), iuniqueEqIndex.clone(), metamodelica::nil());
+                    (eqSystlst, uniqueEqIndex) = List::map2Fold(exptl.clone(), (std::sync::Arc::new(makeSES_SIMPLE_ASSIGN) as std::sync::Arc<dyn ::std::ops::Fn((Arc<DAE::Exp>, Arc<DAE::Exp>), Arc<DAE::ElementSource>, BackendDAE::EquationAttributes, i32) -> Result<(Arc<SimCode::SimEqSystem>, i32)> + 'static>), source.clone(), eqAttr.clone(), iuniqueEqIndex.clone(), metamodelica::nil());
                     eqSystlst = cons(Arc::new(SimCode::SimEqSystem::SES_ARRAY_CALL_ASSIGN { index: uniqueEqIndex.clone(), lhs: lhse.clone(), exp: e2.clone(), source: source.clone(), eqAttr: eqAttr.clone() }), eqSystlst.clone());
                     Ok((eqSystlst.clone(), eqSystlst.clone(), uniqueEqIndex.clone() + 1, tempvars.clone()))
                 }
@@ -6312,15 +6274,16 @@ fn createSingleArrayEqnCode(mut genDiscrete: bool, mut inEquations: Arc<metamode
 fn createSingleAlgorithmCode(mut eqns: Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, mut vars: Arc<metamodelica::List<BackendDAE::Var>>, mut skipDiscinAlgorithm: bool, mut iuniqueEqIndex: i32, mut clockIndex: Option<i32>) -> Result<(Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>, i32)> {
     let mut equations_: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>> = metamodelica::nil();
     let mut ouniqueEqIndex: i32 = 0;
-    (equations_, ouniqueEqIndex) = 'mc: {
+    (equations_, ouniqueEqIndex) = ({
+        let mut debug: bool = false;
+        'mc: {
         let __mc_input = (eqns.clone(), skipDiscinAlgorithm.clone());
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ metamodelica::List::Cons { head: Deref @ BackendDAE::Equation::ALGORITHM { attr: eqAttr, expand: crefExpand, source, alg, .. }, tail: _ }, false) => {
                     let mut solvedVars: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
                     let mut algStatements: Arc<metamodelica::List<Arc<DAE::Statement>>> = metamodelica::nil();
-                    let mut debug: bool = false;
-                    solvedVars = List::map(vars.clone(), Arc::new(BackendVariable::varCref));
+                    solvedVars = List::map(vars.clone(), (std::sync::Arc::new(BackendVariable::varCref) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var) -> Result<Arc<DAE::ComponentRef>> + 'static>));
                     let true = (CheckModel::isCrefListAlgorithmOutput(solvedVars.clone(), alg.clone(), source.clone(), crefExpand.clone())?) else { bail!("pattern mismatch") };
                     let DAE::ALGORITHM_STMTS { statementLst: __pa0 } = (BackendDAEUtil::collateAlgorithm(alg.clone(), None)?) else { bail!("pattern mismatch") };
                     algStatements = __pa0.clone();
@@ -6334,8 +6297,7 @@ fn createSingleAlgorithmCode(mut eqns: Arc<metamodelica::List<Arc<BackendDAE::Eq
                 (Deref @ metamodelica::List::Cons { head: Deref @ BackendDAE::Equation::ALGORITHM { attr: eqAttr, expand: crefExpand, source, alg, .. }, tail: _ }, true) => {
                     let mut solvedVars: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
                     let mut algStatements: Arc<metamodelica::List<Arc<DAE::Statement>>> = metamodelica::nil();
-                    let mut debug: bool = false;
-                    solvedVars = List::map(vars.clone(), Arc::new(BackendVariable::varCref));
+                    solvedVars = List::map(vars.clone(), (std::sync::Arc::new(BackendVariable::varCref) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var) -> Result<Arc<DAE::ComponentRef>> + 'static>));
                     let true = (CheckModel::isCrefListAlgorithmOutput(solvedVars.clone(), alg.clone(), source.clone(), crefExpand.clone())?) else { bail!("pattern mismatch") };
                     let DAE::ALGORITHM_STMTS { statementLst: __pa0 } = (BackendDAEUtil::collateAlgorithm(alg.clone(), None)?) else { bail!("pattern mismatch") };
                     algStatements = __pa0.clone();
@@ -6349,7 +6311,6 @@ fn createSingleAlgorithmCode(mut eqns: Arc<metamodelica::List<Arc<BackendDAE::Eq
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ metamodelica::List::Cons { head: Deref @ BackendDAE::Equation::ALGORITHM { attr: eqAttr, alg, .. }, tail: _ }, false) => {
                     let mut algStatements: Arc<metamodelica::List<Arc<DAE::Statement>>> = metamodelica::nil();
-                    let mut debug: bool = false;
                     let DAE::ALGORITHM_STMTS { statementLst: __pa0 } = (BackendDAEUtil::collateAlgorithm(alg.clone(), None)?) else { bail!("pattern mismatch") };
                     algStatements = __pa0.clone();
                     algStatements = solveAlgorithmInverse(algStatements.clone(), vars.clone())?;
@@ -6366,7 +6327,6 @@ fn createSingleAlgorithmCode(mut eqns: Arc<metamodelica::List<Arc<BackendDAE::Eq
                     let mut knownOutputCrefs: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
                     let mut result: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>> = metamodelica::nil();
                     let mut discreteVarsExp: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
-                    let mut debug: bool = false;
                     let mut alg = (*alg).clone();
                     let mut algStatements = (*algStatements).clone();
                     let mut ouniqueEqIndex: i32 = ouniqueEqIndex.clone();
@@ -6374,18 +6334,18 @@ fn createSingleAlgorithmCode(mut eqns: Arc<metamodelica::List<Arc<BackendDAE::Eq
                         println!("{}", (literal!("createSingleAlgorithmCode ->\n")).clone());
                         BackendDump::dumpAlgorithms(list![Arc::new(DAE::Algorithm { statementLst: algStatements.clone() })], 0)?;
                     }
-                    solvedVars = List::map(vars.clone(), Arc::new(BackendVariable::varCref));
-                    solvedVars = List::unionList(List::map1(solvedVars.clone(), Arc::new(ComponentReference::expandCref), true))?;
+                    solvedVars = List::map(vars.clone(), (std::sync::Arc::new(BackendVariable::varCref) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var) -> Result<Arc<DAE::ComponentRef>> + 'static>));
+                    solvedVars = List::unionList(List::map1(solvedVars.clone(), (std::sync::Arc::new(ComponentReference::expandCref) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, bool) -> Result<Arc<metamodelica::List<Arc<DAE::ComponentRef>>>> + 'static>), true))?;
                     if debug.clone() {
                         BackendDump::debugStrCrefLstStr((literal!("solvedVars : ")).clone(), solvedVars.clone(), (literal!(", ")).clone(), (literal!("\n")).clone());
                     }
                     algOutVars = CheckModel::checkAndGetAlgorithmOutputs(alg.clone(), source.clone(), crefExpand.clone())?;
-                    algOutVars = List::unionList(List::map1(algOutVars.clone(), Arc::new(ComponentReference::expandCref), true))?;
+                    algOutVars = List::unionList(List::map1(algOutVars.clone(), (std::sync::Arc::new(ComponentReference::expandCref) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, bool) -> Result<Arc<metamodelica::List<Arc<DAE::ComponentRef>>>> + 'static>), true))?;
                     knownOutputCrefs = List::setDifference(algOutVars.clone(), solvedVars.clone())?;
-                    solvedVars = List::map(List::filterOnTrue(vars.clone(), Arc::new(fnptr!(BackendVariable::isVarNonDiscrete, BackendDAE::Var))), Arc::new(BackendVariable::varCref));
+                    solvedVars = List::map(List::filterOnTrue(vars.clone(), (std::sync::Arc::new(fnptr!(BackendVariable::isVarNonDiscrete, BackendDAE::Var)) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var) -> Result<bool> + 'static>)), (std::sync::Arc::new(BackendVariable::varCref) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var) -> Result<Arc<DAE::ComponentRef>> + 'static>));
                     discreteVarsExp = {
         let mut __acc: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
-        for mut v in (List::filterOnTrue(vars.clone(), Arc::new(fnptr!(BackendVariable::isVarDiscrete, BackendDAE::Var)))).into_iter().cloned() {
+        for mut v in (List::filterOnTrue(vars.clone(), (std::sync::Arc::new(fnptr!(BackendVariable::isVarDiscrete, BackendDAE::Var)) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var) -> Result<bool> + 'static>))).into_iter().cloned() {
                     let __x = Expression::crefToExp(BackendVariable::varCref(v.clone())?)?;
                     __acc = cons(__x, __acc);
         }
@@ -6418,8 +6378,7 @@ fn createSingleAlgorithmCode(mut eqns: Arc<metamodelica::List<Arc<BackendDAE::Eq
                     let mut solvedVars: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
                     let mut crefsStr: ArcStr = arcstr::literal!("");
                     let mut algStr: ArcStr = arcstr::literal!("");
-                    let mut debug: bool = false;
-                    solvedVars = List::map(vars.clone(), Arc::new(BackendVariable::varCref));
+                    solvedVars = List::map(vars.clone(), (std::sync::Arc::new(BackendVariable::varCref) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var) -> Result<Arc<DAE::ComponentRef>> + 'static>));
                     let false = (CheckModel::isCrefListAlgorithmOutput(solvedVars.clone(), alg.clone(), source.clone(), crefExpand.clone())?) else { bail!("pattern mismatch") };
                     crefsStr = (ComponentReference::printComponentRefListStr(solvedVars.clone())).clone();
                     algStr = (DAEDump::dumpAlgorithmsStr(list![Arc::new(DAE::Element::ALGORITHM { algorithm_: alg.clone(), source: source.clone() })])?).clone();
@@ -6432,7 +6391,6 @@ fn createSingleAlgorithmCode(mut eqns: Arc<metamodelica::List<Arc<BackendDAE::Eq
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 _ => {
-                    let mut debug: bool = false;
                     Error::addInternalError((literal!("function createSingleAlgorithmCode failed")).clone(), metamodelica::sourceInfo!())?;
                     Ok(bail!("fail"))
                 }
@@ -6440,7 +6398,8 @@ fn createSingleAlgorithmCode(mut eqns: Arc<metamodelica::List<Arc<BackendDAE::Eq
             }}
         })() { break 'mc __v; }
         bail!("matchcontinue: no arm matched")
-    };
+    }
+    });
     Ok((equations_, ouniqueEqIndex))
 }
 
@@ -6469,10 +6428,10 @@ pub fn createInitialEquations(mut inInitDAE: Arc<BackendDAE::BackendDAE>, mut iu
     globalKnownVars = __pa2.clone();
     shared = __pa3.clone();
     removedEqs = BackendDAEUtil::collapseRemovedEqs(inInitDAE.clone())?;
-    (uniqueEqIndex, knownVarEquations) = BackendVariable::traverseBackendDAEVars(globalKnownVars.clone(), Arc::new(traverseKnVarsToSimEqSystem), (iuniqueEqIndex.clone(), metamodelica::nil()))?;
+    (uniqueEqIndex, knownVarEquations) = BackendVariable::traverseBackendDAEVars(globalKnownVars.clone(), (std::sync::Arc::new(traverseKnVarsToSimEqSystem) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, (i32, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>)) -> Result<(BackendDAE::Var, (i32, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>))> + 'static>), (iuniqueEqIndex.clone(), metamodelica::nil()))?;
     (uniqueEqIndex, _, _, _, solvedEquations, _, tempvars, _, _, _, _) = createEquationsForSystems(systs.clone(), shared.clone(), uniqueEqIndex.clone(), metamodelica::nil(), itempvars.clone(), 0, crate::SimCode::BackendMapping::NO_MAPPING, true)?;
-    (uniqueEqIndex, removedEquations) = BackendEquation::traverseEquationArray(removedEqs.clone(), Arc::new(traversedlowEqToSimEqSystem), (uniqueEqIndex.clone(), metamodelica::nil()))?;
-    (uniqueEqIndex, aliasEquations) = BackendVariable::traverseBackendDAEVars(aliasVars.clone(), Arc::new(traverseAliasVarsToSimEqSystem), (uniqueEqIndex.clone(), metamodelica::nil()))?;
+    (uniqueEqIndex, removedEquations) = BackendEquation::traverseEquationArray(removedEqs.clone(), (std::sync::Arc::new(traversedlowEqToSimEqSystem) as std::sync::Arc<dyn ::std::ops::Fn(Arc<BackendDAE::Equation>, (i32, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>)) -> Result<(Arc<BackendDAE::Equation>, (i32, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>))> + 'static>), (uniqueEqIndex.clone(), metamodelica::nil()))?;
+    (uniqueEqIndex, aliasEquations) = BackendVariable::traverseBackendDAEVars(aliasVars.clone(), (std::sync::Arc::new(traverseAliasVarsToSimEqSystem) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, (i32, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>)) -> Result<(BackendDAE::Var, (i32, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>))> + 'static>), (uniqueEqIndex.clone(), metamodelica::nil()))?;
     allEquations = Dangerous::listReverseInPlace(aliasEquations.clone());
     allEquations = listAppend(removedEquations.clone(), allEquations.clone());
     allEquations = List::append_reverse(solvedEquations.clone(), allEquations.clone());
@@ -6505,9 +6464,9 @@ pub fn createInitialEquations_lambda0(mut inInitDAE: Arc<BackendDAE::BackendDAE>
     aliasVars = __pa1.clone();
     globalKnownVars = __pa2.clone();
     shared = __pa3.clone();
-    (uniqueEqIndex, knownEquations) = BackendVariable::traverseBackendDAEVars(globalKnownVars.clone(), Arc::new(traverseKnVarsToSimEqSystem), (iuniqueEqIndex.clone(), metamodelica::nil()))?;
+    (uniqueEqIndex, knownEquations) = BackendVariable::traverseBackendDAEVars(globalKnownVars.clone(), (std::sync::Arc::new(traverseKnVarsToSimEqSystem) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, (i32, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>)) -> Result<(BackendDAE::Var, (i32, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>))> + 'static>), (iuniqueEqIndex.clone(), metamodelica::nil()))?;
     (uniqueEqIndex, _, _, _, solvedEquations, _, tempvars, _, _, _, _) = createEquationsForSystems(systs.clone(), shared.clone(), uniqueEqIndex.clone(), metamodelica::nil(), itempvars.clone(), 0, crate::SimCode::BackendMapping::NO_MAPPING, true)?;
-    (uniqueEqIndex, aliasEquations) = BackendVariable::traverseBackendDAEVars(aliasVars.clone(), Arc::new(traverseAliasVarsToSimEqSystem), (uniqueEqIndex.clone(), metamodelica::nil()))?;
+    (uniqueEqIndex, aliasEquations) = BackendVariable::traverseBackendDAEVars(aliasVars.clone(), (std::sync::Arc::new(traverseAliasVarsToSimEqSystem) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, (i32, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>)) -> Result<(BackendDAE::Var, (i32, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>))> + 'static>), (uniqueEqIndex.clone(), metamodelica::nil()))?;
     allEquations = List::append_reverse(solvedEquations.clone(), aliasEquations.clone());
     allEquations = listAppend(knownEquations.clone(), allEquations.clone());
     outInitialEqns = allEquations.clone();
@@ -6635,9 +6594,9 @@ pub fn createStartValueEquations(mut syst: Arc<BackendDAE::EqSystem>, mut shared
                     let mut startValueEquationsTmp2: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
                     let mut simeqns1: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>> = metamodelica::nil();
                     let mut uniqueEqIndex = (*uniqueEqIndex).clone();
-                    (startValueEquationsTmp2, _, _) = BackendVariable::traverseBackendDAEVars(vars.clone(), Arc::new(createInitialAssignmentsFromStart), (metamodelica::nil(), av.clone(), globalKnownVars.clone()))?;
+                    (startValueEquationsTmp2, _, _) = BackendVariable::traverseBackendDAEVars(vars.clone(), (std::sync::Arc::new(createInitialAssignmentsFromStart) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, (Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, BackendDAE::Variables, BackendDAE::Variables)) -> Result<(BackendDAE::Var, (Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, BackendDAE::Variables, BackendDAE::Variables))> + 'static>), (metamodelica::nil(), av.clone(), globalKnownVars.clone()))?;
                     startValueEquationsTmp2 = startValueEquationsTmp2.clone().reverse();
-                    (simeqns1, uniqueEqIndex) = List::mapFold(startValueEquationsTmp2.clone(), Arc::new(dlowEqToSimEqSystem), uniqueEqIndex.clone());
+                    (simeqns1, uniqueEqIndex) = List::mapFold(startValueEquationsTmp2.clone(), (std::sync::Arc::new(dlowEqToSimEqSystem) as std::sync::Arc<dyn ::std::ops::Fn(Arc<BackendDAE::Equation>, i32) -> Result<(Arc<SimCode::SimEqSystem>, i32)> + 'static>), uniqueEqIndex.clone());
                     Ok((uniqueEqIndex.clone(), listAppend(simeqns1.clone(), simeqns.clone()), globalKnownVars.clone()))
                 }
                 _ => bail!("nomatch"),
@@ -6658,7 +6617,7 @@ pub fn createStartValueEquations(mut syst: Arc<BackendDAE::EqSystem>, mut shared
 }
 
 pub fn createValueEquationsShared(mut shared: Arc<BackendDAE::Shared>, mut valueFunction: Arc<dyn ::std::ops::Fn(BackendDAE::Var, (Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, BackendDAE::Variables)) -> Result<(BackendDAE::Var, (Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, BackendDAE::Variables))> + 'static>, mut acc: (i32, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>)) -> Result<(i32, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>)> {
-    pub type Function = fn(BackendDAE::Var, (Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, BackendDAE::Variables)) -> Result<(BackendDAE::Var, (Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, BackendDAE::Variables))>;
+    pub type Function = std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, (Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, BackendDAE::Variables)) -> Result<(BackendDAE::Var, (Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, BackendDAE::Variables))> + 'static>;
 
     let mut maxValueEquations: (i32, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>);
     maxValueEquations = (::match_deref::match_deref! { match &((shared.clone(), acc.clone())) {
@@ -6668,7 +6627,7 @@ pub fn createValueEquationsShared(mut shared: Arc<BackendDAE::Shared>, mut value
             let mut uniqueEqIndex = (*uniqueEqIndex).clone();
             (maxValueEquationsTmp, _) = BackendVariable::traverseBackendDAEVars(shared.globalKnownVars.clone(), valueFunction.clone(), (metamodelica::nil(), shared.aliasVars.clone()))?;
             maxValueEquationsTmp = maxValueEquationsTmp.clone().reverse();
-            (simeqns1, uniqueEqIndex) = List::mapFold(maxValueEquationsTmp.clone(), Arc::new(dlowEqToSimEqSystem), uniqueEqIndex.clone());
+            (simeqns1, uniqueEqIndex) = List::mapFold(maxValueEquationsTmp.clone(), (std::sync::Arc::new(dlowEqToSimEqSystem) as std::sync::Arc<dyn ::std::ops::Fn(Arc<BackendDAE::Equation>, i32) -> Result<(Arc<SimCode::SimEqSystem>, i32)> + 'static>), uniqueEqIndex.clone());
             (uniqueEqIndex.clone(), listAppend(simeqns1.clone(), simeqns.clone()))
         },
         _ => {
@@ -6687,9 +6646,9 @@ pub fn createNominalValueEquations(mut syst: Arc<BackendDAE::EqSystem>, mut shar
             let mut nominalValueEquationsTmp: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
             let mut simeqns1: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>> = metamodelica::nil();
             let mut uniqueEqIndex = (*uniqueEqIndex).clone();
-            (nominalValueEquationsTmp, _) = BackendVariable::traverseBackendDAEVars(syst.orderedVars.clone(), Arc::new(createInitialAssignmentsFromNominal), (metamodelica::nil(), shared.aliasVars.clone()))?;
+            (nominalValueEquationsTmp, _) = BackendVariable::traverseBackendDAEVars(syst.orderedVars.clone(), (std::sync::Arc::new(createInitialAssignmentsFromNominal) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, (Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, BackendDAE::Variables)) -> Result<(BackendDAE::Var, (Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, BackendDAE::Variables))> + 'static>), (metamodelica::nil(), shared.aliasVars.clone()))?;
             nominalValueEquationsTmp = nominalValueEquationsTmp.clone().reverse();
-            (simeqns1, uniqueEqIndex) = List::mapFold(nominalValueEquationsTmp.clone(), Arc::new(dlowEqToSimEqSystem), uniqueEqIndex.clone());
+            (simeqns1, uniqueEqIndex) = List::mapFold(nominalValueEquationsTmp.clone(), (std::sync::Arc::new(dlowEqToSimEqSystem) as std::sync::Arc<dyn ::std::ops::Fn(Arc<BackendDAE::Equation>, i32) -> Result<(Arc<SimCode::SimEqSystem>, i32)> + 'static>), uniqueEqIndex.clone());
             (uniqueEqIndex.clone(), listAppend(simeqns1.clone(), simeqns.clone()))
         },
         _ => {
@@ -6708,9 +6667,9 @@ pub fn createMinValueEquations(mut syst: Arc<BackendDAE::EqSystem>, mut shared: 
             let mut minValueEquationsTmp: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
             let mut simeqns1: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>> = metamodelica::nil();
             let mut uniqueEqIndex = (*uniqueEqIndex).clone();
-            (minValueEquationsTmp, _) = BackendVariable::traverseBackendDAEVars(syst.orderedVars.clone(), Arc::new(createInitialAssignmentsFromMin), (metamodelica::nil(), shared.aliasVars.clone()))?;
+            (minValueEquationsTmp, _) = BackendVariable::traverseBackendDAEVars(syst.orderedVars.clone(), (std::sync::Arc::new(createInitialAssignmentsFromMin) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, (Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, BackendDAE::Variables)) -> Result<(BackendDAE::Var, (Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, BackendDAE::Variables))> + 'static>), (metamodelica::nil(), shared.aliasVars.clone()))?;
             minValueEquationsTmp = minValueEquationsTmp.clone().reverse();
-            (simeqns1, uniqueEqIndex) = List::mapFold(minValueEquationsTmp.clone(), Arc::new(dlowEqToSimEqSystem), uniqueEqIndex.clone());
+            (simeqns1, uniqueEqIndex) = List::mapFold(minValueEquationsTmp.clone(), (std::sync::Arc::new(dlowEqToSimEqSystem) as std::sync::Arc<dyn ::std::ops::Fn(Arc<BackendDAE::Equation>, i32) -> Result<(Arc<SimCode::SimEqSystem>, i32)> + 'static>), uniqueEqIndex.clone());
             (uniqueEqIndex.clone(), listAppend(simeqns1.clone(), simeqns.clone()))
         },
         _ => {
@@ -6729,9 +6688,9 @@ pub fn createMaxValueEquations(mut syst: Arc<BackendDAE::EqSystem>, mut shared: 
             let mut maxValueEquationsTmp: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
             let mut simeqns1: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>> = metamodelica::nil();
             let mut uniqueEqIndex = (*uniqueEqIndex).clone();
-            (maxValueEquationsTmp, _) = BackendVariable::traverseBackendDAEVars(syst.orderedVars.clone(), Arc::new(createInitialAssignmentsFromMax), (metamodelica::nil(), shared.aliasVars.clone()))?;
+            (maxValueEquationsTmp, _) = BackendVariable::traverseBackendDAEVars(syst.orderedVars.clone(), (std::sync::Arc::new(createInitialAssignmentsFromMax) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, (Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, BackendDAE::Variables)) -> Result<(BackendDAE::Var, (Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, BackendDAE::Variables))> + 'static>), (metamodelica::nil(), shared.aliasVars.clone()))?;
             maxValueEquationsTmp = maxValueEquationsTmp.clone().reverse();
-            (simeqns1, uniqueEqIndex) = List::mapFold(maxValueEquationsTmp.clone(), Arc::new(dlowEqToSimEqSystem), uniqueEqIndex.clone());
+            (simeqns1, uniqueEqIndex) = List::mapFold(maxValueEquationsTmp.clone(), (std::sync::Arc::new(dlowEqToSimEqSystem) as std::sync::Arc<dyn ::std::ops::Fn(Arc<BackendDAE::Equation>, i32) -> Result<(Arc<SimCode::SimEqSystem>, i32)> + 'static>), uniqueEqIndex.clone());
             (uniqueEqIndex.clone(), listAppend(simeqns1.clone(), simeqns.clone()))
         },
         _ => {
@@ -6749,7 +6708,7 @@ fn makeSolved_fromStartValue(mut inVar: BackendDAE::Var, mut inUniqueEqIndex: i3
     let mut e: Arc<DAE::Exp>;
     let mut varExp: Arc<DAE::Exp>;
     let mut cr: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
-    let mut source: Arc<DAE::ElementSource>;
+    let mut source: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
     e = BackendVariable::varBindExpStartValueNoFail(inVar.clone())?;
     source = BackendVariable::getVarSource(inVar.clone());
     if Types::isArray(inVar.varType.clone()) {
@@ -6772,14 +6731,14 @@ pub fn createParameterEquations(mut inUniqueEqIndex: i32, mut acc: Arc<metamodel
     let mut varasserts2: Arc<metamodelica::List<Arc<DAE::Algorithm>>> = metamodelica::nil();
     let mut p: BackendDAE::Var;
     let mut simEq: Arc<SimCode::SimEqSystem>;
-    (outUniqueEqIndex, outParameterEquations, varasserts, nFixedParameters, _) = BackendVariable::traverseBackendDAEVars(globalKnownVars.clone(), Arc::new(createSimEqsForGlobalKnownVars), (outUniqueEqIndex.clone(), outParameterEquations.clone(), metamodelica::nil(), 0, HashSetExp::emptyHashSetSized(Util::nextPrime(globalKnownVars.numberOfVars.clone()))))?;
+    (outUniqueEqIndex, outParameterEquations, varasserts, nFixedParameters, _) = BackendVariable::traverseBackendDAEVars(globalKnownVars.clone(), (std::sync::Arc::new(createSimEqsForGlobalKnownVars) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, (i32, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>, Arc<metamodelica::List<Arc<DAE::Algorithm>>>, i32, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::Exp>, i32)>>>, (i32, i32, metamodelica::Array<Option<Arc<DAE::Exp>>>), i32, i32, (HashSetExp::FuncHashCref, HashSetExp::FuncCrefEqual, HashSetExp::FuncCrefStr)))) -> Result<(BackendDAE::Var, (i32, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>, Arc<metamodelica::List<Arc<DAE::Algorithm>>>, i32, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::Exp>, i32)>>>, (i32, i32, metamodelica::Array<Option<Arc<DAE::Exp>>>), i32, i32, (HashSetExp::FuncHashCref, HashSetExp::FuncCrefEqual, HashSetExp::FuncCrefStr))))> + 'static>), (outUniqueEqIndex.clone(), outParameterEquations.clone(), metamodelica::nil(), 0, HashSetExp::emptyHashSetSized(Util::nextPrime(globalKnownVars.numberOfVars.clone()))))?;
     if Flags::isSet(Flags::PARAM_DLOW_DUMP.clone())? {
         println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nparameters in order (")); __mm_s.push_str(&*intString((outParameterEquations.clone().len() as i32))); __mm_s.push_str(&*literal!(")\n")); __mm_s.push_str(&*arcstr::literal!(UNDERLINE)); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
         dumpSimEqSystemLst(outParameterEquations.clone().reverse(), (literal!("\n")).clone())?;
         println!("{}", (literal!("\n")).clone());
     }
     varasserts = metamodelica::Dangerous::listReverseInPlace(varasserts.clone());
-    (simvarasserts, outUniqueEqIndex) = List::mapFold(varasserts.clone(), Arc::new(dlowAlgToSimEqSystem), outUniqueEqIndex.clone());
+    (simvarasserts, outUniqueEqIndex) = List::mapFold(varasserts.clone(), (std::sync::Arc::new(dlowAlgToSimEqSystem) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Algorithm>, i32) -> Result<(Arc<SimCode::SimEqSystem>, i32)> + 'static>), outUniqueEqIndex.clone());
     outParameterEquations = List::append_reverse(simvarasserts.clone(), outParameterEquations.clone());
     outParameterEquations = List::append_reverse(acc.clone(), outParameterEquations.clone());
     outParameterEquations = outParameterEquations.clone().reverse();
@@ -6806,7 +6765,7 @@ fn createSimEqsForGlobalKnownVars(mut globalKnownVar: BackendDAE::Var, mut inTup
         let _ = (::match_deref::match_deref! { match &(globalKnownVar.clone()) {
         BackendDAE::Var { tplExp: Some(tplExp @ Deref @ DAE::Exp::TUPLE { PR: expl }), .. } => {
             let mut call: Arc<DAE::Exp>;
-            let mut source: Arc<DAE::ElementSource>;
+            let mut source: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
             let mut tp: Arc<DAE::Type> = Arc::new(DAE::Type::T_NORETCALL);
             if BaseHashSet::has(tplExp.clone(), tplExpHT.clone())? {
                 outTuple = (uniqueEqIndex.clone(), parameterEquations.clone(), varasserts.clone(), nFixedParameters.clone(), tplExpHT.clone());
@@ -6827,7 +6786,7 @@ fn createSimEqsForGlobalKnownVars(mut globalKnownVar: BackendDAE::Var, mut inTup
         },
         BackendDAE::Var { tplExp: Some(rec), .. } => {
             let mut call: Arc<DAE::Exp>;
-            let mut source: Arc<DAE::ElementSource>;
+            let mut source: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
             let mut tp: Arc<DAE::Type> = Arc::new(DAE::Type::T_NORETCALL);
             if BaseHashSet::has(rec.clone(), tplExpHT.clone())? {
                 outTuple = (uniqueEqIndex.clone(), parameterEquations.clone(), varasserts.clone(), nFixedParameters.clone(), tplExpHT.clone());
@@ -7039,10 +6998,10 @@ pub fn createModelInfo(mut class_: Arc<Absyn::Path>, mut program: Absyn::Program
     let debug: bool = false;
     match '__try0: {
         directory = (System::trim((fileDir.clone()).clone(), (literal!("\"")).clone())).clone();
-        version = (System::trim((Interactive::getNamedAnnotationExp(class_.clone(), program.clone(), Arc::new(Absyn::Path::IDENT { name: (literal!("version")).clone() }), Some((literal!("")).clone()), Arc::new(Interactive::getDefaultComponentPrefixesModStr))?).clone(), (literal!("\"")).clone())).clone();
-        author = (System::trim((Interactive::getNamedAnnotationExp(class_.clone(), program.clone(), Arc::new(Absyn::Path::IDENT { name: (literal!("__OpenModelica_author")).clone() }), Some((literal!("")).clone()), Arc::new(Interactive::getDefaultComponentPrefixesModStr))?).clone(), (literal!("\"")).clone())).clone();
-        license = (System::trim((Interactive::getNamedAnnotationExp(class_.clone(), program.clone(), Arc::new(Absyn::Path::IDENT { name: (literal!("__OpenModelica_license")).clone() }), Some((literal!("")).clone()), Arc::new(Interactive::getDefaultComponentPrefixesModStr))?).clone(), (literal!("\"")).clone())).clone();
-        copyright = (System::trim((Interactive::getNamedAnnotationExp(class_.clone(), program.clone(), Arc::new(Absyn::Path::IDENT { name: (literal!("__OpenModelica_copyright")).clone() }), Some((literal!("")).clone()), Arc::new(Interactive::getDefaultComponentPrefixesModStr))?).clone(), (literal!("\"")).clone())).clone();
+        version = (System::trim((Interactive::getNamedAnnotationExp(class_.clone(), program.clone(), Arc::new(Absyn::Path::IDENT { name: (literal!("version")).clone() }), Some((literal!("")).clone()), (std::sync::Arc::new(Interactive::getDefaultComponentPrefixesModStr) as std::sync::Arc<dyn ::std::ops::Fn(Option<Arc<Absyn::Modification>>) -> Result<ArcStr> + 'static>))?).clone(), (literal!("\"")).clone())).clone();
+        author = (System::trim((Interactive::getNamedAnnotationExp(class_.clone(), program.clone(), Arc::new(Absyn::Path::IDENT { name: (literal!("__OpenModelica_author")).clone() }), Some((literal!("")).clone()), (std::sync::Arc::new(Interactive::getDefaultComponentPrefixesModStr) as std::sync::Arc<dyn ::std::ops::Fn(Option<Arc<Absyn::Modification>>) -> Result<ArcStr> + 'static>))?).clone(), (literal!("\"")).clone())).clone();
+        license = (System::trim((Interactive::getNamedAnnotationExp(class_.clone(), program.clone(), Arc::new(Absyn::Path::IDENT { name: (literal!("__OpenModelica_license")).clone() }), Some((literal!("")).clone()), (std::sync::Arc::new(Interactive::getDefaultComponentPrefixesModStr) as std::sync::Arc<dyn ::std::ops::Fn(Option<Arc<Absyn::Modification>>) -> Result<ArcStr> + 'static>))?).clone(), (literal!("\"")).clone())).clone();
+        copyright = (System::trim((Interactive::getNamedAnnotationExp(class_.clone(), program.clone(), Arc::new(Absyn::Path::IDENT { name: (literal!("__OpenModelica_copyright")).clone() }), Some((literal!("")).clone()), (std::sync::Arc::new(Interactive::getDefaultComponentPrefixesModStr) as std::sync::Arc<dyn ::std::ops::Fn(Option<Arc<Absyn::Modification>>) -> Result<ArcStr> + 'static>))?).clone(), (literal!("\"")).clone())).clone();
         fileName = (System::basename((AbsynUtil::classFilename(InteractiveUtil::getPathedClassInProgram(class_.clone(), program.clone(), false, false)?)?).clone())).clone();
         (vars, unitDefinitions) = unwrap_break_err!(createVars(dlow.clone(), inInitDAE.clone(), tempVars.clone()), '__try0);
         if debug.clone() {
@@ -7084,7 +7043,7 @@ pub fn createModelInfo(mut class_: Arc<Absyn::Path>, mut program: Absyn::Program
         if debug.clone() {
             unwrap_break_err!(execStat((literal!("simCode: hasLargeEquationSystems")).clone()), '__try0);
         }
-        modelInfo = SimCode::ModelInfo { name: class_.clone(), description: (dlow.shared.info.description.clone()).clone(), version: (version.clone()).clone(), author: (author.clone()).clone(), license: (license.clone()).clone(), copyright: (copyright.clone()).clone(), directory: (directory.clone()).clone(), fileName: (fileName.clone()).clone(), varInfo: varInfo.clone(), vars: vars.clone(), functions: functions.clone(), labels: labels.clone(), resourcePaths: if (unwrap_break_err!(Flags::getConfigBool(Flags::BUILDING_FMU.clone()), '__try0)) {unwrap_break_err!(getResources(program.classes.clone(), dlow.clone(), inInitDAE.clone()), '__try0)} else {metamodelica::nil()}, sortedClasses: unwrap_break_err!(List::sort(program.classes.clone(), Arc::new(fnptr!(AbsynUtil::classNameGreater, Arc<Absyn::Class>, Arc<Absyn::Class>))), '__try0), nClocks: (dlow.shared.partitionsInfo.basePartitions.clone().borrow().len() as i32), nSubClocks: (dlow.shared.partitionsInfo.subPartitions.clone().borrow().len() as i32), nSpatialDistributions: numSpatialDistributions.clone() + 1, hasLargeLinearEquationSystems: hasLargeEqSystems.clone(), linearSystems: metamodelica::nil(), nonLinearSystems: metamodelica::nil(), unitDefinitions: unitDefinitions.clone() };
+        modelInfo = SimCode::ModelInfo { name: class_.clone(), description: (dlow.shared.info.description.clone()).clone(), version: (version.clone()).clone(), author: (author.clone()).clone(), license: (license.clone()).clone(), copyright: (copyright.clone()).clone(), directory: (directory.clone()).clone(), fileName: (fileName.clone()).clone(), varInfo: varInfo.clone(), vars: vars.clone(), functions: functions.clone(), labels: labels.clone(), resourcePaths: if (unwrap_break_err!(Flags::getConfigBool(Flags::BUILDING_FMU.clone()), '__try0)) {unwrap_break_err!(getResources(program.classes.clone(), dlow.clone(), inInitDAE.clone()), '__try0)} else {metamodelica::nil()}, sortedClasses: unwrap_break_err!(List::sort(program.classes.clone(), (std::sync::Arc::new(fnptr!(AbsynUtil::classNameGreater, Arc<Absyn::Class>, Arc<Absyn::Class>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Class>, Arc<Absyn::Class>) -> Result<bool> + 'static>)), '__try0), nClocks: (dlow.shared.partitionsInfo.basePartitions.clone().borrow().len() as i32), nSubClocks: (dlow.shared.partitionsInfo.subPartitions.clone().borrow().len() as i32), nSpatialDistributions: numSpatialDistributions.clone() + 1, hasLargeLinearEquationSystems: hasLargeEqSystems.clone(), linearSystems: metamodelica::nil(), nonLinearSystems: metamodelica::nil(), unitDefinitions: unitDefinitions.clone() };
         Ok::<_, anyhow::Error>((author.clone(), copyright.clone(), description.clone(), directory.clone(), fileName.clone(), hasLargeEqSystems.clone(), license.clone(), modelInfo.clone(), na.clone(), na_bool.clone(), na_int.clone(), na_string.clone(), ndy.clone(), next.clone(), np.clone(), np_bool.clone(), np_int.clone(), np_string.clone(), numInVars.clone(), numOptimizeConstraints.clone(), numOptimizeFinalConstraints.clone(), numOutVars.clone(), numRealInputVars.clone(), nx.clone(), ny.clone(), ny_bool.clone(), ny_int.clone(), ny_string.clone(), unitDefinitions.clone(), varInfo.clone(), vars.clone(), version.clone()))
     } {
         Ok((__try0_o0, __try0_o1, __try0_o2, __try0_o3, __try0_o4, __try0_o5, __try0_o6, __try0_o7, __try0_o8, __try0_o9, __try0_o10, __try0_o11, __try0_o12, __try0_o13, __try0_o14, __try0_o15, __try0_o16, __try0_o17, __try0_o18, __try0_o19, __try0_o20, __try0_o21, __try0_o22, __try0_o23, __try0_o24, __try0_o25, __try0_o26, __try0_o27, __try0_o28, __try0_o29, __try0_o30, __try0_o31)) => {
@@ -7295,23 +7254,23 @@ fn preCalculateStartValues(mut systIn: Arc<BackendDAE::EqSystem>, mut globalKnow
     let mut stateIdcs: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut stateKinds: Arc<metamodelica::List<BackendDAE::VarKind>> = metamodelica::nil();
     vars = systIn.orderedVars.clone();
-    stateInfo = List::fold1(List::intRange(BackendVariable::varsSize(vars.clone())?), Arc::new(getStateInfo), vars.clone(), metamodelica::nil());
-    (vars, _) = BackendVariable::traverseBackendDAEVarsWithUpdate(vars.clone(), Arc::new(setVarKindForStates), crate::BackendDAE::VarKind::VARIABLE)?;
+    stateInfo = List::fold1(List::intRange(BackendVariable::varsSize(vars.clone())?), (std::sync::Arc::new(getStateInfo) as std::sync::Arc<dyn ::std::ops::Fn(i32, BackendDAE::Variables, Arc<metamodelica::List<(i32, BackendDAE::VarKind)>>) -> Result<Arc<metamodelica::List<(i32, BackendDAE::VarKind)>>> + 'static>), vars.clone(), metamodelica::nil());
+    (vars, _) = BackendVariable::traverseBackendDAEVarsWithUpdate(vars.clone(), (std::sync::Arc::new(setVarKindForStates) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, BackendDAE::VarKind) -> Result<(BackendDAE::Var, BackendDAE::VarKind)> + 'static>), crate::BackendDAE::VarKind::VARIABLE)?;
     varLst = BackendVariable::varList(vars.clone())?;
     varMap = List::intRange(BackendVariable::varsSize(vars.clone())?);
-    (noStartVarLst, varMap) = List::filterOnTrueSync(varLst.clone(), Arc::new(BackendVariable::varHasNoStartValue), varMap.clone())?;
+    (noStartVarLst, varMap) = List::filterOnTrueSync(varLst.clone(), (std::sync::Arc::new(BackendVariable::varHasNoStartValue) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var) -> Result<bool> + 'static>), varMap.clone())?;
     eqs = BackendEquation::copyEquationArray(systIn.orderedEqs.clone());
-    let _ = BackendDAEUtil::traverseBackendDAEExpsEqns(eqs.clone(), Arc::new(replaceCrefWithStartValue), globalKnownVars.clone())?;
-    let _ = BackendDAEUtil::traverseBackendDAEExpsEqns(eqs.clone(), Arc::new(replaceCrefWithStartValue), vars.clone())?;
+    let _ = BackendDAEUtil::traverseBackendDAEExpsEqns(eqs.clone(), (std::sync::Arc::new(replaceCrefWithStartValue) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, BackendDAE::Variables) -> Result<(Arc<DAE::Exp>, BackendDAE::Variables)> + 'static>), globalKnownVars.clone())?;
+    let _ = BackendDAEUtil::traverseBackendDAEExpsEqns(eqs.clone(), (std::sync::Arc::new(replaceCrefWithStartValue) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, BackendDAE::Variables) -> Result<(Arc<DAE::Exp>, BackendDAE::Variables)> + 'static>), vars.clone())?;
     vars1 = BackendVariable::listVar1(noStartVarLst.clone());
     syst = BackendDAEUtil::createEqSystem(vars1.clone(), eqs.clone(), metamodelica::nil(), crate::BackendDAE::BaseClockPartitionKind::UNKNOWN_PARTITION, BackendEquation::emptyEqns());
     (syst, mStart, mTStart) = BackendDAEUtil::getAdjacencyMatrix(syst.clone(), crate::BackendDAE::IndexType::NORMAL, None, BackendDAEUtil::isInitializationDAE(shared.clone()))?;
     varMapArr = metamodelica::arrayFromVec(varMap.clone().into_iter().cloned().collect());
     vars = preCalculateStartValues1(List::intRange((mStart.clone().borrow().len() as i32)), mStart.clone(), mTStart.clone(), varMapArr.clone(), eqs.clone(), vars.clone())?;
-    stateIdcs = List::map(stateInfo.clone(), Arc::new(fnptr!(Util::tuple21, _)));
-    stateKinds = List::map(stateInfo.clone(), Arc::new(fnptr!(Util::tuple22, _)));
-    vars = List::threadFold(stateIdcs.clone(), stateKinds.clone(), Arc::new(BackendVariable::setVarKindForVar), vars.clone())?;
-    (vars, _) = BackendVariable::traverseBackendDAEVarsWithUpdate(vars.clone(), Arc::new(evaluateStartValues), shared.clone())?;
+    stateIdcs = List::map(stateInfo.clone(), std::sync::Arc::new(fnptr!(Util::tuple21, _)));
+    stateKinds = List::map(stateInfo.clone(), std::sync::Arc::new(fnptr!(Util::tuple22, _)));
+    vars = List::threadFold(stateIdcs.clone(), stateKinds.clone(), (std::sync::Arc::new(BackendVariable::setVarKindForVar) as std::sync::Arc<dyn ::std::ops::Fn(i32, BackendDAE::VarKind, BackendDAE::Variables) -> Result<BackendDAE::Variables> + 'static>), vars.clone())?;
+    (vars, _) = BackendVariable::traverseBackendDAEVarsWithUpdate(vars.clone(), (std::sync::Arc::new(evaluateStartValues) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, Arc<BackendDAE::Shared>) -> Result<(BackendDAE::Var, Arc<BackendDAE::Shared>)> + 'static>), shared.clone())?;
     systOut = BackendDAEUtil::setEqSystVars(systIn.clone(), vars.clone())?;
     Ok(systOut)
 }
@@ -7362,21 +7321,21 @@ fn preCalculateStartValues1(mut eqIndexes: Arc<metamodelica::List<i32>>, mut m: 
             var = unwrap_break_err!(BackendVariable::setVarStartValue(var.clone(), rhs.clone()), '__try2);
             varArr = unwrap_break_err!(BackendVariable::setVarAt(varArr.clone(), varIdx.clone(), var.clone()), '__try2);
             newEqIdcs = mT.clone().borrow()[(varIdx0.clone()-1) as usize].clone();
-            (newEqIdcs, _) = unwrap_break_err!(List::deleteMemberOnTrue(eqIdx.clone(), newEqIdcs.clone(), Arc::new(fnptr!(intEq, i32, i32))), '__try2);
+            (newEqIdcs, _) = unwrap_break_err!(List::deleteMemberOnTrue(eqIdx.clone(), newEqIdcs.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>)), '__try2);
             workList = List::append_reverse(newEqIdcs.clone(), workList.clone());
-            eqLst = List::map1r(newEqIdcs.clone(), Arc::new(fnptr!(BackendEquation::get, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, i32)), eqs.clone());
-            (eqLst, _) = unwrap_break_err!(BackendEquation::traverseExpsOfEquationList(eqLst.clone(), Arc::new(replaceCrefWithStartValue), varArr.clone()), '__try2);
-            eqArr = unwrap_break_err!(List::threadFold(newEqIdcs.clone(), eqLst.clone(), Arc::new(fnptr!(BackendEquation::setAtIndexFirst, i32, Arc<BackendDAE::Equation>, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>)), eqs.clone()), '__try2);
-            mEntries = List::map1(newEqIdcs.clone(), Arc::new(fnptr!(Array::getIndexFirst, i32, _)), m.clone());
+            eqLst = List::map1r(newEqIdcs.clone(), (std::sync::Arc::new(fnptr!(BackendEquation::get, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, i32)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, i32) -> Result<Arc<BackendDAE::Equation>> + 'static>), eqs.clone());
+            (eqLst, _) = unwrap_break_err!(BackendEquation::traverseExpsOfEquationList(eqLst.clone(), (std::sync::Arc::new(replaceCrefWithStartValue) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, BackendDAE::Variables) -> Result<(Arc<DAE::Exp>, BackendDAE::Variables)> + 'static>), varArr.clone()), '__try2);
+            eqArr = unwrap_break_err!(List::threadFold(newEqIdcs.clone(), eqLst.clone(), (std::sync::Arc::new(fnptr!(BackendEquation::setAtIndexFirst, i32, Arc<BackendDAE::Equation>, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>)) as std::sync::Arc<dyn ::std::ops::Fn(i32, Arc<BackendDAE::Equation>, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>) -> Result<Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>> + 'static>), eqs.clone()), '__try2);
+            mEntries = List::map1(newEqIdcs.clone(), std::sync::Arc::new(fnptr!(Array::getIndexFirst, i32, _)), m.clone());
             mEntries = {
         let mut __acc: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>> = metamodelica::nil();
         for mut e in (mEntries.clone()).into_iter().cloned() {
-            let __x = (unwrap_break_err!(List::deleteMemberOnTrue(varIdx0.clone(), e.clone(), Arc::new(fnptr!(intEq, i32, i32))), '__try2)).0;
+            let __x = (unwrap_break_err!(List::deleteMemberOnTrue(varIdx0.clone(), e.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>)), '__try2)).0;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
     };
-            unwrap_break_err!(List::threadMap1_0(newEqIdcs.clone(), mEntries.clone(), Arc::new(Array::updateIndexFirst), m.clone()), '__try2);
+            unwrap_break_err!(List::threadMap1_0(newEqIdcs.clone(), mEntries.clone(), (std::sync::Arc::new(Array::updateIndexFirst) as std::sync::Arc<dyn ::std::ops::Fn(i32, _, _) -> Result<()> + 'static>), m.clone()), '__try2);
             Ok::<(), anyhow::Error>(())
         }.is_err() {
         }
@@ -7704,12 +7663,12 @@ fn createVars(mut inSimDAE: Arc<BackendDAE::BackendDAE>, mut inInitDAE: Arc<Back
     globalKnownVars2 = __pa9.clone();
     systs2 = __pa10.clone();
     (_, iterationVarsLst) = BackendDAEOptimize::listAllIterationVariables0(inInitDAE.eqs.clone())?;
-    iterationVars = if (iterationVarsLst.clone().is_empty()) {None} else {Some(UnorderedSet::fromList(iterationVarsLst.clone(), ComponentReference::hashComponentRef, ComponentReferenceBasics::crefEqual)?)};
+    iterationVars = if (iterationVarsLst.clone().is_empty()) {None} else {Some(UnorderedSet::fromList(iterationVarsLst.clone(), (std::sync::Arc::new(ComponentReference::hashComponentRef) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentReferenceBasics::crefEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>) -> Result<bool> + 'static>))?)};
     primeSize = Util::nextPrime(((metamodelica::OrderedFloat(1.4_f64) * (metamodelica::OrderedFloat((BackendVariable::varsSize(globalKnownVars1.clone())? + BackendVariable::varsSize(globalKnownVars2.clone())? + BackendVariable::varsSize(localKnownVars1.clone())? + BackendVariable::varsSize(localKnownVars2.clone())? + BackendVariable::varsSize(aliasVars1.clone())? + BackendVariable::varsSize(aliasVars2.clone())? + BackendVariable::varsSize(extvars1.clone())? + BackendVariable::varsSize(extvars2.clone())? + BackendDAEUtil::daeSize(inSimDAE.clone()) + BackendDAEUtil::daeSize(inInitDAE.clone())) as f64))).0.floor() as i32));
     hs = Mutable::create(HashSet::emptyHashSetSized(primeSize.clone()));
     if !(Flags::isSet(Flags::NO_START_CALC.clone())?) {
-        systs1 = List::map2(systs1.clone(), Arc::new(preCalculateStartValues), globalKnownVars1.clone(), shared.clone());
-        (globalKnownVars1, _) = BackendVariable::traverseBackendDAEVarsWithUpdate(globalKnownVars1.clone(), Arc::new(evaluateStartValues), shared.clone())?;
+        systs1 = List::map2(systs1.clone(), (std::sync::Arc::new(preCalculateStartValues) as std::sync::Arc<dyn ::std::ops::Fn(Arc<BackendDAE::EqSystem>, BackendDAE::Variables, Arc<BackendDAE::Shared>) -> Result<Arc<BackendDAE::EqSystem>> + 'static>), globalKnownVars1.clone(), shared.clone());
+        (globalKnownVars1, _) = BackendVariable::traverseBackendDAEVarsWithUpdate(globalKnownVars1.clone(), (std::sync::Arc::new(evaluateStartValues) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, Arc<BackendDAE::Shared>) -> Result<(BackendDAE::Var, Arc<BackendDAE::Shared>)> + 'static>), shared.clone())?;
         if debug.clone() {
             execStat((literal!("createVars: evaluateStartValues")).clone())?;
         }
@@ -7721,7 +7680,7 @@ fn createVars(mut inSimDAE: Arc<BackendDAE::BackendDAE>, mut inInitDAE: Arc<Back
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, Arc::new(BackendVariable::traverseBackendDAEVars), { let __pe_b2 = aliasVars1.clone(); let __pe_b3 = globalKnownVars1.clone(); let __pe_b4 = hs.clone(); let __pe_b5 = shared.timeInterval.clone(); let __pe_b6 = iterationVars.clone(); move |__pe_a0, __pe_a1| extractVarsFromList(__pe_a0, __pe_a1, __pe_b2.clone(), __pe_b3.clone(), __pe_b4.clone(), __pe_b5.clone(), __pe_b6.clone()) }, simVars.clone());
+    }, (std::sync::Arc::new(BackendVariable::traverseBackendDAEVars) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Variables, _, _) -> Result<_> + 'static>), Arc::new({ let __pe_b2 = aliasVars1.clone(); let __pe_b3 = globalKnownVars1.clone(); let __pe_b4 = hs.clone(); let __pe_b5 = shared.timeInterval.clone(); let __pe_b6 = iterationVars.clone(); move |__pe_a0, __pe_a1| extractVarsFromList(__pe_a0, __pe_a1, __pe_b2.clone(), __pe_b3.clone(), __pe_b4.clone(), __pe_b5.clone(), __pe_b6.clone()) }), simVars.clone());
     if debug.clone() {
         execStat((literal!("createVars: variable list")).clone())?;
     }
@@ -7748,7 +7707,7 @@ fn createVars(mut inSimDAE: Arc<BackendDAE::BackendDAE>, mut inInitDAE: Arc<Back
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, Arc::new(BackendVariable::traverseBackendDAEVars), { let __pe_b2 = aliasVars2.clone(); let __pe_b3 = globalKnownVars2.clone(); let __pe_b4 = hs.clone(); let __pe_b5 = None; let __pe_b6 = iterationVars.clone(); move |__pe_a0, __pe_a1| extractVarsFromList(__pe_a0, __pe_a1, __pe_b2.clone(), __pe_b3.clone(), __pe_b4.clone(), __pe_b5.clone(), __pe_b6.clone()) }, simVars.clone());
+    }, (std::sync::Arc::new(BackendVariable::traverseBackendDAEVars) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Variables, _, _) -> Result<_> + 'static>), Arc::new({ let __pe_b2 = aliasVars2.clone(); let __pe_b3 = globalKnownVars2.clone(); let __pe_b4 = hs.clone(); let __pe_b5 = None; let __pe_b6 = iterationVars.clone(); move |__pe_a0, __pe_a1| extractVarsFromList(__pe_a0, __pe_a1, __pe_b2.clone(), __pe_b3.clone(), __pe_b4.clone(), __pe_b5.clone(), __pe_b6.clone()) }), simVars.clone());
     if debug.clone() {
         execStat((literal!("createVars: variable list (init)")).clone())?;
     }
@@ -7851,18 +7810,18 @@ pub fn simGenericCallString(mut call: SimCode::SimGenericCall) -> Result<ArcStr>
     let mut r#str: ArcStr = arcstr::literal!("");
     r#str = ((match call.clone() {
         SimCode::SimGenericCall::SINGLE_GENERIC_CALL { .. } => {
-            r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("single generic call ")); __mm_s.push_str(&*intString(var_field!(call.index, SimCode::SimGenericCall::SINGLE_GENERIC_CALL).clone())); __mm_s.push_str(&*literal!(" ")); __mm_s.push_str(&*List::toString(var_field!(call.iters, SimCode::SimGenericCall::SINGLE_GENERIC_CALL).clone(), Arc::new(BackendDump::simIteratorString), (literal!("")).clone(), (literal!("{")).clone(), (literal!(", ")).clone(), (literal!("}")).clone(), true, 0)?); ArcStr::from(__mm_s) }).clone();
+            r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("single generic call ")); __mm_s.push_str(&*intString(var_field!(call.index, SimCode::SimGenericCall::SINGLE_GENERIC_CALL).clone())); __mm_s.push_str(&*literal!(" ")); __mm_s.push_str(&*List::toString(var_field!(call.iters, SimCode::SimGenericCall::SINGLE_GENERIC_CALL).clone(), (std::sync::Arc::new(BackendDump::simIteratorString) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::SimIterator) -> Result<ArcStr> + 'static>), (literal!("")).clone(), (literal!("{")).clone(), (literal!(", ")).clone(), (literal!("}")).clone(), true, 0)?); ArcStr::from(__mm_s) }).clone();
             r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*r#str.clone()); __mm_s.push_str(&*literal!("\n  ")); __mm_s.push_str(&*ExpressionBasics::printExpStr(var_field!(call.lhs, SimCode::SimGenericCall::SINGLE_GENERIC_CALL).clone())?); __mm_s.push_str(&*literal!(" = ")); __mm_s.push_str(&*ExpressionBasics::printExpStr(var_field!(call.rhs, SimCode::SimGenericCall::SINGLE_GENERIC_CALL).clone())?); __mm_s.push_str(&*literal!(";")); ArcStr::from(__mm_s) }).clone();
             r#str.clone()
         },
         SimCode::SimGenericCall::IF_GENERIC_CALL { .. } => {
-            r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("if generic call ")); __mm_s.push_str(&*intString(var_field!(call.index, SimCode::SimGenericCall::IF_GENERIC_CALL).clone())); __mm_s.push_str(&*literal!(" ")); __mm_s.push_str(&*List::toString(var_field!(call.iters, SimCode::SimGenericCall::IF_GENERIC_CALL).clone(), Arc::new(BackendDump::simIteratorString), (literal!("")).clone(), (literal!("{")).clone(), (literal!(", ")).clone(), (literal!("}")).clone(), true, 0)?); ArcStr::from(__mm_s) }).clone();
-            r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*r#str.clone()); __mm_s.push_str(&*List::toString(var_field!(call.branches, SimCode::SimGenericCall::IF_GENERIC_CALL).clone(), Arc::new(simBranchString), (literal!("")).clone(), (literal!("")).clone(), (literal!("\n")).clone(), (literal!("")).clone(), true, 0)?); ArcStr::from(__mm_s) }).clone();
+            r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("if generic call ")); __mm_s.push_str(&*intString(var_field!(call.index, SimCode::SimGenericCall::IF_GENERIC_CALL).clone())); __mm_s.push_str(&*literal!(" ")); __mm_s.push_str(&*List::toString(var_field!(call.iters, SimCode::SimGenericCall::IF_GENERIC_CALL).clone(), (std::sync::Arc::new(BackendDump::simIteratorString) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::SimIterator) -> Result<ArcStr> + 'static>), (literal!("")).clone(), (literal!("{")).clone(), (literal!(", ")).clone(), (literal!("}")).clone(), true, 0)?); ArcStr::from(__mm_s) }).clone();
+            r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*r#str.clone()); __mm_s.push_str(&*List::toString(var_field!(call.branches, SimCode::SimGenericCall::IF_GENERIC_CALL).clone(), (std::sync::Arc::new(simBranchString) as std::sync::Arc<dyn ::std::ops::Fn(SimCode::SimBranch) -> Result<ArcStr> + 'static>), (literal!("")).clone(), (literal!("")).clone(), (literal!("\n")).clone(), (literal!("")).clone(), true, 0)?); ArcStr::from(__mm_s) }).clone();
             r#str.clone()
         },
         SimCode::SimGenericCall::WHEN_GENERIC_CALL { .. } => {
-            r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("when generic call ")); __mm_s.push_str(&*intString(var_field!(call.index, SimCode::SimGenericCall::WHEN_GENERIC_CALL).clone())); __mm_s.push_str(&*literal!(" ")); __mm_s.push_str(&*List::toString(var_field!(call.iters, SimCode::SimGenericCall::WHEN_GENERIC_CALL).clone(), Arc::new(BackendDump::simIteratorString), (literal!("")).clone(), (literal!("{")).clone(), (literal!(", ")).clone(), (literal!("}")).clone(), true, 0)?); ArcStr::from(__mm_s) }).clone();
-            r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*r#str.clone()); __mm_s.push_str(&*List::toString(var_field!(call.branches, SimCode::SimGenericCall::WHEN_GENERIC_CALL).clone(), Arc::new(simBranchString), (literal!("")).clone(), (literal!("")).clone(), (literal!("\n")).clone(), (literal!("")).clone(), true, 0)?); ArcStr::from(__mm_s) }).clone();
+            r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("when generic call ")); __mm_s.push_str(&*intString(var_field!(call.index, SimCode::SimGenericCall::WHEN_GENERIC_CALL).clone())); __mm_s.push_str(&*literal!(" ")); __mm_s.push_str(&*List::toString(var_field!(call.iters, SimCode::SimGenericCall::WHEN_GENERIC_CALL).clone(), (std::sync::Arc::new(BackendDump::simIteratorString) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::SimIterator) -> Result<ArcStr> + 'static>), (literal!("")).clone(), (literal!("{")).clone(), (literal!(", ")).clone(), (literal!("}")).clone(), true, 0)?); ArcStr::from(__mm_s) }).clone();
+            r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*r#str.clone()); __mm_s.push_str(&*List::toString(var_field!(call.branches, SimCode::SimGenericCall::WHEN_GENERIC_CALL).clone(), (std::sync::Arc::new(simBranchString) as std::sync::Arc<dyn ::std::ops::Fn(SimCode::SimBranch) -> Result<ArcStr> + 'static>), (literal!("")).clone(), (literal!("")).clone(), (literal!("\n")).clone(), (literal!("")).clone(), true, 0)?); ArcStr::from(__mm_s) }).clone();
             r#str.clone()
         },
         _ => literal!(""),
@@ -7882,7 +7841,7 @@ pub fn simBranchString(mut branch: SimCode::SimBranch) -> Result<ArcStr> {
             let mut b: bool = false;
             b = isSome(var_field!(branch.condition, SimCode::SimBranch::SIM_BRANCH).clone());
             r#str = (if (b.clone()) {{ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("if ")); __mm_s.push_str(&*ExpressionBasics::printExpStr(Util::getOption(var_field!(branch.condition, SimCode::SimBranch::SIM_BRANCH).clone())?)?); __mm_s.push_str(&*literal!(" then\n")); ArcStr::from(__mm_s) }} else {literal!("else\n")}).clone();
-            r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*r#str.clone()); __mm_s.push_str(&*List::toString(var_field!(branch.body, SimCode::SimBranch::SIM_BRANCH).clone(), Arc::new(fnptr!(simBranchBodyString, (Arc<DAE::Exp>, Arc<DAE::Exp>))), (literal!("  ")).clone(), (literal!("  ")).clone(), (literal!("\n")).clone(), (literal!("")).clone(), true, 0)?); ArcStr::from(__mm_s) }).clone();
+            r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*r#str.clone()); __mm_s.push_str(&*List::toString(var_field!(branch.body, SimCode::SimBranch::SIM_BRANCH).clone(), (std::sync::Arc::new(fnptr!(simBranchBodyString, (Arc<DAE::Exp>, Arc<DAE::Exp>))) as std::sync::Arc<dyn ::std::ops::Fn((Arc<DAE::Exp>, Arc<DAE::Exp>)) -> Result<ArcStr> + 'static>), (literal!("  ")).clone(), (literal!("  ")).clone(), (literal!("\n")).clone(), (literal!("")).clone(), true, 0)?); ArcStr::from(__mm_s) }).clone();
             r#str = (if (b.clone()) {{ let mut __mm_s = String::new(); __mm_s.push_str(&*r#str.clone()); __mm_s.push_str(&*literal!("end if;")); ArcStr::from(__mm_s) }} else {r#str.clone()}).clone();
             r#str.clone()
         },
@@ -7890,7 +7849,7 @@ pub fn simBranchString(mut branch: SimCode::SimBranch) -> Result<ArcStr> {
             let mut b: bool = false;
             b = isSome(var_field!(branch.condition, SimCode::SimBranch::SIM_BRANCH_STMT).clone());
             r#str = (if (b.clone()) {{ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("if ")); __mm_s.push_str(&*ExpressionBasics::printExpStr(Util::getOption(var_field!(branch.condition, SimCode::SimBranch::SIM_BRANCH_STMT).clone())?)?); __mm_s.push_str(&*literal!(" then\n")); ArcStr::from(__mm_s) }} else {literal!("else\n")}).clone();
-            r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*r#str.clone()); __mm_s.push_str(&*List::toString(var_field!(branch.body, SimCode::SimBranch::SIM_BRANCH_STMT).clone(), Arc::new(DAEDump::ppStatementStr), (literal!("  ")).clone(), (literal!("  ")).clone(), (literal!("\n")).clone(), (literal!("")).clone(), true, 0)?); ArcStr::from(__mm_s) }).clone();
+            r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*r#str.clone()); __mm_s.push_str(&*List::toString(var_field!(branch.body, SimCode::SimBranch::SIM_BRANCH_STMT).clone(), (std::sync::Arc::new(DAEDump::ppStatementStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Statement>) -> Result<ArcStr> + 'static>), (literal!("  ")).clone(), (literal!("  ")).clone(), (literal!("\n")).clone(), (literal!("")).clone(), true, 0)?); ArcStr::from(__mm_s) }).clone();
             r#str = (if (b.clone()) {{ let mut __mm_s = String::new(); __mm_s.push_str(&*r#str.clone()); __mm_s.push_str(&*literal!("\nend if;")); ArcStr::from(__mm_s) }} else {r#str.clone()}).clone();
             r#str.clone()
         },
@@ -8118,7 +8077,7 @@ fn derVarFromStateVar(mut state: SimCodeVar::SimVar, mut timeInterval: Option<Ar
     let mut deriv: SimCodeVar::SimVar = state.clone();
     let mut unit: Unit::Unit;
     let mut nominal: Arc<DAE::Exp>;
-    deriv.arrayCref = Util::applyOption(deriv.arrayCref.clone(), Arc::new(fnptr!(ComponentReference::crefPrefixDer, Arc<DAE::ComponentRef>)));
+    deriv.arrayCref = Util::applyOption(deriv.arrayCref.clone(), (std::sync::Arc::new(fnptr!(ComponentReference::crefPrefixDer, Arc<DAE::ComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<Arc<DAE::ComponentRef>> + 'static>));
     deriv.name = ComponentReference::crefPrefixDer(deriv.name.clone());
     deriv.varKind = crate::BackendDAE::VarKind::STATE_DER;
     if deriv.comment.clone() != literal!("") {
@@ -8451,8 +8410,8 @@ pub fn simEqSystemString(mut eqSysIn: Arc<SimCode::SimEqSystem>) -> Result<ArcSt
                 Deref @ SimCode::SimEqSystem::SES_ALGORITHM { statements: stmts, index: idx, .. } => {
                     let mut s: ArcStr = arcstr::literal!("");
                     let mut sLst: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
-                    sLst = List::map(stmts.clone(), Arc::new(DAEDump::ppStatementStr));
-                    s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*intString(idx.clone())); __mm_s.push_str(&*literal!(": ")); __mm_s.push_str(&*List::foldr(sLst.clone(), Arc::new(fnptr!(stringAppend, ArcStr, ArcStr)), (literal!("")).clone())); ArcStr::from(__mm_s) }).clone();
+                    sLst = List::map(stmts.clone(), (std::sync::Arc::new(DAEDump::ppStatementStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Statement>) -> Result<ArcStr> + 'static>));
+                    s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*intString(idx.clone())); __mm_s.push_str(&*literal!(": ")); __mm_s.push_str(&*List::foldr(sLst.clone(), (std::sync::Arc::new(fnptr!(stringAppend, ArcStr, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<ArcStr> + 'static>), (literal!("")).clone())); ArcStr::from(__mm_s) }).clone();
                     Ok(s.clone())
                 }
                 _ => bail!("nomatch"),
@@ -8463,8 +8422,8 @@ pub fn simEqSystemString(mut eqSysIn: Arc<SimCode::SimEqSystem>) -> Result<ArcSt
                 Deref @ SimCode::SimEqSystem::SES_INVERSE_ALGORITHM { statements: stmts, index: idx, .. } => {
                     let mut s: ArcStr = arcstr::literal!("");
                     let mut sLst: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
-                    sLst = List::map(stmts.clone(), Arc::new(DAEDump::ppStatementStr));
-                    s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*intString(idx.clone())); __mm_s.push_str(&*literal!(": ")); __mm_s.push_str(&*List::foldr(sLst.clone(), Arc::new(fnptr!(stringAppend, ArcStr, ArcStr)), (literal!("")).clone())); ArcStr::from(__mm_s) }).clone();
+                    sLst = List::map(stmts.clone(), (std::sync::Arc::new(DAEDump::ppStatementStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Statement>) -> Result<ArcStr> + 'static>));
+                    s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*intString(idx.clone())); __mm_s.push_str(&*literal!(": ")); __mm_s.push_str(&*List::foldr(sLst.clone(), (std::sync::Arc::new(fnptr!(stringAppend, ArcStr, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<ArcStr> + 'static>), (literal!("")).clone())); ArcStr::from(__mm_s) }).clone();
                     Ok(s.clone())
                 }
                 _ => bail!("nomatch"),
@@ -8475,10 +8434,10 @@ pub fn simEqSystemString(mut eqSysIn: Arc<SimCode::SimEqSystem>) -> Result<ArcSt
                 Deref @ SimCode::SimEqSystem::SES_LINEAR { lSystem: Deref @ SimCode::LinearSystem { jacobianMatrix: jac, residual, beqs, vars, indexLinearSystem: idxLS, index: idx, .. }, alternativeTearing: None, .. } => {
                     let mut s: ArcStr = arcstr::literal!("");
                     s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*intString(idx.clone())); __mm_s.push_str(&*literal!(": ")); __mm_s.push_str(&*literal!(" (LINEAR) index:")); __mm_s.push_str(&*intString(idxLS.clone())); __mm_s.push_str(&*literal!(" jacobian: ")); __mm_s.push_str(&*boolString(isSome(jac.clone()))); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone();
-                    s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*s.clone()); __mm_s.push_str(&*literal!("\tvariables:\n")); __mm_s.push_str(&*stringDelimitList(List::map(vars.clone(), Arc::new(simVarString)), (literal!("\n")).clone())); ArcStr::from(__mm_s) }).clone();
-                    s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*s.clone()); __mm_s.push_str(&*literal!("\n\tb-vector:\n")); __mm_s.push_str(&*stringDelimitList(List::map(beqs.clone(), Arc::new(ExpressionBasics::printExpStr)), (literal!("\n")).clone())); ArcStr::from(__mm_s) }).clone();
+                    s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*s.clone()); __mm_s.push_str(&*literal!("\tvariables:\n")); __mm_s.push_str(&*stringDelimitList(List::map(vars.clone(), (std::sync::Arc::new(simVarString) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar) -> Result<ArcStr> + 'static>)), (literal!("\n")).clone())); ArcStr::from(__mm_s) }).clone();
+                    s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*s.clone()); __mm_s.push_str(&*literal!("\n\tb-vector:\n")); __mm_s.push_str(&*stringDelimitList(List::map(beqs.clone(), (std::sync::Arc::new(ExpressionBasics::printExpStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<ArcStr> + 'static>)), (literal!("\n")).clone())); ArcStr::from(__mm_s) }).clone();
                     s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*s.clone()); __mm_s.push_str(&*literal!("\t")); ArcStr::from(__mm_s) }).clone();
-                    s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*s.clone()); __mm_s.push_str(&*stringDelimitList(List::map(residual.clone(), Arc::new(simEqSystemString)), (literal!("\n\t")).clone())); ArcStr::from(__mm_s) }).clone();
+                    s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*s.clone()); __mm_s.push_str(&*stringDelimitList(List::map(residual.clone(), (std::sync::Arc::new(simEqSystemString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SimCode::SimEqSystem>) -> Result<ArcStr> + 'static>)), (literal!("\n\t")).clone())); ArcStr::from(__mm_s) }).clone();
                     s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*s.clone()); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone();
                     Ok(s.clone())
                 }
@@ -8490,10 +8449,10 @@ pub fn simEqSystemString(mut eqSysIn: Arc<SimCode::SimEqSystem>) -> Result<ArcSt
                 Deref @ SimCode::SimEqSystem::SES_LINEAR { lSystem: Deref @ SimCode::LinearSystem { jacobianMatrix: jac, residual, beqs, vars, indexLinearSystem: idxLS, index: idx, .. }, alternativeTearing: Some(Deref @ SimCode::LinearSystem { .. }), .. } => {
                     let mut s: ArcStr = arcstr::literal!("");
                     s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("strict set:\n")); __mm_s.push_str(&*intString(idx.clone())); __mm_s.push_str(&*literal!(": ")); __mm_s.push_str(&*literal!(" (LINEAR) index:")); __mm_s.push_str(&*intString(idxLS.clone())); __mm_s.push_str(&*literal!(" jacobian: ")); __mm_s.push_str(&*boolString(isSome(jac.clone()))); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone();
-                    s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*s.clone()); __mm_s.push_str(&*literal!("\tvariables:\n\t")); __mm_s.push_str(&*stringDelimitList(List::map(vars.clone(), Arc::new(simVarString)), (literal!("\t\n")).clone())); ArcStr::from(__mm_s) }).clone();
-                    s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*s.clone()); __mm_s.push_str(&*literal!("\n\tb-vector:\n")); __mm_s.push_str(&*stringDelimitList(List::map(beqs.clone(), Arc::new(ExpressionBasics::printExpStr)), (literal!("\t\n")).clone())); ArcStr::from(__mm_s) }).clone();
+                    s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*s.clone()); __mm_s.push_str(&*literal!("\tvariables:\n\t")); __mm_s.push_str(&*stringDelimitList(List::map(vars.clone(), (std::sync::Arc::new(simVarString) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar) -> Result<ArcStr> + 'static>)), (literal!("\t\n")).clone())); ArcStr::from(__mm_s) }).clone();
+                    s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*s.clone()); __mm_s.push_str(&*literal!("\n\tb-vector:\n")); __mm_s.push_str(&*stringDelimitList(List::map(beqs.clone(), (std::sync::Arc::new(ExpressionBasics::printExpStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<ArcStr> + 'static>)), (literal!("\t\n")).clone())); ArcStr::from(__mm_s) }).clone();
                     s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*s.clone()); __mm_s.push_str(&*literal!("\t")); ArcStr::from(__mm_s) }).clone();
-                    s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*s.clone()); __mm_s.push_str(&*stringDelimitList(List::map(residual.clone(), Arc::new(simEqSystemString)), (literal!("\n\t")).clone())); ArcStr::from(__mm_s) }).clone();
+                    s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*s.clone()); __mm_s.push_str(&*stringDelimitList(List::map(residual.clone(), (std::sync::Arc::new(simEqSystemString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SimCode::SimEqSystem>) -> Result<ArcStr> + 'static>)), (literal!("\n\t")).clone())); ArcStr::from(__mm_s) }).clone();
                     s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*s.clone()); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone();
                     Ok(s.clone())
                 }
@@ -8505,9 +8464,9 @@ pub fn simEqSystemString(mut eqSysIn: Arc<SimCode::SimEqSystem>) -> Result<ArcSt
                 Deref @ SimCode::SimEqSystem::SES_NONLINEAR { nlSystem: Deref @ SimCode::NonlinearSystem { crefs, eqs, jacobianMatrix: jac, indexNonLinearSystem: idxNLS, index: idx, .. }, alternativeTearing: None, .. } => {
                     let mut s: ArcStr = arcstr::literal!("");
                     s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*intString(idx.clone())); __mm_s.push_str(&*literal!(": ")); __mm_s.push_str(&*literal!(" (NONLINEAR) index:")); __mm_s.push_str(&*intString(idxNLS.clone())); __mm_s.push_str(&*literal!(" jacobian: ")); __mm_s.push_str(&*boolString(isSome(jac.clone()))); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone();
-                    s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*s.clone()); __mm_s.push_str(&*literal!("crefs: ")); __mm_s.push_str(&*stringDelimitList(List::map(crefs.clone(), Arc::new(ComponentReferenceBasics::printComponentRefStr)), (literal!(" , ")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone();
+                    s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*s.clone()); __mm_s.push_str(&*literal!("crefs: ")); __mm_s.push_str(&*stringDelimitList(List::map(crefs.clone(), (std::sync::Arc::new(ComponentReferenceBasics::printComponentRefStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>)), (literal!(" , ")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone();
                     s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*s.clone()); __mm_s.push_str(&*literal!("\t")); ArcStr::from(__mm_s) }).clone();
-                    s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*s.clone()); __mm_s.push_str(&*stringDelimitList(List::map(eqs.clone(), Arc::new(simEqSystemString)), (literal!("\n\t")).clone())); ArcStr::from(__mm_s) }).clone();
+                    s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*s.clone()); __mm_s.push_str(&*stringDelimitList(List::map(eqs.clone(), (std::sync::Arc::new(simEqSystemString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SimCode::SimEqSystem>) -> Result<ArcStr> + 'static>)), (literal!("\n\t")).clone())); ArcStr::from(__mm_s) }).clone();
                     s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*s.clone()); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone();
                     Ok(s.clone())
                 }
@@ -8519,9 +8478,9 @@ pub fn simEqSystemString(mut eqSysIn: Arc<SimCode::SimEqSystem>) -> Result<ArcSt
                 Deref @ SimCode::SimEqSystem::SES_NONLINEAR { nlSystem: Deref @ SimCode::NonlinearSystem { crefs, eqs, jacobianMatrix: jac, indexNonLinearSystem: idxNLS, index: idx, .. }, alternativeTearing: Some(Deref @ SimCode::NonlinearSystem { .. }), .. } => {
                     let mut s: ArcStr = arcstr::literal!("");
                     s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("strict set:\n")); __mm_s.push_str(&*intString(idx.clone())); __mm_s.push_str(&*literal!(": ")); __mm_s.push_str(&*literal!(" (NONLINEAR) index:")); __mm_s.push_str(&*intString(idxNLS.clone())); __mm_s.push_str(&*literal!(" jacobian: ")); __mm_s.push_str(&*boolString(isSome(jac.clone()))); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone();
-                    s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*s.clone()); __mm_s.push_str(&*literal!("crefs: ")); __mm_s.push_str(&*stringDelimitList(List::map(crefs.clone(), Arc::new(ComponentReferenceBasics::printComponentRefStr)), (literal!(" , ")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone();
+                    s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*s.clone()); __mm_s.push_str(&*literal!("crefs: ")); __mm_s.push_str(&*stringDelimitList(List::map(crefs.clone(), (std::sync::Arc::new(ComponentReferenceBasics::printComponentRefStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>)), (literal!(" , ")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone();
                     s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*s.clone()); __mm_s.push_str(&*literal!("\t")); ArcStr::from(__mm_s) }).clone();
-                    s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*s.clone()); __mm_s.push_str(&*stringDelimitList(List::map(eqs.clone(), Arc::new(simEqSystemString)), (literal!("\n\t")).clone())); ArcStr::from(__mm_s) }).clone();
+                    s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*s.clone()); __mm_s.push_str(&*stringDelimitList(List::map(eqs.clone(), (std::sync::Arc::new(simEqSystemString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SimCode::SimEqSystem>) -> Result<ArcStr> + 'static>)), (literal!("\n\t")).clone())); ArcStr::from(__mm_s) }).clone();
                     s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*s.clone()); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone();
                     Ok(s.clone())
                 }
@@ -8534,7 +8493,7 @@ pub fn simEqSystemString(mut eqSysIn: Arc<SimCode::SimEqSystem>) -> Result<ArcSt
                     let mut s: ArcStr = arcstr::literal!("");
                     s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*intString(idx.clone())); __mm_s.push_str(&*literal!(": ")); __mm_s.push_str(&*literal!(" (MIXED) index:")); __mm_s.push_str(&*intString(idxMS.clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone();
                     s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*s.clone()); __mm_s.push_str(&*simEqSystemString(cont.clone())?); ArcStr::from(__mm_s) }).clone();
-                    s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*s.clone()); __mm_s.push_str(&*stringDelimitList(List::map(eqs.clone(), Arc::new(simEqSystemString)), (literal!("\n\t")).clone())); ArcStr::from(__mm_s) }).clone();
+                    s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*s.clone()); __mm_s.push_str(&*stringDelimitList(List::map(eqs.clone(), (std::sync::Arc::new(simEqSystemString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SimCode::SimEqSystem>) -> Result<ArcStr> + 'static>)), (literal!("\n\t")).clone())); ArcStr::from(__mm_s) }).clone();
                     Ok(s.clone())
                 }
                 _ => bail!("nomatch"),
@@ -8545,7 +8504,7 @@ pub fn simEqSystemString(mut eqSysIn: Arc<SimCode::SimEqSystem>) -> Result<ArcSt
                 Deref @ SimCode::SimEqSystem::SES_WHEN { elseWhen, whenStmtLst, conditions: crefs, index: idx, .. } => {
                     let mut s: ArcStr = arcstr::literal!("");
                     s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*intString(idx.clone())); __mm_s.push_str(&*literal!(": ")); __mm_s.push_str(&*literal!(" WHEN:( ")); ArcStr::from(__mm_s) }).clone();
-                    s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*s.clone()); __mm_s.push_str(&*stringDelimitList(List::map(crefs.clone(), Arc::new(ComponentReference::crefStr)), (literal!(", ")).clone())); __mm_s.push_str(&*literal!(" ) then: ")); ArcStr::from(__mm_s) }).clone();
+                    s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*s.clone()); __mm_s.push_str(&*stringDelimitList(List::map(crefs.clone(), (std::sync::Arc::new(ComponentReference::crefStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>)), (literal!(", ")).clone())); __mm_s.push_str(&*literal!(" ) then: ")); ArcStr::from(__mm_s) }).clone();
                     s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*s.clone()); __mm_s.push_str(&*dumpWhenOps(whenStmtLst.clone())?); ArcStr::from(__mm_s) }).clone();
                     if isSome(elseWhen.clone()) {
                         s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*s.clone()); __mm_s.push_str(&*literal!(" ELSEWHEN: ")); ArcStr::from(__mm_s) }).clone();
@@ -8573,7 +8532,7 @@ pub fn simEqSystemString(mut eqSysIn: Arc<SimCode::SimEqSystem>) -> Result<ArcSt
                 Deref @ SimCode::SimEqSystem::SES_FOR_EQUATION { body: eqs, endIt, startIt, iter: iterator, index: idx, .. } => {
                     let mut s: ArcStr = arcstr::literal!("");
                     s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*intString(idx.clone())); __mm_s.push_str(&*literal!(" FOR-EQUATION: ")); __mm_s.push_str(&*literal!(" for ")); __mm_s.push_str(&*ExpressionBasics::printExpStr(iterator.clone())?); __mm_s.push_str(&*literal!(" in (")); __mm_s.push_str(&*ExpressionBasics::printExpStr(startIt.clone())?); __mm_s.push_str(&*literal!(":")); __mm_s.push_str(&*ExpressionBasics::printExpStr(endIt.clone())?); __mm_s.push_str(&*literal!(") loop\n")); ArcStr::from(__mm_s) }).clone();
-                    s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*s.clone()); __mm_s.push_str(&*stringDelimitList(List::map(eqs.clone(), Arc::new(simEqSystemString)), (literal!("\n\t")).clone())); ArcStr::from(__mm_s) }).clone();
+                    s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*s.clone()); __mm_s.push_str(&*stringDelimitList(List::map(eqs.clone(), (std::sync::Arc::new(simEqSystemString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SimCode::SimEqSystem>) -> Result<ArcStr> + 'static>)), (literal!("\n\t")).clone())); ArcStr::from(__mm_s) }).clone();
                     s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*s.clone()); __mm_s.push_str(&*literal!("end for;")); ArcStr::from(__mm_s) }).clone();
                     Ok(s.clone())
                 }
@@ -8625,7 +8584,7 @@ pub fn simEqSystemString(mut eqSysIn: Arc<SimCode::SimEqSystem>) -> Result<ArcSt
                 Deref @ SimCode::SimEqSystem::SES_GENERIC_ASSIGN { .. } => {
                     let mut s: ArcStr = arcstr::literal!("");
                     s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*intString(var_field!((*eqSysIn).index, SimCode::SimEqSystem::SES_GENERIC_ASSIGN).clone())); __mm_s.push_str(&*literal!(": ")); __mm_s.push_str(&*literal!(" (SES_GENERIC_ASSIGN) ")); __mm_s.push_str(&*literal!(" call index: ")); __mm_s.push_str(&*intString(var_field!((*eqSysIn).call_index, SimCode::SimEqSystem::SES_GENERIC_ASSIGN).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone();
-                    s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*s.clone()); __mm_s.push_str(&*literal!("\tindices: ")); __mm_s.push_str(&*List::toString(var_field!((*eqSysIn).scal_indices, SimCode::SimEqSystem::SES_GENERIC_ASSIGN).clone(), Arc::new(fnptr!(intString, i32)), (literal!("")).clone(), (literal!("{")).clone(), (literal!(", ")).clone(), (literal!("}")).clone(), true, 10)?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone();
+                    s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*s.clone()); __mm_s.push_str(&*literal!("\tindices: ")); __mm_s.push_str(&*List::toString(var_field!((*eqSysIn).scal_indices, SimCode::SimEqSystem::SES_GENERIC_ASSIGN).clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>), (literal!("")).clone(), (literal!("{")).clone(), (literal!(", ")).clone(), (literal!("}")).clone(), true, 10)?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone();
                     Ok(s.clone())
                 }
                 _ => bail!("nomatch"),
@@ -8636,8 +8595,8 @@ pub fn simEqSystemString(mut eqSysIn: Arc<SimCode::SimEqSystem>) -> Result<ArcSt
                 Deref @ SimCode::SimEqSystem::SES_ENTWINED_ASSIGN { .. } => {
                     let mut s: ArcStr = arcstr::literal!("");
                     s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*intString(var_field!((*eqSysIn).index, SimCode::SimEqSystem::SES_ENTWINED_ASSIGN).clone())); __mm_s.push_str(&*literal!(": ")); __mm_s.push_str(&*literal!(" (SES_ENTWINED_ASSIGN)\n")); ArcStr::from(__mm_s) }).clone();
-                    s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*s.clone()); __mm_s.push_str(&*literal!("\tcall order: ")); __mm_s.push_str(&*List::toString(var_field!((*eqSysIn).call_order, SimCode::SimEqSystem::SES_ENTWINED_ASSIGN).clone(), Arc::new(fnptr!(intString, i32)), (literal!("")).clone(), (literal!("{")).clone(), (literal!(", ")).clone(), (literal!("}")).clone(), true, 10)?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone();
-                    s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*s.clone()); __mm_s.push_str(&*List::toString(var_field!((*eqSysIn).single_calls, SimCode::SimEqSystem::SES_ENTWINED_ASSIGN).clone(), Arc::new(simEqSystemString), (literal!("")).clone(), (literal!("\t")).clone(), (literal!("\n")).clone(), (literal!("")).clone(), true, 0)?); ArcStr::from(__mm_s) }).clone();
+                    s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*s.clone()); __mm_s.push_str(&*literal!("\tcall order: ")); __mm_s.push_str(&*List::toString(var_field!((*eqSysIn).call_order, SimCode::SimEqSystem::SES_ENTWINED_ASSIGN).clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>), (literal!("")).clone(), (literal!("{")).clone(), (literal!(", ")).clone(), (literal!("}")).clone(), true, 10)?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone();
+                    s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*s.clone()); __mm_s.push_str(&*List::toString(var_field!((*eqSysIn).single_calls, SimCode::SimEqSystem::SES_ENTWINED_ASSIGN).clone(), (std::sync::Arc::new(simEqSystemString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SimCode::SimEqSystem>) -> Result<ArcStr> + 'static>), (literal!("")).clone(), (literal!("\t")).clone(), (literal!("\n")).clone(), (literal!("")).clone(), true, 0)?); ArcStr::from(__mm_s) }).clone();
                     s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*s.clone()); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone();
                     Ok(s.clone())
                 }
@@ -8706,7 +8665,7 @@ pub fn dumpSimEqSystem(mut eqSysIn: Arc<SimCode::SimEqSystem>) -> Result<()> {
                     println!("{}", (simEqSystemString(eqSysIn.clone())?).clone());
                     dumpJacobianMatrix(jac.clone())?;
                     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\ncasual set:\n")); __mm_s.push_str(&*intString(idx2.clone())); __mm_s.push_str(&*literal!(": ")); __mm_s.push_str(&*literal!(" (NONLINEAR) index:")); __mm_s.push_str(&*intString(idxNLS2.clone())); __mm_s.push_str(&*literal!(" jacobian: ")); __mm_s.push_str(&*boolString(isSome(jac2.clone()))); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
-                    println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\t\tcrefs: ")); __mm_s.push_str(&*stringDelimitList(List::map(crefs2.clone(), Arc::new(ComponentReferenceBasics::printComponentRefStr)), (literal!(" , ")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+                    println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\t\tcrefs: ")); __mm_s.push_str(&*stringDelimitList(List::map(crefs2.clone(), (std::sync::Arc::new(ComponentReferenceBasics::printComponentRefStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>)), (literal!(" , ")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
                     println!("{}", (literal!("\t")).clone());
                     dumpSimEqSystemLst(eqs2.clone(), (literal!("\n\t")).clone())?;
                     println!("{}", (literal!("\n")).clone());
@@ -8845,7 +8804,7 @@ fn extObjInfoString(mut info: SimCode::ExtObjInfo) -> Result<()> {
 
 fn dumpClockPartition(mut clockPart: SimCode::ClockedPartition) -> Result<()> {
     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("BaseClock:\n")); __mm_s.push_str(&*arcstr::literal!(UNDERLINE)); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*ExpressionDump::clockKindString(clockPart.baseClock.clone())?); __mm_s.push_str(&*arcstr::literal!(UNDERLINE)); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
-    println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*stringDelimitList(List::map(clockPart.subPartitions.clone(), Arc::new(subPartitionString)), (literal!("\n\n")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+    println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*stringDelimitList(List::map(clockPart.subPartitions.clone(), (std::sync::Arc::new(subPartitionString) as std::sync::Arc<dyn ::std::ops::Fn(SimCode::SubPartition) -> Result<ArcStr> + 'static>)), (literal!("\n\n")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
     println!("{}", (literal!("\n")).clone());
     Ok(())
 }
@@ -8866,15 +8825,15 @@ fn subPartitionString(mut subPart: SimCode::SubPartition) -> Result<ArcStr> {
     let mut arePrevious: Arc<metamodelica::List<bool>> = metamodelica::nil();
     let mut simVarStrings: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
     let mut s: ArcStr = arcstr::literal!("");
-    simVars = List::map(subPart.vars.clone(), Arc::new(fnptr!(Util::tuple21, _)));
-    arePrevious = List::map(subPart.vars.clone(), Arc::new(fnptr!(Util::tuple22, _)));
-    simVarStrings = List::threadMap(List::map(simVars.clone(), Arc::new(simVarString)), List::map(arePrevious.clone(), Arc::new(fnptr!(previousString, bool))), Arc::new(fnptr!(stringAppend, ArcStr, ArcStr)));
+    simVars = List::map(subPart.vars.clone(), std::sync::Arc::new(fnptr!(Util::tuple21, _)));
+    arePrevious = List::map(subPart.vars.clone(), std::sync::Arc::new(fnptr!(Util::tuple22, _)));
+    simVarStrings = List::threadMap(List::map(simVars.clone(), (std::sync::Arc::new(simVarString) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar) -> Result<ArcStr> + 'static>)), List::map(arePrevious.clone(), (std::sync::Arc::new(fnptr!(previousString, bool)) as std::sync::Arc<dyn ::std::ops::Fn(bool) -> Result<ArcStr> + 'static>)), (std::sync::Arc::new(fnptr!(stringAppend, ArcStr, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<ArcStr> + 'static>));
     r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("SubPartition Vars:\n")); __mm_s.push_str(&*arcstr::literal!(UNDERLINE)); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone();
     r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*r#str.clone()); __mm_s.push_str(&*stringDelimitList(simVarStrings.clone(), (literal!("\n")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone();
     r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*r#str.clone()); __mm_s.push_str(&*literal!("partition equations:\n")); __mm_s.push_str(&*arcstr::literal!(UNDERLINE)); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone();
-    r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*r#str.clone()); __mm_s.push_str(&*stringDelimitList(List::map(subPart.equations.clone(), Arc::new(simEqSystemString)), (literal!("\n")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone();
+    r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*r#str.clone()); __mm_s.push_str(&*stringDelimitList(List::map(subPart.equations.clone(), (std::sync::Arc::new(simEqSystemString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SimCode::SimEqSystem>) -> Result<ArcStr> + 'static>)), (literal!("\n")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone();
     r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*r#str.clone()); __mm_s.push_str(&*literal!("removedEquations equations:\n")); __mm_s.push_str(&*arcstr::literal!(UNDERLINE)); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone();
-    r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*r#str.clone()); __mm_s.push_str(&*stringDelimitList(List::map(subPart.removedEquations.clone(), Arc::new(simEqSystemString)), (literal!("\n")).clone())); ArcStr::from(__mm_s) }).clone();
+    r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*r#str.clone()); __mm_s.push_str(&*stringDelimitList(List::map(subPart.removedEquations.clone(), (std::sync::Arc::new(simEqSystemString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SimCode::SimEqSystem>) -> Result<ArcStr> + 'static>)), (literal!("\n")).clone())); ArcStr::from(__mm_s) }).clone();
     r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*r#str.clone()); __mm_s.push_str(&*literal!("SubClock:\n")); __mm_s.push_str(&*BackendDump::subClockString(subPart.subClock.clone())?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone();
     r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*r#str.clone()); __mm_s.push_str(&*literal!("Hold Events: ")); __mm_s.push_str(&*boolString(subPart.holdEvents.clone())); ArcStr::from(__mm_s) }).clone();
     Ok(r#str)
@@ -8923,13 +8882,13 @@ pub fn dumpSimCodeDebug(mut simCode: SimCode::SimCode) -> Result<()> {
     dumpSimEqSystemLst(simCode.allEquations.clone(), (literal!("\n")).clone())?;
     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*arcstr::literal!(UNDERLINE)); __mm_s.push_str(&*literal!("\n\n\n")); ArcStr::from(__mm_s) }).clone());
     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nodeEquations (")); __mm_s.push_str(&*intString((simCode.odeEquations.clone().len() as i32))); __mm_s.push_str(&*literal!(" systems):\n")); __mm_s.push_str(&*arcstr::literal!(UNDERLINE)); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
-    List::map1_0(simCode.odeEquations.clone(), Arc::new(dumpSimEqSystemLst), (literal!("\n")).clone());
+    List::map1_0(simCode.odeEquations.clone(), (std::sync::Arc::new(dumpSimEqSystemLst) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>, ArcStr) -> Result<()> + 'static>), (literal!("\n")).clone());
     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*arcstr::literal!(UNDERLINE)); __mm_s.push_str(&*literal!("\n\n\n")); ArcStr::from(__mm_s) }).clone());
     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nalgebraicEquations (")); __mm_s.push_str(&*intString((simCode.algebraicEquations.clone().len() as i32))); __mm_s.push_str(&*literal!(" systems):\n")); __mm_s.push_str(&*arcstr::literal!(UNDERLINE)); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
-    List::map1_0(simCode.algebraicEquations.clone(), Arc::new(dumpSimEqSystemLst), (literal!("\n")).clone());
+    List::map1_0(simCode.algebraicEquations.clone(), (std::sync::Arc::new(dumpSimEqSystemLst) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>, ArcStr) -> Result<()> + 'static>), (literal!("\n")).clone());
     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*arcstr::literal!(UNDERLINE)); __mm_s.push_str(&*literal!("\n\n\n")); ArcStr::from(__mm_s) }).clone());
     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("clockPartitions (")); __mm_s.push_str(&*intString((simCode.clockedPartitions.clone().len() as i32))); __mm_s.push_str(&*literal!(" systems):\n\n")); ArcStr::from(__mm_s) }).clone());
-    List::map_0(simCode.clockedPartitions.clone(), Arc::new(dumpClockPartition));
+    List::map_0(simCode.clockedPartitions.clone(), (std::sync::Arc::new(dumpClockPartition) as std::sync::Arc<dyn ::std::ops::Fn(SimCode::ClockedPartition) -> Result<()> + 'static>));
     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*arcstr::literal!(UNDERLINE)); __mm_s.push_str(&*literal!("\n\n\n")); ArcStr::from(__mm_s) }).clone());
     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\ninitialEquations: (")); __mm_s.push_str(&*intString((simCode.initialEquations.clone().len() as i32))); __mm_s.push_str(&*literal!(")\n")); __mm_s.push_str(&*arcstr::literal!(UNDERLINE)); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
     dumpSimEqSystemLst(simCode.initialEquations.clone(), (literal!("\n")).clone())?;
@@ -8959,13 +8918,13 @@ pub fn dumpSimCodeDebug(mut simCode: SimCode::SimCode) -> Result<()> {
     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nequationsForZeroCrossings:\n")); __mm_s.push_str(&*arcstr::literal!(UNDERLINE)); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
     dumpSimEqSystemLst(simCode.equationsForZeroCrossings.clone(), (literal!("\n")).clone())?;
     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\ngeneric calls:\n")); __mm_s.push_str(&*arcstr::literal!(UNDERLINE)); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
-    println!("{}", (List::toString(simCode.generic_loop_calls.clone(), Arc::new(simGenericCallString), (literal!("")).clone(), (literal!("")).clone(), (literal!("\n")).clone(), (literal!("")).clone(), true, 0)?).clone());
+    println!("{}", (List::toString(simCode.generic_loop_calls.clone(), (std::sync::Arc::new(simGenericCallString) as std::sync::Arc<dyn ::std::ops::Fn(SimCode::SimGenericCall) -> Result<ArcStr> + 'static>), (literal!("")).clone(), (literal!("")).clone(), (literal!("\n")).clone(), (literal!("")).clone(), true, 0)?).clone());
     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\njacobianEquations:\n")); __mm_s.push_str(&*arcstr::literal!(UNDERLINE)); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
     dumpSimEqSystemLst(simCode.jacobianEquations.clone(), (literal!("\n")).clone())?;
     extObjInfoString(simCode.extObjInfo.clone())?;
     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\njacobianMatrices:\n")); __mm_s.push_str(&*arcstr::literal!(UNDERLINE)); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
-    jacObs = List::map(simCode.jacobianMatrices.clone(), Arc::new(fnptr!(Util::makeOption, _)));
-    List::map_0(jacObs.clone(), Arc::new(dumpJacobianMatrix));
+    jacObs = List::map(simCode.jacobianMatrices.clone(), std::sync::Arc::new(fnptr!(Util::makeOption, _)));
+    List::map_0(jacObs.clone(), (std::sync::Arc::new(dumpJacobianMatrix) as std::sync::Arc<dyn ::std::ops::Fn(Option<Arc<SimCode::JacobianMatrix>>) -> Result<()> + 'static>));
     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nmodelInfo:\n")); __mm_s.push_str(&*arcstr::literal!(UNDERLINE)); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
     dumpModelInfo(simCode.modelInfo.clone())?;
     dumpSimCodeDAEmodeDataString(simCode.daeModeData.clone())?;
@@ -8985,7 +8944,7 @@ fn sortSimvars(mut simvars: metamodelica::Array<Arc<metamodelica::List<SimCodeVa
     let mut i: i32 = 0;
     let mut arr: metamodelica::Array<i32>;
     for mut i in SimVarsIndex.clone() /* Unknown type for iterator Enumeration("SimCodeUtil.SimVarsIndex") */ {
-        Dangerous::arrayUpdate(simvars.clone(), ((i.clone()) as i32 /* Integer(...) with unknown arg type */), List::sort(Dangerous::arrayGet(simvars.clone(), ((i.clone()) as i32 /* Integer(...) with unknown arg type */))?, Arc::new(simVarCompareByCrefSubsAtEndlLexical))?)?;
+        Dangerous::arrayUpdate(simvars.clone(), ((i.clone()) as i32 /* Integer(...) with unknown arg type */), List::sort(Dangerous::arrayGet(simvars.clone(), ((i.clone()) as i32 /* Integer(...) with unknown arg type */))?, (std::sync::Arc::new(simVarCompareByCrefSubsAtEndlLexical) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, SimCodeVar::SimVar) -> Result<bool> + 'static>))?)?;
     }
     for mut v in Dangerous::arrayGet(simvars.clone(), ((SimVarsIndex::inputs.clone()) as i32))? /* Unknown type for iterator Unknown */ {
         i = (match v.clone() {
@@ -9017,10 +8976,10 @@ fn extendIncompleteArray(mut simvars: metamodelica::Array<Arc<metamodelica::List
     let mut set: (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<Arc<DAE::ComponentRef>>>), i32, i32, (HashSet::FuncHashCref, HashSet::FuncCrefEqual, HashSet::FuncCrefStr));
     set = HashSet::emptyHashSet();
     for mut i in SimVarsIndex.clone() /* Unknown type for iterator Enumeration("SimCodeUtil.SimVarsIndex") */ {
-        set = List::fold(Dangerous::arrayGet(simvars.clone(), ((i.clone()) as i32 /* Integer(...) with unknown arg type */)).unwrap(), Arc::new(collectArrayFirstVars), set.clone());
+        set = List::fold(Dangerous::arrayGet(simvars.clone(), ((i.clone()) as i32 /* Integer(...) with unknown arg type */)).unwrap(), (std::sync::Arc::new(collectArrayFirstVars) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<Arc<DAE::ComponentRef>>>), i32, i32, (HashSet::FuncHashCref, HashSet::FuncCrefEqual, HashSet::FuncCrefStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<Arc<DAE::ComponentRef>>>), i32, i32, (HashSet::FuncHashCref, HashSet::FuncCrefEqual, HashSet::FuncCrefStr))> + 'static>), set.clone());
     }
     for mut i in SimVarsIndex.clone() /* Unknown type for iterator Enumeration("SimCodeUtil.SimVarsIndex") */ {
-        (simVars, set) = List::mapFold(Dangerous::arrayGet(simvars.clone(), ((i.clone()) as i32 /* Integer(...) with unknown arg type */)).unwrap(), Arc::new(setArrayElementnoFirst), set.clone());
+        (simVars, set) = List::mapFold(Dangerous::arrayGet(simvars.clone(), ((i.clone()) as i32 /* Integer(...) with unknown arg type */)).unwrap(), (std::sync::Arc::new(setArrayElementnoFirst) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<Arc<DAE::ComponentRef>>>), i32, i32, (HashSet::FuncHashCref, HashSet::FuncCrefEqual, HashSet::FuncCrefStr))) -> Result<(SimCodeVar::SimVar, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<Arc<DAE::ComponentRef>>>), i32, i32, (HashSet::FuncHashCref, HashSet::FuncCrefEqual, HashSet::FuncCrefStr)))> + 'static>), set.clone());
         Dangerous::arrayUpdate(simvars.clone(), ((i.clone()) as i32 /* Integer(...) with unknown arg type */), simVars.clone()).unwrap();
     }
     ()
@@ -9135,7 +9094,7 @@ fn rewriteIndexColumnMajor(mut inVars: Arc<metamodelica::List<SimCodeVar::SimVar
         let mut var = var.clone();
         subs = ComponentReference::crefLastSubs(var.name.clone())?;
         if (subs.clone().len() as i32) > 1 {
-            arrayDimensions = List::map(var.numArrayElement.clone(), Arc::new(stringInt));
+            arrayDimensions = List::map(var.numArrayElement.clone(), (std::sync::Arc::new(stringInt) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr) -> Result<i32> + 'static>));
             elementIndex = getScalarElementIndex(subs.clone(), arrayDimensions.clone());
             var.index = index.clone() - elementIndex.clone() + convertIndexToColumnMajor(elementIndex.clone(), arrayDimensions.clone());
         } else {
@@ -9163,7 +9122,7 @@ pub fn setVariableIndexHelper(mut inVars: Arc<metamodelica::List<SimCodeVar::Sim
     let mut outVars: Arc<metamodelica::List<SimCodeVar::SimVar>> = metamodelica::nil();
     let mut outIndex: i32 = 0;
     let mut outFMIIndex: i32 = 0;
-    let (__pa0, (__pa1, __pa2)) = List::mapFold(inVars.clone(), Arc::new(setVariableIndexHelper2), (inIndex.clone(), inFMIIndex.clone()));
+    let (__pa0, (__pa1, __pa2)) = List::mapFold(inVars.clone(), (std::sync::Arc::new(setVariableIndexHelper2) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, (i32, i32)) -> Result<(SimCodeVar::SimVar, (i32, i32))> + 'static>), (inIndex.clone(), inFMIIndex.clone()));
     outVars = __pa0.clone();
     outIndex = __pa1.clone();
     outFMIIndex = __pa2.clone();
@@ -9236,7 +9195,7 @@ pub fn transformUnitToBaseUnit(mut unit: Unit::Unit) -> Result<SimCode::BaseUnit
     let mut K: i32 = 0;
     let mut kg: i32 = 0;
     let mut factor: metamodelica::Real = metamodelica::OrderedFloat(0.0_f64);
-    let Unit::UNIT { factor: __pa0, mol: __pa1, cd: __pa2, m: __pa3, s: __pa4, A: __pa5, K: __pa6, g: __pa7 } = (unit.clone()) else { bail!("pattern mismatch") };
+    let Unit::UNIT { s: __pa0, m: __pa1, g: __pa2, A: __pa3, K: __pa4, mol: __pa5, cd: __pa6, factor: __pa7 } = (unit.clone()) else { bail!("pattern mismatch") };
     s = __pa0.clone();
     m = __pa1.clone();
     kg = __pa2.clone();
@@ -9244,7 +9203,7 @@ pub fn transformUnitToBaseUnit(mut unit: Unit::Unit) -> Result<SimCode::BaseUnit
     K = __pa4.clone();
     mol = __pa5.clone();
     cd = __pa6.clone();
-    factor = metamodelica::OrderedFloat((__pa7.clone()) as f64);
+    factor = __pa7.clone();
     baseUnit = SimCode::BaseUnit::BASEUNIT { s: s.clone(), m: m.clone(), kg: kg.clone(), A: A.clone(), K: K.clone(), mol: mol.clone(), cd: cd.clone(), factor: factor.clone() * (metamodelica::OrderedFloat((10) as f64)).powf(metamodelica::OrderedFloat((-(3 * kg.clone())) as f64)), offset: metamodelica::OrderedFloat(0.0_f64) };
     Ok(baseUnit)
 }
@@ -9262,34 +9221,34 @@ pub fn createCrefToSimVarHT(mut modelInfo: SimCode::ModelInfo) -> Result<(metamo
         size = intMax(size.clone(), 1023);
         outHT = HashTableCrefSimVar::emptyHashTableSized(size.clone());
         arraySimVars = HashTableCrILst::emptyHashTableSized(size.clone());
-        outHT = List::fold(vars.stateVars.clone(), Arc::new(HashTableCrefSimVar::addSimVarToHashTable), outHT.clone());
-        outHT = List::fold(vars.derivativeVars.clone(), Arc::new(HashTableCrefSimVar::addSimVarToHashTable), outHT.clone());
-        outHT = List::fold(vars.algVars.clone(), Arc::new(HashTableCrefSimVar::addSimVarToHashTable), outHT.clone());
-        arraySimVars = List::fold(vars.algVars.clone(), Arc::new(getArraySimVars), arraySimVars.clone());
-        outHT = List::fold(vars.discreteAlgVars.clone(), Arc::new(HashTableCrefSimVar::addSimVarToHashTable), outHT.clone());
-        outHT = List::fold(vars.intAlgVars.clone(), Arc::new(HashTableCrefSimVar::addSimVarToHashTable), outHT.clone());
-        outHT = List::fold(vars.boolAlgVars.clone(), Arc::new(HashTableCrefSimVar::addSimVarToHashTable), outHT.clone());
-        outHT = List::fold(vars.paramVars.clone(), Arc::new(HashTableCrefSimVar::addSimVarToHashTable), outHT.clone());
-        arraySimVars = List::fold(vars.paramVars.clone(), Arc::new(getArraySimVars), arraySimVars.clone());
-        outHT = List::fold(vars.intParamVars.clone(), Arc::new(HashTableCrefSimVar::addSimVarToHashTable), outHT.clone());
-        outHT = List::fold(vars.boolParamVars.clone(), Arc::new(HashTableCrefSimVar::addSimVarToHashTable), outHT.clone());
-        outHT = List::fold(vars.aliasVars.clone(), Arc::new(HashTableCrefSimVar::addSimVarToHashTable), outHT.clone());
-        arraySimVars = List::fold(vars.aliasVars.clone(), Arc::new(getArraySimVars), arraySimVars.clone());
-        outHT = List::fold(vars.intAliasVars.clone(), Arc::new(HashTableCrefSimVar::addSimVarToHashTable), outHT.clone());
-        outHT = List::fold(vars.boolAliasVars.clone(), Arc::new(HashTableCrefSimVar::addSimVarToHashTable), outHT.clone());
-        outHT = List::fold(vars.stringAlgVars.clone(), Arc::new(HashTableCrefSimVar::addSimVarToHashTable), outHT.clone());
-        outHT = List::fold(vars.stringParamVars.clone(), Arc::new(HashTableCrefSimVar::addSimVarToHashTable), outHT.clone());
-        outHT = List::fold(vars.stringAliasVars.clone(), Arc::new(HashTableCrefSimVar::addSimVarToHashTable), outHT.clone());
-        outHT = List::fold(vars.extObjVars.clone(), Arc::new(HashTableCrefSimVar::addSimVarToHashTable), outHT.clone());
-        outHT = List::fold(vars.constVars.clone(), Arc::new(HashTableCrefSimVar::addSimVarToHashTable), outHT.clone());
-        outHT = List::fold(vars.intConstVars.clone(), Arc::new(HashTableCrefSimVar::addSimVarToHashTable), outHT.clone());
-        outHT = List::fold(vars.boolConstVars.clone(), Arc::new(HashTableCrefSimVar::addSimVarToHashTable), outHT.clone());
-        outHT = List::fold(vars.stringConstVars.clone(), Arc::new(HashTableCrefSimVar::addSimVarToHashTable), outHT.clone());
-        outHT = List::fold(vars.sensitivityVars.clone(), Arc::new(HashTableCrefSimVar::addSimVarToHashTable), outHT.clone());
-        outHT = List::fold(vars.jacobianVars.clone(), Arc::new(HashTableCrefSimVar::addSimVarToHashTable), outHT.clone());
-        outHT = List::fold(vars.seedVars.clone(), Arc::new(HashTableCrefSimVar::addSimVarToHashTable), outHT.clone());
-        outHT = List::fold(vars.realOptimizeConstraintsVars.clone(), Arc::new(HashTableCrefSimVar::addSimVarToHashTable), outHT.clone());
-        outHT = List::fold(vars.realOptimizeFinalConstraintsVars.clone(), Arc::new(HashTableCrefSimVar::addSimVarToHashTable), outHT.clone());
+        outHT = List::fold(vars.stateVars.clone(), (std::sync::Arc::new(HashTableCrefSimVar::addSimVarToHashTable) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))> + 'static>), outHT.clone());
+        outHT = List::fold(vars.derivativeVars.clone(), (std::sync::Arc::new(HashTableCrefSimVar::addSimVarToHashTable) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))> + 'static>), outHT.clone());
+        outHT = List::fold(vars.algVars.clone(), (std::sync::Arc::new(HashTableCrefSimVar::addSimVarToHashTable) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))> + 'static>), outHT.clone());
+        arraySimVars = List::fold(vars.algVars.clone(), (std::sync::Arc::new(getArraySimVars) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<metamodelica::List<i32>>)>>), i32, (HashTableCrILst::FuncHashCref, HashTableCrILst::FuncCrefEqual, HashTableCrILst::FuncCrefStr, HashTableCrILst::FuncExpStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<metamodelica::List<i32>>)>>), i32, (HashTableCrILst::FuncHashCref, HashTableCrILst::FuncCrefEqual, HashTableCrILst::FuncCrefStr, HashTableCrILst::FuncExpStr))> + 'static>), arraySimVars.clone());
+        outHT = List::fold(vars.discreteAlgVars.clone(), (std::sync::Arc::new(HashTableCrefSimVar::addSimVarToHashTable) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))> + 'static>), outHT.clone());
+        outHT = List::fold(vars.intAlgVars.clone(), (std::sync::Arc::new(HashTableCrefSimVar::addSimVarToHashTable) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))> + 'static>), outHT.clone());
+        outHT = List::fold(vars.boolAlgVars.clone(), (std::sync::Arc::new(HashTableCrefSimVar::addSimVarToHashTable) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))> + 'static>), outHT.clone());
+        outHT = List::fold(vars.paramVars.clone(), (std::sync::Arc::new(HashTableCrefSimVar::addSimVarToHashTable) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))> + 'static>), outHT.clone());
+        arraySimVars = List::fold(vars.paramVars.clone(), (std::sync::Arc::new(getArraySimVars) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<metamodelica::List<i32>>)>>), i32, (HashTableCrILst::FuncHashCref, HashTableCrILst::FuncCrefEqual, HashTableCrILst::FuncCrefStr, HashTableCrILst::FuncExpStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<metamodelica::List<i32>>)>>), i32, (HashTableCrILst::FuncHashCref, HashTableCrILst::FuncCrefEqual, HashTableCrILst::FuncCrefStr, HashTableCrILst::FuncExpStr))> + 'static>), arraySimVars.clone());
+        outHT = List::fold(vars.intParamVars.clone(), (std::sync::Arc::new(HashTableCrefSimVar::addSimVarToHashTable) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))> + 'static>), outHT.clone());
+        outHT = List::fold(vars.boolParamVars.clone(), (std::sync::Arc::new(HashTableCrefSimVar::addSimVarToHashTable) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))> + 'static>), outHT.clone());
+        outHT = List::fold(vars.aliasVars.clone(), (std::sync::Arc::new(HashTableCrefSimVar::addSimVarToHashTable) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))> + 'static>), outHT.clone());
+        arraySimVars = List::fold(vars.aliasVars.clone(), (std::sync::Arc::new(getArraySimVars) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<metamodelica::List<i32>>)>>), i32, (HashTableCrILst::FuncHashCref, HashTableCrILst::FuncCrefEqual, HashTableCrILst::FuncCrefStr, HashTableCrILst::FuncExpStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<metamodelica::List<i32>>)>>), i32, (HashTableCrILst::FuncHashCref, HashTableCrILst::FuncCrefEqual, HashTableCrILst::FuncCrefStr, HashTableCrILst::FuncExpStr))> + 'static>), arraySimVars.clone());
+        outHT = List::fold(vars.intAliasVars.clone(), (std::sync::Arc::new(HashTableCrefSimVar::addSimVarToHashTable) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))> + 'static>), outHT.clone());
+        outHT = List::fold(vars.boolAliasVars.clone(), (std::sync::Arc::new(HashTableCrefSimVar::addSimVarToHashTable) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))> + 'static>), outHT.clone());
+        outHT = List::fold(vars.stringAlgVars.clone(), (std::sync::Arc::new(HashTableCrefSimVar::addSimVarToHashTable) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))> + 'static>), outHT.clone());
+        outHT = List::fold(vars.stringParamVars.clone(), (std::sync::Arc::new(HashTableCrefSimVar::addSimVarToHashTable) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))> + 'static>), outHT.clone());
+        outHT = List::fold(vars.stringAliasVars.clone(), (std::sync::Arc::new(HashTableCrefSimVar::addSimVarToHashTable) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))> + 'static>), outHT.clone());
+        outHT = List::fold(vars.extObjVars.clone(), (std::sync::Arc::new(HashTableCrefSimVar::addSimVarToHashTable) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))> + 'static>), outHT.clone());
+        outHT = List::fold(vars.constVars.clone(), (std::sync::Arc::new(HashTableCrefSimVar::addSimVarToHashTable) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))> + 'static>), outHT.clone());
+        outHT = List::fold(vars.intConstVars.clone(), (std::sync::Arc::new(HashTableCrefSimVar::addSimVarToHashTable) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))> + 'static>), outHT.clone());
+        outHT = List::fold(vars.boolConstVars.clone(), (std::sync::Arc::new(HashTableCrefSimVar::addSimVarToHashTable) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))> + 'static>), outHT.clone());
+        outHT = List::fold(vars.stringConstVars.clone(), (std::sync::Arc::new(HashTableCrefSimVar::addSimVarToHashTable) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))> + 'static>), outHT.clone());
+        outHT = List::fold(vars.sensitivityVars.clone(), (std::sync::Arc::new(HashTableCrefSimVar::addSimVarToHashTable) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))> + 'static>), outHT.clone());
+        outHT = List::fold(vars.jacobianVars.clone(), (std::sync::Arc::new(HashTableCrefSimVar::addSimVarToHashTable) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))> + 'static>), outHT.clone());
+        outHT = List::fold(vars.seedVars.clone(), (std::sync::Arc::new(HashTableCrefSimVar::addSimVarToHashTable) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))> + 'static>), outHT.clone());
+        outHT = List::fold(vars.realOptimizeConstraintsVars.clone(), (std::sync::Arc::new(HashTableCrefSimVar::addSimVarToHashTable) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))> + 'static>), outHT.clone());
+        outHT = List::fold(vars.realOptimizeFinalConstraintsVars.clone(), (std::sync::Arc::new(HashTableCrefSimVar::addSimVarToHashTable) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))> + 'static>), outHT.clone());
         Ok::<_, anyhow::Error>((arraySimVars.clone(), outHT.clone(), size.clone(), varInfo.clone(), vars.clone()))
     } {
         Ok((__try0_o0, __try0_o1, __try0_o2, __try0_o3, __try0_o4)) => {
@@ -9487,7 +9446,7 @@ fn dlowvarToSimvar(mut dlowVar: BackendDAE::Var, mut optAliasVars: Option<Backen
             isDiscrete = BackendVariable::isVarDiscrete(dlowVar.clone());
             arrayCref = ComponentReference::getArrayCref(cr.clone())?;
             aliasvar = getAliasVar(dlowVar.clone(), optAliasVars.clone())?;
-            numArrayElement = List::map(inst_dims.clone(), Arc::new(ExpressionDump::dimensionIntString));
+            numArrayElement = List::map(inst_dims.clone(), (std::sync::Arc::new(ExpressionDump::dimensionIntString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Dimension>) -> Result<ArcStr> + 'static>));
             isValueChangeable = BackendVariable::isChangeable(dlowVar.clone());
             caus = getCausality(dlowVar.clone(), vars.clone(), isValueChangeable.clone())?;
             variability = crate::SimCodeVar::Variability::CONSTANT;
@@ -9533,7 +9492,7 @@ fn dlowvarToSimvar(mut dlowVar: BackendDAE::Var, mut optAliasVars: Option<Backen
             isDiscrete = BackendVariable::isVarDiscrete(dlowVar.clone());
             arrayCref = ComponentReference::getArrayCref(cr.clone())?;
             aliasvar = getAliasVar(dlowVar.clone(), optAliasVars.clone())?;
-            numArrayElement = List::map(inst_dims.clone(), Arc::new(ExpressionDump::dimensionIntString));
+            numArrayElement = List::map(inst_dims.clone(), (std::sync::Arc::new(ExpressionDump::dimensionIntString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Dimension>) -> Result<ArcStr> + 'static>));
             isValueChangeable = BackendVariable::isChangeable(dlowVar.clone());
             caus = getCausality(dlowVar.clone(), vars.clone(), isValueChangeable.clone())?;
             variability = crate::SimCodeVar::Variability::FIXED;
@@ -9587,7 +9546,7 @@ fn dlowvarToSimvar(mut dlowVar: BackendDAE::Var, mut optAliasVars: Option<Backen
             isDiscrete = BackendVariable::isVarDiscrete(dlowVar.clone());
             arrayCref = ComponentReference::getArrayCref(cr.clone())?;
             aliasvar = getAliasVar(dlowVar.clone(), optAliasVars.clone())?;
-            numArrayElement = List::map(inst_dims.clone(), Arc::new(ExpressionDump::dimensionIntString));
+            numArrayElement = List::map(inst_dims.clone(), (std::sync::Arc::new(ExpressionDump::dimensionIntString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Dimension>) -> Result<ArcStr> + 'static>));
             isValueChangeable = BackendVariable::isChangeable(dlowVar.clone());
             caus = getCausality(dlowVar.clone(), vars.clone(), isValueChangeable.clone())?;
             variability = crate::SimCodeVar::Variability::CONTINUOUS;
@@ -9640,7 +9599,7 @@ fn dlowvarToSimvar(mut dlowVar: BackendDAE::Var, mut optAliasVars: Option<Backen
             isDiscrete = BackendVariable::isVarDiscrete(dlowVar.clone());
             arrayCref = ComponentReference::getArrayCref(cr.clone())?;
             aliasvar = getAliasVar(dlowVar.clone(), optAliasVars.clone())?;
-            numArrayElement = List::map(inst_dims.clone(), Arc::new(ExpressionDump::dimensionIntString));
+            numArrayElement = List::map(inst_dims.clone(), (std::sync::Arc::new(ExpressionDump::dimensionIntString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Dimension>) -> Result<ArcStr> + 'static>));
             isValueChangeable = BackendVariable::isChangeable(dlowVar.clone());
             caus = getCausality(dlowVar.clone(), vars.clone(), isValueChangeable.clone())?;
             variability = getVariabilityAttribute(dlowVar.clone());
@@ -9836,7 +9795,7 @@ pub fn traversingdlowvarToSimvar(mut var: BackendDAE::Var, mut inTpl: (Arc<metam
 }
 
 pub fn getMatchingExpsList(mut inExps: Arc<metamodelica::List<Arc<DAE::Exp>>>, mut inFn: Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, Arc<metamodelica::List<Arc<DAE::Exp>>>) -> Result<(Arc<DAE::Exp>, Arc<metamodelica::List<Arc<DAE::Exp>>>)> + 'static>) -> Result<Arc<metamodelica::List<Arc<DAE::Exp>>>> {
-    pub type MatchFn = fn(Arc<DAE::Exp>, Arc<metamodelica::List<Arc<DAE::Exp>>>) -> Result<(Arc<DAE::Exp>, Arc<metamodelica::List<Arc<DAE::Exp>>>)>;
+    pub type MatchFn = std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, Arc<metamodelica::List<Arc<DAE::Exp>>>) -> Result<(Arc<DAE::Exp>, Arc<metamodelica::List<Arc<DAE::Exp>>>)> + 'static>;
 
     let mut outExpLst: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
     (_, outExpLst) = Expression::traverseExpList(inExps.clone(), inFn.clone(), metamodelica::nil())?;
@@ -9851,8 +9810,8 @@ fn extractVarUnit(mut var_attr: Option<Arc<DAE::VariableAttributes>>) -> Result<
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 Some(Deref @ DAE::VariableAttributes::VAR_ATTR_REAL { displayUnit: duexp, unit: uexp, .. }) => {
-                    let mut unitStr: ArcStr = unitStr.clone();
                     let mut displayUnitStr: ArcStr = displayUnitStr.clone();
+                    let mut unitStr: ArcStr = unitStr.clone();
                     unitStr = (extractVarUnitStr(uexp.clone())?).clone();
                     displayUnitStr = (extractVarUnitStr(duexp.clone())?).clone();
                     Ok((unitStr.clone(), displayUnitStr.clone()))
@@ -10129,7 +10088,7 @@ fn getNominalValue(mut daelowVar: BackendDAE::Var) -> Result<Option<Arc<DAE::Exp
 }
 
 pub fn functionInfo(mut r#fn: Arc<SimCodeFunction::Function::Function>) -> Result<SourceInfo> {
-    let mut info: SourceInfo;
+    let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
     info = (::match_deref::match_deref! { match &(r#fn.clone()) {
         Deref @ SimCodeFunction::Function::FUNCTION { info, .. } => info.clone(),
         Deref @ SimCodeFunction::Function::EXTERNAL_FUNCTION { info, .. } => info.clone(),
@@ -10153,7 +10112,7 @@ pub fn functionPath(mut r#fn: Arc<SimCodeFunction::Function::Function>) -> Resul
 }
 
 pub fn eqInfo(mut eq: Arc<SimCode::SimEqSystem>) -> Result<SourceInfo> {
-    let mut info: SourceInfo;
+    let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
     info = (::match_deref::match_deref! { match &(eq.clone()) {
         Deref @ SimCode::SimEqSystem::SES_RESIDUAL { source: Deref @ DAE::ElementSource { info, .. }, .. } => info.clone(),
         Deref @ SimCode::SimEqSystem::SES_FOR_RESIDUAL { source: Deref @ DAE::ElementSource { info, .. }, .. } => info.clone(),
@@ -10287,14 +10246,14 @@ fn setVariableDerIndex2(mut inDlow: Arc<BackendDAE::BackendDAE>, mut syst: Arc<B
                     eqns = BackendEquation::equationList(deqns.clone());
                     derExps = makeCallDerExp(vars.clone())?;
                     if Flags::isSet(Flags::FAILTRACE.clone())? {
-                        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!(" possible der exp: ")); __mm_s.push_str(&*stringDelimitList(List::map(derExps.clone(), Arc::new(ExpressionBasics::printExpStr)), (literal!(", ")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+                        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!(" possible der exp: ")); __mm_s.push_str(&*stringDelimitList(List::map(derExps.clone(), (std::sync::Arc::new(ExpressionBasics::printExpStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<ArcStr> + 'static>)), (literal!(", ")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
                     }
                     eqns = flattenEqns(eqns.clone(), inDlow.clone())?;
-                    (variableIndex, firstOrderVars) = List::map2_2(derExps.clone(), Arc::new(locateDerAndSerachOtherSide), eqns.clone(), eqns.clone());
+                    (variableIndex, firstOrderVars) = List::map2_2(derExps.clone(), (std::sync::Arc::new(locateDerAndSerachOtherSide) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, Arc<metamodelica::List<Arc<BackendDAE::Equation>>>) -> Result<((Arc<DAE::ComponentRef>, i32), Arc<metamodelica::List<Arc<DAE::ComponentRef>>>)> + 'static>), eqns.clone(), eqns.clone());
                     if Flags::isSet(Flags::FAILTRACE.clone())? {
                         println!("{}", (literal!("united variables\n")).clone());
                     }
-                    firstOrderVarsFiltered = List::fold(firstOrderVars.clone(), Arc::new(fnptr!(List::union, _, _)), metamodelica::nil());
+                    firstOrderVarsFiltered = List::fold(firstOrderVars.clone(), std::sync::Arc::new(fnptr!(List::union, _, _)), metamodelica::nil());
                     if Flags::isSet(Flags::FAILTRACE.clone())? {
                         println!("{}", (literal!("list fold variables\n")).clone());
                     }
@@ -10425,7 +10384,7 @@ fn makeCallDerExp(mut inVars: Arc<metamodelica::List<BackendDAE::Var>>) -> Resul
                 Deref @ metamodelica::List::Cons { head: BackendDAE::Var { varName: cr, varKind: BackendDAE::VarKind::STATE { .. }, .. }, tail: vars } => {
                     let mut rec: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
                     rec = makeCallDerExp(vars.clone())?;
-                    Ok(cons(Arc::new(DAE::Exp::CALL { path: Arc::new(Absyn::Path::IDENT { name: (literal!("der")).clone() }), expLst: list![Arc::new(DAE::Exp::CREF { componentRef: cr.clone(), ty: DAE::T_REAL_DEFAULT.clone() })], attr: DAE::callAttrBuiltinReal.clone() }), rec.clone()))
+                    Ok(cons(Arc::new(DAE::Exp::CALL { path: Arc::new(Absyn::Path::IDENT { name: (literal!("der")).clone() }), expLst: list![Arc::new(DAE::Exp::CREF { componentRef: cr.clone(), ty: DAE::T_REAL_DEFAULT().clone() })], attr: DAE::callAttrBuiltinReal().clone() }), rec.clone()))
                 }
                 _ => bail!("nomatch"),
             }}
@@ -10467,11 +10426,11 @@ fn locateDerAndSerachOtherSide(mut derExp: Arc<DAE::Exp>, mut inEqns: Arc<metamo
                     let mut i1: i32 = 0;
                     let mut highestIndex: (Arc<DAE::ComponentRef>, i32);
                     let true = (ExpressionBasics::expEqual(e1.clone(), derExp.clone())?) else { bail!("pattern mismatch") };
-                    eqsOrg = List::removeOnTrue(eq.clone(), Arc::new(fnptr!(valueEq, _, _)), inEqnsOrg.clone());
+                    eqsOrg = List::removeOnTrue(eq.clone(), std::sync::Arc::new(fnptr!(valueEq, _, _)), inEqnsOrg.clone());
                     if Flags::isSet(Flags::FAILTRACE.clone())? {
                         println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nFound equation containing ")); __mm_s.push_str(&*ExpressionBasics::printExpStr(derExp.clone())?); __mm_s.push_str(&*literal!(" Other side: ")); __mm_s.push_str(&*ExpressionBasics::printExpStr(e2.clone())?); __mm_s.push_str(&*literal!(", extracted crefs: ")); __mm_s.push_str(&*ExpressionBasics::printExpStr(deriveVar.clone())?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
                     }
-                    (rec, crefs) = locateDerAndSerachOtherSide2(Arc::new(DAE::Exp::CALL { path: Arc::new(Absyn::Path::IDENT { name: (literal!("der")).clone() }), expLst: list![e2.clone()], attr: DAE::callAttrBuiltinReal.clone() }), eqsOrg.clone())?;
+                    (rec, crefs) = locateDerAndSerachOtherSide2(Arc::new(DAE::Exp::CALL { path: Arc::new(Absyn::Path::IDENT { name: (literal!("der")).clone() }), expLst: list![e2.clone()], attr: DAE::callAttrBuiltinReal().clone() }), eqsOrg.clone())?;
                     let (ref __pa1 @ (_, ref __pa0), _) = locateDerAndSerachOtherSide(derExp.clone(), eqs.clone(), eqsOrg.clone())?;
                     i1 = __pa0.clone();
                     highestIndex = __pa1.clone();
@@ -10491,11 +10450,11 @@ fn locateDerAndSerachOtherSide(mut derExp: Arc<DAE::Exp>, mut inEqns: Arc<metamo
                     let mut i1: i32 = 0;
                     let mut highestIndex: (Arc<DAE::ComponentRef>, i32);
                     let true = (ExpressionBasics::expEqual(e2.clone(), derExp.clone())?) else { bail!("pattern mismatch") };
-                    eqsOrg = List::removeOnTrue(eq.clone(), Arc::new(fnptr!(valueEq, _, _)), inEqnsOrg.clone());
+                    eqsOrg = List::removeOnTrue(eq.clone(), std::sync::Arc::new(fnptr!(valueEq, _, _)), inEqnsOrg.clone());
                     if Flags::isSet(Flags::FAILTRACE.clone())? {
                         println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nFound equation containing ")); __mm_s.push_str(&*ExpressionBasics::printExpStr(derExp.clone())?); __mm_s.push_str(&*literal!(" Other side: ")); __mm_s.push_str(&*ExpressionBasics::printExpStr(e1.clone())?); __mm_s.push_str(&*literal!(", extracted crefs: ")); __mm_s.push_str(&*ExpressionBasics::printExpStr(deriveVar.clone())?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
                     }
-                    (rec, crefs) = locateDerAndSerachOtherSide2(Arc::new(DAE::Exp::CALL { path: Arc::new(Absyn::Path::IDENT { name: (literal!("der")).clone() }), expLst: list![e1.clone()], attr: DAE::callAttrBuiltinReal.clone() }), eqsOrg.clone())?;
+                    (rec, crefs) = locateDerAndSerachOtherSide2(Arc::new(DAE::Exp::CALL { path: Arc::new(Absyn::Path::IDENT { name: (literal!("der")).clone() }), expLst: list![e1.clone()], attr: DAE::callAttrBuiltinReal().clone() }), eqsOrg.clone())?;
                     let (ref __pa1 @ (_, ref __pa0), _) = locateDerAndSerachOtherSide(derExp.clone(), eqs.clone(), eqsOrg.clone())?;
                     i1 = __pa0.clone();
                     highestIndex = __pa1.clone();
@@ -10864,7 +10823,7 @@ fn getFilesFromSimVars(mut inSimVars: SimCodeVar::SimVars, mut inFiles: Arc<meta
     outFiles = (::match_deref::match_deref! { match &((inSimVars.clone(), inFiles.clone())) {
         (SimCodeVar::SimVars { stateVars, derivativeVars, algVars, discreteAlgVars, intAlgVars, boolAlgVars, inputVars, outputVars, aliasVars, intAliasVars, boolAliasVars, paramVars, intParamVars, boolParamVars, stringAlgVars, stringParamVars, stringAliasVars, extObjVars, constVars, intConstVars, boolConstVars, stringConstVars, jacobianVars, seedVars, realOptimizeConstraintsVars, realOptimizeFinalConstraintsVars, sensitivityVars, .. }, files) => {
             let mut files = (*files).clone();
-            (_, files) = List::mapFoldList(list![stateVars.clone(), derivativeVars.clone(), algVars.clone(), discreteAlgVars.clone(), intAlgVars.clone(), boolAlgVars.clone(), inputVars.clone(), outputVars.clone(), aliasVars.clone(), intAliasVars.clone(), boolAliasVars.clone(), paramVars.clone(), intParamVars.clone(), boolParamVars.clone(), stringAlgVars.clone(), stringParamVars.clone(), stringAliasVars.clone(), extObjVars.clone(), constVars.clone(), intConstVars.clone(), boolConstVars.clone(), stringConstVars.clone(), jacobianVars.clone(), seedVars.clone(), realOptimizeConstraintsVars.clone(), realOptimizeFinalConstraintsVars.clone(), sensitivityVars.clone()], Arc::new(fnptr!(getFilesFromSimVar, SimCodeVar::SimVar, Arc<metamodelica::List<SimCode::FileInfo>>)), files.clone());
+            (_, files) = List::mapFoldList(list![stateVars.clone(), derivativeVars.clone(), algVars.clone(), discreteAlgVars.clone(), intAlgVars.clone(), boolAlgVars.clone(), inputVars.clone(), outputVars.clone(), aliasVars.clone(), intAliasVars.clone(), boolAliasVars.clone(), paramVars.clone(), intParamVars.clone(), boolParamVars.clone(), stringAlgVars.clone(), stringParamVars.clone(), stringAliasVars.clone(), extObjVars.clone(), constVars.clone(), intConstVars.clone(), boolConstVars.clone(), stringConstVars.clone(), jacobianVars.clone(), seedVars.clone(), realOptimizeConstraintsVars.clone(), realOptimizeFinalConstraintsVars.clone(), sensitivityVars.clone()], (std::sync::Arc::new(fnptr!(getFilesFromSimVar, SimCodeVar::SimVar, Arc<metamodelica::List<SimCode::FileInfo>>)) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, Arc<metamodelica::List<SimCode::FileInfo>>) -> Result<(SimCodeVar::SimVar, Arc<metamodelica::List<SimCode::FileInfo>>)> + 'static>), files.clone());
             files.clone()
         },
         _ => bail!("match: no arm matched"),
@@ -10966,8 +10925,8 @@ fn getFilesFromSimEqSystem(mut inSimEqSystem: Arc<SimCode::SimEqSystem>, mut inF
         (Deref @ SimCode::SimEqSystem::SES_LINEAR { lSystem: Deref @ SimCode::LinearSystem { simJac, vars, .. }, .. }, files) => {
             let mut systems: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>> = metamodelica::nil();
             let mut files = (*files).clone();
-            (_, files) = List::mapFold(vars.clone(), Arc::new(fnptr!(getFilesFromSimVar, SimCodeVar::SimVar, Arc<metamodelica::List<SimCode::FileInfo>>)), files.clone());
-            systems = List::map(simJac.clone(), Arc::new(fnptr!(Util::tuple33, _)));
+            (_, files) = List::mapFold(vars.clone(), (std::sync::Arc::new(fnptr!(getFilesFromSimVar, SimCodeVar::SimVar, Arc<metamodelica::List<SimCode::FileInfo>>)) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, Arc<metamodelica::List<SimCode::FileInfo>>) -> Result<(SimCodeVar::SimVar, Arc<metamodelica::List<SimCode::FileInfo>>)> + 'static>), files.clone());
+            systems = List::map(simJac.clone(), std::sync::Arc::new(fnptr!(Util::tuple33, _)));
             files = getFilesFromSimEqSystems(list![systems.clone()], files.clone());
             (inSimEqSystem.clone(), files.clone())
         },
@@ -10978,7 +10937,7 @@ fn getFilesFromSimEqSystem(mut inSimEqSystem: Arc<SimCode::SimEqSystem>, mut inF
         },
         (Deref @ SimCode::SimEqSystem::SES_MIXED { discEqs: systems, discVars: vars, cont: system, .. }, files) => {
             let mut files = (*files).clone();
-            (_, files) = List::mapFold(vars.clone(), Arc::new(fnptr!(getFilesFromSimVar, SimCodeVar::SimVar, Arc<metamodelica::List<SimCode::FileInfo>>)), files.clone());
+            (_, files) = List::mapFold(vars.clone(), (std::sync::Arc::new(fnptr!(getFilesFromSimVar, SimCodeVar::SimVar, Arc<metamodelica::List<SimCode::FileInfo>>)) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, Arc<metamodelica::List<SimCode::FileInfo>>) -> Result<(SimCodeVar::SimVar, Arc<metamodelica::List<SimCode::FileInfo>>)> + 'static>), files.clone());
             files = getFilesFromSimEqSystems(list![cons(system.clone(), systems.clone())], files.clone());
             (inSimEqSystem.clone(), files.clone())
         },
@@ -10996,7 +10955,7 @@ fn getFilesFromSimEqSystem(mut inSimEqSystem: Arc<SimCode::SimEqSystem>, mut inF
 
 fn getFilesFromSimEqSystems(mut inSimEqSystems: Arc<metamodelica::List<Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>>>, mut inFiles: Arc<metamodelica::List<SimCode::FileInfo>>) -> Arc<metamodelica::List<SimCode::FileInfo>> {
     let mut outFiles: Arc<metamodelica::List<SimCode::FileInfo>> = metamodelica::nil();
-    (_, outFiles) = List::mapFoldList(inSimEqSystems.clone(), Arc::new(getFilesFromSimEqSystem), inFiles.clone());
+    (_, outFiles) = List::mapFoldList(inSimEqSystems.clone(), (std::sync::Arc::new(getFilesFromSimEqSystem) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SimCode::SimEqSystem>, Arc<metamodelica::List<SimCode::FileInfo>>) -> Result<(Arc<SimCode::SimEqSystem>, Arc<metamodelica::List<SimCode::FileInfo>>)> + 'static>), inFiles.clone());
     outFiles
 }
 
@@ -11194,7 +11153,7 @@ fn getFilesFromWhenOperators(mut inWhenOperators: Arc<metamodelica::List<Backend
 
 fn getFilesFromExtObjInfo(mut inExtObjInfo: SimCode::ExtObjInfo, mut inFiles: Arc<metamodelica::List<SimCode::FileInfo>>) -> Arc<metamodelica::List<SimCode::FileInfo>> {
     let mut outFiles: Arc<metamodelica::List<SimCode::FileInfo>> = metamodelica::nil();
-    (_, outFiles) = List::mapFold(inExtObjInfo.vars.clone(), Arc::new(fnptr!(getFilesFromSimVar, SimCodeVar::SimVar, Arc<metamodelica::List<SimCode::FileInfo>>)), inFiles.clone());
+    (_, outFiles) = List::mapFold(inExtObjInfo.vars.clone(), (std::sync::Arc::new(fnptr!(getFilesFromSimVar, SimCodeVar::SimVar, Arc<metamodelica::List<SimCode::FileInfo>>)) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, Arc<metamodelica::List<SimCode::FileInfo>>) -> Result<(SimCodeVar::SimVar, Arc<metamodelica::List<SimCode::FileInfo>>)> + 'static>), inFiles.clone());
     outFiles
 }
 
@@ -11228,7 +11187,7 @@ fn getFilesFromJacobianMatrix(mut inJacobianMatrices: Arc<metamodelica::List<Arc
         (Deref @ metamodelica::List::Cons { head: Deref @ SimCode::JacobianColumn { columnVars: vars, columnEqns: systems, .. }, tail: rest }, files) => {
             let mut files = (*files).clone();
             files = getFilesFromSimEqSystems(list![systems.clone()], files.clone());
-            (_, files) = List::mapFold(vars.clone(), Arc::new(fnptr!(getFilesFromSimVar, SimCodeVar::SimVar, Arc<metamodelica::List<SimCode::FileInfo>>)), files.clone());
+            (_, files) = List::mapFold(vars.clone(), (std::sync::Arc::new(fnptr!(getFilesFromSimVar, SimCodeVar::SimVar, Arc<metamodelica::List<SimCode::FileInfo>>)) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, Arc<metamodelica::List<SimCode::FileInfo>>) -> Result<(SimCodeVar::SimVar, Arc<metamodelica::List<SimCode::FileInfo>>)> + 'static>), files.clone());
             files = getFilesFromJacobianMatrix(rest.clone(), files.clone())?;
             files.clone()
         },
@@ -11249,7 +11208,7 @@ fn collectAllFiles(mut inSimCode: SimCode::SimCode) -> Result<SimCode::SimCode> 
         files = getFilesFromSimEqSystems(outSimCode.algebraicEquations.clone(), files.clone());
         files = getFilesFromExtObjInfo(outSimCode.extObjInfo.clone(), files.clone());
         files = getFilesFromJacobianMatrices(outSimCode.jacobianMatrices.clone(), files.clone())?;
-        files = List::sort(files.clone(), Arc::new(greaterFileInfo))?;
+        files = List::sort(files.clone(), (std::sync::Arc::new(greaterFileInfo) as std::sync::Arc<dyn ::std::ops::Fn(SimCode::FileInfo, SimCode::FileInfo) -> Result<bool> + 'static>))?;
         outSimCode.modelInfo = modelInfo.clone();
     }
     Ok(outSimCode)
@@ -11297,7 +11256,7 @@ fn greaterFileInfo(mut inFileInfo1: SimCode::FileInfo, mut inFileInfo2: SimCode:
 
 fn getFileIndexFromFiles(mut file: ArcStr, mut files: Arc<metamodelica::List<SimCode::FileInfo>>) -> i32 {
     let mut index: i32 = 0;
-    index = List::position1OnTrue(files.clone(), Arc::new(equalFileInfo), SimCode::FileInfo { fileName: (file.clone()).clone(), isReadOnly: false }) - 1;
+    index = List::position1OnTrue(files.clone(), (std::sync::Arc::new(equalFileInfo) as std::sync::Arc<dyn ::std::ops::Fn(SimCode::FileInfo, SimCode::FileInfo) -> Result<bool> + 'static>), SimCode::FileInfo { fileName: (file.clone()).clone(), isReadOnly: false }) - 1;
     index
 }
 
@@ -11367,10 +11326,10 @@ fn makeEqualLengthLists(mut inLst: Arc<metamodelica::List<Arc<metamodelica::List
                     let mut q: Arc<metamodelica::List<Arc<PriorityQueue::Tree>>> = metamodelica::nil();
                     let mut prios: Arc<metamodelica::List<(i32, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>)>> = metamodelica::nil();
                     let mut lst = (*lst).clone();
-                    q = List::fold(List::fill((0, metamodelica::nil()), i.clone()), Arc::new(PriorityQueue::insert), PriorityQueue::empty().clone());
-                    prios = List::map(lst.clone(), Arc::new(calcPriority));
-                    q = List::fold(prios.clone(), Arc::new(makeEqualLengthLists2), q.clone());
-                    lst = List::map(PriorityQueue::elements(q.clone())?, Arc::new(fnptr!(Util::tuple22, _)));
+                    q = List::fold(List::fill((0, metamodelica::nil()), i.clone()), (std::sync::Arc::new(PriorityQueue::insert) as std::sync::Arc<dyn ::std::ops::Fn((i32, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>), Arc<metamodelica::List<Arc<PriorityQueue::Tree>>>) -> Result<Arc<metamodelica::List<Arc<PriorityQueue::Tree>>>> + 'static>), PriorityQueue::empty().clone());
+                    prios = List::map(lst.clone(), (std::sync::Arc::new(calcPriority) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>) -> Result<(i32, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>)> + 'static>));
+                    q = List::fold(prios.clone(), (std::sync::Arc::new(makeEqualLengthLists2) as std::sync::Arc<dyn ::std::ops::Fn((i32, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>), Arc<metamodelica::List<Arc<PriorityQueue::Tree>>>) -> Result<Arc<metamodelica::List<Arc<PriorityQueue::Tree>>>> + 'static>), q.clone());
+                    lst = List::map(PriorityQueue::elements(q.clone())?, std::sync::Arc::new(fnptr!(Util::tuple22, _)));
                     Ok(lst.clone())
                 }
                 _ => bail!("nomatch"),
@@ -11403,13 +11362,13 @@ fn makeEqualLengthLists2(mut elt: (i32, Arc<metamodelica::List<Arc<SimCode::SimE
 fn calcPriority(mut eqs: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>) -> Result<(i32, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>)> {
     let mut prio: (i32, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>);
     let mut i: i32 = 0;
-    (_, i) = traverseExpsEqSystems(eqs.clone(), Arc::new(Expression::complexityTraverse), 1, metamodelica::nil())?;
+    (_, i) = traverseExpsEqSystems(eqs.clone(), (std::sync::Arc::new(Expression::complexityTraverse) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, i32) -> Result<(Arc<DAE::Exp>, i32)> + 'static>), 1, metamodelica::nil())?;
     prio = (i.clone(), eqs.clone());
     Ok(prio)
 }
 
 pub fn traverseExpsSimCode<A: Clone + 'static>(mut simCode: SimCode::SimCode, mut func: Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, A) -> Result<(Arc<DAE::Exp>, A)> + 'static>, mut ia: A) -> Result<(SimCode::SimCode, A)> {
-    pub type Func<A: Clone> = fn(Arc<DAE::Exp>, A) -> Result<(Arc<DAE::Exp>, A)>;
+    pub type Func<A: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, A) -> Result<(Arc<DAE::Exp>, A)> + 'static>;
 
     let mut outSimCode: SimCode::SimCode = simCode.clone();
     let mut oa: A;
@@ -11421,7 +11380,7 @@ pub fn traverseExpsSimCode<A: Clone + 'static>(mut simCode: SimCode::SimCode, mu
     outSimCode.literals = literals.clone();
     (eqs, oa) = traverseExpsEqSystems(outSimCode.allEquations.clone(), func.clone(), oa.clone(), metamodelica::nil())?;
     outSimCode.allEquations = eqs.clone();
-    (partitions, oa) = List::map1Fold(outSimCode.clockedPartitions.clone(), Arc::new(traverseExpsPartition), func.clone(), oa.clone());
+    (partitions, oa) = List::map1Fold(outSimCode.clockedPartitions.clone(), (std::sync::Arc::new(traverseExpsPartition) as std::sync::Arc<dyn ::std::ops::Fn(SimCode::ClockedPartition, _, _) -> Result<_> + 'static>), func.clone(), oa.clone());
     outSimCode.clockedPartitions = partitions.clone();
     (eqs1, oa) = traverseExpsEqSystemsList(outSimCode.odeEquations.clone(), func.clone(), oa.clone(), metamodelica::nil())?;
     outSimCode.odeEquations = eqs1.clone();
@@ -11451,7 +11410,7 @@ pub fn traverseExpsSimCode<A: Clone + 'static>(mut simCode: SimCode::SimCode, mu
 }
 
 fn traverseExpsPartition<A: Clone + 'static>(mut simPartition: SimCode::ClockedPartition, mut func: Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, A) -> Result<(Arc<DAE::Exp>, A)> + 'static>, mut ia: A) -> Result<(SimCode::ClockedPartition, A)> {
-    pub type Func<A: Clone> = fn(Arc<DAE::Exp>, A) -> Result<(Arc<DAE::Exp>, A)>;
+    pub type Func<A: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, A) -> Result<(Arc<DAE::Exp>, A)> + 'static>;
 
     let mut outSimPartition: SimCode::ClockedPartition = simPartition.clone();
     let mut oa: A;
@@ -11463,14 +11422,14 @@ fn traverseExpsPartition<A: Clone + 'static>(mut simPartition: SimCode::ClockedP
     } };
     clk = __pa0.clone();
     oa = __pa1.clone();
-    (subPartitions, oa) = List::map1Fold(simPartition.subPartitions.clone(), Arc::new(traverseExpsSubPartition), func.clone(), oa.clone());
+    (subPartitions, oa) = List::map1Fold(simPartition.subPartitions.clone(), (std::sync::Arc::new(traverseExpsSubPartition) as std::sync::Arc<dyn ::std::ops::Fn(SimCode::SubPartition, _, _) -> Result<_> + 'static>), func.clone(), oa.clone());
     outSimPartition.baseClock = clk.clone();
     outSimPartition.subPartitions = subPartitions.clone();
     Ok((outSimPartition, oa))
 }
 
 fn traverseExpsSubPartition<A: Clone + 'static>(mut subPartition: SimCode::SubPartition, mut func: Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, A) -> Result<(Arc<DAE::Exp>, A)> + 'static>, mut ia: A) -> Result<(SimCode::SubPartition, A)> {
-    pub type Func<A: Clone> = fn(Arc<DAE::Exp>, A) -> Result<(Arc<DAE::Exp>, A)>;
+    pub type Func<A: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, A) -> Result<(Arc<DAE::Exp>, A)> + 'static>;
 
     let mut outSubPartition: SimCode::SubPartition = subPartition.clone();
     let mut oa: A;
@@ -11483,7 +11442,7 @@ fn traverseExpsSubPartition<A: Clone + 'static>(mut subPartition: SimCode::SubPa
 }
 
 fn traverseExpsEqSystemsList<A: Clone + 'static>(mut ieqs: Arc<metamodelica::List<Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>>>, mut func: Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, A) -> Result<(Arc<DAE::Exp>, A)> + 'static>, mut ia: A, mut acc: Arc<metamodelica::List<Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>>>) -> Result<(Arc<metamodelica::List<Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>>>, A)> {
-    pub type Func<A: Clone> = fn(Arc<DAE::Exp>, A) -> Result<(Arc<DAE::Exp>, A)>;
+    pub type Func<A: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, A) -> Result<(Arc<DAE::Exp>, A)> + 'static>;
 
     let mut oeqs: Arc<metamodelica::List<Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>>> = metamodelica::nil();
     let mut oa: A;
@@ -11504,7 +11463,7 @@ fn traverseExpsEqSystemsList<A: Clone + 'static>(mut ieqs: Arc<metamodelica::Lis
 }
 
 fn traverseExpsEqSystems<A: Clone + 'static>(mut ieqs: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>, mut func: Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, A) -> Result<(Arc<DAE::Exp>, A)> + 'static>, mut ia: A, mut acc: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>) -> Result<(Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>, A)> {
-    pub type Func<A: Clone> = fn(Arc<DAE::Exp>, A) -> Result<(Arc<DAE::Exp>, A)>;
+    pub type Func<A: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, A) -> Result<(Arc<DAE::Exp>, A)> + 'static>;
 
     let mut oeqs: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>> = metamodelica::nil();
     let mut oa: A;
@@ -11525,7 +11484,7 @@ fn traverseExpsEqSystems<A: Clone + 'static>(mut ieqs: Arc<metamodelica::List<Ar
 }
 
 fn traverseExpsEqSystem<A: Clone + 'static>(mut eq: Arc<SimCode::SimEqSystem>, mut func: Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, A) -> Result<(Arc<DAE::Exp>, A)> + 'static>, mut ia: A) -> Result<(Arc<SimCode::SimEqSystem>, A)> {
-    pub type Func<A: Clone> = fn(Arc<DAE::Exp>, A) -> Result<(Arc<DAE::Exp>, A)>;
+    pub type Func<A: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, A) -> Result<(Arc<DAE::Exp>, A)> + 'static>;
 
     let mut oeq: Arc<SimCode::SimEqSystem>;
     let mut oa: A;
@@ -11646,7 +11605,7 @@ fn setSimCodeLiterals(mut simCode: SimCode::SimCode, mut literals: Arc<metamodel
 fn eqSystemWCET(mut eqs: Arc<SimCode::SimEqSystem>) -> Result<(Arc<SimCode::SimEqSystem>, i32)> {
     let mut tpl: (Arc<SimCode::SimEqSystem>, i32);
     let mut i: i32 = 0;
-    (_, i) = traverseExpsEqSystems(list![eqs.clone()], Arc::new(Expression::complexityTraverse), 0, metamodelica::nil())?;
+    (_, i) = traverseExpsEqSystems(list![eqs.clone()], (std::sync::Arc::new(Expression::complexityTraverse) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, i32) -> Result<(Arc<DAE::Exp>, i32)> + 'static>), 0, metamodelica::nil())?;
     tpl = (eqs.clone(), i.clone());
     Ok(tpl)
 }
@@ -11753,7 +11712,7 @@ pub fn addVarToArrayIndexMapping(mut iVar: SimCodeVar::SimVar, mut iVarType: i32
         }
         __acc.reverse()
     };
-                    varIndices = arrayCreate(List::fold(arrayDimensions.clone(), Arc::new(fnptr!(intMul, i32, i32)), 1), 0);
+                    varIndices = arrayCreate(List::fold(arrayDimensions.clone(), (std::sync::Arc::new(fnptr!(intMul, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<i32> + 'static>), 1), 0);
                 }
                 arrayIndex = getScalarElementIndex(arraySubscripts.clone(), arrayDimensions.clone());
                 varIndices = {let _arr = varIndices.clone(); _arr.borrow_mut()[(arrayIndex.clone()-1) as usize] = varIdx.clone(); _arr};
@@ -11892,7 +11851,7 @@ fn getVarIndexInfosByMapping(mut iVarToArrayIndexMapping: (metamodelica::Array<A
         (arrayDimensions, varIndices) = BaseHashTable::get(varName.clone(), iVarToArrayIndexMapping.clone())?;
         isContiguous = (varIndices.clone().borrow().len() as i32) == 1;
         if isContiguous.clone() {
-            arraySize = List::fold(arrayDimensions.clone(), Arc::new(fnptr!(intMul, i32, i32)), 1);
+            arraySize = List::fold(arrayDimensions.clone(), (std::sync::Arc::new(fnptr!(intMul, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<i32> + 'static>), 1);
         } else {
             arraySize = (varIndices.clone().borrow().len() as i32);
         }
@@ -11913,12 +11872,12 @@ fn getVarIndexInfosByMapping(mut iVarToArrayIndexMapping: (metamodelica::Array<A
                 idx = varIndices.clone().borrow()[(idx.clone()-1) as usize].clone();
             }
             if intLt(idx.clone(), 0) {
-                tmpVarIndexListNew = cons(intString(intMul(idx.clone(), -1) - 1), tmpVarIndexListNew.clone());
+                tmpVarIndexListNew = cons((intString(intMul(idx.clone(), -1) - 1)).clone(), tmpVarIndexListNew.clone());
             } else {
                 if intEq(idx.clone(), 0) {
-                    tmpVarIndexListNew = cons(iIndexForUndefinedReferences.clone(), tmpVarIndexListNew.clone());
+                    tmpVarIndexListNew = cons((iIndexForUndefinedReferences.clone()).clone(), tmpVarIndexListNew.clone());
                 } else {
-                    tmpVarIndexListNew = cons(intString(idx.clone() - 1), tmpVarIndexListNew.clone());
+                    tmpVarIndexListNew = cons((intString(idx.clone() - 1)).clone(), tmpVarIndexListNew.clone());
                 }
             }
         }
@@ -11944,7 +11903,7 @@ fn convertIndexToColumnMajor(mut idx: i32, mut arrayDimensions: Arc<metamodelica
     let mut idxi: i32 = 0;
     let mut fac: i32 = 0;
     ndim = (arrayDimensions.clone().len() as i32);
-    length = List::fold(arrayDimensions.clone(), Arc::new(fnptr!(intMul, i32, i32)), 1);
+    length = List::fold(arrayDimensions.clone(), (std::sync::Arc::new(fnptr!(intMul, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<i32> + 'static>), 1);
     idx0 = idx.clone() - 1;
     idxOut = 1;
     fac = 1;
@@ -12076,42 +12035,42 @@ pub fn createIdxSCVarMapping(mut simVars: SimCodeVar::SimVars) -> Result<metamod
     realOptimizeFinalConstraintsVars = __pa25.clone();
     numStateVars = (stateVars.clone().len() as i32);
     varCount = 0;
-    (idxSimVarMappingTplList, highestIdx) = List::fold21(stateVars.clone(), Arc::new(createAllSCVarMapping0), varCount.clone(), metamodelica::nil(), 0);
+    (idxSimVarMappingTplList, highestIdx) = List::fold21(stateVars.clone(), (std::sync::Arc::new(createAllSCVarMapping0) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, i32, Arc<metamodelica::List<(i32, SimCodeVar::SimVar)>>, i32) -> Result<(Arc<metamodelica::List<(i32, SimCodeVar::SimVar)>>, i32)> + 'static>), varCount.clone(), metamodelica::nil(), 0);
     varCount = varCount.clone() + numStateVars.clone();
-    (idxSimVarMappingTplList, highestIdx) = List::fold21(derivativeVars.clone(), Arc::new(createAllSCVarMapping0), varCount.clone(), idxSimVarMappingTplList.clone(), highestIdx.clone());
+    (idxSimVarMappingTplList, highestIdx) = List::fold21(derivativeVars.clone(), (std::sync::Arc::new(createAllSCVarMapping0) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, i32, Arc<metamodelica::List<(i32, SimCodeVar::SimVar)>>, i32) -> Result<(Arc<metamodelica::List<(i32, SimCodeVar::SimVar)>>, i32)> + 'static>), varCount.clone(), idxSimVarMappingTplList.clone(), highestIdx.clone());
     varCount = varCount.clone() + numStateVars.clone();
-    (idxSimVarMappingTplList, highestIdx) = List::fold21(algVars.clone(), Arc::new(createAllSCVarMapping0), varCount.clone(), idxSimVarMappingTplList.clone(), highestIdx.clone());
+    (idxSimVarMappingTplList, highestIdx) = List::fold21(algVars.clone(), (std::sync::Arc::new(createAllSCVarMapping0) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, i32, Arc<metamodelica::List<(i32, SimCodeVar::SimVar)>>, i32) -> Result<(Arc<metamodelica::List<(i32, SimCodeVar::SimVar)>>, i32)> + 'static>), varCount.clone(), idxSimVarMappingTplList.clone(), highestIdx.clone());
     varCount = varCount.clone() + (algVars.clone().len() as i32);
-    (idxSimVarMappingTplList, highestIdx) = List::fold21(discreteAlgVars.clone(), Arc::new(createAllSCVarMapping0), varCount.clone(), idxSimVarMappingTplList.clone(), highestIdx.clone());
+    (idxSimVarMappingTplList, highestIdx) = List::fold21(discreteAlgVars.clone(), (std::sync::Arc::new(createAllSCVarMapping0) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, i32, Arc<metamodelica::List<(i32, SimCodeVar::SimVar)>>, i32) -> Result<(Arc<metamodelica::List<(i32, SimCodeVar::SimVar)>>, i32)> + 'static>), varCount.clone(), idxSimVarMappingTplList.clone(), highestIdx.clone());
     varCount = varCount.clone() + (discreteAlgVars.clone().len() as i32);
-    (idxSimVarMappingTplList, highestIdx) = List::fold21(intAlgVars.clone(), Arc::new(createAllSCVarMapping0), varCount.clone(), idxSimVarMappingTplList.clone(), highestIdx.clone());
+    (idxSimVarMappingTplList, highestIdx) = List::fold21(intAlgVars.clone(), (std::sync::Arc::new(createAllSCVarMapping0) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, i32, Arc<metamodelica::List<(i32, SimCodeVar::SimVar)>>, i32) -> Result<(Arc<metamodelica::List<(i32, SimCodeVar::SimVar)>>, i32)> + 'static>), varCount.clone(), idxSimVarMappingTplList.clone(), highestIdx.clone());
     varCount = varCount.clone() + (intAlgVars.clone().len() as i32);
-    (idxSimVarMappingTplList, highestIdx) = List::fold21(boolAlgVars.clone(), Arc::new(createAllSCVarMapping0), varCount.clone(), idxSimVarMappingTplList.clone(), highestIdx.clone());
+    (idxSimVarMappingTplList, highestIdx) = List::fold21(boolAlgVars.clone(), (std::sync::Arc::new(createAllSCVarMapping0) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, i32, Arc<metamodelica::List<(i32, SimCodeVar::SimVar)>>, i32) -> Result<(Arc<metamodelica::List<(i32, SimCodeVar::SimVar)>>, i32)> + 'static>), varCount.clone(), idxSimVarMappingTplList.clone(), highestIdx.clone());
     varCount = varCount.clone() + (boolAlgVars.clone().len() as i32);
-    (idxSimVarMappingTplList, highestIdx) = List::fold21(stringAlgVars.clone(), Arc::new(createAllSCVarMapping0), varCount.clone(), idxSimVarMappingTplList.clone(), highestIdx.clone());
+    (idxSimVarMappingTplList, highestIdx) = List::fold21(stringAlgVars.clone(), (std::sync::Arc::new(createAllSCVarMapping0) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, i32, Arc<metamodelica::List<(i32, SimCodeVar::SimVar)>>, i32) -> Result<(Arc<metamodelica::List<(i32, SimCodeVar::SimVar)>>, i32)> + 'static>), varCount.clone(), idxSimVarMappingTplList.clone(), highestIdx.clone());
     varCount = varCount.clone() + (stringAlgVars.clone().len() as i32);
-    (idxSimVarMappingTplList, highestIdx) = List::fold21(inputVars.clone(), Arc::new(createAllSCVarMapping0), varCount.clone(), idxSimVarMappingTplList.clone(), highestIdx.clone());
+    (idxSimVarMappingTplList, highestIdx) = List::fold21(inputVars.clone(), (std::sync::Arc::new(createAllSCVarMapping0) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, i32, Arc<metamodelica::List<(i32, SimCodeVar::SimVar)>>, i32) -> Result<(Arc<metamodelica::List<(i32, SimCodeVar::SimVar)>>, i32)> + 'static>), varCount.clone(), idxSimVarMappingTplList.clone(), highestIdx.clone());
     varCount = varCount.clone() + (inputVars.clone().len() as i32);
-    (idxSimVarMappingTplList, highestIdx) = List::fold21(outputVars.clone(), Arc::new(createAllSCVarMapping0), varCount.clone(), idxSimVarMappingTplList.clone(), highestIdx.clone());
+    (idxSimVarMappingTplList, highestIdx) = List::fold21(outputVars.clone(), (std::sync::Arc::new(createAllSCVarMapping0) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, i32, Arc<metamodelica::List<(i32, SimCodeVar::SimVar)>>, i32) -> Result<(Arc<metamodelica::List<(i32, SimCodeVar::SimVar)>>, i32)> + 'static>), varCount.clone(), idxSimVarMappingTplList.clone(), highestIdx.clone());
     varCount = varCount.clone() + (outputVars.clone().len() as i32);
-    (idxSimVarMappingTplList, highestIdx) = List::fold21(aliasVars.clone(), Arc::new(createAllSCVarMapping0), varCount.clone(), idxSimVarMappingTplList.clone(), highestIdx.clone());
+    (idxSimVarMappingTplList, highestIdx) = List::fold21(aliasVars.clone(), (std::sync::Arc::new(createAllSCVarMapping0) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, i32, Arc<metamodelica::List<(i32, SimCodeVar::SimVar)>>, i32) -> Result<(Arc<metamodelica::List<(i32, SimCodeVar::SimVar)>>, i32)> + 'static>), varCount.clone(), idxSimVarMappingTplList.clone(), highestIdx.clone());
     varCount = varCount.clone() + (aliasVars.clone().len() as i32);
-    (idxSimVarMappingTplList, highestIdx) = List::fold21(intAliasVars.clone(), Arc::new(createAllSCVarMapping0), varCount.clone(), idxSimVarMappingTplList.clone(), highestIdx.clone());
+    (idxSimVarMappingTplList, highestIdx) = List::fold21(intAliasVars.clone(), (std::sync::Arc::new(createAllSCVarMapping0) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, i32, Arc<metamodelica::List<(i32, SimCodeVar::SimVar)>>, i32) -> Result<(Arc<metamodelica::List<(i32, SimCodeVar::SimVar)>>, i32)> + 'static>), varCount.clone(), idxSimVarMappingTplList.clone(), highestIdx.clone());
     varCount = varCount.clone() + (intAliasVars.clone().len() as i32);
-    (idxSimVarMappingTplList, highestIdx) = List::fold21(boolAliasVars.clone(), Arc::new(createAllSCVarMapping0), varCount.clone(), idxSimVarMappingTplList.clone(), highestIdx.clone());
+    (idxSimVarMappingTplList, highestIdx) = List::fold21(boolAliasVars.clone(), (std::sync::Arc::new(createAllSCVarMapping0) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, i32, Arc<metamodelica::List<(i32, SimCodeVar::SimVar)>>, i32) -> Result<(Arc<metamodelica::List<(i32, SimCodeVar::SimVar)>>, i32)> + 'static>), varCount.clone(), idxSimVarMappingTplList.clone(), highestIdx.clone());
     varCount = varCount.clone() + (boolAliasVars.clone().len() as i32);
-    (idxSimVarMappingTplList, highestIdx) = List::fold21(stringAliasVars.clone(), Arc::new(createAllSCVarMapping0), varCount.clone(), idxSimVarMappingTplList.clone(), highestIdx.clone());
+    (idxSimVarMappingTplList, highestIdx) = List::fold21(stringAliasVars.clone(), (std::sync::Arc::new(createAllSCVarMapping0) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, i32, Arc<metamodelica::List<(i32, SimCodeVar::SimVar)>>, i32) -> Result<(Arc<metamodelica::List<(i32, SimCodeVar::SimVar)>>, i32)> + 'static>), varCount.clone(), idxSimVarMappingTplList.clone(), highestIdx.clone());
     varCount = varCount.clone() + (stringAliasVars.clone().len() as i32);
-    (idxSimVarMappingTplList, highestIdx) = List::fold21(paramVars.clone(), Arc::new(createAllSCVarMapping0), varCount.clone(), idxSimVarMappingTplList.clone(), highestIdx.clone());
+    (idxSimVarMappingTplList, highestIdx) = List::fold21(paramVars.clone(), (std::sync::Arc::new(createAllSCVarMapping0) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, i32, Arc<metamodelica::List<(i32, SimCodeVar::SimVar)>>, i32) -> Result<(Arc<metamodelica::List<(i32, SimCodeVar::SimVar)>>, i32)> + 'static>), varCount.clone(), idxSimVarMappingTplList.clone(), highestIdx.clone());
     varCount = varCount.clone() + (paramVars.clone().len() as i32);
-    (idxSimVarMappingTplList, highestIdx) = List::fold21(intParamVars.clone(), Arc::new(createAllSCVarMapping0), varCount.clone(), idxSimVarMappingTplList.clone(), highestIdx.clone());
+    (idxSimVarMappingTplList, highestIdx) = List::fold21(intParamVars.clone(), (std::sync::Arc::new(createAllSCVarMapping0) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, i32, Arc<metamodelica::List<(i32, SimCodeVar::SimVar)>>, i32) -> Result<(Arc<metamodelica::List<(i32, SimCodeVar::SimVar)>>, i32)> + 'static>), varCount.clone(), idxSimVarMappingTplList.clone(), highestIdx.clone());
     varCount = varCount.clone() + (intParamVars.clone().len() as i32);
-    (idxSimVarMappingTplList, highestIdx) = List::fold21(boolParamVars.clone(), Arc::new(createAllSCVarMapping0), varCount.clone(), idxSimVarMappingTplList.clone(), highestIdx.clone());
+    (idxSimVarMappingTplList, highestIdx) = List::fold21(boolParamVars.clone(), (std::sync::Arc::new(createAllSCVarMapping0) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, i32, Arc<metamodelica::List<(i32, SimCodeVar::SimVar)>>, i32) -> Result<(Arc<metamodelica::List<(i32, SimCodeVar::SimVar)>>, i32)> + 'static>), varCount.clone(), idxSimVarMappingTplList.clone(), highestIdx.clone());
     varCount = varCount.clone() + (boolParamVars.clone().len() as i32);
-    (idxSimVarMappingTplList, highestIdx) = List::fold21(stringParamVars.clone(), Arc::new(createAllSCVarMapping0), varCount.clone(), idxSimVarMappingTplList.clone(), highestIdx.clone());
+    (idxSimVarMappingTplList, highestIdx) = List::fold21(stringParamVars.clone(), (std::sync::Arc::new(createAllSCVarMapping0) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, i32, Arc<metamodelica::List<(i32, SimCodeVar::SimVar)>>, i32) -> Result<(Arc<metamodelica::List<(i32, SimCodeVar::SimVar)>>, i32)> + 'static>), varCount.clone(), idxSimVarMappingTplList.clone(), highestIdx.clone());
     varCount = varCount.clone() + (stringParamVars.clone().len() as i32);
     mappingArray = arrayCreate(highestIdx.clone(), None);
-    mappingArray = List::fold(idxSimVarMappingTplList.clone(), Arc::new(createAllSCVarMapping1), mappingArray.clone());
+    mappingArray = List::fold(idxSimVarMappingTplList.clone(), (std::sync::Arc::new(createAllSCVarMapping1) as std::sync::Arc<dyn ::std::ops::Fn((i32, SimCodeVar::SimVar), metamodelica::Array<Option<SimCodeVar::SimVar>>) -> Result<metamodelica::Array<Option<SimCodeVar::SimVar>>> + 'static>), mappingArray.clone());
     outMapping = mappingArray.clone();
     Ok(outMapping)
 }
@@ -12181,7 +12140,7 @@ fn getEnumerationTypesHelper(mut inVars: Arc<metamodelica::List<SimCodeVar::SimV
         let mut var = var.clone();
         let _ = (match var.clone() {
         SimCodeVar::SimVar { .. } => {
-            if Types::isEnumeration(var.type_.clone()) && !(List::exist1(outVars.clone(), Arc::new(fnptr!(enumerationTypeExists, SimCodeVar::SimVar, Arc<DAE::Type>)), var.type_.clone())) {
+            if Types::isEnumeration(var.type_.clone()) && !(List::exist1(outVars.clone(), (std::sync::Arc::new(fnptr!(enumerationTypeExists, SimCodeVar::SimVar, Arc<DAE::Type>)) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, Arc<DAE::Type>) -> Result<bool> + 'static>), var.type_.clone())) {
                 outVars = cons(var.clone(), outVars.clone());
             }
             ()
@@ -12240,9 +12199,9 @@ fn setUpBackendMapping(mut dae: Arc<BackendDAE::BackendDAE>) -> Result<SimCode::
                         _ => bail!("pattern mismatch"),
                     } };
                     eqs = __pa0.clone();
-                    tpl = List::map1(eqs.clone(), Arc::new(setUpSystMapping), BackendDAEUtil::isInitializationDAE(dae.shared.clone()));
-                    sizeE = List::applyAndFold(tpl.clone(), Arc::new(fnptr!(intAdd, i32, i32)), Arc::new(fnptr!(Util::tuple61, _)), 0);
-                    sizeV = List::applyAndFold(tpl.clone(), Arc::new(fnptr!(intAdd, i32, i32)), Arc::new(fnptr!(Util::tuple62, _)), 0);
+                    tpl = List::map1(eqs.clone(), (std::sync::Arc::new(setUpSystMapping) as std::sync::Arc<dyn ::std::ops::Fn(Arc<BackendDAE::EqSystem>, bool) -> Result<(i32, i32, metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<i32>, metamodelica::Array<i32>)> + 'static>), BackendDAEUtil::isInitializationDAE(dae.shared.clone()));
+                    sizeE = List::applyAndFold(tpl.clone(), (std::sync::Arc::new(fnptr!(intAdd, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<i32> + 'static>), std::sync::Arc::new(fnptr!(Util::tuple61, _)), 0);
+                    sizeV = List::applyAndFold(tpl.clone(), (std::sync::Arc::new(fnptr!(intAdd, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<i32> + 'static>), std::sync::Arc::new(fnptr!(Util::tuple62, _)), 0);
                     eqMap = metamodelica::nil();
                     varMap = metamodelica::nil();
                     simVarMapping = arrayCreate(sizeV.clone(), metamodelica::nil());
@@ -12250,10 +12209,10 @@ fn setUpBackendMapping(mut dae: Arc<BackendDAE::BackendDAE>) -> Result<SimCode::
                     varMatch = arrayCreate(sizeV.clone(), 0);
                     m = arrayCreate(sizeE.clone(), metamodelica::nil());
                     mt = arrayCreate(sizeV.clone(), metamodelica::nil());
-                    (_, _, m, mt, eqMatch, varMatch) = List::fold(tpl.clone(), Arc::new(appendAdjacencyMatrices), (0, 0, m.clone(), mt.clone(), eqMatch.clone(), varMatch.clone()));
+                    (_, _, m, mt, eqMatch, varMatch) = List::fold(tpl.clone(), (std::sync::Arc::new(appendAdjacencyMatrices) as std::sync::Arc<dyn ::std::ops::Fn((i32, i32, metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<i32>, metamodelica::Array<i32>), (i32, i32, metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<i32>, metamodelica::Array<i32>)) -> Result<(i32, i32, metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<i32>, metamodelica::Array<i32>)> + 'static>), (0, 0, m.clone(), mt.clone(), eqMatch.clone(), varMatch.clone()));
                     tree = arrayCreate(sizeE.clone(), metamodelica::nil());
-                    tree = List::fold4(List::intRange(sizeE.clone()), Arc::new(setUpEqTree), m.clone(), mt.clone(), eqMatch.clone(), varMatch.clone(), tree.clone());
-                    tree = Array::map(tree.clone(), Arc::new(fnptr!(List::unique, _)));
+                    tree = List::fold4(List::intRange(sizeE.clone()), (std::sync::Arc::new(setUpEqTree) as std::sync::Arc<dyn ::std::ops::Fn(i32, metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<i32>, metamodelica::Array<i32>, metamodelica::Array<Arc<metamodelica::List<i32>>>) -> Result<metamodelica::Array<Arc<metamodelica::List<i32>>>> + 'static>), m.clone(), mt.clone(), eqMatch.clone(), varMatch.clone(), tree.clone());
+                    tree = Array::map(tree.clone(), std::sync::Arc::new(fnptr!(List::unique, _)));
                     mapping = SimCode::BackendMapping::BACKENDMAPPING { m: m.clone(), mT: mt.clone(), eqMapping: eqMap.clone(), varMapping: varMap.clone(), eqMatch: eqMatch.clone(), varMatch: varMatch.clone(), eqTree: tree.clone(), simVarMapping: simVarMapping.clone() };
                     Ok(mapping.clone())
                 }
@@ -12280,8 +12239,8 @@ fn setUpEqTree(mut beq: i32, mut m: metamodelica::Array<Arc<metamodelica::List<i
     let mut depVars: Arc<metamodelica::List<i32>> = metamodelica::nil();
     assVar = eqMatch.clone().borrow()[(beq.clone()-1) as usize].clone();
     depVars = m.clone().borrow()[(beq.clone()-1) as usize].clone();
-    depVars = List::filter1OnTrue(depVars.clone(), Arc::new(fnptr!(setUpEqTree_Help, i32, i32)), assVar.clone());
-    preEqs = List::map1(depVars.clone(), Arc::new(fnptr!(Array::getIndexFirst, i32, _)), varMatch.clone());
+    depVars = List::filter1OnTrue(depVars.clone(), (std::sync::Arc::new(fnptr!(setUpEqTree_Help, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>), assVar.clone());
+    preEqs = List::map1(depVars.clone(), std::sync::Arc::new(fnptr!(Array::getIndexFirst, i32, _)), varMatch.clone());
     {let _arr = treeIn.clone(); let _val = listAppend(treeIn.borrow()[(beq.clone()-1) as usize].clone(), preEqs.clone()); _arr.borrow_mut()[(beq.clone()-1) as usize] = _val; _arr};
     treeOut = treeIn.clone();
     Ok(treeOut)
@@ -12297,14 +12256,14 @@ fn appendAdjacencyMatrices(mut tplIn: (i32, i32, metamodelica::Array<Arc<metamod
     let mut foldOut: (i32, i32, metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<i32>, metamodelica::Array<i32>);
     foldOut = (match (tplIn.clone(), foldIn.clone()) {
         ((mut addE, mut addV, mut m, mut mt, mut eqMatch, mut varMatch), (mut sizeE, mut sizeV, mut mIn, mut mtIn, mut eqMatchIn, mut varMatchIn)) => {
-            m = Array::map1(m.clone(), Arc::new(fnptr!(addIntLst, Arc<metamodelica::List<i32>>, i32)), sizeV.clone())?;
-            mt = Array::map1(mt.clone(), Arc::new(fnptr!(addIntLst, Arc<metamodelica::List<i32>>, i32)), sizeE.clone())?;
-            eqMatch = Array::map1(eqMatch.clone(), Arc::new(fnptr!(intAdd, i32, i32)), sizeV.clone())?;
-            varMatch = Array::map1(varMatch.clone(), Arc::new(fnptr!(intAdd, i32, i32)), sizeE.clone())?;
-            mIn = List::fold2(List::intRange(addE.clone()), Arc::new(updateInAdjacencyMatrix), sizeE.clone(), m.clone(), mIn.clone());
-            mtIn = List::fold2(List::intRange(addV.clone()), Arc::new(updateInAdjacencyMatrix), sizeV.clone(), mt.clone(), mtIn.clone());
-            eqMatchIn = List::fold2(List::intRange(addE.clone()), Arc::new(updateInMatching), sizeE.clone(), eqMatch.clone(), eqMatchIn.clone());
-            varMatchIn = List::fold2(List::intRange(addV.clone()), Arc::new(updateInMatching), sizeV.clone(), varMatch.clone(), varMatchIn.clone());
+            m = Array::map1(m.clone(), (std::sync::Arc::new(fnptr!(addIntLst, Arc<metamodelica::List<i32>>, i32)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<i32>>, i32) -> Result<Arc<metamodelica::List<i32>>> + 'static>), sizeV.clone())?;
+            mt = Array::map1(mt.clone(), (std::sync::Arc::new(fnptr!(addIntLst, Arc<metamodelica::List<i32>>, i32)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<i32>>, i32) -> Result<Arc<metamodelica::List<i32>>> + 'static>), sizeE.clone())?;
+            eqMatch = Array::map1(eqMatch.clone(), (std::sync::Arc::new(fnptr!(intAdd, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<i32> + 'static>), sizeV.clone())?;
+            varMatch = Array::map1(varMatch.clone(), (std::sync::Arc::new(fnptr!(intAdd, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<i32> + 'static>), sizeE.clone())?;
+            mIn = List::fold2(List::intRange(addE.clone()), (std::sync::Arc::new(updateInAdjacencyMatrix) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32, metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<Arc<metamodelica::List<i32>>>) -> Result<metamodelica::Array<Arc<metamodelica::List<i32>>>> + 'static>), sizeE.clone(), m.clone(), mIn.clone());
+            mtIn = List::fold2(List::intRange(addV.clone()), (std::sync::Arc::new(updateInAdjacencyMatrix) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32, metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<Arc<metamodelica::List<i32>>>) -> Result<metamodelica::Array<Arc<metamodelica::List<i32>>>> + 'static>), sizeV.clone(), mt.clone(), mtIn.clone());
+            eqMatchIn = List::fold2(List::intRange(addE.clone()), (std::sync::Arc::new(updateInMatching) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32, metamodelica::Array<i32>, metamodelica::Array<i32>) -> Result<metamodelica::Array<i32>> + 'static>), sizeE.clone(), eqMatch.clone(), eqMatchIn.clone());
+            varMatchIn = List::fold2(List::intRange(addV.clone()), (std::sync::Arc::new(updateInMatching) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32, metamodelica::Array<i32>, metamodelica::Array<i32>) -> Result<metamodelica::Array<i32>> + 'static>), sizeV.clone(), varMatch.clone(), varMatchIn.clone());
             (sizeE.clone() + addE.clone(), sizeV.clone() + addV.clone(), mIn.clone(), mtIn.clone(), eqMatchIn.clone(), varMatchIn.clone())
         },
     });
@@ -12329,7 +12288,7 @@ fn updateInMatching(mut idx: i32, mut offset: i32, mut matchingAppend: metamodel
 
 fn addIntLst(mut lstIn: Arc<metamodelica::List<i32>>, mut x: i32) -> Arc<metamodelica::List<i32>> {
     let mut lstOut: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    lstOut = List::map1(lstIn.clone(), Arc::new(fnptr!(intAdd, i32, i32)), x.clone());
+    lstOut = List::map1(lstIn.clone(), (std::sync::Arc::new(fnptr!(intAdd, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<i32> + 'static>), x.clone());
     lstOut
 }
 
@@ -12347,13 +12306,13 @@ fn setUpSystMapping(mut dae: Arc<BackendDAE::EqSystem>, mut isInitial: bool) -> 
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 _ => {
-                    let mut sizeV: i32 = sizeV.clone();
+                    let mut matching: Arc<BackendDAE::Matching> = matching.clone();
+                    let mut sizeE: i32 = sizeE.clone();
                     let mut mt: metamodelica::Array<Arc<metamodelica::List<i32>>>;
                     let mut ass2: metamodelica::Array<i32>;
                     let mut ass1: metamodelica::Array<i32>;
-                    let mut matching: Arc<BackendDAE::Matching> = matching.clone();
                     let mut m: metamodelica::Array<Arc<metamodelica::List<i32>>>;
-                    let mut sizeE: i32 = sizeE.clone();
+                    let mut sizeV: i32 = sizeV.clone();
                     let (__pa0, __pa1, __pa2) = ::match_deref::match_deref! { match &(dae.clone()) {
                         Deref @ BackendDAE::EqSystem { matching: __pa0, mT: Some(__pa1), m: Some(__pa2), .. } => (__pa0.clone(), __pa1.clone(), __pa2.clone()),
                         _ => bail!("pattern mismatch"),
@@ -12377,13 +12336,13 @@ fn setUpSystMapping(mut dae: Arc<BackendDAE::EqSystem>, mut isInitial: bool) -> 
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 _ => {
+                    let mut ass2: metamodelica::Array<i32>;
+                    let mut sizeE: i32 = sizeE.clone();
+                    let mut mt: metamodelica::Array<Arc<metamodelica::List<i32>>>;
+                    let mut sizeV: i32 = sizeV.clone();
                     let mut ass1: metamodelica::Array<i32>;
                     let mut m: metamodelica::Array<Arc<metamodelica::List<i32>>>;
-                    let mut sizeE: i32 = sizeE.clone();
-                    let mut sizeV: i32 = sizeV.clone();
-                    let mut mt: metamodelica::Array<Arc<metamodelica::List<i32>>>;
                     let mut matching: Arc<BackendDAE::Matching> = matching.clone();
-                    let mut ass2: metamodelica::Array<i32>;
                     let __pa0 = ::match_deref::match_deref! { match &(dae.clone()) {
                         Deref @ BackendDAE::EqSystem { matching: __pa0, mT: None, m: None, .. } => __pa0.clone(),
                         _ => bail!("pattern mismatch"),
@@ -12448,17 +12407,17 @@ fn setBackendVarMapping(mut dae: Arc<BackendDAE::BackendDAE>, mut ht: (metamodel
                     } };
                     eqs = __pa8.clone();
                     vars = BackendVariable::equationSystemsVarsLst(eqs.clone())?;
-                    crefs = List::map(vars.clone(), Arc::new(BackendVariable::varCref));
+                    crefs = List::map(vars.clone(), (std::sync::Arc::new(BackendVariable::varCref) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var) -> Result<Arc<DAE::ComponentRef>> + 'static>));
                     size = (crefs.clone().len() as i32);
                     bVarIdcs = List::intRange(size.clone());
-                    simVars = List::map1(crefs.clone(), Arc::new(BaseHashTable::get), ht.clone());
+                    simVars = List::map1(crefs.clone(), (std::sync::Arc::new(BaseHashTable::get) as std::sync::Arc<dyn ::std::ops::Fn(_, _) -> Result<_> + 'static>), ht.clone());
                     let SimCode::MODELINFO { vars: __pa9, varInfo: __pa10, .. } = (modelInfo.clone()) else { bail!("pattern mismatch") };
                     allVars = __pa9.clone();
                     varInfo = __pa10.clone();
-                    htStates = List::fold(allVars.stateVars.clone(), Arc::new(HashTableCrefSimVar::addSimVarToHashTable), HashTableCrefSimVar::emptyHashTableSized(1 + ((metamodelica::OrderedFloat(1.4_f64) * metamodelica::OrderedFloat((size.clone()) as f64)).0.floor() as i32)));
-                    simVarIdcs = List::map2(simVars.clone(), Arc::new(fnptr!(getSimVarIndex, SimCodeVar::SimVar, SimCode::VarInfo, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr)))), varInfo.clone(), htStates.clone());
+                    htStates = List::fold(allVars.stateVars.clone(), (std::sync::Arc::new(HashTableCrefSimVar::addSimVarToHashTable) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))> + 'static>), HashTableCrefSimVar::emptyHashTableSized(1 + ((metamodelica::OrderedFloat(1.4_f64) * metamodelica::OrderedFloat((size.clone()) as f64)).0.floor() as i32)));
+                    simVarIdcs = List::map2(simVars.clone(), (std::sync::Arc::new(fnptr!(getSimVarIndex, SimCodeVar::SimVar, SimCode::VarInfo, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr)))) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, SimCode::VarInfo, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))) -> Result<i32> + 'static>), varInfo.clone(), htStates.clone());
                     varMapping = makeVarMapTuple(simVarIdcs.clone(), bVarIdcs.clone(), metamodelica::nil())?;
-                    List::fold1(simVars.clone(), Arc::new(fillSimVarMapping), simVarMapping.clone(), 1);
+                    List::fold1(simVars.clone(), (std::sync::Arc::new(fillSimVarMapping) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, metamodelica::Array<Arc<metamodelica::List<SimCodeVar::SimVar>>>, i32) -> Result<i32> + 'static>), simVarMapping.clone(), 1);
                     Ok(SimCode::BackendMapping::BACKENDMAPPING { m: m.clone(), mT: mt.clone(), eqMapping: eqMapping.clone(), varMapping: varMapping.clone(), eqMatch: eqMatch.clone(), varMatch: varMatch.clone(), eqTree: tree.clone(), simVarMapping: simVarMapping.clone() })
                 }
                 _ => bail!("nomatch"),
@@ -12520,7 +12479,7 @@ fn setEqMapping(mut simEqs: Arc<metamodelica::List<i32>>, mut bEq: Arc<metamodel
     mapOut = (::match_deref::match_deref! { match &((simEqs.clone(), bEq.clone(), mapIn.clone())) {
         (_, _, SimCode::BackendMapping::BACKENDMAPPING { simVarMapping, eqTree: tree, varMatch, eqMatch, varMapping, eqMapping, mT: mt, m }) => {
             let mut eqMapping = (*eqMapping).clone();
-            eqMapping = List::fold1(simEqs.clone(), Arc::new(fnptr!(appendEqIdcs, i32, Arc<metamodelica::List<i32>>, Arc<metamodelica::List<(i32, Arc<metamodelica::List<i32>>)>>)), bEq.clone(), eqMapping.clone());
+            eqMapping = List::fold1(simEqs.clone(), (std::sync::Arc::new(fnptr!(appendEqIdcs, i32, Arc<metamodelica::List<i32>>, Arc<metamodelica::List<(i32, Arc<metamodelica::List<i32>>)>>)) as std::sync::Arc<dyn ::std::ops::Fn(i32, Arc<metamodelica::List<i32>>, Arc<metamodelica::List<(i32, Arc<metamodelica::List<i32>>)>>) -> Result<Arc<metamodelica::List<(i32, Arc<metamodelica::List<i32>>)>>> + 'static>), bEq.clone(), eqMapping.clone());
             SimCode::BackendMapping::BACKENDMAPPING { m: m.clone(), mT: mt.clone(), eqMapping: eqMapping.clone(), varMapping: varMapping.clone(), eqMatch: eqMatch.clone(), varMatch: varMatch.clone(), eqTree: tree.clone(), simVarMapping: simVarMapping.clone() }
         },
         (_, _, SimCode::BackendMapping::NO_MAPPING) => {
@@ -12552,16 +12511,16 @@ pub fn getSimVarsInSimEq(mut simEq: i32, mut map: SimCode::BackendMapping, mut o
     mt = __pa2.clone();
     m = __pa3.clone();
     bEqs = getBackendEqsForSimEq(simEq.clone(), map.clone())?;
-    bVarsLst = List::map1(bEqs.clone(), Arc::new(fnptr!(Array::getIndexFirst, i32, _)), m.clone());
+    bVarsLst = List::map1(bEqs.clone(), std::sync::Arc::new(fnptr!(Array::getIndexFirst, i32, _)), m.clone());
     bVars = List::flatten(bVarsLst.clone());
-    bVars = if (intEq(opt.clone(), 2)) {List::filter1OnTrue(bVars.clone(), Arc::new(fnptr!(intGt, i32, i32)), 0)} else {bVars.clone()};
-    bVars = if (intEq(opt.clone(), 3)) {List::filter1OnTrue(bVars.clone(), Arc::new(fnptr!(intLt, i32, i32)), 0)} else {bVars.clone()};
-    if !(List::isMemberOnTrue(opt.clone(), list![1, 2, 3], Arc::new(fnptr!(intEq, i32, i32)))) {
+    bVars = if (intEq(opt.clone(), 2)) {List::filter1OnTrue(bVars.clone(), (std::sync::Arc::new(fnptr!(intGt, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>), 0)} else {bVars.clone()};
+    bVars = if (intEq(opt.clone(), 3)) {List::filter1OnTrue(bVars.clone(), (std::sync::Arc::new(fnptr!(intLt, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>), 0)} else {bVars.clone()};
+    if !(List::isMemberOnTrue(opt.clone(), list![1, 2, 3], (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))) {
         println!("{}", (literal!("invalid option for getSimVarsInSimEq\n")).clone());
     }
     bVars = List::unique(bVars.clone());
     bVars = List::map(bVars.clone(), Arc::new(intAbs.clone()));
-    simVars = List::map1(bVars.clone(), Arc::new(getSimVarForBackendVar), map.clone());
+    simVars = List::map1(bVars.clone(), (std::sync::Arc::new(getSimVarForBackendVar) as std::sync::Arc<dyn ::std::ops::Fn(i32, SimCode::BackendMapping) -> Result<i32> + 'static>), map.clone());
     Ok(simVars)
 }
 
@@ -12580,13 +12539,13 @@ pub fn getSimEqsOfSimVar(mut simVar: i32, mut map: SimCode::BackendMapping, mut 
     m = __pa3.clone();
     bVar = getBackendVarForSimVar(simVar.clone(), map.clone())?;
     bEqs = mt.clone().borrow()[(bVar.clone()-1) as usize].clone();
-    bEqs = if (intEq(opt.clone(), 2)) {List::filter1OnTrue(bEqs.clone(), Arc::new(fnptr!(intGt, i32, i32)), 0)} else {bEqs.clone()};
-    bEqs = if (intEq(opt.clone(), 3)) {List::filter1OnTrue(bEqs.clone(), Arc::new(fnptr!(intLt, i32, i32)), 0)} else {bEqs.clone()};
-    if !(List::isMemberOnTrue(opt.clone(), list![1, 2, 3], Arc::new(fnptr!(intEq, i32, i32)))) {
+    bEqs = if (intEq(opt.clone(), 2)) {List::filter1OnTrue(bEqs.clone(), (std::sync::Arc::new(fnptr!(intGt, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>), 0)} else {bEqs.clone()};
+    bEqs = if (intEq(opt.clone(), 3)) {List::filter1OnTrue(bEqs.clone(), (std::sync::Arc::new(fnptr!(intLt, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>), 0)} else {bEqs.clone()};
+    if !(List::isMemberOnTrue(opt.clone(), list![1, 2, 3], (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))) {
         println!("{}", (literal!("invalid option for getSimEqsOfSimVar\n")).clone());
     }
     bEqs = List::map(bEqs.clone(), Arc::new(intAbs.clone()));
-    simEqs = List::map1(bEqs.clone(), Arc::new(getSimEqsForBackendEqs), map.clone());
+    simEqs = List::map1(bEqs.clone(), (std::sync::Arc::new(getSimEqsForBackendEqs) as std::sync::Arc<dyn ::std::ops::Fn(i32, SimCode::BackendMapping) -> Result<i32> + 'static>), map.clone());
     simEqs = List::unique(simEqs.clone());
     Ok(simEqs)
 }
@@ -12602,13 +12561,13 @@ pub fn getReqSimEqSysForSimVar(mut simVar: i32, mut simCode: SimCode::SimCode) -
     sesLst = __pa1.clone();
     bmap = Util::getOption(bmapOpt.clone())?;
     sesIdcs = getReqSimEqsForSimVar(simVar.clone(), bmap.clone())?;
-    ses = List::map1(sesIdcs.clone(), Arc::new(getSimEqSysForIndex), sesLst.clone());
+    ses = List::map1(sesIdcs.clone(), (std::sync::Arc::new(getSimEqSysForIndex) as std::sync::Arc<dyn ::std::ops::Fn(i32, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>) -> Result<Arc<SimCode::SimEqSystem>> + 'static>), sesLst.clone());
     Ok(ses)
 }
 
 pub fn getSimEqSysForIndex(mut idx: i32, mut allSimEqs: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>) -> Result<Arc<SimCode::SimEqSystem>> {
     let mut outSimEq: Arc<SimCode::SimEqSystem>;
-    if let Ok(__iflet0) = List::getMemberOnTrue(idx.clone(), allSimEqs.clone(), Arc::new(indexIsEqual)) {
+    if let Ok(__iflet0) = List::getMemberOnTrue(idx.clone(), allSimEqs.clone(), (std::sync::Arc::new(indexIsEqual) as std::sync::Arc<dyn ::std::ops::Fn(i32, Arc<SimCode::SimEqSystem>) -> Result<bool> + 'static>)) {
         outSimEq = __iflet0;
     } else {
         println!("{}", (literal!("getSimEqSysForIndex failed!\n")).clone());
@@ -12654,7 +12613,7 @@ pub fn getReqSimEqsForSimVar(mut simVar: i32, mut map: SimCode::BackendMapping) 
     bVar = getBackendVarForSimVar(simVar.clone(), map.clone())?;
     bEq = varMatch.clone().borrow()[(bVar.clone()-1) as usize].clone();
     beqs = collectReqSimEqs(bEq.clone(), tree.clone(), metamodelica::nil())?;
-    simEqs = List::map1(beqs.clone(), Arc::new(getSimEqsForBackendEqs), map.clone());
+    simEqs = List::map1(beqs.clone(), (std::sync::Arc::new(getSimEqsForBackendEqs) as std::sync::Arc<dyn ::std::ops::Fn(i32, SimCode::BackendMapping) -> Result<i32> + 'static>), map.clone());
     simEqs = List::unique(simEqs.clone());
     Ok(simEqs)
 }
@@ -12677,9 +12636,9 @@ fn collectReqSimEqs(mut eq: i32, mut tree: metamodelica::Array<Arc<metamodelica:
     let mut preEqs: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut reqEqs: Arc<metamodelica::List<i32>> = metamodelica::nil();
     preEqs = tree.clone().borrow()[(eq.clone()-1) as usize].clone();
-    (_, preEqs, _) = List::intersection1OnTrue(preEqs.clone(), eqsIn.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
+    (_, preEqs, _) = List::intersection1OnTrue(preEqs.clone(), eqsIn.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
     reqEqs = listAppend(preEqs.clone(), eqsIn.clone());
-    eqsOut = List::fold1(preEqs.clone(), Arc::new(collectReqSimEqs), tree.clone(), reqEqs.clone());
+    eqsOut = List::fold1(preEqs.clone(), (std::sync::Arc::new(collectReqSimEqs) as std::sync::Arc<dyn ::std::ops::Fn(i32, metamodelica::Array<Arc<metamodelica::List<i32>>>, Arc<metamodelica::List<i32>>) -> Result<Arc<metamodelica::List<i32>>> + 'static>), tree.clone(), reqEqs.clone());
     Ok(eqsOut)
 }
 
@@ -12688,7 +12647,7 @@ fn getBackendVarForSimVar(mut simVar: i32, mut map: SimCode::BackendMapping) -> 
     let mut varMapping: Arc<metamodelica::List<(i32, i32)>> = metamodelica::nil();
     let SimCode::BACKENDMAPPING { varMapping: __pa0, .. } = (map.clone()) else { bail!("pattern mismatch") };
     varMapping = __pa0.clone();
-    (_, bVar) = List::getMemberOnTrue(simVar.clone(), varMapping.clone(), Arc::new(fnptr!(findSimVar, i32, (i32, i32))))?;
+    (_, bVar) = List::getMemberOnTrue(simVar.clone(), varMapping.clone(), (std::sync::Arc::new(fnptr!(findSimVar, i32, (i32, i32))) as std::sync::Arc<dyn ::std::ops::Fn(i32, (i32, i32)) -> Result<bool> + 'static>))?;
     Ok(bVar)
 }
 
@@ -12697,7 +12656,7 @@ fn getSimVarForBackendVar(mut bVar: i32, mut map: SimCode::BackendMapping) -> Re
     let mut varMapping: Arc<metamodelica::List<(i32, i32)>> = metamodelica::nil();
     let SimCode::BACKENDMAPPING { varMapping: __pa0, .. } = (map.clone()) else { bail!("pattern mismatch") };
     varMapping = __pa0.clone();
-    (simVar, _) = List::getMemberOnTrue(bVar.clone(), varMapping.clone(), Arc::new(fnptr!(findBackendVar, i32, (i32, i32))))?;
+    (simVar, _) = List::getMemberOnTrue(bVar.clone(), varMapping.clone(), (std::sync::Arc::new(fnptr!(findBackendVar, i32, (i32, i32))) as std::sync::Arc<dyn ::std::ops::Fn(i32, (i32, i32)) -> Result<bool> + 'static>))?;
     Ok(simVar)
 }
 
@@ -12706,7 +12665,7 @@ fn getBackendEqsForSimEq(mut simEq: i32, mut map: SimCode::BackendMapping) -> Re
     let mut eqMapping: Arc<metamodelica::List<(i32, Arc<metamodelica::List<i32>>)>> = metamodelica::nil();
     let SimCode::BACKENDMAPPING { eqMapping: __pa0, .. } = (map.clone()) else { bail!("pattern mismatch") };
     eqMapping = __pa0.clone();
-    (_, bEqs) = List::getMemberOnTrue(simEq.clone(), eqMapping.clone(), Arc::new(fnptr!(findSimEqs, i32, (i32, Arc<metamodelica::List<i32>>))))?;
+    (_, bEqs) = List::getMemberOnTrue(simEq.clone(), eqMapping.clone(), (std::sync::Arc::new(fnptr!(findSimEqs, i32, (i32, Arc<metamodelica::List<i32>>))) as std::sync::Arc<dyn ::std::ops::Fn(i32, (i32, Arc<metamodelica::List<i32>>)) -> Result<bool> + 'static>))?;
     Ok(bEqs)
 }
 
@@ -12715,7 +12674,7 @@ fn getSimEqsForBackendEqs(mut bEq: i32, mut map: SimCode::BackendMapping) -> Res
     let mut eqMapping: Arc<metamodelica::List<(i32, Arc<metamodelica::List<i32>>)>> = metamodelica::nil();
     let SimCode::BACKENDMAPPING { eqMapping: __pa0, .. } = (map.clone()) else { bail!("pattern mismatch") };
     eqMapping = __pa0.clone();
-    (simEq, _) = List::getMemberOnTrue(bEq.clone(), eqMapping.clone(), Arc::new(fnptr!(findBEqs, i32, (i32, Arc<metamodelica::List<i32>>))))?;
+    (simEq, _) = List::getMemberOnTrue(bEq.clone(), eqMapping.clone(), (std::sync::Arc::new(fnptr!(findBEqs, i32, (i32, Arc<metamodelica::List<i32>>))) as std::sync::Arc<dyn ::std::ops::Fn(i32, (i32, Arc<metamodelica::List<i32>>)) -> Result<bool> + 'static>))?;
     Ok(simEq)
 }
 
@@ -12757,7 +12716,7 @@ pub fn getAssignedCrefsOfSimEq(mut idx: i32, mut simCode: SimCode::SimCode) -> R
         (_, SimCode::SimCode { allEquations: ref allEqs, .. }) => {
             let mut simEqSyst: Arc<SimCode::SimEqSystem>;
             let mut crefs: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
-            simEqSyst = List::getMemberOnTrue(idx.clone(), allEqs.clone(), Arc::new(indexIsEqual))?;
+            simEqSyst = List::getMemberOnTrue(idx.clone(), allEqs.clone(), (std::sync::Arc::new(indexIsEqual) as std::sync::Arc<dyn ::std::ops::Fn(i32, Arc<SimCode::SimEqSystem>) -> Result<bool> + 'static>))?;
             crefs = getSimEqSystemCrefsLHS(simEqSyst.clone())?;
             crefs.clone()
         },
@@ -12796,7 +12755,7 @@ fn getSimEqSystemCrefsLHS(mut simEqSys: Arc<SimCode::SimEqSystem>) -> Result<Arc
         },
         Deref @ SimCode::SimEqSystem::SES_LINEAR { lSystem: Deref @ SimCode::LinearSystem { residual, vars: simVars, .. }, .. } => {
             let mut crefs2: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
-            let _ = List::flatten(List::map(residual.clone(), Arc::new(getSimEqSystemCrefsLHS)));
+            let _ = List::flatten(List::map(residual.clone(), (std::sync::Arc::new(getSimEqSystemCrefsLHS) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SimCode::SimEqSystem>) -> Result<Arc<metamodelica::List<Arc<DAE::ComponentRef>>>> + 'static>)));
             crefs2 = {
         let mut __acc: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
         for mut v in (simVars.clone()).into_iter().cloned() {
@@ -13105,7 +13064,7 @@ pub fn getRemovedEquationSimEqSysIdxes(mut simCode: SimCode::SimCode) -> Result<
     let mut remEqs: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>> = metamodelica::nil();
     let SimCode::SIMCODE { removedEquations: __pa0, .. } = (simCode.clone()) else { bail!("pattern mismatch") };
     remEqs = __pa0.clone();
-    simEqSysIdcs = List::map(remEqs.clone(), Arc::new(simEqSystemIndex));
+    simEqSysIdcs = List::map(remEqs.clone(), (std::sync::Arc::new(simEqSystemIndex) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SimCode::SimEqSystem>) -> Result<i32> + 'static>));
     Ok(simEqSysIdcs)
 }
 
@@ -13120,12 +13079,12 @@ pub fn getDaeEqsNotPartOfOdeSystem(mut iSimCode: SimCode::SimCode) -> Result<Arc
     let SimCode::SIMCODE { odeEquations: __pa0, allEquations: __pa1, .. } = (iSimCode.clone()) else { bail!("pattern mismatch") };
     odeEquations = __pa0.clone();
     allEquations = __pa1.clone();
-    (allEqIdxMapping, highestIdx) = List::fold(allEquations.clone(), Arc::new(getDaeEqsNotPartOfOdeSystem0), (metamodelica::nil(), 0));
+    (allEqIdxMapping, highestIdx) = List::fold(allEquations.clone(), (std::sync::Arc::new(getDaeEqsNotPartOfOdeSystem0) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SimCode::SimEqSystem>, (Arc<metamodelica::List<(i32, Arc<SimCode::SimEqSystem>)>>, i32)) -> Result<(Arc<metamodelica::List<(i32, Arc<SimCode::SimEqSystem>)>>, i32)> + 'static>), (metamodelica::nil(), 0));
     allEqs = arrayCreate(highestIdx.clone(), None);
-    allEqs = List::fold(allEqIdxMapping.clone(), Arc::new(getDaeEqsNotPartOfOdeSystem1), allEqs.clone());
-    allEqs = List::fold(odeEquations.clone(), Arc::new(fnptr!(getDaeEqsNotPartOfOdeSystem2, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>, metamodelica::Array<Option<Arc<SimCode::SimEqSystem>>>)), allEqs.clone());
+    allEqs = List::fold(allEqIdxMapping.clone(), (std::sync::Arc::new(getDaeEqsNotPartOfOdeSystem1) as std::sync::Arc<dyn ::std::ops::Fn((i32, Arc<SimCode::SimEqSystem>), metamodelica::Array<Option<Arc<SimCode::SimEqSystem>>>) -> Result<metamodelica::Array<Option<Arc<SimCode::SimEqSystem>>>> + 'static>), allEqs.clone());
+    allEqs = List::fold(odeEquations.clone(), (std::sync::Arc::new(fnptr!(getDaeEqsNotPartOfOdeSystem2, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>, metamodelica::Array<Option<Arc<SimCode::SimEqSystem>>>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>, metamodelica::Array<Option<Arc<SimCode::SimEqSystem>>>) -> Result<metamodelica::Array<Option<Arc<SimCode::SimEqSystem>>>> + 'static>), allEqs.clone());
     tmpEqs = metamodelica::nil();
-    tmpEqs = Array::fold(allEqs.clone(), Arc::new(fnptr!(getDaeEqsNotPartOfOdeSystem4, Option<Arc<SimCode::SimEqSystem>>, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>)), tmpEqs.clone());
+    tmpEqs = Array::fold(allEqs.clone(), (std::sync::Arc::new(fnptr!(getDaeEqsNotPartOfOdeSystem4, Option<Arc<SimCode::SimEqSystem>>, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>)) as std::sync::Arc<dyn ::std::ops::Fn(Option<Arc<SimCode::SimEqSystem>>, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>) -> Result<Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>> + 'static>), tmpEqs.clone());
     oEqs = Dangerous::listReverseInPlace(tmpEqs.clone());
     Ok(oEqs)
 }
@@ -13154,7 +13113,7 @@ fn getDaeEqsNotPartOfOdeSystem1(mut iEqSystem: (i32, Arc<SimCode::SimEqSystem>),
 
 fn getDaeEqsNotPartOfOdeSystem2(mut iEqSystem: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>, mut iEqArray: metamodelica::Array<Option<Arc<SimCode::SimEqSystem>>>) -> metamodelica::Array<Option<Arc<SimCode::SimEqSystem>>> {
     let mut oEqArray: metamodelica::Array<Option<Arc<SimCode::SimEqSystem>>>;
-    oEqArray = List::fold(iEqSystem.clone(), Arc::new(getDaeEqsNotPartOfOdeSystem3), iEqArray.clone());
+    oEqArray = List::fold(iEqSystem.clone(), (std::sync::Arc::new(getDaeEqsNotPartOfOdeSystem3) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SimCode::SimEqSystem>, metamodelica::Array<Option<Arc<SimCode::SimEqSystem>>>) -> Result<metamodelica::Array<Option<Arc<SimCode::SimEqSystem>>>> + 'static>), iEqArray.clone());
     oEqArray
 }
 
@@ -13180,7 +13139,7 @@ fn getDaeEqsNotPartOfOdeSystem4(mut iEqSystemOpt: Option<Arc<SimCode::SimEqSyste
 
 pub fn dumpIdxScVarMapping(mut iMapping: metamodelica::Array<Option<SimCodeVar::SimVar>>) -> () {
     println!("{}", (literal!("Idx-ScVar-Mapping:\n")).clone());
-    let _ = Array::fold(iMapping.clone(), Arc::new(dumpIdxScVarMapping0), 1);
+    let _ = Array::fold(iMapping.clone(), (std::sync::Arc::new(dumpIdxScVarMapping0) as std::sync::Arc<dyn ::std::ops::Fn(Option<SimCodeVar::SimVar>, i32) -> Result<i32> + 'static>), 1);
     ()
 }
 
@@ -13228,7 +13187,7 @@ fn dumpEqMapping(mut eqMapping: Arc<metamodelica::List<(i32, Arc<metamodelica::L
     lst = eqMapping.clone().reverse();
     println!("{}", (literal!("------------\n")).clone());
     println!("{}", (literal!("BackendEquation ---> SimEqSys\n")).clone());
-    (s, _) = List::mapFold(lst.clone(), Arc::new(fnptr!(dumpEqMappingTuple, (i32, Arc<metamodelica::List<i32>>), i32)), 1);
+    (s, _) = List::mapFold(lst.clone(), (std::sync::Arc::new(fnptr!(dumpEqMappingTuple, (i32, Arc<metamodelica::List<i32>>), i32)) as std::sync::Arc<dyn ::std::ops::Fn((i32, Arc<metamodelica::List<i32>>), i32) -> Result<(ArcStr, i32)> + 'static>), 1);
     println!("{}", stringDelimitList(s.clone(), (literal!("\n")).clone()));
     println!("{}", (literal!("\n------------\n")).clone());
     println!("{}", (literal!("\n")).clone());
@@ -13241,7 +13200,7 @@ fn dumpVarMapping(mut varMapping: Arc<metamodelica::List<(i32, i32)>>) -> () {
     lst = varMapping.clone().reverse();
     println!("{}", (literal!("------------\n")).clone());
     println!("{}", (literal!("BackendVar ---> SimVar\n")).clone());
-    (s, _) = List::mapFold(lst.clone(), Arc::new(fnptr!(dumpVarMappingTuple, (i32, i32), i32)), 1);
+    (s, _) = List::mapFold(lst.clone(), (std::sync::Arc::new(fnptr!(dumpVarMappingTuple, (i32, i32), i32)) as std::sync::Arc<dyn ::std::ops::Fn((i32, i32), i32) -> Result<(ArcStr, i32)> + 'static>), 1);
     println!("{}", stringDelimitList(s.clone(), (literal!("\n")).clone()));
     println!("{}", (literal!("\n------------\n")).clone());
     println!("{}", (literal!("\n")).clone());
@@ -13254,7 +13213,7 @@ fn dumpEqMappingTuple(mut tpl: (i32, Arc<metamodelica::List<i32>>), mut noIn: i3
     let mut i1: i32 = 0;
     let mut lst: Arc<metamodelica::List<i32>> = metamodelica::nil();
     (i1, lst) = tpl.clone();
-    s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*intString(noIn.clone())); __mm_s.push_str(&*literal!("): ")); __mm_s.push_str(&*stringDelimitList(List::map(lst.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!(" ---> ")); __mm_s.push_str(&*intString(i1.clone())); ArcStr::from(__mm_s) }).clone();
+    s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*intString(noIn.clone())); __mm_s.push_str(&*literal!("): ")); __mm_s.push_str(&*stringDelimitList(List::map(lst.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!(" ---> ")); __mm_s.push_str(&*intString(i1.clone())); ArcStr::from(__mm_s) }).clone();
     noOut = noIn.clone() + 1;
     (s, noOut)
 }
@@ -13481,10 +13440,10 @@ pub fn createFMIModelStructure(mut inSymjacs: Arc<metamodelica::List<(Option<(Ar
         }
         __acc.reverse()
     };
-        varsA = List::filterOnTrue(inModelInfo.vars.algVars.clone(), Arc::new(fnptr!(isOutputSimVar, SimCodeVar::SimVar)));
-        varsB = List::filterOnTrue(inModelInfo.vars.intAlgVars.clone(), Arc::new(fnptr!(isOutputSimVar, SimCodeVar::SimVar)));
-        varsC = List::filterOnTrue(inModelInfo.vars.boolAlgVars.clone(), Arc::new(fnptr!(isOutputSimVar, SimCodeVar::SimVar)));
-        varsD = List::filterOnTrue(inModelInfo.vars.stringAlgVars.clone(), Arc::new(fnptr!(isOutputSimVar, SimCodeVar::SimVar)));
+        varsA = List::filterOnTrue(inModelInfo.vars.algVars.clone(), (std::sync::Arc::new(fnptr!(isOutputSimVar, SimCodeVar::SimVar)) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar) -> Result<bool> + 'static>));
+        varsB = List::filterOnTrue(inModelInfo.vars.intAlgVars.clone(), (std::sync::Arc::new(fnptr!(isOutputSimVar, SimCodeVar::SimVar)) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar) -> Result<bool> + 'static>));
+        varsC = List::filterOnTrue(inModelInfo.vars.boolAlgVars.clone(), (std::sync::Arc::new(fnptr!(isOutputSimVar, SimCodeVar::SimVar)) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar) -> Result<bool> + 'static>));
+        varsD = List::filterOnTrue(inModelInfo.vars.stringAlgVars.clone(), (std::sync::Arc::new(fnptr!(isOutputSimVar, SimCodeVar::SimVar)) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar) -> Result<bool> + 'static>));
         allOutputVars = listAppend(listAppend(varsA.clone(), varsB.clone()), listAppend(varsC.clone(), varsD.clone()));
         intLst = {
         let mut __acc: Arc<metamodelica::List<i32>> = metamodelica::nil();
@@ -13503,7 +13462,7 @@ pub fn createFMIModelStructure(mut inSymjacs: Arc<metamodelica::List<(Option<(Ar
         }
         __acc.reverse()
     };
-        clockedStates = List::filterOnTrue(inModelInfo.vars.algVars.clone(), Arc::new(fnptr!(isClockedStateSimVar, SimCodeVar::SimVar)));
+        clockedStates = List::filterOnTrue(inModelInfo.vars.algVars.clone(), (std::sync::Arc::new(fnptr!(isClockedStateSimVar, SimCodeVar::SimVar)) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar) -> Result<bool> + 'static>));
         intLst = {
         let mut __acc: Arc<metamodelica::List<i32>> = metamodelica::nil();
         for mut v in (clockedStates.clone()).into_iter().cloned() {
@@ -13542,11 +13501,11 @@ pub fn createFMIModelStructure(mut inSymjacs: Arc<metamodelica::List<(Option<(Ar
             contPartSimDer = None;
         }
         tmpInitialUnknowns = metamodelica::nil();
-        tmpInitialUnknowns = List::filterCons(allOutputVars.clone(), Arc::new(fnptr!(isInitialApproxOrCalculatedSimVar, SimCodeVar::SimVar)), tmpInitialUnknowns.clone());
+        tmpInitialUnknowns = List::filterCons(allOutputVars.clone(), (std::sync::Arc::new(fnptr!(isInitialApproxOrCalculatedSimVar, SimCodeVar::SimVar)) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar) -> Result<bool> + 'static>), tmpInitialUnknowns.clone());
         allParamVars = getAllParamSimVars(inModelInfo.clone());
-        tmpInitialUnknowns = List::filterCons(allParamVars.clone(), Arc::new(fnptr!(isCausalityCalculatedParameterSimVar, SimCodeVar::SimVar)), tmpInitialUnknowns.clone());
-        tmpInitialUnknowns = List::filterCons(inModelInfo.vars.stateVars.clone(), Arc::new(fnptr!(isInitialApproxOrCalculatedSimVar, SimCodeVar::SimVar)), tmpInitialUnknowns.clone());
-        tmpInitialUnknowns = List::filterCons(inModelInfo.vars.derivativeVars.clone(), Arc::new(fnptr!(isInitialApproxOrCalculatedSimVar, SimCodeVar::SimVar)), tmpInitialUnknowns.clone());
+        tmpInitialUnknowns = List::filterCons(allParamVars.clone(), (std::sync::Arc::new(fnptr!(isCausalityCalculatedParameterSimVar, SimCodeVar::SimVar)) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar) -> Result<bool> + 'static>), tmpInitialUnknowns.clone());
+        tmpInitialUnknowns = List::filterCons(inModelInfo.vars.stateVars.clone(), (std::sync::Arc::new(fnptr!(isInitialApproxOrCalculatedSimVar, SimCodeVar::SimVar)) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar) -> Result<bool> + 'static>), tmpInitialUnknowns.clone());
+        tmpInitialUnknowns = List::filterCons(inModelInfo.vars.derivativeVars.clone(), (std::sync::Arc::new(fnptr!(isInitialApproxOrCalculatedSimVar, SimCodeVar::SimVar)) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar) -> Result<bool> + 'static>), tmpInitialUnknowns.clone());
         tmpInitialUnknowns = Dangerous::listReverseInPlace(tmpInitialUnknowns.clone());
         if !(tmpInitialUnknowns.clone().is_empty()) {
             (allInitialUnknowns, fmiDerInit, sortedUnknownCrefs, sortedknownCrefs) = unwrap_break_err!(getFmiInitialUnknowns(inInitDAE.clone(), inSimDAE.clone(), crefSimVarHT.clone(), tmpInitialUnknowns.clone()), '__try0);
@@ -13607,7 +13566,7 @@ pub fn createFMIModelStructure(mut inSymjacs: Arc<metamodelica::List<(Option<(Ar
         }
         __acc.reverse()
     };
-                varsA = List::filterOnTrue(inModelInfo.vars.algVars.clone(), Arc::new(fnptr!(isOutputSimVar, SimCodeVar::SimVar)));
+                varsA = List::filterOnTrue(inModelInfo.vars.algVars.clone(), (std::sync::Arc::new(fnptr!(isOutputSimVar, SimCodeVar::SimVar)) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar) -> Result<bool> + 'static>));
                 outputs = {
         let mut __acc: Arc<metamodelica::List<SimCode::FmiUnknown>> = metamodelica::nil();
         for mut v in (unwrap_break_err!(getScalarVars(varsA.clone()), '__try28)).into_iter().cloned() {
@@ -13616,7 +13575,7 @@ pub fn createFMIModelStructure(mut inSymjacs: Arc<metamodelica::List<(Option<(Ar
         }
         __acc.reverse()
     };
-                clockedStates = List::filterOnTrue(inModelInfo.vars.algVars.clone(), Arc::new(fnptr!(isClockedStateSimVar, SimCodeVar::SimVar)));
+                clockedStates = List::filterOnTrue(inModelInfo.vars.algVars.clone(), (std::sync::Arc::new(fnptr!(isClockedStateSimVar, SimCodeVar::SimVar)) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar) -> Result<bool> + 'static>));
                 discreteStates = {
         let mut __acc: Arc<metamodelica::List<SimCode::FmiUnknown>> = metamodelica::nil();
         for mut v in (unwrap_break_err!(getScalarVars(clockedStates.clone()), '__try28)).into_iter().cloned() {
@@ -13739,8 +13698,8 @@ fn getFmiInitialUnknowns(mut inInitDAE: Arc<BackendDAE::BackendDAE>, mut inSimDA
     let mut match2: metamodelica::Array<i32>;
     let mut debug: bool = false;
     let mut initialUnknowns: Arc<UnorderedSet::UnorderedSet<Arc<DAE::ComponentRef>>>;
-    initialUnknownCrefs = List::map(initialUnknownList.clone(), Arc::new(fnptr!(getCrefFromSimVar, SimCodeVar::SimVar)));
-    initialUnknowns = UnorderedSet::fromList(initialUnknownCrefs.clone(), ComponentReference::hashComponentRef, ComponentReferenceBasics::crefEqual)?;
+    initialUnknownCrefs = List::map(initialUnknownList.clone(), (std::sync::Arc::new(fnptr!(getCrefFromSimVar, SimCodeVar::SimVar)) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar) -> Result<Arc<DAE::ComponentRef>> + 'static>));
+    initialUnknowns = UnorderedSet::fromList(initialUnknownCrefs.clone(), (std::sync::Arc::new(ComponentReference::hashComponentRef) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentReferenceBasics::crefEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>) -> Result<bool> + 'static>))?;
     if debug.clone() {
         println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n FmiInitialUnknownsDependencyList :")); __mm_s.push_str(&*ComponentReference::printComponentRefListStr(initialUnknownCrefs.clone())); ArcStr::from(__mm_s) }).clone());
     }
@@ -13763,7 +13722,7 @@ fn getFmiInitialUnknowns(mut inInitDAE: Arc<BackendDAE::BackendDAE>, mut inSimDA
         if BackendVariable::isParam(var.clone()) && !(BackendVariable::containsCref(var.varName.clone(), currentSystem.orderedVars.clone())) {
             lhs = BackendVariable::varExp(var.clone())?;
             rhs = BackendVariable::varBindExpStartValueNoFail(var.clone())?;
-            eqn = Arc::new(BackendDAE::Equation::EQUATION { exp: lhs.clone(), scalar: rhs.clone(), source: DAE::emptyElementSource.clone(), attr: BackendDAE::EQ_ATTR_DEFAULT_BINDING.clone() });
+            eqn = Arc::new(BackendDAE::Equation::EQUATION { exp: lhs.clone(), scalar: rhs.clone(), source: DAE::emptyElementSource().clone(), attr: BackendDAE::EQ_ATTR_DEFAULT_BINDING.clone() });
             BackendEquation::add(eqn.clone(), currentSystem.orderedEqs.clone())?;
             currentSystem = BackendVariable::addVarDAE(var.clone(), currentSystem.clone())?;
         } else if !(BackendVariable::containsCref(var.varName.clone(), currentSystem.orderedVars.clone())) {
@@ -14011,7 +13970,7 @@ fn mergeSparsePatter(mut inA: Arc<metamodelica::List<(Arc<DAE::ComponentRef>, Ar
         (Deref @ metamodelica::List::Cons { head: (crefA, listA), tail: restA }, Deref @ metamodelica::List::Cons { head: (crefB, listB), tail: restB }, _) => {
             let mut listOut: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
             let true = (ComponentReferenceBasics::crefEqual(crefA.clone(), crefB.clone())?) else { bail!("pattern mismatch") };
-            listOut = List::unionOnTrue(listA.clone(), listB.clone(), Arc::new(ComponentReferenceBasics::crefEqual));
+            listOut = List::unionOnTrue(listA.clone(), listB.clone(), (std::sync::Arc::new(ComponentReferenceBasics::crefEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>) -> Result<bool> + 'static>));
             mergeSparsePatter(restA.clone(), restB.clone(), cons((crefA.clone(), listOut.clone()), inAccum.clone()))?
         },
         _ => bail!("match: no arm matched"),
@@ -14029,7 +13988,7 @@ pub fn getStateSimVarIndexFromIndex(mut inStateVars: Arc<metamodelica::List<SimC
 
 fn getNumScalars(mut vars: Arc<metamodelica::List<SimCodeVar::SimVar>>) -> i32 {
     let mut numScalars: i32 = 0;
-    numScalars = List::applyAndFold(vars.clone(), Arc::new(fnptr!(intAdd, i32, i32)), Arc::new(getNumElems), 0);
+    numScalars = List::applyAndFold(vars.clone(), (std::sync::Arc::new(fnptr!(intAdd, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<i32> + 'static>), (std::sync::Arc::new(getNumElems) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar) -> Result<i32> + 'static>), 0);
     numScalars
 }
 
@@ -14059,7 +14018,7 @@ pub fn getScalarElements(mut var: SimCodeVar::SimVar) -> Result<Arc<metamodelica
     elts = (::match_deref::match_deref! { match &(var.clone()) {
         SimCodeVar::SimVar { exportVar: None, type_: Deref @ DAE::Type::T_ARRAY { .. }, .. } => metamodelica::nil(),
         SimCodeVar::SimVar { fmi_index: Some(fmi_index), variable_index: Some(index), type_: Deref @ DAE::Type::T_ARRAY { .. }, .. } => {
-            dims = List::map(List::lastN(var.numArrayElement.clone(), (var.numArrayElement.clone().len() as i32))?, Arc::new(stringInt));
+            dims = List::map(List::lastN(var.numArrayElement.clone(), (var.numArrayElement.clone().len() as i32))?, (std::sync::Arc::new(stringInt) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr) -> Result<i32> + 'static>));
             elt = var.clone();
             elt.type_ = Types::arrayElementType(var.type_.clone());
             elts = fillScalarElements(elt.clone(), dims.clone(), 1, metamodelica::nil(), metamodelica::nil())?;
@@ -14234,7 +14193,7 @@ fn getHighestDerivation(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result<i32> {
     let mut curIndex: i32 = 0;
     let mut derCref: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
     vars = BackendDAEUtil::getAllVarLst(inDAE.clone())?;
-    states = List::filterOnTrue(vars.clone(), Arc::new(fnptr!(BackendVariable::isStateVar, BackendDAE::Var)));
+    states = List::filterOnTrue(vars.clone(), (std::sync::Arc::new(fnptr!(BackendVariable::isStateVar, BackendDAE::Var)) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var) -> Result<bool> + 'static>));
     length = (states.clone().len() as i32);
     if length.clone() == 0 {
         highestDerivation = 0;
@@ -14251,8 +14210,8 @@ fn getHighestDerivation(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result<i32> {
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 BackendDAE::Var { varKind: BackendDAE::VarKind::STATE { derName: Some(derCref), index, .. }, .. } => {
-                    let mut var: BackendDAE::Var;
                     let mut pos: i32 = pos.clone();
+                    let mut var: BackendDAE::Var;
                     (var, pos) = BackendVariable::getVarSingle(derCref.clone(), allStates.clone())?;
                     if !(BackendVariable::varEqual(state.clone(), var.clone())) {
                         {let _arr = ders.clone(); _arr.borrow_mut()[(curIndex.clone()-1) as usize] = pos.clone(); _arr};
@@ -14395,7 +14354,7 @@ fn createSimVarsForSensitivities(mut inStateSimVars: Arc<metamodelica::List<SimC
             sensitivityParams = cons(param.clone(), sensitivityParams.clone());
             for mut state in &*inStateSimVars.clone() {
                 let mut state = state.clone();
-                cref = ComponentReferenceBasics::makeCrefIdent((literal!("$Sensitivities")).clone(), DAE::T_REAL_DEFAULT.clone(), metamodelica::nil());
+                cref = ComponentReferenceBasics::makeCrefIdent((literal!("$Sensitivities")).clone(), DAE::T_REAL_DEFAULT().clone(), metamodelica::nil());
                 cref = ComponentReference::joinCrefs(cref.clone(), param.name.clone())?;
                 cref = ComponentReference::joinCrefs(cref.clone(), state.name.clone())?;
                 if debug.clone() {
@@ -14406,7 +14365,7 @@ fn createSimVarsForSensitivities(mut inStateSimVars: Arc<metamodelica::List<SimC
             }
         }
     }
-    (outSimCodeVars, _) = BackendVariable::traverseBackendDAEVars(tmpVariables.clone(), Arc::new(traversingdlowvarToSimvar), (metamodelica::nil(), emptyVars.clone()))?;
+    (outSimCodeVars, _) = BackendVariable::traverseBackendDAEVars(tmpVariables.clone(), (std::sync::Arc::new(traversingdlowvarToSimvar) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, (Arc<metamodelica::List<SimCodeVar::SimVar>>, BackendDAE::Variables)) -> Result<(BackendDAE::Var, (Arc<metamodelica::List<SimCodeVar::SimVar>>, BackendDAE::Variables))> + 'static>), (metamodelica::nil(), emptyVars.clone()))?;
     outSimCodeVars = outSimCodeVars.clone().reverse();
     outSimCodeVars = listAppend(sensitivityParams.clone().reverse(), outSimCodeVars.clone());
     Ok((outSimCodeVars, countSensitivityParams))
@@ -14486,7 +14445,7 @@ fn computeDependenciesHelper(mut eqs: Arc<metamodelica::List<Arc<SimCode::SimEqS
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ metamodelica::List::Cons { head: head @ Deref @ SimCode::SimEqSystem::SES_SIMPLE_ASSIGN { exp, cref, .. }, tail: tail }, _, r) => {
                     let mut new_unknowns: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
-                    let true = (List::isMemberOnTrue(cref.clone(), unknowns.clone(), Arc::new(ComponentReferenceBasics::crefEqual))) else { bail!("pattern mismatch") };
+                    let true = (List::isMemberOnTrue(cref.clone(), unknowns.clone(), (std::sync::Arc::new(ComponentReferenceBasics::crefEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>) -> Result<bool> + 'static>))) else { bail!("pattern mismatch") };
                     new_unknowns = Expression::getAllCrefs(exp.clone())?;
                     Ok(computeDependenciesHelper(tail.clone(), listAppend(unknowns.clone(), new_unknowns.clone()), listAppend(r.clone(), list![head.clone()]))?)
                 }
@@ -14497,7 +14456,7 @@ fn computeDependenciesHelper(mut eqs: Arc<metamodelica::List<Arc<SimCode::SimEqS
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ metamodelica::List::Cons { head: head @ Deref @ SimCode::SimEqSystem::SES_SIMPLE_ASSIGN_CONSTRAINTS { exp, cref, .. }, tail: tail }, _, r) => {
                     let mut new_unknowns: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
-                    let true = (List::isMemberOnTrue(cref.clone(), unknowns.clone(), Arc::new(ComponentReferenceBasics::crefEqual))) else { bail!("pattern mismatch") };
+                    let true = (List::isMemberOnTrue(cref.clone(), unknowns.clone(), (std::sync::Arc::new(ComponentReferenceBasics::crefEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>) -> Result<bool> + 'static>))) else { bail!("pattern mismatch") };
                     new_unknowns = Expression::getAllCrefs(exp.clone())?;
                     Ok(computeDependenciesHelper(tail.clone(), listAppend(unknowns.clone(), new_unknowns.clone()), listAppend(r.clone(), list![head.clone()]))?)
                 }
@@ -14510,8 +14469,8 @@ fn computeDependenciesHelper(mut eqs: Arc<metamodelica::List<Arc<SimCode::SimEqS
                     let mut new_unknowns: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
                     let mut linsys_unk: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
                     linsys_unk = getSimEqSystemCrefsLHS(head.clone())?;
-                    let false = (List::intersectionOnTrue(linsys_unk.clone(), unknowns.clone(), Arc::new(ComponentReferenceBasics::crefEqual)).is_empty()) else { bail!("pattern mismatch") };
-                    new_unknowns = List::flatten(List::map(beqs.clone(), Arc::new(Expression::getAllCrefs)));
+                    let false = (List::intersectionOnTrue(linsys_unk.clone(), unknowns.clone(), (std::sync::Arc::new(ComponentReferenceBasics::crefEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>) -> Result<bool> + 'static>)).is_empty()) else { bail!("pattern mismatch") };
+                    new_unknowns = List::flatten(List::map(beqs.clone(), (std::sync::Arc::new(Expression::getAllCrefs) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<Arc<metamodelica::List<Arc<DAE::ComponentRef>>>> + 'static>)));
                     Ok(computeDependenciesHelper(tail.clone(), listAppend(unknowns.clone(), new_unknowns.clone()), listAppend(r.clone(), list![head.clone()]))?)
                 }
                 _ => bail!("nomatch"),
@@ -14521,7 +14480,7 @@ fn computeDependenciesHelper(mut eqs: Arc<metamodelica::List<Arc<SimCode::SimEqS
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ metamodelica::List::Cons { head: head @ Deref @ SimCode::SimEqSystem::SES_NONLINEAR { nlSystem: Deref @ SimCode::NonlinearSystem { eqs: nlsys_eqs, crefs: nlsys_unk, .. }, .. }, tail: tail }, _, r) => {
                     let mut new_unknowns: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
-                    let false = (List::intersectionOnTrue(nlsys_unk.clone(), unknowns.clone(), Arc::new(ComponentReferenceBasics::crefEqual)).is_empty()) else { bail!("pattern mismatch") };
+                    let false = (List::intersectionOnTrue(nlsys_unk.clone(), unknowns.clone(), (std::sync::Arc::new(ComponentReferenceBasics::crefEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>) -> Result<bool> + 'static>)).is_empty()) else { bail!("pattern mismatch") };
                     new_unknowns = getNLSysRHS(nlsys_eqs.clone(), metamodelica::nil())?;
                     Ok(computeDependenciesHelper(tail.clone(), listAppend(unknowns.clone(), new_unknowns.clone()), listAppend(r.clone(), list![head.clone()]))?)
                 }
@@ -14552,7 +14511,7 @@ pub fn computeDependencies(mut eqs: Arc<metamodelica::List<Arc<SimCode::SimEqSys
 
 pub fn getSimEqSystemsByIndexLst(mut idcs: Arc<metamodelica::List<i32>>, mut allSes: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>) -> Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>> {
     let mut sesOut: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>> = metamodelica::nil();
-    sesOut = List::map1(idcs.clone(), Arc::new(getSimEqSysForIndex), allSes.clone());
+    sesOut = List::map1(idcs.clone(), (std::sync::Arc::new(getSimEqSysForIndex) as std::sync::Arc<dyn ::std::ops::Fn(i32, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>) -> Result<Arc<SimCode::SimEqSystem>> + 'static>), allSes.clone());
     sesOut
 }
 
@@ -14628,8 +14587,8 @@ pub fn cref2simvar(mut inCref: Arc<DAE::ComponentRef>, mut simCode: SimCode::Sim
             outSimVar = __try0_o0;
         }
         Err(_) => {
-            badcref = ComponentReferenceBasics::makeCrefIdent(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("ERROR_cref2simvar_failed ")); __mm_s.push_str(&*ComponentReferenceBasics::printComponentRefStr(inCref.clone())?); ArcStr::from(__mm_s) }).clone(), DAE::T_REAL_DEFAULT.clone(), metamodelica::nil());
-            outSimVar = SimCodeVar::SimVar { name: badcref.clone(), varKind: crate::BackendDAE::VarKind::VARIABLE, comment: (literal!("")).clone(), unit: (literal!("")).clone(), displayUnit: (literal!("")).clone(), index: -2, minValue: None, maxValue: None, initialValue: None, nominalValue: None, isFixed: false, type_: DAE::T_REAL_DEFAULT.clone(), isDiscrete: false, arrayCref: None, aliasvar: crate::SimCodeVar::AliasVariable::NOALIAS, source: DAE::emptyElementSource.clone(), causality: Some(crate::SimCodeVar::Causality::LOCAL), variable_index: None, fmi_index: None, numArrayElement: metamodelica::nil(), isValueChangeable: false, isProtected: true, hideResult: None, isEncrypted: false, inputIndex: None, initNonlinear: false, matrixName: None, variability: None, initial_: None, exportVar: Some(badcref.clone()), relativeQuantity: false };
+            badcref = ComponentReferenceBasics::makeCrefIdent(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("ERROR_cref2simvar_failed ")); __mm_s.push_str(&*ComponentReferenceBasics::printComponentRefStr(inCref.clone())?); ArcStr::from(__mm_s) }).clone(), DAE::T_REAL_DEFAULT().clone(), metamodelica::nil());
+            outSimVar = SimCodeVar::SimVar { name: badcref.clone(), varKind: crate::BackendDAE::VarKind::VARIABLE, comment: (literal!("")).clone(), unit: (literal!("")).clone(), displayUnit: (literal!("")).clone(), index: -2, minValue: None, maxValue: None, initialValue: None, nominalValue: None, isFixed: false, type_: DAE::T_REAL_DEFAULT().clone(), isDiscrete: false, arrayCref: None, aliasvar: crate::SimCodeVar::AliasVariable::NOALIAS, source: DAE::emptyElementSource().clone(), causality: Some(crate::SimCodeVar::Causality::LOCAL), variable_index: None, fmi_index: None, numArrayElement: metamodelica::nil(), isValueChangeable: false, isProtected: true, hideResult: None, isEncrypted: false, inputIndex: None, initNonlinear: false, matrixName: None, variability: None, initial_: None, exportVar: Some(badcref.clone()), relativeQuantity: false };
         }
     }
     Ok(outSimVar)
@@ -14656,7 +14615,7 @@ pub fn simVarFromHT(mut inCref: Arc<DAE::ComponentRef>, mut crefToSimVarHT: (met
             }
             sv.variable_index = (match sv.variable_index.clone() {
         Some(mut index) => {
-            Some(index.clone() + getScalarElementIndex(subs.clone(), List::map(sv.numArrayElement.clone(), Arc::new(stringInt))) - 1)
+            Some(index.clone() + getScalarElementIndex(subs.clone(), List::map(sv.numArrayElement.clone(), (std::sync::Arc::new(stringInt) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr) -> Result<i32> + 'static>))) - 1)
         },
         _ => {
             sv.variable_index.clone()
@@ -14664,7 +14623,7 @@ pub fn simVarFromHT(mut inCref: Arc<DAE::ComponentRef>, mut crefToSimVarHT: (met
     });
             sv.fmi_index = (match sv.fmi_index.clone() {
         Some(mut fmiIndex) => {
-            Some(fmiIndex.clone() + getScalarElementIndex(subs.clone(), List::map(sv.numArrayElement.clone(), Arc::new(stringInt))) - 1)
+            Some(fmiIndex.clone() + getScalarElementIndex(subs.clone(), List::map(sv.numArrayElement.clone(), (std::sync::Arc::new(stringInt) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr) -> Result<i32> + 'static>))) - 1)
         },
         _ => {
             sv.fmi_index.clone()
@@ -14683,8 +14642,8 @@ pub fn simVarFromHT(mut inCref: Arc<DAE::ComponentRef>, mut crefToSimVarHT: (met
             sv = __try0_o0;
         }
         Err(_) => {
-            badcref = ComponentReferenceBasics::makeCrefIdent(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("ERROR_simVarFromHT_failed ")); __mm_s.push_str(&*ComponentReferenceBasics::printComponentRefStr(inCref.clone())?); ArcStr::from(__mm_s) }).clone(), DAE::T_REAL_DEFAULT.clone(), metamodelica::nil());
-            sv = SimCodeVar::SimVar { name: badcref.clone(), varKind: crate::BackendDAE::VarKind::VARIABLE, comment: (literal!("")).clone(), unit: (literal!("")).clone(), displayUnit: (literal!("")).clone(), index: -2, minValue: None, maxValue: None, initialValue: None, nominalValue: None, isFixed: false, type_: DAE::T_REAL_DEFAULT.clone(), isDiscrete: false, arrayCref: None, aliasvar: crate::SimCodeVar::AliasVariable::NOALIAS, source: DAE::emptyElementSource.clone(), causality: Some(crate::SimCodeVar::Causality::LOCAL), variable_index: None, fmi_index: None, numArrayElement: metamodelica::nil(), isValueChangeable: false, isProtected: true, hideResult: None, isEncrypted: false, inputIndex: None, initNonlinear: false, matrixName: None, variability: None, initial_: None, exportVar: Some(badcref.clone()), relativeQuantity: false };
+            badcref = ComponentReferenceBasics::makeCrefIdent(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("ERROR_simVarFromHT_failed ")); __mm_s.push_str(&*ComponentReferenceBasics::printComponentRefStr(inCref.clone())?); ArcStr::from(__mm_s) }).clone(), DAE::T_REAL_DEFAULT().clone(), metamodelica::nil());
+            sv = SimCodeVar::SimVar { name: badcref.clone(), varKind: crate::BackendDAE::VarKind::VARIABLE, comment: (literal!("")).clone(), unit: (literal!("")).clone(), displayUnit: (literal!("")).clone(), index: -2, minValue: None, maxValue: None, initialValue: None, nominalValue: None, isFixed: false, type_: DAE::T_REAL_DEFAULT().clone(), isDiscrete: false, arrayCref: None, aliasvar: crate::SimCodeVar::AliasVariable::NOALIAS, source: DAE::emptyElementSource().clone(), causality: Some(crate::SimCodeVar::Causality::LOCAL), variable_index: None, fmi_index: None, numArrayElement: metamodelica::nil(), isValueChangeable: false, isProtected: true, hideResult: None, isEncrypted: false, inputIndex: None, initNonlinear: false, matrixName: None, variability: None, initial_: None, exportVar: Some(badcref.clone()), relativeQuantity: false };
         }
     }
     outSimVar = sv.clone();
@@ -14715,8 +14674,8 @@ pub fn localCref2SimVar(mut inCref: Arc<DAE::ComponentRef>, mut inCrefToSimVarHT
             ::match_deref::match_deref! { match &__mc_input {
                 (_, _) => {
                     let mut badcref: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
-                    badcref = ComponentReferenceBasics::makeCrefIdent(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("ERROR_localCref2SimVar_failed ")); __mm_s.push_str(&*ComponentReferenceBasics::printComponentRefStr(inCref.clone())?); ArcStr::from(__mm_s) }).clone(), DAE::T_REAL_DEFAULT.clone(), metamodelica::nil());
-                    Ok(SimCodeVar::SimVar { name: badcref.clone(), varKind: crate::BackendDAE::VarKind::VARIABLE, comment: (literal!("")).clone(), unit: (literal!("")).clone(), displayUnit: (literal!("")).clone(), index: -2, minValue: None, maxValue: None, initialValue: None, nominalValue: None, isFixed: false, type_: DAE::T_REAL_DEFAULT.clone(), isDiscrete: false, arrayCref: None, aliasvar: crate::SimCodeVar::AliasVariable::NOALIAS, source: DAE::emptyElementSource.clone(), causality: Some(crate::SimCodeVar::Causality::LOCAL), variable_index: None, fmi_index: None, numArrayElement: metamodelica::nil(), isValueChangeable: false, isProtected: true, hideResult: None, isEncrypted: false, inputIndex: None, initNonlinear: false, matrixName: None, variability: None, initial_: None, exportVar: Some(badcref.clone()), relativeQuantity: false })
+                    badcref = ComponentReferenceBasics::makeCrefIdent(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("ERROR_localCref2SimVar_failed ")); __mm_s.push_str(&*ComponentReferenceBasics::printComponentRefStr(inCref.clone())?); ArcStr::from(__mm_s) }).clone(), DAE::T_REAL_DEFAULT().clone(), metamodelica::nil());
+                    Ok(SimCodeVar::SimVar { name: badcref.clone(), varKind: crate::BackendDAE::VarKind::VARIABLE, comment: (literal!("")).clone(), unit: (literal!("")).clone(), displayUnit: (literal!("")).clone(), index: -2, minValue: None, maxValue: None, initialValue: None, nominalValue: None, isFixed: false, type_: DAE::T_REAL_DEFAULT().clone(), isDiscrete: false, arrayCref: None, aliasvar: crate::SimCodeVar::AliasVariable::NOALIAS, source: DAE::emptyElementSource().clone(), causality: Some(crate::SimCodeVar::Causality::LOCAL), variable_index: None, fmi_index: None, numArrayElement: metamodelica::nil(), isValueChangeable: false, isProtected: true, hideResult: None, isEncrypted: false, inputIndex: None, initNonlinear: false, matrixName: None, variability: None, initial_: None, exportVar: Some(badcref.clone()), relativeQuantity: false })
                 }
                 _ => bail!("nomatch"),
             }}
@@ -14974,14 +14933,14 @@ fn getValueReferenceMapping2(mut vars: Arc<metamodelica::List<SimCodeVar::SimVar
     let mut tree: Arc<AvlTreeCRToInt::Tree> = tree;
     for mut v in &*vars.clone() {
         let mut v = v.clone();
-        tree = AvlTreeCRToInt::add(tree.clone(), v.name.clone(), i.clone(), AvlTreeCRToInt::addConflictDefault)?;
+        tree = AvlTreeCRToInt::add(tree.clone(), v.name.clone(), i.clone(), (std::sync::Arc::new(AvlTreeCRToInt::addConflictDefault) as std::sync::Arc<dyn ::std::ops::Fn(_, _, _) -> Result<_> + 'static>))?;
         i = i.clone() + 1;
     }
     Ok((i, tree))
 }
 
 fn getResources(mut classes: Arc<metamodelica::List<Arc<Absyn::Class>>>, mut dlow1: Arc<BackendDAE::BackendDAE>, mut dlow2: Arc<BackendDAE::BackendDAE>) -> Result<Arc<metamodelica::List<ArcStr>>> {
-    type Func = fn(Arc<DAE::Exp>, Arc<AvlSetString::Tree>) -> Result<(Arc<DAE::Exp>, Arc<AvlSetString::Tree>)>;
+    type Func = std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, Arc<AvlSetString::Tree>) -> Result<(Arc<DAE::Exp>, Arc<AvlSetString::Tree>)> + 'static>;
 
     let mut resources: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
     let mut tree: Arc<AvlSetString::Tree> = Arc::new(AvlSetString::Tree::EMPTY);
@@ -14993,8 +14952,8 @@ fn getResources(mut classes: Arc<metamodelica::List<Arc<Absyn::Class>>>, mut dlo
     fns = DAEUtil::getFunctionList(dlow1.shared.functionTree.clone(), false)?;
     tree = Arc::new(openmodelica_util::AvlSetString::Tree::EMPTY);
     unknownUri = Mutable::create(false);
-    f1 = { let __pe_b2 = unknownUri.clone(); move |__pe_a0, __pe_a1| findResources(__pe_a0, __pe_a1, __pe_b2.clone()) };
-    f2 = { let __pe_b2: Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, _) -> Result<_> + 'static> = f1.clone(); move |__pe_a0, __pe_a1| Expression::traverseSubexpressions(__pe_a0, __pe_a1, __pe_b2.clone()) };
+    f1 = Arc::new({ let __pe_b2 = unknownUri.clone(); move |__pe_a0, __pe_a1| findResources(__pe_a0, __pe_a1, __pe_b2.clone()) });
+    f2 = Arc::new({ let __pe_b2: Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, _) -> Result<_> + 'static> = f1.clone(); move |__pe_a0, __pe_a1| Expression::traverseSubexpressions(__pe_a0, __pe_a1, __pe_b2.clone()) });
     (_, tree) = DAEUtil::traverseDAEFunctions(fns.clone(), f2.clone(), tree.clone());
     tree = BackendDAEUtil::traverseBackendDAEExpsNoCopyWithUpdate(dlow1.clone(), f2.clone(), tree.clone())?;
     tree = BackendDAEUtil::traverseBackendDAEExpsNoCopyWithUpdate(dlow2.clone(), f2.clone(), tree.clone())?;
@@ -15004,7 +14963,7 @@ fn getResources(mut classes: Arc<metamodelica::List<Arc<Absyn::Class>>>, mut dlo
             let mut cl = cl.clone();
             file = cl.info.fileName.clone();
             if System::basename((file.clone()).clone()) == literal!("package.mo") {
-                resources = cons(System::dirname((file.clone()).clone()), resources.clone());
+                resources = cons((System::dirname((file.clone()).clone())).clone(), resources.clone());
             }
         }
     }
@@ -15032,14 +14991,14 @@ fn findResources(mut e: Arc<DAE::Exp>, mut tree: Arc<AvlSetString::Tree>, mut un
 fn aliasSimEqSystems(mut eqs: Arc<metamodelica::List<Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>>>, mut cache: (metamodelica::Array<Arc<metamodelica::List<(Arc<SimCode::SimEqSystem>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<SimCode::SimEqSystem>, i32)>>), i32, (HashTableSimCodeEqCache::FuncHashCref, HashTableSimCodeEqCache::FuncCrefEqual, HashTableSimCodeEqCache::FuncCrefStr, HashTableSimCodeEqCache::FuncExpStr))) -> (Arc<metamodelica::List<Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>>>, (metamodelica::Array<Arc<metamodelica::List<(Arc<SimCode::SimEqSystem>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<SimCode::SimEqSystem>, i32)>>), i32, (HashTableSimCodeEqCache::FuncHashCref, HashTableSimCodeEqCache::FuncCrefEqual, HashTableSimCodeEqCache::FuncCrefStr, HashTableSimCodeEqCache::FuncExpStr))) {
     let mut eqs: Arc<metamodelica::List<Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>>> = eqs;
     let mut cache: (metamodelica::Array<Arc<metamodelica::List<(Arc<SimCode::SimEqSystem>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<SimCode::SimEqSystem>, i32)>>), i32, (HashTableSimCodeEqCache::FuncHashCref, HashTableSimCodeEqCache::FuncCrefEqual, HashTableSimCodeEqCache::FuncCrefStr, HashTableSimCodeEqCache::FuncExpStr)) = cache;
-    (eqs, cache) = List::mapFold(eqs.clone(), Arc::new(fnptr!(aliasSimEqs, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>, (metamodelica::Array<Arc<metamodelica::List<(Arc<SimCode::SimEqSystem>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<SimCode::SimEqSystem>, i32)>>), i32, (HashTableSimCodeEqCache::FuncHashCref, HashTableSimCodeEqCache::FuncCrefEqual, HashTableSimCodeEqCache::FuncCrefStr, HashTableSimCodeEqCache::FuncExpStr)))), cache.clone());
+    (eqs, cache) = List::mapFold(eqs.clone(), (std::sync::Arc::new(fnptr!(aliasSimEqs, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>, (metamodelica::Array<Arc<metamodelica::List<(Arc<SimCode::SimEqSystem>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<SimCode::SimEqSystem>, i32)>>), i32, (HashTableSimCodeEqCache::FuncHashCref, HashTableSimCodeEqCache::FuncCrefEqual, HashTableSimCodeEqCache::FuncCrefStr, HashTableSimCodeEqCache::FuncExpStr)))) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>, (metamodelica::Array<Arc<metamodelica::List<(Arc<SimCode::SimEqSystem>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<SimCode::SimEqSystem>, i32)>>), i32, (HashTableSimCodeEqCache::FuncHashCref, HashTableSimCodeEqCache::FuncCrefEqual, HashTableSimCodeEqCache::FuncCrefStr, HashTableSimCodeEqCache::FuncExpStr))) -> Result<(Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>, (metamodelica::Array<Arc<metamodelica::List<(Arc<SimCode::SimEqSystem>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<SimCode::SimEqSystem>, i32)>>), i32, (HashTableSimCodeEqCache::FuncHashCref, HashTableSimCodeEqCache::FuncCrefEqual, HashTableSimCodeEqCache::FuncCrefStr, HashTableSimCodeEqCache::FuncExpStr)))> + 'static>), cache.clone());
     (eqs, cache)
 }
 
 fn aliasSimEqs(mut eqs: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>, mut cache: (metamodelica::Array<Arc<metamodelica::List<(Arc<SimCode::SimEqSystem>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<SimCode::SimEqSystem>, i32)>>), i32, (HashTableSimCodeEqCache::FuncHashCref, HashTableSimCodeEqCache::FuncCrefEqual, HashTableSimCodeEqCache::FuncCrefStr, HashTableSimCodeEqCache::FuncExpStr))) -> (Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>, (metamodelica::Array<Arc<metamodelica::List<(Arc<SimCode::SimEqSystem>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<SimCode::SimEqSystem>, i32)>>), i32, (HashTableSimCodeEqCache::FuncHashCref, HashTableSimCodeEqCache::FuncCrefEqual, HashTableSimCodeEqCache::FuncCrefStr, HashTableSimCodeEqCache::FuncExpStr))) {
     let mut eqs: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>> = eqs;
     let mut cache: (metamodelica::Array<Arc<metamodelica::List<(Arc<SimCode::SimEqSystem>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<SimCode::SimEqSystem>, i32)>>), i32, (HashTableSimCodeEqCache::FuncHashCref, HashTableSimCodeEqCache::FuncCrefEqual, HashTableSimCodeEqCache::FuncCrefStr, HashTableSimCodeEqCache::FuncExpStr)) = cache;
-    (eqs, cache) = List::mapFold(eqs.clone(), Arc::new(aliasSimEq), cache.clone());
+    (eqs, cache) = List::mapFold(eqs.clone(), (std::sync::Arc::new(aliasSimEq) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SimCode::SimEqSystem>, (metamodelica::Array<Arc<metamodelica::List<(Arc<SimCode::SimEqSystem>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<SimCode::SimEqSystem>, i32)>>), i32, (HashTableSimCodeEqCache::FuncHashCref, HashTableSimCodeEqCache::FuncCrefEqual, HashTableSimCodeEqCache::FuncCrefStr, HashTableSimCodeEqCache::FuncExpStr))) -> Result<(Arc<SimCode::SimEqSystem>, (metamodelica::Array<Arc<metamodelica::List<(Arc<SimCode::SimEqSystem>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<SimCode::SimEqSystem>, i32)>>), i32, (HashTableSimCodeEqCache::FuncHashCref, HashTableSimCodeEqCache::FuncCrefEqual, HashTableSimCodeEqCache::FuncCrefStr, HashTableSimCodeEqCache::FuncExpStr)))> + 'static>), cache.clone());
     (eqs, cache)
 }
 
@@ -15199,7 +15158,7 @@ pub fn getCmakeLinkLibrariesCode(mut libs: Arc<metamodelica::List<ArcStr>>) -> R
     (locations, libraries) = getDirectoriesForDLLsFromLinkLibs(libs.clone());
     locations = listAppend(list![({ let mut __mm_s = String::new(); __mm_s.push_str(&*Settings::getInstallationDirectoryPath()?); __mm_s.push_str(&*literal!("/lib/${CMAKE_LIBRARY_ARCHITECTURE}/omc")); ArcStr::from(__mm_s) }).clone()], locations.clone());
     locations = listAppend(list![({ let mut __mm_s = String::new(); __mm_s.push_str(&*Settings::getInstallationDirectoryPath()?); __mm_s.push_str(&*literal!("/bin")); ArcStr::from(__mm_s) }).clone()], locations.clone());
-    locations = List::map(locations.clone(), Arc::new(fnptr!(addDockerVol, ArcStr)));
+    locations = List::map(locations.clone(), (std::sync::Arc::new(fnptr!(addDockerVol, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr) -> Result<ArcStr> + 'static>));
     cmakecode = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*cmakecode.clone()); __mm_s.push_str(&*literal!("set(EXTERNAL_LIBDIRECTORIES ")); __mm_s.push_str(&*stringDelimitList(locations.clone(), (literal!("\n                            ")).clone())); __mm_s.push_str(&*literal!(")\n")); ArcStr::from(__mm_s) }).clone();
     cmakecode = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*cmakecode.clone()); __mm_s.push_str(&*getCmakeCrossPlatformSuffixes()); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone();
     for mut lib in &*libraries.clone() {

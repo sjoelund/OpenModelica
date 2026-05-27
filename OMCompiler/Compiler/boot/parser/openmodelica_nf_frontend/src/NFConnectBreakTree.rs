@@ -85,12 +85,12 @@ pub mod EntryTree {
         Ok(outResult)
     }
 
-    pub type ConflictFunc = fn(Value, Value, Key) -> Result<Value>;
+    pub type ConflictFunc = std::sync::Arc<dyn ::std::ops::Fn(Value, Value, Key) -> Result<Value> + 'static>;
 
     pub type Key = Arc<Absyn::ComponentRef>;
 
     /// The binary tree data structure.
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
     pub enum Tree {
         NODE {
             /// The key of the node.
@@ -116,7 +116,7 @@ pub mod EntryTree {
 
     pub type ValueNode = Arc<Absyn::ComponentRef>;
 
-    pub fn add(mut inTree: Arc<Tree>, mut inKey: Key, mut inValue: Value, mut conflictFunc: ConflictFunc) -> Result<Arc<Tree>> {
+    pub fn add(mut inTree: Arc<Tree>, mut inKey: Key, mut inValue: Value, mut conflictFunc: Arc<dyn ::std::ops::Fn(Mutable::Mutable<Entry>, Mutable::Mutable<Entry>, Arc<Absyn::ComponentRef>) -> Result<Mutable::Mutable<Entry>> + 'static>) -> Result<Arc<Tree>> {
         let mut tree: Arc<Tree> = inTree.clone();
         tree = (::match_deref::match_deref! { match &(tree.clone()) {
         Deref @ Tree::EMPTY { .. } => {
@@ -127,9 +127,9 @@ pub mod EntryTree {
             let mut key_comp: i32 = 0;
             key_comp = keyCompare(inKey.clone(), key.clone())?;
             if key_comp.clone() == -1 {
-                assign_variant_field!(tree => Tree::NODE; left = add(var_field!((*tree).left, Tree::NODE).clone(), inKey.clone(), inValue.clone(), conflictFunc)?);
+                assign_variant_field!(tree => Tree::NODE; left = add(var_field!((*tree).left, Tree::NODE).clone(), inKey.clone(), inValue.clone(), conflictFunc.clone())?);
             } else if key_comp.clone() == 1 {
-                assign_variant_field!(tree => Tree::NODE; right = add(var_field!((*tree).right, Tree::NODE).clone(), inKey.clone(), inValue.clone(), conflictFunc)?);
+                assign_variant_field!(tree => Tree::NODE; right = add(var_field!((*tree).right, Tree::NODE).clone(), inKey.clone(), inValue.clone(), conflictFunc.clone())?);
             } else {
                 value = conflictFunc(inValue.clone(), var_field!((*tree).value, Tree::NODE).clone(), key.clone())?;
                 if !(referenceEq(&var_field!((*tree).value, Tree::NODE).clone(),&value.clone())) {
@@ -179,20 +179,20 @@ pub mod EntryTree {
         value
     }
 
-    pub fn addList(mut tree: Arc<Tree>, mut inValues: Arc<metamodelica::List<(Arc<Absyn::ComponentRef>, Mutable::Mutable<Entry>)>>, mut conflictFunc: ConflictFunc) -> Result<Arc<Tree>> {
+    pub fn addList(mut tree: Arc<Tree>, mut inValues: Arc<metamodelica::List<(Arc<Absyn::ComponentRef>, Mutable::Mutable<Entry>)>>, mut conflictFunc: Arc<dyn ::std::ops::Fn(Mutable::Mutable<Entry>, Mutable::Mutable<Entry>, Arc<Absyn::ComponentRef>) -> Result<Mutable::Mutable<Entry>> + 'static>) -> Result<Arc<Tree>> {
         let mut tree: Arc<Tree> = tree;
         let mut key: Key = Arc::new(Absyn::ComponentRef::ALLWILD);
         let mut value: Value;
         for mut t in &*inValues.clone() {
             let mut t = t.clone();
             (key, value) = t.clone();
-            tree = add(tree.clone(), key.clone(), value.clone(), conflictFunc)?;
+            tree = add(tree.clone(), key.clone(), value.clone(), conflictFunc.clone())?;
         }
         Ok(tree)
     }
 
     pub fn addUpdate(mut tree: Arc<Tree>, mut key: Key, mut r#fn: Arc<dyn ::std::ops::Fn(Option<Mutable::Mutable<Entry>>) -> Result<Mutable::Mutable<Entry>> + 'static>) -> Result<Arc<Tree>> {
-        pub type UpdateFn = fn(Option<Mutable::Mutable<Entry>>) -> Result<Value>;
+        pub type UpdateFn = std::sync::Arc<dyn ::std::ops::Fn(Option<Mutable::Mutable<Entry>>) -> Result<Value> + 'static>;
 
         let mut tree: Arc<Tree> = tree;
         let mut key_comp: i32 = 0;
@@ -270,7 +270,7 @@ pub mod EntryTree {
     }
 
     pub fn fold<FT: Clone + 'static>(mut inTree: Arc<Tree>, mut inFunc: Arc<dyn ::std::ops::Fn(Arc<Absyn::ComponentRef>, Mutable::Mutable<Entry>, FT) -> Result<FT> + 'static>, mut inStartValue: FT) -> FT {
-        pub type FoldFunc<FT: Clone> = fn(Key, Value, FT) -> Result<FT>;
+        pub type FoldFunc<FT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Key, Value, FT) -> Result<FT> + 'static>;
 
         let mut outResult: FT = inStartValue.clone();
         outResult = (::match_deref::match_deref! { match &(inTree.clone()) {
@@ -293,7 +293,7 @@ pub mod EntryTree {
     }
 
     pub fn foldCond<FT: Clone + 'static>(mut tree: Arc<Tree>, mut foldFunc: Arc<dyn ::std::ops::Fn(Arc<Absyn::ComponentRef>, Mutable::Mutable<Entry>, FT) -> Result<(FT, bool)> + 'static>, mut value: FT) -> FT {
-        pub type FoldFunc<FT: Clone> = fn(Key, Value, FT) -> Result<(FT, bool)>;
+        pub type FoldFunc<FT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Key, Value, FT) -> Result<(FT, bool)> + 'static>;
 
         let mut value: FT = value;
         value = (::match_deref::match_deref! { match &(tree.clone()) {
@@ -320,7 +320,7 @@ pub mod EntryTree {
     }
 
     pub fn fold_2<FT1: Clone + 'static, FT2: Clone + 'static>(mut tree: Arc<Tree>, mut foldFunc: Arc<dyn ::std::ops::Fn(Arc<Absyn::ComponentRef>, Mutable::Mutable<Entry>, FT1, FT2) -> Result<(FT1, FT2)> + 'static>, mut foldArg1: FT1, mut foldArg2: FT2) -> (FT1, FT2) {
-        pub type FoldFunc<FT1: Clone, FT2: Clone> = fn(Key, Value, FT1, FT2) -> Result<(FT1, FT2)>;
+        pub type FoldFunc<FT1: Clone + 'static, FT2: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Key, Value, FT1, FT2) -> Result<(FT1, FT2)> + 'static>;
 
         let mut foldArg1: FT1 = foldArg1;
         let mut foldArg2: FT2 = foldArg2;
@@ -342,7 +342,7 @@ pub mod EntryTree {
     }
 
     pub fn forEach(mut tree: Arc<Tree>, mut func: Arc<dyn ::std::ops::Fn(Arc<Absyn::ComponentRef>, Mutable::Mutable<Entry>) -> Result<()> + 'static>) -> Result<()> {
-        pub type EachFunc = fn(Key, Value) -> Result<()>;
+        pub type EachFunc = std::sync::Arc<dyn ::std::ops::Fn(Key, Value) -> Result<()> + 'static>;
 
         let _ = (::match_deref::match_deref! { match &(tree.clone()) {
         Deref @ Tree::NODE { .. } => {
@@ -361,14 +361,14 @@ pub mod EntryTree {
         Ok(())
     }
 
-    pub fn fromList(mut inValues: Arc<metamodelica::List<(Arc<Absyn::ComponentRef>, Mutable::Mutable<Entry>)>>, mut conflictFunc: ConflictFunc) -> Result<Arc<Tree>> {
+    pub fn fromList(mut inValues: Arc<metamodelica::List<(Arc<Absyn::ComponentRef>, Mutable::Mutable<Entry>)>>, mut conflictFunc: Arc<dyn ::std::ops::Fn(Mutable::Mutable<Entry>, Mutable::Mutable<Entry>, Arc<Absyn::ComponentRef>) -> Result<Mutable::Mutable<Entry>> + 'static>) -> Result<Arc<Tree>> {
         let mut tree: Arc<Tree> = Arc::new(crate::NFConnectBreakTree::EntryTree::Tree::EMPTY);
         let mut key: Key = Arc::new(Absyn::ComponentRef::ALLWILD);
         let mut value: Value;
         for mut t in &*inValues.clone() {
             let mut t = t.clone();
             (key, value) = t.clone();
-            tree = add(tree.clone(), key.clone(), value.clone(), conflictFunc)?;
+            tree = add(tree.clone(), key.clone(), value.clone(), conflictFunc.clone())?;
         }
         Ok(tree)
     }
@@ -464,17 +464,17 @@ pub mod EntryTree {
         isEmpty
     }
 
-    pub fn join(mut tree: Arc<Tree>, mut treeToJoin: Arc<Tree>, mut conflictFunc: ConflictFunc) -> Result<Arc<Tree>> {
+    pub fn join(mut tree: Arc<Tree>, mut treeToJoin: Arc<Tree>, mut conflictFunc: Arc<dyn ::std::ops::Fn(Mutable::Mutable<Entry>, Mutable::Mutable<Entry>, Arc<Absyn::ComponentRef>) -> Result<Mutable::Mutable<Entry>> + 'static>) -> Result<Arc<Tree>> {
         let mut tree: Arc<Tree> = tree;
         tree = (::match_deref::match_deref! { match &(treeToJoin.clone()) {
         Deref @ Tree::EMPTY { .. } => tree.clone(),
         Deref @ Tree::NODE { .. } => {
-            tree = add(tree.clone(), var_field!((*treeToJoin).key, Tree::NODE).clone(), var_field!((*treeToJoin).value, Tree::NODE).clone(), conflictFunc)?;
-            tree = join(tree.clone(), var_field!((*treeToJoin).left, Tree::NODE).clone(), conflictFunc)?;
-            tree = join(tree.clone(), var_field!((*treeToJoin).right, Tree::NODE).clone(), conflictFunc)?;
+            tree = add(tree.clone(), var_field!((*treeToJoin).key, Tree::NODE).clone(), var_field!((*treeToJoin).value, Tree::NODE).clone(), conflictFunc.clone())?;
+            tree = join(tree.clone(), var_field!((*treeToJoin).left, Tree::NODE).clone(), conflictFunc.clone())?;
+            tree = join(tree.clone(), var_field!((*treeToJoin).right, Tree::NODE).clone(), conflictFunc.clone())?;
             tree.clone()
         },
-        Deref @ Tree::LEAF { .. } => add(tree.clone(), var_field!((*treeToJoin).key, Tree::LEAF).clone(), var_field!((*treeToJoin).value, Tree::LEAF).clone(), conflictFunc)?,
+        Deref @ Tree::LEAF { .. } => add(tree.clone(), var_field!((*treeToJoin).key, Tree::LEAF).clone(), var_field!((*treeToJoin).value, Tree::LEAF).clone(), conflictFunc.clone())?,
         _ => bail!("match: no arm matched"),
     } });
         Ok(tree)
@@ -537,7 +537,7 @@ pub mod EntryTree {
     }
 
     pub fn map(mut inTree: Arc<Tree>, mut inFunc: Arc<dyn ::std::ops::Fn(Arc<Absyn::ComponentRef>, Mutable::Mutable<Entry>) -> Result<Mutable::Mutable<Entry>> + 'static>) -> Arc<Tree> {
-        pub type MapFunc = fn(Key, Value) -> Result<Value>;
+        pub type MapFunc = std::sync::Arc<dyn ::std::ops::Fn(Key, Value) -> Result<Value> + 'static>;
 
         let mut outTree: Arc<Tree> = inTree.clone();
         outTree = (::match_deref::match_deref! { match &(outTree.clone()) {
@@ -570,7 +570,7 @@ pub mod EntryTree {
     }
 
     pub fn mapFold<FT: Clone + 'static>(mut inTree: Arc<Tree>, mut inFunc: Arc<dyn ::std::ops::Fn(Arc<Absyn::ComponentRef>, Mutable::Mutable<Entry>, FT) -> Result<(Mutable::Mutable<Entry>, FT)> + 'static>, mut inStartValue: FT) -> (Arc<Tree>, FT) {
-        pub type MapFunc<FT: Clone> = fn(Key, Value, FT) -> Result<Value>;
+        pub type MapFunc<FT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Key, Value, FT) -> Result<Value> + 'static>;
 
         let mut outTree: Arc<Tree> = inTree.clone();
         let mut outResult: FT = inStartValue.clone();
@@ -745,7 +745,7 @@ pub mod EntryTree {
     }
 
     pub fn update(mut tree: Arc<Tree>, mut key: Key, mut value: Value) -> Arc<Tree> {
-        let mut outTree: Arc<Tree> = add(tree.clone(), key.clone(), value.clone(), fnptr!(addConflictReplace, Mutable::Mutable<Entry>, Mutable::Mutable<Entry>, Arc<Absyn::ComponentRef>)).unwrap();
+        let mut outTree: Arc<Tree> = add(tree.clone(), key.clone(), value.clone(), (std::sync::Arc::new(fnptr!(addConflictReplace, Mutable::Mutable<Entry>, Mutable::Mutable<Entry>, Arc<Absyn::ComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Mutable::Mutable<Entry>, Mutable::Mutable<Entry>, Arc<Absyn::ComponentRef>) -> Result<Mutable::Mutable<Entry>> + 'static>)).unwrap();
         outTree
     }
 
@@ -857,7 +857,7 @@ pub fn checkUnmatchedBreaks(mut entries: Arc<metamodelica::List<Mutable::Mutable
     let mut entry: Entry;
     let mut lhs: Arc<Absyn::ComponentRef> = Arc::new(Absyn::ComponentRef::ALLWILD);
     let mut rhs: Arc<Absyn::ComponentRef> = Arc::new(Absyn::ComponentRef::ALLWILD);
-    let mut info: SourceInfo;
+    let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
     for mut e in &*entries.clone() {
         let mut e = e.clone();
         entry = Mutable::access(e.clone());
@@ -876,12 +876,12 @@ pub fn checkUnmatchedBreaks(mut entries: Arc<metamodelica::List<Mutable::Mutable
     Ok(())
 }
 
-pub type ConflictFunc = fn(Value, Value, Key) -> Result<Value>;
+pub type ConflictFunc = std::sync::Arc<dyn ::std::ops::Fn(Value, Value, Key) -> Result<Value> + 'static>;
 
 pub type Key = Arc<Absyn::ComponentRef>;
 
 /// The binary tree data structure.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Tree {
     NODE {
         /// The key of the node.
@@ -907,7 +907,7 @@ pub type Value = Arc<EntryTree::Tree>;
 
 pub type ValueNode = Arc<Absyn::ComponentRef>;
 
-pub fn add(mut inTree: Arc<Tree>, mut inKey: Key, mut inValue: Value, mut conflictFunc: ConflictFunc) -> Result<Arc<Tree>> {
+pub fn add(mut inTree: Arc<Tree>, mut inKey: Key, mut inValue: Value, mut conflictFunc: Arc<dyn ::std::ops::Fn(Arc<EntryTree::Tree>, Arc<EntryTree::Tree>, Arc<Absyn::ComponentRef>) -> Result<Arc<EntryTree::Tree>> + 'static>) -> Result<Arc<Tree>> {
     let mut tree: Arc<Tree> = inTree.clone();
     tree = (::match_deref::match_deref! { match &(tree.clone()) {
         Deref @ Tree::EMPTY { .. } => {
@@ -918,9 +918,9 @@ pub fn add(mut inTree: Arc<Tree>, mut inKey: Key, mut inValue: Value, mut confli
             let mut key_comp: i32 = 0;
             key_comp = keyCompare(inKey.clone(), key.clone())?;
             if key_comp.clone() == -1 {
-                assign_variant_field!(tree => Tree::NODE; left = add(var_field!((*tree).left, Tree::NODE).clone(), inKey.clone(), inValue.clone(), conflictFunc)?);
+                assign_variant_field!(tree => Tree::NODE; left = add(var_field!((*tree).left, Tree::NODE).clone(), inKey.clone(), inValue.clone(), conflictFunc.clone())?);
             } else if key_comp.clone() == 1 {
-                assign_variant_field!(tree => Tree::NODE; right = add(var_field!((*tree).right, Tree::NODE).clone(), inKey.clone(), inValue.clone(), conflictFunc)?);
+                assign_variant_field!(tree => Tree::NODE; right = add(var_field!((*tree).right, Tree::NODE).clone(), inKey.clone(), inValue.clone(), conflictFunc.clone())?);
             } else {
                 value = conflictFunc(inValue.clone(), var_field!((*tree).value, Tree::NODE).clone(), key.clone())?;
                 if !(referenceEq(&var_field!((*tree).value, Tree::NODE).clone(),&value.clone())) {
@@ -970,20 +970,20 @@ pub fn addConflictReplace(mut newValue: Value, mut oldValue: Value, mut key: Key
     value
 }
 
-pub fn addList(mut tree: Arc<Tree>, mut inValues: Arc<metamodelica::List<(Arc<Absyn::ComponentRef>, Arc<EntryTree::Tree>)>>, mut conflictFunc: ConflictFunc) -> Result<Arc<Tree>> {
+pub fn addList(mut tree: Arc<Tree>, mut inValues: Arc<metamodelica::List<(Arc<Absyn::ComponentRef>, Arc<EntryTree::Tree>)>>, mut conflictFunc: Arc<dyn ::std::ops::Fn(Arc<EntryTree::Tree>, Arc<EntryTree::Tree>, Arc<Absyn::ComponentRef>) -> Result<Arc<EntryTree::Tree>> + 'static>) -> Result<Arc<Tree>> {
     let mut tree: Arc<Tree> = tree;
     let mut key: Key = Arc::new(Absyn::ComponentRef::ALLWILD);
     let mut value: Value = Arc::new(EntryTree::Tree::EMPTY);
     for mut t in &*inValues.clone() {
         let mut t = t.clone();
         (key, value) = t.clone();
-        tree = add(tree.clone(), key.clone(), value.clone(), conflictFunc)?;
+        tree = add(tree.clone(), key.clone(), value.clone(), conflictFunc.clone())?;
     }
     Ok(tree)
 }
 
 pub fn addUpdate(mut tree: Arc<Tree>, mut key: Key, mut r#fn: Arc<dyn ::std::ops::Fn(Option<Arc<EntryTree::Tree>>) -> Result<Arc<EntryTree::Tree>> + 'static>) -> Result<Arc<Tree>> {
-    pub type UpdateFn = fn(Option<Arc<EntryTree::Tree>>) -> Result<Value>;
+    pub type UpdateFn = std::sync::Arc<dyn ::std::ops::Fn(Option<Arc<EntryTree::Tree>>) -> Result<Value> + 'static>;
 
     let mut tree: Arc<Tree> = tree;
     let mut key_comp: i32 = 0;
@@ -1061,7 +1061,7 @@ fn calculateBalance(mut inNode: Arc<Tree>) -> i32 {
 }
 
 pub fn fold<FT: Clone + 'static>(mut inTree: Arc<Tree>, mut inFunc: Arc<dyn ::std::ops::Fn(Arc<Absyn::ComponentRef>, Arc<EntryTree::Tree>, FT) -> Result<FT> + 'static>, mut inStartValue: FT) -> FT {
-    pub type FoldFunc<FT: Clone> = fn(Key, Value, FT) -> Result<FT>;
+    pub type FoldFunc<FT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Key, Value, FT) -> Result<FT> + 'static>;
 
     let mut outResult: FT = inStartValue.clone();
     outResult = (::match_deref::match_deref! { match &(inTree.clone()) {
@@ -1084,7 +1084,7 @@ pub fn fold<FT: Clone + 'static>(mut inTree: Arc<Tree>, mut inFunc: Arc<dyn ::st
 }
 
 pub fn foldCond<FT: Clone + 'static>(mut tree: Arc<Tree>, mut foldFunc: Arc<dyn ::std::ops::Fn(Arc<Absyn::ComponentRef>, Arc<EntryTree::Tree>, FT) -> Result<(FT, bool)> + 'static>, mut value: FT) -> FT {
-    pub type FoldFunc<FT: Clone> = fn(Key, Value, FT) -> Result<(FT, bool)>;
+    pub type FoldFunc<FT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Key, Value, FT) -> Result<(FT, bool)> + 'static>;
 
     let mut value: FT = value;
     value = (::match_deref::match_deref! { match &(tree.clone()) {
@@ -1111,7 +1111,7 @@ pub fn foldCond<FT: Clone + 'static>(mut tree: Arc<Tree>, mut foldFunc: Arc<dyn 
 }
 
 pub fn fold_2<FT1: Clone + 'static, FT2: Clone + 'static>(mut tree: Arc<Tree>, mut foldFunc: Arc<dyn ::std::ops::Fn(Arc<Absyn::ComponentRef>, Arc<EntryTree::Tree>, FT1, FT2) -> Result<(FT1, FT2)> + 'static>, mut foldArg1: FT1, mut foldArg2: FT2) -> (FT1, FT2) {
-    pub type FoldFunc<FT1: Clone, FT2: Clone> = fn(Key, Value, FT1, FT2) -> Result<(FT1, FT2)>;
+    pub type FoldFunc<FT1: Clone + 'static, FT2: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Key, Value, FT1, FT2) -> Result<(FT1, FT2)> + 'static>;
 
     let mut foldArg1: FT1 = foldArg1;
     let mut foldArg2: FT2 = foldArg2;
@@ -1133,7 +1133,7 @@ pub fn fold_2<FT1: Clone + 'static, FT2: Clone + 'static>(mut tree: Arc<Tree>, m
 }
 
 pub fn forEach(mut tree: Arc<Tree>, mut func: Arc<dyn ::std::ops::Fn(Arc<Absyn::ComponentRef>, Arc<EntryTree::Tree>) -> Result<()> + 'static>) -> Result<()> {
-    pub type EachFunc = fn(Key, Value) -> Result<()>;
+    pub type EachFunc = std::sync::Arc<dyn ::std::ops::Fn(Key, Value) -> Result<()> + 'static>;
 
     let _ = (::match_deref::match_deref! { match &(tree.clone()) {
         Deref @ Tree::NODE { .. } => {
@@ -1152,14 +1152,14 @@ pub fn forEach(mut tree: Arc<Tree>, mut func: Arc<dyn ::std::ops::Fn(Arc<Absyn::
     Ok(())
 }
 
-pub fn fromList(mut inValues: Arc<metamodelica::List<(Arc<Absyn::ComponentRef>, Arc<EntryTree::Tree>)>>, mut conflictFunc: ConflictFunc) -> Result<Arc<Tree>> {
+pub fn fromList(mut inValues: Arc<metamodelica::List<(Arc<Absyn::ComponentRef>, Arc<EntryTree::Tree>)>>, mut conflictFunc: Arc<dyn ::std::ops::Fn(Arc<EntryTree::Tree>, Arc<EntryTree::Tree>, Arc<Absyn::ComponentRef>) -> Result<Arc<EntryTree::Tree>> + 'static>) -> Result<Arc<Tree>> {
     let mut tree: Arc<Tree> = Arc::new(crate::NFConnectBreakTree::Tree::EMPTY);
     let mut key: Key = Arc::new(Absyn::ComponentRef::ALLWILD);
     let mut value: Value = Arc::new(EntryTree::Tree::EMPTY);
     for mut t in &*inValues.clone() {
         let mut t = t.clone();
         (key, value) = t.clone();
-        tree = add(tree.clone(), key.clone(), value.clone(), conflictFunc)?;
+        tree = add(tree.clone(), key.clone(), value.clone(), conflictFunc.clone())?;
     }
     Ok(tree)
 }
@@ -1255,17 +1255,17 @@ pub fn isEmpty(mut tree: Arc<Tree>) -> bool {
     isEmpty
 }
 
-pub fn join(mut tree: Arc<Tree>, mut treeToJoin: Arc<Tree>, mut conflictFunc: ConflictFunc) -> Result<Arc<Tree>> {
+pub fn join(mut tree: Arc<Tree>, mut treeToJoin: Arc<Tree>, mut conflictFunc: Arc<dyn ::std::ops::Fn(Arc<EntryTree::Tree>, Arc<EntryTree::Tree>, Arc<Absyn::ComponentRef>) -> Result<Arc<EntryTree::Tree>> + 'static>) -> Result<Arc<Tree>> {
     let mut tree: Arc<Tree> = tree;
     tree = (::match_deref::match_deref! { match &(treeToJoin.clone()) {
         Deref @ Tree::EMPTY { .. } => tree.clone(),
         Deref @ Tree::NODE { .. } => {
-            tree = add(tree.clone(), var_field!((*treeToJoin).key, Tree::NODE).clone(), var_field!((*treeToJoin).value, Tree::NODE).clone(), conflictFunc)?;
-            tree = join(tree.clone(), var_field!((*treeToJoin).left, Tree::NODE).clone(), conflictFunc)?;
-            tree = join(tree.clone(), var_field!((*treeToJoin).right, Tree::NODE).clone(), conflictFunc)?;
+            tree = add(tree.clone(), var_field!((*treeToJoin).key, Tree::NODE).clone(), var_field!((*treeToJoin).value, Tree::NODE).clone(), conflictFunc.clone())?;
+            tree = join(tree.clone(), var_field!((*treeToJoin).left, Tree::NODE).clone(), conflictFunc.clone())?;
+            tree = join(tree.clone(), var_field!((*treeToJoin).right, Tree::NODE).clone(), conflictFunc.clone())?;
             tree.clone()
         },
-        Deref @ Tree::LEAF { .. } => add(tree.clone(), var_field!((*treeToJoin).key, Tree::LEAF).clone(), var_field!((*treeToJoin).value, Tree::LEAF).clone(), conflictFunc)?,
+        Deref @ Tree::LEAF { .. } => add(tree.clone(), var_field!((*treeToJoin).key, Tree::LEAF).clone(), var_field!((*treeToJoin).value, Tree::LEAF).clone(), conflictFunc.clone())?,
         _ => bail!("match: no arm matched"),
     } });
     Ok(tree)
@@ -1328,7 +1328,7 @@ pub fn listValues(mut tree: Arc<Tree>, mut lst: Arc<metamodelica::List<Arc<Entry
 }
 
 pub fn map(mut inTree: Arc<Tree>, mut inFunc: Arc<dyn ::std::ops::Fn(Arc<Absyn::ComponentRef>, Arc<EntryTree::Tree>) -> Result<Arc<EntryTree::Tree>> + 'static>) -> Arc<Tree> {
-    pub type MapFunc = fn(Key, Value) -> Result<Value>;
+    pub type MapFunc = std::sync::Arc<dyn ::std::ops::Fn(Key, Value) -> Result<Value> + 'static>;
 
     let mut outTree: Arc<Tree> = inTree.clone();
     outTree = (::match_deref::match_deref! { match &(outTree.clone()) {
@@ -1361,7 +1361,7 @@ pub fn map(mut inTree: Arc<Tree>, mut inFunc: Arc<dyn ::std::ops::Fn(Arc<Absyn::
 }
 
 pub fn mapFold<FT: Clone + 'static>(mut inTree: Arc<Tree>, mut inFunc: Arc<dyn ::std::ops::Fn(Arc<Absyn::ComponentRef>, Arc<EntryTree::Tree>, FT) -> Result<(Arc<EntryTree::Tree>, FT)> + 'static>, mut inStartValue: FT) -> (Arc<Tree>, FT) {
-    pub type MapFunc<FT: Clone> = fn(Key, Value, FT) -> Result<Value>;
+    pub type MapFunc<FT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Key, Value, FT) -> Result<Value> + 'static>;
 
     let mut outTree: Arc<Tree> = inTree.clone();
     let mut outResult: FT = inStartValue.clone();
@@ -1536,7 +1536,7 @@ pub fn toList(mut inTree: Arc<Tree>, mut lst: Arc<metamodelica::List<(Arc<Absyn:
 }
 
 pub fn update(mut tree: Arc<Tree>, mut key: Key, mut value: Value) -> Arc<Tree> {
-    let mut outTree: Arc<Tree> = add(tree.clone(), key.clone(), value.clone(), fnptr!(addConflictReplace, Arc<EntryTree::Tree>, Arc<EntryTree::Tree>, Arc<Absyn::ComponentRef>)).unwrap();
+    let mut outTree: Arc<Tree> = add(tree.clone(), key.clone(), value.clone(), (std::sync::Arc::new(fnptr!(addConflictReplace, Arc<EntryTree::Tree>, Arc<EntryTree::Tree>, Arc<Absyn::ComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<EntryTree::Tree>, Arc<EntryTree::Tree>, Arc<Absyn::ComponentRef>) -> Result<Arc<EntryTree::Tree>> + 'static>)).unwrap();
     outTree
 }
 

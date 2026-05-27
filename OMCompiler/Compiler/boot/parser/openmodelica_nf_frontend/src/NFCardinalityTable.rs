@@ -55,7 +55,7 @@ pub type Table = Arc<UnorderedMap::UnorderedMap<ArcStr, i32>>;
 
 pub fn emptyCardinalityTable(mut size: i32) -> Table {
     let mut table: Table;
-    table = UnorderedMap::new(fnptr!(stringHashDjb2, ArcStr), fnptr!(stringEq, ArcStr, ArcStr), size.clone());
+    table = UnorderedMap::new((std::sync::Arc::new(fnptr!(stringHashDjb2, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr) -> Result<i32> + 'static>), (std::sync::Arc::new(fnptr!(stringEq, ArcStr, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>), size.clone());
     table
 }
 
@@ -86,7 +86,7 @@ pub fn addConnector(mut conn: Arc<Connector::NFConnector>, mut table: Table) -> 
 
     let mut conn_str: ArcStr = arcstr::literal!("");
     conn_str = (Connector::toString(conn.clone())).clone();
-    UnorderedMap::addUpdate((conn_str.clone()).clone(), Arc::new(fnptr!(update, Option<i32>)), table.clone())?;
+    UnorderedMap::addUpdate((conn_str.clone()).clone(), (std::sync::Arc::new(fnptr!(update, Option<i32>)) as std::sync::Arc<dyn ::std::ops::Fn(Option<i32>) -> Result<i32> + 'static>), table.clone())?;
     Ok(())
 }
 

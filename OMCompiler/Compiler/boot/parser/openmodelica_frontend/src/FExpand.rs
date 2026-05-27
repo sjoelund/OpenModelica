@@ -144,7 +144,7 @@ pub fn all(mut inGraph: Graph) -> Result<Graph> {
             System::stopTimer();
             lst = List::consr(lst.clone(), System::getTimerIntervalTime());
             println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Modifiers:      ")); __mm_s.push_str(&*realString(listHead(lst.clone())?)); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
-            println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("FExpand.all:    ")); __mm_s.push_str(&*realString(List::fold(lst.clone(), Arc::new(fnptr!(realAdd, metamodelica::Real, metamodelica::Real)), metamodelica::OrderedFloat(0.0_f64)))); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+            println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("FExpand.all:    ")); __mm_s.push_str(&*realString(List::fold(lst.clone(), (std::sync::Arc::new(fnptr!(realAdd, metamodelica::Real, metamodelica::Real)) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Real, metamodelica::Real) -> Result<metamodelica::Real> + 'static>), metamodelica::OrderedFloat(0.0_f64)))); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
             g.clone()
         },
     });

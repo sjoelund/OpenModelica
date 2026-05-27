@@ -52,7 +52,7 @@ use openmodelica_util::JSON;
 use openmodelica_util::Util;
 use openmodelica_util_datatypes_basic::List;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct NFOperator {
     pub ty: Arc<Type::NFType>,
     pub op: Op,
@@ -201,8 +201,8 @@ pub fn repairMultary(mut operator: Arc<NFOperator>, mut types: Arc<metamodelica:
         }
         __acc.reverse()
     };
-    min_ = List::minElement(lst.clone(), Arc::new(fnptr!(tplLt, (TypeRestriction, Arc<Type::NFType>), (TypeRestriction, Arc<Type::NFType>))))?;
-    max_ = List::maxElement(lst.clone(), Arc::new(fnptr!(tplLt, (TypeRestriction, Arc<Type::NFType>), (TypeRestriction, Arc<Type::NFType>))))?;
+    min_ = List::minElement(lst.clone(), (std::sync::Arc::new(fnptr!(tplLt, (TypeRestriction, Arc<Type::NFType>), (TypeRestriction, Arc<Type::NFType>))) as std::sync::Arc<dyn ::std::ops::Fn((TypeRestriction, Arc<Type::NFType>), (TypeRestriction, Arc<Type::NFType>)) -> Result<bool> + 'static>))?;
+    max_ = List::maxElement(lst.clone(), (std::sync::Arc::new(fnptr!(tplLt, (TypeRestriction, Arc<Type::NFType>), (TypeRestriction, Arc<Type::NFType>))) as std::sync::Arc<dyn ::std::ops::Fn((TypeRestriction, Arc<Type::NFType>), (TypeRestriction, Arc<Type::NFType>)) -> Result<bool> + 'static>))?;
     (sc, ty) = (::match_deref::match_deref! { match &((min_.clone(), max_.clone())) {
         ((TypeRestriction::SCALAR, _), (TypeRestriction::SCALAR, ty)) => (SizeClassification::SCALAR.clone(), ty.clone()),
         ((TypeRestriction::SCALAR, _), (_, ty)) => (SizeClassification::SCALAR_ARRAY.clone(), ty.clone()),
@@ -211,7 +211,7 @@ pub fn repairMultary(mut operator: Arc<NFOperator>, mut types: Arc<metamodelica:
         ((TypeRestriction::MATRIX { .. }, _), (TypeRestriction::MATRIX { .. }, ty)) => (SizeClassification::ELEMENT_WISE.clone(), ty.clone()),
         ((TypeRestriction::ARRAY { .. }, _), (TypeRestriction::ARRAY { .. }, ty)) => (SizeClassification::ELEMENT_WISE.clone(), ty.clone()),
         _ => {
-            Error::assertion(false, ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("NFOperator.repairMultary")); __mm_s.push_str(&*literal!(" failed because the multary arguments have incompatible sizes: ")); __mm_s.push_str(&*List::toString(types.clone(), Arc::new(Type::toString), (literal!("")).clone(), (literal!("{")).clone(), (literal!(", ")).clone(), (literal!("}")).clone(), true, 0)?); ArcStr::from(__mm_s) }).clone(), metamodelica::sourceInfo!())?;
+            Error::assertion(false, ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("NFOperator.repairMultary")); __mm_s.push_str(&*literal!(" failed because the multary arguments have incompatible sizes: ")); __mm_s.push_str(&*List::toString(types.clone(), (std::sync::Arc::new(Type::toString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Type::NFType>) -> Result<ArcStr> + 'static>), (literal!("")).clone(), (literal!("{")).clone(), (literal!(", ")).clone(), (literal!("}")).clone(), true, 0)?); ArcStr::from(__mm_s) }).clone(), metamodelica::sourceInfo!())?;
             bail!("fail")
         },
         _ => unreachable!("match_deref! exhaustiveness placeholder"),

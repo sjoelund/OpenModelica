@@ -156,10 +156,25 @@ pub struct ElementSource {
     pub comment: Arc<metamodelica::List<Arc<SCode::Comment>>>,
 }
 
+impl Default for ElementSource {
+    fn default() -> Self {
+        Self {
+            info: Default::default(),
+            partOfLst: Default::default(),
+            instance: Default::default(),
+            connectEquationOptLst: Default::default(),
+            typeLst: Default::default(),
+            operations: Default::default(),
+            comment: Default::default(),
+        }
+    }
+}
+
 pub type SOURCE = ElementSource;
 
 
-pub static emptyElementSource: std::sync::LazyLock<Arc<ElementSource>> = std::sync::LazyLock::new(|| { Arc::new(ElementSource { info: Absyn::dummyInfo.clone(), partOfLst: metamodelica::nil(), instance: Arc::new(crate::DAE::ComponentPrefix::NOCOMPPRE), connectEquationOptLst: metamodelica::nil(), typeLst: metamodelica::nil(), operations: metamodelica::nil(), comment: metamodelica::nil() }) });
+thread_local! { static __emptyElementSource_TLS: Arc<ElementSource> = Arc::new(ElementSource { info: Absyn::dummyInfo.clone(), partOfLst: metamodelica::nil(), instance: Arc::new(crate::DAE::ComponentPrefix::NOCOMPPRE), connectEquationOptLst: metamodelica::nil(), typeLst: metamodelica::nil(), operations: metamodelica::nil(), comment: metamodelica::nil() }); }
+pub fn emptyElementSource() -> Arc<ElementSource> { __emptyElementSource_TLS.with(|__t| __t.clone()) }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum SymbolicOperation {
@@ -229,11 +244,9 @@ pub enum SymbolicOperation {
 }
 impl Default for SymbolicOperation {
     fn default() -> Self {
-        Self::LINEAR_SOLVED {
-            vars: Default::default(),
-            jac: Default::default(),
-            rhs: Default::default(),
-            result: Default::default(),
+        Self::FLATTEN {
+            scode: Default::default(),
+            dae: Default::default(),
         }
     }
 }
@@ -536,13 +549,23 @@ pub enum Element {
         cmt: Arc<SCode::Comment>,
     },
 }
+impl Default for Element {
+    fn default() -> Self {
+        Self::CLASS_ATTRIBUTES {
+            classAttrs: Default::default(),
+        }
+    }
+}
 pub use self::Element::{VAR,DEFINE,INITIALDEFINE,EQUATION,EQUEQUATION,ARRAY_EQUATION,INITIAL_ARRAY_EQUATION,CONNECT_EQUATION,COMPLEX_EQUATION,INITIAL_COMPLEX_EQUATION,WHEN_EQUATION,INITIAL_FOR_EQUATION,FOR_EQUATION,IF_EQUATION,INITIAL_IF_EQUATION,INITIALEQUATION,ALGORITHM,INITIALALGORITHM,COMP,EXTOBJECTCLASS,ASSERT,INITIAL_ASSERT,TERMINATE,INITIAL_TERMINATE,REINIT,NORETCALL,INITIAL_NORETCALL,CONSTRAINT,CLASS_ATTRIBUTES,FLAT_SM,SM_COMP,COMMENT};
 
-pub static T_ASSERTIONLEVEL: std::sync::LazyLock<Arc<Type>> = std::sync::LazyLock::new(|| { Arc::new(Type::T_ENUMERATION { index: None, path: Arc::new(Absyn::Path::FULLYQUALIFIED { path: Arc::new(Absyn::Path::IDENT { name: (literal!("AssertionLevel")).clone() }) }), names: list![(literal!("warning")).clone(), (literal!("error")).clone()], literalVarLst: metamodelica::nil(), attributeLst: metamodelica::nil() }) });
+thread_local! { static __T_ASSERTIONLEVEL_TLS: Arc<Type> = Arc::new(Type::T_ENUMERATION { index: None, path: Arc::new(Absyn::Path::FULLYQUALIFIED { path: Arc::new(Absyn::Path::IDENT { name: (literal!("AssertionLevel")).clone() }) }), names: list![(literal!("warning")).clone(), (literal!("error")).clone()], literalVarLst: metamodelica::nil(), attributeLst: metamodelica::nil() }); }
+pub fn T_ASSERTIONLEVEL() -> Arc<Type> { __T_ASSERTIONLEVEL_TLS.with(|__t| __t.clone()) }
 
-pub static ASSERTIONLEVEL_WARNING: std::sync::LazyLock<Arc<Exp>> = std::sync::LazyLock::new(|| { Arc::new(Exp::ENUM_LITERAL { name: Arc::new(Absyn::Path::QUALIFIED { name: (literal!("AssertionLevel")).clone(), path: Arc::new(Absyn::Path::IDENT { name: (literal!("warning")).clone() }) }), index: 1 }) });
+thread_local! { static __ASSERTIONLEVEL_WARNING_TLS: Arc<Exp> = Arc::new(Exp::ENUM_LITERAL { name: Arc::new(Absyn::Path::QUALIFIED { name: (literal!("AssertionLevel")).clone(), path: Arc::new(Absyn::Path::IDENT { name: (literal!("warning")).clone() }) }), index: 1 }); }
+pub fn ASSERTIONLEVEL_WARNING() -> Arc<Exp> { __ASSERTIONLEVEL_WARNING_TLS.with(|__t| __t.clone()) }
 
-pub static ASSERTIONLEVEL_ERROR: std::sync::LazyLock<Arc<Exp>> = std::sync::LazyLock::new(|| { Arc::new(Exp::ENUM_LITERAL { name: Arc::new(Absyn::Path::QUALIFIED { name: (literal!("AssertionLevel")).clone(), path: Arc::new(Absyn::Path::IDENT { name: (literal!("error")).clone() }) }), index: 2 }) });
+thread_local! { static __ASSERTIONLEVEL_ERROR_TLS: Arc<Exp> = Arc::new(Exp::ENUM_LITERAL { name: Arc::new(Absyn::Path::QUALIFIED { name: (literal!("AssertionLevel")).clone(), path: Arc::new(Absyn::Path::IDENT { name: (literal!("error")).clone() }) }), index: 2 }); }
+pub fn ASSERTIONLEVEL_ERROR() -> Arc<Exp> { __ASSERTIONLEVEL_ERROR_TLS.with(|__t| __t.clone()) }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Function {
@@ -733,17 +756,23 @@ pub enum VariableAttributes {
 }
 pub use self::VariableAttributes::{VAR_ATTR_REAL,VAR_ATTR_INT,VAR_ATTR_BOOL,VAR_ATTR_CLOCK,VAR_ATTR_STRING,VAR_ATTR_ENUMERATION};
 
-pub static emptyVarAttrReal: std::sync::LazyLock<Arc<VariableAttributes>> = std::sync::LazyLock::new(|| { Arc::new(VariableAttributes::VAR_ATTR_REAL { quantity: None, unit: None, displayUnit: None, min: None, max: None, start: None, fixed: None, nominal: None, stateSelectOption: None, uncertainOption: None, distributionOption: None, equationBound: None, isProtected: None, finalPrefix: None, startOrigin: None }) });
+thread_local! { static __emptyVarAttrReal_TLS: Arc<VariableAttributes> = Arc::new(VariableAttributes::VAR_ATTR_REAL { quantity: None, unit: None, displayUnit: None, min: None, max: None, start: None, fixed: None, nominal: None, stateSelectOption: None, uncertainOption: None, distributionOption: None, equationBound: None, isProtected: None, finalPrefix: None, startOrigin: None }); }
+pub fn emptyVarAttrReal() -> Arc<VariableAttributes> { __emptyVarAttrReal_TLS.with(|__t| __t.clone()) }
 
-pub static emptyVarAttrInt: std::sync::LazyLock<Arc<VariableAttributes>> = std::sync::LazyLock::new(|| { Arc::new(VariableAttributes::VAR_ATTR_INT { quantity: None, min: None, max: None, start: None, fixed: None, uncertainOption: None, distributionOption: None, equationBound: None, isProtected: None, finalPrefix: None, startOrigin: None }) });
+thread_local! { static __emptyVarAttrInt_TLS: Arc<VariableAttributes> = Arc::new(VariableAttributes::VAR_ATTR_INT { quantity: None, min: None, max: None, start: None, fixed: None, uncertainOption: None, distributionOption: None, equationBound: None, isProtected: None, finalPrefix: None, startOrigin: None }); }
+pub fn emptyVarAttrInt() -> Arc<VariableAttributes> { __emptyVarAttrInt_TLS.with(|__t| __t.clone()) }
 
-pub static emptyVarAttrBool: std::sync::LazyLock<Arc<VariableAttributes>> = std::sync::LazyLock::new(|| { Arc::new(VariableAttributes::VAR_ATTR_BOOL { quantity: None, start: None, fixed: None, equationBound: None, isProtected: None, finalPrefix: None, startOrigin: None }) });
+thread_local! { static __emptyVarAttrBool_TLS: Arc<VariableAttributes> = Arc::new(VariableAttributes::VAR_ATTR_BOOL { quantity: None, start: None, fixed: None, equationBound: None, isProtected: None, finalPrefix: None, startOrigin: None }); }
+pub fn emptyVarAttrBool() -> Arc<VariableAttributes> { __emptyVarAttrBool_TLS.with(|__t| __t.clone()) }
 
-pub static emptyVarAttrClock: std::sync::LazyLock<Arc<VariableAttributes>> = std::sync::LazyLock::new(|| { Arc::new(VariableAttributes::VAR_ATTR_CLOCK { isProtected: None, finalPrefix: None }) });
+thread_local! { static __emptyVarAttrClock_TLS: Arc<VariableAttributes> = Arc::new(VariableAttributes::VAR_ATTR_CLOCK { isProtected: None, finalPrefix: None }); }
+pub fn emptyVarAttrClock() -> Arc<VariableAttributes> { __emptyVarAttrClock_TLS.with(|__t| __t.clone()) }
 
-pub static emptyVarAttrString: std::sync::LazyLock<Arc<VariableAttributes>> = std::sync::LazyLock::new(|| { Arc::new(VariableAttributes::VAR_ATTR_STRING { quantity: None, start: None, fixed: None, equationBound: None, isProtected: None, finalPrefix: None, startOrigin: None }) });
+thread_local! { static __emptyVarAttrString_TLS: Arc<VariableAttributes> = Arc::new(VariableAttributes::VAR_ATTR_STRING { quantity: None, start: None, fixed: None, equationBound: None, isProtected: None, finalPrefix: None, startOrigin: None }); }
+pub fn emptyVarAttrString() -> Arc<VariableAttributes> { __emptyVarAttrString_TLS.with(|__t| __t.clone()) }
 
-pub static emptyVarAttrEnum: std::sync::LazyLock<Arc<VariableAttributes>> = std::sync::LazyLock::new(|| { Arc::new(VariableAttributes::VAR_ATTR_ENUMERATION { quantity: None, min: None, max: None, start: None, fixed: None, equationBound: None, isProtected: None, finalPrefix: None, startOrigin: None }) });
+thread_local! { static __emptyVarAttrEnum_TLS: Arc<VariableAttributes> = Arc::new(VariableAttributes::VAR_ATTR_ENUMERATION { quantity: None, min: None, max: None, start: None, fixed: None, equationBound: None, isProtected: None, finalPrefix: None, startOrigin: None }); }
+pub fn emptyVarAttrEnum() -> Arc<VariableAttributes> { __emptyVarAttrEnum_TLS.with(|__t| __t.clone()) }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum StateSelect {
@@ -851,6 +880,17 @@ pub struct ClassAttributes {
     pub objectiveIntegrandE: Option<Arc<Exp>>,
     pub startTimeE: Option<Arc<Exp>>,
     pub finalTimeE: Option<Arc<Exp>>,
+}
+
+impl Default for ClassAttributes {
+    fn default() -> Self {
+        Self {
+            objetiveE: Default::default(),
+            objectiveIntegrandE: Default::default(),
+            startTimeE: Default::default(),
+            finalTimeE: Default::default(),
+        }
+    }
 }
 
 pub type OPTIMIZATION_ATTRS = ClassAttributes;
@@ -1052,13 +1092,17 @@ pub struct Attributes {
 pub type ATTR = Attributes;
 
 
-pub static dummyAttrVar: std::sync::LazyLock<Arc<Attributes>> = std::sync::LazyLock::new(|| { Arc::new(Attributes { connectorType: Arc::new(crate::DAE::ConnectorType::NON_CONNECTOR), parallelism: crate::SCode::Parallelism::NON_PARALLEL, variability: crate::SCode::Variability::VAR, direction: openmodelica_ast::Absyn::Direction::BIDIR, innerOuter: openmodelica_ast::Absyn::InnerOuter::NOT_INNER_OUTER, visibility: crate::SCode::Visibility::PUBLIC }) });
+thread_local! { static __dummyAttrVar_TLS: Arc<Attributes> = Arc::new(Attributes { connectorType: Arc::new(crate::DAE::ConnectorType::NON_CONNECTOR), parallelism: crate::SCode::Parallelism::NON_PARALLEL, variability: crate::SCode::Variability::VAR, direction: openmodelica_ast::Absyn::Direction::BIDIR, innerOuter: openmodelica_ast::Absyn::InnerOuter::NOT_INNER_OUTER, visibility: crate::SCode::Visibility::PUBLIC }); }
+pub fn dummyAttrVar() -> Arc<Attributes> { __dummyAttrVar_TLS.with(|__t| __t.clone()) }
 
-pub static dummyAttrParam: std::sync::LazyLock<Arc<Attributes>> = std::sync::LazyLock::new(|| { Arc::new(Attributes { connectorType: Arc::new(crate::DAE::ConnectorType::NON_CONNECTOR), parallelism: crate::SCode::Parallelism::NON_PARALLEL, variability: crate::SCode::Variability::PARAM, direction: openmodelica_ast::Absyn::Direction::BIDIR, innerOuter: openmodelica_ast::Absyn::InnerOuter::NOT_INNER_OUTER, visibility: crate::SCode::Visibility::PUBLIC }) });
+thread_local! { static __dummyAttrParam_TLS: Arc<Attributes> = Arc::new(Attributes { connectorType: Arc::new(crate::DAE::ConnectorType::NON_CONNECTOR), parallelism: crate::SCode::Parallelism::NON_PARALLEL, variability: crate::SCode::Variability::PARAM, direction: openmodelica_ast::Absyn::Direction::BIDIR, innerOuter: openmodelica_ast::Absyn::InnerOuter::NOT_INNER_OUTER, visibility: crate::SCode::Visibility::PUBLIC }); }
+pub fn dummyAttrParam() -> Arc<Attributes> { __dummyAttrParam_TLS.with(|__t| __t.clone()) }
 
-pub static dummyAttrConst: std::sync::LazyLock<Arc<Attributes>> = std::sync::LazyLock::new(|| { Arc::new(Attributes { connectorType: Arc::new(crate::DAE::ConnectorType::NON_CONNECTOR), parallelism: crate::SCode::Parallelism::NON_PARALLEL, variability: crate::SCode::Variability::CONST, direction: openmodelica_ast::Absyn::Direction::BIDIR, innerOuter: openmodelica_ast::Absyn::InnerOuter::NOT_INNER_OUTER, visibility: crate::SCode::Visibility::PUBLIC }) });
+thread_local! { static __dummyAttrConst_TLS: Arc<Attributes> = Arc::new(Attributes { connectorType: Arc::new(crate::DAE::ConnectorType::NON_CONNECTOR), parallelism: crate::SCode::Parallelism::NON_PARALLEL, variability: crate::SCode::Variability::CONST, direction: openmodelica_ast::Absyn::Direction::BIDIR, innerOuter: openmodelica_ast::Absyn::InnerOuter::NOT_INNER_OUTER, visibility: crate::SCode::Visibility::PUBLIC }); }
+pub fn dummyAttrConst() -> Arc<Attributes> { __dummyAttrConst_TLS.with(|__t| __t.clone()) }
 
-pub static dummyAttrInput: std::sync::LazyLock<Arc<Attributes>> = std::sync::LazyLock::new(|| { Arc::new(Attributes { connectorType: Arc::new(crate::DAE::ConnectorType::NON_CONNECTOR), parallelism: crate::SCode::Parallelism::NON_PARALLEL, variability: crate::SCode::Variability::VAR, direction: openmodelica_ast::Absyn::Direction::INPUT, innerOuter: openmodelica_ast::Absyn::InnerOuter::NOT_INNER_OUTER, visibility: crate::SCode::Visibility::PUBLIC }) });
+thread_local! { static __dummyAttrInput_TLS: Arc<Attributes> = Arc::new(Attributes { connectorType: Arc::new(crate::DAE::ConnectorType::NON_CONNECTOR), parallelism: crate::SCode::Parallelism::NON_PARALLEL, variability: crate::SCode::Variability::VAR, direction: openmodelica_ast::Absyn::Direction::INPUT, innerOuter: openmodelica_ast::Absyn::InnerOuter::NOT_INNER_OUTER, visibility: crate::SCode::Visibility::PUBLIC }); }
+pub fn dummyAttrInput() -> Arc<Attributes> { __dummyAttrInput_TLS.with(|__t| __t.clone()) }
 
 /// where this binding came from: either default binding or start value
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -1095,56 +1139,81 @@ pub use self::Binding::{UNBOUND,EQBOUND,VALBOUND};
 pub type EqualityConstraint = Option<(Arc<Absyn::Path>, i32, InlineType)>;
 
 // default constants that can be used
-pub static T_REAL_DEFAULT: std::sync::LazyLock<Arc<Type>> = std::sync::LazyLock::new(|| { Arc::new(Type::T_REAL { varLst: metamodelica::nil() }) });
+thread_local! { static __T_REAL_DEFAULT_TLS: Arc<Type> = Arc::new(Type::T_REAL { varLst: metamodelica::nil() }); }
+pub fn T_REAL_DEFAULT() -> Arc<Type> { __T_REAL_DEFAULT_TLS.with(|__t| __t.clone()) }
 
-pub static T_INTEGER_DEFAULT: std::sync::LazyLock<Arc<Type>> = std::sync::LazyLock::new(|| { Arc::new(Type::T_INTEGER { varLst: metamodelica::nil() }) });
+thread_local! { static __T_INTEGER_DEFAULT_TLS: Arc<Type> = Arc::new(Type::T_INTEGER { varLst: metamodelica::nil() }); }
+pub fn T_INTEGER_DEFAULT() -> Arc<Type> { __T_INTEGER_DEFAULT_TLS.with(|__t| __t.clone()) }
 
-pub static T_STRING_DEFAULT: std::sync::LazyLock<Arc<Type>> = std::sync::LazyLock::new(|| { Arc::new(Type::T_STRING { varLst: metamodelica::nil() }) });
+thread_local! { static __T_STRING_DEFAULT_TLS: Arc<Type> = Arc::new(Type::T_STRING { varLst: metamodelica::nil() }); }
+pub fn T_STRING_DEFAULT() -> Arc<Type> { __T_STRING_DEFAULT_TLS.with(|__t| __t.clone()) }
 
-pub static T_BOOL_DEFAULT: std::sync::LazyLock<Arc<Type>> = std::sync::LazyLock::new(|| { Arc::new(Type::T_BOOL { varLst: metamodelica::nil() }) });
+thread_local! { static __T_BOOL_DEFAULT_TLS: Arc<Type> = Arc::new(Type::T_BOOL { varLst: metamodelica::nil() }); }
+pub fn T_BOOL_DEFAULT() -> Arc<Type> { __T_BOOL_DEFAULT_TLS.with(|__t| __t.clone()) }
 
-pub static T_CLOCK_DEFAULT: std::sync::LazyLock<Arc<Type>> = std::sync::LazyLock::new(|| { Arc::new(Type::T_CLOCK { varLst: metamodelica::nil() }) });
+thread_local! { static __T_CLOCK_DEFAULT_TLS: Arc<Type> = Arc::new(Type::T_CLOCK { varLst: metamodelica::nil() }); }
+pub fn T_CLOCK_DEFAULT() -> Arc<Type> { __T_CLOCK_DEFAULT_TLS.with(|__t| __t.clone()) }
 
-pub static T_ENUMERATION_DEFAULT: std::sync::LazyLock<Arc<Type>> = std::sync::LazyLock::new(|| { Arc::new(Type::T_ENUMERATION { index: None, path: Arc::new(Absyn::Path::IDENT { name: (literal!("")).clone() }), names: metamodelica::nil(), literalVarLst: metamodelica::nil(), attributeLst: metamodelica::nil() }) });
+thread_local! { static __T_ENUMERATION_DEFAULT_TLS: Arc<Type> = Arc::new(Type::T_ENUMERATION { index: None, path: Arc::new(Absyn::Path::IDENT { name: (literal!("")).clone() }), names: metamodelica::nil(), literalVarLst: metamodelica::nil(), attributeLst: metamodelica::nil() }); }
+pub fn T_ENUMERATION_DEFAULT() -> Arc<Type> { __T_ENUMERATION_DEFAULT_TLS.with(|__t| __t.clone()) }
 
-pub static T_REAL_BOXED: std::sync::LazyLock<Arc<Type>> = std::sync::LazyLock::new(|| { Arc::new(Type::T_METABOXED { ty: T_REAL_DEFAULT.clone() }) });
+thread_local! { static __T_REAL_BOXED_TLS: Arc<Type> = Arc::new(Type::T_METABOXED { ty: T_REAL_DEFAULT().clone() }); }
+pub fn T_REAL_BOXED() -> Arc<Type> { __T_REAL_BOXED_TLS.with(|__t| __t.clone()) }
 
-pub static T_INTEGER_BOXED: std::sync::LazyLock<Arc<Type>> = std::sync::LazyLock::new(|| { Arc::new(Type::T_METABOXED { ty: T_INTEGER_DEFAULT.clone() }) });
+thread_local! { static __T_INTEGER_BOXED_TLS: Arc<Type> = Arc::new(Type::T_METABOXED { ty: T_INTEGER_DEFAULT().clone() }); }
+pub fn T_INTEGER_BOXED() -> Arc<Type> { __T_INTEGER_BOXED_TLS.with(|__t| __t.clone()) }
 
-pub static T_STRING_BOXED: std::sync::LazyLock<Arc<Type>> = std::sync::LazyLock::new(|| { Arc::new(Type::T_METABOXED { ty: T_STRING_DEFAULT.clone() }) });
+thread_local! { static __T_STRING_BOXED_TLS: Arc<Type> = Arc::new(Type::T_METABOXED { ty: T_STRING_DEFAULT().clone() }); }
+pub fn T_STRING_BOXED() -> Arc<Type> { __T_STRING_BOXED_TLS.with(|__t| __t.clone()) }
 
-pub static T_BOOL_BOXED: std::sync::LazyLock<Arc<Type>> = std::sync::LazyLock::new(|| { Arc::new(Type::T_METABOXED { ty: T_BOOL_DEFAULT.clone() }) });
+thread_local! { static __T_BOOL_BOXED_TLS: Arc<Type> = Arc::new(Type::T_METABOXED { ty: T_BOOL_DEFAULT().clone() }); }
+pub fn T_BOOL_BOXED() -> Arc<Type> { __T_BOOL_BOXED_TLS.with(|__t| __t.clone()) }
 
-pub static T_METABOXED_DEFAULT: std::sync::LazyLock<Arc<Type>> = std::sync::LazyLock::new(|| { Arc::new(Type::T_METABOXED { ty: T_UNKNOWN_DEFAULT.clone() }) });
+thread_local! { static __T_METABOXED_DEFAULT_TLS: Arc<Type> = Arc::new(Type::T_METABOXED { ty: T_UNKNOWN_DEFAULT().clone() }); }
+pub fn T_METABOXED_DEFAULT() -> Arc<Type> { __T_METABOXED_DEFAULT_TLS.with(|__t| __t.clone()) }
 
-pub static T_METALIST_DEFAULT: std::sync::LazyLock<Arc<Type>> = std::sync::LazyLock::new(|| { Arc::new(Type::T_METALIST { ty: T_UNKNOWN_DEFAULT.clone() }) });
+thread_local! { static __T_METALIST_DEFAULT_TLS: Arc<Type> = Arc::new(Type::T_METALIST { ty: T_UNKNOWN_DEFAULT().clone() }); }
+pub fn T_METALIST_DEFAULT() -> Arc<Type> { __T_METALIST_DEFAULT_TLS.with(|__t| __t.clone()) }
 
-pub static T_NONE_DEFAULT: std::sync::LazyLock<Arc<Type>> = std::sync::LazyLock::new(|| { Arc::new(Type::T_METAOPTION { ty: T_UNKNOWN_DEFAULT.clone() }) });
+thread_local! { static __T_NONE_DEFAULT_TLS: Arc<Type> = Arc::new(Type::T_METAOPTION { ty: T_UNKNOWN_DEFAULT().clone() }); }
+pub fn T_NONE_DEFAULT() -> Arc<Type> { __T_NONE_DEFAULT_TLS.with(|__t| __t.clone()) }
 
-pub static T_ANYTYPE_DEFAULT: std::sync::LazyLock<Arc<Type>> = std::sync::LazyLock::new(|| { Arc::new(Type::T_ANYTYPE { anyClassType: None }) });
+thread_local! { static __T_ANYTYPE_DEFAULT_TLS: Arc<Type> = Arc::new(Type::T_ANYTYPE { anyClassType: None }); }
+pub fn T_ANYTYPE_DEFAULT() -> Arc<Type> { __T_ANYTYPE_DEFAULT_TLS.with(|__t| __t.clone()) }
 
-pub static T_UNKNOWN_DEFAULT: std::sync::LazyLock<Arc<Type>> = std::sync::LazyLock::new(|| { Arc::new(crate::DAE::Type::T_UNKNOWN) });
+thread_local! { static __T_UNKNOWN_DEFAULT_TLS: Arc<Type> = Arc::new(crate::DAE::Type::T_UNKNOWN); }
+pub fn T_UNKNOWN_DEFAULT() -> Arc<Type> { __T_UNKNOWN_DEFAULT_TLS.with(|__t| __t.clone()) }
 
-pub static T_NORETCALL_DEFAULT: std::sync::LazyLock<Arc<Type>> = std::sync::LazyLock::new(|| { Arc::new(crate::DAE::Type::T_NORETCALL) });
+thread_local! { static __T_NORETCALL_DEFAULT_TLS: Arc<Type> = Arc::new(crate::DAE::Type::T_NORETCALL); }
+pub fn T_NORETCALL_DEFAULT() -> Arc<Type> { __T_NORETCALL_DEFAULT_TLS.with(|__t| __t.clone()) }
 
-pub static T_METATYPE_DEFAULT: std::sync::LazyLock<Arc<Type>> = std::sync::LazyLock::new(|| { Arc::new(Type::T_METATYPE { ty: T_UNKNOWN_DEFAULT.clone() }) });
+thread_local! { static __T_METATYPE_DEFAULT_TLS: Arc<Type> = Arc::new(Type::T_METATYPE { ty: T_UNKNOWN_DEFAULT().clone() }); }
+pub fn T_METATYPE_DEFAULT() -> Arc<Type> { __T_METATYPE_DEFAULT_TLS.with(|__t| __t.clone()) }
 
-pub static T_COMPLEX_DEFAULT: std::sync::LazyLock<Arc<Type>> = std::sync::LazyLock::new(|| { Arc::new(Type::T_COMPLEX { complexClassType: ClassInf::State::UNKNOWN { path: Arc::new(Absyn::Path::IDENT { name: (literal!("")).clone() }) }, varLst: metamodelica::nil(), equalityConstraint: None, usedExternally: false }) });
+thread_local! { static __T_COMPLEX_DEFAULT_TLS: Arc<Type> = Arc::new(Type::T_COMPLEX { complexClassType: ClassInf::State::UNKNOWN { path: Arc::new(Absyn::Path::IDENT { name: (literal!("")).clone() }) }, varLst: metamodelica::nil(), equalityConstraint: None, usedExternally: false }); }
+pub fn T_COMPLEX_DEFAULT() -> Arc<Type> { __T_COMPLEX_DEFAULT_TLS.with(|__t| __t.clone()) }
 
-pub static T_COMPLEX_DEFAULT_RECORD: std::sync::LazyLock<Arc<Type>> = std::sync::LazyLock::new(|| { Arc::new(Type::T_COMPLEX { complexClassType: ClassInf::State::RECORD { path: Arc::new(Absyn::Path::IDENT { name: (literal!("")).clone() }) }, varLst: metamodelica::nil(), equalityConstraint: None, usedExternally: false }) });
+thread_local! { static __T_COMPLEX_DEFAULT_RECORD_TLS: Arc<Type> = Arc::new(Type::T_COMPLEX { complexClassType: ClassInf::State::RECORD { path: Arc::new(Absyn::Path::IDENT { name: (literal!("")).clone() }) }, varLst: metamodelica::nil(), equalityConstraint: None, usedExternally: false }); }
+pub fn T_COMPLEX_DEFAULT_RECORD() -> Arc<Type> { __T_COMPLEX_DEFAULT_RECORD_TLS.with(|__t| __t.clone()) }
 
-pub static T_SOURCEINFO_DEFAULT_METARECORD: std::sync::LazyLock<Arc<Type>> = std::sync::LazyLock::new(|| { Arc::new(Type::T_METARECORD { path: Arc::new(Absyn::Path::QUALIFIED { name: (literal!("SourceInfo")).clone(), path: Arc::new(Absyn::Path::IDENT { name: (literal!("SOURCEINFO")).clone() }) }), utPath: Arc::new(Absyn::Path::IDENT { name: (literal!("SourceInfo")).clone() }), typeVars: metamodelica::nil(), index: 1, fields: list![Arc::new(Var { name: (literal!("fileName")).clone(), attributes: dummyAttrVar.clone(), ty: T_STRING_DEFAULT.clone(), binding: Arc::new(crate::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None }), Arc::new(Var { name: (literal!("isReadOnly")).clone(), attributes: dummyAttrVar.clone(), ty: T_BOOL_DEFAULT.clone(), binding: Arc::new(crate::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None }), Arc::new(Var { name: (literal!("lineNumberStart")).clone(), attributes: dummyAttrVar.clone(), ty: T_INTEGER_DEFAULT.clone(), binding: Arc::new(crate::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None }), Arc::new(Var { name: (literal!("columnNumberStart")).clone(), attributes: dummyAttrVar.clone(), ty: T_INTEGER_DEFAULT.clone(), binding: Arc::new(crate::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None }), Arc::new(Var { name: (literal!("lineNumberEnd")).clone(), attributes: dummyAttrVar.clone(), ty: T_INTEGER_DEFAULT.clone(), binding: Arc::new(crate::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None }), Arc::new(Var { name: (literal!("columnNumberEnd")).clone(), attributes: dummyAttrVar.clone(), ty: T_INTEGER_DEFAULT.clone(), binding: Arc::new(crate::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None }), Arc::new(Var { name: (literal!("lastModification")).clone(), attributes: dummyAttrVar.clone(), ty: T_REAL_DEFAULT.clone(), binding: Arc::new(crate::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None })], knownSingleton: true }) });
+thread_local! { static __T_SOURCEINFO_DEFAULT_METARECORD_TLS: Arc<Type> = Arc::new(Type::T_METARECORD { path: Arc::new(Absyn::Path::QUALIFIED { name: (literal!("SourceInfo")).clone(), path: Arc::new(Absyn::Path::IDENT { name: (literal!("SOURCEINFO")).clone() }) }), utPath: Arc::new(Absyn::Path::IDENT { name: (literal!("SourceInfo")).clone() }), typeVars: metamodelica::nil(), index: 1, fields: list![Arc::new(Var { name: (literal!("fileName")).clone(), attributes: dummyAttrVar().clone(), ty: T_STRING_DEFAULT().clone(), binding: Arc::new(crate::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None }), Arc::new(Var { name: (literal!("isReadOnly")).clone(), attributes: dummyAttrVar().clone(), ty: T_BOOL_DEFAULT().clone(), binding: Arc::new(crate::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None }), Arc::new(Var { name: (literal!("lineNumberStart")).clone(), attributes: dummyAttrVar().clone(), ty: T_INTEGER_DEFAULT().clone(), binding: Arc::new(crate::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None }), Arc::new(Var { name: (literal!("columnNumberStart")).clone(), attributes: dummyAttrVar().clone(), ty: T_INTEGER_DEFAULT().clone(), binding: Arc::new(crate::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None }), Arc::new(Var { name: (literal!("lineNumberEnd")).clone(), attributes: dummyAttrVar().clone(), ty: T_INTEGER_DEFAULT().clone(), binding: Arc::new(crate::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None }), Arc::new(Var { name: (literal!("columnNumberEnd")).clone(), attributes: dummyAttrVar().clone(), ty: T_INTEGER_DEFAULT().clone(), binding: Arc::new(crate::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None }), Arc::new(Var { name: (literal!("lastModification")).clone(), attributes: dummyAttrVar().clone(), ty: T_REAL_DEFAULT().clone(), binding: Arc::new(crate::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None })], knownSingleton: true }); }
+pub fn T_SOURCEINFO_DEFAULT_METARECORD() -> Arc<Type> { __T_SOURCEINFO_DEFAULT_METARECORD_TLS.with(|__t| __t.clone()) }
 
-pub static T_SOURCEINFO_DEFAULT: std::sync::LazyLock<Arc<Type>> = std::sync::LazyLock::new(|| { Arc::new(Type::T_METAUNIONTYPE { paths: list![Arc::new(Absyn::Path::QUALIFIED { name: (literal!("SourceInfo")).clone(), path: Arc::new(Absyn::Path::IDENT { name: (literal!("SOURCEINFO")).clone() }) })], typeVars: metamodelica::nil(), knownSingleton: true, singletonType: Arc::new(EvaluateSingletonType::EVAL_SINGLETON_KNOWN_TYPE { ty: T_SOURCEINFO_DEFAULT_METARECORD.clone() }), path: Arc::new(Absyn::Path::IDENT { name: (literal!("SourceInfo")).clone() }) }) });
+thread_local! { static __T_SOURCEINFO_DEFAULT_TLS: Arc<Type> = Arc::new(Type::T_METAUNIONTYPE { paths: list![Arc::new(Absyn::Path::QUALIFIED { name: (literal!("SourceInfo")).clone(), path: Arc::new(Absyn::Path::IDENT { name: (literal!("SOURCEINFO")).clone() }) })], typeVars: metamodelica::nil(), knownSingleton: true, singletonType: Arc::new(EvaluateSingletonType::EVAL_SINGLETON_KNOWN_TYPE { ty: T_SOURCEINFO_DEFAULT_METARECORD().clone() }), path: Arc::new(Absyn::Path::IDENT { name: (literal!("SourceInfo")).clone() }) }); }
+pub fn T_SOURCEINFO_DEFAULT() -> Arc<Type> { __T_SOURCEINFO_DEFAULT_TLS.with(|__t| __t.clone()) }
 
 // Arrays of unknown dimension, eg. Real[:]
-pub static T_ARRAY_REAL_NODIM: std::sync::LazyLock<Arc<Type>> = std::sync::LazyLock::new(|| { Arc::new(Type::T_ARRAY { ty: T_REAL_DEFAULT.clone(), dims: list![Arc::new(crate::DAE::Dimension::DIM_UNKNOWN)] }) });
+thread_local! { static __T_ARRAY_REAL_NODIM_TLS: Arc<Type> = Arc::new(Type::T_ARRAY { ty: T_REAL_DEFAULT().clone(), dims: list![Arc::new(crate::DAE::Dimension::DIM_UNKNOWN)] }); }
+pub fn T_ARRAY_REAL_NODIM() -> Arc<Type> { __T_ARRAY_REAL_NODIM_TLS.with(|__t| __t.clone()) }
 
-pub static T_ARRAY_INT_NODIM: std::sync::LazyLock<Arc<Type>> = std::sync::LazyLock::new(|| { Arc::new(Type::T_ARRAY { ty: T_INTEGER_DEFAULT.clone(), dims: list![Arc::new(crate::DAE::Dimension::DIM_UNKNOWN)] }) });
+thread_local! { static __T_ARRAY_INT_NODIM_TLS: Arc<Type> = Arc::new(Type::T_ARRAY { ty: T_INTEGER_DEFAULT().clone(), dims: list![Arc::new(crate::DAE::Dimension::DIM_UNKNOWN)] }); }
+pub fn T_ARRAY_INT_NODIM() -> Arc<Type> { __T_ARRAY_INT_NODIM_TLS.with(|__t| __t.clone()) }
 
-pub static T_ARRAY_BOOL_NODIM: std::sync::LazyLock<Arc<Type>> = std::sync::LazyLock::new(|| { Arc::new(Type::T_ARRAY { ty: T_BOOL_DEFAULT.clone(), dims: list![Arc::new(crate::DAE::Dimension::DIM_UNKNOWN)] }) });
+thread_local! { static __T_ARRAY_BOOL_NODIM_TLS: Arc<Type> = Arc::new(Type::T_ARRAY { ty: T_BOOL_DEFAULT().clone(), dims: list![Arc::new(crate::DAE::Dimension::DIM_UNKNOWN)] }); }
+pub fn T_ARRAY_BOOL_NODIM() -> Arc<Type> { __T_ARRAY_BOOL_NODIM_TLS.with(|__t| __t.clone()) }
 
-pub static T_ARRAY_STRING_NODIM: std::sync::LazyLock<Arc<Type>> = std::sync::LazyLock::new(|| { Arc::new(Type::T_ARRAY { ty: T_STRING_DEFAULT.clone(), dims: list![Arc::new(crate::DAE::Dimension::DIM_UNKNOWN)] }) });
+thread_local! { static __T_ARRAY_STRING_NODIM_TLS: Arc<Type> = Arc::new(Type::T_ARRAY { ty: T_STRING_DEFAULT().clone(), dims: list![Arc::new(crate::DAE::Dimension::DIM_UNKNOWN)] }); }
+pub fn T_ARRAY_STRING_NODIM() -> Arc<Type> { __T_ARRAY_STRING_NODIM_TLS.with(|__t| __t.clone()) }
 
 /// models the different front-end and back-end types
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -1288,6 +1357,9 @@ pub enum Type {
         ty: Arc<Type>,
     },
 }
+impl Default for Type {
+    fn default() -> Self { Self::T_NORETCALL }
+}
 pub use self::Type::{T_INTEGER,T_REAL,T_STRING,T_BOOL,T_CLOCK,T_ENUMERATION,T_ARRAY,T_NORETCALL,T_UNKNOWN,T_COMPLEX,T_SUBTYPE_BASIC,T_FUNCTION,T_FUNCTION_REFERENCE_VAR,T_FUNCTION_REFERENCE_FUNC,T_TUPLE,T_CODE,T_ANYTYPE,T_METALIST,T_METATUPLE,T_METAOPTION,T_METAUNIONTYPE,T_METARECORD,T_METAARRAY,T_METABOXED,T_METAPOLYMORPHIC,T_METATYPE};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -1303,7 +1375,7 @@ pub enum CodeType {
 pub use self::CodeType::{C_EXPRESSION,C_EXPRESSION_OR_MODIFICATION,C_MODIFICATION,C_TYPENAME,C_VARIABLENAME,C_VARIABLENAMES};
 
 /// Is here because constants are not allowed to contain function pointers for some reason
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone)]
 pub enum EvaluateSingletonType {
     EVAL_SINGLETON_TYPE_FUNCTION {
         fun: EvaluateSingletonTypeFunction,
@@ -1313,9 +1385,76 @@ pub enum EvaluateSingletonType {
     },
     NOT_SINGLETON,
 }
+impl PartialEq for EvaluateSingletonType {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::EVAL_SINGLETON_TYPE_FUNCTION { fun: __l_fun }, Self::EVAL_SINGLETON_TYPE_FUNCTION { fun: __r_fun }) => std::sync::Arc::ptr_eq(__l_fun, __r_fun),
+            (Self::EVAL_SINGLETON_KNOWN_TYPE { ty: __l_ty }, Self::EVAL_SINGLETON_KNOWN_TYPE { ty: __r_ty }) => __l_ty == __r_ty,
+            (Self::NOT_SINGLETON, Self::NOT_SINGLETON) => true,
+            _ => false,
+        }
+    }
+}
+impl Eq for EvaluateSingletonType {}
+impl PartialOrd for EvaluateSingletonType {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> { Some(self.cmp(other)) }
+}
+impl Ord for EvaluateSingletonType {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        fn __variant_idx(__v: &EvaluateSingletonType) -> u32 {
+            match __v {
+                EvaluateSingletonType::EVAL_SINGLETON_TYPE_FUNCTION { .. } => 0,
+                EvaluateSingletonType::EVAL_SINGLETON_KNOWN_TYPE { .. } => 1,
+                EvaluateSingletonType::NOT_SINGLETON => 2,
+            }
+        }
+        match __variant_idx(self).cmp(&__variant_idx(other)) {
+            std::cmp::Ordering::Equal => {}
+            non_eq => return non_eq,
+        }
+        match (self, other) {
+            (Self::EVAL_SINGLETON_TYPE_FUNCTION { fun: __l_fun }, Self::EVAL_SINGLETON_TYPE_FUNCTION { fun: __r_fun }) => (std::sync::Arc::as_ptr(__l_fun) as *const ()).cmp(&(std::sync::Arc::as_ptr(__r_fun) as *const ())),
+            (Self::EVAL_SINGLETON_KNOWN_TYPE { ty: __l_ty }, Self::EVAL_SINGLETON_KNOWN_TYPE { ty: __r_ty }) => __l_ty.cmp(__r_ty),
+            (Self::NOT_SINGLETON, Self::NOT_SINGLETON) => std::cmp::Ordering::Equal,
+            _ => unreachable!("variant-index equality already implies same variant"),
+        }
+    }
+}
+impl std::hash::Hash for EvaluateSingletonType {
+    fn hash<__H: std::hash::Hasher>(&self, __state: &mut __H) {
+        std::mem::discriminant(self).hash(__state);
+        match self {
+            Self::EVAL_SINGLETON_TYPE_FUNCTION { fun: __h_fun } => {
+                (std::sync::Arc::as_ptr(__h_fun) as *const ()).hash(__state);
+            }
+            Self::EVAL_SINGLETON_KNOWN_TYPE { ty: __h_ty } => {
+                __h_ty.hash(__state);
+            }
+            Self::NOT_SINGLETON => {}
+        }
+    }
+}
+impl std::fmt::Debug for EvaluateSingletonType {
+    fn fmt(&self, __f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::EVAL_SINGLETON_TYPE_FUNCTION { fun: __d_fun } => {
+                let mut __ds = __f.debug_struct("EVAL_SINGLETON_TYPE_FUNCTION");
+                __ds.field("fun", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr(__d_fun)));
+                __ds.finish()
+            }
+            Self::EVAL_SINGLETON_KNOWN_TYPE { ty: __d_ty } => {
+                let mut __ds = __f.debug_struct("EVAL_SINGLETON_KNOWN_TYPE");
+                __ds.field("ty", __d_ty);
+                __ds.finish()
+            }
+            Self::NOT_SINGLETON => __f.debug_struct("NOT_SINGLETON").finish(),
+        }
+    }
+}
+
 pub use self::EvaluateSingletonType::{EVAL_SINGLETON_TYPE_FUNCTION,EVAL_SINGLETON_KNOWN_TYPE,NOT_SINGLETON};
 
-pub type EvaluateSingletonTypeFunction = fn() -> Result<Arc<Type>>;
+pub type EvaluateSingletonTypeFunction = std::sync::Arc<dyn ::std::ops::Fn() -> Result<Arc<Type>> + 'static>;
 
 pub static FUNCTION_ATTRIBUTES_BUILTIN: std::sync::LazyLock<FunctionAttributes> = std::sync::LazyLock::new(|| { FunctionAttributes { inline: crate::DAE::InlineType::NO_INLINE, generateEvents: false, purity: Purity::PURE.clone(), isFunctionPointer: false, isBuiltin: FunctionBuiltin::FUNCTION_BUILTIN { name: None, unboxArgs: false }, functionParallelism: crate::DAE::FunctionParallelism::FP_NON_PARALLEL } });
 
@@ -1339,6 +1478,9 @@ impl PartialOrd for Purity {
 impl Ord for Purity {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering { (*self as i32).cmp(&(*other as i32)) }
 }
+impl Default for Purity {
+    fn default() -> Self { Self::PURE }
+}
 
 // Function with pure prefix
 // Function with impure prefix
@@ -1353,6 +1495,19 @@ pub struct FunctionAttributes {
     pub isFunctionPointer: bool,
     pub isBuiltin: FunctionBuiltin,
     pub functionParallelism: FunctionParallelism,
+}
+
+impl Default for FunctionAttributes {
+    fn default() -> Self {
+        Self {
+            inline: Default::default(),
+            generateEvents: Default::default(),
+            purity: Default::default(),
+            isFunctionPointer: Default::default(),
+            isBuiltin: Default::default(),
+            functionParallelism: Default::default(),
+        }
+    }
 }
 
 pub type FUNCTION_ATTRIBUTES = FunctionAttributes;
@@ -1843,10 +1998,18 @@ pub enum Exp {
         pattern: Arc<Pattern>,
     },
 }
+impl Default for Exp {
+    fn default() -> Self {
+        Self::ICONST {
+            integer: Default::default(),
+        }
+    }
+}
 pub use self::Exp::{ICONST,RCONST,SCONST,BCONST,CLKCONST,ENUM_LITERAL,CREF,BINARY,UNARY,LBINARY,LUNARY,RELATION,IFEXP,CALL,RECORD,PARTEVALFUNCTION,ARRAY,MATRIX,RANGE,TUPLE,CAST,ASUB,TSUB,RSUB,SIZE,CODE,EMPTY,REDUCTION,LIST,CONS,META_TUPLE,META_OPTION,METARECORDCALL,MATCHEXPRESSION,BOX,UNBOX,SHARED_LITERAL,PATTERN};
 
 /* mathematica constants */
-pub static PI: std::sync::LazyLock<Arc<Exp>> = std::sync::LazyLock::new(|| { Arc::new(Exp::RCONST { real: metamodelica::OrderedFloat(3.1415926535897932384626433832795028841971693993751058_f64) }) });
+thread_local! { static __PI_TLS: Arc<Exp> = Arc::new(Exp::RCONST { real: metamodelica::OrderedFloat(3.1415926535897932384626433832795028841971693993751058_f64) }); }
+pub fn PI() -> Arc<Exp> { __PI_TLS.with(|__t| __t.clone()) }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum TailCall {
@@ -1859,25 +2022,35 @@ pub enum TailCall {
 }
 pub use self::TailCall::{NO_TAIL,TAIL};
 
-pub static callAttrBuiltinBool: std::sync::LazyLock<Arc<CallAttributes>> = std::sync::LazyLock::new(|| { Arc::new(CallAttributes { ty: T_BOOL_DEFAULT.clone(), tuple_: false, builtin: true, isImpure: false, isFunctionPointerCall: false, inlineType: crate::DAE::InlineType::NO_INLINE, tailCall: crate::DAE::TailCall::NO_TAIL }) });
+thread_local! { static __callAttrBuiltinBool_TLS: Arc<CallAttributes> = Arc::new(CallAttributes { ty: T_BOOL_DEFAULT().clone(), tuple_: false, builtin: true, isImpure: false, isFunctionPointerCall: false, inlineType: crate::DAE::InlineType::NO_INLINE, tailCall: crate::DAE::TailCall::NO_TAIL }); }
+pub fn callAttrBuiltinBool() -> Arc<CallAttributes> { __callAttrBuiltinBool_TLS.with(|__t| __t.clone()) }
 
-pub static callAttrBuiltinInteger: std::sync::LazyLock<Arc<CallAttributes>> = std::sync::LazyLock::new(|| { Arc::new(CallAttributes { ty: T_INTEGER_DEFAULT.clone(), tuple_: false, builtin: true, isImpure: false, isFunctionPointerCall: false, inlineType: crate::DAE::InlineType::NO_INLINE, tailCall: crate::DAE::TailCall::NO_TAIL }) });
+thread_local! { static __callAttrBuiltinInteger_TLS: Arc<CallAttributes> = Arc::new(CallAttributes { ty: T_INTEGER_DEFAULT().clone(), tuple_: false, builtin: true, isImpure: false, isFunctionPointerCall: false, inlineType: crate::DAE::InlineType::NO_INLINE, tailCall: crate::DAE::TailCall::NO_TAIL }); }
+pub fn callAttrBuiltinInteger() -> Arc<CallAttributes> { __callAttrBuiltinInteger_TLS.with(|__t| __t.clone()) }
 
-pub static callAttrBuiltinReal: std::sync::LazyLock<Arc<CallAttributes>> = std::sync::LazyLock::new(|| { Arc::new(CallAttributes { ty: T_REAL_DEFAULT.clone(), tuple_: false, builtin: true, isImpure: false, isFunctionPointerCall: false, inlineType: crate::DAE::InlineType::NO_INLINE, tailCall: crate::DAE::TailCall::NO_TAIL }) });
+thread_local! { static __callAttrBuiltinReal_TLS: Arc<CallAttributes> = Arc::new(CallAttributes { ty: T_REAL_DEFAULT().clone(), tuple_: false, builtin: true, isImpure: false, isFunctionPointerCall: false, inlineType: crate::DAE::InlineType::NO_INLINE, tailCall: crate::DAE::TailCall::NO_TAIL }); }
+pub fn callAttrBuiltinReal() -> Arc<CallAttributes> { __callAttrBuiltinReal_TLS.with(|__t| __t.clone()) }
 
-pub static callAttrBuiltinString: std::sync::LazyLock<Arc<CallAttributes>> = std::sync::LazyLock::new(|| { Arc::new(CallAttributes { ty: T_STRING_DEFAULT.clone(), tuple_: false, builtin: true, isImpure: false, isFunctionPointerCall: false, inlineType: crate::DAE::InlineType::NO_INLINE, tailCall: crate::DAE::TailCall::NO_TAIL }) });
+thread_local! { static __callAttrBuiltinString_TLS: Arc<CallAttributes> = Arc::new(CallAttributes { ty: T_STRING_DEFAULT().clone(), tuple_: false, builtin: true, isImpure: false, isFunctionPointerCall: false, inlineType: crate::DAE::InlineType::NO_INLINE, tailCall: crate::DAE::TailCall::NO_TAIL }); }
+pub fn callAttrBuiltinString() -> Arc<CallAttributes> { __callAttrBuiltinString_TLS.with(|__t| __t.clone()) }
 
-pub static callAttrBuiltinOther: std::sync::LazyLock<Arc<CallAttributes>> = std::sync::LazyLock::new(|| { Arc::new(CallAttributes { ty: T_UNKNOWN_DEFAULT.clone(), tuple_: false, builtin: true, isImpure: false, isFunctionPointerCall: false, inlineType: crate::DAE::InlineType::NO_INLINE, tailCall: crate::DAE::TailCall::NO_TAIL }) });
+thread_local! { static __callAttrBuiltinOther_TLS: Arc<CallAttributes> = Arc::new(CallAttributes { ty: T_UNKNOWN_DEFAULT().clone(), tuple_: false, builtin: true, isImpure: false, isFunctionPointerCall: false, inlineType: crate::DAE::InlineType::NO_INLINE, tailCall: crate::DAE::TailCall::NO_TAIL }); }
+pub fn callAttrBuiltinOther() -> Arc<CallAttributes> { __callAttrBuiltinOther_TLS.with(|__t| __t.clone()) }
 
-pub static callAttrBuiltinImpureBool: std::sync::LazyLock<Arc<CallAttributes>> = std::sync::LazyLock::new(|| { Arc::new(CallAttributes { ty: T_BOOL_DEFAULT.clone(), tuple_: false, builtin: true, isImpure: true, isFunctionPointerCall: false, inlineType: crate::DAE::InlineType::NO_INLINE, tailCall: crate::DAE::TailCall::NO_TAIL }) });
+thread_local! { static __callAttrBuiltinImpureBool_TLS: Arc<CallAttributes> = Arc::new(CallAttributes { ty: T_BOOL_DEFAULT().clone(), tuple_: false, builtin: true, isImpure: true, isFunctionPointerCall: false, inlineType: crate::DAE::InlineType::NO_INLINE, tailCall: crate::DAE::TailCall::NO_TAIL }); }
+pub fn callAttrBuiltinImpureBool() -> Arc<CallAttributes> { __callAttrBuiltinImpureBool_TLS.with(|__t| __t.clone()) }
 
-pub static callAttrBuiltinImpureInteger: std::sync::LazyLock<Arc<CallAttributes>> = std::sync::LazyLock::new(|| { Arc::new(CallAttributes { ty: T_INTEGER_DEFAULT.clone(), tuple_: false, builtin: true, isImpure: true, isFunctionPointerCall: false, inlineType: crate::DAE::InlineType::NO_INLINE, tailCall: crate::DAE::TailCall::NO_TAIL }) });
+thread_local! { static __callAttrBuiltinImpureInteger_TLS: Arc<CallAttributes> = Arc::new(CallAttributes { ty: T_INTEGER_DEFAULT().clone(), tuple_: false, builtin: true, isImpure: true, isFunctionPointerCall: false, inlineType: crate::DAE::InlineType::NO_INLINE, tailCall: crate::DAE::TailCall::NO_TAIL }); }
+pub fn callAttrBuiltinImpureInteger() -> Arc<CallAttributes> { __callAttrBuiltinImpureInteger_TLS.with(|__t| __t.clone()) }
 
-pub static callAttrBuiltinImpureReal: std::sync::LazyLock<Arc<CallAttributes>> = std::sync::LazyLock::new(|| { Arc::new(CallAttributes { ty: T_REAL_DEFAULT.clone(), tuple_: false, builtin: true, isImpure: true, isFunctionPointerCall: false, inlineType: crate::DAE::InlineType::NO_INLINE, tailCall: crate::DAE::TailCall::NO_TAIL }) });
+thread_local! { static __callAttrBuiltinImpureReal_TLS: Arc<CallAttributes> = Arc::new(CallAttributes { ty: T_REAL_DEFAULT().clone(), tuple_: false, builtin: true, isImpure: true, isFunctionPointerCall: false, inlineType: crate::DAE::InlineType::NO_INLINE, tailCall: crate::DAE::TailCall::NO_TAIL }); }
+pub fn callAttrBuiltinImpureReal() -> Arc<CallAttributes> { __callAttrBuiltinImpureReal_TLS.with(|__t| __t.clone()) }
 
-pub static callAttrBuiltinImpureString: std::sync::LazyLock<Arc<CallAttributes>> = std::sync::LazyLock::new(|| { Arc::new(CallAttributes { ty: T_STRING_DEFAULT.clone(), tuple_: false, builtin: true, isImpure: true, isFunctionPointerCall: false, inlineType: crate::DAE::InlineType::NO_INLINE, tailCall: crate::DAE::TailCall::NO_TAIL }) });
+thread_local! { static __callAttrBuiltinImpureString_TLS: Arc<CallAttributes> = Arc::new(CallAttributes { ty: T_STRING_DEFAULT().clone(), tuple_: false, builtin: true, isImpure: true, isFunctionPointerCall: false, inlineType: crate::DAE::InlineType::NO_INLINE, tailCall: crate::DAE::TailCall::NO_TAIL }); }
+pub fn callAttrBuiltinImpureString() -> Arc<CallAttributes> { __callAttrBuiltinImpureString_TLS.with(|__t| __t.clone()) }
 
-pub static callAttrOther: std::sync::LazyLock<Arc<CallAttributes>> = std::sync::LazyLock::new(|| { Arc::new(CallAttributes { ty: T_UNKNOWN_DEFAULT.clone(), tuple_: false, builtin: false, isImpure: false, isFunctionPointerCall: false, inlineType: crate::DAE::InlineType::NO_INLINE, tailCall: crate::DAE::TailCall::NO_TAIL }) });
+thread_local! { static __callAttrOther_TLS: Arc<CallAttributes> = Arc::new(CallAttributes { ty: T_UNKNOWN_DEFAULT().clone(), tuple_: false, builtin: false, isImpure: false, isFunctionPointerCall: false, inlineType: crate::DAE::InlineType::NO_INLINE, tailCall: crate::DAE::TailCall::NO_TAIL }); }
+pub fn callAttrOther() -> Arc<CallAttributes> { __callAttrOther_TLS.with(|__t| __t.clone()) }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct CallAttributes {
@@ -2174,13 +2347,19 @@ pub enum ComponentRef {
     },
     WILD,
 }
+impl Default for ComponentRef {
+    fn default() -> Self { Self::WILD }
+}
 pub use self::ComponentRef::{CREF_QUAL,CREF_IDENT,OPTIMICA_ATTR_INST_CREF,WILD};
 
-pub static crefTime: std::sync::LazyLock<Arc<ComponentRef>> = std::sync::LazyLock::new(|| { Arc::new(ComponentRef::CREF_IDENT { ident: (literal!("time")).clone(), identType: T_REAL_DEFAULT.clone(), subscriptLst: metamodelica::nil() }) });
+thread_local! { static __crefTime_TLS: Arc<ComponentRef> = Arc::new(ComponentRef::CREF_IDENT { ident: (literal!("time")).clone(), identType: T_REAL_DEFAULT().clone(), subscriptLst: metamodelica::nil() }); }
+pub fn crefTime() -> Arc<ComponentRef> { __crefTime_TLS.with(|__t| __t.clone()) }
 
-pub static crefTimeState: std::sync::LazyLock<Arc<ComponentRef>> = std::sync::LazyLock::new(|| { Arc::new(ComponentRef::CREF_IDENT { ident: (literal!("$time")).clone(), identType: T_REAL_DEFAULT.clone(), subscriptLst: metamodelica::nil() }) });
+thread_local! { static __crefTimeState_TLS: Arc<ComponentRef> = Arc::new(ComponentRef::CREF_IDENT { ident: (literal!("$time")).clone(), identType: T_REAL_DEFAULT().clone(), subscriptLst: metamodelica::nil() }); }
+pub fn crefTimeState() -> Arc<ComponentRef> { __crefTimeState_TLS.with(|__t| __t.clone()) }
 
-pub static emptyCref: std::sync::LazyLock<Arc<ComponentRef>> = std::sync::LazyLock::new(|| { Arc::new(ComponentRef::CREF_IDENT { ident: (literal!("")).clone(), identType: T_UNKNOWN_DEFAULT.clone(), subscriptLst: metamodelica::nil() }) });
+thread_local! { static __emptyCref_TLS: Arc<ComponentRef> = Arc::new(ComponentRef::CREF_IDENT { ident: (literal!("")).clone(), identType: T_UNKNOWN_DEFAULT().clone(), subscriptLst: metamodelica::nil() }); }
+pub fn emptyCref() -> Arc<ComponentRef> { __emptyCref_TLS.with(|__t| __t.clone()) }
 
 /// The `Subscript\' and `ComponentRef\' datatypes are simple
 ///  translations of the corresponding types in the `Absyn\' module.
@@ -2215,7 +2394,8 @@ pub enum Expand {
 }
 pub use self::Expand::{EXPAND,NOT_EXPAND};
 
-pub static emptyDae: std::sync::LazyLock<DAElist> = std::sync::LazyLock::new(|| { DAElist { elementLst: metamodelica::nil() } });
+thread_local! { static __emptyDae_TLS: DAElist = DAElist { elementLst: metamodelica::nil() }; }
+pub fn emptyDae() -> DAElist { __emptyDae_TLS.with(|__t| __t.clone()) }
 
 /// A Prefix has a component prefix and a class prefix.
 /// The component prefix consist of a name an a list of constant valued subscripts.
@@ -2399,7 +2579,8 @@ pub mod Connect {
     }
     pub use self::Set::{SET,SET_POINTER};
 
-    pub static emptySet: std::sync::LazyLock<Sets> = std::sync::LazyLock::new(|| { Sets { sets: Arc::new(SetTrieNode::SET_TRIE_NODE { name: (literal!("")).clone(), cref: Arc::new(crate::DAE::ComponentRef::WILD), nodes: metamodelica::nil(), connectCount: 0 }), setCount: 0, connections: metamodelica::nil(), outerConnects: metamodelica::nil() } });
+    thread_local! { static __emptySet_TLS: Sets = Sets { sets: Arc::new(SetTrieNode::SET_TRIE_NODE { name: (literal!("")).clone(), cref: Arc::new(crate::DAE::ComponentRef::WILD), nodes: metamodelica::nil(), connectCount: 0 }), setCount: 0, connections: metamodelica::nil(), outerConnects: metamodelica::nil() }; }
+    pub fn emptySet() -> Sets { __emptySet_TLS.with(|__t| __t.clone()) }
 
 }
 

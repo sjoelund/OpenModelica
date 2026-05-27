@@ -163,7 +163,7 @@ pub fn matchAndRewriteExpFrontEnd(mut inExp: Arc<Absyn::Exp>, mut inRules: Rules
 
 pub fn rewriteExpFrontEnd(mut inExp: Arc<Absyn::Exp>, mut inBinds: Binds) -> Result<Arc<Absyn::Exp>> {
     let mut outExp: Arc<Absyn::Exp> = Arc::new(Absyn::Exp::BREAK);
-    (outExp, _) = AbsynUtil::traverseExp(inExp.clone(), Arc::new(replaceBindsFrontEnd), inBinds.clone())?;
+    (outExp, _) = AbsynUtil::traverseExp(inExp.clone(), (std::sync::Arc::new(replaceBindsFrontEnd) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Exp>, Arc<metamodelica::List<Bind>>) -> Result<(Arc<Absyn::Exp>, Arc<metamodelica::List<Bind>>)> + 'static>), inBinds.clone())?;
     Ok(outExp)
 }
 
@@ -511,7 +511,7 @@ pub fn matchesFargsFrontEnd(mut inFargs1: Arc<Absyn::FunctionArgs>, mut inFargs2
 
 pub fn sortNargsFrontEnd(mut inNargs: Arc<metamodelica::List<Arc<Absyn::NamedArg>>>) -> Result<Arc<metamodelica::List<Arc<Absyn::NamedArg>>>> {
     let mut outNargs: Arc<metamodelica::List<Arc<Absyn::NamedArg>>> = metamodelica::nil();
-    outNargs = List::sort(inNargs.clone(), Arc::new(inNargComp))?;
+    outNargs = List::sort(inNargs.clone(), (std::sync::Arc::new(inNargComp) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::NamedArg>, Arc<Absyn::NamedArg>) -> Result<bool> + 'static>))?;
     Ok(outNargs)
 }
 
@@ -654,7 +654,7 @@ pub fn matchAndRewriteExpBackEnd(mut inExp: Arc<DAE::Exp>, mut inRules: Rules) -
 
 pub fn rewriteExpBackEnd(mut inExp: Arc<DAE::Exp>, mut inBinds: Binds) -> Result<Arc<DAE::Exp>> {
     let mut outExp: Arc<DAE::Exp>;
-    (outExp, _) = Expression::traverseExpBottomUp(inExp.clone(), Arc::new(replaceBindsBackEnd), inBinds.clone())?;
+    (outExp, _) = Expression::traverseExpBottomUp(inExp.clone(), (std::sync::Arc::new(replaceBindsBackEnd) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, Arc<metamodelica::List<Bind>>) -> Result<(Arc<DAE::Exp>, Arc<metamodelica::List<Bind>>)> + 'static>), inBinds.clone())?;
     Ok(outExp)
 }
 

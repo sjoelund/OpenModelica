@@ -68,7 +68,7 @@ use openmodelica_util::Flags;
 use openmodelica_util::Util;
 use openmodelica_util_datatypes_basic::List;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum NFDimension {
     RAW_DIM {
         dim: Arc<Subscript>,
@@ -142,11 +142,11 @@ pub fn fromExp(mut exp: Arc<Expression::NFExpression>, mut var: Variability) -> 
             (::match_deref::match_deref! { match &(exp_simple.clone()) {
         Deref @ Expression::INTEGER { value } => Arc::new(NFDimension::INTEGER { size: value.clone(), var: var.clone() }),
         _ => {
-            e1 = Expression::map(exp_simple.clone(), Arc::new(Expression::replaceResizableParameter))?;
+            e1 = Expression::map(exp_simple.clone(), (std::sync::Arc::new(Expression::replaceResizableParameter) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>))?;
             e1 = SimplifyExp::simplify(e1.clone(), false)?;
             (::match_deref::match_deref! { match &(e1.clone()) {
         Deref @ Expression::INTEGER { value } => {
-            e2 = Expression::map(exp_simple.clone(), Arc::new(Expression::replaceResizableParameterWithOriginal))?;
+            e2 = Expression::map(exp_simple.clone(), (std::sync::Arc::new(Expression::replaceResizableParameterWithOriginal) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>))?;
             e2 = SimplifyExp::simplify(e2.clone(), false)?;
             (::match_deref::match_deref! { match &(e2.clone()) {
         Deref @ Expression::INTEGER { value: value_original } if (value.clone() != value_original.clone()) => Arc::new(NFDimension::RESIZABLE { size: value_original.clone(), opt_size: Some(value.clone()), exp: exp.clone(), var: var.clone() }),
@@ -388,7 +388,7 @@ pub fn isResizable(mut dim: Arc<NFDimension>) -> bool {
 }
 
 pub fn allEqualKnown(mut dims1: Arc<metamodelica::List<Arc<NFDimension>>>, mut dims2: Arc<metamodelica::List<Arc<NFDimension>>>) -> bool {
-    let mut allEqual: bool = List::isEqualOnTrue(dims1.clone(), dims2.clone(), Arc::new(isEqualKnown));
+    let mut allEqual: bool = List::isEqualOnTrue(dims1.clone(), dims2.clone(), (std::sync::Arc::new(isEqualKnown) as std::sync::Arc<dyn ::std::ops::Fn(Arc<NFDimension>, Arc<NFDimension>) -> Result<bool> + 'static>));
     allEqual
 }
 
@@ -664,7 +664,7 @@ pub fn variability(mut dim: Arc<NFDimension>) -> Result<Variability> {
 }
 
 pub fn mapExp(mut dim: Arc<NFDimension>, mut func: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Result<Arc<NFDimension>> {
-    pub type MapFunc = fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>>;
+    pub type MapFunc = std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>;
 
     let mut outDim: Arc<NFDimension> = Arc::new(NFDimension::BOOLEAN);
     outDim = (::match_deref::match_deref! { match &(dim.clone()) {
@@ -692,7 +692,7 @@ pub fn mapExp(mut dim: Arc<NFDimension>, mut func: Arc<dyn ::std::ops::Fn(Arc<Ex
 }
 
 pub fn foldExp<ArgT: Clone + 'static>(mut dim: Arc<NFDimension>, mut func: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, ArgT) -> Result<ArgT> + 'static>, mut arg: ArgT) -> Result<ArgT> {
-    pub type FoldFunc<ArgT: Clone> = fn(Arc<Expression::NFExpression>, ArgT) -> Result<ArgT>;
+    pub type FoldFunc<ArgT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, ArgT) -> Result<ArgT> + 'static>;
 
     let mut outArg: ArgT;
     outArg = (::match_deref::match_deref! { match &(dim.clone()) {
@@ -706,7 +706,7 @@ pub fn foldExp<ArgT: Clone + 'static>(mut dim: Arc<NFDimension>, mut func: Arc<d
 }
 
 pub fn foldExpList<ArgT: Clone + 'static>(mut dims: Arc<metamodelica::List<Arc<NFDimension>>>, mut func: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, ArgT) -> Result<ArgT> + 'static>, mut arg: ArgT) -> Result<ArgT> {
-    pub type FoldFunc<ArgT: Clone> = fn(Arc<Expression::NFExpression>, ArgT) -> Result<ArgT>;
+    pub type FoldFunc<ArgT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, ArgT) -> Result<ArgT> + 'static>;
 
     let mut arg: ArgT = arg;
     for mut dim in &*dims.clone() {

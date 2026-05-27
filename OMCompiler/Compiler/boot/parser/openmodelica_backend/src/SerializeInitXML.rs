@@ -310,7 +310,7 @@ fn scalarVariableAttribute(mut file: File::File, mut simVar: SimVar, mut classTy
     File::write(file.clone(), (literal!("    isProtected = \"")).clone());
     File::write(file.clone(), ArcStr::from(::std::format!("{}", simVar.isProtected.clone())));
     File::write(file.clone(), (literal!("\" hideResult = \"")).clone());
-    File::write(file.clone(), (Util::applyOptionOrDefault(simVar.hideResult.clone(), Arc::new(fnptr!(boolString, bool)), (literal!("")).clone())).clone());
+    File::write(file.clone(), (Util::applyOptionOrDefault(simVar.hideResult.clone(), (std::sync::Arc::new(fnptr!(boolString, bool)) as std::sync::Arc<dyn ::std::ops::Fn(bool) -> Result<ArcStr> + 'static>), (literal!("")).clone())).clone());
     File::write(file.clone(), (literal!("\" isEncrypted = \"")).clone());
     File::write(file.clone(), (boolString(simVar.isEncrypted.clone())).clone());
     File::write(file.clone(), (literal!("\" initNonlinear = \"")).clone());

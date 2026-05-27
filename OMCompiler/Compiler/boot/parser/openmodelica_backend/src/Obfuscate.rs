@@ -50,7 +50,6 @@ use openmodelica_frontend_dump::Dump;
 use openmodelica_frontend_dump::SCodeUtil;
 use openmodelica_frontend_types::SCode;
 use openmodelica_util::StringUtil;
-use openmodelica_util::System;
 use openmodelica_util::UnorderedMap;
 use openmodelica_util::Util;
 
@@ -76,8 +75,11 @@ impl PartialOrd for ElementType {
 impl Ord for ElementType {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering { (*self as i32).cmp(&(*other as i32)) }
 }
+impl Default for ElementType {
+    fn default() -> Self { Self::TYPE }
+}
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Env {
     pub mapping: Mapping,
     pub builtins: Builtins,
@@ -94,7 +96,7 @@ pub fn obfuscateProgram(mut program: Arc<metamodelica::List<Arc<SCode::Element>>
     let mut mapping: Mapping;
     let mut builtins: Builtins;
     let mut env: Env;
-    mapping = UnorderedMap::new(fnptr!(stringHashDjb2, ArcStr), fnptr!(stringEqual, ArcStr, ArcStr), 1);
+    mapping = UnorderedMap::new((std::sync::Arc::new(fnptr!(stringHashDjb2, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr) -> Result<i32> + 'static>), (std::sync::Arc::new(fnptr!(stringEqual, ArcStr, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>), 1);
     builtins = makeBuiltins()?;
     env = Env { mapping: mapping.clone(), builtins: builtins.clone() };
     program = {
@@ -107,7 +109,7 @@ pub fn obfuscateProgram(mut program: Arc<metamodelica::List<Arc<SCode::Element>>
     };
     classPath = obfuscatePath(classPath.clone(), env.clone(), ElementType::TYPE.clone())?;
     classComment = obfuscateComment(classComment.clone(), env.clone());
-    mapStr = (UnorderedMap::toJSON(env.mapping.clone(), fnptr!(Util::id, _), fnptr!(Util::id, _))?).clone();
+    mapStr = (UnorderedMap::toJSON(env.mapping.clone(), std::sync::Arc::new(fnptr!(Util::id, _)), std::sync::Arc::new(fnptr!(Util::id, _)))?).clone();
     Ok((program, classPath, classComment, mapStr, mapping))
 }
 
@@ -115,7 +117,7 @@ pub fn makeBuiltins() -> Result<Builtins> {
     let mut builtins: Builtins;
     let mut builtin_scode: Arc<metamodelica::List<Arc<SCode::Element>>> = metamodelica::nil();
     let mut etype: ElementType = ElementType::TYPE;
-    builtins = UnorderedMap::new(fnptr!(stringHashDjb2, ArcStr), fnptr!(stringEqual, ArcStr, ArcStr), 1);
+    builtins = UnorderedMap::new((std::sync::Arc::new(fnptr!(stringHashDjb2, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr) -> Result<i32> + 'static>), (std::sync::Arc::new(fnptr!(stringEqual, ArcStr, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>), 1);
     (_, builtin_scode) = FBuiltin::getInitialFunctions()?;
     for mut b in &*builtin_scode.clone() {
         let mut b = b.clone();
@@ -650,7 +652,7 @@ pub fn obfuscateExpOpt(mut exp: Option<Arc<Absyn::Exp>>, mut env: Env) -> Option
 
 pub fn obfuscateExp(mut exp: Arc<Absyn::Exp>, mut env: Env) -> Result<Arc<Absyn::Exp>> {
     let mut exp: Arc<Absyn::Exp> = exp;
-    (exp, _) = AbsynUtil::traverseExp(exp.clone(), Arc::new(obfuscateExpTraverse), env.clone())?;
+    (exp, _) = AbsynUtil::traverseExp(exp.clone(), (std::sync::Arc::new(obfuscateExpTraverse) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Exp>, Env) -> Result<(Arc<Absyn::Exp>, Env)> + 'static>), env.clone())?;
     Ok(exp)
 }
 

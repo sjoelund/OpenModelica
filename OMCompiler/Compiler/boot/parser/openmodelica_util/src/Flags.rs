@@ -131,7 +131,7 @@ pub enum FlagVisibility {
 pub use self::FlagVisibility::{INTERNAL,EXTERNAL};
 
 /// The structure which stores the flags.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Flag {
     FLAGS {
         debugFlags: metamodelica::Array<bool>,

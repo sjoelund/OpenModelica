@@ -51,7 +51,7 @@ use openmodelica_frontend_types::DAE;
 use openmodelica_util::JSON;
 use openmodelica_util::Util;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum NFClockKind {
     /// Clock()
     INFERRED_CLOCK {
@@ -152,7 +152,7 @@ pub fn compare(mut ck1: Arc<NFClockKind>, mut ck2: Arc<NFClockKind>) -> Result<i
 }
 
 pub fn containsExp(mut ck: Arc<NFClockKind>, mut func: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<bool> + 'static>) -> Result<bool> {
-    pub type ContainsPred = fn(Arc<Expression::NFExpression>) -> Result<bool>;
+    pub type ContainsPred = std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<bool> + 'static>;
 
     let mut res: bool = false;
     res = (::match_deref::match_deref! { match &(ck.clone()) {
@@ -167,7 +167,7 @@ pub fn containsExp(mut ck: Arc<NFClockKind>, mut func: Arc<dyn ::std::ops::Fn(Ar
 }
 
 pub fn containsExpShallow(mut ck: Arc<NFClockKind>, mut func: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<bool> + 'static>) -> bool {
-    pub type ContainsPred = fn(Arc<Expression::NFExpression>) -> Result<bool>;
+    pub type ContainsPred = std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<bool> + 'static>;
 
     let mut res: bool = false;
     res = (::match_deref::match_deref! { match &(ck.clone()) {
@@ -182,7 +182,7 @@ pub fn containsExpShallow(mut ck: Arc<NFClockKind>, mut func: Arc<dyn ::std::ops
 }
 
 pub fn applyExp(mut ck: Arc<NFClockKind>, mut func: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<()> + 'static>) -> Result<()> {
-    pub type ApplyFunc = fn(Arc<Expression::NFExpression>) -> Result<()>;
+    pub type ApplyFunc = std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<()> + 'static>;
 
     let () = (::match_deref::match_deref! { match &(ck.clone()) {
         Deref @ RATIONAL_CLOCK { .. } => {
@@ -211,7 +211,7 @@ pub fn applyExp(mut ck: Arc<NFClockKind>, mut func: Arc<dyn ::std::ops::Fn(Arc<E
 }
 
 pub fn applyExpShallow(mut ck: Arc<NFClockKind>, mut func: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<()> + 'static>) -> () {
-    pub type ApplyFunc = fn(Arc<Expression::NFExpression>) -> Result<()>;
+    pub type ApplyFunc = std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<()> + 'static>;
 
     let () = (::match_deref::match_deref! { match &(ck.clone()) {
         Deref @ RATIONAL_CLOCK { .. } => {
@@ -240,7 +240,7 @@ pub fn applyExpShallow(mut ck: Arc<NFClockKind>, mut func: Arc<dyn ::std::ops::F
 }
 
 pub fn foldExp<ArgT: Clone + 'static>(mut ck: Arc<NFClockKind>, mut func: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, ArgT) -> Result<ArgT> + 'static>, mut arg: ArgT) -> Result<ArgT> {
-    pub type FoldFunc<ArgT: Clone> = fn(Arc<Expression::NFExpression>, ArgT) -> Result<ArgT>;
+    pub type FoldFunc<ArgT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, ArgT) -> Result<ArgT> + 'static>;
 
     let mut result: ArgT;
     result = (::match_deref::match_deref! { match &(ck.clone()) {
@@ -264,7 +264,7 @@ pub fn foldExp<ArgT: Clone + 'static>(mut ck: Arc<NFClockKind>, mut func: Arc<dy
 }
 
 pub fn mapExp(mut ck: Arc<NFClockKind>, mut func: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Result<Arc<NFClockKind>> {
-    pub type MapFunc = fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>>;
+    pub type MapFunc = std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>;
 
     let mut outCk: Arc<NFClockKind>;
     let mut e1: Arc<Expression::NFExpression> = Arc::new(Expression::END);
@@ -298,7 +298,7 @@ pub fn mapExp(mut ck: Arc<NFClockKind>, mut func: Arc<dyn ::std::ops::Fn(Arc<Exp
 }
 
 pub fn mapExpShallow(mut ck: Arc<NFClockKind>, mut func: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Arc<NFClockKind> {
-    pub type MapFunc = fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>>;
+    pub type MapFunc = std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>;
 
     let mut outCk: Arc<NFClockKind>;
     let mut e1: Arc<Expression::NFExpression> = Arc::new(Expression::END);
@@ -332,7 +332,7 @@ pub fn mapExpShallow(mut ck: Arc<NFClockKind>, mut func: Arc<dyn ::std::ops::Fn(
 }
 
 pub fn mapFoldExp<ArgT: Clone + 'static>(mut ck: Arc<NFClockKind>, mut func: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, ArgT) -> Result<(Arc<Expression::NFExpression>, ArgT)> + 'static>, mut arg: ArgT) -> Result<(Arc<NFClockKind>, ArgT)> {
-    pub type MapFunc<ArgT: Clone> = fn(Arc<Expression::NFExpression>, ArgT) -> Result<(Arc<Expression::NFExpression>, ArgT)>;
+    pub type MapFunc<ArgT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, ArgT) -> Result<(Arc<Expression::NFExpression>, ArgT)> + 'static>;
 
     let mut outCk: Arc<NFClockKind>;
     let mut arg: ArgT = arg;
@@ -367,7 +367,7 @@ pub fn mapFoldExp<ArgT: Clone + 'static>(mut ck: Arc<NFClockKind>, mut func: Arc
 }
 
 pub fn mapFoldExpShallow<ArgT: Clone + 'static>(mut ck: Arc<NFClockKind>, mut func: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, ArgT) -> Result<(Arc<Expression::NFExpression>, ArgT)> + 'static>, mut arg: ArgT) -> Result<(Arc<NFClockKind>, ArgT)> {
-    pub type MapFunc<ArgT: Clone> = fn(Arc<Expression::NFExpression>, ArgT) -> Result<(Arc<Expression::NFExpression>, ArgT)>;
+    pub type MapFunc<ArgT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, ArgT) -> Result<(Arc<Expression::NFExpression>, ArgT)> + 'static>;
 
     let mut outCk: Arc<NFClockKind>;
     let mut arg: ArgT = arg;

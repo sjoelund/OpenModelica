@@ -70,7 +70,7 @@ pub fn resolveLoops(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Arc<BackendDAE::B
     let mut outDAE: Arc<BackendDAE::BackendDAE>;
     let mut eqSysts: Arc<metamodelica::List<Arc<BackendDAE::EqSystem>>> = metamodelica::nil();
     let mut shared: Arc<BackendDAE::Shared>;
-    (eqSysts, shared, _) = List::mapFold2(inDAE.eqs.clone(), Arc::new(resolveLoops_main), inDAE.shared.clone(), 1);
+    (eqSysts, shared, _) = List::mapFold2(inDAE.eqs.clone(), (std::sync::Arc::new(resolveLoops_main) as std::sync::Arc<dyn ::std::ops::Fn(Arc<BackendDAE::EqSystem>, Arc<BackendDAE::Shared>, i32) -> Result<(Arc<BackendDAE::EqSystem>, Arc<BackendDAE::Shared>, i32)> + 'static>), inDAE.shared.clone(), 1);
     outDAE = BackendDAE::DAE(eqSysts.clone(), shared.clone()).unwrap();
     outDAE
 }
@@ -110,7 +110,7 @@ fn resolveLoops_main(mut inEqSys: Arc<BackendDAE::EqSystem>, mut inShared: Arc<B
                         BackendDump::dumpBipartiteGraphEqSystem(syst.clone(), inShared.clone(), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("whole System_")); __mm_s.push_str(&*intString(inSysIdx.clone())); ArcStr::from(__mm_s) }).clone())?;
                     }
                     markLinEqVars = arrayCreate(BackendVariable::varsSize(vars.clone())?, -1);
-                    (simpEqLst, eqMapping, _, _, markLinEqVars, _) = BackendEquation::traverseEquationArray(eqs.clone(), Arc::new(getSimpleEquations), (metamodelica::nil(), metamodelica::nil(), 1, vars.clone(), markLinEqVars.clone(), m.clone()))?;
+                    (simpEqLst, eqMapping, _, _, markLinEqVars, _) = BackendEquation::traverseEquationArray(eqs.clone(), (std::sync::Arc::new(getSimpleEquations) as std::sync::Arc<dyn ::std::ops::Fn(Arc<BackendDAE::Equation>, (Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, Arc<metamodelica::List<i32>>, i32, BackendDAE::Variables, metamodelica::Array<i32>, metamodelica::Array<Arc<metamodelica::List<i32>>>)) -> Result<(Arc<BackendDAE::Equation>, (Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, Arc<metamodelica::List<i32>>, i32, BackendDAE::Variables, metamodelica::Array<i32>, metamodelica::Array<Arc<metamodelica::List<i32>>>))> + 'static>), (metamodelica::nil(), metamodelica::nil(), 1, vars.clone(), markLinEqVars.clone(), m.clone()))?;
                     eqMapArr = metamodelica::arrayFromVec(eqMapping.clone().into_iter().cloned().collect());
                     (simpVarLst, varMapArr) = getSimpleEquationVariables(markLinEqVars.clone(), vars.clone())?;
                     simpEqs = BackendEquation::listEquation(simpEqLst.clone())?;
@@ -119,18 +119,18 @@ fn resolveLoops_main(mut inEqSys: Arc<BackendDAE::EqSystem>, mut inShared: Arc<B
                     numVars = (simpVarLst.clone().len() as i32);
                     (m, mT) = BackendDAEUtil::adjacencyMatrixDispatch(simpVars.clone(), simpEqs.clone(), crate::BackendDAE::IndexType::ABSOLUTE, None, BackendDAEUtil::isInitializationDAE(inShared.clone()))?;
                     if Flags::isSet(Flags::RESOLVE_LOOPS_DUMP.clone())? {
-                        varAtts = List::threadMap(List::fill(false, numVars.clone()), List::fill((literal!("")).clone(), numVars.clone()), Arc::new(fnptr!(Util::makeTuple, _, _)));
-                        eqAtts = List::threadMap(List::fill(false, numSimpEqs.clone()), List::fill((literal!("")).clone(), numSimpEqs.clone()), Arc::new(fnptr!(Util::makeTuple, _, _)));
+                        varAtts = List::threadMap(List::fill(false, numVars.clone()), List::fill((literal!("")).clone(), numVars.clone()), std::sync::Arc::new(fnptr!(Util::makeTuple, _, _)));
+                        eqAtts = List::threadMap(List::fill(false, numSimpEqs.clone()), List::fill((literal!("")).clone(), numSimpEqs.clone()), std::sync::Arc::new(fnptr!(Util::makeTuple, _, _)));
                         BackendDump::dumpBipartiteGraphStrongComponent2(simpVars.clone(), simpEqs.clone(), m.clone(), varAtts.clone(), eqAtts.clone(), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("rL_simpEqs_")); __mm_s.push_str(&*intString(inSysIdx.clone())); ArcStr::from(__mm_s) }).clone())?;
                     }
                     partitions = partitionBipartiteGraph(m.clone(), mT.clone())?;
-                    partitions = List::filterOnTrue(partitions.clone(), Arc::new(fnptr!(List::hasSeveralElements, _)));
+                    partitions = List::filterOnTrue(partitions.clone(), std::sync::Arc::new(fnptr!(List::hasSeveralElements, _)));
                     m_cut = metamodelica::arrayFromVec(m.clone().borrow().clone());
                     mT_cut = metamodelica::arrayFromVec(mT.clone().borrow().clone());
                     (_, nonLoopEqMark) = resolveLoops_cutNodes(m_cut.clone(), mT_cut.clone())?;
                     if Flags::isSet(Flags::RESOLVE_LOOPS_DUMP.clone())? {
-                        varAtts = List::threadMap(List::fill(false, numVars.clone()), List::fill((literal!("")).clone(), numVars.clone()), Arc::new(fnptr!(Util::makeTuple, _, _)));
-                        eqAtts = List::threadMap(List::fill(false, numSimpEqs.clone()), List::fill((literal!("")).clone(), numSimpEqs.clone()), Arc::new(fnptr!(Util::makeTuple, _, _)));
+                        varAtts = List::threadMap(List::fill(false, numVars.clone()), List::fill((literal!("")).clone(), numVars.clone()), std::sync::Arc::new(fnptr!(Util::makeTuple, _, _)));
+                        eqAtts = List::threadMap(List::fill(false, numSimpEqs.clone()), List::fill((literal!("")).clone(), numSimpEqs.clone()), std::sync::Arc::new(fnptr!(Util::makeTuple, _, _)));
                         BackendDump::dumpBipartiteGraphStrongComponent2(simpVars.clone(), simpEqs.clone(), m_cut.clone(), varAtts.clone(), eqAtts.clone(), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("rL_loops_")); __mm_s.push_str(&*intString(inSysIdx.clone())); ArcStr::from(__mm_s) }).clone())?;
                     }
                     eqs = resolveLoops_resolvePartitions(partitions.clone(), m_cut.clone(), mT_cut.clone(), m.clone(), mT.clone(), eqMapArr.clone(), varMapArr.clone(), eqs.clone(), vars.clone(), nonLoopEqMark.clone())?;
@@ -141,8 +141,8 @@ fn resolveLoops_main(mut inEqSys: Arc<BackendDAE::EqSystem>, mut inShared: Arc<B
                         numSimpEqs = (simpEqLst.clone().len() as i32);
                         numVars = (simpVarLst.clone().len() as i32);
                         m_after = BackendDAEUtil::adjacencyMatrixDispatch(simpVars.clone(), simpEqs.clone(), crate::BackendDAE::IndexType::ABSOLUTE, None, BackendDAEUtil::isInitializationDAE(inShared.clone()))?;
-                        varAtts = List::threadMap(List::fill(false, numVars.clone()), List::fill((literal!("")).clone(), numVars.clone()), Arc::new(fnptr!(Util::makeTuple, _, _)));
-                        eqAtts = List::threadMap(List::fill(false, numSimpEqs.clone()), List::fill((literal!("")).clone(), numSimpEqs.clone()), Arc::new(fnptr!(Util::makeTuple, _, _)));
+                        varAtts = List::threadMap(List::fill(false, numVars.clone()), List::fill((literal!("")).clone(), numVars.clone()), std::sync::Arc::new(fnptr!(Util::makeTuple, _, _)));
+                        eqAtts = List::threadMap(List::fill(false, numSimpEqs.clone()), List::fill((literal!("")).clone(), numSimpEqs.clone()), std::sync::Arc::new(fnptr!(Util::makeTuple, _, _)));
                         BackendDump::dumpBipartiteGraphStrongComponent2(simpVars.clone(), simpEqs.clone(), m_after.clone(), varAtts.clone(), eqAtts.clone(), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("rL_after_")); __mm_s.push_str(&*intString(inSysIdx.clone())); ArcStr::from(__mm_s) }).clone())?;
                     }
                     syst = BackendDAEUtil::clearEqSyst(syst.clone())?;
@@ -176,7 +176,7 @@ fn resolveLoops_resolvePartitions(mut partitionsIn: Arc<metamodelica::List<Arc<m
             let mut eqs: Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>;
             let mut map: metamodelica::Array<Arc<metamodelica::List<i32>>>;
             let mut partition = (*partition).clone();
-            partition = List::filter1OnTrue(partition.clone(), Arc::new(fnptr!(arrayIsZeroAt, i32, metamodelica::Array<i32>)), nonLoopEqMark.clone());
+            partition = List::filter1OnTrue(partition.clone(), (std::sync::Arc::new(fnptr!(arrayIsZeroAt, i32, metamodelica::Array<i32>)) as std::sync::Arc<dyn ::std::ops::Fn(i32, metamodelica::Array<i32>) -> Result<bool> + 'static>), nonLoopEqMark.clone());
             if partition.clone().is_empty() {
                 eqs = resolveLoops_resolvePartitions(rest.clone(), mIn.clone(), mTIn.clone(), m_uncut.clone(), mT_uncut.clone(), eqMap.clone(), varMap.clone(), daeEqs.clone(), daeVars.clone(), nonLoopEqMark.clone())?;
             } else {
@@ -189,10 +189,10 @@ fn resolveLoops_resolvePartitions(mut partitionsIn: Arc<metamodelica::List<Arc<m
                     mapIndices = __pa0.clone();
                     map = __pa1.clone();
                     loops = __pa2.clone();
-                    loops = List::filter1OnTrueAndUpdate(loops.clone(), Arc::new(evaluateTripleLoop), Arc::new(updateTripleLoop), (m_uncut.clone(), mapIndices.clone(), map.clone()));
+                    loops = List::filter1OnTrueAndUpdate(loops.clone(), (std::sync::Arc::new(evaluateTripleLoop) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<i32>>, (metamodelica::Array<Arc<metamodelica::List<i32>>>, Arc<metamodelica::List<i32>>, metamodelica::Array<Arc<metamodelica::List<i32>>>)) -> Result<bool> + 'static>), (std::sync::Arc::new(updateTripleLoop) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<i32>>, (metamodelica::Array<Arc<metamodelica::List<i32>>>, Arc<metamodelica::List<i32>>, metamodelica::Array<Arc<metamodelica::List<i32>>>)) -> Result<Arc<metamodelica::List<i32>>> + 'static>), (m_uncut.clone(), mapIndices.clone(), map.clone()));
                 } else {
-                    loops = List::filterOnFalse(loops.clone(), Arc::new(listEmpty));
-                    loops = List::filter1OnTrue(loops.clone(), Arc::new(evaluateLoop), (m_uncut.clone(), mT_uncut.clone(), eqCrossLst.clone()));
+                    loops = List::filterOnFalse(loops.clone(), std::sync::Arc::new(fnptr!(listEmpty, _)));
+                    loops = List::filter1OnTrue(loops.clone(), (std::sync::Arc::new(evaluateLoop) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<i32>>, (metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<Arc<metamodelica::List<i32>>>, Arc<metamodelica::List<i32>>)) -> Result<bool> + 'static>), (m_uncut.clone(), mT_uncut.clone(), eqCrossLst.clone()));
                 }
                 (eqs, _) = resolveLoops_resolveAndReplace(loops.clone(), eqCrossLst.clone(), varCrossLst.clone(), mIn.clone(), mTIn.clone(), eqMap.clone(), varMap.clone(), daeEqs.clone(), daeVars.clone(), metamodelica::nil())?;
                 eqs = resolveLoops_resolvePartitions(rest.clone(), mIn.clone(), mTIn.clone(), m_uncut.clone(), mT_uncut.clone(), eqMap.clone(), varMap.clone(), eqs.clone(), daeVars.clone(), nonLoopEqMark.clone())?;
@@ -220,11 +220,11 @@ fn resolveLoops_cutNodes(mut mIn: metamodelica::Array<Arc<metamodelica::List<i32
             let mut loopVars: Arc<metamodelica::List<i32>> = metamodelica::nil();
             let mut loopEqs: Arc<metamodelica::List<i32>> = metamodelica::nil();
             let mut nonLoopVars: Arc<metamodelica::List<i32>> = metamodelica::nil();
-            let mut deadEndEqsMark: metamodelica::Array<i32>;
             let mut deadEndVarsMark: metamodelica::Array<i32>;
+            let mut deadEndEqsMark: metamodelica::Array<i32>;
             numVars = (mTIn.clone().borrow().len() as i32);
             numEqs = (mIn.clone().borrow().len() as i32);
-            nonLoopVars = List::filter2OnTrue(List::intRange(numVars.clone()), Arc::new(arrayEntryLengthIs), mTIn.clone(), 1);
+            nonLoopVars = List::filter2OnTrue(List::intRange(numVars.clone()), (std::sync::Arc::new(arrayEntryLengthIs) as std::sync::Arc<dyn ::std::ops::Fn(i32, metamodelica::Array<Arc<metamodelica::List<i32>>>, i32) -> Result<bool> + 'static>), mTIn.clone(), 1);
             deadEndVarsMark = arrayCreate(numVars.clone(), 0);
             deadEndEqsMark = arrayCreate(numVars.clone(), 0);
             for mut idx in &*nonLoopVars.clone() {
@@ -241,7 +241,7 @@ fn resolveLoops_cutNodes(mut mIn: metamodelica::Array<Arc<metamodelica::List<i32
                     {let _arr = mTIn.clone(); _arr.borrow_mut()[(idx.clone()-1) as usize] = metamodelica::nil(); _arr};
                 } else {
                     loopEqs = mTIn.clone().borrow()[(idx.clone()-1) as usize].clone();
-                    loopEqs = List::filter1OnTrue(loopEqs.clone(), Arc::new(fnptr!(arrayIsZeroAt, i32, metamodelica::Array<i32>)), deadEndEqsMark.clone());
+                    loopEqs = List::filter1OnTrue(loopEqs.clone(), (std::sync::Arc::new(fnptr!(arrayIsZeroAt, i32, metamodelica::Array<i32>)) as std::sync::Arc<dyn ::std::ops::Fn(i32, metamodelica::Array<i32>) -> Result<bool> + 'static>), deadEndEqsMark.clone());
                     {let _arr = mTIn.clone(); _arr.borrow_mut()[(idx.clone()-1) as usize] = loopEqs.clone(); _arr};
                 }
                 idx = idx.clone() + 1;
@@ -252,7 +252,7 @@ fn resolveLoops_cutNodes(mut mIn: metamodelica::Array<Arc<metamodelica::List<i32
                     {let _arr = mIn.clone(); _arr.borrow_mut()[(idx.clone()-1) as usize] = metamodelica::nil(); _arr};
                 } else {
                     loopVars = mIn.clone().borrow()[(idx.clone()-1) as usize].clone();
-                    loopVars = List::filter1OnTrue(loopVars.clone(), Arc::new(fnptr!(arrayIsZeroAt, i32, metamodelica::Array<i32>)), deadEndVarsMark.clone());
+                    loopVars = List::filter1OnTrue(loopVars.clone(), (std::sync::Arc::new(fnptr!(arrayIsZeroAt, i32, metamodelica::Array<i32>)) as std::sync::Arc<dyn ::std::ops::Fn(i32, metamodelica::Array<i32>) -> Result<bool> + 'static>), deadEndVarsMark.clone());
                     {let _arr = mIn.clone(); _arr.borrow_mut()[(idx.clone()-1) as usize] = loopVars.clone(); _arr};
                 }
                 idx = idx.clone() + 1;
@@ -292,7 +292,7 @@ fn getSimpleEquations(mut inEq: Arc<BackendDAE::Equation>, mut inTpl: (Arc<metam
     let mut idxMap: Arc<metamodelica::List<i32>> = metamodelica::nil();
     (eqLst, idxMap, idx, vars, markLinEqVars, m) = inTpl.clone();
     if BackendEquation::isEquation(inEq.clone()) && !(eqIsConst(inEq.clone())) {
-        let (__pa0, (__pa1, _)) = BackendEquation::traverseExpsOfEquation(inEq.clone(), Arc::new(isAddOrSubExp), (true, vars.clone()))?;
+        let (__pa0, (__pa1, _)) = BackendEquation::traverseExpsOfEquation(inEq.clone(), (std::sync::Arc::new(isAddOrSubExp) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, (bool, BackendDAE::Variables)) -> Result<(Arc<DAE::Exp>, (bool, BackendDAE::Variables))> + 'static>), (true, vars.clone()))?;
         eq = __pa0.clone();
         isSimple = __pa1.clone();
         if isSimple.clone() {
@@ -341,15 +341,15 @@ pub fn resolveLoops_findLoops(mut partitionsIn: Arc<metamodelica::List<Arc<metam
     for mut partition in &*partitionsIn.clone() {
         let mut partition = partition.clone();
         match '__try0: {
-            eqVars = List::map1(partition.clone(), Arc::new(fnptr!(Array::getIndexFirst, i32, _)), mIn.clone());
+            eqVars = List::map1(partition.clone(), std::sync::Arc::new(fnptr!(Array::getIndexFirst, i32, _)), mIn.clone());
             set = Arc::new(crate::AvlSetInt::Tree::EMPTY);
             for mut vars in &*eqVars.clone() {
                 let mut vars = vars.clone();
                 set = unwrap_break_err!(AvlSetInt::addList(set.clone(), vars.clone()), '__try0);
             }
             partitionVars = AvlSetInt::listKeys(set.clone(), metamodelica::nil());
-            eqCrossLst = List::fold2(partition.clone(), Arc::new(gatherCrossNodes), mIn.clone(), mTIn.clone(), metamodelica::nil());
-            varCrossLst = List::fold2(partitionVars.clone(), Arc::new(gatherCrossNodes), mTIn.clone(), mIn.clone(), metamodelica::nil());
+            eqCrossLst = List::fold2(partition.clone(), (std::sync::Arc::new(gatherCrossNodes) as std::sync::Arc<dyn ::std::ops::Fn(i32, metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<Arc<metamodelica::List<i32>>>, Arc<metamodelica::List<i32>>) -> Result<Arc<metamodelica::List<i32>>> + 'static>), mIn.clone(), mTIn.clone(), metamodelica::nil());
+            varCrossLst = List::fold2(partitionVars.clone(), (std::sync::Arc::new(gatherCrossNodes) as std::sync::Arc<dyn ::std::ops::Fn(i32, metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<Arc<metamodelica::List<i32>>>, Arc<metamodelica::List<i32>>) -> Result<Arc<metamodelica::List<i32>>> + 'static>), mTIn.clone(), mIn.clone(), metamodelica::nil());
             (loops, optStructureMapping) = unwrap_break_err!(resolveLoops_findLoops2(partition.clone(), eqCrossLst.clone(), varCrossLst.clone(), mIn.clone(), mTIn.clone(), findExactlyOneLoop.clone()), '__try0);
             if if (findExactlyOneLoop.clone()) {!(loops.clone().is_empty()) && !(loopsOut.clone().is_empty())} else {false} {
                 break '__try0 Err::<_, _>(anyhow::anyhow!("fail"));
@@ -403,10 +403,10 @@ fn resolveLoops_findLoops2(mut eqsIn: Arc<metamodelica::List<i32>>, mut eqCrossL
             let mut mapping: (Arc<metamodelica::List<i32>>, metamodelica::Array<Arc<metamodelica::List<i32>>>);
             let mut optTripleMapping: Option<(Arc<metamodelica::List<i32>>, metamodelica::Array<Arc<metamodelica::List<i32>>>, Arc<metamodelica::List<Arc<metamodelica::List<i32>>>>)> = None;
             allPaths = getPathTillNextCrossEq(eqCrossLstIn.clone(), mIn.clone(), mTIn.clone(), eqCrossLstIn.clone(), metamodelica::nil(), metamodelica::nil())?;
-            allPaths = List::sort(allPaths.clone(), Arc::new(fnptr!(List::listIsLonger, _, _)))?;
-            paths1 = List::fold1(allPaths.clone(), Arc::new(getReverseDoubles), allPaths.clone(), metamodelica::nil());
+            allPaths = List::sort(allPaths.clone(), std::sync::Arc::new(fnptr!(List::listIsLonger, _, _)))?;
+            paths1 = List::fold1(allPaths.clone(), (std::sync::Arc::new(getReverseDoubles) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<i32>>, Arc<metamodelica::List<Arc<metamodelica::List<i32>>>>, Arc<metamodelica::List<Arc<metamodelica::List<i32>>>>) -> Result<Arc<metamodelica::List<Arc<metamodelica::List<i32>>>>> + 'static>), allPaths.clone(), metamodelica::nil());
             simpleLoops = getDoubles(paths1.clone(), metamodelica::nil())?;
-            (_, paths, _) = List::intersection1OnTrue(paths1.clone(), simpleLoops.clone(), Arc::new(fnptr!(intLstIsEqual, Arc<metamodelica::List<i32>>, Arc<metamodelica::List<i32>>)))?;
+            (_, paths, _) = List::intersection1OnTrue(paths1.clone(), simpleLoops.clone(), (std::sync::Arc::new(fnptr!(intLstIsEqual, Arc<metamodelica::List<i32>>, Arc<metamodelica::List<i32>>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<i32>>, Arc<metamodelica::List<i32>>) -> Result<bool> + 'static>))?;
             if simpleLoops.clone().is_empty() {
                 (eqCrossLst, paths1, mapping, minAdj) = findEqualPathStructure(eqCrossLstIn.clone(), paths1.clone())?;
                 (mapIndices, map) = mapping.clone();
@@ -414,9 +414,9 @@ fn resolveLoops_findLoops2(mut eqsIn: Arc<metamodelica::List<i32>>, mut eqCrossL
                 optTripleMapping = Some((mapIndices.clone(), map.clone(), tripleLoops.clone()));
             } else {
                 optTripleMapping = None;
-                paths0 = List::sort(paths.clone(), Arc::new(fnptr!(List::listIsLonger, _, _)))?;
+                paths0 = List::sort(paths.clone(), std::sync::Arc::new(fnptr!(List::listIsLonger, _, _)))?;
                 (connectedPaths, loopConnectors) = connect2PathsToLoops(paths0.clone(), metamodelica::nil(), metamodelica::nil())?;
-                loopConnectors = List::filter1OnTrue(loopConnectors.clone(), Arc::new(connectsLoops), simpleLoops.clone());
+                loopConnectors = List::filter1OnTrue(loopConnectors.clone(), (std::sync::Arc::new(connectsLoops) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<i32>>, Arc<metamodelica::List<Arc<metamodelica::List<i32>>>>) -> Result<bool> + 'static>), simpleLoops.clone());
                 simpleLoops = listAppend(simpleLoops.clone(), loopConnectors.clone());
                 subLoop = connectPathsToOneLoop(simpleLoops.clone(), metamodelica::nil())?;
                 isNoSingleLoop = subLoop.clone().is_empty();
@@ -440,14 +440,14 @@ fn resolveLoops_findLoops2(mut eqsIn: Arc<metamodelica::List<i32>>, mut eqCrossL
             let mut paths1: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>> = metamodelica::nil();
             let mut closedPaths: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>> = metamodelica::nil();
             paths = getPathTillNextCrossEq(varCrossLstIn.clone(), mTIn.clone(), mIn.clone(), varCrossLstIn.clone(), metamodelica::nil(), metamodelica::nil())?;
-            paths = List::sort(paths.clone(), Arc::new(fnptr!(List::listIsLonger, _, _)))?;
+            paths = List::sort(paths.clone(), std::sync::Arc::new(fnptr!(List::listIsLonger, _, _)))?;
             paths = paths.clone().reverse();
-            (paths0, paths1) = List::extract1OnTrue(paths.clone(), Arc::new(fnptr!(listLengthIs, Arc<metamodelica::List<i32>>, i32)), (List::last(paths.clone())?.len() as i32));
+            (paths0, paths1) = List::extract1OnTrue(paths.clone(), (std::sync::Arc::new(fnptr!(listLengthIs, Arc<metamodelica::List<i32>>, i32)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<i32>>, i32) -> Result<bool> + 'static>), (List::last(paths.clone())?.len() as i32));
             paths1 = if (paths1.clone().is_empty()) {paths0.clone()} else {paths1.clone()};
-            closedPaths = List::map1(paths1.clone(), Arc::new(closePathDirectly), paths0.clone());
-            closedPaths = List::fold1(closedPaths.clone(), Arc::new(getReverseDoubles), closedPaths.clone(), metamodelica::nil());
-            closedPaths = List::map(closedPaths.clone(), Arc::new(fnptr!(List::unique, _)));
-            closedPaths = List::map1(closedPaths.clone(), Arc::new(fnptr!(getEqNodesForVarLoop, Arc<metamodelica::List<i32>>, metamodelica::Array<Arc<metamodelica::List<i32>>>)), mTIn.clone());
+            closedPaths = List::map1(paths1.clone(), (std::sync::Arc::new(closePathDirectly) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<i32>>, Arc<metamodelica::List<Arc<metamodelica::List<i32>>>>) -> Result<Arc<metamodelica::List<i32>>> + 'static>), paths0.clone());
+            closedPaths = List::fold1(closedPaths.clone(), (std::sync::Arc::new(getReverseDoubles) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<i32>>, Arc<metamodelica::List<Arc<metamodelica::List<i32>>>>, Arc<metamodelica::List<Arc<metamodelica::List<i32>>>>) -> Result<Arc<metamodelica::List<Arc<metamodelica::List<i32>>>>> + 'static>), closedPaths.clone(), metamodelica::nil());
+            closedPaths = List::map(closedPaths.clone(), std::sync::Arc::new(fnptr!(List::unique, _)));
+            closedPaths = List::map1(closedPaths.clone(), (std::sync::Arc::new(fnptr!(getEqNodesForVarLoop, Arc<metamodelica::List<i32>>, metamodelica::Array<Arc<metamodelica::List<i32>>>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<i32>>, metamodelica::Array<Arc<metamodelica::List<i32>>>) -> Result<Arc<metamodelica::List<i32>>> + 'static>), mTIn.clone());
             if findExactlyOneLoop.clone() {
                 if !(closedPaths.clone().is_empty()) {
                     ::match_deref::match_deref! { match &(closedPaths.clone()) {
@@ -540,7 +540,7 @@ fn getMinimalAdjacencyMatrix(mut crossNodes: Arc<metamodelica::List<i32>>, mut u
     }
     for mut cn in &*crossNodes.clone() {
         let mut cn = cn.clone();
-        {let _arr = minAdj.clone(); let _val = List::sort(minAdj.clone().borrow()[(cn.clone()-1) as usize].clone(), Arc::new(fnptr!(intGt, i32, i32)))?; _arr.borrow_mut()[(cn.clone()-1) as usize] = _val; _arr};
+        {let _arr = minAdj.clone(); let _val = List::sort(minAdj.clone().borrow()[(cn.clone()-1) as usize].clone(), (std::sync::Arc::new(fnptr!(intGt, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?; _arr.borrow_mut()[(cn.clone()-1) as usize] = _val; _arr};
     }
     Ok(minAdj)
 }
@@ -551,10 +551,11 @@ fn removeEqualPaths(mut crossNodes: Arc<metamodelica::List<i32>>, mut minAdj: me
     let mut mapIndices: Arc<metamodelica::List<i32>> = mapIndices;
     let mut map: metamodelica::Array<Arc<metamodelica::List<i32>>> = map;
     let mut accCrossNodes: Arc<metamodelica::List<i32>> = accCrossNodes;
-    (minAdj, uniquePaths, mapIndices, map, accCrossNodes) = (::match_deref::match_deref! { match &(crossNodes.clone()) {
+    (minAdj, uniquePaths, mapIndices, map, accCrossNodes) = ({
+        let mut assigned: Arc<metamodelica::List<i32>> = metamodelica::nil();
+        let mut unassigned: Arc<metamodelica::List<i32>> = metamodelica::nil();
+        (::match_deref::match_deref! { match &(crossNodes.clone()) {
         Deref @ metamodelica::List::Cons { head: cn1, tail: rest } => {
-            let mut assigned: Arc<metamodelica::List<i32>> = metamodelica::nil();
-            let mut unassigned: Arc<metamodelica::List<i32>> = metamodelica::nil();
             if !(listMember(cn1.clone(), accCrossNodes.clone())) {
                 accCrossNodes = cons(cn1.clone(), accCrossNodes.clone());
             }
@@ -578,12 +579,11 @@ fn removeEqualPaths(mut crossNodes: Arc<metamodelica::List<i32>>, mut minAdj: me
             removeEqualPaths(unassigned.clone(), minAdj.clone(), uniquePaths.clone(), mapIndices.clone(), map.clone(), accCrossNodes.clone())?
         },
         _ => {
-            let mut assigned: Arc<metamodelica::List<i32>> = metamodelica::nil();
-            let mut unassigned: Arc<metamodelica::List<i32>> = metamodelica::nil();
             (minAdj.clone(), uniquePaths.clone(), mapIndices.clone(), map.clone(), accCrossNodes.clone())
         },
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
-    } });
+    } })
+    });
     Ok((minAdj, uniquePaths, mapIndices, map, accCrossNodes))
 }
 
@@ -659,7 +659,7 @@ fn hasSameIntSortedExcept(mut inList1: Arc<metamodelica::List<i32>>, mut inList2
     } };
     i2 = __pa2.clone();
     l2 = __pa3.clone();
-    while true {
+    loop {
         if i1.clone() > i2.clone() {
             if l2.clone().is_empty() {
                 return Ok(rv);
@@ -709,13 +709,14 @@ fn hasSameIntSortedExcept(mut inList1: Arc<metamodelica::List<i32>>, mut inList2
 // and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
 fn getShortPathsBetweenEqCrossNodes(mut eqCrossLstIn: Arc<metamodelica::List<i32>>, mut eqCrossSet: Arc<AvlSetInt::Tree>, mut mIn: metamodelica::Array<Arc<metamodelica::List<i32>>>, mut mTIn: metamodelica::Array<Arc<metamodelica::List<i32>>>, mut pathsIn: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>>, mut findExactlyOneLoop: bool) -> Result<Arc<metamodelica::List<Arc<metamodelica::List<i32>>>>> {
     let mut pathsOut: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>> = metamodelica::nil();
-    pathsOut = (::match_deref::match_deref! { match &((eqCrossLstIn.clone(), mIn.clone(), mTIn.clone(), pathsIn.clone())) {
+    pathsOut = ({
+        let mut paths: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>> = metamodelica::nil();
+        (::match_deref::match_deref! { match &((eqCrossLstIn.clone(), mIn.clone(), mTIn.clone(), pathsIn.clone())) {
         (Deref @ metamodelica::List::Cons { head: crossEq, tail: rest }, _, _, _) => {
             let mut adjVar: i32 = 0;
             let mut adjEq: i32 = 0;
             let mut adjVars: Arc<metamodelica::List<i32>> = metamodelica::nil();
             let mut newPath: Arc<metamodelica::List<i32>> = metamodelica::nil();
-            let mut paths: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>> = metamodelica::nil();
             adjVars = mIn.clone().borrow()[(crossEq.clone()-1) as usize].clone();
             for mut adjVar in &*adjVars.clone() {
                 let mut adjVar = adjVar.clone();
@@ -738,11 +739,11 @@ fn getShortPathsBetweenEqCrossNodes(mut eqCrossLstIn: Arc<metamodelica::List<i32
             paths.clone()
         },
         (Deref @ metamodelica::List::Nil, _, _, _) => {
-            let mut paths: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>> = metamodelica::nil();
             pathsIn.clone()
         },
         _ => bail!("match: no arm matched"),
-    } });
+    } })
+    });
     Ok(pathsOut)
 }
 
@@ -756,11 +757,11 @@ fn connectsLoops(mut path: Arc<metamodelica::List<i32>>, mut allLoops: Arc<metam
     let mut loops2: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>> = metamodelica::nil();
     startNode = listHead(path.clone())?;
     endNode = List::last(path.clone())?;
-    loops1 = List::filter1OnTrue(allLoops.clone(), Arc::new(firstInListIsEqual), startNode.clone());
-    loops2 = List::filter1OnTrue(allLoops.clone(), Arc::new(lastInListIsEqual), startNode.clone());
+    loops1 = List::filter1OnTrue(allLoops.clone(), (std::sync::Arc::new(firstInListIsEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<i32>>, i32) -> Result<bool> + 'static>), startNode.clone());
+    loops2 = List::filter1OnTrue(allLoops.clone(), (std::sync::Arc::new(lastInListIsEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<i32>>, i32) -> Result<bool> + 'static>), startNode.clone());
     b1 = !(loops1.clone().is_empty()) || !(loops2.clone().is_empty());
-    loops1 = List::filter1OnTrue(allLoops.clone(), Arc::new(firstInListIsEqual), endNode.clone());
-    loops2 = List::filter1OnTrue(allLoops.clone(), Arc::new(lastInListIsEqual), endNode.clone());
+    loops1 = List::filter1OnTrue(allLoops.clone(), (std::sync::Arc::new(firstInListIsEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<i32>>, i32) -> Result<bool> + 'static>), endNode.clone());
+    loops2 = List::filter1OnTrue(allLoops.clone(), (std::sync::Arc::new(lastInListIsEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<i32>>, i32) -> Result<bool> + 'static>), endNode.clone());
     b2 = !(loops1.clone().is_empty()) || !(loops2.clone().is_empty());
     connected = b1.clone() && b2.clone();
     Ok(connected)
@@ -791,12 +792,12 @@ fn connectPathsToOneLoop(mut allPathsIn: Arc<metamodelica::List<Arc<metamodelica
                     let mut rest: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>> = metamodelica::nil();
                     let mut nextPaths1: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>> = metamodelica::nil();
                     let mut nextPaths2: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>> = metamodelica::nil();
-                    nextPaths1 = List::filter1OnTrue(allPathsIn.clone(), Arc::new(firstInListIsEqual), startNode.clone());
-                    nextPaths2 = List::filter1OnTrue(allPathsIn.clone(), Arc::new(lastInListIsEqual), startNode.clone());
+                    nextPaths1 = List::filter1OnTrue(allPathsIn.clone(), (std::sync::Arc::new(firstInListIsEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<i32>>, i32) -> Result<bool> + 'static>), startNode.clone());
+                    nextPaths2 = List::filter1OnTrue(allPathsIn.clone(), (std::sync::Arc::new(lastInListIsEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<i32>>, i32) -> Result<bool> + 'static>), startNode.clone());
                     nextPaths2 = listAppend(nextPaths1.clone(), nextPaths2.clone());
                     nextPath = listHead(nextPaths2.clone())?;
-                    (rest, _) = List::deleteMemberOnTrue(nextPath.clone(), allPathsIn.clone(), Arc::new({ let __pe_b2: Arc<dyn ::std::ops::Fn(_, _) -> Result<bool> + 'static> = Arc::new(fnptr!(intEq, i32, i32)); move |__pe_a0, __pe_a1| Ok(List::isEqualOnTrue(__pe_a0, __pe_a1, __pe_b2.clone())) }))?;
-                    (nextPath, _) = List::deleteMemberOnTrue(startNode.clone(), nextPath.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
+                    (rest, _) = List::deleteMemberOnTrue(nextPath.clone(), allPathsIn.clone(), Arc::new({ let __pe_b2: Arc<dyn ::std::ops::Fn(_, _) -> Result<bool> + 'static> = (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>); move |__pe_a0, __pe_a1| Ok(List::isEqualOnTrue(__pe_a0, __pe_a1, __pe_b2.clone())) }))?;
+                    (nextPath, _) = List::deleteMemberOnTrue(startNode.clone(), nextPath.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
                     path = listAppend(nextPath.clone(), loopIn.clone());
                     path = connectPathsToOneLoop(rest.clone(), path.clone())?;
                     Ok(path.clone())
@@ -820,11 +821,11 @@ fn connectPathsToOneLoop(mut allPathsIn: Arc<metamodelica::List<Arc<metamodelica
                     } };
                     startNode = __pa0.clone();
                     restPath = __pa1.clone();
-                    nextPaths1 = List::filter1OnTrue(rest.clone(), Arc::new(firstInListIsEqual), startNode.clone());
-                    nextPaths2 = List::filter1OnTrue(rest.clone(), Arc::new(lastInListIsEqual), startNode.clone());
+                    nextPaths1 = List::filter1OnTrue(rest.clone(), (std::sync::Arc::new(firstInListIsEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<i32>>, i32) -> Result<bool> + 'static>), startNode.clone());
+                    nextPaths2 = List::filter1OnTrue(rest.clone(), (std::sync::Arc::new(lastInListIsEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<i32>>, i32) -> Result<bool> + 'static>), startNode.clone());
                     nextPaths2 = listAppend(nextPaths1.clone(), nextPaths2.clone());
                     nextPath = listHead(nextPaths2.clone())?;
-                    (rest, _) = List::deleteMemberOnTrue(nextPath.clone(), rest.clone(), Arc::new({ let __pe_b2: Arc<dyn ::std::ops::Fn(_, _) -> Result<bool> + 'static> = Arc::new(fnptr!(intEq, i32, i32)); move |__pe_a0, __pe_a1| Ok(List::isEqualOnTrue(__pe_a0, __pe_a1, __pe_b2.clone())) }))?;
+                    (rest, _) = List::deleteMemberOnTrue(nextPath.clone(), rest.clone(), Arc::new({ let __pe_b2: Arc<dyn ::std::ops::Fn(_, _) -> Result<bool> + 'static> = (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>); move |__pe_a0, __pe_a1| Ok(List::isEqualOnTrue(__pe_a0, __pe_a1, __pe_b2.clone())) }))?;
                     path = listAppend(nextPath.clone(), restPath.clone());
                     path = connectPathsToOneLoop(rest.clone(), path.clone())?;
                     Ok(path.clone())
@@ -868,8 +869,8 @@ fn resolveLoops_resolveAndReplace(mut loopsIn: Arc<metamodelica::List<Arc<metamo
             let mut crossEqs = (*crossEqs).clone();
             loop1 = List::unique(loop1.clone());
             (resolvedEq, m_row) = resolveClosedLoop(loop1.clone(), mIn.clone(), mTIn.clone(), eqMap.clone(), varMap.clone(), daeEqsIn.clone(), daeVarsIn.clone())?;
-            (crossEqs, eqs, _) = List::intersection1OnTrue(loop1.clone(), eqCrossLstIn.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
-            replEqs = List::intersectionOnTrue(replEqsIn.clone(), loop1.clone(), Arc::new(fnptr!(intEq, i32, i32)));
+            (crossEqs, eqs, _) = List::intersection1OnTrue(loop1.clone(), eqCrossLstIn.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
+            replEqs = List::intersectionOnTrue(replEqsIn.clone(), loop1.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>));
             if !(eqs.clone().is_empty()) {
                 pos = listHead(eqs.clone())?;
             } else if !(replEqs.clone().is_empty()) {
@@ -879,17 +880,17 @@ fn resolveLoops_resolveAndReplace(mut loopsIn: Arc<metamodelica::List<Arc<metamo
             } else {
                 pos = -1;
             }
-            (eqs, _) = List::deleteMemberOnTrue(pos.clone(), loop1.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
-            eqVars = List::map1(loop1.clone(), Arc::new(fnptr!(Array::getIndexFirst, i32, _)), mIn.clone());
+            (eqs, _) = List::deleteMemberOnTrue(pos.clone(), loop1.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
+            eqVars = List::map1(loop1.clone(), std::sync::Arc::new(fnptr!(Array::getIndexFirst, i32, _)), mIn.clone());
             vars = List::flatten(eqVars.clone());
             loopVars = doubleEntriesInLst(vars.clone());
-            (_, adjVars, _) = List::intersection1OnTrue(vars.clone(), loopVars.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
-            List::map2_0(loopVars.clone(), Arc::new(Array::updateIndexFirst), metamodelica::nil(), mTIn.clone());
-            List::map2_0(adjVars.clone(), Arc::new(arrayGetDeleteInLst), loop1.clone(), mTIn.clone());
-            List::map2_0(adjVars.clone(), Arc::new(arrayGetAppendLst), list![pos.clone()], mTIn.clone());
-            List::map2_0(loop1.clone(), Arc::new(Array::updateIndexFirst), metamodelica::nil(), mIn.clone());
+            (_, adjVars, _) = List::intersection1OnTrue(vars.clone(), loopVars.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
+            List::map2_0(loopVars.clone(), (std::sync::Arc::new(Array::updateIndexFirst) as std::sync::Arc<dyn ::std::ops::Fn(i32, _, _) -> Result<()> + 'static>), metamodelica::nil(), mTIn.clone());
+            List::map2_0(adjVars.clone(), (std::sync::Arc::new(arrayGetDeleteInLst) as std::sync::Arc<dyn ::std::ops::Fn(i32, Arc<metamodelica::List<i32>>, metamodelica::Array<Arc<metamodelica::List<i32>>>) -> Result<()> + 'static>), loop1.clone(), mTIn.clone());
+            List::map2_0(adjVars.clone(), (std::sync::Arc::new(arrayGetAppendLst) as std::sync::Arc<dyn ::std::ops::Fn(i32, Arc<metamodelica::List<i32>>, metamodelica::Array<Arc<metamodelica::List<i32>>>) -> Result<()> + 'static>), list![pos.clone()], mTIn.clone());
+            List::map2_0(loop1.clone(), (std::sync::Arc::new(Array::updateIndexFirst) as std::sync::Arc<dyn ::std::ops::Fn(i32, _, _) -> Result<()> + 'static>), metamodelica::nil(), mIn.clone());
             {let _arr = mIn.clone(); _arr.borrow_mut()[(pos.clone()-1) as usize] = adjVars.clone(); _arr};
-            rest = List::map2(rest.clone(), Arc::new(fnptr!(replaceContractedNodes, Arc<metamodelica::List<i32>>, i32, Arc<metamodelica::List<i32>>)), pos.clone(), eqs.clone());
+            rest = List::map2(rest.clone(), (std::sync::Arc::new(fnptr!(replaceContractedNodes, Arc<metamodelica::List<i32>>, i32, Arc<metamodelica::List<i32>>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<i32>>, i32, Arc<metamodelica::List<i32>>) -> Result<Arc<metamodelica::List<i32>>> + 'static>), pos.clone(), eqs.clone());
             rest = List::unique(rest.clone());
             replEqs = cons(pos.clone(), replEqsIn.clone());
             {let _arr = mIn.clone(); _arr.borrow_mut()[(pos.clone()-1) as usize] = m_row.clone(); _arr};
@@ -914,24 +915,24 @@ fn resolveLoops_resolveAndReplace(mut loopsIn: Arc<metamodelica::List<Arc<metamo
             let mut crossVars = (*crossVars).clone();
             loop1 = List::unique(loop1.clone());
             (resolvedEq, m_row) = resolveClosedLoop(loop1.clone(), mIn.clone(), mTIn.clone(), eqMap.clone(), varMap.clone(), daeEqsIn.clone(), daeVarsIn.clone())?;
-            (replEqs, _, eqs) = List::intersection1OnTrue(replEqsIn.clone(), loop1.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
+            (replEqs, _, eqs) = List::intersection1OnTrue(replEqsIn.clone(), loop1.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
             eqs = priorizeEqsWithVarCrosses(eqs.clone(), mIn.clone(), varCrossLstIn.clone())?;
             pos = if (!(replEqs.clone().is_empty())) {listHead(replEqs.clone())?} else {-1};
             pos = if (!(eqs.clone().is_empty())) {listHead(eqs.clone())?} else {pos.clone()};
-            (eqs, _) = List::deleteMemberOnTrue(pos.clone(), loop1.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
-            eqVars = List::map1(loop1.clone(), Arc::new(fnptr!(Array::getIndexFirst, i32, _)), mIn.clone());
+            (eqs, _) = List::deleteMemberOnTrue(pos.clone(), loop1.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
+            eqVars = List::map1(loop1.clone(), std::sync::Arc::new(fnptr!(Array::getIndexFirst, i32, _)), mIn.clone());
             vars = List::flatten(eqVars.clone());
             loopVars = doubleEntriesInLst(vars.clone());
-            (crossVars, loopVars, _) = List::intersection1OnTrue(loopVars.clone(), varCrossLstIn.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
-            (_, adjVars, _) = List::intersection1OnTrue(vars.clone(), loopVars.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
+            (crossVars, loopVars, _) = List::intersection1OnTrue(loopVars.clone(), varCrossLstIn.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
+            (_, adjVars, _) = List::intersection1OnTrue(vars.clone(), loopVars.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
             adjVars = listAppend(crossVars.clone(), adjVars.clone());
             adjVars = List::unique(adjVars.clone());
-            List::map2_0(loopVars.clone(), Arc::new(Array::updateIndexFirst), metamodelica::nil(), mTIn.clone());
-            List::map2_0(adjVars.clone(), Arc::new(arrayGetDeleteInLst), loop1.clone(), mTIn.clone());
-            List::map2_0(adjVars.clone(), Arc::new(arrayGetAppendLst), list![pos.clone()], mTIn.clone());
-            List::map2_0(loop1.clone(), Arc::new(Array::updateIndexFirst), metamodelica::nil(), mIn.clone());
+            List::map2_0(loopVars.clone(), (std::sync::Arc::new(Array::updateIndexFirst) as std::sync::Arc<dyn ::std::ops::Fn(i32, _, _) -> Result<()> + 'static>), metamodelica::nil(), mTIn.clone());
+            List::map2_0(adjVars.clone(), (std::sync::Arc::new(arrayGetDeleteInLst) as std::sync::Arc<dyn ::std::ops::Fn(i32, Arc<metamodelica::List<i32>>, metamodelica::Array<Arc<metamodelica::List<i32>>>) -> Result<()> + 'static>), loop1.clone(), mTIn.clone());
+            List::map2_0(adjVars.clone(), (std::sync::Arc::new(arrayGetAppendLst) as std::sync::Arc<dyn ::std::ops::Fn(i32, Arc<metamodelica::List<i32>>, metamodelica::Array<Arc<metamodelica::List<i32>>>) -> Result<()> + 'static>), list![pos.clone()], mTIn.clone());
+            List::map2_0(loop1.clone(), (std::sync::Arc::new(Array::updateIndexFirst) as std::sync::Arc<dyn ::std::ops::Fn(i32, _, _) -> Result<()> + 'static>), metamodelica::nil(), mIn.clone());
             {let _arr = mIn.clone(); _arr.borrow_mut()[(pos.clone()-1) as usize] = adjVars.clone(); _arr};
-            rest = List::map2(rest.clone(), Arc::new(fnptr!(replaceContractedNodes, Arc<metamodelica::List<i32>>, i32, Arc<metamodelica::List<i32>>)), pos.clone(), eqs.clone());
+            rest = List::map2(rest.clone(), (std::sync::Arc::new(fnptr!(replaceContractedNodes, Arc<metamodelica::List<i32>>, i32, Arc<metamodelica::List<i32>>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<i32>>, i32, Arc<metamodelica::List<i32>>) -> Result<Arc<metamodelica::List<i32>>> + 'static>), pos.clone(), eqs.clone());
             rest = List::unique(rest.clone());
             replEqs = cons(pos.clone(), replEqsIn.clone());
             {let _arr = mIn.clone(); _arr.borrow_mut()[(pos.clone()-1) as usize] = m_row.clone(); _arr};
@@ -952,16 +953,16 @@ fn resolveLoops_resolveAndReplace(mut loopsIn: Arc<metamodelica::List<Arc<metamo
             let mut loop1 = (*loop1).clone();
             loop1 = List::unique(loop1.clone());
             (resolvedEq, m_row) = resolveClosedLoop(loop1.clone(), mIn.clone(), mTIn.clone(), eqMap.clone(), varMap.clone(), daeEqsIn.clone(), daeVarsIn.clone())?;
-            (_, crossEqs, _) = List::intersection1OnTrue(loop1.clone(), replEqsIn.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
+            (_, crossEqs, _) = List::intersection1OnTrue(loop1.clone(), replEqsIn.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
             let __pa0 = ::match_deref::match_deref! { match &(crossEqs.clone()) {
                 Deref @ metamodelica::List::Cons { head: __pa0, tail: _ } => __pa0.clone(),
                 _ => bail!("pattern mismatch"),
             } };
             pos = __pa0.clone();
-            eqVars = List::map1(loop1.clone(), Arc::new(fnptr!(Array::getIndexFirst, i32, _)), mIn.clone());
+            eqVars = List::map1(loop1.clone(), std::sync::Arc::new(fnptr!(Array::getIndexFirst, i32, _)), mIn.clone());
             vars = List::flatten(eqVars.clone());
-            List::map2_0(loop1.clone(), Arc::new(Array::updateIndexFirst), metamodelica::nil(), mIn.clone());
-            List::map2_0(vars.clone(), Arc::new(Array::updateIndexFirst), metamodelica::nil(), mTIn.clone());
+            List::map2_0(loop1.clone(), (std::sync::Arc::new(Array::updateIndexFirst) as std::sync::Arc<dyn ::std::ops::Fn(i32, _, _) -> Result<()> + 'static>), metamodelica::nil(), mIn.clone());
+            List::map2_0(vars.clone(), (std::sync::Arc::new(Array::updateIndexFirst) as std::sync::Arc<dyn ::std::ops::Fn(i32, _, _) -> Result<()> + 'static>), metamodelica::nil(), mTIn.clone());
             replEqs = cons(pos.clone(), replEqsIn.clone());
             {let _arr = mIn.clone(); _arr.borrow_mut()[(pos.clone()-1) as usize] = m_row.clone(); _arr};
             pos = eqMap.clone().borrow()[(pos.clone()-1) as usize].clone();
@@ -1032,12 +1033,12 @@ fn markDeadEndsInBipartiteGraph(mut varIdx: i32, mut mIn: metamodelica::Array<Ar
     let mut adjEqs: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut adjVars: Arc<metamodelica::List<i32>> = metamodelica::nil();
     adjEqs = mTIn.clone().borrow()[(varIdx.clone()-1) as usize].clone();
-    adjEqs = List::filter1OnTrue(adjEqs.clone(), Arc::new(fnptr!(arrayIsZeroAt, i32, metamodelica::Array<i32>)), deadEndEqs.clone());
+    adjEqs = List::filter1OnTrue(adjEqs.clone(), (std::sync::Arc::new(fnptr!(arrayIsZeroAt, i32, metamodelica::Array<i32>)) as std::sync::Arc<dyn ::std::ops::Fn(i32, metamodelica::Array<i32>) -> Result<bool> + 'static>), deadEndEqs.clone());
     if (adjEqs.clone().len() as i32) == 1 {
         eqIdx = listHead(adjEqs.clone())?;
         {let _arr = deadEndVars.clone(); _arr.borrow_mut()[(varIdx.clone()-1) as usize] = 1; _arr};
         adjVars = mIn.clone().borrow()[(eqIdx.clone()-1) as usize].clone();
-        adjVars = List::filter1OnTrue(adjVars.clone(), Arc::new(fnptr!(arrayIsZeroAt, i32, metamodelica::Array<i32>)), deadEndVars.clone());
+        adjVars = List::filter1OnTrue(adjVars.clone(), (std::sync::Arc::new(fnptr!(arrayIsZeroAt, i32, metamodelica::Array<i32>)) as std::sync::Arc<dyn ::std::ops::Fn(i32, metamodelica::Array<i32>) -> Result<bool> + 'static>), deadEndVars.clone());
         if (adjVars.clone().len() as i32) == 1 {
             nextVarIdx = listHead(adjVars.clone())?;
             {let _arr = deadEndEqs.clone(); _arr.borrow_mut()[(eqIdx.clone()-1) as usize] = 1; _arr};
@@ -1050,7 +1051,7 @@ fn markDeadEndsInBipartiteGraph(mut varIdx: i32, mut mIn: metamodelica::Array<Ar
 fn arrayGetDeleteInLst(mut idx: i32, mut delEntries: Arc<metamodelica::List<i32>>, mut arrIn: metamodelica::Array<Arc<metamodelica::List<i32>>>) -> Result<()> {
     let mut entry: Arc<metamodelica::List<i32>> = metamodelica::nil();
     entry = arrIn.clone().borrow()[(idx.clone()-1) as usize].clone();
-    (_, entry, _) = List::intersection1OnTrue(entry.clone(), delEntries.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
+    (_, entry, _) = List::intersection1OnTrue(entry.clone(), delEntries.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
     let _ = {let _arr = arrIn.clone(); _arr.borrow_mut()[(idx.clone()-1) as usize] = entry.clone(); _arr};
     Ok(())
 }
@@ -1073,7 +1074,7 @@ fn getReverseDoubles<ElementType: Clone + 'static>(mut elem: Arc<metamodelica::L
                     let mut foldLst: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>> = metamodelica::nil();
                     elemR = elem.clone().reverse();
                     elemR = List::getMember(elemR.clone(), elemLst.clone())?;
-                    (foldLst, _) = List::deleteMemberOnTrue(elem.clone(), foldLstIn.clone(), Arc::new({ let __pe_b2: Arc<dyn ::std::ops::Fn(_, _) -> Result<bool> + 'static> = Arc::new(fnptr!(intEq, i32, i32)); move |__pe_a0, __pe_a1| Ok(List::isEqualOnTrue(__pe_a0, __pe_a1, __pe_b2.clone())) }))?;
+                    (foldLst, _) = List::deleteMemberOnTrue(elem.clone(), foldLstIn.clone(), Arc::new({ let __pe_b2: Arc<dyn ::std::ops::Fn(_, _) -> Result<bool> + 'static> = (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>); move |__pe_a0, __pe_a1| Ok(List::isEqualOnTrue(__pe_a0, __pe_a1, __pe_b2.clone())) }))?;
                     Ok(cons(elemR.clone(), foldLst.clone()))
                 }
                 _ => bail!("nomatch"),
@@ -1147,7 +1148,7 @@ fn getEqNodesForVarLoop(mut varIdcs: Arc<metamodelica::List<i32>>, mut mTIn: met
     let mut eqIdcs: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut varEqLst: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>> = metamodelica::nil();
     let mut eqLst: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    varEqLst = List::map1(varIdcs.clone(), Arc::new(fnptr!(Array::getIndexFirst, i32, _)), mTIn.clone());
+    varEqLst = List::map1(varIdcs.clone(), std::sync::Arc::new(fnptr!(Array::getIndexFirst, i32, _)), mTIn.clone());
     eqLst = List::flatten(varEqLst.clone());
     eqIdcs = doubleEntriesInLst(eqLst.clone());
     eqIdcs
@@ -1170,7 +1171,7 @@ fn resolveClosedLoop(mut loopIn: Arc<metamodelica::List<i32>>, mut m: metamodeli
     startEqDaeIdx = eqMap.clone().borrow()[(startEqIdx.clone()-1) as usize].clone();
     loop1 = sortLoop(restLoop.clone(), m.clone(), mT.clone(), list![startEqIdx.clone()])?;
     if Flags::isSet(Flags::RESOLVE_LOOPS_DUMP.clone())? && (loop1.clone().len() as i32) > 1 {
-        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("solve the loop: ")); __mm_s.push_str(&*List::toString(loop1.clone(), Arc::new(fnptr!(intString, i32)), (literal!("")).clone(), (literal!("{")).clone(), (literal!(", ")).clone(), (literal!("}")).clone(), true, 0)?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("solve the loop: ")); __mm_s.push_str(&*List::toString(loop1.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>), (literal!("")).clone(), (literal!("{")).clone(), (literal!(", ")).clone(), (literal!("}")).clone(), true, 0)?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
     }
     eq = BackendEquation::get(daeEqsIn.clone(), startEqDaeIdx.clone());
     (eqOut, m_row) = resolveClosedLoop2(eq.clone(), loop1.clone(), m.clone(), m.clone().borrow()[(startEqIdx.clone()-1) as usize].clone(), eqMap.clone(), varMap.clone(), daeEqsIn.clone(), daeVarsIn.clone())?;
@@ -1199,7 +1200,7 @@ fn resolveClosedLoop2(mut eq: Arc<BackendDAE::Equation>, mut loopIn: Arc<metamod
             eq2 = BackendEquation::get(daeEqsIn.clone(), eqMap.clone().borrow()[(eqIdx2.clone()-1) as usize].clone());
             adjVars1 = m_row.clone();
             adjVars2 = m.clone().borrow()[(eqIdx2.clone()-1) as usize].clone();
-            (adjVars, adjVars1, adjVars2) = List::intersection1OnTrue(adjVars1.clone(), adjVars2.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
+            (adjVars, adjVars1, adjVars2) = List::intersection1OnTrue(adjVars1.clone(), adjVars2.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
             (posVars, negVars) = List::splitOnTrue(adjVars.clone(), Arc::new({ let __pe_b1 = varMap.clone(); let __pe_b2 = daeVarsIn.clone(); let __pe_b3 = eq.clone(); let __pe_b4 = eq2.clone(); move |__pe_a0| varSign(__pe_a0, __pe_b1.clone(), __pe_b2.clone(), __pe_b3.clone(), __pe_b4.clone()) }));
             algSign = (posVars.clone().len() as i32) > (negVars.clone().len() as i32);
             adjCrefs = {
@@ -1278,16 +1279,16 @@ pub fn sortLoop(mut loopIn: Arc<metamodelica::List<i32>>, mut m: metamodelica::A
                     let mut eqs: Arc<metamodelica::List<i32>> = metamodelica::nil();
                     let mut varEqs: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>> = metamodelica::nil();
                     vars = m.clone().borrow()[(start.clone()-1) as usize].clone();
-                    varEqs = List::map1(vars.clone(), Arc::new(fnptr!(Array::getIndexFirst, i32, _)), mT.clone());
+                    varEqs = List::map1(vars.clone(), std::sync::Arc::new(fnptr!(Array::getIndexFirst, i32, _)), mT.clone());
                     eqs = List::flatten(varEqs.clone());
                     eqs = List::unique(eqs.clone());
-                    eqs = List::intersectionOnTrue(eqs.clone(), loopIn.clone(), Arc::new(fnptr!(intEq, i32, i32)));
+                    eqs = List::intersectionOnTrue(eqs.clone(), loopIn.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>));
                     if eqs.clone().is_empty() {
                         next = listHead(loopIn.clone())?;
                     } else {
                         next = listHead(eqs.clone())?;
                     }
-                    (rest, _) = List::deleteMemberOnTrue(next.clone(), loopIn.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
+                    (rest, _) = List::deleteMemberOnTrue(next.clone(), loopIn.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
                     Ok(sortLoop(rest.clone(), m.clone(), mT.clone(), cons(next.clone(), sortLoopIn.clone()))?)
                 }
                 _ => bail!("nomatch"),
@@ -1468,21 +1469,21 @@ fn getPathTillNextCrossEq(mut checkEqCrossNodes: Arc<metamodelica::List<i32>>, m
                     let mut adjEqs: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>> = metamodelica::nil();
                     let mut unfinPaths: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>> = metamodelica::nil();
                     adjVars = mIn.clone().borrow()[(crossEq.clone()-1) as usize].clone();
-                    adjEqs = List::map1(adjVars.clone(), Arc::new(fnptr!(Array::getIndexFirst, i32, _)), mTIn.clone());
+                    adjEqs = List::map1(adjVars.clone(), std::sync::Arc::new(fnptr!(Array::getIndexFirst, i32, _)), mTIn.clone());
                     adjEqs = {
         let mut __acc: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>> = metamodelica::nil();
         for mut eq in (adjEqs.clone()).into_iter().cloned() {
-                    let __x = (List::deleteMemberOnTrue(crossEq.clone(), eq.clone(), Arc::new(fnptr!(intEq, i32, i32)))?).0;
+                    let __x = (List::deleteMemberOnTrue(crossEq.clone(), eq.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?).0;
                     __acc = cons(__x, __acc);
         }
         __acc.reverse()
     };
-                    adjEqs = List::filterOnFalse(adjEqs.clone(), Arc::new(listEmpty));
+                    adjEqs = List::filterOnFalse(adjEqs.clone(), std::sync::Arc::new(fnptr!(listEmpty, _)));
                     nextEqs = List::flatten(adjEqs.clone());
-                    (endEqs, unfinEqs, _) = List::intersection1OnTrue(nextEqs.clone(), allEqCrossNodes.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
-                    paths = List::map1(endEqs.clone(), Arc::new(fnptr!(cons1, i32, Arc<metamodelica::List<i32>>)), list![crossEq.clone()]);
+                    (endEqs, unfinEqs, _) = List::intersection1OnTrue(nextEqs.clone(), allEqCrossNodes.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
+                    paths = List::map1(endEqs.clone(), (std::sync::Arc::new(fnptr!(cons1, i32, Arc<metamodelica::List<i32>>)) as std::sync::Arc<dyn ::std::ops::Fn(i32, Arc<metamodelica::List<i32>>) -> Result<Arc<metamodelica::List<i32>>> + 'static>), list![crossEq.clone()]);
                     paths = listAppend(paths.clone(), eqPathsIn.clone());
-                    unfinPaths = List::map1(unfinEqs.clone(), Arc::new(fnptr!(cons1, i32, Arc<metamodelica::List<i32>>)), list![crossEq.clone()]);
+                    unfinPaths = List::map1(unfinEqs.clone(), (std::sync::Arc::new(fnptr!(cons1, i32, Arc<metamodelica::List<i32>>)) as std::sync::Arc<dyn ::std::ops::Fn(i32, Arc<metamodelica::List<i32>>) -> Result<Arc<metamodelica::List<i32>>> + 'static>), list![crossEq.clone()]);
                     unfinPaths = listAppend(unfinPaths.clone(), unfinPathsIn.clone());
                     paths = getPathTillNextCrossEq(restCrossNodes.clone(), mIn.clone(), mTIn.clone(), allEqCrossNodes.clone(), unfinPaths.clone(), paths.clone())?;
                     Ok(paths.clone())
@@ -1505,22 +1506,22 @@ fn getPathTillNextCrossEq(mut checkEqCrossNodes: Arc<metamodelica::List<i32>>, m
                     lastEq = listHead(pathStart.clone())?;
                     prevEq = List::second(pathStart.clone())?;
                     adjVars = mIn.clone().borrow()[(lastEq.clone()-1) as usize].clone();
-                    adjEqs = List::map1(adjVars.clone(), Arc::new(fnptr!(Array::getIndexFirst, i32, _)), mTIn.clone());
+                    adjEqs = List::map1(adjVars.clone(), std::sync::Arc::new(fnptr!(Array::getIndexFirst, i32, _)), mTIn.clone());
                     adjEqs = {
         let mut __acc: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>> = metamodelica::nil();
         for mut eq in (adjEqs.clone()).into_iter().cloned() {
-                    let __x = (List::deleteMemberOnTrue(lastEq.clone(), eq.clone(), Arc::new(fnptr!(intEq, i32, i32)))?).0;
+                    let __x = (List::deleteMemberOnTrue(lastEq.clone(), eq.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?).0;
                     __acc = cons(__x, __acc);
         }
         __acc.reverse()
     };
-                    adjEqs = List::filterOnFalse(adjEqs.clone(), Arc::new(listEmpty));
+                    adjEqs = List::filterOnFalse(adjEqs.clone(), std::sync::Arc::new(fnptr!(listEmpty, _)));
                     nextEqs = List::map(adjEqs.clone(), Arc::new(listHead.clone()));
-                    (nextEqs, _) = List::deleteMemberOnTrue(prevEq.clone(), nextEqs.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
-                    (endEqs, unfinEqs, _) = List::intersection1OnTrue(nextEqs.clone(), allEqCrossNodes.clone(), Arc::new(fnptr!(intEq, i32, i32)))?;
-                    paths = List::map1(endEqs.clone(), Arc::new(fnptr!(cons1, i32, Arc<metamodelica::List<i32>>)), pathStart.clone());
+                    (nextEqs, _) = List::deleteMemberOnTrue(prevEq.clone(), nextEqs.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
+                    (endEqs, unfinEqs, _) = List::intersection1OnTrue(nextEqs.clone(), allEqCrossNodes.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
+                    paths = List::map1(endEqs.clone(), (std::sync::Arc::new(fnptr!(cons1, i32, Arc<metamodelica::List<i32>>)) as std::sync::Arc<dyn ::std::ops::Fn(i32, Arc<metamodelica::List<i32>>) -> Result<Arc<metamodelica::List<i32>>> + 'static>), pathStart.clone());
                     paths = listAppend(paths.clone(), eqPathsIn.clone());
-                    unfinPaths = List::map1(unfinEqs.clone(), Arc::new(fnptr!(cons1, i32, Arc<metamodelica::List<i32>>)), pathStart.clone());
+                    unfinPaths = List::map1(unfinEqs.clone(), (std::sync::Arc::new(fnptr!(cons1, i32, Arc<metamodelica::List<i32>>)) as std::sync::Arc<dyn ::std::ops::Fn(i32, Arc<metamodelica::List<i32>>) -> Result<Arc<metamodelica::List<i32>>> + 'static>), pathStart.clone());
                     unfinPaths = listAppend(unfinPaths.clone(), restUnfinPaths.clone());
                     paths = getPathTillNextCrossEq(checkEqCrossNodes.clone(), mIn.clone(), mTIn.clone(), allEqCrossNodes.clone(), unfinPaths.clone(), paths.clone())?;
                     Ok(paths.clone())
@@ -1558,14 +1559,14 @@ fn cons1(mut elem: i32, mut lst: Arc<metamodelica::List<i32>>) -> Arc<metamodeli
 
 fn replaceContractedNodes(mut pathIn: Arc<metamodelica::List<i32>>, mut nodeIn: i32, mut replNodes: Arc<metamodelica::List<i32>>) -> Arc<metamodelica::List<i32>> {
     let mut pathOut: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    pathOut = List::map2(pathIn.clone(), Arc::new(fnptr!(replaceContractedNodes2, i32, i32, Arc<metamodelica::List<i32>>)), nodeIn.clone(), replNodes.clone());
+    pathOut = List::map2(pathIn.clone(), (std::sync::Arc::new(fnptr!(replaceContractedNodes2, i32, i32, Arc<metamodelica::List<i32>>)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32, Arc<metamodelica::List<i32>>) -> Result<i32> + 'static>), nodeIn.clone(), replNodes.clone());
     pathOut
 }
 
 fn replaceContractedNodes2(mut entryIn: i32, mut nodeIn: i32, mut replNodes: Arc<metamodelica::List<i32>>) -> i32 {
     let mut entryOut: i32 = 0;
     let mut repl: bool = false;
-    repl = List::isMemberOnTrue(entryIn.clone(), replNodes.clone(), Arc::new(fnptr!(intEq, i32, i32)));
+    repl = List::isMemberOnTrue(entryIn.clone(), replNodes.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>));
     entryOut = if (repl.clone()) {nodeIn.clone()} else {entryIn.clone()};
     entryOut
 }
@@ -1589,7 +1590,7 @@ fn priorizeEqsWithVarCrosses2(mut eq: i32, mut mIn: metamodelica::Array<Arc<meta
     let mut eqVars: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut crossVars: Arc<metamodelica::List<i32>> = metamodelica::nil();
     eqVars = mIn.clone().borrow()[(eq.clone()-1) as usize].clone();
-    crossVars = List::intersectionOnTrue(eqVars.clone(), varCrossLst.clone(), Arc::new(fnptr!(intEq, i32, i32)));
+    crossVars = List::intersectionOnTrue(eqVars.clone(), varCrossLst.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>));
     if crossVars.clone().is_empty() {
         arrayGetAppendLst(1, list![eq.clone()], priorities.clone())?;
     } else if List::hasOneElement(crossVars.clone()) {
@@ -1615,7 +1616,7 @@ fn evaluateLoop(mut loopIn: Arc<metamodelica::List<i32>>, mut tplIn: (metamodeli
     let mut m: metamodelica::Array<Arc<metamodelica::List<i32>>>;
     if !(intEq(Flags::getConfigInt(Flags::RESHUFFLE.clone())?, 3)) {
         (m, _, eqCrossLst) = tplIn.clone();
-        eqVars = List::map1(loopIn.clone(), Arc::new(fnptr!(Array::getIndexFirst, i32, _)), m.clone());
+        eqVars = List::map1(loopIn.clone(), std::sync::Arc::new(fnptr!(Array::getIndexFirst, i32, _)), m.clone());
         (numInLoop, chk, dup) = countDoubleEntriesInLstLst(eqVars.clone(), chk.clone(), dup.clone());
         numOutLoop = (chk.clone().len() as i32) - (dup.clone().len() as i32);
         r1 = intGe(numInLoop.clone(), numOutLoop.clone() - 1) && intLe(numInLoop.clone(), 6);
@@ -1701,7 +1702,7 @@ fn sumUp2Equations(mut sumUp: bool, mut eq1: Arc<BackendDAE::Equation>, mut eq2:
     exp2 = sumUp2Expressions(false, exp2.clone(), exp1.clone())?;
     (exp2, _) = ExpressionSimplify::simplify(exp2.clone())?;
     exp1 = Expression::createZeroExpression(Expression::r#typeof(exp2.clone())?)?;
-    eqOut = Arc::new(BackendDAE::Equation::EQUATION { exp: exp1.clone(), scalar: exp2.clone(), source: DAE::emptyElementSource.clone(), attr: BackendDAE::EQ_ATTR_DEFAULT_UNKNOWN.clone() });
+    eqOut = Arc::new(BackendDAE::Equation::EQUATION { exp: exp1.clone(), scalar: exp2.clone(), source: DAE::emptyElementSource().clone(), attr: BackendDAE::EQ_ATTR_DEFAULT_UNKNOWN.clone() });
     eqOut = simplifyZeroAssignment(eqOut.clone());
     Ok(eqOut)
 }
@@ -1888,11 +1889,11 @@ fn colorNodePartitions(mut m: metamodelica::Array<Arc<metamodelica::List<i32>>>,
                 }
                 vars = m.clone().borrow()[(eq.clone()-1) as usize].clone();
                 let true = (!(vars.clone().is_empty())) else { bail!("pattern mismatch") };
-                vars = List::filter1OnTrue(vars.clone(), Arc::new(arrayGetIsNotPositive), markVars.clone());
-                List::map2_0(vars.clone(), Arc::new(Array::updateIndexFirst), currNumberIn.clone(), markVars.clone());
-                eqs = List::fold1(vars.clone(), Arc::new(getArrayEntryAndAppend), mT.clone(), metamodelica::nil());
-                eqs = List::filter1OnTrue(eqs.clone(), Arc::new(arrayGetIsNegative), markEqs.clone());
-                List::map2_0(eqs.clone(), Arc::new(Array::updateIndexFirst), 0, markEqs.clone());
+                vars = List::filter1OnTrue(vars.clone(), (std::sync::Arc::new(arrayGetIsNotPositive) as std::sync::Arc<dyn ::std::ops::Fn(i32, metamodelica::Array<i32>) -> Result<bool> + 'static>), markVars.clone());
+                List::map2_0(vars.clone(), (std::sync::Arc::new(Array::updateIndexFirst) as std::sync::Arc<dyn ::std::ops::Fn(i32, _, _) -> Result<()> + 'static>), currNumberIn.clone(), markVars.clone());
+                eqs = List::fold1(vars.clone(), (std::sync::Arc::new(getArrayEntryAndAppend) as std::sync::Arc<dyn ::std::ops::Fn(i32, metamodelica::Array<Arc<metamodelica::List<i32>>>, Arc<metamodelica::List<i32>>) -> Result<Arc<metamodelica::List<i32>>> + 'static>), mT.clone(), metamodelica::nil());
+                eqs = List::filter1OnTrue(eqs.clone(), (std::sync::Arc::new(arrayGetIsNegative) as std::sync::Arc<dyn ::std::ops::Fn(i32, metamodelica::Array<i32>) -> Result<bool> + 'static>), markEqs.clone());
+                List::map2_0(eqs.clone(), (std::sync::Arc::new(Array::updateIndexFirst) as std::sync::Arc<dyn ::std::ops::Fn(i32, _, _) -> Result<()> + 'static>), 0, markEqs.clone());
                 rest = listAppend(rest.clone(), eqs.clone());
             } else {
                 partitions = partitionsIn.clone();
@@ -2006,7 +2007,7 @@ fn sumUp2Expressions(mut sumUp: bool, mut exp1: Arc<DAE::Exp>, mut exp2: Arc<DAE
     let mut expOut: Arc<DAE::Exp>;
     let mut op: DAE::Operator;
     let mut ty: Arc<DAE::Type> = Arc::new(DAE::Type::T_NORETCALL);
-    ty = DAE::T_REAL_DEFAULT.clone();
+    ty = DAE::T_REAL_DEFAULT().clone();
     op = if (sumUp.clone()) {DAE::Operator::ADD { ty: ty.clone() }} else {DAE::Operator::SUB { ty: ty.clone() }};
     expOut = Arc::new(DAE::Exp::BINARY { exp1: exp1.clone(), operator: op.clone(), exp2: exp2.clone() });
     (expOut, _) = ExpressionSimplify::simplify(expOut.clone())?;
@@ -2015,7 +2016,7 @@ fn sumUp2Expressions(mut sumUp: bool, mut exp1: Arc<DAE::Exp>, mut exp2: Arc<DAE
 
 fn intLstIsEqual(mut lst1: Arc<metamodelica::List<i32>>, mut lst2: Arc<metamodelica::List<i32>>) -> bool {
     let mut bOut: bool = false;
-    bOut = List::isEqualOnTrue(lst1.clone(), lst2.clone(), Arc::new(fnptr!(intEq, i32, i32)));
+    bOut = List::isEqualOnTrue(lst1.clone(), lst2.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>));
     bOut
 }
 
@@ -2100,14 +2101,14 @@ fn sortPathsAsChain1(mut pathsIn: Arc<metamodelica::List<Arc<metamodelica::List<
                     let mut paths2: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>> = metamodelica::nil();
                     let mut allPaths: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>> = metamodelica::nil();
                     let mut sortedPaths: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>> = metamodelica::nil();
-                    paths1 = List::filter1OnTrue(pathsIn.clone(), Arc::new(firstInListIsEqual), lastNode.clone());
-                    paths2 = List::filter1OnTrue(pathsIn.clone(), Arc::new(lastInListIsEqual), lastNode.clone());
+                    paths1 = List::filter1OnTrue(pathsIn.clone(), (std::sync::Arc::new(firstInListIsEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<i32>>, i32) -> Result<bool> + 'static>), lastNode.clone());
+                    paths2 = List::filter1OnTrue(pathsIn.clone(), (std::sync::Arc::new(lastInListIsEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<i32>>, i32) -> Result<bool> + 'static>), lastNode.clone());
                     allPaths = listAppend(paths1.clone(), paths2.clone());
                     let false = (allPaths.clone().is_empty()) else { bail!("pattern mismatch") };
                     path = listHead(allPaths.clone())?;
                     endNode = if (!(allPaths.clone().is_empty())) {List::last(path.clone())?} else {-1};
                     endNode = if (!(paths2.clone().is_empty())) {listHead(path.clone())?} else {-1};
-                    (rest, _) = List::deleteMemberOnTrue(path.clone(), pathsIn.clone(), Arc::new({ let __pe_b2: Arc<dyn ::std::ops::Fn(_, _) -> Result<bool> + 'static> = Arc::new(fnptr!(intEq, i32, i32)); move |__pe_a0, __pe_a1| Ok(List::isEqualOnTrue(__pe_a0, __pe_a1, __pe_b2.clone())) }))?;
+                    (rest, _) = List::deleteMemberOnTrue(path.clone(), pathsIn.clone(), Arc::new({ let __pe_b2: Arc<dyn ::std::ops::Fn(_, _) -> Result<bool> + 'static> = (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>); move |__pe_a0, __pe_a1| Ok(List::isEqualOnTrue(__pe_a0, __pe_a1, __pe_b2.clone())) }))?;
                     sortedPaths = listAppend(sortedPathsIn.clone(), list![path.clone()]);
                     sortedPaths = sortPathsAsChain1(rest.clone(), firstNode.clone(), endNode.clone(), sortedPaths.clone())?;
                     Ok(sortedPaths.clone())
@@ -2125,14 +2126,14 @@ fn sortPathsAsChain1(mut pathsIn: Arc<metamodelica::List<Arc<metamodelica::List<
                     let mut paths2: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>> = metamodelica::nil();
                     let mut allPaths: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>> = metamodelica::nil();
                     let mut sortedPaths: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>> = metamodelica::nil();
-                    paths1 = List::filter1OnTrue(pathsIn.clone(), Arc::new(firstInListIsEqual), firstNode.clone());
-                    paths2 = List::filter1OnTrue(pathsIn.clone(), Arc::new(lastInListIsEqual), firstNode.clone());
+                    paths1 = List::filter1OnTrue(pathsIn.clone(), (std::sync::Arc::new(firstInListIsEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<i32>>, i32) -> Result<bool> + 'static>), firstNode.clone());
+                    paths2 = List::filter1OnTrue(pathsIn.clone(), (std::sync::Arc::new(lastInListIsEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<i32>>, i32) -> Result<bool> + 'static>), firstNode.clone());
                     allPaths = listAppend(paths1.clone(), paths2.clone());
                     let false = (allPaths.clone().is_empty()) else { bail!("pattern mismatch") };
                     path = listHead(allPaths.clone())?;
                     startNode = if (!(allPaths.clone().is_empty())) {List::last(path.clone())?} else {-1};
                     startNode = if (!(paths2.clone().is_empty())) {listHead(path.clone())?} else {-1};
-                    (rest, _) = List::deleteMemberOnTrue(path.clone(), pathsIn.clone(), Arc::new({ let __pe_b2: Arc<dyn ::std::ops::Fn(_, _) -> Result<bool> + 'static> = Arc::new(fnptr!(intEq, i32, i32)); move |__pe_a0, __pe_a1| Ok(List::isEqualOnTrue(__pe_a0, __pe_a1, __pe_b2.clone())) }))?;
+                    (rest, _) = List::deleteMemberOnTrue(path.clone(), pathsIn.clone(), Arc::new({ let __pe_b2: Arc<dyn ::std::ops::Fn(_, _) -> Result<bool> + 'static> = (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>); move |__pe_a0, __pe_a1| Ok(List::isEqualOnTrue(__pe_a0, __pe_a1, __pe_b2.clone())) }))?;
                     sortedPaths = cons(path.clone(), sortedPathsIn.clone());
                     sortedPaths = sortPathsAsChain1(rest.clone(), startNode.clone(), lastNode.clone(), sortedPaths.clone())?;
                     Ok(sortedPaths.clone())
@@ -2243,10 +2244,10 @@ fn connect2PathsToLoops(mut pathsIn: Arc<metamodelica::List<Arc<metamodelica::Li
                     let mut restPaths: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>> = metamodelica::nil();
                     startNode = listHead(path.clone())?;
                     endNode = List::last(path.clone())?;
-                    startPaths = List::filter1OnTrue(rest.clone(), Arc::new(firstInListIsEqual), startNode.clone());
-                    startPaths = List::filter1OnTrue(startPaths.clone(), Arc::new(lastInListIsEqual), endNode.clone());
-                    endPaths = List::filter1OnTrue(rest.clone(), Arc::new(firstInListIsEqual), endNode.clone());
-                    endPaths = List::filter1OnTrue(endPaths.clone(), Arc::new(lastInListIsEqual), startNode.clone());
+                    startPaths = List::filter1OnTrue(rest.clone(), (std::sync::Arc::new(firstInListIsEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<i32>>, i32) -> Result<bool> + 'static>), startNode.clone());
+                    startPaths = List::filter1OnTrue(startPaths.clone(), (std::sync::Arc::new(lastInListIsEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<i32>>, i32) -> Result<bool> + 'static>), endNode.clone());
+                    endPaths = List::filter1OnTrue(rest.clone(), (std::sync::Arc::new(firstInListIsEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<i32>>, i32) -> Result<bool> + 'static>), endNode.clone());
+                    endPaths = List::filter1OnTrue(endPaths.clone(), (std::sync::Arc::new(lastInListIsEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<i32>>, i32) -> Result<bool> + 'static>), startNode.clone());
                     endPaths = listAppend(startPaths.clone(), endPaths.clone());
                     closedALoop = !(endPaths.clone().is_empty());
                     newLoops = if (closedALoop.clone()) {connectPaths(path.clone(), endPaths.clone())?} else {metamodelica::nil()};
@@ -2292,7 +2293,7 @@ pub fn reshuffling_post(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result<Arc<Ba
     let mut outDAE: Arc<BackendDAE::BackendDAE>;
     let mut eqSystems: Arc<metamodelica::List<Arc<BackendDAE::EqSystem>>> = metamodelica::nil();
     if Flags::isSet(Flags::RESHUFFLE_POST.clone())? {
-        eqSystems = List::map1(inDAE.eqs.clone(), Arc::new(reshuffling_post0), inDAE.shared.clone());
+        eqSystems = List::map1(inDAE.eqs.clone(), (std::sync::Arc::new(reshuffling_post0) as std::sync::Arc<dyn ::std::ops::Fn(Arc<BackendDAE::EqSystem>, Arc<BackendDAE::Shared>) -> Result<Arc<BackendDAE::EqSystem>> + 'static>), inDAE.shared.clone());
         outDAE = BackendDAE::DAE(eqSystems.clone(), inDAE.shared.clone())?;
     } else {
         outDAE = inDAE.clone();
@@ -2310,7 +2311,7 @@ fn reshuffling_post0(mut isyst: Arc<BackendDAE::EqSystem>, mut shared: Arc<Backe
         _ => bail!("pattern mismatch"),
     } };
     comps = __pa0.clone();
-    osyst = List::fold1(comps.clone(), Arc::new(reshuffling_post1), shared.clone(), isyst.clone());
+    osyst = List::fold1(comps.clone(), (std::sync::Arc::new(reshuffling_post1) as std::sync::Arc<dyn ::std::ops::Fn(Arc<BackendDAE::StrongComponent>, Arc<BackendDAE::Shared>, Arc<BackendDAE::EqSystem>) -> Result<Arc<BackendDAE::EqSystem>> + 'static>), shared.clone(), isyst.clone());
     Ok(osyst)
 }
 
@@ -2350,10 +2351,10 @@ fn reshuffling_post3_selectShuffleEqs(mut me: metamodelica::Array<Arc<metamodeli
             let mut bArr: metamodelica::Array<bool>;
             let mut suitableEqs: Arc<metamodelica::List<i32>> = metamodelica::nil();
             let mut eqPairs: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>> = metamodelica::nil();
-            bArr = Array::map1(me.clone(), Arc::new(fnptr!(chooseEquation, Arc<metamodelica::List<(i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)>>, metamodelica::Array<Arc<metamodelica::List<(i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)>>>)), meT.clone())?;
-            (_, suitableEqs) = List::filter1OnTrueSync(Arc::new(bArr.clone().borrow().iter().cloned().collect::<metamodelica::List<_>>()), Arc::new(fnptr!(boolEq, bool, bool)), true, List::intRange((me.clone().borrow().len() as i32)))?;
-            eqPairs = List::map2(suitableEqs.clone(), Arc::new(getEqPairs), me.clone(), meT.clone());
-            eqPairs = List::filterOnTrue(eqPairs.clone(), Arc::new(fnptr!(List::hasSeveralElements, _)));
+            bArr = Array::map1(me.clone(), (std::sync::Arc::new(fnptr!(chooseEquation, Arc<metamodelica::List<(i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)>>, metamodelica::Array<Arc<metamodelica::List<(i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)>>>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<(i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)>>, metamodelica::Array<Arc<metamodelica::List<(i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)>>>) -> Result<bool> + 'static>), meT.clone())?;
+            (_, suitableEqs) = List::filter1OnTrueSync(Arc::new(bArr.clone().borrow().iter().cloned().collect::<metamodelica::List<_>>()), (std::sync::Arc::new(fnptr!(boolEq, bool, bool)) as std::sync::Arc<dyn ::std::ops::Fn(bool, bool) -> Result<bool> + 'static>), true, List::intRange((me.clone().borrow().len() as i32)))?;
+            eqPairs = List::map2(suitableEqs.clone(), (std::sync::Arc::new(getEqPairs) as std::sync::Arc<dyn ::std::ops::Fn(i32, metamodelica::Array<Arc<metamodelica::List<(i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)>>>, metamodelica::Array<Arc<metamodelica::List<(i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)>>>) -> Result<Arc<metamodelica::List<i32>>> + 'static>), me.clone(), meT.clone());
+            eqPairs = List::filterOnTrue(eqPairs.clone(), std::sync::Arc::new(fnptr!(List::hasSeveralElements, _)));
             Ok(eqPairs.clone())
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
@@ -2389,8 +2390,8 @@ fn reshuffling_post4_resolveAndReplace(mut resolveEqLst: Arc<metamodelica::List<
                     let mut unassEqs: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
                     let mut resolvedEq: Arc<BackendDAE::Equation> = Arc::new(BackendDAE::Equation::DUMMY_EQUATION);
                     resolvedEq = resolveEquations(None, resolveEqs.clone(), me.clone(), meT.clone(), unassEqsIn.clone(), unassVarsIn.clone())?;
-                    numOfAdjVars = List::map(List::map1(resolveEqs.clone(), Arc::new(fnptr!(Array::getIndexFirst, i32, _)), me.clone()), Arc::new(fnptr!(listLength, _)));
-                    maxNum = List::fold(numOfAdjVars.clone(), Arc::new(fnptr!(intMax, i32, i32)), listHead(numOfAdjVars.clone())?);
+                    numOfAdjVars = List::map(List::map1(resolveEqs.clone(), std::sync::Arc::new(fnptr!(Array::getIndexFirst, i32, _)), me.clone()), std::sync::Arc::new(fnptr!(listLength, _)));
+                    maxNum = List::fold(numOfAdjVars.clone(), (std::sync::Arc::new(fnptr!(intMax, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<i32> + 'static>), listHead(numOfAdjVars.clone())?);
                     replEqIdx = (resolveEqs.clone()).get(List::position(maxNum.clone(), numOfAdjVars.clone())?)?;
                     unassEqs = List::replaceAt(resolvedEq.clone(), replEqIdx.clone(), unassEqsIn.clone())?;
                     Ok(reshuffling_post4_resolveAndReplace(rest.clone(), unassEqs.clone(), unassVarsIn.clone(), me.clone(), meT.clone())?)
@@ -2416,8 +2417,8 @@ fn getEqPairs(mut eq: i32, mut me: metamodelica::Array<Arc<metamodelica::List<(i
     let mut lstOut: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut vars: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut eqs: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    vars = List::map(me.clone().borrow()[(eq.clone()-1) as usize].clone(), Arc::new(fnptr!(Util::tuple31, _)));
-    eqs = List::map(List::flatten(List::map1(vars.clone(), Arc::new(fnptr!(Array::getIndexFirst, i32, _)), meT.clone())), Arc::new(fnptr!(Util::tuple31, _)));
+    vars = List::map(me.clone().borrow()[(eq.clone()-1) as usize].clone(), std::sync::Arc::new(fnptr!(Util::tuple31, _)));
+    eqs = List::map(List::flatten(List::map1(vars.clone(), std::sync::Arc::new(fnptr!(Array::getIndexFirst, i32, _)), meT.clone())), std::sync::Arc::new(fnptr!(Util::tuple31, _)));
     eqs = getDoublicates(eqs.clone())?;
     lstOut = List::consOnTrue(!(listMember(eq.clone(), eqs.clone())), eq.clone(), eqs.clone());
     Ok(lstOut)
@@ -2432,15 +2433,15 @@ fn chooseEquation(mut row: Arc<metamodelica::List<(i32, BackendDAE::Solvability,
     let mut eqs: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut numEqs: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut eqLst: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>> = metamodelica::nil();
-    vars = List::map(row.clone(), Arc::new(fnptr!(Util::tuple31, _)));
+    vars = List::map(row.clone(), std::sync::Arc::new(fnptr!(Util::tuple31, _)));
     b1 = intEq((row.clone().len() as i32), 2);
-    eqLst = List::mapList(List::map1(vars.clone(), Arc::new(fnptr!(Array::getIndexFirst, i32, _)), meT.clone()), Arc::new(fnptr!(Util::tuple31, _)));
-    numEqs = List::map(eqLst.clone(), Arc::new(fnptr!(listLength, _)));
-    b3 = List::applyAndFold1(numEqs.clone(), Arc::new(fnptr!(boolOr, bool, bool)), Arc::new(fnptr!(intEq, i32, i32)), 2, false);
+    eqLst = List::mapList(List::map1(vars.clone(), std::sync::Arc::new(fnptr!(Array::getIndexFirst, i32, _)), meT.clone()), std::sync::Arc::new(fnptr!(Util::tuple31, _)));
+    numEqs = List::map(eqLst.clone(), std::sync::Arc::new(fnptr!(listLength, _)));
+    b3 = List::applyAndFold1(numEqs.clone(), (std::sync::Arc::new(fnptr!(boolOr, bool, bool)) as std::sync::Arc<dyn ::std::ops::Fn(bool, bool) -> Result<bool> + 'static>), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>), 2, false);
     eqs = List::flatten(eqLst.clone());
     b2 = intEq((eqs.clone().len() as i32), (List::unique(eqs.clone()).len() as i32) + 2);
     b1 = b1.clone() && b2.clone() && b3.clone();
-    chooseThis = b1.clone() && List::applyAndFold(row.clone(), Arc::new(fnptr!(boolAnd, bool, bool)), Arc::new(isSolvable), true);
+    chooseThis = b1.clone() && List::applyAndFold(row.clone(), (std::sync::Arc::new(fnptr!(boolAnd, bool, bool)) as std::sync::Arc<dyn ::std::ops::Fn(bool, bool) -> Result<bool> + 'static>), (std::sync::Arc::new(isSolvable) as std::sync::Arc<dyn ::std::ops::Fn((i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)) -> Result<bool> + 'static>), true);
     chooseThis
 }
 
@@ -2448,10 +2449,10 @@ fn getDoublicates(mut lstIn: Arc<metamodelica::List<i32>>) -> Result<Arc<metamod
     let mut lstOut: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut max: i32 = 0;
     let mut arr: metamodelica::Array<i32>;
-    max = List::fold(lstIn.clone(), Arc::new(fnptr!(intMax, i32, i32)), listHead(lstIn.clone())?);
+    max = List::fold(lstIn.clone(), (std::sync::Arc::new(fnptr!(intMax, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<i32> + 'static>), listHead(lstIn.clone())?);
     arr = arrayCreate(max.clone(), -1);
-    List::map1_0(lstIn.clone(), Arc::new(getDoublicates2), arr.clone());
-    (_, lstOut) = List::filter1OnTrueSync(Arc::new(arr.clone().borrow().iter().cloned().collect::<metamodelica::List<_>>()), Arc::new(fnptr!(intGe, i32, i32)), 1, List::intRange((arr.clone().borrow().len() as i32)))?;
+    List::map1_0(lstIn.clone(), (std::sync::Arc::new(getDoublicates2) as std::sync::Arc<dyn ::std::ops::Fn(i32, metamodelica::Array<i32>) -> Result<()> + 'static>), arr.clone());
+    (_, lstOut) = List::filter1OnTrueSync(Arc::new(arr.clone().borrow().iter().cloned().collect::<metamodelica::List<_>>()), (std::sync::Arc::new(fnptr!(intGe, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>), 1, List::intRange((arr.clone().borrow().len() as i32)))?;
     Ok(lstOut)
 }
 
@@ -2500,7 +2501,7 @@ pub fn resolveEquations(mut eq: Option<Arc<BackendDAE::Equation>>, mut loopIn: A
                     let mut rhs2: Arc<DAE::Exp>;
                     let mut varExp: Arc<DAE::Exp>;
                     let mut eqExp: Arc<DAE::Exp>;
-                    let mut source: Arc<DAE::ElementSource>;
+                    let mut source: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
                     let mut rest = (*rest).clone();
                     let (__pa0, __pa1) = ::match_deref::match_deref! { match &(rest.clone()) {
                         Deref @ metamodelica::List::Cons { head: __pa0, tail: __pa1 } => (__pa0.clone(), __pa1.clone()),
@@ -2508,11 +2509,11 @@ pub fn resolveEquations(mut eq: Option<Arc<BackendDAE::Equation>>, mut loopIn: A
                     } };
                     nextEq = __pa0.clone();
                     rest = __pa1.clone();
-                    vars1 = List::map(me.clone().borrow()[(startEq.clone()-1) as usize].clone(), Arc::new(fnptr!(Util::tuple31, _)));
-                    vars2 = List::map(me.clone().borrow()[(nextEq.clone()-1) as usize].clone(), Arc::new(fnptr!(Util::tuple31, _)));
-                    vars1 = List::intersectionOnTrue(vars1.clone(), vars2.clone(), Arc::new(fnptr!(intEq, i32, i32)));
-                    numEqs = List::map(List::map1(vars1.clone(), Arc::new(fnptr!(Array::getIndexFirst, i32, _)), meT.clone()), Arc::new(fnptr!(listLength, _)));
-                    (_, vars1) = List::filter1OnTrueSync(numEqs.clone(), Arc::new(fnptr!(intEq, i32, i32)), 2, vars1.clone())?;
+                    vars1 = List::map(me.clone().borrow()[(startEq.clone()-1) as usize].clone(), std::sync::Arc::new(fnptr!(Util::tuple31, _)));
+                    vars2 = List::map(me.clone().borrow()[(nextEq.clone()-1) as usize].clone(), std::sync::Arc::new(fnptr!(Util::tuple31, _)));
+                    vars1 = List::intersectionOnTrue(vars1.clone(), vars2.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>));
+                    numEqs = List::map(List::map1(vars1.clone(), std::sync::Arc::new(fnptr!(Array::getIndexFirst, i32, _)), meT.clone()), std::sync::Arc::new(fnptr!(listLength, _)));
+                    (_, vars1) = List::filter1OnTrueSync(numEqs.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>), 2, vars1.clone())?;
                     sharedVar = listHead(vars1.clone())?;
                     eq1 = (eqsIn.clone()).get(startEq.clone())?;
                     eq2 = (eqsIn.clone()).get(nextEq.clone())?;
@@ -2567,7 +2568,7 @@ pub fn solveLinearSystem(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result<Arc<B
     let mut maxSize: i32 = Flags::getConfigInt(Flags::MAX_SIZE_FOR_SOLVE_LINIEAR_SYSTEM.clone())?;
     let mut b: bool = 1 < maxSize.clone();
     if b.clone() {
-        (outDAE, _) = BackendDAEUtil::mapEqSystemAndFold(inDAE.clone(), Arc::new(solveLinearSystem0), (false, 1, maxSize.clone()))?;
+        (outDAE, _) = BackendDAEUtil::mapEqSystemAndFold(inDAE.clone(), (std::sync::Arc::new(solveLinearSystem0) as std::sync::Arc<dyn ::std::ops::Fn(Arc<BackendDAE::EqSystem>, Arc<BackendDAE::Shared>, (bool, i32, i32)) -> Result<(Arc<BackendDAE::EqSystem>, Arc<BackendDAE::Shared>, (bool, i32, i32))> + 'static>), (false, 1, maxSize.clone()))?;
     } else {
         outDAE = inDAE.clone();
     }
@@ -2609,7 +2610,7 @@ fn solveLinearSystem1(mut isyst: Arc<BackendDAE::EqSystem>, mut ishared: Arc<Bac
         syst @ Deref @ BackendDAE::EqSystem { orderedEqs: eqns, orderedVars: vars, .. } => {
             let mut syst = (*syst).clone();
             let mut eqns = (*eqns).clone();
-            eqns = List::fold(ii.clone(), Arc::new(BackendEquation::delete), eqns.clone());
+            eqns = List::fold(ii.clone(), (std::sync::Arc::new(BackendEquation::delete) as std::sync::Arc<dyn ::std::ops::Fn(i32, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>) -> Result<Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>> + 'static>), eqns.clone());
             assign_field!(
                 syst.orderedVars = BackendVariable::listVar1(BackendVariable::varList(vars.clone())?),
                 syst.orderedEqs = BackendEquation::listEquation(BackendEquation::equationList(eqns.clone()))?
@@ -2639,9 +2640,9 @@ fn solveLinearSystem2(mut isyst: Arc<BackendDAE::EqSystem>, mut ishared: Arc<Bac
                     let mut syst = (*syst).clone();
                     let mut shared = (*shared).clone();
                     eqn_lst = BackendEquation::getList(eindex.clone(), eqns.clone());
-                    var_lst = List::map1r(vindx.clone(), Arc::new(BackendVariable::getVarAt), vars.clone());
+                    var_lst = List::map1r(vindx.clone(), (std::sync::Arc::new(BackendVariable::getVarAt) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Variables, i32) -> Result<BackendDAE::Var> + 'static>), vars.clone());
                     let true = ((var_lst.clone().len() as i32) <= maxSize.clone()) else { bail!("pattern mismatch") };
-                    ::match_deref::match_deref! { match &(List::splitOnTrue(var_lst.clone(), Arc::new(fnptr!(BackendVariable::isStateVar, BackendDAE::Var)))) {
+                    ::match_deref::match_deref! { match &(List::splitOnTrue(var_lst.clone(), (std::sync::Arc::new(fnptr!(BackendVariable::isStateVar, BackendDAE::Var)) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var) -> Result<bool> + 'static>))) {
                         (Deref @ metamodelica::List::Nil, _) => (),
                         _ => bail!("pattern mismatch"),
                     } };
@@ -2680,7 +2681,7 @@ fn solveLinearSystem3(mut inSyst: Arc<BackendDAE::EqSystem>, mut ishared: Arc<Ba
             (beqs, _) = BackendDAEUtil::getEqnSysRhs(BackendEquation::listEquation(eqn_lst.clone())?, BackendVariable::listVar1(var_lst.clone()), Some(funcs.clone()))?;
             beqs = beqs.clone().reverse();
             n = (beqs.clone().len() as i32);
-            names = List::map(var_lst.clone(), Arc::new(BackendVariable::varCref));
+            names = List::map(var_lst.clone(), (std::sync::Arc::new(BackendVariable::varCref) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var) -> Result<Arc<DAE::ComponentRef>> + 'static>));
             (eqns, vars, n, shared) = solveLinearSystem4(beqs.clone(), jac.clone(), names.clone(), var_lst.clone(), n.clone(), eqns.clone(), vars.clone(), offset.clone(), shared.clone())?;
             assign_field!(
                 syst.orderedVars = vars.clone(),
@@ -2712,7 +2713,7 @@ fn solveLinearSystem4(mut b_lst: Arc<metamodelica::List<Arc<DAE::Exp>>>, mut jac
     let mut ii: i32 = 0;
     let mut jj: i32 = 0;
     let mut mm: i32 = 0;
-    let mut x_lst: Arc<metamodelica::List<Arc<DAE::Exp>>> = List::map(cr_x.clone(), Arc::new(Expression::crefExp));
+    let mut x_lst: Arc<metamodelica::List<Arc<DAE::Exp>>> = List::map(cr_x.clone(), (std::sync::Arc::new(Expression::crefExp) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<Arc<DAE::Exp>> + 'static>));
     let mut cr: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
     let mut X: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = cr_x.clone();
     let mut detA: Arc<DAE::Exp>;
@@ -2799,7 +2800,7 @@ fn solveLinearSystem4(mut b_lst: Arc<metamodelica::List<Arc<DAE::Exp>>>, mut jac
         }
         __acc.reverse()
     }, false)?;
-        eqn = Arc::new(BackendDAE::Equation::EQUATION { exp: a.clone(), scalar: Qb.clone().borrow()[(i.clone()-1) as usize].clone(), source: DAE::emptyElementSource.clone(), attr: BackendDAE::EQ_ATTR_DEFAULT_UNKNOWN.clone() });
+        eqn = Arc::new(BackendDAE::Equation::EQUATION { exp: a.clone(), scalar: Qb.clone().borrow()[(i.clone()-1) as usize].clone(), source: DAE::emptyElementSource().clone(), attr: BackendDAE::EQ_ATTR_DEFAULT_UNKNOWN.clone() });
         eqn = BackendEquation::solveEquation(eqn.clone(), scaled_x.clone().borrow()[(i.clone()-1) as usize].clone(), None)?;
         oeqns = BackendEquation::add(eqn.clone(), oeqns.clone())?;
     }
@@ -2903,7 +2904,7 @@ fn qrCalc_alpha(mut y: metamodelica::Array<Arc<DAE::Exp>>, mut y1: Arc<DAE::Exp>
         }
         __acc.reverse()
     }, false)?;
-    norm_y = Expression::makePureBuiltinCall((literal!("sqrt")).clone(), list![norm_y.clone()], DAE::T_REAL_DEFAULT.clone());
+    norm_y = Expression::makePureBuiltinCall((literal!("sqrt")).clone(), list![norm_y.clone()], DAE::T_REAL_DEFAULT().clone());
     alpha = Expression::expMul(sgn_y1.clone(), norm_y.clone())?;
     Ok(alpha)
 }
@@ -3011,7 +3012,7 @@ fn gramSchmidtProcessHelper(mut w: metamodelica::Array<Arc<DAE::Exp>>, mut u: me
     let mut h: Arc<DAE::Exp> = Expression::makeScalarProduct(w.clone(), u.clone())?;
     let mut n: i32 = (w.clone().borrow().len() as i32);
     (h, oeqns, ovars, oshared, _, _) = BackendEquation::makeTmpEqnForExp(h.clone(), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*name.clone()); __mm_s.push_str(&*literal!("_h")); ArcStr::from(__mm_s) }).clone(), offset.clone(), ieqns.clone(), ivars.clone(), ishared.clone(), false)?;
-    v = Array::map1(u.clone(), Arc::new(Expression::expMul), h.clone())?;
+    v = Array::map1(u.clone(), (std::sync::Arc::new(Expression::expMul) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, Arc<DAE::Exp>) -> Result<Arc<DAE::Exp>> + 'static>), h.clone())?;
     v = Expression::subVec(w.clone(), v.clone())?;
     for mut i in 1..=n.clone() {
         (h, oeqns, ovars, oshared, _, _) = BackendEquation::makeTmpEqnForExp(v.clone().borrow()[(i.clone()-1) as usize].clone(), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*name.clone()); __mm_s.push_str(&*literal!("_")); __mm_s.push_str(&*intString(i.clone())); ArcStr::from(__mm_s) }).clone(), offset.clone(), oeqns.clone(), ovars.clone(), oshared.clone(), false)?;

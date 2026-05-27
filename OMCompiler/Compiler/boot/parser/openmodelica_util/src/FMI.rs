@@ -344,7 +344,7 @@ pub fn getEnumerationTypeFromTypes(mut inTypeDefinitionsList: Arc<metamodelica::
 
 pub fn filterModelVariables(mut inModelVariables: Arc<metamodelica::List<ModelVariables>>, mut tipe: ArcStr, mut variableCausality: ArcStr) -> Arc<metamodelica::List<ModelVariables>> {
     let mut outModelVariables: Arc<metamodelica::List<ModelVariables>> = metamodelica::nil();
-    outModelVariables = List::filter2OnTrue(inModelVariables.clone(), Arc::new(fnptr!(filterModelVariable, ModelVariables, ArcStr, ArcStr)), (tipe.clone()).clone(), (variableCausality.clone()).clone());
+    outModelVariables = List::filter2OnTrue(inModelVariables.clone(), (std::sync::Arc::new(fnptr!(filterModelVariable, ModelVariables, ArcStr, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ModelVariables, ArcStr, ArcStr) -> Result<bool> + 'static>), (tipe.clone()).clone(), (variableCausality.clone()).clone());
     outModelVariables
 }
 

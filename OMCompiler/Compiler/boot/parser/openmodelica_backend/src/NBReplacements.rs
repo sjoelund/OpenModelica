@@ -116,7 +116,7 @@ pub fn addSimple(mut comp: Arc<StrongComponent::NBStrongComponent>, mut replacem
             let mut status: Solve::Status = Solve::Status::UNPROCESSED;
             let mut replace_exp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             varName = BVariable::getVarName(var_field!((*comp).var, StrongComponent::NBStrongComponent::SINGLE_COMPONENT).clone());
-            (solvedEq, status, _) = Solve::solveBody(Pointer::access(var_field!((*comp).eqn, StrongComponent::NBStrongComponent::SINGLE_COMPONENT).clone()), varName.clone(), UnorderedMap::new(AbsynUtil::pathHash, fnptr!(AbsynUtil::pathEqual, Arc<Absyn::Path>, Arc<Absyn::Path>), 1))?;
+            (solvedEq, status, _) = Solve::solveBody(Pointer::access(var_field!((*comp).eqn, StrongComponent::NBStrongComponent::SINGLE_COMPONENT).clone()), varName.clone(), UnorderedMap::new((std::sync::Arc::new(AbsynUtil::pathHash) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Path>) -> Result<i32> + 'static>), (std::sync::Arc::new(fnptr!(AbsynUtil::pathEqual, Arc<Absyn::Path>, Arc<Absyn::Path>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Path>, Arc<Absyn::Path>) -> Result<bool> + 'static>), 1))?;
             if status.clone() == Solve::Status::EXPLICIT.clone() {
                 let __pa0 = ::match_deref::match_deref! { match &(Equation::getRHS(solvedEq.clone())?) {
                     Some(__pa0) => __pa0.clone(),
@@ -138,7 +138,7 @@ pub fn addSimple(mut comp: Arc<StrongComponent::NBStrongComponent>, mut replacem
             let mut status: Solve::Status = Solve::Status::UNPROCESSED;
             let mut replace_exp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             varName = BVariable::getVarName(Slice::getT(var_field!((*comp).var, StrongComponent::NBStrongComponent::SLICED_COMPONENT).clone()));
-            (solvedEq, status, _) = Solve::solveBody(Pointer::access(Slice::getT(var_field!((*comp).eqn, StrongComponent::NBStrongComponent::SLICED_COMPONENT).clone())), varName.clone(), UnorderedMap::new(AbsynUtil::pathHash, fnptr!(AbsynUtil::pathEqual, Arc<Absyn::Path>, Arc<Absyn::Path>), 1))?;
+            (solvedEq, status, _) = Solve::solveBody(Pointer::access(Slice::getT(var_field!((*comp).eqn, StrongComponent::NBStrongComponent::SLICED_COMPONENT).clone())), varName.clone(), UnorderedMap::new((std::sync::Arc::new(AbsynUtil::pathHash) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Path>) -> Result<i32> + 'static>), (std::sync::Arc::new(fnptr!(AbsynUtil::pathEqual, Arc<Absyn::Path>, Arc<Absyn::Path>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Path>, Arc<Absyn::Path>) -> Result<bool> + 'static>), 1))?;
             if status.clone() == Solve::Status::EXPLICIT.clone() {
                 let __pa0 = ::match_deref::match_deref! { match &(Equation::getRHS(solvedEq.clone())?) {
                     Some(__pa0) => __pa0.clone(),
@@ -170,11 +170,11 @@ pub fn applySimple(mut eqData: Arc<EqData::EqData>, mut varData: Arc<VarData::Va
     let mut aliasCref: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
     let mut replacement: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut var_ptr: Pointer::Pointer<Arc<Variable::NFVariable>>;
-    let mut var: Arc<Variable::NFVariable>;
+    let mut var: Arc<Variable::NFVariable> = Arc::new(<Variable::NFVariable as ::std::default::Default>::default());
     if UnorderedMap::isEmpty(replacements.clone()) {
         return Ok((eqData, varData));
     }
-    eqData = EqData::mapExp(eqData.clone(), { let __pe_b1 = replacements.clone(); move |__pe_a0| applySimpleExp(__pe_a0, __pe_b1.clone()) })?;
+    eqData = EqData::mapExp(eqData.clone(), Arc::new({ let __pe_b1 = replacements.clone(); move |__pe_a0| applySimpleExp(__pe_a0, __pe_b1.clone()) }))?;
     varData = (::match_deref::match_deref! { match &(varData.clone()) {
         Deref @ BVariable::VarData::VAR_DATA_SIM { .. } => {
             assign_variant_field!(varData => VarData::VarData::VAR_DATA_SIM;
@@ -289,11 +289,11 @@ pub fn simpleToString(mut replacements: Arc<UnorderedMap::UnorderedMap<Arc<Compo
 
 pub fn replaceFunctions(mut eqData: Arc<EqData::EqData>, mut variables: Arc<VariablePointers::VariablePointers>, mut replacements: Arc<UnorderedMap::UnorderedMap<Arc<Absyn::Path>, Arc<Function::Function>>>) -> Result<Arc<EqData::EqData>> {
     let mut eqData: Arc<EqData::EqData> = eqData;
-    let mut prev_replacements: Arc<UnorderedMap::UnorderedMap<Arc<Expression::NFExpression>, Arc<Expression::NFExpression>>> = UnorderedMap::new(fnptr!(Expression::hash, Arc<Expression::NFExpression>), Expression::isEqual, 1);
+    let mut prev_replacements: Arc<UnorderedMap::UnorderedMap<Arc<Expression::NFExpression>, Arc<Expression::NFExpression>>> = UnorderedMap::new((std::sync::Arc::new(fnptr!(Expression::hash, Arc<Expression::NFExpression>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<i32> + 'static>), (std::sync::Arc::new(Expression::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, Arc<Expression::NFExpression>) -> Result<bool> + 'static>), 1);
     if UnorderedMap::isEmpty(replacements.clone()) {
         return Ok(eqData);
     }
-    eqData = EqData::mapExp(eqData.clone(), { let __pe_b1 = replacements.clone(); let __pe_b2 = prev_replacements.clone(); let __pe_b3 = variables.clone(); move |__pe_a0| applyFuncExp(__pe_a0, __pe_b1.clone(), __pe_b2.clone(), __pe_b3.clone()) })?;
+    eqData = EqData::mapExp(eqData.clone(), Arc::new({ let __pe_b1 = replacements.clone(); let __pe_b2 = prev_replacements.clone(); let __pe_b3 = variables.clone(); move |__pe_a0| applyFuncExp(__pe_a0, __pe_b1.clone(), __pe_b2.clone(), __pe_b3.clone()) }))?;
     Ok(eqData)
 }
 
@@ -308,11 +308,12 @@ pub fn applyFuncExp(mut exp: Arc<Expression::NFExpression>, mut replacements: Ar
             let mut binding_exp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut body_exp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut res_exp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
+            let mut r#fn = (*r#fn).clone();
             res_exp = (::match_deref::match_deref! { match &(UnorderedMap::get(exp.clone(), prev_replacements.clone())) {
         Some(res_exp) => res_exp.clone(),
         _ => {
             r#fn = UnorderedMap::getOrFail(r#fn.path.clone(), replacements.clone());
-            local_replacements = UnorderedMap::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>), ComponentRef::isEqual, 1);
+            local_replacements = UnorderedMap::new((std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), 1);
             input_crefs = {
         let mut __acc: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = metamodelica::nil();
         for mut node in (r#fn.inputs.clone()).into_iter().cloned() {
@@ -338,14 +339,14 @@ pub fn applyFuncExp(mut exp: Arc<Expression::NFExpression>, mut replacements: Ar
             }
             body_exp = Function::getSingleBodyExp(r#fn.clone())?;
             body_exp = Expression::map(body_exp.clone(), Arc::new({ let __pe_b1 = local_replacements.clone(); move |__pe_a0| applySimpleExp(__pe_a0, __pe_b1.clone()) }))?;
-            if !(List::all(input_crefs.clone(), Arc::new(fnptr!(ComponentRef::sizeKnown, Arc<ComponentRef::NFComponentRef>)))) {
+            if !(List::all(input_crefs.clone(), (std::sync::Arc::new(fnptr!(ComponentRef::sizeKnown, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>))) {
                 (body_exp, _, _, _) = Typing::typeExp(body_exp.clone(), InstContext::RHS.clone(), metamodelica::sourceInfo!(), true)?;
             }
             body_exp = SimplifyExp::combineBinaries(body_exp.clone())?;
             body_exp = SimplifyExp::simplifyDump(body_exp.clone(), true, (literal!("NBReplacements.applyFuncExp")).clone(), (literal!("")).clone())?;
             res_exp = Expression::map(body_exp.clone(), Arc::new({ let __pe_b1 = replacements.clone(); let __pe_b2 = prev_replacements.clone(); let __pe_b3 = variables.clone(); move |__pe_a0| applyFuncExp(__pe_a0, __pe_b1.clone(), __pe_b2.clone(), __pe_b3.clone()) }))?;
             if !(r#fn.attributes.generateEvents.clone()) {
-                res_exp = Expression::fakeMap(res_exp.clone(), Arc::new(wrapEvents));
+                res_exp = Expression::fakeMap(res_exp.clone(), (std::sync::Arc::new(wrapEvents) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>));
             }
             UnorderedMap::add(exp.clone(), res_exp.clone(), prev_replacements.clone())?;
             if Flags::isSet(Flags::DUMPBACKENDINLINE.clone())? {
@@ -373,7 +374,7 @@ pub fn addInputArgTpl(mut tpl: (Arc<ComponentRef::NFComponentRef>, Arc<Expressio
     let mut children: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = metamodelica::nil();
     let mut tmp: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = metamodelica::nil();
     let mut call: Arc<Call::NFCall>;
-    let mut r#fn: Arc<Function::Function>;
+    let mut r#fn: Arc<Function::Function> = Arc::new(<Function::Function as ::std::default::Default>::default());
     (cref, arg) = tpl.clone();
     UnorderedMap::add(cref.clone(), arg.clone(), replacements.clone())?;
     children = if (lowered_lhs.clone()) {BVariable::getRecordChildrenCref(cref.clone())?} else {ComponentRef::getRecordChildren(cref.clone())?};
@@ -425,15 +426,15 @@ pub fn wrapEvents(mut exp: Arc<Expression::NFExpression>) -> Result<Arc<Expressi
         _ => Arc::new(Expression::NFExpression::CALL { call: Call::makeTypedCall(NFBuiltinFuncs::NO_EVENT().clone(), list![var_field!((*exp).condition, Expression::NFExpression::IF).clone()], Expression::variability(var_field!((*exp).condition, Expression::NFExpression::IF).clone())?, NFPrefixes::Purity::PURE.clone(), NFBuiltinFuncs::NO_EVENT().returnType.clone()) }),
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
     } }),
-                trueBranch = Expression::mapShallow(var_field!((*exp).trueBranch, Expression::NFExpression::IF).clone(), Arc::new(wrapEvents))?,
-                falseBranch = Expression::mapShallow(var_field!((*exp).falseBranch, Expression::NFExpression::IF).clone(), Arc::new(wrapEvents))?
+                trueBranch = Expression::mapShallow(var_field!((*exp).trueBranch, Expression::NFExpression::IF).clone(), (std::sync::Arc::new(wrapEvents) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>))?,
+                falseBranch = Expression::mapShallow(var_field!((*exp).falseBranch, Expression::NFExpression::IF).clone(), (std::sync::Arc::new(wrapEvents) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>))?
             );
             exp.clone()
         },
         Deref @ Expression::RELATION { .. } => Arc::new(Expression::NFExpression::CALL { call: Call::makeTypedCall(NFBuiltinFuncs::NO_EVENT().clone(), list![exp.clone()], Expression::variability(exp.clone())?, NFPrefixes::Purity::PURE.clone(), NFBuiltinFuncs::NO_EVENT().returnType.clone()) }),
         Deref @ Expression::LBINARY { .. } => Arc::new(Expression::NFExpression::CALL { call: Call::makeTypedCall(NFBuiltinFuncs::NO_EVENT().clone(), list![exp.clone()], Expression::variability(exp.clone())?, NFPrefixes::Purity::PURE.clone(), NFBuiltinFuncs::NO_EVENT().returnType.clone()) }),
         Deref @ Expression::LUNARY { .. } => Arc::new(Expression::NFExpression::CALL { call: Call::makeTypedCall(NFBuiltinFuncs::NO_EVENT().clone(), list![exp.clone()], Expression::variability(exp.clone())?, NFPrefixes::Purity::PURE.clone(), NFBuiltinFuncs::NO_EVENT().returnType.clone()) }),
-        _ => Expression::mapShallow(exp.clone(), Arc::new(wrapEvents))?,
+        _ => Expression::mapShallow(exp.clone(), (std::sync::Arc::new(wrapEvents) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>))?,
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
     } });
     Ok(exp)

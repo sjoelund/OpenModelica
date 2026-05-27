@@ -80,6 +80,7 @@ use openmodelica_frontend_types::ClassInf;
 use openmodelica_frontend_types::DAE::Connect;
 use openmodelica_frontend_types::DAE;
 use openmodelica_frontend_types::SCode;
+use openmodelica_frontend_types::Values;
 use openmodelica_util::BaseHashSet;
 use openmodelica_util::Config;
 use openmodelica_util::Debug;
@@ -141,11 +142,11 @@ pub fn instVar(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inIH: Arc
                     let mut csets = (*csets).clone();
                     let true = (AbsynUtil::isOnlyInner(io.clone())) else { bail!("pattern mismatch") };
                     (cache, innerCompEnv, ih, store, dae, csets, ty, graph) = instVar_dispatch(cache.clone(), env.clone(), ih.clone(), store.clone(), ci_state.clone(), r#mod.clone(), pre.clone(), (n.clone()).clone(), cl.clone(), attr.clone(), pf.clone(), dims.clone(), idxs.clone(), inst_dims.clone(), r#impl.clone(), comment.clone(), info.clone(), graph.clone(), csets.clone())?;
-                    (cache, cref) = PrefixUtil::prefixCref(cache.clone(), env.clone(), ih.clone(), pre.clone(), ComponentReferenceBasics::makeCrefIdent((n.clone()).clone(), DAE::T_UNKNOWN_DEFAULT.clone(), metamodelica::nil()))?;
+                    (cache, cref) = PrefixUtil::prefixCref(cache.clone(), env.clone(), ih.clone(), pre.clone(), ComponentReferenceBasics::makeCrefIdent((n.clone()).clone(), DAE::T_UNKNOWN_DEFAULT().clone(), metamodelica::nil()))?;
                     fullName = (ComponentReferenceBasics::printComponentRefStr(cref.clone())?).clone();
                     (cache, typePath) = Inst::makeFullyQualifiedIdent(cache.clone(), env.clone(), (typeName.clone()).clone(), Arc::new(Absyn::Path::IDENT { name: (literal!("")).clone() }))?;
                     outerCompEnv = InnerOuter::switchInnerToOuterInGraph(innerCompEnv.clone(), cref.clone())?;
-                    outerDAE = DAE::emptyDae.clone();
+                    outerDAE = DAE::emptyDae().clone();
                     innerScope = (FGraph::printGraphPathStr(componentDefinitionParentEnv.clone())?).clone();
                     ih = InnerOuter::updateInstHierarchy(ih.clone(), pre.clone(), io.clone(), InnerOuter::InstInner { innerPrefix: pre.clone(), name: (n.clone()).clone(), io: io.clone(), fullName: (fullName.clone()).clone(), typePath: typePath.clone(), scope: (innerScope.clone()).clone(), instResult: Some(InnerOuter::InstResult { outCache: cache.clone(), outEnv: outerCompEnv.clone(), outStore: store.clone(), outDae: outerDAE.clone(), outSets: csets.clone(), outType: ty.clone(), outGraph: graph.clone() }), outers: metamodelica::nil(), innerElement: None })?;
                     Ok((cache.clone(), innerCompEnv.clone(), ih.clone(), store.clone(), dae.clone(), csets.clone(), ty.clone(), graph.clone()))
@@ -170,7 +171,7 @@ pub fn instVar(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inIH: Arc
                     let mut csets = (*csets).clone();
                     let true = (AbsynUtil::isOnlyOuter(io.clone())) else { bail!("pattern mismatch") };
                     let false = (Mod::modEqual(r#mod.clone(), Arc::new(openmodelica_frontend_types::DAE::Mod::NOMOD))?) else { bail!("pattern mismatch") };
-                    (cache, cref) = PrefixUtil::prefixCref(cache.clone(), env.clone(), ih.clone(), pre.clone(), ComponentReferenceBasics::makeCrefIdent((n.clone()).clone(), DAE::T_UNKNOWN_DEFAULT.clone(), metamodelica::nil()))?;
+                    (cache, cref) = PrefixUtil::prefixCref(cache.clone(), env.clone(), ih.clone(), pre.clone(), ComponentReferenceBasics::makeCrefIdent((n.clone()).clone(), DAE::T_UNKNOWN_DEFAULT().clone(), metamodelica::nil()))?;
                     s1 = (ComponentReferenceBasics::printComponentRefStr(cref.clone())?).clone();
                     s2 = (Mod::prettyPrintMod(r#mod.clone(), 0)?).clone();
                     s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*s1.clone()); __mm_s.push_str(&*literal!(" ")); __mm_s.push_str(&*s2.clone()); ArcStr::from(__mm_s) }).clone();
@@ -252,12 +253,12 @@ pub fn instVar(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inIH: Arc
                     graph = __pa11.clone();
                     instResult = __pa12.clone();
                     outers = __pa13.clone();
-                    (cache, crefOuter) = PrefixUtil::prefixCref(cache.clone(), env.clone(), ih.clone(), pre.clone(), ComponentReferenceBasics::makeCrefIdent((n.clone()).clone(), DAE::T_UNKNOWN_DEFAULT.clone(), metamodelica::nil()))?;
-                    (cache, crefInner) = PrefixUtil::prefixCref(cache.clone(), env.clone(), ih.clone(), innerPrefix.clone(), ComponentReferenceBasics::makeCrefIdent((n.clone()).clone(), DAE::T_UNKNOWN_DEFAULT.clone(), metamodelica::nil()))?;
+                    (cache, crefOuter) = PrefixUtil::prefixCref(cache.clone(), env.clone(), ih.clone(), pre.clone(), ComponentReferenceBasics::makeCrefIdent((n.clone()).clone(), DAE::T_UNKNOWN_DEFAULT().clone(), metamodelica::nil()))?;
+                    (cache, crefInner) = PrefixUtil::prefixCref(cache.clone(), env.clone(), ih.clone(), innerPrefix.clone(), ComponentReferenceBasics::makeCrefIdent((n.clone()).clone(), DAE::T_UNKNOWN_DEFAULT().clone(), metamodelica::nil()))?;
                     ih = InnerOuter::addOuterPrefixToIH(ih.clone(), crefOuter.clone(), crefInner.clone())?;
                     outers = List::unionElt(crefOuter.clone(), outers.clone());
                     ih = InnerOuter::updateInstHierarchy(ih.clone(), innerPrefix.clone(), ioInner.clone(), InnerOuter::InstInner { innerPrefix: innerPrefix.clone(), name: (nInner.clone()).clone(), io: ioInner.clone(), fullName: (fullName.clone()).clone(), typePath: typePath.clone(), scope: (innerScope.clone()).clone(), instResult: instResult.clone(), outers: outers.clone(), innerElement: None })?;
-                    outerDAE = DAE::emptyDae.clone();
+                    outerDAE = DAE::emptyDae().clone();
                     Ok((inCache.clone(), compenv.clone(), ih.clone(), store.clone(), outerDAE.clone(), csets.clone(), ty.clone(), graph.clone()))
                 }
                 _ => bail!("nomatch"),
@@ -283,7 +284,7 @@ pub fn instVar(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inIH: Arc
                     let true = (Mod::modEqual(r#mod.clone(), Arc::new(openmodelica_frontend_types::DAE::Mod::NOMOD))?) else { bail!("pattern mismatch") };
                     let InnerOuter::INST_INNER { innerPrefix: _, name: _, io: _, fullName: _, typePath: __pa0, scope: _, instResult: None, outers: _, innerElement: _ } = (InnerOuter::lookupInnerVar(cache.clone(), env.clone(), ih.clone(), pre.clone(), (n.clone()).clone(), io.clone())?) else { bail!("pattern mismatch") };
                     typePath = __pa0.clone();
-                    (cache, crefOuter) = PrefixUtil::prefixCref(cache.clone(), env.clone(), ih.clone(), pre.clone(), ComponentReferenceBasics::makeCrefIdent((n.clone()).clone(), DAE::T_UNKNOWN_DEFAULT.clone(), metamodelica::nil()))?;
+                    (cache, crefOuter) = PrefixUtil::prefixCref(cache.clone(), env.clone(), ih.clone(), pre.clone(), ComponentReferenceBasics::makeCrefIdent((n.clone()).clone(), DAE::T_UNKNOWN_DEFAULT().clone(), metamodelica::nil()))?;
                     typeName = (SCodeUtil::className(cl.clone())?).clone();
                     (cache, typePath) = Inst::makeFullyQualifiedIdent(cache.clone(), env.clone(), (typeName.clone()).clone(), Arc::new(Absyn::Path::IDENT { name: (literal!("")).clone() }))?;
                     if !(r#impl.clone() && listMember(pre.clone(), list![openmodelica_frontend_types::DAE::Prefix::NOPRE])) && !(Config::getGraphicsExpMode()?) {
@@ -321,7 +322,7 @@ pub fn instVar(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inIH: Arc
                         let _ = unwrap_break_err!(InnerOuter::lookupInnerVar(cache.clone(), env.clone(), ih.clone(), pre.clone(), (n.clone()).clone(), io.clone()), '__try0);
                         Ok::<(), anyhow::Error>(())
                     }.is_ok() { bail!("failure(): body succeeded") }
-                    (cache, crefOuter) = PrefixUtil::prefixCref(cache.clone(), env.clone(), ih.clone(), pre.clone(), ComponentReferenceBasics::makeCrefIdent((n.clone()).clone(), DAE::T_UNKNOWN_DEFAULT.clone(), metamodelica::nil()))?;
+                    (cache, crefOuter) = PrefixUtil::prefixCref(cache.clone(), env.clone(), ih.clone(), pre.clone(), ComponentReferenceBasics::makeCrefIdent((n.clone()).clone(), DAE::T_UNKNOWN_DEFAULT().clone(), metamodelica::nil()))?;
                     typeName = (SCodeUtil::className(cl.clone())?).clone();
                     (cache, typePath) = Inst::makeFullyQualifiedIdent(cache.clone(), env.clone(), (typeName.clone()).clone(), Arc::new(Absyn::Path::IDENT { name: (literal!("")).clone() }))?;
                     if !(r#impl.clone() && listMember(pre.clone(), list![openmodelica_frontend_types::DAE::Prefix::NOPRE])) && !(Config::getGraphicsExpMode()?) {
@@ -365,7 +366,7 @@ pub fn instVar(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inIH: Arc
                     cref = PrefixUtil::prefixToCref(inPrefix.clone())?;
                     let true = (BaseHashSet::has(cref.clone(), sm.clone())?) else { bail!("pattern mismatch") };
                     (cache, innerCompEnv, ih, store, dae, csetsInner, ty, graph) = instVar_dispatch(cache.clone(), env.clone(), ih.clone(), store.clone(), ci_state.clone(), r#mod.clone(), pre.clone(), (n.clone()).clone(), cl.clone(), attr.clone(), pf.clone(), dims.clone(), idxs.clone(), inst_dims.clone(), r#impl.clone(), comment.clone(), info.clone(), graph.clone(), csets.clone())?;
-                    (cache, cref) = PrefixUtil::prefixCref(cache.clone(), env.clone(), ih.clone(), pre.clone(), ComponentReferenceBasics::makeCrefIdent((n.clone()).clone(), DAE::T_UNKNOWN_DEFAULT.clone(), metamodelica::nil()))?;
+                    (cache, cref) = PrefixUtil::prefixCref(cache.clone(), env.clone(), ih.clone(), pre.clone(), ComponentReferenceBasics::makeCrefIdent((n.clone()).clone(), DAE::T_UNKNOWN_DEFAULT().clone(), metamodelica::nil()))?;
                     fullName = (ComponentReferenceBasics::printComponentRefStr(cref.clone())?).clone();
                     (cache, typePath) = Inst::makeFullyQualifiedIdent(cache.clone(), env.clone(), (typeName.clone()).clone(), Arc::new(Absyn::Path::IDENT { name: (literal!("")).clone() }))?;
                     outerCompEnv = InnerOuter::switchInnerToOuterInGraph(innerCompEnv.clone(), cref.clone())?;
@@ -400,7 +401,7 @@ pub fn instVar(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inIH: Arc
                     let mut graph = (*graph).clone();
                     let true = (AbsynUtil::isInnerOuter(io.clone())) else { bail!("pattern mismatch") };
                     (cache, innerCompEnv, ih, store, dae, csetsInner, ty, graph) = instVar_dispatch(cache.clone(), env.clone(), ih.clone(), store.clone(), ci_state.clone(), r#mod.clone(), pre.clone(), (n.clone()).clone(), cl.clone(), attr.clone(), pf.clone(), dims.clone(), idxs.clone(), inst_dims.clone(), r#impl.clone(), comment.clone(), info.clone(), graph.clone(), csets.clone())?;
-                    (cache, cref) = PrefixUtil::prefixCref(cache.clone(), env.clone(), ih.clone(), pre.clone(), ComponentReferenceBasics::makeCrefIdent((n.clone()).clone(), DAE::T_UNKNOWN_DEFAULT.clone(), metamodelica::nil()))?;
+                    (cache, cref) = PrefixUtil::prefixCref(cache.clone(), env.clone(), ih.clone(), pre.clone(), ComponentReferenceBasics::makeCrefIdent((n.clone()).clone(), DAE::T_UNKNOWN_DEFAULT().clone(), metamodelica::nil()))?;
                     fullName = (ComponentReferenceBasics::printComponentRefStr(cref.clone())?).clone();
                     (cache, typePath) = Inst::makeFullyQualifiedIdent(cache.clone(), env.clone(), (typeName.clone()).clone(), Arc::new(Absyn::Path::IDENT { name: (literal!("")).clone() }))?;
                     outerCompEnv = InnerOuter::switchInnerToOuterInGraph(innerCompEnv.clone(), cref.clone())?;
@@ -440,7 +441,7 @@ pub fn instVar(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inIH: Arc
                     let mut cref: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
                     let mut cache = (*cache).clone();
                     let true = (Flags::isSet(Flags::FAILTRACE.clone())?) else { bail!("pattern mismatch") };
-                    (cache, cref) = PrefixUtil::prefixCref(cache.clone(), env.clone(), ih.clone(), pre.clone(), ComponentReferenceBasics::makeCrefIdent((n.clone()).clone(), DAE::T_UNKNOWN_DEFAULT.clone(), metamodelica::nil()))?;
+                    (cache, cref) = PrefixUtil::prefixCref(cache.clone(), env.clone(), ih.clone(), pre.clone(), ComponentReferenceBasics::makeCrefIdent((n.clone()).clone(), DAE::T_UNKNOWN_DEFAULT().clone(), metamodelica::nil()))?;
                     Debug::traceln(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("- InstVar.instVar failed while instatiating variable: ")); __mm_s.push_str(&*ComponentReferenceBasics::printComponentRefStr(cref.clone())?); __mm_s.push_str(&*literal!(" ")); __mm_s.push_str(&*Mod::prettyPrintMod(r#mod.clone(), 0)?); __mm_s.push_str(&*literal!("\nin scope: ")); __mm_s.push_str(&*FGraph::printGraphPathStr(env.clone())?); __mm_s.push_str(&*literal!(" class:\n")); __mm_s.push_str(&*SCodeDump::unparseElementStr(cl.clone(), SCodeDump::defaultOptions.clone())?); ArcStr::from(__mm_s) }).clone())?;
                     Ok(bail!("fail"))
                 }
@@ -467,7 +468,7 @@ fn instVar_dispatch(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inIH
     let mut type_mods: Arc<DAE::Mod> = Arc::new(DAE::Mod::NOMOD);
     let mut r#mod: Arc<DAE::Mod> = Arc::new(DAE::Mod::NOMOD);
     let mut attr: SCode::Attributes;
-    let mut source: Arc<DAE::ElementSource>;
+    let mut source: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
     match '__try0: {
         unwrap_break_err!(Error::updateCurrentComponent((inName.clone()).clone(), inInfo.clone(), Arc::new({ let __pe_b1 = inPrefix.clone(); move |__pe_a0| PrefixUtil::identAndPrefixToPath(__pe_a0, __pe_b1.clone()) })), '__try0);
         (outCache, dims, cls, type_mods) = unwrap_break_err!(InstUtil::getUsertypeDimensions(inCache.clone(), inEnv.clone(), inIH.clone(), inPrefix.clone(), inClass.clone(), inInstDims.clone(), inImpl.clone()), '__try0);
@@ -483,7 +484,7 @@ fn instVar_dispatch(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inIH
             attr = InstUtil::propagateClassPrefix(inAttributes.clone(), inPrefix.clone());
         }
         (outCache, outEnv, outIH, outStore, outDae, outSets, outType, outGraph) = unwrap_break_err!(instVar2(outCache.clone(), inEnv.clone(), inIH.clone(), inStore.clone(), inState.clone(), r#mod.clone(), inPrefix.clone(), (inName.clone()).clone(), cls.clone(), attr.clone(), inPrefixes.clone(), dims.clone(), inIndices.clone(), inInstDims.clone(), inImpl.clone(), inComment.clone(), inInfo.clone(), inGraph.clone(), inSets.clone()), '__try0);
-        source = unwrap_break_err!(ElementSource::createElementSource(inInfo.clone(), FGraph::getScopePath(inEnv.clone())?, inPrefix.clone(), (DAE::emptyCref.clone(), DAE::emptyCref.clone())), '__try0);
+        source = unwrap_break_err!(ElementSource::createElementSource(inInfo.clone(), FGraph::getScopePath(inEnv.clone())?, inPrefix.clone(), (DAE::emptyCref().clone(), DAE::emptyCref().clone())), '__try0);
         (outCache, outDae) = unwrap_break_err!(addArrayVarEquation(outCache.clone(), inEnv.clone(), outIH.clone(), inState.clone(), outDae.clone(), outType.clone(), r#mod.clone(), Types::variabilityToConst(SCodeUtil::attrVariability(attr.clone())?)?, inPrefix.clone(), (inName.clone()).clone(), source.clone()), '__try0);
         outCache = unwrap_break_err!(InstFunction::addRecordConstructorFunction(outCache.clone(), inEnv.clone(), Types::arrayElementType(outType.clone()), SCodeUtil::elementInfo(inClass.clone())), '__try0);
         unwrap_break_err!(Error::clearCurrentComponent(), '__try0);
@@ -580,7 +581,7 @@ fn liftUserTypeEqMod(mut inEqMod: Option<DAE::EqMod>, mut inDims: Arc<metamodeli
     eq = (match eq.clone() {
         DAE::EqMod::TYPED { .. } => {
             let __owned_variant_modifierAsExp_0 = Expression::liftExpList(var_field!(eq.modifierAsExp, DAE::EqMod::TYPED).clone(), inDims.clone())?;
-            let __owned_variant_modifierAsValue_1 = Util::applyOption1(var_field!(eq.modifierAsValue, DAE::EqMod::TYPED).clone(), Arc::new(ValuesUtil::liftValueList), inDims.clone());
+            let __owned_variant_modifierAsValue_1 = Util::applyOption1(var_field!(eq.modifierAsValue, DAE::EqMod::TYPED).clone(), (std::sync::Arc::new(ValuesUtil::liftValueList) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Values::Value>, Arc<metamodelica::List<Arc<DAE::Dimension>>>) -> Result<Arc<Values::Value>> + 'static>), inDims.clone());
             if let DAE::EqMod::TYPED { modifierAsExp, modifierAsValue, .. } = &mut eq {
                 *modifierAsExp = __owned_variant_modifierAsExp_0;
                 *modifierAsValue = __owned_variant_modifierAsValue_1;
@@ -667,7 +668,7 @@ fn instVar2(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inIH: Arc<me
                     let mut dae: DAE::DAElist;
                     let mut dae_var_attr: Option<Arc<DAE::VariableAttributes>> = None;
                     let mut vis: SCode::Visibility = SCode::Visibility::PROTECTED;
-                    let mut source: Arc<DAE::ElementSource>;
+                    let mut source: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
                     let mut fin: SCode::Final = SCode::Final::FINAL;
                     let mut io: Absyn::InnerOuter = Absyn::InnerOuter::INNER;
                     let mut cache = (*cache).clone();
@@ -689,7 +690,7 @@ fn instVar2(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inIH: Arc<me
                     } };
                     cache = __pa0.clone();
                     e = __pa1.clone();
-                    source = ElementSource::createElementSource(info.clone(), FGraph::getScopePath(env.clone())?, pre.clone(), (DAE::emptyCref.clone(), DAE::emptyCref.clone()))?;
+                    source = ElementSource::createElementSource(info.clone(), FGraph::getScopePath(env.clone())?, pre.clone(), (DAE::emptyCref().clone(), DAE::emptyCref().clone()))?;
                     let (__pa2, __pa3, __pa4) = ::match_deref::match_deref! { match &(pf.clone()) {
                         Deref @ SCode::Prefixes { innerOuter: __pa2, finalPrefix: __pa3, visibility: __pa4, .. } => (__pa2.clone(), __pa3.clone(), __pa4.clone()),
                         _ => bail!("pattern mismatch"),
@@ -718,7 +719,7 @@ fn instVar2(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inIH: Arc<me
                     let mut dae: DAE::DAElist;
                     let mut dae_var_attr: Option<Arc<DAE::VariableAttributes>> = None;
                     let mut vis: SCode::Visibility = SCode::Visibility::PROTECTED;
-                    let mut source: Arc<DAE::ElementSource>;
+                    let mut source: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
                     let mut fin: SCode::Final = SCode::Final::FINAL;
                     let mut io: Absyn::InnerOuter = Absyn::InnerOuter::INNER;
                     let mut cache = (*cache).clone();
@@ -738,7 +739,7 @@ fn instVar2(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inIH: Arc<me
                     (e_1, _) = Types::matchProp(e.clone(), p.clone(), DAE::Properties::PROP { type_: ty_1.clone(), constFlag: openmodelica_frontend_types::DAE::Const::C_VAR }, true)?;
                     ty_2 = Types::simplifyType(ty_1.clone())?;
                     (cache, cr) = PrefixUtil::prefixCref(cache.clone(), env.clone(), ih.clone(), pre.clone(), ComponentReferenceBasics::makeCrefIdent((n.clone()).clone(), ty_2.clone(), metamodelica::nil()))?;
-                    source = ElementSource::createElementSource(info.clone(), FGraph::getScopePath(env.clone())?, pre.clone(), (DAE::emptyCref.clone(), DAE::emptyCref.clone()))?;
+                    source = ElementSource::createElementSource(info.clone(), FGraph::getScopePath(env.clone())?, pre.clone(), (DAE::emptyCref().clone(), DAE::emptyCref().clone()))?;
                     let (__pa2, __pa3, __pa4) = ::match_deref::match_deref! { match &(pf.clone()) {
                         Deref @ SCode::Prefixes { innerOuter: __pa2, finalPrefix: __pa3, visibility: __pa4, .. } => (__pa2.clone(), __pa3.clone(), __pa4.clone()),
                         _ => bail!("pattern mismatch"),
@@ -763,7 +764,7 @@ fn instVar2(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inIH: Arc<me
                     let mut dae: DAE::DAElist;
                     let mut dae_var_attr: Option<Arc<DAE::VariableAttributes>> = None;
                     let mut vis: SCode::Visibility = SCode::Visibility::PROTECTED;
-                    let mut source: Arc<DAE::ElementSource>;
+                    let mut source: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
                     let mut fin: SCode::Final = SCode::Final::FINAL;
                     let mut io: Absyn::InnerOuter = Absyn::InnerOuter::INNER;
                     let mut cache = (*cache).clone();
@@ -772,12 +773,12 @@ fn instVar2(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inIH: Arc<me
                     let mut csets = (*csets).clone();
                     let true = (ClassInfUtil::isFunction(ci_state.clone())) else { bail!("pattern mismatch") };
                     InstUtil::checkFunctionVar((n.clone()).clone(), attr.clone(), pf.clone(), info.clone())?;
-                    (cache, env_1, ih, store, _, csets, ty, _, _, _) = Inst::instClass(cache.clone(), env.clone(), ih.clone(), store.clone(), r#mod.clone(), pre.clone(), cl.clone(), inst_dims.clone(), r#impl.clone(), crate::InstTypes::CallingScope::INNER_CALL, ConnectionGraph::EMPTY.clone(), csets.clone())?;
+                    (cache, env_1, ih, store, _, csets, ty, _, _, _) = Inst::instClass(cache.clone(), env.clone(), ih.clone(), store.clone(), r#mod.clone(), pre.clone(), cl.clone(), inst_dims.clone(), r#impl.clone(), crate::InstTypes::CallingScope::INNER_CALL, ConnectionGraph::EMPTY().clone(), csets.clone())?;
                     arrty = InstUtil::makeArrayType(dims.clone(), ty.clone())?;
                     InstUtil::checkFunctionVarType(arrty.clone(), ci_state.clone(), (n.clone()).clone(), info.clone())?;
                     (cache, cr) = PrefixUtil::prefixCref(cache.clone(), env.clone(), ih.clone(), pre.clone(), ComponentReferenceBasics::makeCrefIdent((n.clone()).clone(), arrty.clone(), metamodelica::nil()))?;
                     (cache, dae_var_attr) = InstBinding::instDaeVariableAttributes(cache.clone(), env.clone(), r#mod.clone(), ty.clone(), metamodelica::nil())?;
-                    source = ElementSource::createElementSource(info.clone(), FGraph::getScopePath(env.clone())?, pre.clone(), (DAE::emptyCref.clone(), DAE::emptyCref.clone()))?;
+                    source = ElementSource::createElementSource(info.clone(), FGraph::getScopePath(env.clone())?, pre.clone(), (DAE::emptyCref().clone(), DAE::emptyCref().clone()))?;
                     let (__pa0, __pa1, __pa2) = ::match_deref::match_deref! { match &(pf.clone()) {
                         Deref @ SCode::Prefixes { innerOuter: __pa0, finalPrefix: __pa1, visibility: __pa2, .. } => (__pa0.clone(), __pa1.clone(), __pa2.clone()),
                         _ => bail!("pattern mismatch"),
@@ -941,13 +942,14 @@ pub fn instScalar(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inIH: 
     let mut outSets: DAE::Connect::Sets;
     let mut outType: Arc<DAE::Type> = Arc::new(DAE::Type::T_NORETCALL);
     let mut outGraph: ConnectionGraph::ConnectionGraph;
-    (outCache, outEnv, outIH, outStore, outDae, outSets, outType, outGraph) = 'mc: {
+    (outCache, outEnv, outIH, outStore, outDae, outSets, outType, outGraph) = ({
+        let mut implicitInstantiation: bool = false;
+        let mut inStateAndClassNameIsEqual: bool = false;
+        'mc: {
         let __mc_input = (inCache.clone(), inEnv.clone(), inIH.clone(), inStore.clone(), inState.clone(), inMod.clone(), inPrefix.clone(), inName.clone(), inClass.clone(), inAttributes.clone(), inPrefixes.clone(), inSubscripts.clone(), inInstDims.clone(), inImpl.clone(), inComment.clone(), inInfo.clone(), inGraph.clone(), inSets.clone());
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (cache, env, ih, store, _, r#mod, _, _, Deref @ SCode::Element::CLASS { restriction: res, name: cls_name, .. }, SCode::Attributes { variability: vt, .. }, Deref @ SCode::Prefixes { innerOuter: io, finalPrefix: fin, visibility: vis, .. }, idxs, _, _, _, _, _, _) => {
-                    let mut implicitInstantiation: bool = false;
-                    let mut inStateAndClassNameIsEqual: bool = false;
                     let mut ci_state: ClassInf::State;
                     let mut csets: DAE::Connect::Sets;
                     let mut graph: ConnectionGraph::ConnectionGraph;
@@ -955,7 +957,7 @@ pub fn instScalar(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inIH: 
                     let mut dae: DAE::DAElist;
                     let mut dae1: DAE::DAElist;
                     let mut dae2: DAE::DAElist;
-                    let mut source: Arc<DAE::ElementSource>;
+                    let mut source: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
                     let mut pre: DAE::Prefix = DAE::Prefix::NOPRE;
                     let mut start: Option<Arc<DAE::Exp>> = None;
                     let mut ident_ty: Arc<DAE::Type> = Arc::new(DAE::Type::T_NORETCALL);
@@ -997,7 +999,7 @@ pub fn instScalar(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inIH: 
                     cr = ComponentReferenceBasics::makeCrefIdent((inName.clone()).clone(), ident_ty.clone(), idxs.clone());
                     (cache, cr) = PrefixUtil::prefixCref(cache.clone(), env.clone(), ih.clone(), inPrefix.clone(), cr.clone())?;
                     InstUtil::checkModificationOnOuter(cache.clone(), env_1.clone(), ih.clone(), inPrefix.clone(), (inName.clone()).clone(), cr.clone(), inMod.clone(), vt.clone(), io.clone(), inImpl.clone(), inInfo.clone())?;
-                    source = ElementSource::createElementSource(inInfo.clone(), FGraph::getScopePath(env_1.clone())?, inPrefix.clone(), (DAE::emptyCref.clone(), DAE::emptyCref.clone()))?;
+                    source = ElementSource::createElementSource(inInfo.clone(), FGraph::getScopePath(env_1.clone())?, inPrefix.clone(), (DAE::emptyCref().clone(), DAE::emptyCref().clone()))?;
                     r#mod = if (!(inSubscripts.clone().is_empty()) && !(SCodeUtil::isParameterOrConst(vt.clone())) && !(ClassInfUtil::isFunctionOrRecord(inState.clone())) && !(Types::isComplexType(Types::arrayElementType(ty.clone()))) && !(Types::isExternalObject(Types::arrayElementType(ty.clone()))) && !(Config::scalarizeBindings()?)) {Arc::new(openmodelica_frontend_types::DAE::Mod::NOMOD)} else {inMod.clone()};
                     opt_binding = InstBinding::makeVariableBinding(ty.clone(), r#mod.clone(), Types::variabilityToConst(vt.clone())?, inPrefix.clone(), (inName.clone()).clone())?;
                     start = InstBinding::instStartBindingExp(inMod.clone(), ty.clone(), vt.clone())?;
@@ -1016,8 +1018,6 @@ pub fn instScalar(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inIH: 
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 _ => {
-                    let mut implicitInstantiation: bool = false;
-                    let mut inStateAndClassNameIsEqual: bool = false;
                     let true = (Flags::isSet(Flags::FAILTRACE.clone())?) else { bail!("pattern mismatch") };
                     Debug::traceln(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("- Inst.instScalar failed on ")); __mm_s.push_str(&*inName.clone()); __mm_s.push_str(&*literal!(" in scope ")); __mm_s.push_str(&*PrefixUtil::printPrefixStr(inPrefix.clone())?); __mm_s.push_str(&*literal!(" env: ")); __mm_s.push_str(&*FGraph::printGraphPathStr(inEnv.clone())?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone())?;
                     Ok(bail!("fail"))
@@ -1026,7 +1026,8 @@ pub fn instScalar(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inIH: 
             }}
         })() { break 'mc __v; }
         bail!("matchcontinue: no arm matched")
-    };
+    }
+    });
     Ok((outCache, outEnv, outIH, outStore, outDae, outSets, outType, outGraph))
 }
 
@@ -1121,7 +1122,7 @@ fn instScalar2(mut inCref: Arc<DAE::ComponentRef>, mut inType: Arc<DAE::Type>, m
         _ => {
             let mut dae: DAE::DAElist;
             let mut cls_dae: DAE::DAElist;
-            dae = if (Types::isComplexType(inType.clone())) {InstBinding::instModEquation(inCref.clone(), inType.clone(), inMod.clone(), inSource.clone(), inImpl.clone())?} else {DAE::emptyDae.clone()};
+            dae = if (Types::isComplexType(inType.clone())) {InstBinding::instModEquation(inCref.clone(), inType.clone(), inMod.clone(), inSource.clone(), inImpl.clone())?} else {DAE::emptyDae().clone()};
             cls_dae = stripRecordDefaultBindingsFromDAE(inClassDae.clone(), inType.clone(), dae.clone());
             dae = DAEUtil::joinDaes(dae.clone(), inDae.clone())?;
             dae = DAEUtil::joinDaes(cls_dae.clone(), dae.clone())?;
@@ -1137,7 +1138,7 @@ fn stripRecordDefaultBindingsFromDAE(mut inClassDAE: DAE::DAElist, mut inType: A
     outClassDAE = (::match_deref::match_deref! { match &((inClassDAE.clone(), inType.clone(), inEqDAE.clone())) {
         (DAE::DAElist { elementLst: els }, Deref @ DAE::Type::T_COMPLEX { complexClassType: ClassInf::State::RECORD { .. }, .. }, DAE::DAElist { elementLst: eqs @ Deref @ metamodelica::List::Cons { head: _, tail: _ } }) => {
             let mut els = (*els).clone();
-            (els, _) = List::mapFold(els.clone(), Arc::new(stripRecordDefaultBindingsFromElement), eqs.clone());
+            (els, _) = List::mapFold(els.clone(), (std::sync::Arc::new(stripRecordDefaultBindingsFromElement) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Element>, Arc<metamodelica::List<Arc<DAE::Element>>>) -> Result<(Arc<DAE::Element>, Arc<metamodelica::List<Arc<DAE::Element>>>)> + 'static>), eqs.clone());
             DAE::DAElist { elementLst: els.clone() }
         },
         _ => {
@@ -1174,7 +1175,7 @@ fn checkDimensionGreaterThanZero(mut inDim: Arc<DAE::Dimension>, mut inPrefix: D
             let mut cr: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
             if var_field!((*inDim).integer, DAE::Dimension::DIM_INTEGER).clone() < 0 {
                 dim_str = (ExpressionBasics::dimensionString(inDim.clone())?).clone();
-                cr = Arc::new(DAE::ComponentRef::CREF_IDENT { ident: (inIdent.clone()).clone(), identType: DAE::T_REAL_DEFAULT.clone(), subscriptLst: metamodelica::nil() });
+                cr = Arc::new(DAE::ComponentRef::CREF_IDENT { ident: (inIdent.clone()).clone(), identType: DAE::T_REAL_DEFAULT().clone(), subscriptLst: metamodelica::nil() });
                 cr_str = (ComponentReferenceBasics::printComponentRefStr(PrefixUtil::prefixCrefNoContext(inPrefix.clone(), cr.clone())?)?).clone();
                 Error::addSourceMessageAndFail(Error::NEGATIVE_DIMENSION_INDEX.clone(), list![(dim_str.clone()).clone(), (cr_str.clone()).clone()], info.clone())?;
             }
@@ -1191,7 +1192,7 @@ fn checkDimensionGreaterThanZero(mut inDim: Arc<DAE::Dimension>, mut inPrefix: D
 fn checkArrayModDimSize(mut r#mod: Arc<DAE::Mod>, mut inDimension: Arc<DAE::Dimension>, mut inPrefix: DAE::Prefix, mut inIdent: ArcStr, mut inInfo: SourceInfo) -> () {
     let _ = (::match_deref::match_deref! { match &(r#mod.clone()) {
         Deref @ DAE::Mod::MOD { eachPrefix: SCode::Each::NOT_EACH, .. } => {
-            List::map4_0(var_field!((*r#mod).subModLst, DAE::Mod::MOD).clone(), Arc::new(checkArraySubModDimSize), inDimension.clone(), inPrefix.clone(), (inIdent.clone()).clone(), inInfo.clone());
+            List::map4_0(var_field!((*r#mod).subModLst, DAE::Mod::MOD).clone(), (std::sync::Arc::new(checkArraySubModDimSize) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::SubMod>, Arc<DAE::Dimension>, DAE::Prefix, ArcStr, SourceInfo) -> Result<()> + 'static>), inDimension.clone(), inPrefix.clone(), (inIdent.clone()).clone(), inInfo.clone());
             ()
         },
         _ => (),
@@ -1281,7 +1282,7 @@ fn instArray(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inIH: Arc<m
                     let mut cr: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
                     let mut ty_1: Arc<DAE::Type> = Arc::new(DAE::Type::T_NORETCALL);
                     let mut dae: DAE::DAElist;
-                    let mut source: Arc<DAE::ElementSource>;
+                    let mut source: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
                     let mut cache = (*cache).clone();
                     let mut ih = (*ih).clone();
                     let mut store = (*store).clone();
@@ -1294,7 +1295,7 @@ fn instArray(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inIH: Arc<m
                     ty_1 = Types::simplifyType(ty.clone())?;
                     (cache, cr) = PrefixUtil::prefixCref(cache.clone(), env.clone(), ih.clone(), pre.clone(), ComponentReferenceBasics::makeCrefIdent((n.clone()).clone(), ty_1.clone(), metamodelica::nil()))?;
                     (rhs, _) = Types::matchProp(e.clone(), p.clone(), DAE::Properties::PROP { type_: ty.clone(), constFlag: openmodelica_frontend_types::DAE::Const::C_VAR }, true)?;
-                    source = ElementSource::createElementSource(info.clone(), FGraph::getScopePath(env.clone())?, pre.clone(), (DAE::emptyCref.clone(), DAE::emptyCref.clone()))?;
+                    source = ElementSource::createElementSource(info.clone(), FGraph::getScopePath(env.clone())?, pre.clone(), (DAE::emptyCref().clone(), DAE::emptyCref().clone()))?;
                     lhs = Expression::makeCrefExp(cr.clone(), ty_1.clone())?;
                     dae = InstSection::makeDaeEquation(lhs.clone(), rhs.clone(), source.clone(), openmodelica_frontend_types::SCode::Initial::NON_INITIAL)?;
                     Ok((cache.clone(), env_1.clone(), ih.clone(), store.clone(), dae.clone(), inSets.clone(), ty.clone(), graph.clone()))
@@ -1346,7 +1347,7 @@ fn instArray(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inIH: Arc<m
                     r#mod = Mod::lookupIdxModification(r#mod.clone(), e.clone())?;
                     (cache, compenv, ih, store, _, csets, ty, graph) = instVar2(cache.clone(), env.clone(), ih.clone(), store.clone(), ci_state.clone(), r#mod.clone(), pre.clone(), (n.clone()).clone(), cl.clone(), attr.clone(), pf.clone(), dims.clone(), cons(s.clone(), idxs.clone()), inst_dims.clone(), r#impl.clone(), comment.clone(), info.clone(), graph.clone(), csets.clone())?;
                     ErrorExt::rollBack((literal!("instArray Real[0]")).clone());
-                    Ok((cache.clone(), compenv.clone(), ih.clone(), store.clone(), DAE::emptyDae.clone(), csets.clone(), ty.clone(), graph.clone()))
+                    Ok((cache.clone(), compenv.clone(), ih.clone(), store.clone(), DAE::emptyDae().clone(), csets.clone(), ty.clone(), graph.clone()))
                 }
                 _ => bail!("nomatch"),
             }}
@@ -1422,7 +1423,7 @@ fn instArray(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inIH: Arc<m
                         Ok::<(), anyhow::Error>(())
                     }.is_ok() { bail!("failure(): body succeeded") }
                     str1 = (PrefixUtil::printPrefixStrIgnoreNoPre(PrefixUtil::prefixAdd((n.clone()).clone(), metamodelica::nil(), metamodelica::nil(), pre.clone(), openmodelica_frontend_types::SCode::Variability::VAR, ci_state.clone(), info.clone())?)?).clone();
-                    str2 = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("[")); __mm_s.push_str(&*stringDelimitList(List::map(idxs.clone(), Arc::new(ExpressionBasics::printSubscriptStr)), (literal!(", ")).clone())); __mm_s.push_str(&*literal!("]")); ArcStr::from(__mm_s) }).clone();
+                    str2 = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("[")); __mm_s.push_str(&*stringDelimitList(List::map(idxs.clone(), (std::sync::Arc::new(ExpressionBasics::printSubscriptStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Subscript>) -> Result<ArcStr> + 'static>)), (literal!(", ")).clone())); __mm_s.push_str(&*literal!("]")); ArcStr::from(__mm_s) }).clone();
                     str3 = (Mod::prettyPrintMod(r#mod.clone(), 1)?).clone();
                     str4 = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*PrefixUtil::printPrefixStrIgnoreNoPre(pre.clone())?); __mm_s.push_str(&*literal!("(")); __mm_s.push_str(&*n.clone()); __mm_s.push_str(&*str2.clone()); __mm_s.push_str(&*literal!("=")); __mm_s.push_str(&*str3.clone()); __mm_s.push_str(&*literal!(")")); ArcStr::from(__mm_s) }).clone();
                     str2 = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*str1.clone()); __mm_s.push_str(&*str2.clone()); ArcStr::from(__mm_s) }).clone();
@@ -1452,9 +1453,9 @@ fn instArrayDimInteger(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut i
     let mut outEnv: FCore::Graph = inEnv.clone();
     let mut outIH: Arc<metamodelica::List<InnerOuter::TopInstance>> = inIH.clone();
     let mut outStore: UnitAbsyn::InstStore = inStore.clone();
-    let mut outDae: DAE::DAElist = DAE::emptyDae.clone();
+    let mut outDae: DAE::DAElist = DAE::emptyDae().clone();
     let mut outSets: DAE::Connect::Sets = inSets.clone();
-    let mut outType: Arc<DAE::Type> = DAE::T_UNKNOWN_DEFAULT.clone();
+    let mut outType: Arc<DAE::Type> = DAE::T_UNKNOWN_DEFAULT().clone();
     let mut outGraph: ConnectionGraph::ConnectionGraph = inGraph.clone();
     let mut c: Arc<SCode::Element>;
     let mut cls: Arc<SCode::Element>;
@@ -1494,9 +1495,9 @@ fn instArrayDimEnum(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inIH
     let mut outEnv: FCore::Graph = inEnv.clone();
     let mut outIH: Arc<metamodelica::List<InnerOuter::TopInstance>> = inIH.clone();
     let mut outStore: UnitAbsyn::InstStore = inStore.clone();
-    let mut outDae: DAE::DAElist = DAE::emptyDae.clone();
+    let mut outDae: DAE::DAElist = DAE::emptyDae().clone();
     let mut outSets: DAE::Connect::Sets = inSets.clone();
-    let mut outType: Arc<DAE::Type> = DAE::T_UNKNOWN_DEFAULT.clone();
+    let mut outType: Arc<DAE::Type> = DAE::T_UNKNOWN_DEFAULT().clone();
     let mut outGraph: ConnectionGraph::ConnectionGraph = inGraph.clone();
     let mut enum_path: Arc<Absyn::Path>;
     let mut enum_lit_path: Arc<Absyn::Path>;

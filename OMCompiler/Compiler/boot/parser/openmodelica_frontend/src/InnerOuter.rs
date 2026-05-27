@@ -74,7 +74,7 @@ use openmodelica_util_datatypes_basic::List;
 
 pub type Cache = FCore::Cache;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct InstResult {
     pub outCache: Cache,
     pub outEnv: FCore::Graph,
@@ -88,7 +88,7 @@ pub struct InstResult {
 pub type INST_RESULT = InstResult;
 
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct InstInner {
     /// the prefix of the inner. we need it to prefix the outer variables with it!
     pub innerPrefix: DAE::Prefix,
@@ -123,7 +123,8 @@ pub type OUTER = OuterPrefix;
 
 pub type OuterPrefixes = Arc<metamodelica::List<OuterPrefix>>;
 
-pub static emptyOuterPrefixes: std::sync::LazyLock<Arc<metamodelica::List<OuterPrefix>>> = std::sync::LazyLock::new(|| { metamodelica::nil() });
+thread_local! { static __emptyOuterPrefixes_TLS: Arc<metamodelica::List<OuterPrefix>> = metamodelica::nil(); }
+pub fn emptyOuterPrefixes() -> Arc<metamodelica::List<OuterPrefix>> { __emptyOuterPrefixes_TLS.with(|__t| __t.clone()) }
 
 /// the prefix + '.' + the component name
 pub type Key = Arc<DAE::ComponentRef>;
@@ -132,7 +133,7 @@ pub type Key = Arc<DAE::ComponentRef>;
 pub type Value = InstInner;
 
 /// a top instance is an instance of a model thar resides at top level
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone)]
 pub struct TopInstance {
     /// top model path
     pub path: Option<Arc<Absyn::Path>>,
@@ -144,15 +145,38 @@ pub struct TopInstance {
     pub sm: (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<Arc<DAE::ComponentRef>>>), i32, i32, (HashSet::FuncHashCref, HashSet::FuncCrefEqual, HashSet::FuncCrefStr)),
 }
 
+impl PartialEq for TopInstance {
+    fn eq(&self, other: &Self) -> bool {
+        self.path == other.path && self.ht == other.ht && self.outerPrefixes == other.outerPrefixes && std::sync::Arc::ptr_eq(&self.sm, &other.sm)
+    }
+}
+impl Eq for TopInstance {}
+impl PartialOrd for TopInstance {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> { Some(self.cmp(other)) }
+}
+impl Ord for TopInstance {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.path.cmp(&other.path).then_with(|| self.ht.cmp(&other.ht).then_with(|| self.outerPrefixes.cmp(&other.outerPrefixes).then_with(|| (std::sync::Arc::as_ptr(&self.sm) as *const ()).cmp(&(std::sync::Arc::as_ptr(&other.sm) as *const ())))))
+    }
+}
+impl std::fmt::Debug for TopInstance {
+    fn fmt(&self, __f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut __ds = __f.debug_struct("TopInstance");
+        __ds.field("path", &self.path);
+        __ds.field("ht", &self.ht);
+        __ds.field("outerPrefixes", &self.outerPrefixes);
+        __ds.field("sm", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr(&self.sm)));
+        __ds.finish()
+    }
+}
+
 pub type TOP_INSTANCE = TopInstance;
 
 
 pub type InstHierarchy = Arc<metamodelica::List<TopInstance>>;
 
-// TODO: non-Sync, non-const-emittable constant — needs new emission path.
-// Type: Arc<metamodelica::List<TopInstance>>
-// Expr: Array { elems: [], ty: List(Unknown) }
-pub fn emptyInstHierarchy() -> Arc<metamodelica::List<TopInstance>> { todo!("non-Sync, non-const-emittable constant emptyInstHierarchy — extend codegen") }
+thread_local! { static __emptyInstHierarchy_TLS: Arc<metamodelica::List<TopInstance>> = metamodelica::nil(); }
+pub fn emptyInstHierarchy() -> Arc<metamodelica::List<TopInstance>> { __emptyInstHierarchy_TLS.with(|__t| __t.clone()) }
 
 pub fn handleInnerOuterEquations(mut io: Absyn::InnerOuter, mut inDae: DAE::DAElist, mut inIH: InstHierarchy, mut inGraphNew: ConnectionGraph::ConnectionGraph, mut inGraph: ConnectionGraph::ConnectionGraph) -> Result<(DAE::DAElist, InstHierarchy, ConnectionGraph::ConnectionGraph)> {
     let mut odae: DAE::DAElist;
@@ -216,7 +240,7 @@ pub fn handleInnerOuterEquations(mut io: Absyn::InnerOuter, mut inDae: DAE::DAEl
 
 pub fn changeInnerOuterInOuterConnect(mut sets: DAE::Connect::Sets) -> DAE::Connect::Sets {
     let mut sets: DAE::Connect::Sets = sets;
-    sets.outerConnects = List::map(sets.outerConnects.clone(), Arc::new(changeInnerOuterInOuterConnect2));
+    sets.outerConnects = List::map(sets.outerConnects.clone(), (std::sync::Arc::new(changeInnerOuterInOuterConnect2) as std::sync::Arc<dyn ::std::ops::Fn(DAE::Connect::OuterConnect) -> Result<DAE::Connect::OuterConnect> + 'static>));
     sets
 }
 
@@ -254,7 +278,7 @@ pub fn retrieveOuterConnections(mut inCache: FCore::Cache, mut inEnv: FCore::Gra
     let mut outInnerOuterConnects: Arc<metamodelica::List<DAE::Connect::OuterConnect>> = metamodelica::nil();
     let mut outCGraph: ConnectionGraph::ConnectionGraph;
     let mut oc: Arc<metamodelica::List<DAE::Connect::OuterConnect>> = metamodelica::nil();
-    let DAE::Connect::Sets { outerConnects: __pa0, .. } = (inSets.clone()) else { bail!("pattern mismatch") };
+    let Connect::SETS { outerConnects: __pa0, .. } = (inSets.clone()) else { bail!("pattern mismatch") };
     oc = __pa0.clone();
     (oc, outSets, outInnerOuterConnects, outCGraph) = retrieveOuterConnections2(inCache.clone(), inEnv.clone(), inIH.clone(), inPrefix.clone(), oc.clone(), inSets.clone(), inTopCall.clone(), inCGraph.clone())?;
     outSets.outerConnects = oc.clone();
@@ -507,8 +531,8 @@ fn lookupVarInnerOuterAttr(mut cache: FCore::Cache, mut env: FCore::Graph, mut i
             ::match_deref::match_deref! { match &__mc_input {
                 (_, _, _, _, _) => {
                     let mut io: Absyn::InnerOuter = Absyn::InnerOuter::INNER;
-                    let mut isOuter: bool = isOuter.clone();
                     let mut isInner: bool = isInner.clone();
+                    let mut isOuter: bool = isOuter.clone();
                     let __pa0 = ::match_deref::match_deref! { match &(Lookup::lookupVar(cache.clone(), env.clone(), cr1.clone())?) {
                         (_, Deref @ DAE::Attributes { innerOuter: __pa0, .. }, _, _, _, _, _, _, _) => __pa0.clone(),
                         _ => bail!("pattern mismatch"),
@@ -525,8 +549,8 @@ fn lookupVarInnerOuterAttr(mut cache: FCore::Cache, mut env: FCore::Graph, mut i
             ::match_deref::match_deref! { match &__mc_input {
                 (_, _, _, _, _) => {
                     let mut io: Absyn::InnerOuter = Absyn::InnerOuter::INNER;
-                    let mut isInner: bool = isInner.clone();
                     let mut isOuter: bool = isOuter.clone();
+                    let mut isInner: bool = isInner.clone();
                     let __pa0 = ::match_deref::match_deref! { match &(Lookup::lookupVar(cache.clone(), env.clone(), cr2.clone())?) {
                         (_, Deref @ DAE::Attributes { innerOuter: __pa0, .. }, _, _, _, _, _, _, _) => __pa0.clone(),
                         _ => bail!("pattern mismatch"),
@@ -607,7 +631,7 @@ fn lookupInnerInIH(mut inTIH: TopInstance, mut inPrefix: DAE::Prefix, mut inComp
                     let mut cref: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
                     let mut instInner: InstInner;
                     prefix = PrefixUtil::prefixStripLast(inPrefix.clone())?;
-                    (_, cref) = PrefixUtil::prefixCref(FCore::emptyCache(), FGraph::empty(), emptyInstHierarchy().clone(), prefix.clone(), ComponentReferenceBasics::makeCrefIdent((name.clone()).clone(), DAE::T_UNKNOWN_DEFAULT.clone(), metamodelica::nil()))?;
+                    (_, cref) = PrefixUtil::prefixCref(FCore::emptyCache(), FGraph::empty(), emptyInstHierarchy().clone(), prefix.clone(), ComponentReferenceBasics::makeCrefIdent((name.clone()).clone(), DAE::T_UNKNOWN_DEFAULT().clone(), metamodelica::nil()))?;
                     instInner = get(cref.clone(), ht.clone())?;
                     Ok(instInner.clone())
                 }
@@ -621,7 +645,7 @@ fn lookupInnerInIH(mut inTIH: TopInstance, mut inPrefix: DAE::Prefix, mut inComp
                     let mut cref: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
                     let mut instInner: InstInner;
                     prefix = PrefixUtil::prefixStripLast(inPrefix.clone())?;
-                    (_, cref) = PrefixUtil::prefixCref(FCore::emptyCache(), FGraph::empty(), emptyInstHierarchy().clone(), prefix.clone(), ComponentReferenceBasics::makeCrefIdent((name.clone()).clone(), DAE::T_UNKNOWN_DEFAULT.clone(), metamodelica::nil()))?;
+                    (_, cref) = PrefixUtil::prefixCref(FCore::emptyCache(), FGraph::empty(), emptyInstHierarchy().clone(), prefix.clone(), ComponentReferenceBasics::makeCrefIdent((name.clone()).clone(), DAE::T_UNKNOWN_DEFAULT().clone(), metamodelica::nil()))?;
                     if '__try0: {
                         let _ = unwrap_break_err!(get(cref.clone(), ht.clone()), '__try0);
                         Ok::<(), anyhow::Error>(())
@@ -875,7 +899,7 @@ pub fn updateInstHierarchy(mut inIH: InstHierarchy, mut inPrefix: DAE::Prefix, m
             let mut sm: (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<Arc<DAE::ComponentRef>>>), i32, i32, (HashSet::FuncHashCref, HashSet::FuncCrefEqual, HashSet::FuncCrefStr));
             ht = emptyInstHierarchyHashTable();
             sm = HashSet::emptyHashSet();
-            tih = TopInstance { path: None, ht: ht.clone(), outerPrefixes: emptyOuterPrefixes.clone(), sm: sm.clone() };
+            tih = TopInstance { path: None, ht: ht.clone(), outerPrefixes: emptyOuterPrefixes().clone(), sm: sm.clone() };
             ih = updateInstHierarchy(list![tih.clone()], inPrefix.clone(), inInnerOuter.clone(), inInstInner.clone())?;
             ih.clone()
         },
@@ -883,7 +907,7 @@ pub fn updateInstHierarchy(mut inIH: InstHierarchy, mut inPrefix: DAE::Prefix, m
             let mut cref: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
             let mut cref_: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
             let mut ht = (*ht).clone();
-            cref_ = ComponentReferenceBasics::makeCrefIdent((name.clone()).clone(), DAE::T_UNKNOWN_DEFAULT.clone(), metamodelica::nil());
+            cref_ = ComponentReferenceBasics::makeCrefIdent((name.clone()).clone(), DAE::T_UNKNOWN_DEFAULT().clone(), metamodelica::nil());
             (_, cref) = PrefixUtil::prefixCref(FCore::emptyCache(), FGraph::empty(), emptyInstHierarchy().clone(), inPrefix.clone(), cref_.clone())?;
             ht = add((cref.clone(), inInstInner.clone()), ht.clone())?;
             cons(TopInstance { path: pathOpt.clone(), ht: ht.clone(), outerPrefixes: outerPrefixes.clone(), sm: sm.clone() }, restIH.clone())
@@ -908,7 +932,7 @@ pub fn updateSMHierarchy(mut smState: Arc<DAE::ComponentRef>, mut inIH: InstHier
             ht = emptyInstHierarchyHashTable();
             sm = HashSet::emptyHashSet();
             sm2 = BaseHashSet::add(smState.clone(), sm.clone())?;
-            tih = TopInstance { path: None, ht: ht.clone(), outerPrefixes: emptyOuterPrefixes.clone(), sm: sm2.clone() };
+            tih = TopInstance { path: None, ht: ht.clone(), outerPrefixes: emptyOuterPrefixes().clone(), sm: sm2.clone() };
             ih = list![tih.clone()];
             ih.clone()
         },
@@ -1040,9 +1064,9 @@ fn changeOuterReferenceToInnerReference(mut inFullCref: Arc<DAE::ComponentRef>, 
             eifull = ComponentReference::explode(ifull.clone())?;
             eicp = ComponentReference::explode(icp.clone())?;
             (eocp, esuffix) = List::split(eifull.clone(), ComponentReference::identifierCount(ocp.clone()))?;
-            (epre, erest) = List::splitEqualPrefix(eocp.clone(), eicp.clone(), Arc::new(ComponentReferenceBasics::crefFirstIdentEqual), metamodelica::nil())?;
-            (_, eicp) = List::splitEqualPrefix(eicp.clone(), epre.clone(), Arc::new(ComponentReferenceBasics::crefFirstIdentEqual), metamodelica::nil())?;
-            (erest, _) = List::splitEqualPrefix(erest.clone().reverse(), eicp.clone().reverse(), Arc::new(ComponentReferenceBasics::crefFirstIdentEqual), metamodelica::nil())?;
+            (epre, erest) = List::splitEqualPrefix(eocp.clone(), eicp.clone(), (std::sync::Arc::new(ComponentReferenceBasics::crefFirstIdentEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>) -> Result<bool> + 'static>), metamodelica::nil())?;
+            (_, eicp) = List::splitEqualPrefix(eicp.clone(), epre.clone(), (std::sync::Arc::new(ComponentReferenceBasics::crefFirstIdentEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>) -> Result<bool> + 'static>), metamodelica::nil())?;
+            (erest, _) = List::splitEqualPrefix(erest.clone().reverse(), eicp.clone().reverse(), (std::sync::Arc::new(ComponentReferenceBasics::crefFirstIdentEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>) -> Result<bool> + 'static>), metamodelica::nil())?;
             erest = List::append_reverse(erest.clone(), esuffix.clone());
             eifull = listAppend(epre.clone(), erest.clone());
             ic = ComponentReference::implode(eifull.clone())?;
@@ -1086,8 +1110,8 @@ fn printInnerDefStr(mut inInstInner: InstInner) -> Result<ArcStr> {
             let mut r#str: ArcStr = arcstr::literal!("");
             let mut strOuters: ArcStr = arcstr::literal!("");
             let mut outers = outers.clone();
-            outers = List::uniqueOnTrue(outers.clone(), Arc::new(ComponentReferenceBasics::crefEqualNoStringCompare));
-            strOuters = (if (outers.clone().is_empty()) {literal!("")} else {{ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!(" Referenced by 'outer' components: {")); __mm_s.push_str(&*stringDelimitList(List::map(outers.clone(), Arc::new(ComponentReferenceBasics::printComponentRefStr)), (literal!(", ")).clone())); __mm_s.push_str(&*literal!("}")); ArcStr::from(__mm_s) }}).clone();
+            outers = List::uniqueOnTrue(outers.clone(), (std::sync::Arc::new(ComponentReferenceBasics::crefEqualNoStringCompare) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>) -> Result<bool> + 'static>));
+            strOuters = (if (outers.clone().is_empty()) {literal!("")} else {{ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!(" Referenced by 'outer' components: {")); __mm_s.push_str(&*stringDelimitList(List::map(outers.clone(), (std::sync::Arc::new(ComponentReferenceBasics::printComponentRefStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>)), (literal!(", ")).clone())); __mm_s.push_str(&*literal!("}")); ArcStr::from(__mm_s) }}).clone();
             r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*AbsynUtil::pathString(typePath.clone(), (literal!(".")).clone(), true, false)?); __mm_s.push_str(&*literal!(" ")); __mm_s.push_str(&*fullName.clone()); __mm_s.push_str(&*literal!("; defined in scope: ")); __mm_s.push_str(&*scope.clone()); __mm_s.push_str(&*literal!(".")); __mm_s.push_str(&*strOuters.clone()); ArcStr::from(__mm_s) }).clone();
             r#str.clone()
         },
@@ -1106,7 +1130,7 @@ pub fn getExistingInnerDeclarations(mut inIH: InstHierarchy, mut inEnv: FCore::G
             let mut inners: Arc<metamodelica::List<InstInner>> = metamodelica::nil();
             let mut r#str: ArcStr = arcstr::literal!("");
             inners = getInnersFromInstHierarchyHashTable(ht.clone())?;
-            r#str = stringDelimitList(List::map(inners.clone(), Arc::new(printInnerDefStr)), (literal!("\n    ")).clone());
+            r#str = stringDelimitList(List::map(inners.clone(), (std::sync::Arc::new(printInnerDefStr) as std::sync::Arc<dyn ::std::ops::Fn(InstInner) -> Result<ArcStr> + 'static>)), (literal!("\n    ")).clone());
             r#str.clone()
         },
         _ => bail!("match: no arm matched"),
@@ -1116,7 +1140,7 @@ pub fn getExistingInnerDeclarations(mut inIH: InstHierarchy, mut inEnv: FCore::G
 
 fn getInnersFromInstHierarchyHashTable(mut t: InstHierarchyHashTable) -> Result<Arc<metamodelica::List<InstInner>>> {
     let mut inners: Arc<metamodelica::List<InstInner>> = metamodelica::nil();
-    inners = List::map(hashTableList(t.clone())?, Arc::new(fnptr!(getValue, (Arc<DAE::ComponentRef>, InstInner))));
+    inners = List::map(hashTableList(t.clone())?, (std::sync::Arc::new(fnptr!(getValue, (Arc<DAE::ComponentRef>, InstInner))) as std::sync::Arc<dyn ::std::ops::Fn((Arc<DAE::ComponentRef>, InstInner)) -> Result<InstInner> + 'static>));
     Ok(inners)
 }
 
@@ -1146,7 +1170,7 @@ fn keyEqual(mut key1: Key, mut key2: Key) -> Result<bool> {
 
 fn dumpInstHierarchyHashTable(mut t: InstHierarchyHashTable) -> Result<()> {
     println!("{}", (literal!("InstHierarchyHashTable:\n")).clone());
-    println!("{}", stringDelimitList(List::map(hashTableList(t.clone())?, Arc::new(dumpTuple)), (literal!("\n")).clone()));
+    println!("{}", stringDelimitList(List::map(hashTableList(t.clone())?, (std::sync::Arc::new(dumpTuple) as std::sync::Arc<dyn ::std::ops::Fn((Arc<DAE::ComponentRef>, InstInner)) -> Result<ArcStr> + 'static>)), (literal!("\n")).clone()));
     println!("{}", (literal!("\n")).clone());
     Ok(())
 }
@@ -1165,7 +1189,7 @@ fn dumpTuple(mut tpl: (Arc<DAE::ComponentRef>, InstInner)) -> Result<ArcStr> {
 
 /* end of InstHierarchyHashTable instance specific code */
 /* Generic hashtable code below!! */
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct InstHierarchyHashTable {
     /// hashtable to translate Key to array indx
     pub hashTable: metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>,
@@ -1182,7 +1206,7 @@ pub type HASHTABLE = InstHierarchyHashTable;
 
 /// array of values are expandable, to amortize the
 /// cost of adding elements in a more efficient manner
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ValueArray {
     /// number of elements in hashtable
     pub numberOfElements: i32,

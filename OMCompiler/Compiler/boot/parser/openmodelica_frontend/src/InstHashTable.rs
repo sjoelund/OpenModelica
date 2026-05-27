@@ -98,7 +98,7 @@ pub fn get(mut k: Key) -> Result<Value> {
     Ok(v)
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum CachedInstItem {
     FUNC_instClassIn {
         inputs: CachedInstItemInputs,
@@ -212,13 +212,13 @@ pub type HashTableKeyFunctionsType = (FuncHashKey, FuncKeyEqual, FuncKeyStr, Fun
 
 pub type HashTable = (metamodelica::Array<Arc<metamodelica::List<(Arc<Absyn::Path>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<Absyn::Path>, Arc<metamodelica::List<Option<CachedInstItem>>>)>>), i32, (FuncHashKey, FuncKeyEqual, FuncKeyStr, FuncValueStr));
 
-type FuncHashKey = fn(Key) -> Result<i32>;
+type FuncHashKey = std::sync::Arc<dyn ::std::ops::Fn(Key) -> Result<i32> + 'static>;
 
-type FuncKeyEqual = fn(Key, Key) -> Result<bool>;
+type FuncKeyEqual = std::sync::Arc<dyn ::std::ops::Fn(Key, Key) -> Result<bool> + 'static>;
 
-type FuncKeyStr = fn(Key) -> Result<ArcStr>;
+type FuncKeyStr = std::sync::Arc<dyn ::std::ops::Fn(Key) -> Result<ArcStr> + 'static>;
 
-type FuncValueStr = fn(Value) -> Result<ArcStr>;
+type FuncValueStr = std::sync::Arc<dyn ::std::ops::Fn(Value) -> Result<ArcStr> + 'static>;
 
 fn opaqVal(mut v: Value) -> ArcStr {
     let mut r#str: ArcStr = arcstr::literal!("");
@@ -235,7 +235,7 @@ fn emptyInstHashTable() -> Result<HashTable> {
 
 fn emptyInstHashTableSized(mut size: i32) -> HashTable {
     let mut hashTable: HashTable;
-    hashTable = BaseHashTable::emptyHashTableWork(size.clone(), (AbsynUtil::pathHash, fnptr!(AbsynUtil::pathEqual, Arc<Absyn::Path>, Arc<Absyn::Path>), fnptr!(AbsynUtil::pathStringDefault, Arc<Absyn::Path>), fnptr!(opaqVal, Arc<metamodelica::List<Option<CachedInstItem>>>)));
+    hashTable = BaseHashTable::emptyHashTableWork(size.clone(), ((std::sync::Arc::new(AbsynUtil::pathHash) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Path>) -> Result<i32> + 'static>), (std::sync::Arc::new(fnptr!(AbsynUtil::pathEqual, Arc<Absyn::Path>, Arc<Absyn::Path>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Path>, Arc<Absyn::Path>) -> Result<bool> + 'static>), (std::sync::Arc::new(fnptr!(AbsynUtil::pathStringDefault, Arc<Absyn::Path>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Path>) -> Result<ArcStr> + 'static>), (std::sync::Arc::new(fnptr!(opaqVal, Arc<metamodelica::List<Option<CachedInstItem>>>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<Option<CachedInstItem>>>) -> Result<ArcStr> + 'static>)));
     hashTable
 }
 

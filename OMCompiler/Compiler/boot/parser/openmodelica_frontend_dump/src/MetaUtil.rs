@@ -143,7 +143,7 @@ fn createMetaClassesFromClassParts(mut inClassParts: Arc<metamodelica::List<Arc<
 
 fn createMetaClassesFromElementItems(mut inElementItems: Arc<metamodelica::List<Arc<Absyn::ElementItem>>>) -> Result<Arc<metamodelica::List<Arc<Absyn::ElementItem>>>> {
     let mut outElementItems: Arc<metamodelica::List<Arc<Absyn::ElementItem>>> = metamodelica::nil();
-    let mut cls: Arc<Absyn::Class>;
+    let mut cls: Arc<Absyn::Class> = Arc::new(<Absyn::Class as ::std::default::Default>::default());
     let mut meta_classes: Arc<metamodelica::List<Arc<Absyn::Class>>> = metamodelica::nil();
     let mut els: Arc<metamodelica::List<Arc<Absyn::ElementItem>>> = metamodelica::nil();
     for mut e in &*inElementItems.clone().reverse() {
@@ -191,7 +191,7 @@ fn setElementItemClass(mut inElementItem: Arc<Absyn::ElementItem>, mut inClass: 
 }
 
 fn convertElementToClass(mut inElementItem: Arc<Absyn::ElementItem>) -> Result<Arc<Absyn::Class>> {
-    let mut outClass: Arc<Absyn::Class>;
+    let mut outClass: Arc<Absyn::Class> = Arc::new(<Absyn::Class as ::std::default::Default>::default());
     let __pa0 = ::match_deref::match_deref! { match &(inElementItem.clone()) {
         Deref @ Absyn::ElementItem::ELEMENTITEM { element: Deref @ Absyn::Element::ELEMENT { specification: Deref @ Absyn::ElementSpec::CLASSDEF { class_: __pa0, .. }, .. } } => __pa0.clone(),
         _ => bail!("pattern mismatch"),
@@ -243,7 +243,7 @@ fn fixElementItems(mut inElementItems: Arc<metamodelica::List<Arc<Absyn::Element
         }
         __acc
     } == 1;
-    let mut c: Arc<Absyn::Class>;
+    let mut c: Arc<Absyn::Class> = Arc::new(<Absyn::Class as ::std::default::Default>::default());
     let mut r: Absyn::Restriction = Absyn::Restriction::R_BLOCK;
     outElementItems = {
         let mut __acc: Arc<metamodelica::List<Arc<Absyn::ElementItem>>> = metamodelica::nil();

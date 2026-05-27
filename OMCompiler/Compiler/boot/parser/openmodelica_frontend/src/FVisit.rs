@@ -76,10 +76,8 @@ pub type AvlValue = FCore::Visit;
 
 pub type AvlTreeValue = FCore::VAvlTreeValue;
 
-// TODO: non-Sync, non-const-emittable constant — needs new emission path.
-// Type: FCore::Visited
-// Expr: Constructor { name: 'FCore.Visited.V', args: [Var { name: 'FCore.emptyVAvlTree', segments: [CrefSegment { name: 'FCore', subscripts: [] }, CrefSegment { name: 'emptyVAvlTree', subscripts: [] }], ty: AliasTo('FCore.VAvlTree') }, Var { name: 'FCore.firstId', segments: [CrefSegment { name: 'FCore', subscripts: [] }, CrefSegment { name: 'firstId', subscripts: [] }], ty: I32 }], named_args: [], ty: RustStruct('FCore.Visited'), field_names: ['tree', 'next'] }
-pub fn emptyVisited() -> FCore::Visited { todo!("non-Sync, non-const-emittable constant emptyVisited — extend codegen") }
+thread_local! { static __emptyVisited_TLS: FCore::Visited = FCore::Visited { tree: FCore::emptyVAvlTree().clone(), next: FCore::firstId.clone() }; }
+pub fn emptyVisited() -> FCore::Visited { __emptyVisited_TLS.with(|__t| __t.clone()) }
 
 pub fn new() -> Visited {
     let mut visited: Visited;
@@ -537,7 +535,7 @@ fn avlTreeGet2(mut inAvlTree: AvlTree, mut keyComp: i32, mut inKey: AvlKey) -> R
 }
 
 fn getOptionStr<Type_a: Clone + 'static>(mut inTypeAOption: Option<Type_a>, mut inFuncTypeTypeAToString: Arc<dyn ::std::ops::Fn(Type_a) -> Result<ArcStr> + 'static>) -> Result<ArcStr> {
-    pub type FuncTypeType_aToString<Type_a: Clone> = fn(Type_a) -> Result<ArcStr>;
+    pub type FuncTypeType_aToString<Type_a: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Type_a) -> Result<ArcStr> + 'static>;
 
     let mut outString: ArcStr = arcstr::literal!("");
     outString = ((match (inTypeAOption.clone(), inFuncTypeTypeAToString.clone()) {
@@ -561,8 +559,8 @@ fn printAvlTreeStr(mut inAvlTree: AvlTree) -> Result<ArcStr> {
             let mut s2: ArcStr = arcstr::literal!("");
             let mut s3: ArcStr = arcstr::literal!("");
             let mut res: ArcStr = arcstr::literal!("");
-            s2 = (getOptionStr(l.clone(), Arc::new(printAvlTreeStr))?).clone();
-            s3 = (getOptionStr(r.clone(), Arc::new(printAvlTreeStr))?).clone();
+            s2 = (getOptionStr(l.clone(), (std::sync::Arc::new(printAvlTreeStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<FCore::VAvlTree>) -> Result<ArcStr> + 'static>))?).clone();
+            s3 = (getOptionStr(r.clone(), (std::sync::Arc::new(printAvlTreeStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<FCore::VAvlTree>) -> Result<ArcStr> + 'static>))?).clone();
             res = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*valueStr(rval.clone())?); __mm_s.push_str(&*literal!(",  ")); __mm_s.push_str(&*if (stringEq((s2.clone()).clone(), (literal!("")).clone())) {literal!("")} else {{ let mut __mm_s = String::new(); __mm_s.push_str(&*s2.clone()); __mm_s.push_str(&*literal!(", ")); ArcStr::from(__mm_s) }}); __mm_s.push_str(&*s3.clone()); ArcStr::from(__mm_s) }).clone();
             res.clone()
         },
@@ -570,8 +568,8 @@ fn printAvlTreeStr(mut inAvlTree: AvlTree) -> Result<ArcStr> {
             let mut s2: ArcStr = arcstr::literal!("");
             let mut s3: ArcStr = arcstr::literal!("");
             let mut res: ArcStr = arcstr::literal!("");
-            s2 = (getOptionStr(l.clone(), Arc::new(printAvlTreeStr))?).clone();
-            s3 = (getOptionStr(r.clone(), Arc::new(printAvlTreeStr))?).clone();
+            s2 = (getOptionStr(l.clone(), (std::sync::Arc::new(printAvlTreeStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<FCore::VAvlTree>) -> Result<ArcStr> + 'static>))?).clone();
+            s3 = (getOptionStr(r.clone(), (std::sync::Arc::new(printAvlTreeStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<FCore::VAvlTree>) -> Result<ArcStr> + 'static>))?).clone();
             res = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*if (stringEq((s2.clone()).clone(), (literal!("")).clone())) {literal!("")} else {{ let mut __mm_s = String::new(); __mm_s.push_str(&*s2.clone()); __mm_s.push_str(&*literal!(", ")); ArcStr::from(__mm_s) }}); __mm_s.push_str(&*s3.clone()); ArcStr::from(__mm_s) }).clone();
             res.clone()
         },

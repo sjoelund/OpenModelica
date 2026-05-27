@@ -149,38 +149,36 @@ pub mod Function {
     pub use self::Function::{FUNCTION,PARALLEL_FUNCTION,KERNEL_FUNCTION,EXTERNAL_FUNCTION,RECORD_CONSTRUCTOR};
     pub fn toString(mut func: Arc<Function>) -> Result<ArcStr> {
         let mut r#str: ArcStr = literal!("");
-        r#str = ((::match_deref::match_deref! { match &(func.clone()) {
+        r#str = (({
+        let mut tmp: ArcStr = literal!("");
+        (::match_deref::match_deref! { match &(func.clone()) {
         Deref @ FUNCTION { .. } => {
-            let mut tmp: ArcStr = literal!("");
             tmp = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*tmp.clone()); __mm_s.push_str(&*literal!("name: ")); __mm_s.push_str(&*AbsynUtil::pathString(var_field!((*func).name, Function::FUNCTION).clone(), (literal!(".")).clone(), true, false)?); ArcStr::from(__mm_s) }).clone();
             { let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("FUNCTION(")); __mm_s.push_str(&*tmp.clone()); __mm_s.push_str(&*literal!(")")); ArcStr::from(__mm_s) }
         },
         Deref @ PARALLEL_FUNCTION { .. } => {
-            let mut tmp: ArcStr = literal!("");
             tmp = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*tmp.clone()); __mm_s.push_str(&*literal!("name: ")); __mm_s.push_str(&*AbsynUtil::pathString(var_field!((*func).name, Function::PARALLEL_FUNCTION).clone(), (literal!(".")).clone(), true, false)?); ArcStr::from(__mm_s) }).clone();
             { let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("PARALLEL_FUNCTION(")); __mm_s.push_str(&*tmp.clone()); __mm_s.push_str(&*literal!(")")); ArcStr::from(__mm_s) }
         },
         Deref @ KERNEL_FUNCTION { .. } => {
-            let mut tmp: ArcStr = literal!("");
             tmp = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*tmp.clone()); __mm_s.push_str(&*literal!("name: ")); __mm_s.push_str(&*AbsynUtil::pathString(var_field!((*func).name, Function::KERNEL_FUNCTION).clone(), (literal!(".")).clone(), true, false)?); ArcStr::from(__mm_s) }).clone();
             { let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("KERNEL_FUNCTION(")); __mm_s.push_str(&*tmp.clone()); __mm_s.push_str(&*literal!(")")); ArcStr::from(__mm_s) }
         },
         Deref @ EXTERNAL_FUNCTION { .. } => {
-            let mut tmp: ArcStr = literal!("");
             let mut ls: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
             tmp = (literal!("\n")).clone();
             tmp = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*tmp.clone()); __mm_s.push_str(&*literal!("  name: ")); __mm_s.push_str(&*AbsynUtil::pathString(var_field!((*func).name, Function::EXTERNAL_FUNCTION).clone(), (literal!(".")).clone(), true, false)?); __mm_s.push_str(&*literal!(",\n")); ArcStr::from(__mm_s) }).clone();
             tmp = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*tmp.clone()); __mm_s.push_str(&*literal!("  extName: ")); __mm_s.push_str(&*var_field!((*func).extName, Function::EXTERNAL_FUNCTION).clone()); __mm_s.push_str(&*literal!(",\n")); ArcStr::from(__mm_s) }).clone();
-            ls = List::map(var_field!((*func).funArgs, Function::EXTERNAL_FUNCTION).clone(), Arc::new(Variable::toString));
+            ls = List::map(var_field!((*func).funArgs, Function::EXTERNAL_FUNCTION).clone(), (std::sync::Arc::new(Variable::toString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Variable::Variable>) -> Result<ArcStr> + 'static>));
             tmp = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*tmp.clone()); __mm_s.push_str(&*literal!("  funArgs: {")); __mm_s.push_str(&*stringDelimitList(ls.clone(), (literal!(", ")).clone())); __mm_s.push_str(&*literal!("},\n")); ArcStr::from(__mm_s) }).clone();
-            ls = List::map(var_field!((*func).extArgs, Function::EXTERNAL_FUNCTION).clone(), Arc::new(SimExtArg::toString));
+            ls = List::map(var_field!((*func).extArgs, Function::EXTERNAL_FUNCTION).clone(), (std::sync::Arc::new(SimExtArg::toString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SimExtArg::SimExtArg>) -> Result<ArcStr> + 'static>));
             tmp = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*tmp.clone()); __mm_s.push_str(&*literal!("  extArgs: {")); __mm_s.push_str(&*stringDelimitList(ls.clone(), (literal!(", ")).clone())); __mm_s.push_str(&*literal!("},\n")); ArcStr::from(__mm_s) }).clone();
             tmp = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*tmp.clone()); __mm_s.push_str(&*literal!("  extReturn: ")); __mm_s.push_str(&*SimExtArg::toString(var_field!((*func).extReturn, Function::EXTERNAL_FUNCTION).clone())?); __mm_s.push_str(&*literal!(",\n")); ArcStr::from(__mm_s) }).clone();
-            ls = List::map(var_field!((*func).inVars, Function::EXTERNAL_FUNCTION).clone(), Arc::new(Variable::toString));
+            ls = List::map(var_field!((*func).inVars, Function::EXTERNAL_FUNCTION).clone(), (std::sync::Arc::new(Variable::toString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Variable::Variable>) -> Result<ArcStr> + 'static>));
             tmp = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*tmp.clone()); __mm_s.push_str(&*literal!("  inVars: {")); __mm_s.push_str(&*stringDelimitList(ls.clone(), (literal!(", ")).clone())); __mm_s.push_str(&*literal!("},\n")); ArcStr::from(__mm_s) }).clone();
-            ls = List::map(var_field!((*func).outVars, Function::EXTERNAL_FUNCTION).clone(), Arc::new(Variable::toString));
+            ls = List::map(var_field!((*func).outVars, Function::EXTERNAL_FUNCTION).clone(), (std::sync::Arc::new(Variable::toString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Variable::Variable>) -> Result<ArcStr> + 'static>));
             tmp = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*tmp.clone()); __mm_s.push_str(&*literal!("  outVars: {")); __mm_s.push_str(&*stringDelimitList(ls.clone(), (literal!(", ")).clone())); __mm_s.push_str(&*literal!("},\n")); ArcStr::from(__mm_s) }).clone();
-            ls = List::map(var_field!((*func).biVars, Function::EXTERNAL_FUNCTION).clone(), Arc::new(Variable::toString));
+            ls = List::map(var_field!((*func).biVars, Function::EXTERNAL_FUNCTION).clone(), (std::sync::Arc::new(Variable::toString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Variable::Variable>) -> Result<ArcStr> + 'static>));
             tmp = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*tmp.clone()); __mm_s.push_str(&*literal!("  biVars: {")); __mm_s.push_str(&*stringDelimitList(ls.clone(), (literal!(", ")).clone())); __mm_s.push_str(&*literal!("},\n")); ArcStr::from(__mm_s) }).clone();
             tmp = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*tmp.clone()); __mm_s.push_str(&*literal!("  includes: {")); __mm_s.push_str(&*stringDelimitList(var_field!((*func).includes, Function::EXTERNAL_FUNCTION).clone(), (literal!(", ")).clone())); __mm_s.push_str(&*literal!("},\n")); ArcStr::from(__mm_s) }).clone();
             tmp = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*tmp.clone()); __mm_s.push_str(&*literal!("  libs: {")); __mm_s.push_str(&*stringDelimitList(var_field!((*func).libs, Function::EXTERNAL_FUNCTION).clone(), (literal!(", ")).clone())); __mm_s.push_str(&*literal!("},\n")); ArcStr::from(__mm_s) }).clone();
@@ -188,17 +186,16 @@ pub mod Function {
             { let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("EXTERNAL_FUNCTION(")); __mm_s.push_str(&*tmp.clone()); __mm_s.push_str(&*literal!(")")); ArcStr::from(__mm_s) }
         },
         Deref @ RECORD_CONSTRUCTOR { .. } => {
-            let mut tmp: ArcStr = literal!("");
             tmp = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*tmp.clone()); __mm_s.push_str(&*literal!("name: ")); __mm_s.push_str(&*AbsynUtil::pathString(var_field!((*func).name, Function::RECORD_CONSTRUCTOR).clone(), (literal!(".")).clone(), true, false)?); ArcStr::from(__mm_s) }).clone();
             { let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("RECORD_CONSTRUCTOR(")); __mm_s.push_str(&*tmp.clone()); __mm_s.push_str(&*literal!(")")); ArcStr::from(__mm_s) }
         },
         _ => {
-            let mut tmp: ArcStr = literal!("");
             Error::addMessage(Error::INTERNAL_ERROR.clone(), list![({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("SimCodeFunction.Function.toString")); __mm_s.push_str(&*literal!(" failed for an unknown reason.")); ArcStr::from(__mm_s) }).clone()])?;
             bail!("fail")
         },
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
-    } })).clone();
+    } })
+    })).clone();
         Ok(r#str)
     }
 
@@ -234,10 +231,9 @@ pub enum RecordDeclaration {
 }
 impl Default for RecordDeclaration {
     fn default() -> Self {
-        Self::RECORD_DECL_ADD_CONSTRCTOR {
-            ctor_name: Default::default(),
-            name: Default::default(),
-            variables: Default::default(),
+        Self::RECORD_DECL_DEF {
+            path: Default::default(),
+            fieldNames: Default::default(),
         }
     }
 }
@@ -298,9 +294,10 @@ pub mod SimExtArg {
     pub use self::SimExtArg::{SIMEXTARG,SIMEXTARGEXP,SIMEXTARGSIZE,SIMNOEXTARG};
     pub fn toString(mut simExtArg: Arc<SimExtArg>) -> Result<ArcStr> {
         let mut r#str: ArcStr = literal!("");
-        r#str = ((::match_deref::match_deref! { match &(simExtArg.clone()) {
+        r#str = (({
+        let mut tmp: ArcStr = literal!("");
+        (::match_deref::match_deref! { match &(simExtArg.clone()) {
         Deref @ SIMEXTARG { .. } => {
-            let mut tmp: ArcStr = literal!("");
             tmp = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*tmp.clone()); __mm_s.push_str(&*literal!("cref: ")); __mm_s.push_str(&*ComponentReferenceBasics::printComponentRefStr(var_field!((*simExtArg).cref, SimExtArg::SIMEXTARG).clone())?); ArcStr::from(__mm_s) }).clone();
             tmp = (if (var_field!((*simExtArg).isInput, SimExtArg::SIMEXTARG).clone()) {{ let mut __mm_s = String::new(); __mm_s.push_str(&*tmp.clone()); __mm_s.push_str(&*literal!(", isInput: true")); ArcStr::from(__mm_s) }} else {{ let mut __mm_s = String::new(); __mm_s.push_str(&*tmp.clone()); __mm_s.push_str(&*literal!(", isInput: false")); ArcStr::from(__mm_s) }}).clone();
             tmp = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*tmp.clone()); __mm_s.push_str(&*literal!(", outputIndex: ")); __mm_s.push_str(&*intString(var_field!((*simExtArg).outputIndex, SimExtArg::SIMEXTARG).clone())); ArcStr::from(__mm_s) }).clone();
@@ -310,13 +307,11 @@ pub mod SimExtArg {
             { let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("SIMEXTARG(")); __mm_s.push_str(&*tmp.clone()); __mm_s.push_str(&*literal!(")")); ArcStr::from(__mm_s) }
         },
         Deref @ SIMEXTARGEXP { .. } => {
-            let mut tmp: ArcStr = literal!("");
             tmp = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*tmp.clone()); __mm_s.push_str(&*literal!("exp: ")); __mm_s.push_str(&*ExpressionBasics::printExpStr(var_field!((*simExtArg).exp, SimExtArg::SIMEXTARGEXP).clone())?); ArcStr::from(__mm_s) }).clone();
             tmp = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*tmp.clone()); __mm_s.push_str(&*literal!(", type: ")); __mm_s.push_str(&*TypesDump::unparseType(var_field!((*simExtArg).type_, SimExtArg::SIMEXTARGEXP).clone())?); ArcStr::from(__mm_s) }).clone();
             { let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("SIMEXTARGEXP(")); __mm_s.push_str(&*tmp.clone()); __mm_s.push_str(&*literal!(")")); ArcStr::from(__mm_s) }
         },
         Deref @ SIMEXTARGSIZE { .. } => {
-            let mut tmp: ArcStr = literal!("");
             tmp = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*tmp.clone()); __mm_s.push_str(&*literal!("cref: ")); __mm_s.push_str(&*ComponentReferenceBasics::printComponentRefStr(var_field!((*simExtArg).cref, SimExtArg::SIMEXTARGSIZE).clone())?); ArcStr::from(__mm_s) }).clone();
             tmp = (if (var_field!((*simExtArg).isInput, SimExtArg::SIMEXTARGSIZE).clone()) {{ let mut __mm_s = String::new(); __mm_s.push_str(&*tmp.clone()); __mm_s.push_str(&*literal!(", isInput: true")); ArcStr::from(__mm_s) }} else {{ let mut __mm_s = String::new(); __mm_s.push_str(&*tmp.clone()); __mm_s.push_str(&*literal!(", isInput: false")); ArcStr::from(__mm_s) }}).clone();
             tmp = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*tmp.clone()); __mm_s.push_str(&*literal!(", outputIndex: ")); __mm_s.push_str(&*intString(var_field!((*simExtArg).outputIndex, SimExtArg::SIMEXTARGSIZE).clone())); ArcStr::from(__mm_s) }).clone();
@@ -325,16 +320,15 @@ pub mod SimExtArg {
             { let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("SIMEXTARGSIZE(")); __mm_s.push_str(&*tmp.clone()); __mm_s.push_str(&*literal!(")")); ArcStr::from(__mm_s) }
         },
         Deref @ SIMNOEXTARG { .. } => {
-            let mut tmp: ArcStr = literal!("");
             literal!("SIMNOEXTARG()")
         },
         _ => {
-            let mut tmp: ArcStr = literal!("");
             Error::addMessage(Error::INTERNAL_ERROR.clone(), list![({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("SimCodeFunction.SimExtArg.toString")); __mm_s.push_str(&*literal!(" failed for an unknown reason.")); ArcStr::from(__mm_s) }).clone()])?;
             bail!("fail")
         },
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
-    } })).clone();
+    } })
+    })).clone();
         Ok(r#str)
     }
 
@@ -363,38 +357,28 @@ pub mod Variable {
             defaultValue: Option<Arc<DAE::Exp>>,
         },
     }
-    impl Default for Variable {
-        fn default() -> Self {
-            Self::FUNCTION_PTR {
-                name: Default::default(),
-                tys: Default::default(),
-                args: Default::default(),
-                defaultValue: Default::default(),
-            }
-        }
-    }
     pub use self::Variable::{VARIABLE,FUNCTION_PTR};
     pub fn toString(mut variable: Arc<Variable>) -> Result<ArcStr> {
         let mut r#str: ArcStr = literal!("");
-        r#str = ((::match_deref::match_deref! { match &(variable.clone()) {
+        r#str = (({
+        let mut tmp: ArcStr = literal!("");
+        (::match_deref::match_deref! { match &(variable.clone()) {
         Deref @ VARIABLE { .. } => {
-            let mut tmp: ArcStr = literal!("");
             tmp = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*tmp.clone()); __mm_s.push_str(&*literal!("name: ")); __mm_s.push_str(&*ComponentReferenceBasics::printComponentRefStr(var_field!((*variable).name, Variable::VARIABLE).clone())?); ArcStr::from(__mm_s) }).clone();
             tmp = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*tmp.clone()); __mm_s.push_str(&*literal!(", type: ")); __mm_s.push_str(&*TypesDump::unparseType(var_field!((*variable).ty, Variable::VARIABLE).clone())?); ArcStr::from(__mm_s) }).clone();
             { let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("VARIABLE(")); __mm_s.push_str(&*tmp.clone()); __mm_s.push_str(&*literal!(")")); ArcStr::from(__mm_s) }
         },
         Deref @ FUNCTION_PTR { .. } => {
-            let mut tmp: ArcStr = literal!("");
             tmp = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*tmp.clone()); __mm_s.push_str(&*literal!("name: ")); __mm_s.push_str(&*var_field!((*variable).name, Variable::FUNCTION_PTR).clone()); ArcStr::from(__mm_s) }).clone();
             { let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("FUNCTION_PTR(")); __mm_s.push_str(&*tmp.clone()); __mm_s.push_str(&*literal!(")")); ArcStr::from(__mm_s) }
         },
         _ => {
-            let mut tmp: ArcStr = literal!("");
             Error::addMessage(Error::INTERNAL_ERROR.clone(), list![({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("SimCodeFunction.Variable.toString")); __mm_s.push_str(&*literal!(" failed for an unknown reason.")); ArcStr::from(__mm_s) }).clone()])?;
             bail!("fail")
         },
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
-    } })).clone();
+    } })
+    })).clone();
         Ok(r#str)
     }
 
@@ -402,7 +386,7 @@ pub mod Variable {
 
 /// Constants of this type defined below are used by templates to be able to
 ///  generate different code depending on the context it is generated in.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone)]
 pub enum Context {
     SIMULATION_CONTEXT {
         genDiscrete: bool,
@@ -429,6 +413,102 @@ pub enum Context {
         hashTable: Option<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))>,
     },
 }
+impl PartialEq for Context {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::SIMULATION_CONTEXT { genDiscrete: __l_genDiscrete }, Self::SIMULATION_CONTEXT { genDiscrete: __r_genDiscrete }) => __l_genDiscrete == __r_genDiscrete,
+            (Self::FUNCTION_CONTEXT { cref_prefix: __l_cref_prefix, is_parallel: __l_is_parallel }, Self::FUNCTION_CONTEXT { cref_prefix: __r_cref_prefix, is_parallel: __r_is_parallel }) => __l_cref_prefix == __r_cref_prefix && __l_is_parallel == __r_is_parallel,
+            (Self::ALGLOOP_CONTEXT { genInitialisation: __l_genInitialisation, genJacobian: __l_genJacobian }, Self::ALGLOOP_CONTEXT { genInitialisation: __r_genInitialisation, genJacobian: __r_genJacobian }) => __l_genInitialisation == __r_genInitialisation && __l_genJacobian == __r_genJacobian,
+            (Self::JACOBIAN_CONTEXT { name: __l_name, jacHT: __l_jacHT }, Self::JACOBIAN_CONTEXT { name: __r_name, jacHT: __r_jacHT }) => __l_name == __r_name && std::sync::Arc::ptr_eq(__l_jacHT, __r_jacHT),
+            (Self::OTHER_CONTEXT, Self::OTHER_CONTEXT) => true,
+            (Self::ZEROCROSSINGS_CONTEXT, Self::ZEROCROSSINGS_CONTEXT) => true,
+            (Self::OPTIMIZATION_CONTEXT, Self::OPTIMIZATION_CONTEXT) => true,
+            (Self::FMI_CONTEXT, Self::FMI_CONTEXT) => true,
+            (Self::DAE_MODE_CONTEXT, Self::DAE_MODE_CONTEXT) => true,
+            (Self::OMSI_CONTEXT { hashTable: __l_hashTable }, Self::OMSI_CONTEXT { hashTable: __r_hashTable }) => std::sync::Arc::ptr_eq(__l_hashTable, __r_hashTable),
+            _ => false,
+        }
+    }
+}
+impl Eq for Context {}
+impl PartialOrd for Context {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> { Some(self.cmp(other)) }
+}
+impl Ord for Context {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        fn __variant_idx(__v: &Context) -> u32 {
+            match __v {
+                Context::SIMULATION_CONTEXT { .. } => 0,
+                Context::FUNCTION_CONTEXT { .. } => 1,
+                Context::ALGLOOP_CONTEXT { .. } => 2,
+                Context::JACOBIAN_CONTEXT { .. } => 3,
+                Context::OTHER_CONTEXT => 4,
+                Context::ZEROCROSSINGS_CONTEXT => 5,
+                Context::OPTIMIZATION_CONTEXT => 6,
+                Context::FMI_CONTEXT => 7,
+                Context::DAE_MODE_CONTEXT => 8,
+                Context::OMSI_CONTEXT { .. } => 9,
+            }
+        }
+        match __variant_idx(self).cmp(&__variant_idx(other)) {
+            std::cmp::Ordering::Equal => {}
+            non_eq => return non_eq,
+        }
+        match (self, other) {
+            (Self::SIMULATION_CONTEXT { genDiscrete: __l_genDiscrete }, Self::SIMULATION_CONTEXT { genDiscrete: __r_genDiscrete }) => __l_genDiscrete.cmp(__r_genDiscrete),
+            (Self::FUNCTION_CONTEXT { cref_prefix: __l_cref_prefix, is_parallel: __l_is_parallel }, Self::FUNCTION_CONTEXT { cref_prefix: __r_cref_prefix, is_parallel: __r_is_parallel }) => __l_cref_prefix.cmp(__r_cref_prefix).then_with(|| __l_is_parallel.cmp(__r_is_parallel)),
+            (Self::ALGLOOP_CONTEXT { genInitialisation: __l_genInitialisation, genJacobian: __l_genJacobian }, Self::ALGLOOP_CONTEXT { genInitialisation: __r_genInitialisation, genJacobian: __r_genJacobian }) => __l_genInitialisation.cmp(__r_genInitialisation).then_with(|| __l_genJacobian.cmp(__r_genJacobian)),
+            (Self::JACOBIAN_CONTEXT { name: __l_name, jacHT: __l_jacHT }, Self::JACOBIAN_CONTEXT { name: __r_name, jacHT: __r_jacHT }) => __l_name.cmp(__r_name).then_with(|| (std::sync::Arc::as_ptr(__l_jacHT) as *const ()).cmp(&(std::sync::Arc::as_ptr(__r_jacHT) as *const ()))),
+            (Self::OTHER_CONTEXT, Self::OTHER_CONTEXT) => std::cmp::Ordering::Equal,
+            (Self::ZEROCROSSINGS_CONTEXT, Self::ZEROCROSSINGS_CONTEXT) => std::cmp::Ordering::Equal,
+            (Self::OPTIMIZATION_CONTEXT, Self::OPTIMIZATION_CONTEXT) => std::cmp::Ordering::Equal,
+            (Self::FMI_CONTEXT, Self::FMI_CONTEXT) => std::cmp::Ordering::Equal,
+            (Self::DAE_MODE_CONTEXT, Self::DAE_MODE_CONTEXT) => std::cmp::Ordering::Equal,
+            (Self::OMSI_CONTEXT { hashTable: __l_hashTable }, Self::OMSI_CONTEXT { hashTable: __r_hashTable }) => (std::sync::Arc::as_ptr(__l_hashTable) as *const ()).cmp(&(std::sync::Arc::as_ptr(__r_hashTable) as *const ())),
+            _ => unreachable!("variant-index equality already implies same variant"),
+        }
+    }
+}
+impl std::fmt::Debug for Context {
+    fn fmt(&self, __f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::SIMULATION_CONTEXT { genDiscrete: __d_genDiscrete } => {
+                let mut __ds = __f.debug_struct("SIMULATION_CONTEXT");
+                __ds.field("genDiscrete", __d_genDiscrete);
+                __ds.finish()
+            }
+            Self::FUNCTION_CONTEXT { cref_prefix: __d_cref_prefix, is_parallel: __d_is_parallel } => {
+                let mut __ds = __f.debug_struct("FUNCTION_CONTEXT");
+                __ds.field("cref_prefix", __d_cref_prefix);
+                __ds.field("is_parallel", __d_is_parallel);
+                __ds.finish()
+            }
+            Self::ALGLOOP_CONTEXT { genInitialisation: __d_genInitialisation, genJacobian: __d_genJacobian } => {
+                let mut __ds = __f.debug_struct("ALGLOOP_CONTEXT");
+                __ds.field("genInitialisation", __d_genInitialisation);
+                __ds.field("genJacobian", __d_genJacobian);
+                __ds.finish()
+            }
+            Self::JACOBIAN_CONTEXT { name: __d_name, jacHT: __d_jacHT } => {
+                let mut __ds = __f.debug_struct("JACOBIAN_CONTEXT");
+                __ds.field("name", __d_name);
+                __ds.field("jacHT", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr(__d_jacHT)));
+                __ds.finish()
+            }
+            Self::OTHER_CONTEXT => __f.debug_struct("OTHER_CONTEXT").finish(),
+            Self::ZEROCROSSINGS_CONTEXT => __f.debug_struct("ZEROCROSSINGS_CONTEXT").finish(),
+            Self::OPTIMIZATION_CONTEXT => __f.debug_struct("OPTIMIZATION_CONTEXT").finish(),
+            Self::FMI_CONTEXT => __f.debug_struct("FMI_CONTEXT").finish(),
+            Self::DAE_MODE_CONTEXT => __f.debug_struct("DAE_MODE_CONTEXT").finish(),
+            Self::OMSI_CONTEXT { hashTable: __d_hashTable } => {
+                let mut __ds = __f.debug_struct("OMSI_CONTEXT");
+                __ds.field("hashTable", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr(__d_hashTable)));
+                __ds.finish()
+            }
+        }
+    }
+}
+
 pub use self::Context::{SIMULATION_CONTEXT,FUNCTION_CONTEXT,ALGLOOP_CONTEXT,JACOBIAN_CONTEXT,OTHER_CONTEXT,ZEROCROSSINGS_CONTEXT,OPTIMIZATION_CONTEXT,FMI_CONTEXT,DAE_MODE_CONTEXT,OMSI_CONTEXT};
 
 pub const fn contextSimulationNonDiscrete() -> Context { Context::SIMULATION_CONTEXT { genDiscrete: false } }
@@ -459,9 +539,11 @@ pub const fn contextDAEmode() -> Context { crate::SimCodeFunction::Context::DAE_
 
 pub const fn contextOMSI() -> Context { Context::OMSI_CONTEXT { hashTable: None } }
 
-pub static listExpLength1: std::sync::LazyLock<Arc<metamodelica::List<Arc<DAE::Exp>>>> = std::sync::LazyLock::new(|| { list![Arc::new(DAE::Exp::ICONST { integer: 0 })] });
+thread_local! { static __listExpLength1_TLS: Arc<metamodelica::List<Arc<DAE::Exp>>> = list![Arc::new(DAE::Exp::ICONST { integer: 0 })]; }
+pub fn listExpLength1() -> Arc<metamodelica::List<Arc<DAE::Exp>>> { __listExpLength1_TLS.with(|__t| __t.clone()) }
 
-pub static boxedRecordOutVars: std::sync::LazyLock<Arc<metamodelica::List<Arc<Variable::Variable>>>> = std::sync::LazyLock::new(|| { cons(Arc::new(Variable::Variable::VARIABLE { name: Arc::new(DAE::ComponentRef::CREF_IDENT { ident: (literal!("")).clone(), identType: DAE::T_COMPLEX_DEFAULT_RECORD.clone(), subscriptLst: metamodelica::nil() }), ty: DAE::T_COMPLEX_DEFAULT_RECORD.clone(), value: None, instDims: metamodelica::nil(), parallelism: openmodelica_frontend_types::DAE::VarParallelism::NON_PARALLEL, kind: openmodelica_frontend_types::DAE::VarKind::VARIABLE, bind_from_outside: false }), metamodelica::nil()) });
+thread_local! { static __boxedRecordOutVars_TLS: Arc<metamodelica::List<Arc<Variable::Variable>>> = cons(Arc::new(Variable::Variable::VARIABLE { name: Arc::new(DAE::ComponentRef::CREF_IDENT { ident: (literal!("")).clone(), identType: DAE::T_COMPLEX_DEFAULT_RECORD().clone(), subscriptLst: metamodelica::nil() }), ty: DAE::T_COMPLEX_DEFAULT_RECORD().clone(), value: None, instDims: metamodelica::nil(), parallelism: openmodelica_frontend_types::DAE::VarParallelism::NON_PARALLEL, kind: openmodelica_frontend_types::DAE::VarKind::VARIABLE, bind_from_outside: false }), metamodelica::nil()); }
+pub fn boxedRecordOutVars() -> Arc<metamodelica::List<Arc<Variable::Variable>>> { __boxedRecordOutVars_TLS.with(|__t| __t.clone()) }
 
 pub fn translateFunctions(mut program: Absyn::Program, mut name: ArcStr, mut optMainFunction: Option<DAE::Function>, mut idaeElements: Arc<metamodelica::List<DAE::Function>>, mut metarecordTypes: Arc<metamodelica::List<Arc<DAE::Type>>>, mut inIncludes: Arc<metamodelica::List<ArcStr>>) -> Result<()> {
     crate::Globals::optionSimCode.with(|__root| *__root.borrow_mut() = None);
@@ -496,12 +578,12 @@ pub fn translateFunctions(mut program: Absyn::Program, mut name: ArcStr, mut opt
             makefileParams = SimCodeFunctionUtil::createMakefileParams(includeDirs.clone(), libs.clone(), libPaths.clone(), true, false)?;
             fnCode = FunctionCode { name: (name.clone()).clone(), mainFunction: Some(mainFunction.clone()), functions: fns.clone(), literals: literals.clone(), externalFunctionIncludes: includes.clone(), makefileParams: makefileParams.clone(), extraRecordDecls: extraRecordDecls.clone() };
             if Config::simCodeTarget()? == literal!("MidC") {
-                let _ = Tpl::tplString(Arc::new(CodegenCFunctions::translateFunctionHeaderFiles), fnCode.clone())?;
+                let _ = Tpl::tplString((std::sync::Arc::new(CodegenCFunctions::translateFunctionHeaderFiles) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, FunctionCode) -> Result<Tpl::Text> + 'static>), fnCode.clone())?;
                 midfuncs = DAEToMid::DAEFunctionsToMid(cons(mainFunction.clone(), fns.clone()))?;
-                midCode = Tpl::tplCallWithFailError(Arc::new(CodegenMidToC::genProgram), MidCode::Program { name: (name.clone()).clone(), functions: midfuncs.clone() }, Tpl::emptyTxt.clone())?;
+                midCode = Tpl::tplCallWithFailError((std::sync::Arc::new(CodegenMidToC::genProgram) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, MidCode::Program) -> Result<Tpl::Text> + 'static>), MidCode::Program { name: (name.clone()).clone(), functions: midfuncs.clone() }, Tpl::emptyTxt.clone())?;
                 let _ = Tpl::textFileConvertLines(midCode.clone(), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*name.clone()); __mm_s.push_str(&*literal!(".c")); ArcStr::from(__mm_s) }).clone())?;
             } else {
-                let _ = Tpl::tplString(Arc::new(CodegenCFunctions::translateFunctions), fnCode.clone())?;
+                let _ = Tpl::tplString((std::sync::Arc::new(CodegenCFunctions::translateFunctions) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, FunctionCode) -> Result<Tpl::Text> + 'static>), fnCode.clone())?;
             }
             ()
         },
@@ -525,12 +607,12 @@ pub fn translateFunctions(mut program: Absyn::Program, mut name: ArcStr, mut opt
             extraRecordDecls = removeThreadDataRecord(extraRecordDecls.clone(), metamodelica::nil())?;
             fnCode = FunctionCode { name: (name.clone()).clone(), mainFunction: None, functions: fns.clone(), literals: literals.clone(), externalFunctionIncludes: includes.clone(), makefileParams: makefileParams.clone(), extraRecordDecls: extraRecordDecls.clone() };
             if Config::simCodeTarget()? == literal!("MidC") {
-                let _ = Tpl::tplString(Arc::new(CodegenCFunctions::translateFunctionHeaderFiles), fnCode.clone())?;
+                let _ = Tpl::tplString((std::sync::Arc::new(CodegenCFunctions::translateFunctionHeaderFiles) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, FunctionCode) -> Result<Tpl::Text> + 'static>), fnCode.clone())?;
                 midfuncs = DAEToMid::DAEFunctionsToMid(fns.clone())?;
-                midCode = Tpl::tplCallWithFailError(Arc::new(CodegenMidToC::genProgram), MidCode::Program { name: (name.clone()).clone(), functions: midfuncs.clone() }, Tpl::emptyTxt.clone())?;
+                midCode = Tpl::tplCallWithFailError((std::sync::Arc::new(CodegenMidToC::genProgram) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, MidCode::Program) -> Result<Tpl::Text> + 'static>), MidCode::Program { name: (name.clone()).clone(), functions: midfuncs.clone() }, Tpl::emptyTxt.clone())?;
                 let _ = Tpl::textFileConvertLines(midCode.clone(), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*name.clone()); __mm_s.push_str(&*literal!(".c")); ArcStr::from(__mm_s) }).clone())?;
             } else {
-                let _ = Tpl::tplString(Arc::new(CodegenCFunctions::translateFunctions), fnCode.clone())?;
+                let _ = Tpl::tplString((std::sync::Arc::new(CodegenCFunctions::translateFunctions) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, FunctionCode) -> Result<Tpl::Text> + 'static>), fnCode.clone())?;
             }
             ()
         },

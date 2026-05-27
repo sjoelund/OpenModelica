@@ -49,7 +49,7 @@ use crate::NFType as Type;
 use openmodelica_util::Error;
 use openmodelica_util::Util;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum NFRangeIterator {
     INT_RANGE {
         current: i32,
@@ -247,7 +247,7 @@ pub fn toListReverse(mut iterator: Arc<NFRangeIterator>) -> Result<Arc<metamodel
 }
 
 pub fn map<T: Clone + 'static>(mut iterator: Arc<NFRangeIterator>, mut func: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<T> + 'static>) -> Result<Arc<metamodelica::List<T>>> {
-    pub type FuncT<T: Clone> = fn(Arc<Expression::NFExpression>) -> Result<T>;
+    pub type FuncT<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<T> + 'static>;
 
     let mut lst: Arc<metamodelica::List<T>> = metamodelica::nil();
     let mut iter: Arc<NFRangeIterator> = iterator.clone();
@@ -261,7 +261,7 @@ pub fn map<T: Clone + 'static>(mut iterator: Arc<NFRangeIterator>, mut func: Arc
 }
 
 pub fn fold<ArgT: Clone + 'static>(mut iterator: Arc<NFRangeIterator>, mut func: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, ArgT) -> Result<ArgT> + 'static>, mut arg: ArgT) -> Result<ArgT> {
-    pub type FuncT<ArgT: Clone> = fn(Arc<Expression::NFExpression>, ArgT) -> Result<ArgT>;
+    pub type FuncT<ArgT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, ArgT) -> Result<ArgT> + 'static>;
 
     let mut arg: ArgT = arg;
     let mut iter: Arc<NFRangeIterator> = iterator.clone();

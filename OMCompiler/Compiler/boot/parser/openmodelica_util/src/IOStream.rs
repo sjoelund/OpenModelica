@@ -118,7 +118,7 @@ pub fn append(mut inStream: IOStream, mut inString: ArcStr) -> Result<IOStream> 
             fStream.clone()
         },
         (IOStream { name: mut streamName, ty: mut streamType, data: IOStreamData::LIST_DATA { data: ref listData } }, _) => {
-            IOStream { name: (streamName.clone()).clone(), ty: streamType.clone(), data: IOStreamData::LIST_DATA { data: cons(inString.clone(), listData.clone()) } }
+            IOStream { name: (streamName.clone()).clone(), ty: streamType.clone(), data: IOStreamData::LIST_DATA { data: cons((inString.clone()).clone(), listData.clone()) } }
         },
         (ref bStream @ IOStream { data: IOStreamData::BUFFER_DATA { data: ref bufferID }, .. }, _) => {
             IOStreamExt::appendBuffer(bufferID.clone(), (inString.clone()).clone())?;
@@ -131,7 +131,7 @@ pub fn append(mut inStream: IOStream, mut inString: ArcStr) -> Result<IOStream> 
 
 pub fn appendList(mut inStream: IOStream, mut inStringList: Arc<metamodelica::List<ArcStr>>) -> IOStream {
     let mut outStream: IOStream;
-    outStream = List::foldr(inStringList.clone(), Arc::new(append), inStream.clone());
+    outStream = List::foldr(inStringList.clone(), (std::sync::Arc::new(append) as std::sync::Arc<dyn ::std::ops::Fn(IOStream, ArcStr) -> Result<IOStream> + 'static>), inStream.clone());
     outStream
 }
 

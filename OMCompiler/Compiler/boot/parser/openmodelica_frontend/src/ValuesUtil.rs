@@ -101,7 +101,7 @@ pub fn valueExpType(mut inValue: Arc<Values::Value>) -> Result<Arc<DAE::Type>> {
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ Values::Value::INTEGER { integer: _ } => {
-                    Ok(DAE::T_INTEGER_DEFAULT.clone())
+                    Ok(DAE::T_INTEGER_DEFAULT().clone())
                 }
                 _ => bail!("nomatch"),
             }}
@@ -109,7 +109,7 @@ pub fn valueExpType(mut inValue: Arc<Values::Value>) -> Result<Arc<DAE::Type>> {
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ Values::Value::REAL { real: _ } => {
-                    Ok(DAE::T_REAL_DEFAULT.clone())
+                    Ok(DAE::T_REAL_DEFAULT().clone())
                 }
                 _ => bail!("nomatch"),
             }}
@@ -117,7 +117,7 @@ pub fn valueExpType(mut inValue: Arc<Values::Value>) -> Result<Arc<DAE::Type>> {
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ Values::Value::BOOL { boolean: _ } => {
-                    Ok(DAE::T_BOOL_DEFAULT.clone())
+                    Ok(DAE::T_BOOL_DEFAULT().clone())
                 }
                 _ => bail!("nomatch"),
             }}
@@ -125,7 +125,7 @@ pub fn valueExpType(mut inValue: Arc<Values::Value>) -> Result<Arc<DAE::Type>> {
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ Values::Value::STRING { string: _ } => {
-                    Ok(DAE::T_STRING_DEFAULT.clone())
+                    Ok(DAE::T_STRING_DEFAULT().clone())
                 }
                 _ => bail!("nomatch"),
             }}
@@ -146,7 +146,7 @@ pub fn valueExpType(mut inValue: Arc<Values::Value>) -> Result<Arc<DAE::Type>> {
                     let mut eltTp: Arc<DAE::Type> = Arc::new(DAE::Type::T_NORETCALL);
                     let mut dims: Arc<metamodelica::List<Arc<DAE::Dimension>>> = metamodelica::nil();
                     eltTp = valueExpType(listHead(valLst.clone())?)?;
-                    dims = List::map(int_dims.clone(), Arc::new(fnptr!(Expression::intDimension, i32)));
+                    dims = List::map(int_dims.clone(), (std::sync::Arc::new(fnptr!(Expression::intDimension, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<Arc<DAE::Dimension>> + 'static>));
                     Ok(Arc::new(DAE::Type::T_ARRAY { ty: eltTp.clone(), dims: dims.clone() }))
                 }
                 _ => bail!("nomatch"),
@@ -157,8 +157,8 @@ pub fn valueExpType(mut inValue: Arc<Values::Value>) -> Result<Arc<DAE::Type>> {
                 Deref @ Values::Value::RECORD { record_: path, orderd: valLst, comp: nameLst, index: _ } => {
                     let mut eltTps: Arc<metamodelica::List<Arc<DAE::Type>>> = metamodelica::nil();
                     let mut varLst: Arc<metamodelica::List<Arc<DAE::Var>>> = metamodelica::nil();
-                    eltTps = List::map(valLst.clone(), Arc::new(valueExpType));
-                    varLst = List::threadMap(eltTps.clone(), nameLst.clone(), Arc::new(fnptr!(valueExpTypeExpVar, Arc<DAE::Type>, ArcStr)));
+                    eltTps = List::map(valLst.clone(), (std::sync::Arc::new(valueExpType) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Values::Value>) -> Result<Arc<DAE::Type>> + 'static>));
+                    varLst = List::threadMap(eltTps.clone(), nameLst.clone(), (std::sync::Arc::new(fnptr!(valueExpTypeExpVar, Arc<DAE::Type>, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Type>, ArcStr) -> Result<Arc<DAE::Var>> + 'static>));
                     Ok(Arc::new(DAE::Type::T_COMPLEX { complexClassType: ClassInf::State::RECORD { path: path.clone() }, varLst: varLst.clone(), equalityConstraint: None, usedExternally: false }))
                 }
                 _ => bail!("nomatch"),
@@ -180,7 +180,7 @@ pub fn valueExpType(mut inValue: Arc<Values::Value>) -> Result<Arc<DAE::Type>> {
 
 fn valueExpTypeExpVar(mut etp: Arc<DAE::Type>, mut name: ArcStr) -> Arc<DAE::Var> {
     let mut expVar: Arc<DAE::Var>;
-    expVar = Arc::new(DAE::Var { name: (name.clone()).clone(), attributes: DAE::dummyAttrVar.clone(), ty: etp.clone(), binding: Arc::new(openmodelica_frontend_types::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None });
+    expVar = Arc::new(DAE::Var { name: (name.clone()).clone(), attributes: DAE::dummyAttrVar().clone(), ty: etp.clone(), binding: Arc::new(openmodelica_frontend_types::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None });
     expVar
 }
 
@@ -794,8 +794,8 @@ pub fn valueExp(mut inValue: Arc<Values::Value>, mut originalExp: Option<Arc<DAE
             let mut tpl: Arc<metamodelica::List<Arc<DAE::Type>>> = metamodelica::nil();
             let mut varlst: Arc<metamodelica::List<Arc<DAE::Var>>> = metamodelica::nil();
             expl = List::map(vallist.clone(), Arc::new({ let __pe_b1 = None; move |__pe_a0| valueExp(__pe_a0, __pe_b1.clone()) }));
-            tpl = List::map(expl.clone(), Arc::new(Expression::r#typeof));
-            varlst = List::threadMap(namelst.clone(), tpl.clone(), Arc::new(fnptr!(Expression::makeVar, ArcStr, Arc<DAE::Type>)));
+            tpl = List::map(expl.clone(), (std::sync::Arc::new(Expression::r#typeof) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<Arc<DAE::Type>> + 'static>));
+            varlst = List::threadMap(namelst.clone(), tpl.clone(), (std::sync::Arc::new(fnptr!(Expression::makeVar, ArcStr, Arc<DAE::Type>)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, Arc<DAE::Type>) -> Result<Arc<DAE::Var>> + 'static>));
             t = Arc::new(DAE::Type::T_COMPLEX { complexClassType: ClassInf::State::RECORD { path: path.clone() }, varLst: varlst.clone(), equalityConstraint: None, usedExternally: false });
             Arc::new(DAE::Exp::RECORD { path: path.clone(), exps: expl.clone(), comp: namelst.clone(), ty: t.clone() })
         },
@@ -810,7 +810,7 @@ pub fn valueExp(mut inValue: Arc<Values::Value>, mut originalExp: Option<Arc<DAE
         Deref @ Values::Value::OPTION { some: Some(v) } => {
             let mut e: Arc<DAE::Exp>;
             e = valueExp(v.clone(), None)?;
-            (e, _) = Types::matchType(e.clone(), Types::typeOfValue(v.clone())?, DAE::T_METABOXED_DEFAULT.clone(), true)?;
+            (e, _) = Types::matchType(e.clone(), Types::typeOfValue(v.clone())?, DAE::T_METABOXED_DEFAULT().clone(), true)?;
             Arc::new(DAE::Exp::META_OPTION { exp: Some(e.clone()) })
         },
         Deref @ Values::Value::OPTION { some: None } => {
@@ -820,8 +820,8 @@ pub fn valueExp(mut inValue: Arc<Values::Value>, mut originalExp: Option<Arc<DAE
             let mut explist: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
             let mut typelist: Arc<metamodelica::List<Arc<DAE::Type>>> = metamodelica::nil();
             explist = List::map(vallist.clone(), Arc::new({ let __pe_b1 = None; move |__pe_a0| valueExp(__pe_a0, __pe_b1.clone()) }));
-            typelist = List::map(vallist.clone(), Arc::new(Types::typeOfValue));
-            (explist, _) = Types::matchTypeTuple(explist.clone(), typelist.clone(), List::map(typelist.clone(), Arc::new(Types::boxIfUnboxedType)), true)?;
+            typelist = List::map(vallist.clone(), (std::sync::Arc::new(Types::typeOfValue) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Values::Value>) -> Result<Arc<DAE::Type>> + 'static>));
+            (explist, _) = Types::matchTypeTuple(explist.clone(), typelist.clone(), List::map(typelist.clone(), (std::sync::Arc::new(Types::boxIfUnboxedType) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Type>) -> Result<Arc<DAE::Type>> + 'static>)), true)?;
             Arc::new(DAE::Exp::META_TUPLE { listExp: explist.clone() })
         },
         Deref @ Values::Value::LIST { valueLst: Deref @ metamodelica::List::Nil } => {
@@ -832,8 +832,8 @@ pub fn valueExp(mut inValue: Arc<Values::Value>, mut originalExp: Option<Arc<DAE
             let mut vt: Arc<DAE::Type> = Arc::new(DAE::Type::T_NORETCALL);
             let mut typelist: Arc<metamodelica::List<Arc<DAE::Type>>> = metamodelica::nil();
             explist = List::map(vallist.clone(), Arc::new({ let __pe_b1 = None; move |__pe_a0| valueExp(__pe_a0, __pe_b1.clone()) }));
-            typelist = List::map(vallist.clone(), Arc::new(Types::typeOfValue));
-            vt = Types::boxIfUnboxedType(List::reduce(typelist.clone(), Arc::new(Types::superType))?)?;
+            typelist = List::map(vallist.clone(), (std::sync::Arc::new(Types::typeOfValue) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Values::Value>) -> Result<Arc<DAE::Type>> + 'static>));
+            vt = Types::boxIfUnboxedType(List::reduce(typelist.clone(), (std::sync::Arc::new(Types::superType) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Type>, Arc<DAE::Type>) -> Result<Arc<DAE::Type>> + 'static>))?)?;
             (explist, _) = Types::matchTypes(explist.clone(), typelist.clone(), vt.clone(), true)?;
             Arc::new(DAE::Exp::LIST { valList: explist.clone() })
         },
@@ -842,8 +842,8 @@ pub fn valueExp(mut inValue: Arc<Values::Value>, mut originalExp: Option<Arc<DAE
             let mut vt: Arc<DAE::Type> = Arc::new(DAE::Type::T_NORETCALL);
             let mut typelist: Arc<metamodelica::List<Arc<DAE::Type>>> = metamodelica::nil();
             explist = List::map(vallist.clone(), Arc::new({ let __pe_b1 = None; move |__pe_a0| valueExp(__pe_a0, __pe_b1.clone()) }));
-            typelist = List::map(vallist.clone(), Arc::new(Types::typeOfValue));
-            vt = Types::boxIfUnboxedType(List::reduce(typelist.clone(), Arc::new(Types::superType))?)?;
+            typelist = List::map(vallist.clone(), (std::sync::Arc::new(Types::typeOfValue) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Values::Value>) -> Result<Arc<DAE::Type>> + 'static>));
+            vt = Types::boxIfUnboxedType(List::reduce(typelist.clone(), (std::sync::Arc::new(Types::superType) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Type>, Arc<DAE::Type>) -> Result<Arc<DAE::Type>> + 'static>))?)?;
             (explist, _) = Types::matchTypes(explist.clone(), typelist.clone(), vt.clone(), true)?;
             Expression::makeBuiltinCall((literal!("listArrayLiteral")).clone(), list![Arc::new(DAE::Exp::LIST { valList: explist.clone() })], Arc::new(DAE::Type::T_METAARRAY { ty: vt.clone() }), false)
         },
@@ -852,12 +852,12 @@ pub fn valueExp(mut inValue: Arc<Values::Value>, mut originalExp: Option<Arc<DAE
             let mut typelist: Arc<metamodelica::List<Arc<DAE::Type>>> = metamodelica::nil();
             let true = (ix.clone() >= 0) else { bail!("pattern mismatch") };
             explist = List::map(vallist.clone(), Arc::new({ let __pe_b1 = None; move |__pe_a0| valueExp(__pe_a0, __pe_b1.clone()) }));
-            typelist = List::map(vallist.clone(), Arc::new(Types::typeOfValue));
-            (explist, _) = Types::matchTypeTuple(explist.clone(), typelist.clone(), List::map(typelist.clone(), Arc::new(Types::boxIfUnboxedType)), true)?;
+            typelist = List::map(vallist.clone(), (std::sync::Arc::new(Types::typeOfValue) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Values::Value>) -> Result<Arc<DAE::Type>> + 'static>));
+            (explist, _) = Types::matchTypeTuple(explist.clone(), typelist.clone(), List::map(typelist.clone(), (std::sync::Arc::new(Types::boxIfUnboxedType) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Type>) -> Result<Arc<DAE::Type>> + 'static>)), true)?;
             Arc::new(DAE::Exp::METARECORDCALL { path: path.clone(), args: explist.clone(), fieldNames: namelst.clone(), index: ix.clone(), typeVars: metamodelica::nil() })
         },
         Deref @ Values::Value::META_FAIL => {
-            Arc::new(DAE::Exp::CALL { path: Arc::new(Absyn::Path::IDENT { name: (literal!("fail")).clone() }), expLst: metamodelica::nil(), attr: DAE::callAttrBuiltinOther.clone() })
+            Arc::new(DAE::Exp::CALL { path: Arc::new(Absyn::Path::IDENT { name: (literal!("fail")).clone() }), expLst: metamodelica::nil(), attr: DAE::callAttrBuiltinOther().clone() })
         },
         Deref @ Values::Value::META_BOX { value: v } => {
             let mut e: Arc<DAE::Exp>;
@@ -865,7 +865,7 @@ pub fn valueExp(mut inValue: Arc<Values::Value>, mut originalExp: Option<Arc<DAE
             Arc::new(DAE::Exp::BOX { exp: e.clone() })
         },
         Deref @ Values::Value::CODE { A: code } => {
-            Arc::new(DAE::Exp::CODE { code: code.clone(), ty: DAE::T_UNKNOWN_DEFAULT.clone() })
+            Arc::new(DAE::Exp::CODE { code: code.clone(), ty: DAE::T_UNKNOWN_DEFAULT().clone() })
         },
         Deref @ Values::Value::EMPTY { ty: valType, tyStr, name, scope } => {
             let mut e: Arc<DAE::Exp>;
@@ -903,7 +903,7 @@ fn valueExpArray(mut values: Arc<metamodelica::List<Arc<Values::Value>>>, mut in
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ metamodelica::List::Nil, Deref @ metamodelica::List::Nil, _) => {
-                    Ok(Arc::new(DAE::Exp::ARRAY { ty: DAE::T_UNKNOWN_DEFAULT.clone(), scalar: false, array: metamodelica::nil() }))
+                    Ok(Arc::new(DAE::Exp::ARRAY { ty: DAE::T_UNKNOWN_DEFAULT().clone(), scalar: false, array: metamodelica::nil() }))
                 }
                 _ => bail!("nomatch"),
             }}
@@ -912,8 +912,8 @@ fn valueExpArray(mut values: Arc<metamodelica::List<Arc<Values::Value>>>, mut in
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ metamodelica::List::Nil, _, _) => {
                     let mut dims: Arc<metamodelica::List<Arc<DAE::Dimension>>> = metamodelica::nil();
-                    dims = List::map(inDims.clone(), Arc::new(fnptr!(Expression::intDimension, i32)));
-                    Ok(Arc::new(DAE::Exp::ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_UNKNOWN_DEFAULT.clone(), dims: dims.clone() }), scalar: false, array: metamodelica::nil() }))
+                    dims = List::map(inDims.clone(), (std::sync::Arc::new(fnptr!(Expression::intDimension, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<Arc<DAE::Dimension>> + 'static>));
+                    Ok(Arc::new(DAE::Exp::ARRAY { ty: Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_UNKNOWN_DEFAULT().clone(), dims: dims.clone() }), scalar: false, array: metamodelica::nil() }))
                 }
                 _ => bail!("nomatch"),
             }}
@@ -1111,7 +1111,7 @@ pub fn arrayValueInts(mut inValue: Arc<Values::Value>) -> Result<Arc<metamodelic
         _ => bail!("pattern mismatch"),
     } };
     vals = __pa0.clone();
-    outReal = List::map(vals.clone(), Arc::new(valueInteger));
+    outReal = List::map(vals.clone(), (std::sync::Arc::new(valueInteger) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Values::Value>) -> Result<i32> + 'static>));
     Ok(outReal)
 }
 
@@ -1134,7 +1134,7 @@ pub fn matrixValueReals(mut inValue: Arc<Values::Value>) -> Result<Arc<metamodel
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ Values::Value::ARRAY { valueLst: vals, .. } => {
-                    Ok(List::map(vals.clone(), Arc::new(arrayValueReals)))
+                    Ok(List::map(vals.clone(), (std::sync::Arc::new(arrayValueReals) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Values::Value>) -> Result<Arc<metamodelica::List<metamodelica::Real>>> + 'static>)))
                 }
                 _ => bail!("nomatch"),
             }}
@@ -1144,7 +1144,7 @@ pub fn matrixValueReals(mut inValue: Arc<Values::Value>) -> Result<Arc<metamodel
                 Deref @ Values::Value::ARRAY { valueLst: vals, .. } => {
                     let mut reals: Arc<metamodelica::List<metamodelica::Real>> = metamodelica::nil();
                     reals = valueReals(vals.clone())?;
-                    Ok(List::map(reals.clone(), Arc::new(fnptr!(List::create, _))))
+                    Ok(List::map(reals.clone(), std::sync::Arc::new(fnptr!(List::create, _))))
                 }
                 _ => bail!("nomatch"),
             }}
@@ -1182,7 +1182,7 @@ pub fn valueNeg(mut inValue: Arc<Values::Value>) -> Result<Arc<Values::Value>> {
         },
         Deref @ Values::Value::ARRAY { dimLst: dims, valueLst: vlst } => {
             let mut vlst_1: Arc<metamodelica::List<Arc<Values::Value>>> = metamodelica::nil();
-            vlst_1 = List::map(vlst.clone(), Arc::new(valueNeg));
+            vlst_1 = List::map(vlst.clone(), (std::sync::Arc::new(valueNeg) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Values::Value>) -> Result<Arc<Values::Value>> + 'static>));
             Arc::new(Values::Value::ARRAY { valueLst: vlst_1.clone(), dimLst: dims.clone() })
         },
         _ => bail!("match: no arm matched"),
@@ -1840,7 +1840,7 @@ pub fn reverseMatrix(mut inValue: Arc<Values::Value>) -> Result<Arc<Values::Valu
                 Deref @ Values::Value::ARRAY { dimLst: dims, valueLst: lst } => {
                     let mut lst_1: Arc<metamodelica::List<Arc<Values::Value>>> = metamodelica::nil();
                     let mut lst_2: Arc<metamodelica::List<Arc<Values::Value>>> = metamodelica::nil();
-                    lst_1 = List::map(lst.clone(), Arc::new(reverseMatrix));
+                    lst_1 = List::map(lst.clone(), (std::sync::Arc::new(reverseMatrix) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Values::Value>) -> Result<Arc<Values::Value>> + 'static>));
                     lst_2 = lst_1.clone().reverse();
                     Ok(Arc::new(Values::Value::ARRAY { valueLst: lst_2.clone(), dimLst: dims.clone() }))
                 }
@@ -2005,7 +2005,7 @@ pub fn arrayOrListVals(mut v: Arc<Values::Value>, mut boxIfUnboxed: bool) -> Res
     let mut vals: Arc<metamodelica::List<Arc<Values::Value>>> = metamodelica::nil();
     vals = (::match_deref::match_deref! { match &((v.clone(), boxIfUnboxed.clone())) {
         (Deref @ Values::Value::ARRAY { valueLst: vals, .. }, _) => vals.clone(),
-        (Deref @ Values::Value::LIST { valueLst: vals }, true) => List::map(vals.clone(), Arc::new(fnptr!(boxIfUnboxedVal, Arc<Values::Value>))),
+        (Deref @ Values::Value::LIST { valueLst: vals }, true) => List::map(vals.clone(), (std::sync::Arc::new(fnptr!(boxIfUnboxedVal, Arc<Values::Value>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Values::Value>) -> Result<Arc<Values::Value>> + 'static>)),
         (Deref @ Values::Value::LIST { valueLst: vals }, _) => vals.clone(),
         _ => bail!("match: no arm matched"),
     } });

@@ -196,7 +196,7 @@ pub fn markExp(mut exp: Arc<Expression::NFExpression>) -> Result<()> {
                     markComponent(comp.clone(), node.clone())?;
                 }
             }
-            Expression::applyShallow(exp.clone(), Arc::new(markExp))?;
+            Expression::applyShallow(exp.clone(), (std::sync::Arc::new(markExp) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<()> + 'static>))?;
             ()
         },
         Deref @ Expression::SIZE { .. } => {
@@ -213,7 +213,7 @@ pub fn markExp(mut exp: Arc<Expression::NFExpression>) -> Result<()> {
             ()
         },
         _ => {
-            Expression::applyShallow(exp.clone(), Arc::new(markExp))?;
+            Expression::applyShallow(exp.clone(), (std::sync::Arc::new(markExp) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<()> + 'static>))?;
             ()
         },
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
@@ -224,11 +224,11 @@ pub fn markExp(mut exp: Arc<Expression::NFExpression>) -> Result<()> {
 pub fn markSubscriptsInExp(mut exp: Arc<Expression::NFExpression>) -> Result<()> {
     let () = (::match_deref::match_deref! { match &(exp.clone()) {
         Deref @ Expression::CREF { .. } => {
-            ComponentRef::applySubscripts(var_field!((*exp).cref, Expression::NFExpression::CREF).clone(), Arc::new(markSubscript), false);
+            ComponentRef::applySubscripts(var_field!((*exp).cref, Expression::NFExpression::CREF).clone(), (std::sync::Arc::new(markSubscript) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Subscript::NFSubscript>) -> Result<()> + 'static>), false);
             ()
         },
         _ => {
-            Expression::applyShallow(exp.clone(), Arc::new(markSubscriptsInExp))?;
+            Expression::applyShallow(exp.clone(), (std::sync::Arc::new(markSubscriptsInExp) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<()> + 'static>))?;
             ()
         },
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
@@ -250,7 +250,7 @@ pub fn markComponent(mut component: Arc<Component::NFComponent>, mut node: Arc<I
 }
 
 pub fn markExpSize(mut exp: Arc<Expression::NFExpression>) -> Result<()> {
-    Expression::apply(exp.clone(), Arc::new(markExpSize_traverser))?;
+    Expression::apply(exp.clone(), (std::sync::Arc::new(markExpSize_traverser) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<()> + 'static>))?;
     Ok(())
 }
 
@@ -274,7 +274,7 @@ pub fn markExpSize_traverser(mut exp: Arc<Expression::NFExpression>) -> Result<(
 pub fn markSubscripts(mut exp: Arc<Expression::NFExpression>) -> () {
     let () = (::match_deref::match_deref! { match &(exp.clone()) {
         Deref @ Expression::CREF { .. } => {
-            ComponentRef::applySubscripts(var_field!((*exp).cref, Expression::NFExpression::CREF).clone(), Arc::new(markSubscript), false);
+            ComponentRef::applySubscripts(var_field!((*exp).cref, Expression::NFExpression::CREF).clone(), (std::sync::Arc::new(markSubscript) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Subscript::NFSubscript>) -> Result<()> + 'static>), false);
             ()
         },
         _ => (),

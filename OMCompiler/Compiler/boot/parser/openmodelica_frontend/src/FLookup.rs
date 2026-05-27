@@ -334,7 +334,7 @@ pub fn ext(mut inGraph: Graph, mut inRef: Ref, mut inName: Name, mut inOptions: 
             let mut refs: Refs = metamodelica::nil();
             refs = FNode::extendsRefs(inRef.clone())?;
             let false = (refs.clone().is_empty()) else { bail!("pattern mismatch") };
-            refs = List::mapMap(refs.clone(), Arc::new(FNode::fromRef), Arc::new(FNode::target));
+            refs = List::mapMap(refs.clone(), (std::sync::Arc::new(FNode::fromRef) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Node>) -> Result<FCore::Node> + 'static>), (std::sync::Arc::new(FNode::target) as std::sync::Arc<dyn ::std::ops::Fn(FCore::Node) -> Result<metamodelica::Array<FCore::Node>> + 'static>));
             (g, r) = search(g.clone(), refs.clone(), (inName.clone()).clone(), ignoreParentsAndImports.clone(), inMsg.clone())?;
             Ok((g.clone(), r.clone()))
         })() { break 'mc __v; }

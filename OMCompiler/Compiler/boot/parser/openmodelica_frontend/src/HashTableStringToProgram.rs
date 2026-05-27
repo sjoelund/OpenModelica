@@ -63,13 +63,13 @@ pub type HashTableCrefFunctionsType = (FuncHashCref, FuncCrefEqual, FuncCrefStr,
 
 pub type HashTable = (metamodelica::Array<Arc<metamodelica::List<(ArcStr, i32)>>>, (i32, i32, metamodelica::Array<Option<(ArcStr, Absyn::Program)>>), i32, (FuncHashCref, FuncCrefEqual, FuncCrefStr, FuncExpStr));
 
-pub type FuncHashCref = fn(Key) -> Result<i32>;
+pub type FuncHashCref = std::sync::Arc<dyn ::std::ops::Fn(Key) -> Result<i32> + 'static>;
 
-pub type FuncCrefEqual = fn(Key, Key) -> Result<bool>;
+pub type FuncCrefEqual = std::sync::Arc<dyn ::std::ops::Fn(Key, Key) -> Result<bool> + 'static>;
 
-pub type FuncCrefStr = fn(Key) -> Result<ArcStr>;
+pub type FuncCrefStr = std::sync::Arc<dyn ::std::ops::Fn(Key) -> Result<ArcStr> + 'static>;
 
-pub type FuncExpStr = fn(Value) -> Result<ArcStr>;
+pub type FuncExpStr = std::sync::Arc<dyn ::std::ops::Fn(Value) -> Result<ArcStr> + 'static>;
 
 pub fn emptyHashTable() -> HashTable {
     let mut hashTable: HashTable;
@@ -79,7 +79,7 @@ pub fn emptyHashTable() -> HashTable {
 
 pub fn emptyHashTableSized(mut size: i32) -> HashTable {
     let mut hashTable: HashTable;
-    hashTable = BaseHashTable::emptyHashTableWork(size.clone(), (fnptr!(stringHashDjb2, ArcStr), fnptr!(stringEq, ArcStr, ArcStr), fnptr!(Util::id, _), fnptr!(dummyStr, Absyn::Program)));
+    hashTable = BaseHashTable::emptyHashTableWork(size.clone(), ((std::sync::Arc::new(fnptr!(stringHashDjb2, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr) -> Result<i32> + 'static>), (std::sync::Arc::new(fnptr!(stringEq, ArcStr, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>), std::sync::Arc::new(fnptr!(Util::id, _)), (std::sync::Arc::new(fnptr!(dummyStr, Absyn::Program)) as std::sync::Arc<dyn ::std::ops::Fn(Absyn::Program) -> Result<ArcStr> + 'static>)));
     hashTable
 }
 

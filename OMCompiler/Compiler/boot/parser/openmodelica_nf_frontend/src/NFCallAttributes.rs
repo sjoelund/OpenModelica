@@ -46,7 +46,7 @@ use arcstr::{ArcStr, literal, format};
 use crate::NFType;
 use openmodelica_frontend_types::DAE;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct NFCallAttributes {
     /// tuple
     pub tuple_: bool,

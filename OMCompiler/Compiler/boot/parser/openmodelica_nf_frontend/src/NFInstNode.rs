@@ -75,7 +75,7 @@ use openmodelica_util::Util;
 use openmodelica_util_datatypes_basic::List;
 use openmodelica_util_datatypes_basic::Pointer;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum InstNodeType {
     /// An element with no specific characteristics.
     NORMAL_CLASS,
@@ -146,7 +146,7 @@ impl Ord for PackageCacheState {
 
 pub mod CachedData {
     use super::*;
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
     pub enum CachedData {
         NO_CACHE,
         PACKAGE {
@@ -222,7 +222,7 @@ pub mod CachedData {
 
 pub mod InstNode {
     use super::*;
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
     pub enum InstNode {
         CLASS_NODE {
             name: ArcStr,
@@ -1078,7 +1078,7 @@ pub mod InstNode {
     // NOTE: #[tailcall::tailcall] disabled: function body contains a `match_deref!{…}` match,
     // and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
     pub fn info(mut node: Arc<InstNode>) -> Result<SourceInfo> {
-        let mut info: SourceInfo;
+        let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
         info = 'mc: {
         let __mc_input = node.clone();
         if let Ok(__v) = (|| -> Result<_> {
@@ -1128,7 +1128,7 @@ pub mod InstNode {
 
     pub fn getType(mut node: Arc<InstNode>) -> Result<Arc<Type::NFType>> {
         let mut ty: Arc<Type::NFType> = Arc::new(Type::ANY);
-        let mut var: Arc<Variable::NFVariable>;
+        let mut var: Arc<Variable::NFVariable> = Arc::new(<Variable::NFVariable as ::std::default::Default>::default());
         ty = (::match_deref::match_deref! { match &(node.clone()) {
         Deref @ CLASS_NODE { .. } => Class::getType(Pointer::access(var_field!((*node).cls, InstNode::CLASS_NODE).clone()), node.clone())?,
         Deref @ COMPONENT_NODE { .. } => Component::getType(Pointer::access(var_field!((*node).component, InstNode::COMPONENT_NODE).clone()))?,
@@ -1143,7 +1143,7 @@ pub mod InstNode {
     }
 
     pub fn classApply<ArgT: Clone + 'static>(mut node: Arc<InstNode>, mut func: Arc<dyn ::std::ops::Fn(ArgT, Arc<Class::NFClass>) -> Result<Arc<Class::NFClass>> + 'static>, mut arg: ArgT) -> Result<Arc<InstNode>> {
-        pub type FuncType<ArgT: Clone> = fn(ArgT, Arc<Class::NFClass>) -> Result<Arc<Class::NFClass>>;
+        pub type FuncType<ArgT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(ArgT, Arc<Class::NFClass>) -> Result<Arc<Class::NFClass>> + 'static>;
 
         let mut node: Arc<InstNode> = node;
         let () = (::match_deref::match_deref! { match &(node.clone()) {
@@ -1157,7 +1157,7 @@ pub mod InstNode {
     }
 
     pub fn componentApply<ArgT: Clone + 'static>(mut node: Arc<InstNode>, mut func: Arc<dyn ::std::ops::Fn(ArgT, Arc<Component::NFComponent>) -> Result<Arc<Component::NFComponent>> + 'static>, mut arg: ArgT) -> Result<Arc<InstNode>> {
-        pub type FuncType<ArgT: Clone> = fn(ArgT, Arc<Component::NFComponent>) -> Result<Arc<Component::NFComponent>>;
+        pub type FuncType<ArgT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(ArgT, Arc<Component::NFComponent>) -> Result<Arc<Component::NFComponent>> + 'static>;
 
         let mut node: Arc<InstNode> = node;
         let () = (::match_deref::match_deref! { match &(node.clone()) {
@@ -1989,7 +1989,7 @@ pub mod InstNode {
         Deref @ CLASS_NODE { .. } => {
             let mut cls: Arc<Class::NFClass> = Arc::new(Class::NOT_INSTANTIATED);
             cls = Pointer::access(var_field!((*node).cls, InstNode::CLASS_NODE).clone());
-            cls = Class::classTreeApply(cls.clone(), Arc::new(fnptr!(ClassTree::clone, Arc<ClassTree::ClassTree>)));
+            cls = Class::classTreeApply(cls.clone(), (std::sync::Arc::new(fnptr!(ClassTree::clone, Arc<ClassTree::ClassTree>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ClassTree::ClassTree>) -> Result<Arc<ClassTree::ClassTree>> + 'static>));
             assign_variant_field!(node => InstNode::CLASS_NODE;
                 cls = Pointer::create(cls.clone()),
                 caches = CachedData::empty()
@@ -2111,7 +2111,7 @@ pub mod InstNode {
             binding_exp.clone()
         },
         Deref @ VAR_NODE { .. } => {
-            let mut var: Arc<Variable::NFVariable>;
+            let mut var: Arc<Variable::NFVariable> = Arc::new(<Variable::NFVariable as ::std::default::Default>::default());
             var = Pointer::access(var_field!((*node).varPointer, InstNode::VAR_NODE).clone());
             Binding::getExpOpt(var.binding.clone())
         },

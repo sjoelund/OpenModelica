@@ -61,7 +61,7 @@ use openmodelica_util_datatypes_basic::Mutable;
 // where tabs will be converted where 1 tab = 4 spaces ??
 pub type Tokens = Arc<metamodelica::List<Arc<StringToken>>>;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Text {
     MEM_TEXT {
         tokens: Tokens,
@@ -79,7 +79,7 @@ pub use self::Text::{MEM_TEXT,FILE_TEXT};
 
 pub static emptyTxt: std::sync::LazyLock<Text> = std::sync::LazyLock::new(|| { Text::MEM_TEXT { tokens: metamodelica::nil(), blocksStack: metamodelica::nil() } });
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct BlockTypeFileText {
     /// The block type
     pub bt: Arc<BlockType>,
@@ -94,7 +94,7 @@ pub struct BlockTypeFileText {
 pub type BT_FILE_TEXT = BlockTypeFileText;
 
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum StringToken {
     /// Always outputs the new-line char.
     ST_NEW_LINE,
@@ -119,7 +119,7 @@ pub enum StringToken {
 }
 pub use self::StringToken::{ST_NEW_LINE,ST_STRING,ST_LINE,ST_STRING_LIST,ST_BLOCK};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum BlockType {
     BT_TEXT,
     BT_INDENT {
@@ -143,7 +143,7 @@ pub enum BlockType {
 }
 pub use self::BlockType::{BT_TEXT,BT_INDENT,BT_ABS_INDENT,BT_REL_INDENT,BT_ANCHOR,BT_ITER};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct IterOptions {
     pub startIndex0: i32,
     pub empty: Option<Arc<StringToken>>,
@@ -253,7 +253,7 @@ fn writeChars(mut inText: Text, mut inChars: Arc<metamodelica::List<ArcStr>>) ->
             let mut txt = (*txt).clone();
             let mut chars = (*chars).clone();
             (lschars, chars, isline) = takeLineOrString(chars.clone());
-            txt = writeLineOrStr(txt.clone(), stringAppendList(cons(c.clone(), lschars.clone())), isline.clone())?;
+            txt = writeLineOrStr(txt.clone(), stringAppendList(cons((c.clone()).clone(), lschars.clone())), isline.clone())?;
             writeChars(txt.clone(), chars.clone())?
         },
         (_, _) => {
@@ -306,7 +306,7 @@ fn takeLineOrString(mut inChars: Arc<metamodelica::List<ArcStr>>) -> (Arc<metamo
             let mut restchars: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
             let mut isline: bool = false;
             (tnlchars, restchars, isline) = takeLineOrString(chars.clone());
-            (cons(char.clone(), tnlchars.clone()), restchars.clone(), isline.clone())
+            (cons((char.clone()).clone(), tnlchars.clone()), restchars.clone(), isline.clone())
         },
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
     } });
@@ -1479,7 +1479,7 @@ pub fn failIfTrue(mut istrue: bool) -> Result<()> {
 }
 
 fn tplCallHandleErrors(mut inFun: Arc<dyn ::std::ops::Fn(Text) -> Result<Text> + 'static>, mut txt: Text) -> Result<Text> {
-    pub type Tpl_Fun = fn(Text) -> Result<Text>;
+    pub type Tpl_Fun = std::sync::Arc<dyn ::std::ops::Fn(Text) -> Result<Text> + 'static>;
 
     let mut txt: Text = txt;
     let mut nErr: i32 = 0;
@@ -1508,7 +1508,7 @@ fn tplCallHandleErrors(mut inFun: Arc<dyn ::std::ops::Fn(Text) -> Result<Text> +
 }
 
 pub fn tplCallWithFailErrorNoArg(mut inFun: Arc<dyn ::std::ops::Fn(Text) -> Result<Text> + 'static>, mut txt: Text) -> Result<Text> {
-    pub type Tpl_Fun = fn(Text) -> Result<Text>;
+    pub type Tpl_Fun = std::sync::Arc<dyn ::std::ops::Fn(Text) -> Result<Text> + 'static>;
 
     let mut txt: Text = txt;
     txt = tplCallHandleErrors(inFun.clone(), txt.clone())?;
@@ -1516,7 +1516,7 @@ pub fn tplCallWithFailErrorNoArg(mut inFun: Arc<dyn ::std::ops::Fn(Text) -> Resu
 }
 
 pub fn tplCallWithFailError<ArgType1: Clone + 'static>(mut inFun: Arc<dyn ::std::ops::Fn(Text, ArgType1) -> Result<Text> + 'static>, mut inArg: ArgType1, mut txt: Text) -> Result<Text> {
-    pub type Tpl_Fun<ArgType1: Clone> = fn(Text, ArgType1) -> Result<Text>;
+    pub type Tpl_Fun<ArgType1: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Text, ArgType1) -> Result<Text> + 'static>;
 
     let mut txt: Text = txt;
     let mut arg: ArgType1;
@@ -1525,7 +1525,7 @@ pub fn tplCallWithFailError<ArgType1: Clone + 'static>(mut inFun: Arc<dyn ::std:
 }
 
 pub fn tplCallWithFailError2<ArgType1: Clone + 'static, ArgType2: Clone + 'static>(mut inFun: Arc<dyn ::std::ops::Fn(Text, ArgType1, ArgType2) -> Result<Text> + 'static>, mut inArgA: ArgType1, mut inArgB: ArgType2, mut txt: Text) -> Result<Text> {
-    pub type Tpl_Fun<ArgType1: Clone, ArgType2: Clone> = fn(Text, ArgType1, ArgType2) -> Result<Text>;
+    pub type Tpl_Fun<ArgType1: Clone + 'static, ArgType2: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Text, ArgType1, ArgType2) -> Result<Text> + 'static>;
 
     let mut txt: Text = txt;
     let mut argA: ArgType1;
@@ -1535,7 +1535,7 @@ pub fn tplCallWithFailError2<ArgType1: Clone + 'static, ArgType2: Clone + 'stati
 }
 
 pub fn tplCallWithFailError3<ArgType1: Clone + 'static, ArgType2: Clone + 'static, ArgType3: Clone + 'static>(mut inFun: Arc<dyn ::std::ops::Fn(Text, ArgType1, ArgType2, ArgType3) -> Result<Text> + 'static>, mut inArgA: ArgType1, mut inArgB: ArgType2, mut inArgC: ArgType3, mut txt: Text) -> Result<Text> {
-    pub type Tpl_Fun<ArgType1: Clone, ArgType2: Clone, ArgType3: Clone> = fn(Text, ArgType1, ArgType2, ArgType3) -> Result<Text>;
+    pub type Tpl_Fun<ArgType1: Clone + 'static, ArgType2: Clone + 'static, ArgType3: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Text, ArgType1, ArgType2, ArgType3) -> Result<Text> + 'static>;
 
     let mut txt: Text = txt;
     txt = tplCallHandleErrors(Arc::new({ let __pe_b1 = inArgA.clone(); let __pe_b2 = inArgB.clone(); let __pe_b3 = inArgC.clone(); move |__pe_a0| inFun(__pe_a0, __pe_b1.clone(), __pe_b2.clone(), __pe_b3.clone()) }), txt.clone())?;
@@ -1543,7 +1543,7 @@ pub fn tplCallWithFailError3<ArgType1: Clone + 'static, ArgType2: Clone + 'stati
 }
 
 pub fn tplString<ArgType1: Clone + 'static>(mut inFun: Arc<dyn ::std::ops::Fn(Text, ArgType1) -> Result<Text> + 'static>, mut inArg: ArgType1) -> Result<ArcStr> {
-    pub type Tpl_Fun<ArgType1: Clone> = fn(Text, ArgType1) -> Result<Text>;
+    pub type Tpl_Fun<ArgType1: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Text, ArgType1) -> Result<Text> + 'static>;
 
     let mut outString: ArcStr = arcstr::literal!("");
     let mut txt: Text;
@@ -1556,7 +1556,7 @@ pub fn tplString<ArgType1: Clone + 'static>(mut inFun: Arc<dyn ::std::ops::Fn(Te
 }
 
 pub fn tplString2<ArgType1: Clone + 'static, ArgType2: Clone + 'static>(mut inFun: Arc<dyn ::std::ops::Fn(Text, ArgType1, ArgType2) -> Result<Text> + 'static>, mut inArgA: ArgType1, mut inArgB: ArgType2) -> Result<ArcStr> {
-    pub type Tpl_Fun<ArgType1: Clone, ArgType2: Clone> = fn(Text, ArgType1, ArgType2) -> Result<Text>;
+    pub type Tpl_Fun<ArgType1: Clone + 'static, ArgType2: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Text, ArgType1, ArgType2) -> Result<Text> + 'static>;
 
     let mut outString: ArcStr = arcstr::literal!("");
     let mut txt: Text;
@@ -1569,7 +1569,7 @@ pub fn tplString2<ArgType1: Clone + 'static, ArgType2: Clone + 'static>(mut inFu
 }
 
 pub fn tplString3<ArgType1: Clone + 'static, ArgType2: Clone + 'static, ArgType3: Clone + 'static>(mut inFun: Arc<dyn ::std::ops::Fn(Text, ArgType1, ArgType2, ArgType3) -> Result<Text> + 'static>, mut inArgA: ArgType1, mut inArgB: ArgType2, mut inArgC: ArgType3) -> Result<ArcStr> {
-    pub type Tpl_Fun<ArgType1: Clone, ArgType2: Clone, ArgType3: Clone> = fn(Text, ArgType1, ArgType2, ArgType3) -> Result<Text>;
+    pub type Tpl_Fun<ArgType1: Clone + 'static, ArgType2: Clone + 'static, ArgType3: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Text, ArgType1, ArgType2, ArgType3) -> Result<Text> + 'static>;
 
     let mut outString: ArcStr = arcstr::literal!("");
     let mut txt: Text;
@@ -1582,7 +1582,7 @@ pub fn tplString3<ArgType1: Clone + 'static, ArgType2: Clone + 'static, ArgType3
 }
 
 pub fn tplPrint<ArgType1: Clone + 'static>(mut inFun: Arc<dyn ::std::ops::Fn(Text, ArgType1) -> Result<Text> + 'static>, mut inArg: ArgType1) -> Result<()> {
-    pub type Tpl_Fun<ArgType1: Clone> = fn(Text, ArgType1) -> Result<Text>;
+    pub type Tpl_Fun<ArgType1: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Text, ArgType1) -> Result<Text> + 'static>;
 
     let mut txt: Text;
     let mut nErr: i32 = 0;
@@ -1594,7 +1594,7 @@ pub fn tplPrint<ArgType1: Clone + 'static>(mut inFun: Arc<dyn ::std::ops::Fn(Tex
 }
 
 pub fn tplPrint2<ArgType1: Clone + 'static, ArgType2: Clone + 'static>(mut inFun: Arc<dyn ::std::ops::Fn(Text, ArgType1, ArgType2) -> Result<Text> + 'static>, mut inArgA: ArgType1, mut inArgB: ArgType2) -> Result<()> {
-    pub type Tpl_Fun<ArgType1: Clone, ArgType2: Clone> = fn(Text, ArgType1, ArgType2) -> Result<Text>;
+    pub type Tpl_Fun<ArgType1: Clone + 'static, ArgType2: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Text, ArgType1, ArgType2) -> Result<Text> + 'static>;
 
     let mut txt: Text;
     let mut nErr: i32 = 0;
@@ -1606,7 +1606,7 @@ pub fn tplPrint2<ArgType1: Clone + 'static, ArgType2: Clone + 'static>(mut inFun
 }
 
 pub fn tplPrint3<ArgType1: Clone + 'static, ArgType2: Clone + 'static, ArgType3: Clone + 'static>(mut inFun: Arc<dyn ::std::ops::Fn(Text, ArgType1, ArgType2, ArgType3) -> Result<Text> + 'static>, mut inArgA: ArgType1, mut inArgB: ArgType2, mut inArgC: ArgType3) -> Result<()> {
-    pub type Tpl_Fun<ArgType1: Clone, ArgType2: Clone, ArgType3: Clone> = fn(Text, ArgType1, ArgType2, ArgType3) -> Result<Text>;
+    pub type Tpl_Fun<ArgType1: Clone + 'static, ArgType2: Clone + 'static, ArgType3: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Text, ArgType1, ArgType2, ArgType3) -> Result<Text> + 'static>;
 
     let mut txt: Text;
     let mut nErr: i32 = 0;
@@ -1618,7 +1618,7 @@ pub fn tplPrint3<ArgType1: Clone + 'static, ArgType2: Clone + 'static, ArgType3:
 }
 
 pub fn tplNoret3<ArgType1: Clone + 'static, ArgType2: Clone + 'static, ArgType3: Clone + 'static>(mut inFun: Arc<dyn ::std::ops::Fn(Text, ArgType1, ArgType2, ArgType3) -> Result<Text> + 'static>, mut inArg: ArgType1, mut inArg2: ArgType2, mut inArg3: ArgType3) -> Result<()> {
-    pub type Tpl_Fun<ArgType1: Clone, ArgType2: Clone, ArgType3: Clone> = fn(Text, ArgType1, ArgType2, ArgType3) -> Result<Text>;
+    pub type Tpl_Fun<ArgType1: Clone + 'static, ArgType2: Clone + 'static, ArgType3: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Text, ArgType1, ArgType2, ArgType3) -> Result<Text> + 'static>;
 
     let mut nErr: i32 = 0;
     nErr = Error::getNumErrorMessages();
@@ -1628,7 +1628,7 @@ pub fn tplNoret3<ArgType1: Clone + 'static, ArgType2: Clone + 'static, ArgType3:
 }
 
 pub fn tplNoret2<ArgType1: Clone + 'static, ArgType2: Clone + 'static>(mut inFun: Arc<dyn ::std::ops::Fn(Text, ArgType1, ArgType2) -> Result<Text> + 'static>, mut inArg: ArgType1, mut inArg2: ArgType2) -> Result<()> {
-    pub type Tpl_Fun<ArgType1: Clone, ArgType2: Clone> = fn(Text, ArgType1, ArgType2) -> Result<Text>;
+    pub type Tpl_Fun<ArgType1: Clone + 'static, ArgType2: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Text, ArgType1, ArgType2) -> Result<Text> + 'static>;
 
     let mut nErr: i32 = 0;
     nErr = Error::getNumErrorMessages();
@@ -1638,7 +1638,7 @@ pub fn tplNoret2<ArgType1: Clone + 'static, ArgType2: Clone + 'static>(mut inFun
 }
 
 pub fn tplNoret<ArgType1: Clone + 'static>(mut inFun: Arc<dyn ::std::ops::Fn(Text, ArgType1) -> Result<Text> + 'static>, mut inArg: ArgType1) -> Result<()> {
-    pub type Tpl_Fun<ArgType1: Clone> = fn(Text, ArgType1) -> Result<Text>;
+    pub type Tpl_Fun<ArgType1: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Text, ArgType1) -> Result<Text> + 'static>;
 
     let mut nErr: i32 = 0;
     nErr = Error::getNumErrorMessages();
@@ -1718,7 +1718,7 @@ pub fn textFileConvertLines(mut inText: Text, mut inFileName: ArcStr) -> Result<
 }
 
 pub fn sourceInfo(mut inFileName: ArcStr, mut inLineNum: i32, mut inColumnNum: i32) -> SourceInfo {
-    let mut outSourceInfo: SourceInfo;
+    let mut outSourceInfo: SourceInfo = <SourceInfo as ::std::default::Default>::default();
     outSourceInfo = SourceInfo { fileName: (inFileName.clone()).clone(), isReadOnly: false, lineNumberStart: inLineNum.clone(), columnNumberStart: inColumnNum.clone(), lineNumberEnd: inLineNum.clone(), columnNumberEnd: inColumnNum.clone(), lastModification: metamodelica::OrderedFloat(0.0_f64) };
     outSourceInfo
 }

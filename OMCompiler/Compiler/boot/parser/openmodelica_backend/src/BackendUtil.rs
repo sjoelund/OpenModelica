@@ -142,7 +142,7 @@ fn modelicaStringToCStr2(mut inDerName: ArcStr) -> Result<ArcStr> {
                 _ => bail!("pattern mismatch"),
             } };
             names = __pa0.clone();
-            names = List::map1(names.clone(), Arc::new(modelicaStringToCStr), false);
+            names = List::map1(names.clone(), (std::sync::Arc::new(modelicaStringToCStr) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, bool) -> Result<ArcStr> + 'static>), false);
             name = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*arcstr::literal!(DAE::derivativeNamePrefix)); __mm_s.push_str(&*stringAppendList(names.clone())); ArcStr::from(__mm_s) }).clone();
             Ok(name.clone())
         })() { break 'mc __v; }

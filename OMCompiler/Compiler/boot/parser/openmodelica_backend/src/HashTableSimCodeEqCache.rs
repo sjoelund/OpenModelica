@@ -63,13 +63,13 @@ pub type HashTableCrefFunctionsType = (FuncHashCref, FuncCrefEqual, FuncCrefStr,
 
 pub type HashTable = (metamodelica::Array<Arc<metamodelica::List<(Arc<SimCode::SimEqSystem>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<SimCode::SimEqSystem>, i32)>>), i32, (FuncHashCref, FuncCrefEqual, FuncCrefStr, FuncExpStr));
 
-pub type FuncHashCref = fn(Key) -> Result<i32>;
+pub type FuncHashCref = std::sync::Arc<dyn ::std::ops::Fn(Key) -> Result<i32> + 'static>;
 
-pub type FuncCrefEqual = fn(Key, Key) -> Result<bool>;
+pub type FuncCrefEqual = std::sync::Arc<dyn ::std::ops::Fn(Key, Key) -> Result<bool> + 'static>;
 
-pub type FuncCrefStr = fn(Key) -> Result<ArcStr>;
+pub type FuncCrefStr = std::sync::Arc<dyn ::std::ops::Fn(Key) -> Result<ArcStr> + 'static>;
 
-pub type FuncExpStr = fn(Value) -> Result<ArcStr>;
+pub type FuncExpStr = std::sync::Arc<dyn ::std::ops::Fn(Value) -> Result<ArcStr> + 'static>;
 
 pub fn emptyHashTable() -> HashTable {
     let mut hashTable: HashTable;
@@ -79,7 +79,7 @@ pub fn emptyHashTable() -> HashTable {
 
 pub fn emptyHashTableSized(mut size: i32) -> HashTable {
     let mut hashTable: HashTable;
-    hashTable = BaseHashTable::emptyHashTableWork(size.clone(), (SimCodeUtil::hashEqSystem, SimCodeUtil::compareEqSystemsEquality, SimCodeUtil::simEqSystemString, fnptr!(intString, i32)));
+    hashTable = BaseHashTable::emptyHashTableWork(size.clone(), ((std::sync::Arc::new(SimCodeUtil::hashEqSystem) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SimCode::SimEqSystem>) -> Result<i32> + 'static>), (std::sync::Arc::new(SimCodeUtil::compareEqSystemsEquality) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SimCode::SimEqSystem>, Arc<SimCode::SimEqSystem>) -> Result<bool> + 'static>), (std::sync::Arc::new(SimCodeUtil::simEqSystemString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SimCode::SimEqSystem>) -> Result<ArcStr> + 'static>), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)));
     hashTable
 }
 

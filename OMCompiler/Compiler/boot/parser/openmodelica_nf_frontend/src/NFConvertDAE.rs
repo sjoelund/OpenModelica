@@ -144,11 +144,11 @@ fn makeDAEVar(mut cref: Arc<ComponentRef::NFComponentRef>, mut ty: Arc<Type::NFT
     let mut var: Arc<DAE::Element>;
     let mut dcref: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
     let mut dty: Arc<DAE::Type> = Arc::new(DAE::Type::T_NORETCALL);
-    let mut source: Arc<DAE::ElementSource>;
+    let mut source: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
     let mut dir: Direction = Direction::NONE;
     dcref = ComponentRef::toDAE(cref.clone())?;
     dty = Type::toDAE(if (settings.isFunctionParameter.clone()) {Type::arrayElementType(ty.clone())} else {ty.clone()}, true)?;
-    source = ElementSource::createElementSource(info.clone(), None, openmodelica_frontend_types::DAE::Prefix::NOPRE, (DAE::emptyCref.clone(), DAE::emptyCref.clone()))?;
+    source = ElementSource::createElementSource(info.clone(), None, openmodelica_frontend_types::DAE::Prefix::NOPRE, (DAE::emptyCref().clone(), DAE::emptyCref().clone()))?;
     if settings.addTypeToSource.clone() {
         source = addComponentTypeToSource(cref.clone(), source.clone())?;
     }
@@ -600,7 +600,7 @@ fn convertForEquation(mut forEquation: Arc<Equation::NFEquation>, mut isInitial:
     let mut range: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut body: Arc<metamodelica::List<Arc<Equation::NFEquation>>> = metamodelica::nil();
     let mut dbody: Arc<metamodelica::List<Arc<DAE::Element>>> = metamodelica::nil();
-    let mut source: Arc<DAE::ElementSource>;
+    let mut source: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
     let (__pa0, __pa1, __pa2, __pa3) = ::match_deref::match_deref! { match &(forEquation.clone()) {
         Deref @ Equation::FOR { source: __pa0, body: __pa1, range: Some(__pa2), iterator: __pa3, .. } => (__pa0.clone(), __pa1.clone(), __pa2.clone(), __pa3.clone()),
         _ => bail!("pattern mismatch"),
@@ -777,7 +777,7 @@ fn convertAlgorithm(mut alg: Arc<Algorithm::NFAlgorithm>, mut elements: Arc<meta
     let mut elements: Arc<metamodelica::List<Arc<DAE::Element>>> = elements;
     let mut stmts: Arc<metamodelica::List<Arc<DAE::Statement>>> = metamodelica::nil();
     let mut dalg: Arc<DAE::Algorithm>;
-    let mut src: Arc<DAE::ElementSource>;
+    let mut src: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
     stmts = convertStatements(alg.statements.clone())?;
     dalg = Arc::new(DAE::Algorithm { statementLst: stmts.clone() });
     elements = cons(Arc::new(DAE::Element::ALGORITHM { algorithm_: dalg.clone(), source: alg.source.clone() }), elements.clone());
@@ -855,7 +855,7 @@ fn convertAssignment(mut stmt: Arc<Statement::NFStatement>) -> Result<Arc<DAE::S
     let mut daeStmt: Arc<DAE::Statement>;
     let mut lhs: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut rhs: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-    let mut src: Arc<DAE::ElementSource>;
+    let mut src: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
     let mut ty: Arc<Type::NFType> = Arc::new(Type::ANY);
     let mut dty: Arc<DAE::Type> = Arc::new(DAE::Type::T_NORETCALL);
     let mut dlhs: Arc<DAE::Exp>;
@@ -922,7 +922,7 @@ fn convertForStatement(mut forStmt: Arc<Statement::NFStatement>) -> Result<Arc<D
     let mut range: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut body: Arc<metamodelica::List<Arc<Statement::NFStatement>>> = metamodelica::nil();
     let mut dbody: Arc<metamodelica::List<Arc<DAE::Statement>>> = metamodelica::nil();
-    let mut source: Arc<DAE::ElementSource>;
+    let mut source: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
     let mut for_type: Arc<Statement::ForType> = Arc::new(Statement::ForType::NORMAL);
     let mut loop_vars: Arc<metamodelica::List<(Arc<DAE::ComponentRef>, SourceInfo)>> = metamodelica::nil();
     let (__pa0, __pa1, __pa2, __pa3, __pa4) = ::match_deref::match_deref! { match &(forStmt.clone()) {
@@ -958,7 +958,7 @@ fn convertForStatementParallelVar(mut var: (Arc<ComponentRef::NFComponentRef>, S
     let mut outVar: (Arc<DAE::ComponentRef>, SourceInfo);
     let mut cref: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
     let mut dcref: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
-    let mut info: SourceInfo;
+    let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
     (cref, info) = var.clone();
     dcref = ComponentRef::toDAE(cref.clone())?;
     outVar = (dcref.clone(), info.clone());
@@ -1081,7 +1081,7 @@ fn convertFunction(mut func: Arc<Function::Function>) -> Result<DAE::Function> {
     } });
             Function::toDAE(func.clone(), def.clone())?
         },
-        Deref @ Class::INSTANCED_CLASS { restriction: Deref @ Restriction::RECORD_CONSTRUCTOR, .. } => DAE::Function::RECORD_CONSTRUCTOR { path: Function::name(func.clone()), type_: Function::makeDAEType(func.clone(), false)?, source: DAE::emptyElementSource.clone() },
+        Deref @ Class::INSTANCED_CLASS { restriction: Deref @ Restriction::RECORD_CONSTRUCTOR, .. } => DAE::Function::RECORD_CONSTRUCTOR { path: Function::name(func.clone()), type_: Function::makeDAEType(func.clone(), false)?, source: DAE::emptyElementSource().clone() },
         _ => {
             Error::assertion(false, ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("NFConvertDAE.convertFunction")); __mm_s.push_str(&*literal!(" got unknown function")); ArcStr::from(__mm_s) }).clone(), metamodelica::sourceInfo!())?;
             bail!("fail")
@@ -1104,10 +1104,10 @@ fn convertFunctionParam(mut node: Arc<InstNode::InstNode>) -> Result<Arc<DAE::El
     let mut element: Arc<DAE::Element>;
     let mut comp: Arc<Component::NFComponent> = Arc::new(Component::WILD);
     let mut cls: Arc<Class::NFClass> = Arc::new(Class::NOT_INSTANTIATED);
-    let mut info: SourceInfo;
+    let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
     let mut var_attr: Option<Arc<DAE::VariableAttributes>> = None;
     let mut cref: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
-    let mut attr: Arc<Attributes::NFAttributes>;
+    let mut attr: Arc<Attributes::NFAttributes> = Arc::new(<Attributes::NFAttributes as ::std::default::Default>::default());
     let mut ty: Arc<Type::NFType> = Arc::new(Type::ANY);
     let mut binding: Option<Arc<DAE::Exp>> = None;
     let mut ty_attr: Arc<metamodelica::List<(ArcStr, Arc<Binding::NFBinding>)>> = metamodelica::nil();
@@ -1236,7 +1236,7 @@ pub fn makeTypeVars(mut complexCls: Arc<InstNode::InstNode>) -> Result<Arc<metam
 pub fn makeTypeVar(mut component: Arc<InstNode::InstNode>) -> Result<Arc<DAE::Var>> {
     let mut typeVar: Arc<DAE::Var>;
     let mut comp: Arc<Component::NFComponent> = Arc::new(Component::WILD);
-    let mut attr: Arc<Attributes::NFAttributes>;
+    let mut attr: Arc<Attributes::NFAttributes> = Arc::new(<Attributes::NFAttributes as ::std::default::Default>::default());
     comp = InstNode::component(InstNode::resolveOuter(component.clone()))?;
     attr = Component::getAttributes(comp.clone());
     typeVar = Arc::new(DAE::Var { name: (InstNode::name(component.clone())?).clone(), attributes: Attributes::toDAE(attr.clone(), InstNode::visibility(component.clone()))?, ty: Type::toDAE(Component::getType(comp.clone())?, true)?, binding: Binding::toDAE(Component::getBinding(comp.clone()))?, bind_from_outside: false, constOfForIteratorRange: None });
@@ -1246,7 +1246,7 @@ pub fn makeTypeVar(mut component: Arc<InstNode::InstNode>) -> Result<Arc<DAE::Va
 pub fn makeTypeRecordVar(mut component: Arc<InstNode::InstNode>) -> Result<Arc<DAE::Var>> {
     let mut typeVar: Arc<DAE::Var>;
     let mut comp: Arc<Component::NFComponent> = Arc::new(Component::WILD);
-    let mut attr: Arc<Attributes::NFAttributes>;
+    let mut attr: Arc<Attributes::NFAttributes> = Arc::new(<Attributes::NFAttributes as ::std::default::Default>::default());
     let mut vis: Visibility = Visibility::PUBLIC;
     let mut binding: Arc<Binding::NFBinding> = Arc::new(Binding::UNBOUND);
     let mut bind_from_outside: bool = false;
@@ -1259,24 +1259,24 @@ pub fn makeTypeRecordVar(mut component: Arc<InstNode::InstNode>) -> Result<Arc<D
         vis = InstNode::visibility(component.clone());
     }
     binding = Component::getBinding(comp.clone());
-    binding = Binding::mapExp(binding.clone(), Arc::new(stripScopePrefixExp))?;
+    binding = Binding::mapExp(binding.clone(), (std::sync::Arc::new(stripScopePrefixExp) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>))?;
     binding = Flatten::flattenBinding(binding.clone(), Flatten::EMPTY_PREFIX().clone(), false)?;
     bind_from_outside = Binding::source(binding.clone()) == Binding::Source::MODIFIER.clone();
     ty = Component::getType(comp.clone())?;
-    ty = Type::mapDims(ty.clone(), Arc::new(stripScopePrefixFromDim));
+    ty = Type::mapDims(ty.clone(), (std::sync::Arc::new(stripScopePrefixFromDim) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Dimension::NFDimension>) -> Result<Arc<Dimension::NFDimension>> + 'static>));
     typeVar = Arc::new(DAE::Var { name: (InstNode::name(component.clone())?).clone(), attributes: Attributes::toDAE(attr.clone(), vis.clone())?, ty: Type::toDAE(ty.clone(), true)?, binding: Binding::toDAE(binding.clone())?, bind_from_outside: bind_from_outside.clone(), constOfForIteratorRange: None });
     Ok(typeVar)
 }
 
 fn stripScopePrefixFromDim(mut dim: Arc<Dimension::NFDimension>) -> Result<Arc<Dimension::NFDimension>> {
     let mut dim: Arc<Dimension::NFDimension> = dim;
-    dim = Dimension::mapExp(dim.clone(), Arc::new(fnptr!(stripScopePrefixCrefExp, Arc<Expression::NFExpression>)))?;
+    dim = Dimension::mapExp(dim.clone(), (std::sync::Arc::new(fnptr!(stripScopePrefixCrefExp, Arc<Expression::NFExpression>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>))?;
     Ok(dim)
 }
 
 fn stripScopePrefixExp(mut exp: Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> {
     let mut exp: Arc<Expression::NFExpression> = exp;
-    exp = Expression::map(exp.clone(), Arc::new(fnptr!(stripScopePrefixCrefExp, Arc<Expression::NFExpression>)))?;
+    exp = Expression::map(exp.clone(), (std::sync::Arc::new(fnptr!(stripScopePrefixCrefExp, Arc<Expression::NFExpression>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>))?;
     Ok(exp)
 }
 

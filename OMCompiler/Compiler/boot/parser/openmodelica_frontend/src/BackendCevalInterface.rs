@@ -50,11 +50,42 @@ use openmodelica_frontend_types::DAE;
 use openmodelica_frontend_types::Values;
 use openmodelica_util::Global;
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone)]
 pub struct BackendInterfaceFunctions {
     pub cevalInteractiveFunctions: partialCevalInteractiveFunctions,
     pub cevalCallFunction: partialCevalCallFunction,
     pub elabCallInteractive: partialElabCallInteractive,
+}
+
+impl PartialEq for BackendInterfaceFunctions {
+    fn eq(&self, other: &Self) -> bool {
+        std::sync::Arc::ptr_eq(&self.cevalInteractiveFunctions, &other.cevalInteractiveFunctions) && std::sync::Arc::ptr_eq(&self.cevalCallFunction, &other.cevalCallFunction) && std::sync::Arc::ptr_eq(&self.elabCallInteractive, &other.elabCallInteractive)
+    }
+}
+impl Eq for BackendInterfaceFunctions {}
+impl PartialOrd for BackendInterfaceFunctions {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> { Some(self.cmp(other)) }
+}
+impl Ord for BackendInterfaceFunctions {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        (std::sync::Arc::as_ptr(&self.cevalInteractiveFunctions) as *const ()).cmp(&(std::sync::Arc::as_ptr(&other.cevalInteractiveFunctions) as *const ())).then_with(|| (std::sync::Arc::as_ptr(&self.cevalCallFunction) as *const ()).cmp(&(std::sync::Arc::as_ptr(&other.cevalCallFunction) as *const ())).then_with(|| (std::sync::Arc::as_ptr(&self.elabCallInteractive) as *const ()).cmp(&(std::sync::Arc::as_ptr(&other.elabCallInteractive) as *const ()))))
+    }
+}
+impl std::hash::Hash for BackendInterfaceFunctions {
+    fn hash<__H: std::hash::Hasher>(&self, __state: &mut __H) {
+        (std::sync::Arc::as_ptr(&self.cevalInteractiveFunctions) as *const ()).hash(__state);
+        (std::sync::Arc::as_ptr(&self.cevalCallFunction) as *const ()).hash(__state);
+        (std::sync::Arc::as_ptr(&self.elabCallInteractive) as *const ()).hash(__state);
+    }
+}
+impl std::fmt::Debug for BackendInterfaceFunctions {
+    fn fmt(&self, __f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut __ds = __f.debug_struct("BackendInterfaceFunctions");
+        __ds.field("cevalInteractiveFunctions", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr(&self.cevalInteractiveFunctions)));
+        __ds.field("cevalCallFunction", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr(&self.cevalCallFunction)));
+        __ds.field("elabCallInteractive", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr(&self.elabCallInteractive)));
+        __ds.finish()
+    }
 }
 
 pub type BACKEND_INTERFACE_FUNCTIONS = BackendInterfaceFunctions;
@@ -71,7 +102,7 @@ pub fn cevalInteractiveFunctions(mut inCache: FCore::Cache, mut inEnv: FCore::Gr
     let mut functions: BackendInterfaceFunctions;
     let mut func: partialCevalInteractiveFunctions;
     functions = crate::Globals::backendCevalInterface.with(|__root| __root.borrow().clone());
-    func = functions.cevalInteractiveFunctions;
+    func = functions.cevalInteractiveFunctions.clone();
     (outCache, outValue) = func(inCache.clone(), inEnv.clone(), inExp.clone(), inMsg.clone(), inNumIter.clone()).unwrap();
     (outCache, outValue)
 }
@@ -82,7 +113,7 @@ pub fn cevalCallFunction(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut
     let mut functions: BackendInterfaceFunctions;
     let mut func: partialCevalCallFunction;
     functions = crate::Globals::backendCevalInterface.with(|__root| __root.borrow().clone());
-    func = functions.cevalCallFunction;
+    func = functions.cevalCallFunction.clone();
     (outCache, outValue) = func(inCache.clone(), inEnv.clone(), inExp.clone(), inValues.clone(), inImplInst.clone(), inMsg.clone(), inNumIter.clone()).unwrap();
     (outCache, outValue)
 }
@@ -94,14 +125,14 @@ pub fn elabCallInteractive(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, m
     let mut functions: BackendInterfaceFunctions;
     let mut func: partialElabCallInteractive;
     functions = crate::Globals::backendCevalInterface.with(|__root| __root.borrow().clone());
-    func = functions.elabCallInteractive;
+    func = functions.elabCallInteractive.clone();
     (outCache, outExp, outProperties) = func(inCache.clone(), inEnv.clone(), inCref.clone(), inExps.clone(), inNamedArgs.clone(), inImplInst.clone(), inPrefix.clone(), inInfo.clone()).unwrap();
     (outCache, outExp, outProperties)
 }
 
-pub type partialCevalInteractiveFunctions = fn(FCore::Cache, FCore::Graph, Arc<DAE::Exp>, Absyn::Msg, i32) -> Result<(FCore::Cache, Arc<Values::Value>)>;
+pub type partialCevalInteractiveFunctions = std::sync::Arc<dyn ::std::ops::Fn(FCore::Cache, FCore::Graph, Arc<DAE::Exp>, Absyn::Msg, i32) -> Result<(FCore::Cache, Arc<Values::Value>)> + 'static>;
 
-pub type partialCevalCallFunction = fn(FCore::Cache, FCore::Graph, Arc<DAE::Exp>, Arc<metamodelica::List<Arc<Values::Value>>>, bool, Absyn::Msg, i32) -> Result<(FCore::Cache, Arc<Values::Value>)>;
+pub type partialCevalCallFunction = std::sync::Arc<dyn ::std::ops::Fn(FCore::Cache, FCore::Graph, Arc<DAE::Exp>, Arc<metamodelica::List<Arc<Values::Value>>>, bool, Absyn::Msg, i32) -> Result<(FCore::Cache, Arc<Values::Value>)> + 'static>;
 
-pub type partialElabCallInteractive = fn(FCore::Cache, FCore::Graph, Arc<Absyn::ComponentRef>, Arc<metamodelica::List<Arc<Absyn::Exp>>>, Arc<metamodelica::List<Arc<Absyn::NamedArg>>>, bool, DAE::Prefix, SourceInfo) -> Result<(FCore::Cache, Arc<DAE::Exp>, DAE::Properties)>;
+pub type partialElabCallInteractive = std::sync::Arc<dyn ::std::ops::Fn(FCore::Cache, FCore::Graph, Arc<Absyn::ComponentRef>, Arc<metamodelica::List<Arc<Absyn::Exp>>>, Arc<metamodelica::List<Arc<Absyn::NamedArg>>>, bool, DAE::Prefix, SourceInfo) -> Result<(FCore::Cache, Arc<DAE::Exp>, DAE::Properties)> + 'static>;
 

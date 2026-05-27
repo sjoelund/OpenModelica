@@ -87,7 +87,7 @@ pub mod ConstantsSetImpl {
     }
 
     /// The binary tree data structure.
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
     pub enum Tree {
         NODE {
             /// The key of the node.
@@ -259,7 +259,7 @@ pub mod ConstantsSetImpl {
         } };
         k2 = __pa2.clone();
         keylist2 = __pa3.clone();
-        while true {
+        loop {
             key_comp = keyCompare(k1.clone(), k2.clone())?;
             if key_comp.clone() > 0 {
                 if true /* isPresent not implemented in Rust */ {
@@ -507,11 +507,11 @@ pub fn collectConstants(mut flatModel: Arc<FlatModel::NFFlatModel>) -> Result<Ar
     let mut vars: Arc<metamodelica::List<Arc<Variable::NFVariable>>> = metamodelica::nil();
     let mut constants: Constants = Arc::new(ConstantsSetImpl::Tree::EMPTY);
     constants = ConstantsSetImpl::new();
-    constants = List::fold(flatModel.variables.clone(), Arc::new(collectVariableConstants), constants.clone());
-    constants = Equation::foldExpList(flatModel.equations.clone(), Arc::new(collectExpConstants), constants.clone())?;
-    constants = Equation::foldExpList(flatModel.initialEquations.clone(), Arc::new(collectExpConstants), constants.clone())?;
-    constants = Algorithm::foldExpList(flatModel.algorithms.clone(), Arc::new(collectExpConstants), constants.clone())?;
-    constants = Algorithm::foldExpList(flatModel.initialAlgorithms.clone(), Arc::new(collectExpConstants), constants.clone())?;
+    constants = List::fold(flatModel.variables.clone(), (std::sync::Arc::new(collectVariableConstants) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Variable::NFVariable>, Arc<ConstantsSetImpl::Tree>) -> Result<Arc<ConstantsSetImpl::Tree>> + 'static>), constants.clone());
+    constants = Equation::foldExpList(flatModel.equations.clone(), (std::sync::Arc::new(collectExpConstants) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, Arc<ConstantsSetImpl::Tree>) -> Result<Arc<ConstantsSetImpl::Tree>> + 'static>), constants.clone())?;
+    constants = Equation::foldExpList(flatModel.initialEquations.clone(), (std::sync::Arc::new(collectExpConstants) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, Arc<ConstantsSetImpl::Tree>) -> Result<Arc<ConstantsSetImpl::Tree>> + 'static>), constants.clone())?;
+    constants = Algorithm::foldExpList(flatModel.algorithms.clone(), (std::sync::Arc::new(collectExpConstants) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, Arc<ConstantsSetImpl::Tree>) -> Result<Arc<ConstantsSetImpl::Tree>> + 'static>), constants.clone())?;
+    constants = Algorithm::foldExpList(flatModel.initialAlgorithms.clone(), (std::sync::Arc::new(collectExpConstants) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, Arc<ConstantsSetImpl::Tree>) -> Result<Arc<ConstantsSetImpl::Tree>> + 'static>), constants.clone())?;
     vars = {
         let mut __acc: Arc<metamodelica::List<Arc<Variable::NFVariable>>> = metamodelica::nil();
         for mut c in (ConstantsSetImpl::listKeys(constants.clone(), metamodelica::nil())).into_iter().cloned() {
@@ -545,12 +545,12 @@ pub fn replaceConstants(mut flatModel: Arc<FlatModel::NFFlatModel>, mut function
         }
         __acc.reverse()
     },
-        flatModel.equations = Equation::mapExpList(flatModel.equations.clone(), replaceExpConstants),
-        flatModel.initialEquations = Equation::mapExpList(flatModel.initialEquations.clone(), replaceExpConstants),
-        flatModel.algorithms = Algorithm::mapExpList(flatModel.algorithms.clone(), Arc::new(replaceExpConstants)),
-        flatModel.initialAlgorithms = Algorithm::mapExpList(flatModel.initialAlgorithms.clone(), Arc::new(replaceExpConstants))
+        flatModel.equations = Equation::mapExpList(flatModel.equations.clone(), (std::sync::Arc::new(replaceExpConstants) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>)),
+        flatModel.initialEquations = Equation::mapExpList(flatModel.initialEquations.clone(), (std::sync::Arc::new(replaceExpConstants) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>)),
+        flatModel.algorithms = Algorithm::mapExpList(flatModel.algorithms.clone(), (std::sync::Arc::new(replaceExpConstants) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>)),
+        flatModel.initialAlgorithms = Algorithm::mapExpList(flatModel.initialAlgorithms.clone(), (std::sync::Arc::new(replaceExpConstants) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>))
     );
-    functions = Flatten::FunctionTreeImpl::map(functions.clone(), Arc::new(replaceFuncConstants));
+    functions = Flatten::FunctionTreeImpl::map(functions.clone(), (std::sync::Arc::new(replaceFuncConstants) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Path>, Arc<Function::Function>) -> Result<Arc<Function::Function>> + 'static>));
     execStat((literal!("NFPackage.replaceConstants")).clone())?;
     Ok((flatModel, functions))
 }
@@ -571,7 +571,7 @@ pub fn collectBindingConstants(mut binding: Arc<Binding::NFBinding>, mut constan
 
 pub fn collectExpConstants(mut exp: Arc<Expression::NFExpression>, mut constants: Constants) -> Result<Constants> {
     let mut constants: Constants = constants;
-    constants = Expression::fold(exp.clone(), Arc::new(collectExpConstants_traverser), constants.clone())?;
+    constants = Expression::fold(exp.clone(), (std::sync::Arc::new(collectExpConstants_traverser) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, Arc<ConstantsSetImpl::Tree>) -> Result<Arc<ConstantsSetImpl::Tree>> + 'static>), constants.clone())?;
     Ok(constants)
 }
 
@@ -601,7 +601,7 @@ pub fn getPackageConstantBinding(mut cref: Arc<ComponentRef::NFComponentRef>) ->
     binding = Component::getImplicitBinding(InstNode::component(cr_node.clone())?, InstNode::instanceParent(cr_node.clone()));
     if Binding::isUnbound(binding.clone()) {
         binding = getPackageConstantBinding2(cr_node.clone(), ComponentRef::rest(cref.clone())?)?;
-        InstNode::componentApply(cr_node.clone(), Arc::new(Component::setBinding), binding.clone())?;
+        InstNode::componentApply(cr_node.clone(), (std::sync::Arc::new(Component::setBinding) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Binding::NFBinding>, Arc<Component::NFComponent>) -> Result<Arc<Component::NFComponent>> + 'static>), binding.clone())?;
     }
     Ok(binding)
 }
@@ -645,7 +645,7 @@ pub fn collectFuncConstants(mut name: Arc<Absyn::Path>, mut func: Arc<Function::
             }
             let () = (::match_deref::match_deref! { match &(sections.clone()) {
         Deref @ Sections::SECTIONS { .. } => {
-            constants = Algorithm::foldExpList(var_field!((**sections).algorithms, Sections::NFSections::SECTIONS).clone(), Arc::new(collectExpConstants), constants.clone())?;
+            constants = Algorithm::foldExpList(var_field!((**sections).algorithms, Sections::NFSections::SECTIONS).clone(), (std::sync::Arc::new(collectExpConstants) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, Arc<ConstantsSetImpl::Tree>) -> Result<Arc<ConstantsSetImpl::Tree>> + 'static>), constants.clone())?;
             ()
         },
         Deref @ Sections::EXTERNAL { .. } => {
@@ -692,7 +692,7 @@ pub fn replaceBindingConstants(mut binding: Arc<Binding::NFBinding>) -> Result<A
 
 pub fn replaceExpConstants(mut exp: Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> {
     let mut exp: Arc<Expression::NFExpression> = exp;
-    exp = Expression::map(exp.clone(), Arc::new(replaceExpConstants_traverser))?;
+    exp = Expression::map(exp.clone(), (std::sync::Arc::new(replaceExpConstants_traverser) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>))?;
     Ok(exp)
 }
 
@@ -718,6 +718,7 @@ pub fn replaceFuncConstants(mut name: Arc<Absyn::Path>, mut func: Arc<Function::
     cls = InstNode::getClass(func.node.clone())?;
     let () = (::match_deref::match_deref! { match &(cls.clone()) {
         Deref @ Class::INSTANCED_CLASS { sections, elements: Deref @ ClassTree::ClassTree::FLAT_TREE { components: comps, .. }, .. } => {
+            let mut sections = (*sections).clone();
             let __range0 = comps.clone().borrow().iter().cloned().collect::<Vec<_>>();
             for mut c in __range0 {
                 comp = InstNode::component(c.clone())?;
@@ -732,8 +733,8 @@ pub fn replaceFuncConstants(mut name: Arc<Absyn::Path>, mut func: Arc<Function::
         Deref @ Sections::SECTIONS { .. } => {
             assign_variant_field!(sections => Sections::NFSections::SECTIONS; algorithms = {
         let mut __acc: Arc<metamodelica::List<Arc<Algorithm::NFAlgorithm>>> = metamodelica::nil();
-        for mut a in (var_field!((**sections).algorithms, Sections::NFSections::SECTIONS).clone()).into_iter().cloned() {
-            let __x = Algorithm::mapExp(a.clone(), Arc::new(replaceExpConstants));
+        for mut a in (var_field!((*sections).algorithms, Sections::NFSections::SECTIONS).clone()).into_iter().cloned() {
+            let __x = Algorithm::mapExp(a.clone(), (std::sync::Arc::new(replaceExpConstants) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>));
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
@@ -745,7 +746,7 @@ pub fn replaceFuncConstants(mut name: Arc<Absyn::Path>, mut func: Arc<Function::
         Deref @ Sections::EXTERNAL { .. } => {
             assign_variant_field!(sections => Sections::NFSections::EXTERNAL; args = {
         let mut __acc: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
-        for mut arg in (var_field!((**sections).args, Sections::NFSections::EXTERNAL).clone()).into_iter().cloned() {
+        for mut arg in (var_field!((*sections).args, Sections::NFSections::EXTERNAL).clone()).into_iter().cloned() {
             let __x = replaceExpConstants(arg.clone())?;
             __acc = cons(__x, __acc);
         }

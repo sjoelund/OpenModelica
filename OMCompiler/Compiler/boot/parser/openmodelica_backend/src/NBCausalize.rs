@@ -91,11 +91,11 @@ use openmodelica_util_datatypes_basic::Pointer;
 // ############################################################
 //                      Main Functions
 // ############################################################
-pub fn applyModule(mut partitions: Arc<metamodelica::List<Arc<Partition::Partition>>>, mut kind: BPartition::Kind, mut varData: Arc<VarData::VarData>, mut eqData: Arc<EqData::EqData>, mut funcMap: Arc<UnorderedMap::UnorderedMap<Arc<Path>, Arc<Function::Function>>>, mut func: Module::causalizeInterface) -> Result<(Arc<metamodelica::List<Arc<Partition::Partition>>>, Arc<VarData::VarData>, Arc<EqData::EqData>)> {
+pub fn applyModule(mut partitions: Arc<metamodelica::List<Arc<Partition::Partition>>>, mut kind: BPartition::Kind, mut varData: Arc<VarData::VarData>, mut eqData: Arc<EqData::EqData>, mut funcMap: Arc<UnorderedMap::UnorderedMap<Arc<Path>, Arc<Function::Function>>>, mut func: Arc<dyn ::std::ops::Fn(Arc<Partition::Partition>, Arc<VarData::VarData>, Arc<EqData::EqData>, Arc<UnorderedMap::UnorderedMap<Arc<Path>, Arc<Function::Function>>>) -> Result<(Arc<Partition::Partition>, Arc<VarData::VarData>, Arc<EqData::EqData>)> + 'static>) -> Result<(Arc<metamodelica::List<Arc<Partition::Partition>>>, Arc<VarData::VarData>, Arc<EqData::EqData>)> {
     let mut new_partitions: Arc<metamodelica::List<Arc<Partition::Partition>>> = metamodelica::nil();
     let mut varData: Arc<VarData::VarData> = varData;
     let mut eqData: Arc<EqData::EqData> = eqData;
-    let mut new_partition: Arc<Partition::Partition>;
+    let mut new_partition: Arc<Partition::Partition> = Arc::new(<Partition::Partition as ::std::default::Default>::default());
     let mut violated: bool = false;
     for mut partition in &*partitions.clone() {
         let mut partition = partition.clone();
@@ -150,7 +150,7 @@ pub fn checkSystemVariabilities(mut partition: Arc<Partition::Partition>) -> Res
 }
 
 pub fn simple(mut vars: Arc<VariablePointers::VariablePointers>, mut eqns: Arc<EquationPointers::EquationPointers>, mut kind: BPartition::Kind, mut st: Adjacency::MatrixStrictness, mut iter: Arc<Iterator::Iterator>) -> Result<(Arc<Matching::NBMatching>, Arc<metamodelica::List<Arc<StrongComponent::NBStrongComponent>>>)> {
-    let mut matching: Arc<Matching::NBMatching>;
+    let mut matching: Arc<Matching::NBMatching> = Arc::new(<Matching::NBMatching as ::std::default::Default>::default());
     let mut comps: Arc<metamodelica::List<Arc<StrongComponent::NBStrongComponent>>> = metamodelica::nil();
     let mut full: Arc<Adjacency::Matrix::Matrix>;
     let mut adj: Arc<Adjacency::Matrix::Matrix>;

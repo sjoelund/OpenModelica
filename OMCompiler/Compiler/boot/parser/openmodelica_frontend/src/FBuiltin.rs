@@ -72,12 +72,15 @@ use openmodelica_util::Util;
 */
 // Predefined DAE.Types
 // Real arrays
-pub static T_REAL_ARRAY_DEFAULT: std::sync::LazyLock<Arc<DAE::Type>> = std::sync::LazyLock::new(|| { Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_REAL_DEFAULT.clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }) });
+thread_local! { static __T_REAL_ARRAY_DEFAULT_TLS: Arc<DAE::Type> = Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_REAL_DEFAULT().clone(), dims: list![Arc::new(openmodelica_frontend_types::DAE::Dimension::DIM_UNKNOWN)] }); }
+pub fn T_REAL_ARRAY_DEFAULT() -> Arc<DAE::Type> { __T_REAL_ARRAY_DEFAULT_TLS.with(|__t| __t.clone()) }
 
-pub static T_REAL_ARRAY_1_DEFAULT: std::sync::LazyLock<Arc<DAE::Type>> = std::sync::LazyLock::new(|| { Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_REAL_DEFAULT.clone(), dims: list![Arc::new(DAE::Dimension::DIM_INTEGER { integer: 1 })] }) });
+thread_local! { static __T_REAL_ARRAY_1_DEFAULT_TLS: Arc<DAE::Type> = Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_REAL_DEFAULT().clone(), dims: list![Arc::new(DAE::Dimension::DIM_INTEGER { integer: 1 })] }); }
+pub fn T_REAL_ARRAY_1_DEFAULT() -> Arc<DAE::Type> { __T_REAL_ARRAY_1_DEFAULT_TLS.with(|__t| __t.clone()) }
 
 // Integer arrays
-pub static T_INT_ARRAY_1_DEFAULT: std::sync::LazyLock<Arc<DAE::Type>> = std::sync::LazyLock::new(|| { Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_INTEGER_DEFAULT.clone(), dims: list![Arc::new(DAE::Dimension::DIM_INTEGER { integer: 1 })] }) });
+thread_local! { static __T_INT_ARRAY_1_DEFAULT_TLS: Arc<DAE::Type> = Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_INTEGER_DEFAULT().clone(), dims: list![Arc::new(DAE::Dimension::DIM_INTEGER { integer: 1 })] }); }
+pub fn T_INT_ARRAY_1_DEFAULT() -> Arc<DAE::Type> { __T_INT_ARRAY_1_DEFAULT_TLS.with(|__t| __t.clone()) }
 
 pub static commonPrefixes: std::sync::LazyLock<Arc<SCode::Prefixes>> = std::sync::LazyLock::new(|| { Arc::new(SCode::Prefixes { visibility: openmodelica_frontend_types::SCode::Visibility::PUBLIC, redeclarePrefix: openmodelica_frontend_types::SCode::Redeclare::NOT_REDECLARE, finalPrefix: openmodelica_frontend_types::SCode::Final::FINAL, innerOuter: openmodelica_ast::Absyn::InnerOuter::NOT_INNER_OUTER, replaceablePrefix: Arc::new(openmodelica_frontend_types::SCode::Replaceable::NOT_REPLACEABLE) }) });
 
@@ -147,10 +150,10 @@ pub static uncertaintyType: std::sync::LazyLock<Arc<SCode::Element>> = std::sync
 pub static ExternalObjectType: std::sync::LazyLock<Arc<SCode::Element>> = std::sync::LazyLock::new(|| { Arc::new(SCode::Element::CLASS { name: (literal!("ExternalObject")).clone(), prefixes: commonPrefixes.clone(), encapsulatedPrefix: openmodelica_frontend_types::SCode::Encapsulated::NOT_ENCAPSULATED, partialPrefix: openmodelica_frontend_types::SCode::Partial::NOT_PARTIAL, restriction: openmodelica_frontend_types::SCode::Restriction::R_CLASS, classDef: Arc::new(SCode::ClassDef::PARTS { elementLst: metamodelica::nil(), normalEquationLst: metamodelica::nil(), initialEquationLst: metamodelica::nil(), normalAlgorithmLst: metamodelica::nil(), initialAlgorithmLst: metamodelica::nil(), constraintLst: metamodelica::nil(), clsattrs: metamodelica::nil(), externalDecl: None }), cmt: SCode::noComment.clone(), info: Absyn::dummyInfo.clone() }) });
 
 // The Real type
-pub static realType: std::sync::LazyLock<Arc<SCode::Element>> = std::sync::LazyLock::new(|| { Arc::new(SCode::Element::CLASS { name: (literal!("Real")).clone(), prefixes: commonPrefixes.clone(), encapsulatedPrefix: openmodelica_frontend_types::SCode::Encapsulated::NOT_ENCAPSULATED, partialPrefix: openmodelica_frontend_types::SCode::Partial::NOT_PARTIAL, restriction: openmodelica_frontend_types::SCode::Restriction::R_PREDEFINED_REAL, classDef: Arc::new(SCode::ClassDef::PARTS { elementLst: list![unit.clone(), quantity.clone(), displayUnit.clone(), min, max, realStart.clone(), fixed.clone(), nominal.clone(), stateSelect.clone(), uncertainty.clone(), distribution.clone(), startOrigin.clone()], normalEquationLst: metamodelica::nil(), initialEquationLst: metamodelica::nil(), normalAlgorithmLst: metamodelica::nil(), initialAlgorithmLst: metamodelica::nil(), constraintLst: metamodelica::nil(), clsattrs: metamodelica::nil(), externalDecl: None }), cmt: SCode::noComment.clone(), info: Absyn::dummyInfo.clone() }) });
+pub static realType: std::sync::LazyLock<Arc<SCode::Element>> = std::sync::LazyLock::new(|| { Arc::new(SCode::Element::CLASS { name: (literal!("Real")).clone(), prefixes: commonPrefixes.clone(), encapsulatedPrefix: openmodelica_frontend_types::SCode::Encapsulated::NOT_ENCAPSULATED, partialPrefix: openmodelica_frontend_types::SCode::Partial::NOT_PARTIAL, restriction: openmodelica_frontend_types::SCode::Restriction::R_PREDEFINED_REAL, classDef: Arc::new(SCode::ClassDef::PARTS { elementLst: list![unit.clone(), quantity.clone(), displayUnit.clone(), (std::sync::Arc::new(min) as std::sync::Arc<dyn ::std::ops::Fn() -> Result<()> + 'static>), (std::sync::Arc::new(max) as std::sync::Arc<dyn ::std::ops::Fn() -> Result<()> + 'static>), realStart.clone(), fixed.clone(), nominal.clone(), stateSelect.clone(), uncertainty.clone(), distribution.clone(), startOrigin.clone()], normalEquationLst: metamodelica::nil(), initialEquationLst: metamodelica::nil(), normalAlgorithmLst: metamodelica::nil(), initialAlgorithmLst: metamodelica::nil(), constraintLst: metamodelica::nil(), clsattrs: metamodelica::nil(), externalDecl: None }), cmt: SCode::noComment.clone(), info: Absyn::dummyInfo.clone() }) });
 
 // The Integer type
-pub static integerType: std::sync::LazyLock<Arc<SCode::Element>> = std::sync::LazyLock::new(|| { Arc::new(SCode::Element::CLASS { name: (literal!("Integer")).clone(), prefixes: commonPrefixes.clone(), encapsulatedPrefix: openmodelica_frontend_types::SCode::Encapsulated::NOT_ENCAPSULATED, partialPrefix: openmodelica_frontend_types::SCode::Partial::NOT_PARTIAL, restriction: openmodelica_frontend_types::SCode::Restriction::R_PREDEFINED_INTEGER, classDef: Arc::new(SCode::ClassDef::PARTS { elementLst: list![quantity.clone(), min, max, integerStart.clone(), fixed.clone(), uncertainty.clone(), distribution.clone(), startOrigin.clone()], normalEquationLst: metamodelica::nil(), initialEquationLst: metamodelica::nil(), normalAlgorithmLst: metamodelica::nil(), initialAlgorithmLst: metamodelica::nil(), constraintLst: metamodelica::nil(), clsattrs: metamodelica::nil(), externalDecl: None }), cmt: SCode::noComment.clone(), info: Absyn::dummyInfo.clone() }) });
+pub static integerType: std::sync::LazyLock<Arc<SCode::Element>> = std::sync::LazyLock::new(|| { Arc::new(SCode::Element::CLASS { name: (literal!("Integer")).clone(), prefixes: commonPrefixes.clone(), encapsulatedPrefix: openmodelica_frontend_types::SCode::Encapsulated::NOT_ENCAPSULATED, partialPrefix: openmodelica_frontend_types::SCode::Partial::NOT_PARTIAL, restriction: openmodelica_frontend_types::SCode::Restriction::R_PREDEFINED_INTEGER, classDef: Arc::new(SCode::ClassDef::PARTS { elementLst: list![quantity.clone(), (std::sync::Arc::new(min) as std::sync::Arc<dyn ::std::ops::Fn() -> Result<()> + 'static>), (std::sync::Arc::new(max) as std::sync::Arc<dyn ::std::ops::Fn() -> Result<()> + 'static>), integerStart.clone(), fixed.clone(), uncertainty.clone(), distribution.clone(), startOrigin.clone()], normalEquationLst: metamodelica::nil(), initialEquationLst: metamodelica::nil(), normalAlgorithmLst: metamodelica::nil(), initialAlgorithmLst: metamodelica::nil(), constraintLst: metamodelica::nil(), clsattrs: metamodelica::nil(), externalDecl: None }), cmt: SCode::noComment.clone(), info: Absyn::dummyInfo.clone() }) });
 
 // The String type
 pub static stringType: std::sync::LazyLock<Arc<SCode::Element>> = std::sync::LazyLock::new(|| { Arc::new(SCode::Element::CLASS { name: (literal!("String")).clone(), prefixes: commonPrefixes.clone(), encapsulatedPrefix: openmodelica_frontend_types::SCode::Encapsulated::NOT_ENCAPSULATED, partialPrefix: openmodelica_frontend_types::SCode::Partial::NOT_PARTIAL, restriction: openmodelica_frontend_types::SCode::Restriction::R_PREDEFINED_STRING, classDef: Arc::new(SCode::ClassDef::PARTS { elementLst: list![quantity.clone(), stringStart.clone(), startOrigin.clone()], normalEquationLst: metamodelica::nil(), initialEquationLst: metamodelica::nil(), normalAlgorithmLst: metamodelica::nil(), initialAlgorithmLst: metamodelica::nil(), constraintLst: metamodelica::nil(), clsattrs: metamodelica::nil(), externalDecl: None }), cmt: SCode::noComment.clone(), info: Absyn::dummyInfo.clone() }) });
@@ -162,32 +165,43 @@ pub static booleanType: std::sync::LazyLock<Arc<SCode::Element>> = std::sync::La
 pub static clockType: std::sync::LazyLock<Arc<SCode::Element>> = std::sync::LazyLock::new(|| { Arc::new(SCode::Element::CLASS { name: (literal!("Clock")).clone(), prefixes: commonPrefixes.clone(), encapsulatedPrefix: openmodelica_frontend_types::SCode::Encapsulated::NOT_ENCAPSULATED, partialPrefix: openmodelica_frontend_types::SCode::Partial::NOT_PARTIAL, restriction: openmodelica_frontend_types::SCode::Restriction::R_PREDEFINED_CLOCK, classDef: Arc::new(SCode::ClassDef::PARTS { elementLst: metamodelica::nil(), normalEquationLst: metamodelica::nil(), initialEquationLst: metamodelica::nil(), normalAlgorithmLst: metamodelica::nil(), initialAlgorithmLst: metamodelica::nil(), constraintLst: metamodelica::nil(), clsattrs: metamodelica::nil(), externalDecl: None }), cmt: SCode::noComment.clone(), info: Absyn::dummyInfo.clone() }) });
 
 // The builtin variable time. See also variableIsBuiltin
-pub static timeVar: std::sync::LazyLock<Arc<DAE::Var>> = std::sync::LazyLock::new(|| { Arc::new(DAE::Var { name: (literal!("time")).clone(), attributes: DAE::dummyAttrInput.clone(), ty: DAE::T_REAL_DEFAULT.clone(), binding: Arc::new(openmodelica_frontend_types::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None }) });
+thread_local! { static __timeVar_TLS: Arc<DAE::Var> = Arc::new(DAE::Var { name: (literal!("time")).clone(), attributes: DAE::dummyAttrInput().clone(), ty: DAE::T_REAL_DEFAULT().clone(), binding: Arc::new(openmodelica_frontend_types::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None }); }
+pub fn timeVar() -> Arc<DAE::Var> { __timeVar_TLS.with(|__t| __t.clone()) }
 
 /* Optimica Extensions. Theses variables are considered builtin for Optimica: startTime, finalTime, objectiveIntegrand and objective */
 /* Optimica Extensions. The builtin variable startTime. */
-pub static startTimeVar: std::sync::LazyLock<Arc<DAE::Var>> = std::sync::LazyLock::new(|| { Arc::new(DAE::Var { name: (literal!("startTime")).clone(), attributes: DAE::dummyAttrInput.clone(), ty: DAE::T_REAL_DEFAULT.clone(), binding: Arc::new(openmodelica_frontend_types::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None }) });
+thread_local! { static __startTimeVar_TLS: Arc<DAE::Var> = Arc::new(DAE::Var { name: (literal!("startTime")).clone(), attributes: DAE::dummyAttrInput().clone(), ty: DAE::T_REAL_DEFAULT().clone(), binding: Arc::new(openmodelica_frontend_types::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None }); }
+pub fn startTimeVar() -> Arc<DAE::Var> { __startTimeVar_TLS.with(|__t| __t.clone()) }
 
 /* Optimica Extensions. The builtin variable finalTime. */
-pub static finalTimeVar: std::sync::LazyLock<Arc<DAE::Var>> = std::sync::LazyLock::new(|| { Arc::new(DAE::Var { name: (literal!("finalTime")).clone(), attributes: DAE::dummyAttrInput.clone(), ty: DAE::T_REAL_DEFAULT.clone(), binding: Arc::new(openmodelica_frontend_types::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None }) });
+thread_local! { static __finalTimeVar_TLS: Arc<DAE::Var> = Arc::new(DAE::Var { name: (literal!("finalTime")).clone(), attributes: DAE::dummyAttrInput().clone(), ty: DAE::T_REAL_DEFAULT().clone(), binding: Arc::new(openmodelica_frontend_types::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None }); }
+pub fn finalTimeVar() -> Arc<DAE::Var> { __finalTimeVar_TLS.with(|__t| __t.clone()) }
 
 /* Optimica Extensions. The builtin variable objectiveIntegrand. */
-pub static objectiveIntegrandVar: std::sync::LazyLock<Arc<DAE::Var>> = std::sync::LazyLock::new(|| { Arc::new(DAE::Var { name: (literal!("objectiveIntegrand")).clone(), attributes: DAE::dummyAttrInput.clone(), ty: DAE::T_REAL_DEFAULT.clone(), binding: Arc::new(openmodelica_frontend_types::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None }) });
+thread_local! { static __objectiveIntegrandVar_TLS: Arc<DAE::Var> = Arc::new(DAE::Var { name: (literal!("objectiveIntegrand")).clone(), attributes: DAE::dummyAttrInput().clone(), ty: DAE::T_REAL_DEFAULT().clone(), binding: Arc::new(openmodelica_frontend_types::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None }); }
+pub fn objectiveIntegrandVar() -> Arc<DAE::Var> { __objectiveIntegrandVar_TLS.with(|__t| __t.clone()) }
 
 /* Optimica Extensions. The builtin variable objective. */
-pub static objectiveVar: std::sync::LazyLock<Arc<DAE::Var>> = std::sync::LazyLock::new(|| { Arc::new(DAE::Var { name: (literal!("objective")).clone(), attributes: DAE::dummyAttrInput.clone(), ty: DAE::T_REAL_DEFAULT.clone(), binding: Arc::new(openmodelica_frontend_types::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None }) });
+thread_local! { static __objectiveVar_TLS: Arc<DAE::Var> = Arc::new(DAE::Var { name: (literal!("objective")).clone(), attributes: DAE::dummyAttrInput().clone(), ty: DAE::T_REAL_DEFAULT().clone(), binding: Arc::new(openmodelica_frontend_types::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None }); }
+pub fn objectiveVar() -> Arc<DAE::Var> { __objectiveVar_TLS.with(|__t| __t.clone()) }
 
-pub static argRealX: std::sync::LazyLock<Arc<DAE::FuncArg>> = std::sync::LazyLock::new(|| { Arc::new(DAE::FuncArg { name: (literal!("x")).clone(), ty: DAE::T_REAL_DEFAULT.clone(), r#const: openmodelica_frontend_types::DAE::Const::C_VAR, par: openmodelica_frontend_types::DAE::VarParallelism::NON_PARALLEL, defaultBinding: None }) });
+thread_local! { static __argRealX_TLS: Arc<DAE::FuncArg> = Arc::new(DAE::FuncArg { name: (literal!("x")).clone(), ty: DAE::T_REAL_DEFAULT().clone(), r#const: openmodelica_frontend_types::DAE::Const::C_VAR, par: openmodelica_frontend_types::DAE::VarParallelism::NON_PARALLEL, defaultBinding: None }); }
+pub fn argRealX() -> Arc<DAE::FuncArg> { __argRealX_TLS.with(|__t| __t.clone()) }
 
-pub static argRealY: std::sync::LazyLock<Arc<DAE::FuncArg>> = std::sync::LazyLock::new(|| { Arc::new(DAE::FuncArg { name: (literal!("y")).clone(), ty: DAE::T_REAL_DEFAULT.clone(), r#const: openmodelica_frontend_types::DAE::Const::C_VAR, par: openmodelica_frontend_types::DAE::VarParallelism::NON_PARALLEL, defaultBinding: None }) });
+thread_local! { static __argRealY_TLS: Arc<DAE::FuncArg> = Arc::new(DAE::FuncArg { name: (literal!("y")).clone(), ty: DAE::T_REAL_DEFAULT().clone(), r#const: openmodelica_frontend_types::DAE::Const::C_VAR, par: openmodelica_frontend_types::DAE::VarParallelism::NON_PARALLEL, defaultBinding: None }); }
+pub fn argRealY() -> Arc<DAE::FuncArg> { __argRealY_TLS.with(|__t| __t.clone()) }
 
-pub static argRealZ: std::sync::LazyLock<Arc<DAE::FuncArg>> = std::sync::LazyLock::new(|| { Arc::new(DAE::FuncArg { name: (literal!("z")).clone(), ty: DAE::T_REAL_DEFAULT.clone(), r#const: openmodelica_frontend_types::DAE::Const::C_VAR, par: openmodelica_frontend_types::DAE::VarParallelism::NON_PARALLEL, defaultBinding: None }) });
+thread_local! { static __argRealZ_TLS: Arc<DAE::FuncArg> = Arc::new(DAE::FuncArg { name: (literal!("z")).clone(), ty: DAE::T_REAL_DEFAULT().clone(), r#const: openmodelica_frontend_types::DAE::Const::C_VAR, par: openmodelica_frontend_types::DAE::VarParallelism::NON_PARALLEL, defaultBinding: None }); }
+pub fn argRealZ() -> Arc<DAE::FuncArg> { __argRealZ_TLS.with(|__t| __t.clone()) }
 
-pub static argsRealX: std::sync::LazyLock<Arc<metamodelica::List<Arc<DAE::FuncArg>>>> = std::sync::LazyLock::new(|| { list![argRealX.clone()] });
+thread_local! { static __argsRealX_TLS: Arc<metamodelica::List<Arc<DAE::FuncArg>>> = list![argRealX().clone()]; }
+pub fn argsRealX() -> Arc<metamodelica::List<Arc<DAE::FuncArg>>> { __argsRealX_TLS.with(|__t| __t.clone()) }
 
-pub static argsRealXY: std::sync::LazyLock<Arc<metamodelica::List<Arc<DAE::FuncArg>>>> = std::sync::LazyLock::new(|| { list![argRealX.clone(), argRealY.clone()] });
+thread_local! { static __argsRealXY_TLS: Arc<metamodelica::List<Arc<DAE::FuncArg>>> = list![argRealX().clone(), argRealY().clone()]; }
+pub fn argsRealXY() -> Arc<metamodelica::List<Arc<DAE::FuncArg>>> { __argsRealXY_TLS.with(|__t| __t.clone()) }
 
-pub static argsRealXYZ: std::sync::LazyLock<Arc<metamodelica::List<Arc<DAE::FuncArg>>>> = std::sync::LazyLock::new(|| { list![argRealX.clone(), argRealY.clone(), argRealZ.clone()] });
+thread_local! { static __argsRealXYZ_TLS: Arc<metamodelica::List<Arc<DAE::FuncArg>>> = list![argRealX().clone(), argRealY().clone(), argRealZ().clone()]; }
+pub fn argsRealXYZ() -> Arc<metamodelica::List<Arc<DAE::FuncArg>>> { __argsRealXYZ_TLS.with(|__t| __t.clone()) }
 
 pub static timeComp: std::sync::LazyLock<Arc<SCode::Element>> = std::sync::LazyLock::new(|| { Arc::new(SCode::Element::COMPONENT { name: (literal!("time")).clone(), prefixes: SCode::defaultPrefixes.clone(), attributes: SCode::Attributes { arrayDims: metamodelica::nil(), connectorType: openmodelica_frontend_types::SCode::ConnectorType::POTENTIAL, parallelism: openmodelica_frontend_types::SCode::Parallelism::NON_PARALLEL, variability: openmodelica_frontend_types::SCode::Variability::VAR, direction: openmodelica_ast::Absyn::Direction::INPUT, isField: openmodelica_ast::Absyn::IsField::NONFIELD }, typeSpec: Arc::new(Absyn::TypeSpec::TPATH { path: Arc::new(Absyn::Path::IDENT { name: (literal!("Real")).clone() }), arrayDim: None }), modifications: Arc::new(openmodelica_frontend_types::SCode::Mod::NOMOD), comment: SCode::noComment.clone(), condition: None, info: Absyn::dummyInfo.clone() }) });
 
@@ -245,7 +259,7 @@ fn mergePrograms(mut program1: Absyn::Program, mut program2: Absyn::Program) -> 
 }
 
 pub fn getInitialFunctions() -> Result<(Absyn::Program, Arc<metamodelica::List<Arc<SCode::Element>>>)> {
-    let mut initialProgram: Absyn::Program;
+    let mut initialProgram: Absyn::Program = <Absyn::Program as ::std::default::Default>::default();
     let mut initialSCodeProgram: Arc<metamodelica::List<Arc<SCode::Element>>> = metamodelica::nil();
     let mut fileModelicaNF: ArcStr = arcstr::literal!("");
     let mut fileModelicaCF: ArcStr = arcstr::literal!("");
@@ -253,10 +267,10 @@ pub fn getInitialFunctions() -> Result<(Absyn::Program, Arc<metamodelica::List<A
     let mut fileParModelica: ArcStr = arcstr::literal!("");
     let mut filePDEModelica: ArcStr = arcstr::literal!("");
     let mut assocLst: Arc<metamodelica::List<((i32, bool), (Absyn::Program, Arc<metamodelica::List<Arc<SCode::Element>>>))>> = metamodelica::nil();
-    let mut p: Absyn::Program;
-    let mut pNF: Absyn::Program;
-    let mut pCF: Absyn::Program;
-    let mut pMM: Absyn::Program;
+    let mut p: Absyn::Program = <Absyn::Program as ::std::default::Default>::default();
+    let mut pNF: Absyn::Program = <Absyn::Program as ::std::default::Default>::default();
+    let mut pCF: Absyn::Program = <Absyn::Program as ::std::default::Default>::default();
+    let mut pMM: Absyn::Program = <Absyn::Program as ::std::default::Default>::default();
     let mut sp: Arc<metamodelica::List<Arc<SCode::Element>>> = metamodelica::nil();
     let mut spNF: Arc<metamodelica::List<Arc<SCode::Element>>> = metamodelica::nil();
     let mut spCF: Arc<metamodelica::List<Arc<SCode::Element>>> = metamodelica::nil();
@@ -278,23 +292,23 @@ pub fn getInitialFunctions() -> Result<(Absyn::Program, Arc<metamodelica::List<A
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             let () = __mc_input.clone() else { bail!("nomatch") };
-            let mut p: Absyn::Program;
-            let mut sp: Arc<metamodelica::List<Arc<SCode::Element>>> = sp.clone();
+            let mut p: Absyn::Program = p.clone();
             let mut assocLst: Arc<metamodelica::List<((i32, bool), (Absyn::Program, Arc<metamodelica::List<Arc<SCode::Element>>>))>> = assocLst.clone();
+            let mut sp: Arc<metamodelica::List<Arc<SCode::Element>>> = sp.clone();
             assocLst = crate::Globals::builtinIndex.with(|__root| __root.borrow().clone());
             (p, sp) = Util::assoc(Util::makeTuple(Flags::getConfigEnum(Flags::GRAMMAR.clone())?, Flags::isSet(Flags::SCODE_INST.clone())?), assocLst.clone())?;
             Ok((p.clone(), sp.clone()))
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             let () = __mc_input.clone() else { bail!("nomatch") };
-            let mut spNF: Arc<metamodelica::List<Arc<SCode::Element>>> = spNF.clone();
             let mut sp: Arc<metamodelica::List<Arc<SCode::Element>>> = sp.clone();
-            let mut p: Absyn::Program;
-            let mut pCF: Absyn::Program;
             let mut assocLst: Arc<metamodelica::List<((i32, bool), (Absyn::Program, Arc<metamodelica::List<Arc<SCode::Element>>>))>> = assocLst.clone();
-            let mut pMM: Absyn::Program;
             let mut spCF: Arc<metamodelica::List<Arc<SCode::Element>>> = spCF.clone();
-            let mut pNF: Absyn::Program;
+            let mut pCF: Absyn::Program = pCF.clone();
+            let mut p: Absyn::Program = p.clone();
+            let mut pNF: Absyn::Program = pNF.clone();
+            let mut pMM: Absyn::Program = pMM.clone();
+            let mut spNF: Arc<metamodelica::List<Arc<SCode::Element>>> = spNF.clone();
             let true = (intEq(Flags::getConfigEnum(Flags::GRAMMAR.clone())?, Flags::METAMODELICA.clone())) else { bail!("pattern mismatch") };
             Error::assertionOrAddSourceMessage(System::regularFileExists((fileModelicaNF.clone()).clone()), Error::FILE_NOT_FOUND_ERROR.clone(), list![(fileModelicaNF.clone()).clone()], Absyn::dummyInfo.clone())?;
             Error::assertionOrAddSourceMessage(System::regularFileExists((fileModelicaCF.clone()).clone()), Error::FILE_NOT_FOUND_ERROR.clone(), list![(fileModelicaCF.clone()).clone()], Absyn::dummyInfo.clone())?;
@@ -329,14 +343,14 @@ pub fn getInitialFunctions() -> Result<(Absyn::Program, Arc<metamodelica::List<A
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             let () = __mc_input.clone() else { bail!("nomatch") };
-            let mut sp: Arc<metamodelica::List<Arc<SCode::Element>>> = sp.clone();
-            let mut pMM: Absyn::Program;
-            let mut assocLst: Arc<metamodelica::List<((i32, bool), (Absyn::Program, Arc<metamodelica::List<Arc<SCode::Element>>>))>> = assocLst.clone();
-            let mut spCF: Arc<metamodelica::List<Arc<SCode::Element>>> = spCF.clone();
-            let mut p: Absyn::Program;
-            let mut pNF: Absyn::Program;
-            let mut pCF: Absyn::Program;
+            let mut p: Absyn::Program = p.clone();
             let mut spNF: Arc<metamodelica::List<Arc<SCode::Element>>> = spNF.clone();
+            let mut spCF: Arc<metamodelica::List<Arc<SCode::Element>>> = spCF.clone();
+            let mut sp: Arc<metamodelica::List<Arc<SCode::Element>>> = sp.clone();
+            let mut pNF: Absyn::Program = pNF.clone();
+            let mut pMM: Absyn::Program = pMM.clone();
+            let mut pCF: Absyn::Program = pCF.clone();
+            let mut assocLst: Arc<metamodelica::List<((i32, bool), (Absyn::Program, Arc<metamodelica::List<Arc<SCode::Element>>>))>> = assocLst.clone();
             let true = (intEq(Flags::getConfigEnum(Flags::GRAMMAR.clone())?, Flags::PARMODELICA.clone())) else { bail!("pattern mismatch") };
             Error::assertionOrAddSourceMessage(System::regularFileExists((fileModelicaNF.clone()).clone()), Error::FILE_NOT_FOUND_ERROR.clone(), list![(fileModelicaNF.clone()).clone()], Absyn::dummyInfo.clone())?;
             Error::assertionOrAddSourceMessage(System::regularFileExists((fileModelicaCF.clone()).clone()), Error::FILE_NOT_FOUND_ERROR.clone(), list![(fileModelicaCF.clone()).clone()], Absyn::dummyInfo.clone())?;
@@ -369,13 +383,13 @@ pub fn getInitialFunctions() -> Result<(Absyn::Program, Arc<metamodelica::List<A
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             let () = __mc_input.clone() else { bail!("nomatch") };
-            let mut spCF: Arc<metamodelica::List<Arc<SCode::Element>>> = spCF.clone();
+            let mut pCF: Absyn::Program = pCF.clone();
             let mut assocLst: Arc<metamodelica::List<((i32, bool), (Absyn::Program, Arc<metamodelica::List<Arc<SCode::Element>>>))>> = assocLst.clone();
-            let mut p: Absyn::Program;
-            let mut sp: Arc<metamodelica::List<Arc<SCode::Element>>> = sp.clone();
-            let mut pCF: Absyn::Program;
-            let mut pNF: Absyn::Program;
             let mut spNF: Arc<metamodelica::List<Arc<SCode::Element>>> = spNF.clone();
+            let mut p: Absyn::Program = p.clone();
+            let mut pNF: Absyn::Program = pNF.clone();
+            let mut spCF: Arc<metamodelica::List<Arc<SCode::Element>>> = spCF.clone();
+            let mut sp: Arc<metamodelica::List<Arc<SCode::Element>>> = sp.clone();
             let true = (intEq(Flags::getConfigEnum(Flags::GRAMMAR.clone())?, Flags::MODELICA.clone()) || intEq(Flags::getConfigEnum(Flags::GRAMMAR.clone())?, Flags::OPTIMICA.clone())) else { bail!("pattern mismatch") };
             Error::assertionOrAddSourceMessage(System::regularFileExists((fileModelicaNF.clone()).clone()), Error::FILE_NOT_FOUND_ERROR.clone(), list![(fileModelicaNF.clone()).clone()], Absyn::dummyInfo.clone())?;
             Error::assertionOrAddSourceMessage(System::regularFileExists((fileModelicaCF.clone()).clone()), Error::FILE_NOT_FOUND_ERROR.clone(), list![(fileModelicaCF.clone()).clone()], Absyn::dummyInfo.clone())?;
@@ -404,14 +418,14 @@ pub fn getInitialFunctions() -> Result<(Absyn::Program, Arc<metamodelica::List<A
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             let () = __mc_input.clone() else { bail!("nomatch") };
-            let mut p: Absyn::Program;
-            let mut pCF: Absyn::Program;
-            let mut spNF: Arc<metamodelica::List<Arc<SCode::Element>>> = spNF.clone();
-            let mut assocLst: Arc<metamodelica::List<((i32, bool), (Absyn::Program, Arc<metamodelica::List<Arc<SCode::Element>>>))>> = assocLst.clone();
-            let mut pNF: Absyn::Program;
-            let mut pMM: Absyn::Program;
             let mut sp: Arc<metamodelica::List<Arc<SCode::Element>>> = sp.clone();
+            let mut p: Absyn::Program = p.clone();
+            let mut assocLst: Arc<metamodelica::List<((i32, bool), (Absyn::Program, Arc<metamodelica::List<Arc<SCode::Element>>>))>> = assocLst.clone();
+            let mut pNF: Absyn::Program = pNF.clone();
+            let mut spNF: Arc<metamodelica::List<Arc<SCode::Element>>> = spNF.clone();
             let mut spCF: Arc<metamodelica::List<Arc<SCode::Element>>> = spCF.clone();
+            let mut pMM: Absyn::Program = pMM.clone();
+            let mut pCF: Absyn::Program = pCF.clone();
             let true = (intEq(Flags::getConfigEnum(Flags::GRAMMAR.clone())?, Flags::PDEMODELICA.clone())) else { bail!("pattern mismatch") };
             Error::assertionOrAddSourceMessage(System::regularFileExists((fileModelicaNF.clone()).clone()), Error::FILE_NOT_FOUND_ERROR.clone(), list![(fileModelicaNF.clone()).clone()], Absyn::dummyInfo.clone())?;
             Error::assertionOrAddSourceMessage(System::regularFileExists((fileModelicaCF.clone()).clone()), Error::FILE_NOT_FOUND_ERROR.clone(), list![(fileModelicaCF.clone()).clone()], Absyn::dummyInfo.clone())?;
@@ -476,9 +490,9 @@ pub fn initialGraph(mut inCache: FCore::Cache) -> Result<(FCore::Cache, FCore::G
             let mut graph: FCore::Graph;
             graph = FGraph::new((literal!("graph")).clone(), FCore::dummyTopModel.clone())?;
             graph = FGraphBuild::mkProgramGraph(basicTypes.clone(), crate::FCore::Kind::BASIC_TYPE, graph.clone())?;
-            graph = initialGraphOptimica(graph.clone(), FGraphBuild::mkCompNode)?;
-            graph = initialGraphMetaModelica(graph.clone(), FGraphBuild::mkTypeNode)?;
-            graph = initialGraphModelica(graph.clone(), FGraphBuild::mkTypeNode, FGraphBuild::mkCompNode)?;
+            graph = initialGraphOptimica(graph.clone(), (std::sync::Arc::new(FGraphBuild::mkCompNode) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SCode::Element>, metamodelica::Array<FCore::Node>, FCore::Kind, FCore::Graph) -> Result<FCore::Graph> + 'static>))?;
+            graph = initialGraphMetaModelica(graph.clone(), (std::sync::Arc::new(FGraphBuild::mkTypeNode) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<Arc<DAE::Type>>>, metamodelica::Array<FCore::Node>, ArcStr, FCore::Graph) -> Result<FCore::Graph> + 'static>))?;
+            graph = initialGraphModelica(graph.clone(), (std::sync::Arc::new(FGraphBuild::mkTypeNode) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<Arc<DAE::Type>>>, metamodelica::Array<FCore::Node>, ArcStr, FCore::Graph) -> Result<FCore::Graph> + 'static>), (std::sync::Arc::new(FGraphBuild::mkCompNode) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SCode::Element>, metamodelica::Array<FCore::Node>, FCore::Kind, FCore::Graph) -> Result<FCore::Graph> + 'static>))?;
             (_, initialProgram) = getInitialFunctions()?;
             graph = FGraphBuild::mkProgramGraph(initialProgram.clone(), crate::FCore::Kind::BUILTIN, graph.clone())?;
             cache = FCore::setCachedInitialGraph(cache.clone(), graph.clone());
@@ -538,46 +552,46 @@ fn getSetInitialGraph(mut inEnvOpt: Option<FCore::Graph>) -> Result<FCore::Graph
     Ok(initialEnv)
 }
 
-pub type MakeTypeNode = fn(Arc<metamodelica::List<Arc<DAE::Type>>>, metamodelica::Array<FCore::Node>, ArcStr, FCore::Graph) -> Result<FCore::Graph>;
+pub type MakeTypeNode = std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<Arc<DAE::Type>>>, metamodelica::Array<FCore::Node>, ArcStr, FCore::Graph) -> Result<FCore::Graph> + 'static>;
 
-pub type MakeCompNode = fn(Arc<SCode::Element>, metamodelica::Array<FCore::Node>, FCore::Kind, FCore::Graph) -> Result<FCore::Graph>;
+pub type MakeCompNode = std::sync::Arc<dyn ::std::ops::Fn(Arc<SCode::Element>, metamodelica::Array<FCore::Node>, FCore::Kind, FCore::Graph) -> Result<FCore::Graph> + 'static>;
 
-pub fn initialGraphModelica(mut graph: FCore::Graph, mut mkTypeNode: MakeTypeNode, mut mkCompNode: MakeCompNode) -> Result<FCore::Graph> {
+pub fn initialGraphModelica(mut graph: FCore::Graph, mut mkTypeNode: Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<Arc<DAE::Type>>>, metamodelica::Array<FCore::Node>, ArcStr, FCore::Graph) -> Result<FCore::Graph> + 'static>, mut mkCompNode: Arc<dyn ::std::ops::Fn(Arc<SCode::Element>, metamodelica::Array<FCore::Node>, FCore::Kind, FCore::Graph) -> Result<FCore::Graph> + 'static>) -> Result<FCore::Graph> {
     let mut graph: FCore::Graph = graph;
-    let enumeration2int: Arc<DAE::Type> = Arc::new(DAE::Type::T_FUNCTION { funcArg: list![Arc::new(DAE::FuncArg { name: (literal!("x")).clone(), ty: Arc::new(DAE::Type::T_ENUMERATION { index: None, path: Arc::new(Absyn::Path::IDENT { name: (literal!("")).clone() }), names: metamodelica::nil(), literalVarLst: metamodelica::nil(), attributeLst: metamodelica::nil() }), r#const: openmodelica_frontend_types::DAE::Const::C_VAR, par: openmodelica_frontend_types::DAE::VarParallelism::NON_PARALLEL, defaultBinding: None })], funcResultType: DAE::T_INTEGER_DEFAULT.clone(), functionAttributes: DAE::FUNCTION_ATTRIBUTES_BUILTIN.clone(), path: Arc::new(Absyn::Path::IDENT { name: (literal!("Integer")).clone() }) });
+    let enumeration2int: Arc<DAE::Type> = Arc::new(DAE::Type::T_FUNCTION { funcArg: list![Arc::new(DAE::FuncArg { name: (literal!("x")).clone(), ty: Arc::new(DAE::Type::T_ENUMERATION { index: None, path: Arc::new(Absyn::Path::IDENT { name: (literal!("")).clone() }), names: metamodelica::nil(), literalVarLst: metamodelica::nil(), attributeLst: metamodelica::nil() }), r#const: openmodelica_frontend_types::DAE::Const::C_VAR, par: openmodelica_frontend_types::DAE::VarParallelism::NON_PARALLEL, defaultBinding: None })], funcResultType: DAE::T_INTEGER_DEFAULT().clone(), functionAttributes: DAE::FUNCTION_ATTRIBUTES_BUILTIN.clone(), path: Arc::new(Absyn::Path::IDENT { name: (literal!("Integer")).clone() }) });
     graph = mkCompNode(timeComp.clone(), FGraph::top(graph.clone())?, crate::FCore::Kind::BUILTIN, graph.clone())?;
-    graph = FGraph::updateComp(graph.clone(), timeVar.clone(), crate::FCore::Status::VAR_UNTYPED, FGraph::empty())?;
-    graph = mkTypeNode(list![Arc::new(DAE::Type::T_FUNCTION { funcArg: list![Arc::new(DAE::FuncArg { name: (literal!("x")).clone(), ty: Arc::new(DAE::Type::T_ANYTYPE { anyClassType: Some(ClassInf::State::CONNECTOR { path: Arc::new(Absyn::Path::IDENT { name: (literal!("$dummy$")).clone() }), isExpandable: false }) }), r#const: openmodelica_frontend_types::DAE::Const::C_VAR, par: openmodelica_frontend_types::DAE::VarParallelism::NON_PARALLEL, defaultBinding: None })], funcResultType: DAE::T_INTEGER_DEFAULT.clone(), functionAttributes: DAE::FUNCTION_ATTRIBUTES_BUILTIN.clone(), path: Arc::new(Absyn::Path::IDENT { name: (literal!("cardinality")).clone() }) }), Arc::new(DAE::Type::T_FUNCTION { funcArg: list![Arc::new(DAE::FuncArg { name: (literal!("x")).clone(), ty: Arc::new(DAE::Type::T_ANYTYPE { anyClassType: Some(ClassInf::State::CONNECTOR { path: Arc::new(Absyn::Path::IDENT { name: (literal!("$dummy$")).clone() }), isExpandable: true }) }), r#const: openmodelica_frontend_types::DAE::Const::C_VAR, par: openmodelica_frontend_types::DAE::VarParallelism::NON_PARALLEL, defaultBinding: None })], funcResultType: DAE::T_INTEGER_DEFAULT.clone(), functionAttributes: DAE::FUNCTION_ATTRIBUTES_BUILTIN.clone(), path: Arc::new(Absyn::Path::IDENT { name: (literal!("cardinality")).clone() }) })], FGraph::top(graph.clone())?, (literal!("cardinality")).clone(), graph.clone())?;
+    graph = FGraph::updateComp(graph.clone(), timeVar().clone(), crate::FCore::Status::VAR_UNTYPED, FGraph::empty())?;
+    graph = mkTypeNode(list![Arc::new(DAE::Type::T_FUNCTION { funcArg: list![Arc::new(DAE::FuncArg { name: (literal!("x")).clone(), ty: Arc::new(DAE::Type::T_ANYTYPE { anyClassType: Some(ClassInf::State::CONNECTOR { path: Arc::new(Absyn::Path::IDENT { name: (literal!("$dummy$")).clone() }), isExpandable: false }) }), r#const: openmodelica_frontend_types::DAE::Const::C_VAR, par: openmodelica_frontend_types::DAE::VarParallelism::NON_PARALLEL, defaultBinding: None })], funcResultType: DAE::T_INTEGER_DEFAULT().clone(), functionAttributes: DAE::FUNCTION_ATTRIBUTES_BUILTIN.clone(), path: Arc::new(Absyn::Path::IDENT { name: (literal!("cardinality")).clone() }) }), Arc::new(DAE::Type::T_FUNCTION { funcArg: list![Arc::new(DAE::FuncArg { name: (literal!("x")).clone(), ty: Arc::new(DAE::Type::T_ANYTYPE { anyClassType: Some(ClassInf::State::CONNECTOR { path: Arc::new(Absyn::Path::IDENT { name: (literal!("$dummy$")).clone() }), isExpandable: true }) }), r#const: openmodelica_frontend_types::DAE::Const::C_VAR, par: openmodelica_frontend_types::DAE::VarParallelism::NON_PARALLEL, defaultBinding: None })], funcResultType: DAE::T_INTEGER_DEFAULT().clone(), functionAttributes: DAE::FUNCTION_ATTRIBUTES_BUILTIN.clone(), path: Arc::new(Absyn::Path::IDENT { name: (literal!("cardinality")).clone() }) })], FGraph::top(graph.clone())?, (literal!("cardinality")).clone(), graph.clone())?;
     graph = mkTypeNode(list![enumeration2int.clone()], FGraph::top(graph.clone())?, (literal!("Integer")).clone(), graph.clone())?;
     graph = mkTypeNode(list![enumeration2int.clone()], FGraph::top(graph.clone())?, (literal!("EnumToInteger")).clone(), graph.clone())?;
-    graph = mkTypeNode(list![Arc::new(DAE::Type::T_FUNCTION { funcArg: argsRealX.clone(), funcResultType: DAE::T_REAL_DEFAULT.clone(), functionAttributes: DAE::FUNCTION_ATTRIBUTES_BUILTIN.clone(), path: Arc::new(Absyn::Path::IDENT { name: (literal!("noEvent")).clone() }) })], FGraph::top(graph.clone())?, (literal!("noEvent")).clone(), graph.clone())?;
-    graph = mkTypeNode(list![Arc::new(DAE::Type::T_FUNCTION { funcArg: argsRealX.clone(), funcResultType: DAE::T_REAL_DEFAULT.clone(), functionAttributes: DAE::FUNCTION_ATTRIBUTES_BUILTIN.clone(), path: Arc::new(Absyn::Path::IDENT { name: (literal!("actualStream")).clone() }) })], FGraph::top(graph.clone())?, (literal!("actualStream")).clone(), graph.clone())?;
-    graph = mkTypeNode(list![Arc::new(DAE::Type::T_FUNCTION { funcArg: argsRealX.clone(), funcResultType: DAE::T_REAL_DEFAULT.clone(), functionAttributes: DAE::FUNCTION_ATTRIBUTES_BUILTIN.clone(), path: Arc::new(Absyn::Path::IDENT { name: (literal!("inStream")).clone() }) })], FGraph::top(graph.clone())?, (literal!("inStream")).clone(), graph.clone())?;
+    graph = mkTypeNode(list![Arc::new(DAE::Type::T_FUNCTION { funcArg: argsRealX().clone(), funcResultType: DAE::T_REAL_DEFAULT().clone(), functionAttributes: DAE::FUNCTION_ATTRIBUTES_BUILTIN.clone(), path: Arc::new(Absyn::Path::IDENT { name: (literal!("noEvent")).clone() }) })], FGraph::top(graph.clone())?, (literal!("noEvent")).clone(), graph.clone())?;
+    graph = mkTypeNode(list![Arc::new(DAE::Type::T_FUNCTION { funcArg: argsRealX().clone(), funcResultType: DAE::T_REAL_DEFAULT().clone(), functionAttributes: DAE::FUNCTION_ATTRIBUTES_BUILTIN.clone(), path: Arc::new(Absyn::Path::IDENT { name: (literal!("actualStream")).clone() }) })], FGraph::top(graph.clone())?, (literal!("actualStream")).clone(), graph.clone())?;
+    graph = mkTypeNode(list![Arc::new(DAE::Type::T_FUNCTION { funcArg: argsRealX().clone(), funcResultType: DAE::T_REAL_DEFAULT().clone(), functionAttributes: DAE::FUNCTION_ATTRIBUTES_BUILTIN.clone(), path: Arc::new(Absyn::Path::IDENT { name: (literal!("inStream")).clone() }) })], FGraph::top(graph.clone())?, (literal!("inStream")).clone(), graph.clone())?;
     Ok(graph)
 }
 
-pub fn initialGraphMetaModelica(mut graph: FCore::Graph, mut mkTypeNode: MakeTypeNode) -> Result<FCore::Graph> {
+pub fn initialGraphMetaModelica(mut graph: FCore::Graph, mut mkTypeNode: Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<Arc<DAE::Type>>>, metamodelica::Array<FCore::Node>, ArcStr, FCore::Graph) -> Result<FCore::Graph> + 'static>) -> Result<FCore::Graph> {
     let mut graph: FCore::Graph = graph;
     if !(Config::acceptMetaModelicaGrammar()?) {
         return Ok(graph);
     }
-    graph = mkTypeNode(list![Arc::new(DAE::Type::T_FUNCTION { funcArg: list![Arc::new(DAE::FuncArg { name: (literal!("index")).clone(), ty: DAE::T_INTEGER_DEFAULT.clone(), r#const: openmodelica_frontend_types::DAE::Const::C_VAR, par: openmodelica_frontend_types::DAE::VarParallelism::NON_PARALLEL, defaultBinding: None })], funcResultType: DAE::T_METABOXED_DEFAULT.clone(), functionAttributes: DAE::FUNCTION_ATTRIBUTES_BUILTIN.clone(), path: Arc::new(Absyn::Path::IDENT { name: (literal!("getGlobalRoot")).clone() }) })], FGraph::top(graph.clone())?, (literal!("getGlobalRoot")).clone(), graph.clone())?;
+    graph = mkTypeNode(list![Arc::new(DAE::Type::T_FUNCTION { funcArg: list![Arc::new(DAE::FuncArg { name: (literal!("index")).clone(), ty: DAE::T_INTEGER_DEFAULT().clone(), r#const: openmodelica_frontend_types::DAE::Const::C_VAR, par: openmodelica_frontend_types::DAE::VarParallelism::NON_PARALLEL, defaultBinding: None })], funcResultType: DAE::T_METABOXED_DEFAULT().clone(), functionAttributes: DAE::FUNCTION_ATTRIBUTES_BUILTIN.clone(), path: Arc::new(Absyn::Path::IDENT { name: (literal!("getGlobalRoot")).clone() }) })], FGraph::top(graph.clone())?, (literal!("getGlobalRoot")).clone(), graph.clone())?;
     Ok(graph)
 }
 
-pub fn initialGraphOptimica(mut graph: FCore::Graph, mut mkCompNode: MakeCompNode) -> Result<FCore::Graph> {
+pub fn initialGraphOptimica(mut graph: FCore::Graph, mut mkCompNode: Arc<dyn ::std::ops::Fn(Arc<SCode::Element>, metamodelica::Array<FCore::Node>, FCore::Kind, FCore::Graph) -> Result<FCore::Graph> + 'static>) -> Result<FCore::Graph> {
     let mut graph: FCore::Graph = graph;
     if !(Config::acceptOptimicaGrammar()?) {
         return Ok(graph);
     }
     graph = mkCompNode(objectiveVarComp.clone(), FGraph::top(graph.clone())?, crate::FCore::Kind::BUILTIN, graph.clone())?;
-    graph = FGraph::updateComp(graph.clone(), objectiveVar.clone(), crate::FCore::Status::VAR_UNTYPED, FGraph::empty())?;
+    graph = FGraph::updateComp(graph.clone(), objectiveVar().clone(), crate::FCore::Status::VAR_UNTYPED, FGraph::empty())?;
     graph = mkCompNode(objectiveIntegrandComp.clone(), FGraph::top(graph.clone())?, crate::FCore::Kind::BUILTIN, graph.clone())?;
-    graph = FGraph::updateComp(graph.clone(), objectiveIntegrandVar.clone(), crate::FCore::Status::VAR_UNTYPED, FGraph::empty())?;
+    graph = FGraph::updateComp(graph.clone(), objectiveIntegrandVar().clone(), crate::FCore::Status::VAR_UNTYPED, FGraph::empty())?;
     graph = mkCompNode(startTimeComp.clone(), FGraph::top(graph.clone())?, crate::FCore::Kind::BUILTIN, graph.clone())?;
-    graph = FGraph::updateComp(graph.clone(), startTimeVar.clone(), crate::FCore::Status::VAR_UNTYPED, FGraph::empty())?;
+    graph = FGraph::updateComp(graph.clone(), startTimeVar().clone(), crate::FCore::Status::VAR_UNTYPED, FGraph::empty())?;
     graph = mkCompNode(finalTimeComp.clone(), FGraph::top(graph.clone())?, crate::FCore::Kind::BUILTIN, graph.clone())?;
-    graph = FGraph::updateComp(graph.clone(), finalTimeVar.clone(), crate::FCore::Status::VAR_UNTYPED, FGraph::empty())?;
+    graph = FGraph::updateComp(graph.clone(), finalTimeVar().clone(), crate::FCore::Status::VAR_UNTYPED, FGraph::empty())?;
     Ok(graph)
 }
 

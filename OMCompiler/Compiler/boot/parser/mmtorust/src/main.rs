@@ -9,6 +9,7 @@ mod typedexp;
 mod codegen;
 mod external_c_calls;
 mod fallibility;
+mod dep_analysis;
 use rayon::prelude::*;
 
 fn start_compilation(results: Vec<Absyn::Program>) {
@@ -98,7 +99,73 @@ fn start_compilation(results: Vec<Absyn::Program>) {
     println!("Code generation {:.2}s", t0.elapsed().as_secs_f64())
 }
 
+fn render_dot_if_available(dot_file: &str, svg_file: &str) {
+    // Check whether `dot` (Graphviz) is on PATH by running `dot -V`.
+    let available = std::process::Command::new("dot")
+        .arg("-V")
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .is_ok();
+
+    if !available {
+        println!("(dot not found on PATH; render manually: dot -Tsvg {dot_file} -o {svg_file})");
+        return;
+    }
+
+    let status = std::process::Command::new("dot")
+        .args(["-Tsvg", dot_file, "-o", svg_file])
+        .status();
+
+    match status {
+        Ok(s) if s.success() => println!("Rendered: {svg_file}"),
+        Ok(s) => eprintln!("dot exited with {s} for {dot_file}"),
+        Err(e) => eprintln!("Failed to run dot for {dot_file}: {e}"),
+    }
+}
+
+fn run_dep_analysis(programs: Vec<Absyn::Program>) {
+    let t0 = std::time::Instant::now();
+    let mut all_classes: Vec<MM::Class> = Vec::new();
+    let mut failures = 0;
+    for program in &programs {
+        match MM::from_program(program) {
+            Ok(mm_program) => all_classes.extend(mm_program),
+            Err(e) => {
+                eprintln!("MM ERR: {e}");
+                failures += 1;
+            }
+        }
+    }
+    println!(
+        "MM conversion: {} files, {} failures, {:.2}s",
+        programs.len(),
+        failures,
+        t0.elapsed().as_secs_f64()
+    );
+    println!();
+
+    let analysis = dep_analysis::DepAnalysis::build(&all_classes);
+    dep_analysis::print_report(&analysis);
+
+    let crate_dot = "dep_analysis_crates.dot";
+    let pkg_dot = "dep_analysis_packages.dot";
+    match dep_analysis::write_crate_dot(&analysis, crate_dot) {
+        Ok(()) => println!("Wrote crate-level graph: {crate_dot}"),
+        Err(e) => eprintln!("Failed to write {crate_dot}: {e}"),
+    }
+    match dep_analysis::write_package_dot(&analysis, pkg_dot) {
+        Ok(()) => println!("Wrote package-level graph: {pkg_dot}"),
+        Err(e) => eprintln!("Failed to write {pkg_dot}: {e}"),
+    }
+    println!();
+    render_dot_if_available(crate_dot, "dep_analysis_crates.svg");
+    render_dot_if_available(pkg_dot, "dep_analysis_packages.svg");
+}
+
 fn main() {
+    let args: Vec<String> = std::env::args().collect();
+    let subcommand = args.get(1).map(|s| s.as_str());
     let t0 = std::time::Instant::now();
     rayon::ThreadPoolBuilder::new()
     .stack_size(16 * 1024 * 1024) // 16 MiB stack size, to avoid "thread stack overflow" on large files, especially on debug builds
@@ -143,5 +210,9 @@ fn main() {
     }
 
     println!("OpenModelica: {} files, {} failures, {:.2}s", results.len(), failures, elapsed.as_secs_f64());
-    start_compilation(programs.iter().map(|p| p.lock().unwrap().clone()).collect());
+    let parsed: Vec<Absyn::Program> = programs.iter().map(|p| p.lock().unwrap().clone()).collect();
+    match subcommand {
+        Some("dep-analysis") => run_dep_analysis(parsed),
+        _ => start_compilation(parsed),
+    }
 }

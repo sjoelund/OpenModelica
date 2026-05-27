@@ -59,7 +59,7 @@ use openmodelica_util::Error;
 use openmodelica_util::IOStream;
 use openmodelica_util_datatypes_basic::List;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum NFSections {
     SECTIONS {
         equations: Arc<metamodelica::List<Arc<Equation::NFEquation>>>,
@@ -173,19 +173,9 @@ pub fn join(mut sections1: Arc<NFSections>, mut sections2: Arc<NFSections>) -> R
 }
 
 pub fn map(mut sections: Arc<NFSections>, mut eqFn: Arc<dyn ::std::ops::Fn(Arc<Equation::NFEquation>) -> Result<Arc<Equation::NFEquation>> + 'static>, mut algFn: Arc<dyn ::std::ops::Fn(Arc<Algorithm::NFAlgorithm>) -> Result<Arc<Algorithm::NFAlgorithm>> + 'static>, mut ieqFn: Arc<dyn ::std::ops::Fn(Arc<Equation::NFEquation>) -> Result<Arc<Equation::NFEquation>> + 'static>, mut ialgFn: Arc<dyn ::std::ops::Fn(Arc<Algorithm::NFAlgorithm>) -> Result<Arc<Algorithm::NFAlgorithm>> + 'static>) -> Arc<NFSections> {
-    pub type EquationFn = fn(Arc<Equation::NFEquation>) -> Result<Arc<Equation::NFEquation>>;
+    pub type EquationFn = std::sync::Arc<dyn ::std::ops::Fn(Arc<Equation::NFEquation>) -> Result<Arc<Equation::NFEquation>> + 'static>;
 
-    pub type AlgorithmFn = fn(Arc<Algorithm::NFAlgorithm>) -> Result<Arc<Algorithm::NFAlgorithm>>;
-
-    pub fn eqId(mut eq: Arc<Equation::NFEquation>) -> Arc<Equation::NFEquation> {
-        let mut eq: Arc<Equation::NFEquation> = eq;
-        eq
-    }
-
-    pub fn algId(mut alg: Arc<Algorithm::NFAlgorithm>) -> Arc<Algorithm::NFAlgorithm> {
-        let mut alg: Arc<Algorithm::NFAlgorithm> = alg;
-        alg
-    }
+    pub type AlgorithmFn = std::sync::Arc<dyn ::std::ops::Fn(Arc<Algorithm::NFAlgorithm>) -> Result<Arc<Algorithm::NFAlgorithm>> + 'static>;
 
     let mut sections: Arc<NFSections> = sections;
     let mut eq: Arc<metamodelica::List<Arc<Equation::NFEquation>>> = metamodelica::nil();
@@ -235,10 +225,20 @@ pub fn map(mut sections: Arc<NFSections>, mut eqFn: Arc<dyn ::std::ops::Fn(Arc<E
     sections
 }
 
-pub fn map1<ArgT: Clone + 'static>(mut sections: Arc<NFSections>, mut arg: ArgT, mut eqFn: Arc<dyn ::std::ops::Fn(Arc<Equation::NFEquation>, ArgT) -> Result<Arc<Equation::NFEquation>> + 'static>, mut algFn: Arc<dyn ::std::ops::Fn(Arc<Algorithm::NFAlgorithm>, ArgT) -> Result<Arc<Algorithm::NFAlgorithm>> + 'static>, mut ieqFn: Arc<dyn ::std::ops::Fn(Arc<Equation::NFEquation>, ArgT) -> Result<Arc<Equation::NFEquation>> + 'static>, mut ialgFn: Arc<dyn ::std::ops::Fn(Arc<Algorithm::NFAlgorithm>, ArgT) -> Result<Arc<Algorithm::NFAlgorithm>> + 'static>) -> Arc<NFSections> {
-    pub type EquationFn<ArgT: Clone> = fn(Arc<Equation::NFEquation>, ArgT) -> Result<Arc<Equation::NFEquation>>;
+pub fn eqId(mut eq: Arc<Equation::NFEquation>) -> Arc<Equation::NFEquation> {
+    let mut eq: Arc<Equation::NFEquation> = eq;
+    eq
+}
 
-    pub type AlgorithmFn<ArgT: Clone> = fn(Arc<Algorithm::NFAlgorithm>, ArgT) -> Result<Arc<Algorithm::NFAlgorithm>>;
+pub fn algId(mut alg: Arc<Algorithm::NFAlgorithm>) -> Arc<Algorithm::NFAlgorithm> {
+    let mut alg: Arc<Algorithm::NFAlgorithm> = alg;
+    alg
+}
+
+pub fn map1<ArgT: Clone + 'static>(mut sections: Arc<NFSections>, mut arg: ArgT, mut eqFn: Arc<dyn ::std::ops::Fn(Arc<Equation::NFEquation>, ArgT) -> Result<Arc<Equation::NFEquation>> + 'static>, mut algFn: Arc<dyn ::std::ops::Fn(Arc<Algorithm::NFAlgorithm>, ArgT) -> Result<Arc<Algorithm::NFAlgorithm>> + 'static>, mut ieqFn: Arc<dyn ::std::ops::Fn(Arc<Equation::NFEquation>, ArgT) -> Result<Arc<Equation::NFEquation>> + 'static>, mut ialgFn: Arc<dyn ::std::ops::Fn(Arc<Algorithm::NFAlgorithm>, ArgT) -> Result<Arc<Algorithm::NFAlgorithm>> + 'static>) -> Arc<NFSections> {
+    pub type EquationFn<ArgT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Arc<Equation::NFEquation>, ArgT) -> Result<Arc<Equation::NFEquation>> + 'static>;
+
+    pub type AlgorithmFn<ArgT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Arc<Algorithm::NFAlgorithm>, ArgT) -> Result<Arc<Algorithm::NFAlgorithm>> + 'static>;
 
     let mut sections: Arc<NFSections> = sections;
     let mut eq: Arc<metamodelica::List<Arc<Equation::NFEquation>>> = metamodelica::nil();
@@ -289,7 +289,7 @@ pub fn map1<ArgT: Clone + 'static>(mut sections: Arc<NFSections>, mut arg: ArgT,
 }
 
 pub fn mapExp(mut sections: Arc<NFSections>, mut mapFn: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Arc<NFSections> {
-    pub type MapFn = fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>>;
+    pub type MapFn = std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>;
 
     let mut sections: Arc<NFSections> = sections;
     let mut eq: Arc<metamodelica::List<Arc<Equation::NFEquation>>> = metamodelica::nil();
@@ -322,7 +322,7 @@ pub fn mapExp(mut sections: Arc<NFSections>, mut mapFn: Arc<dyn ::std::ops::Fn(A
 }
 
 pub fn foldExp<ArgT: Clone + 'static>(mut sections: Arc<NFSections>, mut foldFn: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, ArgT) -> Result<ArgT> + 'static>, mut arg: ArgT) -> Result<ArgT> {
-    pub type FoldFn<ArgT: Clone> = fn(Arc<Expression::NFExpression>, ArgT) -> Result<ArgT>;
+    pub type FoldFn<ArgT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, ArgT) -> Result<ArgT> + 'static>;
 
     let mut arg: ArgT = arg;
     arg = (::match_deref::match_deref! { match &(sections.clone()) {
@@ -341,9 +341,9 @@ pub fn foldExp<ArgT: Clone + 'static>(mut sections: Arc<NFSections>, mut foldFn:
 }
 
 pub fn apply(mut sections: Arc<NFSections>, mut eqFn: Arc<dyn ::std::ops::Fn(Arc<Equation::NFEquation>) -> Result<()> + 'static>, mut algFn: Arc<dyn ::std::ops::Fn(Arc<Algorithm::NFAlgorithm>) -> Result<()> + 'static>, mut ieqFn: Arc<dyn ::std::ops::Fn(Arc<Equation::NFEquation>) -> Result<()> + 'static>, mut ialgFn: Arc<dyn ::std::ops::Fn(Arc<Algorithm::NFAlgorithm>) -> Result<()> + 'static>) -> () {
-    pub type EquationFn = fn(Arc<Equation::NFEquation>) -> Result<()>;
+    pub type EquationFn = std::sync::Arc<dyn ::std::ops::Fn(Arc<Equation::NFEquation>) -> Result<()> + 'static>;
 
-    pub type AlgorithmFn = fn(Arc<Algorithm::NFAlgorithm>) -> Result<()>;
+    pub type AlgorithmFn = std::sync::Arc<dyn ::std::ops::Fn(Arc<Algorithm::NFAlgorithm>) -> Result<()> + 'static>;
 
     let () = (::match_deref::match_deref! { match &(sections.clone()) {
         Deref @ SECTIONS { .. } => {
@@ -431,7 +431,7 @@ pub fn toStream(mut sections: Arc<NFSections>, mut indent: ArcStr, mut s: IOStre
 
 pub fn toFlatStream(mut sections: Arc<NFSections>, mut scopeName: Arc<Absyn::Path>, mut format: BaseModelica::OutputFormat, mut indent: ArcStr, mut s: IOStream::IOStream) -> Result<IOStream::IOStream> {
     let mut s: IOStream::IOStream = s;
-    let mut ann: Arc<SCode::Annotation>;
+    let mut ann: Arc<SCode::Annotation> = Arc::new(<SCode::Annotation as ::std::default::Default>::default());
     let mut r#mod: Arc<SCode::Mod> = Arc::new(SCode::Mod::NOMOD);
     let mut modLib: Arc<SCode::Mod> = Arc::new(SCode::Mod::NOMOD);
     let mut modInc: Arc<SCode::Mod> = Arc::new(SCode::Mod::NOMOD);

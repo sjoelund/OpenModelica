@@ -66,7 +66,7 @@ use openmodelica_frontend_types::SCode;
 use openmodelica_util::IOStream;
 use openmodelica_util::Util;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum NFComponent {
     COMPONENT_DEF {
         definition: Arc<Element>,
@@ -161,7 +161,7 @@ pub fn isDefinition(mut component: Arc<NFComponent>) -> bool {
 }
 
 pub fn info(mut component: Arc<NFComponent>) -> Result<SourceInfo> {
-    let mut info: SourceInfo;
+    let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
     info = (::match_deref::match_deref! { match &(component.clone()) {
         Deref @ COMPONENT_DEF { .. } => SCodeUtil::elementInfo(var_field!((*component).definition, NFComponent::COMPONENT_DEF).clone()),
         Deref @ COMPONENT { .. } => var_field!((*component).info, NFComponent::COMPONENT).clone(),
@@ -301,7 +301,7 @@ pub fn unliftType(mut component: Arc<NFComponent>) -> Arc<NFComponent> {
 }
 
 pub fn getAttributes(mut component: Arc<NFComponent>) -> Arc<Attributes::NFAttributes> {
-    let mut attr: Arc<Attributes::NFAttributes>;
+    let mut attr: Arc<Attributes::NFAttributes> = Arc::new(<Attributes::NFAttributes as ::std::default::Default>::default());
     attr = (::match_deref::match_deref! { match &(component.clone()) {
         Deref @ COMPONENT { .. } => var_field!((*component).attributes, NFComponent::COMPONENT).clone(),
         _ => Attributes::DEFAULT_ATTR().clone(),
@@ -432,7 +432,7 @@ pub fn hasBinding(mut component: Arc<NFComponent>, mut parent: Arc<InstNode::Ins
         b = false;
         return Ok(b);
     }
-    if isSome(ClassTree::findComponent(Class::classTree(cls.clone())?, Arc::new(has_missing_binding))) {
+    if isSome(ClassTree::findComponent(Class::classTree(cls.clone())?, (std::sync::Arc::new(has_missing_binding) as std::sync::Arc<dyn ::std::ops::Fn(Arc<InstNode::InstNode>) -> Result<bool> + 'static>))) {
         b = false;
     }
     b = true;
@@ -472,7 +472,7 @@ pub fn isInput(mut component: Arc<NFComponent>) -> bool {
 
 pub fn setDirection(mut direction: Prefixes::Direction, mut component: Arc<NFComponent>) -> Arc<NFComponent> {
     let mut component: Arc<NFComponent> = component;
-    let mut attr: Arc<Attributes::NFAttributes>;
+    let mut attr: Arc<Attributes::NFAttributes> = Arc::new(<Attributes::NFAttributes as ::std::default::Default>::default());
     let () = (::match_deref::match_deref! { match &(component.clone()) {
         Deref @ COMPONENT { attributes: attr, .. } => {
             let mut attr = (*attr).clone();
@@ -574,7 +574,7 @@ pub fn isFinal(mut component: Arc<NFComponent>) -> Result<bool> {
 
 pub fn setFinal(mut component: Arc<NFComponent>, mut isFinal: bool) -> Arc<NFComponent> {
     let mut component: Arc<NFComponent> = component;
-    let mut attr: Arc<Attributes::NFAttributes>;
+    let mut attr: Arc<Attributes::NFAttributes> = Arc::new(<Attributes::NFAttributes as ::std::default::Default>::default());
     let () = (::match_deref::match_deref! { match &(component.clone()) {
         Deref @ COMPONENT { attributes: attr, .. } => {
             let mut attr = (*attr).clone();
@@ -776,7 +776,7 @@ pub fn typeAttrsToFlatStream(mut typeAttrs: Arc<metamodelica::List<(ArcStr, Arc<
     }
     s = IOStream::append(s.clone(), (literal!("(")).clone())?;
     var_dims = Type::dimensionCount(componentType.clone());
-    while true {
+    loop {
         (name, binding) = listHead(ty_attrs.clone())?;
         bind_exp = Expression::expandSplitIndices(Binding::getExp(binding.clone())?)?;
         binding_dims = Type::dimensionCount(Expression::typeOf(bind_exp.clone()));
@@ -818,7 +818,7 @@ pub fn dimensionCount(mut component: Arc<NFComponent>) -> i32 {
 }
 
 pub fn comment(mut component: Arc<NFComponent>) -> Result<Arc<SCode::Comment>> {
-    let mut comment: Arc<SCode::Comment>;
+    let mut comment: Arc<SCode::Comment> = Arc::new(<SCode::Comment as ::std::default::Default>::default());
     comment = (::match_deref::match_deref! { match &(component.clone()) {
         Deref @ COMPONENT_DEF { .. } => Util::getOption(SCodeUtil::getElementComment(var_field!((*component).definition, NFComponent::COMPONENT_DEF).clone()))?,
         Deref @ COMPONENT { .. } => var_field!((*component).comment, NFComponent::COMPONENT).clone(),
@@ -831,7 +831,7 @@ pub fn comment(mut component: Arc<NFComponent>) -> Result<Arc<SCode::Comment>> {
 
 pub fn getEvaluateAnnotation(mut component: Arc<NFComponent>) -> Result<Option<bool>> {
     let mut evaluate: Option<bool> = None;
-    let mut cmt: Arc<SCode::Comment>;
+    let mut cmt: Arc<SCode::Comment> = Arc::new(<SCode::Comment as ::std::default::Default>::default());
     evaluate = SCodeUtil::getEvaluateAnnotation(comment(component.clone())?)?;
     Ok(evaluate)
 }
@@ -923,7 +923,7 @@ pub fn countConnectorVars(mut component: Arc<NFComponent>, mut isRoot: bool) -> 
     let mut p: i32 = 0;
     let mut f: i32 = 0;
     let mut s: i32 = 0;
-    let mut r#fn: Arc<Function::Function>;
+    let mut r#fn: Arc<Function::Function> = Arc::new(<Function::Function as ::std::default::Default>::default());
     let mut known_size: bool = false;
     cls = InstNode::getClass(classInstance(component.clone()))?;
     (eq_node_opt, _) = Class::tryLookupElement((literal!("equalityConstraint")).clone(), cls.clone());

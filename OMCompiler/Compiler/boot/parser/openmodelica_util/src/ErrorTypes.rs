@@ -58,6 +58,9 @@ pub enum Severity {
     ///             actions tool has taken to succeed in translation
     NOTIFICATION,
 }
+impl Default for Severity {
+    fn default() -> Self { Self::INTERNAL }
+}
 pub use self::Severity::{INTERNAL,ERROR,WARNING,NOTIFICATION};
 
 /// runtime scripting /interpretation error
@@ -78,6 +81,9 @@ pub enum MessageType {
     /// runtime scripting /interpretation error
     SCRIPTING,
 }
+impl Default for MessageType {
+    fn default() -> Self { Self::SYNTAX }
+}
 pub use self::MessageType::{SYNTAX,GRAMMAR,TRANSLATION,SYMBOLIC,SIMULATION,SCRIPTING};
 
 /// Unique error id. Used to
@@ -92,6 +98,17 @@ pub struct Message {
     pub message: Gettext::TranslatableContent,
 }
 
+impl Default for Message {
+    fn default() -> Self {
+        Self {
+            id: Default::default(),
+            ty: Default::default(),
+            severity: Default::default(),
+            message: Default::default(),
+        }
+    }
+}
+
 pub type MESSAGE = Message;
 
 
@@ -99,6 +116,15 @@ pub type MESSAGE = Message;
 pub struct TotalMessage {
     pub msg: Message,
     pub info: SourceInfo,
+}
+
+impl Default for TotalMessage {
+    fn default() -> Self {
+        Self {
+            msg: Default::default(),
+            info: Default::default(),
+        }
+    }
 }
 
 pub type TOTALMESSAGE = TotalMessage;

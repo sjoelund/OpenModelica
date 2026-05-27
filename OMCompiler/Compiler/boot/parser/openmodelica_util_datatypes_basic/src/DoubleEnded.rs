@@ -46,7 +46,7 @@ use arcstr::{ArcStr, literal, format};
 use crate::GCExt;
 use crate::Mutable;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct MutableList<T: Clone> {
     pub length: Mutable::Mutable<i32>,
     pub front: Mutable::Mutable<Arc<metamodelica::List<T>>>,
@@ -265,7 +265,7 @@ pub fn clear<T: Clone + 'static>(mut delst: MutableList<T>) -> () {
 }
 
 pub fn mapNoCopy_1<T: Clone + 'static, ArgT1: Clone + 'static>(mut delst: MutableList<T>, mut inMapFunc: Arc<dyn ::std::ops::Fn(T, ArgT1) -> Result<T> + 'static>, mut inArg1: ArgT1) -> Result<()> {
-    pub type MapFunc<T: Clone, ArgT1: Clone> = fn(T, ArgT1) -> Result<T>;
+    pub type MapFunc<T: Clone + 'static, ArgT1: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T, ArgT1) -> Result<T> + 'static>;
 
     let mut lst: Arc<metamodelica::List<T>> = Mutable::access(delst.front.clone());
     while !(lst.clone().is_empty()) {
@@ -280,7 +280,7 @@ pub fn mapNoCopy_1<T: Clone + 'static, ArgT1: Clone + 'static>(mut delst: Mutabl
 }
 
 pub fn mapFoldNoCopy<T: Clone + 'static, ArgT1: Clone + 'static>(mut delst: MutableList<T>, mut inMapFunc: Arc<dyn ::std::ops::Fn(T, ArgT1) -> Result<(T, ArgT1)> + 'static>, mut arg: ArgT1) -> Result<ArgT1> {
-    pub type MapFunc<T: Clone, ArgT1: Clone> = fn(T, ArgT1) -> Result<(T, ArgT1)>;
+    pub type MapFunc<T: Clone + 'static, ArgT1: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T, ArgT1) -> Result<(T, ArgT1)> + 'static>;
 
     let mut arg: ArgT1 = arg;
     let mut element: T;

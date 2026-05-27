@@ -168,7 +168,7 @@ pub fn filterRootClassAnnotations(mut r#mod: Arc<SCode::Mod>) -> Arc<SCode::Mod>
     }
 
     let mut r#mod: Arc<SCode::Mod> = r#mod;
-    r#mod = SCodeUtil::filterSubMods(r#mod.clone(), Arc::new(fnptr!(filter, Arc<SCode::SubMod>)));
+    r#mod = SCodeUtil::filterSubMods(r#mod.clone(), (std::sync::Arc::new(fnptr!(filter, Arc<SCode::SubMod>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SCode::SubMod>) -> Result<bool> + 'static>));
     r#mod
 }
 
@@ -222,7 +222,7 @@ pub fn appendAnnotationSubMod(mut r#mod: Arc<SCode::SubMod>, mut s: IOStream::IO
 pub fn appendExp(mut exp: Arc<Absyn::Exp>, mut s: IOStream::IOStream) -> Result<IOStream::IOStream> {
     let mut s: IOStream::IOStream = s;
     let mut e: Arc<Absyn::Exp> = Arc::new(Absyn::Exp::BREAK);
-    (e, _) = AbsynUtil::traverseExp(exp.clone(), Arc::new(quoteCref), 0)?;
+    (e, _) = AbsynUtil::traverseExp(exp.clone(), (std::sync::Arc::new(quoteCref) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Exp>, i32) -> Result<(Arc<Absyn::Exp>, i32)> + 'static>), 0)?;
     s = IOStream::append(s.clone(), (Dump::printExpStr(e.clone())?).clone())?;
     Ok(s)
 }

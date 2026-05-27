@@ -168,8 +168,8 @@ fn whenEquationBranchCrefs(mut eql: Arc<metamodelica::List<Arc<Equation::NFEquat
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
     } });
     }
-    crefs = List::sort(crefs.clone(), Arc::new(fnptr!(ComponentRef::isGreater, Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>)))?;
-    crefs = List::sortedUnique(crefs.clone(), Arc::new(ComponentRef::isEqual))?;
+    crefs = List::sort(crefs.clone(), (std::sync::Arc::new(fnptr!(ComponentRef::isGreater, Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>))?;
+    crefs = List::sortedUnique(crefs.clone(), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>))?;
     Ok(crefs)
 }
 
@@ -177,7 +177,7 @@ fn whenEquationEqualityCrefs(mut lhsExp: Arc<Expression::NFExpression>, mut cref
     let mut crefs: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = crefs;
     crefs = (::match_deref::match_deref! { match &(lhsExp.clone()) {
         Deref @ Expression::CREF { .. } => cons(var_field!((*lhsExp).cref, Expression::NFExpression::CREF).clone(), crefs.clone()),
-        Deref @ Expression::TUPLE { .. } => List::fold(var_field!((*lhsExp).elements, Expression::NFExpression::TUPLE).clone(), Arc::new(whenEquationEqualityCrefs), crefs.clone()),
+        Deref @ Expression::TUPLE { .. } => List::fold(var_field!((*lhsExp).elements, Expression::NFExpression::TUPLE).clone(), (std::sync::Arc::new(whenEquationEqualityCrefs) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>) -> Result<Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>> + 'static>), crefs.clone()),
         _ => bail!("match: no arm matched"),
     } });
     Ok(crefs)
@@ -211,10 +211,10 @@ fn whenEquationIfCrefs(mut branches: Arc<metamodelica::List<Arc<Equation::Branch
 }
 
 fn checkCrefSetEquality(mut crefs1: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>, mut crefs2: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>, mut errMsg: ErrorTypes::Message, mut source: Arc<DAE::ElementSource>) -> Result<()> {
-    if List::isEqualOnTrue(crefs1.clone(), crefs2.clone(), Arc::new(ComponentRef::isEqual)) {
+    if List::isEqualOnTrue(crefs1.clone(), crefs2.clone(), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>)) {
         return Ok(());
     }
-    if List::isEqualOnTrue(expandCrefSet(crefs1.clone())?, expandCrefSet(crefs2.clone())?, Arc::new(ComponentRef::isEqual)) {
+    if List::isEqualOnTrue(expandCrefSet(crefs1.clone())?, expandCrefSet(crefs2.clone())?, (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>)) {
         return Ok(());
     }
     Error::addSourceMessage(errMsg.clone(), metamodelica::nil(), ElementSource::getInfo(source.clone()))?;
@@ -244,13 +244,13 @@ fn expandCrefSet(mut crefs: Arc<metamodelica::List<Arc<ComponentRef::NFComponent
             outCrefs = cons(cref.clone(), outCrefs.clone());
         }
     }
-    outCrefs = List::sort(outCrefs.clone(), Arc::new(fnptr!(ComponentRef::isGreater, Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>)))?;
-    outCrefs = List::sortedUnique(outCrefs.clone(), Arc::new(ComponentRef::isEqual))?;
+    outCrefs = List::sort(outCrefs.clone(), (std::sync::Arc::new(fnptr!(ComponentRef::isGreater, Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>))?;
+    outCrefs = List::sortedUnique(outCrefs.clone(), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>))?;
     Ok(outCrefs)
 }
 
 fn verifyAlgorithm(mut alg: Arc<Algorithm::NFAlgorithm>, mut isPartial: bool) -> () {
-    Algorithm::apply(alg.clone(), { let __pe_b1 = isPartial.clone(); move |__pe_a0| verifyStatement(__pe_a0, __pe_b1.clone()) });
+    Algorithm::apply(alg.clone(), Arc::new({ let __pe_b1 = isPartial.clone(); move |__pe_a0| verifyStatement(__pe_a0, __pe_b1.clone()) }));
     ()
 }
 
@@ -318,7 +318,7 @@ fn checkDiscreteReal(mut flatModel: Arc<FlatModel::NFFlatModel>) -> Result<()> {
     let mut discrete_reals: Arc<UnorderedSet::UnorderedSet<Arc<ComponentRef::NFComponentRef>>>;
     let mut illegal_discrete_vars: Arc<metamodelica::List<Arc<Variable::NFVariable>>> = metamodelica::nil();
     let mut err_str: ArcStr = literal!("");
-    discrete_reals = UnorderedSet::new(fnptr!(ComponentRef::hashStrip, Arc<ComponentRef::NFComponentRef>), ComponentRef::isEqualStrip, 13);
+    discrete_reals = UnorderedSet::new((std::sync::Arc::new(fnptr!(ComponentRef::hashStrip, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqualStrip) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), 13);
     for mut eqn in &*flatModel.equations.clone() {
         let mut eqn = eqn.clone();
         checkDiscreteRealEquation(eqn.clone(), discrete_reals.clone(), false)?;

@@ -232,7 +232,7 @@ pub fn intersection(mut tree1: Arc<Tree>, mut tree2: Arc<Tree>) -> Result<(Arc<T
     } };
     k2 = __pa2.clone();
     keylist2 = __pa3.clone();
-    while true {
+    loop {
         key_comp = keyCompare((k1.clone()).clone(), (k2.clone()).clone());
         if key_comp.clone() > 0 {
             if true /* isPresent not implemented in Rust */ {
@@ -323,10 +323,10 @@ pub fn join(mut tree: Arc<Tree>, mut treeToJoin: Arc<Tree>) -> Result<Arc<Tree>>
 pub fn listKeys(mut inTree: Arc<Tree>, mut lst: Arc<metamodelica::List<ArcStr>>) -> Arc<metamodelica::List<ArcStr>> {
     let mut lst: Arc<metamodelica::List<ArcStr>> = lst;
     lst = (::match_deref::match_deref! { match &(inTree.clone()) {
-        Deref @ Tree::LEAF { .. } => cons(var_field!((*inTree).key, Tree::LEAF).clone(), lst.clone()),
+        Deref @ Tree::LEAF { .. } => cons((var_field!((*inTree).key, Tree::LEAF).clone()).clone(), lst.clone()),
         Deref @ Tree::NODE { .. } => {
             lst = listKeys(var_field!((*inTree).right, Tree::NODE).clone(), lst.clone());
-            lst = cons(var_field!((*inTree).key, Tree::NODE).clone(), lst.clone());
+            lst = cons((var_field!((*inTree).key, Tree::NODE).clone()).clone(), lst.clone());
             lst = listKeys(var_field!((*inTree).left, Tree::NODE).clone(), lst.clone());
             lst.clone()
         },
@@ -339,10 +339,10 @@ pub fn listKeys(mut inTree: Arc<Tree>, mut lst: Arc<metamodelica::List<ArcStr>>)
 pub fn listKeysReverse(mut inTree: Arc<Tree>, mut lst: Arc<metamodelica::List<ArcStr>>) -> Arc<metamodelica::List<ArcStr>> {
     let mut lst: Arc<metamodelica::List<ArcStr>> = lst;
     lst = (::match_deref::match_deref! { match &(inTree.clone()) {
-        Deref @ Tree::LEAF { .. } => cons(var_field!((*inTree).key, Tree::LEAF).clone(), lst.clone()),
+        Deref @ Tree::LEAF { .. } => cons((var_field!((*inTree).key, Tree::LEAF).clone()).clone(), lst.clone()),
         Deref @ Tree::NODE { .. } => {
             lst = listKeysReverse(var_field!((*inTree).left, Tree::NODE).clone(), lst.clone());
-            lst = cons(var_field!((*inTree).key, Tree::NODE).clone(), lst.clone());
+            lst = cons((var_field!((*inTree).key, Tree::NODE).clone()).clone(), lst.clone());
             lst = listKeysReverse(var_field!((*inTree).right, Tree::NODE).clone(), lst.clone());
             lst.clone()
         },

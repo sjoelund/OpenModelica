@@ -59,7 +59,7 @@ use openmodelica_util::Error;
 use openmodelica_util::ErrorTypes;
 use openmodelica_util_datatypes_basic::Mutable;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum NFBinding {
     UNBOUND,
     RAW_BINDING {
@@ -110,10 +110,8 @@ impl Default for NFBinding {
     fn default() -> Self { Self::UNBOUND }
 }
 pub use self::NFBinding::{UNBOUND,RAW_BINDING,UNTYPED_BINDING,TYPED_BINDING,FLAT_BINDING,CEVAL_BINDING,INVALID_BINDING,WILD};
-// TODO: non-Sync, non-const-emittable constant — needs new emission path.
-// Type: Arc<NFBinding>
-// Expr: Constructor { name: 'NFBinding.UNBOUND', args: [], named_args: [], ty: RustUnitVariant, field_names: [] }
-pub fn EMPTY_BINDING() -> Arc<NFBinding> { todo!("non-Sync, non-const-emittable constant EMPTY_BINDING — extend codegen") }
+thread_local! { static __EMPTY_BINDING_TLS: Arc<NFBinding> = Arc::new(crate::NFBinding::UNBOUND); }
+pub fn EMPTY_BINDING() -> Arc<NFBinding> { __EMPTY_BINDING_TLS.with(|__t| __t.clone()) }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 #[repr(i32)]
@@ -421,7 +419,7 @@ pub fn purity(mut binding: Arc<NFBinding>) -> Purity {
 }
 
 pub fn getInfo(mut binding: Arc<NFBinding>) -> SourceInfo {
-    let mut info: SourceInfo;
+    let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
     info = (::match_deref::match_deref! { match &(binding.clone()) {
         Deref @ RAW_BINDING { .. } => var_field!((*binding).info, NFBinding::RAW_BINDING).clone(),
         Deref @ UNTYPED_BINDING { .. } => var_field!((*binding).info, NFBinding::UNTYPED_BINDING).clone(),
@@ -582,7 +580,7 @@ pub fn toDAEExp(mut binding: Arc<NFBinding>) -> Result<Option<Arc<DAE::Exp>>> {
 }
 
 pub fn applyExp(mut binding: Arc<NFBinding>, mut r#fn: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<()> + 'static>) -> Result<()> {
-    pub type ApplyFn = fn(Arc<Expression::NFExpression>) -> Result<()>;
+    pub type ApplyFn = std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<()> + 'static>;
 
     let () = (::match_deref::match_deref! { match &(binding.clone()) {
         Deref @ UNTYPED_BINDING { .. } => {
@@ -608,7 +606,7 @@ pub fn applyExp(mut binding: Arc<NFBinding>, mut r#fn: Arc<dyn ::std::ops::Fn(Ar
 }
 
 pub fn applyExpShallow(mut binding: Arc<NFBinding>, mut r#fn: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<()> + 'static>) -> () {
-    pub type ApplyFn = fn(Arc<Expression::NFExpression>) -> Result<()>;
+    pub type ApplyFn = std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<()> + 'static>;
 
     let () = (::match_deref::match_deref! { match &(binding.clone()) {
         Deref @ UNTYPED_BINDING { .. } => {
@@ -634,7 +632,7 @@ pub fn applyExpShallow(mut binding: Arc<NFBinding>, mut r#fn: Arc<dyn ::std::ops
 }
 
 pub fn mapExp(mut binding: Arc<NFBinding>, mut mapFn: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Result<Arc<NFBinding>> {
-    pub type MapFunc = fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>>;
+    pub type MapFunc = std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>;
 
     let mut binding: Arc<NFBinding> = binding;
     let mut e1: Arc<Expression::NFExpression> = Arc::new(Expression::END);
@@ -675,7 +673,7 @@ pub fn mapExp(mut binding: Arc<NFBinding>, mut mapFn: Arc<dyn ::std::ops::Fn(Arc
 }
 
 pub fn mapExpShallow(mut binding: Arc<NFBinding>, mut mapFn: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Arc<NFBinding> {
-    pub type MapFunc = fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>>;
+    pub type MapFunc = std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>;
 
     let mut binding: Arc<NFBinding> = binding;
     let mut e1: Arc<Expression::NFExpression> = Arc::new(Expression::END);
@@ -716,7 +714,7 @@ pub fn mapExpShallow(mut binding: Arc<NFBinding>, mut mapFn: Arc<dyn ::std::ops:
 }
 
 pub fn foldExp<ArgT: Clone + 'static>(mut binding: Arc<NFBinding>, mut foldFn: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, ArgT) -> Result<ArgT> + 'static>, mut arg: ArgT) -> Result<ArgT> {
-    pub type FoldFunc<ArgT: Clone> = fn(Arc<Expression::NFExpression>, ArgT) -> Result<ArgT>;
+    pub type FoldFunc<ArgT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, ArgT) -> Result<ArgT> + 'static>;
 
     let mut arg: ArgT = arg;
     arg = (::match_deref::match_deref! { match &(binding.clone()) {
@@ -731,7 +729,7 @@ pub fn foldExp<ArgT: Clone + 'static>(mut binding: Arc<NFBinding>, mut foldFn: A
 }
 
 pub fn containsExp(mut binding: Arc<NFBinding>, mut predFn: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<bool> + 'static>) -> Result<bool> {
-    pub type PredFunc = fn(Arc<Expression::NFExpression>) -> Result<bool>;
+    pub type PredFunc = std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<bool> + 'static>;
 
     let mut res: bool = false;
     res = (::match_deref::match_deref! { match &(binding.clone()) {

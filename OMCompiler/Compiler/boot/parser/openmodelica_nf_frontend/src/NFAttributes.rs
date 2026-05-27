@@ -59,7 +59,7 @@ use openmodelica_util::Flags;
 use openmodelica_util::IOStream;
 use openmodelica_util::Util;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct NFAttributes {
     pub connectorType: i32,
     pub parallelism: Prefixes::Parallelism,
@@ -72,40 +72,44 @@ pub struct NFAttributes {
     pub isResizable: bool,
 }
 
+impl Default for NFAttributes {
+    fn default() -> Self {
+        Self {
+            connectorType: Default::default(),
+            parallelism: Default::default(),
+            variability: Default::default(),
+            direction: Default::default(),
+            innerOuter: Default::default(),
+            isFinal: Default::default(),
+            isRedeclare: Default::default(),
+            isReplaceable: Default::default(),
+            isResizable: Default::default(),
+        }
+    }
+}
+
 pub type ATTRIBUTES = NFAttributes;
 
-// TODO: non-Sync, non-const-emittable constant — needs new emission path.
-// Type: Arc<NFAttributes>
-// Expr: Constructor { name: 'NFAttributes.ATTRIBUTES', args: [Var { name: 'ConnectorType.NON_CONNECTOR', segments: [CrefSegment { name: 'ConnectorType', subscripts: [] }, CrefSegment { name: 'NON_CONNECTOR', subscripts: [] }], ty: I32 }, Var { name: 'Parallelism.NON_PARALLEL', segments: [CrefSegment { name: 'Parallelism', subscripts: [] }, CrefSegment { name: 'NON_PARALLEL', subscripts: [] }], ty: Enumeration('NFPrefixes.Parallelism') }, Var { name: 'Variability.CONTINUOUS', segments: [CrefSegment { name: 'Variability', subscripts: [] }, CrefSegment { name: 'CONTINUOUS', subscripts: [] }], ty: Enumeration('NFPrefixes.Variability') }, Var { name: 'Direction.NONE', segments: [CrefSegment { name: 'Direction', subscripts: [] }, CrefSegment { name: 'NONE', subscripts: [] }], ty: Enumeration('NFPrefixes.Direction') }, Var { name: 'InnerOuter.NOT_INNER_OUTER', segments: [CrefSegment { name: 'InnerOuter', subscripts: [] }, CrefSegment { name: 'NOT_INNER_OUTER', subscripts: [] }], ty: Enumeration('NFPrefixes.InnerOuter') }, Lit(Bool(false)), Lit(Bool(false)), Constructor { name: 'NFPrefixes.Replaceable.NOT_REPLACEABLE', args: [], named_args: [], ty: RustUnitVariant, field_names: [] }, Lit(Bool(false))], named_args: [], ty: RustStruct('NFAttributes'), field_names: ['connectorType', 'parallelism', 'variability', 'direction', 'innerOuter', 'isFinal', 'isRedeclare', 'isReplaceable', 'isResizable'] }
-pub fn DEFAULT_ATTR() -> Arc<NFAttributes> { todo!("non-Sync, non-const-emittable constant DEFAULT_ATTR — extend codegen") }
+thread_local! { static __DEFAULT_ATTR_TLS: Arc<NFAttributes> = Arc::new(NFAttributes { connectorType: ConnectorType::NON_CONNECTOR.clone(), parallelism: Parallelism::NON_PARALLEL.clone(), variability: Variability::CONTINUOUS.clone(), direction: Direction::NONE.clone(), innerOuter: InnerOuter::NOT_INNER_OUTER.clone(), isFinal: false, isRedeclare: false, isReplaceable: Arc::new(crate::NFPrefixes::Replaceable::NOT_REPLACEABLE), isResizable: false }); }
+pub fn DEFAULT_ATTR() -> Arc<NFAttributes> { __DEFAULT_ATTR_TLS.with(|__t| __t.clone()) }
 
-// TODO: non-Sync, non-const-emittable constant — needs new emission path.
-// Type: Arc<NFAttributes>
-// Expr: Constructor { name: 'NFAttributes.ATTRIBUTES', args: [Var { name: 'ConnectorType.NON_CONNECTOR', segments: [CrefSegment { name: 'ConnectorType', subscripts: [] }, CrefSegment { name: 'NON_CONNECTOR', subscripts: [] }], ty: I32 }, Var { name: 'Parallelism.NON_PARALLEL', segments: [CrefSegment { name: 'Parallelism', subscripts: [] }, CrefSegment { name: 'NON_PARALLEL', subscripts: [] }], ty: Enumeration('NFPrefixes.Parallelism') }, Var { name: 'Variability.CONTINUOUS', segments: [CrefSegment { name: 'Variability', subscripts: [] }, CrefSegment { name: 'CONTINUOUS', subscripts: [] }], ty: Enumeration('NFPrefixes.Variability') }, Var { name: 'Direction.INPUT', segments: [CrefSegment { name: 'Direction', subscripts: [] }, CrefSegment { name: 'INPUT', subscripts: [] }], ty: Enumeration('NFPrefixes.Direction') }, Var { name: 'InnerOuter.NOT_INNER_OUTER', segments: [CrefSegment { name: 'InnerOuter', subscripts: [] }, CrefSegment { name: 'NOT_INNER_OUTER', subscripts: [] }], ty: Enumeration('NFPrefixes.InnerOuter') }, Lit(Bool(false)), Lit(Bool(false)), Constructor { name: 'NFPrefixes.Replaceable.NOT_REPLACEABLE', args: [], named_args: [], ty: RustUnitVariant, field_names: [] }, Lit(Bool(false))], named_args: [], ty: RustStruct('NFAttributes'), field_names: ['connectorType', 'parallelism', 'variability', 'direction', 'innerOuter', 'isFinal', 'isRedeclare', 'isReplaceable', 'isResizable'] }
-pub fn INPUT_ATTR() -> Arc<NFAttributes> { todo!("non-Sync, non-const-emittable constant INPUT_ATTR — extend codegen") }
+thread_local! { static __INPUT_ATTR_TLS: Arc<NFAttributes> = Arc::new(NFAttributes { connectorType: ConnectorType::NON_CONNECTOR.clone(), parallelism: Parallelism::NON_PARALLEL.clone(), variability: Variability::CONTINUOUS.clone(), direction: Direction::INPUT.clone(), innerOuter: InnerOuter::NOT_INNER_OUTER.clone(), isFinal: false, isRedeclare: false, isReplaceable: Arc::new(crate::NFPrefixes::Replaceable::NOT_REPLACEABLE), isResizable: false }); }
+pub fn INPUT_ATTR() -> Arc<NFAttributes> { __INPUT_ATTR_TLS.with(|__t| __t.clone()) }
 
-// TODO: non-Sync, non-const-emittable constant — needs new emission path.
-// Type: Arc<NFAttributes>
-// Expr: Constructor { name: 'NFAttributes.ATTRIBUTES', args: [Var { name: 'ConnectorType.NON_CONNECTOR', segments: [CrefSegment { name: 'ConnectorType', subscripts: [] }, CrefSegment { name: 'NON_CONNECTOR', subscripts: [] }], ty: I32 }, Var { name: 'Parallelism.NON_PARALLEL', segments: [CrefSegment { name: 'Parallelism', subscripts: [] }, CrefSegment { name: 'NON_PARALLEL', subscripts: [] }], ty: Enumeration('NFPrefixes.Parallelism') }, Var { name: 'Variability.CONTINUOUS', segments: [CrefSegment { name: 'Variability', subscripts: [] }, CrefSegment { name: 'CONTINUOUS', subscripts: [] }], ty: Enumeration('NFPrefixes.Variability') }, Var { name: 'Direction.OUTPUT', segments: [CrefSegment { name: 'Direction', subscripts: [] }, CrefSegment { name: 'OUTPUT', subscripts: [] }], ty: Enumeration('NFPrefixes.Direction') }, Var { name: 'InnerOuter.NOT_INNER_OUTER', segments: [CrefSegment { name: 'InnerOuter', subscripts: [] }, CrefSegment { name: 'NOT_INNER_OUTER', subscripts: [] }], ty: Enumeration('NFPrefixes.InnerOuter') }, Lit(Bool(false)), Lit(Bool(false)), Constructor { name: 'NFPrefixes.Replaceable.NOT_REPLACEABLE', args: [], named_args: [], ty: RustUnitVariant, field_names: [] }, Lit(Bool(false))], named_args: [], ty: RustStruct('NFAttributes'), field_names: ['connectorType', 'parallelism', 'variability', 'direction', 'innerOuter', 'isFinal', 'isRedeclare', 'isReplaceable', 'isResizable'] }
-pub fn OUTPUT_ATTR() -> Arc<NFAttributes> { todo!("non-Sync, non-const-emittable constant OUTPUT_ATTR — extend codegen") }
+thread_local! { static __OUTPUT_ATTR_TLS: Arc<NFAttributes> = Arc::new(NFAttributes { connectorType: ConnectorType::NON_CONNECTOR.clone(), parallelism: Parallelism::NON_PARALLEL.clone(), variability: Variability::CONTINUOUS.clone(), direction: Direction::OUTPUT.clone(), innerOuter: InnerOuter::NOT_INNER_OUTER.clone(), isFinal: false, isRedeclare: false, isReplaceable: Arc::new(crate::NFPrefixes::Replaceable::NOT_REPLACEABLE), isResizable: false }); }
+pub fn OUTPUT_ATTR() -> Arc<NFAttributes> { __OUTPUT_ATTR_TLS.with(|__t| __t.clone()) }
 
-// TODO: non-Sync, non-const-emittable constant — needs new emission path.
-// Type: Arc<NFAttributes>
-// Expr: Constructor { name: 'NFAttributes.ATTRIBUTES', args: [Var { name: 'ConnectorType.NON_CONNECTOR', segments: [CrefSegment { name: 'ConnectorType', subscripts: [] }, CrefSegment { name: 'NON_CONNECTOR', subscripts: [] }], ty: I32 }, Var { name: 'Parallelism.NON_PARALLEL', segments: [CrefSegment { name: 'Parallelism', subscripts: [] }, CrefSegment { name: 'NON_PARALLEL', subscripts: [] }], ty: Enumeration('NFPrefixes.Parallelism') }, Var { name: 'Variability.CONSTANT', segments: [CrefSegment { name: 'Variability', subscripts: [] }, CrefSegment { name: 'CONSTANT', subscripts: [] }], ty: Enumeration('NFPrefixes.Variability') }, Var { name: 'Direction.NONE', segments: [CrefSegment { name: 'Direction', subscripts: [] }, CrefSegment { name: 'NONE', subscripts: [] }], ty: Enumeration('NFPrefixes.Direction') }, Var { name: 'InnerOuter.NOT_INNER_OUTER', segments: [CrefSegment { name: 'InnerOuter', subscripts: [] }, CrefSegment { name: 'NOT_INNER_OUTER', subscripts: [] }], ty: Enumeration('NFPrefixes.InnerOuter') }, Lit(Bool(false)), Lit(Bool(false)), Constructor { name: 'NFPrefixes.Replaceable.NOT_REPLACEABLE', args: [], named_args: [], ty: RustUnitVariant, field_names: [] }, Lit(Bool(false))], named_args: [], ty: RustStruct('NFAttributes'), field_names: ['connectorType', 'parallelism', 'variability', 'direction', 'innerOuter', 'isFinal', 'isRedeclare', 'isReplaceable', 'isResizable'] }
-pub fn CONSTANT_ATTR() -> Arc<NFAttributes> { todo!("non-Sync, non-const-emittable constant CONSTANT_ATTR — extend codegen") }
+thread_local! { static __CONSTANT_ATTR_TLS: Arc<NFAttributes> = Arc::new(NFAttributes { connectorType: ConnectorType::NON_CONNECTOR.clone(), parallelism: Parallelism::NON_PARALLEL.clone(), variability: Variability::CONSTANT.clone(), direction: Direction::NONE.clone(), innerOuter: InnerOuter::NOT_INNER_OUTER.clone(), isFinal: false, isRedeclare: false, isReplaceable: Arc::new(crate::NFPrefixes::Replaceable::NOT_REPLACEABLE), isResizable: false }); }
+pub fn CONSTANT_ATTR() -> Arc<NFAttributes> { __CONSTANT_ATTR_TLS.with(|__t| __t.clone()) }
 
-// TODO: non-Sync, non-const-emittable constant — needs new emission path.
-// Type: Arc<NFAttributes>
-// Expr: Constructor { name: 'NFAttributes.ATTRIBUTES', args: [Var { name: 'ConnectorType.NON_CONNECTOR', segments: [CrefSegment { name: 'ConnectorType', subscripts: [] }, CrefSegment { name: 'NON_CONNECTOR', subscripts: [] }], ty: I32 }, Var { name: 'Parallelism.NON_PARALLEL', segments: [CrefSegment { name: 'Parallelism', subscripts: [] }, CrefSegment { name: 'NON_PARALLEL', subscripts: [] }], ty: Enumeration('NFPrefixes.Parallelism') }, Var { name: 'Variability.IMPLICITLY_DISCRETE', segments: [CrefSegment { name: 'Variability', subscripts: [] }, CrefSegment { name: 'IMPLICITLY_DISCRETE', subscripts: [] }], ty: Enumeration('NFPrefixes.Variability') }, Var { name: 'Direction.NONE', segments: [CrefSegment { name: 'Direction', subscripts: [] }, CrefSegment { name: 'NONE', subscripts: [] }], ty: Enumeration('NFPrefixes.Direction') }, Var { name: 'InnerOuter.NOT_INNER_OUTER', segments: [CrefSegment { name: 'InnerOuter', subscripts: [] }, CrefSegment { name: 'NOT_INNER_OUTER', subscripts: [] }], ty: Enumeration('NFPrefixes.InnerOuter') }, Lit(Bool(false)), Lit(Bool(false)), Constructor { name: 'NFPrefixes.Replaceable.NOT_REPLACEABLE', args: [], named_args: [], ty: RustUnitVariant, field_names: [] }, Lit(Bool(false))], named_args: [], ty: RustStruct('NFAttributes'), field_names: ['connectorType', 'parallelism', 'variability', 'direction', 'innerOuter', 'isFinal', 'isRedeclare', 'isReplaceable', 'isResizable'] }
-pub fn IMPL_DISCRETE_ATTR() -> Arc<NFAttributes> { todo!("non-Sync, non-const-emittable constant IMPL_DISCRETE_ATTR — extend codegen") }
+thread_local! { static __IMPL_DISCRETE_ATTR_TLS: Arc<NFAttributes> = Arc::new(NFAttributes { connectorType: ConnectorType::NON_CONNECTOR.clone(), parallelism: Parallelism::NON_PARALLEL.clone(), variability: Variability::IMPLICITLY_DISCRETE.clone(), direction: Direction::NONE.clone(), innerOuter: InnerOuter::NOT_INNER_OUTER.clone(), isFinal: false, isRedeclare: false, isReplaceable: Arc::new(crate::NFPrefixes::Replaceable::NOT_REPLACEABLE), isResizable: false }); }
+pub fn IMPL_DISCRETE_ATTR() -> Arc<NFAttributes> { __IMPL_DISCRETE_ATTR_TLS.with(|__t| __t.clone()) }
 
-// TODO: non-Sync, non-const-emittable constant — needs new emission path.
-// Type: Arc<NFAttributes>
-// Expr: Constructor { name: 'NFAttributes.ATTRIBUTES', args: [Var { name: 'ConnectorType.AUGMENTED', segments: [CrefSegment { name: 'ConnectorType', subscripts: [] }, CrefSegment { name: 'AUGMENTED', subscripts: [] }], ty: I32 }, Var { name: 'Parallelism.NON_PARALLEL', segments: [CrefSegment { name: 'Parallelism', subscripts: [] }, CrefSegment { name: 'NON_PARALLEL', subscripts: [] }], ty: Enumeration('NFPrefixes.Parallelism') }, Var { name: 'Variability.CONTINUOUS', segments: [CrefSegment { name: 'Variability', subscripts: [] }, CrefSegment { name: 'CONTINUOUS', subscripts: [] }], ty: Enumeration('NFPrefixes.Variability') }, Var { name: 'Direction.NONE', segments: [CrefSegment { name: 'Direction', subscripts: [] }, CrefSegment { name: 'NONE', subscripts: [] }], ty: Enumeration('NFPrefixes.Direction') }, Var { name: 'InnerOuter.NOT_INNER_OUTER', segments: [CrefSegment { name: 'InnerOuter', subscripts: [] }, CrefSegment { name: 'NOT_INNER_OUTER', subscripts: [] }], ty: Enumeration('NFPrefixes.InnerOuter') }, Lit(Bool(false)), Lit(Bool(false)), Constructor { name: 'NFPrefixes.Replaceable.NOT_REPLACEABLE', args: [], named_args: [], ty: RustUnitVariant, field_names: [] }, Lit(Bool(false))], named_args: [], ty: RustStruct('NFAttributes'), field_names: ['connectorType', 'parallelism', 'variability', 'direction', 'innerOuter', 'isFinal', 'isRedeclare', 'isReplaceable', 'isResizable'] }
-pub fn AUGMENTED_ATTR() -> Arc<NFAttributes> { todo!("non-Sync, non-const-emittable constant AUGMENTED_ATTR — extend codegen") }
+thread_local! { static __AUGMENTED_ATTR_TLS: Arc<NFAttributes> = Arc::new(NFAttributes { connectorType: ConnectorType::AUGMENTED.clone(), parallelism: Parallelism::NON_PARALLEL.clone(), variability: Variability::CONTINUOUS.clone(), direction: Direction::NONE.clone(), innerOuter: InnerOuter::NOT_INNER_OUTER.clone(), isFinal: false, isRedeclare: false, isReplaceable: Arc::new(crate::NFPrefixes::Replaceable::NOT_REPLACEABLE), isResizable: false }); }
+pub fn AUGMENTED_ATTR() -> Arc<NFAttributes> { __AUGMENTED_ATTR_TLS.with(|__t| __t.clone()) }
 
 pub fn fromSCode(mut compAttr: SCode::Attributes, mut compPrefs: Arc<SCode::Prefixes>) -> Result<Arc<NFAttributes>> {
-    let mut attributes: Arc<NFAttributes>;
+    let mut attributes: Arc<NFAttributes> = Arc::new(<NFAttributes as ::std::default::Default>::default());
     let mut cty: i32 = 0;
     let mut par: Prefixes::Parallelism = Prefixes::Parallelism::NON_PARALLEL;
     let mut var: Prefixes::Variability = Prefixes::Variability::CONSTANT;
@@ -133,7 +137,7 @@ pub fn fromSCode(mut compAttr: SCode::Attributes, mut compPrefs: Arc<SCode::Pref
 }
 
 pub fn fromDerivedSCode(mut scodeAttr: SCode::Attributes) -> Result<Arc<NFAttributes>> {
-    let mut attributes: Arc<NFAttributes>;
+    let mut attributes: Arc<NFAttributes> = Arc::new(<NFAttributes as ::std::default::Default>::default());
     let mut cty: i32 = 0;
     let mut var: Prefixes::Variability = Prefixes::Variability::CONSTANT;
     let mut dir: Prefixes::Direction = Prefixes::Direction::NONE;
@@ -150,7 +154,7 @@ pub fn fromDerivedSCode(mut scodeAttr: SCode::Attributes) -> Result<Arc<NFAttrib
 }
 
 pub fn mergeComponentAttributes(mut outerAttr: Arc<NFAttributes>, mut innerAttr: Arc<NFAttributes>, mut node: Arc<InstNode::InstNode>, mut parentRestriction: Arc<Restriction::NFRestriction>) -> Result<Arc<NFAttributes>> {
-    let mut attr: Arc<NFAttributes>;
+    let mut attr: Arc<NFAttributes> = Arc::new(<NFAttributes as ::std::default::Default>::default());
     let mut cty: i32 = 0;
     let mut par: Prefixes::Parallelism = Prefixes::Parallelism::NON_PARALLEL;
     let mut var: Prefixes::Variability = Prefixes::Variability::CONSTANT;
@@ -183,7 +187,7 @@ pub fn mergeComponentAttributes(mut outerAttr: Arc<NFAttributes>, mut innerAttr:
 }
 
 pub fn mergeDerivedAttributes(mut outerAttr: Arc<NFAttributes>, mut innerAttr: Arc<NFAttributes>, mut node: Arc<InstNode::InstNode>) -> Result<Arc<NFAttributes>> {
-    let mut attr: Arc<NFAttributes>;
+    let mut attr: Arc<NFAttributes> = Arc::new(<NFAttributes as ::std::default::Default>::default());
     let mut cty: i32 = 0;
     let mut par: Prefixes::Parallelism = Prefixes::Parallelism::NON_PARALLEL;
     let mut var: Prefixes::Variability = Prefixes::Variability::CONSTANT;
@@ -220,7 +224,7 @@ pub fn mergeDerivedAttributes(mut outerAttr: Arc<NFAttributes>, mut innerAttr: A
 }
 
 pub fn mergeRedeclaredComponentAttributes(mut origAttr: Arc<NFAttributes>, mut redeclAttr: Arc<NFAttributes>, mut node: Arc<InstNode::InstNode>) -> Result<Arc<NFAttributes>> {
-    let mut attr: Arc<NFAttributes>;
+    let mut attr: Arc<NFAttributes> = Arc::new(<NFAttributes as ::std::default::Default>::default());
     let mut cty: i32 = 0;
     let mut rcty: i32 = 0;
     let mut cty_fs: i32 = 0;

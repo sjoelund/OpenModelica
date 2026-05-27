@@ -156,7 +156,7 @@ pub fn isEqual<T: Clone + 'static + PartialEq>(mut inList1: Arc<metamodelica::Li
 // NOTE: #[tailcall::tailcall] disabled: function body contains a `match_deref!{…}` match,
 // and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
 pub fn isEqualOnTrue<T1: Clone + 'static, T2: Clone + 'static>(mut inList1: Arc<metamodelica::List<T1>>, mut inList2: Arc<metamodelica::List<T2>>, mut inCompFunc: Arc<dyn ::std::ops::Fn(T1, T2) -> Result<bool> + 'static>) -> bool {
-    pub type CompFunc<T1: Clone, T2: Clone> = fn(T1, T2) -> Result<bool>;
+    pub type CompFunc<T1: Clone + 'static, T2: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T1, T2) -> Result<bool> + 'static>;
 
     let mut outIsEqual: bool = false;
     outIsEqual = (::match_deref::match_deref! { match &((inList1.clone(), inList2.clone())) {
@@ -175,7 +175,7 @@ pub fn isEqualOnTrue<T1: Clone + 'static, T2: Clone + 'static>(mut inList1: Arc<
 }
 
 pub fn allEqual<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inCompFunc: Arc<dyn ::std::ops::Fn(T, T) -> Result<bool> + 'static>) -> Result<bool> {
-    pub type CompFunc<T: Clone> = fn(T, T) -> Result<bool>;
+    pub type CompFunc<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T, T) -> Result<bool> + 'static>;
 
     let mut outAllEqual: bool = true;
     let mut e1: T;
@@ -213,7 +213,7 @@ pub fn compareLength<T1: Clone + 'static, T2: Clone + 'static>(mut list1: Arc<me
 }
 
 pub fn compare<T1: Clone + 'static, T2: Clone + 'static>(mut list1: Arc<metamodelica::List<T1>>, mut list2: Arc<metamodelica::List<T2>>, mut compareFn: Arc<dyn ::std::ops::Fn(T1, T2) -> Result<i32> + 'static>) -> Result<i32> {
-    pub type CompFunc<T1: Clone, T2: Clone> = fn(T1, T2) -> Result<i32>;
+    pub type CompFunc<T1: Clone + 'static, T2: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T1, T2) -> Result<i32> + 'static>;
 
     let mut res: i32 = 0;
     let mut e2: T2;
@@ -242,7 +242,7 @@ pub fn compare<T1: Clone + 'static, T2: Clone + 'static>(mut list1: Arc<metamode
 // NOTE: #[tailcall::tailcall] disabled: function body contains a `match_deref!{…}` match,
 // and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
 pub fn isPrefixOnTrue<T1: Clone + 'static, T2: Clone + 'static>(mut inList1: Arc<metamodelica::List<T1>>, mut inList2: Arc<metamodelica::List<T2>>, mut inCompFunc: Arc<dyn ::std::ops::Fn(T1, T2) -> Result<bool> + 'static>) -> bool {
-    pub type CompFunc<T1: Clone, T2: Clone> = fn(T1, T2) -> Result<bool>;
+    pub type CompFunc<T1: Clone + 'static, T2: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T1, T2) -> Result<bool> + 'static>;
 
     let mut outIsPrefix: bool = false;
     outIsPrefix = (::match_deref::match_deref! { match &((inList1.clone(), inList2.clone())) {
@@ -310,17 +310,16 @@ pub fn appendElt<T: Clone + 'static>(mut inElement: T, mut inList: Arc<metamodel
 
 pub fn appendLastList<T: Clone + 'static>(mut inListList: Arc<metamodelica::List<Arc<metamodelica::List<T>>>>, mut inList: Arc<metamodelica::List<T>>) -> Result<Arc<metamodelica::List<Arc<metamodelica::List<T>>>>> {
     let mut outListList: Arc<metamodelica::List<Arc<metamodelica::List<T>>>> = metamodelica::nil();
-    outListList = (::match_deref::match_deref! { match &((inListList.clone(), inList.clone())) {
+    outListList = ({
+        let mut ol: Arc<metamodelica::List<Arc<metamodelica::List<T>>>> = metamodelica::nil();
+        (::match_deref::match_deref! { match &((inListList.clone(), inList.clone())) {
         (Deref @ metamodelica::List::Nil, _) => {
-            let mut ol: Arc<metamodelica::List<Arc<metamodelica::List<T>>>> = metamodelica::nil();
             list![inList.clone()]
         },
         (Deref @ metamodelica::List::Cons { head: l, tail: Deref @ metamodelica::List::Nil }, _) => {
-            let mut ol: Arc<metamodelica::List<Arc<metamodelica::List<T>>>> = metamodelica::nil();
             list![listAppend(l.clone(), inList.clone())]
         },
         (Deref @ metamodelica::List::Cons { head: l, tail: ll }, _) => {
-            let mut ol: Arc<metamodelica::List<Arc<metamodelica::List<T>>>> = metamodelica::nil();
             let mut l = (*l).clone();
             let mut ll = (*ll).clone();
             while !(ll.clone().is_empty()) {
@@ -337,7 +336,8 @@ pub fn appendLastList<T: Clone + 'static>(mut inListList: Arc<metamodelica::List
             ol.clone()
         },
         _ => bail!("match: no arm matched"),
-    } });
+    } })
+    });
     Ok(outListList)
 }
 
@@ -352,7 +352,7 @@ pub fn insert<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut in
 }
 
 pub fn insertListSorted<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inList2: Arc<metamodelica::List<T>>, mut inCompFunc: Arc<dyn ::std::ops::Fn(T, T) -> Result<bool> + 'static>) -> Result<Arc<metamodelica::List<T>>> {
-    pub type CompareFunc<T: Clone> = fn(T, T) -> Result<bool>;
+    pub type CompareFunc<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T, T) -> Result<bool> + 'static>;
 
     let mut outList: Arc<metamodelica::List<T>> = metamodelica::nil();
     outList = insertListSorted1(inList.clone(), inList2.clone(), inCompFunc.clone(), metamodelica::nil())?.reverse();
@@ -360,7 +360,7 @@ pub fn insertListSorted<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T
 }
 
 fn insertListSorted1<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inList2: Arc<metamodelica::List<T>>, mut inCompFunc: Arc<dyn ::std::ops::Fn(T, T) -> Result<bool> + 'static>, mut inResultList: Arc<metamodelica::List<T>>) -> Result<Arc<metamodelica::List<T>>> {
-    pub type CompareFunc<T: Clone> = fn(T, T) -> Result<bool>;
+    pub type CompareFunc<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T, T) -> Result<bool> + 'static>;
 
     let mut outResultList: Arc<metamodelica::List<T>> = metamodelica::nil();
     let mut listRest: Arc<metamodelica::List<T>> = metamodelica::nil();
@@ -559,7 +559,7 @@ pub fn heapSortIntList(mut lst: Arc<metamodelica::List<i32>>) -> Arc<metamodelic
 }
 
 pub fn sort<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inCompFunc: Arc<dyn ::std::ops::Fn(T, T) -> Result<bool> + 'static>) -> Result<Arc<metamodelica::List<T>>> {
-    pub type CompareFunc<T: Clone> = fn(T, T) -> Result<bool>;
+    pub type CompareFunc<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T, T) -> Result<bool> + 'static>;
 
     let mut outList: Arc<metamodelica::List<T>> = metamodelica::nil();
     let mut rest: Arc<metamodelica::List<T>> = inList.clone();
@@ -599,7 +599,7 @@ pub fn sort<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inCo
 }
 
 pub fn sortedDuplicates<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inCompFunc: Arc<dyn ::std::ops::Fn(T, T) -> Result<bool> + 'static>) -> Result<Arc<metamodelica::List<T>>> {
-    pub type CompareFunc<T: Clone> = fn(T, T) -> Result<bool>;
+    pub type CompareFunc<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T, T) -> Result<bool> + 'static>;
 
     let mut outDuplicates: Arc<metamodelica::List<T>> = metamodelica::nil();
     let mut e: T;
@@ -620,7 +620,7 @@ pub fn sortedDuplicates<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T
 }
 
 pub fn sortedListAllUnique<T: Clone + 'static>(mut lst: Arc<metamodelica::List<T>>, mut compareFn: Arc<dyn ::std::ops::Fn(T, T) -> Result<bool> + 'static>) -> Result<bool> {
-    pub type CompareFunc<T: Clone> = fn(T, T) -> Result<bool>;
+    pub type CompareFunc<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T, T) -> Result<bool> + 'static>;
 
     let mut allUnique: bool = false;
     let mut e: T;
@@ -644,7 +644,7 @@ pub fn sortedListAllUnique<T: Clone + 'static>(mut lst: Arc<metamodelica::List<T
 }
 
 pub fn sortedUnique<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inCompFunc: Arc<dyn ::std::ops::Fn(T, T) -> Result<bool> + 'static>) -> Result<Arc<metamodelica::List<T>>> {
-    pub type CompareFunc<T: Clone> = fn(T, T) -> Result<bool>;
+    pub type CompareFunc<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T, T) -> Result<bool> + 'static>;
 
     let mut outUniqueElements: Arc<metamodelica::List<T>> = metamodelica::nil();
     let mut e: T;
@@ -665,7 +665,7 @@ pub fn sortedUnique<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, 
 }
 
 pub fn sortedUniqueAndDuplicates<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inCompFunc: Arc<dyn ::std::ops::Fn(T, T) -> Result<bool> + 'static>) -> Result<(Arc<metamodelica::List<T>>, Arc<metamodelica::List<T>>)> {
-    pub type CompareFunc<T: Clone> = fn(T, T) -> Result<bool>;
+    pub type CompareFunc<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T, T) -> Result<bool> + 'static>;
 
     let mut outUniqueElements: Arc<metamodelica::List<T>> = metamodelica::nil();
     let mut outDuplicateElements: Arc<metamodelica::List<T>> = metamodelica::nil();
@@ -690,7 +690,7 @@ pub fn sortedUniqueAndDuplicates<T: Clone + 'static>(mut inList: Arc<metamodelic
 }
 
 pub fn sortedUniqueOnlyDuplicates<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inCompFunc: Arc<dyn ::std::ops::Fn(T, T) -> Result<bool> + 'static>) -> Result<Arc<metamodelica::List<T>>> {
-    pub type CompareFunc<T: Clone> = fn(T, T) -> Result<bool>;
+    pub type CompareFunc<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T, T) -> Result<bool> + 'static>;
 
     let mut outDuplicateElements: Arc<metamodelica::List<T>> = metamodelica::nil();
     let mut e: T;
@@ -713,7 +713,7 @@ pub fn sortedUniqueOnlyDuplicates<T: Clone + 'static>(mut inList: Arc<metamodeli
 // NOTE: #[tailcall::tailcall] disabled: function body contains a `match_deref!{…}` match,
 // and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
 fn merge<T: Clone + 'static>(mut inLeft: Arc<metamodelica::List<T>>, mut inRight: Arc<metamodelica::List<T>>, mut inCompFunc: Arc<dyn ::std::ops::Fn(T, T) -> Result<bool> + 'static>, mut acc: Arc<metamodelica::List<T>>) -> Result<Arc<metamodelica::List<T>>> {
-    pub type CompareFunc<T: Clone> = fn(T, T) -> Result<bool>;
+    pub type CompareFunc<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T, T) -> Result<bool> + 'static>;
 
     let mut outList: Arc<metamodelica::List<T>> = metamodelica::nil();
     outList = (::match_deref::match_deref! { match &((inLeft.clone(), inRight.clone())) {
@@ -745,7 +745,7 @@ fn merge<T: Clone + 'static>(mut inLeft: Arc<metamodelica::List<T>>, mut inRight
 }
 
 pub fn mergeSorted<T: Clone + 'static>(mut inList1: Arc<metamodelica::List<T>>, mut inList2: Arc<metamodelica::List<T>>, mut inCompFunc: Arc<dyn ::std::ops::Fn(T, T) -> Result<bool> + 'static>) -> Result<Arc<metamodelica::List<T>>> {
-    pub type CompFunc<T: Clone> = fn(T, T) -> Result<bool>;
+    pub type CompFunc<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T, T) -> Result<bool> + 'static>;
 
     let mut outList: Arc<metamodelica::List<T>> = metamodelica::nil();
     let mut l1: Arc<metamodelica::List<T>> = metamodelica::nil();
@@ -839,7 +839,7 @@ pub fn uniqueIntN(mut inList: Arc<metamodelica::List<i32>>, mut inN: i32) -> Res
 }
 
 pub fn uniqueOnTrue<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inCompFunc: Arc<dyn ::std::ops::Fn(T, T) -> Result<bool> + 'static>) -> Arc<metamodelica::List<T>> {
-    pub type CompFunc<T: Clone> = fn(T, T) -> Result<bool>;
+    pub type CompFunc<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T, T) -> Result<bool> + 'static>;
 
     let mut outList: Arc<metamodelica::List<T>> = metamodelica::nil();
     for mut e in &*inList.clone() {
@@ -899,7 +899,7 @@ pub fn splitr<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut in
 }
 
 pub fn splitOnTrue<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inFunc: Arc<dyn ::std::ops::Fn(T) -> Result<bool> + 'static>) -> (Arc<metamodelica::List<T>>, Arc<metamodelica::List<T>>) {
-    pub type PredicateFunc<T: Clone> = fn(T) -> Result<bool>;
+    pub type PredicateFunc<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T) -> Result<bool> + 'static>;
 
     let mut outTrueList: Arc<metamodelica::List<T>> = metamodelica::nil();
     let mut outFalseList: Arc<metamodelica::List<T>> = metamodelica::nil();
@@ -917,7 +917,7 @@ pub fn splitOnTrue<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, m
 }
 
 pub fn split1OnTrue<T: Clone + 'static, ArgT1: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inFunc: Arc<dyn ::std::ops::Fn(T, ArgT1) -> Result<bool> + 'static>, mut inArg1: ArgT1) -> (Arc<metamodelica::List<T>>, Arc<metamodelica::List<T>>) {
-    pub type PredicateFunc<T: Clone, ArgT1: Clone> = fn(T, ArgT1) -> Result<bool>;
+    pub type PredicateFunc<T: Clone + 'static, ArgT1: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T, ArgT1) -> Result<bool> + 'static>;
 
     let mut outTrueList: Arc<metamodelica::List<T>> = metamodelica::nil();
     let mut outFalseList: Arc<metamodelica::List<T>> = metamodelica::nil();
@@ -935,7 +935,7 @@ pub fn split1OnTrue<T: Clone + 'static, ArgT1: Clone + 'static>(mut inList: Arc<
 }
 
 pub fn split2OnTrue<T: Clone + 'static, ArgT1: Clone + 'static, ArgT2: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inFunc: Arc<dyn ::std::ops::Fn(T, ArgT1, ArgT2) -> Result<bool> + 'static>, mut inArg1: ArgT1, mut inArg2: ArgT2) -> (Arc<metamodelica::List<T>>, Arc<metamodelica::List<T>>) {
-    pub type PredicateFunc<T: Clone, ArgT1: Clone, ArgT2: Clone> = fn(T, ArgT1, ArgT2) -> Result<bool>;
+    pub type PredicateFunc<T: Clone + 'static, ArgT1: Clone + 'static, ArgT2: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T, ArgT1, ArgT2) -> Result<bool> + 'static>;
 
     let mut outTrueList: Arc<metamodelica::List<T>> = metamodelica::nil();
     let mut outFalseList: Arc<metamodelica::List<T>> = metamodelica::nil();
@@ -953,7 +953,7 @@ pub fn split2OnTrue<T: Clone + 'static, ArgT1: Clone + 'static, ArgT2: Clone + '
 }
 
 pub fn splitOnFirstMatch<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inFunc: Arc<dyn ::std::ops::Fn(T) -> Result<bool> + 'static>) -> Result<(Arc<metamodelica::List<T>>, Arc<metamodelica::List<T>>)> {
-    pub type CompFunc<T: Clone> = fn(T) -> Result<bool>;
+    pub type CompFunc<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T) -> Result<bool> + 'static>;
 
     let mut outList1: Arc<metamodelica::List<T>> = metamodelica::nil();
     let mut outList2: Arc<metamodelica::List<T>> = inList.clone();
@@ -1153,7 +1153,7 @@ pub fn listArrayReverse<T: Clone + 'static>(mut inLst: Arc<metamodelica::List<T>
 }
 
 pub fn setEqualOnTrue<T: Clone + 'static>(mut inList1: Arc<metamodelica::List<T>>, mut inList2: Arc<metamodelica::List<T>>, mut inCompFunc: Arc<dyn ::std::ops::Fn(T, T) -> Result<bool> + 'static>) -> bool {
-    pub type CompFunc<T: Clone> = fn(T, T) -> Result<bool>;
+    pub type CompFunc<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T, T) -> Result<bool> + 'static>;
 
     let mut outIsEqual: bool = false;
     let mut lst: Arc<metamodelica::List<T>> = metamodelica::nil();
@@ -1175,7 +1175,7 @@ fn addPos(mut inList: Arc<metamodelica::List<i32>>, mut inArray: metamodelica::A
 }
 
 pub fn intersectionOnTrue<T: Clone + 'static>(mut inList1: Arc<metamodelica::List<T>>, mut inList2: Arc<metamodelica::List<T>>, mut inCompFunc: Arc<dyn ::std::ops::Fn(T, T) -> Result<bool> + 'static>) -> Arc<metamodelica::List<T>> {
-    pub type CompFunc<T: Clone> = fn(T, T) -> Result<bool>;
+    pub type CompFunc<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T, T) -> Result<bool> + 'static>;
 
     let mut outIntersection: Arc<metamodelica::List<T>> = metamodelica::nil();
     for mut e in &*inList1.clone() {
@@ -1189,7 +1189,7 @@ pub fn intersectionOnTrue<T: Clone + 'static>(mut inList1: Arc<metamodelica::Lis
 }
 
 pub fn intersection1OnTrue<T: Clone + 'static>(mut inList1: Arc<metamodelica::List<T>>, mut inList2: Arc<metamodelica::List<T>>, mut inCompFunc: Arc<dyn ::std::ops::Fn(T, T) -> Result<bool> + 'static>) -> Result<(Arc<metamodelica::List<T>>, Arc<metamodelica::List<T>>, Arc<metamodelica::List<T>>)> {
-    pub type CompFunc<T: Clone> = fn(T, T) -> Result<bool>;
+    pub type CompFunc<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T, T) -> Result<bool> + 'static>;
 
     let mut outIntersection: Arc<metamodelica::List<T>> = metamodelica::nil();
     let mut outList1Rest: Arc<metamodelica::List<T>> = metamodelica::nil();
@@ -1244,7 +1244,7 @@ pub fn setDifferenceIntN(mut inList1: Arc<metamodelica::List<i32>>, mut inList2:
 }
 
 pub fn setDifferenceOnTrue<T: Clone + 'static>(mut inList1: Arc<metamodelica::List<T>>, mut inList2: Arc<metamodelica::List<T>>, mut inCompFunc: Arc<dyn ::std::ops::Fn(T, T) -> Result<bool> + 'static>) -> Result<Arc<metamodelica::List<T>>> {
-    pub type CompFunc<T: Clone> = fn(T, T) -> Result<bool>;
+    pub type CompFunc<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T, T) -> Result<bool> + 'static>;
 
     let mut outDifference: Arc<metamodelica::List<T>> = inList1.clone();
     if inList1.clone().is_empty() {
@@ -1264,7 +1264,7 @@ pub fn setDifference<T: Clone + 'static + PartialEq>(mut inList1: Arc<metamodeli
     }
     for mut e in &*inList2.clone() {
         let mut e = e.clone();
-        (outDifference, _) = deleteMemberOnTrue(e.clone(), outDifference.clone(), Arc::new(fnptr!(valueEq, _, _)))?;
+        (outDifference, _) = deleteMemberOnTrue(e.clone(), outDifference.clone(), std::sync::Arc::new(fnptr!(valueEq, _, _)))?;
     }
     Ok(outDifference)
 }
@@ -1293,7 +1293,7 @@ pub fn unionElt<T: Clone + 'static + PartialEq>(mut inElement: T, mut inList: Ar
 }
 
 pub fn unionEltOnTrue<T: Clone + 'static>(mut inElement: T, mut inList: Arc<metamodelica::List<T>>, mut inCompFunc: Arc<dyn ::std::ops::Fn(T, T) -> Result<bool> + 'static>) -> Arc<metamodelica::List<T>> {
-    pub type CompFunc<T: Clone> = fn(T, T) -> Result<bool>;
+    pub type CompFunc<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T, T) -> Result<bool> + 'static>;
 
     let mut outList: Arc<metamodelica::List<T>> = metamodelica::nil();
     outList = consOnTrue(!(isMemberOnTrue(inElement.clone(), inList.clone(), inCompFunc.clone())), inElement.clone(), inList.clone());
@@ -1315,7 +1315,7 @@ pub fn union<T: Clone + 'static + PartialEq>(mut inList1: Arc<metamodelica::List
 }
 
 pub fn unionOnTrue<T: Clone + 'static>(mut inList1: Arc<metamodelica::List<T>>, mut inList2: Arc<metamodelica::List<T>>, mut inCompFunc: Arc<dyn ::std::ops::Fn(T, T) -> Result<bool> + 'static>) -> Arc<metamodelica::List<T>> {
-    pub type CompFunc<T: Clone> = fn(T, T) -> Result<bool>;
+    pub type CompFunc<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T, T) -> Result<bool> + 'static>;
 
     let mut outUnion: Arc<metamodelica::List<T>> = metamodelica::nil();
     for mut e in &*inList1.clone() {
@@ -1331,7 +1331,7 @@ pub fn unionOnTrue<T: Clone + 'static>(mut inList1: Arc<metamodelica::List<T>>, 
 }
 
 pub fn unionAppendListOnTrue<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inUnion: Arc<metamodelica::List<T>>, mut inCompFunc: Arc<dyn ::std::ops::Fn(T, T) -> Result<bool> + 'static>) -> Arc<metamodelica::List<T>> {
-    pub type CompFunc<T: Clone> = fn(T, T) -> Result<bool>;
+    pub type CompFunc<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T, T) -> Result<bool> + 'static>;
 
     let mut outUnion: Arc<metamodelica::List<T>> = metamodelica::nil();
     outUnion = fold(inList.clone(), Arc::new({ let __pe_b2: Arc<dyn ::std::ops::Fn(_, _) -> Result<bool> + 'static> = inCompFunc.clone(); move |__pe_a0, __pe_a1| Ok(unionEltOnTrue(__pe_a0, __pe_a1, __pe_b2.clone())) }), inUnion.clone());
@@ -1340,12 +1340,12 @@ pub fn unionAppendListOnTrue<T: Clone + 'static>(mut inList: Arc<metamodelica::L
 
 pub fn unionList<T: Clone + 'static + PartialEq>(mut inList: Arc<metamodelica::List<Arc<metamodelica::List<T>>>>) -> Result<Arc<metamodelica::List<T>>> {
     let mut outUnion: Arc<metamodelica::List<T>> = metamodelica::nil();
-    outUnion = if (inList.clone().is_empty()) {metamodelica::nil()} else {reduce(inList.clone(), Arc::new(fnptr!(union, _, _)))?};
+    outUnion = if (inList.clone().is_empty()) {metamodelica::nil()} else {reduce(inList.clone(), std::sync::Arc::new(fnptr!(union, _, _)))?};
     Ok(outUnion)
 }
 
 pub fn unionOnTrueList<T: Clone + 'static>(mut inList: Arc<metamodelica::List<Arc<metamodelica::List<T>>>>, mut inCompFunc: Arc<dyn ::std::ops::Fn(T, T) -> Result<bool> + 'static>) -> Result<Arc<metamodelica::List<T>>> {
-    pub type CompFunc<T: Clone> = fn(T, T) -> Result<bool>;
+    pub type CompFunc<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T, T) -> Result<bool> + 'static>;
 
     let mut outUnion: Arc<metamodelica::List<T>> = metamodelica::nil();
     outUnion = if (inList.clone().is_empty()) {metamodelica::nil()} else {reduce(inList.clone(), Arc::new({ let __pe_b2: Arc<dyn ::std::ops::Fn(_, _) -> Result<bool> + 'static> = inCompFunc.clone(); move |__pe_a0, __pe_a1| Ok(unionOnTrue(__pe_a0, __pe_a1, __pe_b2.clone())) }))?};
@@ -1353,7 +1353,7 @@ pub fn unionOnTrueList<T: Clone + 'static>(mut inList: Arc<metamodelica::List<Ar
 }
 
 pub fn map<TI: Clone + 'static, TO: Clone + 'static>(mut inList: Arc<metamodelica::List<TI>>, mut inFunc: Arc<dyn ::std::ops::Fn(TI) -> Result<TO> + 'static>) -> Arc<metamodelica::List<TO>> {
-    pub type MapFunc<TI: Clone, TO: Clone> = fn(TI) -> Result<TO>;
+    pub type MapFunc<TI: Clone + 'static, TO: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(TI) -> Result<TO> + 'static>;
 
     let mut outList: Arc<metamodelica::List<TO>> = metamodelica::nil();
     outList = {
@@ -1368,7 +1368,7 @@ pub fn map<TI: Clone + 'static, TO: Clone + 'static>(mut inList: Arc<metamodelic
 }
 
 pub fn mapArray<TI: Clone + 'static, TO: Clone + 'static>(mut inArray: metamodelica::Array<TI>, mut inFunc: Arc<dyn ::std::ops::Fn(TI) -> Result<TO> + 'static>) -> Arc<metamodelica::List<TO>> {
-    pub type MapFunc<TI: Clone, TO: Clone> = fn(TI) -> Result<TO>;
+    pub type MapFunc<TI: Clone + 'static, TO: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(TI) -> Result<TO> + 'static>;
 
     let mut outList: Arc<metamodelica::List<TO>> = metamodelica::nil();
     outList = {
@@ -1383,7 +1383,7 @@ pub fn mapArray<TI: Clone + 'static, TO: Clone + 'static>(mut inArray: metamodel
 }
 
 pub fn mapCheckReferenceEq<TI: Clone + 'static + PartialEq>(mut inList: Arc<metamodelica::List<TI>>, mut inFunc: Arc<dyn ::std::ops::Fn(TI) -> Result<TI> + 'static>) -> Arc<metamodelica::List<TI>> {
-    pub type MapFunc<TI: Clone> = fn(TI) -> Result<TI>;
+    pub type MapFunc<TI: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(TI) -> Result<TI> + 'static>;
 
     let mut outList: Arc<metamodelica::List<TI>> = metamodelica::nil();
     let mut allEq: bool = true;
@@ -1417,7 +1417,7 @@ pub fn mapCheckReferenceEq<TI: Clone + 'static + PartialEq>(mut inList: Arc<meta
 }
 
 pub fn mapReverse<TI: Clone + 'static, TO: Clone + 'static>(mut inList: Arc<metamodelica::List<TI>>, mut inFunc: Arc<dyn ::std::ops::Fn(TI) -> Result<TO> + 'static>) -> Arc<metamodelica::List<TO>> {
-    pub type MapFunc<TI: Clone, TO: Clone> = fn(TI) -> Result<TO>;
+    pub type MapFunc<TI: Clone + 'static, TO: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(TI) -> Result<TO> + 'static>;
 
     let mut outList: Arc<metamodelica::List<TO>> = metamodelica::nil();
     outList = {
@@ -1432,7 +1432,7 @@ pub fn mapReverse<TI: Clone + 'static, TO: Clone + 'static>(mut inList: Arc<meta
 }
 
 pub fn map_2<TI: Clone + 'static, TO1: Clone + 'static, TO2: Clone + 'static>(mut inList: Arc<metamodelica::List<TI>>, mut inFunc: Arc<dyn ::std::ops::Fn(TI) -> Result<(TO1, TO2)> + 'static>) -> (Arc<metamodelica::List<TO1>>, Arc<metamodelica::List<TO2>>) {
-    pub type MapFunc<TI: Clone, TO1: Clone, TO2: Clone> = fn(TI) -> Result<(TO1, TO2)>;
+    pub type MapFunc<TI: Clone + 'static, TO1: Clone + 'static, TO2: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(TI) -> Result<(TO1, TO2)> + 'static>;
 
     let mut outList1: Arc<metamodelica::List<TO1>> = metamodelica::nil();
     let mut outList2: Arc<metamodelica::List<TO2>> = metamodelica::nil();
@@ -1454,7 +1454,7 @@ pub fn map_2<TI: Clone + 'static, TO1: Clone + 'static, TO2: Clone + 'static>(mu
 }
 
 pub fn map_3<TI: Clone + 'static, TO1: Clone + 'static, TO2: Clone + 'static, TO3: Clone + 'static>(mut inList: Arc<metamodelica::List<TI>>, mut inFunc: Arc<dyn ::std::ops::Fn(TI) -> Result<(TO1, TO2, TO3)> + 'static>) -> (Arc<metamodelica::List<TO1>>, Arc<metamodelica::List<TO2>>, Arc<metamodelica::List<TO3>>) {
-    pub type MapFunc<TI: Clone, TO1: Clone, TO2: Clone, TO3: Clone> = fn(TI) -> Result<(TO1, TO2, TO3)>;
+    pub type MapFunc<TI: Clone + 'static, TO1: Clone + 'static, TO2: Clone + 'static, TO3: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(TI) -> Result<(TO1, TO2, TO3)> + 'static>;
 
     let mut outList1: Arc<metamodelica::List<TO1>> = metamodelica::nil();
     let mut outList2: Arc<metamodelica::List<TO2>> = metamodelica::nil();
@@ -1484,7 +1484,7 @@ pub fn map_3<TI: Clone + 'static, TO1: Clone + 'static, TO2: Clone + 'static, TO
 }
 
 pub fn mapOption<TI: Clone + 'static, TO: Clone + 'static>(mut inList: Arc<metamodelica::List<Option<TI>>>, mut inFunc: Arc<dyn ::std::ops::Fn(TI) -> Result<TO> + 'static>) -> Result<Arc<metamodelica::List<TO>>> {
-    pub type MapFunc<TI: Clone, TO: Clone> = fn(TI) -> Result<TO>;
+    pub type MapFunc<TI: Clone + 'static, TO: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(TI) -> Result<TO> + 'static>;
 
     let mut outList: Arc<metamodelica::List<TO>> = metamodelica::nil();
     let mut ei: TI;
@@ -1503,7 +1503,7 @@ pub fn mapOption<TI: Clone + 'static, TO: Clone + 'static>(mut inList: Arc<metam
 }
 
 pub fn map1Option<TI: Clone + 'static, TO: Clone + 'static, ArgT: Clone + 'static>(mut inList: Arc<metamodelica::List<Option<TI>>>, mut inFunc: Arc<dyn ::std::ops::Fn(TI, ArgT) -> Result<TO> + 'static>, mut inArg1: ArgT) -> Result<Arc<metamodelica::List<TO>>> {
-    pub type MapFunc<TI: Clone, ArgT: Clone, TO: Clone> = fn(TI, ArgT) -> Result<TO>;
+    pub type MapFunc<TI: Clone + 'static, ArgT: Clone + 'static, TO: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(TI, ArgT) -> Result<TO> + 'static>;
 
     let mut outList: Arc<metamodelica::List<TO>> = metamodelica::nil();
     let mut ei: TI;
@@ -1522,7 +1522,7 @@ pub fn map1Option<TI: Clone + 'static, TO: Clone + 'static, ArgT: Clone + 'stati
 }
 
 pub fn map2Option<TI: Clone + 'static, TO: Clone + 'static, ArgT1: Clone + 'static, ArgT2: Clone + 'static>(mut inList: Arc<metamodelica::List<Option<TI>>>, mut inFunc: Arc<dyn ::std::ops::Fn(TI, ArgT1, ArgT2) -> Result<TO> + 'static>, mut inArg1: ArgT1, mut inArg2: ArgT2) -> Result<Arc<metamodelica::List<TO>>> {
-    pub type MapFunc<TI: Clone, ArgT1: Clone, ArgT2: Clone, TO: Clone> = fn(TI, ArgT1, ArgT2) -> Result<TO>;
+    pub type MapFunc<TI: Clone + 'static, ArgT1: Clone + 'static, ArgT2: Clone + 'static, TO: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(TI, ArgT1, ArgT2) -> Result<TO> + 'static>;
 
     let mut outList: Arc<metamodelica::List<TO>> = metamodelica::nil();
     let mut ei: TI;
@@ -1541,7 +1541,7 @@ pub fn map2Option<TI: Clone + 'static, TO: Clone + 'static, ArgT1: Clone + 'stat
 }
 
 pub fn map_0<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inFunc: Arc<dyn ::std::ops::Fn(T) -> Result<()> + 'static>) -> () {
-    pub type MapFunc<T: Clone> = fn(T) -> Result<()>;
+    pub type MapFunc<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T) -> Result<()> + 'static>;
 
     for mut e in &*inList.clone() {
         let mut e = e.clone();
@@ -1551,7 +1551,7 @@ pub fn map_0<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inF
 }
 
 pub fn map1<TI: Clone + 'static, TO: Clone + 'static, ArgT1: Clone + 'static>(mut inList: Arc<metamodelica::List<TI>>, mut inMapFunc: Arc<dyn ::std::ops::Fn(TI, ArgT1) -> Result<TO> + 'static>, mut inArg1: ArgT1) -> Arc<metamodelica::List<TO>> {
-    pub type MapFunc<TI: Clone, ArgT1: Clone, TO: Clone> = fn(TI, ArgT1) -> Result<TO>;
+    pub type MapFunc<TI: Clone + 'static, ArgT1: Clone + 'static, TO: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(TI, ArgT1) -> Result<TO> + 'static>;
 
     let mut outList: Arc<metamodelica::List<TO>> = metamodelica::nil();
     outList = {
@@ -1566,7 +1566,7 @@ pub fn map1<TI: Clone + 'static, TO: Clone + 'static, ArgT1: Clone + 'static>(mu
 }
 
 pub fn map1r<TI: Clone + 'static, TO: Clone + 'static, ArgT1: Clone + 'static>(mut inList: Arc<metamodelica::List<TI>>, mut inFunc: Arc<dyn ::std::ops::Fn(ArgT1, TI) -> Result<TO> + 'static>, mut inArg1: ArgT1) -> Arc<metamodelica::List<TO>> {
-    pub type MapFunc<ArgT1: Clone, TI: Clone, TO: Clone> = fn(ArgT1, TI) -> Result<TO>;
+    pub type MapFunc<ArgT1: Clone + 'static, TI: Clone + 'static, TO: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(ArgT1, TI) -> Result<TO> + 'static>;
 
     let mut outList: Arc<metamodelica::List<TO>> = metamodelica::nil();
     outList = {
@@ -1581,7 +1581,7 @@ pub fn map1r<TI: Clone + 'static, TO: Clone + 'static, ArgT1: Clone + 'static>(m
 }
 
 pub fn map1_0<TI: Clone + 'static, ArgT1: Clone + 'static>(mut inList: Arc<metamodelica::List<TI>>, mut inFunc: Arc<dyn ::std::ops::Fn(TI, ArgT1) -> Result<()> + 'static>, mut inArg1: ArgT1) -> () {
-    pub type MapFunc<TI: Clone, ArgT1: Clone> = fn(TI, ArgT1) -> Result<()>;
+    pub type MapFunc<TI: Clone + 'static, ArgT1: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(TI, ArgT1) -> Result<()> + 'static>;
 
     for mut e in &*inList.clone() {
         let mut e = e.clone();
@@ -1591,7 +1591,7 @@ pub fn map1_0<TI: Clone + 'static, ArgT1: Clone + 'static>(mut inList: Arc<metam
 }
 
 pub fn map1_2<TI: Clone + 'static, TO1: Clone + 'static, TO2: Clone + 'static, ArgT1: Clone + 'static>(mut inList: Arc<metamodelica::List<TI>>, mut inFunc: Arc<dyn ::std::ops::Fn(TI, ArgT1) -> Result<(TO1, TO2)> + 'static>, mut inArg1: ArgT1) -> (Arc<metamodelica::List<TO1>>, Arc<metamodelica::List<TO2>>) {
-    pub type MapFunc<TI: Clone, ArgT1: Clone, TO1: Clone, TO2: Clone> = fn(TI, ArgT1) -> Result<(TO1, TO2)>;
+    pub type MapFunc<TI: Clone + 'static, ArgT1: Clone + 'static, TO1: Clone + 'static, TO2: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(TI, ArgT1) -> Result<(TO1, TO2)> + 'static>;
 
     let mut outList1: Arc<metamodelica::List<TO1>> = metamodelica::nil();
     let mut outList2: Arc<metamodelica::List<TO2>> = metamodelica::nil();
@@ -1609,7 +1609,7 @@ pub fn map1_2<TI: Clone + 'static, TO1: Clone + 'static, TO2: Clone + 'static, A
 }
 
 pub fn map2<TI: Clone + 'static, TO: Clone + 'static, ArgT1: Clone + 'static, ArgT2: Clone + 'static>(mut inList: Arc<metamodelica::List<TI>>, mut inFunc: Arc<dyn ::std::ops::Fn(TI, ArgT1, ArgT2) -> Result<TO> + 'static>, mut inArg1: ArgT1, mut inArg2: ArgT2) -> Arc<metamodelica::List<TO>> {
-    pub type MapFunc<TI: Clone, ArgT1: Clone, ArgT2: Clone, TO: Clone> = fn(TI, ArgT1, ArgT2) -> Result<TO>;
+    pub type MapFunc<TI: Clone + 'static, ArgT1: Clone + 'static, ArgT2: Clone + 'static, TO: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(TI, ArgT1, ArgT2) -> Result<TO> + 'static>;
 
     let mut outList: Arc<metamodelica::List<TO>> = metamodelica::nil();
     outList = {
@@ -1624,7 +1624,7 @@ pub fn map2<TI: Clone + 'static, TO: Clone + 'static, ArgT1: Clone + 'static, Ar
 }
 
 pub fn map2Reverse<TI: Clone + 'static, TO: Clone + 'static, ArgT1: Clone + 'static, ArgT2: Clone + 'static>(mut inList: Arc<metamodelica::List<TI>>, mut inFunc: Arc<dyn ::std::ops::Fn(TI, ArgT1, ArgT2) -> Result<TO> + 'static>, mut inArg1: ArgT1, mut inArg2: ArgT2) -> Arc<metamodelica::List<TO>> {
-    pub type MapFunc<TI: Clone, ArgT1: Clone, ArgT2: Clone, TO: Clone> = fn(TI, ArgT1, ArgT2) -> Result<TO>;
+    pub type MapFunc<TI: Clone + 'static, ArgT1: Clone + 'static, ArgT2: Clone + 'static, TO: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(TI, ArgT1, ArgT2) -> Result<TO> + 'static>;
 
     let mut outList: Arc<metamodelica::List<TO>> = metamodelica::nil();
     outList = {
@@ -1639,7 +1639,7 @@ pub fn map2Reverse<TI: Clone + 'static, TO: Clone + 'static, ArgT1: Clone + 'sta
 }
 
 pub fn map2_0<TI: Clone + 'static, ArgT1: Clone + 'static, ArgT2: Clone + 'static>(mut inList: Arc<metamodelica::List<TI>>, mut inFunc: Arc<dyn ::std::ops::Fn(TI, ArgT1, ArgT2) -> Result<()> + 'static>, mut inArg1: ArgT1, mut inArg2: ArgT2) -> () {
-    pub type MapFunc<TI: Clone, ArgT1: Clone, ArgT2: Clone> = fn(TI, ArgT1, ArgT2) -> Result<()>;
+    pub type MapFunc<TI: Clone + 'static, ArgT1: Clone + 'static, ArgT2: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(TI, ArgT1, ArgT2) -> Result<()> + 'static>;
 
     for mut e in &*inList.clone() {
         let mut e = e.clone();
@@ -1649,7 +1649,7 @@ pub fn map2_0<TI: Clone + 'static, ArgT1: Clone + 'static, ArgT2: Clone + 'stati
 }
 
 pub fn map2_2<TI: Clone + 'static, TO1: Clone + 'static, TO2: Clone + 'static, ArgT1: Clone + 'static, ArgT2: Clone + 'static>(mut inList: Arc<metamodelica::List<TI>>, mut inFunc: Arc<dyn ::std::ops::Fn(TI, ArgT1, ArgT2) -> Result<(TO1, TO2)> + 'static>, mut inArg1: ArgT1, mut inArg2: ArgT2) -> (Arc<metamodelica::List<TO1>>, Arc<metamodelica::List<TO2>>) {
-    pub type MapFunc<TI: Clone, ArgT1: Clone, ArgT2: Clone, TO1: Clone, TO2: Clone> = fn(TI, ArgT1, ArgT2) -> Result<(TO1, TO2)>;
+    pub type MapFunc<TI: Clone + 'static, ArgT1: Clone + 'static, ArgT2: Clone + 'static, TO1: Clone + 'static, TO2: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(TI, ArgT1, ArgT2) -> Result<(TO1, TO2)> + 'static>;
 
     let mut outList1: Arc<metamodelica::List<TO1>> = metamodelica::nil();
     let mut outList2: Arc<metamodelica::List<TO2>> = metamodelica::nil();
@@ -1667,7 +1667,7 @@ pub fn map2_2<TI: Clone + 'static, TO1: Clone + 'static, TO2: Clone + 'static, A
 }
 
 pub fn map3<TI: Clone + 'static, TO: Clone + 'static, ArgT1: Clone + 'static, ArgT2: Clone + 'static, ArgT3: Clone + 'static>(mut inList: Arc<metamodelica::List<TI>>, mut inFunc: Arc<dyn ::std::ops::Fn(TI, ArgT1, ArgT2, ArgT3) -> Result<TO> + 'static>, mut inArg1: ArgT1, mut inArg2: ArgT2, mut inArg3: ArgT3) -> Arc<metamodelica::List<TO>> {
-    pub type MapFunc<TI: Clone, ArgT1: Clone, ArgT2: Clone, ArgT3: Clone, TO: Clone> = fn(TI, ArgT1, ArgT2, ArgT3) -> Result<TO>;
+    pub type MapFunc<TI: Clone + 'static, ArgT1: Clone + 'static, ArgT2: Clone + 'static, ArgT3: Clone + 'static, TO: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(TI, ArgT1, ArgT2, ArgT3) -> Result<TO> + 'static>;
 
     let mut outList: Arc<metamodelica::List<TO>> = metamodelica::nil();
     outList = {
@@ -1682,7 +1682,7 @@ pub fn map3<TI: Clone + 'static, TO: Clone + 'static, ArgT1: Clone + 'static, Ar
 }
 
 pub fn map4<TI: Clone + 'static, TO: Clone + 'static, ArgT1: Clone + 'static, ArgT2: Clone + 'static, ArgT3: Clone + 'static, ArgT4: Clone + 'static>(mut inList: Arc<metamodelica::List<TI>>, mut inFunc: Arc<dyn ::std::ops::Fn(TI, ArgT1, ArgT2, ArgT3, ArgT4) -> Result<TO> + 'static>, mut inArg1: ArgT1, mut inArg2: ArgT2, mut inArg3: ArgT3, mut inArg4: ArgT4) -> Arc<metamodelica::List<TO>> {
-    pub type MapFunc<TI: Clone, ArgT1: Clone, ArgT2: Clone, ArgT3: Clone, ArgT4: Clone, TO: Clone> = fn(TI, ArgT1, ArgT2, ArgT3, ArgT4) -> Result<TO>;
+    pub type MapFunc<TI: Clone + 'static, ArgT1: Clone + 'static, ArgT2: Clone + 'static, ArgT3: Clone + 'static, ArgT4: Clone + 'static, TO: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(TI, ArgT1, ArgT2, ArgT3, ArgT4) -> Result<TO> + 'static>;
 
     let mut outList: Arc<metamodelica::List<TO>> = metamodelica::nil();
     outList = {
@@ -1697,7 +1697,7 @@ pub fn map4<TI: Clone + 'static, TO: Clone + 'static, ArgT1: Clone + 'static, Ar
 }
 
 pub fn map4_0<TI: Clone + 'static, ArgT1: Clone + 'static, ArgT2: Clone + 'static, ArgT3: Clone + 'static, ArgT4: Clone + 'static>(mut inList: Arc<metamodelica::List<TI>>, mut inFunc: Arc<dyn ::std::ops::Fn(TI, ArgT1, ArgT2, ArgT3, ArgT4) -> Result<()> + 'static>, mut inArg1: ArgT1, mut inArg2: ArgT2, mut inArg3: ArgT3, mut inArg4: ArgT4) -> () {
-    pub type MapFunc<TI: Clone, ArgT1: Clone, ArgT2: Clone, ArgT3: Clone, ArgT4: Clone> = fn(TI, ArgT1, ArgT2, ArgT3, ArgT4) -> Result<()>;
+    pub type MapFunc<TI: Clone + 'static, ArgT1: Clone + 'static, ArgT2: Clone + 'static, ArgT3: Clone + 'static, ArgT4: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(TI, ArgT1, ArgT2, ArgT3, ArgT4) -> Result<()> + 'static>;
 
     for mut e in &*inList.clone() {
         let mut e = e.clone();
@@ -1707,7 +1707,7 @@ pub fn map4_0<TI: Clone + 'static, ArgT1: Clone + 'static, ArgT2: Clone + 'stati
 }
 
 pub fn map5<TI: Clone + 'static, TO: Clone + 'static, ArgT1: Clone + 'static, ArgT2: Clone + 'static, ArgT3: Clone + 'static, ArgT4: Clone + 'static, ArgT5: Clone + 'static>(mut inList: Arc<metamodelica::List<TI>>, mut inFunc: Arc<dyn ::std::ops::Fn(TI, ArgT1, ArgT2, ArgT3, ArgT4, ArgT5) -> Result<TO> + 'static>, mut inArg1: ArgT1, mut inArg2: ArgT2, mut inArg3: ArgT3, mut inArg4: ArgT4, mut inArg5: ArgT5) -> Arc<metamodelica::List<TO>> {
-    pub type MapFunc<TI: Clone, ArgT1: Clone, ArgT2: Clone, ArgT3: Clone, ArgT4: Clone, ArgT5: Clone, TO: Clone> = fn(TI, ArgT1, ArgT2, ArgT3, ArgT4, ArgT5) -> Result<TO>;
+    pub type MapFunc<TI: Clone + 'static, ArgT1: Clone + 'static, ArgT2: Clone + 'static, ArgT3: Clone + 'static, ArgT4: Clone + 'static, ArgT5: Clone + 'static, TO: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(TI, ArgT1, ArgT2, ArgT3, ArgT4, ArgT5) -> Result<TO> + 'static>;
 
     let mut outList: Arc<metamodelica::List<TO>> = metamodelica::nil();
     outList = {
@@ -1722,7 +1722,7 @@ pub fn map5<TI: Clone + 'static, TO: Clone + 'static, ArgT1: Clone + 'static, Ar
 }
 
 pub fn map6<TI: Clone + 'static, TO: Clone + 'static, ArgT1: Clone + 'static, ArgT2: Clone + 'static, ArgT3: Clone + 'static, ArgT4: Clone + 'static, ArgT5: Clone + 'static, ArgT6: Clone + 'static>(mut inList: Arc<metamodelica::List<TI>>, mut inFunc: Arc<dyn ::std::ops::Fn(TI, ArgT1, ArgT2, ArgT3, ArgT4, ArgT5, ArgT6) -> Result<TO> + 'static>, mut inArg1: ArgT1, mut inArg2: ArgT2, mut inArg3: ArgT3, mut inArg4: ArgT4, mut inArg5: ArgT5, mut inArg6: ArgT6) -> Arc<metamodelica::List<TO>> {
-    pub type MapFunc<TI: Clone, ArgT1: Clone, ArgT2: Clone, ArgT3: Clone, ArgT4: Clone, ArgT5: Clone, ArgT6: Clone, TO: Clone> = fn(TI, ArgT1, ArgT2, ArgT3, ArgT4, ArgT5, ArgT6) -> Result<TO>;
+    pub type MapFunc<TI: Clone + 'static, ArgT1: Clone + 'static, ArgT2: Clone + 'static, ArgT3: Clone + 'static, ArgT4: Clone + 'static, ArgT5: Clone + 'static, ArgT6: Clone + 'static, TO: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(TI, ArgT1, ArgT2, ArgT3, ArgT4, ArgT5, ArgT6) -> Result<TO> + 'static>;
 
     let mut outList: Arc<metamodelica::List<TO>> = metamodelica::nil();
     outList = {
@@ -1737,7 +1737,7 @@ pub fn map6<TI: Clone + 'static, TO: Clone + 'static, ArgT1: Clone + 'static, Ar
 }
 
 pub fn mapFlat<TI: Clone + 'static, TO: Clone + 'static>(mut inList: Arc<metamodelica::List<TI>>, mut inMapFunc: Arc<dyn ::std::ops::Fn(TI) -> Result<Arc<metamodelica::List<TO>>> + 'static>) -> Arc<metamodelica::List<TO>> {
-    pub type MapFunc<TI: Clone, TO: Clone> = fn(TI) -> Result<Arc<metamodelica::List<TO>>>;
+    pub type MapFunc<TI: Clone + 'static, TO: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(TI) -> Result<Arc<metamodelica::List<TO>>> + 'static>;
 
     let mut outList: Arc<metamodelica::List<TO>> = metamodelica::nil();
     outList = mapFlatReverse(inList.clone(), inMapFunc.clone()).reverse();
@@ -1745,7 +1745,7 @@ pub fn mapFlat<TI: Clone + 'static, TO: Clone + 'static>(mut inList: Arc<metamod
 }
 
 pub fn mapFlatReverse<TI: Clone + 'static, TO: Clone + 'static>(mut inList: Arc<metamodelica::List<TI>>, mut inMapFunc: Arc<dyn ::std::ops::Fn(TI) -> Result<Arc<metamodelica::List<TO>>> + 'static>) -> Arc<metamodelica::List<TO>> {
-    pub type MapFunc<TI: Clone, TO: Clone> = fn(TI) -> Result<Arc<metamodelica::List<TO>>>;
+    pub type MapFunc<TI: Clone + 'static, TO: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(TI) -> Result<Arc<metamodelica::List<TO>>> + 'static>;
 
     let mut outList: Arc<metamodelica::List<TO>> = metamodelica::nil();
     for mut e in &*inList.clone() {
@@ -1756,9 +1756,9 @@ pub fn mapFlatReverse<TI: Clone + 'static, TO: Clone + 'static>(mut inList: Arc<
 }
 
 pub fn mapMap<TI: Clone + 'static, TO1: Clone + 'static, TO2: Clone + 'static>(mut inList: Arc<metamodelica::List<TI>>, mut inMapFunc1: Arc<dyn ::std::ops::Fn(TI) -> Result<TO1> + 'static>, mut inMapFunc2: Arc<dyn ::std::ops::Fn(TO1) -> Result<TO2> + 'static>) -> Arc<metamodelica::List<TO2>> {
-    pub type MapFunc1<TI: Clone, TO1: Clone> = fn(TI) -> Result<TO1>;
+    pub type MapFunc1<TI: Clone + 'static, TO1: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(TI) -> Result<TO1> + 'static>;
 
-    pub type MapFunc2<TO1: Clone, TO2: Clone> = fn(TO1) -> Result<TO2>;
+    pub type MapFunc2<TO1: Clone + 'static, TO2: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(TO1) -> Result<TO2> + 'static>;
 
     let mut outList: Arc<metamodelica::List<TO2>> = metamodelica::nil();
     outList = {
@@ -1773,7 +1773,7 @@ pub fn mapMap<TI: Clone + 'static, TO1: Clone + 'static, TO2: Clone + 'static>(m
 }
 
 pub fn foldAllValue<TI: Clone + 'static, TO: Clone + 'static + PartialEq, ArgT1: Clone + 'static>(mut inList: Arc<metamodelica::List<TI>>, mut inMapFunc: Arc<dyn ::std::ops::Fn(TI, ArgT1) -> Result<(TO, ArgT1)> + 'static>, mut inValue: TO, mut inArg1: ArgT1) -> Result<()> {
-    pub type MapFunc<TI: Clone, ArgT1: Clone, TO: Clone> = fn(TI, ArgT1) -> Result<(TO, ArgT1)>;
+    pub type MapFunc<TI: Clone + 'static, ArgT1: Clone + 'static, TO: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(TI, ArgT1) -> Result<(TO, ArgT1)> + 'static>;
 
     let mut arg: ArgT1 = inArg1.clone();
     let mut eo: TO;
@@ -1786,9 +1786,9 @@ pub fn foldAllValue<TI: Clone + 'static, TO: Clone + 'static + PartialEq, ArgT1:
 }
 
 pub fn applyAndFold<TI: Clone + 'static, TO: Clone + 'static, FT: Clone + 'static>(mut inList: Arc<metamodelica::List<TI>>, mut inFoldFunc: Arc<dyn ::std::ops::Fn(TO, FT) -> Result<FT> + 'static>, mut inApplyFunc: Arc<dyn ::std::ops::Fn(TI) -> Result<TO> + 'static>, mut inFoldArg: FT) -> FT {
-    pub type ApplyFunc<TI: Clone, TO: Clone> = fn(TI) -> Result<TO>;
+    pub type ApplyFunc<TI: Clone + 'static, TO: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(TI) -> Result<TO> + 'static>;
 
-    pub type FoldFunc<TO: Clone, FT: Clone> = fn(TO, FT) -> Result<FT>;
+    pub type FoldFunc<TO: Clone + 'static, FT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(TO, FT) -> Result<FT> + 'static>;
 
     let mut outResult: FT = inFoldArg.clone();
     for mut e in &*inList.clone() {
@@ -1799,9 +1799,9 @@ pub fn applyAndFold<TI: Clone + 'static, TO: Clone + 'static, FT: Clone + 'stati
 }
 
 pub fn applyAndFold1<TI: Clone + 'static, TO: Clone + 'static, FT: Clone + 'static, ArgT1: Clone + 'static>(mut inList: Arc<metamodelica::List<TI>>, mut inFoldFunc: Arc<dyn ::std::ops::Fn(TO, FT) -> Result<FT> + 'static>, mut inApplyFunc: Arc<dyn ::std::ops::Fn(TI, ArgT1) -> Result<TO> + 'static>, mut inExtraArg: ArgT1, mut inFoldArg: FT) -> FT {
-    pub type ApplyFunc<TI: Clone, ArgT1: Clone, TO: Clone> = fn(TI, ArgT1) -> Result<TO>;
+    pub type ApplyFunc<TI: Clone + 'static, ArgT1: Clone + 'static, TO: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(TI, ArgT1) -> Result<TO> + 'static>;
 
-    pub type FoldFunc<TO: Clone, FT: Clone> = fn(TO, FT) -> Result<FT>;
+    pub type FoldFunc<TO: Clone + 'static, FT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(TO, FT) -> Result<FT> + 'static>;
 
     let mut outResult: FT = inFoldArg.clone();
     for mut e in &*inList.clone() {
@@ -1812,9 +1812,9 @@ pub fn applyAndFold1<TI: Clone + 'static, TO: Clone + 'static, FT: Clone + 'stat
 }
 
 pub fn mapMapBoolAnd<TI: Clone + 'static, TI2: Clone + 'static>(mut inList: Arc<metamodelica::List<TI>>, mut inFunc: Arc<dyn ::std::ops::Fn(TI) -> Result<TI2> + 'static>, mut inBFunc: Arc<dyn ::std::ops::Fn(TI2) -> Result<bool> + 'static>) -> bool {
-    pub type MapBFunc<TI2: Clone> = fn(TI2) -> Result<bool>;
+    pub type MapBFunc<TI2: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(TI2) -> Result<bool> + 'static>;
 
-    pub type MapFunc<TI: Clone, TI2: Clone> = fn(TI) -> Result<TI2>;
+    pub type MapFunc<TI: Clone + 'static, TI2: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(TI) -> Result<TI2> + 'static>;
 
     let mut res: bool = false;
     for mut e in &*inList.clone() {
@@ -1828,7 +1828,7 @@ pub fn mapMapBoolAnd<TI: Clone + 'static, TI2: Clone + 'static>(mut inList: Arc<
 }
 
 pub fn mapList<TI: Clone + 'static, TO: Clone + 'static>(mut inListList: Arc<metamodelica::List<Arc<metamodelica::List<TI>>>>, mut inFunc: Arc<dyn ::std::ops::Fn(TI) -> Result<TO> + 'static>) -> Arc<metamodelica::List<Arc<metamodelica::List<TO>>>> {
-    pub type MapFunc<TI: Clone, TO: Clone> = fn(TI) -> Result<TO>;
+    pub type MapFunc<TI: Clone + 'static, TO: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(TI) -> Result<TO> + 'static>;
 
     let mut outListList: Arc<metamodelica::List<Arc<metamodelica::List<TO>>>> = metamodelica::nil();
     outListList = {
@@ -1850,7 +1850,7 @@ pub fn mapList<TI: Clone + 'static, TO: Clone + 'static>(mut inListList: Arc<met
 }
 
 pub fn mapListReverse<TI: Clone + 'static, TO: Clone + 'static>(mut inListList: Arc<metamodelica::List<Arc<metamodelica::List<TI>>>>, mut inFunc: Arc<dyn ::std::ops::Fn(TI) -> Result<TO> + 'static>) -> Arc<metamodelica::List<Arc<metamodelica::List<TO>>>> {
-    pub type MapFunc<TI: Clone, TO: Clone> = fn(TI) -> Result<TO>;
+    pub type MapFunc<TI: Clone + 'static, TO: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(TI) -> Result<TO> + 'static>;
 
     let mut outListList: Arc<metamodelica::List<Arc<metamodelica::List<TO>>>> = metamodelica::nil();
     outListList = {
@@ -1872,7 +1872,7 @@ pub fn mapListReverse<TI: Clone + 'static, TO: Clone + 'static>(mut inListList: 
 }
 
 pub fn map1List<TI: Clone + 'static, TO: Clone + 'static, ArgT1: Clone + 'static>(mut inListList: Arc<metamodelica::List<Arc<metamodelica::List<TI>>>>, mut inFunc: Arc<dyn ::std::ops::Fn(TI, ArgT1) -> Result<TO> + 'static>, mut inArg1: ArgT1) -> Arc<metamodelica::List<Arc<metamodelica::List<TO>>>> {
-    pub type MapFunc<TI: Clone, ArgT1: Clone, TO: Clone> = fn(TI, ArgT1) -> Result<TO>;
+    pub type MapFunc<TI: Clone + 'static, ArgT1: Clone + 'static, TO: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(TI, ArgT1) -> Result<TO> + 'static>;
 
     let mut outListList: Arc<metamodelica::List<Arc<metamodelica::List<TO>>>> = metamodelica::nil();
     outListList = {
@@ -1894,7 +1894,7 @@ pub fn map1List<TI: Clone + 'static, TO: Clone + 'static, ArgT1: Clone + 'static
 }
 
 pub fn map2List<TI: Clone + 'static, TO: Clone + 'static, ArgT1: Clone + 'static, ArgT2: Clone + 'static>(mut inListList: Arc<metamodelica::List<Arc<metamodelica::List<TI>>>>, mut inFunc: Arc<dyn ::std::ops::Fn(TI, ArgT1, ArgT2) -> Result<TO> + 'static>, mut inArg1: ArgT1, mut inArg2: ArgT2) -> Arc<metamodelica::List<Arc<metamodelica::List<TO>>>> {
-    pub type MapFunc<TI: Clone, ArgT1: Clone, ArgT2: Clone, TO: Clone> = fn(TI, ArgT1, ArgT2) -> Result<TO>;
+    pub type MapFunc<TI: Clone + 'static, ArgT1: Clone + 'static, ArgT2: Clone + 'static, TO: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(TI, ArgT1, ArgT2) -> Result<TO> + 'static>;
 
     let mut outListList: Arc<metamodelica::List<Arc<metamodelica::List<TO>>>> = metamodelica::nil();
     outListList = {
@@ -1916,7 +1916,7 @@ pub fn map2List<TI: Clone + 'static, TO: Clone + 'static, ArgT1: Clone + 'static
 }
 
 pub fn fold<T: Clone + 'static, FT: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inFoldFunc: Arc<dyn ::std::ops::Fn(T, FT) -> Result<FT> + 'static>, mut inStartValue: FT) -> FT {
-    pub type FoldFunc<T: Clone, FT: Clone> = fn(T, FT) -> Result<FT>;
+    pub type FoldFunc<T: Clone + 'static, FT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T, FT) -> Result<FT> + 'static>;
 
     let mut outResult: FT = inStartValue.clone();
     for mut e in &*inList.clone() {
@@ -1927,7 +1927,7 @@ pub fn fold<T: Clone + 'static, FT: Clone + 'static>(mut inList: Arc<metamodelic
 }
 
 pub fn foldr<T: Clone + 'static, FT: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inFoldFunc: Arc<dyn ::std::ops::Fn(FT, T) -> Result<FT> + 'static>, mut inStartValue: FT) -> FT {
-    pub type FoldFunc<FT: Clone, T: Clone> = fn(FT, T) -> Result<FT>;
+    pub type FoldFunc<FT: Clone + 'static, T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(FT, T) -> Result<FT> + 'static>;
 
     let mut outResult: FT = inStartValue.clone();
     for mut e in &*inList.clone() {
@@ -1938,7 +1938,7 @@ pub fn foldr<T: Clone + 'static, FT: Clone + 'static>(mut inList: Arc<metamodeli
 }
 
 pub fn fold1<T: Clone + 'static, FT: Clone + 'static, ArgT1: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inFoldFunc: Arc<dyn ::std::ops::Fn(T, ArgT1, FT) -> Result<FT> + 'static>, mut inExtraArg: ArgT1, mut inStartValue: FT) -> FT {
-    pub type FoldFunc<T: Clone, ArgT1: Clone, FT: Clone> = fn(T, ArgT1, FT) -> Result<FT>;
+    pub type FoldFunc<T: Clone + 'static, ArgT1: Clone + 'static, FT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T, ArgT1, FT) -> Result<FT> + 'static>;
 
     let mut outResult: FT = inStartValue.clone();
     for mut e in &*inList.clone() {
@@ -1949,7 +1949,7 @@ pub fn fold1<T: Clone + 'static, FT: Clone + 'static, ArgT1: Clone + 'static>(mu
 }
 
 pub fn fold1r<T: Clone + 'static, FT: Clone + 'static, ArgT1: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inFoldFunc: Arc<dyn ::std::ops::Fn(FT, T, ArgT1) -> Result<FT> + 'static>, mut inExtraArg: ArgT1, mut inStartValue: FT) -> FT {
-    pub type FoldFunc<FT: Clone, T: Clone, ArgT1: Clone> = fn(FT, T, ArgT1) -> Result<FT>;
+    pub type FoldFunc<FT: Clone + 'static, T: Clone + 'static, ArgT1: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(FT, T, ArgT1) -> Result<FT> + 'static>;
 
     let mut outResult: FT = inStartValue.clone();
     for mut e in &*inList.clone() {
@@ -1960,7 +1960,7 @@ pub fn fold1r<T: Clone + 'static, FT: Clone + 'static, ArgT1: Clone + 'static>(m
 }
 
 pub fn fold2<T: Clone + 'static, FT: Clone + 'static, ArgT1: Clone + 'static, ArgT2: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inFoldFunc: Arc<dyn ::std::ops::Fn(T, ArgT1, ArgT2, FT) -> Result<FT> + 'static>, mut inExtraArg1: ArgT1, mut inExtraArg2: ArgT2, mut inStartValue: FT) -> FT {
-    pub type FoldFunc<T: Clone, ArgT1: Clone, ArgT2: Clone, FT: Clone> = fn(T, ArgT1, ArgT2, FT) -> Result<FT>;
+    pub type FoldFunc<T: Clone + 'static, ArgT1: Clone + 'static, ArgT2: Clone + 'static, FT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T, ArgT1, ArgT2, FT) -> Result<FT> + 'static>;
 
     let mut outResult: FT = inStartValue.clone();
     for mut e in &*inList.clone() {
@@ -1971,7 +1971,7 @@ pub fn fold2<T: Clone + 'static, FT: Clone + 'static, ArgT1: Clone + 'static, Ar
 }
 
 pub fn fold22<T: Clone + 'static, FT1: Clone + 'static, FT2: Clone + 'static, ArgT1: Clone + 'static, ArgT2: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inFoldFunc: Arc<dyn ::std::ops::Fn(T, ArgT1, ArgT2, FT1, FT2) -> Result<(FT1, FT2)> + 'static>, mut inExtraArg1: ArgT1, mut inExtraArg2: ArgT2, mut inStartValue1: FT1, mut inStartValue2: FT2) -> (FT1, FT2) {
-    pub type FoldFunc<T: Clone, ArgT1: Clone, ArgT2: Clone, FT1: Clone, FT2: Clone> = fn(T, ArgT1, ArgT2, FT1, FT2) -> Result<(FT1, FT2)>;
+    pub type FoldFunc<T: Clone + 'static, ArgT1: Clone + 'static, ArgT2: Clone + 'static, FT1: Clone + 'static, FT2: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T, ArgT1, ArgT2, FT1, FT2) -> Result<(FT1, FT2)> + 'static>;
 
     let mut outResult1: FT1 = inStartValue1.clone();
     let mut outResult2: FT2 = inStartValue2.clone();
@@ -1983,7 +1983,7 @@ pub fn fold22<T: Clone + 'static, FT1: Clone + 'static, FT2: Clone + 'static, Ar
 }
 
 pub fn foldList<T: Clone + 'static, FT: Clone + 'static>(mut inList: Arc<metamodelica::List<Arc<metamodelica::List<T>>>>, mut inFoldFunc: Arc<dyn ::std::ops::Fn(T, FT) -> Result<FT> + 'static>, mut inStartValue: FT) -> FT {
-    pub type FoldFunc<T: Clone, FT: Clone> = fn(T, FT) -> Result<FT>;
+    pub type FoldFunc<T: Clone + 'static, FT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T, FT) -> Result<FT> + 'static>;
 
     let mut outResult: FT = inStartValue.clone();
     for mut lst in &*inList.clone() {
@@ -1997,7 +1997,7 @@ pub fn foldList<T: Clone + 'static, FT: Clone + 'static>(mut inList: Arc<metamod
 }
 
 pub fn fold2r<T: Clone + 'static, FT: Clone + 'static, ArgT1: Clone + 'static, ArgT2: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inFoldFunc: Arc<dyn ::std::ops::Fn(FT, T, ArgT1, ArgT2) -> Result<FT> + 'static>, mut inExtraArg1: ArgT1, mut inExtraArg2: ArgT2, mut inStartValue: FT) -> FT {
-    pub type FoldFunc<FT: Clone, T: Clone, ArgT1: Clone, ArgT2: Clone> = fn(FT, T, ArgT1, ArgT2) -> Result<FT>;
+    pub type FoldFunc<FT: Clone + 'static, T: Clone + 'static, ArgT1: Clone + 'static, ArgT2: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(FT, T, ArgT1, ArgT2) -> Result<FT> + 'static>;
 
     let mut outResult: FT = inStartValue.clone();
     for mut e in &*inList.clone() {
@@ -2008,7 +2008,7 @@ pub fn fold2r<T: Clone + 'static, FT: Clone + 'static, ArgT1: Clone + 'static, A
 }
 
 pub fn fold3<T: Clone + 'static, FT: Clone + 'static, ArgT1: Clone + 'static, ArgT2: Clone + 'static, ArgT3: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inFoldFunc: Arc<dyn ::std::ops::Fn(T, ArgT1, ArgT2, ArgT3, FT) -> Result<FT> + 'static>, mut inExtraArg1: ArgT1, mut inExtraArg2: ArgT2, mut inExtraArg3: ArgT3, mut inStartValue: FT) -> FT {
-    pub type FoldFunc<T: Clone, ArgT1: Clone, ArgT2: Clone, ArgT3: Clone, FT: Clone> = fn(T, ArgT1, ArgT2, ArgT3, FT) -> Result<FT>;
+    pub type FoldFunc<T: Clone + 'static, ArgT1: Clone + 'static, ArgT2: Clone + 'static, ArgT3: Clone + 'static, FT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T, ArgT1, ArgT2, ArgT3, FT) -> Result<FT> + 'static>;
 
     let mut outResult: FT = inStartValue.clone();
     for mut e in &*inList.clone() {
@@ -2019,7 +2019,7 @@ pub fn fold3<T: Clone + 'static, FT: Clone + 'static, ArgT1: Clone + 'static, Ar
 }
 
 pub fn fold4<T: Clone + 'static, FT: Clone + 'static, ArgT1: Clone + 'static, ArgT2: Clone + 'static, ArgT3: Clone + 'static, ArgT4: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inFoldFunc: Arc<dyn ::std::ops::Fn(T, ArgT1, ArgT2, ArgT3, ArgT4, FT) -> Result<FT> + 'static>, mut inExtraArg1: ArgT1, mut inExtraArg2: ArgT2, mut inExtraArg3: ArgT3, mut inExtraArg4: ArgT4, mut inStartValue: FT) -> FT {
-    pub type FoldFunc<T: Clone, ArgT1: Clone, ArgT2: Clone, ArgT3: Clone, ArgT4: Clone, FT: Clone> = fn(T, ArgT1, ArgT2, ArgT3, ArgT4, FT) -> Result<FT>;
+    pub type FoldFunc<T: Clone + 'static, ArgT1: Clone + 'static, ArgT2: Clone + 'static, ArgT3: Clone + 'static, ArgT4: Clone + 'static, FT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T, ArgT1, ArgT2, ArgT3, ArgT4, FT) -> Result<FT> + 'static>;
 
     let mut outResult: FT = inStartValue.clone();
     for mut e in &*inList.clone() {
@@ -2030,7 +2030,7 @@ pub fn fold4<T: Clone + 'static, FT: Clone + 'static, ArgT1: Clone + 'static, Ar
 }
 
 pub fn fold20<T: Clone + 'static, FT1: Clone + 'static, FT2: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inFoldFunc: Arc<dyn ::std::ops::Fn(T, FT1, FT2) -> Result<(FT1, FT2)> + 'static>, mut inStartValue1: FT1, mut inStartValue2: FT2) -> (FT1, FT2) {
-    pub type FoldFunc<T: Clone, FT1: Clone, FT2: Clone> = fn(T, FT1, FT2) -> Result<(FT1, FT2)>;
+    pub type FoldFunc<T: Clone + 'static, FT1: Clone + 'static, FT2: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T, FT1, FT2) -> Result<(FT1, FT2)> + 'static>;
 
     let mut outResult1: FT1 = inStartValue1.clone();
     let mut outResult2: FT2 = inStartValue2.clone();
@@ -2042,7 +2042,7 @@ pub fn fold20<T: Clone + 'static, FT1: Clone + 'static, FT2: Clone + 'static>(mu
 }
 
 pub fn fold21<T: Clone + 'static, FT1: Clone + 'static, FT2: Clone + 'static, ArgT1: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inFoldFunc: Arc<dyn ::std::ops::Fn(T, ArgT1, FT1, FT2) -> Result<(FT1, FT2)> + 'static>, mut inExtraArg1: ArgT1, mut inStartValue1: FT1, mut inStartValue2: FT2) -> (FT1, FT2) {
-    pub type FoldFunc<T: Clone, ArgT1: Clone, FT1: Clone, FT2: Clone> = fn(T, ArgT1, FT1, FT2) -> Result<(FT1, FT2)>;
+    pub type FoldFunc<T: Clone + 'static, ArgT1: Clone + 'static, FT1: Clone + 'static, FT2: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T, ArgT1, FT1, FT2) -> Result<(FT1, FT2)> + 'static>;
 
     let mut outResult1: FT1 = inStartValue1.clone();
     let mut outResult2: FT2 = inStartValue2.clone();
@@ -2054,7 +2054,7 @@ pub fn fold21<T: Clone + 'static, FT1: Clone + 'static, FT2: Clone + 'static, Ar
 }
 
 pub fn fold31<T: Clone + 'static, FT1: Clone + 'static, FT2: Clone + 'static, FT3: Clone + 'static, ArgT1: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inFoldFunc: Arc<dyn ::std::ops::Fn(T, ArgT1, FT1, FT2, FT3) -> Result<(FT1, FT2, FT3)> + 'static>, mut inExtraArg1: ArgT1, mut inStartValue1: FT1, mut inStartValue2: FT2, mut inStartValue3: FT3) -> (FT1, FT2, FT3) {
-    pub type FoldFunc<T: Clone, ArgT1: Clone, FT1: Clone, FT2: Clone, FT3: Clone> = fn(T, ArgT1, FT1, FT2, FT3) -> Result<(FT1, FT2, FT3)>;
+    pub type FoldFunc<T: Clone + 'static, ArgT1: Clone + 'static, FT1: Clone + 'static, FT2: Clone + 'static, FT3: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T, ArgT1, FT1, FT2, FT3) -> Result<(FT1, FT2, FT3)> + 'static>;
 
     let mut outResult1: FT1 = inStartValue1.clone();
     let mut outResult2: FT2 = inStartValue2.clone();
@@ -2067,7 +2067,7 @@ pub fn fold31<T: Clone + 'static, FT1: Clone + 'static, FT2: Clone + 'static, FT
 }
 
 pub fn mapFold<TI: Clone + 'static, TO: Clone + 'static, FT: Clone + 'static>(mut inList: Arc<metamodelica::List<TI>>, mut inFunc: Arc<dyn ::std::ops::Fn(TI, FT) -> Result<(TO, FT)> + 'static>, mut inArg: FT) -> (Arc<metamodelica::List<TO>>, FT) {
-    pub type FuncType<TI: Clone, FT: Clone, TO: Clone> = fn(TI, FT) -> Result<(TO, FT)>;
+    pub type FuncType<TI: Clone + 'static, FT: Clone + 'static, TO: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(TI, FT) -> Result<(TO, FT)> + 'static>;
 
     let mut outList: Arc<metamodelica::List<TO>> = metamodelica::nil();
     let mut outArg: FT = inArg.clone();
@@ -2082,7 +2082,7 @@ pub fn mapFold<TI: Clone + 'static, TO: Clone + 'static, FT: Clone + 'static>(mu
 }
 
 pub fn mapFold2<TI: Clone + 'static, TO: Clone + 'static, FT1: Clone + 'static, FT2: Clone + 'static>(mut inList: Arc<metamodelica::List<TI>>, mut inFunc: Arc<dyn ::std::ops::Fn(TI, FT1, FT2) -> Result<(TO, FT1, FT2)> + 'static>, mut inArg1: FT1, mut inArg2: FT2) -> (Arc<metamodelica::List<TO>>, FT1, FT2) {
-    pub type FuncType<TI: Clone, FT1: Clone, FT2: Clone, TO: Clone> = fn(TI, FT1, FT2) -> Result<(TO, FT1, FT2)>;
+    pub type FuncType<TI: Clone + 'static, FT1: Clone + 'static, FT2: Clone + 'static, TO: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(TI, FT1, FT2) -> Result<(TO, FT1, FT2)> + 'static>;
 
     let mut outList: Arc<metamodelica::List<TO>> = metamodelica::nil();
     let mut outArg1: FT1 = inArg1.clone();
@@ -2098,7 +2098,7 @@ pub fn mapFold2<TI: Clone + 'static, TO: Clone + 'static, FT1: Clone + 'static, 
 }
 
 pub fn mapFold3<TI: Clone + 'static, TO: Clone + 'static, FT1: Clone + 'static, FT2: Clone + 'static, FT3: Clone + 'static>(mut inList: Arc<metamodelica::List<TI>>, mut inFunc: Arc<dyn ::std::ops::Fn(TI, FT1, FT2, FT3) -> Result<(TO, FT1, FT2, FT3)> + 'static>, mut inArg1: FT1, mut inArg2: FT2, mut inArg3: FT3) -> (Arc<metamodelica::List<TO>>, FT1, FT2, FT3) {
-    pub type FuncType<TI: Clone, FT1: Clone, FT2: Clone, FT3: Clone, TO: Clone> = fn(TI, FT1, FT2, FT3) -> Result<(TO, FT1, FT2, FT3)>;
+    pub type FuncType<TI: Clone + 'static, FT1: Clone + 'static, FT2: Clone + 'static, FT3: Clone + 'static, TO: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(TI, FT1, FT2, FT3) -> Result<(TO, FT1, FT2, FT3)> + 'static>;
 
     let mut outList: Arc<metamodelica::List<TO>> = metamodelica::nil();
     let mut inArg1: FT1 = inArg1;
@@ -2115,7 +2115,7 @@ pub fn mapFold3<TI: Clone + 'static, TO: Clone + 'static, FT1: Clone + 'static, 
 }
 
 pub fn mapFold5<TI: Clone + 'static, TO: Clone + 'static, FT1: Clone + 'static, FT2: Clone + 'static, FT3: Clone + 'static, FT4: Clone + 'static, FT5: Clone + 'static>(mut inList: Arc<metamodelica::List<TI>>, mut inFunc: Arc<dyn ::std::ops::Fn(TI, FT1, FT2, FT3, FT4, FT5) -> Result<(TO, FT1, FT2, FT3, FT4, FT5)> + 'static>, mut inArg1: FT1, mut inArg2: FT2, mut inArg3: FT3, mut inArg4: FT4, mut inArg5: FT5) -> (Arc<metamodelica::List<TO>>, FT1, FT2, FT3, FT4, FT5) {
-    pub type FuncType<TI: Clone, FT1: Clone, FT2: Clone, FT3: Clone, FT4: Clone, FT5: Clone, TO: Clone> = fn(TI, FT1, FT2, FT3, FT4, FT5) -> Result<(TO, FT1, FT2, FT3, FT4, FT5)>;
+    pub type FuncType<TI: Clone + 'static, FT1: Clone + 'static, FT2: Clone + 'static, FT3: Clone + 'static, FT4: Clone + 'static, FT5: Clone + 'static, TO: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(TI, FT1, FT2, FT3, FT4, FT5) -> Result<(TO, FT1, FT2, FT3, FT4, FT5)> + 'static>;
 
     let mut outList: Arc<metamodelica::List<TO>> = metamodelica::nil();
     let mut inArg1: FT1 = inArg1;
@@ -2134,7 +2134,7 @@ pub fn mapFold5<TI: Clone + 'static, TO: Clone + 'static, FT1: Clone + 'static, 
 }
 
 pub fn map1Fold<TI: Clone + 'static, TO: Clone + 'static, FT: Clone + 'static, ArgT1: Clone + 'static>(mut inList: Arc<metamodelica::List<TI>>, mut inFunc: Arc<dyn ::std::ops::Fn(TI, ArgT1, FT) -> Result<(TO, FT)> + 'static>, mut inConstArg: ArgT1, mut inArg: FT) -> (Arc<metamodelica::List<TO>>, FT) {
-    pub type FuncType<TI: Clone, ArgT1: Clone, FT: Clone, TO: Clone> = fn(TI, ArgT1, FT) -> Result<(TO, FT)>;
+    pub type FuncType<TI: Clone + 'static, ArgT1: Clone + 'static, FT: Clone + 'static, TO: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(TI, ArgT1, FT) -> Result<(TO, FT)> + 'static>;
 
     let mut outList: Arc<metamodelica::List<TO>> = metamodelica::nil();
     let mut outArg: FT = inArg.clone();
@@ -2149,7 +2149,7 @@ pub fn map1Fold<TI: Clone + 'static, TO: Clone + 'static, FT: Clone + 'static, A
 }
 
 pub fn map2Fold<TI: Clone + 'static, TO: Clone + 'static, FT: Clone + 'static, ArgT1: Clone + 'static, ArgT2: Clone + 'static>(mut inList: Arc<metamodelica::List<TI>>, mut inFunc: Arc<dyn ::std::ops::Fn(TI, ArgT1, ArgT2, FT) -> Result<(TO, FT)> + 'static>, mut inConstArg: ArgT1, mut inConstArg2: ArgT2, mut inArg: FT, mut inAccum: Arc<metamodelica::List<TO>>) -> (Arc<metamodelica::List<TO>>, FT) {
-    pub type FuncType<TI: Clone, ArgT1: Clone, ArgT2: Clone, FT: Clone, TO: Clone> = fn(TI, ArgT1, ArgT2, FT) -> Result<(TO, FT)>;
+    pub type FuncType<TI: Clone + 'static, ArgT1: Clone + 'static, ArgT2: Clone + 'static, FT: Clone + 'static, TO: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(TI, ArgT1, ArgT2, FT) -> Result<(TO, FT)> + 'static>;
 
     let mut outList: Arc<metamodelica::List<TO>> = inAccum.clone();
     let mut outArg: FT = inArg.clone();
@@ -2164,7 +2164,7 @@ pub fn map2Fold<TI: Clone + 'static, TO: Clone + 'static, FT: Clone + 'static, A
 }
 
 pub fn map2FoldCheckReferenceEq<TIO: Clone + 'static + PartialEq, FT: Clone + 'static, ArgT1: Clone + 'static, ArgT2: Clone + 'static>(mut inList: Arc<metamodelica::List<TIO>>, mut inFunc: Arc<dyn ::std::ops::Fn(TIO, ArgT1, ArgT2, FT) -> Result<(TIO, FT)> + 'static>, mut inConstArg: ArgT1, mut inConstArg2: ArgT2, mut inArg: FT) -> (Arc<metamodelica::List<TIO>>, FT) {
-    pub type FuncType<TIO: Clone, ArgT1: Clone, ArgT2: Clone, FT: Clone> = fn(TIO, ArgT1, ArgT2, FT) -> Result<(TIO, FT)>;
+    pub type FuncType<TIO: Clone + 'static, ArgT1: Clone + 'static, ArgT2: Clone + 'static, FT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(TIO, ArgT1, ArgT2, FT) -> Result<(TIO, FT)> + 'static>;
 
     let mut outList: Arc<metamodelica::List<TIO>> = metamodelica::nil();
     let mut outArg: FT = inArg.clone();
@@ -2198,7 +2198,7 @@ pub fn map2FoldCheckReferenceEq<TIO: Clone + 'static + PartialEq, FT: Clone + 's
 }
 
 pub fn map3Fold<TI: Clone + 'static, TO: Clone + 'static, FT: Clone + 'static, ArgT1: Clone + 'static, ArgT2: Clone + 'static, ArgT3: Clone + 'static>(mut inList: Arc<metamodelica::List<TI>>, mut inFunc: Arc<dyn ::std::ops::Fn(TI, ArgT1, ArgT2, ArgT3, FT) -> Result<(TO, FT)> + 'static>, mut inConstArg: ArgT1, mut inConstArg2: ArgT2, mut inConstArg3: ArgT3, mut inArg: FT) -> (Arc<metamodelica::List<TO>>, FT) {
-    pub type FuncType<TI: Clone, ArgT1: Clone, ArgT2: Clone, ArgT3: Clone, FT: Clone, TO: Clone> = fn(TI, ArgT1, ArgT2, ArgT3, FT) -> Result<(TO, FT)>;
+    pub type FuncType<TI: Clone + 'static, ArgT1: Clone + 'static, ArgT2: Clone + 'static, ArgT3: Clone + 'static, FT: Clone + 'static, TO: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(TI, ArgT1, ArgT2, ArgT3, FT) -> Result<(TO, FT)> + 'static>;
 
     let mut outList: Arc<metamodelica::List<TO>> = metamodelica::nil();
     let mut outArg: FT = inArg.clone();
@@ -2213,7 +2213,7 @@ pub fn map3Fold<TI: Clone + 'static, TO: Clone + 'static, FT: Clone + 'static, A
 }
 
 pub fn mapFoldList<TI: Clone + 'static, TO: Clone + 'static, FT: Clone + 'static>(mut inListList: Arc<metamodelica::List<Arc<metamodelica::List<TI>>>>, mut inFunc: Arc<dyn ::std::ops::Fn(TI, FT) -> Result<(TO, FT)> + 'static>, mut inArg: FT) -> (Arc<metamodelica::List<Arc<metamodelica::List<TO>>>>, FT) {
-    pub type FuncType<TI: Clone, FT: Clone, TO: Clone> = fn(TI, FT) -> Result<(TO, FT)>;
+    pub type FuncType<TI: Clone + 'static, FT: Clone + 'static, TO: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(TI, FT) -> Result<(TO, FT)> + 'static>;
 
     let mut outListList: Arc<metamodelica::List<Arc<metamodelica::List<TO>>>> = metamodelica::nil();
     let mut outArg: FT = inArg.clone();
@@ -2228,7 +2228,7 @@ pub fn mapFoldList<TI: Clone + 'static, TO: Clone + 'static, FT: Clone + 'static
 }
 
 pub fn reduce<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inReduceFunc: Arc<dyn ::std::ops::Fn(T, T) -> Result<T> + 'static>) -> Result<T> {
-    pub type ReduceFunc<T: Clone> = fn(T, T) -> Result<T>;
+    pub type ReduceFunc<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T, T) -> Result<T> + 'static>;
 
     let mut outResult: T;
     let mut rest: Arc<metamodelica::List<T>> = metamodelica::nil();
@@ -2362,7 +2362,7 @@ pub fn unzipSecond<T1: Clone + 'static, T2: Clone + 'static>(mut inTuples: Arc<m
 }
 
 pub fn threadMap<T1: Clone + 'static, T2: Clone + 'static, TO: Clone + 'static>(mut inList1: Arc<metamodelica::List<T1>>, mut inList2: Arc<metamodelica::List<T2>>, mut inMapFunc: Arc<dyn ::std::ops::Fn(T1, T2) -> Result<TO> + 'static>) -> Arc<metamodelica::List<TO>> {
-    pub type MapFunc<T1: Clone, T2: Clone, TO: Clone> = fn(T1, T2) -> Result<TO>;
+    pub type MapFunc<T1: Clone + 'static, T2: Clone + 'static, TO: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T1, T2) -> Result<TO> + 'static>;
 
     let mut outList: Arc<metamodelica::List<TO>> = metamodelica::nil();
     outList = {
@@ -2377,7 +2377,7 @@ pub fn threadMap<T1: Clone + 'static, T2: Clone + 'static, TO: Clone + 'static>(
 }
 
 pub fn threadMap_2<T1: Clone + 'static, T2: Clone + 'static, TO1: Clone + 'static, TO2: Clone + 'static>(mut inList1: Arc<metamodelica::List<T1>>, mut inList2: Arc<metamodelica::List<T2>>, mut inMapFunc: Arc<dyn ::std::ops::Fn(T1, T2) -> Result<(TO1, TO2)> + 'static>) -> Result<(Arc<metamodelica::List<TO1>>, Arc<metamodelica::List<TO2>>)> {
-    pub type MapFunc<T1: Clone, T2: Clone, TO1: Clone, TO2: Clone> = fn(T1, T2) -> Result<(TO1, TO2)>;
+    pub type MapFunc<T1: Clone + 'static, T2: Clone + 'static, TO1: Clone + 'static, TO2: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T1, T2) -> Result<(TO1, TO2)> + 'static>;
 
     let mut outList1: Arc<metamodelica::List<TO1>> = metamodelica::nil();
     let mut outList2: Arc<metamodelica::List<TO2>> = metamodelica::nil();
@@ -2403,7 +2403,7 @@ pub fn threadMap_2<T1: Clone + 'static, T2: Clone + 'static, TO1: Clone + 'stati
 }
 
 pub fn threadMapList<T1: Clone + 'static, T2: Clone + 'static, TO: Clone + 'static>(mut inList1: Arc<metamodelica::List<Arc<metamodelica::List<T1>>>>, mut inList2: Arc<metamodelica::List<Arc<metamodelica::List<T2>>>>, mut inMapFunc: Arc<dyn ::std::ops::Fn(T1, T2) -> Result<TO> + 'static>) -> Arc<metamodelica::List<Arc<metamodelica::List<TO>>>> {
-    pub type MapFunc<T1: Clone, T2: Clone, TO: Clone> = fn(T1, T2) -> Result<TO>;
+    pub type MapFunc<T1: Clone + 'static, T2: Clone + 'static, TO: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T1, T2) -> Result<TO> + 'static>;
 
     let mut outList: Arc<metamodelica::List<Arc<metamodelica::List<TO>>>> = metamodelica::nil();
     outList = {
@@ -2418,7 +2418,7 @@ pub fn threadMapList<T1: Clone + 'static, T2: Clone + 'static, TO: Clone + 'stat
 }
 
 pub fn threadMapList_2<T1: Clone + 'static, T2: Clone + 'static, TO1: Clone + 'static, TO2: Clone + 'static>(mut inList1: Arc<metamodelica::List<Arc<metamodelica::List<T1>>>>, mut inList2: Arc<metamodelica::List<Arc<metamodelica::List<T2>>>>, mut inMapFunc: Arc<dyn ::std::ops::Fn(T1, T2) -> Result<(TO1, TO2)> + 'static>) -> Result<(Arc<metamodelica::List<Arc<metamodelica::List<TO1>>>>, Arc<metamodelica::List<Arc<metamodelica::List<TO2>>>>)> {
-    pub type MapFunc<T1: Clone, T2: Clone, TO1: Clone, TO2: Clone> = fn(T1, T2) -> Result<(TO1, TO2)>;
+    pub type MapFunc<T1: Clone + 'static, T2: Clone + 'static, TO1: Clone + 'static, TO2: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T1, T2) -> Result<(TO1, TO2)> + 'static>;
 
     let mut outList1: Arc<metamodelica::List<Arc<metamodelica::List<TO1>>>> = metamodelica::nil();
     let mut outList2: Arc<metamodelica::List<Arc<metamodelica::List<TO2>>>> = metamodelica::nil();
@@ -2444,7 +2444,7 @@ pub fn threadMapList_2<T1: Clone + 'static, T2: Clone + 'static, TO1: Clone + 's
 }
 
 pub fn threadMap1<T1: Clone + 'static, T2: Clone + 'static, TO: Clone + 'static, ArgT1: Clone + 'static>(mut inList1: Arc<metamodelica::List<T1>>, mut inList2: Arc<metamodelica::List<T2>>, mut inMapFunc: Arc<dyn ::std::ops::Fn(T1, T2, ArgT1) -> Result<TO> + 'static>, mut inArg1: ArgT1) -> Arc<metamodelica::List<TO>> {
-    pub type MapFunc<T1: Clone, T2: Clone, ArgT1: Clone, TO: Clone> = fn(T1, T2, ArgT1) -> Result<TO>;
+    pub type MapFunc<T1: Clone + 'static, T2: Clone + 'static, ArgT1: Clone + 'static, TO: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T1, T2, ArgT1) -> Result<TO> + 'static>;
 
     let mut outList: Arc<metamodelica::List<TO>> = metamodelica::nil();
     outList = {
@@ -2459,7 +2459,7 @@ pub fn threadMap1<T1: Clone + 'static, T2: Clone + 'static, TO: Clone + 'static,
 }
 
 pub fn threadMap1_0<T1: Clone + 'static, T2: Clone + 'static, ArgT1: Clone + 'static>(mut inList1: Arc<metamodelica::List<T1>>, mut inList2: Arc<metamodelica::List<T2>>, mut inMapFunc: Arc<dyn ::std::ops::Fn(T1, T2, ArgT1) -> Result<()> + 'static>, mut inArg1: ArgT1) -> Result<()> {
-    pub type MapFunc<T1: Clone, T2: Clone, ArgT1: Clone> = fn(T1, T2, ArgT1) -> Result<()>;
+    pub type MapFunc<T1: Clone + 'static, T2: Clone + 'static, ArgT1: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T1, T2, ArgT1) -> Result<()> + 'static>;
 
     let _ = (::match_deref::match_deref! { match &((inList1.clone(), inList2.clone(), inMapFunc.clone(), inArg1.clone())) {
         (Deref @ metamodelica::List::Nil, Deref @ metamodelica::List::Nil, _, _) => {
@@ -2476,7 +2476,7 @@ pub fn threadMap1_0<T1: Clone + 'static, T2: Clone + 'static, ArgT1: Clone + 'st
 }
 
 pub fn threadMap2<T1: Clone + 'static, T2: Clone + 'static, TO: Clone + 'static, ArgT1: Clone + 'static, ArgT2: Clone + 'static>(mut inList1: Arc<metamodelica::List<T1>>, mut inList2: Arc<metamodelica::List<T2>>, mut inMapFunc: Arc<dyn ::std::ops::Fn(T1, T2, ArgT1, ArgT2) -> Result<TO> + 'static>, mut inArg1: ArgT1, mut inArg2: ArgT2) -> Arc<metamodelica::List<TO>> {
-    pub type MapFunc<T1: Clone, T2: Clone, ArgT1: Clone, ArgT2: Clone, TO: Clone> = fn(T1, T2, ArgT1, ArgT2) -> Result<TO>;
+    pub type MapFunc<T1: Clone + 'static, T2: Clone + 'static, ArgT1: Clone + 'static, ArgT2: Clone + 'static, TO: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T1, T2, ArgT1, ArgT2) -> Result<TO> + 'static>;
 
     let mut outList: Arc<metamodelica::List<TO>> = metamodelica::nil();
     outList = {
@@ -2491,7 +2491,7 @@ pub fn threadMap2<T1: Clone + 'static, T2: Clone + 'static, TO: Clone + 'static,
 }
 
 pub fn thread3Map<T1: Clone + 'static, T2: Clone + 'static, T3: Clone + 'static, TO: Clone + 'static>(mut inList1: Arc<metamodelica::List<T1>>, mut inList2: Arc<metamodelica::List<T2>>, mut inList3: Arc<metamodelica::List<T3>>, mut inFunc: Arc<dyn ::std::ops::Fn(T1, T2, T3) -> Result<TO> + 'static>) -> Arc<metamodelica::List<TO>> {
-    pub type MapFunc<T1: Clone, T2: Clone, T3: Clone, TO: Clone> = fn(T1, T2, T3) -> Result<TO>;
+    pub type MapFunc<T1: Clone + 'static, T2: Clone + 'static, T3: Clone + 'static, TO: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T1, T2, T3) -> Result<TO> + 'static>;
 
     let mut outList: Arc<metamodelica::List<TO>> = metamodelica::nil();
     outList = {
@@ -2506,7 +2506,7 @@ pub fn thread3Map<T1: Clone + 'static, T2: Clone + 'static, T3: Clone + 'static,
 }
 
 pub fn thread3MapFold<T1: Clone + 'static, T2: Clone + 'static, T3: Clone + 'static, TO: Clone + 'static, ArgT1: Clone + 'static>(mut inList1: Arc<metamodelica::List<T1>>, mut inList2: Arc<metamodelica::List<T2>>, mut inList3: Arc<metamodelica::List<T3>>, mut inFunc: Arc<dyn ::std::ops::Fn(T1, T2, T3, ArgT1) -> Result<(TO, ArgT1)> + 'static>, mut inArg: ArgT1) -> Result<(Arc<metamodelica::List<TO>>, ArgT1)> {
-    pub type MapFunc<T1: Clone, T2: Clone, T3: Clone, ArgT1: Clone, TO: Clone> = fn(T1, T2, T3, ArgT1) -> Result<(TO, ArgT1)>;
+    pub type MapFunc<T1: Clone + 'static, T2: Clone + 'static, T3: Clone + 'static, ArgT1: Clone + 'static, TO: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T1, T2, T3, ArgT1) -> Result<(TO, ArgT1)> + 'static>;
 
     let mut outList: Arc<metamodelica::List<TO>> = metamodelica::nil();
     let mut outArg: ArgT1 = inArg.clone();
@@ -2541,7 +2541,7 @@ pub fn thread3MapFold<T1: Clone + 'static, T2: Clone + 'static, T3: Clone + 'sta
 // NOTE: #[tailcall::tailcall] disabled: function body contains a `match_deref!{…}` match,
 // and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
 pub fn threadFold1<T1: Clone + 'static, T2: Clone + 'static, FT: Clone + 'static, ArgT1: Clone + 'static>(mut inList1: Arc<metamodelica::List<T1>>, mut inList2: Arc<metamodelica::List<T2>>, mut inFoldFunc: Arc<dyn ::std::ops::Fn(T1, T2, ArgT1, FT) -> Result<FT> + 'static>, mut inArg1: ArgT1, mut inFoldArg: FT) -> Result<FT> {
-    pub type FoldFunc<T1: Clone, T2: Clone, ArgT1: Clone, FT: Clone> = fn(T1, T2, ArgT1, FT) -> Result<FT>;
+    pub type FoldFunc<T1: Clone + 'static, T2: Clone + 'static, ArgT1: Clone + 'static, FT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T1, T2, ArgT1, FT) -> Result<FT> + 'static>;
 
     let mut outFoldArg: FT;
     outFoldArg = (::match_deref::match_deref! { match &((inList1.clone(), inList2.clone())) {
@@ -2561,7 +2561,7 @@ pub fn threadFold1<T1: Clone + 'static, T2: Clone + 'static, FT: Clone + 'static
 // NOTE: #[tailcall::tailcall] disabled: function body contains a `match_deref!{…}` match,
 // and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
 pub fn threadFold2<T1: Clone + 'static, T2: Clone + 'static, FT: Clone + 'static, ArgT1: Clone + 'static, ArgT2: Clone + 'static>(mut inList1: Arc<metamodelica::List<T1>>, mut inList2: Arc<metamodelica::List<T2>>, mut inFoldFunc: Arc<dyn ::std::ops::Fn(T1, T2, ArgT1, ArgT2, FT) -> Result<FT> + 'static>, mut inArg1: ArgT1, mut inArg2: ArgT2, mut inFoldArg: FT) -> Result<FT> {
-    pub type FoldFunc<T1: Clone, T2: Clone, ArgT1: Clone, ArgT2: Clone, FT: Clone> = fn(T1, T2, ArgT1, ArgT2, FT) -> Result<FT>;
+    pub type FoldFunc<T1: Clone + 'static, T2: Clone + 'static, ArgT1: Clone + 'static, ArgT2: Clone + 'static, FT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T1, T2, ArgT1, ArgT2, FT) -> Result<FT> + 'static>;
 
     let mut outFoldArg: FT;
     outFoldArg = (::match_deref::match_deref! { match &((inList1.clone(), inList2.clone())) {
@@ -2581,7 +2581,7 @@ pub fn threadFold2<T1: Clone + 'static, T2: Clone + 'static, FT: Clone + 'static
 // NOTE: #[tailcall::tailcall] disabled: function body contains a `match_deref!{…}` match,
 // and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
 pub fn threadFold3<T1: Clone + 'static, T2: Clone + 'static, FT: Clone + 'static, ArgT1: Clone + 'static, ArgT2: Clone + 'static, ArgT3: Clone + 'static>(mut inList1: Arc<metamodelica::List<T1>>, mut inList2: Arc<metamodelica::List<T2>>, mut inFoldFunc: Arc<dyn ::std::ops::Fn(T1, T2, ArgT1, ArgT2, ArgT3, FT) -> Result<FT> + 'static>, mut inArg1: ArgT1, mut inArg2: ArgT2, mut inArg3: ArgT3, mut inFoldArg: FT) -> Result<FT> {
-    pub type FoldFunc<T1: Clone, T2: Clone, ArgT1: Clone, ArgT2: Clone, ArgT3: Clone, FT: Clone> = fn(T1, T2, ArgT1, ArgT2, ArgT3, FT) -> Result<FT>;
+    pub type FoldFunc<T1: Clone + 'static, T2: Clone + 'static, ArgT1: Clone + 'static, ArgT2: Clone + 'static, ArgT3: Clone + 'static, FT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T1, T2, ArgT1, ArgT2, ArgT3, FT) -> Result<FT> + 'static>;
 
     let mut outFoldArg: FT;
     outFoldArg = (::match_deref::match_deref! { match &((inList1.clone(), inList2.clone())) {
@@ -2601,7 +2601,7 @@ pub fn threadFold3<T1: Clone + 'static, T2: Clone + 'static, FT: Clone + 'static
 // NOTE: #[tailcall::tailcall] disabled: function body contains a `match_deref!{…}` match,
 // and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
 pub fn threadFold<T1: Clone + 'static, T2: Clone + 'static, FT: Clone + 'static>(mut inList1: Arc<metamodelica::List<T1>>, mut inList2: Arc<metamodelica::List<T2>>, mut inFoldFunc: Arc<dyn ::std::ops::Fn(T1, T2, FT) -> Result<FT> + 'static>, mut inFoldArg: FT) -> Result<FT> {
-    pub type FoldFunc<T1: Clone, T2: Clone, FT: Clone> = fn(T1, T2, FT) -> Result<FT>;
+    pub type FoldFunc<T1: Clone + 'static, T2: Clone + 'static, FT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T1, T2, FT) -> Result<FT> + 'static>;
 
     let mut outFoldArg: FT;
     outFoldArg = (::match_deref::match_deref! { match &((inList1.clone(), inList2.clone())) {
@@ -2619,7 +2619,7 @@ pub fn threadFold<T1: Clone + 'static, T2: Clone + 'static, FT: Clone + 'static>
 }
 
 pub fn threadMapFold<T1: Clone + 'static, T2: Clone + 'static, TO: Clone + 'static, FT: Clone + 'static>(mut inList1: Arc<metamodelica::List<T1>>, mut inList2: Arc<metamodelica::List<T2>>, mut inFunc: Arc<dyn ::std::ops::Fn(T1, T2, FT) -> Result<(TO, FT)> + 'static>, mut inArg: FT) -> Result<(Arc<metamodelica::List<TO>>, FT)> {
-    pub type FuncType<T1: Clone, T2: Clone, FT: Clone, TO: Clone> = fn(T1, T2, FT) -> Result<(TO, FT)>;
+    pub type FuncType<T1: Clone + 'static, T2: Clone + 'static, FT: Clone + 'static, TO: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T1, T2, FT) -> Result<(TO, FT)> + 'static>;
 
     let mut outList: Arc<metamodelica::List<TO>> = metamodelica::nil();
     let mut outArg: FT = inArg.clone();
@@ -2656,7 +2656,7 @@ pub fn position<T: Clone + 'static + PartialEq>(mut inElement: T, mut inList: Ar
 }
 
 pub fn positionOnTrue<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inPredFunc: Arc<dyn ::std::ops::Fn(T) -> Result<bool> + 'static>) -> i32 {
-    pub type PredFunc<T: Clone> = fn(T) -> Result<bool>;
+    pub type PredFunc<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T) -> Result<bool> + 'static>;
 
     let mut outPosition: i32 = 1;
     for mut e in &*inList.clone() {
@@ -2671,7 +2671,7 @@ pub fn positionOnTrue<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>
 }
 
 pub fn position1OnTrue<T: Clone + 'static, ArgT: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inPredFunc: Arc<dyn ::std::ops::Fn(T, ArgT) -> Result<bool> + 'static>, mut inArg: ArgT) -> i32 {
-    pub type PredFunc<T: Clone, ArgT: Clone> = fn(T, ArgT) -> Result<bool>;
+    pub type PredFunc<T: Clone + 'static, ArgT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T, ArgT) -> Result<bool> + 'static>;
 
     let mut outPosition: i32 = 1;
     for mut e in &*inList.clone() {
@@ -2702,7 +2702,7 @@ pub fn getMember<T: Clone + 'static + PartialEq>(mut inElement: T, mut inList: A
 }
 
 pub fn getMemberOnTrue<T: Clone + 'static, VT: Clone + 'static>(mut inValue: VT, mut inList: Arc<metamodelica::List<T>>, mut inCompFunc: Arc<dyn ::std::ops::Fn(VT, T) -> Result<bool> + 'static>) -> Result<T> {
-    pub type CompFunc<VT: Clone, T: Clone> = fn(VT, T) -> Result<bool>;
+    pub type CompFunc<VT: Clone + 'static, T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(VT, T) -> Result<bool> + 'static>;
 
     let mut outElement: T;
     for mut e in &*inList.clone() {
@@ -2723,7 +2723,7 @@ pub fn notMember<T: Clone + 'static + PartialEq>(mut inElement: T, mut inList: A
 }
 
 pub fn isMemberOnTrue<T: Clone + 'static, VT: Clone + 'static>(mut inValue: VT, mut inList: Arc<metamodelica::List<T>>, mut inCompFunc: Arc<dyn ::std::ops::Fn(VT, T) -> Result<bool> + 'static>) -> bool {
-    pub type CompFunc<VT: Clone, T: Clone> = fn(VT, T) -> Result<bool>;
+    pub type CompFunc<VT: Clone + 'static, T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(VT, T) -> Result<bool> + 'static>;
 
     let mut outIsMember: bool = false;
     for mut e in &*inList.clone() {
@@ -2738,7 +2738,7 @@ pub fn isMemberOnTrue<T: Clone + 'static, VT: Clone + 'static>(mut inValue: VT, 
 }
 
 pub fn exist1<T: Clone + 'static, ArgT1: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inFindFunc: Arc<dyn ::std::ops::Fn(T, ArgT1) -> Result<bool> + 'static>, mut inExtraArg: ArgT1) -> bool {
-    pub type FindFunc<T: Clone, ArgT1: Clone> = fn(T, ArgT1) -> Result<bool>;
+    pub type FindFunc<T: Clone + 'static, ArgT1: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T, ArgT1) -> Result<bool> + 'static>;
 
     let mut outExists: bool = false;
     for mut e in &*inList.clone() {
@@ -2753,7 +2753,7 @@ pub fn exist1<T: Clone + 'static, ArgT1: Clone + 'static>(mut inList: Arc<metamo
 }
 
 pub fn extractOnTrue<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inFilterFunc: Arc<dyn ::std::ops::Fn(T) -> Result<bool> + 'static>) -> (Arc<metamodelica::List<T>>, Arc<metamodelica::List<T>>) {
-    pub type FilterFunc<T: Clone> = fn(T) -> Result<bool>;
+    pub type FilterFunc<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T) -> Result<bool> + 'static>;
 
     let mut outExtractedList: Arc<metamodelica::List<T>> = metamodelica::nil();
     let mut outRemainingList: Arc<metamodelica::List<T>> = metamodelica::nil();
@@ -2771,7 +2771,7 @@ pub fn extractOnTrue<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>,
 }
 
 pub fn extract1OnTrue<T: Clone + 'static, ArgT1: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inFilterFunc: Arc<dyn ::std::ops::Fn(T, ArgT1) -> Result<bool> + 'static>, mut inArg: ArgT1) -> (Arc<metamodelica::List<T>>, Arc<metamodelica::List<T>>) {
-    pub type FilterFunc<T: Clone, ArgT1: Clone> = fn(T, ArgT1) -> Result<bool>;
+    pub type FilterFunc<T: Clone + 'static, ArgT1: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T, ArgT1) -> Result<bool> + 'static>;
 
     let mut outExtractedList: Arc<metamodelica::List<T>> = metamodelica::nil();
     let mut outRemainingList: Arc<metamodelica::List<T>> = metamodelica::nil();
@@ -2789,7 +2789,7 @@ pub fn extract1OnTrue<T: Clone + 'static, ArgT1: Clone + 'static>(mut inList: Ar
 }
 
 pub fn filter<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inFilterFunc: Arc<dyn ::std::ops::Fn(T) -> Result<()> + 'static>) -> Arc<metamodelica::List<T>> {
-    pub type FilterFunc<T: Clone> = fn(T) -> Result<()>;
+    pub type FilterFunc<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T) -> Result<()> + 'static>;
 
     let mut outList: Arc<metamodelica::List<T>> = metamodelica::nil();
     for mut e in &*inList.clone() {
@@ -2806,7 +2806,7 @@ pub fn filter<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut in
 }
 
 pub fn filterMap<TI: Clone + 'static, TO: Clone + 'static>(mut inList: Arc<metamodelica::List<TI>>, mut inFilterMapFunc: Arc<dyn ::std::ops::Fn(TI) -> Result<TO> + 'static>) -> Arc<metamodelica::List<TO>> {
-    pub type FilterMapFunc<TI: Clone, TO: Clone> = fn(TI) -> Result<TO>;
+    pub type FilterMapFunc<TI: Clone + 'static, TO: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(TI) -> Result<TO> + 'static>;
 
     let mut outList: Arc<metamodelica::List<TO>> = metamodelica::nil();
     let mut oe: TO;
@@ -2824,7 +2824,7 @@ pub fn filterMap<TI: Clone + 'static, TO: Clone + 'static>(mut inList: Arc<metam
 }
 
 pub fn filterMap1<TI: Clone + 'static, TO: Clone + 'static, ArgT1: Clone + 'static>(mut inList: Arc<metamodelica::List<TI>>, mut inFilterMapFunc: Arc<dyn ::std::ops::Fn(TI, ArgT1) -> Result<TO> + 'static>, mut inExtraArg: ArgT1) -> Arc<metamodelica::List<TO>> {
-    pub type FilterMapFunc<TI: Clone, ArgT1: Clone, TO: Clone> = fn(TI, ArgT1) -> Result<TO>;
+    pub type FilterMapFunc<TI: Clone + 'static, ArgT1: Clone + 'static, TO: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(TI, ArgT1) -> Result<TO> + 'static>;
 
     let mut outList: Arc<metamodelica::List<TO>> = metamodelica::nil();
     let mut oe: TO;
@@ -2842,7 +2842,7 @@ pub fn filterMap1<TI: Clone + 'static, TO: Clone + 'static, ArgT1: Clone + 'stat
 }
 
 pub fn filterOnTrue<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inFilterFunc: Arc<dyn ::std::ops::Fn(T) -> Result<bool> + 'static>) -> Arc<metamodelica::List<T>> {
-    pub type FilterFunc<T: Clone> = fn(T) -> Result<bool>;
+    pub type FilterFunc<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T) -> Result<bool> + 'static>;
 
     let mut outList: Arc<metamodelica::List<T>> = metamodelica::nil();
     outList = {
@@ -2858,7 +2858,7 @@ pub fn filterOnTrue<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, 
 }
 
 pub fn filterOnFalse<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inFilterFunc: Arc<dyn ::std::ops::Fn(T) -> Result<bool> + 'static>) -> Arc<metamodelica::List<T>> {
-    pub type FilterFunc<T: Clone> = fn(T) -> Result<bool>;
+    pub type FilterFunc<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T) -> Result<bool> + 'static>;
 
     let mut outList: Arc<metamodelica::List<T>> = metamodelica::nil();
     outList = {
@@ -2874,7 +2874,7 @@ pub fn filterOnFalse<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>,
 }
 
 pub fn filter1OnTrueSync<T1: Clone + 'static, T2: Clone + 'static, ArgT1: Clone + 'static>(mut inList: Arc<metamodelica::List<T1>>, mut inFilterFunc: Arc<dyn ::std::ops::Fn(T1, ArgT1) -> Result<bool> + 'static>, mut inArg1: ArgT1, mut inSyncList: Arc<metamodelica::List<T2>>) -> Result<(Arc<metamodelica::List<T1>>, Arc<metamodelica::List<T2>>)> {
-    pub type FilterFunc<T1: Clone, ArgT1: Clone> = fn(T1, ArgT1) -> Result<bool>;
+    pub type FilterFunc<T1: Clone + 'static, ArgT1: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T1, ArgT1) -> Result<bool> + 'static>;
 
     let mut outList_a: Arc<metamodelica::List<T1>> = metamodelica::nil();
     let mut outList_b: Arc<metamodelica::List<T2>> = metamodelica::nil();
@@ -2899,7 +2899,7 @@ pub fn filter1OnTrueSync<T1: Clone + 'static, T2: Clone + 'static, ArgT1: Clone 
 }
 
 pub fn filterOnTrueSync<T1: Clone + 'static, T2: Clone + 'static>(mut inList: Arc<metamodelica::List<T1>>, mut inFilterFunc: Arc<dyn ::std::ops::Fn(T1) -> Result<bool> + 'static>, mut inSyncList: Arc<metamodelica::List<T2>>) -> Result<(Arc<metamodelica::List<T1>>, Arc<metamodelica::List<T2>>)> {
-    pub type FilterFunc<T1: Clone> = fn(T1) -> Result<bool>;
+    pub type FilterFunc<T1: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T1) -> Result<bool> + 'static>;
 
     let mut outList_a: Arc<metamodelica::List<T1>> = metamodelica::nil();
     let mut outList_b: Arc<metamodelica::List<T2>> = metamodelica::nil();
@@ -2925,7 +2925,7 @@ pub fn filterOnTrueSync<T1: Clone + 'static, T2: Clone + 'static>(mut inList: Ar
 }
 
 pub fn filter1<T: Clone + 'static, ArgT1: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inFilterFunc: Arc<dyn ::std::ops::Fn(T, ArgT1) -> Result<()> + 'static>, mut inArg1: ArgT1) -> Arc<metamodelica::List<T>> {
-    pub type FilterFunc<T: Clone, ArgT1: Clone> = fn(T, ArgT1) -> Result<()>;
+    pub type FilterFunc<T: Clone + 'static, ArgT1: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T, ArgT1) -> Result<()> + 'static>;
 
     let mut outList: Arc<metamodelica::List<T>> = metamodelica::nil();
     for mut e in &*inList.clone() {
@@ -2942,7 +2942,7 @@ pub fn filter1<T: Clone + 'static, ArgT1: Clone + 'static>(mut inList: Arc<metam
 }
 
 pub fn filter1OnTrue<T: Clone + 'static, ArgT1: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inFilterFunc: Arc<dyn ::std::ops::Fn(T, ArgT1) -> Result<bool> + 'static>, mut inArg1: ArgT1) -> Arc<metamodelica::List<T>> {
-    pub type FilterFunc<T: Clone, ArgT1: Clone> = fn(T, ArgT1) -> Result<bool>;
+    pub type FilterFunc<T: Clone + 'static, ArgT1: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T, ArgT1) -> Result<bool> + 'static>;
 
     let mut outList: Arc<metamodelica::List<T>> = metamodelica::nil();
     outList = {
@@ -2958,9 +2958,9 @@ pub fn filter1OnTrue<T: Clone + 'static, ArgT1: Clone + 'static>(mut inList: Arc
 }
 
 pub fn filter1OnTrueAndUpdate<T: Clone + 'static, ArgT1: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inFilterFunc: Arc<dyn ::std::ops::Fn(T, ArgT1) -> Result<bool> + 'static>, mut inUpdateFunc: Arc<dyn ::std::ops::Fn(T, ArgT1) -> Result<T> + 'static>, mut inArg1: ArgT1) -> Arc<metamodelica::List<T>> {
-    pub type FilterFunc<T: Clone, ArgT1: Clone> = fn(T, ArgT1) -> Result<bool>;
+    pub type FilterFunc<T: Clone + 'static, ArgT1: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T, ArgT1) -> Result<bool> + 'static>;
 
-    pub type UpdateFunc<T: Clone, ArgT1: Clone> = fn(T, ArgT1) -> Result<T>;
+    pub type UpdateFunc<T: Clone + 'static, ArgT1: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T, ArgT1) -> Result<T> + 'static>;
 
     let mut outList: Arc<metamodelica::List<T>> = metamodelica::nil();
     outList = {
@@ -2976,7 +2976,7 @@ pub fn filter1OnTrueAndUpdate<T: Clone + 'static, ArgT1: Clone + 'static>(mut in
 }
 
 pub fn filter1rOnTrue<T: Clone + 'static, ArgT1: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inFilterFunc: Arc<dyn ::std::ops::Fn(ArgT1, T) -> Result<bool> + 'static>, mut inArg1: ArgT1) -> Arc<metamodelica::List<T>> {
-    pub type FilterFunc<ArgT1: Clone, T: Clone> = fn(ArgT1, T) -> Result<bool>;
+    pub type FilterFunc<ArgT1: Clone + 'static, T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(ArgT1, T) -> Result<bool> + 'static>;
 
     let mut outList: Arc<metamodelica::List<T>> = metamodelica::nil();
     outList = {
@@ -2992,7 +2992,7 @@ pub fn filter1rOnTrue<T: Clone + 'static, ArgT1: Clone + 'static>(mut inList: Ar
 }
 
 pub fn filter2OnTrue<T: Clone + 'static, ArgT1: Clone + 'static, ArgT2: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inFilterFunc: Arc<dyn ::std::ops::Fn(T, ArgT1, ArgT2) -> Result<bool> + 'static>, mut inArg1: ArgT1, mut inArg2: ArgT2) -> Arc<metamodelica::List<T>> {
-    pub type FilterFunc<T: Clone, ArgT1: Clone, ArgT2: Clone> = fn(T, ArgT1, ArgT2) -> Result<bool>;
+    pub type FilterFunc<T: Clone + 'static, ArgT1: Clone + 'static, ArgT2: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T, ArgT1, ArgT2) -> Result<bool> + 'static>;
 
     let mut outList: Arc<metamodelica::List<T>> = metamodelica::nil();
     outList = {
@@ -3008,7 +3008,7 @@ pub fn filter2OnTrue<T: Clone + 'static, ArgT1: Clone + 'static, ArgT2: Clone + 
 }
 
 pub fn removeOnTrue<T: Clone + 'static, VT: Clone + 'static>(mut inValue: VT, mut inCompFunc: Arc<dyn ::std::ops::Fn(VT, T) -> Result<bool> + 'static>, mut inList: Arc<metamodelica::List<T>>) -> Arc<metamodelica::List<T>> {
-    pub type CompFunc<VT: Clone, T: Clone> = fn(VT, T) -> Result<bool>;
+    pub type CompFunc<VT: Clone + 'static, T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(VT, T) -> Result<bool> + 'static>;
 
     let mut outList: Arc<metamodelica::List<T>> = metamodelica::nil();
     outList = {
@@ -3024,7 +3024,7 @@ pub fn removeOnTrue<T: Clone + 'static, VT: Clone + 'static>(mut inValue: VT, mu
 }
 
 pub fn filterCons<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut r#fn: Arc<dyn ::std::ops::Fn(T) -> Result<bool> + 'static>, mut accumList: Arc<metamodelica::List<T>>) -> Arc<metamodelica::List<T>> {
-    pub type FilterFunc<T: Clone> = fn(T) -> Result<bool>;
+    pub type FilterFunc<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T) -> Result<bool> + 'static>;
 
     let mut accumList: Arc<metamodelica::List<T>> = accumList;
     for mut e in &*inList.clone() {
@@ -3045,7 +3045,7 @@ pub use filter1rOnTrue as select1r;
 pub use filter2OnTrue as select2;
 
 pub fn find<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inFunc: Arc<dyn ::std::ops::Fn(T) -> Result<bool> + 'static>) -> Result<T> {
-    pub type SelectFunc<T: Clone> = fn(T) -> Result<bool>;
+    pub type SelectFunc<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T) -> Result<bool> + 'static>;
 
     let mut outElement: T;
     for mut e in &*inList.clone() {
@@ -3060,7 +3060,7 @@ pub fn find<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inFu
 }
 
 pub fn findOption<T: Clone + 'static>(mut lst: Arc<metamodelica::List<T>>, mut r#fn: Arc<dyn ::std::ops::Fn(T) -> Result<bool> + 'static>) -> Option<T> {
-    pub type Predicate<T: Clone> = fn(T) -> Result<bool>;
+    pub type Predicate<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T) -> Result<bool> + 'static>;
 
     let mut result: Option<T> = None;
     for mut e in &*lst.clone() {
@@ -3075,7 +3075,7 @@ pub fn findOption<T: Clone + 'static>(mut lst: Arc<metamodelica::List<T>>, mut r
 }
 
 pub fn find1<T: Clone + 'static, ArgT1: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inFunc: Arc<dyn ::std::ops::Fn(T, ArgT1) -> Result<bool> + 'static>, mut arg1: ArgT1) -> Result<T> {
-    pub type SelectFunc<T: Clone, ArgT1: Clone> = fn(T, ArgT1) -> Result<bool>;
+    pub type SelectFunc<T: Clone + 'static, ArgT1: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T, ArgT1) -> Result<bool> + 'static>;
 
     let mut outElement: T;
     for mut e in &*inList.clone() {
@@ -3090,7 +3090,7 @@ pub fn find1<T: Clone + 'static, ArgT1: Clone + 'static>(mut inList: Arc<metamod
 }
 
 pub fn findAndRemove<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inFunc: Arc<dyn ::std::ops::Fn(T) -> Result<bool> + 'static>) -> Result<(T, Arc<metamodelica::List<T>>)> {
-    pub type SelectFunc<T: Clone> = fn(T) -> Result<bool>;
+    pub type SelectFunc<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T) -> Result<bool> + 'static>;
 
     let mut outElement: T;
     let mut rest: Arc<metamodelica::List<T>> = metamodelica::nil();
@@ -3127,7 +3127,7 @@ pub fn findAndRemove<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>,
 }
 
 pub fn findAndRemove1<T: Clone + 'static, ArgT1: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inFunc: Arc<dyn ::std::ops::Fn(T, ArgT1) -> Result<bool> + 'static>, mut arg1: ArgT1) -> Result<(T, Arc<metamodelica::List<T>>)> {
-    pub type SelectFunc<T: Clone, ArgT1: Clone> = fn(T, ArgT1) -> Result<bool>;
+    pub type SelectFunc<T: Clone + 'static, ArgT1: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T, ArgT1) -> Result<bool> + 'static>;
 
     let mut outElement: T;
     let mut rest: Arc<metamodelica::List<T>> = metamodelica::nil();
@@ -3185,7 +3185,7 @@ pub fn findBoolList<T: Clone + 'static>(mut inBooleans: Arc<metamodelica::List<b
 }
 
 pub fn deleteMemberOnTrue<T: Clone + 'static, VT: Clone + 'static>(mut inValue: VT, mut inList: Arc<metamodelica::List<T>>, mut inCompareFunc: Arc<dyn ::std::ops::Fn(VT, T) -> Result<bool> + 'static>) -> Result<(Arc<metamodelica::List<T>>, Option<T>)> {
-    pub type CompareFunc<VT: Clone, T: Clone> = fn(VT, T) -> Result<bool>;
+    pub type CompareFunc<VT: Clone + 'static, T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(VT, T) -> Result<bool> + 'static>;
 
     let mut outList: Arc<metamodelica::List<T>> = inList.clone();
     let mut outDeletedElement: Option<T> = None;
@@ -3214,7 +3214,7 @@ pub fn deleteMemberOnTrue<T: Clone + 'static, VT: Clone + 'static>(mut inValue: 
 pub fn deletePositions<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inPositions: Arc<metamodelica::List<i32>>, mut zeroBased: bool) -> Result<Arc<metamodelica::List<T>>> {
     let mut outList: Arc<metamodelica::List<T>> = metamodelica::nil();
     let mut sorted_pos: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    sorted_pos = sortedUnique(sort(inPositions.clone(), Arc::new(fnptr!(intGt, i32, i32)))?, Arc::new(fnptr!(intEq, i32, i32)))?;
+    sorted_pos = sortedUnique(sort(inPositions.clone(), (std::sync::Arc::new(fnptr!(intGt, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?, (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
     outList = deletePositionsSorted(inList.clone(), sorted_pos.clone(), zeroBased.clone())?;
     Ok(outList)
 }
@@ -3250,7 +3250,7 @@ pub fn deletePositionsSorted<T: Clone + 'static>(mut inList: Arc<metamodelica::L
 pub fn keepPositions<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inPositions: Arc<metamodelica::List<i32>>, mut zeroBased: bool) -> Result<Arc<metamodelica::List<T>>> {
     let mut outList: Arc<metamodelica::List<T>> = metamodelica::nil();
     let mut sorted_pos: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    sorted_pos = sortedUnique(sort(inPositions.clone(), Arc::new(fnptr!(intGt, i32, i32)))?, Arc::new(fnptr!(intEq, i32, i32)))?;
+    sorted_pos = sortedUnique(sort(inPositions.clone(), (std::sync::Arc::new(fnptr!(intGt, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?, (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
     outList = keepPositionsSorted(inList.clone(), sorted_pos.clone(), zeroBased.clone())?;
     Ok(outList)
 }
@@ -3309,7 +3309,7 @@ pub fn replaceAt<T: Clone + 'static>(mut inElement: T, mut inPosition: i32, mut 
 }
 
 pub fn replaceOnTrue<T: Clone + 'static>(mut inReplacement: T, mut inList: Arc<metamodelica::List<T>>, mut inFunc: Arc<dyn ::std::ops::Fn(T) -> Result<bool> + 'static>) -> Result<(Arc<metamodelica::List<T>>, bool)> {
-    pub type FuncType<T: Clone> = fn(T) -> Result<bool>;
+    pub type FuncType<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T) -> Result<bool> + 'static>;
 
     let mut outList: Arc<metamodelica::List<T>> = metamodelica::nil();
     let mut outReplaced: bool = false;
@@ -3364,7 +3364,7 @@ pub fn replaceAtWithList<T: Clone + 'static>(mut inReplacementList: Arc<metamode
 }
 
 pub fn toString<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inPrintFunc: Arc<dyn ::std::ops::Fn(T) -> Result<ArcStr> + 'static>, mut inNameStr: ArcStr, mut inBeginStr: ArcStr, mut inDelimitStr: ArcStr, mut inEndStr: ArcStr, mut inPrintEmpty: bool, mut maxLength: i32) -> Result<ArcStr> {
-    pub type FuncType<T: Clone> = fn(T) -> Result<ArcStr>;
+    pub type FuncType<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T) -> Result<ArcStr> + 'static>;
 
     let mut outString: ArcStr = arcstr::literal!("");
     let mut lst: Arc<metamodelica::List<T>> = inList.clone();
@@ -3426,7 +3426,7 @@ pub fn lengthListElements<T: Clone + 'static>(mut inListList: Arc<metamodelica::
 }
 
 pub fn accumulateMapAccum<TI: Clone + 'static, TO: Clone + 'static>(mut inList: Arc<metamodelica::List<TI>>, mut inMapFunc: Arc<dyn ::std::ops::Fn(TI, Arc<metamodelica::List<TO>>) -> Result<Arc<metamodelica::List<TO>>> + 'static>) -> Arc<metamodelica::List<TO>> {
-    pub type MapFunc<TI: Clone, TO: Clone> = fn(TI, Arc<metamodelica::List<TO>>) -> Result<Arc<metamodelica::List<TO>>>;
+    pub type MapFunc<TI: Clone + 'static, TO: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(TI, Arc<metamodelica::List<TO>>) -> Result<Arc<metamodelica::List<TO>>> + 'static>;
 
     let mut outList: Arc<metamodelica::List<TO>> = metamodelica::nil();
     for mut e in &*inList.clone() {
@@ -3438,7 +3438,7 @@ pub fn accumulateMapAccum<TI: Clone + 'static, TO: Clone + 'static>(mut inList: 
 }
 
 pub fn findMap<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inFunc: Arc<dyn ::std::ops::Fn(T) -> Result<(T, bool)> + 'static>) -> Result<(Arc<metamodelica::List<T>>, bool)> {
-    pub type FuncType<T: Clone> = fn(T) -> Result<(T, bool)>;
+    pub type FuncType<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T) -> Result<(T, bool)> + 'static>;
 
     let mut outList: Arc<metamodelica::List<T>> = metamodelica::nil();
     let mut outFound: bool = false;
@@ -3459,9 +3459,9 @@ pub fn findMap<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut i
 }
 
 pub fn findAndMap<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut pred: Arc<dyn ::std::ops::Fn(T) -> Result<bool> + 'static>, mut func: Arc<dyn ::std::ops::Fn(T) -> Result<T> + 'static>) -> Result<(Arc<metamodelica::List<T>>, bool)> {
-    pub type PredFunc<T: Clone> = fn(T) -> Result<bool>;
+    pub type PredFunc<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T) -> Result<bool> + 'static>;
 
-    pub type Func<T: Clone> = fn(T) -> Result<T>;
+    pub type Func<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T) -> Result<T> + 'static>;
 
     let mut outList: Arc<metamodelica::List<T>> = metamodelica::nil();
     let mut found: bool = false;
@@ -3489,7 +3489,7 @@ pub fn findAndMap<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mu
 }
 
 pub fn findSome<T1: Clone + 'static, T2: Clone + 'static>(mut inList: Arc<metamodelica::List<T1>>, mut inFunc: Arc<dyn ::std::ops::Fn(T1) -> Result<Option<T2>> + 'static>) -> Option<T2> {
-    pub type FuncType<T1: Clone, T2: Clone> = fn(T1) -> Result<Option<T2>>;
+    pub type FuncType<T1: Clone + 'static, T2: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T1) -> Result<Option<T2>> + 'static>;
 
     let mut outVal: Option<T2> = None;
     for mut e in &*inList.clone() {
@@ -3503,7 +3503,7 @@ pub fn findSome<T1: Clone + 'static, T2: Clone + 'static>(mut inList: Arc<metamo
 }
 
 pub fn splitEqualPrefix<T1: Clone + 'static, T2: Clone + 'static>(mut inFullList: Arc<metamodelica::List<T1>>, mut inPrefixList: Arc<metamodelica::List<T2>>, mut inEqFunc: Arc<dyn ::std::ops::Fn(T1, T2) -> Result<bool> + 'static>, mut inAccum: Arc<metamodelica::List<T1>>) -> Result<(Arc<metamodelica::List<T1>>, Arc<metamodelica::List<T1>>)> {
-    pub type EqFunc<T1: Clone, T2: Clone> = fn(T1, T2) -> Result<bool>;
+    pub type EqFunc<T1: Clone + 'static, T2: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T1, T2) -> Result<bool> + 'static>;
 
     let mut outPrefix: Arc<metamodelica::List<T1>> = metamodelica::nil();
     let mut outRest: Arc<metamodelica::List<T1>> = metamodelica::nil();
@@ -3511,7 +3511,7 @@ pub fn splitEqualPrefix<T1: Clone + 'static, T2: Clone + 'static>(mut inFullList
     let mut e2: T2;
     let mut rest_e1: Arc<metamodelica::List<T1>> = inFullList.clone();
     let mut rest_e2: Arc<metamodelica::List<T2>> = inPrefixList.clone();
-    while true {
+    loop {
         if rest_e1.clone().is_empty() || rest_e2.clone().is_empty() {
             break;
         }
@@ -3570,7 +3570,7 @@ fn combination_tail<TI: Clone + 'static>(mut inElements: Arc<metamodelica::List<
 }
 
 pub fn combinationMap<TI: Clone + 'static, TO: Clone + 'static>(mut inElements: Arc<metamodelica::List<Arc<metamodelica::List<TI>>>>, mut inMapFunc: Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<TI>>) -> Result<TO> + 'static>) -> Arc<metamodelica::List<TO>> {
-    pub type MapFunc<TI: Clone, TO: Clone> = fn(Arc<metamodelica::List<TI>>) -> Result<TO>;
+    pub type MapFunc<TI: Clone + 'static, TO: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<TI>>) -> Result<TO> + 'static>;
 
     let mut outElements: Arc<metamodelica::List<TO>> = metamodelica::nil();
     let mut elems: Arc<metamodelica::List<TO>> = metamodelica::nil();
@@ -3580,7 +3580,7 @@ pub fn combinationMap<TI: Clone + 'static, TO: Clone + 'static>(mut inElements: 
 }
 
 fn combinationMap_tail<TI: Clone + 'static, TO: Clone + 'static>(mut inElements: Arc<metamodelica::List<Arc<metamodelica::List<TI>>>>, mut inMapFunc: Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<TI>>) -> Result<TO> + 'static>, mut inCombination: Arc<metamodelica::List<TI>>, mut inAccumElems: Arc<metamodelica::List<TO>>) -> Arc<metamodelica::List<TO>> {
-    pub type MapFunc<TI: Clone, TO: Clone> = fn(Arc<metamodelica::List<TI>>) -> Result<TO>;
+    pub type MapFunc<TI: Clone + 'static, TO: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<TI>>) -> Result<TO> + 'static>;
 
     let mut outElements: Arc<metamodelica::List<TO>> = metamodelica::nil();
     outElements = (::match_deref::match_deref! { match &(inElements.clone()) {
@@ -3644,7 +3644,7 @@ pub fn mkOption<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>) -> O
 }
 
 pub fn all<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inFunc: Arc<dyn ::std::ops::Fn(T) -> Result<bool> + 'static>) -> bool {
-    pub type PredFunc<T: Clone> = fn(T) -> Result<bool>;
+    pub type PredFunc<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T) -> Result<bool> + 'static>;
 
     let mut outResult: bool = false;
     for mut e in &*inList.clone() {
@@ -3659,7 +3659,7 @@ pub fn all<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inFun
 }
 
 pub fn none<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inFunc: Arc<dyn ::std::ops::Fn(T) -> Result<bool> + 'static>) -> bool {
-    pub type PredFunc<T: Clone> = fn(T) -> Result<bool>;
+    pub type PredFunc<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T) -> Result<bool> + 'static>;
 
     let mut outResult: bool = false;
     for mut e in &*inList.clone() {
@@ -3674,7 +3674,7 @@ pub fn none<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inFu
 }
 
 pub fn any<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inFunc: Arc<dyn ::std::ops::Fn(T) -> Result<bool> + 'static>) -> bool {
-    pub type PredFunc<T: Clone> = fn(T) -> Result<bool>;
+    pub type PredFunc<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T) -> Result<bool> + 'static>;
 
     let mut outResult: bool = false;
     for mut e in &*inList.clone() {
@@ -3689,7 +3689,7 @@ pub fn any<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inFun
 }
 
 pub fn count<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inFunc: Arc<dyn ::std::ops::Fn(T) -> Result<bool> + 'static>) -> i32 {
-    pub type PredFunc<T: Clone> = fn(T) -> Result<bool>;
+    pub type PredFunc<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T) -> Result<bool> + 'static>;
 
     let mut outResult: i32 = 0;
     for mut e in &*inList.clone() {
@@ -3702,7 +3702,7 @@ pub fn count<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inF
 }
 
 pub fn separateOnTrue<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inFilterFunc: Arc<dyn ::std::ops::Fn(T) -> Result<bool> + 'static>) -> (Arc<metamodelica::List<T>>, Arc<metamodelica::List<T>>) {
-    pub type FilterFunc<T: Clone> = fn(T) -> Result<bool>;
+    pub type FilterFunc<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T) -> Result<bool> + 'static>;
 
     let mut outListTrue: Arc<metamodelica::List<T>> = metamodelica::nil();
     let mut outListFalse: Arc<metamodelica::List<T>> = metamodelica::nil();
@@ -3718,7 +3718,7 @@ pub fn separateOnTrue<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>
 }
 
 pub fn separate1OnTrue<T: Clone + 'static, ArgT1: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut inFilterFunc: Arc<dyn ::std::ops::Fn(T, ArgT1) -> Result<bool> + 'static>, mut inArg1: ArgT1) -> (Arc<metamodelica::List<T>>, Arc<metamodelica::List<T>>) {
-    pub type FilterFunc<T: Clone, ArgT1: Clone> = fn(T, ArgT1) -> Result<bool>;
+    pub type FilterFunc<T: Clone + 'static, ArgT1: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T, ArgT1) -> Result<bool> + 'static>;
 
     let mut outListTrue: Arc<metamodelica::List<T>> = metamodelica::nil();
     let mut outListFalse: Arc<metamodelica::List<T>> = metamodelica::nil();
@@ -3734,7 +3734,7 @@ pub fn separate1OnTrue<T: Clone + 'static, ArgT1: Clone + 'static>(mut inList: A
 }
 
 pub fn mapIndices<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut indices: Arc<metamodelica::List<i32>>, mut func: Arc<dyn ::std::ops::Fn(T) -> Result<T> + 'static>) -> Result<Arc<metamodelica::List<T>>> {
-    pub type MapFunc<T: Clone> = fn(T) -> Result<T>;
+    pub type MapFunc<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T) -> Result<T> + 'static>;
 
     let mut outList: Arc<metamodelica::List<T>> = metamodelica::nil();
     let mut i: i32 = 1;
@@ -3788,7 +3788,7 @@ pub fn allCombinations<T: Clone + 'static>(mut lst: Arc<metamodelica::List<Arc<m
     out = (::match_deref::match_deref! { match &((lst.clone(), maxTotalSize.clone(), info.clone())) {
         (_, Some(maxSz), _) => {
             let mut sz: i32 = 0;
-            sz = intMul((lst.clone().len() as i32), applyAndFold(lst.clone(), Arc::new(fnptr!(intMul, i32, i32)), Arc::new(fnptr!(listLength, _)), 1));
+            sz = intMul((lst.clone().len() as i32), applyAndFold(lst.clone(), (std::sync::Arc::new(fnptr!(intMul, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<i32> + 'static>), std::sync::Arc::new(fnptr!(listLength, _)), 1));
             let true = (sz.clone() <= maxSz.clone()) else { bail!("pattern mismatch") };
             allCombinations2(lst.clone())
         },
@@ -3850,7 +3850,7 @@ fn allCombinations4<T: Clone + 'static>(mut x: T, mut ilst: Arc<metamodelica::Li
 }
 
 pub fn contains<T: Clone + 'static>(mut lst: Arc<metamodelica::List<T>>, mut elem: T, mut eqFunc: Arc<dyn ::std::ops::Fn(T, T) -> Result<bool> + 'static>) -> bool {
-    pub type equalityFunc<T: Clone> = fn(T, T) -> Result<bool>;
+    pub type equalityFunc<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T, T) -> Result<bool> + 'static>;
 
     let mut res: bool = false;
     for mut i in &*lst.clone() {
@@ -3864,7 +3864,7 @@ pub fn contains<T: Clone + 'static>(mut lst: Arc<metamodelica::List<T>>, mut ele
 }
 
 pub fn minElement<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut lessFn: Arc<dyn ::std::ops::Fn(T, T) -> Result<bool> + 'static>) -> Result<T> {
-    pub type LessFn<T: Clone> = fn(T, T) -> Result<bool>;
+    pub type LessFn<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T, T) -> Result<bool> + 'static>;
 
     let mut res: T;
     res = listHead(inList.clone())?;
@@ -3878,7 +3878,7 @@ pub fn minElement<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mu
 }
 
 pub fn maxElement<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mut lessFn: Arc<dyn ::std::ops::Fn(T, T) -> Result<bool> + 'static>) -> Result<T> {
-    pub type LessFn<T: Clone> = fn(T, T) -> Result<bool>;
+    pub type LessFn<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T, T) -> Result<bool> + 'static>;
 
     let mut res: T;
     res = listHead(inList.clone())?;
@@ -3892,7 +3892,7 @@ pub fn maxElement<T: Clone + 'static>(mut inList: Arc<metamodelica::List<T>>, mu
 }
 
 pub fn trim<T: Clone + 'static>(mut l: Arc<metamodelica::List<T>>, mut r#fn: Arc<dyn ::std::ops::Fn(T) -> Result<bool> + 'static>) -> Result<Arc<metamodelica::List<T>>> {
-    pub type PredFn<T: Clone> = fn(T) -> Result<bool>;
+    pub type PredFn<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T) -> Result<bool> + 'static>;
 
     let mut l: Arc<metamodelica::List<T>> = l;
     while !(l.clone().is_empty()) && r#fn(listHead(l.clone())?)? {

@@ -81,11 +81,14 @@ pub type InstanceHierarchy = Arc<metamodelica::List<InnerOuter::TopInstance>>;
 
 pub type InstDims = Arc<metamodelica::List<Arc<metamodelica::List<Arc<DAE::Dimension>>>>>;
 
-pub static stateSelectType: std::sync::LazyLock<Arc<DAE::Type>> = std::sync::LazyLock::new(|| { Arc::new(DAE::Type::T_ENUMERATION { index: None, path: Arc::new(Absyn::Path::IDENT { name: (literal!("")).clone() }), names: list![(literal!("never")).clone(), (literal!("avoid")).clone(), (literal!("default")).clone(), (literal!("prefer")).clone(), (literal!("always")).clone()], literalVarLst: list![Arc::new(DAE::Var { name: (literal!("never")).clone(), attributes: DAE::dummyAttrParam.clone(), ty: Arc::new(DAE::Type::T_ENUMERATION { index: Some(1), path: Arc::new(Absyn::Path::IDENT { name: (literal!("")).clone() }), names: list![(literal!("never")).clone(), (literal!("avoid")).clone(), (literal!("default")).clone(), (literal!("prefer")).clone(), (literal!("always")).clone()], literalVarLst: metamodelica::nil(), attributeLst: metamodelica::nil() }), binding: Arc::new(openmodelica_frontend_types::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None }), Arc::new(DAE::Var { name: (literal!("avoid")).clone(), attributes: DAE::dummyAttrParam.clone(), ty: Arc::new(DAE::Type::T_ENUMERATION { index: Some(2), path: Arc::new(Absyn::Path::IDENT { name: (literal!("")).clone() }), names: list![(literal!("never")).clone(), (literal!("avoid")).clone(), (literal!("default")).clone(), (literal!("prefer")).clone(), (literal!("always")).clone()], literalVarLst: metamodelica::nil(), attributeLst: metamodelica::nil() }), binding: Arc::new(openmodelica_frontend_types::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None }), Arc::new(DAE::Var { name: (literal!("default")).clone(), attributes: DAE::dummyAttrParam.clone(), ty: Arc::new(DAE::Type::T_ENUMERATION { index: Some(3), path: Arc::new(Absyn::Path::IDENT { name: (literal!("")).clone() }), names: list![(literal!("never")).clone(), (literal!("avoid")).clone(), (literal!("default")).clone(), (literal!("prefer")).clone(), (literal!("always")).clone()], literalVarLst: metamodelica::nil(), attributeLst: metamodelica::nil() }), binding: Arc::new(openmodelica_frontend_types::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None }), Arc::new(DAE::Var { name: (literal!("prefer")).clone(), attributes: DAE::dummyAttrParam.clone(), ty: Arc::new(DAE::Type::T_ENUMERATION { index: Some(4), path: Arc::new(Absyn::Path::IDENT { name: (literal!("")).clone() }), names: list![(literal!("never")).clone(), (literal!("avoid")).clone(), (literal!("default")).clone(), (literal!("prefer")).clone(), (literal!("always")).clone()], literalVarLst: metamodelica::nil(), attributeLst: metamodelica::nil() }), binding: Arc::new(openmodelica_frontend_types::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None }), Arc::new(DAE::Var { name: (literal!("always")).clone(), attributes: DAE::dummyAttrParam.clone(), ty: Arc::new(DAE::Type::T_ENUMERATION { index: Some(5), path: Arc::new(Absyn::Path::IDENT { name: (literal!("")).clone() }), names: list![(literal!("never")).clone(), (literal!("avoid")).clone(), (literal!("default")).clone(), (literal!("prefer")).clone(), (literal!("always")).clone()], literalVarLst: metamodelica::nil(), attributeLst: metamodelica::nil() }), binding: Arc::new(openmodelica_frontend_types::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None })], attributeLst: metamodelica::nil() }) });
+thread_local! { static __stateSelectType_TLS: Arc<DAE::Type> = Arc::new(DAE::Type::T_ENUMERATION { index: None, path: Arc::new(Absyn::Path::IDENT { name: (literal!("")).clone() }), names: list![(literal!("never")).clone(), (literal!("avoid")).clone(), (literal!("default")).clone(), (literal!("prefer")).clone(), (literal!("always")).clone()], literalVarLst: list![Arc::new(DAE::Var { name: (literal!("never")).clone(), attributes: DAE::dummyAttrParam().clone(), ty: Arc::new(DAE::Type::T_ENUMERATION { index: Some(1), path: Arc::new(Absyn::Path::IDENT { name: (literal!("")).clone() }), names: list![(literal!("never")).clone(), (literal!("avoid")).clone(), (literal!("default")).clone(), (literal!("prefer")).clone(), (literal!("always")).clone()], literalVarLst: metamodelica::nil(), attributeLst: metamodelica::nil() }), binding: Arc::new(openmodelica_frontend_types::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None }), Arc::new(DAE::Var { name: (literal!("avoid")).clone(), attributes: DAE::dummyAttrParam().clone(), ty: Arc::new(DAE::Type::T_ENUMERATION { index: Some(2), path: Arc::new(Absyn::Path::IDENT { name: (literal!("")).clone() }), names: list![(literal!("never")).clone(), (literal!("avoid")).clone(), (literal!("default")).clone(), (literal!("prefer")).clone(), (literal!("always")).clone()], literalVarLst: metamodelica::nil(), attributeLst: metamodelica::nil() }), binding: Arc::new(openmodelica_frontend_types::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None }), Arc::new(DAE::Var { name: (literal!("default")).clone(), attributes: DAE::dummyAttrParam().clone(), ty: Arc::new(DAE::Type::T_ENUMERATION { index: Some(3), path: Arc::new(Absyn::Path::IDENT { name: (literal!("")).clone() }), names: list![(literal!("never")).clone(), (literal!("avoid")).clone(), (literal!("default")).clone(), (literal!("prefer")).clone(), (literal!("always")).clone()], literalVarLst: metamodelica::nil(), attributeLst: metamodelica::nil() }), binding: Arc::new(openmodelica_frontend_types::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None }), Arc::new(DAE::Var { name: (literal!("prefer")).clone(), attributes: DAE::dummyAttrParam().clone(), ty: Arc::new(DAE::Type::T_ENUMERATION { index: Some(4), path: Arc::new(Absyn::Path::IDENT { name: (literal!("")).clone() }), names: list![(literal!("never")).clone(), (literal!("avoid")).clone(), (literal!("default")).clone(), (literal!("prefer")).clone(), (literal!("always")).clone()], literalVarLst: metamodelica::nil(), attributeLst: metamodelica::nil() }), binding: Arc::new(openmodelica_frontend_types::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None }), Arc::new(DAE::Var { name: (literal!("always")).clone(), attributes: DAE::dummyAttrParam().clone(), ty: Arc::new(DAE::Type::T_ENUMERATION { index: Some(5), path: Arc::new(Absyn::Path::IDENT { name: (literal!("")).clone() }), names: list![(literal!("never")).clone(), (literal!("avoid")).clone(), (literal!("default")).clone(), (literal!("prefer")).clone(), (literal!("always")).clone()], literalVarLst: metamodelica::nil(), attributeLst: metamodelica::nil() }), binding: Arc::new(openmodelica_frontend_types::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None })], attributeLst: metamodelica::nil() }); }
+pub fn stateSelectType() -> Arc<DAE::Type> { __stateSelectType_TLS.with(|__t| __t.clone()) }
 
-pub static uncertaintyType: std::sync::LazyLock<Arc<DAE::Type>> = std::sync::LazyLock::new(|| { Arc::new(DAE::Type::T_ENUMERATION { index: None, path: Arc::new(Absyn::Path::IDENT { name: (literal!("")).clone() }), names: list![(literal!("given")).clone(), (literal!("sought")).clone(), (literal!("refine")).clone(), (literal!("propagate")).clone()], literalVarLst: list![Arc::new(DAE::Var { name: (literal!("given")).clone(), attributes: DAE::dummyAttrParam.clone(), ty: Arc::new(DAE::Type::T_ENUMERATION { index: Some(1), path: Arc::new(Absyn::Path::IDENT { name: (literal!("")).clone() }), names: list![(literal!("given")).clone(), (literal!("sought")).clone(), (literal!("refine")).clone(), (literal!("propagate")).clone()], literalVarLst: metamodelica::nil(), attributeLst: metamodelica::nil() }), binding: Arc::new(openmodelica_frontend_types::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None }), Arc::new(DAE::Var { name: (literal!("sought")).clone(), attributes: DAE::dummyAttrParam.clone(), ty: Arc::new(DAE::Type::T_ENUMERATION { index: Some(2), path: Arc::new(Absyn::Path::IDENT { name: (literal!("")).clone() }), names: list![(literal!("given")).clone(), (literal!("sought")).clone(), (literal!("refine")).clone(), (literal!("propagate")).clone()], literalVarLst: metamodelica::nil(), attributeLst: metamodelica::nil() }), binding: Arc::new(openmodelica_frontend_types::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None }), Arc::new(DAE::Var { name: (literal!("refine")).clone(), attributes: DAE::dummyAttrParam.clone(), ty: Arc::new(DAE::Type::T_ENUMERATION { index: Some(3), path: Arc::new(Absyn::Path::IDENT { name: (literal!("")).clone() }), names: list![(literal!("given")).clone(), (literal!("sought")).clone(), (literal!("refine")).clone(), (literal!("propagate")).clone()], literalVarLst: metamodelica::nil(), attributeLst: metamodelica::nil() }), binding: Arc::new(openmodelica_frontend_types::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None }), Arc::new(DAE::Var { name: (literal!("propagate")).clone(), attributes: DAE::dummyAttrParam.clone(), ty: Arc::new(DAE::Type::T_ENUMERATION { index: Some(4), path: Arc::new(Absyn::Path::IDENT { name: (literal!("")).clone() }), names: list![(literal!("given")).clone(), (literal!("sought")).clone(), (literal!("refine")).clone(), (literal!("propagate")).clone()], literalVarLst: metamodelica::nil(), attributeLst: metamodelica::nil() }), binding: Arc::new(openmodelica_frontend_types::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None })], attributeLst: metamodelica::nil() }) });
+thread_local! { static __uncertaintyType_TLS: Arc<DAE::Type> = Arc::new(DAE::Type::T_ENUMERATION { index: None, path: Arc::new(Absyn::Path::IDENT { name: (literal!("")).clone() }), names: list![(literal!("given")).clone(), (literal!("sought")).clone(), (literal!("refine")).clone(), (literal!("propagate")).clone()], literalVarLst: list![Arc::new(DAE::Var { name: (literal!("given")).clone(), attributes: DAE::dummyAttrParam().clone(), ty: Arc::new(DAE::Type::T_ENUMERATION { index: Some(1), path: Arc::new(Absyn::Path::IDENT { name: (literal!("")).clone() }), names: list![(literal!("given")).clone(), (literal!("sought")).clone(), (literal!("refine")).clone(), (literal!("propagate")).clone()], literalVarLst: metamodelica::nil(), attributeLst: metamodelica::nil() }), binding: Arc::new(openmodelica_frontend_types::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None }), Arc::new(DAE::Var { name: (literal!("sought")).clone(), attributes: DAE::dummyAttrParam().clone(), ty: Arc::new(DAE::Type::T_ENUMERATION { index: Some(2), path: Arc::new(Absyn::Path::IDENT { name: (literal!("")).clone() }), names: list![(literal!("given")).clone(), (literal!("sought")).clone(), (literal!("refine")).clone(), (literal!("propagate")).clone()], literalVarLst: metamodelica::nil(), attributeLst: metamodelica::nil() }), binding: Arc::new(openmodelica_frontend_types::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None }), Arc::new(DAE::Var { name: (literal!("refine")).clone(), attributes: DAE::dummyAttrParam().clone(), ty: Arc::new(DAE::Type::T_ENUMERATION { index: Some(3), path: Arc::new(Absyn::Path::IDENT { name: (literal!("")).clone() }), names: list![(literal!("given")).clone(), (literal!("sought")).clone(), (literal!("refine")).clone(), (literal!("propagate")).clone()], literalVarLst: metamodelica::nil(), attributeLst: metamodelica::nil() }), binding: Arc::new(openmodelica_frontend_types::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None }), Arc::new(DAE::Var { name: (literal!("propagate")).clone(), attributes: DAE::dummyAttrParam().clone(), ty: Arc::new(DAE::Type::T_ENUMERATION { index: Some(4), path: Arc::new(Absyn::Path::IDENT { name: (literal!("")).clone() }), names: list![(literal!("given")).clone(), (literal!("sought")).clone(), (literal!("refine")).clone(), (literal!("propagate")).clone()], literalVarLst: metamodelica::nil(), attributeLst: metamodelica::nil() }), binding: Arc::new(openmodelica_frontend_types::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None })], attributeLst: metamodelica::nil() }); }
+pub fn uncertaintyType() -> Arc<DAE::Type> { __uncertaintyType_TLS.with(|__t| __t.clone()) }
 
-pub static distributionType: std::sync::LazyLock<Arc<DAE::Type>> = std::sync::LazyLock::new(|| { Arc::new(DAE::Type::T_COMPLEX { complexClassType: ClassInf::State::RECORD { path: Arc::new(Absyn::Path::IDENT { name: (literal!("Distribution")).clone() }) }, varLst: list![Arc::new(DAE::Var { name: (literal!("name")).clone(), attributes: Arc::new(DAE::Attributes { connectorType: Arc::new(openmodelica_frontend_types::DAE::ConnectorType::NON_CONNECTOR), parallelism: openmodelica_frontend_types::SCode::Parallelism::NON_PARALLEL, variability: openmodelica_frontend_types::SCode::Variability::PARAM, direction: openmodelica_ast::Absyn::Direction::BIDIR, innerOuter: openmodelica_ast::Absyn::InnerOuter::NOT_INNER_OUTER, visibility: openmodelica_frontend_types::SCode::Visibility::PUBLIC }), ty: DAE::T_STRING_DEFAULT.clone(), binding: Arc::new(openmodelica_frontend_types::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None }), Arc::new(DAE::Var { name: (literal!("params")).clone(), attributes: Arc::new(DAE::Attributes { connectorType: Arc::new(openmodelica_frontend_types::DAE::ConnectorType::NON_CONNECTOR), parallelism: openmodelica_frontend_types::SCode::Parallelism::NON_PARALLEL, variability: openmodelica_frontend_types::SCode::Variability::PARAM, direction: openmodelica_ast::Absyn::Direction::BIDIR, innerOuter: openmodelica_ast::Absyn::InnerOuter::NOT_INNER_OUTER, visibility: openmodelica_frontend_types::SCode::Visibility::PUBLIC }), ty: DAE::T_ARRAY_REAL_NODIM.clone(), binding: Arc::new(openmodelica_frontend_types::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None }), Arc::new(DAE::Var { name: (literal!("paramNames")).clone(), attributes: Arc::new(DAE::Attributes { connectorType: Arc::new(openmodelica_frontend_types::DAE::ConnectorType::NON_CONNECTOR), parallelism: openmodelica_frontend_types::SCode::Parallelism::NON_PARALLEL, variability: openmodelica_frontend_types::SCode::Variability::PARAM, direction: openmodelica_ast::Absyn::Direction::BIDIR, innerOuter: openmodelica_ast::Absyn::InnerOuter::NOT_INNER_OUTER, visibility: openmodelica_frontend_types::SCode::Visibility::PUBLIC }), ty: DAE::T_ARRAY_STRING_NODIM.clone(), binding: Arc::new(openmodelica_frontend_types::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None })], equalityConstraint: None, usedExternally: false }) });
+thread_local! { static __distributionType_TLS: Arc<DAE::Type> = Arc::new(DAE::Type::T_COMPLEX { complexClassType: ClassInf::State::RECORD { path: Arc::new(Absyn::Path::IDENT { name: (literal!("Distribution")).clone() }) }, varLst: list![Arc::new(DAE::Var { name: (literal!("name")).clone(), attributes: Arc::new(DAE::Attributes { connectorType: Arc::new(openmodelica_frontend_types::DAE::ConnectorType::NON_CONNECTOR), parallelism: openmodelica_frontend_types::SCode::Parallelism::NON_PARALLEL, variability: openmodelica_frontend_types::SCode::Variability::PARAM, direction: openmodelica_ast::Absyn::Direction::BIDIR, innerOuter: openmodelica_ast::Absyn::InnerOuter::NOT_INNER_OUTER, visibility: openmodelica_frontend_types::SCode::Visibility::PUBLIC }), ty: DAE::T_STRING_DEFAULT().clone(), binding: Arc::new(openmodelica_frontend_types::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None }), Arc::new(DAE::Var { name: (literal!("params")).clone(), attributes: Arc::new(DAE::Attributes { connectorType: Arc::new(openmodelica_frontend_types::DAE::ConnectorType::NON_CONNECTOR), parallelism: openmodelica_frontend_types::SCode::Parallelism::NON_PARALLEL, variability: openmodelica_frontend_types::SCode::Variability::PARAM, direction: openmodelica_ast::Absyn::Direction::BIDIR, innerOuter: openmodelica_ast::Absyn::InnerOuter::NOT_INNER_OUTER, visibility: openmodelica_frontend_types::SCode::Visibility::PUBLIC }), ty: DAE::T_ARRAY_REAL_NODIM().clone(), binding: Arc::new(openmodelica_frontend_types::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None }), Arc::new(DAE::Var { name: (literal!("paramNames")).clone(), attributes: Arc::new(DAE::Attributes { connectorType: Arc::new(openmodelica_frontend_types::DAE::ConnectorType::NON_CONNECTOR), parallelism: openmodelica_frontend_types::SCode::Parallelism::NON_PARALLEL, variability: openmodelica_frontend_types::SCode::Variability::PARAM, direction: openmodelica_ast::Absyn::Direction::BIDIR, innerOuter: openmodelica_ast::Absyn::InnerOuter::NOT_INNER_OUTER, visibility: openmodelica_frontend_types::SCode::Visibility::PUBLIC }), ty: DAE::T_ARRAY_STRING_NODIM().clone(), binding: Arc::new(openmodelica_frontend_types::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None })], equalityConstraint: None, usedExternally: false }); }
+pub fn distributionType() -> Arc<DAE::Type> { __distributionType_TLS.with(|__t| __t.clone()) }
 
 // NOTE: #[tailcall::tailcall] disabled: function body contains a `match_deref!{…}` match,
 // and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
@@ -292,17 +295,17 @@ pub fn instDaeVariableAttributes(mut inCache: FCore::Cache, mut inEnv: FCore::Gr
                     let mut stateSelect_value: Option<DAE::StateSelect> = None;
                     let mut uncertainty_value: Option<DAE::Uncertainty> = None;
                     let mut distribution_value: Option<Arc<DAE::Distribution>> = None;
-                    quantity_str = instBinding(r#mod.clone(), varLst.clone(), DAE::T_STRING_DEFAULT.clone(), index_list.clone(), (literal!("quantity")).clone(), false)?;
-                    unit_str = instBinding(r#mod.clone(), varLst.clone(), DAE::T_STRING_DEFAULT.clone(), index_list.clone(), (literal!("unit")).clone(), false)?;
-                    displayunit_str = instBinding(r#mod.clone(), varLst.clone(), DAE::T_STRING_DEFAULT.clone(), index_list.clone(), (literal!("displayUnit")).clone(), false)?;
-                    min_val = instBinding(r#mod.clone(), varLst.clone(), DAE::T_REAL_DEFAULT.clone(), index_list.clone(), (literal!("min")).clone(), false)?;
-                    max_val = instBinding(r#mod.clone(), varLst.clone(), DAE::T_REAL_DEFAULT.clone(), index_list.clone(), (literal!("max")).clone(), false)?;
-                    start_val = instBinding(r#mod.clone(), varLst.clone(), DAE::T_REAL_DEFAULT.clone(), index_list.clone(), (literal!("start")).clone(), false)?;
-                    fixed_val = instBinding(r#mod.clone(), varLst.clone(), DAE::T_BOOL_DEFAULT.clone(), index_list.clone(), (literal!("fixed")).clone(), true)?;
-                    nominal_val = instBinding(r#mod.clone(), varLst.clone(), DAE::T_REAL_DEFAULT.clone(), index_list.clone(), (literal!("nominal")).clone(), false)?;
-                    exp_bind_select = instEnumerationBinding(r#mod.clone(), varLst.clone(), index_list.clone(), (literal!("stateSelect")).clone(), stateSelectType.clone(), true)?;
+                    quantity_str = instBinding(r#mod.clone(), varLst.clone(), DAE::T_STRING_DEFAULT().clone(), index_list.clone(), (literal!("quantity")).clone(), false)?;
+                    unit_str = instBinding(r#mod.clone(), varLst.clone(), DAE::T_STRING_DEFAULT().clone(), index_list.clone(), (literal!("unit")).clone(), false)?;
+                    displayunit_str = instBinding(r#mod.clone(), varLst.clone(), DAE::T_STRING_DEFAULT().clone(), index_list.clone(), (literal!("displayUnit")).clone(), false)?;
+                    min_val = instBinding(r#mod.clone(), varLst.clone(), DAE::T_REAL_DEFAULT().clone(), index_list.clone(), (literal!("min")).clone(), false)?;
+                    max_val = instBinding(r#mod.clone(), varLst.clone(), DAE::T_REAL_DEFAULT().clone(), index_list.clone(), (literal!("max")).clone(), false)?;
+                    start_val = instBinding(r#mod.clone(), varLst.clone(), DAE::T_REAL_DEFAULT().clone(), index_list.clone(), (literal!("start")).clone(), false)?;
+                    fixed_val = instBinding(r#mod.clone(), varLst.clone(), DAE::T_BOOL_DEFAULT().clone(), index_list.clone(), (literal!("fixed")).clone(), true)?;
+                    nominal_val = instBinding(r#mod.clone(), varLst.clone(), DAE::T_REAL_DEFAULT().clone(), index_list.clone(), (literal!("nominal")).clone(), false)?;
+                    exp_bind_select = instEnumerationBinding(r#mod.clone(), varLst.clone(), index_list.clone(), (literal!("stateSelect")).clone(), stateSelectType().clone(), true)?;
                     stateSelect_value = InstUtil::getStateSelectFromExpOption(exp_bind_select.clone());
-                    exp_bind_uncertainty = instEnumerationBinding(r#mod.clone(), varLst.clone(), index_list.clone(), (literal!("uncertain")).clone(), uncertaintyType.clone(), true)?;
+                    exp_bind_uncertainty = instEnumerationBinding(r#mod.clone(), varLst.clone(), index_list.clone(), (literal!("uncertain")).clone(), uncertaintyType().clone(), true)?;
                     uncertainty_value = getUncertainFromExpOption(exp_bind_uncertainty.clone());
                     distribution_value = instDistributionBinding(r#mod.clone(), varLst.clone(), index_list.clone(), (literal!("distribution")).clone(), false)?;
                     startOrigin = instStartOrigin(r#mod.clone(), varLst.clone(), (literal!("start")).clone())?;
@@ -323,12 +326,12 @@ pub fn instDaeVariableAttributes(mut inCache: FCore::Cache, mut inEnv: FCore::Gr
                     let mut startOrigin: Option<Arc<DAE::Exp>> = None;
                     let mut uncertainty_value: Option<DAE::Uncertainty> = None;
                     let mut distribution_value: Option<Arc<DAE::Distribution>> = None;
-                    quantity_str = instBinding(r#mod.clone(), varLst.clone(), DAE::T_STRING_DEFAULT.clone(), index_list.clone(), (literal!("quantity")).clone(), false)?;
-                    min_val = instBinding(r#mod.clone(), varLst.clone(), DAE::T_INTEGER_DEFAULT.clone(), index_list.clone(), (literal!("min")).clone(), false)?;
-                    max_val = instBinding(r#mod.clone(), varLst.clone(), DAE::T_INTEGER_DEFAULT.clone(), index_list.clone(), (literal!("max")).clone(), false)?;
-                    start_val = instBinding(r#mod.clone(), varLst.clone(), DAE::T_INTEGER_DEFAULT.clone(), index_list.clone(), (literal!("start")).clone(), false)?;
-                    fixed_val = instBinding(r#mod.clone(), varLst.clone(), DAE::T_BOOL_DEFAULT.clone(), index_list.clone(), (literal!("fixed")).clone(), true)?;
-                    exp_bind_uncertainty = instEnumerationBinding(r#mod.clone(), varLst.clone(), index_list.clone(), (literal!("uncertain")).clone(), uncertaintyType.clone(), true)?;
+                    quantity_str = instBinding(r#mod.clone(), varLst.clone(), DAE::T_STRING_DEFAULT().clone(), index_list.clone(), (literal!("quantity")).clone(), false)?;
+                    min_val = instBinding(r#mod.clone(), varLst.clone(), DAE::T_INTEGER_DEFAULT().clone(), index_list.clone(), (literal!("min")).clone(), false)?;
+                    max_val = instBinding(r#mod.clone(), varLst.clone(), DAE::T_INTEGER_DEFAULT().clone(), index_list.clone(), (literal!("max")).clone(), false)?;
+                    start_val = instBinding(r#mod.clone(), varLst.clone(), DAE::T_INTEGER_DEFAULT().clone(), index_list.clone(), (literal!("start")).clone(), false)?;
+                    fixed_val = instBinding(r#mod.clone(), varLst.clone(), DAE::T_BOOL_DEFAULT().clone(), index_list.clone(), (literal!("fixed")).clone(), true)?;
+                    exp_bind_uncertainty = instEnumerationBinding(r#mod.clone(), varLst.clone(), index_list.clone(), (literal!("uncertain")).clone(), uncertaintyType().clone(), true)?;
                     uncertainty_value = getUncertainFromExpOption(exp_bind_uncertainty.clone());
                     distribution_value = instDistributionBinding(r#mod.clone(), varLst.clone(), index_list.clone(), (literal!("distribution")).clone(), false)?;
                     startOrigin = instStartOrigin(r#mod.clone(), varLst.clone(), (literal!("start")).clone())?;
@@ -344,7 +347,7 @@ pub fn instDaeVariableAttributes(mut inCache: FCore::Cache, mut inEnv: FCore::Gr
                     let mut fixed_val: Option<Arc<DAE::Exp>> = None;
                     let mut start_val: Option<Arc<DAE::Exp>> = None;
                     let mut startOrigin: Option<Arc<DAE::Exp>> = None;
-                    quantity_str = instBinding(r#mod.clone(), varLst.clone(), DAE::T_STRING_DEFAULT.clone(), index_list.clone(), (literal!("quantity")).clone(), false)?;
+                    quantity_str = instBinding(r#mod.clone(), varLst.clone(), DAE::T_STRING_DEFAULT().clone(), index_list.clone(), (literal!("quantity")).clone(), false)?;
                     start_val = instBinding(r#mod.clone(), varLst.clone(), tp.clone(), index_list.clone(), (literal!("start")).clone(), false)?;
                     fixed_val = instBinding(r#mod.clone(), varLst.clone(), tp.clone(), index_list.clone(), (literal!("fixed")).clone(), true)?;
                     startOrigin = instStartOrigin(r#mod.clone(), varLst.clone(), (literal!("start")).clone())?;
@@ -370,7 +373,7 @@ pub fn instDaeVariableAttributes(mut inCache: FCore::Cache, mut inEnv: FCore::Gr
                     let mut startOrigin: Option<Arc<DAE::Exp>> = None;
                     quantity_str = instBinding(r#mod.clone(), varLst.clone(), tp.clone(), index_list.clone(), (literal!("quantity")).clone(), false)?;
                     start_val = instBinding(r#mod.clone(), varLst.clone(), tp.clone(), index_list.clone(), (literal!("start")).clone(), false)?;
-                    fixed_val = instBinding(r#mod.clone(), varLst.clone(), DAE::T_BOOL_DEFAULT.clone(), index_list.clone(), (literal!("fixed")).clone(), true)?;
+                    fixed_val = instBinding(r#mod.clone(), varLst.clone(), DAE::T_BOOL_DEFAULT().clone(), index_list.clone(), (literal!("fixed")).clone(), true)?;
                     startOrigin = instStartOrigin(r#mod.clone(), varLst.clone(), (literal!("start")).clone())?;
                     Ok((cache.clone(), Some(Arc::new(DAE::VariableAttributes::VAR_ATTR_STRING { quantity: quantity_str.clone(), start: start_val.clone(), fixed: fixed_val.clone(), equationBound: None, isProtected: None, finalPrefix: None, startOrigin: startOrigin.clone() }))))
                 }
@@ -386,11 +389,11 @@ pub fn instDaeVariableAttributes(mut inCache: FCore::Cache, mut inEnv: FCore::Gr
                     let mut exp_bind_max: Option<Arc<DAE::Exp>> = None;
                     let mut exp_bind_start: Option<Arc<DAE::Exp>> = None;
                     let mut startOrigin: Option<Arc<DAE::Exp>> = None;
-                    quantity_str = instBinding(r#mod.clone(), varLst.clone(), DAE::T_STRING_DEFAULT.clone(), index_list.clone(), (literal!("quantity")).clone(), false)?;
+                    quantity_str = instBinding(r#mod.clone(), varLst.clone(), DAE::T_STRING_DEFAULT().clone(), index_list.clone(), (literal!("quantity")).clone(), false)?;
                     exp_bind_min = instBinding(r#mod.clone(), varLst.clone(), enumtype.clone(), index_list.clone(), (literal!("min")).clone(), false)?;
                     exp_bind_max = instBinding(r#mod.clone(), varLst.clone(), enumtype.clone(), index_list.clone(), (literal!("max")).clone(), false)?;
                     exp_bind_start = instBinding(r#mod.clone(), varLst.clone(), enumtype.clone(), index_list.clone(), (literal!("start")).clone(), false)?;
-                    fixed_val = instBinding(r#mod.clone(), varLst.clone(), DAE::T_BOOL_DEFAULT.clone(), index_list.clone(), (literal!("fixed")).clone(), true)?;
+                    fixed_val = instBinding(r#mod.clone(), varLst.clone(), DAE::T_BOOL_DEFAULT().clone(), index_list.clone(), (literal!("fixed")).clone(), true)?;
                     startOrigin = instStartOrigin(r#mod.clone(), varLst.clone(), (literal!("start")).clone())?;
                     Ok((cache.clone(), Some(Arc::new(DAE::VariableAttributes::VAR_ATTR_ENUMERATION { quantity: quantity_str.clone(), min: exp_bind_min.clone(), max: exp_bind_max.clone(), start: exp_bind_start.clone(), fixed: fixed_val.clone(), equationBound: None, isProtected: None, finalPrefix: None, startOrigin: startOrigin.clone() }))))
                 }
@@ -438,7 +441,7 @@ fn instDistributionBinding(mut inMod: Arc<DAE::Mod>, mut varLst: Arc<metamodelic
                     let mut params: Arc<DAE::Exp>;
                     let mut paramNames: Arc<DAE::Exp>;
                     let mut path: Arc<Absyn::Path>;
-                    let (__pa0, __pa1, __pa2, __pa3) = ::match_deref::match_deref! { match &(instBinding(r#mod.clone(), varLst.clone(), distributionType.clone(), index_list.clone(), (bind_name.clone()).clone(), useConstValue.clone())?) {
+                    let (__pa0, __pa1, __pa2, __pa3) = ::match_deref::match_deref! { match &(instBinding(r#mod.clone(), varLst.clone(), distributionType().clone(), index_list.clone(), (bind_name.clone()).clone(), useConstValue.clone())?) {
                         Some(Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: __pa0, tail: Deref @ metamodelica::List::Cons { head: __pa1, tail: Deref @ metamodelica::List::Cons { head: __pa2, tail: Deref @ metamodelica::List::Nil } } }, path: __pa3, .. }) => (__pa0.clone(), __pa1.clone(), __pa2.clone(), __pa3.clone()),
                         _ => bail!("pattern mismatch"),
                     } };
@@ -459,7 +462,7 @@ fn instDistributionBinding(mut inMod: Arc<DAE::Mod>, mut varLst: Arc<metamodelic
                     let mut params: Arc<DAE::Exp>;
                     let mut paramNames: Arc<DAE::Exp>;
                     let mut path: Arc<Absyn::Path>;
-                    let (__pa0, __pa1, __pa2, __pa3) = ::match_deref::match_deref! { match &(instBinding(r#mod.clone(), varLst.clone(), distributionType.clone(), index_list.clone(), (bind_name.clone()).clone(), useConstValue.clone())?) {
+                    let (__pa0, __pa1, __pa2, __pa3) = ::match_deref::match_deref! { match &(instBinding(r#mod.clone(), varLst.clone(), distributionType().clone(), index_list.clone(), (bind_name.clone()).clone(), useConstValue.clone())?) {
                         Some(Deref @ DAE::Exp::RECORD { exps: Deref @ metamodelica::List::Cons { head: __pa0, tail: Deref @ metamodelica::List::Cons { head: __pa1, tail: Deref @ metamodelica::List::Cons { head: __pa2, tail: Deref @ metamodelica::List::Nil } } }, path: __pa3, .. }) => (__pa0.clone(), __pa1.clone(), __pa2.clone(), __pa3.clone()),
                         _ => bail!("pattern mismatch"),
                     } };
@@ -484,7 +487,7 @@ fn instDistributionBinding(mut inMod: Arc<DAE::Mod>, mut varLst: Arc<metamodelic
                     let mut cr: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
                     let mut crName: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
                     let mut crParams: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
-                    let (__pa0, __pa1) = ::match_deref::match_deref! { match &(instBinding(r#mod.clone(), varLst.clone(), distributionType.clone(), index_list.clone(), (bind_name.clone()).clone(), useConstValue.clone())?) {
+                    let (__pa0, __pa1) = ::match_deref::match_deref! { match &(instBinding(r#mod.clone(), varLst.clone(), distributionType().clone(), index_list.clone(), (bind_name.clone()).clone(), useConstValue.clone())?) {
                         Some(Deref @ DAE::Exp::CREF { componentRef: __pa0, ty: __pa1 }) => (__pa0.clone(), __pa1.clone()),
                         _ => bail!("pattern mismatch"),
                     } };
@@ -496,11 +499,11 @@ fn instDistributionBinding(mut inMod: Arc<DAE::Mod>, mut varLst: Arc<metamodelic
                         _ => bail!("pattern mismatch"),
                     } };
                     paramDim = __pa2.clone();
-                    crName = ComponentReference::crefPrependIdent(cr.clone(), (literal!("name")).clone(), metamodelica::nil(), DAE::T_STRING_DEFAULT.clone())?;
-                    crParams = ComponentReference::crefPrependIdent(cr.clone(), (literal!("params")).clone(), metamodelica::nil(), Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_REAL_DEFAULT.clone(), dims: list![Arc::new(DAE::Dimension::DIM_INTEGER { integer: paramDim.clone() })] }))?;
-                    name = Expression::makeCrefExp(crName.clone(), DAE::T_STRING_DEFAULT.clone())?;
-                    params = Expression::makeCrefExp(crParams.clone(), Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_REAL_DEFAULT.clone(), dims: list![Arc::new(DAE::Dimension::DIM_INTEGER { integer: paramDim.clone() })] }))?;
-                    paramNames = Expression::makeCrefExp(crParams.clone(), Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_STRING_DEFAULT.clone(), dims: list![Arc::new(DAE::Dimension::DIM_INTEGER { integer: paramDim.clone() })] }))?;
+                    crName = ComponentReference::crefPrependIdent(cr.clone(), (literal!("name")).clone(), metamodelica::nil(), DAE::T_STRING_DEFAULT().clone())?;
+                    crParams = ComponentReference::crefPrependIdent(cr.clone(), (literal!("params")).clone(), metamodelica::nil(), Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_REAL_DEFAULT().clone(), dims: list![Arc::new(DAE::Dimension::DIM_INTEGER { integer: paramDim.clone() })] }))?;
+                    name = Expression::makeCrefExp(crName.clone(), DAE::T_STRING_DEFAULT().clone())?;
+                    params = Expression::makeCrefExp(crParams.clone(), Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_REAL_DEFAULT().clone(), dims: list![Arc::new(DAE::Dimension::DIM_INTEGER { integer: paramDim.clone() })] }))?;
+                    paramNames = Expression::makeCrefExp(crParams.clone(), Arc::new(DAE::Type::T_ARRAY { ty: DAE::T_STRING_DEFAULT().clone(), dims: list![Arc::new(DAE::Dimension::DIM_INTEGER { integer: paramDim.clone() })] }))?;
                     Ok(Some(Arc::new(DAE::Distribution { name: name.clone(), params: params.clone(), paramNames: paramNames.clone() })))
                 }
                 _ => bail!("nomatch"),
@@ -539,7 +542,7 @@ pub fn instModEquation(mut inComponentRef: Arc<DAE::ComponentRef>, mut inType: A
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ DAE::Type::T_COMPLEX { complexClassType: ClassInf::State::RECORD { path: _ }, .. }, Deref @ DAE::Mod::MOD { binding: Some(DAE::EqMod::TYPED { modifierAsExp: _, modifierAsValue: Some(_), properties: DAE::Properties::PROP { type_: _, constFlag: DAE::Const::C_CONST }, modifierAsAbsynExp: _, .. }), .. }) => {
-                    Ok(DAE::emptyDae.clone())
+                    Ok(DAE::emptyDae().clone())
                 }
                 _ => bail!("nomatch"),
             }}
@@ -551,7 +554,7 @@ pub fn instModEquation(mut inComponentRef: Arc<DAE::ComponentRef>, mut inType: A
                         Deref @ DAE::Type::T_ARRAY { dims: Deref @ metamodelica::List::Cons { head: Deref @ DAE::Dimension::DIM_INTEGER { integer: 0 }, tail: Deref @ metamodelica::List::Nil }, .. } => (),
                         _ => bail!("pattern mismatch"),
                     } };
-                    Ok(DAE::emptyDae.clone())
+                    Ok(DAE::emptyDae().clone())
                 }
                 _ => bail!("nomatch"),
             }}
@@ -565,7 +568,7 @@ pub fn instModEquation(mut inComponentRef: Arc<DAE::ComponentRef>, mut inType: A
                     let mut aexp1: Arc<Absyn::Exp> = Arc::new(Absyn::Exp::BREAK);
                     let mut scode: Arc<SCode::Equation>;
                     let mut acr: Arc<Absyn::ComponentRef> = Arc::new(Absyn::ComponentRef::ALLWILD);
-                    let mut source: Arc<DAE::ElementSource>;
+                    let mut source: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
                     t = Types::simplifyType(inType.clone())?;
                     lhs = Expression::makeCrefExp(inComponentRef.clone(), t.clone())?;
                     acr = ComponentReference::unelabCref(inComponentRef.clone())?;
@@ -581,7 +584,7 @@ pub fn instModEquation(mut inComponentRef: Arc<DAE::ComponentRef>, mut inType: A
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (_, Deref @ DAE::Mod::MOD { binding: None, .. }) => {
-                    Ok(DAE::emptyDae.clone())
+                    Ok(DAE::emptyDae().clone())
                 }
                 _ => bail!("nomatch"),
             }}
@@ -589,7 +592,7 @@ pub fn instModEquation(mut inComponentRef: Arc<DAE::ComponentRef>, mut inType: A
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (_, Deref @ DAE::Mod::NOMOD) => {
-                    Ok(DAE::emptyDae.clone())
+                    Ok(DAE::emptyDae().clone())
                 }
                 _ => bail!("nomatch"),
             }}
@@ -597,7 +600,7 @@ pub fn instModEquation(mut inComponentRef: Arc<DAE::ComponentRef>, mut inType: A
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (_, Deref @ DAE::Mod::REDECL { .. }) => {
-                    Ok(DAE::emptyDae.clone())
+                    Ok(DAE::emptyDae().clone())
                 }
                 _ => bail!("nomatch"),
             }}
@@ -812,7 +815,7 @@ pub fn makeRecordBinding(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut
             binding = __pa1.clone();
             ty = __pa2.clone();
             name = __pa3.clone();
-            (mods, opt_mod) = unwrap_break_err!(List::deleteMemberOnTrue((name.clone()).clone(), mods.clone(), Arc::new(fnptr!(InstUtil::isSubModNamed, ArcStr, Arc<DAE::SubMod>))), '__try0);
+            (mods, opt_mod) = unwrap_break_err!(List::deleteMemberOnTrue((name.clone()).clone(), mods.clone(), (std::sync::Arc::new(fnptr!(InstUtil::isSubModNamed, ArcStr, Arc<DAE::SubMod>)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, Arc<DAE::SubMod>) -> Result<bool> + 'static>)), '__try0);
             if isSome(opt_mod.clone()) {
                 ty = Types::liftArrayListDims(ty.clone(), dims.clone());
                 (exp, val) = unwrap_break_err!(makeRecordBinding3(opt_mod.clone(), ty.clone(), inInfo.clone()), '__try0);
@@ -833,7 +836,7 @@ pub fn makeRecordBinding(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut
             }
             accum_exps = cons(exp.clone(), accum_exps.clone());
             accum_vals = cons(val.clone(), accum_vals.clone());
-            accum_names = cons(name.clone(), accum_names.clone());
+            accum_names = cons((name.clone()).clone(), accum_names.clone());
         }
         ety = unwrap_break_err!(Types::simplifyType(Types::arrayElementType(inRecordType.clone())), '__try0);
         exp = Arc::new(DAE::Exp::CALL { path: inRecordName.clone(), expLst: accum_exps.clone().reverse(), attr: Arc::new(DAE::CallAttributes { ty: ety.clone(), tuple_: false, builtin: false, isImpure: false, isFunctionPointerCall: false, inlineType: openmodelica_frontend_types::DAE::InlineType::NORM_INLINE, tailCall: openmodelica_frontend_types::DAE::TailCall::NO_TAIL }) });
@@ -920,7 +923,7 @@ pub fn makeVariableBinding(mut inType: Arc<DAE::Type>, mut inMod: Arc<DAE::Mod>,
     let mut e: Arc<DAE::Exp>;
     let mut e2: Arc<DAE::Exp>;
     let mut p: DAE::Properties;
-    let mut info: SourceInfo;
+    let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
     let mut c: DAE::Const = DAE::Const::C_CONST;
     let mut e_str: ArcStr = arcstr::literal!("");
     let mut et_str: ArcStr = arcstr::literal!("");

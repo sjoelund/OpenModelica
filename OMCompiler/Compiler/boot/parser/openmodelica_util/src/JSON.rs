@@ -56,7 +56,7 @@ use crate::UnorderedMap;
 use crate::Util;
 use crate::Vector;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum JSON {
     OBJECT {
         values: Arc<UnorderedMap::UnorderedMap<ArcStr, Arc<JSON>>>,
@@ -89,7 +89,7 @@ impl Default for JSON {
 pub use self::JSON::{OBJECT,LIST_OBJECT,ARRAY,LIST,STRING,INTEGER,NUMBER,TRUE,FALSE,NULL};
 pub fn emptyObject() -> Arc<JSON> {
     let mut obj: Arc<JSON> = Arc::new(JSON::FALSE);
-    obj = Arc::new(JSON::OBJECT { values: UnorderedMap::new(fnptr!(stringHashDjb2, ArcStr), fnptr!(stringEq, ArcStr, ArcStr), 1) });
+    obj = Arc::new(JSON::OBJECT { values: UnorderedMap::new((std::sync::Arc::new(fnptr!(stringHashDjb2, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr) -> Result<i32> + 'static>), (std::sync::Arc::new(fnptr!(stringEq, ArcStr, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>), 1) });
     obj
 }
 
@@ -461,7 +461,7 @@ pub fn toStringPP_listObject(mut object: Arc<metamodelica::List<(ArcStr, Arc<JSO
     Ok(())
 }
 
-pub type partialParser = fn(Arc<metamodelica::List<Token>>) -> Result<(Arc<JSON>, Arc<metamodelica::List<Token>>)>;
+pub type partialParser = std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<Token>>) -> Result<(Arc<JSON>, Arc<metamodelica::List<Token>>)> + 'static>;
 
 pub fn parseFile(mut fileName: ArcStr) -> Result<Arc<JSON>> {
     let mut value: Arc<JSON> = Arc::new(JSON::FALSE);
@@ -569,7 +569,7 @@ pub fn getStringList(mut obj: Arc<JSON>) -> Result<Arc<metamodelica::List<ArcStr
         }
         __acc
     },
-        Deref @ ARRAY { .. } => Vector::mapToList(var_field!((*obj).values, JSON::ARRAY).clone(), Arc::new(getString)),
+        Deref @ ARRAY { .. } => Vector::mapToList(var_field!((*obj).values, JSON::ARRAY).clone(), (std::sync::Arc::new(getString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<JSON>) -> Result<ArcStr> + 'static>)),
         Deref @ LIST { .. } => {
         let mut __acc: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
         for mut v in (var_field!((*obj).values, JSON::LIST).clone()).into_iter().cloned() {
@@ -781,7 +781,7 @@ pub fn parse_object(mut inTokens: Arc<metamodelica::List<Token>>) -> Result<(Arc
     let mut values: Arc<UnorderedMap::UnorderedMap<ArcStr, Arc<JSON>>>;
     let mut key: ArcStr = arcstr::literal!("");
     let mut cont: bool = false;
-    values = UnorderedMap::new(fnptr!(stringHashDjb2, ArcStr), fnptr!(stringEq, ArcStr, ArcStr), 1);
+    values = UnorderedMap::new((std::sync::Arc::new(fnptr!(stringHashDjb2, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr) -> Result<i32> + 'static>), (std::sync::Arc::new(fnptr!(stringEq, ArcStr, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>), 1);
     tokens = parse_expected_token(tokens.clone(), TokenId::OBJECTBEGIN.clone())?;
     cont = peek_id(tokens.clone())? != TokenId::ARRAYEND.clone();
     while cont.clone() {

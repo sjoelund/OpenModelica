@@ -66,7 +66,7 @@ use openmodelica_util::Error;
 use openmodelica_util::UnorderedMap;
 use openmodelica_util::Util;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct NFFunctionDerivative {
     pub derivativeFn: Arc<InstNode::InstNode>,
     pub derivedFn: Arc<InstNode::InstNode>,
@@ -102,6 +102,9 @@ impl PartialOrd for Condition {
 impl Ord for Condition {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering { (*self as i32).cmp(&(*other as i32)) }
 }
+impl Default for Condition {
+    fn default() -> Self { Self::ZERO_DERIVATIVE }
+}
 
 pub fn instDerivatives(mut fnNode: Arc<InstNode::InstNode>, mut r#fn: Arc<Function::Function>) -> Result<Arc<metamodelica::List<Arc<NFFunctionDerivative>>>> {
     let mut ders: Arc<metamodelica::List<Arc<NFFunctionDerivative>>> = metamodelica::nil();
@@ -121,7 +124,7 @@ pub fn typeDerivative(mut fnDer: Arc<NFFunctionDerivative>) -> Result<()> {
     let mut order: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut order_ty: Arc<Type::NFType> = Arc::new(Type::ANY);
     let mut var: Variability = Variability::CONSTANT;
-    let mut info: SourceInfo;
+    let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
     Function::typeNodeCache(fnDer.derivativeFn.clone(), InstContext::FUNCTION.clone())?;
     info = InstNode::info(fnDer.derivedFn.clone())?;
     (order, order_ty, var, _) = Typing::typeExp(fnDer.order.clone(), InstContext::FUNCTION.clone(), info.clone(), false)?;
@@ -186,8 +189,8 @@ pub fn toSubMod(mut fnDer: Arc<NFFunctionDerivative>) -> Result<Arc<SCode::SubMo
     let mut orderMod: Arc<SCode::SubMod>;
     let mut subMods: Arc<metamodelica::List<Arc<SCode::SubMod>>> = metamodelica::nil();
     let mut order: i32 = 0;
-    let mut info: SourceInfo;
-    let mut func: Arc<Function::Function>;
+    let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
+    let mut func: Arc<Function::Function> = Arc::new(<Function::Function as ::std::default::Default>::default());
     info = InstNode::info(fnDer.derivedFn.clone())?;
     let __pa0 = ::match_deref::match_deref! { match &(fnDer.order.clone()) {
         Deref @ Expression::INTEGER { value: __pa0 } => __pa0.clone(),

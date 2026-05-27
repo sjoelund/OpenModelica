@@ -54,7 +54,7 @@ pub fn printIstmtsStr(mut inStatements: GlobalScript::Statements) -> ArcStr {
     let mut outString: ArcStr = arcstr::literal!("");
     outString = ((match inStatements.clone() {
         GlobalScript::Statements { interactiveStmtLst: ref stmts, .. } => {
-            stringDelimitList(List::map(stmts.clone(), Arc::new(printIstmtStr)), (literal!("; ")).clone())
+            stringDelimitList(List::map(stmts.clone(), (std::sync::Arc::new(printIstmtStr) as std::sync::Arc<dyn ::std::ops::Fn(GlobalScript::Statement) -> Result<ArcStr> + 'static>)), (literal!("; ")).clone())
         },
         _ => {
             literal!("printIstmtsStr: unknown")
@@ -81,7 +81,7 @@ pub fn printIstmtStr(mut inStatement: GlobalScript::Statement) -> Result<ArcStr>
 
 pub fn printAST(mut pr: Absyn::Program) -> Result<()> {
     let mut s: ArcStr = literal!("");
-    let mut class_: Arc<Absyn::Class>;
+    let mut class_: Arc<Absyn::Class> = Arc::new(<Absyn::Class as ::std::default::Default>::default());
     let mut classes: Arc<metamodelica::List<Arc<Absyn::Class>>> = metamodelica::nil();
     let mut within_: Absyn::Within = Absyn::Within::TOP;
     let Absyn::PROGRAM { classes: __pa0, within_: __pa1 } = (pr.clone()) else { bail!("pattern mismatch") };

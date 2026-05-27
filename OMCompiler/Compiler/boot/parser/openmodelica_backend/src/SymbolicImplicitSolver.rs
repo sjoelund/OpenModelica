@@ -84,7 +84,7 @@ fn symSolverWork(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result<BackendDAE::I
     localInline = BackendDAEUtil::copyEqSystems(inDAE.eqs.clone())?;
     knownVariables = BackendVariable::emptyVars(BackendDAEUtil::daeSize(inDAE.clone()));
     inlineData = BackendDAE::InlineData { inlineSystems: localInline.clone(), knownVariables: knownVariables.clone() };
-    cref = ComponentReferenceBasics::makeCrefIdent((arcstr::literal!(BackendDAE::symSolverDT)).clone(), DAE::T_REAL_DEFAULT.clone(), metamodelica::nil());
+    cref = ComponentReferenceBasics::makeCrefIdent((arcstr::literal!(BackendDAE::symSolverDT)).clone(), DAE::T_REAL_DEFAULT().clone(), metamodelica::nil());
     tmpv = BackendVariable::makeVar(cref.clone());
     tmpv = BackendVariable::setBindExp(tmpv.clone(), Some(Arc::new(DAE::Exp::RCONST { real: metamodelica::OrderedFloat(0.0_f64) })));
     inlineData.knownVariables = BackendVariable::addVars(list![tmpv.clone()], inlineData.knownVariables.clone());
@@ -141,7 +141,7 @@ fn symSolverUpdateSyst(mut iSyst: Arc<BackendDAE::EqSystem>, mut inKnVars: Backe
             for mut i in 1..=ExpandableArray::getLastUsedIndex(eqns.clone()) {
                 if ExpandableArray::occupied(i.clone(), eqns.clone()) {
                     eqn = ExpandableArray::get(i.clone(), eqns.clone())?;
-                    let (__pa0, (__pa1, _)) = BackendEquation::traverseExpsOfEquation(eqn.clone(), Arc::new(symSolverUpdateEqn), (crlst.clone(), syst.orderedVars.clone()))?;
+                    let (__pa0, (__pa1, _)) = BackendEquation::traverseExpsOfEquation(eqn.clone(), (std::sync::Arc::new(symSolverUpdateEqn) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, (Arc<metamodelica::List<Arc<DAE::ComponentRef>>>, BackendDAE::Variables)) -> Result<(Arc<DAE::Exp>, (Arc<metamodelica::List<Arc<DAE::ComponentRef>>>, BackendDAE::Variables))> + 'static>), (crlst.clone(), syst.orderedVars.clone()))?;
                     eqn = __pa0.clone();
                     crlst = __pa1.clone();
                     ExpandableArray::update(i.clone(), eqn.clone(), eqns.clone())?;
@@ -185,12 +185,12 @@ fn symSolverUpdateEqn(mut inExp: Arc<DAE::Exp>, mut inTl: (Arc<metamodelica::Lis
     let mut inTpl: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
     (inTpl, orderedVars) = inTl.clone();
     if Flags::getConfigEnum(Flags::SYM_SOLVER.clone())? > 1 {
-        let (__pa0, (__pa1, __pa2)) = Expression::traverseExpTopDown(inExp.clone(), Arc::new(symSolverUpdateStates), (inTpl.clone(), orderedVars.clone()))?;
+        let (__pa0, (__pa1, __pa2)) = Expression::traverseExpTopDown(inExp.clone(), (std::sync::Arc::new(symSolverUpdateStates) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, (Arc<metamodelica::List<Arc<DAE::ComponentRef>>>, BackendDAE::Variables)) -> Result<(Arc<DAE::Exp>, bool, (Arc<metamodelica::List<Arc<DAE::ComponentRef>>>, BackendDAE::Variables))> + 'static>), (inTpl.clone(), orderedVars.clone()))?;
         outExp = __pa0.clone();
         inTpl = __pa1.clone();
         orderedVars = __pa2.clone();
     } else {
-        (outExp, inTpl) = Expression::traverseExpTopDown(inExp.clone(), Arc::new(symSolverUpdateDer), inTpl.clone())?;
+        (outExp, inTpl) = Expression::traverseExpTopDown(inExp.clone(), (std::sync::Arc::new(symSolverUpdateDer) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>) -> Result<(Arc<DAE::Exp>, bool, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>)> + 'static>), inTpl.clone())?;
     }
     outTpl = (inTpl.clone(), orderedVars.clone());
     Ok((outExp, outTpl))
@@ -208,7 +208,7 @@ fn symSolverUpdateStates(mut inExp: Arc<DAE::Exp>, mut inTl: (Arc<metamodelica::
             let mut e2: Arc<DAE::Exp>;
             let mut e3: Arc<DAE::Exp>;
             e2 = Expression::crefExp(ComponentReference::appendStringLastIdent((literal!("$Old")).clone(), cr.clone())?)?;
-            e3 = Expression::crefExp(ComponentReferenceBasics::makeCrefIdent((arcstr::literal!(BackendDAE::symSolverDT)).clone(), DAE::T_REAL_DEFAULT.clone(), metamodelica::nil()))?;
+            e3 = Expression::crefExp(ComponentReferenceBasics::makeCrefIdent((arcstr::literal!(BackendDAE::symSolverDT)).clone(), DAE::T_REAL_DEFAULT().clone(), metamodelica::nil()))?;
             cont = false;
             (Arc::new(DAE::Exp::BINARY { exp1: Arc::new(DAE::Exp::BINARY { exp1: e1.clone(), operator: DAE::Operator::SUB { ty: tp.clone() }, exp2: e2.clone() }), operator: DAE::Operator::DIV { ty: tp.clone() }, exp2: e3.clone() }), (List::unionElt(cr.clone(), cr_lst.clone()), orderedVars.clone()))
         },
@@ -246,7 +246,7 @@ fn symSolverUpdateDer(mut inExp: Arc<DAE::Exp>, mut inTpl: Arc<metamodelica::Lis
             let mut e2: Arc<DAE::Exp>;
             let mut e3: Arc<DAE::Exp>;
             e2 = Expression::crefExp(ComponentReference::appendStringLastIdent((literal!("$Old")).clone(), cr.clone())?)?;
-            e3 = Expression::crefExp(ComponentReferenceBasics::makeCrefIdent((arcstr::literal!(BackendDAE::symSolverDT)).clone(), DAE::T_REAL_DEFAULT.clone(), metamodelica::nil()))?;
+            e3 = Expression::crefExp(ComponentReferenceBasics::makeCrefIdent((arcstr::literal!(BackendDAE::symSolverDT)).clone(), DAE::T_REAL_DEFAULT().clone(), metamodelica::nil()))?;
             (Arc::new(DAE::Exp::BINARY { exp1: Arc::new(DAE::Exp::BINARY { exp1: e1.clone(), operator: DAE::Operator::SUB { ty: tp.clone() }, exp2: e2.clone() }), operator: DAE::Operator::DIV { ty: tp.clone() }, exp2: e3.clone() }), List::unionElt(cr.clone(), cr_lst.clone()))
         },
         _ => {

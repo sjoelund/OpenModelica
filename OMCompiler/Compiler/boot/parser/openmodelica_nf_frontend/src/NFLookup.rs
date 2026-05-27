@@ -311,9 +311,9 @@ pub fn lookupLocalCref(mut cref: Arc<Absyn::ComponentRef>, mut scope: Arc<InstNo
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ Absyn::ComponentRef::CREF_IDENT { .. } => {
+                    let mut node: Arc<InstNode::InstNode> = node.clone();
                     let mut foundScope: Arc<InstNode::InstNode> = foundScope.clone();
                     let mut state: Arc<LookupState::LookupState> = state.clone();
-                    let mut node: Arc<InstNode::InstNode> = node.clone();
                     (node, foundScope) = lookupLocalSimpleCref((var_field!((*cref).name, Absyn::ComponentRef::CREF_IDENT).clone()).clone(), scope.clone())?;
                     state = LookupState::nodeState(node.clone())?;
                     Ok((ComponentRef::fromAbsyn(node.clone(), var_field!((*cref).subscripts, Absyn::ComponentRef::CREF_IDENT).clone(), Arc::new(crate::NFComponentRef::EMPTY)), foundScope.clone(), state.clone()))
@@ -324,9 +324,9 @@ pub fn lookupLocalCref(mut cref: Arc<Absyn::ComponentRef>, mut scope: Arc<InstNo
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ Absyn::ComponentRef::CREF_QUAL { .. } => {
+                    let mut node: Arc<InstNode::InstNode> = node.clone();
                     let mut state: Arc<LookupState::LookupState> = state.clone();
                     let mut foundScope: Arc<InstNode::InstNode> = foundScope.clone();
-                    let mut node: Arc<InstNode::InstNode> = node.clone();
                     let mut foundCref: Arc<ComponentRef::NFComponentRef> = foundCref.clone();
                     (node, foundScope) = lookupLocalSimpleCref((var_field!((*cref).name, Absyn::ComponentRef::CREF_QUAL).clone()).clone(), scope.clone())?;
                     state = LookupState::nodeState(node.clone())?;
@@ -899,14 +899,14 @@ pub fn makeInnerNode(mut node: Arc<InstNode::InstNode>) -> Result<Arc<InstNode::
             let mut prefs: Arc<SCode::Prefixes>;
             let mut comp: Arc<Component::NFComponent> = Arc::new(Component::WILD);
             comp = InstNode::component(node.clone())?;
-            comp = (::match_deref::match_deref! { match &(comp.clone()) {
+            (comp, def) = (::match_deref::match_deref! { match &(comp.clone()) {
         Deref @ Component::COMPONENT_DEF { definition: def @ Deref @ SCode::Element::COMPONENT { prefixes: prefs, .. }, .. } => {
             let mut def = (*def).clone();
             let mut prefs = (*prefs).clone();
             assign_field!(prefs.innerOuter = openmodelica_ast::Absyn::InnerOuter::INNER);
             assign_variant_field!(def => SCode::Element::COMPONENT; prefixes = prefs.clone());
             assign_variant_field!(comp => Component::NFComponent::COMPONENT_DEF; definition = def.clone());
-            comp.clone()
+            (comp.clone(), def.clone())
         },
         _ => {
             Error::assertion(false, ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("NFLookup.makeInnerNode")); __mm_s.push_str(&*literal!(" got unknown component")); ArcStr::from(__mm_s) }).clone(), metamodelica::sourceInfo!())?;
@@ -945,7 +945,7 @@ pub fn loadLibrary_work(mut name: ArcStr, mut scope: Arc<InstNode::InstNode>) ->
     let mut version: ArcStr = literal!("(default)");
     let mut modelica_path: ArcStr = arcstr::literal!("");
     let mut cls_name: ArcStr = arcstr::literal!("");
-    let mut aprog: Absyn::Program;
+    let mut aprog: Absyn::Program = <Absyn::Program as ::std::default::Default>::default();
     let mut scls: Arc<SCode::Element>;
     let mut cls: Arc<Class::NFClass> = Arc::new(Class::NOT_INSTANTIATED);
     let mut lib_node: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);

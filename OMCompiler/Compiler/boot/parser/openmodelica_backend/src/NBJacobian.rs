@@ -125,13 +125,13 @@ pub fn isDynamic(mut jacType: JacobianType) -> bool {
     b
 }
 
-pub fn applyToPartitions(mut partitions: Arc<metamodelica::List<Arc<Partition::Partition::Partition>>>, mut funcMap: Arc<UnorderedMap::UnorderedMap<Arc<Path>, Arc<Function::Function>>>, mut knowns: Arc<VariablePointers::VariablePointers>, mut name: ArcStr, mut func: Module::jacobianInterface) -> Result<(Arc<metamodelica::List<Arc<Partition::Partition::Partition>>>, Arc<UnorderedMap::UnorderedMap<Arc<Path>, Arc<Function::Function>>>)> {
+pub fn applyToPartitions(mut partitions: Arc<metamodelica::List<Arc<Partition::Partition::Partition>>>, mut funcMap: Arc<UnorderedMap::UnorderedMap<Arc<Path>, Arc<Function::Function>>>, mut knowns: Arc<VariablePointers::VariablePointers>, mut name: ArcStr, mut func: Arc<dyn ::std::ops::Fn(ArcStr, JacobianType, Arc<VariablePointers::VariablePointers>, Arc<VariablePointers::VariablePointers>, Arc<EquationPointers::EquationPointers>, Option<metamodelica::Array<Arc<StrongComponent::NBStrongComponent>>>, Option<Arc<Adjacency::Matrix::Matrix>>, Arc<UnorderedMap::UnorderedMap<Arc<Path>, Arc<Function::Function>>>, bool) -> Result<Option<Arc<Jacobian::NBackendDAE>>> + 'static>) -> Result<(Arc<metamodelica::List<Arc<Partition::Partition::Partition>>>, Arc<UnorderedMap::UnorderedMap<Arc<Path>, Arc<Function::Function>>>)> {
     let mut partitions: Arc<metamodelica::List<Arc<Partition::Partition::Partition>>> = partitions;
     let mut funcMap: Arc<UnorderedMap::UnorderedMap<Arc<Path>, Arc<Function::Function>>> = funcMap;
     partitions = {
         let mut __acc: Arc<metamodelica::List<Arc<Partition::Partition::Partition>>> = metamodelica::nil();
         for mut part in (partitions.clone()).into_iter().cloned() {
-            let __x = partJacobian(part.clone(), funcMap.clone(), knowns.clone(), (name.clone()).clone(), func)?;
+            let __x = partJacobian(part.clone(), funcMap.clone(), knowns.clone(), (name.clone()).clone(), func.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
@@ -259,7 +259,7 @@ pub type SparsityPatternRow = (Arc<ComponentRef::NFComponentRef>, Arc<metamodeli
 
 pub mod SparsityPattern {
     use super::*;
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
     pub struct SparsityPattern {
         /// colum-wise sparsity pattern
         pub col_wise_pattern: Arc<metamodelica::List<(Arc<ComponentRef::NFComponentRef>, Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>)>>,
@@ -282,9 +282,9 @@ pub mod SparsityPattern {
         let mut colEmpty: bool = pattern.col_wise_pattern.clone().is_empty();
         let mut rowEmpty: bool = pattern.row_wise_pattern.clone().is_empty();
         r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*r#str.clone()); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*StringUtil::headline_3((literal!("### Seeds (col vars) ###")).clone())); ArcStr::from(__mm_s) }).clone();
-        r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*r#str.clone()); __mm_s.push_str(&*List::toString(pattern.seed_vars.clone(), Arc::new(ComponentRef::toString), (literal!("")).clone(), (literal!("{")).clone(), (literal!(", ")).clone(), (literal!("}")).clone(), true, 0)?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone();
+        r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*r#str.clone()); __mm_s.push_str(&*List::toString(pattern.seed_vars.clone(), (std::sync::Arc::new(ComponentRef::toString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<ArcStr> + 'static>), (literal!("")).clone(), (literal!("{")).clone(), (literal!(", ")).clone(), (literal!("}")).clone(), true, 0)?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone();
         r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*r#str.clone()); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*StringUtil::headline_3((literal!("### Partials (row vars) ###")).clone())); ArcStr::from(__mm_s) }).clone();
-        r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*r#str.clone()); __mm_s.push_str(&*List::toString(pattern.partial_vars.clone(), Arc::new(ComponentRef::toString), (literal!("")).clone(), (literal!("{")).clone(), (literal!(", ")).clone(), (literal!("}")).clone(), true, 0)?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone();
+        r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*r#str.clone()); __mm_s.push_str(&*List::toString(pattern.partial_vars.clone(), (std::sync::Arc::new(ComponentRef::toString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<ArcStr> + 'static>), (literal!("")).clone(), (literal!("{")).clone(), (literal!(", ")).clone(), (literal!("}")).clone(), true, 0)?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone();
         if !(colEmpty.clone()) {
             r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*r#str.clone()); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*StringUtil::headline_3((literal!("### Columns ###")).clone())); ArcStr::from(__mm_s) }).clone();
             for mut col in &*pattern.col_wise_pattern.clone() {
@@ -346,7 +346,7 @@ pub mod SparsityPattern {
         for mut k in &*keys.clone() {
             let mut k = k.clone();
             neighs = UnorderedMap::getOrFail(k.clone(), map.clone());
-            lines = cons({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("  ")); __mm_s.push_str(&*ComponentRef::toString(k.clone())?); __mm_s.push_str(&*literal!(" -> ")); __mm_s.push_str(&*ComponentRef::listToString(neighs.clone())); ArcStr::from(__mm_s) }, lines.clone());
+            lines = cons(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("  ")); __mm_s.push_str(&*ComponentRef::toString(k.clone())?); __mm_s.push_str(&*literal!(" -> ")); __mm_s.push_str(&*ComponentRef::listToString(neighs.clone())); ArcStr::from(__mm_s) }).clone(), lines.clone());
         }
         lines = lines.clone().reverse();
         s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Adjacency map (")); __mm_s.push_str(&*intString((keys.clone().len() as i32))); __mm_s.push_str(&*literal!(" keys):\n")); __mm_s.push_str(&*stringDelimitList(lines.clone(), (literal!("\n")).clone())); ArcStr::from(__mm_s) }).clone();
@@ -357,14 +357,15 @@ pub mod SparsityPattern {
         let mut sparsityPattern: Arc<SparsityPattern>;
         let mut sparsityColoring: Arc<SparsityColoring::SparsityColoring>;
         let mut map: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>>>;
-        (sparsityPattern, map) = (match strongComponents.clone() {
+        (sparsityPattern, map) = ({
+        let mut row_vars: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = metamodelica::nil();
+        let mut col_vars: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = metamodelica::nil();
+        let mut cols: Arc<metamodelica::List<(Arc<ComponentRef::NFComponentRef>, Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>)>> = metamodelica::nil();
+        let mut rows: Arc<metamodelica::List<(Arc<ComponentRef::NFComponentRef>, Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>)>> = metamodelica::nil();
+        let mut nnz: i32 = 0;
+        (match strongComponents.clone() {
         Some(mut comps) if (comps.clone().borrow().is_empty()) => {
-            let mut row_vars: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = metamodelica::nil();
-            let mut col_vars: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = metamodelica::nil();
-            let mut cols: Arc<metamodelica::List<(Arc<ComponentRef::NFComponentRef>, Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>)>> = metamodelica::nil();
-            let mut rows: Arc<metamodelica::List<(Arc<ComponentRef::NFComponentRef>, Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>)>> = metamodelica::nil();
-            let mut nnz: i32 = 0;
-            (EMPTY_SPARSITY_PATTERN().clone(), UnorderedMap::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>), ComponentRef::isEqual, 1))
+            (EMPTY_SPARSITY_PATTERN().clone(), UnorderedMap::new((std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), 1))
         },
         Some(mut comps) => {
             let mut seed_mapping: Arc<Mapping::Mapping>;
@@ -374,20 +375,15 @@ pub mod SparsityPattern {
             let mut partial_vars: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = metamodelica::nil();
             let mut partial_vars_array: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = metamodelica::nil();
             let mut tmp: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = metamodelica::nil();
-            let mut row_vars: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = metamodelica::nil();
-            let mut col_vars: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = metamodelica::nil();
             let mut set: Arc<UnorderedSet::UnorderedSet<Arc<ComponentRef::NFComponentRef>>>;
-            let mut cols: Arc<metamodelica::List<(Arc<ComponentRef::NFComponentRef>, Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>)>> = metamodelica::nil();
-            let mut rows: Arc<metamodelica::List<(Arc<ComponentRef::NFComponentRef>, Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>)>> = metamodelica::nil();
-            let mut nnz: i32 = 0;
             seed_mapping = Adjacency::Mapping::create(NBEquation::EquationPointers::empty(BaseHashTable::bigBucketSize.clone()), seedCandidates.clone())?;
             partial_mapping = Adjacency::Mapping::create(NBEquation::EquationPointers::empty(BaseHashTable::bigBucketSize.clone()), partialCandidates.clone())?;
             partial_vars = NBVariable::VariablePointers::getScalarVarNames(partialCandidates.clone(), false)?;
             seed_vars = NBVariable::VariablePointers::getScalarVarNames(seedCandidates.clone(), false)?;
             seed_vars_array = NBVariable::VariablePointers::getVarNames(seedCandidates.clone())?;
             partial_vars_array = NBVariable::VariablePointers::getVarNames(partialCandidates.clone())?;
-            map = UnorderedMap::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>), ComponentRef::isEqual, Util::nextPrime((seed_vars.clone().len() as i32) + (partial_vars.clone().len() as i32)));
-            set = UnorderedSet::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>), ComponentRef::isEqual, Util::nextPrime((seed_vars_array.clone().len() as i32)));
+            map = UnorderedMap::new((std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), Util::nextPrime((seed_vars.clone().len() as i32) + (partial_vars.clone().len() as i32)));
+            set = UnorderedSet::new((std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), Util::nextPrime((seed_vars_array.clone().len() as i32)));
             for mut cref in &*seed_vars.clone() {
                 let mut cref = cref.clone();
                 UnorderedMap::add(cref.clone(), metamodelica::nil(), map.clone())?;
@@ -414,7 +410,7 @@ pub mod SparsityPattern {
                 let mut cref = cref.clone();
                 if jacType.clone() == JacobianType::NLS.clone() || isRowInJacobian(cref.clone(), jacType.clone()) {
                     if UnorderedMap::contains(cref.clone(), map.clone()) {
-                        tmp = UnorderedSet::unique_list(UnorderedMap::getOrFail(cref.clone(), map.clone()), fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>), ComponentRef::isEqual);
+                        tmp = UnorderedSet::unique_list(UnorderedMap::getOrFail(cref.clone(), map.clone()), (std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>));
                         rows = cons((cref.clone(), tmp.clone()), rows.clone());
                         row_vars = cons(cref.clone(), row_vars.clone());
                         for mut dep in &*tmp.clone() {
@@ -426,8 +422,8 @@ pub mod SparsityPattern {
             }
             for mut cref in &*seed_vars.clone().reverse() {
                 let mut cref = cref.clone();
-                if jacType.clone() == JacobianType::NLS.clone() || BVariable::checkCref(cref.clone(), BVariable.isState, metamodelica::sourceInfo!())? || (jacType.clone() == JacobianType::OPT_LFG.clone() || jacType.clone() == JacobianType::OPT_MRF.clone() || jacType.clone() == JacobianType::OPT_R0.clone()) {
-                    tmp = UnorderedSet::unique_list(UnorderedMap::getSafe(cref.clone(), map.clone(), metamodelica::sourceInfo!())?, fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>), ComponentRef::isEqual);
+                if jacType.clone() == JacobianType::NLS.clone() || BVariable::checkCref(cref.clone(), (std::sync::Arc::new(BVariable.isState) as std::sync::Arc<dyn ::std::ops::Fn(Pointer::Pointer<Arc<Variable::NFVariable>>) -> Result<bool> + 'static>), metamodelica::sourceInfo!())? || (jacType.clone() == JacobianType::OPT_LFG.clone() || jacType.clone() == JacobianType::OPT_MRF.clone() || jacType.clone() == JacobianType::OPT_R0.clone()) {
+                    tmp = UnorderedSet::unique_list(UnorderedMap::getSafe(cref.clone(), map.clone(), metamodelica::sourceInfo!())?, (std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>));
                     cols = cons((cref.clone(), tmp.clone()), cols.clone());
                     col_vars = cons(cref.clone(), col_vars.clone());
                 }
@@ -440,23 +436,14 @@ pub mod SparsityPattern {
             (Arc::new(SparsityPattern { col_wise_pattern: cols.clone(), row_wise_pattern: rows.clone(), seed_vars: col_vars.clone(), partial_vars: row_vars.clone(), nnz: nnz.clone() }), map.clone())
         },
         None => {
-            let mut row_vars: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = metamodelica::nil();
-            let mut col_vars: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = metamodelica::nil();
-            let mut cols: Arc<metamodelica::List<(Arc<ComponentRef::NFComponentRef>, Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>)>> = metamodelica::nil();
-            let mut rows: Arc<metamodelica::List<(Arc<ComponentRef::NFComponentRef>, Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>)>> = metamodelica::nil();
-            let mut nnz: i32 = 0;
             Error::addMessage(Error::INTERNAL_ERROR.clone(), list![({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("NBJacobian.SparsityPattern.create")); __mm_s.push_str(&*literal!(" failed because of missing strong components.")); ArcStr::from(__mm_s) }).clone()])?;
             bail!("fail")
         },
         _ => {
-            let mut row_vars: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = metamodelica::nil();
-            let mut col_vars: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = metamodelica::nil();
-            let mut cols: Arc<metamodelica::List<(Arc<ComponentRef::NFComponentRef>, Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>)>> = metamodelica::nil();
-            let mut rows: Arc<metamodelica::List<(Arc<ComponentRef::NFComponentRef>, Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>)>> = metamodelica::nil();
-            let mut nnz: i32 = 0;
             Error::addMessage(Error::INTERNAL_ERROR.clone(), list![({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("NBJacobian.SparsityPattern.create")); __mm_s.push_str(&*literal!(" failed.")); ArcStr::from(__mm_s) }).clone()])?;
             bail!("fail")
         },
+    })
     });
         sparsityColoring = SparsityColoring::PartialD2ColoringAlgC(sparsityPattern.clone(), jacType.clone())?;
         if Flags::isSet(Flags::DUMP_SPARSE.clone())? {
@@ -473,15 +460,11 @@ pub mod SparsityPattern {
 
 }
 
-// TODO: non-Sync, non-const-emittable constant — needs new emission path.
-// Type: Arc<SparsityPattern::SparsityPattern>
-// Expr: Constructor { name: 'NBJacobian.SparsityPattern.SPARSITY_PATTERN', args: [Array { elems: [], ty: List(Unknown) }, Array { elems: [], ty: List(Unknown) }, Array { elems: [], ty: List(Unknown) }, Array { elems: [], ty: List(Unknown) }, Lit(Int(0))], named_args: [], ty: RustStruct('NBJacobian.SparsityPattern'), field_names: ['col_wise_pattern', 'row_wise_pattern', 'seed_vars', 'partial_vars', 'nnz'] }
-pub fn EMPTY_SPARSITY_PATTERN() -> Arc<SparsityPattern::SparsityPattern> { todo!("non-Sync, non-const-emittable constant EMPTY_SPARSITY_PATTERN — extend codegen") }
+thread_local! { static __EMPTY_SPARSITY_PATTERN_TLS: Arc<SparsityPattern::SparsityPattern> = Arc::new(SparsityPattern::SparsityPattern { col_wise_pattern: metamodelica::nil(), row_wise_pattern: metamodelica::nil(), seed_vars: metamodelica::nil(), partial_vars: metamodelica::nil(), nnz: 0 }); }
+pub fn EMPTY_SPARSITY_PATTERN() -> Arc<SparsityPattern::SparsityPattern> { __EMPTY_SPARSITY_PATTERN_TLS.with(|__t| __t.clone()) }
 
-// TODO: non-Sync, non-const-emittable constant — needs new emission path.
-// Type: Arc<SparsityColoring::SparsityColoring>
-// Expr: Constructor { name: 'NBJacobian.SparsityColoring.SPARSITY_COLORING', args: [Call { func: 'listArray', args: [Array { elems: [], ty: List(Unknown) }], named_args: [], ty: Array(Unknown), sig_ty: Unknown }, Call { func: 'listArray', args: [Array { elems: [], ty: List(Unknown) }], named_args: [], ty: Array(Unknown), sig_ty: Unknown }], named_args: [], ty: RustStruct('NBJacobian.SparsityColoring'), field_names: ['cols', 'rows'] }
-pub fn EMPTY_SPARSITY_COLORING() -> Arc<SparsityColoring::SparsityColoring> { todo!("non-Sync, non-const-emittable constant EMPTY_SPARSITY_COLORING — extend codegen") }
+thread_local! { static __EMPTY_SPARSITY_COLORING_TLS: Arc<SparsityColoring::SparsityColoring> = Arc::new(SparsityColoring::SparsityColoring { cols: metamodelica::arrayFromVec(metamodelica::nil().into_iter().cloned().collect()), rows: metamodelica::arrayFromVec(metamodelica::nil().into_iter().cloned().collect()) }); }
+pub fn EMPTY_SPARSITY_COLORING() -> Arc<SparsityColoring::SparsityColoring> { __EMPTY_SPARSITY_COLORING_TLS.with(|__t| __t.clone()) }
 
 /// seed variable lists belonging to the same color
 pub type SparsityColoringCol = Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>;
@@ -492,7 +475,7 @@ pub type SparsityColoringRow = Arc<metamodelica::List<Arc<ComponentRef::NFCompon
 pub mod SparsityColoring {
     use super::*;
     /// column wise coloring with extra row sparsity information
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
     pub struct SparsityColoring {
         pub cols: metamodelica::Array<Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>>,
         pub rows: metamodelica::Array<Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>>,
@@ -579,8 +562,8 @@ pub mod SparsityColoring {
         }
         sizeCols = (seeds.clone().borrow().len() as i32);
         sizeRows = (partials.clone().borrow().len() as i32);
-        seed_indices = UnorderedMap::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>), ComponentRef::isEqual, Util::nextPrime(sizeCols.clone()));
-        partial_indices = UnorderedMap::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>), ComponentRef::isEqual, Util::nextPrime(sizeRows.clone()));
+        seed_indices = UnorderedMap::new((std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), Util::nextPrime(sizeCols.clone()));
+        partial_indices = UnorderedMap::new((std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), Util::nextPrime(sizeRows.clone()));
         for mut i in 1..=sizeCols.clone() {
             UnorderedMap::add(seeds.borrow()[(i.clone()-1) as usize].clone(), i.clone(), seed_indices.clone())?;
         }
@@ -690,7 +673,7 @@ pub mod SparsityColoring {
         let mut node: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
         let mut mid: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
         let mut neigh: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
-        index_lookup = UnorderedMap::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>), ComponentRef::isEqual, Util::nextPrime(n.clone()));
+        index_lookup = UnorderedMap::new((std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), Util::nextPrime(n.clone()));
         for mut i in 1..=n.clone() {
             UnorderedMap::add(nodes.borrow()[(i.clone()-1) as usize].clone(), i.clone(), index_lookup.clone())?;
         }
@@ -753,7 +736,7 @@ pub mod SparsityColoring {
         let mut cols_lst: Arc<metamodelica::List<Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>>> = metamodelica::nil();
         let mut rows_lst: Arc<metamodelica::List<Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>>> = metamodelica::nil();
         cref_lookup = metamodelica::arrayFromVec(sparsityPattern.seed_vars.clone().into_iter().cloned().collect());
-        index_lookup = UnorderedMap::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>), ComponentRef::isEqual, Util::nextPrime((sparsityPattern.seed_vars.clone().len() as i32)));
+        index_lookup = UnorderedMap::new((std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), Util::nextPrime((sparsityPattern.seed_vars.clone().len() as i32)));
         let __range0 = 1..=(cref_lookup.clone().borrow().len() as i32);
         for mut i in __range0 {
             UnorderedMap::add(cref_lookup.borrow()[(i.clone()-1) as usize].clone(), i.clone(), index_lookup.clone())?;
@@ -837,7 +820,7 @@ pub mod SparsityColoring {
 // ToDo: all the DAEMode stuff is probably incorrect!
 fn isRowInJacobian(mut cref: Arc<ComponentRef::NFComponentRef>, mut jacType: JacobianType) -> bool {
     let mut b: bool = false;
-    b = BVariable::checkCref(cref.clone(), BVariable.isResidual, metamodelica::sourceInfo!()).unwrap() || BVariable::checkCref(cref.clone(), BVariable.isStateDerivative, metamodelica::sourceInfo!()).unwrap() && jacType.clone() != JacobianType::OPT_MRF.clone() && jacType.clone() != JacobianType::OPT_R0.clone() || jacType.clone() == JacobianType::OPT_LFG.clone() && BVariable::checkCref(cref.clone(), BVariable.isLagrangeOrPathConstraint, metamodelica::sourceInfo!()).unwrap() || jacType.clone() == JacobianType::OPT_MRF.clone() && BVariable::checkCref(cref.clone(), BVariable.isMayerOrFinalConstraint, metamodelica::sourceInfo!()).unwrap() || jacType.clone() == JacobianType::OPT_R0.clone() && BVariable::checkCref(cref.clone(), BVariable.isInitialConstraint, metamodelica::sourceInfo!()).unwrap();
+    b = BVariable::checkCref(cref.clone(), (std::sync::Arc::new(BVariable.isResidual) as std::sync::Arc<dyn ::std::ops::Fn(Pointer::Pointer<Arc<Variable::NFVariable>>) -> Result<bool> + 'static>), metamodelica::sourceInfo!()).unwrap() || BVariable::checkCref(cref.clone(), (std::sync::Arc::new(BVariable.isStateDerivative) as std::sync::Arc<dyn ::std::ops::Fn(Pointer::Pointer<Arc<Variable::NFVariable>>) -> Result<bool> + 'static>), metamodelica::sourceInfo!()).unwrap() && jacType.clone() != JacobianType::OPT_MRF.clone() && jacType.clone() != JacobianType::OPT_R0.clone() || jacType.clone() == JacobianType::OPT_LFG.clone() && BVariable::checkCref(cref.clone(), (std::sync::Arc::new(BVariable.isLagrangeOrPathConstraint) as std::sync::Arc<dyn ::std::ops::Fn(Pointer::Pointer<Arc<Variable::NFVariable>>) -> Result<bool> + 'static>), metamodelica::sourceInfo!()).unwrap() || jacType.clone() == JacobianType::OPT_MRF.clone() && BVariable::checkCref(cref.clone(), (std::sync::Arc::new(BVariable.isMayerOrFinalConstraint) as std::sync::Arc<dyn ::std::ops::Fn(Pointer::Pointer<Arc<Variable::NFVariable>>) -> Result<bool> + 'static>), metamodelica::sourceInfo!()).unwrap() || jacType.clone() == JacobianType::OPT_R0.clone() && BVariable::checkCref(cref.clone(), (std::sync::Arc::new(BVariable.isInitialConstraint) as std::sync::Arc<dyn ::std::ops::Fn(Pointer::Pointer<Arc<Variable::NFVariable>>) -> Result<bool> + 'static>), metamodelica::sourceInfo!()).unwrap();
     b
 }
 
@@ -904,7 +887,7 @@ fn isR0Variable(mut var_ptr: Pointer::Pointer<Arc<Variable::NFVariable>>) -> boo
     out
 }
 
-fn getSeedCandidatesDynamicOptimization(mut part: Arc<Partition::Partition::Partition>, mut all_knowns: Arc<VariablePointers::VariablePointers>, mut filter: NBVariable::checkVar) -> Result<Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>>> {
+fn getSeedCandidatesDynamicOptimization(mut part: Arc<Partition::Partition::Partition>, mut all_knowns: Arc<VariablePointers::VariablePointers>, mut filter: Arc<dyn ::std::ops::Fn(Pointer::Pointer<Arc<Variable::NFVariable>>) -> Result<bool> + 'static>) -> Result<Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>>> {
     let mut unknowns: Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>> = metamodelica::nil();
     let mut derivative_vars: Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>> = metamodelica::nil();
     let mut unknown_states: Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>> = metamodelica::nil();
@@ -927,7 +910,7 @@ fn getSeedCandidatesDynamicOptimization(mut part: Arc<Partition::Partition::Part
         __acc.reverse()
     };
     unknowns = listAppend(unknown_states.clone(), unknowns.clone());
-    unknowns = List::filterOnTrue(unknowns.clone(), Arc::new(filter));
+    unknowns = List::filterOnTrue(unknowns.clone(), filter.clone());
     Ok(unknowns)
 }
 
@@ -953,34 +936,34 @@ fn getR0PartialCandidates(mut part: Arc<Partition::Partition::Partition>, mut al
 }
 
 // before this is ever called, we should check if the variable / annotation pairs are even valid: e.g. path constraint with final time or so!
-fn partJacobianDynamicOptimization(mut part: Arc<Partition::Partition::Partition>, mut all_knowns: Arc<VariablePointers::VariablePointers>, mut name: ArcStr, mut func: Module::jacobianInterface, mut funcMap: Arc<UnorderedMap::UnorderedMap<Arc<Path>, Arc<Function::Function>>>) -> Result<(Option<Arc<Jacobian::NBackendDAE>>, Option<Arc<Jacobian::NBackendDAE>>, Option<Arc<Jacobian::NBackendDAE>>)> {
+fn partJacobianDynamicOptimization(mut part: Arc<Partition::Partition::Partition>, mut all_knowns: Arc<VariablePointers::VariablePointers>, mut name: ArcStr, mut func: Arc<dyn ::std::ops::Fn(ArcStr, JacobianType, Arc<VariablePointers::VariablePointers>, Arc<VariablePointers::VariablePointers>, Arc<EquationPointers::EquationPointers>, Option<metamodelica::Array<Arc<StrongComponent::NBStrongComponent>>>, Option<Arc<Adjacency::Matrix::Matrix>>, Arc<UnorderedMap::UnorderedMap<Arc<Path>, Arc<Function::Function>>>, bool) -> Result<Option<Arc<Jacobian::NBackendDAE>>> + 'static>, mut funcMap: Arc<UnorderedMap::UnorderedMap<Arc<Path>, Arc<Function::Function>>>) -> Result<(Option<Arc<Jacobian::NBackendDAE>>, Option<Arc<Jacobian::NBackendDAE>>, Option<Arc<Jacobian::NBackendDAE>>)> {
     let mut LFG_jacobian: Option<Arc<Jacobian::NBackendDAE>> = None;
     let mut MRF_jacobian: Option<Arc<Jacobian::NBackendDAE>> = None;
     let mut R0_jacobian: Option<Arc<Jacobian::NBackendDAE>> = None;
     let mut kind: Partition::Kind = Partition::Partition::getKind(part.clone());
     let mut init: bool = Partition::kindIsInitial(kind.clone());
-    let mut seedCandidates: Arc<VariablePointers::VariablePointers>;
-    let mut partialCandidates: Arc<VariablePointers::VariablePointers>;
+    let mut seedCandidates: Arc<VariablePointers::VariablePointers> = Arc::new(<VariablePointers::VariablePointers as ::std::default::Default>::default());
+    let mut partialCandidates: Arc<VariablePointers::VariablePointers> = Arc::new(<VariablePointers::VariablePointers as ::std::default::Default>::default());
     partialCandidates = NBVariable::VariablePointers::fromList(getLfgPartialCandidates(part.clone(), all_knowns.clone())?, part.unknowns.scalarized.clone());
-    seedCandidates = NBVariable::VariablePointers::fromList(getSeedCandidatesDynamicOptimization(part.clone(), all_knowns.clone(), fnptr!(isLfgVariable, Pointer::Pointer<Arc<Variable::NFVariable>>))?, partialCandidates.scalarized.clone());
+    seedCandidates = NBVariable::VariablePointers::fromList(getSeedCandidatesDynamicOptimization(part.clone(), all_knowns.clone(), (std::sync::Arc::new(fnptr!(isLfgVariable, Pointer::Pointer<Arc<Variable::NFVariable>>)) as std::sync::Arc<dyn ::std::ops::Fn(Pointer::Pointer<Arc<Variable::NFVariable>>) -> Result<bool> + 'static>))?, partialCandidates.scalarized.clone());
     LFG_jacobian = func((name.clone()).clone(), JacobianType::OPT_LFG.clone(), seedCandidates.clone(), partialCandidates.clone(), part.equations.clone(), part.strongComponents.clone(), part.adjacencyMatrix.clone(), funcMap.clone(), init.clone())?;
     partialCandidates = NBVariable::VariablePointers::fromList(getMrfPartialCandidates(part.clone(), all_knowns.clone())?, part.unknowns.scalarized.clone());
-    seedCandidates = NBVariable::VariablePointers::fromList(getSeedCandidatesDynamicOptimization(part.clone(), all_knowns.clone(), fnptr!(isMrfVariable, Pointer::Pointer<Arc<Variable::NFVariable>>))?, partialCandidates.scalarized.clone());
+    seedCandidates = NBVariable::VariablePointers::fromList(getSeedCandidatesDynamicOptimization(part.clone(), all_knowns.clone(), (std::sync::Arc::new(fnptr!(isMrfVariable, Pointer::Pointer<Arc<Variable::NFVariable>>)) as std::sync::Arc<dyn ::std::ops::Fn(Pointer::Pointer<Arc<Variable::NFVariable>>) -> Result<bool> + 'static>))?, partialCandidates.scalarized.clone());
     MRF_jacobian = func((name.clone()).clone(), JacobianType::OPT_MRF.clone(), seedCandidates.clone(), partialCandidates.clone(), part.equations.clone(), part.strongComponents.clone(), part.adjacencyMatrix.clone(), funcMap.clone(), init.clone())?;
     partialCandidates = NBVariable::VariablePointers::fromList(getR0PartialCandidates(part.clone(), all_knowns.clone())?, part.unknowns.scalarized.clone());
-    seedCandidates = NBVariable::VariablePointers::fromList(getSeedCandidatesDynamicOptimization(part.clone(), all_knowns.clone(), fnptr!(isR0Variable, Pointer::Pointer<Arc<Variable::NFVariable>>))?, partialCandidates.scalarized.clone());
+    seedCandidates = NBVariable::VariablePointers::fromList(getSeedCandidatesDynamicOptimization(part.clone(), all_knowns.clone(), (std::sync::Arc::new(fnptr!(isR0Variable, Pointer::Pointer<Arc<Variable::NFVariable>>)) as std::sync::Arc<dyn ::std::ops::Fn(Pointer::Pointer<Arc<Variable::NFVariable>>) -> Result<bool> + 'static>))?, partialCandidates.scalarized.clone());
     R0_jacobian = func((name.clone()).clone(), JacobianType::OPT_R0.clone(), seedCandidates.clone(), partialCandidates.clone(), part.equations.clone(), part.strongComponents.clone(), part.adjacencyMatrix.clone(), funcMap.clone(), init.clone())?;
     Ok((LFG_jacobian, MRF_jacobian, R0_jacobian))
 }
 
-fn partJacobian(mut part: Arc<Partition::Partition::Partition>, mut funcMap: Arc<UnorderedMap::UnorderedMap<Arc<Path>, Arc<Function::Function>>>, mut knowns: Arc<VariablePointers::VariablePointers>, mut name: ArcStr, mut func: Module::jacobianInterface) -> Result<Arc<Partition::Partition::Partition>> {
+fn partJacobian(mut part: Arc<Partition::Partition::Partition>, mut funcMap: Arc<UnorderedMap::UnorderedMap<Arc<Path>, Arc<Function::Function>>>, mut knowns: Arc<VariablePointers::VariablePointers>, mut name: ArcStr, mut func: Arc<dyn ::std::ops::Fn(ArcStr, JacobianType, Arc<VariablePointers::VariablePointers>, Arc<VariablePointers::VariablePointers>, Arc<EquationPointers::EquationPointers>, Option<metamodelica::Array<Arc<StrongComponent::NBStrongComponent>>>, Option<Arc<Adjacency::Matrix::Matrix>>, Arc<UnorderedMap::UnorderedMap<Arc<Path>, Arc<Function::Function>>>, bool) -> Result<Option<Arc<Jacobian::NBackendDAE>>> + 'static>) -> Result<Arc<Partition::Partition::Partition>> {
     let mut part: Arc<Partition::Partition::Partition> = part;
     let mut jacType: JacobianType = JacobianType::ODE;
-    let mut unknowns: Arc<VariablePointers::VariablePointers>;
+    let mut unknowns: Arc<VariablePointers::VariablePointers> = Arc::new(<VariablePointers::VariablePointers as ::std::default::Default>::default());
     let mut derivative_vars: Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>> = metamodelica::nil();
     let mut state_vars: Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>> = metamodelica::nil();
-    let mut seedCandidates: Arc<VariablePointers::VariablePointers>;
-    let mut partialCandidates: Arc<VariablePointers::VariablePointers>;
+    let mut seedCandidates: Arc<VariablePointers::VariablePointers> = Arc::new(<VariablePointers::VariablePointers as ::std::default::Default>::default());
+    let mut partialCandidates: Arc<VariablePointers::VariablePointers> = Arc::new(<VariablePointers::VariablePointers as ::std::default::Default>::default());
     let mut jacobian: Option<Arc<Jacobian::NBackendDAE>> = None;
     let mut LFG_jacobian: Option<Arc<Jacobian::NBackendDAE>> = None;
     let mut MRF_jacobian: Option<Arc<Jacobian::NBackendDAE>> = None;
@@ -1027,7 +1010,7 @@ fn partJacobian(mut part: Arc<Partition::Partition::Partition>, mut funcMap: Arc
         seedCandidates = NBVariable::VariablePointers::fromList(state_vars.clone(), partialCandidates.scalarized.clone());
         jacobian = func((name.clone()).clone(), jacType.clone(), seedCandidates.clone(), partialCandidates.clone(), part.equations.clone(), part.strongComponents.clone(), part.adjacencyMatrix.clone(), funcMap.clone(), Partition::kindIsInitial(kind.clone()))?;
         if Flags::getConfigBool(Flags::MOO_DYNAMIC_OPTIMIZATION.clone())? {
-            (LFG_jacobian, MRF_jacobian, R0_jacobian) = partJacobianDynamicOptimization(part.clone(), knowns.clone(), (name.clone()).clone(), func, funcMap.clone())?;
+            (LFG_jacobian, MRF_jacobian, R0_jacobian) = partJacobianDynamicOptimization(part.clone(), knowns.clone(), (name.clone()).clone(), func.clone(), funcMap.clone())?;
         }
         if Util::isSome(jacobian.clone()) {
             if BackendDAE::getIsAdjoint(Util::getOption(jacobian.clone())?)? {
@@ -1146,7 +1129,7 @@ fn buildAdjointRhs(mut lhsCref: Arc<ComponentRef::NFComponentRef>, mut terms: Ar
     sc = sizeClassificationFromType(vty.clone());
     addOp = Operator::fromClassification((MathClassification::ADDITION.clone(), sc.clone()), vty.clone())?;
     rhs = SimplifyExp::simplify(Arc::new(Expression::NFExpression::MULTARY { arguments: terms.clone(), inv_arguments: metamodelica::nil(), operator: addOp.clone() }), false)?;
-    rhs = Expression::map(rhs.clone(), Arc::new(Expression::repairOperator))?;
+    rhs = Expression::map(rhs.clone(), (std::sync::Arc::new(Expression::repairOperator) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>))?;
     Ok(rhs)
 }
 
@@ -1209,7 +1192,7 @@ fn populateDiffMap(mut vars: Arc<metamodelica::List<Pointer::Pointer<Arc<Variabl
     let mut outMap: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>>>;
     let mut baseCref: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
     let mut o_mappedCref: Option<Arc<ComponentRef::NFComponentRef>> = None;
-    outMap = UnorderedMap::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>), ComponentRef::isEqual, Util::nextPrime((vars.clone().len() as i32)));
+    outMap = UnorderedMap::new((std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), Util::nextPrime((vars.clone().len() as i32)));
     for mut vp in &*vars.clone() {
         let mut vp = vp.clone();
         baseCref = BVariable::getVarName(vp.clone())?;
@@ -1245,13 +1228,13 @@ fn getAllAlgVars(mut comps: Arc<metamodelica::List<Arc<StrongComponent::NBStrong
 fn getTmpFilterFunction(mut jacType: JacobianType) -> Result<NBVariable::checkVar> {
     let mut func: NBVariable::checkVar;
     func = (match jacType.clone() {
-        JacobianType::ODE => BVariable.isStateDerivative,
-        JacobianType::DAE { .. } => BVariable.isResidual,
-        JacobianType::LS => BVariable.isResidual,
-        JacobianType::NLS => BVariable.isResidual,
-        JacobianType::OPT_LFG => BVariable.isStateDerivative,
-        JacobianType::OPT_MRF => BVariable.isStateDerivative,
-        JacobianType::OPT_R0 => BVariable.isStateDerivative,
+        JacobianType::ODE => (std::sync::Arc::new(BVariable.isStateDerivative) as std::sync::Arc<dyn ::std::ops::Fn(Pointer::Pointer<Arc<Variable::NFVariable>>) -> Result<bool> + 'static>),
+        JacobianType::DAE { .. } => (std::sync::Arc::new(BVariable.isResidual) as std::sync::Arc<dyn ::std::ops::Fn(Pointer::Pointer<Arc<Variable::NFVariable>>) -> Result<bool> + 'static>),
+        JacobianType::LS => (std::sync::Arc::new(BVariable.isResidual) as std::sync::Arc<dyn ::std::ops::Fn(Pointer::Pointer<Arc<Variable::NFVariable>>) -> Result<bool> + 'static>),
+        JacobianType::NLS => (std::sync::Arc::new(BVariable.isResidual) as std::sync::Arc<dyn ::std::ops::Fn(Pointer::Pointer<Arc<Variable::NFVariable>>) -> Result<bool> + 'static>),
+        JacobianType::OPT_LFG => (std::sync::Arc::new(BVariable.isStateDerivative) as std::sync::Arc<dyn ::std::ops::Fn(Pointer::Pointer<Arc<Variable::NFVariable>>) -> Result<bool> + 'static>),
+        JacobianType::OPT_MRF => (std::sync::Arc::new(BVariable.isStateDerivative) as std::sync::Arc<dyn ::std::ops::Fn(Pointer::Pointer<Arc<Variable::NFVariable>>) -> Result<bool> + 'static>),
+        JacobianType::OPT_R0 => (std::sync::Arc::new(BVariable.isStateDerivative) as std::sync::Arc<dyn ::std::ops::Fn(Pointer::Pointer<Arc<Variable::NFVariable>>) -> Result<bool> + 'static>),
         _ => {
             Error::addMessage(Error::INTERNAL_ERROR.clone(), list![({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("NBJacobian.getTmpFilterFunction")); __mm_s.push_str(&*literal!(" failed because jacobian type is not known: ")); __mm_s.push_str(&*jacobianTypeString(jacType.clone())); ArcStr::from(__mm_s) }).clone()])?;
             bail!("fail")
@@ -1261,7 +1244,7 @@ fn getTmpFilterFunction(mut jacType: JacobianType) -> Result<NBVariable::checkVa
 }
 
 fn makeVarTraverse(mut var_ptr: Pointer::Pointer<Arc<Variable::NFVariable>>, mut name: ArcStr, mut vars_ptr: Pointer::Pointer<Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>>>, mut map: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>>>, mut makeVar: Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, ArcStr) -> Result<(Arc<ComponentRef::NFComponentRef>, Pointer::Pointer<Arc<Variable::NFVariable>>)> + 'static>, mut init: bool) -> Result<()> {
-    pub type Func = fn(Arc<ComponentRef::NFComponentRef>, ArcStr) -> Result<(Arc<ComponentRef::NFComponentRef>, Pointer::Pointer<Arc<Variable::NFVariable>>)>;
+    pub type Func = std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, ArcStr) -> Result<(Arc<ComponentRef::NFComponentRef>, Pointer::Pointer<Arc<Variable::NFVariable>>)> + 'static>;
 
     let mut var: Arc<Variable::NFVariable> = Pointer::access(var_ptr.clone());
     let mut diff: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
@@ -1321,14 +1304,14 @@ fn adjointMapToString(mut adjoint_map: Option<Arc<UnorderedMap::UnorderedMap<Arc
         _ => bail!("pattern mismatch"),
     } };
     map = __pa0.clone();
-    r#str = (UnorderedMap::toString(map.clone(), ComponentRef::toString, valueToString, (literal!("\n  ")).clone(), (literal!(" -> ")).clone())?).clone();
+    r#str = (UnorderedMap::toString(map.clone(), (std::sync::Arc::new(ComponentRef::toString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<ArcStr> + 'static>), (std::sync::Arc::new(valueToString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<Arc<Expression::NFExpression>>>) -> Result<ArcStr> + 'static>), (literal!("\n  ")).clone(), (literal!(" -> ")).clone())?).clone();
     r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("{\n  ")); __mm_s.push_str(&*r#str.clone()); __mm_s.push_str(&*literal!("\n}")); ArcStr::from(__mm_s) }).clone();
     Ok(r#str)
 }
 
 fn diffMapToString(mut map: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>>>) -> Result<ArcStr> {
     let mut s: ArcStr = arcstr::literal!("");
-    s = (UnorderedMap::toString(map.clone(), ComponentRef::toString, ComponentRef::toString, (literal!("\n  ")).clone(), (literal!(" -> ")).clone())?).clone();
+    s = (UnorderedMap::toString(map.clone(), (std::sync::Arc::new(ComponentRef::toString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<ArcStr> + 'static>), (std::sync::Arc::new(ComponentRef::toString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<ArcStr> + 'static>), (literal!("\n  ")).clone(), (literal!(" -> ")).clone())?).clone();
     s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("{\n  ")); __mm_s.push_str(&*s.clone()); __mm_s.push_str(&*literal!("\n}")); ArcStr::from(__mm_s) }).clone();
     Ok(s)
 }

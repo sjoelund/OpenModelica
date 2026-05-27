@@ -59,6 +59,9 @@ impl PartialOrd for ArgSpec {
 impl Ord for ArgSpec {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering { (*self as i32).cmp(&(*other as i32)) }
 }
+impl Default for ArgSpec {
+    fn default() -> Self { Self::INPUT }
+}
 
 pub fn callFunction(mut fnHandle: i32, mut args: metamodelica::Array<Arc<Expression::NFExpression>>, mut specs: metamodelica::Array<ArgSpec>, mut returnType: Arc<Type::NFType>) -> Result<(Arc<Expression::NFExpression>, Arc<metamodelica::List<Arc<Expression::NFExpression>>>)> {
     let mut returnValue: Arc<Expression::NFExpression> = Arc::new(Expression::END);

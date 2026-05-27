@@ -70,7 +70,7 @@ fn getLastClassNameInProgram(mut inProgram: Arc<metamodelica::List<Arc<SCode::El
     let mut prog: Arc<metamodelica::List<Arc<SCode::Element>>> = metamodelica::nil();
     let mut name: ArcStr = arcstr::literal!("");
     prog = inProgram.clone().reverse();
-    let __pa0 = ::match_deref::match_deref! { match &(List::find(prog.clone(), Arc::new(fnptr!(isClass, Arc<SCode::Element>)))?) {
+    let __pa0 = ::match_deref::match_deref! { match &(List::find(prog.clone(), (std::sync::Arc::new(fnptr!(isClass, Arc<SCode::Element>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SCode::Element>) -> Result<bool> + 'static>))?) {
         Deref @ SCode::Element::CLASS { name: __pa0, .. } => __pa0.clone(),
         _ => bail!("pattern mismatch"),
     } };

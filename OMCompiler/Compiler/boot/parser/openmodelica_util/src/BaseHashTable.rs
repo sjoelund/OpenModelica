@@ -90,13 +90,13 @@ pub type ValueArray<Key, Value> = (i32, i32, metamodelica::Array<Option<(Key, Va
 
 pub type FuncsTuple<Key, Value> = (FuncHash<Key>, FuncEq<Key>, FuncKeyString<Key>, FuncValString<Value>);
 
-pub type FuncHash<Key: Clone> = fn(Key) -> Result<i32>;
+pub type FuncHash<Key: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Key) -> Result<i32> + 'static>;
 
-pub type FuncEq<Key: Clone> = fn(Key, Key) -> Result<bool>;
+pub type FuncEq<Key: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Key, Key) -> Result<bool> + 'static>;
 
-pub type FuncKeyString<Key: Clone> = fn(Key) -> Result<ArcStr>;
+pub type FuncKeyString<Key: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Key) -> Result<ArcStr> + 'static>;
 
-pub type FuncValString<Value: Clone> = fn(Value) -> Result<ArcStr>;
+pub type FuncValString<Value: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Value) -> Result<ArcStr> + 'static>;
 
 pub fn bucketToValuesSize(mut szBucket: i32) -> i32 {
     let mut szArr: i32 = 0;
@@ -328,11 +328,11 @@ fn hasKeyIndex<Key: Clone + 'static, Value: Clone + 'static>(mut key: Key, mut h
     keyEqual = __pa3.clone();
     hashindx = intMod(hashFunc(key.clone()).unwrap(), bsize.clone()) + 1;
     indexes = hashvec.borrow()[(hashindx.clone()-1) as usize].clone();
-    indx = hasKeyIndex2(key.clone(), indexes.clone(), keyEqual);
+    indx = hasKeyIndex2(key.clone(), indexes.clone(), keyEqual.clone());
     indx
 }
 
-fn hasKeyIndex2<Key: Clone + 'static>(mut key: Key, mut keyIndices: HashNode<Key>, mut keyEqual: FuncEq<Key>) -> i32 {
+fn hasKeyIndex2<Key: Clone + 'static>(mut key: Key, mut keyIndices: HashNode<Key>, mut keyEqual: Arc<dyn ::std::ops::Fn(Key, Key) -> Result<bool> + 'static>) -> i32 {
     let mut index: i32 = 0;
     let mut key2: Key;
     for mut keyIndex in &*keyIndices.clone() {
@@ -400,7 +400,7 @@ pub fn debugDump<Key: Clone + 'static, Value: Clone + 'static>(mut ht: HashTable
         if isSome(entry.clone()) {
             let Some(__pa8) = (entry.clone()) else { bail!("pattern mismatch") };
             he = __pa8.clone();
-            println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*intString(i.clone())); __mm_s.push_str(&*literal!(": ")); __mm_s.push_str(&*dumpTuple(he.clone(), printKey, printValue)); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+            println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*intString(i.clone())); __mm_s.push_str(&*literal!(": ")); __mm_s.push_str(&*dumpTuple(he.clone(), printKey.clone(), printValue.clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
         }
     }
     println!("{}", (literal!("Debug HashVector:\n")).clone());
@@ -421,7 +421,7 @@ pub fn debugDump<Key: Clone + 'static, Value: Clone + 'static>(mut ht: HashTable
     Ok(())
 }
 
-fn dumpTuple<Key: Clone + 'static, Value: Clone + 'static>(mut tpl: HashEntry<Key, Value>, mut printKey: FuncKeyString<Key>, mut printValue: FuncValString<Value>) -> ArcStr {
+fn dumpTuple<Key: Clone + 'static, Value: Clone + 'static>(mut tpl: HashEntry<Key, Value>, mut printKey: Arc<dyn ::std::ops::Fn(Key) -> Result<ArcStr> + 'static>, mut printValue: Arc<dyn ::std::ops::Fn(Value) -> Result<ArcStr> + 'static>) -> ArcStr {
     let mut r#str: ArcStr = arcstr::literal!("");
     let mut k: Key;
     let mut v: Value;
@@ -466,7 +466,7 @@ pub fn valueArrayList<Key: Clone + 'static, Value: Clone + 'static>(mut valueArr
     let mut outEntries: Arc<metamodelica::List<(Key, Value)>> = metamodelica::nil();
     let mut arr: metamodelica::Array<Option<(Key, Value)>>;
     (_, _, arr) = valueArray.clone();
-    outEntries = Array::fold(arr.clone(), Arc::new(fnptr!(List::consOption, _, _)), metamodelica::nil());
+    outEntries = Array::fold(arr.clone(), std::sync::Arc::new(fnptr!(List::consOption, _, _)), metamodelica::nil());
     outEntries = outEntries.clone().reverse();
     outEntries
 }
@@ -475,7 +475,7 @@ pub fn valueArrayListReversed<Key: Clone + 'static, Value: Clone + 'static>(mut 
     let mut entries: Arc<metamodelica::List<(Key, Value)>> = metamodelica::nil();
     let mut arr: metamodelica::Array<Option<(Key, Value)>>;
     (_, _, arr) = valueArray.clone();
-    entries = Array::fold(arr.clone(), Arc::new(fnptr!(List::consOption, _, _)), metamodelica::nil());
+    entries = Array::fold(arr.clone(), std::sync::Arc::new(fnptr!(List::consOption, _, _)), metamodelica::nil());
     entries
 }
 
@@ -524,13 +524,13 @@ fn valueArrayAdd<Key: Clone + 'static, Value: Clone + 'static>(mut valueArray: V
 
 fn valueArraySet<Key: Clone + 'static, Value: Clone + 'static>(mut valueArray: ValueArray<Key, Value>, mut pos: i32, mut entry: HashEntry<Key, Value>) -> Result<ValueArray<Key, Value>> {
     let mut outValueArray: ValueArray<Key, Value>;
-    let mut arr: metamodelica::Array<Option<(Key, Value)>>;
-    let mut n: i32 = 0;
-    let mut size: i32 = 0;
-    (n, size, arr) = valueArray.clone();
-    let true = (pos.clone() <= size.clone()) else { bail!("pattern mismatch") };
-    arr = {let _arr = arr.clone(); _arr.borrow_mut()[(pos.clone()-1) as usize] = Some(entry.clone()); _arr};
-    outValueArray = (n.clone(), size.clone(), arr.clone());
+    outValueArray = (match (valueArray.clone(), pos.clone(), entry.clone()) {
+        ((mut n, mut size, mut arr), _, _) => {
+            let true = (pos.clone() <= size.clone()) else { bail!("pattern mismatch") };
+            arr = {let _arr = arr.clone(); _arr.borrow_mut()[(pos.clone()-1) as usize] = Some(entry.clone()); _arr};
+            (n.clone(), size.clone(), arr.clone())
+        },
+    });
     Ok(outValueArray)
 }
 

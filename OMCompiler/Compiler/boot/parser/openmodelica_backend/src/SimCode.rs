@@ -67,7 +67,7 @@ pub type SparsityPattern = Arc<metamodelica::List<(i32, Arc<metamodelica::List<i
 pub type NonlinearPattern = Arc<metamodelica::List<(i32, Arc<metamodelica::List<i32>>)>>;
 
 // same structure but different name for the sake of maintenance
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct JacobianColumn {
     pub columnEqns: Arc<metamodelica::List<Arc<SimEqSystem>>>,
     pub columnVars: Arc<metamodelica::List<SimCodeVar::SimVar>>,
@@ -78,7 +78,7 @@ pub struct JacobianColumn {
 pub type JAC_COLUMN = JacobianColumn;
 
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone)]
 pub struct JacobianMatrix {
     pub columns: Arc<metamodelica::List<Arc<JacobianColumn>>>,
     pub seedVars: Arc<metamodelica::List<SimCodeVar::SimVar>>,
@@ -97,19 +97,53 @@ pub struct JacobianMatrix {
     pub isAdjoint: bool,
 }
 
+impl PartialEq for JacobianMatrix {
+    fn eq(&self, other: &Self) -> bool {
+        self.columns == other.columns && self.seedVars == other.seedVars && self.matrixName == other.matrixName && self.sparsity == other.sparsity && self.sparsityT == other.sparsityT && self.nonlinear == other.nonlinear && self.nonlinearT == other.nonlinearT && self.coloredCols == other.coloredCols && self.coloredRows == other.coloredRows && self.maxColorCols == other.maxColorCols && self.jacobianIndex == other.jacobianIndex && self.partitionIndex == other.partitionIndex && self.generic_loop_calls == other.generic_loop_calls && std::sync::Arc::ptr_eq(&self.crefsHT, &other.crefsHT) && self.isAdjoint == other.isAdjoint
+    }
+}
+impl Eq for JacobianMatrix {}
+impl PartialOrd for JacobianMatrix {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> { Some(self.cmp(other)) }
+}
+impl Ord for JacobianMatrix {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.columns.cmp(&other.columns).then_with(|| self.seedVars.cmp(&other.seedVars).then_with(|| self.matrixName.cmp(&other.matrixName).then_with(|| self.sparsity.cmp(&other.sparsity).then_with(|| self.sparsityT.cmp(&other.sparsityT).then_with(|| self.nonlinear.cmp(&other.nonlinear).then_with(|| self.nonlinearT.cmp(&other.nonlinearT).then_with(|| self.coloredCols.cmp(&other.coloredCols).then_with(|| self.coloredRows.cmp(&other.coloredRows).then_with(|| self.maxColorCols.cmp(&other.maxColorCols).then_with(|| self.jacobianIndex.cmp(&other.jacobianIndex).then_with(|| self.partitionIndex.cmp(&other.partitionIndex).then_with(|| self.generic_loop_calls.cmp(&other.generic_loop_calls).then_with(|| (std::sync::Arc::as_ptr(&self.crefsHT) as *const ()).cmp(&(std::sync::Arc::as_ptr(&other.crefsHT) as *const ())).then_with(|| self.isAdjoint.cmp(&other.isAdjoint)))))))))))))))
+    }
+}
+impl std::fmt::Debug for JacobianMatrix {
+    fn fmt(&self, __f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut __ds = __f.debug_struct("JacobianMatrix");
+        __ds.field("columns", &self.columns);
+        __ds.field("seedVars", &self.seedVars);
+        __ds.field("matrixName", &self.matrixName);
+        __ds.field("sparsity", &self.sparsity);
+        __ds.field("sparsityT", &self.sparsityT);
+        __ds.field("nonlinear", &self.nonlinear);
+        __ds.field("nonlinearT", &self.nonlinearT);
+        __ds.field("coloredCols", &self.coloredCols);
+        __ds.field("coloredRows", &self.coloredRows);
+        __ds.field("maxColorCols", &self.maxColorCols);
+        __ds.field("jacobianIndex", &self.jacobianIndex);
+        __ds.field("partitionIndex", &self.partitionIndex);
+        __ds.field("generic_loop_calls", &self.generic_loop_calls);
+        __ds.field("crefsHT", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr(&self.crefsHT)));
+        __ds.field("isAdjoint", &self.isAdjoint);
+        __ds.finish()
+    }
+}
+
 pub type JAC_MATRIX = JacobianMatrix;
 
 
-// TODO: non-Sync, non-const-emittable constant — needs new emission path.
-// Type: Arc<JacobianMatrix>
-// Expr: Constructor { name: 'SimCode.JacobianMatrix.JAC_MATRIX', args: [Array { elems: [], ty: List(Unknown) }, Array { elems: [], ty: List(Unknown) }, Lit(Str('')), Array { elems: [], ty: List(Unknown) }, Array { elems: [], ty: List(Unknown) }, Array { elems: [], ty: List(Unknown) }, Array { elems: [], ty: List(Unknown) }, Array { elems: [], ty: List(Unknown) }, Array { elems: [], ty: List(Unknown) }, Lit(Int(0)), Lit(Int(-1)), Lit(Int(0)), Array { elems: [], ty: List(Unknown) }, Call { func: 'NONE', args: [], named_args: [], ty: Option(Unknown), sig_ty: Unknown }, Lit(Bool(false))], named_args: [], ty: RustStruct('SimCode.JacobianMatrix'), field_names: ['columns', 'seedVars', 'matrixName', 'sparsity', 'sparsityT', 'nonlinear', 'nonlinearT', 'coloredCols', 'coloredRows', 'maxColorCols', 'jacobianIndex', 'partitionIndex', 'generic_loop_calls', 'crefsHT', 'isAdjoint'] }
-pub fn emptyJacobian() -> Arc<JacobianMatrix> { todo!("non-Sync, non-const-emittable constant emptyJacobian — extend codegen") }
+thread_local! { static __emptyJacobian_TLS: Arc<JacobianMatrix> = Arc::new(JacobianMatrix { columns: metamodelica::nil(), seedVars: metamodelica::nil(), matrixName: (literal!("")).clone(), sparsity: metamodelica::nil(), sparsityT: metamodelica::nil(), nonlinear: metamodelica::nil(), nonlinearT: metamodelica::nil(), coloredCols: metamodelica::nil(), coloredRows: metamodelica::nil(), maxColorCols: 0, jacobianIndex: -1, partitionIndex: 0, generic_loop_calls: metamodelica::nil(), crefsHT: None, isAdjoint: false }); }
+pub fn emptyJacobian() -> Arc<JacobianMatrix> { __emptyJacobian_TLS.with(|__t| __t.clone()) }
 
 pub static emptyPartitionData: std::sync::LazyLock<PartitionData> = std::sync::LazyLock::new(|| { PartitionData { numPartitions: -1, partitions: metamodelica::nil(), activatorsForPartitions: metamodelica::nil(), stateToActivators: metamodelica::nil() } });
 
 /// Root data structure containing information required for templates to
 ///  generate simulation code for a Modelica model.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone)]
 pub struct SimCode {
     pub modelInfo: ModelInfo,
     /// shared literals
@@ -176,10 +210,83 @@ pub struct SimCode {
     pub scalarized: bool,
 }
 
+impl PartialEq for SimCode {
+    fn eq(&self, other: &Self) -> bool {
+        self.modelInfo == other.modelInfo && self.literals == other.literals && self.recordDecls == other.recordDecls && self.externalFunctionIncludes == other.externalFunctionIncludes && self.generic_loop_calls == other.generic_loop_calls && self.localKnownVars == other.localKnownVars && self.allEquations == other.allEquations && self.odeEquations == other.odeEquations && self.algebraicEquations == other.algebraicEquations && self.clockedPartitions == other.clockedPartitions && self.initialEquations == other.initialEquations && self.initialEquations_lambda0 == other.initialEquations_lambda0 && self.removedInitialEquations == other.removedInitialEquations && self.startValueEquations == other.startValueEquations && self.nominalValueEquations == other.nominalValueEquations && self.minValueEquations == other.minValueEquations && self.maxValueEquations == other.maxValueEquations && self.parameterEquations == other.parameterEquations && self.removedEquations == other.removedEquations && self.algorithmAndEquationAsserts == other.algorithmAndEquationAsserts && self.equationsForZeroCrossings == other.equationsForZeroCrossings && self.jacobianEquations == other.jacobianEquations && self.stateSets == other.stateSets && self.constraints == other.constraints && self.classAttributes == other.classAttributes && self.zeroCrossings == other.zeroCrossings && self.relations == other.relations && self.timeEvents == other.timeEvents && self.discreteModelVars == other.discreteModelVars && self.extObjInfo == other.extObjInfo && self.makefileParams == other.makefileParams && self.delayedExps == other.delayedExps && self.spatialInfo == other.spatialInfo && self.jacobianMatrices == other.jacobianMatrices && self.simulationSettingsOpt == other.simulationSettingsOpt && self.fileNamePrefix == other.fileNamePrefix && self.fullPathPrefix == other.fullPathPrefix && self.fmuTargetName == other.fmuTargetName && self.hpcomData == other.hpcomData && self.valueReferences == other.valueReferences && std::sync::Arc::ptr_eq(&self.varToArrayIndexMapping, &other.varToArrayIndexMapping) && std::sync::Arc::ptr_eq(&self.varToIndexMapping, &other.varToIndexMapping) && std::sync::Arc::ptr_eq(&self.crefToSimVarHT, &other.crefToSimVarHT) && std::sync::Arc::ptr_eq(&self.crefToClockIndexHT, &other.crefToClockIndexHT) && self.backendMapping == other.backendMapping && self.modelStructure == other.modelStructure && self.fmiSimulationFlags == other.fmiSimulationFlags && self.partitionData == other.partitionData && self.daeModeData == other.daeModeData && self.inlineEquations == other.inlineEquations && self.omsiData == other.omsiData && self.scalarized == other.scalarized
+    }
+}
+impl Eq for SimCode {}
+impl PartialOrd for SimCode {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> { Some(self.cmp(other)) }
+}
+impl Ord for SimCode {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.modelInfo.cmp(&other.modelInfo).then_with(|| self.literals.cmp(&other.literals).then_with(|| self.recordDecls.cmp(&other.recordDecls).then_with(|| self.externalFunctionIncludes.cmp(&other.externalFunctionIncludes).then_with(|| self.generic_loop_calls.cmp(&other.generic_loop_calls).then_with(|| self.localKnownVars.cmp(&other.localKnownVars).then_with(|| self.allEquations.cmp(&other.allEquations).then_with(|| self.odeEquations.cmp(&other.odeEquations).then_with(|| self.algebraicEquations.cmp(&other.algebraicEquations).then_with(|| self.clockedPartitions.cmp(&other.clockedPartitions).then_with(|| self.initialEquations.cmp(&other.initialEquations).then_with(|| self.initialEquations_lambda0.cmp(&other.initialEquations_lambda0).then_with(|| self.removedInitialEquations.cmp(&other.removedInitialEquations).then_with(|| self.startValueEquations.cmp(&other.startValueEquations).then_with(|| self.nominalValueEquations.cmp(&other.nominalValueEquations).then_with(|| self.minValueEquations.cmp(&other.minValueEquations).then_with(|| self.maxValueEquations.cmp(&other.maxValueEquations).then_with(|| self.parameterEquations.cmp(&other.parameterEquations).then_with(|| self.removedEquations.cmp(&other.removedEquations).then_with(|| self.algorithmAndEquationAsserts.cmp(&other.algorithmAndEquationAsserts).then_with(|| self.equationsForZeroCrossings.cmp(&other.equationsForZeroCrossings).then_with(|| self.jacobianEquations.cmp(&other.jacobianEquations).then_with(|| self.stateSets.cmp(&other.stateSets).then_with(|| self.constraints.cmp(&other.constraints).then_with(|| self.classAttributes.cmp(&other.classAttributes).then_with(|| self.zeroCrossings.cmp(&other.zeroCrossings).then_with(|| self.relations.cmp(&other.relations).then_with(|| self.timeEvents.cmp(&other.timeEvents).then_with(|| self.discreteModelVars.cmp(&other.discreteModelVars).then_with(|| self.extObjInfo.cmp(&other.extObjInfo).then_with(|| self.makefileParams.cmp(&other.makefileParams).then_with(|| self.delayedExps.cmp(&other.delayedExps).then_with(|| self.spatialInfo.cmp(&other.spatialInfo).then_with(|| self.jacobianMatrices.cmp(&other.jacobianMatrices).then_with(|| self.simulationSettingsOpt.cmp(&other.simulationSettingsOpt).then_with(|| self.fileNamePrefix.cmp(&other.fileNamePrefix).then_with(|| self.fullPathPrefix.cmp(&other.fullPathPrefix).then_with(|| self.fmuTargetName.cmp(&other.fmuTargetName).then_with(|| self.hpcomData.cmp(&other.hpcomData).then_with(|| self.valueReferences.cmp(&other.valueReferences).then_with(|| (std::sync::Arc::as_ptr(&self.varToArrayIndexMapping) as *const ()).cmp(&(std::sync::Arc::as_ptr(&other.varToArrayIndexMapping) as *const ())).then_with(|| (std::sync::Arc::as_ptr(&self.varToIndexMapping) as *const ()).cmp(&(std::sync::Arc::as_ptr(&other.varToIndexMapping) as *const ())).then_with(|| (std::sync::Arc::as_ptr(&self.crefToSimVarHT) as *const ()).cmp(&(std::sync::Arc::as_ptr(&other.crefToSimVarHT) as *const ())).then_with(|| (std::sync::Arc::as_ptr(&self.crefToClockIndexHT) as *const ()).cmp(&(std::sync::Arc::as_ptr(&other.crefToClockIndexHT) as *const ())).then_with(|| self.backendMapping.cmp(&other.backendMapping).then_with(|| self.modelStructure.cmp(&other.modelStructure).then_with(|| self.fmiSimulationFlags.cmp(&other.fmiSimulationFlags).then_with(|| self.partitionData.cmp(&other.partitionData).then_with(|| self.daeModeData.cmp(&other.daeModeData).then_with(|| self.inlineEquations.cmp(&other.inlineEquations).then_with(|| self.omsiData.cmp(&other.omsiData).then_with(|| self.scalarized.cmp(&other.scalarized))))))))))))))))))))))))))))))))))))))))))))))))))))
+    }
+}
+impl std::fmt::Debug for SimCode {
+    fn fmt(&self, __f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut __ds = __f.debug_struct("SimCode");
+        __ds.field("modelInfo", &self.modelInfo);
+        __ds.field("literals", &self.literals);
+        __ds.field("recordDecls", &self.recordDecls);
+        __ds.field("externalFunctionIncludes", &self.externalFunctionIncludes);
+        __ds.field("generic_loop_calls", &self.generic_loop_calls);
+        __ds.field("localKnownVars", &self.localKnownVars);
+        __ds.field("allEquations", &self.allEquations);
+        __ds.field("odeEquations", &self.odeEquations);
+        __ds.field("algebraicEquations", &self.algebraicEquations);
+        __ds.field("clockedPartitions", &self.clockedPartitions);
+        __ds.field("initialEquations", &self.initialEquations);
+        __ds.field("initialEquations_lambda0", &self.initialEquations_lambda0);
+        __ds.field("removedInitialEquations", &self.removedInitialEquations);
+        __ds.field("startValueEquations", &self.startValueEquations);
+        __ds.field("nominalValueEquations", &self.nominalValueEquations);
+        __ds.field("minValueEquations", &self.minValueEquations);
+        __ds.field("maxValueEquations", &self.maxValueEquations);
+        __ds.field("parameterEquations", &self.parameterEquations);
+        __ds.field("removedEquations", &self.removedEquations);
+        __ds.field("algorithmAndEquationAsserts", &self.algorithmAndEquationAsserts);
+        __ds.field("equationsForZeroCrossings", &self.equationsForZeroCrossings);
+        __ds.field("jacobianEquations", &self.jacobianEquations);
+        __ds.field("stateSets", &self.stateSets);
+        __ds.field("constraints", &self.constraints);
+        __ds.field("classAttributes", &self.classAttributes);
+        __ds.field("zeroCrossings", &self.zeroCrossings);
+        __ds.field("relations", &self.relations);
+        __ds.field("timeEvents", &self.timeEvents);
+        __ds.field("discreteModelVars", &self.discreteModelVars);
+        __ds.field("extObjInfo", &self.extObjInfo);
+        __ds.field("makefileParams", &self.makefileParams);
+        __ds.field("delayedExps", &self.delayedExps);
+        __ds.field("spatialInfo", &self.spatialInfo);
+        __ds.field("jacobianMatrices", &self.jacobianMatrices);
+        __ds.field("simulationSettingsOpt", &self.simulationSettingsOpt);
+        __ds.field("fileNamePrefix", &self.fileNamePrefix);
+        __ds.field("fullPathPrefix", &self.fullPathPrefix);
+        __ds.field("fmuTargetName", &self.fmuTargetName);
+        __ds.field("hpcomData", &self.hpcomData);
+        __ds.field("valueReferences", &self.valueReferences);
+        __ds.field("varToArrayIndexMapping", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr(&self.varToArrayIndexMapping)));
+        __ds.field("varToIndexMapping", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr(&self.varToIndexMapping)));
+        __ds.field("crefToSimVarHT", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr(&self.crefToSimVarHT)));
+        __ds.field("crefToClockIndexHT", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr(&self.crefToClockIndexHT)));
+        __ds.field("backendMapping", &self.backendMapping);
+        __ds.field("modelStructure", &self.modelStructure);
+        __ds.field("fmiSimulationFlags", &self.fmiSimulationFlags);
+        __ds.field("partitionData", &self.partitionData);
+        __ds.field("daeModeData", &self.daeModeData);
+        __ds.field("inlineEquations", &self.inlineEquations);
+        __ds.field("omsiData", &self.omsiData);
+        __ds.field("scalarized", &self.scalarized);
+        __ds.finish()
+    }
+}
+
 pub type SIMCODE = SimCode;
 
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ClockedPartition {
     pub baseClock: Arc<DAE::ClockKind>,
     pub subPartitions: Arc<metamodelica::List<SubPartition>>,
@@ -188,7 +295,7 @@ pub struct ClockedPartition {
 pub type CLOCKED_PARTITION = ClockedPartition;
 
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct SubPartition {
     pub vars: Arc<metamodelica::List<(SimCodeVar::SimVar, bool)>>,
     pub equations: Arc<metamodelica::List<Arc<SimEqSystem>>>,
@@ -200,7 +307,7 @@ pub struct SubPartition {
 pub type SUBPARTITION = SubPartition;
 
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum BackendMapping {
     BACKENDMAPPING {
         m: metamodelica::Array<Arc<metamodelica::List<i32>>>,
@@ -307,7 +414,7 @@ pub enum BaseUnit {
 pub use self::BaseUnit::{BASEUNIT,NOBASEUNIT};
 
 /// Container for metadata about a Modelica model.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ModelInfo {
     pub name: Arc<Absyn::Path>,
     pub description: ArcStr,
@@ -409,7 +516,7 @@ pub enum DaeModeConfig {
 pub use self::DaeModeConfig::{ALL_EQUATIONS,DYNAMIC_EQUATIONS};
 
 /// contains data that belongs to the dae mode
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct DaeModeData {
     /// daeModel residuals equations
     pub daeEquations: Arc<metamodelica::List<Arc<metamodelica::List<Arc<SimEqSystem>>>>>,
@@ -426,7 +533,7 @@ pub type DAEMODEDATA = DaeModeData;
 
 
 /// contains data for code generation for OMSI
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct OMSIData {
     /// contains equations and variables for initialization problem
     pub initialization: Arc<OMSIFunction>,
@@ -438,7 +545,7 @@ pub type OMSI_DATA = OMSIData;
 
 
 /// contains equations and variables for initialization or simulation problem
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct OMSIFunction {
     /// causalized list of single equations and systems of equations
     pub equations: Arc<metamodelica::List<Arc<SimEqSystem>>>,
@@ -459,13 +566,11 @@ pub struct OMSIFunction {
 pub type OMSI_FUNCTION = OMSIFunction;
 
 
-// TODO: non-Sync, non-const-emittable constant — needs new emission path.
-// Type: Arc<OMSIFunction>
-// Expr: Constructor { name: 'SimCode.OMSIFunction.OMSI_FUNCTION', args: [], named_args: [('nAlgebraicSystems', Lit(Int(0))), ('context', Var { name: 'SimCodeFunction.contextOMSI', segments: [CrefSegment { name: 'SimCodeFunction', subscripts: [] }, CrefSegment { name: 'contextOMSI', subscripts: [] }], ty: RustEnum('SimCodeFunction.Context') }), ('nAllVars', Lit(Int(0))), ('innerVars', Array { elems: [], ty: List(Unknown) }), ('outputVars', Array { elems: [], ty: List(Unknown) }), ('inputVars', Array { elems: [], ty: List(Unknown) }), ('equations', Array { elems: [], ty: List(Unknown) })], ty: RustStruct('SimCode.OMSIFunction'), field_names: ['equations', 'inputVars', 'outputVars', 'innerVars', 'nAllVars', 'context', 'nAlgebraicSystems'] }
-pub fn emptyOMSIFunction() -> Arc<OMSIFunction> { todo!("non-Sync, non-const-emittable constant emptyOMSIFunction — extend codegen") }
+thread_local! { static __emptyOMSIFunction_TLS: Arc<OMSIFunction> = Arc::new(OMSIFunction { nAlgebraicSystems: 0, context: SimCodeFunction::contextOMSI().clone(), nAllVars: 0, innerVars: metamodelica::nil(), outputVars: metamodelica::nil(), inputVars: metamodelica::nil(), equations: metamodelica::nil() }); }
+pub fn emptyOMSIFunction() -> Arc<OMSIFunction> { __emptyOMSIFunction_TLS.with(|__t| __t.clone()) }
 
 /// Represents a single equation or a system of equations that must be solved together.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum SimEqSystem {
     SES_RESIDUAL {
         index: i32,
@@ -631,7 +736,7 @@ pub enum SimEqSystem {
 }
 pub use self::SimEqSystem::{SES_RESIDUAL,SES_FOR_RESIDUAL,SES_GENERIC_RESIDUAL,SES_SIMPLE_ASSIGN,SES_SIMPLE_ASSIGN_CONSTRAINTS,SES_ARRAY_CALL_ASSIGN,SES_RESIZABLE_ASSIGN,SES_GENERIC_ASSIGN,SES_ENTWINED_ASSIGN,SES_IFEQUATION,SES_ALGORITHM,SES_INVERSE_ALGORITHM,SES_LINEAR,SES_NONLINEAR,SES_MIXED,SES_WHEN,SES_FOR_LOOP,SES_FOR_EQUATION,SES_ALIAS,SES_ALGEBRAIC_SYSTEM};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum SimGenericCall {
     SINGLE_GENERIC_CALL {
         index: i32,
@@ -669,7 +774,7 @@ pub enum SimBranch {
 pub use self::SimBranch::{SIM_BRANCH,SIM_BRANCH_STMT};
 
 /// represents directional derivatives with sparsity and coloring
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct DerivativeMatrix {
     pub columns: Arc<metamodelica::List<Arc<OMSIFunction>>>,
     /// unique matrix name
@@ -683,7 +788,7 @@ pub struct DerivativeMatrix {
 pub type DERIVATIVE_MATRIX = DerivativeMatrix;
 
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct LinearSystem {
     pub index: i32,
     pub partOfMixed: bool,
@@ -704,7 +809,7 @@ pub struct LinearSystem {
 pub type LINEARSYSTEM = LinearSystem;
 
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct NonlinearSystem {
     pub index: i32,
     pub eqs: Arc<metamodelica::List<Arc<SimEqSystem>>>,
@@ -722,7 +827,7 @@ pub struct NonlinearSystem {
 pub type NONLINEARSYSTEM = NonlinearSystem;
 
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct StateSet {
     pub index: i32,
     pub nCandidates: i32,
@@ -736,7 +841,7 @@ pub struct StateSet {
 pub type SES_STATESET = StateSet;
 
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ExtObjInfo {
     pub vars: Arc<metamodelica::List<SimCodeVar::SimVar>>,
     pub aliases: Arc<metamodelica::List<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>,
@@ -818,7 +923,7 @@ pub struct FmiInitialUnknowns {
 pub type FMIINITIALUNKNOWNS = FmiInitialUnknowns;
 
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct FmiModelStructure {
     pub fmiOutputs: FmiOutputs,
     pub fmiDerivatives: FmiDerivatives,

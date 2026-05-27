@@ -58,7 +58,7 @@ use openmodelica_util_datatypes_basic::List;
 // Old SimCode imports
 // Util imports
 pub fn createSimCodeMap(mut simVars: Arc<SimVars::SimVars>, mut extObjInfo: Arc<ExtObjInfo::ExtObjInfo>) -> Result<Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<SimVar::SimVar>>>> {
-    let mut simcode_map: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<SimVar::SimVar>>> = UnorderedMap::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>), ComponentRef::isEqual, 1);
+    let mut simcode_map: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<SimVar::SimVar>>> = UnorderedMap::new((std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), 1);
     addListSimCodeMap(simVars.stateVars.clone(), simcode_map.clone())?;
     addListSimCodeMap(simVars.derivativeVars.clone(), simcode_map.clone())?;
     addListSimCodeMap(simVars.algVars.clone(), simcode_map.clone())?;
@@ -107,7 +107,7 @@ pub fn convertSimCodeMap(mut simcode_map: Arc<UnorderedMap::UnorderedMap<Arc<Com
     let mut old_ht: (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr));
     let mut vars: Arc<metamodelica::List<Arc<SimVar::SimVar>>> = UnorderedMap::valueList(simcode_map.clone());
     old_ht = HashTableCrefSimVar::emptyHashTableSized(UnorderedMap::size(simcode_map.clone()));
-    old_ht = List::fold(SimVar::convertList(vars.clone()), Arc::new(HashTableCrefSimVar::addSimVarToHashTable), old_ht.clone());
+    old_ht = List::fold(SimVar::convertList(vars.clone()), (std::sync::Arc::new(HashTableCrefSimVar::addSimVarToHashTable) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))> + 'static>), old_ht.clone());
     old_ht
 }
 

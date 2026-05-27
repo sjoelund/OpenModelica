@@ -71,7 +71,7 @@ use openmodelica_util::IOStream;
 use openmodelica_util::System;
 use openmodelica_util::Util;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum NFClass {
     NOT_INSTANTIATED,
     PARTIAL_CLASS {
@@ -221,7 +221,7 @@ pub fn setSections(mut sections: Arc<Sections::NFSections>, mut cls: Arc<NFClass
     cls = (::match_deref::match_deref! { match &(cls.clone()) {
         Deref @ INSTANCED_CLASS { .. } => Arc::new(NFClass::INSTANCED_CLASS { ty: var_field!((*cls).ty, NFClass::INSTANCED_CLASS).clone(), elements: var_field!((*cls).elements, NFClass::INSTANCED_CLASS).clone(), sections: sections.clone(), prefixes: var_field!((*cls).prefixes, NFClass::INSTANCED_CLASS).clone(), restriction: var_field!((*cls).restriction, NFClass::INSTANCED_CLASS).clone() }),
         Deref @ TYPED_DERIVED { .. } => {
-            InstNode::classApply(var_field!((*cls).baseClass, NFClass::TYPED_DERIVED).clone(), Arc::new(setSections), sections.clone())?;
+            InstNode::classApply(var_field!((*cls).baseClass, NFClass::TYPED_DERIVED).clone(), (std::sync::Arc::new(setSections) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Sections::NFSections>, Arc<NFClass>) -> Result<Arc<NFClass>> + 'static>), sections.clone())?;
             cls.clone()
         },
         _ => bail!("match: no arm matched"),
@@ -370,7 +370,7 @@ pub fn setClassTree(mut tree: Arc<ClassTree::ClassTree>, mut cls: Arc<NFClass>) 
 }
 
 pub fn classTreeApply(mut cls: Arc<NFClass>, mut func: Arc<dyn ::std::ops::Fn(Arc<ClassTree::ClassTree>) -> Result<Arc<ClassTree::ClassTree>> + 'static>) -> Arc<NFClass> {
-    pub type FuncType = fn(Arc<ClassTree::ClassTree>) -> Result<Arc<ClassTree::ClassTree>>;
+    pub type FuncType = std::sync::Arc<dyn ::std::ops::Fn(Arc<ClassTree::ClassTree>) -> Result<Arc<ClassTree::ClassTree>> + 'static>;
 
     let mut cls: Arc<NFClass> = cls;
     let () = (::match_deref::match_deref! { match &(cls.clone()) {
@@ -538,7 +538,7 @@ pub fn dimensionCount(mut cls: Arc<NFClass>) -> i32 {
 }
 
 pub fn getAttributes(mut cls: Arc<NFClass>) -> Arc<Attributes::NFAttributes> {
-    let mut attr: Arc<Attributes::NFAttributes>;
+    let mut attr: Arc<Attributes::NFAttributes> = Arc::new(<Attributes::NFAttributes as ::std::default::Default>::default());
     attr = (::match_deref::match_deref! { match &(cls.clone()) {
         Deref @ EXPANDED_DERIVED { .. } => var_field!((*cls).attributes, NFClass::EXPANDED_DERIVED).clone(),
         _ => Attributes::DEFAULT_ATTR().clone(),
@@ -590,7 +590,7 @@ pub fn setType(mut ty: Arc<Type::NFType>, mut cls: Arc<NFClass>) -> Result<Arc<N
             ()
         },
         Deref @ EXPANDED_DERIVED { .. } => {
-            InstNode::classApply(var_field!((*cls).baseClass, NFClass::EXPANDED_DERIVED).clone(), Arc::new(setType), ty.clone())?;
+            InstNode::classApply(var_field!((*cls).baseClass, NFClass::EXPANDED_DERIVED).clone(), (std::sync::Arc::new(setType) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Type::NFType>, Arc<NFClass>) -> Result<Arc<NFClass>> + 'static>), ty.clone())?;
             ()
         },
         Deref @ INSTANCED_CLASS { .. } => {

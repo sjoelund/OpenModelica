@@ -61,13 +61,15 @@ pub enum Prefix {
 }
 pub use self::Prefix::{EMPTY_PREFIX,PREFIX};
 
-pub static emptyPrefix: std::sync::LazyLock<Arc<Prefix>> = std::sync::LazyLock::new(|| { Arc::new(Prefix::EMPTY_PREFIX { classPath: None }) });
+thread_local! { static __emptyPrefix_TLS: Arc<Prefix> = Arc::new(Prefix::EMPTY_PREFIX { classPath: None }); }
+pub fn emptyPrefix() -> Arc<Prefix> { __emptyPrefix_TLS.with(|__t| __t.clone()) }
 
-pub static functionPrefix: std::sync::LazyLock<Arc<Prefix>> = std::sync::LazyLock::new(|| { Arc::new(Prefix::EMPTY_PREFIX { classPath: None }) });
+thread_local! { static __functionPrefix_TLS: Arc<Prefix> = Arc::new(Prefix::EMPTY_PREFIX { classPath: None }); }
+pub fn functionPrefix() -> Arc<Prefix> { __functionPrefix_TLS.with(|__t| __t.clone()) }
 
 pub fn makePrefix(mut inName: ArcStr, mut inDims: Arc<metamodelica::List<Arc<DAE::Dimension>>>) -> Arc<Prefix> {
     let mut outPrefix: Arc<Prefix>;
-    outPrefix = Arc::new(Prefix::PREFIX { name: (inName.clone()).clone(), dims: inDims.clone(), restPrefix: emptyPrefix.clone() });
+    outPrefix = Arc::new(Prefix::PREFIX { name: (inName.clone()).clone(), dims: inDims.clone(), restPrefix: emptyPrefix().clone() });
     outPrefix
 }
 
@@ -149,7 +151,7 @@ pub fn prefixCref(mut inCref: Arc<DAE::ComponentRef>, mut inPrefix: Arc<Prefix>)
         },
         (_, Deref @ Prefix::PREFIX { restPrefix: rest_prefix, name, .. }) => {
             let mut cref: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
-            cref = Arc::new(DAE::ComponentRef::CREF_QUAL { ident: (name.clone()).clone(), identType: DAE::T_UNKNOWN_DEFAULT.clone(), subscriptLst: metamodelica::nil(), componentRef: inCref.clone() });
+            cref = Arc::new(DAE::ComponentRef::CREF_QUAL { ident: (name.clone()).clone(), identType: DAE::T_UNKNOWN_DEFAULT().clone(), subscriptLst: metamodelica::nil(), componentRef: inCref.clone() });
             prefixCref(cref.clone(), rest_prefix.clone())?
         },
         _ => bail!("match: no arm matched"),
@@ -196,11 +198,11 @@ pub fn toCref(mut inPrefix: Arc<Prefix>) -> Result<Arc<DAE::ComponentRef>> {
     let mut outCref: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
     outCref = (::match_deref::match_deref! { match &(inPrefix.clone()) {
         Deref @ Prefix::PREFIX { restPrefix: Deref @ Prefix::EMPTY_PREFIX { .. }, name, .. } => {
-            Arc::new(DAE::ComponentRef::CREF_IDENT { ident: (name.clone()).clone(), identType: DAE::T_UNKNOWN_DEFAULT.clone(), subscriptLst: metamodelica::nil() })
+            Arc::new(DAE::ComponentRef::CREF_IDENT { ident: (name.clone()).clone(), identType: DAE::T_UNKNOWN_DEFAULT().clone(), subscriptLst: metamodelica::nil() })
         },
         Deref @ Prefix::PREFIX { restPrefix: rest_prefix, name, .. } => {
             let mut cref: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
-            cref = Arc::new(DAE::ComponentRef::CREF_IDENT { ident: (name.clone()).clone(), identType: DAE::T_UNKNOWN_DEFAULT.clone(), subscriptLst: metamodelica::nil() });
+            cref = Arc::new(DAE::ComponentRef::CREF_IDENT { ident: (name.clone()).clone(), identType: DAE::T_UNKNOWN_DEFAULT().clone(), subscriptLst: metamodelica::nil() });
             prefixCref(cref.clone(), rest_prefix.clone())?
         },
         _ => bail!("match: no arm matched"),
@@ -226,7 +228,7 @@ pub fn toPath(mut inPrefix: Arc<Prefix>) -> Result<Arc<Absyn::Path>> {
 
 pub fn fromPath(mut inPath: Arc<Absyn::Path>) -> Result<Arc<Prefix>> {
     let mut outPrefix: Arc<Prefix>;
-    outPrefix = fromPath2(inPath.clone(), emptyPrefix.clone())?;
+    outPrefix = fromPath2(inPath.clone(), emptyPrefix().clone())?;
     Ok(outPrefix)
 }
 
@@ -251,7 +253,7 @@ fn fromPath2(mut inPath: Arc<Absyn::Path>, mut inPrefix: Arc<Prefix>) -> Result<
 
 pub fn fromStringList(mut inStrings: Arc<metamodelica::List<ArcStr>>) -> Arc<Prefix> {
     let mut outPrefix: Arc<Prefix>;
-    outPrefix = fromStringList2(inStrings.clone(), emptyPrefix.clone());
+    outPrefix = fromStringList2(inStrings.clone(), emptyPrefix().clone());
     outPrefix
 }
 

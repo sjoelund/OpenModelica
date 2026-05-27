@@ -92,7 +92,7 @@ pub const VARTYPE_ALIAS: i32 = 4;
 
 pub const VARTYPE_OTHER: i32 = 5;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum CacheMap {
     CACHEMAP {
         cacheLineSize: i32,
@@ -131,7 +131,7 @@ pub struct CacheLineEntry {
 pub type CACHELINEENTRY = CacheLineEntry;
 
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct CacheMapMeta {
     pub allSCVarsMapping: metamodelica::Array<Option<SimCodeVar::SimVar>>,
     pub simCodeVarTypes: metamodelica::Array<(i32, i32, i32)>,
@@ -261,80 +261,80 @@ pub fn createMemoryMap(mut iModelInfo: SimCode::ModelInfo, mut iVarToArrayIndexM
                 (_, varToArrayIndexMapping, varToIndexMapping, _, HpcOmTaskGraph::TaskGraphMeta { varCompMapping, eqCompMapping, .. }, _, _, _, _, _, _, _, _, _, _) => {
                     let mut varToArrayIndexMapping = (*varToArrayIndexMapping).clone();
                     let mut varToIndexMapping = (*varToIndexMapping).clone();
-                    let mut derivativeVarsCnt: i32 = derivativeVarsCnt.clone();
-                    let mut stringParamVarsCnt: i32 = stringParamVarsCnt.clone();
-                    let mut allVarsMapping: metamodelica::Array<Option<SimCodeVar::SimVar>>;
-                    let mut tmpMemoryMapOpt: Option<HpcOmSimCode::MemoryMap> = tmpMemoryMapOpt.clone();
-                    let mut VARSIZE_INTEGER: i32 = VARSIZE_INTEGER.clone();
-                    let mut boolParamVarsCnt: i32 = boolParamVarsCnt.clone();
-                    let mut cacheMap: CacheMap;
-                    let mut inputVars: Arc<metamodelica::List<SimCodeVar::SimVar>> = inputVars.clone();
-                    let mut varCount: i32 = varCount.clone();
-                    let mut scVarInfos: metamodelica::Array<ScVarInfo>;
-                    let mut scVarCLMapping: metamodelica::Array<(i32, i32)>;
-                    let mut clTaskMapping: metamodelica::Array<Arc<metamodelica::List<i32>>>;
-                    let mut scVarUnsolvedTaskMapping: metamodelica::Array<Arc<metamodelica::List<i32>>>;
-                    let mut notOptimizedVars: (Arc<metamodelica::List<i32>>, Arc<metamodelica::List<i32>>, Arc<metamodelica::List<i32>>, Arc<metamodelica::List<i32>>);
-                    let mut notOptimizedVarsStringOpt: Arc<metamodelica::List<Option<SimCodeVar::SimVar>>> = notOptimizedVarsStringOpt.clone();
-                    let mut notOptimizedVarsIntOpt: Arc<metamodelica::List<Option<SimCodeVar::SimVar>>> = notOptimizedVarsIntOpt.clone();
-                    let mut notOptimizedVarsFloat: Arc<metamodelica::List<SimCodeVar::SimVar>> = notOptimizedVarsFloat.clone();
-                    let mut intAliasVarsCnt: i32 = intAliasVarsCnt.clone();
-                    let mut nodeSccMapping: metamodelica::Array<Arc<metamodelica::List<i32>>>;
-                    let mut annotInfo: metamodelica::Array<ArcStr>;
-                    let mut boolAlgVarsCnt: i32 = boolAlgVarsCnt.clone();
-                    let mut outputVarsCnt: i32 = outputVarsCnt.clone();
-                    let mut eqSimCodeVarMapping: metamodelica::Array<metamodelica::Array<Arc<metamodelica::List<i32>>>>;
-                    let mut discreteAlgVars: Arc<metamodelica::List<SimCodeVar::SimVar>> = discreteAlgVars.clone();
-                    let mut boolAliasVarsCnt: i32 = boolAliasVarsCnt.clone();
-                    let mut graphIdx: i32 = graphIdx.clone();
-                    let mut outputVars: Arc<metamodelica::List<SimCodeVar::SimVar>> = outputVars.clone();
-                    let mut taskUnsolvedVarsMapping: metamodelica::Array<Arc<metamodelica::List<i32>>>;
-                    let mut stringAlgVars: Arc<metamodelica::List<SimCodeVar::SimVar>> = stringAlgVars.clone();
-                    let mut stringAliasVarsCnt: i32 = stringAliasVarsCnt.clone();
-                    let mut taskSolvedVarsMapping: metamodelica::Array<Arc<metamodelica::List<i32>>>;
-                    let mut paramVars: Arc<metamodelica::List<SimCodeVar::SimVar>> = paramVars.clone();
-                    let mut notOptimizedVarsBoolOpt: Arc<metamodelica::List<Option<SimCodeVar::SimVar>>> = notOptimizedVarsBoolOpt.clone();
-                    let mut notOptimizedVarsBool: Arc<metamodelica::List<SimCodeVar::SimVar>> = notOptimizedVarsBool.clone();
-                    let mut stringParamVars: Arc<metamodelica::List<SimCodeVar::SimVar>> = stringParamVars.clone();
-                    let mut scVarSolvedTaskMapping: metamodelica::Array<i32>;
-                    let mut algVars: Arc<metamodelica::List<SimCodeVar::SimVar>> = algVars.clone();
-                    let mut VARSIZE_BOOLEAN: i32 = VARSIZE_BOOLEAN.clone();
-                    let mut simCodeVars: SimCodeVar::SimVars;
-                    let mut aliasVarsCnt: i32 = aliasVarsCnt.clone();
-                    let mut notOptimizedVarsFloatOpt: Arc<metamodelica::List<Option<SimCodeVar::SimVar>>> = notOptimizedVarsFloatOpt.clone();
-                    let mut graphInfo: GraphML::GraphInfo;
-                    let mut adjacencyMatrix: metamodelica::Array<Arc<metamodelica::List<i32>>>;
-                    let mut intAliasVars: Arc<metamodelica::List<SimCodeVar::SimVar>> = intAliasVars.clone();
-                    let mut stringAliasVars: Arc<metamodelica::List<SimCodeVar::SimVar>> = stringAliasVars.clone();
-                    let mut simCodeVarTypes: metamodelica::Array<(i32, i32, i32)>;
-                    let mut boolParamVars: Arc<metamodelica::List<SimCodeVar::SimVar>> = boolParamVars.clone();
-                    let mut intParamVars: Arc<metamodelica::List<SimCodeVar::SimVar>> = intParamVars.clone();
-                    let mut stateVars: Arc<metamodelica::List<SimCodeVar::SimVar>> = stateVars.clone();
-                    let mut intAlgVarsCnt: i32 = intAlgVarsCnt.clone();
-                    let mut intParamVarsCnt: i32 = intParamVarsCnt.clone();
-                    let mut stateVarsCnt: i32 = stateVarsCnt.clone();
-                    let mut discreteAlgVarsCnt: i32 = discreteAlgVarsCnt.clone();
-                    let mut sccNodeMapping: metamodelica::Array<i32>;
-                    let mut sccEqMapping: metamodelica::Array<Arc<metamodelica::List<(i32, i32, i32)>>>;
-                    let mut boolAliasVars: Arc<metamodelica::List<SimCodeVar::SimVar>> = boolAliasVars.clone();
-                    let mut algVarsCnt: i32 = algVarsCnt.clone();
-                    let mut fileName: ArcStr = fileName.clone();
-                    let mut intAlgVars: Arc<metamodelica::List<SimCodeVar::SimVar>> = intAlgVars.clone();
-                    let mut VARSIZE_FLOAT: i32 = VARSIZE_FLOAT.clone();
-                    let mut notOptimizedVarsString: Arc<metamodelica::List<SimCodeVar::SimVar>> = notOptimizedVarsString.clone();
-                    let mut paramVarsCnt: i32 = paramVarsCnt.clone();
-                    let mut VARSIZE_STRING: i32 = VARSIZE_STRING.clone();
-                    let mut CACHELINE_SIZE: i32 = CACHELINE_SIZE.clone();
-                    let mut aliasVars: Arc<metamodelica::List<SimCodeVar::SimVar>> = aliasVars.clone();
-                    let mut boolAlgVars: Arc<metamodelica::List<SimCodeVar::SimVar>> = boolAlgVars.clone();
                     let mut numCL: i32 = numCL.clone();
-                    let mut inputVarsCnt: i32 = inputVarsCnt.clone();
-                    let mut flatEqSimCodeVarMapping: metamodelica::Array<(i32, Arc<metamodelica::List<i32>>)>;
-                    let mut notOptimizedVarsInt: Arc<metamodelica::List<SimCodeVar::SimVar>> = notOptimizedVarsInt.clone();
-                    let mut stringAlgVarsCnt: i32 = stringAlgVarsCnt.clone();
-                    let mut threadAttIdx: i32 = threadAttIdx.clone();
-                    let mut derivativeVars: Arc<metamodelica::List<SimCodeVar::SimVar>> = derivativeVars.clone();
+                    let mut intAlgVars: Arc<metamodelica::List<SimCodeVar::SimVar>> = intAlgVars.clone();
+                    let mut scVarCLMapping: metamodelica::Array<(i32, i32)>;
                     let mut simVarIdxMappingHashTable: (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<metamodelica::List<i32>>)>>), i32, (HashTableCrILst::FuncHashCref, HashTableCrILst::FuncCrefEqual, HashTableCrILst::FuncCrefStr, HashTableCrILst::FuncExpStr));
+                    let mut sccEqMapping: metamodelica::Array<Arc<metamodelica::List<(i32, i32, i32)>>>;
+                    let mut notOptimizedVarsStringOpt: Arc<metamodelica::List<Option<SimCodeVar::SimVar>>> = notOptimizedVarsStringOpt.clone();
+                    let mut annotInfo: metamodelica::Array<ArcStr>;
+                    let mut fileName: ArcStr = fileName.clone();
+                    let mut taskUnsolvedVarsMapping: metamodelica::Array<Arc<metamodelica::List<i32>>>;
+                    let mut graphInfo: GraphML::GraphInfo;
+                    let mut sccNodeMapping: metamodelica::Array<i32>;
+                    let mut algVarsCnt: i32 = algVarsCnt.clone();
+                    let mut stringAlgVars: Arc<metamodelica::List<SimCodeVar::SimVar>> = stringAlgVars.clone();
+                    let mut aliasVarsCnt: i32 = aliasVarsCnt.clone();
+                    let mut tmpMemoryMapOpt: Option<HpcOmSimCode::MemoryMap> = tmpMemoryMapOpt.clone();
+                    let mut scVarSolvedTaskMapping: metamodelica::Array<i32>;
+                    let mut paramVarsCnt: i32 = paramVarsCnt.clone();
+                    let mut simCodeVarTypes: metamodelica::Array<(i32, i32, i32)>;
+                    let mut notOptimizedVars: (Arc<metamodelica::List<i32>>, Arc<metamodelica::List<i32>>, Arc<metamodelica::List<i32>>, Arc<metamodelica::List<i32>>);
+                    let mut varCount: i32 = varCount.clone();
+                    let mut stringAlgVarsCnt: i32 = stringAlgVarsCnt.clone();
+                    let mut stringParamVarsCnt: i32 = stringParamVarsCnt.clone();
+                    let mut notOptimizedVarsBoolOpt: Arc<metamodelica::List<Option<SimCodeVar::SimVar>>> = notOptimizedVarsBoolOpt.clone();
+                    let mut boolAlgVarsCnt: i32 = boolAlgVarsCnt.clone();
+                    let mut notOptimizedVarsBool: Arc<metamodelica::List<SimCodeVar::SimVar>> = notOptimizedVarsBool.clone();
+                    let mut boolParamVars: Arc<metamodelica::List<SimCodeVar::SimVar>> = boolParamVars.clone();
+                    let mut discreteAlgVars: Arc<metamodelica::List<SimCodeVar::SimVar>> = discreteAlgVars.clone();
+                    let mut graphIdx: i32 = graphIdx.clone();
+                    let mut intAlgVarsCnt: i32 = intAlgVarsCnt.clone();
+                    let mut taskSolvedVarsMapping: metamodelica::Array<Arc<metamodelica::List<i32>>>;
+                    let mut cacheMap: CacheMap;
+                    let mut aliasVars: Arc<metamodelica::List<SimCodeVar::SimVar>> = aliasVars.clone();
+                    let mut stateVars: Arc<metamodelica::List<SimCodeVar::SimVar>> = stateVars.clone();
+                    let mut scVarInfos: metamodelica::Array<ScVarInfo>;
+                    let mut clTaskMapping: metamodelica::Array<Arc<metamodelica::List<i32>>>;
+                    let mut CACHELINE_SIZE: i32 = CACHELINE_SIZE.clone();
+                    let mut paramVars: Arc<metamodelica::List<SimCodeVar::SimVar>> = paramVars.clone();
+                    let mut simCodeVars: SimCodeVar::SimVars;
+                    let mut intAliasVars: Arc<metamodelica::List<SimCodeVar::SimVar>> = intAliasVars.clone();
+                    let mut inputVars: Arc<metamodelica::List<SimCodeVar::SimVar>> = inputVars.clone();
+                    let mut derivativeVars: Arc<metamodelica::List<SimCodeVar::SimVar>> = derivativeVars.clone();
+                    let mut nodeSccMapping: metamodelica::Array<Arc<metamodelica::List<i32>>>;
+                    let mut stringAliasVars: Arc<metamodelica::List<SimCodeVar::SimVar>> = stringAliasVars.clone();
+                    let mut VARSIZE_INTEGER: i32 = VARSIZE_INTEGER.clone();
+                    let mut scVarUnsolvedTaskMapping: metamodelica::Array<Arc<metamodelica::List<i32>>>;
+                    let mut notOptimizedVarsInt: Arc<metamodelica::List<SimCodeVar::SimVar>> = notOptimizedVarsInt.clone();
+                    let mut intAliasVarsCnt: i32 = intAliasVarsCnt.clone();
+                    let mut boolAliasVarsCnt: i32 = boolAliasVarsCnt.clone();
+                    let mut intParamVarsCnt: i32 = intParamVarsCnt.clone();
+                    let mut eqSimCodeVarMapping: metamodelica::Array<metamodelica::Array<Arc<metamodelica::List<i32>>>>;
+                    let mut notOptimizedVarsFloatOpt: Arc<metamodelica::List<Option<SimCodeVar::SimVar>>> = notOptimizedVarsFloatOpt.clone();
+                    let mut derivativeVarsCnt: i32 = derivativeVarsCnt.clone();
+                    let mut stringParamVars: Arc<metamodelica::List<SimCodeVar::SimVar>> = stringParamVars.clone();
+                    let mut boolAlgVars: Arc<metamodelica::List<SimCodeVar::SimVar>> = boolAlgVars.clone();
+                    let mut notOptimizedVarsFloat: Arc<metamodelica::List<SimCodeVar::SimVar>> = notOptimizedVarsFloat.clone();
+                    let mut notOptimizedVarsString: Arc<metamodelica::List<SimCodeVar::SimVar>> = notOptimizedVarsString.clone();
+                    let mut VARSIZE_BOOLEAN: i32 = VARSIZE_BOOLEAN.clone();
+                    let mut boolParamVarsCnt: i32 = boolParamVarsCnt.clone();
+                    let mut threadAttIdx: i32 = threadAttIdx.clone();
+                    let mut VARSIZE_STRING: i32 = VARSIZE_STRING.clone();
+                    let mut adjacencyMatrix: metamodelica::Array<Arc<metamodelica::List<i32>>>;
+                    let mut stringAliasVarsCnt: i32 = stringAliasVarsCnt.clone();
+                    let mut stateVarsCnt: i32 = stateVarsCnt.clone();
+                    let mut boolAliasVars: Arc<metamodelica::List<SimCodeVar::SimVar>> = boolAliasVars.clone();
+                    let mut algVars: Arc<metamodelica::List<SimCodeVar::SimVar>> = algVars.clone();
+                    let mut intParamVars: Arc<metamodelica::List<SimCodeVar::SimVar>> = intParamVars.clone();
+                    let mut outputVarsCnt: i32 = outputVarsCnt.clone();
+                    let mut allVarsMapping: metamodelica::Array<Option<SimCodeVar::SimVar>>;
+                    let mut outputVars: Arc<metamodelica::List<SimCodeVar::SimVar>> = outputVars.clone();
+                    let mut notOptimizedVarsIntOpt: Arc<metamodelica::List<Option<SimCodeVar::SimVar>>> = notOptimizedVarsIntOpt.clone();
+                    let mut inputVarsCnt: i32 = inputVarsCnt.clone();
+                    let mut VARSIZE_FLOAT: i32 = VARSIZE_FLOAT.clone();
+                    let mut flatEqSimCodeVarMapping: metamodelica::Array<(i32, Arc<metamodelica::List<i32>>)>;
+                    let mut discreteAlgVarsCnt: i32 = discreteAlgVarsCnt.clone();
                     VARSIZE_FLOAT = 8;
                     VARSIZE_INTEGER = 4;
                     VARSIZE_BOOLEAN = 1;
@@ -481,10 +481,10 @@ pub fn createMemoryMap(mut iModelInfo: SimCode::ModelInfo, mut iVarToArrayIndexM
                     notOptimizedVarsIntOpt = List::map(Util::tuple42(notOptimizedVars.clone()), Arc::new(todo!("PARTEVALFUNCTION of arrayGet: function signature not resolved")));
                     notOptimizedVarsBoolOpt = List::map(Util::tuple43(notOptimizedVars.clone()), Arc::new(todo!("PARTEVALFUNCTION of arrayGet: function signature not resolved")));
                     notOptimizedVarsStringOpt = List::map(Util::tuple44(notOptimizedVars.clone()), Arc::new(todo!("PARTEVALFUNCTION of arrayGet: function signature not resolved")));
-                    notOptimizedVarsFloat = List::map(notOptimizedVarsFloatOpt.clone(), Arc::new(Util::getOption));
-                    notOptimizedVarsInt = List::map(notOptimizedVarsIntOpt.clone(), Arc::new(Util::getOption));
-                    notOptimizedVarsBool = List::map(notOptimizedVarsBoolOpt.clone(), Arc::new(Util::getOption));
-                    notOptimizedVarsString = List::map(notOptimizedVarsStringOpt.clone(), Arc::new(Util::getOption));
+                    notOptimizedVarsFloat = List::map(notOptimizedVarsFloatOpt.clone(), (std::sync::Arc::new(Util::getOption) as std::sync::Arc<dyn ::std::ops::Fn(_) -> Result<_> + 'static>));
+                    notOptimizedVarsInt = List::map(notOptimizedVarsIntOpt.clone(), (std::sync::Arc::new(Util::getOption) as std::sync::Arc<dyn ::std::ops::Fn(_) -> Result<_> + 'static>));
+                    notOptimizedVarsBool = List::map(notOptimizedVarsBoolOpt.clone(), (std::sync::Arc::new(Util::getOption) as std::sync::Arc<dyn ::std::ops::Fn(_) -> Result<_> + 'static>));
+                    notOptimizedVarsString = List::map(notOptimizedVarsStringOpt.clone(), (std::sync::Arc::new(Util::getOption) as std::sync::Arc<dyn ::std::ops::Fn(_) -> Result<_> + 'static>));
                     graphInfo = GraphML::createGraphInfo();
                     let (__pa18, (_, __pa19)) = GraphML::addGraph((literal!("TasksGroupGraph")).clone(), true, graphInfo.clone())?;
                     graphInfo = __pa18.clone();
@@ -590,7 +590,7 @@ fn createCacheMapLevelOptimized(mut iAllSCVarsMapping: metamodelica::Array<Optio
     scVarCLMapping = arrayCreate((iAllSCVarsMapping.clone().borrow().len() as i32), (-1, -1));
     numCL = 0;
     cacheMapMeta = CacheMapMeta { allSCVarsMapping: iAllSCVarsMapping.clone(), simCodeVarTypes: iSimCodeVarTypes.clone(), scVarCLMapping: scVarCLMapping.clone() };
-    (_, cacheMap, cacheMapMeta, numCL) = List::fold1(iTasksOfLevels.clone(), Arc::new(createCacheMapLevelOptimized0), iNodeSimCodeVarMapping.clone(), (metamodelica::nil(), cacheMap.clone(), cacheMapMeta.clone(), numCL.clone()));
+    (_, cacheMap, cacheMapMeta, numCL) = List::fold1(iTasksOfLevels.clone(), (std::sync::Arc::new(createCacheMapLevelOptimized0) as std::sync::Arc<dyn ::std::ops::Fn(HpcOmSimCode::TaskList, metamodelica::Array<Arc<metamodelica::List<i32>>>, (Arc<metamodelica::List<i32>>, CacheMap, CacheMapMeta, i32)) -> Result<(Arc<metamodelica::List<i32>>, CacheMap, CacheMapMeta, i32)> + 'static>), iNodeSimCodeVarMapping.clone(), (metamodelica::nil(), cacheMap.clone(), cacheMapMeta.clone(), numCL.clone()));
     oCacheMap = cacheMap.clone();
     let CacheMapMeta { scVarCLMapping: __pa0, .. } = (cacheMapMeta.clone()) else { bail!("pattern mismatch") };
     oScVarCLMapping = __pa0.clone();
@@ -620,8 +620,8 @@ fn createCacheMapLevelOptimized0(mut iLevelTasks: HpcOmSimCode::TaskList, mut iN
     availableCLold = List::setDifferenceIntN(allCL.clone(), cacheLinesPrevLevel.clone(), numCL.clone())?;
     detailedCacheLineInfo = createDetailedCacheMapInformation(availableCLold.clone(), cacheLinesFloat.clone(), cacheLineSize.clone());
     detailedCacheLineInfo = detailedCacheLineInfo.clone().reverse();
-    (cacheMap, cacheMapMeta, createdCL, detailedCacheLineInfo) = List::fold1(getTaskListTasks(iLevelTasks.clone()), Arc::new(createCacheMapLevelOptimizedForTask), iNodeSimCodeVarMapping.clone(), (cacheMap.clone(), cacheMapMeta.clone(), 0, detailedCacheLineInfo.clone()));
-    availableCL = List::map(detailedCacheLineInfo.clone(), Arc::new(fnptr!(Util::tuple21, _)));
+    (cacheMap, cacheMapMeta, createdCL, detailedCacheLineInfo) = List::fold1(getTaskListTasks(iLevelTasks.clone()), (std::sync::Arc::new(createCacheMapLevelOptimizedForTask) as std::sync::Arc<dyn ::std::ops::Fn(Arc<HpcOmSimCode::Task>, metamodelica::Array<Arc<metamodelica::List<i32>>>, (CacheMap, CacheMapMeta, i32, Arc<metamodelica::List<(i32, i32)>>)) -> Result<(CacheMap, CacheMapMeta, i32, Arc<metamodelica::List<(i32, i32)>>)> + 'static>), iNodeSimCodeVarMapping.clone(), (cacheMap.clone(), cacheMapMeta.clone(), 0, detailedCacheLineInfo.clone()));
+    availableCL = List::map(detailedCacheLineInfo.clone(), std::sync::Arc::new(fnptr!(Util::tuple21, _)));
     writtenCL = List::setDifferenceIntN(availableCLold.clone(), availableCL.clone(), numCL.clone())?;
     writtenCL = listAppend(writtenCL.clone(), if (intLe(numCL.clone() + 1, numCL.clone() + createdCL.clone())) {List::intRange2(numCL.clone() + 1, numCL.clone() + createdCL.clone())} else {metamodelica::nil()});
     oInfo = (writtenCL.clone(), cacheMap.clone(), cacheMapMeta.clone(), numCL.clone() + createdCL.clone());
@@ -720,7 +720,7 @@ fn createCacheMapLevelFixedOptimizedForTask(mut iTask: Arc<HpcOmSimCode::Task>, 
         (Deref @ HpcOmSimCode::Task::CALCTASK_LEVEL { threadIdx: Some(threadIdx), nodeIdc, .. }, _, _, _, _, _, _, _, _, _, _, _, (cacheMap, cacheMapMeta @ CacheMapMeta { allSCVarsMapping, .. }, numNewCL)) => {
             solvedVars = List::flatten(List::map(nodeIdc.clone(), Arc::new(todo!("PARTEVALFUNCTION of arrayGet: function signature not resolved"))));
             unsolvedVars = getUnsolvedVarsByNodeList(nodeIdc.clone(), (iScVarInfos.clone().borrow().len() as i32), iTaskUnsolvedVarsMapping.clone())?;
-            tmpInfo = List::fold(listAppend(solvedVars.clone(), unsolvedVars.clone()), Arc::new({ let __pe_b1 = threadIdx.clone(); let __pe_b2 = iScVarInfos.clone(); let __pe_b3 = iHandledVariables.clone(); let __pe_b4: Arc<dyn ::std::ops::Fn(i32, i32, i32, i32, _, metamodelica::Array<((Arc<metamodelica::List<PartlyFilledCacheLine>>, Arc<metamodelica::List<PartlyFilledCacheLine>>, Arc<metamodelica::List<PartlyFilledCacheLine>>), (Arc<metamodelica::List<CacheLineMap>>, Arc<metamodelica::List<CacheLineMap>>, Arc<metamodelica::List<CacheLineMap>>))>) -> Result<Option<(PartlyFilledCacheLine, i32)>> + 'static> = Arc::new(findMatchingSharedCLLevelfix); let __pe_b5 = (iLevel.clone(), threadIdx.clone()); let __pe_b6: Arc<dyn ::std::ops::Fn(Option<PartlyFilledCacheLine>, CacheLineMap, _) -> Result<PartlyFilledCacheLine> + 'static> = Arc::new(createSharedClLevelFix); let __pe_b7 = iThreadCacheLines.clone(); let __pe_b8 = iSharedCacheLines.clone(); move |__pe_a0, __pe_a9| createCacheMapOptimizedForTask1(__pe_a0, __pe_b1.clone(), __pe_b2.clone(), __pe_b3.clone(), __pe_b4.clone(), __pe_b5.clone(), __pe_b6.clone(), __pe_b7.clone(), __pe_b8.clone(), __pe_a9) }), (cacheMap.clone(), cacheMapMeta.clone(), numNewCL.clone()));
+            tmpInfo = List::fold(listAppend(solvedVars.clone(), unsolvedVars.clone()), Arc::new({ let __pe_b1 = threadIdx.clone(); let __pe_b2 = iScVarInfos.clone(); let __pe_b3 = iHandledVariables.clone(); let __pe_b4: Arc<dyn ::std::ops::Fn(i32, i32, i32, i32, _, metamodelica::Array<((Arc<metamodelica::List<PartlyFilledCacheLine>>, Arc<metamodelica::List<PartlyFilledCacheLine>>, Arc<metamodelica::List<PartlyFilledCacheLine>>), (Arc<metamodelica::List<CacheLineMap>>, Arc<metamodelica::List<CacheLineMap>>, Arc<metamodelica::List<CacheLineMap>>))>) -> Result<Option<(PartlyFilledCacheLine, i32)>> + 'static> = (std::sync::Arc::new(findMatchingSharedCLLevelfix) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32, i32, i32, (i32, i32), metamodelica::Array<((Arc<metamodelica::List<PartlyFilledCacheLine>>, Arc<metamodelica::List<PartlyFilledCacheLine>>, Arc<metamodelica::List<PartlyFilledCacheLine>>), (Arc<metamodelica::List<CacheLineMap>>, Arc<metamodelica::List<CacheLineMap>>, Arc<metamodelica::List<CacheLineMap>>))>) -> Result<Option<(PartlyFilledCacheLine, i32)>> + 'static>); let __pe_b5 = (iLevel.clone(), threadIdx.clone()); let __pe_b6: Arc<dyn ::std::ops::Fn(Option<PartlyFilledCacheLine>, CacheLineMap, _) -> Result<PartlyFilledCacheLine> + 'static> = (std::sync::Arc::new(createSharedClLevelFix) as std::sync::Arc<dyn ::std::ops::Fn(Option<PartlyFilledCacheLine>, CacheLineMap, (i32, i32)) -> Result<PartlyFilledCacheLine> + 'static>); let __pe_b7 = iThreadCacheLines.clone(); let __pe_b8 = iSharedCacheLines.clone(); move |__pe_a0, __pe_a9| createCacheMapOptimizedForTask1(__pe_a0, __pe_b1.clone(), __pe_b2.clone(), __pe_b3.clone(), __pe_b4.clone(), __pe_b5.clone(), __pe_b6.clone(), __pe_b7.clone(), __pe_b8.clone(), __pe_a9) }), (cacheMap.clone(), cacheMapMeta.clone(), numNewCL.clone()));
             let CacheMap::CACHEMAP { cacheVariables: __pa0, .. } = (Util::tuple31(tmpInfo.clone())) else { bail!("pattern mismatch") };
             cacheVariables = __pa0.clone();
             tmpInfo.clone()
@@ -781,7 +781,7 @@ fn createCacheMapThreadOptimized(mut iTaskGraph: metamodelica::Array<Arc<metamod
     cacheMapMeta = CacheMapMeta { allSCVarsMapping: iAllSCVarsMapping.clone(), simCodeVarTypes: iSimCodeVarTypes.clone(), scVarCLMapping: scVarCLMapping.clone() };
     tmpCacheInfo = (cacheMap.clone(), cacheMapMeta.clone(), oNumCL.clone());
     for mut threadIdx in 1..=iNumberOfThreads.clone() {
-        (cacheMap, cacheMapMeta, oNumCL) = List::fold(iThreadTasks.clone().borrow()[(threadIdx.clone()-1) as usize].clone(), Arc::new({ let __pe_b1 = iTaskGraph.clone(); let __pe_b2 = iTaskGraphMeta.clone(); let __pe_b3 = iSchedulerInfo.clone(); let __pe_b4 = iTaskSolvedVarsMapping.clone(); let __pe_b5 = iTaskUnsolvedVarsMapping.clone(); let __pe_b6 = handledVariables.clone(); let __pe_b7 = iNumberOfThreads.clone(); let __pe_b8: Arc<dyn ::std::ops::Fn(i32, i32, i32, i32, _, metamodelica::Array<((Arc<metamodelica::List<PartlyFilledCacheLine>>, Arc<metamodelica::List<PartlyFilledCacheLine>>, Arc<metamodelica::List<PartlyFilledCacheLine>>), (Arc<metamodelica::List<CacheLineMap>>, Arc<metamodelica::List<CacheLineMap>>, Arc<metamodelica::List<CacheLineMap>>))>) -> Result<Option<(PartlyFilledCacheLine, i32)>> + 'static> = Arc::new(findMatchingSharedCLThread); let __pe_b9 = 0; let __pe_b10: Arc<dyn ::std::ops::Fn(Option<PartlyFilledCacheLine>, CacheLineMap, _) -> Result<PartlyFilledCacheLine> + 'static> = Arc::new(fnptr!(createSharedClThread, Option<PartlyFilledCacheLine>, CacheLineMap, i32)); let __pe_b11 = threadCacheLines.clone(); let __pe_b12 = sharedCacheLines.clone(); let __pe_b13 = iScVarInfos.clone(); move |__pe_a0, __pe_a14| createCacheMapOptimizedForTask(__pe_a0, __pe_b1.clone(), __pe_b2.clone(), __pe_b3.clone(), __pe_b4.clone(), __pe_b5.clone(), __pe_b6.clone(), __pe_b7.clone(), __pe_b8.clone(), __pe_b9.clone(), __pe_b10.clone(), __pe_b11.clone(), __pe_b12.clone(), __pe_b13.clone(), __pe_a14) }), tmpCacheInfo.clone());
+        (cacheMap, cacheMapMeta, oNumCL) = List::fold(iThreadTasks.clone().borrow()[(threadIdx.clone()-1) as usize].clone(), Arc::new({ let __pe_b1 = iTaskGraph.clone(); let __pe_b2 = iTaskGraphMeta.clone(); let __pe_b3 = iSchedulerInfo.clone(); let __pe_b4 = iTaskSolvedVarsMapping.clone(); let __pe_b5 = iTaskUnsolvedVarsMapping.clone(); let __pe_b6 = handledVariables.clone(); let __pe_b7 = iNumberOfThreads.clone(); let __pe_b8: Arc<dyn ::std::ops::Fn(i32, i32, i32, i32, _, metamodelica::Array<((Arc<metamodelica::List<PartlyFilledCacheLine>>, Arc<metamodelica::List<PartlyFilledCacheLine>>, Arc<metamodelica::List<PartlyFilledCacheLine>>), (Arc<metamodelica::List<CacheLineMap>>, Arc<metamodelica::List<CacheLineMap>>, Arc<metamodelica::List<CacheLineMap>>))>) -> Result<Option<(PartlyFilledCacheLine, i32)>> + 'static> = (std::sync::Arc::new(findMatchingSharedCLThread) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32, i32, i32, i32, metamodelica::Array<((Arc<metamodelica::List<PartlyFilledCacheLine>>, Arc<metamodelica::List<PartlyFilledCacheLine>>, Arc<metamodelica::List<PartlyFilledCacheLine>>), (Arc<metamodelica::List<CacheLineMap>>, Arc<metamodelica::List<CacheLineMap>>, Arc<metamodelica::List<CacheLineMap>>))>) -> Result<Option<(PartlyFilledCacheLine, i32)>> + 'static>); let __pe_b9 = 0; let __pe_b10: Arc<dyn ::std::ops::Fn(Option<PartlyFilledCacheLine>, CacheLineMap, _) -> Result<PartlyFilledCacheLine> + 'static> = (std::sync::Arc::new(fnptr!(createSharedClThread, Option<PartlyFilledCacheLine>, CacheLineMap, i32)) as std::sync::Arc<dyn ::std::ops::Fn(Option<PartlyFilledCacheLine>, CacheLineMap, i32) -> Result<PartlyFilledCacheLine> + 'static>); let __pe_b11 = threadCacheLines.clone(); let __pe_b12 = sharedCacheLines.clone(); let __pe_b13 = iScVarInfos.clone(); move |__pe_a0, __pe_a14| createCacheMapOptimizedForTask(__pe_a0, __pe_b1.clone(), __pe_b2.clone(), __pe_b3.clone(), __pe_b4.clone(), __pe_b5.clone(), __pe_b6.clone(), __pe_b7.clone(), __pe_b8.clone(), __pe_b9.clone(), __pe_b10.clone(), __pe_b11.clone(), __pe_b12.clone(), __pe_b13.clone(), __pe_a14) }), tmpCacheInfo.clone());
         cacheMap = createCacheMapFromThreadAndSharedCLs(threadCacheLines.clone().borrow()[(threadIdx.clone()-1) as usize].clone(), sharedCacheLines.clone().borrow()[(threadIdx.clone()-1) as usize].clone(), cacheMap.clone())?;
         tmpCacheInfo = (cacheMap.clone(), cacheMapMeta.clone(), oNumCL.clone());
     }
@@ -792,9 +792,9 @@ fn createCacheMapThreadOptimized(mut iTaskGraph: metamodelica::Array<Arc<metamod
 }
 
 fn createCacheMapOptimizedForTask<T: Clone + 'static>(mut iTask: Arc<HpcOmSimCode::Task>, mut iTaskGraph: metamodelica::Array<Arc<metamodelica::List<i32>>>, mut iTaskGraphMeta: HpcOmTaskGraph::TaskGraphMeta, mut iSchedulerInfo: metamodelica::Array<(i32, i32, metamodelica::Real)>, mut iTaskSolvedVarsMapping: metamodelica::Array<Arc<metamodelica::List<i32>>>, mut iTaskUnsolvedVarsMapping: metamodelica::Array<Arc<metamodelica::List<i32>>>, mut iHandledVariables: metamodelica::Array<bool>, mut iNumberOfThreads: i32, mut iSharedClSelectFunction: Arc<dyn ::std::ops::Fn(i32, i32, i32, i32, T, metamodelica::Array<((Arc<metamodelica::List<PartlyFilledCacheLine>>, Arc<metamodelica::List<PartlyFilledCacheLine>>, Arc<metamodelica::List<PartlyFilledCacheLine>>), (Arc<metamodelica::List<CacheLineMap>>, Arc<metamodelica::List<CacheLineMap>>, Arc<metamodelica::List<CacheLineMap>>))>) -> Result<Option<(PartlyFilledCacheLine, i32)>> + 'static>, mut iCompareFuncArgument: T, mut iFactoryMethod: Arc<dyn ::std::ops::Fn(Option<PartlyFilledCacheLine>, CacheLineMap, T) -> Result<PartlyFilledCacheLine> + 'static>, mut iThreadCacheLines: metamodelica::Array<(Arc<metamodelica::List<CacheLineMap>>, Arc<metamodelica::List<CacheLineMap>>, Arc<metamodelica::List<CacheLineMap>>)>, mut iSharedCacheLines: metamodelica::Array<((Arc<metamodelica::List<PartlyFilledCacheLine>>, Arc<metamodelica::List<PartlyFilledCacheLine>>, Arc<metamodelica::List<PartlyFilledCacheLine>>), (Arc<metamodelica::List<CacheLineMap>>, Arc<metamodelica::List<CacheLineMap>>, Arc<metamodelica::List<CacheLineMap>>))>, mut iScVarInfos: metamodelica::Array<ScVarInfo>, mut iInfo: (CacheMap, CacheMapMeta, i32)) -> Result<(CacheMap, CacheMapMeta, i32)> {
-    pub type HeuristicFunction<T: Clone> = fn(i32, i32, i32, i32, T, metamodelica::Array<((Arc<metamodelica::List<PartlyFilledCacheLine>>, Arc<metamodelica::List<PartlyFilledCacheLine>>, Arc<metamodelica::List<PartlyFilledCacheLine>>), (Arc<metamodelica::List<CacheLineMap>>, Arc<metamodelica::List<CacheLineMap>>, Arc<metamodelica::List<CacheLineMap>>))>) -> Result<Option<(PartlyFilledCacheLine, i32)>>;
+    pub type HeuristicFunction<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(i32, i32, i32, i32, T, metamodelica::Array<((Arc<metamodelica::List<PartlyFilledCacheLine>>, Arc<metamodelica::List<PartlyFilledCacheLine>>, Arc<metamodelica::List<PartlyFilledCacheLine>>), (Arc<metamodelica::List<CacheLineMap>>, Arc<metamodelica::List<CacheLineMap>>, Arc<metamodelica::List<CacheLineMap>>))>) -> Result<Option<(PartlyFilledCacheLine, i32)>> + 'static>;
 
-    pub type FactoryMethod<T: Clone> = fn(Option<PartlyFilledCacheLine>, CacheLineMap, T) -> Result<PartlyFilledCacheLine>;
+    pub type FactoryMethod<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Option<PartlyFilledCacheLine>, CacheLineMap, T) -> Result<PartlyFilledCacheLine> + 'static>;
 
     let mut oInfo: (CacheMap, CacheMapMeta, i32);
     let mut threadIdx: i32 = 0;
@@ -812,7 +812,7 @@ fn createCacheMapOptimizedForTask<T: Clone + 'static>(mut iTask: Arc<HpcOmSimCod
         (Deref @ HpcOmSimCode::Task::CALCTASK { threadIdx, index: taskIdx, .. }, _, _, _, _, _, _, _, _, _, _, _, _, _, (cacheMap, cacheMapMeta @ CacheMapMeta { allSCVarsMapping, .. }, numOfCLs)) => {
             solvedVars = iTaskSolvedVarsMapping.clone().borrow()[(taskIdx.clone()-1) as usize].clone();
             unsolvedVars = iTaskUnsolvedVarsMapping.clone().borrow()[(taskIdx.clone()-1) as usize].clone();
-            vars = List::sort(listAppend(solvedVars.clone(), unsolvedVars.clone()), Arc::new(fnptr!(intGt, i32, i32)))?;
+            vars = List::sort(listAppend(solvedVars.clone(), unsolvedVars.clone()), (std::sync::Arc::new(fnptr!(intGt, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
             tmpInfo = List::fold(vars.clone(), Arc::new({ let __pe_b1 = threadIdx.clone(); let __pe_b2 = iScVarInfos.clone(); let __pe_b3 = iHandledVariables.clone(); let __pe_b4: Arc<dyn ::std::ops::Fn(i32, i32, i32, i32, _, metamodelica::Array<((Arc<metamodelica::List<PartlyFilledCacheLine>>, Arc<metamodelica::List<PartlyFilledCacheLine>>, Arc<metamodelica::List<PartlyFilledCacheLine>>), (Arc<metamodelica::List<CacheLineMap>>, Arc<metamodelica::List<CacheLineMap>>, Arc<metamodelica::List<CacheLineMap>>))>) -> Result<Option<(PartlyFilledCacheLine, i32)>> + 'static> = iSharedClSelectFunction.clone(); let __pe_b5 = iCompareFuncArgument.clone(); let __pe_b6: Arc<dyn ::std::ops::Fn(Option<PartlyFilledCacheLine>, CacheLineMap, _) -> Result<PartlyFilledCacheLine> + 'static> = iFactoryMethod.clone(); let __pe_b7 = iThreadCacheLines.clone(); let __pe_b8 = iSharedCacheLines.clone(); move |__pe_a0, __pe_a9| createCacheMapOptimizedForTask1(__pe_a0, __pe_b1.clone(), __pe_b2.clone(), __pe_b3.clone(), __pe_b4.clone(), __pe_b5.clone(), __pe_b6.clone(), __pe_b7.clone(), __pe_b8.clone(), __pe_a9) }), (cacheMap.clone(), cacheMapMeta.clone(), numOfCLs.clone()));
             tmpInfo.clone()
         },
@@ -827,9 +827,9 @@ fn createCacheMapOptimizedForTask<T: Clone + 'static>(mut iTask: Arc<HpcOmSimCod
 }
 
 fn createCacheMapOptimizedForTask1<T: Clone + 'static>(mut iScVar: i32, mut iThreadIdx: i32, mut iScVarInfos: metamodelica::Array<ScVarInfo>, mut iHandledVariables: metamodelica::Array<bool>, mut iSharedClSelectFunction: Arc<dyn ::std::ops::Fn(i32, i32, i32, i32, T, metamodelica::Array<((Arc<metamodelica::List<PartlyFilledCacheLine>>, Arc<metamodelica::List<PartlyFilledCacheLine>>, Arc<metamodelica::List<PartlyFilledCacheLine>>), (Arc<metamodelica::List<CacheLineMap>>, Arc<metamodelica::List<CacheLineMap>>, Arc<metamodelica::List<CacheLineMap>>))>) -> Result<Option<(PartlyFilledCacheLine, i32)>> + 'static>, mut iCompareFuncArgument: T, mut iFactoryMethod: Arc<dyn ::std::ops::Fn(Option<PartlyFilledCacheLine>, CacheLineMap, T) -> Result<PartlyFilledCacheLine> + 'static>, mut iThreadCacheLines: metamodelica::Array<(Arc<metamodelica::List<CacheLineMap>>, Arc<metamodelica::List<CacheLineMap>>, Arc<metamodelica::List<CacheLineMap>>)>, mut iSharedCacheLines: metamodelica::Array<((Arc<metamodelica::List<PartlyFilledCacheLine>>, Arc<metamodelica::List<PartlyFilledCacheLine>>, Arc<metamodelica::List<PartlyFilledCacheLine>>), (Arc<metamodelica::List<CacheLineMap>>, Arc<metamodelica::List<CacheLineMap>>, Arc<metamodelica::List<CacheLineMap>>))>, mut iInfo: (CacheMap, CacheMapMeta, i32)) -> Result<(CacheMap, CacheMapMeta, i32)> {
-    pub type HeuristicFunction<T: Clone> = fn(i32, i32, i32, i32, T, metamodelica::Array<((Arc<metamodelica::List<PartlyFilledCacheLine>>, Arc<metamodelica::List<PartlyFilledCacheLine>>, Arc<metamodelica::List<PartlyFilledCacheLine>>), (Arc<metamodelica::List<CacheLineMap>>, Arc<metamodelica::List<CacheLineMap>>, Arc<metamodelica::List<CacheLineMap>>))>) -> Result<Option<(PartlyFilledCacheLine, i32)>>;
+    pub type HeuristicFunction<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(i32, i32, i32, i32, T, metamodelica::Array<((Arc<metamodelica::List<PartlyFilledCacheLine>>, Arc<metamodelica::List<PartlyFilledCacheLine>>, Arc<metamodelica::List<PartlyFilledCacheLine>>), (Arc<metamodelica::List<CacheLineMap>>, Arc<metamodelica::List<CacheLineMap>>, Arc<metamodelica::List<CacheLineMap>>))>) -> Result<Option<(PartlyFilledCacheLine, i32)>> + 'static>;
 
-    pub type FactoryMethod<T: Clone> = fn(Option<PartlyFilledCacheLine>, CacheLineMap, T) -> Result<PartlyFilledCacheLine>;
+    pub type FactoryMethod<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Option<PartlyFilledCacheLine>, CacheLineMap, T) -> Result<PartlyFilledCacheLine> + 'static>;
 
     let mut oInfo: (CacheMap, CacheMapMeta, i32);
     let mut isShared: bool = false;
@@ -885,7 +885,7 @@ fn getVarInfoByScVarIdx(mut iScVarIdx: i32, mut iScVarSolvedTaskMapping: metamod
         threads = cons(owner.clone(), threads.clone());
     }
     listLen = (unsolvingTaskIdc.clone().len() as i32);
-    unsolvingThreadIdc = List::map(List::map(unsolvingTaskIdc.clone(), Arc::new(todo!("PARTEVALFUNCTION of arrayGet: function signature not resolved"))), Arc::new(fnptr!(Util::tuple31, _)));
+    unsolvingThreadIdc = List::map(List::map(unsolvingTaskIdc.clone(), Arc::new(todo!("PARTEVALFUNCTION of arrayGet: function signature not resolved"))), std::sync::Arc::new(fnptr!(Util::tuple31, _)));
     if intEq(listLen.clone(), 1) {
         if intLt(owner.clone(), 0) {
             owner = listHead(unsolvingThreadIdc.clone())?;
@@ -1021,9 +1021,9 @@ fn contractCacheLineForVarType(mut iVarDataType: i32, mut iCacheLinesFloat: Arc<
 }
 
 fn addVarsToSharedCL<T: Clone + 'static>(mut iNodeVars: Arc<metamodelica::List<i32>>, mut iSharedClSelectFunction: Arc<dyn ::std::ops::Fn(i32, i32, i32, i32, T, metamodelica::Array<((Arc<metamodelica::List<PartlyFilledCacheLine>>, Arc<metamodelica::List<PartlyFilledCacheLine>>, Arc<metamodelica::List<PartlyFilledCacheLine>>), (Arc<metamodelica::List<CacheLineMap>>, Arc<metamodelica::List<CacheLineMap>>, Arc<metamodelica::List<CacheLineMap>>))>) -> Result<Option<(PartlyFilledCacheLine, i32)>> + 'static>, mut iFactoryMethod: Arc<dyn ::std::ops::Fn(Option<PartlyFilledCacheLine>, CacheLineMap, T) -> Result<PartlyFilledCacheLine> + 'static>, mut iThreadIdx: i32, mut iCompareFuncArgument: T, mut iSharedCacheLines: metamodelica::Array<((Arc<metamodelica::List<PartlyFilledCacheLine>>, Arc<metamodelica::List<PartlyFilledCacheLine>>, Arc<metamodelica::List<PartlyFilledCacheLine>>), (Arc<metamodelica::List<CacheLineMap>>, Arc<metamodelica::List<CacheLineMap>>, Arc<metamodelica::List<CacheLineMap>>))>, mut iInfo: (CacheMap, CacheMapMeta, i32)) -> Result<(CacheMap, CacheMapMeta, i32)> {
-    pub type HeuristicFunction<T: Clone> = fn(i32, i32, i32, i32, T, metamodelica::Array<((Arc<metamodelica::List<PartlyFilledCacheLine>>, Arc<metamodelica::List<PartlyFilledCacheLine>>, Arc<metamodelica::List<PartlyFilledCacheLine>>), (Arc<metamodelica::List<CacheLineMap>>, Arc<metamodelica::List<CacheLineMap>>, Arc<metamodelica::List<CacheLineMap>>))>) -> Result<Option<(PartlyFilledCacheLine, i32)>>;
+    pub type HeuristicFunction<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(i32, i32, i32, i32, T, metamodelica::Array<((Arc<metamodelica::List<PartlyFilledCacheLine>>, Arc<metamodelica::List<PartlyFilledCacheLine>>, Arc<metamodelica::List<PartlyFilledCacheLine>>), (Arc<metamodelica::List<CacheLineMap>>, Arc<metamodelica::List<CacheLineMap>>, Arc<metamodelica::List<CacheLineMap>>))>) -> Result<Option<(PartlyFilledCacheLine, i32)>> + 'static>;
 
-    pub type FactoryMethod<T: Clone> = fn(Option<PartlyFilledCacheLine>, CacheLineMap, T) -> Result<PartlyFilledCacheLine>;
+    pub type FactoryMethod<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Option<PartlyFilledCacheLine>, CacheLineMap, T) -> Result<PartlyFilledCacheLine> + 'static>;
 
     let mut oInfo: (CacheMap, CacheMapMeta, i32);
     let mut lastCL: CacheLineMap;
@@ -1066,7 +1066,7 @@ fn addVarsToSharedCL<T: Clone + 'static>(mut iNodeVars: Arc<metamodelica::List<i
 }
 
 fn addVarsToSharedCL0<T: Clone + 'static>(mut iMatchedCacheLine: Option<(PartlyFilledCacheLine, i32)>, mut iVarIdx: i32, mut iFactoryMethod: Arc<dyn ::std::ops::Fn(Option<PartlyFilledCacheLine>, CacheLineMap, T) -> Result<PartlyFilledCacheLine> + 'static>, mut iAdditionalArgument: T, mut iThreadIdx: i32, mut iSharedCacheLines: metamodelica::Array<((Arc<metamodelica::List<PartlyFilledCacheLine>>, Arc<metamodelica::List<PartlyFilledCacheLine>>, Arc<metamodelica::List<PartlyFilledCacheLine>>), (Arc<metamodelica::List<CacheLineMap>>, Arc<metamodelica::List<CacheLineMap>>, Arc<metamodelica::List<CacheLineMap>>))>, mut iInfo: (CacheMap, CacheMapMeta, i32)) -> Result<(CacheMap, CacheMapMeta, i32)> {
-    pub type FactoryMethod<T: Clone> = fn(Option<PartlyFilledCacheLine>, CacheLineMap, T) -> Result<PartlyFilledCacheLine>;
+    pub type FactoryMethod<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Option<PartlyFilledCacheLine>, CacheLineMap, T) -> Result<PartlyFilledCacheLine> + 'static>;
 
     let mut oInfo: (CacheMap, CacheMapMeta, i32);
     let mut threadPartlyFilledCacheLines: PartlyFilledCacheLines;
@@ -1216,7 +1216,7 @@ fn findMatchingSharedCLLevelfix0(mut iNodeVar: i32, mut iVarSize: i32, mut iLeve
     let mut writeLevel: Arc<metamodelica::List<(i32, i32)>> = metamodelica::nil();
     oMatchedCacheLine = (::match_deref::match_deref! { match &((iNodeVar.clone(), iVarSize.clone(), iLevelIdx.clone(), iThreadIdx.clone(), iCurrentListIdx.clone(), iSharedCacheLines.clone())) {
         (_, _, _, _, _, Deref @ metamodelica::List::Cons { head: head @ PartlyFilledCacheLine::PARTLYFILLEDCACHELINE_LEVEL { writeLevel, prefetchLevel, cacheLineMap: cacheLineMap @ CacheLineMap { numBytesFree, .. } }, tail: rest }) => {
-            if boolOr(intLt(numBytesFree.clone(), iVarSize.clone()), List::exist1(prefetchLevel.clone(), Arc::new(fnptr!(intEq, i32, i32)), iLevelIdx.clone())) {
+            if boolOr(intLt(numBytesFree.clone(), iVarSize.clone()), List::exist1(prefetchLevel.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>), iLevelIdx.clone())) {
                 tmpMatchedCacheLine = findMatchingSharedCLLevelfix0(iNodeVar.clone(), iVarSize.clone(), iLevelIdx.clone(), iThreadIdx.clone(), iCurrentListIdx.clone() + 1, rest.clone());
             } else {
                 if List::any(writeLevel.clone(), Arc::new({ let __pe_b1 = iLevelIdx.clone(); let __pe_b2 = iThreadIdx.clone(); move |__pe_a0| Ok(isCLWrittenByOtherThread(__pe_a0, __pe_b1.clone(), __pe_b2.clone())) })) {
@@ -1325,9 +1325,9 @@ fn createCacheMapFromThreadAndSharedCLs(mut iThreadCacheLines: CacheLines, mut i
     cacheLinesFloat = listAppend(cacheLinesFloat.clone(), listAppend(Util::tuple31(iThreadCacheLines.clone()), Util::tuple31(fullyFilledSharedCacheLines.clone())));
     cacheLinesInt = listAppend(cacheLinesInt.clone(), listAppend(Util::tuple32(iThreadCacheLines.clone()), Util::tuple32(fullyFilledSharedCacheLines.clone())));
     cacheLinesBool = listAppend(cacheLinesBool.clone(), listAppend(Util::tuple33(iThreadCacheLines.clone()), Util::tuple33(fullyFilledSharedCacheLines.clone())));
-    cacheLinesFloat = listAppend(cacheLinesFloat.clone(), List::map(Util::tuple31(partlyFilledCacheLines.clone()), Arc::new(getCacheLineMapOfPartlyFilledCacheLine)));
-    cacheLinesInt = listAppend(cacheLinesInt.clone(), List::map(Util::tuple32(partlyFilledCacheLines.clone()), Arc::new(getCacheLineMapOfPartlyFilledCacheLine)));
-    cacheLinesBool = listAppend(cacheLinesBool.clone(), List::map(Util::tuple33(partlyFilledCacheLines.clone()), Arc::new(getCacheLineMapOfPartlyFilledCacheLine)));
+    cacheLinesFloat = listAppend(cacheLinesFloat.clone(), List::map(Util::tuple31(partlyFilledCacheLines.clone()), (std::sync::Arc::new(getCacheLineMapOfPartlyFilledCacheLine) as std::sync::Arc<dyn ::std::ops::Fn(PartlyFilledCacheLine) -> Result<CacheLineMap> + 'static>)));
+    cacheLinesInt = listAppend(cacheLinesInt.clone(), List::map(Util::tuple32(partlyFilledCacheLines.clone()), (std::sync::Arc::new(getCacheLineMapOfPartlyFilledCacheLine) as std::sync::Arc<dyn ::std::ops::Fn(PartlyFilledCacheLine) -> Result<CacheLineMap> + 'static>)));
+    cacheLinesBool = listAppend(cacheLinesBool.clone(), List::map(Util::tuple33(partlyFilledCacheLines.clone()), (std::sync::Arc::new(getCacheLineMapOfPartlyFilledCacheLine) as std::sync::Arc<dyn ::std::ops::Fn(PartlyFilledCacheLine) -> Result<CacheLineMap> + 'static>)));
     oCacheMap = CacheMap::CACHEMAP { cacheLineSize: cacheLineSize.clone(), cacheVariables: cacheVariables.clone(), cacheLinesFloat: cacheLinesFloat.clone(), cacheLinesInt: cacheLinesInt.clone(), cacheLinesBool: cacheLinesBool.clone() };
     Ok(oCacheMap)
 }
@@ -1526,9 +1526,9 @@ fn appendNodeVarsToCacheMap(mut iNodeIdx: i32, mut iOwnerThread: i32, mut iNodeS
     let mut clCandidates: Arc<metamodelica::List<(i32, i32)>> = metamodelica::nil();
     simCodeVars = iNodeSimCodeVarMapping.clone().borrow()[(iNodeIdx.clone()-1) as usize].clone();
     (iCacheMap, iCacheMapMeta, iNumNewCL, clCandidates) = iInfo.clone();
-    varsString = stringDelimitList(List::map(simCodeVars.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone());
+    varsString = stringDelimitList(List::map(simCodeVars.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone());
     (iCacheMap, iCacheMapMeta, iNumNewCL, clCandidates, writtenCL, _) = List::fold(simCodeVars.clone(), Arc::new({ let __pe_b1 = iOwnerThread.clone(); move |__pe_a0, __pe_a2| appendSCVarToCacheMap(__pe_a0, __pe_b1.clone(), __pe_a2) }), (iCacheMap.clone(), iCacheMapMeta.clone(), iNumNewCL.clone(), clCandidates.clone(), metamodelica::nil(), 1));
-    clCandidates = List::removeOnTrue(writtenCL.clone(), Arc::new(appendNodeVarsToCacheMap0), clCandidates.clone());
+    clCandidates = List::removeOnTrue(writtenCL.clone(), (std::sync::Arc::new(appendNodeVarsToCacheMap0) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<i32>>, (i32, i32)) -> Result<bool> + 'static>), clCandidates.clone());
     oInfo = (iCacheMap.clone(), iCacheMapMeta.clone(), iNumNewCL.clone(), clCandidates.clone());
     Ok(oInfo)
 }
@@ -1553,7 +1553,7 @@ fn appendNodeVarsToCacheMap0(mut iWrittenCLs: Arc<metamodelica::List<i32>>, mut 
             ::match_deref::match_deref! { match &__mc_input {
                 (_, (clIdx, freeBytes)) => {
                     let mut res: bool = res.clone();
-                    res = List::isMemberOnTrue(clIdx.clone(), iWrittenCLs.clone(), Arc::new(fnptr!(intEq, i32, i32)));
+                    res = List::isMemberOnTrue(clIdx.clone(), iWrittenCLs.clone(), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>));
                     Ok(res.clone())
                 }
                 _ => bail!("nomatch"),
@@ -1618,18 +1618,18 @@ fn appendSCVarToCacheMap(mut iSCVarIdx: i32, mut iOwnerThread: i32, mut iInfo: (
                     let mut iScVarCLMapping = (*iScVarCLMapping).clone();
                     let mut cacheLineCandidates = (*cacheLineCandidates).clone();
                     let mut writtenCL = (*writtenCL).clone();
-                    let mut varDataType: i32 = varDataType.clone();
-                    let mut currentCLCandidate: (i32, i32);
+                    let mut numBytesRequired: i32 = numBytesRequired.clone();
+                    let mut scVar: SimCodeVar::SimVar;
                     let mut clIdx: i32 = clIdx.clone();
-                    let mut numBytesFree: i32 = numBytesFree.clone();
-                    let mut CLentries: Arc<metamodelica::List<CacheLineEntry>> = CLentries.clone();
+                    let mut varDataType: i32 = varDataType.clone();
+                    let mut cacheLine: CacheLineMap;
                     let mut currentCLCandidateCLIdx: i32 = currentCLCandidateCLIdx.clone();
                     let mut numCacheVars: i32 = numCacheVars.clone();
-                    let mut cacheLine: CacheLineMap;
-                    let mut scVar: SimCodeVar::SimVar;
-                    let mut numBytesRequired: i32 = numBytesRequired.clone();
-                    let mut entryStart: i32 = entryStart.clone();
+                    let mut currentCLCandidate: (i32, i32);
                     let mut currentCLCandidateFreeBytes: i32 = currentCLCandidateFreeBytes.clone();
+                    let mut numBytesFree: i32 = numBytesFree.clone();
+                    let mut entryStart: i32 = entryStart.clone();
+                    let mut CLentries: Arc<metamodelica::List<CacheLineEntry>> = CLentries.clone();
                     let true = (intGe((cacheLineCandidates.clone().len() as i32), currentCLCandidateIdx.clone())) else { bail!("pattern mismatch") };
                     currentCLCandidate = (cacheLineCandidates.clone()).get(currentCLCandidateIdx.clone())?;
                     (varDataType, numBytesRequired, _) = iSimCodeVarTypes.clone().borrow()[(iSCVarIdx.clone()-1) as usize].clone();
@@ -1682,16 +1682,16 @@ fn appendSCVarToCacheMap(mut iSCVarIdx: i32, mut iOwnerThread: i32, mut iInfo: (
                     let mut iScVarCLMapping = (*iScVarCLMapping).clone();
                     let mut cacheLineCandidates = (*cacheLineCandidates).clone();
                     let mut writtenCL = (*writtenCL).clone();
-                    let mut numCacheVars: i32 = numCacheVars.clone();
+                    let mut varDataType: i32 = varDataType.clone();
+                    let mut cacheLine: CacheLineMap;
+                    let mut freeSpace: i32 = freeSpace.clone();
                     let mut entryStart: i32 = entryStart.clone();
+                    let mut cacheMapMeta: CacheMapMeta;
                     let mut numBytesRequired: i32 = numBytesRequired.clone();
                     let mut clIdx: i32 = clIdx.clone();
-                    let mut CLentries: Arc<metamodelica::List<CacheLineEntry>> = CLentries.clone();
+                    let mut numCacheVars: i32 = numCacheVars.clone();
                     let mut scVar: SimCodeVar::SimVar;
-                    let mut cacheMapMeta: CacheMapMeta;
-                    let mut freeSpace: i32 = freeSpace.clone();
-                    let mut cacheLine: CacheLineMap;
-                    let mut varDataType: i32 = varDataType.clone();
+                    let mut CLentries: Arc<metamodelica::List<CacheLineEntry>> = CLentries.clone();
                     (varDataType, numBytesRequired, _) = iSimCodeVarTypes.clone().borrow()[(iSCVarIdx.clone()-1) as usize].clone();
                     entryStart = 0;
                     numCacheVars = (cacheVariables.clone().len() as i32) + 1;
@@ -1739,7 +1739,7 @@ fn createDetailedCacheMapInformation(mut iCacheLinesIdc: Arc<metamodelica::List<
     let mut oCacheLines: Arc<metamodelica::List<(i32, i32)>> = metamodelica::nil();
     let mut iCacheLinesArray: metamodelica::Array<CacheLineMap>;
     iCacheLinesArray = metamodelica::arrayFromVec(iCacheLines.clone().into_iter().cloned().collect());
-    oCacheLines = List::fold2(iCacheLinesIdc.clone(), Arc::new(createDetailedCacheMapInformation0), iCacheLinesArray.clone(), iCacheLineSize.clone(), metamodelica::nil());
+    oCacheLines = List::fold2(iCacheLinesIdc.clone(), (std::sync::Arc::new(createDetailedCacheMapInformation0) as std::sync::Arc<dyn ::std::ops::Fn(i32, metamodelica::Array<CacheLineMap>, i32, Arc<metamodelica::List<(i32, i32)>>) -> Result<Arc<metamodelica::List<(i32, i32)>>> + 'static>), iCacheLinesArray.clone(), iCacheLineSize.clone(), metamodelica::nil());
     oCacheLines
 }
 
@@ -1754,8 +1754,8 @@ fn createDetailedCacheMapInformation0(mut iCacheLineIdx: i32, mut iCacheLinesArr
             ::match_deref::match_deref! { match &__mc_input {
                 (_, _, _, _) => {
                     let mut numBytesFree: i32 = numBytesFree.clone();
-                    let mut cacheLineEntry: CacheLineMap;
                     let mut cacheLines: Arc<metamodelica::List<(i32, i32)>> = cacheLines.clone();
+                    let mut cacheLineEntry: CacheLineMap;
                     cacheLineEntry = iCacheLinesArray.clone().borrow()[((iCacheLinesArray.clone().borrow().len() as i32) - iCacheLineIdx.clone() + 1-1) as usize].clone();
                     numBytesFree = iCacheLineSize.clone() - getNumOfUsedBytesByCacheLine(cacheLineEntry.clone())?;
                     let true = (intGt(numBytesFree.clone(), 0)) else { bail!("pattern mismatch") };
@@ -1785,7 +1785,7 @@ fn getNumOfUsedBytesByCacheLine(mut iCacheLineMap: CacheLineMap) -> Result<i32> 
     let mut firstEntrySize: i32 = 0;
     let CacheLineMap { entries: __pa0, .. } = (iCacheLineMap.clone()) else { bail!("pattern mismatch") };
     entries = __pa0.clone();
-    entries = List::sort(entries.clone(), Arc::new(sortCacheLineEntriesByPos))?;
+    entries = List::sort(entries.clone(), (std::sync::Arc::new(sortCacheLineEntriesByPos) as std::sync::Arc<dyn ::std::ops::Fn(CacheLineEntry, CacheLineEntry) -> Result<bool> + 'static>))?;
     let CacheLineEntry { size: __pa1, start: __pa2, .. } = (List::last(entries.clone())?) else { bail!("pattern mismatch") };
     firstEntrySize = __pa1.clone();
     firstEntryStart = __pa2.clone();
@@ -1891,7 +1891,7 @@ fn convertCacheToVarArrayMapping(mut iCacheMap: CacheMap, mut iCacheLineSize: i3
             varSizeFloat = currentVarIndices.clone().borrow()[(1-1) as usize].clone();
             varIdxOffsets = arrayCreate(3, 1);
             varIdxOffsets = {let _arr = varIdxOffsets.clone(); let _val = currentVarIndices.clone().borrow()[(1-1) as usize].clone() + 1; _arr.borrow_mut()[(1-1) as usize] = _val; _arr};
-            allCacheLines = List::sort(getAllCacheLinesOfCacheMap(iCacheMap.clone())?, Arc::new(compareCacheLineMapByIdx))?;
+            allCacheLines = List::sort(getAllCacheLinesOfCacheMap(iCacheMap.clone())?, (std::sync::Arc::new(compareCacheLineMapByIdx) as std::sync::Arc<dyn ::std::ops::Fn(CacheLineMap, CacheLineMap) -> Result<bool> + 'static>))?;
             (varArrayIndexMappingHashTable, varIndexMappingHashTable) = List::fold(allCacheLines.clone(), Arc::new({ let __pe_b1 = cacheLineSize.clone(); let __pe_b2 = varIdxOffsets.clone(); let __pe_b3 = cacheVariablesArray.clone(); move |__pe_a0, __pe_a4| addCacheLineMapToVarArrayMapping(__pe_a0, __pe_b1.clone(), __pe_b2.clone(), __pe_b3.clone(), __pe_a4) }), (varArrayIndexMappingHashTable.clone(), varIndexMappingHashTable.clone()));
             {let _arr = currentVarIndices.clone(); let _val = currentVarIndices.clone().borrow()[(1-1) as usize].clone() + intMul((cacheLinesFloat.clone().len() as i32), maxNumElemsFloat.clone()); _arr.borrow_mut()[(1-1) as usize] = _val; _arr};
             {let _arr = currentVarIndices.clone(); _arr.borrow_mut()[(2-1) as usize] = intMul((cacheLinesInt.clone().len() as i32), maxNumElemsInt.clone()) + 1; _arr};
@@ -2287,7 +2287,7 @@ fn transposeTasksScVarsMapping(mut iTasksScVarMapping: metamodelica::Array<Arc<m
 fn getEqSCVarMapping(mut iEqSystems: Arc<metamodelica::List<Arc<BackendDAE::EqSystem>>>, mut iHt: (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<metamodelica::List<i32>>)>>), i32, (HashTableCrILst::FuncHashCref, HashTableCrILst::FuncCrefEqual, HashTableCrILst::FuncCrefStr, HashTableCrILst::FuncExpStr))) -> metamodelica::Array<metamodelica::Array<Arc<metamodelica::List<i32>>>> {
     let mut oMapping: metamodelica::Array<metamodelica::Array<Arc<metamodelica::List<i32>>>>;
     let mut tmpMapping: Arc<metamodelica::List<metamodelica::Array<Arc<metamodelica::List<i32>>>>> = metamodelica::nil();
-    tmpMapping = List::map1(iEqSystems.clone(), Arc::new(getEqSCVarMappingByEqSystem), iHt.clone());
+    tmpMapping = List::map1(iEqSystems.clone(), (std::sync::Arc::new(getEqSCVarMappingByEqSystem) as std::sync::Arc<dyn ::std::ops::Fn(Arc<BackendDAE::EqSystem>, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<metamodelica::List<i32>>)>>), i32, (HashTableCrILst::FuncHashCref, HashTableCrILst::FuncCrefEqual, HashTableCrILst::FuncCrefStr, HashTableCrILst::FuncExpStr))) -> Result<metamodelica::Array<Arc<metamodelica::List<i32>>>> + 'static>), iHt.clone());
     oMapping = metamodelica::arrayFromVec(tmpMapping.clone().into_iter().cloned().collect());
     oMapping
 }
@@ -2302,14 +2302,14 @@ fn getEqSCVarMappingByEqSystem(mut iEqSystem: Arc<BackendDAE::EqSystem>, mut iHt
     } };
     orderedEqs = __pa0.clone();
     equOptList = Arc::new(ExpandableArray::getData(orderedEqs.clone()).borrow().iter().cloned().collect::<metamodelica::List<_>>());
-    oMapping = metamodelica::arrayFromVec(List::map1Option(equOptList.clone(), Arc::new(getEqSCVarMapping0), iHt.clone())?.into_iter().cloned().collect());
+    oMapping = metamodelica::arrayFromVec(List::map1Option(equOptList.clone(), (std::sync::Arc::new(getEqSCVarMapping0) as std::sync::Arc<dyn ::std::ops::Fn(Arc<BackendDAE::Equation>, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<metamodelica::List<i32>>)>>), i32, (HashTableCrILst::FuncHashCref, HashTableCrILst::FuncCrefEqual, HashTableCrILst::FuncCrefStr, HashTableCrILst::FuncExpStr))) -> Result<Arc<metamodelica::List<i32>>> + 'static>), iHt.clone())?.into_iter().cloned().collect());
     Ok(oMapping)
 }
 
 fn getEqSCVarMapping0(mut iEquation: Arc<BackendDAE::Equation>, mut iHt: (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<metamodelica::List<i32>>)>>), i32, (HashTableCrILst::FuncHashCref, HashTableCrILst::FuncCrefEqual, HashTableCrILst::FuncCrefStr, HashTableCrILst::FuncExpStr))) -> Result<Arc<metamodelica::List<i32>>> {
     let mut oMapping: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut varIdcList: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    let (_, (_, (_, __pa0))) = BackendEquation::traverseExpsOfEquation(iEquation.clone(), Arc::new(Expression::traverseSubexpressionsHelper), (createMemoryMapTraverse0, (iHt.clone(), metamodelica::nil())))?;
+    let (_, (_, (_, __pa0))) = BackendEquation::traverseExpsOfEquation(iEquation.clone(), (std::sync::Arc::new(Expression::traverseSubexpressionsHelper) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, _) -> Result<_> + 'static>), ((std::sync::Arc::new(createMemoryMapTraverse0) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, ((metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<metamodelica::List<i32>>)>>), i32, (HashTableCrILst::FuncHashCref, HashTableCrILst::FuncCrefEqual, HashTableCrILst::FuncCrefStr, HashTableCrILst::FuncExpStr)), Arc<metamodelica::List<i32>>)) -> Result<(Arc<DAE::Exp>, ((metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<metamodelica::List<i32>>)>>), i32, (HashTableCrILst::FuncHashCref, HashTableCrILst::FuncCrefEqual, HashTableCrILst::FuncCrefStr, HashTableCrILst::FuncExpStr)), Arc<metamodelica::List<i32>>))> + 'static>), (iHt.clone(), metamodelica::nil())))?;
     oMapping = __pa0.clone();
     Ok(oMapping)
 }
@@ -2333,8 +2333,8 @@ fn createMemoryMapTraverse0(mut inExp: Arc<DAE::Exp>, mut inTpl: ((metamodelica:
                     let mut iVarList = (*iVarList).clone();
                     let mut varIdx: i32 = varIdx.clone();
                     let mut varInfo: Arc<metamodelica::List<i32>> = varInfo.clone();
-                    let mut varHead: i32 = varHead.clone();
                     let mut oVarList: Arc<metamodelica::List<i32>> = oVarList.clone();
+                    let mut varHead: i32 = varHead.clone();
                     varInfo = BaseHashTable::get(componentRef.clone(), iHashTable.clone())?;
                     varIdx = listHead(varInfo.clone())? + List::second(varInfo.clone())?;
                     if boolNot(iVarList.clone().is_empty()) {
@@ -2354,8 +2354,8 @@ fn createMemoryMapTraverse0(mut inExp: Arc<DAE::Exp>, mut inTpl: ((metamodelica:
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (iExp @ Deref @ DAE::Exp::CREF { componentRef, .. }, (iHashTable, iVarList)) => {
-                    let mut varInfo: Arc<metamodelica::List<i32>> = varInfo.clone();
                     let mut oVarList: Arc<metamodelica::List<i32>> = oVarList.clone();
+                    let mut varInfo: Arc<metamodelica::List<i32>> = varInfo.clone();
                     let mut varIdx: i32 = varIdx.clone();
                     varInfo = BaseHashTable::get(componentRef.clone(), iHashTable.clone())?;
                     varIdx = listHead(varInfo.clone())? + List::second(varInfo.clone())?;
@@ -2412,15 +2412,15 @@ fn getSimCodeVarNodeMapping0(mut iCompIdx: (i32, i32, i32), mut iEqSystems: Arc<
             ::match_deref::match_deref! { match &__mc_input {
                 ((compIdx, eqSysIdx, varOffset), _, _, _, (iScVarTaskMapping, varIdx)) => {
                     let mut iScVarTaskMapping = (*iScVarTaskMapping).clone();
-                    let mut scVarOffset: i32 = scVarOffset.clone();
-                    let mut orderedVars: BackendDAE::Variables;
-                    let mut scVarValues: Arc<metamodelica::List<i32>> = scVarValues.clone();
-                    let mut scVarIdx: i32 = scVarIdx.clone();
-                    let mut varNameString: ArcStr = varNameString.clone();
                     let mut nodeIdx: i32 = nodeIdx.clone();
-                    let mut var: BackendDAE::Var;
-                    let mut varName: Arc<DAE::ComponentRef> = varName.clone();
                     let mut eqSystem: Arc<BackendDAE::EqSystem>;
+                    let mut var: BackendDAE::Var;
+                    let mut orderedVars: BackendDAE::Variables;
+                    let mut scVarIdx: i32 = scVarIdx.clone();
+                    let mut scVarValues: Arc<metamodelica::List<i32>> = scVarValues.clone();
+                    let mut scVarOffset: i32 = scVarOffset.clone();
+                    let mut varNameString: ArcStr = varNameString.clone();
+                    let mut varName: Arc<DAE::ComponentRef> = varName.clone();
                     let true = (intGt(compIdx.clone(), 0)) else { bail!("pattern mismatch") };
                     eqSystem = (iEqSystems.clone()).get(eqSysIdx.clone())?;
                     let __pa0 = ::match_deref::match_deref! { match &(eqSystem.clone()) {
@@ -2557,8 +2557,8 @@ fn getCacheLineTaskMapping(mut iTaskGraphMeta: HpcOmTaskGraph::TaskGraphMeta, mu
     let HpcOmTaskGraph::TASKGRAPHMETA { varCompMapping: __pa0, .. } = (iTaskGraphMeta.clone()) else { bail!("pattern mismatch") };
     varCompMapping = __pa0.clone();
     (tmpCLTaskMapping, oScVarTaskMapping, _) = Array::fold(varCompMapping.clone(), Arc::new({ let __pe_b1 = iEqSystems.clone(); let __pe_b2 = iVarNameSCVarIdxMapping.clone(); let __pe_b3 = iSCVarCLMapping.clone(); move |__pe_a0, __pe_a4| getCacheLineTaskMapping0(__pe_a0, __pe_b1.clone(), __pe_b2.clone(), __pe_b3.clone(), __pe_a4) }), (tmpCLTaskMapping.clone(), scVarTaskMapping.clone(), 1));
-    tmpCLTaskMapping = Array::map1(tmpCLTaskMapping.clone(), Arc::new(List::sort), fnptr!(intLt, i32, i32))?;
-    oCLTaskMapping = Array::map1(tmpCLTaskMapping.clone(), Arc::new(List::sortedUnique), fnptr!(intEq, i32, i32))?;
+    tmpCLTaskMapping = Array::map1(tmpCLTaskMapping.clone(), (std::sync::Arc::new(List::sort) as std::sync::Arc<dyn ::std::ops::Fn(_, _) -> Result<_> + 'static>), (std::sync::Arc::new(fnptr!(intLt, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
+    oCLTaskMapping = Array::map1(tmpCLTaskMapping.clone(), (std::sync::Arc::new(List::sortedUnique) as std::sync::Arc<dyn ::std::ops::Fn(_, _) -> Result<_> + 'static>), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?;
     Ok((oCLTaskMapping, oScVarTaskMapping))
 }
 
@@ -2587,15 +2587,15 @@ fn getCacheLineTaskMapping0(mut iNodeIdx: (i32, i32, i32), mut iEqSystems: Arc<m
                 ((nodeIdx, eqSysIdx, varOffset), _, _, _, (iClTaskMapping, iScVarTaskMapping, varIdx)) => {
                     let mut iClTaskMapping = (*iClTaskMapping).clone();
                     let mut iScVarTaskMapping = (*iScVarTaskMapping).clone();
-                    let mut orderedVars: BackendDAE::Variables;
-                    let mut var: BackendDAE::Var;
-                    let mut oldVal: Arc<metamodelica::List<i32>> = oldVal.clone();
-                    let mut clIdx: i32 = clIdx.clone();
-                    let mut varName: Arc<DAE::ComponentRef> = varName.clone();
                     let mut eqSystem: Arc<BackendDAE::EqSystem>;
-                    let mut scVarOffset: i32 = scVarOffset.clone();
+                    let mut varName: Arc<DAE::ComponentRef> = varName.clone();
+                    let mut orderedVars: BackendDAE::Variables;
                     let mut scVarIdx: i32 = scVarIdx.clone();
+                    let mut clIdx: i32 = clIdx.clone();
+                    let mut var: BackendDAE::Var;
                     let mut scVarValues: Arc<metamodelica::List<i32>> = scVarValues.clone();
+                    let mut scVarOffset: i32 = scVarOffset.clone();
+                    let mut oldVal: Arc<metamodelica::List<i32>> = oldVal.clone();
                     let true = (intGt(nodeIdx.clone(), 0)) else { bail!("pattern mismatch") };
                     eqSystem = (iEqSystems.clone()).get(eqSysIdx.clone())?;
                     let __pa0 = ::match_deref::match_deref! { match &(eqSystem.clone()) {
@@ -2731,11 +2731,11 @@ fn appendCacheLinesToGraph(mut iCacheMap: CacheMap, mut iNumberOfNodes: i32, mut
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (_, _, _, _, _, _, _, _, _, _, _, _, _, _, GraphML::GraphInfo::GRAPHINFO { graphCount, .. }) => {
-                    let mut knownEdges: metamodelica::Array<Arc<metamodelica::List<i32>>>;
-                    let mut tmpGraphInfo: GraphML::GraphInfo;
+                    let mut addedVariables: metamodelica::Array<bool>;
                     let mut cacheLines: Arc<metamodelica::List<CacheLineMap>> = cacheLines.clone();
                     let mut clGroupNodeIdx: i32 = clGroupNodeIdx.clone();
-                    let mut addedVariables: metamodelica::Array<bool>;
+                    let mut tmpGraphInfo: GraphML::GraphInfo;
+                    let mut knownEdges: metamodelica::Array<Arc<metamodelica::List<i32>>>;
                     let mut cacheVariables: metamodelica::Array<SimCodeVar::SimVar>;
                     let true = (intLe(1, graphCount.clone())) else { bail!("pattern mismatch") };
                     knownEdges = arrayCreate(iNumberOfNodes.clone(), metamodelica::nil());
@@ -2956,19 +2956,19 @@ fn printCacheMap(mut iCacheMap: CacheMap) -> () {
         CacheMap::CACHEMAP { cacheLinesBool: mut cacheLinesBool, cacheLinesInt: mut cacheLinesInt, cacheLinesFloat: mut cacheLinesFloat, cacheVariables: mut cacheVariables, cacheLineSize: mut cacheLineSize } => {
             println!("{}", (literal!("\n\nCacheMap\n---------------\n")).clone());
             println!("{}", (literal!("  Variables\n")).clone());
-            let _ = List::fold(cacheVariables.clone(), Arc::new(printCacheVariable), (cacheVariables.clone().len() as i32));
+            let _ = List::fold(cacheVariables.clone(), (std::sync::Arc::new(printCacheVariable) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, i32) -> Result<i32> + 'static>), (cacheVariables.clone().len() as i32));
             println!("{}", (literal!("  Float Cache Lines\n")).clone());
-            List::map1_0(cacheLinesFloat.clone(), Arc::new(printCacheLineMap), cacheVariables.clone());
+            List::map1_0(cacheLinesFloat.clone(), (std::sync::Arc::new(printCacheLineMap) as std::sync::Arc<dyn ::std::ops::Fn(CacheLineMap, Arc<metamodelica::List<SimCodeVar::SimVar>>) -> Result<()> + 'static>), cacheVariables.clone());
             println!("{}", (literal!("  Int Cache Lines\n")).clone());
-            List::map1_0(cacheLinesInt.clone(), Arc::new(printCacheLineMap), cacheVariables.clone());
+            List::map1_0(cacheLinesInt.clone(), (std::sync::Arc::new(printCacheLineMap) as std::sync::Arc<dyn ::std::ops::Fn(CacheLineMap, Arc<metamodelica::List<SimCodeVar::SimVar>>) -> Result<()> + 'static>), cacheVariables.clone());
             println!("{}", (literal!("  Bool Cache Lines\n")).clone());
-            List::map1_0(cacheLinesBool.clone(), Arc::new(printCacheLineMap), cacheVariables.clone());
+            List::map1_0(cacheLinesBool.clone(), (std::sync::Arc::new(printCacheLineMap) as std::sync::Arc<dyn ::std::ops::Fn(CacheLineMap, Arc<metamodelica::List<SimCodeVar::SimVar>>) -> Result<()> + 'static>), cacheVariables.clone());
             ()
         },
         CacheMap::UNIFORM_CACHEMAP { cacheLines: mut cacheLines, cacheVariables: mut cacheVariables, cacheLineSize: mut cacheLineSize } => {
             println!("{}", (literal!("\n\nUniform CacheMap\n---------------\n")).clone());
             println!("{}", (literal!("  Variables.\n")).clone());
-            List::map1_0(cacheLines.clone(), Arc::new(printCacheLineMap), cacheVariables.clone());
+            List::map1_0(cacheLines.clone(), (std::sync::Arc::new(printCacheLineMap) as std::sync::Arc<dyn ::std::ops::Fn(CacheLineMap, Arc<metamodelica::List<SimCodeVar::SimVar>>) -> Result<()> + 'static>), cacheVariables.clone());
             ()
         },
         _ => {
@@ -2995,7 +2995,7 @@ fn printCacheLineMap(mut iCacheLineMap: CacheLineMap, mut iCacheVariables: Arc<m
     entries = __pa0.clone();
     idx = __pa1.clone();
     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("  CacheLineMap ")); __mm_s.push_str(&*intString(idx.clone())); __mm_s.push_str(&*literal!(" (")); __mm_s.push_str(&*intString((entries.clone().len() as i32))); __mm_s.push_str(&*literal!(" entries)\n")); ArcStr::from(__mm_s) }).clone());
-    (iVarsString, iBytesString) = List::fold1(entries.clone(), Arc::new(cacheLineEntryToString), iCacheVariables.clone(), (literal!(""), literal!("")));
+    (iVarsString, iBytesString) = List::fold1(entries.clone(), (std::sync::Arc::new(cacheLineEntryToString) as std::sync::Arc<dyn ::std::ops::Fn(CacheLineEntry, Arc<metamodelica::List<SimCodeVar::SimVar>>, (ArcStr, ArcStr)) -> Result<(ArcStr, ArcStr)> + 'static>), iCacheVariables.clone(), (literal!(""), literal!("")));
     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("    ")); __mm_s.push_str(&*iVarsString.clone()); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("    ")); __mm_s.push_str(&*iBytesString.clone()); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
     println!("{}", (literal!("\n")).clone());
@@ -3011,7 +3011,7 @@ fn printCacheLineMapClean(mut iCacheLineMap: CacheLineMap) -> Result<()> {
     entries = __pa0.clone();
     idx = __pa1.clone();
     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("  CacheLineMap ")); __mm_s.push_str(&*intString(idx.clone())); __mm_s.push_str(&*literal!(" (")); __mm_s.push_str(&*intString((entries.clone().len() as i32))); __mm_s.push_str(&*literal!(" entries)\n")); ArcStr::from(__mm_s) }).clone());
-    (iVarsString, iBytesString) = List::fold(entries.clone(), Arc::new(cacheLineEntryToStringClean), (literal!(""), literal!("")));
+    (iVarsString, iBytesString) = List::fold(entries.clone(), (std::sync::Arc::new(cacheLineEntryToStringClean) as std::sync::Arc<dyn ::std::ops::Fn(CacheLineEntry, (ArcStr, ArcStr)) -> Result<(ArcStr, ArcStr)> + 'static>), (literal!(""), literal!("")));
     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("    ")); __mm_s.push_str(&*iVarsString.clone()); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("    ")); __mm_s.push_str(&*iBytesString.clone()); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
     println!("{}", (literal!("\n")).clone());
@@ -3088,21 +3088,21 @@ fn dumpSimCodeVar(mut iVar: SimCodeVar::SimVar) -> Result<ArcStr> {
 
 fn printNodeSimCodeVarMapping(mut iMapping: metamodelica::Array<Arc<metamodelica::List<i32>>>) -> () {
     println!("{}", (literal!("Node - SimCodeVar - Mapping\n------------------\n")).clone());
-    let _ = Array::fold(iMapping.clone(), Arc::new(fnptr!(printNodeSimCodeVarMapping0, Arc<metamodelica::List<i32>>, i32)), 1);
+    let _ = Array::fold(iMapping.clone(), (std::sync::Arc::new(fnptr!(printNodeSimCodeVarMapping0, Arc<metamodelica::List<i32>>, i32)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<i32>>, i32) -> Result<i32> + 'static>), 1);
     println!("{}", (literal!("\n")).clone());
     ()
 }
 
 fn printNodeSimCodeVarMapping0(mut iMappingEntry: Arc<metamodelica::List<i32>>, mut iNodeIdx: i32) -> i32 {
     let mut oNodeIdx: i32 = 0;
-    println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Node ")); __mm_s.push_str(&*intString(iNodeIdx.clone())); __mm_s.push_str(&*literal!(" uses sc-vars: ")); __mm_s.push_str(&*stringDelimitList(List::map(iMappingEntry.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+    println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Node ")); __mm_s.push_str(&*intString(iNodeIdx.clone())); __mm_s.push_str(&*literal!(" uses sc-vars: ")); __mm_s.push_str(&*stringDelimitList(List::map(iMappingEntry.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
     oNodeIdx = iNodeIdx.clone() + 1;
     oNodeIdx
 }
 
 fn printScVarTaskMapping(mut iMapping: metamodelica::Array<i32>) -> () {
     println!("{}", (literal!("----------------------\nSCVar - Task - Mapping\n----------------------\n")).clone());
-    let _ = Array::fold(iMapping.clone(), Arc::new(fnptr!(printScVarTaskMapping0, i32, i32)), 1);
+    let _ = Array::fold(iMapping.clone(), (std::sync::Arc::new(fnptr!(printScVarTaskMapping0, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<i32> + 'static>), 1);
     println!("{}", (literal!("\n")).clone());
     ()
 }
@@ -3115,13 +3115,13 @@ fn printScVarTaskMapping0(mut iMappingEntry: i32, mut iScVarIdx: i32) -> i32 {
 }
 
 fn printCacheLineTaskMapping(mut iCacheLineTaskMapping: metamodelica::Array<Arc<metamodelica::List<i32>>>) -> () {
-    let _ = Array::fold(iCacheLineTaskMapping.clone(), Arc::new(fnptr!(printCacheLineTaskMapping0, Arc<metamodelica::List<i32>>, i32)), 1);
+    let _ = Array::fold(iCacheLineTaskMapping.clone(), (std::sync::Arc::new(fnptr!(printCacheLineTaskMapping0, Arc<metamodelica::List<i32>>, i32)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<i32>>, i32) -> Result<i32> + 'static>), 1);
     ()
 }
 
 fn printCacheLineTaskMapping0(mut iTasks: Arc<metamodelica::List<i32>>, mut iCacheLineIdx: i32) -> i32 {
     let mut oCacheLineIdx: i32 = 0;
-    println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Tasks that are writing to cacheline ")); __mm_s.push_str(&*intString(iCacheLineIdx.clone())); __mm_s.push_str(&*literal!(": ")); __mm_s.push_str(&*stringDelimitList(List::map(iTasks.clone(), Arc::new(fnptr!(intString, i32))), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+    println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Tasks that are writing to cacheline ")); __mm_s.push_str(&*intString(iCacheLineIdx.clone())); __mm_s.push_str(&*literal!(": ")); __mm_s.push_str(&*stringDelimitList(List::map(iTasks.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
     oCacheLineIdx = iCacheLineIdx.clone() + 1;
     oCacheLineIdx
 }
@@ -3144,7 +3144,7 @@ fn printEqSimCodeVarMapping(mut iMapping: metamodelica::Array<metamodelica::Arra
 
 fn printSccNodeMapping(mut iMapping: metamodelica::Array<i32>) -> () {
     println!("{}", (literal!("--------------------\nScc - Node - Mapping\n--------------------\n")).clone());
-    let _ = Array::fold(iMapping.clone(), Arc::new(fnptr!(printSccNodeMapping0, i32, i32)), 1);
+    let _ = Array::fold(iMapping.clone(), (std::sync::Arc::new(fnptr!(printSccNodeMapping0, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<i32> + 'static>), 1);
     ()
 }
 
@@ -3216,7 +3216,7 @@ pub fn getSubscriptListOfArrayCref(mut iCref: Arc<DAE::ComponentRef>, mut iNumAr
     let mut tmpCrefs: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
     let mut cref: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
     tmpCrefs = expandCref(iCref.clone(), iNumArrayElems.clone())?;
-    oSubscriptList = List::map(tmpCrefs.clone(), Arc::new(ComponentReference::crefLastSubs));
+    oSubscriptList = List::map(tmpCrefs.clone(), (std::sync::Arc::new(ComponentReference::crefLastSubs) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<Arc<metamodelica::List<Arc<DAE::Subscript>>>> + 'static>));
     Ok(oSubscriptList)
 }
 
@@ -3229,7 +3229,7 @@ pub fn expandCref(mut iCref: Arc<DAE::ComponentRef>, mut iNumArrayElems: Arc<met
     cref = removeSubscripts(iCref.clone());
     dims = getCrefDims(iCref.clone());
     dimElemCount = getDimElemCount(iNumArrayElems.clone().reverse(), dims.clone());
-    elems = List::reduce(dimElemCount.clone(), Arc::new(fnptr!(intMul, i32, i32)))?;
+    elems = List::reduce(dimElemCount.clone(), (std::sync::Arc::new(fnptr!(intMul, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<i32> + 'static>))?;
     dims = (iNumArrayElems.clone().len() as i32);
     oCrefs = expandCref1(cref.clone(), elems.clone(), dimElemCount.clone())?;
     Ok(oCrefs)
@@ -3246,7 +3246,7 @@ pub fn expandCrefWithDims(mut iCref: Arc<DAE::ComponentRef>, mut iDims: Arc<meta
     numArrayElems = metamodelica::nil();
     for mut dim in &*iDims.clone() {
         let mut dim = dim.clone();
-        numArrayElems = cons(getDimStringOfDimElement(dim.clone()), numArrayElems.clone());
+        numArrayElems = cons((getDimStringOfDimElement(dim.clone())).clone(), numArrayElems.clone());
     }
     oCrefs = expandCref(iCref.clone(), numArrayElems.clone())?;
     Ok(oCrefs)
@@ -3293,8 +3293,8 @@ fn getDimElemCount(mut iNumArrayElems: Arc<metamodelica::List<ArcStr>>, mut iDim
     let mut dims: i32 = 0;
     dims = if (intLe(iDims.clone(), 0)) {(iNumArrayElems.clone().len() as i32)} else {iDims.clone()};
     dimList = List::intRange(dims.clone());
-    intNumArrayElems = List::map(iNumArrayElems.clone(), Arc::new(stringInt));
-    oNumArrayElems = List::map1(dimList.clone(), Arc::new(fnptr!(List::getIndexFirst, i32, _)), intNumArrayElems.clone());
+    intNumArrayElems = List::map(iNumArrayElems.clone(), (std::sync::Arc::new(stringInt) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr) -> Result<i32> + 'static>));
+    oNumArrayElems = List::map1(dimList.clone(), std::sync::Arc::new(fnptr!(List::getIndexFirst, i32, _)), intNumArrayElems.clone());
     oNumArrayElems
 }
 
@@ -3340,10 +3340,10 @@ fn expandCref1(mut iCref: Arc<DAE::ComponentRef>, mut iElems: i32, mut iDimElemC
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 _ => {
-                    let mut tmpCrefs: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = tmpCrefs.clone();
                     let mut idxList: Arc<metamodelica::List<i32>> = idxList.clone();
-                    idxList = List::intRange(List::reduce(iDimElemCount.clone(), Arc::new(fnptr!(intMul, i32, i32)))?);
-                    tmpCrefs = List::map2(idxList.clone(), Arc::new(createArrayIndexCref), iDimElemCount.clone(), iCref.clone());
+                    let mut tmpCrefs: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = tmpCrefs.clone();
+                    idxList = List::intRange(List::reduce(iDimElemCount.clone(), (std::sync::Arc::new(fnptr!(intMul, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<i32> + 'static>))?);
+                    tmpCrefs = List::map2(idxList.clone(), (std::sync::Arc::new(createArrayIndexCref) as std::sync::Arc<dyn ::std::ops::Fn(i32, Arc<metamodelica::List<i32>>, Arc<DAE::ComponentRef>) -> Result<Arc<DAE::ComponentRef>> + 'static>), iDimElemCount.clone(), iCref.clone());
                     Ok(tmpCrefs.clone())
                 }
                 _ => bail!("nomatch"),
@@ -3413,11 +3413,11 @@ fn createArrayIndexCref_impl(mut iIdx: i32, mut iDimElemCount: Arc<metamodelica:
             ::match_deref::match_deref! { match &__mc_input {
                 (_, _, (Deref @ DAE::ComponentRef::CREF_IDENT { ident, identType, subscriptLst }, currentDim)) => {
                     let mut subscriptLst = (*subscriptLst).clone();
-                    let mut idxValue: i32 = idxValue.clone();
                     let mut dimElemsPre: i32 = dimElemsPre.clone();
                     let mut dimElems: i32 = dimElems.clone();
+                    let mut idxValue: i32 = idxValue.clone();
                     let true = (intLe(currentDim.clone(), (iDimElemCount.clone().len() as i32))) else { bail!("pattern mismatch") };
-                    dimElemsPre = List::reduce(List::sublist(iDimElemCount.clone(), 1, (iDimElemCount.clone().len() as i32) - currentDim.clone() + 1)?, Arc::new(fnptr!(intMul, i32, i32)))?;
+                    dimElemsPre = List::reduce(List::sublist(iDimElemCount.clone(), 1, (iDimElemCount.clone().len() as i32) - currentDim.clone() + 1)?, (std::sync::Arc::new(fnptr!(intMul, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<i32> + 'static>))?;
                     dimElems = (iDimElemCount.clone()).get(currentDim.clone())?;
                     idxValue = intMod(intDiv(iIdx.clone() - 1, dimElemsPre.clone()), dimElems.clone()) + 1;
                     subscriptLst = cons(Arc::new(DAE::Subscript::INDEX { exp: Arc::new(DAE::Exp::ICONST { integer: idxValue.clone() }) }), subscriptLst.clone());

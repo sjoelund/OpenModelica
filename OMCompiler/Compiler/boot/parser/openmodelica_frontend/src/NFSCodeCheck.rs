@@ -293,7 +293,7 @@ fn checkRedeclarationVisibility(mut inName: ArcStr, mut inType: ArcStr, mut inOr
 pub fn checkDuplicateRedeclarations(mut inRedeclare: Arc<NFSCodeEnv::Redeclaration>, mut inRedeclarations: Arc<metamodelica::List<Arc<NFSCodeEnv::Redeclaration>>>) -> Result<()> {
     let mut el: Arc<SCode::Element>;
     let mut el_name: ArcStr = arcstr::literal!("");
-    let mut el_info: SourceInfo;
+    let mut el_info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
     (el_name, el_info) = NFSCodeEnv::getRedeclarationNameInfo(inRedeclare.clone())?;
     let false = (checkDuplicateRedeclarations2((el_name.clone()).clone(), el_info.clone(), inRedeclarations.clone())?) else { bail!("pattern mismatch") };
     Ok(())
@@ -317,7 +317,7 @@ fn checkDuplicateRedeclarations2(mut inRedeclareName: ArcStr, mut inRedeclareInf
             ::match_deref::match_deref! { match &__mc_input {
                 (_, _, Deref @ metamodelica::List::Cons { head: redecl, tail: _ }) => {
                     let mut el_name: ArcStr = arcstr::literal!("");
-                    let mut el_info: SourceInfo;
+                    let mut el_info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
                     (el_name, el_info) = NFSCodeEnv::getRedeclarationNameInfo(redecl.clone())?;
                     let true = (stringEqual((inRedeclareName.clone()).clone(), (el_name.clone()).clone())) else { bail!("pattern mismatch") };
                     Error::addSourceMessage(Error::ERROR_FROM_HERE.clone(), metamodelica::nil(), el_info.clone())?;

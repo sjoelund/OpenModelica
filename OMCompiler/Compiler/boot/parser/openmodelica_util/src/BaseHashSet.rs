@@ -84,11 +84,11 @@ pub type ValueArray<Key> = (i32, i32, metamodelica::Array<Option<Key>>);
 
 pub type FuncsTuple<Key> = (FuncHash<Key>, FuncEq<Key>, FuncKeyString<Key>);
 
-pub type FuncHash<Key: Clone> = fn(Key) -> Result<i32>;
+pub type FuncHash<Key: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Key) -> Result<i32> + 'static>;
 
-pub type FuncEq<Key: Clone> = fn(Key, Key) -> Result<bool>;
+pub type FuncEq<Key: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Key, Key) -> Result<bool> + 'static>;
 
-pub type FuncKeyString<Key: Clone> = fn(Key) -> Result<ArcStr>;
+pub type FuncKeyString<Key: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Key) -> Result<ArcStr> + 'static>;
 
 pub fn bucketToValuesSize(mut szBucket: i32) -> i32 {
     let mut szArr: i32 = 0;
@@ -213,8 +213,8 @@ pub fn delete<Key: Clone + 'static>(mut key: Key, mut hashSet: HashSet<Key>) -> 
 
 pub fn has<Key: Clone + 'static>(mut key: Key, mut hashSet: HashSet<Key>) -> Result<bool> {
     let mut b: bool = false;
-    b = (match hashSet.clone() {
-        (_, (0, _, _), _, _, _) => {
+    b = (match (key.clone(), hashSet.clone()) {
+        (_, (_, (0, _, _), _, _, _)) => {
             false
         },
         _ => {
@@ -255,7 +255,7 @@ fn get1<Key: Clone + 'static>(mut key: Key, mut hashSet: HashSet<Key>) -> Result
             let mut b: bool = false;
             hashindx = intMod(hashFunc(key.clone())?, bsize.clone());
             indexes = hashvec.borrow()[(hashindx.clone() + 1-1) as usize].clone();
-            (indx, b) = get2(key.clone(), indexes.clone(), keyEqual);
+            (indx, b) = get2(key.clone(), indexes.clone(), keyEqual.clone());
             k = if (b.clone()) {valueArrayNthT(varr.clone(), indx.clone())?} else {None};
             (k.clone(), indx.clone())
         },
@@ -263,7 +263,7 @@ fn get1<Key: Clone + 'static>(mut key: Key, mut hashSet: HashSet<Key>) -> Result
     Ok((okey, indx))
 }
 
-fn get2<Key: Clone + 'static>(mut key: Key, mut keyIndices: Arc<metamodelica::List<(Key, i32)>>, mut keyEqual: FuncEq<Key>) -> (i32, bool) {
+fn get2<Key: Clone + 'static>(mut key: Key, mut keyIndices: Arc<metamodelica::List<(Key, i32)>>, mut keyEqual: Arc<dyn ::std::ops::Fn(Key, Key) -> Result<bool> + 'static>) -> (i32, bool) {
     let mut index: i32 = -1;
     let mut found: bool = true;
     let mut key2: Key;
@@ -302,9 +302,11 @@ pub fn dumpHashSet<Key: Clone + 'static>(mut hashSet: HashSet<Key>) -> Result<()
 
 pub fn hashSetList<Key: Clone + 'static>(mut hashSet: HashSet<Key>) -> Result<Arc<metamodelica::List<Key>>> {
     let mut lst: Arc<metamodelica::List<Key>> = metamodelica::nil();
-    let mut varr: ValueArray<Key>;
-    (_, varr, _, _, _) = hashSet.clone();
-    lst = valueArrayList(varr.clone())?;
+    lst = (match hashSet.clone() {
+        (_, mut varr, _, _, _) => {
+            valueArrayList(varr.clone())?
+        },
+    });
     Ok(lst)
 }
 

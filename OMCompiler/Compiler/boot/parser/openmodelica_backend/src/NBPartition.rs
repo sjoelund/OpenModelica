@@ -94,10 +94,13 @@ impl PartialOrd for Kind {
 impl Ord for Kind {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering { (*self as i32).cmp(&(*other as i32)) }
 }
+impl Default for Kind {
+    fn default() -> Self { Self::ODE }
+}
 
 pub mod Association {
     use super::*;
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
     pub enum Association {
         CONTINUOUS {
             kind: Kind,
@@ -183,14 +186,14 @@ pub mod Association {
         let mut association: Arc<Association>;
         let mut clock_ptr: Pointer::Pointer<Option<(Arc<ComponentRef::NFComponentRef>, Arc<BClock::BClock>)>> = Pointer::create(None);
         let mut infer_ptr: Pointer::Pointer<Option<Arc<ComponentRef::NFComponentRef>>> = Pointer::create(None);
-        let mut failed_set: Arc<UnorderedSet::UnorderedSet<(Arc<ComponentRef::NFComponentRef>, Arc<BClock::BClock>)>> = UnorderedSet::new(hashClockTpl, fnptr!(isEqualClockTpl, (Arc<ComponentRef::NFComponentRef>, Arc<BClock::BClock>), (Arc<ComponentRef::NFComponentRef>, Arc<BClock::BClock>)), 13);
-        let mut clock_deps: Arc<UnorderedSet::UnorderedSet<Arc<BClock::BClock>>> = UnorderedSet::new(fnptr!(BClock::hash, Arc<BClock::BClock>), BClock::isEqual, 13);
+        let mut failed_set: Arc<UnorderedSet::UnorderedSet<(Arc<ComponentRef::NFComponentRef>, Arc<BClock::BClock>)>> = UnorderedSet::new((std::sync::Arc::new(hashClockTpl) as std::sync::Arc<dyn ::std::ops::Fn((Arc<ComponentRef::NFComponentRef>, Arc<BClock::BClock>)) -> Result<i32> + 'static>), (std::sync::Arc::new(fnptr!(isEqualClockTpl, (Arc<ComponentRef::NFComponentRef>, Arc<BClock::BClock>), (Arc<ComponentRef::NFComponentRef>, Arc<BClock::BClock>))) as std::sync::Arc<dyn ::std::ops::Fn((Arc<ComponentRef::NFComponentRef>, Arc<BClock::BClock>), (Arc<ComponentRef::NFComponentRef>, Arc<BClock::BClock>)) -> Result<bool> + 'static>), 13);
+        let mut clock_deps: Arc<UnorderedSet::UnorderedSet<Arc<BClock::BClock>>> = UnorderedSet::new((std::sync::Arc::new(fnptr!(BClock::hash, Arc<BClock::BClock>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<BClock::BClock>) -> Result<i32> + 'static>), (std::sync::Arc::new(BClock::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<BClock::BClock>, Arc<BClock::BClock>) -> Result<bool> + 'static>), 13);
         let mut clock_tpl: Option<(Arc<ComponentRef::NFComponentRef>, Arc<BClock::BClock>)> = None;
         let mut infer: Option<Arc<ComponentRef::NFComponentRef>> = None;
         let mut name: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
         let mut base_name: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
         let mut clock: Arc<BClock::BClock>;
-        BEquation::EquationPointers::mapExp(equations.clone(), { let __pe_b1 = info.clone(); let __pe_b2 = clock_ptr.clone(); let __pe_b3 = infer_ptr.clone(); let __pe_b4 = failed_set.clone(); let __pe_b5 = clock_deps.clone(); let __pe_b6 = infer_del.clone(); move |__pe_a0| expClocked(__pe_a0, __pe_b1.clone(), __pe_b2.clone(), __pe_b3.clone(), __pe_b4.clone(), __pe_b5.clone(), __pe_b6.clone()) }, None, fnptr!(Expression::fakeMap, Arc<Expression::NFExpression>, fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>>))?;
+        BEquation::EquationPointers::mapExp(equations.clone(), Arc::new({ let __pe_b1 = info.clone(); let __pe_b2 = clock_ptr.clone(); let __pe_b3 = infer_ptr.clone(); let __pe_b4 = failed_set.clone(); let __pe_b5 = clock_deps.clone(); let __pe_b6 = infer_del.clone(); move |__pe_a0| expClocked(__pe_a0, __pe_b1.clone(), __pe_b2.clone(), __pe_b3.clone(), __pe_b4.clone(), __pe_b5.clone(), __pe_b6.clone()) }), None, (std::sync::Arc::new(fnptr!(Expression::fakeMap, Arc<Expression::NFExpression>, fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>>) -> Result<Arc<Expression::NFExpression>> + 'static>))?;
         clock_tpl = Pointer::access(clock_ptr.clone());
         infer = Pointer::access(infer_ptr.clone());
         if Util::isSome(clock_tpl.clone()) {
@@ -201,7 +204,7 @@ pub mod Association {
             name = __pa0.clone();
             clock = __pa1.clone();
             if !(UnorderedSet::isEmpty(failed_set.clone())) {
-                Error::addMessage(Error::INTERNAL_ERROR.clone(), list![({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("NBPartition.Association.create")); __mm_s.push_str(&*literal!(" failed because there are non-identical clocks in the same partition:\n")); __mm_s.push_str(&*literal!("### First clock found:\n")); __mm_s.push_str(&*clockTplString((name.clone(), clock.clone()))); __mm_s.push_str(&*literal!("\n### Conflicting clocks:\n")); __mm_s.push_str(&*UnorderedSet::toString(failed_set.clone(), Arc::new(fnptr!(clockTplString, (Arc<ComponentRef::NFComponentRef>, Arc<BClock::BClock>))), (literal!("\n")).clone())); __mm_s.push_str(&*literal!(".")); ArcStr::from(__mm_s) }).clone()])?;
+                Error::addMessage(Error::INTERNAL_ERROR.clone(), list![({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("NBPartition.Association.create")); __mm_s.push_str(&*literal!(" failed because there are non-identical clocks in the same partition:\n")); __mm_s.push_str(&*literal!("### First clock found:\n")); __mm_s.push_str(&*clockTplString((name.clone(), clock.clone()))); __mm_s.push_str(&*literal!("\n### Conflicting clocks:\n")); __mm_s.push_str(&*UnorderedSet::toString(failed_set.clone(), (std::sync::Arc::new(fnptr!(clockTplString, (Arc<ComponentRef::NFComponentRef>, Arc<BClock::BClock>))) as std::sync::Arc<dyn ::std::ops::Fn((Arc<ComponentRef::NFComponentRef>, Arc<BClock::BClock>)) -> Result<ArcStr> + 'static>), (literal!("\n")).clone())); __mm_s.push_str(&*literal!(".")); ArcStr::from(__mm_s) }).clone()])?;
                 bail!("fail");
             }
             if BClock::isBaseClock(clock.clone()) {
@@ -228,13 +231,13 @@ pub mod Association {
         let mut ass1: Arc<Association> = ass1;
         ass1 = (::match_deref::match_deref! { match &((ass1.clone(), ass2.clone())) {
         (Deref @ CONTINUOUS { jacobian: Some(jac1 @ Deref @ Jacobian::JACOBIAN { .. }), .. }, Deref @ CONTINUOUS { jacobian: Some(jac2), .. }) if (var_field!((*ass1).kind, Association::CONTINUOUS).clone() == var_field!((*ass2).kind, Association::CONTINUOUS).clone() || !(strict.clone())) => {
-            assign_variant_field!(ass1 => Association::CONTINUOUS; jacobian = Some(BJacobian::combine(list![jac1.clone(), jac2.clone()], (var_field!((*jac1).name, Jacobian::NBackendDAE::JACOBIAN).clone()).clone())?));
+            assign_variant_field!(ass1 => Association::CONTINUOUS; jacobian = Some(BJacobian::combine(list![jac1.clone(), jac2.clone()], (var_field!((**jac1).name, Jacobian::NBackendDAE::JACOBIAN).clone()).clone())?));
             ass1.clone()
         },
         (Deref @ CONTINUOUS { .. }, Deref @ CONTINUOUS { .. }) if (var_field!((*ass1).kind, Association::CONTINUOUS).clone() == var_field!((*ass2).kind, Association::CONTINUOUS).clone() || !(strict.clone())) => {
             ass1.clone()
         },
-        (Deref @ CLOCKED { .. }, Deref @ CLOCKED { .. }) if (!(strict.clone()) || BClock::isEqual(var_field!((*ass1).clock, Association::CLOCKED).clone(), var_field!((*ass2).clock, Association::CLOCKED).clone())? && Util::optionEqual(var_field!((*ass1).baseClock, Association::CLOCKED).clone(), var_field!((*ass2).baseClock, Association::CLOCKED).clone(), Arc::new(BClock::isEqual))) => {
+        (Deref @ CLOCKED { .. }, Deref @ CLOCKED { .. }) if (!(strict.clone()) || BClock::isEqual(var_field!((*ass1).clock, Association::CLOCKED).clone(), var_field!((*ass2).clock, Association::CLOCKED).clone())? && Util::optionEqual(var_field!((*ass1).baseClock, Association::CLOCKED).clone(), var_field!((*ass2).baseClock, Association::CLOCKED).clone(), (std::sync::Arc::new(BClock::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<BClock::BClock>, Arc<BClock::BClock>) -> Result<bool> + 'static>))) => {
             assign_variant_field!(ass1 => Association::CLOCKED;
                 clock_deps = UnorderedSet::union(var_field!((*ass1).clock_deps, Association::CLOCKED).clone(), var_field!((*ass2).clock_deps, Association::CLOCKED).clone())?,
                 holdEvents = var_field!((*ass1).holdEvents, Association::CLOCKED).clone() || var_field!((*ass2).holdEvents, Association::CLOCKED).clone()
@@ -362,7 +365,7 @@ pub mod Association {
 
 pub mod Partition {
     use super::*;
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
     pub struct Partition {
         /// Partition index
         pub index: i32,
@@ -455,7 +458,7 @@ pub mod Partition {
     pub fn isEmpty(mut partition: Arc<Partition>) -> bool {
         use arrayEmpty as isEmptyArr;
 
-        let mut b: bool = BEquation::EquationPointers::size(partition.equations.clone()) == 0 || Util::applyOptionOrDefault(partition.strongComponents.clone(), Arc::new(isEmptyArr), false);
+        let mut b: bool = BEquation::EquationPointers::size(partition.equations.clone()) == 0 || Util::applyOptionOrDefault(partition.strongComponents.clone(), isEmptyArr, false);
         b
     }
 
@@ -558,7 +561,7 @@ pub mod Partition {
         let mut clock_idx: i32 = Pointer::access(index.clone());
         assign_field!(part.index = clock_idx.clone());
         if isClocked(part.clone()) {
-            assign_field!(part.equations = BEquation::EquationPointers::map(part.equations.clone(), { let __pe_b1 = EquationKind::CLOCKED.clone(); let __pe_b2 = Some(clock_idx.clone()); move |__pe_a0| Equation::setKind(__pe_a0, __pe_b1.clone(), __pe_b2.clone()) })?);
+            assign_field!(part.equations = BEquation::EquationPointers::map(part.equations.clone(), Arc::new({ let __pe_b1 = EquationKind::CLOCKED.clone(); let __pe_b2 = Some(clock_idx.clone()); move |__pe_a0| Equation::setKind(__pe_a0, __pe_b1.clone(), __pe_b2.clone()) }))?);
         }
         Pointer::update(index.clone(), clock_idx.clone() + 1);
         Ok(part)
@@ -672,7 +675,7 @@ pub mod Partition {
     }
 
     pub fn mapEqn(mut partition: Arc<Partition>, mut func: Arc<dyn ::std::ops::Fn(Arc<Equation::Equation>) -> Result<Arc<Equation::Equation>> + 'static>) -> Result<Arc<Partition>> {
-        pub type MapFunc = fn(Arc<Equation::Equation>) -> Result<Arc<Equation::Equation>>;
+        pub type MapFunc = std::sync::Arc<dyn ::std::ops::Fn(Arc<Equation::Equation>) -> Result<Arc<Equation::Equation>> + 'static>;
 
         let mut partition: Arc<Partition> = partition;
         assign_field!(partition.equations = BEquation::EquationPointers::map(partition.equations.clone(), func.clone())?);
@@ -680,15 +683,15 @@ pub mod Partition {
     }
 
     pub fn mapExp(mut partition: Arc<Partition>, mut func: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Result<Arc<Partition>> {
-        pub type MapFunc = fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>>;
+        pub type MapFunc = std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>;
 
         let mut partition: Arc<Partition> = partition;
-        assign_field!(partition.equations = BEquation::EquationPointers::mapExp(partition.equations.clone(), func.clone(), None, Expression::map)?);
+        assign_field!(partition.equations = BEquation::EquationPointers::mapExp(partition.equations.clone(), func.clone(), None, (std::sync::Arc::new(Expression::map) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>>) -> Result<Arc<Expression::NFExpression>> + 'static>))?);
         Ok(partition)
     }
 
     pub fn mapStrongComponents(mut partition: Arc<Partition>, mut func: Arc<dyn ::std::ops::Fn(Arc<StrongComponent::NBStrongComponent>) -> Result<Arc<StrongComponent::NBStrongComponent>> + 'static>) -> Result<Arc<Partition>> {
-        pub type MapFunc = fn(Arc<StrongComponent::NBStrongComponent>) -> Result<Arc<StrongComponent::NBStrongComponent>>;
+        pub type MapFunc = std::sync::Arc<dyn ::std::ops::Fn(Arc<StrongComponent::NBStrongComponent>) -> Result<Arc<StrongComponent::NBStrongComponent>> + 'static>;
 
         let mut partition: Arc<Partition> = partition;
         let mut comps: metamodelica::Array<Arc<StrongComponent::NBStrongComponent>>;

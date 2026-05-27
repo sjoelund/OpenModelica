@@ -53,7 +53,7 @@ use openmodelica_util_datatypes_basic::Mutable;
 /// behaves like an ordinary array, which means all elements can get accessed via
 /// index. When the array runs out of space, it get automatically resized. It is
 /// also possible to delete an element from any position.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ExpandableArray<T: Clone> {
     pub numberOfElements: Mutable::Mutable<i32>,
     pub lastUsedIndex: Mutable::Mutable<i32>,
@@ -269,7 +269,7 @@ pub fn shrink<T: Clone + 'static>(mut exarray: Arc<ExpandableArray<T>>) -> Arc<E
 }
 
 pub fn toString<T: Clone + 'static>(mut exarray: Arc<ExpandableArray<T>>, mut header: ArcStr, mut func: Arc<dyn ::std::ops::Fn(T) -> Result<ArcStr> + 'static>, mut debug: bool) -> Result<ArcStr> {
-    pub type PrintFunction<T: Clone> = fn(T) -> Result<ArcStr>;
+    pub type PrintFunction<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T) -> Result<ArcStr> + 'static>;
 
     let mut r#str: ArcStr = arcstr::literal!("");
     let mut numberOfElements: i32 = Mutable::access(exarray.numberOfElements.clone());

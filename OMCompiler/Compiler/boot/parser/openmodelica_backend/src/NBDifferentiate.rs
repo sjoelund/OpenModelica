@@ -121,7 +121,7 @@ impl Ord for DifferentiationType {
 
 pub mod DifferentiationArguments {
     use super::*;
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
     pub struct DifferentiationArguments {
         /// The input will be differentiated w.r.t. this cref (only SIMPLE).
         pub diffCref: Arc<ComponentRef::NFComponentRef>,
@@ -249,12 +249,12 @@ pub fn differentiateStrongComponent(mut comp: Arc<StrongComponent::NBStrongCompo
             new_var_slices = {
         let mut __acc: Arc<metamodelica::List<Arc<Slice::NBSlice<Pointer::Pointer<Arc<Variable::NFVariable>>>>>> = metamodelica::nil();
         for mut var in (var_field!((*comp).vars, StrongComponent::NBStrongComponent::MULTI_COMPONENT).clone()).into_iter().cloned() {
-            let __x = Slice::apply(var.clone(), { let __pe_b1 = diffArguments_ptr.clone(); move |__pe_a0| differentiateVariablePointer(__pe_a0, __pe_b1.clone()) });
+            let __x = Slice::apply(var.clone(), Arc::new({ let __pe_b1 = diffArguments_ptr.clone(); move |__pe_a0| differentiateVariablePointer(__pe_a0, __pe_b1.clone()) }));
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
     };
-            new_eqn_slice = Slice::apply(var_field!((*comp).eqn, StrongComponent::NBStrongComponent::MULTI_COMPONENT).clone(), { let __pe_b1 = diffArguments_ptr.clone(); let __pe_b2 = (name.clone()).clone(); move |__pe_a0| differentiateEquationPointer(__pe_a0, __pe_b1.clone(), __pe_b2.clone()) });
+            new_eqn_slice = Slice::apply(var_field!((*comp).eqn, StrongComponent::NBStrongComponent::MULTI_COMPONENT).clone(), Arc::new({ let __pe_b1 = diffArguments_ptr.clone(); let __pe_b2 = (name.clone()).clone(); move |__pe_a0| differentiateEquationPointer(__pe_a0, __pe_b1.clone(), __pe_b2.clone()) }));
             Equation::createName(Slice::getT(new_eqn_slice.clone()), idx.clone(), (context.clone()).clone())?;
             Arc::new(StrongComponent::NBStrongComponent::MULTI_COMPONENT { vars: new_var_slices.clone(), eqn: new_eqn_slice.clone(), status: var_field!((*comp).status, StrongComponent::NBStrongComponent::MULTI_COMPONENT).clone() })
         },
@@ -270,9 +270,9 @@ pub fn differentiateStrongComponent(mut comp: Arc<StrongComponent::NBStrongCompo
             new_cref = __pa0.clone();
             diffArguments = __pa1.clone();
             Pointer::update(diffArguments_ptr.clone(), diffArguments.clone());
-            new_var_slice = Slice::apply(var_field!((*comp).var, StrongComponent::NBStrongComponent::SLICED_COMPONENT).clone(), { let __pe_b1 = diffArguments_ptr.clone(); move |__pe_a0| differentiateVariablePointer(__pe_a0, __pe_b1.clone()) });
-            new_eqn_slice = Slice::apply(var_field!((*comp).eqn, StrongComponent::NBStrongComponent::SLICED_COMPONENT).clone(), { let __pe_b1 = diffArguments_ptr.clone(); let __pe_b2 = (name.clone()).clone(); move |__pe_a0| differentiateEquationPointer(__pe_a0, __pe_b1.clone(), __pe_b2.clone()) });
-            Slice::applyMutable(new_eqn_slice.clone(), { let __pe_b1 = idx.clone(); let __pe_b2 = (context.clone()).clone(); move |__pe_a0| Equation::createName(__pe_a0, __pe_b1.clone(), __pe_b2.clone()) });
+            new_var_slice = Slice::apply(var_field!((*comp).var, StrongComponent::NBStrongComponent::SLICED_COMPONENT).clone(), Arc::new({ let __pe_b1 = diffArguments_ptr.clone(); move |__pe_a0| differentiateVariablePointer(__pe_a0, __pe_b1.clone()) }));
+            new_eqn_slice = Slice::apply(var_field!((*comp).eqn, StrongComponent::NBStrongComponent::SLICED_COMPONENT).clone(), Arc::new({ let __pe_b1 = diffArguments_ptr.clone(); let __pe_b2 = (name.clone()).clone(); move |__pe_a0| differentiateEquationPointer(__pe_a0, __pe_b1.clone(), __pe_b2.clone()) }));
+            Slice::applyMutable(new_eqn_slice.clone(), Arc::new({ let __pe_b1 = idx.clone(); let __pe_b2 = (context.clone()).clone(); move |__pe_a0| Equation::createName(__pe_a0, __pe_b1.clone(), __pe_b2.clone()) }));
             Arc::new(StrongComponent::NBStrongComponent::SLICED_COMPONENT { var_cref: new_cref.clone(), var: new_var_slice.clone(), eqn: new_eqn_slice.clone(), status: var_field!((*comp).status, StrongComponent::NBStrongComponent::SLICED_COMPONENT).clone() })
         },
         Deref @ StrongComponent::RESIZABLE_COMPONENT { .. } => {
@@ -287,9 +287,9 @@ pub fn differentiateStrongComponent(mut comp: Arc<StrongComponent::NBStrongCompo
             new_cref = __pa0.clone();
             diffArguments = __pa1.clone();
             Pointer::update(diffArguments_ptr.clone(), diffArguments.clone());
-            new_var_slice = Slice::apply(var_field!((*comp).var, StrongComponent::NBStrongComponent::RESIZABLE_COMPONENT).clone(), { let __pe_b1 = diffArguments_ptr.clone(); move |__pe_a0| differentiateVariablePointer(__pe_a0, __pe_b1.clone()) });
-            new_eqn_slice = Slice::apply(var_field!((*comp).eqn, StrongComponent::NBStrongComponent::RESIZABLE_COMPONENT).clone(), { let __pe_b1 = diffArguments_ptr.clone(); let __pe_b2 = (name.clone()).clone(); move |__pe_a0| differentiateEquationPointer(__pe_a0, __pe_b1.clone(), __pe_b2.clone()) });
-            Slice::applyMutable(new_eqn_slice.clone(), { let __pe_b1 = idx.clone(); let __pe_b2 = (context.clone()).clone(); move |__pe_a0| Equation::createName(__pe_a0, __pe_b1.clone(), __pe_b2.clone()) });
+            new_var_slice = Slice::apply(var_field!((*comp).var, StrongComponent::NBStrongComponent::RESIZABLE_COMPONENT).clone(), Arc::new({ let __pe_b1 = diffArguments_ptr.clone(); move |__pe_a0| differentiateVariablePointer(__pe_a0, __pe_b1.clone()) }));
+            new_eqn_slice = Slice::apply(var_field!((*comp).eqn, StrongComponent::NBStrongComponent::RESIZABLE_COMPONENT).clone(), Arc::new({ let __pe_b1 = diffArguments_ptr.clone(); let __pe_b2 = (name.clone()).clone(); move |__pe_a0| differentiateEquationPointer(__pe_a0, __pe_b1.clone(), __pe_b2.clone()) }));
+            Slice::applyMutable(new_eqn_slice.clone(), Arc::new({ let __pe_b1 = idx.clone(); let __pe_b2 = (context.clone()).clone(); move |__pe_a0| Equation::createName(__pe_a0, __pe_b1.clone(), __pe_b2.clone()) }));
             Arc::new(StrongComponent::NBStrongComponent::RESIZABLE_COMPONENT { var_cref: new_cref.clone(), var: new_var_slice.clone(), eqn: new_eqn_slice.clone(), order: var_field!((*comp).order, StrongComponent::NBStrongComponent::RESIZABLE_COMPONENT).clone(), status: var_field!((*comp).status, StrongComponent::NBStrongComponent::RESIZABLE_COMPONENT).clone() })
         },
         Deref @ StrongComponent::GENERIC_COMPONENT { .. } => {
@@ -304,9 +304,9 @@ pub fn differentiateStrongComponent(mut comp: Arc<StrongComponent::NBStrongCompo
             new_cref = __pa0.clone();
             diffArguments = __pa1.clone();
             Pointer::update(diffArguments_ptr.clone(), diffArguments.clone());
-            new_var_slice = Slice::apply(var_field!((*comp).var, StrongComponent::NBStrongComponent::GENERIC_COMPONENT).clone(), { let __pe_b1 = diffArguments_ptr.clone(); move |__pe_a0| differentiateVariablePointer(__pe_a0, __pe_b1.clone()) });
-            new_eqn_slice = Slice::apply(var_field!((*comp).eqn, StrongComponent::NBStrongComponent::GENERIC_COMPONENT).clone(), { let __pe_b1 = diffArguments_ptr.clone(); let __pe_b2 = (name.clone()).clone(); move |__pe_a0| differentiateEquationPointer(__pe_a0, __pe_b1.clone(), __pe_b2.clone()) });
-            Slice::applyMutable(new_eqn_slice.clone(), { let __pe_b1 = idx.clone(); let __pe_b2 = (context.clone()).clone(); move |__pe_a0| Equation::createName(__pe_a0, __pe_b1.clone(), __pe_b2.clone()) });
+            new_var_slice = Slice::apply(var_field!((*comp).var, StrongComponent::NBStrongComponent::GENERIC_COMPONENT).clone(), Arc::new({ let __pe_b1 = diffArguments_ptr.clone(); move |__pe_a0| differentiateVariablePointer(__pe_a0, __pe_b1.clone()) }));
+            new_eqn_slice = Slice::apply(var_field!((*comp).eqn, StrongComponent::NBStrongComponent::GENERIC_COMPONENT).clone(), Arc::new({ let __pe_b1 = diffArguments_ptr.clone(); let __pe_b2 = (name.clone()).clone(); move |__pe_a0| differentiateEquationPointer(__pe_a0, __pe_b1.clone(), __pe_b2.clone()) }));
+            Slice::applyMutable(new_eqn_slice.clone(), Arc::new({ let __pe_b1 = idx.clone(); let __pe_b2 = (context.clone()).clone(); move |__pe_a0| Equation::createName(__pe_a0, __pe_b1.clone(), __pe_b2.clone()) }));
             Arc::new(StrongComponent::NBStrongComponent::GENERIC_COMPONENT { var_cref: new_cref.clone(), var: new_var_slice.clone(), eqn: new_eqn_slice.clone() })
         },
         Deref @ StrongComponent::ALGEBRAIC_LOOP { .. } => {
@@ -346,7 +346,7 @@ pub fn differentiateTearing(mut tearing: Arc<Tearing::NBTearing>, mut diffArgume
     ite_vars = {
         let mut __acc: Arc<metamodelica::List<Arc<Slice::NBSlice<Pointer::Pointer<Arc<Variable::NFVariable>>>>>> = metamodelica::nil();
         for mut var in (tearing.iteration_vars.clone()).into_iter().cloned() {
-            let __x = Slice::apply(var.clone(), { let __pe_b1 = diffArguments_ptr.clone(); move |__pe_a0| differentiateVariablePointer(__pe_a0, __pe_b1.clone()) });
+            let __x = Slice::apply(var.clone(), Arc::new({ let __pe_b1 = diffArguments_ptr.clone(); move |__pe_a0| differentiateVariablePointer(__pe_a0, __pe_b1.clone()) }));
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
@@ -354,7 +354,7 @@ pub fn differentiateTearing(mut tearing: Arc<Tearing::NBTearing>, mut diffArgume
     res_eqns = {
         let mut __acc: Arc<metamodelica::List<Arc<Slice::NBSlice<Pointer::Pointer<Arc<Equation::Equation>>>>>> = metamodelica::nil();
         for mut eqn in (tearing.residual_eqns.clone()).into_iter().cloned() {
-            let __x = Slice::apply(eqn.clone(), { let __pe_b1 = diffArguments_ptr.clone(); let __pe_b2 = (name.clone()).clone(); move |__pe_a0| differentiateEquationPointer(__pe_a0, __pe_b1.clone(), __pe_b2.clone()) });
+            let __x = Slice::apply(eqn.clone(), Arc::new({ let __pe_b1 = diffArguments_ptr.clone(); let __pe_b2 = (name.clone()).clone(); move |__pe_a0| differentiateEquationPointer(__pe_a0, __pe_b1.clone(), __pe_b2.clone()) }));
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
@@ -417,14 +417,15 @@ pub fn differentiateEquation(mut eq: Arc<Equation::Equation>, mut diffArguments:
         println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("### debugDifferentiation | ")); __mm_s.push_str(&*name.clone()); __mm_s.push_str(&*literal!(" ###\n")); ArcStr::from(__mm_s) }).clone());
         println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("[BEFORE] ")); __mm_s.push_str(&*Equation::toString(eq.clone(), (literal!("")).clone())?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
     }
-    (eq, diffArguments) = (::match_deref::match_deref! { match &(eq.clone()) {
+    (eq, diffArguments) = ({
+        let mut forBody: Arc<metamodelica::List<Arc<Equation::Equation>>> = metamodelica::nil();
+        let mut lhs_base: Arc<ComponentRef::NFComponentRef> = Arc::new(openmodelica_nf_frontend::NFComponentRef::EMPTY);
+        let mut n: i32 = 0;
+        (::match_deref::match_deref! { match &(eq.clone()) {
         Deref @ Equation::SCALAR_EQUATION { .. } => {
             let mut lhs: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut rhs: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-            let mut forBody: Arc<metamodelica::List<Arc<Equation::Equation>>> = metamodelica::nil();
             let mut attr: Arc<EquationAttributes::EquationAttributes>;
-            let mut lhs_base: Arc<ComponentRef::NFComponentRef> = Arc::new(openmodelica_nf_frontend::NFComponentRef::EMPTY);
-            let mut n: i32 = 0;
             (lhs, diffArguments) = differentiateExpressionNoCollect(var_field!((*eq).lhs, Equation::Equation::SCALAR_EQUATION).clone(), diffArguments.clone())?;
             (rhs, diffArguments) = differentiateExpression(var_field!((*eq).rhs, Equation::Equation::SCALAR_EQUATION).clone(), diffArguments.clone())?;
             attr = differentiateEquationAttributes(var_field!((*eq).attr, Equation::Equation::SCALAR_EQUATION).clone(), diffArguments.clone())?;
@@ -433,12 +434,9 @@ pub fn differentiateEquation(mut eq: Arc<Equation::Equation>, mut diffArguments:
         Deref @ Equation::ARRAY_EQUATION { .. } => {
             let mut lhs: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut rhs: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-            let mut forBody: Arc<metamodelica::List<Arc<Equation::Equation>>> = metamodelica::nil();
             let mut attr: Arc<EquationAttributes::EquationAttributes>;
             let mut dm: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>>>;
-            let mut lhs_base: Arc<ComponentRef::NFComponentRef> = Arc::new(openmodelica_nf_frontend::NFComponentRef::EMPTY);
             let mut seed_base: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
-            let mut n: i32 = 0;
             let mut iel: i32 = 0;
             let mut dims: Arc<metamodelica::List<Arc<Dimension::NFDimension>>> = metamodelica::nil();
             let mut grad_save: Arc<Expression::NFExpression> = Arc::new(Expression::END);
@@ -489,31 +487,22 @@ pub fn differentiateEquation(mut eq: Arc<Equation::Equation>, mut diffArguments:
         Deref @ Equation::RECORD_EQUATION { .. } => {
             let mut lhs: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut rhs: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-            let mut forBody: Arc<metamodelica::List<Arc<Equation::Equation>>> = metamodelica::nil();
             let mut attr: Arc<EquationAttributes::EquationAttributes>;
-            let mut lhs_base: Arc<ComponentRef::NFComponentRef> = Arc::new(openmodelica_nf_frontend::NFComponentRef::EMPTY);
-            let mut n: i32 = 0;
             (lhs, diffArguments) = differentiateExpressionNoCollect(var_field!((*eq).lhs, Equation::Equation::RECORD_EQUATION).clone(), diffArguments.clone())?;
             (rhs, diffArguments) = differentiateExpression(var_field!((*eq).rhs, Equation::Equation::RECORD_EQUATION).clone(), diffArguments.clone())?;
             attr = differentiateEquationAttributes(var_field!((*eq).attr, Equation::Equation::RECORD_EQUATION).clone(), diffArguments.clone())?;
             (Arc::new(Equation::Equation::RECORD_EQUATION { ty: var_field!((*eq).ty, Equation::Equation::RECORD_EQUATION).clone(), lhs: lhs.clone(), rhs: rhs.clone(), source: var_field!((*eq).source, Equation::Equation::RECORD_EQUATION).clone(), attr: attr.clone(), recordSize: var_field!((*eq).recordSize, Equation::Equation::RECORD_EQUATION).clone() }), diffArguments.clone())
         },
         Deref @ Equation::IF_EQUATION { .. } => {
-            let mut forBody: Arc<metamodelica::List<Arc<Equation::Equation>>> = metamodelica::nil();
             let mut ifBody: Arc<IfEquationBody::IfEquationBody>;
             let mut diffArguments_ptr: Pointer::Pointer<Arc<DifferentiationArguments::DifferentiationArguments>>;
             let mut attr: Arc<EquationAttributes::EquationAttributes>;
-            let mut lhs_base: Arc<ComponentRef::NFComponentRef> = Arc::new(openmodelica_nf_frontend::NFComponentRef::EMPTY);
-            let mut n: i32 = 0;
             (ifBody, diffArguments_ptr) = differentiateIfEquationBody(var_field!((*eq).body, Equation::Equation::IF_EQUATION).clone(), Pointer::create(diffArguments.clone()))?;
             attr = differentiateEquationAttributes(var_field!((*eq).attr, Equation::Equation::IF_EQUATION).clone(), diffArguments.clone())?;
             (Arc::new(Equation::Equation::IF_EQUATION { size: var_field!((*eq).size, Equation::Equation::IF_EQUATION).clone(), body: ifBody.clone(), source: var_field!((*eq).source, Equation::Equation::IF_EQUATION).clone(), attr: attr.clone() }), Pointer::access(diffArguments_ptr.clone()))
         },
         Deref @ Equation::FOR_EQUATION { .. } => {
-            let mut forBody: Arc<metamodelica::List<Arc<Equation::Equation>>> = metamodelica::nil();
             let mut attr: Arc<EquationAttributes::EquationAttributes>;
-            let mut lhs_base: Arc<ComponentRef::NFComponentRef> = Arc::new(openmodelica_nf_frontend::NFComponentRef::EMPTY);
-            let mut n: i32 = 0;
             for mut body_eqn in &*var_field!((*eq).body, Equation::Equation::FOR_EQUATION).clone() {
                 let mut body_eqn = body_eqn.clone();
                 (body_eqn, diffArguments) = differentiateEquation(body_eqn.clone(), diffArguments.clone(), (literal!("")).clone())?;
@@ -523,32 +512,24 @@ pub fn differentiateEquation(mut eq: Arc<Equation::Equation>, mut diffArguments:
             (Arc::new(Equation::Equation::FOR_EQUATION { size: var_field!((*eq).size, Equation::Equation::FOR_EQUATION).clone(), iter: var_field!((*eq).iter, Equation::Equation::FOR_EQUATION).clone(), body: forBody.clone().reverse(), source: var_field!((*eq).source, Equation::Equation::FOR_EQUATION).clone(), attr: attr.clone() }), diffArguments.clone())
         },
         Deref @ Equation::WHEN_EQUATION { .. } => {
-            let mut forBody: Arc<metamodelica::List<Arc<Equation::Equation>>> = metamodelica::nil();
             let mut whenBody: Arc<WhenEquationBody::WhenEquationBody>;
             let mut attr: Arc<EquationAttributes::EquationAttributes>;
-            let mut lhs_base: Arc<ComponentRef::NFComponentRef> = Arc::new(openmodelica_nf_frontend::NFComponentRef::EMPTY);
-            let mut n: i32 = 0;
             (whenBody, diffArguments) = differentiateWhenEquationBody(var_field!((*eq).body, Equation::Equation::WHEN_EQUATION).clone(), diffArguments.clone())?;
             attr = differentiateEquationAttributes(var_field!((*eq).attr, Equation::Equation::WHEN_EQUATION).clone(), diffArguments.clone())?;
             (Arc::new(Equation::Equation::WHEN_EQUATION { size: var_field!((*eq).size, Equation::Equation::WHEN_EQUATION).clone(), body: whenBody.clone(), source: var_field!((*eq).source, Equation::Equation::WHEN_EQUATION).clone(), attr: attr.clone() }), diffArguments.clone())
         },
         Deref @ Equation::ALGORITHM { .. } => {
-            let mut forBody: Arc<metamodelica::List<Arc<Equation::Equation>>> = metamodelica::nil();
             let mut alg: Arc<Algorithm::NFAlgorithm>;
-            let mut lhs_base: Arc<ComponentRef::NFComponentRef> = Arc::new(openmodelica_nf_frontend::NFComponentRef::EMPTY);
-            let mut n: i32 = 0;
             (alg, diffArguments) = differentiateAlgorithm(var_field!((*eq).alg, Equation::Equation::ALGORITHM).clone(), diffArguments.clone())?;
             (Arc::new(Equation::Equation::ALGORITHM { size: var_field!((*eq).size, Equation::Equation::ALGORITHM).clone(), alg: alg.clone(), source: var_field!((*eq).source, Equation::Equation::ALGORITHM).clone(), expand: var_field!((*eq).expand, Equation::Equation::ALGORITHM).clone(), attr: var_field!((*eq).attr, Equation::Equation::ALGORITHM).clone() }), diffArguments.clone())
         },
         _ => {
-            let mut forBody: Arc<metamodelica::List<Arc<Equation::Equation>>> = metamodelica::nil();
-            let mut lhs_base: Arc<ComponentRef::NFComponentRef> = Arc::new(openmodelica_nf_frontend::NFComponentRef::EMPTY);
-            let mut n: i32 = 0;
             Error::addMessage(Error::INTERNAL_ERROR.clone(), list![({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("NBDifferentiate.differentiateEquation")); __mm_s.push_str(&*literal!(" failed for: ")); __mm_s.push_str(&*Equation::toString(eq.clone(), (literal!("")).clone())?); ArcStr::from(__mm_s) }).clone()])?;
             bail!("fail")
         },
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
-    } });
+    } })
+    });
     if Flags::isSet(Flags::DEBUG_DIFFERENTIATION.clone())? && !(stringEqual((name.clone()).clone(), (literal!("")).clone())) {
         eq = Equation::simplify(eq.clone(), (name.clone()).clone(), (literal!("\t")).clone(), Pointer::create(metamodelica::nil()), Pointer::create(metamodelica::nil()), Arc::new({ let __pe_b1 = true; let __pe_b2 = (name.clone()).clone(); let __pe_b3 = (literal!("\t")).clone(); move |__pe_a0| SimplifyExp::simplifyDump(__pe_a0, __pe_b1.clone(), __pe_b2.clone(), __pe_b3.clone()) }))?;
         println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("[AFTER ] ")); __mm_s.push_str(&*Equation::toString(eq.clone(), (literal!("")).clone())?); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
@@ -624,50 +605,33 @@ pub fn differentiateExpressionDump(mut exp: Arc<Expression::NFExpression>, mut d
 pub fn differentiateExpression(mut exp: Arc<Expression::NFExpression>, mut diffArguments: Arc<DifferentiationArguments::DifferentiationArguments>) -> Result<(Arc<Expression::NFExpression>, Arc<DifferentiationArguments::DifferentiationArguments>)> {
     let mut exp: Arc<Expression::NFExpression> = exp;
     let mut diffArguments: Arc<DifferentiationArguments::DifferentiationArguments> = diffArguments;
-    (exp, diffArguments) = (::match_deref::match_deref! { match &(exp.clone()) {
+    (exp, diffArguments) = ({
+        let mut new_elements: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
+        let mut new_matrix_elements: Arc<metamodelica::List<Arc<metamodelica::List<Arc<Expression::NFExpression>>>>> = metamodelica::nil();
+        let mut isReverse: bool = Util::isSome(diffArguments.adjoint_map.clone());
+        (::match_deref::match_deref! { match &(exp.clone()) {
         Deref @ Expression::INTEGER { .. } => {
-            let mut new_elements: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
-            let mut new_matrix_elements: Arc<metamodelica::List<Arc<metamodelica::List<Arc<Expression::NFExpression>>>>> = metamodelica::nil();
-            let mut isReverse: bool = Util::isSome(diffArguments.adjoint_map.clone());
             (Arc::new(Expression::NFExpression::INTEGER { value: 0 }), diffArguments.clone())
         },
         Deref @ Expression::REAL { .. } => {
-            let mut new_elements: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
-            let mut new_matrix_elements: Arc<metamodelica::List<Arc<metamodelica::List<Arc<Expression::NFExpression>>>>> = metamodelica::nil();
-            let mut isReverse: bool = Util::isSome(diffArguments.adjoint_map.clone());
             (Arc::new(Expression::NFExpression::REAL { value: metamodelica::OrderedFloat(0.0_f64) }), diffArguments.clone())
         },
         Deref @ Expression::STRING { .. } => {
-            let mut new_elements: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
-            let mut new_matrix_elements: Arc<metamodelica::List<Arc<metamodelica::List<Arc<Expression::NFExpression>>>>> = metamodelica::nil();
-            let mut isReverse: bool = Util::isSome(diffArguments.adjoint_map.clone());
             (exp.clone(), diffArguments.clone())
         },
         Deref @ Expression::BOOLEAN { .. } => {
-            let mut new_elements: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
-            let mut new_matrix_elements: Arc<metamodelica::List<Arc<metamodelica::List<Arc<Expression::NFExpression>>>>> = metamodelica::nil();
-            let mut isReverse: bool = Util::isSome(diffArguments.adjoint_map.clone());
             (exp.clone(), diffArguments.clone())
         },
         Deref @ Expression::CREF { .. } => {
-            let mut new_elements: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
-            let mut new_matrix_elements: Arc<metamodelica::List<Arc<metamodelica::List<Arc<Expression::NFExpression>>>>> = metamodelica::nil();
-            let mut isReverse: bool = Util::isSome(diffArguments.adjoint_map.clone());
             differentiateComponentRef(exp.clone(), diffArguments.clone())?
         },
         Deref @ Expression::ARRAY { .. } => {
-            let mut new_elements: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
-            let mut new_matrix_elements: Arc<metamodelica::List<Arc<metamodelica::List<Arc<Expression::NFExpression>>>>> = metamodelica::nil();
             let mut arr: metamodelica::Array<Arc<Expression::NFExpression>>;
-            let mut isReverse: bool = Util::isSome(diffArguments.adjoint_map.clone());
-            (arr, diffArguments) = Array::mapFold(var_field!((*exp).elements, Expression::NFExpression::ARRAY).clone(), Arc::new(differentiateExpression), diffArguments.clone());
+            (arr, diffArguments) = Array::mapFold(var_field!((*exp).elements, Expression::NFExpression::ARRAY).clone(), (std::sync::Arc::new(differentiateExpression) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, Arc<DifferentiationArguments::DifferentiationArguments>) -> Result<(Arc<Expression::NFExpression>, Arc<DifferentiationArguments::DifferentiationArguments>)> + 'static>), diffArguments.clone());
             assign_variant_field!(exp => Expression::NFExpression::ARRAY; elements = arr.clone());
             (exp.clone(), diffArguments.clone())
         },
         Deref @ Expression::MATRIX { .. } => {
-            let mut new_elements: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
-            let mut new_matrix_elements: Arc<metamodelica::List<Arc<metamodelica::List<Arc<Expression::NFExpression>>>>> = metamodelica::nil();
-            let mut isReverse: bool = Util::isSome(diffArguments.adjoint_map.clone());
             for mut element_lst in &*var_field!((*exp).elements, Expression::NFExpression::MATRIX).clone() {
                 let mut element_lst = element_lst.clone();
                 new_elements = metamodelica::nil();
@@ -681,9 +645,6 @@ pub fn differentiateExpression(mut exp: Arc<Expression::NFExpression>, mut diffA
             (Arc::new(Expression::NFExpression::MATRIX { elements: new_matrix_elements.clone().reverse() }), diffArguments.clone())
         },
         Deref @ Expression::TUPLE { .. } => {
-            let mut new_elements: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
-            let mut new_matrix_elements: Arc<metamodelica::List<Arc<metamodelica::List<Arc<Expression::NFExpression>>>>> = metamodelica::nil();
-            let mut isReverse: bool = Util::isSome(diffArguments.adjoint_map.clone());
             for mut element in &*var_field!((*exp).elements, Expression::NFExpression::TUPLE).clone() {
                 let mut element = element.clone();
                 (element, diffArguments) = differentiateExpression(element.clone(), diffArguments.clone())?;
@@ -692,9 +653,6 @@ pub fn differentiateExpression(mut exp: Arc<Expression::NFExpression>, mut diffA
             (Arc::new(Expression::NFExpression::TUPLE { ty: var_field!((*exp).ty, Expression::NFExpression::TUPLE).clone(), elements: new_elements.clone().reverse() }), diffArguments.clone())
         },
         Deref @ Expression::RECORD { .. } => {
-            let mut new_elements: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
-            let mut new_matrix_elements: Arc<metamodelica::List<Arc<metamodelica::List<Arc<Expression::NFExpression>>>>> = metamodelica::nil();
-            let mut isReverse: bool = Util::isSome(diffArguments.adjoint_map.clone());
             for mut element in &*var_field!((*exp).elements, Expression::NFExpression::RECORD).clone() {
                 let mut element = element.clone();
                 (element, diffArguments) = differentiateExpression(element.clone(), diffArguments.clone())?;
@@ -703,9 +661,6 @@ pub fn differentiateExpression(mut exp: Arc<Expression::NFExpression>, mut diffA
             (Arc::new(Expression::NFExpression::RECORD { path: var_field!((*exp).path, Expression::NFExpression::RECORD).clone(), ty: var_field!((*exp).ty, Expression::NFExpression::RECORD).clone(), elements: new_elements.clone().reverse() }), diffArguments.clone())
         },
         Deref @ Expression::CALL { .. } => {
-            let mut new_elements: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
-            let mut new_matrix_elements: Arc<metamodelica::List<Arc<metamodelica::List<Arc<Expression::NFExpression>>>>> = metamodelica::nil();
-            let mut isReverse: bool = Util::isSome(diffArguments.adjoint_map.clone());
             differentiateCall(exp.clone(), diffArguments.clone())?
         },
         Deref @ Expression::IF { .. } => {
@@ -714,9 +669,6 @@ pub fn differentiateExpression(mut exp: Arc<Expression::NFExpression>, mut diffA
             let mut current_grad: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut gradTrue: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut gradFalse: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-            let mut new_elements: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
-            let mut new_matrix_elements: Arc<metamodelica::List<Arc<metamodelica::List<Arc<Expression::NFExpression>>>>> = metamodelica::nil();
-            let mut isReverse: bool = Util::isSome(diffArguments.adjoint_map.clone());
             if isReverse.clone() {
                 current_grad = diffArguments.current_grad.clone();
                 gradTrue = Arc::new(Expression::NFExpression::IF { ty: Expression::typeOf(current_grad.clone()), condition: var_field!((*exp).condition, Expression::NFExpression::IF).clone(), trueBranch: current_grad.clone(), falseBranch: Expression::makeZero(Expression::typeOf(current_grad.clone()))? });
@@ -733,23 +685,14 @@ pub fn differentiateExpression(mut exp: Arc<Expression::NFExpression>, mut diffA
             (Arc::new(Expression::NFExpression::IF { ty: var_field!((*exp).ty, Expression::NFExpression::IF).clone(), condition: var_field!((*exp).condition, Expression::NFExpression::IF).clone(), trueBranch: elem1.clone(), falseBranch: elem2.clone() }), diffArguments.clone())
         },
         Deref @ Expression::BINARY { .. } => {
-            let mut new_elements: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
-            let mut new_matrix_elements: Arc<metamodelica::List<Arc<metamodelica::List<Arc<Expression::NFExpression>>>>> = metamodelica::nil();
-            let mut isReverse: bool = Util::isSome(diffArguments.adjoint_map.clone());
             differentiateBinary(exp.clone(), diffArguments.clone())?
         },
         Deref @ Expression::MULTARY { .. } => {
-            let mut new_elements: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
-            let mut new_matrix_elements: Arc<metamodelica::List<Arc<metamodelica::List<Arc<Expression::NFExpression>>>>> = metamodelica::nil();
-            let mut isReverse: bool = Util::isSome(diffArguments.adjoint_map.clone());
             differentiateMultary(exp.clone(), diffArguments.clone())?
         },
         Deref @ Expression::UNARY { .. } => {
             let mut elem1: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut current_grad: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-            let mut new_elements: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
-            let mut new_matrix_elements: Arc<metamodelica::List<Arc<metamodelica::List<Arc<Expression::NFExpression>>>>> = metamodelica::nil();
-            let mut isReverse: bool = Util::isSome(diffArguments.adjoint_map.clone());
             if isReverse.clone() {
                 current_grad = diffArguments.current_grad.clone();
                 assign_field!(diffArguments.current_grad = Arc::new(Expression::NFExpression::UNARY { operator: var_field!((*exp).operator, Expression::NFExpression::UNARY).clone(), exp: current_grad.clone() }));
@@ -762,49 +705,31 @@ pub fn differentiateExpression(mut exp: Arc<Expression::NFExpression>, mut diffA
         },
         Deref @ Expression::CAST { .. } => {
             let mut elem1: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-            let mut new_elements: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
-            let mut new_matrix_elements: Arc<metamodelica::List<Arc<metamodelica::List<Arc<Expression::NFExpression>>>>> = metamodelica::nil();
-            let mut isReverse: bool = Util::isSome(diffArguments.adjoint_map.clone());
             (elem1, diffArguments) = differentiateExpression(var_field!((*exp).exp, Expression::NFExpression::CAST).clone(), diffArguments.clone())?;
             (Arc::new(Expression::NFExpression::CAST { ty: var_field!((*exp).ty, Expression::NFExpression::CAST).clone(), exp: elem1.clone() }), diffArguments.clone())
         },
         Deref @ Expression::BOX { .. } => {
             let mut elem1: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-            let mut new_elements: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
-            let mut new_matrix_elements: Arc<metamodelica::List<Arc<metamodelica::List<Arc<Expression::NFExpression>>>>> = metamodelica::nil();
-            let mut isReverse: bool = Util::isSome(diffArguments.adjoint_map.clone());
             (elem1, diffArguments) = differentiateExpression(var_field!((*exp).exp, Expression::NFExpression::BOX).clone(), diffArguments.clone())?;
             (Arc::new(Expression::NFExpression::BOX { exp: elem1.clone() }), diffArguments.clone())
         },
         Deref @ Expression::UNBOX { .. } => {
             let mut elem1: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-            let mut new_elements: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
-            let mut new_matrix_elements: Arc<metamodelica::List<Arc<metamodelica::List<Arc<Expression::NFExpression>>>>> = metamodelica::nil();
-            let mut isReverse: bool = Util::isSome(diffArguments.adjoint_map.clone());
             (elem1, diffArguments) = differentiateExpression(var_field!((*exp).exp, Expression::NFExpression::UNBOX).clone(), diffArguments.clone())?;
             (Arc::new(Expression::NFExpression::UNBOX { exp: elem1.clone(), ty: var_field!((*exp).ty, Expression::NFExpression::UNBOX).clone() }), diffArguments.clone())
         },
         Deref @ Expression::SUBSCRIPTED_EXP { .. } => {
             let mut elem1: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-            let mut new_elements: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
-            let mut new_matrix_elements: Arc<metamodelica::List<Arc<metamodelica::List<Arc<Expression::NFExpression>>>>> = metamodelica::nil();
-            let mut isReverse: bool = Util::isSome(diffArguments.adjoint_map.clone());
             (elem1, diffArguments) = differentiateExpression(var_field!((*exp).exp, Expression::NFExpression::SUBSCRIPTED_EXP).clone(), diffArguments.clone())?;
             (Arc::new(Expression::NFExpression::SUBSCRIPTED_EXP { exp: elem1.clone(), subscripts: var_field!((*exp).subscripts, Expression::NFExpression::SUBSCRIPTED_EXP).clone(), ty: var_field!((*exp).ty, Expression::NFExpression::SUBSCRIPTED_EXP).clone(), split: var_field!((*exp).split, Expression::NFExpression::SUBSCRIPTED_EXP).clone() }), diffArguments.clone())
         },
         Deref @ Expression::TUPLE_ELEMENT { .. } => {
             let mut elem1: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-            let mut new_elements: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
-            let mut new_matrix_elements: Arc<metamodelica::List<Arc<metamodelica::List<Arc<Expression::NFExpression>>>>> = metamodelica::nil();
-            let mut isReverse: bool = Util::isSome(diffArguments.adjoint_map.clone());
             (elem1, diffArguments) = differentiateExpression(var_field!((*exp).tupleExp, Expression::NFExpression::TUPLE_ELEMENT).clone(), diffArguments.clone())?;
             (Arc::new(Expression::NFExpression::TUPLE_ELEMENT { tupleExp: elem1.clone(), index: var_field!((*exp).index, Expression::NFExpression::TUPLE_ELEMENT).clone(), ty: var_field!((*exp).ty, Expression::NFExpression::TUPLE_ELEMENT).clone() }), diffArguments.clone())
         },
         Deref @ Expression::RECORD_ELEMENT { .. } => {
             let mut elem1: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-            let mut new_elements: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
-            let mut new_matrix_elements: Arc<metamodelica::List<Arc<metamodelica::List<Arc<Expression::NFExpression>>>>> = metamodelica::nil();
-            let mut isReverse: bool = Util::isSome(diffArguments.adjoint_map.clone());
             if diffArguments.diffType.clone() == DifferentiationType::SIMPLE.clone() && !(Expression::containsCref(var_field!((*exp).recordExp, Expression::NFExpression::RECORD_ELEMENT).clone(), diffArguments.diffCref.clone())?) {
                 elem1 = Expression::makeZero(Expression::typeOf(exp.clone()))?;
             } else {
@@ -814,10 +739,7 @@ pub fn differentiateExpression(mut exp: Arc<Expression::NFExpression>, mut diffA
             (elem1.clone(), diffArguments.clone())
         },
         Deref @ Expression::PARTIAL_FUNCTION_APPLICATION { .. } => {
-            let mut new_elements: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
-            let mut new_matrix_elements: Arc<metamodelica::List<Arc<metamodelica::List<Arc<Expression::NFExpression>>>>> = metamodelica::nil();
             let mut d_fn: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
-            let mut isReverse: bool = Util::isSome(diffArguments.adjoint_map.clone());
             d_fn = BVariable::makeFDerVar(var_field!((*exp).r#fn, Expression::NFExpression::PARTIAL_FUNCTION_APPLICATION).clone())?;
             for mut element in &*var_field!((*exp).args, Expression::NFExpression::PARTIAL_FUNCTION_APPLICATION).clone() {
                 let mut element = element.clone();
@@ -834,68 +756,39 @@ pub fn differentiateExpression(mut exp: Arc<Expression::NFExpression>, mut diffA
     }), ty: var_field!((*exp).ty, Expression::NFExpression::PARTIAL_FUNCTION_APPLICATION).clone() }), diffArguments.clone())
         },
         Deref @ Expression::LBINARY { .. } => {
-            let mut new_elements: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
-            let mut new_matrix_elements: Arc<metamodelica::List<Arc<metamodelica::List<Arc<Expression::NFExpression>>>>> = metamodelica::nil();
-            let mut isReverse: bool = Util::isSome(diffArguments.adjoint_map.clone());
             (exp.clone(), diffArguments.clone())
         },
         Deref @ Expression::LUNARY { .. } => {
-            let mut new_elements: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
-            let mut new_matrix_elements: Arc<metamodelica::List<Arc<metamodelica::List<Arc<Expression::NFExpression>>>>> = metamodelica::nil();
-            let mut isReverse: bool = Util::isSome(diffArguments.adjoint_map.clone());
             (exp.clone(), diffArguments.clone())
         },
         Deref @ Expression::RELATION { .. } => {
-            let mut new_elements: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
-            let mut new_matrix_elements: Arc<metamodelica::List<Arc<metamodelica::List<Arc<Expression::NFExpression>>>>> = metamodelica::nil();
-            let mut isReverse: bool = Util::isSome(diffArguments.adjoint_map.clone());
             (exp.clone(), diffArguments.clone())
         },
         Deref @ Expression::SIZE { .. } => {
-            let mut new_elements: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
-            let mut new_matrix_elements: Arc<metamodelica::List<Arc<metamodelica::List<Arc<Expression::NFExpression>>>>> = metamodelica::nil();
-            let mut isReverse: bool = Util::isSome(diffArguments.adjoint_map.clone());
             (exp.clone(), diffArguments.clone())
         },
         Deref @ Expression::RANGE { .. } => {
-            let mut new_elements: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
-            let mut new_matrix_elements: Arc<metamodelica::List<Arc<metamodelica::List<Arc<Expression::NFExpression>>>>> = metamodelica::nil();
-            let mut isReverse: bool = Util::isSome(diffArguments.adjoint_map.clone());
             (exp.clone(), diffArguments.clone())
         },
         Deref @ Expression::END => {
-            let mut new_elements: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
-            let mut new_matrix_elements: Arc<metamodelica::List<Arc<metamodelica::List<Arc<Expression::NFExpression>>>>> = metamodelica::nil();
-            let mut isReverse: bool = Util::isSome(diffArguments.adjoint_map.clone());
             (exp.clone(), diffArguments.clone())
         },
         Deref @ Expression::EMPTY { .. } => {
-            let mut new_elements: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
-            let mut new_matrix_elements: Arc<metamodelica::List<Arc<metamodelica::List<Arc<Expression::NFExpression>>>>> = metamodelica::nil();
-            let mut isReverse: bool = Util::isSome(diffArguments.adjoint_map.clone());
             (exp.clone(), diffArguments.clone())
         },
         Deref @ Expression::ENUM_LITERAL { .. } => {
-            let mut new_elements: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
-            let mut new_matrix_elements: Arc<metamodelica::List<Arc<metamodelica::List<Arc<Expression::NFExpression>>>>> = metamodelica::nil();
-            let mut isReverse: bool = Util::isSome(diffArguments.adjoint_map.clone());
             (exp.clone(), diffArguments.clone())
         },
         Deref @ Expression::TYPENAME { .. } => {
-            let mut new_elements: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
-            let mut new_matrix_elements: Arc<metamodelica::List<Arc<metamodelica::List<Arc<Expression::NFExpression>>>>> = metamodelica::nil();
-            let mut isReverse: bool = Util::isSome(diffArguments.adjoint_map.clone());
             (exp.clone(), diffArguments.clone())
         },
         _ => {
-            let mut new_elements: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
-            let mut new_matrix_elements: Arc<metamodelica::List<Arc<metamodelica::List<Arc<Expression::NFExpression>>>>> = metamodelica::nil();
-            let mut isReverse: bool = Util::isSome(diffArguments.adjoint_map.clone());
             Error::addMessage(Error::INTERNAL_ERROR.clone(), list![({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("NBDifferentiate.differentiateExpression")); __mm_s.push_str(&*literal!(" failed for: ")); __mm_s.push_str(&*Expression::toString(exp.clone())?); ArcStr::from(__mm_s) }).clone()])?;
             bail!("fail")
         },
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
-    } });
+    } })
+    });
     Ok((exp, diffArguments))
 }
 
@@ -984,10 +877,10 @@ pub fn differentiateComponentRef(mut exp: Arc<Expression::NFExpression>, mut dif
             (res.clone(), diffArguments.clone())
         },
         (Deref @ Expression::CREF { .. }, DifferentiationType::TIME, _) if (BVariable::isDummyState(var_ptr.clone())) => {
-            (Expression::fromCref(BVariable::getPartnerCref(var_field!((*exp).cref, Expression::NFExpression::CREF).clone(), fnptr!(BVariable::getVarDummyDer, Pointer::Pointer<Arc<Variable::NFVariable>>), false)?, false)?, diffArguments.clone())
+            (Expression::fromCref(BVariable::getPartnerCref(var_field!((*exp).cref, Expression::NFExpression::CREF).clone(), (std::sync::Arc::new(fnptr!(BVariable::getVarDummyDer, Pointer::Pointer<Arc<Variable::NFVariable>>)) as std::sync::Arc<dyn ::std::ops::Fn(Pointer::Pointer<Arc<Variable::NFVariable>>) -> Result<(Option<Pointer::Pointer<Arc<Variable::NFVariable>>>, ArcStr)> + 'static>), false)?, false)?, diffArguments.clone())
         },
         (Deref @ Expression::CREF { .. }, DifferentiationType::TIME, _) if (BVariable::isState(var_ptr.clone())) => {
-            (Expression::fromCref(BVariable::getPartnerCref(var_field!((*exp).cref, Expression::NFExpression::CREF).clone(), fnptr!(BVariable::getVarDer, Pointer::Pointer<Arc<Variable::NFVariable>>), false)?, false)?, diffArguments.clone())
+            (Expression::fromCref(BVariable::getPartnerCref(var_field!((*exp).cref, Expression::NFExpression::CREF).clone(), (std::sync::Arc::new(fnptr!(BVariable::getVarDer, Pointer::Pointer<Arc<Variable::NFVariable>>)) as std::sync::Arc<dyn ::std::ops::Fn(Pointer::Pointer<Arc<Variable::NFVariable>>) -> Result<(Option<Pointer::Pointer<Arc<Variable::NFVariable>>>, ArcStr)> + 'static>), false)?, false)?, diffArguments.clone())
         },
         (Deref @ Expression::CREF { .. }, DifferentiationType::TIME, _) if (BVariable::isContinuous(var_ptr.clone(), false)?) => {
             (derCref, der_ptr) = BVariable::makeDerVar(var_field!((*exp).cref, Expression::NFExpression::CREF).clone(), false)?;
@@ -1102,10 +995,11 @@ pub fn differentiateCall(mut exp: Arc<Expression::NFExpression>, mut diffArgumen
     if debug.clone() {
         println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nDifferentiate Exp-Call: ")); __mm_s.push_str(&*Expression::toString(exp.clone())?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
     }
-    (exp, diffArguments) = (::match_deref::match_deref! { match &(exp.clone()) {
+    (exp, diffArguments) = ({
+        let mut arguments: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
+        (::match_deref::match_deref! { match &(exp.clone()) {
         ret @ Deref @ Expression::CALL { call: call @ Deref @ Call::TYPED_ARRAY_CONSTRUCTOR { .. } } => {
             let mut arg: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-            let mut arguments: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
             let mut ret = (*ret).clone();
             let mut call = (*call).clone();
             (arg, diffArguments) = differentiateExpression(var_field!((*call).exp, Call::NFCall::TYPED_ARRAY_CONSTRUCTOR).clone(), diffArguments.clone())?;
@@ -1115,13 +1009,11 @@ pub fn differentiateCall(mut exp: Arc<Expression::NFExpression>, mut diffArgumen
         },
         Deref @ Expression::CALL { call: call @ Deref @ Call::TYPED_REDUCTION { .. } } => {
             let mut ret: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-            let mut arguments: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
             (ret, diffArguments) = differentiateReduction((AbsynUtil::pathString(NFFunction::Function::nameConsiderBuiltin(var_field!((**call).r#fn, Call::NFCall::TYPED_REDUCTION).clone())?, (literal!(".")).clone(), true, false)?).clone(), exp.clone(), diffArguments.clone())?;
             (ret.clone(), diffArguments.clone())
         },
         Deref @ Expression::CALL { call: call @ Deref @ Call::TYPED_CALL { .. } } if (NFFunction::Function::isBuiltin(var_field!((**call).r#fn, Call::NFCall::TYPED_CALL).clone())) => {
             let mut ret: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-            let mut arguments: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
             (ret, diffArguments) = differentiateBuiltinCall((AbsynUtil::pathString(NFFunction::Function::nameConsiderBuiltin(var_field!((**call).r#fn, Call::NFCall::TYPED_CALL).clone())?, (literal!(".")).clone(), true, false)?).clone(), exp.clone(), diffArguments.clone())?;
             (ret.clone(), diffArguments.clone())
         },
@@ -1130,9 +1022,8 @@ pub fn differentiateCall(mut exp: Arc<Expression::NFExpression>, mut diffArgumen
             let mut arg: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut func_opt: Option<Arc<Function::Function>> = None;
             let mut der_func_opt: Option<Arc<Function::Function>> = None;
-            let mut func: Arc<Function::Function>;
-            let mut der_func: Arc<Function::Function>;
-            let mut arguments: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
+            let mut func: Arc<Function::Function> = Arc::new(<Function::Function as ::std::default::Default>::default());
+            let mut der_func: Arc<Function::Function> = Arc::new(<Function::Function as ::std::default::Default>::default());
             let mut arguments_inputs: Arc<metamodelica::List<(Arc<Expression::NFExpression>, Arc<InstNode::InstNode>)>> = metamodelica::nil();
             let mut inp: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
             let mut isCont: bool = false;
@@ -1147,7 +1038,7 @@ pub fn differentiateCall(mut exp: Arc<Expression::NFExpression>, mut diffArgumen
                     _ => bail!("pattern mismatch"),
                 } };
                 func = __pa0.clone();
-                interface_map = UnorderedMap::new(fnptr!(stringHashDjb2, ArcStr), fnptr!(stringEqual, ArcStr, ArcStr), 1);
+                interface_map = UnorderedMap::new((std::sync::Arc::new(fnptr!(stringHashDjb2, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr) -> Result<i32> + 'static>), (std::sync::Arc::new(fnptr!(stringEqual, ArcStr, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>), 1);
                 arguments_inputs = List::zip(var_field!((**call).arguments, Call::NFCall::TYPED_CALL).clone(), func.inputs.clone());
                 for mut tpl in &*arguments_inputs.clone() {
                     let mut tpl = tpl.clone();
@@ -1179,7 +1070,7 @@ pub fn differentiateCall(mut exp: Arc<Expression::NFExpression>, mut diffArgumen
                         arguments = cons(arg.clone(), arguments.clone());
                     }
                 }
-                (arguments, diffArguments) = List::mapFold(arguments.clone(), Arc::new(differentiateExpression), diffArguments.clone());
+                (arguments, diffArguments) = List::mapFold(arguments.clone(), (std::sync::Arc::new(differentiateExpression) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, Arc<DifferentiationArguments::DifferentiationArguments>) -> Result<(Arc<Expression::NFExpression>, Arc<DifferentiationArguments::DifferentiationArguments>)> + 'static>), diffArguments.clone());
                 arguments = listAppend(var_field!((**call).arguments, Call::NFCall::TYPED_CALL).clone(), arguments.clone());
                 ret = Arc::new(Expression::NFExpression::CALL { call: Call::makeTypedCall(der_func.clone(), arguments.clone(), var_field!((**call).var, Call::NFCall::TYPED_CALL).clone(), var_field!((**call).purity, Call::NFCall::TYPED_CALL).clone(), der_func.returnType.clone()) });
             } else {
@@ -1189,12 +1080,12 @@ pub fn differentiateCall(mut exp: Arc<Expression::NFExpression>, mut diffArgumen
             (ret.clone(), diffArguments.clone())
         },
         _ => {
-            let mut arguments: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
             Error::addMessage(Error::INTERNAL_ERROR.clone(), list![({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("NBDifferentiate.differentiateCall")); __mm_s.push_str(&*literal!(" failed for: ")); __mm_s.push_str(&*Expression::toString(exp.clone())?); ArcStr::from(__mm_s) }).clone()])?;
             bail!("fail")
         },
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
-    } });
+    } })
+    });
     if debug.clone() {
         println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Differentiate-ExpCall-result: ")); __mm_s.push_str(&*Expression::toString(exp.clone())?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
     }
@@ -1228,7 +1119,9 @@ pub fn differentiateBuiltinCall(mut name: ArcStr, mut exp: Arc<Expression::NFExp
     let mut sizeClass: Operator::SizeClassification = Operator::SizeClassification::SCALAR.clone();
     let mut addOp: Arc<Operator::NFOperator> = Operator::fromClassification((Operator::MathClassification::ADDITION.clone(), sizeClass.clone()), Arc::new(openmodelica_nf_frontend::NFType::REAL))?;
     let mut mulOp: Arc<Operator::NFOperator> = Operator::fromClassification((Operator::MathClassification::MULTIPLICATION.clone(), sizeClass.clone()), Arc::new(openmodelica_nf_frontend::NFType::REAL))?;
-    exp = (::match_deref::match_deref! { match &(exp.clone()) {
+    exp = ({
+        let mut isReverse: bool = Util::isSome(diffArguments.adjoint_map.clone());
+        (::match_deref::match_deref! { match &(exp.clone()) {
         Deref @ Expression::CALL { .. } if (name.clone() == literal!("delay")) => {
             let mut ret: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut ret1: Arc<Expression::NFExpression> = Arc::new(Expression::END);
@@ -1237,7 +1130,6 @@ pub fn differentiateBuiltinCall(mut name: ArcStr, mut exp: Arc<Expression::NFExp
             let mut arg2: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut arg3: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut diffType: DifferentiationType = DifferentiationType::TIME;
-            let mut isReverse: bool = Util::isSome(diffArguments.adjoint_map.clone());
             (arg1, arg2, arg3) = (::match_deref::match_deref! { match &(Call::arguments(var_field!((*exp).call, Expression::NFExpression::CALL).clone())?) {
         Deref @ metamodelica::List::Cons { head: arg1, tail: Deref @ metamodelica::List::Cons { head: arg2, tail: Deref @ metamodelica::List::Cons { head: arg3, tail: Deref @ metamodelica::List::Nil } } } => (arg1.clone(), arg2.clone(), arg3.clone()),
         _ => {
@@ -1266,7 +1158,6 @@ pub fn differentiateBuiltinCall(mut name: ArcStr, mut exp: Arc<Expression::NFExp
             let mut ret: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut ret2: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut arg2: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-            let mut isReverse: bool = Util::isSome(diffArguments.adjoint_map.clone());
             ret = (::match_deref::match_deref! { match &(Call::arguments(var_field!((*exp).call, Expression::NFExpression::CALL).clone())?) {
         Deref @ metamodelica::List::Cons { head: arg1 @ Deref @ Expression::INTEGER { value: i }, tail: Deref @ metamodelica::List::Cons { head: arg2, tail: Deref @ metamodelica::List::Nil } } if (i.clone() > 0) => {
             (ret2, diffArguments) = differentiateExpression(arg2.clone(), diffArguments.clone())?;
@@ -1290,7 +1181,6 @@ pub fn differentiateBuiltinCall(mut name: ArcStr, mut exp: Arc<Expression::NFExp
             let mut ret1: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut arg1: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut current_grad: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-            let mut isReverse: bool = Util::isSome(diffArguments.adjoint_map.clone());
             arg1 = (::match_deref::match_deref! { match &(Call::arguments(var_field!((*exp).call, Expression::NFExpression::CALL).clone())?) {
         Deref @ metamodelica::List::Cons { head: arg1, tail: Deref @ metamodelica::List::Nil } => arg1.clone(),
         _ => {
@@ -1315,7 +1205,6 @@ pub fn differentiateBuiltinCall(mut name: ArcStr, mut exp: Arc<Expression::NFExp
             let mut arg1: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut current_grad: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut ty: Arc<Type::NFType> = Arc::new(Type::ANY);
-            let mut isReverse: bool = Util::isSome(diffArguments.adjoint_map.clone());
             let mut elTy: Arc<Type::NFType> = Arc::new(Type::ANY);
             let mut addM: Arc<Operator::NFOperator>;
             let mut subM: Arc<Operator::NFOperator>;
@@ -1358,7 +1247,6 @@ pub fn differentiateBuiltinCall(mut name: ArcStr, mut exp: Arc<Expression::NFExp
             let mut ret1: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut arg1: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut current_grad: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-            let mut isReverse: bool = Util::isSome(diffArguments.adjoint_map.clone());
             let mut nExp: i32 = 0;
             arg1 = (::match_deref::match_deref! { match &(Call::arguments(var_field!((*exp).call, Expression::NFExpression::CALL).clone())?) {
         Deref @ metamodelica::List::Cons { head: arg1, tail: Deref @ metamodelica::List::Nil } => arg1.clone(),
@@ -1387,7 +1275,6 @@ pub fn differentiateBuiltinCall(mut name: ArcStr, mut exp: Arc<Expression::NFExp
             let mut grad_x: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut ty: Arc<Type::NFType> = Arc::new(Type::ANY);
             let mut rX: i32 = 0;
-            let mut isReverse: bool = Util::isSome(diffArguments.adjoint_map.clone());
             arg1 = (::match_deref::match_deref! { match &(Call::arguments(var_field!((*exp).call, Expression::NFExpression::CALL).clone())?) {
         Deref @ metamodelica::List::Cons { head: arg1, tail: Deref @ metamodelica::List::Nil } => arg1.clone(),
         _ => {
@@ -1417,10 +1304,9 @@ pub fn differentiateBuiltinCall(mut name: ArcStr, mut exp: Arc<Expression::NFExp
             assign_variant_field!(exp => Expression::NFExpression::CALL; call = Call::setArguments(var_field!((*exp).call, Expression::NFExpression::CALL).clone(), list![ret1.clone()])?);
             exp.clone()
         },
-        Deref @ Expression::CALL { .. } if (List::contains(list![(literal!("pre")).clone(), (literal!("noEvent")).clone(), (literal!("scalar")).clone(), (literal!("vector")).clone(), (literal!("transpose")).clone(), (literal!("skew")).clone()], (name.clone()).clone(), Arc::new(fnptr!(stringEqual, ArcStr, ArcStr)))) => {
+        Deref @ Expression::CALL { .. } if (List::contains(list![(literal!("pre")).clone(), (literal!("noEvent")).clone(), (literal!("scalar")).clone(), (literal!("vector")).clone(), (literal!("transpose")).clone(), (literal!("skew")).clone()], (name.clone()).clone(), (std::sync::Arc::new(fnptr!(stringEqual, ArcStr, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>))) => {
             let mut ret1: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut arg1: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-            let mut isReverse: bool = Util::isSome(diffArguments.adjoint_map.clone());
             arg1 = (::match_deref::match_deref! { match &(Call::arguments(var_field!((*exp).call, Expression::NFExpression::CALL).clone())?) {
         Deref @ metamodelica::List::Cons { head: arg1, tail: Deref @ metamodelica::List::Nil } => arg1.clone(),
         _ => {
@@ -1433,12 +1319,11 @@ pub fn differentiateBuiltinCall(mut name: ArcStr, mut exp: Arc<Expression::NFExp
             assign_variant_field!(exp => Expression::NFExpression::CALL; call = Call::setArguments(var_field!((*exp).call, Expression::NFExpression::CALL).clone(), list![ret1.clone()])?);
             exp.clone()
         },
-        Deref @ Expression::CALL { .. } if (List::contains(list![(literal!("homotopy")).clone(), (literal!("$OMC$inStreamDiv")).clone()], (name.clone()).clone(), Arc::new(fnptr!(stringEqual, ArcStr, ArcStr)))) => {
+        Deref @ Expression::CALL { .. } if (List::contains(list![(literal!("homotopy")).clone(), (literal!("$OMC$inStreamDiv")).clone()], (name.clone()).clone(), (std::sync::Arc::new(fnptr!(stringEqual, ArcStr, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>))) => {
             let mut ret1: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut ret2: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut arg1: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut arg2: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-            let mut isReverse: bool = Util::isSome(diffArguments.adjoint_map.clone());
             (arg1, arg2) = (::match_deref::match_deref! { match &(Call::arguments(var_field!((*exp).call, Expression::NFExpression::CALL).clone())?) {
         Deref @ metamodelica::List::Cons { head: arg1, tail: Deref @ metamodelica::List::Cons { head: arg2, tail: Deref @ metamodelica::List::Nil } } => (arg1.clone(), arg2.clone()),
         _ => {
@@ -1457,7 +1342,6 @@ pub fn differentiateBuiltinCall(mut name: ArcStr, mut exp: Arc<Expression::NFExp
             let mut arg1: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut rest: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
             let mut diffRest: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
-            let mut isReverse: bool = Util::isSome(diffArguments.adjoint_map.clone());
             if isReverse.clone() {
                 Error::addInternalError(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("NBDifferentiate.differentiateBuiltinCall")); __mm_s.push_str(&*literal!(" failed for: ")); __mm_s.push_str(&*Expression::toString(exp.clone())?); __mm_s.push_str(&*literal!("\nReverse Mode not implemented for `cat()`.")); ArcStr::from(__mm_s) }).clone(), metamodelica::sourceInfo!())?;
                 bail!("fail");
@@ -1485,7 +1369,6 @@ pub fn differentiateBuiltinCall(mut name: ArcStr, mut exp: Arc<Expression::NFExp
             let mut old_grad: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut rY: i32 = 0;
             let mut rX: i32 = 0;
-            let mut isReverse: bool = Util::isSome(diffArguments.adjoint_map.clone());
             (arg1, arg2) = (::match_deref::match_deref! { match &(Call::arguments(var_field!((*exp).call, Expression::NFExpression::CALL).clone())?) {
         Deref @ metamodelica::List::Cons { head: arg1, tail: Deref @ metamodelica::List::Cons { head: arg2, tail: Deref @ metamodelica::List::Nil } } => (arg1.clone(), arg2.clone()),
         _ => {
@@ -1513,7 +1396,6 @@ pub fn differentiateBuiltinCall(mut name: ArcStr, mut exp: Arc<Expression::NFExp
         },
         Deref @ Expression::CALL { .. } if (name.clone() == literal!("identity")) => {
             let mut arg1: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-            let mut isReverse: bool = Util::isSome(diffArguments.adjoint_map.clone());
             arg1 = (::match_deref::match_deref! { match &(Call::arguments(var_field!((*exp).call, Expression::NFExpression::CALL).clone())?) {
         Deref @ metamodelica::List::Cons { head: arg1, tail: Deref @ metamodelica::List::Nil } => arg1.clone(),
         _ => {
@@ -1532,7 +1414,6 @@ pub fn differentiateBuiltinCall(mut name: ArcStr, mut exp: Arc<Expression::NFExp
             let mut rest: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
             let mut rY: i32 = 0;
             let mut rX: i32 = 0;
-            let mut isReverse: bool = Util::isSome(diffArguments.adjoint_map.clone());
             let (__pa0, __pa1) = ::match_deref::match_deref! { match &(Call::arguments(var_field!((*exp).call, Expression::NFExpression::CALL).clone())?) {
                 Deref @ metamodelica::List::Cons { head: __pa0, tail: __pa1 } => (__pa0.clone(), __pa1.clone()),
                 _ => bail!("pattern mismatch"),
@@ -1570,7 +1451,6 @@ pub fn differentiateBuiltinCall(mut name: ArcStr, mut exp: Arc<Expression::NFExp
             let mut cond: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut grad_x: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut ty: Arc<Type::NFType> = Arc::new(Type::ANY);
-            let mut isReverse: bool = Util::isSome(diffArguments.adjoint_map.clone());
             (arg1, arg2, arg3) = (::match_deref::match_deref! { match &(Call::arguments(var_field!((*exp).call, Expression::NFExpression::CALL).clone())?) {
         Deref @ metamodelica::List::Cons { head: arg1, tail: Deref @ metamodelica::List::Cons { head: arg2, tail: Deref @ metamodelica::List::Cons { head: arg3, tail: Deref @ metamodelica::List::Nil } } } => (arg1.clone(), arg2.clone(), arg3.clone()),
         _ => {
@@ -1616,7 +1496,6 @@ pub fn differentiateBuiltinCall(mut name: ArcStr, mut exp: Arc<Expression::NFExp
             let mut grad_y: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut old_grad: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut ty: Arc<Type::NFType> = Arc::new(Type::ANY);
-            let mut isReverse: bool = Util::isSome(diffArguments.adjoint_map.clone());
             ret = (::match_deref::match_deref! { match &(Call::arguments(var_field!((*exp).call, Expression::NFExpression::CALL).clone())?) {
         Deref @ metamodelica::List::Cons { head: arg1, tail: Deref @ metamodelica::List::Nil } => {
             (diffArg1, diffArguments) = differentiateExpression(arg1.clone(), diffArguments.clone())?;
@@ -1670,7 +1549,6 @@ pub fn differentiateBuiltinCall(mut name: ArcStr, mut exp: Arc<Expression::NFExp
             let mut arg1: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut diffArg1: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut current_grad: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-            let mut isReverse: bool = Util::isSome(diffArguments.adjoint_map.clone());
             arg1 = (::match_deref::match_deref! { match &(Call::arguments(var_field!((*exp).call, Expression::NFExpression::CALL).clone())?) {
         Deref @ metamodelica::List::Cons { head: arg1, tail: Deref @ metamodelica::List::Nil } => arg1.clone(),
         _ => {
@@ -1698,7 +1576,6 @@ pub fn differentiateBuiltinCall(mut name: ArcStr, mut exp: Arc<Expression::NFExp
             let mut diffArg1: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut diffArg2: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut current_grad: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-            let mut isReverse: bool = Util::isSome(diffArguments.adjoint_map.clone());
             (arg1, arg2) = (::match_deref::match_deref! { match &(Call::arguments(var_field!((*exp).call, Expression::NFExpression::CALL).clone())?) {
         Deref @ metamodelica::List::Cons { head: arg1, tail: Deref @ metamodelica::List::Cons { head: arg2, tail: Deref @ metamodelica::List::Nil } } => (arg1.clone(), arg2.clone()),
         _ => {
@@ -1721,7 +1598,6 @@ pub fn differentiateBuiltinCall(mut name: ArcStr, mut exp: Arc<Expression::NFExp
         },
         Deref @ Expression::CALL { .. } => {
             let mut ret: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-            let mut isReverse: bool = Util::isSome(diffArguments.adjoint_map.clone());
             ret = (::match_deref::match_deref! { match &(Call::functionNameLast(var_field!((*exp).call, Expression::NFExpression::CALL).clone())) {
         Deref @ "sample" => Arc::new(Expression::NFExpression::BOOLEAN { value: false }),
         _ => {
@@ -1733,12 +1609,12 @@ pub fn differentiateBuiltinCall(mut name: ArcStr, mut exp: Arc<Expression::NFExp
             ret.clone()
         },
         _ => {
-            let mut isReverse: bool = Util::isSome(diffArguments.adjoint_map.clone());
             Error::addMessage(Error::INTERNAL_ERROR.clone(), list![({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("NBDifferentiate.differentiateBuiltinCall")); __mm_s.push_str(&*literal!(" failed because of non-call expression: ")); __mm_s.push_str(&*Expression::toString(exp.clone())?); ArcStr::from(__mm_s) }).clone()])?;
             bail!("fail")
         },
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
-    } });
+    } })
+    });
     Ok((exp, diffArguments))
 }
 
@@ -1915,7 +1791,7 @@ pub fn addDiffInfo(mut func: Arc<Function::Function>, mut der_func: Arc<Function
     let mut diffInfo: Arc<UnorderedSet::UnorderedSet<Arc<InstNode::InstNode>>>;
     diffInfo = (::match_deref::match_deref! { match &(func.interfaceDiffInfo.clone()) {
         Some(diffInfo) => UnorderedSet::copy(diffInfo.clone()),
-        _ => UnorderedSet::new(fnptr!(InstNode::hash, Arc<InstNode::InstNode>), fnptr!(InstNode::nameEqual, Arc<InstNode::InstNode>, Arc<InstNode::InstNode>), 13),
+        _ => UnorderedSet::new((std::sync::Arc::new(fnptr!(InstNode::hash, Arc<InstNode::InstNode>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<InstNode::InstNode>) -> Result<i32> + 'static>), (std::sync::Arc::new(fnptr!(InstNode::nameEqual, Arc<InstNode::InstNode>, Arc<InstNode::InstNode>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<InstNode::InstNode>, Arc<InstNode::InstNode>) -> Result<bool> + 'static>), 13),
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
     } });
     for mut node in &*func.inputs.clone() {
@@ -1928,17 +1804,18 @@ pub fn addDiffInfo(mut func: Arc<Function::Function>, mut der_func: Arc<Function
 }
 
 pub fn differentiateFunction(mut func: Arc<Function::Function>, mut interface_map: Arc<UnorderedMap::UnorderedMap<ArcStr, bool>>, mut diffArguments: Arc<DifferentiationArguments::DifferentiationArguments>) -> Result<(Arc<Function::Function>, Arc<DifferentiationArguments::DifferentiationArguments>)> {
-    let mut der_func: Arc<Function::Function>;
+    let mut der_func: Arc<Function::Function> = Arc::new(<Function::Function as ::std::default::Default>::default());
     let mut diffArguments: Arc<DifferentiationArguments::DifferentiationArguments> = diffArguments;
-    der_func = (::match_deref::match_deref! { match &(func.clone()) {
+    der_func = ({
+        let mut diff_map: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>>> = UnorderedMap::new((std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), 1);
+        (::match_deref::match_deref! { match &(func.clone()) {
         der_func @ Deref @ NFFunction::Function::FUNCTION { node: node @ Deref @ InstNode::CLASS_NODE { cls, .. }, .. } => {
             let mut new_cls: Arc<Class::NFClass> = Arc::new(Class::NOT_INSTANTIATED);
             let mut funcDiffArgs: Arc<DifferentiationArguments::DifferentiationArguments>;
-            let mut diff_map: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>>> = UnorderedMap::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>), ComponentRef::isEqual, 1);
             let mut diffInfo: Arc<UnorderedSet::UnorderedSet<Arc<InstNode::InstNode>>>;
             let mut algorithms: Arc<metamodelica::List<Arc<Algorithm::NFAlgorithm>>> = metamodelica::nil();
-            let mut funcDer: Arc<FunctionDerivative::NFFunctionDerivative>;
-            let mut dummy_func: Arc<Function::Function>;
+            let mut funcDer: Arc<FunctionDerivative::NFFunctionDerivative> = Arc::new(<FunctionDerivative::NFFunctionDerivative as ::std::default::Default>::default());
+            let mut dummy_func: Arc<Function::Function> = Arc::new(<Function::Function as ::std::default::Default>::default());
             let mut cachedData: Arc<CachedData::CachedData> = Arc::new(CachedData::NO_CACHE);
             let mut der_func_name: ArcStr = arcstr::literal!("");
             let mut inputs: Arc<metamodelica::List<Arc<InstNode::InstNode>>> = metamodelica::nil();
@@ -1946,6 +1823,8 @@ pub fn differentiateFunction(mut func: Arc<Function::Function>, mut interface_ma
             let mut outputs: Arc<metamodelica::List<Arc<InstNode::InstNode>>> = metamodelica::nil();
             let mut local_outputs: Arc<metamodelica::List<Arc<InstNode::InstNode>>> = metamodelica::nil();
             let mut slots: Arc<metamodelica::List<Arc<Slot::Slot>>> = metamodelica::nil();
+            let mut der_func = (*der_func).clone();
+            let mut node = (*node).clone();
             new_cls = (::match_deref::match_deref! { match &(Pointer::access(cls.clone())) {
         new_cls @ Deref @ Class::INSTANCED_CLASS { .. } => {
             let mut new_cls = (*new_cls).clone();
@@ -1965,14 +1844,14 @@ pub fn differentiateFunction(mut func: Arc<Function::Function>, mut interface_ma
         }
         __acc.reverse()
     };
-            funcDiffArgs = DifferentiationArguments::default(DifferentiationType::TIME.clone(), UnorderedMap::new(AbsynUtil::pathHash, fnptr!(AbsynUtil::pathEqual, Arc<Path>, Arc<Path>), 1));
+            funcDiffArgs = DifferentiationArguments::default(DifferentiationType::TIME.clone(), UnorderedMap::new((std::sync::Arc::new(AbsynUtil::pathHash) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Path>) -> Result<i32> + 'static>), (std::sync::Arc::new(fnptr!(AbsynUtil::pathEqual, Arc<Path>, Arc<Path>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Path>, Arc<Path>) -> Result<bool> + 'static>), 1));
             assign_field!(
                 funcDiffArgs.diffType = DifferentiationType::FUNCTION.clone(),
                 funcDiffArgs.funcMap = diffArguments.funcMap.clone()
             );
             diffInfo = (::match_deref::match_deref! { match &(der_func.interfaceDiffInfo.clone()) {
         Some(diffInfo) => UnorderedSet::copy(diffInfo.clone()),
-        _ => UnorderedSet::new(fnptr!(InstNode::hash, Arc<InstNode::InstNode>), fnptr!(InstNode::nameEqual, Arc<InstNode::InstNode>, Arc<InstNode::InstNode>), 13),
+        _ => UnorderedSet::new((std::sync::Arc::new(fnptr!(InstNode::hash, Arc<InstNode::InstNode>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<InstNode::InstNode>) -> Result<i32> + 'static>), (std::sync::Arc::new(fnptr!(InstNode::nameEqual, Arc<InstNode::InstNode>, Arc<InstNode::InstNode>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<InstNode::InstNode>, Arc<InstNode::InstNode>) -> Result<bool> + 'static>), 13),
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
     } });
             createInterfaceDerivatives(der_func.inputs.clone(), interface_map.clone(), diff_map.clone())?;
@@ -1994,8 +1873,8 @@ pub fn differentiateFunction(mut func: Arc<Function::Function>, mut interface_ma
             assign_variant_field!(node => InstNode::InstNode::CLASS_NODE; cls = Pointer::create(new_cls.clone()));
             der_func_name = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*arcstr::literal!(BVariable::FUNCTION_DERIVATIVE_STR)); __mm_s.push_str(&*intString((func.derivatives.clone().len() as i32))); ArcStr::from(__mm_s) }).clone();
             assign_variant_field!(node => InstNode::InstNode::CLASS_NODE;
-                name = { let mut __mm_s = String::new(); __mm_s.push_str(&*der_func_name.clone()); __mm_s.push_str(&*literal!(".")); __mm_s.push_str(&*var_field!((**node).name, InstNode::InstNode::CLASS_NODE).clone()); ArcStr::from(__mm_s) },
-                definition = SCodeUtil::setElementName(var_field!((**node).definition, InstNode::InstNode::CLASS_NODE).clone(), (var_field!((**node).name, InstNode::InstNode::CLASS_NODE).clone()).clone())
+                name = { let mut __mm_s = String::new(); __mm_s.push_str(&*der_func_name.clone()); __mm_s.push_str(&*literal!(".")); __mm_s.push_str(&*var_field!((*node).name, InstNode::InstNode::CLASS_NODE).clone()); ArcStr::from(__mm_s) },
+                definition = SCodeUtil::setElementName(var_field!((*node).definition, InstNode::InstNode::CLASS_NODE).clone(), (var_field!((*node).name, InstNode::InstNode::CLASS_NODE).clone()).clone())
             );
             assign_field!(
                 der_func.path = AbsynUtil::prefixPath((der_func_name.clone()).clone(), der_func.path.clone()),
@@ -2011,7 +1890,7 @@ pub fn differentiateFunction(mut func: Arc<Function::Function>, mut interface_ma
             funcDiffArgs = (::match_deref::match_deref! { match &(var_field!((*new_cls).sections, Class::NFClass::INSTANCED_CLASS).clone()) {
         sections @ Deref @ Sections::SECTIONS { .. } => {
             let mut sections = (*sections).clone();
-            (algorithms, funcDiffArgs) = List::mapFold(var_field!((*sections).algorithms, Sections::NFSections::SECTIONS).clone(), Arc::new(differentiateAlgorithm), funcDiffArgs.clone());
+            (algorithms, funcDiffArgs) = List::mapFold(var_field!((*sections).algorithms, Sections::NFSections::SECTIONS).clone(), (std::sync::Arc::new(differentiateAlgorithm) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Algorithm::NFAlgorithm>, Arc<DifferentiationArguments::DifferentiationArguments>) -> Result<(Arc<Algorithm::NFAlgorithm>, Arc<DifferentiationArguments::DifferentiationArguments>)> + 'static>), funcDiffArgs.clone());
             assign_variant_field!(sections => Sections::NFSections::SECTIONS; algorithms = algorithms.clone());
             assign_variant_field!(new_cls => Class::NFClass::INSTANCED_CLASS; sections = sections.clone());
             funcDiffArgs.clone()
@@ -2045,12 +1924,12 @@ pub fn differentiateFunction(mut func: Arc<Function::Function>, mut interface_ma
             der_func.clone()
         },
         _ => {
-            let mut diff_map: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>>> = UnorderedMap::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>), ComponentRef::isEqual, 1);
             Error::addMessage(Error::INTERNAL_ERROR.clone(), list![({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("NBDifferentiate.differentiateFunction")); __mm_s.push_str(&*literal!(" failed for uninstantiated function ")); __mm_s.push_str(&*NFFunction::Function::signatureString(func.clone(), true)?); __mm_s.push_str(&*literal!(".")); ArcStr::from(__mm_s) }).clone()])?;
             bail!("fail")
         },
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
-    } });
+    } })
+    });
     if Flags::isSet(Flags::DEBUG_DIFFERENTIATION.clone())? {
         println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n[BEFORE] ")); __mm_s.push_str(&*NFFunction::Function::toFlatString(func.clone(), BaseModelica::defaultFormat.clone(), (literal!("")).clone())?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
         println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n[AFTER ] ")); __mm_s.push_str(&*NFFunction::Function::toFlatString(der_func.clone(), BaseModelica::defaultFormat.clone(), (literal!("")).clone())?); __mm_s.push_str(&*literal!("\n\n")); ArcStr::from(__mm_s) }).clone());
@@ -2085,8 +1964,8 @@ pub fn differentiateFunctionInterfaceNode(mut node: Arc<InstNode::InstNode>, mut
     let mut diff_cref: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
     let mut comp: Arc<Component::NFComponent> = Arc::new(Component::WILD);
     let mut binding: Arc<Binding::NFBinding> = Arc::new(Binding::UNBOUND);
-    let mut func: Arc<Function::Function>;
-    let mut d_func: Arc<Function::Function>;
+    let mut func: Arc<Function::Function> = Arc::new(<Function::Function as ::std::default::Default>::default());
+    let mut d_func: Arc<Function::Function> = Arc::new(<Function::Function as ::std::default::Default>::default());
     cref = ComponentRef::fromNode(node.clone(), InstNode::getType(node.clone())?, metamodelica::nil(), ComponentRef::Origin::CREF.clone());
     diff_cref = UnorderedMap::getSafe(cref.clone(), diff_map.clone(), metamodelica::sourceInfo!())?;
     diff_cref = (::match_deref::match_deref! { match &(diff_cref.clone()) {
@@ -2112,7 +1991,7 @@ pub fn differentiateFunctionInterfaceNode(mut node: Arc<InstNode::InstNode>, mut
     } });
     if InstNode::isFunction(node.clone())? {
         func = listHead(NFFunction::Function::getCachedFuncs(node.clone())?)?;
-        (d_func, diffArgs) = differentiateFunction(func.clone(), UnorderedMap::new(fnptr!(stringHashDjb2, ArcStr), fnptr!(stringEqual, ArcStr, ArcStr), 1), diffArgs.clone())?;
+        (d_func, diffArgs) = differentiateFunction(func.clone(), UnorderedMap::new((std::sync::Arc::new(fnptr!(stringHashDjb2, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr) -> Result<i32> + 'static>), (std::sync::Arc::new(fnptr!(stringEqual, ArcStr, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>), 1), diffArgs.clone())?;
     }
     d_node = ComponentRef::node(diff_cref.clone())?;
     Ok((d_node, diffArgs))
@@ -2166,16 +2045,16 @@ pub fn createSlotDerivatives(mut slots: Arc<metamodelica::List<Arc<Slot::Slot>>>
 
 pub fn resolvePartialDerivatives(mut func: Arc<Function::Function>, mut funcMap: Arc<UnorderedMap::UnorderedMap<Arc<Path>, Arc<Function::Function>>>) -> Result<Arc<Function::Function>> {
     let mut func: Arc<Function::Function> = func;
-    let mut der_func: Arc<Function::Function>;
+    let mut der_func: Arc<Function::Function> = Arc::new(<Function::Function as ::std::default::Default>::default());
     let mut node: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
     let mut cls: Pointer::Pointer<Arc<Class::NFClass>>;
     let mut tmp_cls: Pointer::Pointer<Arc<Class::NFClass>>;
     let mut new_cls: Arc<Class::NFClass> = Arc::new(Class::NOT_INSTANTIATED);
     let mut wrap_cls: Arc<Class::NFClass> = Arc::new(Class::NOT_INSTANTIATED);
     let mut sections: Arc<Sections::NFSections> = Arc::new(Sections::EMPTY);
-    let mut diff_map: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>>> = UnorderedMap::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>), ComponentRef::isEqual, 1);
+    let mut diff_map: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>>> = UnorderedMap::new((std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), 1);
     let mut interface_map: Arc<UnorderedMap::UnorderedMap<ArcStr, bool>>;
-    let mut diffArgs: Arc<DifferentiationArguments::DifferentiationArguments> = DifferentiationArguments::default(DifferentiationType::TIME.clone(), UnorderedMap::new(AbsynUtil::pathHash, fnptr!(AbsynUtil::pathEqual, Arc<Path>, Arc<Path>), 1));
+    let mut diffArgs: Arc<DifferentiationArguments::DifferentiationArguments> = DifferentiationArguments::default(DifferentiationType::TIME.clone(), UnorderedMap::new((std::sync::Arc::new(AbsynUtil::pathHash) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Path>) -> Result<i32> + 'static>), (std::sync::Arc::new(fnptr!(AbsynUtil::pathEqual, Arc<Path>, Arc<Path>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Path>, Arc<Path>) -> Result<bool> + 'static>), 1));
     let mut diffInfo: Arc<UnorderedSet::UnorderedSet<Arc<InstNode::InstNode>>>;
     let mut algorithms: Arc<metamodelica::List<Arc<Algorithm::NFAlgorithm>>> = metamodelica::nil();
     let mut cachedData: Arc<CachedData::CachedData> = Arc::new(CachedData::NO_CACHE);
@@ -2187,9 +2066,11 @@ pub fn resolvePartialDerivatives(mut func: Arc<Function::Function>, mut funcMap:
     let mut changed: bool = false;
     func = (::match_deref::match_deref! { match &(func.clone()) {
         der_func @ Deref @ NFFunction::Function::FUNCTION { node: Deref @ InstNode::CLASS_NODE { cls, .. }, .. } => {
+            let mut der_func = (*der_func).clone();
             wrap_cls = Pointer::access(cls.clone());
             new_cls = (::match_deref::match_deref! { match &(wrap_cls.clone()) {
         wrap_cls @ Deref @ Class::TYPED_DERIVED { baseClass: node @ Deref @ InstNode::CLASS_NODE { cls: tmp_cls, .. }, .. } => {
+            let mut node = (*node).clone();
             new_cls = (::match_deref::match_deref! { match &(Pointer::access(tmp_cls.clone())) {
         new_cls @ Deref @ Class::INSTANCED_CLASS { sections: sections @ Deref @ Sections::SECTIONS { algorithms, .. }, .. } => {
             let mut new_cls = (*new_cls).clone();
@@ -2201,7 +2082,7 @@ pub fn resolvePartialDerivatives(mut func: Arc<Function::Function>, mut funcMap:
             );
             diffInfo = (::match_deref::match_deref! { match &(der_func.interfaceDiffInfo.clone()) {
         Some(diffInfo) => UnorderedSet::copy(diffInfo.clone()),
-        _ => UnorderedSet::new(fnptr!(InstNode::hash, Arc<InstNode::InstNode>), fnptr!(InstNode::nameEqual, Arc<InstNode::InstNode>, Arc<InstNode::InstNode>), 13),
+        _ => UnorderedSet::new((std::sync::Arc::new(fnptr!(InstNode::hash, Arc<InstNode::InstNode>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<InstNode::InstNode>) -> Result<i32> + 'static>), (std::sync::Arc::new(fnptr!(InstNode::nameEqual, Arc<InstNode::InstNode>, Arc<InstNode::InstNode>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<InstNode::InstNode>, Arc<InstNode::InstNode>) -> Result<bool> + 'static>), 13),
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
     } });
             interface_map = UnorderedMap::fromLists({
@@ -2211,7 +2092,7 @@ pub fn resolvePartialDerivatives(mut func: Arc<Function::Function>, mut funcMap:
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, List::fill(false, (der_func.inputs.clone().len() as i32)), fnptr!(stringHashDjb2, ArcStr), fnptr!(stringEqual, ArcStr, ArcStr))?;
+    }, List::fill(false, (der_func.inputs.clone().len() as i32)), (std::sync::Arc::new(fnptr!(stringHashDjb2, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr) -> Result<i32> + 'static>), (std::sync::Arc::new(fnptr!(stringEqual, ArcStr, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>))?;
             for mut var in &*List::getAtIndexLst(der_func.inputs.clone(), der_func.derivedInputs.clone(), false) {
                 let mut var = var.clone();
                 UnorderedMap::remove((InstNode::name(var.clone())?).clone(), interface_map.clone())?;
@@ -2243,7 +2124,7 @@ pub fn resolvePartialDerivatives(mut func: Arc<Function::Function>, mut funcMap:
                     der_func.outputs = outputs.clone(),
                     der_func.interfaceDiffInfo = Some(diffInfo.clone())
                 );
-                (algorithms, diffArgs) = List::mapFold(algorithms.clone(), Arc::new(differentiateAlgorithm), diffArgs.clone());
+                (algorithms, diffArgs) = List::mapFold(algorithms.clone(), (std::sync::Arc::new(differentiateAlgorithm) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Algorithm::NFAlgorithm>, Arc<DifferentiationArguments::DifferentiationArguments>) -> Result<(Arc<Algorithm::NFAlgorithm>, Arc<DifferentiationArguments::DifferentiationArguments>)> + 'static>), diffArgs.clone());
                 algorithms = Algorithm::mapExpList(algorithms.clone(), Arc::new({ let __pe_b1 = Expression::fromCref(diffCref.clone(), false)?; let __pe_b2 = Expression::makeOne(ComponentRef::getSubscriptedType(diffCref.clone(), false)?)?; move |__pe_a0| Replacements::single(__pe_a0, __pe_b1.clone(), __pe_b2.clone()) }));
                 UnorderedMap::add((InstNode::name(var.clone())?).clone(), false, interface_map.clone())?;
             }
@@ -2297,7 +2178,7 @@ pub fn differentiateAlgorithm(mut alg: Arc<Algorithm::NFAlgorithm>, mut diffArgu
     let mut diffInfo: Arc<UnorderedSet::UnorderedSet<Arc<Statement::NFStatement>>>;
     diffInfo = (::match_deref::match_deref! { match &(alg.stmtDiffInfo.clone()) {
         Some(diffInfo) => UnorderedSet::copy(diffInfo.clone()),
-        _ => UnorderedSet::new(fnptr!(Statement::hash, Arc<Statement::NFStatement>), Statement::isEqual, 13),
+        _ => UnorderedSet::new((std::sync::Arc::new(fnptr!(Statement::hash, Arc<Statement::NFStatement>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Statement::NFStatement>) -> Result<i32> + 'static>), (std::sync::Arc::new(Statement::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Statement::NFStatement>, Arc<Statement::NFStatement>) -> Result<bool> + 'static>), 13),
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
     } });
     (statements, diffArguments) = List::mapFold(alg.statements.clone(), Arc::new({ let __pe_b1 = diffInfo.clone(); move |__pe_a0, __pe_a2| differentiateStatement(__pe_a0, __pe_b1.clone(), __pe_a2) }), diffArguments.clone());
@@ -2314,15 +2195,15 @@ pub fn differentiateAlgorithm(mut alg: Arc<Algorithm::NFAlgorithm>, mut diffArgu
 pub fn differentiateStatement(mut stmt: Arc<Statement::NFStatement>, mut diffInfo: Arc<UnorderedSet::UnorderedSet<Arc<Statement::NFStatement>>>, mut diffArguments: Arc<DifferentiationArguments::DifferentiationArguments>) -> Result<(Arc<metamodelica::List<Arc<Statement::NFStatement>>>, Arc<DifferentiationArguments::DifferentiationArguments>)> {
     let mut diff_stmts: Arc<metamodelica::List<Arc<Statement::NFStatement>>> = metamodelica::nil();
     let mut diffArguments: Arc<DifferentiationArguments::DifferentiationArguments> = diffArguments;
-    diff_stmts = (::match_deref::match_deref! { match &(stmt.clone()) {
+    diff_stmts = ({
+        let mut branches: Arc<metamodelica::List<(Arc<Expression::NFExpression>, Arc<metamodelica::List<Arc<Statement::NFStatement>>>)>> = metamodelica::nil();
+        (::match_deref::match_deref! { match &(stmt.clone()) {
         _ if (UnorderedSet::contains(stmt.clone(), diffInfo.clone())?) => {
-            let mut branches: Arc<metamodelica::List<(Arc<Expression::NFExpression>, Arc<metamodelica::List<Arc<Statement::NFStatement>>>)>> = metamodelica::nil();
             list![stmt.clone()]
         },
         diff_stmt @ Deref @ Statement::ASSIGNMENT { .. } if (Type::isReal(Type::arrayElementType(Expression::typeOf(var_field!((**diff_stmt).lhs, Statement::NFStatement::ASSIGNMENT).clone())))) => {
             let mut lhs: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut rhs: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-            let mut branches: Arc<metamodelica::List<(Arc<Expression::NFExpression>, Arc<metamodelica::List<Arc<Statement::NFStatement>>>)>> = metamodelica::nil();
             let mut diff_stmt = (*diff_stmt).clone();
             (lhs, diffArguments) = differentiateExpression(var_field!((*diff_stmt).lhs, Statement::NFStatement::ASSIGNMENT).clone(), diffArguments.clone())?;
             (rhs, diffArguments) = differentiateExpression(var_field!((*diff_stmt).rhs, Statement::NFStatement::ASSIGNMENT).clone(), diffArguments.clone())?;
@@ -2334,7 +2215,6 @@ pub fn differentiateStatement(mut stmt: Arc<Statement::NFStatement>, mut diffInf
         },
         diff_stmt @ Deref @ Statement::FOR { .. } => {
             let mut branch_stmts: Arc<metamodelica::List<Arc<metamodelica::List<Arc<Statement::NFStatement>>>>> = metamodelica::nil();
-            let mut branches: Arc<metamodelica::List<(Arc<Expression::NFExpression>, Arc<metamodelica::List<Arc<Statement::NFStatement>>>)>> = metamodelica::nil();
             let mut diff_stmt = (*diff_stmt).clone();
             (branch_stmts, diffArguments) = List::mapFold(var_field!((*diff_stmt).body, Statement::NFStatement::FOR).clone(), Arc::new({ let __pe_b1 = diffInfo.clone(); move |__pe_a0, __pe_a2| differentiateStatement(__pe_a0, __pe_b1.clone(), __pe_a2) }), diffArguments.clone());
             assign_variant_field!(diff_stmt => Statement::NFStatement::FOR; body = List::flatten(branch_stmts.clone()));
@@ -2342,7 +2222,6 @@ pub fn differentiateStatement(mut stmt: Arc<Statement::NFStatement>, mut diffInf
         },
         diff_stmt @ Deref @ Statement::WHILE { .. } => {
             let mut branch_stmts: Arc<metamodelica::List<Arc<metamodelica::List<Arc<Statement::NFStatement>>>>> = metamodelica::nil();
-            let mut branches: Arc<metamodelica::List<(Arc<Expression::NFExpression>, Arc<metamodelica::List<Arc<Statement::NFStatement>>>)>> = metamodelica::nil();
             let mut diff_stmt = (*diff_stmt).clone();
             (branch_stmts, diffArguments) = List::mapFold(var_field!((*diff_stmt).body, Statement::NFStatement::WHILE).clone(), Arc::new({ let __pe_b1 = diffInfo.clone(); move |__pe_a0, __pe_a2| differentiateStatement(__pe_a0, __pe_b1.clone(), __pe_a2) }), diffArguments.clone());
             assign_variant_field!(diff_stmt => Statement::NFStatement::WHILE; body = List::flatten(branch_stmts.clone()));
@@ -2350,7 +2229,6 @@ pub fn differentiateStatement(mut stmt: Arc<Statement::NFStatement>, mut diffInf
         },
         diff_stmt @ Deref @ Statement::FAILURE { .. } => {
             let mut branch_stmts: Arc<metamodelica::List<Arc<metamodelica::List<Arc<Statement::NFStatement>>>>> = metamodelica::nil();
-            let mut branches: Arc<metamodelica::List<(Arc<Expression::NFExpression>, Arc<metamodelica::List<Arc<Statement::NFStatement>>>)>> = metamodelica::nil();
             let mut diff_stmt = (*diff_stmt).clone();
             (branch_stmts, diffArguments) = List::mapFold(var_field!((*diff_stmt).body, Statement::NFStatement::FAILURE).clone(), Arc::new({ let __pe_b1 = diffInfo.clone(); move |__pe_a0, __pe_a2| differentiateStatement(__pe_a0, __pe_b1.clone(), __pe_a2) }), diffArguments.clone());
             assign_variant_field!(diff_stmt => Statement::NFStatement::FAILURE; body = List::flatten(branch_stmts.clone()));
@@ -2360,7 +2238,6 @@ pub fn differentiateStatement(mut stmt: Arc<Statement::NFStatement>, mut diffInf
             let mut exp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut branch_stmts_flat: Arc<metamodelica::List<Arc<Statement::NFStatement>>> = metamodelica::nil();
             let mut branch_stmts: Arc<metamodelica::List<Arc<metamodelica::List<Arc<Statement::NFStatement>>>>> = metamodelica::nil();
-            let mut branches: Arc<metamodelica::List<(Arc<Expression::NFExpression>, Arc<metamodelica::List<Arc<Statement::NFStatement>>>)>> = metamodelica::nil();
             let mut diff_stmt = (*diff_stmt).clone();
             for mut branch in &*var_field!((*diff_stmt).branches, Statement::NFStatement::IF).clone() {
                 let mut branch = branch.clone();
@@ -2375,7 +2252,6 @@ pub fn differentiateStatement(mut stmt: Arc<Statement::NFStatement>, mut diffInf
             let mut exp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut branch_stmts_flat: Arc<metamodelica::List<Arc<Statement::NFStatement>>> = metamodelica::nil();
             let mut branch_stmts: Arc<metamodelica::List<Arc<metamodelica::List<Arc<Statement::NFStatement>>>>> = metamodelica::nil();
-            let mut branches: Arc<metamodelica::List<(Arc<Expression::NFExpression>, Arc<metamodelica::List<Arc<Statement::NFStatement>>>)>> = metamodelica::nil();
             let mut diff_stmt = (*diff_stmt).clone();
             for mut branch in &*var_field!((*diff_stmt).branches, Statement::NFStatement::WHEN).clone() {
                 let mut branch = branch.clone();
@@ -2387,40 +2263,33 @@ pub fn differentiateStatement(mut stmt: Arc<Statement::NFStatement>, mut diffInf
             list![diff_stmt.clone()]
         },
         Deref @ Statement::ASSIGNMENT { .. } => {
-            let mut branches: Arc<metamodelica::List<(Arc<Expression::NFExpression>, Arc<metamodelica::List<Arc<Statement::NFStatement>>>)>> = metamodelica::nil();
             list![stmt.clone()]
         },
         Deref @ Statement::FUNCTION_ARRAY_INIT { .. } => {
-            let mut branches: Arc<metamodelica::List<(Arc<Expression::NFExpression>, Arc<metamodelica::List<Arc<Statement::NFStatement>>>)>> = metamodelica::nil();
             list![stmt.clone()]
         },
         Deref @ Statement::ASSERT { .. } => {
-            let mut branches: Arc<metamodelica::List<(Arc<Expression::NFExpression>, Arc<metamodelica::List<Arc<Statement::NFStatement>>>)>> = metamodelica::nil();
             list![stmt.clone()]
         },
         Deref @ Statement::TERMINATE { .. } => {
-            let mut branches: Arc<metamodelica::List<(Arc<Expression::NFExpression>, Arc<metamodelica::List<Arc<Statement::NFStatement>>>)>> = metamodelica::nil();
             list![stmt.clone()]
         },
         Deref @ Statement::NORETCALL { .. } => {
-            let mut branches: Arc<metamodelica::List<(Arc<Expression::NFExpression>, Arc<metamodelica::List<Arc<Statement::NFStatement>>>)>> = metamodelica::nil();
             list![stmt.clone()]
         },
         Deref @ Statement::RETURN { .. } => {
-            let mut branches: Arc<metamodelica::List<(Arc<Expression::NFExpression>, Arc<metamodelica::List<Arc<Statement::NFStatement>>>)>> = metamodelica::nil();
             list![stmt.clone()]
         },
         Deref @ Statement::BREAK { .. } => {
-            let mut branches: Arc<metamodelica::List<(Arc<Expression::NFExpression>, Arc<metamodelica::List<Arc<Statement::NFStatement>>>)>> = metamodelica::nil();
             list![stmt.clone()]
         },
         _ => {
-            let mut branches: Arc<metamodelica::List<(Arc<Expression::NFExpression>, Arc<metamodelica::List<Arc<Statement::NFStatement>>>)>> = metamodelica::nil();
             Error::addMessage(Error::INTERNAL_ERROR.clone(), list![({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("NBDifferentiate.differentiateStatement")); __mm_s.push_str(&*literal!(" failed for:")); __mm_s.push_str(&*Statement::toString(stmt.clone(), (literal!("")).clone())?); ArcStr::from(__mm_s) }).clone()])?;
             bail!("fail")
         },
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
-    } });
+    } })
+    });
     Ok((diff_stmts, diffArguments))
 }
 
@@ -2430,11 +2299,12 @@ pub fn differentiateBinary(mut exp: Arc<Expression::NFExpression>, mut diffArgum
     if Flags::isSet(Flags::DEBUG_ADJOINT.clone())? {
         println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("differentiateBinary: ")); __mm_s.push_str(&*Expression::toString(exp.clone())?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
     }
-    (exp, diffArguments) = (::match_deref::match_deref! { match &(exp.clone()) {
+    (exp, diffArguments) = ({
+        let mut isReverse: bool = Util::isSome(diffArguments.adjoint_map.clone());
+        (::match_deref::match_deref! { match &(exp.clone()) {
         Deref @ Expression::BINARY { exp2, operator, exp1 } if (Operator::getMathClassification(operator.clone())? == Operator::MathClassification::ADDITION.clone()) => {
             let mut diffExp1: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut diffExp2: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-            let mut isReverse: bool = Util::isSome(diffArguments.adjoint_map.clone());
             (diffExp1, diffArguments) = differentiateExpression(exp1.clone(), diffArguments.clone())?;
             (diffExp2, diffArguments) = differentiateExpression(exp2.clone(), diffArguments.clone())?;
             (Arc::new(Expression::NFExpression::MULTARY { arguments: list![diffExp1.clone(), diffExp2.clone()], inv_arguments: metamodelica::nil(), operator: operator.clone() }), diffArguments.clone())
@@ -2445,7 +2315,6 @@ pub fn differentiateBinary(mut exp: Arc<Expression::NFExpression>, mut diffArgum
             let mut addOp: Arc<Operator::NFOperator>;
             let mut sizeClass: Operator::SizeClassification = Operator::SizeClassification::SCALAR;
             let mut current_grad: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-            let mut isReverse: bool = Util::isSome(diffArguments.adjoint_map.clone());
             current_grad = diffArguments.current_grad.clone();
             (diffExp1, diffArguments) = differentiateExpression(exp1.clone(), diffArguments.clone())?;
             assign_field!(diffArguments.current_grad = Expression::negate(current_grad.clone()));
@@ -2473,7 +2342,6 @@ pub fn differentiateBinary(mut exp: Arc<Expression::NFExpression>, mut diffArgum
             let mut r2: i32 = 0;
             let mut dim1: Arc<metamodelica::List<i32>> = metamodelica::nil();
             let mut dim2: Arc<metamodelica::List<i32>> = metamodelica::nil();
-            let mut isReverse: bool = Util::isSome(diffArguments.adjoint_map.clone());
             if isReverse.clone() {
                 current_grad = diffArguments.current_grad.clone();
                 ty1 = Expression::typeOf(exp1.clone());
@@ -2531,7 +2399,6 @@ pub fn differentiateBinary(mut exp: Arc<Expression::NFExpression>, mut diffArgum
             let mut current_grad: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut denom2: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut numUF: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-            let mut isReverse: bool = Util::isSome(diffArguments.adjoint_map.clone());
             powSizeClass = Operator::SizeClassification::SCALAR.clone();
             powOp = Operator::fromClassification((Operator::MathClassification::POWER.clone(), powSizeClass.clone()), Arc::new(openmodelica_nf_frontend::NFType::REAL))?;
             if isReverse.clone() {
@@ -2555,7 +2422,6 @@ pub fn differentiateBinary(mut exp: Arc<Expression::NFExpression>, mut diffArgum
             (Arc::new(Expression::NFExpression::MULTARY { arguments: list![Arc::new(Expression::NFExpression::MULTARY { arguments: list![Arc::new(Expression::NFExpression::BINARY { exp1: diffExp1.clone(), operator: mulOp.clone(), exp2: exp2.clone() })], inv_arguments: list![Arc::new(Expression::NFExpression::BINARY { exp1: exp1.clone(), operator: mulOp.clone(), exp2: diffExp2.clone() })], operator: addOp.clone() })], inv_arguments: list![Arc::new(Expression::NFExpression::BINARY { exp1: exp2.clone(), operator: powOp.clone(), exp2: Arc::new(Expression::NFExpression::REAL { value: metamodelica::OrderedFloat(2.0_f64) }) })], operator: mulOp.clone() }), diffArguments.clone())
         },
         Deref @ Expression::BINARY { operator, exp1, .. } if (Operator::getMathClassification(operator.clone())? == Operator::MathClassification::POWER.clone() && Expression::isZero(exp1.clone())) => {
-            let mut isReverse: bool = Util::isSome(diffArguments.adjoint_map.clone());
             (Expression::makeZero(operator.ty.clone())?, diffArguments.clone())
         },
         Deref @ Expression::BINARY { exp2, operator, exp1 } if (Operator::getMathClassification(operator.clone())? == Operator::MathClassification::POWER.clone()) => {
@@ -2569,7 +2435,6 @@ pub fn differentiateBinary(mut exp: Arc<Expression::NFExpression>, mut diffArgum
             let mut mulOp: Arc<Operator::NFOperator>;
             let mut sizeClass: Operator::SizeClassification = Operator::SizeClassification::SCALAR;
             let mut current_grad: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-            let mut isReverse: bool = Util::isSome(diffArguments.adjoint_map.clone());
             (_, sizeClass) = Operator::classify(operator.clone())?;
             addOp = Operator::fromClassification((Operator::MathClassification::ADDITION.clone(), sizeClass.clone()), operator.ty.clone())?;
             current_grad = diffArguments.current_grad.clone();
@@ -2595,16 +2460,15 @@ pub fn differentiateBinary(mut exp: Arc<Expression::NFExpression>, mut diffArgum
             (res.clone(), diffArguments.clone())
         },
         Deref @ Expression::BINARY { operator, .. } if (Operator::getMathClassification(operator.clone())? == Operator::MathClassification::LOGICAL.clone() || Operator::getMathClassification(operator.clone())? == Operator::MathClassification::RELATION.clone()) => {
-            let mut isReverse: bool = Util::isSome(diffArguments.adjoint_map.clone());
             (exp.clone(), diffArguments.clone())
         },
         _ => {
-            let mut isReverse: bool = Util::isSome(diffArguments.adjoint_map.clone());
             Error::addMessage(Error::INTERNAL_ERROR.clone(), list![({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("NBDifferentiate.differentiateBinary")); __mm_s.push_str(&*literal!(" failed for: ")); __mm_s.push_str(&*Expression::toString(exp.clone())?); ArcStr::from(__mm_s) }).clone()])?;
             bail!("fail")
         },
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
-    } });
+    } })
+    });
     Ok((exp, diffArguments))
 }
 
@@ -2615,16 +2479,17 @@ pub fn differentiateMultary(mut exp: Arc<Expression::NFExpression>, mut diffArgu
     if Flags::isSet(Flags::DEBUG_ADJOINT.clone())? {
         println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("differentiateMultary: ")); __mm_s.push_str(&*Expression::toString(exp.clone())?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
     }
-    exp = (::match_deref::match_deref! { match &(exp.clone()) {
+    exp = ({
+        let mut new_arguments: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
+        let mut new_inv_arguments: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
+        (::match_deref::match_deref! { match &(exp.clone()) {
         Deref @ Expression::MULTARY { operator, inv_arguments, arguments } if (Operator::getMathClassification(operator.clone())? == Operator::MathClassification::ADDITION.clone()) => {
             let mut diff_arg: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-            let mut new_arguments: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
-            let mut new_inv_arguments: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
             let mut current_grad: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut hasArray: bool = false;
             let mut local_grad: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             if isReverse.clone() {
-                hasArray = List::any(arguments.clone(), Arc::new(fnptr!(Expression::hasArrayType, Arc<Expression::NFExpression>))) || List::any(inv_arguments.clone(), Arc::new(fnptr!(Expression::hasArrayType, Arc<Expression::NFExpression>)));
+                hasArray = List::any(arguments.clone(), (std::sync::Arc::new(fnptr!(Expression::hasArrayType, Arc<Expression::NFExpression>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<bool> + 'static>)) || List::any(inv_arguments.clone(), (std::sync::Arc::new(fnptr!(Expression::hasArrayType, Arc<Expression::NFExpression>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<bool> + 'static>));
             }
             for mut arg in &*arguments.clone().reverse() {
                 let mut arg = arg.clone();
@@ -2663,8 +2528,6 @@ pub fn differentiateMultary(mut exp: Arc<Expression::NFExpression>, mut diffArgu
             Arc::new(Expression::NFExpression::MULTARY { arguments: new_arguments.clone(), inv_arguments: new_inv_arguments.clone(), operator: operator.clone() })
         },
         Deref @ Expression::MULTARY { operator, inv_arguments: Deref @ metamodelica::List::Nil, arguments } if (Operator::getMathClassification(operator.clone())? == Operator::MathClassification::MULTIPLICATION.clone()) => {
-            let mut new_arguments: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
-            let mut new_inv_arguments: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
             let mut addOp: Arc<Operator::NFOperator>;
             let mut sizeClass: Operator::SizeClassification = Operator::SizeClassification::SCALAR;
             sizeClass = Operator::classifyAddition(operator.clone());
@@ -2674,8 +2537,6 @@ pub fn differentiateMultary(mut exp: Arc<Expression::NFExpression>, mut diffArgu
         },
         Deref @ Expression::MULTARY { operator, inv_arguments, arguments } if (Operator::getMathClassification(operator.clone())? == Operator::MathClassification::MULTIPLICATION.clone() && !(inv_arguments.clone().is_empty()) && isReverse.clone()) => {
             let mut diff_arg: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-            let mut new_arguments: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
-            let mut new_inv_arguments: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
             let mut mulEWOp: Arc<Operator::NFOperator>;
             let mut sizeClass: Operator::SizeClassification = Operator::SizeClassification::SCALAR;
             let mut powSizeClass: Operator::SizeClassification = Operator::SizeClassification::SCALAR;
@@ -2694,7 +2555,7 @@ pub fn differentiateMultary(mut exp: Arc<Expression::NFExpression>, mut diffArgu
             let _ = makeMulFromOperator(operator.clone())?;
             mulEWOp = Operator::fromClassification((Operator::MathClassification::MULTIPLICATION.clone(), Operator::SizeClassification::ELEMENT_WISE.clone()), operator.ty.clone())?;
             let _ = Operator::fromClassification((Operator::MathClassification::ADDITION.clone(), Operator::SizeClassification::ELEMENT_WISE.clone()), operator.ty.clone())?;
-            hasArrayNum = List::any(arguments.clone(), Arc::new(fnptr!(Expression::hasArrayType, Arc<Expression::NFExpression>)));
+            hasArrayNum = List::any(arguments.clone(), (std::sync::Arc::new(fnptr!(Expression::hasArrayType, Arc<Expression::NFExpression>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<bool> + 'static>));
             numProd = Arc::new(Expression::NFExpression::MULTARY { arguments: arguments.clone(), inv_arguments: metamodelica::nil(), operator: operator.clone() });
             denomProd = Arc::new(Expression::NFExpression::MULTARY { arguments: inv_arguments.clone(), inv_arguments: metamodelica::nil(), operator: operator.clone() });
             upstream = diffArguments.current_grad.clone();
@@ -2734,8 +2595,6 @@ pub fn differentiateMultary(mut exp: Arc<Expression::NFExpression>, mut diffArgu
             let mut divisor: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut diff_enumerator: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut diff_divisor: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-            let mut new_arguments: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
-            let mut new_inv_arguments: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
             let mut diff_arguments: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
             let mut diff_inv_arguments: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
             let mut addOp: Arc<Operator::NFOperator>;
@@ -2765,13 +2624,12 @@ pub fn differentiateMultary(mut exp: Arc<Expression::NFExpression>, mut diffArgu
             Arc::new(Expression::NFExpression::MULTARY { arguments: list![Arc::new(Expression::NFExpression::MULTARY { arguments: list![Arc::new(Expression::NFExpression::MULTARY { arguments: cons(diff_enumerator.clone(), inv_arguments.clone()), inv_arguments: metamodelica::nil(), operator: operator.clone() })], inv_arguments: list![Arc::new(Expression::NFExpression::MULTARY { arguments: cons(diff_divisor.clone(), arguments.clone()), inv_arguments: metamodelica::nil(), operator: operator.clone() })], operator: addOp.clone() })], inv_arguments: list![Arc::new(Expression::NFExpression::BINARY { exp1: divisor.clone(), operator: powOp.clone(), exp2: Arc::new(Expression::NFExpression::REAL { value: metamodelica::OrderedFloat(2.0_f64) }) })], operator: operator.clone() })
         },
         _ => {
-            let mut new_arguments: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
-            let mut new_inv_arguments: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
             Error::addMessage(Error::INTERNAL_ERROR.clone(), list![({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("NBDifferentiate.differentiateMultary")); __mm_s.push_str(&*literal!(" failed for: ")); __mm_s.push_str(&*Expression::toString(exp.clone())?); ArcStr::from(__mm_s) }).clone()])?;
             bail!("fail")
         },
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
-    } });
+    } })
+    });
     Ok((exp, diffArguments))
 }
 
@@ -2945,7 +2803,7 @@ fn typePromoteCall(mut arr: Arc<Expression::NFExpression>, mut n: i32) -> Arc<Ex
     let mut call: Arc<Call::NFCall>;
     let mut var: Variability = Expression::variability(arr.clone()).unwrap();
     let mut pur: Prefixes::Purity = Expression::purity(arr.clone()).unwrap();
-    let mut PROMOTE_FUNC: Arc<Function::Function>;
+    let mut PROMOTE_FUNC: Arc<Function::Function> = Arc::new(<Function::Function as ::std::default::Default>::default());
     elTy = if (Type::isArray(inTy.clone())) {Type::arrayElementType(inTy.clone())} else {inTy.clone()};
     inDims = if (Type::isArray(inTy.clone())) {Type::arrayDims(inTy.clone())} else {metamodelica::nil()};
     m = (inDims.clone().len() as i32);
@@ -2968,7 +2826,7 @@ fn typeSumCall(mut arr: Arc<Expression::NFExpression>) -> Arc<Expression::NFExpr
     let mut call: Arc<Call::NFCall>;
     let mut var: Variability = Expression::variability(arr.clone()).unwrap();
     let mut pur: Prefixes::Purity = Expression::purity(arr.clone()).unwrap();
-    let mut SUM_FUNC: Arc<Function::Function>;
+    let mut SUM_FUNC: Arc<Function::Function> = Arc::new(<Function::Function as ::std::default::Default>::default());
     if !(Type::isArray(inTy.clone())) {
         s = arr.clone();
         return s;

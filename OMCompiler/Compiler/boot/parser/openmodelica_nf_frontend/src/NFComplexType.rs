@@ -47,7 +47,7 @@ use crate::NFInstNode::InstNode;
 use crate::NFRecord as Record;
 use openmodelica_util::UnorderedMap;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum NFComplexType {
     CLASS,
     /// Used for long class declarations extending from a type, e.g.:

@@ -48,7 +48,7 @@ use openmodelica_frontend_types::DAE;
 
 // public imports
 /// Container for metadata about variables in a Modelica model.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct SimVars {
     pub stateVars: Arc<metamodelica::List<SimVar>>,
     pub derivativeVars: Arc<metamodelica::List<SimVar>>,
@@ -86,13 +86,11 @@ pub struct SimVars {
 pub type SIMVARS = SimVars;
 
 
-// TODO: non-Sync, non-const-emittable constant — needs new emission path.
-// Type: SimVars
-// Expr: Constructor { name: 'SimCodeVar.SimVars.SIMVARS', args: [Array { elems: [], ty: List(Unknown) }, Array { elems: [], ty: List(Unknown) }, Array { elems: [], ty: List(Unknown) }, Array { elems: [], ty: List(Unknown) }, Array { elems: [], ty: List(Unknown) }, Array { elems: [], ty: List(Unknown) }, Array { elems: [], ty: List(Unknown) }, Array { elems: [], ty: List(Unknown) }, Array { elems: [], ty: List(Unknown) }, Array { elems: [], ty: List(Unknown) }, Array { elems: [], ty: List(Unknown) }, Array { elems: [], ty: List(Unknown) }, Array { elems: [], ty: List(Unknown) }, Array { elems: [], ty: List(Unknown) }, Array { elems: [], ty: List(Unknown) }, Array { elems: [], ty: List(Unknown) }, Array { elems: [], ty: List(Unknown) }, Array { elems: [], ty: List(Unknown) }, Array { elems: [], ty: List(Unknown) }, Array { elems: [], ty: List(Unknown) }, Array { elems: [], ty: List(Unknown) }, Array { elems: [], ty: List(Unknown) }, Array { elems: [], ty: List(Unknown) }, Array { elems: [], ty: List(Unknown) }, Array { elems: [], ty: List(Unknown) }, Array { elems: [], ty: List(Unknown) }, Array { elems: [], ty: List(Unknown) }, Array { elems: [], ty: List(Unknown) }], named_args: [], ty: RustStruct('SimCodeVar.SimVars'), field_names: ['stateVars', 'derivativeVars', 'algVars', 'discreteAlgVars', 'intAlgVars', 'boolAlgVars', 'inputVars', 'outputVars', 'aliasVars', 'intAliasVars', 'boolAliasVars', 'paramVars', 'intParamVars', 'boolParamVars', 'stringAlgVars', 'stringParamVars', 'stringAliasVars', 'extObjVars', 'constVars', 'intConstVars', 'boolConstVars', 'stringConstVars', 'jacobianVars', 'seedVars', 'realOptimizeConstraintsVars', 'realOptimizeFinalConstraintsVars', 'sensitivityVars', 'dataReconSetcVars', 'dataReconinputVars', 'dataReconSetBVars'] }
-pub fn emptySimVars() -> SimVars { todo!("non-Sync, non-const-emittable constant emptySimVars — extend codegen") }
+thread_local! { static __emptySimVars_TLS: SimVars = SimVars { stateVars: metamodelica::nil(), derivativeVars: metamodelica::nil(), algVars: metamodelica::nil(), discreteAlgVars: metamodelica::nil(), intAlgVars: metamodelica::nil(), boolAlgVars: metamodelica::nil(), inputVars: metamodelica::nil(), outputVars: metamodelica::nil(), aliasVars: metamodelica::nil(), intAliasVars: metamodelica::nil(), boolAliasVars: metamodelica::nil(), paramVars: metamodelica::nil(), intParamVars: metamodelica::nil(), boolParamVars: metamodelica::nil(), stringAlgVars: metamodelica::nil(), stringParamVars: metamodelica::nil(), stringAliasVars: metamodelica::nil(), extObjVars: metamodelica::nil(), constVars: metamodelica::nil(), intConstVars: metamodelica::nil(), boolConstVars: metamodelica::nil(), stringConstVars: metamodelica::nil(), jacobianVars: metamodelica::nil(), seedVars: metamodelica::nil(), realOptimizeConstraintsVars: metamodelica::nil(), realOptimizeFinalConstraintsVars: metamodelica::nil(), sensitivityVars: metamodelica::nil(), dataReconSetcVars: metamodelica::nil() }; }
+pub fn emptySimVars() -> SimVars { __emptySimVars_TLS.with(|__t| __t.clone()) }
 
 /// Information about a variable in a Modelica model.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct SimVar {
     pub name: Arc<DAE::ComponentRef>,
     pub varKind: BackendDAE::VarKind,

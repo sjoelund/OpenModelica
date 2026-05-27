@@ -118,7 +118,7 @@ fn dumpNode(mut inNode: Arc<Node>) -> Result<Ident> {
             let mut newattr: Attributes = metamodelica::nil();
             let mut lbl_1: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
             nm = (nodename((typ.clone()).clone())).clone();
-            lbl_1 = cons(typ.clone(), lbl.clone());
+            lbl_1 = cons((typ.clone()).clone(), lbl.clone());
             lblstr = (makeLabel(lbl_1.clone())?).clone();
             newattr = cons(Attribute { name: (literal!("label")).clone(), value: (lblstr.clone()).clone() }, attr.clone());
             out = (makeNode((nm.clone()).clone(), newattr.clone())?).clone();

@@ -1295,17 +1295,17 @@ pub static FMU_EXPORT_DAE_MODE_NOT_SUPPORTED: ErrorTypes::Message = ErrorTypes::
 pub static dummyInfo: SourceInfo = SourceInfo { fileName: literal!(""), isReadOnly: false, lineNumberStart: 0, columnNumberStart: 0, lineNumberEnd: 0, columnNumberEnd: 0, lastModification: metamodelica::OrderedFloat(0.0_f64) };
 
 pub fn clearCurrentComponent() -> Result<()> {
-    fn dummy(mut r#str: ArcStr) -> ArcStr {
-        let mut r#str: ArcStr = r#str;
-        r#str
-    }
-
-    updateCurrentComponent((literal!("")).clone(), dummyInfo.clone(), Arc::new(fnptr!(dummy, ArcStr)))?;
+    updateCurrentComponent((literal!("")).clone(), dummyInfo.clone(), (std::sync::Arc::new(fnptr!(dummy, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr) -> Result<ArcStr> + 'static>))?;
     Ok(())
 }
 
+fn dummy(mut r#str: ArcStr) -> ArcStr {
+    let mut r#str: ArcStr = r#str;
+    r#str
+}
+
 pub fn updateCurrentComponent(mut component: ArcStr, mut info: SourceInfo, mut func: Arc<dyn ::std::ops::Fn(ArcStr) -> Result<ArcStr> + 'static>) -> Result<()> {
-    pub type prefixToStr = fn(ArcStr) -> Result<ArcStr>;
+    pub type prefixToStr = std::sync::Arc<dyn ::std::ops::Fn(ArcStr) -> Result<ArcStr> + 'static>;
 
     let mut tpl: Option<(metamodelica::Array<ArcStr>, metamodelica::Array<SourceInfo>, metamodelica::Array<Arc<dyn ::std::ops::Fn(ArcStr) -> Result<ArcStr> + 'static>>)> = None;
     let mut astr: metamodelica::Array<ArcStr>;
@@ -1328,7 +1328,7 @@ pub fn updateCurrentComponent(mut component: ArcStr, mut info: SourceInfo, mut f
 }
 
 pub fn getCurrentComponent() -> Result<(ArcStr, i32, i32, i32, i32, bool, ArcStr)> {
-    type prefixToStr = fn(ArcStr) -> Result<ArcStr>;
+    type prefixToStr = std::sync::Arc<dyn ::std::ops::Fn(ArcStr) -> Result<ArcStr> + 'static>;
 
     let mut r#str: ArcStr = arcstr::literal!("");
     let mut sline: i32 = 0;
@@ -1341,7 +1341,7 @@ pub fn getCurrentComponent() -> Result<(ArcStr, i32, i32, i32, i32, bool, ArcStr
     let mut astr: metamodelica::Array<ArcStr>;
     let mut ainfo: metamodelica::Array<SourceInfo>;
     let mut afunc: metamodelica::Array<Arc<dyn ::std::ops::Fn(ArcStr) -> Result<ArcStr> + 'static>>;
-    let mut info: SourceInfo;
+    let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
     let mut func: Arc<dyn ::std::ops::Fn(ArcStr) -> Result<ArcStr> + 'static>;
     tpl = crate::Globals::currentInstVar.with(|__root| __root.borrow().clone());
     r#str = ((match tpl.clone() {
@@ -1466,8 +1466,8 @@ pub fn addMessageOrSourceMessage(mut inErrorMsg: ErrorTypes::Message, mut inMess
 }
 
 pub fn addTotalMessage(mut message: ErrorTypes::TotalMessage) -> Result<()> {
-    let mut msg: ErrorTypes::Message;
-    let mut info: SourceInfo;
+    let mut msg: ErrorTypes::Message = <ErrorTypes::Message as ::std::default::Default>::default();
+    let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
     let ErrorTypes::TOTALMESSAGE { info: __pa0, msg: __pa1 } = (message.clone()) else { bail!("pattern mismatch") };
     info = __pa0.clone();
     msg = __pa1.clone();

@@ -237,7 +237,7 @@ pub fn clone(mut inGraph: Graph) -> Result<Graph> {
             let mut s = s.clone();
             nt = FNode::toRef(FNode::fromRef(t.node.clone())?);
             (g, nt) = FNode::copyRef(nt.clone(), inGraph.clone())?;
-            s = List::map1r(s.clone(), Arc::new(FNode::lookupRefFromRef), nt.clone());
+            s = List::map1r(s.clone(), (std::sync::Arc::new(FNode::lookupRefFromRef) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Node>, metamodelica::Array<FCore::Node>) -> Result<metamodelica::Array<FCore::Node>> + 'static>), nt.clone());
             ag = arrayCreate(1, emptyGraph().clone());
             t = FCore::Top { graph: ag.clone(), name: (t.name.clone()).clone(), node: nt.clone(), extra: t.extra.clone() };
             g = FCore::Graph::G { top: t.clone(), scope: s.clone() };
@@ -536,7 +536,7 @@ pub fn printGraphPathStr(mut inGraph: Graph) -> Result<ArcStr> {
                         _ => bail!("pattern mismatch"),
                     } };
                     s = __pa0.clone();
-                    r#str = stringDelimitList(List::map(s.clone(), Arc::new(FNode::refName)), (literal!(".")).clone());
+                    r#str = stringDelimitList(List::map(s.clone(), (std::sync::Arc::new(FNode::refName) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Node>) -> Result<ArcStr> + 'static>)), (literal!(".")).clone());
                     Ok(r#str.clone())
                 }
                 _ => bail!("nomatch"),
@@ -1393,7 +1393,7 @@ pub fn getVariablesFromGraphScope(mut inGraph: Graph) -> Result<Arc<metamodelica
         },
         FCore::Graph::G { scope: Deref @ metamodelica::List::Cons { head: r, tail: _ }, .. } => {
             let mut lst: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
-            lst = List::map(FNode::filter(r.clone(), Arc::new(FNode::isRefComponent))?, Arc::new(FNode::refName));
+            lst = List::map(FNode::filter(r.clone(), (std::sync::Arc::new(FNode::isRefComponent) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Node>) -> Result<bool> + 'static>))?, (std::sync::Arc::new(FNode::refName) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Node>) -> Result<ArcStr> + 'static>));
             lst.clone()
         },
         _ => bail!("match: no arm matched"),

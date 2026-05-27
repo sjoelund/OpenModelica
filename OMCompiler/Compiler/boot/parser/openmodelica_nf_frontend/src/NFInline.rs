@@ -85,7 +85,7 @@ pub fn inlineCallExp(mut callExp: Arc<Expression::NFExpression>, mut forceInline
 pub fn inlineCall(mut callExp: Arc<Expression::NFExpression>, mut forceInline: bool) -> Result<Arc<Expression::NFExpression>> {
     let mut exp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut call: Arc<Call::NFCall>;
-    let mut r#fn: Arc<Function::Function>;
+    let mut r#fn: Arc<Function::Function> = Arc::new(<Function::Function as ::std::default::Default>::default());
     let mut arg: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut args: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
     let mut inputs: Arc<metamodelica::List<Arc<InstNode::InstNode>>> = metamodelica::nil();
@@ -254,7 +254,7 @@ fn convertIfToAssignment(mut stmt: Arc<Statement::NFStatement>) -> Result<Arc<St
     let mut ty: Arc<Type::NFType> = Arc::new(Type::ANY);
     let mut body: Arc<metamodelica::List<Arc<Statement::NFStatement>>> = metamodelica::nil();
     let mut s: Arc<Statement::NFStatement>;
-    let mut source: Arc<DAE::ElementSource>;
+    let mut source: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
     let (__pa0, __pa1) = ::match_deref::match_deref! { match &(stmt.clone()) {
         Deref @ Statement::IF { source: __pa0, branches: __pa1 } => (__pa0.clone(), __pa1.clone()),
         _ => bail!("pattern mismatch"),
@@ -325,9 +325,9 @@ fn makeOutputStatement(mut outputNode: Arc<InstNode::InstNode>) -> Result<Arc<St
     if Binding::isBound(binding.clone()) {
         cref_exp = Expression::fromCref(ComponentRef::fromNode(outputNode.clone(), Arc::new(crate::NFType::UNKNOWN), metamodelica::nil(), ComponentRef::Origin::CREF.clone()), false)?;
         binding_exp = Binding::getExp(binding.clone())?;
-        stmt = Statement::makeAssignment(cref_exp.clone(), binding_exp.clone(), Arc::new(crate::NFType::UNKNOWN), DAE::emptyElementSource.clone());
+        stmt = Statement::makeAssignment(cref_exp.clone(), binding_exp.clone(), Arc::new(crate::NFType::UNKNOWN), DAE::emptyElementSource().clone());
     } else {
-        stmt = Arc::new(Statement::NFStatement::FAILURE { body: metamodelica::nil(), source: DAE::emptyElementSource.clone() });
+        stmt = Arc::new(Statement::NFStatement::FAILURE { body: metamodelica::nil(), source: DAE::emptyElementSource().clone() });
     }
     Ok(stmt)
 }

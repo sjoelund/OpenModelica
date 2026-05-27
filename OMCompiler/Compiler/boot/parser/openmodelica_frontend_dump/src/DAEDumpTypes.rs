@@ -163,7 +163,7 @@ fn dumpAnnotationStr(mut inComment: Option<Arc<SCode::Comment>>, mut inPrefix: A
 
 pub fn filterStructuralMods(mut r#mod: Arc<SCode::Mod>) -> Arc<SCode::Mod> {
     let mut r#mod: Arc<SCode::Mod> = r#mod;
-    r#mod = SCodeUtil::filterSubMods(r#mod.clone(), Arc::new(fnptr!(filterStructuralMod, Arc<SCode::SubMod>)));
+    r#mod = SCodeUtil::filterSubMods(r#mod.clone(), (std::sync::Arc::new(fnptr!(filterStructuralMod, Arc<SCode::SubMod>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SCode::SubMod>) -> Result<bool> + 'static>));
     r#mod
 }
 

@@ -56,8 +56,8 @@ use openmodelica_frontend_types::DAE;
 use openmodelica_frontend_types::Values;
 
 pub fn initializeBackendInterface() -> () {
-    BackendInterface::initializeBackendInterface(BackendInterface::BackendInterfaceFunctions { noRewriteRulesFrontEnd: noRewriteRulesFrontEnd, rewriteFrontEnd: rewriteFrontEnd, appendLibrary: appendLibrary, initInstHashTable: InstHashTable::init });
-    BackendCevalInterface::initializeBackendInterface(BackendCevalInterface::BackendInterfaceFunctions { cevalInteractiveFunctions: cevalInteractiveFunctions, cevalCallFunction: cevalCallFunction, elabCallInteractive: elabCallInteractive });
+    BackendInterface::initializeBackendInterface(BackendInterface::BackendInterfaceFunctions { noRewriteRulesFrontEnd: (std::sync::Arc::new(noRewriteRulesFrontEnd) as std::sync::Arc<dyn ::std::ops::Fn() -> Result<bool> + 'static>), rewriteFrontEnd: (std::sync::Arc::new(rewriteFrontEnd) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Exp>) -> Result<(Arc<Absyn::Exp>, bool)> + 'static>), appendLibrary: (std::sync::Arc::new(appendLibrary) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Path>, ArcStr) -> Result<(Absyn::Program, bool)> + 'static>), initInstHashTable: (std::sync::Arc::new(InstHashTable::init) as std::sync::Arc<dyn ::std::ops::Fn() -> Result<()> + 'static>) });
+    BackendCevalInterface::initializeBackendInterface(BackendCevalInterface::BackendInterfaceFunctions { cevalInteractiveFunctions: (std::sync::Arc::new(cevalInteractiveFunctions) as std::sync::Arc<dyn ::std::ops::Fn(FCore::Cache, FCore::Graph, Arc<DAE::Exp>, Absyn::Msg, i32) -> Result<(FCore::Cache, Arc<Values::Value>)> + 'static>), cevalCallFunction: (std::sync::Arc::new(cevalCallFunction) as std::sync::Arc<dyn ::std::ops::Fn(FCore::Cache, FCore::Graph, Arc<DAE::Exp>, Arc<metamodelica::List<Arc<Values::Value>>>, bool, Absyn::Msg, i32) -> Result<(FCore::Cache, Arc<Values::Value>)> + 'static>), elabCallInteractive: (std::sync::Arc::new(elabCallInteractive) as std::sync::Arc<dyn ::std::ops::Fn(FCore::Cache, FCore::Graph, Arc<Absyn::ComponentRef>, Arc<metamodelica::List<Arc<Absyn::Exp>>>, Arc<metamodelica::List<Arc<Absyn::NamedArg>>>, bool, DAE::Prefix, SourceInfo) -> Result<(FCore::Cache, Arc<DAE::Exp>, DAE::Properties)> + 'static>) });
     ()
 }
 
@@ -97,7 +97,7 @@ fn rewriteFrontEnd(mut inExp: Arc<Absyn::Exp>) -> Result<(Arc<Absyn::Exp>, bool)
 }
 
 fn appendLibrary(mut modelName: Arc<Absyn::Path>, mut modelicaPath: ArcStr) -> Result<(Absyn::Program, bool)> {
-    let mut program: Absyn::Program;
+    let mut program: Absyn::Program = <Absyn::Program as ::std::default::Default>::default();
     let mut success: bool = false;
     program = SymbolTable::getAbsyn();
     (program, success) = CevalScript::loadModel(list![(modelName.clone(), literal!(""), list![(literal!("default")).clone()], false)], (modelicaPath.clone()).clone(), program.clone(), true, true, true, false, false, (literal!("")).clone())?;

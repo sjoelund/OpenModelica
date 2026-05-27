@@ -412,6 +412,15 @@ pub enum Equation {
         info: SourceInfo,
     },
 }
+impl Default for Equation {
+    fn default() -> Self {
+        Self::EQ_TERMINATE {
+            message: Default::default(),
+            comment: Default::default(),
+            info: Default::default(),
+        }
+    }
+}
 pub use self::Equation::{EQ_IF,EQ_EQUALS,EQ_PDE,EQ_CONNECT,EQ_FOR,EQ_WHEN,EQ_ASSERT,EQ_TERMINATE,EQ_REINIT,EQ_NORETCALL};
 
 /// - Algorithms
@@ -546,6 +555,9 @@ pub enum Visibility {
     PUBLIC,
     /// a protected element
     PROTECTED,
+}
+impl Default for Visibility {
+    fn default() -> Self { Self::PUBLIC }
 }
 pub use self::Visibility::{PUBLIC,PROTECTED};
 
@@ -733,6 +745,15 @@ pub enum Element {
         /// The source information
         info: SourceInfo,
     },
+}
+impl Default for Element {
+    fn default() -> Self {
+        Self::IMPORT {
+            imp: Default::default(),
+            visibility: Default::default(),
+            info: Default::default(),
+        }
+    }
 }
 pub use self::Element::{IMPORT,EXTENDS,CLASS,COMPONENT,DEFINEUNIT};
 

@@ -88,7 +88,7 @@ pub mod PathTree {
         outResult
     }
 
-    pub type ConflictFunc = fn(Value, Value, Key) -> Result<Value>;
+    pub type ConflictFunc = std::sync::Arc<dyn ::std::ops::Fn(Value, Value, Key) -> Result<Value> + 'static>;
 
     /// The binary tree data structure.
     #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -115,7 +115,7 @@ pub mod PathTree {
 
     pub type ValueNode = ArcStr;
 
-    pub fn add(mut inTree: Arc<Tree>, mut inKey: Key, mut inValue: Value, mut conflictFunc: ConflictFunc) -> Result<Arc<Tree>> {
+    pub fn add(mut inTree: Arc<Tree>, mut inKey: Key, mut inValue: Value, mut conflictFunc: Arc<dyn ::std::ops::Fn(Arc<PathEntry>, Arc<PathEntry>, ArcStr) -> Result<Arc<PathEntry>> + 'static>) -> Result<Arc<Tree>> {
         let mut tree: Arc<Tree> = inTree.clone();
         tree = (::match_deref::match_deref! { match &(tree.clone()) {
         Deref @ Tree::EMPTY { .. } => {
@@ -126,9 +126,9 @@ pub mod PathTree {
             let mut key_comp: i32 = 0;
             key_comp = keyCompare((inKey.clone()).clone(), (key.clone()).clone());
             if key_comp.clone() == -1 {
-                assign_variant_field!(tree => Tree::NODE; left = add(var_field!((*tree).left, Tree::NODE).clone(), (inKey.clone()).clone(), inValue.clone(), conflictFunc)?);
+                assign_variant_field!(tree => Tree::NODE; left = add(var_field!((*tree).left, Tree::NODE).clone(), (inKey.clone()).clone(), inValue.clone(), conflictFunc.clone())?);
             } else if key_comp.clone() == 1 {
-                assign_variant_field!(tree => Tree::NODE; right = add(var_field!((*tree).right, Tree::NODE).clone(), (inKey.clone()).clone(), inValue.clone(), conflictFunc)?);
+                assign_variant_field!(tree => Tree::NODE; right = add(var_field!((*tree).right, Tree::NODE).clone(), (inKey.clone()).clone(), inValue.clone(), conflictFunc.clone())?);
             } else {
                 value = conflictFunc(inValue.clone(), var_field!((*tree).value, Tree::NODE).clone(), (key.clone()).clone())?;
                 if !(referenceEq(&var_field!((*tree).value, Tree::NODE).clone(),&value.clone())) {
@@ -178,20 +178,20 @@ pub mod PathTree {
         value
     }
 
-    pub fn addList(mut tree: Arc<Tree>, mut inValues: Arc<metamodelica::List<(ArcStr, Arc<PathEntry>)>>, mut conflictFunc: ConflictFunc) -> Result<Arc<Tree>> {
+    pub fn addList(mut tree: Arc<Tree>, mut inValues: Arc<metamodelica::List<(ArcStr, Arc<PathEntry>)>>, mut conflictFunc: Arc<dyn ::std::ops::Fn(Arc<PathEntry>, Arc<PathEntry>, ArcStr) -> Result<Arc<PathEntry>> + 'static>) -> Result<Arc<Tree>> {
         let mut tree: Arc<Tree> = tree;
         let mut key: Key = arcstr::literal!("");
         let mut value: Value;
         for mut t in &*inValues.clone() {
             let mut t = t.clone();
             (key, value) = t.clone();
-            tree = add(tree.clone(), (key.clone()).clone(), value.clone(), conflictFunc)?;
+            tree = add(tree.clone(), (key.clone()).clone(), value.clone(), conflictFunc.clone())?;
         }
         Ok(tree)
     }
 
     pub fn addUpdate(mut tree: Arc<Tree>, mut key: Key, mut r#fn: Arc<dyn ::std::ops::Fn(Option<Arc<PathEntry>>) -> Result<Arc<PathEntry>> + 'static>) -> Result<Arc<Tree>> {
-        pub type UpdateFn = fn(Option<Arc<PathEntry>>) -> Result<Value>;
+        pub type UpdateFn = std::sync::Arc<dyn ::std::ops::Fn(Option<Arc<PathEntry>>) -> Result<Value> + 'static>;
 
         let mut tree: Arc<Tree> = tree;
         let mut key_comp: i32 = 0;
@@ -269,7 +269,7 @@ pub mod PathTree {
     }
 
     pub fn fold<FT: Clone + 'static>(mut inTree: Arc<Tree>, mut inFunc: Arc<dyn ::std::ops::Fn(ArcStr, Arc<PathEntry>, FT) -> Result<FT> + 'static>, mut inStartValue: FT) -> FT {
-        pub type FoldFunc<FT: Clone> = fn(Key, Value, FT) -> Result<FT>;
+        pub type FoldFunc<FT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Key, Value, FT) -> Result<FT> + 'static>;
 
         let mut outResult: FT = inStartValue.clone();
         outResult = (::match_deref::match_deref! { match &(inTree.clone()) {
@@ -292,7 +292,7 @@ pub mod PathTree {
     }
 
     pub fn foldCond<FT: Clone + 'static>(mut tree: Arc<Tree>, mut foldFunc: Arc<dyn ::std::ops::Fn(ArcStr, Arc<PathEntry>, FT) -> Result<(FT, bool)> + 'static>, mut value: FT) -> FT {
-        pub type FoldFunc<FT: Clone> = fn(Key, Value, FT) -> Result<(FT, bool)>;
+        pub type FoldFunc<FT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Key, Value, FT) -> Result<(FT, bool)> + 'static>;
 
         let mut value: FT = value;
         value = (::match_deref::match_deref! { match &(tree.clone()) {
@@ -319,7 +319,7 @@ pub mod PathTree {
     }
 
     pub fn fold_2<FT1: Clone + 'static, FT2: Clone + 'static>(mut tree: Arc<Tree>, mut foldFunc: Arc<dyn ::std::ops::Fn(ArcStr, Arc<PathEntry>, FT1, FT2) -> Result<(FT1, FT2)> + 'static>, mut foldArg1: FT1, mut foldArg2: FT2) -> (FT1, FT2) {
-        pub type FoldFunc<FT1: Clone, FT2: Clone> = fn(Key, Value, FT1, FT2) -> Result<(FT1, FT2)>;
+        pub type FoldFunc<FT1: Clone + 'static, FT2: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Key, Value, FT1, FT2) -> Result<(FT1, FT2)> + 'static>;
 
         let mut foldArg1: FT1 = foldArg1;
         let mut foldArg2: FT2 = foldArg2;
@@ -341,7 +341,7 @@ pub mod PathTree {
     }
 
     pub fn forEach(mut tree: Arc<Tree>, mut func: Arc<dyn ::std::ops::Fn(ArcStr, Arc<PathEntry>) -> Result<()> + 'static>) -> Result<()> {
-        pub type EachFunc = fn(Key, Value) -> Result<()>;
+        pub type EachFunc = std::sync::Arc<dyn ::std::ops::Fn(Key, Value) -> Result<()> + 'static>;
 
         let _ = (::match_deref::match_deref! { match &(tree.clone()) {
         Deref @ Tree::NODE { .. } => {
@@ -360,14 +360,14 @@ pub mod PathTree {
         Ok(())
     }
 
-    pub fn fromList(mut inValues: Arc<metamodelica::List<(ArcStr, Arc<PathEntry>)>>, mut conflictFunc: ConflictFunc) -> Result<Arc<Tree>> {
+    pub fn fromList(mut inValues: Arc<metamodelica::List<(ArcStr, Arc<PathEntry>)>>, mut conflictFunc: Arc<dyn ::std::ops::Fn(Arc<PathEntry>, Arc<PathEntry>, ArcStr) -> Result<Arc<PathEntry>> + 'static>) -> Result<Arc<Tree>> {
         let mut tree: Arc<Tree> = Arc::new(crate::ReverseLookup::PathTree::Tree::EMPTY);
         let mut key: Key = arcstr::literal!("");
         let mut value: Value;
         for mut t in &*inValues.clone() {
             let mut t = t.clone();
             (key, value) = t.clone();
-            tree = add(tree.clone(), (key.clone()).clone(), value.clone(), conflictFunc)?;
+            tree = add(tree.clone(), (key.clone()).clone(), value.clone(), conflictFunc.clone())?;
         }
         Ok(tree)
     }
@@ -463,17 +463,17 @@ pub mod PathTree {
         isEmpty
     }
 
-    pub fn join(mut tree: Arc<Tree>, mut treeToJoin: Arc<Tree>, mut conflictFunc: ConflictFunc) -> Result<Arc<Tree>> {
+    pub fn join(mut tree: Arc<Tree>, mut treeToJoin: Arc<Tree>, mut conflictFunc: Arc<dyn ::std::ops::Fn(Arc<PathEntry>, Arc<PathEntry>, ArcStr) -> Result<Arc<PathEntry>> + 'static>) -> Result<Arc<Tree>> {
         let mut tree: Arc<Tree> = tree;
         tree = (::match_deref::match_deref! { match &(treeToJoin.clone()) {
         Deref @ Tree::EMPTY { .. } => tree.clone(),
         Deref @ Tree::NODE { .. } => {
-            tree = add(tree.clone(), (var_field!((*treeToJoin).key, Tree::NODE).clone()).clone(), var_field!((*treeToJoin).value, Tree::NODE).clone(), conflictFunc)?;
-            tree = join(tree.clone(), var_field!((*treeToJoin).left, Tree::NODE).clone(), conflictFunc)?;
-            tree = join(tree.clone(), var_field!((*treeToJoin).right, Tree::NODE).clone(), conflictFunc)?;
+            tree = add(tree.clone(), (var_field!((*treeToJoin).key, Tree::NODE).clone()).clone(), var_field!((*treeToJoin).value, Tree::NODE).clone(), conflictFunc.clone())?;
+            tree = join(tree.clone(), var_field!((*treeToJoin).left, Tree::NODE).clone(), conflictFunc.clone())?;
+            tree = join(tree.clone(), var_field!((*treeToJoin).right, Tree::NODE).clone(), conflictFunc.clone())?;
             tree.clone()
         },
-        Deref @ Tree::LEAF { .. } => add(tree.clone(), (var_field!((*treeToJoin).key, Tree::LEAF).clone()).clone(), var_field!((*treeToJoin).value, Tree::LEAF).clone(), conflictFunc)?,
+        Deref @ Tree::LEAF { .. } => add(tree.clone(), (var_field!((*treeToJoin).key, Tree::LEAF).clone()).clone(), var_field!((*treeToJoin).value, Tree::LEAF).clone(), conflictFunc.clone())?,
         _ => bail!("match: no arm matched"),
     } });
         Ok(tree)
@@ -484,12 +484,12 @@ pub mod PathTree {
         lst = (::match_deref::match_deref! { match &(tree.clone()) {
         Deref @ Tree::NODE { key, .. } => {
             lst = listKeys(var_field!((*tree).right, Tree::NODE).clone(), lst.clone());
-            lst = cons(key.clone(), lst.clone());
+            lst = cons((key.clone()).clone(), lst.clone());
             lst = listKeys(var_field!((*tree).left, Tree::NODE).clone(), lst.clone());
             lst.clone()
         },
         Deref @ Tree::LEAF { key, .. } => {
-            cons(key.clone(), lst.clone())
+            cons((key.clone()).clone(), lst.clone())
         },
         _ => {
             lst.clone()
@@ -502,10 +502,10 @@ pub mod PathTree {
     pub fn listKeysReverse(mut inTree: Arc<Tree>, mut lst: Arc<metamodelica::List<ArcStr>>) -> Arc<metamodelica::List<ArcStr>> {
         let mut lst: Arc<metamodelica::List<ArcStr>> = lst;
         lst = (::match_deref::match_deref! { match &(inTree.clone()) {
-        Deref @ Tree::LEAF { .. } => cons(var_field!((*inTree).key, Tree::LEAF).clone(), lst.clone()),
+        Deref @ Tree::LEAF { .. } => cons((var_field!((*inTree).key, Tree::LEAF).clone()).clone(), lst.clone()),
         Deref @ Tree::NODE { .. } => {
             lst = listKeysReverse(var_field!((*inTree).left, Tree::NODE).clone(), lst.clone());
-            lst = cons(var_field!((*inTree).key, Tree::NODE).clone(), lst.clone());
+            lst = cons((var_field!((*inTree).key, Tree::NODE).clone()).clone(), lst.clone());
             lst = listKeysReverse(var_field!((*inTree).right, Tree::NODE).clone(), lst.clone());
             lst.clone()
         },
@@ -536,7 +536,7 @@ pub mod PathTree {
     }
 
     pub fn map(mut inTree: Arc<Tree>, mut inFunc: Arc<dyn ::std::ops::Fn(ArcStr, Arc<PathEntry>) -> Result<Arc<PathEntry>> + 'static>) -> Arc<Tree> {
-        pub type MapFunc = fn(Key, Value) -> Result<Value>;
+        pub type MapFunc = std::sync::Arc<dyn ::std::ops::Fn(Key, Value) -> Result<Value> + 'static>;
 
         let mut outTree: Arc<Tree> = inTree.clone();
         outTree = (::match_deref::match_deref! { match &(outTree.clone()) {
@@ -569,7 +569,7 @@ pub mod PathTree {
     }
 
     pub fn mapFold<FT: Clone + 'static>(mut inTree: Arc<Tree>, mut inFunc: Arc<dyn ::std::ops::Fn(ArcStr, Arc<PathEntry>, FT) -> Result<(Arc<PathEntry>, FT)> + 'static>, mut inStartValue: FT) -> (Arc<Tree>, FT) {
-        pub type MapFunc<FT: Clone> = fn(Key, Value, FT) -> Result<Value>;
+        pub type MapFunc<FT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Key, Value, FT) -> Result<Value> + 'static>;
 
         let mut outTree: Arc<Tree> = inTree.clone();
         let mut outResult: FT = inStartValue.clone();
@@ -744,7 +744,7 @@ pub mod PathTree {
     }
 
     pub fn update(mut tree: Arc<Tree>, mut key: Key, mut value: Value) -> Arc<Tree> {
-        let mut outTree: Arc<Tree> = add(tree.clone(), (key.clone()).clone(), value.clone(), fnptr!(addConflictReplace, Arc<PathEntry>, Arc<PathEntry>, ArcStr)).unwrap();
+        let mut outTree: Arc<Tree> = add(tree.clone(), (key.clone()).clone(), value.clone(), (std::sync::Arc::new(fnptr!(addConflictReplace, Arc<PathEntry>, Arc<PathEntry>, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<PathEntry>, Arc<PathEntry>, ArcStr) -> Result<Arc<PathEntry>> + 'static>)).unwrap();
         outTree
     }
 
@@ -775,6 +775,16 @@ pub struct Match {
     pub info: SourceInfo,
 }
 
+impl Default for Match {
+    fn default() -> Self {
+        Self {
+            name: Default::default(),
+            scope: Default::default(),
+            info: Default::default(),
+        }
+    }
+}
+
 pub type MATCH = Match;
 
 
@@ -785,7 +795,7 @@ pub fn lookup(mut path: Arc<Absyn::Path>, mut scope: Arc<Absyn::Path>, mut progr
     let mut tree: Arc<PathTree::Tree> = Arc::new(PathTree::Tree::EMPTY);
     let mut matches: Matches = metamodelica::nil();
     let mut paths: Arc<Paths::Paths>;
-    let mut cls: Arc<Absyn::Class>;
+    let mut cls: Arc<Absyn::Class> = Arc::new(<Absyn::Class as ::std::default::Default>::default());
     let mut opt_path: Option<Arc<Absyn::Path>> = None;
     let mut relative_path: Arc<Absyn::Path>;
     let mut grouped_matches: Arc<metamodelica::List<Arc<metamodelica::List<Match>>>> = metamodelica::nil();
@@ -825,7 +835,7 @@ fn addPath(mut path: Arc<Absyn::Path>, mut tree: Arc<PathTree::Tree>) -> Result<
     let mut opt_tree: Option<Arc<PathTree::Tree>> = None;
     let mut rest_tree: Arc<PathTree::Tree> = Arc::new(PathTree::Tree::EMPTY);
     tree = (::match_deref::match_deref! { match &(path.clone()) {
-        Deref @ Absyn::Path::IDENT { .. } => PathTree::add(tree.clone(), (var_field!((*path).name, Absyn::Path::IDENT).clone()).clone(), Arc::new(PathEntry { tree: PathTree::new(), shadowed: false }), fnptr!(PathTree::addConflictKeep, Arc<PathEntry>, Arc<PathEntry>, ArcStr))?,
+        Deref @ Absyn::Path::IDENT { .. } => PathTree::add(tree.clone(), (var_field!((*path).name, Absyn::Path::IDENT).clone()).clone(), Arc::new(PathEntry { tree: PathTree::new(), shadowed: false }), (std::sync::Arc::new(fnptr!(PathTree::addConflictKeep, Arc<PathEntry>, Arc<PathEntry>, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<PathEntry>, Arc<PathEntry>, ArcStr) -> Result<Arc<PathEntry>> + 'static>))?,
         Deref @ Absyn::Path::QUALIFIED { .. } => {
             opt_entry = PathTree::getOpt(tree.clone(), (var_field!((*path).name, Absyn::Path::QUALIFIED).clone()).clone());
             if isSome(opt_entry.clone()) {
@@ -834,7 +844,7 @@ fn addPath(mut path: Arc<Absyn::Path>, mut tree: Arc<PathTree::Tree>) -> Result<
             } else {
                 entry = Arc::new(PathEntry { tree: addPath(var_field!((*path).path, Absyn::Path::QUALIFIED).clone(), PathTree::new())?, shadowed: false });
             }
-            PathTree::add(tree.clone(), (var_field!((*path).name, Absyn::Path::QUALIFIED).clone()).clone(), entry.clone(), fnptr!(PathTree::addConflictReplace, Arc<PathEntry>, Arc<PathEntry>, ArcStr))?
+            PathTree::add(tree.clone(), (var_field!((*path).name, Absyn::Path::QUALIFIED).clone()).clone(), entry.clone(), (std::sync::Arc::new(fnptr!(PathTree::addConflictReplace, Arc<PathEntry>, Arc<PathEntry>, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<PathEntry>, Arc<PathEntry>, ArcStr) -> Result<Arc<PathEntry>> + 'static>))?
         },
         Deref @ Absyn::Path::FULLYQUALIFIED { .. } => addPath(var_field!((*path).path, Absyn::Path::FULLYQUALIFIED).clone(), tree.clone())?,
         _ => bail!("match: no arm matched"),
@@ -922,8 +932,8 @@ fn lookupCref(mut cref: Arc<Absyn::ComponentRef>, mut paths: Arc<PathTree::Tree>
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ Absyn::ComponentRef::CREF_QUAL { .. } => {
-                    let mut entry: Arc<PathEntry>;
                     let mut found: bool = found.clone();
+                    let mut entry: Arc<PathEntry>;
                     entry = PathTree::get(paths.clone(), (var_field!((*cref).name, Absyn::ComponentRef::CREF_QUAL).clone()).clone())?;
                     if entry.shadowed.clone() && !(fullyQualified.clone()) {
                         found = false;
@@ -1049,7 +1059,7 @@ fn lookupInClassDef(mut cdef: Arc<Absyn::ClassDef>, mut name: ArcStr, mut paths:
     let mut local_paths: Arc<Paths::Paths> = paths.clone();
     matches = (::match_deref::match_deref! { match &(cdef.clone()) {
         Deref @ Absyn::ClassDef::PARTS { .. } => {
-            assign_field!(local_paths.currentPath = cons(name.clone(), local_paths.currentPath.clone()));
+            assign_field!(local_paths.currentPath = cons((name.clone()).clone(), local_paths.currentPath.clone()));
             for mut part in &*var_field!((*cdef).classParts, Absyn::ClassDef::PARTS).clone() {
                 let mut part = part.clone();
                 matches = lookupInClassPart(part.clone(), local_paths.clone(), exactMatch.clone(), info.clone(), matches.clone())?;
@@ -1074,7 +1084,7 @@ fn lookupInClassDef(mut cdef: Arc<Absyn::ClassDef>, mut name: ArcStr, mut paths:
         },
         Deref @ Absyn::ClassDef::OVERLOAD { .. } => lookupInCommentOpt(var_field!((*cdef).comment, Absyn::ClassDef::OVERLOAD).clone(), paths.clone(), exactMatch.clone(), matches.clone())?,
         Deref @ Absyn::ClassDef::CLASS_EXTENDS { .. } => {
-            assign_field!(local_paths.currentPath = cons(name.clone(), local_paths.currentPath.clone()));
+            assign_field!(local_paths.currentPath = cons((name.clone()).clone(), local_paths.currentPath.clone()));
             for mut arg in &*var_field!((*cdef).modifications, Absyn::ClassDef::CLASS_EXTENDS).clone() {
                 let mut arg = arg.clone();
                 matches = lookupInElementArg(arg.clone(), local_paths.clone(), exactMatch.clone(), matches.clone())?;
@@ -1674,7 +1684,7 @@ fn serializeMatches(mut groupedMatches: Arc<metamodelica::List<Arc<metamodelica:
     let mut json_elems: Arc<metamodelica::List<Arc<JSON::JSON>>> = metamodelica::nil();
     let mut json_group: Arc<JSON::JSON> = Arc::new(JSON::FALSE);
     let mut json_elem: Arc<JSON::JSON> = Arc::new(JSON::FALSE);
-    let mut first_match: Match;
+    let mut first_match: Match = <Match as ::std::default::Default>::default();
     for mut group in &*groupedMatches.clone() {
         let mut group = group.clone();
         first_match = listHead(group.clone())?;
@@ -1712,7 +1722,7 @@ fn groupMatches(mut matches: Matches) -> Result<Arc<metamodelica::List<Arc<metam
 
     let mut outMatches: Arc<metamodelica::List<Arc<metamodelica::List<Match>>>> = metamodelica::nil();
     let mut grouped_matches: Arc<UnorderedMap::UnorderedMap<ArcStr, Arc<metamodelica::List<Match>>>>;
-    grouped_matches = UnorderedMap::new(fnptr!(stringHashDjb2, ArcStr), fnptr!(stringEq, ArcStr, ArcStr), 1);
+    grouped_matches = UnorderedMap::new((std::sync::Arc::new(fnptr!(stringHashDjb2, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr) -> Result<i32> + 'static>), (std::sync::Arc::new(fnptr!(stringEq, ArcStr, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>), 1);
     for mut m in &*matches.clone() {
         let mut m = m.clone();
         UnorderedMap::addUpdate(m.info.fileName.clone(), Arc::new({ let __pe_b1 = m.clone(); move |__pe_a0| add_match(__pe_a0, __pe_b1.clone()) }), grouped_matches.clone())?;

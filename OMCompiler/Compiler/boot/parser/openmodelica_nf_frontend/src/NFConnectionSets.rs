@@ -78,9 +78,9 @@ pub mod ConnectionSets {
         let mut sets: Sets;
         sets = emptySets((connections.connections.clone().len() as i32) + (connections.flows.clone().len() as i32));
         if !(Flags::isSet(Flags::DISABLE_SINGLE_FLOW_EQ.clone())?) {
-            sets = List::fold(connections.flows.clone(), Arc::new(addSingleConnector), sets.clone());
+            sets = List::fold(connections.flows.clone(), (std::sync::Arc::new(addSingleConnector) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Connector::NFConnector>, Sets) -> Result<Sets> + 'static>), sets.clone());
         }
-        sets = List::fold1(connections.connections.clone(), Arc::new(addConnection), connections.broken.clone(), sets.clone());
+        sets = List::fold1(connections.connections.clone(), (std::sync::Arc::new(addConnection) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Connection::NFConnection>, Arc<metamodelica::List<Connections::BrokenEdge>>, Sets) -> Result<Sets> + 'static>), connections.broken.clone(), sets.clone());
         Ok(sets)
     }
 
@@ -137,7 +137,7 @@ pub mod ConnectionSets {
     ///   corresponds to its rank, while other elements are given positive values that
     ///   corresponds to the index of their parent in the array. The hashtable is used
     ///   to look up the array index of a entry, and is also used to store the entries.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
     pub struct Sets {
         /// An array of nodes
         pub nodes: metamodelica::Array<i32>,
@@ -208,7 +208,7 @@ pub mod ConnectionSets {
         let mut sz: i32 = 0;
         sz = std::cmp::max(setCount.clone(), 3);
         nodes = arrayCreate(sz.clone(), -1);
-        elements = UnorderedMap::new(fnptr!(EntryHash, Arc<Connector::NFConnector>), fnptr!(EntryEqual, Arc<Connector::NFConnector>, Arc<Connector::NFConnector>), 1);
+        elements = UnorderedMap::new((std::sync::Arc::new(fnptr!(EntryHash, Arc<Connector::NFConnector>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Connector::NFConnector>) -> Result<i32> + 'static>), (std::sync::Arc::new(fnptr!(EntryEqual, Arc<Connector::NFConnector>, Arc<Connector::NFConnector>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Connector::NFConnector>, Arc<Connector::NFConnector>) -> Result<bool> + 'static>), 1);
         sets = Sets { nodes: nodes.clone(), elements: elements.clone(), nodeCount: 0 };
         sets
     }
@@ -220,7 +220,7 @@ pub mod ConnectionSets {
         let mut set_idx: i32 = 0;
         let mut idx: i32 = 0;
         let mut entries: metamodelica::Array<(Arc<Connector::NFConnector>, i32)>;
-        let mut e: Entry;
+        let mut e: Entry = Arc::new(<Connector::NFConnector as ::std::default::Default>::default());
         nodes = sets.nodes.clone();
         for mut i in 1..=sets.nodeCount.clone() {
             if nodes.borrow()[(i.clone()-1) as usize].clone() < 0 {
@@ -324,7 +324,7 @@ pub mod ConnectionSets {
     pub fn printSets(mut sets: Sets) -> () {
         let mut nodes: metamodelica::Array<i32>;
         let mut entries: Arc<metamodelica::List<(Arc<Connector::NFConnector>, i32)>> = metamodelica::nil();
-        let mut e: Entry;
+        let mut e: Entry = Arc::new(<Connector::NFConnector as ::std::default::Default>::default());
         let mut i: i32 = 0;
         println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*intString(sets.nodeCount.clone())); __mm_s.push_str(&*literal!(" sets:\n")); ArcStr::from(__mm_s) }).clone());
         nodes = sets.nodes.clone();

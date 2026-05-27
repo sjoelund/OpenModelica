@@ -48,7 +48,7 @@ use crate::UnorderedSet;
 use openmodelica_util_datatypes_basic::Array;
 use openmodelica_util_datatypes_basic::List;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct SBMultiInterval {
     pub intervals: metamodelica::Array<Arc<SBInterval::SBInterval>>,
     pub ndim: i32,
@@ -66,20 +66,20 @@ impl Default for SBMultiInterval {
 pub type MULTI_INTERVAL = SBMultiInterval;
 
 pub fn newEmpty() -> Arc<SBMultiInterval> {
-    let mut mi: Arc<SBMultiInterval>;
+    let mut mi: Arc<SBMultiInterval> = Arc::new(<SBMultiInterval as ::std::default::Default>::default());
     mi = Arc::new(SBMultiInterval { intervals: metamodelica::arrayFromVec(metamodelica::nil().into_iter().cloned().collect()), ndim: 0 });
     mi
 }
 
 pub fn copy(mut mi: Arc<SBMultiInterval>) -> Arc<SBMultiInterval> {
-    let mut outMI: Arc<SBMultiInterval>;
+    let mut outMI: Arc<SBMultiInterval> = Arc::new(<SBMultiInterval as ::std::default::Default>::default());
     outMI = Arc::new(SBMultiInterval { intervals: metamodelica::arrayFromVec(mi.intervals.clone().borrow().clone()), ndim: mi.ndim.clone() });
     outMI
 }
 
 pub fn fromList(mut ints: Arc<metamodelica::List<Arc<SBInterval::SBInterval>>>) -> Arc<SBMultiInterval> {
-    let mut outMI: Arc<SBMultiInterval>;
-    if List::any(ints.clone(), Arc::new(fnptr!(SBInterval::isEmpty, Arc<SBInterval::SBInterval>))) {
+    let mut outMI: Arc<SBMultiInterval> = Arc::new(<SBMultiInterval as ::std::default::Default>::default());
+    if List::any(ints.clone(), (std::sync::Arc::new(fnptr!(SBInterval::isEmpty, Arc<SBInterval::SBInterval>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SBInterval::SBInterval>) -> Result<bool> + 'static>)) {
         outMI = newEmpty();
     } else {
         outMI = Arc::new(SBMultiInterval { intervals: metamodelica::arrayFromVec(ints.clone().into_iter().cloned().collect()), ndim: (ints.clone().len() as i32) });
@@ -88,8 +88,8 @@ pub fn fromList(mut ints: Arc<metamodelica::List<Arc<SBInterval::SBInterval>>>) 
 }
 
 pub fn fromArray(mut ints: metamodelica::Array<Arc<SBInterval::SBInterval>>) -> Arc<SBMultiInterval> {
-    let mut outMI: Arc<SBMultiInterval>;
-    if Array::any(ints.clone(), Arc::new(fnptr!(SBInterval::isEmpty, Arc<SBInterval::SBInterval>))) {
+    let mut outMI: Arc<SBMultiInterval> = Arc::new(<SBMultiInterval as ::std::default::Default>::default());
+    if Array::any(ints.clone(), (std::sync::Arc::new(fnptr!(SBInterval::isEmpty, Arc<SBInterval::SBInterval>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SBInterval::SBInterval>) -> Result<bool> + 'static>)) {
         outMI = newEmpty();
     } else {
         outMI = Arc::new(SBMultiInterval { intervals: metamodelica::arrayFromVec(ints.clone().borrow().clone()), ndim: (ints.clone().borrow().len() as i32) });
@@ -108,15 +108,15 @@ pub fn contains(mut vals: metamodelica::Array<i32>, mut mi: Arc<SBMultiInterval>
     if (vals.clone().borrow().len() as i32) != mi.ndim.clone() {
         res = false;
     } else {
-        res = Array::isEqualOnTrue(vals.clone(), mi.intervals.clone(), Arc::new(fnptr!(SBInterval::contains, i32, Arc<SBInterval::SBInterval>)));
+        res = Array::isEqualOnTrue(vals.clone(), mi.intervals.clone(), (std::sync::Arc::new(fnptr!(SBInterval::contains, i32, Arc<SBInterval::SBInterval>)) as std::sync::Arc<dyn ::std::ops::Fn(i32, Arc<SBInterval::SBInterval>) -> Result<bool> + 'static>));
     }
     res
 }
 
 pub fn intersection(mut mi1: Arc<SBMultiInterval>, mut mi2: Arc<SBMultiInterval>) -> Result<Arc<SBMultiInterval>> {
-    let mut outMI: Arc<SBMultiInterval>;
+    let mut outMI: Arc<SBMultiInterval> = Arc::new(<SBMultiInterval as ::std::default::Default>::default());
     let mut ints: metamodelica::Array<Arc<SBInterval::SBInterval>>;
-    let mut ires: Arc<SBInterval::SBInterval>;
+    let mut ires: Arc<SBInterval::SBInterval> = Arc::new(<SBInterval::SBInterval as ::std::default::Default>::default());
     if mi1.ndim.clone() != mi2.ndim.clone() || isEmpty(mi1.clone()) {
         outMI = newEmpty();
         return Ok(outMI);
@@ -138,10 +138,10 @@ pub fn intersection(mut mi1: Arc<SBMultiInterval>, mut mi2: Arc<SBMultiInterval>
 pub fn complement(mut mi1: Arc<SBMultiInterval>, mut mi2: Arc<SBMultiInterval>) -> Result<Arc<UnorderedSet::UnorderedSet<Arc<SBMultiInterval>>>> {
     fn add_interval(mut i: Arc<SBInterval::SBInterval>, mut count: i32, mut size: i32, mut ints1: metamodelica::Array<Arc<SBInterval::SBInterval>>, mut ints2: metamodelica::Array<Arc<SBInterval::SBInterval>>, mut res: Arc<UnorderedSet::UnorderedSet<Arc<SBMultiInterval>>>) -> Result<Arc<UnorderedSet::UnorderedSet<Arc<SBMultiInterval>>>> {
         let mut res: Arc<UnorderedSet::UnorderedSet<Arc<SBMultiInterval>>> = res;
-        let mut dummyi: Arc<SBInterval::SBInterval>;
+        let mut dummyi: Arc<SBInterval::SBInterval> = Arc::new(<SBInterval::SBInterval as ::std::default::Default>::default());
         let mut resi: metamodelica::Array<Arc<SBInterval::SBInterval>>;
         if !(SBInterval::isEmpty(i.clone())) {
-            resi = metamodelica::arrayCreateDefault(size.clone());
+            resi = metamodelica::arrayCreate(size.clone(), dummyi.clone());
             Array::copyN(ints1.clone(), resi.clone(), count.clone(), 0, 0)?;
             {
                 let __cell0 = i.clone();
@@ -154,13 +154,13 @@ pub fn complement(mut mi1: Arc<SBMultiInterval>, mut mi2: Arc<SBMultiInterval>) 
     }
 
     let mut res: Arc<UnorderedSet::UnorderedSet<Arc<SBMultiInterval>>>;
-    let mut tmp_mi: Arc<SBMultiInterval>;
+    let mut tmp_mi: Arc<SBMultiInterval> = Arc::new(<SBMultiInterval as ::std::default::Default>::default());
     let mut dummys: Arc<UnorderedSet::UnorderedSet<Arc<SBInterval::SBInterval>>>;
     let mut diffs: metamodelica::Array<Arc<UnorderedSet::UnorderedSet<Arc<SBInterval::SBInterval>>>>;
     let mut count: i32 = 0;
     let mut mi1_size: i32 = 0;
     let mut resi: metamodelica::Array<Arc<SBInterval::SBInterval>>;
-    res = UnorderedSet::new(fnptr!(hash, Arc<SBMultiInterval>), fnptr!(isEqual, Arc<SBMultiInterval>, Arc<SBMultiInterval>), 13);
+    res = UnorderedSet::new((std::sync::Arc::new(fnptr!(hash, Arc<SBMultiInterval>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SBMultiInterval>) -> Result<i32> + 'static>), (std::sync::Arc::new(fnptr!(isEqual, Arc<SBMultiInterval>, Arc<SBMultiInterval>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SBMultiInterval>, Arc<SBMultiInterval>) -> Result<bool> + 'static>), 13);
     if isEmpty(mi1.clone()) || mi1.ndim.clone() != mi2.ndim.clone() {
         return Ok(res);
     }
@@ -190,7 +190,7 @@ pub fn complement(mut mi1: Arc<SBMultiInterval>, mut mi2: Arc<SBMultiInterval>) 
 }
 
 pub fn crossProd(mut mi1: Arc<SBMultiInterval>, mut mi2: Arc<SBMultiInterval>) -> Result<Arc<SBMultiInterval>> {
-    let mut res: Arc<SBMultiInterval>;
+    let mut res: Arc<SBMultiInterval> = Arc::new(<SBMultiInterval as ::std::default::Default>::default());
     let mut ints: metamodelica::Array<Arc<SBInterval::SBInterval>>;
     ints = Array::join(mi1.intervals.clone(), mi2.intervals.clone())?;
     res = Arc::new(SBMultiInterval { intervals: ints.clone(), ndim: (ints.clone().borrow().len() as i32) });
@@ -225,12 +225,12 @@ pub fn minElem(mut mi: Arc<SBMultiInterval>) -> metamodelica::Array<i32> {
             return res;
         }
     }
-    res = Array::map(mi.intervals.clone(), Arc::new(fnptr!(SBInterval::lowerBound, Arc<SBInterval::SBInterval>)));
+    res = Array::map(mi.intervals.clone(), (std::sync::Arc::new(fnptr!(SBInterval::lowerBound, Arc<SBInterval::SBInterval>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SBInterval::SBInterval>) -> Result<i32> + 'static>));
     res
 }
 
 pub fn replace(mut i: Arc<SBInterval::SBInterval>, mut dim: i32, mut mi: Arc<SBMultiInterval>) -> Arc<SBMultiInterval> {
-    let mut res: Arc<SBMultiInterval>;
+    let mut res: Arc<SBMultiInterval> = Arc::new(<SBMultiInterval as ::std::default::Default>::default());
     let mut ints: metamodelica::Array<Arc<SBInterval::SBInterval>>;
     ints = metamodelica::arrayFromVec(mi.intervals.clone().borrow().clone());
     {
@@ -243,7 +243,7 @@ pub fn replace(mut i: Arc<SBInterval::SBInterval>, mut dim: i32, mut mi: Arc<SBM
 
 pub fn isEqual(mut mi1: Arc<SBMultiInterval>, mut mi2: Arc<SBMultiInterval>) -> bool {
     let mut equal: bool = false;
-    equal = Array::isEqualOnTrue(mi1.intervals.clone(), mi2.intervals.clone(), Arc::new(fnptr!(SBInterval::isEqual, Arc<SBInterval::SBInterval>, Arc<SBInterval::SBInterval>)));
+    equal = Array::isEqualOnTrue(mi1.intervals.clone(), mi2.intervals.clone(), (std::sync::Arc::new(fnptr!(SBInterval::isEqual, Arc<SBInterval::SBInterval>, Arc<SBInterval::SBInterval>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SBInterval::SBInterval>, Arc<SBInterval::SBInterval>) -> Result<bool> + 'static>));
     equal
 }
 

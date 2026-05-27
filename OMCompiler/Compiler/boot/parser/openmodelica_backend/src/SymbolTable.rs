@@ -66,7 +66,7 @@ use openmodelica_util_datatypes_basic::List;
 ///  package:     SymbolTable
 ///  description: Thread-local, mutable symbol table. Set this at the start
 ///               of any interactive call or in Main.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct SymbolTable {
     /// ast ; The ast
     pub ast: Absyn::Program,
@@ -100,7 +100,7 @@ pub fn get() -> Arc<SymbolTable> {
 }
 
 pub fn getAbsyn() -> Absyn::Program {
-    let mut ast: Absyn::Program;
+    let mut ast: Absyn::Program = <Absyn::Program as ::std::default::Default>::default();
     let mut table: Arc<SymbolTable>;
     table = get();
     ast = table.ast.clone();
@@ -359,7 +359,7 @@ fn updateUriMapping(mut classes: Arc<metamodelica::List<Arc<Absyn::Class>>>) -> 
     };
                     Error::addMultiSourceMessage(Error::DOUBLE_DECLARATION_OF_ELEMENTS.clone(), list![(name.clone()).clone()], infos.clone())?;
                 }
-                tree = AvlTreeStringString::add(tree.clone(), (name.clone()).clone(), (dir.clone()).clone(), AvlTreeStringString::addConflictDefault)?;
+                tree = AvlTreeStringString::add(tree.clone(), (name.clone()).clone(), (dir.clone()).clone(), (std::sync::Arc::new(AvlTreeStringString::addConflictDefault) as std::sync::Arc<dyn ::std::ops::Fn(_, _, _) -> Result<_> + 'static>))?;
             }
             ()
         },

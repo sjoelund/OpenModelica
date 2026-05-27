@@ -71,8 +71,8 @@ pub fn readDataset(mut filename: ArcStr, mut vars: Arc<metamodelica::List<ArcStr
     let mut vals: Arc<metamodelica::List<Arc<metamodelica::List<Arc<Values::Value>>>>> = metamodelica::nil();
     let mut rows: Arc<metamodelica::List<Arc<Values::Value>>> = metamodelica::nil();
     rvals = readDataset_work((filename.clone()).clone(), vars.clone(), dimsize.clone())?;
-    vals = List::mapListReverse(rvals.clone(), Arc::new(fnptr!(ValuesMake::makeReal, metamodelica::Real)));
-    rows = List::mapReverse(vals.clone(), Arc::new(ValuesMake::makeArray));
+    vals = List::mapListReverse(rvals.clone(), (std::sync::Arc::new(fnptr!(ValuesMake::makeReal, metamodelica::Real)) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Real) -> Result<Arc<Values::Value>> + 'static>));
+    rows = List::mapReverse(vals.clone(), (std::sync::Arc::new(ValuesMake::makeArray) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<Arc<Values::Value>>>) -> Result<Arc<Values::Value>> + 'static>));
     val = ValuesMake::makeArray(rows.clone())?;
     Ok(val)
 }

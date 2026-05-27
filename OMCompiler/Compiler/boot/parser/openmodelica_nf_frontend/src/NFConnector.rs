@@ -61,13 +61,25 @@ use openmodelica_frontend_dump::ElementSource;
 use openmodelica_frontend_types::DAE;
 use openmodelica_util::Error;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct NFConnector {
     pub name: Arc<ComponentRef::NFComponentRef>,
     pub ty: Arc<Type::NFType>,
     pub face: Face,
     pub cty: i32,
     pub source: Arc<DAE::ElementSource>,
+}
+
+impl Default for NFConnector {
+    fn default() -> Self {
+        Self {
+            name: Default::default(),
+            ty: Default::default(),
+            face: Default::default(),
+            cty: Default::default(),
+            source: Default::default(),
+        }
+    }
 }
 
 pub type CONNECTOR = NFConnector;
@@ -84,6 +96,9 @@ impl PartialOrd for Face {
 impl Ord for Face {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering { (*self as i32).cmp(&(*other as i32)) }
 }
+impl Default for Face {
+    fn default() -> Self { Self::INSIDE }
+}
 
 pub fn fromCref(mut cref: Arc<ComponentRef::NFComponentRef>, mut ty: Arc<Type::NFType>, mut source: Arc<DAE::ElementSource>) -> Arc<NFConnector> {
     let mut conn: Arc<NFConnector> = fromFacedCref(cref.clone(), ty.clone(), crefFace(cref.clone()).unwrap(), source.clone()).unwrap();
@@ -91,7 +106,7 @@ pub fn fromCref(mut cref: Arc<ComponentRef::NFComponentRef>, mut ty: Arc<Type::N
 }
 
 pub fn fromFacedCref(mut cref: Arc<ComponentRef::NFComponentRef>, mut ty: Arc<Type::NFType>, mut face: Face, mut source: Arc<DAE::ElementSource>) -> Result<Arc<NFConnector>> {
-    let mut conn: Arc<NFConnector>;
+    let mut conn: Arc<NFConnector> = Arc::new(<NFConnector as ::std::default::Default>::default());
     let mut node: Arc<InstNode::InstNode> = ComponentRef::node(cref.clone())?;
     let mut comp: Arc<Component::NFComponent> = Arc::new(Component::WILD);
     let mut cty: i32 = 0;
@@ -237,7 +252,7 @@ pub fn scalarize(mut conn: Arc<NFConnector>) -> Result<Arc<metamodelica::List<Ar
     let mut name: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
     let mut ty: Arc<Type::NFType> = Arc::new(Type::ANY);
     let mut face: Face = Face::INSIDE;
-    let mut source: Arc<DAE::ElementSource>;
+    let mut source: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
     let mut cty: i32 = 0;
     let mut names: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = metamodelica::nil();
     let (__pa0, __pa1, __pa2, __pa3, __pa4) = ::match_deref::match_deref! { match &(conn.clone()) {
@@ -264,7 +279,7 @@ pub fn scalarizePrefix(mut conn: Arc<NFConnector>) -> Result<Arc<metamodelica::L
     let mut prefix: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
     let mut ty: Arc<Type::NFType> = Arc::new(Type::ANY);
     let mut face: Face = Face::INSIDE;
-    let mut source: Arc<DAE::ElementSource>;
+    let mut source: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
     let mut cty: i32 = 0;
     let mut prefixes: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = metamodelica::nil();
     let (__pa0, __pa1, __pa2, __pa3, __pa4) = ::match_deref::match_deref! { match &(conn.clone()) {

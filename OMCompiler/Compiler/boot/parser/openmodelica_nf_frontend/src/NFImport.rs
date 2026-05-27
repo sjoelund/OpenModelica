@@ -54,7 +54,7 @@ use openmodelica_frontend_dump::AbsynUtil;
 use openmodelica_util::Error;
 use openmodelica_util::ErrorTypes;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum NFImport {
     UNRESOLVED_IMPORT {
         imp: Absyn::Import,
@@ -83,7 +83,7 @@ pub fn name(mut imp: Arc<NFImport>) -> Result<ArcStr> {
 }
 
 pub fn info(mut imp: Arc<NFImport>) -> Result<SourceInfo> {
-    let mut info: SourceInfo;
+    let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
     info = (::match_deref::match_deref! { match &(imp.clone()) {
         Deref @ UNRESOLVED_IMPORT { .. } => var_field!((*imp).info, NFImport::UNRESOLVED_IMPORT).clone(),
         Deref @ RESOLVED_IMPORT { .. } => var_field!((*imp).info, NFImport::RESOLVED_IMPORT).clone(),
@@ -153,7 +153,7 @@ pub fn instUnqualified(mut imp: Arc<NFImport>, mut imps: Arc<metamodelica::List<
     let mut scope: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
     let mut tree: Arc<ClassTree::ClassTree> = Arc::new(ClassTree::EMPTY_TREE);
     let mut elements: Arc<metamodelica::List<Arc<InstNode::InstNode>>> = metamodelica::nil();
-    let mut info: SourceInfo;
+    let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
     let (__pa0, __pa1, __pa2) = ::match_deref::match_deref! { match &(imp.clone()) {
         Deref @ UNRESOLVED_IMPORT { info: __pa0, scope: __pa1, imp: Absyn::Import::UNQUAL_IMPORT { path: __pa2 } } => (__pa0.clone(), __pa1.clone(), __pa2.clone()),
         _ => bail!("pattern mismatch"),
@@ -186,7 +186,7 @@ pub fn instUnqualified(mut imp: Arc<NFImport>, mut imps: Arc<metamodelica::List<
 }
 
 pub fn printImportError(mut imp1: Arc<NFImport>, mut imp2: Arc<NFImport>) -> Result<()> {
-    let mut err_msg: ErrorTypes::Message;
+    let mut err_msg: ErrorTypes::Message = <ErrorTypes::Message as ::std::default::Default>::default();
     Error::addSourceMessage(Error::ERROR_FROM_HERE.clone(), metamodelica::nil(), info(imp1.clone())?)?;
     err_msg = (::match_deref::match_deref! { match &(imp2.clone()) {
         Deref @ UNRESOLVED_IMPORT { .. } => Error::MULTIPLE_QUALIFIED_IMPORTS_WITH_SAME_NAME.clone(),

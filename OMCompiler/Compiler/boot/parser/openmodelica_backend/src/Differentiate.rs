@@ -154,8 +154,8 @@ pub fn createSeedCrefName(mut inCref: Arc<DAE::ComponentRef>, mut inMatrixName: 
     }
     subs = ComponentReference::crefLastSubs(inCref.clone())?;
     outCref = ComponentReferenceBasics::crefStripLastSubs(inCref.clone())?;
-    outCref = ComponentReference::crefSetLastType(outCref.clone(), DAE::T_UNKNOWN_DEFAULT.clone())?;
-    outCref = ComponentReference::joinCrefs(outCref.clone(), ComponentReferenceBasics::makeCrefIdent(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Seed")); __mm_s.push_str(&*inMatrixName.clone()); ArcStr::from(__mm_s) }).clone(), DAE::T_UNKNOWN_DEFAULT.clone(), metamodelica::nil()))?;
+    outCref = ComponentReference::crefSetLastType(outCref.clone(), DAE::T_UNKNOWN_DEFAULT().clone())?;
+    outCref = ComponentReference::joinCrefs(outCref.clone(), ComponentReferenceBasics::makeCrefIdent(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Seed")); __mm_s.push_str(&*inMatrixName.clone()); ArcStr::from(__mm_s) }).clone(), DAE::T_UNKNOWN_DEFAULT().clone(), metamodelica::nil()))?;
     if debug.clone() {
         println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("after join: ")); __mm_s.push_str(&*ComponentReference::printComponentRefListStr(ComponentReference::expandCref(outCref.clone(), true)?)); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
     }
@@ -205,10 +205,11 @@ fn createFromNCall2ArgsCall(mut funcName: ArcStr, mut expl: Arc<metamodelica::Li
 // =============================================================================
 fn addFunctionConstantsAndParameters(mut knownVars_opt: Option<BackendDAE::Variables>, mut func: DAE::Function) -> Result<Option<BackendDAE::Variables>> {
     let mut knownVars_opt: Option<BackendDAE::Variables> = knownVars_opt;
-    knownVars_opt = (::match_deref::match_deref! { match &(func.clone()) {
+    knownVars_opt = ({
+        let mut body_knowns: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
+        (::match_deref::match_deref! { match &(func.clone()) {
         DAE::Function::FUNCTION { functions: Deref @ metamodelica::List::Cons { head: DAE::FunctionDefinition::FUNCTION_DEF { body }, tail: _ }, .. } => {
             let mut var_opt: Option<BackendDAE::Var> = None;
-            let mut body_knowns: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
             for mut element in &*body.clone() {
                 let mut element = element.clone();
                 var_opt = BackendDAECreate::lowerKnownVarSingle(element.clone())?;
@@ -226,11 +227,11 @@ fn addFunctionConstantsAndParameters(mut knownVars_opt: Option<BackendDAE::Varia
             knownVars_opt.clone()
         },
         _ => {
-            let mut body_knowns: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
             knownVars_opt.clone()
         },
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
-    } });
+    } })
+    });
     Ok(knownVars_opt)
 }
 
@@ -361,7 +362,7 @@ fn createPartialDifferentiatedExp(mut inDiffExpl: Arc<metamodelica::List<Arc<DAE
             eArray = (inDiffExplZero.clone()).get(i.clone())?;
             dexpLst = Expression::arrayElements(eArray.clone())?;
             arrayArgs = prepareArgumentsExplArray(expl.clone(), dexpLst.clone(), 1, metamodelica::nil())?;
-            expLst = List::map2(arrayArgs.clone(), Arc::new(fnptr!(Expression::makeArray, Arc<metamodelica::List<Arc<DAE::Exp>>>, Arc<DAE::Type>, bool)), tp.clone(), b.clone());
+            expLst = List::map2(arrayArgs.clone(), (std::sync::Arc::new(fnptr!(Expression::makeArray, Arc<metamodelica::List<Arc<DAE::Exp>>>, Arc<DAE::Type>, bool)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<Arc<DAE::Exp>>>, Arc<DAE::Type>, bool) -> Result<Arc<DAE::Exp>> + 'static>), tp.clone(), b.clone());
             arrayArgs = {
         let mut __acc: Arc<metamodelica::List<Arc<metamodelica::List<Arc<DAE::Exp>>>>> = metamodelica::nil();
         for mut exp in (expLst.clone()).into_iter().cloned() {
@@ -476,9 +477,9 @@ fn checkDerivativeFunctionInputs(mut blst: Arc<metamodelica::List<bool>>, mut tp
                     let mut ret: bool = false;
                     (falst1, _) = List::splitOnBoolList(falst.clone(), blst.clone())?;
                     falst2 = listAppend(falst.clone(), falst1.clone());
-                    tlst = List::map(falst2.clone(), Arc::new(Types::funcArgType));
-                    dtlst = List::map(dfalst.clone(), Arc::new(Types::funcArgType));
-                    ret = List::isEqualOnTrue(tlst.clone(), dtlst.clone(), Arc::new(Types::equivtypes));
+                    tlst = List::map(falst2.clone(), (std::sync::Arc::new(Types::funcArgType) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::FuncArg>) -> Result<Arc<DAE::Type>> + 'static>));
+                    dtlst = List::map(dfalst.clone(), (std::sync::Arc::new(Types::funcArgType) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::FuncArg>) -> Result<Arc<DAE::Type>> + 'static>));
+                    ret = List::isEqualOnTrue(tlst.clone(), dtlst.clone(), (std::sync::Arc::new(Types::equivtypes) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Type>, Arc<DAE::Type>) -> Result<bool> + 'static>));
                     Ok((ret.clone(), tlst.clone()))
                 }
                 _ => bail!("nomatch"),

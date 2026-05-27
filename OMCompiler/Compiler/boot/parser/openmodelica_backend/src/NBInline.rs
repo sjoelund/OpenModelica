@@ -100,7 +100,7 @@ pub fn inlineForEquation(mut eqn: Arc<Equation::Equation>) -> Result<Arc<Equatio
             let mut range: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut start: i32 = 0;
             let mut new_eqn = (*new_eqn).clone();
-            replacements = UnorderedMap::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>), ComponentRef::isEqual, 1);
+            replacements = UnorderedMap::new((std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), 1);
             (names, ranges, _) = BEquation::Iterator::getFrames(var_field!((*eqn).iter, Equation::Equation::FOR_EQUATION).clone())?;
             for mut tpl in &*List::zip(names.clone(), ranges.clone()) {
                 let mut tpl = tpl.clone();
@@ -108,7 +108,7 @@ pub fn inlineForEquation(mut eqn: Arc<Equation::Equation>) -> Result<Arc<Equatio
                 (start, _, _) = Expression::getIntegerRange(range.clone(), true)?;
                 UnorderedMap::add(name.clone(), Arc::new(Expression::NFExpression::INTEGER { value: start.clone() }), replacements.clone())?;
             }
-            new_eqn = BEquation::Equation::map(new_eqn.clone(), { let __pe_b1 = replacements.clone(); move |__pe_a0| Replacements::applySimpleExp(__pe_a0, __pe_b1.clone()) }, None, Expression::map)?;
+            new_eqn = BEquation::Equation::map(new_eqn.clone(), Arc::new({ let __pe_b1 = replacements.clone(); move |__pe_a0| Replacements::applySimpleExp(__pe_a0, __pe_b1.clone()) }), None, (std::sync::Arc::new(Expression::map) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>>) -> Result<Arc<Expression::NFExpression>> + 'static>))?;
             if Flags::isSet(Flags::DUMPBACKENDINLINE.clone())? {
                 println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("[")); __mm_s.push_str(&*literal!("NBInline.inlineForEquation")); __mm_s.push_str(&*literal!("] Inlining: ")); __mm_s.push_str(&*BEquation::Equation::toString(eqn.clone(), (literal!("")).clone())?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
                 println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("-- Result: ")); __mm_s.push_str(&*BEquation::Equation::toString(new_eqn.clone(), (literal!("")).clone())?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
@@ -201,7 +201,7 @@ fn inlineRecordsTuplesArrays(mut eqData: Arc<EqData::EqData>, mut variables: Arc
         eqData = (::match_deref::match_deref! { match &(eqData.clone()) {
         Deref @ BEquation::EqData::EQ_DATA_SIM { .. } => {
             assign_variant_field!(eqData => EqData::EqData::EQ_DATA_SIM;
-                initials = BEquation::EquationPointers::map(var_field!((*eqData).initials, EqData::EqData::EQ_DATA_SIM).clone(), { let __pe_b1 = Arc::new(crate::NBEquation::Iterator::EMPTY); let __pe_b2 = variables.clone(); let __pe_b3 = new_eqns.clone(); let __pe_b4 = set.clone(); let __pe_b5 = index.clone(); let __pe_b6 = false; move |__pe_a0| inlineRecordTupleArrayEquation(__pe_a0, __pe_b1.clone(), __pe_b2.clone(), __pe_b3.clone(), __pe_b4.clone(), __pe_b5.clone(), __pe_b6.clone()) })?,
+                initials = BEquation::EquationPointers::map(var_field!((*eqData).initials, EqData::EqData::EQ_DATA_SIM).clone(), Arc::new({ let __pe_b1 = Arc::new(crate::NBEquation::Iterator::EMPTY); let __pe_b2 = variables.clone(); let __pe_b3 = new_eqns.clone(); let __pe_b4 = set.clone(); let __pe_b5 = index.clone(); let __pe_b6 = false; move |__pe_a0| inlineRecordTupleArrayEquation(__pe_a0, __pe_b1.clone(), __pe_b2.clone(), __pe_b3.clone(), __pe_b4.clone(), __pe_b5.clone(), __pe_b6.clone()) }))?,
                 initials = BEquation::EquationPointers::addList(Pointer::access(new_eqns.clone()), var_field!((*eqData).initials, EqData::EqData::EQ_DATA_SIM).clone()),
                 initials = BEquation::EquationPointers::compress(var_field!((*eqData).initials, EqData::EqData::EQ_DATA_SIM).clone())?
             );
@@ -211,7 +211,7 @@ fn inlineRecordsTuplesArrays(mut eqData: Arc<EqData::EqData>, mut variables: Arc
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
     } });
     } else {
-        eqData = BEquation::EqData::map(eqData.clone(), { let __pe_b1 = Arc::new(crate::NBEquation::Iterator::EMPTY); let __pe_b2 = variables.clone(); let __pe_b3 = new_eqns.clone(); let __pe_b4 = set.clone(); let __pe_b5 = index.clone(); let __pe_b6 = false; move |__pe_a0| inlineRecordTupleArrayEquation(__pe_a0, __pe_b1.clone(), __pe_b2.clone(), __pe_b3.clone(), __pe_b4.clone(), __pe_b5.clone(), __pe_b6.clone()) })?;
+        eqData = BEquation::EqData::map(eqData.clone(), Arc::new({ let __pe_b1 = Arc::new(crate::NBEquation::Iterator::EMPTY); let __pe_b2 = variables.clone(); let __pe_b3 = new_eqns.clone(); let __pe_b4 = set.clone(); let __pe_b5 = index.clone(); let __pe_b6 = false; move |__pe_a0| inlineRecordTupleArrayEquation(__pe_a0, __pe_b1.clone(), __pe_b2.clone(), __pe_b3.clone(), __pe_b4.clone(), __pe_b5.clone(), __pe_b6.clone()) }))?;
         eqData = BEquation::EqData::addUntypedList(eqData.clone(), Pointer::access(new_eqns.clone()), false)?;
         eqData = BEquation::EqData::compress(eqData.clone())?;
     }
@@ -440,8 +440,8 @@ fn inlineArrayConstructor(mut eqn: Arc<Equation::Equation>, mut cref: Arc<Compon
     let mut subs: Arc<metamodelica::List<Arc<Subscript::NFSubscript>>> = metamodelica::nil();
     let mut cref_exp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut new_rhs: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-    let mut local_set: Arc<UnorderedSet::UnorderedSet<Pointer::Pointer<Arc<Variable::NFVariable>>>> = UnorderedSet::new(fnptr!(BVariable::hash, Pointer::Pointer<Arc<Variable::NFVariable>>), fnptr!(BVariable::equalName, Pointer::Pointer<Arc<Variable::NFVariable>>, Pointer::Pointer<Arc<Variable::NFVariable>>), 13);
-    let mut local_it: Arc<VariablePointers::VariablePointers>;
+    let mut local_set: Arc<UnorderedSet::UnorderedSet<Pointer::Pointer<Arc<Variable::NFVariable>>>> = UnorderedSet::new((std::sync::Arc::new(fnptr!(BVariable::hash, Pointer::Pointer<Arc<Variable::NFVariable>>)) as std::sync::Arc<dyn ::std::ops::Fn(Pointer::Pointer<Arc<Variable::NFVariable>>) -> Result<i32> + 'static>), (std::sync::Arc::new(fnptr!(BVariable::equalName, Pointer::Pointer<Arc<Variable::NFVariable>>, Pointer::Pointer<Arc<Variable::NFVariable>>)) as std::sync::Arc<dyn ::std::ops::Fn(Pointer::Pointer<Arc<Variable::NFVariable>>, Pointer::Pointer<Arc<Variable::NFVariable>>) -> Result<bool> + 'static>), 13);
+    let mut local_it: Arc<VariablePointers::VariablePointers> = Arc::new(<VariablePointers::VariablePointers as ::std::default::Default>::default());
     let mut eqns: Arc<metamodelica::List<Pointer::Pointer<Arc<Equation::Equation>>>> = metamodelica::nil();
     if Flags::isSet(Flags::DUMPBACKENDINLINE.clone())? {
         println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n[")); __mm_s.push_str(&*literal!("NBInline.inlineArrayConstructor")); __mm_s.push_str(&*literal!("] Inlining: ")); ArcStr::from(__mm_s) }).clone());
@@ -460,7 +460,7 @@ fn inlineArrayConstructor(mut eqn: Arc<Equation::Equation>, mut cref: Arc<Compon
         __acc.reverse()
     };
     let _ = UnorderedSet::merge(set.clone(), local_set.clone())?;
-    subs = BEquation::Iterator::normalizedSubscripts(BEquation::Iterator::fromFrames(frames.clone()), UnorderedMap::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>), ComponentRef::isEqual, 1))?;
+    subs = BEquation::Iterator::normalizedSubscripts(BEquation::Iterator::fromFrames(frames.clone()), UnorderedMap::new((std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), 1))?;
     cref_exp = Expression::fromCref(ComponentRef::mergeSubscripts(subs.clone(), cref.clone(), true, false, false)?, false)?;
     local_it = BVariable::VariablePointers::fromList(UnorderedSet::toList(local_set.clone()), false);
     cref_exp = Expression::map(cref_exp.clone(), Arc::new({ let __pe_b1 = local_it.clone(); let __pe_b2 = false; move |__pe_a0| BackendDAE::lowerComponentReferenceExp(__pe_a0, __pe_b1.clone(), __pe_b2.clone()) }))?;
@@ -525,7 +525,7 @@ fn inlineCatCall(mut eqn: Arc<Equation::Equation>, mut cref: Arc<ComponentRef::N
     let mut lhs: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
     let mut rhs: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
     let mut iterator_var: Pointer::Pointer<Arc<Variable::NFVariable>>;
-    let mut update_vars: Arc<VariablePointers::VariablePointers>;
+    let mut update_vars: Arc<VariablePointers::VariablePointers> = Arc::new(<VariablePointers::VariablePointers as ::std::default::Default>::default());
     let mut range: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut subscript_exp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut lhs_sub: Arc<Expression::NFExpression> = Arc::new(Expression::END);
@@ -700,7 +700,7 @@ fn createInlinedEquation(mut eqns: Arc<metamodelica::List<Pointer::Pointer<Arc<E
 fn inlineRecordConstructorExp(mut exp: Arc<Expression::NFExpression>, mut index: i32, mut variables: Arc<VariablePointers::VariablePointers>) -> Result<Arc<Expression::NFExpression>> {
     let mut exp: Arc<Expression::NFExpression> = exp;
     exp = Expression::nthRecordElement(index.clone(), exp.clone())?;
-    exp = Expression::map(exp.clone(), Arc::new(fnptr!(inlineRecordConstructorElements, Arc<Expression::NFExpression>)))?;
+    exp = Expression::map(exp.clone(), (std::sync::Arc::new(fnptr!(inlineRecordConstructorElements, Arc<Expression::NFExpression>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>))?;
     exp = Expression::map(exp.clone(), Arc::new({ let __pe_b1 = variables.clone(); let __pe_b2 = true; move |__pe_a0| BackendDAE::lowerComponentReferenceExp(__pe_a0, __pe_b1.clone(), __pe_b2.clone()) }))?;
     Ok(exp)
 }
@@ -754,7 +754,7 @@ fn getElementList(mut exp: Arc<Expression::NFExpression>) -> Result<Arc<metamode
 fn checkInline(mut func: Arc<Function::Function>, mut inline_types: Arc<metamodelica::List<DAE::InlineType>>, mut func_map: Arc<UnorderedMap::UnorderedMap<Arc<Function::Function>, Arc<InlineRating::InlineRating>>>) -> Result<bool> {
     let mut b: bool = false;
     let mut it: DAE::InlineType = Function::inlineBuiltin(func.clone());
-    b = List::contains(inline_types.clone(), it.clone(), Arc::new(fnptr!(DAEUtil::inlineTypeEqual, DAE::InlineType, DAE::InlineType))) && functionInlineable(func.clone());
+    b = List::contains(inline_types.clone(), it.clone(), (std::sync::Arc::new(fnptr!(DAEUtil::inlineTypeEqual, DAE::InlineType, DAE::InlineType)) as std::sync::Arc<dyn ::std::ops::Fn(DAE::InlineType, DAE::InlineType) -> Result<bool> + 'static>)) && functionInlineable(func.clone());
     if b.clone() && DAEUtil::inlineTypeEqual(it.clone(), openmodelica_frontend_types::DAE::InlineType::DEFAULT_INLINE) {
         b = defaultHeuristic(func.clone(), func_map.clone())?;
     }
@@ -774,7 +774,7 @@ pub mod InlineRating {
     /// used to rate a function by how much it grows when inlining.
     ///    collects data about how often the inputs will occur and how much constant bloating inlining would cause.
     /// factors for each input with an additional constant overhead.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
     pub struct InlineRating {
         pub input_rating: metamodelica::Array<i32>,
         pub constant_rating: i32,
@@ -793,7 +793,7 @@ pub mod InlineRating {
 
     pub fn toString(mut ir: Arc<InlineRating>) -> Result<ArcStr> {
         let mut r#str: ArcStr = arcstr::literal!("");
-        r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("{resolved: ")); __mm_s.push_str(&*realString(resolve(ir.clone()))); __mm_s.push_str(&*literal!(" | input: ")); __mm_s.push_str(&*Array::toString(ir.input_rating.clone(), Arc::new(fnptr!(intString, i32)), (literal!("")).clone(), (literal!("[")).clone(), (literal!(", ")).clone(), (literal!("]")).clone(), true, 0)?); __mm_s.push_str(&*literal!(" | constant: ")); __mm_s.push_str(&*intString(ir.constant_rating.clone())); __mm_s.push_str(&*literal!("}")); ArcStr::from(__mm_s) }).clone();
+        r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("{resolved: ")); __mm_s.push_str(&*realString(resolve(ir.clone()))); __mm_s.push_str(&*literal!(" | input: ")); __mm_s.push_str(&*Array::toString(ir.input_rating.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>), (literal!("")).clone(), (literal!("[")).clone(), (literal!(", ")).clone(), (literal!("]")).clone(), true, 0)?); __mm_s.push_str(&*literal!(" | constant: ")); __mm_s.push_str(&*intString(ir.constant_rating.clone())); __mm_s.push_str(&*literal!("}")); ArcStr::from(__mm_s) }).clone();
         Ok(r#str)
     }
 
@@ -858,7 +858,7 @@ pub mod InlineRating {
             }
             dst = add(dst.clone(), Pointer::access(irp.clone()))?;
         } else {
-            Error::addMessage(Error::INTERNAL_ERROR.clone(), list![({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("NBInline.InlineRating.addMapped")); __mm_s.push_str(&*literal!(" failed because src input array and arguments are of different length.\n")); __mm_s.push_str(&*literal!("src: ")); __mm_s.push_str(&*toString(src.clone())?); __mm_s.push_str(&*literal!("\nargs: ")); __mm_s.push_str(&*Array::toString(args.clone(), Arc::new(Expression::toString), (literal!("")).clone(), (literal!("[")).clone(), (literal!(", ")).clone(), (literal!("]")).clone(), true, 0)?); ArcStr::from(__mm_s) }).clone()])?;
+            Error::addMessage(Error::INTERNAL_ERROR.clone(), list![({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("NBInline.InlineRating.addMapped")); __mm_s.push_str(&*literal!(" failed because src input array and arguments are of different length.\n")); __mm_s.push_str(&*literal!("src: ")); __mm_s.push_str(&*toString(src.clone())?); __mm_s.push_str(&*literal!("\nargs: ")); __mm_s.push_str(&*Array::toString(args.clone(), (std::sync::Arc::new(Expression::toString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<ArcStr> + 'static>), (literal!("")).clone(), (literal!("[")).clone(), (literal!(", ")).clone(), (literal!("]")).clone(), true, 0)?); ArcStr::from(__mm_s) }).clone()])?;
             bail!("fail");
         }
         Ok(dst)
@@ -884,13 +884,13 @@ pub mod InlineRating {
     }
 
     pub fn fromFunction(mut r#fn: Arc<Function::Function>, mut func_map: Arc<UnorderedMap::UnorderedMap<Arc<Function::Function>, Arc<InlineRating>>>) -> Result<Arc<InlineRating>> {
-        let mut ir: Arc<InlineRating>;
+        let mut ir: Arc<InlineRating> = Arc::new(<InlineRating as ::std::default::Default>::default());
         let mut irp: Pointer::Pointer<Arc<InlineRating>>;
-        let mut lir: Arc<InlineRating>;
+        let mut lir: Arc<InlineRating> = Arc::new(<InlineRating as ::std::default::Default>::default());
         let mut idx: i32 = 1;
         let mut num_inp: i32 = (r#fn.inputs.clone().len() as i32);
-        let mut tmp: Arc<InlineRating>;
-        let mut local_map: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<InlineRating>>> = UnorderedMap::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>), ComponentRef::isEqual, 1);
+        let mut tmp: Arc<InlineRating> = Arc::new(<InlineRating as ::std::default::Default>::default());
+        let mut local_map: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<InlineRating>>> = UnorderedMap::new((std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), 1);
         for mut inp in &*r#fn.inputs.clone() {
             let mut inp = inp.clone();
             tmp = Arc::new(InlineRating { input_rating: arrayCreate(num_inp.clone(), 0), constant_rating: 0 });
@@ -931,7 +931,7 @@ pub mod InlineRating {
         } else {
             cont = (::match_deref::match_deref! { match &(exp.clone()) {
         Deref @ Expression::CALL { .. } if (functionInlineable(Call::typedFunction(var_field!((*exp).call, Expression::NFExpression::CALL).clone())?)) => {
-            let mut r#fn: Arc<Function::Function>;
+            let mut r#fn: Arc<Function::Function> = Arc::new(<Function::Function as ::std::default::Default>::default());
             let mut lir: Option<Arc<InlineRating>> = None;
             r#fn = Call::typedFunction(var_field!((*exp).call, Expression::NFExpression::CALL).clone())?;
             lir = UnorderedMap::get(r#fn.clone(), func_map.clone());

@@ -142,6 +142,23 @@ pub struct Class {
     pub info: Info,
 }
 
+impl Default for Class {
+    fn default() -> Self {
+        Self {
+            name: Default::default(),
+            partialPrefix: Default::default(),
+            finalPrefix: Default::default(),
+            encapsulatedPrefix: Default::default(),
+            restriction: Default::default(),
+            body: Default::default(),
+            commentsBeforeClass: Default::default(),
+            commentsBeforeEnd: Default::default(),
+            commentsAfterEnd: Default::default(),
+            info: Default::default(),
+        }
+    }
+}
+
 pub type CLASS = Class;
 
 
@@ -315,8 +332,8 @@ pub enum ElementItem {
 }
 impl Default for ElementItem {
     fn default() -> Self {
-        Self::LEXER_COMMENT {
-            comment: Default::default(),
+        Self::ELEMENTITEM {
+            element: Default::default(),
         }
     }
 }
@@ -351,6 +368,15 @@ pub enum Element {
         string: ArcStr,
         info: Info,
     },
+}
+impl Default for Element {
+    fn default() -> Self {
+        Self::DEFINEUNIT {
+            name: Default::default(),
+            args: Default::default(),
+            info: Default::default(),
+        }
+    }
 }
 pub use self::Element::{ELEMENT,DEFINEUNIT,TEXT};
 
@@ -445,6 +471,13 @@ pub enum Import {
         prefix: Arc<Path>,
         groups: Arc<metamodelica::List<GroupImport>>,
     },
+}
+impl Default for Import {
+    fn default() -> Self {
+        Self::QUAL_IMPORT {
+            path: Default::default(),
+        }
+    }
 }
 pub use self::Import::{NAMED_IMPORT,QUAL_IMPORT,UNQUAL_IMPORT,GROUP_IMPORT};
 
@@ -1100,6 +1133,15 @@ pub struct NamedArg {
     pub argValue: Arc<Exp>,
 }
 
+impl Default for NamedArg {
+    fn default() -> Self {
+        Self {
+            argName: Default::default(),
+            argValue: Default::default(),
+        }
+    }
+}
+
 pub type NAMEDARG = NamedArg;
 
 
@@ -1200,6 +1242,9 @@ pub enum ComponentRef {
     WILD,
     ALLWILD,
 }
+impl Default for ComponentRef {
+    fn default() -> Self { Self::WILD }
+}
 pub use self::ComponentRef::{CREF_FULLYQUALIFIED,CREF_QUAL,CREF_IDENT,WILD,ALLWILD};
 
 /// The type `Path\', on the other hand,
@@ -1224,6 +1269,13 @@ pub enum Path {
     FULLYQUALIFIED {
         path: Arc<Path>,
     },
+}
+impl Default for Path {
+    fn default() -> Self {
+        Self::IDENT {
+            name: Default::default(),
+        }
+    }
 }
 pub use self::Path::{QUALIFIED,IDENT,FULLYQUALIFIED};
 

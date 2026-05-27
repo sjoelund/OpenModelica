@@ -645,7 +645,7 @@ fn dumpConstraints2(mut iConstrs: Arc<metamodelica::List<Arc<DAE::Constraint>>>,
         (Deref @ metamodelica::List::Cons { head: Deref @ DAE::Constraint::CONSTRAINT_EXPS { constraintLst: exps }, tail: constrs }, conNo) => {
             let mut conNo_1: i32 = 0;
             dumpStrOpenTagAttr((arcstr::literal!(CONSTRAINT)).clone(), (arcstr::literal!(LABEL)).clone(), (stringAppend((stringAppend((arcstr::literal!(CONSTRAINT_REF)).clone(), (literal!("_")).clone())).clone(), (intString(conNo.clone())).clone())).clone())?;
-            Print::printBuf((Util::xmlEscape((DAEDump::dumpConstraintsStr(list![Arc::new(DAE::Element::CONSTRAINT { constraints: Arc::new(DAE::Constraint::CONSTRAINT_EXPS { constraintLst: exps.clone() }), source: DAE::emptyElementSource.clone() })])?).clone())?).clone())?;
+            Print::printBuf((Util::xmlEscape((DAEDump::dumpConstraintsStr(list![Arc::new(DAE::Element::CONSTRAINT { constraints: Arc::new(DAE::Constraint::CONSTRAINT_EXPS { constraintLst: exps.clone() }), source: DAE::emptyElementSource().clone() })])?).clone())?).clone())?;
             dumpStrCloseTag((arcstr::literal!(CONSTRAINT)).clone())?;
             conNo_1 = conNo.clone() + 1;
             dumpConstraints2(constrs.clone(), conNo_1.clone())?;
@@ -710,7 +710,7 @@ fn dumpComment(mut inComment: ArcStr) -> Result<()> {
 
 fn dumpComponents(mut dae: Arc<BackendDAE::BackendDAE>) -> Result<()> {
     dumpStrOpenTag((arcstr::literal!(BLT_REPRESENTATION)).clone())?;
-    let _ = BackendDAEUtil::foldEqSystem(dae.clone(), Arc::new(dumpComponentsWork), (0, 0))?;
+    let _ = BackendDAEUtil::foldEqSystem(dae.clone(), (std::sync::Arc::new(dumpComponentsWork) as std::sync::Arc<dyn ::std::ops::Fn(Arc<BackendDAE::EqSystem>, Arc<BackendDAE::Shared>, (i32, i32)) -> Result<(i32, i32)> + 'static>), (0, 0))?;
     dumpStrCloseTag((arcstr::literal!(BLT_REPRESENTATION)).clone())?;
     Ok(())
 }
@@ -920,15 +920,15 @@ pub fn dumpBackendDAE(mut inBackendDAE: Arc<BackendDAE::BackendDAE>, mut addOrig
                     reqns = BackendDAEUtil::collapseRemovedEqs(inBackendDAE.clone())?;
                     Print::printBuf((arcstr::literal!(HEADER)).clone())?;
                     dumpStrOpenTag((arcstr::literal!(DAE_OPEN)).clone())?;
-                    dumpStrOpenTagAttr((arcstr::literal!(VARIABLES)).clone(), (arcstr::literal!(DIMENSION)).clone(), (intString(List::fold(List::map(systs.clone(), Arc::new(fnptr!(BackendDAEUtil::systemSize, Arc<BackendDAE::EqSystem>))), Arc::new(fnptr!(intAdd, i32, i32)), 0) + (knvars.clone().len() as i32) + (extvars.clone().len() as i32) + (aliasvars.clone().len() as i32))).clone())?;
-                    vars = List::fold(systs.clone(), Arc::new(getOrderedVars), metamodelica::nil());
+                    dumpStrOpenTagAttr((arcstr::literal!(VARIABLES)).clone(), (arcstr::literal!(DIMENSION)).clone(), (intString(List::fold(List::map(systs.clone(), (std::sync::Arc::new(fnptr!(BackendDAEUtil::systemSize, Arc<BackendDAE::EqSystem>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<BackendDAE::EqSystem>) -> Result<i32> + 'static>)), (std::sync::Arc::new(fnptr!(intAdd, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<i32> + 'static>), 0) + (knvars.clone().len() as i32) + (extvars.clone().len() as i32) + (aliasvars.clone().len() as i32))).clone())?;
+                    vars = List::fold(systs.clone(), (std::sync::Arc::new(getOrderedVars) as std::sync::Arc<dyn ::std::ops::Fn(Arc<BackendDAE::EqSystem>, Arc<metamodelica::List<BackendDAE::Var>>) -> Result<Arc<metamodelica::List<BackendDAE::Var>>> + 'static>), metamodelica::nil());
                     dumpVars(vars.clone(), arrayCreate(1, metamodelica::nil()), (stringAppend((arcstr::literal!(ORDERED)).clone(), (arcstr::literal!(VARIABLES_)).clone())).clone(), addMML.clone())?;
                     dumpVars(knvars.clone(), crefIdxLstArr_knownVars.clone(), (stringAppend((arcstr::literal!(KNOWN)).clone(), (arcstr::literal!(VARIABLES_)).clone())).clone(), addMML.clone())?;
                     dumpVars(extvars.clone(), crefIdxLstArr_externalObject.clone(), (stringAppend((arcstr::literal!(EXTERNAL)).clone(), (arcstr::literal!(VARIABLES_)).clone())).clone(), addMML.clone())?;
                     dumpVars(aliasvars.clone(), crefIdxLstArr_aliasVars.clone(), (stringAppend((arcstr::literal!(ALIAS)).clone(), (arcstr::literal!(VARIABLES_)).clone())).clone(), addMML.clone())?;
                     dumpExtObjCls(extObjCls.clone(), (stringAppend((arcstr::literal!(EXTERNAL)).clone(), (arcstr::literal!(CLASSES_)).clone())).clone())?;
                     dumpStrCloseTag((arcstr::literal!(VARIABLES)).clone())?;
-                    eqnsl = List::fold(systs.clone(), Arc::new(fnptr!(getEqsList, Arc<BackendDAE::EqSystem>, Arc<metamodelica::List<Arc<BackendDAE::Equation>>>)), metamodelica::nil());
+                    eqnsl = List::fold(systs.clone(), (std::sync::Arc::new(fnptr!(getEqsList, Arc<BackendDAE::EqSystem>, Arc<metamodelica::List<Arc<BackendDAE::Equation>>>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<BackendDAE::EqSystem>, Arc<metamodelica::List<Arc<BackendDAE::Equation>>>) -> Result<Arc<metamodelica::List<Arc<BackendDAE::Equation>>>> + 'static>), metamodelica::nil());
                     dumpEqns(eqnsl.clone(), (arcstr::literal!(EQUATIONS)).clone(), addMML.clone(), dumpRes.clone(), false)?;
                     reqnsl = BackendEquation::equationList(reqns.clone());
                     dumpEqns(reqnsl.clone(), (stringAppend((arcstr::literal!(SIMPLE)).clone(), (arcstr::literal!(EQUATIONS_)).clone())).clone(), addMML.clone(), dumpRes.clone(), false)?;
@@ -963,15 +963,15 @@ pub fn dumpBackendDAE(mut inBackendDAE: Arc<BackendDAE::BackendDAE>, mut addOrig
                     reqns = BackendDAEUtil::collapseRemovedEqs(inBackendDAE.clone())?;
                     Print::printBuf((arcstr::literal!(HEADER)).clone())?;
                     dumpStrOpenTag((arcstr::literal!(DAE_OPEN)).clone())?;
-                    dumpStrOpenTagAttr((arcstr::literal!(VARIABLES)).clone(), (arcstr::literal!(DIMENSION)).clone(), (intString(List::fold(List::map(systs.clone(), Arc::new(fnptr!(BackendDAEUtil::systemSize, Arc<BackendDAE::EqSystem>))), Arc::new(fnptr!(intAdd, i32, i32)), 0) + (knvars.clone().len() as i32) + (extvars.clone().len() as i32) + (aliasvars.clone().len() as i32))).clone())?;
-                    vars = List::fold(systs.clone(), Arc::new(getOrderedVars), metamodelica::nil());
+                    dumpStrOpenTagAttr((arcstr::literal!(VARIABLES)).clone(), (arcstr::literal!(DIMENSION)).clone(), (intString(List::fold(List::map(systs.clone(), (std::sync::Arc::new(fnptr!(BackendDAEUtil::systemSize, Arc<BackendDAE::EqSystem>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<BackendDAE::EqSystem>) -> Result<i32> + 'static>)), (std::sync::Arc::new(fnptr!(intAdd, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<i32> + 'static>), 0) + (knvars.clone().len() as i32) + (extvars.clone().len() as i32) + (aliasvars.clone().len() as i32))).clone())?;
+                    vars = List::fold(systs.clone(), (std::sync::Arc::new(getOrderedVars) as std::sync::Arc<dyn ::std::ops::Fn(Arc<BackendDAE::EqSystem>, Arc<metamodelica::List<BackendDAE::Var>>) -> Result<Arc<metamodelica::List<BackendDAE::Var>>> + 'static>), metamodelica::nil());
                     dumpVars(vars.clone(), arrayCreate(1, metamodelica::nil()), (stringAppend((arcstr::literal!(ORDERED)).clone(), (arcstr::literal!(VARIABLES_)).clone())).clone(), addMML.clone())?;
                     dumpVars(knvars.clone(), crefIdxLstArr_knownVars.clone(), (stringAppend((arcstr::literal!(KNOWN)).clone(), (arcstr::literal!(VARIABLES_)).clone())).clone(), addMML.clone())?;
                     dumpVars(extvars.clone(), crefIdxLstArr_externalObject.clone(), (stringAppend((arcstr::literal!(EXTERNAL)).clone(), (arcstr::literal!(VARIABLES_)).clone())).clone(), addMML.clone())?;
                     dumpVars(aliasvars.clone(), crefIdxLstArr_aliasVars.clone(), (stringAppend((arcstr::literal!(ALIAS)).clone(), (arcstr::literal!(VARIABLES_)).clone())).clone(), addMML.clone())?;
                     dumpExtObjCls(extObjCls.clone(), (stringAppend((arcstr::literal!(EXTERNAL)).clone(), (arcstr::literal!(CLASSES_)).clone())).clone())?;
                     dumpStrCloseTag((arcstr::literal!(VARIABLES)).clone())?;
-                    eqnsVarsinOrderLst = List::fold(systs.clone(), Arc::new(getOrderedEqsandVars), metamodelica::nil());
+                    eqnsVarsinOrderLst = List::fold(systs.clone(), (std::sync::Arc::new(getOrderedEqsandVars) as std::sync::Arc<dyn ::std::ops::Fn(Arc<BackendDAE::EqSystem>, Arc<metamodelica::List<(Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, Arc<metamodelica::List<BackendDAE::Var>>)>>) -> Result<Arc<metamodelica::List<(Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, Arc<metamodelica::List<BackendDAE::Var>>)>>> + 'static>), metamodelica::nil());
                     dumpStrOpenTagAttr((arcstr::literal!(EQUATIONS)).clone(), (arcstr::literal!(DIMENSION)).clone(), (intString((eqnsVarsinOrderLst.clone().len() as i32))).clone())?;
                     dumpSolvedEqns(eqnsVarsinOrderLst.clone(), 1, (arcstr::literal!(EQUATIONS)).clone(), addMML.clone(), dumpRes.clone(), true)?;
                     dumpStrCloseTag((arcstr::literal!(EQUATIONS)).clone())?;
@@ -1072,7 +1072,7 @@ fn getOrderedEqs2(mut inComps: Arc<metamodelica::List<Arc<BackendDAE::StrongComp
             let mut varlst: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
             let mut eqnlst: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
             let mut result: Arc<metamodelica::List<(Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, Arc<metamodelica::List<BackendDAE::Var>>)>> = metamodelica::nil();
-            varlst = List::map1r(vlst.clone(), Arc::new(BackendVariable::getVarAt), vars.clone());
+            varlst = List::map1r(vlst.clone(), (std::sync::Arc::new(BackendVariable::getVarAt) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Variables, i32) -> Result<BackendDAE::Var> + 'static>), vars.clone());
             eqnlst = BackendEquation::getList(elst.clone(), eqns.clone());
             result = listAppend(inAccum.clone(), list![(eqnlst.clone(), varlst.clone())]);
             result = getOrderedEqs2(rest.clone(), eqns.clone(), vars.clone(), result.clone())?;
@@ -1082,7 +1082,7 @@ fn getOrderedEqs2(mut inComps: Arc<metamodelica::List<Arc<BackendDAE::StrongComp
             let mut eqn: Arc<BackendDAE::Equation> = Arc::new(BackendDAE::Equation::DUMMY_EQUATION);
             let mut varlst: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
             let mut result: Arc<metamodelica::List<(Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, Arc<metamodelica::List<BackendDAE::Var>>)>> = metamodelica::nil();
-            varlst = List::map1r(vlst.clone(), Arc::new(BackendVariable::getVarAt), vars.clone());
+            varlst = List::map1r(vlst.clone(), (std::sync::Arc::new(BackendVariable::getVarAt) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Variables, i32) -> Result<BackendDAE::Var> + 'static>), vars.clone());
             eqn = BackendEquation::get(eqns.clone(), e.clone());
             result = listAppend(inAccum.clone(), list![(list![eqn.clone()], varlst.clone())]);
             result = getOrderedEqs2(rest.clone(), eqns.clone(), vars.clone(), result.clone())?;
@@ -1092,7 +1092,7 @@ fn getOrderedEqs2(mut inComps: Arc<metamodelica::List<Arc<BackendDAE::StrongComp
             let mut eqn: Arc<BackendDAE::Equation> = Arc::new(BackendDAE::Equation::DUMMY_EQUATION);
             let mut varlst: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
             let mut result: Arc<metamodelica::List<(Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, Arc<metamodelica::List<BackendDAE::Var>>)>> = metamodelica::nil();
-            varlst = List::map1r(vlst.clone(), Arc::new(BackendVariable::getVarAt), vars.clone());
+            varlst = List::map1r(vlst.clone(), (std::sync::Arc::new(BackendVariable::getVarAt) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Variables, i32) -> Result<BackendDAE::Var> + 'static>), vars.clone());
             eqn = BackendEquation::get(eqns.clone(), e.clone());
             result = listAppend(inAccum.clone(), list![(list![eqn.clone()], varlst.clone())]);
             result = getOrderedEqs2(rest.clone(), eqns.clone(), vars.clone(), result.clone())?;
@@ -1102,7 +1102,7 @@ fn getOrderedEqs2(mut inComps: Arc<metamodelica::List<Arc<BackendDAE::StrongComp
             let mut eqn: Arc<BackendDAE::Equation> = Arc::new(BackendDAE::Equation::DUMMY_EQUATION);
             let mut varlst: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
             let mut result: Arc<metamodelica::List<(Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, Arc<metamodelica::List<BackendDAE::Var>>)>> = metamodelica::nil();
-            varlst = List::map1r(vlst.clone(), Arc::new(BackendVariable::getVarAt), vars.clone());
+            varlst = List::map1r(vlst.clone(), (std::sync::Arc::new(BackendVariable::getVarAt) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Variables, i32) -> Result<BackendDAE::Var> + 'static>), vars.clone());
             eqn = BackendEquation::get(eqns.clone(), e.clone());
             result = listAppend(inAccum.clone(), list![(list![eqn.clone()], varlst.clone())]);
             result = getOrderedEqs2(rest.clone(), eqns.clone(), vars.clone(), result.clone())?;
@@ -1112,7 +1112,7 @@ fn getOrderedEqs2(mut inComps: Arc<metamodelica::List<Arc<BackendDAE::StrongComp
             let mut eqn: Arc<BackendDAE::Equation> = Arc::new(BackendDAE::Equation::DUMMY_EQUATION);
             let mut varlst: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
             let mut result: Arc<metamodelica::List<(Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, Arc<metamodelica::List<BackendDAE::Var>>)>> = metamodelica::nil();
-            varlst = List::map1r(vlst.clone(), Arc::new(BackendVariable::getVarAt), vars.clone());
+            varlst = List::map1r(vlst.clone(), (std::sync::Arc::new(BackendVariable::getVarAt) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Variables, i32) -> Result<BackendDAE::Var> + 'static>), vars.clone());
             eqn = BackendEquation::get(eqns.clone(), e.clone());
             result = listAppend(inAccum.clone(), list![(list![eqn.clone()], varlst.clone())]);
             result = getOrderedEqs2(rest.clone(), eqns.clone(), vars.clone(), result.clone())?;
@@ -1122,7 +1122,7 @@ fn getOrderedEqs2(mut inComps: Arc<metamodelica::List<Arc<BackendDAE::StrongComp
             let mut eqn: Arc<BackendDAE::Equation> = Arc::new(BackendDAE::Equation::DUMMY_EQUATION);
             let mut varlst: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
             let mut result: Arc<metamodelica::List<(Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, Arc<metamodelica::List<BackendDAE::Var>>)>> = metamodelica::nil();
-            varlst = List::map1r(vlst.clone(), Arc::new(BackendVariable::getVarAt), vars.clone());
+            varlst = List::map1r(vlst.clone(), (std::sync::Arc::new(BackendVariable::getVarAt) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Variables, i32) -> Result<BackendDAE::Var> + 'static>), vars.clone());
             eqn = BackendEquation::get(eqns.clone(), e.clone());
             result = listAppend(inAccum.clone(), list![(list![eqn.clone()], varlst.clone())]);
             result = getOrderedEqs2(rest.clone(), eqns.clone(), vars.clone(), result.clone())?;
@@ -1137,10 +1137,10 @@ fn getOrderedEqs2(mut inComps: Arc<metamodelica::List<Arc<BackendDAE::StrongComp
             let mut eqnlst: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
             let mut eqnlst1: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
             let mut result: Arc<metamodelica::List<(Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, Arc<metamodelica::List<BackendDAE::Var>>)>> = metamodelica::nil();
-            (elst1, vlst1Lst, _) = List::map_3(innerEquations.clone(), Arc::new(BackendDAEUtil::getEqnAndVarsFromInnerEquation));
+            (elst1, vlst1Lst, _) = List::map_3(innerEquations.clone(), (std::sync::Arc::new(BackendDAEUtil::getEqnAndVarsFromInnerEquation) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::InnerEquation) -> Result<(i32, Arc<metamodelica::List<i32>>, Arc<metamodelica::List<Arc<DAE::Constraint>>>)> + 'static>));
             vlst1 = List::flatten(vlst1Lst.clone());
-            varlst1 = List::map1r(vlst1.clone(), Arc::new(BackendVariable::getVarAt), vars.clone());
-            varlst = List::map1r(vlst.clone(), Arc::new(BackendVariable::getVarAt), vars.clone());
+            varlst1 = List::map1r(vlst1.clone(), (std::sync::Arc::new(BackendVariable::getVarAt) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Variables, i32) -> Result<BackendDAE::Var> + 'static>), vars.clone());
+            varlst = List::map1r(vlst.clone(), (std::sync::Arc::new(BackendVariable::getVarAt) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Variables, i32) -> Result<BackendDAE::Var> + 'static>), vars.clone());
             varlst = listAppend(varlst1.clone(), varlst.clone());
             eqnlst1 = BackendEquation::getList(elst1.clone(), eqns.clone());
             eqnlst = BackendEquation::getList(elst.clone(), eqns.clone());
@@ -1817,7 +1817,7 @@ fn dumpExp2(mut inExp: Arc<DAE::Exp>) -> Result<()> {
                 Deref @ DAE::Exp::CALL { expLst: args, path: Deref @ Absyn::Path::IDENT { name: Deref @ "der" }, .. } => {
                     dumpStrOpenTag((arcstr::literal!(MathMLApply)).clone())?;
                     dumpStrVoidTag((literal!("diff")).clone())?;
-                    dumpList(args.clone(), Arc::new(dumpExp2))?;
+                    dumpList(args.clone(), (std::sync::Arc::new(dumpExp2) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<()> + 'static>))?;
                     dumpStrCloseTag((arcstr::literal!(MathMLApply)).clone())?;
                     Ok(())
                 }
@@ -1829,7 +1829,7 @@ fn dumpExp2(mut inExp: Arc<DAE::Exp>) -> Result<()> {
                 Deref @ DAE::Exp::CALL { expLst: args, path: Deref @ Absyn::Path::IDENT { name: Deref @ "acos" }, .. } => {
                     dumpStrOpenTag((arcstr::literal!(MathMLApply)).clone())?;
                     dumpStrVoidTag((arcstr::literal!(MathMLArccos)).clone())?;
-                    dumpList(args.clone(), Arc::new(dumpExp2))?;
+                    dumpList(args.clone(), (std::sync::Arc::new(dumpExp2) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<()> + 'static>))?;
                     dumpStrCloseTag((arcstr::literal!(MathMLApply)).clone())?;
                     Ok(())
                 }
@@ -1841,7 +1841,7 @@ fn dumpExp2(mut inExp: Arc<DAE::Exp>) -> Result<()> {
                 Deref @ DAE::Exp::CALL { expLst: args, path: Deref @ Absyn::Path::IDENT { name: Deref @ "asin" }, .. } => {
                     dumpStrOpenTag((arcstr::literal!(MathMLApply)).clone())?;
                     dumpStrVoidTag((arcstr::literal!(MathMLArcsin)).clone())?;
-                    dumpList(args.clone(), Arc::new(dumpExp2))?;
+                    dumpList(args.clone(), (std::sync::Arc::new(dumpExp2) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<()> + 'static>))?;
                     dumpStrCloseTag((arcstr::literal!(MathMLApply)).clone())?;
                     Ok(())
                 }
@@ -1853,7 +1853,7 @@ fn dumpExp2(mut inExp: Arc<DAE::Exp>) -> Result<()> {
                 Deref @ DAE::Exp::CALL { expLst: args, path: Deref @ Absyn::Path::IDENT { name: Deref @ "atan" }, .. } => {
                     dumpStrOpenTag((arcstr::literal!(MathMLApply)).clone())?;
                     dumpStrVoidTag((arcstr::literal!(MathMLArctan)).clone())?;
-                    dumpList(args.clone(), Arc::new(dumpExp2))?;
+                    dumpList(args.clone(), (std::sync::Arc::new(dumpExp2) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<()> + 'static>))?;
                     dumpStrCloseTag((arcstr::literal!(MathMLApply)).clone())?;
                     Ok(())
                 }
@@ -1870,7 +1870,7 @@ fn dumpExp2(mut inExp: Arc<DAE::Exp>) -> Result<()> {
                     dumpStrOpenTag((arcstr::literal!(MathMLOperator)).clone())?;
                     Print::printBuf((literal!("(")).clone())?;
                     dumpStrCloseTag((arcstr::literal!(MathMLOperator)).clone())?;
-                    dumpList(args.clone(), Arc::new(dumpExp2))?;
+                    dumpList(args.clone(), (std::sync::Arc::new(dumpExp2) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<()> + 'static>))?;
                     dumpComment((literal!("atan2 is not a MathML element it could be possible to use arg in future")).clone())?;
                     dumpStrOpenTag((arcstr::literal!(MathMLOperator)).clone())?;
                     Print::printBuf((literal!(")")).clone())?;
@@ -1886,7 +1886,7 @@ fn dumpExp2(mut inExp: Arc<DAE::Exp>) -> Result<()> {
                 Deref @ DAE::Exp::CALL { expLst: args, path: Deref @ Absyn::Path::IDENT { name: Deref @ "log" }, .. } => {
                     dumpStrOpenTag((arcstr::literal!(MathMLApply)).clone())?;
                     dumpStrVoidTag((arcstr::literal!(MathMLLn)).clone())?;
-                    dumpList(args.clone(), Arc::new(dumpExp2))?;
+                    dumpList(args.clone(), (std::sync::Arc::new(dumpExp2) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<()> + 'static>))?;
                     dumpStrCloseTag((arcstr::literal!(MathMLApply)).clone())?;
                     Ok(())
                 }
@@ -1898,7 +1898,7 @@ fn dumpExp2(mut inExp: Arc<DAE::Exp>) -> Result<()> {
                 Deref @ DAE::Exp::CALL { expLst: args, path: Deref @ Absyn::Path::IDENT { name: Deref @ "log10" }, .. } => {
                     dumpStrOpenTag((arcstr::literal!(MathMLApply)).clone())?;
                     dumpStrVoidTag((arcstr::literal!(MathMLLog)).clone())?;
-                    dumpList(args.clone(), Arc::new(dumpExp2))?;
+                    dumpList(args.clone(), (std::sync::Arc::new(dumpExp2) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<()> + 'static>))?;
                     dumpStrCloseTag((arcstr::literal!(MathMLApply)).clone())?;
                     Ok(())
                 }
@@ -1912,7 +1912,7 @@ fn dumpExp2(mut inExp: Arc<DAE::Exp>) -> Result<()> {
                     fs = AbsynUtil::pathStringNoQual(fcn.clone(), (literal!(".")).clone(), true, false)?;
                     dumpStrOpenTag((arcstr::literal!(MathMLApply)).clone())?;
                     dumpStrVoidTag((fs.clone()).clone())?;
-                    dumpList(args.clone(), Arc::new(dumpExp2))?;
+                    dumpList(args.clone(), (std::sync::Arc::new(dumpExp2) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<()> + 'static>))?;
                     dumpStrCloseTag((arcstr::literal!(MathMLApply)).clone())?;
                     Ok(())
                 }
@@ -1925,7 +1925,7 @@ fn dumpExp2(mut inExp: Arc<DAE::Exp>) -> Result<()> {
                     dumpStrOpenTag((arcstr::literal!(MathMLApply)).clone())?;
                     dumpStrVoidTag((arcstr::literal!(MathMLTranspose)).clone())?;
                     dumpStrOpenTag((arcstr::literal!(MathMLVector)).clone())?;
-                    dumpList(es.clone(), Arc::new(dumpExp2))?;
+                    dumpList(es.clone(), (std::sync::Arc::new(dumpExp2) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<()> + 'static>))?;
                     dumpStrCloseTag((arcstr::literal!(MathMLVector)).clone())?;
                     dumpStrCloseTag((arcstr::literal!(MathMLApply)).clone())?;
                     Ok(())
@@ -1939,7 +1939,7 @@ fn dumpExp2(mut inExp: Arc<DAE::Exp>) -> Result<()> {
                     dumpStrOpenTag((arcstr::literal!(MathMLApply)).clone())?;
                     dumpStrVoidTag((arcstr::literal!(MathMLTranspose)).clone())?;
                     dumpStrOpenTag((arcstr::literal!(MathMLVector)).clone())?;
-                    dumpList(es.clone(), Arc::new(dumpExp2))?;
+                    dumpList(es.clone(), (std::sync::Arc::new(dumpExp2) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<()> + 'static>))?;
                     dumpStrCloseTag((arcstr::literal!(MathMLVector)).clone())?;
                     dumpStrCloseTag((arcstr::literal!(MathMLApply)).clone())?;
                     Ok(())
@@ -1952,7 +1952,7 @@ fn dumpExp2(mut inExp: Arc<DAE::Exp>) -> Result<()> {
                 Deref @ DAE::Exp::MATRIX { matrix: ebs, .. } => {
                     dumpStrOpenTag((arcstr::literal!(MathMLMatrix)).clone())?;
                     dumpStrOpenTag((arcstr::literal!(MathMLMatrixrow)).clone())?;
-                    dumpListSeparator(ebs.clone(), Arc::new(dumpRow), stringAppendList(list![(literal!("\n</")).clone(), (arcstr::literal!(MathMLMatrixrow)).clone(), (literal!(">\n<")).clone(), (arcstr::literal!(MathMLMatrixrow)).clone(), (literal!(">")).clone()]))?;
+                    dumpListSeparator(ebs.clone(), (std::sync::Arc::new(dumpRow) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<Arc<DAE::Exp>>>) -> Result<()> + 'static>), stringAppendList(list![(literal!("\n</")).clone(), (arcstr::literal!(MathMLMatrixrow)).clone(), (literal!(">\n<")).clone(), (arcstr::literal!(MathMLMatrixrow)).clone(), (literal!(">")).clone()]))?;
                     dumpStrCloseTag((arcstr::literal!(MathMLMatrixrow)).clone())?;
                     dumpStrCloseTag((arcstr::literal!(MathMLMatrix)).clone())?;
                     Ok(())
@@ -2093,7 +2093,7 @@ fn dumpExp2(mut inExp: Arc<DAE::Exp>) -> Result<()> {
                     dumpStrOpenTag((arcstr::literal!(MathMLApply)).clone())?;
                     dumpStrVoidTag((arcstr::literal!(MathMLSelector)).clone())?;
                     dumpExp2(e1.clone())?;
-                    dumpList(args.clone(), Arc::new(dumpExp2))?;
+                    dumpList(args.clone(), (std::sync::Arc::new(dumpExp2) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<()> + 'static>))?;
                     dumpStrCloseTag((arcstr::literal!(MathMLApply)).clone())?;
                     Ok(())
                 }
@@ -2310,7 +2310,7 @@ fn dumpAdjacencyMatrix2(mut row: Arc<metamodelica::List<i32>>, mut inTpl: (i32, 
     let mut c: i32 = 0;
     (offset, c) = inTpl.clone();
     dumpStrOpenTagAttr((arcstr::literal!(MathMLMatrixrow)).clone(), (literal!("id")).clone(), (intString(c.clone())).clone())?;
-    List::map1_0(row.clone(), Arc::new(dumpMatrixIntegerRow), offset.clone());
+    List::map1_0(row.clone(), (std::sync::Arc::new(dumpMatrixIntegerRow) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<()> + 'static>), offset.clone());
     dumpStrCloseTag((arcstr::literal!(MathMLMatrixrow)).clone())?;
     outTpl = (offset.clone(), c.clone() + 1);
     Ok(outTpl)
@@ -2365,7 +2365,7 @@ fn dumpKind(mut inVarKind: BackendDAE::VarKind) -> Result<ArcStr> {
 }
 
 fn dumpList<Type_a: Clone + 'static>(mut inTypeALst: Arc<metamodelica::List<Type_a>>, mut inFuncTypeTypeATo: Arc<dyn ::std::ops::Fn(Type_a) -> Result<()> + 'static>) -> Result<()> {
-    pub type FuncTypeType_aTo<Type_a: Clone> = fn(Type_a) -> Result<()>;
+    pub type FuncTypeType_aTo<Type_a: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Type_a) -> Result<()> + 'static>;
 
     let _ = 'mc: {
         let __mc_input = (inTypeALst.clone(), inFuncTypeTypeATo.clone());
@@ -2402,7 +2402,7 @@ fn dumpList<Type_a: Clone + 'static>(mut inTypeALst: Arc<metamodelica::List<Type
 }
 
 fn dumpListSeparator<Type_a: Clone + 'static>(mut inTypeALst: Arc<metamodelica::List<Type_a>>, mut inFuncTypeTypeATo: Arc<dyn ::std::ops::Fn(Type_a) -> Result<()> + 'static>, mut inString: ArcStr) -> Result<()> {
-    pub type FuncTypeType_aTo<Type_a: Clone> = fn(Type_a) -> Result<()>;
+    pub type FuncTypeType_aTo<Type_a: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Type_a) -> Result<()> + 'static>;
 
     let _ = 'mc: {
         let __mc_input = (inTypeALst.clone(), inFuncTypeTypeATo.clone(), inString.clone());
@@ -2517,7 +2517,7 @@ fn dumpLstIntAttr(mut lst: Arc<metamodelica::List<i32>>, mut inContent: ArcStr, 
 
 fn dumpMatching(mut dae: Arc<BackendDAE::BackendDAE>) -> Result<()> {
     dumpStrOpenTag((arcstr::literal!(MATCHING_ALGORITHM)).clone())?;
-    let _ = BackendDAEUtil::foldEqSystem(dae.clone(), Arc::new(dumpMatchingWork), (0, 0))?;
+    let _ = BackendDAEUtil::foldEqSystem(dae.clone(), (std::sync::Arc::new(dumpMatchingWork) as std::sync::Arc<dyn ::std::ops::Fn(Arc<BackendDAE::EqSystem>, Arc<BackendDAE::Shared>, (i32, i32)) -> Result<(i32, i32)> + 'static>), (0, 0))?;
     dumpStrCloseTag((arcstr::literal!(MATCHING_ALGORITHM)).clone())?;
     Ok(())
 }
@@ -2551,7 +2551,7 @@ fn dumpMatching1(mut v: metamodelica::Array<i32>, mut voffset: i32, mut eoffset:
         if let Ok(__v) = (|| -> Result<_> {
             let (_, _, _) = __mc_input.clone() else { bail!("nomatch") };
             let true = (intGt((v.clone().borrow().len() as i32), 0)) else { bail!("pattern mismatch") };
-            let _ = Array::fold(v.clone(), Arc::new(dumpMatching2), (1, voffset.clone(), eoffset.clone()));
+            let _ = Array::fold(v.clone(), (std::sync::Arc::new(dumpMatching2) as std::sync::Arc<dyn ::std::ops::Fn(i32, (i32, i32, i32)) -> Result<(i32, i32, i32)> + 'static>), (1, voffset.clone(), eoffset.clone()));
             Ok(())
         })() { break 'mc __v; }
         bail!("matchcontinue: no arm matched")
@@ -2637,7 +2637,7 @@ fn dumpOptionDAEStateSelect(mut ss: Option<DAE::StateSelect>, mut Content: ArcSt
 }
 
 fn dumpRow(mut es_1: Arc<metamodelica::List<Arc<DAE::Exp>>>) -> Result<()> {
-    dumpList(es_1.clone(), Arc::new(dumpExp2))?;
+    dumpList(es_1.clone(), (std::sync::Arc::new(dumpExp2) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<()> + 'static>))?;
     Ok(())
 }
 
@@ -3404,8 +3404,8 @@ fn dumpWhenOperatorLst(mut inWhenOperators: Arc<metamodelica::List<BackendDAE::W
             let mut e: Arc<DAE::Exp>;
             let mut call: Arc<DAE::Exp>;
             let mut r#str: ArcStr = arcstr::literal!("");
-            e = Expression::makeCrefExp(stateVar.clone(), DAE::T_UNKNOWN_DEFAULT.clone())?;
-            call = Arc::new(DAE::Exp::CALL { path: Arc::new(Absyn::Path::IDENT { name: (arcstr::literal!(REINIT)).clone() }), expLst: list![e.clone(), value.clone()], attr: DAE::callAttrBuiltinOther.clone() });
+            e = Expression::makeCrefExp(stateVar.clone(), DAE::T_UNKNOWN_DEFAULT().clone())?;
+            call = Arc::new(DAE::Exp::CALL { path: Arc::new(Absyn::Path::IDENT { name: (arcstr::literal!(REINIT)).clone() }), expLst: list![e.clone(), value.clone()], attr: DAE::callAttrBuiltinOther().clone() });
             r#str = (printExpStr(call.clone())?).clone();
             dumpStrOpenTag((arcstr::literal!(WHEN_OPERATOR)).clone())?;
             Print::printBuf((literal!("\n")).clone())?;
@@ -3418,7 +3418,7 @@ fn dumpWhenOperatorLst(mut inWhenOperators: Arc<metamodelica::List<BackendDAE::W
         (Deref @ metamodelica::List::Cons { head: BackendDAE::WhenOperator::ASSERT { condition: cond, message: msg, level, source: _ }, tail: lst }, _) => {
             let mut call: Arc<DAE::Exp>;
             let mut r#str: ArcStr = arcstr::literal!("");
-            call = Arc::new(DAE::Exp::CALL { path: Arc::new(Absyn::Path::IDENT { name: (arcstr::literal!(ASSERT)).clone() }), expLst: list![cond.clone(), msg.clone(), level.clone()], attr: DAE::callAttrBuiltinOther.clone() });
+            call = Arc::new(DAE::Exp::CALL { path: Arc::new(Absyn::Path::IDENT { name: (arcstr::literal!(ASSERT)).clone() }), expLst: list![cond.clone(), msg.clone(), level.clone()], attr: DAE::callAttrBuiltinOther().clone() });
             r#str = (printExpStr(call.clone())?).clone();
             dumpStrOpenTag((arcstr::literal!(WHEN_OPERATOR)).clone())?;
             Print::printBuf((literal!("\n")).clone())?;
@@ -3431,7 +3431,7 @@ fn dumpWhenOperatorLst(mut inWhenOperators: Arc<metamodelica::List<BackendDAE::W
         (Deref @ metamodelica::List::Cons { head: BackendDAE::WhenOperator::TERMINATE { message: msg, source: _ }, tail: lst }, _) => {
             let mut call: Arc<DAE::Exp>;
             let mut r#str: ArcStr = arcstr::literal!("");
-            call = Arc::new(DAE::Exp::CALL { path: Arc::new(Absyn::Path::IDENT { name: (arcstr::literal!(TERMINATE)).clone() }), expLst: list![msg.clone()], attr: DAE::callAttrBuiltinOther.clone() });
+            call = Arc::new(DAE::Exp::CALL { path: Arc::new(Absyn::Path::IDENT { name: (arcstr::literal!(TERMINATE)).clone() }), expLst: list![msg.clone()], attr: DAE::callAttrBuiltinOther().clone() });
             r#str = (printExpStr(call.clone())?).clone();
             dumpStrOpenTag((arcstr::literal!(WHEN_OPERATOR)).clone())?;
             Print::printBuf((literal!("\n")).clone())?;

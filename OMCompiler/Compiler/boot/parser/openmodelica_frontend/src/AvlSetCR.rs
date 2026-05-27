@@ -235,7 +235,7 @@ pub fn intersection(mut tree1: Arc<Tree>, mut tree2: Arc<Tree>) -> Result<(Arc<T
     } };
     k2 = __pa2.clone();
     keylist2 = __pa3.clone();
-    while true {
+    loop {
         key_comp = keyCompare(k1.clone(), k2.clone())?;
         if key_comp.clone() > 0 {
             if true /* isPresent not implemented in Rust */ {

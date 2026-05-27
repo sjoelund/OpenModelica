@@ -106,7 +106,7 @@ pub fn getModule() -> Result<(Module::detectStatesInterface, Module::detectConti
 fn collectStatesAndDerivatives(mut exp: Arc<Expression::NFExpression>, mut acc_states: Pointer::Pointer<Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>>>, mut acc_derivatives: Pointer::Pointer<Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>>>, mut scalarized: bool) -> Result<Arc<Expression::NFExpression>> {
     let mut exp: Arc<Expression::NFExpression> = exp;
     exp = (::match_deref::match_deref! { match &(exp.clone()) {
-        Deref @ Expression::CALL { call: Deref @ Call::TYPED_CALL { arguments: Deref @ metamodelica::List::Cons { head: Deref @ Expression::CREF { cref: state_cref, .. }, tail: Deref @ metamodelica::List::Nil }, r#fn: Deref @ Function::Function::FUNCTION { path: Deref @ Absyn::Path::IDENT { name: Deref @ "der" }, .. }, .. } } if (!(BVariable::checkCref(state_cref.clone(), fnptr!(BVariable::isStateDerivative, Pointer::Pointer<Arc<Variable::NFVariable>>), metamodelica::sourceInfo!()))) => {
+        Deref @ Expression::CALL { call: Deref @ Call::TYPED_CALL { arguments: Deref @ metamodelica::List::Cons { head: Deref @ Expression::CREF { cref: state_cref, .. }, tail: Deref @ metamodelica::List::Nil }, r#fn: Deref @ Function::Function::FUNCTION { path: Deref @ Absyn::Path::IDENT { name: Deref @ "der" }, .. }, .. } } if (!(BVariable::checkCref(state_cref.clone(), (std::sync::Arc::new(fnptr!(BVariable::isStateDerivative, Pointer::Pointer<Arc<Variable::NFVariable>>)) as std::sync::Arc<dyn ::std::ops::Fn(Pointer::Pointer<Arc<Variable::NFVariable>>) -> Result<bool> + 'static>), metamodelica::sourceInfo!()))) => {
             let mut res: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut der_cref: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
             let mut state_var: Pointer::Pointer<Arc<Variable::NFVariable>>;
@@ -116,7 +116,7 @@ fn collectStatesAndDerivatives(mut exp: Arc<Expression::NFExpression>, mut acc_s
                 res = Expression::makeZero(ComponentRef::getSubscriptedType(state_cref.clone(), false)?)?;
             } else {
                 if BVariable::hasDerVar(state_var.clone()) {
-                    der_cref = BVariable::getPartnerCref(state_cref.clone(), fnptr!(BVariable::getVarDer, Pointer::Pointer<Arc<Variable::NFVariable>>), scalarized.clone())?;
+                    der_cref = BVariable::getPartnerCref(state_cref.clone(), (std::sync::Arc::new(fnptr!(BVariable::getVarDer, Pointer::Pointer<Arc<Variable::NFVariable>>)) as std::sync::Arc<dyn ::std::ops::Fn(Pointer::Pointer<Arc<Variable::NFVariable>>) -> Result<(Option<Pointer::Pointer<Arc<Variable::NFVariable>>>, ArcStr)> + 'static>), scalarized.clone())?;
                 } else {
                     (der_cref, der_var) = BVariable::makeDerVar(state_cref.clone(), scalarized.clone())?;
                     state_var = BVariable::getVarPointer(state_cref.clone(), metamodelica::sourceInfo!())?;
@@ -147,7 +147,7 @@ fn resolveGeneralDer(mut exp: Arc<Expression::NFExpression>, mut acc_states: Poi
             let mut returnExp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut aux_equation: Pointer::Pointer<Arc<Equation::Equation>>;
             let mut oDiffArgs: Arc<Differentiate::DifferentiationArguments::DifferentiationArguments>;
-            if Expression::fold(arg.clone(), Arc::new(checkAlgebraic), 0)? > 1 {
+            if Expression::fold(arg.clone(), (std::sync::Arc::new(checkAlgebraic) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, i32) -> Result<i32> + 'static>), 0)? > 1 {
                 (state_var, state_cref, der_var, der_cref) = BVariable::makeAuxStateVar(Pointer::access(uniqueIndex.clone()), Some(arg.clone()))?;
                 aux_equation = BEquation::Equation::makeAssignment(Expression::fromCref(state_cref.clone(), false)?, arg.clone(), uniqueIndex.clone(), (arcstr::literal!(BVariable::AUXILIARY_STR)).clone(), Arc::new(crate::NBEquation::Iterator::EMPTY), BEquation::default(EquationKind::CONTINUOUS.clone(), false, None, None))?;
                 returnExp = Expression::fromCref(der_cref.clone(), false)?;
@@ -208,7 +208,7 @@ fn updateStatesAndDerivatives(mut variables: Arc<VariablePointers::VariablePoint
         if acc_states.clone().is_empty() {
             println!("{}", (literal!("\t<no states>\n\n")).clone());
         } else {
-            println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*List::toString(acc_states.clone(), Arc::new(fnptr!(BVariable::pointerToString, Pointer::Pointer<Arc<Variable::NFVariable>>)), (literal!("")).clone(), (literal!("\t")).clone(), (literal!("\n\t")).clone(), (literal!("\n")).clone(), true, 0)?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+            println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*List::toString(acc_states.clone(), (std::sync::Arc::new(fnptr!(BVariable::pointerToString, Pointer::Pointer<Arc<Variable::NFVariable>>)) as std::sync::Arc<dyn ::std::ops::Fn(Pointer::Pointer<Arc<Variable::NFVariable>>) -> Result<ArcStr> + 'static>), (literal!("")).clone(), (literal!("\t")).clone(), (literal!("\n\t")).clone(), (literal!("\n")).clone(), true, 0)?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
         }
     }
     Ok((variables, unknowns, knowns, initials, states, derivatives, algebraics))
@@ -283,7 +283,7 @@ fn preFromArgs(mut args: Arc<metamodelica::List<Arc<Expression::NFExpression>>>,
         Deref @ metamodelica::List::Cons { head: old_exp @ Deref @ Expression::CREF { cref: state_cref, .. }, tail: Deref @ metamodelica::List::Nil } => (BVariable::getVarPointer(state_cref.clone(), metamodelica::sourceInfo!())?, old_exp.clone(), false),
         Deref @ metamodelica::List::Cons { head: old_exp @ Deref @ Expression::LUNARY { exp: Deref @ Expression::CREF { cref: state_cref, .. }, .. }, tail: Deref @ metamodelica::List::Nil } => (BVariable::getVarPointer(state_cref.clone(), metamodelica::sourceInfo!())?, old_exp.clone(), true),
         _ => {
-            Error::addMessage(Error::INTERNAL_ERROR.clone(), list![({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("NBDetectStates.preFromArgs")); __mm_s.push_str(&*literal!(" failed because of unexpected expression ")); __mm_s.push_str(&*context.clone()); __mm_s.push_str(&*literal!("(")); __mm_s.push_str(&*List::toString(args.clone(), Arc::new(Expression::toString), (literal!("")).clone(), (literal!("")).clone(), (literal!(", ")).clone(), (literal!("")).clone(), true, 0)?); __mm_s.push_str(&*literal!(").")); ArcStr::from(__mm_s) }).clone()])?;
+            Error::addMessage(Error::INTERNAL_ERROR.clone(), list![({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("NBDetectStates.preFromArgs")); __mm_s.push_str(&*literal!(" failed because of unexpected expression ")); __mm_s.push_str(&*context.clone()); __mm_s.push_str(&*literal!("(")); __mm_s.push_str(&*List::toString(args.clone(), (std::sync::Arc::new(Expression::toString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<ArcStr> + 'static>), (literal!("")).clone(), (literal!("")).clone(), (literal!(", ")).clone(), (literal!("")).clone(), true, 0)?); __mm_s.push_str(&*literal!(").")); ArcStr::from(__mm_s) }).clone()])?;
             bail!("fail")
         },
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
@@ -316,17 +316,17 @@ fn updateDiscreteStatesAndPrevious(mut variables: Arc<VariablePointers::Variable
     if Flags::isSet(Flags::DUMP_STATESELECTION_INFO.clone())? {
         if !(acc_discrete_states.clone().is_empty()) {
             println!("{}", (StringUtil::headline_4(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("[stateselection] Natural discrete states from ")); __mm_s.push_str(&*context.clone()); __mm_s.push_str(&*literal!(":")); ArcStr::from(__mm_s) }).clone())).clone());
-            println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*List::toString(acc_discrete_states.clone(), Arc::new(fnptr!(BVariable::pointerToString, Pointer::Pointer<Arc<Variable::NFVariable>>)), (literal!("")).clone(), (literal!("\t")).clone(), (literal!("\n\t")).clone(), (literal!("\n")).clone(), true, 0)?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+            println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*List::toString(acc_discrete_states.clone(), (std::sync::Arc::new(fnptr!(BVariable::pointerToString, Pointer::Pointer<Arc<Variable::NFVariable>>)) as std::sync::Arc<dyn ::std::ops::Fn(Pointer::Pointer<Arc<Variable::NFVariable>>) -> Result<ArcStr> + 'static>), (literal!("")).clone(), (literal!("\t")).clone(), (literal!("\n\t")).clone(), (literal!("\n")).clone(), true, 0)?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
         }
         if !(acc_clocked_states.clone().is_empty()) {
             println!("{}", (StringUtil::headline_4(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("[stateselection] Natural clocked states from ")); __mm_s.push_str(&*context.clone()); __mm_s.push_str(&*literal!(":")); ArcStr::from(__mm_s) }).clone())).clone());
-            println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*List::toString(acc_clocked_states.clone(), Arc::new(fnptr!(BVariable::pointerToString, Pointer::Pointer<Arc<Variable::NFVariable>>)), (literal!("")).clone(), (literal!("\t")).clone(), (literal!("\n\t")).clone(), (literal!("\n")).clone(), true, 0)?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+            println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*List::toString(acc_clocked_states.clone(), (std::sync::Arc::new(fnptr!(BVariable::pointerToString, Pointer::Pointer<Arc<Variable::NFVariable>>)) as std::sync::Arc<dyn ::std::ops::Fn(Pointer::Pointer<Arc<Variable::NFVariable>>) -> Result<ArcStr> + 'static>), (literal!("")).clone(), (literal!("\t")).clone(), (literal!("\n\t")).clone(), (literal!("\n")).clone(), true, 0)?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
         }
     }
     if Flags::isSet(Flags::DUMP_DISCRETEVARS_INFO.clone())? {
         if !(acc_previous.clone().is_empty()) {
             println!("{}", (StringUtil::headline_4(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("[discreteinfo] pre() and previous() variables from ")); __mm_s.push_str(&*context.clone()); __mm_s.push_str(&*literal!(":")); ArcStr::from(__mm_s) }).clone())).clone());
-            println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*List::toString(acc_previous.clone(), Arc::new(fnptr!(BVariable::pointerToString, Pointer::Pointer<Arc<Variable::NFVariable>>)), (literal!("")).clone(), (literal!("\t")).clone(), (literal!("\n\t")).clone(), (literal!("\n")).clone(), true, 0)?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+            println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*List::toString(acc_previous.clone(), (std::sync::Arc::new(fnptr!(BVariable::pointerToString, Pointer::Pointer<Arc<Variable::NFVariable>>)) as std::sync::Arc<dyn ::std::ops::Fn(Pointer::Pointer<Arc<Variable::NFVariable>>) -> Result<ArcStr> + 'static>), (literal!("")).clone(), (literal!("\t")).clone(), (literal!("\n\t")).clone(), (literal!("\n")).clone(), true, 0)?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
         }
     }
     Ok((variables, knowns, initials, discretes, discrete_states, clocked_states, previous))

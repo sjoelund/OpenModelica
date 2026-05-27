@@ -65,7 +65,7 @@ use openmodelica_util::Util;
 use openmodelica_util_datatypes_basic::Array;
 use openmodelica_util_datatypes_basic::List;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum NFType {
     INTEGER,
     REAL,
@@ -309,7 +309,7 @@ pub fn isContinuous(mut ty: Arc<NFType>) -> Result<bool> {
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, Arc::new(isContinuous))
+    }, (std::sync::Arc::new(isContinuous) as std::sync::Arc<dyn ::std::ops::Fn(Arc<NFType>) -> Result<bool> + 'static>))
         },
         _ => {
             isReal(elementType(ty.clone()))
@@ -352,12 +352,12 @@ pub fn isConditionalArray(mut ty: Arc<NFType>) -> bool {
 }
 
 pub fn isResizable(mut ty: Arc<NFType>) -> bool {
-    let mut b: bool = List::any(arrayDims(ty.clone()), Arc::new(fnptr!(Dimension::isResizable, Arc<Dimension::NFDimension>)));
+    let mut b: bool = List::any(arrayDims(ty.clone()), (std::sync::Arc::new(fnptr!(Dimension::isResizable, Arc<Dimension::NFDimension>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Dimension::NFDimension>) -> Result<bool> + 'static>));
     b
 }
 
 pub fn sizeKnown(mut ty: Arc<NFType>) -> bool {
-    let mut b: bool = !(List::any(arrayDims(ty.clone()), Arc::new(fnptr!(Dimension::isUnknown, Arc<Dimension::NFDimension>))));
+    let mut b: bool = !(List::any(arrayDims(ty.clone()), (std::sync::Arc::new(fnptr!(Dimension::isUnknown, Arc<Dimension::NFDimension>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Dimension::NFDimension>) -> Result<bool> + 'static>)));
     b
 }
 
@@ -487,7 +487,7 @@ pub fn isSquareMatrix(mut ty: Arc<NFType>) -> Result<bool> {
 pub fn isEmptyArray(mut ty: Arc<NFType>) -> bool {
     let mut isEmpty: bool = false;
     isEmpty = (::match_deref::match_deref! { match &(ty.clone()) {
-        Deref @ ARRAY { .. } => List::any(var_field!((*ty).dimensions, NFType::ARRAY).clone(), Arc::new(Dimension::isZero)),
+        Deref @ ARRAY { .. } => List::any(var_field!((*ty).dimensions, NFType::ARRAY).clone(), (std::sync::Arc::new(Dimension::isZero) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Dimension::NFDimension>) -> Result<bool> + 'static>)),
         Deref @ CONDITIONAL_ARRAY { .. } => isEmptyArray(var_field!((*ty).trueType, NFType::CONDITIONAL_ARRAY).clone()),
         _ => false,
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
@@ -840,7 +840,7 @@ pub fn copyDims(mut srcType: Arc<NFType>, mut dstType: Arc<NFType>) -> Arc<NFTyp
 }
 
 pub fn applyToDims(mut ty: Arc<NFType>, mut func: Arc<dyn ::std::ops::Fn(Arc<Dimension::NFDimension>) -> Result<Arc<Dimension::NFDimension>> + 'static>) -> Result<Arc<NFType>> {
-    pub type dimFunc = fn(Arc<Dimension::NFDimension>) -> Result<Arc<Dimension::NFDimension>>;
+    pub type dimFunc = std::sync::Arc<dyn ::std::ops::Fn(Arc<Dimension::NFDimension>) -> Result<Arc<Dimension::NFDimension>> + 'static>;
 
     let mut ty: Arc<NFType> = ty;
     ty = (::match_deref::match_deref! { match &(ty.clone()) {
@@ -935,7 +935,7 @@ pub fn hasKnownSize(mut ty: Arc<NFType>) -> bool {
 pub fn hasZeroDimension(mut ty: Arc<NFType>) -> bool {
     let mut hasZero: bool = false;
     hasZero = (::match_deref::match_deref! { match &(ty.clone()) {
-        Deref @ ARRAY { .. } => List::any(var_field!((*ty).dimensions, NFType::ARRAY).clone(), Arc::new(Dimension::isZero)),
+        Deref @ ARRAY { .. } => List::any(var_field!((*ty).dimensions, NFType::ARRAY).clone(), (std::sync::Arc::new(Dimension::isZero) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Dimension::NFDimension>) -> Result<bool> + 'static>)),
         Deref @ CONDITIONAL_ARRAY { .. } => hasZeroDimension(var_field!((*ty).trueType, NFType::CONDITIONAL_ARRAY).clone()) && hasZeroDimension(var_field!((*ty).falseType, NFType::CONDITIONAL_ARRAY).clone()),
         _ => false,
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
@@ -944,7 +944,7 @@ pub fn hasZeroDimension(mut ty: Arc<NFType>) -> bool {
 }
 
 pub fn mapDims(mut ty: Arc<NFType>, mut func: Arc<dyn ::std::ops::Fn(Arc<Dimension::NFDimension>) -> Result<Arc<Dimension::NFDimension>> + 'static>) -> Arc<NFType> {
-    pub type FuncT = fn(Arc<Dimension::NFDimension>) -> Result<Arc<Dimension::NFDimension>>;
+    pub type FuncT = std::sync::Arc<dyn ::std::ops::Fn(Arc<Dimension::NFDimension>) -> Result<Arc<Dimension::NFDimension>> + 'static>;
 
     let mut ty: Arc<NFType> = ty;
     let () = (::match_deref::match_deref! { match &(ty.clone()) {
@@ -994,7 +994,7 @@ pub fn mapDims(mut ty: Arc<NFType>, mut func: Arc<dyn ::std::ops::Fn(Arc<Dimensi
 }
 
 pub fn foldDims<ArgT: Clone + 'static>(mut ty: Arc<NFType>, mut func: Arc<dyn ::std::ops::Fn(Arc<Dimension::NFDimension>, ArgT) -> Result<ArgT> + 'static>, mut arg: ArgT) -> ArgT {
-    pub type FuncT<ArgT: Clone> = fn(Arc<Dimension::NFDimension>, ArgT) -> Result<ArgT>;
+    pub type FuncT<ArgT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Arc<Dimension::NFDimension>, ArgT) -> Result<ArgT> + 'static>;
 
     let mut arg: ArgT = arg;
     arg = (::match_deref::match_deref! { match &(ty.clone()) {
@@ -1031,8 +1031,8 @@ pub fn toString(mut ty: Arc<NFType>) -> Result<ArcStr> {
         Deref @ BOOLEAN => literal!("Boolean"),
         Deref @ CLOCK => literal!("Clock"),
         Deref @ ENUMERATION { .. } => if (var_field!((*ty).literals, NFType::ENUMERATION).clone().is_empty()) {literal!("enumeration(:)")} else {{ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("enumeration ")); __mm_s.push_str(&*AbsynUtil::pathString(var_field!((*ty).typePath, NFType::ENUMERATION).clone(), (literal!(".")).clone(), true, false)?); __mm_s.push_str(&*literal!("(")); __mm_s.push_str(&*stringDelimitList(var_field!((*ty).literals, NFType::ENUMERATION).clone(), (literal!(", ")).clone())); __mm_s.push_str(&*literal!(")")); ArcStr::from(__mm_s) }},
-        Deref @ ARRAY { .. } => List::toString(var_field!((*ty).dimensions, NFType::ARRAY).clone(), Arc::new(Dimension::toString), (toString(var_field!((*ty).elementType, NFType::ARRAY).clone())?).clone(), (literal!("[")).clone(), (literal!(", ")).clone(), (literal!("]")).clone(), false, 0)?,
-        Deref @ TUPLE { .. } => { let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("(")); __mm_s.push_str(&*stringDelimitList(List::map(var_field!((*ty).types, NFType::TUPLE).clone(), Arc::new(toString)), (literal!(", ")).clone())); __mm_s.push_str(&*literal!(")")); ArcStr::from(__mm_s) },
+        Deref @ ARRAY { .. } => List::toString(var_field!((*ty).dimensions, NFType::ARRAY).clone(), (std::sync::Arc::new(Dimension::toString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Dimension::NFDimension>) -> Result<ArcStr> + 'static>), (toString(var_field!((*ty).elementType, NFType::ARRAY).clone())?).clone(), (literal!("[")).clone(), (literal!(", ")).clone(), (literal!("]")).clone(), false, 0)?,
+        Deref @ TUPLE { .. } => { let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("(")); __mm_s.push_str(&*stringDelimitList(List::map(var_field!((*ty).types, NFType::TUPLE).clone(), (std::sync::Arc::new(toString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<NFType>) -> Result<ArcStr> + 'static>)), (literal!(", ")).clone())); __mm_s.push_str(&*literal!(")")); ArcStr::from(__mm_s) },
         Deref @ NORETCALL => literal!("()"),
         Deref @ UNKNOWN => literal!("unknown()"),
         Deref @ COMPLEX { .. } => AbsynUtil::pathString(InstNode::scopePath(var_field!((*ty).cls, NFType::COMPLEX).clone(), InstNode::ScopeType::RELATIVE.clone(), false)?, (literal!(".")).clone(), true, false)?,
@@ -1041,7 +1041,7 @@ pub fn toString(mut ty: Arc<NFType>) -> Result<ArcStr> {
         Deref @ POLYMORPHIC { .. } => if (StringUtil::startsWith((var_field!((*ty).name, NFType::POLYMORPHIC).clone()).clone(), (literal!("__")).clone())) {substring((var_field!((*ty).name, NFType::POLYMORPHIC).clone()).clone(), 3, ((var_field!((*ty).name, NFType::POLYMORPHIC).clone()).clone().len() as i32))?} else {{ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("<")); __mm_s.push_str(&*var_field!((*ty).name, NFType::POLYMORPHIC).clone()); __mm_s.push_str(&*literal!(">")); ArcStr::from(__mm_s) }},
         Deref @ ANY => literal!("$ANY$"),
         Deref @ CONDITIONAL_ARRAY { .. } => { let mut __mm_s = String::new(); __mm_s.push_str(&*toString(var_field!((*ty).trueType, NFType::CONDITIONAL_ARRAY).clone())?); __mm_s.push_str(&*literal!("|")); __mm_s.push_str(&*toString(var_field!((*ty).falseType, NFType::CONDITIONAL_ARRAY).clone())?); ArcStr::from(__mm_s) },
-        Deref @ UNTYPED { .. } => Array::toString(var_field!((*ty).dimensions, NFType::UNTYPED).clone(), Arc::new(Dimension::toString), (InstNode::name(var_field!((*ty).typeNode, NFType::UNTYPED).clone())?).clone(), (literal!("[")).clone(), (literal!(", ")).clone(), (literal!("]")).clone(), false, 0)?,
+        Deref @ UNTYPED { .. } => Array::toString(var_field!((*ty).dimensions, NFType::UNTYPED).clone(), (std::sync::Arc::new(Dimension::toString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Dimension::NFDimension>) -> Result<ArcStr> + 'static>), (InstNode::name(var_field!((*ty).typeNode, NFType::UNTYPED).clone())?).clone(), (literal!("[")).clone(), (literal!(", ")).clone(), (literal!("]")).clone(), false, 0)?,
         _ => {
             Error::assertion(false, ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("NFType.toString")); __mm_s.push_str(&*literal!(" got unknown type: ")); __mm_s.push_str(&*anyString(ty.clone())); ArcStr::from(__mm_s) }).clone(), metamodelica::sourceInfo!())?;
             bail!("fail")
@@ -1103,7 +1103,7 @@ pub fn toFlatDeclarationStream(mut ty: Arc<NFType>, mut format: BaseModelica::Ou
     let mut path: Arc<Absyn::Path>;
     let mut constructor: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
     let mut destructor: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
-    let mut f: Arc<Function::Function>;
+    let mut f: Arc<Function::Function> = Arc::new(<Function::Function as ::std::default::Default>::default());
     s = (::match_deref::match_deref! { match &(ty.clone()) {
         Deref @ ENUMERATION { .. } => {
             s = IOStream::append(s.clone(), (indent.clone()).clone())?;
@@ -1166,12 +1166,12 @@ pub fn typenameString(mut ty: Arc<NFType>) -> Result<ArcStr> {
 pub fn toDAE(mut ty: Arc<NFType>, mut makeTypeVars: bool) -> Result<Arc<DAE::Type>> {
     let mut daeTy: Arc<DAE::Type> = Arc::new(DAE::Type::T_NORETCALL);
     daeTy = (::match_deref::match_deref! { match &(ty.clone()) {
-        Deref @ INTEGER => DAE::T_INTEGER_DEFAULT.clone(),
-        Deref @ REAL => DAE::T_REAL_DEFAULT.clone(),
-        Deref @ STRING => DAE::T_STRING_DEFAULT.clone(),
-        Deref @ BOOLEAN => DAE::T_BOOL_DEFAULT.clone(),
+        Deref @ INTEGER => DAE::T_INTEGER_DEFAULT().clone(),
+        Deref @ REAL => DAE::T_REAL_DEFAULT().clone(),
+        Deref @ STRING => DAE::T_STRING_DEFAULT().clone(),
+        Deref @ BOOLEAN => DAE::T_BOOL_DEFAULT().clone(),
         Deref @ ENUMERATION { .. } => Arc::new(DAE::Type::T_ENUMERATION { index: None, path: var_field!((*ty).typePath, NFType::ENUMERATION).clone(), names: var_field!((*ty).literals, NFType::ENUMERATION).clone(), literalVarLst: metamodelica::nil(), attributeLst: metamodelica::nil() }),
-        Deref @ CLOCK => DAE::T_CLOCK_DEFAULT.clone(),
+        Deref @ CLOCK => DAE::T_CLOCK_DEFAULT().clone(),
         Deref @ ARRAY { .. } => Arc::new(DAE::Type::T_ARRAY { ty: toDAE(var_field!((*ty).elementType, NFType::ARRAY).clone(), makeTypeVars.clone())?, dims: {
         let mut __acc: Arc<metamodelica::List<Arc<DAE::Dimension>>> = metamodelica::nil();
         for mut d in (var_field!((*ty).dimensions, NFType::ARRAY).clone()).into_iter().cloned() {
@@ -1194,8 +1194,8 @@ pub fn toDAE(mut ty: Arc<NFType>, mut makeTypeVars: bool) -> Result<Arc<DAE::Typ
         FunctionType::FUNCTIONAL_VARIABLE => Arc::new(DAE::Type::T_FUNCTION_REFERENCE_VAR { functionType: Function::makeDAEType(var_field!((*ty).r#fn, NFType::FUNCTION).clone(), true)? }),
         _ => bail!("match: no arm matched"),
     }),
-        Deref @ NORETCALL => DAE::T_NORETCALL_DEFAULT.clone(),
-        Deref @ UNKNOWN => DAE::T_UNKNOWN_DEFAULT.clone(),
+        Deref @ NORETCALL => DAE::T_NORETCALL_DEFAULT().clone(),
+        Deref @ UNKNOWN => DAE::T_UNKNOWN_DEFAULT().clone(),
         Deref @ COMPLEX { .. } => if (makeTypeVars.clone()) {InstNode::toFullDAEType(var_field!((*ty).cls, NFType::COMPLEX).clone())?} else {InstNode::toPartialDAEType(var_field!((*ty).cls, NFType::COMPLEX).clone())?},
         Deref @ METABOXED { .. } => Arc::new(DAE::Type::T_METABOXED { ty: toDAE(var_field!((*ty).ty, NFType::METABOXED).clone(), true)? }),
         Deref @ POLYMORPHIC { .. } => Arc::new(DAE::Type::T_METAPOLYMORPHIC { name: (var_field!((*ty).name, NFType::POLYMORPHIC).clone()).clone() }),
@@ -1272,19 +1272,19 @@ pub fn isEqual(mut ty1: Arc<NFType>, mut ty2: Arc<NFType>) -> bool {
     }
     equal = (::match_deref::match_deref! { match &((ty1.clone(), ty2.clone())) {
         (Deref @ ENUMERATION { .. }, Deref @ ENUMERATION { .. }) => {
-            List::isEqualOnTrue(var_field!((*ty1).literals, NFType::ENUMERATION).clone(), var_field!((*ty2).literals, NFType::ENUMERATION).clone(), Arc::new(fnptr!(stringEq, ArcStr, ArcStr)))
+            List::isEqualOnTrue(var_field!((*ty1).literals, NFType::ENUMERATION).clone(), var_field!((*ty2).literals, NFType::ENUMERATION).clone(), (std::sync::Arc::new(fnptr!(stringEq, ArcStr, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>))
         },
         (Deref @ ARRAY { .. }, Deref @ ARRAY { .. }) => {
-            isEqual(var_field!((*ty1).elementType, NFType::ARRAY).clone(), var_field!((*ty2).elementType, NFType::ARRAY).clone()) && List::isEqualOnTrue(var_field!((*ty1).dimensions, NFType::ARRAY).clone(), var_field!((*ty2).dimensions, NFType::ARRAY).clone(), Arc::new(Dimension::isEqualKnown))
+            isEqual(var_field!((*ty1).elementType, NFType::ARRAY).clone(), var_field!((*ty2).elementType, NFType::ARRAY).clone()) && List::isEqualOnTrue(var_field!((*ty1).dimensions, NFType::ARRAY).clone(), var_field!((*ty2).dimensions, NFType::ARRAY).clone(), (std::sync::Arc::new(Dimension::isEqualKnown) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Dimension::NFDimension>, Arc<Dimension::NFDimension>) -> Result<bool> + 'static>))
         },
         (Deref @ CONDITIONAL_ARRAY { .. }, Deref @ CONDITIONAL_ARRAY { .. }) => {
             isEqual(var_field!((*ty1).trueType, NFType::CONDITIONAL_ARRAY).clone(), var_field!((*ty2).trueType, NFType::CONDITIONAL_ARRAY).clone()) && isEqual(var_field!((*ty1).falseType, NFType::CONDITIONAL_ARRAY).clone(), var_field!((*ty2).falseType, NFType::CONDITIONAL_ARRAY).clone())
         },
         (Deref @ TUPLE { names: Some(names1), .. }, Deref @ TUPLE { names: Some(names2), .. }) => {
-            List::isEqualOnTrue(names1.clone(), names2.clone(), Arc::new(fnptr!(stringEq, ArcStr, ArcStr))) && List::isEqualOnTrue(var_field!((*ty1).types, NFType::TUPLE).clone(), var_field!((*ty2).types, NFType::TUPLE).clone(), Arc::new(fnptr!(isEqual, Arc<NFType>, Arc<NFType>)))
+            List::isEqualOnTrue(names1.clone(), names2.clone(), (std::sync::Arc::new(fnptr!(stringEq, ArcStr, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>)) && List::isEqualOnTrue(var_field!((*ty1).types, NFType::TUPLE).clone(), var_field!((*ty2).types, NFType::TUPLE).clone(), (std::sync::Arc::new(fnptr!(isEqual, Arc<NFType>, Arc<NFType>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<NFType>, Arc<NFType>) -> Result<bool> + 'static>))
         },
         (Deref @ TUPLE { names: None, .. }, Deref @ TUPLE { names: None, .. }) => {
-            List::isEqualOnTrue(var_field!((*ty1).types, NFType::TUPLE).clone(), var_field!((*ty2).types, NFType::TUPLE).clone(), Arc::new(fnptr!(isEqual, Arc<NFType>, Arc<NFType>)))
+            List::isEqualOnTrue(var_field!((*ty1).types, NFType::TUPLE).clone(), var_field!((*ty2).types, NFType::TUPLE).clone(), (std::sync::Arc::new(fnptr!(isEqual, Arc<NFType>, Arc<NFType>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<NFType>, Arc<NFType>) -> Result<bool> + 'static>))
         },
         (Deref @ TUPLE { .. }, Deref @ TUPLE { .. }) => {
             false
@@ -1293,7 +1293,7 @@ pub fn isEqual(mut ty1: Arc<NFType>, mut ty2: Arc<NFType>) -> bool {
             InstNode::isSame(var_field!((*ty1).cls, NFType::COMPLEX).clone(), var_field!((*ty2).cls, NFType::COMPLEX).clone())
         },
         (Deref @ UNTYPED { .. }, Deref @ UNTYPED { .. }) => {
-            InstNode::isSame(var_field!((*ty1).typeNode, NFType::UNTYPED).clone(), var_field!((*ty2).typeNode, NFType::UNTYPED).clone()) && Array::isEqualOnTrue(var_field!((*ty1).dimensions, NFType::UNTYPED).clone(), var_field!((*ty2).dimensions, NFType::UNTYPED).clone(), Arc::new(Dimension::isEqualKnown))
+            InstNode::isSame(var_field!((*ty1).typeNode, NFType::UNTYPED).clone(), var_field!((*ty2).typeNode, NFType::UNTYPED).clone()) && Array::isEqualOnTrue(var_field!((*ty1).dimensions, NFType::UNTYPED).clone(), var_field!((*ty2).dimensions, NFType::UNTYPED).clone(), (std::sync::Arc::new(Dimension::isEqualKnown) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Dimension::NFDimension>, Arc<Dimension::NFDimension>) -> Result<bool> + 'static>))
         },
         _ => {
             true
@@ -1433,20 +1433,21 @@ pub fn recordFields(mut recordType: Arc<NFType>) -> Arc<metamodelica::List<Arc<R
 
 pub fn setRecordFields(mut field_lst: Arc<metamodelica::List<Arc<Record::Field::Field>>>, mut recordType: Arc<NFType>) -> Result<Arc<NFType>> {
     let mut recordType: Arc<NFType> = recordType;
-    recordType = (::match_deref::match_deref! { match &(recordType.clone()) {
+    recordType = ({
+        let mut fields: metamodelica::Array<Arc<Record::Field::Field>> = metamodelica::arrayFromVec(field_lst.clone().into_iter().cloned().collect());
+        (::match_deref::match_deref! { match &(recordType.clone()) {
         Deref @ COMPLEX { complexTy: Deref @ ComplexType::RECORD { constructor: rec_node, .. }, .. } => {
             let mut indexMap: Arc<UnorderedMap::UnorderedMap<ArcStr, i32>>;
-            let mut fields: metamodelica::Array<Arc<Record::Field::Field>> = metamodelica::arrayFromVec(field_lst.clone().into_iter().cloned().collect());
-            indexMap = UnorderedMap::new(fnptr!(stringHashDjb2, ArcStr), fnptr!(stringEq, ArcStr, ArcStr), (fields.clone().borrow().len() as i32));
+            indexMap = UnorderedMap::new((std::sync::Arc::new(fnptr!(stringHashDjb2, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr) -> Result<i32> + 'static>), (std::sync::Arc::new(fnptr!(stringEq, ArcStr, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>), (fields.clone().borrow().len() as i32));
             updateRecordFieldsIndexMap(fields.clone(), indexMap.clone())?;
             Arc::new(NFType::COMPLEX { cls: var_field!((*recordType).cls, NFType::COMPLEX).clone(), complexTy: Arc::new(ComplexType::NFComplexType::RECORD { constructor: rec_node.clone(), fields: fields.clone(), indexMap: indexMap.clone() }) })
         },
         _ => {
-            let mut fields: metamodelica::Array<Arc<Record::Field::Field>> = metamodelica::arrayFromVec(field_lst.clone().into_iter().cloned().collect());
             recordType.clone()
         },
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
-    } });
+    } })
+    });
     Ok(recordType)
 }
 
@@ -1587,7 +1588,7 @@ pub fn sizeOf(mut ty: Arc<NFType>, mut resize: bool) -> Result<i32> {
         __acc
     },
         Deref @ COMPLEX { complexTy: Deref @ ComplexType::EXTERNAL_OBJECT { .. }, .. } => 1,
-        Deref @ COMPLEX { complexTy: Deref @ ComplexType::RECORD { .. }, .. } => ClassTree::foldComponents(Class::classTree(InstNode::getClass(var_field!((*ty).cls, NFType::COMPLEX).clone())?)?, Arc::new(fnptr!(fold_comp_size, Arc<InstNode::InstNode>, i32)), 0),
+        Deref @ COMPLEX { complexTy: Deref @ ComplexType::RECORD { .. }, .. } => ClassTree::foldComponents(Class::classTree(InstNode::getClass(var_field!((*ty).cls, NFType::COMPLEX).clone())?)?, (std::sync::Arc::new(fnptr!(fold_comp_size, Arc<InstNode::InstNode>, i32)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<InstNode::InstNode>, i32) -> Result<i32> + 'static>), 0),
         Deref @ COMPLEX { .. } => 1,
         _ => 0,
         _ => unreachable!("match_deref! exhaustiveness placeholder"),

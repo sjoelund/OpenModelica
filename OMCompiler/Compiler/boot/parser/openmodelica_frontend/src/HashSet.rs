@@ -61,11 +61,11 @@ pub type HashSetCrefFunctionsType = (FuncHashCref, FuncCrefEqual, FuncCrefStr);
 
 pub type HashSet = (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<Arc<DAE::ComponentRef>>>), i32, i32, (FuncHashCref, FuncCrefEqual, FuncCrefStr));
 
-pub type FuncHashCref = fn(Key) -> Result<i32>;
+pub type FuncHashCref = std::sync::Arc<dyn ::std::ops::Fn(Key) -> Result<i32> + 'static>;
 
-pub type FuncCrefEqual = fn(Key, Key) -> Result<bool>;
+pub type FuncCrefEqual = std::sync::Arc<dyn ::std::ops::Fn(Key, Key) -> Result<bool> + 'static>;
 
-pub type FuncCrefStr = fn(Key) -> Result<ArcStr>;
+pub type FuncCrefStr = std::sync::Arc<dyn ::std::ops::Fn(Key) -> Result<ArcStr> + 'static>;
 
 pub fn emptyHashSet() -> HashSet {
     let mut hashSet: HashSet;
@@ -75,7 +75,7 @@ pub fn emptyHashSet() -> HashSet {
 
 pub fn emptyHashSetSized(mut size: i32) -> HashSet {
     let mut hashSet: HashSet;
-    hashSet = BaseHashSet::emptyHashSetWork(size.clone(), (ComponentReference::hashComponentRef, ComponentReferenceBasics::crefEqual, ComponentReferenceBasics::printComponentRefStr));
+    hashSet = BaseHashSet::emptyHashSetWork(size.clone(), ((std::sync::Arc::new(ComponentReference::hashComponentRef) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentReferenceBasics::crefEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>) -> Result<bool> + 'static>), (std::sync::Arc::new(ComponentReferenceBasics::printComponentRefStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>)));
     hashSet
 }
 

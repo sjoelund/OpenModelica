@@ -58,10 +58,8 @@ use openmodelica_util::Error;
 use openmodelica_util::IOStream;
 use openmodelica_util_datatypes_basic::List;
 
-// TODO: non-Sync, non-const-emittable constant — needs new emission path.
-// Type: Arc<Modifier::Modifier>
-// Expr: Constructor { name: 'NFModifier.Modifier.NOMOD', args: [], named_args: [], ty: RustUnitVariant, field_names: [] }
-pub fn EMPTY_MOD() -> Arc<Modifier::Modifier> { todo!("non-Sync, non-const-emittable constant EMPTY_MOD — extend codegen") }
+thread_local! { static __EMPTY_MOD_TLS: Arc<Modifier::Modifier> = Arc::new(crate::NFModifier::Modifier::NOMOD); }
+pub fn EMPTY_MOD() -> Arc<Modifier::Modifier> { __EMPTY_MOD_TLS.with(|__t| __t.clone()) }
 
 pub mod ModTable {
     use super::*;
@@ -83,12 +81,12 @@ pub mod ModTable {
         outResult
     }
 
-    pub type ConflictFunc = fn(Value, Value, Key) -> Result<Value>;
+    pub type ConflictFunc = std::sync::Arc<dyn ::std::ops::Fn(Value, Value, Key) -> Result<Value> + 'static>;
 
     pub type Key = ArcStr;
 
     /// The binary tree data structure.
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
     pub enum Tree {
         NODE {
             /// The key of the node.
@@ -114,7 +112,7 @@ pub mod ModTable {
 
     pub type ValueNode = ArcStr;
 
-    pub fn add(mut inTree: Arc<Tree>, mut inKey: Key, mut inValue: Value, mut conflictFunc: ConflictFunc) -> Result<Arc<Tree>> {
+    pub fn add(mut inTree: Arc<Tree>, mut inKey: Key, mut inValue: Value, mut conflictFunc: Arc<dyn ::std::ops::Fn(Arc<Modifier::Modifier>, Arc<Modifier::Modifier>, ArcStr) -> Result<Arc<Modifier::Modifier>> + 'static>) -> Result<Arc<Tree>> {
         let mut tree: Arc<Tree> = inTree.clone();
         tree = (::match_deref::match_deref! { match &(tree.clone()) {
         Deref @ Tree::EMPTY { .. } => {
@@ -125,9 +123,9 @@ pub mod ModTable {
             let mut key_comp: i32 = 0;
             key_comp = keyCompare((inKey.clone()).clone(), (key.clone()).clone());
             if key_comp.clone() == -1 {
-                assign_variant_field!(tree => Tree::NODE; left = add(var_field!((*tree).left, Tree::NODE).clone(), (inKey.clone()).clone(), inValue.clone(), conflictFunc)?);
+                assign_variant_field!(tree => Tree::NODE; left = add(var_field!((*tree).left, Tree::NODE).clone(), (inKey.clone()).clone(), inValue.clone(), conflictFunc.clone())?);
             } else if key_comp.clone() == 1 {
-                assign_variant_field!(tree => Tree::NODE; right = add(var_field!((*tree).right, Tree::NODE).clone(), (inKey.clone()).clone(), inValue.clone(), conflictFunc)?);
+                assign_variant_field!(tree => Tree::NODE; right = add(var_field!((*tree).right, Tree::NODE).clone(), (inKey.clone()).clone(), inValue.clone(), conflictFunc.clone())?);
             } else {
                 value = conflictFunc(inValue.clone(), var_field!((*tree).value, Tree::NODE).clone(), (key.clone()).clone())?;
                 if !(referenceEq(&var_field!((*tree).value, Tree::NODE).clone(),&value.clone())) {
@@ -177,20 +175,20 @@ pub mod ModTable {
         value
     }
 
-    pub fn addList(mut tree: Arc<Tree>, mut inValues: Arc<metamodelica::List<(ArcStr, Arc<Modifier::Modifier>)>>, mut conflictFunc: ConflictFunc) -> Result<Arc<Tree>> {
+    pub fn addList(mut tree: Arc<Tree>, mut inValues: Arc<metamodelica::List<(ArcStr, Arc<Modifier::Modifier>)>>, mut conflictFunc: Arc<dyn ::std::ops::Fn(Arc<Modifier::Modifier>, Arc<Modifier::Modifier>, ArcStr) -> Result<Arc<Modifier::Modifier>> + 'static>) -> Result<Arc<Tree>> {
         let mut tree: Arc<Tree> = tree;
         let mut key: Key = arcstr::literal!("");
         let mut value: Value = Arc::new(Modifier::NOMOD);
         for mut t in &*inValues.clone() {
             let mut t = t.clone();
             (key, value) = t.clone();
-            tree = add(tree.clone(), (key.clone()).clone(), value.clone(), conflictFunc)?;
+            tree = add(tree.clone(), (key.clone()).clone(), value.clone(), conflictFunc.clone())?;
         }
         Ok(tree)
     }
 
     pub fn addUpdate(mut tree: Arc<Tree>, mut key: Key, mut r#fn: Arc<dyn ::std::ops::Fn(Option<Arc<Modifier::Modifier>>) -> Result<Arc<Modifier::Modifier>> + 'static>) -> Result<Arc<Tree>> {
-        pub type UpdateFn = fn(Option<Arc<Modifier::Modifier>>) -> Result<Value>;
+        pub type UpdateFn = std::sync::Arc<dyn ::std::ops::Fn(Option<Arc<Modifier::Modifier>>) -> Result<Value> + 'static>;
 
         let mut tree: Arc<Tree> = tree;
         let mut key_comp: i32 = 0;
@@ -268,7 +266,7 @@ pub mod ModTable {
     }
 
     pub fn fold<FT: Clone + 'static>(mut inTree: Arc<Tree>, mut inFunc: Arc<dyn ::std::ops::Fn(ArcStr, Arc<Modifier::Modifier>, FT) -> Result<FT> + 'static>, mut inStartValue: FT) -> FT {
-        pub type FoldFunc<FT: Clone> = fn(Key, Value, FT) -> Result<FT>;
+        pub type FoldFunc<FT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Key, Value, FT) -> Result<FT> + 'static>;
 
         let mut outResult: FT = inStartValue.clone();
         outResult = (::match_deref::match_deref! { match &(inTree.clone()) {
@@ -291,7 +289,7 @@ pub mod ModTable {
     }
 
     pub fn foldCond<FT: Clone + 'static>(mut tree: Arc<Tree>, mut foldFunc: Arc<dyn ::std::ops::Fn(ArcStr, Arc<Modifier::Modifier>, FT) -> Result<(FT, bool)> + 'static>, mut value: FT) -> FT {
-        pub type FoldFunc<FT: Clone> = fn(Key, Value, FT) -> Result<(FT, bool)>;
+        pub type FoldFunc<FT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Key, Value, FT) -> Result<(FT, bool)> + 'static>;
 
         let mut value: FT = value;
         value = (::match_deref::match_deref! { match &(tree.clone()) {
@@ -318,7 +316,7 @@ pub mod ModTable {
     }
 
     pub fn fold_2<FT1: Clone + 'static, FT2: Clone + 'static>(mut tree: Arc<Tree>, mut foldFunc: Arc<dyn ::std::ops::Fn(ArcStr, Arc<Modifier::Modifier>, FT1, FT2) -> Result<(FT1, FT2)> + 'static>, mut foldArg1: FT1, mut foldArg2: FT2) -> (FT1, FT2) {
-        pub type FoldFunc<FT1: Clone, FT2: Clone> = fn(Key, Value, FT1, FT2) -> Result<(FT1, FT2)>;
+        pub type FoldFunc<FT1: Clone + 'static, FT2: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Key, Value, FT1, FT2) -> Result<(FT1, FT2)> + 'static>;
 
         let mut foldArg1: FT1 = foldArg1;
         let mut foldArg2: FT2 = foldArg2;
@@ -340,7 +338,7 @@ pub mod ModTable {
     }
 
     pub fn forEach(mut tree: Arc<Tree>, mut func: Arc<dyn ::std::ops::Fn(ArcStr, Arc<Modifier::Modifier>) -> Result<()> + 'static>) -> Result<()> {
-        pub type EachFunc = fn(Key, Value) -> Result<()>;
+        pub type EachFunc = std::sync::Arc<dyn ::std::ops::Fn(Key, Value) -> Result<()> + 'static>;
 
         let _ = (::match_deref::match_deref! { match &(tree.clone()) {
         Deref @ Tree::NODE { .. } => {
@@ -359,14 +357,14 @@ pub mod ModTable {
         Ok(())
     }
 
-    pub fn fromList(mut inValues: Arc<metamodelica::List<(ArcStr, Arc<Modifier::Modifier>)>>, mut conflictFunc: ConflictFunc) -> Result<Arc<Tree>> {
+    pub fn fromList(mut inValues: Arc<metamodelica::List<(ArcStr, Arc<Modifier::Modifier>)>>, mut conflictFunc: Arc<dyn ::std::ops::Fn(Arc<Modifier::Modifier>, Arc<Modifier::Modifier>, ArcStr) -> Result<Arc<Modifier::Modifier>> + 'static>) -> Result<Arc<Tree>> {
         let mut tree: Arc<Tree> = Arc::new(crate::NFModifier::ModTable::Tree::EMPTY);
         let mut key: Key = arcstr::literal!("");
         let mut value: Value = Arc::new(Modifier::NOMOD);
         for mut t in &*inValues.clone() {
             let mut t = t.clone();
             (key, value) = t.clone();
-            tree = add(tree.clone(), (key.clone()).clone(), value.clone(), conflictFunc)?;
+            tree = add(tree.clone(), (key.clone()).clone(), value.clone(), conflictFunc.clone())?;
         }
         Ok(tree)
     }
@@ -462,17 +460,17 @@ pub mod ModTable {
         isEmpty
     }
 
-    pub fn join(mut tree: Arc<Tree>, mut treeToJoin: Arc<Tree>, mut conflictFunc: ConflictFunc) -> Result<Arc<Tree>> {
+    pub fn join(mut tree: Arc<Tree>, mut treeToJoin: Arc<Tree>, mut conflictFunc: Arc<dyn ::std::ops::Fn(Arc<Modifier::Modifier>, Arc<Modifier::Modifier>, ArcStr) -> Result<Arc<Modifier::Modifier>> + 'static>) -> Result<Arc<Tree>> {
         let mut tree: Arc<Tree> = tree;
         tree = (::match_deref::match_deref! { match &(treeToJoin.clone()) {
         Deref @ Tree::EMPTY { .. } => tree.clone(),
         Deref @ Tree::NODE { .. } => {
-            tree = add(tree.clone(), (var_field!((*treeToJoin).key, Tree::NODE).clone()).clone(), var_field!((*treeToJoin).value, Tree::NODE).clone(), conflictFunc)?;
-            tree = join(tree.clone(), var_field!((*treeToJoin).left, Tree::NODE).clone(), conflictFunc)?;
-            tree = join(tree.clone(), var_field!((*treeToJoin).right, Tree::NODE).clone(), conflictFunc)?;
+            tree = add(tree.clone(), (var_field!((*treeToJoin).key, Tree::NODE).clone()).clone(), var_field!((*treeToJoin).value, Tree::NODE).clone(), conflictFunc.clone())?;
+            tree = join(tree.clone(), var_field!((*treeToJoin).left, Tree::NODE).clone(), conflictFunc.clone())?;
+            tree = join(tree.clone(), var_field!((*treeToJoin).right, Tree::NODE).clone(), conflictFunc.clone())?;
             tree.clone()
         },
-        Deref @ Tree::LEAF { .. } => add(tree.clone(), (var_field!((*treeToJoin).key, Tree::LEAF).clone()).clone(), var_field!((*treeToJoin).value, Tree::LEAF).clone(), conflictFunc)?,
+        Deref @ Tree::LEAF { .. } => add(tree.clone(), (var_field!((*treeToJoin).key, Tree::LEAF).clone()).clone(), var_field!((*treeToJoin).value, Tree::LEAF).clone(), conflictFunc.clone())?,
         _ => bail!("match: no arm matched"),
     } });
         Ok(tree)
@@ -483,12 +481,12 @@ pub mod ModTable {
         lst = (::match_deref::match_deref! { match &(tree.clone()) {
         Deref @ Tree::NODE { key, .. } => {
             lst = listKeys(var_field!((*tree).right, Tree::NODE).clone(), lst.clone());
-            lst = cons(key.clone(), lst.clone());
+            lst = cons((key.clone()).clone(), lst.clone());
             lst = listKeys(var_field!((*tree).left, Tree::NODE).clone(), lst.clone());
             lst.clone()
         },
         Deref @ Tree::LEAF { key, .. } => {
-            cons(key.clone(), lst.clone())
+            cons((key.clone()).clone(), lst.clone())
         },
         _ => {
             lst.clone()
@@ -501,10 +499,10 @@ pub mod ModTable {
     pub fn listKeysReverse(mut inTree: Arc<Tree>, mut lst: Arc<metamodelica::List<ArcStr>>) -> Arc<metamodelica::List<ArcStr>> {
         let mut lst: Arc<metamodelica::List<ArcStr>> = lst;
         lst = (::match_deref::match_deref! { match &(inTree.clone()) {
-        Deref @ Tree::LEAF { .. } => cons(var_field!((*inTree).key, Tree::LEAF).clone(), lst.clone()),
+        Deref @ Tree::LEAF { .. } => cons((var_field!((*inTree).key, Tree::LEAF).clone()).clone(), lst.clone()),
         Deref @ Tree::NODE { .. } => {
             lst = listKeysReverse(var_field!((*inTree).left, Tree::NODE).clone(), lst.clone());
-            lst = cons(var_field!((*inTree).key, Tree::NODE).clone(), lst.clone());
+            lst = cons((var_field!((*inTree).key, Tree::NODE).clone()).clone(), lst.clone());
             lst = listKeysReverse(var_field!((*inTree).right, Tree::NODE).clone(), lst.clone());
             lst.clone()
         },
@@ -535,7 +533,7 @@ pub mod ModTable {
     }
 
     pub fn map(mut inTree: Arc<Tree>, mut inFunc: Arc<dyn ::std::ops::Fn(ArcStr, Arc<Modifier::Modifier>) -> Result<Arc<Modifier::Modifier>> + 'static>) -> Arc<Tree> {
-        pub type MapFunc = fn(Key, Value) -> Result<Value>;
+        pub type MapFunc = std::sync::Arc<dyn ::std::ops::Fn(Key, Value) -> Result<Value> + 'static>;
 
         let mut outTree: Arc<Tree> = inTree.clone();
         outTree = (::match_deref::match_deref! { match &(outTree.clone()) {
@@ -568,7 +566,7 @@ pub mod ModTable {
     }
 
     pub fn mapFold<FT: Clone + 'static>(mut inTree: Arc<Tree>, mut inFunc: Arc<dyn ::std::ops::Fn(ArcStr, Arc<Modifier::Modifier>, FT) -> Result<(Arc<Modifier::Modifier>, FT)> + 'static>, mut inStartValue: FT) -> (Arc<Tree>, FT) {
-        pub type MapFunc<FT: Clone> = fn(Key, Value, FT) -> Result<Value>;
+        pub type MapFunc<FT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Key, Value, FT) -> Result<Value> + 'static>;
 
         let mut outTree: Arc<Tree> = inTree.clone();
         let mut outResult: FT = inStartValue.clone();
@@ -743,7 +741,7 @@ pub mod ModTable {
     }
 
     pub fn update(mut tree: Arc<Tree>, mut key: Key, mut value: Value) -> Arc<Tree> {
-        let mut outTree: Arc<Tree> = add(tree.clone(), (key.clone()).clone(), value.clone(), fnptr!(addConflictReplace, Arc<Modifier::Modifier>, Arc<Modifier::Modifier>, ArcStr)).unwrap();
+        let mut outTree: Arc<Tree> = add(tree.clone(), (key.clone()).clone(), value.clone(), (std::sync::Arc::new(fnptr!(addConflictReplace, Arc<Modifier::Modifier>, Arc<Modifier::Modifier>, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Modifier::Modifier>, Arc<Modifier::Modifier>, ArcStr) -> Result<Arc<Modifier::Modifier>> + 'static>)).unwrap();
         outTree
     }
 
@@ -812,7 +810,7 @@ pub mod ModifierScope {
 
 pub mod Modifier {
     use super::*;
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
     pub enum Modifier {
         MODIFIER {
             name: ArcStr,
@@ -856,7 +854,7 @@ pub mod Modifier {
         }
         __acc.reverse()
     };
-            submod_table = ModTable::fromList(submod_lst.clone(), { let __pe_b3 = modScope.clone(); let __pe_b4 = metamodelica::nil(); move |__pe_a0, __pe_a1, __pe_a2| mergeLocal(__pe_a0, __pe_a1, __pe_a2, __pe_b3.clone(), __pe_b4.clone()) })?;
+            submod_table = ModTable::fromList(submod_lst.clone(), Arc::new({ let __pe_b3 = modScope.clone(); let __pe_b4 = metamodelica::nil(); move |__pe_a0, __pe_a1, __pe_a2| mergeLocal(__pe_a0, __pe_a1, __pe_a2, __pe_b3.clone(), __pe_b4.clone()) }))?;
             Arc::new(Modifier::MODIFIER { name: (name.clone()).clone(), finalPrefix: var_field!((*r#mod).finalPrefix, SCode::Mod::MOD).clone(), eachPrefix: var_field!((*r#mod).eachPrefix, SCode::Mod::MOD).clone(), binding: binding.clone(), subModifiers: submod_table.clone(), info: var_field!((*r#mod).info, SCode::Mod::MOD).clone() })
         },
         Deref @ SCode::Mod::REDECL { element: elem, .. } => {
@@ -992,7 +990,7 @@ pub mod Modifier {
     }
 
     pub fn info(mut modifier: Arc<Modifier>) -> Result<SourceInfo> {
-        let mut info: SourceInfo;
+        let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
         info = (::match_deref::match_deref! { match &(modifier.clone()) {
         Deref @ MODIFIER { .. } => var_field!((*modifier).info, Modifier::MODIFIER).clone(),
         Deref @ REDECLARE { .. } => InstNode::info(var_field!((*modifier).element, Modifier::REDECLARE).clone())?,
@@ -1048,7 +1046,7 @@ pub mod Modifier {
             let mut binding: Arc<Binding::NFBinding> = Arc::new(Binding::UNBOUND);
             checkFinalOverride(var_field!((*innerMod).finalPrefix, Modifier::MODIFIER).clone(), outerMod.clone(), var_field!((*innerMod).info, Modifier::MODIFIER).clone())?;
             binding = if (Binding::isBound(var_field!((*outerMod).binding, Modifier::MODIFIER).clone())) {var_field!((*outerMod).binding, Modifier::MODIFIER).clone()} else {var_field!((*innerMod).binding, Modifier::MODIFIER).clone()};
-            submods = ModTable::join(var_field!((*innerMod).subModifiers, Modifier::MODIFIER).clone(), var_field!((*outerMod).subModifiers, Modifier::MODIFIER).clone(), merge)?;
+            submods = ModTable::join(var_field!((*innerMod).subModifiers, Modifier::MODIFIER).clone(), var_field!((*outerMod).subModifiers, Modifier::MODIFIER).clone(), (std::sync::Arc::new(merge) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Modifier>, Arc<Modifier>, ArcStr) -> Result<Arc<Modifier>> + 'static>))?;
             Arc::new(Modifier::MODIFIER { name: (var_field!((*outerMod).name, Modifier::MODIFIER).clone()).clone(), finalPrefix: var_field!((*outerMod).finalPrefix, Modifier::MODIFIER).clone(), eachPrefix: var_field!((*outerMod).eachPrefix, Modifier::MODIFIER).clone(), binding: binding.clone(), subModifiers: submods.clone(), info: var_field!((*outerMod).info, Modifier::MODIFIER).clone() })
         },
         (Deref @ REDECLARE { .. }, Deref @ MODIFIER { .. }) => {
@@ -1184,7 +1182,7 @@ pub mod Modifier {
     }
 
     pub fn map(mut r#mod: Arc<Modifier>, mut func: Arc<dyn ::std::ops::Fn(ArcStr, Arc<Modifier>) -> Result<Arc<Modifier>> + 'static>) -> Arc<Modifier> {
-        pub type FuncT = fn(ArcStr, Arc<Modifier>) -> Result<Arc<Modifier>>;
+        pub type FuncT = std::sync::Arc<dyn ::std::ops::Fn(ArcStr, Arc<Modifier>) -> Result<Arc<Modifier>> + 'static>;
 
         let mut r#mod: Arc<Modifier> = r#mod;
         let () = (::match_deref::match_deref! { match &(r#mod.clone()) {
@@ -1241,7 +1239,7 @@ pub mod Modifier {
         if mods.clone().is_empty() {
             return Ok(s);
         }
-        while true {
+        loop {
             s = toFlatStream(listHead(mods.clone())?, format.clone(), s.clone(), true)?;
             mods = listRest(mods.clone())?;
             if mods.clone().is_empty() {
@@ -1313,15 +1311,15 @@ pub mod Modifier {
         let mut comp_name: ArcStr = arcstr::literal!("");
         r#mod = (::match_deref::match_deref! { match &((mod1.clone(), mod2.clone())) {
         (Deref @ MODIFIER { .. }, Deref @ MODIFIER { binding: Deref @ Binding::UNBOUND, .. }) => {
-            assign_variant_field!(mod1 => Modifier::MODIFIER; subModifiers = ModTable::join(var_field!((*mod1).subModifiers, Modifier::MODIFIER).clone(), var_field!((*mod2).subModifiers, Modifier::MODIFIER).clone(), { let __pe_b3 = scope.clone(); let __pe_b4 = cons(var_field!((*mod1).name, Modifier::MODIFIER).clone(), prefix.clone()); move |__pe_a0, __pe_a1, __pe_a2| mergeLocal(__pe_a0, __pe_a1, __pe_a2, __pe_b3.clone(), __pe_b4.clone()) })?);
+            assign_variant_field!(mod1 => Modifier::MODIFIER; subModifiers = ModTable::join(var_field!((*mod1).subModifiers, Modifier::MODIFIER).clone(), var_field!((*mod2).subModifiers, Modifier::MODIFIER).clone(), Arc::new({ let __pe_b3 = scope.clone(); let __pe_b4 = cons((var_field!((*mod1).name, Modifier::MODIFIER).clone()).clone(), prefix.clone()); move |__pe_a0, __pe_a1, __pe_a2| mergeLocal(__pe_a0, __pe_a1, __pe_a2, __pe_b3.clone(), __pe_b4.clone()) }))?);
             mod1.clone()
         },
         (Deref @ MODIFIER { binding: Deref @ Binding::UNBOUND, .. }, Deref @ MODIFIER { .. }) => {
-            assign_variant_field!(mod2 => Modifier::MODIFIER; subModifiers = ModTable::join(var_field!((*mod2).subModifiers, Modifier::MODIFIER).clone(), var_field!((*mod1).subModifiers, Modifier::MODIFIER).clone(), { let __pe_b3 = scope.clone(); let __pe_b4 = cons(var_field!((*mod1).name, Modifier::MODIFIER).clone(), prefix.clone()); move |__pe_a0, __pe_a1, __pe_a2| mergeLocal(__pe_a0, __pe_a1, __pe_a2, __pe_b3.clone(), __pe_b4.clone()) })?);
+            assign_variant_field!(mod2 => Modifier::MODIFIER; subModifiers = ModTable::join(var_field!((*mod2).subModifiers, Modifier::MODIFIER).clone(), var_field!((*mod1).subModifiers, Modifier::MODIFIER).clone(), Arc::new({ let __pe_b3 = scope.clone(); let __pe_b4 = cons((var_field!((*mod1).name, Modifier::MODIFIER).clone()).clone(), prefix.clone()); move |__pe_a0, __pe_a1, __pe_a2| mergeLocal(__pe_a0, __pe_a1, __pe_a2, __pe_b3.clone(), __pe_b4.clone()) }))?);
             mod2.clone()
         },
         _ => {
-            comp_name = stringDelimitList(cons(name(mod1.clone())?, prefix.clone()).reverse(), (literal!(".")).clone());
+            comp_name = stringDelimitList(cons((self::name(mod1.clone())?).clone(), prefix.clone()).reverse(), (literal!(".")).clone());
             Error::addMultiSourceMessage(Error::DUPLICATE_MODIFICATIONS.clone(), list![(comp_name.clone()).clone(), (ModifierScope::toString(scope.clone())?).clone()], list![info(mod1.clone())?, info(mod2.clone())?])?;
             bail!("fail")
         },

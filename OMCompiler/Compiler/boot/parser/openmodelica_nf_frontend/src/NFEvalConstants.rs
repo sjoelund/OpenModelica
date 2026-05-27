@@ -139,7 +139,7 @@ pub fn evaluateBinding(mut binding: Arc<Binding::NFBinding>, mut prefix: Arc<Com
     let mut binding: Arc<Binding::NFBinding> = binding;
     let mut exp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut eexp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-    let mut info: SourceInfo;
+    let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
     if Binding::isBound(binding.clone()) {
         exp = Binding::getTypedExp(binding.clone())?;
         if structural.clone() {
@@ -635,7 +635,7 @@ pub fn isLocalFunctionVariable(mut cref: Arc<ComponentRef::NFComponentRef>, mut 
     let mut res: bool = false;
     let mut node: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
     let mut fnl: Arc<metamodelica::List<Arc<Function::Function>>> = metamodelica::nil();
-    let mut r#fn: Arc<Function::Function>;
+    let mut r#fn: Arc<Function::Function> = Arc::new(<Function::Function as ::std::default::Default>::default());
     if ComponentRef::isPackageConstant(cref.clone())? {
         res = false;
     } else if ComponentRef::nodeVariability(cref.clone())? <= Variability::PARAMETER.clone() && ComponentRef::isCref(cref.clone()) {

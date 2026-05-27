@@ -111,9 +111,11 @@ pub struct ConnectionGraph {
 pub type GRAPH = ConnectionGraph;
 
 
-pub static EMPTY: std::sync::LazyLock<ConnectionGraph> = std::sync::LazyLock::new(|| { ConnectionGraph { updateGraph: true, definiteRoots: metamodelica::nil(), potentialRoots: metamodelica::nil(), uniqueRoots: metamodelica::nil(), branches: metamodelica::nil(), connections: metamodelica::nil() } });
+thread_local! { static __EMPTY_TLS: ConnectionGraph = ConnectionGraph { updateGraph: true, definiteRoots: metamodelica::nil(), potentialRoots: metamodelica::nil(), uniqueRoots: metamodelica::nil(), branches: metamodelica::nil(), connections: metamodelica::nil() }; }
+pub fn EMPTY() -> ConnectionGraph { __EMPTY_TLS.with(|__t| __t.clone()) }
 
-pub static NOUPDATE_EMPTY: std::sync::LazyLock<ConnectionGraph> = std::sync::LazyLock::new(|| { ConnectionGraph { updateGraph: false, definiteRoots: metamodelica::nil(), potentialRoots: metamodelica::nil(), uniqueRoots: metamodelica::nil(), branches: metamodelica::nil(), connections: metamodelica::nil() } });
+thread_local! { static __NOUPDATE_EMPTY_TLS: ConnectionGraph = ConnectionGraph { updateGraph: false, definiteRoots: metamodelica::nil(), potentialRoots: metamodelica::nil(), uniqueRoots: metamodelica::nil(), branches: metamodelica::nil(), connections: metamodelica::nil() }; }
+pub fn NOUPDATE_EMPTY() -> ConnectionGraph { __NOUPDATE_EMPTY_TLS.with(|__t| __t.clone()) }
 
 pub fn handleOverconstrainedConnections(mut inGraph: ConnectionGraph, mut modelNameQualified: ArcStr, mut inDAE: DAE::DAElist) -> Result<(DAE::DAElist, DaeEdges, DaeEdges)> {
     let mut outDAE: DAE::DAElist;
@@ -141,9 +143,9 @@ pub fn handleOverconstrainedConnections(mut inGraph: ConnectionGraph, mut modelN
                     }
                     (roots, connected, broken) = findResultGraph(graph.clone(), (modelNameQualified.clone()).clone())?;
                     if Flags::isSet(Flags::CGRAPH.clone())? {
-                        Debug::traceln(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Roots: ")); __mm_s.push_str(&*stringDelimitList(List::map(roots.clone(), Arc::new(ComponentReferenceBasics::printComponentRefStr)), (literal!(", ")).clone())); ArcStr::from(__mm_s) }).clone())?;
-                        Debug::traceln(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Broken connections: ")); __mm_s.push_str(&*stringDelimitList(List::map1(broken.clone(), Arc::new(printConnectionStr), (literal!("broken")).clone()), (literal!(", ")).clone())); ArcStr::from(__mm_s) }).clone())?;
-                        Debug::traceln(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Allowed connections: ")); __mm_s.push_str(&*stringDelimitList(List::map1(connected.clone(), Arc::new(printConnectionStr), (literal!("allowed")).clone()), (literal!(", ")).clone())); ArcStr::from(__mm_s) }).clone())?;
+                        Debug::traceln(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Roots: ")); __mm_s.push_str(&*stringDelimitList(List::map(roots.clone(), (std::sync::Arc::new(ComponentReferenceBasics::printComponentRefStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>)), (literal!(", ")).clone())); ArcStr::from(__mm_s) }).clone())?;
+                        Debug::traceln(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Broken connections: ")); __mm_s.push_str(&*stringDelimitList(List::map1(broken.clone(), (std::sync::Arc::new(printConnectionStr) as std::sync::Arc<dyn ::std::ops::Fn((Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>, Arc<metamodelica::List<Arc<DAE::Element>>>), ArcStr) -> Result<ArcStr> + 'static>), (literal!("broken")).clone()), (literal!(", ")).clone())); ArcStr::from(__mm_s) }).clone())?;
+                        Debug::traceln(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Allowed connections: ")); __mm_s.push_str(&*stringDelimitList(List::map1(connected.clone(), (std::sync::Arc::new(printConnectionStr) as std::sync::Arc<dyn ::std::ops::Fn((Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>, Arc<metamodelica::List<Arc<DAE::Element>>>), ArcStr) -> Result<ArcStr> + 'static>), (literal!("allowed")).clone()), (literal!(", ")).clone())); ArcStr::from(__mm_s) }).clone())?;
                     }
                     elts = evalConnectionsOperators(roots.clone(), graph.clone(), elts.clone())?;
                     Ok((DAE::DAElist { elementLst: elts.clone() }, connected.clone(), broken.clone()))
@@ -462,7 +464,7 @@ fn resultGraphWithRoots(mut roots: Arc<metamodelica::List<Arc<DAE::ComponentRef>
     let mut outTable: (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>), i32, (HashTableCG::FuncHashCref, HashTableCG::FuncCrefEqual, HashTableCG::FuncCrefStr, HashTableCG::FuncExpStr));
     let mut table0: (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>), i32, (HashTableCG::FuncHashCref, HashTableCG::FuncCrefEqual, HashTableCG::FuncCrefStr, HashTableCG::FuncExpStr));
     let mut dummyRoot: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
-    dummyRoot = ComponentReferenceBasics::makeCrefIdent((literal!("__DUMMY_ROOT")).clone(), DAE::T_INTEGER_DEFAULT.clone(), metamodelica::nil());
+    dummyRoot = ComponentReferenceBasics::makeCrefIdent((literal!("__DUMMY_ROOT")).clone(), DAE::T_INTEGER_DEFAULT().clone(), metamodelica::nil());
     table0 = HashTableCG::emptyHashTable();
     outTable = addRootsToTable(table0.clone(), roots.clone(), dummyRoot.clone())?;
     Ok(outTable)
@@ -623,20 +625,20 @@ fn findResultGraph(mut inGraph: ConnectionGraph, mut modelNameQualified: ArcStr)
                     connections = connections.clone().reverse();
                     table = resultGraphWithRoots(definiteRoots.clone())?;
                     table = addBranchesToTable(table.clone(), branches.clone())?;
-                    orderedPotentialRoots = List::sort(potentialRoots.clone(), Arc::new(ord))?;
+                    orderedPotentialRoots = List::sort(potentialRoots.clone(), (std::sync::Arc::new(ord) as std::sync::Arc<dyn ::std::ops::Fn((Arc<DAE::ComponentRef>, metamodelica::Real), (Arc<DAE::ComponentRef>, metamodelica::Real)) -> Result<bool> + 'static>))?;
                     if Flags::isSet(Flags::CGRAPH.clone())? {
-                        Debug::traceln(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Ordered Potential Roots: ")); __mm_s.push_str(&*stringDelimitList(List::map(orderedPotentialRoots.clone(), Arc::new(printPotentialRootTuple)), (literal!(", ")).clone())); ArcStr::from(__mm_s) }).clone())?;
+                        Debug::traceln(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Ordered Potential Roots: ")); __mm_s.push_str(&*stringDelimitList(List::map(orderedPotentialRoots.clone(), (std::sync::Arc::new(printPotentialRootTuple) as std::sync::Arc<dyn ::std::ops::Fn((Arc<DAE::ComponentRef>, metamodelica::Real)) -> Result<ArcStr> + 'static>)), (literal!(", ")).clone())); ArcStr::from(__mm_s) }).clone())?;
                     }
                     (table, connected, broken) = addConnections(table.clone(), connections.clone())?;
-                    dummyRoot = ComponentReferenceBasics::makeCrefIdent((literal!("__DUMMY_ROOT")).clone(), DAE::T_INTEGER_DEFAULT.clone(), metamodelica::nil());
+                    dummyRoot = ComponentReferenceBasics::makeCrefIdent((literal!("__DUMMY_ROOT")).clone(), DAE::T_INTEGER_DEFAULT().clone(), metamodelica::nil());
                     (table, finalRoots) = addPotentialRootsToTable(table.clone(), orderedPotentialRoots.clone(), definiteRoots.clone(), dummyRoot.clone())?;
                     brokenConnectsViaGraphViz = (generateGraphViz((modelNameQualified.clone()).clone(), definiteRoots.clone(), potentialRoots.clone(), uniqueRoots.clone(), branches.clone(), connections.clone(), finalRoots.clone(), broken.clone())?).clone();
                     if stringEq((brokenConnectsViaGraphViz.clone()).clone(), (literal!("")).clone()) {
                     } else {
                         userBrokenLst = Util::stringSplitAtChar((brokenConnectsViaGraphViz.clone()).clone(), (literal!("#")).clone())?;
-                        userBrokenLstLst = List::map1(userBrokenLst.clone(), Arc::new(Util::stringSplitAtChar), (literal!("|")).clone());
+                        userBrokenLstLst = List::map1(userBrokenLst.clone(), (std::sync::Arc::new(Util::stringSplitAtChar) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<Arc<metamodelica::List<ArcStr>>> + 'static>), (literal!("|")).clone());
                         userBrokenTplLst = makeTuple(userBrokenLstLst.clone())?;
-                        Debug::traceln(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("User selected the following connect edges for breaking:\n\t")); __mm_s.push_str(&*stringDelimitList(List::map(userBrokenTplLst.clone(), Arc::new(fnptr!(printTupleStr, (ArcStr, ArcStr)))), (literal!("\n\t")).clone())); ArcStr::from(__mm_s) }).clone())?;
+                        Debug::traceln(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("User selected the following connect edges for breaking:\n\t")); __mm_s.push_str(&*stringDelimitList(List::map(userBrokenTplLst.clone(), (std::sync::Arc::new(fnptr!(printTupleStr, (ArcStr, ArcStr))) as std::sync::Arc<dyn ::std::ops::Fn((ArcStr, ArcStr)) -> Result<ArcStr> + 'static>)), (literal!("\n\t")).clone())); ArcStr::from(__mm_s) }).clone())?;
                         printDaeEdges(connections.clone())?;
                         connections = orderConnectsGuidedByUser(connections.clone(), userBrokenTplLst.clone())?;
                         connections = connections.clone().reverse();
@@ -887,11 +889,11 @@ fn evalConnectionsOperators(mut inRoots: Arc<metamodelica::List<Arc<DAE::Compone
                     let mut outDae: Arc<metamodelica::List<Arc<DAE::Element>>> = outDae.clone();
                     table = HashTable3::emptyHashTable();
                     branches = getBranches(graph.clone())?;
-                    table = List::fold(branches.clone(), Arc::new(addBranches), table.clone());
+                    table = List::fold(branches.clone(), (std::sync::Arc::new(addBranches) as std::sync::Arc<dyn ::std::ops::Fn((Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>), (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>)>>), i32, (HashTable3::FuncHashCref, HashTable3::FuncCrefEqual, HashTable3::FuncCrefStr, HashTable3::FuncExpStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>)>>), i32, (HashTable3::FuncHashCref, HashTable3::FuncCrefEqual, HashTable3::FuncCrefStr, HashTable3::FuncExpStr))> + 'static>), table.clone());
                     connections = getConnections(graph.clone())?;
-                    table = List::fold(connections.clone(), Arc::new(addConnectionsRooted), table.clone());
+                    table = List::fold(connections.clone(), (std::sync::Arc::new(addConnectionsRooted) as std::sync::Arc<dyn ::std::ops::Fn((Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>, Arc<metamodelica::List<Arc<DAE::Element>>>), (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>)>>), i32, (HashTable3::FuncHashCref, HashTable3::FuncCrefEqual, HashTable3::FuncCrefStr, HashTable3::FuncExpStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>)>>), i32, (HashTable3::FuncHashCref, HashTable3::FuncCrefEqual, HashTable3::FuncCrefStr, HashTable3::FuncExpStr))> + 'static>), table.clone());
                     rooted = setRootDistance(inRoots.clone(), table.clone(), 0, metamodelica::nil(), HashTable::emptyHashTable())?;
-                    (outDae, _) = DAEUtil::traverseDAEElementList(inDae.clone(), Arc::new(evalConnectionsOperatorsHelper), (rooted.clone(), inRoots.clone(), graph.clone()));
+                    (outDae, _) = DAEUtil::traverseDAEElementList(inDae.clone(), (std::sync::Arc::new(evalConnectionsOperatorsHelper) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, ((metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, i32)>>), i32, (HashTable::FuncHashCref, HashTable::FuncCrefEqual, HashTable::FuncCrefStr, HashTable::FuncExpStr)), Arc<metamodelica::List<Arc<DAE::ComponentRef>>>, ConnectionGraph)) -> Result<(Arc<DAE::Exp>, ((metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, i32)>>), i32, (HashTable::FuncHashCref, HashTable::FuncCrefEqual, HashTable::FuncCrefStr, HashTable::FuncExpStr)), Arc<metamodelica::List<Arc<DAE::ComponentRef>>>, ConnectionGraph))> + 'static>), (rooted.clone(), inRoots.clone(), graph.clone()));
                     Ok(outDae.clone())
                 }
                 _ => bail!("nomatch"),
@@ -972,7 +974,7 @@ fn evalConnectionsOperatorsHelper(mut inExp: Arc<DAE::Exp>, mut inRoots: ((metam
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: Deref @ DAE::Exp::CREF { componentRef: cref, .. }, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::QUALIFIED { name: Deref @ "Connections", path: Deref @ Absyn::Path::IDENT { name: Deref @ "isRoot" } }, .. }, (rooted, roots, graph)) => {
                     let mut result: bool = false;
-                    result = List::isMemberOnTrue(cref.clone(), roots.clone(), Arc::new(ComponentReferenceBasics::crefEqualNoStringCompare));
+                    result = List::isMemberOnTrue(cref.clone(), roots.clone(), (std::sync::Arc::new(ComponentReferenceBasics::crefEqualNoStringCompare) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>) -> Result<bool> + 'static>));
                     if Flags::isSet(Flags::CGRAPH.clone())? {
                         Debug::traceln(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("- ConnectionGraph.evalConnectionsOperatorsHelper: ")); __mm_s.push_str(&*ExpressionBasics::printExpStr(inExp.clone())?); __mm_s.push_str(&*literal!(" = ")); __mm_s.push_str(&*boolString(result.clone())); ArcStr::from(__mm_s) }).clone())?;
                     }
@@ -985,7 +987,7 @@ fn evalConnectionsOperatorsHelper(mut inExp: Arc<DAE::Exp>, mut inRoots: ((metam
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ DAE::Exp::LUNARY { operator: DAE::Operator::NOT { ty: _ }, exp: Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: Deref @ DAE::Exp::CREF { componentRef: cref, .. }, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::QUALIFIED { name: Deref @ "Connections", path: Deref @ Absyn::Path::IDENT { name: Deref @ "isRoot" } }, .. } }, (rooted, roots, graph)) => {
                     let mut result: bool = false;
-                    result = List::isMemberOnTrue(cref.clone(), roots.clone(), Arc::new(ComponentReferenceBasics::crefEqualNoStringCompare));
+                    result = List::isMemberOnTrue(cref.clone(), roots.clone(), (std::sync::Arc::new(ComponentReferenceBasics::crefEqualNoStringCompare) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>) -> Result<bool> + 'static>));
                     result = boolNot(result.clone());
                     if Flags::isSet(Flags::CGRAPH.clone())? {
                         Debug::traceln(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("- ConnectionGraph.evalConnectionsOperatorsHelper: ")); __mm_s.push_str(&*ExpressionBasics::printExpStr(inExp.clone())?); __mm_s.push_str(&*literal!(" = ")); __mm_s.push_str(&*boolString(result.clone())); ArcStr::from(__mm_s) }).clone())?;
@@ -1003,7 +1005,7 @@ fn evalConnectionsOperatorsHelper(mut inExp: Arc<DAE::Exp>, mut inRoots: ((metam
                         Debug::traceln(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("- ConnectionGraph.evalConnectionsOperatorsHelper: Connections.uniqueRootsIndicies(")); __mm_s.push_str(&*ExpressionBasics::printExpStr(uroots.clone())?); __mm_s.push_str(&*literal!(",")); __mm_s.push_str(&*ExpressionBasics::printExpStr(nodes.clone())?); __mm_s.push_str(&*literal!(",")); __mm_s.push_str(&*ExpressionBasics::printExpStr(message.clone())?); __mm_s.push_str(&*literal!(")")); ArcStr::from(__mm_s) }).clone())?;
                     }
                     lst = List::fill(Arc::new(DAE::Exp::ICONST { integer: 1 }), (lst.clone().len() as i32));
-                    Ok((Arc::new(DAE::Exp::ARRAY { ty: DAE::T_INTEGER_DEFAULT.clone(), scalar: false, array: lst.clone() }), (rooted.clone(), roots.clone(), graph.clone())))
+                    Ok((Arc::new(DAE::Exp::ARRAY { ty: DAE::T_INTEGER_DEFAULT().clone(), scalar: false, array: lst.clone() }), (rooted.clone(), roots.clone(), graph.clone())))
                 }
                 _ => bail!("nomatch"),
             }}
@@ -1418,13 +1420,13 @@ fn generateGraphViz(mut modelNameQualified: ArcStr, mut definiteRoots: DefiniteR
                     graphVizStream = IOStream::appendList(graphVizStream.clone(), list![(i.clone()).clone(), (literal!("edge [")).clone(), (literal!("color = \"black\", ")).clone(), (literal!("style = bold")).clone(), (literal!("]\n\n")).clone()]);
                     graphVizStream = IOStream::appendList(graphVizStream.clone(), list![(i.clone()).clone(), (literal!("graph [fontsize=20, fontname = \"Courier Bold\" label= \"\\n\\n")).clone(), (infoNodeStr.clone()).clone(), (literal!("\", size=\"6,6\"];\n")).clone(), (i.clone()).clone()]);
                     graphVizStream = IOStream::appendList(graphVizStream.clone(), list![(literal!("\n")).clone(), (i.clone()).clone(), (literal!("// Definite Roots (Connections.root)")).clone(), (literal!("\n")).clone(), (i.clone()).clone()]);
-                    graphVizStream = IOStream::appendList(graphVizStream.clone(), List::map1(definiteRoots.clone(), Arc::new(graphVizDefiniteRoot), finalRoots.clone()));
+                    graphVizStream = IOStream::appendList(graphVizStream.clone(), List::map1(definiteRoots.clone(), (std::sync::Arc::new(graphVizDefiniteRoot) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>) -> Result<ArcStr> + 'static>), finalRoots.clone()));
                     graphVizStream = IOStream::appendList(graphVizStream.clone(), list![(literal!("\n")).clone(), (i.clone()).clone(), (literal!("// Potential Roots (Connections.potentialRoot)")).clone(), (literal!("\n")).clone(), (i.clone()).clone()]);
-                    graphVizStream = IOStream::appendList(graphVizStream.clone(), List::map1(potentialRoots.clone(), Arc::new(graphVizPotentialRoot), finalRoots.clone()));
+                    graphVizStream = IOStream::appendList(graphVizStream.clone(), List::map1(potentialRoots.clone(), (std::sync::Arc::new(graphVizPotentialRoot) as std::sync::Arc<dyn ::std::ops::Fn((Arc<DAE::ComponentRef>, metamodelica::Real), Arc<metamodelica::List<Arc<DAE::ComponentRef>>>) -> Result<ArcStr> + 'static>), finalRoots.clone()));
                     graphVizStream = IOStream::appendList(graphVizStream.clone(), list![(literal!("\n")).clone(), (i.clone()).clone(), (literal!("// Branches (Connections.branch)")).clone(), (literal!("\n")).clone(), (i.clone()).clone()]);
-                    graphVizStream = IOStream::appendList(graphVizStream.clone(), List::map(branches.clone(), Arc::new(graphVizEdge)));
+                    graphVizStream = IOStream::appendList(graphVizStream.clone(), List::map(branches.clone(), (std::sync::Arc::new(graphVizEdge) as std::sync::Arc<dyn ::std::ops::Fn((Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)) -> Result<ArcStr> + 'static>)));
                     graphVizStream = IOStream::appendList(graphVizStream.clone(), list![(literal!("\n")).clone(), (i.clone()).clone(), (literal!("// Connections (connect)")).clone(), (literal!("\n")).clone(), (i.clone()).clone()]);
-                    graphVizStream = IOStream::appendList(graphVizStream.clone(), List::map1(connections.clone(), Arc::new(graphVizDaeEdge), broken.clone()));
+                    graphVizStream = IOStream::appendList(graphVizStream.clone(), List::map1(connections.clone(), (std::sync::Arc::new(graphVizDaeEdge) as std::sync::Arc<dyn ::std::ops::Fn((Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>, Arc<metamodelica::List<Arc<DAE::Element>>>), Arc<metamodelica::List<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>, Arc<metamodelica::List<Arc<DAE::Element>>>)>>) -> Result<ArcStr> + 'static>), broken.clone()));
                     graphVizStream = IOStream::appendList(graphVizStream.clone(), list![(literal!("\n}\n")).clone()]);
                     tEnd = clock();
                     t = tEnd.clone() - tStart.clone();
@@ -1495,16 +1497,16 @@ pub fn removeBrokenConnects(mut inConnects: Arc<metamodelica::List<DAE::Connect:
                 csets = list![inConnects.clone()];
             } else {
                 toKeep = filterFromSet(inConnects.clone(), inConnected.clone(), metamodelica::nil(), (literal!("allowed")).clone())?;
-                intersect = List::intersectionOnTrue(toRemove.clone(), toKeep.clone(), Arc::new(ComponentReferenceBasics::crefEqualNoStringCompare));
+                intersect = List::intersectionOnTrue(toRemove.clone(), toKeep.clone(), (std::sync::Arc::new(ComponentReferenceBasics::crefEqualNoStringCompare) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>) -> Result<bool> + 'static>));
                 if Flags::isSet(Flags::CGRAPH.clone())? {
-                    Debug::traceln(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("- ConnectionGraph.removeBrokenConnects: CS: ")); __mm_s.push_str(&*stringDelimitList(List::map(inConnects.clone(), Arc::new(ConnectUtil::printElementStr)), (literal!("\n")).clone())); ArcStr::from(__mm_s) }).clone())?;
-                    Debug::traceln(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("- ConnectionGraph.removeBrokenConnects: keep: ")); __mm_s.push_str(&*stringDelimitList(List::map(toKeep.clone(), Arc::new(ComponentReferenceBasics::printComponentRefStr)), (literal!(", ")).clone())); ArcStr::from(__mm_s) }).clone())?;
-                    Debug::traceln(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("- ConnectionGraph.removeBrokenConnects: delete: ")); __mm_s.push_str(&*stringDelimitList(List::map(toRemove.clone(), Arc::new(ComponentReferenceBasics::printComponentRefStr)), (literal!(", ")).clone())); ArcStr::from(__mm_s) }).clone())?;
-                    Debug::traceln(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("- ConnectionGraph.removeBrokenConnects: allow = remove - keep: ")); __mm_s.push_str(&*stringDelimitList(List::map(intersect.clone(), Arc::new(ComponentReferenceBasics::printComponentRefStr)), (literal!(", ")).clone())); ArcStr::from(__mm_s) }).clone())?;
+                    Debug::traceln(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("- ConnectionGraph.removeBrokenConnects: CS: ")); __mm_s.push_str(&*stringDelimitList(List::map(inConnects.clone(), (std::sync::Arc::new(ConnectUtil::printElementStr) as std::sync::Arc<dyn ::std::ops::Fn(DAE::Connect::ConnectorElement) -> Result<ArcStr> + 'static>)), (literal!("\n")).clone())); ArcStr::from(__mm_s) }).clone())?;
+                    Debug::traceln(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("- ConnectionGraph.removeBrokenConnects: keep: ")); __mm_s.push_str(&*stringDelimitList(List::map(toKeep.clone(), (std::sync::Arc::new(ComponentReferenceBasics::printComponentRefStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>)), (literal!(", ")).clone())); ArcStr::from(__mm_s) }).clone())?;
+                    Debug::traceln(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("- ConnectionGraph.removeBrokenConnects: delete: ")); __mm_s.push_str(&*stringDelimitList(List::map(toRemove.clone(), (std::sync::Arc::new(ComponentReferenceBasics::printComponentRefStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>)), (literal!(", ")).clone())); ArcStr::from(__mm_s) }).clone())?;
+                    Debug::traceln(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("- ConnectionGraph.removeBrokenConnects: allow = remove - keep: ")); __mm_s.push_str(&*stringDelimitList(List::map(intersect.clone(), (std::sync::Arc::new(ComponentReferenceBasics::printComponentRefStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>)), (literal!(", ")).clone())); ArcStr::from(__mm_s) }).clone())?;
                 }
                 toRemove = List::setDifference(toRemove.clone(), intersect.clone())?;
                 if Flags::isSet(Flags::CGRAPH.clone())? {
-                    Debug::traceln(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("- ConnectionGraph.removeBrokenConnects: allow - delete: ")); __mm_s.push_str(&*stringDelimitList(List::map(toRemove.clone(), Arc::new(ComponentReferenceBasics::printComponentRefStr)), (literal!(", ")).clone())); ArcStr::from(__mm_s) }).clone())?;
+                    Debug::traceln(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("- ConnectionGraph.removeBrokenConnects: allow - delete: ")); __mm_s.push_str(&*stringDelimitList(List::map(toRemove.clone(), (std::sync::Arc::new(ComponentReferenceBasics::printComponentRefStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>)), (literal!(", ")).clone())); ArcStr::from(__mm_s) }).clone())?;
                 }
                 cset = removeFromConnects(inConnects.clone(), toRemove.clone())?;
                 csets = splitSetByAllowed(cset.clone(), inConnected.clone())?;
@@ -1632,7 +1634,7 @@ pub fn addBrokenEqualityConstraintEquations(mut inDAE: DAE::DAElist, mut inBroke
                 _ => {
                     let mut equalityConstraintElements: Arc<metamodelica::List<Arc<DAE::Element>>> = metamodelica::nil();
                     let mut dae: DAE::DAElist;
-                    equalityConstraintElements = List::flatten(List::map(inBroken.clone(), Arc::new(fnptr!(Util::tuple33, _))));
+                    equalityConstraintElements = List::flatten(List::map(inBroken.clone(), std::sync::Arc::new(fnptr!(Util::tuple33, _))));
                     dae = DAEUtil::joinDaes(DAE::DAElist { elementLst: equalityConstraintElements.clone() }, inDAE.clone())?;
                     Ok(dae.clone())
                 }

@@ -321,11 +321,11 @@ fn createSimCode(mut inBackendDAE: Arc<BackendDAE::BackendDAE>, mut inInitDAE: A
     Ok(simCode)
 }
 
-type PartialRunTpl = fn() -> Result<(bool, Arc<metamodelica::List<ArcStr>>)>;
+type PartialRunTpl = std::sync::Arc<dyn ::std::ops::Fn() -> Result<(bool, Arc<metamodelica::List<ArcStr>>)> + 'static>;
 
-type FuncText = fn(Tpl::Text) -> Result<Tpl::Text>;
+type FuncText = std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text) -> Result<Tpl::Text> + 'static>;
 
-fn runTplWriteFile(mut func: FuncText, mut file: ArcStr) -> (bool, Arc<metamodelica::List<ArcStr>>) {
+fn runTplWriteFile(mut func: Arc<dyn ::std::ops::Fn(Tpl::Text) -> Result<Tpl::Text> + 'static>, mut file: ArcStr) -> (bool, Arc<metamodelica::List<ArcStr>>) {
     let mut res: (bool, Arc<metamodelica::List<ArcStr>>);
     let mut nErr: i32 = 0;
     res = (false, metamodelica::nil());
@@ -333,10 +333,10 @@ fn runTplWriteFile(mut func: FuncText, mut file: ArcStr) -> (bool, Arc<metamodel
         unwrap_break_err!(SimCodeUtil::resetFunctionIndex(), '__try0);
         SimCodeFunctionUtil::codegenResetTryThrowIndex();
         if unwrap_break_err!(Flags::isSet(Flags::GEN_DEBUG_SYMBOLS.clone()), '__try0) {
-            unwrap_break_err!(Tpl::textFileConvertLines(Tpl::tplCallWithFailErrorNoArg(Arc::new(func), Tpl::emptyTxt.clone()).unwrap(), (file.clone()).clone()), '__try0);
+            unwrap_break_err!(Tpl::textFileConvertLines(Tpl::tplCallWithFailErrorNoArg(func.clone(), Tpl::emptyTxt.clone()).unwrap(), (file.clone()).clone()), '__try0);
         } else {
             nErr = Error::getNumErrorMessages();
-            Tpl::closeFile(Tpl::tplCallWithFailErrorNoArg(Arc::new(func), Tpl::redirectToFile(Tpl::emptyTxt.clone(), (file.clone()).clone()).unwrap()).unwrap());
+            Tpl::closeFile(Tpl::tplCallWithFailErrorNoArg(func.clone(), Tpl::redirectToFile(Tpl::emptyTxt.clone(), (file.clone()).clone()).unwrap()).unwrap());
             unwrap_break_err!(Tpl::failIfTrue(Error::getNumErrorMessages() > nErr.clone()), '__try0);
         }
         res = (true, SimCodeUtil::getFunctionIndex());
@@ -352,13 +352,13 @@ fn runTplWriteFile(mut func: FuncText, mut file: ArcStr) -> (bool, Arc<metamodel
     res
 }
 
-fn runTpl(mut func: FuncText) -> (bool, Arc<metamodelica::List<ArcStr>>) {
+fn runTpl(mut func: Arc<dyn ::std::ops::Fn(Tpl::Text) -> Result<Tpl::Text> + 'static>) -> (bool, Arc<metamodelica::List<ArcStr>>) {
     let mut res: (bool, Arc<metamodelica::List<ArcStr>>);
     res = (false, metamodelica::nil());
     match '__try0: {
         unwrap_break_err!(SimCodeUtil::resetFunctionIndex(), '__try0);
         SimCodeFunctionUtil::codegenResetTryThrowIndex();
-        unwrap_break_err!(Tpl::tplCallWithFailErrorNoArg(Arc::new(func), Tpl::emptyTxt.clone()), '__try0);
+        unwrap_break_err!(Tpl::tplCallWithFailErrorNoArg(func.clone(), Tpl::emptyTxt.clone()), '__try0);
         res = (true, SimCodeUtil::getFunctionIndex());
         Ok::<_, anyhow::Error>((res.clone(),))
     } {
@@ -374,14 +374,14 @@ fn runTpl(mut func: FuncText) -> (bool, Arc<metamodelica::List<ArcStr>>) {
 
 // TODO: use another switch ... later make it first class option like -target or so
 fn callTargetTemplates(mut simCode: SimCode::SimCode, mut target: ArcStr) -> Result<()> {
-    type Func = fn(Tpl::Text, SimCode::SimCode) -> Result<Tpl::Text>;
+    type Func = std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, SimCode::SimCode) -> Result<Tpl::Text> + 'static>;
 
-    type FuncText = fn(Tpl::Text) -> Result<Tpl::Text>;
+    type FuncText = std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text) -> Result<Tpl::Text> + 'static>;
 
-    type BoolFunc = fn(Tpl::Text, SimCode::SimCode) -> Result<Tpl::Text>;
+    type BoolFunc = std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, SimCode::SimCode) -> Result<Tpl::Text> + 'static>;
 
     fn runToStr(mut func: Arc<dyn ::std::ops::Fn() -> Result<ArcStr> + 'static>) -> (bool, Arc<metamodelica::List<ArcStr>>) {
-        pub type Func = fn() -> Result<ArcStr>;
+        pub type Func = std::sync::Arc<dyn ::std::ops::Fn() -> Result<ArcStr> + 'static>;
 
         let mut res: (bool, Arc<metamodelica::List<ArcStr>>);
         res = (false, metamodelica::nil());
@@ -402,14 +402,14 @@ fn callTargetTemplates(mut simCode: SimCode::SimCode, mut target: ArcStr) -> Res
         res
     }
 
-    fn runCodegenFunc(mut func: PartialRunTpl) -> Result<(bool, Arc<metamodelica::List<ArcStr>>)> {
+    fn runCodegenFunc(mut func: Arc<dyn ::std::ops::Fn() -> Result<(bool, Arc<metamodelica::List<ArcStr>>)> + 'static>) -> Result<(bool, Arc<metamodelica::List<ArcStr>>)> {
         let mut res: (bool, Arc<metamodelica::List<ArcStr>>);
         let mut b: bool = false;
         let ref __pa1 @ (ref __pa0, _) = func()?;
         b = __pa0.clone();
         res = __pa1.clone();
         if !(b.clone()) {
-            Error::addInternalError(({ let mut __mm_s = String::new(); __mm_s.push_str(&*System::dladdr(func)); __mm_s.push_str(&*literal!(" failed\n")); ArcStr::from(__mm_s) }).clone(), metamodelica::sourceInfo!())?;
+            Error::addInternalError(({ let mut __mm_s = String::new(); __mm_s.push_str(&*System::dladdr(func.clone())); __mm_s.push_str(&*literal!(" failed\n")); ArcStr::from(__mm_s) }).clone(), metamodelica::sourceInfo!())?;
         }
         if ErrorExt::getNumMessages() > 0 {
             ErrorExt::moveMessagesToParentThread();
@@ -418,7 +418,7 @@ fn callTargetTemplates(mut simCode: SimCode::SimCode, mut target: ArcStr) -> Res
     }
 
     fn runToBoolean(mut func: Arc<dyn ::std::ops::Fn() -> Result<bool> + 'static>) -> (bool, Arc<metamodelica::List<ArcStr>>) {
-        type Func = fn() -> Result<bool>;
+        type Func = std::sync::Arc<dyn ::std::ops::Fn() -> Result<bool> + 'static>;
 
         let mut res: (bool, Arc<metamodelica::List<ArcStr>>);
         res = (func().unwrap(), metamodelica::nil());
@@ -429,11 +429,12 @@ fn callTargetTemplates(mut simCode: SimCode::SimCode, mut target: ArcStr) -> Res
     let mut txt: Tpl::Text;
     let mut generatedObjects: Arc<AvlSetString::Tree> = Arc::new(openmodelica_util::AvlSetString::Tree::EMPTY);
     crate::Globals::optionSimCode.with(|__root| *__root.borrow_mut() = Some(simCode.clone()));
-    let _ = (::match_deref::match_deref! { match &(target.clone()) {
+    let _ = ({
+        let mut res: Arc<metamodelica::List<(bool, Arc<metamodelica::List<ArcStr>>)>> = metamodelica::nil();
+        let mut i: i32 = 0;
+        (::match_deref::match_deref! { match &(target.clone()) {
         Deref @ "Cpp" => {
             let mut r#str: ArcStr = arcstr::literal!("");
-            let mut res: Arc<metamodelica::List<(bool, Arc<metamodelica::List<ArcStr>>)>> = metamodelica::nil();
-            let mut i: i32 = 0;
             callTargetTemplatesCPP(simCode.clone())?;
             for mut r#str in &*list![(literal!("CalcHelperMain.o\n")).clone(), (literal!(".so\n")).clone()] {
                 let mut r#str = r#str.clone();
@@ -447,20 +448,18 @@ fn callTargetTemplates(mut simCode: SimCode::SimCode, mut target: ArcStr) -> Res
             let mut codegenFuncs: Arc<metamodelica::List<PartialRunTpl>> = metamodelica::nil();
             let mut numThreads: i32 = 0;
             let mut n: i32 = 0;
-            let mut res: Arc<metamodelica::List<(bool, Arc<metamodelica::List<ArcStr>>)>> = metamodelica::nil();
             let mut strs: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
             let mut tmp: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
             let mut matches: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
-            let mut i: i32 = 0;
             guid = (System::getUUIDStr()).clone();
             System::realtimeTick(ClockIndexes::RT_PROFILER0.clone())?;
             codegenFuncs = metamodelica::nil();
-            codegenFuncs = cons({ let __pe_b0: Arc<dyn ::std::ops::Fn() -> Result<bool> + 'static> = Arc::new({ let __pe_b0 = simCode.clone(); let __pe_b1 = (guid.clone()).clone(); move || Ok(SerializeInitXML::simulationInitFileReturnBool(__pe_b0.clone(), __pe_b1.clone())) }); move || Ok(runToBoolean(__pe_b0.clone())) }, codegenFuncs.clone());
-            codegenFuncs = cons({ let __pe_b0 = { let __pe_b1 = simCode.clone(); move |__pe_a0| CodegenC::translateModel(__pe_a0, __pe_b1.clone()) }; move || Ok(runTpl(__pe_b0.clone())) }, codegenFuncs.clone());
-            for mut f in &*list![(CodegenC::simulationFile_exo, literal!("_01exo.c")), (CodegenC::simulationFile_nls, literal!("_02nls.c")), (CodegenC::simulationFile_lsy, literal!("_03lsy.c")), (CodegenC::simulationFile_set, literal!("_04set.c")), (CodegenC::simulationFile_evt, literal!("_05evt.c")), (CodegenC::simulationFile_inz, literal!("_06inz.c")), (CodegenC::simulationFile_dly, literal!("_07dly.c")), (CodegenC::simulationFile_bnd, literal!("_08bnd.c")), (CodegenC::simulationFile_alg, literal!("_09alg.c")), (CodegenC::simulationFile_asr, literal!("_10asr.c")), (CodegenC::simulationFile_jac, literal!("_12jac.c")), (CodegenC::simulationFile_jac_header, literal!("_12jac.h")), (CodegenC::simulationFile_opt, literal!("_13opt.c")), (CodegenC::simulationFile_opt_header, literal!("_13opt.h")), (CodegenC::simulationFile_lnz, literal!("_14lnz.c")), (CodegenC::simulationFile_syn, literal!("_15syn.c")), (CodegenC::simulationFile_dae, literal!("_16dae.c")), (CodegenC::simulationFile_dae_header, literal!("_16dae.h")), (CodegenC::simulationFile_inl, literal!("_17inl.c")), (CodegenC::simulationFile_spd, literal!("_18spd.c")), (CodegenC::simulationHeaderFile, literal!("_model.h"))] {
+            codegenFuncs = cons(Arc::new({ let __pe_b0: Arc<dyn ::std::ops::Fn() -> Result<bool> + 'static> = Arc::new({ let __pe_b0 = simCode.clone(); let __pe_b1 = (guid.clone()).clone(); move || Ok(SerializeInitXML::simulationInitFileReturnBool(__pe_b0.clone(), __pe_b1.clone())) }); move || Ok(runToBoolean(__pe_b0.clone())) }), codegenFuncs.clone());
+            codegenFuncs = cons(Arc::new({ let __pe_b0 = Arc::new({ let __pe_b1 = simCode.clone(); move |__pe_a0| CodegenC::translateModel(__pe_a0, __pe_b1.clone()) }); move || Ok(runTpl(__pe_b0.clone())) }), codegenFuncs.clone());
+            for mut f in &*list![((std::sync::Arc::new(CodegenC::simulationFile_exo) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, SimCode::SimCode) -> Result<Tpl::Text> + 'static>), literal!("_01exo.c")), ((std::sync::Arc::new(CodegenC::simulationFile_nls) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, SimCode::SimCode) -> Result<Tpl::Text> + 'static>), literal!("_02nls.c")), ((std::sync::Arc::new(CodegenC::simulationFile_lsy) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, SimCode::SimCode) -> Result<Tpl::Text> + 'static>), literal!("_03lsy.c")), ((std::sync::Arc::new(CodegenC::simulationFile_set) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, SimCode::SimCode) -> Result<Tpl::Text> + 'static>), literal!("_04set.c")), ((std::sync::Arc::new(CodegenC::simulationFile_evt) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, SimCode::SimCode) -> Result<Tpl::Text> + 'static>), literal!("_05evt.c")), ((std::sync::Arc::new(CodegenC::simulationFile_inz) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, SimCode::SimCode) -> Result<Tpl::Text> + 'static>), literal!("_06inz.c")), ((std::sync::Arc::new(CodegenC::simulationFile_dly) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, SimCode::SimCode) -> Result<Tpl::Text> + 'static>), literal!("_07dly.c")), ((std::sync::Arc::new(CodegenC::simulationFile_bnd) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, SimCode::SimCode) -> Result<Tpl::Text> + 'static>), literal!("_08bnd.c")), ((std::sync::Arc::new(CodegenC::simulationFile_alg) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, SimCode::SimCode) -> Result<Tpl::Text> + 'static>), literal!("_09alg.c")), ((std::sync::Arc::new(CodegenC::simulationFile_asr) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, SimCode::SimCode) -> Result<Tpl::Text> + 'static>), literal!("_10asr.c")), ((std::sync::Arc::new(CodegenC::simulationFile_jac) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, SimCode::SimCode) -> Result<Tpl::Text> + 'static>), literal!("_12jac.c")), ((std::sync::Arc::new(CodegenC::simulationFile_jac_header) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, SimCode::SimCode) -> Result<Tpl::Text> + 'static>), literal!("_12jac.h")), ((std::sync::Arc::new(CodegenC::simulationFile_opt) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, SimCode::SimCode) -> Result<Tpl::Text> + 'static>), literal!("_13opt.c")), ((std::sync::Arc::new(CodegenC::simulationFile_opt_header) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, SimCode::SimCode) -> Result<Tpl::Text> + 'static>), literal!("_13opt.h")), ((std::sync::Arc::new(CodegenC::simulationFile_lnz) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, SimCode::SimCode) -> Result<Tpl::Text> + 'static>), literal!("_14lnz.c")), ((std::sync::Arc::new(CodegenC::simulationFile_syn) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, SimCode::SimCode) -> Result<Tpl::Text> + 'static>), literal!("_15syn.c")), ((std::sync::Arc::new(CodegenC::simulationFile_dae) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, SimCode::SimCode) -> Result<Tpl::Text> + 'static>), literal!("_16dae.c")), ((std::sync::Arc::new(CodegenC::simulationFile_dae_header) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, SimCode::SimCode) -> Result<Tpl::Text> + 'static>), literal!("_16dae.h")), ((std::sync::Arc::new(CodegenC::simulationFile_inl) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, SimCode::SimCode) -> Result<Tpl::Text> + 'static>), literal!("_17inl.c")), ((std::sync::Arc::new(CodegenC::simulationFile_spd) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, SimCode::SimCode) -> Result<Tpl::Text> + 'static>), literal!("_18spd.c")), ((std::sync::Arc::new(CodegenC::simulationHeaderFile) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, SimCode::SimCode) -> Result<Tpl::Text> + 'static>), literal!("_model.h"))] {
                 let mut f = f.clone();
                 (func, r#str) = f.clone();
-                codegenFuncs = cons({ let __pe_b0 = { let __pe_b1 = simCode.clone(); move |__pe_a0| func(__pe_a0, __pe_b1.clone()) }; let __pe_b1 = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*simCode.fileNamePrefix.clone()); __mm_s.push_str(&*r#str.clone()); ArcStr::from(__mm_s) }).clone(); move || Ok(runTplWriteFile(__pe_b0.clone(), __pe_b1.clone())) }, codegenFuncs.clone());
+                codegenFuncs = cons(Arc::new({ let __pe_b0 = Arc::new({ let __pe_b1 = simCode.clone(); move |__pe_a0| func(__pe_a0, __pe_b1.clone()) }); let __pe_b1 = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*simCode.fileNamePrefix.clone()); __mm_s.push_str(&*r#str.clone()); ArcStr::from(__mm_s) }).clone(); move || Ok(runTplWriteFile(__pe_b0.clone(), __pe_b1.clone())) }), codegenFuncs.clone());
                 (n, matches) = System::regex((r#str.clone()).clone(), (literal!("\\(.*\\)[.]c$")).clone(), 2, false, false);
                 if n.clone() == 2 {
                     let __pa0 = ::match_deref::match_deref! { match &(matches.clone()) {
@@ -475,17 +474,17 @@ fn callTargetTemplates(mut simCode: SimCode::SimCode, mut target: ArcStr) -> Res
                 let mut r#str = r#str.clone();
                 generatedObjects = AvlSetString::add(generatedObjects.clone(), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*simCode.fileNamePrefix.clone()); __mm_s.push_str(&*r#str.clone()); ArcStr::from(__mm_s) }).clone())?;
             }
-            codegenFuncs = cons({ let __pe_b0 = { let __pe_b1 = simCode.clone(); let __pe_b2 = (simCode.fileNamePrefix.clone()).clone(); move |__pe_a0| CodegenC::simulationFile_mixAndHeader(__pe_a0, __pe_b1.clone(), __pe_b2.clone()) }; move || Ok(runTpl(__pe_b0.clone())) }, codegenFuncs.clone());
-            codegenFuncs = cons({ let __pe_b0 = { let __pe_b1 = simCode.clone(); let __pe_b2 = (guid.clone()).clone(); let __pe_b3 = (literal!("")).clone(); move |__pe_a0| CodegenC::simulationFile(__pe_a0, __pe_b1.clone(), __pe_b2.clone(), __pe_b3.clone()) }; let __pe_b1 = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*simCode.fileNamePrefix.clone()); __mm_s.push_str(&*literal!(".c")); ArcStr::from(__mm_s) }).clone(); move || Ok(runTplWriteFile(__pe_b0.clone(), __pe_b1.clone())) }, codegenFuncs.clone());
-            codegenFuncs = cons({ let __pe_b0 = { let __pe_b1 = (simCode.fileNamePrefix.clone()).clone(); let __pe_b2 = simCode.modelInfo.functions.clone(); let __pe_b3 = simCode.generic_loop_calls.clone(); move |__pe_a0| CodegenC::simulationFunctionsFile(__pe_a0, __pe_b1.clone(), __pe_b2.clone(), __pe_b3.clone()) }; let __pe_b1 = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*simCode.fileNamePrefix.clone()); __mm_s.push_str(&*literal!("_functions.c")); ArcStr::from(__mm_s) }).clone(); move || Ok(runTplWriteFile(__pe_b0.clone(), __pe_b1.clone())) }, codegenFuncs.clone());
-            codegenFuncs = cons({ let __pe_b0: Arc<dyn ::std::ops::Fn() -> Result<ArcStr> + 'static> = Arc::new({ let __pe_b0 = simCode.clone(); move || SerializeSparsityPattern::serialize(__pe_b0.clone()) }); move || Ok(runToStr(__pe_b0.clone())) }, codegenFuncs.clone());
-            codegenFuncs = cons({ let __pe_b0: Arc<dyn ::std::ops::Fn() -> Result<ArcStr> + 'static> = Arc::new({ let __pe_b0 = simCode.clone(); let __pe_b1 = Flags::isSet(Flags::INFO_XML_OPERATIONS.clone())?; move || SerializeModelInfo::serialize(__pe_b0.clone(), __pe_b1.clone()) }); move || Ok(runToStr(__pe_b0.clone())) }, codegenFuncs.clone());
+            codegenFuncs = cons(Arc::new({ let __pe_b0 = Arc::new({ let __pe_b1 = simCode.clone(); let __pe_b2 = (simCode.fileNamePrefix.clone()).clone(); move |__pe_a0| CodegenC::simulationFile_mixAndHeader(__pe_a0, __pe_b1.clone(), __pe_b2.clone()) }); move || Ok(runTpl(__pe_b0.clone())) }), codegenFuncs.clone());
+            codegenFuncs = cons(Arc::new({ let __pe_b0 = Arc::new({ let __pe_b1 = simCode.clone(); let __pe_b2 = (guid.clone()).clone(); let __pe_b3 = (literal!("")).clone(); move |__pe_a0| CodegenC::simulationFile(__pe_a0, __pe_b1.clone(), __pe_b2.clone(), __pe_b3.clone()) }); let __pe_b1 = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*simCode.fileNamePrefix.clone()); __mm_s.push_str(&*literal!(".c")); ArcStr::from(__mm_s) }).clone(); move || Ok(runTplWriteFile(__pe_b0.clone(), __pe_b1.clone())) }), codegenFuncs.clone());
+            codegenFuncs = cons(Arc::new({ let __pe_b0 = Arc::new({ let __pe_b1 = (simCode.fileNamePrefix.clone()).clone(); let __pe_b2 = simCode.modelInfo.functions.clone(); let __pe_b3 = simCode.generic_loop_calls.clone(); move |__pe_a0| CodegenC::simulationFunctionsFile(__pe_a0, __pe_b1.clone(), __pe_b2.clone(), __pe_b3.clone()) }); let __pe_b1 = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*simCode.fileNamePrefix.clone()); __mm_s.push_str(&*literal!("_functions.c")); ArcStr::from(__mm_s) }).clone(); move || Ok(runTplWriteFile(__pe_b0.clone(), __pe_b1.clone())) }), codegenFuncs.clone());
+            codegenFuncs = cons(Arc::new({ let __pe_b0: Arc<dyn ::std::ops::Fn() -> Result<ArcStr> + 'static> = Arc::new({ let __pe_b0 = simCode.clone(); move || SerializeSparsityPattern::serialize(__pe_b0.clone()) }); move || Ok(runToStr(__pe_b0.clone())) }), codegenFuncs.clone());
+            codegenFuncs = cons(Arc::new({ let __pe_b0: Arc<dyn ::std::ops::Fn() -> Result<ArcStr> + 'static> = Arc::new({ let __pe_b0 = simCode.clone(); let __pe_b1 = Flags::isSet(Flags::INFO_XML_OPERATIONS.clone())?; move || SerializeModelInfo::serialize(__pe_b0.clone(), __pe_b1.clone()) }); move || Ok(runToStr(__pe_b0.clone())) }), codegenFuncs.clone());
             if Flags::getConfigBool(Flags::PARMODAUTO.clone())? {
-                codegenFuncs = cons({ let __pe_b0: Arc<dyn ::std::ops::Fn() -> Result<ArcStr> + 'static> = Arc::new({ let __pe_b0 = simCode.clone(); let __pe_b1 = Flags::isSet(Flags::INFO_XML_OPERATIONS.clone())?; move || SerializeTaskSystemInfo::serializeParMod(__pe_b0.clone(), __pe_b1.clone()) }); move || Ok(runToStr(__pe_b0.clone())) }, codegenFuncs.clone());
+                codegenFuncs = cons(Arc::new({ let __pe_b0: Arc<dyn ::std::ops::Fn() -> Result<ArcStr> + 'static> = Arc::new({ let __pe_b0 = simCode.clone(); let __pe_b1 = Flags::isSet(Flags::INFO_XML_OPERATIONS.clone())?; move || SerializeTaskSystemInfo::serializeParMod(__pe_b0.clone(), __pe_b1.clone()) }); move || Ok(runToStr(__pe_b0.clone())) }), codegenFuncs.clone());
                 generatedObjects = AvlSetString::add(generatedObjects.clone(), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*simCode.fileNamePrefix.clone()); __mm_s.push_str(&*literal!("_ode.json\n")); ArcStr::from(__mm_s) }).clone())?;
             }
             if arcstr::literal!(Autoconf::os) == literal!("Windows_NT") {
-                codegenFuncs = cons({ let __pe_b0: Arc<dyn ::std::ops::Fn() -> Result<ArcStr> + 'static> = Arc::new({ let __pe_b0 = simCode.clone(); move || SimCodeUtil::generateRunnerBatScript(__pe_b0.clone()) }); move || Ok(runToStr(__pe_b0.clone())) }, codegenFuncs.clone());
+                codegenFuncs = cons(Arc::new({ let __pe_b0: Arc<dyn ::std::ops::Fn() -> Result<ArcStr> + 'static> = Arc::new({ let __pe_b0 = simCode.clone(); move || SimCodeUtil::generateRunnerBatScript(__pe_b0.clone()) }); move || Ok(runToStr(__pe_b0.clone())) }), codegenFuncs.clone());
             }
             numThreads = std::cmp::max(1, if (Testsuite::isRunning()?) {std::cmp::min(2, System::numProcessors())} else {Config::noProc()?});
             if !(Flags::isSet(Flags::PARALLEL_CODEGEN.clone())?) || numThreads.clone() == 1 {
@@ -498,7 +497,7 @@ fn callTargetTemplates(mut simCode: SimCode::SimCode, mut target: ArcStr) -> Res
         __acc.reverse()
     };
             } else {
-                res = System::launchParallelTasks(numThreads.clone(), codegenFuncs.clone(), Arc::new(runCodegenFunc))?;
+                res = System::launchParallelTasks(numThreads.clone(), codegenFuncs.clone(), (std::sync::Arc::new(runCodegenFunc) as std::sync::Arc<dyn ::std::ops::Fn(PartialRunTpl) -> Result<(bool, Arc<metamodelica::List<ArcStr>>)> + 'static>))?;
             }
             strs = metamodelica::nil();
             for mut tpl in &*res.clone() {
@@ -523,24 +522,22 @@ fn callTargetTemplates(mut simCode: SimCode::SimCode, mut target: ArcStr) -> Res
                     generatedObjects = AvlSetString::add(generatedObjects.clone(), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*simCode.fileNamePrefix.clone()); __mm_s.push_str(&*r#str.clone()); __mm_s.push_str(&*literal!(".o\n")); ArcStr::from(__mm_s) }).clone())?;
                 }
             }
-            Tpl::closeFile(Tpl::tplCallWithFailError3(Arc::new(CodegenC::simulationMakefile), (Config::simulationCodeTarget()?).clone(), simCode.clone(), strs.clone(), Tpl::redirectToFile(Tpl::emptyTxt.clone(), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*simCode.fileNamePrefix.clone()); __mm_s.push_str(&*literal!(".makefile")); ArcStr::from(__mm_s) }).clone())?)?);
+            Tpl::closeFile(Tpl::tplCallWithFailError3((std::sync::Arc::new(CodegenC::simulationMakefile) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, ArcStr, SimCode::SimCode, Arc<metamodelica::List<ArcStr>>) -> Result<Tpl::Text> + 'static>), (Config::simulationCodeTarget()?).clone(), simCode.clone(), strs.clone(), Tpl::redirectToFile(Tpl::emptyTxt.clone(), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*simCode.fileNamePrefix.clone()); __mm_s.push_str(&*literal!(".makefile")); ArcStr::from(__mm_s) }).clone())?)?);
             ()
         },
         Deref @ "ExperimentalEmbeddedC" => {
             let mut r#str: ArcStr = arcstr::literal!("");
             let mut codegenFuncs: Arc<metamodelica::List<PartialRunTpl>> = metamodelica::nil();
             let mut numThreads: i32 = 0;
-            let mut res: Arc<metamodelica::List<(bool, Arc<metamodelica::List<ArcStr>>)>> = metamodelica::nil();
             let mut strs: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
             let mut tmp: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
-            let mut i: i32 = 0;
             let _ = System::getUUIDStr();
             System::realtimeTick(ClockIndexes::RT_PROFILER0.clone())?;
             codegenFuncs = metamodelica::nil();
-            for mut f in &*list![(CodegenEmbeddedC::mainFile, literal!("_main.c"))] {
+            for mut f in &*list![((std::sync::Arc::new(CodegenEmbeddedC::mainFile) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, SimCode::SimCode) -> Result<Tpl::Text> + 'static>), literal!("_main.c"))] {
                 let mut f = f.clone();
                 (func, r#str) = f.clone();
-                codegenFuncs = cons({ let __pe_b0 = { let __pe_b1 = simCode.clone(); move |__pe_a0| func(__pe_a0, __pe_b1.clone()) }; let __pe_b1 = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*simCode.fileNamePrefix.clone()); __mm_s.push_str(&*r#str.clone()); ArcStr::from(__mm_s) }).clone(); move || Ok(runTplWriteFile(__pe_b0.clone(), __pe_b1.clone())) }, codegenFuncs.clone());
+                codegenFuncs = cons(Arc::new({ let __pe_b0 = Arc::new({ let __pe_b1 = simCode.clone(); move |__pe_a0| func(__pe_a0, __pe_b1.clone()) }); let __pe_b1 = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*simCode.fileNamePrefix.clone()); __mm_s.push_str(&*r#str.clone()); ArcStr::from(__mm_s) }).clone(); move || Ok(runTplWriteFile(__pe_b0.clone(), __pe_b1.clone())) }), codegenFuncs.clone());
             }
             numThreads = std::cmp::max(1, if (Testsuite::isRunning()?) {std::cmp::min(2, System::numProcessors())} else {Config::noProc()?});
             if !(Flags::isSet(Flags::PARALLEL_CODEGEN.clone())?) || numThreads.clone() == 1 {
@@ -553,7 +550,7 @@ fn callTargetTemplates(mut simCode: SimCode::SimCode, mut target: ArcStr) -> Res
         __acc.reverse()
     };
             } else {
-                res = System::launchParallelTasks(numThreads.clone(), codegenFuncs.clone(), Arc::new(runCodegenFunc))?;
+                res = System::launchParallelTasks(numThreads.clone(), codegenFuncs.clone(), (std::sync::Arc::new(runCodegenFunc) as std::sync::Arc<dyn ::std::ops::Fn(PartialRunTpl) -> Result<(bool, Arc<metamodelica::List<ArcStr>>)> + 'static>))?;
             }
             strs = metamodelica::nil();
             for mut tpl in &*res.clone() {
@@ -570,38 +567,31 @@ fn callTargetTemplates(mut simCode: SimCode::SimCode, mut target: ArcStr) -> Res
         },
         Deref @ "JavaScript" => {
             let mut guid: ArcStr = arcstr::literal!("");
-            let mut res: Arc<metamodelica::List<(bool, Arc<metamodelica::List<ArcStr>>)>> = metamodelica::nil();
-            let mut i: i32 = 0;
             guid = (System::getUUIDStr()).clone();
-            Tpl::tplNoret(Arc::new(CodegenC::translateModel), simCode.clone())?;
+            Tpl::tplNoret((std::sync::Arc::new(CodegenC::translateModel) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, SimCode::SimCode) -> Result<Tpl::Text> + 'static>), simCode.clone())?;
             SerializeInitXML::simulationInitFile(simCode.clone(), (guid.clone()).clone())?;
             System::covertTextFileToCLiteral(({ let mut __mm_s = String::new(); __mm_s.push_str(&*simCode.fileNamePrefix.clone()); __mm_s.push_str(&*literal!("_init.xml")); ArcStr::from(__mm_s) }).clone(), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*simCode.fileNamePrefix.clone()); __mm_s.push_str(&*literal!("_init.c")); ArcStr::from(__mm_s) }).clone(), (Config::simulationCodeTarget()?).clone());
             SerializeSparsityPattern::serialize(simCode.clone())?;
             SerializeModelInfo::serialize(simCode.clone(), Flags::isSet(Flags::INFO_XML_OPERATIONS.clone())?)?;
-            Tpl::tplNoret(Arc::new(CodegenJS::markdownFile), simCode.clone())?;
+            Tpl::tplNoret((std::sync::Arc::new(CodegenJS::markdownFile) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, SimCode::SimCode) -> Result<Tpl::Text> + 'static>), simCode.clone())?;
             ()
         },
         Deref @ "XML" => {
-            let mut res: Arc<metamodelica::List<(bool, Arc<metamodelica::List<ArcStr>>)>> = metamodelica::nil();
-            let mut i: i32 = 0;
-            Tpl::tplNoret(Arc::new(CodegenXML::translateModel), simCode.clone())?;
+            Tpl::tplNoret((std::sync::Arc::new(CodegenXML::translateModel) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, SimCode::SimCode) -> Result<Tpl::Text> + 'static>), simCode.clone())?;
             ()
         },
         Deref @ "None" => {
-            let mut res: Arc<metamodelica::List<(bool, Arc<metamodelica::List<ArcStr>>)>> = metamodelica::nil();
-            let mut i: i32 = 0;
             ()
         },
         _ => {
             let mut r#str: ArcStr = arcstr::literal!("");
-            let mut res: Arc<metamodelica::List<(bool, Arc<metamodelica::List<ArcStr>>)>> = metamodelica::nil();
-            let mut i: i32 = 0;
             r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Unknown template target: ")); __mm_s.push_str(&*target.clone()); ArcStr::from(__mm_s) }).clone();
             Error::addMessage(Error::INTERNAL_ERROR.clone(), list![(r#str.clone()).clone()])?;
             bail!("fail")
         },
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
-    } });
+    } })
+    });
     if Testsuite::isRunning()? {
         System::appendFile((Testsuite::getTempFilesFile()?).clone(), stringAppendList(AvlSetString::listKeys(generatedObjects.clone(), metamodelica::nil())))?;
     }
@@ -611,9 +601,9 @@ fn callTargetTemplates(mut simCode: SimCode::SimCode, mut target: ArcStr) -> Res
 
 fn callTargetTemplatesCPP(mut iSimCode: SimCode::SimCode) -> Result<()> {
     if Flags::isSet(Flags::HPCOM.clone())? {
-        Tpl::tplNoret(Arc::new(CodegenCppHpcom::translateModel), iSimCode.clone())?;
+        Tpl::tplNoret((std::sync::Arc::new(CodegenCppHpcom::translateModel) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, SimCode::SimCode) -> Result<Tpl::Text> + 'static>), iSimCode.clone())?;
     } else {
-        Tpl::tplNoret(Arc::new(CodegenCpp::translateModel), iSimCode.clone())?;
+        Tpl::tplNoret((std::sync::Arc::new(CodegenCpp::translateModel) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, SimCode::SimCode) -> Result<Tpl::Text> + 'static>), iSimCode.clone())?;
     }
     Ok(())
 }
@@ -623,14 +613,16 @@ fn callTargetTemplatesOMSICpp(mut iSimCode: SimCode::SimCode, mut program: Absyn
     let mut fmuType: ArcStr = arcstr::literal!("");
     fmuVersion = (literal!("2.0")).clone();
     fmuType = (literal!("me")).clone();
-    Tpl::tplNoret3(Arc::new(CodegenOMSICpp::translateModel), iSimCode.clone(), (fmuVersion.clone()).clone(), (fmuType.clone()).clone())?;
+    Tpl::tplNoret3((std::sync::Arc::new(CodegenOMSICpp::translateModel) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, SimCode::SimCode, ArcStr, ArcStr) -> Result<Tpl::Text> + 'static>), iSimCode.clone(), (fmuVersion.clone()).clone(), (fmuType.clone()).clone())?;
     callTargetTemplatesFMU(iSimCode.clone(), (literal!("C")).clone(), (fmuVersion.clone()).clone(), (fmuType.clone()).clone(), program.clone())?;
     Ok(())
 }
 
 fn callTargetTemplatesFMU(mut simCode: SimCode::SimCode, mut target: ArcStr, mut FMUVersion: ArcStr, mut FMUType: ArcStr, mut program: Absyn::Program) -> Result<()> {
     crate::Globals::optionSimCode.with(|__root| *__root.borrow_mut() = Some(simCode.clone()));
-    let _ = (::match_deref::match_deref! { match &((simCode.clone(), target.clone())) {
+    let _ = ({
+        let mut needSundials: bool = false;
+        (::match_deref::match_deref! { match &((simCode.clone(), target.clone())) {
         (SimCode::SimCode { .. }, Deref @ "C") => {
             let mut r#str: ArcStr = arcstr::literal!("");
             let mut newdir: ArcStr = arcstr::literal!("");
@@ -641,7 +633,6 @@ fn callTargetTemplatesFMU(mut simCode: SimCode::SimCode, mut target: ArcStr, mut
             let mut fmutmp: ArcStr = arcstr::literal!("");
             let mut b: bool = false;
             let mut exportDocumentation: bool = false;
-            let mut needSundials: bool = false;
             let mut fileNamePrefixHash: ArcStr = arcstr::literal!("");
             let mut install_include_omc_dir: ArcStr = arcstr::literal!("");
             let mut install_include_omc_c_dir: ArcStr = arcstr::literal!("");
@@ -790,7 +781,7 @@ fn callTargetTemplatesFMU(mut simCode: SimCode::SimCode, mut target: ArcStr, mut
             if !(Flags::getConfigBool(Flags::FMI_SOURCES.clone())?) || Flags::getConfigEnum(Flags::FMI_FILTER.clone())? == Flags::FMI_BLACKBOX.clone() {
                 model_desc_src_files = metamodelica::nil();
             } else {
-                model_desc_src_files = List::flatten(list![List::sort(model_gen_files.clone(), Arc::new(fnptr!(Util::strcmpNoCaseBool, ArcStr, ArcStr)))?, List::sort(shared_source_files.clone(), Arc::new(fnptr!(Util::strcmpNoCaseBool, ArcStr, ArcStr)))?, List::sort(dgesv_sources.clone(), Arc::new(fnptr!(Util::strcmpNoCaseBool, ArcStr, ArcStr)))?, List::sort(cminpack_sources.clone(), Arc::new(fnptr!(Util::strcmpNoCaseBool, ArcStr, ArcStr)))?, List::sort(simrt_c_sundials_sources.clone(), Arc::new(fnptr!(Util::strcmpNoCaseBool, ArcStr, ArcStr)))?, List::sort(modelica_standard_table_sources.clone(), Arc::new(fnptr!(Util::strcmpNoCaseBool, ArcStr, ArcStr)))?]);
+                model_desc_src_files = List::flatten(list![List::sort(model_gen_files.clone(), (std::sync::Arc::new(fnptr!(Util::strcmpNoCaseBool, ArcStr, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>))?, List::sort(shared_source_files.clone(), (std::sync::Arc::new(fnptr!(Util::strcmpNoCaseBool, ArcStr, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>))?, List::sort(dgesv_sources.clone(), (std::sync::Arc::new(fnptr!(Util::strcmpNoCaseBool, ArcStr, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>))?, List::sort(cminpack_sources.clone(), (std::sync::Arc::new(fnptr!(Util::strcmpNoCaseBool, ArcStr, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>))?, List::sort(simrt_c_sundials_sources.clone(), (std::sync::Arc::new(fnptr!(Util::strcmpNoCaseBool, ArcStr, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>))?, List::sort(modelica_standard_table_sources.clone(), (std::sync::Arc::new(fnptr!(Util::strcmpNoCaseBool, ArcStr, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>))?]);
             }
             Tpl::tplNoret(Arc::new({ let __pe_b2 = (FMUVersion.clone()).clone(); let __pe_b3 = (FMUType.clone()).clone(); let __pe_b4 = model_desc_src_files.clone(); move |__pe_a0, __pe_a1| CodegenFMU::translateModel(__pe_a0, __pe_a1, __pe_b2.clone(), __pe_b3.clone(), __pe_b4.clone()) }), simCode.clone())?;
             model_all_gen_files = listAppend(model_gen_files.clone(), SimCodeUtil::getFunctionIndex());
@@ -874,15 +865,14 @@ fn callTargetTemplatesFMU(mut simCode: SimCode::SimCode, mut target: ArcStr, mut
         }
         __acc.reverse()
     }; move |__pe_a0| CodegenFMU::fmuMakefile(__pe_a0, __pe_b1.clone(), __pe_b2.clone(), __pe_b3.clone(), __pe_b4.clone(), __pe_b5.clone(), __pe_b6.clone(), __pe_b7.clone(), __pe_b8.clone()) }), Tpl::redirectToFile(Tpl::emptyTxt.clone(), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*fmutmp.clone()); __mm_s.push_str(&*literal!("/sources/Makefile.in")); ArcStr::from(__mm_s) }).clone())?)?);
-            Tpl::closeFile(Tpl::tplCallWithFailError(Arc::new(CodegenFMU::settingsfile), simCode.clone(), Tpl::redirectToFile(Tpl::emptyTxt.clone(), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*fmutmp.clone()); __mm_s.push_str(&*literal!("/sources/omc_simulation_settings.h")); ArcStr::from(__mm_s) }).clone())?)?);
+            Tpl::closeFile(Tpl::tplCallWithFailError((std::sync::Arc::new(CodegenFMU::settingsfile) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, SimCode::SimCode) -> Result<Tpl::Text> + 'static>), simCode.clone(), Tpl::redirectToFile(Tpl::emptyTxt.clone(), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*fmutmp.clone()); __mm_s.push_str(&*literal!("/sources/omc_simulation_settings.h")); ArcStr::from(__mm_s) }).clone())?)?);
             if Config::simCodeTarget()? == literal!("omsicpp") {
-                runTpl({ let __pe_b1 = simCode.clone(); let __pe_b2 = (FMUVersion.clone()).clone(); let __pe_b3 = (FMUType.clone()).clone(); move |__pe_a0| CodegenOMSICpp::translateModel(__pe_a0, __pe_b1.clone(), __pe_b2.clone(), __pe_b3.clone()) });
+                runTpl(Arc::new({ let __pe_b1 = simCode.clone(); let __pe_b2 = (FMUVersion.clone()).clone(); let __pe_b3 = (FMUType.clone()).clone(); move |__pe_a0| CodegenOMSICpp::translateModel(__pe_a0, __pe_b1.clone(), __pe_b2.clone(), __pe_b3.clone()) }));
             }
             ()
         },
         (_, Deref @ "omsic") => {
             let mut guid: ArcStr = arcstr::literal!("");
-            let mut needSundials: bool = false;
             let mut fileprefix: ArcStr = arcstr::literal!("");
             guid = (System::getUUIDStr()).clone();
             fileprefix = (simCode.fileNamePrefix.clone()).clone();
@@ -900,16 +890,15 @@ fn callTargetTemplatesFMU(mut simCode: SimCode::SimCode, mut target: ArcStr, mut
             SerializeInitXML::simulationInitFileReturnBool(simCode.clone(), (guid.clone()).clone());
             SerializeSparsityPattern::serialize(simCode.clone())?;
             SerializeModelInfo::serialize(simCode.clone(), Flags::isSet(Flags::INFO_XML_OPERATIONS.clone())?)?;
-            runTpl({ let __pe_b1 = simCode.clone(); let __pe_b2 = (guid.clone()).clone(); let __pe_b3 = (FMUVersion.clone()).clone(); let __pe_b4 = (FMUType.clone()).clone(); let __pe_b5 = metamodelica::nil(); let __pe_b6 = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*simCode.fullPathPrefix.clone()); __mm_s.push_str(&*literal!("/")); __mm_s.push_str(&*literal!("modelDescription.xml")); ArcStr::from(__mm_s) }).clone(); move |__pe_a0| CodegenOMSI_common::generateFMUModelDescriptionFile(__pe_a0, __pe_b1.clone(), __pe_b2.clone(), __pe_b3.clone(), __pe_b4.clone(), __pe_b5.clone(), __pe_b6.clone()) });
-            runTplWriteFile({ let __pe_b1 = simCode.clone(); let __pe_b2 = (Config::simulationCodeTarget()?).clone(); let __pe_b3 = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*fileprefix.clone()); __mm_s.push_str(&*literal!("_FMU.makefile")); ArcStr::from(__mm_s) }).clone(); move |__pe_a0| CodegenOMSIC::createMakefile(__pe_a0, __pe_b1.clone(), __pe_b2.clone(), __pe_b3.clone()) }, ({ let mut __mm_s = String::new(); __mm_s.push_str(&*simCode.fullPathPrefix.clone()); __mm_s.push_str(&*literal!("/")); __mm_s.push_str(&*fileprefix.clone()); __mm_s.push_str(&*literal!("_FMU.makefile")); ArcStr::from(__mm_s) }).clone());
-            runTplWriteFile({ let __pe_b1 = simCode.clone(); move |__pe_a0| CodegenOMSIC::generateOMSIC(__pe_a0, __pe_b1.clone()) }, ({ let mut __mm_s = String::new(); __mm_s.push_str(&*simCode.fullPathPrefix.clone()); __mm_s.push_str(&*literal!("/")); __mm_s.push_str(&*fileprefix.clone()); __mm_s.push_str(&*literal!("_omsic.c")); ArcStr::from(__mm_s) }).clone());
-            runTpl({ let __pe_b1 = simCode.clone(); let __pe_b2 = (fileprefix.clone()).clone(); move |__pe_a0| CodegenOMSI_common::generateEquationsCode(__pe_a0, __pe_b1.clone(), __pe_b2.clone()) });
+            runTpl(Arc::new({ let __pe_b1 = simCode.clone(); let __pe_b2 = (guid.clone()).clone(); let __pe_b3 = (FMUVersion.clone()).clone(); let __pe_b4 = (FMUType.clone()).clone(); let __pe_b5 = metamodelica::nil(); let __pe_b6 = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*simCode.fullPathPrefix.clone()); __mm_s.push_str(&*literal!("/")); __mm_s.push_str(&*literal!("modelDescription.xml")); ArcStr::from(__mm_s) }).clone(); move |__pe_a0| CodegenOMSI_common::generateFMUModelDescriptionFile(__pe_a0, __pe_b1.clone(), __pe_b2.clone(), __pe_b3.clone(), __pe_b4.clone(), __pe_b5.clone(), __pe_b6.clone()) }));
+            runTplWriteFile(Arc::new({ let __pe_b1 = simCode.clone(); let __pe_b2 = (Config::simulationCodeTarget()?).clone(); let __pe_b3 = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*fileprefix.clone()); __mm_s.push_str(&*literal!("_FMU.makefile")); ArcStr::from(__mm_s) }).clone(); move |__pe_a0| CodegenOMSIC::createMakefile(__pe_a0, __pe_b1.clone(), __pe_b2.clone(), __pe_b3.clone()) }), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*simCode.fullPathPrefix.clone()); __mm_s.push_str(&*literal!("/")); __mm_s.push_str(&*fileprefix.clone()); __mm_s.push_str(&*literal!("_FMU.makefile")); ArcStr::from(__mm_s) }).clone());
+            runTplWriteFile(Arc::new({ let __pe_b1 = simCode.clone(); move |__pe_a0| CodegenOMSIC::generateOMSIC(__pe_a0, __pe_b1.clone()) }), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*simCode.fullPathPrefix.clone()); __mm_s.push_str(&*literal!("/")); __mm_s.push_str(&*fileprefix.clone()); __mm_s.push_str(&*literal!("_omsic.c")); ArcStr::from(__mm_s) }).clone());
+            runTpl(Arc::new({ let __pe_b1 = simCode.clone(); let __pe_b2 = (fileprefix.clone()).clone(); move |__pe_a0| CodegenOMSI_common::generateEquationsCode(__pe_a0, __pe_b1.clone(), __pe_b2.clone()) }));
             ()
         },
         (_, Deref @ "Cpp") => {
-            let mut needSundials: bool = false;
             if Flags::isSet(Flags::HPCOM.clone())? {
-                Tpl::tplNoret3(Arc::new(CodegenFMUCppHpcom::translateModel), simCode.clone(), (FMUVersion.clone()).clone(), (FMUType.clone()).clone())?;
+                Tpl::tplNoret3((std::sync::Arc::new(CodegenFMUCppHpcom::translateModel) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, SimCode::SimCode, ArcStr, ArcStr) -> Result<Tpl::Text> + 'static>), simCode.clone(), (FMUVersion.clone()).clone(), (FMUType.clone()).clone())?;
             } else {
                 Tpl::tplNoret(Arc::new({ let __pe_b2 = (FMUVersion.clone()).clone(); let __pe_b3 = (FMUType.clone()).clone(); let __pe_b4 = metamodelica::nil(); move |__pe_a0, __pe_a1| CodegenFMUCpp::translateModel(__pe_a0, __pe_a1, __pe_b2.clone(), __pe_b3.clone(), __pe_b4.clone()) }), simCode.clone())?;
             }
@@ -917,13 +906,13 @@ fn callTargetTemplatesFMU(mut simCode: SimCode::SimCode, mut target: ArcStr, mut
         },
         _ => {
             let mut r#str: ArcStr = arcstr::literal!("");
-            let mut needSundials: bool = false;
             r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Unknown FMU template target: ")); __mm_s.push_str(&*target.clone()); ArcStr::from(__mm_s) }).clone();
             Error::addMessage(Error::INTERNAL_ERROR.clone(), list![(r#str.clone()).clone()])?;
             bail!("fail")
         },
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
-    } });
+    } })
+    });
     crate::Globals::optionSimCode.with(|__root| *__root.borrow_mut() = None);
     Ok(())
 }
@@ -935,7 +924,7 @@ fn exportHTMLDocumentation(mut program: Absyn::Program, mut simCode: SimCode::Si
     let mut info: ArcStr = arcstr::literal!("");
     let mut revisions: ArcStr = arcstr::literal!("");
     let mut infoHeader: ArcStr = arcstr::literal!("");
-    (info, revisions, infoHeader) = Interactive::getNamedAnnotationExp(simCode.modelInfo.name.clone(), program.clone(), Arc::new(Absyn::Path::IDENT { name: (literal!("Documentation")).clone() }), Some((literal!(""), literal!(""), literal!(""))), Arc::new(Interactive::getDocumentationAnnotationString))?;
+    (info, revisions, infoHeader) = Interactive::getNamedAnnotationExp(simCode.modelInfo.name.clone(), program.clone(), Arc::new(Absyn::Path::IDENT { name: (literal!("Documentation")).clone() }), Some((literal!(""), literal!(""), literal!(""))), (std::sync::Arc::new(Interactive::getDocumentationAnnotationString) as std::sync::Arc<dyn ::std::ops::Fn(Option<Arc<Absyn::Modification>>) -> Result<(ArcStr, ArcStr, ArcStr)> + 'static>))?;
     if stringEmpty((info.clone()).clone()) && stringEmpty((revisions.clone()).clone()) && stringEmpty((infoHeader.clone()).clone()) {
         export = false;
     }
@@ -955,7 +944,7 @@ fn exportHTMLDocumentation(mut program: Absyn::Program, mut simCode: SimCode::Si
 }
 
 fn callTargetTemplatesXML(mut simCode: SimCode::SimCode, mut target: ArcStr) -> Result<()> {
-    Tpl::tplNoret(Arc::new(CodegenXML::translateModel), simCode.clone())?;
+    Tpl::tplNoret((std::sync::Arc::new(CodegenXML::translateModel) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, SimCode::SimCode) -> Result<Tpl::Text> + 'static>), simCode.clone())?;
     Ok(())
 }
 
@@ -1009,9 +998,9 @@ fn translateModelCallBackendOB(mut kind: TranslateModelKind, mut cache: FCore::C
         TranslateModelKind::FMU { kind: mut fmuType, .. } => FMI::isFMIVersion20((FMI::getFMIVersionString()).clone()),
         _ => false,
     });
-            strPreOptModules = if (isFMI2.clone()) {Some(cons(literal!("introduceOutputAliases"), BackendDAEUtil::getPreOptModulesString()?))} else {None};
+            strPreOptModules = if (isFMI2.clone()) {Some(cons((literal!("introduceOutputAliases")).clone(), BackendDAEUtil::getPreOptModulesString()?))} else {None};
             if isFMI2.clone() && fmuType.clone() == literal!("cs") {
-                strPreOptModules = Some(cons(literal!("introduceOutputRealDerivatives"), Util::getOption(strPreOptModules.clone())?));
+                strPreOptModules = Some(cons((literal!("introduceOutputRealDerivatives")).clone(), Util::getOption(strPreOptModules.clone())?));
             }
             (dlow, initDAE, initDAE_lambda0, inlineData, removedInitialEquationLst) = BackendDAEUtil::getSolvedSystem(dlow.clone(), (inFileNamePrefix.clone()).clone(), strPreOptModules.clone(), None, None, None)?;
             if isFMI2.clone() && !(Flags::isSet(Flags::FMI20_DEPENDENCIES.clone())?) {
@@ -1077,11 +1066,11 @@ pub fn translateModelCallBackendOBDAEMode(mut cache: FCore::Cache, mut inEnv: FC
             let mut initDAE: Arc<BackendDAE::BackendDAE>;
             let mut initDAE_lambda0_option: Option<Arc<BackendDAE::BackendDAE>> = None;
             let mut removedInitialEquationLst: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
-            let mut timeBackend: metamodelica::Real = timeBackend.clone();
-            let mut timeTemplates: metamodelica::Real = timeTemplates.clone();
+            let mut timeSimCode: metamodelica::Real = timeSimCode.clone();
             let mut generateFunctions: bool = generateFunctions.clone();
             let mut cache: FCore::Cache = cache.clone();
-            let mut timeSimCode: metamodelica::Real = timeSimCode.clone();
+            let mut timeTemplates: metamodelica::Real = timeTemplates.clone();
+            let mut timeBackend: metamodelica::Real = timeBackend.clone();
             System::realtimeTick(ClockIndexes::RT_CLOCK_BACKEND.clone())?;
             dae = DAEUtil::transformationsBeforeBackend(cache.clone(), graph.clone(), inDae.clone())?;
             ExecStat::execStat((literal!("Transformations before backend")).clone())?;
@@ -1250,31 +1239,31 @@ fn generateModelCodeDAE(mut inBackendDAE: Arc<BackendDAE::BackendDAE>, mut inIni
         uniqueEqIndex = __pa3.clone();
         tempVars = __pa4.clone();
         unwrap_break_err!(ExecStat::execStat((literal!("simCode: created initialization part")).clone()), '__try0);
-        (uniqueEqIndex, startValueEquations, _) = unwrap_break_err!(BackendDAEUtil::foldEqSystem(inInitDAE.clone(), Arc::new(SimCodeUtil::createStartValueEquations), (uniqueEqIndex.clone(), metamodelica::nil(), inBackendDAE.shared.globalKnownVars.clone())), '__try0);
+        (uniqueEqIndex, startValueEquations, _) = unwrap_break_err!(BackendDAEUtil::foldEqSystem(inInitDAE.clone(), (std::sync::Arc::new(SimCodeUtil::createStartValueEquations) as std::sync::Arc<dyn ::std::ops::Fn(Arc<BackendDAE::EqSystem>, Arc<BackendDAE::Shared>, (i32, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>, BackendDAE::Variables)) -> Result<(i32, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>, BackendDAE::Variables)> + 'static>), (uniqueEqIndex.clone(), metamodelica::nil(), inBackendDAE.shared.globalKnownVars.clone())), '__try0);
         if debug.clone() {
             unwrap_break_err!(ExecStat::execStat((literal!("simCode: createStartValueEquations")).clone()), '__try0);
         }
-        (uniqueEqIndex, nominalValueEquations) = unwrap_break_err!(SimCodeUtil::createValueEquationsShared(inBackendDAE.shared.clone(), Arc::new(SimCodeUtil::createInitialAssignmentsFromNominal), (uniqueEqIndex.clone(), nominalValueEquations.clone())), '__try0);
+        (uniqueEqIndex, nominalValueEquations) = unwrap_break_err!(SimCodeUtil::createValueEquationsShared(inBackendDAE.shared.clone(), (std::sync::Arc::new(SimCodeUtil::createInitialAssignmentsFromNominal) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, (Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, BackendDAE::Variables)) -> Result<(BackendDAE::Var, (Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, BackendDAE::Variables))> + 'static>), (uniqueEqIndex.clone(), nominalValueEquations.clone())), '__try0);
         if debug.clone() {
             unwrap_break_err!(ExecStat::execStat((literal!("simCode: createNominalValueEquationsShared")).clone()), '__try0);
         }
-        (uniqueEqIndex, nominalValueEquations) = unwrap_break_err!(BackendDAEUtil::foldEqSystem(inBackendDAE.clone(), Arc::new(SimCodeUtil::createNominalValueEquations), (uniqueEqIndex.clone(), nominalValueEquations.clone())), '__try0);
+        (uniqueEqIndex, nominalValueEquations) = unwrap_break_err!(BackendDAEUtil::foldEqSystem(inBackendDAE.clone(), (std::sync::Arc::new(SimCodeUtil::createNominalValueEquations) as std::sync::Arc<dyn ::std::ops::Fn(Arc<BackendDAE::EqSystem>, Arc<BackendDAE::Shared>, (i32, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>)) -> Result<(i32, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>)> + 'static>), (uniqueEqIndex.clone(), nominalValueEquations.clone())), '__try0);
         if debug.clone() {
             unwrap_break_err!(ExecStat::execStat((literal!("simCode: createNominalValueEquations")).clone()), '__try0);
         }
-        (uniqueEqIndex, minValueEquations) = unwrap_break_err!(SimCodeUtil::createValueEquationsShared(inBackendDAE.shared.clone(), Arc::new(SimCodeUtil::createInitialAssignmentsFromMin), (uniqueEqIndex.clone(), minValueEquations.clone())), '__try0);
+        (uniqueEqIndex, minValueEquations) = unwrap_break_err!(SimCodeUtil::createValueEquationsShared(inBackendDAE.shared.clone(), (std::sync::Arc::new(SimCodeUtil::createInitialAssignmentsFromMin) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, (Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, BackendDAE::Variables)) -> Result<(BackendDAE::Var, (Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, BackendDAE::Variables))> + 'static>), (uniqueEqIndex.clone(), minValueEquations.clone())), '__try0);
         if debug.clone() {
             unwrap_break_err!(ExecStat::execStat((literal!("simCode: createMinValueEquationsShared")).clone()), '__try0);
         }
-        (uniqueEqIndex, minValueEquations) = unwrap_break_err!(BackendDAEUtil::foldEqSystem(inBackendDAE.clone(), Arc::new(SimCodeUtil::createMinValueEquations), (uniqueEqIndex.clone(), minValueEquations.clone())), '__try0);
+        (uniqueEqIndex, minValueEquations) = unwrap_break_err!(BackendDAEUtil::foldEqSystem(inBackendDAE.clone(), (std::sync::Arc::new(SimCodeUtil::createMinValueEquations) as std::sync::Arc<dyn ::std::ops::Fn(Arc<BackendDAE::EqSystem>, Arc<BackendDAE::Shared>, (i32, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>)) -> Result<(i32, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>)> + 'static>), (uniqueEqIndex.clone(), minValueEquations.clone())), '__try0);
         if debug.clone() {
             unwrap_break_err!(ExecStat::execStat((literal!("simCode: createMinValueEquations")).clone()), '__try0);
         }
-        (uniqueEqIndex, maxValueEquations) = unwrap_break_err!(SimCodeUtil::createValueEquationsShared(inBackendDAE.shared.clone(), Arc::new(SimCodeUtil::createInitialAssignmentsFromMax), (uniqueEqIndex.clone(), maxValueEquations.clone())), '__try0);
+        (uniqueEqIndex, maxValueEquations) = unwrap_break_err!(SimCodeUtil::createValueEquationsShared(inBackendDAE.shared.clone(), (std::sync::Arc::new(SimCodeUtil::createInitialAssignmentsFromMax) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, (Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, BackendDAE::Variables)) -> Result<(BackendDAE::Var, (Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, BackendDAE::Variables))> + 'static>), (uniqueEqIndex.clone(), maxValueEquations.clone())), '__try0);
         if debug.clone() {
             unwrap_break_err!(ExecStat::execStat((literal!("simCode: createMaxValueEquationsShared")).clone()), '__try0);
         }
-        (uniqueEqIndex, maxValueEquations) = unwrap_break_err!(BackendDAEUtil::foldEqSystem(inBackendDAE.clone(), Arc::new(SimCodeUtil::createMaxValueEquations), (uniqueEqIndex.clone(), maxValueEquations.clone())), '__try0);
+        (uniqueEqIndex, maxValueEquations) = unwrap_break_err!(BackendDAEUtil::foldEqSystem(inBackendDAE.clone(), (std::sync::Arc::new(SimCodeUtil::createMaxValueEquations) as std::sync::Arc<dyn ::std::ops::Fn(Arc<BackendDAE::EqSystem>, Arc<BackendDAE::Shared>, (i32, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>)) -> Result<(i32, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>)> + 'static>), (uniqueEqIndex.clone(), maxValueEquations.clone())), '__try0);
         if debug.clone() {
             unwrap_break_err!(ExecStat::execStat((literal!("simCode: createMaxValueEquations")).clone()), '__try0);
         }
@@ -1282,7 +1271,7 @@ fn generateModelCodeDAE(mut inBackendDAE: Arc<BackendDAE::BackendDAE>, mut inIni
         if debug.clone() {
             unwrap_break_err!(ExecStat::execStat((literal!("simCode: createParameterEquations")).clone()), '__try0);
         }
-        discreteModelVars = unwrap_break_err!(BackendDAEUtil::foldEqSystem(inBackendDAE.clone(), Arc::new(SimCodeUtil::extractDiscreteModelVars), metamodelica::nil()), '__try0);
+        discreteModelVars = unwrap_break_err!(BackendDAEUtil::foldEqSystem(inBackendDAE.clone(), (std::sync::Arc::new(SimCodeUtil::extractDiscreteModelVars) as std::sync::Arc<dyn ::std::ops::Fn(Arc<BackendDAE::EqSystem>, Arc<BackendDAE::Shared>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>) -> Result<Arc<metamodelica::List<Arc<DAE::ComponentRef>>>> + 'static>), metamodelica::nil()), '__try0);
         (daeEquations, uniqueEqIndex, tempVars) = unwrap_break_err!(SimCodeUtil::createEquationsfromBackendDAE(inBackendDAE.clone(), uniqueEqIndex.clone(), tempVars.clone(), true, true, false, false), '__try0);
         emptyBDAE = unwrap_break_err!(BackendDAE::DAE(cons(BackendDAEUtil::createEqSystem(Util::getOption(inBackendDAE.shared.daeModeData.modelVars.clone())?, BackendEquation::emptyEqns(), metamodelica::nil(), crate::BackendDAE::BaseClockPartitionKind::UNKNOWN_PARTITION, BackendEquation::emptyEqns()), metamodelica::nil()), inBackendDAE.shared.clone()), '__try0);
         if unwrap_break_err!(Flags::getConfigString(Flags::GENERATE_DYNAMIC_JACOBIAN.clone()), '__try0) == literal!("symbolic") {
@@ -1338,25 +1327,25 @@ fn generateModelCodeDAE(mut inBackendDAE: Arc<BackendDAE::BackendDAE>, mut inIni
         SymbolicJacs = listAppend(SymbolicJacsNLS.clone().reverse(), listAppend(SymbolicJacs.clone(), SymbolicJacsTemp.clone()));
         jacobianSimvars = unwrap_break_err!(SimCodeUtil::collectAllJacobianVars(SymbolicJacs.clone()), '__try0);
         modelInfo = SimCodeUtil::setJacobianVars(jacobianSimvars.clone(), modelInfo.clone());
-        crefToSimVarHT = List::fold(jacobianSimvars.clone(), Arc::new(HashTableCrefSimVar::addSimVarToHashTable), crefToSimVarHT.clone());
+        crefToSimVarHT = List::fold(jacobianSimvars.clone(), (std::sync::Arc::new(HashTableCrefSimVar::addSimVarToHashTable) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))> + 'static>), crefToSimVarHT.clone());
         seedVars = unwrap_break_err!(SimCodeUtil::collectAllSeedVars(SymbolicJacs.clone()), '__try0);
         modelInfo = SimCodeUtil::setSeedVars(seedVars.clone(), modelInfo.clone());
-        crefToSimVarHT = List::fold(seedVars.clone(), Arc::new(HashTableCrefSimVar::addSimVarToHashTable), crefToSimVarHT.clone());
+        crefToSimVarHT = List::fold(seedVars.clone(), (std::sync::Arc::new(HashTableCrefSimVar::addSimVarToHashTable) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))> + 'static>), crefToSimVarHT.clone());
         varsLst = unwrap_break_err!(BackendVariable::equationSystemsVarsLst(inBackendDAE.eqs.clone()), '__try0);
         daeVars = BackendVariable::listVar(varsLst.clone());
-        (_, resVars) = unwrap_break_err!(BackendVariable::traverseBackendDAEVars(daeVars.clone(), Arc::new(BackendVariable::collectVarKindVarinVariables), (fnptr!(BackendVariable::isDAEmodeResVar, BackendDAE::Var), BackendVariable::emptyVars(BaseHashTable::bigBucketSize.clone()))), '__try0);
-        (residualVars, _) = unwrap_break_err!(BackendVariable::traverseBackendDAEVars(resVars.clone(), Arc::new(SimCodeUtil::traversingdlowvarToSimvar), (metamodelica::nil(), BackendVariable::emptyVars(BaseHashTable::bigBucketSize.clone()))), '__try0);
+        (_, resVars) = unwrap_break_err!(BackendVariable::traverseBackendDAEVars(daeVars.clone(), (std::sync::Arc::new(BackendVariable::collectVarKindVarinVariables) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, (Arc<dyn ::std::ops::Fn(BackendDAE::Var) -> Result<bool> + 'static>, BackendDAE::Variables)) -> Result<(BackendDAE::Var, (Arc<dyn ::std::ops::Fn(BackendDAE::Var) -> Result<bool> + 'static>, BackendDAE::Variables))> + 'static>), ((std::sync::Arc::new(fnptr!(BackendVariable::isDAEmodeResVar, BackendDAE::Var)) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var) -> Result<bool> + 'static>), BackendVariable::emptyVars(BaseHashTable::bigBucketSize.clone()))), '__try0);
+        (residualVars, _) = unwrap_break_err!(BackendVariable::traverseBackendDAEVars(resVars.clone(), (std::sync::Arc::new(SimCodeUtil::traversingdlowvarToSimvar) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, (Arc<metamodelica::List<SimCodeVar::SimVar>>, BackendDAE::Variables)) -> Result<(BackendDAE::Var, (Arc<metamodelica::List<SimCodeVar::SimVar>>, BackendDAE::Variables))> + 'static>), (metamodelica::nil(), BackendVariable::emptyVars(BaseHashTable::bigBucketSize.clone()))), '__try0);
         (residualVars, _) = SimCodeUtil::rewriteIndex(residualVars.clone(), 0);
         (residualVars, _, _) = SimCodeUtil::setVariableIndexHelper(residualVars.clone(), 0, 0);
-        crefToSimVarHT = List::fold(residualVars.clone(), Arc::new(HashTableCrefSimVar::addSimVarToHashTable), crefToSimVarHT.clone());
-        (_, auxVars) = unwrap_break_err!(BackendVariable::traverseBackendDAEVars(daeVars.clone(), Arc::new(BackendVariable::collectVarKindVarinVariables), (fnptr!(BackendVariable::isDAEmodeAuxVar, BackendDAE::Var), BackendVariable::emptyVars(BaseHashTable::bigBucketSize.clone()))), '__try0);
-        (auxiliaryVars, _) = unwrap_break_err!(BackendVariable::traverseBackendDAEVars(auxVars.clone(), Arc::new(SimCodeUtil::traversingdlowvarToSimvar), (metamodelica::nil(), BackendVariable::emptyVars(BaseHashTable::bigBucketSize.clone()))), '__try0);
-        auxiliaryVars = unwrap_break_err!(List::sort(auxiliaryVars.clone(), Arc::new(SimCodeUtil::simVarCompareByCrefSubsAtEndlLexical)), '__try0);
+        crefToSimVarHT = List::fold(residualVars.clone(), (std::sync::Arc::new(HashTableCrefSimVar::addSimVarToHashTable) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))> + 'static>), crefToSimVarHT.clone());
+        (_, auxVars) = unwrap_break_err!(BackendVariable::traverseBackendDAEVars(daeVars.clone(), (std::sync::Arc::new(BackendVariable::collectVarKindVarinVariables) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, (Arc<dyn ::std::ops::Fn(BackendDAE::Var) -> Result<bool> + 'static>, BackendDAE::Variables)) -> Result<(BackendDAE::Var, (Arc<dyn ::std::ops::Fn(BackendDAE::Var) -> Result<bool> + 'static>, BackendDAE::Variables))> + 'static>), ((std::sync::Arc::new(fnptr!(BackendVariable::isDAEmodeAuxVar, BackendDAE::Var)) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var) -> Result<bool> + 'static>), BackendVariable::emptyVars(BaseHashTable::bigBucketSize.clone()))), '__try0);
+        (auxiliaryVars, _) = unwrap_break_err!(BackendVariable::traverseBackendDAEVars(auxVars.clone(), (std::sync::Arc::new(SimCodeUtil::traversingdlowvarToSimvar) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, (Arc<metamodelica::List<SimCodeVar::SimVar>>, BackendDAE::Variables)) -> Result<(BackendDAE::Var, (Arc<metamodelica::List<SimCodeVar::SimVar>>, BackendDAE::Variables))> + 'static>), (metamodelica::nil(), BackendVariable::emptyVars(BaseHashTable::bigBucketSize.clone()))), '__try0);
+        auxiliaryVars = unwrap_break_err!(List::sort(auxiliaryVars.clone(), (std::sync::Arc::new(SimCodeUtil::simVarCompareByCrefSubsAtEndlLexical) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, SimCodeVar::SimVar) -> Result<bool> + 'static>)), '__try0);
         (auxiliaryVars, _) = SimCodeUtil::rewriteIndex(auxiliaryVars.clone(), 0);
         (auxiliaryVars, _, _) = SimCodeUtil::setVariableIndexHelper(auxiliaryVars.clone(), 0, 0);
-        crefToSimVarHT = List::fold(auxiliaryVars.clone(), Arc::new(HashTableCrefSimVar::addSimVarToHashTable), crefToSimVarHT.clone());
+        crefToSimVarHT = List::fold(auxiliaryVars.clone(), (std::sync::Arc::new(HashTableCrefSimVar::addSimVarToHashTable) as std::sync::Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))> + 'static>), crefToSimVarHT.clone());
         algStateVars = BackendVariable::listVar(inBackendDAE.shared.daeModeData.algStateVars.clone());
-        (algebraicStateVars, _) = unwrap_break_err!(BackendVariable::traverseBackendDAEVars(algStateVars.clone(), Arc::new(SimCodeUtil::traversingdlowvarToSimvar), (metamodelica::nil(), BackendVariable::emptyVars(BaseHashTable::bigBucketSize.clone()))), '__try0);
+        (algebraicStateVars, _) = unwrap_break_err!(BackendVariable::traverseBackendDAEVars(algStateVars.clone(), (std::sync::Arc::new(SimCodeUtil::traversingdlowvarToSimvar) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, (Arc<metamodelica::List<SimCodeVar::SimVar>>, BackendDAE::Variables)) -> Result<(BackendDAE::Var, (Arc<metamodelica::List<SimCodeVar::SimVar>>, BackendDAE::Variables))> + 'static>), (metamodelica::nil(), BackendVariable::emptyVars(BaseHashTable::bigBucketSize.clone()))), '__try0);
         algebraicStateVars = unwrap_break_err!(SimCodeUtil::sortSimVarsAndWriteIndex(algebraicStateVars.clone(), crefToSimVarHT.clone()), '__try0);
         daeModeJacobian = unwrap_break_err!((inBackendDAE.shared.symjacs.clone()).get(BackendDAE::SymbolicJacobianAIndex.clone()), '__try0);
         let (__pa7, __pa8) = ::match_deref::match_deref! { match &(unwrap_break_err!(SimCodeUtil::createSymbolicJacobianssSimCode(list![daeModeJacobian.clone()], crefToSimVarHT.clone(), uniqueEqIndex.clone(), list![(literal!("daeMode")).clone()], metamodelica::nil()), '__try0)) {
@@ -1381,14 +1370,14 @@ fn generateModelCodeDAE(mut inBackendDAE: Arc<BackendDAE::BackendDAE>, mut inIni
         modelInfo = SimCodeUtil::addNumEqns(modelInfo.clone(), uniqueEqIndex.clone() - (jacobianEquations.clone().len() as i32));
         if stringEqual((Config::simCodeTarget()?).clone(), (literal!("Cpp")).clone()) {
             (varToArrayIndexMapping, varToIndexMapping) = unwrap_break_err!(SimCodeUtil::createVarToArrayIndexMapping(modelInfo.clone()), '__try0);
-            (crefToClockIndexHT, _) = List::fold(inBackendDAE.eqs.clone().reverse(), Arc::new(SimCodeUtil::collectClockedVars), (HashTable::emptyHashTable(), 1));
+            (crefToClockIndexHT, _) = List::fold(inBackendDAE.eqs.clone().reverse(), (std::sync::Arc::new(SimCodeUtil::collectClockedVars) as std::sync::Arc<dyn ::std::ops::Fn(Arc<BackendDAE::EqSystem>, ((metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, i32)>>), i32, (HashTable::FuncHashCref, HashTable::FuncCrefEqual, HashTable::FuncCrefStr, HashTable::FuncExpStr)), i32)) -> Result<((metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, i32)>>), i32, (HashTable::FuncHashCref, HashTable::FuncCrefEqual, HashTable::FuncCrefStr, HashTable::FuncExpStr)), i32)> + 'static>), (HashTable::emptyHashTable(), 1));
         } else {
             varToArrayIndexMapping = HashTableCrIListArray::emptyHashTable();
             varToIndexMapping = HashTableCrILst::emptyHashTable();
             crefToClockIndexHT = HashTable::emptyHashTable();
         }
         simCode = SimCode::SimCode { scalarized: true, omsiData: None, inlineEquations: metamodelica::nil(), daeModeData: daeModeData.clone(), partitionData: SimCode::emptyPartitionData.clone(), fmiSimulationFlags: None, modelStructure: None, backendMapping: None, crefToClockIndexHT: crefToClockIndexHT.clone(), crefToSimVarHT: crefToSimVarHT.clone(), varToIndexMapping: varToIndexMapping.clone(), varToArrayIndexMapping: varToArrayIndexMapping.clone(), valueReferences: Arc::new(crate::AvlTreeCRToInt::Tree::EMPTY), hpcomData: HpcOmSimCode::emptyHpcomData().clone(), fmuTargetName: (literal!("")).clone(), fullPathPrefix: (literal!("")).clone(), fileNamePrefix: (filenamePrefix.clone()).clone(), simulationSettingsOpt: simSettingsOpt.clone(), jacobianMatrices: SymbolicJacs.clone(), spatialInfo: spatialInfo.clone(), delayedExps: SimCode::DelayedExpression { delayedExps: delayedExps.clone(), maxDelayedIndex: maxDelayedExpIndex.clone() }, makefileParams: makefileParams.clone(), extObjInfo: extObjInfo.clone(), discreteModelVars: discreteModelVars.clone(), timeEvents: timeEvents.clone(), relations: ZeroCrossings::updateIndices(relations.clone()), zeroCrossings: ZeroCrossings::updateIndices(zeroCrossings.clone()), classAttributes: metamodelica::nil(), constraints: metamodelica::nil(), stateSets: metamodelica::nil(), jacobianEquations: jacobianEquations.clone(), equationsForZeroCrossings: metamodelica::nil(), algorithmAndEquationAsserts: metamodelica::nil(), removedEquations: metamodelica::nil(), parameterEquations: parameterEquations.clone(), maxValueEquations: maxValueEquations.clone(), minValueEquations: minValueEquations.clone(), nominalValueEquations: nominalValueEquations.clone(), startValueEquations: startValueEquations.clone(), removedInitialEquations: removedInitialEquations.clone(), initialEquations_lambda0: initialEquations_lambda0.clone(), initialEquations: initialEquations.clone(), clockedPartitions: metamodelica::nil(), algebraicEquations: metamodelica::nil(), odeEquations: metamodelica::nil(), allEquations: metamodelica::nil(), localKnownVars: metamodelica::nil(), generic_loop_calls: metamodelica::nil(), externalFunctionIncludes: includes.clone(), recordDecls: recordDecls.clone(), literals: metamodelica::nil(), modelInfo: modelInfo.clone() };
-        let (__pa10, (_, _, __pa11)) = unwrap_break_err!(SimCodeUtil::traverseExpsSimCode(simCode.clone(), Arc::new(SimCodeFunctionUtil::findLiteralsHelper), literals.clone()), '__try0);
+        let (__pa10, (_, _, __pa11)) = unwrap_break_err!(SimCodeUtil::traverseExpsSimCode(simCode.clone(), (std::sync::Arc::new(SimCodeFunctionUtil::findLiteralsHelper) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, (i32, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::Exp>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::Exp>, i32)>>), i32, (HashTableExpToIndex::FuncHashCref, HashTableExpToIndex::FuncCrefEqual, HashTableExpToIndex::FuncCrefStr, HashTableExpToIndex::FuncExpStr)), Arc<metamodelica::List<Arc<DAE::Exp>>>)) -> Result<(Arc<DAE::Exp>, (i32, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::Exp>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::Exp>, i32)>>), i32, (HashTableExpToIndex::FuncHashCref, HashTableExpToIndex::FuncCrefEqual, HashTableExpToIndex::FuncCrefStr, HashTableExpToIndex::FuncExpStr)), Arc<metamodelica::List<Arc<DAE::Exp>>>))> + 'static>), literals.clone()), '__try0);
         simCode = __pa10.clone();
         lits = __pa11.clone();
         simCode.literals = lits.clone().reverse();

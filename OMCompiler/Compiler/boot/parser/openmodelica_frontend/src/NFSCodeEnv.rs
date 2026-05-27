@@ -84,7 +84,7 @@ pub type IMPORT_TABLE = ImportTable;
 ///  element stored in the SCode representation. These are processed when they are
 ///  used, i.e. when replacements are done, and converted into PROCESSED_MODIFIERs
 ///  which are environment items ready to be replaced in the environment.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Redeclaration {
     RAW_MODIFIER {
         modifier: Arc<SCode::Element>,
@@ -95,7 +95,7 @@ pub enum Redeclaration {
 }
 pub use self::Redeclaration::{RAW_MODIFIER,PROCESSED_MODIFIER};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Extends {
     pub baseClass: Arc<Absyn::Path>,
     pub redeclareModifiers: Arc<metamodelica::List<Arc<Redeclaration>>>,
@@ -106,7 +106,7 @@ pub struct Extends {
 pub type EXTENDS = Extends;
 
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ExtendsTable {
     pub baseClasses: Arc<metamodelica::List<Arc<Extends>>>,
     pub redeclaredElements: Arc<metamodelica::List<Arc<SCode::Element>>>,
@@ -127,7 +127,7 @@ pub enum FrameType {
 }
 pub use self::FrameType::{NORMAL_SCOPE,ENCAPSULATED_SCOPE,IMPLICIT_SCOPE};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Frame {
     pub name: Option<ArcStr>,
     pub frameType: FrameType,
@@ -150,7 +150,7 @@ pub enum ClassType {
 }
 pub use self::ClassType::{USERDEFINED,BUILTIN,CLASS_EXTENDS,BASIC_TYPE};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Item {
     VAR {
         var: Arc<SCode::Element>,
@@ -201,10 +201,10 @@ pub mod EnvTree {
 
     pub use addConflictReplace as addConflictDefault;
 
-    pub type ConflictFunc = fn(Value, Value, Key) -> Result<Value>;
+    pub type ConflictFunc = std::sync::Arc<dyn ::std::ops::Fn(Value, Value, Key) -> Result<Value> + 'static>;
 
     /// The binary tree data structure.
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
     pub enum Tree {
         NODE {
             /// The key of the node.
@@ -228,7 +228,7 @@ pub mod EnvTree {
 
     pub type ValueNode = ArcStr;
 
-    pub fn add(mut inTree: Arc<Tree>, mut inKey: Key, mut inValue: Value, mut conflictFunc: ConflictFunc) -> Result<Arc<Tree>> {
+    pub fn add(mut inTree: Arc<Tree>, mut inKey: Key, mut inValue: Value, mut conflictFunc: Arc<dyn ::std::ops::Fn(Arc<Item>, Arc<Item>, ArcStr) -> Result<Arc<Item>> + 'static>) -> Result<Arc<Tree>> {
         let mut tree: Arc<Tree> = inTree.clone();
         tree = (::match_deref::match_deref! { match &(tree.clone()) {
         Deref @ Tree::EMPTY { .. } => {
@@ -239,9 +239,9 @@ pub mod EnvTree {
             let mut key_comp: i32 = 0;
             key_comp = keyCompare((inKey.clone()).clone(), (key.clone()).clone());
             if key_comp.clone() == -1 {
-                assign_variant_field!(tree => Tree::NODE; left = add(var_field!((*tree).left, Tree::NODE).clone(), (inKey.clone()).clone(), inValue.clone(), conflictFunc)?);
+                assign_variant_field!(tree => Tree::NODE; left = add(var_field!((*tree).left, Tree::NODE).clone(), (inKey.clone()).clone(), inValue.clone(), conflictFunc.clone())?);
             } else if key_comp.clone() == 1 {
-                assign_variant_field!(tree => Tree::NODE; right = add(var_field!((*tree).right, Tree::NODE).clone(), (inKey.clone()).clone(), inValue.clone(), conflictFunc)?);
+                assign_variant_field!(tree => Tree::NODE; right = add(var_field!((*tree).right, Tree::NODE).clone(), (inKey.clone()).clone(), inValue.clone(), conflictFunc.clone())?);
             } else {
                 value = conflictFunc(inValue.clone(), var_field!((*tree).value, Tree::NODE).clone(), (key.clone()).clone())?;
                 if !(referenceEq(&var_field!((*tree).value, Tree::NODE).clone(),&value.clone())) {
@@ -289,20 +289,20 @@ pub mod EnvTree {
         value
     }
 
-    pub fn addList(mut tree: Arc<Tree>, mut inValues: Arc<metamodelica::List<(ArcStr, Arc<Item>)>>, mut conflictFunc: ConflictFunc) -> Result<Arc<Tree>> {
+    pub fn addList(mut tree: Arc<Tree>, mut inValues: Arc<metamodelica::List<(ArcStr, Arc<Item>)>>, mut conflictFunc: Arc<dyn ::std::ops::Fn(Arc<Item>, Arc<Item>, ArcStr) -> Result<Arc<Item>> + 'static>) -> Result<Arc<Tree>> {
         let mut tree: Arc<Tree> = tree;
         let mut key: Key = arcstr::literal!("");
         let mut value: Value;
         for mut t in &*inValues.clone() {
             let mut t = t.clone();
             (key, value) = t.clone();
-            tree = add(tree.clone(), (key.clone()).clone(), value.clone(), conflictFunc)?;
+            tree = add(tree.clone(), (key.clone()).clone(), value.clone(), conflictFunc.clone())?;
         }
         Ok(tree)
     }
 
     pub fn addUpdate(mut tree: Arc<Tree>, mut key: Key, mut r#fn: Arc<dyn ::std::ops::Fn(Option<Arc<Item>>) -> Result<Arc<Item>> + 'static>) -> Result<Arc<Tree>> {
-        pub type UpdateFn = fn(Option<Arc<Item>>) -> Result<Value>;
+        pub type UpdateFn = std::sync::Arc<dyn ::std::ops::Fn(Option<Arc<Item>>) -> Result<Value> + 'static>;
 
         let mut tree: Arc<Tree> = tree;
         let mut key_comp: i32 = 0;
@@ -380,7 +380,7 @@ pub mod EnvTree {
     }
 
     pub fn fold<FT: Clone + 'static>(mut inTree: Arc<Tree>, mut inFunc: Arc<dyn ::std::ops::Fn(ArcStr, Arc<Item>, FT) -> Result<FT> + 'static>, mut inStartValue: FT) -> FT {
-        pub type FoldFunc<FT: Clone> = fn(Key, Value, FT) -> Result<FT>;
+        pub type FoldFunc<FT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Key, Value, FT) -> Result<FT> + 'static>;
 
         let mut outResult: FT = inStartValue.clone();
         outResult = (::match_deref::match_deref! { match &(inTree.clone()) {
@@ -403,7 +403,7 @@ pub mod EnvTree {
     }
 
     pub fn foldCond<FT: Clone + 'static>(mut tree: Arc<Tree>, mut foldFunc: Arc<dyn ::std::ops::Fn(ArcStr, Arc<Item>, FT) -> Result<(FT, bool)> + 'static>, mut value: FT) -> FT {
-        pub type FoldFunc<FT: Clone> = fn(Key, Value, FT) -> Result<(FT, bool)>;
+        pub type FoldFunc<FT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Key, Value, FT) -> Result<(FT, bool)> + 'static>;
 
         let mut value: FT = value;
         value = (::match_deref::match_deref! { match &(tree.clone()) {
@@ -430,7 +430,7 @@ pub mod EnvTree {
     }
 
     pub fn fold_2<FT1: Clone + 'static, FT2: Clone + 'static>(mut tree: Arc<Tree>, mut foldFunc: Arc<dyn ::std::ops::Fn(ArcStr, Arc<Item>, FT1, FT2) -> Result<(FT1, FT2)> + 'static>, mut foldArg1: FT1, mut foldArg2: FT2) -> (FT1, FT2) {
-        pub type FoldFunc<FT1: Clone, FT2: Clone> = fn(Key, Value, FT1, FT2) -> Result<(FT1, FT2)>;
+        pub type FoldFunc<FT1: Clone + 'static, FT2: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Key, Value, FT1, FT2) -> Result<(FT1, FT2)> + 'static>;
 
         let mut foldArg1: FT1 = foldArg1;
         let mut foldArg2: FT2 = foldArg2;
@@ -452,7 +452,7 @@ pub mod EnvTree {
     }
 
     pub fn forEach(mut tree: Arc<Tree>, mut func: Arc<dyn ::std::ops::Fn(ArcStr, Arc<Item>) -> Result<()> + 'static>) -> Result<()> {
-        pub type EachFunc = fn(Key, Value) -> Result<()>;
+        pub type EachFunc = std::sync::Arc<dyn ::std::ops::Fn(Key, Value) -> Result<()> + 'static>;
 
         let _ = (::match_deref::match_deref! { match &(tree.clone()) {
         Deref @ Tree::NODE { .. } => {
@@ -471,14 +471,14 @@ pub mod EnvTree {
         Ok(())
     }
 
-    pub fn fromList(mut inValues: Arc<metamodelica::List<(ArcStr, Arc<Item>)>>, mut conflictFunc: ConflictFunc) -> Result<Arc<Tree>> {
+    pub fn fromList(mut inValues: Arc<metamodelica::List<(ArcStr, Arc<Item>)>>, mut conflictFunc: Arc<dyn ::std::ops::Fn(Arc<Item>, Arc<Item>, ArcStr) -> Result<Arc<Item>> + 'static>) -> Result<Arc<Tree>> {
         let mut tree: Arc<Tree> = Arc::new(crate::NFSCodeEnv::EnvTree::Tree::EMPTY);
         let mut key: Key = arcstr::literal!("");
         let mut value: Value;
         for mut t in &*inValues.clone() {
             let mut t = t.clone();
             (key, value) = t.clone();
-            tree = add(tree.clone(), (key.clone()).clone(), value.clone(), conflictFunc)?;
+            tree = add(tree.clone(), (key.clone()).clone(), value.clone(), conflictFunc.clone())?;
         }
         Ok(tree)
     }
@@ -574,17 +574,17 @@ pub mod EnvTree {
         isEmpty
     }
 
-    pub fn join(mut tree: Arc<Tree>, mut treeToJoin: Arc<Tree>, mut conflictFunc: ConflictFunc) -> Result<Arc<Tree>> {
+    pub fn join(mut tree: Arc<Tree>, mut treeToJoin: Arc<Tree>, mut conflictFunc: Arc<dyn ::std::ops::Fn(Arc<Item>, Arc<Item>, ArcStr) -> Result<Arc<Item>> + 'static>) -> Result<Arc<Tree>> {
         let mut tree: Arc<Tree> = tree;
         tree = (::match_deref::match_deref! { match &(treeToJoin.clone()) {
         Deref @ Tree::EMPTY { .. } => tree.clone(),
         Deref @ Tree::NODE { .. } => {
-            tree = add(tree.clone(), (var_field!((*treeToJoin).key, Tree::NODE).clone()).clone(), var_field!((*treeToJoin).value, Tree::NODE).clone(), conflictFunc)?;
-            tree = join(tree.clone(), var_field!((*treeToJoin).left, Tree::NODE).clone(), conflictFunc)?;
-            tree = join(tree.clone(), var_field!((*treeToJoin).right, Tree::NODE).clone(), conflictFunc)?;
+            tree = add(tree.clone(), (var_field!((*treeToJoin).key, Tree::NODE).clone()).clone(), var_field!((*treeToJoin).value, Tree::NODE).clone(), conflictFunc.clone())?;
+            tree = join(tree.clone(), var_field!((*treeToJoin).left, Tree::NODE).clone(), conflictFunc.clone())?;
+            tree = join(tree.clone(), var_field!((*treeToJoin).right, Tree::NODE).clone(), conflictFunc.clone())?;
             tree.clone()
         },
-        Deref @ Tree::LEAF { .. } => add(tree.clone(), (var_field!((*treeToJoin).key, Tree::LEAF).clone()).clone(), var_field!((*treeToJoin).value, Tree::LEAF).clone(), conflictFunc)?,
+        Deref @ Tree::LEAF { .. } => add(tree.clone(), (var_field!((*treeToJoin).key, Tree::LEAF).clone()).clone(), var_field!((*treeToJoin).value, Tree::LEAF).clone(), conflictFunc.clone())?,
         _ => bail!("match: no arm matched"),
     } });
         Ok(tree)
@@ -595,12 +595,12 @@ pub mod EnvTree {
         lst = (::match_deref::match_deref! { match &(tree.clone()) {
         Deref @ Tree::NODE { key, .. } => {
             lst = listKeys(var_field!((*tree).right, Tree::NODE).clone(), lst.clone());
-            lst = cons(key.clone(), lst.clone());
+            lst = cons((key.clone()).clone(), lst.clone());
             lst = listKeys(var_field!((*tree).left, Tree::NODE).clone(), lst.clone());
             lst.clone()
         },
         Deref @ Tree::LEAF { key, .. } => {
-            cons(key.clone(), lst.clone())
+            cons((key.clone()).clone(), lst.clone())
         },
         _ => {
             lst.clone()
@@ -613,10 +613,10 @@ pub mod EnvTree {
     pub fn listKeysReverse(mut inTree: Arc<Tree>, mut lst: Arc<metamodelica::List<ArcStr>>) -> Arc<metamodelica::List<ArcStr>> {
         let mut lst: Arc<metamodelica::List<ArcStr>> = lst;
         lst = (::match_deref::match_deref! { match &(inTree.clone()) {
-        Deref @ Tree::LEAF { .. } => cons(var_field!((*inTree).key, Tree::LEAF).clone(), lst.clone()),
+        Deref @ Tree::LEAF { .. } => cons((var_field!((*inTree).key, Tree::LEAF).clone()).clone(), lst.clone()),
         Deref @ Tree::NODE { .. } => {
             lst = listKeysReverse(var_field!((*inTree).left, Tree::NODE).clone(), lst.clone());
-            lst = cons(var_field!((*inTree).key, Tree::NODE).clone(), lst.clone());
+            lst = cons((var_field!((*inTree).key, Tree::NODE).clone()).clone(), lst.clone());
             lst = listKeysReverse(var_field!((*inTree).right, Tree::NODE).clone(), lst.clone());
             lst.clone()
         },
@@ -647,7 +647,7 @@ pub mod EnvTree {
     }
 
     pub fn map(mut inTree: Arc<Tree>, mut inFunc: Arc<dyn ::std::ops::Fn(ArcStr, Arc<Item>) -> Result<Arc<Item>> + 'static>) -> Arc<Tree> {
-        pub type MapFunc = fn(Key, Value) -> Result<Value>;
+        pub type MapFunc = std::sync::Arc<dyn ::std::ops::Fn(Key, Value) -> Result<Value> + 'static>;
 
         let mut outTree: Arc<Tree> = inTree.clone();
         outTree = (::match_deref::match_deref! { match &(outTree.clone()) {
@@ -680,7 +680,7 @@ pub mod EnvTree {
     }
 
     pub fn mapFold<FT: Clone + 'static>(mut inTree: Arc<Tree>, mut inFunc: Arc<dyn ::std::ops::Fn(ArcStr, Arc<Item>, FT) -> Result<(Arc<Item>, FT)> + 'static>, mut inStartValue: FT) -> (Arc<Tree>, FT) {
-        pub type MapFunc<FT: Clone> = fn(Key, Value, FT) -> Result<Value>;
+        pub type MapFunc<FT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Key, Value, FT) -> Result<Value> + 'static>;
 
         let mut outTree: Arc<Tree> = inTree.clone();
         let mut outResult: FT = inStartValue.clone();
@@ -855,7 +855,7 @@ pub mod EnvTree {
     }
 
     pub fn update(mut tree: Arc<Tree>, mut key: Key, mut value: Value) -> Arc<Tree> {
-        let mut outTree: Arc<Tree> = add(tree.clone(), (key.clone()).clone(), value.clone(), fnptr!(addConflictReplace, Arc<Item>, Arc<Item>, ArcStr)).unwrap();
+        let mut outTree: Arc<Tree> = add(tree.clone(), (key.clone()).clone(), value.clone(), (std::sync::Arc::new(fnptr!(addConflictReplace, Arc<Item>, Arc<Item>, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Item>, Arc<Item>, ArcStr) -> Result<Arc<Item>> + 'static>)).unwrap();
         outTree
     }
 
@@ -1039,7 +1039,7 @@ pub fn newVarItem(mut inVar: Arc<SCode::Element>, mut inIsUsed: bool) -> Arc<Ite
 
 pub fn extendEnvWithClasses(mut inClasses: Arc<metamodelica::List<Arc<SCode::Element>>>, mut inEnv: Env) -> Env {
     let mut outEnv: Env = metamodelica::nil();
-    outEnv = List::fold(inClasses.clone(), Arc::new(extendEnvWithClass), inEnv.clone());
+    outEnv = List::fold(inClasses.clone(), (std::sync::Arc::new(extendEnvWithClass) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SCode::Element>, Arc<metamodelica::List<Arc<Frame>>>) -> Result<Arc<metamodelica::List<Arc<Frame>>>> + 'static>), inEnv.clone());
     outEnv
 }
 
@@ -1119,7 +1119,7 @@ pub fn removeExtendFromLocalScope(mut inExtend: Arc<Absyn::Path>, mut inEnv: Env
     ty = __pa6.clone();
     name = __pa7.clone();
     rest = __pa8.clone();
-    (bcl, _) = List::deleteMemberOnTrue(inExtend.clone(), bcl.clone(), Arc::new(isExtendNamed))?;
+    (bcl, _) = List::deleteMemberOnTrue(inExtend.clone(), bcl.clone(), (std::sync::Arc::new(isExtendNamed) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Path>, Arc<Extends>) -> Result<bool> + 'static>))?;
     outEnv = cons(Arc::new(Frame { name: name.clone(), frameType: ty.clone(), clsAndVars: tree.clone(), extendsTable: Arc::new(ExtendsTable { baseClasses: bcl.clone(), redeclaredElements: re.clone(), classExtendsInfo: cei.clone() }), importTable: imps.clone(), isUsed: iu.clone() }), rest.clone());
     Ok(outEnv)
 }
@@ -1159,7 +1159,7 @@ pub fn removeRedeclaresFromLocalScope(mut inEnv: Env) -> Result<Env> {
     ty = __pa5.clone();
     name = __pa6.clone();
     rest = __pa7.clone();
-    bc = List::map(bc.clone(), Arc::new(removeRedeclaresFromExtend));
+    bc = List::map(bc.clone(), (std::sync::Arc::new(removeRedeclaresFromExtend) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Extends>) -> Result<Arc<Extends>> + 'static>));
     exts = Arc::new(ExtendsTable { baseClasses: bc.clone(), redeclaredElements: metamodelica::nil(), classExtendsInfo: cei.clone() });
     outEnv = cons(Arc::new(Frame { name: name.clone(), frameType: ty.clone(), clsAndVars: tree.clone(), extendsTable: exts.clone(), importTable: imps.clone(), isUsed: is_used.clone() }), rest.clone());
     Ok(outEnv)
@@ -1169,7 +1169,7 @@ fn removeRedeclaresFromExtend(mut inExtend: Arc<Extends>) -> Result<Arc<Extends>
     let mut outExtend: Arc<Extends>;
     let mut bc: Arc<Absyn::Path>;
     let mut index: i32 = 0;
-    let mut info: SourceInfo;
+    let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
     let (__pa0, __pa1, __pa2) = ::match_deref::match_deref! { match &(inExtend.clone()) {
         Deref @ Extends { baseClass: __pa0, redeclareModifiers: _, index: __pa1, info: __pa2 } => (__pa0.clone(), __pa1.clone(), __pa2.clone()),
         _ => bail!("pattern mismatch"),
@@ -1391,7 +1391,7 @@ pub fn makeClassEnvironment(mut inClassDefElement: Arc<SCode::Element>, mut inIn
     let mut cls_name: ArcStr = arcstr::literal!("");
     let mut env: Env = metamodelica::nil();
     let mut enclosing_env: Env = metamodelica::nil();
-    let mut info: SourceInfo;
+    let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
     let (__pa0, __pa1, __pa2) = ::match_deref::match_deref! { match &(inClassDefElement.clone()) {
         Deref @ SCode::Element::CLASS { info: __pa0, classDef: __pa1, name: __pa2, .. } => (__pa0.clone(), __pa1.clone(), __pa2.clone()),
         _ => bail!("pattern mismatch"),
@@ -1410,7 +1410,7 @@ fn extendEnvWithVar(mut inVar: Arc<SCode::Element>, mut inEnv: Env) -> Result<En
     let mut var_name: ArcStr = arcstr::literal!("");
     let mut is_used: Mutable::Mutable<bool>;
     let mut ty: Arc<Absyn::TypeSpec>;
-    let mut info: SourceInfo;
+    let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
     let (__pa0, __pa1, __pa2) = ::match_deref::match_deref! { match &(inVar.clone()) {
         Deref @ SCode::Element::COMPONENT { info: __pa0, typeSpec: __pa1, name: __pa2, .. } => (__pa0.clone(), __pa1.clone(), __pa2.clone()),
         _ => bail!("pattern mismatch"),
@@ -1443,7 +1443,7 @@ pub fn extendEnvWithItem(mut inItem: Arc<Item>, mut inEnv: Env, mut inItemName: 
     imps = __pa4.clone();
     is_used = __pa5.clone();
     rest = __pa6.clone();
-    tree = EnvTree::add(tree.clone(), (inItemName.clone()).clone(), inItem.clone(), fnptr!(extendEnvWithItemConflict, Arc<Item>, Arc<Item>, ArcStr))?;
+    tree = EnvTree::add(tree.clone(), (inItemName.clone()).clone(), inItem.clone(), (std::sync::Arc::new(fnptr!(extendEnvWithItemConflict, Arc<Item>, Arc<Item>, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Item>, Arc<Item>, ArcStr) -> Result<Arc<Item>> + 'static>))?;
     outEnv = cons(Arc::new(Frame { name: name.clone(), frameType: ty.clone(), clsAndVars: tree.clone(), extendsTable: exts.clone(), importTable: imps.clone(), isUsed: is_used.clone() }), rest.clone());
     Ok(outEnv)
 }
@@ -1474,7 +1474,7 @@ pub fn updateItemInEnv(mut inItem: Arc<Item>, mut inEnv: Env, mut inItemName: Ar
     imps = __pa4.clone();
     is_used = __pa5.clone();
     rest = __pa6.clone();
-    tree = EnvTree::add(tree.clone(), (inItemName.clone()).clone(), inItem.clone(), EnvTree::addConflictDefault)?;
+    tree = EnvTree::add(tree.clone(), (inItemName.clone()).clone(), inItem.clone(), (std::sync::Arc::new(fnptr!(EnvTree::addConflictDefault, _, _, _)) as std::sync::Arc<dyn ::std::ops::Fn(_, _, _) -> Result<_> + 'static>))?;
     outEnv = cons(Arc::new(Frame { name: name.clone(), frameType: ty.clone(), clsAndVars: tree.clone(), extendsTable: exts.clone(), importTable: imps.clone(), isUsed: is_used.clone() }), rest.clone());
     Ok(outEnv)
 }
@@ -1520,7 +1520,7 @@ pub fn extendEnvWithExtends(mut inExtends: Arc<SCode::Element>, mut inEnv: Env) 
     let mut bc: Arc<Absyn::Path>;
     let mut mods: Arc<SCode::Mod> = Arc::new(SCode::Mod::NOMOD);
     let mut redecls: Arc<metamodelica::List<Arc<Redeclaration>>> = metamodelica::nil();
-    let mut info: SourceInfo;
+    let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
     let mut env: Env = metamodelica::nil();
     let mut index: i32 = 0;
     let (__pa0, __pa1, __pa2) = ::match_deref::match_deref! { match &(inExtends.clone()) {
@@ -1575,7 +1575,7 @@ fn extendEnvWithClassComponents(mut inClassName: ArcStr, mut inClassDef: Arc<SCo
     outEnv = (::match_deref::match_deref! { match &((inClassName.clone(), inClassDef.clone(), inEnv.clone(), inEnclosingScope.clone(), inInfo.clone())) {
         (_, Deref @ SCode::ClassDef::PARTS { elementLst: el, .. }, _, _, _) => {
             let mut env: Env = metamodelica::nil();
-            env = List::fold(el.clone(), Arc::new(extendEnvWithElement), inEnv.clone());
+            env = List::fold(el.clone(), (std::sync::Arc::new(extendEnvWithElement) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SCode::Element>, Arc<metamodelica::List<Arc<Frame>>>) -> Result<Arc<metamodelica::List<Arc<Frame>>>> + 'static>), inEnv.clone());
             env.clone()
         },
         (_, Deref @ SCode::ClassDef::DERIVED { modifications: mods, typeSpec: ty @ Deref @ Absyn::TypeSpec::TPATH { path, .. }, .. }, _, _, _) => {
@@ -1684,7 +1684,7 @@ pub fn checkUniqueQualifiedImport(mut inImport: Import, mut inImports: Arc<metam
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (_, _, _) => {
-                    let false = (List::isMemberOnTrue(inImport.clone(), inImports.clone(), Arc::new(fnptr!(compareQualifiedImportNames, Absyn::Import, Absyn::Import)))) else { bail!("pattern mismatch") };
+                    let false = (List::isMemberOnTrue(inImport.clone(), inImports.clone(), (std::sync::Arc::new(fnptr!(compareQualifiedImportNames, Absyn::Import, Absyn::Import)) as std::sync::Arc<dyn ::std::ops::Fn(Absyn::Import, Absyn::Import) -> Result<bool> + 'static>))) else { bail!("pattern mismatch") };
                     Ok(())
                 }
                 _ => bail!("nomatch"),
@@ -1757,7 +1757,7 @@ pub fn extendEnvWithIterators(mut inIterators: Arc<metamodelica::List<Arc<Absyn:
     let mut outEnv: Env = metamodelica::nil();
     let mut frame: Arc<Frame>;
     frame = newFrame(Some((literal!("$for$")).clone()), FrameType::IMPLICIT_SCOPE { iterIndex: iterIndex.clone() });
-    outEnv = List::fold(inIterators.clone(), Arc::new(extendEnvWithIterator), cons(frame.clone(), inEnv.clone()));
+    outEnv = List::fold(inIterators.clone(), (std::sync::Arc::new(extendEnvWithIterator) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::ForIterator>, Arc<metamodelica::List<Arc<Frame>>>) -> Result<Arc<metamodelica::List<Arc<Frame>>>> + 'static>), cons(frame.clone(), inEnv.clone()));
     outEnv
 }
 
@@ -1785,7 +1785,7 @@ pub fn extendEnvWithMatch(mut inMatchExp: Arc<Absyn::Exp>, mut iterIndex: i32, m
         _ => bail!("pattern mismatch"),
     } };
     local_decls = __pa0.clone();
-    outEnv = List::fold(local_decls.clone(), Arc::new(extendEnvWithElementItem), cons(frame.clone(), inEnv.clone()));
+    outEnv = List::fold(local_decls.clone(), (std::sync::Arc::new(extendEnvWithElementItem) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::ElementItem>, Arc<metamodelica::List<Arc<Frame>>>) -> Result<Arc<metamodelica::List<Arc<Frame>>>> + 'static>), cons(frame.clone(), inEnv.clone()));
     Ok(outEnv)
 }
 
@@ -1796,7 +1796,7 @@ fn extendEnvWithElementItem(mut inElementItem: Arc<Absyn::ElementItem>, mut inEn
             let mut el: Arc<metamodelica::List<Arc<SCode::Element>>> = metamodelica::nil();
             let mut env: Env = metamodelica::nil();
             el = AbsynToSCode::translateElement(element.clone(), openmodelica_frontend_types::SCode::Visibility::PROTECTED)?;
-            env = List::fold(el.clone(), Arc::new(extendEnvWithElement), inEnv.clone());
+            env = List::fold(el.clone(), (std::sync::Arc::new(extendEnvWithElement) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SCode::Element>, Arc<metamodelica::List<Arc<Frame>>>) -> Result<Arc<metamodelica::List<Arc<Frame>>>> + 'static>), inEnv.clone());
             env.clone()
         },
         _ => {
@@ -1938,7 +1938,7 @@ pub fn envScopeNames2(mut inEnv: Env, mut inAccumNames: Arc<metamodelica::List<A
     outNames = (::match_deref::match_deref! { match &((inEnv.clone(), inAccumNames.clone())) {
         (Deref @ metamodelica::List::Cons { head: Deref @ Frame { name: Some(name), .. }, tail: rest_env }, _) => {
             let mut names: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
-            names = envScopeNames2(rest_env.clone(), cons(name.clone(), inAccumNames.clone()))?;
+            names = envScopeNames2(rest_env.clone(), cons((name.clone()).clone(), inAccumNames.clone()))?;
             names.clone()
         },
         (Deref @ metamodelica::List::Cons { head: Deref @ Frame { name: None, .. }, tail: rest_env }, _) => {
@@ -1999,7 +1999,7 @@ pub fn envEqualPrefix2(mut inEnv1: Env, mut inEnv2: Env, mut inAccumEnv: Env) ->
 // NOTE: #[tailcall::tailcall] disabled: function body contains a `match_deref!{…}` match,
 // and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
 pub fn getItemInfo(mut inItem: Arc<Item>) -> Result<SourceInfo> {
-    let mut outInfo: SourceInfo;
+    let mut outInfo: SourceInfo = <SourceInfo as ::std::default::Default>::default();
     outInfo = (::match_deref::match_deref! { match &(inItem.clone()) {
         Deref @ Item::VAR { var: Deref @ SCode::Element::COMPONENT { info, .. }, .. } => {
             info.clone()
@@ -2457,7 +2457,7 @@ pub fn getRedeclarationElement(mut inRedeclare: Arc<Redeclaration>) -> Result<Ar
 
 pub fn getRedeclarationNameInfo(mut inRedeclare: Arc<Redeclaration>) -> Result<(ArcStr, SourceInfo)> {
     let mut outName: ArcStr = arcstr::literal!("");
-    let mut outInfo: SourceInfo;
+    let mut outInfo: SourceInfo = <SourceInfo as ::std::default::Default>::default();
     (outName, outInfo) = (::match_deref::match_deref! { match &(inRedeclare.clone()) {
         Deref @ Redeclaration::PROCESSED_MODIFIER { modifier: Deref @ Item::ALIAS { info, name, .. } } => {
             (name.clone(), info.clone())
@@ -2465,7 +2465,7 @@ pub fn getRedeclarationNameInfo(mut inRedeclare: Arc<Redeclaration>) -> Result<(
         _ => {
             let mut el: Arc<SCode::Element>;
             let mut name: ArcStr = arcstr::literal!("");
-            let mut info: SourceInfo;
+            let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
             el = getRedeclarationElement(inRedeclare.clone())?;
             (name, info) = SCodeUtil::elementNameInfo(el.clone())?;
             (name.clone(), info.clone())
@@ -2500,7 +2500,7 @@ fn addDummyClassToTree(mut inName: ArcStr, mut inTree: Arc<EnvTree::Tree>) -> Re
     let mut outTree: Arc<EnvTree::Tree> = Arc::new(EnvTree::Tree::EMPTY);
     let mut cls: Arc<SCode::Element>;
     cls = Arc::new(SCode::Element::CLASS { name: (inName.clone()).clone(), prefixes: SCode::defaultPrefixes.clone(), encapsulatedPrefix: openmodelica_frontend_types::SCode::Encapsulated::NOT_ENCAPSULATED, partialPrefix: openmodelica_frontend_types::SCode::Partial::NOT_PARTIAL, restriction: openmodelica_frontend_types::SCode::Restriction::R_CLASS, classDef: Arc::new(SCode::ClassDef::PARTS { elementLst: metamodelica::nil(), normalEquationLst: metamodelica::nil(), initialEquationLst: metamodelica::nil(), normalAlgorithmLst: metamodelica::nil(), initialAlgorithmLst: metamodelica::nil(), constraintLst: metamodelica::nil(), clsattrs: metamodelica::nil(), externalDecl: None }), cmt: SCode::noComment.clone(), info: Absyn::dummyInfo.clone() });
-    outTree = EnvTree::add(inTree.clone(), (inName.clone()).clone(), Arc::new(Item::CLASS { cls: cls.clone(), env: emptyEnv.clone(), classType: crate::NFSCodeEnv::ClassType::BUILTIN }), EnvTree::addConflictDefault)?;
+    outTree = EnvTree::add(inTree.clone(), (inName.clone()).clone(), Arc::new(Item::CLASS { cls: cls.clone(), env: emptyEnv.clone(), classType: crate::NFSCodeEnv::ClassType::BUILTIN }), (std::sync::Arc::new(fnptr!(EnvTree::addConflictDefault, _, _, _)) as std::sync::Arc<dyn ::std::ops::Fn(_, _, _) -> Result<_> + 'static>))?;
     Ok(outTree)
 }
 
@@ -2508,7 +2508,7 @@ pub fn printEnvStr(mut inEnv: Env) -> ArcStr {
     let mut outString: ArcStr = arcstr::literal!("");
     let mut env: Env = metamodelica::nil();
     env = inEnv.clone().reverse();
-    outString = stringDelimitList(List::map(env.clone(), Arc::new(printFrameStr)), (literal!("\n")).clone());
+    outString = stringDelimitList(List::map(env.clone(), (std::sync::Arc::new(printFrameStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Frame>) -> Result<ArcStr> + 'static>)), (literal!("\n")).clone());
     outString
 }
 
@@ -2572,7 +2572,7 @@ pub fn printExtendsTableStr(mut inExtendsTable: Arc<ExtendsTable>) -> Result<Arc
     cei = __pa0.clone();
     re = __pa1.clone();
     bcl = __pa2.clone();
-    outString = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*stringDelimitList(List::map(bcl.clone(), Arc::new(printExtendsStr)), (literal!("\n")).clone())); __mm_s.push_str(&*literal!("\n\t\tRedeclare elements:\n\t\t\t")); __mm_s.push_str(&*stringDelimitList(List::map1(re.clone(), Arc::new(SCodeDump::unparseElementStr), SCodeDump::defaultOptions.clone()), (literal!("\n\t\t\t")).clone())); __mm_s.push_str(&*literal!("\n\t\tClass extends:\n\t\t\t")); __mm_s.push_str(&*Util::applyOptionOrDefault(cei.clone(), Arc::new({ let __pe_b1 = SCodeDump::defaultOptions.clone(); move |__pe_a0| SCodeDump::unparseElementStr(__pe_a0, __pe_b1.clone()) }), (literal!("")).clone())); ArcStr::from(__mm_s) }).clone();
+    outString = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*stringDelimitList(List::map(bcl.clone(), (std::sync::Arc::new(printExtendsStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Extends>) -> Result<ArcStr> + 'static>)), (literal!("\n")).clone())); __mm_s.push_str(&*literal!("\n\t\tRedeclare elements:\n\t\t\t")); __mm_s.push_str(&*stringDelimitList(List::map1(re.clone(), (std::sync::Arc::new(SCodeDump::unparseElementStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SCode::Element>, SCodeDump::SCodeDumpOptions) -> Result<ArcStr> + 'static>), SCodeDump::defaultOptions.clone()), (literal!("\n\t\t\t")).clone())); __mm_s.push_str(&*literal!("\n\t\tClass extends:\n\t\t\t")); __mm_s.push_str(&*Util::applyOptionOrDefault(cei.clone(), Arc::new({ let __pe_b1 = SCodeDump::defaultOptions.clone(); move |__pe_a0| SCodeDump::unparseElementStr(__pe_a0, __pe_b1.clone()) }), (literal!("")).clone())); ArcStr::from(__mm_s) }).clone();
     Ok(outString)
 }
 
@@ -2587,7 +2587,7 @@ pub fn printExtendsStr(mut inExtends: Arc<Extends>) -> Result<ArcStr> {
     } };
     mods = __pa0.clone();
     bc = __pa1.clone();
-    mods_str = stringDelimitList(List::map(mods.clone(), Arc::new(printRedeclarationStr)), (literal!("\n")).clone());
+    mods_str = stringDelimitList(List::map(mods.clone(), (std::sync::Arc::new(printRedeclarationStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Redeclaration>) -> Result<ArcStr> + 'static>)), (literal!("\n")).clone());
     outString = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\t\t")); __mm_s.push_str(&*AbsynUtil::pathString(bc.clone(), (literal!(".")).clone(), true, false)?); __mm_s.push_str(&*literal!("(")); __mm_s.push_str(&*mods_str.clone()); __mm_s.push_str(&*literal!(")")); ArcStr::from(__mm_s) }).clone();
     Ok(outString)
 }
@@ -2634,8 +2634,8 @@ fn printImportTableStr(mut inImports: ImportTable) -> Result<ArcStr> {
     let ImportTable { unqualifiedImports: __pa0, qualifiedImports: __pa1, .. } = (inImports.clone()) else { bail!("pattern mismatch") };
     unqual_imps = __pa0.clone();
     qual_imps = __pa1.clone();
-    qual_str = stringDelimitList(List::map(qual_imps.clone(), Arc::new(AbsynUtil::printImportString)), (literal!("\n\t\t")).clone());
-    unqual_str = stringDelimitList(List::map(unqual_imps.clone(), Arc::new(AbsynUtil::printImportString)), (literal!("\n\t\t")).clone());
+    qual_str = stringDelimitList(List::map(qual_imps.clone(), (std::sync::Arc::new(AbsynUtil::printImportString) as std::sync::Arc<dyn ::std::ops::Fn(Absyn::Import) -> Result<ArcStr> + 'static>)), (literal!("\n\t\t")).clone());
+    unqual_str = stringDelimitList(List::map(unqual_imps.clone(), (std::sync::Arc::new(AbsynUtil::printImportString) as std::sync::Arc<dyn ::std::ops::Fn(Absyn::Import) -> Result<ArcStr> + 'static>)), (literal!("\n\t\t")).clone());
     outString = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\t\t")); __mm_s.push_str(&*qual_str.clone()); __mm_s.push_str(&*unqual_str.clone()); ArcStr::from(__mm_s) }).clone();
     Ok(outString)
 }

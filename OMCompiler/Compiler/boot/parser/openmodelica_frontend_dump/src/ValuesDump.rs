@@ -345,13 +345,13 @@ fn filterSimulationResults(mut filter: bool, mut inValues: Arc<metamodelica::Lis
             (valacc.clone().reverse(), idacc.clone().reverse())
         },
         (true, Deref @ metamodelica::List::Cons { head: v, tail: vrest }, Deref @ metamodelica::List::Cons { head: id @ Deref @ "messages", tail: idrest }, _, _) => {
-            (outValues, outIds) = filterSimulationResults(filter.clone(), vrest.clone(), idrest.clone(), cons(v.clone(), valacc.clone()), cons(id.clone(), idacc.clone()))?;
+            (outValues, outIds) = filterSimulationResults(filter.clone(), vrest.clone(), idrest.clone(), cons(v.clone(), valacc.clone()), cons((id.clone()).clone(), idacc.clone()))?;
             (outValues.clone(), outIds.clone())
         },
         (true, Deref @ metamodelica::List::Cons { head: Deref @ Values::Value::STRING { string: r#str }, tail: vrest }, Deref @ metamodelica::List::Cons { head: id @ Deref @ "resultFile", tail: idrest }, _, _) => {
             let mut r#str = (*r#str).clone();
             r#str = (System::basename((r#str.clone()).clone())).clone();
-            (outValues, outIds) = filterSimulationResults(filter.clone(), vrest.clone(), idrest.clone(), cons(Arc::new(Values::Value::STRING { string: (r#str.clone()).clone() }), valacc.clone()), cons(id.clone(), idacc.clone()))?;
+            (outValues, outIds) = filterSimulationResults(filter.clone(), vrest.clone(), idrest.clone(), cons(Arc::new(Values::Value::STRING { string: (r#str.clone()).clone() }), valacc.clone()), cons((id.clone()).clone(), idacc.clone()))?;
             (outValues.clone(), outIds.clone())
         },
         (true, Deref @ metamodelica::List::Cons { head: _, tail: vrest }, Deref @ metamodelica::List::Cons { head: _, tail: idrest }, _, _) => {
@@ -407,7 +407,7 @@ fn valRecordString(mut inValues: Arc<metamodelica::List<Arc<Values::Value>>>, mu
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (xs, ids) => {
-                    println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("ValuesUtil.valRecordString failed:\nids: ")); __mm_s.push_str(&*stringDelimitList(ids.clone(), (literal!(", ")).clone())); __mm_s.push_str(&*literal!("\nvals: ")); __mm_s.push_str(&*stringDelimitList(List::map(xs.clone(), Arc::new(valString)), (literal!(", ")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+                    println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("ValuesUtil.valRecordString failed:\nids: ")); __mm_s.push_str(&*stringDelimitList(ids.clone(), (literal!(", ")).clone())); __mm_s.push_str(&*literal!("\nvals: ")); __mm_s.push_str(&*stringDelimitList(List::map(xs.clone(), (std::sync::Arc::new(valString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Values::Value>) -> Result<ArcStr> + 'static>)), (literal!(", ")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
                     Ok(bail!("fail"))
                 }
                 _ => bail!("nomatch"),

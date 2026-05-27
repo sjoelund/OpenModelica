@@ -250,7 +250,7 @@ pub fn expandEnumerationMod(mut inMod: Arc<SCode::Mod>) -> Result<Arc<SCode::Mod
     let mut el1: Arc<SCode::Element>;
     let mut submod: Arc<metamodelica::List<Arc<SCode::SubMod>>> = metamodelica::nil();
     let mut binding: Option<Arc<Absyn::Exp>> = None;
-    let mut info: SourceInfo;
+    let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
     let mut changed: bool = false;
     let mut cmt: Option<ArcStr> = None;
     outMod = (::match_deref::match_deref! { match &(inMod.clone()) {
@@ -260,7 +260,7 @@ pub fn expandEnumerationMod(mut inMod: Arc<SCode::Mod>) -> Result<Arc<SCode::Mod
         },
         Deref @ SCode::Mod::MOD { finalPrefix: f, eachPrefix: e, subModLst: submod, binding, comment: cmt, info } => {
             let mut submod = (*submod).clone();
-            (submod, changed) = List::mapFold(submod.clone(), Arc::new(expandEnumerationSubMod), false);
+            (submod, changed) = List::mapFold(submod.clone(), (std::sync::Arc::new(expandEnumerationSubMod) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SCode::SubMod>, bool) -> Result<(Arc<SCode::SubMod>, bool)> + 'static>), false);
             if (changed.clone()) {Arc::new(SCode::Mod::MOD { finalPrefix: f.clone(), eachPrefix: e.clone(), subModLst: submod.clone(), binding: binding.clone(), comment: cmt.clone(), info: info.clone() })} else {inMod.clone()}
         },
         _ => inMod.clone(),

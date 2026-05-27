@@ -70,7 +70,7 @@ use openmodelica_util_datatypes_basic::Pointer;
 // NF imports
 // Backend imports
 // Util imports
-pub type wrapper = fn(Arc<Jacobian::NBackendDAE>) -> Result<Arc<Jacobian::NBackendDAE>>;
+pub type wrapper = std::sync::Arc<dyn ::std::ops::Fn(Arc<Jacobian::NBackendDAE>) -> Result<Arc<Jacobian::NBackendDAE>> + 'static>;
 
 pub fn moduleClockString(mut name_clock: (ArcStr, metamodelica::Real)) -> Result<ArcStr> {
     let mut r#str: ArcStr = arcstr::literal!("");
@@ -86,58 +86,58 @@ pub fn moduleClockString(mut name_clock: (ArcStr, metamodelica::Real)) -> Result
 // =========================================================================
 //                               PARTITIONING
 // *************************************************************************
-pub type partitioningInterface = fn(Partition::Kind, Arc<VariablePointers::VariablePointers>, Arc<EquationPointers::EquationPointers>, Arc<VariablePointers::VariablePointers>, Arc<EquationPointers::EquationPointers>, Arc<ClockedInfo::ClockedInfo>) -> Result<Arc<metamodelica::List<Arc<Partition::Partition::Partition>>>>;
+pub type partitioningInterface = std::sync::Arc<dyn ::std::ops::Fn(Partition::Kind, Arc<VariablePointers::VariablePointers>, Arc<EquationPointers::EquationPointers>, Arc<VariablePointers::VariablePointers>, Arc<EquationPointers::EquationPointers>, Arc<ClockedInfo::ClockedInfo>) -> Result<Arc<metamodelica::List<Arc<Partition::Partition::Partition>>>> + 'static>;
 
 //                               CAUSALIZE
 // *************************************************************************
-pub type causalizeInterface = fn(Arc<Partition::Partition::Partition>, Arc<VarData::VarData>, Arc<EqData::EqData>, Arc<UnorderedMap::UnorderedMap<Arc<Path>, Arc<Function::Function>>>) -> Result<(Arc<Partition::Partition::Partition>, Arc<VarData::VarData>, Arc<EqData::EqData>)>;
+pub type causalizeInterface = std::sync::Arc<dyn ::std::ops::Fn(Arc<Partition::Partition::Partition>, Arc<VarData::VarData>, Arc<EqData::EqData>, Arc<UnorderedMap::UnorderedMap<Arc<Path>, Arc<Function::Function>>>) -> Result<(Arc<Partition::Partition::Partition>, Arc<VarData::VarData>, Arc<EqData::EqData>)> + 'static>;
 
 //                           RESOLVING SINGULARITIES
 //                  Index Reduction + Balance Initialization
 // *************************************************************************
 //                               DAEMODE
 // *************************************************************************
-pub type daeModeInterface = fn(Arc<metamodelica::List<Arc<Partition::Partition::Partition>>>, Arc<VariablePointers::VariablePointers>, Pointer::Pointer<i32>) -> Result<Arc<metamodelica::List<Arc<Partition::Partition::Partition>>>>;
+pub type daeModeInterface = std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<Arc<Partition::Partition::Partition>>>, Arc<VariablePointers::VariablePointers>, Pointer::Pointer<i32>) -> Result<Arc<metamodelica::List<Arc<Partition::Partition::Partition>>>> + 'static>;
 
 // =========================================================================
 //                         MANDATORY PRE-OPT MODULES
 // =========================================================================
 //                            COLLECT EVENTS
 // *************************************************************************
-pub type eventsInterface = fn(Arc<VarData::VarData>, Arc<EqData::EqData>, Arc<EventInfo::EventInfo>, Arc<UnorderedMap::UnorderedMap<Arc<Path>, Arc<Function::Function>>>) -> Result<(Arc<VarData::VarData>, Arc<EqData::EqData>, Arc<EventInfo::EventInfo>)>;
+pub type eventsInterface = std::sync::Arc<dyn ::std::ops::Fn(Arc<VarData::VarData>, Arc<EqData::EqData>, Arc<EventInfo::EventInfo>, Arc<UnorderedMap::UnorderedMap<Arc<Path>, Arc<Function::Function>>>) -> Result<(Arc<VarData::VarData>, Arc<EqData::EqData>, Arc<EventInfo::EventInfo>)> + 'static>;
 
 //                               DETECT STATES
 // *************************************************************************
-pub type detectStatesInterface = fn(Arc<VarData::VarData>, Arc<EqData::EqData>, detectContinuousStatesInterface, detectDiscreteStatesInterface) -> Result<(Arc<VarData::VarData>, Arc<EqData::EqData>)>;
+pub type detectStatesInterface = std::sync::Arc<dyn ::std::ops::Fn(Arc<VarData::VarData>, Arc<EqData::EqData>, detectContinuousStatesInterface, detectDiscreteStatesInterface) -> Result<(Arc<VarData::VarData>, Arc<EqData::EqData>)> + 'static>;
 
-pub type detectContinuousStatesInterface = fn(Arc<VariablePointers::VariablePointers>, Arc<VariablePointers::VariablePointers>, Arc<VariablePointers::VariablePointers>, Arc<VariablePointers::VariablePointers>, Arc<VariablePointers::VariablePointers>, Arc<VariablePointers::VariablePointers>, Arc<VariablePointers::VariablePointers>, Arc<EquationPointers::EquationPointers>) -> Result<(Arc<VariablePointers::VariablePointers>, Arc<VariablePointers::VariablePointers>, Arc<VariablePointers::VariablePointers>, Arc<VariablePointers::VariablePointers>, Arc<VariablePointers::VariablePointers>, Arc<VariablePointers::VariablePointers>, Arc<VariablePointers::VariablePointers>, Arc<metamodelica::List<Pointer::Pointer<Arc<Equation::Equation>>>>)>;
+pub type detectContinuousStatesInterface = std::sync::Arc<dyn ::std::ops::Fn(Arc<VariablePointers::VariablePointers>, Arc<VariablePointers::VariablePointers>, Arc<VariablePointers::VariablePointers>, Arc<VariablePointers::VariablePointers>, Arc<VariablePointers::VariablePointers>, Arc<VariablePointers::VariablePointers>, Arc<VariablePointers::VariablePointers>, Arc<EquationPointers::EquationPointers>) -> Result<(Arc<VariablePointers::VariablePointers>, Arc<VariablePointers::VariablePointers>, Arc<VariablePointers::VariablePointers>, Arc<VariablePointers::VariablePointers>, Arc<VariablePointers::VariablePointers>, Arc<VariablePointers::VariablePointers>, Arc<VariablePointers::VariablePointers>, Arc<metamodelica::List<Pointer::Pointer<Arc<Equation::Equation>>>>)> + 'static>;
 
-pub type detectDiscreteStatesInterface = fn(Arc<VariablePointers::VariablePointers>, Arc<EquationPointers::EquationPointers>, Arc<VariablePointers::VariablePointers>, Arc<VariablePointers::VariablePointers>, Arc<VariablePointers::VariablePointers>, Arc<VariablePointers::VariablePointers>, Arc<VariablePointers::VariablePointers>, Arc<VariablePointers::VariablePointers>, ArcStr) -> Result<(Arc<VariablePointers::VariablePointers>, Arc<EquationPointers::EquationPointers>, Arc<VariablePointers::VariablePointers>, Arc<VariablePointers::VariablePointers>, Arc<VariablePointers::VariablePointers>, Arc<VariablePointers::VariablePointers>, Arc<VariablePointers::VariablePointers>, Arc<VariablePointers::VariablePointers>)>;
+pub type detectDiscreteStatesInterface = std::sync::Arc<dyn ::std::ops::Fn(Arc<VariablePointers::VariablePointers>, Arc<EquationPointers::EquationPointers>, Arc<VariablePointers::VariablePointers>, Arc<VariablePointers::VariablePointers>, Arc<VariablePointers::VariablePointers>, Arc<VariablePointers::VariablePointers>, Arc<VariablePointers::VariablePointers>, Arc<VariablePointers::VariablePointers>, ArcStr) -> Result<(Arc<VariablePointers::VariablePointers>, Arc<EquationPointers::EquationPointers>, Arc<VariablePointers::VariablePointers>, Arc<VariablePointers::VariablePointers>, Arc<VariablePointers::VariablePointers>, Arc<VariablePointers::VariablePointers>, Arc<VariablePointers::VariablePointers>, Arc<VariablePointers::VariablePointers>)> + 'static>;
 
 // =========================================================================
 //                         Optional PRE-OPT MODULES
 // =========================================================================
 //                                 ALIAS
 // *************************************************************************
-pub type functionAliasInterface = fn(Arc<VarData::VarData>, Arc<EqData::EqData>, Partition::Kind) -> Result<(Arc<VarData::VarData>, Arc<EqData::EqData>)>;
+pub type functionAliasInterface = std::sync::Arc<dyn ::std::ops::Fn(Arc<VarData::VarData>, Arc<EqData::EqData>, Partition::Kind) -> Result<(Arc<VarData::VarData>, Arc<EqData::EqData>)> + 'static>;
 
-pub type aliasInterface = fn(Arc<VarData::VarData>, Arc<EqData::EqData>, Partition::Kind) -> Result<(Arc<VarData::VarData>, Arc<EqData::EqData>)>;
+pub type aliasInterface = std::sync::Arc<dyn ::std::ops::Fn(Arc<VarData::VarData>, Arc<EqData::EqData>, Partition::Kind) -> Result<(Arc<VarData::VarData>, Arc<EqData::EqData>)> + 'static>;
 
 //                                 INLINE
 // *************************************************************************
-pub type inlineInterface = fn(Arc<EqData::EqData>, Arc<VarData::VarData>, Arc<UnorderedMap::UnorderedMap<Arc<Path>, Arc<Function::Function>>>, Arc<metamodelica::List<DAE::InlineType>>, bool) -> Result<(Arc<EqData::EqData>, Arc<VarData::VarData>)>;
+pub type inlineInterface = std::sync::Arc<dyn ::std::ops::Fn(Arc<EqData::EqData>, Arc<VarData::VarData>, Arc<UnorderedMap::UnorderedMap<Arc<Path>, Arc<Function::Function>>>, Arc<metamodelica::List<DAE::InlineType>>, bool) -> Result<(Arc<EqData::EqData>, Arc<VarData::VarData>)> + 'static>;
 
 // =========================================================================
 //                         MANDATORY POST-OPT MODULES
 // =========================================================================
 //                               JACOBIAN
 // *************************************************************************
-pub type jacobianInterface = fn(ArcStr, JacobianType, Arc<VariablePointers::VariablePointers>, Arc<VariablePointers::VariablePointers>, Arc<EquationPointers::EquationPointers>, Option<metamodelica::Array<Arc<StrongComponent::NBStrongComponent>>>, Option<Arc<Adjacency::Matrix::Matrix>>, Arc<UnorderedMap::UnorderedMap<Arc<Path>, Arc<Function::Function>>>, bool) -> Result<Option<Arc<Jacobian::NBackendDAE>>>;
+pub type jacobianInterface = std::sync::Arc<dyn ::std::ops::Fn(ArcStr, JacobianType, Arc<VariablePointers::VariablePointers>, Arc<VariablePointers::VariablePointers>, Arc<EquationPointers::EquationPointers>, Option<metamodelica::Array<Arc<StrongComponent::NBStrongComponent>>>, Option<Arc<Adjacency::Matrix::Matrix>>, Arc<UnorderedMap::UnorderedMap<Arc<Path>, Arc<Function::Function>>>, bool) -> Result<Option<Arc<Jacobian::NBackendDAE>>> + 'static>;
 
 // =========================================================================
 //                         Optional POST-OPT MODULES
 // =========================================================================
 //                                 TEARING
 // *************************************************************************
-pub type tearingInterface = fn(Arc<StrongComponent::NBStrongComponent>, Arc<Adjacency::Matrix::Matrix>, Arc<UnorderedMap::UnorderedMap<Arc<Path>, Arc<Function::Function>>>, i32, Arc<VariablePointers::VariablePointers>, Arc<EquationPointers::EquationPointers>, Pointer::Pointer<i32>, Partition::Kind) -> Result<(Arc<StrongComponent::NBStrongComponent>, Arc<Adjacency::Matrix::Matrix>, i32)>;
+pub type tearingInterface = std::sync::Arc<dyn ::std::ops::Fn(Arc<StrongComponent::NBStrongComponent>, Arc<Adjacency::Matrix::Matrix>, Arc<UnorderedMap::UnorderedMap<Arc<Path>, Arc<Function::Function>>>, i32, Arc<VariablePointers::VariablePointers>, Arc<EquationPointers::EquationPointers>, Pointer::Pointer<i32>, Partition::Kind) -> Result<(Arc<StrongComponent::NBStrongComponent>, Arc<Adjacency::Matrix::Matrix>, i32)> + 'static>;
 

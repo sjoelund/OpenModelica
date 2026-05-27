@@ -238,7 +238,7 @@ pub fn simplifyEqualityEquation(mut eq: Arc<Equation::NFEquation>, mut equations
     let mut lhs: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut rhs: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut ty: Arc<Type::NFType> = Arc::new(Type::ANY);
-    let mut src: Arc<DAE::ElementSource>;
+    let mut src: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
     let mut scope: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
     let mut scalarize_mode: Equation::ScalarizeMode = Equation::ScalarizeMode::DONT_SCALARIZE;
     let (__pa0, __pa1, __pa2, __pa3, __pa4, __pa5) = ::match_deref::match_deref! { match &(eq.clone()) {
@@ -251,7 +251,7 @@ pub fn simplifyEqualityEquation(mut eq: Arc<Equation::NFEquation>, mut equations
     ty = __pa3.clone();
     rhs = __pa4.clone();
     lhs = __pa5.clone();
-    ty = Type::mapDims(ty.clone(), Arc::new(simplifyDimension));
+    ty = Type::mapDims(ty.clone(), (std::sync::Arc::new(simplifyDimension) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Dimension::NFDimension>) -> Result<Arc<Dimension::NFDimension>> + 'static>));
     if Type::isEmptyArray(ty.clone()) {
         return Ok(equations);
     }
@@ -318,7 +318,7 @@ pub fn simplifyStatement(mut stmt: Arc<Statement::NFStatement>, mut statements: 
             statements.clone()
         },
         Deref @ Statement::IF { .. } => {
-            simplifyIfStmtBranches(var_field!((*stmt).branches, Statement::NFStatement::IF).clone(), var_field!((*stmt).source, Statement::NFStatement::IF).clone(), Arc::new(fnptr!(Statement::makeIf, Arc<metamodelica::List<(Arc<Expression::NFExpression>, Arc<metamodelica::List<Arc<Statement::NFStatement>>>)>>, Arc<DAE::ElementSource>)), Arc::new(simplifyStatements), statements.clone())?
+            simplifyIfStmtBranches(var_field!((*stmt).branches, Statement::NFStatement::IF).clone(), var_field!((*stmt).source, Statement::NFStatement::IF).clone(), (std::sync::Arc::new(fnptr!(Statement::makeIf, Arc<metamodelica::List<(Arc<Expression::NFExpression>, Arc<metamodelica::List<Arc<Statement::NFStatement>>>)>>, Arc<DAE::ElementSource>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<(Arc<Expression::NFExpression>, Arc<metamodelica::List<Arc<Statement::NFStatement>>>)>>, Arc<DAE::ElementSource>) -> Result<Arc<Statement::NFStatement>> + 'static>), (std::sync::Arc::new(simplifyStatements) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<Arc<Statement::NFStatement>>>) -> Result<Arc<metamodelica::List<Arc<Statement::NFStatement>>>> + 'static>), statements.clone())?
         },
         Deref @ Statement::WHEN { .. } => {
             assign_variant_field!(stmt => Statement::NFStatement::WHEN; branches = simplifyWhenBranches(var_field!((*stmt).branches, Statement::NFStatement::WHEN).clone())?);
@@ -385,7 +385,7 @@ pub fn simplifyAssignment(mut stmt: Arc<Statement::NFStatement>, mut statements:
     let mut rhs_exp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut rhs_rest: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
     let mut ty: Arc<Type::NFType> = Arc::new(Type::ANY);
-    let mut src: Arc<DAE::ElementSource>;
+    let mut src: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
     let (__pa0, __pa1, __pa2, __pa3) = ::match_deref::match_deref! { match &(stmt.clone()) {
         Deref @ Statement::ASSIGNMENT { source: __pa0, ty: __pa1, rhs: __pa2, lhs: __pa3 } => (__pa0.clone(), __pa1.clone(), __pa2.clone(), __pa3.clone()),
         _ => bail!("pattern mismatch"),
@@ -394,7 +394,7 @@ pub fn simplifyAssignment(mut stmt: Arc<Statement::NFStatement>, mut statements:
     ty = __pa1.clone();
     rhs = __pa2.clone();
     lhs = __pa3.clone();
-    ty = Type::mapDims(ty.clone(), Arc::new(simplifyDimension));
+    ty = Type::mapDims(ty.clone(), (std::sync::Arc::new(simplifyDimension) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Dimension::NFDimension>) -> Result<Arc<Dimension::NFDimension>> + 'static>));
     if Type::isEmptyArray(ty.clone()) {
         return Ok(statements);
     }
@@ -403,7 +403,7 @@ pub fn simplifyAssignment(mut stmt: Arc<Statement::NFStatement>, mut statements:
     rhs = SimplifyExp::simplify(rhs.clone(), false)?;
     rhs = removeEmptyFunctionArguments(rhs.clone(), false)?;
     statements = (::match_deref::match_deref! { match &((lhs.clone(), rhs.clone())) {
-        (Deref @ Expression::TUPLE { .. }, Deref @ Expression::TUPLE { .. }) => simplifyTupleElement(var_field!((*lhs).elements, Expression::NFExpression::TUPLE).clone(), var_field!((*rhs).elements, Expression::NFExpression::TUPLE).clone(), ty.clone(), src.clone(), Arc::new(fnptr!(Statement::makeAssignment, Arc<Expression::NFExpression>, Arc<Expression::NFExpression>, Arc<Type::NFType>, Arc<DAE::ElementSource>)), statements.clone())?,
+        (Deref @ Expression::TUPLE { .. }, Deref @ Expression::TUPLE { .. }) => simplifyTupleElement(var_field!((*lhs).elements, Expression::NFExpression::TUPLE).clone(), var_field!((*rhs).elements, Expression::NFExpression::TUPLE).clone(), ty.clone(), src.clone(), (std::sync::Arc::new(fnptr!(Statement::makeAssignment, Arc<Expression::NFExpression>, Arc<Expression::NFExpression>, Arc<Type::NFType>, Arc<DAE::ElementSource>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, Arc<Expression::NFExpression>, Arc<Type::NFType>, Arc<DAE::ElementSource>) -> Result<Arc<Statement::NFStatement>> + 'static>), statements.clone())?,
         _ => cons(Arc::new(Statement::NFStatement::ASSIGNMENT { lhs: lhs.clone(), rhs: rhs.clone(), ty: ty.clone(), source: src.clone() }), statements.clone()),
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
     } });
@@ -411,7 +411,7 @@ pub fn simplifyAssignment(mut stmt: Arc<Statement::NFStatement>, mut statements:
 }
 
 pub fn simplifyTupleElement<ElementT: Clone + 'static>(mut lhsTuple: Arc<metamodelica::List<Arc<Expression::NFExpression>>>, mut rhsTuple: Arc<metamodelica::List<Arc<Expression::NFExpression>>>, mut ty: Arc<Type::NFType>, mut src: Arc<DAE::ElementSource>, mut makeFn: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, Arc<Expression::NFExpression>, Arc<Type::NFType>, Arc<DAE::ElementSource>) -> Result<ElementT> + 'static>, mut statements: Arc<metamodelica::List<ElementT>>) -> Result<Arc<metamodelica::List<ElementT>>> {
-    pub type MakeElement<ElementT: Clone> = fn(Arc<Expression::NFExpression>, Arc<Expression::NFExpression>, Arc<Type::NFType>, Arc<DAE::ElementSource>) -> Result<ElementT>;
+    pub type MakeElement<ElementT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, Arc<Expression::NFExpression>, Arc<Type::NFType>, Arc<DAE::ElementSource>) -> Result<ElementT> + 'static>;
 
     let mut statements: Arc<metamodelica::List<ElementT>> = statements;
     let mut rhs: Arc<Expression::NFExpression> = Arc::new(Expression::END);
@@ -506,7 +506,7 @@ pub fn simplifyIfEqBranches(mut branches: Arc<metamodelica::List<Arc<Equation::B
                     return Ok(elements);
                 } else {
                     accum = cons(Equation::makeBranch(cond.clone(), simplifyEquations(body.clone())?, Variability::CONTINUOUS.clone()), accum.clone());
-                    accum = List::trim(accum.clone(), Arc::new(Equation::Branch::isEmpty))?;
+                    accum = List::trim(accum.clone(), (std::sync::Arc::new(Equation::Branch::isEmpty) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Equation::Branch::Branch>) -> Result<bool> + 'static>))?;
                     elements = cons(Equation::makeIf(accum.clone().reverse(), scope.clone(), src.clone()), elements.clone());
                     return Ok(elements);
                 }
@@ -529,7 +529,7 @@ pub fn simplifyIfEqBranches(mut branches: Arc<metamodelica::List<Arc<Equation::B
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
     } });
     }
-    accum = List::trim(accum.clone(), Arc::new(Equation::Branch::isEmpty))?;
+    accum = List::trim(accum.clone(), (std::sync::Arc::new(Equation::Branch::isEmpty) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Equation::Branch::Branch>) -> Result<bool> + 'static>))?;
     if !(accum.clone().is_empty()) {
         elements = cons(Equation::makeIf(accum.clone().reverse(), scope.clone(), src.clone()), elements.clone());
     }
@@ -537,9 +537,9 @@ pub fn simplifyIfEqBranches(mut branches: Arc<metamodelica::List<Arc<Equation::B
 }
 
 pub fn simplifyIfStmtBranches<ElemT: Clone + 'static>(mut branches: Arc<metamodelica::List<(Arc<Expression::NFExpression>, Arc<metamodelica::List<ElemT>>)>>, mut src: Arc<DAE::ElementSource>, mut makeFunc: Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<(Arc<Expression::NFExpression>, Arc<metamodelica::List<ElemT>>)>>, Arc<DAE::ElementSource>) -> Result<ElemT> + 'static>, mut simplifyFunc: Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<ElemT>>) -> Result<Arc<metamodelica::List<ElemT>>> + 'static>, mut elements: Arc<metamodelica::List<ElemT>>) -> Result<Arc<metamodelica::List<ElemT>>> {
-    pub type MakeFunc<ElemT: Clone> = fn(Arc<metamodelica::List<(Arc<Expression::NFExpression>, Arc<metamodelica::List<ElemT>>)>>, Arc<DAE::ElementSource>) -> Result<ElemT>;
+    pub type MakeFunc<ElemT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<(Arc<Expression::NFExpression>, Arc<metamodelica::List<ElemT>>)>>, Arc<DAE::ElementSource>) -> Result<ElemT> + 'static>;
 
-    pub type SimplifyFunc<ElemT: Clone> = fn(Arc<metamodelica::List<ElemT>>) -> Result<Arc<metamodelica::List<ElemT>>>;
+    pub type SimplifyFunc<ElemT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<ElemT>>) -> Result<Arc<metamodelica::List<ElemT>>> + 'static>;
 
     let mut elements: Arc<metamodelica::List<ElemT>> = elements;
     let mut cond: Arc<Expression::NFExpression> = Arc::new(Expression::END);
@@ -577,6 +577,7 @@ pub fn simplifyFunction(mut func: Arc<Function::Function>) -> Result<()> {
         cls = InstNode::getClass(func.node.clone())?;
         let () = (::match_deref::match_deref! { match &(cls.clone()) {
         Deref @ Class::INSTANCED_CLASS { sections, .. } => {
+            let mut sections = (*sections).clone();
             let () = (::match_deref::match_deref! { match &(sections.clone()) {
         Deref @ Sections::SECTIONS { algorithms: Deref @ metamodelica::List::Cons { head: fn_body, tail: Deref @ metamodelica::List::Nil }, .. } => {
             let mut fn_body = (*fn_body).clone();
@@ -611,7 +612,7 @@ pub fn combineBinaries(mut flatModel: Arc<FlatModel::NFFlatModel>) -> Result<Arc
         flatModel.variables = {
         let mut __acc: Arc<metamodelica::List<Arc<Variable::NFVariable>>> = metamodelica::nil();
         for mut var in (flatModel.variables.clone()).into_iter().cloned() {
-            let __x = Variable::mapExp(var.clone(), SimplifyExp::combineBinaries)?;
+            let __x = Variable::mapExp(var.clone(), (std::sync::Arc::new(SimplifyExp::combineBinaries) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>))?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
@@ -619,7 +620,7 @@ pub fn combineBinaries(mut flatModel: Arc<FlatModel::NFFlatModel>) -> Result<Arc
         flatModel.equations = {
         let mut __acc: Arc<metamodelica::List<Arc<Equation::NFEquation>>> = metamodelica::nil();
         for mut eqn in (flatModel.equations.clone()).into_iter().cloned() {
-            let __x = Equation::mapExp(eqn.clone(), SimplifyExp::combineBinaries);
+            let __x = Equation::mapExp(eqn.clone(), (std::sync::Arc::new(SimplifyExp::combineBinaries) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>));
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
@@ -627,7 +628,7 @@ pub fn combineBinaries(mut flatModel: Arc<FlatModel::NFFlatModel>) -> Result<Arc
         flatModel.initialEquations = {
         let mut __acc: Arc<metamodelica::List<Arc<Equation::NFEquation>>> = metamodelica::nil();
         for mut eqn in (flatModel.initialEquations.clone()).into_iter().cloned() {
-            let __x = Equation::mapExp(eqn.clone(), SimplifyExp::combineBinaries);
+            let __x = Equation::mapExp(eqn.clone(), (std::sync::Arc::new(SimplifyExp::combineBinaries) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>));
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
@@ -635,7 +636,7 @@ pub fn combineBinaries(mut flatModel: Arc<FlatModel::NFFlatModel>) -> Result<Arc
         flatModel.algorithms = {
         let mut __acc: Arc<metamodelica::List<Arc<Algorithm::NFAlgorithm>>> = metamodelica::nil();
         for mut alg in (flatModel.algorithms.clone()).into_iter().cloned() {
-            let __x = Algorithm::mapExp(alg.clone(), Arc::new(SimplifyExp::combineBinaries));
+            let __x = Algorithm::mapExp(alg.clone(), (std::sync::Arc::new(SimplifyExp::combineBinaries) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>));
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
@@ -643,7 +644,7 @@ pub fn combineBinaries(mut flatModel: Arc<FlatModel::NFFlatModel>) -> Result<Arc
         flatModel.initialAlgorithms = {
         let mut __acc: Arc<metamodelica::List<Arc<Algorithm::NFAlgorithm>>> = metamodelica::nil();
         for mut alg in (flatModel.initialAlgorithms.clone()).into_iter().cloned() {
-            let __x = Algorithm::mapExp(alg.clone(), Arc::new(SimplifyExp::combineBinaries));
+            let __x = Algorithm::mapExp(alg.clone(), (std::sync::Arc::new(SimplifyExp::combineBinaries) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>));
             __acc = cons(__x, __acc);
         }
         __acc.reverse()

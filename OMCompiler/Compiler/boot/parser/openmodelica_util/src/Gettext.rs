@@ -56,6 +56,13 @@ pub enum TranslatableContent {
         r#str: ArcStr,
     },
 }
+impl Default for TranslatableContent {
+    fn default() -> Self {
+        Self::gettext {
+            msgid: Default::default(),
+        }
+    }
+}
 pub use self::TranslatableContent::{gettext,notrans};
 
 pub fn translateContent(mut msg: TranslatableContent) -> Result<ArcStr> {

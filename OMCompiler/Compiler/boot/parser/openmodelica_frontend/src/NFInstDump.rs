@@ -52,37 +52,37 @@ use openmodelica_util_datatypes_basic::Array;
 //public import NFConnect2;
 pub fn modelStr(mut inName: ArcStr, mut inClass: Arc<NFInstTypes::Class>) -> Result<ArcStr> {
     let mut outString: ArcStr = arcstr::literal!("");
-    outString = (Tpl::tplString2(Arc::new(NFInstDumpTpl::dumpModel), (inName.clone()).clone(), inClass.clone())?).clone();
+    outString = (Tpl::tplString2((std::sync::Arc::new(NFInstDumpTpl::dumpModel) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, ArcStr, Arc<NFInstTypes::Class>) -> Result<Tpl::Text> + 'static>), (inName.clone()).clone(), inClass.clone())?).clone();
     Ok(outString)
 }
 
 pub fn elementStr(mut inElement: Arc<NFInstTypes::Element>) -> Result<ArcStr> {
     let mut outString: ArcStr = arcstr::literal!("");
-    outString = (Tpl::tplString(Arc::new(NFInstDumpTpl::dumpElement), inElement.clone())?).clone();
+    outString = (Tpl::tplString((std::sync::Arc::new(NFInstDumpTpl::dumpElement) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, Arc<NFInstTypes::Element>) -> Result<Tpl::Text> + 'static>), inElement.clone())?).clone();
     Ok(outString)
 }
 
 pub fn componentStr(mut inComponent: Arc<NFInstTypes::Component>) -> Result<ArcStr> {
     let mut outString: ArcStr = arcstr::literal!("");
-    outString = (Tpl::tplString(Arc::new(NFInstDumpTpl::dumpComponent), inComponent.clone())?).clone();
+    outString = (Tpl::tplString((std::sync::Arc::new(NFInstDumpTpl::dumpComponent) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, Arc<NFInstTypes::Component>) -> Result<Tpl::Text> + 'static>), inComponent.clone())?).clone();
     Ok(outString)
 }
 
 pub fn bindingStr(mut inBinding: NFInstTypes::Binding) -> Result<ArcStr> {
     let mut outString: ArcStr = arcstr::literal!("");
-    outString = (Tpl::tplString(Arc::new(NFInstDumpTpl::dumpBinding), inBinding.clone())?).clone();
+    outString = (Tpl::tplString((std::sync::Arc::new(NFInstDumpTpl::dumpBinding) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, NFInstTypes::Binding) -> Result<Tpl::Text> + 'static>), inBinding.clone())?).clone();
     Ok(outString)
 }
 
 pub fn prefixStr(mut inPrefix: Arc<NFInstPrefix::Prefix>) -> Result<ArcStr> {
     let mut outString: ArcStr = arcstr::literal!("");
-    outString = (Tpl::tplString(Arc::new(NFInstDumpTpl::dumpPrefix), inPrefix.clone())?).clone();
+    outString = (Tpl::tplString((std::sync::Arc::new(NFInstDumpTpl::dumpPrefix) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, Arc<NFInstPrefix::Prefix>) -> Result<Tpl::Text> + 'static>), inPrefix.clone())?).clone();
     Ok(outString)
 }
 
 pub fn equationStr(mut inEquation: Arc<NFInstTypes::Equation>) -> Result<ArcStr> {
     let mut outString: ArcStr = arcstr::literal!("");
-    outString = (Tpl::tplString(Arc::new(NFInstDumpTpl::dumpEquation), inEquation.clone())?).clone();
+    outString = (Tpl::tplString((std::sync::Arc::new(NFInstDumpTpl::dumpEquation) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, Arc<NFInstTypes::Equation>) -> Result<Tpl::Text> + 'static>), inEquation.clone())?).clone();
     Ok(outString)
 }
 
@@ -94,7 +94,7 @@ pub fn equationStr(mut inEquation: Arc<NFInstTypes::Equation>) -> Result<ArcStr>
 //end connectionsStr;
 pub fn dimensionStr(mut inDimension: NFInstTypes::Dimension) -> Result<ArcStr> {
     let mut outString: ArcStr = arcstr::literal!("");
-    outString = (Tpl::tplString(Arc::new(NFInstDumpTpl::dumpDimension), inDimension.clone())?).clone();
+    outString = (Tpl::tplString((std::sync::Arc::new(NFInstDumpTpl::dumpDimension) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, NFInstTypes::Dimension) -> Result<Tpl::Text> + 'static>), inDimension.clone())?).clone();
     Ok(outString)
 }
 
@@ -103,7 +103,7 @@ pub fn dumpUntypedComponentDims(mut inComponent: Arc<NFInstTypes::Component>) ->
     outString = ((::match_deref::match_deref! { match &(inComponent.clone()) {
         Deref @ NFInstTypes::Component::UNTYPED_COMPONENT { dimensions: dims, .. } => {
             let mut dims_str: ArcStr = arcstr::literal!("");
-            dims_str = (Array::toString(dims.clone(), Arc::new(dimensionStr), (literal!("")).clone(), (literal!("[")).clone(), (literal!(", ")).clone(), (literal!("]")).clone(), false, 0)?).clone();
+            dims_str = (Array::toString(dims.clone(), (std::sync::Arc::new(dimensionStr) as std::sync::Arc<dyn ::std::ops::Fn(NFInstTypes::Dimension) -> Result<ArcStr> + 'static>), (literal!("")).clone(), (literal!("[")).clone(), (literal!(", ")).clone(), (literal!("]")).clone(), false, 0)?).clone();
             dims_str.clone()
         },
         _ => bail!("match: no arm matched"),

@@ -56,7 +56,7 @@ pub fn getTotalModel(mut program: Arc<metamodelica::List<Arc<SCode::Element>>>, 
     let mut program: Arc<metamodelica::List<Arc<SCode::Element>>> = program;
     let mut used: UseTable;
     let mut prev_size: i32 = 0;
-    used = UnorderedSet::new(fnptr!(stringHashDjb2, ArcStr), fnptr!(stringEq, ArcStr, ArcStr), 13);
+    used = UnorderedSet::new((std::sync::Arc::new(fnptr!(stringHashDjb2, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr) -> Result<i32> + 'static>), (std::sync::Arc::new(fnptr!(stringEq, ArcStr, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>), 13);
     analysePath(classPath.clone(), used.clone())?;
     UnorderedSet::add((literal!("constructor")).clone(), used.clone())?;
     UnorderedSet::add((literal!("destructor")).clone(), used.clone())?;
@@ -490,7 +490,7 @@ pub fn analyseExpList(mut expl: Arc<metamodelica::List<Arc<Absyn::Exp>>>, mut us
 }
 
 pub fn analyseExp(mut exp: Arc<Absyn::Exp>, mut used: UseTable) -> Result<()> {
-    AbsynUtil::traverseExp(exp.clone(), Arc::new(analyseExpTraverse), used.clone())?;
+    AbsynUtil::traverseExp(exp.clone(), (std::sync::Arc::new(analyseExpTraverse) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Exp>, Arc<UnorderedSet::UnorderedSet<ArcStr>>) -> Result<(Arc<Absyn::Exp>, Arc<UnorderedSet::UnorderedSet<ArcStr>>)> + 'static>), used.clone())?;
     Ok(())
 }
 

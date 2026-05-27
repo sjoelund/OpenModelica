@@ -101,9 +101,12 @@ impl PartialOrd for EvalOrder {
 impl Ord for EvalOrder {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering { (*self as i32).cmp(&(*other as i32)) }
 }
+impl Default for EvalOrder {
+    fn default() -> Self { Self::INDEPENDENT }
+}
 
 pub fn resize(mut equations: Arc<EquationPointers::EquationPointers>, mut varData: Arc<VarData::VarData>) -> Result<(Arc<EquationPointers::EquationPointers>, Arc<VarData::VarData>)> {
-    type applyFunc = fn(Arc<Type::NFType>) -> Result<Arc<Type::NFType>>;
+    type applyFunc = std::sync::Arc<dyn ::std::ops::Fn(Arc<Type::NFType>) -> Result<Arc<Type::NFType>> + 'static>;
 
     let mut equations: Arc<EquationPointers::EquationPointers> = equations;
     let mut varData: Arc<VarData::VarData> = varData;
@@ -117,12 +120,12 @@ pub fn resize(mut equations: Arc<EquationPointers::EquationPointers>, mut varDat
     let mut func: Arc<dyn ::std::ops::Fn(Arc<Type::NFType>) -> Result<Arc<Type::NFType>> + 'static>;
     varData = (::match_deref::match_deref! { match &(varData.clone()) {
         Deref @ BVariable::VarData::VAR_DATA_SIM { .. } if (BVariable::VariablePointers::size(var_field!((*varData).resizables, VarData::VarData::VAR_DATA_SIM).clone()) > 0) => {
-            parameters = UnorderedSet::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>), ComponentRef::isEqual, 13);
-            min_parameters = UnorderedSet::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>), ComponentRef::isEqual, 13);
-            optimal_values = UnorderedMap::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>), ComponentRef::isEqual, 1);
-            c2pi = UnorderedMap::new(fnptr!(Expression::hash, Arc<Expression::NFExpression>), Expression::isEqual, 1);
-            c2pe = UnorderedMap::new(fnptr!(Expression::hash, Arc<Expression::NFExpression>), Expression::isEqual, 1);
-            EquationPointers::map(equations.clone(), { let __pe_b1 = parameters.clone(); let __pe_b2 = min_parameters.clone(); let __pe_b3 = optimal_values.clone(); let __pe_b4 = c2pi.clone(); let __pe_b5 = c2pe.clone(); move |__pe_a0| findOptimalResizableValues(__pe_a0, __pe_b1.clone(), __pe_b2.clone(), __pe_b3.clone(), __pe_b4.clone(), __pe_b5.clone()) })?;
+            parameters = UnorderedSet::new((std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), 13);
+            min_parameters = UnorderedSet::new((std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), 13);
+            optimal_values = UnorderedMap::new((std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), 1);
+            c2pi = UnorderedMap::new((std::sync::Arc::new(fnptr!(Expression::hash, Arc<Expression::NFExpression>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<i32> + 'static>), (std::sync::Arc::new(Expression::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, Arc<Expression::NFExpression>) -> Result<bool> + 'static>), 1);
+            c2pe = UnorderedMap::new((std::sync::Arc::new(fnptr!(Expression::hash, Arc<Expression::NFExpression>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<i32> + 'static>), (std::sync::Arc::new(Expression::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, Arc<Expression::NFExpression>) -> Result<bool> + 'static>), 1);
+            EquationPointers::map(equations.clone(), Arc::new({ let __pe_b1 = parameters.clone(); let __pe_b2 = min_parameters.clone(); let __pe_b3 = optimal_values.clone(); let __pe_b4 = c2pi.clone(); let __pe_b5 = c2pe.clone(); move |__pe_a0| findOptimalResizableValues(__pe_a0, __pe_b1.clone(), __pe_b2.clone(), __pe_b3.clone(), __pe_b4.clone(), __pe_b5.clone()) }))?;
             UnorderedSet::apply(parameters.clone(), Arc::new({ let __pe_b1 = min_parameters.clone(); let __pe_b2 = optimal_values.clone(); move |__pe_a0| setInitialValues(__pe_a0, __pe_b1.clone(), __pe_b2.clone()) }))?;
             if debug.clone() {
                 println!("{}", (optimalValuesToString(optimal_values.clone(), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*StringUtil::headline_2((literal!("[debug] Initial Resizable Parameter Values:")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone())?).clone());
@@ -130,26 +133,26 @@ pub fn resize(mut equations: Arc<EquationPointers::EquationPointers>, mut varDat
                 if UnorderedMap::isEmpty(c2pi.clone()) {
                     println!("{}", (literal!("  <No Constraints>\n\n")).clone());
                 } else {
-                    println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*List::toString(UnorderedMap::keyList(c2pi.clone()), Arc::new(Expression::toString), (literal!("")).clone(), (literal!("  0 >= ")).clone(), (literal!("\n  0 >= ")).clone(), (literal!("\n")).clone(), true, 0)?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+                    println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*List::toString(UnorderedMap::keyList(c2pi.clone()), (std::sync::Arc::new(Expression::toString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<ArcStr> + 'static>), (literal!("")).clone(), (literal!("  0 >= ")).clone(), (literal!("\n  0 >= ")).clone(), (literal!("\n")).clone(), true, 0)?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
                 }
                 println!("{}", (StringUtil::headline_2((literal!("[debug] Final Equality Constraints:")).clone())).clone());
                 if UnorderedMap::isEmpty(c2pe.clone()) {
                     println!("{}", (literal!("  <No Constraints>\n\n")).clone());
                 } else {
-                    println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*List::toString(UnorderedMap::keyList(c2pe.clone()), Arc::new(Expression::toString), (literal!("")).clone(), (literal!("  0 = ")).clone(), (literal!("\n  0 = ")).clone(), (literal!("\n")).clone(), true, 0)?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+                    println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*List::toString(UnorderedMap::keyList(c2pe.clone()), (std::sync::Arc::new(Expression::toString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<ArcStr> + 'static>), (literal!("")).clone(), (literal!("  0 = ")).clone(), (literal!("\n  0 = ")).clone(), (literal!("\n")).clone(), true, 0)?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
                 }
             }
             p2ci = invertConstraintParameterMap(c2pi.clone(), parameters.clone())?;
             p2ce = invertConstraintParameterMap(c2pe.clone(), parameters.clone())?;
             computeOptimalValues(optimal_values.clone(), c2pi.clone(), p2ci.clone(), c2pe.clone(), p2ce.clone())?;
-            func = { let __pe_b1: Arc<dyn ::std::ops::Fn(Arc<Dimension::NFDimension>) -> Result<Arc<Dimension::NFDimension>> + 'static> = Arc::new({ let __pe_b1 = optimal_values.clone(); move |__pe_a0| updateDimension(__pe_a0, __pe_b1.clone()) }); move |__pe_a0| Type::applyToDims(__pe_a0, __pe_b1.clone()) };
+            func = Arc::new({ let __pe_b1: Arc<dyn ::std::ops::Fn(Arc<Dimension::NFDimension>) -> Result<Arc<Dimension::NFDimension>> + 'static> = Arc::new({ let __pe_b1 = optimal_values.clone(); move |__pe_a0| updateDimension(__pe_a0, __pe_b1.clone()) }); move |__pe_a0| Type::applyToDims(__pe_a0, __pe_b1.clone()) });
             assign_variant_field!(varData => VarData::VarData::VAR_DATA_SIM;
                 variables = BVariable::VariablePointers::map(var_field!((*varData).variables, VarData::VarData::VAR_DATA_SIM).clone(), Arc::new({ let __pe_b1: Arc<dyn ::std::ops::Fn(Arc<Type::NFType>) -> Result<Arc<Type::NFType>> + 'static> = func.clone(); move |__pe_a0| Ok(Variable::applyToType(__pe_a0, __pe_b1.clone())) }))?,
                 variables = BVariable::VariablePointers::mapPtr(var_field!((*varData).variables, VarData::VarData::VAR_DATA_SIM).clone(), Arc::new({ let __pe_b1 = optimal_values.clone(); move |__pe_a0| Ok(BVariable::updateResizableParameter(__pe_a0, __pe_b1.clone())) }))?,
-                variables = BVariable::VariablePointers::mapPtr(var_field!((*varData).variables, VarData::VarData::VAR_DATA_SIM).clone(), Arc::new({ let __pe_b1 = { let __pe_b1: Arc<dyn ::std::ops::Fn(Arc<Type::NFType>) -> Result<Arc<Type::NFType>> + 'static> = func.clone(); move |__pe_a0| Expression::applyToType(__pe_a0, __pe_b1.clone()) }; let __pe_b2 = Expression::map; move |__pe_a0| BVariable::mapExp(__pe_a0, __pe_b1.clone(), __pe_b2.clone()) }))?
+                variables = BVariable::VariablePointers::mapPtr(var_field!((*varData).variables, VarData::VarData::VAR_DATA_SIM).clone(), Arc::new({ let __pe_b1 = Arc::new({ let __pe_b1: Arc<dyn ::std::ops::Fn(Arc<Type::NFType>) -> Result<Arc<Type::NFType>> + 'static> = func.clone(); move |__pe_a0| Expression::applyToType(__pe_a0, __pe_b1.clone()) }); let __pe_b2 = (std::sync::Arc::new(Expression::map) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>>) -> Result<Arc<Expression::NFExpression>> + 'static>); move |__pe_a0| BVariable::mapExp(__pe_a0, __pe_b1.clone(), __pe_b2.clone()) }))?
             );
-            EquationPointers::mapPtr(equations.clone(), { let __pe_b1: Arc<dyn ::std::ops::Fn(Arc<Type::NFType>) -> Result<Arc<Type::NFType>> + 'static> = func.clone(); move |__pe_a0| Ok(Equation::applyToType(__pe_a0, __pe_b1.clone())) })?;
-            equations = EquationPointers::mapExp(equations.clone(), { let __pe_b1: Arc<dyn ::std::ops::Fn(Arc<Type::NFType>) -> Result<Arc<Type::NFType>> + 'static> = func.clone(); move |__pe_a0| Expression::applyToType(__pe_a0, __pe_b1.clone()) }, None, Expression::map)?;
+            EquationPointers::mapPtr(equations.clone(), Arc::new({ let __pe_b1: Arc<dyn ::std::ops::Fn(Arc<Type::NFType>) -> Result<Arc<Type::NFType>> + 'static> = func.clone(); move |__pe_a0| Ok(Equation::applyToType(__pe_a0, __pe_b1.clone())) }))?;
+            equations = EquationPointers::mapExp(equations.clone(), Arc::new({ let __pe_b1: Arc<dyn ::std::ops::Fn(Arc<Type::NFType>) -> Result<Arc<Type::NFType>> + 'static> = func.clone(); move |__pe_a0| Expression::applyToType(__pe_a0, __pe_b1.clone()) }), None, (std::sync::Arc::new(Expression::map) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>>) -> Result<Arc<Expression::NFExpression>> + 'static>))?;
             EquationPointers::mapRes(equations.clone(), Arc::new({ let __pe_b1: Arc<dyn ::std::ops::Fn(Arc<Type::NFType>) -> Result<Arc<Type::NFType>> + 'static> = func.clone(); move |__pe_a0| Ok(BVariable::applyToType(__pe_a0, __pe_b1.clone())) }))?;
             if Flags::isSet(Flags::DUMP_RESIZABLE.clone())? || debug.clone() {
                 println!("{}", (optimalValuesToString(optimal_values.clone(), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*StringUtil::headline_2((literal!("[dumpResizable] Evaluated Optimal Resizable Parameter Values:")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone())?).clone());
@@ -170,7 +173,7 @@ pub fn resize(mut equations: Arc<EquationPointers::EquationPointers>, mut varDat
 pub fn detect(mut eqn: Arc<Equation::Equation>, mut cref_to_solve: Arc<ComponentRef::NFComponentRef>) -> Result<Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, EvalOrder>>> {
     let mut order: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, EvalOrder>>;
     let mut var_ptr: Pointer::Pointer<Arc<Variable::NFVariable>> = BVariable::getVarPointer(cref_to_solve.clone(), metamodelica::sourceInfo!())?;
-    let mut var_occurences: Arc<UnorderedSet::UnorderedSet<Arc<ComponentRef::NFComponentRef>>> = UnorderedSet::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>), ComponentRef::isEqual, 13);
+    let mut var_occurences: Arc<UnorderedSet::UnorderedSet<Arc<ComponentRef::NFComponentRef>>> = UnorderedSet::new((std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), 13);
     let mut ite_occurences: Arc<UnorderedSet::UnorderedSet<Arc<ComponentRef::NFComponentRef>>>;
     let mut occ_lst: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = metamodelica::nil();
     let mut iterators: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = metamodelica::nil();
@@ -190,7 +193,7 @@ pub fn detect(mut eqn: Arc<Equation::Equation>, mut cref_to_solve: Arc<Component
         Deref @ Equation::FOR_EQUATION { .. } => {
             for mut body in &*var_field!((*eqn).body, Equation::Equation::FOR_EQUATION).clone() {
                 let mut body = body.clone();
-                Equation::map(body.clone(), { let __pe_b1 = { let __pe_b1 = var_ptr.clone(); move |__pe_a0| Ok(BVariable::equalName(__pe_a0, __pe_b1.clone())) }; let __pe_b2 = var_occurences.clone(); move |__pe_a0| collectVars(__pe_a0, __pe_b1.clone(), __pe_b2.clone()) }, None, Expression::map)?;
+                Equation::map(body.clone(), Arc::new({ let __pe_b1 = Arc::new({ let __pe_b1 = var_ptr.clone(); move |__pe_a0| Ok(BVariable::equalName(__pe_a0, __pe_b1.clone())) }); let __pe_b2 = var_occurences.clone(); move |__pe_a0| collectVars(__pe_a0, __pe_b1.clone(), __pe_b2.clone()) }), None, (std::sync::Arc::new(Expression::map) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>>) -> Result<Arc<Expression::NFExpression>> + 'static>))?;
                 occ_lst = UnorderedSet::toList(var_occurences.clone());
                 (iterators, _, _) = Iterator::getFrames(Equation::getForIterator(eqn.clone()))?;
                 order = UnorderedMap::fromLists(iterators.clone(), {
@@ -200,7 +203,7 @@ pub fn detect(mut eqn: Arc<Equation::Equation>, mut cref_to_solve: Arc<Component
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>), ComponentRef::isEqual)?;
+    }, (std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>))?;
                 if !(List::hasOneElement(occ_lst.clone())) {
                     subs = {
         let mut __acc: Arc<metamodelica::List<Arc<metamodelica::List<Arc<Subscript::NFSubscript>>>>> = metamodelica::nil();
@@ -215,17 +218,17 @@ pub fn detect(mut eqn: Arc<Equation::Equation>, mut cref_to_solve: Arc<Component
                     for mut dim in &*List::zip(subs.clone(), subs_to_solve.clone()) {
                         let mut dim = dim.clone();
                         (local_subs, sub_to_solve) = dim.clone();
-                        ite_occurences = UnorderedSet::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>), ComponentRef::isEqual, 13);
+                        ite_occurences = UnorderedSet::new((std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), 13);
                         for mut sub in &*local_subs.clone() {
                             let mut sub = sub.clone();
-                            Subscript::mapExp(sub.clone(), Arc::new({ let __pe_b1 = fnptr!(BVariable::isIterator, Pointer::Pointer<Arc<Variable::NFVariable>>); let __pe_b2 = ite_occurences.clone(); move |__pe_a0| collectVars(__pe_a0, __pe_b1.clone(), __pe_b2.clone()) }))?;
+                            Subscript::mapExp(sub.clone(), Arc::new({ let __pe_b1 = (std::sync::Arc::new(fnptr!(BVariable::isIterator, Pointer::Pointer<Arc<Variable::NFVariable>>)) as std::sync::Arc<dyn ::std::ops::Fn(Pointer::Pointer<Arc<Variable::NFVariable>>) -> Result<bool> + 'static>); let __pe_b2 = ite_occurences.clone(); move |__pe_a0| collectVars(__pe_a0, __pe_b1.clone(), __pe_b2.clone()) }))?;
                         }
                         iterators = UnorderedSet::toList(ite_occurences.clone());
                         let _ = (::match_deref::match_deref! { match &(iterators.clone()) {
         Deref @ metamodelica::List::Cons { head: iter, tail: Deref @ metamodelica::List::Nil } => {
             eval = UnorderedMap::getSafe(iter.clone(), order.clone(), metamodelica::sourceInfo!())?;
             if eval.clone() < EvalOrder::FAILED.clone() {
-                args = Differentiate::DifferentiationArguments::simpleCref(iter.clone(), UnorderedMap::new(AbsynUtil::pathHash, fnptr!(AbsynUtil::pathEqual, Arc<Absyn::Path>, Arc<Absyn::Path>), 1));
+                args = Differentiate::DifferentiationArguments::simpleCref(iter.clone(), UnorderedMap::new((std::sync::Arc::new(AbsynUtil::pathHash) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Path>) -> Result<i32> + 'static>), (std::sync::Arc::new(fnptr!(AbsynUtil::pathEqual, Arc<Absyn::Path>, Arc<Absyn::Path>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Path>, Arc<Absyn::Path>) -> Result<bool> + 'static>), 1));
                 opt_factor = None;
                 for mut sub in &*local_subs.clone() {
                     let mut sub = sub.clone();
@@ -287,7 +290,7 @@ pub fn detect(mut eqn: Arc<Equation::Equation>, mut cref_to_solve: Arc<Component
             order.clone()
         },
         _ => {
-            order = UnorderedMap::fromLists(list![Arc::new(openmodelica_nf_frontend::NFComponentRef::EMPTY)], list![EvalOrder::FAILED.clone()], fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>), ComponentRef::isEqual)?;
+            order = UnorderedMap::fromLists(list![Arc::new(openmodelica_nf_frontend::NFComponentRef::EMPTY)], list![EvalOrder::FAILED.clone()], (std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>))?;
             order.clone()
         },
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
@@ -324,7 +327,7 @@ fn findOptimalResizableValues(mut eqn: Arc<Equation::Equation>, mut parameters: 
     let mut resizables: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<Expression::NFExpression>>>;
     let mut replacements: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<Expression::NFExpression>>>;
     let mut occs: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<UnorderedSet::UnorderedSet<Arc<Expression::NFExpression>>>>>;
-    let mut constrained_vars: Arc<UnorderedSet::UnorderedSet<Arc<ComponentRef::NFComponentRef>>> = UnorderedSet::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>), ComponentRef::isEqual, 13);
+    let mut constrained_vars: Arc<UnorderedSet::UnorderedSet<Arc<ComponentRef::NFComponentRef>>> = UnorderedSet::new((std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), 13);
     let mut lhs_dim: Arc<Dimension::NFDimension> = Arc::new(Dimension::BOOLEAN);
     let mut rhs_dim: Arc<Dimension::NFDimension> = Arc::new(Dimension::BOOLEAN);
     let mut r#const: Arc<Expression::NFExpression> = Arc::new(Expression::END);
@@ -336,22 +339,22 @@ fn findOptimalResizableValues(mut eqn: Arc<Equation::Equation>, mut parameters: 
         Deref @ Equation::FOR_EQUATION { .. } => {
             resizables = getResizableIterators(var_field!((*eqn).iter, Equation::Equation::FOR_EQUATION).clone())?;
             replacements = getVarReplacements(var_field!((*eqn).iter, Equation::Equation::FOR_EQUATION).clone())?;
-            occs = UnorderedMap::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>), ComponentRef::isEqual, 1);
+            occs = UnorderedMap::new((std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), 1);
             for mut res in &*UnorderedMap::keyList(resizables.clone()) {
                 let mut res = res.clone();
-                UnorderedMap::add(res.clone(), UnorderedSet::new(fnptr!(Expression::hash, Arc<Expression::NFExpression>), Expression::isEqual, 13), occs.clone())?;
+                UnorderedMap::add(res.clone(), UnorderedSet::new((std::sync::Arc::new(fnptr!(Expression::hash, Arc<Expression::NFExpression>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<i32> + 'static>), (std::sync::Arc::new(Expression::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, Arc<Expression::NFExpression>) -> Result<bool> + 'static>), 13), occs.clone())?;
             }
             for mut body in &*var_field!((*eqn).body, Equation::Equation::FOR_EQUATION).clone() {
                 let mut body = body.clone();
-                Equation::map(body.clone(), { let __pe_b1 = occs.clone(); move |__pe_a0| Ok(collectOccurences(__pe_a0, __pe_b1.clone())) }, None, Expression::map)?;
-                Equation::map(body.clone(), { let __pe_b1 = fnptr!(BVariable::isArray, Pointer::Pointer<Arc<Variable::NFVariable>>); let __pe_b2 = constrained_vars.clone(); move |__pe_a0| collectVars(__pe_a0, __pe_b1.clone(), __pe_b2.clone()) }, None, Expression::map)?;
+                Equation::map(body.clone(), Arc::new({ let __pe_b1 = occs.clone(); move |__pe_a0| Ok(collectOccurences(__pe_a0, __pe_b1.clone())) }), None, (std::sync::Arc::new(Expression::map) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>>) -> Result<Arc<Expression::NFExpression>> + 'static>))?;
+                Equation::map(body.clone(), Arc::new({ let __pe_b1 = (std::sync::Arc::new(fnptr!(BVariable::isArray, Pointer::Pointer<Arc<Variable::NFVariable>>)) as std::sync::Arc<dyn ::std::ops::Fn(Pointer::Pointer<Arc<Variable::NFVariable>>) -> Result<bool> + 'static>); let __pe_b2 = constrained_vars.clone(); move |__pe_a0| collectVars(__pe_a0, __pe_b1.clone(), __pe_b2.clone()) }), None, (std::sync::Arc::new(Expression::map) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>>) -> Result<Arc<Expression::NFExpression>> + 'static>))?;
             }
             findOptimalValue(eqn.clone(), occs.clone(), resizables.clone(), parameters.clone(), min_parameters.clone(), optimal_values.clone(), c2pi.clone())?;
             UnorderedSet::fold(constrained_vars.clone(), Arc::new({ let __pe_b1 = eqn.clone(); let __pe_b2 = Some(replacements.clone()); move |__pe_a0, __pe_a3| addVariableConstraint(__pe_a0, __pe_b1.clone(), __pe_b2.clone(), __pe_a3) }), c2pi.clone());
             ()
         },
         Deref @ Equation::ARRAY_EQUATION { .. } => {
-            Equation::map(eqn.clone(), { let __pe_b1 = fnptr!(BVariable::isResizable, Pointer::Pointer<Arc<Variable::NFVariable>>); let __pe_b2 = constrained_vars.clone(); move |__pe_a0| collectVars(__pe_a0, __pe_b1.clone(), __pe_b2.clone()) }, None, Expression::map)?;
+            Equation::map(eqn.clone(), Arc::new({ let __pe_b1 = (std::sync::Arc::new(fnptr!(BVariable::isResizable, Pointer::Pointer<Arc<Variable::NFVariable>>)) as std::sync::Arc<dyn ::std::ops::Fn(Pointer::Pointer<Arc<Variable::NFVariable>>) -> Result<bool> + 'static>); let __pe_b2 = constrained_vars.clone(); move |__pe_a0| collectVars(__pe_a0, __pe_b1.clone(), __pe_b2.clone()) }), None, (std::sync::Arc::new(Expression::map) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>>) -> Result<Arc<Expression::NFExpression>> + 'static>))?;
             UnorderedSet::fold(constrained_vars.clone(), Arc::new({ let __pe_b1 = eqn.clone(); let __pe_b2 = None; move |__pe_a0, __pe_a3| addVariableConstraint(__pe_a0, __pe_b1.clone(), __pe_b2.clone(), __pe_a3) }), c2pi.clone());
             for mut tpl in &*List::zip(Type::arrayDims(Expression::typeOf(var_field!((*eqn).lhs, Equation::Equation::ARRAY_EQUATION).clone())), Type::arrayDims(Expression::typeOf(var_field!((*eqn).rhs, Equation::Equation::ARRAY_EQUATION).clone()))) {
                 let mut tpl = tpl.clone();
@@ -359,7 +362,7 @@ fn findOptimalResizableValues(mut eqn: Arc<Equation::Equation>, mut parameters: 
                 if Dimension::isResizable(lhs_dim.clone()) || Dimension::isResizable(rhs_dim.clone()) {
                     r#const = Arc::new(Expression::NFExpression::MULTARY { arguments: list![Dimension::sizeExp(lhs_dim.clone())?], inv_arguments: list![Dimension::sizeExp(rhs_dim.clone())?], operator: Operator::makeAdd(Arc::new(openmodelica_nf_frontend::NFType::INTEGER)) });
                     if '__try0: {
-                        unwrap_break_err!(addConstraint(r#const.clone(), None, c2pe.clone(), Arc::new(fnptr!(Expression::isZero, Arc<Expression::NFExpression>)), (literal!("array dimension")).clone(), (literal!("=")).clone()), '__try0);
+                        unwrap_break_err!(addConstraint(r#const.clone(), None, c2pe.clone(), (std::sync::Arc::new(fnptr!(Expression::isZero, Arc<Expression::NFExpression>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<bool> + 'static>), (literal!("array dimension")).clone(), (literal!("=")).clone()), '__try0);
                         let _ = unwrap_break_err!(Expression::map(r#const.clone(), Arc::new({ let __pe_b1 = parameters.clone(); move |__pe_a0| collectResizables(__pe_a0, __pe_b1.clone()) })), '__try0);
                         Ok::<(), anyhow::Error>(())
                     }.is_err() {
@@ -371,7 +374,7 @@ fn findOptimalResizableValues(mut eqn: Arc<Equation::Equation>, mut parameters: 
             ()
         },
         _ => {
-            Equation::map(eqn.clone(), { let __pe_b1 = fnptr!(BVariable::isResizable, Pointer::Pointer<Arc<Variable::NFVariable>>); let __pe_b2 = constrained_vars.clone(); move |__pe_a0| collectVars(__pe_a0, __pe_b1.clone(), __pe_b2.clone()) }, None, Expression::map)?;
+            Equation::map(eqn.clone(), Arc::new({ let __pe_b1 = (std::sync::Arc::new(fnptr!(BVariable::isResizable, Pointer::Pointer<Arc<Variable::NFVariable>>)) as std::sync::Arc<dyn ::std::ops::Fn(Pointer::Pointer<Arc<Variable::NFVariable>>) -> Result<bool> + 'static>); let __pe_b2 = constrained_vars.clone(); move |__pe_a0| collectVars(__pe_a0, __pe_b1.clone(), __pe_b2.clone()) }), None, (std::sync::Arc::new(Expression::map) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>>) -> Result<Arc<Expression::NFExpression>> + 'static>))?;
             UnorderedSet::fold(constrained_vars.clone(), Arc::new({ let __pe_b1 = eqn.clone(); let __pe_b2 = None; move |__pe_a0, __pe_a3| addVariableConstraint(__pe_a0, __pe_b1.clone(), __pe_b2.clone(), __pe_a3) }), c2pi.clone());
             ()
         },
@@ -384,7 +387,7 @@ fn findOptimalResizableValues(mut eqn: Arc<Equation::Equation>, mut parameters: 
 }
 
 fn getResizableIterators(mut iter: Arc<Iterator::Iterator>) -> Result<Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<Expression::NFExpression>>>> {
-    let mut resizables: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<Expression::NFExpression>>> = UnorderedMap::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>), ComponentRef::isEqual, 1);
+    let mut resizables: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<Expression::NFExpression>>> = UnorderedMap::new((std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), 1);
     let mut names: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = metamodelica::nil();
     let mut ranges: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
     (names, ranges, _) = Iterator::getFrames(iter.clone())?;
@@ -398,7 +401,7 @@ fn getResizableIterators(mut iter: Arc<Iterator::Iterator>) -> Result<Arc<Unorde
 }
 
 fn getVarReplacements(mut iter: Arc<Iterator::Iterator>) -> Result<Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<Expression::NFExpression>>>> {
-    let mut replacements: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<Expression::NFExpression>>> = UnorderedMap::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>), ComponentRef::isEqual, 1);
+    let mut replacements: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<Expression::NFExpression>>> = UnorderedMap::new((std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), 1);
     let mut names: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = metamodelica::nil();
     let mut ranges: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
     let mut name: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
@@ -428,7 +431,7 @@ fn getVarReplacements(mut iter: Arc<Iterator::Iterator>) -> Result<Arc<Unordered
 }
 
 fn iteratorIsResizable(mut range: Arc<Expression::NFExpression>) -> bool {
-    let mut b: bool = Expression::fold(range.clone(), Arc::new(fnptr!(expContainsResizable, Arc<Expression::NFExpression>, bool)), false).unwrap();
+    let mut b: bool = Expression::fold(range.clone(), (std::sync::Arc::new(fnptr!(expContainsResizable, Arc<Expression::NFExpression>, bool)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, bool) -> Result<bool> + 'static>), false).unwrap();
     b
 }
 
@@ -436,7 +439,7 @@ fn expContainsResizable(mut exp: Arc<Expression::NFExpression>, mut b: bool) -> 
     let mut b: bool = b;
     if !(b.clone()) {
         b = (::match_deref::match_deref! { match &(exp.clone()) {
-        Deref @ Expression::CREF { .. } => BVariable::checkCref(var_field!((*exp).cref, Expression::NFExpression::CREF).clone(), fnptr!(BVariable::isResizableParameter, Pointer::Pointer<Arc<Variable::NFVariable>>), metamodelica::sourceInfo!()),
+        Deref @ Expression::CREF { .. } => BVariable::checkCref(var_field!((*exp).cref, Expression::NFExpression::CREF).clone(), (std::sync::Arc::new(fnptr!(BVariable::isResizableParameter, Pointer::Pointer<Arc<Variable::NFVariable>>)) as std::sync::Arc<dyn ::std::ops::Fn(Pointer::Pointer<Arc<Variable::NFVariable>>) -> Result<bool> + 'static>), metamodelica::sourceInfo!()),
         _ => false,
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
     } });
@@ -447,7 +450,7 @@ fn expContainsResizable(mut exp: Arc<Expression::NFExpression>, mut b: bool) -> 
 fn collectResizables(mut exp: Arc<Expression::NFExpression>, mut collector: Arc<UnorderedSet::UnorderedSet<Arc<ComponentRef::NFComponentRef>>>) -> Result<Arc<Expression::NFExpression>> {
     let mut exp: Arc<Expression::NFExpression> = exp;
     let _ = (::match_deref::match_deref! { match &(exp.clone()) {
-        Deref @ Expression::CREF { .. } if (BVariable::checkCref(var_field!((*exp).cref, Expression::NFExpression::CREF).clone(), fnptr!(BVariable::isResizableParameter, Pointer::Pointer<Arc<Variable::NFVariable>>), metamodelica::sourceInfo!())) => {
+        Deref @ Expression::CREF { .. } if (BVariable::checkCref(var_field!((*exp).cref, Expression::NFExpression::CREF).clone(), (std::sync::Arc::new(fnptr!(BVariable::isResizableParameter, Pointer::Pointer<Arc<Variable::NFVariable>>)) as std::sync::Arc<dyn ::std::ops::Fn(Pointer::Pointer<Arc<Variable::NFVariable>>) -> Result<bool> + 'static>), metamodelica::sourceInfo!())) => {
             UnorderedSet::add(var_field!((*exp).cref, Expression::NFExpression::CREF).clone(), collector.clone())?;
             ()
         },
@@ -472,7 +475,7 @@ fn collectOccurences(mut exp: Arc<Expression::NFExpression>, mut occs: Arc<Unord
 
 fn collectOccurencesSubscript(mut sub: Arc<Subscript::NFSubscript>, mut occs: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<UnorderedSet::UnorderedSet<Arc<Expression::NFExpression>>>>>) -> Result<Arc<Subscript::NFSubscript>> {
     let mut sub: Arc<Subscript::NFSubscript> = sub;
-    let mut acc: Arc<UnorderedSet::UnorderedSet<Arc<ComponentRef::NFComponentRef>>> = UnorderedSet::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>), ComponentRef::isEqual, 13);
+    let mut acc: Arc<UnorderedSet::UnorderedSet<Arc<ComponentRef::NFComponentRef>>> = UnorderedSet::new((std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), 13);
     let mut subExp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     Subscript::mapExp(sub.clone(), Arc::new({ let __pe_b1 = occs.clone(); let __pe_b2 = acc.clone(); move |__pe_a0| collectOccurencesSubscriptExp(__pe_a0, __pe_b1.clone(), __pe_b2.clone()) }))?;
     if !(UnorderedSet::isEmpty(acc.clone())) {
@@ -502,7 +505,7 @@ fn addOccurence(mut iter: Arc<ComponentRef::NFComponentRef>, mut subExp: Arc<Exp
     Ok(iter)
 }
 
-fn collectVars(mut exp: Arc<Expression::NFExpression>, mut func: BVariable::checkVar, mut collector: Arc<UnorderedSet::UnorderedSet<Arc<ComponentRef::NFComponentRef>>>) -> Result<Arc<Expression::NFExpression>> {
+fn collectVars(mut exp: Arc<Expression::NFExpression>, mut func: Arc<dyn ::std::ops::Fn(Pointer::Pointer<Arc<Variable::NFVariable>>) -> Result<bool> + 'static>, mut collector: Arc<UnorderedSet::UnorderedSet<Arc<ComponentRef::NFComponentRef>>>) -> Result<Arc<Expression::NFExpression>> {
     let mut exp: Arc<Expression::NFExpression> = exp;
     let _ = (::match_deref::match_deref! { match &(exp.clone()) {
         Deref @ Expression::CREF { .. } if (func(BVariable::getVarPointer(var_field!((*exp).cref, Expression::NFExpression::CREF).clone(), metamodelica::sourceInfo!())?)?) => {
@@ -528,10 +531,10 @@ fn findOptimalValue(mut eqn: Arc<Equation::Equation>, mut occs: Arc<UnorderedMap
         Deref @ Expression::RANGE { .. } => {
             target = Arc::new(Expression::NFExpression::MULTARY { arguments: list![var_field!((*range).stop, Expression::NFExpression::RANGE).clone()], inv_arguments: list![var_field!((*range).start, Expression::NFExpression::RANGE).clone()], operator: Operator::makeAdd(Arc::new(openmodelica_nf_frontend::NFType::INTEGER)) });
             target = SimplifyExp::simplify(target.clone(), false)?;
-            local_parameters = UnorderedSet::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>), ComponentRef::isEqual, 13);
+            local_parameters = UnorderedSet::new((std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), 13);
             let _ = Expression::map(range.clone(), Arc::new({ let __pe_b1 = local_parameters.clone(); move |__pe_a0| collectResizables(__pe_a0, __pe_b1.clone()) }))?;
             UnorderedSet::merge(parameters.clone(), local_parameters.clone())?;
-            args = Differentiate::DifferentiationArguments::simpleCref(cref.clone(), UnorderedMap::new(AbsynUtil::pathHash, fnptr!(AbsynUtil::pathEqual, Arc<Absyn::Path>, Arc<Absyn::Path>), 1));
+            args = Differentiate::DifferentiationArguments::simpleCref(cref.clone(), UnorderedMap::new((std::sync::Arc::new(AbsynUtil::pathHash) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Path>) -> Result<i32> + 'static>), (std::sync::Arc::new(fnptr!(AbsynUtil::pathEqual, Arc<Absyn::Path>, Arc<Absyn::Path>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Path>, Arc<Absyn::Path>) -> Result<bool> + 'static>), 1));
             UnorderedSet::apply(local_parameters.clone(), Arc::new({ let __pe_b1 = target.clone(); let __pe_b2 = args.clone(); let __pe_b3 = min_parameters.clone(); let __pe_b4 = optimal_values.clone(); move |__pe_a0| getInitialValues(__pe_a0, __pe_b1.clone(), __pe_b2.clone(), __pe_b3.clone(), __pe_b4.clone()) }))?;
             getRangeConstraint(var_field!((*range).start, Expression::NFExpression::RANGE).clone(), var_field!((*range).step, Expression::NFExpression::RANGE).clone(), var_field!((*range).stop, Expression::NFExpression::RANGE).clone(), local_parameters.clone(), c2pi.clone(), (literal!("equation")).clone())?;
             ()
@@ -641,7 +644,7 @@ fn addVariableConstraint(mut cref: Arc<ComponentRef::NFComponentRef>, mut eqn: A
         sub_exp = Subscript::toExp(sub.clone())?;
         r#const = Arc::new(Expression::NFExpression::MULTARY { arguments: list![sub_exp.clone()], inv_arguments: list![Dimension::sizeExp(dim.clone())?], operator: op.clone() });
         if '__try0: {
-            unwrap_break_err!(addConstraint(r#const.clone(), replacements.clone(), c2pi.clone(), Arc::new(fnptr!(Expression::isNonPositive, Arc<Expression::NFExpression>)), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*ComponentRef::toString(cref.clone())?); __mm_s.push_str(&*literal!(" (variable)")); ArcStr::from(__mm_s) }).clone(), (literal!(">=")).clone()), '__try0);
+            unwrap_break_err!(addConstraint(r#const.clone(), replacements.clone(), c2pi.clone(), (std::sync::Arc::new(fnptr!(Expression::isNonPositive, Arc<Expression::NFExpression>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<bool> + 'static>), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*ComponentRef::toString(cref.clone())?); __mm_s.push_str(&*literal!(" (variable)")); ArcStr::from(__mm_s) }).clone(), (literal!(">=")).clone()), '__try0);
             Ok::<(), anyhow::Error>(())
         }.is_err() {
             Error::addMessage(Error::INTERNAL_ERROR.clone(), list![({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("NBResizable.addVariableConstraint")); __mm_s.push_str(&*literal!(" failed.\nViolation of implicit constraint `")); __mm_s.push_str(&*Dimension::toString(dim.clone())?); __mm_s.push_str(&*literal!(" >= ")); __mm_s.push_str(&*Subscript::toString(sub.clone())?); __mm_s.push_str(&*literal!("` for component reference `")); __mm_s.push_str(&*ComponentRef::toString(cref.clone())?); __mm_s.push_str(&*literal!("` of variable `")); __mm_s.push_str(&*Variable::toString(Pointer::access(BVariable::getVarPointer(cref.clone(), metamodelica::sourceInfo!())?), (literal!("")).clone(), false)?); __mm_s.push_str(&*literal!("`\nin equation:\n")); __mm_s.push_str(&*Equation::toString(eqn.clone(), (literal!("")).clone())?); ArcStr::from(__mm_s) }).clone()])?;
@@ -649,7 +652,7 @@ fn addVariableConstraint(mut cref: Arc<ComponentRef::NFComponentRef>, mut eqn: A
         }
         r#const = Arc::new(Expression::NFExpression::MULTARY { arguments: list![Arc::new(Expression::NFExpression::INTEGER { value: 1 })], inv_arguments: list![Dimension::sizeExp(dim.clone())?], operator: op.clone() });
         if '__try1: {
-            unwrap_break_err!(addConstraint(r#const.clone(), replacements.clone(), c2pi.clone(), Arc::new(fnptr!(Expression::isNonPositive, Arc<Expression::NFExpression>)), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*ComponentRef::toString(cref.clone())?); __mm_s.push_str(&*literal!(" (variable)")); ArcStr::from(__mm_s) }).clone(), (literal!(">=")).clone()), '__try1);
+            unwrap_break_err!(addConstraint(r#const.clone(), replacements.clone(), c2pi.clone(), (std::sync::Arc::new(fnptr!(Expression::isNonPositive, Arc<Expression::NFExpression>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<bool> + 'static>), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*ComponentRef::toString(cref.clone())?); __mm_s.push_str(&*literal!(" (variable)")); ArcStr::from(__mm_s) }).clone(), (literal!(">=")).clone()), '__try1);
             Ok::<(), anyhow::Error>(())
         }.is_err() {
             Error::addMessage(Error::INTERNAL_ERROR.clone(), list![({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("NBResizable.addVariableConstraint")); __mm_s.push_str(&*literal!(" failed.\nViolation of implicit constraint `")); __mm_s.push_str(&*Dimension::toString(dim.clone())?); __mm_s.push_str(&*literal!(" >= 1")); __mm_s.push_str(&*literal!("` for component reference `")); __mm_s.push_str(&*ComponentRef::toString(cref.clone())?); __mm_s.push_str(&*literal!("` of variable `")); __mm_s.push_str(&*Variable::toString(Pointer::access(BVariable::getVarPointer(cref.clone(), metamodelica::sourceInfo!())?), (literal!("")).clone(), false)?); __mm_s.push_str(&*literal!("`\nin equation:\n")); __mm_s.push_str(&*Equation::toString(eqn.clone(), (literal!("")).clone())?); ArcStr::from(__mm_s) }).clone()])?;
@@ -660,7 +663,7 @@ fn addVariableConstraint(mut cref: Arc<ComponentRef::NFComponentRef>, mut eqn: A
 }
 
 fn addConstraint(mut old_const: Arc<Expression::NFExpression>, mut replacements: Option<Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<Expression::NFExpression>>>>, mut c2p: Arc<UnorderedMap::UnorderedMap<Arc<Expression::NFExpression>, Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>>>, mut func: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<bool> + 'static>, mut const_kind: ArcStr, mut eq_kind: ArcStr) -> Result<()> {
-    pub type checkFunc = fn(Arc<Expression::NFExpression>) -> Result<bool>;
+    pub type checkFunc = std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<bool> + 'static>;
 
     let mut r#const: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut diff: Arc<Expression::NFExpression> = Arc::new(Expression::END);
@@ -675,13 +678,13 @@ fn addConstraint(mut old_const: Arc<Expression::NFExpression>, mut replacements:
         r#const = old_const.clone();
     }
     r#const = Expression::map(r#const.clone(), Arc::new({ let __pe_b1 = replacements.clone(); let __pe_b2 = c2p.clone(); let __pe_b3: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<bool> + 'static> = func.clone(); let __pe_b4 = (const_kind.clone()).clone(); let __pe_b5 = (eq_kind.clone()).clone(); move |__pe_a0| addRangeConstraints(__pe_a0, __pe_b1.clone(), __pe_b2.clone(), __pe_b3.clone(), __pe_b4.clone(), __pe_b5.clone()) }))?;
-    parameters = UnorderedSet::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>), ComponentRef::isEqual, 13);
+    parameters = UnorderedSet::new((std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), 13);
     Expression::map(r#const.clone(), Arc::new({ let __pe_b1 = parameters.clone(); move |__pe_a0| collectResizables(__pe_a0, __pe_b1.clone()) }))?;
     params = UnorderedSet::toList(parameters.clone());
     redundant = true;
     for mut p in &*params.clone() {
         let mut p = p.clone();
-        args = Differentiate::DifferentiationArguments::simpleCref(p.clone(), UnorderedMap::new(AbsynUtil::pathHash, fnptr!(AbsynUtil::pathEqual, Arc<Absyn::Path>, Arc<Absyn::Path>), 1));
+        args = Differentiate::DifferentiationArguments::simpleCref(p.clone(), UnorderedMap::new((std::sync::Arc::new(AbsynUtil::pathHash) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Path>) -> Result<i32> + 'static>), (std::sync::Arc::new(fnptr!(AbsynUtil::pathEqual, Arc<Absyn::Path>, Arc<Absyn::Path>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Path>, Arc<Absyn::Path>) -> Result<bool> + 'static>), 1));
         (diff, _) = Differentiate::differentiateExpression(r#const.clone(), args.clone())?;
         diff = SimplifyExp::simplify(diff.clone(), false)?;
         if !(Expression::isZero(diff.clone())) {
@@ -692,7 +695,7 @@ fn addConstraint(mut old_const: Arc<Expression::NFExpression>, mut replacements:
     if !(redundant.clone()) {
         UnorderedMap::add(r#const.clone(), params.clone(), c2p.clone())?;
     } else {
-        zero_replacements = UnorderedMap::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>), ComponentRef::isEqual, 1);
+        zero_replacements = UnorderedMap::new((std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), 1);
         for mut p in &*params.clone() {
             let mut p = p.clone();
             UnorderedMap::add(p.clone(), Arc::new(Expression::NFExpression::INTEGER { value: 0 }), zero_replacements.clone())?;
@@ -714,13 +717,13 @@ fn addConstraint(mut old_const: Arc<Expression::NFExpression>, mut replacements:
 }
 
 fn addRangeConstraints(mut exp: Arc<Expression::NFExpression>, mut replacements: Option<Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<Expression::NFExpression>>>>, mut c2p: Arc<UnorderedMap::UnorderedMap<Arc<Expression::NFExpression>, Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>>>, mut func: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<bool> + 'static>, mut const_kind: ArcStr, mut eq_kind: ArcStr) -> Result<Arc<Expression::NFExpression>> {
-    pub type checkFunc = fn(Arc<Expression::NFExpression>) -> Result<bool>;
+    pub type checkFunc = std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<bool> + 'static>;
 
     let mut exp: Arc<Expression::NFExpression> = exp;
     let mut parameters: Arc<UnorderedSet::UnorderedSet<Arc<ComponentRef::NFComponentRef>>>;
     exp = (::match_deref::match_deref! { match &(exp.clone()) {
         Deref @ Expression::RANGE { .. } => {
-            parameters = UnorderedSet::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>), ComponentRef::isEqual, 13);
+            parameters = UnorderedSet::new((std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), 13);
             let _ = Expression::map(exp.clone(), Arc::new({ let __pe_b1 = parameters.clone(); move |__pe_a0| collectResizables(__pe_a0, __pe_b1.clone()) }))?;
             getRangeConstraint(var_field!((*exp).start, Expression::NFExpression::RANGE).clone(), var_field!((*exp).step, Expression::NFExpression::RANGE).clone(), var_field!((*exp).stop, Expression::NFExpression::RANGE).clone(), parameters.clone(), c2p.clone(), (literal!("variable")).clone())?;
             Expression::rangeSizeExp(exp.clone())
@@ -736,7 +739,7 @@ fn getInitialValues(mut cref: Arc<ComponentRef::NFComponentRef>, mut target: Arc
     let mut diff: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut binding: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut failed: bool = false;
-    let mut var: Arc<Variable::NFVariable>;
+    let mut var: Arc<Variable::NFVariable> = Arc::new(<Variable::NFVariable as ::std::default::Default>::default());
     assign_field!(args.diffCref = cref.clone());
     (diff, _) = Differentiate::differentiateExpression(target.clone(), args.clone())?;
     diff = SimplifyExp::simplify(diff.clone(), false)?;
@@ -753,7 +756,7 @@ fn getInitialValues(mut cref: Arc<ComponentRef::NFComponentRef>, mut target: Arc
 
 fn setInitialValues(mut cref: Arc<ComponentRef::NFComponentRef>, mut min_parameters: Arc<UnorderedSet::UnorderedSet<Arc<ComponentRef::NFComponentRef>>>, mut optimal_values: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<Expression::NFExpression>>>) -> Result<Arc<ComponentRef::NFComponentRef>> {
     let mut cref: Arc<ComponentRef::NFComponentRef> = cref;
-    let mut var: Arc<Variable::NFVariable>;
+    let mut var: Arc<Variable::NFVariable> = Arc::new(<Variable::NFVariable as ::std::default::Default>::default());
     let mut attributes: Arc<VariableAttributes::VariableAttributes>;
     let mut value: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     if !(UnorderedMap::contains(cref.clone(), optimal_values.clone())) {
@@ -790,7 +793,7 @@ fn setInitialValues(mut cref: Arc<ComponentRef::NFComponentRef>, mut min_paramet
 }
 
 fn invertConstraintParameterMap(mut c2p: Arc<UnorderedMap::UnorderedMap<Arc<Expression::NFExpression>, Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>>>, mut parameters: Arc<UnorderedSet::UnorderedSet<Arc<ComponentRef::NFComponentRef>>>) -> Result<Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<metamodelica::List<Arc<Expression::NFExpression>>>>>> {
-    let mut p2c: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<metamodelica::List<Arc<Expression::NFExpression>>>>> = UnorderedMap::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>), ComponentRef::isEqual, 1);
+    let mut p2c: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<metamodelica::List<Arc<Expression::NFExpression>>>>> = UnorderedMap::new((std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), 1);
     let mut r#const: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut params: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = metamodelica::nil();
     for mut param in &*UnorderedSet::toList(parameters.clone()) {
@@ -809,7 +812,7 @@ fn invertConstraintParameterMap(mut c2p: Arc<UnorderedMap::UnorderedMap<Arc<Expr
 }
 
 fn computeOptimalValues(mut optimal_values: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<Expression::NFExpression>>>, mut c2pi: Arc<UnorderedMap::UnorderedMap<Arc<Expression::NFExpression>, Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>>>, mut p2ci: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<metamodelica::List<Arc<Expression::NFExpression>>>>>, mut c2pe: Arc<UnorderedMap::UnorderedMap<Arc<Expression::NFExpression>, Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>>>, mut p2ce: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<metamodelica::List<Arc<Expression::NFExpression>>>>>) -> Result<()> {
-    let mut failed_parameters: Arc<UnorderedSet::UnorderedSet<Arc<ComponentRef::NFComponentRef>>> = UnorderedSet::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>), ComponentRef::isEqual, 13);
+    let mut failed_parameters: Arc<UnorderedSet::UnorderedSet<Arc<ComponentRef::NFComponentRef>>> = UnorderedSet::new((std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), 13);
     if debug.clone() {
         println!("{}", (literal!("FIXING CONSTRAINTS\n\n")).clone());
     }
@@ -822,9 +825,9 @@ fn computeOptimalValues(mut optimal_values: Arc<UnorderedMap::UnorderedMap<Arc<C
 }
 
 fn fixConstraints(mut optimal_values: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<Expression::NFExpression>>>, mut c2p: Arc<UnorderedMap::UnorderedMap<Arc<Expression::NFExpression>, Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>>>, mut p2c: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<metamodelica::List<Arc<Expression::NFExpression>>>>>, mut failed_parameters: Arc<UnorderedSet::UnorderedSet<Arc<ComponentRef::NFComponentRef>>>, mut func: Arc<dyn ::std::ops::Fn(i32) -> Result<bool> + 'static>) -> Result<()> {
-    pub type checkVal = fn(i32) -> Result<bool>;
+    pub type checkVal = std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<bool> + 'static>;
 
-    let mut parsed_constraints: Arc<UnorderedSet::UnorderedSet<Arc<Expression::NFExpression>>> = UnorderedSet::new(fnptr!(Expression::hash, Arc<Expression::NFExpression>), Expression::isEqual, 13);
+    let mut parsed_constraints: Arc<UnorderedSet::UnorderedSet<Arc<Expression::NFExpression>>> = UnorderedSet::new((std::sync::Arc::new(fnptr!(Expression::hash, Arc<Expression::NFExpression>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<i32> + 'static>), (std::sync::Arc::new(Expression::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, Arc<Expression::NFExpression>) -> Result<bool> + 'static>), 13);
     let mut constraint: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut replaced: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut old_optimal_value: Arc<Expression::NFExpression> = Arc::new(Expression::END);
@@ -852,7 +855,7 @@ fn fixConstraints(mut optimal_values: Arc<UnorderedMap::UnorderedMap<Arc<Compone
             for mut cref in &*crefs.clone() {
                 let mut cref = cref.clone();
                 failed = false;
-                (solved_eqn, status, _) = Solve::solveBody(eqn.clone(), cref.clone(), UnorderedMap::new(AbsynUtil::pathHash, fnptr!(AbsynUtil::pathEqual, Arc<Absyn::Path>, Arc<Absyn::Path>), 1))?;
+                (solved_eqn, status, _) = Solve::solveBody(eqn.clone(), cref.clone(), UnorderedMap::new((std::sync::Arc::new(AbsynUtil::pathHash) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Path>) -> Result<i32> + 'static>), (std::sync::Arc::new(fnptr!(AbsynUtil::pathEqual, Arc<Absyn::Path>, Arc<Absyn::Path>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Path>, Arc<Absyn::Path>) -> Result<bool> + 'static>), 1))?;
                 if status.clone() == Solve::Status::EXPLICIT.clone() {
                     let _ = (match checkConstraint(Util::getOption(Equation::getRHS(solved_eqn.clone())?)?, optimal_values.clone())? {
         Some(mut value) => {
@@ -930,7 +933,7 @@ fn optimalValuesToString(mut optimal_values: Arc<UnorderedMap::UnorderedMap<Arc<
     let mut r#str: ArcStr = r#str;
     let mut param: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
     let mut value: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-    let mut var: Arc<Variable::NFVariable>;
+    let mut var: Arc<Variable::NFVariable> = Arc::new(<Variable::NFVariable as ::std::default::Default>::default());
     let mut names: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
     let mut old_vals: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
     let mut new_vals: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
@@ -942,9 +945,9 @@ fn optimalValuesToString(mut optimal_values: Arc<UnorderedMap::UnorderedMap<Arc<
         let mut tpl = tpl.clone();
         (param, value) = tpl.clone();
         var = Pointer::access(BVariable::getVarPointer(param.clone(), metamodelica::sourceInfo!())?);
-        names = cons(ComponentRef::toString(param.clone())?, names.clone());
-        new_vals = cons(Expression::toString(value.clone())?, new_vals.clone());
-        old_vals = cons(Binding::toString(var.binding.clone(), (literal!("")).clone())?, old_vals.clone());
+        names = cons((ComponentRef::toString(param.clone())?).clone(), names.clone());
+        new_vals = cons((Expression::toString(value.clone())?).clone(), new_vals.clone());
+        old_vals = cons((Binding::toString(var.binding.clone(), (literal!("")).clone())?).clone(), old_vals.clone());
     }
     names_len = {
         let mut __acc: Option<i32> = None;
@@ -983,7 +986,7 @@ fn occurencesToString(mut occs: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef:
     let mut r#str: ArcStr = literal!("");
     for mut tpl in &*UnorderedMap::toList(occs.clone()) {
         let mut tpl = tpl.clone();
-        r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*ComponentRef::toString(Util::tuple21(tpl.clone()))?); __mm_s.push_str(&*literal!(": {")); __mm_s.push_str(&*UnorderedSet::toString(Util::tuple22(tpl.clone()), Arc::new(Expression::toString), (literal!(", ")).clone())); __mm_s.push_str(&*literal!("}\n")); ArcStr::from(__mm_s) }).clone();
+        r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*ComponentRef::toString(Util::tuple21(tpl.clone()))?); __mm_s.push_str(&*literal!(": {")); __mm_s.push_str(&*UnorderedSet::toString(Util::tuple22(tpl.clone()), (std::sync::Arc::new(Expression::toString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<ArcStr> + 'static>), (literal!(", ")).clone())); __mm_s.push_str(&*literal!("}\n")); ArcStr::from(__mm_s) }).clone();
     }
     Ok(r#str)
 }
@@ -994,12 +997,12 @@ fn distancesToString(mut tpl: (Arc<ComponentRef::NFComponentRef>, i32)) -> ArcSt
 }
 
 fn parametersToString(mut parameters: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>) -> ArcStr {
-    let mut r#str: ArcStr = List::toString(parameters.clone(), Arc::new(ComponentRef::toString), (literal!("")).clone(), (literal!("{")).clone(), (literal!(", ")).clone(), (literal!("}")).clone(), true, 0).unwrap();
+    let mut r#str: ArcStr = List::toString(parameters.clone(), (std::sync::Arc::new(ComponentRef::toString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<ArcStr> + 'static>), (literal!("")).clone(), (literal!("{")).clone(), (literal!(", ")).clone(), (literal!("}")).clone(), true, 0).unwrap();
     r#str
 }
 
 fn constraintsToString(mut constraints: Arc<metamodelica::List<Arc<Expression::NFExpression>>>) -> ArcStr {
-    let mut r#str: ArcStr = List::toString(constraints.clone(), Arc::new(Expression::toString), (literal!("")).clone(), (literal!("{")).clone(), (literal!(", ")).clone(), (literal!("}")).clone(), true, 0).unwrap();
+    let mut r#str: ArcStr = List::toString(constraints.clone(), (std::sync::Arc::new(Expression::toString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<ArcStr> + 'static>), (literal!("")).clone(), (literal!("{")).clone(), (literal!(", ")).clone(), (literal!("}")).clone(), true, 0).unwrap();
     r#str
 }
 

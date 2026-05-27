@@ -49,13 +49,13 @@ use crate::StringUtil;
 use crate::Vector;
 use openmodelica_util_datatypes_basic::List;
 
-pub type VertexEq<VertexT: Clone> = fn(VertexT, VertexT) -> Result<bool>;
+pub type VertexEq<VertexT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(VertexT, VertexT) -> Result<bool> + 'static>;
 
-pub type EdgeEq<EdgeT: Clone> = fn(EdgeT, EdgeT) -> Result<bool>;
+pub type EdgeEq<EdgeT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(EdgeT, EdgeT) -> Result<bool> + 'static>;
 
-pub type VertexStr<VertexT: Clone> = fn(VertexT) -> Result<ArcStr>;
+pub type VertexStr<VertexT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(VertexT) -> Result<ArcStr> + 'static>;
 
-pub type EdgeStr<EdgeT: Clone> = fn(EdgeT) -> Result<ArcStr>;
+pub type EdgeStr<EdgeT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(EdgeT) -> Result<ArcStr> + 'static>;
 
 pub type VertexDescriptor = i32;
 
@@ -79,14 +79,14 @@ impl Ord for SetType {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering { (*self as i32).cmp(&(*other as i32)) }
 }
 
-pub fn edge_finder<EdgeT: Clone + 'static>(mut index: i32, mut e: EdgeT, mut edges: Arc<Vector::Vector<EdgeT>>, mut eqFn: EdgeEq<EdgeT>) -> bool {
+pub fn edge_finder<EdgeT: Clone + 'static>(mut index: i32, mut e: EdgeT, mut edges: Arc<Vector::Vector<EdgeT>>, mut eqFn: Arc<dyn ::std::ops::Fn(EdgeT, EdgeT) -> Result<bool> + 'static>) -> bool {
     let mut matching: bool = eqFn(e.clone(), Vector::get(edges.clone(), index.clone()).unwrap()).unwrap();
     matching
 }
 
 pub mod IncidenceList {
     use super::*;
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone)]
     pub struct IncidenceList<VertexT: Clone, EdgeT: Clone> {
         pub vertices: Arc<Vector::Vector<VertexT>>,
         pub edges: Arc<Vector::Vector<EdgeT>>,
@@ -97,11 +97,39 @@ pub mod IncidenceList {
         pub edgeToString: EdgeStr<EdgeT>,
     }
 
+    impl<VertexT: Clone + 'static + PartialEq, EdgeT: Clone + 'static + PartialEq> PartialEq for IncidenceList<VertexT, EdgeT> {
+        fn eq(&self, other: &Self) -> bool {
+            self.vertices == other.vertices && self.edges == other.edges && self.graph == other.graph && std::sync::Arc::ptr_eq(&self.vertEqFn, &other.vertEqFn) && std::sync::Arc::ptr_eq(&self.edgeEqFn, &other.edgeEqFn) && std::sync::Arc::ptr_eq(&self.vertToString, &other.vertToString) && std::sync::Arc::ptr_eq(&self.edgeToString, &other.edgeToString)
+        }
+    }
+    impl<VertexT: Clone + 'static + PartialEq + Eq, EdgeT: Clone + 'static + PartialEq + Eq> Eq for IncidenceList<VertexT, EdgeT> {}
+    impl<VertexT: Clone + 'static + PartialEq + Eq + PartialOrd + Ord, EdgeT: Clone + 'static + PartialEq + Eq + PartialOrd + Ord> PartialOrd for IncidenceList<VertexT, EdgeT> {
+        fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> { Some(self.cmp(other)) }
+    }
+    impl<VertexT: Clone + 'static + PartialEq + Eq + PartialOrd + Ord, EdgeT: Clone + 'static + PartialEq + Eq + PartialOrd + Ord> Ord for IncidenceList<VertexT, EdgeT> {
+        fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+            self.vertices.cmp(&other.vertices).then_with(|| self.edges.cmp(&other.edges).then_with(|| self.graph.cmp(&other.graph).then_with(|| (std::sync::Arc::as_ptr(&self.vertEqFn) as *const ()).cmp(&(std::sync::Arc::as_ptr(&other.vertEqFn) as *const ())).then_with(|| (std::sync::Arc::as_ptr(&self.edgeEqFn) as *const ()).cmp(&(std::sync::Arc::as_ptr(&other.edgeEqFn) as *const ())).then_with(|| (std::sync::Arc::as_ptr(&self.vertToString) as *const ()).cmp(&(std::sync::Arc::as_ptr(&other.vertToString) as *const ())).then_with(|| (std::sync::Arc::as_ptr(&self.edgeToString) as *const ()).cmp(&(std::sync::Arc::as_ptr(&other.edgeToString) as *const ()))))))))
+        }
+    }
+    impl<VertexT: Clone + 'static + std::fmt::Debug, EdgeT: Clone + 'static + std::fmt::Debug> std::fmt::Debug for IncidenceList<VertexT, EdgeT> {
+        fn fmt(&self, __f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            let mut __ds = __f.debug_struct("IncidenceList");
+            __ds.field("vertices", &self.vertices);
+            __ds.field("edges", &self.edges);
+            __ds.field("graph", &self.graph);
+            __ds.field("vertEqFn", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr(&self.vertEqFn)));
+            __ds.field("edgeEqFn", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr(&self.edgeEqFn)));
+            __ds.field("vertToString", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr(&self.vertToString)));
+            __ds.field("edgeToString", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr(&self.edgeToString)));
+            __ds.finish()
+        }
+    }
+
     pub type INCIDENCE_LIST<VertexT, EdgeT> = IncidenceList<VertexT, EdgeT>;
 
-    pub fn new<VertexT: Clone + 'static, EdgeT: Clone + 'static>(mut vertexEq: VertexEq<VertexT>, mut edgeEq: EdgeEq<EdgeT>, mut vertexStr: VertexStr<VertexT>, mut edgeStr: EdgeStr<EdgeT>) -> Arc<IncidenceList<VertexT, EdgeT>> {
+    pub fn new<VertexT: Clone + 'static, EdgeT: Clone + 'static>(mut vertexEq: Arc<dyn ::std::ops::Fn(VertexT, VertexT) -> Result<bool> + 'static>, mut edgeEq: Arc<dyn ::std::ops::Fn(EdgeT, EdgeT) -> Result<bool> + 'static>, mut vertexStr: Arc<dyn ::std::ops::Fn(VertexT) -> Result<ArcStr> + 'static>, mut edgeStr: Arc<dyn ::std::ops::Fn(EdgeT) -> Result<ArcStr> + 'static>) -> Arc<IncidenceList<VertexT, EdgeT>> {
         let mut il: Arc<IncidenceList<VertexT, EdgeT>>;
-        il = Arc::new(IncidenceList { vertices: Vector::new(0), edges: Vector::new(0), graph: Vector::new(0), vertEqFn: vertexEq, edgeEqFn: edgeEq, vertToString: vertexStr, edgeToString: edgeStr });
+        il = Arc::new(IncidenceList { vertices: Vector::new(0), edges: Vector::new(0), graph: Vector::new(0), vertEqFn: vertexEq.clone(), edgeEqFn: edgeEq.clone(), vertToString: vertexStr.clone(), edgeToString: edgeStr.clone() });
         il
     }
 
@@ -120,7 +148,7 @@ pub mod IncidenceList {
     }
 
     pub fn findVertex<VertexT: Clone + 'static, EdgeT: Clone + 'static>(mut il: Arc<IncidenceList<VertexT, EdgeT>>, mut predFn: Arc<dyn ::std::ops::Fn(VertexT) -> Result<bool> + 'static>) -> Option<i32> {
-        pub type PredFn<VertexT: Clone> = fn(VertexT) -> Result<bool>;
+        pub type PredFn<VertexT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(VertexT) -> Result<bool> + 'static>;
 
         let mut od: Option<i32> = None;
         let mut index: i32 = 0;
@@ -136,7 +164,7 @@ pub mod IncidenceList {
     }
 
     pub fn getVerticesFromSet<VertexT: Clone + 'static, EdgeT: Clone + 'static>(mut il: Arc<IncidenceList<VertexT, EdgeT>>, mut set: Arc<SBSet::SBSet>, mut getSet: Arc<dyn ::std::ops::Fn(VertexT) -> Result<Arc<SBSet::SBSet>> + 'static>) -> Result<Arc<metamodelica::List<VertexT>>> {
-        pub type getSetFn<VertexT: Clone> = fn(VertexT) -> Result<Arc<SBSet::SBSet>>;
+        pub type getSetFn<VertexT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(VertexT) -> Result<Arc<SBSet::SBSet>> + 'static>;
 
         let mut set_vertices: Arc<metamodelica::List<VertexT>> = metamodelica::nil();
         for mut v in &*vertices(il.clone()) {
@@ -152,7 +180,7 @@ pub mod IncidenceList {
         let mut ei: i32 = 0;
         let mut eil: Arc<metamodelica::List<i32>> = metamodelica::nil();
         eil = Vector::get(il.graph.clone(), d1.clone())?;
-        ei = List::positionOnTrue(eil.clone(), Arc::new({ let __pe_b1 = e.clone(); let __pe_b2 = il.edges.clone(); let __pe_b3 = il.edgeEqFn; move |__pe_a0| Ok(edge_finder(__pe_a0, __pe_b1.clone(), __pe_b2.clone(), __pe_b3.clone())) }));
+        ei = List::positionOnTrue(eil.clone(), Arc::new({ let __pe_b1 = e.clone(); let __pe_b2 = il.edges.clone(); let __pe_b3 = il.edgeEqFn.clone(); move |__pe_a0| Ok(edge_finder(__pe_a0, __pe_b1.clone(), __pe_b2.clone(), __pe_b3.clone())) }));
         if ei.clone() == -1 {
             Vector::push(il.edges.clone(), e.clone());
             ei = Vector::size(il.edges.clone());
@@ -197,8 +225,8 @@ pub mod IncidenceList {
 
     pub fn toString<VertexT: Clone + 'static, EdgeT: Clone + 'static>(mut il: Arc<IncidenceList<VertexT, EdgeT>>) -> ArcStr {
         let mut r#str: ArcStr = arcstr::literal!("");
-        let mut vertToString: VertexStr<VertexT> = il.vertToString;
-        let mut edgeToString: EdgeStr<EdgeT> = il.edgeToString;
+        let mut vertToString: VertexStr<VertexT> = il.vertToString.clone();
+        let mut edgeToString: EdgeStr<EdgeT> = il.edgeToString.clone();
         r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*StringUtil::headline_2((literal!("Set-Based Graph")).clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone();
         r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*r#str.clone()); __mm_s.push_str(&*stringDelimitList({
         let mut __acc: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
@@ -223,7 +251,7 @@ pub mod IncidenceList {
 
 pub mod BipartiteIncidenceList {
     use super::*;
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone)]
     pub struct BipartiteIncidenceList<VertexT: Clone, EdgeT: Clone> {
         pub F_vertices: Arc<Vector::Vector<VertexT>>,
         pub U_vertices: Arc<Vector::Vector<VertexT>>,
@@ -235,11 +263,40 @@ pub mod BipartiteIncidenceList {
         pub edgeToString: EdgeStr<EdgeT>,
     }
 
+    impl<VertexT: Clone + 'static + PartialEq, EdgeT: Clone + 'static + PartialEq> PartialEq for BipartiteIncidenceList<VertexT, EdgeT> {
+        fn eq(&self, other: &Self) -> bool {
+            self.F_vertices == other.F_vertices && self.U_vertices == other.U_vertices && self.edges == other.edges && self.graph == other.graph && std::sync::Arc::ptr_eq(&self.vertEqFn, &other.vertEqFn) && std::sync::Arc::ptr_eq(&self.edgeEqFn, &other.edgeEqFn) && std::sync::Arc::ptr_eq(&self.vertToString, &other.vertToString) && std::sync::Arc::ptr_eq(&self.edgeToString, &other.edgeToString)
+        }
+    }
+    impl<VertexT: Clone + 'static + PartialEq + Eq, EdgeT: Clone + 'static + PartialEq + Eq> Eq for BipartiteIncidenceList<VertexT, EdgeT> {}
+    impl<VertexT: Clone + 'static + PartialEq + Eq + PartialOrd + Ord, EdgeT: Clone + 'static + PartialEq + Eq + PartialOrd + Ord> PartialOrd for BipartiteIncidenceList<VertexT, EdgeT> {
+        fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> { Some(self.cmp(other)) }
+    }
+    impl<VertexT: Clone + 'static + PartialEq + Eq + PartialOrd + Ord, EdgeT: Clone + 'static + PartialEq + Eq + PartialOrd + Ord> Ord for BipartiteIncidenceList<VertexT, EdgeT> {
+        fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+            self.F_vertices.cmp(&other.F_vertices).then_with(|| self.U_vertices.cmp(&other.U_vertices).then_with(|| self.edges.cmp(&other.edges).then_with(|| self.graph.cmp(&other.graph).then_with(|| (std::sync::Arc::as_ptr(&self.vertEqFn) as *const ()).cmp(&(std::sync::Arc::as_ptr(&other.vertEqFn) as *const ())).then_with(|| (std::sync::Arc::as_ptr(&self.edgeEqFn) as *const ()).cmp(&(std::sync::Arc::as_ptr(&other.edgeEqFn) as *const ())).then_with(|| (std::sync::Arc::as_ptr(&self.vertToString) as *const ()).cmp(&(std::sync::Arc::as_ptr(&other.vertToString) as *const ())).then_with(|| (std::sync::Arc::as_ptr(&self.edgeToString) as *const ()).cmp(&(std::sync::Arc::as_ptr(&other.edgeToString) as *const ())))))))))
+        }
+    }
+    impl<VertexT: Clone + 'static + std::fmt::Debug, EdgeT: Clone + 'static + std::fmt::Debug> std::fmt::Debug for BipartiteIncidenceList<VertexT, EdgeT> {
+        fn fmt(&self, __f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            let mut __ds = __f.debug_struct("BipartiteIncidenceList");
+            __ds.field("F_vertices", &self.F_vertices);
+            __ds.field("U_vertices", &self.U_vertices);
+            __ds.field("edges", &self.edges);
+            __ds.field("graph", &self.graph);
+            __ds.field("vertEqFn", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr(&self.vertEqFn)));
+            __ds.field("edgeEqFn", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr(&self.edgeEqFn)));
+            __ds.field("vertToString", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr(&self.vertToString)));
+            __ds.field("edgeToString", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr(&self.edgeToString)));
+            __ds.finish()
+        }
+    }
+
     pub type BIPARTITE_INCIDENCE_LIST<VertexT, EdgeT> = BipartiteIncidenceList<VertexT, EdgeT>;
 
-    pub fn new<VertexT: Clone + 'static, EdgeT: Clone + 'static>(mut vertexEq: VertexEq<VertexT>, mut edgeEq: EdgeEq<EdgeT>, mut vertexStr: VertexStr<VertexT>, mut edgeStr: EdgeStr<EdgeT>) -> Arc<BipartiteIncidenceList<VertexT, EdgeT>> {
+    pub fn new<VertexT: Clone + 'static, EdgeT: Clone + 'static>(mut vertexEq: Arc<dyn ::std::ops::Fn(VertexT, VertexT) -> Result<bool> + 'static>, mut edgeEq: Arc<dyn ::std::ops::Fn(EdgeT, EdgeT) -> Result<bool> + 'static>, mut vertexStr: Arc<dyn ::std::ops::Fn(VertexT) -> Result<ArcStr> + 'static>, mut edgeStr: Arc<dyn ::std::ops::Fn(EdgeT) -> Result<ArcStr> + 'static>) -> Arc<BipartiteIncidenceList<VertexT, EdgeT>> {
         let mut il: Arc<BipartiteIncidenceList<VertexT, EdgeT>>;
-        il = Arc::new(BipartiteIncidenceList { F_vertices: Vector::new(0), U_vertices: Vector::new(0), edges: Vector::new(0), graph: Vector::new(0), vertEqFn: vertexEq, edgeEqFn: edgeEq, vertToString: vertexStr, edgeToString: edgeStr });
+        il = Arc::new(BipartiteIncidenceList { F_vertices: Vector::new(0), U_vertices: Vector::new(0), edges: Vector::new(0), graph: Vector::new(0), vertEqFn: vertexEq.clone(), edgeEqFn: edgeEq.clone(), vertToString: vertexStr.clone(), edgeToString: edgeStr.clone() });
         il
     }
 
@@ -270,7 +327,7 @@ pub mod BipartiteIncidenceList {
     }
 
     pub fn findVertex<VertexT: Clone + 'static, EdgeT: Clone + 'static>(mut il: Arc<BipartiteIncidenceList<VertexT, EdgeT>>, mut ST: SetType, mut predFn: Arc<dyn ::std::ops::Fn(VertexT) -> Result<bool> + 'static>) -> Result<Option<i32>> {
-        pub type PredFn<VertexT: Clone> = fn(VertexT) -> Result<bool>;
+        pub type PredFn<VertexT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(VertexT) -> Result<bool> + 'static>;
 
         let mut od: Option<i32> = None;
         let mut index: i32 = 0;
@@ -306,7 +363,7 @@ pub mod BipartiteIncidenceList {
     }
 
     pub fn getVerticesFromSet<VertexT: Clone + 'static, EdgeT: Clone + 'static>(mut il: Arc<BipartiteIncidenceList<VertexT, EdgeT>>, mut set: Arc<SBSet::SBSet>, mut ST: SetType, mut getSet: Arc<dyn ::std::ops::Fn(VertexT) -> Result<Arc<SBSet::SBSet>> + 'static>) -> Result<Arc<metamodelica::List<VertexT>>> {
-        pub type getSetFn<VertexT: Clone> = fn(VertexT) -> Result<Arc<SBSet::SBSet>>;
+        pub type getSetFn<VertexT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(VertexT) -> Result<Arc<SBSet::SBSet>> + 'static>;
 
         let mut set_vertices: Arc<metamodelica::List<VertexT>> = metamodelica::nil();
         for mut v in &*vertices(il.clone(), ST.clone())? {
@@ -322,7 +379,7 @@ pub mod BipartiteIncidenceList {
         let mut ei: i32 = 0;
         let mut eil: Arc<metamodelica::List<i32>> = metamodelica::nil();
         eil = getRow(il.clone(), d1.clone());
-        ei = List::positionOnTrue(eil.clone(), Arc::new({ let __pe_b1 = e.clone(); let __pe_b2 = il.edges.clone(); let __pe_b3 = il.edgeEqFn; move |__pe_a0| Ok(edge_finder(__pe_a0, __pe_b1.clone(), __pe_b2.clone(), __pe_b3.clone())) }));
+        ei = List::positionOnTrue(eil.clone(), Arc::new({ let __pe_b1 = e.clone(); let __pe_b2 = il.edges.clone(); let __pe_b3 = il.edgeEqFn.clone(); move |__pe_a0| Ok(edge_finder(__pe_a0, __pe_b1.clone(), __pe_b2.clone(), __pe_b3.clone())) }));
         if ei.clone() == -1 {
             Vector::push(il.edges.clone(), e.clone());
             ei = Vector::size(il.edges.clone());
@@ -335,7 +392,7 @@ pub mod BipartiteIncidenceList {
     }
 
     pub fn getEdgesFromSet<VertexT: Clone + 'static, EdgeT: Clone + 'static>(mut il: Arc<BipartiteIncidenceList<VertexT, EdgeT>>, mut set: Arc<SBSet::SBSet>, mut getSet: Arc<dyn ::std::ops::Fn(EdgeT) -> Result<Arc<SBSet::SBSet>> + 'static>) -> Result<Arc<metamodelica::List<EdgeT>>> {
-        pub type getSetFn<EdgeT: Clone> = fn(EdgeT) -> Result<Arc<SBSet::SBSet>>;
+        pub type getSetFn<EdgeT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(EdgeT) -> Result<Arc<SBSet::SBSet>> + 'static>;
 
         let mut set_edges: Arc<metamodelica::List<EdgeT>> = metamodelica::nil();
         for mut e in &*edges(il.clone()) {

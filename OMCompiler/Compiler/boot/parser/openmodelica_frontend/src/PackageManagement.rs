@@ -85,7 +85,7 @@ pub mod AvailableLibraries {
         outResult
     }
 
-    pub type ConflictFunc = fn(Value, Value, Key) -> Result<Value>;
+    pub type ConflictFunc = std::sync::Arc<dyn ::std::ops::Fn(Value, Value, Key) -> Result<Value> + 'static>;
 
     /// The binary tree data structure.
     #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -112,7 +112,7 @@ pub mod AvailableLibraries {
 
     pub type ValueNode = ArcStr;
 
-    pub fn add(mut inTree: Arc<Tree>, mut inKey: Key, mut inValue: Value, mut conflictFunc: ConflictFunc) -> Result<Arc<Tree>> {
+    pub fn add(mut inTree: Arc<Tree>, mut inKey: Key, mut inValue: Value, mut conflictFunc: Arc<dyn ::std::ops::Fn(Arc<VersionMap::Tree>, Arc<VersionMap::Tree>, ArcStr) -> Result<Arc<VersionMap::Tree>> + 'static>) -> Result<Arc<Tree>> {
         let mut tree: Arc<Tree> = inTree.clone();
         tree = (::match_deref::match_deref! { match &(tree.clone()) {
         Deref @ Tree::EMPTY { .. } => {
@@ -123,9 +123,9 @@ pub mod AvailableLibraries {
             let mut key_comp: i32 = 0;
             key_comp = keyCompare((inKey.clone()).clone(), (key.clone()).clone());
             if key_comp.clone() == -1 {
-                assign_variant_field!(tree => Tree::NODE; left = add(var_field!((*tree).left, Tree::NODE).clone(), (inKey.clone()).clone(), inValue.clone(), conflictFunc)?);
+                assign_variant_field!(tree => Tree::NODE; left = add(var_field!((*tree).left, Tree::NODE).clone(), (inKey.clone()).clone(), inValue.clone(), conflictFunc.clone())?);
             } else if key_comp.clone() == 1 {
-                assign_variant_field!(tree => Tree::NODE; right = add(var_field!((*tree).right, Tree::NODE).clone(), (inKey.clone()).clone(), inValue.clone(), conflictFunc)?);
+                assign_variant_field!(tree => Tree::NODE; right = add(var_field!((*tree).right, Tree::NODE).clone(), (inKey.clone()).clone(), inValue.clone(), conflictFunc.clone())?);
             } else {
                 value = conflictFunc(inValue.clone(), var_field!((*tree).value, Tree::NODE).clone(), (key.clone()).clone())?;
                 if !(referenceEq(&var_field!((*tree).value, Tree::NODE).clone(),&value.clone())) {
@@ -175,20 +175,20 @@ pub mod AvailableLibraries {
         value
     }
 
-    pub fn addList(mut tree: Arc<Tree>, mut inValues: Arc<metamodelica::List<(ArcStr, Arc<VersionMap::Tree>)>>, mut conflictFunc: ConflictFunc) -> Result<Arc<Tree>> {
+    pub fn addList(mut tree: Arc<Tree>, mut inValues: Arc<metamodelica::List<(ArcStr, Arc<VersionMap::Tree>)>>, mut conflictFunc: Arc<dyn ::std::ops::Fn(Arc<VersionMap::Tree>, Arc<VersionMap::Tree>, ArcStr) -> Result<Arc<VersionMap::Tree>> + 'static>) -> Result<Arc<Tree>> {
         let mut tree: Arc<Tree> = tree;
         let mut key: Key = arcstr::literal!("");
         let mut value: Value = Arc::new(VersionMap::Tree::EMPTY);
         for mut t in &*inValues.clone() {
             let mut t = t.clone();
             (key, value) = t.clone();
-            tree = add(tree.clone(), (key.clone()).clone(), value.clone(), conflictFunc)?;
+            tree = add(tree.clone(), (key.clone()).clone(), value.clone(), conflictFunc.clone())?;
         }
         Ok(tree)
     }
 
     pub fn addUpdate(mut tree: Arc<Tree>, mut key: Key, mut r#fn: Arc<dyn ::std::ops::Fn(Option<Arc<VersionMap::Tree>>) -> Result<Arc<VersionMap::Tree>> + 'static>) -> Result<Arc<Tree>> {
-        pub type UpdateFn = fn(Option<Arc<VersionMap::Tree>>) -> Result<Value>;
+        pub type UpdateFn = std::sync::Arc<dyn ::std::ops::Fn(Option<Arc<VersionMap::Tree>>) -> Result<Value> + 'static>;
 
         let mut tree: Arc<Tree> = tree;
         let mut key_comp: i32 = 0;
@@ -266,7 +266,7 @@ pub mod AvailableLibraries {
     }
 
     pub fn fold<FT: Clone + 'static>(mut inTree: Arc<Tree>, mut inFunc: Arc<dyn ::std::ops::Fn(ArcStr, Arc<VersionMap::Tree>, FT) -> Result<FT> + 'static>, mut inStartValue: FT) -> FT {
-        pub type FoldFunc<FT: Clone> = fn(Key, Value, FT) -> Result<FT>;
+        pub type FoldFunc<FT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Key, Value, FT) -> Result<FT> + 'static>;
 
         let mut outResult: FT = inStartValue.clone();
         outResult = (::match_deref::match_deref! { match &(inTree.clone()) {
@@ -289,7 +289,7 @@ pub mod AvailableLibraries {
     }
 
     pub fn foldCond<FT: Clone + 'static>(mut tree: Arc<Tree>, mut foldFunc: Arc<dyn ::std::ops::Fn(ArcStr, Arc<VersionMap::Tree>, FT) -> Result<(FT, bool)> + 'static>, mut value: FT) -> FT {
-        pub type FoldFunc<FT: Clone> = fn(Key, Value, FT) -> Result<(FT, bool)>;
+        pub type FoldFunc<FT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Key, Value, FT) -> Result<(FT, bool)> + 'static>;
 
         let mut value: FT = value;
         value = (::match_deref::match_deref! { match &(tree.clone()) {
@@ -316,7 +316,7 @@ pub mod AvailableLibraries {
     }
 
     pub fn fold_2<FT1: Clone + 'static, FT2: Clone + 'static>(mut tree: Arc<Tree>, mut foldFunc: Arc<dyn ::std::ops::Fn(ArcStr, Arc<VersionMap::Tree>, FT1, FT2) -> Result<(FT1, FT2)> + 'static>, mut foldArg1: FT1, mut foldArg2: FT2) -> (FT1, FT2) {
-        pub type FoldFunc<FT1: Clone, FT2: Clone> = fn(Key, Value, FT1, FT2) -> Result<(FT1, FT2)>;
+        pub type FoldFunc<FT1: Clone + 'static, FT2: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Key, Value, FT1, FT2) -> Result<(FT1, FT2)> + 'static>;
 
         let mut foldArg1: FT1 = foldArg1;
         let mut foldArg2: FT2 = foldArg2;
@@ -338,7 +338,7 @@ pub mod AvailableLibraries {
     }
 
     pub fn forEach(mut tree: Arc<Tree>, mut func: Arc<dyn ::std::ops::Fn(ArcStr, Arc<VersionMap::Tree>) -> Result<()> + 'static>) -> Result<()> {
-        pub type EachFunc = fn(Key, Value) -> Result<()>;
+        pub type EachFunc = std::sync::Arc<dyn ::std::ops::Fn(Key, Value) -> Result<()> + 'static>;
 
         let _ = (::match_deref::match_deref! { match &(tree.clone()) {
         Deref @ Tree::NODE { .. } => {
@@ -357,14 +357,14 @@ pub mod AvailableLibraries {
         Ok(())
     }
 
-    pub fn fromList(mut inValues: Arc<metamodelica::List<(ArcStr, Arc<VersionMap::Tree>)>>, mut conflictFunc: ConflictFunc) -> Result<Arc<Tree>> {
+    pub fn fromList(mut inValues: Arc<metamodelica::List<(ArcStr, Arc<VersionMap::Tree>)>>, mut conflictFunc: Arc<dyn ::std::ops::Fn(Arc<VersionMap::Tree>, Arc<VersionMap::Tree>, ArcStr) -> Result<Arc<VersionMap::Tree>> + 'static>) -> Result<Arc<Tree>> {
         let mut tree: Arc<Tree> = Arc::new(crate::PackageManagement::AvailableLibraries::Tree::EMPTY);
         let mut key: Key = arcstr::literal!("");
         let mut value: Value = Arc::new(VersionMap::Tree::EMPTY);
         for mut t in &*inValues.clone() {
             let mut t = t.clone();
             (key, value) = t.clone();
-            tree = add(tree.clone(), (key.clone()).clone(), value.clone(), conflictFunc)?;
+            tree = add(tree.clone(), (key.clone()).clone(), value.clone(), conflictFunc.clone())?;
         }
         Ok(tree)
     }
@@ -460,17 +460,17 @@ pub mod AvailableLibraries {
         isEmpty
     }
 
-    pub fn join(mut tree: Arc<Tree>, mut treeToJoin: Arc<Tree>, mut conflictFunc: ConflictFunc) -> Result<Arc<Tree>> {
+    pub fn join(mut tree: Arc<Tree>, mut treeToJoin: Arc<Tree>, mut conflictFunc: Arc<dyn ::std::ops::Fn(Arc<VersionMap::Tree>, Arc<VersionMap::Tree>, ArcStr) -> Result<Arc<VersionMap::Tree>> + 'static>) -> Result<Arc<Tree>> {
         let mut tree: Arc<Tree> = tree;
         tree = (::match_deref::match_deref! { match &(treeToJoin.clone()) {
         Deref @ Tree::EMPTY { .. } => tree.clone(),
         Deref @ Tree::NODE { .. } => {
-            tree = add(tree.clone(), (var_field!((*treeToJoin).key, Tree::NODE).clone()).clone(), var_field!((*treeToJoin).value, Tree::NODE).clone(), conflictFunc)?;
-            tree = join(tree.clone(), var_field!((*treeToJoin).left, Tree::NODE).clone(), conflictFunc)?;
-            tree = join(tree.clone(), var_field!((*treeToJoin).right, Tree::NODE).clone(), conflictFunc)?;
+            tree = add(tree.clone(), (var_field!((*treeToJoin).key, Tree::NODE).clone()).clone(), var_field!((*treeToJoin).value, Tree::NODE).clone(), conflictFunc.clone())?;
+            tree = join(tree.clone(), var_field!((*treeToJoin).left, Tree::NODE).clone(), conflictFunc.clone())?;
+            tree = join(tree.clone(), var_field!((*treeToJoin).right, Tree::NODE).clone(), conflictFunc.clone())?;
             tree.clone()
         },
-        Deref @ Tree::LEAF { .. } => add(tree.clone(), (var_field!((*treeToJoin).key, Tree::LEAF).clone()).clone(), var_field!((*treeToJoin).value, Tree::LEAF).clone(), conflictFunc)?,
+        Deref @ Tree::LEAF { .. } => add(tree.clone(), (var_field!((*treeToJoin).key, Tree::LEAF).clone()).clone(), var_field!((*treeToJoin).value, Tree::LEAF).clone(), conflictFunc.clone())?,
         _ => bail!("match: no arm matched"),
     } });
         Ok(tree)
@@ -481,12 +481,12 @@ pub mod AvailableLibraries {
         lst = (::match_deref::match_deref! { match &(tree.clone()) {
         Deref @ Tree::NODE { key, .. } => {
             lst = listKeys(var_field!((*tree).right, Tree::NODE).clone(), lst.clone());
-            lst = cons(key.clone(), lst.clone());
+            lst = cons((key.clone()).clone(), lst.clone());
             lst = listKeys(var_field!((*tree).left, Tree::NODE).clone(), lst.clone());
             lst.clone()
         },
         Deref @ Tree::LEAF { key, .. } => {
-            cons(key.clone(), lst.clone())
+            cons((key.clone()).clone(), lst.clone())
         },
         _ => {
             lst.clone()
@@ -499,10 +499,10 @@ pub mod AvailableLibraries {
     pub fn listKeysReverse(mut inTree: Arc<Tree>, mut lst: Arc<metamodelica::List<ArcStr>>) -> Arc<metamodelica::List<ArcStr>> {
         let mut lst: Arc<metamodelica::List<ArcStr>> = lst;
         lst = (::match_deref::match_deref! { match &(inTree.clone()) {
-        Deref @ Tree::LEAF { .. } => cons(var_field!((*inTree).key, Tree::LEAF).clone(), lst.clone()),
+        Deref @ Tree::LEAF { .. } => cons((var_field!((*inTree).key, Tree::LEAF).clone()).clone(), lst.clone()),
         Deref @ Tree::NODE { .. } => {
             lst = listKeysReverse(var_field!((*inTree).left, Tree::NODE).clone(), lst.clone());
-            lst = cons(var_field!((*inTree).key, Tree::NODE).clone(), lst.clone());
+            lst = cons((var_field!((*inTree).key, Tree::NODE).clone()).clone(), lst.clone());
             lst = listKeysReverse(var_field!((*inTree).right, Tree::NODE).clone(), lst.clone());
             lst.clone()
         },
@@ -533,7 +533,7 @@ pub mod AvailableLibraries {
     }
 
     pub fn map(mut inTree: Arc<Tree>, mut inFunc: Arc<dyn ::std::ops::Fn(ArcStr, Arc<VersionMap::Tree>) -> Result<Arc<VersionMap::Tree>> + 'static>) -> Arc<Tree> {
-        pub type MapFunc = fn(Key, Value) -> Result<Value>;
+        pub type MapFunc = std::sync::Arc<dyn ::std::ops::Fn(Key, Value) -> Result<Value> + 'static>;
 
         let mut outTree: Arc<Tree> = inTree.clone();
         outTree = (::match_deref::match_deref! { match &(outTree.clone()) {
@@ -566,7 +566,7 @@ pub mod AvailableLibraries {
     }
 
     pub fn mapFold<FT: Clone + 'static>(mut inTree: Arc<Tree>, mut inFunc: Arc<dyn ::std::ops::Fn(ArcStr, Arc<VersionMap::Tree>, FT) -> Result<(Arc<VersionMap::Tree>, FT)> + 'static>, mut inStartValue: FT) -> (Arc<Tree>, FT) {
-        pub type MapFunc<FT: Clone> = fn(Key, Value, FT) -> Result<Value>;
+        pub type MapFunc<FT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Key, Value, FT) -> Result<Value> + 'static>;
 
         let mut outTree: Arc<Tree> = inTree.clone();
         let mut outResult: FT = inStartValue.clone();
@@ -741,7 +741,7 @@ pub mod AvailableLibraries {
     }
 
     pub fn update(mut tree: Arc<Tree>, mut key: Key, mut value: Value) -> Arc<Tree> {
-        let mut outTree: Arc<Tree> = add(tree.clone(), (key.clone()).clone(), value.clone(), fnptr!(addConflictReplace, Arc<VersionMap::Tree>, Arc<VersionMap::Tree>, ArcStr)).unwrap();
+        let mut outTree: Arc<Tree> = add(tree.clone(), (key.clone()).clone(), value.clone(), (std::sync::Arc::new(fnptr!(addConflictReplace, Arc<VersionMap::Tree>, Arc<VersionMap::Tree>, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<VersionMap::Tree>, Arc<VersionMap::Tree>, ArcStr) -> Result<Arc<VersionMap::Tree>> + 'static>)).unwrap();
         outTree
     }
 
@@ -771,7 +771,7 @@ pub mod VersionMap {
         Ok(outResult)
     }
 
-    pub type ConflictFunc = fn(Value, Value, Key) -> Result<Value>;
+    pub type ConflictFunc = std::sync::Arc<dyn ::std::ops::Fn(Value, Value, Key) -> Result<Value> + 'static>;
 
     /// The binary tree data structure.
     #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -798,7 +798,7 @@ pub mod VersionMap {
 
     pub type ValueNode = SemanticVersion::Version;
 
-    pub fn add(mut inTree: Arc<Tree>, mut inKey: Key, mut inValue: Value, mut conflictFunc: ConflictFunc) -> Result<Arc<Tree>> {
+    pub fn add(mut inTree: Arc<Tree>, mut inKey: Key, mut inValue: Value, mut conflictFunc: Arc<dyn ::std::ops::Fn(ArcStr, ArcStr, SemanticVersion::Version) -> Result<ArcStr> + 'static>) -> Result<Arc<Tree>> {
         let mut tree: Arc<Tree> = inTree.clone();
         tree = (::match_deref::match_deref! { match &(tree.clone()) {
         Deref @ Tree::EMPTY { .. } => {
@@ -809,9 +809,9 @@ pub mod VersionMap {
             let mut key_comp: i32 = 0;
             key_comp = keyCompare(inKey.clone(), key.clone())?;
             if key_comp.clone() == -1 {
-                assign_variant_field!(tree => Tree::NODE; left = add(var_field!((*tree).left, Tree::NODE).clone(), inKey.clone(), (inValue.clone()).clone(), conflictFunc)?);
+                assign_variant_field!(tree => Tree::NODE; left = add(var_field!((*tree).left, Tree::NODE).clone(), inKey.clone(), (inValue.clone()).clone(), conflictFunc.clone())?);
             } else if key_comp.clone() == 1 {
-                assign_variant_field!(tree => Tree::NODE; right = add(var_field!((*tree).right, Tree::NODE).clone(), inKey.clone(), (inValue.clone()).clone(), conflictFunc)?);
+                assign_variant_field!(tree => Tree::NODE; right = add(var_field!((*tree).right, Tree::NODE).clone(), inKey.clone(), (inValue.clone()).clone(), conflictFunc.clone())?);
             } else {
                 value = (conflictFunc((inValue.clone()).clone(), (var_field!((*tree).value, Tree::NODE).clone()).clone(), key.clone())?).clone();
                 if !(referenceEq(&var_field!((*tree).value, Tree::NODE).clone(),&value.clone())) {
@@ -861,20 +861,20 @@ pub mod VersionMap {
         value
     }
 
-    pub fn addList(mut tree: Arc<Tree>, mut inValues: Arc<metamodelica::List<(SemanticVersion::Version, ArcStr)>>, mut conflictFunc: ConflictFunc) -> Result<Arc<Tree>> {
+    pub fn addList(mut tree: Arc<Tree>, mut inValues: Arc<metamodelica::List<(SemanticVersion::Version, ArcStr)>>, mut conflictFunc: Arc<dyn ::std::ops::Fn(ArcStr, ArcStr, SemanticVersion::Version) -> Result<ArcStr> + 'static>) -> Result<Arc<Tree>> {
         let mut tree: Arc<Tree> = tree;
         let mut key: Key;
         let mut value: Value = arcstr::literal!("");
         for mut t in &*inValues.clone() {
             let mut t = t.clone();
             (key, value) = t.clone();
-            tree = add(tree.clone(), key.clone(), (value.clone()).clone(), conflictFunc)?;
+            tree = add(tree.clone(), key.clone(), (value.clone()).clone(), conflictFunc.clone())?;
         }
         Ok(tree)
     }
 
     pub fn addUpdate(mut tree: Arc<Tree>, mut key: Key, mut r#fn: Arc<dyn ::std::ops::Fn(Option<ArcStr>) -> Result<ArcStr> + 'static>) -> Result<Arc<Tree>> {
-        pub type UpdateFn = fn(Option<ArcStr>) -> Result<Value>;
+        pub type UpdateFn = std::sync::Arc<dyn ::std::ops::Fn(Option<ArcStr>) -> Result<Value> + 'static>;
 
         let mut tree: Arc<Tree> = tree;
         let mut key_comp: i32 = 0;
@@ -952,7 +952,7 @@ pub mod VersionMap {
     }
 
     pub fn fold<FT: Clone + 'static>(mut inTree: Arc<Tree>, mut inFunc: Arc<dyn ::std::ops::Fn(SemanticVersion::Version, ArcStr, FT) -> Result<FT> + 'static>, mut inStartValue: FT) -> FT {
-        pub type FoldFunc<FT: Clone> = fn(Key, Value, FT) -> Result<FT>;
+        pub type FoldFunc<FT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Key, Value, FT) -> Result<FT> + 'static>;
 
         let mut outResult: FT = inStartValue.clone();
         outResult = (::match_deref::match_deref! { match &(inTree.clone()) {
@@ -975,7 +975,7 @@ pub mod VersionMap {
     }
 
     pub fn foldCond<FT: Clone + 'static>(mut tree: Arc<Tree>, mut foldFunc: Arc<dyn ::std::ops::Fn(SemanticVersion::Version, ArcStr, FT) -> Result<(FT, bool)> + 'static>, mut value: FT) -> FT {
-        pub type FoldFunc<FT: Clone> = fn(Key, Value, FT) -> Result<(FT, bool)>;
+        pub type FoldFunc<FT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Key, Value, FT) -> Result<(FT, bool)> + 'static>;
 
         let mut value: FT = value;
         value = (::match_deref::match_deref! { match &(tree.clone()) {
@@ -1002,7 +1002,7 @@ pub mod VersionMap {
     }
 
     pub fn fold_2<FT1: Clone + 'static, FT2: Clone + 'static>(mut tree: Arc<Tree>, mut foldFunc: Arc<dyn ::std::ops::Fn(SemanticVersion::Version, ArcStr, FT1, FT2) -> Result<(FT1, FT2)> + 'static>, mut foldArg1: FT1, mut foldArg2: FT2) -> (FT1, FT2) {
-        pub type FoldFunc<FT1: Clone, FT2: Clone> = fn(Key, Value, FT1, FT2) -> Result<(FT1, FT2)>;
+        pub type FoldFunc<FT1: Clone + 'static, FT2: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Key, Value, FT1, FT2) -> Result<(FT1, FT2)> + 'static>;
 
         let mut foldArg1: FT1 = foldArg1;
         let mut foldArg2: FT2 = foldArg2;
@@ -1024,7 +1024,7 @@ pub mod VersionMap {
     }
 
     pub fn forEach(mut tree: Arc<Tree>, mut func: Arc<dyn ::std::ops::Fn(SemanticVersion::Version, ArcStr) -> Result<()> + 'static>) -> Result<()> {
-        pub type EachFunc = fn(Key, Value) -> Result<()>;
+        pub type EachFunc = std::sync::Arc<dyn ::std::ops::Fn(Key, Value) -> Result<()> + 'static>;
 
         let _ = (::match_deref::match_deref! { match &(tree.clone()) {
         Deref @ Tree::NODE { .. } => {
@@ -1043,14 +1043,14 @@ pub mod VersionMap {
         Ok(())
     }
 
-    pub fn fromList(mut inValues: Arc<metamodelica::List<(SemanticVersion::Version, ArcStr)>>, mut conflictFunc: ConflictFunc) -> Result<Arc<Tree>> {
+    pub fn fromList(mut inValues: Arc<metamodelica::List<(SemanticVersion::Version, ArcStr)>>, mut conflictFunc: Arc<dyn ::std::ops::Fn(ArcStr, ArcStr, SemanticVersion::Version) -> Result<ArcStr> + 'static>) -> Result<Arc<Tree>> {
         let mut tree: Arc<Tree> = Arc::new(crate::PackageManagement::VersionMap::Tree::EMPTY);
         let mut key: Key;
         let mut value: Value = arcstr::literal!("");
         for mut t in &*inValues.clone() {
             let mut t = t.clone();
             (key, value) = t.clone();
-            tree = add(tree.clone(), key.clone(), (value.clone()).clone(), conflictFunc)?;
+            tree = add(tree.clone(), key.clone(), (value.clone()).clone(), conflictFunc.clone())?;
         }
         Ok(tree)
     }
@@ -1146,17 +1146,17 @@ pub mod VersionMap {
         isEmpty
     }
 
-    pub fn join(mut tree: Arc<Tree>, mut treeToJoin: Arc<Tree>, mut conflictFunc: ConflictFunc) -> Result<Arc<Tree>> {
+    pub fn join(mut tree: Arc<Tree>, mut treeToJoin: Arc<Tree>, mut conflictFunc: Arc<dyn ::std::ops::Fn(ArcStr, ArcStr, SemanticVersion::Version) -> Result<ArcStr> + 'static>) -> Result<Arc<Tree>> {
         let mut tree: Arc<Tree> = tree;
         tree = (::match_deref::match_deref! { match &(treeToJoin.clone()) {
         Deref @ Tree::EMPTY { .. } => tree.clone(),
         Deref @ Tree::NODE { .. } => {
-            tree = add(tree.clone(), var_field!((*treeToJoin).key, Tree::NODE).clone(), (var_field!((*treeToJoin).value, Tree::NODE).clone()).clone(), conflictFunc)?;
-            tree = join(tree.clone(), var_field!((*treeToJoin).left, Tree::NODE).clone(), conflictFunc)?;
-            tree = join(tree.clone(), var_field!((*treeToJoin).right, Tree::NODE).clone(), conflictFunc)?;
+            tree = add(tree.clone(), var_field!((*treeToJoin).key, Tree::NODE).clone(), (var_field!((*treeToJoin).value, Tree::NODE).clone()).clone(), conflictFunc.clone())?;
+            tree = join(tree.clone(), var_field!((*treeToJoin).left, Tree::NODE).clone(), conflictFunc.clone())?;
+            tree = join(tree.clone(), var_field!((*treeToJoin).right, Tree::NODE).clone(), conflictFunc.clone())?;
             tree.clone()
         },
-        Deref @ Tree::LEAF { .. } => add(tree.clone(), var_field!((*treeToJoin).key, Tree::LEAF).clone(), (var_field!((*treeToJoin).value, Tree::LEAF).clone()).clone(), conflictFunc)?,
+        Deref @ Tree::LEAF { .. } => add(tree.clone(), var_field!((*treeToJoin).key, Tree::LEAF).clone(), (var_field!((*treeToJoin).value, Tree::LEAF).clone()).clone(), conflictFunc.clone())?,
         _ => bail!("match: no arm matched"),
     } });
         Ok(tree)
@@ -1203,12 +1203,12 @@ pub mod VersionMap {
         lst = (::match_deref::match_deref! { match &(tree.clone()) {
         Deref @ Tree::NODE { value, .. } => {
             lst = listValues(var_field!((*tree).right, Tree::NODE).clone(), lst.clone());
-            lst = cons(value.clone(), lst.clone());
+            lst = cons((value.clone()).clone(), lst.clone());
             lst = listValues(var_field!((*tree).left, Tree::NODE).clone(), lst.clone());
             lst.clone()
         },
         Deref @ Tree::LEAF { value, .. } => {
-            cons(value.clone(), lst.clone())
+            cons((value.clone()).clone(), lst.clone())
         },
         _ => {
             lst.clone()
@@ -1219,7 +1219,7 @@ pub mod VersionMap {
     }
 
     pub fn map(mut inTree: Arc<Tree>, mut inFunc: Arc<dyn ::std::ops::Fn(SemanticVersion::Version, ArcStr) -> Result<ArcStr> + 'static>) -> Arc<Tree> {
-        pub type MapFunc = fn(Key, Value) -> Result<Value>;
+        pub type MapFunc = std::sync::Arc<dyn ::std::ops::Fn(Key, Value) -> Result<Value> + 'static>;
 
         let mut outTree: Arc<Tree> = inTree.clone();
         outTree = (::match_deref::match_deref! { match &(outTree.clone()) {
@@ -1252,7 +1252,7 @@ pub mod VersionMap {
     }
 
     pub fn mapFold<FT: Clone + 'static>(mut inTree: Arc<Tree>, mut inFunc: Arc<dyn ::std::ops::Fn(SemanticVersion::Version, ArcStr, FT) -> Result<(ArcStr, FT)> + 'static>, mut inStartValue: FT) -> (Arc<Tree>, FT) {
-        pub type MapFunc<FT: Clone> = fn(Key, Value, FT) -> Result<Value>;
+        pub type MapFunc<FT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Key, Value, FT) -> Result<Value> + 'static>;
 
         let mut outTree: Arc<Tree> = inTree.clone();
         let mut outResult: FT = inStartValue.clone();
@@ -1427,7 +1427,7 @@ pub mod VersionMap {
     }
 
     pub fn update(mut tree: Arc<Tree>, mut key: Key, mut value: Value) -> Arc<Tree> {
-        let mut outTree: Arc<Tree> = add(tree.clone(), key.clone(), (value.clone()).clone(), fnptr!(addConflictReplace, ArcStr, ArcStr, SemanticVersion::Version)).unwrap();
+        let mut outTree: Arc<Tree> = add(tree.clone(), key.clone(), (value.clone()).clone(), (std::sync::Arc::new(fnptr!(addConflictReplace, ArcStr, ArcStr, SemanticVersion::Version)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr, SemanticVersion::Version) -> Result<ArcStr> + 'static>)).unwrap();
         outTree
     }
 
@@ -1486,8 +1486,8 @@ pub fn getInstalledLibraries() -> Result<Arc<AvailableLibraries::Tree>> {
         rest = __pa1.clone();
         ver = stringDelimitList(rest.clone(), (literal!(" ")).clone());
         versions = if (AvailableLibraries::hasKey(tree.clone(), (first.clone()).clone())?) {AvailableLibraries::get(tree.clone(), (first.clone()).clone())?} else {VersionMap::new()};
-        versions = VersionMap::add(versions.clone(), SemanticVersion::parse((ver.clone()).clone(), false)?, (path.clone()).clone(), fnptr!(VersionMap::addConflictReplace, ArcStr, ArcStr, SemanticVersion::Version))?;
-        tree = AvailableLibraries::add(tree.clone(), (first.clone()).clone(), versions.clone(), fnptr!(AvailableLibraries::addConflictReplace, Arc<VersionMap::Tree>, Arc<VersionMap::Tree>, ArcStr))?;
+        versions = VersionMap::add(versions.clone(), SemanticVersion::parse((ver.clone()).clone(), false)?, (path.clone()).clone(), (std::sync::Arc::new(fnptr!(VersionMap::addConflictReplace, ArcStr, ArcStr, SemanticVersion::Version)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr, SemanticVersion::Version) -> Result<ArcStr> + 'static>))?;
+        tree = AvailableLibraries::add(tree.clone(), (first.clone()).clone(), versions.clone(), (std::sync::Arc::new(fnptr!(AvailableLibraries::addConflictReplace, Arc<VersionMap::Tree>, Arc<VersionMap::Tree>, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<VersionMap::Tree>, Arc<VersionMap::Tree>, ArcStr) -> Result<Arc<VersionMap::Tree>> + 'static>))?;
     }
     Ok(tree)
 }
@@ -1505,7 +1505,7 @@ pub fn getInstalledLibraryVersions(mut libraryName: ArcStr) -> Result<Arc<metamo
         let mut version = version.clone();
         versionStr = (VersionMap::keyStr(version.clone())?).clone();
         if stringCompare((versionStr.clone()).clone(), (literal!("")).clone()) > 0 {
-            libraryVersions = cons(versionStr.clone(), libraryVersions.clone());
+            libraryVersions = cons((versionStr.clone()).clone(), libraryVersions.clone());
         }
     }
     Ok(libraryVersions)
@@ -1518,7 +1518,7 @@ pub fn getLibrarySubdirectories(mut inPath: ArcStr) -> Arc<metamodelica::List<Ar
     for mut dir in &*allSubdirectories.clone() {
         let mut dir = dir.clone();
         if System::regularFileExists(({ let mut __mm_s = String::new(); __mm_s.push_str(&*inPath.clone()); __mm_s.push_str(&*pd.clone()); __mm_s.push_str(&*dir.clone()); __mm_s.push_str(&*pd.clone()); __mm_s.push_str(&*literal!("package.mo")); ArcStr::from(__mm_s) }).clone()) {
-            outSubdirectories = cons(dir.clone(), outSubdirectories.clone());
+            outSubdirectories = cons((dir.clone()).clone(), outSubdirectories.clone());
         }
     }
     outSubdirectories
@@ -1545,7 +1545,7 @@ pub fn providesExpectedVersion(mut version: ArcStr, mut provides: Arc<JSON::JSON
     } });
     providedVersions = JSON::getStringList(provides.clone())?;
     matches = false;
-    for mut v in &*cons(version.clone(), providedVersions.clone()) {
+    for mut v in &*cons((version.clone()).clone(), providedVersions.clone()) {
         let mut v = v.clone();
         thisVersion = SemanticVersion::parse((v.clone()).clone(), true)?;
         if SemanticVersion::compare(thisVersion.clone(), wantedVersion.clone(), SemanticVersion::isPrerelease(wantedVersion.clone()) && SemanticVersion::isPrerelease(wantedVersion.clone()), false)? == 0 {
@@ -1759,7 +1759,7 @@ pub fn versionsThatProvideTheWanted(mut id: ArcStr, mut version: ArcStr, mut pri
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, Arc::new(compareVersionsAndSupportLevel)).unwrap(), Arc::new(fnptr!(Util::tuple31, _)));
+    }, (std::sync::Arc::new(compareVersionsAndSupportLevel) as std::sync::Arc<dyn ::std::ops::Fn((ArcStr, SemanticVersion::Version, SupportLevel), (ArcStr, SemanticVersion::Version, SupportLevel)) -> Result<bool> + 'static>)).unwrap(), std::sync::Arc::new(fnptr!(Util::tuple31, _)));
         Ok::<_, anyhow::Error>((libobject.clone(), obj.clone(), result.clone(), vers.clone(), wantedVersion.clone()))
     } {
         Ok((__try0_o0, __try0_o1, __try0_o2, __try0_o3, __try0_o4)) => {
@@ -1802,7 +1802,7 @@ pub fn versionsThatConvertFromTheWanted(mut id: ArcStr, mut version: ArcStr, mut
                 versionStr = __pa1.clone();
                 convertVersion = unwrap_break_err!(SemanticVersion::parse((versionStr.clone()).clone(), true), '__try0);
                 if unwrap_break_err!(SemanticVersion::compare(wantedVersion.clone(), convertVersion.clone(), true, false), '__try0) == 0 {
-                    result = cons(v.clone(), result.clone());
+                    result = cons((v.clone()).clone(), result.clone());
                     continue;
                 }
             }
@@ -1909,7 +1909,7 @@ pub fn installPackage(mut pkg: ArcStr, mut version: ArcStr, mut exactMatch: bool
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, Arc::new(compareUrlBool))?;
+    }, (std::sync::Arc::new(compareUrlBool) as std::sync::Arc<dyn ::std::ops::Fn((Arc<metamodelica::List<ArcStr>>, ArcStr), (Arc<metamodelica::List<ArcStr>>, ArcStr)) -> Result<bool> + 'static>))?;
         urlPathList = List::unique(urlPathList.clone());
         urlPathListToDownload = {
         let mut __acc: Arc<metamodelica::List<(Arc<metamodelica::List<ArcStr>>, ArcStr)>> = metamodelica::nil();
@@ -2045,7 +2045,7 @@ fn compareUrlBool(mut tpl1: (Arc<metamodelica::List<ArcStr>>, ArcStr), mut tpl2:
     Ok(b)
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct PackageInstallInfo {
     pub needsInstall: bool,
     pub pkg: ArcStr,
@@ -2226,7 +2226,7 @@ fn getAllUrls(mut url: ArcStr, mut mirrors: Arc<metamodelica::List<ArcStr>>) -> 
     for mut mirror in &*mirrors.clone() {
         let mut mirror = mirror.clone();
         newUrl = (if (StringUtil::endsWith((mirror.clone()).clone(), (literal!("/")).clone())) {{ let mut __mm_s = String::new(); __mm_s.push_str(&*mirror.clone()); __mm_s.push_str(&*urlWithoutProtocol.clone()); ArcStr::from(__mm_s) }} else {{ let mut __mm_s = String::new(); __mm_s.push_str(&*mirror.clone()); __mm_s.push_str(&*literal!("/")); __mm_s.push_str(&*urlWithoutProtocol.clone()); ArcStr::from(__mm_s) }}).clone();
-        urls = cons(newUrl.clone(), urls.clone());
+        urls = cons((newUrl.clone()).clone(), urls.clone());
     }
     Ok(urls)
 }
@@ -2275,7 +2275,7 @@ fn getInstallationCachePath() -> Result<ArcStr> {
 }
 
 fn makeSourceInfo(mut fileName: ArcStr) -> SourceInfo {
-    let mut info: SourceInfo;
+    let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
     info = SourceInfo { fileName: (fileName.clone()).clone(), isReadOnly: true, lineNumberStart: 0, columnNumberStart: 0, lineNumberEnd: 0, columnNumberEnd: 0, lastModification: metamodelica::OrderedFloat(0.0_f64) };
     info
 }

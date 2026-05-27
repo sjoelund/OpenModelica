@@ -78,37 +78,37 @@ pub fn generateOptions(mut stripAlgorithmSections: bool, mut stripProtectedImpor
 
 pub fn programStr(mut inProgram: Arc<metamodelica::List<Arc<SCode::Element>>>, mut options: SCodeDumpOptions) -> Result<ArcStr> {
     let mut outString: ArcStr = arcstr::literal!("");
-    outString = (Tpl::tplString2(Arc::new(SCodeDumpTpl::dumpProgram), inProgram.clone(), options.clone())?).clone();
+    outString = (Tpl::tplString2((std::sync::Arc::new(SCodeDumpTpl::dumpProgram) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, Arc<metamodelica::List<Arc<SCode::Element>>>, SCodeDumpOptions) -> Result<Tpl::Text> + 'static>), inProgram.clone(), options.clone())?).clone();
     Ok(outString)
 }
 
 pub fn classDefStr(mut cd: Arc<SCode::ClassDef>, mut options: SCodeDumpOptions) -> Result<ArcStr> {
     let mut outString: ArcStr = arcstr::literal!("");
-    outString = (Tpl::tplString2(Arc::new(SCodeDumpTpl::dumpClassDef), cd.clone(), options.clone())?).clone();
+    outString = (Tpl::tplString2((std::sync::Arc::new(SCodeDumpTpl::dumpClassDef) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, Arc<SCode::ClassDef>, SCodeDumpOptions) -> Result<Tpl::Text> + 'static>), cd.clone(), options.clone())?).clone();
     Ok(outString)
 }
 
 pub fn statementStr(mut stmt: Arc<SCode::Statement>, mut options: SCodeDumpOptions) -> Result<ArcStr> {
     let mut outString: ArcStr = arcstr::literal!("");
-    outString = (Tpl::tplString2(Arc::new(SCodeDumpTpl::dumpStatement), stmt.clone(), options.clone())?).clone();
+    outString = (Tpl::tplString2((std::sync::Arc::new(SCodeDumpTpl::dumpStatement) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, Arc<SCode::Statement>, SCodeDumpOptions) -> Result<Tpl::Text> + 'static>), stmt.clone(), options.clone())?).clone();
     Ok(outString)
 }
 
 pub fn equationStr(mut inEquation: Arc<SCode::Equation>, mut options: SCodeDumpOptions) -> Result<ArcStr> {
     let mut outString: ArcStr = arcstr::literal!("");
-    outString = (Tpl::tplString2(Arc::new(SCodeDumpTpl::dumpEquation), inEquation.clone(), options.clone())?).clone();
+    outString = (Tpl::tplString2((std::sync::Arc::new(SCodeDumpTpl::dumpEquation) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, Arc<SCode::Equation>, SCodeDumpOptions) -> Result<Tpl::Text> + 'static>), inEquation.clone(), options.clone())?).clone();
     Ok(outString)
 }
 
 pub fn printModStr(mut inMod: Arc<SCode::Mod>, mut options: SCodeDumpOptions) -> Result<ArcStr> {
     let mut outString: ArcStr = arcstr::literal!("");
-    outString = (Tpl::tplString2(Arc::new(SCodeDumpTpl::dumpModifier), inMod.clone(), options.clone())?).clone();
+    outString = (Tpl::tplString2((std::sync::Arc::new(SCodeDumpTpl::dumpModifier) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, Arc<SCode::Mod>, SCodeDumpOptions) -> Result<Tpl::Text> + 'static>), inMod.clone(), options.clone())?).clone();
     Ok(outString)
 }
 
 pub fn printCommentAndAnnotationStr(mut inComment: Arc<SCode::Comment>, mut options: SCodeDumpOptions) -> Result<ArcStr> {
     let mut outString: ArcStr = arcstr::literal!("");
-    outString = (Tpl::tplString2(Arc::new(SCodeDumpTpl::dumpComment), inComment.clone(), options.clone())?).clone();
+    outString = (Tpl::tplString2((std::sync::Arc::new(SCodeDumpTpl::dumpComment) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, Arc<SCode::Comment>, SCodeDumpOptions) -> Result<Tpl::Text> + 'static>), inComment.clone(), options.clone())?).clone();
     Ok(outString)
 }
 
@@ -116,7 +116,7 @@ pub fn printCommentStr(mut inComment: Arc<SCode::Comment>, mut options: SCodeDum
     let mut outString: ArcStr = arcstr::literal!("");
     outString = ((::match_deref::match_deref! { match &(inComment.clone()) {
         Deref @ SCode::Comment { comment, .. } => {
-            Tpl::tplString2(Arc::new(SCodeDumpTpl::dumpCommentStr), comment.clone(), options.clone())?
+            Tpl::tplString2((std::sync::Arc::new(SCodeDumpTpl::dumpCommentStr) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, Option<ArcStr>, SCodeDumpOptions) -> Result<Tpl::Text> + 'static>), comment.clone(), options.clone())?
         },
         _ => {
             literal!("")
@@ -130,7 +130,7 @@ pub fn printAnnotationStr(mut inComment: Arc<SCode::Comment>, mut options: SCode
     let mut outString: ArcStr = arcstr::literal!("");
     outString = ((::match_deref::match_deref! { match &((inComment.clone(), options.clone())) {
         (Deref @ SCode::Comment { annotation_, .. }, _) => {
-            Tpl::tplString2(Arc::new(SCodeDumpTpl::dumpAnnotationOpt), annotation_.clone(), options.clone())?
+            Tpl::tplString2((std::sync::Arc::new(SCodeDumpTpl::dumpAnnotationOpt) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, Option<Arc<SCode::Annotation>>, SCodeDumpOptions) -> Result<Tpl::Text> + 'static>), annotation_.clone(), options.clone())?
         },
         _ => {
             literal!("")
@@ -181,7 +181,7 @@ pub fn restrString(mut inRestriction: SCode::Restriction) -> Result<ArcStr> {
 
 pub fn restrictionStringPP(mut inRestriction: SCode::Restriction) -> Result<ArcStr> {
     let mut outString: ArcStr = arcstr::literal!("");
-    outString = (Tpl::tplString(Arc::new(SCodeDumpTpl::dumpRestriction), inRestriction.clone())?).clone();
+    outString = (Tpl::tplString((std::sync::Arc::new(SCodeDumpTpl::dumpRestriction) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, SCode::Restriction) -> Result<Tpl::Text> + 'static>), inRestriction.clone())?).clone();
     Ok(outString)
 }
 
@@ -189,7 +189,7 @@ pub const noEachStr: &'static str = "";
 
 pub fn unparseElementStr(mut inElement: Arc<SCode::Element>, mut options: SCodeDumpOptions) -> Result<ArcStr> {
     let mut outString: ArcStr = arcstr::literal!("");
-    outString = (Tpl::tplString3(Arc::new(SCodeDumpTpl::dumpElement), inElement.clone(), (arcstr::literal!(noEachStr)).clone(), options.clone())?).clone();
+    outString = (Tpl::tplString3((std::sync::Arc::new(SCodeDumpTpl::dumpElement) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, Arc<SCode::Element>, ArcStr, SCodeDumpOptions) -> Result<Tpl::Text> + 'static>), inElement.clone(), (arcstr::literal!(noEachStr)).clone(), options.clone())?).clone();
     Ok(outString)
 }
 
@@ -437,7 +437,7 @@ pub fn prefixesStr(mut prefixes: Arc<SCode::Prefixes>) -> Result<ArcStr> {
 
 pub fn filterElements(mut elements: Arc<metamodelica::List<Arc<SCode::Element>>>, mut options: SCodeDumpOptions) -> Arc<metamodelica::List<Arc<SCode::Element>>> {
     let mut outElements: Arc<metamodelica::List<Arc<SCode::Element>>> = metamodelica::nil();
-    outElements = List::select1(elements.clone(), Arc::new(fnptr!(filterElement, Arc<SCode::Element>, SCodeDumpOptions)), options.clone());
+    outElements = List::select1(elements.clone(), (std::sync::Arc::new(fnptr!(filterElement, Arc<SCode::Element>, SCodeDumpOptions)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SCode::Element>, SCodeDumpOptions) -> Result<bool> + 'static>), options.clone());
     outElements
 }
 

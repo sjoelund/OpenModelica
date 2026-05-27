@@ -47,10 +47,10 @@ use openmodelica_ast::Absyn;
 use openmodelica_frontend_dump::Dump;
 
 pub fn rewriteBlockCall(mut inPg: Absyn::Program, mut inDefs: Absyn::Program) -> Result<Absyn::Program> {
-    let mut newOut: Absyn::Program;
+    let mut newOut: Absyn::Program = <Absyn::Program as ::std::default::Default>::default();
     newOut = (match (inPg.clone(), inDefs.clone()) {
         (_, _) => {
-            let mut pg2: Absyn::Program;
+            let mut pg2: Absyn::Program = <Absyn::Program as ::std::default::Default>::default();
             let mut res: ArcStr = arcstr::literal!("");
             pg2 = parseProgram(inPg.clone(), inDefs.clone())?;
             res = (Dump::unparseStr(pg2.clone(), false, Dump::defaultDumpOptions.clone())?).clone();
@@ -81,7 +81,7 @@ pub fn parseClasses(mut classes: Arc<metamodelica::List<Arc<Absyn::Class>>>, mut
         },
         Deref @ metamodelica::List::Cons { head: cls, tail: r_classes } => {
             let mut nr_classes: Arc<metamodelica::List<Arc<Absyn::Class>>> = metamodelica::nil();
-            let mut n_cls: Arc<Absyn::Class>;
+            let mut n_cls: Arc<Absyn::Class> = Arc::new(<Absyn::Class as ::std::default::Default>::default());
             nr_classes = parseClasses(r_classes.clone(), defs.clone())?;
             n_cls = parseClass(cls.clone(), defs.clone())?;
             cons(n_cls.clone(), nr_classes.clone())
@@ -92,7 +92,7 @@ pub fn parseClasses(mut classes: Arc<metamodelica::List<Arc<Absyn::Class>>>, mut
 }
 
 pub fn parseClass(mut in_class: Arc<Absyn::Class>, mut defs: Absyn::Program) -> Result<Arc<Absyn::Class>> {
-    let mut out_class: Arc<Absyn::Class>;
+    let mut out_class: Arc<Absyn::Class> = Arc::new(<Absyn::Class as ::std::default::Default>::default());
     out_class = (::match_deref::match_deref! { match &(in_class.clone()) {
         out_class @ Deref @ Absyn::Class { body, .. } => {
             let mut out_class = (*out_class).clone();
@@ -471,7 +471,10 @@ fn getDefinition(mut id: ArcStr, mut instNo: i32, mut defs: Absyn::Program, mut 
     let mut newModif: Arc<metamodelica::List<Arc<Absyn::ElementArg>>> = metamodelica::nil();
     let mut found: bool = false;
     let mut newInstNo: i32 = 0;
-    (newEqs, newModif, found, newInstNo) = parseClassesDefs((id.clone()).clone(), instNo.clone(), defs.classes.clone(), fargs.clone(), oldEqs.clone(), oldModif.clone())?;
+    (newEqs, newModif, found, newInstNo) = (match defs.clone() {
+        Absyn::Program { .. } => parseClassesDefs((id.clone()).clone(), instNo.clone(), defs.classes.clone(), fargs.clone(), oldEqs.clone(), oldModif.clone())?,
+        _ => bail!("match: no arm matched"),
+    });
     Ok((newEqs, newModif, found, newInstNo))
 }
 

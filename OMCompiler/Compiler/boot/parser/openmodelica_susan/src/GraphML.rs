@@ -103,7 +103,7 @@ pub const BORDERWIDTH_BOLD: metamodelica::Real = metamodelica::OrderedFloat(4.0_
 // -------------------------
 // Data structures
 // -------------------------
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum GraphInfo {
     GRAPHINFO {
         graphs: Arc<metamodelica::List<Graph>>,
@@ -630,7 +630,7 @@ fn compareAttributeTarget0(mut iTarget: AttributeTarget) -> Result<i32> {
 pub fn dumpGraph(mut iGraphInfo: GraphInfo, mut iFileName: ArcStr) -> Result<()> {
     let mut iGraphInfoArr: GraphInfo;
     iGraphInfoArr = convertToGraphInfoArr(iGraphInfo.clone())?;
-    Tpl::tplNoret2(Arc::new(GraphMLDumpTpl::dumpGraphInfo), iGraphInfoArr.clone(), (iFileName.clone()).clone())?;
+    Tpl::tplNoret2((std::sync::Arc::new(GraphMLDumpTpl::dumpGraphInfo) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, GraphInfo, ArcStr) -> Result<Tpl::Text> + 'static>), iGraphInfoArr.clone(), (iFileName.clone()).clone())?;
     Ok(())
 }
 
@@ -686,7 +686,7 @@ pub fn printGraphInfo(mut iGraphInfo: GraphInfo) -> Result<()> {
     nodes = __pa4.clone();
     graphCount = __pa5.clone();
     graphs = __pa6.clone();
-    List::map_0(nodes.clone(), Arc::new(printNode));
+    List::map_0(nodes.clone(), (std::sync::Arc::new(printNode) as std::sync::Arc<dyn ::std::ops::Fn(Node) -> Result<()> + 'static>));
     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("nodeCount: ")); __mm_s.push_str(&*intString(nodeCount.clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("graphCount: ")); __mm_s.push_str(&*intString(graphCount.clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
     Ok(())
@@ -704,7 +704,7 @@ fn printNode(mut node: Node) -> Result<()> {
     attValues = __pa0.clone();
     optDesc = __pa1.clone();
     id = __pa2.clone();
-    atts = stringDelimitList(List::map(attValues.clone(), Arc::new(fnptr!(Util::tuple22, _))), (literal!(" | ")).clone());
+    atts = stringDelimitList(List::map(attValues.clone(), std::sync::Arc::new(fnptr!(Util::tuple22, _))), (literal!(" | ")).clone());
     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("node: ")); __mm_s.push_str(&*id.clone()); __mm_s.push_str(&*literal!(" desc: ")); __mm_s.push_str(&*Util::getOption(optDesc.clone())?); __mm_s.push_str(&*literal!("\n\tatts: ")); __mm_s.push_str(&*atts.clone()); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
     Ok(())
 }

@@ -51,7 +51,7 @@ use crate::System;
 use openmodelica_util_datatypes_basic::Array;
 use openmodelica_util_datatypes_basic::List;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct SBPWAtomicLinearMap {
     pub dom: Arc<SBAtomicSet::SBAtomicSet>,
     pub lmap: Arc<SBLinearMap::SBLinearMap>,
@@ -65,7 +65,7 @@ pub fn new(mut dom: Arc<SBAtomicSet::SBAtomicSet>, mut lmap: Arc<SBLinearMap::SB
     let mut ints: metamodelica::Array<Arc<SBInterval::SBInterval>>;
     let mut g: metamodelica::Array<metamodelica::Real>;
     let mut o: metamodelica::Array<metamodelica::Real>;
-    let mut i: Arc<SBInterval::SBInterval>;
+    let mut i: Arc<SBInterval::SBInterval> = Arc::new(<SBInterval::SBInterval as ::std::default::Default>::default());
     let mut gain: metamodelica::Real = metamodelica::OrderedFloat(0.0_f64);
     let mut offset: metamodelica::Real = metamodelica::OrderedFloat(0.0_f64);
     let mut lo: metamodelica::Real = metamodelica::OrderedFloat(0.0_f64);
@@ -138,13 +138,13 @@ pub fn image(mut map: Arc<SBPWAtomicLinearMap>, mut set: Arc<SBAtomicSet::SBAtom
         i
     }
 
-    let mut outSet: Arc<SBAtomicSet::SBAtomicSet>;
+    let mut outSet: Arc<SBAtomicSet::SBAtomicSet> = Arc::new(<SBAtomicSet::SBAtomicSet as ::std::default::Default>::default());
     let mut inters: metamodelica::Array<Arc<SBInterval::SBInterval>>;
     let mut res: metamodelica::Array<Arc<SBInterval::SBInterval>>;
     let mut gains: metamodelica::Array<metamodelica::Real>;
     let mut offsets: metamodelica::Array<metamodelica::Real>;
-    let mut set_int: Arc<SBAtomicSet::SBAtomicSet>;
-    let mut int: Arc<SBInterval::SBInterval>;
+    let mut set_int: Arc<SBAtomicSet::SBAtomicSet> = Arc::new(<SBAtomicSet::SBAtomicSet as ::std::default::Default>::default());
+    let mut int: Arc<SBInterval::SBInterval> = Arc::new(<SBInterval::SBInterval as ::std::default::Default>::default());
     let mut gain: metamodelica::Real = metamodelica::OrderedFloat(0.0_f64);
     let mut offset: metamodelica::Real = metamodelica::OrderedFloat(0.0_f64);
     let mut new_lo: i32 = 0;
@@ -190,10 +190,10 @@ pub fn image(mut map: Arc<SBPWAtomicLinearMap>, mut set: Arc<SBAtomicSet::SBAtom
 }
 
 pub fn preImage(mut map: Arc<SBPWAtomicLinearMap>, mut set: Arc<SBAtomicSet::SBAtomicSet>) -> Result<Arc<SBAtomicSet::SBAtomicSet>> {
-    let mut outSet: Arc<SBAtomicSet::SBAtomicSet>;
-    let mut full_im: Arc<SBAtomicSet::SBAtomicSet>;
-    let mut actual_im: Arc<SBAtomicSet::SBAtomicSet>;
-    let mut aux: Arc<SBAtomicSet::SBAtomicSet>;
+    let mut outSet: Arc<SBAtomicSet::SBAtomicSet> = Arc::new(<SBAtomicSet::SBAtomicSet as ::std::default::Default>::default());
+    let mut full_im: Arc<SBAtomicSet::SBAtomicSet> = Arc::new(<SBAtomicSet::SBAtomicSet as ::std::default::Default>::default());
+    let mut actual_im: Arc<SBAtomicSet::SBAtomicSet> = Arc::new(<SBAtomicSet::SBAtomicSet as ::std::default::Default>::default());
+    let mut aux: Arc<SBAtomicSet::SBAtomicSet> = Arc::new(<SBAtomicSet::SBAtomicSet as ::std::default::Default>::default());
     let mut inv: Arc<SBPWAtomicLinearMap>;
     full_im = image(map.clone(), map.dom.clone())?;
     actual_im = SBAtomicSet::intersection(full_im.clone(), set.clone())?;
@@ -221,7 +221,7 @@ pub fn toString(mut map: Arc<SBPWAtomicLinearMap>) -> ArcStr {
     let __range0 = (1..=(ints.clone().borrow().len() as i32)).rev();
     for mut i in __range0 {
         r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("(")); __mm_s.push_str(&*SBInterval::toString(ints.borrow()[(i.clone()-1) as usize].clone())); __mm_s.push_str(&*literal!(", ")); __mm_s.push_str(&*ArcStr::from(::std::format!("{}", g.borrow()[(i.clone()-1) as usize].clone()))); __mm_s.push_str(&*literal!(" * x + ")); __mm_s.push_str(&*ArcStr::from(::std::format!("{}", o.borrow()[(i.clone()-1) as usize].clone()))); __mm_s.push_str(&*literal!(")")); ArcStr::from(__mm_s) }).clone();
-        strl = cons(r#str.clone(), strl.clone());
+        strl = cons((r#str.clone()).clone(), strl.clone());
     }
     r#str = stringDelimitList(strl.clone(), (literal!("x")).clone());
     r#str

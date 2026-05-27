@@ -91,15 +91,15 @@ pub fn elaborate(mut flatModel: Arc<FlatModel::NFFlatModel>, mut connections: Ar
     }
     csets = ConnectionSets::emptySets((expandable_conns.clone().len() as i32) + (undeclared_conns.clone().len() as i32));
     csets = addExpandableConnectorsToSets(expandable_conns.clone(), csets.clone())?;
-    (undeclared_conns, csets) = List::mapFold(undeclared_conns.clone(), Arc::new(addUndeclaredConnectorToSets), csets.clone());
+    (undeclared_conns, csets) = List::mapFold(undeclared_conns.clone(), (std::sync::Arc::new(addUndeclaredConnectorToSets) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Connection::NFConnection>, ConnectionSets::Sets) -> Result<(Arc<Connection::NFConnection>, ConnectionSets::Sets)> + 'static>), csets.clone());
     (csets_array, _) = ConnectionSets::extractSets(csets.clone());
     vars = flatModel.variables.clone();
     let __range0 = csets_array.clone().borrow().iter().cloned().collect::<Vec<_>>();
     for mut set in __range0 {
         vars = elaborateExpandableSet(set.clone(), vars.clone())?;
     }
-    conns = List::fold(undeclared_conns.clone(), Arc::new(fnptr!(updateUndeclaredConnection, Arc<Connection::NFConnection>, Arc<metamodelica::List<Arc<Connection::NFConnection>>>)), conns.clone());
-    conns = List::fold(expandable_conns.clone(), Arc::new(updateExpandableConnection), conns.clone());
+    conns = List::fold(undeclared_conns.clone(), (std::sync::Arc::new(fnptr!(updateUndeclaredConnection, Arc<Connection::NFConnection>, Arc<metamodelica::List<Arc<Connection::NFConnection>>>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Connection::NFConnection>, Arc<metamodelica::List<Arc<Connection::NFConnection>>>) -> Result<Arc<metamodelica::List<Arc<Connection::NFConnection>>>> + 'static>), conns.clone());
+    conns = List::fold(expandable_conns.clone(), (std::sync::Arc::new(updateExpandableConnection) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Connection::NFConnection>, Arc<metamodelica::List<Arc<Connection::NFConnection>>>) -> Result<Arc<metamodelica::List<Arc<Connection::NFConnection>>>> + 'static>), conns.clone());
     assign_field!(connections.connections = conns.clone());
     vars = {
         let mut __acc: Arc<metamodelica::List<Arc<Variable::NFVariable>>> = metamodelica::nil();
@@ -117,8 +117,8 @@ fn sortConnections(mut conns: Arc<metamodelica::List<Arc<Connection::NFConnectio
     let mut expandableConnections: Arc<metamodelica::List<Arc<Connection::NFConnection>>> = metamodelica::nil();
     let mut undeclaredConnections: Arc<metamodelica::List<Arc<Connection::NFConnection>>> = metamodelica::nil();
     let mut normalConnections: Arc<metamodelica::List<Arc<Connection::NFConnection>>> = metamodelica::nil();
-    let mut c1: Arc<Connector::NFConnector>;
-    let mut c2: Arc<Connector::NFConnector>;
+    let mut c1: Arc<Connector::NFConnector> = Arc::new(<Connector::NFConnector as ::std::default::Default>::default());
+    let mut c2: Arc<Connector::NFConnector> = Arc::new(<Connector::NFConnector as ::std::default::Default>::default());
     let mut err_msg: Option<(ErrorTypes::Message, Arc<metamodelica::List<Arc<Connector::NFConnector>>>)> = None;
     let mut is_undeclared1: bool = false;
     let mut is_undeclared2: bool = false;
@@ -158,8 +158,8 @@ fn sortConnections(mut conns: Arc<metamodelica::List<Arc<Connection::NFConnectio
 
 fn addExpandableConnectorsToSets(mut conns: Arc<metamodelica::List<Arc<Connection::NFConnection>>>, mut csets: ConnectionSets::Sets) -> Result<ConnectionSets::Sets> {
     let mut csets: ConnectionSets::Sets = csets;
-    let mut c1: Arc<Connector::NFConnector>;
-    let mut c2: Arc<Connector::NFConnector>;
+    let mut c1: Arc<Connector::NFConnector> = Arc::new(<Connector::NFConnector as ::std::default::Default>::default());
+    let mut c2: Arc<Connector::NFConnector> = Arc::new(<Connector::NFConnector as ::std::default::Default>::default());
     for mut conn in &*conns.clone() {
         let mut conn = conn.clone();
         let (__pa0, __pa1) = ::match_deref::match_deref! { match &(conn.clone()) {
@@ -187,7 +187,7 @@ fn addNestedExpandableConnectorsToSets(mut c1: Arc<Connector::NFConnector>, mut 
     }
     for mut ec1 in &*ecl1.clone() {
         let mut ec1 = ec1.clone();
-        (ecl2, oec) = List::deleteMemberOnTrue(ec1.clone(), ecl2.clone(), Arc::new(fnptr!(Connector::isNodeNameEqual, Arc<Connector::NFConnector>, Arc<Connector::NFConnector>)))?;
+        (ecl2, oec) = List::deleteMemberOnTrue(ec1.clone(), ecl2.clone(), (std::sync::Arc::new(fnptr!(Connector::isNodeNameEqual, Arc<Connector::NFConnector>, Arc<Connector::NFConnector>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Connector::NFConnector>, Arc<Connector::NFConnector>) -> Result<bool> + 'static>))?;
         if isSome(oec.clone()) {
             conns = cons(Arc::new(Connection::NFConnection { lhs: ec1.clone(), rhs: Util::getOption(oec.clone())? }), conns.clone());
         }
@@ -209,7 +209,7 @@ fn getExpandableConnectorsInConnector(mut c1: Arc<Connector::NFConnector>) -> Re
                 let mut n = n.clone();
                 ty = InstNode::getType(n.clone())?;
                 name = ComponentRef::prefixCref(n.clone(), ty.clone(), metamodelica::nil(), par_name.clone());
-                ecl = cons(Connector::fromCref(name.clone(), ty.clone(), ElementSource::createElementSource(InstNode::info(n.clone())?, None, openmodelica_frontend_types::DAE::Prefix::NOPRE, (DAE::emptyCref.clone(), DAE::emptyCref.clone()))?), ecl.clone());
+                ecl = cons(Connector::fromCref(name.clone(), ty.clone(), ElementSource::createElementSource(InstNode::info(n.clone())?, None, openmodelica_frontend_types::DAE::Prefix::NOPRE, (DAE::emptyCref().clone(), DAE::emptyCref().clone()))?), ecl.clone());
             }
             ecl.clone()
         },
@@ -222,10 +222,10 @@ fn getExpandableConnectorsInConnector(mut c1: Arc<Connector::NFConnector>) -> Re
 fn addUndeclaredConnectorToSets(mut conn: Arc<Connection::NFConnection>, mut csets: ConnectionSets::Sets) -> Result<(Arc<Connection::NFConnection>, ConnectionSets::Sets)> {
     let mut conn: Arc<Connection::NFConnection> = conn;
     let mut csets: ConnectionSets::Sets = csets;
-    let mut c1: Arc<Connector::NFConnector>;
-    let mut c2: Arc<Connector::NFConnector>;
-    let mut c: Arc<Connector::NFConnector>;
-    let mut ec: Arc<Connector::NFConnector>;
+    let mut c1: Arc<Connector::NFConnector> = Arc::new(<Connector::NFConnector as ::std::default::Default>::default());
+    let mut c2: Arc<Connector::NFConnector> = Arc::new(<Connector::NFConnector as ::std::default::Default>::default());
+    let mut c: Arc<Connector::NFConnector> = Arc::new(<Connector::NFConnector as ::std::default::Default>::default());
+    let mut ec: Arc<Connector::NFConnector> = Arc::new(<Connector::NFConnector as ::std::default::Default>::default());
     let (__pa0, __pa1) = ::match_deref::match_deref! { match &(conn.clone()) {
         Deref @ Connection::CONNECTION { rhs: __pa0, lhs: __pa1 } => (__pa0.clone(), __pa1.clone()),
         _ => bail!("pattern mismatch"),
@@ -257,7 +257,7 @@ fn addConnectionToSets(mut c1: Arc<Connector::NFConnector>, mut c2: Arc<Connecto
 }
 
 fn makeVirtualConnector(mut virtualConnector: Arc<Connector::NFConnector>, mut normalConnector: Arc<Connector::NFConnector>) -> Result<Arc<Connector::NFConnector>> {
-    let mut newConnector: Arc<Connector::NFConnector>;
+    let mut newConnector: Arc<Connector::NFConnector> = Arc::new(<Connector::NFConnector as ::std::default::Default>::default());
     let mut virtual_cref: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
     let mut normal_cref: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
     let mut ty: Arc<Type::NFType> = Arc::new(Type::ANY);
@@ -269,7 +269,7 @@ fn makeVirtualConnector(mut virtualConnector: Arc<Connector::NFConnector>, mut n
     node = InstNode::clone(node.clone())?;
     node = InstNode::rename((ComponentRef::firstName(virtual_cref.clone(), false)?).clone(), node.clone())?;
     node = InstNode::setParent(ComponentRef::node(ComponentRef::rest(virtual_cref.clone())?)?, node.clone())?;
-    node = InstNode::componentApply(node.clone(), Arc::new(Component::setType), ty.clone())?;
+    node = InstNode::componentApply(node.clone(), (std::sync::Arc::new(Component::setType) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Type::NFType>, Arc<Component::NFComponent>) -> Result<Arc<Component::NFComponent>> + 'static>), ty.clone())?;
     virtual_cref = ComponentRef::prefixCref(node.clone(), ty.clone(), metamodelica::nil(), ComponentRef::rest(virtual_cref.clone())?);
     newConnector = Arc::new(Connector::NFConnector { name: virtual_cref.clone(), ty: ty.clone(), face: virtualConnector.face.clone(), cty: virtualConnector.cty.clone(), source: virtualConnector.source.clone() });
     Ok(newConnector)
@@ -280,7 +280,7 @@ fn elaborateExpandableSet(mut set: Arc<metamodelica::List<Arc<Connector::NFConne
     let mut exp_set: Arc<UnorderedSet::UnorderedSet<Arc<Connector::NFConnector>>>;
     let mut exp_conns: Arc<metamodelica::List<Arc<Connector::NFConnector>>> = metamodelica::nil();
     let mut exp_set_lst: Arc<metamodelica::List<Arc<Connector::NFConnector>>> = metamodelica::nil();
-    exp_set = UnorderedSet::new(hashConnector, fnptr!(Connector::isNodeNameEqual, Arc<Connector::NFConnector>, Arc<Connector::NFConnector>), 13);
+    exp_set = UnorderedSet::new((std::sync::Arc::new(hashConnector) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Connector::NFConnector>) -> Result<i32> + 'static>), (std::sync::Arc::new(fnptr!(Connector::isNodeNameEqual, Arc<Connector::NFConnector>, Arc<Connector::NFConnector>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Connector::NFConnector>, Arc<Connector::NFConnector>) -> Result<bool> + 'static>), 13);
     for mut c in &*set.clone() {
         let mut c = c.clone();
         if Prefixes::ConnectorType::isExpandable(c.cty.clone()) {
@@ -310,7 +310,7 @@ fn markComponentPresent(mut node: Arc<InstNode::InstNode>) -> Result<()> {
         InstNode::updateComponent(comp.clone(), node.clone())?;
         if Type::isComplex(Component::getType(comp.clone())?) {
             cls = InstNode::getClass(Component::classInstance(comp.clone()))?;
-            ClassTree::applyComponents(Class::classTree(cls.clone())?, Arc::new(markComponentPresent));
+            ClassTree::applyComponents(Class::classTree(cls.clone())?, (std::sync::Arc::new(markComponentPresent) as std::sync::Arc<dyn ::std::ops::Fn(Arc<InstNode::InstNode>) -> Result<()> + 'static>));
         }
     }
     Ok(())
@@ -378,13 +378,13 @@ fn augmentExpandableConnector(mut conn: Arc<Connector::NFConnector>, mut expanda
     ty = Type::liftArrayLeftList(ty.clone(), Type::arrayDims(InstNode::getType(exp_node.clone())?));
     cls = Class::setType(ty.clone(), cls.clone())?;
     InstNode::updateClass(cls.clone(), cls_node.clone())?;
-    InstNode::componentApply(exp_node.clone(), Arc::new(Component::setType), ty.clone())?;
+    InstNode::componentApply(exp_node.clone(), (std::sync::Arc::new(Component::setType) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Type::NFType>, Arc<Component::NFComponent>) -> Result<Arc<Component::NFComponent>> + 'static>), ty.clone())?;
     Ok(vars)
 }
 
 fn createVirtualVariables(mut connectorName: Arc<ComponentRef::NFComponentRef>, mut connectorType: Arc<Type::NFType>, mut info: SourceInfo, mut vars: Arc<metamodelica::List<Arc<Variable::NFVariable>>>) -> Result<Arc<metamodelica::List<Arc<Variable::NFVariable>>>> {
     let mut vars: Arc<metamodelica::List<Arc<Variable::NFVariable>>> = vars;
-    let mut var: Arc<Variable::NFVariable>;
+    let mut var: Arc<Variable::NFVariable> = Arc::new(<Variable::NFVariable as ::std::default::Default>::default());
     let mut comps: metamodelica::Array<Arc<InstNode::InstNode>>;
     let mut name: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
     let mut ty: Arc<Type::NFType> = Arc::new(Type::ANY);
@@ -410,8 +410,8 @@ fn updateUndeclaredConnection(mut conn: Arc<Connection::NFConnection>, mut conns
 
 fn updateExpandableConnection(mut conn: Arc<Connection::NFConnection>, mut conns: Arc<metamodelica::List<Arc<Connection::NFConnection>>>) -> Result<Arc<metamodelica::List<Arc<Connection::NFConnection>>>> {
     let mut conns: Arc<metamodelica::List<Arc<Connection::NFConnection>>> = conns;
-    let mut c1: Arc<Connector::NFConnector>;
-    let mut c2: Arc<Connector::NFConnector>;
+    let mut c1: Arc<Connector::NFConnector> = Arc::new(<Connector::NFConnector as ::std::default::Default>::default());
+    let mut c2: Arc<Connector::NFConnector> = Arc::new(<Connector::NFConnector as ::std::default::Default>::default());
     let mut ty1: Arc<Type::NFType> = Arc::new(Type::ANY);
     let mut ty2: Arc<Type::NFType> = Arc::new(Type::ANY);
     let mut mk: MatchKind = MatchKind::EXACT;

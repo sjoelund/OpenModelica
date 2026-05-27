@@ -60,13 +60,13 @@ pub type HashTableCrefFunctionsType = (FuncHashCref, FuncCrefEqual, FuncCrefStr,
 
 pub type HashTable = (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, InstStateMachineUtil::SMNode)>>), i32, (FuncHashCref, FuncCrefEqual, FuncCrefStr, FuncExpStr));
 
-pub type FuncHashCref = fn(Key) -> Result<i32>;
+pub type FuncHashCref = std::sync::Arc<dyn ::std::ops::Fn(Key) -> Result<i32> + 'static>;
 
-pub type FuncCrefEqual = fn(Key, Key) -> Result<bool>;
+pub type FuncCrefEqual = std::sync::Arc<dyn ::std::ops::Fn(Key, Key) -> Result<bool> + 'static>;
 
-pub type FuncCrefStr = fn(Key) -> Result<ArcStr>;
+pub type FuncCrefStr = std::sync::Arc<dyn ::std::ops::Fn(Key) -> Result<ArcStr> + 'static>;
 
-pub type FuncExpStr = fn(Value) -> Result<ArcStr>;
+pub type FuncExpStr = std::sync::Arc<dyn ::std::ops::Fn(Value) -> Result<ArcStr> + 'static>;
 
 pub fn emptyHashTable() -> HashTable {
     let mut hashTable: HashTable;
@@ -76,7 +76,7 @@ pub fn emptyHashTable() -> HashTable {
 
 pub fn emptyHashTableSized(mut size: i32) -> HashTable {
     let mut hashTable: HashTable;
-    hashTable = BaseHashTable::emptyHashTableWork(size.clone(), (ComponentReference::hashComponentRef, ComponentReferenceBasics::crefEqual, ComponentReferenceBasics::printComponentRefStr, modeStr));
+    hashTable = BaseHashTable::emptyHashTableWork(size.clone(), ((std::sync::Arc::new(ComponentReference::hashComponentRef) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentReferenceBasics::crefEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>) -> Result<bool> + 'static>), (std::sync::Arc::new(ComponentReferenceBasics::printComponentRefStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>), (std::sync::Arc::new(modeStr) as std::sync::Arc<dyn ::std::ops::Fn(InstStateMachineUtil::SMNode) -> Result<ArcStr> + 'static>)));
     hashTable
 }
 
@@ -92,7 +92,7 @@ pub fn modeStr(mut mode: InstStateMachineUtil::SMNode) -> Result<ArcStr> {
     isInitial = __pa1.clone();
     componentRef = __pa2.clone();
     crefs = BaseHashSet::hashSetList(edges.clone())?;
-    paths = List::map(crefs.clone(), Arc::new(ComponentReferenceBasics::printComponentRefStr));
+    paths = List::map(crefs.clone(), (std::sync::Arc::new(ComponentReferenceBasics::printComponentRefStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>));
     s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("SMNODE(")); __mm_s.push_str(&*ComponentReferenceBasics::printComponentRefStr(componentRef.clone())?); __mm_s.push_str(&*literal!(", ")); __mm_s.push_str(&*boolString(isInitial.clone())); __mm_s.push_str(&*literal!(",")); __mm_s.push_str(&*literal!("EDGES(")); __mm_s.push_str(&*stringDelimitList(paths.clone(), (literal!(", ")).clone())); __mm_s.push_str(&*literal!("))\n")); ArcStr::from(__mm_s) }).clone();
     Ok(s)
 }

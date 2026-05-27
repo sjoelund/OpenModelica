@@ -129,7 +129,7 @@ pub fn readableStacktraceMessages() -> Result<Arc<metamodelica::List<ArcStr>>> {
         let mut symbol = symbol.clone();
         if prev.clone() == literal!("") {
         } else if symbol.clone() != prev.clone() {
-            symbols = cons({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("[bt] #")); __mm_s.push_str(&*ArcStr::from(::std::format!("{}", prevN.clone()))); __mm_s.push_str(&*if (n.clone() != prevN.clone()) {{ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("...")); __mm_s.push_str(&*ArcStr::from(::std::format!("{}", n.clone()))); ArcStr::from(__mm_s) }} else {literal!("")}); __mm_s.push_str(&*literal!(" ")); __mm_s.push_str(&*prev.clone()); ArcStr::from(__mm_s) }, symbols.clone());
+            symbols = cons(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("[bt] #")); __mm_s.push_str(&*ArcStr::from(::std::format!("{}", prevN.clone()))); __mm_s.push_str(&*if (n.clone() != prevN.clone()) {{ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("...")); __mm_s.push_str(&*ArcStr::from(::std::format!("{}", n.clone()))); ArcStr::from(__mm_s) }} else {literal!("")}); __mm_s.push_str(&*literal!(" ")); __mm_s.push_str(&*prev.clone()); ArcStr::from(__mm_s) }).clone(), symbols.clone());
             n = n.clone() + 1;
             prevN = n.clone();
         } else {
@@ -137,7 +137,7 @@ pub fn readableStacktraceMessages() -> Result<Arc<metamodelica::List<ArcStr>>> {
         }
         prev = (symbol.clone()).clone();
     }
-    symbols = cons({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("[bt] #")); __mm_s.push_str(&*ArcStr::from(::std::format!("{}", prevN.clone()))); __mm_s.push_str(&*if (n.clone() != prevN.clone()) {{ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("...")); __mm_s.push_str(&*ArcStr::from(::std::format!("{}", n.clone()))); ArcStr::from(__mm_s) }} else {literal!("")}); __mm_s.push_str(&*literal!(" ")); __mm_s.push_str(&*prev.clone()); ArcStr::from(__mm_s) }, symbols.clone());
+    symbols = cons(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("[bt] #")); __mm_s.push_str(&*ArcStr::from(::std::format!("{}", prevN.clone()))); __mm_s.push_str(&*if (n.clone() != prevN.clone()) {{ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("...")); __mm_s.push_str(&*ArcStr::from(::std::format!("{}", n.clone()))); ArcStr::from(__mm_s) }} else {literal!("")}); __mm_s.push_str(&*literal!(" ")); __mm_s.push_str(&*prev.clone()); ArcStr::from(__mm_s) }).clone(), symbols.clone());
     symbols = symbols.clone().reverse();
     Ok(symbols)
 }

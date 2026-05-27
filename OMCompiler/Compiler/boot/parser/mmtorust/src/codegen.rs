@@ -10511,25 +10511,118 @@ fn pat_assigned_names(p: &TypedPat, out: &mut HashSet<String>) {
 }
 
 /// re-bound as owned `mut` locals at the top of a match arm.
+///
+/// The walker descends through RHS / cond / range expressions to find
+/// `Match` (and other expression-position blocks) whose case bodies may
+/// reassign names introduced by an outer arm's pattern. In MetaModelica
+/// `() := match X case ... <name>.field := ... end match;` is an assign
+/// statement whose RHS is a Match expression; without descending we'd
+/// miss the inner field-update and never produce the owned shadow that
+/// `assign_variant_field!` needs on `<name>`.
+///
+/// Names rebound by an inner pattern are not subtracted here: in the worst
+/// case we emit a spurious `let mut <name> = (*<name>).clone();` at the
+/// top of the outer arm, which is harmless (the unused-mut lint is
+/// allowed for generated code).
 fn stmts_assigned_var_names(stmts: &[typedexp::TypedStmt], out: &mut HashSet<String>) {
     use typedexp::TypedStmt as S;
     for s in stmts {
         match s {
-            S::Assign { lhs, .. } => pat_assigned_names(lhs, out),
-            S::If { then_, elseif, else_, .. } => {
+            S::Assign { lhs, rhs } => {
+                pat_assigned_names(lhs, out);
+                exp_assigned_var_names(rhs, out);
+            }
+            S::NoRetCall { call } => exp_assigned_var_names(call, out),
+            S::If { cond, then_, elseif, else_ } => {
+                exp_assigned_var_names(cond, out);
                 stmts_assigned_var_names(then_, out);
-                for (_, eb) in elseif { stmts_assigned_var_names(eb, out); }
+                for (c, eb) in elseif {
+                    exp_assigned_var_names(c, out);
+                    stmts_assigned_var_names(eb, out);
+                }
                 stmts_assigned_var_names(else_, out);
             }
-            S::For { body, .. } | S::While { body, .. } | S::Failure { body } => {
+            S::For { range, body, .. } => {
+                exp_assigned_var_names(range, out);
                 stmts_assigned_var_names(body, out);
             }
+            S::While { cond, body } => {
+                exp_assigned_var_names(cond, out);
+                stmts_assigned_var_names(body, out);
+            }
+            S::Failure { body } => stmts_assigned_var_names(body, out),
             S::Try { body, else_body } => {
                 stmts_assigned_var_names(body, out);
                 stmts_assigned_var_names(else_body, out);
             }
             _ => {}
         }
+    }
+}
+
+/// Walk `e` looking for assignments to outer-scope variables that happen
+/// inside expression-position blocks (today: `Match` arms; `If` arms hold
+/// expressions only). Used by `stmts_assigned_var_names` so an outer
+/// match-arm's prologue can shadow `<name>` as an owned mut even when the
+/// only writes occur inside a nested match's arm body.
+fn exp_assigned_var_names(e: &TypedExp, out: &mut HashSet<String>) {
+    match e {
+        TypedExp::Match { input, cases, .. } => {
+            exp_assigned_var_names(input, out);
+            for c in cases {
+                if let Some(g) = &c.guard { exp_assigned_var_names(g, out); }
+                stmts_assigned_var_names(&c.stmts, out);
+                exp_assigned_var_names(&c.result, out);
+            }
+        }
+        TypedExp::BinOp { lhs, rhs, .. } => {
+            exp_assigned_var_names(lhs, out);
+            exp_assigned_var_names(rhs, out);
+        }
+        TypedExp::UnOp { operand, .. } => exp_assigned_var_names(operand, out),
+        TypedExp::Call { args, named_args, .. }
+        | TypedExp::Constructor { args, named_args, .. } => {
+            args.iter().for_each(|a| exp_assigned_var_names(a, out));
+            named_args.iter().for_each(|(_, a)| exp_assigned_var_names(a, out));
+        }
+        TypedExp::PartEval { args, named_args, .. } => {
+            args.iter().for_each(|a| exp_assigned_var_names(a, out));
+            named_args.iter().for_each(|(_, a)| exp_assigned_var_names(a, out));
+        }
+        TypedExp::If { cond, then_, elseif, else_, .. } => {
+            exp_assigned_var_names(cond, out);
+            exp_assigned_var_names(then_, out);
+            for (c, b) in elseif {
+                exp_assigned_var_names(c, out);
+                exp_assigned_var_names(b, out);
+            }
+            exp_assigned_var_names(else_, out);
+        }
+        TypedExp::Cons { head, tail, .. } => {
+            exp_assigned_var_names(head, out);
+            exp_assigned_var_names(tail, out);
+        }
+        TypedExp::Tuple(v) | TypedExp::Array { elems: v, .. } => {
+            v.iter().for_each(|e| exp_assigned_var_names(e, out));
+        }
+        TypedExp::Range { start, step, stop, .. } => {
+            exp_assigned_var_names(start, out);
+            if let Some(s) = step { exp_assigned_var_names(s, out); }
+            exp_assigned_var_names(stop, out);
+        }
+        TypedExp::Reduction { body, iterators, .. } => {
+            exp_assigned_var_names(body, out);
+            for it in iterators {
+                exp_assigned_var_names(&it.range, out);
+                if let Some(g) = &it.guard { exp_assigned_var_names(g, out); }
+            }
+        }
+        TypedExp::Var { segments, .. } => {
+            for seg in segments {
+                seg.subscripts.iter().for_each(|s| exp_assigned_var_names(s, out));
+            }
+        }
+        TypedExp::Lit(_) | TypedExp::Todo(_) => {}
     }
 }
 

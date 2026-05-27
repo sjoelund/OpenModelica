@@ -12830,7 +12830,16 @@ fn render_shallow<'a>(
                 if is_arc_wrapped(fty, ctx) && !matches!(sub, TypedPat::Wildcard | TypedPat::Var(_)) {
                     let n = *fresh; *fresh += 1;
                     let tmp = format!("__t{n}");
-                    deferrals.push((format!("(*{tmp}).clone()"), sub.clone(), fty.clone()));
+                    // Defer the Arc-wrapped field at the Arc level: `__tN.clone()`
+                    // is an Arc bump that yields `Arc<T>` regardless of whether the
+                    // outer destructure bound `__tN` by-value (`Arc<T>`) or by-ref
+                    // (`&Arc<T>`, via match ergonomics). The follow-up
+                    // `emit_pat_assign` borrows this Arc and peels it with `Deref @`.
+                    // `(*__tN).clone()` would strip the Arc to an owned `T` in the
+                    // by-value case, leaving the deferred pattern's `Deref @` to
+                    // deref a non-Arc value (E0277 "T: Deref not satisfied"). This
+                    // mirrors the Cons-tail deferral above.
+                    deferrals.push((format!("{tmp}.clone()"), sub.clone(), fty.clone()));
                     tmp
                 } else {
                     render_shallow(sub, fty, ctx, env, top_level, fresh, deferrals, force_ref)

@@ -135,6 +135,19 @@ struct GenCtx {
     /// therefore cannot be the type of a `pub static`. Populated from
     /// `InstanceHierarchy::types_containing_array`. Consulted by `ty_is_sync`.
     types_containing_array: BTreeSet<String>,
+    /// Fully-qualified names of types that transitively embed an
+    /// `Arc<dyn Fn(...) + 'static>` field. Consulted by `derives_for`
+    /// (drop the derives `dyn Fn` doesn't implement) and by `ty_is_sync`
+    /// (route `pub static`-affected constants to `thread_local! +
+    /// getter` emission instead). Populated from
+    /// [`crate::hierarchy::InstanceHierarchy::types_containing_dyn_fn`].
+    types_containing_dyn_fn: BTreeSet<String>,
+    /// Subset of [`Self::types_containing_dyn_fn`]: direct containers.
+    /// Consulted by `derives_for` (these need only `#[derive(Clone)]`
+    /// because the auto-derive of Debug/PartialEq/etc. fails on the
+    /// dyn-Fn field directly) and by the manual-impl emission that
+    /// follows the type definition.
+    types_directly_containing_dyn_fn: BTreeSet<String>,
     /// Fully-qualified MetaModelica names (dot-separated) of `constant`
     /// components emitted as `pub const fn name() -> T { ... }` getters rather
     /// than as `pub static`. These are constants whose value is const-emittable
@@ -342,7 +355,7 @@ enum VarShape {
 }
 
 impl GenCtx {
-    fn new(top_name: &str, current_crate: Option<String>, crate_map: BTreeMap<String, String>, top_level_uniontype_names: HashSet<String>, recursive_types: BTreeSet<String>, types_containing_mutable: BTreeSet<String>, types_containing_array: BTreeSet<String>, fn_type_vars: BTreeMap<String, Vec<String>>, fallible_functions: BTreeSet<String>, partial_eq_required: BTreeMap<String, HashSet<String>>, default_required: BTreeMap<String, HashSet<String>>, defaultable_struct_qnames: HashSet<String>, types_needing_default: HashSet<String>) -> Self {
+    fn new(top_name: &str, current_crate: Option<String>, crate_map: BTreeMap<String, String>, top_level_uniontype_names: HashSet<String>, recursive_types: BTreeSet<String>, types_containing_mutable: BTreeSet<String>, types_containing_array: BTreeSet<String>, types_containing_dyn_fn: BTreeSet<String>, types_directly_containing_dyn_fn: BTreeSet<String>, fn_type_vars: BTreeMap<String, Vec<String>>, fallible_functions: BTreeSet<String>, partial_eq_required: BTreeMap<String, HashSet<String>>, default_required: BTreeMap<String, HashSet<String>>, defaultable_struct_qnames: HashSet<String>, types_needing_default: HashSet<String>) -> Self {
         Self {
             top_name: top_name.to_owned(),
             current_path: Vec::new(),
@@ -359,6 +372,8 @@ impl GenCtx {
             recursive_types,
             types_containing_mutable,
             types_containing_array,
+            types_containing_dyn_fn,
+            types_directly_containing_dyn_fn,
             const_fn_getters: BTreeSet::new(),
             no_mod_uniontypes: HashSet::new(),
             fn_type_vars,
@@ -450,7 +465,17 @@ impl GenCtx {
         // transitively contains either of these therefore gets the
         // full algebraic set minus `Hash`.
         // `Real` is `OrderedFloat<f64>` and never blocks these checks.
-        if self.types_containing_mutable.contains(qname)
+        // Types that *directly* embed an `Arc<dyn Fn(...)>` field cannot
+        // auto-derive Debug/PartialEq/Eq/PartialOrd/Ord/Hash — `dyn Fn`
+        // implements none of those. Strip everything but `Clone` and
+        // supply hand-rolled impls separately (see
+        // `emit_dyn_fn_container_impls`). Transitive containers — types
+        // that hold a *direct* container via an inner field — still
+        // auto-derive everything; the hand-rolled impl on the inner
+        // type satisfies the derive's per-field bound.
+        if self.types_directly_containing_dyn_fn.contains(qname) {
+            "#[derive(Clone)]"
+        } else if self.types_containing_mutable.contains(qname)
             || self.types_containing_array.contains(qname)
         {
             "#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]"
@@ -1020,7 +1045,7 @@ pub fn generate_all(hier: &InstanceHierarchy<'_>, output_dir: &str) -> std::io::
             eprintln!("[mmtorust] codegen start {file_path}");
         }
         let file_t0 = std::time::Instant::now();
-        let content = generate_file(name, node, &crate_map, current_crate, &top_level_uniontype_names, hier.recursive_types.clone(), hier.types_containing_mutable.clone(), hier.types_containing_array.clone(), &no_mod_uniontypes, &hier.top_level, &fn_type_vars, &hier.fallible_functions, &hier.partial_eq_required, &hier.default_required, &defaultable_struct_qnames, &types_needing_default);
+        let content = generate_file(name, node, &crate_map, current_crate, &top_level_uniontype_names, hier.recursive_types.clone(), hier.types_containing_mutable.clone(), hier.types_containing_array.clone(), hier.types_containing_dyn_fn.clone(), hier.types_directly_containing_dyn_fn.clone(), &no_mod_uniontypes, &hier.top_level, &fn_type_vars, &hier.fallible_functions, &hier.partial_eq_required, &hier.default_required, &defaultable_struct_qnames, &types_needing_default);
         let file_elapsed = file_t0.elapsed();
         if trace_codegen {
             eprintln!("[mmtorust] codegen done  {file_path} ({:.2}s)", file_elapsed.as_secs_f64());
@@ -1213,8 +1238,8 @@ fn collect_no_mod_uniontypes(nodes: &BTreeMap<String, NameNode<'_>>, prefix: &st
     }
 }
 
-fn generate_file<'a>(top_name: &str, node: &NameNode<'_>, crate_map: &BTreeMap<String, String>, current_crate: Option<String>, top_level_uniontype_names: &HashSet<String>, recursive_types: BTreeSet<String>, types_containing_mutable: BTreeSet<String>, types_containing_array: BTreeSet<String>, no_mod_uniontypes: &HashSet<String>, top_level: &'a BTreeMap<String, NameNode<'a>>, fn_type_vars: &BTreeMap<String, Vec<String>>, fallible_functions: &BTreeSet<String>, partial_eq_required: &BTreeMap<String, HashSet<String>>, default_required: &BTreeMap<String, HashSet<String>>, defaultable_struct_qnames: &HashSet<String>, types_needing_default: &HashSet<String>) -> String {
-    let mut ctx = GenCtx::new(top_name, current_crate, crate_map.clone(), top_level_uniontype_names.clone(), recursive_types, types_containing_mutable, types_containing_array, fn_type_vars.clone(), fallible_functions.clone(), partial_eq_required.clone(), default_required.clone(), defaultable_struct_qnames.clone(), types_needing_default.clone());
+fn generate_file<'a>(top_name: &str, node: &NameNode<'_>, crate_map: &BTreeMap<String, String>, current_crate: Option<String>, top_level_uniontype_names: &HashSet<String>, recursive_types: BTreeSet<String>, types_containing_mutable: BTreeSet<String>, types_containing_array: BTreeSet<String>, types_containing_dyn_fn: BTreeSet<String>, types_directly_containing_dyn_fn: BTreeSet<String>, no_mod_uniontypes: &HashSet<String>, top_level: &'a BTreeMap<String, NameNode<'a>>, fn_type_vars: &BTreeMap<String, Vec<String>>, fallible_functions: &BTreeSet<String>, partial_eq_required: &BTreeMap<String, HashSet<String>>, default_required: &BTreeMap<String, HashSet<String>>, defaultable_struct_qnames: &HashSet<String>, types_needing_default: &HashSet<String>) -> String {
+    let mut ctx = GenCtx::new(top_name, current_crate, crate_map.clone(), top_level_uniontype_names.clone(), recursive_types, types_containing_mutable, types_containing_array, types_containing_dyn_fn, types_directly_containing_dyn_fn, fn_type_vars.clone(), fallible_functions.clone(), partial_eq_required.clone(), default_required.clone(), defaultable_struct_qnames.clone(), types_needing_default.clone());
     ctx.no_mod_uniontypes = no_mod_uniontypes.clone();
     // Pre-walk the *whole* hierarchy (not just this file's node) so that
     // function-nested partial-function aliases are recognised regardless of
@@ -1418,25 +1443,30 @@ fn emit_node<'a>(out: &mut String, name: &str, node: &NameNode<'_>, indent: &str
                         writeln!(out).unwrap();
                         return;
                     }
-                    // Non-Sync, non-const-emittable, and not a top-level `Array<T>`:
-                    // there is no good emission path today. The `LazyLock<T>` route
-                    // below requires `T: Sync`; the `StaticArray<T>` rewrite only
-                    // applies to a direct `Ty::Array(_)`; a `pub const fn` getter
-                    // would require the initializer to be a const expression, which
-                    // by definition it isn't here. Surface the case with a
-                    // `compile_error!` so it's visible at the use site rather than
-                    // silently producing a `pub static` that won't compile. When this
-                    // ever fires in practice, extend the emission (e.g. by collecting
-                    // initializer-side allocations into a `StaticArray`-equivalent
-                    // wrapper, or by lowering to a `thread_local!` getter if MM
-                    // semantics permit).
+                    // Non-Sync, non-const-emittable, and not a top-level
+                    // `Array<T>`: route via a `thread_local! + pub fn`
+                    // getter. The `LazyLock<T>` path below requires `T:
+                    // Send + Sync`, which we cannot satisfy when the type
+                    // transitively contains an `Arc<dyn Fn(...) +
+                    // 'static>` (the trait object has no `+ Send + Sync`
+                    // bound — see [`fmt_param_ty`] for the rationale).
+                    // `thread_local!` sidesteps `T: Sync` entirely by
+                    // giving each OS thread its own copy: the initializer
+                    // runs once per thread, the getter clones the stored
+                    // value (cheap — these are `Arc`-rooted shapes), and
+                    // the FQN is registered in `ctx.const_fn_getters` so
+                    // `emit_exp`'s `Var` arm appends `()` at reference
+                    // sites. Mirrors Globals.rs's hand-written
+                    // `currentInstVar`, which uses the same pattern for
+                    // the same reason.
                     if !is_array_const && !ty_is_sync(&node.ty, ctx) {
                         let r_ty = fmt_ty(&node.ty, ctx);
-                        let dump = format!("{typed:?}").replace('"', "'");
-                        writeln!(out, "{indent}// TODO: non-Sync, non-const-emittable constant — needs new emission path.").unwrap();
-                        writeln!(out, "{indent}// Type: {r_ty}").unwrap();
-                        writeln!(out, "{indent}// Expr: {dump}").unwrap();
-                        writeln!(out, "{indent}pub fn {ename}() -> {r_ty} {{ todo!(\"non-Sync, non-const-emittable constant {ename} — extend codegen\") }}").unwrap();
+                        let saved_fallible = ctx.current_fn_fallible;
+                        ctx.current_fn_fallible = false;
+                        let val = emit_exp(&typed, /*is_const=*/false, ctx, top_level);
+                        ctx.current_fn_fallible = saved_fallible;
+                        writeln!(out, "{indent}thread_local! {{ static __{ename}_TLS: {r_ty} = {val}; }}").unwrap();
+                        writeln!(out, "{indent}pub fn {ename}() -> {r_ty} {{ __{ename}_TLS.with(|__t| __t.clone()) }}").unwrap();
                         writeln!(out).unwrap();
                         return;
                     }
@@ -1952,6 +1982,54 @@ fn emit_uniontype<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM:
                 }
             }
             writeln!(out, "{inner}}}").unwrap();
+            // Hand-rolled trait impls for enums that *directly* embed an
+            // `Arc<dyn Fn(...)>` field. `derives_for` dropped everything
+            // but `Clone` for these — supply Debug/PartialEq/Eq/
+            // PartialOrd/Ord/Hash here with pointer-identity semantics
+            // on the dyn-fn slots. See `emit_dyn_fn_container_impls`.
+            if ctx.types_directly_containing_dyn_fn.contains(qname) {
+                let mut impl_variants: Vec<(String, Vec<DynFnImplField>)> = Vec::new();
+                for rec_name in records_in_order(c) {
+                    let Some(rec_node) = node.children.get(&rec_name) else { continue };
+                    let NodeKind::Class(rc) = &rec_node.kind else { continue };
+                    match &rec_node.ty {
+                        Ty::RustUnitVariant => {
+                            impl_variants.push((rec_name.clone(), Vec::new()));
+                        }
+                        Ty::RustStruct(_) => {
+                            let fields_iter = component_fields_with_spec(rc, &rec_node.children);
+                            let v: Vec<DynFnImplField> = fields_iter.into_iter().map(|(fname, fty, _)| {
+                                DynFnImplField {
+                                    name: fname.to_owned(),
+                                    is_dyn_fn: crate::hierarchy::ty_directly_contains_dyn_fn(fty),
+                                }
+                            }).collect();
+                            impl_variants.push((rec_name.clone(), v));
+                        }
+                        _ => {}
+                    }
+                }
+                // `Ord` / `Hash` cannot be supplied when the type
+                // transitively embeds `Array<T>` or `Mutable<T>` (the
+                // same reason `derives_for` already drops them for
+                // those sets — `Rc<RefCell<...>>` / `Mutex<...>` don't
+                // implement the trait). Mirror that here so the
+                // hand-rolled impl bodies don't try to call `.cmp()` /
+                // `.hash()` on a field that can't satisfy them.
+                // `Hash` cannot be supplied when the type transitively
+                // embeds `Array<T> = Rc<RefCell<Vec<T>>>` or `Mutable<T>`
+                // — `RefCell` / `Mutex` deliberately don't implement
+                // `Hash` (interior mutability could change the hashed
+                // value). Mirror the existing `derives_for` rule.
+                // `Ord` IS available: recent `std` (and our hand-rolled
+                // `Mutable` / `Pointer` impls) provide `Ord` through
+                // interior borrowing, so the auto-derive path keeps it
+                // and our hand-rolled impl can too.
+                let no_ord = false;
+                let no_hash = ctx.types_containing_array.contains(qname)
+                    || ctx.types_containing_mutable.contains(qname);
+                emit_dyn_fn_container_impls(out, &inner, &ename, &type_vars, &type_params, /*is_enum=*/true, &impl_variants, !no_ord, !no_hash);
+            }
             // Emit a manual `Default` impl when this enum is in the
             // defaultable set. We pick the *smallest* variant whose fields
             // are all themselves defaultable — fewest fields wins, ties
@@ -2150,6 +2228,35 @@ fn emit_struct<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Cl
     }
     writeln!(out).unwrap();
 
+    // Hand-rolled trait impls for structs that *directly* embed an
+    // `Arc<dyn Fn(...)>` field. `derives_for` dropped everything but
+    // `Clone` for these — supply Debug/PartialEq/Eq/PartialOrd/Ord/Hash
+    // with pointer-identity semantics on the dyn-fn slots. See
+    // `emit_dyn_fn_container_impls`.
+    if let Ty::RustStruct(qname) = &node.ty
+        && ctx.types_directly_containing_dyn_fn.contains(qname)
+    {
+        let impl_fields: Vec<DynFnImplField> = fields.iter().map(|(fname, fty, _)| {
+            DynFnImplField {
+                name: (*fname).to_owned(),
+                is_dyn_fn: crate::hierarchy::ty_directly_contains_dyn_fn(fty),
+            }
+        }).collect();
+        let variants = vec![(String::new(), impl_fields)];
+        let use_params = if type_vars.is_empty() {
+            String::new()
+        } else {
+            format!("<{}>", type_vars.join(", "))
+        };
+        // See the matching enum-site comment for `no_ord` / `no_hash`:
+        // `Ord` works (Mutable / Array / Pointer all impl it); `Hash`
+        // does not (RefCell / Mutex don't impl Hash).
+        let no_ord = false;
+        let no_hash = ctx.types_containing_array.contains(qname)
+            || ctx.types_containing_mutable.contains(qname);
+        emit_dyn_fn_container_impls(out, indent, &ename, &type_vars, &use_params, /*is_enum=*/false, &variants, !no_ord, !no_hash);
+    }
+
     // Manual `Default` impl for records the analysis identified as
     // defaultable. Always hand-rolled (never derived) so we can handle
     // function-pointer fields, which have no std `Default` — we substitute
@@ -2193,6 +2300,283 @@ fn emit_struct<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Cl
     }
 }
 
+/// Description of a single field-or-bound-pattern slot inside the
+/// hand-rolled impls generated by [`emit_dyn_fn_container_impls`].
+struct DynFnImplField {
+    /// The field's identifier as it appears in the struct/variant body.
+    name: String,
+    /// True if the field's lowered Rust type is — directly — an
+    /// `Arc<dyn Fn(...) + 'static>` (or contains one without crossing
+    /// into another user-defined type). Equality, ordering and hashing
+    /// for such fields uses pointer identity on the `Arc` rather than
+    /// structural comparison, which `dyn Fn` does not support.
+    is_dyn_fn: bool,
+}
+
+/// Hand-rolled PartialEq / Eq / PartialOrd / Ord / Hash / Debug impls for
+/// a struct or enum that *directly* embeds at least one `Arc<dyn Fn(...)>`
+/// field. `dyn Fn` implements none of those traits, so `#[derive(...)]`
+/// fails; codegen drops the derive set down to `#[derive(Clone)]` for
+/// these types (see `GenCtx::derives_for`) and supplies the algebraic
+/// surface here instead. The impls:
+///
+///   * For an `Arc<dyn Fn>` field: pointer identity. Two callbacks are
+///     equal iff they are the same Arc allocation (`Arc::ptr_eq`),
+///     ordered by `Arc::as_ptr` address, and hashed by that address.
+///   * For every other field: delegate to the field type's own impl
+///     (structural equality, ordering, hashing).
+///
+/// `variants` is the list `(variant_name_or_empty, fields)` — pass a
+/// single entry with the empty `""` name for structs.
+fn emit_dyn_fn_container_impls(
+    out: &mut String,
+    indent: &str,
+    name: &str,
+    type_vars: &[String],
+    type_params_use: &str,
+    is_enum: bool,
+    variants: &[(String, Vec<DynFnImplField>)],
+    // `supports_ord`: if false, omit the `Ord` / `PartialOrd` impls. Some
+    // struct/enum fields (notably `Array<T> = Rc<RefCell<Vec<T>>>`)
+    // don't implement `Ord` at the field-type level, so the auto-derive
+    // previously dropped them too — see `GenCtx::derives_for`. Mirror
+    // that here.
+    supports_ord: bool,
+    // `supports_hash`: same condition as `supports_ord` but for `Hash`.
+    // `Mutable<T>` and `Array<T>` deliberately don't impl `Hash`
+    // (interior mutability could change the hashed value), so any type
+    // containing one must not emit a `Hash` impl either.
+    supports_hash: bool,
+) {
+    // Construct an `impl<...>` parameter list with each type variable
+    // carrying the trait bound the impl needs. The minimum is `Clone +
+    // 'static` (matching the type declaration's bound — see
+    // `partial_prefix` alias emission). Each impl adds whatever extra
+    // bound it requires of every type parameter, so e.g. a generic
+    // struct with field `Arc<Array<T>>` needs `T: PartialEq` for the
+    // PartialEq impl to compile (Vec<T>: PartialEq requires T:
+    // PartialEq, and Arc<...>: PartialEq inherits via the same chain).
+    let bound_list = |extra: &[&str]| -> String {
+        if type_vars.is_empty() {
+            return String::new();
+        }
+        let bounded: Vec<String> = type_vars.iter().map(|v| {
+            let mut bounds = vec!["Clone", "'static"];
+            bounds.extend(extra.iter().copied());
+            format!("{v}: {}", bounds.join(" + "))
+        }).collect();
+        format!("<{}>", bounded.join(", "))
+    };
+    let impl_partial_eq = bound_list(&["PartialEq"]);
+    let impl_eq         = bound_list(&["PartialEq", "Eq"]);
+    let impl_ord        = bound_list(&["PartialEq", "Eq", "PartialOrd", "Ord"]);
+    let impl_hash       = bound_list(&["std::hash::Hash"]);
+    let impl_debug      = bound_list(&["std::fmt::Debug"]);
+    // PartialEq.
+    writeln!(out, "{indent}impl{impl_partial_eq} PartialEq for {name}{type_params_use} {{").unwrap();
+    writeln!(out, "{indent}    fn eq(&self, other: &Self) -> bool {{").unwrap();
+    if is_enum {
+        writeln!(out, "{indent}        match (self, other) {{").unwrap();
+        for (vname, fields) in variants {
+            if fields.is_empty() {
+                writeln!(out, "{indent}            (Self::{vname}, Self::{vname}) => true,").unwrap();
+            } else {
+                let lhs = fields.iter().map(|f| format!("{n}: __l_{n}", n = f.name)).collect::<Vec<_>>().join(", ");
+                let rhs = fields.iter().map(|f| format!("{n}: __r_{n}", n = f.name)).collect::<Vec<_>>().join(", ");
+                // The pattern binds each field as `&Arc<dyn Fn>` (or
+                // `&FieldType`), so `Arc::ptr_eq(__l, __r)` and `__l ==
+                // __r` both work directly without a leading `&`.
+                let cond = fields.iter().map(|f| {
+                    if f.is_dyn_fn {
+                        format!("std::sync::Arc::ptr_eq(__l_{n}, __r_{n})", n = f.name)
+                    } else {
+                        format!("__l_{n} == __r_{n}", n = f.name)
+                    }
+                }).collect::<Vec<_>>().join(" && ");
+                writeln!(out, "{indent}            (Self::{vname} {{ {lhs} }}, Self::{vname} {{ {rhs} }}) => {cond},").unwrap();
+            }
+        }
+        if variants.len() > 1 {
+            writeln!(out, "{indent}            _ => false,").unwrap();
+        }
+        writeln!(out, "{indent}        }}").unwrap();
+    } else {
+        // Struct: variants has exactly one entry, name is unused.
+        let fields = &variants[0].1;
+        if fields.is_empty() {
+            writeln!(out, "{indent}        true").unwrap();
+        } else {
+            let cond = fields.iter().map(|f| {
+                if f.is_dyn_fn {
+                    format!("std::sync::Arc::ptr_eq(&self.{n}, &other.{n})", n = f.name)
+                } else {
+                    format!("self.{n} == other.{n}", n = f.name)
+                }
+            }).collect::<Vec<_>>().join(" && ");
+            writeln!(out, "{indent}        {cond}").unwrap();
+        }
+    }
+    writeln!(out, "{indent}    }}").unwrap();
+    writeln!(out, "{indent}}}").unwrap();
+    // Eq is a marker trait — PartialEq is reflexive on this impl.
+    writeln!(out, "{indent}impl{impl_eq} Eq for {name}{type_params_use} {{}}").unwrap();
+
+    // Ord (PartialOrd delegates). Only emit when every other field
+    // implements `Ord` — types whose non-dyn-fn fields embed `Array<T> =
+    // Rc<RefCell<Vec<T>>>` (or any other non-`Ord` shape) get an `Ord`
+    // impl that the trait-bound check on those fields rejects.
+    // `supports_ord` is supplied by the caller, mirroring the existing
+    // `derives_for` rule that drops `Ord` for `types_containing_array`.
+    if supports_ord {
+    writeln!(out, "{indent}impl{impl_ord} PartialOrd for {name}{type_params_use} {{").unwrap();
+    writeln!(out, "{indent}    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {{ Some(self.cmp(other)) }}").unwrap();
+    writeln!(out, "{indent}}}").unwrap();
+    writeln!(out, "{indent}impl{impl_ord} Ord for {name}{type_params_use} {{").unwrap();
+    writeln!(out, "{indent}    fn cmp(&self, other: &Self) -> std::cmp::Ordering {{").unwrap();
+    if is_enum {
+        // `std::mem::Discriminant<T>` only implements `PartialEq` /
+        // `Eq` / `Hash`, NOT `Ord`. Synthesize a variant-index function
+        // so cross-variant comparison has a stable total order.
+        writeln!(out, "{indent}        fn __variant_idx{impl_ord}(__v: &{name}{type_params_use}) -> u32 {{").unwrap();
+        writeln!(out, "{indent}            match __v {{").unwrap();
+        for (i, (vname, fields)) in variants.iter().enumerate() {
+            let pat = if fields.is_empty() { vname.clone() } else { format!("{vname} {{ .. }}") };
+            writeln!(out, "{indent}                {name}::{pat} => {i},").unwrap();
+        }
+        writeln!(out, "{indent}            }}").unwrap();
+        writeln!(out, "{indent}        }}").unwrap();
+        writeln!(out, "{indent}        match __variant_idx(self).cmp(&__variant_idx(other)) {{").unwrap();
+        writeln!(out, "{indent}            std::cmp::Ordering::Equal => {{}}").unwrap();
+        writeln!(out, "{indent}            non_eq => return non_eq,").unwrap();
+        writeln!(out, "{indent}        }}").unwrap();
+        writeln!(out, "{indent}        match (self, other) {{").unwrap();
+        for (vname, fields) in variants {
+            if fields.is_empty() {
+                writeln!(out, "{indent}            (Self::{vname}, Self::{vname}) => std::cmp::Ordering::Equal,").unwrap();
+            } else {
+                let lhs = fields.iter().map(|f| format!("{n}: __l_{n}", n = f.name)).collect::<Vec<_>>().join(", ");
+                let rhs = fields.iter().map(|f| format!("{n}: __r_{n}", n = f.name)).collect::<Vec<_>>().join(", ");
+                let parts: Vec<String> = fields.iter().map(|f| {
+                    if f.is_dyn_fn {
+                        format!("(std::sync::Arc::as_ptr(__l_{n}) as *const ()).cmp(&(std::sync::Arc::as_ptr(__r_{n}) as *const ()))", n = f.name)
+                    } else {
+                        format!("__l_{n}.cmp(__r_{n})", n = f.name)
+                    }
+                }).collect();
+                let cmps = if parts.len() == 1 {
+                    parts[0].clone()
+                } else {
+                    format!("{}{}", parts.join(".then_with(|| "), ")".repeat(parts.len() - 1))
+                };
+                writeln!(out, "{indent}            (Self::{vname} {{ {lhs} }}, Self::{vname} {{ {rhs} }}) => {cmps},").unwrap();
+            }
+        }
+        writeln!(out, "{indent}            _ => unreachable!(\"variant-index equality already implies same variant\"),").unwrap();
+        writeln!(out, "{indent}        }}").unwrap();
+    } else {
+        let fields = &variants[0].1;
+        if fields.is_empty() {
+            writeln!(out, "{indent}        std::cmp::Ordering::Equal").unwrap();
+        } else {
+            let parts: Vec<String> = fields.iter().map(|f| {
+                if f.is_dyn_fn {
+                    format!("(std::sync::Arc::as_ptr(&self.{n}) as *const ()).cmp(&(std::sync::Arc::as_ptr(&other.{n}) as *const ()))", n = f.name)
+                } else {
+                    format!("self.{n}.cmp(&other.{n})", n = f.name)
+                }
+            }).collect();
+            if parts.len() == 1 {
+                writeln!(out, "{indent}        {}", parts[0]).unwrap();
+            } else {
+                let chained = parts.join(".then_with(|| ");
+                writeln!(out, "{indent}        {chained}{}", ")".repeat(parts.len() - 1)).unwrap();
+            }
+        }
+    }
+    writeln!(out, "{indent}    }}").unwrap();
+    writeln!(out, "{indent}}}").unwrap();
+    }
+
+    // Hash. Only emit when every other field implements `Hash` — see
+    // `supports_hash` doc on the function signature.
+    if supports_hash {
+    writeln!(out, "{indent}impl{impl_hash} std::hash::Hash for {name}{type_params_use} {{").unwrap();
+    writeln!(out, "{indent}    fn hash<__H: std::hash::Hasher>(&self, __state: &mut __H) {{").unwrap();
+    if is_enum {
+        writeln!(out, "{indent}        std::mem::discriminant(self).hash(__state);").unwrap();
+        writeln!(out, "{indent}        match self {{").unwrap();
+        for (vname, fields) in variants {
+            if fields.is_empty() {
+                writeln!(out, "{indent}            Self::{vname} => {{}}").unwrap();
+            } else {
+                let pat = fields.iter().map(|f| format!("{n}: __h_{n}", n = f.name)).collect::<Vec<_>>().join(", ");
+                writeln!(out, "{indent}            Self::{vname} {{ {pat} }} => {{").unwrap();
+                for f in fields {
+                    if f.is_dyn_fn {
+                        writeln!(out, "{indent}                (std::sync::Arc::as_ptr(__h_{n}) as *const ()).hash(__state);", n = f.name).unwrap();
+                    } else {
+                        writeln!(out, "{indent}                __h_{n}.hash(__state);", n = f.name).unwrap();
+                    }
+                }
+                writeln!(out, "{indent}            }}").unwrap();
+            }
+        }
+        writeln!(out, "{indent}        }}").unwrap();
+    } else {
+        let fields = &variants[0].1;
+        for f in fields {
+            if f.is_dyn_fn {
+                writeln!(out, "{indent}        (std::sync::Arc::as_ptr(&self.{n}) as *const ()).hash(__state);", n = f.name).unwrap();
+            } else {
+                writeln!(out, "{indent}        self.{n}.hash(__state);", n = f.name).unwrap();
+            }
+        }
+    }
+    writeln!(out, "{indent}    }}").unwrap();
+    writeln!(out, "{indent}}}").unwrap();
+    } // end if supports_hash
+
+    // Debug.
+    writeln!(out, "{indent}impl{impl_debug} std::fmt::Debug for {name}{type_params_use} {{").unwrap();
+    writeln!(out, "{indent}    fn fmt(&self, __f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {{").unwrap();
+    if is_enum {
+        writeln!(out, "{indent}        match self {{").unwrap();
+        for (vname, fields) in variants {
+            if fields.is_empty() {
+                writeln!(out, "{indent}            Self::{vname} => __f.debug_struct(\"{vname}\").finish(),").unwrap();
+            } else {
+                let pat = fields.iter().map(|f| format!("{n}: __d_{n}", n = f.name)).collect::<Vec<_>>().join(", ");
+                writeln!(out, "{indent}            Self::{vname} {{ {pat} }} => {{").unwrap();
+                writeln!(out, "{indent}                let mut __ds = __f.debug_struct(\"{vname}\");").unwrap();
+                for f in fields {
+                    if f.is_dyn_fn {
+                        writeln!(out, "{indent}                __ds.field(\"{n}\", &format_args!(\"<fn@{{:p}}>\", std::sync::Arc::as_ptr(__d_{n})));", n = f.name).unwrap();
+                    } else {
+                        writeln!(out, "{indent}                __ds.field(\"{n}\", __d_{n});", n = f.name).unwrap();
+                    }
+                }
+                writeln!(out, "{indent}                __ds.finish()").unwrap();
+                writeln!(out, "{indent}            }}").unwrap();
+            }
+        }
+        writeln!(out, "{indent}        }}").unwrap();
+    } else {
+        let fields = &variants[0].1;
+        writeln!(out, "{indent}        let mut __ds = __f.debug_struct(\"{name}\");").unwrap();
+        for f in fields {
+            if f.is_dyn_fn {
+                writeln!(out, "{indent}        __ds.field(\"{n}\", &format_args!(\"<fn@{{:p}}>\", std::sync::Arc::as_ptr(&self.{n})));", n = f.name).unwrap();
+            } else {
+                writeln!(out, "{indent}        __ds.field(\"{n}\", &self.{n});", n = f.name).unwrap();
+            }
+        }
+        writeln!(out, "{indent}        __ds.finish()").unwrap();
+    }
+    writeln!(out, "{indent}    }}").unwrap();
+    writeln!(out, "{indent}}}").unwrap();
+    writeln!(out).unwrap();
+}
+
 /// Return the Rust expression used to default-initialise a struct field of
 /// type `fty` inside a generated `impl Default for Record`.  For most types
 /// this is just `Default::default()`, but function-pointer types (`fn(...)`)
@@ -2224,8 +2608,13 @@ fn default_value_expr_for_field_ty(fty: &Ty, ctx: &mut GenCtx, top_level: &BTree
     if let Some(n) = arity {
         let placeholder_params: Vec<&'static str> = (0..n).map(|_| "_").collect();
         let ty_str = fmt_ty(fty, ctx);
+        // Function-typed fields lower to `Arc<dyn Fn(...) + 'static>` (see
+        // [`fmt_param_ty`] and the `partial_prefix` alias-emission branch
+        // in [`emit_function`]). Wrap the panicking closure in
+        // `Arc::new(...)`; the typed local binding forces the unsized
+        // coercion to the target trait-object type.
         return format!(
-            "{{ let __placeholder: {ty_str} = |{}| panic!(\"default-constructed placeholder fn must not be called\"); __placeholder }}",
+            "{{ let __placeholder: {ty_str} = std::sync::Arc::new(|{}| panic!(\"default-constructed placeholder fn must not be called\")); __placeholder }}",
             placeholder_params.join(", ")
         );
     }
@@ -3582,17 +3971,20 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
             collect_type_vars_in_ty(&inp.ty, &mut all_type_vars);
         }
         collect_type_vars_in_ty(fn_output, &mut all_type_vars);
-        // Partial-function aliases lower to a Rust type alias for a `fn`
-        // pointer (or an `impl Fn` parameter signature). The aliased type
-        // never participates in structural equality, so drop `PartialEq`
-        // from the type-parameter bound — keeping it would force every
-        // user of the alias to also carry `T: PartialEq`, which fails
-        // when the alias is parametric over a callback or function-
-        // pointer type.
+        // Partial-function aliases lower to `Arc<dyn Fn(...) -> Result<...>
+        // + 'static>` (see [`fmt_param_ty`] — closures-with-captures
+        // cannot inhabit a `fn(...)` pointer, so we standardise on the
+        // trait-object shape). The aliased type never participates in
+        // structural equality, so drop `PartialEq` from the type-parameter
+        // bound — keeping it would force every user of the alias to also
+        // carry `T: PartialEq`, which fails when the alias is parametric
+        // over a callback. The `+ 'static` bound on each type parameter
+        // is required because `dyn Fn(T, ...) + 'static` is only
+        // well-formed when T outlives 'static.
         let type_params = if all_type_vars.is_empty() {
             String::new()
         } else {
-            let bounded: Vec<String> = all_type_vars.iter().map(|v| format!("{v}: Clone")).collect();
+            let bounded: Vec<String> = all_type_vars.iter().map(|v| format!("{v}: Clone + 'static")).collect();
             format!("<{}>", bounded.join(", "))
         };
         let ins = fn_inputs.iter()
@@ -3612,7 +4004,7 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
             .unwrap_or_else(|| fmt_ty(fn_output, ctx));
         let pub_kw = if node.visibility == MM::Visibility::Public { "pub " } else { "" };
         let ename = escape_ident(name);
-        writeln!(out, "{indent}{pub_kw}type {ename}{type_params} = fn({ins}) -> Result<{out_ty}>;").unwrap();
+        writeln!(out, "{indent}{pub_kw}type {ename}{type_params} = std::sync::Arc<dyn ::std::ops::Fn({ins}) -> Result<{out_ty}> + 'static>;").unwrap();
         writeln!(out).unwrap();
         return;
     }
@@ -4752,9 +5144,14 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
             match effective_ty {
                 // Infallible concrete function used as a value. Wrap with
                 // `fnptr!(path, ArgTy1, …)` so the closure satisfies the
-                // surrounding `fn(...) -> Result<T>` slot (see the macro doc
-                // in `metamodelica::fnptr!`).
-                Ty::Function { inputs, .. } if infallible_ref => {
+                // surrounding `Result<T>`-returning slot (see the macro
+                // doc in `metamodelica::fnptr!`), then wrap in
+                // `Arc::new(...) as Arc<dyn Fn(...) + 'static>`. The
+                // outer cast unifies all such fn-item references to the
+                // same trait-object shape, matching the parameter-side
+                // `Arc<dyn Fn>` used by [`fmt_param_ty`] and the
+                // partial-function alias declarations.
+                Ty::Function { inputs, output, .. } if infallible_ref => {
                     // The closure synthesized by `fnptr!` annotates each
                     // parameter with its declared type. Concrete types are
                     // emitted as-is; type variables from the function's own
@@ -4769,10 +5166,39 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                             fmt_ty(&i.ty, ctx)
                         }
                     }).collect();
-                    if input_tys.is_empty() {
+                    let out_ty = if ty_mentions_typevar(output) {
+                        "_".to_owned()
+                    } else {
+                        fmt_ty(output, ctx)
+                    };
+                    let closure = if input_tys.is_empty() {
                         format!("fnptr!({var_str})")
                     } else {
                         format!("fnptr!({}, {})", var_str, input_tys.join(", "))
+                    };
+                    // If the function's signature mentions any type
+                    // variables (typevar inputs or output), spelling
+                    // out the `as Arc<dyn Fn(_) -> Result<_>>` cast
+                    // erases too much: rustc can't infer the
+                    // underscored slots through the dyn coercion
+                    // because each `_` becomes its own unconstrained
+                    // inference variable (List::map's `TO` becomes
+                    // unresolvable when both sides go through the
+                    // cast). Drop the cast and let Rust infer the
+                    // concrete closure type, then unsize to the
+                    // formal's `Arc<dyn Fn>` shape at the argument
+                    // boundary. Without the cast, match-arm
+                    // unification for typevar-bearing references
+                    // is also disabled — accept that loss; the
+                    // typevar functions in question are rarely the
+                    // ones that show up as differing match arms.
+                    let has_typevars = inputs.iter().any(|i| ty_mentions_typevar(&i.ty))
+                        || ty_mentions_typevar(output);
+                    if has_typevars {
+                        format!("std::sync::Arc::new({closure})")
+                    } else {
+                        format!("(std::sync::Arc::new({closure}) as std::sync::Arc<dyn ::std::ops::Fn({}) -> Result<{out_ty}> + 'static>)",
+                            input_tys.join(", "))
                     }
                 }
                 // Anonymous function types resolve to `impl Fn(...)` in
@@ -4818,39 +5244,34 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                 // `List.insertListSorted1.inCompFunc` resolves), so the qname is often
                 // Some — but that does not make the parameter a concrete fn-item (Copy).
                 // The guard below is therefore just the `fn_env_vars` membership check.
-                Ty::Function { name: None, .. }
+                // Function-typed LOCAL BINDING (input/output/protected) —
+                // both anonymous (`name: None`) callbacks and named
+                // partial-function alias parameters (`MapFn`, `ConflictFunc`,
+                // …) lower to `Arc<dyn Fn(...) + 'static>` after
+                // [`fmt_param_ty`]. Forward with `.clone()` so the binding
+                // isn't moved (match-scrutinee tuples, for-loop calls,
+                // recursive descents). Detect any such binding by its
+                // presence in `fn_env_vars` (which holds ALL local
+                // bindings). The check is independent of `name`: module-
+                // level aliases used as parameter types resolve to
+                // `Ty::Function { name: Some(qn) }`, but the variable
+                // still lives in `fn_env_vars` and the runtime value is
+                // an `Arc<dyn Fn>` (never a raw fn-item).
+                Ty::Function { .. }
                     if ctx.fn_env_vars.contains_key(&name.split('.').next().unwrap_or(name).to_owned()) =>
                     format!("{var_str}.clone()"),
-                // Nested `partial function` aliases (declared inside another
-                // function — see `nested_partial_aliases`) are stored as
-                // `Arc<dyn Fn(...) + 'static>` by `fmt_param_ty`, not as
-                // bare `fn(...)` pointers. They share the same move-hazard
-                // as the anonymous-callback case above: a pattern binding
-                // for one is `&Arc<dyn Fn>` under `match_deref!` (or owned
-                // `Arc<dyn Fn>` outside), so forwarding it to another call
-                // without `.clone()` either passes a reference (wrong type)
-                // or moves the binding (preventing further use). Emit
-                // `.clone()` so the right `<Arc<T>>::clone` impl fires.
-                Ty::Function { name: Some(qn), .. }
-                    if ctx.nested_partial_aliases.contains(qn)
-                    && ctx.fn_env_vars.contains_key(&name.split('.').next().unwrap_or(name).to_owned()) =>
-                    format!("{var_str}.clone()"),
-                // Other named `partial function` aliases (e.g. top-level
-                // `KeyEq`) lower to a concrete `fn(...)` pointer — that
-                // *is* `Copy`, so the move hazard above doesn't apply.
-                // Concrete function references resolved through the
-                // hierarchy follow the same path. We DO add an
-                // `as fn(...) -> Result<...>` cast here: bare function
-                // items have a unique zero-sized type (one per function),
-                // which means match/if arms returning different functions
-                // — even ones with identical signatures, e.g. `("sum" =>
-                // evalBinaryAdd, "product" => evalBinaryMul)` in
-                // NFCeval.evalReduction — fail to unify their arm types.
-                // Coercing every fallible fn-item reference to its named
-                // `fn(...)` pointer at the value-position emission site
-                // gives all such arms the same pointer type. Rust auto-
-                // coerces fn items to fn pointers at argument-passing
-                // sites, so the cast is redundant there but harmless.
+                // Fallible concrete function used as a value (fn-item, not
+                // a local binding). Wrap as `Arc::new(name) as Arc<dyn
+                // Fn(...) + 'static>` so the value matches the trait-
+                // object shape that all partial-function-typed parameter
+                // slots now use (see [`fmt_param_ty`]). Wrapping each
+                // fn-item the same way also unifies match/if arms
+                // returning different concrete functions of the same
+                // signature (e.g. `("sum" => evalBinaryAdd, "product" =>
+                // evalBinaryMul)` in NFCeval.evalReduction) — each fn-
+                // item has its own unique zero-sized type, but every
+                // `Arc<dyn Fn(...)>` cast lands on the same trait object,
+                // so the arms unify.
                 Ty::Function { inputs, output, .. } => {
                     let input_tys: Vec<String> = inputs.iter().map(|i| {
                         if ty_mentions_typevar(&i.ty) { "_".to_owned() } else { fmt_ty(&i.ty, ctx) }
@@ -4860,9 +5281,47 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                     } else {
                         fmt_ty(output, ctx)
                     };
-                    format!("({var_str} as fn({}) -> Result<{out_ty}>)", input_tys.join(", "))
+                    format!("(std::sync::Arc::new({var_str}) as std::sync::Arc<dyn ::std::ops::Fn({}) -> Result<{out_ty}> + 'static>)",
+                        input_tys.join(", "))
                 }
-                Ty::FunctionAlias { .. } => var_str,
+                // `Ty::FunctionAlias { base, .. }` — e.g.
+                // `addConflictDefault = addConflictFail`. Resolve to the
+                // underlying `Ty::Function` signature and wrap the same
+                // way as the direct fn-item arm above; without the wrap
+                // the bare fn-item escapes through the parameter-formal
+                // `Arc<dyn Fn>` slot and fails to coerce. `base` is the
+                // dotted name as it appears in the alias TypeSpec — for
+                // sibling re-exports (`function addConflictDefault =
+                // addConflictFail`) that's a *relative* name, so we go
+                // through `resolve_call_qname` to recover the FQN before
+                // looking it up.
+                // `Ty::FunctionAlias { base, .. }` — e.g.
+                // `addConflictDefault = addConflictFail`. The base may
+                // be a class member whose declared signature lives
+                // inside a generic class (BaseAvlTree's `Value`/`Key` type
+                // vars). At this call site we don't have the concrete
+                // instantiation handy — but we don't need it: emit the
+                // wrap with `Arc<dyn Fn(_, ..) -> Result<_>>` and let
+                // rustc infer each slot from the surrounding call. The
+                // arity comes from the resolved base.
+                Ty::FunctionAlias { base, .. } => {
+                    let resolved_base = resolve_call_qname(base, ctx, top_level);
+                    let base_qname = resolved_base.as_deref().unwrap_or(base.as_str());
+                    let arity = match crate::hierarchy::lookup_node_ty(base_qname, top_level) {
+                        Some(Ty::Function { inputs, .. }) => Some(inputs.len()),
+                        _ => None,
+                    };
+                    if let Some(n) = arity {
+                        let underscores: Vec<&'static str> = (0..n).map(|_| "_").collect();
+                        format!("(std::sync::Arc::new({var_str}) as std::sync::Arc<dyn ::std::ops::Fn({}) -> Result<_> + 'static>)",
+                            underscores.join(", "))
+                    } else {
+                        // Unresolved alias — leave the bare reference and
+                        // let rustc surface the type mismatch instead of
+                        // silently emitting a wrong wrapper.
+                        var_str
+                    }
+                }
                 // Inside a `const` initializer Rust can't call `.clone()` —
                 // `Clone` isn't a stable const trait yet (E0658 + "Clone is
                 // not yet stable as a const trait"). For const operands of
@@ -7459,32 +7918,32 @@ fn emit_call_arg_with_formal<'a>(
     //      closure is heap-allocated and reference-counted before entering
     //      the `Arc<dyn Fn>` slot.
     //
-    // We only intervene when the formal is `name: None`. Named `partial
-    // function` aliases (e.g. `ConflictFunc`) keep their concrete `fn(...)`
-    // shape in `fmt_param_ty` — wrapping a `fn` pointer in `Arc::new` and
-    // passing it into a `fn(...)` slot would be a type error.
-    // `resolve_call_formals` pulls the formal type from `node.ty.inputs`,
-    // which matches what `fmt_param_ty` saw at the function-definition site.
-    // The formal slot is `Arc<dyn Fn(...) + 'static>` for two `fmt_param_ty`
-    // shapes (kept in sync with [`fmt_param_ty`]):
-    //   * `Ty::Function { name: None, .. }` — an anonymous callback signature
-    //     (e.g. `input function(...) f`).
-    //   * `Ty::Function { name: Some(qn), .. }` where `qn` is a
-    //     function-NESTED `partial function` alias (recorded in
-    //     `nested_partial_aliases`). Top-level partial aliases stay as bare
-    //     `fn(...)` pointers and must NOT trigger Arc::new wrapping here.
-    let formal_is_arc_dyn = match formal_ty {
-        Some(Ty::Function { name: None, .. }) => true,
-        Some(Ty::Function { name: Some(qn), .. }) => ctx.nested_partial_aliases.contains(qn),
-        _ => false,
-    };
+    // All function-typed formals — anonymous (`Ty::Function { name: None }`)
+    // and named module-level/nested aliases — now lower to `Arc<dyn Fn(...)
+    // + 'static>` in [`fmt_param_ty`]. The argument-side wrap below mirrors
+    // that: any function-typed slot accepts the same `Arc<dyn Fn>` shape.
+    let formal_is_arc_dyn = matches!(formal_ty, Some(Ty::Function { .. }));
     if let Some(Ty::Function { inputs, output, .. }) = formal_ty
         && formal_is_arc_dyn {
         if arg_is_input_fn_param(arg, ctx) {
             // case 1: `raw` is already `"inCompFunc.clone()"` (emit_exp appends
-            // `.clone()` for every Ty::Function{name:None} var reference — see
-            // the Var arm in emit_exp). Forward as-is; do NOT add another
+            // `.clone()` for every Ty::Function var reference in `fn_env_vars`
+            // — see the Var arm in emit_exp). Forward as-is; do NOT add another
             // `.clone()` or we'd produce `inCompFunc.clone().clone()`.
+            return raw;
+        }
+        // case 1b: the actual is a Var/Cref reference to a concrete fn-item
+        // (or a named partial-function alias used as a value). [`emit_exp`]
+        // already wrapped it as `Arc::new(name) as Arc<dyn Fn(...)>`, so
+        // the value is already in the `Arc<dyn Fn>` shape the formal
+        // expects — wrapping again with `Arc::new(...)` would produce
+        // `Arc<Arc<dyn Fn>>`. Skip the wrap only for the `Var` shape that
+        // hits the function-typed Var arm in [`emit_exp`]; PartEval and
+        // synthesized closure shapes (which emit a bare `move |..| ..`)
+        // still need the wrap.
+        if matches!(arg, TypedExp::Var { .. })
+            && matches!(arg.ty(), Ty::Function { .. } | Ty::FunctionAlias { .. })
+        {
             return raw;
         }
         // case 2 (special): an `if … else …` whose branches are different
@@ -10773,18 +11232,31 @@ fn is_static_const_emittable(exp: &TypedExp, ctx: &GenCtx, top_level: &BTreeMap<
 fn ty_is_sync(ty: &Ty, ctx: &GenCtx) -> bool {
     match ty {
         Ty::Array(_) => false,
+        // Partial-function types lower to `Arc<dyn Fn(...) + 'static>`
+        // (no `+ Send + Sync` — see [`fmt_param_ty`] for why we don't
+        // tighten the trait bound). `dyn Fn + 'static` alone is neither
+        // `Send` nor `Sync`, so any value of function type — and any
+        // type transitively embedding one — is not `Sync` and cannot
+        // live in a `pub static`. `emit_node` consults this to route
+        // such constants to a `thread_local! + getter` emission instead.
+        Ty::Function { .. } | Ty::FunctionAlias { .. } => false,
         Ty::Option(t) | Ty::List(t) | Ty::Range(t) => ty_is_sync(t, ctx),
         Ty::Tuple(ts) => ts.iter().all(|t| ty_is_sync(t, ctx)),
         Ty::Generic(name, args) => {
             let dotted = name.replace("::", ".");
             if ctx.types_containing_array.contains(&dotted) { return false; }
+            if ctx.types_containing_dyn_fn.contains(&dotted) { return false; }
             args.iter().all(|a| ty_is_sync(a, ctx))
         }
         Ty::RustStruct(qname) | Ty::RustEnum(qname) | Ty::AliasTo(qname) | Ty::ExternalObject(qname) => {
             !ctx.types_containing_array.contains(qname)
+                && !ctx.types_containing_dyn_fn.contains(qname)
         }
-        Ty::UnionTypeVariant(qname, _) => !ctx.types_containing_array.contains(qname),
-        // Primitives, function types, type variables, Unknown — all Sync (see fn doc).
+        Ty::UnionTypeVariant(qname, _) => {
+            !ctx.types_containing_array.contains(qname)
+                && !ctx.types_containing_dyn_fn.contains(qname)
+        }
+        // Primitives, type variables, Unknown — all Sync (see fn doc).
         _ => true,
     }
 }
@@ -13011,15 +13483,34 @@ fn fmt_param_ty(ty: &Ty, ctx: &mut GenCtx) -> String {
         //     at a single type level), and
         //   * store the callback in a `'static` thread-local slot.
         //
-        // Named `partial function` aliases (e.g. `KeyEq`) are emitted
-        // as the alias type directly because they may also live in
-        // record fields where `impl Trait` / `dyn Trait` is undesired.
-        Ty::Function { inputs, output, name: None, .. } => {
+        // All function-typed parameters — both anonymous (a nested
+        // `partial function` inside the enclosing function) and named
+        // module-level aliases (`MapFn`, `KeyEq`, `ConflictFunc`, …) —
+        // lower to `Arc<dyn Fn(...) + 'static>`. This is the only shape
+        // that can accept *both* a bare function item (which auto-coerces
+        // via `Arc::new(name) as Arc<dyn Fn(_)>`) and a closure that
+        // captures variables from its environment (`Arc::new(move |x| …)`).
+        // A `fn(...)` pointer can carry the former but not the latter, so
+        // caller/callee pairs where one side declared the partial-function
+        // nested-in-function (lowered to `Arc<dyn Fn>` by this branch) and
+        // the other declared it at module scope (formerly lowered to a
+        // `MapFn = fn(...)` alias) used to type-mismatch when chained.
+        // Unifying the parameter shape removes that divergence.
+        //
+        // No `+ Send + Sync` bound. Some MM call sites capture
+        // `Rc<RefCell<...>>` thread-local state (e.g. `FlagsUtil` flag
+        // tables, `Globals::currentInstVar`); requiring `Send + Sync`
+        // would reject those closures. For constants whose type
+        // transitively contains an `Arc<dyn Fn>` (and therefore isn't
+        // `Sync`), `emit_node` emits a `thread_local! + pub fn` getter
+        // pair instead of a `pub static`; see `ty_is_sync` and the
+        // non-Sync branch in [`emit_node`].
+        Ty::Function { inputs, output, .. } => {
             let ins = inputs.iter().map(|inp| fmt_ty(&inp.ty, ctx)).collect::<Vec<_>>().join(", ");
             // Use a fully-qualified path so the trait reference doesn't collide
-// with a same-named MetaModelica `partial function` type alias that
-// may be brought into scope as `type Fn = fn(...);` (E0404).
-format!("Arc<dyn ::std::ops::Fn({ins}) -> Result<{}> + 'static>", fmt_ty(output, ctx))
+            // with a same-named MetaModelica `partial function` type alias that
+            // may be brought into scope as `type Fn = fn(...);` (E0404).
+            format!("Arc<dyn ::std::ops::Fn({ins}) -> Result<{}> + 'static>", fmt_ty(output, ctx))
         }
         _ => fmt_ty(ty, ctx),
     }

@@ -1444,7 +1444,14 @@ pub fn valueCompare<A: Ord>(a1: A, a2: A) -> i32 {
 /// This is a very fast comparison to speed up comparisons.
 /// If you know that all occurrences of a value are the same pointer,
 /// you can use reference_eq instead of structural equality.
-pub fn referenceEq<A: PartialEq>(a1: &A, a2: &A) -> bool {
+pub fn referenceEq<A>(a1: &A, a2: &A) -> bool {
+    // No `A: PartialEq` bound. The body only does pointer comparison, and
+    // some MM types — e.g. anything transitively embedding an
+    // `Arc<dyn Fn(...) + 'static>` callback (NF Type's
+    // EvaluateSingletonType variant, and its containers down to
+    // ComponentRef) — can no longer auto-derive `PartialEq`. Requiring
+    // the bound here would lock those types out of every
+    // `referenceEq(&a, &b)` site even though the bodies don't need it.
     std::ptr::eq(a1 as *const A, a2 as *const A)
 }
 

@@ -222,6 +222,29 @@ pub struct InstanceHierarchy<'a> {
     /// Propagation follows the same container rules as
     /// [`Self::types_containing_mutable`].
     pub types_containing_array: BTreeSet<String>,
+    /// Fully-qualified names of user-defined struct/enum types that
+    /// transitively embed a function-typed field — i.e. one lowered to
+    /// `Arc<dyn Fn(...) + 'static>` by codegen (see `fmt_param_ty`).
+    /// `dyn Fn` implements none of Debug / PartialEq / Eq / PartialOrd /
+    /// Ord / Hash, so a `#[derive]`-generated impl on a containing type
+    /// fails to compile. `Arc<dyn Fn>` (without `+ Send + Sync`) is also
+    /// not `Sync`, so containing values cannot live in a plain `pub
+    /// static`. Codegen consults this set in `derives_for` (drop
+    /// affected derives) and via `ty_is_sync` in `emit_node` (emit
+    /// `thread_local! + getter` rather than `pub static LazyLock<T>`).
+    /// Propagation follows the same container rules as
+    /// [`Self::types_containing_mutable`].
+    pub types_containing_dyn_fn: BTreeSet<String>,
+    /// Subset of [`Self::types_containing_dyn_fn`]: types whose *own*
+    /// fields/variants directly reference a function type without going
+    /// through another user-defined struct/enum. These need a hand-rolled
+    /// trait impl block (Debug / PartialEq / Eq / PartialOrd / Ord / Hash)
+    /// that handles the `Arc<dyn Fn>` field(s) via pointer identity;
+    /// codegen emits `#[derive(Clone)]` on the type itself and the impl
+    /// block separately. Transitive (indirect) containers still get the
+    /// full `#[derive(...)]` set because their dependent types already
+    /// provide the impls via this hand-rolled emission.
+    pub types_directly_containing_dyn_fn: BTreeSet<String>,
     /// Fully-qualified names of every user-defined function that the
     /// fallibility analysis classified as fallible (i.e. lowers to a Rust
     /// function returning `anyhow::Result<T>`).  Functions absent from this
@@ -269,6 +292,8 @@ impl<'a> InstanceHierarchy<'a> {
             recursive_types: BTreeSet::new(),
             types_containing_mutable: BTreeSet::new(),
             types_containing_array: BTreeSet::new(),
+            types_containing_dyn_fn: BTreeSet::new(),
+            types_directly_containing_dyn_fn: BTreeSet::new(),
             fallible_functions: BTreeSet::new(),
             partial_eq_required: BTreeMap::new(),
             default_required: BTreeMap::new(),
@@ -2104,7 +2129,17 @@ fn collect_struct_field_tys(
                 out.insert(qname.clone(), tys);
             }
             Ty::RustEnum(_) | Ty::AliasTo(_) => {
+                // Restrict to variant nodes (records) — a uniontype/enum
+                // may also have sibling functions (utility members,
+                // nested partial functions) which have their own
+                // input/output Components that are NOT fields of this
+                // type. Without the filter, those component types
+                // would pollute the field-ty graph and mis-flag the
+                // enclosing type as "containing" whatever those
+                // function args happen to be (e.g. an `Arc<dyn Fn>`
+                // parameter in some sibling function).
                 let tys: Vec<Ty> = node.children.values()
+                    .filter(|v| matches!(v.ty, Ty::RustStruct(_) | Ty::RustUnitVariant))
                     .flat_map(|variant| variant.children.values()
                         .filter(|c| matches!(c.kind, NodeKind::Component(_)))
                         .map(|c| c.ty.clone()))
@@ -2173,7 +2208,16 @@ fn ty_contains_array(ty: &Ty, tainted: &BTreeSet<String>) -> bool {
         Ty::Array(_) => true,
         Ty::Option(t) | Ty::List(t) | Ty::Range(t) => ty_contains_array(t, tainted),
         Ty::Tuple(ts) => ts.iter().any(|t| ty_contains_array(t, tainted)),
-        Ty::Generic(_, args) => args.iter().any(|a| ty_contains_array(a, tainted)),
+        Ty::Generic(name, args) => {
+            // Mirror the `ty_contains_mutable` rule: a generic
+            // constructor name `Foo::Bar` may itself be a tainted
+            // user-defined type (e.g. `UnorderedSet::UnorderedSet`,
+            // whose buckets are an `Array<T>`). Normalise the `::`
+            // path to dotted form to match the graph keys.
+            let dotted = name.replace("::", ".");
+            tainted.contains(&dotted)
+                || args.iter().any(|a| ty_contains_array(a, tainted))
+        }
         Ty::RustStruct(qname) | Ty::RustEnum(qname) | Ty::AliasTo(qname) => tainted.contains(qname),
         Ty::UnionTypeVariant(qname, _) => tainted.contains(qname),
         _ => false,
@@ -2185,6 +2229,89 @@ fn ty_contains_array(ty: &Ty, tainted: &BTreeSet<String>) -> bool {
 /// stored in a `pub static`. Codegen consults the result to pick `pub const fn`
 /// getter emission instead of `pub static` for affected constants. Must be called
 /// after `resolve_pass` has converged so all field types are populated.
+/// True if `ty` mentions a function type (lowered to `Arc<dyn Fn(...)>` by
+/// codegen) anywhere in its structure. User-defined types are tainted
+/// transitively via the `tainted` set. `Ty::FunctionAlias` resolves to a
+/// `Ty::Function` underneath and is treated as `Arc<dyn Fn>` at the alias
+/// level too. `Ty::Generic` carries the constructor name in `::` form
+/// (Rust path); normalise to dotted form to match graph keys.
+fn ty_contains_dyn_fn(ty: &Ty, tainted: &BTreeSet<String>) -> bool {
+    match ty {
+        Ty::Function { .. } | Ty::FunctionAlias { .. } => true,
+        Ty::Option(t) | Ty::List(t) | Ty::Range(t) | Ty::Array(t) => ty_contains_dyn_fn(t, tainted),
+        Ty::Tuple(ts) => ts.iter().any(|t| ty_contains_dyn_fn(t, tainted)),
+        Ty::Generic(name, args) => {
+            let dotted = name.replace("::", ".");
+            tainted.contains(&dotted)
+                || args.iter().any(|a| ty_contains_dyn_fn(a, tainted))
+        }
+        Ty::RustStruct(qname) | Ty::RustEnum(qname) | Ty::AliasTo(qname) => tainted.contains(qname),
+        Ty::UnionTypeVariant(qname, _) => tainted.contains(qname),
+        _ => false,
+    }
+}
+
+/// True if `ty` *directly* embeds a function type, i.e. without crossing
+/// into another user-defined struct/enum. Used to distinguish types that
+/// need a hand-rolled `PartialEq` / `Eq` / `PartialOrd` / `Ord` / `Hash`
+/// / `Debug` impl (because at least one of their own fields is an
+/// `Arc<dyn Fn(...)>` and `dyn Fn` implements none of those traits) from
+/// transitive containers, which can still `#[derive(...)]` as long as
+/// their direct dependents provide the impls themselves.
+pub(crate) fn ty_directly_contains_dyn_fn(ty: &Ty) -> bool {
+    match ty {
+        Ty::Function { .. } | Ty::FunctionAlias { .. } => true,
+        Ty::Option(t) | Ty::List(t) | Ty::Range(t) | Ty::Array(t) => ty_directly_contains_dyn_fn(t),
+        Ty::Tuple(ts) => ts.iter().any(ty_directly_contains_dyn_fn),
+        Ty::Generic(_, args) => args.iter().any(ty_directly_contains_dyn_fn),
+        // Crossing into another user-defined type does NOT count as direct.
+        _ => false,
+    }
+}
+
+/// Detect which named types transitively contain a function-typed field.
+/// Codegen lowers function types to `Arc<dyn Fn(...) + 'static>`, which is
+/// none of `Debug` / `PartialEq` / `Eq` / `PartialOrd` / `Ord` / `Hash` —
+/// so any `#[derive]`-generated impl on a containing type fails. The same
+/// types are also not `Sync` (no `+ Send + Sync` bound on the trait
+/// object), so they cannot live in a `pub static`. Codegen consults this
+/// set in `derives_for` (drop derives) and `ty_is_sync` (route via
+/// `thread_local! + getter` rather than `pub static LazyLock<T>`).
+/// Must be called after `resolve_pass` has converged so all field types
+/// are populated.
+pub fn detect_types_containing_dyn_fn(hier: &mut InstanceHierarchy<'_>) {
+    let mut graph: BTreeMap<String, Vec<Ty>> = BTreeMap::new();
+    collect_struct_field_tys(&hier.top_level, "", &mut graph);
+
+    // Direct containers: types whose own fields embed a function type
+    // without traversing into another user-defined struct/enum. These
+    // need hand-rolled `PartialEq`/`Eq`/`PartialOrd`/`Ord`/`Hash`/`Debug`
+    // because `Arc<dyn Fn>` doesn't implement any of those.
+    let mut direct: BTreeSet<String> = BTreeSet::new();
+    for (qname, field_tys) in &graph {
+        if field_tys.iter().any(ty_directly_contains_dyn_fn) {
+            direct.insert(qname.clone());
+        }
+    }
+
+    // Transitive containers (including direct): used by `ty_is_sync` to
+    // route affected `pub static`s through `thread_local!` instead.
+    let mut tainted: BTreeSet<String> = BTreeSet::new();
+    loop {
+        let mut changed = false;
+        for (qname, field_tys) in &graph {
+            if tainted.contains(qname) { continue; }
+            if field_tys.iter().any(|t| ty_contains_dyn_fn(t, &tainted)) {
+                tainted.insert(qname.clone());
+                changed = true;
+            }
+        }
+        if !changed { break; }
+    }
+    hier.types_containing_dyn_fn = tainted;
+    hier.types_directly_containing_dyn_fn = direct;
+}
+
 pub fn detect_types_containing_array(hier: &mut InstanceHierarchy<'_>) {
     let mut graph: BTreeMap<String, Vec<Ty>> = BTreeMap::new();
     collect_struct_field_tys(&hier.top_level, "", &mut graph);

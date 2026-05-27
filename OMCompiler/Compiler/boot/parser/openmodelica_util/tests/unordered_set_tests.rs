@@ -27,7 +27,11 @@ fn eq_str(a: ArcStr, b: ArcStr) -> Result<bool> {
 // ── construction helpers ──────────────────────────────────────────────────────
 
 fn empty_set() -> Arc<US::UnorderedSet<ArcStr>> {
-    US::new(hash_str, eq_str, 13)
+    // Callbacks are now `Arc<dyn Fn(...) + 'static>` aliases (see
+    // `fmt_param_ty` in mmtorust); wrap each fn-item in `Arc::new` so
+    // the unsized coercion to the trait object happens at the call
+    // boundary.
+    US::new(Arc::new(hash_str), Arc::new(eq_str), 13)
 }
 
 fn set_of(keys: &[&str]) -> Result<Arc<US::UnorderedSet<ArcStr>>> {
@@ -244,7 +248,7 @@ fn test_copy_contains_same_elements() -> Result<()> {
 #[test]
 fn test_from_list_basic() -> Result<()> {
     let lst = list![literal!("p"), literal!("q"), literal!("r")];
-    let s = US::fromList(lst, hash_str, eq_str)?;
+    let s = US::fromList(lst, Arc::new(hash_str), Arc::new(eq_str))?;
     assert_eq!(to_sorted_vec(s), vec!["p", "q", "r"]);
     Ok(())
 }
@@ -252,7 +256,7 @@ fn test_from_list_basic() -> Result<()> {
 #[test]
 fn test_from_list_deduplicates() -> Result<()> {
     let lst = list![literal!("x"), literal!("x"), literal!("y")];
-    let s = US::fromList(lst, hash_str, eq_str)?;
+    let s = US::fromList(lst, Arc::new(hash_str), Arc::new(eq_str))?;
     assert_eq!(US::size(s.clone()), 2);
     assert_eq!(to_sorted_vec(s), vec!["x", "y"]);
     Ok(())
@@ -261,7 +265,7 @@ fn test_from_list_deduplicates() -> Result<()> {
 #[test]
 fn test_from_list_empty() -> Result<()> {
     let lst: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
-    let s = US::fromList(lst, hash_str, eq_str)?;
+    let s = US::fromList(lst, Arc::new(hash_str), Arc::new(eq_str))?;
     assert!(US::isEmpty(s));
     Ok(())
 }

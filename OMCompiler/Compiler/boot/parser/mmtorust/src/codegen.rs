@@ -6051,8 +6051,21 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
             format!("if ({c}) {{{t}}}{ei} else {{{e}}}")
         }
 
-        TypedExp::Cons { head, tail, .. } => {
-            format!("cons({}, {})", emit_exp(head, is_const, ctx, top_level), emit_exp(tail, is_const, ctx, top_level))
+        TypedExp::Cons { head, tail, ty } => {
+            // Route head/tail through `emit_call_arg_with_formal` so that a
+            // multi-output call used in a single-value context (e.g.
+            // `typeConnectionsArg(...) :: outArgs`, where `typeConnectionsArg`
+            // returns `(Expression, Type)` but the list element is just
+            // `Expression`) gets the implicit `.0` first-output extraction.
+            // Without this the head expression keeps its full tuple type and
+            // rustc reports E0308 against the list element type.
+            let elem_ty = match ty {
+                Ty::List(inner) => Some((**inner).clone()),
+                _ => None,
+            };
+            let head_s = emit_call_arg_with_formal(head, elem_ty.as_ref(), is_const, ctx, top_level);
+            let tail_s = emit_call_arg_with_formal(tail, Some(ty), is_const, ctx, top_level);
+            format!("cons({head_s}, {tail_s})")
         }
 
         TypedExp::Tuple(elems) => {
@@ -12087,6 +12100,22 @@ fn emit_pat_assign<'a>(
             // assignments to copy the new value back.
             let mut reassign_pairs: Vec<(String, String, Ty)> = Vec::new();
             let pat_owned = rewrite_pat_for_existing_bindings(pat, env, fresh, &mut reassign_pairs);
+            // MetaModelica allows `(a, b, c) := f()` to bind only the first
+            // N of f's M outputs (M > N), silently dropping the rest. The
+            // direct-assign fast path at the bottom of emit_stmt pads with
+            // `_` slots; mirror that here so the `if let Ok(PAT) = CALL`
+            // and labeled-block forms also accept the wider tuple. Without
+            // this, the LHS tuple under-fills the Rust pattern arity and
+            // rustc reports E0308 (tuple-arity mismatch).
+            let pat_owned = if let (TypedPat::Tuple(ps), Ty::Tuple(ts)) = (&pat_owned, scrut_ty)
+                && ps.len() < ts.len()
+            {
+                let mut padded = ps.clone();
+                for _ in ps.len()..ts.len() { padded.push(TypedPat::Wildcard); }
+                TypedPat::Tuple(padded)
+            } else {
+                pat_owned
+            };
             let pat_for_render = &pat_owned;
             // Render shallow with deferrals for Arc-edge crossings.
             let mut deferrals: Vec<(String, TypedPat, Ty)> = Vec::new();

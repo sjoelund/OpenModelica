@@ -290,6 +290,14 @@ struct GenCtx {
     /// `Error.updateCurrentComponent.prefixToStr`). For these qnames we
     /// fall back to inline `fn(...) -> Result<...>` emission in `fmt_ty`.
     nested_partial_aliases: BTreeSet<String>,
+    /// Maps an identity-passthrough nested function's true hierarchy qname
+    /// (e.g. `NFSections.map.eqId`) to the module-scoped qname under which
+    /// it is actually *emitted* (e.g. `NFSections.eqId`). Populated by
+    /// [`emit_function`] when it hoists such helpers out of their parent's
+    /// body, and consulted by [`emit_var`] so a path through the original
+    /// nested location is rewritten to the hoisted location at call sites.
+    /// Fallibility / signature lookups continue to use the original qname.
+    hoisted_nested_fns: HashMap<String, String>,
     /// Rust binding shape for variables in `variants`. Determines the deref
     /// form emitted around `var_field!` scrutinee:
     ///   `Owned` — plain `T` enum value (`var_field!(v.f, V::X)`).
@@ -404,6 +412,7 @@ impl GenCtx {
             current_fn_fallible: true,
             current_fn_qname: String::new(),
             nested_partial_aliases: BTreeSet::new(),
+            hoisted_nested_fns: HashMap::new(),
             in_tail_lowered_fn: false,
             tail_lowering: None,
             pat_extra_guards: Vec::new(),
@@ -4501,6 +4510,21 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
     // (`pub fn`) become harmless `pub`s inside a body; the type-resolution
     // information and fallibility state are saved/restored by the
     // recursive `emit_function` call itself.
+    // Buffer for nested fns we choose to emit at MODULE scope rather than
+    // inside the parent's body. Rust nested `fn` items are not accessible
+    // from outside the enclosing function, so a default argument like
+    // `input EqFn eqFn = eqId;` (with `eqId` a nested helper of the callee)
+    // can't be expanded at an external call site. Hoisting `eqId` to the
+    // module makes `<callee_module>::eqId` callable; `canonicalize_call_funcs`
+    // qualifies the bare default reference to that path.
+    //
+    // Limit hoisting to nested fns whose body is an "identity passthrough"
+    // (`function id input output T x; end id;` — no algorithm, single
+    // input-output component, no type parameters). Those are the only
+    // nested helpers we know it's safe to extract: they don't capture the
+    // parent's type parameters (Rust nested fn items can't anyway) and
+    // they don't reference the parent's locals.
+    let mut hoist_buffer = String::new();
     if let MM::ClassDef::Parts { members: parent_members, .. } | MM::ClassDef::ClassExtends { members: parent_members, .. } = &c.body {
         // Nested `emit_function` overwrites `ctx.fn_env_vars` / `ctx.fn_outputs`
         // with its own scope and does not restore them. Without this snapshot,
@@ -4520,7 +4544,24 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
                 && matches!(&cdm.class_def.restriction, Absyn::Restriction::R_FUNCTION { .. })
                     && let Some(child_node) = node.children.get(&cdm.class_def.name)
                         && let NodeKind::Class(child_class) = &child_node.kind {
-                            emit_function(out, &cdm.class_def.name, child_node, child_class, &body_indent, ctx, top_level);
+                            if is_identity_passthrough_fn(child_class) {
+                                // Record (original qname → hoisted qname) so
+                                // qualify_hoisted_nested_fns / emit_var can
+                                // rewrite call-site references to the path
+                                // where the fn actually lives now.
+                                let parent_qname = ctx.current_fn_qname.clone();
+                                let orig = format!("{parent_qname}.{}", cdm.class_def.name);
+                                let parent_module = parent_qname.rsplit_once('.').map(|(m, _)| m.to_owned()).unwrap_or_default();
+                                let hoisted = if parent_module.is_empty() {
+                                    cdm.class_def.name.clone()
+                                } else {
+                                    format!("{parent_module}.{}", cdm.class_def.name)
+                                };
+                                ctx.hoisted_nested_fns.insert(orig, hoisted);
+                                emit_function(&mut hoist_buffer, &cdm.class_def.name, child_node, child_class, indent, ctx, top_level);
+                            } else {
+                                emit_function(out, &cdm.class_def.name, child_node, child_class, &body_indent, ctx, top_level);
+                            }
                         }
         }
         ctx.fn_env_vars = saved_fn_env_vars;
@@ -4728,10 +4769,62 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
     }
     writeln!(out, "{indent}}}").unwrap();
     writeln!(out).unwrap();
+    // Append hoisted nested-fn definitions at module scope, after the parent
+    // function closes. See the `hoist_buffer` block above for rationale.
+    if !hoist_buffer.is_empty() {
+        out.push_str(&hoist_buffer);
+    }
     ctx.current_fn_fallible = saved_fn_fallible;
     ctx.current_fn_qname = saved_fn_qname;
     ctx.in_tail_lowered_fn = saved_in_tc;
     restore_imports(ctx, &saved_imports);
+}
+
+/// True when `c` is a `function` whose body is a no-op passthrough — exactly
+/// one INPUT_OUTPUT component (no other components, no algorithm, no
+/// equations, no type parameters). MetaModelica idiom for the default-value
+/// helpers like `function eqId input output Equation eq; end eqId;` which
+/// `Sections.map` uses as `input EqFn eqFn = eqId;`. Such helpers are safe
+/// to hoist out of their parent function to module scope: they capture
+/// nothing and produce the same identity semantics wherever they live.
+/// If `qname` names an identity-passthrough fn nested inside a parent
+/// function in the hierarchy, return the module-scoped qname where
+/// [`emit_function`] will have hoisted it. Returns `None` for any other
+/// path. Used by [`emit_exp`] to translate call-site references.
+fn hoisted_nested_fn_target<'a>(qname: &str, top_level: &'a BTreeMap<String, NameNode<'a>>) -> Option<String> {
+    if !qname.contains('.') { return None; }
+    let node = lookup_node(qname, top_level)?;
+    let NodeKind::Class(c) = &node.kind else { return None };
+    if !matches!(c.restriction, Absyn::Restriction::R_FUNCTION { .. }) { return None; }
+    if !is_identity_passthrough_fn(c) { return None; }
+    let (parent_qname, leaf) = qname.rsplit_once('.')?;
+    let parent_node = lookup_node(parent_qname, top_level)?;
+    let NodeKind::Class(pc) = &parent_node.kind else { return None };
+    if !matches!(pc.restriction, Absyn::Restriction::R_FUNCTION { .. }) { return None; }
+    // Hoist out of the parent function: place at the function's *containing*
+    // scope (module/package), keeping the leaf name unchanged.
+    let module = parent_qname.rsplit_once('.').map(|(m, _)| m).unwrap_or("");
+    if module.is_empty() {
+        Some(leaf.to_owned())
+    } else {
+        Some(format!("{module}.{leaf}"))
+    }
+}
+
+fn is_identity_passthrough_fn(c: &MM::Class) -> bool {
+    if c.partial_prefix { return false; }
+    let MM::ClassDef::Parts { members, algorithms, external, type_vars, .. } = &c.body else { return false };
+    if !type_vars.is_empty() || !algorithms.is_empty() || external.is_some() {
+        return false;
+    }
+    let comps: Vec<&MM::ComponentMember> = members.iter().filter_map(|m| match m {
+        MM::ClassMember::Component(cm) => Some(cm),
+        _ => None,
+    }).collect();
+    // Exactly one INPUT_OUTPUT component; no other Extends/ClassDef members.
+    if comps.len() != 1 { return false; }
+    if !matches!(comps[0].direction, Absyn::Direction::INPUT_OUTPUT) { return false; }
+    members.iter().all(|m| matches!(m, MM::ClassMember::Component(_)))
 }
 
 // ── Expression and pattern emission ──────────────────────────────────────────
@@ -5054,6 +5147,33 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
         TypedExp::Lit(Lit::Bool(v)) => v.to_string(),
 
         TypedExp::Var { name, segments, ty, .. } => {
+            // Translate references that point at the original (nested)
+            // location of an identity-passthrough helper to its hoisted
+            // module-level location. `qualify_hoisted_nested_fns` preserved
+            // the original qname so fallibility lookups below still find
+            // the right node; the emitted *path* needs to match where the
+            // fn actually lives in the generated Rust output. Resolution
+            // (`is_known_infallible_user_fn` etc.) keeps using the original
+            // qname via `resolve_call_qname` on the local form.
+            // Identity-passthrough nested fns are emitted at module scope by
+            // [`emit_function`] (their parent's body can't carry them in Rust,
+            // and `partial function`-typed defaults reference them by bare
+            // name). Detect that pattern here against the hierarchy — checking
+            // top_level rather than ctx state keeps the rewrite consistent
+            // across files (each file gets a fresh ctx; hierarchy is shared).
+            //
+            // `original_qname` keeps the pre-rewrite path so fallibility
+            // checks below find the hierarchy node (the hoisted form lives
+            // only in the emitted Rust, not in the hierarchy).
+            let original_qname: Option<String> = hoisted_nested_fn_target(name, top_level).map(|_| name.clone());
+            let (owned_name, owned_segments) = hoisted_nested_fn_target(name, top_level).map(|hoisted| {
+                let new_segs: Vec<CrefSegment> = hoisted.split('.')
+                    .map(|p| CrefSegment { name: p.to_owned(), subscripts: vec![] })
+                    .collect();
+                (hoisted, new_segs)
+            }).unzip();
+            let name: &String = owned_name.as_ref().unwrap_or(name);
+            let segments: &Vec<CrefSegment> = owned_segments.as_ref().unwrap_or(segments);
             let mut var_str = emit_var(name, segments, ty, ctx, top_level);
             // If this reference resolves to a `pub const fn` / `pub fn` getter
             // emitted by `emit_node` for a non-Sync constant (see
@@ -5117,6 +5237,10 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
             let promoted_ty: Option<Ty> = if matches!(ty, Ty::Unknown) && segments.len() > 1 && !first_seg_is_local {
                 let dotted: String = segments.iter().map(|s| s.name.clone()).collect::<Vec<_>>().join(".");
                 resolve_call_qname(&dotted, ctx, top_level)
+                    // Falls back to the pre-hoist qname (when the rewritten
+                    // module-scope path doesn't exist in the hierarchy because
+                    // the helper still nests under its parent function there).
+                    .or_else(|| original_qname.clone())
                     .and_then(|q| lookup_node(&q, top_level).map(|n| n.ty.clone()))
                     .filter(|t| matches!(t, Ty::Function { .. } | Ty::FunctionAlias { .. }))
             } else {
@@ -5138,7 +5262,11 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                     } else {
                         name.clone()
                     };
+                    // Try the hoisted path first; fall back to the pre-hoist
+                    // path so fallibility/typing lookups land on the real
+                    // hierarchy node when the path was rewritten above.
                     resolve_call_qname(&lookup_name, ctx, top_level)
+                        .or_else(|| original_qname.clone())
                 }
                 _ => None,
             };
@@ -8119,6 +8247,30 @@ fn emit_call_arg_with_formal<'a>(
         {
             return raw;
         }
+        // Same case 1b shape, but the Var's `ty` is still Ty::Unknown because
+        // typedexp didn't promote the bare reference to its function type
+        // (the inference pass only consults the leading segment). The Var
+        // arm in `emit_exp` *did* re-resolve the path and emit the
+        // `Arc::new(fnptr!(...) as Arc<dyn Fn(...)>)` wrap, so wrapping
+        // again here would yield `Arc<Arc<dyn Fn>>`. Forward `raw` as-is
+        // when the path resolves to a function in the hierarchy — including
+        // identity-passthrough helpers hoisted out of a parent function.
+        if let TypedExp::Var { name, segments, .. } = arg
+            && matches!(arg.ty(), Ty::Unknown)
+        {
+            let dotted: String = if !segments.is_empty() {
+                segments.iter().map(|s| s.name.clone()).collect::<Vec<_>>().join(".")
+            } else {
+                name.clone()
+            };
+            let resolves_to_fn = resolve_call_qname(&dotted, ctx, top_level)
+                .or_else(|| hoisted_nested_fn_target(&dotted, top_level).map(|_| dotted.clone()))
+                .and_then(|q| lookup_node(&q, top_level))
+                .is_some_and(|n| matches!(&n.ty, Ty::Function { .. } | Ty::FunctionAlias { .. }));
+            if resolves_to_fn {
+                return raw;
+            }
+        }
         // case 2 (special): an `if … else …` whose branches are different
         // closure types. Wrapping the whole if-expression in a single
         // `Arc::new(...)` doesn't help — the *inner* if branches each have a
@@ -8746,7 +8898,8 @@ fn resolve_call_formals<'a>(
                     extract_default_exp(&cm.modification)
                 })
                 .map(|exp| typedexp::infer_exp(exp, &infer_env, top_level, &module_prefix, &fn_type_vars))
-                .map(|tpl| canonicalize_call_funcs(tpl, &module_prefix, top_level, &formal_names));
+                .map(|tpl| canonicalize_call_funcs(tpl, &module_prefix, top_level, &formal_names))
+                .map(|tpl| qualify_hoisted_nested_fns(tpl, &qname, node, &module_prefix));
             infer_env.insert(name.clone(), ty.clone());
             formal_names.insert(name.clone());
             out.push((name, ty, default));
@@ -8767,7 +8920,8 @@ fn resolve_call_formals<'a>(
         let ty = node.children.get(&m.name).map(|n| n.ty.clone()).unwrap_or(Ty::Unknown);
         let default = extract_default_exp(&m.modification)
             .map(|exp| typedexp::infer_exp(exp, &infer_env, top_level, &module_prefix, &fn_type_vars))
-            .map(|tpl| canonicalize_call_funcs(tpl, &module_prefix, top_level, &formal_names));
+            .map(|tpl| canonicalize_call_funcs(tpl, &module_prefix, top_level, &formal_names))
+            .map(|tpl| qualify_hoisted_nested_fns(tpl, &qname, node, &module_prefix));
         out.push((m.name.clone(), ty.clone(), default));
         infer_env.insert(m.name.clone(), ty);
         formal_names.insert(m.name.clone());
@@ -8790,6 +8944,90 @@ fn resolve_call_formals<'a>(
 /// `noReference` does not resolve. By rewriting bare names to their qualified
 /// form *while* we still have the callee's module context, the resulting
 /// `TypedExp` is self-contained and can be emitted from any call site.
+/// Rewrite bare-Var references that point at an identity-passthrough nested
+/// fn of the callee so they qualify with the callee's *module* path. The
+/// hoisting in `emit_function` moves these helpers to module scope, so a
+/// reference to `eqId` from inside a default like `eqFn = eqId` (declared
+/// inside `Sections.map`) becomes `Sections.eqId` — resolvable at any call
+/// site, including from other modules. Non-matching references pass through
+/// unchanged.
+fn qualify_hoisted_nested_fns<'a>(
+    exp: TypedExp,
+    callee_qname: &str,
+    callee_node: &'a NameNode<'a>,
+    callee_module: &str,
+) -> TypedExp {
+    use TypedExp as E;
+    let recur = |e: TypedExp| qualify_hoisted_nested_fns(e, callee_qname, callee_node, callee_module);
+    match exp {
+        E::Var { ref name, ref segments, ref ty }
+            if !name.contains('.')
+                && segments.len() <= 1
+                && segments.iter().all(|s| s.subscripts.is_empty() && s.name == *name) =>
+        {
+            // Match nested-fn child by name; only rewrite if it's an
+            // identity passthrough (the shape `emit_function` actually
+            // hoisted). Otherwise the nested fn is still emitted inside
+            // the parent and unreachable from here — leave the bare ref
+            // alone so the eventual E0425 surfaces, rather than emitting
+            // a path that points at a nonexistent module-scope item.
+            let nested = callee_node.children.get(name)
+                .filter(|n| matches!(&n.kind, NodeKind::Class(c)
+                    if matches!(c.restriction, Absyn::Restriction::R_FUNCTION { .. })
+                        && is_identity_passthrough_fn(c)));
+            if nested.is_some() {
+                // Use the *original* nested qname so the downstream emit_var
+                // and fallibility checks see the real hierarchy node. The
+                // ctx.hoisted_nested_fns map will translate this to the
+                // module-scoped path at emission time.
+                let _ = callee_module;
+                let qualified = format!("{callee_qname}.{name}");
+                let new_segments: Vec<CrefSegment> = qualified.split('.')
+                    .map(|p| CrefSegment { name: p.to_owned(), subscripts: vec![] })
+                    .collect();
+                return E::Var { name: qualified, segments: new_segments, ty: ty.clone() };
+            }
+            exp
+        }
+        E::Call { func, args, named_args, ty, sig_ty } => E::Call {
+            func,
+            args: args.into_iter().map(recur).collect(),
+            named_args: named_args.into_iter().map(|(n, a)| (n, recur(a))).collect(),
+            ty,
+            sig_ty,
+        },
+        E::Constructor { name, args, named_args, ty, field_names } => E::Constructor {
+            name,
+            args: args.into_iter().map(recur).collect(),
+            named_args: named_args.into_iter().map(|(n, a)| (n, recur(a))).collect(),
+            ty,
+            field_names,
+        },
+        E::BinOp { op, lhs, rhs, ty } => E::BinOp {
+            op,
+            lhs: Box::new(recur(*lhs)),
+            rhs: Box::new(recur(*rhs)),
+            ty,
+        },
+        E::UnOp { op, operand, ty } => E::UnOp { op, operand: Box::new(recur(*operand)), ty },
+        E::If { cond, then_, elseif, else_, ty } => E::If {
+            cond: Box::new(recur(*cond)),
+            then_: Box::new(recur(*then_)),
+            elseif: elseif.into_iter().map(|(c, e)| (recur(c), recur(e))).collect(),
+            else_: Box::new(recur(*else_)),
+            ty,
+        },
+        E::Tuple(elems) => E::Tuple(elems.into_iter().map(recur).collect()),
+        E::Array { elems, ty } => E::Array { elems: elems.into_iter().map(recur).collect(), ty },
+        E::Cons { head, tail, ty } => E::Cons {
+            head: Box::new(recur(*head)),
+            tail: Box::new(recur(*tail)),
+            ty,
+        },
+        other => other,
+    }
+}
+
 fn canonicalize_call_funcs<'a>(
     exp: TypedExp,
     module_prefix: &str,

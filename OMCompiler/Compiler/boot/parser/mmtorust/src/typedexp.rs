@@ -818,7 +818,8 @@ pub fn builtin_function_ty(name: &str) -> Option<Ty> {
         // Arithmetic: (T, T) -> T
         "intAdd" | "intSub" | "intMul" | "intDiv" | "intMod" | "intMax" | "intMin" =>
             Some(f(vec![inp("a", Ty::I32), inp("b", Ty::I32)], Ty::I32, vec![])),
-        "realAdd" | "realSub" | "realMul" | "realDiv" | "realMax" | "realMin" =>
+        "realAdd" | "realSub" | "realMul" | "realDiv" | "realMax" | "realMin"
+        | "realMod" | "realPow" =>
             Some(f(vec![inp("a", Ty::F64), inp("b", Ty::F64)], Ty::F64, vec![])),
 
         // Numeric coercions

@@ -7245,7 +7245,12 @@ fn emit_reduction<'a>(
 
     s.push_str(&format!("        {finalize}\n"));
     s.push_str("    }");
-    s
+    // Wrap in parens so that when the reduction value participates in a
+    // binary operation (e.g. `{...} * other`) Rust doesn't parse the
+    // closing-brace boundary as the end of a statement followed by a unary
+    // `*` deref. The parens cost nothing in cases where the reduction is
+    // assigned directly.
+    format!("({s})")
 }
 
 /// Build the binding pattern produced by the current iterator chain.

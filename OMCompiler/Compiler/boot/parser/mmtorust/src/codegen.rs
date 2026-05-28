@@ -5611,10 +5611,21 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
             // function shadows any same-named builtin: do not consult the
             // builtin table. Only fall back to the builtin classification
             // when the name does not resolve to a user-defined function.
-            let infallible_ref = match resolved_fn_qname.as_deref() {
-                Some(q) => ctx.is_known_infallible_user_fn(q, top_level),
-                None => is_infallible_builtin(name),
-            };
+            // A name like `stringEq` may "resolve" to a qname via the hierarchy
+            // scope-walk even though no user-defined function actually exists
+            // there (it's a MetaModelica builtin, registered in
+            // `fallibility::builtin_fallibility` rather than as a class node).
+            // In that case `is_known_infallible_user_fn` returns false (no node
+            // found), and we'd wrongly fall into the fallible-fn-item wrap that
+            // adds an outer `Arc<dyn Fn(...) -> Result<bool>>` — but the
+            // builtin actually returns plain `bool`, producing an E0271 at the
+            // formal-parameter coercion site. Check `is_infallible_builtin`
+            // first if available; otherwise consult the user-fn predicate.
+            let infallible_ref = is_infallible_builtin(name)
+                || match resolved_fn_qname.as_deref() {
+                    Some(q) => ctx.is_known_infallible_user_fn(q, top_level),
+                    None => false,
+                };
 
             // Some MetaModelica builtins share a name with a Rust language
             // construct (`print` is a macro, `String` is a struct, etc.).

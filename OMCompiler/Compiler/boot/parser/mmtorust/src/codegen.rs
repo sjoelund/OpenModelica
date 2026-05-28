@@ -5609,17 +5609,24 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                     // *not* in scope at the caller, so we emit `_` for any
                     // input type that mentions a type variable and let Rust
                     // infer it from the surrounding higher-order context.
+                    // Function-typed inputs/outputs must use the
+                    // `Arc<dyn Fn(...)>` shape ([`fmt_param_ty`]), not the
+                    // bare `fn(...) -> Result<...>` pointer ([`fmt_ty`]):
+                    // the wrapped function actually accepts trait-object
+                    // values and the surrounding `as Arc<dyn Fn(...)>`
+                    // cast needs to mention the same trait-object shape
+                    // so the cast itself succeeds.
                     let input_tys: Vec<String> = inputs.iter().map(|i| {
                         if ty_mentions_typevar(&i.ty) {
                             "_".to_owned()
                         } else {
-                            fmt_ty(&i.ty, ctx)
+                            fmt_param_ty(&i.ty, ctx)
                         }
                     }).collect();
                     let out_ty = if ty_mentions_typevar(output) {
                         "_".to_owned()
                     } else {
-                        fmt_ty(output, ctx)
+                        fmt_param_ty(output, ctx)
                     };
                     let closure = if input_tys.is_empty() {
                         format!("fnptr!({var_str})")
@@ -14587,11 +14594,18 @@ fn fmt_param_ty(ty: &Ty, ctx: &mut GenCtx) -> String {
         // pair instead of a `pub static`; see `ty_is_sync` and the
         // non-Sync branch in [`emit_node`].
         Ty::Function { inputs, output, .. } => {
-            let ins = inputs.iter().map(|inp| fmt_ty(&inp.ty, ctx)).collect::<Vec<_>>().join(", ");
+            // Recurse into the function signature with `fmt_param_ty` so
+            // *nested* function types (e.g. an output `(DAE.Exp,
+            // FuncExpType)` where `FuncExpType` is itself a `partial
+            // function`) also unify on the trait-object shape. Without
+            // this recursion the inner FuncExpType would render as a
+            // bare `fn(...)` pointer and mismatch the body's
+            // `Arc<dyn Fn>` value.
+            let ins = inputs.iter().map(|inp| fmt_param_ty(&inp.ty, ctx)).collect::<Vec<_>>().join(", ");
             // Use a fully-qualified path so the trait reference doesn't collide
             // with a same-named MetaModelica `partial function` type alias that
             // may be brought into scope as `type Fn = fn(...);` (E0404).
-            format!("Arc<dyn ::std::ops::Fn({ins}) -> Result<{}> + 'static>", fmt_ty(output, ctx))
+            format!("Arc<dyn ::std::ops::Fn({ins}) -> Result<{}> + 'static>", fmt_param_ty(output, ctx))
         }
         _ => fmt_ty(ty, ctx),
     }

@@ -10233,6 +10233,32 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
                         if default.is_none() && !case_uses_local_name(case, name) {
                             continue;
                         }
+                        // Skip if the name already names an enclosing-scope
+                        // binding visible at the *match's entry point*
+                        // (function input/output/protected) AND this arm
+                        // provides no initializer. The MM idiom is a
+                        // *nested* matchcontinue inside a function that
+                        // declares the protected `cache`, `env`, … at the
+                        // outer level — the inner matchcontinue's cases
+                        // assign those same names but the codegen mirrors
+                        // the outer-function locals list onto every arm,
+                        // producing `let mut cache: ...;` (uninit) that
+                        // shadows the outer binding. Subsequent reads then
+                        // see the inner uninit local (E0381). The
+                        // enclosing scope already holds the live value;
+                        // dropping the per-arm `let` makes the
+                        // assignments fall back to the outer binding,
+                        // which is what the MM author intended.
+                        //
+                        // Use `saved_fn_env_vars` (the env *before* this
+                        // arm's pattern/local bindings were added to
+                        // `ctx.fn_env_vars` for downstream emission) so we
+                        // don't suppress legitimate first declarations of
+                        // a case-local that just happens to share a name
+                        // with one of *this* match's other case-locals.
+                        if default.is_none() && saved_fn_env_vars.contains_key(name) {
+                            continue;
+                        }
                         if matches!(ty, Ty::Unknown) {
                             // No usable type — let Rust infer from later assignment.
                             body.push_str(&format!("            let mut {}; // TODO: local with unresolved type\n", escape_ident(name)));
@@ -10621,6 +10647,14 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
                         // and the parallel filter on the MatchKind::Match
                         // path above.
                         if default.is_none() && !case_uses_local_name(case, name) {
+                            continue;
+                        }
+                        // Mirror the parallel matchcontinue arm-emission path:
+                        // skip the per-arm re-declaration of any name that
+                        // already names an enclosing-scope binding (function
+                        // input/output/protected). See the longer comment on
+                        // the matching guard in the MatchKind::Match path.
+                        if default.is_none() && saved_fn_env_vars_mc.contains_key(name) {
                             continue;
                         }
                         if matches!(ty, Ty::Unknown) {

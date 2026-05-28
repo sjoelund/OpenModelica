@@ -14851,6 +14851,21 @@ fn fmt_param_ty(ty: &Ty, ctx: &mut GenCtx) -> String {
             // may be brought into scope as `type Fn = fn(...);` (E0404).
             format!("Arc<dyn ::std::ops::Fn({ins}) -> Result<{}> + 'static>", fmt_param_ty(output, ctx))
         }
+        // Recurse into tuple elements with the same trait-object normalisation
+        // so a function-typed component (e.g. the `FuncExpType` second slot of
+        // `traverseExpBottomUp`'s return tuple `(Arc<DAE.Exp>, FuncExpType)`)
+        // renders as `Arc<dyn Fn>` rather than a bare `fn(...)` pointer.
+        // Without this the surrounding `as Arc<dyn Fn(...) -> Result<(_, fn)>>`
+        // cast mismatches the body's tuple, which actually returns
+        // `(_, Arc<dyn Fn>)`.
+        Ty::Tuple(tys) => {
+            format!("({})", tys.iter().map(|t| fmt_param_ty(t, ctx)).collect::<Vec<_>>().join(", "))
+        }
+        // Same for `Option<F>` / `List<F>` / `Array<F>`: any container whose
+        // element is itself a function type needs the trait-object form.
+        Ty::Option(inner) => format!("Option<{}>", fmt_param_ty(inner, ctx)),
+        Ty::List(inner) => format!("Arc<metamodelica::List<{}>>", fmt_param_ty(inner, ctx)),
+        Ty::Array(inner) => format!("metamodelica::Array<{}>", fmt_param_ty(inner, ctx)),
         _ => fmt_ty(ty, ctx),
     }
 }

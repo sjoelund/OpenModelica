@@ -4435,16 +4435,20 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
     let fn_inputs_eff: &[FunctionInput] = &merged_inputs;
     let fn_output_eff: &Ty = &merged_output_ty;
 
-    let mut all_type_vars = type_vars.clone();
+    // Collect type vars actually referenced through the signature
+    // first. MetaModelica `replaceable type Type_a subtypeof Any;`
+    // declarations may be left dangling (declared but never used in
+    // inputs/outputs/body) — keeping them in the Rust generic list as
+    // `<Type_a: ...>` would force every call site to provide a turbofish
+    // or rely on inference, which fails when no formal mentions the
+    // parameter (E0283). We seed `all_type_vars` from the actual usage;
+    // outputs/protected/body usage is folded in further below, and the
+    // final `type_params` is recomputed at that point.
+    let mut all_type_vars: Vec<String> = Vec::new();
     for inp in fn_inputs_eff.iter() {
         collect_type_vars_in_ty(&inp.ty, &mut all_type_vars);
     }
     collect_type_vars_in_ty(fn_output_eff, &mut all_type_vars);
-    let type_params = if all_type_vars.is_empty() {
-        String::new()
-    } else {
-        format!("<{}>", all_type_vars.iter().map(|v| format!("{v}: {DEFAULT_TRAITS}")).collect::<Vec<_>>().join(", "))
-    };
 
     // Mark every parameter `mut`. MetaModelica freely reassigns inputs
     // (e.g. `classPart` rewritten via `assign_variant_field!`), and detecting

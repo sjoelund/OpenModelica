@@ -11538,7 +11538,15 @@ fn emit_pat_with_implicit_bind_md<'a>(pat: &TypedPat, allow_implicit_bind: bool,
     // back to the legacy plain patterns there; the caller is expected to set
     // `implicit_ref` whenever the match contains any Arc edge or string-literal
     // pattern (see `match_uses_match_deref` in `emit_match`).
-    let at_arc_edge = scrut_ty.map(|t| ty_needs_arc_match_deref(t, ctx)).unwrap_or(false);
+    // Pattern-shape fallback: when scrut_ty is Unknown (typedexp couldn't
+    // pin a generic call's return type, etc.) but the pattern itself proves
+    // the scrutinee is wrapped in an `Arc<List<_>>`, force the Arc-edge
+    // prefix. Without this, the outermost `Cons` of a Cons/Nil chain over a
+    // generic-returning call's result emits without `Deref @` and Rust
+    // rejects the pattern with E0308.
+    let pat_implies_arc_edge = matches!(pat, TypedPat::Cons { .. } | TypedPat::EmptyList);
+    let at_arc_edge = pat_implies_arc_edge
+        || scrut_ty.map(|t| ty_needs_arc_match_deref(t, ctx)).unwrap_or(false);
     // `match_deref!` recognises the literal token `Deref` in pattern position
     // (it looks for an `i.ident == "Deref"` syn::PatIdent) and rewrites the
     // `Deref @ <subpat>` into an `if let <subpat> = ::core::ops::Deref::deref(binding)`
@@ -12469,6 +12477,15 @@ fn pat_requires_arc_deref(pat: &TypedPat) -> bool {
         TypedPat::Some_(_) | TypedPat::None_ => true,
         TypedPat::As { pat, .. } => pat_requires_arc_deref(pat),
         TypedPat::Tuple(ps) => ps.iter().any(pat_requires_arc_deref),
+        // A Constructor whose nested field is itself an Arc-edge pattern
+        // (e.g. a `FCore::Cache { …, scope: List::Cons{…}, .. }` destructure)
+        // needs the same match_deref! treatment as a bare Cons over a list
+        // — the inner List::Cons is on an Arc<List<_>> field even though
+        // the outer Constructor's own type is a plain struct.
+        TypedPat::Constructor { fields, named_fields, .. } => {
+            fields.iter().any(pat_requires_arc_deref)
+                || named_fields.iter().any(|(_, p)| pat_requires_arc_deref(p))
+        }
         _ => false,
     }
 }

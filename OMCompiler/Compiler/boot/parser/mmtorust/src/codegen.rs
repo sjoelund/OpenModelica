@@ -2940,6 +2940,37 @@ fn default_value_expr_for_field_ty(fty: &Ty, ctx: &mut GenCtx, top_level: &BTree
             placeholder_params.join(", ")
         );
     }
+    // Composite shapes that transitively embed a function type (e.g. a
+    // `HashSet` typedef whose lowered Rust type is a 4-tuple ending in
+    // `(FuncHashCref, FuncCrefEqual, FuncCrefStr)`) cannot use the
+    // blanket `Default::default()` either — `dyn Fn` has no `Default`.
+    // Construct the default structurally: recurse into tuple/option
+    // elements and emit a panicking placeholder for each function leaf.
+    if crate::hierarchy::ty_directly_contains_dyn_fn(fty) {
+        match fty {
+            Ty::Tuple(elems) => {
+                let parts: Vec<String> = elems.iter()
+                    .map(|t| default_value_expr_for_field_ty(t, ctx, top_level))
+                    .collect();
+                return format!("({})", parts.join(", "));
+            }
+            Ty::Option(_) => {
+                // `None` is a safe default for any `Option<T>` regardless
+                // of `T`. No need to recurse — the `None` discriminant
+                // never needs a `T` value.
+                return "None".to_owned();
+            }
+            _ => {
+                // Unsupported function-tainted container at this position
+                // (e.g. `list<partial function>`). Falling through to
+                // `Default::default()` would emit a misleading error at
+                // the use site; surface the gap explicitly instead.
+                return format!(
+                    "todo!(\"default value for dyn-fn-bearing field type {fty:?} is not yet emitted by mmtorust\")"
+                );
+            }
+        }
+    }
     "Default::default()".to_owned()
 }
 

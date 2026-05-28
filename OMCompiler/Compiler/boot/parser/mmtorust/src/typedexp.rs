@@ -607,27 +607,38 @@ pub fn resolve_call_node<'a>(
 /// such sites; single-record uniontypes already encode the record under the
 /// uniontype's own qname, so this is a no-op there.
 fn promote_variant_to_enum_ty(ty: Ty, top_level: &BTreeMap<String, NameNode<'_>>) -> Ty {
-    match &ty {
+    match ty {
         // A narrowed variant: `Ty::UnionTypeVariant(parent, _)` is a Rust path
         // (`Parent::Variant`), not a type. The parent enum is the actual type
         // of any value of that variant.
-        Ty::UnionTypeVariant(parent, _) => {
-            match lookup_ty_in_hierarchy(parent, top_level) {
-                Ty::RustEnum(_) => Ty::RustEnum(parent.clone()),
-                _ => ty,
+        Ty::UnionTypeVariant(parent, variant) => {
+            match lookup_ty_in_hierarchy(&parent, top_level) {
+                Ty::RustEnum(_) => Ty::RustEnum(parent),
+                _ => Ty::UnionTypeVariant(parent, variant),
             }
         }
         // A record-struct of a multi-record uniontype: hierarchy stores it as
         // `Ty::RustStruct(<variant-qname>)`, which `fmt_ty` would render as the
         // variant path. Promote to the parent's `Ty::RustEnum`.
         Ty::RustStruct(qname) => {
-            let Some((parent, _)) = qname.rsplit_once('.') else { return ty };
+            let Some((parent, _)) = qname.rsplit_once('.') else { return Ty::RustStruct(qname) };
             match lookup_ty_in_hierarchy(parent, top_level) {
                 parent_ty @ Ty::RustEnum(_) => parent_ty,
-                _ => ty,
+                _ => Ty::RustStruct(qname),
             }
         }
-        _ => ty,
+        // Tuples carry per-element types; promote each element so that nested
+        // variant-typed expressions (e.g. a reduction body of the form
+        // `(DAE.ADD_ARR(...), {at,at}, at)`) infer with the parent enum in
+        // every slot rather than the variant path.
+        Ty::Tuple(elems) => Ty::Tuple(elems.into_iter().map(|t| promote_variant_to_enum_ty(t, top_level)).collect()),
+        // Same for the element type of a list/array/option/range produced by
+        // a constructor expression.
+        Ty::List(inner) => Ty::List(Box::new(promote_variant_to_enum_ty(*inner, top_level))),
+        Ty::Array(inner) => Ty::Array(Box::new(promote_variant_to_enum_ty(*inner, top_level))),
+        Ty::Option(inner) => Ty::Option(Box::new(promote_variant_to_enum_ty(*inner, top_level))),
+        Ty::Range(inner) => Ty::Range(Box::new(promote_variant_to_enum_ty(*inner, top_level))),
+        other => other,
     }
 }
 

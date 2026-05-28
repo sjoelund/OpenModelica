@@ -16691,12 +16691,22 @@ fn fmt_ty(ty: &Ty, ctx: &mut GenCtx) -> String {
                 base
             }
         }
-        Ty::UnionTypeVariant(union_qname, variant) => {
-            // Rust cannot import through enums, so we emit `ShortenedUnionType::VariantName`.
-            // The uniontype itself is shortened (or fully qualified) and the variant is appended.
+        Ty::UnionTypeVariant(union_qname, _variant) => {
+            // Variants of a Rust enum are values, not types. In type position
+            // (where `fmt_ty` is invoked) a `Ty::UnionTypeVariant(Operator, ADD_ARR)`
+            // must collapse to the parent enum (`Operator`) — `Operator::ADD_ARR`
+            // is a constructor path that Rust rejects as a type name.
+            // Typedexp produces this Ty for a constructor expression (so list
+            // element-type inference, `__acc` declarations, etc. see it); the
+            // parent enum is what unifies with sibling variants of the same
+            // uniontype.
             let union_short = ctx.shorten(union_qname);
             ctx.uniontype_imports.insert(union_qname.to_owned());
-            format!("{union_short}::{variant}")
+            if ctx.recursive_types.contains(union_qname.as_str()) {
+                format!("Arc<{union_short}>")
+            } else {
+                union_short
+            }
         }
         Ty::Option(inner) => format!("Option<{}>", fmt_ty(inner, ctx)),
         Ty::List(inner) => format!("Arc<metamodelica::List<{}>>", fmt_ty(inner, ctx)),

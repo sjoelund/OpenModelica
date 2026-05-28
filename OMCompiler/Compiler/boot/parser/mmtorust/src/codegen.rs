@@ -5589,6 +5589,33 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
             };
             let effective_ty: &Ty = promoted_ty.as_ref().unwrap_or(ty);
 
+            // Demote a Function effective_ty when the name resolves (via the
+            // surrounding scope) to a `constant` Component in the hierarchy.
+            // MetaModelica name resolution prefers local declarations over
+            // same-named runtime builtins (e.g. FBuiltin defines a constant
+            // `SCode.Element min`; `is_infallible_builtin("min")` would
+            // otherwise classify the reference as the builtin function and the
+            // `Ty::Function` arm below would wrap it in `fnptr!(min)`, which
+            // produces an Arc<dyn Fn() -> Result<()>> where an Arc<Element> is
+            // expected). Skip when the first segment is a local pattern
+            // binding (those shadow module-level constants).
+            let first_seg_is_local2 = segments.first()
+                .map(|s| ctx.fn_env_vars.contains_key(&s.name))
+                .unwrap_or(false);
+            let const_value_ty: Option<Ty> = if matches!(effective_ty, Ty::Function { .. } | Ty::FunctionAlias { .. }) && !first_seg_is_local2 {
+                let lookup_name: String = if !segments.is_empty() {
+                    segments.iter().map(|s| s.name.clone()).collect::<Vec<_>>().join(".")
+                } else {
+                    name.clone()
+                };
+                resolve_call_qname(&lookup_name, ctx, top_level)
+                    .filter(|q| is_const_component(q, top_level))
+                    .and_then(|q| lookup_node(&q, top_level).map(|n| n.ty.clone()))
+            } else {
+                None
+            };
+            let effective_ty: &Ty = const_value_ty.as_ref().unwrap_or(effective_ty);
+
             // Try to resolve this reference to a fully-qualified function name
             // in the hierarchy. `Ty::Function::name` is only populated for
             // `partial function` declarations (callback signature aliases), so

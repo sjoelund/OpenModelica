@@ -5532,9 +5532,26 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
             // `const_fn_getters` only contains FQNs of constants at module/
             // class scope, and `resolve_call_qname` does not promote shadowed
             // first-segment locals (see its `fn_env_vars` check).
-            let first_seg_is_local = segments.first()
-                .map(|s| ctx.fn_env_vars.contains_key(&s.name))
-                .unwrap_or(false);
+            // Treat the first-segment local as shadowing only when the
+            // dotted access could plausibly target the local (i.e. its type
+            // has a field by the next-segment name, or the type isn't a
+            // record). This matches the find_record_split decision so the
+            // qname-resolution and the path-emission stay in sync — without
+            // it a path like `DAE.emptyDae` whose local `DAE: DAE::DAElist`
+            // record has no `emptyDae` field would skip the getter `()`
+            // append and emit the bare `fn item` reference.
+            let first_seg_is_local = segments.first().map(|s| {
+                if !ctx.fn_env_vars.contains_key(&s.name) { return false; }
+                if segments.len() <= 1 { return true; }
+                match ctx.fn_env_vars.get(&s.name) {
+                    Some(Ty::RustStruct(qn)) | Some(Ty::AliasTo(qn)) => {
+                        lookup_node(qn, top_level)
+                            .map(|n| n.children.contains_key(&segments[1].name))
+                            .unwrap_or(true)
+                    }
+                    _ => true,
+                }
+            }).unwrap_or(false);
             if !first_seg_is_local {
                 let lookup_name: String = if !segments.is_empty() {
                     segments.iter().map(|s| s.name.clone()).collect::<Vec<_>>().join(".")
@@ -8428,16 +8445,38 @@ fn find_record_split<'a>(segments: &[CrefSegment], ctx: &GenCtx, top_level: &'a 
         return 1;
     }
 
-    // A local variable in scope always shadows any same-named module / function
-    // / package at the top level. Without this short-circuit a CREF like
-    // `prefixPath.path` — where `prefixPath` is both an input parameter and a
-    // sibling function name (e.g. AbsynUtil.removePrefixOpt referencing the
-    // sibling `prefixPath` function) — emits as `prefixPath::path`, which Rust
-    // resolves to the sibling function's `path` item and not to the local's
-    // field. Detect the shadowing here so the field-access path is taken
-    // instead.
+    // A local variable in scope normally shadows any same-named module /
+    // function / package at the top level. Without this short-circuit a CREF
+    // like `prefixPath.path` — where `prefixPath` is both an input parameter
+    // and a sibling function name (e.g. AbsynUtil.removePrefixOpt referencing
+    // the sibling `prefixPath` function) — emits as `prefixPath::path`, which
+    // Rust resolves to the sibling function's `path` item and not to the
+    // local's field. Detect the shadowing here so the field-access path is
+    // taken instead.
+    //
+    // Exception: a record-typed local that does NOT carry the next-segment
+    // field cannot be the intended target — MetaModelica accepts shadowing
+    // when the record can't possibly resolve the dotted access (e.g.
+    // `ConnectUtil.equationsDispatch` declares `output DAE.DAElist DAE =
+    // DAE.emptyDae;`; the record `DAElist` has only `elementLst`, so
+    // `DAE.emptyDae` must refer to module `DAE`, not the local). Fall
+    // through to the normal package-resolution walk in that case.
     if ctx.fn_env_vars.contains_key(&segments[0].name) {
-        return 1;
+        let local_has_next_field = match ctx.fn_env_vars.get(&segments[0].name) {
+            Some(Ty::RustStruct(struct_qname)) | Some(Ty::AliasTo(struct_qname)) => {
+                lookup_node(struct_qname, top_level)
+                    .map(|n| n.children.contains_key(&segments[1].name))
+                    .unwrap_or(true)
+            }
+            // For non-record local types (Arc<List<_>>, enums, primitives, …)
+            // we keep the original shadowing behaviour. A field access on
+            // those is either via `var_field!` (enum) or a downstream
+            // type-error that points at the real bug.
+            _ => true,
+        };
+        if local_has_next_field {
+            return 1;
+        }
     }
 
     // Walk backwards from the longest possible split point

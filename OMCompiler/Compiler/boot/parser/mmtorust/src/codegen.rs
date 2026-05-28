@@ -12453,6 +12453,26 @@ fn type_destructure_needs_borrow(ty: &Ty, ctx: &GenCtx) -> bool {
     false
 }
 
+/// True when the *pattern's shape* already proves the scrutinee is wrapped in
+/// an `Arc<_>` (or `Arc<List<_>>`/`Arc<Option<_>>`/etc.) and must be matched
+/// through `match_deref!` rather than a bare `let … = … else { fail };`.
+///
+/// Used as a fallback when typedexp can't fully resolve the scrutinee's type
+/// (e.g. a call to a generic function like `List.select` whose return type
+/// flows through type variables and infers as `Ty::Unknown`). In that case
+/// `type_destructure_needs_borrow(scrut_ty)` returns false even though the
+/// pattern itself — `Cons`, `EmptyList`, `Some_`, `None_` — could only succeed
+/// against an Arc-wrapped value.
+fn pat_requires_arc_deref(pat: &TypedPat) -> bool {
+    match pat {
+        TypedPat::Cons { .. } | TypedPat::EmptyList => true,
+        TypedPat::Some_(_) | TypedPat::None_ => true,
+        TypedPat::As { pat, .. } => pat_requires_arc_deref(pat),
+        TypedPat::Tuple(ps) => ps.iter().any(pat_requires_arc_deref),
+        _ => false,
+    }
+}
+
 /// Return true if the value produced by emitting `arg` will already be wrapped
 /// in `Arc<T>`. Used by struct-field emission to avoid emitting a redundant
 /// outer `Arc::new(...)` around an expression that already yields `Arc<T>`.
@@ -12741,7 +12761,8 @@ fn emit_pat_assign<'a>(
                 !pat_is_irrefutable(pat_for_render)
                 && !matches!(fail_mode, FailureMode::IfLetElse(_))
                 && (type_destructure_needs_borrow(scrut_ty, ctx)
-                    || pat_has_str_lit(pat_for_render));
+                    || pat_has_str_lit(pat_for_render)
+                    || pat_requires_arc_deref(pat_for_render));
             if pat_needs_match_deref {
                 let fail_owned;
                 let fail: &str = match &fail_mode {

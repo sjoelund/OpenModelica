@@ -971,6 +971,11 @@ pub fn generate_all(hier: &InstanceHierarchy<'_>, output_dir: &str) -> std::io::
         .ok()
         .and_then(|s| s.parse::<u64>().ok())
         .unwrap_or(0);
+    // Per-phase wall-clock timings, reported at the end so a serial pre-pass
+    // that quietly grows into the dominant cost (and stalls the otherwise
+    // parallel file phase) is visible without a profiler.
+    let mut phase_times: Vec<(&'static str, std::time::Duration)> = Vec::new();
+    let _pp = std::time::Instant::now();
     // Build crate_map: top-level class name → Rust crate name.
     let crate_map: BTreeMap<String, String> = hier.top_level.iter()
         .filter_map(|(name, node)| {
@@ -982,6 +987,7 @@ pub fn generate_all(hier: &InstanceHierarchy<'_>, output_dir: &str) -> std::io::
         })
         .collect();
 
+    phase_times.push(("crate_map", _pp.elapsed())); let _pp = std::time::Instant::now();
     // Collect names of top-level uniontypes — they are emitted as both a module
     // and a type inside that module, so references from other files need `Name::Name`.
     let top_level_uniontype_names: HashSet<String> = hier.top_level.iter()
@@ -998,23 +1004,27 @@ pub fn generate_all(hier: &InstanceHierarchy<'_>, output_dir: &str) -> std::io::
     // no `pub mod` wrapper because they contain only records. Built once across the whole
     // hierarchy so that cross-file references (e.g. FlagsUtil referencing Flags.FlagData)
     // also suppress the `::TypeName` doubling.
+    phase_times.push(("top_level_uniontype_names", _pp.elapsed())); let _pp = std::time::Instant::now();
     let mut no_mod_uniontypes: HashSet<String> = HashSet::new();
     for (top_name, top_node) in &hier.top_level {
         collect_no_mod_uniontypes(&top_node.children, top_name, &mut no_mod_uniontypes);
     }
 
+    phase_times.push(("no_mod_uniontypes", _pp.elapsed())); let _pp = std::time::Instant::now();
     // Build a map from fully-qualified function names to their effective type variables.
     // Used at codegen time to emit generic arguments for FunctionAlias parameter types.
     let mut fn_type_vars: BTreeMap<String, Vec<String>> = BTreeMap::new();
     for (top_name, top_node) in &hier.top_level {
         collect_fn_type_vars(top_node, top_name, &mut fn_type_vars);
     }
+    phase_times.push(("fn_type_vars", _pp.elapsed())); let _pp = std::time::Instant::now();
 
     // Compute the set of record qnames whose fields are all defaultable, so
     // each such record can carry `#[derive(Default)]`. Used by codegen to add
     // `Default` only to records that won't break on the derive (uniontype
     // enums have no `#[default]` marker and so any record holding one fails).
     let defaultable_struct_qnames = compute_defaultable_struct_qnames(&hier.top_level);
+    phase_times.push(("defaultable_struct_qnames", _pp.elapsed())); let _pp = std::time::Instant::now();
     // ...and the demand-side: only types that something actually needs to be
     // `Default` (via `arrayCreateDefault` element types, transitively) get
     // an `impl Default` emitted. Without this filter every defaultable type
@@ -1022,11 +1032,13 @@ pub fn generate_all(hier: &InstanceHierarchy<'_>, output_dir: &str) -> std::io::
     let types_needing_default = compute_types_needing_default(
         &hier.top_level, &hier.default_required, &defaultable_struct_qnames,
     );
+    phase_times.push(("types_needing_default", _pp.elapsed())); let _pp = std::time::Instant::now();
 
     // Whole-program scan for global roots cleared via `setGlobalRoot(idx, 0)`;
     // these are modeled as `Option<T>` slots (see comment on the function).
     let mut nullable_global_roots: HashSet<String> = HashSet::new();
     compute_nullable_global_roots(&hier.top_level, &mut nullable_global_roots);
+    phase_times.push(("nullable_global_roots", _pp.elapsed())); let _pp = std::time::Instant::now();
 
     // Group top-level classes by their output directory.
     let mut dir_classes: BTreeMap<String, Vec<(&str, &NameNode<'_>)>> = BTreeMap::new();
@@ -1087,7 +1099,15 @@ pub fn generate_all(hier: &InstanceHierarchy<'_>, output_dir: &str) -> std::io::
         }
     }
 
-    // Parallel pass: each file is generated independently.
+    phase_times.push(("file_jobs collection", _pp.elapsed()));
+
+    // Parallel pass: each file is generated independently. Accumulate the sum of
+    // per-file CPU time and the wall-clock of the phase so we can compute the
+    // realised parallel speedup (sum / wall) and flag a regression to serial.
+    use std::sync::atomic::{AtomicU64, Ordering};
+    let file_micros_total = AtomicU64::new(0);
+    let per_file: std::sync::Mutex<Vec<(String, f64)>> = std::sync::Mutex::new(Vec::new());
+    let file_phase_t0 = std::time::Instant::now();
     file_jobs.par_iter().try_for_each(|(dir, name, node)| -> std::io::Result<()> {
         let current_crate = if let NodeKind::Class(c) = &node.kind {
             c.crate_name.clone()
@@ -1101,6 +1121,8 @@ pub fn generate_all(hier: &InstanceHierarchy<'_>, output_dir: &str) -> std::io::
         let file_t0 = std::time::Instant::now();
         let content = generate_file(name, node, &crate_map, current_crate, &nullable_global_roots, &top_level_uniontype_names, hier.recursive_types.clone(), hier.types_containing_mutable.clone(), hier.types_containing_array.clone(), hier.types_containing_dyn_fn.clone(), hier.types_directly_containing_dyn_fn.clone(), &no_mod_uniontypes, &hier.top_level, &fn_type_vars, &hier.fallible_functions, &hier.partial_eq_required, &hier.default_required, &defaultable_struct_qnames, &types_needing_default);
         let file_elapsed = file_t0.elapsed();
+        file_micros_total.fetch_add(file_elapsed.as_micros() as u64, Ordering::Relaxed);
+        per_file.lock().unwrap().push((file_path.clone(), file_elapsed.as_secs_f64()));
         if trace_codegen {
             eprintln!("[mmtorust] codegen done  {file_path} ({:.2}s)", file_elapsed.as_secs_f64());
         }
@@ -1113,8 +1135,10 @@ pub fn generate_all(hier: &InstanceHierarchy<'_>, output_dir: &str) -> std::io::
         write_if_changed(&file_path, &content)?;
         Ok(())
     })?;
+    let file_phase_wall = file_phase_t0.elapsed();
 
     // Serial pass: write lib.rs per directory.
+    let _pp = std::time::Instant::now();
     for dir in dir_classes.keys() {
         if dir == "openmodelica/src" {
             continue;
@@ -1122,9 +1146,46 @@ pub fn generate_all(hier: &InstanceHierarchy<'_>, output_dir: &str) -> std::io::
         let lib_content = generate_lib_file(hier, dir, output_dir);
         write_if_changed(&format!("{dir}/lib.rs"), &lib_content)?;
     }
+    phase_times.push(("lib.rs serial pass", _pp.elapsed()));
     let all_file_elapsed = all_file_t0.elapsed();
     if trace_codegen {
         eprintln!("[mmtorust] codegen done all files ({:.2}s)", all_file_elapsed.as_secs_f64());
+    }
+
+    // ── Phase-timing report + parallel-speedup guard ───────────────────────
+    // A serial pre-pass that grows into the dominant cost, or a single
+    // pathological file, silently destroys the parallelism of the file phase.
+    // Report every phase and the realised speedup; fail loudly if the file
+    // phase has regressed to (near-)serial so the regression cannot slip by.
+    let sum_file = file_micros_total.load(Ordering::Relaxed) as f64 / 1e6;
+    let wall = file_phase_wall.as_secs_f64();
+    let speedup = if wall > 0.0 { sum_file / wall } else { 0.0 };
+    eprintln!("[mmtorust] generate_all phase timings:");
+    for (label, d) in &phase_times {
+        eprintln!("    {:<28} {:>8.2}s", label, d.as_secs_f64());
+    }
+    eprintln!(
+        "    {:<28} {:>8.2}s wall  ({:.2}s CPU across {} files → {:.1}x parallel speedup)",
+        "file codegen (parallel)", wall, sum_file, file_jobs.len(), speedup,
+    );
+    {
+        let mut v = per_file.into_inner().unwrap();
+        v.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+        for (p, s) in v.iter().take(5) {
+            eprintln!("    slowest file: {:>8.2}s  {p}", s);
+        }
+    }
+    // Only meaningful once there is enough work to parallelise; tiny job sets
+    // (e.g. a single-crate regen) can't reach 4x and shouldn't fail the guard.
+    const MIN_SPEEDUP: f64 = 4.0;
+    if file_jobs.len() >= 24 && speedup < MIN_SPEEDUP {
+        eprintln!(
+            "warning: file codegen parallel speedup {:.1}x is below the {:.0}x threshold — \
+             the parallel file phase has regressed to (near-)serial execution. Likely causes: \
+             a global lock / env read on the hot path, or one pathological file (see slowest above).",
+            speedup, MIN_SPEEDUP,
+        );
+        std::process::exit(1);
     }
     Ok(())
 }
@@ -16059,18 +16120,29 @@ fn compute_types_needing_default<'a>(
 
     let mut needs: HashSet<String> = HashSet::new();
 
-    // Sources (1) + (2): scan every function body.
-    for (qname, node) in &all_fns {
-        let stmts = typedexp_function_body_for_analysis(qname, node, top_level);
-        if stmts.is_empty() { continue; }
-        let ever_assigned = ever_assigned_for_fn(node, &stmts);
-        let pkg_prefix = qname.rsplit_once('.').map_or("", |(p, _)| p).to_owned();
-        for s in &stmts {
-            collect_concrete_default_uses_in_stmt(
-                s, &ever_assigned, default_required, top_level, &pkg_prefix, &mut needs,
-            );
-        }
-    }
+    // Sources (1) + (2): scan every function body. This re-runs typedexp on
+    // every one of the ~30k function bodies, so it is by far the heaviest
+    // pre-pass; run it in parallel (each function produces an independent
+    // local set that is unioned at the end). `top_level` is already shared
+    // read-only across the parallel file-codegen phase, so this is sound.
+    let needs_from_bodies: HashSet<String> = all_fns
+        .par_iter()
+        .map(|(qname, node)| {
+            let mut local: HashSet<String> = HashSet::new();
+            let stmts = typedexp_function_body_for_analysis(qname, node, top_level);
+            if !stmts.is_empty() {
+                let ever_assigned = ever_assigned_for_fn(node, &stmts);
+                let pkg_prefix = qname.rsplit_once('.').map_or("", |(p, _)| p).to_owned();
+                for s in &stmts {
+                    collect_concrete_default_uses_in_stmt(
+                        s, &ever_assigned, default_required, top_level, &pkg_prefix, &mut local,
+                    );
+                }
+            }
+            local
+        })
+        .reduce(HashSet::new, |mut a, b| { a.extend(b); a });
+    needs.extend(needs_from_bodies);
 
     // Source (4): function-local declarations without an explicit
     // initialiser.  Mirrors the iteration in `emit_function` that builds

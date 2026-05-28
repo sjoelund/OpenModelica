@@ -74,8 +74,6 @@ pub fn action(mut act: i32, mut startSt: i32, mut mm_currSt: i32, mut mm_pos: i3
     let mut mm_startSt: i32 = 0;
     let mut bufferRet: i32 = 0;
     let mut errorTokens: Arc<metamodelica::List<Token>> = inErrorTokens.clone();
-    let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
-    let mut sToken: ArcStr = arcstr::literal!("");
     mm_startSt = startSt.clone();
     bufferRet = 0;
     token = (match act.clone() {
@@ -857,7 +855,7 @@ pub fn tokenContentEq(mut token1: Token, mut token2: Token) -> Result<bool> {
 
 pub fn tokenSourceInfo(mut token: Token) -> Result<SourceInfo> {
     let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
-    info = { let t = token.clone(); (match t.clone() {
+    info = { let mut t = token.clone(); (match t.clone() {
         Token { .. } => SourceInfo { fileName: (t.fileName.clone()).clone(), isReadOnly: false, lineNumberStart: t.lineNumberStart.clone(), columnNumberStart: t.columnNumberStart.clone(), lineNumberEnd: t.lineNumberEnd.clone(), columnNumberEnd: t.columnNumberEnd.clone(), lastModification: metamodelica::OrderedFloat(0.0_f64) },
         _ => bail!("match: no arm matched"),
     }) };
@@ -869,9 +867,7 @@ fn lex(mut fileName: ArcStr, mut contents: ArcStr) -> Result<(Arc<metamodelica::
     let mut errorTokens: Arc<metamodelica::List<Token>> = metamodelica::nil();
     let mut startSt: i32 = 0;
     let mut i: i32 = 0;
-    let mut r: i32 = 0;
     let mut cTok: i32 = 0;
-    let mut cTok2: i32 = 0;
     let mut currSt: i32 = 0;
     let mut pos: i32 = 0;
     let mut sPos: i32 = 0;
@@ -881,12 +877,7 @@ fn lex(mut fileName: ArcStr, mut contents: ArcStr) -> Result<(Arc<metamodelica::
     let mut numBacktrack: i32 = 0;
     let mut buffer: i32 = 0;
     let mut lineNrStart: i32 = 0;
-    let mut cProg: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    let mut cProg2: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    let mut chars: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
     let mut states: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    let mut s1: ArcStr = arcstr::literal!("");
-    let mut s2: ArcStr = arcstr::literal!("");
     startSt = 1;
     currSt = 1;
     pos = 1;
@@ -1018,14 +1009,6 @@ fn findRule(mut fileContents: ArcStr, mut currSt: i32, mut pos: i32, mut sPos: i
     let mut buffer: i32 = 0;
     let mut bkBuffer: i32 = 0;
     let mut states: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    let mut mm_accept: metamodelica::Array<i32>;
-    let mut mm_ec: metamodelica::Array<i32>;
-    let mut mm_meta: metamodelica::Array<i32>;
-    let mut mm_base: metamodelica::Array<i32>;
-    let mut mm_def: metamodelica::Array<i32>;
-    let mut mm_nxt: metamodelica::Array<i32>;
-    let mut mm_chk: metamodelica::Array<i32>;
-    let mut mm_acclist: metamodelica::Array<i32>;
     let mut lp: i32 = 0;
     let mut lp1: i32 = 0;
     let mut stCmp: i32 = 0;
@@ -1132,7 +1115,7 @@ pub fn modelicaDiffTokenEq(mut ta: Token, mut tb: Token) -> Result<bool> {
     idb = __pa1.clone();
     if ida.clone() != idb.clone() {
         b = false;
-        return Ok(b);
+        return Ok(b.clone());
     }
     b = (match ida.clone() {
         TokenId::IDENT { .. } => tokenContentEq(ta.clone(), tb.clone())?,
@@ -1174,16 +1157,16 @@ pub fn filterModelicaDiff(mut diffs: Arc<metamodelica::List<(DiffAlgorithm::Diff
     let mut rest: Arc<metamodelica::List<(Diff, Token)>> = metamodelica::nil();
     let mut lastIsNewline: bool = false;
     let mut depth: i32 = 0;
-    let _ = (::match_deref::match_deref! { match &(diffs.clone()) {
+    let () = (::match_deref::match_deref! { match &(diffs.clone()) {
         Deref @ metamodelica::List::Cons { head: (DiffAlgorithm::Diff::Equal, _), tail: Deref @ metamodelica::List::Nil } => {
             odiffs = diffs.clone();
-            return Ok(odiffs);
+            return Ok(odiffs.clone());
             ()
         },
         _ => (),
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
     } });
-    odiffs = {
+    odiffs = ({
         let mut __acc: Arc<metamodelica::List<(Diff, Arc<metamodelica::List<Token>>)>> = metamodelica::nil();
         for mut e in (diffs.clone()).into_iter().cloned() {
             if !((::match_deref::match_deref! { match &(e.clone()) {
@@ -1208,47 +1191,47 @@ pub fn filterModelicaDiff(mut diffs: Arc<metamodelica::List<(DiffAlgorithm::Diff
             __acc = cons(__x, __acc);
         }
         __acc
-    };
-    simpleDiff = {
+    });
+    simpleDiff = ({
         let mut __acc: Arc<metamodelica::List<(Diff, Token)>> = metamodelica::nil();
         for mut e in (odiffs.clone()).into_iter().cloned() {
             let __x = (::match_deref::match_deref! { match &(e.clone()) {
         (DiffAlgorithm::Diff::Add, ts) => {
-            {
+            ({
         let mut __acc: Arc<metamodelica::List<(Diff, Token)>> = metamodelica::nil();
         for mut t in (ts.clone()).into_iter().cloned() {
             let __x = (Diff::Add.clone(), t.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }
+    })
         },
         (DiffAlgorithm::Diff::Equal, ts) => {
-            {
+            ({
         let mut __acc: Arc<metamodelica::List<(Diff, Token)>> = metamodelica::nil();
         for mut t in (ts.clone()).into_iter().cloned() {
             let __x = (Diff::Equal.clone(), t.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }
+    })
         },
         (DiffAlgorithm::Diff::Delete, ts) => {
-            {
+            ({
         let mut __acc: Arc<metamodelica::List<(Diff, Token)>> = metamodelica::nil();
         for mut t in (ts.clone()).into_iter().cloned() {
             let __x = (Diff::Delete.clone(), t.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }
+    })
         },
         _ => bail!("match: no arm matched"),
     } });
             __acc = __x.append(&__acc);
         }
         __acc
-    };
+    });
     tmp = metamodelica::nil();
     lastIsNewline = false;
     depth = 2;
@@ -1296,14 +1279,14 @@ pub fn filterModelicaDiff(mut diffs: Arc<metamodelica::List<(DiffAlgorithm::Diff
             (true, rest.clone(), cons(e.clone(), tmp.clone()))
         },
         Deref @ metamodelica::List::Cons { head: (DiffAlgorithm::Diff::Add, Token { id: TokenId::WHITESPACE, .. }), tail: Deref @ metamodelica::List::Cons { head: e @ (DiffAlgorithm::Diff::Add, _), tail: rest } } if (lastIsNewline.clone()) => {
-            (false, rest.clone(), cons(e.clone(), cons((Diff::Add.clone(), Token { fileName: (literal!("WHITESPACE")).clone(), id: TokenId::WHITESPACE.clone(), fileContents: ({
+            (false, rest.clone(), cons(e.clone(), cons((Diff::Add.clone(), Token { fileName: (literal!("WHITESPACE")).clone(), id: TokenId::WHITESPACE.clone(), fileContents: (({
         let mut __acc = String::new();
         for mut i in (1..=depth.clone()).into_iter() {
             let __x = literal!(" ");
             __acc.push_str(&__x);
         }
         ArcStr::from(__acc)
-    }).clone(), byteOffset: 1, length: depth.clone(), lineNumberStart: 0, columnNumberStart: 0, lineNumberEnd: 0, columnNumberEnd: 0 }), tmp.clone())))
+    })).clone(), byteOffset: 1, length: depth.clone(), lineNumberStart: 0, columnNumberStart: 0, lineNumberEnd: 0, columnNumberEnd: 0 }), tmp.clone())))
         },
         Deref @ metamodelica::List::Cons { head: (DiffAlgorithm::Diff::Add, Token { id: TokenId::WHITESPACE, .. }), tail: rest @ Deref @ metamodelica::List::Cons { head: (_, Token { id: TokenId::NEWLINE, .. }), tail: _ } } if (lastIsNewline.clone()) => {
             (true, rest.clone(), tmp.clone())
@@ -1320,7 +1303,7 @@ pub fn filterModelicaDiff(mut diffs: Arc<metamodelica::List<(DiffAlgorithm::Diff
     } });
     }
     simpleDiff = tmp.clone().reverse();
-    addedLineComments = {
+    addedLineComments = ({
         let mut __acc: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
         for mut e in (simpleDiff.clone()).into_iter().cloned() {
             if !(Diff::Add.clone() == tuple21(e.clone()) && isLineComment(tuple22(e.clone()))) { continue; }
@@ -1328,8 +1311,8 @@ pub fn filterModelicaDiff(mut diffs: Arc<metamodelica::List<(DiffAlgorithm::Diff
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
-    removedLineComments = {
+    });
+    removedLineComments = ({
         let mut __acc: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
         for mut e in (simpleDiff.clone()).into_iter().cloned() {
             if !(Diff::Delete.clone() == tuple21(e.clone()) && isLineComment(tuple22(e.clone()))) { continue; }
@@ -1337,8 +1320,8 @@ pub fn filterModelicaDiff(mut diffs: Arc<metamodelica::List<(DiffAlgorithm::Diff
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
-    addedBlockComments = {
+    });
+    addedBlockComments = ({
         let mut __acc: Arc<metamodelica::List<Arc<metamodelica::List<ArcStr>>>> = metamodelica::nil();
         for mut e in (simpleDiff.clone()).into_iter().cloned() {
             if !(Diff::Add.clone() == tuple21(e.clone()) && isBlockComment(tuple22(e.clone()))) { continue; }
@@ -1346,8 +1329,8 @@ pub fn filterModelicaDiff(mut diffs: Arc<metamodelica::List<(DiffAlgorithm::Diff
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
-    removedBlockComments = {
+    });
+    removedBlockComments = ({
         let mut __acc: Arc<metamodelica::List<Arc<metamodelica::List<ArcStr>>>> = metamodelica::nil();
         for mut e in (simpleDiff.clone()).into_iter().cloned() {
             if !(Diff::Delete.clone() == tuple21(e.clone()) && isBlockComment(tuple22(e.clone()))) { continue; }
@@ -1355,8 +1338,8 @@ pub fn filterModelicaDiff(mut diffs: Arc<metamodelica::List<(DiffAlgorithm::Diff
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
-    simpleDiff = {
+    });
+    simpleDiff = ({
         let mut __acc: Arc<metamodelica::List<(Diff, Token)>> = metamodelica::nil();
         for mut e in (simpleDiff.clone()).into_iter().cloned() {
             if !((match e.clone() {
@@ -1384,8 +1367,8 @@ pub fn filterModelicaDiff(mut diffs: Arc<metamodelica::List<(DiffAlgorithm::Diff
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
-    odiffs = {
+    });
+    odiffs = ({
         let mut __acc: Arc<metamodelica::List<(Diff, Arc<metamodelica::List<Token>>)>> = metamodelica::nil();
         for mut e in (simpleDiff.clone()).into_iter().cloned() {
             let __x = (match e.clone() {
@@ -1396,7 +1379,7 @@ pub fn filterModelicaDiff(mut diffs: Arc<metamodelica::List<(DiffAlgorithm::Diff
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     Ok(odiffs)
 }
 
@@ -1432,14 +1415,14 @@ pub fn tuple22<A: Clone + 'static, B: Clone + 'static>(mut t: (A, B)) -> B {
 
 pub fn blockCommentCanonical(mut t: Token) -> Result<Arc<metamodelica::List<ArcStr>>> {
     let mut lines: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
-    lines = {
+    lines = ({
         let mut __acc: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
         for mut s in (System::strtok((tokenContent(t.clone())?).clone(), (literal!("\n")).clone())).into_iter().cloned() {
             let __x = System::trim((s.clone()).clone(), (literal!(" \u{c}\n\r\t\u{b}")).clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     Ok(lines)
 }
 
@@ -1479,14 +1462,14 @@ pub fn deleteWhitespaceFollowedByEqualNonWhitespace(mut inRest: Arc<metamodelica
     if !(foundWS.clone()) || foundNL.clone() {
         b = false;
         result = metamodelica::nil();
-        return Ok((b, result));
+        return Ok((b.clone(), result.clone()));
     }
-    let _ = (::match_deref::match_deref! { match &(rest.clone()) {
+    let () = (::match_deref::match_deref! { match &(rest.clone()) {
         Deref @ metamodelica::List::Cons { head: (DiffAlgorithm::Diff::Equal, t), tail: _ } => (),
         _ => {
             b = false;
             result = metamodelica::nil();
-            return Ok((b, result));
+            return Ok((b.clone(), result.clone()));
             bail!("fail")
         },
         _ => unreachable!("match_deref! exhaustiveness placeholder"),

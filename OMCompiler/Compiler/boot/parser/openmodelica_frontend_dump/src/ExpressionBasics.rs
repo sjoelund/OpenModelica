@@ -303,16 +303,16 @@ pub fn evalCat<Exp: Clone + 'static>(mut dim: i32, mut exps: Arc<metamodelica::L
     let true = (dim.clone() >= 1) else { bail!("pattern mismatch") };
     let false = (exps.clone().is_empty()) else { bail!("pattern mismatch") };
     if 1 == dim.clone() {
-        outExps = {
+        outExps = ({
         let mut __acc: Arc<metamodelica::List<_>> = metamodelica::nil();
         for mut e in (exps.clone().reverse()).into_iter().cloned() {
             let __x = getArrayContents(e.clone())?;
             __acc = __x.append(&__acc);
         }
         __acc
-    };
+    });
         outDims = list![(outExps.clone().len() as i32)];
-        return Ok((outExps, outDims));
+        return Ok((outExps.clone(), outDims.clone()));
     }
     for mut e in &*exps.clone().reverse() {
         let mut e = e.clone();
@@ -321,68 +321,68 @@ pub fn evalCat<Exp: Clone + 'static>(mut dim: i32, mut exps: Arc<metamodelica::L
         dimsLst = cons(dims.clone(), dimsLst.clone());
     }
     for mut i in 1..=dim.clone() - 1 {
-        j = {
+        j = ({
         let mut __acc: Option<i32> = None;
         for mut d in (dimsLst.clone()).into_iter().cloned() {
             let __x = listHead(d.clone())?;
             __acc = Some(match __acc { None => __x, Some(__cur) => if __x < __cur { __x } else { __cur } });
         }
         __acc.ok_or_else(|| anyhow::anyhow!("empty min reduction"))?
-    };
-        if j.clone() != {
+    });
+        if j.clone() != ({
         let mut __acc: Option<i32> = None;
         for mut d in (dimsLst.clone()).into_iter().cloned() {
             let __x = listHead(d.clone())?;
             __acc = Some(match __acc { None => __x, Some(__cur) => if __x > __cur { __x } else { __cur } });
         }
         __acc.ok_or_else(|| anyhow::anyhow!("empty max reduction"))?
-    } {
-            Error::assertion(false, ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("ExpressionBasics.evalCat")); __mm_s.push_str(&*literal!(": cat got uneven dimensions for dim=")); __mm_s.push_str(&*ArcStr::from(::std::format!("{}", i.clone()))); __mm_s.push_str(&*literal!(" ")); __mm_s.push_str(&*stringDelimitList({
+    }) {
+            Error::assertion(false, ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("ExpressionBasics.evalCat")); __mm_s.push_str(&*literal!(": cat got uneven dimensions for dim=")); __mm_s.push_str(&*ArcStr::from(::std::format!("{}", i.clone()))); __mm_s.push_str(&*literal!(" ")); __mm_s.push_str(&*stringDelimitList(({
         let mut __acc: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
         for mut e in (exps.clone()).into_iter().cloned() {
             let __x = toString(e.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, (literal!(", ")).clone())); ArcStr::from(__mm_s) }).clone(), metamodelica::sourceInfo!())?;
+    }), (literal!(", ")).clone())); ArcStr::from(__mm_s) }).clone(), metamodelica::sourceInfo!())?;
         }
         firstDims = cons(j.clone(), firstDims.clone());
-        dimsLst = {
+        dimsLst = ({
         let mut __acc: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>> = metamodelica::nil();
         for mut d in (dimsLst.clone()).into_iter().cloned() {
             let __x = listRest(d.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     }
     reverseDims = firstDims.clone();
     firstDims = firstDims.clone().reverse();
-    lastDims = {
+    lastDims = ({
         let mut __acc: Arc<metamodelica::List<i32>> = metamodelica::nil();
         for mut d in (dimsLst.clone()).into_iter().cloned() {
             let __x = listHead(d.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
-    lastDim = {
+    });
+    lastDim = ({
         let mut __acc: i32 = 0;
         for mut d in (lastDims.clone()).into_iter().cloned() {
             let __x = d.clone();
             __acc += __x;
         }
         __acc
-    };
+    });
     reverseDims = cons(lastDim.clone(), reverseDims.clone());
-    expArr = metamodelica::arrayCreate(lastDim.clone() * {
+    expArr = metamodelica::arrayCreate(lastDim.clone() * ({
         let mut __acc: i32 = 1;
         for mut d in (firstDims.clone()).into_iter().cloned() {
             let __x = d.clone();
             __acc *= __x;
         }
         __acc
-    }, listHead(exps.clone())?);
+    }), listHead(exps.clone())?);
     k = 1;
     for mut exps in &*arrs.clone() {
         let mut exps = exps.clone();
@@ -418,7 +418,7 @@ fn evalCatGetFlatArray<Exp: Clone + 'static>(mut e: Exp, mut dim: i32, mut getAr
     if dim.clone() == 1 {
         outExps = getArrayContents(e.clone())?;
         outDims = list![(outExps.clone().len() as i32)];
-        return Ok((outExps, outDims));
+        return Ok((outExps.clone(), outDims.clone()));
     }
     i = 0;
     for mut exp in &*getArrayContents(e.clone())?.reverse() {
@@ -446,11 +446,11 @@ pub fn compare(mut inExp1: Arc<DAE::Exp>, mut inExp2: Arc<DAE::Exp>) -> Result<i
     let mut comp: i32 = 0;
     if referenceEq(&inExp1.clone(),&inExp2.clone()) {
         comp = 0;
-        return Ok(comp);
+        return Ok(comp.clone());
     }
     comp = Util::intCompare(metamodelica::valueConstructor((&*inExp1.clone()))?, metamodelica::valueConstructor((&*inExp2.clone()))?);
     if comp.clone() != 0 {
-        return Ok(comp);
+        return Ok(comp.clone());
     }
     comp = (::match_deref::match_deref! { match &(inExp1.clone()) {
         Deref @ DAE::Exp::ICONST { .. } => {
@@ -859,7 +859,7 @@ fn compareList(mut inExpl1: Arc<metamodelica::List<Arc<DAE::Exp>>>, mut inExpl2:
     len2 = (inExpl2.clone().len() as i32);
     comp = Util::intCompare(len1.clone(), len2.clone());
     if comp.clone() != 0 {
-        return Ok(comp);
+        return Ok(comp.clone());
     }
     for mut e1 in &*inExpl1.clone() {
         let mut e1 = e1.clone();
@@ -871,7 +871,7 @@ fn compareList(mut inExpl1: Arc<metamodelica::List<Arc<DAE::Exp>>>, mut inExpl2:
         rest_expl2 = __pa1.clone();
         comp = compare(e1.clone(), e2.clone())?;
         if 0 != comp.clone() {
-            return Ok(comp);
+            return Ok(comp.clone());
         }
     }
     comp = 0;
@@ -888,7 +888,7 @@ fn compareListList(mut inExpl1: Arc<metamodelica::List<Arc<metamodelica::List<Ar
     len2 = (inExpl2.clone().len() as i32);
     comp = Util::intCompare(len1.clone(), len2.clone());
     if comp.clone() != 0 {
-        return Ok(comp);
+        return Ok(comp.clone());
     }
     for mut expl1 in &*inExpl1.clone() {
         let mut expl1 = expl1.clone();
@@ -900,7 +900,7 @@ fn compareListList(mut inExpl1: Arc<metamodelica::List<Arc<metamodelica::List<Ar
         rest_expl2 = __pa1.clone();
         comp = compareList(expl1.clone(), expl2.clone())?;
         if 0 != comp.clone() {
-            return Ok(comp);
+            return Ok(comp.clone());
         }
     }
     comp = 0;
@@ -961,7 +961,7 @@ fn compareSubscriptList(mut subs1: Arc<metamodelica::List<Arc<DAE::Subscript>>>,
     len2 = (subs2.clone().len() as i32);
     comp = Util::intCompare(len1.clone(), len2.clone());
     if comp.clone() != 0 {
-        return Ok(comp);
+        return Ok(comp.clone());
     }
     for mut s1 in &*subs1.clone() {
         let mut s1 = s1.clone();
@@ -973,7 +973,7 @@ fn compareSubscriptList(mut subs1: Arc<metamodelica::List<Arc<DAE::Subscript>>>,
         rest_subs2 = __pa1.clone();
         comp = compareSubscripts(s1.clone(), s2.clone())?;
         if 0 != comp.clone() {
-            return Ok(comp);
+            return Ok(comp.clone());
         }
     }
     comp = 0;

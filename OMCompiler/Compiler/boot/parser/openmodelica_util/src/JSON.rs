@@ -501,7 +501,7 @@ pub fn get(mut obj: Arc<JSON>, mut r#str: ArcStr) -> Result<Arc<JSON>> {
                 let mut entry = entry.clone();
                 if Util::tuple21(entry.clone()) == r#str.clone() {
                     out = Util::tuple22(entry.clone());
-                    return Ok(out);
+                    return Ok(out.clone());
                 }
             }
             bail!("fail")
@@ -520,7 +520,7 @@ pub fn getOrDefault(mut obj: Arc<JSON>, mut r#str: ArcStr, mut default: Arc<JSON
                 let mut entry = entry.clone();
                 if Util::tuple21(entry.clone()) == r#str.clone() {
                     out = Util::tuple22(entry.clone());
-                    return out;
+                    return out.clone();
                 }
             }
             default.clone()
@@ -553,31 +553,31 @@ pub fn getString(mut obj: Arc<JSON>) -> Result<ArcStr> {
 pub fn getStringList(mut obj: Arc<JSON>) -> Result<Arc<metamodelica::List<ArcStr>>> {
     let mut strl: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
     strl = (::match_deref::match_deref! { match &(obj.clone()) {
-        Deref @ OBJECT { .. } => {
+        Deref @ OBJECT { .. } => ({
         let mut __acc: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
         for mut v in (UnorderedMap::valueList(var_field!((*obj).values, JSON::OBJECT).clone())).into_iter().cloned() {
             let __x = getString(v.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    },
-        Deref @ LIST_OBJECT { .. } => {
+    }),
+        Deref @ LIST_OBJECT { .. } => ({
         let mut __acc: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
         for mut v in (var_field!((*obj).values, JSON::LIST_OBJECT).clone()).into_iter().cloned() {
             let __x = getString(Util::tuple22(v.clone()))?;
             __acc = cons(__x, __acc);
         }
         __acc
-    },
+    }),
         Deref @ ARRAY { .. } => Vector::mapToList(var_field!((*obj).values, JSON::ARRAY).clone(), (std::sync::Arc::new(getString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<JSON>) -> Result<ArcStr> + 'static>)),
-        Deref @ LIST { .. } => {
+        Deref @ LIST { .. } => ({
         let mut __acc: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
         for mut v in (var_field!((*obj).values, JSON::LIST).clone()).into_iter().cloned() {
             let __x = getString(v.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    },
+    }),
         _ => bail!("match: no arm matched"),
     } });
     Ok(strl)
@@ -587,14 +587,14 @@ pub fn getKeys(mut obj: Arc<JSON>) -> Result<Arc<metamodelica::List<ArcStr>>> {
     let mut keys: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
     keys = (::match_deref::match_deref! { match &(obj.clone()) {
         Deref @ OBJECT { .. } => UnorderedMap::keyList(var_field!((*obj).values, JSON::OBJECT).clone()),
-        Deref @ LIST_OBJECT { .. } => {
+        Deref @ LIST_OBJECT { .. } => ({
         let mut __acc: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
         for mut e in (var_field!((*obj).values, JSON::LIST_OBJECT).clone()).into_iter().cloned() {
             let __x = Util::tuple21(e.clone());
             __acc = cons(__x, __acc);
         }
         __acc
-    },
+    }),
         _ => bail!("match: no arm matched"),
     } });
     Ok(keys)
@@ -688,8 +688,6 @@ pub fn parse_string(mut inTokens: Arc<metamodelica::List<Token>>) -> Result<(Arc
     let mut value: Arc<JSON> = Arc::new(JSON::FALSE);
     let mut tokens: Arc<metamodelica::List<Token>> = inTokens.clone();
     let mut tok: Token = <Token as ::std::default::Default>::default();
-    let mut values: Arc<metamodelica::List<Arc<JSON>>> = metamodelica::nil();
-    let mut cont: bool = false;
     let mut content: ArcStr = arcstr::literal!("");
     not_eof(tokens.clone())?;
     let (__pa0, __pa1) = ::match_deref::match_deref! { match &(tokens.clone()) {
@@ -715,8 +713,6 @@ pub fn parse_integer(mut inTokens: Arc<metamodelica::List<Token>>) -> Result<(Ar
     let mut value: Arc<JSON> = Arc::new(JSON::FALSE);
     let mut tokens: Arc<metamodelica::List<Token>> = inTokens.clone();
     let mut tok: Token = <Token as ::std::default::Default>::default();
-    let mut values: Arc<metamodelica::List<Arc<JSON>>> = metamodelica::nil();
-    let mut cont: bool = false;
     let mut content: ArcStr = arcstr::literal!("");
     not_eof(tokens.clone())?;
     let (__pa0, __pa1) = ::match_deref::match_deref! { match &(tokens.clone()) {
@@ -737,8 +733,6 @@ pub fn parse_number(mut inTokens: Arc<metamodelica::List<Token>>) -> Result<(Arc
     let mut value: Arc<JSON> = Arc::new(JSON::FALSE);
     let mut tokens: Arc<metamodelica::List<Token>> = inTokens.clone();
     let mut tok: Token = <Token as ::std::default::Default>::default();
-    let mut values: Arc<metamodelica::List<Arc<JSON>>> = metamodelica::nil();
-    let mut cont: bool = false;
     let mut content: ArcStr = arcstr::literal!("");
     not_eof(tokens.clone())?;
     let (__pa0, __pa1) = ::match_deref::match_deref! { match &(tokens.clone()) {
@@ -842,11 +836,11 @@ fn eat_if_next_token_matches(mut tokens: Arc<metamodelica::List<Token>>, mut exp
     let mut matched: bool = false;
     let mut tok: Token = <Token as ::std::default::Default>::default();
     if tokens.clone().is_empty() {
-        return Ok((tokens, matched));
+        return Ok((tokens.clone(), matched.clone()));
     }
     tok = listHead(tokens.clone())?;
     if tok.id.clone() != expectedToken.clone() {
-        return Ok((tokens, matched));
+        return Ok((tokens.clone(), matched.clone()));
     }
     matched = true;
     let __pa0 = ::match_deref::match_deref! { match &(tokens.clone()) {

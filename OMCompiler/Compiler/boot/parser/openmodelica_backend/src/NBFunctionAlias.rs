@@ -172,14 +172,14 @@ pub mod Call_Aux {
             vars = (::match_deref::match_deref! { match &(exp.clone()) {
         Deref @ Expression::CREF { cref: Deref @ ComponentRef::WILD, .. } => metamodelica::nil(),
         Deref @ Expression::CREF { .. } => list![BVariable::getVarPointer(var_field!((*exp).cref, Expression::NFExpression::CREF).clone(), metamodelica::sourceInfo!())?],
-        Deref @ Expression::TUPLE { .. } => List::flatten({
+        Deref @ Expression::TUPLE { .. } => List::flatten(({
         let mut __acc: Arc<metamodelica::List<_>> = metamodelica::nil();
         for mut elem in (var_field!((*exp).elements, Expression::NFExpression::TUPLE).clone()).into_iter().cloned() {
             let __x = getVarsExp(elem.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }),
+    })),
         _ => {
             Error::addMessage(Error::INTERNAL_ERROR.clone(), list![({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("NBFunctionAlias.Call_Aux.getVars.getVarsExp")); __mm_s.push_str(&*literal!(" failed because function alias auxilliary has a return type that currently cannot be parsed: ")); __mm_s.push_str(&*Expression::toString(exp.clone())?); ArcStr::from(__mm_s) }).clone()])?;
             bail!("fail")
@@ -230,22 +230,22 @@ fn aliasListToString<T1: Clone + 'static, T2: Clone + 'static>(mut aux_lst: Arc<
     if aux_lst.clone().is_empty() {
         r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*r#str.clone()); __mm_s.push_str(&*literal!("  <no alias>\n\n")); ArcStr::from(__mm_s) }).clone();
     } else {
-        str_lst = {
+        str_lst = ({
         let mut __acc: Arc<metamodelica::List<(ArcStr, ArcStr)>> = metamodelica::nil();
         for mut tpl in (aux_lst.clone()).into_iter().cloned() {
             let __x = (func2(Util::tuple22(tpl.clone()))?, func1(Util::tuple21(tpl.clone()))?);
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
-        max_length = {
+    });
+        max_length = ({
         let mut __acc: Option<i32> = None;
         for mut tpl in (str_lst.clone()).into_iter().cloned() {
             let __x = ((Util::tuple21(tpl.clone())).clone().len() as i32);
             __acc = Some(match __acc { None => __x, Some(__cur) => if __x > __cur { __x } else { __cur } });
         }
         __acc.ok_or_else(|| anyhow::anyhow!("empty max reduction"))?
-    } + 3;
+    }) + 3;
         r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*r#str.clone()); __mm_s.push_str(&*List::toString(str_lst.clone(), Arc::new({ let __pe_b1 = max_length.clone(); move |__pe_a0| Ok(functionAliasTplString(__pe_a0, __pe_b1.clone())) }), (literal!("")).clone(), (literal!("  ")).clone(), (literal!("\n  ")).clone(), (literal!("\n\n")).clone(), true, 0)?); ArcStr::from(__mm_s) }).clone();
     }
     Ok(r#str)
@@ -336,35 +336,35 @@ fn introduceFunctionAlias(mut exp: Arc<Expression::NFExpression>, mut map: Arc<U
         new_exp @ Deref @ Expression::CALL { call: call @ Deref @ Call::TYPED_CALL { .. } } => {
             let mut new_exp = (*new_exp).clone();
             let mut call = (*call).clone();
-            assign_variant_field!(call => Call::NFCall::TYPED_CALL; arguments = {
+            assign_variant_field!(call => Call::NFCall::TYPED_CALL; arguments = ({
         let mut __acc: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
         for mut arg in (var_field!((*call).arguments, Call::NFCall::TYPED_CALL).clone()).into_iter().cloned() {
             let __x = Expression::map(arg.clone(), Arc::new({ let __pe_b1 = map.clone(); let __pe_b2 = aux_index.clone(); let __pe_b3 = iter.clone(); let __pe_b4 = init.clone(); move |__pe_a0| introduceArrayConstructorAlias(__pe_a0, __pe_b1.clone(), __pe_b2.clone(), __pe_b3.clone(), __pe_b4.clone()) }))?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             assign_variant_field!(new_exp => Expression::NFExpression::CALL; call = call.clone());
             new_exp.clone()
         },
         Deref @ Expression::MULTARY { .. } => {
             assign_variant_field!(exp => Expression::NFExpression::MULTARY;
-                arguments = {
+                arguments = ({
         let mut __acc: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
         for mut arg in (var_field!((*exp).arguments, Expression::NFExpression::MULTARY).clone()).into_iter().cloned() {
             let __x = introduceArrayConstructorAlias(arg.clone(), map.clone(), aux_index.clone(), iter.clone(), init.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    },
-                inv_arguments = {
+    }),
+                inv_arguments = ({
         let mut __acc: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
         for mut arg in (var_field!((*exp).inv_arguments, Expression::NFExpression::MULTARY).clone()).into_iter().cloned() {
             let __x = introduceArrayConstructorAlias(arg.clone(), map.clone(), aux_index.clone(), iter.clone(), init.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }
+    })
             );
             exp.clone()
         },
@@ -443,16 +443,16 @@ fn introduceAlias(mut exp: Arc<Expression::NFExpression>, mut map: Arc<Unordered
             let mut arg1: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut arg2: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut call = (*call).clone();
-            let _ = (::match_deref::match_deref! { match &((Call::functionName(call.clone())?, var_field!((*call).arguments, Call::NFCall::TYPED_CALL).clone())) {
+            let () = (::match_deref::match_deref! { match &((Call::functionName(call.clone())?, var_field!((*call).arguments, Call::NFCall::TYPED_CALL).clone())) {
         (Deref @ Absyn::Path::IDENT { name: Deref @ "cat" }, _) => {
-            assign_variant_field!(call => Call::NFCall::TYPED_CALL; arguments = cons(listHead(var_field!((*call).arguments, Call::NFCall::TYPED_CALL).clone())?, {
+            assign_variant_field!(call => Call::NFCall::TYPED_CALL; arguments = cons(listHead(var_field!((*call).arguments, Call::NFCall::TYPED_CALL).clone())?, ({
         let mut __acc: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
         for mut arg in (listRest(var_field!((*call).arguments, Call::NFCall::TYPED_CALL).clone())?).into_iter().cloned() {
             let __x = if (Expression::isLiteral(arg.clone()) || Expression::isCref(arg.clone())) {arg.clone()} else {introduceAlias(arg.clone(), map.clone(), aux_index.clone(), (aux_name.clone()).clone(), iter.clone(), init.clone())?};
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }));
+    })));
             assign_variant_field!(exp => Expression::NFExpression::CALL; call = call.clone());
             id = Arc::new(Call_Id::Call_Id { call: exp.clone(), iter: new_iter.clone() });
             aux_opt = UnorderedMap::get(id.clone(), map.clone());
@@ -479,22 +479,22 @@ fn introduceAlias(mut exp: Arc<Expression::NFExpression>, mut map: Arc<Unordered
         exp = (::match_deref::match_deref! { match &((aux_opt.clone(), ty.clone())) {
         (Some(aux), _) => aux.replacer.clone(),
         (_, Deref @ Type::TUPLE { .. }) => {
-            names = {
+            names = ({
         let mut __acc: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = metamodelica::nil();
         for mut sub_ty in (var_field!((*ty).types, Type::NFType::TUPLE).clone()).into_iter().cloned() {
             let __x = Call_Aux::createName(sub_ty.clone(), new_iter.clone(), aux_index.clone(), (aux_name.clone()).clone(), init.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
-            tpl_lst = {
+    });
+            tpl_lst = ({
         let mut __acc: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
         for mut cref in (names.clone()).into_iter().cloned() {
             let __x = if (ComponentRef::size(cref.clone(), true, false) == 0) {Expression::fromCref(Arc::new(openmodelica_nf_frontend::NFComponentRef::WILD), false)?} else {Expression::fromCref(cref.clone(), false)?};
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
             Arc::new(Expression::NFExpression::TUPLE { ty: ty.clone(), elements: tpl_lst.clone() })
         },
         _ => {
@@ -534,7 +534,7 @@ fn replaceException(mut r#fn: Arc<Function::Function>) -> Result<bool> {
     let mut path: Arc<Absyn::Path>;
     if Function::isDefaultRecordConstructor(r#fn.clone()) || Function::isNonDefaultRecordConstructor(r#fn.clone()) || Function::isImpure(r#fn.clone()) || r#fn.outputs.clone().is_empty() {
         b = true;
-        return Ok(b);
+        return Ok(b.clone());
     }
     if !(Function::isBuiltin(r#fn.clone())) {
         b = false;
@@ -559,7 +559,7 @@ fn replaceException(mut r#fn: Arc<Function::Function>) -> Result<bool> {
 fn filterFrames(mut exp: Arc<Expression::NFExpression>, mut names: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>, mut ranges: Arc<metamodelica::List<Arc<Expression::NFExpression>>>, mut maps: Arc<metamodelica::List<Option<Arc<Iterator::Iterator>>>>) -> Result<Arc<metamodelica::List<(Arc<ComponentRef::NFComponentRef>, Arc<Expression::NFExpression>, Option<Arc<Iterator::Iterator>>)>>> {
     fn collectFrames(mut exp: Arc<Expression::NFExpression>, mut frame_map: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<Expression::NFExpression>>>, mut new_map: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<Expression::NFExpression>>>) -> Result<Arc<Expression::NFExpression>> {
         let mut exp: Arc<Expression::NFExpression> = exp;
-        let _ = (::match_deref::match_deref! { match &(exp.clone()) {
+        let () = (::match_deref::match_deref! { match &(exp.clone()) {
         Deref @ Expression::CREF { .. } => {
             let mut range: Option<Arc<Expression::NFExpression>> = None;
             range = UnorderedMap::get(var_field!((*exp).cref, Expression::NFExpression::CREF).clone(), frame_map.clone());
@@ -579,12 +579,10 @@ fn filterFrames(mut exp: Arc<Expression::NFExpression>, mut names: Arc<metamodel
     let mut frames: Arc<metamodelica::List<(Arc<ComponentRef::NFComponentRef>, Arc<Expression::NFExpression>, Option<Arc<Iterator::Iterator>>)>> = metamodelica::nil();
     let mut frame_map: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<Expression::NFExpression>>> = UnorderedMap::fromLists(names.clone(), ranges.clone(), (std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>))?;
     let mut new_map: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<Expression::NFExpression>>> = UnorderedMap::new((std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), 1);
-    let mut names_acc: Pointer::Pointer<Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>> = Pointer::create(metamodelica::nil());
-    let mut ranges_acc: Pointer::Pointer<Arc<metamodelica::List<Arc<Expression::NFExpression>>>> = Pointer::create(metamodelica::nil());
     let mut n: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = metamodelica::nil();
     let mut r: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
     let mut m: Arc<metamodelica::List<Option<Arc<Iterator::Iterator>>>> = metamodelica::nil();
-    let _ = Expression::map(exp.clone(), Arc::new({ let __pe_b1 = frame_map.clone(); let __pe_b2 = new_map.clone(); move |__pe_a0| collectFrames(__pe_a0, __pe_b1.clone(), __pe_b2.clone()) }))?;
+    Expression::map(exp.clone(), Arc::new({ let __pe_b1 = frame_map.clone(); let __pe_b2 = new_map.clone(); move |__pe_a0| collectFrames(__pe_a0, __pe_b1.clone(), __pe_b2.clone()) }))?;
     n = UnorderedMap::keyList(new_map.clone());
     r = UnorderedMap::valueList(new_map.clone());
     m = List::fill(None, (n.clone().len() as i32));
@@ -599,7 +597,6 @@ fn addAuxVar(mut new_var: Pointer::Pointer<Arc<Variable::NFVariable>>, mut disc:
     let mut new_vars_init: Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>> = new_vars_init;
     let mut new_vars_recd: Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>> = new_vars_recd;
     let mut children: Arc<metamodelica::List<Arc<Variable::NFVariable>>> = metamodelica::nil();
-    let mut var_ptr: Pointer::Pointer<Arc<Variable::NFVariable>>;
     if BVariable::isRecord(new_var.clone()) {
         new_vars_recd = cons(new_var.clone(), new_vars_recd.clone());
         let __pa0 = ::match_deref::match_deref! { match &(Variable::expandChildren(Pointer::access(new_var.clone()), metamodelica::nil(), false)) {

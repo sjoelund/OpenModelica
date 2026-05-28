@@ -145,7 +145,7 @@ pub mod BClock {
     }
 
     pub fn add(mut eqn: Arc<Equation::Equation>, mut info: Arc<ClockedInfo::ClockedInfo>) -> Result<()> {
-        let _ = (::match_deref::match_deref! { match &((BEquation::Equation::getLHS(eqn.clone())?, BEquation::Equation::getRHS(eqn.clone())?)) {
+        let () = (::match_deref::match_deref! { match &((BEquation::Equation::getLHS(eqn.clone())?, BEquation::Equation::getRHS(eqn.clone())?)) {
         (Some(Deref @ Expression::CREF { cref: clock_name, .. }), Some(exp)) if (Expression::isClockOrSampleFunction(exp.clone())?) => {
             create(clock_name.clone(), exp.clone(), info.clone())?;
             ()
@@ -683,24 +683,22 @@ pub mod Cluster {
         let mut partition: Arc<Partition::Partition::Partition> = Arc::new(<Partition::Partition::Partition as ::std::default::Default>::default());
         let mut cvars: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = UnorderedSet::toList(cluster.variables.clone());
         let mut cidnt: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = UnorderedSet::toList(cluster.eqn_idnts.clone());
-        let mut isInit: bool = Partition::kindIsInitial(kind.clone());
         let mut association: Arc<Partition::Association::Association>;
         let mut var_lst: Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>> = metamodelica::nil();
         let mut filtered_vars: Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>> = metamodelica::nil();
         let mut eqn_lst: Arc<metamodelica::List<Pointer::Pointer<Arc<Equation::Equation>>>> = metamodelica::nil();
         let mut partVariables: Arc<VariablePointers::VariablePointers> = Arc::new(<VariablePointers::VariablePointers as ::std::default::Default>::default());
         let mut partEquations: Arc<EquationPointers::EquationPointers> = Arc::new(<EquationPointers::EquationPointers as ::std::default::Default>::default());
-        let mut var_idx: i32 = 0;
         let mut inferred_clocks: Arc<UnorderedSet::UnorderedSet<Arc<ComponentRef::NFComponentRef>>> = UnorderedSet::new((std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), 13);
-        var_lst = {
+        var_lst = ({
         let mut __acc: Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>> = metamodelica::nil();
         for mut cref in (cvars.clone()).into_iter().cloned() {
             let __x = BVariable::getVarPointer(cref.clone(), metamodelica::sourceInfo!())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
-        filtered_vars = {
+    });
+        filtered_vars = ({
         let mut __acc: Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>> = metamodelica::nil();
         for mut var in (var_lst.clone()).into_iter().cloned() {
             if !(BVariable::VariablePointers::contains(var.clone(), variables.clone())) { continue; }
@@ -708,15 +706,15 @@ pub mod Cluster {
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
-        eqn_lst = {
+    });
+        eqn_lst = ({
         let mut __acc: Arc<metamodelica::List<Pointer::Pointer<Arc<Equation::Equation>>>> = metamodelica::nil();
         for mut name in (cidnt.clone()).into_iter().cloned() {
             let __x = BEquation::EquationPointers::getEqnByName(equations.clone(), name.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
         partVariables = BVariable::VariablePointers::fromList(filtered_vars.clone(), false);
         partEquations = BEquation::EquationPointers::fromList(eqn_lst.clone());
         association = Partition::Association::create(partEquations.clone(), kind.clone(), info.clone(), infer_del.clone())?;
@@ -781,14 +779,14 @@ pub mod DisjointSetForest {
 
     pub fn new(mut n: i32) -> Arc<DisjointSetForest> {
         let mut dsf: Arc<DisjointSetForest> = Arc::new(<DisjointSetForest as ::std::default::Default>::default());
-        dsf = Arc::new(DisjointSetForest { rank: Pointer::create(arrayCreate(n.clone(), 0)), parent: Pointer::create(metamodelica::arrayFromVec({
+        dsf = Arc::new(DisjointSetForest { rank: Pointer::create(arrayCreate(n.clone(), 0)), parent: Pointer::create(metamodelica::arrayFromVec(({
         let mut __acc: Arc<metamodelica::List<i32>> = metamodelica::nil();
         for mut i in (1..=n.clone()).into_iter() {
             let __x = i.clone();
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }.into_iter().cloned().collect())) });
+    }).into_iter().cloned().collect())) });
         dsf
     }
 
@@ -808,14 +806,14 @@ pub mod DisjointSetForest {
 
     pub fn unite(mut dsf: Arc<DisjointSetForest>, mut indices: Arc<metamodelica::List<i32>>) -> Result<i32> {
         let mut root: i32 = 0;
-        let mut roots: Arc<metamodelica::List<i32>> = {
+        let mut roots: Arc<metamodelica::List<i32>> = ({
         let mut __acc: Arc<metamodelica::List<i32>> = metamodelica::nil();
         for mut i in (indices.clone()).into_iter().cloned() {
             let __x = find(dsf.clone(), i.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
         let mut parent: metamodelica::Array<i32> = Pointer::access(dsf.parent.clone());
         let mut rank: metamodelica::Array<i32> = Pointer::access(dsf.rank.clone());
         let mut maxRank: i32 = 0;
@@ -913,14 +911,14 @@ fn sortAndMergeClockedPartitions(mut partitions: Arc<metamodelica::List<Arc<Part
         (baseClock, subClockMap) = tpl.clone();
         new_clocked = cons(sortClockedPartitions(UnorderedMap::valueList(subClockMap.clone()))?, new_clocked.clone());
     }
-    partitions = {
+    partitions = ({
         let mut __acc: Arc<metamodelica::List<Arc<Partition::Partition::Partition>>> = metamodelica::nil();
         for mut partition in (cons(partitions.clone(), new_clocked.clone()).reverse()).into_iter().cloned() {
             let __x = partition.clone();
             __acc = __x.append(&__acc);
         }
         __acc
-    };
+    });
     Ok(partitions)
 }
 
@@ -1072,14 +1070,14 @@ fn collectPartitioningCrefs(mut exp: Arc<Expression::NFExpression>, mut var_cref
             let mut stripped: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
             children = (::match_deref::match_deref! { match &(BVariable::getVar(var_field!((*exp).cref, Expression::NFExpression::CREF).clone(), metamodelica::sourceInfo!())?) {
         Deref @ Variable::VARIABLE { backendinfo: Deref @ BackendInfo::BACKEND_INFO { varKind: Deref @ VariableKind::RECORD { children: children_vars, .. }, .. }, .. } => {
-            {
+            ({
         let mut __acc: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = metamodelica::nil();
         for mut var in (children_vars.clone()).into_iter().cloned() {
             let __x = BVariable::getVarName(var.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }
+    })
         },
         _ => {
             list![var_field!((*exp).cref, Expression::NFExpression::CREF).clone()]
@@ -1118,7 +1116,6 @@ fn addCrefToSet(mut cref: Arc<ComponentRef::NFComponentRef>, mut set: Arc<Unorde
 fn replaceClockedFunctions(mut exp: Arc<Expression::NFExpression>, mut held_crefs: Arc<UnorderedSet::UnorderedSet<Arc<ComponentRef::NFComponentRef>>>) -> Result<Arc<Expression::NFExpression>> {
     pub fn replaceSample(mut exp: Arc<Expression::NFExpression>, mut call: Arc<Call::NFCall>, mut basic: bool) -> Result<Arc<Expression::NFExpression>> {
         let mut exp: Arc<Expression::NFExpression> = exp;
-        let mut arg: Arc<Expression::NFExpression> = Arc::new(Expression::END);
         let mut arg1: Arc<Expression::NFExpression> = Arc::new(Expression::END);
         let mut arg2: Arc<Expression::NFExpression> = Arc::new(Expression::END);
         let (__pa0, __pa1) = ::match_deref::match_deref! { match &((::match_deref::match_deref! { match &(Call::arguments(call.clone())?) {

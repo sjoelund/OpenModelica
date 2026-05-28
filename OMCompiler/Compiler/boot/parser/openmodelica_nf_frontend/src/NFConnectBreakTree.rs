@@ -353,7 +353,7 @@ pub mod EntryTree {
     pub fn forEach(mut tree: Arc<Tree>, mut func: Arc<dyn ::std::ops::Fn(Arc<Absyn::ComponentRef>, Mutable::Mutable<Entry>) -> Result<()> + 'static>) -> Result<()> {
         pub type EachFunc = std::sync::Arc<dyn ::std::ops::Fn(Key, Value) -> Result<()> + 'static>;
 
-        let _ = (::match_deref::match_deref! { match &(tree.clone()) {
+        let () = (::match_deref::match_deref! { match &(tree.clone()) {
         Deref @ Tree::NODE { .. } => {
             forEach(var_field!((*tree).left, Tree::NODE).clone(), func.clone())?;
             func(var_field!((*tree).key, Tree::NODE).clone(), var_field!((*tree).value, Tree::NODE).clone())?;
@@ -431,7 +431,7 @@ pub mod EntryTree {
         Deref @ Tree::NODE { .. } => var_field!((*inTree).key, Tree::NODE).clone(),
         Deref @ Tree::LEAF { .. } => var_field!((*inTree).key, Tree::LEAF).clone(),
         Deref @ Tree::EMPTY { .. } => {
-            return Ok(comp);
+            return Ok(comp.clone());
             bail!("fail")
         },
         _ => bail!("match: no arm matched"),
@@ -642,11 +642,8 @@ pub mod EntryTree {
 
     fn printTreeStr2(mut inTree: Arc<Tree>, mut isLeft: bool, mut inIndent: ArcStr) -> Result<ArcStr> {
         let mut outString: ArcStr = arcstr::literal!("");
-        let mut val_node: Option<Arc<Absyn::ComponentRef>> = None;
         let mut left: Option<Arc<Tree>> = None;
         let mut right: Option<Arc<Tree>> = None;
-        let mut left_str: ArcStr = arcstr::literal!("");
-        let mut right_str: ArcStr = arcstr::literal!("");
         outString = ((::match_deref::match_deref! { match &(inTree.clone()) {
         Deref @ Tree::NODE { .. } => { let mut __mm_s = String::new(); __mm_s.push_str(&*printTreeStr2(var_field!((*inTree).left, Tree::NODE).clone(), true, ({ let mut __mm_s = String::new(); __mm_s.push_str(&*inIndent.clone()); __mm_s.push_str(&*if (isLeft.clone()) {literal!("     ")} else {literal!(" │   ")}); ArcStr::from(__mm_s) }).clone())?); __mm_s.push_str(&*inIndent.clone()); __mm_s.push_str(&*if (isLeft.clone()) {literal!(" ┌")} else {literal!(" └")}); __mm_s.push_str(&*literal!("────")); __mm_s.push_str(&*printNodeStr(inTree.clone())?); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*printTreeStr2(var_field!((*inTree).right, Tree::NODE).clone(), false, ({ let mut __mm_s = String::new(); __mm_s.push_str(&*inIndent.clone()); __mm_s.push_str(&*if (isLeft.clone()) {literal!(" │   ")} else {literal!("     ")}); ArcStr::from(__mm_s) }).clone())?); ArcStr::from(__mm_s) },
         Deref @ Tree::LEAF { .. } => { let mut __mm_s = String::new(); __mm_s.push_str(&*inIndent.clone()); __mm_s.push_str(&*if (isLeft.clone()) {literal!(" ┌")} else {literal!(" └")}); __mm_s.push_str(&*literal!("────")); __mm_s.push_str(&*printNodeStr(inTree.clone())?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) },
@@ -851,7 +848,10 @@ pub fn isConnectBroken(mut lhs: Arc<Absyn::ComponentRef>, mut rhs: Arc<Absyn::Co
     if isSome(opt_entry_tree.clone()) {
         opt_entry_ptr = EntryTree::getOpt(Util::getOption(opt_entry_tree.clone())?, rhs.clone())?;
         if isSome(opt_entry_ptr.clone()) && !(is_broken(lhs.clone(), scope.clone())) && !(is_broken(rhs.clone(), scope.clone())) {
-            let Some(__pa0) = (opt_entry_ptr.clone()) else { bail!("pattern mismatch") };
+            let __pa0 = ::match_deref::match_deref! { match &(opt_entry_ptr.clone()) {
+                Some(__pa0) => __pa0.clone(),
+                _ => bail!("pattern mismatch"),
+            } };
             entry_ptr = __pa0.clone();
             entry = Mutable::access(entry_ptr.clone());
             entry.hasMatch = true;
@@ -1144,7 +1144,7 @@ pub fn fold_2<FT1: Clone + 'static, FT2: Clone + 'static>(mut tree: Arc<Tree>, m
 pub fn forEach(mut tree: Arc<Tree>, mut func: Arc<dyn ::std::ops::Fn(Arc<Absyn::ComponentRef>, Arc<EntryTree::Tree>) -> Result<()> + 'static>) -> Result<()> {
     pub type EachFunc = std::sync::Arc<dyn ::std::ops::Fn(Key, Value) -> Result<()> + 'static>;
 
-    let _ = (::match_deref::match_deref! { match &(tree.clone()) {
+    let () = (::match_deref::match_deref! { match &(tree.clone()) {
         Deref @ Tree::NODE { .. } => {
             forEach(var_field!((*tree).left, Tree::NODE).clone(), func.clone())?;
             func(var_field!((*tree).key, Tree::NODE).clone(), var_field!((*tree).value, Tree::NODE).clone())?;
@@ -1222,7 +1222,7 @@ pub fn hasKey(mut inTree: Arc<Tree>, mut inKey: Key) -> Result<bool> {
         Deref @ Tree::NODE { .. } => var_field!((*inTree).key, Tree::NODE).clone(),
         Deref @ Tree::LEAF { .. } => var_field!((*inTree).key, Tree::LEAF).clone(),
         Deref @ Tree::EMPTY { .. } => {
-            return Ok(comp);
+            return Ok(comp.clone());
             bail!("fail")
         },
         _ => bail!("match: no arm matched"),
@@ -1433,11 +1433,8 @@ pub fn printTreeStr(mut inTree: Arc<Tree>) -> Result<ArcStr> {
 
 fn printTreeStr2(mut inTree: Arc<Tree>, mut isLeft: bool, mut inIndent: ArcStr) -> Result<ArcStr> {
     let mut outString: ArcStr = arcstr::literal!("");
-    let mut val_node: Option<Arc<Absyn::ComponentRef>> = None;
     let mut left: Option<Arc<Tree>> = None;
     let mut right: Option<Arc<Tree>> = None;
-    let mut left_str: ArcStr = arcstr::literal!("");
-    let mut right_str: ArcStr = arcstr::literal!("");
     outString = ((::match_deref::match_deref! { match &(inTree.clone()) {
         Deref @ Tree::NODE { .. } => { let mut __mm_s = String::new(); __mm_s.push_str(&*printTreeStr2(var_field!((*inTree).left, Tree::NODE).clone(), true, ({ let mut __mm_s = String::new(); __mm_s.push_str(&*inIndent.clone()); __mm_s.push_str(&*if (isLeft.clone()) {literal!("     ")} else {literal!(" │   ")}); ArcStr::from(__mm_s) }).clone())?); __mm_s.push_str(&*inIndent.clone()); __mm_s.push_str(&*if (isLeft.clone()) {literal!(" ┌")} else {literal!(" └")}); __mm_s.push_str(&*literal!("────")); __mm_s.push_str(&*printNodeStr(inTree.clone())?); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*printTreeStr2(var_field!((*inTree).right, Tree::NODE).clone(), false, ({ let mut __mm_s = String::new(); __mm_s.push_str(&*inIndent.clone()); __mm_s.push_str(&*if (isLeft.clone()) {literal!(" │   ")} else {literal!("     ")}); ArcStr::from(__mm_s) }).clone())?); ArcStr::from(__mm_s) },
         Deref @ Tree::LEAF { .. } => { let mut __mm_s = String::new(); __mm_s.push_str(&*inIndent.clone()); __mm_s.push_str(&*if (isLeft.clone()) {literal!(" ┌")} else {literal!(" └")}); __mm_s.push_str(&*literal!("────")); __mm_s.push_str(&*printNodeStr(inTree.clone())?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) },

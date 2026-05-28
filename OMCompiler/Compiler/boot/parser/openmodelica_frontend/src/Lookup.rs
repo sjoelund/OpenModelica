@@ -378,7 +378,7 @@ pub fn lookupMetarecordsRecursive(mut inCache: FCore::Cache, mut inEnv: FCore::G
     Ok((outCache, outMetarecordTypes))
 }
 
-fn lookupMetarecordsRecursive2(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inUniontypePaths: Arc<metamodelica::List<Arc<Absyn::Path>>>, mut inHt: (metamodelica::Array<Arc<metamodelica::List<(ArcStr, i32)>>>, (i32, i32, metamodelica::Array<Option<(ArcStr, Arc<Absyn::Path>)>>), i32, (HashTableStringToPath::FuncHashCref, HashTableStringToPath::FuncCrefEqual, HashTableStringToPath::FuncCrefStr, HashTableStringToPath::FuncExpStr)), mut inAcc: Arc<metamodelica::List<Arc<DAE::Type>>>) -> Result<(FCore::Cache, (metamodelica::Array<Arc<metamodelica::List<(ArcStr, i32)>>>, (i32, i32, metamodelica::Array<Option<(ArcStr, Arc<Absyn::Path>)>>), i32, (HashTableStringToPath::FuncHashCref, HashTableStringToPath::FuncCrefEqual, HashTableStringToPath::FuncCrefStr, HashTableStringToPath::FuncExpStr)), Arc<metamodelica::List<Arc<DAE::Type>>>)> {
+fn lookupMetarecordsRecursive2(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inUniontypePaths: Arc<metamodelica::List<Arc<Absyn::Path>>>, mut inHt: (metamodelica::Array<Arc<metamodelica::List<(ArcStr, i32)>>>, (i32, i32, metamodelica::Array<Option<(ArcStr, Arc<Absyn::Path>)>>), i32, (Arc<dyn ::std::ops::Fn(ArcStr) -> Result<i32> + 'static>, Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>, Arc<dyn ::std::ops::Fn(ArcStr) -> Result<ArcStr> + 'static>, Arc<dyn ::std::ops::Fn(Arc<Absyn::Path>) -> Result<ArcStr> + 'static>)), mut inAcc: Arc<metamodelica::List<Arc<DAE::Type>>>) -> Result<(FCore::Cache, (metamodelica::Array<Arc<metamodelica::List<(ArcStr, i32)>>>, (i32, i32, metamodelica::Array<Option<(ArcStr, Arc<Absyn::Path>)>>), i32, (Arc<dyn ::std::ops::Fn(ArcStr) -> Result<i32> + 'static>, Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>, Arc<dyn ::std::ops::Fn(ArcStr) -> Result<ArcStr> + 'static>, Arc<dyn ::std::ops::Fn(Arc<Absyn::Path>) -> Result<ArcStr> + 'static>)), Arc<metamodelica::List<Arc<DAE::Type>>>)> {
     let mut outCache: FCore::Cache = FCore::Cache::NO_CACHE;
     let mut outHt: (metamodelica::Array<Arc<metamodelica::List<(ArcStr, i32)>>>, (i32, i32, metamodelica::Array<Option<(ArcStr, Arc<Absyn::Path>)>>), i32, (HashTableStringToPath::FuncHashCref, HashTableStringToPath::FuncCrefEqual, HashTableStringToPath::FuncCrefStr, HashTableStringToPath::FuncExpStr));
     let mut outMetarecordTypes: Arc<metamodelica::List<Arc<DAE::Type>>> = metamodelica::nil();
@@ -399,15 +399,15 @@ fn lookupMetarecordsRecursive2(mut inCache: FCore::Cache, mut inEnv: FCore::Grap
     Ok((outCache, outHt, outMetarecordTypes))
 }
 
-fn lookupMetarecordsRecursive3(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut path: Arc<Absyn::Path>, mut r#str: ArcStr, mut inHt: (metamodelica::Array<Arc<metamodelica::List<(ArcStr, i32)>>>, (i32, i32, metamodelica::Array<Option<(ArcStr, Arc<Absyn::Path>)>>), i32, (HashTableStringToPath::FuncHashCref, HashTableStringToPath::FuncCrefEqual, HashTableStringToPath::FuncCrefStr, HashTableStringToPath::FuncExpStr)), mut inAcc: Arc<metamodelica::List<Arc<DAE::Type>>>) -> Result<(FCore::Cache, (metamodelica::Array<Arc<metamodelica::List<(ArcStr, i32)>>>, (i32, i32, metamodelica::Array<Option<(ArcStr, Arc<Absyn::Path>)>>), i32, (HashTableStringToPath::FuncHashCref, HashTableStringToPath::FuncCrefEqual, HashTableStringToPath::FuncCrefStr, HashTableStringToPath::FuncExpStr)), Arc<metamodelica::List<Arc<DAE::Type>>>)> {
+fn lookupMetarecordsRecursive3(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut path: Arc<Absyn::Path>, mut r#str: ArcStr, mut inHt: (metamodelica::Array<Arc<metamodelica::List<(ArcStr, i32)>>>, (i32, i32, metamodelica::Array<Option<(ArcStr, Arc<Absyn::Path>)>>), i32, (Arc<dyn ::std::ops::Fn(ArcStr) -> Result<i32> + 'static>, Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>, Arc<dyn ::std::ops::Fn(ArcStr) -> Result<ArcStr> + 'static>, Arc<dyn ::std::ops::Fn(Arc<Absyn::Path>) -> Result<ArcStr> + 'static>)), mut inAcc: Arc<metamodelica::List<Arc<DAE::Type>>>) -> Result<(FCore::Cache, (metamodelica::Array<Arc<metamodelica::List<(ArcStr, i32)>>>, (i32, i32, metamodelica::Array<Option<(ArcStr, Arc<Absyn::Path>)>>), i32, (Arc<dyn ::std::ops::Fn(ArcStr) -> Result<i32> + 'static>, Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>, Arc<dyn ::std::ops::Fn(ArcStr) -> Result<ArcStr> + 'static>, Arc<dyn ::std::ops::Fn(Arc<Absyn::Path>) -> Result<ArcStr> + 'static>)), Arc<metamodelica::List<Arc<DAE::Type>>>)> {
     let mut outCache: FCore::Cache = FCore::Cache::NO_CACHE;
     let mut outHt: (metamodelica::Array<Arc<metamodelica::List<(ArcStr, i32)>>>, (i32, i32, metamodelica::Array<Option<(ArcStr, Arc<Absyn::Path>)>>), i32, (HashTableStringToPath::FuncHashCref, HashTableStringToPath::FuncCrefEqual, HashTableStringToPath::FuncCrefStr, HashTableStringToPath::FuncExpStr));
     let mut outMetarecordTypes: Arc<metamodelica::List<Arc<DAE::Type>>> = metamodelica::nil();
-    (outCache, outHt, outMetarecordTypes) = (::match_deref::match_deref! { match &((inCache.clone(), inEnv.clone(), path.clone(), r#str.clone(), inHt.clone(), inAcc.clone())) {
-        (cache, _, _, _, ht, acc) if (BaseHashTable::hasKey((r#str.clone()).clone(), ht.clone())) => {
+    (outCache, outHt, outMetarecordTypes) = (::match_deref::match_deref! { match &((inCache.clone(), inEnv.clone(), inHt.clone(), inAcc.clone())) {
+        (cache, _, ht, acc) if (BaseHashTable::hasKey((r#str.clone()).clone(), ht.clone())) => {
             (cache.clone(), ht.clone(), acc.clone())
         },
-        (cache, env, _, _, ht, acc) => {
+        (cache, env, ht, acc) => {
             let mut uniontypePaths: Arc<metamodelica::List<Arc<Absyn::Path>>> = metamodelica::nil();
             let mut uniontypeTypes: Arc<metamodelica::List<Arc<DAE::Type>>> = metamodelica::nil();
             let mut ty: Arc<DAE::Type> = Arc::new(DAE::Type::T_NORETCALL);
@@ -432,13 +432,13 @@ pub fn lookupClass(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inPat
     let mut outClass: Arc<SCode::Element>;
     let mut outEnv: FCore::Graph;
     (outCache, outClass, outEnv) = 'mc: {
-        let __mc_input = (inCache.clone(), inEnv.clone(), inPath.clone());
+        let __mc_input = inPath.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _, Deref @ Absyn::Path::QUALIFIED { name, path: id }) => {
+                Deref @ Absyn::Path::QUALIFIED { name, path: id } => {
                     let mut cenv: FCore::Graph;
-                    let mut outClass: Arc<SCode::Element>;
                     let mut outCache: FCore::Cache = outCache.clone();
+                    let mut outClass: Arc<SCode::Element>;
                     let mut outEnv: FCore::Graph;
                     ErrorExt::setCheckpoint((literal!("functionViaComponentRef2")).clone());
                     (outCache, _, _, _, _, _, _, cenv, _) = lookupVarIdent(inCache.clone(), inEnv.clone(), (name.clone()).clone(), metamodelica::nil())?;
@@ -451,7 +451,7 @@ pub fn lookupClass(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inPat
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _, Deref @ Absyn::Path::QUALIFIED { name: _, path: _ }) => {
+                Deref @ Absyn::Path::QUALIFIED { name: _, path: _ } => {
                     ErrorExt::rollBack((literal!("functionViaComponentRef2")).clone());
                     Ok(bail!("fail"))
                 }
@@ -460,10 +460,10 @@ pub fn lookupClass(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inPat
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _, _) => {
+                _ => {
+                    let mut outClass: Arc<SCode::Element>;
                     let mut outEnv: FCore::Graph;
                     let mut outCache: FCore::Cache = outCache.clone();
-                    let mut outClass: Arc<SCode::Element>;
                     (outCache, outClass, outEnv, _) = lookupClass1(inCache.clone(), inEnv.clone(), inPath.clone(), metamodelica::nil(), Mutable::create(false), inInfo.clone())?;
                     Ok((outCache.clone(), outClass.clone(), outEnv.clone()))
                 }
@@ -489,7 +489,6 @@ fn lookupClass1(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inPath: 
     let mut outEnv: FCore::Graph;
     let mut outPrevFrames: Arc<metamodelica::List<metamodelica::Array<FCore::Node>>> = metamodelica::nil();
     let mut errors: i32 = Error::getNumErrorMessages();
-    let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
     if let Ok((__pa0, __pa1, __pa2, __pa3)) = lookupClass2(inCache.clone(), inEnv.clone(), inPath.clone(), inPrevFrames.clone(), inState.clone(), inInfo.clone()) {
         outCache = __pa0.clone();
         outClass = __pa1.clone();
@@ -556,8 +555,8 @@ fn lookupClassQualified(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut 
     let mut outClass: Arc<SCode::Element>;
     let mut outEnv: FCore::Graph;
     let mut outPrevFrames: Arc<metamodelica::List<metamodelica::Array<FCore::Node>>> = metamodelica::nil();
-    (outCache, outClass, outEnv, outPrevFrames) = (::match_deref::match_deref! { match &((inCache.clone(), inEnv.clone(), id.clone(), path.clone(), inOptFrame.clone(), inPrevFrames.clone())) {
-        (cache, env, _, _, Some(frame), prevFrames) => {
+    (outCache, outClass, outEnv, outPrevFrames) = (::match_deref::match_deref! { match &((inCache.clone(), inEnv.clone(), inOptFrame.clone(), inPrevFrames.clone())) {
+        (cache, env, Some(frame), prevFrames) => {
             let mut c: Arc<SCode::Element>;
             let mut cache = (*cache).clone();
             let mut env = (*env).clone();
@@ -567,7 +566,7 @@ fn lookupClassQualified(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut 
             (cache, c, env, prevFrames) = lookupClass2(cache.clone(), env.clone(), path.clone(), prevFrames.clone(), inState.clone(), inInfo.clone())?;
             (cache.clone(), c.clone(), env.clone(), prevFrames.clone())
         },
-        (cache, env, _, _, None, _) => {
+        (cache, env, None, _) => {
             let mut c: Arc<SCode::Element>;
             let mut prevFrames: Arc<metamodelica::List<metamodelica::Array<FCore::Node>>> = metamodelica::nil();
             let mut optFrame: Option<metamodelica::Array<FCore::Node>> = None;
@@ -589,10 +588,10 @@ fn lookupClassQualified2(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut
     let mut outEnv: FCore::Graph;
     let mut outPrevFrames: Arc<metamodelica::List<metamodelica::Array<FCore::Node>>> = metamodelica::nil();
     (outCache, outClass, outEnv, outPrevFrames) = 'mc: {
-        let __mc_input = (inCache.clone(), inEnv.clone(), path.clone(), inC.clone(), optFrame.clone(), inPrevFrames.clone());
+        let __mc_input = (inCache.clone(), inEnv.clone(), inC.clone(), optFrame.clone(), inPrevFrames.clone());
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (cache, env, _, _, Some(frame), prevFrames) => {
+                (cache, env, _, Some(frame), prevFrames) => {
                     let mut c: Arc<SCode::Element>;
                     let mut cache = (*cache).clone();
                     let mut env = (*env).clone();
@@ -606,7 +605,7 @@ fn lookupClassQualified2(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (cache, env, _, Deref @ SCode::Element::CLASS { name: id, .. }, None, _) => {
+                (cache, env, Deref @ SCode::Element::CLASS { name: id, .. }, None, _) => {
                     let mut prevFrames: Arc<metamodelica::List<metamodelica::Array<FCore::Node>>> = metamodelica::nil();
                     let mut c: Arc<SCode::Element>;
                     let mut r: metamodelica::Array<FCore::Node>;
@@ -623,7 +622,7 @@ fn lookupClassQualified2(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (cache, env, _, Deref @ SCode::Element::CLASS { restriction: restr, encapsulatedPrefix: encflag, name: id, .. }, None, _) => {
+                (cache, env, Deref @ SCode::Element::CLASS { restriction: restr, encapsulatedPrefix: encflag, name: id, .. }, None, _) => {
                     let mut prevFrames: Arc<metamodelica::List<metamodelica::Array<FCore::Node>>> = metamodelica::nil();
                     let mut ci_state: ClassInf::State;
                     let mut c: Arc<SCode::Element>;
@@ -668,7 +667,10 @@ fn checkPartialScope(mut inEnv: FCore::Graph, mut inParentEnv: FCore::Graph, mut
             Error::addMultiSourceMessage(Error::USE_OF_PARTIAL_CLASS.clone(), list![(pre_str.clone()).clone(), (name.clone()).clone(), (cc_str.clone()).clone()], list![cls_info.clone(), pre_info.clone()])?;
             bail!("fail");
         } else {
-            let Some(__pa2) = (inInfo.clone()) else { bail!("pattern mismatch") };
+            let __pa2 = ::match_deref::match_deref! { match &(inInfo.clone()) {
+                Some(__pa2) => __pa2.clone(),
+                _ => bail!("pattern mismatch"),
+            } };
             info = __pa2.clone();
             if !(Config::getGraphicsExpMode()?) {
                 Error::addSourceMessage(Error::LOOKUP_IN_PARTIAL_CLASS.clone(), list![(name.clone()).clone()], info.clone())?;
@@ -720,10 +722,10 @@ fn lookupPrevFrames(mut id: ArcStr, mut inPrevFrames: Arc<metamodelica::List<met
     let mut outFrame: Option<metamodelica::Array<FCore::Node>> = None;
     let mut outPrevFrames: Arc<metamodelica::List<metamodelica::Array<FCore::Node>>> = metamodelica::nil();
     (outFrame, outPrevFrames) = 'mc: {
-        let __mc_input = (id.clone(), inPrevFrames.clone());
+        let __mc_input = inPrevFrames.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, Deref @ metamodelica::List::Cons { head: r#ref, tail: prevFrames }) => {
+                Deref @ metamodelica::List::Cons { head: r#ref, tail: prevFrames } => {
                     let mut sid: ArcStr = arcstr::literal!("");
                     let false = (FNode::isRefTop(r#ref.clone())?) else { bail!("pattern mismatch") };
                     sid = (FNode::refName(r#ref.clone())?).clone();
@@ -751,10 +753,10 @@ fn lookupPrevFrames(mut id: ArcStr, mut inPrevFrames: Arc<metamodelica::List<met
 fn lookupQualifiedImportedVarInFrame(mut inImports: Arc<metamodelica::List<Absyn::Import>>, mut ident: ArcStr) -> Result<Arc<DAE::ComponentRef>> {
     let mut outCref: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
     outCref = 'mc: {
-        let __mc_input = (inImports.clone(), ident.clone());
+        let __mc_input = inImports.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ metamodelica::List::Cons { head: Absyn::Import::QUAL_IMPORT { path }, tail: _ }, _) => {
+                Deref @ metamodelica::List::Cons { head: Absyn::Import::QUAL_IMPORT { path }, tail: _ } => {
                     let mut id: ArcStr = arcstr::literal!("");
                     id = (AbsynUtil::pathLastIdent(path.clone())?).clone();
                     let true = (id.clone() == ident.clone()) else { bail!("pattern mismatch") };
@@ -765,7 +767,7 @@ fn lookupQualifiedImportedVarInFrame(mut inImports: Arc<metamodelica::List<Absyn
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ metamodelica::List::Cons { head: Absyn::Import::NAMED_IMPORT { path, name: id }, tail: _ }, _) => {
+                Deref @ metamodelica::List::Cons { head: Absyn::Import::NAMED_IMPORT { path, name: id }, tail: _ } => {
                     let true = (id.clone() == ident.clone()) else { bail!("pattern mismatch") };
                     Ok(ComponentReference::pathToCref(path.clone())?)
                 }
@@ -774,7 +776,7 @@ fn lookupQualifiedImportedVarInFrame(mut inImports: Arc<metamodelica::List<Absyn
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ metamodelica::List::Cons { head: _, tail: rest }, _) => {
+                Deref @ metamodelica::List::Cons { head: _, tail: rest } => {
                     Ok(lookupQualifiedImportedVarInFrame(rest.clone(), (ident.clone()).clone())?)
                 }
                 _ => bail!("nomatch"),
@@ -915,10 +917,10 @@ fn lookupQualifiedImportedClassInFrame(mut inCache: FCore::Cache, mut inImport: 
     let mut outEnv: FCore::Graph;
     let mut outPrevFrames: Arc<metamodelica::List<metamodelica::Array<FCore::Node>>> = metamodelica::nil();
     (outCache, outClass, outEnv, outPrevFrames) = 'mc: {
-        let __mc_input = (inCache.clone(), inImport.clone(), inEnv.clone(), inIdent.clone(), inState.clone());
+        let __mc_input = (inCache.clone(), inImport.clone(), inEnv.clone(), inIdent.clone());
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (cache, Deref @ metamodelica::List::Cons { head: Absyn::Import::QUAL_IMPORT { path: Deref @ Absyn::Path::IDENT { name: id } }, tail: _ }, env, ident, _) => {
+                (cache, Deref @ metamodelica::List::Cons { head: Absyn::Import::QUAL_IMPORT { path: Deref @ Absyn::Path::IDENT { name: id } }, tail: _ }, env, ident) => {
                     let mut r: metamodelica::Array<FCore::Node>;
                     let mut c: Arc<SCode::Element>;
                     let mut env_1: FCore::Graph;
@@ -942,7 +944,7 @@ fn lookupQualifiedImportedClassInFrame(mut inCache: FCore::Cache, mut inImport: 
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (cache, Deref @ metamodelica::List::Cons { head: Absyn::Import::QUAL_IMPORT { path }, tail: _ }, env, ident, _) => {
+                (cache, Deref @ metamodelica::List::Cons { head: Absyn::Import::QUAL_IMPORT { path }, tail: _ }, env, ident) => {
                     let mut r: metamodelica::Array<FCore::Node>;
                     let mut c: Arc<SCode::Element>;
                     let mut env_1: FCore::Graph;
@@ -968,7 +970,7 @@ fn lookupQualifiedImportedClassInFrame(mut inCache: FCore::Cache, mut inImport: 
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (cache, Deref @ metamodelica::List::Cons { head: Absyn::Import::NAMED_IMPORT { path, name: id }, tail: _ }, env, ident, _) => {
+                (cache, Deref @ metamodelica::List::Cons { head: Absyn::Import::NAMED_IMPORT { path, name: id }, tail: _ }, env, ident) => {
                     let mut r: metamodelica::Array<FCore::Node>;
                     let mut c: Arc<SCode::Element>;
                     let mut env_1: FCore::Graph;
@@ -992,7 +994,7 @@ fn lookupQualifiedImportedClassInFrame(mut inCache: FCore::Cache, mut inImport: 
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (cache, Deref @ metamodelica::List::Cons { head: _, tail: rest }, env, ident, _) => {
+                (cache, Deref @ metamodelica::List::Cons { head: _, tail: rest }, env, ident) => {
                     let mut c: Arc<SCode::Element>;
                     let mut env_1: FCore::Graph;
                     let mut prevFrames: Arc<metamodelica::List<metamodelica::Array<FCore::Node>>> = metamodelica::nil();
@@ -1247,7 +1249,7 @@ fn lookupConnectorVar2(mut env: FCore::Graph, mut name: ArcStr) -> Result<(Arc<D
         ht = FNode::children(FNode::fromRef(r.clone())?)?;
         if '__try1: {
             (var, _, _, status, compEnv) = unwrap_break_err!(lookupVar2(ht.clone(), (name.clone()).clone(), env.clone()), '__try1);
-            return Ok((var, status, compEnv));
+            return Ok((var.clone(), status.clone(), compEnv.clone()));
             Ok::<(), anyhow::Error>(())
         }.is_err() {
             let true = (FNode::isImplicitRefName(r.clone())?) else { bail!("pattern mismatch") };
@@ -1367,11 +1369,11 @@ pub fn lookupVarIdent(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut id
 }
 
 fn checkPackageVariableConstant(mut parentEnv: FCore::Graph, mut classEnv: FCore::Graph, mut componentEnv: FCore::Graph, mut attr: Arc<DAE::Attributes>, mut tp: Arc<DAE::Type>, mut cref: Arc<DAE::ComponentRef>) -> Result<()> {
-    let _ = 'mc: {
-        let __mc_input = (parentEnv.clone(), classEnv.clone(), componentEnv.clone(), attr.clone(), tp.clone(), cref.clone());
+    let () = 'mc: {
+        let __mc_input = attr.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _, _, Deref @ DAE::Attributes { variability: SCode::Variability::CONST, .. }, _, _) => {
+                Deref @ DAE::Attributes { variability: SCode::Variability::CONST, .. } => {
                     Ok(())
                 }
                 _ => bail!("nomatch"),
@@ -1438,8 +1440,8 @@ pub fn lookupVarInternal(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut
                     let mut env: FCore::Graph;
                     let mut componentEnv: FCore::Graph;
                     let mut cache = (*cache).clone();
-                    let mut splicedExpData: InstTypes::SplicedExpData = splicedExpData.clone();
                     let mut name: ArcStr = name.clone();
+                    let mut splicedExpData: InstTypes::SplicedExpData = splicedExpData.clone();
                     let true = (FNode::isImplicitRefName(r.clone())?) else { bail!("pattern mismatch") };
                     (env, _) = FGraph::stripLastScopeRef(inEnv.clone())?;
                     (cache, attr, ty, binding, cnstForRange, splicedExpData, env, componentEnv, name) = lookupVarInternal(cache.clone(), env.clone(), r#ref.clone(), searchStrategy.clone())?;
@@ -1537,8 +1539,8 @@ pub fn lookupVarInternalIdent(mut inCache: FCore::Cache, mut inEnv: FCore::Graph
                     let mut env: FCore::Graph;
                     let mut componentEnv: FCore::Graph;
                     let mut cache = (*cache).clone();
-                    let mut name: ArcStr = name.clone();
                     let mut splicedExpData: InstTypes::SplicedExpData = splicedExpData.clone();
+                    let mut name: ArcStr = name.clone();
                     let true = (Builtin::variableNameIsBuiltin((ident.clone()).clone())?) else { bail!("pattern mismatch") };
                     env = FGraph::topScope(inEnv.clone())?;
                     ht = FNode::children(FNode::fromRef(FGraph::lastScopeRef(env.clone())?)?)?;
@@ -1577,10 +1579,10 @@ pub fn lookupVarInPackages(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, m
     let mut outComponentEnv: FCore::Graph;
     let mut name: ArcStr = arcstr::literal!("");
     (outCache, outClassEnv, outAttributes, outType, outBinding, constOfForIteratorRange, splicedExpData, outComponentEnv, name) = 'mc: {
-        let __mc_input = (inCache.clone(), inEnv.clone(), inComponentRef.clone(), inPrevFrames.clone(), inState.clone());
+        let __mc_input = (inCache.clone(), inEnv.clone(), inComponentRef.clone(), inPrevFrames.clone());
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (cache, env, Deref @ DAE::ComponentRef::CREF_QUAL { componentRef: cref, subscriptLst: Deref @ metamodelica::List::Nil, ident: id, .. }, prevFrames, _) => {
+                (cache, env, Deref @ DAE::ComponentRef::CREF_QUAL { componentRef: cref, subscriptLst: Deref @ metamodelica::List::Nil, ident: id, .. }, prevFrames) => {
                     let mut c: Arc<SCode::Element>;
                     let mut n: ArcStr = arcstr::literal!("");
                     let mut encflag: SCode::Encapsulated = SCode::Encapsulated::ENCAPSULATED;
@@ -1604,7 +1606,7 @@ pub fn lookupVarInPackages(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, m
                     let mut splicedExpData: InstTypes::SplicedExpData = splicedExpData.clone();
                     let mut name: ArcStr = name.clone();
                     (of, prevFrames) = lookupPrevFrames((id.clone()).clone(), prevFrames.clone())?;
-                    let _ = (match of.clone() {
+                    let () = (match of.clone() {
         Some(mut f) => {
                     Mutable::update(inState.clone(), true);
                     env5 = FGraph::pushScopeRef(env.clone(), f.clone())?;
@@ -1644,7 +1646,7 @@ pub fn lookupVarInPackages(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, m
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (cache, env, cr @ Deref @ DAE::ComponentRef::CREF_IDENT { .. }, _, _) => {
+                (cache, env, cr @ Deref @ DAE::ComponentRef::CREF_IDENT { .. }, _) => {
                     let mut componentEnv: FCore::Graph;
                     let mut attr: Arc<DAE::Attributes> = Arc::new(<DAE::Attributes as ::std::default::Default>::default());
                     let mut ty: Arc<DAE::Type> = Arc::new(DAE::Type::T_NORETCALL);
@@ -1662,7 +1664,7 @@ pub fn lookupVarInPackages(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, m
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (cache, env, cr @ Deref @ DAE::ComponentRef::CREF_QUAL { .. }, _, _) => {
+                (cache, env, cr @ Deref @ DAE::ComponentRef::CREF_QUAL { .. }, _) => {
                     let mut componentEnv: FCore::Graph;
                     let mut attr: Arc<DAE::Attributes> = Arc::new(<DAE::Attributes as ::std::default::Default>::default());
                     let mut ty: Arc<DAE::Type> = Arc::new(DAE::Type::T_NORETCALL);
@@ -1681,7 +1683,7 @@ pub fn lookupVarInPackages(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, m
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (cache, FCore::Graph::G { scope: Deref @ metamodelica::List::Cons { head: f, tail: fs }, .. }, cr @ Deref @ DAE::ComponentRef::CREF_QUAL { .. }, prevFrames, _) => {
+                (cache, FCore::Graph::G { scope: Deref @ metamodelica::List::Cons { head: f, tail: fs }, .. }, cr @ Deref @ DAE::ComponentRef::CREF_QUAL { .. }, prevFrames) => {
                     let mut env: FCore::Graph;
                     let mut p_env: FCore::Graph;
                     let mut componentEnv: FCore::Graph;
@@ -1724,10 +1726,10 @@ pub fn lookupVarInPackagesIdent(mut inCache: FCore::Cache, mut inEnv: FCore::Gra
     let mut outComponentEnv: FCore::Graph;
     let mut name: ArcStr = arcstr::literal!("");
     (outCache, outClassEnv, outAttributes, outType, outBinding, constOfForIteratorRange, splicedExpData, outComponentEnv, name) = 'mc: {
-        let __mc_input = (inCache.clone(), inEnv.clone(), inPrevFrames.clone(), inState.clone());
+        let __mc_input = (inCache.clone(), inEnv.clone(), inPrevFrames.clone());
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (cache, env, _, _) => {
+                (cache, env, _) => {
                     let mut componentEnv: FCore::Graph;
                     let mut attr: Arc<DAE::Attributes> = Arc::new(<DAE::Attributes as ::std::default::Default>::default());
                     let mut ty: Arc<DAE::Type> = Arc::new(DAE::Type::T_NORETCALL);
@@ -1745,7 +1747,7 @@ pub fn lookupVarInPackagesIdent(mut inCache: FCore::Cache, mut inEnv: FCore::Gra
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (cache, env, _, _) => {
+                (cache, env, _) => {
                     let mut componentEnv: FCore::Graph;
                     let mut attr: Arc<DAE::Attributes> = Arc::new(<DAE::Attributes as ::std::default::Default>::default());
                     let mut ty: Arc<DAE::Type> = Arc::new(DAE::Type::T_NORETCALL);
@@ -1764,7 +1766,7 @@ pub fn lookupVarInPackagesIdent(mut inCache: FCore::Cache, mut inEnv: FCore::Gra
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (cache, env, prevFrames, _) => {
+                (cache, env, prevFrames) => {
                     let mut p_env: FCore::Graph;
                     let mut componentEnv: FCore::Graph;
                     let mut node: FCore::Node = <FCore::Node as ::std::default::Default>::default();
@@ -1784,24 +1786,24 @@ pub fn lookupVarInPackagesIdent(mut inCache: FCore::Cache, mut inEnv: FCore::Gra
                     let mut name: ArcStr = name.clone();
                     node = FNode::fromRef(FGraph::lastScopeRef(env.clone())?)?;
                     (qimports, uqimports) = FNode::imports(node.clone())?;
-                    let _ = 'mc: {
+                    let () = 'mc: {
         let __mc_input = (qimports.clone(), uqimports.clone());
         if let Ok(__v) = (|| -> Result<_> {
                     ::match_deref::match_deref! { match &__mc_input {
                         (Deref @ metamodelica::List::Cons { head: _, tail: _ }, _) => {
-                            let mut splicedExpData: InstTypes::SplicedExpData = splicedExpData.clone();
-                            let mut prevFrames: Arc<metamodelica::List<metamodelica::Array<FCore::Node>>>;
-                            let mut componentEnv: FCore::Graph;
-                            let mut attr: Arc<DAE::Attributes>;
-                            let mut p_env: FCore::Graph;
-                            let mut name: ArcStr = name.clone();
                             let mut cr: Arc<DAE::ComponentRef>;
-                            let mut env: FCore::Graph;
+                            let mut cnstForRange: Option<DAE::Const>;
+                            let mut splicedExpData: InstTypes::SplicedExpData = splicedExpData.clone();
+                            let mut componentEnv: FCore::Graph;
+                            let mut f: metamodelica::Array<FCore::Node>;
+                            let mut name: ArcStr = name.clone();
                             let mut cache: FCore::Cache;
                             let mut ty: Arc<DAE::Type>;
-                            let mut f: metamodelica::Array<FCore::Node>;
+                            let mut env: FCore::Graph;
+                            let mut p_env: FCore::Graph;
                             let mut bind: Arc<DAE::Binding>;
-                            let mut cnstForRange: Option<DAE::Const>;
+                            let mut attr: Arc<DAE::Attributes>;
+                            let mut prevFrames: Arc<metamodelica::List<metamodelica::Array<FCore::Node>>>;
                             cr = lookupQualifiedImportedVarInFrame(qimports.clone(), (id.clone()).clone())?;
                             Mutable::update(inState.clone(), true);
                             cr = if (FNode::name(FNode::fromRef(FGraph::lastScopeRef(env.clone())?)?)? == ComponentReferenceBasics::crefFirstIdent(cr.clone())?) {ComponentReference::crefStripFirstIdent(cr.clone())?} else {cr.clone()};
@@ -1821,16 +1823,16 @@ pub fn lookupVarInPackagesIdent(mut inCache: FCore::Cache, mut inEnv: FCore::Gra
         if let Ok(__v) = (|| -> Result<_> {
                     ::match_deref::match_deref! { match &__mc_input {
                         (_, Deref @ metamodelica::List::Cons { head: _, tail: _ }) => {
-                            let mut name: ArcStr = name.clone();
-                            let mut componentEnv: FCore::Graph;
-                            let mut unique: bool;
+                            let mut attr: Arc<DAE::Attributes>;
+                            let mut p_env: FCore::Graph;
                             let mut cache: FCore::Cache;
                             let mut cnstForRange: Option<DAE::Const>;
-                            let mut ty: Arc<DAE::Type>;
-                            let mut p_env: FCore::Graph;
-                            let mut splicedExpData: InstTypes::SplicedExpData = splicedExpData.clone();
-                            let mut attr: Arc<DAE::Attributes>;
+                            let mut componentEnv: FCore::Graph;
+                            let mut name: ArcStr = name.clone();
                             let mut bind: Arc<DAE::Binding>;
+                            let mut unique: bool;
+                            let mut splicedExpData: InstTypes::SplicedExpData = splicedExpData.clone();
+                            let mut ty: Arc<DAE::Type>;
                             (cache, p_env, attr, ty, bind, cnstForRange, unique, splicedExpData, componentEnv, name) = lookupUnqualifiedImportedVarInFrame(cache.clone(), uqimports.clone(), env.clone(), (id.clone()).clone())?;
                             reportSeveralNamesError(unique.clone(), (id.clone()).clone())?;
                             Mutable::update(inState.clone(), true);
@@ -1848,7 +1850,7 @@ pub fn lookupVarInPackagesIdent(mut inCache: FCore::Cache, mut inEnv: FCore::Gra
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (cache, FCore::Graph::G { scope: Deref @ metamodelica::List::Cons { head: f, tail: fs }, .. }, prevFrames, _) => {
+                (cache, FCore::Graph::G { scope: Deref @ metamodelica::List::Cons { head: f, tail: fs }, .. }, prevFrames) => {
                     let mut env: FCore::Graph;
                     let mut p_env: FCore::Graph;
                     let mut componentEnv: FCore::Graph;
@@ -2059,7 +2061,7 @@ pub fn lookupFunctionsInEnv(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, 
                     let mut ht: Arc<FCore::RefTree::Tree> = Arc::new(FCore::RefTree::Tree::EMPTY);
                     let mut cache = (*cache).clone();
                     let mut env = (*env).clone();
-                    let _ = Static::elabBuiltinHandler((r#str.clone()).clone())?;
+                    Static::elabBuiltinHandler((r#str.clone()).clone())?;
                     env = FGraph::topScope(env.clone())?;
                     ht = FNode::children(FNode::fromRef(FGraph::lastScopeRef(env.clone())?)?)?;
                     httypes = getHtTypes(FGraph::lastScopeRef(env.clone())?)?;
@@ -2167,10 +2169,10 @@ pub fn lookupFunctionsListInEnv(mut inCache: FCore::Cache, mut inEnv: FCore::Gra
     let mut outCache: FCore::Cache = FCore::Cache::NO_CACHE;
     let mut outTypesTypeLst: Arc<metamodelica::List<Arc<DAE::Type>>> = metamodelica::nil();
     (outCache, outTypesTypeLst) = 'mc: {
-        let __mc_input = (inCache.clone(), inEnv.clone(), inIds.clone(), info.clone(), inAcc.clone());
+        let __mc_input = (inCache.clone(), inEnv.clone(), inIds.clone(), inAcc.clone());
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (cache, _, Deref @ metamodelica::List::Nil, _, acc) => {
+                (cache, _, Deref @ metamodelica::List::Nil, acc) => {
                     Ok((cache.clone(), acc.clone().reverse()))
                 }
                 _ => bail!("nomatch"),
@@ -2178,7 +2180,7 @@ pub fn lookupFunctionsListInEnv(mut inCache: FCore::Cache, mut inEnv: FCore::Gra
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (cache, env, Deref @ metamodelica::List::Cons { head: id, tail: ids }, _, acc) => {
+                (cache, env, Deref @ metamodelica::List::Cons { head: id, tail: ids }, acc) => {
                     let mut res: Arc<metamodelica::List<Arc<DAE::Type>>> = metamodelica::nil();
                     let mut cache = (*cache).clone();
                     let mut acc = (*acc).clone();
@@ -2196,7 +2198,7 @@ pub fn lookupFunctionsListInEnv(mut inCache: FCore::Cache, mut inEnv: FCore::Gra
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, env, Deref @ metamodelica::List::Cons { head: id, tail: _ }, _, _) => {
+                (_, env, Deref @ metamodelica::List::Cons { head: id, tail: _ }, _) => {
                     let mut r#str: ArcStr = arcstr::literal!("");
                     r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*AbsynUtil::pathString(id.clone(), (literal!(".")).clone(), true, false)?); __mm_s.push_str(&*literal!(" not found in scope: ")); __mm_s.push_str(&*FGraph::printGraphPathStr(env.clone())?); ArcStr::from(__mm_s) }).clone();
                     Error::addSourceMessage(Error::INTERNAL_ERROR.clone(), list![(r#str.clone()).clone()], info.clone())?;
@@ -2214,10 +2216,10 @@ fn lookupFunctionsInEnv2(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut
     let mut outCache: FCore::Cache = FCore::Cache::NO_CACHE;
     let mut outTypesTypeLst: Arc<metamodelica::List<Arc<DAE::Type>>> = metamodelica::nil();
     (outCache, outTypesTypeLst) = 'mc: {
-        let __mc_input = (inCache.clone(), inEnv.clone(), inPath.clone(), followedQual.clone(), info.clone());
+        let __mc_input = (inCache.clone(), inEnv.clone(), inPath.clone(), followedQual.clone());
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (cache, FCore::Graph::G { scope: Deref @ metamodelica::List::Cons { head: r, tail: _ }, .. }, Deref @ Absyn::Path::IDENT { name: r#str }, _, _) => {
+                (cache, FCore::Graph::G { scope: Deref @ metamodelica::List::Cons { head: r, tail: _ }, .. }, Deref @ Absyn::Path::IDENT { name: r#str }, _) => {
                     let mut httypes: Arc<FCore::RefTree::Tree> = Arc::new(FCore::RefTree::Tree::EMPTY);
                     let mut ht: Arc<FCore::RefTree::Tree> = Arc::new(FCore::RefTree::Tree::EMPTY);
                     let mut res: Arc<metamodelica::List<Arc<DAE::Type>>> = metamodelica::nil();
@@ -2237,7 +2239,7 @@ fn lookupFunctionsInEnv2(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (cache, FCore::Graph::G { scope: Deref @ metamodelica::List::Cons { head: r, tail: _ }, .. }, id @ Deref @ Absyn::Path::IDENT { .. }, _, _) => {
+                (cache, FCore::Graph::G { scope: Deref @ metamodelica::List::Cons { head: r, tail: _ }, .. }, id @ Deref @ Absyn::Path::IDENT { .. }, _) => {
                     let mut httypes: Arc<FCore::RefTree::Tree> = Arc::new(FCore::RefTree::Tree::EMPTY);
                     let mut ht: Arc<FCore::RefTree::Tree> = Arc::new(FCore::RefTree::Tree::EMPTY);
                     let mut res: Arc<metamodelica::List<Arc<DAE::Type>>> = metamodelica::nil();
@@ -2280,7 +2282,7 @@ fn lookupFunctionsInEnv2(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (cache, FCore::Graph::G { scope: Deref @ metamodelica::List::Cons { head: r, tail: _ }, .. }, Deref @ Absyn::Path::QUALIFIED { path, name: pack }, _, _) => {
+                (cache, FCore::Graph::G { scope: Deref @ metamodelica::List::Cons { head: r, tail: _ }, .. }, Deref @ Absyn::Path::QUALIFIED { path, name: pack }, _) => {
                     let mut res: Arc<metamodelica::List<Arc<DAE::Type>>> = metamodelica::nil();
                     let mut env_1: FCore::Graph;
                     let mut env2: FCore::Graph;
@@ -2319,7 +2321,7 @@ fn lookupFunctionsInEnv2(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (cache, FCore::Graph::G { scope: Deref @ metamodelica::List::Cons { head: r, tail: _ }, .. }, id, false, _) => {
+                (cache, FCore::Graph::G { scope: Deref @ metamodelica::List::Cons { head: r, tail: _ }, .. }, id, false) => {
                     let mut res: Arc<metamodelica::List<Arc<DAE::Type>>> = metamodelica::nil();
                     let mut env: FCore::Graph;
                     let mut cache = (*cache).clone();
@@ -2333,7 +2335,7 @@ fn lookupFunctionsInEnv2(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (cache, FCore::Graph::G { scope: Deref @ metamodelica::List::Cons { head: r, tail: _ }, .. }, id @ Deref @ Absyn::Path::IDENT { .. }, false, _) => {
+                (cache, FCore::Graph::G { scope: Deref @ metamodelica::List::Cons { head: r, tail: _ }, .. }, id @ Deref @ Absyn::Path::IDENT { .. }, false) => {
                     let mut res: Arc<metamodelica::List<Arc<DAE::Type>>> = metamodelica::nil();
                     let mut env: FCore::Graph;
                     let mut cache = (*cache).clone();
@@ -2352,10 +2354,8 @@ fn lookupFunctionsInEnv2(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut
 
 fn createGenericBuiltinFunctions(mut inEnv: FCore::Graph, mut inString: ArcStr) -> Result<Arc<metamodelica::List<Arc<DAE::Type>>>> {
     let mut outTypesTypeLst: Arc<metamodelica::List<Arc<DAE::Type>>> = metamodelica::nil();
-    outTypesTypeLst = (::match_deref::match_deref! { match &((inEnv.clone(), inString.clone())) {
-        (_, Deref @ "cardinality") => {
-            list![Arc::new(DAE::Type::T_FUNCTION { funcArg: list![Arc::new(DAE::FuncArg { name: (literal!("x")).clone(), ty: Arc::new(DAE::Type::T_COMPLEX { complexClassType: ClassInf::State::CONNECTOR { path: Arc::new(Absyn::Path::IDENT { name: (literal!("$$")).clone() }), isExpandable: false }, varLst: metamodelica::nil(), equalityConstraint: None, usedExternally: false }), r#const: openmodelica_frontend_types::DAE::Const::C_VAR, par: openmodelica_frontend_types::DAE::VarParallelism::NON_PARALLEL, defaultBinding: None })], funcResultType: DAE::T_INTEGER_DEFAULT().clone(), functionAttributes: DAE::FUNCTION_ATTRIBUTES_DEFAULT.clone(), path: Arc::new(Absyn::Path::IDENT { name: (literal!("cardinality")).clone() }) }), Arc::new(DAE::Type::T_FUNCTION { funcArg: list![Arc::new(DAE::FuncArg { name: (literal!("x")).clone(), ty: Arc::new(DAE::Type::T_COMPLEX { complexClassType: ClassInf::State::CONNECTOR { path: Arc::new(Absyn::Path::IDENT { name: (literal!("$$")).clone() }), isExpandable: true }, varLst: metamodelica::nil(), equalityConstraint: None, usedExternally: false }), r#const: openmodelica_frontend_types::DAE::Const::C_VAR, par: openmodelica_frontend_types::DAE::VarParallelism::NON_PARALLEL, defaultBinding: None })], funcResultType: DAE::T_INTEGER_DEFAULT().clone(), functionAttributes: DAE::FUNCTION_ATTRIBUTES_DEFAULT.clone(), path: Arc::new(Absyn::Path::IDENT { name: (literal!("cardinality")).clone() }) })]
-        },
+    outTypesTypeLst = (::match_deref::match_deref! { match &(inString.clone()) {
+        Deref @ "cardinality" => list![Arc::new(DAE::Type::T_FUNCTION { funcArg: list![Arc::new(DAE::FuncArg { name: (literal!("x")).clone(), ty: Arc::new(DAE::Type::T_COMPLEX { complexClassType: ClassInf::State::CONNECTOR { path: Arc::new(Absyn::Path::IDENT { name: (literal!("$$")).clone() }), isExpandable: false }, varLst: metamodelica::nil(), equalityConstraint: None, usedExternally: false }), r#const: openmodelica_frontend_types::DAE::Const::C_VAR, par: openmodelica_frontend_types::DAE::VarParallelism::NON_PARALLEL, defaultBinding: None })], funcResultType: DAE::T_INTEGER_DEFAULT().clone(), functionAttributes: DAE::FUNCTION_ATTRIBUTES_DEFAULT.clone(), path: Arc::new(Absyn::Path::IDENT { name: (literal!("cardinality")).clone() }) }), Arc::new(DAE::Type::T_FUNCTION { funcArg: list![Arc::new(DAE::FuncArg { name: (literal!("x")).clone(), ty: Arc::new(DAE::Type::T_COMPLEX { complexClassType: ClassInf::State::CONNECTOR { path: Arc::new(Absyn::Path::IDENT { name: (literal!("$$")).clone() }), isExpandable: true }, varLst: metamodelica::nil(), equalityConstraint: None, usedExternally: false }), r#const: openmodelica_frontend_types::DAE::Const::C_VAR, par: openmodelica_frontend_types::DAE::VarParallelism::NON_PARALLEL, defaultBinding: None })], funcResultType: DAE::T_INTEGER_DEFAULT().clone(), functionAttributes: DAE::FUNCTION_ATTRIBUTES_DEFAULT.clone(), path: Arc::new(Absyn::Path::IDENT { name: (literal!("cardinality")).clone() }) })],
         _ => bail!("match: no arm matched"),
     } });
     Ok(outTypesTypeLst)
@@ -2430,8 +2430,8 @@ fn lookupTypeInFrame(mut inCache: FCore::Cache, mut inBinTree1: Arc<FCore::RefTr
     let mut outCache: FCore::Cache = FCore::Cache::NO_CACHE;
     let mut outType: Arc<DAE::Type> = Arc::new(DAE::Type::T_NORETCALL);
     let mut outEnv: FCore::Graph;
-    (outCache, outType, outEnv) = (::match_deref::match_deref! { match &((inCache.clone(), inBinTree1.clone(), inBinTree2.clone(), inEnv3.clone(), inIdent4.clone())) {
-        (cache, _, httypes, env, id) => {
+    (outCache, outType, outEnv) = (::match_deref::match_deref! { match &((inCache.clone(), inBinTree2.clone(), inEnv3.clone(), inIdent4.clone())) {
+        (cache, httypes, env, id) => {
             let mut t: Arc<DAE::Type> = Arc::new(DAE::Type::T_NORETCALL);
             let mut item: FCore::Node = <FCore::Node as ::std::default::Default>::default();
             let mut cache = (*cache).clone();
@@ -2592,14 +2592,14 @@ fn lookupFunctionsInFrame(mut inCache: FCore::Cache, mut inClasses: Arc<FCore::R
 pub fn selectUpdatedEnv(mut inNewEnv: FCore::Graph, mut inOldEnv: FCore::Graph) -> Result<FCore::Graph> {
     let mut outEnv: FCore::Graph;
     outEnv = 'mc: {
-        let __mc_input = (inNewEnv.clone(), inOldEnv.clone());
+        let __mc_input = inOldEnv.clone();
         if let Ok(__v) = (|| -> Result<_> {
-            let (_, _) = __mc_input.clone() else { bail!("nomatch") };
+            let _ = __mc_input.clone() else { bail!("nomatch") };
             let true = (FGraph::isTopScope(inNewEnv.clone())?) else { bail!("pattern mismatch") };
             Ok(inOldEnv.clone())
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
-            let (_, _) = __mc_input.clone() else { bail!("nomatch") };
+            let _ = __mc_input.clone() else { bail!("nomatch") };
             let true = (stringEq((FGraph::getGraphNameStr(inNewEnv.clone())?).clone(), (FGraph::getGraphNameStr(inOldEnv.clone())?).clone())) else { bail!("pattern mismatch") };
             Ok(inNewEnv.clone())
         })() { break 'mc __v; }
@@ -2617,7 +2617,6 @@ fn buildRecordType(mut cache: FCore::Cache, mut env: FCore::Graph, mut icdef: Ar
     let mut outEnv: FCore::Graph;
     let mut ftype: Arc<DAE::Type> = Arc::new(DAE::Type::T_NORETCALL);
     let mut name: ArcStr = arcstr::literal!("");
-    let mut env_1: FCore::Graph;
     let mut cdef: Arc<SCode::Element>;
     (outCache, _, cdef) = buildRecordConstructorClass(cache.clone(), env.clone(), icdef.clone())?;
     name = (SCodeUtil::className(cdef.clone())?).clone();
@@ -2669,10 +2668,10 @@ fn buildRecordConstructorClass2(mut inCache: FCore::Cache, mut inEnv: FCore::Gra
     let mut funcelts: Arc<metamodelica::List<Arc<SCode::Element>>> = metamodelica::nil();
     let mut elts: Arc<metamodelica::List<Arc<SCode::Element>>> = metamodelica::nil();
     (outCache, outEnv, funcelts, elts) = 'mc: {
-        let __mc_input = (inCache.clone(), inEnv.clone(), cl.clone(), mods.clone());
+        let __mc_input = (inCache.clone(), inEnv.clone(), cl.clone());
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (cache, env, Deref @ SCode::Element::CLASS { info, name, .. }, _) => {
+                (cache, env, Deref @ SCode::Element::CLASS { info, name, .. }) => {
                     let mut cdefelts: Arc<metamodelica::List<Arc<SCode::Element>>> = metamodelica::nil();
                     let mut classExtendsElts: Arc<metamodelica::List<Arc<SCode::Element>>> = metamodelica::nil();
                     let mut extendsElts: Arc<metamodelica::List<Arc<SCode::Element>>> = metamodelica::nil();
@@ -2682,8 +2681,8 @@ fn buildRecordConstructorClass2(mut inCache: FCore::Cache, mut inEnv: FCore::Gra
                     let mut env1: FCore::Graph;
                     let mut cache = (*cache).clone();
                     let mut env = (*env).clone();
-                    let mut elts: Arc<metamodelica::List<Arc<SCode::Element>>> = elts.clone();
                     let mut funcelts: Arc<metamodelica::List<Arc<SCode::Element>>> = funcelts.clone();
+                    let mut elts: Arc<metamodelica::List<Arc<SCode::Element>>> = elts.clone();
                     (cache, env, _, elts, _, _, _, _, _, _) = InstExtends::instDerivedClasses(cache.clone(), env.clone(), InnerOuter::emptyInstHierarchy().clone(), Arc::new(openmodelica_frontend_types::DAE::Mod::NOMOD), openmodelica_frontend_types::DAE::Prefix::NOPRE, cl.clone(), true, info.clone())?;
                     env = FGraph::openScope(env.clone(), openmodelica_frontend_types::SCode::Encapsulated::NOT_ENCAPSULATED, (name.clone()).clone(), Some(crate::FCore::ScopeType::CLASS_SCOPE))?;
                     fpath = FGraph::getGraphName(env.clone())?;
@@ -2715,10 +2714,10 @@ fn buildRecordConstructorClass2(mut inCache: FCore::Cache, mut inEnv: FCore::Gra
 fn selectModifier(mut inModID: Arc<DAE::Mod>, mut inModNoID: Arc<DAE::Mod>) -> Result<Arc<DAE::Mod>> {
     let mut outMod: Arc<DAE::Mod> = Arc::new(DAE::Mod::NOMOD);
     outMod = 'mc: {
-        let __mc_input = (inModID.clone(), inModNoID.clone());
+        let __mc_input = inModID.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ DAE::Mod::NOMOD, _) => {
+                Deref @ DAE::Mod::NOMOD => {
                     Ok(inModNoID.clone())
                 }
                 _ => bail!("nomatch"),
@@ -2742,10 +2741,10 @@ fn buildRecordConstructorElts(mut inCache: FCore::Cache, mut inEnv: FCore::Graph
     let mut outEnv: FCore::Graph;
     let mut outSCodeElementLst: Arc<metamodelica::List<Arc<SCode::Element>>> = metamodelica::nil();
     (outCache, outEnv, outSCodeElementLst) = 'mc: {
-        let __mc_input = (inCache.clone(), inEnv.clone(), inSCodeElementLst.clone(), mods.clone());
+        let __mc_input = (inCache.clone(), inEnv.clone(), inSCodeElementLst.clone());
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (cache, env, Deref @ metamodelica::List::Nil, _) => {
+                (cache, env, Deref @ metamodelica::List::Nil) => {
                     Ok((cache.clone(), env.clone(), metamodelica::nil()))
                 }
                 _ => bail!("nomatch"),
@@ -2753,7 +2752,7 @@ fn buildRecordConstructorElts(mut inCache: FCore::Cache, mut inEnv: FCore::Graph
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (cache, env, Deref @ metamodelica::List::Cons { head: (Deref @ SCode::Element::COMPONENT { name: id, prefixes: Deref @ SCode::Prefixes { visibility: _, redeclarePrefix: redecl, finalPrefix: f @ SCode::Final::FINAL, innerOuter: io, replaceablePrefix: repl }, attributes: SCode::Attributes { arrayDims: d, connectorType: ct, parallelism: prl, variability: var, direction: _, isField: isf }, typeSpec: tp, modifications: r#mod, comment, condition: cond, info }, cmod), tail: rest }, _) => {
+                (cache, env, Deref @ metamodelica::List::Cons { head: (Deref @ SCode::Element::COMPONENT { name: id, prefixes: Deref @ SCode::Prefixes { visibility: _, redeclarePrefix: redecl, finalPrefix: f @ SCode::Final::FINAL, innerOuter: io, replaceablePrefix: repl }, attributes: SCode::Attributes { arrayDims: d, connectorType: ct, parallelism: prl, variability: var, direction: _, isField: isf }, typeSpec: tp, modifications: r#mod, comment, condition: cond, info }, cmod), tail: rest }) => {
                     let mut res: Arc<metamodelica::List<Arc<SCode::Element>>> = metamodelica::nil();
                     let mut vis: SCode::Visibility = SCode::Visibility::PROTECTED;
                     let mut dir: Absyn::Direction = Absyn::Direction::BIDIR;
@@ -2783,7 +2782,7 @@ fn buildRecordConstructorElts(mut inCache: FCore::Cache, mut inEnv: FCore::Graph
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (cache, env, Deref @ metamodelica::List::Cons { head: (Deref @ SCode::Element::COMPONENT { name: id, prefixes: Deref @ SCode::Prefixes { visibility: vis, redeclarePrefix: redecl, finalPrefix: _, innerOuter: io, replaceablePrefix: repl }, attributes: SCode::Attributes { arrayDims: d, connectorType: ct, parallelism: prl, variability: SCode::Variability::CONST, direction: _, isField: isf }, typeSpec: tp, modifications: r#mod @ Deref @ SCode::Mod::NOMOD, comment, condition: cond, info }, cmod), tail: rest }, _) => {
+                (cache, env, Deref @ metamodelica::List::Cons { head: (Deref @ SCode::Element::COMPONENT { name: id, prefixes: Deref @ SCode::Prefixes { visibility: vis, redeclarePrefix: redecl, finalPrefix: _, innerOuter: io, replaceablePrefix: repl }, attributes: SCode::Attributes { arrayDims: d, connectorType: ct, parallelism: prl, variability: SCode::Variability::CONST, direction: _, isField: isf }, typeSpec: tp, modifications: r#mod @ Deref @ SCode::Mod::NOMOD, comment, condition: cond, info }, cmod), tail: rest }) => {
                     let mut res: Arc<metamodelica::List<Arc<SCode::Element>>> = metamodelica::nil();
                     let mut f: SCode::Final = SCode::Final::FINAL;
                     let mut var: SCode::Variability = SCode::Variability::CONST;
@@ -2817,7 +2816,7 @@ fn buildRecordConstructorElts(mut inCache: FCore::Cache, mut inEnv: FCore::Graph
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (cache, env, Deref @ metamodelica::List::Cons { head: (Deref @ SCode::Element::COMPONENT { name: id, prefixes: Deref @ SCode::Prefixes { visibility: _, redeclarePrefix: redecl, finalPrefix: f, innerOuter: io, replaceablePrefix: repl }, attributes: SCode::Attributes { arrayDims: d, connectorType: ct, parallelism: prl, variability: var @ SCode::Variability::CONST, direction: _, isField: isf }, typeSpec: tp, modifications: r#mod, comment, condition: cond, info }, cmod), tail: rest }, _) => {
+                (cache, env, Deref @ metamodelica::List::Cons { head: (Deref @ SCode::Element::COMPONENT { name: id, prefixes: Deref @ SCode::Prefixes { visibility: _, redeclarePrefix: redecl, finalPrefix: f, innerOuter: io, replaceablePrefix: repl }, attributes: SCode::Attributes { arrayDims: d, connectorType: ct, parallelism: prl, variability: var @ SCode::Variability::CONST, direction: _, isField: isf }, typeSpec: tp, modifications: r#mod, comment, condition: cond, info }, cmod), tail: rest }) => {
                     let mut res: Arc<metamodelica::List<Arc<SCode::Element>>> = metamodelica::nil();
                     let mut vis: SCode::Visibility = SCode::Visibility::PROTECTED;
                     let mut dir: Absyn::Direction = Absyn::Direction::BIDIR;
@@ -2847,7 +2846,7 @@ fn buildRecordConstructorElts(mut inCache: FCore::Cache, mut inEnv: FCore::Graph
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (cache, env, Deref @ metamodelica::List::Cons { head: (Deref @ SCode::Element::COMPONENT { name: id, prefixes: Deref @ SCode::Prefixes { visibility: _, redeclarePrefix: redecl, finalPrefix: _, innerOuter: io, replaceablePrefix: repl }, attributes: SCode::Attributes { arrayDims: d, connectorType: ct, parallelism: prl, variability: _, direction: _, isField: isf }, typeSpec: tp, modifications: r#mod, comment, condition: cond, info }, cmod), tail: rest }, _) => {
+                (cache, env, Deref @ metamodelica::List::Cons { head: (Deref @ SCode::Element::COMPONENT { name: id, prefixes: Deref @ SCode::Prefixes { visibility: _, redeclarePrefix: redecl, finalPrefix: _, innerOuter: io, replaceablePrefix: repl }, attributes: SCode::Attributes { arrayDims: d, connectorType: ct, parallelism: prl, variability: _, direction: _, isField: isf }, typeSpec: tp, modifications: r#mod, comment, condition: cond, info }, cmod), tail: rest }) => {
                     let mut res: Arc<metamodelica::List<Arc<SCode::Element>>> = metamodelica::nil();
                     let mut vis: SCode::Visibility = SCode::Visibility::PROTECTED;
                     let mut f: SCode::Final = SCode::Final::FINAL;
@@ -2881,7 +2880,7 @@ fn buildRecordConstructorElts(mut inCache: FCore::Cache, mut inEnv: FCore::Graph
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _, Deref @ metamodelica::List::Cons { head: (comp, cmod), tail: _ }, _) => {
+                (_, _, Deref @ metamodelica::List::Cons { head: (comp, cmod), tail: _ }) => {
                     let true = (Flags::isSet(Flags::FAILTRACE.clone())?) else { bail!("pattern mismatch") };
                     Debug::traceln(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("- Lookup.buildRecordConstructorElts failed ")); __mm_s.push_str(&*SCodeDump::unparseElementStr(comp.clone(), SCodeDump::defaultOptions.clone())?); __mm_s.push_str(&*literal!(" with mod: ")); __mm_s.push_str(&*Mod::printModStr(cmod.clone())?); __mm_s.push_str(&*literal!(" and: ")); __mm_s.push_str(&*Mod::printModStr(mods.clone())?); ArcStr::from(__mm_s) }).clone())?;
                     Ok(bail!("fail"))
@@ -2906,10 +2905,10 @@ fn lookupClassInEnv(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut id: 
     let mut outEnv: FCore::Graph;
     let mut outPrevFrames: Arc<metamodelica::List<metamodelica::Array<FCore::Node>>> = metamodelica::nil();
     (outCache, outClass, outEnv, outPrevFrames) = 'mc: {
-        let __mc_input = (inCache.clone(), inEnv.clone(), id.clone(), inPrevFrames.clone(), inState.clone(), inInfo.clone());
+        let __mc_input = (inCache.clone(), inEnv.clone(), inPrevFrames.clone(), inInfo.clone());
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (cache, env @ FCore::Graph::G { scope: Deref @ metamodelica::List::Cons { head: r, tail: _ }, .. }, _, prevFrames, _, _) => {
+                (cache, env @ FCore::Graph::G { scope: Deref @ metamodelica::List::Cons { head: r, tail: _ }, .. }, prevFrames, _) => {
                     let mut c: Arc<SCode::Element>;
                     let mut env_1: FCore::Graph;
                     let mut frame: FCore::Node = <FCore::Node as ::std::default::Default>::default();
@@ -2925,7 +2924,7 @@ fn lookupClassInEnv(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut id: 
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (cache, env @ FCore::Graph::G { scope: Deref @ metamodelica::List::Cons { head: r, tail: _ }, .. }, _, prevFrames, _, _) => {
+                (cache, env @ FCore::Graph::G { scope: Deref @ metamodelica::List::Cons { head: r, tail: _ }, .. }, prevFrames, _) => {
                     let mut c: Arc<SCode::Element>;
                     let mut frame: FCore::Node = <FCore::Node as ::std::default::Default>::default();
                     let mut sid: ArcStr = arcstr::literal!("");
@@ -2947,7 +2946,7 @@ fn lookupClassInEnv(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut id: 
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (cache, env @ FCore::Graph::G { scope: Deref @ metamodelica::List::Cons { head: r, tail: _ }, .. }, _, _, _, Some(info)) => {
+                (cache, env @ FCore::Graph::G { scope: Deref @ metamodelica::List::Cons { head: r, tail: _ }, .. }, _, Some(info)) => {
                     let mut i_env: FCore::Graph;
                     let mut frame: FCore::Node = <FCore::Node as ::std::default::Default>::default();
                     let mut scope: ArcStr = arcstr::literal!("");
@@ -2956,7 +2955,7 @@ fn lookupClassInEnv(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut id: 
                     let true = (FNode::isEncapsulated(frame.clone())?) else { bail!("pattern mismatch") };
                     i_env = FGraph::topScope(env.clone())?;
                     if '__try0: {
-                        (_, _, _, _) = unwrap_break_err!(lookupClassInEnv(cache.clone(), i_env.clone(), (id.clone()).clone(), metamodelica::nil(), inState.clone(), None), '__try0);
+                        unwrap_break_err!(lookupClassInEnv(cache.clone(), i_env.clone(), (id.clone()).clone(), metamodelica::nil(), inState.clone(), None), '__try0);
                         Ok::<(), anyhow::Error>(())
                     }.is_ok() { bail!("failure(): body succeeded") }
                     scope = (FGraph::printGraphPathStr(env.clone())?).clone();
@@ -2968,7 +2967,7 @@ fn lookupClassInEnv(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut id: 
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (cache, env @ FCore::Graph::G { scope: Deref @ metamodelica::List::Cons { head: r, tail: _ }, .. }, _, prevFrames, _, _) => {
+                (cache, env @ FCore::Graph::G { scope: Deref @ metamodelica::List::Cons { head: r, tail: _ }, .. }, prevFrames, _) => {
                     let mut c: Arc<SCode::Element>;
                     let mut env_1: FCore::Graph;
                     let mut i_env: FCore::Graph;
@@ -2987,7 +2986,7 @@ fn lookupClassInEnv(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut id: 
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (cache, env @ FCore::Graph::G { scope: Deref @ metamodelica::List::Cons { head: r, tail: _ }, .. }, _, prevFrames, _, _) => {
+                (cache, env @ FCore::Graph::G { scope: Deref @ metamodelica::List::Cons { head: r, tail: _ }, .. }, prevFrames, _) => {
                     let mut c: Arc<SCode::Element>;
                     let mut env_1: FCore::Graph;
                     let mut frame: FCore::Node = <FCore::Node as ::std::default::Default>::default();
@@ -3017,10 +3016,10 @@ fn lookupClassInFrame(mut inCache: FCore::Cache, mut inFrame: FCore::Node, mut i
     let mut outEnv: FCore::Graph;
     let mut outPrevFrames: Arc<metamodelica::List<metamodelica::Array<FCore::Node>>> = metamodelica::nil();
     (outCache, outClass, outEnv, outPrevFrames) = 'mc: {
-        let __mc_input = (inCache.clone(), inFrame.clone(), inEnv.clone(), inIdent.clone(), inPrevFrames.clone(), inState.clone());
+        let __mc_input = (inCache.clone(), inFrame.clone(), inEnv.clone(), inIdent.clone(), inPrevFrames.clone());
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (cache, FCore::Node { children: ht, .. }, totenv, name, prevFrames, _) => {
+                (cache, FCore::Node { children: ht, .. }, totenv, name, prevFrames) => {
                     let mut c: Arc<SCode::Element>;
                     let mut r: metamodelica::Array<FCore::Node>;
                     r = FCore::RefTree::get(ht.clone(), (name.clone()).clone())?;
@@ -3033,7 +3032,7 @@ fn lookupClassInFrame(mut inCache: FCore::Cache, mut inFrame: FCore::Node, mut i
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (cache, _, totenv, name, _, _) => {
+                (cache, _, totenv, name, _) => {
                     let mut c: Arc<SCode::Element>;
                     let mut env_1: FCore::Graph;
                     let mut prevFrames: Arc<metamodelica::List<metamodelica::Array<FCore::Node>>> = metamodelica::nil();
@@ -3042,15 +3041,15 @@ fn lookupClassInFrame(mut inCache: FCore::Cache, mut inFrame: FCore::Node, mut i
                     let mut unique: bool = false;
                     let mut cache = (*cache).clone();
                     (qimports, uqimports) = FNode::imports(inFrame.clone())?;
-                    let _ = 'mc: {
+                    let () = 'mc: {
         let __mc_input = (qimports.clone(), uqimports.clone());
         if let Ok(__v) = (|| -> Result<_> {
                     ::match_deref::match_deref! { match &__mc_input {
                         (Deref @ metamodelica::List::Cons { head: _, tail: _ }, _) => {
-                            let mut c: Arc<SCode::Element>;
-                            let mut cache: FCore::Cache;
                             let mut env_1: FCore::Graph;
+                            let mut c: Arc<SCode::Element>;
                             let mut prevFrames: Arc<metamodelica::List<metamodelica::Array<FCore::Node>>>;
+                            let mut cache: FCore::Cache;
                             (cache, c, env_1, prevFrames) = lookupQualifiedImportedClassInFrame(cache.clone(), qimports.clone(), totenv.clone(), (name.clone()).clone(), inState.clone(), inInfo.clone())?;
                             Ok(())
                         }
@@ -3060,11 +3059,11 @@ fn lookupClassInFrame(mut inCache: FCore::Cache, mut inFrame: FCore::Node, mut i
         if let Ok(__v) = (|| -> Result<_> {
                     ::match_deref::match_deref! { match &__mc_input {
                         (_, Deref @ metamodelica::List::Cons { head: _, tail: _ }) => {
-                            let mut prevFrames: Arc<metamodelica::List<metamodelica::Array<FCore::Node>>>;
-                            let mut unique: bool;
                             let mut c: Arc<SCode::Element>;
                             let mut cache: FCore::Cache;
                             let mut env_1: FCore::Graph;
+                            let mut prevFrames: Arc<metamodelica::List<metamodelica::Array<FCore::Node>>>;
+                            let mut unique: bool;
                             (cache, c, env_1, prevFrames, unique) = lookupUnqualifiedImportedClassInFrame(cache.clone(), uqimports.clone(), totenv.clone(), (name.clone()).clone(), inInfo.clone())?;
                             Mutable::update(inState.clone(), true);
                             reportSeveralNamesError(unique.clone(), (name.clone()).clone())?;
@@ -3086,13 +3085,12 @@ fn lookupClassInFrame(mut inCache: FCore::Cache, mut inFrame: FCore::Node, mut i
 }
 
 fn reportSeveralNamesError(mut unique: bool, mut name: ArcStr) -> Result<()> {
-    let _ = (match (unique.clone(), name.clone()) {
-        (true, _) => (),
-        (false, _) => {
+    let () = (match unique.clone() {
+        true => (),
+        false => {
             Error::addMessage(Error::IMPORT_SEVERAL_NAMES.clone(), list![(name.clone()).clone()])?;
             ()
         },
-        _ => bail!("match: no arm matched"),
     });
     Ok(())
 }
@@ -3172,7 +3170,7 @@ fn checkSubscripts(mut inType: Arc<DAE::Type>, mut inExpSubscriptLst: Arc<metamo
                 (Deref @ DAE::Type::T_ARRAY { ty: t, dims: Deref @ metamodelica::List::Cons { head: dim, tail: Deref @ metamodelica::List::Nil } }, Deref @ metamodelica::List::Cons { head: Deref @ DAE::Subscript::SLICE { exp: Deref @ DAE::Exp::ARRAY { array: se, .. } }, tail: ys }) => {
                     let mut t_1: Arc<DAE::Type> = Arc::new(DAE::Type::T_NORETCALL);
                     let mut dim_int: i32 = 0;
-                    let _ = Expression::dimensionSize(dim.clone())?;
+                    Expression::dimensionSize(dim.clone())?;
                     t_1 = checkSubscripts(t.clone(), ys.clone())?;
                     dim_int = (se.clone().len() as i32);
                     Ok(Arc::new(DAE::Type::T_ARRAY { ty: t_1.clone(), dims: list![Arc::new(DAE::Dimension::DIM_INTEGER { integer: dim_int.clone() })] }))
@@ -3311,12 +3309,12 @@ fn lookupVarF(mut inCache: FCore::Cache, mut inBinTree: Arc<FCore::RefTree::Tree
     let mut splicedExpData: InstTypes::SplicedExpData = <InstTypes::SplicedExpData as ::std::default::Default>::default();
     let mut outComponentEnv: FCore::Graph;
     let mut name: ArcStr = arcstr::literal!("");
-    (outCache, outAttributes, outType, outBinding, constOfForIteratorRange, splicedExpData, outComponentEnv, name) = (::match_deref::match_deref! { match &((inCache.clone(), inBinTree.clone(), inComponentRef.clone(), inEnv.clone())) {
-        (_, _, Deref @ DAE::ComponentRef::CREF_IDENT { subscriptLst: ss, ident: id, .. }, _) => {
+    (outCache, outAttributes, outType, outBinding, constOfForIteratorRange, splicedExpData, outComponentEnv, name) = (::match_deref::match_deref! { match &((inCache.clone(), inBinTree.clone(), inComponentRef.clone())) {
+        (_, _, Deref @ DAE::ComponentRef::CREF_IDENT { subscriptLst: ss, ident: id, .. }) => {
             (outCache, outAttributes, outType, outBinding, constOfForIteratorRange, splicedExpData, outComponentEnv, name) = lookupVarFIdent(inCache.clone(), inBinTree.clone(), (id.clone()).clone(), ss.clone(), inEnv.clone())?;
             (outCache.clone(), outAttributes.clone(), outType.clone(), outBinding.clone(), constOfForIteratorRange.clone(), splicedExpData.clone(), outComponentEnv.clone(), name.clone())
         },
-        (cache, ht, Deref @ DAE::ComponentRef::CREF_QUAL { componentRef: ids, subscriptLst: ss, ident: id, .. }, _) => {
+        (cache, ht, Deref @ DAE::ComponentRef::CREF_QUAL { componentRef: ids, subscriptLst: ss, ident: id, .. }) => {
             let mut ct: Arc<DAE::ConnectorType> = Arc::new(DAE::ConnectorType::FLOW);
             let mut prl: SCode::Parallelism = SCode::Parallelism::NON_PARALLEL;
             let mut vt: SCode::Variability = SCode::Variability::CONST;
@@ -3507,10 +3505,10 @@ fn lookupVarFMetaModelica(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mu
 fn lookupBinding(mut inCref: Arc<DAE::ComponentRef>, mut inParentType: Arc<DAE::Type>, mut inChildType: Arc<DAE::Type>, mut inParentBinding: Arc<DAE::Binding>, mut inChildBinding: Arc<DAE::Binding>) -> Result<Arc<DAE::Binding>> {
     let mut outBinding: Arc<DAE::Binding> = Arc::new(DAE::Binding::UNBOUND);
     outBinding = 'mc: {
-        let __mc_input = (inCref.clone(), inParentType.clone(), inChildType.clone(), inParentBinding.clone(), inChildBinding.clone());
+        let __mc_input = (inCref.clone(), inParentBinding.clone());
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ DAE::ComponentRef::CREF_QUAL { ident: _, identType: _, subscriptLst: ss, componentRef: Deref @ DAE::ComponentRef::CREF_IDENT { ident: cId, identType: _, subscriptLst: Deref @ metamodelica::List::Nil } }, _, _, Deref @ DAE::Binding::EQBOUND { exp: e, evaluatedExp: _, constant_: c, source: s }, _) => {
+                (Deref @ DAE::ComponentRef::CREF_QUAL { ident: _, identType: _, subscriptLst: ss, componentRef: Deref @ DAE::ComponentRef::CREF_IDENT { ident: cId, identType: _, subscriptLst: Deref @ metamodelica::List::Nil } }, Deref @ DAE::Binding::EQBOUND { exp: e, evaluatedExp: _, constant_: c, source: s }) => {
                     let mut tyElement: Arc<DAE::Type> = Arc::new(DAE::Type::T_NORETCALL);
                     let mut b: Arc<DAE::Binding> = Arc::new(DAE::Binding::UNBOUND);
                     let mut exps: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
@@ -3534,7 +3532,7 @@ fn lookupBinding(mut inCref: Arc<DAE::ComponentRef>, mut inParentType: Arc<DAE::
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ DAE::ComponentRef::CREF_QUAL { ident: _, identType: _, subscriptLst: ss, componentRef: Deref @ DAE::ComponentRef::CREF_IDENT { ident: cId, identType: _, subscriptLst: Deref @ metamodelica::List::Nil } }, _, _, Deref @ DAE::Binding::VALBOUND { valBound: v, source: s }, _) => {
+                (Deref @ DAE::ComponentRef::CREF_QUAL { ident: _, identType: _, subscriptLst: ss, componentRef: Deref @ DAE::ComponentRef::CREF_IDENT { ident: cId, identType: _, subscriptLst: Deref @ metamodelica::List::Nil } }, Deref @ DAE::Binding::VALBOUND { valBound: v, source: s }) => {
                     let mut tyElement: Arc<DAE::Type> = Arc::new(DAE::Type::T_NORETCALL);
                     let mut b: Arc<DAE::Binding> = Arc::new(DAE::Binding::UNBOUND);
                     let mut e: Arc<DAE::Exp>;
@@ -3590,10 +3588,10 @@ fn elabComponentRecursive(mut oCref: Option<Arc<DAE::Exp>>) -> Arc<metamodelica:
 fn addArrayDimensions(mut tySub: Arc<DAE::Type>, mut ss: Arc<metamodelica::List<Arc<DAE::Subscript>>>) -> Result<Arc<metamodelica::List<Arc<DAE::Subscript>>>> {
     let mut outType: Arc<metamodelica::List<Arc<DAE::Subscript>>> = metamodelica::nil();
     outType = 'mc: {
-        let __mc_input = (tySub.clone(), ss.clone());
+        let __mc_input = ss.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _) => {
+                _ => {
                     let mut subs: Arc<metamodelica::List<Arc<DAE::Subscript>>> = metamodelica::nil();
                     let mut dims: Arc<metamodelica::List<Arc<DAE::Dimension>>> = metamodelica::nil();
                     let true = (Types::isArray(tySub.clone())) else { bail!("pattern mismatch") };
@@ -3644,11 +3642,11 @@ fn makeDimensionSubscript(mut inDim: Arc<DAE::Dimension>) -> Result<Arc<DAE::Sub
 
 fn makeEnumLiteralIndices(mut enumTypeName: Arc<Absyn::Path>, mut enumLiterals: Arc<metamodelica::List<ArcStr>>, mut enumIndex: i32) -> Result<Arc<metamodelica::List<Arc<DAE::Exp>>>> {
     let mut enumIndices: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
-    enumIndices = (::match_deref::match_deref! { match &((enumTypeName.clone(), enumLiterals.clone(), enumIndex.clone())) {
-        (_, Deref @ metamodelica::List::Nil, _) => {
+    enumIndices = (::match_deref::match_deref! { match &(enumLiterals.clone()) {
+        Deref @ metamodelica::List::Nil => {
             metamodelica::nil()
         },
-        (_, Deref @ metamodelica::List::Cons { head: l, tail: ls }, _) => {
+        Deref @ metamodelica::List::Cons { head: l, tail: ls } => {
             let mut e: Arc<DAE::Exp>;
             let mut expl: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
             let mut enum_type_name: Arc<Absyn::Path>;
@@ -3657,7 +3655,7 @@ fn makeEnumLiteralIndices(mut enumTypeName: Arc<Absyn::Path>, mut enumLiterals: 
             expl = makeEnumLiteralIndices(enumTypeName.clone(), ls.clone(), enumIndex.clone() + 1)?;
             cons(e.clone(), expl.clone())
         },
-        _ => bail!("match: no arm matched"),
+        _ => unreachable!("match_deref! exhaustiveness placeholder"),
     } });
     Ok(enumIndices)
 }
@@ -3740,7 +3738,6 @@ pub fn buildMetaRecordType(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, m
     let mut outEnv: FCore::Graph;
     let mut ftype: Arc<DAE::Type> = Arc::new(DAE::Type::T_NORETCALL);
     let mut id: ArcStr = arcstr::literal!("");
-    let mut env_1: FCore::Graph;
     let mut env: FCore::Graph;
     let mut utPath: Arc<Absyn::Path>;
     let mut path: Arc<Absyn::Path>;
@@ -3766,14 +3763,14 @@ pub fn buildMetaRecordType(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, m
     path = AbsynUtil::joinPaths(utPath.clone(), Arc::new(Absyn::Path::IDENT { name: (id.clone()).clone() }))?;
     (outCache, outEnv, _, _, _, _, _, varlst, _, _) = Inst::instElementList(cache.clone(), env.clone(), InnerOuter::emptyInstHierarchy().clone(), UnitAbsyn::noStore().clone(), Arc::new(openmodelica_frontend_types::DAE::Mod::NOMOD), openmodelica_frontend_types::DAE::Prefix::NOPRE, ClassInf::State::META_RECORD { path: Arc::new(Absyn::Path::IDENT { name: (literal!("")).clone() }) }, List::map1(els.clone(), std::sync::Arc::new(fnptr!(Util::makeTuple, _, _)), Arc::new(openmodelica_frontend_types::DAE::Mod::NOMOD)), metamodelica::nil(), false, openmodelica_frontend_inst::InstTypes::CallingScope::INNER_CALL, ConnectionGraph::EMPTY().clone(), Connect::emptySet().clone(), true)?;
     varlst = Types::boxVarLst(varlst.clone())?;
-    typeVarsType = {
+    typeVarsType = ({
         let mut __acc: Arc<metamodelica::List<Arc<DAE::Type>>> = metamodelica::nil();
         for mut tv in (typeVars.clone()).into_iter().cloned() {
             let __x = Arc::new(DAE::Type::T_METAPOLYMORPHIC { name: (tv.clone()).clone() });
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     ftype = Arc::new(DAE::Type::T_METARECORD { path: path.clone(), utPath: utPath.clone(), typeVars: typeVarsType.clone(), index: index.clone(), fields: varlst.clone(), knownSingleton: singleton.clone() });
     Ok((outCache, outEnv, ftype))
 }
@@ -3782,10 +3779,10 @@ pub fn isIterator(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inCref
     let mut outIsIterator: Option<bool> = None;
     let mut outCache: FCore::Cache = FCore::Cache::NO_CACHE;
     (outIsIterator, outCache) = 'mc: {
-        let __mc_input = (inCache.clone(), inEnv.clone(), inCref.clone());
+        let __mc_input = (inCache.clone(), inEnv.clone());
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (cache, FCore::Graph::G { scope: Deref @ metamodelica::List::Cons { head: r#ref, tail: _ }, .. }, _) => {
+                (cache, FCore::Graph::G { scope: Deref @ metamodelica::List::Cons { head: r#ref, tail: _ }, .. }) => {
                     let mut id: ArcStr = arcstr::literal!("");
                     let mut ht: Arc<FCore::RefTree::Tree> = Arc::new(FCore::RefTree::Tree::EMPTY);
                     let mut ic: Option<DAE::Const> = None;
@@ -3805,7 +3802,7 @@ pub fn isIterator(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inCref
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (cache, FCore::Graph::G { scope: Deref @ metamodelica::List::Cons { head: r#ref, tail: _ }, .. }, _) => {
+                (cache, FCore::Graph::G { scope: Deref @ metamodelica::List::Cons { head: r#ref, tail: _ }, .. }) => {
                     let mut env: FCore::Graph;
                     let mut res: Option<bool> = None;
                     let mut cache = (*cache).clone();
@@ -3833,12 +3830,12 @@ pub fn isIterator(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inCref
 pub fn isFunctionCallViaComponent(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inPath: Arc<Absyn::Path>) -> Result<bool> {
     let mut yes: bool = false;
     yes = 'mc: {
-        let __mc_input = (inCache.clone(), inEnv.clone(), inPath.clone());
+        let __mc_input = inPath.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _, Deref @ Absyn::Path::QUALIFIED { name, path: _ }) => {
+                Deref @ Absyn::Path::QUALIFIED { name, path: _ } => {
                     ErrorExt::setCheckpoint((literal!("functionViaComponentRef10")).clone());
-                    (_, _, _, _, _, _, _, _, _) = lookupVarIdent(inCache.clone(), inEnv.clone(), (name.clone()).clone(), metamodelica::nil())?;
+                    lookupVarIdent(inCache.clone(), inEnv.clone(), (name.clone()).clone(), metamodelica::nil())?;
                     ErrorExt::rollBack((literal!("functionViaComponentRef10")).clone());
                     Ok(true)
                 }
@@ -3847,7 +3844,7 @@ pub fn isFunctionCallViaComponent(mut inCache: FCore::Cache, mut inEnv: FCore::G
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _, Deref @ Absyn::Path::QUALIFIED { name: _, path: _ }) => {
+                Deref @ Absyn::Path::QUALIFIED { name: _, path: _ } => {
                     ErrorExt::rollBack((literal!("functionViaComponentRef10")).clone());
                     Ok(bail!("fail"))
                 }

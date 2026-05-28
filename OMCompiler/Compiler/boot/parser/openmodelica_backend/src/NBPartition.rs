@@ -294,7 +294,7 @@ pub mod Association {
             } else {
                 clock_opt = None;
             }
-            let _ = (::match_deref::match_deref! { match &((clock_opt.clone(), Pointer::access(clock_ptr.clone()))) {
+            let () = (::match_deref::match_deref! { match &((clock_opt.clone(), Pointer::access(clock_ptr.clone()))) {
         (Some(Deref @ BClock::BASE_CLOCK { .. }), Some((name, Deref @ BClock::SUB_CLOCK { .. }))) => {
             removeInferredClock(name.clone(), var_field!((*exp).cref, Expression::NFExpression::CREF).clone(), info.clone(), infer_del.clone())?;
             ()
@@ -458,7 +458,7 @@ pub mod Partition {
     pub fn isEmpty(mut partition: Arc<Partition>) -> bool {
         use arrayEmpty as isEmptyArr;
 
-        let mut b: bool = BEquation::EquationPointers::size(partition.equations.clone()) == 0 || Util::applyOptionOrDefault(partition.strongComponents.clone(), isEmptyArr, false);
+        let mut b: bool = BEquation::EquationPointers::size(partition.equations.clone()) == 0 || Util::applyOptionOrDefault(partition.strongComponents.clone(), Arc::new(fnptr!(isEmptyArr, metamodelica::Array<Arc<StrongComponent::NBStrongComponent>>)), false);
         b
     }
 
@@ -479,12 +479,8 @@ pub mod Partition {
     pub fn isClocked(mut part: Arc<Partition>) -> bool {
         let mut b: bool = false;
         b = (::match_deref::match_deref! { match &(part.association.clone()) {
-        Deref @ Association::CLOCKED { .. } => {
-            true
-        },
-        _ => {
-            false
-        },
+        Deref @ Association::CLOCKED { .. } => true,
+        _ => false,
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
     } });
         b
@@ -696,7 +692,10 @@ pub mod Partition {
         let mut partition: Arc<Partition> = partition;
         let mut comps: metamodelica::Array<Arc<StrongComponent::NBStrongComponent>>;
         if Util::isSome(partition.strongComponents.clone()) {
-            let Some(__pa0) = (partition.strongComponents.clone()) else { bail!("pattern mismatch") };
+            let __pa0 = ::match_deref::match_deref! { match &(partition.strongComponents.clone()) {
+                Some(__pa0) => __pa0.clone(),
+                _ => bail!("pattern mismatch"),
+            } };
             comps = __pa0.clone();
             let __range1 = 1..=(comps.clone().borrow().len() as i32);
             for mut i in __range1 {

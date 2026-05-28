@@ -180,7 +180,7 @@ pub fn getOtherEqSysAdjacencyMatrix(mut m: metamodelica::Array<Arc<metamodelica:
         },
         _ if (intGt(skip.borrow()[(index.clone()-1) as usize].clone(), 0)) => {
             let mut row: Arc<metamodelica::List<i32>> = metamodelica::nil();
-            row = {
+            row = ({
         let mut __acc: Arc<metamodelica::List<i32>> = metamodelica::nil();
         for mut r in (m.borrow()[(index.clone()-1) as usize].clone()).into_iter().cloned() {
             if !(intGt(r.clone(), 0) && intGt(rowskip.borrow()[(r.clone()-1) as usize].clone(), 0)) { continue; }
@@ -188,7 +188,7 @@ pub fn getOtherEqSysAdjacencyMatrix(mut m: metamodelica::Array<Arc<metamodelica:
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
             {let _arr = mnew.clone(); _arr.borrow_mut()[(index.clone()-1) as usize] = row.clone(); _arr};
             tailcall::call!{ getOtherEqSysAdjacencyMatrix(m.clone(), size.clone(), index.clone() + 1, skip.clone(), rowskip.clone(), mnew.clone()) }
         },
@@ -241,8 +241,6 @@ fn transposeRow(mut row: Arc<metamodelica::List<i32>>, mut mt: metamodelica::Arr
 
 pub fn absAdjacencyMatrix(mut m: metamodelica::Array<Arc<metamodelica::List<i32>>>) -> metamodelica::Array<Arc<metamodelica::List<i32>>> {
     let mut res: metamodelica::Array<Arc<metamodelica::List<i32>>>;
-    let mut lst: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>> = metamodelica::nil();
-    let mut lst_1: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>> = metamodelica::nil();
     let mut i: i32 = 1;
     let mut minn: i32 = 0;
     res = metamodelica::arrayCreate((m.clone().borrow().len() as i32), metamodelica::nil());
@@ -250,7 +248,7 @@ pub fn absAdjacencyMatrix(mut m: metamodelica::Array<Arc<metamodelica::List<i32>
     for mut v in __range0 {
         minn = List::fold(v.clone(), (std::sync::Arc::new(fnptr!(intMin, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<i32> + 'static>), 0);
         if minn.clone() < 0 {
-            Dangerous::arrayUpdate(res.clone(), i.clone(), List::map(v.clone(), Arc::new(intAbs.clone()))).unwrap();
+            Dangerous::arrayUpdate(res.clone(), i.clone(), List::map(v.clone(), Arc::new(fnptr!(intAbs, i32)))).unwrap();
         } else {
             Dangerous::arrayUpdate(res.clone(), i.clone(), v.clone()).unwrap();
         }
@@ -265,7 +263,7 @@ pub fn isEmpty(mut m: metamodelica::Array<Arc<metamodelica::List<i32>>>) -> bool
     for mut element in __range0 {
         if !(element.clone().is_empty()) {
             b = false;
-            return b;
+            return b.clone();
         }
     }
     b

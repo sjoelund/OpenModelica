@@ -188,7 +188,7 @@ pub fn createSMNodeToFlatSMGroupTable(mut inDae: DAE::DAElist) -> Result<SMNodeT
     let mut flatSMGroup: Arc<metamodelica::List<FlatSMGroup>> = metamodelica::nil();
     if intLt(Flags::getConfigEnum(Flags::LANGUAGE_STANDARD.clone())?, 33) {
         smNodeToFlatSMGroup = HashTableCG::emptyHashTableSized(1);
-        return Ok(smNodeToFlatSMGroup);
+        return Ok(smNodeToFlatSMGroup.clone());
     }
     let DAE::DAE { elementLst: __pa0 } = (inDae.clone()) else { bail!("pattern mismatch") };
     elementLst = __pa0.clone();
@@ -287,7 +287,6 @@ fn mergeVariableDefinitions(mut inFlatSM: Arc<DAE::Element>, mut inIH: Arc<metam
     let mut outerOutputCrefs: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
     let mut derCrefsSet: (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<Arc<DAE::ComponentRef>>>), i32, i32, (HashSet::FuncHashCref, HashSet::FuncCrefEqual, HashSet::FuncCrefStr));
     let mut emptyTree: Arc<AvlTreePathFunction::Tree> = Arc::new(AvlTreePathFunction::Tree::EMPTY);
-    let mut dAElistNew: Arc<metamodelica::List<Arc<DAE::Element>>> = metamodelica::nil();
     let mut mergeEqns: Arc<metamodelica::List<Arc<DAE::Element>>> = metamodelica::nil();
     let mut mergeEqns_der: Arc<metamodelica::List<Arc<DAE::Element>>> = metamodelica::nil();
     let mut aliasEqns_der: Arc<metamodelica::List<Arc<DAE::Element>>> = metamodelica::nil();
@@ -301,7 +300,7 @@ fn mergeVariableDefinitions(mut inFlatSM: Arc<DAE::Element>, mut inIH: Arc<metam
     } };
     dAElist = __pa0.clone();
     ident = __pa1.clone();
-    outerOutputCrefToSMCompCref = List::fold(dAElist.clone(), (std::sync::Arc::new(fnptr!(collectOuterOutputs, Arc<DAE::Element>, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>), i32, (HashTableCG::FuncHashCref, HashTableCG::FuncCrefEqual, HashTableCG::FuncCrefStr, HashTableCG::FuncExpStr)))) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Element>, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>), i32, (HashTableCG::FuncHashCref, HashTableCG::FuncCrefEqual, HashTableCG::FuncCrefStr, HashTableCG::FuncExpStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>), i32, (HashTableCG::FuncHashCref, HashTableCG::FuncCrefEqual, HashTableCG::FuncCrefStr, HashTableCG::FuncExpStr))> + 'static>), HashTableCG::emptyHashTable());
+    outerOutputCrefToSMCompCref = List::fold(dAElist.clone(), (std::sync::Arc::new(fnptr!(collectOuterOutputs, Arc<DAE::Element>, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>), i32, (Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<i32> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>) -> Result<bool> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>)))) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Element>, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>), i32, (Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<i32> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>) -> Result<bool> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>), i32, (Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<i32> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>) -> Result<bool> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>))> + 'static>), HashTableCG::emptyHashTable());
     outerOutputCrefToInnerCref = List::fold1(BaseHashTable::hashTableKeyList(outerOutputCrefToSMCompCref.clone()), (std::sync::Arc::new(matchOuterWithInner) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Arc<metamodelica::List<InnerOuter::TopInstance>>, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>), i32, (HashTableCG::FuncHashCref, HashTableCG::FuncCrefEqual, HashTableCG::FuncCrefStr, HashTableCG::FuncExpStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>), i32, (HashTableCG::FuncHashCref, HashTableCG::FuncCrefEqual, HashTableCG::FuncCrefStr, HashTableCG::FuncExpStr))> + 'static>), inIH.clone(), HashTableCG::emptyHashTable());
     hashEntries_outerOutputCrefToInnerCref = BaseHashTable::hashTableList(outerOutputCrefToInnerCref.clone());
     uniqueHashValues = List::unique(BaseHashTable::hashTableValueList(outerOutputCrefToInnerCref.clone()));
@@ -352,14 +351,14 @@ fn freshAliasEqn_der(mut inInnerCrefToOuterOutputCrefs: (Arc<DAE::ComponentRef>,
     let mut ty: Arc<DAE::Type> = Arc::new(DAE::Type::T_NORETCALL);
     (innerCref, outerCrefs) = inInnerCrefToOuterOutputCrefs.clone();
     ty = ComponentReference::crefLastType(innerCref.clone())?;
-    outEqns = {
+    outEqns = ({
         let mut __acc: Arc<metamodelica::List<Arc<DAE::Element>>> = metamodelica::nil();
         for mut outerCref in (outerCrefs.clone()).into_iter().cloned() {
             let __x = Arc::new(DAE::Element::EQUATION { exp: Arc::new(DAE::Exp::CREF { componentRef: innerCref.clone(), ty: ty.clone() }), scalar: Arc::new(DAE::Exp::CREF { componentRef: outerCref.clone(), ty: ty.clone() }), source: DAE::emptyElementSource().clone() });
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     Ok(outEqns)
 }
 
@@ -491,7 +490,7 @@ fn mergingRhs(mut inOuterCrefs: Arc<metamodelica::List<Arc<DAE::ComponentRef>>>,
     Ok(res)
 }
 
-fn collectCorrespondingKeys(mut inInnerCref: Arc<DAE::ComponentRef>, mut inHashEntries: Arc<metamodelica::List<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>, mut inInnerCrefToOuterOutputCrefs: (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>)>>), i32, (HashTable3::FuncHashCref, HashTable3::FuncCrefEqual, HashTable3::FuncCrefStr, HashTable3::FuncExpStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>)>>), i32, (HashTable3::FuncHashCref, HashTable3::FuncCrefEqual, HashTable3::FuncCrefStr, HashTable3::FuncExpStr))> {
+fn collectCorrespondingKeys(mut inInnerCref: Arc<DAE::ComponentRef>, mut inHashEntries: Arc<metamodelica::List<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>, mut inInnerCrefToOuterOutputCrefs: (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>)>>), i32, (Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<i32> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>) -> Result<bool> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>, Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<Arc<DAE::ComponentRef>>>) -> Result<ArcStr> + 'static>))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>)>>), i32, (Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<i32> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>) -> Result<bool> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>, Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<Arc<DAE::ComponentRef>>>) -> Result<ArcStr> + 'static>))> {
     let mut outInnerCrefToOuterOutputCrefs: (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>)>>), i32, (HashTable3::FuncHashCref, HashTable3::FuncCrefEqual, HashTable3::FuncCrefStr, HashTable3::FuncExpStr)) = inInnerCrefToOuterOutputCrefs.clone();
     let mut outerRefs: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
     outerRefs = List::filterMap1(inHashEntries.clone(), (std::sync::Arc::new(crefEqualTuple22) as std::sync::Arc<dyn ::std::ops::Fn((Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>), Arc<DAE::ComponentRef>) -> Result<Arc<DAE::ComponentRef>> + 'static>), inInnerCref.clone());
@@ -512,14 +511,14 @@ fn crefEqualTuple22(mut inHashEntry: (Arc<DAE::ComponentRef>, Arc<DAE::Component
     Ok(outCref)
 }
 
-fn traverserHelperSubsOuterByInnerExp(mut inExp: Arc<DAE::Exp>, mut inOuterToInner: (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>), i32, (HashTableCG::FuncHashCref, HashTableCG::FuncCrefEqual, HashTableCG::FuncCrefStr, HashTableCG::FuncExpStr))) -> Result<(Arc<DAE::Exp>, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>), i32, (HashTableCG::FuncHashCref, HashTableCG::FuncCrefEqual, HashTableCG::FuncCrefStr, HashTableCG::FuncExpStr)))> {
+fn traverserHelperSubsOuterByInnerExp(mut inExp: Arc<DAE::Exp>, mut inOuterToInner: (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>), i32, (Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<i32> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>) -> Result<bool> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>))) -> Result<(Arc<DAE::Exp>, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>), i32, (Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<i32> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>) -> Result<bool> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>)))> {
     let mut outExp: Arc<DAE::Exp>;
     let mut outOuterToInner: (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>), i32, (HashTableCG::FuncHashCref, HashTableCG::FuncCrefEqual, HashTableCG::FuncCrefStr, HashTableCG::FuncExpStr));
     (outExp, outOuterToInner) = Expression::traverseExpBottomUp(inExp.clone(), (std::sync::Arc::new(traverserHelperSubsOuterByInner) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>), i32, (HashTableCG::FuncHashCref, HashTableCG::FuncCrefEqual, HashTableCG::FuncCrefStr, HashTableCG::FuncExpStr))) -> Result<(Arc<DAE::Exp>, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>), i32, (HashTableCG::FuncHashCref, HashTableCG::FuncCrefEqual, HashTableCG::FuncCrefStr, HashTableCG::FuncExpStr)))> + 'static>), inOuterToInner.clone())?;
     Ok((outExp, outOuterToInner))
 }
 
-fn traverserHelperSubsOuterByInner(mut inExp: Arc<DAE::Exp>, mut inOuterToInner: (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>), i32, (HashTableCG::FuncHashCref, HashTableCG::FuncCrefEqual, HashTableCG::FuncCrefStr, HashTableCG::FuncExpStr))) -> Result<(Arc<DAE::Exp>, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>), i32, (HashTableCG::FuncHashCref, HashTableCG::FuncCrefEqual, HashTableCG::FuncCrefStr, HashTableCG::FuncExpStr)))> {
+fn traverserHelperSubsOuterByInner(mut inExp: Arc<DAE::Exp>, mut inOuterToInner: (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>), i32, (Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<i32> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>) -> Result<bool> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>))) -> Result<(Arc<DAE::Exp>, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>), i32, (Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<i32> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>) -> Result<bool> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>)))> {
     let mut outExp: Arc<DAE::Exp>;
     let mut outOuterToInner: (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>), i32, (HashTableCG::FuncHashCref, HashTableCG::FuncCrefEqual, HashTableCG::FuncCrefStr, HashTableCG::FuncExpStr));
     (outExp, outOuterToInner) = (::match_deref::match_deref! { match &(inExp.clone()) {
@@ -534,7 +533,7 @@ fn traverserHelperSubsOuterByInner(mut inExp: Arc<DAE::Exp>, mut inOuterToInner:
     Ok((outExp, outOuterToInner))
 }
 
-fn matchOuterWithInner(mut inOuterCref: Arc<DAE::ComponentRef>, mut inIH: Arc<metamodelica::List<InnerOuter::TopInstance>>, mut inOuterCrefToInnerCref: (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>), i32, (HashTableCG::FuncHashCref, HashTableCG::FuncCrefEqual, HashTableCG::FuncCrefStr, HashTableCG::FuncExpStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>), i32, (HashTableCG::FuncHashCref, HashTableCG::FuncCrefEqual, HashTableCG::FuncCrefStr, HashTableCG::FuncExpStr))> {
+fn matchOuterWithInner(mut inOuterCref: Arc<DAE::ComponentRef>, mut inIH: Arc<metamodelica::List<InnerOuter::TopInstance>>, mut inOuterCrefToInnerCref: (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>), i32, (Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<i32> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>) -> Result<bool> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>), i32, (Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<i32> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>) -> Result<bool> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>))> {
     let mut outOuterCrefToInnerCref: (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>), i32, (HashTableCG::FuncHashCref, HashTableCG::FuncCrefEqual, HashTableCG::FuncCrefStr, HashTableCG::FuncExpStr)) = inOuterCrefToInnerCref.clone();
     let mut crefIdent: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
     let mut crefFound: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
@@ -550,14 +549,13 @@ fn matchOuterWithInner(mut inOuterCref: Arc<DAE::ComponentRef>, mut inIH: Arc<me
 
 fn findInner(mut inCrefTest: Arc<DAE::ComponentRef>, mut inCrefIdent: Arc<DAE::ComponentRef>, mut inIH: Arc<metamodelica::List<InnerOuter::TopInstance>>) -> Result<Arc<DAE::ComponentRef>> {
     let mut outCrefFound: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
-    let mut testCref: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
     let mut strippedCref1: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
     let mut strippedCref2: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
     let mut ht: InnerOuter::InstHierarchyHashTable = <InnerOuter::InstHierarchyHashTable as ::std::default::Default>::default();
     let InnerOuter::TOP_INSTANCE { ht: __pa0, .. } = (listHead(inIH.clone())?) else { bail!("pattern mismatch") };
     ht = __pa0.clone();
     match '__try1: {
-        let _ = unwrap_break_err!(InnerOuter::get(inCrefTest.clone(), ht.clone()), '__try1);
+        unwrap_break_err!(InnerOuter::get(inCrefTest.clone(), ht.clone()), '__try1);
         outCrefFound = inCrefTest.clone();
         Ok::<_, anyhow::Error>((outCrefFound.clone(),))
     } {
@@ -573,7 +571,7 @@ fn findInner(mut inCrefTest: Arc<DAE::ComponentRef>, mut inCrefIdent: Arc<DAE::C
     Ok(outCrefFound)
 }
 
-fn collectOuterOutputs(mut inElem: Arc<DAE::Element>, mut inOuterAcc: (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>), i32, (HashTableCG::FuncHashCref, HashTableCG::FuncCrefEqual, HashTableCG::FuncCrefStr, HashTableCG::FuncExpStr))) -> (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>), i32, (HashTableCG::FuncHashCref, HashTableCG::FuncCrefEqual, HashTableCG::FuncCrefStr, HashTableCG::FuncExpStr)) {
+fn collectOuterOutputs(mut inElem: Arc<DAE::Element>, mut inOuterAcc: (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>), i32, (Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<i32> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>) -> Result<bool> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>))) -> (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>), i32, (Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<i32> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>) -> Result<bool> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>)) {
     let mut outOuterAcc: (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>), i32, (HashTableCG::FuncHashCref, HashTableCG::FuncCrefEqual, HashTableCG::FuncCrefStr, HashTableCG::FuncExpStr)) = inOuterAcc.clone();
     let mut outerOutputs: Arc<metamodelica::List<Arc<DAE::Element>>> = metamodelica::nil();
     let mut outerOutputCrefs: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
@@ -754,7 +752,6 @@ fn transitiveClosure(mut iTable: AdjacencyTable, mut nStates: i32) -> Result<Adj
     let mut k: i32 = 0;
     let mut i: i32 = 0;
     let mut j: i32 = 0;
-    let mut c: bool = false;
     let AdjacencyTable { cref2index: __pa0, adjacency: __pa1 } = (iTable.clone()) else { bail!("pattern mismatch") };
     cref2index = __pa0.clone();
     adjacency = __pa1.clone();
@@ -779,7 +776,6 @@ fn createAdjacencyTable(mut smNodes: SMNodeTable, mut nStates: i32) -> Result<Ad
     let mut iTable: AdjacencyTable = <AdjacencyTable as ::std::default::Default>::default();
     let mut cref2index: (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, i32)>>), i32, (HashTable::FuncHashCref, HashTable::FuncCrefEqual, HashTable::FuncCrefStr, HashTable::FuncExpStr));
     let mut adjacency: metamodelica::Array<metamodelica::Array<bool>>;
-    let mut iRow: metamodelica::Array<bool>;
     let mut n: i32 = 0;
     let mut m: i32 = 0;
     let mut i: i32 = 0;
@@ -793,14 +789,14 @@ fn createAdjacencyTable(mut smNodes: SMNodeTable, mut nStates: i32) -> Result<Ad
     n = (crefs1.clone().borrow().len() as i32);
     cref2index = HashTable::emptyHashTableSized(n.clone());
     assert!(n.clone() == nStates.clone(), "{}", &*(literal!("Value of nStates needs to be equal to number of modes within mode table argument.")).clone());
-    adjacency = metamodelica::arrayFromVec({
+    adjacency = metamodelica::arrayFromVec(({
         let mut __acc: Arc<metamodelica::List<metamodelica::Array<bool>>> = metamodelica::nil();
         for mut i in (1..=n.clone()).into_iter() {
             let __x = arrayCreate(n.clone(), false);
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }.into_iter().cloned().collect());
+    }).into_iter().cloned().collect());
     for mut i in 1..=n.clone() {
         cref2index = BaseHashTable::addNoUpdCheck((crefs1.borrow()[(i.clone()-1) as usize].clone(), i.clone()), cref2index.clone())?;
     }
@@ -829,7 +825,6 @@ fn printAdjacencyTable(mut iTable: AdjacencyTable, mut nStates: i32) -> Result<(
     let mut i: i32 = 0;
     let mut j: i32 = 0;
     let mut padn: i32 = 0;
-    let mut row: metamodelica::Array<bool>;
     let mut r#str: ArcStr = arcstr::literal!("");
     let mut pads: ArcStr = arcstr::literal!("");
     let mut b: bool = false;
@@ -876,7 +871,7 @@ fn crefIndexCmp(mut inElement1: (Arc<DAE::ComponentRef>, i32), mut inElement2: (
 pub fn getSMNodeTable(mut elementLst: Arc<metamodelica::List<Arc<DAE::Element>>>) -> SMNodeTable {
     let mut smNodeTable: SMNodeTable;
     let mut elementLst2: Arc<metamodelica::List<Arc<DAE::Element>>> = metamodelica::nil();
-    elementLst2 = {
+    elementLst2 = ({
         let mut __acc: Arc<metamodelica::List<Arc<DAE::Element>>> = metamodelica::nil();
         for mut e in (elementLst.clone()).into_iter().cloned() {
             if !(isSMStatement2(e.clone())) { continue; }
@@ -884,7 +879,7 @@ pub fn getSMNodeTable(mut elementLst: Arc<metamodelica::List<Arc<DAE::Element>>>
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     if !(elementLst2.clone().is_empty()) {
         smNodeTable = List::fold(elementLst2.clone(), (std::sync::Arc::new(extractSMStates2) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Element>, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SMNode)>>), i32, (HashTableSM1::FuncHashCref, HashTableSM1::FuncCrefEqual, HashTableSM1::FuncCrefStr, HashTableSM1::FuncExpStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SMNode)>>), i32, (HashTableSM1::FuncHashCref, HashTableSM1::FuncCrefEqual, HashTableSM1::FuncCrefStr, HashTableSM1::FuncExpStr))> + 'static>), HashTableSM1::emptyHashTable());
     } else {
@@ -972,7 +967,7 @@ pub fn getSMStatesInContext(mut eqns: Arc<metamodelica::List<Arc<SCode::Equation
     let mut statesLL: Arc<metamodelica::List<Arc<metamodelica::List<Arc<Absyn::ComponentRef>>>>> = metamodelica::nil();
     let mut initialStatesCR: Arc<metamodelica::List<Arc<Absyn::ComponentRef>>> = metamodelica::nil();
     let mut statesCR: Arc<metamodelica::List<Arc<Absyn::ComponentRef>>> = metamodelica::nil();
-    eqns1 = {
+    eqns1 = ({
         let mut __acc: Arc<metamodelica::List<Arc<SCode::Equation>>> = metamodelica::nil();
         for mut eq in (eqns.clone()).into_iter().cloned() {
             if !(isSMStatement(eq.clone())) { continue; }
@@ -980,7 +975,7 @@ pub fn getSMStatesInContext(mut eqns: Arc<metamodelica::List<Arc<SCode::Equation
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     initialStatesCR = List::filterMap(eqns1.clone(), (std::sync::Arc::new(extractInitialSMStates) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SCode::Equation>) -> Result<Arc<Absyn::ComponentRef>> + 'static>));
     initialStates = List::map(initialStatesCR.clone(), (std::sync::Arc::new(ComponentReference::toExpCref) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::ComponentRef>) -> Result<Arc<DAE::ComponentRef>> + 'static>));
     initialStates = List::map1(initialStates.clone(), (std::sync::Arc::new(prefixCrefNoContext2) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, DAE::Prefix) -> Result<Arc<DAE::ComponentRef>> + 'static>), inPrefix.clone());

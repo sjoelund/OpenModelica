@@ -90,16 +90,15 @@ pub type Msg = Option<SourceInfo>;
 pub fn path(mut inGraph: Graph, mut inPath: Arc<Absyn::Path>) -> Result<(Graph, Ref)> {
     let mut outGraph: Graph;
     let mut outRef: Ref;
-    (outGraph, outRef) = (::match_deref::match_deref! { match &((inGraph.clone(), inPath.clone())) {
-        (g, _) => {
+    (outGraph, outRef) = (match inGraph.clone() {
+        mut g => {
             let mut r: Ref;
             let mut t: Ref;
             t = FGraph::top(g.clone())?;
             r = t.clone();
             (g.clone(), r.clone())
         },
-        _ => unreachable!("match_deref! exhaustiveness placeholder"),
-    } });
+    });
     Ok((outGraph, outRef))
 }
 

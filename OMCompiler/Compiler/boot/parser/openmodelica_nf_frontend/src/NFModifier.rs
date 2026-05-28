@@ -340,7 +340,7 @@ pub mod ModTable {
     pub fn forEach(mut tree: Arc<Tree>, mut func: Arc<dyn ::std::ops::Fn(ArcStr, Arc<Modifier::Modifier>) -> Result<()> + 'static>) -> Result<()> {
         pub type EachFunc = std::sync::Arc<dyn ::std::ops::Fn(Key, Value) -> Result<()> + 'static>;
 
-        let _ = (::match_deref::match_deref! { match &(tree.clone()) {
+        let () = (::match_deref::match_deref! { match &(tree.clone()) {
         Deref @ Tree::NODE { .. } => {
             forEach(var_field!((*tree).left, Tree::NODE).clone(), func.clone())?;
             func((var_field!((*tree).key, Tree::NODE).clone()).clone(), var_field!((*tree).value, Tree::NODE).clone())?;
@@ -418,7 +418,7 @@ pub mod ModTable {
         Deref @ Tree::NODE { .. } => var_field!((*inTree).key, Tree::NODE).clone(),
         Deref @ Tree::LEAF { .. } => var_field!((*inTree).key, Tree::LEAF).clone(),
         Deref @ Tree::EMPTY { .. } => {
-            return Ok(comp);
+            return Ok(comp.clone());
             bail!("fail")
         },
         _ => bail!("match: no arm matched"),
@@ -629,11 +629,8 @@ pub mod ModTable {
 
     fn printTreeStr2(mut inTree: Arc<Tree>, mut isLeft: bool, mut inIndent: ArcStr) -> Result<ArcStr> {
         let mut outString: ArcStr = arcstr::literal!("");
-        let mut val_node: Option<ArcStr> = None;
         let mut left: Option<Arc<Tree>> = None;
         let mut right: Option<Arc<Tree>> = None;
-        let mut left_str: ArcStr = arcstr::literal!("");
-        let mut right_str: ArcStr = arcstr::literal!("");
         outString = ((::match_deref::match_deref! { match &(inTree.clone()) {
         Deref @ Tree::NODE { .. } => { let mut __mm_s = String::new(); __mm_s.push_str(&*printTreeStr2(var_field!((*inTree).left, Tree::NODE).clone(), true, ({ let mut __mm_s = String::new(); __mm_s.push_str(&*inIndent.clone()); __mm_s.push_str(&*if (isLeft.clone()) {literal!("     ")} else {literal!(" │   ")}); ArcStr::from(__mm_s) }).clone())?); __mm_s.push_str(&*inIndent.clone()); __mm_s.push_str(&*if (isLeft.clone()) {literal!(" ┌")} else {literal!(" └")}); __mm_s.push_str(&*literal!("────")); __mm_s.push_str(&*printNodeStr(inTree.clone())?); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*printTreeStr2(var_field!((*inTree).right, Tree::NODE).clone(), false, ({ let mut __mm_s = String::new(); __mm_s.push_str(&*inIndent.clone()); __mm_s.push_str(&*if (isLeft.clone()) {literal!(" │   ")} else {literal!("     ")}); ArcStr::from(__mm_s) }).clone())?); ArcStr::from(__mm_s) },
         Deref @ Tree::LEAF { .. } => { let mut __mm_s = String::new(); __mm_s.push_str(&*inIndent.clone()); __mm_s.push_str(&*if (isLeft.clone()) {literal!(" ┌")} else {literal!(" └")}); __mm_s.push_str(&*literal!("────")); __mm_s.push_str(&*printNodeStr(inTree.clone())?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) },
@@ -832,7 +829,7 @@ pub mod Modifier {
         NOMOD,
     }
     pub use self::Modifier::{MODIFIER,REDECLARE,NOMOD};
-    pub fn create(mut r#mod: Arc<SCode::Mod>, mut name: ArcStr, mut modScope: Arc<ModifierScope::ModifierScope>, mut scope: Arc<InstNode::InstNode>) -> Result<Arc<Modifier>> {
+    pub fn create(mut r#mod: Arc<SCode::Mod>, mut name: ArcStr, mut modScope: Arc<ModifierScope::ModifierScope>, mut scope: Arc<InstNode::InstNode>, mut confidence: i32) -> Result<Arc<Modifier>> {
         let mut newMod: Arc<Modifier> = Arc::new(Modifier::NOMOD);
         newMod = (::match_deref::match_deref! { match &(r#mod.clone()) {
         Deref @ SCode::Mod::NOMOD => {
@@ -844,16 +841,16 @@ pub mod Modifier {
             let mut binding: Arc<Binding::NFBinding> = Arc::new(Binding::UNBOUND);
             let mut is_each: bool = false;
             is_each = SCodeUtil::eachBool(var_field!((*r#mod).eachPrefix, SCode::Mod::MOD).clone())?;
-            binding = Binding::fromAbsyn(var_field!((*r#mod).binding, SCode::Mod::MOD).clone(), is_each.clone(), ModifierScope::isClass(modScope.clone()), scope.clone(), var_field!((*r#mod).info, SCode::Mod::MOD).clone());
-            submod_lst = {
+            binding = Binding::fromAbsyn(var_field!((*r#mod).binding, SCode::Mod::MOD).clone(), is_each.clone(), ModifierScope::isClass(modScope.clone()), scope.clone(), confidence.clone(), var_field!((*r#mod).info, SCode::Mod::MOD).clone());
+            submod_lst = ({
         let mut __acc: Arc<metamodelica::List<(ArcStr, Arc<Modifier>)>> = metamodelica::nil();
         for mut m in (var_field!((*r#mod).subModLst, SCode::Mod::MOD).clone()).into_iter().cloned() {
             if !(!(SCodeUtil::isBreakSubMod(m.clone()))) { continue; }
-            let __x = (m.ident.clone(), createSubMod(m.clone(), modScope.clone(), scope.clone()));
+            let __x = (m.ident.clone(), createSubMod(m.clone(), modScope.clone(), scope.clone(), confidence.clone()));
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
             submod_table = ModTable::fromList(submod_lst.clone(), Arc::new({ let __pe_b3 = modScope.clone(); let __pe_b4 = metamodelica::nil(); move |__pe_a0, __pe_a1, __pe_a2| mergeLocal(__pe_a0, __pe_a1, __pe_a2, __pe_b3.clone(), __pe_b4.clone()) }))?;
             Arc::new(Modifier::MODIFIER { name: (name.clone()).clone(), finalPrefix: var_field!((*r#mod).finalPrefix, SCode::Mod::MOD).clone(), eachPrefix: var_field!((*r#mod).eachPrefix, SCode::Mod::MOD).clone(), binding: binding.clone(), subModifiers: submod_table.clone(), info: var_field!((*r#mod).info, SCode::Mod::MOD).clone() })
         },
@@ -864,7 +861,7 @@ pub mod Modifier {
             if InstNode::isClass(node.clone()) {
                 Inst::partialInstClass(node.clone())?;
             }
-            cc_mod = createConstrainingMod(elem.clone(), scope.clone())?;
+            cc_mod = createConstrainingMod(elem.clone(), scope.clone(), confidence.clone())?;
             Arc::new(Modifier::REDECLARE { finalPrefix: var_field!((*r#mod).finalPrefix, SCode::Mod::REDECL).clone(), eachPrefix: var_field!((*r#mod).eachPrefix, SCode::Mod::REDECL).clone(), element: node.clone(), innerMod: Arc::new(crate::NFModifier::Modifier::NOMOD), outerMod: Arc::new(crate::NFModifier::Modifier::NOMOD), constrainingMod: cc_mod.clone(), propagatedSubs: metamodelica::nil() })
         },
         _ => bail!("match: no arm matched"),
@@ -872,12 +869,12 @@ pub mod Modifier {
         Ok(newMod)
     }
 
-    pub fn createConstrainingMod(mut element: Arc<SCode::Element>, mut scope: Arc<InstNode::InstNode>) -> Result<Arc<Modifier>> {
+    pub fn createConstrainingMod(mut element: Arc<SCode::Element>, mut scope: Arc<InstNode::InstNode>, mut confidence: i32) -> Result<Arc<Modifier>> {
         let mut r#mod: Arc<Modifier> = Arc::new(Modifier::NOMOD);
         let mut smod: Arc<SCode::Mod> = Arc::new(SCode::Mod::NOMOD);
         r#mod = (::match_deref::match_deref! { match &(element.clone()) {
-        Deref @ SCode::Element::CLASS { prefixes: Deref @ SCode::Prefixes { replaceablePrefix: Deref @ SCode::Replaceable::REPLACEABLE { cc: Some(Deref @ SCode::ConstrainClass { modifier: smod, .. }) }, .. }, .. } => create(smod.clone(), (var_field!((*element).name, SCode::Element::CLASS).clone()).clone(), Arc::new(ModifierScope::ModifierScope::CLASS { name: (var_field!((*element).name, SCode::Element::CLASS).clone()).clone() }), scope.clone())?,
-        Deref @ SCode::Element::COMPONENT { prefixes: Deref @ SCode::Prefixes { replaceablePrefix: Deref @ SCode::Replaceable::REPLACEABLE { cc: Some(Deref @ SCode::ConstrainClass { modifier: smod, .. }) }, .. }, .. } => create(smod.clone(), (var_field!((*element).name, SCode::Element::COMPONENT).clone()).clone(), Arc::new(ModifierScope::ModifierScope::COMPONENT { name: (var_field!((*element).name, SCode::Element::COMPONENT).clone()).clone() }), scope.clone())?,
+        Deref @ SCode::Element::CLASS { prefixes: Deref @ SCode::Prefixes { replaceablePrefix: Deref @ SCode::Replaceable::REPLACEABLE { cc: Some(Deref @ SCode::ConstrainClass { modifier: smod, .. }) }, .. }, .. } => create(smod.clone(), (var_field!((*element).name, SCode::Element::CLASS).clone()).clone(), Arc::new(ModifierScope::ModifierScope::CLASS { name: (var_field!((*element).name, SCode::Element::CLASS).clone()).clone() }), scope.clone(), confidence.clone())?,
+        Deref @ SCode::Element::COMPONENT { prefixes: Deref @ SCode::Prefixes { replaceablePrefix: Deref @ SCode::Replaceable::REPLACEABLE { cc: Some(Deref @ SCode::ConstrainClass { modifier: smod, .. }) }, .. }, .. } => create(smod.clone(), (var_field!((*element).name, SCode::Element::COMPONENT).clone()).clone(), Arc::new(ModifierScope::ModifierScope::COMPONENT { name: (var_field!((*element).name, SCode::Element::COMPONENT).clone()).clone() }), scope.clone(), confidence.clone())?,
         _ => Arc::new(crate::NFModifier::Modifier::NOMOD),
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
     } });
@@ -910,22 +907,22 @@ pub mod Modifier {
         (elem, r#mod)
     }
 
-    pub fn fromElement(mut element: Arc<SCode::Element>, mut scope: Arc<InstNode::InstNode>) -> Result<Arc<Modifier>> {
+    pub fn fromElement(mut element: Arc<SCode::Element>, mut scope: Arc<InstNode::InstNode>, mut confidence: i32) -> Result<Arc<Modifier>> {
         let mut r#mod: Arc<Modifier> = Arc::new(Modifier::NOMOD);
         r#mod = (::match_deref::match_deref! { match &(element.clone()) {
         Deref @ SCode::Element::EXTENDS { .. } => {
-            create(var_field!((*element).modifications, SCode::Element::EXTENDS).clone(), (literal!("")).clone(), Arc::new(ModifierScope::ModifierScope::EXTENDS { path: var_field!((*element).baseClassPath, SCode::Element::EXTENDS).clone() }), scope.clone())?
+            create(var_field!((*element).modifications, SCode::Element::EXTENDS).clone(), (literal!("")).clone(), Arc::new(ModifierScope::ModifierScope::EXTENDS { path: var_field!((*element).baseClassPath, SCode::Element::EXTENDS).clone() }), scope.clone(), confidence.clone())?
         },
         Deref @ SCode::Element::COMPONENT { .. } => {
             let mut smod: Arc<SCode::Mod> = Arc::new(SCode::Mod::NOMOD);
             smod = patchElementModFinal(var_field!((*element).prefixes, SCode::Element::COMPONENT).clone(), var_field!((*element).info, SCode::Element::COMPONENT).clone(), var_field!((*element).modifications, SCode::Element::COMPONENT).clone())?;
-            create(smod.clone(), (var_field!((*element).name, SCode::Element::COMPONENT).clone()).clone(), Arc::new(ModifierScope::ModifierScope::COMPONENT { name: (var_field!((*element).name, SCode::Element::COMPONENT).clone()).clone() }), scope.clone())?
+            create(smod.clone(), (var_field!((*element).name, SCode::Element::COMPONENT).clone()).clone(), Arc::new(ModifierScope::ModifierScope::COMPONENT { name: (var_field!((*element).name, SCode::Element::COMPONENT).clone()).clone() }), scope.clone(), confidence.clone())?
         },
         Deref @ SCode::Element::CLASS { classDef: def @ Deref @ SCode::ClassDef::DERIVED { .. }, .. } => {
-            create(var_field!((**def).modifications, SCode::ClassDef::DERIVED).clone(), (var_field!((*element).name, SCode::Element::CLASS).clone()).clone(), Arc::new(ModifierScope::ModifierScope::CLASS { name: (var_field!((*element).name, SCode::Element::CLASS).clone()).clone() }), scope.clone())?
+            create(var_field!((**def).modifications, SCode::ClassDef::DERIVED).clone(), (var_field!((*element).name, SCode::Element::CLASS).clone()).clone(), Arc::new(ModifierScope::ModifierScope::CLASS { name: (var_field!((*element).name, SCode::Element::CLASS).clone()).clone() }), scope.clone(), confidence.clone())?
         },
         Deref @ SCode::Element::CLASS { classDef: def @ Deref @ SCode::ClassDef::CLASS_EXTENDS { .. }, .. } => {
-            create(var_field!((**def).modifications, SCode::ClassDef::CLASS_EXTENDS).clone(), (var_field!((*element).name, SCode::Element::CLASS).clone()).clone(), Arc::new(ModifierScope::ModifierScope::CLASS { name: (var_field!((*element).name, SCode::Element::CLASS).clone()).clone() }), scope.clone())?
+            create(var_field!((**def).modifications, SCode::ClassDef::CLASS_EXTENDS).clone(), (var_field!((*element).name, SCode::Element::CLASS).clone()).clone(), Arc::new(ModifierScope::ModifierScope::CLASS { name: (var_field!((*element).name, SCode::Element::CLASS).clone()).clone() }), scope.clone(), confidence.clone())?
         },
         _ => {
             Arc::new(crate::NFModifier::Modifier::NOMOD)
@@ -1206,14 +1203,14 @@ pub mod Modifier {
             let mut binding_sep: ArcStr = arcstr::literal!("");
             submods = ModTable::listValues(var_field!((*r#mod).subModifiers, Modifier::MODIFIER).clone(), metamodelica::nil());
             if !(submods.clone().is_empty()) {
-                subs_str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("(")); __mm_s.push_str(&*stringDelimitList({
+                subs_str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("(")); __mm_s.push_str(&*stringDelimitList(({
         let mut __acc: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
         for mut s in (submods.clone()).into_iter().cloned() {
             let __x = toString(s.clone(), true)?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, (literal!(", ")).clone())); __mm_s.push_str(&*literal!(")")); ArcStr::from(__mm_s) }).clone();
+    }), (literal!(", ")).clone())); __mm_s.push_str(&*literal!(")")); ArcStr::from(__mm_s) }).clone();
                 binding_sep = (literal!(" = ")).clone();
             } else {
                 subs_str = (literal!("")).clone();
@@ -1237,7 +1234,7 @@ pub mod Modifier {
         let mut s: IOStream::IOStream = s;
         let mut mods: Arc<metamodelica::List<Arc<Modifier>>> = modifiers.clone();
         if mods.clone().is_empty() {
-            return Ok(s);
+            return Ok(s.clone());
         }
         loop {
             s = toFlatStream(listHead(mods.clone())?, format.clone(), s.clone(), true)?;
@@ -1254,8 +1251,6 @@ pub mod Modifier {
     pub fn toFlatStream(mut r#mod: Arc<Modifier>, mut format: BaseModelica::OutputFormat, mut s: IOStream::IOStream, mut printName: bool) -> Result<IOStream::IOStream> {
         let mut s: IOStream::IOStream = s;
         let mut submods: Arc<metamodelica::List<Arc<Modifier>>> = metamodelica::nil();
-        let mut subs_str: ArcStr = arcstr::literal!("");
-        let mut binding_str: ArcStr = arcstr::literal!("");
         let mut binding_sep: ArcStr = arcstr::literal!("");
         let () = (::match_deref::match_deref! { match &(r#mod.clone()) {
         Deref @ MODIFIER { .. } => {
@@ -1290,13 +1285,13 @@ pub mod Modifier {
         Ok(r#str)
     }
 
-    fn createSubMod(mut subMod: Arc<SCode::SubMod>, mut modScope: Arc<ModifierScope::ModifierScope>, mut scope: Arc<InstNode::InstNode>) -> Arc<Modifier> {
-        let mut r#mod: Arc<Modifier> = create(subMod.r#mod.clone(), (subMod.ident.clone()).clone(), modScope.clone(), scope.clone()).unwrap();
+    fn createSubMod(mut subMod: Arc<SCode::SubMod>, mut modScope: Arc<ModifierScope::ModifierScope>, mut scope: Arc<InstNode::InstNode>, mut confidence: i32) -> Arc<Modifier> {
+        let mut r#mod: Arc<Modifier> = create(subMod.r#mod.clone(), (subMod.ident.clone()).clone(), modScope.clone(), scope.clone(), confidence.clone()).unwrap();
         r#mod
     }
 
     fn checkFinalOverride(mut innerFinal: SCode::Final, mut outerMod: Arc<Modifier>, mut innerInfo: SourceInfo) -> Result<()> {
-        let _ = (match innerFinal.clone() {
+        let () = (match innerFinal.clone() {
         SCode::Final::FINAL => {
             Error::addMultiSourceMessage(Error::FINAL_COMPONENT_OVERRIDE.clone(), list![(name(outerMod.clone())?).clone(), (toString(outerMod.clone(), false)?).clone()], list![info(outerMod.clone())?, innerInfo.clone()])?;
             bail!("fail")

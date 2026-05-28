@@ -184,15 +184,15 @@ pub fn divRational(mut r1: Rational, mut r2: Rational) -> Result<Rational> {
 
 #[tailcall::tailcall]
 pub fn intGcd(mut i1: i32, mut i2: i32) -> i32 {
-    match (i1.clone(), i2.clone()) {
-        (_, 0) => i1.clone(),
+    match i2.clone() {
+        0 => i1.clone(),
         _ => tailcall::call!{ intGcd(i2.clone(), intMod(i1.clone(), i2.clone())) },
     }
 }
 
 /* Tests */
 pub fn testRational() -> Result<()> {
-    let _ = 'mc: {
+    let () = 'mc: {
         let __mc_input = ();
         if let Ok(__v) = (|| -> Result<_> {
             let () = __mc_input.clone() else { bail!("nomatch") };

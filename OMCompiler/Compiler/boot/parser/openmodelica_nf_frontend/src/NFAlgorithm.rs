@@ -124,14 +124,14 @@ pub fn map(mut alg: Arc<NFAlgorithm>, mut r#fn: Arc<dyn ::std::ops::Fn(Arc<State
     pub type MapFn = std::sync::Arc<dyn ::std::ops::Fn(Arc<Statement::NFStatement>) -> Result<Arc<Statement::NFStatement>> + 'static>;
 
     let mut alg: Arc<NFAlgorithm> = alg;
-    assign_field!(alg.statements = {
+    assign_field!(alg.statements = ({
         let mut __acc: Arc<metamodelica::List<Arc<Statement::NFStatement>>> = metamodelica::nil();
         for mut s in (alg.statements.clone()).into_iter().cloned() {
             let __x = Statement::map(s.clone(), r#fn.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
     alg
 }
 
@@ -147,14 +147,14 @@ pub fn mapExpList(mut algs: Arc<metamodelica::List<Arc<NFAlgorithm>>>, mut func:
     pub type MapFunc = std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>;
 
     let mut algs: Arc<metamodelica::List<Arc<NFAlgorithm>>> = algs;
-    algs = {
+    algs = ({
         let mut __acc: Arc<metamodelica::List<Arc<NFAlgorithm>>> = metamodelica::nil();
         for mut alg in (algs.clone()).into_iter().cloned() {
             let __x = mapExp(alg.clone(), func.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     algs
 }
 

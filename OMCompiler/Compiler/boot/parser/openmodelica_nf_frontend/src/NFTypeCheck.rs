@@ -240,12 +240,10 @@ pub fn matchOverloadedBinaryOperator(mut exp1: Arc<Expression::NFExpression>, mu
     let mut outExp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut outType: Arc<Type::NFType> = Arc::new(Type::ANY);
     let mut args: Arc<metamodelica::List<Arc<TypedArg>>> = metamodelica::nil();
-    let mut matchKind: Arc<FunctionMatchKind::FunctionMatchKind> = Arc::new(FunctionMatchKind::CAST);
     let mut matchedFunc: Arc<MatchedFunction::MatchedFunction> = Arc::new(<MatchedFunction::MatchedFunction as ::std::default::Default>::default());
     let mut matchedFunctions: Arc<metamodelica::List<Arc<MatchedFunction::MatchedFunction>>> = metamodelica::nil();
     let mut exactMatches: Arc<metamodelica::List<Arc<MatchedFunction::MatchedFunction>>> = metamodelica::nil();
     let mut r#fn: Arc<Function::Function> = Arc::new(<Function::Function as ::std::default::Default>::default());
-    let mut oop: Op = Op::ADD;
     args = list![Arc::new(TypedArg { name: None, value: exp1.clone(), ty: type1.clone(), var: var1.clone(), purity: Purity::PURE.clone() }), Arc::new(TypedArg { name: None, value: exp2.clone(), ty: type2.clone(), var: var2.clone(), purity: Purity::PURE.clone() })];
     matchedFunctions = Function::matchFunctionsSilent(candidates.clone(), args.clone(), metamodelica::nil(), context.clone(), info.clone(), true)?;
     exactMatches = MatchedFunction::getExactMatches(matchedFunctions.clone());
@@ -291,24 +289,24 @@ pub fn matchOverloadedBinaryOperator(mut exp1: Arc<Expression::NFExpression>, mu
         matchedFunc = __pa1.clone();
         r#fn = matchedFunc.func.clone();
         outType = Function::returnType(r#fn.clone());
-        outExp = Arc::new(Expression::NFExpression::CALL { call: Call::makeTypedCall(matchedFunc.func.clone(), {
+        outExp = Arc::new(Expression::NFExpression::CALL { call: Call::makeTypedCall(matchedFunc.func.clone(), ({
         let mut __acc: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
         for mut a in (matchedFunc.args.clone()).into_iter().cloned() {
             let __x = a.value.clone();
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, Prefixes::variabilityMax(var1.clone(), var2.clone()), Purity::PURE.clone(), outType.clone()) });
+    }), Prefixes::variabilityMax(var1.clone(), var2.clone()), Purity::PURE.clone(), outType.clone()) });
     } else {
         if showErrors.clone() {
-            Error::addSourceMessage(Error::AMBIGUOUS_MATCHING_OPERATOR_FUNCTIONS_NFINST.clone(), list![(Expression::toString(Arc::new(Expression::NFExpression::BINARY { exp1: exp1.clone(), operator: op.clone(), exp2: exp2.clone() }))?).clone(), (Function::candidateFuncListString({
+            Error::addSourceMessage(Error::AMBIGUOUS_MATCHING_OPERATOR_FUNCTIONS_NFINST.clone(), list![(Expression::toString(Arc::new(Expression::NFExpression::BINARY { exp1: exp1.clone(), operator: op.clone(), exp2: exp2.clone() }))?).clone(), (Function::candidateFuncListString(({
         let mut __acc: Arc<metamodelica::List<Arc<Function::Function>>> = metamodelica::nil();
         for mut mfn in (matchedFunctions.clone()).into_iter().cloned() {
             let __x = mfn.func.clone();
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    })).clone()], info.clone())?;
+    }))).clone()], info.clone())?;
         }
         bail!("fail");
     }
@@ -460,7 +458,6 @@ fn checkOverloadedBinaryArrayMul(mut exp1: Arc<Expression::NFExpression>, mut ty
     let mut dim11: Arc<Dimension::NFDimension> = Arc::new(Dimension::BOOLEAN);
     let mut dim12: Arc<Dimension::NFDimension> = Arc::new(Dimension::BOOLEAN);
     let mut dim21: Arc<Dimension::NFDimension> = Arc::new(Dimension::BOOLEAN);
-    let mut dim22: Arc<Dimension::NFDimension> = Arc::new(Dimension::BOOLEAN);
     dims1 = Type::arrayDims(type1.clone());
     dims2 = Type::arrayDims(type2.clone());
     (valid, outExp) = (::match_deref::match_deref! { match &((dims1.clone(), dims2.clone())) {
@@ -478,7 +475,7 @@ fn checkOverloadedBinaryArrayMul(mut exp1: Arc<Expression::NFExpression>, mut ty
             valid = false;
             (valid.clone(), outExp.clone())
         },
-        (Deref @ metamodelica::List::Cons { head: dim11, tail: Deref @ metamodelica::List::Cons { head: dim12, tail: Deref @ metamodelica::List::Nil } }, Deref @ metamodelica::List::Cons { head: dim21, tail: Deref @ metamodelica::List::Cons { head: dim22, tail: Deref @ metamodelica::List::Nil } }) => {
+        (Deref @ metamodelica::List::Cons { head: dim11, tail: Deref @ metamodelica::List::Cons { head: dim12, tail: Deref @ metamodelica::List::Nil } }, Deref @ metamodelica::List::Cons { head: dim21, tail: Deref @ metamodelica::List::Cons { head: _, tail: Deref @ metamodelica::List::Nil } }) => {
             valid = Dimension::isEqual(dim12.clone(), dim21.clone())?;
             outExp = Arc::new(Expression::NFExpression::BINARY { exp1: exp1.clone(), operator: op.clone(), exp2: exp2.clone() });
             valid = false;
@@ -504,7 +501,6 @@ fn checkOverloadedBinaryScalarArray(mut exp1: Arc<Expression::NFExpression>, mut
 fn checkOverloadedBinaryScalarArray2(mut exp1: Arc<Expression::NFExpression>, mut type1: Arc<Type::NFType>, mut var1: Variability, mut op: Arc<Operator::NFOperator>, mut exp2: Arc<Expression::NFExpression>, mut type2: Arc<Type::NFType>, mut var2: Variability, mut candidates: Arc<metamodelica::List<Arc<Function::Function>>>, mut context: i32, mut info: SourceInfo) -> Result<(Arc<Expression::NFExpression>, Arc<Type::NFType>)> {
     let mut outExp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut outType: Arc<Type::NFType> = Arc::new(Type::ANY);
-    let mut expl: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
     let mut ty: Arc<Type::NFType> = Arc::new(Type::ANY);
     let mut arr: metamodelica::Array<Arc<Expression::NFExpression>>;
     let mut e2: Arc<Expression::NFExpression> = Arc::new(Expression::END);
@@ -555,7 +551,6 @@ fn checkOverloadedBinaryArrayScalar2(mut exp1: Arc<Expression::NFExpression>, mu
     let mut outExp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut outType: Arc<Type::NFType> = Arc::new(Type::ANY);
     let mut e1: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-    let mut expl: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
     let mut ty: Arc<Type::NFType> = Arc::new(Type::ANY);
     let mut arr: metamodelica::Array<Arc<Expression::NFExpression>>;
     (outExp, outType) = (::match_deref::match_deref! { match &(exp1.clone()) {
@@ -611,7 +606,6 @@ fn checkOverloadedBinaryArrayEW(mut exp1: Arc<Expression::NFExpression>, mut typ
     let mut e1: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut e2: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut mk: MatchKind = MatchKind::EXACT;
-    let mut ty: Arc<Type::NFType> = Arc::new(Type::ANY);
     if Type::isArray(type1.clone()) && Type::isArray(type2.clone()) {
         (e1, e2, _, mk) = matchExpressions(exp1.clone(), type1.clone(), exp2.clone(), type2.clone(), ALLOW_UNKNOWN.clone())?;
     } else {
@@ -698,15 +692,10 @@ fn implicitConstructAndMatch(mut candidates: Arc<metamodelica::List<Arc<Function
     let mut inputs: Arc<metamodelica::List<Arc<InstNode::InstNode>>> = metamodelica::nil();
     let mut in1: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
     let mut in2: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
-    let mut scope: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
-    let mut mk1: MatchKind = MatchKind::EXACT;
-    let mut mk2: MatchKind = MatchKind::EXACT;
-    let mut fn_ref: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
     let mut operfn: Arc<Function::Function> = Arc::new(<Function::Function as ::std::default::Default>::default());
     let mut matchedfuncs: Arc<metamodelica::List<(Arc<Function::Function>, Arc<metamodelica::List<Arc<Expression::NFExpression>>>, Variability)>> = metamodelica::nil();
     let mut exp1: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut exp2: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-    let mut ty: Arc<Type::NFType> = Arc::new(Type::ANY);
     let mut arg1_ty: Arc<Type::NFType> = Arc::new(Type::ANY);
     let mut arg2_ty: Arc<Type::NFType> = Arc::new(Type::ANY);
     let mut var: Variability = Variability::CONSTANT;
@@ -748,14 +737,14 @@ fn implicitConstructAndMatch(mut candidates: Arc<metamodelica::List<Arc<Function
         outType = Function::returnType(operfn.clone());
         outExp = Arc::new(Expression::NFExpression::CALL { call: Call::makeTypedCall(operfn.clone(), list![exp1.clone(), exp2.clone()], var.clone(), Purity::PURE.clone(), outType.clone()) });
     } else {
-        Error::addSourceMessage(Error::AMBIGUOUS_MATCHING_OPERATOR_FUNCTIONS_NFINST.clone(), list![(Expression::toString(Arc::new(Expression::NFExpression::BINARY { exp1: exp1.clone(), operator: op.clone(), exp2: exp2.clone() }))?).clone(), (Function::candidateFuncListString({
+        Error::addSourceMessage(Error::AMBIGUOUS_MATCHING_OPERATOR_FUNCTIONS_NFINST.clone(), list![(Expression::toString(Arc::new(Expression::NFExpression::BINARY { exp1: exp1.clone(), operator: op.clone(), exp2: exp2.clone() }))?).clone(), (Function::candidateFuncListString(({
         let mut __acc: Arc<metamodelica::List<Arc<Function::Function>>> = metamodelica::nil();
         for mut r#fn in (matchedfuncs.clone()).into_iter().cloned() {
             let __x = Util::tuple31(r#fn.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    })).clone()], info.clone())?;
+    }))).clone()], info.clone())?;
         bail!("fail");
     }
     Ok((outExp, outType))
@@ -1041,11 +1030,10 @@ fn checkBinaryOperationEW(mut exp1: Arc<Expression::NFExpression>, mut type1: Ar
 pub fn checkUnaryOperation(mut exp1: Arc<Expression::NFExpression>, mut type1: Arc<Type::NFType>, mut var1: Variability, mut operator: Arc<Operator::NFOperator>, mut context: i32, mut info: SourceInfo) -> Result<(Arc<Expression::NFExpression>, Arc<Type::NFType>)> {
     let mut unaryExp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut unaryType: Arc<Type::NFType> = Arc::new(Type::ANY);
-    let mut valid: bool = true;
     let mut op: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
     if Type::isComplex(Type::arrayElementType(type1.clone())) {
         (unaryExp, unaryType) = checkOverloadedUnaryOperator(exp1.clone(), type1.clone(), var1.clone(), operator.clone(), context.clone(), info.clone())?;
-        return Ok((unaryExp, unaryType));
+        return Ok((unaryExp.clone(), unaryType.clone()));
     }
     unaryType = type1.clone();
     op = Operator::setType(unaryType.clone(), operator.clone());
@@ -1063,14 +1051,8 @@ pub fn checkOverloadedUnaryOperator(mut inExp1: Arc<Expression::NFExpression>, m
     let mut outExp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut outType: Arc<Type::NFType> = Arc::new(Type::ANY);
     let mut opstr: ArcStr = arcstr::literal!("");
-    let mut operfn: Arc<Function::Function> = Arc::new(<Function::Function as ::std::default::Default>::default());
-    let mut node1: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
-    let mut fn_node: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
-    let mut fn_ref: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
     let mut candidates: Arc<metamodelica::List<Arc<Function::Function>>> = metamodelica::nil();
-    let mut matched: bool = false;
     let mut args: Arc<metamodelica::List<Arc<TypedArg>>> = metamodelica::nil();
-    let mut matchKind: Arc<FunctionMatchKind::FunctionMatchKind> = Arc::new(FunctionMatchKind::CAST);
     let mut matchedFunc: Arc<MatchedFunction::MatchedFunction> = Arc::new(<MatchedFunction::MatchedFunction as ::std::default::Default>::default());
     let mut matchedFunctions: Arc<metamodelica::List<Arc<MatchedFunction::MatchedFunction>>> = metamodelica::nil();
     let mut exactMatches: Arc<metamodelica::List<Arc<MatchedFunction::MatchedFunction>>> = metamodelica::nil();
@@ -1090,23 +1072,23 @@ pub fn checkOverloadedUnaryOperator(mut inExp1: Arc<Expression::NFExpression>, m
         } };
         matchedFunc = __pa0.clone();
         outType = Function::returnType(matchedFunc.func.clone());
-        outExp = Arc::new(Expression::NFExpression::CALL { call: Call::makeTypedCall(matchedFunc.func.clone(), {
+        outExp = Arc::new(Expression::NFExpression::CALL { call: Call::makeTypedCall(matchedFunc.func.clone(), ({
         let mut __acc: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
         for mut a in (matchedFunc.args.clone()).into_iter().cloned() {
             let __x = a.value.clone();
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, var.clone(), Purity::PURE.clone(), outType.clone()) });
+    }), var.clone(), Purity::PURE.clone(), outType.clone()) });
     } else {
-        Error::addSourceMessage(Error::AMBIGUOUS_MATCHING_OPERATOR_FUNCTIONS_NFINST.clone(), list![(Expression::toString(Arc::new(Expression::NFExpression::UNARY { operator: inOp.clone(), exp: inExp1.clone() }))?).clone(), (Function::candidateFuncListString({
+        Error::addSourceMessage(Error::AMBIGUOUS_MATCHING_OPERATOR_FUNCTIONS_NFINST.clone(), list![(Expression::toString(Arc::new(Expression::NFExpression::UNARY { operator: inOp.clone(), exp: inExp1.clone() }))?).clone(), (Function::candidateFuncListString(({
         let mut __acc: Arc<metamodelica::List<Arc<Function::Function>>> = metamodelica::nil();
         for mut mfn in (matchedFunctions.clone()).into_iter().cloned() {
             let __x = mfn.func.clone();
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    })).clone()], info.clone())?;
+    }))).clone()], info.clone())?;
         bail!("fail");
     }
     outExp = Inline::inlineCallExp(outExp.clone(), false)?;
@@ -1121,7 +1103,7 @@ pub fn checkLogicalBinaryOperation(mut exp1: Arc<Expression::NFExpression>, mut 
     let mut mk: MatchKind = MatchKind::EXACT;
     if Type::isComplex(Type::arrayElementType(type1.clone())) || Type::isComplex(Type::arrayElementType(type2.clone())) {
         (outExp, resultType) = checkOverloadedBinaryOperator(exp1.clone(), type1.clone(), var1.clone(), operator.clone(), exp2.clone(), type2.clone(), var2.clone(), context.clone(), info.clone())?;
-        return Ok((outExp, resultType));
+        return Ok((outExp.clone(), resultType.clone()));
     }
     (e1, e2, resultType, mk) = matchExpressions(exp1.clone(), type1.clone(), exp2.clone(), type2.clone(), ALLOW_UNKNOWN.clone())?;
     outExp = Arc::new(Expression::NFExpression::LBINARY { exp1: e1.clone(), operator: Operator::setType(resultType.clone(), operator.clone()), exp2: e2.clone() });
@@ -1134,12 +1116,9 @@ pub fn checkLogicalBinaryOperation(mut exp1: Arc<Expression::NFExpression>, mut 
 pub fn checkLogicalUnaryOperation(mut exp1: Arc<Expression::NFExpression>, mut type1: Arc<Type::NFType>, mut var1: Variability, mut operator: Arc<Operator::NFOperator>, mut context: i32, mut info: SourceInfo) -> Result<(Arc<Expression::NFExpression>, Arc<Type::NFType>)> {
     let mut outExp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut resultType: Arc<Type::NFType> = type1.clone();
-    let mut e1: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-    let mut e2: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-    let mut mk: MatchKind = MatchKind::EXACT;
     if Type::isComplex(Type::arrayElementType(type1.clone())) {
         (outExp, resultType) = checkOverloadedUnaryOperator(exp1.clone(), type1.clone(), var1.clone(), operator.clone(), context.clone(), info.clone())?;
-        return Ok((outExp, resultType));
+        return Ok((outExp.clone(), resultType.clone()));
     }
     outExp = Arc::new(Expression::NFExpression::LUNARY { operator: Operator::setType(type1.clone(), operator.clone()), exp: exp1.clone() });
     if !(Type::isBoolean(Type::arrayElementType(type1.clone()))) {
@@ -1159,7 +1138,7 @@ pub fn checkRelationOperation(mut exp1: Arc<Expression::NFExpression>, mut type1
     let mut o: Op = Op::ADD;
     if Type::isComplex(Type::arrayElementType(type1.clone())) || Type::isComplex(Type::arrayElementType(type2.clone())) {
         (outExp, resultType) = checkOverloadedBinaryOperator(exp1.clone(), type1.clone(), var1.clone(), operator.clone(), exp2.clone(), type2.clone(), var2.clone(), context.clone(), info.clone())?;
-        return Ok((outExp, resultType));
+        return Ok((outExp.clone(), resultType.clone()));
     }
     (e1, e2, ty, mk) = matchExpressions(exp1.clone(), type1.clone(), exp2.clone(), type2.clone(), DEFAULT_OPTIONS.clone())?;
     valid = isCompatibleMatch(mk.clone());
@@ -1206,11 +1185,11 @@ pub fn matchExpressions(mut exp1: Arc<Expression::NFExpression>, mut type1: Arc<
     if referenceEq(&type1.clone(),&type2.clone()) {
         compatibleType = type1.clone();
         matchKind = MatchKind::EXACT.clone();
-        return Ok((exp1, exp2, compatibleType, matchKind));
+        return Ok((exp1.clone(), exp2.clone(), compatibleType.clone(), matchKind.clone()));
     }
     if metamodelica::valueConstructor((&*type1.clone()))? != metamodelica::valueConstructor((&*type2.clone()))? {
         (exp1, exp2, compatibleType, matchKind) = matchExpressions_cast(exp1.clone(), type1.clone(), exp2.clone(), type2.clone(), options.clone())?;
-        return Ok((exp1, exp2, compatibleType, matchKind));
+        return Ok((exp1.clone(), exp2.clone(), compatibleType.clone(), matchKind.clone()));
     }
     matchKind = MatchKind::EXACT.clone();
     compatibleType = (::match_deref::match_deref! { match &(type1.clone()) {
@@ -1259,11 +1238,11 @@ pub fn matchTypes(mut actualType: Arc<Type::NFType>, mut expectedType: Arc<Type:
     if referenceEq(&actualType.clone(),&expectedType.clone()) {
         compatibleType = actualType.clone();
         matchKind = MatchKind::EXACT.clone();
-        return Ok((expression, compatibleType, matchKind));
+        return Ok((expression.clone(), compatibleType.clone(), matchKind.clone()));
     }
     if metamodelica::valueConstructor((&*actualType.clone()))? != metamodelica::valueConstructor((&*expectedType.clone()))? {
         (expression, compatibleType, matchKind) = matchTypes_cast(actualType.clone(), expectedType.clone(), expression.clone(), options.clone())?;
-        return Ok((expression, compatibleType, matchKind));
+        return Ok((expression.clone(), compatibleType.clone(), matchKind.clone()));
     }
     matchKind = MatchKind::EXACT.clone();
     compatibleType = (::match_deref::match_deref! { match &(actualType.clone()) {
@@ -1406,18 +1385,12 @@ pub fn matchComplexTypes(mut actualType: Arc<Type::NFType>, mut expectedType: Ar
     let mut enode: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
     let mut comps1: metamodelica::Array<Arc<InstNode::InstNode>>;
     let mut comps2: metamodelica::Array<Arc<InstNode::InstNode>>;
-    let mut path: Arc<Absyn::Path>;
     let mut ty: Arc<Type::NFType> = Arc::new(Type::ANY);
     let mut cty1: Arc<ComplexType::NFComplexType> = Arc::new(ComplexType::CLASS);
     let mut cty2: Arc<ComplexType::NFComplexType> = Arc::new(ComplexType::CLASS);
-    let mut e: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut matched_elements: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
     let mut elem_arr: metamodelica::Array<Arc<Expression::NFExpression>>;
-    let mut mk: MatchKind = MatchKind::EXACT;
-    let mut comp1: Arc<Component::NFComponent> = Arc::new(Component::WILD);
-    let mut comp2: Arc<Component::NFComponent> = Arc::new(Component::WILD);
     let mut opt: MatchOptions = options.clone();
-    let mut idx: i32 = 0;
     let mut dims: Arc<metamodelica::List<Arc<Dimension::NFDimension>>> = metamodelica::nil();
     let __pa0 = ::match_deref::match_deref! { match &(actualType.clone()) {
         Deref @ Type::COMPLEX { cls: __pa0, .. } => __pa0.clone(),
@@ -1431,15 +1404,15 @@ pub fn matchComplexTypes(mut actualType: Arc<Type::NFType>, mut expectedType: Ar
     enode = __pa1.clone();
     if InstNode::isSame(anode.clone(), enode.clone()) {
         matchKind = MatchKind::EXACT.clone();
-        return Ok((expression, compatibleType, matchKind));
+        return Ok((expression.clone(), compatibleType.clone(), matchKind.clone()));
     }
     cls1 = InstNode::getClass(anode.clone())?;
     cls2 = InstNode::getClass(enode.clone())?;
     if getOption(opt.clone(), IGNORE_DIMENSIONS_IN_RECORDS.clone()) {
         opt = setOption(opt.clone(), IGNORE_DIMENSIONS.clone());
     }
-    let () = (::match_deref::match_deref! { match &((cls1.clone(), actualType.clone(), cls2.clone(), expectedType.clone(), expression.clone())) {
-        (_, Deref @ Type::COMPLEX { complexTy: cty1 @ Deref @ ComplexType::CONNECTOR { .. }, .. }, _, Deref @ Type::COMPLEX { complexTy: cty2 @ Deref @ ComplexType::CONNECTOR { .. }, .. }, _) => {
+    let () = (::match_deref::match_deref! { match &((cls1.clone(), actualType.clone(), cls2.clone(), expectedType.clone())) {
+        (_, Deref @ Type::COMPLEX { complexTy: cty1 @ Deref @ ComplexType::CONNECTOR { .. }, .. }, _, Deref @ Type::COMPLEX { complexTy: cty2 @ Deref @ ComplexType::CONNECTOR { .. }, .. }) => {
             matchKind = matchComponentList(var_field!((**cty1).potentials, ComplexType::NFComplexType::CONNECTOR).clone(), var_field!((**cty2).potentials, ComplexType::NFComplexType::CONNECTOR).clone(), options.clone())?;
             if matchKind.clone() != MatchKind::NOT_COMPATIBLE.clone() {
                 matchKind = matchComponentList(var_field!((**cty1).flows, ComplexType::NFComplexType::CONNECTOR).clone(), var_field!((**cty2).flows, ComplexType::NFComplexType::CONNECTOR).clone(), options.clone())?;
@@ -1452,10 +1425,10 @@ pub fn matchComplexTypes(mut actualType: Arc<Type::NFType>, mut expectedType: Ar
             }
             ()
         },
-        (Deref @ Class::INSTANCED_CLASS { elements: ctree @ Deref @ ClassTree::FLAT_TREE { components: comps1, .. }, .. }, _, Deref @ Class::INSTANCED_CLASS { elements: Deref @ ClassTree::FLAT_TREE { components: comps2, .. }, .. }, _, _) => {
+        (Deref @ Class::INSTANCED_CLASS { elements: ctree @ Deref @ ClassTree::FLAT_TREE { components: comps1, .. }, .. }, _, Deref @ Class::INSTANCED_CLASS { elements: Deref @ ClassTree::FLAT_TREE { components: comps2, .. }, .. }, _) => {
             if (comps1.clone().borrow().len() as i32) != (comps2.clone().borrow().len() as i32) {
                 matchKind = MatchKind::NOT_COMPATIBLE.clone();
-                return Ok((expression, compatibleType, matchKind));
+                return Ok((expression.clone(), compatibleType.clone(), matchKind.clone()));
             }
             matchKind = MatchKind::PLUG_COMPATIBLE.clone();
             elem_arr = (::match_deref::match_deref! { match &(expression.clone()) {
@@ -1503,7 +1476,7 @@ pub fn matchComplexComponents(mut actualComponents: metamodelica::Array<Arc<Inst
     let mut mk: MatchKind = MatchKind::EXACT;
     if (actualComponents.clone().borrow().len() as i32) != (expectedComponents.clone().borrow().len() as i32) || (actualComponents.clone().borrow().len() as i32) != (expressions.clone().borrow().len() as i32) {
         matchKind = MatchKind::NOT_COMPATIBLE.clone();
-        return Ok((matchedExpressions, matchKind));
+        return Ok((matchedExpressions.clone(), matchKind.clone()));
     }
     let __range0 = 1..=(actualComponents.clone().borrow().len() as i32);
     for mut i in __range0 {
@@ -1517,7 +1490,7 @@ pub fn matchComplexComponents(mut actualComponents: metamodelica::Array<Arc<Inst
                 idx = __iflet1;
             } else {
                 matchKind = MatchKind::NOT_COMPATIBLE.clone();
-                return Ok((matchedExpressions, matchKind));
+                return Ok((matchedExpressions.clone(), matchKind.clone()));
             }
             anode = actualComponents.borrow()[(idx.clone()-1) as usize].clone();
         }
@@ -1569,22 +1542,22 @@ pub fn typeCastRecord(mut expressions: Arc<metamodelica::List<Arc<Expression::NF
             subs = cons(sub.clone(), subs.clone());
             i = i.clone() + 1;
         }
-        expression = Arc::new(Expression::NFExpression::RECORD { path: InstNode::scopePath(node.clone(), InstNode::ScopeType::RELATIVE.clone(), false)?, ty: expectedType.clone(), elements: {
+        expression = Arc::new(Expression::NFExpression::RECORD { path: InstNode::scopePath(node.clone(), InstNode::ScopeType::RELATIVE.clone(), false)?, ty: expectedType.clone(), elements: ({
         let mut __acc: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
         for mut e in (expressions.clone()).into_iter().cloned() {
             let __x = Expression::applySubscripts(subs.clone(), e.clone(), false)?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    } });
-        expression = Arc::new(Expression::NFExpression::CALL { call: Arc::new(Call::NFCall::TYPED_ARRAY_CONSTRUCTOR { ty: ty.clone(), var: Expression::variability(expression.clone())?, purity: Expression::purity(expression.clone())?, exp: expression.clone(), iters: {
+    }) });
+        expression = Arc::new(Expression::NFExpression::CALL { call: Arc::new(Call::NFCall::TYPED_ARRAY_CONSTRUCTOR { ty: ty.clone(), var: Expression::variability(expression.clone())?, purity: Expression::purity(expression.clone())?, exp: expression.clone(), iters: ({
         let mut __acc: Arc<metamodelica::List<(Arc<InstNode::InstNode>, Arc<Expression::NFExpression>)>> = metamodelica::nil();
         for (i, r) in (&(iters.clone())).into_iter().zip((&(ranges.clone())).into_iter()) {
             let __x = (i.clone(), r.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    } }) });
+    }) }) });
     } else {
         expression = Arc::new(Expression::NFExpression::RECORD { path: InstNode::scopePath(node.clone(), InstNode::ScopeType::RELATIVE.clone(), false)?, ty: expectedType.clone(), elements: expressions.clone() });
     }
@@ -1609,11 +1582,11 @@ pub fn matchComponentList(mut comps1: Arc<metamodelica::List<Arc<InstNode::InstN
             rest_c2 = __pa1.clone();
             if InstNode::name(c1.clone())? != InstNode::name(c2.clone())? {
                 matchKind = MatchKind::NOT_COMPATIBLE.clone();
-                return Ok(matchKind);
+                return Ok(matchKind.clone());
             }
             (_, _, matchKind) = matchTypes(InstNode::getType(c1.clone())?, InstNode::getType(c2.clone())?, dummy.clone(), options.clone())?;
             if matchKind.clone() == MatchKind::NOT_COMPATIBLE.clone() {
-                return Ok(matchKind);
+                return Ok(matchKind.clone());
             }
         }
     }
@@ -1627,16 +1600,12 @@ pub fn matchFunctionTypes(mut actualType: Arc<Type::NFType>, mut expectedType: A
     let mut matchKind: MatchKind = MatchKind::EXACT.clone();
     let mut inputs1: Arc<metamodelica::List<Arc<InstNode::InstNode>>> = metamodelica::nil();
     let mut inputs2: Arc<metamodelica::List<Arc<InstNode::InstNode>>> = metamodelica::nil();
-    let mut remaining_inputs: Arc<metamodelica::List<Arc<InstNode::InstNode>>> = metamodelica::nil();
     let mut outputs1: Arc<metamodelica::List<Arc<InstNode::InstNode>>> = metamodelica::nil();
     let mut outputs2: Arc<metamodelica::List<Arc<InstNode::InstNode>>> = metamodelica::nil();
     let mut slots1: Arc<metamodelica::List<Arc<Slot::Slot>>> = metamodelica::nil();
     let mut slots2: Arc<metamodelica::List<Arc<Slot::Slot>>> = metamodelica::nil();
-    let mut input2: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
-    let mut output2: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
     let mut slot1: Arc<Slot::Slot> = Arc::new(<Slot::Slot as ::std::default::Default>::default());
     let mut slot2: Arc<Slot::Slot> = Arc::new(<Slot::Slot as ::std::default::Default>::default());
-    let mut matching: bool = false;
     let (__pa0, __pa1, __pa2) = ::match_deref::match_deref! { match &(actualType.clone()) {
         Deref @ Type::FUNCTION { r#fn: Deref @ Function::FUNCTION { slots: __pa0, outputs: __pa1, inputs: __pa2, .. }, .. } => (__pa0.clone(), __pa1.clone(), __pa2.clone()),
         _ => bail!("pattern mismatch"),
@@ -1653,15 +1622,15 @@ pub fn matchFunctionTypes(mut actualType: Arc<Type::NFType>, mut expectedType: A
     inputs2 = __pa6.clone();
     if (outputs1.clone().len() as i32) != (outputs2.clone().len() as i32) {
         matchKind = MatchKind::NOT_COMPATIBLE.clone();
-        return Ok((expression, compatibleType, matchKind));
+        return Ok((expression.clone(), compatibleType.clone(), matchKind.clone()));
     }
     if !(matchFunctionParameters(outputs1.clone(), outputs2.clone(), options.clone())?) {
         matchKind = MatchKind::NOT_COMPATIBLE.clone();
-        return Ok((expression, compatibleType, matchKind));
+        return Ok((expression.clone(), compatibleType.clone(), matchKind.clone()));
     }
     if !(matchFunctionParameters(inputs1.clone(), inputs2.clone(), options.clone())?) {
         matchKind = MatchKind::NOT_COMPATIBLE.clone();
-        return Ok((expression, compatibleType, matchKind));
+        return Ok((expression.clone(), compatibleType.clone(), matchKind.clone()));
     }
     for mut i in &*inputs2.clone() {
         let mut i = i.clone();
@@ -1679,14 +1648,14 @@ pub fn matchFunctionTypes(mut actualType: Arc<Type::NFType>, mut expectedType: A
         slots2 = __pa11.clone();
         if isSome(slot2.default.clone()) && isNone(slot1.default.clone()) {
             matchKind = MatchKind::NOT_COMPATIBLE.clone();
-            return Ok((expression, compatibleType, matchKind));
+            return Ok((expression.clone(), compatibleType.clone(), matchKind.clone()));
         }
     }
     for mut slot in &*slots1.clone() {
         let mut slot = slot.clone();
         if isNone(slot.default.clone()) {
             matchKind = MatchKind::NOT_COMPATIBLE.clone();
-            return Ok((expression, compatibleType, matchKind));
+            return Ok((expression.clone(), compatibleType.clone(), matchKind.clone()));
         }
     }
     Ok((expression, compatibleType, matchKind))
@@ -1801,11 +1770,11 @@ pub fn matchArrayDims(mut dims1: Arc<metamodelica::List<Arc<Dimension::NFDimensi
     let mut dim2: Arc<Dimension::NFDimension> = Arc::new(Dimension::BOOLEAN);
     let mut compat: bool = false;
     if !(isCompatibleMatch(matchKind.clone())) {
-        return Ok((ty, matchKind));
+        return Ok((ty.clone(), matchKind.clone()));
     }
     if (dims1.clone().len() as i32) != (dims2.clone().len() as i32) {
         matchKind = MatchKind::NOT_COMPATIBLE.clone();
-        return Ok((ty, matchKind));
+        return Ok((ty.clone(), matchKind.clone()));
     }
     for mut dim1 in &*dims1.clone() {
         let mut dim1 = dim1.clone();
@@ -1869,7 +1838,7 @@ pub fn matchTupleTypes(mut tupleType1: Arc<Type::NFType>, mut tupleType2: Arc<Ty
     tyl2 = __pa1.clone();
     if (tyl1.clone().len() as i32) < (tyl2.clone().len() as i32) {
         matchKind = MatchKind::NOT_COMPATIBLE.clone();
-        return Ok((expression, compatibleType, matchKind));
+        return Ok((expression.clone(), compatibleType.clone(), matchKind.clone()));
     }
     for mut ty2 in &*tyl2.clone() {
         let mut ty2 = ty2.clone();
@@ -2001,12 +1970,12 @@ pub fn matchConditionalArrayTypes(mut actualType: Arc<Type::NFType>, mut expecte
             (true_exp, true_ty, matchKind) = matchTypes(actual_true_ty.clone(), expected_true_ty.clone(), var_field!((*exp).trueBranch, Expression::NFExpression::IF).clone(), options.clone())?;
             if !(isCompatibleMatch(matchKind.clone())) {
                 compatibleType = actualType.clone();
-                return Ok((exp, compatibleType, matchKind));
+                return Ok((exp.clone(), compatibleType.clone(), matchKind.clone()));
             }
             (false_exp, false_ty, matchKind) = matchTypes(actual_false_ty.clone(), expected_false_ty.clone(), var_field!((*exp).falseBranch, Expression::NFExpression::IF).clone(), options.clone())?;
             if !(isCompatibleMatch(matchKind.clone())) {
                 compatibleType = actualType.clone();
-                return Ok((exp, compatibleType, matchKind));
+                return Ok((exp.clone(), compatibleType.clone(), matchKind.clone()));
             }
             compatibleType = Arc::new(Type::NFType::CONDITIONAL_ARRAY { trueType: true_ty.clone(), falseType: false_ty.clone(), matchedBranch: Type::Branch::NONE.clone() });
             exp = Arc::new(Expression::NFExpression::IF { ty: compatibleType.clone(), condition: var_field!((*exp).condition, Expression::NFExpression::IF).clone(), trueBranch: true_exp.clone(), falseBranch: false_exp.clone() });
@@ -2172,7 +2141,6 @@ pub fn matchPolymorphic(mut polymorphicName: ArcStr, mut actualType: Arc<Type::N
 
 pub fn getRangeType(mut startExp: Arc<Expression::NFExpression>, mut stepExp: Option<Arc<Expression::NFExpression>>, mut stopExp: Arc<Expression::NFExpression>, mut rangeElemType: Arc<Type::NFType>, mut info: SourceInfo) -> Result<Arc<Type::NFType>> {
     let mut rangeType: Arc<Type::NFType> = Arc::new(Type::ANY);
-    let mut step_exp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut dim: Arc<Dimension::NFDimension> = Arc::new(Dimension::BOOLEAN);
     dim = (::match_deref::match_deref! { match &(rangeElemType.clone()) {
         Deref @ Type::INTEGER => getRangeTypeInt(startExp.clone(), stepExp.clone(), stopExp.clone(), info.clone())?,
@@ -2368,7 +2336,7 @@ pub fn matchBinding(mut binding: Arc<Binding::NFBinding>, mut componentType: Arc
                     bail!("fail");
                 }
             } else if isCastMatch(ty_match.clone()) {
-                binding = Arc::new(Binding::NFBinding::TYPED_BINDING { bindingExp: exp.clone(), bindingType: ty.clone(), variability: var_field!((*binding).variability, Binding::NFBinding::TYPED_BINDING).clone(), purity: var_field!((*binding).purity, Binding::NFBinding::TYPED_BINDING).clone(), eachType: var_field!((*binding).eachType, Binding::NFBinding::TYPED_BINDING).clone(), evalState: var_field!((*binding).evalState, Binding::NFBinding::TYPED_BINDING).clone(), isFlattened: var_field!((*binding).isFlattened, Binding::NFBinding::TYPED_BINDING).clone(), source: var_field!((*binding).source, Binding::NFBinding::TYPED_BINDING).clone(), info: var_field!((*binding).info, Binding::NFBinding::TYPED_BINDING).clone() });
+                binding = Arc::new(Binding::NFBinding::TYPED_BINDING { bindingExp: exp.clone(), bindingType: ty.clone(), variability: var_field!((*binding).variability, Binding::NFBinding::TYPED_BINDING).clone(), purity: var_field!((*binding).purity, Binding::NFBinding::TYPED_BINDING).clone(), eachType: var_field!((*binding).eachType, Binding::NFBinding::TYPED_BINDING).clone(), evalState: var_field!((*binding).evalState, Binding::NFBinding::TYPED_BINDING).clone(), isFlattened: var_field!((*binding).isFlattened, Binding::NFBinding::TYPED_BINDING).clone(), source: var_field!((*binding).source, Binding::NFBinding::TYPED_BINDING).clone(), confidence: var_field!((*binding).confidence, Binding::NFBinding::TYPED_BINDING).clone(), info: var_field!((*binding).info, Binding::NFBinding::TYPED_BINDING).clone() });
             }
             ()
         },
@@ -2451,8 +2419,6 @@ pub fn elaborateBindingType(mut bindingExp: Arc<Expression::NFExpression>, mut c
 pub fn printBindingTypeError(mut name: ArcStr, mut binding: Arc<Binding::NFBinding>, mut componentType: Arc<Type::NFType>, mut bindingType: Arc<Type::NFType>, mut component: Arc<InstNode::InstNode>, mut context: i32) -> Result<()> {
     let mut binding_info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
     let mut comp_info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
-    let mut bind_ty_str: ArcStr = arcstr::literal!("");
-    let mut comp_ty_str: ArcStr = arcstr::literal!("");
     let mut mk: MatchKind = MatchKind::EXACT;
     binding_info = Binding::getInfo(binding.clone());
     comp_info = InstNode::info(component.clone())?;
@@ -2487,7 +2453,6 @@ pub fn checkDimensionType(mut exp: Arc<Expression::NFExpression>, mut ty: Arc<Ty
 }
 
 pub fn checkReductionType(mut ty: Arc<Type::NFType>, mut name: Arc<Absyn::Path>, mut exp: Arc<Expression::NFExpression>, mut info: SourceInfo) -> Result<()> {
-    let mut ety: Arc<Type::NFType> = Arc::new(Type::ANY);
     let mut err: ArcStr = arcstr::literal!("");
     err = ((::match_deref::match_deref! { match &(name.clone()) {
         Deref @ Absyn::Path::IDENT { name: Deref @ "sum" } => (::match_deref::match_deref! { match &(Type::arrayElementType(ty.clone())) {
@@ -2558,7 +2523,7 @@ pub fn matchIfBranches(mut trueBranch: Arc<Expression::NFExpression>, mut trueTy
         (Deref @ Type::ARRAY { .. }, Deref @ Type::ARRAY { .. }) => {
             (trueBranch, falseBranch, compatibleType, matchKind) = matchExpressions(trueBranch.clone(), var_field!((*trueType).elementType, Type::NFType::ARRAY).clone(), falseBranch.clone(), var_field!((*falseType).elementType, Type::NFType::ARRAY).clone(), options.clone())?;
             if isIncompatibleMatch(matchKind.clone()) {
-                return Ok((trueBranch, falseBranch, compatibleType, matchKind));
+                return Ok((trueBranch.clone(), falseBranch.clone(), compatibleType.clone(), matchKind.clone()));
             }
             (compatibleType, matchKind) = matchArrayDims(var_field!((*trueType).dimensions, Type::NFType::ARRAY).clone(), var_field!((*falseType).dimensions, Type::NFType::ARRAY).clone(), compatibleType.clone(), matchKind.clone(), options.clone())?;
             if isIncompatibleMatch(matchKind.clone()) && (var_field!((*trueType).dimensions, Type::NFType::ARRAY).clone().len() as i32) == (var_field!((*falseType).dimensions, Type::NFType::ARRAY).clone().len() as i32) {
@@ -2570,7 +2535,7 @@ pub fn matchIfBranches(mut trueBranch: Arc<Expression::NFExpression>, mut trueTy
         (_, _) if (Type::isConditionalArray(trueType.clone()) || Type::isConditionalArray(falseType.clone())) => {
             (trueBranch, falseBranch, compatibleType, matchKind) = matchExpressions(trueBranch.clone(), Type::arrayElementType(trueType.clone()), falseBranch.clone(), Type::arrayElementType(falseType.clone()), options.clone())?;
             if isIncompatibleMatch(matchKind.clone()) {
-                return Ok((trueBranch, falseBranch, compatibleType, matchKind));
+                return Ok((trueBranch.clone(), falseBranch.clone(), compatibleType.clone(), matchKind.clone()));
             }
             compatibleType = Arc::new(Type::NFType::CONDITIONAL_ARRAY { trueType: Type::copyElementType(trueType.clone(), compatibleType.clone()), falseType: Type::copyElementType(falseType.clone(), compatibleType.clone()), matchedBranch: Type::Branch::NONE.clone() });
             (compatibleType.clone(), matchKind.clone())

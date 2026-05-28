@@ -108,11 +108,11 @@ pub fn next(mut inVisited: Visited) -> Result<(Visited, Next)> {
 pub fn visited(mut inVisited: Visited, mut inRef: Ref) -> Result<bool> {
     let mut b: bool = false;
     b = 'mc: {
-        let __mc_input = (inVisited.clone(), inRef.clone());
+        let __mc_input = inVisited.clone();
         if let Ok(__v) = (|| -> Result<_> {
-            let (FCore::Visited { tree: ref a, .. }, _) = __mc_input.clone() else { bail!("nomatch") };
-            let _ = FNode::id(FNode::fromRef(inRef.clone())?)?;
-            let _ = avlTreeGet(a.clone(), FNode::id(FNode::fromRef(inRef.clone())?)?)?;
+            let FCore::Visited { tree: ref a, .. } = __mc_input.clone() else { bail!("nomatch") };
+            FNode::id(FNode::fromRef(inRef.clone())?)?;
+            avlTreeGet(a.clone(), FNode::id(FNode::fromRef(inRef.clone())?)?)?;
             Ok(true)
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
@@ -148,17 +148,17 @@ pub fn tree(mut v: Visited) -> Result<AvlTree> {
 pub fn visit(mut inVisited: Visited, mut inRef: Ref) -> Result<Visited> {
     let mut outVisited: Visited = <FCore::Visited as ::std::default::Default>::default();
     outVisited = 'mc: {
-        let __mc_input = (inVisited.clone(), inRef.clone());
+        let __mc_input = inVisited.clone();
         if let Ok(__v) = (|| -> Result<_> {
-            let (_, _) = __mc_input.clone() else { bail!("nomatch") };
+            let _ = __mc_input.clone() else { bail!("nomatch") };
             let mut v: Visit = <FCore::Visit as ::std::default::Default>::default();
-            let _ = FNode::id(FNode::fromRef(inRef.clone())?)?;
+            FNode::id(FNode::fromRef(inRef.clone())?)?;
             v = avlTreeGet(tree(inVisited.clone())?, FNode::id(FNode::fromRef(inRef.clone())?)?)?;
             println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Already visited: ")); __mm_s.push_str(&*FNode::toStr(FNode::fromRef(inRef.clone())?)?); __mm_s.push_str(&*literal!(" seq: ")); __mm_s.push_str(&*intString(seq(v.clone())?)); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
             Ok(bail!("fail"))
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
-            let (FCore::Visited { tree: ref a, next: _ }, _) = __mc_input.clone() else { bail!("nomatch") };
+            let FCore::Visited { tree: ref a, next: _ } = __mc_input.clone() else { bail!("nomatch") };
             let mut s: Seq = 0;
             let mut n: Next = 0;
             let mut id: Id = 0;
@@ -166,7 +166,7 @@ pub fn visit(mut inVisited: Visited, mut inRef: Ref) -> Result<Visited> {
             let mut outVisited: FCore::Visited = outVisited.clone();
             id = FNode::id(FNode::fromRef(inRef.clone())?)?;
             if '__try0: {
-                let _ = unwrap_break_err!(avlTreeGet(tree(inVisited.clone())?, id.clone()), '__try0);
+                unwrap_break_err!(avlTreeGet(tree(inVisited.clone())?, id.clone()), '__try0);
                 Ok::<(), anyhow::Error>(())
             }.is_ok() { bail!("failure(): body succeeded") }
             let (FCore::V { next: __pa1, .. }, __pa2) = (next(inVisited.clone())?) else { bail!("pattern mismatch") };
@@ -396,8 +396,8 @@ fn doBalance4(mut inBt: AvlTree) -> Result<AvlTree> {
 
 fn setRight(mut node: AvlTree, mut right: Option<Arc<FCore::VAvlTree>>) -> Result<AvlTree> {
     let mut outNode: AvlTree = Arc::new(<FCore::VAvlTree as ::std::default::Default>::default());
-    outNode = (::match_deref::match_deref! { match &((node.clone(), right.clone())) {
-        (Deref @ FCore::VAvlTree { value, height, left: l, right: _ }, _) => {
+    outNode = (::match_deref::match_deref! { match &(node.clone()) {
+        Deref @ FCore::VAvlTree { value, height, left: l, right: _ } => {
             Arc::new(FCore::VAvlTree { value: value.clone(), height: height.clone(), left: l.clone(), right: right.clone() })
         },
         _ => bail!("match: no arm matched"),
@@ -407,8 +407,8 @@ fn setRight(mut node: AvlTree, mut right: Option<Arc<FCore::VAvlTree>>) -> Resul
 
 fn setLeft(mut node: AvlTree, mut left: Option<Arc<FCore::VAvlTree>>) -> Result<AvlTree> {
     let mut outNode: AvlTree = Arc::new(<FCore::VAvlTree as ::std::default::Default>::default());
-    outNode = (::match_deref::match_deref! { match &((node.clone(), left.clone())) {
-        (Deref @ FCore::VAvlTree { value, height, left: _, right: r }, _) => {
+    outNode = (::match_deref::match_deref! { match &(node.clone()) {
+        Deref @ FCore::VAvlTree { value, height, left: _, right: r } => {
             Arc::new(FCore::VAvlTree { value: value.clone(), height: height.clone(), left: left.clone(), right: r.clone() })
         },
         _ => bail!("match: no arm matched"),
@@ -613,11 +613,11 @@ pub fn printAvlTreeStrPP(mut inTree: AvlTree) -> Result<ArcStr> {
 
 fn printAvlTreeStrPP2(mut inTree: Option<Arc<FCore::VAvlTree>>, mut inIndent: ArcStr) -> Result<ArcStr> {
     let mut outString: ArcStr = arcstr::literal!("");
-    outString = ((::match_deref::match_deref! { match &((inTree.clone(), inIndent.clone())) {
-        (None, _) => {
+    outString = ((::match_deref::match_deref! { match &(inTree.clone()) {
+        None => {
             literal!("")
         },
-        (Some(Deref @ FCore::VAvlTree { right: r, left: l, value: Some(FCore::VAvlTreeValue { key: rkey, .. }), .. }), _) => {
+        Some(Deref @ FCore::VAvlTree { right: r, left: l, value: Some(FCore::VAvlTreeValue { key: rkey, .. }), .. }) => {
             let mut s1: ArcStr = arcstr::literal!("");
             let mut s2: ArcStr = arcstr::literal!("");
             let mut res: ArcStr = arcstr::literal!("");
@@ -628,7 +628,7 @@ fn printAvlTreeStrPP2(mut inTree: Option<Arc<FCore::VAvlTree>>, mut inIndent: Ar
             res = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*inIndent.clone()); __mm_s.push_str(&*keyStr(rkey.clone())); __mm_s.push_str(&*s1.clone()); __mm_s.push_str(&*s2.clone()); ArcStr::from(__mm_s) }).clone();
             res.clone()
         },
-        (Some(Deref @ FCore::VAvlTree { right: r, left: l, value: None, .. }), _) => {
+        Some(Deref @ FCore::VAvlTree { right: r, left: l, value: None, .. }) => {
             let mut s1: ArcStr = arcstr::literal!("");
             let mut s2: ArcStr = arcstr::literal!("");
             let mut res: ArcStr = arcstr::literal!("");
@@ -686,14 +686,14 @@ fn avlTreeReplace2(mut inAvlTree: AvlTree, mut inKeyComp: i32, mut inKey: AvlKey
 // and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
 pub fn getAvlTreeValues(mut tree: Arc<metamodelica::List<Option<Arc<FCore::VAvlTree>>>>, mut acc: Arc<metamodelica::List<FCore::VAvlTreeValue>>) -> Result<Arc<metamodelica::List<FCore::VAvlTreeValue>>> {
     let mut res: Arc<metamodelica::List<FCore::VAvlTreeValue>> = metamodelica::nil();
-    res = (::match_deref::match_deref! { match &((tree.clone(), acc.clone())) {
-        (Deref @ metamodelica::List::Nil, _) => {
+    res = (::match_deref::match_deref! { match &(tree.clone()) {
+        Deref @ metamodelica::List::Nil => {
             acc.clone()
         },
-        (Deref @ metamodelica::List::Cons { head: Some(Deref @ FCore::VAvlTree { right, left, value, .. }), tail: rest }, _) => {
+        Deref @ metamodelica::List::Cons { head: Some(Deref @ FCore::VAvlTree { right, left, value, .. }), tail: rest } => {
             getAvlTreeValues(cons(left.clone(), cons(right.clone(), rest.clone())), List::consOption(value.clone(), acc.clone()))?
         },
-        (Deref @ metamodelica::List::Cons { head: None, tail: rest }, _) => {
+        Deref @ metamodelica::List::Cons { head: None, tail: rest } => {
             getAvlTreeValues(rest.clone(), acc.clone())?
         },
         _ => bail!("match: no arm matched"),

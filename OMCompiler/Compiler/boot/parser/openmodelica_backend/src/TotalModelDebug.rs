@@ -566,7 +566,6 @@ pub fn saveElements(mut elements: Arc<metamodelica::List<Arc<SCode::Element>>>, 
 pub fn saveElement(mut element: Arc<SCode::Element>, mut used: UseTable, mut elements: Arc<metamodelica::List<Arc<SCode::Element>>>) -> Result<Arc<metamodelica::List<Arc<SCode::Element>>>> {
     let mut elements: Arc<metamodelica::List<Arc<SCode::Element>>> = elements;
     let mut elem: Arc<SCode::Element> = element.clone();
-    let mut is_empty: bool = false;
     elements = (::match_deref::match_deref! { match &(elem.clone()) {
         Deref @ SCode::Element::CLASS { .. } if (UnorderedSet::contains((var_field!((*elem).name, SCode::Element::CLASS).clone()).clone(), used.clone())?) => {
             assign_variant_field!(elem => SCode::Element::CLASS; classDef = saveClassDef(var_field!((*elem).classDef, SCode::Element::CLASS).clone(), used.clone())?);

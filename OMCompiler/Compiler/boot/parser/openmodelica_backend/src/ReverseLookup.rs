@@ -43,11 +43,10 @@ use metamodelica::*; // Built-in types and functions
 use const_str;
 use arcstr::{ArcStr, literal, format};
 
-use crate::InteractiveUtil;
-use crate::NFApi;
 use openmodelica_ast::Absyn;
 use openmodelica_frontend_dump::AbsynUtil;
 use openmodelica_frontend_dump::Dump;
+use openmodelica_program_util::ProgramUtil;
 use openmodelica_util::BaseAvlSet;
 use openmodelica_util::BaseAvlTree;
 use openmodelica_util::ExecStat;
@@ -355,7 +354,7 @@ pub mod PathTree {
     pub fn forEach(mut tree: Arc<Tree>, mut func: Arc<dyn ::std::ops::Fn(ArcStr, Arc<PathEntry>) -> Result<()> + 'static>) -> Result<()> {
         pub type EachFunc = std::sync::Arc<dyn ::std::ops::Fn(Key, Value) -> Result<()> + 'static>;
 
-        let _ = (::match_deref::match_deref! { match &(tree.clone()) {
+        let () = (::match_deref::match_deref! { match &(tree.clone()) {
         Deref @ Tree::NODE { .. } => {
             forEach(var_field!((*tree).left, Tree::NODE).clone(), func.clone())?;
             func((var_field!((*tree).key, Tree::NODE).clone()).clone(), var_field!((*tree).value, Tree::NODE).clone())?;
@@ -433,7 +432,7 @@ pub mod PathTree {
         Deref @ Tree::NODE { .. } => var_field!((*inTree).key, Tree::NODE).clone(),
         Deref @ Tree::LEAF { .. } => var_field!((*inTree).key, Tree::LEAF).clone(),
         Deref @ Tree::EMPTY { .. } => {
-            return Ok(comp);
+            return Ok(comp.clone());
             bail!("fail")
         },
         _ => bail!("match: no arm matched"),
@@ -644,11 +643,8 @@ pub mod PathTree {
 
     fn printTreeStr2(mut inTree: Arc<Tree>, mut isLeft: bool, mut inIndent: ArcStr) -> Result<ArcStr> {
         let mut outString: ArcStr = arcstr::literal!("");
-        let mut val_node: Option<ArcStr> = None;
         let mut left: Option<Arc<Tree>> = None;
         let mut right: Option<Arc<Tree>> = None;
-        let mut left_str: ArcStr = arcstr::literal!("");
-        let mut right_str: ArcStr = arcstr::literal!("");
         outString = ((::match_deref::match_deref! { match &(inTree.clone()) {
         Deref @ Tree::NODE { .. } => { let mut __mm_s = String::new(); __mm_s.push_str(&*printTreeStr2(var_field!((*inTree).left, Tree::NODE).clone(), true, ({ let mut __mm_s = String::new(); __mm_s.push_str(&*inIndent.clone()); __mm_s.push_str(&*if (isLeft.clone()) {literal!("     ")} else {literal!(" │   ")}); ArcStr::from(__mm_s) }).clone())?); __mm_s.push_str(&*inIndent.clone()); __mm_s.push_str(&*if (isLeft.clone()) {literal!(" ┌")} else {literal!(" └")}); __mm_s.push_str(&*literal!("────")); __mm_s.push_str(&*printNodeStr(inTree.clone())?); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*printTreeStr2(var_field!((*inTree).right, Tree::NODE).clone(), false, ({ let mut __mm_s = String::new(); __mm_s.push_str(&*inIndent.clone()); __mm_s.push_str(&*if (isLeft.clone()) {literal!(" │   ")} else {literal!("     ")}); ArcStr::from(__mm_s) }).clone())?); ArcStr::from(__mm_s) },
         Deref @ Tree::LEAF { .. } => { let mut __mm_s = String::new(); __mm_s.push_str(&*inIndent.clone()); __mm_s.push_str(&*if (isLeft.clone()) {literal!(" ┌")} else {literal!(" └")}); __mm_s.push_str(&*literal!("────")); __mm_s.push_str(&*printNodeStr(inTree.clone())?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) },
@@ -832,7 +828,7 @@ pub fn lookup(mut path: Arc<Absyn::Path>, mut scope: Arc<Absyn::Path>, mut progr
         tree = addPath(relative_path.clone(), PathTree::new())?;
         paths = Arc::new(Paths::Paths { tree: tree.clone(), relativePath: AbsynUtil::pathToStringList(relative_path.clone())?, currentPath: metamodelica::nil() });
         match '__try0: {
-            cls = unwrap_break_err!(InteractiveUtil::getPathedClassInProgram(scope.clone(), program.clone(), false, false), '__try0);
+            cls = unwrap_break_err!(ProgramUtil::getPathedClassInProgram(scope.clone(), program.clone(), false, false), '__try0);
             matches = unwrap_break_err!(lookupInClass(cls.clone(), paths.clone(), exactMatch.clone(), metamodelica::nil()), '__try0);
             Ok::<_, anyhow::Error>((matches.clone(),))
         } {
@@ -854,8 +850,6 @@ fn addPath(mut path: Arc<Absyn::Path>, mut tree: Arc<PathTree::Tree>) -> Result<
     let mut tree: Arc<PathTree::Tree> = tree;
     let mut opt_entry: Option<Arc<PathEntry>> = None;
     let mut entry: Arc<PathEntry> = Arc::new(<PathEntry as ::std::default::Default>::default());
-    let mut opt_tree: Option<Arc<PathTree::Tree>> = None;
-    let mut rest_tree: Arc<PathTree::Tree> = Arc::new(PathTree::Tree::EMPTY);
     tree = (::match_deref::match_deref! { match &(path.clone()) {
         Deref @ Absyn::Path::IDENT { .. } => PathTree::add(tree.clone(), (var_field!((*path).name, Absyn::Path::IDENT).clone()).clone(), Arc::new(PathEntry { tree: PathTree::new(), shadowed: false }), (std::sync::Arc::new(fnptr!(PathTree::addConflictKeep, Arc<PathEntry>, Arc<PathEntry>, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<PathEntry>, Arc<PathEntry>, ArcStr) -> Result<Arc<PathEntry>> + 'static>))?,
         Deref @ Absyn::Path::QUALIFIED { .. } => {
@@ -892,8 +886,8 @@ fn lookupPath(mut path: Arc<Absyn::Path>, mut paths: Arc<PathTree::Tree>, mut ex
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ Absyn::Path::QUALIFIED { .. } => {
-                    let mut found: bool = found.clone();
                     let mut entry: Arc<PathEntry> = entry.clone();
+                    let mut found: bool = found.clone();
                     entry = PathTree::get(paths.clone(), (var_field!((*path).name, Absyn::Path::QUALIFIED).clone()).clone())?;
                     if entry.shadowed.clone() && !(fullyQualified.clone()) {
                         found = false;
@@ -954,8 +948,8 @@ fn lookupCref(mut cref: Arc<Absyn::ComponentRef>, mut paths: Arc<PathTree::Tree>
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ Absyn::ComponentRef::CREF_QUAL { .. } => {
-                    let mut entry: Arc<PathEntry> = entry.clone();
                     let mut found: bool = found.clone();
+                    let mut entry: Arc<PathEntry> = entry.clone();
                     entry = PathTree::get(paths.clone(), (var_field!((*cref).name, Absyn::ComponentRef::CREF_QUAL).clone()).clone())?;
                     if entry.shadowed.clone() && !(fullyQualified.clone()) {
                         found = false;
@@ -1714,7 +1708,7 @@ fn serializeMatches(mut groupedMatches: Arc<metamodelica::List<Arc<metamodelica:
         json_elems = metamodelica::nil();
         for mut m in &*group.clone() {
             let mut m = m.clone();
-            json_elem = NFApi::dumpJSONSourceInfo(m.info.clone(), false)?;
+            json_elem = ProgramUtil::dumpJSONSourceInfo(m.info.clone(), false)?;
             json_elem = JSON::addPair((literal!("name")).clone(), JSON::makeString((Dump::printComponentRefStr(m.name.clone())?).clone()), json_elem.clone())?;
             json_elem = JSON::addPair((literal!("class")).clone(), JSON::makeString((m.scope.clone()).clone()), json_elem.clone())?;
             json_elems = cons(json_elem.clone(), json_elems.clone());
@@ -1750,14 +1744,14 @@ fn groupMatches(mut matches: Matches) -> Result<Arc<metamodelica::List<Arc<metam
         UnorderedMap::addUpdate(m.info.fileName.clone(), Arc::new({ let __pe_b1 = m.clone(); move |__pe_a0| add_match(__pe_a0, __pe_b1.clone()) }), grouped_matches.clone())?;
     }
     outMatches = UnorderedMap::valueList(grouped_matches.clone());
-    outMatches = {
+    outMatches = ({
         let mut __acc: Arc<metamodelica::List<_>> = metamodelica::nil();
         for mut l in (outMatches.clone()).into_iter().cloned() {
             let __x = metamodelica::Dangerous::listReverseInPlace(l.clone());
             __acc = cons(__x, __acc);
         }
         __acc
-    };
+    });
     Ok(outMatches)
 }
 

@@ -72,7 +72,7 @@ pub fn fromList<T: Clone + 'static>(mut lst: Arc<metamodelica::List<T>>) -> Resu
     let mut t: T;
     if lst.clone().is_empty() {
         delst = MutableList { length: Mutable::create(0), front: Mutable::create(metamodelica::nil()), back: Mutable::create(metamodelica::nil()) };
-        return Ok(delst);
+        return Ok(delst.clone());
     }
     let (__pa0, __pa1) = ::match_deref::match_deref! { match &(lst.clone()) {
         Deref @ metamodelica::List::Cons { head: __pa0, tail: __pa1 } => (__pa0.clone(), __pa1.clone()),
@@ -121,7 +121,7 @@ pub fn pop_front<T: Clone + 'static>(mut delst: MutableList<T>) -> Result<T> {
     if length.clone() == 1 {
         Mutable::update(delst.front.clone(), metamodelica::nil());
         Mutable::update(delst.back.clone(), metamodelica::nil());
-        return Ok(elt);
+        return Ok(elt.clone());
     }
     Mutable::update(delst.front.clone(), lst.clone());
     Ok(elt)
@@ -233,7 +233,7 @@ pub fn toListAndClear<T: Clone + 'static>(mut delst: MutableList<T>, mut prepend
     let mut res: Arc<metamodelica::List<T>> = metamodelica::nil();
     if Mutable::access(delst.length.clone()) == 0 {
         res = prependToList.clone();
-        return res;
+        return res.clone();
     }
     res = Mutable::access(delst.front.clone());
     if !(prependToList.clone().is_empty()) {

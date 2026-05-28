@@ -47,7 +47,6 @@ use crate::BackendDAE;
 use crate::BackendDAEUtil;
 use crate::BackendEquation;
 use crate::BackendVariable;
-use crate::CevalScript;
 use crate::ExpressionSolve;
 use crate::VisualXMLTpl;
 use openmodelica_ast::Absyn;
@@ -60,6 +59,7 @@ use openmodelica_frontend_dump::ComponentReferenceBasics;
 use openmodelica_frontend_dump::ElementSource;
 use openmodelica_frontend_dump::ExpressionBasics;
 use openmodelica_frontend_types::DAE;
+use openmodelica_program_util::ProgramUtil;
 use openmodelica_susan::Tpl;
 use openmodelica_util::Error;
 use openmodelica_util::ExpandableArray;
@@ -203,7 +203,6 @@ fn replaceVisualBinding(mut vis: Visualization, mut varArray: BackendDAE::Variab
 
 fn getConstCrefBinding(mut cr: Arc<DAE::ComponentRef>, mut vars: BackendDAE::Variables) -> Result<Arc<DAE::Exp>> {
     let mut eOut: Arc<DAE::Exp>;
-    let mut s: ArcStr = arcstr::literal!("");
     let mut e: Arc<DAE::Exp>;
     let mut var: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
     match '__try0: {
@@ -350,12 +349,8 @@ fn fillVisualizationObjects(mut visVar: (Arc<DAE::ComponentRef>, ArcStr), mut al
     let mut allVarsOut: Arc<metamodelica::List<BackendDAE::Var>> = allVarsIn.clone();
     let mut programOut: Absyn::Program = programIn.clone();
     let mut cref: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
-    let mut name: ArcStr = arcstr::literal!("");
     let mut vis_name: ArcStr = arcstr::literal!("");
-    let mut nameChars: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
-    let mut prefix: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
     let mut vis: Visualization;
-    let mut allVars: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
     match '__try0: {
         (cref, vis_name) = visVar.clone();
         vis = unwrap_break_err!(newVisualizer(cref.clone(), (vis_name.clone()).clone()), '__try0);
@@ -523,15 +518,10 @@ fn fillVisualizationObjects1(mut varIn: BackendDAE::Var, mut storeProtectedCrefs
 
 fn getFullCADFilePath(mut sIn: ArcStr, mut program: Absyn::Program) -> Result<ArcStr> {
     let mut sOut: ArcStr = sIn.clone();
-    let mut head: ArcStr = arcstr::literal!("");
-    let mut packName: ArcStr = arcstr::literal!("");
-    let mut file: ArcStr = arcstr::literal!("");
-    let mut path: ArcStr = arcstr::literal!("");
-    let mut hierarchy: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
     let mut chars: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
     chars = stringListStringChar((sIn.clone()).clone());
     if (chars.clone().len() as i32) > 11 && stringEqual(stringDelimitList(List::firstN(chars.clone(), 11)?, (literal!("")).clone()), (literal!("modelica://")).clone()) {
-        sOut = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("file://")); __mm_s.push_str(&*CevalScript::getFullPathFromUri(program.clone(), (sIn.clone()).clone(), true)?); ArcStr::from(__mm_s) }).clone();
+        sOut = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("file://")); __mm_s.push_str(&*ProgramUtil::getFullPathFromUri(program.clone(), (sIn.clone()).clone(), true)?); ArcStr::from(__mm_s) }).clone();
     }
     Ok(sOut)
 }
@@ -976,14 +966,14 @@ fn printVisualization(mut vis: Visualization) -> Result<ArcStr> {
     let mut s: ArcStr = arcstr::literal!("");
     s = ((match vis.clone() {
         Visualization::SHAPE { extra: mut extra, height: mut height, width: mut width, length: mut length, T: mut T, widthDir: mut widthDir, lengthDir: mut lengthDir, r: mut r, color: mut color, shapeType: mut shapeType, ident: mut ident, .. } => {
-            { let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("SHAPE ")); __mm_s.push_str(&*ComponentReferenceBasics::printComponentRefStr(ident.clone())?); __mm_s.push_str(&*literal!(" '")); __mm_s.push_str(&*ExpressionBasics::printExpStr(shapeType.clone())?); __mm_s.push_str(&*literal!("'\n r{")); __mm_s.push_str(&*stringDelimitList({
+            { let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("SHAPE ")); __mm_s.push_str(&*ComponentReferenceBasics::printComponentRefStr(ident.clone())?); __mm_s.push_str(&*literal!(" '")); __mm_s.push_str(&*ExpressionBasics::printExpStr(shapeType.clone())?); __mm_s.push_str(&*literal!("'\n r{")); __mm_s.push_str(&*stringDelimitList(({
         let mut __acc: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
         for mut e in (r.clone()).borrow().iter() {
             let __x = ExpressionDump::dumpExpStr(e.clone(), 0)?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, (literal!(",")).clone())); __mm_s.push_str(&*literal!("}")); __mm_s.push_str(&*literal!("\nlD{")); __mm_s.push_str(&*stringDelimitList(List::mapArray(lengthDir.clone(), (std::sync::Arc::new(ExpressionBasics::printExpStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("}")); __mm_s.push_str(&*literal!(" wD{")); __mm_s.push_str(&*stringDelimitList(List::mapArray(widthDir.clone(), (std::sync::Arc::new(ExpressionBasics::printExpStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("}")); __mm_s.push_str(&*literal!("\ncolor(")); __mm_s.push_str(&*stringDelimitList(List::mapArray(color.clone(), (std::sync::Arc::new(ExpressionBasics::printExpStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!(")")); __mm_s.push_str(&*literal!(" w: ")); __mm_s.push_str(&*ExpressionBasics::printExpStr(width.clone())?); __mm_s.push_str(&*literal!(" h: ")); __mm_s.push_str(&*ExpressionBasics::printExpStr(height.clone())?); __mm_s.push_str(&*literal!(" l: ")); __mm_s.push_str(&*ExpressionBasics::printExpStr(length.clone())?); __mm_s.push_str(&*literal!("\nT {")); __mm_s.push_str(&*stringDelimitList(List::map(List::flatten(Arc::new(T.clone().borrow().iter().cloned().collect::<metamodelica::List<_>>())), (std::sync::Arc::new(ExpressionBasics::printExpStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<ArcStr> + 'static>)), (literal!(", ")).clone())); __mm_s.push_str(&*literal!("}")); __mm_s.push_str(&*literal!("\nextra{")); __mm_s.push_str(&*ExpressionBasics::printExpStr(extra.clone())?); __mm_s.push_str(&*literal!("}")); ArcStr::from(__mm_s) }
+    }), (literal!(",")).clone())); __mm_s.push_str(&*literal!("}")); __mm_s.push_str(&*literal!("\nlD{")); __mm_s.push_str(&*stringDelimitList(List::mapArray(lengthDir.clone(), (std::sync::Arc::new(ExpressionBasics::printExpStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("}")); __mm_s.push_str(&*literal!(" wD{")); __mm_s.push_str(&*stringDelimitList(List::mapArray(widthDir.clone(), (std::sync::Arc::new(ExpressionBasics::printExpStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!("}")); __mm_s.push_str(&*literal!("\ncolor(")); __mm_s.push_str(&*stringDelimitList(List::mapArray(color.clone(), (std::sync::Arc::new(ExpressionBasics::printExpStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<ArcStr> + 'static>)), (literal!(",")).clone())); __mm_s.push_str(&*literal!(")")); __mm_s.push_str(&*literal!(" w: ")); __mm_s.push_str(&*ExpressionBasics::printExpStr(width.clone())?); __mm_s.push_str(&*literal!(" h: ")); __mm_s.push_str(&*ExpressionBasics::printExpStr(height.clone())?); __mm_s.push_str(&*literal!(" l: ")); __mm_s.push_str(&*ExpressionBasics::printExpStr(length.clone())?); __mm_s.push_str(&*literal!("\nT {")); __mm_s.push_str(&*stringDelimitList(List::map(List::flatten(Arc::new(T.clone().borrow().iter().cloned().collect::<metamodelica::List<_>>())), (std::sync::Arc::new(ExpressionBasics::printExpStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<ArcStr> + 'static>)), (literal!(", ")).clone())); __mm_s.push_str(&*literal!("}")); __mm_s.push_str(&*literal!("\nextra{")); __mm_s.push_str(&*ExpressionBasics::printExpStr(extra.clone())?); __mm_s.push_str(&*literal!("}")); ArcStr::from(__mm_s) }
         },
         _ => {
             literal!("-")

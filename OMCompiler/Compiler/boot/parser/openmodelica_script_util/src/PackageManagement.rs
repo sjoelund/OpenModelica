@@ -340,7 +340,7 @@ pub mod AvailableLibraries {
     pub fn forEach(mut tree: Arc<Tree>, mut func: Arc<dyn ::std::ops::Fn(ArcStr, Arc<VersionMap::Tree>) -> Result<()> + 'static>) -> Result<()> {
         pub type EachFunc = std::sync::Arc<dyn ::std::ops::Fn(Key, Value) -> Result<()> + 'static>;
 
-        let _ = (::match_deref::match_deref! { match &(tree.clone()) {
+        let () = (::match_deref::match_deref! { match &(tree.clone()) {
         Deref @ Tree::NODE { .. } => {
             forEach(var_field!((*tree).left, Tree::NODE).clone(), func.clone())?;
             func((var_field!((*tree).key, Tree::NODE).clone()).clone(), var_field!((*tree).value, Tree::NODE).clone())?;
@@ -418,7 +418,7 @@ pub mod AvailableLibraries {
         Deref @ Tree::NODE { .. } => var_field!((*inTree).key, Tree::NODE).clone(),
         Deref @ Tree::LEAF { .. } => var_field!((*inTree).key, Tree::LEAF).clone(),
         Deref @ Tree::EMPTY { .. } => {
-            return Ok(comp);
+            return Ok(comp.clone());
             bail!("fail")
         },
         _ => bail!("match: no arm matched"),
@@ -629,11 +629,8 @@ pub mod AvailableLibraries {
 
     fn printTreeStr2(mut inTree: Arc<Tree>, mut isLeft: bool, mut inIndent: ArcStr) -> Result<ArcStr> {
         let mut outString: ArcStr = arcstr::literal!("");
-        let mut val_node: Option<ArcStr> = None;
         let mut left: Option<Arc<Tree>> = None;
         let mut right: Option<Arc<Tree>> = None;
-        let mut left_str: ArcStr = arcstr::literal!("");
-        let mut right_str: ArcStr = arcstr::literal!("");
         outString = ((::match_deref::match_deref! { match &(inTree.clone()) {
         Deref @ Tree::NODE { .. } => { let mut __mm_s = String::new(); __mm_s.push_str(&*printTreeStr2(var_field!((*inTree).left, Tree::NODE).clone(), true, ({ let mut __mm_s = String::new(); __mm_s.push_str(&*inIndent.clone()); __mm_s.push_str(&*if (isLeft.clone()) {literal!("     ")} else {literal!(" │   ")}); ArcStr::from(__mm_s) }).clone())?); __mm_s.push_str(&*inIndent.clone()); __mm_s.push_str(&*if (isLeft.clone()) {literal!(" ┌")} else {literal!(" └")}); __mm_s.push_str(&*literal!("────")); __mm_s.push_str(&*printNodeStr(inTree.clone())?); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*printTreeStr2(var_field!((*inTree).right, Tree::NODE).clone(), false, ({ let mut __mm_s = String::new(); __mm_s.push_str(&*inIndent.clone()); __mm_s.push_str(&*if (isLeft.clone()) {literal!(" │   ")} else {literal!("     ")}); ArcStr::from(__mm_s) }).clone())?); ArcStr::from(__mm_s) },
         Deref @ Tree::LEAF { .. } => { let mut __mm_s = String::new(); __mm_s.push_str(&*inIndent.clone()); __mm_s.push_str(&*if (isLeft.clone()) {literal!(" ┌")} else {literal!(" └")}); __mm_s.push_str(&*literal!("────")); __mm_s.push_str(&*printNodeStr(inTree.clone())?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) },
@@ -1026,7 +1023,7 @@ pub mod VersionMap {
     pub fn forEach(mut tree: Arc<Tree>, mut func: Arc<dyn ::std::ops::Fn(SemanticVersion::Version, ArcStr) -> Result<()> + 'static>) -> Result<()> {
         pub type EachFunc = std::sync::Arc<dyn ::std::ops::Fn(Key, Value) -> Result<()> + 'static>;
 
-        let _ = (::match_deref::match_deref! { match &(tree.clone()) {
+        let () = (::match_deref::match_deref! { match &(tree.clone()) {
         Deref @ Tree::NODE { .. } => {
             forEach(var_field!((*tree).left, Tree::NODE).clone(), func.clone())?;
             func(var_field!((*tree).key, Tree::NODE).clone(), (var_field!((*tree).value, Tree::NODE).clone()).clone())?;
@@ -1104,7 +1101,7 @@ pub mod VersionMap {
         Deref @ Tree::NODE { .. } => var_field!((*inTree).key, Tree::NODE).clone(),
         Deref @ Tree::LEAF { .. } => var_field!((*inTree).key, Tree::LEAF).clone(),
         Deref @ Tree::EMPTY { .. } => {
-            return Ok(comp);
+            return Ok(comp.clone());
             bail!("fail")
         },
         _ => bail!("match: no arm matched"),
@@ -1315,11 +1312,8 @@ pub mod VersionMap {
 
     fn printTreeStr2(mut inTree: Arc<Tree>, mut isLeft: bool, mut inIndent: ArcStr) -> Result<ArcStr> {
         let mut outString: ArcStr = arcstr::literal!("");
-        let mut val_node: Option<SemanticVersion::Version> = None;
         let mut left: Option<Arc<Tree>> = None;
         let mut right: Option<Arc<Tree>> = None;
-        let mut left_str: ArcStr = arcstr::literal!("");
-        let mut right_str: ArcStr = arcstr::literal!("");
         outString = ((::match_deref::match_deref! { match &(inTree.clone()) {
         Deref @ Tree::NODE { .. } => { let mut __mm_s = String::new(); __mm_s.push_str(&*printTreeStr2(var_field!((*inTree).left, Tree::NODE).clone(), true, ({ let mut __mm_s = String::new(); __mm_s.push_str(&*inIndent.clone()); __mm_s.push_str(&*if (isLeft.clone()) {literal!("     ")} else {literal!(" │   ")}); ArcStr::from(__mm_s) }).clone())?); __mm_s.push_str(&*inIndent.clone()); __mm_s.push_str(&*if (isLeft.clone()) {literal!(" ┌")} else {literal!(" └")}); __mm_s.push_str(&*literal!("────")); __mm_s.push_str(&*printNodeStr(inTree.clone())?); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*printTreeStr2(var_field!((*inTree).right, Tree::NODE).clone(), false, ({ let mut __mm_s = String::new(); __mm_s.push_str(&*inIndent.clone()); __mm_s.push_str(&*if (isLeft.clone()) {literal!(" │   ")} else {literal!("     ")}); ArcStr::from(__mm_s) }).clone())?); ArcStr::from(__mm_s) },
         Deref @ Tree::LEAF { .. } => { let mut __mm_s = String::new(); __mm_s.push_str(&*inIndent.clone()); __mm_s.push_str(&*if (isLeft.clone()) {literal!(" ┌")} else {literal!(" └")}); __mm_s.push_str(&*literal!("────")); __mm_s.push_str(&*printNodeStr(inTree.clone())?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) },
@@ -1455,22 +1449,22 @@ pub fn getInstalledLibraries() -> Result<Arc<AvailableLibraries::Tree>> {
     dirs = metamodelica::nil();
     for mut mp in &*mps.clone() {
         let mut mp = mp.clone();
-        files = listAppend({
+        files = listAppend(({
         let mut __acc: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
         for mut file in (System::moFiles((mp.clone()).clone())).into_iter().cloned() {
             let __x = { let mut __mm_s = String::new(); __mm_s.push_str(&*mp.clone()); __mm_s.push_str(&*literal!("/")); __mm_s.push_str(&*file.clone()); ArcStr::from(__mm_s) };
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, files.clone());
-        dirs = listAppend({
+    }), files.clone());
+        dirs = listAppend(({
         let mut __acc: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
         for mut dir in (getLibrarySubdirectories((mp.clone()).clone())).into_iter().cloned() {
             let __x = { let mut __mm_s = String::new(); __mm_s.push_str(&*mp.clone()); __mm_s.push_str(&*literal!("/")); __mm_s.push_str(&*dir.clone()); ArcStr::from(__mm_s) };
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, dirs.clone());
+    }), dirs.clone());
     }
     for mut path in &*listAppend(files.clone(), dirs.clone()) {
         let mut path = path.clone();
@@ -1529,15 +1523,15 @@ pub fn providesExpectedVersion(mut version: ArcStr, mut provides: Arc<JSON::JSON
     let mut providedVersions: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
     let mut r#str: ArcStr = arcstr::literal!("");
     let mut thisVersion: SemanticVersion::Version;
-    let _ = (::match_deref::match_deref! { match &(wantedVersion.clone()) {
+    let () = (::match_deref::match_deref! { match &(wantedVersion.clone()) {
         SemanticVersion::Version::NONSEMVER { version: r#str } if (r#str.clone() == literal!("default") || r#str.clone() == literal!("")) => {
             matches = true;
-            return Ok(matches);
+            return Ok(matches.clone());
             bail!("fail")
         },
         SemanticVersion::Version::SEMVER { prerelease: Deref @ metamodelica::List::Cons { head: Deref @ "default", tail: Deref @ metamodelica::List::Nil }, patch: 0, minor: 0, major: 0, .. } => {
             matches = true;
-            return Ok(matches);
+            return Ok(matches.clone());
             bail!("fail")
         },
         _ => (),
@@ -1550,7 +1544,7 @@ pub fn providesExpectedVersion(mut version: ArcStr, mut provides: Arc<JSON::JSON
         thisVersion = SemanticVersion::parse((v.clone()).clone(), true)?;
         if SemanticVersion::compare(thisVersion.clone(), wantedVersion.clone(), SemanticVersion::isPrerelease(wantedVersion.clone()) && SemanticVersion::isPrerelease(wantedVersion.clone()), false)? == 0 {
             matches = true;
-            return Ok(matches);
+            return Ok(matches.clone());
         }
     }
     Ok(matches)
@@ -1603,14 +1597,14 @@ pub fn compareVersionsAndSupportLevel(mut x1: (ArcStr, SemanticVersion::Version,
     (_, v2, s2) = x2.clone();
     if s1.clone() < s2.clone() {
         c = true;
-        return Ok(c);
+        return Ok(c.clone());
     } else if s1.clone() > s2.clone() {
         c = false;
-        return Ok(c);
+        return Ok(c.clone());
     }
     if SemanticVersion::isPrerelease(v1.clone()) != SemanticVersion::isPrerelease(v2.clone()) {
         c = SemanticVersion::isPrerelease(v2.clone());
-        return Ok(c);
+        return Ok(c.clone());
     }
     c = SemanticVersion::compare(v1.clone(), v2.clone(), true, true)? < 0;
     Ok(c)
@@ -1631,7 +1625,7 @@ pub fn updateIndex() -> Result<bool> {
         Error::addSourceMessage(Error::NOTIFY_PKG_INDEX_DOWNLOAD.clone(), list![(url.clone()).clone()], makeSourceInfo((getIndexPath()?).clone()))?;
         success = true;
     }
-    openmodelica_util::Globals::packageIndexCacheIndex.with(|__root| *__root.borrow_mut() = None);
+    { let __v = None; openmodelica_util::Globals::packageIndexCacheIndex.with(|__root| *__root.borrow_mut() = __v) };
     Ok(success)
 }
 
@@ -1664,7 +1658,7 @@ pub fn getPackageIndex(mut printError: bool) -> Result<Arc<JSON::JSON>> {
     let mut mps: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
     if '__try0: {
         obj = unwrap_break_err!(openmodelica_util::Globals::packageIndexCacheIndex.with(|__root| __root.borrow().clone()).ok_or_else(|| anyhow::anyhow!("getGlobalRoot: empty slot packageIndexCacheIndex")), '__try0);
-        return Ok(obj);
+        return Ok(obj.clone());
         Ok::<(), anyhow::Error>(())
     }.is_err() {
     }
@@ -1678,16 +1672,16 @@ pub fn getPackageIndex(mut printError: bool) -> Result<Arc<JSON::JSON>> {
         if printError.clone() {
             Error::addMessage(Error::ERROR_PKG_INDEX_NOT_ON_PATH.clone(), list![(mp.clone()).clone(), (userLibraries.clone()).clone()])?;
         }
-        return Ok(obj);
+        return Ok(obj.clone());
     }
     if !(System::regularFileExists((packageIndex.clone()).clone())) {
         if !(updateIndex()?) {
-            return Ok(obj);
+            return Ok(obj.clone());
         }
     }
     match '__try1: {
         obj = unwrap_break_err!(JSON::parseFile((packageIndex.clone()).clone()), '__try1);
-        openmodelica_util::Globals::packageIndexCacheIndex.with(|__root| *__root.borrow_mut() = Some(obj.clone()));
+        { let __v = Some(obj.clone()); openmodelica_util::Globals::packageIndexCacheIndex.with(|__root| *__root.borrow_mut() = __v) };
         Ok::<_, anyhow::Error>((obj.clone(),))
     } {
         Ok((__try1_o0,)) => {
@@ -1708,7 +1702,6 @@ pub fn getAllProvidedVersionsForLibrary(mut lib: ArcStr, mut printError: bool) -
     let mut vers: Arc<JSON::JSON> = Arc::new(JSON::FALSE);
     let mut provides: Arc<JSON::JSON> = Arc::new(JSON::FALSE);
     let mut tree: Arc<AvlSetString::Tree> = Arc::new(AvlSetString::Tree::EMPTY);
-    let mut values: Arc<metamodelica::List<Arc<JSON::JSON>>> = metamodelica::nil();
     result = metamodelica::nil();
     tree = AvlSetString::new();
     match '__try0: {
@@ -1733,7 +1726,7 @@ pub fn getAllProvidedVersionsForLibrary(mut lib: ArcStr, mut printError: bool) -
             vers = __try0_o3;
         }
         Err(_) => {
-            return result;
+            return result.clone();
         }
     }
     result
@@ -1751,7 +1744,7 @@ pub fn versionsThatProvideTheWanted(mut id: ArcStr, mut version: ArcStr, mut pri
         libobject = unwrap_break_err!(JSON::get(JSON::get(obj.clone(), (literal!("libs")).clone()).unwrap(), (id.clone()).clone()), '__try0);
         vers = unwrap_break_err!(JSON::get(libobject.clone(), (literal!("versions")).clone()), '__try0);
         wantedVersion = unwrap_break_err!(SemanticVersion::parse((version.clone()).clone(), true), '__try0);
-        result = List::map(List::sort({
+        result = List::map(List::sort(({
         let mut __acc: Arc<metamodelica::List<(ArcStr, SemanticVersion::Version, SupportLevel)>> = metamodelica::nil();
         for mut version in (JSON::getKeys(vers.clone()).unwrap()).into_iter().cloned() {
             if !(providesExpectedVersion((version.clone()).clone(), JSON::getOrDefault(JSON::get(vers.clone(), (version.clone()).clone()).unwrap(), (literal!("provides")).clone(), JSON::emptyArray(0)), wantedVersion.clone()).unwrap()) { continue; }
@@ -1759,7 +1752,7 @@ pub fn versionsThatProvideTheWanted(mut id: ArcStr, mut version: ArcStr, mut pri
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, (std::sync::Arc::new(compareVersionsAndSupportLevel) as std::sync::Arc<dyn ::std::ops::Fn((ArcStr, SemanticVersion::Version, SupportLevel), (ArcStr, SemanticVersion::Version, SupportLevel)) -> Result<bool> + 'static>)).unwrap(), std::sync::Arc::new(fnptr!(Util::tuple31, _)));
+    }), (std::sync::Arc::new(compareVersionsAndSupportLevel) as std::sync::Arc<dyn ::std::ops::Fn((ArcStr, SemanticVersion::Version, SupportLevel), (ArcStr, SemanticVersion::Version, SupportLevel)) -> Result<bool> + 'static>)).unwrap(), std::sync::Arc::new(fnptr!(Util::tuple31, _)));
         Ok::<_, anyhow::Error>((libobject.clone(), obj.clone(), result.clone(), vers.clone(), wantedVersion.clone()))
     } {
         Ok((__try0_o0, __try0_o1, __try0_o2, __try0_o3, __try0_o4)) => {
@@ -1770,7 +1763,7 @@ pub fn versionsThatProvideTheWanted(mut id: ArcStr, mut version: ArcStr, mut pri
             wantedVersion = __try0_o4;
         }
         Err(_) => {
-            return result;
+            return result.clone();
         }
     }
     result
@@ -1816,7 +1809,7 @@ pub fn versionsThatConvertFromTheWanted(mut id: ArcStr, mut version: ArcStr, mut
             wantedVersion = __try0_o3;
         }
         Err(_) => {
-            return result;
+            return result.clone();
         }
     }
     result
@@ -1829,7 +1822,6 @@ pub fn versionsThatConvertToTheWanted(mut id: ArcStr, mut version: ArcStr, mut p
     let mut vers: Arc<JSON::JSON> = Arc::new(JSON::FALSE);
     let mut wantedVersion: SemanticVersion::Version;
     let mut libVersion: SemanticVersion::Version;
-    let mut versionStr: ArcStr = arcstr::literal!("");
     result = metamodelica::nil();
     match '__try0: {
         obj = unwrap_break_err!(getPackageIndex(printError.clone()), '__try0);
@@ -1841,7 +1833,7 @@ pub fn versionsThatConvertToTheWanted(mut id: ArcStr, mut version: ArcStr, mut p
             libVersion = unwrap_break_err!(SemanticVersion::parse((v.clone()).clone(), true), '__try0);
             if unwrap_break_err!(SemanticVersion::compare(wantedVersion.clone(), libVersion.clone(), true, false), '__try0) == 0 {
                 result = unwrap_break_err!(JSON::getStringList(JSON::get(JSON::get(vers.clone(), (v.clone()).clone()).unwrap(), (literal!("convertFromVersion")).clone()).unwrap()), '__try0);
-                return result;
+                return result.clone();
             }
         }
         Ok::<_, anyhow::Error>((libobject.clone(), obj.clone(), vers.clone(), wantedVersion.clone()))
@@ -1853,7 +1845,7 @@ pub fn versionsThatConvertToTheWanted(mut id: ArcStr, mut version: ArcStr, mut p
             wantedVersion = __try0_o3;
         }
         Err(_) => {
-            return result;
+            return result.clone();
         }
     }
     result
@@ -1887,7 +1879,7 @@ pub fn installPackage(mut pkg: ArcStr, mut version: ArcStr, mut exactMatch: bool
             }
         }
     }
-    packagesToInstall = {
+    packagesToInstall = ({
         let mut __acc: Arc<metamodelica::List<PackageInstallInfo>> = metamodelica::nil();
         for mut p in (packageList.clone()).into_iter().cloned() {
             if !(p.needsInstall.clone()) { continue; }
@@ -1895,23 +1887,23 @@ pub fn installPackage(mut pkg: ArcStr, mut version: ArcStr, mut exactMatch: bool
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     for mut pack in &*packagesToInstall.clone() {
         let mut pack = pack.clone();
         Util::createDirectoryTree((cachePath.clone()).clone())?;
     }
     if !(skipDownload.clone()) {
         mirrors = getMirrors()?;
-        urlPathList = List::sort({
+        urlPathList = List::sort(({
         let mut __acc: Arc<metamodelica::List<(Arc<metamodelica::List<ArcStr>>, ArcStr)>> = metamodelica::nil();
         for mut p in (packagesToInstall.clone()).into_iter().cloned() {
             let __x = (getAllUrls((p.urlToZipFile.clone()).clone(), mirrors.clone())?, if (System::regularFileExists(({ let mut __mm_s = String::new(); __mm_s.push_str(&*installCachePath.clone()); __mm_s.push_str(&*System::basename((p.urlToZipFile.clone()).clone())); ArcStr::from(__mm_s) }).clone())) {{ let mut __mm_s = String::new(); __mm_s.push_str(&*installCachePath.clone()); __mm_s.push_str(&*System::basename((p.urlToZipFile.clone()).clone())); ArcStr::from(__mm_s) }} else {{ let mut __mm_s = String::new(); __mm_s.push_str(&*cachePath.clone()); __mm_s.push_str(&*System::basename((p.urlToZipFile.clone()).clone())); ArcStr::from(__mm_s) }});
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, (std::sync::Arc::new(compareUrlBool) as std::sync::Arc<dyn ::std::ops::Fn((Arc<metamodelica::List<ArcStr>>, ArcStr), (Arc<metamodelica::List<ArcStr>>, ArcStr)) -> Result<bool> + 'static>))?;
+    }), (std::sync::Arc::new(compareUrlBool) as std::sync::Arc<dyn ::std::ops::Fn((Arc<metamodelica::List<ArcStr>>, ArcStr), (Arc<metamodelica::List<ArcStr>>, ArcStr)) -> Result<bool> + 'static>))?;
         urlPathList = List::unique(urlPathList.clone());
-        urlPathListToDownload = {
+        urlPathListToDownload = ({
         let mut __acc: Arc<metamodelica::List<(Arc<metamodelica::List<ArcStr>>, ArcStr)>> = metamodelica::nil();
         for mut tpl in (urlPathList.clone()).into_iter().cloned() {
             if !(!(System::regularFileExists((Util::tuple22(tpl.clone())).clone()))) { continue; }
@@ -1919,7 +1911,7 @@ pub fn installPackage(mut pkg: ArcStr, mut version: ArcStr, mut exactMatch: bool
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
         if !(Curl::multiDownload(urlPathListToDownload.clone(), Config::noProc()?)) {
             bail!("fail");
         }
@@ -2098,16 +2090,16 @@ fn installPackageWork(mut pkg: ArcStr, mut version: ArcStr, mut exactMatch: bool
     let mut indexHasPkg: bool = false;
     let mut packageToInstall: PackageInstallInfo = <PackageInstallInfo as ::std::default::Default>::default();
     candidates = versionsThatProvideTheWanted((pkg.clone()).clone(), (version.clone()).clone(), true);
-    candidatesSemver = {
+    candidatesSemver = ({
         let mut __acc: Arc<metamodelica::List<SemanticVersion::Version>> = metamodelica::nil();
         for mut candidate in (candidates.clone()).into_iter().cloned() {
             let __x = SemanticVersion::parse((candidate.clone()).clone(), false)?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     semver = SemanticVersion::parse((version.clone()).clone(), false)?;
-    exactMatches = {
+    exactMatches = ({
         let mut __acc: Arc<metamodelica::List<SemanticVersion::Version>> = metamodelica::nil();
         for mut candidate in (candidatesSemver.clone()).into_iter().cloned() {
             if !(0 == SemanticVersion::compare(candidate.clone(), semver.clone(), true, SemanticVersion::hasMetaInformation(semver.clone()))?) { continue; }
@@ -2115,25 +2107,25 @@ fn installPackageWork(mut pkg: ArcStr, mut version: ArcStr, mut exactMatch: bool
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     success = false;
     for mut pkgInfo in &*packagesToInstall.clone() {
         let mut pkgInfo = pkgInfo.clone();
         if pkgInfo.pkg.clone() == pkg.clone() {
-            if SemanticVersion::compare(pkgInfo.version.clone(), semver.clone(), true, false)? == 0 || {
+            if SemanticVersion::compare(pkgInfo.version.clone(), semver.clone(), true, false)? == 0 || ({
         let mut __acc: Option<bool> = None;
         for mut candidate in (candidatesSemver.clone()).into_iter().cloned() {
             let __x = 0 == SemanticVersion::compare(pkgInfo.version.clone(), candidate.clone(), true, false)?;
             __acc = Some(match __acc { None => __x, Some(__cur) => if __x > __cur { __x } else { __cur } });
         }
         __acc.ok_or_else(|| anyhow::anyhow!("empty max reduction"))?
-    } {
+    }) {
                 success = true;
-                return Ok((success, packagesToInstall));
+                return Ok((success.clone(), packagesToInstall.clone()));
             }
             Error::addMessage(Error::WARNING_PKG_CONFLICTING_VERSIONS.clone(), list![(pkg.clone()).clone(), (SemanticVersion::toString(pkgInfo.version.clone())?).clone(), (version.clone()).clone()])?;
             success = true;
-            return Ok((success, packagesToInstall));
+            return Ok((success.clone(), packagesToInstall.clone()));
         }
     }
     installedLibraries = getInstalledLibraries()?;
@@ -2174,19 +2166,19 @@ fn installPackageWork(mut pkg: ArcStr, mut version: ArcStr, mut exactMatch: bool
     if !(success.clone()) {
         if candidates.clone().is_empty() {
             Error::addSourceMessage(Error::ERROR_PKG_NOT_FOUND_VERSION.clone(), list![(pkg.clone()).clone(), (version.clone()).clone(), stringDelimitList(getAllProvidedVersionsForLibrary((pkg.clone()).clone(), true), (literal!("\n")).clone())], makeSourceInfo((getIndexPath()?).clone()))?;
-            return Ok((success, packagesToInstall));
+            return Ok((success.clone(), packagesToInstall.clone()));
         }
-        if exactMatch.clone() && !({
+        if exactMatch.clone() && !(({
         let mut __acc: Option<bool> = None;
         for mut candidate in (candidatesSemver.clone()).into_iter().cloned() {
             let __x = 0 == SemanticVersion::compare(semver.clone(), candidate.clone(), true, false)?;
             __acc = Some(match __acc { None => __x, Some(__cur) => if __x > __cur { __x } else { __cur } });
         }
         __acc.ok_or_else(|| anyhow::anyhow!("empty max reduction"))?
-    }) {
+    })) {
             if !(fallbackOnNonExactMatch.clone()) {
                 Error::addSourceMessage(Error::ERROR_PKG_NOT_EXACT_MATCH.clone(), list![(pkg.clone()).clone(), (version.clone()).clone(), stringDelimitList(candidates.clone(), (literal!(", ")).clone())], makeSourceInfo((getIndexPath()?).clone()))?;
-                return Ok((success, packagesToInstall));
+                return Ok((success.clone(), packagesToInstall.clone()));
             }
             versionToInstall = (listHead(candidates.clone())?).clone();
             semverToInstall = listHead(candidatesSemver.clone())?;
@@ -2194,12 +2186,12 @@ fn installPackageWork(mut pkg: ArcStr, mut version: ArcStr, mut exactMatch: bool
     }
     if !(indexHasPkg.clone()) {
         packagesToInstall = cons(packageToInstall.clone(), packagesToInstall.clone());
-        return Ok((success, packagesToInstall));
+        return Ok((success.clone(), packagesToInstall.clone()));
     }
     versionsObj = JSON::get(JSON::get(JSON::get(index.clone(), (literal!("libs")).clone())?, (pkg.clone()).clone())?, (literal!("versions")).clone())?;
     if success.clone() && !(JSON::hasKey(versionsObj.clone(), (versionToInstall.clone()).clone())?) {
         packagesToInstall = cons(packageToInstall.clone(), packagesToInstall.clone());
-        return Ok((success, packagesToInstall));
+        return Ok((success.clone(), packagesToInstall.clone()));
     }
     versionObj = JSON::get(versionsObj.clone(), (versionToInstall.clone()).clone())?;
     if !(success.clone()) || sha.clone() != literal!("") && sha.clone() != getShaOrZipfile(versionObj.clone())? {
@@ -2217,7 +2209,7 @@ fn installPackageWork(mut pkg: ArcStr, mut version: ArcStr, mut exactMatch: bool
         usedVersion = __pa1.clone();
         (success, packagesToInstall) = installPackageWork((usesPackage.clone()).clone(), (usedVersion.clone()).clone(), exactMatch.clone(), true, packagesToInstall.clone())?;
         if !(success.clone()) {
-            return Ok((success, packagesToInstall));
+            return Ok((success.clone(), packagesToInstall.clone()));
         }
     }
     Ok((success, packagesToInstall))
@@ -2235,7 +2227,7 @@ fn getAllUrls(mut url: ArcStr, mut mirrors: Arc<metamodelica::List<ArcStr>>) -> 
     let mut newUrl: ArcStr = arcstr::literal!("");
     urls = list![(url.clone()).clone()];
     if !(StringUtil::startsWith((url.clone()).clone(), (literal!("https://")).clone())) {
-        return Ok(urls);
+        return Ok(urls.clone());
     }
     urlWithoutProtocol = substring((url.clone()).clone(), 9, ((url.clone()).clone().len() as i32))?;
     for mut mirror in &*mirrors.clone() {
@@ -2252,7 +2244,7 @@ fn getMirrors() -> Result<Arc<metamodelica::List<ArcStr>>> {
     obj = getPackageIndex(false)?;
     if !(JSON::hasKey(obj.clone(), (literal!("mirrors")).clone())?) {
         mirrors = metamodelica::nil();
-        return Ok(mirrors);
+        return Ok(mirrors.clone());
     }
     obj = JSON::get(obj.clone(), (literal!("mirrors")).clone())?;
     mirrors = JSON::getStringList(obj.clone())?;

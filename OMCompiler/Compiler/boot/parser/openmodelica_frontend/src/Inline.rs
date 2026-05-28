@@ -83,10 +83,10 @@ pub fn inlineStartAttribute(mut inVariableAttributesOption: Option<Arc<DAE::Vari
     let mut osource: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
     let mut b: bool = false;
     (outVariableAttributesOption, osource, b) = 'mc: {
-        let __mc_input = (inVariableAttributesOption.clone(), isource.clone(), fns.clone());
+        let __mc_input = inVariableAttributesOption.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (None, _, _) => {
+                None => {
                     Ok((None, isource.clone(), false))
                 }
                 _ => bail!("nomatch"),
@@ -94,7 +94,7 @@ pub fn inlineStartAttribute(mut inVariableAttributesOption: Option<Arc<DAE::Vari
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Some(Deref @ DAE::VariableAttributes::VAR_ATTR_REAL { startOrigin: so, finalPrefix, isProtected, equationBound, distributionOption, uncertainOption, stateSelectOption, nominal, fixed, start: Some(r), max, min, displayUnit, unit, quantity }), _, _) => {
+                Some(Deref @ DAE::VariableAttributes::VAR_ATTR_REAL { startOrigin: so, finalPrefix, isProtected, equationBound, distributionOption, uncertainOption, stateSelectOption, nominal, fixed, start: Some(r), max, min, displayUnit, unit, quantity }) => {
                     let mut source: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
                     let mut r = (*r).clone();
                     let (__pa0, __pa1) = ::match_deref::match_deref! { match &(inlineExp(r.clone(), fns.clone(), isource.clone())?) {
@@ -110,7 +110,7 @@ pub fn inlineStartAttribute(mut inVariableAttributesOption: Option<Arc<DAE::Vari
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Some(Deref @ DAE::VariableAttributes::VAR_ATTR_INT { startOrigin: so, finalPrefix, isProtected, equationBound, distributionOption, uncertainOption, fixed, start: Some(r), max, min, quantity }), _, _) => {
+                Some(Deref @ DAE::VariableAttributes::VAR_ATTR_INT { startOrigin: so, finalPrefix, isProtected, equationBound, distributionOption, uncertainOption, fixed, start: Some(r), max, min, quantity }) => {
                     let mut source: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
                     let mut r = (*r).clone();
                     let (__pa0, __pa1) = ::match_deref::match_deref! { match &(inlineExp(r.clone(), fns.clone(), isource.clone())?) {
@@ -126,7 +126,7 @@ pub fn inlineStartAttribute(mut inVariableAttributesOption: Option<Arc<DAE::Vari
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Some(Deref @ DAE::VariableAttributes::VAR_ATTR_BOOL { startOrigin: so, finalPrefix, isProtected, equationBound, fixed, start: Some(r), quantity }), _, _) => {
+                Some(Deref @ DAE::VariableAttributes::VAR_ATTR_BOOL { startOrigin: so, finalPrefix, isProtected, equationBound, fixed, start: Some(r), quantity }) => {
                     let mut source: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
                     let mut r = (*r).clone();
                     let (__pa0, __pa1) = ::match_deref::match_deref! { match &(inlineExp(r.clone(), fns.clone(), isource.clone())?) {
@@ -142,7 +142,7 @@ pub fn inlineStartAttribute(mut inVariableAttributesOption: Option<Arc<DAE::Vari
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Some(Deref @ DAE::VariableAttributes::VAR_ATTR_STRING { startOrigin: so, finalPrefix, isProtected, equationBound, fixed, start: Some(r), quantity }), _, _) => {
+                Some(Deref @ DAE::VariableAttributes::VAR_ATTR_STRING { startOrigin: so, finalPrefix, isProtected, equationBound, fixed, start: Some(r), quantity }) => {
                     let mut source: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
                     let mut r = (*r).clone();
                     let (__pa0, __pa1) = ::match_deref::match_deref! { match &(inlineExp(r.clone(), fns.clone(), isource.clone())?) {
@@ -158,7 +158,7 @@ pub fn inlineStartAttribute(mut inVariableAttributesOption: Option<Arc<DAE::Vari
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Some(Deref @ DAE::VariableAttributes::VAR_ATTR_ENUMERATION { startOrigin: so, finalPrefix, isProtected, equationBound, fixed, start: Some(r), max, min, quantity }), _, _) => {
+                Some(Deref @ DAE::VariableAttributes::VAR_ATTR_ENUMERATION { startOrigin: so, finalPrefix, isProtected, equationBound, fixed, start: Some(r), max, min, quantity }) => {
                     let mut source: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
                     let mut r = (*r).clone();
                     let (__pa0, __pa1) = ::match_deref::match_deref! { match &(inlineExp(r.clone(), fns.clone(), isource.clone())?) {
@@ -188,10 +188,9 @@ pub fn inlineStartAttribute(mut inVariableAttributesOption: Option<Arc<DAE::Vari
 pub fn inlineCallsInFunctions(mut inElementList: Arc<metamodelica::List<DAE::Function>>, mut inFunctions: Functiontuple) -> Result<Arc<metamodelica::List<DAE::Function>>> {
     let mut outElementList: Arc<metamodelica::List<DAE::Function>> = metamodelica::nil();
     let mut body: Arc<metamodelica::List<Arc<DAE::Element>>> = metamodelica::nil();
-    let mut ext_decl: DAE::ExternalDecl = <DAE::ExternalDecl as ::std::default::Default>::default();
     let mut fn_def: DAE::FunctionDefinition;
     let mut fn_defs: Arc<metamodelica::List<DAE::FunctionDefinition>> = metamodelica::nil();
-    outElementList = {
+    outElementList = ({
         let mut __acc: Arc<metamodelica::List<DAE::Function>> = metamodelica::nil();
         for mut r#fn in (inElementList.clone()).into_iter().cloned() {
             let __x = 'mc: {
@@ -200,8 +199,8 @@ pub fn inlineCallsInFunctions(mut inElementList: Arc<metamodelica::List<DAE::Fun
             ::match_deref::match_deref! { match &__mc_input {
                 DAE::Function::FUNCTION { functions: Deref @ metamodelica::List::Cons { head: fn_def @ DAE::FunctionDefinition::FUNCTION_DEF { .. }, tail: fn_defs }, .. } => {
                     let mut fn_def = (*fn_def).clone();
-                    let mut body: Arc<metamodelica::List<Arc<DAE::Element>>> = body.clone();
                     let mut r#fn: DAE::Function;
+                    let mut body: Arc<metamodelica::List<Arc<DAE::Element>>> = body.clone();
                     let __pa0 = ::match_deref::match_deref! { match &(inlineDAEElements(var_field!(fn_def.body, DAE::FunctionDefinition::FUNCTION_DEF).clone(), inFunctions.clone(), metamodelica::nil(), false)?) {
                         (__pa0, true) => __pa0.clone(),
                         _ => bail!("pattern mismatch"),
@@ -224,8 +223,8 @@ pub fn inlineCallsInFunctions(mut inElementList: Arc<metamodelica::List<DAE::Fun
             ::match_deref::match_deref! { match &__mc_input {
                 DAE::Function::FUNCTION { functions: Deref @ metamodelica::List::Cons { head: fn_def @ DAE::FunctionDefinition::FUNCTION_EXT { .. }, tail: fn_defs }, .. } => {
                     let mut fn_def = (*fn_def).clone();
-                    let mut body: Arc<metamodelica::List<Arc<DAE::Element>>> = body.clone();
                     let mut r#fn: DAE::Function;
+                    let mut body: Arc<metamodelica::List<Arc<DAE::Element>>> = body.clone();
                     let __pa0 = ::match_deref::match_deref! { match &(inlineDAEElements(var_field!(fn_def.body, DAE::FunctionDefinition::FUNCTION_EXT).clone(), inFunctions.clone(), metamodelica::nil(), false)?) {
                         (__pa0, true) => __pa0.clone(),
                         _ => bail!("pattern mismatch"),
@@ -257,18 +256,18 @@ pub fn inlineCallsInFunctions(mut inElementList: Arc<metamodelica::List<DAE::Fun
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     Ok(outElementList)
 }
 
 fn inlineDAEElementsLst(mut inElementList: Arc<metamodelica::List<Arc<metamodelica::List<Arc<DAE::Element>>>>>, mut inFunctions: Functiontuple, mut iAcc: Arc<metamodelica::List<Arc<metamodelica::List<Arc<DAE::Element>>>>>, mut iInlined: bool) -> Result<(Arc<metamodelica::List<Arc<metamodelica::List<Arc<DAE::Element>>>>>, bool)> {
     let mut outElementList: Arc<metamodelica::List<Arc<metamodelica::List<Arc<DAE::Element>>>>> = metamodelica::nil();
     let mut OInlined: bool = false;
-    (outElementList, OInlined) = (::match_deref::match_deref! { match &((inElementList.clone(), inFunctions.clone(), iAcc.clone(), iInlined.clone())) {
-        (Deref @ metamodelica::List::Nil, _, _, _) => {
+    (outElementList, OInlined) = (::match_deref::match_deref! { match &(inElementList.clone()) {
+        Deref @ metamodelica::List::Nil => {
             (iAcc.clone().reverse(), iInlined.clone())
         },
-        (Deref @ metamodelica::List::Cons { head: elem, tail: rest }, _, _, _) => {
+        Deref @ metamodelica::List::Cons { head: elem, tail: rest } => {
             let mut acc: Arc<metamodelica::List<Arc<metamodelica::List<Arc<DAE::Element>>>>> = metamodelica::nil();
             let mut inlined: bool = false;
             let mut elem = (*elem).clone();
@@ -276,7 +275,7 @@ fn inlineDAEElementsLst(mut inElementList: Arc<metamodelica::List<Arc<metamodeli
             (acc, inlined) = inlineDAEElementsLst(rest.clone(), inFunctions.clone(), cons(elem.clone(), iAcc.clone()), inlined.clone() || iInlined.clone())?;
             (acc.clone(), inlined.clone())
         },
-        _ => bail!("match: no arm matched"),
+        _ => unreachable!("match_deref! exhaustiveness placeholder"),
     } });
     Ok((outElementList, OInlined))
 }
@@ -284,11 +283,11 @@ fn inlineDAEElementsLst(mut inElementList: Arc<metamodelica::List<Arc<metamodeli
 fn inlineDAEElements(mut inElementList: Arc<metamodelica::List<Arc<DAE::Element>>>, mut inFunctions: Functiontuple, mut iAcc: Arc<metamodelica::List<Arc<DAE::Element>>>, mut iInlined: bool) -> Result<(Arc<metamodelica::List<Arc<DAE::Element>>>, bool)> {
     let mut outElementList: Arc<metamodelica::List<Arc<DAE::Element>>> = metamodelica::nil();
     let mut OInlined: bool = false;
-    (outElementList, OInlined) = (::match_deref::match_deref! { match &((inElementList.clone(), inFunctions.clone(), iAcc.clone(), iInlined.clone())) {
-        (Deref @ metamodelica::List::Nil, _, _, _) => {
+    (outElementList, OInlined) = (::match_deref::match_deref! { match &(inElementList.clone()) {
+        Deref @ metamodelica::List::Nil => {
             (iAcc.clone().reverse(), iInlined.clone())
         },
-        (Deref @ metamodelica::List::Cons { head: elem, tail: rest }, _, _, _) => {
+        Deref @ metamodelica::List::Cons { head: elem, tail: rest } => {
             let mut acc: Arc<metamodelica::List<Arc<DAE::Element>>> = metamodelica::nil();
             let mut inlined: bool = false;
             let mut elem = (*elem).clone();
@@ -296,7 +295,7 @@ fn inlineDAEElements(mut inElementList: Arc<metamodelica::List<Arc<DAE::Element>
             (acc, inlined) = inlineDAEElements(rest.clone(), inFunctions.clone(), cons(elem.clone(), iAcc.clone()), inlined.clone() || iInlined.clone())?;
             (acc.clone(), inlined.clone())
         },
-        _ => bail!("match: no arm matched"),
+        _ => unreachable!("match_deref! exhaustiveness placeholder"),
     } });
     Ok((outElementList, OInlined))
 }
@@ -727,11 +726,11 @@ pub fn inlineAlgorithm(mut inAlgorithm: Arc<DAE::Algorithm>, mut inElementList: 
 pub fn inlineStatements(mut inStatements: Arc<metamodelica::List<Arc<DAE::Statement>>>, mut inElementList: Functiontuple, mut iAcc: Arc<metamodelica::List<Arc<DAE::Statement>>>, mut iInlined: bool) -> Result<(Arc<metamodelica::List<Arc<DAE::Statement>>>, bool)> {
     let mut outStatements: Arc<metamodelica::List<Arc<DAE::Statement>>> = metamodelica::nil();
     let mut OInlined: bool = false;
-    (outStatements, OInlined) = (::match_deref::match_deref! { match &((inStatements.clone(), inElementList.clone(), iAcc.clone(), iInlined.clone())) {
-        (Deref @ metamodelica::List::Nil, _, _, _) => {
+    (outStatements, OInlined) = (::match_deref::match_deref! { match &(inStatements.clone()) {
+        Deref @ metamodelica::List::Nil => {
             (iAcc.clone().reverse(), iInlined.clone())
         },
-        (Deref @ metamodelica::List::Cons { head: stmt, tail: rest }, _, _, _) => {
+        Deref @ metamodelica::List::Cons { head: stmt, tail: rest } => {
             let mut acc: Arc<metamodelica::List<Arc<DAE::Statement>>> = metamodelica::nil();
             let mut inlined: bool = false;
             let mut stmt = (*stmt).clone();
@@ -739,7 +738,7 @@ pub fn inlineStatements(mut inStatements: Arc<metamodelica::List<Arc<DAE::Statem
             (acc, inlined) = inlineStatements(rest.clone(), inElementList.clone(), cons(stmt.clone(), iAcc.clone()), inlined.clone() || iInlined.clone())?;
             (acc.clone(), inlined.clone())
         },
-        _ => bail!("match: no arm matched"),
+        _ => unreachable!("match_deref! exhaustiveness placeholder"),
     } });
     Ok((outStatements, OInlined))
 }
@@ -1033,18 +1032,18 @@ pub fn inlineExpOpt(mut inExpOption: Option<Arc<DAE::Exp>>, mut inElementList: F
     let mut outExpOption: Option<Arc<DAE::Exp>> = None;
     let mut outSource: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
     let mut inlined: bool = false;
-    (outExpOption, outSource, inlined) = (::match_deref::match_deref! { match &((inExpOption.clone(), inElementList.clone(), inSource.clone())) {
-        (None, _, _) => {
+    (outExpOption, outSource, inlined) = (::match_deref::match_deref! { match &(inExpOption.clone()) {
+        None => {
             (None, inSource.clone(), false)
         },
-        (Some(exp), _, _) => {
+        Some(exp) => {
             let mut source: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
             let mut b: bool = false;
             let mut exp = (*exp).clone();
             (exp, source, b, _) = inlineExp(exp.clone(), inElementList.clone(), inSource.clone())?;
             (Some(exp.clone()), source.clone(), b.clone())
         },
-        _ => bail!("match: no arm matched"),
+        _ => unreachable!("match_deref! exhaustiveness placeholder"),
     } });
     Ok((outExpOption, outSource, inlined))
 }
@@ -1167,11 +1166,11 @@ fn inlineExpsWork(mut inExps: Arc<metamodelica::List<Arc<DAE::Exp>>>, mut fns: F
     let mut outExps: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
     let mut outSource: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
     let mut oInlined: bool = false;
-    (outExps, outSource, oInlined) = (::match_deref::match_deref! { match &((inExps.clone(), fns.clone(), inSource.clone(), iAcc.clone(), iInlined.clone())) {
-        (Deref @ metamodelica::List::Nil, _, _, _, _) => {
+    (outExps, outSource, oInlined) = (::match_deref::match_deref! { match &(inExps.clone()) {
+        Deref @ metamodelica::List::Nil => {
             (iAcc.clone().reverse(), inSource.clone(), iInlined.clone())
         },
-        (Deref @ metamodelica::List::Cons { head: e, tail: exps }, _, _, _, _) => {
+        Deref @ metamodelica::List::Cons { head: e, tail: exps } => {
             let mut source: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
             let mut b: bool = false;
             let mut e = (*e).clone();
@@ -1180,15 +1179,15 @@ fn inlineExpsWork(mut inExps: Arc<metamodelica::List<Arc<DAE::Exp>>>, mut fns: F
             (exps, source, b) = inlineExpsWork(exps.clone(), fns.clone(), source.clone(), cons(e.clone(), iAcc.clone()), b.clone() || iInlined.clone())?;
             (exps.clone(), source.clone(), b.clone())
         },
-        _ => bail!("match: no arm matched"),
+        _ => unreachable!("match_deref! exhaustiveness placeholder"),
     } });
     Ok((outExps, outSource, oInlined))
 }
 
 pub fn checkExpsTypeEquiv(mut inExp1: Arc<DAE::Exp>, mut inExp2: Arc<DAE::Exp>) -> Result<bool> {
     let mut bEquiv: bool = false;
-    bEquiv = (::match_deref::match_deref! { match &((inExp1.clone(), inExp2.clone())) {
-        (_, _) => {
+    bEquiv = (::match_deref::match_deref! { match &(inExp2.clone()) {
+        _ => {
             let mut ty1: Arc<DAE::Type> = Arc::new(DAE::Type::T_NORETCALL);
             let mut ty2: Arc<DAE::Type> = Arc::new(DAE::Type::T_NORETCALL);
             let mut b: bool = false;
@@ -1275,14 +1274,14 @@ pub fn inlineCall(mut exp: Arc<DAE::Exp>, mut assrtLst: Arc<metamodelica::List<A
                         (crefs, lst_cr, stmts, repl) = getFunctionInputsOutputBody(r#fn.clone(), repl.clone())?;
                         (repl, assrtStmts) = mergeFunctionBody(stmts.clone(), repl.clone(), metamodelica::nil())?;
                         if assrtStmts.clone().is_empty() {
-                            newExp = Expression::makeTuple({
+                            newExp = Expression::makeTuple(({
         let mut __acc: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
         for mut cr in (lst_cr.clone()).into_iter().cloned() {
                     let __x = getReplacementCheckComplex(repl.clone(), cr.clone(), ty.clone())?;
                     __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    })?;
+    }))?;
                             let true = (checkExpsTypeEquiv(e1.clone(), newExp.clone())?) else { bail!("pattern mismatch") };
                             argmap = List::zip(crefs.clone(), args.clone());
                             (checkcr, _) = getInlineHashTableVarTransform()?;
@@ -1302,14 +1301,14 @@ pub fn inlineCall(mut exp: Arc<DAE::Exp>, mut assrtLst: Arc<metamodelica::List<A
                                         Deref @ DAE::Statement::STMT_ASSERT { .. } => (),
                                         _ => bail!("pattern mismatch"),
                             } };
-                            newExp = Expression::makeTuple({
+                            newExp = Expression::makeTuple(({
         let mut __acc: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
         for mut cr in (lst_cr.clone()).into_iter().cloned() {
                     let __x = getReplacementCheckComplex(repl.clone(), cr.clone(), ty.clone())?;
                     __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    })?;
+    }))?;
                             let true = (checkExpsTypeEquiv(e1.clone(), newExp.clone())?) else { bail!("pattern mismatch") };
                             argmap = List::zip(crefs.clone(), args.clone());
                             (argmap, checkcr) = extendCrefRecords(argmap.clone(), checkcr.clone())?;
@@ -1342,7 +1341,7 @@ pub fn inlineCall(mut exp: Arc<DAE::Exp>, mut assrtLst: Arc<metamodelica::List<A
     Ok((exp, assrtLst))
 }
 
-fn inlineAssert(mut assrtIn: Arc<DAE::Statement>, mut fns: Functiontuple, mut argmap: Arc<metamodelica::List<(Arc<DAE::ComponentRef>, Arc<DAE::Exp>)>>, mut checkcr: (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>), i32, (HashTableCG::FuncHashCref, HashTableCG::FuncCrefEqual, HashTableCG::FuncCrefStr, HashTableCG::FuncExpStr))) -> Result<Arc<DAE::Statement>> {
+fn inlineAssert(mut assrtIn: Arc<DAE::Statement>, mut fns: Functiontuple, mut argmap: Arc<metamodelica::List<(Arc<DAE::ComponentRef>, Arc<DAE::Exp>)>>, mut checkcr: (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>), i32, (Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<i32> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>) -> Result<bool> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>))) -> Result<Arc<DAE::Statement>> {
     let mut assrtOut: Arc<DAE::Statement>;
     let mut source: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
     let mut cond: Arc<DAE::Exp>;
@@ -1419,14 +1418,14 @@ pub fn forceInlineCall(mut exp: Arc<DAE::Exp>, mut assrtLst: Arc<metamodelica::L
                     (checkcr, repl) = getInlineHashTableVarTransform()?;
                     (crefs, lst_cr, stmts, repl) = getFunctionInputsOutputBody(r#fn.clone(), repl.clone())?;
                     (repl, _) = mergeFunctionBody(stmts.clone(), repl.clone(), metamodelica::nil())?;
-                    newExp = Expression::makeTuple({
+                    newExp = Expression::makeTuple(({
         let mut __acc: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
         for mut cr in (lst_cr.clone()).into_iter().cloned() {
                     let __x = VarTransform::getReplacement(repl.clone(), cr.clone())?;
                     __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    })?;
+    }))?;
                     let true = (checkExpsTypeEquiv(e1.clone(), newExp.clone())?) else { bail!("pattern mismatch") };
                     argmap = List::zip(crefs.clone(), args.clone());
                     (argmap, checkcr) = extendCrefRecords(argmap.clone(), checkcr.clone())?;
@@ -1459,11 +1458,11 @@ pub fn forceInlineCall(mut exp: Arc<DAE::Exp>, mut assrtLst: Arc<metamodelica::L
 fn mergeFunctionBody(mut iStmts: Arc<metamodelica::List<Arc<DAE::Statement>>>, mut iRepl: VarTransform::VariableReplacements, mut assertStmtsIn: Arc<metamodelica::List<Arc<DAE::Statement>>>) -> Result<(VarTransform::VariableReplacements, Arc<metamodelica::List<Arc<DAE::Statement>>>)> {
     let mut oRepl: VarTransform::VariableReplacements = <VarTransform::VariableReplacements as ::std::default::Default>::default();
     let mut assertStmtsOut: Arc<metamodelica::List<Arc<DAE::Statement>>> = metamodelica::nil();
-    (oRepl, assertStmtsOut) = (::match_deref::match_deref! { match &((iStmts.clone(), iRepl.clone(), assertStmtsIn.clone())) {
-        (Deref @ metamodelica::List::Nil, _, _) => {
+    (oRepl, assertStmtsOut) = (::match_deref::match_deref! { match &(iStmts.clone()) {
+        Deref @ metamodelica::List::Nil => {
             (iRepl.clone(), assertStmtsIn.clone())
         },
-        (Deref @ metamodelica::List::Cons { head: Deref @ DAE::Statement::STMT_ASSIGN { exp, exp1: Deref @ DAE::Exp::CREF { componentRef: cr, .. }, .. }, tail: stmts }, _, _) => {
+        Deref @ metamodelica::List::Cons { head: Deref @ DAE::Statement::STMT_ASSIGN { exp, exp1: Deref @ DAE::Exp::CREF { componentRef: cr, .. }, .. }, tail: stmts } => {
             let mut repl: VarTransform::VariableReplacements = <VarTransform::VariableReplacements as ::std::default::Default>::default();
             let mut assertStmts: Arc<metamodelica::List<Arc<DAE::Statement>>> = metamodelica::nil();
             let mut exp = (*exp).clone();
@@ -1472,7 +1471,7 @@ fn mergeFunctionBody(mut iStmts: Arc<metamodelica::List<Arc<DAE::Statement>>>, m
             (repl, assertStmts) = mergeFunctionBody(stmts.clone(), repl.clone(), assertStmtsIn.clone())?;
             (repl.clone(), assertStmts.clone())
         },
-        (Deref @ metamodelica::List::Cons { head: Deref @ DAE::Statement::STMT_ASSIGN_ARR { exp, lhs: Deref @ DAE::Exp::CREF { componentRef: cr, .. }, .. }, tail: stmts }, _, _) => {
+        Deref @ metamodelica::List::Cons { head: Deref @ DAE::Statement::STMT_ASSIGN_ARR { exp, lhs: Deref @ DAE::Exp::CREF { componentRef: cr, .. }, .. }, tail: stmts } => {
             let mut repl: VarTransform::VariableReplacements = <VarTransform::VariableReplacements as ::std::default::Default>::default();
             let mut assertStmts: Arc<metamodelica::List<Arc<DAE::Statement>>> = metamodelica::nil();
             let mut exp = (*exp).clone();
@@ -1481,7 +1480,7 @@ fn mergeFunctionBody(mut iStmts: Arc<metamodelica::List<Arc<DAE::Statement>>>, m
             (repl, assertStmts) = mergeFunctionBody(stmts.clone(), repl.clone(), assertStmtsIn.clone())?;
             (repl.clone(), assertStmts.clone())
         },
-        (Deref @ metamodelica::List::Cons { head: Deref @ DAE::Statement::STMT_TUPLE_ASSIGN { exp, expExpLst: explst, .. }, tail: stmts }, _, _) => {
+        Deref @ metamodelica::List::Cons { head: Deref @ DAE::Statement::STMT_TUPLE_ASSIGN { exp, expExpLst: explst, .. }, tail: stmts } => {
             let mut repl: VarTransform::VariableReplacements = <VarTransform::VariableReplacements as ::std::default::Default>::default();
             let mut assertStmts: Arc<metamodelica::List<Arc<DAE::Statement>>> = metamodelica::nil();
             let mut exp = (*exp).clone();
@@ -1490,7 +1489,7 @@ fn mergeFunctionBody(mut iStmts: Arc<metamodelica::List<Arc<DAE::Statement>>>, m
             (repl, assertStmts) = mergeFunctionBody(stmts.clone(), repl.clone(), assertStmtsIn.clone())?;
             (repl.clone(), assertStmts.clone())
         },
-        (Deref @ metamodelica::List::Cons { head: Deref @ DAE::Statement::STMT_ASSERT { source, level: exp2, msg: exp1, cond: exp }, tail: stmts }, _, _) => {
+        Deref @ metamodelica::List::Cons { head: Deref @ DAE::Statement::STMT_ASSERT { source, level: exp2, msg: exp1, cond: exp }, tail: stmts } => {
             let mut repl: VarTransform::VariableReplacements = <VarTransform::VariableReplacements as ::std::default::Default>::default();
             let mut stmt: Arc<DAE::Statement>;
             let mut assertStmts: Arc<metamodelica::List<Arc<DAE::Statement>>> = metamodelica::nil();
@@ -1504,7 +1503,7 @@ fn mergeFunctionBody(mut iStmts: Arc<metamodelica::List<Arc<DAE::Statement>>>, m
             (repl, assertStmts) = mergeFunctionBody(stmts.clone(), iRepl.clone(), cons(stmt.clone(), assertStmtsIn.clone()))?;
             (repl.clone(), assertStmts.clone())
         },
-        (Deref @ metamodelica::List::Cons { head: Deref @ DAE::Statement::STMT_IF { else_: Deref @ DAE::Else::ELSE { statementLst: Deref @ metamodelica::List::Cons { head: Deref @ DAE::Statement::STMT_ASSIGN { exp: exp2, exp1: Deref @ DAE::Exp::CREF { componentRef: cr2, .. }, .. }, tail: Deref @ metamodelica::List::Nil } }, statementLst: Deref @ metamodelica::List::Cons { head: Deref @ DAE::Statement::STMT_ASSIGN { exp: exp1, exp1: Deref @ DAE::Exp::CREF { componentRef: cr1, .. }, .. }, tail: Deref @ metamodelica::List::Nil }, exp, .. }, tail: stmts }, _, _) if (ComponentReferenceBasics::crefEqual(cr1.clone(), cr2.clone())?) => {
+        Deref @ metamodelica::List::Cons { head: Deref @ DAE::Statement::STMT_IF { else_: Deref @ DAE::Else::ELSE { statementLst: Deref @ metamodelica::List::Cons { head: Deref @ DAE::Statement::STMT_ASSIGN { exp: exp2, exp1: Deref @ DAE::Exp::CREF { componentRef: cr2, .. }, .. }, tail: Deref @ metamodelica::List::Nil } }, statementLst: Deref @ metamodelica::List::Cons { head: Deref @ DAE::Statement::STMT_ASSIGN { exp: exp1, exp1: Deref @ DAE::Exp::CREF { componentRef: cr1, .. }, .. }, tail: Deref @ metamodelica::List::Nil }, exp, .. }, tail: stmts } if (ComponentReferenceBasics::crefEqual(cr1.clone(), cr2.clone())?) => {
             let mut repl: VarTransform::VariableReplacements = <VarTransform::VariableReplacements as ::std::default::Default>::default();
             let mut assertStmts: Arc<metamodelica::List<Arc<DAE::Statement>>> = metamodelica::nil();
             let mut exp2 = (*exp2).clone();
@@ -1517,7 +1516,7 @@ fn mergeFunctionBody(mut iStmts: Arc<metamodelica::List<Arc<DAE::Statement>>>, m
             (repl, assertStmts) = mergeFunctionBody(stmts.clone(), repl.clone(), assertStmtsIn.clone())?;
             (repl.clone(), assertStmts.clone())
         },
-        (Deref @ metamodelica::List::Cons { head: Deref @ DAE::Statement::STMT_IF { else_: Deref @ DAE::Else::ELSE { statementLst: Deref @ metamodelica::List::Cons { head: Deref @ DAE::Statement::STMT_ASSIGN_ARR { exp: exp2, lhs: Deref @ DAE::Exp::CREF { componentRef: cr2, .. }, .. }, tail: Deref @ metamodelica::List::Nil } }, statementLst: Deref @ metamodelica::List::Cons { head: Deref @ DAE::Statement::STMT_ASSIGN_ARR { exp: exp1, lhs: Deref @ DAE::Exp::CREF { componentRef: cr1, .. }, .. }, tail: Deref @ metamodelica::List::Nil }, exp, .. }, tail: stmts }, _, _) if (ComponentReferenceBasics::crefEqual(cr1.clone(), cr2.clone())?) => {
+        Deref @ metamodelica::List::Cons { head: Deref @ DAE::Statement::STMT_IF { else_: Deref @ DAE::Else::ELSE { statementLst: Deref @ metamodelica::List::Cons { head: Deref @ DAE::Statement::STMT_ASSIGN_ARR { exp: exp2, lhs: Deref @ DAE::Exp::CREF { componentRef: cr2, .. }, .. }, tail: Deref @ metamodelica::List::Nil } }, statementLst: Deref @ metamodelica::List::Cons { head: Deref @ DAE::Statement::STMT_ASSIGN_ARR { exp: exp1, lhs: Deref @ DAE::Exp::CREF { componentRef: cr1, .. }, .. }, tail: Deref @ metamodelica::List::Nil }, exp, .. }, tail: stmts } if (ComponentReferenceBasics::crefEqual(cr1.clone(), cr2.clone())?) => {
             let mut repl: VarTransform::VariableReplacements = <VarTransform::VariableReplacements as ::std::default::Default>::default();
             let mut assertStmts: Arc<metamodelica::List<Arc<DAE::Statement>>> = metamodelica::nil();
             let mut exp2 = (*exp2).clone();
@@ -1539,11 +1538,11 @@ fn mergeFunctionBody(mut iStmts: Arc<metamodelica::List<Arc<DAE::Statement>>>, m
 // and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
 fn addTplAssignToRepl(mut explst: Arc<metamodelica::List<Arc<DAE::Exp>>>, mut indx: i32, mut iExp: Arc<DAE::Exp>, mut iRepl: VarTransform::VariableReplacements) -> Result<VarTransform::VariableReplacements> {
     let mut oRepl: VarTransform::VariableReplacements = <VarTransform::VariableReplacements as ::std::default::Default>::default();
-    oRepl = (::match_deref::match_deref! { match &((explst.clone(), indx.clone(), iExp.clone(), iRepl.clone())) {
-        (Deref @ metamodelica::List::Nil, _, _, _) => {
+    oRepl = (::match_deref::match_deref! { match &(explst.clone()) {
+        Deref @ metamodelica::List::Nil => {
             iRepl.clone()
         },
-        (Deref @ metamodelica::List::Cons { head: Deref @ DAE::Exp::CREF { ty: tp, componentRef: cr }, tail: rest }, _, _, _) => {
+        Deref @ metamodelica::List::Cons { head: Deref @ DAE::Exp::CREF { ty: tp, componentRef: cr }, tail: rest } => {
             let mut repl: VarTransform::VariableReplacements = <VarTransform::VariableReplacements as ::std::default::Default>::default();
             let mut exp: Arc<DAE::Exp>;
             exp = Arc::new(DAE::Exp::TSUB { exp: iExp.clone(), ix: indx.clone(), ty: tp.clone() });
@@ -1567,7 +1566,7 @@ fn getFunctionInputsOutputBody(mut r#fn: Arc<metamodelica::List<Arc<DAE::Element
     let mut st: Arc<metamodelica::List<Arc<DAE::Statement>>> = metamodelica::nil();
     for mut elt in &*r#fn.clone() {
         let mut elt = elt.clone();
-        let _ = (::match_deref::match_deref! { match &(elt.clone()) {
+        let () = (::match_deref::match_deref! { match &(elt.clone()) {
         Deref @ DAE::Element::VAR { direction: DAE::VarDirection::INPUT, componentRef: cr, .. } => {
             oInputs = cons(cr.clone(), oInputs.clone());
             ()
@@ -1621,7 +1620,7 @@ fn makeComplexBinding(mut binding: Option<Arc<DAE::Exp>>, mut ty: Arc<DAE::Type>
             ()
         },
         _ => {
-            return binding;
+            return binding.clone();
             ()
         },
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
@@ -1639,27 +1638,23 @@ fn makeComplexBinding(mut binding: Option<Arc<DAE::Exp>>, mut ty: Arc<DAE::Type>
 
 fn addOptBindingReplacements(mut cr: Arc<DAE::ComponentRef>, mut binding: Option<Arc<DAE::Exp>>, mut iRepl: VarTransform::VariableReplacements) -> Result<VarTransform::VariableReplacements> {
     let mut oRepl: VarTransform::VariableReplacements = <VarTransform::VariableReplacements as ::std::default::Default>::default();
-    oRepl = (::match_deref::match_deref! { match &((cr.clone(), binding.clone(), iRepl.clone())) {
-        (_, Some(e), _) => {
+    oRepl = (::match_deref::match_deref! { match &(binding.clone()) {
+        Some(e) => {
             addReplacement(cr.clone(), e.clone(), iRepl.clone())?
         },
-        (_, None, _) => {
+        None => {
             iRepl.clone()
         },
-        _ => bail!("match: no arm matched"),
+        _ => unreachable!("match_deref! exhaustiveness placeholder"),
     } });
     Ok(oRepl)
 }
 
 fn addReplacement(mut iCr: Arc<DAE::ComponentRef>, mut iExp: Arc<DAE::Exp>, mut iRepl: VarTransform::VariableReplacements) -> Result<VarTransform::VariableReplacements> {
     let mut oRepl: VarTransform::VariableReplacements = <VarTransform::VariableReplacements as ::std::default::Default>::default();
-    oRepl = (::match_deref::match_deref! { match &((iCr.clone(), iExp.clone(), iRepl.clone())) {
-        (Deref @ DAE::ComponentRef::CREF_IDENT { .. }, _, _) => {
-            VarTransform::addReplacement(iRepl.clone(), iCr.clone(), iExp.clone())?
-        },
-        _ => {
-            bail!("fail")
-        },
+    oRepl = (::match_deref::match_deref! { match &(iCr.clone()) {
+        Deref @ DAE::ComponentRef::CREF_IDENT { .. } => VarTransform::addReplacement(iRepl.clone(), iCr.clone(), iExp.clone())?,
+        _ => bail!("fail"),
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
     } });
     Ok(oRepl)
@@ -1693,7 +1688,7 @@ pub fn checkInlineType(mut inIT: DAE::InlineType, mut fns: Functiontuple) -> Res
 }
 
 // TODO: mahge: This needs to be rewritten completely.
-pub fn extendCrefRecords(mut inArgmap: Arc<metamodelica::List<(Arc<DAE::ComponentRef>, Arc<DAE::Exp>)>>, mut inCheckCr: (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>), i32, (HashTableCG::FuncHashCref, HashTableCG::FuncCrefEqual, HashTableCG::FuncCrefStr, HashTableCG::FuncExpStr))) -> Result<(Arc<metamodelica::List<(Arc<DAE::ComponentRef>, Arc<DAE::Exp>)>>, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>), i32, (HashTableCG::FuncHashCref, HashTableCG::FuncCrefEqual, HashTableCG::FuncCrefStr, HashTableCG::FuncExpStr)))> {
+pub fn extendCrefRecords(mut inArgmap: Arc<metamodelica::List<(Arc<DAE::ComponentRef>, Arc<DAE::Exp>)>>, mut inCheckCr: (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>), i32, (Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<i32> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>) -> Result<bool> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>))) -> Result<(Arc<metamodelica::List<(Arc<DAE::ComponentRef>, Arc<DAE::Exp>)>>, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>), i32, (Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<i32> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>) -> Result<bool> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>)))> {
     let mut outArgmap: Arc<metamodelica::List<(Arc<DAE::ComponentRef>, Arc<DAE::Exp>)>> = metamodelica::nil();
     let mut outCheckCr: (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>), i32, (HashTableCG::FuncHashCref, HashTableCG::FuncCrefEqual, HashTableCG::FuncCrefStr, HashTableCG::FuncExpStr));
     (outArgmap, outCheckCr) = 'mc: {
@@ -1843,7 +1838,7 @@ pub fn extendCrefRecords(mut inArgmap: Arc<metamodelica::List<(Arc<DAE::Componen
 
 // NOTE: #[tailcall::tailcall] disabled: function body contains a `match_deref!{…}` match,
 // and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
-fn getCheckCref(mut inCrefs: Arc<metamodelica::List<Arc<DAE::ComponentRef>>>, mut inCheckCr: (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>), i32, (HashTableCG::FuncHashCref, HashTableCG::FuncCrefEqual, HashTableCG::FuncCrefStr, HashTableCG::FuncExpStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>), i32, (HashTableCG::FuncHashCref, HashTableCG::FuncCrefEqual, HashTableCG::FuncCrefStr, HashTableCG::FuncExpStr))> {
+fn getCheckCref(mut inCrefs: Arc<metamodelica::List<Arc<DAE::ComponentRef>>>, mut inCheckCr: (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>), i32, (Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<i32> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>) -> Result<bool> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>), i32, (Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<i32> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>) -> Result<bool> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>))> {
     let mut outCheckCr: (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>), i32, (HashTableCG::FuncHashCref, HashTableCG::FuncCrefEqual, HashTableCG::FuncCrefStr, HashTableCG::FuncExpStr));
     outCheckCr = 'mc: {
         let __mc_input = (inCrefs.clone(), inCheckCr.clone());
@@ -1897,10 +1892,10 @@ fn getCheckCref(mut inCrefs: Arc<metamodelica::List<Arc<DAE::ComponentRef>>>, mu
 fn extendCrefRecords1(mut ev: Arc<DAE::Var>, mut c: Arc<DAE::ComponentRef>, mut e: Arc<DAE::ComponentRef>) -> Result<(Arc<DAE::ComponentRef>, Arc<DAE::Exp>)> {
     let mut outArg: (Arc<DAE::ComponentRef>, Arc<DAE::Exp>);
     outArg = 'mc: {
-        let __mc_input = (ev.clone(), c.clone(), e.clone());
+        let __mc_input = ev.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ DAE::Var { ty: tp, name, .. }, _, _) => {
+                Deref @ DAE::Var { ty: tp, name, .. } => {
                     let mut c1: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
                     let mut e1: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
                     let mut exp: Arc<DAE::Exp>;
@@ -1930,10 +1925,10 @@ fn extendCrefRecords1(mut ev: Arc<DAE::Var>, mut c: Arc<DAE::ComponentRef>, mut 
 fn extendCrefRecords2(mut ev: Arc<DAE::Var>, mut c: Arc<DAE::ComponentRef>) -> Result<Arc<DAE::ComponentRef>> {
     let mut outArg: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
     outArg = 'mc: {
-        let __mc_input = (ev.clone(), c.clone());
+        let __mc_input = ev.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ DAE::Var { ty: tp, name, .. }, _) => {
+                Deref @ DAE::Var { ty: tp, name, .. } => {
                     let mut c1: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
                     c1 = ComponentReference::crefPrependIdent(c.clone(), (name.clone()).clone(), metamodelica::nil(), tp.clone())?;
                     Ok(c1.clone())
@@ -1960,13 +1955,16 @@ pub fn getFunctionBody(mut p: Arc<Absyn::Path>, mut fns: Functiontuple) -> Resul
     let mut outfn: Arc<metamodelica::List<Arc<DAE::Element>>> = metamodelica::nil();
     let mut oComment: Option<Arc<SCode::Comment>> = None;
     (outfn, oComment) = 'mc: {
-        let __mc_input = (p.clone(), fns.clone());
+        let __mc_input = fns.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, (Some(ftree), _)) => {
+                (Some(ftree), _) => {
                     let mut body: Arc<metamodelica::List<Arc<DAE::Element>>> = metamodelica::nil();
                     let mut comment: Option<Arc<SCode::Comment>> = None;
-                    let Some(DAE::FUNCTION { comment: __pa0, functions: metamodelica::List::Cons { head: DAE::FUNCTION_DEF { body: __pa1 }, tail: _ }, .. }) = (AvlTreePathFunction::get(ftree.clone(), p.clone())?) else { bail!("pattern mismatch") };
+                    let (__pa0, __pa1) = ::match_deref::match_deref! { match &(AvlTreePathFunction::get(ftree.clone(), p.clone())?) {
+                        Some(DAE::Function::FUNCTION { comment: __pa0, functions: Deref @ metamodelica::List::Cons { head: DAE::FunctionDefinition::FUNCTION_DEF { body: __pa1 }, tail: _ }, .. }) => (__pa0.clone(), __pa1.clone()),
+                        _ => bail!("pattern mismatch"),
+                    } };
                     comment = __pa0.clone();
                     body = __pa1.clone();
                     Ok((body.clone(), comment.clone()))
@@ -1992,12 +1990,15 @@ pub fn getFunctionBody(mut p: Arc<Absyn::Path>, mut fns: Functiontuple) -> Resul
 pub fn getFunction(mut p: Arc<Absyn::Path>, mut fns: Functiontuple) -> Result<DAE::Function> {
     let mut func: DAE::Function;
     func = 'mc: {
-        let __mc_input = (p.clone(), fns.clone());
+        let __mc_input = fns.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, (Some(ftree), _)) => {
+                (Some(ftree), _) => {
                     let mut func: DAE::Function;
-                    let Some(__pa0) = (AvlTreePathFunction::get(ftree.clone(), p.clone())?) else { bail!("pattern mismatch") };
+                    let __pa0 = ::match_deref::match_deref! { match &(AvlTreePathFunction::get(ftree.clone(), p.clone())?) {
+                        Some(__pa0) => __pa0.clone(),
+                        _ => bail!("pattern mismatch"),
+                    } };
                     func = __pa0.clone();
                     Ok(func.clone())
                 }
@@ -2048,7 +2049,7 @@ fn getRhsExp(mut inElementList: Arc<metamodelica::List<Arc<DAE::Element>>>) -> R
     Ok(outExp)
 }
 
-pub fn replaceArgs(mut inExp: Arc<DAE::Exp>, mut inTuple: (Arc<metamodelica::List<(Arc<DAE::ComponentRef>, Arc<DAE::Exp>)>>, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>), i32, (HashTableCG::FuncHashCref, HashTableCG::FuncCrefEqual, HashTableCG::FuncCrefStr, HashTableCG::FuncExpStr)), bool)) -> Result<(Arc<DAE::Exp>, (Arc<metamodelica::List<(Arc<DAE::ComponentRef>, Arc<DAE::Exp>)>>, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>), i32, (HashTableCG::FuncHashCref, HashTableCG::FuncCrefEqual, HashTableCG::FuncCrefStr, HashTableCG::FuncExpStr)), bool))> {
+pub fn replaceArgs(mut inExp: Arc<DAE::Exp>, mut inTuple: (Arc<metamodelica::List<(Arc<DAE::ComponentRef>, Arc<DAE::Exp>)>>, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>), i32, (Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<i32> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>) -> Result<bool> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>)), bool)) -> Result<(Arc<DAE::Exp>, (Arc<metamodelica::List<(Arc<DAE::ComponentRef>, Arc<DAE::Exp>)>>, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>), i32, (Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<i32> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>) -> Result<bool> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>)), bool))> {
     let mut outExp: Arc<DAE::Exp>;
     let mut outTuple: (Arc<metamodelica::List<(Arc<DAE::ComponentRef>, Arc<DAE::Exp>)>>, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>), i32, (HashTableCG::FuncHashCref, HashTableCG::FuncCrefEqual, HashTableCG::FuncCrefStr, HashTableCG::FuncExpStr)), bool);
     (outExp, outTuple) = 'mc: {
@@ -2253,7 +2254,7 @@ fn getExpFromArgMap(mut inArgMap: Arc<metamodelica::List<(Arc<DAE::ComponentRef>
             } else {
                 continue;
             }
-            return Ok(outExp);
+            return Ok(outExp.clone());
         }
     }
     if Flags::isSet(Flags::FAILTRACE.clone())? {
@@ -2370,10 +2371,10 @@ pub fn inlineEquationExp(mut inExp: Arc<DAE::EquationExp>, mut r#fn: Arc<dyn ::s
 fn getReplacementCheckComplex(mut repl: VarTransform::VariableReplacements, mut cr: Arc<DAE::ComponentRef>, mut ty: Arc<DAE::Type>) -> Result<Arc<DAE::Exp>> {
     let mut exp: Arc<DAE::Exp>;
     exp = 'mc: {
-        let __mc_input = (repl.clone(), cr.clone(), ty.clone());
+        let __mc_input = ty.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _, _) => {
+                _ => {
                     Ok(VarTransform::getReplacement(repl.clone(), cr.clone())?)
                 }
                 _ => bail!("nomatch"),
@@ -2381,7 +2382,7 @@ fn getReplacementCheckComplex(mut repl: VarTransform::VariableReplacements, mut 
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _, Deref @ DAE::Type::T_COMPLEX { varLst: vars, complexClassType: ClassInf::State::RECORD { path }, .. }) => {
+                Deref @ DAE::Type::T_COMPLEX { varLst: vars, complexClassType: ClassInf::State::RECORD { path }, .. } => {
                     let mut crs: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
                     let mut exps: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
                     crs = List::map1(List::map(vars.clone(), (std::sync::Arc::new(TypesDump::getVarName) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Var>) -> Result<ArcStr> + 'static>)), (std::sync::Arc::new(ComponentReference::appendStringCref) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, Arc<DAE::ComponentRef>) -> Result<Arc<DAE::ComponentRef>> + 'static>), cr.clone());
@@ -2396,7 +2397,7 @@ fn getReplacementCheckComplex(mut repl: VarTransform::VariableReplacements, mut 
     Ok(exp)
 }
 
-fn getInlineHashTableVarTransform() -> Result<((metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>), i32, (HashTableCG::FuncHashCref, HashTableCG::FuncCrefEqual, HashTableCG::FuncCrefStr, HashTableCG::FuncExpStr)), VarTransform::VariableReplacements)> {
+fn getInlineHashTableVarTransform() -> Result<((metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>), i32, (Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<i32> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>) -> Result<bool> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>)), VarTransform::VariableReplacements)> {
     let mut ht: (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>), i32, (HashTableCG::FuncHashCref, HashTableCG::FuncCrefEqual, HashTableCG::FuncCrefStr, HashTableCG::FuncExpStr));
     let mut repl: VarTransform::VariableReplacements = <VarTransform::VariableReplacements as ::std::default::Default>::default();
     let mut opt: Option<((metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>)>>), i32, (HashTableCG::FuncHashCref, HashTableCG::FuncCrefEqual, HashTableCG::FuncCrefStr, HashTableCG::FuncExpStr)), VarTransform::VariableReplacements)> = None;
@@ -2413,7 +2414,7 @@ fn getInlineHashTableVarTransform() -> Result<((metamodelica::Array<Arc<metamode
         _ => {
             ht = HashTableCG::emptyHashTable();
             repl = VarTransform::emptyReplacements();
-            crate::Globals::inlineHashTable.with(|__root| *__root.borrow_mut() = Some((ht.clone(), repl.clone())));
+            { let __v = Some((ht.clone(), repl.clone())); crate::Globals::inlineHashTable.with(|__root| *__root.borrow_mut() = __v) };
             (ht.clone(), repl.clone())
         },
     });

@@ -71,7 +71,7 @@ pub fn filterSubMods(mut r#mod: Arc<SCode::Mod>, mut filter: Arc<dyn ::std::ops:
     let mut r#mod: Arc<SCode::Mod> = r#mod;
     r#mod = (::match_deref::match_deref! { match &(r#mod.clone()) {
         Deref @ SCode::Mod::MOD { .. } => {
-            assign_variant_field!(r#mod => SCode::Mod::MOD; subModLst = {
+            assign_variant_field!(r#mod => SCode::Mod::MOD; subModLst = ({
         let mut __acc: Arc<metamodelica::List<Arc<SCode::SubMod>>> = metamodelica::nil();
         for mut m in (var_field!((*r#mod).subModLst, SCode::Mod::MOD).clone()).into_iter().cloned() {
             if !(filter(m.clone()).unwrap()) { continue; }
@@ -79,7 +79,7 @@ pub fn filterSubMods(mut r#mod: Arc<SCode::Mod>, mut filter: Arc<dyn ::std::ops:
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             (::match_deref::match_deref! { match &(r#mod.clone()) {
         Deref @ SCode::Mod::MOD { binding: None, subModLst: Deref @ metamodelica::List::Nil, .. } => Arc::new(openmodelica_frontend_types::SCode::Mod::NOMOD),
         _ => r#mod.clone(),
@@ -389,11 +389,11 @@ pub fn elementNames(mut elts: Arc<metamodelica::List<Arc<SCode::Element>>>) -> A
 
 fn elementNamesWork(mut e: Arc<SCode::Element>, mut acc: Arc<metamodelica::List<ArcStr>>) -> Arc<metamodelica::List<ArcStr>> {
     let mut out: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
-    out = (::match_deref::match_deref! { match &((e.clone(), acc.clone())) {
-        (Deref @ SCode::Element::COMPONENT { name: s, .. }, _) => {
+    out = (::match_deref::match_deref! { match &(e.clone()) {
+        Deref @ SCode::Element::COMPONENT { name: s, .. } => {
             cons((s.clone()).clone(), acc.clone())
         },
-        (Deref @ SCode::Element::CLASS { name: s, .. }, _) => {
+        Deref @ SCode::Element::CLASS { name: s, .. } => {
             cons((s.clone()).clone(), acc.clone())
         },
         _ => {
@@ -689,14 +689,14 @@ pub fn restrictionEqual(mut restr1: SCode::Restriction, mut restr2: SCode::Restr
             true
         },
         (SCode::Restriction::R_UNIONTYPE { .. }, SCode::Restriction::R_UNIONTYPE { .. }) => {
-            {
+            ({
         let mut __acc: Option<bool> = None;
         for (t1, t2) in (&(var_field!(restr1.typeVars, SCode::Restriction::R_UNIONTYPE).clone())).into_iter().zip((&(var_field!(restr2.typeVars, SCode::Restriction::R_UNIONTYPE).clone())).into_iter()) {
             let __x = t1.clone() == t2.clone();
             __acc = Some(match __acc { None => __x, Some(__cur) => if __x < __cur { __x } else { __cur } });
         }
         __acc.ok_or_else(|| anyhow::anyhow!("empty min reduction")).unwrap()
-    }
+    })
         },
         _ => {
             false
@@ -1499,8 +1499,8 @@ pub fn emptyModOrEquality(mut r#mod: Arc<SCode::Mod>) -> bool {
 
 pub fn isComponentWithDirection(mut elt: Arc<SCode::Element>, mut dir1: Absyn::Direction) -> bool {
     let mut b: bool = false;
-    b = (::match_deref::match_deref! { match &((elt.clone(), dir1.clone())) {
-        (Deref @ SCode::Element::COMPONENT { attributes: SCode::Attributes { direction: dir2, .. }, .. }, _) => {
+    b = (::match_deref::match_deref! { match &(elt.clone()) {
+        Deref @ SCode::Element::COMPONENT { attributes: SCode::Attributes { direction: dir2, .. }, .. } => {
             AbsynUtil::directionEqual(dir1.clone(), dir2.clone())
         },
         _ => {
@@ -1908,14 +1908,14 @@ fn mapFoldComponentRefExps<ArgT: Clone + 'static>(mut inCref: Arc<Absyn::Compone
 
     let mut outCref: Arc<Absyn::ComponentRef> = Arc::new(Absyn::ComponentRef::ALLWILD);
     let mut outArg: ArgT;
-    (outCref, outArg) = (::match_deref::match_deref! { match &((inCref.clone(), inFunc.clone(), inArg.clone())) {
-        (Deref @ Absyn::ComponentRef::CREF_FULLYQUALIFIED { componentRef: cr }, _, _) => {
+    (outCref, outArg) = (::match_deref::match_deref! { match &(inCref.clone()) {
+        Deref @ Absyn::ComponentRef::CREF_FULLYQUALIFIED { componentRef: cr } => {
             let mut arg: ArgT;
             let mut cr = (*cr).clone();
             (cr, arg) = mapFoldComponentRefExps(cr.clone(), inFunc.clone(), inArg.clone())?;
             (AbsynUtil::crefMakeFullyQualified(cr.clone()), arg.clone())
         },
-        (Deref @ Absyn::ComponentRef::CREF_QUAL { componentRef: cr, subscripts: subs, name }, _, _) => {
+        Deref @ Absyn::ComponentRef::CREF_QUAL { componentRef: cr, subscripts: subs, name } => {
             let mut arg: ArgT;
             let mut cr = (*cr).clone();
             let mut subs = (*subs).clone();
@@ -1923,13 +1923,13 @@ fn mapFoldComponentRefExps<ArgT: Clone + 'static>(mut inCref: Arc<Absyn::Compone
             (subs, arg) = List::map1Fold(subs.clone(), (std::sync::Arc::new(mapFoldSubscriptExps) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Subscript>, _, _) -> Result<_> + 'static>), inFunc.clone(), arg.clone());
             (Arc::new(Absyn::ComponentRef::CREF_QUAL { name: (name.clone()).clone(), subscripts: subs.clone(), componentRef: cr.clone() }), arg.clone())
         },
-        (Deref @ Absyn::ComponentRef::CREF_IDENT { subscripts: subs, name }, _, _) => {
+        Deref @ Absyn::ComponentRef::CREF_IDENT { subscripts: subs, name } => {
             let mut arg: ArgT;
             let mut subs = (*subs).clone();
             (subs, arg) = List::map1Fold(subs.clone(), (std::sync::Arc::new(mapFoldSubscriptExps) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Subscript>, _, _) -> Result<_> + 'static>), inFunc.clone(), inArg.clone());
             (Arc::new(Absyn::ComponentRef::CREF_IDENT { name: (name.clone()).clone(), subscripts: subs.clone() }), arg.clone())
         },
-        (Deref @ Absyn::ComponentRef::WILD, _, _) => {
+        Deref @ Absyn::ComponentRef::WILD => {
             (inCref.clone(), inArg.clone())
         },
         _ => bail!("match: no arm matched"),
@@ -2236,20 +2236,20 @@ pub static knownExternalCFunctions: std::sync::LazyLock<Arc<metamodelica::List<A
 
 pub fn isBuiltinFunction(mut cl: Arc<SCode::Element>, mut inVars: Arc<metamodelica::List<ArcStr>>, mut outVars: Arc<metamodelica::List<ArcStr>>) -> Result<ArcStr> {
     let mut name: ArcStr = arcstr::literal!("");
-    name = ((::match_deref::match_deref! { match &((cl.clone(), inVars.clone(), outVars.clone())) {
-        (Deref @ SCode::Element::CLASS { classDef: Deref @ SCode::ClassDef::PARTS { externalDecl: Some(Deref @ SCode::ExternalDecl { lang: Some(Deref @ "builtin"), funcName: None, .. }), .. }, restriction: SCode::Restriction::R_FUNCTION { functionRestriction: SCode::FunctionRestriction::FR_EXTERNAL_FUNCTION { .. } }, name, .. }, _, _) => {
+    name = ((::match_deref::match_deref! { match &((cl.clone(), outVars.clone())) {
+        (Deref @ SCode::Element::CLASS { classDef: Deref @ SCode::ClassDef::PARTS { externalDecl: Some(Deref @ SCode::ExternalDecl { lang: Some(Deref @ "builtin"), funcName: None, .. }), .. }, restriction: SCode::Restriction::R_FUNCTION { functionRestriction: SCode::FunctionRestriction::FR_EXTERNAL_FUNCTION { .. } }, name, .. }, _) => {
             name.clone()
         },
-        (Deref @ SCode::Element::CLASS { classDef: Deref @ SCode::ClassDef::PARTS { externalDecl: Some(Deref @ SCode::ExternalDecl { lang: Some(Deref @ "builtin"), funcName: Some(name), .. }), .. }, restriction: SCode::Restriction::R_FUNCTION { functionRestriction: SCode::FunctionRestriction::FR_EXTERNAL_FUNCTION { .. } }, .. }, _, _) => {
+        (Deref @ SCode::Element::CLASS { classDef: Deref @ SCode::ClassDef::PARTS { externalDecl: Some(Deref @ SCode::ExternalDecl { lang: Some(Deref @ "builtin"), funcName: Some(name), .. }), .. }, restriction: SCode::Restriction::R_FUNCTION { functionRestriction: SCode::FunctionRestriction::FR_EXTERNAL_FUNCTION { .. } }, .. }, _) => {
             name.clone()
         },
-        (Deref @ SCode::Element::CLASS { classDef: Deref @ SCode::ClassDef::PARTS { externalDecl: Some(Deref @ SCode::ExternalDecl { lang: Some(Deref @ "builtin"), funcName: None, .. }), .. }, restriction: SCode::Restriction::R_FUNCTION { functionRestriction: SCode::FunctionRestriction::FR_PARALLEL_FUNCTION }, name, .. }, _, _) => {
+        (Deref @ SCode::Element::CLASS { classDef: Deref @ SCode::ClassDef::PARTS { externalDecl: Some(Deref @ SCode::ExternalDecl { lang: Some(Deref @ "builtin"), funcName: None, .. }), .. }, restriction: SCode::Restriction::R_FUNCTION { functionRestriction: SCode::FunctionRestriction::FR_PARALLEL_FUNCTION }, name, .. }, _) => {
             name.clone()
         },
-        (Deref @ SCode::Element::CLASS { classDef: Deref @ SCode::ClassDef::PARTS { externalDecl: Some(Deref @ SCode::ExternalDecl { lang: Some(Deref @ "builtin"), funcName: Some(name), .. }), .. }, restriction: SCode::Restriction::R_FUNCTION { functionRestriction: SCode::FunctionRestriction::FR_PARALLEL_FUNCTION }, .. }, _, _) => {
+        (Deref @ SCode::Element::CLASS { classDef: Deref @ SCode::ClassDef::PARTS { externalDecl: Some(Deref @ SCode::ExternalDecl { lang: Some(Deref @ "builtin"), funcName: Some(name), .. }), .. }, restriction: SCode::Restriction::R_FUNCTION { functionRestriction: SCode::FunctionRestriction::FR_PARALLEL_FUNCTION }, .. }, _) => {
             name.clone()
         },
-        (Deref @ SCode::Element::CLASS { classDef: Deref @ SCode::ClassDef::PARTS { externalDecl: Some(Deref @ SCode::ExternalDecl { args, output_: Some(Deref @ Absyn::ComponentRef::CREF_IDENT { name: outVar2, subscripts: Deref @ metamodelica::List::Nil }), lang: Some(Deref @ "C"), funcName: Some(name), .. }), .. }, restriction: SCode::Restriction::R_FUNCTION { functionRestriction: SCode::FunctionRestriction::FR_EXTERNAL_FUNCTION { .. } }, .. }, _, Deref @ metamodelica::List::Cons { head: outVar1, tail: Deref @ metamodelica::List::Nil }) => {
+        (Deref @ SCode::Element::CLASS { classDef: Deref @ SCode::ClassDef::PARTS { externalDecl: Some(Deref @ SCode::ExternalDecl { args, output_: Some(Deref @ Absyn::ComponentRef::CREF_IDENT { name: outVar2, subscripts: Deref @ metamodelica::List::Nil }), lang: Some(Deref @ "C"), funcName: Some(name), .. }), .. }, restriction: SCode::Restriction::R_FUNCTION { functionRestriction: SCode::FunctionRestriction::FR_EXTERNAL_FUNCTION { .. } }, .. }, Deref @ metamodelica::List::Cons { head: outVar1, tail: Deref @ metamodelica::List::Nil }) => {
             let mut argsStr: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
             let true = (listMember((name.clone()).clone(), knownExternalCFunctions.clone())) else { bail!("pattern mismatch") };
             let true = (outVar2.clone() == outVar1.clone()) else { bail!("pattern mismatch") };
@@ -2257,7 +2257,7 @@ pub fn isBuiltinFunction(mut cl: Arc<SCode::Element>, mut inVars: Arc<metamodeli
             let true = (argsStr.clone() == inVars.clone()) else { bail!("pattern mismatch") };
             name.clone()
         },
-        (Deref @ SCode::Element::CLASS { classDef: Deref @ SCode::ClassDef::PARTS { externalDecl: Some(Deref @ SCode::ExternalDecl { lang: Some(Deref @ "C"), funcName: None, .. }), .. }, restriction: SCode::Restriction::R_FUNCTION { functionRestriction: SCode::FunctionRestriction::FR_EXTERNAL_FUNCTION { .. } }, name, .. }, _, _) => {
+        (Deref @ SCode::Element::CLASS { classDef: Deref @ SCode::ClassDef::PARTS { externalDecl: Some(Deref @ SCode::ExternalDecl { lang: Some(Deref @ "C"), funcName: None, .. }), .. }, restriction: SCode::Restriction::R_FUNCTION { functionRestriction: SCode::FunctionRestriction::FR_EXTERNAL_FUNCTION { .. } }, name, .. }, _) => {
             let true = (listMember((name.clone()).clone(), knownExternalCFunctions.clone())) else { bail!("pattern mismatch") };
             name.clone()
         },
@@ -2608,10 +2608,13 @@ pub fn boolStream(mut inBoolStream: bool) -> SCode::ConnectorType {
 
 pub fn mergeAttributesFromClass(mut inAttributes: SCode::Attributes, mut inClass: Arc<SCode::Element>) -> Result<SCode::Attributes> {
     let mut outAttributes: SCode::Attributes = <SCode::Attributes as ::std::default::Default>::default();
-    outAttributes = (::match_deref::match_deref! { match &((inAttributes.clone(), inClass.clone())) {
-        (_, Deref @ SCode::Element::CLASS { classDef: Deref @ SCode::ClassDef::DERIVED { attributes: cls_attr, .. }, .. }) => {
+    outAttributes = (::match_deref::match_deref! { match &(inClass.clone()) {
+        Deref @ SCode::Element::CLASS { classDef: Deref @ SCode::ClassDef::DERIVED { attributes: cls_attr, .. }, .. } => {
             let mut attr: SCode::Attributes = <SCode::Attributes as ::std::default::Default>::default();
-            let Some(__pa0) = (mergeAttributes(inAttributes.clone(), Some(cls_attr.clone()))?) else { bail!("pattern mismatch") };
+            let __pa0 = ::match_deref::match_deref! { match &(mergeAttributes(inAttributes.clone(), Some(cls_attr.clone()))?) {
+                Some(__pa0) => __pa0.clone(),
+                _ => bail!("pattern mismatch"),
+            } };
             attr = __pa0.clone();
             attr.clone()
         },
@@ -2883,7 +2886,7 @@ pub fn lookupAnnotation(mut ann: Arc<SCode::Annotation>, mut name: ArcStr) -> Re
                 id = __pa0.clone();
                 r#mod = __pa1.clone();
                 if id.clone() == name.clone() {
-                    return Ok(r#mod);
+                    return Ok(r#mod.clone());
                 }
             }
             Arc::new(openmodelica_frontend_types::SCode::Mod::NOMOD)
@@ -2969,8 +2972,8 @@ pub fn lookupElementAnnotationBinding(mut element: Arc<SCode::Element>, mut name
 
 pub fn hasBooleanNamedAnnotationInClass(mut inClass: Arc<SCode::Element>, mut namedAnnotation: ArcStr) -> Result<bool> {
     let mut hasAnn: bool = false;
-    hasAnn = (::match_deref::match_deref! { match &((inClass.clone(), namedAnnotation.clone())) {
-        (Deref @ SCode::Element::CLASS { cmt: Deref @ SCode::Comment { annotation_: Some(ann), .. }, .. }, _) => {
+    hasAnn = (::match_deref::match_deref! { match &(inClass.clone()) {
+        Deref @ SCode::Element::CLASS { cmt: Deref @ SCode::Comment { annotation_: Some(ann), .. }, .. } => {
             hasBooleanNamedAnnotation(ann.clone(), (namedAnnotation.clone()).clone())?
         },
         _ => {
@@ -2983,8 +2986,8 @@ pub fn hasBooleanNamedAnnotationInClass(mut inClass: Arc<SCode::Element>, mut na
 
 pub fn hasBooleanNamedAnnotationInComponent(mut inComponent: Arc<SCode::Element>, mut namedAnnotation: ArcStr) -> Result<bool> {
     let mut hasAnn: bool = false;
-    hasAnn = (::match_deref::match_deref! { match &((inComponent.clone(), namedAnnotation.clone())) {
-        (Deref @ SCode::Element::COMPONENT { comment: Deref @ SCode::Comment { annotation_: Some(ann), .. }, .. }, _) => {
+    hasAnn = (::match_deref::match_deref! { match &(inComponent.clone()) {
+        Deref @ SCode::Element::COMPONENT { comment: Deref @ SCode::Comment { annotation_: Some(ann), .. }, .. } => {
             hasBooleanNamedAnnotation(ann.clone(), (namedAnnotation.clone()).clone())?
         },
         _ => {
@@ -3012,8 +3015,8 @@ pub fn optCommentAnnotation(mut cmt: Option<Arc<SCode::Comment>>) -> Option<Arc<
 
 pub fn optCommentHasBooleanNamedAnnotation(mut comm: Option<Arc<SCode::Comment>>, mut annotationName: ArcStr) -> Result<bool> {
     let mut outB: bool = false;
-    outB = (::match_deref::match_deref! { match &((comm.clone(), annotationName.clone())) {
-        (Some(Deref @ SCode::Comment { annotation_: Some(ann), .. }), _) => {
+    outB = (::match_deref::match_deref! { match &(comm.clone()) {
+        Some(Deref @ SCode::Comment { annotation_: Some(ann), .. }) => {
             hasBooleanNamedAnnotation(ann.clone(), (annotationName.clone()).clone())?
         },
         _ => {
@@ -3026,8 +3029,8 @@ pub fn optCommentHasBooleanNamedAnnotation(mut comm: Option<Arc<SCode::Comment>>
 
 pub fn commentHasBooleanNamedAnnotation(mut comm: Arc<SCode::Comment>, mut annotationName: ArcStr) -> Result<bool> {
     let mut outB: bool = false;
-    outB = (::match_deref::match_deref! { match &((comm.clone(), annotationName.clone())) {
-        (Deref @ SCode::Comment { annotation_: Some(ann), .. }, _) => {
+    outB = (::match_deref::match_deref! { match &(comm.clone()) {
+        Deref @ SCode::Comment { annotation_: Some(ann), .. } => {
             hasBooleanNamedAnnotation(ann.clone(), (annotationName.clone()).clone())?
         },
         _ => {
@@ -3052,8 +3055,8 @@ pub fn hasBooleanNamedAnnotation(mut inAnnotation: Arc<SCode::Annotation>, mut i
 
 pub fn optCommentHasBooleanNamedAnnotationFalse(mut comm: Option<Arc<SCode::Comment>>, mut annotationName: ArcStr) -> Result<bool> {
     let mut outB: bool = false;
-    outB = (::match_deref::match_deref! { match &((comm.clone(), annotationName.clone())) {
-        (Some(Deref @ SCode::Comment { annotation_: Some(ann), .. }), _) => {
+    outB = (::match_deref::match_deref! { match &(comm.clone()) {
+        Some(Deref @ SCode::Comment { annotation_: Some(ann), .. }) => {
             hasBooleanNamedAnnotationFalse(ann.clone(), (annotationName.clone()).clone())?
         },
         _ => {
@@ -3079,7 +3082,6 @@ pub fn hasBooleanNamedAnnotationFalse(mut inAnnotation: Arc<SCode::Annotation>, 
 pub fn getEvaluateAnnotation(mut cmt: Arc<SCode::Comment>) -> Result<Option<bool>> {
     let mut value: Option<bool> = None;
     let mut ann: Arc<SCode::Annotation> = Arc::new(<SCode::Annotation as ::std::default::Default>::default());
-    let mut binding: Option<Arc<Absyn::Exp>> = None;
     value = (::match_deref::match_deref! { match &(cmt.clone()) {
         Deref @ SCode::Comment { annotation_: Some(ann), .. } => lookupBooleanAnnotation(ann.clone(), (literal!("Evaluate")).clone())?,
         _ => None,
@@ -3109,7 +3111,7 @@ pub fn appendAnnotationToComment(mut inAnnotation: Arc<SCode::Annotation>, mut i
             let mut m = m.clone();
             if r#mod.ident.clone() == m.ident.clone() {
                 b = false;
-                return b;
+                return b.clone();
             }
         }
         b
@@ -3262,14 +3264,14 @@ pub fn isElementEncapsulated(mut inElement: Arc<SCode::Element>) -> bool {
 // and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
 pub fn getElementsFromElement(mut inProgram: Arc<metamodelica::List<Arc<SCode::Element>>>, mut inElement: Arc<SCode::Element>) -> Result<Arc<metamodelica::List<Arc<SCode::Element>>>> {
     let mut outProgram: Arc<metamodelica::List<Arc<SCode::Element>>> = metamodelica::nil();
-    outProgram = (::match_deref::match_deref! { match &((inProgram.clone(), inElement.clone())) {
-        (_, Deref @ SCode::Element::CLASS { classDef: Deref @ SCode::ClassDef::PARTS { elementLst: els, .. }, .. }) => {
+    outProgram = (::match_deref::match_deref! { match &(inElement.clone()) {
+        Deref @ SCode::Element::CLASS { classDef: Deref @ SCode::ClassDef::PARTS { elementLst: els, .. }, .. } => {
             els.clone()
         },
-        (_, Deref @ SCode::Element::CLASS { classDef: Deref @ SCode::ClassDef::CLASS_EXTENDS { composition: Deref @ SCode::ClassDef::PARTS { elementLst: els, .. }, .. }, .. }) => {
+        Deref @ SCode::Element::CLASS { classDef: Deref @ SCode::ClassDef::CLASS_EXTENDS { composition: Deref @ SCode::ClassDef::PARTS { elementLst: els, .. }, .. }, .. } => {
             els.clone()
         },
-        (_, Deref @ SCode::Element::CLASS { classDef: Deref @ SCode::ClassDef::DERIVED { typeSpec: Deref @ Absyn::TypeSpec::TPATH { path: p, .. }, .. }, .. }) => {
+        Deref @ SCode::Element::CLASS { classDef: Deref @ SCode::ClassDef::DERIVED { typeSpec: Deref @ Absyn::TypeSpec::TPATH { path: p, .. }, .. }, .. } => {
             let mut els: Arc<metamodelica::List<Arc<SCode::Element>>> = metamodelica::nil();
             let mut e: Arc<SCode::Element>;
             e = getElementWithPath(inProgram.clone(), p.clone())?;
@@ -3307,16 +3309,16 @@ fn getElementWithId(mut inProgram: Arc<metamodelica::List<Arc<SCode::Element>>>,
 // and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
 pub fn getElementWithPath(mut inProgram: Arc<metamodelica::List<Arc<SCode::Element>>>, mut inPath: Arc<Absyn::Path>) -> Result<Arc<SCode::Element>> {
     let mut outElement: Arc<SCode::Element>;
-    outElement = (::match_deref::match_deref! { match &((inProgram.clone(), inPath.clone())) {
-        (_, Deref @ Absyn::Path::FULLYQUALIFIED { path: p }) => {
+    outElement = (::match_deref::match_deref! { match &(inPath.clone()) {
+        Deref @ Absyn::Path::FULLYQUALIFIED { path: p } => {
             getElementWithPath(inProgram.clone(), p.clone())?
         },
-        (_, Deref @ Absyn::Path::IDENT { name: i }) => {
+        Deref @ Absyn::Path::IDENT { name: i } => {
             let mut e: Arc<SCode::Element>;
             e = getElementWithId(inProgram.clone(), (i.clone()).clone())?;
             e.clone()
         },
-        (_, Deref @ Absyn::Path::QUALIFIED { name: i, path: p }) => {
+        Deref @ Absyn::Path::QUALIFIED { name: i, path: p } => {
             let mut sp: Arc<metamodelica::List<Arc<SCode::Element>>> = metamodelica::nil();
             let mut e: Arc<SCode::Element>;
             e = getElementWithId(inProgram.clone(), (i.clone()).clone())?;
@@ -3827,8 +3829,8 @@ pub fn elementVisibility(mut element: Arc<SCode::Element>) -> Result<SCode::Visi
 
 pub fn isClassNamed(mut inName: ArcStr, mut inClass: Arc<SCode::Element>) -> bool {
     let mut outIsNamed: bool = false;
-    outIsNamed = (::match_deref::match_deref! { match &((inName.clone(), inClass.clone())) {
-        (_, Deref @ SCode::Element::CLASS { name, .. }) => {
+    outIsNamed = (::match_deref::match_deref! { match &(inClass.clone()) {
+        Deref @ SCode::Element::CLASS { name, .. } => {
             stringEq((inName.clone()).clone(), (name.clone()).clone())
         },
         _ => {
@@ -3953,8 +3955,8 @@ pub fn getConstrainedByModifiers(mut inPrefixes: Arc<SCode::Prefixes>) -> Arc<SC
 
 pub fn mergeClassDef(mut inNew: Arc<SCode::ClassDef>, mut inOld: Arc<SCode::ClassDef>, mut inCCModNew: Arc<SCode::Mod>, mut inCCModOld: Arc<SCode::Mod>) -> Result<Arc<SCode::ClassDef>> {
     let mut outNew: Arc<SCode::ClassDef>;
-    outNew = (::match_deref::match_deref! { match &((inNew.clone(), inOld.clone(), inCCModNew.clone(), inCCModOld.clone())) {
-        (Deref @ SCode::ClassDef::DERIVED { typeSpec: ts1, modifications: m1, attributes: a1 }, Deref @ SCode::ClassDef::DERIVED { typeSpec: _, modifications: m2, attributes: a2 }, _, _) => {
+    outNew = (::match_deref::match_deref! { match &((inNew.clone(), inOld.clone())) {
+        (Deref @ SCode::ClassDef::DERIVED { typeSpec: ts1, modifications: m1, attributes: a1 }, Deref @ SCode::ClassDef::DERIVED { typeSpec: _, modifications: m2, attributes: a2 }) => {
             let mut n: Arc<SCode::ClassDef>;
             let mut m1 = (*m1).clone();
             let mut m2 = (*m2).clone();
@@ -4035,10 +4037,10 @@ pub fn mergeModifiers(mut inNewMod: Arc<SCode::Mod>, mut inOldMod: Arc<SCode::Mo
 fn mergeSubMods(mut inNew: Arc<metamodelica::List<Arc<SCode::SubMod>>>, mut inOld: Arc<metamodelica::List<Arc<SCode::SubMod>>>) -> Result<Arc<metamodelica::List<Arc<SCode::SubMod>>>> {
     let mut outSubs: Arc<metamodelica::List<Arc<SCode::SubMod>>> = metamodelica::nil();
     outSubs = 'mc: {
-        let __mc_input = (inNew.clone(), inOld.clone());
+        let __mc_input = inNew.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ metamodelica::List::Nil, _) => {
+                Deref @ metamodelica::List::Nil => {
                     Ok(inOld.clone())
                 }
                 _ => bail!("nomatch"),
@@ -4046,7 +4048,7 @@ fn mergeSubMods(mut inNew: Arc<metamodelica::List<Arc<SCode::SubMod>>>, mut inOl
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ metamodelica::List::Cons { head: s, tail: rest }, _) => {
+                Deref @ metamodelica::List::Cons { head: s, tail: rest } => {
                     let mut sl: Arc<metamodelica::List<Arc<SCode::SubMod>>> = metamodelica::nil();
                     let mut old: Arc<metamodelica::List<Arc<SCode::SubMod>>> = metamodelica::nil();
                     old = removeSub(s.clone(), inOld.clone())?;
@@ -4159,8 +4161,8 @@ pub fn propagateAttributes(mut inOriginalAttributes: SCode::Attributes, mut inNe
 
 pub fn propagateArrayDimensions(mut inOriginalDims: Arc<metamodelica::List<Arc<Absyn::Subscript>>>, mut inNewDims: Arc<metamodelica::List<Arc<Absyn::Subscript>>>) -> Arc<metamodelica::List<Arc<Absyn::Subscript>>> {
     let mut outNewDims: Arc<metamodelica::List<Arc<Absyn::Subscript>>> = metamodelica::nil();
-    outNewDims = (::match_deref::match_deref! { match &((inOriginalDims.clone(), inNewDims.clone())) {
-        (_, Deref @ metamodelica::List::Nil) => inOriginalDims.clone(),
+    outNewDims = (::match_deref::match_deref! { match &(inNewDims.clone()) {
+        Deref @ metamodelica::List::Nil => inOriginalDims.clone(),
         _ => inNewDims.clone(),
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
     } });
@@ -4423,8 +4425,8 @@ pub fn isInitial(mut inInitial: SCode::Initial) -> bool {
 pub fn checkSameRestriction(mut inResNew: SCode::Restriction, mut inResOrig: SCode::Restriction, mut inInfoNew: SourceInfo, mut inInfoOrig: SourceInfo) -> (SCode::Restriction, SourceInfo) {
     let mut outRes: SCode::Restriction = SCode::Restriction::R_BLOCK;
     let mut outInfo: SourceInfo = <SourceInfo as ::std::default::Default>::default();
-    (outRes, outInfo) = (match (inResNew.clone(), inResOrig.clone(), inInfoNew.clone(), inInfoOrig.clone()) {
-        (_, _, _, _) => (inResNew.clone(), inInfoNew.clone()),
+    (outRes, outInfo) = (match inInfoOrig.clone() {
+        _ => (inResNew.clone(), inInfoNew.clone()),
     });
     (outRes, outInfo)
 }
@@ -4490,14 +4492,14 @@ pub fn isEmptyClassDef(mut cdef: Arc<SCode::ClassDef>) -> bool {
 
 pub fn stripCommentsFromProgram(mut program: Arc<metamodelica::List<Arc<SCode::Element>>>, mut stripAnnotations: bool, mut stripComments: bool) -> Result<Arc<metamodelica::List<Arc<SCode::Element>>>> {
     let mut program: Arc<metamodelica::List<Arc<SCode::Element>>> = program;
-    program = {
+    program = ({
         let mut __acc: Arc<metamodelica::List<Arc<SCode::Element>>> = metamodelica::nil();
         for mut e in (program.clone()).into_iter().cloned() {
             let __x = stripCommentsFromElement(e.clone(), stripAnnotations.clone(), stripComments.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     Ok(program)
 }
 
@@ -4535,14 +4537,14 @@ pub fn stripCommentsFromMod(mut r#mod: Arc<SCode::Mod>, mut stripAnn: bool, mut 
     let mut r#mod: Arc<SCode::Mod> = r#mod;
     let () = (::match_deref::match_deref! { match &(r#mod.clone()) {
         Deref @ SCode::Mod::MOD { .. } => {
-            assign_variant_field!(r#mod => SCode::Mod::MOD; subModLst = {
+            assign_variant_field!(r#mod => SCode::Mod::MOD; subModLst = ({
         let mut __acc: Arc<metamodelica::List<Arc<SCode::SubMod>>> = metamodelica::nil();
         for mut m in (var_field!((*r#mod).subModLst, SCode::Mod::MOD).clone()).into_iter().cloned() {
             let __x = stripCommentsFromSubMod(m.clone(), stripAnn.clone(), stripCmt.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             ()
         },
         Deref @ SCode::Mod::REDECL { .. } => {
@@ -4571,46 +4573,46 @@ pub fn stripCommentsFromClassDef(mut cdef: Arc<SCode::ClassDef>, mut stripAnn: b
             let mut alg: Arc<metamodelica::List<Arc<SCode::AlgorithmSection>>> = metamodelica::nil();
             let mut ialg: Arc<metamodelica::List<Arc<SCode::AlgorithmSection>>> = metamodelica::nil();
             let mut ext: Option<Arc<SCode::ExternalDecl>> = None;
-            el = {
+            el = ({
         let mut __acc: Arc<metamodelica::List<Arc<SCode::Element>>> = metamodelica::nil();
         for mut e in (var_field!((*cdef).elementLst, SCode::ClassDef::PARTS).clone()).into_iter().cloned() {
             let __x = stripCommentsFromElement(e.clone(), stripAnn.clone(), stripCmt.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
-            eql = {
+    });
+            eql = ({
         let mut __acc: Arc<metamodelica::List<Arc<SCode::Equation>>> = metamodelica::nil();
         for mut eq in (var_field!((*cdef).normalEquationLst, SCode::ClassDef::PARTS).clone()).into_iter().cloned() {
             let __x = stripCommentsFromEquation(eq.clone(), stripAnn.clone(), stripCmt.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
-            ieql = {
+    });
+            ieql = ({
         let mut __acc: Arc<metamodelica::List<Arc<SCode::Equation>>> = metamodelica::nil();
         for mut ieq in (var_field!((*cdef).initialEquationLst, SCode::ClassDef::PARTS).clone()).into_iter().cloned() {
             let __x = stripCommentsFromEquation(ieq.clone(), stripAnn.clone(), stripCmt.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
-            alg = {
+    });
+            alg = ({
         let mut __acc: Arc<metamodelica::List<Arc<SCode::AlgorithmSection>>> = metamodelica::nil();
         for mut a in (var_field!((*cdef).normalAlgorithmLst, SCode::ClassDef::PARTS).clone()).into_iter().cloned() {
             let __x = stripCommentsFromAlgorithm(a.clone(), stripAnn.clone(), stripCmt.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
-            ialg = {
+    });
+            ialg = ({
         let mut __acc: Arc<metamodelica::List<Arc<SCode::AlgorithmSection>>> = metamodelica::nil();
         for mut ia in (var_field!((*cdef).initialAlgorithmLst, SCode::ClassDef::PARTS).clone()).into_iter().cloned() {
             let __x = stripCommentsFromAlgorithm(ia.clone(), stripAnn.clone(), stripCmt.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
             ext = stripCommentsFromExternalDecl(var_field!((*cdef).externalDecl, SCode::ClassDef::PARTS).clone(), stripAnn.clone(), stripCmt.clone())?;
             Arc::new(SCode::ClassDef::PARTS { elementLst: el.clone(), normalEquationLst: eql.clone(), initialEquationLst: ieql.clone(), normalAlgorithmLst: alg.clone(), initialAlgorithmLst: ialg.clone(), constraintLst: var_field!((*cdef).constraintLst, SCode::ClassDef::PARTS).clone(), clsattrs: var_field!((*cdef).clsattrs, SCode::ClassDef::PARTS).clone(), externalDecl: ext.clone() })
         },
@@ -4626,14 +4628,14 @@ pub fn stripCommentsFromClassDef(mut cdef: Arc<SCode::ClassDef>, mut stripAnn: b
             cdef.clone()
         },
         Deref @ SCode::ClassDef::ENUMERATION { .. } => {
-            assign_variant_field!(cdef => SCode::ClassDef::ENUMERATION; enumLst = {
+            assign_variant_field!(cdef => SCode::ClassDef::ENUMERATION; enumLst = ({
         let mut __acc: Arc<metamodelica::List<Arc<SCode::Enum>>> = metamodelica::nil();
         for mut e in (var_field!((*cdef).enumLst, SCode::ClassDef::ENUMERATION).clone()).into_iter().cloned() {
             let __x = stripCommentsFromEnum(e.clone(), stripAnn.clone(), stripCmt.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             cdef.clone()
         },
         _ => {
@@ -4681,29 +4683,29 @@ pub fn stripCommentsFromEquation(mut eq: Arc<SCode::Equation>, mut stripAnn: boo
     let () = (::match_deref::match_deref! { match &(eq.clone()) {
         Deref @ SCode::Equation::EQ_IF { .. } => {
             assign_variant_field!(eq => SCode::Equation::EQ_IF;
-                thenBranch = {
+                thenBranch = ({
         let mut __acc: Arc<metamodelica::List<Arc<metamodelica::List<Arc<SCode::Equation>>>>> = metamodelica::nil();
         for mut branch in (var_field!((*eq).thenBranch, SCode::Equation::EQ_IF).clone()).into_iter().cloned() {
-            let __x = {
+            let __x = ({
         let mut __acc: Arc<metamodelica::List<Arc<SCode::Equation>>> = metamodelica::nil();
         for mut e in (branch.clone()).into_iter().cloned() {
             let __x = stripCommentsFromEquation(e.clone(), stripAnn.clone(), stripCmt.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    },
-                elseBranch = {
+    }),
+                elseBranch = ({
         let mut __acc: Arc<metamodelica::List<Arc<SCode::Equation>>> = metamodelica::nil();
         for mut e in (var_field!((*eq).elseBranch, SCode::Equation::EQ_IF).clone()).into_iter().cloned() {
             let __x = stripCommentsFromEquation(e.clone(), stripAnn.clone(), stripCmt.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    },
+    }),
                 comment = stripCommentsFromComment(var_field!((*eq).comment, SCode::Equation::EQ_IF).clone(), stripAnn.clone(), stripCmt.clone())
             );
             ()
@@ -4722,36 +4724,36 @@ pub fn stripCommentsFromEquation(mut eq: Arc<SCode::Equation>, mut stripAnn: boo
         },
         Deref @ SCode::Equation::EQ_FOR { .. } => {
             assign_variant_field!(eq => SCode::Equation::EQ_FOR;
-                eEquationLst = {
+                eEquationLst = ({
         let mut __acc: Arc<metamodelica::List<Arc<SCode::Equation>>> = metamodelica::nil();
         for mut e in (var_field!((*eq).eEquationLst, SCode::Equation::EQ_FOR).clone()).into_iter().cloned() {
             let __x = stripCommentsFromEquation(e.clone(), stripAnn.clone(), stripCmt.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    },
+    }),
                 comment = stripCommentsFromComment(var_field!((*eq).comment, SCode::Equation::EQ_FOR).clone(), stripAnn.clone(), stripCmt.clone())
             );
             ()
         },
         Deref @ SCode::Equation::EQ_WHEN { .. } => {
             assign_variant_field!(eq => SCode::Equation::EQ_WHEN;
-                eEquationLst = {
+                eEquationLst = ({
         let mut __acc: Arc<metamodelica::List<Arc<SCode::Equation>>> = metamodelica::nil();
         for mut e in (var_field!((*eq).eEquationLst, SCode::Equation::EQ_WHEN).clone()).into_iter().cloned() {
             let __x = stripCommentsFromEquation(e.clone(), stripAnn.clone(), stripCmt.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    },
-                elseBranches = {
+    }),
+                elseBranches = ({
         let mut __acc: Arc<metamodelica::List<(Arc<Absyn::Exp>, Arc<metamodelica::List<Arc<SCode::Equation>>>)>> = metamodelica::nil();
         for mut b in (var_field!((*eq).elseBranches, SCode::Equation::EQ_WHEN).clone()).into_iter().cloned() {
             let __x = stripCommentsFromWhenEqBranch(b.clone(), stripAnn.clone(), stripCmt.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    },
+    }),
                 comment = stripCommentsFromComment(var_field!((*eq).comment, SCode::Equation::EQ_WHEN).clone(), stripAnn.clone(), stripCmt.clone())
             );
             ()
@@ -4782,28 +4784,28 @@ pub fn stripCommentsFromWhenEqBranch(mut branch: (Arc<Absyn::Exp>, Arc<metamodel
     let mut cond: Arc<Absyn::Exp> = Arc::new(Absyn::Exp::BREAK);
     let mut body: Arc<metamodelica::List<Arc<SCode::Equation>>> = metamodelica::nil();
     (cond, body) = branch.clone();
-    body = {
+    body = ({
         let mut __acc: Arc<metamodelica::List<Arc<SCode::Equation>>> = metamodelica::nil();
         for mut e in (body.clone()).into_iter().cloned() {
             let __x = stripCommentsFromEquation(e.clone(), stripAnn.clone(), stripCmt.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     branch = (cond.clone(), body.clone());
     Ok(branch)
 }
 
 pub fn stripCommentsFromAlgorithm(mut alg: Arc<SCode::AlgorithmSection>, mut stripAnn: bool, mut stripCmt: bool) -> Result<Arc<SCode::AlgorithmSection>> {
     let mut alg: Arc<SCode::AlgorithmSection> = alg;
-    assign_field!(alg.statements = {
+    assign_field!(alg.statements = ({
         let mut __acc: Arc<metamodelica::List<Arc<SCode::Statement>>> = metamodelica::nil();
         for mut s in (alg.statements.clone()).into_iter().cloned() {
             let __x = stripCommentsFromStatement(s.clone(), stripAnn.clone(), stripCmt.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
     Ok(alg)
 }
 
@@ -4816,86 +4818,86 @@ pub fn stripCommentsFromStatement(mut stmt: Arc<SCode::Statement>, mut stripAnn:
         },
         Deref @ SCode::Statement::ALG_IF { .. } => {
             assign_variant_field!(stmt => SCode::Statement::ALG_IF;
-                trueBranch = {
+                trueBranch = ({
         let mut __acc: Arc<metamodelica::List<Arc<SCode::Statement>>> = metamodelica::nil();
         for mut s in (var_field!((*stmt).trueBranch, SCode::Statement::ALG_IF).clone()).into_iter().cloned() {
             let __x = stripCommentsFromStatement(s.clone(), stripAnn.clone(), stripCmt.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    },
-                elseIfBranch = {
+    }),
+                elseIfBranch = ({
         let mut __acc: Arc<metamodelica::List<(Arc<Absyn::Exp>, Arc<metamodelica::List<Arc<SCode::Statement>>>)>> = metamodelica::nil();
         for mut b in (var_field!((*stmt).elseIfBranch, SCode::Statement::ALG_IF).clone()).into_iter().cloned() {
             let __x = stripCommentsFromStatementBranch(b.clone(), stripAnn.clone(), stripCmt.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    },
-                elseBranch = {
+    }),
+                elseBranch = ({
         let mut __acc: Arc<metamodelica::List<Arc<SCode::Statement>>> = metamodelica::nil();
         for mut s in (var_field!((*stmt).elseBranch, SCode::Statement::ALG_IF).clone()).into_iter().cloned() {
             let __x = stripCommentsFromStatement(s.clone(), stripAnn.clone(), stripCmt.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    },
+    }),
                 comment = stripCommentsFromComment(var_field!((*stmt).comment, SCode::Statement::ALG_IF).clone(), stripAnn.clone(), stripCmt.clone())
             );
             ()
         },
         Deref @ SCode::Statement::ALG_FOR { .. } => {
             assign_variant_field!(stmt => SCode::Statement::ALG_FOR;
-                forBody = {
+                forBody = ({
         let mut __acc: Arc<metamodelica::List<Arc<SCode::Statement>>> = metamodelica::nil();
         for mut s in (var_field!((*stmt).forBody, SCode::Statement::ALG_FOR).clone()).into_iter().cloned() {
             let __x = stripCommentsFromStatement(s.clone(), stripAnn.clone(), stripCmt.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    },
+    }),
                 comment = stripCommentsFromComment(var_field!((*stmt).comment, SCode::Statement::ALG_FOR).clone(), stripAnn.clone(), stripCmt.clone())
             );
             ()
         },
         Deref @ SCode::Statement::ALG_PARFOR { .. } => {
             assign_variant_field!(stmt => SCode::Statement::ALG_PARFOR;
-                parforBody = {
+                parforBody = ({
         let mut __acc: Arc<metamodelica::List<Arc<SCode::Statement>>> = metamodelica::nil();
         for mut s in (var_field!((*stmt).parforBody, SCode::Statement::ALG_PARFOR).clone()).into_iter().cloned() {
             let __x = stripCommentsFromStatement(s.clone(), stripAnn.clone(), stripCmt.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    },
+    }),
                 comment = stripCommentsFromComment(var_field!((*stmt).comment, SCode::Statement::ALG_PARFOR).clone(), stripAnn.clone(), stripCmt.clone())
             );
             ()
         },
         Deref @ SCode::Statement::ALG_WHILE { .. } => {
             assign_variant_field!(stmt => SCode::Statement::ALG_WHILE;
-                whileBody = {
+                whileBody = ({
         let mut __acc: Arc<metamodelica::List<Arc<SCode::Statement>>> = metamodelica::nil();
         for mut s in (var_field!((*stmt).whileBody, SCode::Statement::ALG_WHILE).clone()).into_iter().cloned() {
             let __x = stripCommentsFromStatement(s.clone(), stripAnn.clone(), stripCmt.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    },
+    }),
                 comment = stripCommentsFromComment(var_field!((*stmt).comment, SCode::Statement::ALG_WHILE).clone(), stripAnn.clone(), stripCmt.clone())
             );
             ()
         },
         Deref @ SCode::Statement::ALG_WHEN_A { .. } => {
             assign_variant_field!(stmt => SCode::Statement::ALG_WHEN_A;
-                branches = {
+                branches = ({
         let mut __acc: Arc<metamodelica::List<(Arc<Absyn::Exp>, Arc<metamodelica::List<Arc<SCode::Statement>>>)>> = metamodelica::nil();
         for mut b in (var_field!((*stmt).branches, SCode::Statement::ALG_WHEN_A).clone()).into_iter().cloned() {
             let __x = stripCommentsFromStatementBranch(b.clone(), stripAnn.clone(), stripCmt.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    },
+    }),
                 comment = stripCommentsFromComment(var_field!((*stmt).comment, SCode::Statement::ALG_WHEN_A).clone(), stripAnn.clone(), stripCmt.clone())
             );
             ()
@@ -4930,22 +4932,22 @@ pub fn stripCommentsFromStatement(mut stmt: Arc<SCode::Statement>, mut stripAnn:
         },
         Deref @ SCode::Statement::ALG_TRY { .. } => {
             assign_variant_field!(stmt => SCode::Statement::ALG_TRY;
-                body = {
+                body = ({
         let mut __acc: Arc<metamodelica::List<Arc<SCode::Statement>>> = metamodelica::nil();
         for mut s in (var_field!((*stmt).body, SCode::Statement::ALG_TRY).clone()).into_iter().cloned() {
             let __x = stripCommentsFromStatement(s.clone(), stripAnn.clone(), stripCmt.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    },
-                elseBody = {
+    }),
+                elseBody = ({
         let mut __acc: Arc<metamodelica::List<Arc<SCode::Statement>>> = metamodelica::nil();
         for mut s in (var_field!((*stmt).elseBody, SCode::Statement::ALG_TRY).clone()).into_iter().cloned() {
             let __x = stripCommentsFromStatement(s.clone(), stripAnn.clone(), stripCmt.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    },
+    }),
                 comment = stripCommentsFromComment(var_field!((*stmt).comment, SCode::Statement::ALG_TRY).clone(), stripAnn.clone(), stripCmt.clone())
             );
             ()
@@ -4964,14 +4966,14 @@ pub fn stripCommentsFromStatementBranch(mut branch: (Arc<Absyn::Exp>, Arc<metamo
     let mut cond: Arc<Absyn::Exp> = Arc::new(Absyn::Exp::BREAK);
     let mut body: Arc<metamodelica::List<Arc<SCode::Statement>>> = metamodelica::nil();
     (cond, body) = branch.clone();
-    body = {
+    body = ({
         let mut __acc: Arc<metamodelica::List<Arc<SCode::Statement>>> = metamodelica::nil();
         for mut s in (body.clone()).into_iter().cloned() {
             let __x = stripCommentsFromStatement(s.clone(), stripAnn.clone(), stripCmt.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     branch = (cond.clone(), body.clone());
     Ok(branch)
 }
@@ -5072,14 +5074,14 @@ pub fn mapElements(mut elements: Arc<metamodelica::List<Arc<SCode::Element>>>, m
     pub type Func = std::sync::Arc<dyn ::std::ops::Fn(Arc<SCode::Element>) -> Result<Arc<SCode::Element>> + 'static>;
 
     let mut elements: Arc<metamodelica::List<Arc<SCode::Element>>> = elements;
-    elements = {
+    elements = ({
         let mut __acc: Arc<metamodelica::List<Arc<SCode::Element>>> = metamodelica::nil();
         for mut e in (elements.clone()).into_iter().cloned() {
             let __x = mapElement(e.clone(), func.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     elements
 }
 
@@ -5110,14 +5112,14 @@ pub fn mapElementsClassDef(mut classDef: Arc<SCode::ClassDef>, mut func: Arc<dyn
     let mut def: Arc<SCode::ClassDef>;
     let () = (::match_deref::match_deref! { match &(classDef.clone()) {
         Deref @ SCode::ClassDef::PARTS { .. } => {
-            assign_variant_field!(classDef => SCode::ClassDef::PARTS; elementLst = {
+            assign_variant_field!(classDef => SCode::ClassDef::PARTS; elementLst = ({
         let mut __acc: Arc<metamodelica::List<Arc<SCode::Element>>> = metamodelica::nil();
         for mut e in (var_field!((*classDef).elementLst, SCode::ClassDef::PARTS).clone()).into_iter().cloned() {
             let __x = mapElement(e.clone(), func.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             ()
         },
         Deref @ SCode::ClassDef::CLASS_EXTENDS { .. } => {
@@ -5137,14 +5139,14 @@ pub fn mapEquationsList(mut eql: Arc<metamodelica::List<Arc<SCode::Equation>>>, 
     pub type Func = std::sync::Arc<dyn ::std::ops::Fn(Arc<SCode::Equation>) -> Result<Arc<SCode::Equation>> + 'static>;
 
     let mut eql: Arc<metamodelica::List<Arc<SCode::Equation>>> = eql;
-    eql = {
+    eql = ({
         let mut __acc: Arc<metamodelica::List<Arc<SCode::Equation>>> = metamodelica::nil();
         for mut e in (eql.clone()).into_iter().cloned() {
             let __x = mapEquations(e.clone(), func.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     eql
 }
 
@@ -5155,14 +5157,14 @@ pub fn mapEquations(mut eq: Arc<SCode::Equation>, mut func: Arc<dyn ::std::ops::
     let () = (::match_deref::match_deref! { match &(eq.clone()) {
         Deref @ SCode::Equation::EQ_IF { .. } => {
             assign_variant_field!(eq => SCode::Equation::EQ_IF;
-                thenBranch = {
+                thenBranch = ({
         let mut __acc: Arc<metamodelica::List<Arc<metamodelica::List<Arc<SCode::Equation>>>>> = metamodelica::nil();
         for mut b in (var_field!((*eq).thenBranch, SCode::Equation::EQ_IF).clone()).into_iter().cloned() {
             let __x = mapEquationsList(b.clone(), func.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    },
+    }),
                 elseBranch = mapEquationsList(var_field!((*eq).elseBranch, SCode::Equation::EQ_IF).clone(), func.clone())
             );
             ()
@@ -5174,14 +5176,14 @@ pub fn mapEquations(mut eq: Arc<SCode::Equation>, mut func: Arc<dyn ::std::ops::
         Deref @ SCode::Equation::EQ_WHEN { .. } => {
             assign_variant_field!(eq => SCode::Equation::EQ_WHEN;
                 eEquationLst = mapEquationsList(var_field!((*eq).eEquationLst, SCode::Equation::EQ_WHEN).clone(), func.clone()),
-                elseBranches = {
+                elseBranches = ({
         let mut __acc: Arc<metamodelica::List<(Arc<Absyn::Exp>, Arc<metamodelica::List<Arc<SCode::Equation>>>)>> = metamodelica::nil();
         for mut b in (var_field!((*eq).elseBranches, SCode::Equation::EQ_WHEN).clone()).into_iter().cloned() {
             let __x = (Util::tuple21(b.clone()), mapEquationsList(Util::tuple22(b.clone()), func.clone()));
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }
+    })
             );
             ()
         },
@@ -5198,14 +5200,14 @@ pub fn mapEquationExps(mut eq: Arc<SCode::Equation>, mut func: Arc<dyn ::std::op
     let mut eq: Arc<SCode::Equation> = eq;
     let () = (::match_deref::match_deref! { match &(eq.clone()) {
         Deref @ SCode::Equation::EQ_IF { .. } => {
-            assign_variant_field!(eq => SCode::Equation::EQ_IF; condition = {
+            assign_variant_field!(eq => SCode::Equation::EQ_IF; condition = ({
         let mut __acc: Arc<metamodelica::List<Arc<Absyn::Exp>>> = metamodelica::nil();
         for mut e in (var_field!((*eq).condition, SCode::Equation::EQ_IF).clone()).into_iter().cloned() {
             let __x = func(e.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             ()
         },
         Deref @ SCode::Equation::EQ_EQUALS { .. } => {
@@ -5239,14 +5241,14 @@ pub fn mapEquationExps(mut eq: Arc<SCode::Equation>, mut func: Arc<dyn ::std::op
         Deref @ SCode::Equation::EQ_WHEN { .. } => {
             assign_variant_field!(eq => SCode::Equation::EQ_WHEN;
                 condition = func(var_field!((*eq).condition, SCode::Equation::EQ_WHEN).clone())?,
-                elseBranches = {
+                elseBranches = ({
         let mut __acc: Arc<metamodelica::List<(Arc<Absyn::Exp>, Arc<metamodelica::List<Arc<SCode::Equation>>>)>> = metamodelica::nil();
         for mut b in (var_field!((*eq).elseBranches, SCode::Equation::EQ_WHEN).clone()).into_iter().cloned() {
             let __x = Util::applyTuple21(b.clone(), func.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }
+    })
             );
             ()
         },
@@ -5290,14 +5292,14 @@ pub fn mapStatementsList(mut statements: Arc<metamodelica::List<Arc<SCode::State
     pub type Func = std::sync::Arc<dyn ::std::ops::Fn(Arc<SCode::Statement>) -> Result<Arc<SCode::Statement>> + 'static>;
 
     let mut statements: Arc<metamodelica::List<Arc<SCode::Statement>>> = statements;
-    statements = {
+    statements = ({
         let mut __acc: Arc<metamodelica::List<Arc<SCode::Statement>>> = metamodelica::nil();
         for mut s in (statements.clone()).into_iter().cloned() {
             let __x = mapStatements(s.clone(), func.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     statements
 }
 
@@ -5309,14 +5311,14 @@ pub fn mapStatements(mut stmt: Arc<SCode::Statement>, mut func: Arc<dyn ::std::o
         Deref @ SCode::Statement::ALG_IF { .. } => {
             assign_variant_field!(stmt => SCode::Statement::ALG_IF;
                 trueBranch = mapStatementsList(var_field!((*stmt).trueBranch, SCode::Statement::ALG_IF).clone(), func.clone()),
-                elseIfBranch = {
+                elseIfBranch = ({
         let mut __acc: Arc<metamodelica::List<(Arc<Absyn::Exp>, Arc<metamodelica::List<Arc<SCode::Statement>>>)>> = metamodelica::nil();
         for mut b in (var_field!((*stmt).elseIfBranch, SCode::Statement::ALG_IF).clone()).into_iter().cloned() {
             let __x = (Util::tuple21(b.clone()), mapStatementsList(Util::tuple22(b.clone()), func.clone()));
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    },
+    }),
                 elseBranch = mapStatementsList(var_field!((*stmt).elseBranch, SCode::Statement::ALG_IF).clone(), func.clone())
             );
             ()
@@ -5334,14 +5336,14 @@ pub fn mapStatements(mut stmt: Arc<SCode::Statement>, mut func: Arc<dyn ::std::o
             ()
         },
         Deref @ SCode::Statement::ALG_WHEN_A { .. } => {
-            assign_variant_field!(stmt => SCode::Statement::ALG_WHEN_A; branches = {
+            assign_variant_field!(stmt => SCode::Statement::ALG_WHEN_A; branches = ({
         let mut __acc: Arc<metamodelica::List<(Arc<Absyn::Exp>, Arc<metamodelica::List<Arc<SCode::Statement>>>)>> = metamodelica::nil();
         for mut b in (var_field!((*stmt).branches, SCode::Statement::ALG_WHEN_A).clone()).into_iter().cloned() {
             let __x = (Util::tuple21(b.clone()), mapStatementsList(Util::tuple22(b.clone()), func.clone()));
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             ()
         },
         Deref @ SCode::Statement::ALG_FAILURE { .. } => {
@@ -5377,14 +5379,14 @@ pub fn mapStatementExps(mut stmt: Arc<SCode::Statement>, mut func: Arc<dyn ::std
         Deref @ SCode::Statement::ALG_IF { .. } => {
             assign_variant_field!(stmt => SCode::Statement::ALG_IF;
                 boolExpr = func(var_field!((*stmt).boolExpr, SCode::Statement::ALG_IF).clone())?,
-                elseIfBranch = {
+                elseIfBranch = ({
         let mut __acc: Arc<metamodelica::List<(Arc<Absyn::Exp>, Arc<metamodelica::List<Arc<SCode::Statement>>>)>> = metamodelica::nil();
         for mut b in (var_field!((*stmt).elseIfBranch, SCode::Statement::ALG_IF).clone()).into_iter().cloned() {
             let __x = (func(Util::tuple21(b.clone()))?, Util::tuple22(b.clone()));
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }
+    })
             );
             ()
         },
@@ -5405,14 +5407,14 @@ pub fn mapStatementExps(mut stmt: Arc<SCode::Statement>, mut func: Arc<dyn ::std
             ()
         },
         Deref @ SCode::Statement::ALG_WHEN_A { .. } => {
-            assign_variant_field!(stmt => SCode::Statement::ALG_WHEN_A; branches = {
+            assign_variant_field!(stmt => SCode::Statement::ALG_WHEN_A; branches = ({
         let mut __acc: Arc<metamodelica::List<(Arc<Absyn::Exp>, Arc<metamodelica::List<Arc<SCode::Statement>>>)>> = metamodelica::nil();
         for mut b in (var_field!((*stmt).branches, SCode::Statement::ALG_WHEN_A).clone()).into_iter().cloned() {
             let __x = (func(Util::tuple21(b.clone()))?, Util::tuple22(b.clone()));
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             ()
         },
         Deref @ SCode::Statement::ALG_ASSERT { .. } => {
@@ -5452,7 +5454,7 @@ pub fn lookupModInMod(mut name: ArcStr, mut r#mod: Arc<SCode::Mod>) -> Arc<SCode
                 let mut m = m.clone();
                 if m.ident.clone() == name.clone() {
                     outMod = m.r#mod.clone();
-                    return outMod;
+                    return outMod.clone();
                 }
             }
             Arc::new(openmodelica_frontend_types::SCode::Mod::NOMOD)
@@ -5470,7 +5472,6 @@ pub fn isNonEmptyAlgorithm(mut alg: Arc<SCode::AlgorithmSection>) -> bool {
 
 pub fn onlyLiteralsInMod(mut r#mod: Arc<SCode::Mod>) -> Result<bool> {
     let mut onlyLiterals: bool = false;
-    let mut lst: Arc<metamodelica::List<Arc<Absyn::Exp>>> = metamodelica::nil();
     onlyLiterals = (::match_deref::match_deref! { match &(r#mod.clone()) {
         Deref @ SCode::Mod::MOD { .. } => {
             if isSome(var_field!((*r#mod).binding, SCode::Mod::MOD).clone()) {
@@ -5566,11 +5567,9 @@ pub fn makeSingleAnnotation(mut name: ArcStr, mut value: Arc<Absyn::Exp>) -> Arc
 
 pub fn setAnnotationInComment(mut name: ArcStr, mut value: Arc<Absyn::Exp>, mut cmt: Arc<SCode::Comment>, mut replace: bool) -> Result<Arc<SCode::Comment>> {
     let mut cmt: Arc<SCode::Comment> = cmt;
-    let mut ann: Arc<SCode::Annotation> = Arc::new(<SCode::Annotation as ::std::default::Default>::default());
-    let mut r#mod: Arc<SCode::Mod> = Arc::new(SCode::Mod::NOMOD);
     if isNone(cmt.annotation_.clone()) {
         assign_field!(cmt.annotation_ = Some(makeSingleAnnotation((name.clone()).clone(), value.clone())));
-        return Ok(cmt);
+        return Ok(cmt.clone());
     } else {
         assign_field!(cmt.annotation_ = Some(setAnnotationValue((name.clone()).clone(), value.clone(), Util::getOption(cmt.annotation_.clone())?, replace.clone())?));
     }

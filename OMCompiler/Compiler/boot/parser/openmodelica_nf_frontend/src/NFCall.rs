@@ -262,7 +262,7 @@ pub fn typeNormalCall(mut call: Arc<NFCall>, mut context: i32, mut info: SourceI
             } else {
                 fn_context = InstContext::FUNCTION.clone();
             }
-            let _ = Function::typeRefCache(var_field!((*call).r#ref, NFCall::UNTYPED_CALL).clone(), fn_context.clone())?;
+            Function::typeRefCache(var_field!((*call).r#ref, NFCall::UNTYPED_CALL).clone(), fn_context.clone())?;
             typeArgs(call.clone(), context.clone(), info.clone())?
         },
         _ => {
@@ -287,14 +287,14 @@ pub fn unboxArgs(mut call: Arc<NFCall>) -> Arc<NFCall> {
     let mut c: Arc<NFCall>;
     let () = (::match_deref::match_deref! { match &(call.clone()) {
         Deref @ TYPED_CALL { .. } => {
-            assign_variant_field!(call => NFCall::TYPED_CALL; arguments = {
+            assign_variant_field!(call => NFCall::TYPED_CALL; arguments = ({
         let mut __acc: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
         for mut arg in (var_field!((*call).arguments, NFCall::TYPED_CALL).clone()).into_iter().cloned() {
             let __x = Expression::unbox(arg.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             ()
         },
         Deref @ TYPED_ARRAY_CONSTRUCTOR { exp: Deref @ Expression::CALL { call: c }, .. } => {
@@ -556,7 +556,7 @@ pub fn isRecordConstructor(mut call: Arc<NFCall>) -> Result<bool> {
     let mut isConstructor: bool = false;
     isConstructor = (::match_deref::match_deref! { match &(call.clone()) {
         Deref @ UNTYPED_CALL { .. } => SCodeUtil::isRecord(InstNode::definition(ComponentRef::node(var_field!((*call).r#ref, NFCall::UNTYPED_CALL).clone())?)?),
-        Deref @ TYPED_CALL { .. } => SCodeUtil::isRecord(InstNode::definition(var_field!((*call).r#fn, NFCall::TYPED_CALL).node.clone())?),
+        Deref @ TYPED_CALL { .. } if (!(InstNode::isEmpty(var_field!((*call).r#fn, NFCall::TYPED_CALL).node.clone()))) => SCodeUtil::isRecord(InstNode::definition(var_field!((*call).r#fn, NFCall::TYPED_CALL).node.clone())?),
         _ => false,
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
     } });
@@ -747,31 +747,30 @@ pub fn toString(mut call: Arc<NFCall>) -> Result<ArcStr> {
     let mut name: ArcStr = arcstr::literal!("");
     let mut arg_str: ArcStr = arcstr::literal!("");
     let mut c: ArcStr = arcstr::literal!("");
-    let mut argexp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut iters: Arc<metamodelica::List<Arc<InstNode::InstNode>>> = metamodelica::nil();
     r#str = ((::match_deref::match_deref! { match &(call.clone()) {
         Deref @ UNTYPED_CALL { .. } => {
             name = (ComponentRef::toString(var_field!((*call).r#ref, NFCall::UNTYPED_CALL).clone())?).clone();
-            arg_str = stringDelimitList({
+            arg_str = stringDelimitList(({
         let mut __acc: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
         for mut arg in (var_field!((*call).arguments, NFCall::UNTYPED_CALL).clone()).into_iter().cloned() {
             let __x = Expression::toString(arg.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, (literal!(", ")).clone());
+    }), (literal!(", ")).clone());
             { let mut __mm_s = String::new(); __mm_s.push_str(&*name.clone()); __mm_s.push_str(&*literal!("(")); __mm_s.push_str(&*arg_str.clone()); __mm_s.push_str(&*literal!(")")); ArcStr::from(__mm_s) }
         },
         Deref @ ARG_TYPED_CALL { .. } => {
             name = (ComponentRef::toString(var_field!((*call).r#ref, NFCall::ARG_TYPED_CALL).clone())?).clone();
-            arg_str = stringDelimitList({
+            arg_str = stringDelimitList(({
         let mut __acc: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
         for mut arg in (var_field!((*call).positional_args, NFCall::ARG_TYPED_CALL).clone()).into_iter().cloned() {
             let __x = Expression::toString(arg.value.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, (literal!(", ")).clone());
+    }), (literal!(", ")).clone());
             for mut arg in &*var_field!((*call).named_args, NFCall::ARG_TYPED_CALL).clone() {
                 let mut arg = arg.clone();
                 c = (if (arg_str.clone() == literal!("")) {literal!("")} else {literal!(", ")}).clone();
@@ -782,65 +781,65 @@ pub fn toString(mut call: Arc<NFCall>) -> Result<ArcStr> {
         Deref @ UNTYPED_ARRAY_CONSTRUCTOR { .. } => {
             name = (AbsynUtil::pathString(Function::nameConsiderBuiltin(NFBuiltinFuncs::ARRAY_FUNC().clone())?, (literal!(".")).clone(), true, false)?).clone();
             arg_str = (Expression::toString(var_field!((*call).exp, NFCall::UNTYPED_ARRAY_CONSTRUCTOR).clone())?).clone();
-            c = stringDelimitList({
+            c = stringDelimitList(({
         let mut __acc: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
         for mut iter in (var_field!((*call).iters, NFCall::UNTYPED_ARRAY_CONSTRUCTOR).clone()).into_iter().cloned() {
             let __x = { let mut __mm_s = String::new(); __mm_s.push_str(&*InstNode::name(Util::tuple21(iter.clone()))?); __mm_s.push_str(&*literal!(" in ")); __mm_s.push_str(&*Expression::toString(Util::tuple22(iter.clone()))?); ArcStr::from(__mm_s) };
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, (literal!(", ")).clone());
+    }), (literal!(", ")).clone());
             { let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("{")); __mm_s.push_str(&*arg_str.clone()); __mm_s.push_str(&*literal!(" for ")); __mm_s.push_str(&*c.clone()); __mm_s.push_str(&*literal!("}")); ArcStr::from(__mm_s) }
         },
         Deref @ UNTYPED_REDUCTION { .. } => {
             name = (ComponentRef::toString(var_field!((*call).r#ref, NFCall::UNTYPED_REDUCTION).clone())?).clone();
             arg_str = (Expression::toString(var_field!((*call).exp, NFCall::UNTYPED_REDUCTION).clone())?).clone();
-            c = stringDelimitList({
+            c = stringDelimitList(({
         let mut __acc: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
         for mut iter in (var_field!((*call).iters, NFCall::UNTYPED_REDUCTION).clone()).into_iter().cloned() {
             let __x = { let mut __mm_s = String::new(); __mm_s.push_str(&*InstNode::name(Util::tuple21(iter.clone()))?); __mm_s.push_str(&*literal!(" in ")); __mm_s.push_str(&*Expression::toString(Util::tuple22(iter.clone()))?); ArcStr::from(__mm_s) };
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, (literal!(", ")).clone());
+    }), (literal!(", ")).clone());
             { let mut __mm_s = String::new(); __mm_s.push_str(&*name.clone()); __mm_s.push_str(&*literal!("(")); __mm_s.push_str(&*arg_str.clone()); __mm_s.push_str(&*literal!(" for ")); __mm_s.push_str(&*c.clone()); __mm_s.push_str(&*literal!(")")); ArcStr::from(__mm_s) }
         },
         Deref @ TYPED_CALL { .. } => {
             name = (AbsynUtil::pathString(Function::nameConsiderBuiltin(var_field!((*call).r#fn, NFCall::TYPED_CALL).clone())?, (literal!(".")).clone(), true, false)?).clone();
-            arg_str = stringDelimitList({
+            arg_str = stringDelimitList(({
         let mut __acc: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
         for mut arg in (var_field!((*call).arguments, NFCall::TYPED_CALL).clone()).into_iter().cloned() {
             let __x = Expression::toString(arg.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, (literal!(", ")).clone());
+    }), (literal!(", ")).clone());
             { let mut __mm_s = String::new(); __mm_s.push_str(&*name.clone()); __mm_s.push_str(&*literal!("(")); __mm_s.push_str(&*arg_str.clone()); __mm_s.push_str(&*literal!(")")); ArcStr::from(__mm_s) }
         },
         Deref @ TYPED_ARRAY_CONSTRUCTOR { .. } => {
             name = (AbsynUtil::pathString(Function::nameConsiderBuiltin(NFBuiltinFuncs::ARRAY_FUNC().clone())?, (literal!(".")).clone(), true, false)?).clone();
             arg_str = (Expression::toString(var_field!((*call).exp, NFCall::TYPED_ARRAY_CONSTRUCTOR).clone())?).clone();
-            c = stringDelimitList({
+            c = stringDelimitList(({
         let mut __acc: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
         for mut iter in (var_field!((*call).iters, NFCall::TYPED_ARRAY_CONSTRUCTOR).clone()).into_iter().cloned() {
             let __x = { let mut __mm_s = String::new(); __mm_s.push_str(&*InstNode::name(Util::tuple21(iter.clone()))?); __mm_s.push_str(&*literal!(" in ")); __mm_s.push_str(&*Expression::toString(Util::tuple22(iter.clone()))?); ArcStr::from(__mm_s) };
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, (literal!(", ")).clone());
+    }), (literal!(", ")).clone());
             { let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("{")); __mm_s.push_str(&*arg_str.clone()); __mm_s.push_str(&*literal!(" for ")); __mm_s.push_str(&*c.clone()); __mm_s.push_str(&*literal!("}")); ArcStr::from(__mm_s) }
         },
         Deref @ TYPED_REDUCTION { .. } => {
             name = (AbsynUtil::pathString(Function::nameConsiderBuiltin(var_field!((*call).r#fn, NFCall::TYPED_REDUCTION).clone())?, (literal!(".")).clone(), true, false)?).clone();
             arg_str = (Expression::toString(var_field!((*call).exp, NFCall::TYPED_REDUCTION).clone())?).clone();
-            c = stringDelimitList({
+            c = stringDelimitList(({
         let mut __acc: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
         for mut iter in (var_field!((*call).iters, NFCall::TYPED_REDUCTION).clone()).into_iter().cloned() {
             let __x = { let mut __mm_s = String::new(); __mm_s.push_str(&*InstNode::name(Util::tuple21(iter.clone()))?); __mm_s.push_str(&*literal!(" in ")); __mm_s.push_str(&*Expression::toString(Util::tuple22(iter.clone()))?); ArcStr::from(__mm_s) };
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, (literal!(", ")).clone());
+    }), (literal!(", ")).clone());
             { let mut __mm_s = String::new(); __mm_s.push_str(&*name.clone()); __mm_s.push_str(&*literal!("(")); __mm_s.push_str(&*arg_str.clone()); __mm_s.push_str(&*literal!(" for ")); __mm_s.push_str(&*c.clone()); __mm_s.push_str(&*literal!(")")); ArcStr::from(__mm_s) }
         },
         _ => bail!("match: no arm matched"),
@@ -853,7 +852,6 @@ pub fn toFlatString(mut call: Arc<NFCall>, mut format: BaseModelica::OutputForma
     let mut name: ArcStr = arcstr::literal!("");
     let mut arg_str: ArcStr = arcstr::literal!("");
     let mut c: ArcStr = arcstr::literal!("");
-    let mut argexp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut iters: Arc<metamodelica::List<Arc<InstNode::InstNode>>> = metamodelica::nil();
     r#str = ((::match_deref::match_deref! { match &(call.clone()) {
         Deref @ TYPED_CALL { .. } => {
@@ -867,14 +865,14 @@ pub fn toFlatString(mut call: Arc<NFCall>, mut format: BaseModelica::OutputForma
             } else {
                 name = (AbsynUtil::pathString(Function::nameConsiderBuiltin(NFBuiltinFuncs::ARRAY_FUNC().clone())?, (literal!(".")).clone(), true, false)?).clone();
                 arg_str = (Expression::toFlatString(var_field!((*call).exp, NFCall::TYPED_ARRAY_CONSTRUCTOR).clone(), format.clone())?).clone();
-                c = stringDelimitList({
+                c = stringDelimitList(({
         let mut __acc: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
         for mut iter in (var_field!((*call).iters, NFCall::TYPED_ARRAY_CONSTRUCTOR).clone()).into_iter().cloned() {
             let __x = { let mut __mm_s = String::new(); __mm_s.push_str(&*Util::makeQuotedIdentifier((InstNode::name(Util::tuple21(iter.clone()))?).clone())?); __mm_s.push_str(&*literal!(" in ")); __mm_s.push_str(&*Expression::toFlatString(Util::tuple22(iter.clone()), format.clone())?); ArcStr::from(__mm_s) };
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, (literal!(", ")).clone());
+    }), (literal!(", ")).clone());
                 r#str = stringAppendList(list![(literal!("{")).clone(), (arg_str.clone()).clone(), (literal!(" for ")).clone(), (c.clone()).clone(), (literal!("}")).clone()]);
             }
             r#str.clone()
@@ -882,14 +880,14 @@ pub fn toFlatString(mut call: Arc<NFCall>, mut format: BaseModelica::OutputForma
         Deref @ TYPED_REDUCTION { .. } => {
             name = (AbsynUtil::pathString(Function::nameConsiderBuiltin(var_field!((*call).r#fn, NFCall::TYPED_REDUCTION).clone())?, (literal!(".")).clone(), true, false)?).clone();
             arg_str = (Expression::toFlatString(var_field!((*call).exp, NFCall::TYPED_REDUCTION).clone(), format.clone())?).clone();
-            c = stringDelimitList({
+            c = stringDelimitList(({
         let mut __acc: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
         for mut iter in (var_field!((*call).iters, NFCall::TYPED_REDUCTION).clone()).into_iter().cloned() {
             let __x = { let mut __mm_s = String::new(); __mm_s.push_str(&*Util::makeQuotedIdentifier((InstNode::name(Util::tuple21(iter.clone()))?).clone())?); __mm_s.push_str(&*literal!(" in ")); __mm_s.push_str(&*Expression::toFlatString(Util::tuple22(iter.clone()), format.clone())?); ArcStr::from(__mm_s) };
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, (literal!(", ")).clone());
+    }), (literal!(", ")).clone());
             if (Function::isBuiltin(var_field!((*call).r#fn, NFCall::TYPED_REDUCTION).clone())) {stringAppendList(list![(name.clone()).clone(), (literal!("(")).clone(), (arg_str.clone()).clone(), (literal!(" for ")).clone(), (c.clone()).clone(), (literal!(")")).clone()])} else {stringAppendList(list![(Util::makeQuotedIdentifier((name.clone()).clone())?).clone(), (literal!("(")).clone(), (arg_str.clone()).clone(), (literal!(" for ")).clone(), (c.clone()).clone(), (literal!(")")).clone()])}
         },
         _ => bail!("match: no arm matched"),
@@ -946,14 +944,14 @@ pub fn toFlatStringArgs(mut args: Arc<metamodelica::List<Arc<Expression::NFExpre
         },
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
     } }),
-        _ => stringDelimitList({
+        _ => stringDelimitList(({
         let mut __acc: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
         for mut arg in (args.clone()).into_iter().cloned() {
             let __x = Expression::toFlatString(arg.clone(), format.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, (literal!(", ")).clone()),
+    }), (literal!(", ")).clone()),
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
     } })).clone();
     Ok(argsString)
@@ -964,18 +962,17 @@ pub fn typedString(mut call: Arc<NFCall>) -> Result<ArcStr> {
     let mut name: ArcStr = arcstr::literal!("");
     let mut arg_str: ArcStr = arcstr::literal!("");
     let mut c: ArcStr = arcstr::literal!("");
-    let mut argexp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     r#str = ((::match_deref::match_deref! { match &(call.clone()) {
         Deref @ ARG_TYPED_CALL { .. } => {
             name = (ComponentRef::toString(var_field!((*call).r#ref, NFCall::ARG_TYPED_CALL).clone())?).clone();
-            arg_str = stringDelimitList({
+            arg_str = stringDelimitList(({
         let mut __acc: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
         for mut arg in (var_field!((*call).positional_args, NFCall::ARG_TYPED_CALL).clone()).into_iter().cloned() {
             let __x = { let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("/*")); __mm_s.push_str(&*Type::toString(arg.ty.clone())?); __mm_s.push_str(&*literal!("*/ ")); __mm_s.push_str(&*Expression::toString(arg.value.clone())?); ArcStr::from(__mm_s) };
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, (literal!(", ")).clone());
+    }), (literal!(", ")).clone());
             for mut arg in &*var_field!((*call).named_args, NFCall::ARG_TYPED_CALL).clone() {
                 let mut arg = arg.clone();
                 c = (if (arg_str.clone() == literal!("")) {literal!("")} else {literal!(", ")}).clone();
@@ -985,14 +982,14 @@ pub fn typedString(mut call: Arc<NFCall>) -> Result<ArcStr> {
         },
         Deref @ TYPED_CALL { .. } => {
             name = (AbsynUtil::pathString(Function::name(var_field!((*call).r#fn, NFCall::TYPED_CALL).clone()), (literal!(".")).clone(), true, false)?).clone();
-            arg_str = stringDelimitList({
+            arg_str = stringDelimitList(({
         let mut __acc: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
         for mut arg in (var_field!((*call).arguments, NFCall::TYPED_CALL).clone()).into_iter().cloned() {
             let __x = Expression::toStringTyped(arg.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, (literal!(", ")).clone());
+    }), (literal!(", ")).clone());
             { let mut __mm_s = String::new(); __mm_s.push_str(&*name.clone()); __mm_s.push_str(&*literal!("(")); __mm_s.push_str(&*arg_str.clone()); __mm_s.push_str(&*literal!(")")); ArcStr::from(__mm_s) }
         },
         _ => toString(call.clone())?,
@@ -1025,14 +1022,14 @@ pub fn toJSON(mut call: Arc<NFCall>) -> Result<Arc<JSON::JSON>> {
             if isNamed(call.clone(), (literal!("String")).clone())? {
                 json = toJSONStringArgs(var_field!((*call).arguments, NFCall::TYPED_CALL).clone(), json.clone())?;
             } else {
-                json = JSON::addPair((literal!("arguments")).clone(), JSON::makeArray({
+                json = JSON::addPair((literal!("arguments")).clone(), JSON::makeArray(({
         let mut __acc: Arc<metamodelica::List<Arc<JSON::JSON>>> = metamodelica::nil();
         for mut a in (var_field!((*call).arguments, NFCall::TYPED_CALL).clone()).into_iter().cloned() {
             let __x = Expression::toJSON(a.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }), json.clone())?;
+    })), json.clone())?;
             }
             ()
         },
@@ -1130,55 +1127,55 @@ pub fn toAbsyn(mut call: Arc<NFCall>) -> Result<Arc<Absyn::Exp>> {
         Deref @ UNTYPED_CALL { .. } => {
             let mut pargs: Arc<metamodelica::List<Arc<Absyn::Exp>>> = metamodelica::nil();
             let mut nargs: Arc<metamodelica::List<Arc<Absyn::NamedArg>>> = metamodelica::nil();
-            pargs = {
+            pargs = ({
         let mut __acc: Arc<metamodelica::List<Arc<Absyn::Exp>>> = metamodelica::nil();
         for mut arg in (var_field!((*call).arguments, NFCall::UNTYPED_CALL).clone()).into_iter().cloned() {
             let __x = Expression::toAbsyn(arg.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
-            nargs = {
+    });
+            nargs = ({
         let mut __acc: Arc<metamodelica::List<Arc<Absyn::NamedArg>>> = metamodelica::nil();
         for mut arg in (var_field!((*call).named_args, NFCall::UNTYPED_CALL).clone()).into_iter().cloned() {
             let __x = Arc::new(Absyn::NamedArg { argName: (Util::tuple21(arg.clone())).clone(), argValue: Expression::toAbsyn(Util::tuple22(arg.clone()))? });
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
             AbsynUtil::makeCall(ComponentRef::toAbsyn(var_field!((*call).r#ref, NFCall::UNTYPED_CALL).clone())?, pargs.clone(), nargs.clone())
         },
         Deref @ ARG_TYPED_CALL { .. } => {
             let mut pargs: Arc<metamodelica::List<Arc<Absyn::Exp>>> = metamodelica::nil();
             let mut nargs: Arc<metamodelica::List<Arc<Absyn::NamedArg>>> = metamodelica::nil();
-            pargs = {
+            pargs = ({
         let mut __acc: Arc<metamodelica::List<Arc<Absyn::Exp>>> = metamodelica::nil();
         for mut arg in (var_field!((*call).positional_args, NFCall::ARG_TYPED_CALL).clone()).into_iter().cloned() {
             let __x = Expression::toAbsyn(arg.value.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
-            nargs = {
+    });
+            nargs = ({
         let mut __acc: Arc<metamodelica::List<Arc<Absyn::NamedArg>>> = metamodelica::nil();
         for mut arg in (var_field!((*call).named_args, NFCall::ARG_TYPED_CALL).clone()).into_iter().cloned() {
             let __x = Arc::new(Absyn::NamedArg { argName: (Util::getOption(arg.name.clone())?).clone(), argValue: Expression::toAbsyn(arg.value.clone())? });
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
             AbsynUtil::makeCall(ComponentRef::toAbsyn(var_field!((*call).r#ref, NFCall::ARG_TYPED_CALL).clone())?, pargs.clone(), nargs.clone())
         },
         Deref @ TYPED_CALL { .. } => {
             let mut pargs: Arc<metamodelica::List<Arc<Absyn::Exp>>> = metamodelica::nil();
-            pargs = {
+            pargs = ({
         let mut __acc: Arc<metamodelica::List<Arc<Absyn::Exp>>> = metamodelica::nil();
         for mut arg in (var_field!((*call).arguments, NFCall::TYPED_CALL).clone()).into_iter().cloned() {
             let __x = Expression::toAbsyn(arg.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
             AbsynUtil::makeCall(AbsynUtil::pathToCref(Function::name(var_field!((*call).r#fn, NFCall::TYPED_CALL).clone()))?, pargs.clone(), metamodelica::nil())
         },
         Deref @ UNTYPED_ARRAY_CONSTRUCTOR { .. } => {
@@ -1204,14 +1201,14 @@ pub fn toAbsyn(mut call: Arc<NFCall>) -> Result<Arc<Absyn::Exp>> {
 
 pub fn toAbsynIterators(mut iterExp: Arc<Expression::NFExpression>, mut iters: Arc<metamodelica::List<(Arc<InstNode::InstNode>, Arc<Expression::NFExpression>)>>) -> Result<Arc<Absyn::FunctionArgs>> {
     let mut args: Arc<Absyn::FunctionArgs>;
-    args = Arc::new(Absyn::FunctionArgs::FOR_ITER_FARG { exp: Expression::toAbsyn(iterExp.clone())?, iterType: openmodelica_ast::Absyn::ReductionIterType::COMBINE, iterators: {
+    args = Arc::new(Absyn::FunctionArgs::FOR_ITER_FARG { exp: Expression::toAbsyn(iterExp.clone())?, iterType: openmodelica_ast::Absyn::ReductionIterType::COMBINE, iterators: ({
         let mut __acc: Arc<metamodelica::List<Arc<Absyn::ForIterator>>> = metamodelica::nil();
         for mut i in (iters.clone()).into_iter().cloned() {
             let __x = Arc::new(Absyn::ForIterator { name: (InstNode::name(Util::tuple21(i.clone()))?).clone(), guardExp: None, range: Some(Expression::toAbsyn(Util::tuple22(i.clone()))?) });
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    } });
+    }) });
     Ok(args)
 }
 
@@ -1225,42 +1222,42 @@ pub fn toDAE_work(mut call: Arc<NFCall>) -> Result<Arc<DAE::Exp>> {
     let mut daeCall: Arc<DAE::Exp>;
     daeCall = (::match_deref::match_deref! { match &(call.clone()) {
         Deref @ TYPED_CALL { .. } => {
-            Arc::new(DAE::Exp::CALL { path: Function::nameConsiderBuiltin(var_field!((*call).r#fn, NFCall::TYPED_CALL).clone())?, expLst: {
+            Arc::new(DAE::Exp::CALL { path: Function::nameConsiderBuiltin(var_field!((*call).r#fn, NFCall::TYPED_CALL).clone())?, expLst: ({
         let mut __acc: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
         for mut e in (var_field!((*call).arguments, NFCall::TYPED_CALL).clone()).into_iter().cloned() {
             let __x = Expression::toDAE(e.clone(), false)?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, attr: NFCallAttributes::toDAE(var_field!((*call).attributes, NFCall::TYPED_CALL).clone(), var_field!((*call).ty, NFCall::TYPED_CALL).clone())? })
+    }), attr: NFCallAttributes::toDAE(var_field!((*call).attributes, NFCall::TYPED_CALL).clone(), var_field!((*call).ty, NFCall::TYPED_CALL).clone())? })
         },
         Deref @ TYPED_ARRAY_CONSTRUCTOR { .. } => {
             let mut fold_id: ArcStr = arcstr::literal!("");
             let mut res_id: ArcStr = arcstr::literal!("");
             fold_id = (Util::getTempVariableIndex()).clone();
             res_id = (Util::getTempVariableIndex()).clone();
-            Arc::new(DAE::Exp::REDUCTION { reductionInfo: Arc::new(DAE::ReductionInfo { path: Function::name(NFBuiltinFuncs::ARRAY_FUNC().clone()), iterType: openmodelica_ast::Absyn::ReductionIterType::COMBINE, exprType: Type::toDAE(var_field!((*call).ty, NFCall::TYPED_ARRAY_CONSTRUCTOR).clone(), true)?, defaultValue: None, foldName: (fold_id.clone()).clone(), resultName: (res_id.clone()).clone(), foldExp: None }), expr: Expression::toDAE(var_field!((*call).exp, NFCall::TYPED_ARRAY_CONSTRUCTOR).clone(), false)?, iterators: {
+            Arc::new(DAE::Exp::REDUCTION { reductionInfo: Arc::new(DAE::ReductionInfo { path: Function::name(NFBuiltinFuncs::ARRAY_FUNC().clone()), iterType: openmodelica_ast::Absyn::ReductionIterType::COMBINE, exprType: Type::toDAE(var_field!((*call).ty, NFCall::TYPED_ARRAY_CONSTRUCTOR).clone(), true)?, defaultValue: None, foldName: (fold_id.clone()).clone(), resultName: (res_id.clone()).clone(), foldExp: None }), expr: Expression::toDAE(var_field!((*call).exp, NFCall::TYPED_ARRAY_CONSTRUCTOR).clone(), false)?, iterators: ({
         let mut __acc: Arc<metamodelica::List<Arc<DAE::ReductionIterator>>> = metamodelica::nil();
         for mut iter in (var_field!((*call).iters, NFCall::TYPED_ARRAY_CONSTRUCTOR).clone()).into_iter().cloned() {
             let __x = iteratorToDAE(iter.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    } })
+    }) })
         },
         Deref @ TYPED_REDUCTION { .. } => {
             let mut fold_id: ArcStr = arcstr::literal!("");
             let mut res_id: ArcStr = arcstr::literal!("");
             let mut fold_exp: Option<Arc<Expression::NFExpression>> = None;
             (fold_exp, fold_id, res_id) = var_field!((*call).foldExp, NFCall::TYPED_REDUCTION).clone();
-            Arc::new(DAE::Exp::REDUCTION { reductionInfo: Arc::new(DAE::ReductionInfo { path: Function::name(var_field!((*call).r#fn, NFCall::TYPED_REDUCTION).clone()), iterType: openmodelica_ast::Absyn::ReductionIterType::COMBINE, exprType: Type::toDAE(var_field!((*call).ty, NFCall::TYPED_REDUCTION).clone(), true)?, defaultValue: Util::applyOption(var_field!((*call).defaultExp, NFCall::TYPED_REDUCTION).clone(), (std::sync::Arc::new(Expression::toDAEValue) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Values::Value>> + 'static>)), foldName: (fold_id.clone()).clone(), resultName: (res_id.clone()).clone(), foldExp: Util::applyOption(fold_exp.clone(), Arc::new({ let __pe_b1 = false; move |__pe_a0| Expression::toDAE(__pe_a0, __pe_b1.clone()) })) }), expr: Expression::toDAE(var_field!((*call).exp, NFCall::TYPED_REDUCTION).clone(), false)?, iterators: {
+            Arc::new(DAE::Exp::REDUCTION { reductionInfo: Arc::new(DAE::ReductionInfo { path: Function::name(var_field!((*call).r#fn, NFCall::TYPED_REDUCTION).clone()), iterType: openmodelica_ast::Absyn::ReductionIterType::COMBINE, exprType: Type::toDAE(var_field!((*call).ty, NFCall::TYPED_REDUCTION).clone(), true)?, defaultValue: Util::applyOption(var_field!((*call).defaultExp, NFCall::TYPED_REDUCTION).clone(), (std::sync::Arc::new(Expression::toDAEValue) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Values::Value>> + 'static>)), foldName: (fold_id.clone()).clone(), resultName: (res_id.clone()).clone(), foldExp: Util::applyOption(fold_exp.clone(), Arc::new({ let __pe_b1 = false; move |__pe_a0| Expression::toDAE(__pe_a0, __pe_b1.clone()) })) }), expr: Expression::toDAE(var_field!((*call).exp, NFCall::TYPED_REDUCTION).clone(), false)?, iterators: ({
         let mut __acc: Arc<metamodelica::List<Arc<DAE::ReductionIterator>>> = metamodelica::nil();
         for mut iter in (var_field!((*call).iters, NFCall::TYPED_REDUCTION).clone()).into_iter().cloned() {
             let __x = iteratorToDAE(iter.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    } })
+    }) })
         },
         _ => {
             Error::assertion(false, ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("NFCall.toDAE_work")); __mm_s.push_str(&*literal!(" got untyped call")); ArcStr::from(__mm_s) }).clone(), metamodelica::sourceInfo!())?;
@@ -1386,14 +1383,14 @@ pub fn typeCast(mut callExp: Arc<Expression::NFExpression>, mut ty: Arc<Type::NF
             Arc::new(Expression::NFExpression::CALL { call: call.clone() })
         },
         Deref @ "DynamicSelect" => {
-            assign_variant_field!(call => NFCall::TYPED_CALL; arguments = {
+            assign_variant_field!(call => NFCall::TYPED_CALL; arguments = ({
         let mut __acc: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
         for mut arg in (var_field!((*call).arguments, NFCall::TYPED_CALL).clone()).into_iter().cloned() {
             let __x = Expression::typeCast(arg.clone(), ty.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             Arc::new(Expression::NFExpression::CALL { call: call.clone() })
         },
         _ => Arc::new(Expression::NFExpression::CAST { ty: cast_ty.clone(), exp: callExp.clone() }),
@@ -1431,14 +1428,14 @@ pub fn containsExp(mut call: Arc<NFCall>, mut func: Arc<dyn ::std::ops::Fn(Arc<E
                 let mut arg = arg.clone();
                 if Expression::contains(arg.value.clone(), func.clone())? {
                     res = true;
-                    return Ok(res);
+                    return Ok(res.clone());
                 }
             }
             for mut arg in &*var_field!((*call).named_args, NFCall::ARG_TYPED_CALL).clone() {
                 let mut arg = arg.clone();
                 if Expression::contains(arg.value.clone(), func.clone())? {
                     res = true;
-                    return Ok(res);
+                    return Ok(res.clone());
                 }
             }
             false
@@ -1488,14 +1485,14 @@ pub fn containsExpShallow(mut call: Arc<NFCall>, mut func: Arc<dyn ::std::ops::F
                 let mut arg = arg.clone();
                 if func(arg.value.clone())? {
                     res = true;
-                    return Ok(res);
+                    return Ok(res.clone());
                 }
             }
             for mut arg in &*var_field!((*call).named_args, NFCall::ARG_TYPED_CALL).clone() {
                 let mut arg = arg.clone();
                 if func(arg.value.clone())? {
                     res = true;
-                    return Ok(res);
+                    return Ok(res.clone());
                 }
             }
             false
@@ -1735,14 +1732,14 @@ pub fn mapExp(mut call: Arc<NFCall>, mut func: Arc<dyn ::std::ops::Fn(Arc<Expres
             let mut nargs: Arc<metamodelica::List<(ArcStr, Arc<Expression::NFExpression>)>> = metamodelica::nil();
             let mut s: ArcStr = arcstr::literal!("");
             let mut e: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-            args = {
+            args = ({
         let mut __acc: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
         for mut arg in (var_field!((*call).arguments, NFCall::UNTYPED_CALL).clone()).into_iter().cloned() {
             let __x = Expression::map(arg.clone(), func.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
             nargs = metamodelica::nil();
             for mut arg in &*var_field!((*call).named_args, NFCall::UNTYPED_CALL).clone() {
                 let mut arg = arg.clone();
@@ -1771,14 +1768,14 @@ pub fn mapExp(mut call: Arc<NFCall>, mut func: Arc<dyn ::std::ops::Fn(Arc<Expres
         },
         Deref @ TYPED_CALL { .. } => {
             let mut args: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
-            args = {
+            args = ({
         let mut __acc: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
         for mut arg in (var_field!((*call).arguments, NFCall::TYPED_CALL).clone()).into_iter().cloned() {
             let __x = Expression::map(arg.clone(), func.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
             Arc::new(NFCall::TYPED_CALL { r#fn: var_field!((*call).r#fn, NFCall::TYPED_CALL).clone(), ty: var_field!((*call).ty, NFCall::TYPED_CALL).clone(), var: var_field!((*call).var, NFCall::TYPED_CALL).clone(), purity: var_field!((*call).purity, NFCall::TYPED_CALL).clone(), arguments: args.clone(), attributes: var_field!((*call).attributes, NFCall::TYPED_CALL).clone() })
         },
         Deref @ UNTYPED_ARRAY_CONSTRUCTOR { .. } => {
@@ -1845,14 +1842,14 @@ pub fn mapExpShallow(mut call: Arc<NFCall>, mut func: Arc<dyn ::std::ops::Fn(Arc
             let mut nargs: Arc<metamodelica::List<(ArcStr, Arc<Expression::NFExpression>)>> = metamodelica::nil();
             let mut s: ArcStr = arcstr::literal!("");
             let mut e: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-            args = {
+            args = ({
         let mut __acc: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
         for mut arg in (var_field!((*call).arguments, NFCall::UNTYPED_CALL).clone()).into_iter().cloned() {
             let __x = func(arg.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
             nargs = metamodelica::nil();
             for mut arg in &*var_field!((*call).named_args, NFCall::UNTYPED_CALL).clone() {
                 let mut arg = arg.clone();
@@ -1881,14 +1878,14 @@ pub fn mapExpShallow(mut call: Arc<NFCall>, mut func: Arc<dyn ::std::ops::Fn(Arc
         },
         Deref @ TYPED_CALL { .. } => {
             let mut args: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
-            args = {
+            args = ({
         let mut __acc: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
         for mut arg in (var_field!((*call).arguments, NFCall::TYPED_CALL).clone()).into_iter().cloned() {
             let __x = func(arg.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
             Arc::new(NFCall::TYPED_CALL { r#fn: var_field!((*call).r#fn, NFCall::TYPED_CALL).clone(), ty: var_field!((*call).ty, NFCall::TYPED_CALL).clone(), var: var_field!((*call).var, NFCall::TYPED_CALL).clone(), purity: var_field!((*call).purity, NFCall::TYPED_CALL).clone(), arguments: args.clone(), attributes: var_field!((*call).attributes, NFCall::TYPED_CALL).clone() })
         },
         Deref @ UNTYPED_ARRAY_CONSTRUCTOR { .. } => {
@@ -2285,7 +2282,7 @@ fn instNormalCall(mut functionName: Arc<Absyn::ComponentRef>, mut functionArgs: 
         Deref @ Absyn::FunctionArgs::FUNCTIONARGS { .. } => Inst::instExp(listHead(var_field!((*functionArgs).args, Absyn::FunctionArgs::FUNCTIONARGS).clone())?, scope.clone(), context.clone(), info.clone())?,
         _ => bail!("match: no arm matched"),
     } });
-            return Ok(callExp);
+            return Ok(callExp.clone());
         } else {
             bail!("fail");
         }
@@ -2321,22 +2318,22 @@ fn instArgs(mut args: Arc<Absyn::FunctionArgs>, mut scope: Arc<InstNode::InstNod
     let mut namedArgs: Arc<metamodelica::List<(ArcStr, Arc<Expression::NFExpression>)>> = metamodelica::nil();
     (posArgs, namedArgs) = (::match_deref::match_deref! { match &(args.clone()) {
         Deref @ Absyn::FunctionArgs::FUNCTIONARGS { .. } => {
-            posArgs = {
+            posArgs = ({
         let mut __acc: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
         for mut a in (var_field!((*args).args, Absyn::FunctionArgs::FUNCTIONARGS).clone()).into_iter().cloned() {
             let __x = Inst::instExp(a.clone(), scope.clone(), context.clone(), info.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
-            namedArgs = {
+    });
+            namedArgs = ({
         let mut __acc: Arc<metamodelica::List<(ArcStr, Arc<Expression::NFExpression>)>> = metamodelica::nil();
         for mut a in (var_field!((*args).argNames, Absyn::FunctionArgs::FUNCTIONARGS).clone()).into_iter().cloned() {
             let __x = instNamedArg(a.clone(), scope.clone(), context.clone(), info.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
             (posArgs.clone(), namedArgs.clone())
         },
         _ => {
@@ -2368,7 +2365,6 @@ fn instIteratorCall(mut functionName: Arc<Absyn::ComponentRef>, mut functionArgs
     let mut fn_ref: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
     let mut exp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut iters: Arc<metamodelica::List<(Arc<InstNode::InstNode>, Arc<Expression::NFExpression>)>> = metamodelica::nil();
-    let mut is_array: bool = false;
     fn_name = (::match_deref::match_deref! { match &(functionName.clone()) {
         Deref @ Absyn::ComponentRef::CREF_IDENT { name: Deref @ "$array", .. } => Arc::new(Absyn::ComponentRef::CREF_IDENT { name: (literal!("array")).clone(), subscripts: metamodelica::nil() }),
         _ => functionName.clone(),
@@ -2387,7 +2383,7 @@ fn instIteratorCall(mut functionName: Arc<Absyn::ComponentRef>, mut functionArgs
 fn instIteratorCallArgs(mut args: Arc<Absyn::FunctionArgs>, mut scope: Arc<InstNode::InstNode>, mut context: i32, mut info: SourceInfo) -> Result<(Arc<Expression::NFExpression>, Arc<metamodelica::List<(Arc<InstNode::InstNode>, Arc<Expression::NFExpression>)>>)> {
     let mut exp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut iters: Arc<metamodelica::List<(Arc<InstNode::InstNode>, Arc<Expression::NFExpression>)>> = metamodelica::nil();
-    let _ = (::match_deref::match_deref! { match &(args.clone()) {
+    let () = (::match_deref::match_deref! { match &(args.clone()) {
         Deref @ Absyn::FunctionArgs::FOR_ITER_FARG { .. } => {
             let mut for_scope: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
             (for_scope, iters) = instIterators(var_field!((*args).iterators, Absyn::FunctionArgs::FOR_ITER_FARG).clone(), scope.clone(), context.clone(), info.clone())?;
@@ -2491,8 +2487,6 @@ fn typeReduction(mut call: Arc<NFCall>, mut context: i32, mut info: SourceInfo) 
     let mut purity: Purity = Purity::PURE;
     let mut range: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut arg: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-    let mut default_exp: Option<Arc<Expression::NFExpression>> = None;
-    let mut fold_exp: Option<Arc<Expression::NFExpression>> = None;
     let mut iter: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
     let mut iter_var: Variability = Variability::CONSTANT;
     let mut exp_var: Variability = Variability::CONSTANT;
@@ -2501,9 +2495,6 @@ fn typeReduction(mut call: Arc<NFCall>, mut context: i32, mut info: SourceInfo) 
     let mut iters: Arc<metamodelica::List<(Arc<InstNode::InstNode>, Arc<Expression::NFExpression>)>> = metamodelica::nil();
     let mut next_context: i32 = 0;
     let mut r#fn: Arc<Function::Function> = Arc::new(<Function::Function as ::std::default::Default>::default());
-    let mut fold_id: ArcStr = arcstr::literal!("");
-    let mut res_id: ArcStr = arcstr::literal!("");
-    let mut fold_tuple: (Option<Arc<Expression::NFExpression>>, ArcStr, ArcStr);
     (call, ty, variability, purity) = (::match_deref::match_deref! { match &(call.clone()) {
         Deref @ UNTYPED_REDUCTION { .. } => {
             variability = Variability::CONSTANT.clone();
@@ -2579,7 +2570,6 @@ fn reductionDefaultValue(mut r#fn: Arc<Function::Function>, mut ty: Arc<Type::NF
 
 fn reductionFoldExpression(mut reductionFn: Arc<Function::Function>, mut reductionType: Arc<Type::NFType>, mut reductionVar: Variability, mut reductionPurity: Purity, mut foldId: ArcStr, mut resultId: ArcStr, mut info: SourceInfo) -> Result<Option<Arc<Expression::NFExpression>>> {
     let mut foldExp: Option<Arc<Expression::NFExpression>> = None;
-    let mut ty: Arc<Type::NFType> = Arc::new(Type::ANY);
     let mut op_node: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
     let mut r#fn: Arc<Function::Function> = Arc::new(<Function::Function as ::std::default::Default>::default());
     if Type::isComplex(reductionType.clone()) {
@@ -2666,13 +2656,12 @@ fn checkMatchingFunctions(mut call: Arc<NFCall>, mut context: i32, mut info: Sou
     let mut allfuncs: Arc<metamodelica::List<Arc<Function::Function>>> = metamodelica::nil();
     let mut fn_node: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
     let mut numerr: i32 = Error::getNumErrorMessages();
-    let mut errors: Arc<metamodelica::List<i32>> = metamodelica::nil();
     ErrorExt::setCheckpoint((literal!("NFCall:checkMatchingFunctions")).clone());
     matchedFunctions = (::match_deref::match_deref! { match &(call.clone()) {
         Deref @ ARG_TYPED_CALL { r#ref: Deref @ ComponentRef::CREF { node: fn_node, .. }, .. } => {
             allfuncs = Function::getCachedFuncs(fn_node.clone())?;
             if (allfuncs.clone().len() as i32) > 1 {
-                allfuncs = {
+                allfuncs = ({
         let mut __acc: Arc<metamodelica::List<Arc<Function::Function>>> = metamodelica::nil();
         for mut r#fn in (allfuncs.clone()).into_iter().cloned() {
             if !(!(Function::isDefaultRecordConstructor(r#fn.clone()))) { continue; }
@@ -2680,7 +2669,7 @@ fn checkMatchingFunctions(mut call: Arc<NFCall>, mut context: i32, mut info: Sou
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
             }
             Function::matchFunctions(allfuncs.clone(), var_field!((*call).positional_args, NFCall::ARG_TYPED_CALL).clone(), var_field!((*call).named_args, NFCall::ARG_TYPED_CALL).clone(), context.clone(), info.clone(), vectorize.clone())?
         },
@@ -2705,14 +2694,14 @@ fn checkMatchingFunctions(mut call: Arc<NFCall>, mut context: i32, mut info: Sou
             exactMatches = MatchedFunction::getExactVectorizedMatches(matchedFunctions.clone());
         }
         if (exactMatches.clone().len() as i32) > 1 {
-            Error::addSourceMessage(Error::AMBIGUOUS_MATCHING_FUNCTIONS_NFINST.clone(), list![(typedString(call.clone())?).clone(), (Function::candidateFuncListString({
+            Error::addSourceMessage(Error::AMBIGUOUS_MATCHING_FUNCTIONS_NFINST.clone(), list![(typedString(call.clone())?).clone(), (Function::candidateFuncListString(({
         let mut __acc: Arc<metamodelica::List<Arc<Function::Function>>> = metamodelica::nil();
         for mut mfn in (matchedFunctions.clone()).into_iter().cloned() {
             let __x = mfn.func.clone();
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    })).clone()], info.clone())?;
+    }))).clone()], info.clone())?;
             bail!("fail");
         }
         matchedFunc = listHead(exactMatches.clone())?;
@@ -2731,8 +2720,6 @@ fn iteratorToDAE(mut iter: (Arc<InstNode::InstNode>, Arc<Expression::NFExpressio
     let mut diter: Arc<DAE::ReductionIterator> = Arc::new(<DAE::ReductionIterator as ::std::default::Default>::default());
     let mut iter_node: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
     let mut iter_range: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-    let mut c: Arc<Component::NFComponent> = Arc::new(Component::WILD);
-    let mut b: Arc<Binding::NFBinding> = Arc::new(Binding::UNBOUND);
     (iter_node, iter_range) = iter.clone();
     diter = Arc::new(DAE::ReductionIterator { id: (InstNode::name(iter_node.clone())?).clone(), exp: Expression::toDAE(iter_range.clone(), false)?, guardExp: None, ty: Type::toDAE(InstNode::getType(iter_node.clone())?, true)? });
     Ok(diter)
@@ -2885,7 +2872,7 @@ fn buildParameterTree(mut r#fn: Arc<Function::Function>, mut args: Arc<metamodel
     let mut arg: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut rest_args: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = args.clone();
     if !(NFCallParameterTree::isEmpty(ptree.clone())) {
-        return Ok(ptree);
+        return Ok(ptree.clone());
     }
     for mut i in &*r#fn.inputs.clone() {
         let mut i = i.clone();
@@ -2956,13 +2943,13 @@ fn resolvePolymorphicReturnType(mut r#fn: Arc<Function::Function>, mut args: Arc
                 input_ty = InstNode::getType(i.clone())?;
                 if Type::isPolymorphicNamed(Type::arrayElementType(input_ty.clone()), (name.clone()).clone()) {
                     outType = Type::unliftArrayN(Type::dimensionCount(input_ty.clone()), arg.ty.clone())?;
-                    return Ok(outType);
+                    return Ok(outType.clone());
                 }
             }
             if name.clone() == literal!("__Scalar") {
                 outType = resolvePolymorphicReturnType(r#fn.clone(), args.clone(), Arc::new(Type::NFType::POLYMORPHIC { name: (literal!("__Array")).clone() }))?;
                 outType = Type::arrayElementType(outType.clone());
-                return Ok(outType);
+                return Ok(outType.clone());
             }
             bail!("fail")
         },

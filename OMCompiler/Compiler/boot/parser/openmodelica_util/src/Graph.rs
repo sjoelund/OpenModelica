@@ -83,11 +83,11 @@ fn topologicalSort2<NodeType: Clone + 'static>(mut inStartNodes: Arc<metamodelic
 
     let mut outNodes: Arc<metamodelica::List<NodeType>> = metamodelica::nil();
     let mut outRemainingGraph: Arc<metamodelica::List<(NodeType, Arc<metamodelica::List<NodeType>>)>> = metamodelica::nil();
-    (outNodes, outRemainingGraph) = (::match_deref::match_deref! { match &((inStartNodes.clone(), inRestNodes.clone(), inAccumNodes.clone(), inEqualFunc.clone())) {
-        (Deref @ metamodelica::List::Nil, _, _, _) => {
+    (outNodes, outRemainingGraph) = (::match_deref::match_deref! { match &((inStartNodes.clone(), inRestNodes.clone())) {
+        (Deref @ metamodelica::List::Nil, _) => {
             (inAccumNodes.clone().reverse(), inRestNodes.clone())
         },
-        (rest_start, Deref @ metamodelica::List::Nil, _, _) => {
+        (rest_start, Deref @ metamodelica::List::Nil) => {
             let mut node1: NodeType;
             let mut result: Arc<metamodelica::List<NodeType>> = metamodelica::nil();
             result = inAccumNodes.clone();
@@ -103,7 +103,7 @@ fn topologicalSort2<NodeType: Clone + 'static>(mut inStartNodes: Arc<metamodelic
             result = result.clone().reverse();
             (result.clone(), metamodelica::nil())
         },
-        (Deref @ metamodelica::List::Cons { head: (node1, Deref @ metamodelica::List::Nil), tail: rest_start }, rest_rest, _, _) => {
+        (Deref @ metamodelica::List::Cons { head: (node1, Deref @ metamodelica::List::Nil), tail: rest_start }, rest_rest) => {
             let mut rest_start_: Arc<metamodelica::List<(NodeType, Arc<metamodelica::List<NodeType>>)>> = metamodelica::nil();
             let mut new_start: Arc<metamodelica::List<(NodeType, Arc<metamodelica::List<NodeType>>)>> = metamodelica::nil();
             let mut result: Arc<metamodelica::List<NodeType>> = metamodelica::nil();
@@ -156,10 +156,10 @@ pub fn findCycles2<NodeType: Clone + 'static>(mut inNodes: Arc<metamodelica::Lis
 
     let mut outCycles: Arc<metamodelica::List<Arc<metamodelica::List<NodeType>>>> = metamodelica::nil();
     outCycles = 'mc: {
-        let __mc_input = (inNodes.clone(), inGraph.clone(), inEqualFunc.clone());
+        let __mc_input = inNodes.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ metamodelica::List::Nil, _, _) => {
+                Deref @ metamodelica::List::Nil => {
                     Ok(metamodelica::nil())
                 }
                 _ => bail!("nomatch"),
@@ -167,7 +167,7 @@ pub fn findCycles2<NodeType: Clone + 'static>(mut inNodes: Arc<metamodelica::Lis
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ metamodelica::List::Cons { head: node, tail: rest_nodes }, _, _) => {
+                Deref @ metamodelica::List::Cons { head: node, tail: rest_nodes } => {
                     let mut cycle: Arc<metamodelica::List<NodeType>> = metamodelica::nil();
                     let mut rest_cycles: Arc<metamodelica::List<Arc<metamodelica::List<NodeType>>>> = metamodelica::nil();
                     let mut rest_nodes = (*rest_nodes).clone();
@@ -185,7 +185,7 @@ pub fn findCycles2<NodeType: Clone + 'static>(mut inNodes: Arc<metamodelica::Lis
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ metamodelica::List::Cons { head: _, tail: rest_nodes }, _, _) => {
+                Deref @ metamodelica::List::Cons { head: _, tail: rest_nodes } => {
                     let mut rest_cycles: Arc<metamodelica::List<Arc<metamodelica::List<NodeType>>>> = metamodelica::nil();
                     rest_cycles = findCycles2(rest_nodes.clone(), inGraph.clone(), inEqualFunc.clone())?;
                     Ok(rest_cycles.clone())
@@ -203,10 +203,10 @@ fn findCycleForNode<NodeType: Clone + 'static>(mut inNode: (NodeType, Arc<metamo
 
     let mut outCycle: Option<Arc<metamodelica::List<NodeType>>> = None;
     outCycle = 'mc: {
-        let __mc_input = (inNode.clone(), inGraph.clone(), inVisitedNodes.clone(), inEqualFunc.clone());
+        let __mc_input = (inNode.clone(), inVisitedNodes.clone());
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                ((node, _), _, Deref @ metamodelica::List::Cons { head: _, tail: _ }, _) => {
+                ((node, _), Deref @ metamodelica::List::Cons { head: _, tail: _ }) => {
                     let mut start_node: NodeType;
                     let mut is_start_node: bool = false;
                     let mut opt_cycle: Option<Arc<metamodelica::List<NodeType>>> = None;
@@ -221,7 +221,7 @@ fn findCycleForNode<NodeType: Clone + 'static>(mut inNode: (NodeType, Arc<metamo
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                ((node, edges), _, _, _) => {
+                ((node, edges), _) => {
                     let mut visited_nodes: Arc<metamodelica::List<NodeType>> = metamodelica::nil();
                     let mut cycle: Arc<metamodelica::List<NodeType>> = metamodelica::nil();
                     visited_nodes = cons(node.clone(), inVisitedNodes.clone());
@@ -243,10 +243,10 @@ fn findCycleForNode2<NodeType: Clone + 'static>(mut inNodes: Arc<metamodelica::L
 
     let mut outCycle: Arc<metamodelica::List<NodeType>> = metamodelica::nil();
     outCycle = 'mc: {
-        let __mc_input = (inNodes.clone(), inGraph.clone(), inVisitedNodes.clone(), inEqualFunc.clone());
+        let __mc_input = inNodes.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ metamodelica::List::Cons { head: node, tail: _ }, _, _, _) => {
+                Deref @ metamodelica::List::Cons { head: node, tail: _ } => {
                     let mut cycle: Arc<metamodelica::List<NodeType>> = metamodelica::nil();
                     let mut graph_node: (NodeType, Arc<metamodelica::List<NodeType>>);
                     graph_node = findNodeInGraph(node.clone(), inGraph.clone(), inEqualFunc.clone())?;
@@ -262,7 +262,7 @@ fn findCycleForNode2<NodeType: Clone + 'static>(mut inNodes: Arc<metamodelica::L
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ metamodelica::List::Cons { head: _, tail: rest_nodes }, _, _, _) => {
+                Deref @ metamodelica::List::Cons { head: _, tail: rest_nodes } => {
                     let mut cycle: Arc<metamodelica::List<NodeType>> = metamodelica::nil();
                     cycle = findCycleForNode2(rest_nodes.clone(), inGraph.clone(), inVisitedNodes.clone(), inEqualFunc.clone())?;
                     Ok(cycle.clone())
@@ -282,10 +282,10 @@ fn findNodeInGraph<NodeType: Clone + 'static>(mut inNode: NodeType, mut inGraph:
 
     let mut outNode: (NodeType, Arc<metamodelica::List<NodeType>>);
     outNode = 'mc: {
-        let __mc_input = (inNode.clone(), inGraph.clone(), inEqualFunc.clone());
+        let __mc_input = inGraph.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, Deref @ metamodelica::List::Cons { head: graph_node @ (node, _), tail: _ }, _) => {
+                Deref @ metamodelica::List::Cons { head: graph_node @ (node, _), tail: _ } => {
                     let true = (inEqualFunc(inNode.clone(), node.clone())?) else { bail!("pattern mismatch") };
                     Ok(graph_node.clone())
                 }
@@ -294,7 +294,7 @@ fn findNodeInGraph<NodeType: Clone + 'static>(mut inNode: NodeType, mut inGraph:
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, Deref @ metamodelica::List::Cons { head: _, tail: rest_graph }, _) => {
+                Deref @ metamodelica::List::Cons { head: _, tail: rest_graph } => {
                     Ok(findNodeInGraph(inNode.clone(), rest_graph.clone(), inEqualFunc.clone())?)
                 }
                 _ => bail!("nomatch"),
@@ -312,10 +312,10 @@ fn findIndexofNodeInGraph<NodeType: Clone + 'static>(mut inNode: NodeType, mut i
 
     let mut outIndex: i32 = 0;
     outIndex = 'mc: {
-        let __mc_input = (inNode.clone(), inGraph.clone(), inEqualFunc.clone(), inIndex.clone());
+        let __mc_input = inGraph.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, Deref @ metamodelica::List::Cons { head: (node, _), tail: _ }, _, _) => {
+                Deref @ metamodelica::List::Cons { head: (node, _), tail: _ } => {
                     let true = (inEqualFunc(inNode.clone(), node.clone())?) else { bail!("pattern mismatch") };
                     Ok(inIndex.clone())
                 }
@@ -324,7 +324,7 @@ fn findIndexofNodeInGraph<NodeType: Clone + 'static>(mut inNode: NodeType, mut i
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, Deref @ metamodelica::List::Cons { head: _, tail: rest_graph }, _, _) => {
+                Deref @ metamodelica::List::Cons { head: _, tail: rest_graph } => {
                     Ok(findIndexofNodeInGraph(inNode.clone(), rest_graph.clone(), inEqualFunc.clone(), inIndex.clone() + 1)?)
                 }
                 _ => bail!("nomatch"),
@@ -342,10 +342,10 @@ fn removeNodesFromGraph<NodeType: Clone + 'static>(mut inNodes: Arc<metamodelica
 
     let mut outGraph: Arc<metamodelica::List<(NodeType, Arc<metamodelica::List<NodeType>>)>> = metamodelica::nil();
     outGraph = 'mc: {
-        let __mc_input = (inNodes.clone(), inGraph.clone(), inEqualFunc.clone());
+        let __mc_input = (inNodes.clone(), inGraph.clone());
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ metamodelica::List::Nil, _, _) => {
+                (Deref @ metamodelica::List::Nil, _) => {
                     Ok(inGraph.clone())
                 }
                 _ => bail!("nomatch"),
@@ -353,7 +353,7 @@ fn removeNodesFromGraph<NodeType: Clone + 'static>(mut inNodes: Arc<metamodelica
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, Deref @ metamodelica::List::Nil, _) => {
+                (_, Deref @ metamodelica::List::Nil) => {
                     Ok(metamodelica::nil())
                 }
                 _ => bail!("nomatch"),
@@ -361,7 +361,7 @@ fn removeNodesFromGraph<NodeType: Clone + 'static>(mut inNodes: Arc<metamodelica
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, Deref @ metamodelica::List::Cons { head: (node, _), tail: rest_graph }, _) => {
+                (_, Deref @ metamodelica::List::Cons { head: (node, _), tail: rest_graph }) => {
                     let mut rest_nodes: Arc<metamodelica::List<NodeType>> = metamodelica::nil();
                     let __pa0 = ::match_deref::match_deref! { match &(List::deleteMemberOnTrue(node.clone(), inNodes.clone(), inEqualFunc.clone())?) {
                         (__pa0, Some(_)) => __pa0.clone(),
@@ -375,7 +375,7 @@ fn removeNodesFromGraph<NodeType: Clone + 'static>(mut inNodes: Arc<metamodelica
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, Deref @ metamodelica::List::Cons { head: graph_node, tail: rest_graph }, _) => {
+                (_, Deref @ metamodelica::List::Cons { head: graph_node, tail: rest_graph }) => {
                     let mut rest_graph = (*rest_graph).clone();
                     rest_graph = removeNodesFromGraph(inNodes.clone(), rest_graph.clone(), inEqualFunc.clone())?;
                     Ok(cons(graph_node.clone(), rest_graph.clone()))
@@ -395,10 +395,10 @@ pub fn transposeGraph<NodeType: Clone + 'static + PartialEq>(mut intmpGraph: Arc
 
     let mut outGraph: Arc<metamodelica::List<(NodeType, Arc<metamodelica::List<NodeType>>)>> = metamodelica::nil();
     outGraph = 'mc: {
-        let __mc_input = (intmpGraph.clone(), inGraph.clone(), inEqualFunc.clone());
+        let __mc_input = inGraph.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, Deref @ metamodelica::List::Nil, _) => {
+                Deref @ metamodelica::List::Nil => {
                     Ok(intmpGraph.clone())
                 }
                 _ => bail!("nomatch"),
@@ -406,7 +406,7 @@ pub fn transposeGraph<NodeType: Clone + 'static + PartialEq>(mut intmpGraph: Arc
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, Deref @ metamodelica::List::Cons { head: (node, nodeList), tail: restGraph }, _) => {
+                Deref @ metamodelica::List::Cons { head: (node, nodeList), tail: restGraph } => {
                     let mut tmpGraph: Arc<metamodelica::List<(NodeType, Arc<metamodelica::List<NodeType>>)>> = metamodelica::nil();
                     tmpGraph = List::fold2(nodeList.clone(), (std::sync::Arc::new(insertNodetoGraph) as std::sync::Arc<dyn ::std::ops::Fn(_, _, _, _) -> Result<_> + 'static>), node.clone(), inEqualFunc.clone(), intmpGraph.clone());
                     tmpGraph = transposeGraph(tmpGraph.clone(), restGraph.clone(), inEqualFunc.clone())?;
@@ -434,10 +434,10 @@ fn insertNodetoGraph<NodeType: Clone + 'static + PartialEq>(mut inNode: NodeType
 
     let mut outGraph: Arc<metamodelica::List<(NodeType, Arc<metamodelica::List<NodeType>>)>> = metamodelica::nil();
     outGraph = 'mc: {
-        let __mc_input = (inNode.clone(), inVertex.clone(), inEqualFunc.clone(), inGraph.clone());
+        let __mc_input = inGraph.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _, _, Deref @ metamodelica::List::Nil) => {
+                Deref @ metamodelica::List::Nil => {
                     Ok(metamodelica::nil())
                 }
                 _ => bail!("nomatch"),
@@ -445,7 +445,7 @@ fn insertNodetoGraph<NodeType: Clone + 'static + PartialEq>(mut inNode: NodeType
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _, _, Deref @ metamodelica::List::Cons { head: (node, rest), tail: restGraph }) => {
+                Deref @ metamodelica::List::Cons { head: (node, rest), tail: restGraph } => {
                     let mut rest = (*rest).clone();
                     let mut restGraph = (*restGraph).clone();
                     let true = (inEqualFunc(node.clone(), inNode.clone())?) else { bail!("pattern mismatch") };
@@ -458,7 +458,7 @@ fn insertNodetoGraph<NodeType: Clone + 'static + PartialEq>(mut inNode: NodeType
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _, _, Deref @ metamodelica::List::Cons { head: (node, rest), tail: restGraph }) => {
+                Deref @ metamodelica::List::Cons { head: (node, rest), tail: restGraph } => {
                     let mut restGraph = (*restGraph).clone();
                     let false = (inEqualFunc(node.clone(), inNode.clone())?) else { bail!("pattern mismatch") };
                     restGraph = insertNodetoGraph(inNode.clone(), inVertex.clone(), inEqualFunc.clone(), restGraph.clone())?;
@@ -491,10 +491,10 @@ fn allReachableNodesWork<NodeType: Clone + 'static>(mut intmpstorage: (Arc<metam
 
     let mut reachableNodes: Option<Arc<metamodelica::List<NodeType>>> = None;
     reachableNodes = 'mc: {
-        let __mc_input = (intmpstorage.clone(), inGraph.clone(), inEqualFunc.clone());
+        let __mc_input = intmpstorage.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                ((Deref @ metamodelica::List::Nil, L), _, _) => {
+                (Deref @ metamodelica::List::Nil, L) => {
                     let mut L = (*L).clone();
                     L = L.clone().reverse();
                     Ok(Some(L.clone()))
@@ -504,7 +504,7 @@ fn allReachableNodesWork<NodeType: Clone + 'static>(mut intmpstorage: (Arc<metam
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                ((Deref @ metamodelica::List::Cons { head: node, tail: M }, L), _, _) => {
+                (Deref @ metamodelica::List::Cons { head: node, tail: M }, L) => {
                     List::getMemberOnTrue(node.clone(), L.clone(), inEqualFunc.clone())?;
                     Ok(allReachableNodesWork((M.clone(), L.clone()), inGraph.clone(), inEqualFunc.clone())?)
                 }
@@ -513,7 +513,7 @@ fn allReachableNodesWork<NodeType: Clone + 'static>(mut intmpstorage: (Arc<metam
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                ((Deref @ metamodelica::List::Cons { head: node, tail: M }, L), _, _) => {
+                (Deref @ metamodelica::List::Cons { head: node, tail: M }, L) => {
                     let mut edges: Arc<metamodelica::List<NodeType>> = metamodelica::nil();
                     let mut M = (*M).clone();
                     let mut L = (*L).clone();
@@ -548,10 +548,10 @@ pub fn partialDistance2color<NodeType: Clone + 'static>(mut toColorNodes: Arc<me
 
     let mut outColored: metamodelica::Array<i32>;
     outColored = 'mc: {
-        let __mc_input = (toColorNodes.clone(), inforbiddenColor.clone(), inColors.clone(), inGraph.clone(), inGraphT.clone(), inColored.clone(), inEqualFunc.clone(), inPrintFunc.clone());
+        let __mc_input = toColorNodes.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ metamodelica::List::Nil, _, _, _, _, _, _, _) => {
+                Deref @ metamodelica::List::Nil => {
                     Ok(inColored.clone())
                 }
                 _ => bail!("nomatch"),
@@ -559,7 +559,7 @@ pub fn partialDistance2color<NodeType: Clone + 'static>(mut toColorNodes: Arc<me
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ metamodelica::List::Cons { head: node, tail: rest }, _, _, _, _, _, _, _) => {
+                Deref @ metamodelica::List::Cons { head: node, tail: rest } => {
                     let mut nodes: Arc<metamodelica::List<NodeType>> = metamodelica::nil();
                     let mut forbiddenColor: metamodelica::Array<Option<Arc<metamodelica::List<NodeType>>>>;
                     let mut colored: metamodelica::Array<i32>;
@@ -599,10 +599,10 @@ fn addForbiddenColors<NodeType: Clone + 'static>(mut inNode: NodeType, mut inNod
 
     let mut outForbiddenColor: metamodelica::Array<Option<Arc<metamodelica::List<NodeType>>>>;
     outForbiddenColor = 'mc: {
-        let __mc_input = (inNode.clone(), inNodes.clone(), inColored.clone(), inForbiddenColor.clone(), inGraph.clone(), inEqualFunc.clone(), inPrintFunc.clone());
+        let __mc_input = (inNodes.clone(), inForbiddenColor.clone());
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, Deref @ metamodelica::List::Nil, _, _, _, _, _) => {
+                (Deref @ metamodelica::List::Nil, _) => {
                     Ok(inForbiddenColor.clone())
                 }
                 _ => bail!("nomatch"),
@@ -610,7 +610,7 @@ fn addForbiddenColors<NodeType: Clone + 'static>(mut inNode: NodeType, mut inNod
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, Deref @ metamodelica::List::Cons { head: node, tail: rest }, _, forbiddenColor, _, _, _) => {
+                (Deref @ metamodelica::List::Cons { head: node, tail: rest }, forbiddenColor) => {
                     let mut nodes: Arc<metamodelica::List<NodeType>> = metamodelica::nil();
                     let mut indexes: Arc<metamodelica::List<i32>> = metamodelica::nil();
                     let mut indexesColor: Arc<metamodelica::List<i32>> = metamodelica::nil();
@@ -647,11 +647,10 @@ fn getArrayElem<Type_a: Clone + 'static>(mut inIndex: i32, mut inArray: metamode
 }
 
 fn arrayUpdateListAppend<NodeType: Clone + 'static>(mut inIndex: i32, mut inArray: metamodelica::Array<Option<Arc<metamodelica::List<NodeType>>>>, mut inNode: Option<Arc<metamodelica::List<NodeType>>>) -> Result<()> {
-    let mut arrayElem: Arc<metamodelica::List<NodeType>> = metamodelica::nil();
-    let _ = 'mc: {
-        let __mc_input = (inIndex.clone(), inArray.clone());
+    let () = 'mc: {
+        let __mc_input = inArray.clone();
         if let Ok(__v) = (|| -> Result<_> {
-            let (_, _) = __mc_input.clone() else { bail!("nomatch") };
+            let _ = __mc_input.clone() else { bail!("nomatch") };
             {let _arr = inArray.clone(); _arr.borrow_mut()[(inIndex.clone()-1) as usize] = inNode.clone(); _arr};
             Ok(())
         })() { break 'mc __v; }
@@ -678,9 +677,9 @@ fn arrayFindMinColorIndex<NodeType: Clone + 'static>(mut inForbiddenColor: metam
 
     let mut outColor: i32 = 0;
     outColor = 'mc: {
-        let __mc_input = (inForbiddenColor.clone(), inNode.clone(), inIndex.clone(), inmaxIndex.clone(), inEqualFunc.clone(), inPrintFunc.clone());
+        let __mc_input = inPrintFunc.clone();
         if let Ok(__v) = (|| -> Result<_> {
-            let (_, _, _, _, _, _) = __mc_input.clone() else { bail!("nomatch") };
+            let _ = __mc_input.clone() else { bail!("nomatch") };
             ::match_deref::match_deref! { match &(inForbiddenColor.clone().borrow()[(inIndex.clone()-1) as usize].clone()) {
                 None => (),
                 _ => bail!("pattern mismatch"),
@@ -688,7 +687,7 @@ fn arrayFindMinColorIndex<NodeType: Clone + 'static>(mut inForbiddenColor: metam
             Ok(inIndex.clone())
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
-            let (_, _, _, _, _, _) = __mc_input.clone() else { bail!("nomatch") };
+            let _ = __mc_input.clone() else { bail!("nomatch") };
             let mut nodes: Arc<metamodelica::List<NodeType>> = metamodelica::nil();
             let __pa0 = ::match_deref::match_deref! { match &(inForbiddenColor.clone().borrow()[(inIndex.clone()-1) as usize].clone()) {
                 Some(__pa0) => __pa0.clone(),
@@ -696,7 +695,7 @@ fn arrayFindMinColorIndex<NodeType: Clone + 'static>(mut inForbiddenColor: metam
             } };
             nodes = __pa0.clone();
             if '__try1: {
-                let _ = unwrap_break_err!(List::getMemberOnTrue(inNode.clone(), nodes.clone(), inEqualFunc.clone()), '__try1);
+                unwrap_break_err!(List::getMemberOnTrue(inNode.clone(), nodes.clone(), inEqualFunc.clone()), '__try1);
                 Ok::<(), anyhow::Error>(())
             }.is_ok() { bail!("failure(): body succeeded") }
             Ok(inIndex.clone())
@@ -744,7 +743,7 @@ pub fn printNode<NodeType: Clone + 'static>(mut inNode: (NodeType, Arc<metamodel
 
 /* Functions for Integer graphs */
 pub fn printGraphInt(mut inGraph: Arc<metamodelica::List<(i32, Arc<metamodelica::List<i32>>)>>) -> () {
-    let _ = (::match_deref::match_deref! { match &(inGraph.clone()) {
+    let () = (::match_deref::match_deref! { match &(inGraph.clone()) {
         Deref @ metamodelica::List::Nil => {
             ()
         },
@@ -764,12 +763,12 @@ pub fn printGraphInt(mut inGraph: Arc<metamodelica::List<(i32, Arc<metamodelica:
 }
 
 pub fn printNodesInt(mut inListNodes: Arc<metamodelica::List<i32>>, mut inName: ArcStr) -> () {
-    let _ = (::match_deref::match_deref! { match &((inListNodes.clone(), inName.clone())) {
-        (Deref @ metamodelica::List::Nil, _) => {
+    let () = (::match_deref::match_deref! { match &(inListNodes.clone()) {
+        Deref @ metamodelica::List::Nil => {
             println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*inName.clone()); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
             ()
         },
-        (_, _) => {
+        _ => {
             let mut strNodes: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
             println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*inName.clone()); __mm_s.push_str(&*literal!(" : ")); ArcStr::from(__mm_s) }).clone());
             strNodes = List::map(inListNodes.clone(), (std::sync::Arc::new(fnptr!(intString, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>));
@@ -786,10 +785,10 @@ pub fn printNodesInt(mut inListNodes: Arc<metamodelica::List<i32>>, mut inName: 
 pub fn allReachableNodesInt(mut intmpstorage: (Arc<metamodelica::List<i32>>, Arc<metamodelica::List<i32>>), mut inGraph: metamodelica::Array<(i32, Arc<metamodelica::List<i32>>)>, mut inMaxGraphNode: i32, mut inMaxNodexIndex: i32) -> Result<Arc<metamodelica::List<i32>>> {
     let mut reachableNodes: Arc<metamodelica::List<i32>> = metamodelica::nil();
     reachableNodes = 'mc: {
-        let __mc_input = (intmpstorage.clone(), inGraph.clone(), inMaxGraphNode.clone(), inMaxNodexIndex.clone());
+        let __mc_input = intmpstorage.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                ((Deref @ metamodelica::List::Nil, L), _, _, _) => {
+                (Deref @ metamodelica::List::Nil, L) => {
                     Ok(L.clone())
                 }
                 _ => bail!("nomatch"),
@@ -797,7 +796,7 @@ pub fn allReachableNodesInt(mut intmpstorage: (Arc<metamodelica::List<i32>>, Arc
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                ((Deref @ metamodelica::List::Cons { head: node, tail: M }, L), _, _, _) => {
+                (Deref @ metamodelica::List::Cons { head: node, tail: M }, L) => {
                     let mut edges: Arc<metamodelica::List<i32>> = metamodelica::nil();
                     let mut M = (*M).clone();
                     let mut L = (*L).clone();
@@ -815,7 +814,7 @@ pub fn allReachableNodesInt(mut intmpstorage: (Arc<metamodelica::List<i32>>, Arc
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                ((Deref @ metamodelica::List::Cons { head: node, tail: M }, L), _, _, _) => {
+                (Deref @ metamodelica::List::Cons { head: node, tail: M }, L) => {
                     let mut L = (*L).clone();
                     let mut reachableNodes: Arc<metamodelica::List<i32>> = reachableNodes.clone();
                     L = List::union(L.clone(), list![node.clone()]);
@@ -844,9 +843,6 @@ pub fn partialDistance2colorInt(mut inGraphT: Arc<metamodelica::List<(i32, Arc<m
     let mut node: i32 = 0;
     let mut color: i32 = 0;
     let mut nodes: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    let mut forbiddenColor: metamodelica::Array<i32>;
-    let mut color: i32 = 0;
-    let mut restGraph: Arc<metamodelica::List<(i32, Arc<metamodelica::List<i32>>)>> = metamodelica::nil();
     if '__try0: {
         for mut tpl in &*inGraphT.clone() {
             let mut tpl = tpl.clone();
@@ -894,7 +890,7 @@ fn arrayFindMinColorIndexInt(mut inForbiddenColor: metamodelica::Array<i32>, mut
     let mut outColor: i32 = 1;
     loop {
         if inForbiddenColor.clone().borrow()[(outColor.clone()-1) as usize].clone() != inNode.clone() {
-            return Ok(outColor);
+            return Ok(outColor.clone());
         } else {
             outColor = outColor.clone() + 1;
         }
@@ -915,10 +911,10 @@ fn filterGraph2<NodeType: Clone + 'static>(mut inNode: (NodeType, Arc<metamodeli
 
     let mut outNode: Arc<metamodelica::List<(NodeType, Arc<metamodelica::List<NodeType>>)>> = metamodelica::nil();
     outNode = 'mc: {
-        let __mc_input = (inNode.clone(), inCondFunc.clone(), inAccumGraph.clone());
+        let __mc_input = inNode.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                ((node, _), _, _) => {
+                (node, _) => {
                     let false = (inCondFunc(node.clone())?) else { bail!("pattern mismatch") };
                     Ok(inAccumGraph.clone())
                 }
@@ -927,7 +923,7 @@ fn filterGraph2<NodeType: Clone + 'static>(mut inNode: (NodeType, Arc<metamodeli
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                ((node, edges), _, _) => {
+                (node, edges) => {
                     let mut edges = (*edges).clone();
                     edges = List::filterOnTrue(edges.clone(), inCondFunc.clone());
                     Ok(cons((node.clone(), edges.clone()), inAccumGraph.clone()))
@@ -956,19 +952,19 @@ fn merge2<NodeType: Clone + 'static>(mut inGraph: Arc<metamodelica::List<(NodeTy
     pub type EqualFunc<NodeType: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(NodeType, NodeType) -> Result<bool> + 'static>;
 
     let mut graph: Arc<metamodelica::List<(NodeType, Arc<metamodelica::List<NodeType>>)>> = metamodelica::nil();
-    graph = (::match_deref::match_deref! { match &((inGraph.clone(), eqFunc.clone(), inAcc.clone())) {
-        (Deref @ metamodelica::List::Nil, _, _) => {
+    graph = (::match_deref::match_deref! { match &(inGraph.clone()) {
+        Deref @ metamodelica::List::Nil => {
             inAcc.clone().reverse()
         },
-        (Deref @ metamodelica::List::Cons { head: node, tail: Deref @ metamodelica::List::Nil }, _, _) => {
+        Deref @ metamodelica::List::Cons { head: node, tail: Deref @ metamodelica::List::Nil } => {
             cons(node.clone(), inAcc.clone()).reverse()
         },
-        (Deref @ metamodelica::List::Cons { head: (n1, e1), tail: Deref @ metamodelica::List::Cons { head: (n2, e2), tail: rest } }, _, _) => {
+        Deref @ metamodelica::List::Cons { head: (n1, e1), tail: Deref @ metamodelica::List::Cons { head: (n2, e2), tail: rest } } => {
             let mut node: (NodeType, Arc<metamodelica::List<NodeType>>);
             let mut b: bool = false;
             let mut rest = (*rest).clone();
             b = eqFunc(n1.clone(), n2.clone())?;
-            (node, rest) = merge3(b.clone(), n1.clone(), e1.clone(), n2.clone(), e2.clone(), rest.clone(), eqFunc.clone())?;
+            (node, rest) = merge3(b.clone(), n1.clone(), e1.clone(), n2.clone(), e2.clone(), rest.clone(), eqFunc.clone());
             merge2(rest.clone(), eqFunc.clone(), cons(node.clone(), inAcc.clone()))?
         },
         _ => bail!("match: no arm matched"),
@@ -976,16 +972,15 @@ fn merge2<NodeType: Clone + 'static>(mut inGraph: Arc<metamodelica::List<(NodeTy
     Ok(graph)
 }
 
-fn merge3<NodeType: Clone + 'static>(mut b: bool, mut n1: NodeType, mut e1: Arc<metamodelica::List<NodeType>>, mut n2: NodeType, mut e2: Arc<metamodelica::List<NodeType>>, mut rest: Arc<metamodelica::List<(NodeType, Arc<metamodelica::List<NodeType>>)>>, mut eqFunc: Arc<dyn ::std::ops::Fn(NodeType, NodeType) -> Result<bool> + 'static>) -> Result<((NodeType, Arc<metamodelica::List<NodeType>>), Arc<metamodelica::List<(NodeType, Arc<metamodelica::List<NodeType>>)>>)> {
+fn merge3<NodeType: Clone + 'static>(mut b: bool, mut n1: NodeType, mut e1: Arc<metamodelica::List<NodeType>>, mut n2: NodeType, mut e2: Arc<metamodelica::List<NodeType>>, mut rest: Arc<metamodelica::List<(NodeType, Arc<metamodelica::List<NodeType>>)>>, mut eqFunc: Arc<dyn ::std::ops::Fn(NodeType, NodeType) -> Result<bool> + 'static>) -> ((NodeType, Arc<metamodelica::List<NodeType>>), Arc<metamodelica::List<(NodeType, Arc<metamodelica::List<NodeType>>)>>) {
     pub type EqualFunc<NodeType: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(NodeType, NodeType) -> Result<bool> + 'static>;
 
     let mut elt: (NodeType, Arc<metamodelica::List<NodeType>>);
     let mut outRest: Arc<metamodelica::List<(NodeType, Arc<metamodelica::List<NodeType>>)>> = metamodelica::nil();
-    (elt, outRest) = (::match_deref::match_deref! { match &((b.clone(), n1.clone(), e1.clone(), n2.clone(), e2.clone(), rest.clone(), eqFunc.clone())) {
-        (true, _, _, _, _, _, _) => ((n1.clone(), List::unionOnTrue(e1.clone(), e2.clone(), eqFunc.clone())), rest.clone()),
-        (false, _, _, _, _, _, _) => ((n1.clone(), e1.clone()), cons((n2.clone(), e2.clone()), rest.clone())),
-        _ => bail!("match: no arm matched"),
-    } });
-    Ok((elt, outRest))
+    (elt, outRest) = (match b.clone() {
+        true => ((n1.clone(), List::unionOnTrue(e1.clone(), e2.clone(), eqFunc.clone())), rest.clone()),
+        false => ((n1.clone(), e1.clone()), cons((n2.clone(), e2.clone()), rest.clone())),
+    });
+    (elt, outRest)
 }
 

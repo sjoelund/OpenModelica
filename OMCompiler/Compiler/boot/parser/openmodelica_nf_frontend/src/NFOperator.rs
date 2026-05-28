@@ -205,14 +205,14 @@ pub fn repairMultary(mut operator: Arc<NFOperator>, mut types: Arc<metamodelica:
     let mut min_: (TypeRestriction, Arc<Type::NFType>);
     let mut max_: (TypeRestriction, Arc<Type::NFType>);
     let mut ty: Arc<Type::NFType> = Arc::new(Type::ANY);
-    lst = {
+    lst = ({
         let mut __acc: Arc<metamodelica::List<(TypeRestriction, Arc<Type::NFType>)>> = metamodelica::nil();
         for mut t in (types.clone()).into_iter().cloned() {
             let __x = (typeRestriction(t.clone()), t.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     min_ = List::minElement(lst.clone(), (std::sync::Arc::new(fnptr!(tplLt, (TypeRestriction, Arc<Type::NFType>), (TypeRestriction, Arc<Type::NFType>))) as std::sync::Arc<dyn ::std::ops::Fn((TypeRestriction, Arc<Type::NFType>), (TypeRestriction, Arc<Type::NFType>)) -> Result<bool> + 'static>))?;
     max_ = List::maxElement(lst.clone(), (std::sync::Arc::new(fnptr!(tplLt, (TypeRestriction, Arc<Type::NFType>), (TypeRestriction, Arc<Type::NFType>))) as std::sync::Arc<dyn ::std::ops::Fn((TypeRestriction, Arc<Type::NFType>), (TypeRestriction, Arc<Type::NFType>)) -> Result<bool> + 'static>))?;
     (sc, ty) = (::match_deref::match_deref! { match &((min_.clone(), max_.clone())) {
@@ -998,7 +998,7 @@ pub fn isCommutative(mut operator: Arc<NFOperator>) -> bool {
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
     } });
     if !(b.clone()) {
-        return b;
+        return b.clone();
     }
     b = (match operator.op.clone() {
         Op::ADD => true,

@@ -124,7 +124,7 @@ pub fn stringEq(mut r#str: ArcStr, mut filename: ArcStr) -> Result<Arc<Absyn::Eq
     Ok(eq)
 }
 
-pub fn parallelParseFiles(mut filenames: Arc<metamodelica::List<ArcStr>>, mut encoding: ArcStr, mut numThreads: i32, mut libraryPath: ArcStr, mut lveInstance: Option<i32>) -> Result<(metamodelica::Array<Arc<metamodelica::List<(ArcStr, i32)>>>, (i32, i32, metamodelica::Array<Option<(ArcStr, Absyn::Program)>>), i32, (HashTableStringToProgram::FuncHashCref, HashTableStringToProgram::FuncCrefEqual, HashTableStringToProgram::FuncCrefStr, HashTableStringToProgram::FuncExpStr))> {
+pub fn parallelParseFiles(mut filenames: Arc<metamodelica::List<ArcStr>>, mut encoding: ArcStr, mut numThreads: i32, mut libraryPath: ArcStr, mut lveInstance: Option<i32>) -> Result<(metamodelica::Array<Arc<metamodelica::List<(ArcStr, i32)>>>, (i32, i32, metamodelica::Array<Option<(ArcStr, Absyn::Program)>>), i32, (Arc<dyn ::std::ops::Fn(ArcStr) -> Result<i32> + 'static>, Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>, Arc<dyn ::std::ops::Fn(ArcStr) -> Result<ArcStr> + 'static>, Arc<dyn ::std::ops::Fn(Absyn::Program) -> Result<ArcStr> + 'static>))> {
     let mut ht: (metamodelica::Array<Arc<metamodelica::List<(ArcStr, i32)>>>, (i32, i32, metamodelica::Array<Option<(ArcStr, Absyn::Program)>>), i32, (HashTableStringToProgram::FuncHashCref, HashTableStringToProgram::FuncCrefEqual, HashTableStringToProgram::FuncCrefStr, HashTableStringToProgram::FuncExpStr));
     let mut partialResults: Arc<metamodelica::List<ParserResult>> = metamodelica::nil();
     partialResults = parallelParseFilesWork(filenames.clone(), (encoding.clone()).clone(), numThreads.clone(), (libraryPath.clone()).clone(), lveInstance.clone())?;
@@ -200,23 +200,23 @@ pub type PARSERRESULT = ParserResult;
 
 fn parallelParseFilesWork(mut filenames: Arc<metamodelica::List<ArcStr>>, mut encoding: ArcStr, mut numThreads: i32, mut libraryPath: ArcStr, mut lveInstance: Option<i32>) -> Result<Arc<metamodelica::List<ParserResult>>> {
     let mut partialResults: Arc<metamodelica::List<ParserResult>> = metamodelica::nil();
-    let mut workList: Arc<metamodelica::List<(ArcStr, ArcStr, ArcStr, Option<i32>)>> = {
+    let mut workList: Arc<metamodelica::List<(ArcStr, ArcStr, ArcStr, Option<i32>)>> = ({
         let mut __acc: Arc<metamodelica::List<(ArcStr, ArcStr, ArcStr, Option<i32>)>> = metamodelica::nil();
         for mut file in (filenames.clone()).into_iter().cloned() {
             let __x = (file.clone(), encoding.clone(), libraryPath.clone(), lveInstance.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     if Testsuite::isRunning()? || Config::noProc()? == 1 || numThreads.clone() == 1 || (filenames.clone().len() as i32) < 2 || isSome(lveInstance.clone()) {
-        partialResults = {
+        partialResults = ({
         let mut __acc: Arc<metamodelica::List<ParserResult>> = metamodelica::nil();
         for mut t in (workList.clone()).into_iter().cloned() {
             let __x = loadFileThread(t.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     } else {
         partialResults = System::launchParallelTasks(std::cmp::min(8, numThreads.clone()), workList.clone(), (std::sync::Arc::new(loadFileThread) as std::sync::Arc<dyn ::std::ops::Fn((ArcStr, ArcStr, ArcStr, Option<i32>)) -> Result<ParserResult> + 'static>))?;
     }

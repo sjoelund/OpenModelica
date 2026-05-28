@@ -92,8 +92,8 @@ pub type ModScope = FCore::ModScope;
 pub fn merge(mut inParentRef: Ref, mut inOuterModRef: Ref, mut inInnerModRef: Ref, mut inGraph: Graph) -> (Graph, Ref) {
     let mut outGraph: Graph;
     let mut outMergedModRef: Ref;
-    (outGraph, outMergedModRef) = (match (inParentRef.clone(), inOuterModRef.clone(), inInnerModRef.clone(), inGraph.clone()) {
-        (mut r, _, _, mut g) => {
+    (outGraph, outMergedModRef) = (match (inParentRef.clone(), inGraph.clone()) {
+        (mut r, mut g) => {
             (g.clone(), r.clone())
         },
     });
@@ -103,8 +103,8 @@ pub fn merge(mut inParentRef: Ref, mut inOuterModRef: Ref, mut inInnerModRef: Re
 pub fn apply(mut inTargetRef: Ref, mut inModRef: Ref, mut inGraph: Graph) -> (Graph, Ref) {
     let mut outGraph: Graph;
     let mut outNodeRef: Ref;
-    (outGraph, outNodeRef) = (match (inTargetRef.clone(), inModRef.clone(), inGraph.clone()) {
-        (mut r, _, mut g) => {
+    (outGraph, outNodeRef) = (match (inTargetRef.clone(), inGraph.clone()) {
+        (mut r, mut g) => {
             (g.clone(), r.clone())
         },
     });
@@ -138,10 +138,10 @@ fn compactSubMod2(mut inExistingMod: Arc<SCode::SubMod>, mut inNewMod: Arc<SCode
     let mut outMod: Arc<SCode::SubMod> = Arc::new(<SCode::SubMod as ::std::default::Default>::default());
     let mut outFound: bool = false;
     (outMod, outFound) = 'mc: {
-        let __mc_input = (inExistingMod.clone(), inNewMod.clone(), inModScope.clone(), inName.clone());
+        let __mc_input = (inExistingMod.clone(), inNewMod.clone());
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ SCode::SubMod { ident: name1, .. }, Deref @ SCode::SubMod { ident: name2, .. }, _, _) => {
+                (Deref @ SCode::SubMod { ident: name1, .. }, Deref @ SCode::SubMod { ident: name2, .. }) => {
                     let false = (stringEqual((name1.clone()).clone(), (name2.clone()).clone())) else { bail!("pattern mismatch") };
                     Ok((inExistingMod.clone(), false))
                 }
@@ -150,7 +150,7 @@ fn compactSubMod2(mut inExistingMod: Arc<SCode::SubMod>, mut inNewMod: Arc<SCode
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ SCode::SubMod { ident: name1, .. }, _, _, _) => {
+                (Deref @ SCode::SubMod { ident: name1, .. }, _) => {
                     let mut submod: Arc<SCode::SubMod> = Arc::new(<SCode::SubMod as ::std::default::Default>::default());
                     submod = mergeSubModsInSameScope(inExistingMod.clone(), inNewMod.clone(), cons((name1.clone()).clone(), inName.clone()), inModScope.clone())?;
                     Ok((submod.clone(), true))

@@ -105,7 +105,7 @@ pub fn inlineCall(mut callExp: Arc<Expression::NFExpression>, mut forceInline: b
             body = Function::getBody(r#fn.clone());
             if !(body.clone().is_empty() && r#fn.locals.clone().is_empty()) {
                 exp = callExp.clone();
-                return Ok(exp);
+                return Ok(exp.clone());
             }
             binding = Component::getBinding(InstNode::component(listHead(r#fn.outputs.clone())?)?);
             if Binding::hasExp(binding.clone()) {
@@ -133,7 +133,7 @@ pub fn inlineCall(mut callExp: Arc<Expression::NFExpression>, mut forceInline: b
             body = removeDeadCode(body.clone())?;
             if (body.clone().len() as i32) > 1 || (outputs.clone().len() as i32) != 1 || !(locals.clone().is_empty()) {
                 exp = callExp.clone();
-                return Ok(exp);
+                return Ok(exp.clone());
             }
             if body.clone().is_empty() {
                 stmt = makeOutputStatement(listHead(outputs.clone())?)?;
@@ -142,7 +142,7 @@ pub fn inlineCall(mut callExp: Arc<Expression::NFExpression>, mut forceInline: b
             }
             if !(Statement::isAssignment(stmt.clone())) {
                 exp = callExp.clone();
-                return Ok(exp);
+                return Ok(exp.clone());
             }
             Error::assertion((inputs.clone().len() as i32) == (args.clone().len() as i32), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("NFInline.inlineCall")); __mm_s.push_str(&*literal!(" got wrong number of arguments for ")); __mm_s.push_str(&*AbsynUtil::pathString(Function::name(r#fn.clone()), (literal!(".")).clone(), true, false)?); ArcStr::from(__mm_s) }).clone(), metamodelica::sourceInfo!())?;
             match '__try0: {
@@ -178,9 +178,6 @@ pub fn inlineCall(mut callExp: Arc<Expression::NFExpression>, mut forceInline: b
 
 fn replaceCrefNode(mut exp: Arc<Expression::NFExpression>, mut node: Arc<InstNode::InstNode>, mut value: Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> {
     let mut exp: Arc<Expression::NFExpression> = exp;
-    let mut cr_node: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
-    let mut rest_cr: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
-    let mut subs: Arc<metamodelica::List<Arc<Subscript::NFSubscript>>> = metamodelica::nil();
     let mut ty: Arc<Type::NFType> = Arc::new(Type::ANY);
     let mut repl_ty: Arc<Type::NFType> = Arc::new(Type::ANY);
     exp = (::match_deref::match_deref! { match &(exp.clone()) {
@@ -198,9 +195,6 @@ fn replaceCrefNode(mut exp: Arc<Expression::NFExpression>, mut node: Arc<InstNod
 
 fn replaceCrefNode2(mut cref: Arc<ComponentRef::NFComponentRef>, mut node: Arc<InstNode::InstNode>, mut value: Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> {
     let mut value: Arc<Expression::NFExpression> = value;
-    let mut subs: Arc<metamodelica::List<Arc<Subscript::NFSubscript>>> = metamodelica::nil();
-    let mut rest_cr: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
-    let mut ty: Arc<Type::NFType> = Arc::new(Type::ANY);
     if !(InstNode::refEqual(node.clone(), ComponentRef::node(cref.clone())?)) {
         value = replaceCrefNode2(ComponentRef::rest(cref.clone())?, node.clone(), value.clone())?;
         value = Expression::recordElement((InstNode::name(ComponentRef::node(cref.clone())?)?).clone(), value.clone())?;
@@ -269,14 +263,14 @@ fn convertIfToAssignment(mut stmt: Arc<Statement::NFStatement>) -> Result<Arc<St
     body = __pa3.clone();
     branches = __pa4.clone();
     if !(branches.clone().is_empty()) && !(Expression::isTrue(cond.clone())) {
-        return Ok(stmt);
+        return Ok(stmt.clone());
     }
     if (body.clone().len() as i32) != 1 {
-        return Ok(stmt);
+        return Ok(stmt.clone());
     }
     s = convertToAssignment(listHead(body.clone())?)?;
     if !(Statement::isAssignment(s.clone())) {
-        return Ok(stmt);
+        return Ok(stmt.clone());
     }
     let (__pa5, __pa6) = ::match_deref::match_deref! { match &(s.clone()) {
         Deref @ Statement::ASSIGNMENT { rhs: __pa5, lhs: __pa6, .. } => (__pa5.clone(), __pa6.clone()),
@@ -294,11 +288,11 @@ fn convertIfToAssignment(mut stmt: Arc<Statement::NFStatement>) -> Result<Arc<St
         body = __pa8.clone();
         branches = __pa9.clone();
         if (body.clone().len() as i32) != 1 {
-            return Ok(stmt);
+            return Ok(stmt.clone());
         }
         s = convertToAssignment(listHead(body.clone())?)?;
         if !(Statement::isAssignment(s.clone())) {
-            return Ok(stmt);
+            return Ok(stmt.clone());
         }
         let (__pa10, __pa11, __pa12) = ::match_deref::match_deref! { match &(s.clone()) {
             Deref @ Statement::ASSIGNMENT { ty: __pa10, rhs: __pa11, lhs: __pa12, .. } => (__pa10.clone(), __pa11.clone(), __pa12.clone()),
@@ -308,7 +302,7 @@ fn convertIfToAssignment(mut stmt: Arc<Statement::NFStatement>) -> Result<Arc<St
         rhs = __pa11.clone();
         lhs = __pa12.clone();
         if !(Expression::isEqual(lhs.clone(), output_exp.clone())?) {
-            return Ok(stmt);
+            return Ok(stmt.clone());
         }
         if_exp = Arc::new(Expression::NFExpression::IF { ty: ty.clone(), condition: cond.clone(), trueBranch: rhs.clone(), falseBranch: if_exp.clone() });
     }

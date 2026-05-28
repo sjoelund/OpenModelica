@@ -143,7 +143,6 @@ pub fn solvePartition(mut partition: Arc<Partition::Partition>, mut funcMap: Arc
     let mut slicing_map: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<metamodelica::List<Pointer::Pointer<Arc<Equation::Equation>>>>>> = UnorderedMap::new((std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), 1);
     let mut solved_comps: Arc<metamodelica::List<Arc<StrongComponent::NBStrongComponent>>> = metamodelica::nil();
     let mut implicit_index: i32 = Pointer::access(implicit_index_ptr.clone());
-    let mut new_comps: metamodelica::Array<Arc<StrongComponent::NBStrongComponent>>;
     let mut sliced_idx: Pointer::Pointer<i32>;
     let mut comp_idx: Pointer::Pointer<i32> = Pointer::create(1);
     let mut name: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
@@ -158,14 +157,14 @@ pub fn solvePartition(mut partition: Arc<Partition::Partition>, mut funcMap: Arc
         _ => {
             let mut alias_comps: Arc<metamodelica::List<Arc<StrongComponent::NBStrongComponent>>> = metamodelica::nil();
             (alias_comps, implicit_index) = solveStrongComponent(comp.clone(), funcMap.clone(), kind.clone(), implicit_index.clone(), slicing_map.clone(), varData.clone(), eqData.clone())?;
-            UnorderedMap::add(comp.clone(), {
+            UnorderedMap::add(comp.clone(), ({
         let mut __acc: Arc<metamodelica::List<Arc<StrongComponent::NBStrongComponent>>> = metamodelica::nil();
         for mut c in (alias_comps.clone()).into_iter().cloned() {
             let __x = StrongComponent::createAlias(kind.clone(), partition.index.clone(), comp_idx.clone(), c.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, duplicate_map.clone())?;
+    }), duplicate_map.clone())?;
             listAppend(alias_comps.clone(), solved_comps.clone())
         },
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
@@ -235,22 +234,22 @@ pub fn solveStrongComponent(mut comp: Arc<StrongComponent::NBStrongComponent>, m
             (solved_comp, solve_status) = (::match_deref::match_deref! { match &(eqn.clone()) {
         Deref @ Equation::ALGORITHM { alg, .. } => {
             let mut alg = (*alg).clone();
-            solved_crefs = {
+            solved_crefs = ({
         let mut __acc: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = metamodelica::nil();
         for mut var in (var_field!((*comp).vars, StrongComponent::NBStrongComponent::MULTI_COMPONENT).clone()).into_iter().cloned() {
             let __x = BVariable::getVarName(Slice::getT(var.clone()));
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
-            inputs = List::flatten({
+    });
+            inputs = List::flatten(({
         let mut __acc: Arc<metamodelica::List<Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>>> = metamodelica::nil();
         for mut i in (alg.inputs.clone()).into_iter().cloned() {
             let __x = BVariable::getRecordChildrenCrefOrSelf(i.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             input_crefs = unwrap_break_err!(UnorderedSet::fromList(inputs.clone(), (std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>)), '__try0);
             solved_inputs = UnorderedSet::new((std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), 13);
             for mut solved_cref in &*solved_crefs.clone() {
@@ -259,14 +258,14 @@ pub fn solveStrongComponent(mut comp: Arc<StrongComponent::NBStrongComponent>, m
                     unwrap_break_err!(UnorderedSet::add(solved_cref.clone(), solved_inputs.clone()), '__try0);
                 }
             }
-            outputs = List::flatten({
+            outputs = List::flatten(({
         let mut __acc: Arc<metamodelica::List<Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>>> = metamodelica::nil();
         for mut o in (alg.outputs.clone()).into_iter().cloned() {
             let __x = BVariable::getRecordChildrenCrefOrSelf(o.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             output_crefs = unwrap_break_err!(UnorderedSet::fromList(outputs.clone(), (std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>)), '__try0);
             for mut solved_cref in &*solved_crefs.clone() {
                 let mut solved_cref = solved_cref.clone();
@@ -278,38 +277,38 @@ pub fn solveStrongComponent(mut comp: Arc<StrongComponent::NBStrongComponent>, m
             } else {
                 solve_status = Status::IMPLICIT.clone();
                 idx = Pointer::create(0);
-                tmp_crefs = {
+                tmp_crefs = ({
         let mut __acc: Arc<metamodelica::List<(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>)>> = metamodelica::nil();
         for mut cref in (UnorderedSet::toList(output_crefs.clone())).into_iter().cloned() {
             let __x = (cref.clone(), unwrap_break_err!(BVariable::makeTmpVar(cref.clone()), '__try0));
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
-                tmp_vars = {
+    });
+                tmp_vars = ({
         let mut __acc: Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>> = metamodelica::nil();
         for mut tpl in (tmp_crefs.clone()).into_iter().cloned() {
             let __x = unwrap_break_err!(BVariable::getVarPointer(Util::tuple22(tpl.clone()), metamodelica::sourceInfo!()), '__try0);
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
-                tmp_eqns = {
+    });
+                tmp_eqns = ({
         let mut __acc: Arc<metamodelica::List<Pointer::Pointer<Arc<Equation::Equation>>>> = metamodelica::nil();
         for mut tpl in (tmp_crefs.clone()).into_iter().cloned() {
             let __x = unwrap_break_err!(Equation::makeAssignment(Expression::fromCref(Util::tuple21(tpl.clone()), false)?, Expression::fromCref(Util::tuple22(tpl.clone()), false)?, idx.clone(), (literal!("TMP")).clone(), Arc::new(crate::NBEquation::Iterator::EMPTY), NBEquation::default(NBEquation::EquationKind::CONTINUOUS.clone(), false, None, None)), '__try0);
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
-                tmp_eqns = {
+    });
+                tmp_eqns = ({
         let mut __acc: Arc<metamodelica::List<Pointer::Pointer<Arc<Equation::Equation>>>> = metamodelica::nil();
         for mut e in (tmp_eqns.clone()).into_iter().cloned() {
             let __x = unwrap_break_err!(Equation::createResidual(e.clone(), None, false, false), '__try0);
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
                 cref_repl = UnorderedMap::new((std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), 1);
                 exp_repl = UnorderedMap::new((std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), 1);
                 for mut tpl in &*tmp_crefs.clone() {
@@ -317,42 +316,42 @@ pub fn solveStrongComponent(mut comp: Arc<StrongComponent::NBStrongComponent>, m
                     unwrap_break_err!(UnorderedMap::add(Util::tuple21(tpl.clone()), Util::tuple22(tpl.clone()), cref_repl.clone()), '__try0);
                     unwrap_break_err!(UnorderedMap::add(Util::tuple21(tpl.clone()), Expression::fromCref(Util::tuple22(tpl.clone()), false)?, exp_repl.clone()), '__try0);
                 }
-                assign_field!(alg.outputs = {
+                assign_field!(alg.outputs = ({
         let mut __acc: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = metamodelica::nil();
         for mut c in (var_field!((*eqn).alg, Equation::Equation::ALGORITHM).outputs.clone()).into_iter().cloned() {
             let __x = UnorderedMap::getOrDefault(c.clone(), cref_repl.clone(), c.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
                 assign_variant_field!(comp => StrongComponent::NBStrongComponent::MULTI_COMPONENT;
-                    vars = {
+                    vars = ({
         let mut __acc: Arc<metamodelica::List<Arc<Slice::NBSlice>>> = metamodelica::nil();
         for mut c in (alg.outputs.clone()).into_iter().cloned() {
             let __x = Arc::new(Slice::NBSlice { t: unwrap_break_err!(BVariable::getVarPointer(c.clone(), metamodelica::sourceInfo!()), '__try0), indices: metamodelica::nil() });
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    },
+    }),
                     status = Status::EXPLICIT.clone()
                 );
                 assign_variant_field!(eqn => Equation::Equation::ALGORITHM; alg = alg.clone());
                 Pointer::update(eqn_ptr.clone(), Equation::map(eqn.clone(), Arc::new({ let __pe_b1 = exp_repl.clone(); move |__pe_a0| Replacements::applySimpleExp(__pe_a0, __pe_b1.clone()) }), None, (std::sync::Arc::new(Expression::map) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>>) -> Result<Arc<Expression::NFExpression>> + 'static>))?);
-                strict = Arc::new(Tearing::NBTearing { iteration_vars: {
+                strict = Arc::new(Tearing::NBTearing { iteration_vars: ({
         let mut __acc: Arc<metamodelica::List<Arc<Slice::NBSlice>>> = metamodelica::nil();
         for mut c in (UnorderedSet::toList(solved_inputs.clone())).into_iter().cloned() {
             let __x = Arc::new(Slice::NBSlice { t: unwrap_break_err!(BVariable::getVarPointer(c.clone(), metamodelica::sourceInfo!()), '__try0), indices: metamodelica::nil() });
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, residual_eqns: {
+    }), residual_eqns: ({
         let mut __acc: Arc<metamodelica::List<Arc<Slice::NBSlice>>> = metamodelica::nil();
         for mut e in (tmp_eqns.clone()).into_iter().cloned() {
             let __x = Arc::new(Slice::NBSlice { t: e.clone(), indices: metamodelica::nil() });
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, innerEquations: metamodelica::arrayFromVec(list![comp.clone()].into_iter().cloned().collect()), jac: None });
+    }), innerEquations: metamodelica::arrayFromVec(list![comp.clone()].into_iter().cloned().collect()), jac: None });
                 solved_comp = Arc::new(StrongComponent::NBStrongComponent::ALGEBRAIC_LOOP { idx: implicit_index.clone(), strict: strict.clone(), casual: None, linear: false, mixed: false, homotopy: false, status: solve_status.clone() });
                 unwrap_break_err!(EqData::addTypedList(eqData.clone(), tmp_eqns.clone(), EqData::EqType::CONTINUOUS.clone(), true), '__try0);
                 unwrap_break_err!(BVariable::VarData::addTypedList(varData.clone(), tmp_vars.clone(), BVariable::VarData::VarType::ALGEBRAIC.clone()), '__try0);
@@ -545,14 +544,14 @@ pub fn solveMultiStrongComponent(mut eqn_slice: Arc<Slice::NBSlice<Pointer::Poin
     (eqn_slice, status) = (::match_deref::match_deref! { match &(eqn.clone()) {
         Deref @ Equation::IF_EQUATION { .. } => {
             let mut if_body: Arc<IfEquationBody::IfEquationBody> = Arc::new(<IfEquationBody::IfEquationBody as ::std::default::Default>::default());
-            (if_body, status, implicit_index) = solveIfBody(var_field!((*eqn).body, Equation::Equation::IF_EQUATION).clone(), BVariable::VariablePointers::fromList({
+            (if_body, status, implicit_index) = solveIfBody(var_field!((*eqn).body, Equation::Equation::IF_EQUATION).clone(), BVariable::VariablePointers::fromList(({
         let mut __acc: Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>> = metamodelica::nil();
         for mut v in (var_slices.clone()).into_iter().cloned() {
             let __x = Slice::getT(v.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, false), funcMap.clone(), kind.clone(), implicit_index.clone(), slicing_map.clone(), iter.clone(), varData.clone(), eqData.clone())?;
+    }), false), funcMap.clone(), kind.clone(), implicit_index.clone(), slicing_map.clone(), iter.clone(), varData.clone(), eqData.clone())?;
             assign_variant_field!(eqn => Equation::Equation::IF_EQUATION; body = if_body.clone());
             (Arc::new(Slice::NBSlice { t: Pointer::create(eqn.clone()), indices: eqn_slice.indices.clone() }), status.clone())
         },
@@ -587,14 +586,14 @@ pub fn solveMultiStrongComponent(mut eqn_slice: Arc<Slice::NBSlice<Pointer::Poin
 pub fn solveMultiRecordStrongComponent(mut eqn: Arc<Equation::Equation>, mut var_slices: Arc<metamodelica::List<Arc<Slice::NBSlice<Pointer::Pointer<Arc<Variable::NFVariable>>>>>>, mut funcMap: Arc<UnorderedMap::UnorderedMap<Arc<Path>, Arc<Function::Function>>>) -> Result<(Arc<Equation::Equation>, Status)> {
     let mut solved_eqn: Arc<Equation::Equation> = eqn.clone();
     let mut status: Status = Status::UNPROCESSED;
-    let mut vars: Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>> = {
+    let mut vars: Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>> = ({
         let mut __acc: Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>> = metamodelica::nil();
         for mut v in (var_slices.clone()).into_iter().cloned() {
             let __x = Slice::getT(v.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     let mut lhs: Arc<Expression::NFExpression> = Util::getOption(Equation::getLHS(eqn.clone())?)?;
     let mut rhs: Arc<Expression::NFExpression> = Util::getOption(Equation::getRHS(eqn.clone())?)?;
     let mut record_crefs: Arc<UnorderedSet::UnorderedSet<Arc<ComponentRef::NFComponentRef>>>;
@@ -679,8 +678,6 @@ pub fn solveBody(mut eqn: Arc<Equation::Equation>, mut cref: Arc<ComponentRef::N
     let mut residual: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut derivative: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut diffArgs: Arc<Differentiate::DifferentiationArguments::DifferentiationArguments> = Arc::new(<Differentiate::DifferentiationArguments::DifferentiationArguments as ::std::default::Default>::default());
-    let mut divOp: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
-    let mut uminOp: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
     fixed_cref = ComponentRef::stripSubscriptsAll(cref.clone());
     ty = ComponentRef::getSubscriptedType(fixed_cref.clone(), true)?;
     if Type::isArray(ty.clone()) && Type::sizeOf(ty.clone(), false)? == 1 {
@@ -899,7 +896,6 @@ fn solveUnique(mut eqn: Arc<Equation::Equation>, mut residual: Arc<Expression::N
     let mut eqn: Arc<Equation::Equation> = eqn;
     let mut status: Status = Status::UNPROCESSED;
     let mut crefExp: Arc<Expression::NFExpression> = Expression::fromCref(cref.clone(), false)?;
-    let mut exp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut solvedRHS: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut crefFound: bool = false;
     let mut inverseInstructions: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
@@ -931,8 +927,6 @@ fn solveUniqueFindInstructions(mut exp: Arc<Expression::NFExpression>, mut cref:
     let mut status: Status = Status::EXPLICIT.clone();
     let mut substExp: Arc<Expression::NFExpression> = BVariable::toExpression(Pointer::create(BVariable::SUBST_VARIABLE().clone()));
     let mut ty: Arc<Type::NFType> = ComponentRef::getSubscriptedType(cref.clone(), true)?;
-    let mut crefFoundInRecursion: bool = false;
-    let mut name: ArcStr = arcstr::literal!("");
     let mut call: Arc<Call::NFCall>;
     if crefFound.clone() {
         if Expression::containsCref(exp.clone(), cref.clone())? {
@@ -940,7 +934,7 @@ fn solveUniqueFindInstructions(mut exp: Arc<Expression::NFExpression>, mut cref:
         } else {
             crefFound = false;
         }
-        return Ok((crefFound, inverseInstructions, status));
+        return Ok((crefFound.clone(), inverseInstructions.clone(), status.clone()));
     }
     let () = (::match_deref::match_deref! { match &(exp.clone()) {
         Deref @ Expression::REAL { .. } => (),
@@ -1037,7 +1031,7 @@ fn solveUniqueFindInstructionsMultary(mut substExp: Arc<Expression::NFExpression
                 let mut arg = arg.clone();
                 (crefFoundInRecursion, inverseInstructions, status) = solveUniqueFindInstructions(arg.clone(), cref.clone(), crefFound.clone(), inverseInstructions.clone())?;
                 if status.clone() == Status::IMPLICIT.clone() {
-                    return Ok((crefFound, inverseInstructions, status));
+                    return Ok((crefFound.clone(), inverseInstructions.clone(), status.clone()));
                 }
                 if !(crefFoundInRecursion.clone()) {
                     argList = cons(arg.clone(), argList.clone());
@@ -1048,7 +1042,7 @@ fn solveUniqueFindInstructionsMultary(mut substExp: Arc<Expression::NFExpression
             if crefFound.clone() {
                 if List::any(var_field!((*exp).inv_arguments, Expression::NFExpression::MULTARY).clone(), Arc::new({ let __pe_b1 = cref.clone(); move |__pe_a0| Expression::containsCref(__pe_a0, __pe_b1.clone()) })) {
                     status = Status::IMPLICIT.clone();
-                    return Ok((crefFound, inverseInstructions, status));
+                    return Ok((crefFound.clone(), inverseInstructions.clone(), status.clone()));
                 } else {
                     inverseInstructions = cons(Arc::new(Expression::NFExpression::MULTARY { arguments: cons(substExp.clone(), var_field!((*exp).inv_arguments, Expression::NFExpression::MULTARY).clone()), inv_arguments: argList.clone(), operator: var_field!((*exp).operator, Expression::NFExpression::MULTARY).clone() }), inverseInstructions.clone());
                 }
@@ -1057,7 +1051,7 @@ fn solveUniqueFindInstructionsMultary(mut substExp: Arc<Expression::NFExpression
                     let mut invarg = invarg.clone();
                     (crefFoundInRecursion, inverseInstructions, status) = solveUniqueFindInstructions(invarg.clone(), cref.clone(), crefFound.clone(), inverseInstructions.clone())?;
                     if status.clone() == Status::IMPLICIT.clone() {
-                        return Ok((crefFound, inverseInstructions, status));
+                        return Ok((crefFound.clone(), inverseInstructions.clone(), status.clone()));
                     }
                     if !(crefFoundInRecursion.clone()) {
                         invargList = cons(invarg.clone(), invargList.clone());
@@ -1091,7 +1085,7 @@ fn solveUniqueFindInstructionsBinaryPow(mut ty: Arc<Type::NFType>, mut substExp:
         Deref @ Expression::BINARY { .. } => {
             (crefFoundInRecursion, inverseInstructions, status) = solveUniqueFindInstructions(var_field!((*exp).exp1, Expression::NFExpression::BINARY).clone(), cref.clone(), crefFound.clone(), inverseInstructions.clone())?;
             if status.clone() == Status::IMPLICIT.clone() {
-                return Ok((crefFound, inverseInstructions, status));
+                return Ok((crefFound.clone(), inverseInstructions.clone(), status.clone()));
             }
             if crefFoundInRecursion.clone() {
                 crefFound = true;
@@ -1103,7 +1097,7 @@ fn solveUniqueFindInstructionsBinaryPow(mut ty: Arc<Type::NFType>, mut substExp:
             } else {
                 (crefFoundInRecursion, inverseInstructions, status) = solveUniqueFindInstructions(var_field!((*exp).exp2, Expression::NFExpression::BINARY).clone(), cref.clone(), crefFound.clone(), inverseInstructions.clone())?;
                 if status.clone() == Status::IMPLICIT.clone() {
-                    return Ok((crefFound, inverseInstructions, status));
+                    return Ok((crefFound.clone(), inverseInstructions.clone(), status.clone()));
                 }
                 if crefFoundInRecursion.clone() {
                     crefFound = true;
@@ -1132,7 +1126,7 @@ fn solveUniqueFindInstructionsBinaryComOp(mut substExp: Arc<Expression::NFExpres
         Deref @ Expression::BINARY { .. } => {
             (crefFoundInRecursion, inverseInstructions, status) = solveUniqueFindInstructionsMultary(substExp.clone(), Arc::new(Expression::NFExpression::MULTARY { arguments: list![var_field!((*exp).exp1, Expression::NFExpression::BINARY).clone(), var_field!((*exp).exp2, Expression::NFExpression::BINARY).clone()], inv_arguments: metamodelica::nil(), operator: var_field!((*exp).operator, Expression::NFExpression::BINARY).clone() }), cref.clone(), crefFound.clone(), inverseInstructions.clone())?;
             if status.clone() == Status::IMPLICIT.clone() {
-                return Ok((crefFound, inverseInstructions, status));
+                return Ok((crefFound.clone(), inverseInstructions.clone(), status.clone()));
             }
             if crefFoundInRecursion.clone() {
                 crefFound = true;
@@ -1157,7 +1151,7 @@ fn solveUniqueFindInstructionsCast(mut substExp: Arc<Expression::NFExpression>, 
         Deref @ Expression::CAST { .. } => {
             (crefFoundInRecursion, inverseInstructions, status) = solveUniqueFindInstructions(var_field!((*exp).exp, Expression::NFExpression::CAST).clone(), cref.clone(), crefFound.clone(), inverseInstructions.clone())?;
             if status.clone() == Status::IMPLICIT.clone() {
-                return Ok((crefFound, inverseInstructions, status));
+                return Ok((crefFound.clone(), inverseInstructions.clone(), status.clone()));
             }
             if crefFoundInRecursion.clone() {
                 crefFound = true;
@@ -1182,7 +1176,7 @@ fn solveUniqueFindInstructionsUnaryUminus(mut ty: Arc<Type::NFType>, mut substEx
         Deref @ Expression::UNARY { .. } => {
             (crefFoundInRecursion, inverseInstructions, status) = solveUniqueFindInstructions(var_field!((*exp).exp, Expression::NFExpression::UNARY).clone(), cref.clone(), crefFound.clone(), inverseInstructions.clone())?;
             if status.clone() == Status::IMPLICIT.clone() {
-                return Ok((crefFound, inverseInstructions, status));
+                return Ok((crefFound.clone(), inverseInstructions.clone(), status.clone()));
             }
             if crefFoundInRecursion.clone() {
                 crefFound = true;
@@ -1213,7 +1207,7 @@ fn solveUniqueFindInstructionsCallOneArg(mut ty: Arc<Type::NFType>, mut substExp
             argExp = listHead(Call::arguments(call.clone())?)?;
             (crefFoundInRecursion, inverseInstructions, status) = solveUniqueFindInstructions(argExp.clone(), cref.clone(), crefFound.clone(), inverseInstructions.clone())?;
             if status.clone() == Status::IMPLICIT.clone() {
-                return Ok((crefFound, inverseInstructions, status));
+                return Ok((crefFound.clone(), inverseInstructions.clone(), status.clone()));
             }
             if crefFoundInRecursion.clone() {
                 crefFound = true;
@@ -1262,8 +1256,6 @@ fn solveUniqueFindInstructionsCallTwoArgs(mut ty: Arc<Type::NFType>, mut substEx
     let mut crefFoundInRecursion: bool = false;
     let mut argExp1: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut argExp2: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-    let mut e1: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-    let mut e2: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut call: Arc<Call::NFCall>;
     let mut name: ArcStr = arcstr::literal!("");
     let () = (::match_deref::match_deref! { match &(exp.clone()) {
@@ -1277,7 +1269,7 @@ fn solveUniqueFindInstructionsCallTwoArgs(mut ty: Arc<Type::NFType>, mut substEx
             argExp2 = __pa1.clone();
             (crefFoundInRecursion, inverseInstructions, status) = solveUniqueFindInstructions(argExp1.clone(), cref.clone(), crefFound.clone(), inverseInstructions.clone())?;
             if status.clone() == Status::IMPLICIT.clone() {
-                return Ok((crefFound, inverseInstructions, status));
+                return Ok((crefFound.clone(), inverseInstructions.clone(), status.clone()));
             }
             if crefFoundInRecursion.clone() {
                 crefFound = true;
@@ -1302,7 +1294,7 @@ fn solveUniqueFindInstructionsCallTwoArgs(mut ty: Arc<Type::NFType>, mut substEx
             } else {
                 (crefFoundInRecursion, inverseInstructions, status) = solveUniqueFindInstructions(argExp2.clone(), cref.clone(), crefFound.clone(), inverseInstructions.clone())?;
                 if status.clone() == Status::IMPLICIT.clone() {
-                    return Ok((crefFound, inverseInstructions, status));
+                    return Ok((crefFound.clone(), inverseInstructions.clone(), status.clone()));
                 }
                 if crefFoundInRecursion.clone() {
                     crefFound = true;
@@ -1469,7 +1461,7 @@ fn applyInstruction(mut insertExp: Arc<Expression::NFExpression>, mut instructio
 
 fn tupleSolvable(mut tuple_exps: Arc<metamodelica::List<Arc<Expression::NFExpression>>>, mut vars: Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>>) -> Result<bool> {
     let mut b: bool = false;
-    let mut filtered_exps: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = {
+    let mut filtered_exps: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = ({
         let mut __acc: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
         for mut e in (tuple_exps.clone()).into_iter().cloned() {
             if !(!(Expression::isWildCref(e.clone()))) { continue; }
@@ -1477,7 +1469,7 @@ fn tupleSolvable(mut tuple_exps: Arc<metamodelica::List<Arc<Expression::NFExpres
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     let mut map: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, bool>>;
     if List::compareLength(filtered_exps.clone(), vars.clone())? == 0 {
         map = UnorderedMap::new((std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), 1);
@@ -1487,13 +1479,13 @@ fn tupleSolvable(mut tuple_exps: Arc<metamodelica::List<Arc<Expression::NFExpres
         }
         for mut exp in &*filtered_exps.clone() {
             let mut exp = exp.clone();
-            let _ = (::match_deref::match_deref! { match &(exp.clone()) {
+            let () = (::match_deref::match_deref! { match &(exp.clone()) {
         Deref @ Expression::CREF { .. } if (UnorderedMap::contains(var_field!((*exp).cref, Expression::NFExpression::CREF).clone(), map.clone())) => {
             UnorderedMap::add(var_field!((*exp).cref, Expression::NFExpression::CREF).clone(), true, map.clone())?;
             ()
         },
         _ => {
-            return Ok(b);
+            return Ok(b.clone());
             ()
         },
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
@@ -1507,7 +1499,6 @@ fn tupleSolvable(mut tuple_exps: Arc<metamodelica::List<Arc<Expression::NFExpres
 fn getVarSlice(mut var_cref: Arc<ComponentRef::NFComponentRef>, mut eqn: Arc<Equation::Equation>) -> Result<(Arc<ComponentRef::NFComponentRef>, Status)> {
     let mut var_cref: Arc<ComponentRef::NFComponentRef> = var_cref;
     let mut solve_status: Status = Status::UNPROCESSED;
-    let mut var_ptr: Pointer::Pointer<Arc<Variable::NFVariable>> = BVariable::getVarPointer(var_cref.clone(), metamodelica::sourceInfo!())?;
     let mut slices_lst: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = metamodelica::nil();
     let mut record_parent: Option<Pointer::Pointer<Arc<Variable::NFVariable>>> = None;
     slices_lst = Equation::collectCrefs(eqn.clone(), Arc::new({ let __pe_b2 = var_cref.clone(); move |__pe_a0, __pe_a1| Slice::getSliceCandidates(__pe_a0, __pe_a1, __pe_b2.clone()) }), (std::sync::Arc::new(Expression::map) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>>) -> Result<Arc<Expression::NFExpression>> + 'static>))?;

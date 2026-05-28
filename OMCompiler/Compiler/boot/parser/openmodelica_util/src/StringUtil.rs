@@ -157,13 +157,12 @@ pub fn wordWrap(mut inString: ArcStr, mut inWrapLength: i32, mut inDelimiter: Ar
     let mut next_char: i32 = 0;
     let mut char: i32 = 0;
     let mut gap_size: i32 = 0;
-    let mut next_gap_size: i32 = 0;
     let mut r#str: ArcStr = arcstr::literal!("");
     let mut delim: ArcStr = literal!("");
     let mut lines: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
     if ((inDelimiter.clone()).clone().len() as i32) >= inWrapLength.clone() - 1 {
         outStrings = list![(inString.clone()).clone()];
-        return Ok(outStrings);
+        return Ok(outStrings.clone());
     }
     lines = System::strtok((inString.clone()).clone(), (literal!("\n")).clone());
     line_len = inWrapLength.clone() - ((inDelimiter.clone()).clone().len() as i32) - 1;
@@ -237,7 +236,7 @@ pub fn equalIgnoreSpace(mut s1: ArcStr, mut s2: ArcStr) -> Result<bool> {
             for mut j2 in j.clone()..=((s2.clone()).clone().len() as i32) {
                 if metamodelica::Dangerous::stringGet((s2.clone()).clone(), j2.clone())? != stringCharInt((literal!(" ")).clone())? {
                     if metamodelica::Dangerous::stringGet((s2.clone()).clone(), j2.clone())? != metamodelica::Dangerous::stringGet((s1.clone()).clone(), i.clone())? {
-                        return Ok(b);
+                        return Ok(b.clone());
                     }
                     j = j2.clone() + 1;
                     b = true;
@@ -245,14 +244,14 @@ pub fn equalIgnoreSpace(mut s1: ArcStr, mut s2: ArcStr) -> Result<bool> {
                 }
             }
             if !(b.clone()) {
-                return Ok(b);
+                return Ok(b.clone());
             }
         }
     }
     for mut j2 in j.clone()..=((s2.clone()).clone().len() as i32) {
         if metamodelica::Dangerous::stringGet((s2.clone()).clone(), j2.clone())? != stringCharInt((literal!(" ")).clone())? {
             b = false;
-            return Ok(b);
+            return Ok(b.clone());
         }
     }
     Ok(b)
@@ -305,7 +304,7 @@ pub fn convertCharNonAsciiToHex(mut s: ArcStr) -> Result<ArcStr> {
     let hex: metamodelica::Array<ArcStr> = metamodelica::Dangerous::listArray(list![(literal!("0")).clone(), (literal!("1")).clone(), (literal!("2")).clone(), (literal!("3")).clone(), (literal!("4")).clone(), (literal!("5")).clone(), (literal!("6")).clone(), (literal!("7")).clone(), (literal!("8")).clone(), (literal!("9")).clone(), (literal!("A")).clone(), (literal!("B")).clone(), (literal!("C")).clone(), (literal!("D")).clone(), (literal!("E")).clone(), (literal!("F")).clone()]);
     i = stringCharInt((s.clone()).clone())?;
     if i.clone() < 128 {
-        return Ok(s);
+        return Ok(s.clone());
     }
     s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("0x")); __mm_s.push_str(&*hex.clone().borrow()[(intDiv(i.clone(), 16) + 1-1) as usize].clone()); __mm_s.push_str(&*hex.clone().borrow()[(intMod(i.clone(), 16) + 1-1) as usize].clone()); ArcStr::from(__mm_s) }).clone();
     Ok(s)
@@ -315,7 +314,7 @@ pub fn stripBOM(mut s: ArcStr) -> Result<(ArcStr, ArcStr)> {
     let mut s: ArcStr = s;
     let mut bom: ArcStr = literal!("");
     if ((s.clone()).clone().len() as i32) < 3 {
-        return Ok((s, bom));
+        return Ok((s.clone(), bom.clone()));
     }
     if stringGet((s.clone()).clone(),1)? == 239 && stringGet((s.clone()).clone(),2)? == 187 && stringGet((s.clone()).clone(),3)? == 191 {
         bom = substring((s.clone()).clone(), 1, 3)?;

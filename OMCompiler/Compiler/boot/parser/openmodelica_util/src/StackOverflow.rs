@@ -116,16 +116,16 @@ pub fn readableStacktraceMessages() -> Result<Arc<metamodelica::List<ArcStr>>> {
     let mut prevN: i32 = 1;
     if Testsuite::isRunning()? {
         symbols = list![(literal!("[bt] [Symbols are not generated when running the test suite]")).clone()];
-        return Ok(symbols);
+        return Ok(symbols.clone());
     }
-    for mut symbol in &*{
+    for mut symbol in &*({
         let mut __acc: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
         for mut s in (getStacktraceMessages()).into_iter().cloned() {
             let __x = stripAddresses((s.clone()).clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    } {
+    }) {
         let mut symbol = symbol.clone();
         if prev.clone() == literal!("") {
         } else if symbol.clone() != prev.clone() {

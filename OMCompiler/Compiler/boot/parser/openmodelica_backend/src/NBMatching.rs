@@ -249,38 +249,38 @@ pub fn getMatches(mut matching: Arc<NBMatching>, mut mapping_opt: Option<Arc<Adj
                 Slice::addToSliceMap(arr_eqn.clone(), eqn.clone() - start_idx.clone(), eqn_map_unmatched.clone())?;
             }
         }
-        matched_vars = {
+        matched_vars = ({
         let mut __acc: Arc<metamodelica::List<Arc<Slice::NBSlice<Pointer::Pointer<Arc<Variable::NFVariable>>>>>> = metamodelica::nil();
         for mut slice in (Slice::fromMap(var_map_matched.clone())).into_iter().cloned() {
             let __x = Slice::simplify(slice.clone(), Arc::new({ let __pe_b1 = true; move |__pe_a0| Ok(BVariable::size(__pe_a0, __pe_b1.clone())) }))?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
-        unmatched_vars = {
+    });
+        unmatched_vars = ({
         let mut __acc: Arc<metamodelica::List<Arc<Slice::NBSlice<Pointer::Pointer<Arc<Variable::NFVariable>>>>>> = metamodelica::nil();
         for mut slice in (Slice::fromMap(var_map_unmatched.clone())).into_iter().cloned() {
             let __x = Slice::simplify(slice.clone(), Arc::new({ let __pe_b1 = true; move |__pe_a0| Ok(BVariable::size(__pe_a0, __pe_b1.clone())) }))?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
-        matched_eqns = {
+    });
+        matched_eqns = ({
         let mut __acc: Arc<metamodelica::List<Arc<Slice::NBSlice<Pointer::Pointer<Arc<Equation::Equation>>>>>> = metamodelica::nil();
         for mut slice in (Slice::fromMap(eqn_map_matched.clone())).into_iter().cloned() {
             let __x = Slice::simplify(slice.clone(), Arc::new({ let __pe_b1 = true; move |__pe_a0| Equation::size(__pe_a0, __pe_b1.clone()) }))?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
-        unmatched_eqns = {
+    });
+        unmatched_eqns = ({
         let mut __acc: Arc<metamodelica::List<Arc<Slice::NBSlice<Pointer::Pointer<Arc<Equation::Equation>>>>>> = metamodelica::nil();
         for mut slice in (Slice::fromMap(eqn_map_unmatched.clone())).into_iter().cloned() {
             let __x = Slice::simplify(slice.clone(), Arc::new({ let __pe_b1 = true; move |__pe_a0| Equation::size(__pe_a0, __pe_b1.clone()) }))?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     } else {
         let __range2 = 1..=(matching.var_to_eqn.clone().borrow().len() as i32);
         for mut var in __range2 {
@@ -375,7 +375,7 @@ fn augmentPath(mut eqn: i32, mut m: metamodelica::Array<Arc<metamodelica::List<i
                 let __cell2 = eqn.clone();
                 var_to_eqn.clone().borrow_mut()[(var.clone()-1) as usize] = __cell2;
             }
-            return (var_to_eqn, var_marks, eqn_marks, pathFound);
+            return (var_to_eqn.clone(), var_marks.clone(), eqn_marks.clone(), pathFound.clone());
         }
     }
     let __range3 = &*m.borrow()[(eqn.clone()-1) as usize].clone();
@@ -392,7 +392,7 @@ fn augmentPath(mut eqn: i32, mut m: metamodelica::Array<Arc<metamodelica::List<i
                     let __cell5 = eqn.clone();
                     var_to_eqn.clone().borrow_mut()[(var.clone()-1) as usize] = __cell5;
                 }
-                return (var_to_eqn, var_marks, eqn_marks, pathFound);
+                return (var_to_eqn.clone(), var_marks.clone(), eqn_marks.clone(), pathFound.clone());
             }
         }
     }

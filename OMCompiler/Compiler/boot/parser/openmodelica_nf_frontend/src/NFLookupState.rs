@@ -167,7 +167,7 @@ pub mod LookupState {
         let mut n: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
         if !(InstNode::isClass(node.clone())) {
             callable = false;
-            return Ok(callable);
+            return Ok(callable.clone());
         }
         n = InstNode::resolveInner(node.clone());
         Inst::expand(n.clone(), InstContext::NO_CONTEXT.clone())?;
@@ -381,7 +381,6 @@ pub mod LookupState {
     pub fn next(mut node: Arc<InstNode::InstNode>, mut currentState: Arc<LookupState>, mut context: i32, mut checkAccessViolations: bool) -> Result<Arc<LookupState>> {
         let mut nextState: Arc<LookupState> = Arc::new(LookupState::BEGIN);
         let mut entry_ty: Arc<LookupState> = Arc::new(LookupState::BEGIN);
-        let mut el: Arc<SCode::Element>;
         if checkAccessViolations.clone() && !(InstContext::inInstanceAPI(context.clone())) {
             checkProtection(node.clone(), currentState.clone())?;
         }
@@ -433,66 +432,26 @@ pub mod LookupState {
     pub fn next2(mut elementState: Arc<LookupState>, mut currentState: Arc<LookupState>, mut node: Arc<InstNode::InstNode>) -> Result<Arc<LookupState>> {
         let mut nextState: Arc<LookupState> = Arc::new(LookupState::BEGIN);
         nextState = (::match_deref::match_deref! { match &((elementState.clone(), currentState.clone())) {
-        (_, Deref @ BEGIN { .. }) => {
-            elementState.clone()
-        },
-        (Deref @ COMP { .. }, Deref @ COMP { .. }) => {
-            Arc::new(crate::NFLookupState::LookupState::COMP)
-        },
-        (Deref @ FUNC { .. }, Deref @ COMP { .. }) => {
-            Arc::new(crate::NFLookupState::LookupState::COMP_FUNC)
-        },
-        (_, Deref @ COMP { .. }) => {
-            Arc::new(crate::NFLookupState::LookupState::COMP_CLASS)
-        },
-        (Deref @ COMP { .. }, Deref @ CLASS_COMP { .. }) => {
-            Arc::new(crate::NFLookupState::LookupState::CLASS_COMP)
-        },
-        (Deref @ CLASS_COMP { .. }, Deref @ CLASS_COMP { .. }) => {
-            Arc::new(crate::NFLookupState::LookupState::CLASS_COMP)
-        },
-        (Deref @ COMP { .. }, Deref @ PACKAGE { .. }) => {
-            Arc::new(crate::NFLookupState::LookupState::CLASS_COMP)
-        },
-        (_, Deref @ PACKAGE { .. }) => {
-            elementState.clone()
-        },
-        (Deref @ COMP { .. }, Deref @ CLASS { .. }) => {
-            Arc::new(crate::NFLookupState::LookupState::CLASS_COMP)
-        },
-        (_, Deref @ CLASS { .. }) => {
-            elementState.clone()
-        },
-        (Deref @ COMP { .. }, Deref @ FUNC { .. }) => {
-            Arc::new(crate::NFLookupState::LookupState::CLASS_COMP)
-        },
-        (_, Deref @ FUNC { .. }) => {
-            elementState.clone()
-        },
-        (Deref @ FUNC { .. }, Deref @ COMP_CLASS { .. }) => {
-            Arc::new(crate::NFLookupState::LookupState::COMP_FUNC)
-        },
-        (Deref @ CLASS { .. }, Deref @ COMP_CLASS { .. }) => {
-            Arc::new(crate::NFLookupState::LookupState::COMP_CLASS)
-        },
-        (Deref @ PACKAGE { .. }, Deref @ COMP_CLASS { .. }) => {
-            Arc::new(crate::NFLookupState::LookupState::COMP_CLASS)
-        },
-        (Deref @ FUNC { .. }, Deref @ COMP_FUNC { .. }) => {
-            Arc::new(crate::NFLookupState::LookupState::COMP_FUNC)
-        },
-        (Deref @ CLASS { .. }, Deref @ COMP_FUNC { .. }) => {
-            Arc::new(crate::NFLookupState::LookupState::COMP_CLASS)
-        },
-        (Deref @ PACKAGE { .. }, Deref @ COMP_FUNC { .. }) => {
-            Arc::new(crate::NFLookupState::LookupState::COMP_CLASS)
-        },
-        (Deref @ COMP { .. }, _) => {
-            Arc::new(LookupState::ERROR { errorState: Arc::new(crate::NFLookupState::LookupState::COMP_FUNC) })
-        },
-        (_, Deref @ CLASS_COMP { .. }) => {
-            Arc::new(LookupState::ERROR { errorState: Arc::new(crate::NFLookupState::LookupState::CLASS_COMP) })
-        },
+        (_, Deref @ BEGIN { .. }) => elementState.clone(),
+        (Deref @ COMP { .. }, Deref @ COMP { .. }) => Arc::new(crate::NFLookupState::LookupState::COMP),
+        (Deref @ FUNC { .. }, Deref @ COMP { .. }) => Arc::new(crate::NFLookupState::LookupState::COMP_FUNC),
+        (_, Deref @ COMP { .. }) => Arc::new(crate::NFLookupState::LookupState::COMP_CLASS),
+        (Deref @ COMP { .. }, Deref @ CLASS_COMP { .. }) => Arc::new(crate::NFLookupState::LookupState::CLASS_COMP),
+        (Deref @ CLASS_COMP { .. }, Deref @ CLASS_COMP { .. }) => Arc::new(crate::NFLookupState::LookupState::CLASS_COMP),
+        (Deref @ COMP { .. }, Deref @ PACKAGE { .. }) => Arc::new(crate::NFLookupState::LookupState::CLASS_COMP),
+        (_, Deref @ PACKAGE { .. }) => elementState.clone(),
+        (Deref @ COMP { .. }, Deref @ CLASS { .. }) => Arc::new(crate::NFLookupState::LookupState::CLASS_COMP),
+        (_, Deref @ CLASS { .. }) => elementState.clone(),
+        (Deref @ COMP { .. }, Deref @ FUNC { .. }) => Arc::new(crate::NFLookupState::LookupState::CLASS_COMP),
+        (_, Deref @ FUNC { .. }) => elementState.clone(),
+        (Deref @ FUNC { .. }, Deref @ COMP_CLASS { .. }) => Arc::new(crate::NFLookupState::LookupState::COMP_FUNC),
+        (Deref @ CLASS { .. }, Deref @ COMP_CLASS { .. }) => Arc::new(crate::NFLookupState::LookupState::COMP_CLASS),
+        (Deref @ PACKAGE { .. }, Deref @ COMP_CLASS { .. }) => Arc::new(crate::NFLookupState::LookupState::COMP_CLASS),
+        (Deref @ FUNC { .. }, Deref @ COMP_FUNC { .. }) => Arc::new(crate::NFLookupState::LookupState::COMP_FUNC),
+        (Deref @ CLASS { .. }, Deref @ COMP_FUNC { .. }) => Arc::new(crate::NFLookupState::LookupState::COMP_CLASS),
+        (Deref @ PACKAGE { .. }, Deref @ COMP_FUNC { .. }) => Arc::new(crate::NFLookupState::LookupState::COMP_CLASS),
+        (Deref @ COMP { .. }, _) => Arc::new(LookupState::ERROR { errorState: Arc::new(crate::NFLookupState::LookupState::COMP_FUNC) }),
+        (_, Deref @ CLASS_COMP { .. }) => Arc::new(LookupState::ERROR { errorState: Arc::new(crate::NFLookupState::LookupState::CLASS_COMP) }),
         _ => {
             Error::assertion(false, ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("NFLookupState.LookupState.next2")); __mm_s.push_str(&*literal!(" failed on unknown transition for element ")); __mm_s.push_str(&*InstNode::name(node.clone())?); ArcStr::from(__mm_s) }).clone(), metamodelica::sourceInfo!())?;
             bail!("fail")
@@ -505,7 +464,7 @@ pub mod LookupState {
     pub fn checkCrefVariability(mut cref: Arc<ComponentRef::NFComponentRef>, mut inEnclosingScope: bool, mut context: i32, mut state: Arc<LookupState>) -> Result<Arc<LookupState>> {
         let mut state: Arc<LookupState> = state;
         if isError(state.clone()) {
-            return Ok(state);
+            return Ok(state.clone());
         }
         if inEnclosingScope.clone() && !(InstContext::inRelaxed(context.clone())) && isNonConstantComponent(ComponentRef::node(cref.clone())?)? {
             state = Arc::new(LookupState::ERROR { errorState: Arc::new(crate::NFLookupState::LookupState::NON_CONSTANT) });

@@ -76,16 +76,16 @@ pub fn init() -> Result<()> {
     if '__try0: {
         ht = crate::Globals::instHashIndex.with(|__root| __root.borrow().clone());
         ht = unwrap_break_err!(BaseHashTable::clear(ht.clone()), '__try0);
-        crate::Globals::instHashIndex.with(|__root| *__root.borrow_mut() = ht.clone());
+        { let __v = ht.clone(); crate::Globals::instHashIndex.with(|__root| *__root.borrow_mut() = __v) };
         Ok::<(), anyhow::Error>(())
     }.is_err() {
-        crate::Globals::instHashIndex.with(|__root| *__root.borrow_mut() = emptyInstHashTable()?);
+        { let __v = emptyInstHashTable()?; crate::Globals::instHashIndex.with(|__root| *__root.borrow_mut() = __v) };
     }
     Ok(())
 }
 
 pub fn release() -> Result<()> {
-    crate::Globals::instHashIndex.with(|__root| *__root.borrow_mut() = emptyInstHashTable()?);
+    { let __v = emptyInstHashTable()?; crate::Globals::instHashIndex.with(|__root| *__root.borrow_mut() = __v) };
     OperatorOverloading::initCache();
     Ok(())
 }
@@ -112,96 +112,68 @@ pub enum CachedInstItem {
 pub use self::CachedInstItem::{FUNC_instClassIn,FUNC_partialInstClassIn};
 
 pub fn addToInstCache(mut fullEnvPathPlusClass: Arc<Absyn::Path>, mut fullInstOpt: Option<CachedInstItem>, mut partialInstOpt: Option<CachedInstItem>) -> Result<()> {
-    let _ = 'mc: {
-        let __mc_input = (fullEnvPathPlusClass.clone(), fullInstOpt.clone(), partialInstOpt.clone());
+    let () = 'mc: {
+        let __mc_input = (fullInstOpt.clone(), partialInstOpt.clone());
         if let Ok(__v) = (|| -> Result<_> {
-            ::match_deref::match_deref! { match &__mc_input {
-                (_, _, _) => {
-                    let false = (Flags::isSet(Flags::CACHE.clone())?) else { bail!("pattern mismatch") };
-                    Ok(())
-                }
-                _ => bail!("nomatch"),
-            }}
+            let (_, _) = __mc_input.clone() else { bail!("nomatch") };
+            let false = (Flags::isSet(Flags::CACHE.clone())?) else { bail!("pattern mismatch") };
+            Ok(())
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
-            ::match_deref::match_deref! { match &__mc_input {
-                (_, Some(_), Some(_)) => {
-                    let mut instHash: HashTable;
-                    instHash = crate::Globals::instHashIndex.with(|__root| __root.borrow().clone());
-                    instHash = BaseHashTable::add((fullEnvPathPlusClass.clone(), list![fullInstOpt.clone(), partialInstOpt.clone()]), instHash.clone())?;
-                    crate::Globals::instHashIndex.with(|__root| *__root.borrow_mut() = instHash.clone());
-                    Ok(())
-                }
-                _ => bail!("nomatch"),
-            }}
+            let (Some(_), Some(_)) = __mc_input.clone() else { bail!("nomatch") };
+            let mut instHash: HashTable;
+            instHash = crate::Globals::instHashIndex.with(|__root| __root.borrow().clone());
+            instHash = BaseHashTable::add((fullEnvPathPlusClass.clone(), list![fullInstOpt.clone(), partialInstOpt.clone()]), instHash.clone())?;
+            { let __v = instHash.clone(); crate::Globals::instHashIndex.with(|__root| *__root.borrow_mut() = __v) };
+            Ok(())
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
-            ::match_deref::match_deref! { match &__mc_input {
-                (_, None, Some(_)) => {
-                    let mut instHash: HashTable;
-                    let mut opt: Option<CachedInstItem> = None;
-                    instHash = crate::Globals::instHashIndex.with(|__root| __root.borrow().clone());
-                    let __pa0 = ::match_deref::match_deref! { match &(BaseHashTable::get(fullEnvPathPlusClass.clone(), instHash.clone())?) {
-                        Deref @ metamodelica::List::Cons { head: __pa0, tail: Deref @ metamodelica::List::Cons { head: _, tail: Deref @ metamodelica::List::Nil } } => __pa0.clone(),
-                        _ => bail!("pattern mismatch"),
-                    } };
-                    opt = __pa0.clone();
-                    instHash = BaseHashTable::add((fullEnvPathPlusClass.clone(), list![opt.clone(), partialInstOpt.clone()]), instHash.clone())?;
-                    crate::Globals::instHashIndex.with(|__root| *__root.borrow_mut() = instHash.clone());
-                    Ok(())
-                }
-                _ => bail!("nomatch"),
-            }}
+            let (None, Some(_)) = __mc_input.clone() else { bail!("nomatch") };
+            let mut instHash: HashTable;
+            let mut opt: Option<CachedInstItem> = None;
+            instHash = crate::Globals::instHashIndex.with(|__root| __root.borrow().clone());
+            let __pa0 = ::match_deref::match_deref! { match &(BaseHashTable::get(fullEnvPathPlusClass.clone(), instHash.clone())?) {
+                Deref @ metamodelica::List::Cons { head: __pa0, tail: Deref @ metamodelica::List::Cons { head: _, tail: Deref @ metamodelica::List::Nil } } => __pa0.clone(),
+                _ => bail!("pattern mismatch"),
+            } };
+            opt = __pa0.clone();
+            instHash = BaseHashTable::add((fullEnvPathPlusClass.clone(), list![opt.clone(), partialInstOpt.clone()]), instHash.clone())?;
+            { let __v = instHash.clone(); crate::Globals::instHashIndex.with(|__root| *__root.borrow_mut() = __v) };
+            Ok(())
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
-            ::match_deref::match_deref! { match &__mc_input {
-                (_, None, Some(_)) => {
-                    let mut instHash: HashTable;
-                    instHash = crate::Globals::instHashIndex.with(|__root| __root.borrow().clone());
-                    instHash = BaseHashTable::add((fullEnvPathPlusClass.clone(), list![None, partialInstOpt.clone()]), instHash.clone())?;
-                    crate::Globals::instHashIndex.with(|__root| *__root.borrow_mut() = instHash.clone());
-                    Ok(())
-                }
-                _ => bail!("nomatch"),
-            }}
+            let (None, Some(_)) = __mc_input.clone() else { bail!("nomatch") };
+            let mut instHash: HashTable;
+            instHash = crate::Globals::instHashIndex.with(|__root| __root.borrow().clone());
+            instHash = BaseHashTable::add((fullEnvPathPlusClass.clone(), list![None, partialInstOpt.clone()]), instHash.clone())?;
+            { let __v = instHash.clone(); crate::Globals::instHashIndex.with(|__root| *__root.borrow_mut() = __v) };
+            Ok(())
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
-            ::match_deref::match_deref! { match &__mc_input {
-                (_, Some(_), None) => {
-                    let mut instHash: HashTable;
-                    let mut lst: Arc<metamodelica::List<Option<CachedInstItem>>> = metamodelica::nil();
-                    instHash = crate::Globals::instHashIndex.with(|__root| __root.borrow().clone());
-                    let __pa0 = ::match_deref::match_deref! { match &(BaseHashTable::get(fullEnvPathPlusClass.clone(), instHash.clone())?) {
-                        Deref @ metamodelica::List::Cons { head: _, tail: __pa0 @ Deref @ metamodelica::List::Cons { head: Some(_), tail: Deref @ metamodelica::List::Nil } } => __pa0.clone(),
-                        _ => bail!("pattern mismatch"),
-                    } };
-                    lst = __pa0.clone();
-                    instHash = BaseHashTable::add((fullEnvPathPlusClass.clone(), cons(fullInstOpt.clone(), lst.clone())), instHash.clone())?;
-                    crate::Globals::instHashIndex.with(|__root| *__root.borrow_mut() = instHash.clone());
-                    Ok(())
-                }
-                _ => bail!("nomatch"),
-            }}
+            let (Some(_), None) = __mc_input.clone() else { bail!("nomatch") };
+            let mut instHash: HashTable;
+            let mut lst: Arc<metamodelica::List<Option<CachedInstItem>>> = metamodelica::nil();
+            instHash = crate::Globals::instHashIndex.with(|__root| __root.borrow().clone());
+            let __pa0 = ::match_deref::match_deref! { match &(BaseHashTable::get(fullEnvPathPlusClass.clone(), instHash.clone())?) {
+                Deref @ metamodelica::List::Cons { head: _, tail: __pa0 @ Deref @ metamodelica::List::Cons { head: Some(_), tail: Deref @ metamodelica::List::Nil } } => __pa0.clone(),
+                _ => bail!("pattern mismatch"),
+            } };
+            lst = __pa0.clone();
+            instHash = BaseHashTable::add((fullEnvPathPlusClass.clone(), cons(fullInstOpt.clone(), lst.clone())), instHash.clone())?;
+            { let __v = instHash.clone(); crate::Globals::instHashIndex.with(|__root| *__root.borrow_mut() = __v) };
+            Ok(())
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
-            ::match_deref::match_deref! { match &__mc_input {
-                (_, Some(_), None) => {
-                    let mut instHash: HashTable;
-                    instHash = crate::Globals::instHashIndex.with(|__root| __root.borrow().clone());
-                    instHash = BaseHashTable::add((fullEnvPathPlusClass.clone(), list![fullInstOpt.clone(), None]), instHash.clone())?;
-                    crate::Globals::instHashIndex.with(|__root| *__root.borrow_mut() = instHash.clone());
-                    Ok(())
-                }
-                _ => bail!("nomatch"),
-            }}
+            let (Some(_), None) = __mc_input.clone() else { bail!("nomatch") };
+            let mut instHash: HashTable;
+            instHash = crate::Globals::instHashIndex.with(|__root| __root.borrow().clone());
+            instHash = BaseHashTable::add((fullEnvPathPlusClass.clone(), list![fullInstOpt.clone(), None]), instHash.clone())?;
+            { let __v = instHash.clone(); crate::Globals::instHashIndex.with(|__root| *__root.borrow_mut() = __v) };
+            Ok(())
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
-            ::match_deref::match_deref! { match &__mc_input {
-                _ => {
-                    Ok(())
-                }
-                _ => bail!("nomatch"),
-            }}
+            let _ = __mc_input.clone() else { bail!("nomatch") };
+            Ok(())
         })() { break 'mc __v; }
         bail!("matchcontinue: no arm matched")
     };

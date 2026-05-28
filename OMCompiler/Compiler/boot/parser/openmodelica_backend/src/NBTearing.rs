@@ -117,14 +117,14 @@ impl Default for NBTearing {
 pub type TEARING_SET = NBTearing;
 
 pub fn hash(mut set: Arc<NBTearing>) -> i32 {
-    let mut h: i32 = {
+    let mut h: i32 = ({
         let mut __acc: i32 = 0;
         for mut var in (set.iteration_vars.clone()).into_iter().cloned() {
             let __x = Slice::hash(var.clone(), (std::sync::Arc::new(fnptr!(BVariable::hash, Pointer::Pointer<Arc<Variable::NFVariable>>)) as std::sync::Arc<dyn ::std::ops::Fn(Pointer::Pointer<Arc<Variable::NFVariable>>) -> Result<i32> + 'static>));
             __acc += __x;
         }
         __acc
-    };
+    });
     h
 }
 
@@ -138,22 +138,22 @@ pub fn isEqual(mut set1: Arc<NBTearing>, mut set2: Arc<NBTearing>) -> Result<boo
 
 pub fn size(mut set: Arc<NBTearing>, mut resize: bool) -> Result<i32> {
     let mut s: i32 = 0;
-    s = {
+    s = ({
         let mut __acc: i32 = 0;
         for mut eq in (set.residual_eqns.clone()).into_iter().cloned() {
             let __x = Slice::size(eq.clone(), Arc::new({ let __pe_b1 = resize.clone(); move |__pe_a0| Equation::size(__pe_a0, __pe_b1.clone()) }));
             __acc += __x;
         }
         __acc
-    };
-    s = s.clone() + {
+    });
+    s = s.clone() + ({
         let mut __acc: i32 = 0;
         for mut eq in (set.innerEquations.clone()).borrow().iter() {
             let __x = StrongComponent::size(eq.clone(), resize.clone())?;
             __acc += __x;
         }
         __acc
-    };
+    });
     Ok(s)
 }
 
@@ -161,7 +161,7 @@ pub fn toString(mut set: Arc<NBTearing>, mut r#str: ArcStr) -> Result<ArcStr> {
     let mut r#str: ArcStr = r#str;
     r#str = (StringUtil::headline_4((r#str.clone()).clone())).clone();
     r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*r#str.clone()); __mm_s.push_str(&*literal!("### Iteration Variables:\n")); __mm_s.push_str(&*Slice::lstToString(set.iteration_vars.clone(), (std::sync::Arc::new(fnptr!(BVariable::pointerToString, Pointer::Pointer<Arc<Variable::NFVariable>>)) as std::sync::Arc<dyn ::std::ops::Fn(Pointer::Pointer<Arc<Variable::NFVariable>>) -> Result<ArcStr> + 'static>), 10)); ArcStr::from(__mm_s) }).clone();
-    r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*r#str.clone()); __mm_s.push_str(&*literal!("\n### Residual Equations:\n")); __mm_s.push_str(&*Slice::lstToString(set.residual_eqns.clone(), { let __pe_b1 = (literal!("")).clone(); move |__pe_a0| Equation::pointerToString(__pe_a0, __pe_b1.clone()) }, 10)); ArcStr::from(__mm_s) }).clone();
+    r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*r#str.clone()); __mm_s.push_str(&*literal!("\n### Residual Equations:\n")); __mm_s.push_str(&*Slice::lstToString(set.residual_eqns.clone(), Arc::new({ let __pe_b1 = (literal!("")).clone(); move |__pe_a0| Equation::pointerToString(__pe_a0, __pe_b1.clone()) }), 10)); ArcStr::from(__mm_s) }).clone();
     r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*r#str.clone()); __mm_s.push_str(&*literal!("\n### Inner Equations:\n")); __mm_s.push_str(&*Array::toString(set.innerEquations.clone(), Arc::new({ let __pe_b1 = -1; move |__pe_a0| StrongComponent::toString(__pe_a0, __pe_b1.clone()) }), (literal!("")).clone(), (literal!("\t")).clone(), (literal!("\n\t")).clone(), (literal!("")).clone(), true, 0)?); ArcStr::from(__mm_s) }).clone();
     if Util::isSome(set.jac.clone()) {
         r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*r#str.clone()); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*BJacobian::toString(Util::getOption(set.jac.clone())?, (literal!("NLS")).clone())?); ArcStr::from(__mm_s) }).clone();
@@ -202,14 +202,14 @@ pub fn singleImplicit(mut var: Pointer::Pointer<Arc<Variable::NFVariable>>, mut 
     tearingSet
 }
 
-pub fn getModule() -> Result<Arc<metamodelica::List<Module::tearingInterface>>> {
+pub fn getModule() -> Result<Arc<metamodelica::List<Arc<dyn ::std::ops::Fn(Arc<StrongComponent::NBStrongComponent>, Arc<Adjacency::Matrix::Matrix>, Arc<UnorderedMap::UnorderedMap<Arc<Path>, Arc<Function::Function>>>, i32, Arc<VariablePointers::VariablePointers>, Arc<EquationPointers::EquationPointers>, Pointer::Pointer<i32>, Partition::Kind) -> Result<(Arc<StrongComponent::NBStrongComponent>, Arc<Adjacency::Matrix::Matrix>, i32)> + 'static>>>> {
     let mut funcs: Arc<metamodelica::List<Module::tearingInterface>> = metamodelica::nil();
     let mut flag: ArcStr = Flags::getConfigString(Flags::TEARING_METHOD.clone())?;
     funcs = (::match_deref::match_deref! { match &(flag.clone()) {
-        Deref @ "minimalTearing" => list![todo!("PARTEVALFUNCTION of initialize: function signature not resolved"), minimal.clone(), finalize.clone()],
-        Deref @ "cellier" => list![todo!("PARTEVALFUNCTION of initialize: function signature not resolved"), minimal.clone(), finalize.clone()],
-        Deref @ "omcTearing" => list![todo!("PARTEVALFUNCTION of initialize: function signature not resolved"), minimal.clone(), finalize.clone()],
-        Deref @ "guruTearing" => list![todo!("PARTEVALFUNCTION of initialize: function signature not resolved"), guru.clone(), finalize.clone()],
+        Deref @ "minimalTearing" => list![Arc::new(todo!("PARTEVALFUNCTION of initialize: function signature not resolved")), minimal.clone(), finalize.clone()],
+        Deref @ "cellier" => list![Arc::new(todo!("PARTEVALFUNCTION of initialize: function signature not resolved")), minimal.clone(), finalize.clone()],
+        Deref @ "omcTearing" => list![Arc::new(todo!("PARTEVALFUNCTION of initialize: function signature not resolved")), minimal.clone(), finalize.clone()],
+        Deref @ "guruTearing" => list![Arc::new(todo!("PARTEVALFUNCTION of initialize: function signature not resolved")), guru.clone(), finalize.clone()],
         _ => bail!("fail"),
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
     } });
@@ -218,64 +218,64 @@ pub fn getModule() -> Result<Arc<metamodelica::List<Module::tearingInterface>>> 
 
 pub fn getVariables(mut tearing: Arc<NBTearing>) -> Result<Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>>> {
     let mut variables: Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>> = metamodelica::nil();
-    variables = {
+    variables = ({
         let mut __acc: Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>> = metamodelica::nil();
-        for mut var in (cons({
+        for mut var in (cons(({
         let mut __acc: Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>> = metamodelica::nil();
         for mut var in (tearing.iteration_vars.clone()).into_iter().cloned() {
             let __x = Slice::getT(var.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, {
+    }), ({
         let mut __acc: Arc<metamodelica::List<Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>>>> = metamodelica::nil();
         for mut comp in (tearing.innerEquations.clone()).borrow().iter() {
             let __x = StrongComponent::getVariables(comp.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    })).into_iter().cloned() {
+    }))).into_iter().cloned() {
             let __x = var.clone();
             __acc = __x.append(&__acc);
         }
         __acc
-    };
+    });
     Ok(variables)
 }
 
 pub fn getResidualVars(mut tearing: Arc<NBTearing>) -> Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>> {
-    let mut residuals: Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>> = {
+    let mut residuals: Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>> = ({
         let mut __acc: Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>> = metamodelica::nil();
         for mut eqn in (tearing.residual_eqns.clone()).into_iter().cloned() {
             let __x = BEquation::Equation::getResidualVar(Slice::getT(eqn.clone())).unwrap();
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     residuals
 }
 
 pub fn getIterationVars(mut tearing: Arc<NBTearing>) -> Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>> {
-    let mut iterationVars: Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>> = {
+    let mut iterationVars: Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>> = ({
         let mut __acc: Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>> = metamodelica::nil();
         for mut var in (tearing.iteration_vars.clone()).into_iter().cloned() {
             let __x = Slice::getT(var.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     iterationVars
 }
 
 pub fn getResidualEqns(mut tearing: Arc<NBTearing>) -> Arc<metamodelica::List<Pointer::Pointer<Arc<Equation::Equation>>>> {
-    let mut residuals: Arc<metamodelica::List<Pointer::Pointer<Arc<Equation::Equation>>>> = {
+    let mut residuals: Arc<metamodelica::List<Pointer::Pointer<Arc<Equation::Equation>>>> = ({
         let mut __acc: Arc<metamodelica::List<Pointer::Pointer<Arc<Equation::Equation>>>> = metamodelica::nil();
         for mut eqn in (tearing.residual_eqns.clone()).into_iter().cloned() {
             let __x = Slice::getT(eqn.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     residuals
 }
 
@@ -285,7 +285,7 @@ pub fn setResidualEqns(mut tearing: Arc<NBTearing>, mut residuals: Arc<metamodel
     tearing
 }
 
-fn tearingTraverser(mut partitions: Arc<metamodelica::List<Arc<Partition::Partition::Partition>>>, mut funcs: Arc<metamodelica::List<Module::tearingInterface>>, mut funcMap: Arc<UnorderedMap::UnorderedMap<Arc<Path>, Arc<Function::Function>>>, mut eq_index: Pointer::Pointer<i32>, mut kind: Partition::Kind) -> Result<Arc<metamodelica::List<Arc<Partition::Partition::Partition>>>> {
+fn tearingTraverser(mut partitions: Arc<metamodelica::List<Arc<Partition::Partition::Partition>>>, mut funcs: Arc<metamodelica::List<Arc<dyn ::std::ops::Fn(Arc<StrongComponent::NBStrongComponent>, Arc<Adjacency::Matrix::Matrix>, Arc<UnorderedMap::UnorderedMap<Arc<Path>, Arc<Function::Function>>>, i32, Arc<VariablePointers::VariablePointers>, Arc<EquationPointers::EquationPointers>, Pointer::Pointer<i32>, Partition::Kind) -> Result<(Arc<StrongComponent::NBStrongComponent>, Arc<Adjacency::Matrix::Matrix>, i32)> + 'static>>>, mut funcMap: Arc<UnorderedMap::UnorderedMap<Arc<Path>, Arc<Function::Function>>>, mut eq_index: Pointer::Pointer<i32>, mut kind: Partition::Kind) -> Result<Arc<metamodelica::List<Arc<Partition::Partition::Partition>>>> {
     let mut new_partitions: Arc<metamodelica::List<Arc<Partition::Partition::Partition>>> = metamodelica::nil();
     let mut strongComponents: metamodelica::Array<Arc<StrongComponent::NBStrongComponent>>;
     let mut tmp: Arc<StrongComponent::NBStrongComponent>;
@@ -294,7 +294,10 @@ fn tearingTraverser(mut partitions: Arc<metamodelica::List<Arc<Partition::Partit
     for mut part in &*partitions.clone() {
         let mut part = part.clone();
         if isSome(part.strongComponents.clone()) && isSome(part.adjacencyMatrix.clone()) {
-            let Some(__pa0) = (part.strongComponents.clone()) else { bail!("pattern mismatch") };
+            let __pa0 = ::match_deref::match_deref! { match &(part.strongComponents.clone()) {
+                Some(__pa0) => __pa0.clone(),
+                _ => bail!("pattern mismatch"),
+            } };
             strongComponents = __pa0.clone();
             let __pa1 = ::match_deref::match_deref! { match &(part.adjacencyMatrix.clone()) {
                 Some(__pa1) => __pa1.clone(),
@@ -348,7 +351,7 @@ fn checkLinearity(mut full: Arc<Adjacency::Matrix::Matrix>, mut v: Arc<Unordered
 
 fn filterDiscreteVariables(mut vars_lst: Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>>, mut init: bool) -> Result<(Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>>, Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>>)> {
     fn addDiscreteRecord(mut var: Pointer::Pointer<Arc<Variable::NFVariable>>, mut discrete_records: Arc<UnorderedSet::UnorderedSet<Arc<ComponentRef::NFComponentRef>>>) -> Result<()> {
-        let _ = (match BVariable::getParent(var.clone()) {
+        let () = (match BVariable::getParent(var.clone()) {
         Some(mut parent) => {
             UnorderedSet::add(BVariable::getVarName(parent.clone()), discrete_records.clone())?;
             addDiscreteRecord(parent.clone(), discrete_records.clone())?;
@@ -392,24 +395,24 @@ fn getImpliedInnerVars(mut eqn: Pointer::Pointer<Arc<Equation::Equation>>) -> Re
     let mut vars: Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>> = metamodelica::nil();
     vars = (::match_deref::match_deref! { match &(Pointer::access(eqn.clone())) {
         Deref @ BEquation::Equation::ALGORITHM { alg, .. } => {
-            {
+            ({
         let mut __acc: Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>> = metamodelica::nil();
         for mut out_cr in (alg.outputs.clone()).into_iter().cloned() {
             let __x = BVariable::getVarPointer(out_cr.clone(), metamodelica::sourceInfo!())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }
+    })
         },
         Deref @ BEquation::Equation::RECORD_EQUATION { lhs: tpl @ Deref @ Expression::TUPLE { .. }, .. } => {
-            {
+            ({
         let mut __acc: Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>> = metamodelica::nil();
         for mut tpl_cr in (UnorderedSet::toList(Expression::extractCrefs(tpl.clone()))).into_iter().cloned() {
             let __x = BVariable::getVarPointer(tpl_cr.clone(), metamodelica::sourceInfo!())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }
+    })
         },
         Deref @ BEquation::Equation::RECORD_EQUATION { lhs: Deref @ Expression::CREF { .. }, .. } => {
             metamodelica::nil()

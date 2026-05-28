@@ -177,7 +177,7 @@ fn makeLabelReq(mut inStringLst: Arc<metamodelica::List<ArcStr>>, mut inString: 
 }
 
 fn dumpChildren(mut inIdent: Ident, mut inChildren: Children) -> Result<()> {
-    let _ = (::match_deref::match_deref! { match &((inIdent.clone(), inChildren.clone())) {
+    let () = (::match_deref::match_deref! { match &((inIdent.clone(), inChildren.clone())) {
         (_, Deref @ metamodelica::List::Nil) => {
             ()
         },

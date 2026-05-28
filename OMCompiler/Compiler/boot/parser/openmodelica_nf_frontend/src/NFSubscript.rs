@@ -155,14 +155,14 @@ pub fn toIndexList(mut subscript: Arc<NFSubscript>, mut length: i32) -> Result<A
             List::intRange2(1, length.clone())
         },
         Deref @ SLICE { slice: Deref @ Expression::ARRAY { elements: elems, .. } } => {
-            {
+            ({
         let mut __acc: Arc<metamodelica::List<i32>> = metamodelica::nil();
         for mut e in (elems.clone()).borrow().iter() {
             let __x = Expression::toInteger(e.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }
+    })
         },
         Deref @ SLICE { slice: Deref @ Expression::RANGE { stop: Deref @ Expression::INTEGER { value: stop }, step: Some(Deref @ Expression::INTEGER { value: step }), start: Deref @ Expression::INTEGER { value: start }, .. } } => {
             List::intRange3(start.clone(), step.clone(), stop.clone())?
@@ -284,7 +284,6 @@ pub fn equalsIterator(mut sub: Arc<NFSubscript>, mut iterator: Arc<InstNode::Ins
 
 pub fn isIterator(mut sub: Arc<NFSubscript>) -> bool {
     let mut res: bool = false;
-    let mut cref: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
     res = (::match_deref::match_deref! { match &(sub.clone()) {
         Deref @ UNTYPED { .. } => Expression::isIterator(var_field!((*sub).exp, NFSubscript::UNTYPED).clone()),
         Deref @ INDEX { .. } => Expression::isIterator(var_field!((*sub).index, NFSubscript::INDEX).clone()),
@@ -340,7 +339,7 @@ pub fn isEqualList(mut subscripts1: Arc<metamodelica::List<Arc<NFSubscript>>>, m
         let mut s1 = s1.clone();
         if rest.clone().is_empty() {
             isEqual = false;
-            return Ok(isEqual);
+            return Ok(isEqual.clone());
         }
         let (__pa0, __pa1) = ::match_deref::match_deref! { match &(rest.clone()) {
             Deref @ metamodelica::List::Cons { head: __pa0, tail: __pa1 } => (__pa0.clone(), __pa1.clone()),
@@ -350,7 +349,7 @@ pub fn isEqualList(mut subscripts1: Arc<metamodelica::List<Arc<NFSubscript>>>, m
         rest = __pa1.clone();
         if !(self::isEqual(s1.clone(), s2.clone())?) {
             isEqual = false;
-            return Ok(isEqual);
+            return Ok(isEqual.clone());
         }
     }
     isEqual = rest.clone().is_empty();
@@ -361,11 +360,11 @@ pub fn compare(mut subscript1: Arc<NFSubscript>, mut subscript2: Arc<NFSubscript
     let mut comp: i32 = 0;
     if referenceEq(&subscript1.clone(),&subscript2.clone()) {
         comp = 0;
-        return Ok(comp);
+        return Ok(comp.clone());
     }
     comp = Util::intCompare(metamodelica::valueConstructor((&*subscript1.clone()))?, metamodelica::valueConstructor((&*subscript2.clone()))?);
     if comp.clone() != 0 {
-        return Ok(comp);
+        return Ok(comp.clone());
     }
     comp = (::match_deref::match_deref! { match &(subscript1.clone()) {
         Deref @ UNTYPED { .. } => {
@@ -421,7 +420,7 @@ pub fn compareList(mut subscripts1: Arc<metamodelica::List<Arc<NFSubscript>>>, m
     let mut rest_s2: Arc<metamodelica::List<Arc<NFSubscript>>> = subscripts2.clone();
     comp = Util::intCompare((subscripts1.clone().len() as i32), (subscripts2.clone().len() as i32));
     if comp.clone() != 0 {
-        return Ok(comp);
+        return Ok(comp.clone());
     }
     for mut s1 in &*subscripts1.clone() {
         let mut s1 = s1.clone();
@@ -433,7 +432,7 @@ pub fn compareList(mut subscripts1: Arc<metamodelica::List<Arc<NFSubscript>>>, m
         rest_s2 = __pa1.clone();
         comp = compare(s1.clone(), s2.clone())?;
         if comp.clone() != 0 {
-            return Ok(comp);
+            return Ok(comp.clone());
         }
     }
     comp = 0;
@@ -462,7 +461,7 @@ pub fn listContainsExp(mut subscripts: Arc<metamodelica::List<Arc<NFSubscript>>>
         let mut s = s.clone();
         if containsExp(s.clone(), func.clone())? {
             res = true;
-            return Ok(res);
+            return Ok(res.clone());
         }
     }
     res = false;
@@ -491,7 +490,7 @@ pub fn listContainsExpShallow(mut subscripts: Arc<metamodelica::List<Arc<NFSubsc
         let mut s = s.clone();
         if containsExpShallow(s.clone(), func.clone()) {
             res = true;
-            return res;
+            return res.clone();
         }
     }
     res = false;
@@ -808,14 +807,14 @@ pub fn simplifyList(mut subscripts: Arc<metamodelica::List<Arc<NFSubscript>>>, m
     let mut d: Arc<Dimension::NFDimension> = Arc::new(Dimension::BOOLEAN);
     let mut rest_d: Arc<metamodelica::List<Arc<Dimension::NFDimension>>> = dimensions.clone();
     if dimensions.clone().is_empty() {
-        outSubscripts = {
+        outSubscripts = ({
         let mut __acc: Arc<metamodelica::List<Arc<NFSubscript>>> = metamodelica::nil();
         for mut s in (subscripts.clone()).into_iter().cloned() {
             let __x = simplify(s.clone(), Arc::new(crate::NFDimension::UNKNOWN))?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     } else {
         for mut s in &*subscripts.clone() {
             let mut s = s.clone();
@@ -868,14 +867,14 @@ pub fn scalarize(mut subscript: Arc<NFSubscript>, mut dimension: Arc<Dimension::
     let mut subscripts: Arc<metamodelica::List<Arc<NFSubscript>>> = metamodelica::nil();
     subscripts = (::match_deref::match_deref! { match &(subscript.clone()) {
         Deref @ INDEX { .. } => list![subscript.clone()],
-        Deref @ SLICE { .. } => {
+        Deref @ SLICE { .. } => ({
         let mut __acc: Arc<metamodelica::List<Arc<NFSubscript>>> = metamodelica::nil();
         for mut e in (Expression::arrayElements((ExpandExp::expand(var_field!((*subscript).slice, NFSubscript::SLICE).clone(), resize.clone(), false)?).0)?).borrow().iter() {
             let __x = Arc::new(NFSubscript::INDEX { index: e.clone() });
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    },
+    }),
         Deref @ WHOLE { .. } => RangeIterator::map(RangeIterator::fromDim(dimension.clone(), resize.clone())?, (std::sync::Arc::new(makeIndex) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<NFSubscript>> + 'static>))?,
         _ => list![subscript.clone()],
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
@@ -899,7 +898,7 @@ pub fn scalarizeList(mut subscripts: Arc<metamodelica::List<Arc<NFSubscript>>>, 
         subs = scalarize(s.clone(), dim.clone(), resize.clone())?;
         if subs.clone().is_empty() {
             outSubscripts = metamodelica::nil();
-            return Ok(outSubscripts);
+            return Ok(outSubscripts.clone());
         } else {
             outSubscripts = cons(subs.clone(), outSubscripts.clone());
         }
@@ -909,7 +908,7 @@ pub fn scalarizeList(mut subscripts: Arc<metamodelica::List<Arc<NFSubscript>>>, 
         subs = RangeIterator::map(RangeIterator::fromDim(d.clone(), resize.clone())?, (std::sync::Arc::new(makeIndex) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<NFSubscript>> + 'static>))?;
         if subs.clone().is_empty() {
             outSubscripts = metamodelica::nil();
-            return Ok(outSubscripts);
+            return Ok(outSubscripts.clone());
         } else {
             outSubscripts = cons(subs.clone(), outSubscripts.clone());
         }
@@ -953,14 +952,14 @@ pub fn expandSlice(mut subscript: Arc<NFSubscript>, mut resize: bool) -> Result<
             let mut exp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             (exp, _) = ExpandExp::expand(var_field!((*subscript).slice, NFSubscript::SLICE).clone(), resize.clone(), false)?;
             if Expression::isArray(exp.clone()) {
-                outSubscript = Arc::new(NFSubscript::EXPANDED_SLICE { indices: {
+                outSubscript = Arc::new(NFSubscript::EXPANDED_SLICE { indices: ({
         let mut __acc: Arc<metamodelica::List<Arc<NFSubscript>>> = metamodelica::nil();
         for mut e in (Expression::arrayElements(exp.clone())?).borrow().iter() {
             let __x = Arc::new(NFSubscript::INDEX { index: e.clone() });
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    } });
+    }) });
                 expanded = true;
             } else {
                 outSubscript = subscript.clone();
@@ -1054,7 +1053,7 @@ pub fn mergeList(mut newSubs: Arc<metamodelica::List<Arc<NFSubscript>>>, mut old
     if backend.clone() && (oldSubs.clone().len() as i32) >= dimensions.clone() && List::all(List::firstN(oldSubs.clone(), dimensions.clone())?, (std::sync::Arc::new(fnptr!(isBackendIterator, Arc<NFSubscript>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<NFSubscript>) -> Result<bool> + 'static>)) {
         (_, remainingSubs) = List::split(newSubs.clone(), dimensions.clone())?;
         (outSubs, _) = List::split(oldSubs.clone(), dimensions.clone())?;
-        return Ok((outSubs, remainingSubs));
+        return Ok((outSubs.clone(), remainingSubs.clone()));
     }
     if oldSubs.clone().is_empty() {
         if (newSubs.clone().len() as i32) <= dimensions.clone() {
@@ -1063,7 +1062,7 @@ pub fn mergeList(mut newSubs: Arc<metamodelica::List<Arc<NFSubscript>>>, mut old
         } else {
             (outSubs, remainingSubs) = List::split(newSubs.clone(), dimensions.clone())?;
         }
-        return Ok((outSubs, remainingSubs));
+        return Ok((outSubs.clone(), remainingSubs.clone()));
     }
     subs_count = (oldSubs.clone().len() as i32);
     remainingSubs = newSubs.clone();

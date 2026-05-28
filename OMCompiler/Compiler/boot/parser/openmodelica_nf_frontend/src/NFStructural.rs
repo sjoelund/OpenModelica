@@ -59,7 +59,6 @@ use openmodelica_util::Util;
 
 pub fn isStructuralComponent(mut component: Arc<Component::NFComponent>, mut compAttrs: Arc<Attributes::NFAttributes>, mut compBinding: Arc<Binding::NFBinding>, mut compNode: Arc<InstNode::InstNode>, mut compEval: bool, mut parentEval: bool, mut context: i32) -> Result<bool> {
     let mut isStructural: bool = false;
-    let mut is_fixed: bool = false;
     let mut binding: Arc<Binding::NFBinding> = Arc::new(Binding::UNBOUND);
     if compAttrs.variability.clone() != Variability::PARAMETER.clone() {
         isStructural = false;
@@ -89,7 +88,7 @@ pub fn isBindingNotFixed(mut binding: Arc<Binding::NFBinding>, mut requireFinal:
     let mut isNotFixed: bool = false;
     if maxDepth.clone() == 0 {
         isNotFixed = true;
-        return Ok(isNotFixed);
+        return Ok(isNotFixed.clone());
     }
     if Binding::hasExp(binding.clone()) {
         isNotFixed = isExpressionNotFixed(Binding::getExp(binding.clone())?, requireFinal.clone(), maxDepth.clone())?;

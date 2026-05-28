@@ -101,7 +101,7 @@ pub fn generateEquations(mut sets: metamodelica::Array<Arc<metamodelica::List<Ar
     let mut flowThreshold: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut cty: i32 = 0;
     let mut flow_alias_elim: bool = Flags::isSet(Flags::FLOW_ALIAS_ELIMINATION.clone())?;
-    openmodelica_util::Globals::isInStream.with(|__root| *__root.borrow_mut() = None);
+    { let __v = None; openmodelica_util::Globals::isInStream.with(|__root| *__root.borrow_mut() = __v) };
     connectedLocalIOs = UnorderedSet::new((std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), 13);
     potfunc = (std::sync::Arc::new(generatePotentialEquations) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<Arc<Connector::NFConnector>>>, Arc<UnorderedSet::UnorderedSet<Arc<ComponentRef::NFComponentRef>>>) -> Result<(Arc<metamodelica::List<Arc<Equation::NFEquation>>>, Arc<UnorderedSet::UnorderedSet<Arc<ComponentRef::NFComponentRef>>>)> + 'static>);
     flowThreshold = Arc::new(Expression::NFExpression::REAL { value: Flags::getConfigReal(Flags::FLOW_THRESHOLD.clone())? });
@@ -181,14 +181,14 @@ fn generatePotentialEquations(mut elements: Arc<metamodelica::List<Arc<Connector
     let mut c1: Arc<Connector::NFConnector> = Arc::new(<Connector::NFConnector as ::std::default::Default>::default());
     c1 = listHead(elements.clone())?;
     if Connector::variability(c1.clone()) > Variability::PARAMETER.clone() {
-        equations = {
+        equations = ({
         let mut __acc: Arc<metamodelica::List<Arc<Equation::NFEquation>>> = metamodelica::nil();
         for mut c2 in (listRest(elements.clone())?).into_iter().cloned() {
             let __x = makeEqualityEquation(c1.name.clone(), c1.source.clone(), c2.name.clone(), c2.source.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
         if Flags::getConfigInt(Flags::EXPOSE_LOCAL_IOS.clone())? > 0 {
             for mut c in &*elements.clone() {
                 let mut c = c.clone();
@@ -201,14 +201,14 @@ fn generatePotentialEquations(mut elements: Arc<metamodelica::List<Arc<Connector
         if Type::isEmptyArray(c1.ty.clone()) {
             equations = metamodelica::nil();
         } else {
-            equations = {
+            equations = ({
         let mut __acc: Arc<metamodelica::List<Arc<Equation::NFEquation>>> = metamodelica::nil();
         for mut c2 in (listRest(elements.clone())?).into_iter().cloned() {
             let __x = makeEqualityAssert(c1.name.clone(), c1.source.clone(), c2.name.clone(), c2.source.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
         }
     }
     Ok((equations, connectedLocalIOs))
@@ -327,7 +327,6 @@ fn generateFlowEquations(mut elements: Arc<metamodelica::List<Arc<Connector::NFC
     let mut iterators: Arc<metamodelica::List<Arc<InstNode::InstNode>>> = metamodelica::nil();
     let mut ranges: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
     let mut subs: Arc<metamodelica::List<Arc<Subscript::NFSubscript>>> = metamodelica::nil();
-    let mut eq: Arc<Equation::NFEquation>;
     let (__pa0, __pa1) = ::match_deref::match_deref! { match &(elements.clone()) {
         Deref @ metamodelica::List::Cons { head: __pa0, tail: __pa1 } => (__pa0.clone(), __pa1.clone()),
         _ => bail!("pattern mismatch"),
@@ -338,14 +337,14 @@ fn generateFlowEquations(mut elements: Arc<metamodelica::List<Arc<Connector::NFC
     if Connector::isArray(c.clone()) {
         (iterators, ranges, subs) = Flatten::makeIterators(c.name.clone(), Type::arrayDims(c.ty.clone()))?;
         subs = subs.clone().reverse();
-        let (__pa2, __pa3) = ::match_deref::match_deref! { match &({
+        let (__pa2, __pa3) = ::match_deref::match_deref! { match &(({
         let mut __acc: Arc<metamodelica::List<Arc<Connector::NFConnector>>> = metamodelica::nil();
         for mut e in (elements.clone()).into_iter().cloned() {
             let __x = Connector::addSubscripts(subs.clone(), e.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }) {
+    })) {
             Deref @ metamodelica::List::Cons { head: __pa2, tail: __pa3 } => (__pa2.clone(), __pa3.clone()),
             _ => bail!("pattern mismatch"),
         } };
@@ -395,10 +394,8 @@ fn generateStreamEquations(mut elements: Arc<metamodelica::List<Arc<Connector::N
     let mut e2: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut inside: Arc<metamodelica::List<Arc<Connector::NFConnector>>> = metamodelica::nil();
     let mut outside: Arc<metamodelica::List<Arc<Connector::NFConnector>>> = metamodelica::nil();
-    let mut var1: Variability = Variability::CONSTANT;
-    let mut var2: Variability = Variability::CONSTANT;
     (outside, inside) = List::splitOnTrue(elements.clone(), (std::sync::Arc::new(fnptr!(Connector::isOutside, Arc<Connector::NFConnector>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Connector::NFConnector>) -> Result<bool> + 'static>));
-    inside = {
+    inside = ({
         let mut __acc: Arc<metamodelica::List<Arc<Connector::NFConnector>>> = metamodelica::nil();
         for mut s in (inside.clone()).into_iter().cloned() {
             if !(!(isNoFlowInside(s.clone(), variables.clone())?)) { continue; }
@@ -406,7 +403,7 @@ fn generateStreamEquations(mut elements: Arc<metamodelica::List<Arc<Connector::N
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     equations = (::match_deref::match_deref! { match &((inside.clone(), outside.clone())) {
         (Deref @ metamodelica::List::Cons { head: _, tail: Deref @ metamodelica::List::Nil }, Deref @ metamodelica::List::Nil) => metamodelica::nil(),
         (Deref @ metamodelica::List::Cons { head: _, tail: Deref @ metamodelica::List::Cons { head: _, tail: Deref @ metamodelica::List::Nil } }, Deref @ metamodelica::List::Nil) => metamodelica::nil(),
@@ -435,7 +432,7 @@ fn streamEquationGeneral(mut outsideElements: Arc<metamodelica::List<Arc<Connect
     let mut cref_exp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut res: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut src: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
-    reduced_outside = {
+    reduced_outside = ({
         let mut __acc: Arc<metamodelica::List<Arc<Connector::NFConnector>>> = metamodelica::nil();
         for mut s in (outsideElements.clone()).into_iter().cloned() {
             if !(!(isNoFlowOutside(s.clone(), variables.clone())?)) { continue; }
@@ -443,7 +440,7 @@ fn streamEquationGeneral(mut outsideElements: Arc<metamodelica::List<Arc<Connect
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     for mut e in &*outsideElements.clone() {
         let mut e = e.clone();
         cref_exp = Expression::fromCref(e.name.clone(), false)?;
@@ -461,7 +458,6 @@ fn streamSumEquationExp(mut outsideElements: Arc<metamodelica::List<Arc<Connecto
     let mut outside_sum2: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut inside_sum1: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut inside_sum2: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-    let mut res: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     sumExp = (match (outsideElements.clone().is_empty(), insideElements.clone().is_empty()) {
         (true, true) => fallback.clone(),
         (true, false) => {
@@ -532,7 +528,6 @@ fn sumInside1(mut element: Arc<Connector::NFConnector>, mut flowThreshold: Arc<E
     let mut exp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut stream_exp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut flow_exp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-    let mut flow_threshold: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     (stream_exp, flow_exp) = streamFlowExp(element.clone())?;
     flow_exp = Arc::new(Expression::NFExpression::UNARY { operator: Operator::makeUMinus(Arc::new(crate::NFType::REAL)), exp: flow_exp.clone() });
     exp = Arc::new(Expression::NFExpression::BINARY { exp1: makePositiveMaxCall(flow_exp.clone(), stream_exp.clone(), element.clone(), flowThreshold.clone(), variables.clone())?, operator: Operator::makeMul(Arc::new(crate::NFType::REAL)), exp2: stream_exp.clone() });
@@ -596,7 +591,7 @@ fn makePositiveMaxCall(mut flowExp: Arc<Expression::NFExpression>, mut streamExp
     } else {
         positiveMaxCall = Arc::new(Expression::NFExpression::CALL { call: Call::makeTypedCall(NFBuiltinFuncs::POSITIVE_MAX_REAL().clone(), list![flowExp.clone(), flow_threshold.clone()], Connector::variability(element.clone()), Purity::PURE.clone(), NFBuiltinFuncs::POSITIVE_MAX_REAL().returnType.clone()) });
     }
-    openmodelica_util::Globals::isInStream.with(|__root| *__root.borrow_mut() = Some(true));
+    { let __v = Some(true); openmodelica_util::Globals::isInStream.with(|__root| *__root.borrow_mut() = __v) };
     Ok(positiveMaxCall)
 }
 
@@ -705,7 +700,7 @@ fn generateInStreamExp(mut streamCref: Arc<ComponentRef::NFComponentRef>, mut st
     let mut cr: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
     let mut f1: Face = Face::INSIDE;
     let mut f2: Face = Face::INSIDE;
-    reducedStreams = {
+    reducedStreams = ({
         let mut __acc: Arc<metamodelica::List<Arc<Connector::NFConnector>>> = metamodelica::nil();
         for mut s in (streams.clone()).into_iter().cloned() {
             if !(!(isNoFlowMinMax(s.clone(), streamCref.clone(), variables.clone())?)) { continue; }
@@ -713,7 +708,7 @@ fn generateInStreamExp(mut streamCref: Arc<ComponentRef::NFComponentRef>, mut st
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     exp = (::match_deref::match_deref! { match &(reducedStreams.clone()) {
         Deref @ metamodelica::List::Cons { head: Deref @ Connector::CONNECTOR { face: Connector::Face::INSIDE, .. }, tail: Deref @ metamodelica::List::Nil } => Expression::fromCref(streamCref.clone(), false)?,
         Deref @ metamodelica::List::Cons { head: Deref @ Connector::CONNECTOR { face: Connector::Face::INSIDE, .. }, tail: Deref @ metamodelica::List::Cons { head: Deref @ Connector::CONNECTOR { face: Connector::Face::INSIDE, .. }, tail: Deref @ metamodelica::List::Nil } } => {

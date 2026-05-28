@@ -93,14 +93,14 @@ pub fn addPath(mut inPath: Arc<Absyn::Path>, mut inPrefix: Arc<Prefix>) -> Resul
 
 pub fn addOptPath(mut inOptPath: Option<Arc<Absyn::Path>>, mut inPrefix: Arc<Prefix>) -> Result<Arc<Prefix>> {
     let mut outPrefix: Arc<Prefix>;
-    outPrefix = (::match_deref::match_deref! { match &((inOptPath.clone(), inPrefix.clone())) {
-        (None, _) => {
+    outPrefix = (::match_deref::match_deref! { match &(inOptPath.clone()) {
+        None => {
             inPrefix.clone()
         },
-        (Some(p), _) => {
+        Some(p) => {
             addPath(p.clone(), inPrefix.clone())?
         },
-        _ => bail!("match: no arm matched"),
+        _ => unreachable!("match_deref! exhaustiveness placeholder"),
     } });
     Ok(outPrefix)
 }
@@ -145,11 +145,11 @@ pub fn firstName(mut inPrefix: Arc<Prefix>) -> Result<ArcStr> {
 // and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
 pub fn prefixCref(mut inCref: Arc<DAE::ComponentRef>, mut inPrefix: Arc<Prefix>) -> Result<Arc<DAE::ComponentRef>> {
     let mut outCref: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
-    outCref = (::match_deref::match_deref! { match &((inCref.clone(), inPrefix.clone())) {
-        (_, Deref @ Prefix::EMPTY_PREFIX { .. }) => {
+    outCref = (::match_deref::match_deref! { match &(inPrefix.clone()) {
+        Deref @ Prefix::EMPTY_PREFIX { .. } => {
             inCref.clone()
         },
-        (_, Deref @ Prefix::PREFIX { restPrefix: rest_prefix, name, .. }) => {
+        Deref @ Prefix::PREFIX { restPrefix: rest_prefix, name, .. } => {
             let mut cref: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
             cref = Arc::new(DAE::ComponentRef::CREF_QUAL { ident: (name.clone()).clone(), identType: DAE::T_UNKNOWN_DEFAULT().clone(), subscriptLst: metamodelica::nil(), componentRef: inCref.clone() });
             prefixCref(cref.clone(), rest_prefix.clone())?
@@ -163,11 +163,11 @@ pub fn prefixCref(mut inCref: Arc<DAE::ComponentRef>, mut inPrefix: Arc<Prefix>)
 // and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
 pub fn prefixPath(mut inPath: Arc<Absyn::Path>, mut inPrefix: Arc<Prefix>) -> Result<Arc<Absyn::Path>> {
     let mut outPath: Arc<Absyn::Path>;
-    outPath = (::match_deref::match_deref! { match &((inPath.clone(), inPrefix.clone())) {
-        (_, Deref @ Prefix::EMPTY_PREFIX { .. }) => {
+    outPath = (::match_deref::match_deref! { match &(inPrefix.clone()) {
+        Deref @ Prefix::EMPTY_PREFIX { .. } => {
             inPath.clone()
         },
-        (_, Deref @ Prefix::PREFIX { restPrefix: rest_prefix, name, .. }) => {
+        Deref @ Prefix::PREFIX { restPrefix: rest_prefix, name, .. } => {
             let mut path: Arc<Absyn::Path>;
             path = Arc::new(Absyn::Path::QUALIFIED { name: (name.clone()).clone(), path: inPath.clone() });
             prefixPath(path.clone(), rest_prefix.clone())?
@@ -179,8 +179,8 @@ pub fn prefixPath(mut inPath: Arc<Absyn::Path>, mut inPrefix: Arc<Prefix>) -> Re
 
 pub fn prefixStr(mut inString: ArcStr, mut inPrefix: Arc<Prefix>) -> Result<ArcStr> {
     let mut outString: ArcStr = arcstr::literal!("");
-    outString = ((::match_deref::match_deref! { match &((inString.clone(), inPrefix.clone())) {
-        (_, Deref @ Prefix::EMPTY_PREFIX { .. }) => {
+    outString = ((::match_deref::match_deref! { match &(inPrefix.clone()) {
+        Deref @ Prefix::EMPTY_PREFIX { .. } => {
             inString.clone()
         },
         _ => {
@@ -236,14 +236,14 @@ pub fn fromPath(mut inPath: Arc<Absyn::Path>) -> Result<Arc<Prefix>> {
 // and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
 fn fromPath2(mut inPath: Arc<Absyn::Path>, mut inPrefix: Arc<Prefix>) -> Result<Arc<Prefix>> {
     let mut outPrefix: Arc<Prefix>;
-    outPrefix = (::match_deref::match_deref! { match &((inPath.clone(), inPrefix.clone())) {
-        (Deref @ Absyn::Path::QUALIFIED { name, path }, _) => {
+    outPrefix = (::match_deref::match_deref! { match &(inPath.clone()) {
+        Deref @ Absyn::Path::QUALIFIED { name, path } => {
             fromPath2(path.clone(), Arc::new(Prefix::PREFIX { name: (name.clone()).clone(), dims: metamodelica::nil(), restPrefix: inPrefix.clone() }))?
         },
-        (Deref @ Absyn::Path::IDENT { name }, _) => {
+        Deref @ Absyn::Path::IDENT { name } => {
             Arc::new(Prefix::PREFIX { name: (name.clone()).clone(), dims: metamodelica::nil(), restPrefix: inPrefix.clone() })
         },
-        (Deref @ Absyn::Path::FULLYQUALIFIED { path }, _) => {
+        Deref @ Absyn::Path::FULLYQUALIFIED { path } => {
             fromPath2(path.clone(), inPrefix.clone())?
         },
         _ => bail!("match: no arm matched"),
@@ -261,8 +261,8 @@ pub fn fromStringList(mut inStrings: Arc<metamodelica::List<ArcStr>>) -> Arc<Pre
 // and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
 fn fromStringList2(mut inStrings: Arc<metamodelica::List<ArcStr>>, mut inPrefix: Arc<Prefix>) -> Arc<Prefix> {
     let mut outPrefix: Arc<Prefix>;
-    outPrefix = (::match_deref::match_deref! { match &((inStrings.clone(), inPrefix.clone())) {
-        (Deref @ metamodelica::List::Cons { head: r#str, tail: strl }, _) => {
+    outPrefix = (::match_deref::match_deref! { match &(inStrings.clone()) {
+        Deref @ metamodelica::List::Cons { head: r#str, tail: strl } => {
             fromStringList2(strl.clone(), Arc::new(Prefix::PREFIX { name: (r#str.clone()).clone(), dims: metamodelica::nil(), restPrefix: inPrefix.clone() }))
         },
         _ => {

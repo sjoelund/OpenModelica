@@ -144,8 +144,8 @@ pub fn printCommentStr(mut inComment: Arc<SCode::Comment>, mut options: SCodeDum
 
 pub fn printAnnotationStr(mut inComment: Arc<SCode::Comment>, mut options: SCodeDumpOptions) -> Result<ArcStr> {
     let mut outString: ArcStr = arcstr::literal!("");
-    outString = ((::match_deref::match_deref! { match &((inComment.clone(), options.clone())) {
-        (Deref @ SCode::Comment { annotation_, .. }, _) => {
+    outString = ((::match_deref::match_deref! { match &(inComment.clone()) {
+        Deref @ SCode::Comment { annotation_, .. } => {
             Tpl::tplString2((std::sync::Arc::new(SCodeDumpTpl::dumpAnnotationOpt) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, Option<Arc<SCode::Annotation>>, SCodeDumpOptions) -> Result<Tpl::Text> + 'static>), annotation_.clone(), options.clone())?
         },
         _ => {

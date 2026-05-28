@@ -130,7 +130,7 @@ pub fn selectFirstNonEmptyString(mut inStrings: Arc<metamodelica::List<ArcStr>>)
         let mut e = e.clone();
         if e.clone() != literal!("") {
             outResult = (e.clone()).clone();
-            return outResult;
+            return outResult.clone();
         }
     }
     outResult = (literal!("")).clone();
@@ -191,7 +191,10 @@ pub fn tuple22<T1: Clone + 'static, T2: Clone + 'static>(mut inTuple: (T1, T2)) 
 
 pub fn optTuple22<T1: Clone + 'static, T2: Clone + 'static>(mut inTuple: Option<(T1, T2)>) -> Result<T2> {
     let mut outValue: T2;
-    let Some((_, __pa0)) = (inTuple.clone()) else { bail!("pattern mismatch") };
+    let __pa0 = ::match_deref::match_deref! { match &(inTuple.clone()) {
+        Some((_, __pa0)) => __pa0.clone(),
+        _ => bail!("pattern mismatch"),
+    } };
     outValue = __pa0.clone();
     Ok(outValue)
 }
@@ -296,14 +299,14 @@ pub fn stringContainsChar(mut r#str: ArcStr, mut char: ArcStr) -> Result<bool> {
     for mut i in 1..=((r#str.clone()).clone().len() as i32) {
         if metamodelica::Dangerous::stringGet((r#str.clone()).clone(), i.clone())? == ch.clone() {
             res = true;
-            return Ok(res);
+            return Ok(res.clone());
         }
     }
     Ok(res)
 }
 
 pub fn stringDelimitListPrintBuf(mut inStringLst: Arc<metamodelica::List<ArcStr>>, mut inDelimiter: ArcStr) -> Result<()> {
-    let _ = 'mc: {
+    let () = 'mc: {
         let __mc_input = inStringLst.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
@@ -349,7 +352,7 @@ pub fn stringDelimitListAndSeparate(mut r#str: Arc<metamodelica::List<ArcStr>>, 
 }
 
 fn stringDelimitListAndSeparate2(mut inStringLst1: Arc<metamodelica::List<ArcStr>>, mut inString2: ArcStr, mut inString3: ArcStr, mut inInteger4: i32, mut inInteger5: i32) -> Result<()> {
-    let _ = 'mc: {
+    let () = 'mc: {
         let __mc_input = (inStringLst1.clone(), inString2.clone(), inString3.clone(), inInteger4.clone(), inInteger5.clone());
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
@@ -580,7 +583,10 @@ pub fn makeOptionOnTrue<T: Clone + 'static>(mut inCondition: bool, mut inValue: 
 
 pub fn getOption<T: Clone + 'static>(mut inOption: Option<T>) -> Result<T> {
     let mut outValue: T;
-    let Some(__pa0) = (inOption.clone()) else { bail!("pattern mismatch") };
+    let __pa0 = ::match_deref::match_deref! { match &(inOption.clone()) {
+        Some(__pa0) => __pa0.clone(),
+        _ => bail!("pattern mismatch"),
+    } };
     outValue = __pa0.clone();
     Ok(outValue)
 }
@@ -973,14 +979,14 @@ pub fn stringPadRight(mut inString: ArcStr, mut inPadWidth: i32, mut inPadString
     let mut pad_str: ArcStr = arcstr::literal!("");
     pad_length = inPadWidth.clone() - ((inString.clone()).clone().len() as i32);
     if pad_length.clone() > 0 {
-        pad_str = stringAppendList({
+        pad_str = stringAppendList(({
         let mut __acc: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
         for mut i in (1..=pad_length.clone()).into_iter() {
             let __x = inPadString.clone();
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
         outString = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*inString.clone()); __mm_s.push_str(&*pad_str.clone()); ArcStr::from(__mm_s) }).clone();
     } else {
         outString = (inString.clone()).clone();
@@ -994,14 +1000,14 @@ pub fn stringPadLeft(mut inString: ArcStr, mut inPadWidth: i32, mut inPadString:
     let mut pad_str: ArcStr = arcstr::literal!("");
     pad_length = inPadWidth.clone() - ((inString.clone()).clone().len() as i32);
     if pad_length.clone() > 0 {
-        pad_str = stringAppendList({
+        pad_str = stringAppendList(({
         let mut __acc: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
         for mut i in (1..=pad_length.clone()).into_iter() {
             let __x = inPadString.clone();
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
         outString = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*pad_str.clone()); __mm_s.push_str(&*inString.clone()); ArcStr::from(__mm_s) }).clone();
     } else {
         outString = (inString.clone()).clone();
@@ -1032,7 +1038,7 @@ fn nextPrime_isPrime(mut inN: i32) -> bool {
     while q.clone() >= i.clone() {
         if inN.clone() == q.clone() * i.clone() {
             outIsPrime = false;
-            return outIsPrime;
+            return outIsPrime.clone();
         }
         i = i.clone() + 2;
         q = intDiv(inN.clone(), i.clone());
@@ -1231,8 +1237,8 @@ pub fn sourceInfoIsEqual(mut inInfo1: SourceInfo, mut inInfo2: SourceInfo) -> bo
  * profiler stuff
  ************************************************/
 pub fn profilerinit() -> Result<()> {
-    crate::Globals::profilerTime1Index.with(|__root| *__root.borrow_mut() = metamodelica::OrderedFloat(0.0_f64));
-    crate::Globals::profilerTime2Index.with(|__root| *__root.borrow_mut() = metamodelica::OrderedFloat(0.0_f64));
+    { let __v = metamodelica::OrderedFloat(0.0_f64); crate::Globals::profilerTime1Index.with(|__root| *__root.borrow_mut() = __v) };
+    { let __v = metamodelica::OrderedFloat(0.0_f64); crate::Globals::profilerTime2Index.with(|__root| *__root.borrow_mut() = __v) };
     System::realtimeTick(ClockIndexes::RT_PROFILER0.clone())?;
     Ok(())
 }
@@ -1284,24 +1290,24 @@ pub fn profilerstart2() -> Result<()> {
 pub fn profilerstop1() -> Result<()> {
     let mut t: metamodelica::Real = metamodelica::OrderedFloat(0.0_f64);
     t = System::realtimeTock(ClockIndexes::RT_PROFILER1.clone())?;
-    crate::Globals::profilerTime1Index.with(|__root| *__root.borrow_mut() = (crate::Globals::profilerTime1Index.with(|__root| __root.borrow().clone())) + (t.clone()));
+    { let __v = (crate::Globals::profilerTime1Index.with(|__root| __root.borrow().clone())) + (t.clone()); crate::Globals::profilerTime1Index.with(|__root| *__root.borrow_mut() = __v) };
     Ok(())
 }
 
 pub fn profilerstop2() -> Result<()> {
     let mut t: metamodelica::Real = metamodelica::OrderedFloat(0.0_f64);
     t = System::realtimeTock(ClockIndexes::RT_PROFILER2.clone())?;
-    crate::Globals::profilerTime2Index.with(|__root| *__root.borrow_mut() = (crate::Globals::profilerTime2Index.with(|__root| __root.borrow().clone())) + (t.clone()));
+    { let __v = (crate::Globals::profilerTime2Index.with(|__root| __root.borrow().clone())) + (t.clone()); crate::Globals::profilerTime2Index.with(|__root| *__root.borrow_mut() = __v) };
     Ok(())
 }
 
 pub fn profilerreset1() -> () {
-    crate::Globals::profilerTime1Index.with(|__root| *__root.borrow_mut() = metamodelica::OrderedFloat(0.0_f64));
+    { let __v = metamodelica::OrderedFloat(0.0_f64); crate::Globals::profilerTime1Index.with(|__root| *__root.borrow_mut() = __v) };
     ()
 }
 
 pub fn profilerreset2() -> () {
-    crate::Globals::profilerTime2Index.with(|__root| *__root.borrow_mut() = metamodelica::OrderedFloat(0.0_f64));
+    { let __v = metamodelica::OrderedFloat(0.0_f64); crate::Globals::profilerTime2Index.with(|__root| *__root.borrow_mut() = __v) };
     ()
 }
 

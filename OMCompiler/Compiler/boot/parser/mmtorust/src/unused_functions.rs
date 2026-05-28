@@ -32,12 +32,14 @@ use crate::MM;
 
 const ROOT: &str = "Main.main";
 
-/// Collect every R_FUNCTION node together with its FQN and the resolved alias
-/// base (if `function Foo = Bar(...)`).
+/// Collect every R_FUNCTION node together with its FQN, the resolved alias
+/// base (if `function Foo = Bar(...)`), and the base function pointer when the
+/// node is a `redeclare function extends X` form (carried on
+/// `NameNode.base_fn`).
 fn collect_functions<'a>(
     nodes: &BTreeMap<String, NameNode<'a>>,
     prefix: &str,
-    out: &mut Vec<(String, &'a MM::Class, Option<String>)>,
+    out: &mut Vec<(String, &'a MM::Class, Option<&'a MM::Class>, Option<String>)>,
 ) {
     for (name, node) in nodes {
         let qname = if prefix.is_empty() { name.clone() } else { format!("{prefix}.{name}") };
@@ -48,7 +50,7 @@ fn collect_functions<'a>(
                 Ty::FunctionAlias { base, .. } => Some(base.clone()),
                 _ => None,
             };
-            out.push((qname.clone(), *c, alias_base));
+            out.push((qname.clone(), *c, node.base_fn, alias_base));
         }
         collect_functions(&node.children, &qname, out);
     }
@@ -65,11 +67,22 @@ struct RefScan {
 impl RefScan {
     fn scan_class(c: &MM::Class) -> Self {
         let mut s = RefScan::default();
-        let algorithms = match &c.body {
-            MM::ClassDef::Parts { algorithms, .. } => algorithms,
-            MM::ClassDef::ClassExtends { algorithms, .. } => algorithms,
+        let (algorithms, members) = match &c.body {
+            MM::ClassDef::Parts { algorithms, members, .. } => (algorithms, members),
+            MM::ClassDef::ClassExtends { algorithms, members, .. } => (algorithms, members),
             _ => return s,
         };
+        // Walk component default expressions (e.g. `String x = getCachePath();`)
+        // — these expressions execute at function entry just like algorithm
+        // statements, so calls inside them must contribute to the call graph.
+        for member in members {
+            let MM::ClassMember::Component(cm) = member else { continue };
+            let Some(modif) = cm.modification.as_ref() else { continue };
+            let Absyn::Modification { eqMod, .. } = &**modif;
+            if let Absyn::EqMod::EQMOD { exp, .. } = &**eqMod {
+                s.scan_exp(exp);
+            }
+        }
         for it in algorithms {
             s.scan_algorithm_item(it);
         }
@@ -95,8 +108,13 @@ impl RefScan {
                 }
                 for it in &**elseBranch { self.scan_algorithm_item(it); }
             }
-            Absyn::Algorithm::ALG_FOR { forBody, .. }
-            | Absyn::Algorithm::ALG_PARFOR { parforBody: forBody, .. } => {
+            Absyn::Algorithm::ALG_FOR { iterators, forBody }
+            | Absyn::Algorithm::ALG_PARFOR { iterators, parforBody: forBody } => {
+                for it in &**iterators {
+                    let Absyn::ForIterator { range, guardExp, .. } = &**it;
+                    if let Some(r) = range.as_deref() { self.scan_exp(r); }
+                    if let Some(g) = guardExp.as_deref() { self.scan_exp(g); }
+                }
                 for it in &**forBody { self.scan_algorithm_item(it); }
             }
             Absyn::Algorithm::ALG_WHILE { boolExpr, whileBody } => {
@@ -237,88 +255,130 @@ pub struct UnusedReport {
 }
 
 pub fn analyze(hier: &InstanceHierarchy<'_>) -> UnusedReport {
-    let mut functions: Vec<(String, &MM::Class, Option<String>)> = Vec::new();
+    let mut functions: Vec<(String, &MM::Class, Option<&MM::Class>, Option<String>)> = Vec::new();
     collect_functions(&hier.top_level, "", &mut functions);
 
-    // Group FQNs that point at the same `MM::Class` (i.e. the same physical
-    // declaration). `flatten_extends` copies each base function node into
-    // every derived class but keeps the same `&MM::Class` reference, so the
-    // hierarchy contains one FQN per `extends`-chain ancestor — e.g.
-    // `BaseAvlTree.add`, `AvlTreeCRToInt.add`, `AvlSetCR.add`, … all point at
-    // the *same* MetaModelica function. We collapse them to a single canonical
-    // FQN so the unused report doesn't flag every derived copy of the same
-    // function, only the original declaration.
-    //
-    // The canonical pick: prefer the FQN whose top-level package name matches
-    // the basename of `c.info.fileName` (the original definition site).
-    // Fall back to the lexicographically smallest FQN if no match — gives a
-    // deterministic result either way.
-    let mut by_ptr: BTreeMap<usize, Vec<(String, &MM::Class, Option<String>)>> = BTreeMap::new();
-    for entry in &functions {
-        let key = (entry.1 as *const MM::Class) as usize;
-        by_ptr.entry(key).or_default().push((entry.0.clone(), entry.1, entry.2.clone()));
+    // Union-find on `&MM::Class` pointer values. Two FQNs are unified when:
+    //  1. They share the same `MM::Class` pointer (extends-flattening copies
+    //     base function nodes into every derived class, keeping the same
+    //     `&MM::Class`).
+    //  2. One declaration is `redeclare function extends X` — the derived
+    //     concrete impl carries `base_fn: Some(&X)` so the override-vs-base
+    //     pair lives in the same logical "function slot" of the abstract
+    //     package.  Without this link, a derived `keyStr` would be reported
+    //     unused even though the base's `add` invokes `keyStr` at runtime.
+    let ptr_of = |c: &MM::Class| -> usize { (c as *const MM::Class) as usize };
+    let mut uf: BTreeMap<usize, usize> = BTreeMap::new();
+    fn uf_find(uf: &mut BTreeMap<usize, usize>, x: usize) -> usize {
+        let p = *uf.entry(x).or_insert(x);
+        if p == x { return x; }
+        let r = uf_find(uf, p);
+        uf.insert(x, r);
+        r
     }
+    fn uf_union(uf: &mut BTreeMap<usize, usize>, a: usize, b: usize) {
+        let ra = uf_find(uf, a);
+        let rb = uf_find(uf, b);
+        if ra != rb { uf.insert(ra, rb); }
+    }
+    for (_, class, base_fn, _) in &functions {
+        uf_find(&mut uf, ptr_of(class));
+        if let Some(bf) = base_fn { uf_union(&mut uf, ptr_of(class), ptr_of(bf)); }
+    }
+
+    // Group every (FQN, &MM::Class, alias_base) by its union-find root.
+    let mut by_root: BTreeMap<usize, Vec<(String, &MM::Class, Option<String>)>> = BTreeMap::new();
+    for (qname, class, _, alias_base) in &functions {
+        let r = uf_find(&mut uf, ptr_of(class));
+        by_root.entry(r).or_default().push((qname.clone(), *class, alias_base.clone()));
+    }
+
+    // Pick a canonical FQN per group.  Preference: the FQN whose top-level
+    // package name matches the basename of one of the group members'
+    // `info.fileName` (the abstract base's own source file).  Falls back to
+    // the lexicographically smallest FQN otherwise.
     let mut canonical_of: BTreeMap<String, String> = BTreeMap::new();
-    let mut canonical_fns: Vec<(String, &MM::Class, Option<String>)> = Vec::new();
-    for group in by_ptr.values() {
-        let (_, class, _) = group[0];
-        let base = std::path::Path::new(class.info.fileName.as_str())
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .map(|s| s.to_owned());
-        // Pick canonical: first FQN whose top-level package matches the file
-        // basename (the package the function was originally declared in);
-        // otherwise the lexicographically smallest FQN in the group.
-        let canonical = base
-            .as_deref()
-            .and_then(|stem| {
-                group.iter()
-                    .map(|(q, _, _)| q.as_str())
-                    .find(|q| q.split('.').next() == Some(stem))
-                    .map(|q| q.to_owned())
-            })
+    // For each canonical root: the full list of (FQN, class) members so
+    // every body is scanned (a `redeclare function extends` body is a
+    // separate `MM::Class` from the base — without this we'd miss the
+    // override's calls).
+    let mut groups: BTreeMap<String, Vec<(String, &MM::Class, Option<String>)>> = BTreeMap::new();
+    for group in by_root.values() {
+        // Stems of every class in the group — `redeclare function extends`
+        // and the abstract base usually live in different files; the
+        // abstract base's stem matches its declaring package, so look there
+        // first.
+        let stems: BTreeSet<String> = group.iter()
+            .filter_map(|(_, c, _)| std::path::Path::new(c.info.fileName.as_str())
+                .file_stem().and_then(|s| s.to_str()).map(|s| s.to_owned()))
+            .collect();
+        let canonical = group.iter()
+            .map(|(q, _, _)| q.as_str())
+            .find(|q| stems.iter().any(|s| q.split('.').next() == Some(s.as_str())))
+            .map(|q| q.to_owned())
             .unwrap_or_else(|| {
                 group.iter().map(|(q, _, _)| q.clone()).min().expect("non-empty group")
             });
         for (q, _, _) in group {
             canonical_of.insert(q.clone(), canonical.clone());
         }
-        let alias_base = group.iter().find_map(|(_, _, a)| a.clone());
-        canonical_fns.push((canonical.clone(), class, alias_base));
+        groups.insert(canonical.clone(), group.clone());
     }
 
-    let canonical_set: BTreeSet<String> =
-        canonical_fns.iter().map(|(q, _, _)| q.clone()).collect();
+    let canonical_set: BTreeSet<String> = groups.keys().cloned().collect();
 
-    // Per-function reference scan, keyed by canonical FQN. Bodies are
-    // identical across the duplicate FQNs (they all reference the same
-    // `MM::Class`), so scanning once per canonical is enough.
+    // Per-group reference scan.  We scan *every* MM::Class in the group so
+    // that calls inside a `redeclare function extends` override contribute
+    // to reachability — its body is a different `MM::Class` from the
+    // abstract base and would otherwise be invisible.
     let mut refs: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
     let mut alias_bases: BTreeMap<String, String> = BTreeMap::new();
-    for (qname, class, alias_base) in &canonical_fns {
-        let s = RefScan::scan_class(class);
-        refs.insert(qname.clone(), s.refs);
-        if let Some(base) = alias_base {
-            alias_bases.insert(qname.clone(), base.clone());
+    // Per-group: scope FQNs (one per member) so we resolve raw names in
+    // each member's own enclosing-package context.
+    let mut group_scopes: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    let mut seen_class_ptrs: BTreeMap<String, BTreeSet<usize>> = BTreeMap::new();
+    for (canonical, members) in &groups {
+        let mut all_refs: BTreeSet<String> = BTreeSet::new();
+        let mut scopes: Vec<String> = Vec::new();
+        let mut seen: BTreeSet<usize> = BTreeSet::new();
+        for (qname, class, alias_base) in members {
+            // De-dup bodies by class pointer (a base class appearing under
+            // many FQNs through `flatten_extends` should be scanned once).
+            if seen.insert(ptr_of(class)) {
+                let s = RefScan::scan_class(class);
+                all_refs.extend(s.refs);
+                scopes.push(qname.clone());
+            }
+            if let Some(base) = alias_base {
+                alias_bases.entry(canonical.clone()).or_insert_with(|| base.clone());
+            }
         }
+        refs.insert(canonical.clone(), all_refs);
+        group_scopes.insert(canonical.clone(), scopes);
+        seen_class_ptrs.insert(canonical.clone(), seen);
     }
 
-    // Resolve raw names → canonical FQN edges. The scope used by
-    // `resolve_call_node` is the canonical FQN — sufficient because the body
-    // sources reference names relative to their original declaration site.
+    // Resolve raw names → canonical FQN edges.  We try each member's own
+    // scope until one succeeds — a name inside a `redeclare extends`
+    // override resolves from its containing package, not the abstract base.
     let mut edges: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
     let mut unresolved: BTreeSet<String> = BTreeSet::new();
-    let resolve_to_canonical = |raw: &str, scope: &str| -> Option<String> {
-        let (qname, node) = resolve_call_node(raw, &hier.top_level, scope)?;
-        let NodeKind::Class(c) = &node.kind else { return None };
-        if !matches!(c.restriction, Absyn::Restriction::R_FUNCTION { .. }) { return None; }
-        canonical_of.get(&qname).cloned()
+    let resolve_to_canonical = |raw: &str, scopes: &[String]| -> Option<String> {
+        for scope in scopes {
+            if let Some((qname, node)) = resolve_call_node(raw, &hier.top_level, scope) {
+                let NodeKind::Class(c) = &node.kind else { continue };
+                if !matches!(c.restriction, Absyn::Restriction::R_FUNCTION { .. }) { continue; }
+                if let Some(c) = canonical_of.get(&qname) { return Some(c.clone()); }
+            }
+        }
+        None
     };
     for (qname, raw_refs) in &refs {
+        let scopes = group_scopes.get(qname).cloned().unwrap_or_else(|| vec![qname.clone()]);
         let mut set: BTreeSet<String> = BTreeSet::new();
         for raw in raw_refs {
             if raw == "_" || raw == "__" || raw.is_empty() { continue; }
-            match resolve_to_canonical(raw, qname) {
+            match resolve_to_canonical(raw, &scopes) {
                 Some(target) => { set.insert(target); }
                 None => {
                     if unresolved.len() < 64 {
@@ -328,15 +388,15 @@ pub fn analyze(hier: &InstanceHierarchy<'_>) -> UnusedReport {
             }
         }
         if let Some(base) = alias_bases.get(qname) {
-            if let Some(target) = resolve_to_canonical(base, qname) {
+            if let Some(target) = resolve_to_canonical(base, &scopes) {
                 set.insert(target);
             }
         }
         edges.insert(qname.clone(), set);
     }
+    let _ = seen_class_ptrs;
 
-    // BFS from Main.main (canonicalize the root too in case the entry-point
-    // function has been re-exported elsewhere — unlikely but cheap).
+    // BFS from Main.main.
     let root_canonical = canonical_of.get(ROOT).cloned().unwrap_or_else(|| ROOT.to_owned());
     let mut reachable: BTreeSet<String> = BTreeSet::new();
     let mut queue: VecDeque<String> = VecDeque::new();
@@ -354,8 +414,37 @@ pub fn analyze(hier: &InstanceHierarchy<'_>) -> UnusedReport {
         }
     }
 
-    let unreachable: BTreeSet<String> =
-        canonical_set.iter().filter(|q| !reachable.contains(q.as_str())).cloned().collect();
+    // Externally-exposed APIs and Modelica builtins are not callable from
+    // `Main.main`; they are entry points for *outside* the compiler. Filter
+    // them out of the report so they don't drown the genuinely-dead code:
+    //   * Top-level (single-segment) FQNs — Modelica builtins declared at
+    //     file top level in `*Builtin.mo` (e.g. `sin`, `der`,
+    //     `dumpWhenOperators`).
+    //   * `OpenModelica.*` — the builtin `OpenModelica` package.
+    //   * `OpenModelicaScriptingAPI.*` — the C-callable scripting API used
+    //     when OMC is loaded as a library.
+    let is_external_api = |q: &str| -> bool {
+        if !q.contains('.') { return true; }
+        let top = q.split('.').next().unwrap_or(q);
+        matches!(top, "OpenModelica" | "OpenModelicaScriptingAPI")
+    };
+    // `partial function` declarations are abstract — they have a signature
+    // but no body, and exist solely as a function *type* (e.g. used as a
+    // field type or generic parameter). A group is "type-only" if every
+    // member is partial, in which case nothing in it is callable code, so
+    // we exclude it from the report. Groups with at least one concrete
+    // member (e.g. a `redeclare function extends X` override) stay.
+    let is_type_only_group = |canonical: &str| -> bool {
+        groups.get(canonical)
+            .map(|members| members.iter().all(|(_, c, _)| c.partial_prefix))
+            .unwrap_or(false)
+    };
+    let unreachable: BTreeSet<String> = canonical_set.iter()
+        .filter(|q| !reachable.contains(q.as_str())
+            && !is_external_api(q)
+            && !is_type_only_group(q))
+        .cloned()
+        .collect();
 
     UnusedReport {
         total_functions: canonical_set.len(),

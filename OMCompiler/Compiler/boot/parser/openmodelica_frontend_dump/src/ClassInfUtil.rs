@@ -141,7 +141,7 @@ pub fn printStateStr(mut inState: ClassInf::State) -> ArcStr {
 }
 
 pub fn printState(mut inState: ClassInf::State) -> Result<()> {
-    let _ = (match inState.clone() {
+    let () = (match inState.clone() {
         ClassInf::State::UNKNOWN { path: ref p } => {
             Print::printBuf((literal!("UNKNOWN ")).clone())?;
             Print::printBuf((AbsynUtil::pathString(p.clone(), (literal!(".")).clone(), true, false)?).clone())?;
@@ -587,142 +587,62 @@ pub fn trans(mut inState: ClassInf::State, mut inEvent: ClassInf::Event) -> Resu
 }
 
 pub fn valid(mut inState: ClassInf::State, mut inRestriction: SCode::Restriction) -> Result<()> {
-    let _ = (match (inState.clone(), inRestriction.clone()) {
-        (ClassInf::State::UNKNOWN { .. }, _) => {
-            ()
-        },
-        (ClassInf::State::HAS_RESTRICTIONS { .. }, SCode::Restriction::R_CLASS) => {
-            ()
-        },
-        (ClassInf::State::HAS_RESTRICTIONS { .. }, SCode::Restriction::R_MODEL) => {
-            ()
-        },
-        (ClassInf::State::HAS_RESTRICTIONS { .. }, SCode::Restriction::R_OPTIMIZATION) => {
-            ()
-        },
-        (ClassInf::State::MODEL { .. }, SCode::Restriction::R_MODEL) => {
-            ()
-        },
-        (ClassInf::State::RECORD { .. }, SCode::Restriction::R_RECORD { isOperator: _ }) => {
-            ()
-        },
-        (ClassInf::State::RECORD { .. }, SCode::Restriction::R_CONNECTOR { isExpandable: _ }) => {
-            ()
-        },
-        (ClassInf::State::HAS_RESTRICTIONS { hasAlgorithms: false, hasConstraints: false, hasEquations: false, .. }, SCode::Restriction::R_RECORD { isOperator: _ }) => {
-            ()
-        },
-        (ClassInf::State::BLOCK { .. }, SCode::Restriction::R_BLOCK) => {
-            ()
-        },
-        (ClassInf::State::MODEL { .. }, SCode::Restriction::R_MODEL) => {
-            ()
-        },
-        (ClassInf::State::CONNECTOR { .. }, SCode::Restriction::R_TYPE) => {
-            ()
-        },
-        (ClassInf::State::CONNECTOR { isExpandable: false, .. }, SCode::Restriction::R_CONNECTOR { isExpandable: false }) => {
-            ()
-        },
-        (ClassInf::State::CONNECTOR { isExpandable: true, .. }, SCode::Restriction::R_CONNECTOR { isExpandable: true }) => {
-            ()
-        },
-        (ClassInf::State::HAS_RESTRICTIONS { hasAlgorithms: false, hasConstraints: false, hasEquations: false, .. }, SCode::Restriction::R_CONNECTOR { isExpandable: _ }) => {
-            ()
-        },
-        (ClassInf::State::TYPE_INTEGER { .. }, SCode::Restriction::R_CONNECTOR { isExpandable: _ }) => {
-            ()
-        },
-        (ClassInf::State::TYPE_REAL { .. }, SCode::Restriction::R_CONNECTOR { isExpandable: _ }) => {
-            ()
-        },
-        (ClassInf::State::TYPE_STRING { .. }, SCode::Restriction::R_CONNECTOR { isExpandable: _ }) => {
-            ()
-        },
-        (ClassInf::State::TYPE_BOOL { .. }, SCode::Restriction::R_CONNECTOR { isExpandable: _ }) => {
-            ()
-        },
-        (ClassInf::State::TYPE_CLOCK { .. }, SCode::Restriction::R_CONNECTOR { isExpandable: _ }) => {
-            ()
-        },
-        (ClassInf::State::TYPE_ENUM { .. }, SCode::Restriction::R_CONNECTOR { isExpandable: _ }) => {
-            ()
-        },
-        (ClassInf::State::ENUMERATION { .. }, SCode::Restriction::R_CONNECTOR { isExpandable: _ }) => {
-            ()
-        },
-        (ClassInf::State::TYPE { .. }, SCode::Restriction::R_CONNECTOR { .. }) => {
-            ()
-        },
-        (ClassInf::State::TYPE { .. }, SCode::Restriction::R_TYPE) => {
-            ()
-        },
-        (ClassInf::State::TYPE_INTEGER { .. }, SCode::Restriction::R_TYPE) => {
-            ()
-        },
-        (ClassInf::State::TYPE_REAL { .. }, SCode::Restriction::R_TYPE) => {
-            ()
-        },
-        (ClassInf::State::TYPE_STRING { .. }, SCode::Restriction::R_TYPE) => {
-            ()
-        },
-        (ClassInf::State::TYPE_BOOL { .. }, SCode::Restriction::R_TYPE) => {
-            ()
-        },
-        (ClassInf::State::TYPE_CLOCK { .. }, SCode::Restriction::R_TYPE) => {
-            ()
-        },
-        (ClassInf::State::TYPE_ENUM { .. }, SCode::Restriction::R_TYPE) => {
-            ()
-        },
-        (ClassInf::State::ENUMERATION { .. }, SCode::Restriction::R_TYPE) => {
-            ()
-        },
-        (ClassInf::State::PACKAGE { .. }, SCode::Restriction::R_PACKAGE) => {
-            ()
-        },
-        (ClassInf::State::HAS_RESTRICTIONS { hasAlgorithms: false, hasConstraints: false, hasEquations: false, .. }, SCode::Restriction::R_PACKAGE) => {
-            ()
-        },
-        (ClassInf::State::FUNCTION { .. }, SCode::Restriction::R_FUNCTION { functionRestriction: _ }) => {
-            ()
-        },
-        (ClassInf::State::HAS_RESTRICTIONS { hasConstraints: false, hasEquations: false, .. }, SCode::Restriction::R_FUNCTION { functionRestriction: _ }) => {
-            ()
-        },
-        (ClassInf::State::META_TUPLE { .. }, SCode::Restriction::R_TYPE) => {
-            ()
-        },
-        (ClassInf::State::META_LIST { .. }, SCode::Restriction::R_TYPE) => {
-            ()
-        },
-        (ClassInf::State::META_OPTION { .. }, SCode::Restriction::R_TYPE) => {
-            ()
-        },
-        (ClassInf::State::META_RECORD { .. }, SCode::Restriction::R_TYPE) => {
-            ()
-        },
-        (ClassInf::State::META_ARRAY { .. }, SCode::Restriction::R_TYPE) => {
-            ()
-        },
-        (ClassInf::State::META_UNIONTYPE { .. }, SCode::Restriction::R_TYPE) => {
-            ()
-        },
+    let () = (match (inState.clone(), inRestriction.clone()) {
+        (ClassInf::State::UNKNOWN { .. }, _) => (),
+        (ClassInf::State::HAS_RESTRICTIONS { .. }, SCode::Restriction::R_CLASS) => (),
+        (ClassInf::State::HAS_RESTRICTIONS { .. }, SCode::Restriction::R_MODEL) => (),
+        (ClassInf::State::HAS_RESTRICTIONS { .. }, SCode::Restriction::R_OPTIMIZATION) => (),
+        (ClassInf::State::MODEL { .. }, SCode::Restriction::R_MODEL) => (),
+        (ClassInf::State::RECORD { .. }, SCode::Restriction::R_RECORD { isOperator: _ }) => (),
+        (ClassInf::State::RECORD { .. }, SCode::Restriction::R_CONNECTOR { isExpandable: _ }) => (),
+        (ClassInf::State::HAS_RESTRICTIONS { hasAlgorithms: false, hasConstraints: false, hasEquations: false, .. }, SCode::Restriction::R_RECORD { isOperator: _ }) => (),
+        (ClassInf::State::BLOCK { .. }, SCode::Restriction::R_BLOCK) => (),
+        (ClassInf::State::MODEL { .. }, SCode::Restriction::R_MODEL) => (),
+        (ClassInf::State::CONNECTOR { .. }, SCode::Restriction::R_TYPE) => (),
+        (ClassInf::State::CONNECTOR { isExpandable: false, .. }, SCode::Restriction::R_CONNECTOR { isExpandable: false }) => (),
+        (ClassInf::State::CONNECTOR { isExpandable: true, .. }, SCode::Restriction::R_CONNECTOR { isExpandable: true }) => (),
+        (ClassInf::State::HAS_RESTRICTIONS { hasAlgorithms: false, hasConstraints: false, hasEquations: false, .. }, SCode::Restriction::R_CONNECTOR { isExpandable: _ }) => (),
+        (ClassInf::State::TYPE_INTEGER { .. }, SCode::Restriction::R_CONNECTOR { isExpandable: _ }) => (),
+        (ClassInf::State::TYPE_REAL { .. }, SCode::Restriction::R_CONNECTOR { isExpandable: _ }) => (),
+        (ClassInf::State::TYPE_STRING { .. }, SCode::Restriction::R_CONNECTOR { isExpandable: _ }) => (),
+        (ClassInf::State::TYPE_BOOL { .. }, SCode::Restriction::R_CONNECTOR { isExpandable: _ }) => (),
+        (ClassInf::State::TYPE_CLOCK { .. }, SCode::Restriction::R_CONNECTOR { isExpandable: _ }) => (),
+        (ClassInf::State::TYPE_ENUM { .. }, SCode::Restriction::R_CONNECTOR { isExpandable: _ }) => (),
+        (ClassInf::State::ENUMERATION { .. }, SCode::Restriction::R_CONNECTOR { isExpandable: _ }) => (),
+        (ClassInf::State::TYPE { .. }, SCode::Restriction::R_CONNECTOR { .. }) => (),
+        (ClassInf::State::TYPE { .. }, SCode::Restriction::R_TYPE) => (),
+        (ClassInf::State::TYPE_INTEGER { .. }, SCode::Restriction::R_TYPE) => (),
+        (ClassInf::State::TYPE_REAL { .. }, SCode::Restriction::R_TYPE) => (),
+        (ClassInf::State::TYPE_STRING { .. }, SCode::Restriction::R_TYPE) => (),
+        (ClassInf::State::TYPE_BOOL { .. }, SCode::Restriction::R_TYPE) => (),
+        (ClassInf::State::TYPE_CLOCK { .. }, SCode::Restriction::R_TYPE) => (),
+        (ClassInf::State::TYPE_ENUM { .. }, SCode::Restriction::R_TYPE) => (),
+        (ClassInf::State::ENUMERATION { .. }, SCode::Restriction::R_TYPE) => (),
+        (ClassInf::State::PACKAGE { .. }, SCode::Restriction::R_PACKAGE) => (),
+        (ClassInf::State::HAS_RESTRICTIONS { hasAlgorithms: false, hasConstraints: false, hasEquations: false, .. }, SCode::Restriction::R_PACKAGE) => (),
+        (ClassInf::State::FUNCTION { .. }, SCode::Restriction::R_FUNCTION { functionRestriction: _ }) => (),
+        (ClassInf::State::HAS_RESTRICTIONS { hasConstraints: false, hasEquations: false, .. }, SCode::Restriction::R_FUNCTION { functionRestriction: _ }) => (),
+        (ClassInf::State::META_TUPLE { .. }, SCode::Restriction::R_TYPE) => (),
+        (ClassInf::State::META_LIST { .. }, SCode::Restriction::R_TYPE) => (),
+        (ClassInf::State::META_OPTION { .. }, SCode::Restriction::R_TYPE) => (),
+        (ClassInf::State::META_RECORD { .. }, SCode::Restriction::R_TYPE) => (),
+        (ClassInf::State::META_ARRAY { .. }, SCode::Restriction::R_TYPE) => (),
+        (ClassInf::State::META_UNIONTYPE { .. }, SCode::Restriction::R_TYPE) => (),
         _ => bail!("match: no arm matched"),
     });
     Ok(())
 }
 
 pub fn assertValid(mut inState: ClassInf::State, mut inRestriction: SCode::Restriction, mut info: SourceInfo) -> Result<()> {
-    let _ = 'mc: {
-        let __mc_input = (inState.clone(), inRestriction.clone(), info.clone());
+    let () = 'mc: {
+        let __mc_input = (inState.clone(), inRestriction.clone());
         if let Ok(__v) = (|| -> Result<_> {
-            let (mut st, mut re, _) = __mc_input.clone() else { bail!("nomatch") };
+            let (mut st, mut re) = __mc_input.clone() else { bail!("nomatch") };
             valid(st.clone(), re.clone())?;
             Ok(())
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
-            let (mut st, mut re, _) = __mc_input.clone() else { bail!("nomatch") };
+            let (mut st, mut re) = __mc_input.clone() else { bail!("nomatch") };
             let mut str1: ArcStr = arcstr::literal!("");
             let mut str2: ArcStr = arcstr::literal!("");
             let mut str3: ArcStr = arcstr::literal!("");
@@ -740,13 +660,13 @@ pub fn assertValid(mut inState: ClassInf::State, mut inRestriction: SCode::Restr
 pub fn assertTrans(mut inState: ClassInf::State, mut event: ClassInf::Event, mut info: SourceInfo) -> Result<ClassInf::State> {
     let mut outState: ClassInf::State;
     outState = 'mc: {
-        let __mc_input = (inState.clone(), event.clone(), info.clone());
+        let __mc_input = inState.clone();
         if let Ok(__v) = (|| -> Result<_> {
-            let (mut st, _, _) = __mc_input.clone() else { bail!("nomatch") };
+            let mut st = __mc_input.clone() else { bail!("nomatch") };
             Ok(trans(st.clone(), event.clone())?)
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
-            let (mut st, _, _) = __mc_input.clone() else { bail!("nomatch") };
+            let mut st = __mc_input.clone() else { bail!("nomatch") };
             let mut str1: ArcStr = arcstr::literal!("");
             let mut str2: ArcStr = arcstr::literal!("");
             let mut str3: ArcStr = arcstr::literal!("");
@@ -844,7 +764,7 @@ pub fn isFunctionOrRecord(mut inState: ClassInf::State) -> bool {
 }
 
 pub fn isConnector(mut inState: ClassInf::State) -> Result<()> {
-    let _ = (match inState.clone() {
+    let () = (match inState.clone() {
         ClassInf::State::CONNECTOR { .. } => (),
         _ => bail!("match: no arm matched"),
     });

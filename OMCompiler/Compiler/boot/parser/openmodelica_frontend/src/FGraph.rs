@@ -160,7 +160,10 @@ pub fn stripLastScopeRef(mut inGraph: Graph) -> Result<(Graph, Ref)> {
     let mut outRef: Ref;
     let mut t: Top = <FCore::Top as ::std::default::Default>::default();
     let mut s: Scope = metamodelica::nil();
-    let FCore::G { top: __pa0, scope: metamodelica::List::Cons { head: __pa1, tail: __pa2 } } = (inGraph.clone()) else { bail!("pattern mismatch") };
+    let (__pa0, __pa1, __pa2) = ::match_deref::match_deref! { match &(inGraph.clone()) {
+        FCore::Graph::G { top: __pa0, scope: Deref @ metamodelica::List::Cons { head: __pa1, tail: __pa2 } } => (__pa0.clone(), __pa1.clone(), __pa2.clone()),
+        _ => bail!("pattern mismatch"),
+    } };
     t = __pa0.clone();
     outRef = __pa1.clone();
     s = __pa2.clone();
@@ -170,13 +173,6 @@ pub fn stripLastScopeRef(mut inGraph: Graph) -> Result<(Graph, Ref)> {
 
 pub fn topScope(mut inGraph: Graph) -> Result<Graph> {
     let mut outGraph: Graph;
-    let mut t: Ref;
-    let mut r: Ref;
-    let mut s: Scope = metamodelica::nil();
-    let mut gn: Name = arcstr::literal!("");
-    let mut v: Visited = <FCore::Visited as ::std::default::Default>::default();
-    let mut e: Extra = <FCore::Extra as ::std::default::Default>::default();
-    let mut next: Next = 0;
     outGraph = (match inGraph.clone() {
         FCore::Graph::G { .. } => var_field!(inGraph.top, FCore::Graph::G).graph.clone().borrow()[(1-1) as usize].clone(),
         _ => bail!("match: no arm matched"),
@@ -194,9 +190,7 @@ pub fn new(mut inGraphName: Name, mut inPath: Arc<Absyn::Path>) -> Result<Graph>
     let mut outGraph: Graph;
     let mut n: Node = <FCore::Node as ::std::default::Default>::default();
     let mut s: Scope = metamodelica::nil();
-    let mut v: Visited = <FCore::Visited as ::std::default::Default>::default();
     let mut nr: Ref;
-    let mut next: Next = 0;
     let mut id: Id = 0;
     let mut ag: metamodelica::Array<FCore::Graph>;
     let mut top: Top = <FCore::Top as ::std::default::Default>::default();
@@ -214,16 +208,15 @@ pub fn new(mut inGraphName: Name, mut inPath: Arc<Absyn::Path>) -> Result<Graph>
 pub fn node(mut inGraph: Graph, mut inName: Name, mut inParents: Parents, mut inData: Data) -> (Graph, Node) {
     let mut outGraph: Graph;
     let mut outNode: Node = <FCore::Node as ::std::default::Default>::default();
-    (outGraph, outNode) = (::match_deref::match_deref! { match &((inGraph.clone(), inName.clone(), inParents.clone(), inData.clone())) {
-        (g, _, _, _) => {
+    (outGraph, outNode) = (match inGraph.clone() {
+        mut g => {
             let mut i: i32 = 0;
             let mut n: Node = <FCore::Node as ::std::default::Default>::default();
             i = System::tmpTickIndex(Global::fgraph_nextId.clone());
             n = FNode::new((inName.clone()).clone(), i.clone(), inParents.clone(), inData.clone());
             (g.clone(), n.clone())
         },
-        _ => unreachable!("match_deref! exhaustiveness placeholder"),
-    } });
+    });
     (outGraph, outNode)
 }
 
@@ -254,10 +247,10 @@ pub fn clone(mut inGraph: Graph) -> Result<Graph> {
 pub fn updateComp(mut inGraph: Graph, mut inVar: Arc<DAE::Var>, mut instStatus: FCore::Status, mut inTargetGraph: Graph) -> Result<Graph> {
     let mut outGraph: Graph;
     outGraph = 'mc: {
-        let __mc_input = (inGraph.clone(), inVar.clone(), instStatus.clone(), inTargetGraph.clone());
+        let __mc_input = (inGraph.clone(), inVar.clone());
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (g, v @ Deref @ DAE::Var { name: n, .. }, _, _) => {
+                (g, v @ Deref @ DAE::Var { name: n, .. }) => {
                     let mut pr: Ref;
                     let mut r: Ref;
                     let mut id: Id = 0;
@@ -287,7 +280,7 @@ pub fn updateComp(mut inGraph: Graph, mut inVar: Arc<DAE::Var>, mut instStatus: 
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (g, v, _, _) => {
+                (g, v) => {
                     let mut pr: Ref;
                     let mut g = (*g).clone();
                     pr = lastScopeRef(g.clone())?;
@@ -315,26 +308,17 @@ pub fn updateComp(mut inGraph: Graph, mut inVar: Arc<DAE::Var>, mut instStatus: 
 pub fn updateSourceTargetScope(mut inRef: Ref, mut inTargetScope: Scope) -> Result<Ref> {
     let mut outRef: Ref;
     outRef = 'mc: {
-        let __mc_input = (inRef.clone(), inTargetScope.clone());
+        let __mc_input = inRef.clone();
         if let Ok(__v) = (|| -> Result<_> {
-            ::match_deref::match_deref! { match &__mc_input {
-                (r, _) => {
-                    let mut r = (*r).clone();
-                    r = FNode::refRef(r.clone())?;
-                    r = FNode::updateRef(r.clone(), FNode::setData(FNode::fromRef(r.clone())?, FCore::Data::REF { target: inTargetScope.clone() })?)?;
-                    Ok(inRef.clone())
-                }
-                _ => bail!("nomatch"),
-            }}
+            let mut r = __mc_input.clone() else { bail!("nomatch") };
+            r = FNode::refRef(r.clone())?;
+            r = FNode::updateRef(r.clone(), FNode::setData(FNode::fromRef(r.clone())?, FCore::Data::REF { target: inTargetScope.clone() })?)?;
+            Ok(inRef.clone())
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
-            ::match_deref::match_deref! { match &__mc_input {
-                (r, _) => {
-                    Error::addCompilerWarning(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("FNode.updateSourceTargetScope: node does not yet have a reference child: ")); __mm_s.push_str(&*FNode::toPathStr(FNode::fromRef(r.clone())?)?); __mm_s.push_str(&*literal!(" target scope: ")); __mm_s.push_str(&*FNode::scopeStr(inTargetScope.clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone())?;
-                    Ok(inRef.clone())
-                }
-                _ => bail!("nomatch"),
-            }}
+            let mut r = __mc_input.clone() else { bail!("nomatch") };
+            Error::addCompilerWarning(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("FNode.updateSourceTargetScope: node does not yet have a reference child: ")); __mm_s.push_str(&*FNode::toPathStr(FNode::fromRef(r.clone())?)?); __mm_s.push_str(&*literal!(" target scope: ")); __mm_s.push_str(&*FNode::scopeStr(inTargetScope.clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone())?;
+            Ok(inRef.clone())
         })() { break 'mc __v; }
         bail!("matchcontinue: no arm matched")
     };
@@ -344,26 +328,17 @@ pub fn updateSourceTargetScope(mut inRef: Ref, mut inTargetScope: Scope) -> Resu
 pub fn updateInstance(mut inRef: Ref, mut inVar: Arc<DAE::Var>) -> Result<Ref> {
     let mut outRef: Ref;
     outRef = 'mc: {
-        let __mc_input = (inRef.clone(), inVar.clone());
+        let __mc_input = inRef.clone();
         if let Ok(__v) = (|| -> Result<_> {
-            ::match_deref::match_deref! { match &__mc_input {
-                (r, _) => {
-                    let mut r = (*r).clone();
-                    r = FNode::refInstance(r.clone())?;
-                    r = FNode::updateRef(r.clone(), FNode::setData(FNode::fromRef(r.clone())?, FCore::Data::IT { i: inVar.clone() })?)?;
-                    Ok(inRef.clone())
-                }
-                _ => bail!("nomatch"),
-            }}
+            let mut r = __mc_input.clone() else { bail!("nomatch") };
+            r = FNode::refInstance(r.clone())?;
+            r = FNode::updateRef(r.clone(), FNode::setData(FNode::fromRef(r.clone())?, FCore::Data::IT { i: inVar.clone() })?)?;
+            Ok(inRef.clone())
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
-            ::match_deref::match_deref! { match &__mc_input {
-                _ => {
-                    Error::addCompilerError(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("FGraph.updateInstance failed for node: ")); __mm_s.push_str(&*FNode::toPathStr(FNode::fromRef(inRef.clone())?)?); __mm_s.push_str(&*literal!(" variable:")); __mm_s.push_str(&*TypesDump::printVarStr(inVar.clone())?); ArcStr::from(__mm_s) }).clone())?;
-                    Ok(bail!("fail"))
-                }
-                _ => bail!("nomatch"),
-            }}
+            let _ = __mc_input.clone() else { bail!("nomatch") };
+            Error::addCompilerError(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("FGraph.updateInstance failed for node: ")); __mm_s.push_str(&*FNode::toPathStr(FNode::fromRef(inRef.clone())?)?); __mm_s.push_str(&*literal!(" variable:")); __mm_s.push_str(&*TypesDump::printVarStr(inVar.clone())?); ArcStr::from(__mm_s) }).clone())?;
+            Ok(bail!("fail"))
         })() { break 'mc __v; }
         bail!("matchcontinue: no arm matched")
     };
@@ -375,10 +350,10 @@ pub fn updateInstance(mut inRef: Ref, mut inVar: Arc<DAE::Var>) -> Result<Ref> {
 fn updateVarAndMod(mut inGraph: Graph, mut inVar: Arc<DAE::Var>, mut inMod: Arc<DAE::Mod>, mut instStatus: FCore::Status, mut inTargetGraph: Graph) -> Result<Graph> {
     let mut outGraph: Graph;
     outGraph = 'mc: {
-        let __mc_input = (inGraph.clone(), inVar.clone(), inMod.clone(), instStatus.clone(), inTargetGraph.clone());
+        let __mc_input = (inGraph.clone(), inVar.clone());
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (g, v @ Deref @ DAE::Var { name: n, .. }, _, _, _) => {
+                (g, v @ Deref @ DAE::Var { name: n, .. }) => {
                     let mut pr: Ref;
                     let mut r: Ref;
                     let mut id: Id = 0;
@@ -406,7 +381,7 @@ fn updateVarAndMod(mut inGraph: Graph, mut inVar: Arc<DAE::Var>, mut inMod: Arc<
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (g, v, _, _, _) => {
+                (g, v) => {
                     let mut pr: Ref;
                     let mut g = (*g).clone();
                     pr = lastScopeRef(g.clone())?;
@@ -436,10 +411,10 @@ fn updateVarAndMod(mut inGraph: Graph, mut inVar: Arc<DAE::Var>, mut inMod: Arc<
 pub fn updateClass(mut inGraph: Graph, mut inElement: Arc<SCode::Element>, mut inPrefix: DAE::Prefix, mut inMod: Arc<DAE::Mod>, mut instStatus: FCore::Status, mut inTargetGraph: Graph) -> Result<Graph> {
     let mut outGraph: Graph;
     outGraph = 'mc: {
-        let __mc_input = (inGraph.clone(), inElement.clone(), inPrefix.clone(), inMod.clone(), instStatus.clone(), inTargetGraph.clone());
+        let __mc_input = (inGraph.clone(), inElement.clone());
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (g, e @ Deref @ SCode::Element::CLASS { name: n, .. }, _, _, _, _) => {
+                (g, e @ Deref @ SCode::Element::CLASS { name: n, .. }) => {
                     let mut pr: Ref;
                     let mut r: Ref;
                     let mut id: Id = 0;
@@ -463,7 +438,7 @@ pub fn updateClass(mut inGraph: Graph, mut inElement: Arc<SCode::Element>, mut i
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (g, e, _, _, _, _) => {
+                (g, e) => {
                     let mut pr: Ref;
                     let mut g = (*g).clone();
                     pr = lastScopeRef(g.clone())?;
@@ -482,8 +457,8 @@ pub fn updateClass(mut inGraph: Graph, mut inElement: Arc<SCode::Element>, mut i
 
 pub fn updateClassElement(mut inRef: Ref, mut inElement: Arc<SCode::Element>, mut inPrefix: DAE::Prefix, mut inMod: Arc<DAE::Mod>, mut instStatus: FCore::Status, mut inTargetGraph: Graph) -> Result<Ref> {
     let mut outRef: Ref;
-    outRef = (::match_deref::match_deref! { match &((inRef.clone(), inElement.clone(), inPrefix.clone(), inMod.clone(), instStatus.clone(), inTargetGraph.clone())) {
-        (r, e @ Deref @ SCode::Element::CLASS { name: n, .. }, _, _, _, _) => {
+    outRef = (::match_deref::match_deref! { match &((inRef.clone(), inElement.clone())) {
+        (r, e @ Deref @ SCode::Element::CLASS { name: n, .. }) => {
             let mut id: Id = 0;
             let mut p: Parents = metamodelica::nil();
             let mut c: Children = Arc::new(FCore::RefTree::Tree::EMPTY);
@@ -504,12 +479,11 @@ pub fn updateClassElement(mut inRef: Ref, mut inElement: Arc<SCode::Element>, mu
 
 pub fn addForIterator(mut inGraph: Graph, mut name: ArcStr, mut ty: Arc<DAE::Type>, mut binding: Arc<DAE::Binding>, mut variability: SCode::Variability, mut constOfForIteratorRange: Option<DAE::Const>) -> Result<Graph> {
     let mut outGraph: Graph;
-    outGraph = (::match_deref::match_deref! { match &((inGraph.clone(), name.clone(), ty.clone(), binding.clone(), variability.clone(), constOfForIteratorRange.clone())) {
-        (g, _, _, _, _, _) => {
+    outGraph = (match inGraph.clone() {
+        mut g => {
             let mut r: Ref;
             let mut c: Arc<SCode::Element>;
             let mut v: Arc<DAE::Var> = Arc::new(<DAE::Var as ::std::default::Default>::default());
-            let mut g = (*g).clone();
             c = Arc::new(SCode::Element::COMPONENT { name: (name.clone()).clone(), prefixes: SCode::defaultPrefixes.clone(), attributes: SCode::Attributes { arrayDims: metamodelica::nil(), connectorType: openmodelica_frontend_types::SCode::ConnectorType::POTENTIAL, parallelism: openmodelica_frontend_types::SCode::Parallelism::NON_PARALLEL, variability: openmodelica_frontend_types::SCode::Variability::CONST, direction: openmodelica_ast::Absyn::Direction::BIDIR, isField: openmodelica_ast::Absyn::IsField::NONFIELD }, typeSpec: Arc::new(Absyn::TypeSpec::TPATH { path: Arc::new(Absyn::Path::IDENT { name: (literal!("")).clone() }), arrayDim: None }), modifications: Arc::new(openmodelica_frontend_types::SCode::Mod::NOMOD), comment: SCode::noComment.clone(), condition: None, info: Absyn::dummyInfo.clone() });
             v = Arc::new(DAE::Var { name: (name.clone()).clone(), attributes: Arc::new(DAE::Attributes { connectorType: Arc::new(openmodelica_frontend_types::DAE::ConnectorType::NON_CONNECTOR), parallelism: openmodelica_frontend_types::SCode::Parallelism::NON_PARALLEL, variability: variability.clone(), direction: openmodelica_ast::Absyn::Direction::BIDIR, innerOuter: openmodelica_ast::Absyn::InnerOuter::NOT_INNER_OUTER, visibility: openmodelica_frontend_types::SCode::Visibility::PUBLIC }), ty: ty.clone(), binding: binding.clone(), bind_from_outside: false, constOfForIteratorRange: constOfForIteratorRange.clone() });
             r = lastScopeRef(g.clone())?;
@@ -517,8 +491,7 @@ pub fn addForIterator(mut inGraph: Graph, mut name: ArcStr, mut ty: Arc<DAE::Typ
             g = updateVarAndMod(g.clone(), v.clone(), Arc::new(openmodelica_frontend_types::DAE::Mod::NOMOD), crate::FCore::Status::VAR_UNTYPED, empty())?;
             g.clone()
         },
-        _ => unreachable!("match_deref! exhaustiveness placeholder"),
-    } });
+    });
     Ok(outGraph)
 }
 
@@ -558,9 +531,9 @@ pub fn printGraphPathStr(mut inGraph: Graph) -> Result<ArcStr> {
 pub fn openNewScope(mut inGraph: Graph, mut encapsulatedPrefix: SCode::Encapsulated, mut inName: Option<ArcStr>, mut inScopeType: Option<FCore::ScopeType>) -> Result<Graph> {
     let mut outGraph: Graph;
     outGraph = 'mc: {
-        let __mc_input = (inGraph.clone(), encapsulatedPrefix.clone(), inName.clone(), inScopeType.clone());
+        let __mc_input = (inGraph.clone(), inName.clone());
         if let Ok(__v) = (|| -> Result<_> {
-            let (mut g, _, Some(mut n), _) = __mc_input.clone() else { bail!("nomatch") };
+            let (mut g, Some(mut n)) = __mc_input.clone() else { bail!("nomatch") };
             let mut no: Node = <FCore::Node as ::std::default::Default>::default();
             let mut r: Ref;
             let mut p: Ref;
@@ -585,9 +558,9 @@ pub fn openScope(mut inGraph: Graph, mut encapsulatedPrefix: SCode::Encapsulated
     let mut p: Ref;
     p = lastScopeRef(inGraph.clone())?;
     outGraph = 'mc: {
-        let __mc_input = (inGraph.clone(), encapsulatedPrefix.clone(), inName.clone(), inScopeType.clone());
+        let __mc_input = (inGraph.clone(), inName.clone());
         if let Ok(__v) = (|| -> Result<_> {
-            let (mut g, _, mut n, _) = __mc_input.clone() else { bail!("nomatch") };
+            let (mut g, mut n) = __mc_input.clone() else { bail!("nomatch") };
             let mut r: Ref;
             r = FNode::child(p.clone(), (n.clone()).clone())?;
             let FCore::CL { status: FCore::CLS_INSTANCE { instanceOf: _ }, .. } = (FNode::refData(r.clone())?) else { bail!("pattern mismatch") };
@@ -596,7 +569,7 @@ pub fn openScope(mut inGraph: Graph, mut encapsulatedPrefix: SCode::Encapsulated
             Ok(g.clone())
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
-            let (mut g, _, mut n, _) = __mc_input.clone() else { bail!("nomatch") };
+            let (mut g, mut n) = __mc_input.clone() else { bail!("nomatch") };
             let mut r: Ref;
             r = FNode::child(p.clone(), (n.clone()).clone())?;
             r = FNode::copyRefNoUpdate(r.clone());
@@ -604,7 +577,7 @@ pub fn openScope(mut inGraph: Graph, mut encapsulatedPrefix: SCode::Encapsulated
             Ok(g.clone())
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
-            let (mut g, _, mut n, _) = __mc_input.clone() else { bail!("nomatch") };
+            let (mut g, mut n) = __mc_input.clone() else { bail!("nomatch") };
             let mut no: Node = <FCore::Node as ::std::default::Default>::default();
             let mut r: Ref;
             (g, no) = node(g.clone(), (n.clone()).clone(), list![p.clone()], FCore::Data::ND { scopeType: inScopeType.clone() });
@@ -731,35 +704,34 @@ pub fn getGraphName(mut inGraph: Graph) -> Result<Arc<Absyn::Path>> {
 
 pub fn getGraphNameNoImplicitScopes(mut inGraph: Graph) -> Result<Arc<Absyn::Path>> {
     let mut outPath: Arc<Absyn::Path>;
-    let mut p: Arc<Absyn::Path>;
     let mut s: Scope = metamodelica::nil();
     let __pa0 = ::match_deref::match_deref! { match &(currentScope(inGraph.clone())?.reverse()) {
         Deref @ metamodelica::List::Cons { head: _, tail: __pa0 } => __pa0.clone(),
         _ => bail!("pattern mismatch"),
     } };
     s = __pa0.clone();
-    outPath = AbsynUtil::stringListPath({
+    outPath = AbsynUtil::stringListPath(({
         let mut __acc: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
-        for mut r#str in ({
+        for mut r#str in (({
         let mut __acc: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
         for mut n in (s.clone()).into_iter().cloned() {
             let __x = FNode::refName(n.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }).into_iter().cloned() {
+    })).into_iter().cloned() {
             if !(stringGet((r#str.clone()).clone(),1)? != 36) { continue; }
             let __x = r#str.clone();
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
     Ok(outPath)
 }
 
 pub fn pushScopeRef(mut graph: Graph, mut inRef: Ref) -> Result<Graph> {
     let mut graph: Graph = graph;
-    let _ = (match graph.clone() {
+    let () = (match graph.clone() {
         FCore::Graph::G { .. } => {
             let __owned_variant_scope_0 = cons(inRef.clone(), var_field!(graph.scope, FCore::Graph::G).clone());
             if let FCore::Graph::G { scope, .. } = &mut graph {
@@ -774,7 +746,7 @@ pub fn pushScopeRef(mut graph: Graph, mut inRef: Ref) -> Result<Graph> {
 
 pub fn pushScope(mut graph: Graph, mut inScope: Scope) -> Result<Graph> {
     let mut graph: Graph = graph;
-    let _ = (match graph.clone() {
+    let () = (match graph.clone() {
         FCore::Graph::G { .. } => {
             let __owned_variant_scope_0 = listAppend(inScope.clone(), var_field!(graph.scope, FCore::Graph::G).clone());
             if let FCore::Graph::G { scope, .. } = &mut graph {
@@ -789,7 +761,7 @@ pub fn pushScope(mut graph: Graph, mut inScope: Scope) -> Result<Graph> {
 
 pub fn setScope(mut graph: Graph, mut inScope: Scope) -> Result<Graph> {
     let mut graph: Graph = graph;
-    let _ = (match graph.clone() {
+    let () = (match graph.clone() {
         FCore::Graph::G { .. } => {
             let __owned_variant_scope_0 = inScope.clone();
             if let FCore::Graph::G { scope, .. } = &mut graph {
@@ -844,43 +816,31 @@ pub fn isTopScope(mut graph: Graph) -> Result<bool> {
 pub fn crefStripGraphScopePrefix(mut inCref: Arc<Absyn::ComponentRef>, mut inEnv: Graph, mut stripPartial: bool) -> Result<Arc<Absyn::ComponentRef>> {
     let mut outCref: Arc<Absyn::ComponentRef> = Arc::new(Absyn::ComponentRef::ALLWILD);
     outCref = 'mc: {
-        let __mc_input = (inCref.clone(), inEnv.clone(), stripPartial.clone());
+        let __mc_input = stripPartial.clone();
         if let Ok(__v) = (|| -> Result<_> {
-            ::match_deref::match_deref! { match &__mc_input {
-                (_, _, _) => {
-                    let false = (Flags::isSet(Flags::STRIP_PREFIX.clone())?) else { bail!("pattern mismatch") };
-                    Ok(inCref.clone())
-                }
-                _ => bail!("nomatch"),
-            }}
+            let _ = __mc_input.clone() else { bail!("nomatch") };
+            let false = (Flags::isSet(Flags::STRIP_PREFIX.clone())?) else { bail!("pattern mismatch") };
+            Ok(inCref.clone())
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
-            ::match_deref::match_deref! { match &__mc_input {
-                (_, _, _) => {
-                    let mut env_path: Arc<Absyn::Path>;
-                    let mut cref1: Arc<Absyn::ComponentRef> = Arc::new(Absyn::ComponentRef::ALLWILD);
-                    let mut cref2: Arc<Absyn::ComponentRef> = Arc::new(Absyn::ComponentRef::ALLWILD);
-                    let __pa0 = ::match_deref::match_deref! { match &(getScopePath(inEnv.clone())?) {
-                        Some(__pa0) => __pa0.clone(),
-                        _ => bail!("pattern mismatch"),
-                    } };
-                    env_path = __pa0.clone();
-                    cref1 = AbsynUtil::unqualifyCref(inCref.clone());
-                    env_path = AbsynUtil::makeNotFullyQualified(env_path.clone());
-                    cref2 = crefStripGraphScopePrefix2(cref1.clone(), env_path.clone(), stripPartial.clone())?;
-                    let false = (AbsynUtil::crefEqual(cref1.clone(), cref2.clone())) else { bail!("pattern mismatch") };
-                    Ok(cref2.clone())
-                }
-                _ => bail!("nomatch"),
-            }}
+            let _ = __mc_input.clone() else { bail!("nomatch") };
+            let mut env_path: Arc<Absyn::Path>;
+            let mut cref1: Arc<Absyn::ComponentRef> = Arc::new(Absyn::ComponentRef::ALLWILD);
+            let mut cref2: Arc<Absyn::ComponentRef> = Arc::new(Absyn::ComponentRef::ALLWILD);
+            let __pa0 = ::match_deref::match_deref! { match &(getScopePath(inEnv.clone())?) {
+                Some(__pa0) => __pa0.clone(),
+                _ => bail!("pattern mismatch"),
+            } };
+            env_path = __pa0.clone();
+            cref1 = AbsynUtil::unqualifyCref(inCref.clone());
+            env_path = AbsynUtil::makeNotFullyQualified(env_path.clone());
+            cref2 = crefStripGraphScopePrefix2(cref1.clone(), env_path.clone(), stripPartial.clone())?;
+            let false = (AbsynUtil::crefEqual(cref1.clone(), cref2.clone())) else { bail!("pattern mismatch") };
+            Ok(cref2.clone())
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
-            ::match_deref::match_deref! { match &__mc_input {
-                _ => {
-                    Ok(inCref.clone())
-                }
-                _ => bail!("nomatch"),
-            }}
+            let _ = __mc_input.clone() else { bail!("nomatch") };
+            Ok(inCref.clone())
         })() { break 'mc __v; }
         bail!("matchcontinue: no arm matched")
     };
@@ -928,43 +888,31 @@ fn crefStripGraphScopePrefix2(mut inCref: Arc<Absyn::ComponentRef>, mut inEnvPat
 pub fn pathStripGraphScopePrefix(mut inPath: Arc<Absyn::Path>, mut inEnv: Graph, mut stripPartial: bool) -> Result<Arc<Absyn::Path>> {
     let mut outPath: Arc<Absyn::Path>;
     outPath = 'mc: {
-        let __mc_input = (inPath.clone(), inEnv.clone(), stripPartial.clone());
+        let __mc_input = stripPartial.clone();
         if let Ok(__v) = (|| -> Result<_> {
-            ::match_deref::match_deref! { match &__mc_input {
-                (_, _, _) => {
-                    let false = (Flags::isSet(Flags::STRIP_PREFIX.clone())?) else { bail!("pattern mismatch") };
-                    Ok(inPath.clone())
-                }
-                _ => bail!("nomatch"),
-            }}
+            let _ = __mc_input.clone() else { bail!("nomatch") };
+            let false = (Flags::isSet(Flags::STRIP_PREFIX.clone())?) else { bail!("pattern mismatch") };
+            Ok(inPath.clone())
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
-            ::match_deref::match_deref! { match &__mc_input {
-                (_, _, _) => {
-                    let mut env_path: Arc<Absyn::Path>;
-                    let mut path1: Arc<Absyn::Path>;
-                    let mut path2: Arc<Absyn::Path>;
-                    let __pa0 = ::match_deref::match_deref! { match &(getScopePath(inEnv.clone())?) {
-                        Some(__pa0) => __pa0.clone(),
-                        _ => bail!("pattern mismatch"),
-                    } };
-                    env_path = __pa0.clone();
-                    path1 = AbsynUtil::makeNotFullyQualified(inPath.clone());
-                    env_path = AbsynUtil::makeNotFullyQualified(env_path.clone());
-                    path2 = pathStripGraphScopePrefix2(path1.clone(), env_path.clone(), stripPartial.clone())?;
-                    let false = (AbsynUtil::pathEqual(path1.clone(), path2.clone())) else { bail!("pattern mismatch") };
-                    Ok(path2.clone())
-                }
-                _ => bail!("nomatch"),
-            }}
+            let _ = __mc_input.clone() else { bail!("nomatch") };
+            let mut env_path: Arc<Absyn::Path>;
+            let mut path1: Arc<Absyn::Path>;
+            let mut path2: Arc<Absyn::Path>;
+            let __pa0 = ::match_deref::match_deref! { match &(getScopePath(inEnv.clone())?) {
+                Some(__pa0) => __pa0.clone(),
+                _ => bail!("pattern mismatch"),
+            } };
+            env_path = __pa0.clone();
+            path1 = AbsynUtil::makeNotFullyQualified(inPath.clone());
+            env_path = AbsynUtil::makeNotFullyQualified(env_path.clone());
+            path2 = pathStripGraphScopePrefix2(path1.clone(), env_path.clone(), stripPartial.clone())?;
+            let false = (AbsynUtil::pathEqual(path1.clone(), path2.clone())) else { bail!("pattern mismatch") };
+            Ok(path2.clone())
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
-            ::match_deref::match_deref! { match &__mc_input {
-                _ => {
-                    Ok(inPath.clone())
-                }
-                _ => bail!("nomatch"),
-            }}
+            let _ = __mc_input.clone() else { bail!("nomatch") };
+            Ok(inPath.clone())
         })() { break 'mc __v; }
         bail!("matchcontinue: no arm matched")
     };
@@ -1026,10 +974,10 @@ pub fn mkComponentNode(mut inGraph: Graph, mut inVar: Arc<DAE::Var>, mut inVarEl
 pub fn mkClassNode(mut inGraph: Graph, mut inClass: Arc<SCode::Element>, mut inPrefix: DAE::Prefix, mut inMod: Arc<DAE::Mod>, mut checkDuplicate: bool) -> Result<Graph> {
     let mut outGraph: Graph;
     outGraph = 'mc: {
-        let __mc_input = (inGraph.clone(), inClass.clone(), inPrefix.clone(), inMod.clone());
+        let __mc_input = (inGraph.clone(), inClass.clone());
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (g, Deref @ SCode::Element::CLASS { name: n, .. }, _, _) => {
+                (g, Deref @ SCode::Element::CLASS { name: n, .. }) => {
                     let mut r: Ref;
                     r = lastScopeRef(g.clone())?;
                     r = FNode::child(r.clone(), (n.clone()).clone())?;
@@ -1041,7 +989,7 @@ pub fn mkClassNode(mut inGraph: Graph, mut inClass: Arc<SCode::Element>, mut inP
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (g, Deref @ SCode::Element::CLASS { .. }, _, _) => {
+                (g, Deref @ SCode::Element::CLASS { .. }) => {
                     let mut r: Ref;
                     let mut g = (*g).clone();
                     r = lastScopeRef(g.clone())?;
@@ -1058,46 +1006,40 @@ pub fn mkClassNode(mut inGraph: Graph, mut inClass: Arc<SCode::Element>, mut inP
 
 pub fn mkTypeNode(mut inGraph: Graph, mut inName: Name, mut inType: Arc<DAE::Type>) -> Result<Graph> {
     let mut outGraph: Graph;
-    outGraph = (::match_deref::match_deref! { match &((inGraph.clone(), inName.clone(), inType.clone())) {
-        (g, _, _) => {
+    outGraph = (match inGraph.clone() {
+        mut g => {
             let mut r: Ref;
-            let mut g = (*g).clone();
             r = lastScopeRef(g.clone())?;
             g = FGraphBuildEnv::mkTypeNode(list![inType.clone()], r.clone(), (inName.clone()).clone(), g.clone())?;
             g.clone()
         },
-        _ => unreachable!("match_deref! exhaustiveness placeholder"),
-    } });
+    });
     Ok(outGraph)
 }
 
 pub fn mkImportNode(mut inGraph: Graph, mut inImport: Arc<SCode::Element>) -> Result<Graph> {
     let mut outGraph: Graph;
-    outGraph = (::match_deref::match_deref! { match &((inGraph.clone(), inImport.clone())) {
-        (g, _) => {
+    outGraph = (match inGraph.clone() {
+        mut g => {
             let mut r: Ref;
-            let mut g = (*g).clone();
             r = lastScopeRef(g.clone())?;
             g = FGraphBuildEnv::mkElementNode(inImport.clone(), r.clone(), crate::FCore::Kind::USERDEFINED, g.clone())?;
             g.clone()
         },
-        _ => unreachable!("match_deref! exhaustiveness placeholder"),
-    } });
+    });
     Ok(outGraph)
 }
 
 pub fn mkDefunitNode(mut inGraph: Graph, mut inDu: Arc<SCode::Element>) -> Result<Graph> {
     let mut outGraph: Graph;
-    outGraph = (::match_deref::match_deref! { match &((inGraph.clone(), inDu.clone())) {
-        (g, _) => {
+    outGraph = (match inGraph.clone() {
+        mut g => {
             let mut r: Ref;
-            let mut g = (*g).clone();
             r = lastScopeRef(g.clone())?;
             g = FGraphBuildEnv::mkElementNode(inDu.clone(), r.clone(), crate::FCore::Kind::USERDEFINED, g.clone())?;
             g.clone()
         },
-        _ => unreachable!("match_deref! exhaustiveness placeholder"),
-    } });
+    });
     Ok(outGraph)
 }
 
@@ -1179,10 +1121,10 @@ pub fn getScopeName(mut inGraph: Graph) -> Result<Name> {
 pub fn checkScopeType(mut inScope: Scope, mut inScopeType: Option<FCore::ScopeType>) -> Result<bool> {
     let mut yes: bool = false;
     yes = 'mc: {
-        let __mc_input = (inScope.clone(), inScopeType.clone());
+        let __mc_input = inScope.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ metamodelica::List::Nil, _) => {
+                Deref @ metamodelica::List::Nil => {
                     Ok(false)
                 }
                 _ => bail!("nomatch"),
@@ -1190,7 +1132,7 @@ pub fn checkScopeType(mut inScope: Scope, mut inScopeType: Option<FCore::ScopeTy
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ metamodelica::List::Cons { head: r, tail: _ }, _) => {
+                Deref @ metamodelica::List::Cons { head: r, tail: _ } => {
                     let mut restr: SCode::Restriction = SCode::Restriction::R_BLOCK;
                     let true = (FNode::isRefClass(r.clone())?) else { bail!("pattern mismatch") };
                     restr = SCodeUtil::getClassRestriction(FNode::getElement(FNode::fromRef(r.clone())?)?)?;
@@ -1202,7 +1144,7 @@ pub fn checkScopeType(mut inScope: Scope, mut inScopeType: Option<FCore::ScopeTy
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ metamodelica::List::Cons { head: r, tail: _ }, _) => {
+                Deref @ metamodelica::List::Cons { head: r, tail: _ } => {
                     let mut st: Option<FCore::ScopeType> = None;
                     let FCore::N { data: FCore::ND { scopeType: __pa0 }, .. } = (FNode::fromRef(r.clone())?) else { bail!("pattern mismatch") };
                     st = __pa0.clone();
@@ -1214,7 +1156,7 @@ pub fn checkScopeType(mut inScope: Scope, mut inScopeType: Option<FCore::ScopeTy
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ metamodelica::List::Cons { head: _, tail: rest }, _) => {
+                Deref @ metamodelica::List::Cons { head: _, tail: rest } => {
                     Ok(checkScopeType(rest.clone(), inScopeType.clone())?)
                 }
                 _ => bail!("nomatch"),
@@ -1253,7 +1195,10 @@ pub fn getScopeRestriction(mut inScope: Scope) -> Result<SCode::Restriction> {
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ metamodelica::List::Cons { head: r, tail: _ } => {
                     let mut st: FCore::ScopeType = FCore::ScopeType::CLASS_SCOPE;
-                    let FCore::N { data: FCore::ND { scopeType: Some(__pa0) }, .. } = (FNode::fromRef(r.clone())?) else { bail!("pattern mismatch") };
+                    let __pa0 = ::match_deref::match_deref! { match &(FNode::fromRef(r.clone())?) {
+                        FCore::Node { data: FCore::Data::ND { scopeType: Some(__pa0) }, .. } => __pa0.clone(),
+                        _ => bail!("pattern mismatch"),
+                    } };
                     st = __pa0.clone();
                     Ok(scopeTypeToRestriction(st.clone()))
                 }
@@ -1361,11 +1306,11 @@ pub fn splitGraphScope(mut inGraph: Graph) -> Result<(Graph, Scope)> {
 pub fn splitGraphScope_dispatch(mut inGraph: Graph, mut inAcc: Scope) -> Result<(Graph, Scope)> {
     let mut outRealGraph: Graph;
     let mut outForScope: Scope = metamodelica::nil();
-    (outRealGraph, outForScope) = (::match_deref::match_deref! { match &((inGraph.clone(), inAcc.clone())) {
-        (FCore::Graph::EG { name: _ }, _) => {
+    (outRealGraph, outForScope) = (::match_deref::match_deref! { match &(inGraph.clone()) {
+        FCore::Graph::EG { name: _ } => {
             (inGraph.clone(), inAcc.clone().reverse())
         },
-        (FCore::Graph::G { scope: Deref @ metamodelica::List::Cons { head: r, tail: _ }, .. }, _) => {
+        FCore::Graph::G { scope: Deref @ metamodelica::List::Cons { head: r, tail: _ }, .. } => {
             let mut g: Graph;
             let mut s: Scope = metamodelica::nil();
             if FNode::isImplicitRefName(r.clone())? {
@@ -1437,10 +1382,10 @@ pub fn mkVersionNode(mut inSourceEnv: Graph, mut inSourceName: Name, mut inPrefi
     let mut outVersionedTargetClass: Arc<SCode::Element>;
     let mut outIH: Arc<metamodelica::List<InnerOuter::TopInstance>> = metamodelica::nil();
     (outVersionedTargetClassEnv, outVersionedTargetClass, outIH) = 'mc: {
-        let __mc_input = (inSourceEnv.clone(), inSourceName.clone(), inPrefix.clone(), inMod.clone(), inTargetClassEnv.clone(), inTargetClass.clone(), inIH.clone());
+        let __mc_input = inIH.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _, _, _, _, _, _) => {
+                _ => {
                     let mut gclass: Graph;
                     let mut classRef: Ref;
                     let mut sourceRef: Ref;
@@ -1455,7 +1400,6 @@ pub fn mkVersionNode(mut inSourceEnv: Graph, mut inSourceName: Name, mut inPrefi
                     targetClassName = (SCodeUtil::elementName(c.clone())?).clone();
                     (newTargetClassName, crefPrefix) = mkVersionName(inSourceEnv.clone(), (inSourceName.clone()).clone(), inPrefix.clone(), inMod.clone(), inTargetClassEnv.clone(), (targetClassName.clone()).clone())?;
                     sourceRef = FNode::child(lastScopeRef(inSourceEnv.clone())?, (inSourceName.clone()).clone())?;
-                    let _ = cons(sourceRef.clone(), currentScope(inSourceEnv.clone())?);
                     targetClassParentRef = lastScopeRef(inTargetClassEnv.clone())?;
                     classRef = FNode::child(targetClassParentRef.clone(), (targetClassName.clone()).clone())?;
                     classRef = FNode::copyRefNoUpdate(classRef.clone());
@@ -1496,10 +1440,10 @@ pub fn createVersionScope(mut inSourceEnv: Graph, mut inSourceName: Name, mut in
     let mut outVersionedTargetClass: Arc<SCode::Element>;
     let mut outIH: Arc<metamodelica::List<InnerOuter::TopInstance>> = metamodelica::nil();
     (outVersionedTargetClassEnv, outVersionedTargetClass, outIH) = 'mc: {
-        let __mc_input = (inSourceEnv.clone(), inSourceName.clone(), inPrefix.clone(), inMod.clone(), inTargetClassEnv.clone(), inTargetClass.clone(), inIH.clone());
+        let __mc_input = inMod.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _, _, Deref @ DAE::Mod::NOMOD, _, _, _) => {
+                Deref @ DAE::Mod::NOMOD => {
                     Ok((inTargetClassEnv.clone(), inTargetClass.clone(), inIH.clone()))
                 }
                 _ => bail!("nomatch"),
@@ -1507,7 +1451,7 @@ pub fn createVersionScope(mut inSourceEnv: Graph, mut inSourceName: Name, mut in
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _, _, Deref @ DAE::Mod::MOD { subModLst: Deref @ metamodelica::List::Nil, .. }, _, _, _) => {
+                Deref @ DAE::Mod::MOD { subModLst: Deref @ metamodelica::List::Nil, .. } => {
                     Ok((inTargetClassEnv.clone(), inTargetClass.clone(), inIH.clone()))
                 }
                 _ => bail!("nomatch"),
@@ -1515,7 +1459,7 @@ pub fn createVersionScope(mut inSourceEnv: Graph, mut inSourceName: Name, mut in
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _, _, _, _, _, _) => {
+                _ => {
                     let true = (Config::acceptMetaModelicaGrammar()? || isTargetClassBuiltin(inTargetClassEnv.clone(), inTargetClass.clone())? || inFunctionScope(inSourceEnv.clone())? || SCodeUtil::isOperatorRecord(inTargetClass.clone())) else { bail!("pattern mismatch") };
                     Ok((inTargetClassEnv.clone(), inTargetClass.clone(), inIH.clone()))
                 }
@@ -1524,7 +1468,7 @@ pub fn createVersionScope(mut inSourceEnv: Graph, mut inSourceName: Name, mut in
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _, _, _, _, _, _) => {
+                _ => {
                     let true = (stringEq((AbsynUtil::pathFirstIdent(getGraphName(inTargetClassEnv.clone())?)?).clone(), (literal!("OpenModelica")).clone())) else { bail!("pattern mismatch") };
                     Ok((inTargetClassEnv.clone(), inTargetClass.clone(), inIH.clone()))
                 }
@@ -1533,7 +1477,7 @@ pub fn createVersionScope(mut inSourceEnv: Graph, mut inSourceName: Name, mut in
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _, _, _, _, _, _) => {
+                _ => {
                     let mut gclass: Graph;
                     let mut c: Arc<SCode::Element>;
                     let mut outIH: Arc<metamodelica::List<InnerOuter::TopInstance>> = outIH.clone();
@@ -1551,10 +1495,10 @@ pub fn createVersionScope(mut inSourceEnv: Graph, mut inSourceName: Name, mut in
 pub fn isTargetClassBuiltin(mut inGraph: Graph, mut inClass: Arc<SCode::Element>) -> Result<bool> {
     let mut yes: bool = false;
     yes = 'mc: {
-        let __mc_input = (inGraph.clone(), inClass.clone());
+        let __mc_input = inClass.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _) => {
+                _ => {
                     let mut r: Ref;
                     let mut yes: bool = yes.clone();
                     r = FNode::child(lastScopeRef(inGraph.clone())?, (SCodeUtil::elementName(inClass.clone())?).clone())?;
@@ -1580,25 +1524,24 @@ pub fn isTargetClassBuiltin(mut inGraph: Graph, mut inClass: Arc<SCode::Element>
 pub fn mkVersionName(mut inSourceEnv: Graph, mut inSourceName: Name, mut inPrefix: DAE::Prefix, mut inMod: Arc<DAE::Mod>, mut inTargetClassEnv: Graph, mut inTargetClassName: Name) -> Result<(Name, DAE::Prefix)> {
     let mut outName: Name = arcstr::literal!("");
     let mut outCrefPrefix: DAE::Prefix = DAE::Prefix::NOPRE;
-    (outName, outCrefPrefix) = (::match_deref::match_deref! { match &((inSourceEnv.clone(), inSourceName.clone(), inPrefix.clone(), inMod.clone(), inTargetClassEnv.clone(), inTargetClassName.clone())) {
-        (_, _, _, _, _, _) => {
+    (outName, outCrefPrefix) = (match inTargetClassName.clone() {
+        _ => {
             let mut crefPrefix: DAE::Prefix = DAE::Prefix::NOPRE;
             let mut name: Name = arcstr::literal!("");
             crefPrefix = PrefixUtil::prefixAdd((inSourceName.clone()).clone(), metamodelica::nil(), metamodelica::nil(), inPrefix.clone(), openmodelica_frontend_types::SCode::Variability::CONST, ClassInf::State::UNKNOWN { path: Arc::new(Absyn::Path::IDENT { name: (literal!("")).clone() }) }, Absyn::dummyInfo.clone())?;
             name = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*inTargetClassName.clone()); __mm_s.push_str(&*literal!("$")); __mm_s.push_str(&*AbsynUtil::pathString(AbsynUtil::stringListPath(AbsynUtil::pathToStringList(PrefixUtil::prefixToPath(crefPrefix.clone())?)?.reverse()), (literal!("$")).clone(), false, false)?); ArcStr::from(__mm_s) }).clone();
             (name.clone(), crefPrefix.clone())
         },
-        _ => unreachable!("match_deref! exhaustiveness placeholder"),
-    } });
+    });
     Ok((outName, outCrefPrefix))
 }
 
 pub fn getClassPrefix(mut inEnv: FCore::Graph, mut inClassName: Name) -> Result<DAE::Prefix> {
     let mut outPrefix: DAE::Prefix = DAE::Prefix::NOPRE;
     outPrefix = 'mc: {
-        let __mc_input = (inEnv.clone(), inClassName.clone());
+        let __mc_input = inClassName.clone();
         if let Ok(__v) = (|| -> Result<_> {
-            let (_, _) = __mc_input.clone() else { bail!("nomatch") };
+            let _ = __mc_input.clone() else { bail!("nomatch") };
             let mut p: DAE::Prefix = DAE::Prefix::NOPRE;
             let mut r: Ref;
             r = FNode::child(lastScopeRef(inEnv.clone())?, (inClassName.clone()).clone())?;
@@ -1618,9 +1561,9 @@ pub fn getClassPrefix(mut inEnv: FCore::Graph, mut inClassName: Name) -> Result<
 pub fn isInstance(mut inEnv: FCore::Graph, mut inName: ArcStr) -> Result<bool> {
     let mut yes: bool = false;
     yes = 'mc: {
-        let __mc_input = (inEnv.clone(), inName.clone());
+        let __mc_input = inName.clone();
         if let Ok(__v) = (|| -> Result<_> {
-            let (_, _) = __mc_input.clone() else { bail!("nomatch") };
+            let _ = __mc_input.clone() else { bail!("nomatch") };
             let FCore::CL { status: FCore::CLS_INSTANCE { instanceOf: _ }, .. } = (FNode::refData(FNode::child(lastScopeRef(inEnv.clone())?, (inName.clone()).clone())?)?) else { bail!("pattern mismatch") };
             Ok(true)
         })() { break 'mc __v; }
@@ -1636,9 +1579,9 @@ pub fn isInstance(mut inEnv: FCore::Graph, mut inName: ArcStr) -> Result<bool> {
 pub fn getInstanceOriginalName(mut inEnv: FCore::Graph, mut inName: ArcStr) -> Result<ArcStr> {
     let mut outName: ArcStr = arcstr::literal!("");
     outName = ('mc: {
-        let __mc_input = (inEnv.clone(), inName.clone());
+        let __mc_input = inName.clone();
         if let Ok(__v) = (|| -> Result<_> {
-            let (_, _) = __mc_input.clone() else { bail!("nomatch") };
+            let _ = __mc_input.clone() else { bail!("nomatch") };
             let mut outName: ArcStr = outName.clone();
             let FCore::CL { status: FCore::CLS_INSTANCE { instanceOf: __pa0 }, .. } = (FNode::refData(FNode::child(lastScopeRef(inEnv.clone())?, (inName.clone()).clone())?)?) else { bail!("pattern mismatch") };
             outName = __pa0.clone();
@@ -1681,9 +1624,9 @@ pub fn graphPrefixOf2(mut inPrefixEnv: Scope, mut inEnv: Scope) -> Result<bool> 
 pub fn setStatus(mut inEnv: Graph, mut inName: Name, mut inStatus: FCore::Data) -> Result<Graph> {
     let mut outEnv: Graph;
     outEnv = 'mc: {
-        let __mc_input = (inEnv.clone(), inName.clone(), inStatus.clone());
+        let __mc_input = inEnv.clone();
         if let Ok(__v) = (|| -> Result<_> {
-            let (mut g, _, _) = __mc_input.clone() else { bail!("nomatch") };
+            let mut g = __mc_input.clone() else { bail!("nomatch") };
             let mut n: Node = <FCore::Node as ::std::default::Default>::default();
             let mut r#ref: Ref;
             let mut refParent: Ref;
@@ -1702,7 +1645,7 @@ pub fn setStatus(mut inEnv: Graph, mut inName: Name, mut inStatus: FCore::Data) 
             Ok(g.clone())
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
-            let (mut g, _, _) = __mc_input.clone() else { bail!("nomatch") };
+            let mut g = __mc_input.clone() else { bail!("nomatch") };
             println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("FGraph.setStatus failed on: ")); __mm_s.push_str(&*getGraphNameStr(g.clone())?); __mm_s.push_str(&*literal!(" element: ")); __mm_s.push_str(&*inName.clone()); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
             Ok(g.clone())
         })() { break 'mc __v; }
@@ -1713,8 +1656,8 @@ pub fn setStatus(mut inEnv: Graph, mut inName: Name, mut inStatus: FCore::Data) 
 
 pub fn getStatus(mut inEnv: Graph, mut inName: Name) -> Result<FCore::Data> {
     let mut outStatus: FCore::Data = FCore::Data::TOP;
-    outStatus = (match (inEnv.clone(), inName.clone()) {
-        (mut g, _) => {
+    outStatus = (match inEnv.clone() {
+        mut g => {
             let mut r#ref: Ref;
             let mut refParent: Ref;
             let mut s: FCore::Data = FCore::Data::TOP;
@@ -1726,7 +1669,7 @@ pub fn getStatus(mut inEnv: Graph, mut inName: Name) -> Result<FCore::Data> {
             s = FNode::refData(r#ref.clone())?;
             s.clone()
         },
-        (_, _) => {
+        _ => {
             bail!("fail")
         },
     });
@@ -1735,8 +1678,8 @@ pub fn getStatus(mut inEnv: Graph, mut inName: Name) -> Result<FCore::Data> {
 
 pub fn selectScope(mut inEnv: Graph, mut inPath: Arc<Absyn::Path>) -> Result<Graph> {
     let mut outEnv: Graph;
-    outEnv = (::match_deref::match_deref! { match &((inEnv.clone(), inPath.clone())) {
-        (_, _) => {
+    outEnv = (::match_deref::match_deref! { match &(inPath.clone()) {
+        _ => {
             let mut env: Graph;
             let mut pl: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
             let mut lp: i32 = 0;

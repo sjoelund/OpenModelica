@@ -213,14 +213,14 @@ pub mod BackendInfo {
         _ => {
             let mut scalar_attributes: Arc<metamodelica::List<Arc<VariableAttributes::VariableAttributes>>> = metamodelica::nil();
             scalar_attributes = VariableAttributes::scalarize(binfo.attributes.clone(), length.clone())?;
-            {
+            ({
         let mut __acc: Arc<metamodelica::List<Arc<BackendInfo>>> = metamodelica::nil();
         for mut attr in (scalar_attributes.clone()).into_iter().cloned() {
             let __x = Arc::new(BackendInfo { varKind: binfo.varKind.clone(), attributes: attr.clone(), annotations: binfo.annotations.clone(), var_pre: binfo.var_pre.clone(), var_seed: binfo.var_seed.clone(), var_pder: binfo.var_pder.clone(), var_start: binfo.var_start.clone(), parent: binfo.parent.clone() });
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }
+    })
         },
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
     } });
@@ -562,8 +562,6 @@ pub mod VariableAttributes {
     pub fn create(mut attrs: Arc<metamodelica::List<(ArcStr, Arc<Binding::NFBinding>)>>, mut ty: Arc<Type::NFType>, mut compAttrs: Arc<Attributes::NFAttributes>, mut children: Arc<metamodelica::List<Arc<Variable::NFVariable>>>, mut comment: Arc<SCode::Comment>) -> Result<Arc<VariableAttributes>> {
         let mut attributes: Arc<VariableAttributes>;
         let mut is_final: bool = false;
-        let mut elTy: Arc<Type::NFType> = Arc::new(Type::ANY);
-        let mut is_array: bool = false;
         let mut complexTy: Arc<ComplexType::NFComplexType> = Arc::new(ComplexType::CLASS);
         is_final = compAttrs.isFinal.clone() || compAttrs.variability.clone() == Variability::STRUCTURAL_PARAMETER.clone();
         attributes = (::match_deref::match_deref! { match &(Type::arrayElementType(ty.clone())) {
@@ -645,14 +643,14 @@ pub mod VariableAttributes {
             attributes.clone()
         },
         Deref @ VAR_ATTR_RECORD { .. } => {
-            assign_variant_field!(attributes => VariableAttributes::VAR_ATTR_RECORD; childrenAttr = metamodelica::arrayFromVec({
+            assign_variant_field!(attributes => VariableAttributes::VAR_ATTR_RECORD; childrenAttr = metamodelica::arrayFromVec(({
         let mut __acc: Arc<metamodelica::List<Arc<VariableAttributes>>> = metamodelica::nil();
         for mut attr in (var_field!((*attributes).childrenAttr, VariableAttributes::VAR_ATTR_RECORD).clone()).borrow().iter() {
             let __x = map(attr.clone(), func.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }.into_iter().cloned().collect()));
+    }).into_iter().cloned().collect()));
             attributes.clone()
         },
         _ => attributes.clone(),
@@ -671,14 +669,14 @@ pub mod VariableAttributes {
         let mut iter_name: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
         let mut iterators: Arc<metamodelica::List<(Arc<InstNode::InstNode>, Arc<Expression::NFExpression>)>> = metamodelica::nil();
         if Type::isArray(ty.clone()) {
-            sizes = {
+            sizes = ({
         let mut __acc: Arc<metamodelica::List<i32>> = metamodelica::nil();
         for mut dim in (Type::arrayDims(ty.clone())).into_iter().cloned() {
             let __x = Dimension::size(dim.clone(), false)?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
             start = Arc::new(Expression::NFExpression::INTEGER { value: 1 });
             step = None;
             for mut stop in &*sizes.clone() {
@@ -1133,7 +1131,10 @@ pub mod VariableAttributes {
         let mut buffer: Arc<metamodelica::List<ArcStr>> = buffer;
         let mut stateSelect: StateSelect = StateSelect::NEVER;
         if isSome(optStateSelect.clone()) {
-            let Some(__pa0) = (optStateSelect.clone()) else { bail!("pattern mismatch") };
+            let __pa0 = ::match_deref::match_deref! { match &(optStateSelect.clone()) {
+                Some(__pa0) => __pa0.clone(),
+                _ => bail!("pattern mismatch"),
+            } };
             stateSelect = __pa0.clone();
             buffer = cons((stateSelectString(stateSelect.clone())?).clone(), buffer.clone());
         }
@@ -1144,7 +1145,10 @@ pub mod VariableAttributes {
         let mut buffer: Arc<metamodelica::List<ArcStr>> = buffer;
         let mut tearingSelect: TearingSelect = TearingSelect::NEVER;
         if isSome(optTearingSelect.clone()) {
-            let Some(__pa0) = (optTearingSelect.clone()) else { bail!("pattern mismatch") };
+            let __pa0 = ::match_deref::match_deref! { match &(optTearingSelect.clone()) {
+                Some(__pa0) => __pa0.clone(),
+                _ => bail!("pattern mismatch"),
+            } };
             tearingSelect = __pa0.clone();
             buffer = cons((tearingSelectString(tearingSelect.clone())?).clone(), buffer.clone());
         }
@@ -1401,7 +1405,7 @@ pub mod VariableAttributes {
         let mut index: i32 = 0;
         for mut var in &*children.clone() {
             let mut var = var.clone();
-            let _ = (match UnorderedMap::get((ComponentRef::firstName(var.name.clone(), false)?).clone(), indexMap.clone()) {
+            let () = (match UnorderedMap::get((ComponentRef::firstName(var.name.clone(), false)?).clone(), indexMap.clone()) {
         Some(mut index) => {
             {
                 let __cell0 = create(var.typeAttributes.clone(), var.ty.clone(), var.attributes.clone(), var.children.clone(), var.comment.clone())?;
@@ -1493,7 +1497,7 @@ pub mod VariableAttributes {
         let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
         opt_anno = SCodeUtil::commentAnnotation(cmt.clone());
         if isNone(opt_anno.clone()) {
-            return Ok(tearingSelect);
+            return Ok(tearingSelect.clone());
         }
         let __pa0 = ::match_deref::match_deref! { match &(opt_anno.clone()) {
             Some(__pa0) => __pa0.clone(),
@@ -1509,7 +1513,7 @@ pub mod VariableAttributes {
         }
         opt_val = SCodeUtil::getModifierBinding(r#mod.clone());
         if isNone(opt_val.clone()) {
-            return Ok(tearingSelect);
+            return Ok(tearingSelect.clone());
         }
         let __pa1 = ::match_deref::match_deref! { match &(opt_val.clone()) {
             Some(__pa1) => __pa1.clone(),
@@ -1668,11 +1672,11 @@ pub mod Annotations {
         if attributes.isResizable.clone() {
             assign_field!(annotations.resizable = true);
         }
-        let _ = (::match_deref::match_deref! { match &(comment.clone()) {
+        let () = (::match_deref::match_deref! { match &(comment.clone()) {
         Deref @ SCode::Comment { annotation_: Some(Deref @ SCode::Annotation { modification: r#mod @ Deref @ SCode::Mod::MOD { .. } }), .. } => {
             for mut submod in &*var_field!((**r#mod).subModLst, SCode::Mod::MOD).clone() {
                 let mut submod = submod.clone();
-                let _ = (::match_deref::match_deref! { match &(submod.clone()) {
+                let () = (::match_deref::match_deref! { match &(submod.clone()) {
         Deref @ SCode::SubMod { r#mod: Deref @ SCode::Mod::MOD { binding: Some(Deref @ Absyn::Exp::BOOL { value: true }), .. }, ident: Deref @ "HideResult" } => {
             assign_field!(annotations.hideResult = true);
             ()

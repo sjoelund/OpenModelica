@@ -78,6 +78,7 @@ pub mod AttributeIterator {
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
     pub struct AttributeIterator {
         pub name: ArcStr,
+        pub confidence: i32,
         pub iterator: Mutable::Mutable<Arc<ExpressionIterator::NFExpressionIterator>>,
     }
 
@@ -85,6 +86,7 @@ pub mod AttributeIterator {
         fn default() -> Self {
             Self {
                 name: Default::default(),
+                confidence: Default::default(),
                 iterator: Default::default(),
             }
         }
@@ -97,7 +99,7 @@ pub mod AttributeIterator {
         let mut name: ArcStr = arcstr::literal!("");
         let mut binding: Arc<Binding::NFBinding> = Arc::new(Binding::UNBOUND);
         (name, binding) = attribute.clone();
-        iter = Arc::new(AttributeIterator { name: (name.clone()).clone(), iterator: Mutable::create(ExpressionIterator::fromBinding(binding.clone())?) });
+        iter = Arc::new(AttributeIterator { name: (name.clone()).clone(), confidence: Binding::confidence(binding.clone()), iterator: Mutable::create(ExpressionIterator::fromBinding(binding.clone())?) });
         Ok(iter)
     }
 
@@ -107,7 +109,7 @@ pub mod AttributeIterator {
         let mut exp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
         (it, exp) = ExpressionIterator::next(Mutable::access(iter.iterator.clone()))?;
         Mutable::update(iter.iterator.clone(), it.clone());
-        binding = (iter.name.clone(), Binding::makeFlat(exp.clone(), Variability::PARAMETER.clone(), Binding::Source::BINDING.clone()));
+        binding = (iter.name.clone(), Binding::makeFlat(exp.clone(), Variability::PARAMETER.clone(), Binding::Source::BINDING.clone(), iter.confidence.clone()));
         Ok(binding)
     }
 
@@ -121,22 +123,22 @@ pub fn scalarize(mut flatModel: Arc<FlatModel::NFFlatModel>) -> Result<Arc<FlatM
         flatModel.equations = scalarizeEquations(flatModel.equations.clone(), false)?,
         flatModel.initialEquations = Equation::mapExpList(flatModel.initialEquations.clone(), (std::sync::Arc::new(expandComplexCref) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>)),
         flatModel.initialEquations = scalarizeEquations(flatModel.initialEquations.clone(), false)?,
-        flatModel.algorithms = {
+        flatModel.algorithms = ({
         let mut __acc: Arc<metamodelica::List<Arc<Algorithm::NFAlgorithm>>> = metamodelica::nil();
         for mut a in (flatModel.algorithms.clone()).into_iter().cloned() {
             let __x = scalarizeAlgorithm(a.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    },
-        flatModel.initialAlgorithms = {
+    }),
+        flatModel.initialAlgorithms = ({
         let mut __acc: Arc<metamodelica::List<Arc<Algorithm::NFAlgorithm>>> = metamodelica::nil();
         for mut a in (flatModel.initialAlgorithms.clone()).into_iter().cloned() {
             let __x = scalarizeAlgorithm(a.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }
+    })
     );
     execStat((literal!("NFScalarize.scalarize")).clone())?;
     Ok(flatModel)
@@ -172,6 +174,7 @@ pub fn scalarizeVariable(mut var: Arc<Variable::NFVariable>, mut vars: Arc<metam
     let mut binfo: Arc<BackendInfo::BackendInfo> = Arc::new(<BackendInfo::BackendInfo as ::std::default::Default>::default());
     let mut bind_src: Binding::Source = Binding::Source::BINDING;
     let mut has_binding: bool = false;
+    let mut confidence: i32 = 0;
     assign_field!(var.binding = Binding::mapExp(var.binding.clone(), (std::sync::Arc::new(expandComplexCref_traverser) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>))?);
     if Type::isArray(var.ty.clone()) && Type::hasKnownSize(var.ty.clone()) {
         if '__try0: {
@@ -190,44 +193,45 @@ pub fn scalarizeVariable(mut var: Arc<Variable::NFVariable>, mut vars: Arc<metam
             binfo = __pa9.clone();
             crefs = unwrap_break_err!(ComponentRef::scalarize(name.clone(), false), '__try0);
             if crefs.clone().is_empty() {
-                return Ok(vars);
+                return Ok(vars.clone());
             }
             has_binding = Binding::isBound(binding.clone());
             bind_src = Binding::source(binding.clone());
+            confidence = Binding::confidence(binding.clone());
             if has_binding.clone() {
                 binding_iter = unwrap_break_err!(ExpressionIterator::fromExp(Binding::getTypedExp(binding.clone())?, false, false), '__try0);
                 bind_var = unwrap_break_err!(Binding::variability(binding.clone()), '__try0);
                 if !(forceScalarize.clone()) && unwrap_break_err!(ExpressionIterator::isSubscriptedArrayCall(binding_iter.clone(), true), '__try0) && !(unwrap_break_err!(Flags::getConfigBool(Flags::BUILDING_FMU.clone()), '__try0)) && !(variableHasForcedScalarAttribute(var.clone())) {
                     vars = cons(var.clone(), vars.clone());
-                    return Ok(vars);
+                    return Ok(vars.clone());
                 }
             } else {
                 bind_var = Variability::CONSTANT.clone();
             }
             elem_ty = Type::arrayElementType(ty.clone());
-            ty_attr_iters = {
+            ty_attr_iters = ({
         let mut __acc: Arc<metamodelica::List<Arc<AttributeIterator::AttributeIterator>>> = metamodelica::nil();
         for mut a in (ty_attr.clone()).into_iter().cloned() {
             let __x = unwrap_break_err!(AttributeIterator::create(a.clone()), '__try0);
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
             backend_attributes = unwrap_break_err!(BackendInfo::scalarize(binfo.clone(), (crefs.clone().len() as i32)), '__try0);
             for mut cr in &*crefs.clone() {
                 let mut cr = cr.clone();
                 if has_binding.clone() {
                     (binding_iter, exp) = unwrap_break_err!(ExpressionIterator::next(binding_iter.clone()), '__try0);
-                    binding = Binding::makeFlat(exp.clone(), bind_var.clone(), bind_src.clone());
+                    binding = Binding::makeFlat(exp.clone(), bind_var.clone(), bind_src.clone(), confidence.clone());
                 }
-                ty_attr = {
+                ty_attr = ({
         let mut __acc: Arc<metamodelica::List<(ArcStr, Arc<Binding::NFBinding>)>> = metamodelica::nil();
         for mut i in (ty_attr_iters.clone()).into_iter().cloned() {
             let __x = unwrap_break_err!(AttributeIterator::nextBinding(i.clone()), '__try0);
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
                 let (__pa10, __pa11) = ::match_deref::match_deref! { match &(backend_attributes.clone()) {
                     Deref @ metamodelica::List::Cons { head: __pa10, tail: __pa11 } => (__pa10.clone(), __pa11.clone()),
                     _ => break '__try0 Err::<_, _>(anyhow::anyhow!("pattern mismatch")),
@@ -257,6 +261,7 @@ pub fn scalarizeBackendVariable(mut var: Arc<Variable::NFVariable>, mut indices:
     let mut elem_ty: Arc<Type::NFType> = Arc::new(Type::ANY);
     let mut binfo: Arc<BackendInfo::BackendInfo> = Arc::new(<BackendInfo::BackendInfo as ::std::default::Default>::default());
     let mut backend_attributes: Arc<metamodelica::List<Arc<BackendInfo::BackendInfo>>> = metamodelica::nil();
+    let mut confidence: i32 = 0;
     if '__try0: {
         crefs = unwrap_break_err!(ComponentRef::scalarizeAll(ComponentRef::stripSubscriptsAll(var.name.clone()), false), '__try0).reverse();
         elem_ty = Type::arrayElementType(var.ty.clone());
@@ -265,13 +270,14 @@ pub fn scalarizeBackendVariable(mut var: Arc<Variable::NFVariable>, mut indices:
             binding_iter = unwrap_break_err!(ExpressionIterator::fromExp(Binding::getTypedExp(var.binding.clone())?, true, false), '__try0);
             bind_var = unwrap_break_err!(Binding::variability(var.binding.clone()), '__try0);
             bind_src = Binding::source(var.binding.clone());
-            vars = {
+            confidence = Binding::confidence(var.binding.clone());
+            vars = ({
         let mut __acc: Arc<metamodelica::List<Arc<Variable::NFVariable>>> = metamodelica::nil();
         for mut cr in (crefs.clone()).into_iter().cloned() {
             let __x = (::match_deref::match_deref! { match &(cr.clone()) {
         _ => {
             (binding_iter, exp) = unwrap_break_err!(ExpressionIterator::next(binding_iter.clone()), '__try0);
-            binding = Binding::makeFlat(exp.clone(), bind_var.clone(), bind_src.clone());
+            binding = Binding::makeFlat(exp.clone(), bind_var.clone(), bind_src.clone(), confidence.clone());
             let (__pa0, __pa1) = ::match_deref::match_deref! { match &(backend_attributes.clone()) {
                 Deref @ metamodelica::List::Cons { head: __pa0, tail: __pa1 } => (__pa0.clone(), __pa1.clone()),
                 _ => bail!("pattern mismatch"),
@@ -285,9 +291,9 @@ pub fn scalarizeBackendVariable(mut var: Arc<Variable::NFVariable>, mut indices:
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
         } else {
-            vars = {
+            vars = ({
         let mut __acc: Arc<metamodelica::List<Arc<Variable::NFVariable>>> = metamodelica::nil();
         for mut cr in (crefs.clone()).into_iter().cloned() {
             let __x = (::match_deref::match_deref! { match &(cr.clone()) {
@@ -305,7 +311,7 @@ pub fn scalarizeBackendVariable(mut var: Arc<Variable::NFVariable>, mut indices:
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
         }
         if !(indices.clone().is_empty() || (indices.clone().len() as i32) == (vars.clone().len() as i32)) {
             vars = unwrap_break_err!(List::keepPositions(vars.clone(), indices.clone(), true), '__try0);
@@ -553,7 +559,7 @@ pub fn variableHasForcedScalarAttribute(mut var: Arc<Variable::NFVariable>) -> b
         let mut attribute = attribute.clone();
         if Binding::isBound(Variable::lookupTypeAttribute((attribute.clone()).clone(), var.clone())) {
             res = true;
-            return res;
+            return res.clone();
         }
     }
     res = false;

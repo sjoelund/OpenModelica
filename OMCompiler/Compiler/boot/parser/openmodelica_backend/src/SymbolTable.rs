@@ -83,13 +83,13 @@ pub type SYMBOLTABLE = SymbolTable;
 pub const AST_CACHE_MAX_SIZE: i32 = 1000;
 
 pub fn reset() -> Result<()> {
-    crate::Globals::symbolTable.with(|__root| *__root.borrow_mut() = Arc::new(SymbolTable { cacheIndex: 0, cachedAsts: Vector::new(0), vars: metamodelica::nil(), explodedAst: None, ast: Absyn::Program { classes: metamodelica::nil(), within_: openmodelica_ast::Absyn::Within::TOP } }));
+    { let __v = Arc::new(SymbolTable { cacheIndex: 0, cachedAsts: Vector::new(0), vars: metamodelica::nil(), explodedAst: None, ast: Absyn::Program { classes: metamodelica::nil(), within_: openmodelica_ast::Absyn::Within::TOP } }); crate::Globals::symbolTable.with(|__root| *__root.borrow_mut() = __v) };
     updateUriMapping(metamodelica::nil())?;
     Ok(())
 }
 
 pub fn update(mut table: Arc<SymbolTable>) -> () {
-    crate::Globals::symbolTable.with(|__root| *__root.borrow_mut() = table.clone());
+    { let __v = table.clone(); crate::Globals::symbolTable.with(|__root| *__root.borrow_mut() = __v) };
     ()
 }
 
@@ -285,7 +285,7 @@ pub fn appendVar(mut inIdent: ArcStr, mut inValue: Arc<Values::Value>, mut inTyp
 pub fn deleteVarFirstEntry(mut inIdent: ArcStr) -> Result<()> {
     let mut table: Arc<SymbolTable>;
     table = get();
-    assign_field!(table.vars = List::deleteMemberOnTrue((inIdent.clone()).clone(), table.vars.clone(), Arc::new(isVarNamed.clone()))?.0);
+    assign_field!(table.vars = List::deleteMemberOnTrue((inIdent.clone()).clone(), table.vars.clone(), Arc::new(fnptr!(isVarNamed, ArcStr, _)))?.0);
     update(table.clone());
     Ok(())
 }
@@ -293,7 +293,6 @@ pub fn deleteVarFirstEntry(mut inIdent: ArcStr) -> Result<()> {
 pub fn storeAST() -> Result<i32> {
     let mut id: i32 = 0;
     let mut table: Arc<SymbolTable>;
-    let mut index: i32 = 0;
     table = get();
     id = table.cacheIndex.clone() + 1;
     if id.clone() < 0 {
@@ -340,7 +339,7 @@ fn updateUriMapping(mut classes: Arc<metamodelica::List<Arc<Absyn::Class>>>) -> 
     tree = Arc::new(openmodelica_util::AvlTreeStringString::Tree::EMPTY);
     for mut cl in &*classes.clone() {
         let mut cl = cl.clone();
-        let _ = (::match_deref::match_deref! { match &(cl.clone()) {
+        let () = (::match_deref::match_deref! { match &(cl.clone()) {
         Deref @ Absyn::Class { info: SourceInfo { fileName: Deref @ "<interactive>", .. }, .. } => (),
         Deref @ Absyn::Class { info: SourceInfo { fileName, .. }, name, .. } => {
             let mut fileName = (*fileName).clone();
@@ -349,14 +348,14 @@ fn updateUriMapping(mut classes: Arc<metamodelica::List<Arc<Absyn::Class>>>) -> 
             b = stringEq((fileName.clone()).clone(), (literal!("ModelicaBuiltin.mo")).clone()) || stringEq((fileName.clone()).clone(), (literal!("MetaModelicaBuiltin.mo")).clone()) || stringEq((dir.clone()).clone(), (literal!(".")).clone());
             if !(b.clone()) {
                 if AvlTreeStringString::hasKey(tree.clone(), (name.clone()).clone())? {
-                    infos = {
+                    infos = ({
         let mut __acc: Arc<metamodelica::List<SourceInfo>> = metamodelica::nil();
         for mut cl in (classes.clone()).into_iter().cloned() {
             let __x = cl.info.clone();
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
                     Error::addMultiSourceMessage(Error::DOUBLE_DECLARATION_OF_ELEMENTS.clone(), list![(name.clone()).clone()], infos.clone())?;
                 }
                 tree = AvlTreeStringString::add(tree.clone(), (name.clone()).clone(), (dir.clone()).clone(), (std::sync::Arc::new(AvlTreeStringString::addConflictDefault) as std::sync::Arc<dyn ::std::ops::Fn(_, _, _) -> Result<_> + 'static>))?;

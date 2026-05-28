@@ -75,13 +75,13 @@ use openmodelica_util_datatypes_basic::List;
 
 // public imports
 // protected imports
-pub fn createSimCode(mut inBackendDAE: Arc<BackendDAE::BackendDAE>, mut inInitDAE: Arc<BackendDAE::BackendDAE>, mut inInitDAE_lambda0: Option<Arc<BackendDAE::BackendDAE>>, mut inRemovedInitialEquationLst: Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, mut inClassName: Arc<Absyn::Path>, mut filenamePrefix: ArcStr, mut inString11: ArcStr, mut functions: Arc<metamodelica::List<Arc<SimCodeFunction::Function::Function>>>, mut externalFunctionIncludes: Arc<metamodelica::List<ArcStr>>, mut includeDirs: Arc<metamodelica::List<ArcStr>>, mut libs: Arc<metamodelica::List<ArcStr>>, mut libPaths: Arc<metamodelica::List<ArcStr>>, mut program: Absyn::Program, mut simSettingsOpt: Option<SimCode::SimulationSettings>, mut recordDecls: Arc<metamodelica::List<SimCodeFunction::RecordDeclaration>>, mut literals: (i32, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::Exp>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::Exp>, i32)>>), i32, (HashTableExpToIndex::FuncHashCref, HashTableExpToIndex::FuncCrefEqual, HashTableExpToIndex::FuncCrefStr, HashTableExpToIndex::FuncExpStr)), Arc<metamodelica::List<Arc<DAE::Exp>>>), mut args: Arc<Absyn::FunctionArgs>) -> Result<SimCode::SimCode> {
+pub fn createSimCode(mut inBackendDAE: Arc<BackendDAE::BackendDAE>, mut inInitDAE: Arc<BackendDAE::BackendDAE>, mut inInitDAE_lambda0: Option<Arc<BackendDAE::BackendDAE>>, mut inRemovedInitialEquationLst: Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, mut inClassName: Arc<Absyn::Path>, mut filenamePrefix: ArcStr, mut inString11: ArcStr, mut functions: Arc<metamodelica::List<Arc<SimCodeFunction::Function::Function>>>, mut externalFunctionIncludes: Arc<metamodelica::List<ArcStr>>, mut includeDirs: Arc<metamodelica::List<ArcStr>>, mut libs: Arc<metamodelica::List<ArcStr>>, mut libPaths: Arc<metamodelica::List<ArcStr>>, mut program: Absyn::Program, mut simSettingsOpt: Option<SimCode::SimulationSettings>, mut recordDecls: Arc<metamodelica::List<SimCodeFunction::RecordDeclaration>>, mut literals: (i32, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::Exp>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::Exp>, i32)>>), i32, (Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<i32> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, Arc<DAE::Exp>) -> Result<bool> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<ArcStr> + 'static>, Arc<dyn ::std::ops::Fn(i32) -> Result<ArcStr> + 'static>)), Arc<metamodelica::List<Arc<DAE::Exp>>>), mut args: Arc<Absyn::FunctionArgs>) -> Result<SimCode::SimCode> {
     let mut simCode: SimCode::SimCode = <SimCode::SimCode as ::std::default::Default>::default();
     simCode = 'mc: {
-        let __mc_input = (inBackendDAE.clone(), inClassName.clone(), filenamePrefix.clone(), inString11.clone(), functions.clone(), externalFunctionIncludes.clone(), includeDirs.clone(), libs.clone(), libPaths.clone(), program.clone(), simSettingsOpt.clone(), recordDecls.clone(), literals.clone(), args.clone());
+        let __mc_input = inBackendDAE.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ DAE { .. }, _, _, _, _, _, _, _, _, _, _, _, _, _) => {
+                Deref @ DAE { .. } => {
                     let mut lastEqMappingIdx: i32 = 0;
                     let mut equationSccMapping: Arc<metamodelica::List<(i32, i32)>> = metamodelica::nil();
                     let mut sccSimEqMapping: metamodelica::Array<Arc<metamodelica::List<i32>>>;
@@ -103,7 +103,7 @@ pub fn createSimCode(mut inBackendDAE: Arc<BackendDAE::BackendDAE>, mut inInitDA
                     simCode = __pa0.clone();
                     lastEqMappingIdx = __pa1.clone();
                     equationSccMapping = __pa2.clone();
-                    let _ = SimCodeUtil::getSimVarMappingOfBackendMapping(simCode.backendMapping.clone());
+                    SimCodeUtil::getSimVarMappingOfBackendMapping(simCode.backendMapping.clone());
                     (simeqCompMapping, sccSimEqMapping, daeSccSimEqMapping) = HpcOmTaskGraph::setUpHpcOmMapping(inBackendDAE.clone(), simCode.clone(), lastEqMappingIdx.clone(), equationSccMapping.clone())?;
                     ExecStat::execStat((literal!("hpcom setup")).clone())?;
                     (taskGraph, taskGraphData) = HpcOmTaskGraph::createTaskGraph(inBackendDAE.clone(), false)?;
@@ -127,7 +127,7 @@ pub fn createSimCode(mut inBackendDAE: Arc<BackendDAE::BackendDAE>, mut inInitDA
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ DAE { eqs, .. }, _, _, _, _, _, _, _, _, _, _, _, _, _) => {
+                Deref @ DAE { eqs, .. } => {
                     let mut lastEqMappingIdx: i32 = 0;
                     let mut equationSccMapping: Arc<metamodelica::List<(i32, i32)>> = metamodelica::nil();
                     let mut sccSimEqMapping: metamodelica::Array<Arc<metamodelica::List<i32>>>;
@@ -187,7 +187,7 @@ pub fn createSimCode(mut inBackendDAE: Arc<BackendDAE::BackendDAE>, mut inInitDA
                     (taskGraphDae, taskGraphDataDae) = HpcOmTaskGraph::appendRemovedEquations(inBackendDAE.clone(), taskGraphDae.clone(), taskGraphDataDae.clone())?;
                     schedulerInfo = arrayCreate((taskGraphDae.clone().borrow().len() as i32), (-1, -1, metamodelica::OrderedFloat(-1.0_f64)));
                     ExecStat::execStat((literal!("hpcom create DAE TaskGraph")).clone())?;
-                    let _ = checkTaskGraphMetaConsistency(taskGraphDae.clone(), taskGraphDataDae.clone(), (literal!("DAE system")).clone())?;
+                    checkTaskGraphMetaConsistency(taskGraphDae.clone(), taskGraphDataDae.clone(), (literal!("DAE system")).clone())?;
                     ExecStat::execStat((literal!("hpcom validate DAE TaskGraph")).clone())?;
                     taskGraphDataDae = HpcOmTaskGraph::createCosts(inBackendDAE.clone(), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*filenamePrefix.clone()); __mm_s.push_str(&*literal!("_eqs_prof")); ArcStr::from(__mm_s) }).clone(), simeqCompMapping.clone(), taskGraphDataDae.clone())?;
                     taskGraphData = HpcOmTaskGraph::copyCosts(taskGraphDataDae.clone(), taskGraphData.clone())?;
@@ -211,8 +211,8 @@ pub fn createSimCode(mut inBackendDAE: Arc<BackendDAE::BackendDAE>, mut inInitDA
                     HpcOmTaskGraph::dumpAsGraphMLSccLevel(taskGraphZeroFuncs.clone(), taskGraphDataZeroFuncs.clone(), (fileName.clone()).clone(), (literal!("")).clone(), metamodelica::nil(), metamodelica::nil(), daeSccSimEqMapping.clone(), schedulerInfo.clone(), HpcOmTaskGraph::GraphDumpOptions { visualizeCriticalPath: false, visualizeTaskStartAndFinishTime: false, visualizeTaskCalcTime: true, visualizeCommTime: true })?;
                     ExecStat::execStat((literal!("hpcom create and dump zeroFuncs TaskGraph")).clone())?;
                     taskGraphDataDae = HpcOmTaskGraph::markSystemComponents(taskGraphZeroFuncs.clone(), taskGraphDataZeroFuncs.clone(), (true, false, false), taskGraphDataDae.clone())?;
-                    let _ = checkTaskGraphMetaConsistency(taskGraphZeroFuncs.clone(), taskGraphDataZeroFuncs.clone(), (literal!("ZeroFunc system")).clone())?;
-                    let _ = checkEquationCount(taskGraphDataZeroFuncs.clone(), (literal!("ZeroFunc system")).clone(), (zeroFuncsSimEqIdc.clone().len() as i32), sccSimEqMapping.clone())?;
+                    checkTaskGraphMetaConsistency(taskGraphZeroFuncs.clone(), taskGraphDataZeroFuncs.clone(), (literal!("ZeroFunc system")).clone())?;
+                    checkEquationCount(taskGraphDataZeroFuncs.clone(), (literal!("ZeroFunc system")).clone(), (zeroFuncsSimEqIdc.clone().len() as i32), sccSimEqMapping.clone())?;
                     fileName = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("taskGraph")); __mm_s.push_str(&*filenamePrefix.clone()); __mm_s.push_str(&*literal!("DAE.graphml")); ArcStr::from(__mm_s) }).clone();
                     schedulerInfo = arrayCreate((taskGraphDae.clone().borrow().len() as i32), (-1, -1, metamodelica::OrderedFloat(-1.0_f64)));
                     HpcOmTaskGraph::dumpAsGraphMLSccLevel(taskGraphDae.clone(), taskGraphDataDae.clone(), (fileName.clone()).clone(), (literal!("")).clone(), metamodelica::nil(), metamodelica::nil(), daeSccSimEqMapping.clone(), schedulerInfo.clone(), HpcOmTaskGraph::GraphDumpOptions { visualizeCriticalPath: false, visualizeTaskStartAndFinishTime: false, visualizeTaskCalcTime: true, visualizeCommTime: true })?;
@@ -298,8 +298,8 @@ fn createAndExportInitialSystemTaskGraph(mut iInitDae: Option<Arc<BackendDAE::Ba
     let mut fileName: ArcStr = arcstr::literal!("");
     let mut sccSimEqMapping: metamodelica::Array<Arc<metamodelica::List<i32>>>;
     let mut schedulerInfo: metamodelica::Array<(i32, i32, metamodelica::Real)>;
-    let _ = (::match_deref::match_deref! { match &((iInitDae.clone(), iFileNamePrefix.clone())) {
-        (Some(initDAE), _) => {
+    let () = (::match_deref::match_deref! { match &(iInitDae.clone()) {
+        Some(initDAE) => {
             (tmpTaskGraph, tmpTaskGraphMeta) = HpcOmTaskGraph::createTaskGraph(initDAE.clone(), false)?;
             fileName = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("taskGraph")); __mm_s.push_str(&*iFileNamePrefix.clone()); __mm_s.push_str(&*literal!("_init.graphml")); ArcStr::from(__mm_s) }).clone();
             schedulerInfo = arrayCreate((tmpTaskGraph.clone().borrow().len() as i32), (-1, -1, metamodelica::OrderedFloat(-1.0_f64)));
@@ -316,8 +316,8 @@ fn createAndExportInitialSystemTaskGraph(mut iInitDae: Option<Arc<BackendDAE::Ba
 fn setNumProc(mut numProcFlag: i32, mut cpCosts: metamodelica::Real, mut taskGraphMetaIn: HpcOmTaskGraph::TaskGraphMeta) -> Result<(i32, bool)> {
     let mut numProcOut: i32 = 0;
     let mut numFixed: bool = false;
-    (numProcOut, numFixed) = (match (numProcFlag.clone(), cpCosts.clone(), taskGraphMetaIn.clone()) {
-        (0, _, _) => {
+    (numProcOut, numFixed) = (match numProcFlag.clone() {
+        0 => {
             let mut numProcSys: i32 = 0;
             let mut numProc: i32 = 0;
             let mut numProcSched: i32 = 0;
@@ -362,8 +362,6 @@ pub fn applyGRS(mut iTaskGraph: metamodelica::Array<Arc<metamodelica::List<i32>>
     let mut taskGraphT: metamodelica::Array<Arc<metamodelica::List<i32>>>;
     let mut taskGraphMeta1: HpcOmTaskGraph::TaskGraphMeta = <HpcOmTaskGraph::TaskGraphMeta as ::std::default::Default>::default();
     let mut contractedTasks: metamodelica::Array<i32>;
-    let mut schedulerInfo: metamodelica::Array<(i32, i32, metamodelica::Real)>;
-    let mut fileName: ArcStr = arcstr::literal!("");
     taskGraph1 = metamodelica::arrayFromVec(iTaskGraph.clone().borrow().clone());
     taskGraphT = AdjacencyMatrix::transposeAdjacencyMatrix(taskGraph1.clone(), (taskGraph1.clone().borrow().len() as i32))?;
     taskGraphMeta1 = HpcOmTaskGraph::copyTaskGraphMeta(iTaskGraphMeta.clone())?;
@@ -377,8 +375,8 @@ fn applyGRS1(mut iTaskGraph: metamodelica::Array<Arc<metamodelica::List<i32>>>, 
     let mut oTaskGraph: metamodelica::Array<Arc<metamodelica::List<i32>>>;
     let mut oTaskGraphT: metamodelica::Array<Arc<metamodelica::List<i32>>>;
     let mut oTaskGraphMeta: HpcOmTaskGraph::TaskGraphMeta = <HpcOmTaskGraph::TaskGraphMeta as ::std::default::Default>::default();
-    (oTaskGraph, oTaskGraphT, oTaskGraphMeta) = (match (iTaskGraph.clone(), iTaskGraphT.clone(), iTaskGraphMeta.clone(), iContractedTasks.clone(), again.clone()) {
-        (_, _, _, _, true) => {
+    (oTaskGraph, oTaskGraphT, oTaskGraphMeta) = (match again.clone() {
+        true => {
             let mut changed: bool = false;
             let mut changed2: bool = false;
             let mut tmpTaskGraph: metamodelica::Array<Arc<metamodelica::List<i32>>>;
@@ -408,14 +406,14 @@ fn applyGRSForScheduler(mut iTaskGraph: metamodelica::Array<Arc<metamodelica::Li
     let mut tmpTaskGraphT: metamodelica::Array<Arc<metamodelica::List<i32>>>;
     let mut tmpTaskGraphMeta: HpcOmTaskGraph::TaskGraphMeta = <HpcOmTaskGraph::TaskGraphMeta as ::std::default::Default>::default();
     (oTaskGraph, oTaskGraphT, oTaskGraphMeta) = 'mc: {
-        let __mc_input = (iTaskGraph.clone(), iTaskGraphT.clone(), iTaskGraphMeta.clone(), iContractedTasks.clone());
+        let __mc_input = iContractedTasks.clone();
         if let Ok(__v) = (|| -> Result<_> {
-            let (_, _, _, _) = __mc_input.clone() else { bail!("nomatch") };
-            let mut flagValue: ArcStr = flagValue.clone();
-            let mut tmpTaskGraph: metamodelica::Array<Arc<metamodelica::List<i32>>>;
-            let mut levelNodes: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>> = levelNodes.clone();
-            let mut contractedNodes: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>> = contractedNodes.clone();
+            let _ = __mc_input.clone() else { bail!("nomatch") };
             let mut tmpTaskGraphT: metamodelica::Array<Arc<metamodelica::List<i32>>>;
+            let mut levelNodes: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>> = levelNodes.clone();
+            let mut flagValue: ArcStr = flagValue.clone();
+            let mut contractedNodes: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>> = contractedNodes.clone();
+            let mut tmpTaskGraph: metamodelica::Array<Arc<metamodelica::List<i32>>>;
             let mut tmpTaskGraphMeta: HpcOmTaskGraph::TaskGraphMeta = tmpTaskGraphMeta.clone();
             flagValue = (Flags::getConfigString(Flags::HPCOM_SCHEDULER.clone())?).clone();
             let true = (stringEq((flagValue.clone()).clone(), (literal!("levelfix")).clone())) else { bail!("pattern mismatch") };
@@ -445,11 +443,8 @@ pub fn applyGRSForLevelFixScheduler(mut iTaskGraphMeta: HpcOmTaskGraph::TaskGrap
     let mut exeCosts: metamodelica::Array<(i32, metamodelica::Real)>;
     let mut bigTaskExecTime: metamodelica::Real = metamodelica::OrderedFloat(0.0_f64);
     let mut inComps: metamodelica::Array<Arc<metamodelica::List<i32>>>;
-    let mut tmpTaskGraph: metamodelica::Array<Arc<metamodelica::List<i32>>>;
-    let mut tmpTaskGraphT: metamodelica::Array<Arc<metamodelica::List<i32>>>;
-    let mut tmpTaskGraphMeta: HpcOmTaskGraph::TaskGraphMeta = <HpcOmTaskGraph::TaskGraphMeta as ::std::default::Default>::default();
-    oContractedLevelfixTasks = (::match_deref::match_deref! { match &((iTaskGraphMeta.clone(), iContractedTasks.clone(), iLevelNodes.clone(), iContractedLevelfixTasks.clone())) {
-        (HpcOmTaskGraph::TaskGraphMeta { inComps, exeCosts, .. }, _, Deref @ metamodelica::List::Cons { head: head, tail: rest }, _) => {
+    oContractedLevelfixTasks = (::match_deref::match_deref! { match &((iTaskGraphMeta.clone(), iLevelNodes.clone())) {
+        (HpcOmTaskGraph::TaskGraphMeta { inComps, exeCosts, .. }, Deref @ metamodelica::List::Cons { head: head, tail: rest }) => {
             sortedHead = List::sort(head.clone(), Arc::new({ let __pe_b2 = inComps.clone(); let __pe_b3 = exeCosts.clone(); let __pe_b4 = false; move |__pe_a0, __pe_a1| HpcOmTaskGraph::compareTasksByExecTime(__pe_a0, __pe_a1, __pe_b2.clone(), __pe_b3.clone(), __pe_b4.clone()) }))?;
             sortedHeadArray = metamodelica::arrayFromVec(sortedHead.clone().into_iter().cloned().collect());
             if intGt((sortedHeadArray.clone().borrow().len() as i32), 0) {
@@ -471,20 +466,15 @@ pub fn applyGRSForLevelFixScheduler(mut iTaskGraphMeta: HpcOmTaskGraph::TaskGrap
 // and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
 pub fn applyGRSForLevelFixSchedulerLevel(mut iTaskGraphMeta: HpcOmTaskGraph::TaskGraphMeta, mut iContractedTasks: metamodelica::Array<i32>, mut iCriticalSize: i32, mut iSortedLevelTasks: metamodelica::Array<i32>, mut iCurrentSmallTask: i32, mut iCurrentBigTask: (i32, Arc<metamodelica::List<i32>>, metamodelica::Real), mut iContractedLevelfixTasks: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>>) -> Result<Arc<metamodelica::List<Arc<metamodelica::List<i32>>>>> {
     let mut oContractedLevelfixTasks: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>> = metamodelica::nil();
-    let mut exeCosts: metamodelica::Array<(i32, metamodelica::Real)>;
     let mut tmpContractedTasks: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>> = metamodelica::nil();
-    let mut head: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut bigTaskChilds: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut mergedGroupExecTime: metamodelica::Real = metamodelica::OrderedFloat(0.0_f64);
     let mut bigTaskIdx: i32 = 0;
-    let mut tmpTaskGraph: metamodelica::Array<Arc<metamodelica::List<i32>>>;
-    let mut tmpTaskGraphT: metamodelica::Array<Arc<metamodelica::List<i32>>>;
-    let mut tmpTaskGraphMeta: HpcOmTaskGraph::TaskGraphMeta = <HpcOmTaskGraph::TaskGraphMeta as ::std::default::Default>::default();
     oContractedLevelfixTasks = 'mc: {
-        let __mc_input = (iTaskGraphMeta.clone(), iContractedTasks.clone(), iCriticalSize.clone(), iSortedLevelTasks.clone(), iCurrentSmallTask.clone(), iCurrentBigTask.clone(), iContractedLevelfixTasks.clone());
+        let __mc_input = (iCurrentBigTask.clone(), iContractedLevelfixTasks.clone());
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _, _, _, _, (bigTaskIdx, bigTaskChilds, mergedGroupExecTime), tmpContractedTasks) => {
+                ((bigTaskIdx, bigTaskChilds, mergedGroupExecTime), tmpContractedTasks) => {
                     let mut tmpContractedTasks = (*tmpContractedTasks).clone();
                     let true = (intLe(bigTaskIdx.clone(), iCurrentSmallTask.clone())) else { bail!("pattern mismatch") };
                     if !(bigTaskChilds.clone().is_empty()) {
@@ -497,7 +487,7 @@ pub fn applyGRSForLevelFixSchedulerLevel(mut iTaskGraphMeta: HpcOmTaskGraph::Tas
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _, _, _, _, (bigTaskIdx, bigTaskChilds, mergedGroupExecTime), _) => {
+                ((bigTaskIdx, bigTaskChilds, mergedGroupExecTime), _) => {
                     let mut mergedGroupExecTime = (*mergedGroupExecTime).clone();
                     let mut tmpContractedTasks: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>> = tmpContractedTasks.clone();
                     let true = (HpcOmTaskGraph::isNodeContracted(bigTaskIdx.clone(), iContractedTasks.clone())?) else { bail!("pattern mismatch") };
@@ -514,7 +504,7 @@ pub fn applyGRSForLevelFixSchedulerLevel(mut iTaskGraphMeta: HpcOmTaskGraph::Tas
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _, _, _, _, (bigTaskIdx, bigTaskChilds, mergedGroupExecTime), _) => {
+                ((bigTaskIdx, bigTaskChilds, mergedGroupExecTime), _) => {
                     let mut tmpContractedTasks: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>> = tmpContractedTasks.clone();
                     let true = (HpcOmTaskGraph::isNodeContracted(iCurrentSmallTask.clone(), iContractedTasks.clone())?) else { bail!("pattern mismatch") };
                     tmpContractedTasks = applyGRSForLevelFixSchedulerLevel(iTaskGraphMeta.clone(), iContractedTasks.clone(), iCriticalSize.clone(), iSortedLevelTasks.clone(), iCurrentSmallTask.clone() + 1, (bigTaskIdx.clone(), bigTaskChilds.clone(), mergedGroupExecTime.clone()), iContractedLevelfixTasks.clone())?;
@@ -525,7 +515,7 @@ pub fn applyGRSForLevelFixSchedulerLevel(mut iTaskGraphMeta: HpcOmTaskGraph::Tas
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _, _, _, _, (bigTaskIdx, bigTaskChilds, mergedGroupExecTime), tmpContractedTasks) => {
+                ((bigTaskIdx, bigTaskChilds, mergedGroupExecTime), tmpContractedTasks) => {
                     let mut mergedGroupExecTime = (*mergedGroupExecTime).clone();
                     let mut tmpContractedTasks = (*tmpContractedTasks).clone();
                     mergedGroupExecTime = mergedGroupExecTime.clone() + HpcOmTaskGraph::getExeCostReqCycles(iSortedLevelTasks.clone().borrow()[(iCurrentSmallTask.clone()-1) as usize].clone(), iTaskGraphMeta.clone())?;
@@ -583,11 +573,11 @@ fn GRS_newGraph(mut graphIn: metamodelica::Array<Arc<metamodelica::List<i32>>>, 
 fn GRS_newGraph2(mut origNodes: Arc<metamodelica::List<i32>>, mut removedNodes: Arc<metamodelica::List<i32>>, mut contrTasks: metamodelica::Array<i32>, mut origGraph: metamodelica::Array<Arc<metamodelica::List<i32>>>, mut origInComps: metamodelica::Array<Arc<metamodelica::List<i32>>>, mut newGraph: metamodelica::Array<Arc<metamodelica::List<i32>>>, mut newInComps: metamodelica::Array<Arc<metamodelica::List<i32>>>, mut newNode: i32) -> Result<(metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<Arc<metamodelica::List<i32>>>)> {
     let mut graphOut: metamodelica::Array<Arc<metamodelica::List<i32>>>;
     let mut inCompsOut: metamodelica::Array<Arc<metamodelica::List<i32>>>;
-    (graphOut, inCompsOut) = (::match_deref::match_deref! { match &((origNodes.clone(), removedNodes.clone(), contrTasks.clone(), origGraph.clone(), origInComps.clone(), newGraph.clone(), newInComps.clone(), newNode.clone())) {
-        (Deref @ metamodelica::List::Nil, _, _, _, _, _, _, _) => {
+    (graphOut, inCompsOut) = (::match_deref::match_deref! { match &(origNodes.clone()) {
+        Deref @ metamodelica::List::Nil => {
             (newGraph.clone(), newInComps.clone())
         },
-        (Deref @ metamodelica::List::Cons { head: node, tail: rest }, _, _, _, _, _, _, _) => {
+        Deref @ metamodelica::List::Cons { head: node, tail: rest } => {
             let mut row: Arc<metamodelica::List<i32>> = metamodelica::nil();
             let mut comps: Arc<metamodelica::List<i32>> = metamodelica::nil();
             row = origGraph.clone().borrow()[(node.clone()-1) as usize].clone();
@@ -598,7 +588,7 @@ fn GRS_newGraph2(mut origNodes: Arc<metamodelica::List<i32>>, mut removedNodes: 
             {let _arr = newInComps.clone(); _arr.borrow_mut()[(newNode.clone()-1) as usize] = comps.clone(); _arr};
             GRS_newGraph2(rest.clone(), removedNodes.clone(), contrTasks.clone(), origGraph.clone(), origInComps.clone(), newGraph.clone(), newInComps.clone(), newNode.clone() + 1)?
         },
-        _ => bail!("match: no arm matched"),
+        _ => unreachable!("match_deref! exhaustiveness placeholder"),
     } });
     Ok((graphOut, inCompsOut))
 }
@@ -632,17 +622,16 @@ fn createSchedule1(mut iTaskGraph: metamodelica::Array<Arc<metamodelica::List<i3
     let mut oTaskGraph: metamodelica::Array<Arc<metamodelica::List<i32>>>;
     let mut oTaskGraphMeta: HpcOmTaskGraph::TaskGraphMeta = <HpcOmTaskGraph::TaskGraphMeta as ::std::default::Default>::default();
     let mut oSccSimEqMapping: metamodelica::Array<Arc<metamodelica::List<i32>>>;
-    let mut lst: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut sccSimEqMap: metamodelica::Array<Arc<metamodelica::List<i32>>>;
     let mut schedule: Arc<HpcOmSimCode::Schedule>;
     let mut taskGraph1: metamodelica::Array<Arc<metamodelica::List<i32>>>;
     let mut taskGraphMeta1: HpcOmTaskGraph::TaskGraphMeta = <HpcOmTaskGraph::TaskGraphMeta as ::std::default::Default>::default();
     let mut simCode: SimCode::SimCode = <SimCode::SimCode as ::std::default::Default>::default();
     (oSchedule, oSimCode, oTaskGraph, oTaskGraphMeta, oSccSimEqMapping) = 'mc: {
-        let __mc_input = (iTaskGraph.clone(), iTaskGraphMeta.clone(), iSccSimEqMapping.clone(), iSimVarMapping.clone(), iFilenamePrefix.clone(), iNumProc.clone(), iSimCode.clone(), iScheduledTasks.clone(), iSystemName.clone(), iSchedulerName.clone());
+        let __mc_input = iSchedulerName.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _, _, _, _, _, _, _, _, Deref @ "none") => {
+                Deref @ "none" => {
                     let mut schedule: Arc<HpcOmSimCode::Schedule>;
                     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Using serial code for the ")); __mm_s.push_str(&*iSystemName.clone()); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
                     schedule = HpcOmScheduler::createEmptySchedule(iTaskGraph.clone(), iTaskGraphMeta.clone(), iSccSimEqMapping.clone())?;
@@ -653,9 +642,9 @@ fn createSchedule1(mut iTaskGraph: metamodelica::Array<Arc<metamodelica::List<i3
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _, _, _, _, _, _, _, _, Deref @ "level") => {
-                    let mut taskGraphMeta1: HpcOmTaskGraph::TaskGraphMeta = taskGraphMeta1.clone();
+                Deref @ "level" => {
                     let mut schedule: Arc<HpcOmSimCode::Schedule>;
+                    let mut taskGraphMeta1: HpcOmTaskGraph::TaskGraphMeta = taskGraphMeta1.clone();
                     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Using level Scheduler for the ")); __mm_s.push_str(&*iSystemName.clone()); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
                     (schedule, taskGraphMeta1) = HpcOmScheduler::createLevelSchedule(iTaskGraph.clone(), iTaskGraphMeta.clone(), iSccSimEqMapping.clone());
                     Ok((schedule.clone(), iSimCode.clone(), iTaskGraph.clone(), taskGraphMeta1.clone(), iSccSimEqMapping.clone()))
@@ -665,9 +654,9 @@ fn createSchedule1(mut iTaskGraph: metamodelica::Array<Arc<metamodelica::List<i3
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _, _, _, _, _, _, _, _, Deref @ "levelfix") => {
-                    let mut schedule: Arc<HpcOmSimCode::Schedule>;
+                Deref @ "levelfix" => {
                     let mut taskGraphMeta1: HpcOmTaskGraph::TaskGraphMeta = taskGraphMeta1.clone();
+                    let mut schedule: Arc<HpcOmSimCode::Schedule>;
                     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Using fixed level Scheduler (experimental) for the ")); __mm_s.push_str(&*iSystemName.clone()); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
                     (schedule, taskGraphMeta1) = HpcOmScheduler::createFixedLevelSchedule(iTaskGraph.clone(), iTaskGraphMeta.clone(), iNumProc.clone(), iSccSimEqMapping.clone());
                     Ok((schedule.clone(), iSimCode.clone(), iTaskGraph.clone(), taskGraphMeta1.clone(), iSccSimEqMapping.clone()))
@@ -677,7 +666,7 @@ fn createSchedule1(mut iTaskGraph: metamodelica::Array<Arc<metamodelica::List<i3
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _, _, _, _, _, _, _, _, Deref @ "ext") => {
+                Deref @ "ext" => {
                     let mut schedule: Arc<HpcOmSimCode::Schedule>;
                     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Using external Scheduler for the ")); __mm_s.push_str(&*iSystemName.clone()); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
                     schedule = HpcOmScheduler::createExtSchedule(iTaskGraph.clone(), iTaskGraphMeta.clone(), iNumProc.clone(), iSccSimEqMapping.clone(), iSimVarMapping.clone(), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("taskGraph")); __mm_s.push_str(&*iFilenamePrefix.clone()); __mm_s.push_str(&*literal!("_ext.graphml")); ArcStr::from(__mm_s) }).clone())?;
@@ -688,7 +677,7 @@ fn createSchedule1(mut iTaskGraph: metamodelica::Array<Arc<metamodelica::List<i3
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _, _, _, _, _, _, _, _, Deref @ "metis") => {
+                Deref @ "metis" => {
                     let mut schedule: Arc<HpcOmSimCode::Schedule>;
                     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Using METIS Scheduler for the ")); __mm_s.push_str(&*iSystemName.clone()); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
                     schedule = HpcOmScheduler::createMetisSchedule(iTaskGraph.clone(), iTaskGraphMeta.clone(), iNumProc.clone(), iSccSimEqMapping.clone(), iSimVarMapping.clone())?;
@@ -699,7 +688,7 @@ fn createSchedule1(mut iTaskGraph: metamodelica::Array<Arc<metamodelica::List<i3
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _, _, _, _, _, _, _, _, Deref @ "hmet") => {
+                Deref @ "hmet" => {
                     let mut schedule: Arc<HpcOmSimCode::Schedule>;
                     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Using hMETIS Scheduler for the ")); __mm_s.push_str(&*iSystemName.clone()); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
                     schedule = HpcOmScheduler::createHMetisSchedule(iTaskGraph.clone(), iTaskGraphMeta.clone(), iNumProc.clone(), iSccSimEqMapping.clone(), iSimVarMapping.clone())?;
@@ -710,7 +699,7 @@ fn createSchedule1(mut iTaskGraph: metamodelica::Array<Arc<metamodelica::List<i3
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _, _, _, _, _, _, _, _, Deref @ "listr") => {
+                Deref @ "listr" => {
                     let mut schedule: Arc<HpcOmSimCode::Schedule>;
                     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Using list reverse Scheduler for the ")); __mm_s.push_str(&*iSystemName.clone()); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
                     schedule = HpcOmScheduler::createListScheduleReverse(iTaskGraph.clone(), iTaskGraphMeta.clone(), iNumProc.clone(), iSccSimEqMapping.clone(), iSimVarMapping.clone())?;
@@ -721,7 +710,7 @@ fn createSchedule1(mut iTaskGraph: metamodelica::Array<Arc<metamodelica::List<i3
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _, _, _, _, _, _, _, _, Deref @ "rand") => {
+                Deref @ "rand" => {
                     let mut schedule: Arc<HpcOmSimCode::Schedule>;
                     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Using Random Scheduler for the ")); __mm_s.push_str(&*iSystemName.clone()); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
                     schedule = HpcOmScheduler::createRandomSchedule(iTaskGraph.clone(), iTaskGraphMeta.clone(), iNumProc.clone(), iSccSimEqMapping.clone(), iSimVarMapping.clone())?;
@@ -732,7 +721,7 @@ fn createSchedule1(mut iTaskGraph: metamodelica::Array<Arc<metamodelica::List<i3
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _, _, _, _, _, _, _, _, Deref @ "list") => {
+                Deref @ "list" => {
                     let mut schedule: Arc<HpcOmSimCode::Schedule>;
                     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Using list Scheduler for the ")); __mm_s.push_str(&*iSystemName.clone()); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
                     schedule = HpcOmScheduler::createListSchedule(iTaskGraph.clone(), iTaskGraphMeta.clone(), iNumProc.clone(), iSccSimEqMapping.clone(), iSimVarMapping.clone())?;
@@ -743,7 +732,7 @@ fn createSchedule1(mut iTaskGraph: metamodelica::Array<Arc<metamodelica::List<i3
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _, _, _, _, _, _, _, _, Deref @ "mcp") => {
+                Deref @ "mcp" => {
                     let mut schedule: Arc<HpcOmSimCode::Schedule>;
                     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Using Modified Critical Path Scheduler for the ")); __mm_s.push_str(&*iSystemName.clone()); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
                     schedule = HpcOmScheduler::createMCPschedule(iTaskGraph.clone(), iTaskGraphMeta.clone(), iNumProc.clone(), iSccSimEqMapping.clone(), iSimVarMapping.clone())?;
@@ -754,7 +743,7 @@ fn createSchedule1(mut iTaskGraph: metamodelica::Array<Arc<metamodelica::List<i3
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _, _, _, _, _, _, _, _, Deref @ "part") => {
+                Deref @ "part" => {
                     let mut schedule: Arc<HpcOmSimCode::Schedule>;
                     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Using partition Scheduler for the ")); __mm_s.push_str(&*iSystemName.clone()); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
                     schedule = HpcOmScheduler::createPartSchedule(iTaskGraph.clone(), iTaskGraphMeta.clone(), iNumProc.clone(), iSccSimEqMapping.clone(), iSimVarMapping.clone())?;
@@ -765,7 +754,7 @@ fn createSchedule1(mut iTaskGraph: metamodelica::Array<Arc<metamodelica::List<i3
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _, _, _, _, _, _, _, _, Deref @ "taskdep") => {
+                Deref @ "taskdep" => {
                     let mut schedule: Arc<HpcOmSimCode::Schedule>;
                     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Using dynamic task dependencies for the ")); __mm_s.push_str(&*iSystemName.clone()); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
                     schedule = HpcOmScheduler::createTaskDepSchedule(iTaskGraph.clone(), iTaskGraphMeta.clone(), iSccSimEqMapping.clone())?;
@@ -776,12 +765,12 @@ fn createSchedule1(mut iTaskGraph: metamodelica::Array<Arc<metamodelica::List<i3
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _, _, _, _, _, _, _, _, Deref @ "tds") => {
-                    let mut taskGraph1: metamodelica::Array<Arc<metamodelica::List<i32>>>;
-                    let mut simCode: SimCode::SimCode = simCode.clone();
-                    let mut sccSimEqMap: metamodelica::Array<Arc<metamodelica::List<i32>>>;
+                Deref @ "tds" => {
                     let mut taskGraphMeta1: HpcOmTaskGraph::TaskGraphMeta = taskGraphMeta1.clone();
+                    let mut simCode: SimCode::SimCode = simCode.clone();
+                    let mut taskGraph1: metamodelica::Array<Arc<metamodelica::List<i32>>>;
                     let mut schedule: Arc<HpcOmSimCode::Schedule>;
+                    let mut sccSimEqMap: metamodelica::Array<Arc<metamodelica::List<i32>>>;
                     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Using Task Duplication-based Scheduling for the ")); __mm_s.push_str(&*iSystemName.clone()); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
                     (schedule, simCode, taskGraph1, taskGraphMeta1, sccSimEqMap) = HpcOmScheduler::TDS_schedule(iTaskGraph.clone(), iTaskGraphMeta.clone(), iNumProc.clone(), iSccSimEqMapping.clone(), iSimVarMapping.clone(), iSimCode.clone())?;
                     Ok((schedule.clone(), simCode.clone(), taskGraph1.clone(), taskGraphMeta1.clone(), sccSimEqMap.clone()))
@@ -791,7 +780,7 @@ fn createSchedule1(mut iTaskGraph: metamodelica::Array<Arc<metamodelica::List<i3
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _, _, _, _, _, _, _, _, Deref @ "bls") => {
+                Deref @ "bls" => {
                     let mut schedule: Arc<HpcOmSimCode::Schedule>;
                     let mut taskGraphMeta1: HpcOmTaskGraph::TaskGraphMeta = taskGraphMeta1.clone();
                     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Using Balanced Level Scheduling for the ")); __mm_s.push_str(&*iSystemName.clone()); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
@@ -803,7 +792,7 @@ fn createSchedule1(mut iTaskGraph: metamodelica::Array<Arc<metamodelica::List<i3
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _, _, _, _, _, _, _, _, Deref @ "sbs") => {
+                Deref @ "sbs" => {
                     let mut schedule: Arc<HpcOmSimCode::Schedule>;
                     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Using Single Block Scheduling for the ")); __mm_s.push_str(&*iSystemName.clone()); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
                     schedule = HpcOmEqSystems::createSingleBlockSchedule(iTaskGraph.clone(), iTaskGraphMeta.clone(), iScheduledTasks.clone(), iSccSimEqMapping.clone())?;
@@ -814,7 +803,7 @@ fn createSchedule1(mut iTaskGraph: metamodelica::Array<Arc<metamodelica::List<i3
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _, _, _, _, _, _, _, _, Deref @ "sts") => {
+                Deref @ "sts" => {
                     let mut schedule: Arc<HpcOmSimCode::Schedule>;
                     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Using Single Thread Scheduling for the ")); __mm_s.push_str(&*iSystemName.clone()); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
                     schedule = HpcOmScheduler::createSingleThreadSchedule(iTaskGraph.clone(), iTaskGraphMeta.clone(), iSccSimEqMapping.clone(), iNumProc.clone())?;
@@ -1021,11 +1010,11 @@ pub fn outputTimeBenchmark(mut graphData: HpcOmTaskGraph::TaskGraphMeta, mut dae
 }
 
 fn outputTimeBenchmark2(mut compsIn: Arc<metamodelica::List<Arc<BackendDAE::StrongComponent>>>, mut numCycles: Arc<metamodelica::List<metamodelica::Real>>, mut eqSystemsIn: Arc<metamodelica::List<Arc<BackendDAE::EqSystem>>>, mut shared: Arc<BackendDAE::Shared>, mut compIdx: i32) -> Result<()> {
-    let _ = 'mc: {
-        let __mc_input = (compsIn.clone(), numCycles.clone(), eqSystemsIn.clone(), shared.clone(), compIdx.clone());
+    let () = 'mc: {
+        let __mc_input = (compsIn.clone(), numCycles.clone(), eqSystemsIn.clone());
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ metamodelica::List::Nil, _, Deref @ metamodelica::List::Cons { head: _, tail: Deref @ metamodelica::List::Nil }, _, _) => {
+                (Deref @ metamodelica::List::Nil, _, Deref @ metamodelica::List::Cons { head: _, tail: Deref @ metamodelica::List::Nil }) => {
                     Ok(())
                 }
                 _ => bail!("nomatch"),
@@ -1033,7 +1022,7 @@ fn outputTimeBenchmark2(mut compsIn: Arc<metamodelica::List<Arc<BackendDAE::Stro
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ metamodelica::List::Nil, _, Deref @ metamodelica::List::Cons { head: _, tail: eqSysRest }, _, _) => {
+                (Deref @ metamodelica::List::Nil, _, Deref @ metamodelica::List::Cons { head: _, tail: eqSysRest }) => {
                     let mut comps: Arc<metamodelica::List<Arc<BackendDAE::StrongComponent>>> = metamodelica::nil();
                     comps = BackendDAEUtil::getStrongComponents(listHead(eqSysRest.clone())?);
                     outputTimeBenchmark2(comps.clone(), numCycles.clone(), eqSysRest.clone(), shared.clone(), compIdx.clone())?;
@@ -1044,7 +1033,7 @@ fn outputTimeBenchmark2(mut compsIn: Arc<metamodelica::List<Arc<BackendDAE::Stro
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ metamodelica::List::Cons { head: comp, tail: comps }, Deref @ metamodelica::List::Cons { head: exeCost, tail: restCosts }, Deref @ metamodelica::List::Cons { head: eqSys, tail: _ }, _, _) => {
+                (Deref @ metamodelica::List::Cons { head: comp, tail: comps }, Deref @ metamodelica::List::Cons { head: exeCost, tail: restCosts }, Deref @ metamodelica::List::Cons { head: eqSys, tail: _ }) => {
                     let mut estimate: metamodelica::Real = metamodelica::OrderedFloat(0.0_f64);
                     let mut compInfo: Arc<BackendDAE::CompInfo>;
                     let __pa0 = ::match_deref::match_deref! { match &(BackendDAEOptimize::countOperationstraverseComps(list![comp.clone()], eqSys.clone(), shared.clone(), metamodelica::nil())?) {

@@ -149,21 +149,21 @@ pub fn toDAE(mut fnDer: Arc<NFFunctionDerivative>) -> Result<DAE::FunctionDefini
         _ => bail!("pattern mismatch"),
     } };
     order = __pa0.clone();
-    derDef = DAE::FunctionDefinition::FUNCTION_DER_MAPPER { derivedFunction: Function::name(listHead(Function::getCachedFuncs(fnDer.derivedFn.clone())?)?), derivativeFunction: Function::name(listHead(Function::getCachedFuncs(fnDer.derivativeFn.clone())?)?), derivativeOrder: order.clone(), conditionRefs: {
+    derDef = DAE::FunctionDefinition::FUNCTION_DER_MAPPER { derivedFunction: Function::name(listHead(Function::getCachedFuncs(fnDer.derivedFn.clone())?)?), derivativeFunction: Function::name(listHead(Function::getCachedFuncs(fnDer.derivativeFn.clone())?)?), derivativeOrder: order.clone(), conditionRefs: ({
         let mut __acc: Arc<metamodelica::List<(i32, DAE::derivativeCond)>> = metamodelica::nil();
         for mut c in (fnDer.conditions.clone()).into_iter().cloned() {
             let __x = conditionToDAE(c.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, defaultDerivative: None, lowerOrderDerivatives: {
+    }), defaultDerivative: None, lowerOrderDerivatives: ({
         let mut __acc: Arc<metamodelica::List<Arc<Absyn::Path>>> = metamodelica::nil();
         for mut r#fn in (fnDer.lowerOrderDerivatives.clone()).into_iter().cloned() {
             let __x = Function::name(listHead(Function::getCachedFuncs(r#fn.clone())?)?);
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    } };
+    }) };
     Ok(derDef)
 }
 
@@ -219,7 +219,7 @@ pub fn perfectFit(mut fnDer: Arc<NFFunctionDerivative>, mut interface_map: Arc<U
         (_, name, cond) = condition.clone();
         if cond.clone() == Condition::ZERO_DERIVATIVE.clone() && !(UnorderedMap::contains((name.clone()).clone(), interface_map.clone())) {
             b = false;
-            return Ok(b);
+            return Ok(b.clone());
         }
     }
     for mut condition in &*fnDer.conditions.clone() {
@@ -299,7 +299,6 @@ fn getDerivativeAttributes(mut attrs: Arc<metamodelica::List<Arc<SCode::SubMod>>
     let mut id: ArcStr = arcstr::literal!("");
     let mut r#mod: Arc<SCode::Mod> = Arc::new(SCode::Mod::NOMOD);
     let mut aexp: Arc<Absyn::Exp> = Arc::new(Absyn::Exp::BREAK);
-    let mut acref: Arc<Absyn::ComponentRef> = Arc::new(Absyn::ComponentRef::ALLWILD);
     let mut index: i32 = 0;
     for mut attr in &*attrs.clone() {
         let mut attr = attr.clone();
@@ -345,7 +344,7 @@ fn getInputIndex(mut name: ArcStr, mut r#fn: Arc<Function::Function>, mut info: 
     for mut i in &*r#fn.inputs.clone() {
         let mut i = i.clone();
         if InstNode::name(i.clone())? == name.clone() {
-            return Ok(index);
+            return Ok(index.clone());
         }
         index = index.clone() + 1;
     }
@@ -361,7 +360,7 @@ fn addLowerOrderDerivative(mut fnNode: Arc<InstNode::InstNode>, mut lowerDerNode
 
 fn addLowerOrderDerivative2(mut r#fn: Arc<Function::Function>, mut lowerDerNode: Arc<InstNode::InstNode>) -> Result<Arc<Function::Function>> {
     let mut r#fn: Arc<Function::Function> = r#fn;
-    assign_field!(r#fn.derivatives = {
+    assign_field!(r#fn.derivatives = ({
         let mut __acc: Arc<metamodelica::List<Arc<NFFunctionDerivative>>> = metamodelica::nil();
         for mut fn_der in (r#fn.derivatives.clone()).into_iter().cloned() {
             let __x = (::match_deref::match_deref! { match &(fn_der.clone()) {
@@ -374,7 +373,7 @@ fn addLowerOrderDerivative2(mut r#fn: Arc<Function::Function>, mut lowerDerNode:
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
     Ok(r#fn)
 }
 

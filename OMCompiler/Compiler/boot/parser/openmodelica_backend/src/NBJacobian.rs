@@ -68,7 +68,6 @@ use crate::NBVariable;
 use crate::NBackendDAE as Jacobian;
 use crate::SymbolicJacobian;
 use openmodelica_ast::Absyn::Path;
-use openmodelica_ast_collections::AvlSetPath;
 use openmodelica_nf_frontend::NFComponentRef as ComponentRef;
 use openmodelica_nf_frontend::NFExpression as Expression;
 use openmodelica_nf_frontend::NFFunction::Function;
@@ -128,14 +127,14 @@ pub fn isDynamic(mut jacType: JacobianType) -> bool {
 pub fn applyToPartitions(mut partitions: Arc<metamodelica::List<Arc<Partition::Partition::Partition>>>, mut funcMap: Arc<UnorderedMap::UnorderedMap<Arc<Path>, Arc<Function::Function>>>, mut knowns: Arc<VariablePointers::VariablePointers>, mut name: ArcStr, mut func: Arc<dyn ::std::ops::Fn(ArcStr, JacobianType, Arc<VariablePointers::VariablePointers>, Arc<VariablePointers::VariablePointers>, Arc<EquationPointers::EquationPointers>, Option<metamodelica::Array<Arc<StrongComponent::NBStrongComponent>>>, Option<Arc<Adjacency::Matrix::Matrix>>, Arc<UnorderedMap::UnorderedMap<Arc<Path>, Arc<Function::Function>>>, bool) -> Result<Option<Arc<Jacobian::NBackendDAE>>> + 'static>) -> Result<(Arc<metamodelica::List<Arc<Partition::Partition::Partition>>>, Arc<UnorderedMap::UnorderedMap<Arc<Path>, Arc<Function::Function>>>)> {
     let mut partitions: Arc<metamodelica::List<Arc<Partition::Partition::Partition>>> = partitions;
     let mut funcMap: Arc<UnorderedMap::UnorderedMap<Arc<Path>, Arc<Function::Function>>> = funcMap;
-    partitions = {
+    partitions = ({
         let mut __acc: Arc<metamodelica::List<Arc<Partition::Partition::Partition>>> = metamodelica::nil();
         for mut part in (partitions.clone()).into_iter().cloned() {
             let __x = partJacobian(part.clone(), funcMap.clone(), knowns.clone(), (name.clone()).clone(), func.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     Ok((partitions, funcMap))
 }
 
@@ -165,7 +164,6 @@ pub fn combine(mut jacobians: Arc<metamodelica::List<Arc<Jacobian::NBackendDAE>>
     let mut partial_vars: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = metamodelica::nil();
     let mut nnz: i32 = 0;
     let mut varData: Arc<VarData::VarData> = Arc::new(VarData::VAR_DATA_EMPTY);
-    let mut eqData: Arc<EqData::EqData> = Arc::new(EqData::EQ_DATA_EMPTY);
     let mut sparsityPattern: Arc<SparsityPattern::SparsityPattern> = Arc::new(<SparsityPattern::SparsityPattern as ::std::default::Default>::default());
     let mut sparsityColoring: Arc<SparsityColoring::SparsityColoring> = SparsityColoring::lazy(EMPTY_SPARSITY_PATTERN().clone());
     if List::hasOneElement(jacobians.clone()) {
@@ -175,7 +173,11 @@ pub fn combine(mut jacobians: Arc<metamodelica::List<Arc<Jacobian::NBackendDAE>>
             assign_variant_field!(jacobian => Jacobian::NBackendDAE::JACOBIAN; name = name.clone());
             jacobian.clone()
         },
-        _ => bail!("match: no arm matched"),
+        _ => {
+            Error::addMessage(Error::INTERNAL_ERROR.clone(), list![({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("NBJacobian.combine")); __mm_s.push_str(&*literal!(" failed for\n")); __mm_s.push_str(&*toString(jacobian.clone())?); ArcStr::from(__mm_s) }).clone()])?;
+            bail!("fail")
+        },
+        _ => unreachable!("match_deref! exhaustiveness placeholder"),
     } });
     } else {
         for mut jac in &*jacobians.clone() {
@@ -326,22 +328,22 @@ pub mod SparsityPattern {
         let mut nnz: i32 = 0;
         seed_vars = NBVariable::VariablePointers::getScalarVarNames(seedCandidates.clone(), false)?;
         partial_vars = NBVariable::VariablePointers::getScalarVarNames(partialCandidates.clone(), false)?;
-        cols = {
+        cols = ({
         let mut __acc: Arc<metamodelica::List<(Arc<ComponentRef::NFComponentRef>, Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>)>> = metamodelica::nil();
         for mut s in (seed_vars.clone()).into_iter().cloned() {
             let __x = (s.clone(), partial_vars.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
-        rows = {
+    });
+        rows = ({
         let mut __acc: Arc<metamodelica::List<(Arc<ComponentRef::NFComponentRef>, Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>)>> = metamodelica::nil();
         for mut p in (partial_vars.clone()).into_iter().cloned() {
             let __x = (p.clone(), seed_vars.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
         nnz = (partial_vars.clone().len() as i32) * (seed_vars.clone().len() as i32);
         sparsityPattern = Arc::new(SparsityPattern { col_wise_pattern: cols.clone(), row_wise_pattern: rows.clone(), seed_vars: seed_vars.clone(), partial_vars: partial_vars.clone(), nnz: nnz.clone() });
         sparsityColoring = SparsityColoring::lazy(sparsityPattern.clone());
@@ -525,14 +527,14 @@ pub mod SparsityColoring {
         let mut sparsityColoring: Arc<SparsityColoring> = Arc::new(<SparsityColoring as ::std::default::Default>::default());
         let mut cols: metamodelica::Array<Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>>;
         let mut rows: metamodelica::Array<Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>>;
-        cols = metamodelica::arrayFromVec({
+        cols = metamodelica::arrayFromVec(({
         let mut __acc: Arc<metamodelica::List<Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>>> = metamodelica::nil();
         for mut cref in (sparsityPattern.seed_vars.clone()).into_iter().cloned() {
             let __x = list![cref.clone()];
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }.into_iter().cloned().collect());
+    }).into_iter().cloned().collect());
         rows = arrayCreate((cols.clone().borrow().len() as i32), sparsityPattern.partial_vars.clone());
         sparsityColoring = Arc::new(SparsityColoring { cols: cols.clone(), rows: rows.clone() });
         sparsityColoring
@@ -571,7 +573,7 @@ pub mod SparsityColoring {
         if jacType.clone() == JacobianType::NLS.clone() {
             partials = metamodelica::arrayFromVec(sparsityPattern.partial_vars.clone().into_iter().cloned().collect());
         } else {
-            partials = metamodelica::arrayFromVec({
+            partials = metamodelica::arrayFromVec(({
         let mut __acc: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = metamodelica::nil();
         for mut cref in (sparsityPattern.partial_vars.clone()).into_iter().cloned() {
             if !(isRowInJacobian(cref.clone(), jacType.clone())) { continue; }
@@ -579,7 +581,7 @@ pub mod SparsityColoring {
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }.into_iter().cloned().collect());
+    }).into_iter().cloned().collect());
         }
         sizeCols = (seeds.clone().borrow().len() as i32);
         sizeRows = (partials.clone().borrow().len() as i32);
@@ -597,14 +599,14 @@ pub mod SparsityColoring {
             let mut tpl = tpl.clone();
             (idx_cref, deps) = tpl.clone();
             {
-                let __cell0 = {
+                let __cell0 = ({
         let mut __acc: Arc<metamodelica::List<i32>> = metamodelica::nil();
         for mut dep in (deps.clone()).into_iter().cloned() {
             let __x = UnorderedMap::getSafe(dep.clone(), partial_indices.clone(), metamodelica::sourceInfo!())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
                 cols.clone().borrow_mut()[(UnorderedMap::getSafe(idx_cref.clone(), seed_indices.clone(), metamodelica::sourceInfo!())?-1) as usize] = __cell0;
             }
         }
@@ -612,14 +614,14 @@ pub mod SparsityColoring {
             let mut tpl = tpl.clone();
             (idx_cref, deps) = tpl.clone();
             {
-                let __cell1 = {
+                let __cell1 = ({
         let mut __acc: Arc<metamodelica::List<i32>> = metamodelica::nil();
         for mut dep in (deps.clone()).into_iter().cloned() {
             let __x = getIndices(dep.clone(), seed_indices.clone(), partial_indices.clone(), rows.clone())?;
             __acc = __x.append(&__acc);
         }
         __acc
-    };
+    });
                 rows.clone().borrow_mut()[(UnorderedMap::getSafe(idx_cref.clone(), partial_indices.clone(), metamodelica::sourceInfo!())?-1) as usize] = __cell1;
             }
         }
@@ -628,14 +630,14 @@ pub mod SparsityColoring {
         let __range2 = 1..=(colored_cols.clone().borrow().len() as i32);
         for mut i in __range2 {
             {
-                let __cell3 = {
+                let __cell3 = ({
         let mut __acc: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = metamodelica::nil();
         for mut idx in (colored_cols.borrow()[(i.clone()-1) as usize].clone()).into_iter().cloned() {
             let __x = seeds.borrow()[(idx.clone()-1) as usize].clone();
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
                 cref_colored_cols.clone().borrow_mut()[(i.clone()-1) as usize] = __cell3;
             }
         }
@@ -644,14 +646,14 @@ pub mod SparsityColoring {
         let __range4 = 1..=(colored_rows.clone().borrow().len() as i32);
         for mut i in __range4 {
             {
-                let __cell5 = {
+                let __cell5 = ({
         let mut __acc: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = metamodelica::nil();
         for mut idx in (colored_rows.borrow()[(i.clone()-1) as usize].clone()).into_iter().cloned() {
             let __x = partials.borrow()[(idx.clone()-1) as usize].clone();
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
                 cref_colored_rows.clone().borrow_mut()[(i.clone()-1) as usize] = __cell5;
             }
         }
@@ -665,10 +667,6 @@ pub mod SparsityColoring {
         let mut partial_nodes: metamodelica::Array<Arc<ComponentRef::NFComponentRef>>;
         let mut col_groups: Arc<metamodelica::List<Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>>> = metamodelica::nil();
         let mut row_groups: Arc<metamodelica::List<Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>>> = metamodelica::nil();
-        let mut nCols: i32 = 0;
-        let mut nRows: i32 = 0;
-        let mut pad: i32 = 0;
-        let mut k: i32 = 0;
         let mut cols_arr: metamodelica::Array<Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>>;
         let mut rows_arr: metamodelica::Array<Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>>;
         seed_nodes = metamodelica::arrayFromVec(sparsityPattern.seed_vars.clone().into_iter().cloned().collect());
@@ -820,17 +818,25 @@ pub mod SparsityColoring {
 
     pub fn combine(mut coloring1: Arc<SparsityColoring>, mut coloring2: Arc<SparsityColoring>) -> Arc<SparsityColoring> {
         let mut coloring_out: Arc<SparsityColoring> = Arc::new(<SparsityColoring as ::std::default::Default>::default());
-        let mut smaller_coloring: Arc<SparsityColoring> = Arc::new(<SparsityColoring as ::std::default::Default>::default());
-        (coloring_out, smaller_coloring) = if ((coloring2.cols.clone().borrow().len() as i32) > (coloring1.cols.clone().borrow().len() as i32)) {(coloring2.clone(), coloring1.clone())} else {(coloring1.clone(), coloring2.clone())};
-        let __range0 = 1..=(smaller_coloring.cols.clone().borrow().len() as i32);
+        let mut cols_big: metamodelica::Array<Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>>;
+        let mut cols_small: metamodelica::Array<Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>>;
+        let mut rows_big: metamodelica::Array<Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>>;
+        let mut rows_small: metamodelica::Array<Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>>;
+        (cols_big, cols_small) = if ((coloring2.cols.clone().borrow().len() as i32) > (coloring1.cols.clone().borrow().len() as i32)) {(coloring2.cols.clone(), coloring1.cols.clone())} else {(coloring1.cols.clone(), coloring2.cols.clone())};
+        (rows_big, rows_small) = if ((coloring2.rows.clone().borrow().len() as i32) > (coloring1.rows.clone().borrow().len() as i32)) {(coloring2.rows.clone(), coloring1.rows.clone())} else {(coloring1.rows.clone(), coloring2.rows.clone())};
+        coloring_out = Arc::new(SparsityColoring { cols: cols_big.clone(), rows: rows_big.clone() });
+        let __range0 = 1..=(cols_small.clone().borrow().len() as i32);
         for mut i in __range0 {
             {
-                let __cell1 = listAppend(coloring_out.cols.borrow()[(i.clone()-1) as usize].clone(), smaller_coloring.cols.borrow()[(i.clone()-1) as usize].clone());
+                let __cell1 = listAppend(coloring_out.cols.borrow()[(i.clone()-1) as usize].clone(), cols_small.borrow()[(i.clone()-1) as usize].clone());
                 coloring_out.cols.clone().borrow_mut()[(i.clone()-1) as usize] = __cell1;
             }
+        }
+        let __range2 = 1..=(rows_small.clone().borrow().len() as i32);
+        for mut i in __range2 {
             {
-                let __cell2 = listAppend(coloring_out.rows.borrow()[(i.clone()-1) as usize].clone(), smaller_coloring.rows.borrow()[(i.clone()-1) as usize].clone());
-                coloring_out.rows.clone().borrow_mut()[(i.clone()-1) as usize] = __cell2;
+                let __cell3 = listAppend(coloring_out.rows.borrow()[(i.clone()-1) as usize].clone(), rows_small.borrow()[(i.clone()-1) as usize].clone());
+                coloring_out.rows.clone().borrow_mut()[(i.clone()-1) as usize] = __cell3;
             }
         }
         coloring_out
@@ -913,7 +919,7 @@ fn getSeedCandidatesDynamicOptimization(mut part: Arc<Partition::Partition::Part
     let mut derivative_vars: Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>> = metamodelica::nil();
     let mut unknown_states: Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>> = metamodelica::nil();
     unknowns = getOptimizableVars(all_knowns.clone());
-    derivative_vars = {
+    derivative_vars = ({
         let mut __acc: Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>> = metamodelica::nil();
         for mut var in (NBVariable::VariablePointers::toList(part.unknowns.clone())?).into_iter().cloned() {
             if !(BVariable::isStateDerivative(var.clone())?) { continue; }
@@ -921,15 +927,15 @@ fn getSeedCandidatesDynamicOptimization(mut part: Arc<Partition::Partition::Part
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
-    unknown_states = {
+    });
+    unknown_states = ({
         let mut __acc: Arc<metamodelica::List<_>> = metamodelica::nil();
         for mut var in (derivative_vars.clone()).into_iter().cloned() {
             let __x = Util::getOption((BVariable::getVarState(var.clone())?).0)?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     unknowns = listAppend(unknown_states.clone(), unknowns.clone());
     unknowns = List::filterOnTrue(unknowns.clone(), filter.clone());
     Ok(unknowns)
@@ -1011,7 +1017,7 @@ fn partJacobian(mut part: Arc<Partition::Partition::Partition>, mut funcMap: Arc
         partialCandidates = part.unknowns.clone();
         unknowns = if (Partition::Partition::getKind(part.clone()) == Partition::Kind::DAE.clone()) {Util::getOption(part.daeUnknowns.clone())?} else {part.unknowns.clone()};
         jacType = if (Partition::Partition::getKind(part.clone()) == Partition::Kind::DAE.clone()) {JacobianType::DAE.clone()} else {JacobianType::ODE.clone()};
-        derivative_vars = {
+        derivative_vars = ({
         let mut __acc: Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>> = metamodelica::nil();
         for mut var in (NBVariable::VariablePointers::toList(unknowns.clone())?).into_iter().cloned() {
             if !(BVariable::isStateDerivative(var.clone())?) { continue; }
@@ -1019,15 +1025,15 @@ fn partJacobian(mut part: Arc<Partition::Partition::Partition>, mut funcMap: Arc
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
-        state_vars = {
+    });
+        state_vars = ({
         let mut __acc: Arc<metamodelica::List<_>> = metamodelica::nil();
         for mut var in (derivative_vars.clone()).into_iter().cloned() {
             let __x = Util::getOption((BVariable::getVarState(var.clone())?).0)?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
         seedCandidates = NBVariable::VariablePointers::fromList(state_vars.clone(), partialCandidates.scalarized.clone());
         jacobian = func((name.clone()).clone(), jacType.clone(), seedCandidates.clone(), partialCandidates.clone(), part.equations.clone(), part.strongComponents.clone(), part.adjacencyMatrix.clone(), funcMap.clone(), Partition::kindIsInitial(kind.clone()))?;
         if Flags::getConfigBool(Flags::MOO_DYNAMIC_OPTIMIZATION.clone())? {
@@ -1061,34 +1067,34 @@ fn compJacobian(mut comp: Arc<StrongComponent::NBStrongComponent>, mut full: Opt
     (comp, updated) = (::match_deref::match_deref! { match &(comp.clone()) {
         Deref @ StrongComponent::ALGEBRAIC_LOOP { strict, .. } => {
             let mut strict = (*strict).clone();
-            residual_comps = {
+            residual_comps = ({
         let mut __acc: Arc<metamodelica::List<Arc<StrongComponent::NBStrongComponent>>> = metamodelica::nil();
         for mut eqn in (strict.residual_eqns.clone()).into_iter().cloned() {
             let __x = StrongComponent::fromSolvedEquationSlice(eqn.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
-            seed_candidates = {
+    });
+            seed_candidates = ({
         let mut __acc: Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>> = metamodelica::nil();
         for mut var in (strict.iteration_vars.clone()).into_iter().cloned() {
             let __x = Slice::getT(var.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
-            residual_vars = {
+    });
+            residual_vars = ({
         let mut __acc: Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>> = metamodelica::nil();
         for mut eqn in (strict.residual_eqns.clone()).into_iter().cloned() {
             let __x = NBEquation::Equation::getResidualVar(Slice::getT(eqn.clone()))?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
-            inner_vars = {
+    });
+            inner_vars = ({
         let mut __acc: Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>> = metamodelica::nil();
         for mut comp in (strict.innerEquations.clone()).borrow().iter() {
-            let __x = {
+            let __x = ({
         let mut __acc: Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>> = metamodelica::nil();
         for mut var in (StrongComponent::getVariables(comp.clone())?).into_iter().cloned() {
             if !(BVariable::isContinuous(var.clone(), init.clone())?) { continue; }
@@ -1096,19 +1102,19 @@ fn compJacobian(mut comp: Arc<StrongComponent::NBStrongComponent>, mut full: Opt
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
             __acc = __x.append(&__acc);
         }
         __acc
-    };
-            assign_field!(strict.jac = nonlinear(NBVariable::VariablePointers::fromList(seed_candidates.clone(), false), NBVariable::VariablePointers::fromList(listAppend(residual_vars.clone(), inner_vars.clone()), false), NBEquation::EquationPointers::fromList({
+    });
+            assign_field!(strict.jac = nonlinear(NBVariable::VariablePointers::fromList(seed_candidates.clone(), false), NBVariable::VariablePointers::fromList(listAppend(residual_vars.clone(), inner_vars.clone()), false), NBEquation::EquationPointers::fromList(({
         let mut __acc: Arc<metamodelica::List<Pointer::Pointer<Arc<Equation::Equation>>>> = metamodelica::nil();
         for mut eqn in (strict.residual_eqns.clone()).into_iter().cloned() {
             let __x = Slice::getT(eqn.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }), Array::appendList(strict.innerEquations.clone(), residual_comps.clone())?, full.clone(), funcMap.clone(), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*Partition::Partition::kindToString(kind.clone())?); __mm_s.push_str(&*if (var_field!((*comp).linear, StrongComponent::NBStrongComponent::ALGEBRAIC_LOOP).clone()) {literal!("_LS_JAC_")} else {literal!("_NLS_JAC_")}); __mm_s.push_str(&*intString(var_field!((*comp).idx, StrongComponent::NBStrongComponent::ALGEBRAIC_LOOP).clone())); ArcStr::from(__mm_s) }).clone(), Partition::kindIsInitial(kind.clone())));
+    })), Array::appendList(strict.innerEquations.clone(), residual_comps.clone())?, full.clone(), funcMap.clone(), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*Partition::Partition::kindToString(kind.clone())?); __mm_s.push_str(&*if (var_field!((*comp).linear, StrongComponent::NBStrongComponent::ALGEBRAIC_LOOP).clone()) {literal!("_LS_JAC_")} else {literal!("_NLS_JAC_")}); __mm_s.push_str(&*intString(var_field!((*comp).idx, StrongComponent::NBStrongComponent::ALGEBRAIC_LOOP).clone())); ArcStr::from(__mm_s) }).clone(), Partition::kindIsInitial(kind.clone())));
             assign_variant_field!(comp => StrongComponent::NBStrongComponent::ALGEBRAIC_LOOP; strict = strict.clone());
             if Flags::isSet(Flags::JAC_DUMP.clone())? {
                 println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*StrongComponent::toString(comp.clone(), -1)?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
@@ -1141,11 +1147,11 @@ fn buildAdjointRhs(mut lhsCref: Arc<ComponentRef::NFComponentRef>, mut terms: Ar
     vty = ComponentRef::getComponentType(lhsCref.clone());
     if terms.clone().is_empty() {
         rhs = Expression::makeZero(vty.clone())?;
-        return Ok(rhs);
+        return Ok(rhs.clone());
     }
     if List::hasOneElement(terms.clone()) {
         rhs = listHead(terms.clone())?;
-        return Ok(rhs);
+        return Ok(rhs.clone());
     }
     sc = sizeClassificationFromType(vty.clone());
     addOp = Operator::fromClassification((MathClassification::ADDITION.clone(), sc.clone()), vty.clone())?;
@@ -1230,7 +1236,7 @@ fn getAllAlgVars(mut comps: Arc<metamodelica::List<Arc<StrongComponent::NBStrong
     let mut vars: Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>> = metamodelica::nil();
     for mut c in &*comps.clone() {
         let mut c = c.clone();
-        for mut v in &*{
+        for mut v in &*({
         let mut __acc: Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>> = metamodelica::nil();
         for mut v in (StrongComponent::getVariables(c.clone()).unwrap()).into_iter().cloned() {
             if !(BVariable::isAlgebraic(v.clone()).unwrap()) { continue; }
@@ -1238,7 +1244,7 @@ fn getAllAlgVars(mut comps: Arc<metamodelica::List<Arc<StrongComponent::NBStrong
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    } {
+    }) {
             let mut v = v.clone();
             vars = cons(v.clone(), vars.clone());
         }
@@ -1278,7 +1284,7 @@ fn makeVarTraverse(mut var_ptr: Pointer::Pointer<Arc<Variable::NFVariable>>, mut
         (diff, diff_ptr) = makeVar(var.name.clone(), (name.clone()).clone())?;
         Pointer::update(vars_ptr.clone(), cons(diff_ptr.clone(), Pointer::access(vars_ptr.clone())));
         UnorderedMap::add(var.name.clone(), diff.clone(), map.clone())?;
-        let _ = (match BVariable::getParent(var_ptr.clone())? {
+        let () = (match BVariable::getParent(var_ptr.clone())? {
         Some(mut parent) => {
             parent_name = BVariable::getVarName(parent.clone())?;
             diff_parent = (::match_deref::match_deref! { match &(UnorderedMap::get(parent_name.clone(), map.clone())) {
@@ -1303,14 +1309,14 @@ fn makeVarTraverse(mut var_ptr: Pointer::Pointer<Arc<Variable::NFVariable>>, mut
 fn adjointMapToString(mut adjoint_map: Option<Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<metamodelica::List<Arc<Expression::NFExpression>>>>>>) -> Result<ArcStr> {
     fn valueToString(mut elst: Arc<metamodelica::List<Arc<Expression::NFExpression>>>) -> Result<ArcStr> {
         let mut vstr: ArcStr = arcstr::literal!("");
-        vstr = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("[")); __mm_s.push_str(&*stringDelimitList({
+        vstr = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("[")); __mm_s.push_str(&*stringDelimitList(({
         let mut __acc: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
         for mut e in (elst.clone()).into_iter().cloned() {
             let __x = Expression::toString(e.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, (literal!(", ")).clone())); __mm_s.push_str(&*literal!("]")); ArcStr::from(__mm_s) }).clone();
+    }), (literal!(", ")).clone())); __mm_s.push_str(&*literal!("]")); ArcStr::from(__mm_s) }).clone();
         Ok(vstr)
     }
 
@@ -1318,7 +1324,7 @@ fn adjointMapToString(mut adjoint_map: Option<Arc<UnorderedMap::UnorderedMap<Arc
     let mut map: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<metamodelica::List<Arc<Expression::NFExpression>>>>>;
     if Util::isNone(adjoint_map.clone()) {
         r#str = (literal!("{}")).clone();
-        return Ok(r#str);
+        return Ok(r#str.clone());
     }
     let __pa0 = ::match_deref::match_deref! { match &(adjoint_map.clone()) {
         Some(__pa0) => __pa0.clone(),
@@ -1348,22 +1354,22 @@ fn makeLinearAlgebraicLoop(mut itVarPtrs: Arc<metamodelica::List<Pointer::Pointe
         Error::addMessage(Error::INTERNAL_ERROR.clone(), list![(literal!("makeLinearAlgebraicLoop: |vars| != |eqns|")).clone()])?;
         bail!("fail");
     }
-    itVars_s = {
+    itVars_s = ({
         let mut __acc: Arc<metamodelica::List<Arc<Slice::NBSlice>>> = metamodelica::nil();
         for mut vp in (itVarPtrs.clone()).into_iter().cloned() {
             let __x = Arc::new(Slice::NBSlice { t: vp.clone(), indices: metamodelica::nil() });
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
-    res_s = {
+    });
+    res_s = ({
         let mut __acc: Arc<metamodelica::List<Arc<Slice::NBSlice>>> = metamodelica::nil();
         for mut ep in (resEqnPtrs.clone()).into_iter().cloned() {
             let __x = Arc::new(Slice::NBSlice { t: ep.clone(), indices: metamodelica::nil() });
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     tearingSet = Arc::new(Tearing::NBTearing { jac: jac.clone(), innerEquations: metamodelica::arrayFromVec(metamodelica::nil().into_iter().cloned().collect()), residual_eqns: res_s.clone(), iteration_vars: itVars_s.clone() });
     comp = Arc::new(StrongComponent::NBStrongComponent::ALGEBRAIC_LOOP { status: NBSolve::Status::IMPLICIT.clone(), homotopy: homotopy.clone(), mixed: mixed.clone(), linear: true, casual: None, strict: tearingSet.clone(), idx: -1 });
     Ok(comp)

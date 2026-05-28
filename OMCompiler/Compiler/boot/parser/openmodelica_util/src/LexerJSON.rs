@@ -73,8 +73,6 @@ pub fn action(mut act: i32, mut startSt: i32, mut mm_currSt: i32, mut mm_pos: i3
     let mut mm_startSt: i32 = 0;
     let mut bufferRet: i32 = 0;
     let mut errorTokens: Arc<metamodelica::List<Token>> = inErrorTokens.clone();
-    let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
-    let mut sToken: ArcStr = arcstr::literal!("");
     mm_startSt = startSt.clone();
     bufferRet = 0;
     token = (match act.clone() {
@@ -279,7 +277,7 @@ pub fn tokenContentEq(mut token1: Token, mut token2: Token) -> Result<bool> {
 
 pub fn tokenSourceInfo(mut token: Token) -> Result<SourceInfo> {
     let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
-    info = { let t = token.clone(); (match t.clone() {
+    info = { let mut t = token.clone(); (match t.clone() {
         Token { .. } => SourceInfo { fileName: (t.fileName.clone()).clone(), isReadOnly: false, lineNumberStart: t.lineNumberStart.clone(), columnNumberStart: t.columnNumberStart.clone(), lineNumberEnd: t.lineNumberEnd.clone(), columnNumberEnd: t.columnNumberEnd.clone(), lastModification: metamodelica::OrderedFloat(0.0_f64) },
         _ => bail!("match: no arm matched"),
     }) };
@@ -291,9 +289,7 @@ fn lex(mut fileName: ArcStr, mut contents: ArcStr) -> Result<(Arc<metamodelica::
     let mut errorTokens: Arc<metamodelica::List<Token>> = metamodelica::nil();
     let mut startSt: i32 = 0;
     let mut i: i32 = 0;
-    let mut r: i32 = 0;
     let mut cTok: i32 = 0;
-    let mut cTok2: i32 = 0;
     let mut currSt: i32 = 0;
     let mut pos: i32 = 0;
     let mut sPos: i32 = 0;
@@ -303,12 +299,7 @@ fn lex(mut fileName: ArcStr, mut contents: ArcStr) -> Result<(Arc<metamodelica::
     let mut numBacktrack: i32 = 0;
     let mut buffer: i32 = 0;
     let mut lineNrStart: i32 = 0;
-    let mut cProg: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    let mut cProg2: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    let mut chars: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
     let mut states: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    let mut s1: ArcStr = arcstr::literal!("");
-    let mut s2: ArcStr = arcstr::literal!("");
     startSt = 1;
     currSt = 1;
     pos = 1;
@@ -440,14 +431,6 @@ fn findRule(mut fileContents: ArcStr, mut currSt: i32, mut pos: i32, mut sPos: i
     let mut buffer: i32 = 0;
     let mut bkBuffer: i32 = 0;
     let mut states: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    let mut mm_accept: metamodelica::Array<i32>;
-    let mut mm_ec: metamodelica::Array<i32>;
-    let mut mm_meta: metamodelica::Array<i32>;
-    let mut mm_base: metamodelica::Array<i32>;
-    let mut mm_def: metamodelica::Array<i32>;
-    let mut mm_nxt: metamodelica::Array<i32>;
-    let mut mm_chk: metamodelica::Array<i32>;
-    let mut mm_acclist: metamodelica::Array<i32>;
     let mut lp: i32 = 0;
     let mut lp1: i32 = 0;
     let mut stCmp: i32 = 0;

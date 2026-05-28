@@ -92,14 +92,14 @@ fn getMSSS(mut m: metamodelica::Array<Arc<metamodelica::List<i32>>>, mut mT: met
             eqn_candidates = cons(eqn.clone(), eqn_candidates.clone());
         }
     }
-    color_clustering = metamodelica::arrayFromVec({
+    color_clustering = metamodelica::arrayFromVec(({
         let mut __acc: Arc<metamodelica::List<i32>> = metamodelica::nil();
         for mut i in (1..=(eqn_candidates.clone().len() as i32)).into_iter() {
             let __x = i.clone();
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }.into_iter().cloned().collect());
+    }).into_iter().cloned().collect());
     for mut eqn in &*eqn_candidates.clone() {
         let mut eqn = eqn.clone();
         if eqn_coloring.borrow()[(eqn.clone()-1) as usize].clone() == -1 {
@@ -119,7 +119,7 @@ fn getMSSS(mut m: metamodelica::Array<Arc<metamodelica::List<i32>>>, mut mT: met
             }
         }
     }
-    msss = metamodelica::arrayFromVec({
+    msss = metamodelica::arrayFromVec(({
         let mut __acc: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>> = metamodelica::nil();
         for mut ms in (Arc::new(msss.clone().borrow().iter().cloned().collect::<metamodelica::List<_>>())).into_iter().cloned() {
             if !(!(ms.clone().is_empty())) { continue; }
@@ -127,7 +127,7 @@ fn getMSSS(mut m: metamodelica::Array<Arc<metamodelica::List<i32>>>, mut mT: met
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }.into_iter().cloned().collect());
+    }).into_iter().cloned().collect());
     Ok(msss)
 }
 
@@ -166,7 +166,6 @@ fn colorClustering(mut old_color: i32, mut new_color: i32, mut color_clustering:
 
 fn resolveClustering(mut color_clustering: metamodelica::Array<i32>) -> Result<()> {
     let mut color: i32 = 0;
-    let mut color2: i32 = 0;
     let __range0 = 1..=(color_clustering.clone().borrow().len() as i32);
     for mut i in __range0 {
         color = i.clone();
@@ -276,7 +275,7 @@ fn resolveSlicedUnmatched(mut old_unmatched: Arc<metamodelica::List<Arc<Slice::N
         if UnorderedSet::isEmpty(relevant_indices.clone()) {
             acc = cons(eq.clone(), acc.clone());
         } else {
-            assign_field!(eq.indices = {
+            assign_field!(eq.indices = ({
         let mut __acc: Arc<metamodelica::List<i32>> = metamodelica::nil();
         for mut ind in (eq.indices.clone()).into_iter().cloned() {
             if !(UnorderedSet::contains(ind.clone(), relevant_indices.clone())?) { continue; }
@@ -284,7 +283,7 @@ fn resolveSlicedUnmatched(mut old_unmatched: Arc<metamodelica::List<Arc<Slice::N
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             if !(eq.indices.clone().is_empty()) {
                 acc = cons(eq.clone(), acc.clone());
             }
@@ -325,26 +324,26 @@ fn removeSlicedDerivateEqn(mut eqn: Arc<Equation::Equation>, mut iter: Arc<Itera
     let mut eqn: Arc<Equation::Equation> = eqn;
     eqn = (::match_deref::match_deref! { match &(eqn.clone()) {
         Deref @ Equation::FOR_EQUATION { .. } => {
-            assign_variant_field!(eqn => Equation::Equation::FOR_EQUATION; body = {
+            assign_variant_field!(eqn => Equation::Equation::FOR_EQUATION; body = ({
         let mut __acc: Arc<metamodelica::List<Arc<Equation::Equation>>> = metamodelica::nil();
         for mut b in (var_field!((*eqn).body, Equation::Equation::FOR_EQUATION).clone()).into_iter().cloned() {
             let __x = removeSlicedDerivateEqn(b.clone(), var_field!((*eqn).iter, Equation::Equation::FOR_EQUATION).clone(), dummy_slice_set.clone(), aux_index.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             eqn.clone()
         },
         Deref @ Equation::RECORD_EQUATION { lhs: lhs @ Deref @ Expression::TUPLE { .. }, .. } => {
             let mut lhs = (*lhs).clone();
-            assign_variant_field!(lhs => Expression::NFExpression::TUPLE; elements = {
+            assign_variant_field!(lhs => Expression::NFExpression::TUPLE; elements = ({
         let mut __acc: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
         for mut e in (var_field!((*lhs).elements, Expression::NFExpression::TUPLE).clone()).borrow().iter() {
             let __x = replaceTupleLiterals(e.clone(), iter.clone(), dummy_slice_set.clone(), aux_index.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             assign_variant_field!(eqn => Equation::Equation::RECORD_EQUATION; lhs = lhs.clone());
             eqn.clone()
         },
@@ -358,13 +357,13 @@ fn removeSlicedDerivateEqn(mut eqn: Arc<Equation::Equation>, mut iter: Arc<Itera
 
 fn toStringCandidatesConstraints(mut state_candidates: Arc<metamodelica::List<Arc<Slice::NBSlice<Pointer::Pointer<Arc<Variable::NFVariable>>>>>>, mut constraint_eqns: Arc<metamodelica::List<Arc<Slice::NBSlice<Pointer::Pointer<Arc<Equation::Equation>>>>>>) -> ArcStr {
     let mut r#str: ArcStr = arcstr::literal!("");
-    r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*StringUtil::headline_1((literal!("Index Reduction")).clone())); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*StringUtil::headline_4(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("(")); __mm_s.push_str(&*intString((state_candidates.clone().len() as i32))); __mm_s.push_str(&*literal!(") Sorted State Candidates")); ArcStr::from(__mm_s) }).clone())); __mm_s.push_str(&*Slice::lstToString(state_candidates.clone(), (std::sync::Arc::new(fnptr!(BVariable::pointerToString, Pointer::Pointer<Arc<Variable::NFVariable>>)) as std::sync::Arc<dyn ::std::ops::Fn(Pointer::Pointer<Arc<Variable::NFVariable>>) -> Result<ArcStr> + 'static>), 10)); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*StringUtil::headline_4(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("(")); __mm_s.push_str(&*intString((constraint_eqns.clone().len() as i32))); __mm_s.push_str(&*literal!(") Constraint Equations")); ArcStr::from(__mm_s) }).clone())); __mm_s.push_str(&*Slice::lstToString(constraint_eqns.clone(), { let __pe_b1 = (literal!("")).clone(); move |__pe_a0| Equation::pointerToString(__pe_a0, __pe_b1.clone()) }, 10)); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone();
+    r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*StringUtil::headline_1((literal!("Index Reduction")).clone())); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*StringUtil::headline_4(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("(")); __mm_s.push_str(&*intString((state_candidates.clone().len() as i32))); __mm_s.push_str(&*literal!(") Sorted State Candidates")); ArcStr::from(__mm_s) }).clone())); __mm_s.push_str(&*Slice::lstToString(state_candidates.clone(), (std::sync::Arc::new(fnptr!(BVariable::pointerToString, Pointer::Pointer<Arc<Variable::NFVariable>>)) as std::sync::Arc<dyn ::std::ops::Fn(Pointer::Pointer<Arc<Variable::NFVariable>>) -> Result<ArcStr> + 'static>), 10)); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*StringUtil::headline_4(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("(")); __mm_s.push_str(&*intString((constraint_eqns.clone().len() as i32))); __mm_s.push_str(&*literal!(") Constraint Equations")); ArcStr::from(__mm_s) }).clone())); __mm_s.push_str(&*Slice::lstToString(constraint_eqns.clone(), Arc::new({ let __pe_b1 = (literal!("")).clone(); move |__pe_a0| Equation::pointerToString(__pe_a0, __pe_b1.clone()) }), 10)); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone();
     r#str
 }
 
 fn toStringDynamicSelect(mut dummy_states: Arc<metamodelica::List<Arc<Slice::NBSlice<Pointer::Pointer<Arc<Variable::NFVariable>>>>>>, mut unmatched_eqns: Arc<metamodelica::List<Arc<Slice::NBSlice<Pointer::Pointer<Arc<Equation::Equation>>>>>>) -> ArcStr {
     let mut r#str: ArcStr = arcstr::literal!("");
-    r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*StringUtil::headline_2((literal!("\t  DYNAMIC STATE SELECTION\n\t(some unmatched equations)")).clone())); __mm_s.push_str(&*StringUtil::headline_4(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("(")); __mm_s.push_str(&*intString((dummy_states.clone().len() as i32))); __mm_s.push_str(&*literal!(") Remaining State Candidates")); ArcStr::from(__mm_s) }).clone())); __mm_s.push_str(&*Slice::lstToString(dummy_states.clone(), (std::sync::Arc::new(fnptr!(BVariable::pointerToString, Pointer::Pointer<Arc<Variable::NFVariable>>)) as std::sync::Arc<dyn ::std::ops::Fn(Pointer::Pointer<Arc<Variable::NFVariable>>) -> Result<ArcStr> + 'static>), 10)); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*StringUtil::headline_4(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("(")); __mm_s.push_str(&*intString((unmatched_eqns.clone().len() as i32))); __mm_s.push_str(&*literal!(") Remaining Equations")); ArcStr::from(__mm_s) }).clone())); __mm_s.push_str(&*Slice::lstToString(unmatched_eqns.clone(), { let __pe_b1 = (literal!("")).clone(); move |__pe_a0| Equation::pointerToString(__pe_a0, __pe_b1.clone()) }, 10)); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone();
+    r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*StringUtil::headline_2((literal!("\t  DYNAMIC STATE SELECTION\n\t(some unmatched equations)")).clone())); __mm_s.push_str(&*StringUtil::headline_4(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("(")); __mm_s.push_str(&*intString((dummy_states.clone().len() as i32))); __mm_s.push_str(&*literal!(") Remaining State Candidates")); ArcStr::from(__mm_s) }).clone())); __mm_s.push_str(&*Slice::lstToString(dummy_states.clone(), (std::sync::Arc::new(fnptr!(BVariable::pointerToString, Pointer::Pointer<Arc<Variable::NFVariable>>)) as std::sync::Arc<dyn ::std::ops::Fn(Pointer::Pointer<Arc<Variable::NFVariable>>) -> Result<ArcStr> + 'static>), 10)); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*StringUtil::headline_4(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("(")); __mm_s.push_str(&*intString((unmatched_eqns.clone().len() as i32))); __mm_s.push_str(&*literal!(") Remaining Equations")); ArcStr::from(__mm_s) }).clone())); __mm_s.push_str(&*Slice::lstToString(unmatched_eqns.clone(), Arc::new({ let __pe_b1 = (literal!("")).clone(); move |__pe_a0| Equation::pointerToString(__pe_a0, __pe_b1.clone()) }), 10)); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone();
     r#str
 }
 
@@ -386,7 +385,7 @@ fn toStringUnmatched(mut unmatched_vars: Arc<metamodelica::List<Arc<Slice::NBSli
         s4 = (literal!("")).clone();
     } else {
         s2 = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Stage ")); __mm_s.push_str(&*intString((unmatched_eqns.clone().len() as i32))); __mm_s.push_str(&*literal!(" overdetermined.\n")); ArcStr::from(__mm_s) }).clone();
-        s4 = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*StringUtil::headline_4(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("(")); __mm_s.push_str(&*intString((unmatched_eqns.clone().len() as i32))); __mm_s.push_str(&*literal!(") Unmatched equations:")); ArcStr::from(__mm_s) }).clone())); __mm_s.push_str(&*Slice::lstToString(unmatched_eqns.clone(), { let __pe_b1 = (literal!("")).clone(); move |__pe_a0| Equation::pointerToString(__pe_a0, __pe_b1.clone()) }, 10)); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone();
+        s4 = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*StringUtil::headline_4(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("(")); __mm_s.push_str(&*intString((unmatched_eqns.clone().len() as i32))); __mm_s.push_str(&*literal!(") Unmatched equations:")); ArcStr::from(__mm_s) }).clone())); __mm_s.push_str(&*Slice::lstToString(unmatched_eqns.clone(), Arc::new({ let __pe_b1 = (literal!("")).clone(); move |__pe_a0| Equation::pointerToString(__pe_a0, __pe_b1.clone()) }), 10)); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone();
     }
     r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*s1.clone()); __mm_s.push_str(&*s2.clone()); __mm_s.push_str(&*s3.clone()); __mm_s.push_str(&*s4.clone()); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone();
     r#str

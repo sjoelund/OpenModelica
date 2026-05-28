@@ -204,25 +204,25 @@ pub fn evalExp(mut exp: Arc<Expression::NFExpression>, mut target: Arc<EvalTarge
             evalRange(exp.clone(), target.clone())?
         },
         Deref @ Expression::TUPLE { .. } => {
-            assign_variant_field!(exp => Expression::NFExpression::TUPLE; elements = {
+            assign_variant_field!(exp => Expression::NFExpression::TUPLE; elements = ({
         let mut __acc: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
         for mut e in (var_field!((*exp).elements, Expression::NFExpression::TUPLE).clone()).into_iter().cloned() {
             let __x = evalExp(e.clone(), target.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             exp.clone()
         },
         Deref @ Expression::RECORD { .. } => {
-            assign_variant_field!(exp => Expression::NFExpression::RECORD; elements = {
+            assign_variant_field!(exp => Expression::NFExpression::RECORD; elements = ({
         let mut __acc: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
         for mut e in (var_field!((*exp).elements, Expression::NFExpression::RECORD).clone()).into_iter().cloned() {
             let __x = evalExp(e.clone(), target.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             exp.clone()
         },
         Deref @ Expression::CALL { .. } => {
@@ -335,10 +335,6 @@ pub fn evalExpPartial(mut exp: Arc<Expression::NFExpression>, mut target: Arc<Ev
     let mut outExp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut outEvaluated: bool = false;
     let mut e: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-    let mut e1: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-    let mut e2: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-    let mut eval1: bool = false;
-    let mut eval2: bool = false;
     (e, outEvaluated) = Expression::mapFoldShallow(exp.clone(), Arc::new({ let __pe_b1 = target.clone(); move |__pe_a0, __pe_a2| evalExpPartial(__pe_a0, __pe_b1.clone(), __pe_a2) }), true)?;
     outExp = (::match_deref::match_deref! { match &(e.clone()) {
         Deref @ Expression::CREF { .. } => {
@@ -365,8 +361,6 @@ pub fn evalExpPartial(mut exp: Arc<Expression::NFExpression>, mut target: Arc<Ev
 pub fn evalCref(mut cref: Arc<ComponentRef::NFComponentRef>, mut defaultExp: Arc<Expression::NFExpression>, mut target: Arc<EvalTarget::EvalTarget>, mut evalSubscripts: bool, mut liftExp: bool) -> Result<Arc<Expression::NFExpression>> {
     let mut exp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut c: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
-    let mut evaled: bool = false;
-    let mut subs: Arc<metamodelica::List<Arc<Subscript::NFSubscript>>> = metamodelica::nil();
     exp = (::match_deref::match_deref! { match &(cref.clone()) {
         Deref @ ComponentRef::CREF { node: c @ Deref @ InstNode::COMPONENT_NODE { .. }, .. } if (!(ComponentRef::isIterator(cref.clone())) && ComponentRef::nodeVariability(cref.clone())? < Variability::NON_STRUCTURAL_PARAMETER.clone()) => evalComponentBinding(c.clone(), cref.clone(), defaultExp.clone(), target.clone(), evalSubscripts.clone(), liftExp.clone())?,
         _ => defaultExp.clone(),
@@ -381,8 +375,6 @@ pub fn evalComponentBinding(mut node: Arc<InstNode::InstNode>, mut cref: Arc<Com
     let mut comp: Arc<Component::NFComponent> = Arc::new(Component::WILD);
     let mut binding: Arc<Binding::NFBinding> = Arc::new(Binding::UNBOUND);
     let mut evaluated: bool = false;
-    let mut subs: Arc<metamodelica::List<Arc<Subscript::NFSubscript>>> = metamodelica::nil();
-    let mut var: Variability = Variability::CONSTANT;
     let mut start_exp: Option<Arc<Expression::NFExpression>> = None;
     let mut cref_ty: Arc<Type::NFType> = Arc::new(Type::ANY);
     let mut exp_ty: Arc<Type::NFType> = Arc::new(Type::ANY);
@@ -402,7 +394,7 @@ pub fn evalComponentBinding(mut node: Arc<InstNode::InstNode>, mut cref: Arc<Com
                     _ => bail!("pattern mismatch"),
                 } };
                 exp = __pa0.clone();
-                return Ok(exp);
+                return Ok(exp.clone());
             }
         }
     }
@@ -472,14 +464,14 @@ pub fn subscriptBinding(mut exp: Arc<Expression::NFExpression>, mut cref: Arc<Co
     let mut subs: Arc<metamodelica::List<Arc<Subscript::NFSubscript>>> = metamodelica::nil();
     subs = ComponentRef::getSubscripts(cref.clone());
     if evalSubscripts.clone() {
-        subs = {
+        subs = ({
         let mut __acc: Arc<metamodelica::List<Arc<Subscript::NFSubscript>>> = metamodelica::nil();
         for mut s in (subs.clone()).into_iter().cloned() {
             let __x = Subscript::eval(s.clone(), noTarget().clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     }
     subs = List::trimToLength(subs.clone(), Expression::dimensionCount(exp.clone())?)?;
     exp = Expression::applySubscripts(subs.clone(), exp.clone(), false)?;
@@ -512,23 +504,23 @@ pub fn subscriptBinding2(mut exp: Arc<Expression::NFExpression>, mut cref: Arc<C
                 }
                 subMap = Some(sub_map.clone());
             }
-            subs = {
+            subs = ({
         let mut __acc: Arc<metamodelica::List<Arc<Subscript::NFSubscript>>> = metamodelica::nil();
         for mut s in (subs.clone()).into_iter().cloned() {
             let __x = subscriptBinding3(s.clone(), sub_map.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
             if evalSubscripts.clone() {
-                subs = {
+                subs = ({
         let mut __acc: Arc<metamodelica::List<Arc<Subscript::NFSubscript>>> = metamodelica::nil();
         for mut s in (subs.clone()).into_iter().cloned() {
             let __x = Subscript::eval(s.clone(), noTarget().clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
             }
             (e, subMap) = subscriptBinding2(var_field!((*exp).exp, Expression::NFExpression::SUBSCRIPTED_EXP).clone(), cref.clone(), evalSubscripts.clone(), subMap.clone())?;
             e = Expression::applySubscripts(subs.clone(), e.clone(), false)?;
@@ -590,20 +582,18 @@ pub fn evalComponentStartBinding(mut node: Arc<InstNode::InstNode>, mut comp: Ar
     let mut start_comp: Arc<Component::NFComponent> = Arc::new(Component::WILD);
     let mut binding: Arc<Binding::NFBinding> = Arc::new(Binding::UNBOUND);
     let mut exp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-    let mut subs: Arc<metamodelica::List<Arc<Subscript::NFSubscript>>> = metamodelica::nil();
-    let mut pcount: i32 = 0;
     var = Component::variability(comp.clone());
     if var.clone() != Variability::PARAMETER.clone() && var.clone() != Variability::STRUCTURAL_PARAMETER.clone() || !(Component::isFixed(comp.clone())?) {
-        return Ok(outExp);
+        return Ok(outExp.clone());
     }
     if let Ok(__iflet0) = Class::lookupElement((literal!("start")).clone(), InstNode::getClass(node.clone())?) {
         start_node = __iflet0.0;
     } else {
-        return Ok(outExp);
+        return Ok(outExp.clone());
     }
     start_comp = InstNode::component(start_node.clone())?;
     if !(Component::isTypeAttribute(start_comp.clone())) {
-        return Ok(outExp);
+        return Ok(outExp.clone());
     }
     binding = Component::getBinding(start_comp.clone());
     outExp = (::match_deref::match_deref! { match &(binding.clone()) {
@@ -760,8 +750,6 @@ pub fn evalRange(mut rangeExp: Arc<Expression::NFExpression>, mut target: Arc<Ev
     let mut start_exp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut stop_exp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut step_exp: Option<Arc<Expression::NFExpression>> = None;
-    let mut max_prop_exp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-    let mut max_prop_count: i32 = 0;
     let (__pa0, __pa1, __pa2, __pa3) = ::match_deref::match_deref! { match &(rangeExp.clone()) {
         Deref @ Expression::RANGE { stop: __pa0, step: __pa1, start: __pa2, ty: __pa3 } => (__pa0.clone(), __pa1.clone(), __pa2.clone(), __pa3.clone()),
         _ => bail!("pattern mismatch"),
@@ -808,14 +796,14 @@ pub fn evalRangeExp(mut rangeExp: Arc<Expression::NFExpression>) -> Result<Arc<E
         step = __pa3.clone();
         (ty, expl) = (::match_deref::match_deref! { match &((start.clone(), step.clone(), stop.clone())) {
         (Deref @ Expression::INTEGER { .. }, Deref @ Expression::INTEGER { value: istep }, Deref @ Expression::INTEGER { .. }) => {
-            expl = {
+            expl = ({
         let mut __acc: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
         for mut i in (({let __s=var_field!((*start).value, Expression::NFExpression::INTEGER).clone(); let __e=var_field!((*stop).value, Expression::NFExpression::INTEGER).clone(); let __step=istep.clone(); if __step>0 {__s..=__e} else {__e..=__s}}).step_by((if istep.clone()>0 {istep.clone()} else {-(istep.clone())}) as usize)).into_iter() {
             let __x = Arc::new(Expression::NFExpression::INTEGER { value: i.clone() });
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
             (Arc::new(crate::NFType::INTEGER), expl.clone())
         },
         (Deref @ Expression::REAL { .. }, Deref @ Expression::REAL { .. }, Deref @ Expression::REAL { .. }) => {
@@ -831,14 +819,14 @@ pub fn evalRangeExp(mut rangeExp: Arc<Expression::NFExpression>) -> Result<Arc<E
     } else {
         (ty, expl) = (::match_deref::match_deref! { match &((start.clone(), stop.clone())) {
         (Deref @ Expression::INTEGER { .. }, Deref @ Expression::INTEGER { .. }) => {
-            expl = {
+            expl = ({
         let mut __acc: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
         for mut i in (var_field!((*start).value, Expression::NFExpression::INTEGER).clone()..=var_field!((*stop).value, Expression::NFExpression::INTEGER).clone()).into_iter() {
             let __x = Arc::new(Expression::NFExpression::INTEGER { value: i.clone() });
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
             (Arc::new(crate::NFType::INTEGER), expl.clone())
         },
         (Deref @ Expression::REAL { .. }, Deref @ Expression::REAL { .. }) => {
@@ -846,25 +834,25 @@ pub fn evalRangeExp(mut rangeExp: Arc<Expression::NFExpression>) -> Result<Arc<E
             (Arc::new(crate::NFType::REAL), expl.clone())
         },
         (Deref @ Expression::BOOLEAN { .. }, Deref @ Expression::BOOLEAN { .. }) => {
-            expl = {
+            expl = ({
         let mut __acc: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
         for mut b in (({let __bs = var_field!((*start).value, Expression::NFExpression::BOOLEAN).clone(); let __be = var_field!((*stop).value, Expression::NFExpression::BOOLEAN).clone(); if !__bs && !__be { vec![false] } else if !__bs && __be { vec![false, true] } else if __bs && __be { vec![true] } else { Vec::<bool>::new() }})).into_iter() {
             let __x = Arc::new(Expression::NFExpression::BOOLEAN { value: b.clone() });
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
             (Arc::new(crate::NFType::BOOLEAN), expl.clone())
         },
         (Deref @ Expression::ENUM_LITERAL { ty: ty @ Deref @ Type::ENUMERATION { .. }, .. }, Deref @ Expression::ENUM_LITERAL { .. }) => {
-            expl = {
+            expl = ({
         let mut __acc: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
         for mut i in (var_field!((*start).index, Expression::NFExpression::ENUM_LITERAL).clone()..=var_field!((*stop).index, Expression::NFExpression::ENUM_LITERAL).clone()).into_iter() {
             let __x = Arc::new(Expression::NFExpression::ENUM_LITERAL { ty: ty.clone(), name: ((var_field!((**ty).literals, Type::NFType::ENUMERATION).clone()).get(i.clone())?).clone(), index: i.clone() });
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
             (ty.clone(), expl.clone())
         },
         _ => {
@@ -1201,8 +1189,6 @@ pub fn evalBinaryScalarProduct(mut exp1: Arc<Expression::NFExpression>, mut exp2
 pub fn evalBinaryMatrixProduct(mut exp1: Arc<Expression::NFExpression>, mut exp2: Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> {
     let mut exp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut e2: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-    let mut expl1: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
-    let mut expl2: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
     let mut elem_ty: Arc<Type::NFType> = Arc::new(Type::ANY);
     let mut row_ty: Arc<Type::NFType> = Arc::new(Type::ANY);
     let mut mat_ty: Arc<Type::NFType> = Arc::new(Type::ANY);
@@ -1669,14 +1655,14 @@ pub fn evalCall(mut call: Arc<Call::NFCall>, mut target: Arc<EvalTarget::EvalTar
     let mut c: Arc<Call::NFCall> = call.clone();
     exp = (::match_deref::match_deref! { match &(c.clone()) {
         Deref @ Call::TYPED_CALL { .. } => {
-            assign_variant_field!(c => Call::NFCall::TYPED_CALL; arguments = {
+            assign_variant_field!(c => Call::NFCall::TYPED_CALL; arguments = ({
         let mut __acc: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
         for mut arg in (var_field!((*c).arguments, Call::NFCall::TYPED_CALL).clone()).into_iter().cloned() {
             let __x = evalExp(arg.clone(), target.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             if (Function::isBuiltin(var_field!((*c).r#fn, Call::NFCall::TYPED_CALL).clone())) {Expression::mapSplitExpressions(Arc::new(Expression::NFExpression::CALL { call: c.clone() }), Arc::new({ let __pe_b1 = target.clone(); move |__pe_a0| evalBuiltinCallExp(__pe_a0, __pe_b1.clone()) }))?} else {Expression::mapSplitExpressions(Arc::new(Expression::NFExpression::CALL { call: c.clone() }), Arc::new({ let __pe_b1 = target.clone(); move |__pe_a0| evalNormalCallExp(__pe_a0, __pe_b1.clone()) }))?}
         },
         Deref @ Call::TYPED_ARRAY_CONSTRUCTOR { .. } => {
@@ -1924,7 +1910,7 @@ pub fn evalBuiltinCat(mut argN: Arc<Expression::NFExpression>, mut args: Arc<met
         }
         bail!("fail");
     }
-    es = {
+    es = ({
         let mut __acc: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
         for mut e in (args.clone()).into_iter().cloned() {
             if !(!(Expression::isEmptyArray(e.clone()))) { continue; }
@@ -1932,7 +1918,7 @@ pub fn evalBuiltinCat(mut argN: Arc<Expression::NFExpression>, mut args: Arc<met
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     sz = (es.clone().len() as i32);
     if sz.clone() == 0 {
         result = listHead(args.clone())?;
@@ -1940,14 +1926,14 @@ pub fn evalBuiltinCat(mut argN: Arc<Expression::NFExpression>, mut args: Arc<met
         result = listHead(es.clone())?;
     } else {
         (es, dims) = ExpressionBasics::evalCat(n.clone(), es.clone(), (std::sync::Arc::new(Expression::arrayElementList) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<metamodelica::List<Arc<Expression::NFExpression>>>> + 'static>), (std::sync::Arc::new(Expression::toString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<ArcStr> + 'static>))?;
-        result = Expression::arrayFromList(es.clone(), Expression::typeOf(listHead(es.clone())?), {
+        result = Expression::arrayFromList(es.clone(), Expression::typeOf(listHead(es.clone())?), ({
         let mut __acc: Arc<metamodelica::List<Arc<Dimension::NFDimension>>> = metamodelica::nil();
         for mut d in (dims.clone()).into_iter().cloned() {
             let __x = Dimension::fromInteger(d.clone(), Prefixes::Variability::CONSTANT.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    })?;
+    }))?;
     }
     Ok(result)
 }
@@ -2003,9 +1989,6 @@ pub fn evalBuiltinDiagonal(mut arg: Arc<Expression::NFExpression>) -> Result<Arc
     let mut row_ty: Arc<Type::NFType> = Arc::new(Type::ANY);
     let mut zero: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut exp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-    let mut elems: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
-    let mut row: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
-    let mut rows: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
     let mut n: i32 = 0;
     let mut i: i32 = 1;
     let mut e_lit: bool = false;
@@ -2741,13 +2724,7 @@ fn evalBuiltinTan(mut arg: Arc<Expression::NFExpression>) -> Result<Arc<Expressi
 
 fn evalBuiltinTranspose(mut arg: Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> {
     let mut result: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-    let mut dim1: Arc<Dimension::NFDimension> = Arc::new(Dimension::BOOLEAN);
-    let mut dim2: Arc<Dimension::NFDimension> = Arc::new(Dimension::BOOLEAN);
-    let mut rest_dims: Arc<metamodelica::List<Arc<Dimension::NFDimension>>> = metamodelica::nil();
     let mut ty: Arc<Type::NFType> = Arc::new(Type::ANY);
-    let mut arr: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
-    let mut arrl: Arc<metamodelica::List<Arc<metamodelica::List<Arc<Expression::NFExpression>>>>> = metamodelica::nil();
-    let mut literal: bool = false;
     ty = Expression::typeOf(arg.clone());
     if Expression::isArray(arg.clone()) && Type::dimensionCount(ty.clone()) >= 2 {
         result = Expression::transposeArray(arg.clone())?;
@@ -2761,7 +2738,6 @@ fn evalBuiltinTranspose(mut arg: Arc<Expression::NFExpression>) -> Result<Arc<Ex
 fn evalBuiltinVector(mut arg: Arc<Expression::NFExpression>) -> Arc<Expression::NFExpression> {
     let mut result: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut expl: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
-    let mut ty: Arc<Type::NFType> = Arc::new(Type::ANY);
     expl = Expression::arrayScalarElements(arg.clone());
     result = Expression::makeExpArray(metamodelica::arrayFromVec(expl.clone().into_iter().cloned().collect()), Type::arrayElementType(Expression::typeOf(arg.clone())), true);
     result
@@ -2961,7 +2937,6 @@ fn evalArrayConstructor(mut callExp: Arc<Expression::NFExpression>) -> Result<Ar
 fn evalArrayConstructor2(mut exp: Arc<Expression::NFExpression>, mut ranges: Arc<metamodelica::List<Arc<Expression::NFExpression>>>, mut iterators: Arc<metamodelica::List<Mutable::Mutable<Arc<Expression::NFExpression>>>>) -> Result<Arc<Expression::NFExpression>> {
     let mut result: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut range: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-    let mut e: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut ranges_rest: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
     let mut expl: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
     let mut arr: metamodelica::Array<Arc<Expression::NFExpression>>;
@@ -3073,14 +3048,14 @@ fn evalSubscriptedExp(mut exp: Arc<Expression::NFExpression>, mut subscripts: Ar
         _ => evalExp(exp.clone(), target.clone())?,
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
     } });
-    subs = {
+    subs = ({
         let mut __acc: Arc<metamodelica::List<Arc<Subscript::NFSubscript>>> = metamodelica::nil();
         for mut s in (subscripts.clone()).into_iter().cloned() {
             let __x = Subscript::mapShallowExp(s.clone(), Arc::new({ let __pe_b1 = target.clone(); move |__pe_a0| evalExp(__pe_a0, __pe_b1.clone()) }));
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     result = Expression::applySubscripts(subs.clone(), result.clone(), false)?;
     Ok(result)
 }

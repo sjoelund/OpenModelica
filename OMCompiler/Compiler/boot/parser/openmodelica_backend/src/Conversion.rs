@@ -464,7 +464,7 @@ pub mod ImportTreeImpl {
     pub fn forEach(mut tree: Arc<Tree>, mut func: Arc<dyn ::std::ops::Fn(ArcStr, ImportData) -> Result<()> + 'static>) -> Result<()> {
         pub type EachFunc = std::sync::Arc<dyn ::std::ops::Fn(Key, Value) -> Result<()> + 'static>;
 
-        let _ = (::match_deref::match_deref! { match &(tree.clone()) {
+        let () = (::match_deref::match_deref! { match &(tree.clone()) {
         Deref @ Tree::NODE { .. } => {
             forEach(var_field!((*tree).left, Tree::NODE).clone(), func.clone())?;
             func((var_field!((*tree).key, Tree::NODE).clone()).clone(), var_field!((*tree).value, Tree::NODE).clone())?;
@@ -542,7 +542,7 @@ pub mod ImportTreeImpl {
         Deref @ Tree::NODE { .. } => var_field!((*inTree).key, Tree::NODE).clone(),
         Deref @ Tree::LEAF { .. } => var_field!((*inTree).key, Tree::LEAF).clone(),
         Deref @ Tree::EMPTY { .. } => {
-            return Ok(comp);
+            return Ok(comp.clone());
             bail!("fail")
         },
         _ => bail!("match: no arm matched"),
@@ -753,11 +753,8 @@ pub mod ImportTreeImpl {
 
     fn printTreeStr2(mut inTree: Arc<Tree>, mut isLeft: bool, mut inIndent: ArcStr) -> Result<ArcStr> {
         let mut outString: ArcStr = arcstr::literal!("");
-        let mut val_node: Option<ArcStr> = None;
         let mut left: Option<Arc<Tree>> = None;
         let mut right: Option<Arc<Tree>> = None;
-        let mut left_str: ArcStr = arcstr::literal!("");
-        let mut right_str: ArcStr = arcstr::literal!("");
         outString = ((::match_deref::match_deref! { match &(inTree.clone()) {
         Deref @ Tree::NODE { .. } => { let mut __mm_s = String::new(); __mm_s.push_str(&*printTreeStr2(var_field!((*inTree).left, Tree::NODE).clone(), true, ({ let mut __mm_s = String::new(); __mm_s.push_str(&*inIndent.clone()); __mm_s.push_str(&*if (isLeft.clone()) {literal!("     ")} else {literal!(" │   ")}); ArcStr::from(__mm_s) }).clone())?); __mm_s.push_str(&*inIndent.clone()); __mm_s.push_str(&*if (isLeft.clone()) {literal!(" ┌")} else {literal!(" └")}); __mm_s.push_str(&*literal!("────")); __mm_s.push_str(&*printNodeStr(inTree.clone())?); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*printTreeStr2(var_field!((*inTree).right, Tree::NODE).clone(), false, ({ let mut __mm_s = String::new(); __mm_s.push_str(&*inIndent.clone()); __mm_s.push_str(&*if (isLeft.clone()) {literal!(" │   ")} else {literal!("     ")}); ArcStr::from(__mm_s) }).clone())?); ArcStr::from(__mm_s) },
         Deref @ Tree::LEAF { .. } => { let mut __mm_s = String::new(); __mm_s.push_str(&*inIndent.clone()); __mm_s.push_str(&*if (isLeft.clone()) {literal!(" ┌")} else {literal!(" └")}); __mm_s.push_str(&*literal!("────")); __mm_s.push_str(&*printNodeStr(inTree.clone())?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) },
@@ -892,7 +889,6 @@ pub type ENV = Env;
 pub fn convertPackage(mut cls: Arc<Absyn::Class>, mut scriptFile: ArcStr) -> Result<Arc<Absyn::Class>> {
     let mut cls: Arc<Absyn::Class> = cls;
     let mut rules: Arc<ConversionRules::ConversionRules> = Arc::new(<ConversionRules::ConversionRules as ::std::default::Default>::default());
-    let mut env: Env = <Env as ::std::default::Default>::default();
     let mut stmts: Arc<metamodelica::List<GlobalScript::Statement>> = metamodelica::nil();
     stmts = loadScript((scriptFile.clone()).clone())?;
     rules = ConversionRules::newNode();
@@ -946,14 +942,14 @@ fn parseRule(mut stmt: GlobalScript::Statement, mut rules: Arc<ConversionRules::
         },
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
     } });
-            args = {
+            args = ({
         let mut __acc: Arc<metamodelica::List<Arc<Absyn::Exp>>> = metamodelica::nil();
         for mut a in (args.clone()).into_iter().cloned() {
             let __x = expandArg(a.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
             for mut a in &*vectorizeArgs(args.clone(), fn_type.clone(), stmt.clone())? {
                 let mut a = a.clone();
                 rules = parse_fn(a.clone(), var_field!(stmt.info, GlobalScript::Statement::IEXP).clone(), rules.clone())?;
@@ -1147,22 +1143,22 @@ fn parseConvertModifiers2(mut className: ArcStr, mut oldMods: Arc<metamodelica::
     let mut old_mods: Arc<metamodelica::List<Arc<Absyn::ElementArg>>> = metamodelica::nil();
     let mut new_mods: Arc<metamodelica::List<Arc<Absyn::ElementArg>>> = metamodelica::nil();
     cls_path = parsePathList((className.clone()).clone());
-    old_mods = {
+    old_mods = ({
         let mut __acc: Arc<metamodelica::List<Arc<Absyn::ElementArg>>> = metamodelica::nil();
         for mut m in (oldMods.clone()).into_iter().cloned() {
             let __x = parseModifier(m.clone(), info.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
-    new_mods = {
+    });
+    new_mods = ({
         let mut __acc: Arc<metamodelica::List<Arc<Absyn::ElementArg>>> = metamodelica::nil();
         for mut m in (newMods.clone()).into_iter().cloned() {
             let __x = parseModifier(m.clone(), info.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     rules = addRule(cls_path.clone(), ConversionRule::MODIFIERS { oldMods: old_mods.clone(), newMods: new_mods.clone(), info: info.clone() }, rules.clone())?;
     Ok(rules)
 }
@@ -1186,7 +1182,7 @@ fn quotePlaceholders(mut r#str: ArcStr, mut info: SourceInfo) -> Result<ArcStr> 
     let mut in_ident: bool = false;
     strl = System::strtokIncludingDelimiters((r#str.clone()).clone(), (literal!("%")).clone());
     if (strl.clone().len() as i32) <= 1 {
-        return Ok(r#str);
+        return Ok(r#str.clone());
     }
     for mut s in &*strl.clone() {
         let mut s = s.clone();
@@ -1264,7 +1260,7 @@ fn lookupRuleNode(mut path: Arc<Path>, mut rules: Arc<ConversionRules::Conversio
         let mut name = name.clone();
         outNode = UnorderedMap::get((name.clone()).clone(), node.nodes.clone());
         if isNone(outNode.clone()) {
-            return Ok(outNode);
+            return Ok(outNode.clone());
         }
         let __pa0 = ::match_deref::match_deref! { match &(outNode.clone()) {
             Some(__pa0) => __pa0.clone(),
@@ -1284,7 +1280,7 @@ fn lookupRules(mut path: Arc<Path>, mut rules: Arc<ConversionRules::ConversionRu
         onode = UnorderedMap::get((name.clone()).clone(), node.nodes.clone());
         if isNone(onode.clone()) {
             outRules = cons(metamodelica::nil(), outRules.clone());
-            return Ok(outRules);
+            return Ok(outRules.clone());
         }
         let __pa0 = ::match_deref::match_deref! { match &(onode.clone()) {
             Some(__pa0) => __pa0.clone(),
@@ -1305,7 +1301,7 @@ fn lookupTypeRules(mut typePath: Arc<Path>, mut rules: Arc<ConversionRules::Conv
     let mut found_rules: Arc<metamodelica::List<Arc<metamodelica::List<ConversionRule>>>> = metamodelica::nil();
     found_rules = lookupRules(typePath.clone(), rules.clone())?;
     if found_rules.clone().is_empty() {
-        return Ok((typeRule, localRules, modifierRules));
+        return Ok((typeRule.clone(), localRules.clone(), modifierRules.clone()));
     }
     modifierRules = sortLocalRules(listHead(found_rules.clone())?, localRules.clone())?;
     for mut rl in &*found_rules.clone() {
@@ -1392,7 +1388,7 @@ fn lookupClassExtendsRules(mut name: ArcStr, mut extendsRules: Arc<metamodelica:
             } };
             node = __pa0.clone();
             modificationRules = sortLocalRules(node.rules.clone(), localRules.clone())?;
-            return Ok((localRules, modificationRules));
+            return Ok((localRules.clone(), modificationRules.clone()));
         }
     }
     Ok((localRules, modificationRules))
@@ -1475,14 +1471,14 @@ fn dumpRule(mut rule: ConversionRule, mut indent: ArcStr) -> Result<()> {
 
 fn convertProgram(mut program: Absyn::Program, mut rules: Arc<ConversionRules::ConversionRules>, mut env: Env) -> Result<Absyn::Program> {
     let mut program: Absyn::Program = program;
-    program.classes = {
+    program.classes = ({
         let mut __acc: Arc<metamodelica::List<Arc<Absyn::Class>>> = metamodelica::nil();
         for mut c in (program.classes.clone()).into_iter().cloned() {
             let __x = convertClass(c.clone(), rules.clone(), env.clone(), metamodelica::nil())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     Ok(program)
 }
 
@@ -1533,20 +1529,19 @@ fn convertClassDef(mut cdef: Arc<Absyn::ClassDef>, mut rules: Arc<ConversionRule
 fn convertClassParts(mut parts: Arc<metamodelica::List<Arc<Absyn::ClassPart>>>, mut localRules: RuleTable, mut rules: Arc<ConversionRules::ConversionRules>, mut env: Env, mut info: SourceInfo) -> Result<Arc<metamodelica::List<Arc<Absyn::ClassPart>>>> {
     let mut parts: Arc<metamodelica::List<Arc<Absyn::ClassPart>>> = parts;
     let mut extends_rules: Arc<metamodelica::List<Arc<ConversionRules::ConversionRules>>> = metamodelica::nil();
-    let mut imps: ImportTree = Arc::new(ImportTreeImpl::Tree::EMPTY);
     let mut cls_env: Env = <Env as ::std::default::Default>::default();
     cls_env = addImportNamesToEnv(getImportsInParts(parts.clone()), rules.clone(), env.clone())?;
     addComponentTypesToEnv(parts.clone(), env.components.clone())?;
     cls_env.imports = shadowImportsInParts(parts.clone(), cls_env.imports.clone())?;
     extends_rules = getExtendsRules(parts.clone(), rules.clone(), cls_env.clone())?;
-    parts = {
+    parts = ({
         let mut __acc: Arc<metamodelica::List<Arc<Absyn::ClassPart>>> = metamodelica::nil();
         for mut p in (parts.clone()).into_iter().cloned() {
             let __x = convertClassPart(p.clone(), localRules.clone(), rules.clone(), cls_env.clone(), extends_rules.clone(), info.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     Ok(parts)
 }
 
@@ -1589,14 +1584,14 @@ fn convertClassPart(mut part: Arc<Absyn::ClassPart>, mut localRules: RuleTable, 
 
 fn convertElementArgs(mut args: Arc<metamodelica::List<Arc<Absyn::ElementArg>>>, mut localRules: RuleTable, mut rules: Arc<ConversionRules::ConversionRules>, mut env: Env) -> Result<Arc<metamodelica::List<Arc<Absyn::ElementArg>>>> {
     let mut args: Arc<metamodelica::List<Arc<Absyn::ElementArg>>> = args;
-    args = {
+    args = ({
         let mut __acc: Arc<metamodelica::List<Arc<Absyn::ElementArg>>> = metamodelica::nil();
         for mut a in (args.clone()).into_iter().cloned() {
             let __x = convertElementArg(a.clone(), localRules.clone(), rules.clone(), env.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     Ok(args)
 }
 
@@ -1713,14 +1708,14 @@ fn convertModifier(mut rule: ConversionRule, mut elemArgs: Arc<metamodelica::Lis
         (matching_mods, rest_mods) = List::splitOnTrue(elemArgs.clone(), Arc::new({ let __pe_b1 = old_mods.clone(); move |__pe_a0| Ok(isModifierInList(__pe_a0, __pe_b1.clone())) }));
         if !(matching_mods.clone().is_empty()) {
             placeholders = makePlaceholderTable(listAppend(old_mods.clone(), matching_mods.clone()))?;
-            new_mods = {
+            new_mods = ({
         let mut __acc: Arc<metamodelica::List<Arc<Absyn::ElementArg>>> = metamodelica::nil();
         for mut m in (new_mods.clone()).into_iter().cloned() {
             let __x = replacePlaceholders(m.clone(), placeholders.clone(), info.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
             elemArgs = mergeModifiers(rest_mods.clone(), new_mods.clone());
         }
     }
@@ -1776,14 +1771,14 @@ fn replacePlaceholders(mut arg: Arc<Absyn::ElementArg>, mut placeholders: Arc<Un
             } };
             args = __pa0.clone();
             eq_mod = __pa1.clone();
-            args = {
+            args = ({
         let mut __acc: Arc<metamodelica::List<Arc<Absyn::ElementArg>>> = metamodelica::nil();
         for mut a in (args.clone()).into_iter().cloned() {
             let __x = replacePlaceholders(a.clone(), placeholders.clone(), info.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
             eq_mod = replacePlaceholdersEqMod(eq_mod.clone(), placeholders.clone(), list![var_field!((*arg).info, Absyn::ElementArg::MODIFICATION).clone(), info.clone()])?;
             assign_variant_field!(arg => Absyn::ElementArg::MODIFICATION; modification = Some(Arc::new(Absyn::Modification { elementArgLst: args.clone(), eqMod: eq_mod.clone() })));
             ()
@@ -1872,14 +1867,14 @@ fn convertTypeSpec(mut ty: Arc<Absyn::TypeSpec>, mut rules: Arc<ConversionRules:
                 assign_variant_field!(ty => Absyn::TypeSpec::TCOMPLEX; path = convertTypePath(ty_path.clone(), Util::getOption(ty_rule.clone())?, import_path.clone(), info.clone())?);
             }
             assign_variant_field!(ty => Absyn::TypeSpec::TCOMPLEX;
-                typeSpecs = {
+                typeSpecs = ({
         let mut __acc: Arc<metamodelica::List<Arc<Absyn::TypeSpec>>> = metamodelica::nil();
         for mut t in (var_field!((*ty).typeSpecs, Absyn::TypeSpec::TCOMPLEX).clone()).into_iter().cloned() {
             let __x = (convertTypeSpec(t.clone(), rules.clone(), env.clone(), info.clone())?).0;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    },
+    }),
                 arrayDim = convertOption(var_field!((*ty).arrayDim, Absyn::TypeSpec::TCOMPLEX).clone(), Arc::new({ let __pe_b1 = localRules.clone(); move |__pe_a0, __pe_a2, __pe_a3, __pe_a4| convertSubscripts(__pe_a0, __pe_b1.clone(), __pe_a2, __pe_a3, __pe_a4) }), rules.clone(), env.clone(), info.clone())
             );
             ()
@@ -1914,14 +1909,14 @@ fn convertTypePath(mut path: Arc<Path>, mut rule: ConversionRule, mut importPath
 
 fn convertElementItems(mut elements: Arc<metamodelica::List<Arc<Absyn::ElementItem>>>, mut rules: Arc<ConversionRules::ConversionRules>, mut env: Env, mut extendsRules: Arc<metamodelica::List<Arc<ConversionRules::ConversionRules>>>) -> Result<Arc<metamodelica::List<Arc<Absyn::ElementItem>>>> {
     let mut elements: Arc<metamodelica::List<Arc<Absyn::ElementItem>>> = elements;
-    elements = {
+    elements = ({
         let mut __acc: Arc<metamodelica::List<Arc<Absyn::ElementItem>>> = metamodelica::nil();
         for mut e in (elements.clone()).into_iter().cloned() {
             let __x = convertElementItem(e.clone(), rules.clone(), env.clone(), extendsRules.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     elements = filterDuplicateImports(elements.clone())?;
     Ok(elements)
 }
@@ -1952,14 +1947,14 @@ fn convertElement(mut element: Arc<Absyn::Element>, mut rules: Arc<ConversionRul
         Deref @ Absyn::Element::DEFINEUNIT { .. } => {
             let mut local_rules: RuleTable;
             local_rules = newRuleTable();
-            assign_variant_field!(element => Absyn::Element::DEFINEUNIT; args = {
+            assign_variant_field!(element => Absyn::Element::DEFINEUNIT; args = ({
         let mut __acc: Arc<metamodelica::List<Arc<Absyn::NamedArg>>> = metamodelica::nil();
         for mut a in (var_field!((*element).args, Absyn::Element::DEFINEUNIT).clone()).into_iter().cloned() {
             let __x = convertNamedArg(a.clone(), local_rules.clone(), rules.clone(), env.clone(), var_field!((*element).info, Absyn::Element::DEFINEUNIT).clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             ()
         },
         _ => {
@@ -2009,14 +2004,14 @@ fn convertElementSpec(mut spec: Arc<Absyn::ElementSpec>, mut rules: Arc<Conversi
             (ty, local_rules, mod_rules) = convertTypeSpec(var_field!((*spec).typeSpec, Absyn::ElementSpec::COMPONENTS).clone(), rules.clone(), env.clone(), info.clone())?;
             assign_variant_field!(spec => Absyn::ElementSpec::COMPONENTS;
                 typeSpec = ty.clone(),
-                components = {
+                components = ({
         let mut __acc: Arc<metamodelica::List<Arc<Absyn::ComponentItem>>> = metamodelica::nil();
         for mut c in (var_field!((*spec).components, Absyn::ElementSpec::COMPONENTS).clone()).into_iter().cloned() {
             let __x = convertComponentItem(c.clone(), local_rules.clone(), mod_rules.clone(), rules.clone(), env.clone(), info.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }
+    })
             );
             ()
         },
@@ -2078,7 +2073,7 @@ fn filterDuplicateImports(mut elements: Arc<metamodelica::List<Arc<Absyn::Elemen
     let mut outElements: Arc<metamodelica::List<Arc<Absyn::ElementItem>>> = metamodelica::nil();
     let mut imports: Arc<UnorderedSet::UnorderedSet<Arc<Path>>>;
     imports = UnorderedSet::new((std::sync::Arc::new(AbsynUtil::pathHash) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Path>) -> Result<i32> + 'static>), (std::sync::Arc::new(fnptr!(AbsynUtil::pathEqual, Arc<Path>, Arc<Path>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Path>, Arc<Path>) -> Result<bool> + 'static>), 1);
-    outElements = {
+    outElements = ({
         let mut __acc: Arc<metamodelica::List<Arc<Absyn::ElementItem>>> = metamodelica::nil();
         for mut e in (elements.clone()).into_iter().cloned() {
             if !(!(importExists(e.clone(), imports.clone())?)) { continue; }
@@ -2086,7 +2081,7 @@ fn filterDuplicateImports(mut elements: Arc<metamodelica::List<Arc<Absyn::Elemen
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     Ok(outElements)
 }
 
@@ -2128,14 +2123,14 @@ fn convertComponent(mut comp: Absyn::Component, mut localRules: RuleTable, mut m
 
 fn convertEquationItems(mut eqs: Arc<metamodelica::List<Arc<Absyn::EquationItem>>>, mut localRules: RuleTable, mut rules: Arc<ConversionRules::ConversionRules>, mut env: Env) -> Result<Arc<metamodelica::List<Arc<Absyn::EquationItem>>>> {
     let mut eqs: Arc<metamodelica::List<Arc<Absyn::EquationItem>>> = eqs;
-    eqs = {
+    eqs = ({
         let mut __acc: Arc<metamodelica::List<Arc<Absyn::EquationItem>>> = metamodelica::nil();
         for mut eq in (eqs.clone()).into_iter().cloned() {
             let __x = convertEquationItem(eq.clone(), localRules.clone(), rules.clone(), env.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     Ok(eqs)
 }
 
@@ -2219,14 +2214,14 @@ fn convertEquation(mut eq: Arc<Absyn::Equation>, mut localRules: RuleTable, mut 
 
 fn convertAlgorithmItems(mut algs: Arc<metamodelica::List<Arc<Absyn::AlgorithmItem>>>, mut localRules: RuleTable, mut rules: Arc<ConversionRules::ConversionRules>, mut env: Env) -> Result<Arc<metamodelica::List<Arc<Absyn::AlgorithmItem>>>> {
     let mut algs: Arc<metamodelica::List<Arc<Absyn::AlgorithmItem>>> = algs;
-    algs = {
+    algs = ({
         let mut __acc: Arc<metamodelica::List<Arc<Absyn::AlgorithmItem>>> = metamodelica::nil();
         for mut alg in (algs.clone()).into_iter().cloned() {
             let __x = convertAlgorithmItem(alg.clone(), localRules.clone(), rules.clone(), env.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     Ok(algs)
 }
 
@@ -2321,27 +2316,27 @@ fn convertBranches<CondT: Clone + 'static, BodyT: Clone + 'static>(mut branches:
     pub type BodyFunc<BodyT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(BodyT, RuleTable, Arc<ConversionRules::ConversionRules>, Env) -> Result<BodyT> + 'static>;
 
     let mut branches: Arc<metamodelica::List<(CondT, BodyT)>> = branches;
-    branches = {
+    branches = ({
         let mut __acc: Arc<metamodelica::List<_>> = metamodelica::nil();
         for mut b in (branches.clone()).into_iter().cloned() {
             let __x = (condFunc(Util::tuple21(b.clone()), localRules.clone(), rules.clone(), env.clone()).unwrap(), bodyFunc(Util::tuple22(b.clone()), localRules.clone(), rules.clone(), env.clone()).unwrap());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     branches
 }
 
 fn convertForIterators(mut iters: Arc<metamodelica::List<Arc<Absyn::ForIterator>>>, mut localRules: RuleTable, mut rules: Arc<ConversionRules::ConversionRules>, mut env: Env, mut info: SourceInfo) -> Result<Arc<metamodelica::List<Arc<Absyn::ForIterator>>>> {
     let mut iters: Arc<metamodelica::List<Arc<Absyn::ForIterator>>> = iters;
-    iters = {
+    iters = ({
         let mut __acc: Arc<metamodelica::List<Arc<Absyn::ForIterator>>> = metamodelica::nil();
         for mut i in (iters.clone()).into_iter().cloned() {
             let __x = convertForIterator(i.clone(), localRules.clone(), rules.clone(), env.clone(), info.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     Ok(iters)
 }
 
@@ -2362,14 +2357,14 @@ fn convertExternalDecl(mut extDecl: Arc<Absyn::ExternalDecl>, mut localRules: Ru
 
 fn convertExps(mut exps: Arc<metamodelica::List<Arc<Absyn::Exp>>>, mut localRules: RuleTable, mut rules: Arc<ConversionRules::ConversionRules>, mut env: Env, mut info: SourceInfo) -> Result<Arc<metamodelica::List<Arc<Absyn::Exp>>>> {
     let mut exps: Arc<metamodelica::List<Arc<Absyn::Exp>>> = exps;
-    exps = {
+    exps = ({
         let mut __acc: Arc<metamodelica::List<Arc<Absyn::Exp>>> = metamodelica::nil();
         for mut e in (exps.clone()).into_iter().cloned() {
             let __x = convertExp(e.clone(), localRules.clone(), rules.clone(), env.clone(), info.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     Ok(exps)
 }
 
@@ -2451,14 +2446,14 @@ fn convertExp(mut exp: Arc<Absyn::Exp>, mut localRules: RuleTable, mut rules: Ar
             ()
         },
         Deref @ Absyn::Exp::MATRIX { .. } => {
-            assign_variant_field!(exp => Absyn::Exp::MATRIX; matrix = {
+            assign_variant_field!(exp => Absyn::Exp::MATRIX; matrix = ({
         let mut __acc: Arc<metamodelica::List<Arc<metamodelica::List<Arc<Absyn::Exp>>>>> = metamodelica::nil();
         for mut e in (var_field!((*exp).matrix, Absyn::Exp::MATRIX).clone()).into_iter().cloned() {
             let __x = convertExps(e.clone(), localRules.clone(), rules.clone(), env.clone(), info.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             ()
         },
         Deref @ Absyn::Exp::RANGE { .. } => {
@@ -2541,7 +2536,7 @@ fn convertCrefFromType(mut cref: Arc<Absyn::ComponentRef>, mut rules: Arc<Conver
     let mut opt_ty: Option<Arc<Path>> = None;
     let mut cref_rules: Arc<metamodelica::List<ConversionRule>> = metamodelica::nil();
     if !(AbsynUtil::crefIsQual(cref.clone())) {
-        return Ok((cref, converted));
+        return Ok((cref.clone(), converted.clone()));
     }
     id = (AbsynUtil::crefFirstIdent(cref.clone())?).clone();
     opt_ty = UnorderedMap::get((id.clone()).clone(), env.components.clone());
@@ -2551,7 +2546,7 @@ fn convertCrefFromType(mut cref: Arc<Absyn::ComponentRef>, mut rules: Arc<Conver
         cref_rules = metamodelica::nil();
     }
     if cref_rules.clone().is_empty() {
-        return Ok((cref, converted));
+        return Ok((cref.clone(), converted.clone()));
     }
     first_cref = AbsynUtil::crefFirstCref(cref.clone());
     rest_cref = AbsynUtil::crefStripFirst(cref.clone())?;
@@ -2563,7 +2558,7 @@ fn convertCrefFromType(mut cref: Arc<Absyn::ComponentRef>, mut rules: Arc<Conver
             rest_cref = AbsynUtil::crefSetFirstIdent(rest_cref.clone(), (var_field!(rule.newName, ConversionRule::ELEMENT).clone()).clone());
             cref = AbsynUtil::joinCrefs(first_cref.clone(), rest_cref.clone())?;
             converted = true;
-            return Ok((cref, converted));
+            return Ok((cref.clone(), converted.clone()));
             ()
         },
         _ => (),
@@ -2594,14 +2589,14 @@ fn convertCrefSubscripts(mut cref: Arc<Absyn::ComponentRef>, mut localRules: Rul
 
 fn convertSubscripts(mut subs: Arc<metamodelica::List<Arc<Absyn::Subscript>>>, mut localRules: RuleTable, mut rules: Arc<ConversionRules::ConversionRules>, mut env: Env, mut info: SourceInfo) -> Result<Arc<metamodelica::List<Arc<Absyn::Subscript>>>> {
     let mut subs: Arc<metamodelica::List<Arc<Absyn::Subscript>>> = subs;
-    subs = {
+    subs = ({
         let mut __acc: Arc<metamodelica::List<Arc<Absyn::Subscript>>> = metamodelica::nil();
         for mut s in (subs.clone()).into_iter().cloned() {
             let __x = convertSubscript(s.clone(), localRules.clone(), rules.clone(), env.clone(), info.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     Ok(subs)
 }
 
@@ -2660,7 +2655,7 @@ fn applyRulesPath(mut path: Arc<Path>, mut rules: Arc<metamodelica::List<Arc<met
         _ => false,
     });
             if found.clone() {
-                return Ok(path);
+                return Ok(path.clone());
             }
         }
     }
@@ -2673,14 +2668,14 @@ fn convertFunctionArgs(mut args: Arc<Absyn::FunctionArgs>, mut localRules: RuleT
         Deref @ Absyn::FunctionArgs::FUNCTIONARGS { .. } => {
             assign_variant_field!(args => Absyn::FunctionArgs::FUNCTIONARGS;
                 args = convertExps(var_field!((*args).args, Absyn::FunctionArgs::FUNCTIONARGS).clone(), localRules.clone(), rules.clone(), env.clone(), info.clone())?,
-                argNames = {
+                argNames = ({
         let mut __acc: Arc<metamodelica::List<Arc<Absyn::NamedArg>>> = metamodelica::nil();
         for mut a in (var_field!((*args).argNames, Absyn::FunctionArgs::FUNCTIONARGS).clone()).into_iter().cloned() {
             let __x = convertNamedArg(a.clone(), localRules.clone(), rules.clone(), env.clone(), info.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }
+    })
             );
             ()
         },
@@ -2815,7 +2810,7 @@ fn addImportNamesToEnv(mut elements: Arc<metamodelica::List<Arc<Absyn::ElementSp
     let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
     let mut imps: ImportTree = Arc::new(ImportTreeImpl::Tree::EMPTY);
     if elements.clone().is_empty() {
-        return Ok(env);
+        return Ok(env.clone());
     }
     imps = env.imports.clone();
     for mut e in &*elements.clone() {
@@ -2953,7 +2948,7 @@ fn shadowImport(mut name: ArcStr, mut imports: ImportTree) -> Result<ImportTree>
     let mut imports: ImportTree = imports;
     let mut imp_data: ImportData = <ImportData as ::std::default::Default>::default();
     if !(ImportTreeImpl::hasKey(imports.clone(), (name.clone()).clone())?) {
-        return Ok(imports);
+        return Ok(imports.clone());
     }
     imp_data = ImportTreeImpl::get(imports.clone(), (name.clone()).clone())?;
     imp_data.shadowed = true;
@@ -2973,7 +2968,10 @@ fn applyImportsToPath(mut path: Arc<Path>, mut imports: ImportTree) -> Result<(A
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
     } });
     if isSome(imp_data_opt.clone()) {
-        let Some(__pa0) = (imp_data_opt.clone()) else { bail!("pattern mismatch") };
+        let __pa0 = ::match_deref::match_deref! { match &(imp_data_opt.clone()) {
+            Some(__pa0) => __pa0.clone(),
+            _ => bail!("pattern mismatch"),
+        } };
         imp_data = __pa0.clone();
         if !(imp_data.shadowed.clone()) {
             importPath = Some((imp_data.convertedPath.clone(), imp_data.importName.clone()));
@@ -2994,7 +2992,7 @@ fn stripImportPath(mut path: Arc<Path>, mut importPath: Option<(Arc<Path>, ArcSt
     let mut imp_len: i32 = 0;
     let mut path_len: i32 = 0;
     if isNone(importPath.clone()) {
-        return Ok(path);
+        return Ok(path.clone());
     }
     let (__pa0, __pa1) = ::match_deref::match_deref! { match &(importPath.clone()) {
         Some((__pa0, __pa1)) => (__pa0.clone(), __pa1.clone()),

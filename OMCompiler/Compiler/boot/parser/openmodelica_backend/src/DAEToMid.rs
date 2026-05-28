@@ -65,14 +65,14 @@ use openmodelica_util_datatypes_basic::Mutable;
 
 pub fn DAEFunctionsToMid(mut simfuncs: Arc<metamodelica::List<Arc<SimCodeFunction::Function::Function>>>) -> Result<Arc<metamodelica::List<MidCode::Function>>> {
     let mut midfuncs: Arc<metamodelica::List<MidCode::Function>> = metamodelica::nil();
-    midfuncs = {
+    midfuncs = ({
         let mut __acc: Arc<metamodelica::List<MidCode::Function>> = metamodelica::nil();
         for mut simfunc in (simfuncs.clone()).into_iter().cloned() {
             let __x = DAEFunctionToMid(simfunc.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     Ok(midfuncs)
 }
 
@@ -303,7 +303,6 @@ fn DAEFunctionToMid(mut simfunc: Arc<SimCodeFunction::Function::Function>) -> Re
     let mut state: State = <State as ::std::default::Default>::default();
     let mut inputs: DoubleEnded::MutableList<MidCode::Var>;
     let mut outputs: DoubleEnded::MutableList<MidCode::Var>;
-    let mut block_: MidCode::Block = <MidCode::Block as ::std::default::Default>::default();
     let mut path: Arc<Absyn::Path>;
     let mut labelFirst: i32 = 0;
     System::tmpTickReset(47);
@@ -626,14 +625,14 @@ fn ExpToMid(mut exp: Arc<DAE::Exp>, mut state: State) -> Result<MidCode::RValue>
             let mut varTmp: MidCode::Var = <MidCode::Var as ::std::default::Default>::default();
             let mut labelNext: i32 = 0;
             let mut expLst: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
-            expLst = {
+            expLst = ({
         let mut __acc: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
         for mut sub in (subscripts.clone()).into_iter().cloned() {
             let __x = Expression::getSubscriptExp(sub.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
             varExp = RValueToVar(ExpToMid(exp1.clone(), state.clone())?, state.clone())?;
             varExp2 = (::match_deref::match_deref! { match &(expLst.clone()) {
         Deref @ metamodelica::List::Cons { head: indexexp, tail: Deref @ metamodelica::List::Nil } => {
@@ -938,7 +937,6 @@ fn IfToMid(mut exp: Arc<DAE::Exp>, mut daestmtLst: Arc<metamodelica::List<Arc<DA
     let mut labelElse: i32 = 0;
     let mut labelNext: i32 = 0;
     let mut var1: MidCode::Var = <MidCode::Var as ::std::default::Default>::default();
-    let mut block_: MidCode::Block = <MidCode::Block as ::std::default::Default>::default();
     labelBody = GenBlockId();
     labelElse = GenBlockId();
     labelNext = GenBlockId();
@@ -1035,7 +1033,6 @@ fn MatchExpressionToMid(mut matchexpression: Arc<DAE::Exp>, mut outvars: Arc<met
     let mut aliasVar: MidCode::Var = <MidCode::Var as ::std::default::Default>::default();
     let mut aliasList: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
     let mut ty: Arc<DAE::Type> = Arc::new(DAE::Type::T_NORETCALL);
-    let mut cref: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
     let mut inputsMidVar: Arc<metamodelica::List<MidCode::Var>> = metamodelica::nil();
     let mut daeExp: Arc<DAE::Exp>;
     let mut caseLabelIterator: Arc<metamodelica::List<i32>> = metamodelica::nil();
@@ -1195,12 +1192,10 @@ fn patternToMidCode(mut matches: Arc<metamodelica::List<(MidCode::Var, Arc<DAE::
 }
 
 fn patternToMidCode2(mut state: State, mut matches: Arc<metamodelica::List<(MidCode::Var, Arc<DAE::Pattern>)>>, mut labelNoMatch: i32, mut assignBlock: metamodelica::Array<Arc<metamodelica::List<MidCode::Stmt>>>) -> Result<()> {
-    let mut name: Arc<Absyn::Path>;
     let mut index: i32 = 0;
     let mut morePatterns: Arc<metamodelica::List<Arc<DAE::Pattern>>> = metamodelica::nil();
     let mut iterator: Arc<metamodelica::List<Arc<DAE::Pattern>>> = metamodelica::nil();
     let mut fields: Arc<metamodelica::List<Arc<DAE::Var>>> = metamodelica::nil();
-    let mut typeVars: Arc<metamodelica::List<Arc<DAE::Type>>> = metamodelica::nil();
     let mut knownSingleton: bool = false;
     let mut fieldNr: i32 = 0;
     let () = (::match_deref::match_deref! { match &(matches.clone()) {
@@ -1373,7 +1368,7 @@ fn patternToMidCode2(mut state: State, mut matches: Arc<metamodelica::List<(MidC
             patternToMidCode2(state.clone(), cons((headVar.clone(), headPattern.clone()), cons((restVar.clone(), restPattern.clone()), restMatches.clone())), labelNoMatch.clone(), assignBlock.clone())?;
             ()
         },
-        Deref @ metamodelica::List::Cons { head: (scrutinee, Deref @ DAE::Pattern::PAT_CALL { name, index, patterns: morePatterns, fields, typeVars, knownSingleton }), tail: restMatches } => {
+        Deref @ metamodelica::List::Cons { head: (scrutinee, Deref @ DAE::Pattern::PAT_CALL { name: _, index, patterns: morePatterns, fields, typeVars: _, knownSingleton }), tail: restMatches } => {
             let mut moreMatches: Arc<metamodelica::List<(MidCode::Var, Arc<DAE::Pattern>)>> = metamodelica::nil();
             let mut listTypes: Arc<metamodelica::List<Arc<DAE::Type>>> = metamodelica::nil();
             let mut ok: MidCode::Var = <MidCode::Var as ::std::default::Default>::default();
@@ -1387,14 +1382,14 @@ fn patternToMidCode2(mut state: State, mut matches: Arc<metamodelica::List<(MidC
                 stateAddStmt(MidCode::Stmt::ASSIGN { dest: ok.clone(), src: MidCode::RValue::BINARYOP { op: crate::MidCode::BinaryOp::EQUAL, lsrc: scrutineeCompareVar.clone(), rsrc: patCompareVar.clone() } }, state.clone());
                 stateAddBailOnFalse(ok.clone(), labelNoMatch.clone(), state.clone());
             }
-            listTypes = {
+            listTypes = ({
         let mut __acc: Arc<metamodelica::List<Arc<DAE::Type>>> = metamodelica::nil();
         for mut v in (fields.clone()).into_iter().cloned() {
             let __x = v.ty.clone();
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
             moreMatches = metamodelica::nil();
             iterator = morePatterns.clone();
             fieldNr = 1;

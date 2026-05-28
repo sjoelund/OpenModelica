@@ -43,7 +43,6 @@ use metamodelica::*; // Built-in types and functions
 use const_str;
 use arcstr::{ArcStr, literal, format};
 
-use crate::HashTableCrefSimVar;
 use crate::NBEquation as BEquation;
 use crate::NBEquation::EqData;
 use crate::NBEquation::Equation;
@@ -278,14 +277,14 @@ pub mod SimJacobian {
                 (columnEqn, indices, _) = SimStrongComponent::Block::fromStrongComponent(var_field!((*jacobian).comps, BackendDAE::NBackendDAE::JACOBIAN).borrow()[(i.clone()-1) as usize].clone(), indices.clone(), Partition::Kind::JAC.clone(), dummy_sim_map.clone(), dummy_eqn_map.clone())?;
                 columnEqns = cons(columnEqn.clone(), columnEqns.clone());
             }
-            generic_loop_calls = {
+            generic_loop_calls = ({
         let mut __acc: Arc<metamodelica::List<Arc<SimGenericCall::NSimGenericCall>>> = metamodelica::nil();
         for mut tpl in (UnorderedMap::toList(indices.generic_call_map.clone())).into_iter().cloned() {
             let __x = SimGenericCall::fromIdentifier(tpl.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
             indices.generic_call_map = sim_map.clone();
             if Flags::getConfigBool(Flags::SIM_CODE_SCALARIZE.clone())? {
                 seed_vec = BVariable::VariablePointers::scalarize(var_field!((**varData).seedVars, VarData::VarData::VAR_DATA_JAC).clone())?;
@@ -472,22 +471,22 @@ pub mod SimJacobian {
     pub fn createSparsityColoring(mut coloring: Arc<Jacobian::SparsityColoring::SparsityColoring>, mut idx_map: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, i32>>) -> (Arc<metamodelica::List<Arc<metamodelica::List<i32>>>>, Arc<metamodelica::List<Arc<metamodelica::List<i32>>>>) {
         let mut simColoringCols: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>> = metamodelica::nil();
         let mut simColoringRows: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>> = metamodelica::nil();
-        simColoringCols = {
+        simColoringCols = ({
         let mut __acc: Arc<metamodelica::List<_>> = metamodelica::nil();
         for mut group in (coloring.cols.clone()).borrow().iter() {
             let __x = List::map(group.clone(), Arc::new({ let __pe_b1 = idx_map.clone(); move |__pe_a0| Ok(UnorderedMap::getOrFail(__pe_a0, __pe_b1.clone())) }));
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
-        simColoringRows = {
+    });
+        simColoringRows = ({
         let mut __acc: Arc<metamodelica::List<_>> = metamodelica::nil();
         for mut group in (coloring.rows.clone()).borrow().iter() {
             let __x = List::map(group.clone(), Arc::new({ let __pe_b1 = idx_map.clone(); move |__pe_a0| Ok(UnorderedMap::getOrFail(__pe_a0, __pe_b1.clone())) }));
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
         (simColoringCols, simColoringRows)
     }
 
@@ -552,36 +551,36 @@ pub mod SimJacobian {
         let mut oldJacCol: Arc<OldSimCode::JacobianColumn> = Arc::new(<OldSimCode::JacobianColumn as ::std::default::Default>::default());
         oldJac = (::match_deref::match_deref! { match &(simJac.clone()) {
         Deref @ SimJacobian { .. } => {
-            oldJacCol = Arc::new(OldSimCode::JacobianColumn { constantEqns: {
+            oldJacCol = Arc::new(OldSimCode::JacobianColumn { constantEqns: ({
         let mut __acc: Arc<metamodelica::List<Arc<OldSimCode::SimEqSystem>>> = metamodelica::nil();
         for mut blck in (simJac.constantEqns.clone()).into_iter().cloned() {
             let __x = SimStrongComponent::Block::convert(blck.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, numberOfResultVars: simJac.numberOfResultVars.clone(), columnVars: {
+    }), numberOfResultVars: simJac.numberOfResultVars.clone(), columnVars: ({
         let mut __acc: Arc<metamodelica::List<SimCodeVar::SimVar>> = metamodelica::nil();
         for mut var in (simJac.columnVars.clone()).into_iter().cloned() {
             let __x = SimVar::convert(var.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, columnEqns: {
+    }), columnEqns: ({
         let mut __acc: Arc<metamodelica::List<Arc<OldSimCode::SimEqSystem>>> = metamodelica::nil();
         for mut blck in (simJac.columnEqns.clone()).into_iter().cloned() {
             let __x = SimStrongComponent::Block::convert(blck.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    } });
-            oldJac = Arc::new(OldSimCode::JacobianMatrix { isAdjoint: simJac.isAdjoint.clone(), crefsHT: Util::applyOption(simJac.jac_map.clone(), (std::sync::Arc::new(fnptr!(SimCodeUtil::convertSimCodeMap, Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<SimVar::SimVar>>>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<SimVar::SimVar>>>) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (HashTableCrefSimVar::FuncHashCref, HashTableCrefSimVar::FuncCrefEqual, HashTableCrefSimVar::FuncCrefStr, HashTableCrefSimVar::FuncExpStr))> + 'static>)), generic_loop_calls: {
+    }) });
+            oldJac = Arc::new(OldSimCode::JacobianMatrix { isAdjoint: simJac.isAdjoint.clone(), crefsHT: Util::applyOption(simJac.jac_map.clone(), (std::sync::Arc::new(fnptr!(SimCodeUtil::convertSimCodeMap, Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<SimVar::SimVar>>>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<SimVar::SimVar>>>) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, SimCodeVar::SimVar)>>), i32, (Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<i32> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>) -> Result<bool> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>, Arc<dyn ::std::ops::Fn(SimCodeVar::SimVar) -> Result<ArcStr> + 'static>))> + 'static>)), generic_loop_calls: ({
         let mut __acc: Arc<metamodelica::List<OldSimCode::SimGenericCall>> = metamodelica::nil();
         for mut gc in (simJac.generic_loop_calls.clone()).into_iter().cloned() {
             let __x = SimGenericCall::convert(gc.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, partitionIndex: simJac.partitionIndex.clone(), jacobianIndex: simJac.jacobianIndex.clone(), maxColorCols: simJac.numColors.clone(), coloredRows: simJac.rowColoring.clone(), coloredCols: simJac.coloring.clone(), nonlinearT: metamodelica::nil(), nonlinear: metamodelica::nil(), sparsityT: simJac.sparsityT.clone(), sparsity: simJac.sparsity.clone(), matrixName: (simJac.name.clone()).clone(), seedVars: SimVar::convertList(simJac.seedVars.clone()), columns: list![oldJacCol.clone()] });
+    }), partitionIndex: simJac.partitionIndex.clone(), jacobianIndex: simJac.jacobianIndex.clone(), maxColorCols: simJac.numColors.clone(), coloredRows: simJac.rowColoring.clone(), coloredCols: simJac.coloring.clone(), nonlinearT: metamodelica::nil(), nonlinear: metamodelica::nil(), sparsityT: simJac.sparsityT.clone(), sparsity: simJac.sparsity.clone(), matrixName: (simJac.name.clone()).clone(), seedVars: SimVar::convertList(simJac.seedVars.clone()), columns: list![oldJacCol.clone()] });
             oldJac.clone()
         },
         _ => {

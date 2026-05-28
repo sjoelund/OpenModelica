@@ -82,7 +82,7 @@ fn downheap(mut inArray: metamodelica::Array<i32>, mut n: i32, mut vIn: i32) -> 
             }
         }
         if inArray.borrow()[(v.clone() + 1-1) as usize].clone() >= inArray.borrow()[(w.clone() + 1-1) as usize].clone() {
-            return inArray;
+            return inArray.clone();
         }
         tmp = inArray.borrow()[(v.clone() + 1-1) as usize].clone();
         {
@@ -464,11 +464,10 @@ pub fn getRange<T: Clone + 'static>(mut inStart: i32, mut inEnd: i32, mut inArra
 
 pub fn position<T: Clone + 'static + PartialEq>(mut inArray: metamodelica::Array<T>, mut inElement: T, mut inFilledSize: i32) -> i32 {
     let mut outIndex: i32 = 0;
-    let mut e: T;
     for mut i in 1..=inFilledSize.clone() {
         if inElement.clone() == inArray.borrow()[(i.clone()-1) as usize].clone() {
             outIndex = i.clone();
-            return outIndex;
+            return outIndex.clone();
         }
     }
     outIndex = 0;
@@ -485,7 +484,7 @@ pub fn getMemberOnTrue<VT: Clone + 'static, ET: Clone + 'static>(mut inValue: VT
         if inCompFunc(inValue.clone(), inArray.clone().borrow()[(i.clone()-1) as usize].clone())? {
             outElement = inArray.clone().borrow()[(i.clone()-1) as usize].clone();
             outIndex = i.clone();
-            return Ok((outElement, outIndex));
+            return Ok((outElement.clone(), outIndex.clone()));
         }
     }
     bail!("fail");
@@ -561,13 +560,13 @@ pub fn isEqualOnTrue<T1: Clone + 'static, T2: Clone + 'static>(mut arr1: metamod
     let mut equal: bool = false;
     equal = (arr1.clone().borrow().len() as i32) == (arr2.clone().borrow().len() as i32);
     if !(equal.clone()) {
-        return equal;
+        return equal.clone();
     }
     let __range0 = 1..=(arr1.clone().borrow().len() as i32);
     for mut i in __range0 {
         if !(pred(arr1.clone().borrow()[(i.clone()-1) as usize].clone(), arr2.clone().borrow()[(i.clone()-1) as usize].clone()).unwrap()) {
             equal = false;
-            return equal;
+            return equal.clone();
         }
     }
     equal
@@ -578,13 +577,13 @@ pub fn allEqual<T: Clone + 'static>(mut arr: metamodelica::Array<T>, mut pred: A
 
     let mut equal: bool = true;
     if arr.clone().borrow().is_empty() {
-        return equal;
+        return equal.clone();
     }
     let __range0 = 2..=(arr.clone().borrow().len() as i32);
     for mut i in __range0 {
         if !(pred(arr.clone().borrow()[(1-1) as usize].clone(), arr.clone().borrow()[(i.clone()-1) as usize].clone()).unwrap()) {
             equal = false;
-            return equal;
+            return equal.clone();
         }
     }
     equal
@@ -605,10 +604,10 @@ pub fn isLess<T: Clone + 'static>(mut arr1: metamodelica::Array<T>, mut arr2: me
         e2 = arr2.clone().borrow()[(i.clone()-1) as usize].clone();
         if lessFn(e1.clone(), e2.clone()).unwrap() {
             res = true;
-            return res;
+            return res.clone();
         } else if lessFn(e2.clone(), e1.clone()).unwrap() {
             res = false;
-            return res;
+            return res.clone();
         }
     }
     res = len1.clone() < len2.clone();
@@ -655,7 +654,7 @@ pub fn all<T: Clone + 'static>(mut arr: metamodelica::Array<T>, mut inFunc: Arc<
     for mut e in __range0 {
         if !(inFunc(e.clone()).unwrap()) {
             outResult = false;
-            return outResult;
+            return outResult.clone();
         }
     }
     outResult = true;
@@ -670,7 +669,7 @@ pub fn any<T: Clone + 'static>(mut arr: metamodelica::Array<T>, mut inFunc: Arc<
     for mut e in __range0 {
         if inFunc(e.clone()).unwrap() {
             outResult = true;
-            return outResult;
+            return outResult.clone();
         }
     }
     outResult = false;
@@ -719,12 +718,12 @@ pub fn compare<T1: Clone + 'static, T2: Clone + 'static>(mut arr1: metamodelica:
     l2 = (arr2.clone().borrow().len() as i32);
     res = if (l1.clone() == l2.clone()) {0} else if (l1.clone() > l2.clone()) {1} else {-1};
     if res.clone() != 0 {
-        return res;
+        return res.clone();
     }
     for mut i in 1..=l1.clone() {
         res = compFn(arr1.clone().borrow()[(i.clone()-1) as usize].clone(), arr2.clone().borrow()[(i.clone()-1) as usize].clone()).unwrap();
         if res.clone() != 0 {
-            return res;
+            return res.clone();
         }
     }
     res
@@ -759,12 +758,12 @@ pub fn transpose<T: Clone + 'static>(mut arr: metamodelica::Array<metamodelica::
     let mut row: metamodelica::Array<T>;
     if arr.clone().borrow().is_empty() {
         outArray = arr.clone();
-        return outArray;
+        return outArray.clone();
     }
     row = arr.clone().borrow()[(1-1) as usize].clone();
     if row.clone().borrow().is_empty() {
         outArray = arr.clone();
-        return outArray;
+        return outArray.clone();
     }
     val = row.clone().borrow()[(1-1) as usize].clone();
     c_len = (arr.clone().borrow().len() as i32);
@@ -791,7 +790,7 @@ pub fn threadMap<T1: Clone + 'static, T2: Clone + 'static, TO: Clone + 'static>(
     let mut len2: i32 = 0;
     if arr1.clone().borrow().is_empty() {
         outArray = metamodelica::arrayFromVec(metamodelica::nil().into_iter().cloned().collect());
-        return Ok(outArray);
+        return Ok(outArray.clone());
     }
     len1 = (arr1.clone().borrow().len() as i32);
     len2 = (arr2.clone().borrow().len() as i32);
@@ -832,7 +831,7 @@ pub fn filter<T: Clone + 'static + Default>(mut arr: metamodelica::Array<T>, mut
     let mut new_size: i32 = 0;
     let mut dummy: T;
     let mut index: i32 = 1;
-    new_size = (arr.clone().borrow().len() as i32) - {
+    new_size = (arr.clone().borrow().len() as i32) - ({
         let mut __acc: i32 = 0;
         for mut e in (arr.clone()).borrow().iter() {
             if !(fun(e.clone()).unwrap()) { continue; }
@@ -840,7 +839,7 @@ pub fn filter<T: Clone + 'static + Default>(mut arr: metamodelica::Array<T>, mut
             __acc += __x;
         }
         __acc
-    };
+    });
     new_arr = metamodelica::arrayCreateDefault(new_size.clone());
     let __range0 = arr.clone().borrow().iter().cloned().collect::<Vec<_>>();
     for mut e in __range0 {

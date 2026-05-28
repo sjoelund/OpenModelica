@@ -68,7 +68,7 @@ pub struct NFAttributes {
     pub innerOuter: Prefixes::InnerOuter,
     pub isFinal: bool,
     pub isRedeclare: bool,
-    pub isReplaceable: Arc<Prefixes::Replaceable>,
+    pub isReplaceable: Prefixes::Replaceable,
     pub isResizable: bool,
 }
 
@@ -90,22 +90,22 @@ impl Default for NFAttributes {
 
 pub type ATTRIBUTES = NFAttributes;
 
-thread_local! { static __DEFAULT_ATTR_TLS: Arc<NFAttributes> = Arc::new(NFAttributes { connectorType: ConnectorType::NON_CONNECTOR.clone(), parallelism: Parallelism::NON_PARALLEL.clone(), variability: Variability::CONTINUOUS.clone(), direction: Direction::NONE.clone(), innerOuter: InnerOuter::NOT_INNER_OUTER.clone(), isFinal: false, isRedeclare: false, isReplaceable: Arc::new(crate::NFPrefixes::Replaceable::NOT_REPLACEABLE), isResizable: false }); }
+thread_local! { static __DEFAULT_ATTR_TLS: Arc<NFAttributes> = Arc::new(NFAttributes { connectorType: ConnectorType::NON_CONNECTOR.clone(), parallelism: Parallelism::NON_PARALLEL.clone(), variability: Variability::CONTINUOUS.clone(), direction: Direction::NONE.clone(), innerOuter: InnerOuter::NOT_INNER_OUTER.clone(), isFinal: false, isRedeclare: false, isReplaceable: crate::NFPrefixes::Replaceable::NOT_REPLACEABLE, isResizable: false }); }
 pub fn DEFAULT_ATTR() -> Arc<NFAttributes> { __DEFAULT_ATTR_TLS.with(|__t| __t.clone()) }
 
-thread_local! { static __INPUT_ATTR_TLS: Arc<NFAttributes> = Arc::new(NFAttributes { connectorType: ConnectorType::NON_CONNECTOR.clone(), parallelism: Parallelism::NON_PARALLEL.clone(), variability: Variability::CONTINUOUS.clone(), direction: Direction::INPUT.clone(), innerOuter: InnerOuter::NOT_INNER_OUTER.clone(), isFinal: false, isRedeclare: false, isReplaceable: Arc::new(crate::NFPrefixes::Replaceable::NOT_REPLACEABLE), isResizable: false }); }
+thread_local! { static __INPUT_ATTR_TLS: Arc<NFAttributes> = Arc::new(NFAttributes { connectorType: ConnectorType::NON_CONNECTOR.clone(), parallelism: Parallelism::NON_PARALLEL.clone(), variability: Variability::CONTINUOUS.clone(), direction: Direction::INPUT.clone(), innerOuter: InnerOuter::NOT_INNER_OUTER.clone(), isFinal: false, isRedeclare: false, isReplaceable: crate::NFPrefixes::Replaceable::NOT_REPLACEABLE, isResizable: false }); }
 pub fn INPUT_ATTR() -> Arc<NFAttributes> { __INPUT_ATTR_TLS.with(|__t| __t.clone()) }
 
-thread_local! { static __OUTPUT_ATTR_TLS: Arc<NFAttributes> = Arc::new(NFAttributes { connectorType: ConnectorType::NON_CONNECTOR.clone(), parallelism: Parallelism::NON_PARALLEL.clone(), variability: Variability::CONTINUOUS.clone(), direction: Direction::OUTPUT.clone(), innerOuter: InnerOuter::NOT_INNER_OUTER.clone(), isFinal: false, isRedeclare: false, isReplaceable: Arc::new(crate::NFPrefixes::Replaceable::NOT_REPLACEABLE), isResizable: false }); }
+thread_local! { static __OUTPUT_ATTR_TLS: Arc<NFAttributes> = Arc::new(NFAttributes { connectorType: ConnectorType::NON_CONNECTOR.clone(), parallelism: Parallelism::NON_PARALLEL.clone(), variability: Variability::CONTINUOUS.clone(), direction: Direction::OUTPUT.clone(), innerOuter: InnerOuter::NOT_INNER_OUTER.clone(), isFinal: false, isRedeclare: false, isReplaceable: crate::NFPrefixes::Replaceable::NOT_REPLACEABLE, isResizable: false }); }
 pub fn OUTPUT_ATTR() -> Arc<NFAttributes> { __OUTPUT_ATTR_TLS.with(|__t| __t.clone()) }
 
-thread_local! { static __CONSTANT_ATTR_TLS: Arc<NFAttributes> = Arc::new(NFAttributes { connectorType: ConnectorType::NON_CONNECTOR.clone(), parallelism: Parallelism::NON_PARALLEL.clone(), variability: Variability::CONSTANT.clone(), direction: Direction::NONE.clone(), innerOuter: InnerOuter::NOT_INNER_OUTER.clone(), isFinal: false, isRedeclare: false, isReplaceable: Arc::new(crate::NFPrefixes::Replaceable::NOT_REPLACEABLE), isResizable: false }); }
+thread_local! { static __CONSTANT_ATTR_TLS: Arc<NFAttributes> = Arc::new(NFAttributes { connectorType: ConnectorType::NON_CONNECTOR.clone(), parallelism: Parallelism::NON_PARALLEL.clone(), variability: Variability::CONSTANT.clone(), direction: Direction::NONE.clone(), innerOuter: InnerOuter::NOT_INNER_OUTER.clone(), isFinal: false, isRedeclare: false, isReplaceable: crate::NFPrefixes::Replaceable::NOT_REPLACEABLE, isResizable: false }); }
 pub fn CONSTANT_ATTR() -> Arc<NFAttributes> { __CONSTANT_ATTR_TLS.with(|__t| __t.clone()) }
 
-thread_local! { static __IMPL_DISCRETE_ATTR_TLS: Arc<NFAttributes> = Arc::new(NFAttributes { connectorType: ConnectorType::NON_CONNECTOR.clone(), parallelism: Parallelism::NON_PARALLEL.clone(), variability: Variability::IMPLICITLY_DISCRETE.clone(), direction: Direction::NONE.clone(), innerOuter: InnerOuter::NOT_INNER_OUTER.clone(), isFinal: false, isRedeclare: false, isReplaceable: Arc::new(crate::NFPrefixes::Replaceable::NOT_REPLACEABLE), isResizable: false }); }
+thread_local! { static __IMPL_DISCRETE_ATTR_TLS: Arc<NFAttributes> = Arc::new(NFAttributes { connectorType: ConnectorType::NON_CONNECTOR.clone(), parallelism: Parallelism::NON_PARALLEL.clone(), variability: Variability::IMPLICITLY_DISCRETE.clone(), direction: Direction::NONE.clone(), innerOuter: InnerOuter::NOT_INNER_OUTER.clone(), isFinal: false, isRedeclare: false, isReplaceable: crate::NFPrefixes::Replaceable::NOT_REPLACEABLE, isResizable: false }); }
 pub fn IMPL_DISCRETE_ATTR() -> Arc<NFAttributes> { __IMPL_DISCRETE_ATTR_TLS.with(|__t| __t.clone()) }
 
-thread_local! { static __AUGMENTED_ATTR_TLS: Arc<NFAttributes> = Arc::new(NFAttributes { connectorType: ConnectorType::AUGMENTED.clone(), parallelism: Parallelism::NON_PARALLEL.clone(), variability: Variability::CONTINUOUS.clone(), direction: Direction::NONE.clone(), innerOuter: InnerOuter::NOT_INNER_OUTER.clone(), isFinal: false, isRedeclare: false, isReplaceable: Arc::new(crate::NFPrefixes::Replaceable::NOT_REPLACEABLE), isResizable: false }); }
+thread_local! { static __AUGMENTED_ATTR_TLS: Arc<NFAttributes> = Arc::new(NFAttributes { connectorType: ConnectorType::AUGMENTED.clone(), parallelism: Parallelism::NON_PARALLEL.clone(), variability: Variability::CONTINUOUS.clone(), direction: Direction::NONE.clone(), innerOuter: InnerOuter::NOT_INNER_OUTER.clone(), isFinal: false, isRedeclare: false, isReplaceable: crate::NFPrefixes::Replaceable::NOT_REPLACEABLE, isResizable: false }); }
 pub fn AUGMENTED_ATTR() -> Arc<NFAttributes> { __AUGMENTED_ATTR_TLS.with(|__t| __t.clone()) }
 
 pub fn fromSCode(mut compAttr: SCode::Attributes, mut compPrefs: Arc<SCode::Prefixes>) -> Result<Arc<NFAttributes>> {
@@ -117,7 +117,7 @@ pub fn fromSCode(mut compAttr: SCode::Attributes, mut compPrefs: Arc<SCode::Pref
     let mut io: Prefixes::InnerOuter = Prefixes::InnerOuter::NOT_INNER_OUTER;
     let mut fin: bool = false;
     let mut redecl: bool = false;
-    let mut repl: Arc<Prefixes::Replaceable> = Arc::new(Prefixes::Replaceable::NOT_REPLACEABLE);
+    let mut repl: Prefixes::Replaceable = Prefixes::Replaceable::NOT_REPLACEABLE;
     attributes = (::match_deref::match_deref! { match &((compAttr.clone(), compPrefs.clone())) {
         (SCode::Attributes { direction: Absyn::Direction::BIDIR { .. }, variability: SCode::Variability::VAR { .. }, parallelism: SCode::Parallelism::NON_PARALLEL { .. }, connectorType: SCode::ConnectorType::POTENTIAL { .. }, .. }, Deref @ SCode::Prefixes { replaceablePrefix: Deref @ SCode::Replaceable::NOT_REPLACEABLE { .. }, innerOuter: Absyn::InnerOuter::NOT_INNER_OUTER { .. }, finalPrefix: SCode::Final::NOT_FINAL { .. }, redeclarePrefix: SCode::Redeclare::NOT_REDECLARE { .. }, .. }) => DEFAULT_ATTR().clone(),
         _ => {
@@ -128,7 +128,7 @@ pub fn fromSCode(mut compAttr: SCode::Attributes, mut compPrefs: Arc<SCode::Pref
             io = Prefixes::innerOuterFromSCode(compPrefs.innerOuter.clone())?;
             fin = SCodeUtil::finalBool(compPrefs.finalPrefix.clone())?;
             redecl = SCodeUtil::redeclareBool(compPrefs.redeclarePrefix.clone())?;
-            repl = Arc::new(crate::NFPrefixes::Replaceable::NOT_REPLACEABLE);
+            repl = crate::NFPrefixes::Replaceable::NOT_REPLACEABLE;
             Arc::new(NFAttributes { connectorType: cty.clone(), parallelism: par.clone(), variability: var.clone(), direction: dir.clone(), innerOuter: io.clone(), isFinal: fin.clone(), isRedeclare: redecl.clone(), isReplaceable: repl.clone(), isResizable: false })
         },
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
@@ -147,7 +147,7 @@ pub fn fromDerivedSCode(mut scodeAttr: SCode::Attributes) -> Result<Arc<NFAttrib
             cty = Prefixes::ConnectorType::fromSCode(scodeAttr.connectorType.clone())?;
             var = Prefixes::variabilityFromSCode(scodeAttr.variability.clone())?;
             dir = Prefixes::directionFromSCode(scodeAttr.direction.clone());
-            Arc::new(NFAttributes { connectorType: cty.clone(), parallelism: Parallelism::NON_PARALLEL.clone(), variability: var.clone(), direction: dir.clone(), innerOuter: InnerOuter::NOT_INNER_OUTER.clone(), isFinal: false, isRedeclare: false, isReplaceable: Arc::new(crate::NFPrefixes::Replaceable::NOT_REPLACEABLE), isResizable: false })
+            Arc::new(NFAttributes { connectorType: cty.clone(), parallelism: Parallelism::NON_PARALLEL.clone(), variability: var.clone(), direction: dir.clone(), innerOuter: InnerOuter::NOT_INNER_OUTER.clone(), isFinal: false, isRedeclare: false, isReplaceable: crate::NFPrefixes::Replaceable::NOT_REPLACEABLE, isResizable: false })
         },
     });
     Ok(attributes)
@@ -162,7 +162,7 @@ pub fn mergeComponentAttributes(mut outerAttr: Arc<NFAttributes>, mut innerAttr:
     let mut fin: bool = false;
     let mut redecl: bool = false;
     let mut resize: bool = false;
-    let mut repl: Arc<Prefixes::Replaceable> = Arc::new(Prefixes::Replaceable::NOT_REPLACEABLE);
+    let mut repl: Prefixes::Replaceable = Prefixes::Replaceable::NOT_REPLACEABLE;
     if referenceEq(&outerAttr.clone(),&DEFAULT_ATTR().clone()) && innerAttr.connectorType.clone() == 0 {
         attr = innerAttr.clone();
     } else if referenceEq(&innerAttr.clone(),&DEFAULT_ATTR().clone()) {
@@ -196,7 +196,7 @@ pub fn mergeDerivedAttributes(mut outerAttr: Arc<NFAttributes>, mut innerAttr: A
     let mut fin: bool = false;
     let mut redecl: bool = false;
     let mut resize: bool = false;
-    let mut repl: Arc<Prefixes::Replaceable> = Arc::new(Prefixes::Replaceable::NOT_REPLACEABLE);
+    let mut repl: Prefixes::Replaceable = Prefixes::Replaceable::NOT_REPLACEABLE;
     if referenceEq(&innerAttr.clone(),&DEFAULT_ATTR().clone()) && outerAttr.connectorType.clone() == 0 {
         attr = outerAttr.clone();
     } else if referenceEq(&outerAttr.clone(),&DEFAULT_ATTR().clone()) && innerAttr.connectorType.clone() == 0 {
@@ -240,7 +240,7 @@ pub fn mergeRedeclaredComponentAttributes(mut origAttr: Arc<NFAttributes>, mut r
     let mut fin: bool = false;
     let mut redecl: bool = false;
     let mut resize: bool = false;
-    let mut repl: Arc<Prefixes::Replaceable> = Arc::new(Prefixes::Replaceable::NOT_REPLACEABLE);
+    let mut repl: Prefixes::Replaceable = Prefixes::Replaceable::NOT_REPLACEABLE;
     if referenceEq(&origAttr.clone(),&DEFAULT_ATTR().clone()) {
         attr = redeclAttr.clone();
     } else if referenceEq(&redeclAttr.clone(),&DEFAULT_ATTR().clone()) {
@@ -498,7 +498,7 @@ pub fn setRedeclare(mut redecl: bool, mut attr: Arc<NFAttributes>) -> Arc<NFAttr
     attr
 }
 
-pub fn setReplaceable(mut repl: Arc<Prefixes::Replaceable>, mut attr: Arc<NFAttributes>) -> Arc<NFAttributes> {
+pub fn setReplaceable(mut repl: Prefixes::Replaceable, mut attr: Arc<NFAttributes>) -> Arc<NFAttributes> {
     let mut attr: Arc<NFAttributes> = attr;
     assign_field!(attr.isReplaceable = repl.clone());
     attr

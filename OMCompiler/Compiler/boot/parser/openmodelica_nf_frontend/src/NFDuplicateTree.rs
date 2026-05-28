@@ -111,27 +111,27 @@ pub fn idExistsInEntry(mut id: Arc<NFLookupTree::Entry::Entry>, mut entry: Arc<E
 
 pub fn getLookupEntries(mut entry: Arc<Entry>) -> Arc<metamodelica::List<Arc<NFLookupTree::Entry::Entry>>> {
     let mut entries: Arc<metamodelica::List<Arc<NFLookupTree::Entry::Entry>>> = metamodelica::nil();
-    entries = cons(entry.entry.clone(), {
+    entries = cons(entry.entry.clone(), ({
         let mut __acc: Arc<metamodelica::List<Arc<NFLookupTree::Entry::Entry>>> = metamodelica::nil();
         for mut c in (entry.children.clone()).into_iter().cloned() {
             let __x = getLookupEntries(c.clone());
             __acc = __x.append(&__acc);
         }
         __acc
-    });
+    }));
     entries
 }
 
 pub fn entryToList(mut entry: Arc<Entry>) -> Arc<metamodelica::List<Arc<Entry>>> {
     let mut entries: Arc<metamodelica::List<Arc<Entry>>> = metamodelica::nil();
-    entries = cons(entry.clone(), {
+    entries = cons(entry.clone(), ({
         let mut __acc: Arc<metamodelica::List<Arc<Entry>>> = metamodelica::nil();
         for mut c in (entry.children.clone()).into_iter().cloned() {
             let __x = entryToList(c.clone());
             __acc = __x.append(&__acc);
         }
         __acc
-    });
+    }));
     entries
 }
 
@@ -412,7 +412,7 @@ pub fn fold_2<FT1: Clone + 'static, FT2: Clone + 'static>(mut tree: Arc<Tree>, m
 pub fn forEach(mut tree: Arc<Tree>, mut func: Arc<dyn ::std::ops::Fn(ArcStr, Arc<Entry>) -> Result<()> + 'static>) -> Result<()> {
     pub type EachFunc = std::sync::Arc<dyn ::std::ops::Fn(Key, Value) -> Result<()> + 'static>;
 
-    let _ = (::match_deref::match_deref! { match &(tree.clone()) {
+    let () = (::match_deref::match_deref! { match &(tree.clone()) {
         Deref @ Tree::NODE { .. } => {
             forEach(var_field!((*tree).left, Tree::NODE).clone(), func.clone())?;
             func((var_field!((*tree).key, Tree::NODE).clone()).clone(), var_field!((*tree).value, Tree::NODE).clone())?;
@@ -490,7 +490,7 @@ pub fn hasKey(mut inTree: Arc<Tree>, mut inKey: Key) -> Result<bool> {
         Deref @ Tree::NODE { .. } => var_field!((*inTree).key, Tree::NODE).clone(),
         Deref @ Tree::LEAF { .. } => var_field!((*inTree).key, Tree::LEAF).clone(),
         Deref @ Tree::EMPTY { .. } => {
-            return Ok(comp);
+            return Ok(comp.clone());
             bail!("fail")
         },
         _ => bail!("match: no arm matched"),
@@ -701,11 +701,8 @@ pub fn printTreeStr(mut inTree: Arc<Tree>) -> Result<ArcStr> {
 
 fn printTreeStr2(mut inTree: Arc<Tree>, mut isLeft: bool, mut inIndent: ArcStr) -> Result<ArcStr> {
     let mut outString: ArcStr = arcstr::literal!("");
-    let mut val_node: Option<ArcStr> = None;
     let mut left: Option<Arc<Tree>> = None;
     let mut right: Option<Arc<Tree>> = None;
-    let mut left_str: ArcStr = arcstr::literal!("");
-    let mut right_str: ArcStr = arcstr::literal!("");
     outString = ((::match_deref::match_deref! { match &(inTree.clone()) {
         Deref @ Tree::NODE { .. } => { let mut __mm_s = String::new(); __mm_s.push_str(&*printTreeStr2(var_field!((*inTree).left, Tree::NODE).clone(), true, ({ let mut __mm_s = String::new(); __mm_s.push_str(&*inIndent.clone()); __mm_s.push_str(&*if (isLeft.clone()) {literal!("     ")} else {literal!(" │   ")}); ArcStr::from(__mm_s) }).clone())?); __mm_s.push_str(&*inIndent.clone()); __mm_s.push_str(&*if (isLeft.clone()) {literal!(" ┌")} else {literal!(" └")}); __mm_s.push_str(&*literal!("────")); __mm_s.push_str(&*printNodeStr(inTree.clone())?); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*printTreeStr2(var_field!((*inTree).right, Tree::NODE).clone(), false, ({ let mut __mm_s = String::new(); __mm_s.push_str(&*inIndent.clone()); __mm_s.push_str(&*if (isLeft.clone()) {literal!(" │   ")} else {literal!("     ")}); ArcStr::from(__mm_s) }).clone())?); ArcStr::from(__mm_s) },
         Deref @ Tree::LEAF { .. } => { let mut __mm_s = String::new(); __mm_s.push_str(&*inIndent.clone()); __mm_s.push_str(&*if (isLeft.clone()) {literal!(" ┌")} else {literal!(" └")}); __mm_s.push_str(&*literal!("────")); __mm_s.push_str(&*printNodeStr(inTree.clone())?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) },

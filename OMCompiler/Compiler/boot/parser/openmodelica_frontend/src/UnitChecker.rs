@@ -143,10 +143,10 @@ fn completeCheck(mut ilst: Arc<metamodelica::List<Option<UnitAbsyn::Unit>>>, mut
     let mut isComplete: bool = false;
     let mut stout: UnitAbsyn::Store = <UnitAbsyn::Store as ::std::default::Default>::default();
     (isComplete, stout) = 'mc: {
-        let __mc_input = (ilst.clone(), indx.clone(), st.clone());
+        let __mc_input = (ilst.clone(), st.clone());
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ metamodelica::List::Nil, _, st2) => {
+                (Deref @ metamodelica::List::Nil, st2) => {
                     Ok((true, st2.clone()))
                 }
                 _ => bail!("nomatch"),
@@ -154,7 +154,7 @@ fn completeCheck(mut ilst: Arc<metamodelica::List<Option<UnitAbsyn::Unit>>>, mut
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ metamodelica::List::Cons { head: Some(_), tail: lst }, _, st2) => {
+                (Deref @ metamodelica::List::Cons { head: Some(_), tail: lst }, st2) => {
                     let mut u2: UnitAbsyn::Unit = UnitAbsyn::Unit::UNSPECIFIED;
                     let mut comp1: bool = false;
                     let mut st3: UnitAbsyn::Store = <UnitAbsyn::Store as ::std::default::Default>::default();
@@ -168,7 +168,7 @@ fn completeCheck(mut ilst: Arc<metamodelica::List<Option<UnitAbsyn::Unit>>>, mut
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ metamodelica::List::Cons { head: Some(_), tail: _ }, _, st2) => {
+                (Deref @ metamodelica::List::Cons { head: Some(_), tail: _ }, st2) => {
                     let mut u2: UnitAbsyn::Unit = UnitAbsyn::Unit::UNSPECIFIED;
                     (u2, _) = normalize(indx.clone(), st2.clone())?;
                     let true = (unitHasUnknown(u2.clone())?) else { bail!("pattern mismatch") };
@@ -179,7 +179,7 @@ fn completeCheck(mut ilst: Arc<metamodelica::List<Option<UnitAbsyn::Unit>>>, mut
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ metamodelica::List::Cons { head: None, tail: _ }, _, st2) => {
+                (Deref @ metamodelica::List::Cons { head: None, tail: _ }, st2) => {
                     Ok((true, st2.clone()))
                 }
                 _ => bail!("nomatch"),
@@ -745,9 +745,9 @@ pub fn divUnitVec(mut inunitvec1: Arc<metamodelica::List<MMath::Rational>>, mut 
 pub fn powSpecUnit(mut suin: UnitAbsyn::SpecUnit, mut expo: MMath::Rational) -> Result<UnitAbsyn::SpecUnit> {
     let mut uout: UnitAbsyn::SpecUnit = <UnitAbsyn::SpecUnit as ::std::default::Default>::default();
     uout = 'mc: {
-        let __mc_input = (suin.clone(), expo.clone());
+        let __mc_input = suin.clone();
         if let Ok(__v) = (|| -> Result<_> {
-            let (UnitAbsyn::SpecUnit { typeParameters: ref params1, units: ref unitvec1 }, _) = __mc_input.clone() else { bail!("nomatch") };
+            let UnitAbsyn::SpecUnit { typeParameters: ref params1, units: ref unitvec1 } = __mc_input.clone() else { bail!("nomatch") };
             let mut params2: Arc<metamodelica::List<(MMath::Rational, UnitAbsyn::TypeParameter)>> = metamodelica::nil();
             let mut unitvec2: Arc<metamodelica::List<MMath::Rational>> = metamodelica::nil();
             params2 = powUnitParams(params1.clone(), expo.clone())?;
@@ -901,13 +901,13 @@ pub fn normalizeOnUnit(mut u: UnitAbsyn::Unit, mut st: UnitAbsyn::Store) -> Resu
     let mut unit: UnitAbsyn::Unit = UnitAbsyn::Unit::UNSPECIFIED;
     let mut outSt: UnitAbsyn::Store = <UnitAbsyn::Store as ::std::default::Default>::default();
     (unit, outSt) = 'mc: {
-        let __mc_input = (u.clone(), st.clone());
+        let __mc_input = u.clone();
         if let Ok(__v) = (|| -> Result<_> {
-            let (UnitAbsyn::Unit::UNSPECIFIED, _) = __mc_input.clone() else { bail!("nomatch") };
+            let UnitAbsyn::Unit::UNSPECIFIED = __mc_input.clone() else { bail!("nomatch") };
             Ok((crate::UnitAbsyn::Unit::UNSPECIFIED, st.clone()))
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
-            let (UnitAbsyn::Unit::SPECIFIED { specified: UnitAbsyn::SpecUnit { typeParameters: ref params1, units: ref unitvec1 } }, _) = __mc_input.clone() else { bail!("nomatch") };
+            let UnitAbsyn::Unit::SPECIFIED { specified: UnitAbsyn::SpecUnit { typeParameters: ref params1, units: ref unitvec1 } } = __mc_input.clone() else { bail!("nomatch") };
             let mut params2: Arc<metamodelica::List<(MMath::Rational, UnitAbsyn::TypeParameter)>> = metamodelica::nil();
             let mut params3: Arc<metamodelica::List<(MMath::Rational, UnitAbsyn::TypeParameter)>> = metamodelica::nil();
             let mut unitvec2: Arc<metamodelica::List<MMath::Rational>> = metamodelica::nil();
@@ -1004,10 +1004,10 @@ fn getParam(mut inparams: Arc<metamodelica::List<(MMath::Rational, UnitAbsyn::Ty
     let mut outexpo: MMath::Rational = <MMath::Rational as ::std::default::Default>::default();
     let mut outparams: Arc<metamodelica::List<(MMath::Rational, UnitAbsyn::TypeParameter)>> = metamodelica::nil();
     (found, outexpo, outparams) = 'mc: {
-        let __mc_input = (inparams.clone(), loc.clone());
+        let __mc_input = inparams.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ metamodelica::List::Nil, _) => {
+                Deref @ metamodelica::List::Nil => {
                     Ok((false, MMath::Rational { nom: 1, denom: 1 }, metamodelica::nil()))
                 }
                 _ => bail!("nomatch"),
@@ -1015,7 +1015,7 @@ fn getParam(mut inparams: Arc<metamodelica::List<(MMath::Rational, UnitAbsyn::Ty
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ metamodelica::List::Cons { head: (expo, UnitAbsyn::TypeParameter { name: _, indx: loc2 }), tail: rest }, _) => {
+                Deref @ metamodelica::List::Cons { head: (expo, UnitAbsyn::TypeParameter { name: _, indx: loc2 }), tail: rest } => {
                     let true = (intEq(loc2.clone(), loc.clone())) else { bail!("pattern mismatch") };
                     Ok((true, expo.clone(), rest.clone()))
                 }
@@ -1024,7 +1024,7 @@ fn getParam(mut inparams: Arc<metamodelica::List<(MMath::Rational, UnitAbsyn::Ty
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ metamodelica::List::Cons { head: param, tail: rest }, _) => {
+                Deref @ metamodelica::List::Cons { head: param, tail: rest } => {
                     let mut rest2: Arc<metamodelica::List<(MMath::Rational, UnitAbsyn::TypeParameter)>> = metamodelica::nil();
                     let mut expo: MMath::Rational = <MMath::Rational as ::std::default::Default>::default();
                     let mut found2: bool = false;
@@ -1053,10 +1053,10 @@ fn normalizeParamsValues(mut inparams: Arc<metamodelica::List<(MMath::Rational, 
     let mut uout: UnitAbsyn::SpecUnit = <UnitAbsyn::SpecUnit as ::std::default::Default>::default();
     let mut outSt: UnitAbsyn::Store = <UnitAbsyn::Store as ::std::default::Default>::default();
     (uout, outSt) = 'mc: {
-        let __mc_input = (inparams.clone(), suin.clone(), st.clone());
+        let __mc_input = inparams.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ metamodelica::List::Nil, _, _) => {
+                Deref @ metamodelica::List::Nil => {
                     Ok((suin.clone(), st.clone()))
                 }
                 _ => bail!("nomatch"),
@@ -1064,7 +1064,7 @@ fn normalizeParamsValues(mut inparams: Arc<metamodelica::List<(MMath::Rational, 
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ metamodelica::List::Cons { head: (expo, UnitAbsyn::TypeParameter { name, indx: loc }), tail: rest }, _, _) => {
+                Deref @ metamodelica::List::Cons { head: (expo, UnitAbsyn::TypeParameter { name, indx: loc }), tail: rest } => {
                     let mut st2: UnitAbsyn::Store = <UnitAbsyn::Store as ::std::default::Default>::default();
                     let mut st3: UnitAbsyn::Store = <UnitAbsyn::Store as ::std::default::Default>::default();
                     let mut u2: UnitAbsyn::Unit = UnitAbsyn::Unit::UNSPECIFIED;
@@ -1096,13 +1096,13 @@ fn normalizeParamsValues(mut inparams: Arc<metamodelica::List<(MMath::Rational, 
 fn mulSpecUnitWithNorm(mut suin: UnitAbsyn::SpecUnit, mut normunit: UnitAbsyn::Unit, mut name: ArcStr, mut loc: i32, mut expo: MMath::Rational) -> Result<UnitAbsyn::SpecUnit> {
     let mut suout: UnitAbsyn::SpecUnit = <UnitAbsyn::SpecUnit as ::std::default::Default>::default();
     suout = 'mc: {
-        let __mc_input = (suin.clone(), normunit.clone(), name.clone(), loc.clone(), expo.clone());
+        let __mc_input = (suin.clone(), normunit.clone());
         if let Ok(__v) = (|| -> Result<_> {
-            let (UnitAbsyn::SpecUnit { typeParameters: ref params, units: ref unitvec }, UnitAbsyn::Unit::UNSPECIFIED, _, _, _) = __mc_input.clone() else { bail!("nomatch") };
+            let (UnitAbsyn::SpecUnit { typeParameters: ref params, units: ref unitvec }, UnitAbsyn::Unit::UNSPECIFIED) = __mc_input.clone() else { bail!("nomatch") };
             Ok(UnitAbsyn::SpecUnit { typeParameters: cons((expo.clone(), UnitAbsyn::TypeParameter { name: (name.clone()).clone(), indx: loc.clone() }), params.clone()), units: unitvec.clone() })
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
-            let (mut su2, UnitAbsyn::Unit::SPECIFIED { specified: mut sunorm }, _, _, _) = __mc_input.clone() else { bail!("nomatch") };
+            let (mut su2, UnitAbsyn::Unit::SPECIFIED { specified: mut sunorm }) = __mc_input.clone() else { bail!("nomatch") };
             let mut su3: UnitAbsyn::SpecUnit = <UnitAbsyn::SpecUnit as ::std::default::Default>::default();
             let mut su4: UnitAbsyn::SpecUnit = <UnitAbsyn::SpecUnit as ::std::default::Default>::default();
             su3 = powSpecUnit(sunorm.clone(), expo.clone())?;
@@ -1121,7 +1121,7 @@ fn mulSpecUnitWithNorm(mut suin: UnitAbsyn::SpecUnit, mut normunit: UnitAbsyn::U
 }
 
 pub fn printSpecUnit(mut text: ArcStr, mut su: UnitAbsyn::SpecUnit) -> Result<()> {
-    let _ = (match (text.clone(), su.clone()) {
+    let () = (match (text.clone(), su.clone()) {
         (mut r#str, UnitAbsyn::SpecUnit { typeParameters: ref params, units: _ }) => {
             println!("{}", (r#str.clone()).clone());
             println!("{}", (literal!(" \"")).clone());
@@ -1137,7 +1137,7 @@ pub fn printSpecUnit(mut text: ArcStr, mut su: UnitAbsyn::SpecUnit) -> Result<()
 }
 
 pub fn printSpecUnitParams(mut params: Arc<metamodelica::List<(MMath::Rational, UnitAbsyn::TypeParameter)>>) -> Result<()> {
-    let _ = (::match_deref::match_deref! { match &(params.clone()) {
+    let () = (::match_deref::match_deref! { match &(params.clone()) {
         Deref @ metamodelica::List::Nil => {
             ()
         },
@@ -1160,18 +1160,12 @@ pub fn printSpecUnitParams(mut params: Arc<metamodelica::List<(MMath::Rational, 
 }
 
 pub fn testUnitOp() -> () {
-    let mut u1: UnitAbsyn::Unit = UnitAbsyn::Unit::UNSPECIFIED;
-    let mut u2: UnitAbsyn::Unit = UnitAbsyn::Unit::UNSPECIFIED;
-    let mut u3: UnitAbsyn::Unit = UnitAbsyn::Unit::UNSPECIFIED;
-    let mut u4: UnitAbsyn::Unit = UnitAbsyn::Unit::UNSPECIFIED;
-    let mut str1: ArcStr = arcstr::literal!("");
-    let mut str2: ArcStr = arcstr::literal!("");
     println!("{}", (literal!("test")).clone());
     ()
 }
 
 pub fn printResult(mut res: UnitAbsyn::UnitCheckResult) -> Result<()> {
-    let _ = (match res.clone() {
+    let () = (match res.clone() {
         UnitAbsyn::UnitCheckResult::CONSISTENT => {
             println!("{}", (literal!("\n---\nThe system of units is consistent.\n---\n")).clone());
             ()

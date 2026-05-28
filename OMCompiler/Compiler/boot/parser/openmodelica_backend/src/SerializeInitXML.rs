@@ -92,7 +92,10 @@ pub fn simulationInitFileReturnBool(mut simCode: SIMCODE, mut guid: ArcStr) -> b
     } })).clone();
         File::open(file.clone(), (fileName.clone()).clone(), File::Mode::Write.clone());
         vi = simCode.modelInfo.varInfo.clone();
-        let Some(__pa1) = (simCode.simulationSettingsOpt.clone()) else { break '__try0 Err::<_, _>(anyhow::anyhow!("pattern mismatch")) };
+        let __pa1 = ::match_deref::match_deref! { match &(simCode.simulationSettingsOpt.clone()) {
+            Some(__pa1) => __pa1.clone(),
+            _ => break '__try0 Err::<_, _>(anyhow::anyhow!("pattern mismatch")),
+        } };
         s = __pa1.clone();
         FMUType = ((::match_deref::match_deref! { match &(unwrap_break_err!(Config::simCodeTarget(), '__try0)) {
         Deref @ "omsic" => literal!("2.0"),
@@ -405,7 +408,6 @@ fn scalarVariableType(mut file: File::File, mut v: SimVar) -> Result<()> {
 }
 
 fn scalarVariableTypeUseAttribute(mut file: File::File, mut attr: Option<Arc<Exp>>, mut r#use: ArcStr, mut name: ArcStr) -> () {
-    let mut expStr: ArcStr = arcstr::literal!("");
     File::write(file.clone(), (literal!(" ")).clone());
     File::write(file.clone(), (r#use.clone()).clone());
     File::write(file.clone(), (literal!("=\"")).clone());
@@ -520,14 +522,14 @@ fn expString(mut exp: Arc<Exp>) -> Result<ArcStr> {
         Deref @ Exp::SCONST { .. } => Util::escapeModelicaStringToXmlString((var_field!((*exp).string, Exp::SCONST).clone()).clone())?,
         Deref @ Exp::BCONST { .. } => boolString(var_field!((*exp).bool, Exp::BCONST).clone()),
         Deref @ Exp::ENUM_LITERAL { .. } => intString(var_field!((*exp).index, Exp::ENUM_LITERAL).clone()),
-        Deref @ Exp::ARRAY { .. } if (Expression::isSimpleLiteralValue(exp.clone(), true)) => stringDelimitList({
+        Deref @ Exp::ARRAY { .. } if (Expression::isSimpleLiteralValue(exp.clone(), true)) => stringDelimitList(({
         let mut __acc: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
         for mut e in (var_field!((*exp).array, Exp::ARRAY).clone()).into_iter().cloned() {
             let __x = expString(e.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, (literal!(" ")).clone()),
+    }), (literal!(" ")).clone()),
         Deref @ Exp::REDUCTION { .. } => expString(var_field!((*exp).expr, Exp::REDUCTION).clone())?,
         _ => bail!("fail"),
         _ => unreachable!("match_deref! exhaustiveness placeholder"),

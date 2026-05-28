@@ -357,10 +357,10 @@ pub fn getImplicitBinding(mut component: Arc<NFComponent>, mut scope: Arc<InstNo
             match '__try0: {
                 if isTyped(component.clone()) {
                     record_exp = unwrap_break_err!(Class::makeRecordExp(cls_node.clone(), scope.clone(), true), '__try0);
-                    binding = unwrap_break_err!(Binding::makeTyped(record_exp.clone(), Binding::EachType::NOT_EACH.clone(), Binding::Source::GENERATED.clone(), info(component.clone()).unwrap(), Binding::EvalState::NOT_EVALUATED.clone()), '__try0);
+                    binding = unwrap_break_err!(Binding::makeTyped(record_exp.clone(), Binding::EachType::NOT_EACH.clone(), Binding::Source::GENERATED.clone(), info(component.clone()).unwrap(), Binding::EvalState::NOT_EVALUATED.clone(), Binding::NO_CONFIDENCE.clone()), '__try0);
                 } else {
                     record_exp = unwrap_break_err!(Class::makeRecordExp(cls_node.clone(), scope.clone(), false), '__try0);
-                    binding = Binding::makeUntyped(record_exp.clone(), scope.clone(), Binding::EachType::NOT_EACH.clone(), Binding::Source::GENERATED.clone(), info(component.clone()).unwrap());
+                    binding = Binding::makeUntyped(record_exp.clone(), scope.clone(), Binding::EachType::NOT_EACH.clone(), Binding::Source::GENERATED.clone(), info(component.clone()).unwrap(), Binding::NO_CONFIDENCE.clone());
                 }
                 Ok::<_, anyhow::Error>((binding.clone(), record_exp.clone()))
             } {
@@ -425,12 +425,12 @@ pub fn hasBinding(mut component: Arc<NFComponent>, mut parent: Arc<InstNode::Ins
     let mut cls: Arc<Class::NFClass> = Arc::new(Class::NOT_INSTANTIATED);
     if Binding::isBound(getBinding(component.clone())) {
         b = true;
-        return Ok(b);
+        return Ok(b.clone());
     }
     cls = InstNode::getClass(classInstance(component.clone()))?;
     if !(Restriction::isRecord(Class::restriction(cls.clone()))) {
         b = false;
-        return Ok(b);
+        return Ok(b.clone());
     }
     if isSome(ClassTree::findComponent(Class::classTree(cls.clone())?, (std::sync::Arc::new(has_missing_binding) as std::sync::Arc<dyn ::std::ops::Fn(Arc<InstNode::InstNode>) -> Result<bool> + 'static>))) {
         b = false;
@@ -695,10 +695,10 @@ pub fn isIdentical(mut comp1: Arc<NFComponent>, mut comp2: Arc<NFComponent>) -> 
         identical = (::match_deref::match_deref! { match &((comp1.clone(), comp2.clone())) {
         (Deref @ COMPONENT { .. }, Deref @ COMPONENT { .. }) => {
             if !(Class::isIdentical(InstNode::getClass(var_field!((*comp1).classInst, NFComponent::COMPONENT).clone())?, InstNode::getClass(var_field!((*comp2).classInst, NFComponent::COMPONENT).clone())?)) {
-                return Ok(identical);
+                return Ok(identical.clone());
             }
             if !(Binding::isEqual(var_field!((*comp1).binding, NFComponent::COMPONENT).clone(), var_field!((*comp2).binding, NFComponent::COMPONENT).clone())?) {
-                return Ok(identical);
+                return Ok(identical.clone());
             }
             true
         },
@@ -741,14 +741,14 @@ pub fn toFlatStream(mut name: ArcStr, mut component: Arc<NFComponent>, mut forma
             if !(dims.clone().is_empty()) {
                 s = IOStream::append(s.clone(), (Dimension::toFlatStringList(dims.clone(), format.clone(), (literal!("")).clone())?).clone())?;
             }
-            ty_attrs = {
+            ty_attrs = ({
         let mut __acc: Arc<metamodelica::List<(ArcStr, Arc<Binding::NFBinding>)>> = metamodelica::nil();
         for mut a in (Class::getTypeAttributes(InstNode::getClass(var_field!((*component).classInst, NFComponent::COMPONENT).clone())?)).into_iter().cloned() {
             let __x = (Modifier::name(a.clone())?, Modifier::binding(a.clone()));
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
             s = typeAttrsToFlatStream(ty_attrs.clone(), var_field!((*component).ty, NFComponent::COMPONENT).clone(), format.clone(), s.clone())?;
             s = IOStream::append(s.clone(), (Binding::toFlatString(var_field!((*component).binding, NFComponent::COMPONENT).clone(), format.clone(), (literal!(" = ")).clone())?).clone())?;
             ()
@@ -772,7 +772,7 @@ pub fn typeAttrsToFlatStream(mut typeAttrs: Arc<metamodelica::List<(ArcStr, Arc<
     let mut binding: Arc<Binding::NFBinding> = Arc::new(Binding::UNBOUND);
     let mut bind_exp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     if ty_attrs.clone().is_empty() {
-        return Ok(s);
+        return Ok(s.clone());
     }
     s = IOStream::append(s.clone(), (literal!("(")).clone())?;
     var_dims = Type::dimensionCount(componentType.clone());
@@ -831,19 +831,17 @@ pub fn comment(mut component: Arc<NFComponent>) -> Result<Arc<SCode::Comment>> {
 
 pub fn getEvaluateAnnotation(mut component: Arc<NFComponent>) -> Result<Option<bool>> {
     let mut evaluate: Option<bool> = None;
-    let mut cmt: Arc<SCode::Comment> = Arc::new(<SCode::Comment as ::std::default::Default>::default());
     evaluate = SCodeUtil::getEvaluateAnnotation(comment(component.clone())?)?;
     Ok(evaluate)
 }
 
 pub fn isFixed(mut component: Arc<NFComponent>) -> Result<bool> {
     let mut fixed: bool = false;
-    let mut typeAttrs: Arc<metamodelica::List<Arc<Modifier::Modifier>>> = metamodelica::nil();
     let mut binding: Arc<Binding::NFBinding> = Arc::new(Binding::UNBOUND);
     fixed = isParameter(component.clone()) || isStructuralParameter(component.clone());
     binding = Class::lookupAttributeBinding((literal!("fixed")).clone(), InstNode::getClass(classInstance(component.clone()))?);
     if Binding::isUnbound(binding.clone()) {
-        return Ok(fixed);
+        return Ok(fixed.clone());
     }
     if Binding::hasExp(binding.clone()) {
         fixed = fixed.clone() && Expression::isTrue(Binding::getExp(binding.clone())?);
@@ -864,7 +862,7 @@ pub fn getUnitAttribute(mut component: Arc<NFComponent>, mut defaultUnit: ArcStr
     binding = Class::lookupAttributeBinding((literal!("unit")).clone(), InstNode::getClass(classInstance(component.clone()))?);
     if Binding::isUnbound(binding.clone()) {
         unitString = (defaultUnit.clone()).clone();
-        return Ok(unitString);
+        return Ok(unitString.clone());
     }
     unit = Binding::getExp(binding.clone())?;
     unitString = ((::match_deref::match_deref! { match &(unit.clone()) {

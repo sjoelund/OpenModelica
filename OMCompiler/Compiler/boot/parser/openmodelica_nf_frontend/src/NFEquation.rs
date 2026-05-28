@@ -166,14 +166,14 @@ pub mod Branch {
         Deref @ BRANCH { .. } => {
             cond = func(var_field!((*branch).condition, Branch::BRANCH).clone()).unwrap();
             if mapBody.clone() {
-                eql = {
+                eql = ({
         let mut __acc: Arc<metamodelica::List<Arc<NFEquation>>> = metamodelica::nil();
         for mut e in (var_field!((*branch).body, Branch::BRANCH).clone()).into_iter().cloned() {
             let __x = super::mapExp(e.clone(), func.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
             } else {
                 eql = var_field!((*branch).body, Branch::BRANCH).clone();
             }
@@ -466,30 +466,30 @@ pub fn map(mut eq: Arc<NFEquation>, mut func: Arc<dyn ::std::ops::Fn(Arc<NFEquat
     let mut eq: Arc<NFEquation> = eq;
     let () = (::match_deref::match_deref! { match &(eq.clone()) {
         Deref @ FOR { .. } => {
-            assign_variant_field!(eq => NFEquation::FOR; body = {
+            assign_variant_field!(eq => NFEquation::FOR; body = ({
         let mut __acc: Arc<metamodelica::List<Arc<NFEquation>>> = metamodelica::nil();
         for mut e in (var_field!((*eq).body, NFEquation::FOR).clone()).into_iter().cloned() {
             let __x = map(e.clone(), func.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             ()
         },
         Deref @ IF { .. } => {
-            assign_variant_field!(eq => NFEquation::IF; branches = {
+            assign_variant_field!(eq => NFEquation::IF; branches = ({
         let mut __acc: Arc<metamodelica::List<Arc<Branch::Branch>>> = metamodelica::nil();
         for mut b in (var_field!((*eq).branches, NFEquation::IF).clone()).into_iter().cloned() {
             let __x = (::match_deref::match_deref! { match &(b.clone()) {
         Deref @ Branch::BRANCH { .. } => {
-            assign_variant_field!(b => Branch::Branch::BRANCH; body = {
+            assign_variant_field!(b => Branch::Branch::BRANCH; body = ({
         let mut __acc: Arc<metamodelica::List<Arc<NFEquation>>> = metamodelica::nil();
         for mut e in (var_field!((*b).body, Branch::Branch::BRANCH).clone()).into_iter().cloned() {
             let __x = map(e.clone(), func.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             b.clone()
         },
         _ => b.clone(),
@@ -498,23 +498,23 @@ pub fn map(mut eq: Arc<NFEquation>, mut func: Arc<dyn ::std::ops::Fn(Arc<NFEquat
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             ()
         },
         Deref @ WHEN { .. } => {
-            assign_variant_field!(eq => NFEquation::WHEN; branches = {
+            assign_variant_field!(eq => NFEquation::WHEN; branches = ({
         let mut __acc: Arc<metamodelica::List<Arc<Branch::Branch>>> = metamodelica::nil();
         for mut b in (var_field!((*eq).branches, NFEquation::WHEN).clone()).into_iter().cloned() {
             let __x = (::match_deref::match_deref! { match &(b.clone()) {
         Deref @ Branch::BRANCH { .. } => {
-            assign_variant_field!(b => Branch::Branch::BRANCH; body = {
+            assign_variant_field!(b => Branch::Branch::BRANCH; body = ({
         let mut __acc: Arc<metamodelica::List<Arc<NFEquation>>> = metamodelica::nil();
         for mut e in (var_field!((*b).body, Branch::Branch::BRANCH).clone()).into_iter().cloned() {
             let __x = map(e.clone(), func.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             b.clone()
         },
         _ => b.clone(),
@@ -523,7 +523,7 @@ pub fn map(mut eq: Arc<NFEquation>, mut func: Arc<dyn ::std::ops::Fn(Arc<NFEquat
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             ()
         },
         _ => (),
@@ -696,14 +696,14 @@ pub type MapExpFn = std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpressi
 
 pub fn mapExpList(mut eql: Arc<metamodelica::List<Arc<NFEquation>>>, mut func: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Arc<metamodelica::List<Arc<NFEquation>>> {
     let mut eql: Arc<metamodelica::List<Arc<NFEquation>>> = eql;
-    eql = {
+    eql = ({
         let mut __acc: Arc<metamodelica::List<Arc<NFEquation>>> = metamodelica::nil();
         for mut eq in (eql.clone()).into_iter().cloned() {
             let __x = mapExp(eq.clone(), func.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     eql
 }
 
@@ -726,38 +726,38 @@ pub fn mapExp(mut eq: Arc<NFEquation>, mut func: Arc<dyn ::std::ops::Fn(Arc<Expr
         },
         Deref @ FOR { .. } => {
             assign_variant_field!(eq => NFEquation::FOR;
-                body = {
+                body = ({
         let mut __acc: Arc<metamodelica::List<Arc<NFEquation>>> = metamodelica::nil();
         for mut e in (var_field!((*eq).body, NFEquation::FOR).clone()).into_iter().cloned() {
             let __x = mapExp(e.clone(), func.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    },
+    }),
                 range = Util::applyOption(var_field!((*eq).range, NFEquation::FOR).clone(), func.clone())
             );
             eq.clone()
         },
         Deref @ IF { .. } => {
-            assign_variant_field!(eq => NFEquation::IF; branches = {
+            assign_variant_field!(eq => NFEquation::IF; branches = ({
         let mut __acc: Arc<metamodelica::List<Arc<Branch::Branch>>> = metamodelica::nil();
         for mut b in (var_field!((*eq).branches, NFEquation::IF).clone()).into_iter().cloned() {
             let __x = Branch::mapExp(b.clone(), func.clone(), true);
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             eq.clone()
         },
         Deref @ WHEN { .. } => {
-            assign_variant_field!(eq => NFEquation::WHEN; branches = {
+            assign_variant_field!(eq => NFEquation::WHEN; branches = ({
         let mut __acc: Arc<metamodelica::List<Arc<Branch::Branch>>> = metamodelica::nil();
         for mut b in (var_field!((*eq).branches, NFEquation::WHEN).clone()).into_iter().cloned() {
             let __x = Branch::mapExp(b.clone(), func.clone(), true);
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             eq.clone()
         },
         Deref @ ASSERT { .. } => {
@@ -816,25 +816,25 @@ pub fn mapExpShallow(mut eq: Arc<NFEquation>, mut func: Arc<dyn ::std::ops::Fn(A
             eq.clone()
         },
         Deref @ IF { .. } => {
-            assign_variant_field!(eq => NFEquation::IF; branches = {
+            assign_variant_field!(eq => NFEquation::IF; branches = ({
         let mut __acc: Arc<metamodelica::List<Arc<Branch::Branch>>> = metamodelica::nil();
         for mut b in (var_field!((*eq).branches, NFEquation::IF).clone()).into_iter().cloned() {
             let __x = Branch::mapExp(b.clone(), func.clone(), false);
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             eq.clone()
         },
         Deref @ WHEN { .. } => {
-            assign_variant_field!(eq => NFEquation::WHEN; branches = {
+            assign_variant_field!(eq => NFEquation::WHEN; branches = ({
         let mut __acc: Arc<metamodelica::List<Arc<Branch::Branch>>> = metamodelica::nil();
         for mut b in (var_field!((*eq).branches, NFEquation::WHEN).clone()).into_iter().cloned() {
             let __x = Branch::mapExp(b.clone(), func.clone(), false);
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             eq.clone()
         },
         Deref @ ASSERT { .. } => {
@@ -965,7 +965,7 @@ pub fn contains(mut eq: Arc<NFEquation>, mut func: Arc<dyn ::std::ops::Fn(Arc<NF
     let mut res: bool = false;
     if func(eq.clone()).unwrap() {
         res = true;
-        return res;
+        return res.clone();
     }
     res = (::match_deref::match_deref! { match &(eq.clone()) {
         Deref @ FOR { .. } => containsList(var_field!((*eq).body, NFEquation::FOR).clone(), func.clone()),
@@ -976,7 +976,7 @@ pub fn contains(mut eq: Arc<NFEquation>, mut func: Arc<dyn ::std::ops::Fn(Arc<NF
         Deref @ Branch::BRANCH { .. } => {
             if containsList(var_field!((*b).body, Branch::Branch::BRANCH).clone(), func.clone()) {
                 res = true;
-                return res;
+                return res.clone();
             }
             ()
         },
@@ -993,7 +993,7 @@ pub fn contains(mut eq: Arc<NFEquation>, mut func: Arc<dyn ::std::ops::Fn(Arc<NF
         Deref @ Branch::BRANCH { .. } => {
             if containsList(var_field!((*b).body, Branch::Branch::BRANCH).clone(), func.clone()) {
                 res = true;
-                return res;
+                return res.clone();
             }
             ()
         },
@@ -1017,7 +1017,7 @@ pub fn containsList(mut eql: Arc<metamodelica::List<Arc<NFEquation>>>, mut func:
         let mut eq = eq.clone();
         if contains(eq.clone(), func.clone()) {
             res = true;
-            return res;
+            return res.clone();
         }
     }
     res = false;
@@ -1046,11 +1046,11 @@ pub fn containsExp(mut eq: Arc<NFEquation>, mut r#fn: Arc<dyn ::std::ops::Fn(Arc
         Deref @ Branch::BRANCH { .. } => {
             if r#fn(var_field!((*b).condition, Branch::Branch::BRANCH).clone())? {
                 res = true;
-                return Ok(res);
+                return Ok(res.clone());
             }
             if containsExpList(var_field!((*b).body, Branch::Branch::BRANCH).clone(), r#fn.clone())? {
                 res = true;
-                return Ok(res);
+                return Ok(res.clone());
             }
             ()
         },
@@ -1068,11 +1068,11 @@ pub fn containsExp(mut eq: Arc<NFEquation>, mut r#fn: Arc<dyn ::std::ops::Fn(Arc
         Deref @ Branch::BRANCH { .. } => {
             if r#fn(var_field!((*b).condition, Branch::Branch::BRANCH).clone())? {
                 res = true;
-                return Ok(res);
+                return Ok(res.clone());
             }
             if containsExpList(var_field!((*b).body, Branch::Branch::BRANCH).clone(), r#fn.clone())? {
                 res = true;
-                return Ok(res);
+                return Ok(res.clone());
             }
             ()
         },
@@ -1100,7 +1100,7 @@ pub fn containsExpList(mut eql: Arc<metamodelica::List<Arc<NFEquation>>>, mut fu
         let mut eq = eq.clone();
         if containsExp(eq.clone(), func.clone())? {
             res = true;
-            return Ok(res);
+            return Ok(res.clone());
         }
     }
     res = false;
@@ -1512,25 +1512,25 @@ pub fn splitRecordEquation(mut eq: Arc<NFEquation>, mut equations: Arc<metamodel
             cons(eq.clone(), equations.clone())
         },
         Deref @ IF { .. } => {
-            assign_variant_field!(eq => NFEquation::IF; branches = {
+            assign_variant_field!(eq => NFEquation::IF; branches = ({
         let mut __acc: Arc<metamodelica::List<Arc<Branch::Branch>>> = metamodelica::nil();
         for mut b in (var_field!((*eq).branches, NFEquation::IF).clone()).into_iter().cloned() {
             let __x = splitRecordEquationBranch(b.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             cons(eq.clone(), equations.clone())
         },
         Deref @ WHEN { .. } => {
-            assign_variant_field!(eq => NFEquation::WHEN; branches = {
+            assign_variant_field!(eq => NFEquation::WHEN; branches = ({
         let mut __acc: Arc<metamodelica::List<Arc<Branch::Branch>>> = metamodelica::nil();
         for mut b in (var_field!((*eq).branches, NFEquation::WHEN).clone()).into_iter().cloned() {
             let __x = splitRecordEquationBranch(b.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             cons(eq.clone(), equations.clone())
         },
         _ => cons(eq.clone(), equations.clone()),

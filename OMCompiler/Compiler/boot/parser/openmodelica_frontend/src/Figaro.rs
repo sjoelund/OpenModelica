@@ -1263,7 +1263,7 @@ fn reportErrors(mut inStringList: Arc<metamodelica::List<ArcStr>>) -> Result<boo
 
 /* Debug */
 fn printFigaroClassList(mut inFigaroClassList: Arc<metamodelica::List<FigaroClass>>) -> Result<()> {
-    let _ = 'mc: {
+    let () = 'mc: {
         let __mc_input = inFigaroClassList.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
@@ -1298,7 +1298,7 @@ fn printFigaroClassList(mut inFigaroClassList: Arc<metamodelica::List<FigaroClas
 }
 
 fn printFigaroClass(mut inFigaroClass: FigaroClass) -> Result<()> {
-    let _ = (match inFigaroClass.clone() {
+    let () = (match inFigaroClass.clone() {
         FigaroClass { typeName: mut tn, className: mut cn } => {
             println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*cn.clone()); __mm_s.push_str(&*literal!(" = ")); __mm_s.push_str(&*tn.clone()); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
             ()
@@ -1309,7 +1309,7 @@ fn printFigaroClass(mut inFigaroClass: FigaroClass) -> Result<()> {
 }
 
 fn printFigaroObjectList(mut inFigaroObjectList: Arc<metamodelica::List<FigaroObject>>) -> Result<()> {
-    let _ = 'mc: {
+    let () = 'mc: {
         let __mc_input = inFigaroObjectList.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
@@ -1344,7 +1344,7 @@ fn printFigaroObjectList(mut inFigaroObjectList: Arc<metamodelica::List<FigaroOb
 }
 
 fn printTokenList(mut inTokenList: Arc<metamodelica::List<Token>>) -> Result<()> {
-    let _ = 'mc: {
+    let () = 'mc: {
         let __mc_input = inTokenList.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
@@ -1380,7 +1380,7 @@ fn printTokenList(mut inTokenList: Arc<metamodelica::List<Token>>) -> Result<()>
 }
 
 fn printToken(mut inToken: Token) -> Result<()> {
-    let _ = (match inToken.clone() {
+    let () = (match inToken.clone() {
         Token::OPENTAG { tagName: mut s } => {
             println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("OPEN: ")); __mm_s.push_str(&*s.clone()); ArcStr::from(__mm_s) }).clone());
             ()

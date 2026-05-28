@@ -70,7 +70,7 @@ pub fn fixUniontype(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inSt
             let mut names: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
             utPath = var_field!(inState.path, ClassInf::State::META_UNIONTYPE).clone();
             p = AbsynUtil::makeFullyQualified(var_field!(inState.path, ClassInf::State::META_UNIONTYPE).clone());
-            names = SCodeUtil::elementNames({
+            names = SCodeUtil::elementNames(({
         let mut __acc: Arc<metamodelica::List<Arc<SCode::Element>>> = metamodelica::nil();
         for mut e in (var_field!((*inClassDef).elementLst, SCode::ClassDef::PARTS).clone()).into_iter().cloned() {
             if !((::match_deref::match_deref! { match &(e.clone()) {
@@ -82,30 +82,30 @@ pub fn fixUniontype(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inSt
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
-            paths = {
+    }));
+            paths = ({
         let mut __acc: Arc<metamodelica::List<Arc<Absyn::Path>>> = metamodelica::nil();
         for mut n in (names.clone()).into_iter().cloned() {
             let __x = AbsynUtil::suffixPath(p.clone(), (n.clone()).clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
             isSingleton = (paths.clone().len() as i32) == 1;
             if isSingleton.clone() {
                 p2 = (paths.clone()).get(1)?;
-                singletonType = Arc::new(DAE::EvaluateSingletonType::EVAL_SINGLETON_TYPE_FUNCTION { fun: { let __pe_b0 = arrayCreate(1, (cache.clone(), inEnv.clone(), p2.clone(), None)); move || fixUniontype2(__pe_b0.clone()) } });
+                singletonType = Arc::new(DAE::EvaluateSingletonType::EVAL_SINGLETON_TYPE_FUNCTION { fun: Arc::new({ let __pe_b0 = arrayCreate(1, (cache.clone(), inEnv.clone(), p2.clone(), None)); move || fixUniontype2(__pe_b0.clone()) }) });
             } else {
                 singletonType = Arc::new(openmodelica_frontend_types::DAE::EvaluateSingletonType::NOT_SINGLETON);
             }
-            typeVarsTypes = {
+            typeVarsTypes = ({
         let mut __acc: Arc<metamodelica::List<Arc<DAE::Type>>> = metamodelica::nil();
         for mut tv in (typeVars.clone()).into_iter().cloned() {
             let __x = Arc::new(DAE::Type::T_METAPOLYMORPHIC { name: (tv.clone()).clone() });
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
             Some(Arc::new(DAE::Type::T_METAUNIONTYPE { paths: paths.clone(), typeVars: typeVarsTypes.clone(), knownSingleton: isSingleton.clone(), singletonType: singletonType.clone(), path: p.clone() }))
         },
         _ => {

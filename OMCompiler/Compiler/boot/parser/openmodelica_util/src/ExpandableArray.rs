@@ -92,7 +92,7 @@ pub fn clear<T: Clone + 'static>(mut exarray: Arc<ExpandableArray<T>>) -> Arc<Ex
             n = n.clone() - 1;
             Dangerous::arrayUpdate(data.clone(), i.clone(), None).unwrap();
             if n.clone() == 0 {
-                return exarray;
+                return exarray.clone();
             }
         }
     }
@@ -123,7 +123,10 @@ pub fn get<T: Clone + 'static>(mut index: i32, mut exarray: Arc<ExpandableArray<
     let mut value: T;
     let mut data: metamodelica::Array<Option<T>> = Mutable::access(exarray.data.clone());
     let true = (index.clone() >= 1 && index.clone() <= Mutable::access(exarray.lastUsedIndex.clone())) else { bail!("pattern mismatch") };
-    let Some(__pa0) = (Dangerous::arrayGet(data.clone(), index.clone())?) else { bail!("pattern mismatch") };
+    let __pa0 = ::match_deref::match_deref! { match &(Dangerous::arrayGet(data.clone(), index.clone())?) {
+        Some(__pa0) => __pa0.clone(),
+        _ => bail!("pattern mismatch"),
+    } };
     value = __pa0.clone();
     Ok(value)
 }
@@ -213,13 +216,12 @@ pub fn toList<T: Clone + 'static>(mut exarray: Arc<ExpandableArray<T>>) -> Resul
     let mut numberOfElements: i32 = Mutable::access(exarray.numberOfElements.clone());
     let mut lastUsedIndex: i32 = Mutable::access(exarray.lastUsedIndex.clone());
     let mut data: metamodelica::Array<Option<T>> = Mutable::access(exarray.data.clone());
-    let mut dummy: T;
     if numberOfElements.clone() == 0 {
         listT = metamodelica::nil();
     } else if lastUsedIndex.clone() == 1 {
         listT = list![Util::getOption(data.borrow()[(1-1) as usize].clone())?];
     } else {
-        listT = {
+        listT = ({
         let mut __acc: Arc<metamodelica::List<_>> = metamodelica::nil();
         for mut i in (1..=lastUsedIndex.clone()).into_iter() {
             if !(isSome(data.borrow()[(i.clone()-1) as usize].clone())) { continue; }
@@ -227,7 +229,7 @@ pub fn toList<T: Clone + 'static>(mut exarray: Arc<ExpandableArray<T>>) -> Resul
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     }
     Ok(listT)
 }
@@ -287,12 +289,15 @@ pub fn toString<T: Clone + 'static>(mut exarray: Arc<ExpandableArray<T>>, mut he
     } else {
         for mut i in 1..=capacity.clone() {
             if isSome(Dangerous::arrayGet(data.clone(), i.clone())?) {
-                let Some(__pa0) = (Dangerous::arrayGet(data.clone(), i.clone())?) else { bail!("pattern mismatch") };
+                let __pa0 = ::match_deref::match_deref! { match &(Dangerous::arrayGet(data.clone(), i.clone())?) {
+                    Some(__pa0) => __pa0.clone(),
+                    _ => bail!("pattern mismatch"),
+                } };
                 value = __pa0.clone();
                 numberOfElements = numberOfElements.clone() - 1;
                 r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*r#str.clone()); __mm_s.push_str(&*intString(i.clone())); __mm_s.push_str(&*literal!(": ")); __mm_s.push_str(&*func(value.clone())?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone();
                 if numberOfElements.clone() == 0 {
-                    return Ok(r#str);
+                    return Ok(r#str.clone());
                 }
             }
         }

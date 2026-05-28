@@ -48,7 +48,6 @@ use crate::BackendDAEUtil;
 use crate::BackendDump;
 use crate::BackendEquation;
 use crate::BackendVariable;
-use crate::CevalScript;
 use crate::Matching;
 use crate::SimCode;
 use crate::Sorting;
@@ -65,6 +64,7 @@ use openmodelica_frontend_dump::AvlTreePathFunction;
 use openmodelica_frontend_dump::ComponentReferenceBasics;
 use openmodelica_frontend_types::DAE;
 use openmodelica_frontend_types::SCode;
+use openmodelica_program_util::ProgramUtil;
 use openmodelica_util::Error;
 use openmodelica_util::ExpandableArray;
 use openmodelica_util::Flags;
@@ -83,10 +83,8 @@ pub const UNDERLINE: &'static str = "===========================================
 pub fn newExtractionAlgorithm(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result<Arc<BackendDAE::BackendDAE>> {
     let mut outDAE: Arc<BackendDAE::BackendDAE> = Arc::new(<BackendDAE::BackendDAE as ::std::default::Default>::default());
     let mut currentSystem: Arc<BackendDAE::EqSystem> = Arc::new(<BackendDAE::EqSystem as ::std::default::Default>::default());
-    let mut newOrderedEquationArray: Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>;
     let mut outOtherEqns: Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>;
     let mut outResidualEqns: Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>;
-    let mut newEqnsLst: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
     let mut setC_Eq: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
     let mut setS_Eq: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
     let mut residualEquations: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
@@ -103,8 +101,6 @@ pub fn newExtractionAlgorithm(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result<
     let mut ebltEqsLst: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut matchedEqsLst: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut approximatedEquations: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    let mut constantEquations: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    let mut tempSetC: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut setC: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut tempSetS: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut setS: Arc<metamodelica::List<i32>> = metamodelica::nil();
@@ -112,12 +108,9 @@ pub fn newExtractionAlgorithm(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result<
     let mut bindingEquations: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut sBltAdjacencyMatrix: ExtAdjacencyMatrix = metamodelica::nil();
     let mut paramVars: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
-    let mut setSVars: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
     let mut residualVars: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
     let mut unMeasuredVariables: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
-    let mut cr_lst: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
     let mut simCodeJacobian: Arc<BackendDAE::Jacobian> = Arc::new(BackendDAE::Jacobian::EMPTY_JACOBIAN);
-    let mut simCodeJacobianH: Arc<BackendDAE::Jacobian> = Arc::new(BackendDAE::Jacobian::EMPTY_JACOBIAN);
     let mut shared: Arc<BackendDAE::Shared> = Arc::new(<BackendDAE::Shared as ::std::default::Default>::default());
     let mut r#str: ArcStr = arcstr::literal!("");
     let mut modelicaOutput: ArcStr = arcstr::literal!("");
@@ -132,14 +125,10 @@ pub fn newExtractionAlgorithm(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result<
     let mut setBFailedBoundaryConditionEquations: Arc<metamodelica::List<(i32, Arc<BackendDAE::Equation>, Arc<metamodelica::List<i32>>)>> = metamodelica::nil();
     let mut allVarsList: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut knowns: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    let mut unknowns: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut boundaryConditionVars: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut exactEquationVars: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut extractedVarsfromSetS: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    let mut constantVars: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    let mut knownVariablesWithEquationBinding: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut boundaryConditionTaggedEquationSolvedVars: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    let mut unknownVarsInSetC: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut unMeasuredVariablesOfInterest: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut inputVars: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
     let mut outDiffVars: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
@@ -310,7 +299,7 @@ pub fn extractSxPath(mut simflags: ArcStr) -> Result<ArcStr> {
         if nummatches.clone() == 2 {
             csvFilePath = (unwrap_break_err!(System::stringReplace((filePath.clone()).clone(), (literal!(" ")).clone(), (literal!("")).clone()), '__try0)).clone();
             csvFilePath = (unwrap_break_err!(System::stringReplace((csvFilePath.clone()).clone(), (literal!("\"")).clone(), (literal!("")).clone()), '__try0)).clone();
-            return Ok(csvFilePath);
+            return Ok(csvFilePath.clone());
         }
         Ok::<_, anyhow::Error>((filePath.clone(), nummatches.clone()))
     } {
@@ -319,7 +308,7 @@ pub fn extractSxPath(mut simflags: ArcStr) -> Result<ArcStr> {
             nummatches = __try0_o1;
         }
         Err(_) => {
-            return Ok(csvFilePath);
+            return Ok(csvFilePath.clone());
         }
     }
     Ok(csvFilePath)
@@ -346,7 +335,7 @@ fn readMeasurementsFromCSV(mut shared: Arc<BackendDAE::Shared>) -> Result<(ArcSt
     }
     if StringUtil::startsWith((csvFileName.clone()).clone(), (literal!("modelica://")).clone()) || StringUtil::startsWith((csvFileName.clone()).clone(), (literal!("file://")).clone()) {
         p = SymbolTable::getAbsyn();
-        csvFileName = (CevalScript::getFullPathFromUri(p.clone(), (csvFileName.clone()).clone(), true)?).clone();
+        csvFileName = (ProgramUtil::getFullPathFromUri(p.clone(), (csvFileName.clone()).clone(), true)?).clone();
     }
     content = (System::readFile((csvFileName.clone()).clone())?).clone();
     if stringEmpty((content.clone()).clone()) {
@@ -372,9 +361,7 @@ fn setStartValuesToMeasurements(mut inVariables: BackendDAE::Variables, mut meas
     let mut varName: ArcStr = arcstr::literal!("");
     let mut valueStr: ArcStr = arcstr::literal!("");
     let mut value: metamodelica::Real = metamodelica::OrderedFloat(0.0_f64);
-    let mut var1: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
     let mut foundMeasurement: bool = false;
-    let mut startValueList: Arc<metamodelica::List<Arc<DAE::Exp>>> = list![Arc::new(DAE::Exp::RCONST { real: metamodelica::OrderedFloat(10.0_f64) }), Arc::new(DAE::Exp::RCONST { real: metamodelica::OrderedFloat((600) as f64) }), Arc::new(DAE::Exp::RCONST { real: metamodelica::OrderedFloat(550.0_f64) }), Arc::new(DAE::Exp::RCONST { real: metamodelica::OrderedFloat(70e5_f64) }), Arc::new(DAE::Exp::RCONST { real: metamodelica::OrderedFloat(68e5_f64) }), Arc::new(DAE::Exp::RCONST { real: metamodelica::OrderedFloat((500) as f64) }), Arc::new(DAE::Exp::RCONST { real: metamodelica::OrderedFloat(1.0_f64) }), Arc::new(DAE::Exp::RCONST { real: metamodelica::OrderedFloat(1e9_f64) }), Arc::new(DAE::Exp::RCONST { real: metamodelica::OrderedFloat((5) as f64) })];
     varList = metamodelica::nil();
     for mut var in &*BackendVariable::varList(inVariables.clone())? {
         let mut var = var.clone();
@@ -435,16 +422,9 @@ fn dumpRelatedBoundaryConditionsEquations(mut setBFailedBoundaryConditionEquatio
 pub fn extractBoundaryCondition(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result<Arc<BackendDAE::BackendDAE>> {
     let mut outDAE: Arc<BackendDAE::BackendDAE> = Arc::new(<BackendDAE::BackendDAE as ::std::default::Default>::default());
     let mut currentSystem: Arc<BackendDAE::EqSystem> = Arc::new(<BackendDAE::EqSystem as ::std::default::Default>::default());
-    let mut newOrderedEquationArray: Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>;
     let mut outOtherEqns: Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>;
-    let mut outResidualEqns: Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>;
     let mut outBoundaryConditionEquations: Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>;
-    let mut newEqnsLst: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
-    let mut setC_Eq: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
     let mut setS_Eq: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
-    let mut residualEquations: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
-    let mut complexEquationList: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
-    let mut swappedEquationList: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
     let mut failedboundaryConditionEquations: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
     let mut adjacencyMatrix: metamodelica::Array<Arc<metamodelica::List<i32>>>;
     let mut mapEqnIncRow: metamodelica::Array<Arc<metamodelica::List<i32>>>;
@@ -457,9 +437,6 @@ pub fn extractBoundaryCondition(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Resul
     let mut ebltEqsLst: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut matchedEqsLst: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut approximatedEquations: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    let mut constantEquations: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    let mut tempSetC: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    let mut setC: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut tempSetS: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut setS: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut boundaryConditionEquations: Arc<metamodelica::List<i32>> = metamodelica::nil();
@@ -468,14 +445,10 @@ pub fn extractBoundaryCondition(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Resul
     let mut sBltAdjacencyMatrix: ExtAdjacencyMatrix = metamodelica::nil();
     let mut paramVars: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
     let mut setSVars: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
-    let mut tempSetSVars: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
-    let mut residualVars: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
-    let mut residualVarsSetS: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
     let mut knownVars: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
     let mut failedboundaryConditionVars: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
     let mut extraVarsinSetSPrime: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
     let mut unMeasuredVariables: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
-    let mut cr_lst: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
     let mut simCodeJacobian: Arc<BackendDAE::Jacobian> = Arc::new(BackendDAE::Jacobian::EMPTY_JACOBIAN);
     let mut shared: Arc<BackendDAE::Shared> = Arc::new(<BackendDAE::Shared as ::std::default::Default>::default());
     let mut r#str: ArcStr = arcstr::literal!("");
@@ -491,19 +464,13 @@ pub fn extractBoundaryCondition(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Resul
     let mut setBFailedBoundaryConditionEquations: Arc<metamodelica::List<(i32, Arc<BackendDAE::Equation>, Arc<metamodelica::List<i32>>)>> = metamodelica::nil();
     let mut allVarsList: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut knowns: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    let mut unknowns: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut boundaryConditionVars: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut exactEquationVars: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    let mut extractedVarsfromSetS: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    let mut constantVars: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    let mut knownVariablesWithEquationBinding: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut boundaryConditionTaggedEquationSolvedVars: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    let mut unknownVarsInSetC: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut unMeasuredVariablesOfInterest: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut inputVars: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
     let mut outDiffVars: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
     let mut outOtherVars: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
-    let mut outResidualVars: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
     let mut outBoundaryConditionVars: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
     let mut procedureCount: i32 = 0;
     let mut measurementcsvData: Arc<metamodelica::List<(ArcStr, ArcStr)>> = metamodelica::nil();
@@ -645,18 +612,14 @@ pub fn extractBoundaryCondition(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Resul
 pub fn stateEstimation(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result<Arc<BackendDAE::BackendDAE>> {
     let mut outDAE: Arc<BackendDAE::BackendDAE> = Arc::new(<BackendDAE::BackendDAE as ::std::default::Default>::default());
     let mut currentSystem: Arc<BackendDAE::EqSystem> = Arc::new(<BackendDAE::EqSystem as ::std::default::Default>::default());
-    let mut newOrderedEquationArray: Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>;
     let mut outOtherEqns: Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>;
     let mut outOtherEqnsSetSPrime: Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>;
     let mut outResidualEqns: Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>;
     let mut outBoundaryConditionEquations: Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>;
-    let mut newEqnsLst: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
     let mut setC_Eq: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
     let mut setS_Eq: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
     let mut setSPrime_Eq: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
     let mut residualEquations: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
-    let mut complexEquationList: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
-    let mut swappedEquationList: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
     let mut failedboundaryConditionEquations: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
     let mut allDaeEqs: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
     let mut adjacencyMatrix: metamodelica::Array<Arc<metamodelica::List<i32>>>;
@@ -670,12 +633,9 @@ pub fn stateEstimation(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result<Arc<Bac
     let mut ebltEqsLst: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut matchedEqsLst: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut approximatedEquations: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    let mut constantEquations: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    let mut tempSetC: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut setC: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut tempSetS: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut setS: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    let mut setSPrime_: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut boundaryConditionEquations: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut bindingEquations: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut setSPrime: Arc<metamodelica::List<i32>> = metamodelica::nil();
@@ -683,15 +643,11 @@ pub fn stateEstimation(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result<Arc<Bac
     let mut sBltAdjacencyMatrix: ExtAdjacencyMatrix = metamodelica::nil();
     let mut paramVars: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
     let mut setSVars: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
-    let mut setCVars: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
-    let mut tempSetSVars: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
     let mut residualVars: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
-    let mut residualVarsSetS: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
     let mut knownVars: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
     let mut failedboundaryConditionVars: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
     let mut extraVarsinSetSPrime: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
     let mut unMeasuredVariables: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
-    let mut cr_lst: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
     let mut simCodeJacobian: Arc<BackendDAE::Jacobian> = Arc::new(BackendDAE::Jacobian::EMPTY_JACOBIAN);
     let mut simCodeJacobianH: Arc<BackendDAE::Jacobian> = Arc::new(BackendDAE::Jacobian::EMPTY_JACOBIAN);
     let mut shared: Arc<BackendDAE::Shared> = Arc::new(<BackendDAE::Shared as ::std::default::Default>::default());
@@ -708,16 +664,12 @@ pub fn stateEstimation(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result<Arc<Bac
     let mut setBFailedBoundaryConditionEquations: Arc<metamodelica::List<(i32, Arc<BackendDAE::Equation>, Arc<metamodelica::List<i32>>)>> = metamodelica::nil();
     let mut allVarsList: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut knowns: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    let mut unknowns: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut unMeasuredVariablesOfInterest: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut failedboundaryConditionEquationIndex: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut boundaryConditionVars: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut exactEquationVars: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut extractedVarsfromSetS: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    let mut constantVars: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    let mut knownVariablesWithEquationBinding: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut boundaryConditionTaggedEquationSolvedVars: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    let mut unknownVarsInSetC: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut inputVars: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
     let mut outDiffVars: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
     let mut outOtherVars: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
@@ -949,7 +901,6 @@ fn dumpFailedBoundaryConditionEquationAndVars(mut setBFailedBoundaryConditionEqu
     let mut failedboundaryConditionEquation: Arc<BackendDAE::Equation> = Arc::new(BackendDAE::Equation::DUMMY_EQUATION);
     let mut count: i32 = 0;
     let mut varIndex: i32 = 0;
-    let mut var: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
     let mut varlist: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
     if stateEstimation.clone() {
         println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nStart of extraction procedure for unmeasured variables of interest\nSet of equations that failed the extraction of set S and that contain an unmeasured variable of interest: (")); __mm_s.push_str(&*intString((setBFailedBoundaryConditionEquations.clone().len() as i32))); __mm_s.push_str(&*literal!(")\n")); __mm_s.push_str(&*arcstr::literal!(UNDERLINE)); ArcStr::from(__mm_s) }).clone());
@@ -978,7 +929,6 @@ fn prepareUnmeasuredVariablesEquations(mut unMeasuredEqsLst: Arc<metamodelica::L
     let mut setBFailedBoundaryConditionEquations: Arc<metamodelica::List<(i32, Arc<BackendDAE::Equation>, Arc<metamodelica::List<i32>>)>> = setBFailedBoundaryConditionEquations;
     let mut failedboundaryConditionEquationIndex: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut varIndex: i32 = 0;
-    let mut eqIndex: i32 = 0;
     let mut intermediateVars: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut unmeasuredEq: Arc<BackendDAE::Equation> = Arc::new(BackendDAE::Equation::DUMMY_EQUATION);
     let mut unMeasuredVariablesAndEquations: Arc<metamodelica::List<(i32, Arc<BackendDAE::Equation>, Arc<metamodelica::List<i32>>)>> = metamodelica::nil();
@@ -1007,7 +957,6 @@ fn addUnmeasuredEquationtoBoundaryConditionEquationAndVars(mut setBFailedBoundar
     let mut failedboundaryConditionEquation: Arc<BackendDAE::Equation> = Arc::new(BackendDAE::Equation::DUMMY_EQUATION);
     let mut count: i32 = 0;
     let mut varIndex: i32 = 0;
-    let mut var: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
     let mut varlist: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nStart of extraction procedure for boundary conditions\nSet of boundary conditions equations that failed the extraction of set S: (")); __mm_s.push_str(&*intString((setBFailedBoundaryConditionEquations.clone().len() as i32))); __mm_s.push_str(&*literal!(")\n")); __mm_s.push_str(&*arcstr::literal!(UNDERLINE)); ArcStr::from(__mm_s) }).clone());
     count = 1;
@@ -1183,16 +1132,9 @@ fn ExtractSetSPrime(mut currentSystem: Arc<BackendDAE::EqSystem>, mut setBFailed
     let mut intermediateVars: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut minimalSetS: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut visitedVars: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    let mut intermediateVarsInBoundaryConditionEquation: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut status: bool = false;
-    let mut varnumber: i32 = 0;
-    let mut eqnumber: i32 = 0;
     let mut boundaryConditionVarIndex: i32 = 0;
-    let mut var: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
-    let mut lhs: Arc<DAE::Exp>;
-    let mut rhs: Arc<DAE::Exp>;
     let mut eq: Arc<BackendDAE::Equation> = Arc::new(BackendDAE::Equation::DUMMY_EQUATION);
-    let mut newEqnLst: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nExtract set-S' to compute the boundary conditions\nProcedure is applied on each equation in the failed boundary conditions\n")); __mm_s.push_str(&*arcstr::literal!(UNDERLINE)); ArcStr::from(__mm_s) }).clone());
     finalSetS = metamodelica::nil();
     failedboundaryConditionEquations = metamodelica::nil();
@@ -1247,15 +1189,12 @@ fn extractNewMinimalSetS(mut unknownsInSetC: Arc<metamodelica::List<i32>>, mut s
     let mut visitedVars: Arc<metamodelica::List<i32>> = visitedVars;
     let mut status: bool = status;
     let mut boundaryConditionVarIndex: i32 = -1;
-    let mut firstMatchedEquation: i32 = 0;
     let mut mappedEq: i32 = 0;
     let mut varIndex: i32 = 0;
     let mut var: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
-    let mut tmpEq: Arc<BackendDAE::Equation> = Arc::new(BackendDAE::Equation::DUMMY_EQUATION);
     let mut rest: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut vars: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut intermediateVars: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    let mut V_EQ: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut intermediateVarsInMatchedEquation: Arc<metamodelica::List<i32>> = metamodelica::nil();
     while !(unknownsInSetC.clone().is_empty()) {
         let (__pa0, __pa1) = ::match_deref::match_deref! { match &(unknownsInSetC.clone()) {
@@ -1293,7 +1232,6 @@ fn extractNewMinimalSetS(mut unknownsInSetC: Arc<metamodelica::List<i32>>, mut s
 pub fn extractionAlgorithm(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result<Arc<BackendDAE::BackendDAE>> {
     let mut outDAE: Arc<BackendDAE::BackendDAE> = Arc::new(<BackendDAE::BackendDAE as ::std::default::Default>::default());
     let mut currentSystem: Arc<BackendDAE::EqSystem> = Arc::new(<BackendDAE::EqSystem as ::std::default::Default>::default());
-    let mut newOrderedEquationArray: Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>;
     let mut outOtherEqns: Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>;
     let mut outResidualEqns: Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>;
     let mut newEqnsLst: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
@@ -1301,7 +1239,6 @@ pub fn extractionAlgorithm(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result<Arc
     let mut setS_Eq: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
     let mut residualEquations: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
     let mut adjacencyMatrix: metamodelica::Array<Arc<metamodelica::List<i32>>>;
-    let mut newAdjacencyMatrix: metamodelica::Array<Arc<metamodelica::List<i32>>>;
     let mut mapEqnIncRow: metamodelica::Array<Arc<metamodelica::List<i32>>>;
     let mut mapIncRowEqn: metamodelica::Array<i32>;
     let mut match1: metamodelica::Array<i32>;
@@ -1309,13 +1246,10 @@ pub fn extractionAlgorithm(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result<Arc
     let mut solvedEqsAndVarsInfo: Arc<metamodelica::List<(i32, i32)>> = metamodelica::nil();
     let mut varCount: i32 = 0;
     let mut eqCount: i32 = 0;
-    let mut setEBLTRank: i32 = 0;
-    let mut eqIndex: i32 = 0;
     let mut matchedEqsLst: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut unMatchedEqsLst: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut unMatchedEqsLstCorrectIndex: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut approximatedEquations: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    let mut constantEquations: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut tempSetC: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut setC: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut tempSetS: Arc<metamodelica::List<i32>> = metamodelica::nil();
@@ -1324,7 +1258,6 @@ pub fn extractionAlgorithm(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result<Arc
     let mut s_BLTBlocks: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>> = metamodelica::nil();
     let mut e_BLTBlocks: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>> = metamodelica::nil();
     let mut allBlocks: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>> = metamodelica::nil();
-    let mut tmpAdjacencyMatrix: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>> = metamodelica::nil();
     let mut allBlocksStatusVarInfo: Arc<metamodelica::List<Arc<metamodelica::List<ArcStr>>>> = metamodelica::nil();
     let mut e_BLT_EquationsWithIndex: Arc<metamodelica::List<(i32, Arc<BackendDAE::Equation>)>> = metamodelica::nil();
     let mut eBltAdjacencyMatrix: ExtAdjacencyMatrix = metamodelica::nil();
@@ -1336,9 +1269,7 @@ pub fn extractionAlgorithm(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result<Arc
     let mut s_BLTBlockTargetInfo: Arc<metamodelica::List<(Arc<metamodelica::List<i32>>, Arc<metamodelica::List<(Arc<metamodelica::List<i32>>, i32)>>, Arc<metamodelica::List<(Arc<metamodelica::List<ArcStr>>, i32)>>)>> = metamodelica::nil();
     let mut predecessorBlockTargetInfo: Arc<metamodelica::List<(Arc<metamodelica::List<i32>>, Arc<metamodelica::List<(Arc<metamodelica::List<i32>>, i32)>>, Arc<metamodelica::List<(Arc<metamodelica::List<ArcStr>>, i32)>>, Arc<metamodelica::List<i32>>, Arc<metamodelica::List<i32>>, Arc<metamodelica::List<i32>>)>> = metamodelica::nil();
     let mut paramVars: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
-    let mut setSVars: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
     let mut residualVars: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
-    let mut cr_lst: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
     let mut simCodeJacobian: Arc<BackendDAE::Jacobian> = Arc::new(BackendDAE::Jacobian::EMPTY_JACOBIAN);
     let mut shared: Arc<BackendDAE::Shared> = Arc::new(<BackendDAE::Shared as ::std::default::Default>::default());
     let mut r#str: ArcStr = arcstr::literal!("");
@@ -1351,11 +1282,9 @@ pub fn extractionAlgorithm(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result<Arc
     let mut intermediateEquations: ArcStr = arcstr::literal!("");
     let mut allVarsList: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut knowns: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    let mut unknowns: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut boundaryConditionVars: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut exactEquationVars: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut extractedVarsfromSetS: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    let mut constantVars: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut knownVariablesWithEquationBinding: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut boundaryConditionTaggedEquationSolvedVars: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut unknownVarsInSetC: Arc<metamodelica::List<i32>> = metamodelica::nil();
@@ -1617,9 +1546,7 @@ fn extractMinimalSetS(mut unknownsInSetC: Arc<metamodelica::List<i32>>, mut sBlt
     let mut unknownsInSetC: Arc<metamodelica::List<i32>> = unknownsInSetC;
     let mut minimalSetS: Arc<metamodelica::List<i32>> = minimalSetS;
     let mut firstMatchedEquation: i32 = 0;
-    let mut mappedEq: i32 = 0;
     let mut var: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
-    let mut tmpEq: Arc<BackendDAE::Equation> = Arc::new(BackendDAE::Equation::DUMMY_EQUATION);
     let mut rest: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut vars: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut intermediateVars: Arc<metamodelica::List<i32>> = metamodelica::nil();
@@ -1685,12 +1612,8 @@ fn dumpMininimalExtraction(mut varIndex: i32, mut var: BackendDAE::Var, mut firs
 
 fn getVariableFirstOccurrenceInEquation(mut m: ExtAdjacencyMatrix, mut varIndex: i32, mut minimalSetS: Arc<metamodelica::List<i32>>) -> (i32, Arc<metamodelica::List<i32>>) {
     let mut matchedEquation: (i32, Arc<metamodelica::List<i32>>) = (0, metamodelica::nil());
-    let mut ret: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut vars: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    let mut matchedeq: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut eq: i32 = 0;
-    let mut eqnum: i32 = 0;
-    let mut varnum: i32 = 0;
     for mut i in &*m.clone() {
         let mut i = i.clone();
         (eq, vars) = i.clone();
@@ -1814,7 +1737,6 @@ pub fn setBoundaryConditionEquationsAndVars(mut currentSystem: Arc<BackendDAE::E
 
 fn deleteEquationsFromEqSyst(mut currentSystem: Arc<BackendDAE::EqSystem>, mut eqIndex: Arc<metamodelica::List<i32>>) -> Result<Arc<BackendDAE::EqSystem>> {
     let mut currentSystem: Arc<BackendDAE::EqSystem> = currentSystem;
-    let mut newEqArray: Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>;
     let mut newOrderedEquationArray: Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>;
     assign_field!(currentSystem.orderedEqs = BackendEquation::deleteList(currentSystem.orderedEqs.clone(), eqIndex.clone())?);
     newOrderedEquationArray = BackendEquation::emptyEqns();
@@ -1958,7 +1880,6 @@ fn dumpSetSVarsSolvedInfo(mut tempSetS: Arc<metamodelica::List<i32>>, mut solved
 
 fn dumpSetSVars(mut setSVars: BackendDAE::Variables, mut heading: ArcStr) -> Result<()> {
     let mut count: i32 = 1;
-    let mut varNumber: i32 = 0;
     let mut var: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*heading.clone()); __mm_s.push_str(&*literal!(" (")); __mm_s.push_str(&*intString(BackendVariable::varsSize(setSVars.clone())?)); __mm_s.push_str(&*literal!(")\n")); __mm_s.push_str(&*literal!("========================================")); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
     for mut var in &*BackendVariable::varList(setSVars.clone())? {
@@ -2217,7 +2138,7 @@ pub fn getSolvedVariableNumber(mut eqnumber: i32, mut inlist: Arc<metamodelica::
         let mut var = var.clone();
         (solvedeq, solvedvar) = var.clone();
         if intEq(eqnumber.clone(), solvedeq.clone()) {
-            return solvedvar;
+            return solvedvar.clone();
         }
     }
     solvedvar
@@ -2230,7 +2151,7 @@ pub fn getSolvedEquationNumber(mut varnumber: i32, mut inlist: Arc<metamodelica:
         let mut var = var.clone();
         (solvedeq, solvedvar) = var.clone();
         if intEq(varnumber.clone(), solvedvar.clone()) {
-            return solvedeq;
+            return solvedeq.clone();
         }
     }
     solvedeq
@@ -2500,7 +2421,6 @@ pub fn getDependencyequation(mut inlist: Arc<metamodelica::List<i32>>, mut inlis
     let mut outEBLT: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut t: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut nonsq: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    let mut e_BltList: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut eqnumber: i32 = 0;
     let mut varnumber: i32 = 0;
     for mut eqnumber in &*inlist.clone() {
@@ -2521,12 +2441,8 @@ pub fn getDependencyequation(mut inlist: Arc<metamodelica::List<i32>>, mut inlis
 pub fn getdirectOccurrencesinEquation(mut m: ExtAdjacencyMatrix, mut eqnumber: i32, mut varnumber: i32) -> (Arc<metamodelica::List<i32>>, Arc<metamodelica::List<i32>>) {
     let mut outSBLT: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut outEBLT: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    let mut ret: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut vars: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    let mut matchedeq: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut eq: i32 = 0;
-    let mut eqnum: i32 = 0;
-    let mut varnum: i32 = 0;
     for mut i in &*m.clone() {
         let mut i = i.clone();
         (eq, vars) = i.clone();
@@ -2576,7 +2492,6 @@ pub fn findBlocksRanks(mut inlist1: Arc<metamodelica::List<(Arc<metamodelica::Li
 pub fn sortBlocks(mut sortedranklist: Arc<metamodelica::List<i32>>, mut inlist2: Arc<metamodelica::List<(Arc<metamodelica::List<i32>>, i32)>>) -> Arc<metamodelica::List<(Arc<metamodelica::List<i32>>, i32)>> {
     let mut outlist: Arc<metamodelica::List<(Arc<metamodelica::List<i32>>, i32)>> = metamodelica::nil();
     let mut e1: i32 = 0;
-    let mut e2: i32 = 0;
     let mut blocks: Arc<metamodelica::List<i32>> = metamodelica::nil();
     for mut i in &*sortedranklist.clone() {
         let mut i = i.clone();
@@ -2627,30 +2542,15 @@ pub fn findPredecessorBlocks(mut blockinfo: Arc<metamodelica::List<(Arc<metamode
     let mut outblockinfo: Arc<metamodelica::List<(Arc<metamodelica::List<i32>>, Arc<metamodelica::List<(Arc<metamodelica::List<i32>>, i32)>>, Arc<metamodelica::List<(Arc<metamodelica::List<ArcStr>>, i32)>>, Arc<metamodelica::List<i32>>, Arc<metamodelica::List<i32>>, Arc<metamodelica::List<i32>>)>> = metamodelica::nil();
     let mut dependencyequation: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut constantEquations: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    let mut blockstoupdate: Arc<metamodelica::List<(Arc<metamodelica::List<i32>>, i32)>> = metamodelica::nil();
     let mut targetblocks: Arc<metamodelica::List<(Arc<metamodelica::List<i32>>, i32)>> = metamodelica::nil();
     let mut tmptargetblocks: Arc<metamodelica::List<(Arc<metamodelica::List<i32>>, i32)>> = metamodelica::nil();
     let mut targetblocksvar: Arc<metamodelica::List<(Arc<metamodelica::List<ArcStr>>, i32)>> = metamodelica::nil();
-    let mut blockitem: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut blockitems1: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    let mut blockitems2: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut foundblockranks: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    let mut blockvarlst: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
-    let mut blockvarlst1: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
-    let mut blockvarlst2: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
-    let mut foundblock: i32 = 0;
     let mut count: i32 = 1;
-    let mut foundblockrank: i32 = 0;
     let mut tmpcount: i32 = 0;
-    let mut visited: bool = false;
-    let mut square: bool = false;
-    let mut status: bool = false;
-    let mut checkknowns: bool = false;
-    let mut finalsquarestauts: bool = false;
     let mut exist: bool = false;
-    let mut exist1: bool = false;
     let mut targetexist: bool = false;
-    let mut outlist1: Arc<metamodelica::List<(Arc<metamodelica::List<i32>>, Arc<metamodelica::List<ArcStr>>, bool, i32)>> = metamodelica::nil();
     for mut blocks in &*blockinfo.clone() {
         let mut blocks = blocks.clone();
         (blockitems1, targetblocks, targetblocksvar) = blocks.clone();
@@ -2714,7 +2614,7 @@ fn getKnownOrExactEquationBlocksHelper(mut blocksVarList: Arc<metamodelica::List
         let mut j = j.clone();
         if (j.clone()).clone() == knownOrConstant.clone() {
             outBlocks = cons((targetBlocks.clone()).get(count.clone()).unwrap(), outBlocks.clone());
-            return outBlocks;
+            return outBlocks.clone();
         }
         count = count.clone() + 1;
     }
@@ -2790,23 +2690,13 @@ fn VerifyDataReconciliation(mut setc: Arc<metamodelica::List<i32>>, mut sets: Ar
     let mut matchedunknownssetc: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut matchedknownssets: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut matchedunknownssets: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    let mut tmpunknowns: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    let mut tmpknowns: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut tmplist1: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut tmplist2: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut tmplist3: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut tmplist1sets: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    let mut setstmp: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut tmplistvar1: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut tmplistvar2: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut tmplistvar3: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    let mut sets_eqs: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    let mut sets_vars: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    let mut extractedeqs: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    let mut eqnumber: i32 = 0;
-    let mut varnumber: i32 = 0;
-    let mut var_dependencytree: Arc<metamodelica::List<(i32, Arc<metamodelica::List<i32>>)>> = metamodelica::nil();
-    let mut eq_dependencytree: Arc<metamodelica::List<(i32, Arc<metamodelica::List<i32>>)>> = metamodelica::nil();
     let mut r#str: ArcStr = arcstr::literal!("");
     let mut resstr: ArcStr = arcstr::literal!("");
     let mut condition1: ArcStr = arcstr::literal!("");
@@ -2817,7 +2707,6 @@ fn VerifyDataReconciliation(mut setc: Arc<metamodelica::List<i32>>, mut sets: Ar
     let mut auxilliaryConditions: ArcStr = arcstr::literal!("");
     let mut varsToReconcile: ArcStr = arcstr::literal!("");
     let mut var: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
-    let mut convar: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
     let mut rule2: bool = true;
     let mut condition1_eqs: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n\nAutomatic Verification Steps of DataReconciliation Algorithm")); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*arcstr::literal!(UNDERLINE)); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
@@ -2921,10 +2810,8 @@ fn VerifyDataReconciliation(mut setc: Arc<metamodelica::List<i32>>, mut sets: Ar
 fn generateCompileTimeHtmlReport(mut shared: Arc<BackendDAE::Shared>, mut conditions: ArcStr, mut auxilliaryConditions: ArcStr, mut varsToReconcile: ArcStr, mut condition1: (ArcStr, Arc<metamodelica::List<Arc<BackendDAE::Equation>>>), mut condition2: (ArcStr, Arc<metamodelica::List<BackendDAE::Var>>), mut condition3: ArcStr, mut condition4: (ArcStr, Arc<metamodelica::List<BackendDAE::Var>>), mut condition5: ArcStr, mut boundaryCondition: bool, mut stateEstimation: bool, mut setC: i32, mut numRelatedBoundaryConditions: i32, mut unMeasuredVariables: i32) -> Result<()> {
     let mut data: ArcStr = arcstr::literal!("");
     let mut condition1_msg: ArcStr = arcstr::literal!("");
-    let mut condition2_msg: ArcStr = arcstr::literal!("");
     let mut condition4_msg: ArcStr = arcstr::literal!("");
     let mut condition1_eqs: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
-    let mut condition2_vars: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
     let mut condition4_vars: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
     if boundaryCondition.clone() {
         data = (literal!("<html> \n <head> <h1> Boundary Condition Report</h1></head> \n <body> \n <h2> Overview: </h2> \n")).clone();

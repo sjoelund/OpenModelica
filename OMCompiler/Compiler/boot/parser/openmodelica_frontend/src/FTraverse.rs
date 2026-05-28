@@ -99,8 +99,8 @@ pub fn walk<Extra: Clone + 'static>(mut inGraph: Graph, mut inWalker: Arc<dyn ::
 
     let mut outGraph: Graph;
     let mut outExtra: Extra;
-    (outGraph, outExtra) = (match (inGraph.clone(), inWalker.clone(), inExtra.clone(), inOptions.clone()) {
-        (_, _, _, _) => (inGraph.clone(), inExtra.clone()),
+    (outGraph, outExtra) = (match inOptions.clone() {
+        _ => (inGraph.clone(), inExtra.clone()),
     });
     (outGraph, outExtra)
 }

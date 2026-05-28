@@ -64,7 +64,7 @@ pub const memorySignificantDigits: i32 = 4;
 
 // Why not 3?
 pub fn execStatReset() -> Result<()> {
-    crate::Globals::gcProfilingIndex.with(|__root| *__root.borrow_mut() = GCExt::getProfStats());
+    { let __v = GCExt::getProfStats(); crate::Globals::gcProfilingIndex.with(|__root| *__root.borrow_mut() = __v) };
     System::realtimeClear(ClockIndexes::RT_CLOCK_EXECSTAT.clone())?;
     System::realtimeTick(ClockIndexes::RT_CLOCK_EXECSTAT.clone())?;
     Ok(())
@@ -122,7 +122,7 @@ pub fn execStat(mut name: ArcStr) -> Result<()> {
             } else {
                 Error::addMessage(Error::EXEC_STAT.clone(), list![({ let mut __mm_s = String::new(); __mm_s.push_str(&*name.clone()); __mm_s.push_str(&*if (i.clone() == 2) {literal!(" GC")} else {literal!("")}); ArcStr::from(__mm_s) }).clone(), (timeStr.clone()).clone(), (totalTimeStr.clone()).clone(), (bytesToReadableUnit(metamodelica::OrderedFloat((memory.clone() - oldMemory.clone()) as f64))).clone(), (bytesToReadableUnit(metamodelica::OrderedFloat((memory.clone()) as f64))).clone(), (bytesToReadableUnit(metamodelica::OrderedFloat((free_bytes_full.clone()) as f64))).clone(), (bytesToReadableUnit(metamodelica::OrderedFloat((heapsize_full.clone()) as f64))).clone()])?;
             }
-            crate::Globals::gcProfilingIndex.with(|__root| *__root.borrow_mut() = stats.clone());
+            { let __v = stats.clone(); crate::Globals::gcProfilingIndex.with(|__root| *__root.borrow_mut() = __v) };
             System::realtimeTick(ClockIndexes::RT_CLOCK_EXECSTAT.clone())?;
         }
     }

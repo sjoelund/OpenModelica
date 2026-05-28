@@ -160,21 +160,6 @@ pub struct IterOptions {
     pub wrapSeparator: Arc<StringToken>,
 }
 
-impl Default for IterOptions {
-    fn default() -> Self {
-        Self {
-            startIndex0: Default::default(),
-            empty: Default::default(),
-            separator: Default::default(),
-            alignNum: Default::default(),
-            alignOfset: Default::default(),
-            alignSeparator: Default::default(),
-            wrapWidth: Default::default(),
-            wrapSeparator: Default::default(),
-        }
-    }
-}
-
 pub type ITER_OPTIONS = IterOptions;
 
 
@@ -432,7 +417,7 @@ pub fn pushBlock(mut txt: Text, mut inBlockType: Arc<BlockType>) -> Result<Text>
             aind = Mutable::access(var_field!(txt.aind, Text::FILE_TEXT).clone());
             isstart = Mutable::access(var_field!(txt.isstart, Text::FILE_TEXT).clone());
             Mutable::update(var_field!(txt.blocksStack, Text::FILE_TEXT).clone(), cons(BlockTypeFileText { bt: inBlockType.clone(), nchars: nchars.clone(), aind: aind.clone(), isstart: isstart.clone(), tell: Mutable::create(textFileTell(txt.clone())), septok: Mutable::create(None) }, Mutable::access(var_field!(txt.blocksStack, Text::FILE_TEXT).clone())));
-            let _ = (::match_deref::match_deref! { match &(inBlockType.clone()) {
+            let () = (::match_deref::match_deref! { match &(inBlockType.clone()) {
         Deref @ BlockType::BT_INDENT { width: w } => {
             Mutable::update(var_field!(txt.nchars, Text::FILE_TEXT).clone(), nchars.clone() + w.clone());
             Mutable::update(var_field!(txt.aind, Text::FILE_TEXT).clone(), aind.clone() + w.clone());
@@ -487,7 +472,7 @@ pub fn popBlock(mut txt: Text) -> Result<Text> {
             blk = __pa0.clone();
             rest = __pa1.clone();
             Mutable::update(var_field!(txt.blocksStack, Text::FILE_TEXT).clone(), rest.clone());
-            let _ = (::match_deref::match_deref! { match &(blk.bt.clone()) {
+            let () = (::match_deref::match_deref! { match &(blk.bt.clone()) {
         Deref @ BlockType::BT_INDENT { .. } => {
             if Mutable::access(var_field!(txt.isstart, Text::FILE_TEXT).clone()) {
                 Mutable::update(var_field!(txt.nchars, Text::FILE_TEXT).clone(), blk.nchars.clone());
@@ -540,7 +525,7 @@ pub fn pushIter(mut txt: Text, mut inIterOptions: Arc<IterOptions>) -> Result<Te
             Text::MEM_TEXT { tokens: metamodelica::nil(), blocksStack: cons((metamodelica::nil(), Arc::new(BlockType::BT_ITER { options: iopts.clone(), index0: Mutable::create(i0.clone()) })), cons((toks.clone(), Arc::new(crate::Tpl::BlockType::BT_TEXT)), blstack.clone())) }
         },
         (Text::FILE_TEXT { .. }, iopts @ Deref @ IterOptions { startIndex0: i0, .. }) => {
-            let _ = (::match_deref::match_deref! { match &(iopts.clone()) {
+            let () = (::match_deref::match_deref! { match &(iopts.clone()) {
         Deref @ IterOptions { wrapWidth: 0, alignNum: 0, .. } => (),
         _ => {
             Error::addInternalError((literal!("Tpl.mo FILE_TEXT does not support aligning or wrapping elements")).clone(), metamodelica::sourceInfo!())?;
@@ -611,7 +596,7 @@ pub fn nextIter(mut txt: Text) -> Result<Text> {
             let mut txt2: Text;
             let mut haveToken: bool = false;
             let mut septok: Mutable::Mutable<Option<Arc<StringToken>>>;
-            let _ = (::match_deref::match_deref! { match &((Mutable::access(var_field!(txt.blocksStack, Text::FILE_TEXT).clone())).get(1)?) {
+            let () = (::match_deref::match_deref! { match &((Mutable::access(var_field!(txt.blocksStack, Text::FILE_TEXT).clone())).get(1)?) {
         BlockTypeFileText { septok, tell, bt: Deref @ BlockType::BT_ITER { index0: i0, options: iopts }, .. } => {
             tellpos = textFileTell(txt.clone());
             if Mutable::access(tell.clone()) != tellpos.clone() {
@@ -697,9 +682,9 @@ pub fn textString(mut inText: Text) -> Result<ArcStr> {
 }
 
 pub fn textStringBuf(mut inText: Text) -> Result<()> {
-    let _ = (::match_deref::match_deref! { match &(inText.clone()) {
+    let () = (::match_deref::match_deref! { match &(inText.clone()) {
         Text::MEM_TEXT { blocksStack: Deref @ metamodelica::List::Nil, tokens: toks } => {
-            (_, _, _) = tokensString(toks.clone().reverse(), 0, true, 0)?;
+            tokensString(toks.clone().reverse(), 0, true, 0)?;
             ()
         },
         Text::MEM_TEXT { blocksStack: Deref @ metamodelica::List::Cons { head: _, tail: _ }, .. } => {
@@ -804,7 +789,7 @@ fn tokFileText(mut inText: Text, mut inStringToken: Arc<StringToken>, mut doHand
     if doHandleTok.clone() {
         handleTok(inText.clone())?;
     }
-    let _ = (match inText.clone() {
+    let () = (match inText.clone() {
         Text::FILE_TEXT { .. } => {
             nchars = Mutable::access(var_field!(inText.nchars, Text::FILE_TEXT).clone());
             aind = Mutable::access(var_field!(inText.aind, Text::FILE_TEXT).clone());
@@ -1537,7 +1522,6 @@ pub fn tplCallWithFailError<ArgType1: Clone + 'static>(mut inFun: Arc<dyn ::std:
     pub type Tpl_Fun<ArgType1: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Text, ArgType1) -> Result<Text> + 'static>;
 
     let mut txt: Text = txt;
-    let mut arg: ArgType1;
     txt = tplCallHandleErrors(Arc::new({ let __pe_b1 = inArg.clone(); move |__pe_a0| inFun(__pe_a0, __pe_b1.clone()) }), txt.clone())?;
     Ok(txt)
 }
@@ -1546,8 +1530,6 @@ pub fn tplCallWithFailError2<ArgType1: Clone + 'static, ArgType2: Clone + 'stati
     pub type Tpl_Fun<ArgType1: Clone + 'static, ArgType2: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Text, ArgType1, ArgType2) -> Result<Text> + 'static>;
 
     let mut txt: Text = txt;
-    let mut argA: ArgType1;
-    let mut argB: ArgType2;
     txt = tplCallHandleErrors(Arc::new({ let __pe_b1 = inArgA.clone(); let __pe_b2 = inArgB.clone(); move |__pe_a0| inFun(__pe_a0, __pe_b1.clone(), __pe_b2.clone()) }), txt.clone())?;
     Ok(txt)
 }
@@ -1640,7 +1622,7 @@ pub fn tplNoret3<ArgType1: Clone + 'static, ArgType2: Clone + 'static, ArgType3:
 
     let mut nErr: i32 = 0;
     nErr = Error::getNumErrorMessages();
-    let _ = tplCallWithFailError3(inFun.clone(), inArg.clone(), inArg2.clone(), inArg3.clone(), emptyTxt.clone())?;
+    tplCallWithFailError3(inFun.clone(), inArg.clone(), inArg2.clone(), inArg3.clone(), emptyTxt.clone())?;
     failIfTrue(Error::getNumErrorMessages() > nErr.clone())?;
     Ok(())
 }
@@ -1650,7 +1632,7 @@ pub fn tplNoret2<ArgType1: Clone + 'static, ArgType2: Clone + 'static>(mut inFun
 
     let mut nErr: i32 = 0;
     nErr = Error::getNumErrorMessages();
-    let _ = tplCallWithFailError2(inFun.clone(), inArg.clone(), inArg2.clone(), emptyTxt.clone())?;
+    tplCallWithFailError2(inFun.clone(), inArg.clone(), inArg2.clone(), emptyTxt.clone())?;
     failIfTrue(Error::getNumErrorMessages() > nErr.clone())?;
     Ok(())
 }
@@ -1660,13 +1642,13 @@ pub fn tplNoret<ArgType1: Clone + 'static>(mut inFun: Arc<dyn ::std::ops::Fn(Tex
 
     let mut nErr: i32 = 0;
     nErr = Error::getNumErrorMessages();
-    let _ = tplCallWithFailError(inFun.clone(), inArg.clone(), emptyTxt.clone())?;
+    tplCallWithFailError(inFun.clone(), inArg.clone(), emptyTxt.clone())?;
     failIfTrue(Error::getNumErrorMessages() > nErr.clone())?;
     Ok(())
 }
 
 pub fn textFile(mut inText: Text, mut inFileName: ArcStr) -> Result<()> {
-    let _ = 'mc: {
+    let () = 'mc: {
         let __mc_input = (inText.clone(), inFileName.clone());
         if let Ok(__v) = (|| -> Result<_> {
             let (mut txt, mut file) = __mc_input.clone() else { bail!("nomatch") };
@@ -1699,7 +1681,7 @@ pub fn textFile(mut inText: Text, mut inFileName: ArcStr) -> Result<()> {
 }
 
 pub fn textFileConvertLines(mut inText: Text, mut inFileName: ArcStr) -> Result<()> {
-    let _ = 'mc: {
+    let () = 'mc: {
         let __mc_input = (inText.clone(), inFileName.clone());
         if let Ok(__v) = (|| -> Result<_> {
             let (mut txt, mut file) = __mc_input.clone() else { bail!("nomatch") };
@@ -1799,9 +1781,7 @@ fn getTextOpaqueFile(mut text: Text) -> Result<Option<i32>> {
 fn stringFile(mut inText: Text, mut r#str: ArcStr, mut line: bool, mut recurseSeparator: bool) -> Result<()> {
     let mut file: File::File = File::File(getTextOpaqueFile(inText.clone())?)?;
     let mut nchars: i32 = 0;
-    let mut iopts: Arc<IterOptions> = Arc::new(<IterOptions as ::std::default::Default>::default());
-    let mut septok: Arc<StringToken> = Arc::new(StringToken::ST_NEW_LINE);
-    let _ = (match inText.clone() {
+    let () = (match inText.clone() {
         Text::FILE_TEXT { .. } => {
             handleTok(inText.clone())?;
             nchars = Mutable::access(var_field!(inText.nchars, Text::FILE_TEXT).clone());
@@ -1834,7 +1814,7 @@ fn stringFile(mut inText: Text, mut r#str: ArcStr, mut line: bool, mut recurseSe
 fn newlineFile(mut inText: Text) -> Result<()> {
     let mut file: File::File = File::File(getTextOpaqueFile(inText.clone())?)?;
     let mut nchars: i32 = 0;
-    let _ = (match inText.clone() {
+    let () = (match inText.clone() {
         Text::FILE_TEXT { .. } => {
             File::write(file.clone(), (literal!("\n")).clone());
             Mutable::update(var_field!(inText.nchars, Text::FILE_TEXT).clone(), Mutable::access(var_field!(inText.aind, Text::FILE_TEXT).clone()));
@@ -1856,11 +1836,11 @@ fn textFileTell(mut inText: Text) -> i32 {
 fn handleTok(mut txt: Text) -> Result<()> {
     let mut septok: Arc<StringToken> = Arc::new(StringToken::ST_NEW_LINE);
     let mut aseptok: Mutable::Mutable<Option<Arc<StringToken>>>;
-    let _ = (match txt.clone() {
+    let () = (match txt.clone() {
         Text::FILE_TEXT { .. } => {
-            let _ = (::match_deref::match_deref! { match &(Mutable::access(var_field!(txt.blocksStack, Text::FILE_TEXT).clone())) {
+            let () = (::match_deref::match_deref! { match &(Mutable::access(var_field!(txt.blocksStack, Text::FILE_TEXT).clone())) {
         Deref @ metamodelica::List::Cons { head: BlockTypeFileText { septok: aseptok, bt: Deref @ BlockType::BT_ITER { .. }, .. }, tail: _ } => {
-            let _ = (::match_deref::match_deref! { match &(Mutable::access(aseptok.clone())) {
+            let () = (::match_deref::match_deref! { match &(Mutable::access(aseptok.clone())) {
         Some(septok) => {
             Mutable::update(aseptok.clone(), None);
             tokFileText(txt.clone(), septok.clone(), false)?;

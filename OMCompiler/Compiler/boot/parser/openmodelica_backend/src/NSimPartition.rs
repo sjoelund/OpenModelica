@@ -94,14 +94,14 @@ impl Default for NSimPartition {
 pub use self::NSimPartition::{BASE_PARTITION,SUB_PARTITION};
 pub fn createSubPartition(mut subClock: Arc<BClock::BClock>, mut equations: Arc<metamodelica::List<Arc<Block::Block>>>, mut variables: Arc<metamodelica::List<Arc<SimVar::SimVar>>>, mut holdEvents: bool) -> Arc<NSimPartition> {
     let mut part: Arc<NSimPartition>;
-    part = Arc::new(NSimPartition::SUB_PARTITION { variables: {
+    part = Arc::new(NSimPartition::SUB_PARTITION { variables: ({
         let mut __acc: Arc<metamodelica::List<(Arc<SimVar::SimVar>, bool)>> = metamodelica::nil();
         for mut v in (variables.clone()).into_iter().cloned() {
             let __x = (v.clone(), true);
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, equations: equations.clone(), removedEquations: metamodelica::nil(), subClock: subClock.clone(), holdEvents: holdEvents.clone() });
+    }), equations: equations.clone(), removedEquations: metamodelica::nil(), subClock: subClock.clone(), holdEvents: holdEvents.clone() });
     part
 }
 
@@ -121,7 +121,7 @@ pub fn createBasePartitions(mut clock_collector: Arc<UnorderedMap::UnorderedMap<
     }
     for mut base in &*baseParts.clone() {
         let mut base = base.clone();
-        let _ = (::match_deref::match_deref! { match &(base.clone()) {
+        let () = (::match_deref::match_deref! { match &(base.clone()) {
         Deref @ BASE_PARTITION { baseClock: Deref @ BClock::BASE_CLOCK { clock: Deref @ ClockKind::EVENT_CLOCK { condition: Deref @ Expression::CREF { cref: cond, .. }, .. } }, .. } => {
             let mut source: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
             let mut fire: Arc<Expression::NFExpression> = Arc::new(Expression::END);
@@ -197,14 +197,14 @@ pub fn toStringShort(mut part: Arc<NSimPartition>) -> Result<ArcStr> {
 pub fn convertBase(mut part: Arc<NSimPartition>) -> Result<OldSimCode::ClockedPartition> {
     let mut oldPart: OldSimCode::ClockedPartition = <OldSimCode::ClockedPartition as ::std::default::Default>::default();
     oldPart = (::match_deref::match_deref! { match &(part.clone()) {
-        Deref @ BASE_PARTITION { .. } => OldSimCode::ClockedPartition { subPartitions: {
+        Deref @ BASE_PARTITION { .. } => OldSimCode::ClockedPartition { subPartitions: ({
         let mut __acc: Arc<metamodelica::List<OldSimCode::SubPartition>> = metamodelica::nil();
         for mut sub in (var_field!((*part).subPartitions, NSimPartition::BASE_PARTITION).clone()).into_iter().cloned() {
             let __x = convertSub(sub.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, baseClock: BClock::convertBase(var_field!((*part).baseClock, NSimPartition::BASE_PARTITION).clone())? },
+    }), baseClock: BClock::convertBase(var_field!((*part).baseClock, NSimPartition::BASE_PARTITION).clone())? },
         _ => {
             Error::addMessage(Error::INTERNAL_ERROR.clone(), list![({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("NSimPartition.convertBase")); __mm_s.push_str(&*literal!(" failed for non-base partition:\n")); __mm_s.push_str(&*toString(part.clone(), (literal!("")).clone())?); ArcStr::from(__mm_s) }).clone()])?;
             bail!("fail")
@@ -217,28 +217,28 @@ pub fn convertBase(mut part: Arc<NSimPartition>) -> Result<OldSimCode::ClockedPa
 pub fn convertSub(mut part: Arc<NSimPartition>) -> Result<OldSimCode::SubPartition> {
     let mut oldPart: OldSimCode::SubPartition = <OldSimCode::SubPartition as ::std::default::Default>::default();
     oldPart = (::match_deref::match_deref! { match &(part.clone()) {
-        Deref @ SUB_PARTITION { .. } => OldSimCode::SubPartition { holdEvents: var_field!((*part).holdEvents, NSimPartition::SUB_PARTITION).clone(), subClock: BClock::convertSub(var_field!((*part).subClock, NSimPartition::SUB_PARTITION).clone())?, removedEquations: {
+        Deref @ SUB_PARTITION { .. } => OldSimCode::SubPartition { holdEvents: var_field!((*part).holdEvents, NSimPartition::SUB_PARTITION).clone(), subClock: BClock::convertSub(var_field!((*part).subClock, NSimPartition::SUB_PARTITION).clone())?, removedEquations: ({
         let mut __acc: Arc<metamodelica::List<Arc<OldSimCode::SimEqSystem>>> = metamodelica::nil();
         for mut blck in (var_field!((*part).removedEquations, NSimPartition::SUB_PARTITION).clone()).into_iter().cloned() {
             let __x = Block::convert(blck.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, equations: {
+    }), equations: ({
         let mut __acc: Arc<metamodelica::List<Arc<OldSimCode::SimEqSystem>>> = metamodelica::nil();
         for mut blck in (var_field!((*part).equations, NSimPartition::SUB_PARTITION).clone()).into_iter().cloned() {
             let __x = Block::convert(blck.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, vars: {
+    }), vars: ({
         let mut __acc: Arc<metamodelica::List<(SimCodeVar::SimVar, bool)>> = metamodelica::nil();
         for mut tpl in (var_field!((*part).variables, NSimPartition::SUB_PARTITION).clone()).into_iter().cloned() {
             let __x = SimVar::convertTpl(tpl.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    } },
+    }) },
         _ => {
             Error::addMessage(Error::INTERNAL_ERROR.clone(), list![({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("NSimPartition.convertSub")); __mm_s.push_str(&*literal!(" failed for non-base partition:\n")); __mm_s.push_str(&*toString(part.clone(), (literal!("")).clone())?); ArcStr::from(__mm_s) }).clone()])?;
             bail!("fail")

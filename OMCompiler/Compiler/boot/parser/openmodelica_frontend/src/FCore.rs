@@ -583,7 +583,7 @@ pub mod RefTree {
     pub fn forEach(mut tree: Arc<Tree>, mut func: Arc<dyn ::std::ops::Fn(ArcStr, metamodelica::Array<Node>) -> Result<()> + 'static>) -> Result<()> {
         pub type EachFunc = std::sync::Arc<dyn ::std::ops::Fn(Key, Value) -> Result<()> + 'static>;
 
-        let _ = (::match_deref::match_deref! { match &(tree.clone()) {
+        let () = (::match_deref::match_deref! { match &(tree.clone()) {
         Deref @ Tree::NODE { .. } => {
             forEach(var_field!((*tree).left, Tree::NODE).clone(), func.clone())?;
             func((var_field!((*tree).key, Tree::NODE).clone()).clone(), var_field!((*tree).value, Tree::NODE).clone())?;
@@ -661,7 +661,7 @@ pub mod RefTree {
         Deref @ Tree::NODE { .. } => var_field!((*inTree).key, Tree::NODE).clone(),
         Deref @ Tree::LEAF { .. } => var_field!((*inTree).key, Tree::LEAF).clone(),
         Deref @ Tree::EMPTY { .. } => {
-            return Ok(comp);
+            return Ok(comp.clone());
             bail!("fail")
         },
         _ => bail!("match: no arm matched"),
@@ -872,11 +872,8 @@ pub mod RefTree {
 
     fn printTreeStr2(mut inTree: Arc<Tree>, mut isLeft: bool, mut inIndent: ArcStr) -> Result<ArcStr> {
         let mut outString: ArcStr = arcstr::literal!("");
-        let mut val_node: Option<ArcStr> = None;
         let mut left: Option<Arc<Tree>> = None;
         let mut right: Option<Arc<Tree>> = None;
-        let mut left_str: ArcStr = arcstr::literal!("");
-        let mut right_str: ArcStr = arcstr::literal!("");
         outString = ((::match_deref::match_deref! { match &(inTree.clone()) {
         Deref @ Tree::NODE { .. } => { let mut __mm_s = String::new(); __mm_s.push_str(&*printTreeStr2(var_field!((*inTree).left, Tree::NODE).clone(), true, ({ let mut __mm_s = String::new(); __mm_s.push_str(&*inIndent.clone()); __mm_s.push_str(&*if (isLeft.clone()) {literal!("     ")} else {literal!(" │   ")}); ArcStr::from(__mm_s) }).clone())?); __mm_s.push_str(&*inIndent.clone()); __mm_s.push_str(&*if (isLeft.clone()) {literal!(" ┌")} else {literal!(" └")}); __mm_s.push_str(&*literal!("────")); __mm_s.push_str(&*printNodeStr(inTree.clone())?); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*printTreeStr2(var_field!((*inTree).right, Tree::NODE).clone(), false, ({ let mut __mm_s = String::new(); __mm_s.push_str(&*inIndent.clone()); __mm_s.push_str(&*if (isLeft.clone()) {literal!(" │   ")} else {literal!("     ")}); ArcStr::from(__mm_s) }).clone())?); ArcStr::from(__mm_s) },
         Deref @ Tree::LEAF { .. } => { let mut __mm_s = String::new(); __mm_s.push_str(&*inIndent.clone()); __mm_s.push_str(&*if (isLeft.clone()) {literal!(" ┌")} else {literal!(" └")}); __mm_s.push_str(&*literal!("────")); __mm_s.push_str(&*printNodeStr(inTree.clone())?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) },
@@ -1280,11 +1277,11 @@ pub fn noCache() -> Cache {
 
 pub fn addEvaluatedCref(mut cache: Cache, mut var: SCode::Variability, mut cr: Arc<DAE::ComponentRef>) -> Cache {
     let mut ocache: Cache = Cache::NO_CACHE;
-    ocache = (::match_deref::match_deref! { match &((cache.clone(), var.clone(), cr.clone())) {
-        (Cache::CACHE { initialGraph, functions, evaluatedParams: (ht, Deref @ metamodelica::List::Cons { head: crs, tail: st }), modelName: p }, SCode::Variability::PARAM, _) => {
+    ocache = (::match_deref::match_deref! { match &((cache.clone(), var.clone())) {
+        (Cache::CACHE { initialGraph, functions, evaluatedParams: (ht, Deref @ metamodelica::List::Cons { head: crs, tail: st }), modelName: p }, SCode::Variability::PARAM) => {
             Cache::CACHE { initialGraph: initialGraph.clone(), functions: functions.clone(), evaluatedParams: (ht.clone(), cons(cons(cr.clone(), crs.clone()), st.clone())), modelName: p.clone() }
         },
-        (Cache::CACHE { initialGraph, functions, evaluatedParams: (ht, Deref @ metamodelica::List::Nil), modelName: p }, SCode::Variability::PARAM, _) => {
+        (Cache::CACHE { initialGraph, functions, evaluatedParams: (ht, Deref @ metamodelica::List::Nil), modelName: p }, SCode::Variability::PARAM) => {
             Cache::CACHE { initialGraph: initialGraph.clone(), functions: functions.clone(), evaluatedParams: (ht.clone(), cons(list![cr.clone()], metamodelica::nil())), modelName: p.clone() }
         },
         _ => {
@@ -1304,7 +1301,10 @@ pub fn getEvaluatedParams(mut cache: Cache) -> Result<Arc<AvlSetCR::Tree>> {
 
 pub fn printNumStructuralParameters(mut cache: Cache) -> Result<()> {
     let mut crs: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
-    let Cache::CACHE { evaluatedParams: (_, metamodelica::List::Cons { head: __pa0, tail: _ }), .. } = (cache.clone()) else { bail!("pattern mismatch") };
+    let __pa0 = ::match_deref::match_deref! { match &(cache.clone()) {
+        Cache::CACHE { evaluatedParams: (_, Deref @ metamodelica::List::Cons { head: __pa0, tail: _ }), .. } => __pa0.clone(),
+        _ => bail!("pattern mismatch"),
+    } };
     crs = __pa0.clone();
     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("printNumStructuralParameters: ")); __mm_s.push_str(&*intString((crs.clone().len() as i32))); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
     Ok(())
@@ -1312,15 +1312,14 @@ pub fn printNumStructuralParameters(mut cache: Cache) -> Result<()> {
 
 pub fn setCacheClassName(mut inCache: Cache, mut p: Arc<Absyn::Path>) -> Cache {
     let mut outCache: Cache = Cache::NO_CACHE;
-    outCache = (::match_deref::match_deref! { match &((inCache.clone(), p.clone())) {
-        (Cache::CACHE { initialGraph: igraph, functions: ef, evaluatedParams: ht, modelName: _ }, _) => {
+    outCache = (match inCache.clone() {
+        Cache::CACHE { initialGraph: mut igraph, functions: mut ef, evaluatedParams: mut ht, modelName: _ } => {
             Cache::CACHE { initialGraph: igraph.clone(), functions: ef.clone(), evaluatedParams: ht.clone(), modelName: p.clone() }
         },
         _ => {
             inCache.clone()
         },
-        _ => unreachable!("match_deref! exhaustiveness placeholder"),
-    } });
+    });
     outCache
 }
 
@@ -1343,25 +1342,28 @@ pub fn isImplicitScope(mut inName: Name) -> Result<bool> {
 
 pub fn getCachedInstFunc(mut inCache: Cache, mut path: Arc<Absyn::Path>) -> Result<DAE::Function> {
     let mut func: DAE::Function;
-    func = (::match_deref::match_deref! { match &((inCache.clone(), path.clone())) {
-        (Cache::CACHE { functions: ef, .. }, _) => {
-            let Some(__pa0) = (AvlTreePathFunction::get(Mutable::access(ef.clone()), path.clone())?) else { bail!("pattern mismatch") };
+    func = (match inCache.clone() {
+        Cache::CACHE { functions: mut ef, .. } => {
+            let __pa0 = ::match_deref::match_deref! { match &(AvlTreePathFunction::get(Mutable::access(ef.clone()), path.clone())?) {
+                Some(__pa0) => __pa0.clone(),
+                _ => bail!("pattern mismatch"),
+            } };
             func = __pa0.clone();
             func.clone()
         },
         _ => bail!("match: no arm matched"),
-    } });
+    });
     Ok(func)
 }
 
 pub fn checkCachedInstFuncGuard(mut inCache: Cache, mut path: Arc<Absyn::Path>) -> Result<()> {
-    let _ = (::match_deref::match_deref! { match &((inCache.clone(), path.clone())) {
-        (Cache::CACHE { functions: ef, .. }, _) => {
+    let () = (match inCache.clone() {
+        Cache::CACHE { functions: mut ef, .. } => {
             AvlTreePathFunction::get(Mutable::access(ef.clone()), path.clone())?;
             ()
         },
         _ => bail!("match: no arm matched"),
-    } });
+    });
     Ok(())
 }
 
@@ -1415,36 +1417,34 @@ pub fn addCachedInstFuncGuard(mut cache: Cache, mut func: Arc<Absyn::Path>) -> R
 
 pub fn addDaeFunction(mut inCache: Cache, mut funcs: Arc<metamodelica::List<DAE::Function>>) -> Result<Cache> {
     let mut outCache: Cache = Cache::NO_CACHE;
-    outCache = (::match_deref::match_deref! { match &((inCache.clone(), funcs.clone())) {
-        (Cache::CACHE { initialGraph: _, functions: ef, evaluatedParams: _, modelName: _ }, _) => {
+    outCache = (match inCache.clone() {
+        Cache::CACHE { initialGraph: _, functions: mut ef, evaluatedParams: _, modelName: _ } => {
             Mutable::update(ef.clone(), DAEUtil::addDaeFunction(funcs.clone(), Mutable::access(ef.clone()))?);
             inCache.clone()
         },
         _ => {
             inCache.clone()
         },
-        _ => unreachable!("match_deref! exhaustiveness placeholder"),
-    } });
+    });
     Ok(outCache)
 }
 
 pub fn addDaeExtFunction(mut inCache: Cache, mut funcs: Arc<metamodelica::List<DAE::Function>>) -> Result<Cache> {
     let mut outCache: Cache = Cache::NO_CACHE;
-    outCache = (::match_deref::match_deref! { match &((inCache.clone(), funcs.clone())) {
-        (Cache::CACHE { initialGraph: _, functions: ef, evaluatedParams: _, modelName: _ }, _) => {
+    outCache = (match inCache.clone() {
+        Cache::CACHE { initialGraph: _, functions: mut ef, evaluatedParams: _, modelName: _ } => {
             Mutable::update(ef.clone(), DAEUtil::addDaeExtFunction(funcs.clone(), Mutable::access(ef.clone()))?);
             inCache.clone()
         },
         _ => {
             inCache.clone()
         },
-        _ => unreachable!("match_deref! exhaustiveness placeholder"),
-    } });
+    });
     Ok(outCache)
 }
 
 pub fn setCachedFunctionTree(mut inCache: Cache, mut inFunctions: Arc<AvlTreePathFunction::Tree>) -> () {
-    let _ = (match inCache.clone() {
+    let () = (match inCache.clone() {
         Cache::CACHE { .. } => {
             Mutable::update(var_field!(inCache.functions, Cache::CACHE).clone(), inFunctions.clone());
             ()

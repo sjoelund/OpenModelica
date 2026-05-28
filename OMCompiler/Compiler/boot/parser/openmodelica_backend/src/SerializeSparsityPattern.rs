@@ -72,22 +72,22 @@ pub fn serialize(mut code: SimCode::SimCode) -> Result<ArcStr> {
         }
         if !(pattern.clone().is_empty()) {
             fname = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*code.fileNamePrefix.clone()); __mm_s.push_str(&*literal!("_Jac")); __mm_s.push_str(&*jac.matrixName.clone()); __mm_s.push_str(&*literal!(".bin")); ArcStr::from(__mm_s) }).clone();
-            columnPointers = metamodelica::arrayFromVec(cons(0, {
+            columnPointers = metamodelica::arrayFromVec(cons(0, ({
         let mut __acc: Arc<metamodelica::List<i32>> = metamodelica::nil();
         for mut column in (pattern.clone()).into_iter().cloned() {
             let __x = (Util::tuple22(column.clone()).len() as i32);
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }).into_iter().cloned().collect());
-            rowIndices = metamodelica::arrayFromVec(List::flatten({
+    })).into_iter().cloned().collect());
+            rowIndices = metamodelica::arrayFromVec(List::flatten(({
         let mut __acc: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>> = metamodelica::nil();
         for mut column in (pattern.clone()).into_iter().cloned() {
             let __x = Util::tuple22(column.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }).into_iter().cloned().collect());
+    })).into_iter().cloned().collect());
             serializeJacobian((fname.clone()).clone(), (columnPointers.clone().borrow().len() as i32), (rowIndices.clone().borrow().len() as i32), columnPointers.clone(), rowIndices.clone());
             for mut color in &*colorList.clone() {
                 let mut color = color.clone();

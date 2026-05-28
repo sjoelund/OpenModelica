@@ -502,7 +502,7 @@ pub fn isIdentical(mut cls1: Arc<NFClass>, mut cls2: Arc<NFClass>) -> bool {
         (Deref @ EXPANDED_CLASS { .. }, Deref @ EXPANDED_CLASS { .. }) => Prefixes::isEqual(var_field!((*cls1).prefixes, NFClass::EXPANDED_CLASS).clone(), var_field!((*cls2).prefixes, NFClass::EXPANDED_CLASS).clone()) && ClassTree::isIdentical(var_field!((*cls1).elements, NFClass::EXPANDED_CLASS).clone(), var_field!((*cls2).elements, NFClass::EXPANDED_CLASS).clone()),
         (Deref @ INSTANCED_BUILTIN { .. }, Deref @ INSTANCED_BUILTIN { .. }) => {
             if !(Type::isEqual(var_field!((*cls1).ty, NFClass::INSTANCED_BUILTIN).clone(), var_field!((*cls2).ty, NFClass::INSTANCED_BUILTIN).clone())) {
-                return identical;
+                return identical.clone();
             }
             true
         },
@@ -815,7 +815,6 @@ pub fn lastBaseClass(mut node: Arc<InstNode::InstNode>) -> Arc<InstNode::InstNod
 
 pub fn getDerivedComments(mut cls: Arc<NFClass>, mut cmts: Arc<metamodelica::List<Arc<SCode::Comment>>>) -> Arc<metamodelica::List<Arc<SCode::Comment>>> {
     let mut cmts: Arc<metamodelica::List<Arc<SCode::Comment>>> = cmts;
-    let mut cls_tree: Arc<ClassTree::ClassTree> = Arc::new(ClassTree::EMPTY_TREE);
     cmts = (::match_deref::match_deref! { match &(cls.clone()) {
         Deref @ EXPANDED_DERIVED { .. } => InstNode::getComments(var_field!((*cls).baseClass, NFClass::EXPANDED_DERIVED).clone(), cmts.clone()),
         Deref @ TYPED_DERIVED { .. } => InstNode::getComments(var_field!((*cls).baseClass, NFClass::TYPED_DERIVED).clone(), cmts.clone()),
@@ -846,7 +845,6 @@ pub fn constrainingClassPath(mut clsNode: Arc<InstNode::InstNode>) -> Result<Arc
 pub fn hasOperator(mut name: ArcStr, mut cls: Arc<NFClass>) -> bool {
     let mut hasOperator: bool = false;
     let mut op_node: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
-    let mut op_cls: Arc<NFClass> = Arc::new(NFClass::NOT_INSTANTIATED);
     if Restriction::isOperatorRecord(restriction(cls.clone())) {
         match '__try0: {
             (op_node, _) = unwrap_break_err!(lookupElement((name.clone()).clone(), cls.clone()), '__try0);
@@ -883,14 +881,14 @@ pub fn makeRecordExp(mut clsNode: Arc<InstNode::InstNode>, mut scope: Arc<InstNo
     ty = __pa1.clone();
     comps = ClassTree::getComponents(classTree(cls.clone())?)?;
     if typed.clone() {
-        args = {
+        args = ({
         let mut __acc: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
         for mut c in (comps.clone()).borrow().iter() {
             let __x = Binding::getExp(Component::getImplicitBinding(InstNode::component(c.clone())?, scope.clone()))?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
         exp = Expression::makeRecord(InstNode::fullPath(ty_node.clone(), false), ty.clone(), args.clone());
     } else {
         args = metamodelica::nil();

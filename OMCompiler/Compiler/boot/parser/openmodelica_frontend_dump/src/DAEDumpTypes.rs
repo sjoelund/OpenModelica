@@ -159,10 +159,10 @@ pub fn dumpCompAnnotationStr(mut inComment: Option<Arc<SCode::Comment>>) -> Resu
 fn dumpAnnotationStr(mut inComment: Option<Arc<SCode::Comment>>, mut inPrefix: ArcStr, mut inSuffix: ArcStr) -> Result<ArcStr> {
     let mut outString: ArcStr = arcstr::literal!("");
     outString = ('mc: {
-        let __mc_input = (inComment.clone(), inPrefix.clone(), inSuffix.clone());
+        let __mc_input = inComment.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Some(Deref @ SCode::Comment { annotation_: Some(Deref @ SCode::Annotation { modification: ann_mod }), .. }), _, _) => {
+                Some(Deref @ SCode::Comment { annotation_: Some(Deref @ SCode::Annotation { modification: ann_mod }), .. }) => {
                     let mut ann: ArcStr = arcstr::literal!("");
                     let mut ann_mod = (*ann_mod).clone();
                     if Config::showAnnotations()? {

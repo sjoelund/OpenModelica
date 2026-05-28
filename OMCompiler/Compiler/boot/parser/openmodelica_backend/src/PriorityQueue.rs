@@ -104,12 +104,12 @@ pub fn meld(mut its1: T, mut its2: T) -> Result<T> {
 
 pub fn meld2(mut b1: bool, mut b2: bool, mut t1: Arc<Tree>, mut inTs1: T, mut t2: Arc<Tree>, mut inTs2: T) -> Result<T> {
     let mut ts: T = metamodelica::nil();
-    ts = (::match_deref::match_deref! { match &((b1.clone(), b2.clone(), t1.clone(), inTs1.clone(), t2.clone(), inTs2.clone())) {
-        (true, _, _, ts1, _, ts2) => {
+    ts = (::match_deref::match_deref! { match &((b1.clone(), b2.clone(), inTs1.clone(), inTs2.clone())) {
+        (true, _, ts1, ts2) => {
             ts = meld(ts1.clone(), cons(t2.clone(), ts2.clone()))?;
             cons(t1.clone(), ts.clone())
         },
-        (_, true, _, ts1, _, ts2) => {
+        (_, true, ts1, ts2) => {
             ts = meld(cons(t1.clone(), ts1.clone()), ts2.clone())?;
             cons(t2.clone(), ts.clone())
         },
@@ -179,11 +179,11 @@ pub fn elements(mut ts: T) -> Result<Arc<metamodelica::List<(i32, Arc<metamodeli
 // and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
 pub fn elements2(mut its: T, mut acc: Arc<metamodelica::List<(i32, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>)>>) -> Result<Arc<metamodelica::List<(i32, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>)>>> {
     let mut elts: Arc<metamodelica::List<(i32, Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>)>> = metamodelica::nil();
-    elts = (::match_deref::match_deref! { match &((its.clone(), acc.clone())) {
-        (Deref @ metamodelica::List::Nil, _) => {
+    elts = (::match_deref::match_deref! { match &(its.clone()) {
+        Deref @ metamodelica::List::Nil => {
             acc.clone().reverse()
         },
-        (ts, _) => {
+        ts => {
             let mut elt: Element;
             let mut ts = (*ts).clone();
             (ts, elt) = deleteAndReturnMin(ts.clone())?;

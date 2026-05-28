@@ -103,10 +103,10 @@ pub fn flattenClassInProgram(mut inClassName: Arc<Absyn::Path>, mut inProgram: A
     let mut outProgram: Arc<metamodelica::List<Arc<SCode::Element>>> = metamodelica::nil();
     let mut outEnv: Env = metamodelica::nil();
     (outProgram, outEnv) = 'mc: {
-        let __mc_input = (inClassName.clone(), inProgram.clone());
+        let __mc_input = inProgram.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, prog) => {
+                prog => {
                     let mut env: Env = metamodelica::nil();
                     let mut prog = (*prog).clone();
                     System::tmpTickResetIndex(0, NFSCodeEnv::tmpTickIndex.clone());

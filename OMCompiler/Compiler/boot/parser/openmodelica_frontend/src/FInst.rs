@@ -98,10 +98,10 @@ pub type Msg = Option<SourceInfo>;
 pub fn inst(mut inPath: Arc<Absyn::Path>, mut inProgram: Arc<metamodelica::List<Arc<SCode::Element>>>) -> Result<DAE::DAElist> {
     let mut dae: DAE::DAElist = <DAE::DAElist as ::std::default::Default>::default();
     dae = 'mc: {
-        let __mc_input = (inPath.clone(), inProgram.clone());
+        let __mc_input = inProgram.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _) => {
+                _ => {
                     let mut g: Graph;
                     let mut p: Arc<metamodelica::List<Arc<SCode::Element>>> = metamodelica::nil();
                     let mut lst: Arc<metamodelica::List<metamodelica::Real>> = metamodelica::nil();
@@ -118,7 +118,7 @@ pub fn inst(mut inPath: Arc<Absyn::Path>, mut inProgram: Arc<metamodelica::List<
                     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Total time:     ")); __mm_s.push_str(&*realString(List::fold(lst.clone(), (std::sync::Arc::new(fnptr!(realAdd, metamodelica::Real, metamodelica::Real)) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Real, metamodelica::Real) -> Result<metamodelica::Real> + 'static>), metamodelica::OrderedFloat(0.0_f64)))); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
                     FGraphDump::dumpGraph(g.clone(), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("F:\\dev\\")); __mm_s.push_str(&*AbsynUtil::pathString(inPath.clone(), (literal!(".")).clone(), true, false)?); __mm_s.push_str(&*literal!(".graph.graphml")); ArcStr::from(__mm_s) }).clone())?;
                     System::realtimeTick(ClockIndexes::RT_CLOCK_FINST.clone())?;
-                    let _ = FGraph::clone(g.clone())?;
+                    FGraph::clone(g.clone())?;
                     lst = List::consr(lst.clone(), System::realtimeTock(ClockIndexes::RT_CLOCK_FINST.clone())?);
                     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("FGraph->clone:  ")); __mm_s.push_str(&*realString(listHead(lst.clone())?)); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
                     Ok(DAE::emptyDae().clone())
@@ -128,7 +128,7 @@ pub fn inst(mut inPath: Arc<Absyn::Path>, mut inProgram: Arc<metamodelica::List<
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _) => {
+                _ => {
                     println!("{}", (literal!("FInst.inst failed!\n")).clone());
                     Ok(DAE::emptyDae().clone())
                 }
@@ -143,10 +143,10 @@ pub fn inst(mut inPath: Arc<Absyn::Path>, mut inProgram: Arc<metamodelica::List<
 pub fn instPath(mut inPath: Arc<Absyn::Path>, mut inProgram: Arc<metamodelica::List<Arc<SCode::Element>>>) -> Result<DAE::DAElist> {
     let mut dae: DAE::DAElist = <DAE::DAElist as ::std::default::Default>::default();
     dae = 'mc: {
-        let __mc_input = (inPath.clone(), inProgram.clone());
+        let __mc_input = inProgram.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _) => {
+                _ => {
                     Ok(inst(inPath.clone(), inProgram.clone())?)
                 }
                 _ => bail!("nomatch"),
@@ -154,7 +154,7 @@ pub fn instPath(mut inPath: Arc<Absyn::Path>, mut inProgram: Arc<metamodelica::L
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _) => {
+                _ => {
                     let mut g: Graph;
                     let mut p: Arc<metamodelica::List<Arc<SCode::Element>>> = metamodelica::nil();
                     let mut lst: Arc<metamodelica::List<metamodelica::Real>> = metamodelica::nil();
@@ -184,7 +184,7 @@ pub fn instPath(mut inPath: Arc<Absyn::Path>, mut inProgram: Arc<metamodelica::L
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _) => {
+                _ => {
                     println!("{}", (literal!("FInst.inst failed!\n")).clone());
                     Ok(DAE::emptyDae().clone())
                 }
@@ -199,10 +199,10 @@ pub fn instPath(mut inPath: Arc<Absyn::Path>, mut inProgram: Arc<metamodelica::L
 fn doSCodeDep(mut inProgram: Arc<metamodelica::List<Arc<SCode::Element>>>, mut inPath: Arc<Absyn::Path>) -> Result<Arc<metamodelica::List<Arc<SCode::Element>>>> {
     let mut outProgram: Arc<metamodelica::List<Arc<SCode::Element>>> = metamodelica::nil();
     outProgram = 'mc: {
-        let __mc_input = (inProgram.clone(), inPath.clone());
+        let __mc_input = inPath.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _) => {
+                _ => {
                     let mut outProgram: Arc<metamodelica::List<Arc<SCode::Element>>> = outProgram.clone();
                     let true = (Flags::isSet(Flags::GRAPH_INST_RUN_DEP.clone())?) else { bail!("pattern mismatch") };
                     outProgram = InstUtil::scodeFlatten(inProgram.clone(), inPath.clone())?;

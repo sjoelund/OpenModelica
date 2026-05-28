@@ -731,33 +731,30 @@ pub fn mergeVisibility(mut outerVis: Visibility, mut innerVis: Visibility) -> Vi
     vis
 }
 
-pub fn isReplaceable(mut repl: Arc<Replaceable>) -> bool {
+pub fn isReplaceable(mut repl: Replaceable) -> bool {
     let mut res: bool = false;
-    res = (::match_deref::match_deref! { match &(repl.clone()) {
-        Deref @ Replaceable::REPLACEABLE { .. } => true,
+    res = (match repl.clone() {
+        Replaceable::REPLACEABLE { .. } => true,
         _ => false,
-        _ => unreachable!("match_deref! exhaustiveness placeholder"),
-    } });
+    });
     res
 }
 
-pub fn replaceableString(mut repl: Arc<Replaceable>) -> ArcStr {
+pub fn replaceableString(mut repl: Replaceable) -> ArcStr {
     let mut r#str: ArcStr = arcstr::literal!("");
-    r#str = ((::match_deref::match_deref! { match &(repl.clone()) {
-        Deref @ Replaceable::REPLACEABLE { .. } => literal!("replaceable"),
+    r#str = ((match repl.clone() {
+        Replaceable::REPLACEABLE { .. } => literal!("replaceable"),
         _ => literal!(""),
-        _ => unreachable!("match_deref! exhaustiveness placeholder"),
-    } })).clone();
+    })).clone();
     r#str
 }
 
-pub fn unparseReplaceable(mut repl: Arc<Replaceable>) -> ArcStr {
+pub fn unparseReplaceable(mut repl: Replaceable) -> ArcStr {
     let mut r#str: ArcStr = arcstr::literal!("");
-    r#str = ((::match_deref::match_deref! { match &(repl.clone()) {
-        Deref @ Replaceable::REPLACEABLE { .. } => literal!("replaceable "),
+    r#str = ((match repl.clone() {
+        Replaceable::REPLACEABLE { .. } => literal!("replaceable "),
         _ => literal!(""),
-        _ => unreachable!("match_deref! exhaustiveness placeholder"),
-    } })).clone();
+    })).clone();
     r#str
 }
 

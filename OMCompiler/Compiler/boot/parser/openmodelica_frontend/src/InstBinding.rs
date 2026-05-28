@@ -105,7 +105,10 @@ fn instBinding(mut inMod: Arc<DAE::Mod>, mut inVarLst: Arc<metamodelica::List<Ar
                     let mut ty2: Arc<DAE::Type> = Arc::new(DAE::Type::T_NORETCALL);
                     let mut optVal: Option<Arc<Values::Value>> = None;
                     mod2 = Mod::lookupCompModification(r#mod.clone(), (bind_name.clone()).clone())?;
-                    let Some(DAE::TYPED { modifierAsExp: __pa0, modifierAsValue: __pa1, properties: DAE::PROP { type_: __pa2, constFlag: _ }, modifierAsAbsynExp: _, .. }) = (Mod::modEquation(mod2.clone())?) else { bail!("pattern mismatch") };
+                    let (__pa0, __pa1, __pa2) = ::match_deref::match_deref! { match &(Mod::modEquation(mod2.clone())?) {
+                        Some(DAE::EqMod::TYPED { modifierAsExp: __pa0, modifierAsValue: __pa1, properties: DAE::Properties::PROP { type_: __pa2, constFlag: _ }, modifierAsAbsynExp: _, .. }) => (__pa0.clone(), __pa1.clone(), __pa2.clone()),
+                        _ => bail!("pattern mismatch"),
+                    } };
                     e = __pa0.clone();
                     optVal = __pa1.clone();
                     ty2 = __pa2.clone();
@@ -132,7 +135,7 @@ fn instBinding(mut inMod: Arc<DAE::Mod>, mut inVarLst: Arc<metamodelica::List<Ar
             ::match_deref::match_deref! { match &__mc_input {
                 (r#mod, _, _, Deref @ metamodelica::List::Nil, bind_name) => {
                     if '__try0: {
-                        let _ = unwrap_break_err!(Mod::lookupCompModification(r#mod.clone(), (bind_name.clone()).clone()), '__try0);
+                        unwrap_break_err!(Mod::lookupCompModification(r#mod.clone(), (bind_name.clone()).clone()), '__try0);
                         Ok::<(), anyhow::Error>(())
                     }.is_ok() { bail!("failure(): body succeeded") }
                     Ok(None)
@@ -182,7 +185,10 @@ fn instBinding2(mut inMod: Arc<DAE::Mod>, mut inType: Arc<DAE::Type>, mut inInte
             let mut ty2: Arc<DAE::Type> = Arc::new(DAE::Type::T_NORETCALL);
             let mut optVal: Option<Arc<Values::Value>> = None;
             mod2 = Mod::lookupIdxModification(r#mod.clone(), Arc::new(DAE::Exp::ICONST { integer: index.clone() }))?;
-            let Some(DAE::TYPED { modifierAsExp: __pa0, modifierAsValue: __pa1, properties: DAE::PROP { type_: __pa2, constFlag: _ }, modifierAsAbsynExp: _, .. }) = (Mod::modEquation(mod2.clone())?) else { bail!("pattern mismatch") };
+            let (__pa0, __pa1, __pa2) = ::match_deref::match_deref! { match &(Mod::modEquation(mod2.clone())?) {
+                Some(DAE::EqMod::TYPED { modifierAsExp: __pa0, modifierAsValue: __pa1, properties: DAE::Properties::PROP { type_: __pa2, constFlag: _ }, modifierAsAbsynExp: _, .. }) => (__pa0.clone(), __pa1.clone(), __pa2.clone()),
+                _ => bail!("pattern mismatch"),
+            } };
             e = __pa0.clone();
             optVal = __pa1.clone();
             ty2 = __pa2.clone();
@@ -237,7 +243,10 @@ fn instStartOrigin(mut inMod: Arc<DAE::Mod>, mut inVarLst: Arc<metamodelica::Lis
                 (r#mod, _, bind_name) => {
                     let mut mod2: Arc<DAE::Mod> = Arc::new(DAE::Mod::NOMOD);
                     mod2 = Mod::lookupCompModification(r#mod.clone(), (bind_name.clone()).clone())?;
-                    let Some(_) = (Mod::modEquation(mod2.clone())?) else { bail!("pattern mismatch") };
+                    ::match_deref::match_deref! { match &(Mod::modEquation(mod2.clone())?) {
+                        Some(_) => (),
+                        _ => bail!("pattern mismatch"),
+                    } };
                     Ok(Some(Arc::new(DAE::Exp::SCONST { string: (literal!("binding")).clone() })))
                 }
                 _ => bail!("nomatch"),
@@ -277,10 +286,10 @@ pub fn instDaeVariableAttributes(mut inCache: FCore::Cache, mut inEnv: FCore::Gr
     let mut outCache: FCore::Cache = FCore::Cache::NO_CACHE;
     let mut outDAEVariableAttributesOption: Option<Arc<DAE::VariableAttributes>> = None;
     (outCache, outDAEVariableAttributesOption) = 'mc: {
-        let __mc_input = (inCache.clone(), inEnv.clone(), inMod.clone(), inType.clone(), inIntegerLst.clone());
+        let __mc_input = (inCache.clone(), inMod.clone(), inType.clone(), inIntegerLst.clone());
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (cache, _, r#mod, Deref @ DAE::Type::T_REAL { varLst }, index_list) => {
+                (cache, r#mod, Deref @ DAE::Type::T_REAL { varLst }, index_list) => {
                     let mut quantity_str: Option<Arc<DAE::Exp>> = None;
                     let mut unit_str: Option<Arc<DAE::Exp>> = None;
                     let mut displayunit_str: Option<Arc<DAE::Exp>> = None;
@@ -316,7 +325,7 @@ pub fn instDaeVariableAttributes(mut inCache: FCore::Cache, mut inEnv: FCore::Gr
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (cache, _, r#mod, Deref @ DAE::Type::T_INTEGER { varLst }, index_list) => {
+                (cache, r#mod, Deref @ DAE::Type::T_INTEGER { varLst }, index_list) => {
                     let mut quantity_str: Option<Arc<DAE::Exp>> = None;
                     let mut fixed_val: Option<Arc<DAE::Exp>> = None;
                     let mut exp_bind_uncertainty: Option<Arc<DAE::Exp>> = None;
@@ -342,7 +351,7 @@ pub fn instDaeVariableAttributes(mut inCache: FCore::Cache, mut inEnv: FCore::Gr
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (cache, _, r#mod, tp @ Deref @ DAE::Type::T_BOOL { varLst }, index_list) => {
+                (cache, r#mod, tp @ Deref @ DAE::Type::T_BOOL { varLst }, index_list) => {
                     let mut quantity_str: Option<Arc<DAE::Exp>> = None;
                     let mut fixed_val: Option<Arc<DAE::Exp>> = None;
                     let mut start_val: Option<Arc<DAE::Exp>> = None;
@@ -358,7 +367,7 @@ pub fn instDaeVariableAttributes(mut inCache: FCore::Cache, mut inEnv: FCore::Gr
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (cache, _, _, Deref @ DAE::Type::T_CLOCK { .. }, _) => {
+                (cache, _, Deref @ DAE::Type::T_CLOCK { .. }, _) => {
                     Ok((cache.clone(), Some(Arc::new(DAE::VariableAttributes::VAR_ATTR_CLOCK { isProtected: None, finalPrefix: None }))))
                 }
                 _ => bail!("nomatch"),
@@ -366,7 +375,7 @@ pub fn instDaeVariableAttributes(mut inCache: FCore::Cache, mut inEnv: FCore::Gr
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (cache, _, r#mod, tp @ Deref @ DAE::Type::T_STRING { varLst }, index_list) => {
+                (cache, r#mod, tp @ Deref @ DAE::Type::T_STRING { varLst }, index_list) => {
                     let mut quantity_str: Option<Arc<DAE::Exp>> = None;
                     let mut fixed_val: Option<Arc<DAE::Exp>> = None;
                     let mut start_val: Option<Arc<DAE::Exp>> = None;
@@ -382,7 +391,7 @@ pub fn instDaeVariableAttributes(mut inCache: FCore::Cache, mut inEnv: FCore::Gr
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (cache, _, r#mod, enumtype @ Deref @ DAE::Type::T_ENUMERATION { attributeLst: varLst, .. }, index_list) => {
+                (cache, r#mod, enumtype @ Deref @ DAE::Type::T_ENUMERATION { attributeLst: varLst, .. }, index_list) => {
                     let mut quantity_str: Option<Arc<DAE::Exp>> = None;
                     let mut fixed_val: Option<Arc<DAE::Exp>> = None;
                     let mut exp_bind_min: Option<Arc<DAE::Exp>> = None;
@@ -402,7 +411,7 @@ pub fn instDaeVariableAttributes(mut inCache: FCore::Cache, mut inEnv: FCore::Gr
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (cache, _, _, _, _) => {
+                (cache, _, _, _) => {
                     Ok((cache.clone(), None))
                 }
                 _ => bail!("nomatch"),
@@ -756,9 +765,9 @@ pub fn makeBinding(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inAtt
                     let mut e_str_1: ArcStr = arcstr::literal!("");
                     let mut r#str: ArcStr = arcstr::literal!("");
                     e_tp = Types::getPropType(prop.clone())?;
-                    let _ = Types::propAllConst(prop.clone())?;
+                    Types::propAllConst(prop.clone())?;
                     if '__try0: {
-                        (_, _) = unwrap_break_err!(Types::matchType(e.clone(), e_tp.clone(), tp.clone(), false), '__try0);
+                        unwrap_break_err!(Types::matchType(e.clone(), e_tp.clone(), tp.clone(), false), '__try0);
                         Ok::<(), anyhow::Error>(())
                     }.is_ok() { bail!("failure(): body succeeded") }
                     e_tp_str = (TypesDump::unparseTypeNoAttr(e_tp.clone())?).clone();
@@ -930,9 +939,12 @@ pub fn makeVariableBinding(mut inType: Arc<DAE::Type>, mut inMod: Arc<DAE::Mod>,
     let mut bt_str: ArcStr = arcstr::literal!("");
     if isNone(oeq_mod.clone()) {
         outBinding = None;
-        return Ok(outBinding);
+        return Ok(outBinding.clone());
     }
-    let Some(DAE::TYPED { properties: __pa0, modifierAsExp: __pa1, .. }) = (oeq_mod.clone()) else { bail!("pattern mismatch") };
+    let (__pa0, __pa1) = ::match_deref::match_deref! { match &(oeq_mod.clone()) {
+        Some(DAE::EqMod::TYPED { properties: __pa0, modifierAsExp: __pa1, .. }) => (__pa0.clone(), __pa1.clone()),
+        _ => bail!("pattern mismatch"),
+    } };
     p = __pa0.clone();
     e = __pa1.clone();
     if Types::isExternalObject(inType.clone()) {

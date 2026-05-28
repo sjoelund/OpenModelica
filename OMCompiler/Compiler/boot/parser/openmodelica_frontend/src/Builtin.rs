@@ -48,7 +48,6 @@ use crate::FCore;
 use crate::FGraph;
 use crate::FGraphBuildEnv;
 use openmodelica_ast::Absyn;
-use openmodelica_frontend_types::ClassInf;
 use openmodelica_frontend_types::DAE;
 use openmodelica_frontend_types::SCode;
 use openmodelica_util::Config;
@@ -85,7 +84,7 @@ pub fn variableNameIsBuiltin(mut name: ArcStr) -> Result<bool> {
 }
 
 pub fn isDer(mut inPath: Arc<Absyn::Path>) -> Result<()> {
-    let _ = (::match_deref::match_deref! { match &(inPath.clone()) {
+    let () = (::match_deref::match_deref! { match &(inPath.clone()) {
         Deref @ Absyn::Path::IDENT { name: Deref @ "der" } => {
             ()
         },
@@ -102,8 +101,6 @@ pub fn initialGraph(mut inCache: FCore::Cache) -> Result<(FCore::Cache, FCore::G
     let mut outCache: FCore::Cache = FCore::Cache::NO_CACHE;
     let mut graph: FCore::Graph;
     let mut cache: FCore::Cache = FCore::Cache::NO_CACHE;
-    let anyNonExpandableConnector2int: Arc<DAE::Type> = Arc::new(DAE::Type::T_FUNCTION { funcArg: list![Arc::new(DAE::FuncArg { name: (literal!("x")).clone(), ty: Arc::new(DAE::Type::T_ANYTYPE { anyClassType: Some(ClassInf::State::CONNECTOR { path: Arc::new(Absyn::Path::IDENT { name: (literal!("$dummy$")).clone() }), isExpandable: false }) }), r#const: openmodelica_frontend_types::DAE::Const::C_VAR, par: openmodelica_frontend_types::DAE::VarParallelism::NON_PARALLEL, defaultBinding: None })], funcResultType: DAE::T_INTEGER_DEFAULT().clone(), functionAttributes: DAE::FUNCTION_ATTRIBUTES_BUILTIN.clone(), path: Arc::new(Absyn::Path::IDENT { name: (literal!("cardinality")).clone() }) });
-    let anyExpandableConnector2int: Arc<DAE::Type> = Arc::new(DAE::Type::T_FUNCTION { funcArg: list![Arc::new(DAE::FuncArg { name: (literal!("x")).clone(), ty: Arc::new(DAE::Type::T_ANYTYPE { anyClassType: Some(ClassInf::State::CONNECTOR { path: Arc::new(Absyn::Path::IDENT { name: (literal!("$dummy$")).clone() }), isExpandable: true }) }), r#const: openmodelica_frontend_types::DAE::Const::C_VAR, par: openmodelica_frontend_types::DAE::VarParallelism::NON_PARALLEL, defaultBinding: None })], funcResultType: DAE::T_INTEGER_DEFAULT().clone(), functionAttributes: DAE::FUNCTION_ATTRIBUTES_BUILTIN.clone(), path: Arc::new(Absyn::Path::IDENT { name: (literal!("cardinality")).clone() }) });
     (outCache, graph) = 'mc: {
         let __mc_input = inCache.clone();
         if let Ok(__v) = (|| -> Result<_> {
@@ -131,7 +128,7 @@ pub fn initialGraph(mut inCache: FCore::Cache) -> Result<(FCore::Cache, FCore::G
             graph = FBuiltin::initialGraphOptimica(graph.clone(), (std::sync::Arc::new(FGraphBuildEnv::mkCompNode) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SCode::Element>, metamodelica::Array<FCore::Node>, FCore::Kind, FCore::Graph) -> Result<FCore::Graph> + 'static>))?;
             graph = FBuiltin::initialGraphMetaModelica(graph.clone(), (std::sync::Arc::new(FGraphBuildEnv::mkTypeNode) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<Arc<DAE::Type>>>, metamodelica::Array<FCore::Node>, ArcStr, FCore::Graph) -> Result<FCore::Graph> + 'static>))?;
             cache = FCore::setCachedInitialGraph(cache.clone(), graph.clone());
-            let _ = getSetInitialGraph(Some(graph.clone()))?;
+            getSetInitialGraph(Some(graph.clone()))?;
             graph = FGraph::clone(graph.clone())?;
             Ok((cache.clone(), graph.clone()))
         })() { break 'mc __v; }
@@ -147,10 +144,10 @@ fn getSetInitialGraph(mut inEnvOpt: Option<FCore::Graph>) -> Result<FCore::Graph
         if let Ok(__v) = (|| -> Result<_> {
             let _ = __mc_input.clone() else { bail!("nomatch") };
             if '__try0: {
-                let _ = crate::Globals::builtinGraphIndex.with(|__root| __root.borrow().clone());
+                crate::Globals::builtinGraphIndex.with(|__root| __root.borrow().clone());
                 Ok::<(), anyhow::Error>(())
             }.is_ok() { bail!("failure(): body succeeded") }
-            crate::Globals::builtinGraphIndex.with(|__root| *__root.borrow_mut() = metamodelica::nil());
+            { let __v = metamodelica::nil(); crate::Globals::builtinGraphIndex.with(|__root| *__root.borrow_mut() = __v) };
             Ok(bail!("fail"))
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
@@ -168,7 +165,7 @@ fn getSetInitialGraph(mut inEnvOpt: Option<FCore::Graph>) -> Result<FCore::Graph
             assocLst = crate::Globals::builtinGraphIndex.with(|__root| __root.borrow().clone());
             f = Flags::getConfigEnum(Flags::GRAMMAR.clone())?;
             assocLst = if (f.clone() == Flags::METAMODELICA.clone()) {cons((Flags::METAMODELICA.clone(), graph.clone()), assocLst.clone())} else {if (f.clone() == Flags::PARMODELICA.clone()) {cons((Flags::PARMODELICA.clone(), graph.clone()), assocLst.clone())} else {if (f.clone() == Flags::MODELICA.clone()) {cons((Flags::MODELICA.clone(), graph.clone()), assocLst.clone())} else {assocLst.clone()}}};
-            crate::Globals::builtinGraphIndex.with(|__root| *__root.borrow_mut() = assocLst.clone());
+            { let __v = assocLst.clone(); crate::Globals::builtinGraphIndex.with(|__root| *__root.borrow_mut() = __v) };
             Ok(graph.clone())
         })() { break 'mc __v; }
         bail!("matchcontinue: no arm matched")
@@ -177,7 +174,7 @@ fn getSetInitialGraph(mut inEnvOpt: Option<FCore::Graph>) -> Result<FCore::Graph
 }
 
 pub fn clearInitialGraph() -> () {
-    crate::Globals::builtinGraphIndex.with(|__root| *__root.borrow_mut() = metamodelica::nil());
+    { let __v = metamodelica::nil(); crate::Globals::builtinGraphIndex.with(|__root| *__root.borrow_mut() = __v) };
     ()
 }
 

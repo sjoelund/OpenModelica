@@ -104,7 +104,6 @@ fn addOptimizationVarsEqns(mut vars: BackendDAE::Variables, mut eqns: Arc<Expand
     let mut startTimeE: Option<Arc<DAE::Exp>> = None;
     let mut finalTimeE: Option<Arc<DAE::Exp>> = None;
     let mut varlst: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
-    let mut tG: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
     let mut eqnsLst: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
     let mut classAttrs: Arc<metamodelica::List<Arc<DAE::ClassAttributes>>> = metamodelica::nil();
     let mut constraints: Arc<metamodelica::List<Arc<DAE::Constraint>>> = metamodelica::nil();
@@ -123,7 +122,7 @@ fn addOptimizationVarsEqns(mut vars: BackendDAE::Variables, mut eqns: Arc<Expand
     FlagsUtil::setConfigEnum(Flags::GRAMMAR.clone(), Flags::OPTIMICA.clone())?;
     (mayer, lagrange, startTimeE, finalTimeE) = getOptimicaArgs(classAttrs.clone());
     varlst = BackendVariable::varList(globalKnownVars.clone())?;
-    let _ = addTimeGrid(varlst.clone(), globalKnownVars.clone())?;
+    addTimeGrid(varlst.clone(), globalKnownVars.clone())?;
     varlst = listAppend(varlst.clone(), BackendVariable::varList(vars.clone())?);
     (vars, eqnsLst, mayer) = joinObjectFun(makeObject((arcstr::literal!(BackendDAE::optimizationMayerTermName)).clone(), (std::sync::Arc::new(fnptr!(findMayerTerm, Arc<metamodelica::List<BackendDAE::Var>>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<BackendDAE::Var>>) -> Result<Option<Arc<DAE::Exp>>> + 'static>), varlst.clone(), mayer.clone())?, vars.clone(), eqnsLst.clone())?;
     (vars, eqnsLst, lagrange) = joinObjectFun(makeObject((arcstr::literal!(BackendDAE::optimizationLagrangeTermName)).clone(), (std::sync::Arc::new(fnptr!(findLagrangeTerm, Arc<metamodelica::List<BackendDAE::Var>>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<BackendDAE::Var>>) -> Result<Option<Arc<DAE::Exp>>> + 'static>), varlst.clone(), lagrange.clone())?, vars.clone(), eqnsLst.clone())?;
@@ -252,8 +251,8 @@ fn addOptimizationVarsEqns1(mut constraintLst: Arc<metamodelica::List<Arc<DAE::E
 fn addOptimizationVarsEqns2(mut inConstraint: Arc<metamodelica::List<Arc<DAE::Constraint>>>, mut inI: i32, mut inVars: BackendDAE::Variables, mut inEqns: Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, mut globalKnownVars: BackendDAE::Variables, mut prefConCrefName: ArcStr, mut conKind: BackendDAE::VarKind) -> Result<(BackendDAE::Variables, Arc<metamodelica::List<Arc<BackendDAE::Equation>>>)> {
     let mut outVars: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
     let mut outEqns: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
-    (outVars, outEqns) = (::match_deref::match_deref! { match &((inConstraint.clone(), inI.clone(), inVars.clone(), inEqns.clone(), globalKnownVars.clone(), prefConCrefName.clone(), conKind.clone())) {
-        (Deref @ metamodelica::List::Cons { head: Deref @ DAE::Constraint::CONSTRAINT_EXPS { constraintLst }, tail: Deref @ metamodelica::List::Nil }, _, _, _, _, _, _) => {
+    (outVars, outEqns) = (::match_deref::match_deref! { match &(inConstraint.clone()) {
+        Deref @ metamodelica::List::Cons { head: Deref @ DAE::Constraint::CONSTRAINT_EXPS { constraintLst }, tail: Deref @ metamodelica::List::Nil } => {
             let mut e: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
             let mut v: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
             (v, e) = addOptimizationVarsEqns1(constraintLst.clone(), inI.clone(), inVars.clone(), inEqns.clone(), globalKnownVars.clone(), (prefConCrefName.clone()).clone(), conKind.clone())?;
@@ -404,7 +403,7 @@ fn inputDerivativesForDynOptWork(mut isyst: Arc<BackendDAE::EqSystem>, mut inSha
                         v = BackendVariable::setVarKind(v.clone(), crate::BackendDAE::VarKind::OPT_INPUT_DER)?;
                         outShared = BackendVariable::addGlobalKnownVarDAE(v.clone(), outShared.clone())?;
                     }
-                    let _ = BackendVariable::daeGlobalKnownVars(outShared.clone());
+                    BackendVariable::daeGlobalKnownVars(outShared.clone());
                     Ok((isyst.clone(), true))
                 }
                 _ => bail!("nomatch"),
@@ -502,7 +501,6 @@ fn findLoops1(mut isyst: Arc<BackendDAE::EqSystem>, mut ishared: Arc<BackendDAE:
     let mut osyst: Arc<BackendDAE::EqSystem> = isyst.clone();
     let mut oshared: Arc<BackendDAE::Shared> = ishared.clone();
     let mut changed: bool = inchanged.clone();
-    let mut eqns: Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>;
     let mut l2p_all: bool = Flags::getConfigString(Flags::LOOP2CON.clone())? == literal!("all");
     let mut l2p_nl: bool = false;
     let mut l2p_l: bool = false;
@@ -633,12 +631,11 @@ fn res2Con(mut ieqns: Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equat
     let mut cr_lst: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = List::map(var_lst.clone(), (std::sync::Arc::new(BackendVariable::varCref) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var) -> Result<Arc<DAE::ComponentRef>> + 'static>));
     let mut cr: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
     let mut cr_var: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
-    let mut name_lst: Arc<metamodelica::List<ArcStr>> = List::map(cr_lst.clone(), (std::sync::Arc::new(ComponentReference::crefStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>));
     let mut e: Arc<DAE::Exp>;
     let mut res: Arc<DAE::Exp>;
     let mut ind_e: i32 = 0;
     let mut ind_v: i32 = 0;
-    let mut ind_lst_v: Arc<metamodelica::List<i32>> = List::map(vindx.clone(), Arc::new(intAbs.clone()));
+    let mut ind_lst_v: Arc<metamodelica::List<i32>> = List::map(vindx.clone(), Arc::new(fnptr!(intAbs, i32)));
     let mut ind_lst_e: Arc<metamodelica::List<i32>> = eindex.clone();
     let mut globalKnownVars: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
     let __pa0 = ::match_deref::match_deref! { match &(oshared.clone()) {
@@ -725,8 +722,6 @@ pub fn simplifyConstraints(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result<Arc
     let mut vars: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
     let mut globalKnownVars: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
     let mut eqns: Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>;
-    let mut partitionKind: BackendDAE::BaseClockPartitionKind = BackendDAE::BaseClockPartitionKind::CONTINUOUS_TIME_PARTITION;
-    let mut stateSets: Arc<metamodelica::List<BackendDAE::StateSet>> = metamodelica::nil();
     let mut funcs: Arc<AvlTreePathFunction::Tree> = Arc::new(AvlTreePathFunction::Tree::EMPTY);
     let mut oMax_con: Option<Arc<DAE::Exp>> = None;
     let mut oMin_con: Option<Arc<DAE::Exp>> = None;
@@ -797,7 +792,7 @@ pub fn simplifyConstraints(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result<Arc
                     }
                     if b3.clone() {
                         var_lst = BackendEquation::equationsLstVars(list![eqn_.clone()], vars.clone())?;
-                        var_lst_opt = {
+                        var_lst_opt = ({
         let mut __acc: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
         for mut vv in (var_lst.clone()).into_iter().cloned() {
             if !(BackendVariable::isStateVar(vv.clone())) { continue; }
@@ -805,10 +800,10 @@ pub fn simplifyConstraints(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result<Arc
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
                         b3 = (var_lst_opt.clone().len() as i32) == 1;
                         var_lst = BackendEquation::equationsLstVars(list![eqn_.clone()], globalKnownVars.clone())?;
-                        var_lst_opt = listAppend(var_lst_opt.clone(), {
+                        var_lst_opt = listAppend(var_lst_opt.clone(), ({
         let mut __acc: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
         for mut vv in (var_lst.clone()).into_iter().cloned() {
             if !(BackendVariable::isInput(vv.clone())) { continue; }
@@ -816,7 +811,7 @@ pub fn simplifyConstraints(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result<Arc
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
                         if (var_lst_opt.clone().len() as i32) == 1 {
                             let __pa14 = ::match_deref::match_deref! { match &(var_lst_opt.clone()) {
                                 Deref @ metamodelica::List::Cons { head: __pa14, tail: Deref @ metamodelica::List::Nil } => __pa14.clone(),
@@ -839,7 +834,7 @@ pub fn simplifyConstraints(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result<Arc
                                 (c, _) = unwrap_break_err!(ExpressionSimplify::simplify(c.clone()), '__try17);
                                 var_lst = unwrap_break_err!(BackendEquation::expressionVars(der_e.clone(), globalKnownVars.clone()), '__try17);
                                 if b3.clone() {
-                                    var_lst = {
+                                    var_lst = ({
         let mut __acc: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
         for mut vv in (var_lst.clone()).into_iter().cloned() {
             if !(!(BackendVariable::isParam(vv.clone()))) { continue; }
@@ -847,12 +842,12 @@ pub fn simplifyConstraints(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result<Arc
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
                                 }
                                 var_lst = listAppend(BackendEquation::expressionVars(der_e.clone(), vars.clone())?, var_lst.clone());
                                 var_lst1 = unwrap_break_err!(BackendEquation::expressionVars(c.clone(), globalKnownVars.clone()), '__try17);
                                 if b3.clone() {
-                                    var_lst1 = {
+                                    var_lst1 = ({
         let mut __acc: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
         for mut vv in (var_lst1.clone()).into_iter().cloned() {
             if !(!(BackendVariable::isParam(vv.clone()))) { continue; }
@@ -860,7 +855,7 @@ pub fn simplifyConstraints(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result<Arc
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
                                 }
                                 var_lst1 = listAppend(BackendEquation::expressionVars(c.clone(), vars.clone())?, var_lst1.clone());
                                 var_lst = listAppend(var_lst1.clone(), var_lst.clone());

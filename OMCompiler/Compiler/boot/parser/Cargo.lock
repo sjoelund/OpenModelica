@@ -299,6 +299,54 @@ dependencies = [
 ]
 
 [[package]]
+name = "openmodelica_backend_main"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "arcstr",
+ "const-str",
+ "loop_unwrap",
+ "match_deref",
+ "metamodelica",
+ "openmodelica_ast",
+ "openmodelica_backend",
+ "openmodelica_codegen",
+ "openmodelica_dump_extra",
+ "openmodelica_frontend",
+ "openmodelica_frontend_dump",
+ "openmodelica_frontend_inst",
+ "openmodelica_frontend_types",
+ "openmodelica_nf_frontend",
+ "openmodelica_program_util",
+ "openmodelica_script_util",
+ "openmodelica_susan",
+ "openmodelica_util",
+ "openmodelica_util_datatypes_basic",
+ "tailcall",
+]
+
+[[package]]
+name = "openmodelica_codegen"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "arcstr",
+ "const-str",
+ "loop_unwrap",
+ "match_deref",
+ "metamodelica",
+ "openmodelica_ast",
+ "openmodelica_backend",
+ "openmodelica_frontend",
+ "openmodelica_frontend_dump",
+ "openmodelica_frontend_types",
+ "openmodelica_susan",
+ "openmodelica_util",
+ "openmodelica_util_datatypes_basic",
+ "tailcall",
+]
+
+[[package]]
 name = "openmodelica_dump_extra"
 version = "0.1.0"
 dependencies = [
@@ -402,6 +450,24 @@ dependencies = [
  "openmodelica_frontend_types",
  "openmodelica_util",
  "openmodelica_util_datatypes_basic",
+]
+
+[[package]]
+name = "openmodelica_program_util"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "arcstr",
+ "const-str",
+ "loop_unwrap",
+ "match_deref",
+ "metamodelica",
+ "openmodelica_ast",
+ "openmodelica_frontend",
+ "openmodelica_frontend_dump",
+ "openmodelica_util",
+ "openmodelica_util_datatypes_basic",
+ "tailcall",
 ]
 
 [[package]]

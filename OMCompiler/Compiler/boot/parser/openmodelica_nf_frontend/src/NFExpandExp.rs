@@ -153,7 +153,7 @@ pub fn expandArray(mut arr: metamodelica::Array<Arc<Expression::NFExpression>>) 
         (e, res) = expand(outArray.clone().borrow()[(i.clone()-1) as usize].clone(), false, false)?;
         if !(res.clone()) {
             expanded = false;
-            return Ok((outArray, expanded));
+            return Ok((outArray.clone(), expanded.clone()));
         }
         {let _arr = outArray.clone(); _arr.borrow_mut()[(i.clone()-1) as usize] = e.clone(); _arr};
     }
@@ -170,7 +170,7 @@ pub fn expandList(mut expl: Arc<metamodelica::List<Arc<Expression::NFExpression>
         expanded = res.clone() && expanded.clone();
         if !(res.clone()) && abortOnFailure.clone() {
             outExpl = expl.clone();
-            return Ok((outExpl, expanded));
+            return Ok((outExpl.clone(), expanded.clone()));
         }
         outExpl = cons(exp.clone(), outExpl.clone());
     }
@@ -281,7 +281,6 @@ pub fn expandTypename(mut ty: Arc<Type::NFType>) -> Result<Arc<Expression::NFExp
 pub fn expandRange(mut exp: Arc<Expression::NFExpression>) -> Result<(Arc<Expression::NFExpression>, bool)> {
     let mut outExp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut expanded: bool = false;
-    let mut range_iter: Arc<RangeIterator::NFRangeIterator>;
     let mut ty: Arc<Type::NFType> = Arc::new(Type::ANY);
     let __pa0 = ::match_deref::match_deref! { match &(exp.clone()) {
         Deref @ Expression::RANGE { ty: __pa0, .. } => __pa0.clone(),
@@ -421,7 +420,6 @@ pub fn expandBuiltinGeneric(mut call: Arc<Call::NFCall>) -> Result<(Arc<Expressi
     let mut pur: Purity = Purity::PURE;
     let mut attr: Arc<NFCallAttributes::NFCallAttributes> = Arc::new(<NFCallAttributes::NFCallAttributes as ::std::default::Default>::default());
     let mut arg: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-    let mut args: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
     let (__pa0, __pa1, __pa2, __pa3, __pa4, __pa5) = ::match_deref::match_deref! { match &(call.clone()) {
         Deref @ Call::TYPED_CALL { r#fn: __pa0, ty: __pa1, var: __pa2, purity: __pa3, arguments: Deref @ metamodelica::List::Cons { head: __pa4, tail: Deref @ metamodelica::List::Nil }, attributes: __pa5 } => (__pa0.clone(), __pa1.clone(), __pa2.clone(), __pa3.clone(), __pa4.clone(), __pa5.clone()),
         _ => bail!("pattern mismatch"),
@@ -534,14 +532,14 @@ pub fn expandSize(mut exp: Arc<Expression::NFExpression>) -> (Arc<Expression::NF
             let mut expl: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
             ty = Expression::typeOf(e.clone());
             dims = Type::dimensionCount(ty.clone());
-            expl = {
+            expl = ({
         let mut __acc: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
         for mut i in (1..=dims.clone()).into_iter() {
             let __x = Arc::new(Expression::NFExpression::SIZE { exp: e.clone(), dimIndex: Some(Arc::new(Expression::NFExpression::INTEGER { value: i.clone() })) });
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
             Expression::makeArray(Arc::new(Type::NFType::ARRAY { elementType: ty.clone(), dimensions: list![Dimension::fromInteger(dims.clone(), Variability::CONSTANT.clone())] }), metamodelica::arrayFromVec(expl.clone().into_iter().cloned().collect()), false)
         },
         _ => {
@@ -1063,21 +1061,21 @@ pub fn expandGeneric(mut exp: Arc<Expression::NFExpression>, mut resize: bool) -
         expanded = Type::hasKnownSize(ty.clone());
         if expanded.clone() {
             dims = Type::arrayDims(ty.clone());
-            subs = {
+            subs = ({
         let mut __acc: Arc<metamodelica::List<Arc<metamodelica::List<Arc<Subscript::NFSubscript>>>>> = metamodelica::nil();
         for mut d in (dims.clone()).into_iter().cloned() {
-            let __x = {
+            let __x = ({
         let mut __acc: Arc<metamodelica::List<Arc<Subscript::NFSubscript>>> = metamodelica::nil();
         for mut e in (RangeIterator::toList(RangeIterator::fromDim(d.clone(), resize.clone())?)).into_iter().cloned() {
             let __x = Arc::new(Subscript::NFSubscript::INDEX { index: e.clone() });
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
             outExp = expandGeneric2(subs.clone(), exp.clone(), ty.clone(), metamodelica::nil())?;
         } else {
             outExp = exp.clone();
@@ -1127,14 +1125,14 @@ pub fn expandCallArgs(mut exp: Arc<Expression::NFExpression>) -> Result<Arc<Expr
     let () = (::match_deref::match_deref! { match &(exp.clone()) {
         Deref @ Expression::CALL { call: call @ Deref @ Call::TYPED_CALL { .. } } => {
             let mut call = (*call).clone();
-            assign_variant_field!(call => Call::NFCall::TYPED_CALL; arguments = {
+            assign_variant_field!(call => Call::NFCall::TYPED_CALL; arguments = ({
         let mut __acc: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
         for mut arg in (var_field!((*call).arguments, Call::NFCall::TYPED_CALL).clone()).into_iter().cloned() {
             let __x = (expand(arg.clone(), false, false)?).0;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             assign_variant_field!(exp => Expression::NFExpression::CALL; call = call.clone());
             ()
         },

@@ -294,7 +294,7 @@ pub fn scalarizePrefix(mut conn: Arc<NFConnector>) -> Result<Arc<metamodelica::L
     prefix = ComponentRef::rest(name.clone())?;
     if ComponentRef::isEmpty(prefix.clone()) {
         connl = list![conn.clone()];
-        return Ok(connl);
+        return Ok(connl.clone());
     }
     prefixes = ComponentRef::scalarizeAll(prefix.clone(), false)?;
     ty = ComponentRef::getSubscriptedType(ComponentRef::first(name.clone()), false)?;

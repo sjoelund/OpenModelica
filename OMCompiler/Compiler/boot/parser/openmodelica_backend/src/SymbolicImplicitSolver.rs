@@ -75,7 +75,6 @@ fn symSolverWork(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result<BackendDAE::I
     let mut shared: Arc<BackendDAE::Shared> = Arc::new(<BackendDAE::Shared as ::std::default::Default>::default());
     let mut tmpv: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
     let mut cref: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
-    let mut sharedIn: Arc<BackendDAE::Shared> = Arc::new(<BackendDAE::Shared as ::std::default::Default>::default());
     let mut localInline: Arc<metamodelica::List<Arc<BackendDAE::EqSystem>>> = metamodelica::nil();
     let mut knownVariables: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
     let mut saveKnGlobalVars: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
@@ -108,7 +107,7 @@ fn symSolverWork(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result<BackendDAE::I
         BackendDump::bltdump((literal!("Generated inline system:")).clone(), inlineBDAE.clone())?;
     }
     inlineBDAE = BackendDAEUtil::getSolvedSystemforJacobians(inlineBDAE.clone(), list![(literal!("removeEqualRHS")).clone(), (literal!("removeSimpleEquations")).clone(), (literal!("evalFunc")).clone()], None, None, list![(literal!("inlineArrayEqn")).clone(), (literal!("constantLinearSystem")).clone(), (literal!("solveSimpleEquations")).clone(), (literal!("tearingSystem")).clone(), (literal!("calculateStrongComponentJacobians")).clone(), (literal!("removeConstants")).clone(), (literal!("simplifyTimeIndepFuncCalls")).clone()])?;
-    let _ = FlagsUtil::set(Flags::EXEC_STAT.clone(), execbool.clone())?;
+    FlagsUtil::set(Flags::EXEC_STAT.clone(), execbool.clone())?;
     if Flags::isSet(Flags::DUMP_INLINE_SOLVER.clone())? {
         BackendDump::bltdump((literal!("Final inline systems:")).clone(), inlineBDAE.clone())?;
     }
@@ -128,7 +127,6 @@ fn symSolverWork(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result<BackendDAE::I
 fn symSolverUpdateSyst(mut iSyst: Arc<BackendDAE::EqSystem>, mut inKnVars: BackendDAE::Variables) -> Result<(Arc<BackendDAE::EqSystem>, BackendDAE::Variables)> {
     let mut oSyst: Arc<BackendDAE::EqSystem> = Arc::new(<BackendDAE::EqSystem as ::std::default::Default>::default());
     let mut oKnVars: BackendDAE::Variables = inKnVars.clone();
-    let mut equOptArr: metamodelica::Array<Option<Arc<BackendDAE::Equation>>>;
     let mut eqn: Arc<BackendDAE::Equation> = Arc::new(BackendDAE::Equation::DUMMY_EQUATION);
     let mut vars: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
     let mut eqns: Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>;

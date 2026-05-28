@@ -102,7 +102,7 @@ pub type BACKEND_INTERFACE_FUNCTIONS = BackendInterfaceFunctions;
 
 
 pub fn initializeBackendInterface(mut inFunctions: BackendInterfaceFunctions) -> () {
-    crate::Globals::backendCevalInterface.with(|__root| *__root.borrow_mut() = inFunctions.clone());
+    { let __v = inFunctions.clone(); crate::Globals::backendCevalInterface.with(|__root| *__root.borrow_mut() = __v) };
     ()
 }
 

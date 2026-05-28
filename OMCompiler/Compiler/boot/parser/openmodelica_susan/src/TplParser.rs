@@ -334,7 +334,7 @@ pub mod CacheTree {
     pub fn forEach(mut tree: Arc<Tree>, mut func: Arc<dyn ::std::ops::Fn(ArcStr, Arc<metamodelica::List<TplAbsyn::ASTDef>>) -> Result<()> + 'static>) -> Result<()> {
         pub type EachFunc = std::sync::Arc<dyn ::std::ops::Fn(Key, Value) -> Result<()> + 'static>;
 
-        let _ = (::match_deref::match_deref! { match &(tree.clone()) {
+        let () = (::match_deref::match_deref! { match &(tree.clone()) {
         Deref @ Tree::NODE { .. } => {
             forEach(var_field!((*tree).left, Tree::NODE).clone(), func.clone())?;
             func((var_field!((*tree).key, Tree::NODE).clone()).clone(), var_field!((*tree).value, Tree::NODE).clone())?;
@@ -412,7 +412,7 @@ pub mod CacheTree {
         Deref @ Tree::NODE { .. } => var_field!((*inTree).key, Tree::NODE).clone(),
         Deref @ Tree::LEAF { .. } => var_field!((*inTree).key, Tree::LEAF).clone(),
         Deref @ Tree::EMPTY { .. } => {
-            return Ok(comp);
+            return Ok(comp.clone());
             bail!("fail")
         },
         _ => bail!("match: no arm matched"),
@@ -623,11 +623,8 @@ pub mod CacheTree {
 
     fn printTreeStr2(mut inTree: Arc<Tree>, mut isLeft: bool, mut inIndent: ArcStr) -> Result<ArcStr> {
         let mut outString: ArcStr = arcstr::literal!("");
-        let mut val_node: Option<ArcStr> = None;
         let mut left: Option<Arc<Tree>> = None;
         let mut right: Option<Arc<Tree>> = None;
-        let mut left_str: ArcStr = arcstr::literal!("");
-        let mut right_str: ArcStr = arcstr::literal!("");
         outString = ((::match_deref::match_deref! { match &(inTree.clone()) {
         Deref @ Tree::NODE { .. } => { let mut __mm_s = String::new(); __mm_s.push_str(&*printTreeStr2(var_field!((*inTree).left, Tree::NODE).clone(), true, ({ let mut __mm_s = String::new(); __mm_s.push_str(&*inIndent.clone()); __mm_s.push_str(&*if (isLeft.clone()) {literal!("     ")} else {literal!(" │   ")}); ArcStr::from(__mm_s) }).clone())?); __mm_s.push_str(&*inIndent.clone()); __mm_s.push_str(&*if (isLeft.clone()) {literal!(" ┌")} else {literal!(" └")}); __mm_s.push_str(&*literal!("────")); __mm_s.push_str(&*printNodeStr(inTree.clone())?); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*printTreeStr2(var_field!((*inTree).right, Tree::NODE).clone(), false, ({ let mut __mm_s = String::new(); __mm_s.push_str(&*inIndent.clone()); __mm_s.push_str(&*if (isLeft.clone()) {literal!(" │   ")} else {literal!("     ")}); ArcStr::from(__mm_s) }).clone())?); ArcStr::from(__mm_s) },
         Deref @ Tree::LEAF { .. } => { let mut __mm_s = String::new(); __mm_s.push_str(&*inIndent.clone()); __mm_s.push_str(&*if (isLeft.clone()) {literal!(" ┌")} else {literal!(" └")}); __mm_s.push_str(&*literal!("────")); __mm_s.push_str(&*printNodeStr(inTree.clone())?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) },
@@ -814,8 +811,8 @@ pub fn captureStartPosition(mut inChars: Arc<metamodelica::List<ArcStr>>, mut in
 //TODO: add correct TIME_STAMP
 pub fn tplSourceInfo(mut inStartLineColumnNumber: LineColumnNumber, mut inEndChars: Arc<metamodelica::List<ArcStr>>, mut inEndLineInfo: LineInfo) -> Result<SourceInfo> {
     let mut outSourceInfo: SourceInfo = <SourceInfo as ::std::default::Default>::default();
-    outSourceInfo = (::match_deref::match_deref! { match &((inStartLineColumnNumber.clone(), inEndChars.clone(), inEndLineInfo.clone())) {
-        ((startL, startC), _, endlinfo @ LineInfo { parseInfo: ParseInfo { fileName, .. }, .. }) => {
+    outSourceInfo = (match (inStartLineColumnNumber.clone(), inEndLineInfo.clone()) {
+        ((mut startL, mut startC), ref endlinfo @ LineInfo { parseInfo: ParseInfo { fileName: ref fileName, .. }, .. }) => {
             let mut endL: i32 = 0;
             let mut endC: i32 = 0;
             (endL, endC) = getPosition(inEndChars.clone(), endlinfo.clone())?;
@@ -823,14 +820,12 @@ pub fn tplSourceInfo(mut inStartLineColumnNumber: LineColumnNumber, mut inEndCha
             outSourceInfo.clone()
         },
         _ => bail!("match: no arm matched"),
-    } });
+    });
     Ok(outSourceInfo)
 }
 
 pub fn startPositionFromExp(mut inExpression: (Arc<TplAbsyn::ExpressionBase>, SourceInfo)) -> Result<LineColumnNumber> {
     let mut outLineColumnNumber: LineColumnNumber;
-    let mut line: i32 = 0;
-    let mut col: i32 = 0;
     outLineColumnNumber = (::match_deref::match_deref! { match &(inExpression.clone()) {
         (_, SourceInfo { columnNumberStart: startC, lineNumberStart: startL, .. }) => {
             (startL.clone(), startC.clone())
@@ -847,7 +842,7 @@ pub fn charsTillEndOfLine(mut inChars: Arc<metamodelica::List<ArcStr>>, mut outC
         let mut c = c.clone();
         i = stringCharInt((c.clone()).clone())?;
         if i.clone() == 10 || i.clone() == 13 {
-            return Ok(outCharsTillEnd);
+            return Ok(outCharsTillEnd.clone());
         }
         outCharsTillEnd = outCharsTillEnd.clone() + if (i.clone() == 9) {TabSpaces.clone()} else {1};
     }
@@ -863,7 +858,7 @@ pub fn makeStartLineInfo(mut inChars: Arc<metamodelica::List<ArcStr>>, mut inFil
 }
 
 pub fn printAndFailIfError(mut inLineInfo: LineInfo) -> Result<()> {
-    let _ = (::match_deref::match_deref! { match &(inLineInfo.clone()) {
+    let () = (::match_deref::match_deref! { match &(inLineInfo.clone()) {
         LineInfo { parseInfo: ParseInfo { errors: Deref @ metamodelica::List::Nil, .. }, .. } => {
             println!("{}", (literal!("\nSusan parsing successful.\n")).clone());
             ()
@@ -1325,7 +1320,7 @@ fn typeviewDefsFromInterfaceFile(mut interfaceName: Arc<TplAbsyn::PathIdent>, mu
             astDefs = listAppend(CacheTree::get(cachedDefs.clone(), (file.clone()).clone())?, astDefs.clone());
             linfo = LineInfo { parseInfo: ParseInfo { fileName: (literal!("cachedResult")).clone(), errors: metamodelica::nil(), wasFatalError: false }, lineNumber: 0, lineLength: 0, startOfLineChars: metamodelica::nil() };
             errOpt = None;
-            return Ok((astDefs, linfo, errOpt, cachedDefs));
+            return Ok((astDefs.clone(), linfo.clone(), errOpt.clone(), cachedDefs.clone()));
         }
         (chars, linfo, errOpt) = unwrap_break_err!(openFile((file.clone()).clone()), '__try0);
         (chars, linfo) = unwrap_break_err!(interleave(chars.clone(), linfo.clone()), '__try0);
@@ -1378,7 +1373,7 @@ fn typeviewDefsFromTemplateFile(mut packageName: Arc<TplAbsyn::PathIdent>, mut i
             astDefs = cons(TplAbsyn::ASTDef { importPackage: packageName.clone(), isDefault: isUnqualifiedImport.clone(), types: astTypes.clone() }, astDefs.clone());
             linfo = LineInfo { parseInfo: ParseInfo { fileName: (literal!("cachedResult")).clone(), errors: metamodelica::nil(), wasFatalError: false }, lineNumber: 0, lineLength: 0, startOfLineChars: metamodelica::nil() };
             errOpt = None;
-            return Ok((astDefs, linfo, errOpt, cachedDefs));
+            return Ok((astDefs.clone(), linfo.clone(), errOpt.clone(), cachedDefs.clone()));
         }
         (chars, linfo, errOpt) = unwrap_break_err!(openFile((file.clone()).clone()), '__try0);
         (chars, linfo, tplPackage, cachedDefs) = unwrap_break_err!(templPackage(chars.clone(), linfo.clone(), cachedDefs.clone()), '__try0);
@@ -1548,7 +1543,7 @@ pub fn interleave(mut inChars: Arc<metamodelica::List<ArcStr>>, mut inLineInfo: 
                 (chars @ Deref @ metamodelica::List::Cons { head: Deref @ "/", tail: Deref @ metamodelica::List::Cons { head: Deref @ "*", tail: charsRest } }, linfo) => {
                     let mut linfo = (*linfo).clone();
                     if '__try0: {
-                        (_, _) = unwrap_break_err!(comment(charsRest.clone(), linfo.clone()), '__try0);
+                        unwrap_break_err!(comment(charsRest.clone(), linfo.clone()), '__try0);
                         Ok::<(), anyhow::Error>(())
                     }.is_ok() { bail!("failure(): body succeeded") }
                     linfo = parseError(chars.clone(), linfo.clone(), (literal!("Unmatched /* */ comment - reached end of file.")).clone(), true)?;
@@ -1679,7 +1674,7 @@ pub fn comment(mut inChars: Arc<metamodelica::List<ArcStr>>, mut inLineInfo: Lin
                     let mut chars = (*chars).clone();
                     let mut linfo = (*linfo).clone();
                     if '__try0: {
-                        (_, _) = unwrap_break_err!(newLine(chars.clone(), linfo.clone()), '__try0);
+                        unwrap_break_err!(newLine(chars.clone(), linfo.clone()), '__try0);
                         Ok::<(), anyhow::Error>(())
                     }.is_ok() { bail!("failure(): body succeeded") }
                     (chars, linfo) = comment(charsRest.clone(), linfo.clone())?;
@@ -1701,7 +1696,7 @@ afterKeyword:
     _  => ()
 */
 pub fn afterKeyword(mut inChars: Arc<metamodelica::List<ArcStr>>) -> Result<()> {
-    let _ = (::match_deref::match_deref! { match &(inChars.clone()) {
+    let () = (::match_deref::match_deref! { match &(inChars.clone()) {
         Deref @ metamodelica::List::Cons { head: c, tail: _ } => {
             let mut i: i32 = 0;
             i = stringCharInt((c.clone()).clone())?;
@@ -1858,7 +1853,7 @@ pub fn identifierNoOpt(mut inChars: Arc<metamodelica::List<ArcStr>>, mut inLineI
                 (chars, linfo) => {
                     let mut linfo = (*linfo).clone();
                     if '__try0: {
-                        (_, _) = unwrap_break_err!(identifier(chars.clone()), '__try0);
+                        unwrap_break_err!(identifier(chars.clone()), '__try0);
                         Ok::<(), anyhow::Error>(())
                     }.is_ok() { bail!("failure(): body succeeded") }
                     linfo = parseError(chars.clone(), linfo.clone(), (literal!("Expected an identifier at the position.")).clone(), true)?;
@@ -2486,7 +2481,7 @@ pub fn stringCommentRest(mut inChars: Arc<metamodelica::List<ArcStr>>, mut inLin
                     let mut chars = (*chars).clone();
                     let mut linfo = (*linfo).clone();
                     if '__try0: {
-                        (_, _) = unwrap_break_err!(newLine(startChars.clone(), linfo.clone()), '__try0);
+                        unwrap_break_err!(newLine(startChars.clone(), linfo.clone()), '__try0);
                         Ok::<(), anyhow::Error>(())
                     }.is_ok() { bail!("failure(): body succeeded") }
                     (chars, linfo, optErr) = stringCommentRest(chars.clone(), linfo.clone())?;
@@ -2564,10 +2559,10 @@ pub fn interfacePackage(mut inChars: Arc<metamodelica::List<ArcStr>>, mut inLine
     let mut outPid: Arc<TplAbsyn::PathIdent>;
     let mut outAccASTDefs: Arc<metamodelica::List<TplAbsyn::ASTDef>> = metamodelica::nil();
     (outChars, outLineInfo, outPid, outAccASTDefs) = 'mc: {
-        let __mc_input = (inChars.clone(), inLineInfo.clone(), inAccASTDefs.clone());
+        let __mc_input = (inChars.clone(), inLineInfo.clone());
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (chars, linfo, _) => {
+                (chars, linfo) => {
                     let mut pid: Arc<TplAbsyn::PathIdent>;
                     let mut astDefs: Arc<metamodelica::List<TplAbsyn::ASTDef>> = metamodelica::nil();
                     let mut chars = (*chars).clone();
@@ -3909,11 +3904,11 @@ pub fn expression(mut inChars: Arc<metamodelica::List<ArcStr>>, mut inLineInfo: 
 
 pub fn makeEscapedExp(mut inEndChars: Arc<metamodelica::List<ArcStr>>, mut inEndLineInfo: LineInfo, mut inExpression: (Arc<TplAbsyn::ExpressionBase>, SourceInfo), mut inOptions: Arc<metamodelica::List<(ArcStr, Option<(Arc<TplAbsyn::ExpressionBase>, SourceInfo)>)>>) -> Result<(Arc<TplAbsyn::ExpressionBase>, SourceInfo)> {
     let mut outExpression: (Arc<TplAbsyn::ExpressionBase>, SourceInfo);
-    outExpression = (::match_deref::match_deref! { match &((inEndChars.clone(), inEndLineInfo.clone(), inExpression.clone(), inOptions.clone())) {
-        (_, _, exp, Deref @ metamodelica::List::Nil) => {
+    outExpression = (::match_deref::match_deref! { match &((inExpression.clone(), inOptions.clone())) {
+        (exp, Deref @ metamodelica::List::Nil) => {
             exp.clone()
         },
-        (_, _, exp, opts @ Deref @ metamodelica::List::Cons { head: _, tail: _ }) => {
+        (exp, opts @ Deref @ metamodelica::List::Cons { head: _, tail: _ }) => {
             let mut sinfo: SourceInfo = <SourceInfo as ::std::default::Default>::default();
             sinfo = tplSourceInfo(startPositionFromExp(exp.clone())?, inEndChars.clone(), inEndLineInfo.clone())?;
             (Arc::new(TplAbsyn::ExpressionBase::ESCAPED { exp: exp.clone(), options: opts.clone() }), sinfo.clone())
@@ -5194,7 +5189,7 @@ pub fn doubleQuoteConst(mut inChars: Arc<metamodelica::List<ArcStr>>, mut inLine
                     let mut chars = (*chars).clone();
                     let mut linfo = (*linfo).clone();
                     if '__try0: {
-                        (_, _) = unwrap_break_err!(newLine(chars.clone(), linfo.clone()), '__try0);
+                        unwrap_break_err!(newLine(chars.clone(), linfo.clone()), '__try0);
                         Ok::<(), anyhow::Error>(())
                     }.is_ok() { bail!("failure(): body succeeded") }
                     (chars, linfo, stRevLst, optError) = doubleQuoteConst(restChars.clone(), linfo.clone(), cons((c.clone()).clone(), accChars.clone()), accStrList.clone())?;
@@ -5322,7 +5317,7 @@ pub fn verbatimConst(mut inChars: Arc<metamodelica::List<ArcStr>>, mut inLineInf
                     let mut chars = (*chars).clone();
                     let mut linfo = (*linfo).clone();
                     if '__try0: {
-                        (_, _) = unwrap_break_err!(newLine(chars.clone(), linfo.clone()), '__try0);
+                        unwrap_break_err!(newLine(chars.clone(), linfo.clone()), '__try0);
                         Ok::<(), anyhow::Error>(())
                     }.is_ok() { bail!("failure(): body succeeded") }
                     (chars, linfo, stRevLst, optError) = verbatimConst(restChars.clone(), linfo.clone(), (rquot.clone()).clone(), cons((c.clone()).clone(), accChars.clone()), accStrList.clone())?;
@@ -5589,10 +5584,10 @@ pub fn exponent(mut inChars: Arc<metamodelica::List<ArcStr>>, mut inLitType: Arc
     let mut outExponent: ArcStr = arcstr::literal!("");
     let mut outLitType: Arc<TplAbsyn::TypeSignature> = Arc::new(TplAbsyn::TypeSignature::BOOLEAN_TYPE);
     (outChars, outExponent, outLitType) = 'mc: {
-        let __mc_input = (inChars.clone(), inLitType.clone());
+        let __mc_input = inChars.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ metamodelica::List::Cons { head: Deref @ "e", tail: chars }, _) => {
+                Deref @ metamodelica::List::Cons { head: Deref @ "e", tail: chars } => {
                     let mut ex: ArcStr = arcstr::literal!("");
                     let mut pm: ArcStr = arcstr::literal!("");
                     let mut ds: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
@@ -5611,7 +5606,7 @@ pub fn exponent(mut inChars: Arc<metamodelica::List<ArcStr>>, mut inLitType: Arc
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ metamodelica::List::Cons { head: Deref @ "E", tail: chars }, _) => {
+                Deref @ metamodelica::List::Cons { head: Deref @ "E", tail: chars } => {
                     let mut ex: ArcStr = arcstr::literal!("");
                     let mut pm: ArcStr = arcstr::literal!("");
                     let mut ds: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
@@ -5695,7 +5690,7 @@ pub fn templateExp(mut inChars: Arc<metamodelica::List<ArcStr>>, mut inLineInfo:
                     let mut sinfo: SourceInfo = <SourceInfo as ::std::default::Default>::default();
                     (_, baseInd) = lineIndent(solChars.clone(), 0);
                     if '__try0: {
-                        (_, _) = unwrap_break_err!(takeSpaceAndNewLine(startChars.clone(), startLInfo.clone()), '__try0);
+                        unwrap_break_err!(takeSpaceAndNewLine(startChars.clone(), startLInfo.clone()), '__try0);
                         Ok::<(), anyhow::Error>(())
                     }.is_ok() { bail!("failure(): body succeeded") }
                     (chars, lineInd) = lineIndent(startChars.clone(), 0);
@@ -5844,10 +5839,8 @@ pub fn restOfTemplLine(mut inChars: Arc<metamodelica::List<ArcStr>>, mut inLineI
     let mut ind_stack: Arc<metamodelica::List<(i32, Arc<metamodelica::List<(Arc<TplAbsyn::ExpressionBase>, SourceInfo)>>)>> = inIndentStack.clone();
     let mut char: ArcStr = arcstr::literal!("");
     let mut next_char: ArcStr = arcstr::literal!("");
-    let mut remaining_chars: bool = true;
     let mut exp: (Arc<TplAbsyn::ExpressionBase>, SourceInfo);
     let mut chars: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
-    let mut sol_chars: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
     let mut acc_chars: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
     let mut err_opt: Option<ArcStr> = None;
     let mut linfo: LineInfo = <LineInfo as ::std::default::Default>::default();
@@ -5862,7 +5855,7 @@ pub fn restOfTemplLine(mut inChars: Arc<metamodelica::List<ArcStr>>, mut inLineI
             if inIsSingleQuote.clone() && char.clone() == literal!("'") {
                 expl = unwrap_break_err!(onTemplEnd(false, expl.clone(), ind_stack.clone(), aindent.clone(), lindent.clone(), acc_chars.clone()), '__try0);
                 outExpressionBase = unwrap_break_err!(makeTemplateFromExpList(expl.clone(), (literal!("'")).clone(), (literal!("'")).clone()), '__try0);
-                return Ok((outChars, outLineInfo, outExpressionBase));
+                return Ok((outChars.clone(), outLineInfo.clone(), outExpressionBase.clone()));
             }
             let (__pa3, __pa4) = ::match_deref::match_deref! { match &(outChars.clone()) {
                 Deref @ metamodelica::List::Cons { head: __pa3, tail: __pa4 } => (__pa3.clone(), __pa4.clone()),
@@ -5874,7 +5867,7 @@ pub fn restOfTemplLine(mut inChars: Arc<metamodelica::List<ArcStr>>, mut inLineI
                 expl = unwrap_break_err!(onTemplEnd(true, expl.clone(), ind_stack.clone(), aindent.clone(), lindent.clone(), acc_chars.clone()), '__try0);
                 outExpressionBase = unwrap_break_err!(makeTemplateFromExpList(expl.clone(), (literal!("<<")).clone(), (literal!(">>")).clone()), '__try0);
                 outChars = chars.clone();
-                return Ok((outChars, outLineInfo, outExpressionBase));
+                return Ok((outChars.clone(), outLineInfo.clone(), outExpressionBase.clone()));
             } else if char.clone() == literal!("\r") || char.clone() == literal!("\n") {
                 (outChars, linfo) = unwrap_break_err!(newLine(cons((char.clone()).clone(), outChars.clone()), outLineInfo.clone()), '__try0);
                 (expl, ind_stack, aindent, err_opt) = unwrap_break_err!(onNewLine(expl.clone(), ind_stack.clone(), aindent.clone(), lindent.clone(), acc_chars.clone()), '__try0);
@@ -5918,10 +5911,10 @@ pub fn dropNewLineAfterEmptyExp(mut inChars: Arc<metamodelica::List<ArcStr>>, mu
     let mut outLineInfo: LineInfo = <LineInfo as ::std::default::Default>::default();
     let mut outLineIndent: i32 = 0;
     (outChars, outLineInfo, outLineIndent) = 'mc: {
-        let __mc_input = (inChars.clone(), inLineInfo.clone(), inLineIndent.clone(), inAccStringChars.clone());
+        let __mc_input = (inChars.clone(), inLineInfo.clone(), inAccStringChars.clone());
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (chars, linfo, _, Deref @ metamodelica::List::Nil) => {
+                (chars, linfo, Deref @ metamodelica::List::Nil) => {
                     let mut lineInd: i32 = 0;
                     let mut chars = (*chars).clone();
                     let mut linfo = (*linfo).clone();

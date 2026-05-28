@@ -108,14 +108,14 @@ pub fn obfuscateProgram(mut program: Arc<metamodelica::List<Arc<SCode::Element>>
     mapping = UnorderedMap::new((std::sync::Arc::new(fnptr!(stringHashDjb2, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr) -> Result<i32> + 'static>), (std::sync::Arc::new(fnptr!(stringEqual, ArcStr, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>), 1);
     builtins = makeBuiltins()?;
     env = Env { mapping: mapping.clone(), builtins: builtins.clone() };
-    program = {
+    program = ({
         let mut __acc: Arc<metamodelica::List<Arc<SCode::Element>>> = metamodelica::nil();
         for mut e in (program.clone()).into_iter().cloned() {
             let __x = obfuscateElement(e.clone(), env.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     classPath = obfuscatePath(classPath.clone(), env.clone(), ElementType::TYPE.clone())?;
     classComment = obfuscateComment(classComment.clone(), env.clone());
     mapStr = (UnorderedMap::toJSON(env.mapping.clone(), std::sync::Arc::new(fnptr!(Util::id, _)), std::sync::Arc::new(fnptr!(Util::id, _)))?).clone();
@@ -227,14 +227,14 @@ pub fn obfuscateImport(mut imp: Absyn::Import, mut env: Env) -> Result<Absyn::Im
         },
         Absyn::Import::GROUP_IMPORT { .. } => {
             let __owned_variant_prefix_0 = obfuscatePath(var_field!(imp.prefix, Absyn::Import::GROUP_IMPORT).clone(), env.clone(), ElementType::TYPE.clone())?;
-            let __owned_variant_groups_1 = {
+            let __owned_variant_groups_1 = ({
         let mut __acc: Arc<metamodelica::List<Absyn::GroupImport>> = metamodelica::nil();
         for mut g in (var_field!(imp.groups, Absyn::Import::GROUP_IMPORT).clone()).into_iter().cloned() {
             let __x = obfuscateGroupImport(g.clone(), env.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
             if let Absyn::Import::GROUP_IMPORT { prefix, groups, .. } = &mut imp {
                 *prefix = __owned_variant_prefix_0;
                 *groups = __owned_variant_groups_1;
@@ -275,46 +275,46 @@ pub fn obfuscateClassDef(mut cdef: Arc<SCode::ClassDef>, mut env: Env) -> Result
     let () = (::match_deref::match_deref! { match &(cdef.clone()) {
         Deref @ SCode::ClassDef::PARTS { .. } => {
             assign_variant_field!(cdef => SCode::ClassDef::PARTS;
-                elementLst = {
+                elementLst = ({
         let mut __acc: Arc<metamodelica::List<Arc<SCode::Element>>> = metamodelica::nil();
         for mut e in (var_field!((*cdef).elementLst, SCode::ClassDef::PARTS).clone()).into_iter().cloned() {
             let __x = obfuscateElement(e.clone(), env.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    },
-                normalEquationLst = {
+    }),
+                normalEquationLst = ({
         let mut __acc: Arc<metamodelica::List<Arc<SCode::Equation>>> = metamodelica::nil();
         for mut e in (var_field!((*cdef).normalEquationLst, SCode::ClassDef::PARTS).clone()).into_iter().cloned() {
             let __x = obfuscateEquation(e.clone(), env.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    },
-                initialEquationLst = {
+    }),
+                initialEquationLst = ({
         let mut __acc: Arc<metamodelica::List<Arc<SCode::Equation>>> = metamodelica::nil();
         for mut e in (var_field!((*cdef).initialEquationLst, SCode::ClassDef::PARTS).clone()).into_iter().cloned() {
             let __x = obfuscateEquation(e.clone(), env.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    },
-                normalAlgorithmLst = {
+    }),
+                normalAlgorithmLst = ({
         let mut __acc: Arc<metamodelica::List<Arc<SCode::AlgorithmSection>>> = metamodelica::nil();
         for mut a in (var_field!((*cdef).normalAlgorithmLst, SCode::ClassDef::PARTS).clone()).into_iter().cloned() {
             let __x = obfuscateAlgorithm(a.clone(), env.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    },
-                initialAlgorithmLst = {
+    }),
+                initialAlgorithmLst = ({
         let mut __acc: Arc<metamodelica::List<Arc<SCode::AlgorithmSection>>> = metamodelica::nil();
         for mut a in (var_field!((*cdef).initialAlgorithmLst, SCode::ClassDef::PARTS).clone()).into_iter().cloned() {
             let __x = obfuscateAlgorithm(a.clone(), env.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    },
+    }),
                 externalDecl = Util::applyOption(var_field!((*cdef).externalDecl, SCode::ClassDef::PARTS).clone(), Arc::new({ let __pe_b1 = env.clone(); move |__pe_a0| obfuscateExternalDecl(__pe_a0, __pe_b1.clone()) }))
             );
             ()
@@ -335,38 +335,38 @@ pub fn obfuscateClassDef(mut cdef: Arc<SCode::ClassDef>, mut env: Env) -> Result
             ()
         },
         Deref @ SCode::ClassDef::ENUMERATION { .. } => {
-            assign_variant_field!(cdef => SCode::ClassDef::ENUMERATION; enumLst = {
+            assign_variant_field!(cdef => SCode::ClassDef::ENUMERATION; enumLst = ({
         let mut __acc: Arc<metamodelica::List<Arc<SCode::Enum>>> = metamodelica::nil();
         for mut e in (var_field!((*cdef).enumLst, SCode::ClassDef::ENUMERATION).clone()).into_iter().cloned() {
             let __x = obfuscateEnum(e.clone(), env.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             ()
         },
         Deref @ SCode::ClassDef::OVERLOAD { .. } => {
-            assign_variant_field!(cdef => SCode::ClassDef::OVERLOAD; pathLst = {
+            assign_variant_field!(cdef => SCode::ClassDef::OVERLOAD; pathLst = ({
         let mut __acc: Arc<metamodelica::List<Arc<Absyn::Path>>> = metamodelica::nil();
         for mut p in (var_field!((*cdef).pathLst, SCode::ClassDef::OVERLOAD).clone()).into_iter().cloned() {
             let __x = obfuscatePath(p.clone(), env.clone(), ElementType::TYPE.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             ()
         },
         Deref @ SCode::ClassDef::PDER { .. } => {
             assign_variant_field!(cdef => SCode::ClassDef::PDER;
                 functionPath = obfuscatePath(var_field!((*cdef).functionPath, SCode::ClassDef::PDER).clone(), env.clone(), ElementType::FUNCTION.clone())?,
-                derivedVariables = {
+                derivedVariables = ({
         let mut __acc: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
         for mut v in (var_field!((*cdef).derivedVariables, SCode::ClassDef::PDER).clone()).into_iter().cloned() {
             let __x = (obfuscateIdentifier((v.clone()).clone(), env.clone(), ElementType::OTHER.clone())?).0;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }
+    })
             );
             ()
         },
@@ -388,14 +388,14 @@ pub fn obfuscateTypeSpec(mut ty: Arc<Absyn::TypeSpec>, mut env: Env) -> Result<A
         Deref @ Absyn::TypeSpec::TCOMPLEX { .. } => {
             assign_variant_field!(ty => Absyn::TypeSpec::TCOMPLEX;
                 path = obfuscatePath(var_field!((*ty).path, Absyn::TypeSpec::TCOMPLEX).clone(), env.clone(), ElementType::TYPE.clone())?,
-                typeSpecs = {
+                typeSpecs = ({
         let mut __acc: Arc<metamodelica::List<Arc<Absyn::TypeSpec>>> = metamodelica::nil();
         for mut t in (var_field!((*ty).typeSpecs, Absyn::TypeSpec::TCOMPLEX).clone()).into_iter().cloned() {
             let __x = obfuscateTypeSpec(t.clone(), env.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    },
+    }),
                 arrayDim = obfuscateArrayDimsOpt(var_field!((*ty).arrayDim, Absyn::TypeSpec::TCOMPLEX).clone(), env.clone())
             );
             ()
@@ -451,14 +451,14 @@ pub fn obfuscateMod(mut r#mod: Arc<SCode::Mod>, mut env: Env) -> Result<Arc<SCod
     let () = (::match_deref::match_deref! { match &(r#mod.clone()) {
         Deref @ SCode::Mod::MOD { .. } => {
             assign_variant_field!(r#mod => SCode::Mod::MOD;
-                subModLst = {
+                subModLst = ({
         let mut __acc: Arc<metamodelica::List<Arc<SCode::SubMod>>> = metamodelica::nil();
         for mut s in (var_field!((*r#mod).subModLst, SCode::Mod::MOD).clone()).into_iter().cloned() {
             let __x = obfuscateSubMod(s.clone(), env.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    },
+    }),
                 binding = obfuscateExpOpt(var_field!((*r#mod).binding, SCode::Mod::MOD).clone(), env.clone())
             );
             ()
@@ -489,7 +489,7 @@ pub fn obfuscatePath(mut path: Arc<Absyn::Path>, mut env: Env, mut etype: Elemen
         Deref @ Absyn::Path::IDENT { .. } => {
             (name, _) = obfuscateIdentifier((var_field!((*path).name, Absyn::Path::IDENT).clone()).clone(), env.clone(), etype.clone())?;
             if referenceEq(&name.clone(),&var_field!((*path).name, Absyn::Path::IDENT).clone()) {
-                return Ok(path);
+                return Ok(path.clone());
             }
             assign_variant_field!(path => Absyn::Path::IDENT; name = name.clone());
             ()
@@ -497,7 +497,7 @@ pub fn obfuscatePath(mut path: Arc<Absyn::Path>, mut env: Env, mut etype: Elemen
         Deref @ Absyn::Path::QUALIFIED { .. } => {
             (name, _) = obfuscateIdentifier((var_field!((*path).name, Absyn::Path::QUALIFIED).clone()).clone(), env.clone(), etype.clone())?;
             if referenceEq(&name.clone(),&var_field!((*path).name, Absyn::Path::QUALIFIED).clone()) {
-                return Ok(path);
+                return Ok(path.clone());
             }
             assign_variant_field!(path => Absyn::Path::QUALIFIED;
                 name = name.clone(),
@@ -522,11 +522,14 @@ pub fn obfuscateIdentifier(mut id: ArcStr, mut env: Env, mut etype: ElementType)
     let mut opt_ety: Option<ElementType> = None;
     opt_ety = UnorderedMap::get((id.clone()).clone(), builtins.clone());
     if isSome(opt_ety.clone()) {
-        let Some(__pa0) = (opt_ety.clone()) else { bail!("pattern mismatch") };
+        let __pa0 = ::match_deref::match_deref! { match &(opt_ety.clone()) {
+            Some(__pa0) => __pa0.clone(),
+            _ => bail!("pattern mismatch"),
+        } };
         foundType = __pa0.clone();
         if isBuiltinInContext(etype.clone(), foundType.clone()) {
             outId = (id.clone()).clone();
-            return Ok((outId, foundType));
+            return Ok((outId.clone(), foundType.clone()));
         }
     } else {
         foundType = ElementType::OTHER.clone();
@@ -555,7 +558,10 @@ pub fn isBuiltinInContext(mut expectedType: ElementType, mut actualType: Element
 pub fn makeId(mut oldId: Option<ArcStr>, mut index: i32) -> Result<ArcStr> {
     let mut id: ArcStr = arcstr::literal!("");
     if isSome(oldId.clone()) {
-        let Some(__pa0) = (oldId.clone()) else { bail!("pattern mismatch") };
+        let __pa0 = ::match_deref::match_deref! { match &(oldId.clone()) {
+            Some(__pa0) => __pa0.clone(),
+            _ => bail!("pattern mismatch"),
+        } };
         id = __pa0.clone();
     } else {
         id = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("n")); __mm_s.push_str(&*ArcStr::from(::std::format!("{}", index.clone()))); ArcStr::from(__mm_s) }).clone();
@@ -588,7 +594,7 @@ pub fn obfuscateAnnotationMod(mut r#mod: Arc<SCode::Mod>, mut env: Env, mut obfu
     let mut r#mod: Arc<SCode::Mod> = r#mod;
     let () = (::match_deref::match_deref! { match &(r#mod.clone()) {
         Deref @ SCode::Mod::MOD { .. } => {
-            assign_variant_field!(r#mod => SCode::Mod::MOD; subModLst = {
+            assign_variant_field!(r#mod => SCode::Mod::MOD; subModLst = ({
         let mut __acc: Arc<metamodelica::List<Arc<SCode::SubMod>>> = metamodelica::nil();
         for mut s in (var_field!((*r#mod).subModLst, SCode::Mod::MOD).clone()).into_iter().cloned() {
             if !(isAllowedAnnotation(s.clone())) { continue; }
@@ -596,7 +602,7 @@ pub fn obfuscateAnnotationMod(mut r#mod: Arc<SCode::Mod>, mut env: Env, mut obfu
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             if obfuscateBinding.clone() {
                 assign_variant_field!(r#mod => SCode::Mod::MOD; binding = obfuscateExpOpt(var_field!((*r#mod).binding, SCode::Mod::MOD).clone(), env.clone()));
             }
@@ -701,7 +707,7 @@ pub fn obfuscateCref(mut cref: Arc<Absyn::ComponentRef>, mut env: Env, mut etype
         Deref @ Absyn::ComponentRef::CREF_IDENT { .. } => {
             (name, _) = obfuscateIdentifier((var_field!((*cref).name, Absyn::ComponentRef::CREF_IDENT).clone()).clone(), env.clone(), etype.clone())?;
             if referenceEq(&name.clone(),&var_field!((*cref).name, Absyn::ComponentRef::CREF_IDENT).clone()) {
-                return Ok(cref);
+                return Ok(cref.clone());
             }
             assign_variant_field!(cref => Absyn::ComponentRef::CREF_IDENT; name = name.clone());
             if obfuscateSubs.clone() {
@@ -734,14 +740,14 @@ pub fn obfuscateCref(mut cref: Arc<Absyn::ComponentRef>, mut env: Env, mut etype
 
 pub fn obfuscateSubscripts(mut subs: Arc<metamodelica::List<Arc<Absyn::Subscript>>>, mut env: Env) -> Result<Arc<metamodelica::List<Arc<Absyn::Subscript>>>> {
     let mut subs: Arc<metamodelica::List<Arc<Absyn::Subscript>>> = subs;
-    subs = {
+    subs = ({
         let mut __acc: Arc<metamodelica::List<Arc<Absyn::Subscript>>> = metamodelica::nil();
         for mut s in (subs.clone()).into_iter().cloned() {
             let __x = obfuscateSubscript(s.clone(), env.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     Ok(subs)
 }
 
@@ -762,25 +768,25 @@ pub fn obfuscateFunctionArgs(mut args: Arc<Absyn::FunctionArgs>, mut fnName: Arc
     let mut args: Arc<Absyn::FunctionArgs> = args;
     let () = (::match_deref::match_deref! { match &(args.clone()) {
         Deref @ Absyn::FunctionArgs::FUNCTIONARGS { .. } if (!(var_field!((*args).argNames, Absyn::FunctionArgs::FUNCTIONARGS).clone().is_empty()) && !(isBuiltinCall(fnName.clone(), env.clone())?)) => {
-            assign_variant_field!(args => Absyn::FunctionArgs::FUNCTIONARGS; argNames = {
+            assign_variant_field!(args => Absyn::FunctionArgs::FUNCTIONARGS; argNames = ({
         let mut __acc: Arc<metamodelica::List<Arc<Absyn::NamedArg>>> = metamodelica::nil();
         for mut a in (var_field!((*args).argNames, Absyn::FunctionArgs::FUNCTIONARGS).clone()).into_iter().cloned() {
             let __x = obfuscateNamedArg(a.clone(), env.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             ()
         },
         Deref @ Absyn::FunctionArgs::FOR_ITER_FARG { .. } => {
-            assign_variant_field!(args => Absyn::FunctionArgs::FOR_ITER_FARG; iterators = {
+            assign_variant_field!(args => Absyn::FunctionArgs::FOR_ITER_FARG; iterators = ({
         let mut __acc: Arc<metamodelica::List<Arc<Absyn::ForIterator>>> = metamodelica::nil();
         for mut i in (var_field!((*args).iterators, Absyn::FunctionArgs::FOR_ITER_FARG).clone()).into_iter().cloned() {
             let __x = obfuscateForIterator(i.clone(), env.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             ()
         },
         _ => (),
@@ -812,14 +818,14 @@ pub use obfuscateSubscripts as obfuscateArrayDims;
 pub fn obfuscateExternalDecl(mut extDecl: Arc<SCode::ExternalDecl>, mut env: Env) -> Result<Arc<SCode::ExternalDecl>> {
     let mut extDecl: Arc<SCode::ExternalDecl> = extDecl;
     assign_field!(
-        extDecl.args = {
+        extDecl.args = ({
         let mut __acc: Arc<metamodelica::List<Arc<Absyn::Exp>>> = metamodelica::nil();
         for mut a in (extDecl.args.clone()).into_iter().cloned() {
             let __x = obfuscateExp(a.clone(), env.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    },
+    }),
         extDecl.output_ = Util::applyOption(extDecl.output_.clone(), Arc::new({ let __pe_b1 = env.clone(); let __pe_b2 = ElementType::OTHER.clone(); let __pe_b3 = true; move |__pe_a0| obfuscateCref(__pe_a0, __pe_b1.clone(), __pe_b2.clone(), __pe_b3.clone()) })),
         extDecl.annotation_ = obfuscateAnnotationOpt(extDecl.annotation_.clone(), env.clone())
     );
@@ -828,14 +834,14 @@ pub fn obfuscateExternalDecl(mut extDecl: Arc<SCode::ExternalDecl>, mut env: Env
 
 pub fn obfuscateEquations(mut eql: Arc<metamodelica::List<Arc<SCode::Equation>>>, mut env: Env) -> Result<Arc<metamodelica::List<Arc<SCode::Equation>>>> {
     let mut eql: Arc<metamodelica::List<Arc<SCode::Equation>>> = eql;
-    eql = {
+    eql = ({
         let mut __acc: Arc<metamodelica::List<Arc<SCode::Equation>>> = metamodelica::nil();
         for mut eq in (eql.clone()).into_iter().cloned() {
             let __x = obfuscateEquation(eq.clone(), env.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     Ok(eql)
 }
 
@@ -844,22 +850,22 @@ pub fn obfuscateEquation(mut eq: Arc<SCode::Equation>, mut env: Env) -> Result<A
     let () = (::match_deref::match_deref! { match &(eq.clone()) {
         Deref @ SCode::Equation::EQ_IF { .. } => {
             assign_variant_field!(eq => SCode::Equation::EQ_IF;
-                condition = {
+                condition = ({
         let mut __acc: Arc<metamodelica::List<Arc<Absyn::Exp>>> = metamodelica::nil();
         for mut e in (var_field!((*eq).condition, SCode::Equation::EQ_IF).clone()).into_iter().cloned() {
             let __x = obfuscateExp(e.clone(), env.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    },
-                thenBranch = {
+    }),
+                thenBranch = ({
         let mut __acc: Arc<metamodelica::List<Arc<metamodelica::List<Arc<SCode::Equation>>>>> = metamodelica::nil();
         for mut e in (var_field!((*eq).thenBranch, SCode::Equation::EQ_IF).clone()).into_iter().cloned() {
             let __x = obfuscateEquations(e.clone(), env.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    },
+    }),
                 elseBranch = obfuscateEquations(var_field!((*eq).elseBranch, SCode::Equation::EQ_IF).clone(), env.clone())?,
                 comment = obfuscateComment(var_field!((*eq).comment, SCode::Equation::EQ_IF).clone(), env.clone())
             );
@@ -902,14 +908,14 @@ pub fn obfuscateEquation(mut eq: Arc<SCode::Equation>, mut env: Env) -> Result<A
             assign_variant_field!(eq => SCode::Equation::EQ_WHEN;
                 condition = obfuscateExp(var_field!((*eq).condition, SCode::Equation::EQ_WHEN).clone(), env.clone())?,
                 eEquationLst = obfuscateEquations(var_field!((*eq).eEquationLst, SCode::Equation::EQ_WHEN).clone(), env.clone())?,
-                elseBranches = {
+                elseBranches = ({
         let mut __acc: Arc<metamodelica::List<(Arc<Absyn::Exp>, Arc<metamodelica::List<Arc<SCode::Equation>>>)>> = metamodelica::nil();
         for mut b in (var_field!((*eq).elseBranches, SCode::Equation::EQ_WHEN).clone()).into_iter().cloned() {
             let __x = (obfuscateExp(Util::tuple21(b.clone()), env.clone())?, obfuscateEquations(Util::tuple22(b.clone()), env.clone())?);
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    },
+    }),
                 comment = obfuscateComment(var_field!((*eq).comment, SCode::Equation::EQ_WHEN).clone(), env.clone())
             );
             ()
@@ -972,14 +978,14 @@ pub fn obfuscateAlgorithm(mut alg: Arc<SCode::AlgorithmSection>, mut env: Env) -
 
 pub fn obfuscateStatements(mut stmts: Arc<metamodelica::List<Arc<SCode::Statement>>>, mut env: Env) -> Result<Arc<metamodelica::List<Arc<SCode::Statement>>>> {
     let mut stmts: Arc<metamodelica::List<Arc<SCode::Statement>>> = stmts;
-    stmts = {
+    stmts = ({
         let mut __acc: Arc<metamodelica::List<Arc<SCode::Statement>>> = metamodelica::nil();
         for mut s in (stmts.clone()).into_iter().cloned() {
             let __x = obfuscateStatement(s.clone(), env.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     Ok(stmts)
 }
 
@@ -998,14 +1004,14 @@ pub fn obfuscateStatement(mut stmt: Arc<SCode::Statement>, mut env: Env) -> Resu
             assign_variant_field!(stmt => SCode::Statement::ALG_IF;
                 boolExpr = obfuscateExp(var_field!((*stmt).boolExpr, SCode::Statement::ALG_IF).clone(), env.clone())?,
                 trueBranch = obfuscateStatements(var_field!((*stmt).trueBranch, SCode::Statement::ALG_IF).clone(), env.clone())?,
-                elseIfBranch = {
+                elseIfBranch = ({
         let mut __acc: Arc<metamodelica::List<(Arc<Absyn::Exp>, Arc<metamodelica::List<Arc<SCode::Statement>>>)>> = metamodelica::nil();
         for mut b in (var_field!((*stmt).elseIfBranch, SCode::Statement::ALG_IF).clone()).into_iter().cloned() {
             let __x = (obfuscateExp(Util::tuple21(b.clone()), env.clone())?, obfuscateStatements(Util::tuple22(b.clone()), env.clone())?);
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    },
+    }),
                 elseBranch = obfuscateStatements(var_field!((*stmt).elseBranch, SCode::Statement::ALG_IF).clone(), env.clone())?,
                 comment = obfuscateComment(var_field!((*stmt).comment, SCode::Statement::ALG_IF).clone(), env.clone())
             );
@@ -1039,14 +1045,14 @@ pub fn obfuscateStatement(mut stmt: Arc<SCode::Statement>, mut env: Env) -> Resu
         },
         Deref @ SCode::Statement::ALG_WHEN_A { .. } => {
             assign_variant_field!(stmt => SCode::Statement::ALG_WHEN_A;
-                branches = {
+                branches = ({
         let mut __acc: Arc<metamodelica::List<(Arc<Absyn::Exp>, Arc<metamodelica::List<Arc<SCode::Statement>>>)>> = metamodelica::nil();
         for mut b in (var_field!((*stmt).branches, SCode::Statement::ALG_WHEN_A).clone()).into_iter().cloned() {
             let __x = (obfuscateExp(Util::tuple21(b.clone()), env.clone())?, obfuscateStatements(Util::tuple22(b.clone()), env.clone())?);
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    },
+    }),
                 comment = obfuscateComment(var_field!((*stmt).comment, SCode::Statement::ALG_WHEN_A).clone(), env.clone())
             );
             ()

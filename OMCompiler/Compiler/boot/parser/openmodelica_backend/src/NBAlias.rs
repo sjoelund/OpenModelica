@@ -280,7 +280,7 @@ impl Default for ExceptionKind {
 
 fn filterExceptionsEquation(mut eqn: Arc<Equation::Equation>, mut acc: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, ExceptionKind>>) -> Result<Arc<Equation::Equation>> {
     let mut eqn: Arc<Equation::Equation> = eqn;
-    let _ = (::match_deref::match_deref! { match &(eqn.clone()) {
+    let () = (::match_deref::match_deref! { match &(eqn.clone()) {
         Deref @ BEquation::Equation::ALGORITHM { .. } => {
             for mut cref in &*var_field!((*eqn).alg, Equation::Equation::ALGORITHM).outputs.clone() {
                 let mut cref = cref.clone();
@@ -297,7 +297,7 @@ fn filterExceptionsEquation(mut eqn: Arc<Equation::Equation>, mut acc: Arc<Unord
 
 fn filterExceptions(mut exp: Arc<Expression::NFExpression>, mut acc: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, ExceptionKind>>) -> Result<Arc<Expression::NFExpression>> {
     let mut exp: Arc<Expression::NFExpression> = exp;
-    let _ = (::match_deref::match_deref! { match &(exp.clone()) {
+    let () = (::match_deref::match_deref! { match &(exp.clone()) {
         Deref @ Expression::CALL { call: call @ Deref @ Call::TYPED_CALL { arguments: Deref @ metamodelica::List::Cons { head: Deref @ Expression::CREF { cref, .. }, tail: Deref @ metamodelica::List::Nil }, .. } } if (AbsynUtil::pathString(Function::nameConsiderBuiltin(var_field!((**call).r#fn, Call::NFCall::TYPED_CALL).clone())?, (literal!(".")).clone(), true, false)? == literal!("pre")) => {
             UnorderedMap::add(cref.clone(), ExceptionKind::NO_ALIAS.clone(), acc.clone())?;
             ()
@@ -308,7 +308,7 @@ fn filterExceptions(mut exp: Arc<Expression::NFExpression>, mut acc: Arc<Unorder
         Deref @ Expression::TUPLE { .. } => {
             for mut elem in &*var_field!((*exp).elements, Expression::NFExpression::TUPLE).clone() {
                 let mut elem = elem.clone();
-                let _ = (::match_deref::match_deref! { match &(elem.clone()) {
+                let () = (::match_deref::match_deref! { match &(elem.clone()) {
         Deref @ Expression::CREF { .. } => {
             UnorderedMap::add(var_field!((*elem).cref, Expression::NFExpression::CREF).clone(), ExceptionKind::CREF_ALIAS.clone(), acc.clone())?;
             ()
@@ -533,7 +533,7 @@ fn isSimpleExp(mut exp: Arc<Expression::NFExpression>, mut simple: bool) -> (boo
     let mut simple: bool = simple;
     let mut num_cref: i32 = 0;
     if !(simple.clone()) {
-        return (simple, num_cref);
+        return (simple.clone(), num_cref.clone());
     }
     (simple, num_cref) = (::match_deref::match_deref! { match &(exp.clone()) {
         Deref @ Expression::INTEGER { .. } => {
@@ -569,7 +569,7 @@ fn isSimpleExp(mut exp: Arc<Expression::NFExpression>, mut simple: bool) -> (boo
             (simple, num_cref) = isSimpleExp(var_field!((*exp).exp2, Expression::NFExpression::BINARY).clone(), true);
             if op.clone() == Operator::Op::DIV.clone() && num_cref.clone() != 0 {
                 simple = false;
-                return (simple, num_cref);
+                return (simple.clone(), num_cref.clone());
             }
             (simple, num_cref_tmp) = isSimpleExp(var_field!((*exp).exp1, Expression::NFExpression::BINARY).clone(), simple.clone());
             num_cref = num_cref.clone() + num_cref_tmp.clone();
@@ -590,19 +590,19 @@ fn isSimpleExp(mut exp: Arc<Expression::NFExpression>, mut simple: bool) -> (boo
                 let mut arg = arg.clone();
                 (simple, num_cref_tmp) = isSimpleExp(arg.clone(), simple.clone());
                 if !(simple.clone()) {
-                    return (simple, num_cref);
+                    return (simple.clone(), num_cref.clone());
                 }
                 num_cref = num_cref.clone() + num_cref_tmp.clone();
             }
             if op.clone() == Operator::Op::MUL.clone() && num_cref.clone() != 0 {
                 simple = false;
-                return (simple, num_cref);
+                return (simple.clone(), num_cref.clone());
             }
             for mut arg in &*var_field!((*exp).arguments, Expression::NFExpression::MULTARY).clone() {
                 let mut arg = arg.clone();
                 (simple, num_cref_tmp) = isSimpleExp(arg.clone(), simple.clone());
                 if !(simple.clone()) {
-                    return (simple, num_cref);
+                    return (simple.clone(), num_cref.clone());
                 }
                 num_cref = num_cref.clone() + num_cref_tmp.clone();
             }
@@ -669,14 +669,14 @@ fn createReplacementRules(mut set: Arc<AliasSet::AliasSet>, mut replacements: Ar
             let mut vars: Arc<VariablePointers::VariablePointers> = Arc::new(<VariablePointers::VariablePointers as ::std::default::Default>::default());
             let mut eqs: Arc<EquationPointers::EquationPointers> = Arc::new(<EquationPointers::EquationPointers as ::std::default::Default>::default());
             let mut comps: Arc<metamodelica::List<Arc<StrongComponent::NBStrongComponent>>> = metamodelica::nil();
-            vars = BVariable::VariablePointers::fromList({
+            vars = BVariable::VariablePointers::fromList(({
         let mut __acc: Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>> = metamodelica::nil();
         for mut cr in (set.simple_variables.clone()).into_iter().cloned() {
             let __x = BVariable::getVarPointer(cr.clone(), metamodelica::sourceInfo!())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, true);
+    }), true);
             eqs = BEquation::EquationPointers::fromList(cons(const_eq.clone(), set.simple_equations.clone()));
             (_, comps) = Causalize::simple(vars.clone(), eqs.clone(), kind.clone(), NBAdjacency::MatrixStrictness::MATCHING.clone(), Arc::new(crate::NBEquation::Iterator::EMPTY))?;
             Replacements::simple(comps.clone(), replacements.clone())?;
@@ -692,14 +692,14 @@ fn createReplacementRules(mut set: Arc<AliasSet::AliasSet>, mut replacements: Ar
             let mut eqs: Arc<EquationPointers::EquationPointers> = Arc::new(<EquationPointers::EquationPointers as ::std::default::Default>::default());
             let mut comps: Arc<metamodelica::List<Arc<StrongComponent::NBStrongComponent>>> = metamodelica::nil();
             let mut collector: Arc<AttributeCollector::AttributeCollector> = Arc::new(<AttributeCollector::AttributeCollector as ::std::default::Default>::default());
-            (alias_vars, collector) = chooseVariableToKeep({
+            (alias_vars, collector) = chooseVariableToKeep(({
         let mut __acc: Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>> = metamodelica::nil();
         for mut cr in (set.simple_variables.clone()).into_iter().cloned() {
             let __x = BVariable::getVarPointer(cr.clone(), metamodelica::sourceInfo!())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, var_to_keep.clone())?;
+    }), var_to_keep.clone())?;
             vars = BVariable::VariablePointers::fromList(alias_vars.clone(), false);
             eqs = BEquation::EquationPointers::fromList(set.simple_equations.clone());
             (_, comps) = Causalize::simple(vars.clone(), eqs.clone(), kind.clone(), NBAdjacency::MatrixStrictness::MATCHING.clone(), Arc::new(crate::NBEquation::Iterator::EMPTY))?;
@@ -736,7 +736,6 @@ fn createReplacementRules(mut set: Arc<AliasSet::AliasSet>, mut replacements: Ar
 }
 
 fn setNewAttributes(mut var_to_keep_ptr: Pointer::Pointer<Pointer::Pointer<Arc<Variable::NFVariable>>>, mut attrcollector: Arc<AttributeCollector::AttributeCollector>, mut set: Arc<AliasSet::AliasSet>) -> Result<()> {
-    let mut lst: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
     let mut new_cref: Option<Arc<ComponentRef::NFComponentRef>> = None;
     let mut new_min: Option<Arc<Expression::NFExpression>> = None;
     let mut new_max: Option<Arc<Expression::NFExpression>> = None;
@@ -790,7 +789,6 @@ fn chooseVariableToKeep(mut var_lst: Arc<metamodelica::List<Pointer::Pointer<Arc
     let mut acc: Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>> = metamodelica::nil();
     let mut attrcollector: Arc<AttributeCollector::AttributeCollector> = Arc::new(AttributeCollector::AttributeCollector { min_val_map: UnorderedMap::new((std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), 1), max_val_map: UnorderedMap::new((std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), 1), start_map: UnorderedMap::new((std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), 1), fixed_map: UnorderedMap::new((std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), 1), nominal_map: UnorderedMap::new((std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), 1), stateSelect_map: UnorderedMap::new((std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), 1), tearingSelect_map: UnorderedMap::new((std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), 1) });
     let mut var: Pointer::Pointer<Arc<Variable::NFVariable>>;
-    let mut cur_var: Arc<Variable::NFVariable> = Arc::new(<Variable::NFVariable as ::std::default::Default>::default());
     let mut rest: Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>> = metamodelica::nil();
     let mut cur_rating: i32 = 0;
     let mut max_rating: i32 = 0;
@@ -825,14 +823,14 @@ fn getMaximum(mut map: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFCompon
     let mut max_val: metamodelica::Real = metamodelica::OrderedFloat(0.0_f64);
     (constants, rest) = List::splitOnTrue(lst_values.clone(), (std::sync::Arc::new(fnptr!(Expression::isConstNumber, Arc<Expression::NFExpression>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<bool> + 'static>));
     if !(constants.clone().is_empty()) {
-        max_val = List::maxElement({
+        max_val = List::maxElement(({
         let mut __acc: Arc<metamodelica::List<metamodelica::Real>> = metamodelica::nil();
         for mut val in (constants.clone()).into_iter().cloned() {
             let __x = Expression::realValue(val.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, (std::sync::Arc::new(fnptr!(realLt, metamodelica::Real, metamodelica::Real)) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Real, metamodelica::Real) -> Result<bool> + 'static>))?;
+    }), (std::sync::Arc::new(fnptr!(realLt, metamodelica::Real, metamodelica::Real)) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Real, metamodelica::Real) -> Result<bool> + 'static>))?;
         rest = cons(Arc::new(Expression::NFExpression::REAL { value: max_val.clone() }), rest.clone());
     }
     if rest.clone().is_empty() {
@@ -855,14 +853,14 @@ fn getMinimum(mut map: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFCompon
     let mut min_val: metamodelica::Real = metamodelica::OrderedFloat(0.0_f64);
     (constants, rest) = List::splitOnTrue(lst_values.clone(), (std::sync::Arc::new(fnptr!(Expression::isConstNumber, Arc<Expression::NFExpression>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<bool> + 'static>));
     if !(constants.clone().is_empty()) {
-        min_val = List::minElement({
+        min_val = List::minElement(({
         let mut __acc: Arc<metamodelica::List<metamodelica::Real>> = metamodelica::nil();
         for mut val in (constants.clone()).into_iter().cloned() {
             let __x = Expression::realValue(val.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, (std::sync::Arc::new(fnptr!(realLt, metamodelica::Real, metamodelica::Real)) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Real, metamodelica::Real) -> Result<bool> + 'static>))?;
+    }), (std::sync::Arc::new(fnptr!(realLt, metamodelica::Real, metamodelica::Real)) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Real, metamodelica::Real) -> Result<bool> + 'static>))?;
         rest = cons(Arc::new(Expression::NFExpression::REAL { value: min_val.clone() }), rest.clone());
     }
     if rest.clone().is_empty() {
@@ -933,25 +931,25 @@ fn checkNominalThreshold(mut map: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRe
     if lst_values.clone().is_empty() {
         return Ok(());
     }
-    if !(List::allEqual({
+    if !(List::allEqual(({
         let mut __acc: Arc<metamodelica::List<i32>> = metamodelica::nil();
         for mut e in (lst_values.clone()).into_iter().cloned() {
             let __x = Type::sizeOf(Expression::typeOf(e.clone()), false)?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?) {
+    }), (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>))?) {
         Error::addCompilerWarning(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("NBAlias.checkNominalThreshold")); __mm_s.push_str(&*literal!(" failed because array nominal values have different size. Use -d=dumprepl for more information.\n")); ArcStr::from(__mm_s) }).clone())?;
         bail!("fail");
     }
-    arr_iter = metamodelica::arrayFromVec({
+    arr_iter = metamodelica::arrayFromVec(({
         let mut __acc: Arc<metamodelica::List<Arc<ExpressionIterator::NFExpressionIterator>>> = metamodelica::nil();
         for mut e in (lst_values.clone()).into_iter().cloned() {
             let __x = ExpressionIterator::fromExp(e.clone(), false, false)?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }.into_iter().cloned().collect());
+    }).into_iter().cloned().collect());
     while ExpressionIterator::hasNext(arr_iter.borrow()[(1-1) as usize].clone())? {
         current = metamodelica::nil();
         let __range0 = 1..=(arr_iter.clone().borrow().len() as i32);
@@ -982,14 +980,14 @@ fn checkNominalThresholdSingle(mut lst_values: Arc<metamodelica::List<Arc<Expres
         Error::addCompilerWarning((r#str.clone()).clone())?;
     }
     if !(constants.clone().is_empty()) {
-        real_constants = {
+        real_constants = ({
         let mut __acc: Arc<metamodelica::List<_>> = metamodelica::nil();
         for mut val in (constants.clone()).into_iter().cloned() {
             let __x = Expression::realValue(val.clone())?.abs();
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
         nom_min = List::minElement(real_constants.clone(), (std::sync::Arc::new(fnptr!(realLt, metamodelica::Real, metamodelica::Real)) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Real, metamodelica::Real) -> Result<bool> + 'static>))?;
         nom_max = List::maxElement(real_constants.clone(), (std::sync::Arc::new(fnptr!(realLt, metamodelica::Real, metamodelica::Real)) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Real, metamodelica::Real) -> Result<bool> + 'static>))?;
         nom_quotient = nom_max.clone() / nom_min.clone();
@@ -1121,14 +1119,14 @@ fn chooseTearingSelect(mut map: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef:
 fn mean(mut lst: Arc<metamodelica::List<Arc<Expression::NFExpression>>>) -> Result<metamodelica::Real> {
     let mut mean_val: metamodelica::Real = metamodelica::OrderedFloat(0.0_f64);
     let mut cur_sum: metamodelica::Real = metamodelica::OrderedFloat(0.0_f64);
-    cur_sum = {
+    cur_sum = ({
         let mut __acc: metamodelica::Real = metamodelica::OrderedFloat(0.0_f64);
         for mut val in (lst.clone()).into_iter().cloned() {
             let __x = Expression::realValue(val.clone())?;
             __acc += __x;
         }
         __acc
-    };
+    });
     mean_val = cur_sum.clone() / metamodelica::OrderedFloat(((lst.clone().len() as i32)) as f64);
     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Mean = ")); __mm_s.push_str(&*ArcStr::from(::std::format!("{}", mean_val.clone()))); ArcStr::from(__mm_s) }).clone());
     Ok(mean_val)
@@ -1177,9 +1175,7 @@ fn rateVar(mut var_ptr: Pointer::Pointer<Arc<Variable::NFVariable>>, mut attrcol
         name = BVariable::getVarName(var_ptr.clone());
         rating = -(ComponentRef::depth(name.clone()));
     }
-    let _ = ({
-        let mut var: Arc<Variable::NFVariable> = Pointer::access(var_ptr.clone());
-        (::match_deref::match_deref! { match &(Pointer::access(var_ptr.clone())) {
+    let () = (::match_deref::match_deref! { match &(Pointer::access(var_ptr.clone())) {
         Deref @ Variable::VARIABLE { backendinfo: Deref @ BackendExtension::BackendInfo::BACKEND_INFO { attributes: attr @ Deref @ BackendExtension::VariableAttributes::VAR_ATTR_REAL { .. }, .. }, .. } => {
             attrcollector = optionMinMax(var_ptr.clone(), var_field!((**attr).min, BackendExtension::VariableAttributes::VariableAttributes::VAR_ATTR_REAL).clone(), var_field!((**attr).max, BackendExtension::VariableAttributes::VariableAttributes::VAR_ATTR_REAL).clone(), attrcollector.clone())?;
             attrcollector = optionStartFixed(var_ptr.clone(), var_field!((**attr).start, BackendExtension::VariableAttributes::VariableAttributes::VAR_ATTR_REAL).clone(), var_field!((**attr).fixed, BackendExtension::VariableAttributes::VariableAttributes::VAR_ATTR_REAL).clone(), attrcollector.clone())?;
@@ -1213,8 +1209,7 @@ fn rateVar(mut var_ptr: Pointer::Pointer<Arc<Variable::NFVariable>>, mut attrcol
             ()
         },
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
-    } })
-    });
+    } });
     Ok((rating, attrcollector))
 }
 

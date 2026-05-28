@@ -111,16 +111,16 @@ pub static emptyStreamOfTypeList: std::sync::LazyLock<IOStream> = std::sync::Laz
 
 pub fn create(mut streamName: ArcStr, mut streamType: IOStreamType) -> Result<IOStream> {
     let mut outStream: IOStream = <IOStream as ::std::default::Default>::default();
-    outStream = (match (streamName.clone(), streamType.clone()) {
-        (_, IOStreamType::FILE { name: mut fileName }) => {
+    outStream = (match streamType.clone() {
+        IOStreamType::FILE { name: mut fileName } => {
             let mut fileID: i32 = 0;
             fileID = IOStreamExt::createFile((fileName.clone()).clone())?;
             IOStream { name: (streamName.clone()).clone(), ty: streamType.clone(), data: IOStreamData::FILE_DATA { data: fileID.clone() } }
         },
-        (_, IOStreamType::LIST { .. }) => {
+        IOStreamType::LIST { .. } => {
             IOStream { name: (streamName.clone()).clone(), ty: streamType.clone(), data: IOStreamData::LIST_DATA { data: metamodelica::nil() } }
         },
-        (_, IOStreamType::BUFFER { .. }) => {
+        IOStreamType::BUFFER { .. } => {
             let mut bufferID: i32 = 0;
             bufferID = IOStreamExt::createBuffer()?;
             IOStream { name: (streamName.clone()).clone(), ty: streamType.clone(), data: IOStreamData::BUFFER_DATA { data: bufferID.clone() } }
@@ -132,15 +132,15 @@ pub fn create(mut streamName: ArcStr, mut streamType: IOStreamType) -> Result<IO
 
 pub fn append(mut inStream: IOStream, mut inString: ArcStr) -> Result<IOStream> {
     let mut outStream: IOStream = <IOStream as ::std::default::Default>::default();
-    outStream = (match (inStream.clone(), inString.clone()) {
-        (ref fStream @ IOStream { data: IOStreamData::FILE_DATA { data: ref fileID }, .. }, _) => {
+    outStream = (match inStream.clone() {
+        ref fStream @ IOStream { data: IOStreamData::FILE_DATA { data: ref fileID }, .. } => {
             IOStreamExt::appendFile(fileID.clone(), (inString.clone()).clone())?;
             fStream.clone()
         },
-        (IOStream { name: mut streamName, ty: mut streamType, data: IOStreamData::LIST_DATA { data: ref listData } }, _) => {
+        IOStream { name: mut streamName, ty: mut streamType, data: IOStreamData::LIST_DATA { data: ref listData } } => {
             IOStream { name: (streamName.clone()).clone(), ty: streamType.clone(), data: IOStreamData::LIST_DATA { data: cons((inString.clone()).clone(), listData.clone()) } }
         },
-        (ref bStream @ IOStream { data: IOStreamData::BUFFER_DATA { data: ref bufferID }, .. }, _) => {
+        ref bStream @ IOStream { data: IOStreamData::BUFFER_DATA { data: ref bufferID }, .. } => {
             IOStreamExt::appendBuffer(bufferID.clone(), (inString.clone()).clone())?;
             bStream.clone()
         },
@@ -214,7 +214,7 @@ pub fn close(mut inStream: IOStream) -> Result<IOStream> {
 }
 
 pub fn delete(mut inStream: IOStream) -> Result<()> {
-    let _ = (match inStream.clone() {
+    let () = (match inStream.clone() {
         IOStream { data: IOStreamData::FILE_DATA { data: mut fileID }, .. } => {
             IOStreamExt::deleteFile(fileID.clone())?;
             ()
@@ -288,16 +288,16 @@ pub fn string(mut inStream: IOStream) -> Result<ArcStr> {
 }
 
 pub fn print(mut inStream: IOStream, mut whereToPrint: i32) -> Result<()> {
-    let _ = (match (inStream.clone(), whereToPrint.clone()) {
-        (IOStream { data: IOStreamData::FILE_DATA { data: mut fileID }, .. }, _) => {
+    let () = (match inStream.clone() {
+        IOStream { data: IOStreamData::FILE_DATA { data: mut fileID }, .. } => {
             IOStreamExt::printFile(fileID.clone(), whereToPrint.clone())?;
             ()
         },
-        (IOStream { data: IOStreamData::BUFFER_DATA { data: mut bufferID }, .. }, _) => {
+        IOStream { data: IOStreamData::BUFFER_DATA { data: mut bufferID }, .. } => {
             IOStreamExt::printBuffer(bufferID.clone(), whereToPrint.clone())?;
             ()
         },
-        (IOStream { data: IOStreamData::LIST_DATA { data: ref listData }, .. }, _) => {
+        IOStream { data: IOStreamData::LIST_DATA { data: ref listData }, .. } => {
             IOStreamExt::printReversedList(listData.clone(), whereToPrint.clone())?;
             ()
         },

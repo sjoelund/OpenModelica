@@ -110,16 +110,16 @@ pub fn id(mut inGraph: Graph, mut inRef: Ref, mut inName: Name, mut inOptions: O
     let mut outGraph: Graph;
     let mut outRef: Ref;
     (outGraph, outRef) = 'mc: {
-        let __mc_input = (inGraph.clone(), inRef.clone(), inName.clone(), inOptions.clone(), inMsg.clone());
+        let __mc_input = (inGraph.clone(), inOptions.clone(), inMsg.clone());
         if let Ok(__v) = (|| -> Result<_> {
-            let (mut g, _, _, _, _) = __mc_input.clone() else { bail!("nomatch") };
+            let (mut g, _, _) = __mc_input.clone() else { bail!("nomatch") };
             let mut r: Ref;
             r = FNode::child(inRef.clone(), (arcstr::literal!(FNode::forNodeName)).clone())?;
             r = FNode::child(r.clone(), (inName.clone()).clone())?;
             Ok((g.clone(), r.clone()))
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
-            let (mut g, _, _, Options { ignoreImports: _, ignoreExtends: _, ignoreParents: false }, _) = __mc_input.clone() else { bail!("nomatch") };
+            let (mut g, Options { ignoreImports: _, ignoreExtends: _, ignoreParents: false }, _) = __mc_input.clone() else { bail!("nomatch") };
             let mut r: Ref;
             let mut p: Parents = metamodelica::nil();
             let true = (FNode::isRefImplicitScope(inRef.clone())?) else { bail!("pattern mismatch") };
@@ -129,28 +129,28 @@ pub fn id(mut inGraph: Graph, mut inRef: Ref, mut inName: Name, mut inOptions: O
             Ok((g.clone(), r.clone()))
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
-            let (mut g, _, _, _, _) = __mc_input.clone() else { bail!("nomatch") };
+            let (mut g, _, _) = __mc_input.clone() else { bail!("nomatch") };
             let mut r: Ref;
             let false = (FNode::isRefImplicitScope(inRef.clone())?) else { bail!("pattern mismatch") };
             r = FNode::child(inRef.clone(), (inName.clone()).clone())?;
             Ok((g.clone(), r.clone()))
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
-            let (mut g, _, _, Options { ignoreImports: false, ignoreExtends: _, ignoreParents: _ }, _) = __mc_input.clone() else { bail!("nomatch") };
+            let (mut g, Options { ignoreImports: false, ignoreExtends: _, ignoreParents: _ }, _) = __mc_input.clone() else { bail!("nomatch") };
             let mut r: Ref;
             let false = (FNode::isRefImplicitScope(inRef.clone())?) else { bail!("pattern mismatch") };
             (g, r) = imp(g.clone(), inRef.clone(), (inName.clone()).clone(), inOptions.clone(), inMsg.clone())?;
             Ok((g.clone(), r.clone()))
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
-            let (mut g, _, _, Options { ignoreImports: _, ignoreExtends: false, ignoreParents: _ }, _) = __mc_input.clone() else { bail!("nomatch") };
+            let (mut g, Options { ignoreImports: _, ignoreExtends: false, ignoreParents: _ }, _) = __mc_input.clone() else { bail!("nomatch") };
             let mut r: Ref;
             let false = (FNode::isRefImplicitScope(inRef.clone())?) else { bail!("pattern mismatch") };
             (g, r) = ext(g.clone(), inRef.clone(), (inName.clone()).clone(), inOptions.clone(), inMsg.clone())?;
             Ok((g.clone(), r.clone()))
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
-            let (mut g, _, _, Options { ignoreImports: _, ignoreExtends: _, ignoreParents: false }, _) = __mc_input.clone() else { bail!("nomatch") };
+            let (mut g, Options { ignoreImports: _, ignoreExtends: _, ignoreParents: false }, _) = __mc_input.clone() else { bail!("nomatch") };
             let mut r: Ref;
             let false = (FNode::isRefImplicitScope(inRef.clone())?) else { bail!("pattern mismatch") };
             let true = (FNode::isEncapsulated(FNode::fromRef(inRef.clone())?)?) else { bail!("pattern mismatch") };
@@ -159,7 +159,7 @@ pub fn id(mut inGraph: Graph, mut inRef: Ref, mut inName: Name, mut inOptions: O
             Ok((g.clone(), r.clone()))
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
-            let (mut g, _, _, Options { ignoreImports: _, ignoreExtends: _, ignoreParents: false }, _) = __mc_input.clone() else { bail!("nomatch") };
+            let (mut g, Options { ignoreImports: _, ignoreExtends: _, ignoreParents: false }, _) = __mc_input.clone() else { bail!("nomatch") };
             let mut r: Ref;
             let mut p: Parents = metamodelica::nil();
             let false = (FNode::isRefImplicitScope(inRef.clone())?) else { bail!("pattern mismatch") };
@@ -171,12 +171,12 @@ pub fn id(mut inGraph: Graph, mut inRef: Ref, mut inName: Name, mut inOptions: O
             Ok((g.clone(), r.clone()))
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
-            let (_, _, _, Options { ignoreImports: _, ignoreExtends: _, ignoreParents: false }, _) = __mc_input.clone() else { bail!("nomatch") };
+            let (_, Options { ignoreImports: _, ignoreExtends: _, ignoreParents: false }, _) = __mc_input.clone() else { bail!("nomatch") };
             let false = (FNode::hasParents(FNode::fromRef(inRef.clone())?)?) else { bail!("pattern mismatch") };
             Ok(bail!("fail"))
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
-            let (_, _, _, _, Some(_)) = __mc_input.clone() else { bail!("nomatch") };
+            let (_, _, Some(_)) = __mc_input.clone() else { bail!("nomatch") };
             println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("FLookup.id failed for: ")); __mm_s.push_str(&*inName.clone()); __mm_s.push_str(&*literal!(" in: ")); __mm_s.push_str(&*FNode::toPathStr(FNode::fromRef(inRef.clone())?)?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
             Ok(bail!("fail"))
         })() { break 'mc __v; }
@@ -189,10 +189,10 @@ pub fn search(mut inGraph: Graph, mut inRefs: Refs, mut inName: Name, mut inOpti
     let mut outGraph: Graph;
     let mut outRef: Ref;
     (outGraph, outRef) = 'mc: {
-        let __mc_input = (inGraph.clone(), inRefs.clone(), inName.clone(), inOptions.clone(), inMsg.clone());
+        let __mc_input = (inGraph.clone(), inRefs.clone(), inMsg.clone());
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, Deref @ metamodelica::List::Nil, _, _, _) => {
+                (_, Deref @ metamodelica::List::Nil, _) => {
                     Ok(bail!("fail"))
                 }
                 _ => bail!("nomatch"),
@@ -200,7 +200,7 @@ pub fn search(mut inGraph: Graph, mut inRefs: Refs, mut inName: Name, mut inOpti
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (g, Deref @ metamodelica::List::Cons { head: r, tail: _ }, _, _, _) => {
+                (g, Deref @ metamodelica::List::Cons { head: r, tail: _ }, _) => {
                     let mut g = (*g).clone();
                     let mut r = (*r).clone();
                     (g, r) = id(g.clone(), r.clone(), (inName.clone()).clone(), inOptions.clone(), inMsg.clone())?;
@@ -211,7 +211,7 @@ pub fn search(mut inGraph: Graph, mut inRefs: Refs, mut inName: Name, mut inOpti
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (g, Deref @ metamodelica::List::Cons { head: _, tail: rest }, _, _, _) => {
+                (g, Deref @ metamodelica::List::Cons { head: _, tail: rest }, _) => {
                     let mut r: Ref;
                     let mut g = (*g).clone();
                     (g, r) = search(g.clone(), rest.clone(), (inName.clone()).clone(), inOptions.clone(), inMsg.clone())?;
@@ -222,7 +222,7 @@ pub fn search(mut inGraph: Graph, mut inRefs: Refs, mut inName: Name, mut inOpti
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _, _, _, Some(_)) => {
+                (_, _, Some(_)) => {
                     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("FLookup.search failed for: ")); __mm_s.push_str(&*inName.clone()); __mm_s.push_str(&*literal!(" in: ")); __mm_s.push_str(&*FNode::toPathStr(FNode::fromRef(listHead(inRefs.clone())?)?)?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
                     Ok(bail!("fail"))
                 }
@@ -238,10 +238,10 @@ pub fn name(mut inGraph: Graph, mut inRef: Ref, mut inPath: Arc<Absyn::Path>, mu
     let mut outGraph: Graph;
     let mut outRef: Ref;
     (outGraph, outRef) = 'mc: {
-        let __mc_input = (inGraph.clone(), inRef.clone(), inPath.clone(), inOptions.clone(), inMsg.clone());
+        let __mc_input = (inGraph.clone(), inPath.clone(), inMsg.clone());
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (g, _, Deref @ Absyn::Path::IDENT { name: i }, _, _) => {
+                (g, Deref @ Absyn::Path::IDENT { name: i }, _) => {
                     let mut r: Ref;
                     let mut g = (*g).clone();
                     (g, r) = id(g.clone(), inRef.clone(), (i.clone()).clone(), inOptions.clone(), inMsg.clone())?;
@@ -252,7 +252,7 @@ pub fn name(mut inGraph: Graph, mut inRef: Ref, mut inPath: Arc<Absyn::Path>, mu
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (g, _, Deref @ Absyn::Path::QUALIFIED { name: i, path: rest }, _, _) => {
+                (g, Deref @ Absyn::Path::QUALIFIED { name: i, path: rest }, _) => {
                     let mut r: Ref;
                     let mut g = (*g).clone();
                     (g, r) = id(g.clone(), inRef.clone(), (i.clone()).clone(), inOptions.clone(), inMsg.clone())?;
@@ -264,13 +264,13 @@ pub fn name(mut inGraph: Graph, mut inRef: Ref, mut inPath: Arc<Absyn::Path>, mu
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (g, _, Deref @ Absyn::Path::QUALIFIED { name: i, path: rest }, _, _) => {
+                (g, Deref @ Absyn::Path::QUALIFIED { name: i, path: rest }, _) => {
                     let mut r: Ref;
                     let mut s: ArcStr = arcstr::literal!("");
                     let mut g = (*g).clone();
                     (g, r) = id(g.clone(), inRef.clone(), (i.clone()).clone(), inOptions.clone(), inMsg.clone())?;
                     if '__try0: {
-                        (_, _) = unwrap_break_err!(name(g.clone(), r.clone(), rest.clone(), inOptions.clone(), inMsg.clone()), '__try0);
+                        unwrap_break_err!(name(g.clone(), r.clone(), rest.clone(), inOptions.clone(), inMsg.clone()), '__try0);
                         Ok::<(), anyhow::Error>(())
                     }.is_ok() { bail!("failure(): body succeeded") }
                     s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("missing: ")); __mm_s.push_str(&*AbsynUtil::pathString(rest.clone(), (literal!(".")).clone(), true, false)?); __mm_s.push_str(&*literal!(" in scope: ")); __mm_s.push_str(&*FNode::toPathStr(FNode::fromRef(r.clone())?)?); ArcStr::from(__mm_s) }).clone();
@@ -282,7 +282,7 @@ pub fn name(mut inGraph: Graph, mut inRef: Ref, mut inPath: Arc<Absyn::Path>, mu
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (g, _, Deref @ Absyn::Path::FULLYQUALIFIED { path: rest }, _, _) => {
+                (g, Deref @ Absyn::Path::FULLYQUALIFIED { path: rest }, _) => {
                     let mut r: Ref;
                     let mut g = (*g).clone();
                     r = FNode::top(inRef.clone())?;
@@ -294,7 +294,7 @@ pub fn name(mut inGraph: Graph, mut inRef: Ref, mut inPath: Arc<Absyn::Path>, mu
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _, _, _, Some(_)) => {
+                (_, _, Some(_)) => {
                     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("FLookup.name failed for: ")); __mm_s.push_str(&*AbsynUtil::pathString(inPath.clone(), (literal!(".")).clone(), true, false)?); __mm_s.push_str(&*literal!(" in: ")); __mm_s.push_str(&*FNode::toPathStr(FNode::fromRef(inRef.clone())?)?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
                     Ok(bail!("fail"))
                 }
@@ -310,9 +310,9 @@ pub fn ext(mut inGraph: Graph, mut inRef: Ref, mut inName: Name, mut inOptions: 
     let mut outGraph: Graph;
     let mut outRef: Ref;
     (outGraph, outRef) = 'mc: {
-        let __mc_input = (inGraph.clone(), inRef.clone(), inName.clone(), inOptions.clone(), inMsg.clone());
+        let __mc_input = inGraph.clone();
         if let Ok(__v) = (|| -> Result<_> {
-            let (mut g, _, _, _, _) = __mc_input.clone() else { bail!("nomatch") };
+            let mut g = __mc_input.clone() else { bail!("nomatch") };
             let mut r: Ref;
             let true = (FNode::isClassExtends(FNode::fromRef(inRef.clone())?)) else { bail!("pattern mismatch") };
             r = FNode::child(inRef.clone(), (arcstr::literal!(FNode::refNodeName)).clone())?;
@@ -321,7 +321,7 @@ pub fn ext(mut inGraph: Graph, mut inRef: Ref, mut inName: Name, mut inOptions: 
             Ok((g.clone(), r.clone()))
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
-            let (mut g, _, _, _, _) = __mc_input.clone() else { bail!("nomatch") };
+            let mut g = __mc_input.clone() else { bail!("nomatch") };
             let mut r: Ref;
             let true = (FNode::isClassExtends(FNode::fromRef(inRef.clone())?)) else { bail!("pattern mismatch") };
             r = FNode::original(FNode::parents(FNode::fromRef(inRef.clone())?)?)?;
@@ -329,7 +329,7 @@ pub fn ext(mut inGraph: Graph, mut inRef: Ref, mut inName: Name, mut inOptions: 
             Ok((g.clone(), r.clone()))
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
-            let (mut g, _, _, _, _) = __mc_input.clone() else { bail!("nomatch") };
+            let mut g = __mc_input.clone() else { bail!("nomatch") };
             let mut r: Ref;
             let mut refs: Refs = metamodelica::nil();
             refs = FNode::extendsRefs(inRef.clone())?;
@@ -347,9 +347,9 @@ pub fn imp(mut inGraph: Graph, mut inRef: Ref, mut inName: Name, mut inOptions: 
     let mut outGraph: Graph;
     let mut outRef: Ref;
     (outGraph, outRef) = 'mc: {
-        let __mc_input = (inGraph.clone(), inRef.clone(), inName.clone(), inOptions.clone(), inMsg.clone());
+        let __mc_input = inGraph.clone();
         if let Ok(__v) = (|| -> Result<_> {
-            let (mut g, _, _, _, _) = __mc_input.clone() else { bail!("nomatch") };
+            let mut g = __mc_input.clone() else { bail!("nomatch") };
             let mut r: Ref;
             let mut qi: Arc<metamodelica::List<Absyn::Import>> = metamodelica::nil();
             let true = (FNode::hasImports(FNode::fromRef(inRef.clone())?)?) else { bail!("pattern mismatch") };
@@ -358,7 +358,7 @@ pub fn imp(mut inGraph: Graph, mut inRef: Ref, mut inName: Name, mut inOptions: 
             Ok((g.clone(), r.clone()))
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
-            let (mut g, _, _, _, _) = __mc_input.clone() else { bail!("nomatch") };
+            let mut g = __mc_input.clone() else { bail!("nomatch") };
             let mut r: Ref;
             let mut uqi: Arc<metamodelica::List<Absyn::Import>> = metamodelica::nil();
             let true = (FNode::hasImports(FNode::fromRef(inRef.clone())?)?) else { bail!("pattern mismatch") };
@@ -375,10 +375,10 @@ fn imp_qual(mut inGraph: Graph, mut inRef: Ref, mut inName: Name, mut inImports:
     let mut outGraph: Graph;
     let mut outRef: Ref;
     (outGraph, outRef) = 'mc: {
-        let __mc_input = (inGraph.clone(), inRef.clone(), inName.clone(), inImports.clone(), inOptions.clone(), inMsg.clone());
+        let __mc_input = (inGraph.clone(), inImports.clone());
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (g, _, _, Deref @ metamodelica::List::Cons { head: Absyn::Import::NAMED_IMPORT { name, .. }, tail: rest_imps }, _, _) => {
+                (g, Deref @ metamodelica::List::Cons { head: Absyn::Import::NAMED_IMPORT { name, .. }, tail: rest_imps }) => {
                     let mut r: Ref;
                     let mut g = (*g).clone();
                     let false = (stringEqual((inName.clone()).clone(), (name.clone()).clone())) else { bail!("pattern mismatch") };
@@ -390,7 +390,7 @@ fn imp_qual(mut inGraph: Graph, mut inRef: Ref, mut inName: Name, mut inImports:
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (g, _, _, Deref @ metamodelica::List::Cons { head: Absyn::Import::NAMED_IMPORT { path, name }, tail: _ }, _, _) => {
+                (g, Deref @ metamodelica::List::Cons { head: Absyn::Import::NAMED_IMPORT { path, name }, tail: _ }) => {
                     let mut r: Ref;
                     let mut g = (*g).clone();
                     let true = (stringEqual((inName.clone()).clone(), (name.clone()).clone())) else { bail!("pattern mismatch") };
@@ -402,7 +402,7 @@ fn imp_qual(mut inGraph: Graph, mut inRef: Ref, mut inName: Name, mut inImports:
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _, _, Deref @ metamodelica::List::Cons { head: Absyn::Import::NAMED_IMPORT { name, .. }, tail: _ }, _, _) => {
+                (_, Deref @ metamodelica::List::Cons { head: Absyn::Import::NAMED_IMPORT { name, .. }, tail: _ }) => {
                     let true = (stringEqual((inName.clone()).clone(), (name.clone()).clone())) else { bail!("pattern mismatch") };
                     Ok(bail!("fail"))
                 }
@@ -418,10 +418,10 @@ pub fn imp_unqual(mut inGraph: Graph, mut inRef: Ref, mut inName: Name, mut inIm
     let mut outGraph: Graph;
     let mut outRef: Ref;
     (outGraph, outRef) = 'mc: {
-        let __mc_input = (inGraph.clone(), inRef.clone(), inName.clone(), inImports.clone(), inOptions.clone(), inMsg.clone());
+        let __mc_input = (inGraph.clone(), inImports.clone());
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (g, _, _, Deref @ metamodelica::List::Cons { head: Absyn::Import::UNQUAL_IMPORT { path }, tail: _ }, _, _) => {
+                (g, Deref @ metamodelica::List::Cons { head: Absyn::Import::UNQUAL_IMPORT { path }, tail: _ }) => {
                     let mut r: Ref;
                     let mut g = (*g).clone();
                     (g, r) = fq(g.clone(), path.clone(), inOptions.clone(), inMsg.clone())?;
@@ -433,7 +433,7 @@ pub fn imp_unqual(mut inGraph: Graph, mut inRef: Ref, mut inName: Name, mut inIm
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (g, _, _, Deref @ metamodelica::List::Cons { head: _, tail: rest_imps }, _, _) => {
+                (g, Deref @ metamodelica::List::Cons { head: _, tail: rest_imps }) => {
                     let mut r: Ref;
                     let mut g = (*g).clone();
                     (g, r) = imp_unqual(g.clone(), inRef.clone(), (inName.clone()).clone(), rest_imps.clone(), inOptions.clone(), inMsg.clone())?;
@@ -458,10 +458,10 @@ pub fn cr(mut inGraph: Graph, mut inRef: Ref, mut inCref: Arc<Absyn::ComponentRe
     let mut outGraph: Graph;
     let mut outRef: Ref;
     (outGraph, outRef) = 'mc: {
-        let __mc_input = (inGraph.clone(), inRef.clone(), inCref.clone(), inOptions.clone(), inMsg.clone());
+        let __mc_input = (inGraph.clone(), inCref.clone(), inMsg.clone());
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (g, _, Deref @ Absyn::ComponentRef::CREF_IDENT { name: i, subscripts: _ }, _, _) => {
+                (g, Deref @ Absyn::ComponentRef::CREF_IDENT { name: i, subscripts: _ }, _) => {
                     let mut r: Ref;
                     let mut g = (*g).clone();
                     (g, r) = id(g.clone(), inRef.clone(), (i.clone()).clone(), inOptions.clone(), inMsg.clone())?;
@@ -472,7 +472,7 @@ pub fn cr(mut inGraph: Graph, mut inRef: Ref, mut inCref: Arc<Absyn::ComponentRe
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (g, _, Deref @ Absyn::ComponentRef::CREF_QUAL { name: i, subscripts: _, componentRef: rest }, _, _) => {
+                (g, Deref @ Absyn::ComponentRef::CREF_QUAL { name: i, subscripts: _, componentRef: rest }, _) => {
                     let mut r: Ref;
                     let mut g = (*g).clone();
                     (g, r) = id(g.clone(), inRef.clone(), (i.clone()).clone(), inOptions.clone(), inMsg.clone())?;
@@ -487,7 +487,7 @@ pub fn cr(mut inGraph: Graph, mut inRef: Ref, mut inCref: Arc<Absyn::ComponentRe
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (g, _, Deref @ Absyn::ComponentRef::CREF_QUAL { name: i, subscripts: _, componentRef: rest }, _, _) => {
+                (g, Deref @ Absyn::ComponentRef::CREF_QUAL { name: i, subscripts: _, componentRef: rest }, _) => {
                     let mut r: Ref;
                     let mut g = (*g).clone();
                     (g, r) = id(g.clone(), inRef.clone(), (i.clone()).clone(), inOptions.clone(), inMsg.clone())?;
@@ -500,7 +500,7 @@ pub fn cr(mut inGraph: Graph, mut inRef: Ref, mut inCref: Arc<Absyn::ComponentRe
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (g, _, Deref @ Absyn::ComponentRef::CREF_QUAL { name: i, subscripts: _, componentRef: rest }, _, _) => {
+                (g, Deref @ Absyn::ComponentRef::CREF_QUAL { name: i, subscripts: _, componentRef: rest }, _) => {
                     let mut r: Ref;
                     let mut s: ArcStr = arcstr::literal!("");
                     let mut g = (*g).clone();
@@ -515,7 +515,7 @@ pub fn cr(mut inGraph: Graph, mut inRef: Ref, mut inCref: Arc<Absyn::ComponentRe
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (g, _, Deref @ Absyn::ComponentRef::CREF_FULLYQUALIFIED { componentRef: rest }, _, _) => {
+                (g, Deref @ Absyn::ComponentRef::CREF_FULLYQUALIFIED { componentRef: rest }, _) => {
                     let mut r: Ref;
                     let mut g = (*g).clone();
                     r = FGraph::top(g.clone())?;
@@ -527,7 +527,7 @@ pub fn cr(mut inGraph: Graph, mut inRef: Ref, mut inCref: Arc<Absyn::ComponentRe
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _, _, _, Some(_)) => {
+                (_, _, Some(_)) => {
                     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("FLookup.cr failed for: ")); __mm_s.push_str(&*AbsynUtil::crefString(inCref.clone())?); __mm_s.push_str(&*literal!(" in: ")); __mm_s.push_str(&*FNode::toPathStr(FNode::fromRef(inRef.clone())?)?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
                     Ok(bail!("fail"))
                 }

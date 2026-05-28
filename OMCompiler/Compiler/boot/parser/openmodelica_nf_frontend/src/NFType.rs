@@ -165,7 +165,7 @@ pub fn liftArrayLeft(mut ty: Arc<NFType>, mut dim: Arc<Dimension::NFDimension>) 
 pub fn liftArrayLeftList(mut ty: Arc<NFType>, mut dims: Arc<metamodelica::List<Arc<Dimension::NFDimension>>>) -> Arc<NFType> {
     let mut ty: Arc<NFType> = ty;
     if dims.clone().is_empty() {
-        return ty;
+        return ty.clone();
     }
     ty = (::match_deref::match_deref! { match &(ty.clone()) {
         Deref @ ARRAY { .. } => Arc::new(NFType::ARRAY { elementType: var_field!((*ty).elementType, NFType::ARRAY).clone(), dimensions: listAppend(dims.clone(), var_field!((*ty).dimensions, NFType::ARRAY).clone()) }),
@@ -179,7 +179,7 @@ pub fn liftArrayLeftList(mut ty: Arc<NFType>, mut dims: Arc<metamodelica::List<A
 pub fn liftArrayRightList(mut ty: Arc<NFType>, mut dims: Arc<metamodelica::List<Arc<Dimension::NFDimension>>>) -> Arc<NFType> {
     let mut ty: Arc<NFType> = ty;
     if dims.clone().is_empty() {
-        return ty;
+        return ty.clone();
     }
     ty = (::match_deref::match_deref! { match &(ty.clone()) {
         Deref @ ARRAY { .. } => Arc::new(NFType::ARRAY { elementType: var_field!((*ty).elementType, NFType::ARRAY).clone(), dimensions: listAppend(var_field!((*ty).dimensions, NFType::ARRAY).clone(), dims.clone()) }),
@@ -211,7 +211,7 @@ pub fn unliftArray(mut ty: Arc<NFType>) -> Result<Arc<NFType>> {
 pub fn unliftArrayN(mut N: i32, mut ty: Arc<NFType>) -> Result<Arc<NFType>> {
     let mut ty: Arc<NFType> = ty;
     if N.clone() == 0 {
-        return Ok(ty);
+        return Ok(ty.clone());
     }
     ty = (::match_deref::match_deref! { match &(ty.clone()) {
         Deref @ ARRAY { dimensions: dims, .. } => {
@@ -302,14 +302,14 @@ pub fn isContinuous(mut ty: Arc<NFType>) -> Result<bool> {
     let mut b: bool = false;
     b = (::match_deref::match_deref! { match &(ty.clone()) {
         Deref @ COMPLEX { complexTy: ct @ Deref @ ComplexType::RECORD { .. }, .. } => {
-            List::all({
+            List::all(({
         let mut __acc: Arc<metamodelica::List<Arc<NFType>>> = metamodelica::nil();
         for mut field in (var_field!((**ct).fields, ComplexType::NFComplexType::RECORD).clone()).borrow().iter() {
             let __x = lookupRecordFieldType((Record::Field::name(field.clone())?).clone(), ty.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, (std::sync::Arc::new(isContinuous) as std::sync::Arc<dyn ::std::ops::Fn(Arc<NFType>) -> Result<bool> + 'static>))
+    }), (std::sync::Arc::new(isContinuous) as std::sync::Arc<dyn ::std::ops::Fn(Arc<NFType>) -> Result<bool> + 'static>))
         },
         _ => {
             isReal(elementType(ty.clone()))
@@ -387,7 +387,7 @@ pub fn removeSizeOneArraysAndRecords(mut ty: Arc<NFType>) -> Result<Arc<NFType>>
     let mut ty: Arc<NFType> = ty;
     ty = (::match_deref::match_deref! { match &(ty.clone()) {
         Deref @ ARRAY { .. } => {
-            assign_variant_field!(ty => NFType::ARRAY; dimensions = {
+            assign_variant_field!(ty => NFType::ARRAY; dimensions = ({
         let mut __acc: Arc<metamodelica::List<Arc<Dimension::NFDimension>>> = metamodelica::nil();
         for mut dim in (var_field!((*ty).dimensions, NFType::ARRAY).clone()).into_iter().cloned() {
             if !(!(Dimension::isOne(dim.clone())?)) { continue; }
@@ -395,7 +395,7 @@ pub fn removeSizeOneArraysAndRecords(mut ty: Arc<NFType>) -> Result<Arc<NFType>>
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             if (var_field!((*ty).dimensions, NFType::ARRAY).clone().is_empty()) {removeSizeOneArraysAndRecords(var_field!((*ty).elementType, NFType::ARRAY).clone())?} else {ty.clone()}
         },
         Deref @ COMPLEX { complexTy: Deref @ ComplexType::RECORD { fields, .. }, .. } if ((fields.clone().borrow().len() as i32) == 1) => {
@@ -845,14 +845,14 @@ pub fn applyToDims(mut ty: Arc<NFType>, mut func: Arc<dyn ::std::ops::Fn(Arc<Dim
     let mut ty: Arc<NFType> = ty;
     ty = (::match_deref::match_deref! { match &(ty.clone()) {
         Deref @ ARRAY { .. } => {
-            assign_variant_field!(ty => NFType::ARRAY; dimensions = {
+            assign_variant_field!(ty => NFType::ARRAY; dimensions = ({
         let mut __acc: Arc<metamodelica::List<Arc<Dimension::NFDimension>>> = metamodelica::nil();
         for mut d in (var_field!((*ty).dimensions, NFType::ARRAY).clone()).into_iter().cloned() {
             let __x = func(d.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             ty.clone()
         },
         Deref @ FUNCTION { r#fn, .. } => {
@@ -949,25 +949,25 @@ pub fn mapDims(mut ty: Arc<NFType>, mut func: Arc<dyn ::std::ops::Fn(Arc<Dimensi
     let mut ty: Arc<NFType> = ty;
     let () = (::match_deref::match_deref! { match &(ty.clone()) {
         Deref @ ARRAY { .. } => {
-            assign_variant_field!(ty => NFType::ARRAY; dimensions = {
+            assign_variant_field!(ty => NFType::ARRAY; dimensions = ({
         let mut __acc: Arc<metamodelica::List<Arc<Dimension::NFDimension>>> = metamodelica::nil();
         for mut d in (var_field!((*ty).dimensions, NFType::ARRAY).clone()).into_iter().cloned() {
             let __x = func(d.clone()).unwrap();
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             ()
         },
         Deref @ TUPLE { .. } => {
-            assign_variant_field!(ty => NFType::TUPLE; types = {
+            assign_variant_field!(ty => NFType::TUPLE; types = ({
         let mut __acc: Arc<metamodelica::List<Arc<NFType>>> = metamodelica::nil();
         for mut t in (var_field!((*ty).types, NFType::TUPLE).clone()).into_iter().cloned() {
             let __x = mapDims(t.clone(), func.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             ()
         },
         Deref @ FUNCTION { r#fn, .. } => {
@@ -1097,7 +1097,6 @@ pub fn dimensionsToFlatString(mut ty: Arc<NFType>, mut format: BaseModelica::Out
 
 pub fn toFlatDeclarationStream(mut ty: Arc<NFType>, mut format: BaseModelica::OutputFormat, mut indent: ArcStr, mut s: IOStream::IOStream) -> Result<IOStream::IOStream> {
     let mut s: IOStream::IOStream = s;
-    let mut index: i32 = 0;
     let mut name: ArcStr = arcstr::literal!("");
     let mut complexTy: Arc<ComplexType::NFComplexType> = Arc::new(ComplexType::CLASS);
     let mut path: Arc<Absyn::Path>;
@@ -1110,14 +1109,14 @@ pub fn toFlatDeclarationStream(mut ty: Arc<NFType>, mut format: BaseModelica::Ou
             s = IOStream::append(s.clone(), (literal!("type ")).clone())?;
             s = IOStream::append(s.clone(), (Util::makeQuotedIdentifier((AbsynUtil::pathString(var_field!((*ty).typePath, NFType::ENUMERATION).clone(), (literal!(".")).clone(), true, false)?).clone())?).clone())?;
             s = IOStream::append(s.clone(), (literal!(" = enumeration(")).clone())?;
-            s = IOStream::append(s.clone(), stringDelimitList({
+            s = IOStream::append(s.clone(), stringDelimitList(({
         let mut __acc: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
         for mut l in (var_field!((*ty).literals, NFType::ENUMERATION).clone()).into_iter().cloned() {
             let __x = Util::makeQuotedIdentifier((l.clone()).clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, (literal!(", ")).clone()))?;
+    }), (literal!(", ")).clone()))?;
             s = IOStream::append(s.clone(), (literal!(")")).clone())?;
             s.clone()
         },
@@ -1172,22 +1171,22 @@ pub fn toDAE(mut ty: Arc<NFType>, mut makeTypeVars: bool) -> Result<Arc<DAE::Typ
         Deref @ BOOLEAN => DAE::T_BOOL_DEFAULT().clone(),
         Deref @ ENUMERATION { .. } => Arc::new(DAE::Type::T_ENUMERATION { index: None, path: var_field!((*ty).typePath, NFType::ENUMERATION).clone(), names: var_field!((*ty).literals, NFType::ENUMERATION).clone(), literalVarLst: metamodelica::nil(), attributeLst: metamodelica::nil() }),
         Deref @ CLOCK => DAE::T_CLOCK_DEFAULT().clone(),
-        Deref @ ARRAY { .. } => Arc::new(DAE::Type::T_ARRAY { ty: toDAE(var_field!((*ty).elementType, NFType::ARRAY).clone(), makeTypeVars.clone())?, dims: {
+        Deref @ ARRAY { .. } => Arc::new(DAE::Type::T_ARRAY { ty: toDAE(var_field!((*ty).elementType, NFType::ARRAY).clone(), makeTypeVars.clone())?, dims: ({
         let mut __acc: Arc<metamodelica::List<Arc<DAE::Dimension>>> = metamodelica::nil();
         for mut d in (var_field!((*ty).dimensions, NFType::ARRAY).clone()).into_iter().cloned() {
             let __x = Dimension::toDAE(d.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    } }),
-        Deref @ TUPLE { .. } => Arc::new(DAE::Type::T_TUPLE { types: {
+    }) }),
+        Deref @ TUPLE { .. } => Arc::new(DAE::Type::T_TUPLE { types: ({
         let mut __acc: Arc<metamodelica::List<Arc<DAE::Type>>> = metamodelica::nil();
         for mut t in (var_field!((*ty).types, NFType::TUPLE).clone()).into_iter().cloned() {
             let __x = toDAE(t.clone(), true)?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, names: var_field!((*ty).names, NFType::TUPLE).clone() }),
+    }), names: var_field!((*ty).names, NFType::TUPLE).clone() }),
         Deref @ FUNCTION { .. } => (match var_field!((*ty).fnType, NFType::FUNCTION).clone() {
         FunctionType::FUNCTIONAL_PARAMETER => Function::makeDAEType(var_field!((*ty).r#fn, NFType::FUNCTION).clone(), false)?,
         FunctionType::FUNCTION_REFERENCE => Arc::new(DAE::Type::T_FUNCTION_REFERENCE_FUNC { builtin: Function::isBuiltin(var_field!((*ty).r#fn, NFType::FUNCTION).clone()), functionType: Function::makeDAEType(var_field!((*ty).r#fn, NFType::FUNCTION).clone(), false)? }),
@@ -1216,7 +1215,7 @@ pub fn subscript(mut ty: Arc<NFType>, mut subs: Arc<metamodelica::List<Arc<Subsc
     let mut subbed_dims: Arc<metamodelica::List<Arc<Dimension::NFDimension>>> = metamodelica::nil();
     let mut el_ty: Arc<NFType> = Arc::new(NFType::ANY);
     if subs.clone().is_empty() {
-        return Ok(ty);
+        return Ok(ty.clone());
     }
     ty = (::match_deref::match_deref! { match &(ty.clone()) {
         Deref @ ARRAY { dimensions: dims, .. } if (!(failOnError.clone()) && (subs.clone().len() as i32) > (dims.clone().len() as i32)) => Arc::new(crate::NFType::UNKNOWN),
@@ -1264,11 +1263,11 @@ pub fn isEqual(mut ty1: Arc<NFType>, mut ty2: Arc<NFType>) -> bool {
     let mut equal: bool = false;
     if referenceEq(&ty1.clone(),&ty2.clone()) {
         equal = true;
-        return equal;
+        return equal.clone();
     }
     if metamodelica::valueConstructor((&*ty1.clone())).unwrap() != metamodelica::valueConstructor((&*ty2.clone())).unwrap() {
         equal = false;
-        return equal;
+        return equal.clone();
     }
     equal = (::match_deref::match_deref! { match &((ty1.clone(), ty2.clone())) {
         (Deref @ ENUMERATION { .. }, Deref @ ENUMERATION { .. }) => {
@@ -1495,14 +1494,14 @@ pub fn r#box(mut ty: Arc<NFType>) -> Arc<NFType> {
     let mut boxedType: Arc<NFType> = Arc::new(NFType::ANY);
     boxedType = (::match_deref::match_deref! { match &(ty.clone()) {
         Deref @ STRING { .. } => ty.clone(),
-        Deref @ TUPLE { .. } => Arc::new(NFType::TUPLE { types: {
+        Deref @ TUPLE { .. } => Arc::new(NFType::TUPLE { types: ({
         let mut __acc: Arc<metamodelica::List<Arc<NFType>>> = metamodelica::nil();
         for mut t in (var_field!((*ty).types, NFType::TUPLE).clone()).into_iter().cloned() {
             let __x = r#box(t.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, names: var_field!((*ty).names, NFType::TUPLE).clone() }),
+    }), names: var_field!((*ty).names, NFType::TUPLE).clone() }),
         Deref @ FUNCTION { .. } => ty.clone(),
         Deref @ METABOXED { .. } => ty.clone(),
         Deref @ POLYMORPHIC { .. } => ty.clone(),
@@ -1548,14 +1547,14 @@ pub fn simplify(mut ty: Arc<NFType>) -> Result<Arc<NFType>> {
     let mut ty: Arc<NFType> = ty;
     let () = (::match_deref::match_deref! { match &(ty.clone()) {
         Deref @ ARRAY { .. } => {
-            assign_variant_field!(ty => NFType::ARRAY; dimensions = {
+            assign_variant_field!(ty => NFType::ARRAY; dimensions = ({
         let mut __acc: Arc<metamodelica::List<Arc<Dimension::NFDimension>>> = metamodelica::nil();
         for mut d in (var_field!((*ty).dimensions, NFType::ARRAY).clone()).into_iter().cloned() {
             let __x = Dimension::simplify(d.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             ()
         },
         _ => (),
@@ -1579,14 +1578,14 @@ pub fn sizeOf(mut ty: Arc<NFType>, mut resize: bool) -> Result<i32> {
         Deref @ CLOCK { .. } => 1,
         Deref @ ENUMERATION { .. } => 1,
         Deref @ ARRAY { .. } => sizeOf(var_field!((*ty).elementType, NFType::ARRAY).clone(), false)? * Dimension::sizesProduct(var_field!((*ty).dimensions, NFType::ARRAY).clone(), resize.clone()),
-        Deref @ TUPLE { .. } => {
+        Deref @ TUPLE { .. } => ({
         let mut __acc: i32 = 0;
         for mut t in (var_field!((*ty).types, NFType::TUPLE).clone()).into_iter().cloned() {
             let __x = sizeOf(t.clone(), false)?;
             __acc += __x;
         }
         __acc
-    },
+    }),
         Deref @ COMPLEX { complexTy: Deref @ ComplexType::EXTERNAL_OBJECT { .. }, .. } => 1,
         Deref @ COMPLEX { complexTy: Deref @ ComplexType::RECORD { .. }, .. } => ClassTree::foldComponents(Class::classTree(InstNode::getClass(var_field!((*ty).cls, NFType::COMPLEX).clone())?)?, (std::sync::Arc::new(fnptr!(fold_comp_size, Arc<InstNode::InstNode>, i32)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<InstNode::InstNode>, i32) -> Result<i32> + 'static>), 0),
         Deref @ COMPLEX { .. } => 1,
@@ -1600,7 +1599,6 @@ pub fn sizeOf(mut ty: Arc<NFType>, mut resize: bool) -> Result<i32> {
 // and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
 pub fn complexSize(mut ty: Arc<NFType>, mut resize: bool) -> Result<Option<i32>> {
     let mut sz: Option<i32> = None;
-    let mut cls: Arc<Class::NFClass> = Arc::new(Class::NOT_INSTANTIATED);
     sz = (::match_deref::match_deref! { match &(ty.clone()) {
         Deref @ ARRAY { .. } => complexSize(var_field!((*ty).elementType, NFType::ARRAY).clone(), resize.clone())?,
         Deref @ COMPLEX { complexTy: Deref @ ComplexType::RECORD { .. }, .. } => Some(sizeOf(ty.clone(), resize.clone())?),

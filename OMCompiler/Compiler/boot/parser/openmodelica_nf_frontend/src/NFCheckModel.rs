@@ -90,10 +90,10 @@ pub fn countVariableSize(mut var: Arc<Variable::NFVariable>, mut variables: i32,
     binding = __pa1.clone();
     ty = __pa2.clone();
     if attr.variability.clone() < Variability::DISCRETE.clone() {
-        return Ok((variables, equations));
+        return Ok((variables.clone(), equations.clone()));
     }
     if Type::isExternalObject(ty.clone()) {
-        return Ok((variables, equations));
+        return Ok((variables.clone(), equations.clone()));
     }
     var_size = Type::sizeOf(ty.clone(), false)?;
     variables = variables.clone() + var_size.clone();

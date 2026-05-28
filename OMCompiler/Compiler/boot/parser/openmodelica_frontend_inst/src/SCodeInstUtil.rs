@@ -66,15 +66,15 @@ fn constantBindingOrNone(mut inBinding: Option<Arc<Absyn::Exp>>) -> Result<Optio
 
 pub fn removeNonConstantBindingsKeepRedeclares(mut inMod: Arc<SCode::Mod>, mut onlyRedeclares: bool) -> Result<Arc<SCode::Mod>> {
     let mut outMod: Arc<SCode::Mod> = Arc::new(SCode::Mod::NOMOD);
-    outMod = (::match_deref::match_deref! { match &((inMod.clone(), onlyRedeclares.clone())) {
-        (Deref @ SCode::Mod::MOD { finalPrefix: fp, eachPrefix: ep, subModLst: sl, binding, comment: cmt, info: i }, _) => {
+    outMod = (::match_deref::match_deref! { match &(inMod.clone()) {
+        Deref @ SCode::Mod::MOD { finalPrefix: fp, eachPrefix: ep, subModLst: sl, binding, comment: cmt, info: i } => {
             let mut sl = (*sl).clone();
             let mut binding = (*binding).clone();
             binding = if (onlyRedeclares.clone()) {None} else {constantBindingOrNone(binding.clone())?};
             sl = removeNonConstantBindingsKeepRedeclaresFromSubMod(sl.clone(), onlyRedeclares.clone())?;
             Arc::new(SCode::Mod::MOD { finalPrefix: fp.clone(), eachPrefix: ep.clone(), subModLst: sl.clone(), binding: binding.clone(), comment: cmt.clone(), info: i.clone() })
         },
-        (Deref @ SCode::Mod::REDECL { .. }, _) => {
+        Deref @ SCode::Mod::REDECL { .. } => {
             inMod.clone()
         },
         _ => {
@@ -87,11 +87,11 @@ pub fn removeNonConstantBindingsKeepRedeclares(mut inMod: Arc<SCode::Mod>, mut o
 
 fn removeNonConstantBindingsKeepRedeclaresFromSubMod(mut inSl: Arc<metamodelica::List<Arc<SCode::SubMod>>>, mut onlyRedeclares: bool) -> Result<Arc<metamodelica::List<Arc<SCode::SubMod>>>> {
     let mut outSl: Arc<metamodelica::List<Arc<SCode::SubMod>>> = metamodelica::nil();
-    outSl = (::match_deref::match_deref! { match &((inSl.clone(), onlyRedeclares.clone())) {
-        (Deref @ metamodelica::List::Nil, _) => {
+    outSl = (::match_deref::match_deref! { match &(inSl.clone()) {
+        Deref @ metamodelica::List::Nil => {
             metamodelica::nil()
         },
-        (Deref @ metamodelica::List::Cons { head: Deref @ SCode::SubMod { ident: n, r#mod: m }, tail: rest }, _) => {
+        Deref @ metamodelica::List::Cons { head: Deref @ SCode::SubMod { ident: n, r#mod: m }, tail: rest } => {
             let mut sl: Arc<metamodelica::List<Arc<SCode::SubMod>>> = metamodelica::nil();
             let mut m = (*m).clone();
             m = removeNonConstantBindingsKeepRedeclares(m.clone(), onlyRedeclares.clone())?;
@@ -188,15 +188,15 @@ fn removeReferenceInBinding(mut inBinding: Option<Arc<Absyn::Exp>>, mut inCref: 
 
 pub fn removeSelfReferenceFromMod(mut inMod: Arc<SCode::Mod>, mut inCref: Arc<Absyn::ComponentRef>) -> Result<Arc<SCode::Mod>> {
     let mut outMod: Arc<SCode::Mod> = Arc::new(SCode::Mod::NOMOD);
-    outMod = (::match_deref::match_deref! { match &((inMod.clone(), inCref.clone())) {
-        (Deref @ SCode::Mod::MOD { finalPrefix: fp, eachPrefix: ep, subModLst: sl, binding, comment: cmt, info: i }, _) => {
+    outMod = (::match_deref::match_deref! { match &(inMod.clone()) {
+        Deref @ SCode::Mod::MOD { finalPrefix: fp, eachPrefix: ep, subModLst: sl, binding, comment: cmt, info: i } => {
             let mut sl = (*sl).clone();
             let mut binding = (*binding).clone();
             binding = removeReferenceInBinding(binding.clone(), inCref.clone())?;
             sl = removeSelfReferenceFromSubMod(sl.clone(), inCref.clone())?;
             Arc::new(SCode::Mod::MOD { finalPrefix: fp.clone(), eachPrefix: ep.clone(), subModLst: sl.clone(), binding: binding.clone(), comment: cmt.clone(), info: i.clone() })
         },
-        (Deref @ SCode::Mod::REDECL { .. }, _) => {
+        Deref @ SCode::Mod::REDECL { .. } => {
             inMod.clone()
         },
         _ => {
@@ -209,11 +209,11 @@ pub fn removeSelfReferenceFromMod(mut inMod: Arc<SCode::Mod>, mut inCref: Arc<Ab
 
 fn removeSelfReferenceFromSubMod(mut inSl: Arc<metamodelica::List<Arc<SCode::SubMod>>>, mut inCref: Arc<Absyn::ComponentRef>) -> Result<Arc<metamodelica::List<Arc<SCode::SubMod>>>> {
     let mut outSl: Arc<metamodelica::List<Arc<SCode::SubMod>>> = metamodelica::nil();
-    outSl = (::match_deref::match_deref! { match &((inSl.clone(), inCref.clone())) {
-        (Deref @ metamodelica::List::Nil, _) => {
+    outSl = (::match_deref::match_deref! { match &(inSl.clone()) {
+        Deref @ metamodelica::List::Nil => {
             metamodelica::nil()
         },
-        (Deref @ metamodelica::List::Cons { head: Deref @ SCode::SubMod { ident: n, r#mod: m }, tail: rest }, _) => {
+        Deref @ metamodelica::List::Cons { head: Deref @ SCode::SubMod { ident: n, r#mod: m }, tail: rest } => {
             let mut sl: Arc<metamodelica::List<Arc<SCode::SubMod>>> = metamodelica::nil();
             let mut m = (*m).clone();
             m = removeSelfReferenceFromMod(m.clone(), inCref.clone())?;
@@ -304,14 +304,14 @@ fn makeEnumParts(mut inEnumLst: Arc<metamodelica::List<Arc<SCode::Enum>>>, mut i
 
 fn makeEnumComponents(mut inEnumLst: Arc<metamodelica::List<Arc<SCode::Enum>>>, mut info: SourceInfo) -> Result<Arc<metamodelica::List<Arc<SCode::Element>>>> {
     let mut outSCodeElementLst: Arc<metamodelica::List<Arc<SCode::Element>>> = metamodelica::nil();
-    outSCodeElementLst = {
+    outSCodeElementLst = ({
         let mut __acc: Arc<metamodelica::List<Arc<SCode::Element>>> = metamodelica::nil();
         for mut e in (inEnumLst.clone()).into_iter().cloned() {
             let __x = SCodeUtil::makeEnumType(e.clone(), info.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     Ok(outSCodeElementLst)
 }
 

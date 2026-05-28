@@ -104,14 +104,14 @@ pub fn fromExp(mut exp: Arc<Expression::NFExpression>) -> Result<Arc<NFRangeIter
             Arc::new(NFRangeIterator::REAL_RANGE { start: rstart.clone(), stepsize: metamodelica::OrderedFloat(1.0_f64), current: 0, steps: Util::realRangeSize(rstart.clone(), metamodelica::OrderedFloat(1.0_f64), rstop.clone()) })
         },
         Deref @ Expression::RANGE { stop: Deref @ Expression::BOOLEAN { value: bstop }, start: Deref @ Expression::BOOLEAN { value: bstart }, .. } => {
-            Arc::new(NFRangeIterator::ARRAY_RANGE { values: metamodelica::arrayFromVec({
+            Arc::new(NFRangeIterator::ARRAY_RANGE { values: metamodelica::arrayFromVec(({
         let mut __acc: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
         for mut b in (({let __bs = bstart.clone(); let __be = bstop.clone(); if !__bs && !__be { vec![false] } else if !__bs && __be { vec![false, true] } else if __bs && __be { vec![true] } else { Vec::<bool>::new() }})).into_iter() {
             let __x = Arc::new(Expression::NFExpression::BOOLEAN { value: b.clone() });
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }.into_iter().cloned().collect()), index: 1 })
+    }).into_iter().cloned().collect()), index: 1 })
         },
         Deref @ Expression::RANGE { stop: Deref @ Expression::ENUM_LITERAL { index: istop, .. }, step: None, start: Deref @ Expression::ENUM_LITERAL { index: istart, ty, .. }, .. } => {
             let mut literals: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();

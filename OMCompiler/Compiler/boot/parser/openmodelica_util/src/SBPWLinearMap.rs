@@ -77,7 +77,7 @@ pub fn new(mut dom: metamodelica::Array<Arc<SBSet::SBSet>>, mut lmap: metamodeli
     let mut same_dims: bool = false;
     if (dom.clone().borrow().len() as i32) != (lmap.clone().borrow().len() as i32) {
         map = newEmpty();
-        return map;
+        return map.clone();
     }
     if !(dom.clone().borrow().is_empty()) {
         dim = SBSet::ndim(dom.borrow()[(1-1) as usize].clone());
@@ -213,7 +213,7 @@ pub fn compPW(mut map1: Arc<SBPWLinearMap>, mut map2: Arc<SBPWLinearMap>) -> Res
     let mut new_lm: Arc<SBLinearMap::SBLinearMap> = Arc::new(<SBLinearMap::SBLinearMap as ::std::default::Default>::default());
     if isEmpty(map1.clone()) || isEmpty(map2.clone()) {
         outMap = newEmpty();
-        return Ok(outMap);
+        return Ok(outMap.clone());
     }
     ress = Vector::new(0);
     reslm = Vector::new(0);
@@ -253,7 +253,7 @@ pub fn minInvCompact(mut map: Arc<SBPWLinearMap>) -> Result<Arc<SBPWLinearMap>> 
     let mut o: metamodelica::Array<metamodelica::Real>;
     if (map.dom.clone().borrow().len() as i32) != 1 {
         outMap = newEmpty();
-        return Ok(outMap);
+        return Ok(outMap.clone());
     }
     aux_dom = map.dom.clone().borrow()[(1-1) as usize].clone();
     dom_inv = image(map.clone(), aux_dom.clone())?;
@@ -311,11 +311,11 @@ pub fn combine(mut map1: Arc<SBPWLinearMap>, mut map2: Arc<SBPWLinearMap>) -> Re
     let mut new_dom: Arc<SBSet::SBSet> = Arc::new(<SBSet::SBSet as ::std::default::Default>::default());
     if isEmpty(map1.clone()) {
         outMap = copy(map2.clone());
-        return Ok(outMap);
+        return Ok(outMap.clone());
     }
     if isEmpty(map2.clone()) {
         outMap = copy(map1.clone());
-        return Ok(outMap);
+        return Ok(outMap.clone());
     }
     sres = Vector::fromArray(map1.dom.clone());
     lres = Vector::fromArray(map1.lmap.clone());

@@ -104,9 +104,8 @@ pub mod ConnectionSets {
 
     pub fn addConnection(mut connection: Arc<Connection::NFConnection>, mut broken: Arc<metamodelica::List<Connections::BrokenEdge>>, mut sets: Sets) -> Result<Sets> {
         let mut sets: Sets = sets;
-        let mut conns: Arc<metamodelica::List<Arc<Connection::NFConnection>>> = metamodelica::nil();
         if !(broken.clone().is_empty()) && isBroken(connection.lhs.clone(), connection.rhs.clone(), broken.clone())? {
-            return Ok(sets);
+            return Ok(sets.clone());
         }
         sets = merge(connection.lhs.clone(), connection.rhs.clone(), sets.clone())?;
         Ok(sets)
@@ -266,7 +265,10 @@ pub mod ConnectionSets {
         let mut oindex: Option<i32> = None;
         oindex = UnorderedMap::get(entry.clone(), sets.elements.clone());
         if isSome(oindex.clone()) {
-            let Some(__pa0) = (oindex.clone()) else { bail!("pattern mismatch") };
+            let __pa0 = ::match_deref::match_deref! { match &(oindex.clone()) {
+                Some(__pa0) => __pa0.clone(),
+                _ => bail!("pattern mismatch"),
+            } };
             index = __pa0.clone();
         } else {
             (sets, index) = add(entry.clone(), sets.clone())?;

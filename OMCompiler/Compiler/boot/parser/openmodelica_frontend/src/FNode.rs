@@ -298,25 +298,17 @@ fn translateQualifiedImportToNamed(mut inImport: Import) -> Result<Import> {
 }
 
 fn checkUniqueQualifiedImport(mut inImport: Import, mut inImports: Arc<metamodelica::List<Absyn::Import>>, mut inInfo: SourceInfo) -> Result<()> {
-    let _ = 'mc: {
-        let __mc_input = (inImport.clone(), inImports.clone(), inInfo.clone());
+    let () = 'mc: {
+        let __mc_input = inImport.clone();
         if let Ok(__v) = (|| -> Result<_> {
-            ::match_deref::match_deref! { match &__mc_input {
-                (_, _, _) => {
-                    let false = (List::isMemberOnTrue(inImport.clone(), inImports.clone(), (std::sync::Arc::new(fnptr!(compareQualifiedImportNames, Absyn::Import, Absyn::Import)) as std::sync::Arc<dyn ::std::ops::Fn(Absyn::Import, Absyn::Import) -> Result<bool> + 'static>))) else { bail!("pattern mismatch") };
-                    Ok(())
-                }
-                _ => bail!("nomatch"),
-            }}
+            let _ = __mc_input.clone() else { bail!("nomatch") };
+            let false = (List::isMemberOnTrue(inImport.clone(), inImports.clone(), (std::sync::Arc::new(fnptr!(compareQualifiedImportNames, Absyn::Import, Absyn::Import)) as std::sync::Arc<dyn ::std::ops::Fn(Absyn::Import, Absyn::Import) -> Result<bool> + 'static>))) else { bail!("pattern mismatch") };
+            Ok(())
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
-            ::match_deref::match_deref! { match &__mc_input {
-                (Absyn::Import::NAMED_IMPORT { name, .. }, _, _) => {
-                    Error::addSourceMessage(Error::MULTIPLE_QUALIFIED_IMPORTS_WITH_SAME_NAME.clone(), list![(name.clone()).clone()], inInfo.clone())?;
-                    Ok(bail!("fail"))
-                }
-                _ => bail!("nomatch"),
-            }}
+            let Absyn::Import::NAMED_IMPORT { name: mut name, .. } = __mc_input.clone() else { bail!("nomatch") };
+            Error::addSourceMessage(Error::MULTIPLE_QUALIFIED_IMPORTS_WITH_SAME_NAME.clone(), list![(name.clone()).clone()], inInfo.clone())?;
+            Ok(bail!("fail"))
         })() { break 'mc __v; }
         bail!("matchcontinue: no arm matched")
     };
@@ -374,9 +366,6 @@ pub fn addImportToRef(mut r#ref: Ref, mut imp: Arc<SCode::Element>) -> Result<()
     let mut id: i32 = 0;
     let mut p: Parents = metamodelica::nil();
     let mut c: Children = Arc::new(FCore::RefTree::Tree::EMPTY);
-    let mut d: Data = FCore::Data::TOP;
-    let mut e: Arc<SCode::Element>;
-    let mut t: Kind = FCore::Kind::BASIC_TYPE;
     let mut it: ImportTable = <FCore::ImportTable as ::std::default::Default>::default();
     let mut r: Ref;
     let FCore::N { name: __pa0, id: __pa1, parents: __pa2, children: __pa3, data: FCore::IM { i: __pa4 } } = (fromRef(r#ref.clone())?) else { bail!("pattern mismatch") };
@@ -395,10 +384,6 @@ pub fn addTypesToRef(mut r#ref: Ref, mut inTys: Arc<metamodelica::List<Arc<DAE::
     let mut id: i32 = 0;
     let mut p: Parents = metamodelica::nil();
     let mut c: Children = Arc::new(FCore::RefTree::Tree::EMPTY);
-    let mut d: Data = FCore::Data::TOP;
-    let mut e: Arc<SCode::Element>;
-    let mut t: Kind = FCore::Kind::BASIC_TYPE;
-    let mut it: ImportTable = <FCore::ImportTable as ::std::default::Default>::default();
     let mut tys: Arc<metamodelica::List<Arc<DAE::Type>>> = metamodelica::nil();
     let mut r: Ref;
     let FCore::N { name: __pa0, id: __pa1, parents: __pa2, children: __pa3, data: FCore::FT { tys: __pa4 } } = (fromRef(r#ref.clone())?) else { bail!("pattern mismatch") };
@@ -417,9 +402,6 @@ pub fn addIteratorsToRef(mut r#ref: Ref, mut inIterators: Arc<metamodelica::List
     let mut id: i32 = 0;
     let mut p: Parents = metamodelica::nil();
     let mut c: Children = Arc::new(FCore::RefTree::Tree::EMPTY);
-    let mut d: Data = FCore::Data::TOP;
-    let mut e: Arc<SCode::Element>;
-    let mut t: Kind = FCore::Kind::BASIC_TYPE;
     let mut it: Arc<metamodelica::List<Arc<Absyn::ForIterator>>> = metamodelica::nil();
     let mut r: Ref;
     let FCore::N { name: __pa0, id: __pa1, parents: __pa2, children: __pa3, data: FCore::FS { fis: __pa4 } } = (fromRef(r#ref.clone())?) else { bail!("pattern mismatch") };
@@ -437,10 +419,6 @@ pub fn addDefinedUnitToRef(mut r#ref: Ref, mut du: Arc<SCode::Element>) -> Resul
     let mut id: i32 = 0;
     let mut p: Parents = metamodelica::nil();
     let mut c: Children = Arc::new(FCore::RefTree::Tree::EMPTY);
-    let mut d: Data = FCore::Data::TOP;
-    let mut e: Arc<SCode::Element>;
-    let mut t: Kind = FCore::Kind::BASIC_TYPE;
-    let mut it: ImportTable = <FCore::ImportTable as ::std::default::Default>::default();
     let mut r: Ref;
     let mut dus: Arc<metamodelica::List<Arc<SCode::Element>>> = metamodelica::nil();
     let FCore::N { name: __pa0, id: __pa1, parents: __pa2, children: __pa3, data: FCore::DU { els: __pa4 } } = (fromRef(r#ref.clone())?) else { bail!("pattern mismatch") };
@@ -504,10 +482,10 @@ pub fn children(mut inNode: Node) -> Result<Children> {
 pub fn hasChild(mut inNode: Node, mut inName: Name) -> Result<bool> {
     let mut b: bool = false;
     b = 'mc: {
-        let __mc_input = (inNode.clone(), inName.clone());
+        let __mc_input = inName.clone();
         if let Ok(__v) = (|| -> Result<_> {
-            let (_, _) = __mc_input.clone() else { bail!("nomatch") };
-            let _ = childFromNode(inNode.clone(), (inName.clone()).clone())?;
+            let _ = __mc_input.clone() else { bail!("nomatch") };
+            childFromNode(inNode.clone(), (inName.clone()).clone())?;
             Ok(true)
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
@@ -548,7 +526,6 @@ pub fn setData(mut inNode: Node, mut inData: Data) -> Result<Node> {
     let mut i: Id = 0;
     let mut p: Parents = metamodelica::nil();
     let mut c: Children = Arc::new(FCore::RefTree::Tree::EMPTY);
-    let mut d: Data = FCore::Data::TOP;
     let FCore::N { name: __pa0, id: __pa1, parents: __pa2, children: __pa3, data: _ } = (inNode.clone()) else { bail!("pattern mismatch") };
     n = __pa0.clone();
     i = __pa1.clone();
@@ -575,8 +552,8 @@ pub fn childFromNode(mut inNode: Node, mut inName: Name) -> Result<Ref> {
 pub fn element2Data(mut inElement: Arc<SCode::Element>, mut inKind: Kind) -> Result<(Data, Arc<DAE::Var>)> {
     let mut outData: Data = FCore::Data::TOP;
     let mut outVar: Arc<DAE::Var> = Arc::new(<DAE::Var as ::std::default::Default>::default());
-    (outData, outVar) = (::match_deref::match_deref! { match &((inElement.clone(), inKind.clone())) {
-        (Deref @ SCode::Element::COMPONENT { name: n, prefixes: Deref @ SCode::Prefixes { visibility: vis, redeclarePrefix: _, finalPrefix: _, innerOuter: io, replaceablePrefix: _ }, attributes: SCode::Attributes { arrayDims: _, connectorType: ct, parallelism: prl, variability: var, direction: dir, .. }, typeSpec: _, modifications: _, comment: _, condition: _, info: _ }, _) => {
+    (outData, outVar) = (::match_deref::match_deref! { match &(inElement.clone()) {
+        Deref @ SCode::Element::COMPONENT { name: n, prefixes: Deref @ SCode::Prefixes { visibility: vis, redeclarePrefix: _, finalPrefix: _, innerOuter: io, replaceablePrefix: _ }, attributes: SCode::Attributes { arrayDims: _, connectorType: ct, parallelism: prl, variability: var, direction: dir, .. }, typeSpec: _, modifications: _, comment: _, condition: _, info: _ } => {
             let mut nd: Data = FCore::Data::TOP;
             let mut i: Arc<DAE::Var> = Arc::new(<DAE::Var as ::std::default::Default>::default());
             nd = FCore::Data::CO { e: inElement.clone(), r#mod: Arc::new(openmodelica_frontend_types::DAE::Mod::NOMOD), kind: inKind.clone(), status: crate::FCore::Status::VAR_UNTYPED };
@@ -1024,8 +1001,8 @@ pub fn isIn(mut inNode: Node, mut inFunctionRefIs: Arc<dyn ::std::ops::Fn(metamo
     pub type FunctionRefIs = std::sync::Arc<dyn ::std::ops::Fn(Ref) -> Result<bool> + 'static>;
 
     let mut b: bool = false;
-    b = (match (inNode.clone(), inFunctionRefIs.clone()) {
-        (_, _) => {
+    b = (match inFunctionRefIs.clone() {
+        _ => {
             let mut s: Scope = metamodelica::nil();
             let mut b1: bool = false;
             let mut b2: bool = false;
@@ -1065,22 +1042,19 @@ pub fn namesUpToParentName(mut inRef: Ref, mut inName: Name) -> Result<Names> {
     Ok(outNames)
 }
 
-// NOTE: #[tailcall::tailcall] disabled: function body contains a `match_deref!{…}` match,
-// and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
 fn namesUpToParentName_dispatch(mut inRef: Ref, mut inName: Name, mut acc: Names) -> Result<Names> {
     let mut outNames: Names = metamodelica::nil();
-    outNames = (::match_deref::match_deref! { match &((inRef.clone(), inName.clone(), acc.clone())) {
-        (r, _, _) if (isRefTop(r.clone())?) => {
+    outNames = (match (inRef.clone(), inName.clone()) {
+        (mut r, _) if (isRefTop(r.clone())?) => {
             metamodelica::nil()
         },
-        (r, _, _) if (stringEq((inName.clone()).clone(), (refName(r.clone())?).clone())) => {
+        (mut r, _) if (stringEq((inName.clone()).clone(), (refName(r.clone())?).clone())) => {
             acc.clone()
         },
-        (r, name, _) => {
+        (mut r, mut name) => {
             namesUpToParentName_dispatch(original(refParents(r.clone())?)?, (name.clone()).clone(), cons((refName(r.clone())?).clone(), acc.clone()))?
         },
-        _ => unreachable!("match_deref! exhaustiveness placeholder"),
-    } });
+    });
     Ok(outNames)
 }
 
@@ -1123,11 +1097,11 @@ pub fn originalScope(mut inRef: Ref) -> Result<Scope> {
 // and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
 pub fn originalScope_dispatch(mut inRef: Ref, mut inAcc: Scope) -> Result<Scope> {
     let mut outScope: Scope = metamodelica::nil();
-    outScope = (::match_deref::match_deref! { match &((inRef.clone(), inAcc.clone())) {
-        (_, acc) if (isTop(fromRef(inRef.clone())?)) => {
+    outScope = (::match_deref::match_deref! { match &(inAcc.clone()) {
+        acc if (isTop(fromRef(inRef.clone())?)) => {
             cons(inRef.clone(), acc.clone()).reverse()
         },
-        (_, acc) => {
+        acc => {
             let mut r: Ref;
             r = original(parents(fromRef(inRef.clone())?)?)?;
             originalScope_dispatch(r.clone(), cons(inRef.clone(), acc.clone()))?
@@ -1153,11 +1127,11 @@ pub fn contextualScope(mut inRef: Ref) -> Result<Scope> {
 // and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
 pub fn contextualScope_dispatch(mut inRef: Ref, mut inAcc: Scope) -> Result<Scope> {
     let mut outScope: Scope = metamodelica::nil();
-    outScope = (::match_deref::match_deref! { match &((inRef.clone(), inAcc.clone())) {
-        (_, acc) if (isTop(fromRef(inRef.clone())?)) => {
+    outScope = (::match_deref::match_deref! { match &(inAcc.clone()) {
+        acc if (isTop(fromRef(inRef.clone())?)) => {
             cons(inRef.clone(), acc.clone()).reverse()
         },
-        (_, acc) => {
+        acc => {
             let mut r: Ref;
             r = contextual(parents(fromRef(inRef.clone())?)?)?;
             contextualScope_dispatch(r.clone(), cons(inRef.clone(), acc.clone()))?
@@ -1176,10 +1150,10 @@ pub fn contextual(mut inParents: Parents) -> Result<Ref> {
 pub fn lookupRef(mut inRef: Ref, mut inScope: Scope) -> Result<Ref> {
     let mut outRef: Ref;
     outRef = 'mc: {
-        let __mc_input = (inRef.clone(), inScope.clone());
+        let __mc_input = inScope.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, Deref @ metamodelica::List::Cons { head: _, tail: Deref @ metamodelica::List::Nil }) => {
+                Deref @ metamodelica::List::Cons { head: _, tail: Deref @ metamodelica::List::Nil } => {
                     Ok(inRef.clone())
                 }
                 _ => bail!("nomatch"),
@@ -1187,7 +1161,7 @@ pub fn lookupRef(mut inRef: Ref, mut inScope: Scope) -> Result<Ref> {
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, s) => {
+                s => {
                     let mut r: Ref;
                     let mut s = (*s).clone();
                     let __pa0 = ::match_deref::match_deref! { match &(s.clone().reverse()) {
@@ -1210,11 +1184,11 @@ pub fn lookupRef(mut inRef: Ref, mut inScope: Scope) -> Result<Ref> {
 // and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
 pub fn lookupRef_dispatch(mut inRef: Ref, mut inScope: Scope) -> Result<Ref> {
     let mut outRef: Ref;
-    outRef = (::match_deref::match_deref! { match &((inRef.clone(), inScope.clone())) {
-        (_, Deref @ metamodelica::List::Nil) => {
+    outRef = (::match_deref::match_deref! { match &(inScope.clone()) {
+        Deref @ metamodelica::List::Nil => {
             inRef.clone()
         },
-        (_, Deref @ metamodelica::List::Cons { head: r, tail: rest }) => {
+        Deref @ metamodelica::List::Cons { head: r, tail: rest } => {
             let mut n: Name = arcstr::literal!("");
             let mut r = (*r).clone();
             n = (name(fromRef(r.clone())?)?).clone();
@@ -1222,7 +1196,7 @@ pub fn lookupRef_dispatch(mut inRef: Ref, mut inScope: Scope) -> Result<Ref> {
             r = lookupRef_dispatch(r.clone(), rest.clone())?;
             r.clone()
         },
-        _ => bail!("match: no arm matched"),
+        _ => unreachable!("match_deref! exhaustiveness placeholder"),
     } });
     Ok(outRef)
 }
@@ -1454,12 +1428,8 @@ pub fn imports(mut inNode: Node) -> Result<(Arc<metamodelica::List<Absyn::Import
 pub fn derivedRef(mut inRef: Ref) -> Result<Refs> {
     let mut outRefs: Refs = metamodelica::nil();
     outRefs = (match inRef.clone() {
-        _ if (isRefDerived(inRef.clone())?) => {
-            list![child(inRef.clone(), (arcstr::literal!(refNodeName)).clone())?]
-        },
-        _ => {
-            metamodelica::nil()
-        },
+        _ if (isRefDerived(inRef.clone())?) => list![child(inRef.clone(), (arcstr::literal!(refNodeName)).clone())?],
+        _ => metamodelica::nil(),
     });
     Ok(outRefs)
 }
@@ -1486,8 +1456,8 @@ pub fn extendsRefs(mut inRef: Ref) -> Result<Refs> {
 pub fn cloneRef(mut inName: Name, mut inRef: Ref, mut inParentRef: Ref, mut inGraph: Graph) -> Result<(Graph, Ref)> {
     let mut outGraph: Graph;
     let mut outRef: Ref;
-    (outGraph, outRef) = (match (inName.clone(), inRef.clone(), inParentRef.clone(), inGraph.clone()) {
-        (_, _, _, mut g) => {
+    (outGraph, outRef) = (match inGraph.clone() {
+        mut g => {
             let mut r: Ref;
             (g, r) = clone(fromRef(inRef.clone())?, inParentRef.clone(), g.clone())?;
             addChildRef(inParentRef.clone(), (inName.clone()).clone(), r.clone(), false)?;
@@ -1500,8 +1470,8 @@ pub fn cloneRef(mut inName: Name, mut inRef: Ref, mut inParentRef: Ref, mut inGr
 pub fn clone(mut inNode: Node, mut inParentRef: Ref, mut inGraph: Graph) -> Result<(Graph, Ref)> {
     let mut outGraph: Graph;
     let mut outRef: Ref;
-    (outGraph, outRef) = (match (inNode.clone(), inParentRef.clone(), inGraph.clone()) {
-        (FCore::Node { name: mut name, id: mut id, parents: mut parents, children: mut children, data: mut data }, _, mut g) => {
+    (outGraph, outRef) = (match (inNode.clone(), inGraph.clone()) {
+        (FCore::Node { name: mut name, id: mut id, parents: mut parents, children: mut children, data: mut data }, mut g) => {
             let mut n: Node = <FCore::Node as ::std::default::Default>::default();
             let mut r: Ref;
             let mut parents = parents.clone();
@@ -1541,8 +1511,8 @@ fn cloneChild(mut name: Name, mut parentRef: Ref, mut inRef: Ref, mut inGraph: G
 pub fn copyRef(mut inRef: Ref, mut inGraph: Graph) -> Result<(Graph, Ref)> {
     let mut outGraph: Graph;
     let mut outRef: Ref;
-    (outGraph, outRef) = (match (inRef.clone(), inGraph.clone()) {
-        (_, mut g) => {
+    (outGraph, outRef) = (match inGraph.clone() {
+        mut g => {
             let mut r: Ref;
             r = copyRefNoUpdate(inRef.clone());
             (g, r) = updateRefs(r.clone(), g.clone())?;
@@ -1555,8 +1525,8 @@ pub fn copyRef(mut inRef: Ref, mut inGraph: Graph) -> Result<(Graph, Ref)> {
 pub fn updateRefs(mut inRef: Ref, mut inGraph: Graph) -> Result<(Graph, Ref)> {
     let mut outGraph: Graph;
     let mut outRef: Ref;
-    (outGraph, outRef) = (match (inRef.clone(), inGraph.clone()) {
-        (_, mut g) => {
+    (outGraph, outRef) = (match inGraph.clone() {
+        mut g => {
             let mut r: Ref;
             (r, g) = apply1(inRef.clone(), (std::sync::Arc::new(updateRefInGraph) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, metamodelica::Array<FCore::Node>, (metamodelica::Array<FCore::Node>, FCore::Graph)) -> Result<(metamodelica::Array<FCore::Node>, FCore::Graph)> + 'static>), (inRef.clone(), g.clone()))?;
             (g.clone(), r.clone())
@@ -1567,8 +1537,8 @@ pub fn updateRefs(mut inRef: Ref, mut inGraph: Graph) -> Result<(Graph, Ref)> {
 
 fn updateRefInGraph(mut name: Name, mut inRef: Ref, mut inTopRefAndGraph: (metamodelica::Array<FCore::Node>, FCore::Graph)) -> Result<(metamodelica::Array<FCore::Node>, FCore::Graph)> {
     let mut outTopRefAndGraph: (metamodelica::Array<FCore::Node>, FCore::Graph);
-    outTopRefAndGraph = (match (inRef.clone(), inTopRefAndGraph.clone()) {
-        (_, (mut t, mut g)) => {
+    outTopRefAndGraph = (match inTopRefAndGraph.clone() {
+        (mut t, mut g) => {
             let mut n: Name = arcstr::literal!("");
             let mut i: Id = 0;
             let mut p: Parents = metamodelica::nil();
@@ -1582,7 +1552,7 @@ fn updateRefInGraph(mut name: Name, mut inRef: Ref, mut inTopRefAndGraph: (metam
             d = __pa4.clone();
             p = List::map1r(p.clone(), (std::sync::Arc::new(lookupRefFromRef) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Node>, metamodelica::Array<FCore::Node>) -> Result<metamodelica::Array<FCore::Node>> + 'static>), t.clone());
             d = updateRefInData(d.clone(), t.clone());
-            let _ = updateRef(inRef.clone(), FCore::Node { name: (n.clone()).clone(), id: i.clone(), parents: p.clone(), children: c.clone(), data: d.clone() })?;
+            updateRef(inRef.clone(), FCore::Node { name: (n.clone()).clone(), id: i.clone(), parents: p.clone(), children: c.clone(), data: d.clone() })?;
             (t.clone(), g.clone())
         },
     });
@@ -1591,8 +1561,8 @@ fn updateRefInGraph(mut name: Name, mut inRef: Ref, mut inTopRefAndGraph: (metam
 
 pub fn lookupRefFromRef(mut inRef: Ref, mut inOldRef: Ref) -> Result<Ref> {
     let mut outRef: Ref;
-    outRef = (match (inRef.clone(), inOldRef.clone()) {
-        (_, _) => {
+    outRef = (match inOldRef.clone() {
+        _ => {
             let mut r: Ref;
             let mut s: Scope = metamodelica::nil();
             s = originalScope(inOldRef.clone())?;
@@ -1605,8 +1575,8 @@ pub fn lookupRefFromRef(mut inRef: Ref, mut inOldRef: Ref) -> Result<Ref> {
 
 fn updateRefInData(mut inData: Data, mut inRef: Ref) -> Data {
     let mut outData: Data = FCore::Data::TOP;
-    outData = (match (inData.clone(), inRef.clone()) {
-        (FCore::Data::REF { target: ref sc }, _) => {
+    outData = (match inData.clone() {
+        FCore::Data::REF { target: ref sc } => {
             let mut sc = sc.clone();
             sc = List::map1r(sc.clone(), (std::sync::Arc::new(lookupRefFromRef) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<FCore::Node>, metamodelica::Array<FCore::Node>) -> Result<metamodelica::Array<FCore::Node>> + 'static>), inRef.clone());
             FCore::Data::REF { target: sc.clone() }
@@ -1692,7 +1662,7 @@ pub fn isRefRefUnresolved(mut inRef: Ref) -> Result<bool> {
         if let Ok(__v) = (|| -> Result<_> {
             let _ = __mc_input.clone() else { bail!("nomatch") };
             let mut b: bool = b.clone();
-            let _ = refRef(inRef.clone())?;
+            refRef(inRef.clone())?;
             b = refRefTargetScope(inRef.clone())?.is_empty();
             Ok(b.clone())
         })() { break 'mc __v; }
@@ -1757,14 +1727,14 @@ pub fn scopeHashWork(mut scope: Scope, mut hash: i32) -> Result<i32> {
 
 pub fn scopePathEq(mut scope1: Scope, mut scope2: Scope) -> Result<bool> {
     let mut eq: bool = false;
-    eq = {
+    eq = ({
         let mut __acc: Option<bool> = None;
         for (r1, r2) in (&(scope1.clone())).into_iter().zip((&(scope2.clone())).into_iter()) {
             let __x = refName(r1.clone())? == refName(r2.clone())?;
             __acc = Some(match __acc { None => __x, Some(__cur) => if __x < __cur { __x } else { __cur } });
         }
         __acc.ok_or_else(|| anyhow::anyhow!("empty min reduction"))?
-    };
+    });
     Ok(eq)
 }
 

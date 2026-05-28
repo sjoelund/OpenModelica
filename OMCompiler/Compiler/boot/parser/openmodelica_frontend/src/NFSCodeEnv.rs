@@ -511,7 +511,7 @@ pub mod EnvTree {
     pub fn forEach(mut tree: Arc<Tree>, mut func: Arc<dyn ::std::ops::Fn(ArcStr, Arc<Item>) -> Result<()> + 'static>) -> Result<()> {
         pub type EachFunc = std::sync::Arc<dyn ::std::ops::Fn(Key, Value) -> Result<()> + 'static>;
 
-        let _ = (::match_deref::match_deref! { match &(tree.clone()) {
+        let () = (::match_deref::match_deref! { match &(tree.clone()) {
         Deref @ Tree::NODE { .. } => {
             forEach(var_field!((*tree).left, Tree::NODE).clone(), func.clone())?;
             func((var_field!((*tree).key, Tree::NODE).clone()).clone(), var_field!((*tree).value, Tree::NODE).clone())?;
@@ -589,7 +589,7 @@ pub mod EnvTree {
         Deref @ Tree::NODE { .. } => var_field!((*inTree).key, Tree::NODE).clone(),
         Deref @ Tree::LEAF { .. } => var_field!((*inTree).key, Tree::LEAF).clone(),
         Deref @ Tree::EMPTY { .. } => {
-            return Ok(comp);
+            return Ok(comp.clone());
             bail!("fail")
         },
         _ => bail!("match: no arm matched"),
@@ -800,11 +800,8 @@ pub mod EnvTree {
 
     fn printTreeStr2(mut inTree: Arc<Tree>, mut isLeft: bool, mut inIndent: ArcStr) -> Result<ArcStr> {
         let mut outString: ArcStr = arcstr::literal!("");
-        let mut val_node: Option<ArcStr> = None;
         let mut left: Option<Arc<Tree>> = None;
         let mut right: Option<Arc<Tree>> = None;
-        let mut left_str: ArcStr = arcstr::literal!("");
-        let mut right_str: ArcStr = arcstr::literal!("");
         outString = ((::match_deref::match_deref! { match &(inTree.clone()) {
         Deref @ Tree::NODE { .. } => { let mut __mm_s = String::new(); __mm_s.push_str(&*printTreeStr2(var_field!((*inTree).left, Tree::NODE).clone(), true, ({ let mut __mm_s = String::new(); __mm_s.push_str(&*inIndent.clone()); __mm_s.push_str(&*if (isLeft.clone()) {literal!("     ")} else {literal!(" │   ")}); ArcStr::from(__mm_s) }).clone())?); __mm_s.push_str(&*inIndent.clone()); __mm_s.push_str(&*if (isLeft.clone()) {literal!(" ┌")} else {literal!(" └")}); __mm_s.push_str(&*literal!("────")); __mm_s.push_str(&*printNodeStr(inTree.clone())?); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*printTreeStr2(var_field!((*inTree).right, Tree::NODE).clone(), false, ({ let mut __mm_s = String::new(); __mm_s.push_str(&*inIndent.clone()); __mm_s.push_str(&*if (isLeft.clone()) {literal!(" │   ")} else {literal!("     ")}); ArcStr::from(__mm_s) }).clone())?); ArcStr::from(__mm_s) },
         Deref @ Tree::LEAF { .. } => { let mut __mm_s = String::new(); __mm_s.push_str(&*inIndent.clone()); __mm_s.push_str(&*if (isLeft.clone()) {literal!(" ┌")} else {literal!(" └")}); __mm_s.push_str(&*literal!("────")); __mm_s.push_str(&*printNodeStr(inTree.clone())?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) },
@@ -951,33 +948,25 @@ fn openScope(mut inEnv: Env, mut inClass: Arc<SCode::Element>) -> Result<Env> {
 pub fn enterScope(mut inEnv: Env, mut inName: ArcStr) -> Result<Env> {
     let mut outEnv: Env = metamodelica::nil();
     outEnv = 'mc: {
-        let __mc_input = (inEnv.clone(), inName.clone());
+        let __mc_input = inName.clone();
         if let Ok(__v) = (|| -> Result<_> {
-            ::match_deref::match_deref! { match &__mc_input {
-                (_, _) => {
-                    let mut cls_env: Arc<Frame> = Arc::new(<Frame as ::std::default::Default>::default());
-                    let mut item: Arc<Item>;
-                    let mut outEnv: Arc<metamodelica::List<Arc<Frame>>> = outEnv.clone();
-                    (item, _) = NFSCodeLookup::lookupInClass((inName.clone()).clone(), inEnv.clone())?;
-                    let __pa0 = ::match_deref::match_deref! { match &(getItemEnv(item.clone())?) {
-                        Deref @ metamodelica::List::Cons { head: __pa0, tail: Deref @ metamodelica::List::Nil } => __pa0.clone(),
-                        _ => bail!("pattern mismatch"),
-                    } };
-                    cls_env = __pa0.clone();
-                    outEnv = enterFrame(cls_env.clone(), inEnv.clone());
-                    Ok(outEnv.clone())
-                }
-                _ => bail!("nomatch"),
-            }}
+            let _ = __mc_input.clone() else { bail!("nomatch") };
+            let mut cls_env: Arc<Frame> = Arc::new(<Frame as ::std::default::Default>::default());
+            let mut item: Arc<Item>;
+            let mut outEnv: Arc<metamodelica::List<Arc<Frame>>> = outEnv.clone();
+            (item, _) = NFSCodeLookup::lookupInClass((inName.clone()).clone(), inEnv.clone())?;
+            let __pa0 = ::match_deref::match_deref! { match &(getItemEnv(item.clone())?) {
+                Deref @ metamodelica::List::Cons { head: __pa0, tail: Deref @ metamodelica::List::Nil } => __pa0.clone(),
+                _ => bail!("pattern mismatch"),
+            } };
+            cls_env = __pa0.clone();
+            outEnv = enterFrame(cls_env.clone(), inEnv.clone());
+            Ok(outEnv.clone())
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
-            ::match_deref::match_deref! { match &__mc_input {
-                (_, _) => {
-                    println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Failed to enterScope: ")); __mm_s.push_str(&*inName.clone()); __mm_s.push_str(&*literal!(" in env: ")); __mm_s.push_str(&*printEnvStr(inEnv.clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
-                    Ok(bail!("fail"))
-                }
-                _ => bail!("nomatch"),
-            }}
+            let _ = __mc_input.clone() else { bail!("nomatch") };
+            println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Failed to enterScope: ")); __mm_s.push_str(&*inName.clone()); __mm_s.push_str(&*literal!(" in env: ")); __mm_s.push_str(&*printEnvStr(inEnv.clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+            Ok(bail!("fail"))
         })() { break 'mc __v; }
         bail!("matchcontinue: no arm matched")
     };
@@ -988,16 +977,16 @@ pub fn enterScope(mut inEnv: Env, mut inName: ArcStr) -> Result<Env> {
 // and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
 pub fn enterScopePath(mut inEnv: Env, mut inPath: Arc<Absyn::Path>) -> Result<Env> {
     let mut outEnv: Env = metamodelica::nil();
-    outEnv = (::match_deref::match_deref! { match &((inEnv.clone(), inPath.clone())) {
-        (_, Deref @ Absyn::Path::QUALIFIED { path, name }) => {
+    outEnv = (::match_deref::match_deref! { match &(inPath.clone()) {
+        Deref @ Absyn::Path::QUALIFIED { path, name } => {
             let mut env: Env = metamodelica::nil();
             env = enterScope(inEnv.clone(), (name.clone()).clone())?;
             enterScopePath(env.clone(), path.clone())?
         },
-        (_, Deref @ Absyn::Path::IDENT { name }) => {
+        Deref @ Absyn::Path::IDENT { name } => {
             enterScope(inEnv.clone(), (name.clone()).clone())?
         },
-        (_, Deref @ Absyn::Path::FULLYQUALIFIED { path }) => {
+        Deref @ Absyn::Path::FULLYQUALIFIED { path } => {
             let mut env: Env = metamodelica::nil();
             env = getEnvTopScope(inEnv.clone())?;
             enterScopePath(env.clone(), path.clone())?
@@ -1267,7 +1256,6 @@ pub fn setImportTableHidden(mut inEnv: Env, mut inHidden: bool) -> Result<Env> {
     let mut name: Option<ArcStr> = None;
     let mut ty: FrameType = FrameType::ENCAPSULATED_SCOPE;
     let mut tree: Arc<EnvTree::Tree> = Arc::new(EnvTree::Tree::EMPTY);
-    let mut imps: ImportTable = <ImportTable as ::std::default::Default>::default();
     let mut exts: Arc<ExtendsTable> = Arc::new(<ExtendsTable as ::std::default::Default>::default());
     let mut rest: Env = metamodelica::nil();
     let mut qi: Arc<metamodelica::List<Absyn::Import>> = metamodelica::nil();
@@ -1291,8 +1279,8 @@ pub fn setImportTableHidden(mut inEnv: Env, mut inHidden: bool) -> Result<Env> {
 
 pub fn setImportsInItemHidden(mut inItem: Arc<Item>, mut inHidden: bool) -> Result<Arc<Item>> {
     let mut outItem: Arc<Item>;
-    outItem = (::match_deref::match_deref! { match &((inItem.clone(), inHidden.clone())) {
-        (Deref @ Item::CLASS { classType: cls_ty, env, cls }, _) => {
+    outItem = (::match_deref::match_deref! { match &(inItem.clone()) {
+        Deref @ Item::CLASS { classType: cls_ty, env, cls } => {
             let mut env = (*env).clone();
             env = setImportTableHidden(env.clone(), inHidden.clone())?;
             Arc::new(Item::CLASS { cls: cls.clone(), env: env.clone(), classType: cls_ty.clone() })
@@ -1411,11 +1399,11 @@ pub fn isClassExtendsItem(mut inItem: Arc<Item>) -> bool {
 
 fn extendEnvWithClassDef(mut inClassDefElement: Arc<SCode::Element>, mut inEnv: Env) -> Result<Env> {
     let mut outEnv: Env = metamodelica::nil();
-    outEnv = (::match_deref::match_deref! { match &((inClassDefElement.clone(), inEnv.clone())) {
-        (Deref @ SCode::Element::CLASS { classDef: Deref @ SCode::ClassDef::CLASS_EXTENDS { .. }, .. }, _) => {
+    outEnv = (::match_deref::match_deref! { match &(inClassDefElement.clone()) {
+        Deref @ SCode::Element::CLASS { classDef: Deref @ SCode::ClassDef::CLASS_EXTENDS { .. }, .. } => {
             NFEnvExtends::extendEnvWithClassExtends(inClassDefElement.clone(), inEnv.clone())?
         },
-        (Deref @ SCode::Element::CLASS { info, prefixes: Deref @ SCode::Prefixes { replaceablePrefix: Deref @ SCode::Replaceable::REPLACEABLE { cc: _ }, .. }, classDef: cdef, name: cls_name, .. }, _) => {
+        Deref @ SCode::Element::CLASS { info, prefixes: Deref @ SCode::Prefixes { replaceablePrefix: Deref @ SCode::Replaceable::REPLACEABLE { cc: _ }, .. }, classDef: cdef, name: cls_name, .. } => {
             let mut alias_name: ArcStr = arcstr::literal!("");
             let mut class_env: Env = metamodelica::nil();
             let mut env: Env = metamodelica::nil();
@@ -1427,7 +1415,7 @@ fn extendEnvWithClassDef(mut inClassDefElement: Arc<SCode::Element>, mut inEnv: 
             env = extendEnvWithItem(Arc::new(Item::ALIAS { name: (alias_name.clone()).clone(), path: None, info: info.clone() }), env.clone(), (cls_name.clone()).clone())?;
             env.clone()
         },
-        (Deref @ SCode::Element::CLASS { classDef: cdef, name: cls_name, .. }, _) => {
+        Deref @ SCode::Element::CLASS { classDef: cdef, name: cls_name, .. } => {
             let mut class_env: Env = metamodelica::nil();
             let mut env: Env = metamodelica::nil();
             let mut cls_type: ClassType = ClassType::BASIC_TYPE;
@@ -1444,7 +1432,6 @@ fn extendEnvWithClassDef(mut inClassDefElement: Arc<SCode::Element>, mut inEnv: 
 pub fn makeClassEnvironment(mut inClassDefElement: Arc<SCode::Element>, mut inInModifierScope: bool) -> Result<Env> {
     let mut outClassEnv: Env = metamodelica::nil();
     let mut cdef: Arc<SCode::ClassDef>;
-    let mut cls: Arc<SCode::Element>;
     let mut cls_name: ArcStr = arcstr::literal!("");
     let mut env: Env = metamodelica::nil();
     let mut enclosing_env: Env = metamodelica::nil();
@@ -1578,7 +1565,6 @@ pub fn extendEnvWithExtends(mut inExtends: Arc<SCode::Element>, mut inEnv: Env) 
     let mut mods: Arc<SCode::Mod> = Arc::new(SCode::Mod::NOMOD);
     let mut redecls: Arc<metamodelica::List<Arc<Redeclaration>>> = metamodelica::nil();
     let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
-    let mut env: Env = metamodelica::nil();
     let mut index: i32 = 0;
     let (__pa0, __pa1, __pa2) = ::match_deref::match_deref! { match &(inExtends.clone()) {
         Deref @ SCode::Element::EXTENDS { info: __pa0, modifications: __pa1, baseClassPath: __pa2, .. } => (__pa0.clone(), __pa1.clone(), __pa2.clone()),
@@ -1629,19 +1615,19 @@ fn addElementRedeclarationToEnvExtendsTable(mut inRedeclare: Arc<SCode::Element>
 
 fn extendEnvWithClassComponents(mut inClassName: ArcStr, mut inClassDef: Arc<SCode::ClassDef>, mut inEnv: Env, mut inEnclosingScope: Env, mut inInfo: SourceInfo) -> Result<Env> {
     let mut outEnv: Env = metamodelica::nil();
-    outEnv = (::match_deref::match_deref! { match &((inClassName.clone(), inClassDef.clone(), inEnv.clone(), inEnclosingScope.clone(), inInfo.clone())) {
-        (_, Deref @ SCode::ClassDef::PARTS { elementLst: el, .. }, _, _, _) => {
+    outEnv = (::match_deref::match_deref! { match &(inClassDef.clone()) {
+        Deref @ SCode::ClassDef::PARTS { elementLst: el, .. } => {
             let mut env: Env = metamodelica::nil();
             env = List::fold(el.clone(), (std::sync::Arc::new(extendEnvWithElement) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SCode::Element>, Arc<metamodelica::List<Arc<Frame>>>) -> Result<Arc<metamodelica::List<Arc<Frame>>>> + 'static>), inEnv.clone());
             env.clone()
         },
-        (_, Deref @ SCode::ClassDef::DERIVED { modifications: mods, typeSpec: ty @ Deref @ Absyn::TypeSpec::TPATH { path, .. }, .. }, _, _, _) => {
+        Deref @ SCode::ClassDef::DERIVED { modifications: mods, typeSpec: ty @ Deref @ Absyn::TypeSpec::TPATH { path, .. }, .. } => {
             let mut env: Env = metamodelica::nil();
             NFSCodeCheck::checkRecursiveShortDefinition(ty.clone(), (inClassName.clone()).clone(), inEnclosingScope.clone(), inInfo.clone())?;
             env = extendEnvWithExtends(Arc::new(SCode::Element::EXTENDS { baseClassPath: path.clone(), visibility: openmodelica_frontend_types::SCode::Visibility::PUBLIC, modifications: mods.clone(), ann: None, info: inInfo.clone() }), inEnv.clone())?;
             env.clone()
         },
-        (_, Deref @ SCode::ClassDef::ENUMERATION { enumLst: enums }, _, _, _) => {
+        Deref @ SCode::ClassDef::ENUMERATION { enumLst: enums } => {
             let mut env: Env = metamodelica::nil();
             let mut path: Arc<Absyn::Path>;
             path = Arc::new(Absyn::Path::IDENT { name: (inClassName.clone()).clone() });
@@ -1659,10 +1645,10 @@ fn extendEnvWithClassComponents(mut inClassName: ArcStr, mut inClassDef: Arc<SCo
 fn extendEnvWithElement(mut inElement: Arc<SCode::Element>, mut inEnv: Env) -> Result<Env> {
     let mut outEnv: Env = metamodelica::nil();
     outEnv = 'mc: {
-        let __mc_input = (inElement.clone(), inEnv.clone());
+        let __mc_input = inElement.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ SCode::Element::COMPONENT { prefixes: Deref @ SCode::Prefixes { redeclarePrefix: SCode::Redeclare::REDECLARE, .. }, .. }, _) => {
+                Deref @ SCode::Element::COMPONENT { prefixes: Deref @ SCode::Prefixes { redeclarePrefix: SCode::Redeclare::REDECLARE, .. }, .. } => {
                     let mut env: Env = metamodelica::nil();
                     env = addElementRedeclarationToEnvExtendsTable(inElement.clone(), inEnv.clone())?;
                     env = extendEnvWithVar(inElement.clone(), env.clone())?;
@@ -1673,7 +1659,7 @@ fn extendEnvWithElement(mut inElement: Arc<SCode::Element>, mut inEnv: Env) -> R
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ SCode::Element::COMPONENT { .. }, _) => {
+                Deref @ SCode::Element::COMPONENT { .. } => {
                     let mut env: Env = metamodelica::nil();
                     env = extendEnvWithVar(inElement.clone(), inEnv.clone())?;
                     Ok(env.clone())
@@ -1683,7 +1669,7 @@ fn extendEnvWithElement(mut inElement: Arc<SCode::Element>, mut inEnv: Env) -> R
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ SCode::Element::CLASS { prefixes: Deref @ SCode::Prefixes { redeclarePrefix: SCode::Redeclare::REDECLARE, .. }, .. }, _) => {
+                Deref @ SCode::Element::CLASS { prefixes: Deref @ SCode::Prefixes { redeclarePrefix: SCode::Redeclare::REDECLARE, .. }, .. } => {
                     let mut env: Env = metamodelica::nil();
                     env = addElementRedeclarationToEnvExtendsTable(inElement.clone(), inEnv.clone())?;
                     env = extendEnvWithClassDef(inElement.clone(), env.clone())?;
@@ -1694,7 +1680,7 @@ fn extendEnvWithElement(mut inElement: Arc<SCode::Element>, mut inEnv: Env) -> R
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ SCode::Element::CLASS { .. }, _) => {
+                Deref @ SCode::Element::CLASS { .. } => {
                     let mut env: Env = metamodelica::nil();
                     env = extendEnvWithClassDef(inElement.clone(), inEnv.clone())?;
                     Ok(env.clone())
@@ -1704,7 +1690,7 @@ fn extendEnvWithElement(mut inElement: Arc<SCode::Element>, mut inEnv: Env) -> R
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ SCode::Element::EXTENDS { .. }, _) => {
+                Deref @ SCode::Element::EXTENDS { .. } => {
                     let mut env: Env = metamodelica::nil();
                     env = extendEnvWithExtends(inElement.clone(), inEnv.clone())?;
                     Ok(env.clone())
@@ -1714,7 +1700,7 @@ fn extendEnvWithElement(mut inElement: Arc<SCode::Element>, mut inEnv: Env) -> R
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ SCode::Element::IMPORT { .. }, _) => {
+                Deref @ SCode::Element::IMPORT { .. } => {
                     let mut env: Env = metamodelica::nil();
                     env = extendEnvWithImport(inElement.clone(), inEnv.clone())?;
                     Ok(env.clone())
@@ -1724,7 +1710,7 @@ fn extendEnvWithElement(mut inElement: Arc<SCode::Element>, mut inEnv: Env) -> R
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ SCode::Element::DEFINEUNIT { .. }, _) => {
+                Deref @ SCode::Element::DEFINEUNIT { .. } => {
                     Ok(inEnv.clone())
                 }
                 _ => bail!("nomatch"),
@@ -1736,25 +1722,17 @@ fn extendEnvWithElement(mut inElement: Arc<SCode::Element>, mut inEnv: Env) -> R
 }
 
 pub fn checkUniqueQualifiedImport(mut inImport: Import, mut inImports: Arc<metamodelica::List<Absyn::Import>>, mut inInfo: SourceInfo) -> Result<()> {
-    let _ = 'mc: {
-        let __mc_input = (inImport.clone(), inImports.clone(), inInfo.clone());
+    let () = 'mc: {
+        let __mc_input = inImport.clone();
         if let Ok(__v) = (|| -> Result<_> {
-            ::match_deref::match_deref! { match &__mc_input {
-                (_, _, _) => {
-                    let false = (List::isMemberOnTrue(inImport.clone(), inImports.clone(), (std::sync::Arc::new(fnptr!(compareQualifiedImportNames, Absyn::Import, Absyn::Import)) as std::sync::Arc<dyn ::std::ops::Fn(Absyn::Import, Absyn::Import) -> Result<bool> + 'static>))) else { bail!("pattern mismatch") };
-                    Ok(())
-                }
-                _ => bail!("nomatch"),
-            }}
+            let _ = __mc_input.clone() else { bail!("nomatch") };
+            let false = (List::isMemberOnTrue(inImport.clone(), inImports.clone(), (std::sync::Arc::new(fnptr!(compareQualifiedImportNames, Absyn::Import, Absyn::Import)) as std::sync::Arc<dyn ::std::ops::Fn(Absyn::Import, Absyn::Import) -> Result<bool> + 'static>))) else { bail!("pattern mismatch") };
+            Ok(())
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
-            ::match_deref::match_deref! { match &__mc_input {
-                (Absyn::Import::NAMED_IMPORT { name, .. }, _, _) => {
-                    Error::addSourceMessage(Error::MULTIPLE_QUALIFIED_IMPORTS_WITH_SAME_NAME.clone(), list![(name.clone()).clone()], inInfo.clone())?;
-                    Ok(bail!("fail"))
-                }
-                _ => bail!("nomatch"),
-            }}
+            let Absyn::Import::NAMED_IMPORT { name: mut name, .. } = __mc_input.clone() else { bail!("nomatch") };
+            Error::addSourceMessage(Error::MULTIPLE_QUALIFIED_IMPORTS_WITH_SAME_NAME.clone(), list![(name.clone()).clone()], inInfo.clone())?;
+            Ok(bail!("fail"))
         })() { break 'mc __v; }
         bail!("matchcontinue: no arm matched")
     };
@@ -1778,16 +1756,16 @@ fn compareQualifiedImportNames(mut inImport1: Import, mut inImport2: Import) -> 
 // and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
 fn extendEnvWithEnumLiterals(mut inEnum: Arc<metamodelica::List<Arc<SCode::Enum>>>, mut inEnumPath: Arc<Absyn::Path>, mut inNextValue: i32, mut inEnv: Env, mut inInfo: SourceInfo) -> Result<Env> {
     let mut outEnv: Env = metamodelica::nil();
-    outEnv = (::match_deref::match_deref! { match &((inEnum.clone(), inEnumPath.clone(), inNextValue.clone(), inEnv.clone(), inInfo.clone())) {
-        (Deref @ metamodelica::List::Cons { head: lit, tail: rest_lits }, _, _, _, _) => {
+    outEnv = (::match_deref::match_deref! { match &(inEnum.clone()) {
+        Deref @ metamodelica::List::Cons { head: lit, tail: rest_lits } => {
             let mut env: Env = metamodelica::nil();
             env = extendEnvWithEnum(lit.clone(), inEnumPath.clone(), inNextValue.clone(), inEnv.clone(), inInfo.clone())?;
             extendEnvWithEnumLiterals(rest_lits.clone(), inEnumPath.clone(), inNextValue.clone() + 1, env.clone(), inInfo.clone())?
         },
-        (Deref @ metamodelica::List::Nil, _, _, _, _) => {
+        Deref @ metamodelica::List::Nil => {
             inEnv.clone()
         },
-        _ => bail!("match: no arm matched"),
+        _ => unreachable!("match_deref! exhaustiveness placeholder"),
     } });
     Ok(outEnv)
 }
@@ -1848,8 +1826,8 @@ pub fn extendEnvWithMatch(mut inMatchExp: Arc<Absyn::Exp>, mut iterIndex: i32, m
 
 fn extendEnvWithElementItem(mut inElementItem: Arc<Absyn::ElementItem>, mut inEnv: Env) -> Result<Env> {
     let mut outEnv: Env = metamodelica::nil();
-    outEnv = (::match_deref::match_deref! { match &((inElementItem.clone(), inEnv.clone())) {
-        (Deref @ Absyn::ElementItem::ELEMENTITEM { element }, _) => {
+    outEnv = (::match_deref::match_deref! { match &(inElementItem.clone()) {
+        Deref @ Absyn::ElementItem::ELEMENTITEM { element } => {
             let mut el: Arc<metamodelica::List<Arc<SCode::Element>>> = metamodelica::nil();
             let mut env: Env = metamodelica::nil();
             el = AbsynToSCode::translateElement(element.clone(), openmodelica_frontend_types::SCode::Visibility::PROTECTED)?;
@@ -1992,16 +1970,16 @@ pub fn envScopeNames(mut inEnv: Env) -> Result<Arc<metamodelica::List<ArcStr>>> 
 // and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
 pub fn envScopeNames2(mut inEnv: Env, mut inAccumNames: Arc<metamodelica::List<ArcStr>>) -> Result<Arc<metamodelica::List<ArcStr>>> {
     let mut outNames: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
-    outNames = (::match_deref::match_deref! { match &((inEnv.clone(), inAccumNames.clone())) {
-        (Deref @ metamodelica::List::Cons { head: Deref @ Frame { name: Some(name), .. }, tail: rest_env }, _) => {
+    outNames = (::match_deref::match_deref! { match &(inEnv.clone()) {
+        Deref @ metamodelica::List::Cons { head: Deref @ Frame { name: Some(name), .. }, tail: rest_env } => {
             let mut names: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
             names = envScopeNames2(rest_env.clone(), cons((name.clone()).clone(), inAccumNames.clone()))?;
             names.clone()
         },
-        (Deref @ metamodelica::List::Cons { head: Deref @ Frame { name: None, .. }, tail: rest_env }, _) => {
+        Deref @ metamodelica::List::Cons { head: Deref @ Frame { name: None, .. }, tail: rest_env } => {
             envScopeNames2(rest_env.clone(), inAccumNames.clone())?
         },
-        (Deref @ metamodelica::List::Nil, _) => {
+        Deref @ metamodelica::List::Nil => {
             inAccumNames.clone()
         },
         _ => bail!("match: no arm matched"),
@@ -2020,10 +1998,10 @@ pub fn envEqualPrefix(mut inEnv1: Env, mut inEnv2: Env) -> Result<Env> {
 pub fn envEqualPrefix2(mut inEnv1: Env, mut inEnv2: Env, mut inAccumEnv: Env) -> Result<Env> {
     let mut outPrefix: Env = metamodelica::nil();
     outPrefix = 'mc: {
-        let __mc_input = (inEnv1.clone(), inEnv2.clone(), inAccumEnv.clone());
+        let __mc_input = (inEnv1.clone(), inEnv2.clone());
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ metamodelica::List::Cons { head: frame @ Deref @ Frame { name: Some(name1), .. }, tail: rest_env1 }, Deref @ metamodelica::List::Cons { head: Deref @ Frame { name: Some(name2), .. }, tail: rest_env2 }, _) => {
+                (Deref @ metamodelica::List::Cons { head: frame @ Deref @ Frame { name: Some(name1), .. }, tail: rest_env1 }, Deref @ metamodelica::List::Cons { head: Deref @ Frame { name: Some(name2), .. }, tail: rest_env2 }) => {
                     let mut env: Env = metamodelica::nil();
                     let true = (stringEq((name1.clone()).clone(), (name2.clone()).clone())) else { bail!("pattern mismatch") };
                     env = envEqualPrefix2(rest_env1.clone(), rest_env2.clone(), cons(frame.clone(), inAccumEnv.clone()))?;
@@ -2034,7 +2012,7 @@ pub fn envEqualPrefix2(mut inEnv1: Env, mut inEnv2: Env, mut inAccumEnv: Env) ->
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ metamodelica::List::Cons { head: Deref @ Frame { name: None, .. }, tail: rest_env1 }, Deref @ metamodelica::List::Cons { head: Deref @ Frame { name: None, .. }, tail: rest_env2 }, _) => {
+                (Deref @ metamodelica::List::Cons { head: Deref @ Frame { name: None, .. }, tail: rest_env1 }, Deref @ metamodelica::List::Cons { head: Deref @ Frame { name: None, .. }, tail: rest_env2 }) => {
                     Ok(envEqualPrefix2(rest_env1.clone(), rest_env2.clone(), inAccumEnv.clone())?)
                 }
                 _ => bail!("nomatch"),
@@ -2219,11 +2197,11 @@ pub fn getItemEnvNoFail(mut inItem: Arc<Item>) -> Result<Env> {
 // and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
 pub fn setItemEnv(mut inItem: Arc<Item>, mut inNewEnv: Env) -> Result<Arc<Item>> {
     let mut outItem: Arc<Item>;
-    outItem = (::match_deref::match_deref! { match &((inItem.clone(), inNewEnv.clone())) {
-        (Deref @ Item::CLASS { cls, env: _, classType: ct }, _) => {
+    outItem = (::match_deref::match_deref! { match &(inItem.clone()) {
+        Deref @ Item::CLASS { cls, env: _, classType: ct } => {
             Arc::new(Item::CLASS { cls: cls.clone(), env: inNewEnv.clone(), classType: ct.clone() })
         },
-        (Deref @ Item::REDECLARED_ITEM { item, .. }, _) => {
+        Deref @ Item::REDECLARED_ITEM { item, .. } => {
             setItemEnv(item.clone(), inNewEnv.clone())?
         },
         _ => bail!("match: no arm matched"),
@@ -2235,11 +2213,11 @@ pub fn setItemEnv(mut inItem: Arc<Item>, mut inNewEnv: Env) -> Result<Arc<Item>>
 // and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
 pub fn mergeItemEnv(mut inItem: Arc<Item>, mut inEnv: Env) -> Env {
     let mut outEnv: Env = metamodelica::nil();
-    outEnv = (::match_deref::match_deref! { match &((inItem.clone(), inEnv.clone())) {
-        (Deref @ Item::CLASS { env: Deref @ metamodelica::List::Cons { head: cls_env, tail: Deref @ metamodelica::List::Nil }, .. }, _) => {
+    outEnv = (::match_deref::match_deref! { match &(inItem.clone()) {
+        Deref @ Item::CLASS { env: Deref @ metamodelica::List::Cons { head: cls_env, tail: Deref @ metamodelica::List::Nil }, .. } => {
             enterFrame(cls_env.clone(), inEnv.clone())
         },
-        (Deref @ Item::REDECLARED_ITEM { item, .. }, _) => {
+        Deref @ Item::REDECLARED_ITEM { item, .. } => {
             mergeItemEnv(item.clone(), inEnv.clone())
         },
         _ => {
@@ -2252,8 +2230,8 @@ pub fn mergeItemEnv(mut inItem: Arc<Item>, mut inEnv: Env) -> Env {
 
 pub fn unmergeItemEnv(mut inItem: Arc<Item>, mut inEnv: Env) -> Env {
     let mut outEnv: Env = metamodelica::nil();
-    outEnv = (::match_deref::match_deref! { match &((inItem.clone(), inEnv.clone())) {
-        (_, Deref @ metamodelica::List::Cons { head: _, tail: env }) => {
+    outEnv = (::match_deref::match_deref! { match &(inEnv.clone()) {
+        Deref @ metamodelica::List::Cons { head: _, tail: env } => {
             env.clone()
         },
         _ => {
@@ -2287,8 +2265,8 @@ pub fn resolveRedeclaredItem(mut inItem: Arc<Item>, mut inEnv: Env) -> (Arc<Item
     let mut outItem: Arc<Item>;
     let mut outEnv: Env = metamodelica::nil();
     let mut outPreviousItem: Arc<metamodelica::List<(Arc<Item>, Arc<metamodelica::List<Arc<Frame>>>)>> = metamodelica::nil();
-    (outItem, outEnv, outPreviousItem) = (::match_deref::match_deref! { match &((inItem.clone(), inEnv.clone())) {
-        (Deref @ Item::REDECLARED_ITEM { declaredEnv: env, item }, _) => {
+    (outItem, outEnv, outPreviousItem) = (::match_deref::match_deref! { match &(inItem.clone()) {
+        Deref @ Item::REDECLARED_ITEM { declaredEnv: env, item } => {
             (item.clone(), env.clone(), list![(inItem.clone(), inEnv.clone())])
         },
         _ => {
@@ -2322,10 +2300,10 @@ pub fn getEnvExtendsFromTable(mut inEnv: Env) -> Result<Arc<metamodelica::List<A
 pub fn getDerivedClassRedeclares(mut inDerivedName: ArcStr, mut inTypeSpec: Arc<Absyn::TypeSpec>, mut inEnv: Env) -> Result<Arc<metamodelica::List<Arc<Redeclaration>>>> {
     let mut outRedeclarations: Arc<metamodelica::List<Arc<Redeclaration>>> = metamodelica::nil();
     outRedeclarations = 'mc: {
-        let __mc_input = (inDerivedName.clone(), inTypeSpec.clone(), inEnv.clone());
+        let __mc_input = inTypeSpec.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, Deref @ Absyn::TypeSpec::TPATH { path, arrayDim: _ }, _) => {
+                Deref @ Absyn::TypeSpec::TPATH { path, arrayDim: _ } => {
                     let mut bc: Arc<Absyn::Path>;
                     let mut rm: Arc<metamodelica::List<Arc<Redeclaration>>> = metamodelica::nil();
                     let (__pa0, __pa1) = ::match_deref::match_deref! { match &(getEnvExtendsFromTable(inEnv.clone())?) {
@@ -2342,7 +2320,7 @@ pub fn getDerivedClassRedeclares(mut inDerivedName: ArcStr, mut inTypeSpec: Arc<
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, Deref @ Absyn::TypeSpec::TPATH { path, arrayDim: _ }, _) => {
+                Deref @ Absyn::TypeSpec::TPATH { path, arrayDim: _ } => {
                     let mut bc: Arc<Absyn::Path>;
                     let mut rm: Arc<metamodelica::List<Arc<Redeclaration>>> = metamodelica::nil();
                     let (__pa0, __pa1) = ::match_deref::match_deref! { match &(getEnvExtendsFromTable(inEnv.clone())?) {
@@ -2418,10 +2396,10 @@ pub fn setEnvClsAndVars(mut inTree: Arc<EnvTree::Tree>, mut inEnv: Env) -> Resul
 pub fn mergePathWithEnvPath(mut inPath: Arc<Absyn::Path>, mut inEnv: Env) -> Result<Arc<Absyn::Path>> {
     let mut outPath: Arc<Absyn::Path>;
     outPath = 'mc: {
-        let __mc_input = (inPath.clone(), inEnv.clone());
+        let __mc_input = inEnv.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _) => {
+                _ => {
                     let mut env_path: Arc<Absyn::Path>;
                     let mut id: ArcStr = arcstr::literal!("");
                     env_path = getEnvPath(inEnv.clone())?;
@@ -2447,10 +2425,10 @@ pub fn mergePathWithEnvPath(mut inPath: Arc<Absyn::Path>, mut inEnv: Env) -> Res
 pub fn mergeTypeSpecWithEnvPath(mut inTS: Arc<Absyn::TypeSpec>, mut inEnv: Env) -> Result<Arc<Absyn::TypeSpec>> {
     let mut outTS: Arc<Absyn::TypeSpec>;
     outTS = 'mc: {
-        let __mc_input = (inTS.clone(), inEnv.clone());
+        let __mc_input = inTS.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ Absyn::TypeSpec::TPATH { path, arrayDim: ad }, _) => {
+                Deref @ Absyn::TypeSpec::TPATH { path, arrayDim: ad } => {
                     let mut id: ArcStr = arcstr::literal!("");
                     let mut path = (*path).clone();
                     id = (AbsynUtil::pathLastIdent(path.clone())?).clone();
@@ -2475,8 +2453,8 @@ pub fn mergeTypeSpecWithEnvPath(mut inTS: Arc<Absyn::TypeSpec>, mut inEnv: Env) 
 
 pub fn prefixIdentWithEnv(mut inIdent: ArcStr, mut inEnv: Env) -> Result<Arc<Absyn::Path>> {
     let mut outPath: Arc<Absyn::Path>;
-    outPath = (::match_deref::match_deref! { match &((inIdent.clone(), inEnv.clone())) {
-        (_, Deref @ metamodelica::List::Cons { head: Deref @ Frame { name: None, .. }, tail: Deref @ metamodelica::List::Nil }) => {
+    outPath = (::match_deref::match_deref! { match &(inEnv.clone()) {
+        Deref @ metamodelica::List::Cons { head: Deref @ Frame { name: None, .. }, tail: Deref @ metamodelica::List::Nil } => {
             Arc::new(Absyn::Path::IDENT { name: (inIdent.clone()).clone() })
         },
         _ => {
@@ -2539,7 +2517,6 @@ pub fn buildInitialEnv() -> Result<Env> {
     let mut imps: ImportTable = <ImportTable as ::std::default::Default>::default();
     let mut is_used: Mutable::Mutable<bool>;
     let mut p: Arc<metamodelica::List<Arc<SCode::Element>>> = metamodelica::nil();
-    let mut initialClasses: Arc<metamodelica::List<Arc<Absyn::Class>>> = metamodelica::nil();
     tree = EnvTree::new();
     exts = newExtendsTable();
     imps = newImportTable();

@@ -82,7 +82,7 @@ pub fn new(mut dom: Arc<SBAtomicSet::SBAtomicSet>, mut lmap: Arc<SBLinearMap::SB
     let mut hi: metamodelica::Real = metamodelica::OrderedFloat(0.0_f64);
     if SBAtomicSet::ndim(dom.clone()) != SBLinearMap::ndim(lmap.clone()) {
         map = newEmpty();
-        return map;
+        return map.clone();
     }
     ints = SBMultiInterval::intervals(SBAtomicSet::aset(dom.clone()));
     g = SBLinearMap::gain(lmap.clone());
@@ -164,13 +164,13 @@ pub fn image(mut map: Arc<SBPWAtomicLinearMap>, mut set: Arc<SBAtomicSet::SBAtom
     let mut tmp_hi: metamodelica::Real = metamodelica::OrderedFloat(0.0_f64);
     if SBAtomicSet::isEmpty(map.dom.clone()) {
         outSet = SBAtomicSet::newEmpty();
-        return Ok(outSet);
+        return Ok(outSet.clone());
     }
     set_int = SBAtomicSet::intersection(set.clone(), map.dom.clone())?;
     inters = SBMultiInterval::intervals(SBAtomicSet::aset(set_int.clone()));
     if inters.clone().borrow().is_empty() {
         outSet = SBAtomicSet::newEmpty();
-        return Ok(outSet);
+        return Ok(outSet.clone());
     }
     gains = SBLinearMap::gain(map.lmap.clone());
     offsets = SBLinearMap::offset(map.lmap.clone());

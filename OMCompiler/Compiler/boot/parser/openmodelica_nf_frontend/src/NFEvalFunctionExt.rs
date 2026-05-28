@@ -993,14 +993,14 @@ fn evaluateExtIntArrayArg(mut arg: Arc<Expression::NFExpression>) -> Result<Arc<
     let mut value: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut expl: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
     expl = Expression::arrayElementList(Ceval::evalExp(arg.clone(), Ceval::noTarget().clone())?)?;
-    value = {
+    value = ({
         let mut __acc: Arc<metamodelica::List<i32>> = metamodelica::nil();
         for mut e in (expl.clone()).into_iter().cloned() {
             let __x = getExtIntValue(e.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     Ok(value)
 }
 
@@ -1008,14 +1008,14 @@ fn evaluateExtRealArrayArg(mut arg: Arc<Expression::NFExpression>) -> Result<Arc
     let mut value: Arc<metamodelica::List<metamodelica::Real>> = metamodelica::nil();
     let mut expl: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
     expl = Expression::arrayElementList(Ceval::evalExp(arg.clone(), Ceval::noTarget().clone())?)?;
-    value = {
+    value = ({
         let mut __acc: Arc<metamodelica::List<metamodelica::Real>> = metamodelica::nil();
         for mut e in (expl.clone()).into_iter().cloned() {
             let __x = getExtRealValue(e.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     Ok(value)
 }
 
@@ -1030,29 +1030,29 @@ fn evaluateExtRealMatrixArg(mut arg: Arc<Expression::NFExpression>) -> Result<Ar
     expl = __pa0.clone();
     ty = __pa1.clone();
     value = (match Type::dimensionCount(ty.clone()) {
-        1 => {
+        1 => ({
         let mut __acc: Arc<metamodelica::List<Arc<metamodelica::List<metamodelica::Real>>>> = metamodelica::nil();
         for mut e in (expl.clone()).borrow().iter() {
             let __x = list![getExtRealValue(e.clone())?];
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    },
-        2 => {
+    }),
+        2 => ({
         let mut __acc: Arc<metamodelica::List<Arc<metamodelica::List<metamodelica::Real>>>> = metamodelica::nil();
         for mut row in (expl.clone()).borrow().iter() {
-            let __x = {
+            let __x = ({
         let mut __acc: Arc<metamodelica::List<metamodelica::Real>> = metamodelica::nil();
         for mut e in (Expression::arrayElements(row.clone())?).borrow().iter() {
             let __x = getExtRealValue(e.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    },
+    }),
         _ => bail!("match: no arm matched"),
     });
     Ok(value)
@@ -1061,14 +1061,14 @@ fn evaluateExtRealMatrixArg(mut arg: Arc<Expression::NFExpression>) -> Result<Ar
 fn assignVariableExt(mut variable: Arc<Expression::NFExpression>, mut value: Arc<Expression::NFExpression>) -> Result<()> {
     let mut exp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     exp = (::match_deref::match_deref! { match &((Expression::typeOf(variable.clone()), value.clone())) {
-        (Deref @ Type::ARRAY { dimensions: Deref @ metamodelica::List::Cons { head: _, tail: Deref @ metamodelica::List::Nil }, .. }, Deref @ Expression::ARRAY { ty: Deref @ Type::ARRAY { dimensions: Deref @ metamodelica::List::Cons { head: _, tail: Deref @ metamodelica::List::Cons { head: _, tail: Deref @ metamodelica::List::Nil } }, .. }, .. }) => Expression::makeArray(Type::unliftArray(var_field!((*value).ty, Expression::NFExpression::ARRAY).clone())?, metamodelica::arrayFromVec({
+        (Deref @ Type::ARRAY { dimensions: Deref @ metamodelica::List::Cons { head: _, tail: Deref @ metamodelica::List::Nil }, .. }, Deref @ Expression::ARRAY { ty: Deref @ Type::ARRAY { dimensions: Deref @ metamodelica::List::Cons { head: _, tail: Deref @ metamodelica::List::Cons { head: _, tail: Deref @ metamodelica::List::Nil } }, .. }, .. }) => Expression::makeArray(Type::unliftArray(var_field!((*value).ty, Expression::NFExpression::ARRAY).clone())?, metamodelica::arrayFromVec(({
         let mut __acc: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
         for mut e in (var_field!((*value).elements, Expression::NFExpression::ARRAY).clone()).borrow().iter() {
             let __x = Expression::arrayScalarElement(e.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }.into_iter().cloned().collect()), true),
+    }).into_iter().cloned().collect()), true),
         _ => value.clone(),
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
     } });

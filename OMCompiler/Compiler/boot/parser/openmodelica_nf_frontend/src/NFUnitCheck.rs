@@ -105,7 +105,7 @@ pub fn checkUnits(mut flatModel: Arc<FlatModel::NFFlatModel>) -> Result<Arc<Flat
     let mut htU2S: Arc<UnorderedMap::UnorderedMap<Unit::Unit, ArcStr>>;
     let mut fn_cache: FunctionUnitCache;
     if !(Flags::getConfigBool(Flags::UNIT_CHECKING.clone())? || Flags::getConfigBool(Flags::CHECK_MODEL.clone())?) {
-        return Ok(flatModel);
+        return Ok(flatModel.clone());
     }
     match '__try0: {
         htCr2U1 = Unit::newCrefUnitTable(Util::nextPrime(((metamodelica::OrderedFloat((10) as f64) + metamodelica::OrderedFloat(1.4_f64) * metamodelica::OrderedFloat(((flatModel.variables.clone().len() as i32)) as f64)).0.floor() as i32)));
@@ -145,14 +145,14 @@ pub fn checkUnits(mut flatModel: Arc<FlatModel::NFFlatModel>) -> Result<Arc<Flat
 
 fn updateModel(mut flatModel: Arc<FlatModel::NFFlatModel>, mut htCr2U: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Unit::Unit>>, mut htU2S: Arc<UnorderedMap::UnorderedMap<Unit::Unit, ArcStr>>) -> Result<Arc<FlatModel::NFFlatModel>> {
     let mut flatModel: Arc<FlatModel::NFFlatModel> = flatModel;
-    assign_field!(flatModel.variables = {
+    assign_field!(flatModel.variables = ({
         let mut __acc: Arc<metamodelica::List<Arc<Variable::NFVariable>>> = metamodelica::nil();
         for mut v in (flatModel.variables.clone()).into_iter().cloned() {
             let __x = updateVariable(v.clone(), htCr2U.clone(), htU2S.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
     Ok(flatModel)
 }
 
@@ -170,7 +170,7 @@ fn updateVariable(mut var: Arc<Variable::NFVariable>, mut htCr2U: Arc<UnorderedM
             unit_idx = unit_idx.clone() + 1;
             if name.clone() == literal!("unit") {
                 if Binding::isBound(binding.clone()) {
-                    return Ok(var);
+                    return Ok(var.clone());
                 } else {
                     assign_field!(var.typeAttributes = listDelete(var.typeAttributes.clone(), unit_idx.clone())?);
                     break;
@@ -181,7 +181,7 @@ fn updateVariable(mut var: Arc<Variable::NFVariable>, mut htCr2U: Arc<UnorderedM
             unit = UnorderedMap::getOrFail(var.name.clone(), htCr2U.clone());
             if Unit::isUnit(unit.clone()) {
                 unit_str = (unwrap_break_err!(Unit::unitString(unit.clone(), htU2S.clone()), '__try0)).clone();
-                binding = Binding::makeFlat(Arc::new(Expression::NFExpression::STRING { value: (unit_str.clone()).clone() }), Variability::CONSTANT.clone(), Binding::Source::GENERATED.clone());
+                binding = Binding::makeFlat(Arc::new(Expression::NFExpression::STRING { value: (unit_str.clone()).clone() }), Variability::CONSTANT.clone(), Binding::Source::GENERATED.clone(), Binding::NO_CONFIDENCE.clone());
                 assign_field!(var.typeAttributes = cons((literal!("unit"), binding.clone()), var.typeAttributes.clone()));
             }
             Ok::<(), anyhow::Error>(())
@@ -213,7 +213,7 @@ fn notification2(mut inLt1: Arc<metamodelica::List<(Arc<ComponentRef::NFComponen
     let mut K: i32 = 0;
     let mut mol: i32 = 0;
     let mut cd: i32 = 0;
-    outS = stringAppendList({
+    outS = stringAppendList(({
         let mut __acc: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
         for mut t1 in (inLt1.clone()).into_iter().cloned() {
             if !((::match_deref::match_deref! { match &(t1.clone()) {
@@ -245,7 +245,7 @@ fn notification2(mut inLt1: Arc<metamodelica::List<(Arc<ComponentRef::NFComponen
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
     Ok(outS)
 }
 
@@ -993,8 +993,8 @@ fn insertUnitInEquationCall(mut call: Arc<Call::NFCall>, mut unit: Unit::Unit, m
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ Absyn::Path::IDENT { name: Deref @ "pre" } => {
-                    let mut op_unit: Unit::Unit;
                     let mut inconsistentUnits: Arc<metamodelica::List<Arc<metamodelica::List<(Arc<Expression::NFExpression>, Unit::Unit)>>>> = inconsistentUnits.clone();
+                    let mut op_unit: Unit::Unit;
                     (op_unit, inconsistentUnits) = insertUnitInEquation(listHead(call_args.clone())?, unit.clone(), htCr2U.clone(), htS2U.clone(), htU2S.clone(), fnCache.clone())?;
                     Ok((Unit::Unit::MASTER { varList: metamodelica::nil() }, inconsistentUnits.clone()))
                 }
@@ -1004,8 +1004,8 @@ fn insertUnitInEquationCall(mut call: Arc<Call::NFCall>, mut unit: Unit::Unit, m
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ Absyn::Path::IDENT { name: Deref @ "der" } => {
-                    let mut inconsistentUnits: Arc<metamodelica::List<Arc<metamodelica::List<(Arc<Expression::NFExpression>, Unit::Unit)>>>> = inconsistentUnits.clone();
                     let mut op_unit: Unit::Unit;
+                    let mut inconsistentUnits: Arc<metamodelica::List<Arc<metamodelica::List<(Arc<Expression::NFExpression>, Unit::Unit)>>>> = inconsistentUnits.clone();
                     let mut vars: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = vars.clone();
                     (op_unit, inconsistentUnits) = insertUnitInEquation(listHead(call_args.clone())?, Unit::Unit::MASTER { varList: metamodelica::nil() }, htCr2U.clone(), htS2U.clone(), htU2S.clone(), fnCache.clone())?;
                     if Unit::isUnit(op_unit.clone()) {
@@ -1028,9 +1028,9 @@ fn insertUnitInEquationCall(mut call: Arc<Call::NFCall>, mut unit: Unit::Unit, m
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ Absyn::Path::IDENT { name: Deref @ "sqrt" } => {
-                    let mut op_unit: Unit::Unit;
                     let mut inconsistentUnits: Arc<metamodelica::List<Arc<metamodelica::List<(Arc<Expression::NFExpression>, Unit::Unit)>>>> = inconsistentUnits.clone();
                     let mut vars: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = vars.clone();
+                    let mut op_unit: Unit::Unit;
                     (op_unit, inconsistentUnits) = insertUnitInEquation(listHead(call_args.clone())?, Unit::Unit::MASTER { varList: metamodelica::nil() }, htCr2U.clone(), htS2U.clone(), htU2S.clone(), fnCache.clone())?;
                     if Unit::isUnit(op_unit.clone()) {
                         op_unit = Unit::unitRoot(op_unit.clone(), metamodelica::OrderedFloat(2.0_f64))?;
@@ -1064,10 +1064,10 @@ fn insertUnitInEquationCall(mut call: Arc<Call::NFCall>, mut unit: Unit::Unit, m
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 _ => {
-                    let mut inconsistentUnits: Arc<metamodelica::List<Arc<metamodelica::List<(Arc<Expression::NFExpression>, Unit::Unit)>>>> = inconsistentUnits.clone();
                     let mut fn_name: ArcStr = fn_name.clone();
-                    let mut var_names: Arc<metamodelica::List<ArcStr>> = var_names.clone();
+                    let mut inconsistentUnits: Arc<metamodelica::List<Arc<metamodelica::List<(Arc<Expression::NFExpression>, Unit::Unit)>>>> = inconsistentUnits.clone();
                     let mut unit_names: Arc<metamodelica::List<ArcStr>> = unit_names.clone();
+                    let mut var_names: Arc<metamodelica::List<ArcStr>> = var_names.clone();
                     fn_name = (AbsynUtil::pathString(AbsynUtil::makeNotFullyQualified(fn_path.clone()), (literal!(".")).clone(), true, false)?).clone();
                     (var_names, _, unit_names, _) = getCallUnits((fn_name.clone()).clone(), call.clone(), fnCache.clone())?;
                     inconsistentUnits = foldCallArg1(call_args.clone(), htCr2U.clone(), htS2U.clone(), htU2S.clone(), fnCache.clone(), unit.clone(), unit_names.clone(), var_names.clone(), (fn_name.clone()).clone())?;
@@ -1106,7 +1106,10 @@ fn getCallUnits(mut fnName: ArcStr, mut call: Arc<Call::NFCall>, mut fnCache: Fu
     let mut args: Functionargs = <Functionargs as ::std::default::Default>::default();
     opt_args = UnorderedMap::get((fnName.clone()).clone(), fnCache.clone());
     if isSome(opt_args.clone()) {
-        let Some(__pa0) = (opt_args.clone()) else { bail!("pattern mismatch") };
+        let __pa0 = ::match_deref::match_deref! { match &(opt_args.clone()) {
+            Some(__pa0) => __pa0.clone(),
+            _ => bail!("pattern mismatch"),
+        } };
         args = __pa0.clone();
     } else {
         args = parseFunctionUnits((fnName.clone()).clone(), Call::typedFunction(call.clone())?)?;
@@ -1122,43 +1125,42 @@ fn getCallUnits(mut fnName: ArcStr, mut call: Arc<Call::NFCall>, mut fnCache: Fu
 
 fn parseFunctionUnits(mut funcName: ArcStr, mut func: Arc<Function::Function>) -> Result<Functionargs> {
     let mut outArgs: Functionargs = <Functionargs as ::std::default::Default>::default();
-    let mut fn_name: ArcStr = arcstr::literal!("");
     let mut in_units: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
     let mut out_units: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
     let mut in_args: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
     let mut out_args: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
-    in_units = {
+    in_units = ({
         let mut __acc: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
         for mut p in (func.inputs.clone()).into_iter().cloned() {
             let __x = Component::getUnitAttribute(InstNode::component(p.clone())?, (literal!("NONE")).clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
-    out_units = {
+    });
+    out_units = ({
         let mut __acc: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
         for mut p in (func.outputs.clone()).into_iter().cloned() {
             let __x = Component::getUnitAttribute(InstNode::component(p.clone())?, (literal!("NONE")).clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
-    in_args = {
+    });
+    in_args = ({
         let mut __acc: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
         for mut p in (func.inputs.clone()).into_iter().cloned() {
             let __x = InstNode::name(p.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
-    out_args = {
+    });
+    out_args = ({
         let mut __acc: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
         for mut p in (func.outputs.clone()).into_iter().cloned() {
             let __x = InstNode::name(p.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     outArgs = Functionargs { name: (funcName.clone()).clone(), invars: in_args.clone(), outvars: out_args.clone(), inunits: in_units.clone(), outunits: out_units.clone() };
     Ok(outArgs)
 }
@@ -1204,8 +1206,8 @@ fn updateHtCr2U(mut cref: Arc<ComponentRef::NFComponentRef>, mut unit: Unit::Uni
 }
 
 fn Errorfunction(mut inexpList: Arc<metamodelica::List<(Arc<Expression::NFExpression>, Unit::Unit)>>, mut inEq: Arc<Equation::NFEquation>, mut inHtU2S: Arc<UnorderedMap::UnorderedMap<Unit::Unit, ArcStr>>) -> Result<()> {
-    let _ = (::match_deref::match_deref! { match &((inexpList.clone(), inEq.clone(), inHtU2S.clone())) {
-        (expList, _, _) => {
+    let () = (::match_deref::match_deref! { match &(inexpList.clone()) {
+        expList => {
             let mut s: ArcStr = arcstr::literal!("");
             let mut s1: ArcStr = arcstr::literal!("");
             let mut s2: ArcStr = arcstr::literal!("");
@@ -1225,8 +1227,8 @@ fn Errorfunction(mut inexpList: Arc<metamodelica::List<(Arc<Expression::NFExpres
 
 fn Errorfunction2(mut inexpList: Arc<metamodelica::List<(Arc<Expression::NFExpression>, Unit::Unit)>>, mut inHtU2S: Arc<UnorderedMap::UnorderedMap<Unit::Unit, ArcStr>>) -> Result<ArcStr> {
     let mut outS: ArcStr = arcstr::literal!("");
-    outS = ((::match_deref::match_deref! { match &((inexpList.clone(), inHtU2S.clone())) {
-        (Deref @ metamodelica::List::Cons { head: (exp, ut), tail: Deref @ metamodelica::List::Nil }, _) => {
+    outS = ((::match_deref::match_deref! { match &(inexpList.clone()) {
+        Deref @ metamodelica::List::Cons { head: (exp, ut), tail: Deref @ metamodelica::List::Nil } => {
             let mut s: ArcStr = arcstr::literal!("");
             let mut s1: ArcStr = arcstr::literal!("");
             s = (Expression::toString(exp.clone())?).clone();
@@ -1234,7 +1236,7 @@ fn Errorfunction2(mut inexpList: Arc<metamodelica::List<(Arc<Expression::NFExpre
             s = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("- sub-expression \"")); __mm_s.push_str(&*s.clone()); __mm_s.push_str(&*literal!("\" has unit \"")); __mm_s.push_str(&*s1.clone()); __mm_s.push_str(&*literal!("\"")); ArcStr::from(__mm_s) }).clone();
             s.clone()
         },
-        (Deref @ metamodelica::List::Cons { head: (exp, ut), tail: expList }, _) => {
+        Deref @ metamodelica::List::Cons { head: (exp, ut), tail: expList } => {
             let mut s: ArcStr = arcstr::literal!("");
             let mut s1: ArcStr = arcstr::literal!("");
             let mut s2: ArcStr = arcstr::literal!("");
@@ -1356,7 +1358,7 @@ fn parse(mut unitString: ArcStr, mut cref: Arc<ComponentRef::NFComponentRef>, mu
     let mut unit: Unit::Unit;
     if stringEmpty((unitString.clone()).clone()) {
         unit = Unit::Unit::MASTER { varList: list![cref.clone()] };
-        return Ok(unit);
+        return Ok(unit.clone());
     }
     match '__try0: {
         unit = UnorderedMap::getOrFail((unitString.clone()).clone(), htS2U.clone());

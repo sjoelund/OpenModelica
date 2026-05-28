@@ -114,14 +114,38 @@ fn render_dot_if_available(dot_file: &str, svg_file: &str) {
         return;
     }
 
-    let status = std::process::Command::new("dot")
+    // `dot`'s default layout can spin effectively forever on the ~450-node
+    // package graph, so cap it with a wall-clock timeout and kill the child
+    // if it overruns rather than hanging the whole tool.
+    const TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
+    let child = std::process::Command::new("dot")
         .args(["-Tsvg", dot_file, "-o", svg_file])
-        .status();
-
-    match status {
-        Ok(s) if s.success() => println!("Rendered: {svg_file}"),
-        Ok(s) => eprintln!("dot exited with {s} for {dot_file}"),
-        Err(e) => eprintln!("Failed to run dot for {dot_file}: {e}"),
+        .spawn();
+    let mut child = match child {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("Failed to run dot for {dot_file}: {e}");
+            return;
+        }
+    };
+    let start = std::time::Instant::now();
+    loop {
+        match child.try_wait() {
+            Ok(Some(s)) if s.success() => println!("Rendered: {svg_file}"),
+            Ok(Some(s)) => eprintln!("dot exited with {s} for {dot_file}"),
+            Ok(None) => {
+                if start.elapsed() >= TIMEOUT {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    eprintln!("dot timed out after {}s on {dot_file}; render manually: dot -Tsvg {dot_file} -o {svg_file}", TIMEOUT.as_secs());
+                } else {
+                    std::thread::sleep(std::time::Duration::from_millis(100));
+                    continue;
+                }
+            }
+            Err(e) => eprintln!("Failed to wait for dot on {dot_file}: {e}"),
+        }
+        break;
     }
 }
 
@@ -161,7 +185,13 @@ fn run_dep_analysis(programs: Vec<Absyn::Program>) {
     }
     println!();
     render_dot_if_available(crate_dot, "dep_analysis_crates.svg");
-    render_dot_if_available(pkg_dot, "dep_analysis_packages.svg");
+    // The package graph has ~450 nodes; rendering it is slow and rarely needed,
+    // so only attempt it when explicitly requested.
+    if std::env::var_os("MMTORUST_RENDER_PKG").is_some() {
+        render_dot_if_available(pkg_dot, "dep_analysis_packages.svg");
+    } else {
+        println!("(skipping package-graph SVG; set MMTORUST_RENDER_PKG=1 to render {pkg_dot})");
+    }
 }
 
 fn run_unused_functions(programs: Vec<Absyn::Program>) {

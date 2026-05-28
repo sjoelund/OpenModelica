@@ -242,7 +242,6 @@ pub fn addAliasPair(mut alias1: Arc<FlowAlias::FlowAlias>, mut alias2: Arc<FlowA
         let mut set: i32 = 0;
         let mut sets: Sets = sets;
         let mut flippedSign: bool = false;
-        let mut negative_alias: Arc<FlowAlias::FlowAlias> = alias.clone();
         let mut entry: Arc<FlowAlias::FlowAlias> = Arc::new(<FlowAlias::FlowAlias as ::std::default::Default>::default());
         (set, sets) = findSet(alias.clone(), sets.clone())?;
         let __pa0 = ::match_deref::match_deref! { match &(getEntry(alias.clone(), sets.clone())) {
@@ -267,7 +266,7 @@ pub fn addAliasPair(mut alias1: Arc<FlowAlias::FlowAlias>, mut alias2: Arc<FlowA
         root1 = findRoot(set1.clone(), sets.nodes.clone())?;
         root2 = findRoot(set2.clone(), sets.nodes.clone())?;
         if root1.clone() == root2.clone() {
-            return Ok(sets);
+            return Ok(sets.clone());
         }
         sets = negateSet(if (alias1.negative.clone()) {root1.clone()} else {root2.clone()}, sets.clone())?;
     }
@@ -335,12 +334,12 @@ pub fn isStreamConnectorFlow(mut alias: Arc<FlowAlias::FlowAlias>) -> Result<boo
     let mut node: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
     if !(ComponentRef::isQualified(alias.name.clone())) {
         isStreamFlow = false;
-        return Ok(isStreamFlow);
+        return Ok(isStreamFlow.clone());
     }
     node = ComponentRef::node(alias.name.clone())?;
     if !(InstNode::isComponent(node.clone())) || !(Component::isFlow(InstNode::component(node.clone())?)) {
         isStreamFlow = false;
-        return Ok(isStreamFlow);
+        return Ok(isStreamFlow.clone());
     }
     isStreamFlow = Type::isStreamConnector(ComponentRef::nodeType(ComponentRef::rest(alias.name.clone())?)?);
     Ok(isStreamFlow)
@@ -387,7 +386,6 @@ pub fn createAliases(mut sets: Sets, mut flatModel: Arc<FlatModel::NFFlatModel>)
     let mut representative: Arc<FlowAlias::FlowAlias> = Arc::new(<FlowAlias::FlowAlias as ::std::default::Default>::default());
     let mut repr_var: Arc<Variable::NFVariable> = Arc::new(<Variable::NFVariable as ::std::default::Default>::default());
     let mut rest_aliases: Arc<metamodelica::List<Arc<FlowAlias::FlowAlias>>> = metamodelica::nil();
-    let mut accum_aliases: Arc<metamodelica::List<Arc<FlowAlias::FlowAlias>>> = metamodelica::nil();
     let mut repr_binding: Arc<Binding::NFBinding> = Arc::new(Binding::UNBOUND);
     let mut alias_vars: Arc<metamodelica::List<Arc<Variable::NFVariable>>> = metamodelica::nil();
     let mut alias_eqs: Arc<metamodelica::List<Arc<Equation::NFEquation>>> = metamodelica::nil();
@@ -466,8 +464,6 @@ pub fn defineRepresentative(mut aliases: Arc<metamodelica::List<Arc<FlowAlias::F
     let mut min_values: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
     let mut max_values: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
     let mut accum_aliases: Arc<metamodelica::List<Arc<FlowAlias::FlowAlias>>> = metamodelica::nil();
-    let mut min_value: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-    let mut max_value: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut start_binding: Arc<Binding::NFBinding> = Arc::new(Binding::UNBOUND);
     let mut nominal_binding: Arc<Binding::NFBinding> = Arc::new(Binding::UNBOUND);
     let mut min_binding: Arc<Binding::NFBinding> = Arc::new(Binding::UNBOUND);
@@ -495,7 +491,7 @@ pub fn computeLimit(mut values: Arc<metamodelica::List<Arc<Expression::NFExpress
         limit = Binding::EMPTY_BINDING().clone();
     } else {
         res = List::reduce(values.clone(), reduceFn.clone())?;
-        limit = Binding::makeFlat(res.clone(), Variability::CONSTANT.clone(), Binding::Source::GENERATED.clone());
+        limit = Binding::makeFlat(res.clone(), Variability::CONSTANT.clone(), Binding::Source::GENERATED.clone(), Binding::NO_CONFIDENCE.clone());
     }
     Ok(limit)
 }
@@ -603,13 +599,12 @@ pub fn setRepresentativeAttributes(mut alias: Arc<FlowAlias::FlowAlias>, mut sta
     let mut alias: Arc<FlowAlias::FlowAlias> = alias;
     let mut var: Arc<Variable::NFVariable> = Arc::new(<Variable::NFVariable as ::std::default::Default>::default());
     let mut attrs: Arc<metamodelica::List<(ArcStr, Arc<Binding::NFBinding>)>> = metamodelica::nil();
-    let mut attr_name: ArcStr = arcstr::literal!("");
     let __pa0 = ::match_deref::match_deref! { match &(alias.variable.clone()) {
         Some(__pa0) => __pa0.clone(),
         _ => bail!("pattern mismatch"),
     } };
     var = __pa0.clone();
-    attrs = {
+    attrs = ({
         let mut __acc: Arc<metamodelica::List<(ArcStr, Arc<Binding::NFBinding>)>> = metamodelica::nil();
         for mut attr in (var.typeAttributes.clone()).into_iter().cloned() {
             if !(!(listMember((Util::tuple21(attr.clone())).clone(), list![(literal!("start")).clone(), (literal!("nominal")).clone(), (literal!("min")).clone(), (literal!("max")).clone()]))) { continue; }
@@ -617,7 +612,7 @@ pub fn setRepresentativeAttributes(mut alias: Arc<FlowAlias::FlowAlias>, mut sta
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     attrs = add_attribute((literal!("max")).clone(), maxValue.clone(), attrs.clone());
     attrs = add_attribute((literal!("min")).clone(), minValue.clone(), attrs.clone());
     attrs = add_attribute((literal!("nominal")).clone(), nominalValue.clone(), attrs.clone());
@@ -765,7 +760,10 @@ pub fn find(mut entry: Entry, mut sets: Sets) -> Result<(Sets, i32)> {
     let mut oindex: Option<i32> = None;
     oindex = UnorderedMap::get(entry.clone(), sets.elements.clone());
     if isSome(oindex.clone()) {
-        let Some(__pa0) = (oindex.clone()) else { bail!("pattern mismatch") };
+        let __pa0 = ::match_deref::match_deref! { match &(oindex.clone()) {
+            Some(__pa0) => __pa0.clone(),
+            _ => bail!("pattern mismatch"),
+        } };
         index = __pa0.clone();
     } else {
         (sets, index) = add(entry.clone(), sets.clone())?;

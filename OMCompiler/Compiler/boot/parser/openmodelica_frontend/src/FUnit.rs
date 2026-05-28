@@ -108,7 +108,7 @@ pub fn LU_COMPLEXUNITS() -> Arc<metamodelica::List<(ArcStr, Unit)>> { __LU_COMPL
 //("degF", UNIT(5.0 / 9.0, 0, 0, 0, 0, 0, 1, 0, 459.67)), //°Fahrenheit
 //("degC",       UNIT(1e0, 0, 0, 0, 0, 0, 1, 0, 273.15))};//°Celsius
 /*                 fac, mol, cd, m, s, A, K, g*/
-pub fn getKnownUnits() -> Result<(metamodelica::Array<Arc<metamodelica::List<(ArcStr, i32)>>>, (i32, i32, metamodelica::Array<Option<(ArcStr, Unit)>>), i32, (HashTableStringToUnit::FuncHashKey, HashTableStringToUnit::FuncKeyEqual, HashTableStringToUnit::FuncKeyStr, HashTableStringToUnit::FuncValueStr))> {
+pub fn getKnownUnits() -> Result<(metamodelica::Array<Arc<metamodelica::List<(ArcStr, i32)>>>, (i32, i32, metamodelica::Array<Option<(ArcStr, Unit)>>), i32, (Arc<dyn ::std::ops::Fn(ArcStr) -> Result<i32> + 'static>, Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>, Arc<dyn ::std::ops::Fn(ArcStr) -> Result<ArcStr> + 'static>, Arc<dyn ::std::ops::Fn(Unit) -> Result<ArcStr> + 'static>))> {
     let mut outKnownUnits: (metamodelica::Array<Arc<metamodelica::List<(ArcStr, i32)>>>, (i32, i32, metamodelica::Array<Option<(ArcStr, Unit)>>), i32, (HashTableStringToUnit::FuncHashKey, HashTableStringToUnit::FuncKeyEqual, HashTableStringToUnit::FuncKeyStr, HashTableStringToUnit::FuncValueStr));
     outKnownUnits = HashTableStringToUnit::emptyHashTableSized(Util::nextPrime(4 * (LU_COMPLEXUNITS().clone().len() as i32)));
     for mut unit in &*LU_COMPLEXUNITS().clone() {
@@ -118,7 +118,7 @@ pub fn getKnownUnits() -> Result<(metamodelica::Array<Arc<metamodelica::List<(Ar
     Ok(outKnownUnits)
 }
 
-pub fn getKnownUnitsInverse() -> Result<(metamodelica::Array<Arc<metamodelica::List<(Unit, i32)>>>, (i32, i32, metamodelica::Array<Option<(Unit, ArcStr)>>), i32, (HashTableUnitToString::FuncHashKey, HashTableUnitToString::FuncKeyEqual, HashTableUnitToString::FuncKeyStr, HashTableUnitToString::FuncValueStr))> {
+pub fn getKnownUnitsInverse() -> Result<(metamodelica::Array<Arc<metamodelica::List<(Unit, i32)>>>, (i32, i32, metamodelica::Array<Option<(Unit, ArcStr)>>), i32, (Arc<dyn ::std::ops::Fn(Unit) -> Result<i32> + 'static>, Arc<dyn ::std::ops::Fn(Unit, Unit) -> Result<bool> + 'static>, Arc<dyn ::std::ops::Fn(Unit) -> Result<ArcStr> + 'static>, Arc<dyn ::std::ops::Fn(ArcStr) -> Result<ArcStr> + 'static>))> {
     let mut outKnownUnitsInverse: (metamodelica::Array<Arc<metamodelica::List<(Unit, i32)>>>, (i32, i32, metamodelica::Array<Option<(Unit, ArcStr)>>), i32, (HashTableUnitToString::FuncHashKey, HashTableUnitToString::FuncKeyEqual, HashTableUnitToString::FuncKeyStr, HashTableUnitToString::FuncValueStr));
     let mut s: ArcStr = arcstr::literal!("");
     let mut ut: Unit;
@@ -483,7 +483,7 @@ pub fn unitRoot(mut inUnit: Unit, mut inExponent: metamodelica::Real) -> Result<
     Ok(outUnit)
 }
 
-pub fn unitString(mut inUnit: Unit, mut inHtU2S: (metamodelica::Array<Arc<metamodelica::List<(Unit, i32)>>>, (i32, i32, metamodelica::Array<Option<(Unit, ArcStr)>>), i32, (HashTableUnitToString::FuncHashKey, HashTableUnitToString::FuncKeyEqual, HashTableUnitToString::FuncKeyStr, HashTableUnitToString::FuncValueStr))) -> Result<ArcStr> {
+pub fn unitString(mut inUnit: Unit, mut inHtU2S: (metamodelica::Array<Arc<metamodelica::List<(Unit, i32)>>>, (i32, i32, metamodelica::Array<Option<(Unit, ArcStr)>>), i32, (Arc<dyn ::std::ops::Fn(Unit) -> Result<i32> + 'static>, Arc<dyn ::std::ops::Fn(Unit, Unit) -> Result<bool> + 'static>, Arc<dyn ::std::ops::Fn(Unit) -> Result<ArcStr> + 'static>, Arc<dyn ::std::ops::Fn(ArcStr) -> Result<ArcStr> + 'static>))) -> Result<ArcStr> {
     let mut outString: ArcStr = arcstr::literal!("");
     outString = ((match inUnit.clone() {
         _ if (BaseHashTable::hasKey(inUnit.clone(), inHtU2S.clone())) => {
@@ -577,7 +577,7 @@ fn prefix2String(mut inReal: metamodelica::Real) -> ArcStr {
     outPrefix
 }
 
-pub fn parseUnitString(mut inUnitString: ArcStr, mut inKnownUnits: (metamodelica::Array<Arc<metamodelica::List<(ArcStr, i32)>>>, (i32, i32, metamodelica::Array<Option<(ArcStr, Unit)>>), i32, (HashTableStringToUnit::FuncHashKey, HashTableStringToUnit::FuncKeyEqual, HashTableStringToUnit::FuncKeyStr, HashTableStringToUnit::FuncValueStr))) -> Result<Unit> {
+pub fn parseUnitString(mut inUnitString: ArcStr, mut inKnownUnits: (metamodelica::Array<Arc<metamodelica::List<(ArcStr, i32)>>>, (i32, i32, metamodelica::Array<Option<(ArcStr, Unit)>>), i32, (Arc<dyn ::std::ops::Fn(ArcStr) -> Result<i32> + 'static>, Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>, Arc<dyn ::std::ops::Fn(ArcStr) -> Result<ArcStr> + 'static>, Arc<dyn ::std::ops::Fn(Unit) -> Result<ArcStr> + 'static>))) -> Result<Unit> {
     let mut outUnit: Unit;
     let mut charList: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
     let mut tokenList: Arc<metamodelica::List<Token>> = metamodelica::nil();
@@ -595,13 +595,13 @@ pub fn parseUnitString(mut inUnitString: ArcStr, mut inKnownUnits: (metamodelica
 
 // NOTE: #[tailcall::tailcall] disabled: function body contains a `match_deref!{…}` match,
 // and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
-fn parser3(mut inMul: Arc<metamodelica::List<bool>>, mut inTokenList: Arc<metamodelica::List<Token>>, mut inUnit: Unit, mut inHtS2U: (metamodelica::Array<Arc<metamodelica::List<(ArcStr, i32)>>>, (i32, i32, metamodelica::Array<Option<(ArcStr, Unit)>>), i32, (HashTableStringToUnit::FuncHashKey, HashTableStringToUnit::FuncKeyEqual, HashTableStringToUnit::FuncKeyStr, HashTableStringToUnit::FuncValueStr))) -> Result<Unit> {
+fn parser3(mut inMul: Arc<metamodelica::List<bool>>, mut inTokenList: Arc<metamodelica::List<Token>>, mut inUnit: Unit, mut inHtS2U: (metamodelica::Array<Arc<metamodelica::List<(ArcStr, i32)>>>, (i32, i32, metamodelica::Array<Option<(ArcStr, Unit)>>), i32, (Arc<dyn ::std::ops::Fn(ArcStr) -> Result<i32> + 'static>, Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>, Arc<dyn ::std::ops::Fn(ArcStr) -> Result<ArcStr> + 'static>, Arc<dyn ::std::ops::Fn(Unit) -> Result<ArcStr> + 'static>))) -> Result<Unit> {
     let mut outUnit: Unit;
     outUnit = 'mc: {
-        let __mc_input = (inMul.clone(), inTokenList.clone(), inUnit.clone(), inHtS2U.clone());
+        let __mc_input = (inMul.clone(), inTokenList.clone());
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ metamodelica::List::Cons { head: true, tail: Deref @ metamodelica::List::Nil }, Deref @ metamodelica::List::Nil, _, _) => {
+                (Deref @ metamodelica::List::Cons { head: true, tail: Deref @ metamodelica::List::Nil }, Deref @ metamodelica::List::Nil) => {
                     Ok(inUnit.clone())
                 }
                 _ => bail!("nomatch"),
@@ -609,7 +609,7 @@ fn parser3(mut inMul: Arc<metamodelica::List<bool>>, mut inTokenList: Arc<metamo
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ metamodelica::List::Cons { head: bMul, tail: bRest }, Deref @ metamodelica::List::Cons { head: Token::T_NUMBER { number: 1 }, tail: tokens }, _, _) => {
+                (Deref @ metamodelica::List::Cons { head: bMul, tail: bRest }, Deref @ metamodelica::List::Cons { head: Token::T_NUMBER { number: 1 }, tail: tokens }) => {
                     let mut ut: Unit;
                     ut = Unit::UNIT { factor: metamodelica::OrderedFloat(1e0_f64), mol: 0, cd: 0, m: 0, s: 0, A: 0, K: 0, g: 0 };
                     ut = if (bMul.clone()) {unitMul(inUnit.clone(), ut.clone())?} else {unitDiv(inUnit.clone(), ut.clone())?};
@@ -621,7 +621,7 @@ fn parser3(mut inMul: Arc<metamodelica::List<bool>>, mut inTokenList: Arc<metamo
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ metamodelica::List::Cons { head: bMul, tail: bRest }, Deref @ metamodelica::List::Cons { head: Token::T_UNIT { unit: s }, tail: Deref @ metamodelica::List::Cons { head: Token::T_NUMBER { number: exponent }, tail: tokens } }, _, _) => {
+                (Deref @ metamodelica::List::Cons { head: bMul, tail: bRest }, Deref @ metamodelica::List::Cons { head: Token::T_UNIT { unit: s }, tail: Deref @ metamodelica::List::Cons { head: Token::T_NUMBER { number: exponent }, tail: tokens } }) => {
                     let mut ut: Unit;
                     ut = unitToken2unit((s.clone()).clone(), inHtS2U.clone())?;
                     ut = unitPow(ut.clone(), exponent.clone())?;
@@ -634,7 +634,7 @@ fn parser3(mut inMul: Arc<metamodelica::List<bool>>, mut inTokenList: Arc<metamo
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ metamodelica::List::Cons { head: bMul, tail: bRest }, Deref @ metamodelica::List::Cons { head: Token::T_UNIT { unit: s }, tail: tokens }, _, _) => {
+                (Deref @ metamodelica::List::Cons { head: bMul, tail: bRest }, Deref @ metamodelica::List::Cons { head: Token::T_UNIT { unit: s }, tail: tokens }) => {
                     let mut ut: Unit;
                     ut = unitToken2unit((s.clone()).clone(), inHtS2U.clone())?;
                     ut = if (bMul.clone()) {unitMul(inUnit.clone(), ut.clone())?} else {unitDiv(inUnit.clone(), ut.clone())?};
@@ -646,7 +646,7 @@ fn parser3(mut inMul: Arc<metamodelica::List<bool>>, mut inTokenList: Arc<metamo
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ metamodelica::List::Cons { head: bMul, tail: _ }, Deref @ metamodelica::List::Cons { head: Token::T_MUL { .. }, tail: Deref @ metamodelica::List::Cons { head: Token::T_LPAREN { .. }, tail: tokens } }, _, _) => {
+                (Deref @ metamodelica::List::Cons { head: bMul, tail: _ }, Deref @ metamodelica::List::Cons { head: Token::T_MUL { .. }, tail: Deref @ metamodelica::List::Cons { head: Token::T_LPAREN { .. }, tail: tokens } }) => {
                     let mut ut: Unit;
                     ut = parser3(cons(bMul.clone(), cons(bMul.clone(), inMul.clone())), tokens.clone(), inUnit.clone(), inHtS2U.clone())?;
                     Ok(ut.clone())
@@ -656,7 +656,7 @@ fn parser3(mut inMul: Arc<metamodelica::List<bool>>, mut inTokenList: Arc<metamo
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ metamodelica::List::Cons { head: bMul, tail: _ }, Deref @ metamodelica::List::Cons { head: Token::T_DIV { .. }, tail: Deref @ metamodelica::List::Cons { head: Token::T_LPAREN { .. }, tail: tokens } }, _, _) => {
+                (Deref @ metamodelica::List::Cons { head: bMul, tail: _ }, Deref @ metamodelica::List::Cons { head: Token::T_DIV { .. }, tail: Deref @ metamodelica::List::Cons { head: Token::T_LPAREN { .. }, tail: tokens } }) => {
                     let mut ut: Unit;
                     let mut b: bool = false;
                     b = !(bMul.clone());
@@ -668,7 +668,7 @@ fn parser3(mut inMul: Arc<metamodelica::List<bool>>, mut inTokenList: Arc<metamo
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ metamodelica::List::Cons { head: _, tail: bRest }, Deref @ metamodelica::List::Cons { head: Token::T_RPAREN { .. }, tail: tokens }, _, _) => {
+                (Deref @ metamodelica::List::Cons { head: _, tail: bRest }, Deref @ metamodelica::List::Cons { head: Token::T_RPAREN { .. }, tail: tokens }) => {
                     let mut ut: Unit;
                     ut = parser3(bRest.clone(), tokens.clone(), inUnit.clone(), inHtS2U.clone())?;
                     Ok(ut.clone())
@@ -678,7 +678,7 @@ fn parser3(mut inMul: Arc<metamodelica::List<bool>>, mut inTokenList: Arc<metamo
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ metamodelica::List::Cons { head: bMul, tail: _ }, Deref @ metamodelica::List::Cons { head: Token::T_MUL { .. }, tail: tokens }, _, _) => {
+                (Deref @ metamodelica::List::Cons { head: bMul, tail: _ }, Deref @ metamodelica::List::Cons { head: Token::T_MUL { .. }, tail: tokens }) => {
                     let mut ut: Unit;
                     ut = parser3(cons(bMul.clone(), inMul.clone()), tokens.clone(), inUnit.clone(), inHtS2U.clone())?;
                     Ok(ut.clone())
@@ -688,7 +688,7 @@ fn parser3(mut inMul: Arc<metamodelica::List<bool>>, mut inTokenList: Arc<metamo
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ metamodelica::List::Cons { head: bMul, tail: _ }, Deref @ metamodelica::List::Cons { head: Token::T_DIV { .. }, tail: tokens }, _, _) => {
+                (Deref @ metamodelica::List::Cons { head: bMul, tail: _ }, Deref @ metamodelica::List::Cons { head: Token::T_DIV { .. }, tail: tokens }) => {
                     let mut ut: Unit;
                     let mut b: bool = false;
                     b = !(bMul.clone());
@@ -711,12 +711,12 @@ fn parser3(mut inMul: Arc<metamodelica::List<bool>>, mut inTokenList: Arc<metamo
     Ok(outUnit)
 }
 
-fn unitToken2unit(mut inS: ArcStr, mut inHtS2U: (metamodelica::Array<Arc<metamodelica::List<(ArcStr, i32)>>>, (i32, i32, metamodelica::Array<Option<(ArcStr, Unit)>>), i32, (HashTableStringToUnit::FuncHashKey, HashTableStringToUnit::FuncKeyEqual, HashTableStringToUnit::FuncKeyStr, HashTableStringToUnit::FuncValueStr))) -> Result<Unit> {
+fn unitToken2unit(mut inS: ArcStr, mut inHtS2U: (metamodelica::Array<Arc<metamodelica::List<(ArcStr, i32)>>>, (i32, i32, metamodelica::Array<Option<(ArcStr, Unit)>>), i32, (Arc<dyn ::std::ops::Fn(ArcStr) -> Result<i32> + 'static>, Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>, Arc<dyn ::std::ops::Fn(ArcStr) -> Result<ArcStr> + 'static>, Arc<dyn ::std::ops::Fn(Unit) -> Result<ArcStr> + 'static>))) -> Result<Unit> {
     let mut outUnit: Unit;
     outUnit = 'mc: {
-        let __mc_input = (inS.clone(), inHtS2U.clone());
+        let __mc_input = inHtS2U.clone();
         if let Ok(__v) = (|| -> Result<_> {
-            let (_, _) = __mc_input.clone() else { bail!("nomatch") };
+            let _ = __mc_input.clone() else { bail!("nomatch") };
             let mut ut: Unit;
             ut = BaseHashTable::get((inS.clone()).clone(), inHtS2U.clone())?;
             Ok(ut.clone())
@@ -741,10 +741,10 @@ fn getPrefix(mut inS: ArcStr, mut inS2: ArcStr) -> Result<(metamodelica::Real, A
     let mut outR: metamodelica::Real = metamodelica::OrderedFloat(0.0_f64);
     let mut outUnit: ArcStr = arcstr::literal!("");
     (outR, outUnit) = 'mc: {
-        let __mc_input = (inS.clone(), inS2.clone());
+        let __mc_input = inS.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ "y", _) => {
+                Deref @ "y" => {
                     let mut strRest: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
                     let mut s: ArcStr = arcstr::literal!("");
                     let __pa0 = ::match_deref::match_deref! { match &(stringListStringChar((inS2.clone()).clone())) {
@@ -760,7 +760,7 @@ fn getPrefix(mut inS: ArcStr, mut inS2: ArcStr) -> Result<(metamodelica::Real, A
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ "z", _) => {
+                Deref @ "z" => {
                     let mut strRest: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
                     let mut s: ArcStr = arcstr::literal!("");
                     let __pa0 = ::match_deref::match_deref! { match &(stringListStringChar((inS2.clone()).clone())) {
@@ -776,7 +776,7 @@ fn getPrefix(mut inS: ArcStr, mut inS2: ArcStr) -> Result<(metamodelica::Real, A
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ "a", _) => {
+                Deref @ "a" => {
                     let mut strRest: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
                     let mut s: ArcStr = arcstr::literal!("");
                     let __pa0 = ::match_deref::match_deref! { match &(stringListStringChar((inS2.clone()).clone())) {
@@ -792,7 +792,7 @@ fn getPrefix(mut inS: ArcStr, mut inS2: ArcStr) -> Result<(metamodelica::Real, A
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ "f", _) => {
+                Deref @ "f" => {
                     let mut strRest: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
                     let mut s: ArcStr = arcstr::literal!("");
                     let __pa0 = ::match_deref::match_deref! { match &(stringListStringChar((inS2.clone()).clone())) {
@@ -808,7 +808,7 @@ fn getPrefix(mut inS: ArcStr, mut inS2: ArcStr) -> Result<(metamodelica::Real, A
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ "p", _) => {
+                Deref @ "p" => {
                     let mut strRest: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
                     let mut s: ArcStr = arcstr::literal!("");
                     let __pa0 = ::match_deref::match_deref! { match &(stringListStringChar((inS2.clone()).clone())) {
@@ -824,7 +824,7 @@ fn getPrefix(mut inS: ArcStr, mut inS2: ArcStr) -> Result<(metamodelica::Real, A
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ "u", _) => {
+                Deref @ "u" => {
                     let mut strRest: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
                     let mut s: ArcStr = arcstr::literal!("");
                     let __pa0 = ::match_deref::match_deref! { match &(stringListStringChar((inS2.clone()).clone())) {
@@ -840,7 +840,7 @@ fn getPrefix(mut inS: ArcStr, mut inS2: ArcStr) -> Result<(metamodelica::Real, A
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ "m", _) => {
+                Deref @ "m" => {
                     let mut strRest: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
                     let mut s: ArcStr = arcstr::literal!("");
                     let __pa0 = ::match_deref::match_deref! { match &(stringListStringChar((inS2.clone()).clone())) {
@@ -856,7 +856,7 @@ fn getPrefix(mut inS: ArcStr, mut inS2: ArcStr) -> Result<(metamodelica::Real, A
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ "c", _) => {
+                Deref @ "c" => {
                     let mut strRest: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
                     let mut s: ArcStr = arcstr::literal!("");
                     let __pa0 = ::match_deref::match_deref! { match &(stringListStringChar((inS2.clone()).clone())) {
@@ -872,7 +872,7 @@ fn getPrefix(mut inS: ArcStr, mut inS2: ArcStr) -> Result<(metamodelica::Real, A
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ "d", _) => {
+                Deref @ "d" => {
                     let mut strRest: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
                     let mut s: ArcStr = arcstr::literal!("");
                     strRest = stringListStringChar((inS2.clone()).clone());
@@ -889,7 +889,7 @@ fn getPrefix(mut inS: ArcStr, mut inS2: ArcStr) -> Result<(metamodelica::Real, A
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ "d", _) => {
+                Deref @ "d" => {
                     let mut strRest: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
                     let mut s: ArcStr = arcstr::literal!("");
                     let __pa0 = ::match_deref::match_deref! { match &(stringListStringChar((inS2.clone()).clone())) {
@@ -905,7 +905,7 @@ fn getPrefix(mut inS: ArcStr, mut inS2: ArcStr) -> Result<(metamodelica::Real, A
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ "h", _) => {
+                Deref @ "h" => {
                     let mut strRest: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
                     let mut s: ArcStr = arcstr::literal!("");
                     let __pa0 = ::match_deref::match_deref! { match &(stringListStringChar((inS2.clone()).clone())) {
@@ -921,7 +921,7 @@ fn getPrefix(mut inS: ArcStr, mut inS2: ArcStr) -> Result<(metamodelica::Real, A
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ "k", _) => {
+                Deref @ "k" => {
                     let mut strRest: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
                     let mut s: ArcStr = arcstr::literal!("");
                     let __pa0 = ::match_deref::match_deref! { match &(stringListStringChar((inS2.clone()).clone())) {
@@ -937,7 +937,7 @@ fn getPrefix(mut inS: ArcStr, mut inS2: ArcStr) -> Result<(metamodelica::Real, A
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ "M", _) => {
+                Deref @ "M" => {
                     let mut strRest: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
                     let mut s: ArcStr = arcstr::literal!("");
                     let __pa0 = ::match_deref::match_deref! { match &(stringListStringChar((inS2.clone()).clone())) {
@@ -953,7 +953,7 @@ fn getPrefix(mut inS: ArcStr, mut inS2: ArcStr) -> Result<(metamodelica::Real, A
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ "G", _) => {
+                Deref @ "G" => {
                     let mut strRest: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
                     let mut s: ArcStr = arcstr::literal!("");
                     let __pa0 = ::match_deref::match_deref! { match &(stringListStringChar((inS2.clone()).clone())) {
@@ -969,7 +969,7 @@ fn getPrefix(mut inS: ArcStr, mut inS2: ArcStr) -> Result<(metamodelica::Real, A
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ "T", _) => {
+                Deref @ "T" => {
                     let mut strRest: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
                     let mut s: ArcStr = arcstr::literal!("");
                     let __pa0 = ::match_deref::match_deref! { match &(stringListStringChar((inS2.clone()).clone())) {
@@ -985,7 +985,7 @@ fn getPrefix(mut inS: ArcStr, mut inS2: ArcStr) -> Result<(metamodelica::Real, A
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ "P", _) => {
+                Deref @ "P" => {
                     let mut strRest: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
                     let mut s: ArcStr = arcstr::literal!("");
                     let __pa0 = ::match_deref::match_deref! { match &(stringListStringChar((inS2.clone()).clone())) {
@@ -1001,7 +1001,7 @@ fn getPrefix(mut inS: ArcStr, mut inS2: ArcStr) -> Result<(metamodelica::Real, A
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ "E", _) => {
+                Deref @ "E" => {
                     let mut strRest: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
                     let mut s: ArcStr = arcstr::literal!("");
                     let __pa0 = ::match_deref::match_deref! { match &(stringListStringChar((inS2.clone()).clone())) {
@@ -1017,7 +1017,7 @@ fn getPrefix(mut inS: ArcStr, mut inS2: ArcStr) -> Result<(metamodelica::Real, A
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ "Z", _) => {
+                Deref @ "Z" => {
                     let mut strRest: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
                     let mut s: ArcStr = arcstr::literal!("");
                     let __pa0 = ::match_deref::match_deref! { match &(stringListStringChar((inS2.clone()).clone())) {
@@ -1033,7 +1033,7 @@ fn getPrefix(mut inS: ArcStr, mut inS2: ArcStr) -> Result<(metamodelica::Real, A
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ "Y", _) => {
+                Deref @ "Y" => {
                     let mut strRest: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
                     let mut s: ArcStr = arcstr::literal!("");
                     let __pa0 = ::match_deref::match_deref! { match &(stringListStringChar((inS2.clone()).clone())) {

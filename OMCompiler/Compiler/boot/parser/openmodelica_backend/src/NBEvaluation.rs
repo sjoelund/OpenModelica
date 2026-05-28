@@ -90,38 +90,38 @@ pub fn removeDummies(mut bdae: Arc<BackendDAE::NBackendDAE>) -> Arc<BackendDAE::
     bdae = (::match_deref::match_deref! { match &(bdae.clone()) {
         Deref @ BackendDAE::MAIN { .. } => {
             assign_variant_field!(bdae => BackendDAE::NBackendDAE::MAIN;
-                ode = {
+                ode = ({
         let mut __acc: Arc<metamodelica::List<Arc<Partition::Partition>>> = metamodelica::nil();
         for mut p in (var_field!((*bdae).ode, BackendDAE::NBackendDAE::MAIN).clone()).into_iter().cloned() {
             let __x = removeDummyComponents(p.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    },
-                algebraic = {
+    }),
+                algebraic = ({
         let mut __acc: Arc<metamodelica::List<Arc<Partition::Partition>>> = metamodelica::nil();
         for mut p in (var_field!((*bdae).algebraic, BackendDAE::NBackendDAE::MAIN).clone()).into_iter().cloned() {
             let __x = removeDummyComponents(p.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    },
-                ode_event = {
+    }),
+                ode_event = ({
         let mut __acc: Arc<metamodelica::List<Arc<Partition::Partition>>> = metamodelica::nil();
         for mut p in (var_field!((*bdae).ode_event, BackendDAE::NBackendDAE::MAIN).clone()).into_iter().cloned() {
             let __x = removeDummyComponents(p.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    },
-                alg_event = {
+    }),
+                alg_event = ({
         let mut __acc: Arc<metamodelica::List<Arc<Partition::Partition>>> = metamodelica::nil();
         for mut p in (var_field!((*bdae).alg_event, BackendDAE::NBackendDAE::MAIN).clone()).into_iter().cloned() {
             let __x = removeDummyComponents(p.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }
+    })
             );
             bdae.clone()
         },

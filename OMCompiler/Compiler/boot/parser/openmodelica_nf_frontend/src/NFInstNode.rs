@@ -717,14 +717,14 @@ pub mod InstNode {
 
     pub fn enclosingScopePath(mut node: Arc<InstNode>, mut ignoreRedeclare: bool, mut ignoreBaseClass: bool) -> Result<Arc<Absyn::Path>> {
         let mut path: Arc<Absyn::Path>;
-        path = AbsynUtil::stringListPath({
+        path = AbsynUtil::stringListPath(({
         let mut __acc: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
         for mut n in (enclosingScopeList(node.clone(), ignoreRedeclare.clone(), ignoreBaseClass.clone())?).into_iter().cloned() {
             let __x = name(n.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
         Ok(path)
     }
 
@@ -744,7 +744,6 @@ pub mod InstNode {
 
     pub fn enclosingScope(mut node: Arc<InstNode>, mut ignoreRedeclare: bool, mut ignoreBaseClass: bool) -> Result<Arc<InstNode>> {
         let mut scope: Arc<InstNode> = Arc::new(InstNode::EMPTY_NODE);
-        let mut it: Arc<InstNodeType> = Arc::new(InstNodeType::BUILTIN_CLASS);
         let mut orig_node: Arc<InstNode> = Arc::new(InstNode::EMPTY_NODE);
         scope = (::match_deref::match_deref! { match &(node.clone()) {
         Deref @ CLASS_NODE { nodeType: Deref @ InstNodeType::REDECLARED_CLASS { originalNode: Some(orig_node), .. }, .. } if (ignoreRedeclare.clone()) => enclosingScope(orig_node.clone(), ignoreRedeclare.clone(), ignoreBaseClass.clone())?,
@@ -1230,7 +1229,7 @@ pub mod InstNode {
                 r#mod = SCodeUtil::lookupAnnotation(Util::getOption(ann.clone())?, (name.clone()).clone())?;
                 if !(SCodeUtil::isEmptyMod(r#mod.clone())) {
                     scope = instanceParent(scope.clone());
-                    return Ok((r#mod, scope));
+                    return Ok((r#mod.clone(), scope.clone()));
                 }
             }
             scope = instanceParent(scope.clone());
@@ -1618,7 +1617,7 @@ pub mod InstNode {
         let mut n2: Arc<InstNode> = resolveOuter(node2.clone());
         if referenceEq(&n1.clone(),&n2.clone()) {
             same = true;
-            return same;
+            return same.clone();
         }
         match '__try0: {
             same = referenceEq(&unwrap_break_err!(definition(node1.clone()), '__try0),&unwrap_break_err!(definition(node2.clone()), '__try0));
@@ -2218,7 +2217,6 @@ pub mod InstNode {
     }
 
     pub fn clearGeneratedInners(mut node: Arc<InstNode>) -> Result<()> {
-        let mut top: Arc<InstNode> = Arc::new(InstNode::EMPTY_NODE);
         let mut inners: Arc<UnorderedMap::UnorderedMap<ArcStr, Arc<InstNode>>>;
         let __pa0 = ::match_deref::match_deref! { match &(nodeType(topScope(node.clone()))?) {
             Deref @ InstNodeType::TOP_SCOPE { generatedInners: __pa0, .. } => __pa0.clone(),
@@ -2242,7 +2240,7 @@ pub mod InstNode {
             if isSome(access_exp.clone()) {
                 access = Prefixes::accessLevelFromAbsyn(Util::getOption(access_exp.clone())?);
                 if isSome(access.clone()) {
-                    return Ok(access);
+                    return Ok(access.clone());
                 }
             }
             scope = parent(scope.clone());

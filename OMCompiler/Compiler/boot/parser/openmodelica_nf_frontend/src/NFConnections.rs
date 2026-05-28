@@ -192,7 +192,7 @@ pub fn makeConnections(mut lhsCref: Arc<ComponentRef::NFComponentRef>, mut lhsTy
     let mut cl2: Arc<metamodelica::List<Arc<Connector::NFConnector>>> = metamodelica::nil();
     let mut c2: Arc<Connector::NFConnector> = Arc::new(<Connector::NFConnector as ::std::default::Default>::default());
     if isDeleted(lhsCref.clone())? || isDeleted(rhsCref.clone())? {
-        return Ok(connections);
+        return Ok(connections.clone());
     }
     if InstNode::isName(ComponentRef::node(lhsCref.clone())?) || InstNode::isName(ComponentRef::node(rhsCref.clone())?) {
         cl1 = list![Connector::fromCref(lhsCref.clone(), lhsType.clone(), source.clone())];
@@ -219,11 +219,10 @@ pub fn makeConnections(mut lhsCref: Arc<ComponentRef::NFComponentRef>, mut lhsTy
 pub fn makeConnectors(mut cref: Arc<ComponentRef::NFComponentRef>, mut ty: Arc<Type::NFType>, mut source: Arc<DAE::ElementSource>) -> Result<Arc<metamodelica::List<Arc<Connector::NFConnector>>>> {
     let mut connectors: Arc<metamodelica::List<Arc<Connector::NFConnector>>> = metamodelica::nil();
     let mut cref_exp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-    let mut cr: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
     let mut expanded: bool = false;
     if !(Flags::isSet(Flags::NF_SCALARIZE.clone())?) {
         connectors = list![Connector::fromCref(cref.clone(), ComponentRef::getSubscriptedType(cref.clone(), false)?, source.clone())];
-        return Ok(connectors);
+        return Ok(connectors.clone());
     }
     cref_exp = Arc::new(Expression::NFExpression::CREF { ty: ComponentRef::getSubscriptedType(cref.clone(), false)?, cref: cref.clone() });
     (cref_exp, expanded) = ExpandExp::expand(cref_exp.clone(), false, false)?;
@@ -337,14 +336,14 @@ pub fn toString(mut conns: Arc<NFConnections>) -> ArcStr {
 
 pub fn toStringList(mut conns: Arc<NFConnections>) -> Arc<metamodelica::List<Arc<metamodelica::List<ArcStr>>>> {
     let mut strl: Arc<metamodelica::List<Arc<metamodelica::List<ArcStr>>>> = metamodelica::nil();
-    strl = {
+    strl = ({
         let mut __acc: Arc<metamodelica::List<Arc<metamodelica::List<ArcStr>>>> = metamodelica::nil();
         for mut c in (conns.connections.clone()).into_iter().cloned() {
             let __x = list![(Connector::toString(c.lhs.clone())).clone(), (Connector::toString(c.rhs.clone())).clone()];
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     strl
 }
 

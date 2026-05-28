@@ -116,7 +116,6 @@ pub type VARIABLE = NFVariable;
 
 pub fn fromCref(mut cref: Arc<ComponentRef::NFComponentRef>) -> Result<Arc<NFVariable>> {
     let mut variable: Arc<NFVariable> = Arc::new(<NFVariable as ::std::default::Default>::default());
-    let mut crefs: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = metamodelica::nil();
     let mut node: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
     let mut class_node: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
     let mut comp: Arc<Component::NFComponent> = Arc::new(Component::WILD);
@@ -146,14 +145,14 @@ pub fn fromCref(mut cref: Arc<ComponentRef::NFComponentRef>) -> Result<Arc<NFVar
         children = (::match_deref::match_deref! { match &(Type::arrayElementType(ty.clone())) {
         Deref @ Type::COMPLEX { cls: class_node, .. } => {
             child_nodes = Class::getComponents(InstNode::getClass(class_node.clone())?);
-            children = {
+            children = ({
         let mut __acc: Arc<metamodelica::List<Arc<NFVariable>>> = metamodelica::nil();
         for mut c in (child_nodes.clone()).borrow().iter() {
             let __x = fromCref(ComponentRef::prefixCref(c.clone(), InstNode::getType(c.clone())?, metamodelica::nil(), cref.clone()))?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
             children.clone()
         },
         _ => metamodelica::nil(),
@@ -200,14 +199,14 @@ pub fn expand(mut var: Arc<NFVariable>, mut backend: bool) -> Result<Arc<metamod
         exp = Expression::fromCref(var.name.clone(), false)?;
         (exp, _) = ExpandExp::expandCref(exp.clone(), backend.clone(), false)?;
         expl = Expression::arrayScalarElements(exp.clone());
-        crefs = {
+        crefs = ({
         let mut __acc: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = metamodelica::nil();
         for mut e in (expl.clone()).into_iter().cloned() {
             let __x = Expression::toCref(e.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
         v = var.clone();
         assign_field!(v.ty = Type::arrayElementType(v.ty.clone()));
         vars = metamodelica::nil();
@@ -234,7 +233,7 @@ pub fn expand(mut var: Arc<NFVariable>, mut backend: bool) -> Result<Arc<metamod
                 } };
                 exp = __pa0.clone();
                 expl = __pa1.clone();
-                assign_field!(v.binding = Binding::makeFlat(exp.clone(), bind_var.clone(), bind_src.clone()));
+                assign_field!(v.binding = Binding::makeFlat(exp.clone(), bind_var.clone(), bind_src.clone(), Binding::NO_CONFIDENCE.clone()));
                 vars = cons(v.clone(), vars.clone());
             }
         } else {
@@ -258,14 +257,14 @@ pub fn expandChildren(mut var: Arc<NFVariable>, mut arrayDims: Arc<metamodelica:
         assign_field!(var.ty = Type::liftArrayLeftList(var.ty.clone(), arrayDims.clone()));
     }
     newArrayDims = Type::arrayDims(var.ty.clone());
-    children = cons(var.clone(), List::flatten({
+    children = cons(var.clone(), List::flatten(({
         let mut __acc: Arc<metamodelica::List<Arc<metamodelica::List<Arc<NFVariable>>>>> = metamodelica::nil();
         for mut v in (var.children.clone()).into_iter().cloned() {
             let __x = expandChildren(v.clone(), newArrayDims.clone(), addDimensions.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }));
+    })));
     children
 }
 
@@ -375,7 +374,7 @@ pub fn isEncrypted(mut variable: Arc<NFVariable>) -> Result<bool> {
         info = InstNode::info(ComponentRef::node(name.clone())?)?;
         if StringUtil::endsWith(info.fileName.clone(), (literal!(".moc")).clone()) {
             isEncrypted = true;
-            return Ok(isEncrypted);
+            return Ok(isEncrypted.clone());
         }
         name = ComponentRef::rest(name.clone())?;
     }
@@ -389,7 +388,10 @@ pub fn isAccessible(mut variable: Arc<NFVariable>) -> Result<bool> {
     let mut access: AccessLevel = AccessLevel::HIDE;
     oaccess = InstNode::getAccessLevel(ComponentRef::node(variable.name.clone())?)?;
     if isSome(oaccess.clone()) {
-        let Some(__pa0) = (oaccess.clone()) else { bail!("pattern mismatch") };
+        let __pa0 = ::match_deref::match_deref! { match &(oaccess.clone()) {
+            Some(__pa0) => __pa0.clone(),
+            _ => bail!("pattern mismatch"),
+        } };
         access = __pa0.clone();
     } else {
         access = if (isEncrypted(variable.clone())?) {AccessLevel::DOCUMENTATION.clone()} else {AccessLevel::PACKAGE_DUPLICATE.clone()};
@@ -410,7 +412,7 @@ pub fn lookupTypeAttribute(mut name: ArcStr, mut var: Arc<NFVariable>) -> Arc<Bi
         let mut attr = attr.clone();
         if Util::tuple21(attr.clone()) == name.clone() {
             binding = Util::tuple22(attr.clone());
-            return binding;
+            return binding.clone();
         }
     }
     binding = Binding::EMPTY_BINDING().clone();
@@ -449,8 +451,8 @@ pub fn propagateAnnotation(mut name: ArcStr, mut overwrite: bool, mut evaluate: 
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ SCode::Mod::MOD { binding: Some(aexp), .. } => {
-                    let mut r#mod: Arc<SCode::Mod> = r#mod.clone();
                     let mut exp: Arc<Expression::NFExpression> = exp.clone();
+                    let mut r#mod: Arc<SCode::Mod> = r#mod.clone();
                     exp = Inst::instExp(aexp.clone(), scope.clone(), NFInstContext::ANNOTATION.clone(), var_field!((*r#mod).info, SCode::Mod::MOD).clone())?;
                     (exp, _, _, _) = Typing::typeExp(exp.clone(), NFInstContext::ANNOTATION.clone(), var_field!((*r#mod).info, SCode::Mod::MOD).clone(), false)?;
                     exp = Ceval::evalExp(exp.clone(), Ceval::noTarget().clone())?;
@@ -484,7 +486,7 @@ pub fn removeNonTopLevelDirection(mut var: Arc<NFVariable>) -> Result<Arc<NFVari
     let mut node: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
     let mut attr: Arc<Attributes::NFAttributes> = Arc::new(<Attributes::NFAttributes as ::std::default::Default>::default());
     if var.attributes.direction.clone() == Direction::NONE.clone() {
-        return Ok(var);
+        return Ok(var.clone());
     }
     rest_name = ComponentRef::rest(var.name.clone())?;
     while !(ComponentRef::isEmpty(rest_name.clone())) {
@@ -493,7 +495,7 @@ pub fn removeNonTopLevelDirection(mut var: Arc<NFVariable>) -> Result<Arc<NFVari
             attr = var.attributes.clone();
             assign_field!(attr.direction = Direction::NONE.clone());
             assign_field!(var.attributes = attr.clone());
-            return Ok(var);
+            return Ok(var.clone());
         }
         rest_name = ComponentRef::rest(rest_name.clone())?;
     }
@@ -534,22 +536,22 @@ pub fn mapExp(mut var: Arc<NFVariable>, mut r#fn: Arc<dyn ::std::ops::Fn(Arc<Exp
     let mut var: Arc<NFVariable> = var;
     assign_field!(
         var.binding = Binding::mapExp(var.binding.clone(), r#fn.clone())?,
-        var.typeAttributes = {
+        var.typeAttributes = ({
         let mut __acc: Arc<metamodelica::List<(ArcStr, Arc<Binding::NFBinding>)>> = metamodelica::nil();
         for mut a in (var.typeAttributes.clone()).into_iter().cloned() {
             let __x = (Util::tuple21(a.clone()), Binding::mapExp(Util::tuple22(a.clone()), r#fn.clone())?);
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    },
-        var.children = {
+    }),
+        var.children = ({
         let mut __acc: Arc<metamodelica::List<Arc<NFVariable>>> = metamodelica::nil();
         for mut v in (var.children.clone()).into_iter().cloned() {
             let __x = mapExp(v.clone(), r#fn.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    },
+    }),
         var.backendinfo = BackendInfo::map(var.backendinfo.clone(), r#fn.clone()),
         var.ty = Type::applyToDims(var.ty.clone(), Arc::new({ let __pe_b1: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static> = r#fn.clone(); move |__pe_a0| Dimension::mapExp(__pe_a0, __pe_b1.clone()) }))?,
         var.name = ComponentRef::mapTypes(var.name.clone(), Arc::new({ let __pe_b1: Arc<dyn ::std::ops::Fn(Arc<Dimension::NFDimension>) -> Result<Arc<Dimension::NFDimension>> + 'static> = Arc::new({ let __pe_b1: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static> = r#fn.clone(); move |__pe_a0| Dimension::mapExp(__pe_a0, __pe_b1.clone()) }); move |__pe_a0| Type::applyToDims(__pe_a0, __pe_b1.clone()) }))
@@ -561,22 +563,22 @@ pub fn mapExpShallow(mut var: Arc<NFVariable>, mut r#fn: Arc<dyn ::std::ops::Fn(
     let mut var: Arc<NFVariable> = var;
     assign_field!(
         var.binding = Binding::mapExpShallow(var.binding.clone(), r#fn.clone()),
-        var.typeAttributes = {
+        var.typeAttributes = ({
         let mut __acc: Arc<metamodelica::List<(ArcStr, Arc<Binding::NFBinding>)>> = metamodelica::nil();
         for mut a in (var.typeAttributes.clone()).into_iter().cloned() {
             let __x = (Util::tuple21(a.clone()), Binding::mapExpShallow(Util::tuple22(a.clone()), r#fn.clone()));
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    },
-        var.children = {
+    }),
+        var.children = ({
         let mut __acc: Arc<metamodelica::List<Arc<NFVariable>>> = metamodelica::nil();
         for mut v in (var.children.clone()).into_iter().cloned() {
             let __x = mapExpShallow(v.clone(), r#fn.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }
+    })
     );
     var
 }
@@ -637,10 +639,6 @@ pub fn toStream(mut var: Arc<NFVariable>, mut indent: ArcStr, mut printBindingTy
 
 pub fn toFlatStream(mut var: Arc<NFVariable>, mut format: BaseModelica::OutputFormat, mut indent: ArcStr, mut printBindingType: bool, mut s: IOStream::IOStream) -> Result<IOStream::IOStream> {
     let mut s: IOStream::IOStream = s;
-    let mut first: bool = false;
-    let mut b: Arc<Binding::NFBinding> = Arc::new(Binding::UNBOUND);
-    let mut var_dims: i32 = 0;
-    let mut binding_dims: i32 = 0;
     let mut dims: Arc<metamodelica::List<Arc<Dimension::NFDimension>>> = metamodelica::nil();
     s = IOStream::append(s.clone(), (indent.clone()).clone())?;
     s = Attributes::toFlatStream(var.attributes.clone(), var.ty.clone(), s.clone(), ComponentRef::isSimple(var.name.clone()))?;
@@ -735,7 +733,7 @@ pub fn getNominal(mut var: Arc<NFVariable>) -> Option<Arc<Expression::NFExpressi
 
 pub fn asBinding(mut var: Arc<NFVariable>, mut source: Binding::Source) -> Arc<Binding::NFBinding> {
     let mut binding: Arc<Binding::NFBinding> = Arc::new(Binding::UNBOUND);
-    binding = Arc::new(Binding::NFBinding::FLAT_BINDING { bindingExp: Expression::fromTypedCref(var.name.clone(), var.ty.clone()), variability: variability(var.clone()), source: source.clone() });
+    binding = Binding::makeFlat(Expression::fromTypedCref(var.name.clone(), var.ty.clone()), variability(var.clone()), source.clone(), Binding::NO_CONFIDENCE.clone());
     binding
 }
 

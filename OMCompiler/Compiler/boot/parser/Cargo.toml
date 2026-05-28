@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["mmtorust", "openmodelica", "openmodelica_util", "metamodelica", "openmodelica_frontend", "openmodelica_backend", "openmodelica_susan", "openmodelica_nf_frontend", "openmodelica_util_datatypes_basic", "openmodelica_ast", "openmodelica_frontend_types", "openmodelica_frontend_dump", "openmodelica_ast_collections", "openmodelica_dump_extra", "openmodelica_frontend_inst", "openmodelica_script_util"]
+members = ["mmtorust", "openmodelica", "openmodelica_util", "metamodelica", "openmodelica_frontend", "openmodelica_backend", "openmodelica_susan", "openmodelica_nf_frontend", "openmodelica_util_datatypes_basic", "openmodelica_ast", "openmodelica_frontend_types", "openmodelica_frontend_dump", "openmodelica_ast_collections", "openmodelica_dump_extra", "openmodelica_frontend_inst", "openmodelica_script_util", "openmodelica_program_util", "openmodelica_codegen", "openmodelica_backend_main"]
 [workspace.dependencies]
 anyhow = "1.0.102"
 arcstr = "1.2.0"
@@ -28,6 +28,9 @@ openmodelica_ast_collections = {path = "openmodelica_ast_collections"}
 openmodelica_dump_extra = {path = "openmodelica_dump_extra"}
 openmodelica_frontend_inst = {path = "openmodelica_frontend_inst"}
 openmodelica_script_util = {path = "openmodelica_script_util"}
+openmodelica_program_util = {path = "openmodelica_program_util"}
+openmodelica_codegen = {path = "openmodelica_codegen"}
+openmodelica_backend_main = {path = "openmodelica_backend_main"}
 
 #[profile.release]
 #debug = true

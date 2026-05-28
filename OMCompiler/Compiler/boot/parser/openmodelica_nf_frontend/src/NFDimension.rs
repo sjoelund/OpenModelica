@@ -296,26 +296,26 @@ pub fn size(mut dim: Arc<NFDimension>, mut resize: bool) -> Result<i32> {
 }
 
 pub fn sizes(mut dims: Arc<metamodelica::List<Arc<NFDimension>>>, mut resize: bool) -> Arc<metamodelica::List<i32>> {
-    let mut outSizes: Arc<metamodelica::List<i32>> = {
+    let mut outSizes: Arc<metamodelica::List<i32>> = ({
         let mut __acc: Arc<metamodelica::List<i32>> = metamodelica::nil();
         for mut d in (dims.clone()).into_iter().cloned() {
             let __x = size(d.clone(), resize.clone()).unwrap();
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     outSizes
 }
 
 pub fn sizesProduct(mut dims: Arc<metamodelica::List<Arc<NFDimension>>>, mut resize: bool) -> i32 {
-    let mut outSize: i32 = {
+    let mut outSize: i32 = ({
         let mut __acc: i32 = 1;
         for mut d in (dims.clone()).into_iter().cloned() {
             let __x = size(d.clone(), resize.clone()).unwrap();
             __acc *= __x;
         }
         __acc
-    };
+    });
     outSize
 }
 
@@ -350,8 +350,6 @@ pub fn isEqualKnown(mut dim1: Arc<NFDimension>, mut dim2: Arc<NFDimension>) -> R
 
 pub fn isEqualKnownSize(mut dim1: Arc<NFDimension>, mut node1: Arc<InstNode::InstNode>, mut index1: i32, mut dim2: Arc<NFDimension>, mut node2: Arc<InstNode::InstNode>, mut index2: i32) -> Result<bool> {
     let mut isEqual: bool = false;
-    let mut cref_exp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-    let mut index_exp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     isEqual = (::match_deref::match_deref! { match &((dim1.clone(), dim2.clone())) {
         (Deref @ EXP { .. }, _) if (isSizeOf(dim1.clone(), node2.clone(), index2.clone())?) => true,
         (_, Deref @ EXP { .. }) if (isSizeOf(dim2.clone(), node1.clone(), index1.clone())?) => true,
@@ -495,14 +493,14 @@ pub fn hashList(mut dims: Arc<metamodelica::List<Arc<NFDimension>>>) -> Result<i
 
 pub fn toStringList(mut dims: Arc<metamodelica::List<Arc<NFDimension>>>, mut brackets: bool) -> Result<ArcStr> {
     let mut r#str: ArcStr = arcstr::literal!("");
-    r#str = stringDelimitList({
+    r#str = stringDelimitList(({
         let mut __acc: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
         for mut d in (dims.clone()).into_iter().cloned() {
             let __x = toString(d.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, (literal!(", ")).clone());
+    }), (literal!(", ")).clone());
     if brackets.clone() {
         r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("[")); __mm_s.push_str(&*r#str.clone()); __mm_s.push_str(&*literal!("]")); ArcStr::from(__mm_s) }).clone();
     }

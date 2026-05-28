@@ -70,7 +70,6 @@ use openmodelica_frontend_dump::ElementSource;
 use openmodelica_frontend_types::DAE;
 use openmodelica_frontend_types::SCode;
 use openmodelica_util::Error;
-use openmodelica_util::ErrorTypes;
 use openmodelica_util::UnorderedSet;
 use openmodelica_util::Util;
 use openmodelica_util_datatypes_basic::Array;
@@ -87,7 +86,7 @@ pub fn elaborate(mut flatModel: Arc<FlatModel::NFFlatModel>, mut connections: Ar
     let mut csets_array: metamodelica::Array<Arc<metamodelica::List<Arc<Connector::NFConnector>>>>;
     (expandable_conns, undeclared_conns, conns) = sortConnections(connections.connections.clone())?;
     if expandable_conns.clone().is_empty() && undeclared_conns.clone().is_empty() {
-        return Ok((flatModel, connections));
+        return Ok((flatModel.clone(), connections.clone()));
     }
     csets = ConnectionSets::emptySets((expandable_conns.clone().len() as i32) + (undeclared_conns.clone().len() as i32));
     csets = addExpandableConnectorsToSets(expandable_conns.clone(), csets.clone())?;
@@ -101,14 +100,14 @@ pub fn elaborate(mut flatModel: Arc<FlatModel::NFFlatModel>, mut connections: Ar
     conns = List::fold(undeclared_conns.clone(), (std::sync::Arc::new(fnptr!(updateUndeclaredConnection, Arc<Connection::NFConnection>, Arc<metamodelica::List<Arc<Connection::NFConnection>>>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Connection::NFConnection>, Arc<metamodelica::List<Arc<Connection::NFConnection>>>) -> Result<Arc<metamodelica::List<Arc<Connection::NFConnection>>>> + 'static>), conns.clone());
     conns = List::fold(expandable_conns.clone(), (std::sync::Arc::new(updateExpandableConnection) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Connection::NFConnection>, Arc<metamodelica::List<Arc<Connection::NFConnection>>>) -> Result<Arc<metamodelica::List<Arc<Connection::NFConnection>>>> + 'static>), conns.clone());
     assign_field!(connections.connections = conns.clone());
-    vars = {
+    vars = ({
         let mut __acc: Arc<metamodelica::List<Arc<Variable::NFVariable>>> = metamodelica::nil();
         for mut v in (vars.clone()).into_iter().cloned() {
             let __x = updatePotentiallyPresentVariable(v.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     assign_field!(flatModel.variables = vars.clone());
     Ok((flatModel, connections))
 }
@@ -119,7 +118,6 @@ fn sortConnections(mut conns: Arc<metamodelica::List<Arc<Connection::NFConnectio
     let mut normalConnections: Arc<metamodelica::List<Arc<Connection::NFConnection>>> = metamodelica::nil();
     let mut c1: Arc<Connector::NFConnector> = Arc::new(<Connector::NFConnector as ::std::default::Default>::default());
     let mut c2: Arc<Connector::NFConnector> = Arc::new(<Connector::NFConnector as ::std::default::Default>::default());
-    let mut err_msg: Option<(ErrorTypes::Message, Arc<metamodelica::List<Arc<Connector::NFConnector>>>)> = None;
     let mut is_undeclared1: bool = false;
     let mut is_undeclared2: bool = false;
     let mut is_expandable1: bool = false;
@@ -185,7 +183,7 @@ fn addNestedExpandableConnectorsToSets(mut c1: Arc<Connector::NFConnector>, mut 
     ecl1 = getExpandableConnectorsInConnector(c1.clone())?;
     ecl2 = getExpandableConnectorsInConnector(c2.clone())?;
     if ecl1.clone().is_empty() && ecl2.clone().is_empty() {
-        return Ok(csets);
+        return Ok(csets.clone());
     }
     for mut ec1 in &*ecl1.clone() {
         let mut ec1 = ec1.clone();
@@ -328,7 +326,6 @@ fn augmentExpandableConnector(mut conn: Arc<Connector::NFConnector>, mut expanda
     let mut node: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
     let mut cls: Arc<Class::NFClass> = Arc::new(Class::NOT_INSTANTIATED);
     let mut cls_tree: Arc<ClassTree::ClassTree> = Arc::new(ClassTree::EMPTY_TREE);
-    let mut comp: Arc<Component::NFComponent> = Arc::new(Component::WILD);
     let mut nodes: Arc<metamodelica::List<Arc<InstNode::InstNode>>> = metamodelica::nil();
     let mut ty: Arc<Type::NFType> = Arc::new(Type::ANY);
     let mut complex_ty: Arc<ComplexType::NFComplexType> = Arc::new(ComplexType::CLASS);
@@ -387,7 +384,6 @@ fn augmentExpandableConnector(mut conn: Arc<Connector::NFConnector>, mut expanda
 fn createVirtualVariables(mut connectorName: Arc<ComponentRef::NFComponentRef>, mut connectorType: Arc<Type::NFType>, mut info: SourceInfo, mut vars: Arc<metamodelica::List<Arc<Variable::NFVariable>>>) -> Result<Arc<metamodelica::List<Arc<Variable::NFVariable>>>> {
     let mut vars: Arc<metamodelica::List<Arc<Variable::NFVariable>>> = vars;
     let mut var: Arc<Variable::NFVariable> = Arc::new(<Variable::NFVariable as ::std::default::Default>::default());
-    let mut comps: metamodelica::Array<Arc<InstNode::InstNode>>;
     let mut name: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
     let mut ty: Arc<Type::NFType> = Arc::new(Type::ANY);
     if Type::isComplex(connectorType.clone()) {

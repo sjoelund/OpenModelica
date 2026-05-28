@@ -128,7 +128,6 @@ pub fn copy<T: Clone + 'static>(mut set: Arc<UnorderedSet<T>>) -> Arc<UnorderedS
 
 pub fn add<T: Clone + 'static>(mut key: T, mut set: Arc<UnorderedSet<T>>) -> Result<()> {
     let mut hash: i32 = 0;
-    let mut pos: i32 = 0;
     let mut okey: Option<T> = None;
     (okey, hash) = find(key.clone(), set.clone())?;
     if isNone(okey.clone()) {
@@ -140,7 +139,6 @@ pub fn add<T: Clone + 'static>(mut key: T, mut set: Arc<UnorderedSet<T>>) -> Res
 pub fn addNew<T: Clone + 'static>(mut key: T, mut set: Arc<UnorderedSet<T>>) -> Result<()> {
     let mut hashfn: Hash<T> = set.hashFn.clone();
     let mut hash: i32 = 0;
-    let mut pos: i32 = 0;
     hash = intMod(hashfn(key.clone())?, (Mutable::access(set.buckets.clone()).borrow().len() as i32));
     addKey(key.clone(), hash.clone(), set.clone())?;
     Ok(())
@@ -148,7 +146,10 @@ pub fn addNew<T: Clone + 'static>(mut key: T, mut set: Arc<UnorderedSet<T>>) -> 
 
 pub fn addUnique<T: Clone + 'static>(mut key: T, mut set: Arc<UnorderedSet<T>>) -> Result<()> {
     let mut hash: i32 = 0;
-    let (None, __pa0) = (find(key.clone(), set.clone())?) else { bail!("pattern mismatch") };
+    let __pa0 = ::match_deref::match_deref! { match &(find(key.clone(), set.clone())?) {
+        (None, __pa0) => __pa0.clone(),
+        _ => bail!("pattern mismatch"),
+    } };
     hash = __pa0.clone();
     addKey(key.clone(), hash.clone(), set.clone())?;
     Ok(())
@@ -183,7 +184,10 @@ pub fn getOrFail<T: Clone + 'static>(mut key: T, mut set: Arc<UnorderedSet<T>>) 
     let mut outKey: T;
     let mut okey: Option<T> = None;
     (okey, _) = find(key.clone(), set.clone())?;
-    let Some(__pa0) = (okey.clone()) else { bail!("pattern mismatch") };
+    let __pa0 = ::match_deref::match_deref! { match &(okey.clone()) {
+        Some(__pa0) => __pa0.clone(),
+        _ => bail!("pattern mismatch"),
+    } };
     outKey = __pa0.clone();
     Ok(outKey)
 }
@@ -201,7 +205,7 @@ pub fn first<T: Clone + 'static>(mut set: Arc<UnorderedSet<T>>) -> Result<T> {
         for mut k in &*b.clone() {
             let mut k = k.clone();
             val = k.clone();
-            return Ok(val);
+            return Ok(val.clone());
         }
     }
     bail!("fail");
@@ -212,7 +216,7 @@ pub fn isEqual<T: Clone + 'static>(mut set1: Arc<UnorderedSet<T>>, mut set2: Arc
     let mut equal: bool = true;
     if Mutable::access(set1.size.clone()) != Mutable::access(set2.size.clone()) {
         equal = false;
-        return Ok(equal);
+        return Ok(equal.clone());
     }
     let __range0 = Mutable::access(set1.buckets.clone()).borrow().iter().cloned().collect::<Vec<_>>();
     for mut b in __range0 {
@@ -220,7 +224,7 @@ pub fn isEqual<T: Clone + 'static>(mut set1: Arc<UnorderedSet<T>>, mut set2: Arc
             let mut k = k.clone();
             if !(contains(k.clone(), set2.clone())?) {
                 equal = false;
-                return Ok(equal);
+                return Ok(equal.clone());
             }
         }
     }
@@ -315,7 +319,7 @@ pub fn all<T: Clone + 'static>(mut set: Arc<UnorderedSet<T>>, mut r#fn: Arc<dyn 
     let mut res: bool = false;
     if isEmpty(set.clone()) {
         res = true;
-        return res;
+        return res.clone();
     }
     let __range0 = Mutable::access(set.buckets.clone()).borrow().iter().cloned().collect::<Vec<_>>();
     for mut b in __range0 {
@@ -323,7 +327,7 @@ pub fn all<T: Clone + 'static>(mut set: Arc<UnorderedSet<T>>, mut r#fn: Arc<dyn 
             let mut k = k.clone();
             if !(r#fn(k.clone()).unwrap()) {
                 res = false;
-                return res;
+                return res.clone();
             }
         }
     }
@@ -337,7 +341,7 @@ pub fn any<T: Clone + 'static>(mut set: Arc<UnorderedSet<T>>, mut r#fn: Arc<dyn 
     let mut res: bool = false;
     if isEmpty(set.clone()) {
         res = false;
-        return res;
+        return res.clone();
     }
     let __range0 = Mutable::access(set.buckets.clone()).borrow().iter().cloned().collect::<Vec<_>>();
     for mut b in __range0 {
@@ -345,7 +349,7 @@ pub fn any<T: Clone + 'static>(mut set: Arc<UnorderedSet<T>>, mut r#fn: Arc<dyn 
             let mut k = k.clone();
             if r#fn(k.clone()).unwrap() {
                 res = true;
-                return res;
+                return res.clone();
             }
         }
     }
@@ -359,7 +363,7 @@ pub fn none<T: Clone + 'static>(mut set: Arc<UnorderedSet<T>>, mut r#fn: Arc<dyn
     let mut res: bool = false;
     if isEmpty(set.clone()) {
         res = true;
-        return res;
+        return res.clone();
     }
     let __range0 = Mutable::access(set.buckets.clone()).borrow().iter().cloned().collect::<Vec<_>>();
     for mut b in __range0 {
@@ -367,7 +371,7 @@ pub fn none<T: Clone + 'static>(mut set: Arc<UnorderedSet<T>>, mut r#fn: Arc<dyn
             let mut k = k.clone();
             if r#fn(k.clone()).unwrap() {
                 res = false;
-                return res;
+                return res.clone();
             }
         }
     }
@@ -450,14 +454,14 @@ pub fn toString<T: Clone + 'static + Default>(mut set: Arc<UnorderedSet<T>>, mut
     pub type StringFn<T: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T) -> Result<ArcStr> + 'static>;
 
     let mut r#str: ArcStr = arcstr::literal!("");
-    r#str = stringDelimitList({
+    r#str = stringDelimitList(({
         let mut __acc: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
         for mut k in (toArray(set.clone())).borrow().iter() {
             let __x = stringFn(k.clone()).unwrap();
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, (delimiter.clone()).clone());
+    }), (delimiter.clone()).clone());
     r#str
 }
 
@@ -578,7 +582,7 @@ pub fn difference_list<T: Clone + 'static>(mut inList1: Arc<metamodelica::List<T
     }
     if lst1.clone().is_empty() || lst2.clone().is_empty() {
         acc = lst1.clone();
-        return Ok(acc);
+        return Ok(acc.clone());
     }
     set2 = fromList(lst2.clone(), hashFunc.clone(), keyEqFunc.clone())?;
     for mut k in &*lst1.clone() {
@@ -595,12 +599,12 @@ pub fn equal_list<T: Clone + 'static>(mut inList1: Arc<metamodelica::List<T>>, m
     let mut set1: Arc<UnorderedSet<T>> = fromList(inList1.clone(), hashFunc.clone(), keyEqFunc.clone())?;
     let mut set2: Arc<UnorderedSet<T>> = fromList(inList2.clone(), hashFunc.clone(), keyEqFunc.clone())?;
     if Mutable::access(set1.size.clone()) != Mutable::access(set2.size.clone()) {
-        return Ok(b);
+        return Ok(b.clone());
     }
     for mut k in &*inList1.clone() {
         let mut k = k.clone();
         if !(contains(k.clone(), set2.clone())?) {
-            return Ok(b);
+            return Ok(b.clone());
         }
     }
     b = true;
@@ -665,7 +669,7 @@ pub fn isDisjoint<T: Clone + 'static>(mut set1: Arc<UnorderedSet<T>>, mut set2: 
             let mut k = k.clone();
             if contains(k.clone(), set_big.clone())? {
                 b = false;
-                return Ok(b);
+                return Ok(b.clone());
             }
         }
     }

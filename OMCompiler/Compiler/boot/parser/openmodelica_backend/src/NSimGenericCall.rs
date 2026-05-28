@@ -113,25 +113,25 @@ pub fn mapShallow(mut call: Arc<NSimGenericCall>, mut func: Arc<dyn ::std::ops::
             call.clone()
         },
         Deref @ IF_GENERIC_CALL { .. } => {
-            assign_variant_field!(call => NSimGenericCall::IF_GENERIC_CALL; branches = {
+            assign_variant_field!(call => NSimGenericCall::IF_GENERIC_CALL; branches = ({
         let mut __acc: Arc<metamodelica::List<Arc<SimBranch::SimBranch>>> = metamodelica::nil();
         for mut branch in (var_field!((*call).branches, NSimGenericCall::IF_GENERIC_CALL).clone()).into_iter().cloned() {
             let __x = SimBranch::mapShallow(branch.clone(), func.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             call.clone()
         },
         Deref @ WHEN_GENERIC_CALL { .. } => {
-            assign_variant_field!(call => NSimGenericCall::WHEN_GENERIC_CALL; branches = {
+            assign_variant_field!(call => NSimGenericCall::WHEN_GENERIC_CALL; branches = ({
         let mut __acc: Arc<metamodelica::List<Arc<SimBranch::SimBranch>>> = metamodelica::nil();
         for mut branch in (var_field!((*call).branches, NSimGenericCall::WHEN_GENERIC_CALL).clone()).into_iter().cloned() {
             let __x = SimBranch::mapShallow(branch.clone(), func.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             call.clone()
         },
         _ => call.clone(),
@@ -195,44 +195,44 @@ pub fn fromIdentifier(mut ident_tpl: (Arc<Identifier::Identifier>, i32)) -> Resu
 pub fn convert(mut call: Arc<NSimGenericCall>) -> Result<OldSimCode::SimGenericCall> {
     let mut old_call: OldSimCode::SimGenericCall;
     old_call = (::match_deref::match_deref! { match &(call.clone()) {
-        Deref @ SINGLE_GENERIC_CALL { .. } => OldSimCode::SimGenericCall::SINGLE_GENERIC_CALL { resizable: var_field!((*call).resizable, NSimGenericCall::SINGLE_GENERIC_CALL).clone(), rhs: Expression::toDAE(var_field!((*call).rhs, NSimGenericCall::SINGLE_GENERIC_CALL).clone(), false)?, lhs: Expression::toDAE(var_field!((*call).lhs, NSimGenericCall::SINGLE_GENERIC_CALL).clone(), false)?, iters: {
+        Deref @ SINGLE_GENERIC_CALL { .. } => OldSimCode::SimGenericCall::SINGLE_GENERIC_CALL { resizable: var_field!((*call).resizable, NSimGenericCall::SINGLE_GENERIC_CALL).clone(), rhs: Expression::toDAE(var_field!((*call).rhs, NSimGenericCall::SINGLE_GENERIC_CALL).clone(), false)?, lhs: Expression::toDAE(var_field!((*call).lhs, NSimGenericCall::SINGLE_GENERIC_CALL).clone(), false)?, iters: ({
         let mut __acc: Arc<metamodelica::List<OldBackendDAE::SimIterator>> = metamodelica::nil();
         for mut iter in (var_field!((*call).iters, NSimGenericCall::SINGLE_GENERIC_CALL).clone()).into_iter().cloned() {
             let __x = SimIterator::convert(iter.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, index: var_field!((*call).index, NSimGenericCall::SINGLE_GENERIC_CALL).clone() },
-        Deref @ IF_GENERIC_CALL { .. } => OldSimCode::SimGenericCall::IF_GENERIC_CALL { resizable: var_field!((*call).resizable, NSimGenericCall::IF_GENERIC_CALL).clone(), branches: {
+    }), index: var_field!((*call).index, NSimGenericCall::SINGLE_GENERIC_CALL).clone() },
+        Deref @ IF_GENERIC_CALL { .. } => OldSimCode::SimGenericCall::IF_GENERIC_CALL { resizable: var_field!((*call).resizable, NSimGenericCall::IF_GENERIC_CALL).clone(), branches: ({
         let mut __acc: Arc<metamodelica::List<OldSimCode::SimBranch>> = metamodelica::nil();
         for mut branch in (var_field!((*call).branches, NSimGenericCall::IF_GENERIC_CALL).clone()).into_iter().cloned() {
             let __x = SimBranch::convert(branch.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, iters: {
+    }), iters: ({
         let mut __acc: Arc<metamodelica::List<OldBackendDAE::SimIterator>> = metamodelica::nil();
         for mut iter in (var_field!((*call).iters, NSimGenericCall::IF_GENERIC_CALL).clone()).into_iter().cloned() {
             let __x = SimIterator::convert(iter.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, index: var_field!((*call).index, NSimGenericCall::IF_GENERIC_CALL).clone() },
-        Deref @ WHEN_GENERIC_CALL { .. } => OldSimCode::SimGenericCall::WHEN_GENERIC_CALL { resizable: var_field!((*call).resizable, NSimGenericCall::WHEN_GENERIC_CALL).clone(), branches: {
+    }), index: var_field!((*call).index, NSimGenericCall::IF_GENERIC_CALL).clone() },
+        Deref @ WHEN_GENERIC_CALL { .. } => OldSimCode::SimGenericCall::WHEN_GENERIC_CALL { resizable: var_field!((*call).resizable, NSimGenericCall::WHEN_GENERIC_CALL).clone(), branches: ({
         let mut __acc: Arc<metamodelica::List<OldSimCode::SimBranch>> = metamodelica::nil();
         for mut branch in (var_field!((*call).branches, NSimGenericCall::WHEN_GENERIC_CALL).clone()).into_iter().cloned() {
             let __x = SimBranch::convert(branch.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, iters: {
+    }), iters: ({
         let mut __acc: Arc<metamodelica::List<OldBackendDAE::SimIterator>> = metamodelica::nil();
         for mut iter in (var_field!((*call).iters, NSimGenericCall::WHEN_GENERIC_CALL).clone()).into_iter().cloned() {
             let __x = SimIterator::convert(iter.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, index: var_field!((*call).index, NSimGenericCall::WHEN_GENERIC_CALL).clone() },
+    }), index: var_field!((*call).index, NSimGenericCall::WHEN_GENERIC_CALL).clone() },
         _ => {
             Error::addMessage(Error::INTERNAL_ERROR.clone(), list![({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("NSimGenericCall.convert")); __mm_s.push_str(&*literal!(" failed for incorrect call: ")); __mm_s.push_str(&*toString(call.clone())?); ArcStr::from(__mm_s) }).clone()])?;
             bail!("fail")
@@ -274,14 +274,14 @@ pub mod SimIterator {
     pub use self::SimIterator::{SIM_ITERATOR_RANGE,SIM_ITERATOR_LIST};
     pub fn toString(mut iter: Arc<SimIterator>) -> Result<ArcStr> {
         pub fn subIterString(mut sub_iter: Arc<metamodelica::List<(Arc<ComponentRef::NFComponentRef>, metamodelica::Array<Arc<Expression::NFExpression>>)>>) -> ArcStr {
-            let mut r#str: ArcStr = List::toString({
+            let mut r#str: ArcStr = List::toString(({
         let mut __acc: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = metamodelica::nil();
         for mut tpl in (sub_iter.clone()).into_iter().cloned() {
             let __x = Util::tuple21(tpl.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, (std::sync::Arc::new(ComponentRef::toString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<ArcStr> + 'static>), (literal!("")).clone(), (literal!("(")).clone(), (literal!(", ")).clone(), (literal!(")")).clone(), false, 0).unwrap();
+    }), (std::sync::Arc::new(ComponentRef::toString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<ArcStr> + 'static>), (literal!("")).clone(), (literal!("(")).clone(), (literal!(", ")).clone(), (literal!(")")).clone(), false, 0).unwrap();
             r#str
         }
 
@@ -325,14 +325,14 @@ pub mod SimIterator {
             cons(Arc::new(SimIterator::SIM_ITERATOR_RANGE { name: name.clone(), start: var_field!((*range).start, Expression::NFExpression::RANGE).clone(), step: step.clone(), stop: var_field!((*range).stop, Expression::NFExpression::RANGE).clone(), size: size.clone(), sub_iter: sub_iter.clone() }), sim_iter.clone())
         },
         Deref @ Expression::ARRAY { .. } if (var_field!((*range).literal, Expression::NFExpression::ARRAY).clone()) => {
-            lst = {
+            lst = ({
         let mut __acc: Arc<metamodelica::List<i32>> = metamodelica::nil();
         for mut e in (var_field!((*range).elements, Expression::NFExpression::ARRAY).clone()).borrow().iter() {
             let __x = Expression::integerValue(e.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
             sub_iter = if (isSome(map.clone())) {subIterators(Util::getOption(map.clone())?)?} else {metamodelica::nil()};
             cons(Arc::new(SimIterator::SIM_ITERATOR_LIST { name: name.clone(), lst: lst.clone(), size: (lst.clone().len() as i32), sub_iter: sub_iter.clone() }), sim_iter.clone())
         },
@@ -370,35 +370,35 @@ pub mod SimIterator {
 
     pub fn convert(mut iter: Arc<SimIterator>) -> Result<OldBackendDAE::SimIterator> {
         pub fn convertSubIterator(mut sub_iter: (Arc<ComponentRef::NFComponentRef>, metamodelica::Array<Arc<Expression::NFExpression>>)) -> (Arc<DAE::ComponentRef>, metamodelica::Array<Arc<DAE::Exp>>) {
-            let mut old_sub_iter: (Arc<DAE::ComponentRef>, metamodelica::Array<Arc<DAE::Exp>>) = (ComponentRef::toDAE(Util::tuple21(sub_iter.clone())).unwrap(), metamodelica::arrayFromVec({
+            let mut old_sub_iter: (Arc<DAE::ComponentRef>, metamodelica::Array<Arc<DAE::Exp>>) = (ComponentRef::toDAE(Util::tuple21(sub_iter.clone())).unwrap(), metamodelica::arrayFromVec(({
         let mut __acc: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
         for mut e in (Util::tuple22(sub_iter.clone())).borrow().iter() {
             let __x = Expression::toDAE(e.clone(), false).unwrap();
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }.into_iter().cloned().collect()));
+    }).into_iter().cloned().collect()));
             old_sub_iter
         }
 
         let mut old_iter: OldBackendDAE::SimIterator;
         old_iter = (::match_deref::match_deref! { match &(iter.clone()) {
-        Deref @ SIM_ITERATOR_RANGE { .. } => OldBackendDAE::SimIterator::SIM_ITERATOR_RANGE { name: ComponentRef::toDAE(var_field!((*iter).name, SimIterator::SIM_ITERATOR_RANGE).clone())?, start: Expression::toDAE(var_field!((*iter).start, SimIterator::SIM_ITERATOR_RANGE).clone(), false)?, step: Expression::toDAE(var_field!((*iter).step, SimIterator::SIM_ITERATOR_RANGE).clone(), false)?, stop: Expression::toDAE(var_field!((*iter).stop, SimIterator::SIM_ITERATOR_RANGE).clone(), false)?, size: Expression::toDAE(var_field!((*iter).size, SimIterator::SIM_ITERATOR_RANGE).clone(), false)?, non_resizable_size: Expression::getInteger(var_field!((*iter).size, SimIterator::SIM_ITERATOR_RANGE).clone(), false)?, sub_iter: {
+        Deref @ SIM_ITERATOR_RANGE { .. } => OldBackendDAE::SimIterator::SIM_ITERATOR_RANGE { name: ComponentRef::toDAE(var_field!((*iter).name, SimIterator::SIM_ITERATOR_RANGE).clone())?, start: Expression::toDAE(var_field!((*iter).start, SimIterator::SIM_ITERATOR_RANGE).clone(), false)?, step: Expression::toDAE(var_field!((*iter).step, SimIterator::SIM_ITERATOR_RANGE).clone(), false)?, stop: Expression::toDAE(var_field!((*iter).stop, SimIterator::SIM_ITERATOR_RANGE).clone(), false)?, size: Expression::toDAE(var_field!((*iter).size, SimIterator::SIM_ITERATOR_RANGE).clone(), false)?, non_resizable_size: Expression::getInteger(var_field!((*iter).size, SimIterator::SIM_ITERATOR_RANGE).clone(), false)?, sub_iter: ({
         let mut __acc: Arc<metamodelica::List<(Arc<DAE::ComponentRef>, metamodelica::Array<Arc<DAE::Exp>>)>> = metamodelica::nil();
         for mut si in (var_field!((*iter).sub_iter, SimIterator::SIM_ITERATOR_RANGE).clone()).into_iter().cloned() {
             let __x = convertSubIterator(si.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    } },
-        Deref @ SIM_ITERATOR_LIST { .. } => OldBackendDAE::SimIterator::SIM_ITERATOR_LIST { name: ComponentRef::toDAE(var_field!((*iter).name, SimIterator::SIM_ITERATOR_LIST).clone())?, lst: var_field!((*iter).lst, SimIterator::SIM_ITERATOR_LIST).clone(), size: var_field!((*iter).size, SimIterator::SIM_ITERATOR_LIST).clone(), sub_iter: {
+    }) },
+        Deref @ SIM_ITERATOR_LIST { .. } => OldBackendDAE::SimIterator::SIM_ITERATOR_LIST { name: ComponentRef::toDAE(var_field!((*iter).name, SimIterator::SIM_ITERATOR_LIST).clone())?, lst: var_field!((*iter).lst, SimIterator::SIM_ITERATOR_LIST).clone(), size: var_field!((*iter).size, SimIterator::SIM_ITERATOR_LIST).clone(), sub_iter: ({
         let mut __acc: Arc<metamodelica::List<(Arc<DAE::ComponentRef>, metamodelica::Array<Arc<DAE::Exp>>)>> = metamodelica::nil();
         for mut si in (var_field!((*iter).sub_iter, SimIterator::SIM_ITERATOR_LIST).clone()).into_iter().cloned() {
             let __x = convertSubIterator(si.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    } },
+    }) },
         _ => bail!("match: no arm matched"),
     } });
         Ok(old_iter)
@@ -437,25 +437,25 @@ pub mod SimBranch {
         let mut branch: Arc<SimBranch> = branch;
         branch = (::match_deref::match_deref! { match &(branch.clone()) {
         Deref @ SIM_BRANCH { .. } => {
-            assign_variant_field!(branch => SimBranch::SIM_BRANCH; body = {
+            assign_variant_field!(branch => SimBranch::SIM_BRANCH; body = ({
         let mut __acc: Arc<metamodelica::List<(Arc<Expression::NFExpression>, Arc<Expression::NFExpression>)>> = metamodelica::nil();
         for mut tpl in (var_field!((*branch).body, SimBranch::SIM_BRANCH).clone()).into_iter().cloned() {
             let __x = (func(Util::tuple21(tpl.clone())).unwrap(), func(Util::tuple22(tpl.clone())).unwrap());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             branch.clone()
         },
         Deref @ SIM_BRANCH_STMT { .. } => {
-            assign_variant_field!(branch => SimBranch::SIM_BRANCH_STMT; body = {
+            assign_variant_field!(branch => SimBranch::SIM_BRANCH_STMT; body = ({
         let mut __acc: Arc<metamodelica::List<Arc<Statement::NFStatement>>> = metamodelica::nil();
         for mut stmt in (var_field!((*branch).body, SimBranch::SIM_BRANCH_STMT).clone()).into_iter().cloned() {
             let __x = Statement::mapExp(stmt.clone(), func.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             branch.clone()
         },
         _ => branch.clone(),
@@ -509,14 +509,14 @@ pub mod SimBranch {
     pub fn fromWhenBody(mut when_body: Arc<WhenEquationBody::WhenEquationBody>) -> Result<Arc<metamodelica::List<Arc<SimBranch>>>> {
         let mut branches: Arc<metamodelica::List<Arc<SimBranch>>> = metamodelica::nil();
         let mut branch: Arc<SimBranch>;
-        branch = Arc::new(SimBranch::SIM_BRANCH_STMT { condition: when_body.condition.clone(), body: {
+        branch = Arc::new(SimBranch::SIM_BRANCH_STMT { condition: when_body.condition.clone(), body: ({
         let mut __acc: Arc<metamodelica::List<Arc<Statement::NFStatement>>> = metamodelica::nil();
         for mut stmt in (when_body.when_stmts.clone()).into_iter().cloned() {
             let __x = WhenStatement::toStatement(stmt.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    } });
+    }) });
         if isSome(when_body.else_when.clone()) {
             branches = cons(branch.clone(), fromWhenBody(Util::getOption(when_body.else_when.clone())?)?);
         } else {

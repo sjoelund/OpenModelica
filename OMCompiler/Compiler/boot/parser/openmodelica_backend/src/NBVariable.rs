@@ -185,11 +185,9 @@ pub fn fromCref(mut cref: Arc<ComponentRef::NFComponentRef>, mut attr: Arc<Attri
     let mut node: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
     let mut class_node: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
     let mut child_nodes: metamodelica::Array<Arc<InstNode::InstNode>>;
-    let mut child_cref: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
     let mut ty: Arc<Type::NFType> = Arc::new(Type::ANY);
     let mut vis: Prefixes::Visibility = Prefixes::Visibility::PUBLIC;
     let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
-    let mut complexSize: i32 = 0;
     let mut children: Arc<metamodelica::List<Arc<Variable::NFVariable>>> = metamodelica::nil();
     node = ComponentRef::node(cref.clone())?;
     ty = ComponentRef::getSubscriptedType(cref.clone(), true)?;
@@ -199,14 +197,14 @@ pub fn fromCref(mut cref: Arc<ComponentRef::NFComponentRef>, mut attr: Arc<Attri
         children = (::match_deref::match_deref! { match &(Type::arrayElementType(ty.clone())) {
         Deref @ Type::COMPLEX { cls: class_node, .. } => {
             child_nodes = Class::getComponents(InstNode::getClass(class_node.clone())?);
-            children = {
+            children = ({
         let mut __acc: Arc<metamodelica::List<Arc<Variable::NFVariable>>> = metamodelica::nil();
         for mut c in (child_nodes.clone()).borrow().iter() {
             let __x = fromCref(ComponentRef::prefixCref(c.clone(), InstNode::getType(c.clone())?, metamodelica::nil(), cref.clone()), Attributes::DEFAULT_ATTR().clone(), Binding::EMPTY_BINDING().clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
             children.clone()
         },
         _ => metamodelica::nil(),
@@ -888,7 +886,7 @@ pub fn isResizableParameter(mut var_ptr: Pointer::Pointer<Arc<Variable::NFVariab
 pub fn updateResizableParameter(mut var_ptr: Pointer::Pointer<Arc<Variable::NFVariable>>, mut optimal_values: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<Expression::NFExpression>>>) -> () {
     let mut var: Arc<Variable::NFVariable> = Pointer::access(var_ptr.clone());
     let mut val: Option<Arc<Expression::NFExpression>> = UnorderedMap::get(var.name.clone(), optimal_values.clone());
-    let _ = (::match_deref::match_deref! { match &((val.clone(), var.backendinfo.clone())) {
+    let () = (::match_deref::match_deref! { match &((val.clone(), var.backendinfo.clone())) {
         (Some(Deref @ Expression::INTEGER { value: i }), Deref @ BackendExtension::BackendInfo::BACKEND_INFO { annotations: Deref @ BackendExtension::Annotations::ANNOTATIONS { resizable: true, .. }, varKind: varKind @ Deref @ BackendExtension::VariableKind::PARAMETER { .. }, .. }) => {
             let mut varKind = (*varKind).clone();
             assign_variant_field!(varKind => VariableKind::VariableKind::PARAMETER; resize_value = Some(i.clone()));
@@ -1283,14 +1281,14 @@ pub fn getRecordChildrenCref(mut cref: Arc<ComponentRef::NFComponentRef>) -> Res
     let mut arg_children: Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>> = metamodelica::nil();
     subscripts = ComponentRef::subscriptsAllFlat(cref.clone());
     arg_children = getRecordChildren(getVarPointer(cref.clone(), metamodelica::sourceInfo!())?);
-    children = {
+    children = ({
         let mut __acc: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = metamodelica::nil();
         for mut child in (arg_children.clone()).into_iter().cloned() {
             let __x = ComponentRef::mergeSubscripts(subscripts.clone(), getVarName(child.clone()), true, true, false)?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     Ok(children)
 }
 
@@ -1523,7 +1521,6 @@ pub fn makeResidualVar(mut name: ArcStr, mut uniqueIndex: i32, mut ty: Arc<Type:
     let mut cref: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
     let mut node: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
     let mut var: Arc<Variable::NFVariable> = Arc::new(<Variable::NFVariable as ::std::default::Default>::default());
-    let mut dims: Arc<metamodelica::List<Arc<Dimension::NFDimension>>> = Type::arrayDims(ty.clone());
     node = Arc::new(InstNode::InstNode::VAR_NODE { name: ({ let mut __mm_s = String::new(); __mm_s.push_str(&*arcstr::literal!(RESIDUAL_STR)); __mm_s.push_str(&*literal!("_")); __mm_s.push_str(&*name.clone()); __mm_s.push_str(&*literal!("_")); __mm_s.push_str(&*intString(uniqueIndex.clone())); ArcStr::from(__mm_s) }).clone(), varPointer: Pointer::create(DUMMY_VARIABLE().clone()) });
     cref = Arc::new(ComponentRef::NFComponentRef::CREF { node: node.clone(), subscripts: metamodelica::nil(), ty: ty.clone(), origin: ComponentRef::Origin::CREF.clone(), restCref: Arc::new(openmodelica_nf_frontend::NFComponentRef::EMPTY) });
     var = fromCref(cref.clone(), Attributes::DEFAULT_ATTR().clone(), Binding::EMPTY_BINDING().clone())?;
@@ -1542,14 +1539,14 @@ pub fn makeEventVar(mut name: ArcStr, mut uniqueIndex: i32, mut var_ty: Arc<Type
     let mut iter_subs: Arc<metamodelica::List<Arc<Subscript::NFSubscript>>> = metamodelica::nil();
     let mut ty: Arc<Type::NFType> = Arc::new(Type::ANY);
     (iter_crefs, _, _) = BEquation::Iterator::getFrames(iterator.clone())?;
-    iter_subs = {
+    iter_subs = ({
         let mut __acc: Arc<metamodelica::List<Arc<Subscript::NFSubscript>>> = metamodelica::nil();
         for mut iter in (iter_crefs.clone()).into_iter().cloned() {
             let __x = Subscript::fromTypedExp(Expression::fromCref(iter.clone(), false)?);
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     if iter_subs.clone().is_empty() {
         ty = var_ty.clone();
     } else {
@@ -1581,19 +1578,18 @@ pub fn makeAuxVar(mut name: ArcStr, mut uniqueIndex: i32, mut ty: Arc<Type::NFTy
     let mut cref: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
     let mut node: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
     let mut var: Arc<Variable::NFVariable> = Arc::new(<Variable::NFVariable as ::std::default::Default>::default());
-    let mut dims: Arc<metamodelica::List<Arc<Dimension::NFDimension>>> = Type::arrayDims(ty.clone());
     node = Arc::new(InstNode::InstNode::VAR_NODE { name: ({ let mut __mm_s = String::new(); __mm_s.push_str(&*name.clone()); __mm_s.push_str(&*literal!("_")); __mm_s.push_str(&*intString(uniqueIndex.clone())); ArcStr::from(__mm_s) }).clone(), varPointer: Pointer::create(DUMMY_VARIABLE().clone()) });
     cref = Arc::new(ComponentRef::NFComponentRef::CREF { node: node.clone(), subscripts: metamodelica::nil(), ty: ty.clone(), origin: ComponentRef::Origin::CREF.clone(), restCref: Arc::new(openmodelica_nf_frontend::NFComponentRef::EMPTY) });
     var = fromCref(cref.clone(), Attributes::DEFAULT_ATTR().clone(), Binding::EMPTY_BINDING().clone())?;
     var = updateBackendInfo(var.clone(), makeParam.clone());
-    assign_field!(var.children = {
+    assign_field!(var.children = ({
         let mut __acc: Arc<metamodelica::List<Arc<Variable::NFVariable>>> = metamodelica::nil();
         for mut child in (var.children.clone()).into_iter().cloned() {
             let __x = updateBackendInfo(child.clone(), makeParam.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
     (var_ptr, cref) = makeVarPtrCyclic(var.clone(), cref.clone())?;
     Ok((var_ptr, cref))
 }
@@ -1610,7 +1606,7 @@ pub fn makeAuxStateVar(mut uniqueIndex: i32, mut binding: Option<Arc<Expression:
     cref = Arc::new(ComponentRef::NFComponentRef::CREF { node: node.clone(), subscripts: metamodelica::nil(), ty: Arc::new(openmodelica_nf_frontend::NFType::REAL), origin: ComponentRef::Origin::CREF.clone(), restCref: Arc::new(openmodelica_nf_frontend::NFComponentRef::EMPTY) });
     if isSome(binding.clone()) {
         bnd = Util::getOption(binding.clone())?;
-        var = fromCref(cref.clone(), Attributes::DEFAULT_ATTR().clone(), Arc::new(Binding::NFBinding::FLAT_BINDING { bindingExp: bnd.clone(), variability: Expression::variability(bnd.clone())?, source: Binding::Source::BINDING.clone() }))?;
+        var = fromCref(cref.clone(), Attributes::DEFAULT_ATTR().clone(), Binding::makeFlat(bnd.clone(), Expression::variability(bnd.clone())?, Binding::Source::BINDING.clone(), Binding::NO_CONFIDENCE.clone()))?;
     } else {
         var = fromCref(cref.clone(), Attributes::DEFAULT_ATTR().clone(), Binding::EMPTY_BINDING().clone())?;
     }
@@ -1651,7 +1647,6 @@ pub fn makeClockVar(mut uniqueIndex: i32, mut ty: Arc<Type::NFType>) -> Result<(
     let mut cref: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
     let mut node: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
     let mut var: Arc<Variable::NFVariable> = Arc::new(<Variable::NFVariable as ::std::default::Default>::default());
-    let mut dims: Arc<metamodelica::List<Arc<Dimension::NFDimension>>> = Type::arrayDims(ty.clone());
     node = Arc::new(InstNode::InstNode::VAR_NODE { name: ({ let mut __mm_s = String::new(); __mm_s.push_str(&*arcstr::literal!(CLOCK_STR)); __mm_s.push_str(&*literal!("_")); __mm_s.push_str(&*intString(uniqueIndex.clone())); ArcStr::from(__mm_s) }).clone(), varPointer: Pointer::create(DUMMY_VARIABLE().clone()) });
     cref = Arc::new(ComponentRef::NFComponentRef::CREF { node: node.clone(), subscripts: metamodelica::nil(), ty: ty.clone(), origin: ComponentRef::Origin::CREF.clone(), restCref: Arc::new(openmodelica_nf_frontend::NFComponentRef::EMPTY) });
     var = fromCref(cref.clone(), Attributes::DEFAULT_ATTR().clone(), Binding::EMPTY_BINDING().clone())?;
@@ -1697,8 +1692,6 @@ pub fn hasEvaluableBinding(mut var_ptr: Pointer::Pointer<Arc<Variable::NFVariabl
     let mut b: bool = false;
     let mut var: Arc<Variable::NFVariable> = Pointer::access(var_ptr.clone());
     let mut binding: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-    let mut start: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-    let mut opt_start: Option<Arc<Expression::NFExpression>> = None;
     if isBound(var_ptr.clone()) {
         binding = Binding::getExp(var.binding.clone())?;
         b = isEvaluable(binding.clone())?;
@@ -2004,14 +1997,14 @@ pub mod VariablePointers {
         if shallow.clone() {
             new = fromList(toList(variables.clone())?, false);
         } else {
-            new = fromList({
+            new = fromList(({
         let mut __acc: Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>> = metamodelica::nil();
         for mut eqn in (toList(variables.clone())?).into_iter().cloned() {
             let __x = Pointer::create(Pointer::access(eqn.clone()));
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, false);
+    }), false);
         }
         Ok(new)
     }
@@ -2059,7 +2052,7 @@ pub mod VariablePointers {
     pub fn removeCheck(mut variables: Arc<VariablePointers>, mut func: Arc<dyn ::std::ops::Fn(Pointer::Pointer<Arc<Variable::NFVariable>>) -> Result<bool> + 'static>) -> Result<Arc<VariablePointers>> {
         let mut variables: Arc<VariablePointers> = variables;
         let mut vars: Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>> = metamodelica::nil();
-        vars = {
+        vars = ({
         let mut __acc: Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>> = metamodelica::nil();
         for mut var in (toList(variables.clone())?).into_iter().cloned() {
             if !(!(func(var.clone())?)) { continue; }
@@ -2067,7 +2060,7 @@ pub mod VariablePointers {
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
         variables = fromList(vars.clone(), false);
         Ok(variables)
     }
@@ -2185,14 +2178,14 @@ pub mod VariablePointers {
         let mut marked_vars: Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>> = metamodelica::nil();
         let mut indices: Arc<metamodelica::List<i32>> = BackendUtil::findTrueIndices(marks.clone());
         if (marks.clone().borrow().len() as i32) == size(variables.clone()) {
-            marked_vars = {
+            marked_vars = ({
         let mut __acc: Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>> = metamodelica::nil();
         for mut index in (indices.clone()).into_iter().cloned() {
             let __x = getVarAt(variables.clone(), index.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
         } else {
             Error::addMessage(Error::INTERNAL_ERROR.clone(), list![({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("NBVariable.VariablePointers.getMarkedVars")); __mm_s.push_str(&*literal!(" failed because the number var marks (")); __mm_s.push_str(&*intString((marks.clone().borrow().len() as i32))); __mm_s.push_str(&*literal!(") is not equal to the number of variables (")); __mm_s.push_str(&*intString(size(variables.clone()))); __mm_s.push_str(&*literal!(").")); ArcStr::from(__mm_s) }).clone()])?;
             bail!("fail");
@@ -2292,23 +2285,23 @@ pub mod VariablePointers {
         ty = __pa0.clone();
         cref = __pa1.clone();
         dims = Type::arrayDims(ty.clone());
-        sizes = {
+        sizes = ({
         let mut __acc: Arc<metamodelica::List<i32>> = metamodelica::nil();
         for mut dim in (dims.clone()).into_iter().cloned() {
             let __x = Dimension::size(dim.clone(), resize.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
         vals = Slice::indexToLocation(scal.clone() - start.clone(), sizes.clone()).reverse();
-        subs = {
+        subs = ({
         let mut __acc: Arc<metamodelica::List<Arc<Subscript::NFSubscript>>> = metamodelica::nil();
         for (dim, val) in (&(dims.clone())).into_iter().zip((&(vals.clone())).into_iter()) {
             let __x = Subscript::nth(dim.clone(), val.clone() + 1)?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
         cref = ComponentRef::mergeSubscripts(subs.clone(), cref.clone(), true, true, false)?;
         Ok(cref)
     }

@@ -232,14 +232,14 @@ fn expandCrefSet(mut crefs: Arc<metamodelica::List<Arc<ComponentRef::NFComponent
         (exp, _) = ExpandExp::expandCref(exp.clone(), false, false)?;
         if Expression::isArray(exp.clone()) {
             expl = Expression::arrayElements(exp.clone())?;
-            outCrefs = listAppend({
+            outCrefs = listAppend(({
         let mut __acc: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = metamodelica::nil();
         for mut e in (expl.clone()).borrow().iter() {
             let __x = Expression::toCref(e.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, outCrefs.clone());
+    }), outCrefs.clone());
         } else {
             outCrefs = cons(cref.clone(), outCrefs.clone());
         }
@@ -317,7 +317,6 @@ fn checkSubscriptBoundsCref(mut cref: Arc<ComponentRef::NFComponentRef>, mut isP
 fn checkDiscreteReal(mut flatModel: Arc<FlatModel::NFFlatModel>) -> Result<()> {
     let mut discrete_reals: Arc<UnorderedSet::UnorderedSet<Arc<ComponentRef::NFComponentRef>>>;
     let mut illegal_discrete_vars: Arc<metamodelica::List<Arc<Variable::NFVariable>>> = metamodelica::nil();
-    let mut err_str: ArcStr = literal!("");
     discrete_reals = UnorderedSet::new((std::sync::Arc::new(fnptr!(ComponentRef::hashStrip, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqualStrip) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), 13);
     for mut eqn in &*flatModel.equations.clone() {
         let mut eqn = eqn.clone();

@@ -270,28 +270,28 @@ fn addBodyTag(mut tag: Arc<Tag>, mut inDoc: Document) -> Result<Document> {
 
 fn dumpTag(mut tag: Arc<Tag>, mut iBuffer: ArcStr) -> Result<ArcStr> {
     let mut oBuffer: ArcStr = arcstr::literal!("");
-    oBuffer = ((::match_deref::match_deref! { match &((tag.clone(), iBuffer.clone())) {
-        (Deref @ Tag::HEADING { text: t, stage: i }, _) => {
+    oBuffer = ((::match_deref::match_deref! { match &(tag.clone()) {
+        Deref @ Tag::HEADING { text: t, stage: i } => {
             let mut r#str: ArcStr = arcstr::literal!("");
             r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*iBuffer.clone()); __mm_s.push_str(&*literal!("\n<h")); __mm_s.push_str(&*intString(i.clone())); __mm_s.push_str(&*literal!(">")); __mm_s.push_str(&*t.clone()); __mm_s.push_str(&*literal!("</h")); __mm_s.push_str(&*intString(i.clone())); __mm_s.push_str(&*literal!(">")); ArcStr::from(__mm_s) }).clone();
             r#str.clone()
         },
-        (Deref @ Tag::HYPERLINK { text: t2, title: t1, href: t }, _) => {
+        Deref @ Tag::HYPERLINK { text: t2, title: t1, href: t } => {
             let mut r#str: ArcStr = arcstr::literal!("");
             r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*iBuffer.clone()); __mm_s.push_str(&*literal!("\n<a href=\"")); __mm_s.push_str(&*t.clone()); __mm_s.push_str(&*literal!("\" title=\"")); __mm_s.push_str(&*t1.clone()); __mm_s.push_str(&*literal!("\">")); __mm_s.push_str(&*t2.clone()); __mm_s.push_str(&*literal!("</a>")); ArcStr::from(__mm_s) }).clone();
             r#str.clone()
         },
-        (Deref @ Tag::ANKER { name: t }, _) => {
+        Deref @ Tag::ANKER { name: t } => {
             let mut r#str: ArcStr = arcstr::literal!("");
             r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*iBuffer.clone()); __mm_s.push_str(&*literal!("\n<a name=\"")); __mm_s.push_str(&*t.clone()); __mm_s.push_str(&*literal!("\"/>")); ArcStr::from(__mm_s) }).clone();
             r#str.clone()
         },
-        (Deref @ Tag::LINE { text: t }, _) => {
+        Deref @ Tag::LINE { text: t } => {
             let mut r#str: ArcStr = arcstr::literal!("");
             r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*iBuffer.clone()); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*t.clone()); __mm_s.push_str(&*literal!("<br>")); ArcStr::from(__mm_s) }).clone();
             r#str.clone()
         },
-        (Deref @ Tag::DIVISION { tags, style, id: t }, _) => {
+        Deref @ Tag::DIVISION { tags, style, id: t } => {
             let mut t1: ArcStr = arcstr::literal!("");
             let mut t2: ArcStr = arcstr::literal!("");
             let mut r#str: ArcStr = arcstr::literal!("");
@@ -300,17 +300,17 @@ fn dumpTag(mut tag: Arc<Tag>, mut iBuffer: ArcStr) -> Result<ArcStr> {
             r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*iBuffer.clone()); __mm_s.push_str(&*literal!("\n<div id=\"")); __mm_s.push_str(&*t.clone()); __mm_s.push_str(&*literal!("\" style=\"")); __mm_s.push_str(&*t1.clone()); __mm_s.push_str(&*literal!("\">\n")); __mm_s.push_str(&*t2.clone()); __mm_s.push_str(&*literal!("\n</div>")); ArcStr::from(__mm_s) }).clone();
             r#str.clone()
         },
-        (Deref @ Tag::SCRIPT { text: t2, type_: t1 }, _) => {
+        Deref @ Tag::SCRIPT { text: t2, type_: t1 } => {
             let mut r#str: ArcStr = arcstr::literal!("");
             r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*iBuffer.clone()); __mm_s.push_str(&*literal!("\n<script type=\"")); __mm_s.push_str(&*t1.clone()); __mm_s.push_str(&*literal!("\">\n")); __mm_s.push_str(&*t2.clone()); __mm_s.push_str(&*literal!("\n</script>")); ArcStr::from(__mm_s) }).clone();
             r#str.clone()
         },
-        (Deref @ Tag::SCRIPT_BODY { text: t2, type_: t1 }, _) => {
+        Deref @ Tag::SCRIPT_BODY { text: t2, type_: t1 } => {
             let mut r#str: ArcStr = arcstr::literal!("");
             r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*iBuffer.clone()); __mm_s.push_str(&*literal!("\n<SCRIPT \"")); __mm_s.push_str(&*t1.clone()); __mm_s.push_str(&*literal!("\">\n")); __mm_s.push_str(&*t2.clone()); __mm_s.push_str(&*literal!("\n</SCRIPT>")); ArcStr::from(__mm_s) }).clone();
             r#str.clone()
         },
-        (Deref @ Tag::CANVAS { attr }, _) => {
+        Deref @ Tag::CANVAS { attr } => {
             let mut t1: ArcStr = arcstr::literal!("");
             let mut r#str: ArcStr = arcstr::literal!("");
             t1 = stringDelimitList(attr.clone(), (literal!(" ")).clone());
@@ -353,12 +353,9 @@ pub fn dumpDAE(mut inDAE: Arc<BackendDAE::BackendDAE>, mut inHeader: ArcStr, mut
 fn dumpEqSystem(mut inEqSystem: Arc<BackendDAE::EqSystem>, mut inPrefixIdstr: ArcStr, mut inTpl: (Document, i32)) -> Result<(Document, i32)> {
     let mut outTpl: (Document, i32);
     let mut vars: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
-    let mut eqnlen: i32 = 0;
-    let mut eqnssize: i32 = 0;
     let mut i: i32 = 0;
     let mut varlen_str: ArcStr = arcstr::literal!("");
     let mut eqnlen_str: ArcStr = arcstr::literal!("");
-    let mut prefixIdstr: ArcStr = arcstr::literal!("");
     let mut prefixId: ArcStr = arcstr::literal!("");
     let mut eqnsl: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
     let mut vars1: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
@@ -507,9 +504,6 @@ pub fn dumpMatrixHTML(mut m: metamodelica::Array<Arc<metamodelica::List<i32>>>, 
     let mut matrixMargin: i32 = 0;
     let mut blockSize: i32 = 0;
     let mut row: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    let mut color: ArcStr = arcstr::literal!("");
-    let mut rowLabel: ArcStr = arcstr::literal!("");
-    let mut colLabel: ArcStr = arcstr::literal!("");
     let mut blockDraw: ArcStr = arcstr::literal!("");
     let mut rowLabelDraw: ArcStr = arcstr::literal!("");
     let mut colLabelDraw: ArcStr = arcstr::literal!("");

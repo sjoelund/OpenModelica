@@ -145,7 +145,7 @@ fn serializeVars(mut file: File::File, mut vars: SimCodeVar::SimVars, mut withOp
     b = serializeVarsHelp(file.clone(), vars.boolConstVars.clone(), withOperations.clone(), b.clone())?;
     b = serializeVarsHelp(file.clone(), vars.stringConstVars.clone(), withOperations.clone(), b.clone())?;
     b = serializeVarsHelp(file.clone(), vars.jacobianVars.clone(), withOperations.clone(), b.clone())?;
-    let _ = serializeVarsHelp(file.clone(), vars.sensitivityVars.clone(), withOperations.clone(), b.clone())?;
+    serializeVarsHelp(file.clone(), vars.sensitivityVars.clone(), withOperations.clone(), b.clone())?;
     Ok(())
 }
 
@@ -210,7 +210,6 @@ fn serializeSource(mut file: File::File, mut source: Arc<DAE::ElementSource>, mu
     let mut typeLst: Arc<metamodelica::List<Arc<Absyn::Path>>> = metamodelica::nil();
     let mut partOfLst: Arc<metamodelica::List<Absyn::Within>> = metamodelica::nil();
     let mut instance: Arc<DAE::ComponentPrefix> = Arc::new(DAE::ComponentPrefix::NOCOMPPRE);
-    let mut i: i32 = 0;
     let mut operations: Arc<metamodelica::List<Arc<DAE::SymbolicOperation>>> = metamodelica::nil();
     let (__pa0, __pa1, __pa2, __pa3, __pa4) = ::match_deref::match_deref! { match &(source.clone()) {
         Deref @ DAE::ElementSource { operations: __pa0, partOfLst: __pa1, instance: __pa2, info: __pa3, typeLst: __pa4, .. } => (__pa0.clone(), __pa1.clone(), __pa2.clone(), __pa3.clone(), __pa4.clone()),
@@ -224,7 +223,7 @@ fn serializeSource(mut file: File::File, mut source: Arc<DAE::ElementSource>, mu
     File::write(file.clone(), (literal!("{")).clone());
     serializeInfo(file.clone(), info.clone());
     if !(partOfLst.clone().is_empty()) {
-        paths = {
+        paths = ({
         let mut __acc: Arc<metamodelica::List<Arc<Absyn::Path>>> = metamodelica::nil();
         for mut w in (partOfLst.clone()).into_iter().cloned() {
             if !((match w.clone() {
@@ -238,7 +237,7 @@ fn serializeSource(mut file: File::File, mut source: Arc<DAE::ElementSource>, mu
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
         File::write(file.clone(), (literal!(",\"within\":[")).clone());
         serializeList(file.clone(), paths.clone(), (std::sync::Arc::new(serializePath) as std::sync::Arc<dyn ::std::ops::Fn(File::File, Arc<Absyn::Path>) -> Result<()> + 'static>), false, (literal!(",")).clone())?;
         File::write(file.clone(), (literal!("]")).clone());
@@ -283,7 +282,7 @@ fn serializeInfo(mut file: File::File, mut info: SourceInfo) -> () {
 }
 
 fn serializeOperation(mut file: File::File, mut op: Arc<DAE::SymbolicOperation>) -> Result<()> {
-    let _ = (::match_deref::match_deref! { match &(op.clone()) {
+    let () = (::match_deref::match_deref! { match &(op.clone()) {
         Deref @ DAE::SymbolicOperation::FLATTEN { dae: Some(elt), .. } => {
             File::write(file.clone(), (literal!("{\"op\":\"before-after\",\"display\":\"flattening\",\"data\":[\"")).clone());
             File::writeEscape(file.clone(), (System::trim((SCodeDump::equationStr(var_field!((*op).scode, DAE::SymbolicOperation::FLATTEN).clone(), SCodeDump::defaultOptions.clone())?).clone(), (literal!(" \u{c}\n\r\t\u{b}")).clone())).clone(), JSON.clone());
@@ -641,14 +640,14 @@ fn serializeEquation(mut file: File::File, mut eq: Arc<SimCode::SimEqSystem>, mu
                 File::write(file.clone(), (literal!("\",\"tag\":\"system\"")).clone());
             }
             File::write(file.clone(), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!(",\"display\":\"linear\",\"unknowns\":")); __mm_s.push_str(&*intString(lSystem.nUnknowns.clone())); __mm_s.push_str(&*literal!(",\"defines\":[")); ArcStr::from(__mm_s) }).clone());
-            serializeList(file.clone(), {
+            serializeList(file.clone(), ({
         let mut __acc: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
         for mut v in (lSystem.vars.clone()).into_iter().cloned() {
             let __x = v.name.clone();
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, (std::sync::Arc::new(serializeCref) as std::sync::Arc<dyn ::std::ops::Fn(File::File, Arc<DAE::ComponentRef>) -> Result<()> + 'static>), false, (literal!(",")).clone())?;
+    }), (std::sync::Arc::new(serializeCref) as std::sync::Arc<dyn ::std::ops::Fn(File::File, Arc<DAE::ComponentRef>) -> Result<()> + 'static>), false, (literal!(",")).clone())?;
             File::write(file.clone(), (literal!("],\"uses\":[")).clone());
             crefs = metamodelica::nil();
             serializeList(file.clone(), crefs.clone(), (std::sync::Arc::new(serializeCref) as std::sync::Arc<dyn ::std::ops::Fn(File::File, Arc<DAE::ComponentRef>) -> Result<()> + 'static>), false, (literal!(",")).clone())?;
@@ -713,14 +712,14 @@ fn serializeEquation(mut file: File::File, mut eq: Arc<SimCode::SimEqSystem>, mu
                 File::write(file.clone(), (literal!("\",\"tag\":\"system\"")).clone());
             }
             File::write(file.clone(), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!(",\"display\":\"linear\",\"unknowns\":")); __mm_s.push_str(&*intString(lSystem.nUnknowns.clone())); __mm_s.push_str(&*literal!(",\"defines\":[")); ArcStr::from(__mm_s) }).clone());
-            serializeList(file.clone(), {
+            serializeList(file.clone(), ({
         let mut __acc: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
         for mut v in (lSystem.vars.clone()).into_iter().cloned() {
             let __x = v.name.clone();
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, (std::sync::Arc::new(serializeCref) as std::sync::Arc<dyn ::std::ops::Fn(File::File, Arc<DAE::ComponentRef>) -> Result<()> + 'static>), false, (literal!(",")).clone())?;
+    }), (std::sync::Arc::new(serializeCref) as std::sync::Arc<dyn ::std::ops::Fn(File::File, Arc<DAE::ComponentRef>) -> Result<()> + 'static>), false, (literal!(",")).clone())?;
             File::write(file.clone(), (literal!("],\"uses\":[")).clone());
             crefs = metamodelica::nil();
             serializeList(file.clone(), crefs.clone(), (std::sync::Arc::new(serializeCref) as std::sync::Arc<dyn ::std::ops::Fn(File::File, Arc<DAE::ComponentRef>) -> Result<()> + 'static>), false, (literal!(",")).clone())?;
@@ -776,14 +775,14 @@ fn serializeEquation(mut file: File::File, mut eq: Arc<SimCode::SimEqSystem>, mu
                 File::write(file.clone(), (literal!("\",\"tag\":\"system\"")).clone());
             }
             File::write(file.clone(), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!(",\"display\":\"linear\",\"unknowns\":")); __mm_s.push_str(&*intString(atL.nUnknowns.clone())); __mm_s.push_str(&*literal!(",\"defines\":[")); ArcStr::from(__mm_s) }).clone());
-            serializeList(file.clone(), {
+            serializeList(file.clone(), ({
         let mut __acc: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
         for mut v in (atL.vars.clone()).into_iter().cloned() {
             let __x = v.name.clone();
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, (std::sync::Arc::new(serializeCref) as std::sync::Arc<dyn ::std::ops::Fn(File::File, Arc<DAE::ComponentRef>) -> Result<()> + 'static>), false, (literal!(",")).clone())?;
+    }), (std::sync::Arc::new(serializeCref) as std::sync::Arc<dyn ::std::ops::Fn(File::File, Arc<DAE::ComponentRef>) -> Result<()> + 'static>), false, (literal!(",")).clone())?;
             File::write(file.clone(), (literal!("],\"uses\":[")).clone());
             crefs = metamodelica::nil();
             serializeList(file.clone(), crefs.clone(), (std::sync::Arc::new(serializeCref) as std::sync::Arc<dyn ::std::ops::Fn(File::File, Arc<DAE::ComponentRef>) -> Result<()> + 'static>), false, (literal!(",")).clone())?;
@@ -991,14 +990,14 @@ fn serializeEquation(mut file: File::File, mut eq: Arc<SimCode::SimEqSystem>, mu
         },
         Deref @ SimCode::SimEqSystem::SES_IFEQUATION { .. } => {
             let mut eqs: Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>> = metamodelica::nil();
-            eqs = listAppend(List::flatten({
+            eqs = listAppend(List::flatten(({
         let mut __acc: Arc<metamodelica::List<Arc<metamodelica::List<Arc<SimCode::SimEqSystem>>>>> = metamodelica::nil();
         for mut e in (var_field!((*eq).ifbranches, SimCode::SimEqSystem::SES_IFEQUATION).clone()).into_iter().cloned() {
             let __x = Util::tuple22(e.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }), var_field!((*eq).elsebranch, SimCode::SimEqSystem::SES_IFEQUATION).clone());
+    })), var_field!((*eq).elsebranch, SimCode::SimEqSystem::SES_IFEQUATION).clone());
             serializeEquation(file.clone(), listHead(eqs.clone())?, (section.clone()).clone(), withOperations.clone(), 0, true, AssignType::NORMAL.clone())?;
             for mut e in &*listRest(eqs.clone())? {
                 let mut e = e.clone();
@@ -1035,14 +1034,14 @@ fn serializeEquation(mut file: File::File, mut eq: Arc<SimCode::SimEqSystem>, mu
             File::write(file.clone(), (literal!(",\"section\":\"")).clone());
             File::write(file.clone(), (section.clone()).clone());
             File::write(file.clone(), (literal!("\",\"tag\":\"container\",\"display\":\"mixed\",\"defines\":[")).clone());
-            serializeList(file.clone(), {
+            serializeList(file.clone(), ({
         let mut __acc: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
         for mut v in (var_field!((*eq).discVars, SimCode::SimEqSystem::SES_MIXED).clone()).into_iter().cloned() {
             let __x = v.name.clone();
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, (std::sync::Arc::new(serializeCref) as std::sync::Arc<dyn ::std::ops::Fn(File::File, Arc<DAE::ComponentRef>) -> Result<()> + 'static>), false, (literal!(",")).clone())?;
+    }), (std::sync::Arc::new(serializeCref) as std::sync::Arc<dyn ::std::ops::Fn(File::File, Arc<DAE::ComponentRef>) -> Result<()> + 'static>), false, (literal!(",")).clone())?;
             File::write(file.clone(), (literal!("],\"uses\":[")).clone());
             crefs = metamodelica::nil();
             serializeList(file.clone(), crefs.clone(), (std::sync::Arc::new(serializeCref) as std::sync::Arc<dyn ::std::ops::Fn(File::File, Arc<DAE::ComponentRef>) -> Result<()> + 'static>), false, (literal!(",")).clone())?;
@@ -1184,7 +1183,7 @@ fn serializeEquation(mut file: File::File, mut eq: Arc<SimCode::SimEqSystem>, mu
 }
 
 fn serializeLinearCell(mut file: File::File, mut cell: (i32, i32, Arc<SimCode::SimEqSystem>), mut withOperations: bool) -> Result<()> {
-    let _ = (::match_deref::match_deref! { match &(cell.clone()) {
+    let () = (::match_deref::match_deref! { match &(cell.clone()) {
         (i, j, eq @ Deref @ SimCode::SimEqSystem::SES_RESIDUAL { .. }) => {
             File::write(file.clone(), (literal!("{\"row\":")).clone());
             File::write(file.clone(), (intString(i.clone())).clone());

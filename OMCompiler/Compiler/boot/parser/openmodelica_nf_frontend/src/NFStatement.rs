@@ -181,14 +181,14 @@ pub fn filterDiscrete(mut stmts: Arc<metamodelica::List<Arc<NFStatement>>>, mut 
         },
         Deref @ metamodelica::List::Cons { head: stmt @ Deref @ IF { .. }, tail: rest } => {
             let mut stmt = (*stmt).clone();
-            assign_variant_field!(stmt => NFStatement::IF; branches = {
+            assign_variant_field!(stmt => NFStatement::IF; branches = ({
         let mut __acc: Arc<metamodelica::List<(Arc<Expression::NFExpression>, Arc<metamodelica::List<Arc<NFStatement>>>)>> = metamodelica::nil();
         for mut tpl in (var_field!((*stmt).branches, NFStatement::IF).clone()).into_iter().cloned() {
             let __x = (Util::tuple21(tpl.clone()), filterDiscrete(Util::tuple22(tpl.clone()), metamodelica::nil()));
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             filterDiscrete(rest.clone(), cons(stmt.clone(), out_stmts.clone()))
         },
         Deref @ metamodelica::List::Cons { head: stmt, tail: rest } if (isDiscrete(stmt.clone())) => filterDiscrete(rest.clone(), out_stmts.clone()),
@@ -420,61 +420,61 @@ pub fn map(mut stmt: Arc<NFStatement>, mut func: Arc<dyn ::std::ops::Fn(Arc<NFSt
     let mut stmt: Arc<NFStatement> = stmt;
     let () = (::match_deref::match_deref! { match &(stmt.clone()) {
         Deref @ FOR { .. } => {
-            assign_variant_field!(stmt => NFStatement::FOR; body = {
+            assign_variant_field!(stmt => NFStatement::FOR; body = ({
         let mut __acc: Arc<metamodelica::List<Arc<NFStatement>>> = metamodelica::nil();
         for mut s in (var_field!((*stmt).body, NFStatement::FOR).clone()).into_iter().cloned() {
             let __x = map(s.clone(), func.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             ()
         },
         Deref @ IF { .. } => {
-            assign_variant_field!(stmt => NFStatement::IF; branches = {
+            assign_variant_field!(stmt => NFStatement::IF; branches = ({
         let mut __acc: Arc<metamodelica::List<(Arc<Expression::NFExpression>, Arc<metamodelica::List<Arc<NFStatement>>>)>> = metamodelica::nil();
         for mut b in (var_field!((*stmt).branches, NFStatement::IF).clone()).into_iter().cloned() {
-            let __x = (Util::tuple21(b.clone()), {
+            let __x = (Util::tuple21(b.clone()), ({
         let mut __acc: Arc<metamodelica::List<Arc<NFStatement>>> = metamodelica::nil();
         for mut s in (Util::tuple22(b.clone())).into_iter().cloned() {
             let __x = map(s.clone(), func.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             ()
         },
         Deref @ WHEN { .. } => {
-            assign_variant_field!(stmt => NFStatement::WHEN; branches = {
+            assign_variant_field!(stmt => NFStatement::WHEN; branches = ({
         let mut __acc: Arc<metamodelica::List<(Arc<Expression::NFExpression>, Arc<metamodelica::List<Arc<NFStatement>>>)>> = metamodelica::nil();
         for mut b in (var_field!((*stmt).branches, NFStatement::WHEN).clone()).into_iter().cloned() {
-            let __x = (Util::tuple21(b.clone()), {
+            let __x = (Util::tuple21(b.clone()), ({
         let mut __acc: Arc<metamodelica::List<Arc<NFStatement>>> = metamodelica::nil();
         for mut s in (Util::tuple22(b.clone())).into_iter().cloned() {
             let __x = map(s.clone(), func.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             ()
         },
         Deref @ WHILE { .. } => {
-            assign_variant_field!(stmt => NFStatement::WHILE; body = {
+            assign_variant_field!(stmt => NFStatement::WHILE; body = ({
         let mut __acc: Arc<metamodelica::List<Arc<NFStatement>>> = metamodelica::nil();
         for mut s in (var_field!((*stmt).body, NFStatement::WHILE).clone()).into_iter().cloned() {
             let __x = map(s.clone(), func.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             ()
         },
         _ => (),
@@ -606,14 +606,14 @@ pub fn mapExpList(mut stmtl: Arc<metamodelica::List<Arc<NFStatement>>>, mut func
     pub type MapFunc = std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>;
 
     let mut stmtl: Arc<metamodelica::List<Arc<NFStatement>>> = stmtl;
-    stmtl = {
+    stmtl = ({
         let mut __acc: Arc<metamodelica::List<Arc<NFStatement>>> = metamodelica::nil();
         for mut s in (stmtl.clone()).into_iter().cloned() {
             let __x = mapExp(s.clone(), func.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     stmtl
 }
 
@@ -637,25 +637,25 @@ pub fn mapExp(mut stmt: Arc<NFStatement>, mut func: Arc<dyn ::std::ops::Fn(Arc<E
             stmt.clone()
         },
         Deref @ IF { .. } => {
-            assign_variant_field!(stmt => NFStatement::IF; branches = {
+            assign_variant_field!(stmt => NFStatement::IF; branches = ({
         let mut __acc: Arc<metamodelica::List<(Arc<Expression::NFExpression>, Arc<metamodelica::List<Arc<NFStatement>>>)>> = metamodelica::nil();
         for mut b in (var_field!((*stmt).branches, NFStatement::IF).clone()).into_iter().cloned() {
             let __x = (func(Util::tuple21(b.clone())).unwrap(), mapExpList(Util::tuple22(b.clone()), func.clone()));
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             stmt.clone()
         },
         Deref @ WHEN { .. } => {
-            assign_variant_field!(stmt => NFStatement::WHEN; branches = {
+            assign_variant_field!(stmt => NFStatement::WHEN; branches = ({
         let mut __acc: Arc<metamodelica::List<(Arc<Expression::NFExpression>, Arc<metamodelica::List<Arc<NFStatement>>>)>> = metamodelica::nil();
         for mut b in (var_field!((*stmt).branches, NFStatement::WHEN).clone()).into_iter().cloned() {
             let __x = (func(Util::tuple21(b.clone())).unwrap(), mapExpList(Util::tuple22(b.clone()), func.clone()));
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             stmt.clone()
         },
         Deref @ ASSERT { .. } => {
@@ -712,25 +712,25 @@ pub fn mapExpShallow(mut stmt: Arc<NFStatement>, mut func: Arc<dyn ::std::ops::F
             stmt.clone()
         },
         Deref @ IF { .. } => {
-            assign_variant_field!(stmt => NFStatement::IF; branches = {
+            assign_variant_field!(stmt => NFStatement::IF; branches = ({
         let mut __acc: Arc<metamodelica::List<(Arc<Expression::NFExpression>, Arc<metamodelica::List<Arc<NFStatement>>>)>> = metamodelica::nil();
         for mut b in (var_field!((*stmt).branches, NFStatement::IF).clone()).into_iter().cloned() {
             let __x = (func(Util::tuple21(b.clone())).unwrap(), Util::tuple22(b.clone()));
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             stmt.clone()
         },
         Deref @ WHEN { .. } => {
-            assign_variant_field!(stmt => NFStatement::WHEN; branches = {
+            assign_variant_field!(stmt => NFStatement::WHEN; branches = ({
         let mut __acc: Arc<metamodelica::List<(Arc<Expression::NFExpression>, Arc<metamodelica::List<Arc<NFStatement>>>)>> = metamodelica::nil();
         for mut b in (var_field!((*stmt).branches, NFStatement::WHEN).clone()).into_iter().cloned() {
             let __x = (func(Util::tuple21(b.clone())).unwrap(), Util::tuple22(b.clone()));
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             stmt.clone()
         },
         Deref @ ASSERT { .. } => {
@@ -850,7 +850,7 @@ pub fn contains(mut stmt: Arc<NFStatement>, mut r#fn: Arc<dyn ::std::ops::Fn(Arc
     let mut res: bool = false;
     if r#fn(stmt.clone()).unwrap() {
         res = true;
-        return res;
+        return res.clone();
     }
     res = (::match_deref::match_deref! { match &(stmt.clone()) {
         Deref @ FOR { .. } => containsList(var_field!((*stmt).body, NFStatement::FOR).clone(), r#fn.clone()),
@@ -859,7 +859,7 @@ pub fn contains(mut stmt: Arc<NFStatement>, mut r#fn: Arc<dyn ::std::ops::Fn(Arc
                 let mut b = b.clone();
                 if containsList(Util::tuple22(b.clone()), r#fn.clone()) {
                     res = true;
-                    return res;
+                    return res.clone();
                 }
             }
             false
@@ -869,7 +869,7 @@ pub fn contains(mut stmt: Arc<NFStatement>, mut r#fn: Arc<dyn ::std::ops::Fn(Arc
                 let mut b = b.clone();
                 if containsList(Util::tuple22(b.clone()), r#fn.clone()) {
                     res = true;
-                    return res;
+                    return res.clone();
                 }
             }
             false
@@ -889,7 +889,7 @@ pub fn containsList(mut eql: Arc<metamodelica::List<Arc<NFStatement>>>, mut func
         let mut eq = eq.clone();
         if contains(eq.clone(), func.clone()) {
             res = true;
-            return res;
+            return res.clone();
         }
     }
     res = false;

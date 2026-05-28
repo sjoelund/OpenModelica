@@ -402,7 +402,7 @@ pub mod FunctionTreeImpl {
     pub fn forEach(mut tree: Arc<Tree>, mut func: Arc<dyn ::std::ops::Fn(Arc<Path>, Arc<Function::Function>) -> Result<()> + 'static>) -> Result<()> {
         pub type EachFunc = std::sync::Arc<dyn ::std::ops::Fn(Key, Value) -> Result<()> + 'static>;
 
-        let _ = (::match_deref::match_deref! { match &(tree.clone()) {
+        let () = (::match_deref::match_deref! { match &(tree.clone()) {
         Deref @ Tree::NODE { .. } => {
             forEach(var_field!((*tree).left, Tree::NODE).clone(), func.clone())?;
             func(var_field!((*tree).key, Tree::NODE).clone(), var_field!((*tree).value, Tree::NODE).clone())?;
@@ -480,7 +480,7 @@ pub mod FunctionTreeImpl {
         Deref @ Tree::NODE { .. } => var_field!((*inTree).key, Tree::NODE).clone(),
         Deref @ Tree::LEAF { .. } => var_field!((*inTree).key, Tree::LEAF).clone(),
         Deref @ Tree::EMPTY { .. } => {
-            return Ok(comp);
+            return Ok(comp.clone());
             bail!("fail")
         },
         _ => bail!("match: no arm matched"),
@@ -691,11 +691,8 @@ pub mod FunctionTreeImpl {
 
     fn printTreeStr2(mut inTree: Arc<Tree>, mut isLeft: bool, mut inIndent: ArcStr) -> Result<ArcStr> {
         let mut outString: ArcStr = arcstr::literal!("");
-        let mut val_node: Option<Arc<Path>> = None;
         let mut left: Option<Arc<Tree>> = None;
         let mut right: Option<Arc<Tree>> = None;
-        let mut left_str: ArcStr = arcstr::literal!("");
-        let mut right_str: ArcStr = arcstr::literal!("");
         outString = ((::match_deref::match_deref! { match &(inTree.clone()) {
         Deref @ Tree::NODE { .. } => { let mut __mm_s = String::new(); __mm_s.push_str(&*printTreeStr2(var_field!((*inTree).left, Tree::NODE).clone(), true, ({ let mut __mm_s = String::new(); __mm_s.push_str(&*inIndent.clone()); __mm_s.push_str(&*if (isLeft.clone()) {literal!("     ")} else {literal!(" │   ")}); ArcStr::from(__mm_s) }).clone())?); __mm_s.push_str(&*inIndent.clone()); __mm_s.push_str(&*if (isLeft.clone()) {literal!(" ┌")} else {literal!(" └")}); __mm_s.push_str(&*literal!("────")); __mm_s.push_str(&*printNodeStr(inTree.clone())?); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*printTreeStr2(var_field!((*inTree).right, Tree::NODE).clone(), false, ({ let mut __mm_s = String::new(); __mm_s.push_str(&*inIndent.clone()); __mm_s.push_str(&*if (isLeft.clone()) {literal!(" │   ")} else {literal!("     ")}); ArcStr::from(__mm_s) }).clone())?); ArcStr::from(__mm_s) },
         Deref @ Tree::LEAF { .. } => { let mut __mm_s = String::new(); __mm_s.push_str(&*inIndent.clone()); __mm_s.push_str(&*if (isLeft.clone()) {literal!(" ┌")} else {literal!(" └")}); __mm_s.push_str(&*literal!("────")); __mm_s.push_str(&*printNodeStr(inTree.clone())?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) },
@@ -1012,7 +1009,6 @@ pub fn flatten(mut classInst: Arc<InstNode::InstNode>, mut classPath: Arc<Path>,
     let mut alg: Arc<metamodelica::List<Arc<Algorithm::NFAlgorithm>>> = metamodelica::nil();
     let mut ialg: Arc<metamodelica::List<Arc<Algorithm::NFAlgorithm>>> = metamodelica::nil();
     let mut src: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
-    let mut cmt: Option<Arc<SCode::Comment>> = None;
     let mut settings: FlattenSettings = <FlattenSettings as ::std::default::Default>::default();
     let mut deleted_vars: DeletedVariables;
     let mut prefix: Arc<Prefix::Prefix>;
@@ -1036,22 +1032,22 @@ pub fn flatten(mut classInst: Arc<InstNode::InstNode>, mut classPath: Arc<Path>,
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
     } });
     assign_field!(
-        flatModel.algorithms = {
+        flatModel.algorithms = ({
         let mut __acc: Arc<metamodelica::List<Arc<Algorithm::NFAlgorithm>>> = metamodelica::nil();
         for mut al in (flatModel.algorithms.clone()).into_iter().cloned() {
             let __x = Algorithm::setInputsOutputs(al.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    },
-        flatModel.initialAlgorithms = {
+    }),
+        flatModel.initialAlgorithms = ({
         let mut __acc: Arc<metamodelica::List<Arc<Algorithm::NFAlgorithm>>> = metamodelica::nil();
         for mut al in (flatModel.initialAlgorithms.clone()).into_iter().cloned() {
             let __x = Algorithm::setInputsOutputs(al.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }
+    })
     );
     execStat((literal!("NFFlatten.flatten")).clone())?;
     InstUtil::dumpFlatModelDebug((literal!("flatten")).clone(), flatModel.clone(), FunctionTreeImpl::new())?;
@@ -1066,14 +1062,14 @@ pub fn flatten(mut classInst: Arc<InstNode::InstNode>, mut classPath: Arc<Path>,
         }
         InstUtil::dumpFlatModelDebug((literal!("connections")).clone(), flatModel.clone(), FunctionTreeImpl::new())?;
     }
-    assign_field!(flatModel.variables = {
+    assign_field!(flatModel.variables = ({
         let mut __acc: Arc<metamodelica::List<Arc<Variable::NFVariable>>> = metamodelica::nil();
         for mut var in (flatModel.variables.clone()).into_iter().cloned() {
             let __x = updateVariability(var.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
     if !(Flags::isConfigFlagSet(Flags::ALLOW_NON_STANDARD_MODELICA.clone(), (literal!("illegalConditionalContext")).clone())?) {
         checkDeletedVarRefs(flatModel.clone(), deleted_vars.clone(), settings.clone())?;
     }
@@ -1185,7 +1181,7 @@ fn flattenComponent(mut component: Arc<InstNode::InstNode>, mut prefix: Arc<Pref
     let mut vis: Visibility = Visibility::PUBLIC;
     let mut children: Arc<metamodelica::List<Arc<Variable::NFVariable>>> = metamodelica::nil();
     if InstNode::isEmpty(component.clone()) || InstNode::isOnlyOuter(component.clone())? {
-        return Ok((vars, sections));
+        return Ok((vars.clone(), sections.clone()));
     }
     comp_node = InstNode::resolveOuter(component.clone());
     c = InstNode::component(comp_node.clone())?;
@@ -1193,7 +1189,7 @@ fn flattenComponent(mut component: Arc<InstNode::InstNode>, mut prefix: Arc<Pref
         Deref @ Component::COMPONENT { ty, condition, .. } => {
             if isDeletedComponent(condition.clone(), prefix.clone())? {
                 deleteComponent(component.clone(), prefix.clone(), deletedVars.clone())?;
-                return Ok((vars, sections));
+                return Ok((vars.clone(), sections.clone()));
             }
             cls = InstNode::getClass(var_field!((*c).classInst, Component::NFComponent::COMPONENT).clone())?;
             vis = if (InstNode::isProtected(component.clone())) {Visibility::PROTECTED.clone()} else {visibility.clone()};
@@ -1296,7 +1292,6 @@ fn flattenSimpleComponent(mut node: Arc<InstNode::InstNode>, mut comp: Arc<Compo
     let mut cmt: Arc<SCode::Comment> = Arc::new(<SCode::Comment as ::std::default::Default>::default());
     let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
     let mut comp_attr: Arc<Attributes::NFAttributes> = Arc::new(<Attributes::NFAttributes as ::std::default::Default>::default());
-    let mut vis: Visibility = Visibility::PUBLIC;
     let mut eq: Arc<Equation::NFEquation>;
     let mut ty_attrs: Arc<metamodelica::List<(ArcStr, Arc<Binding::NFBinding>)>> = metamodelica::nil();
     let mut var: Variability = Variability::CONSTANT;
@@ -1344,16 +1339,16 @@ fn flattenSimpleComponent(mut node: Arc<InstNode::InstNode>, mut comp: Arc<Compo
     ty = flattenType(ty.clone(), prefix.clone(), info.clone());
     verifyDimensions(Type::arrayDims(ty.clone()), comp_node.clone())?;
     pre = Prefix::push(comp_node.clone(), ty.clone(), Type::arrayDims(ty.clone()), prefix.clone())?;
-    ty_attrs = {
+    ty_attrs = ({
         let mut __acc: Arc<metamodelica::List<(ArcStr, Arc<Binding::NFBinding>)>> = metamodelica::nil();
         for mut m in (typeAttrs.clone()).into_iter().cloned() {
             let __x = flattenTypeAttribute(m.clone(), prefix.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     if unfix.clone() {
-        ty_attrs = Binding::setAttr(ty_attrs.clone(), (literal!("fixed")).clone(), Binding::makeFlat(Arc::new(Expression::NFExpression::BOOLEAN { value: false }), Variability::CONSTANT.clone(), Binding::Source::GENERATED.clone()));
+        ty_attrs = Binding::setAttr(ty_attrs.clone(), (literal!("fixed")).clone(), Binding::makeFlat(Arc::new(Expression::NFExpression::BOOLEAN { value: false }), Variability::CONSTANT.clone(), Binding::Source::GENERATED.clone(), Binding::NO_CONFIDENCE.clone()));
     }
     name = Prefix::prefix(pre.clone())?;
     v = Arc::new(Variable::NFVariable { name: name.clone(), ty: ty.clone(), binding: binding.clone(), visibility: visibility.clone(), attributes: comp_attr.clone(), typeAttributes: ty_attrs.clone(), children: children.clone(), comment: cmt.clone(), info: info.clone(), backendinfo: NFBackendExtension::DUMMY_BACKEND_INFO().clone() });
@@ -1413,7 +1408,7 @@ fn verifyBinding(mut var: Arc<Variable::NFVariable>, mut variability: Variabilit
     let mut min_exp_opt: Option<Arc<Expression::NFExpression>> = None;
     let mut max_exp_opt: Option<Arc<Expression::NFExpression>> = None;
     if variability.clone() > Variability::CONSTANT.clone() && Binding::isBound(binding.clone()) {
-        return Ok(var);
+        return Ok(var.clone());
     }
     fixed_binding = Variable::lookupTypeAttribute((literal!("fixed")).clone(), var.clone());
     fixed_exp_opt = eval_binding(fixed_binding.clone())?;
@@ -1424,7 +1419,7 @@ fn verifyBinding(mut var: Arc<Variable::NFVariable>, mut variability: Variabilit
         } };
         fixed_exp = __pa0.clone();
         if !(Expression::isBoolean(fixed_exp.clone())) {
-            return Ok(var);
+            return Ok(var.clone());
         }
         fixed = Expression::isTrue(fixed_exp.clone());
     } else {
@@ -1450,7 +1445,7 @@ fn verifyBinding(mut var: Arc<Variable::NFVariable>, mut variability: Variabilit
                     min_exp_opt = eval_binding(Variable::lookupTypeAttribute((literal!("min")).clone(), var.clone()))?;
                     max_exp_opt = eval_binding(Variable::lookupTypeAttribute((literal!("max")).clone(), var.clone()))?;
                     start_exp = Expression::makeDefaultValue(var.ty.clone(), min_exp_opt.clone(), max_exp_opt.clone())?;
-                    assign_field!(var.binding = Binding::makeFlat(start_exp.clone(), Expression::variability(start_exp.clone())?, Binding::Source::GENERATED.clone()));
+                    assign_field!(var.binding = Binding::makeFlat(start_exp.clone(), Expression::variability(start_exp.clone())?, Binding::Source::GENERATED.clone(), Binding::NO_CONFIDENCE.clone()));
                 } else if !(settings.relaxedErrorChecking.clone()) {
                     bail!("fail");
                 }
@@ -1467,26 +1462,28 @@ fn getRecordBindings(mut binding: Arc<Binding::NFBinding>, mut comps: metamodeli
     let mut binding_exp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut var: Variability = Variability::CONSTANT;
     let mut bind_src: Binding::Source = Binding::Source::BINDING;
+    let mut confidence: i32 = 0;
     binding_exp = Binding::getTypedExp(binding.clone())?;
     var = Binding::variability(binding.clone())?;
     bind_src = Binding::Source::GENERATED.clone();
+    confidence = Binding::confidence(binding.clone());
     recordBindings = (::match_deref::match_deref! { match &(binding_exp.clone()) {
-        Deref @ Expression::RECORD { .. } => {
+        Deref @ Expression::RECORD { .. } => ({
         let mut __acc: Arc<metamodelica::List<Arc<Binding::NFBinding>>> = metamodelica::nil();
         for mut e in (var_field!((*binding_exp).elements, Expression::NFExpression::RECORD).clone()).into_iter().cloned() {
-            let __x = if (Expression::isEmpty(e.clone())) {Binding::EMPTY_BINDING().clone()} else {Binding::makeFlat(e.clone(), var.clone(), bind_src.clone())};
+            let __x = if (Expression::isEmpty(e.clone())) {Binding::EMPTY_BINDING().clone()} else {Binding::makeFlat(e.clone(), var.clone(), bind_src.clone(), confidence.clone())};
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    },
-        Deref @ Expression::ARRAY { .. } if (Type::isRecord(Type::arrayElementType(Expression::typeOf(binding_exp.clone())))) => {
+    }),
+        Deref @ Expression::ARRAY { .. } if (Type::isRecord(Type::arrayElementType(Expression::typeOf(binding_exp.clone())))) => ({
         let mut __acc: Arc<metamodelica::List<Arc<Binding::NFBinding>>> = metamodelica::nil();
         for mut i in (1..=(comps.clone().borrow().len() as i32)).into_iter() {
-            let __x = Binding::makeFlat(Expression::nthRecordElement(i.clone(), binding_exp.clone())?, var.clone(), bind_src.clone());
+            let __x = Binding::makeFlat(Expression::nthRecordElement(i.clone(), binding_exp.clone())?, var.clone(), bind_src.clone(), confidence.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    },
+    }),
         _ => {
             Error::assertion(false, ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("NFFlatten.getRecordBindings")); __mm_s.push_str(&*literal!(" got non-record binding ")); __mm_s.push_str(&*Expression::toString(binding_exp.clone())?); ArcStr::from(__mm_s) }).clone(), metamodelica::sourceInfo!())?;
             bail!("fail")
@@ -1562,14 +1559,14 @@ fn flattenComplexComponent(mut node: Arc<InstNode::InstNode>, mut comp: Arc<Comp
     if dims.clone().is_empty() {
         (vars, sections) = flattenClass(cls.clone(), pre.clone(), visibility.clone(), opt_binding.clone(), vars.clone(), sections.clone(), deletedVars.clone(), settings.clone())?;
     } else if settings.scalarize.clone() {
-        dims = {
+        dims = ({
         let mut __acc: Arc<metamodelica::List<Arc<Dimension::NFDimension>>> = metamodelica::nil();
         for mut d in (dims.clone()).into_iter().cloned() {
             let __x = flattenDimension(d.clone(), pre.clone(), info.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
         verifyDimensions(dims.clone(), node.clone())?;
         (vars, sections) = flattenArray(cls.clone(), dims.clone(), pre.clone(), visibility.clone(), opt_binding.clone(), vars.clone(), sections.clone(), metamodelica::nil(), deletedVars.clone(), info.clone(), settings.clone())?;
     } else {
@@ -1661,9 +1658,8 @@ fn vectorizeArray(mut cls: Arc<Class::NFClass>, mut cls_ty: Arc<Type::NFType>, m
     let mut ieq: Arc<metamodelica::List<Arc<Equation::NFEquation>>> = metamodelica::nil();
     let mut alg: Arc<metamodelica::List<Arc<Algorithm::NFAlgorithm>>> = metamodelica::nil();
     let mut ialg: Arc<metamodelica::List<Arc<Algorithm::NFAlgorithm>>> = metamodelica::nil();
-    let mut indexed_prefix: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
     if List::any(dimensions.clone(), (std::sync::Arc::new(Dimension::isZero) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Dimension::NFDimension>) -> Result<bool> + 'static>)) {
-        return Ok((vars, sections));
+        return Ok((vars.clone(), sections.clone()));
     }
     (vrs, sects) = flattenClass(cls.clone(), prefix.clone(), visibility.clone(), binding.clone(), metamodelica::nil(), Arc::new(Sections::NFSections::SECTIONS { equations: metamodelica::nil(), initialEquations: metamodelica::nil(), algorithms: metamodelica::nil(), initialAlgorithms: metamodelica::nil() }), deletedVars.clone(), settings.clone())?;
     for mut v in &*vrs.clone().reverse() {
@@ -1713,11 +1709,12 @@ fn vectorizeBinding(mut binding: Arc<Binding::NFBinding>, mut prefix: Arc<Prefix
     let mut binding_ty: Arc<Type::NFType> = Arc::new(Type::ANY);
     let mut iters: Arc<metamodelica::List<(Arc<InstNode::InstNode>, Arc<Expression::NFExpression>)>> = metamodelica::nil();
     let mut prefix_cr: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
+    let mut confidence: i32 = 0;
     if !(Binding::isBound(binding.clone())) {
-        return Ok(binding);
+        return Ok(binding.clone());
     }
     prefix_cr = Prefix::indexedPrefix(prefix.clone())?;
-    subs = {
+    subs = ({
         let mut __acc: Arc<metamodelica::List<Arc<Subscript::NFSubscript>>> = metamodelica::nil();
         for mut s in (ComponentRef::subscriptsAllFlat(prefix_cr.clone())).into_iter().cloned() {
             if !(Subscript::isIterator(s.clone())) { continue; }
@@ -1725,56 +1722,56 @@ fn vectorizeBinding(mut binding: Arc<Binding::NFBinding>, mut prefix: Arc<Prefix
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     if subs.clone().is_empty() {
-        return Ok(binding);
+        return Ok(binding.clone());
     }
     exp = Binding::getExp(binding.clone())?;
     binding_ty = Binding::getType(binding.clone())?;
     let () = (::match_deref::match_deref! { match &(exp.clone()) {
         Deref @ Expression::SUBSCRIPTED_EXP { .. } if (Subscript::isEqualList(var_field!((*exp).subscripts, Expression::NFExpression::SUBSCRIPTED_EXP).clone(), subs.clone())?) => {
-            binding = Binding::makeFlat(var_field!((*exp).exp, Expression::NFExpression::SUBSCRIPTED_EXP).clone(), Binding::variability(binding.clone())?, Binding::source(binding.clone()));
-            return Ok(binding);
+            binding = Binding::makeFlat(var_field!((*exp).exp, Expression::NFExpression::SUBSCRIPTED_EXP).clone(), Binding::variability(binding.clone())?, Binding::source(binding.clone()), Binding::confidence(binding.clone()));
+            return Ok(binding.clone());
             ()
         },
         _ => (),
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
     } });
     nodes = ComponentRef::nodes(prefix_cr.clone(), metamodelica::nil());
-    dims = List::flatten({
+    dims = List::flatten(({
         let mut __acc: Arc<metamodelica::List<Arc<metamodelica::List<Arc<Dimension::NFDimension>>>>> = metamodelica::nil();
         for mut n in (nodes.clone()).into_iter().cloned() {
             let __x = Type::arrayDims(InstNode::getType(n.clone())?);
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
     dims = List::lastN(dims.clone(), (subs.clone().len() as i32))?;
     binding_ty = Type::liftArrayLeftList(binding_ty.clone(), dims.clone());
     if !(dims.clone().is_empty()) {
         if Expression::isLiteral(exp.clone()) || !(Expression::contains(exp.clone(), (std::sync::Arc::new(fnptr!(Expression::isIterator, Arc<Expression::NFExpression>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<bool> + 'static>))?) {
-            array_call = Call::makeTypedCall(NFBuiltinFuncs::FILL_FUNC().clone(), cons(exp.clone(), {
+            array_call = Call::makeTypedCall(NFBuiltinFuncs::FILL_FUNC().clone(), cons(exp.clone(), ({
         let mut __acc: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
         for mut d in (dims.clone()).into_iter().cloned() {
             let __x = Dimension::sizeExp(d.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }), Binding::variability(binding.clone())?, Purity::PURE.clone(), binding_ty.clone());
+    })), Binding::variability(binding.clone())?, Purity::PURE.clone(), binding_ty.clone());
         } else {
-            iters = {
+            iters = ({
         let mut __acc: Arc<metamodelica::List<(Arc<InstNode::InstNode>, Arc<Expression::NFExpression>)>> = metamodelica::nil();
         for (s, d) in (&(subs.clone())).into_iter().zip((&(dims.clone())).into_iter()) {
             let __x = (Subscript::toIterator(s.clone())?, Dimension::toRange(d.clone())?);
             __acc = cons(__x, __acc);
         }
         __acc
-    };
+    });
             array_call = Arc::new(Call::NFCall::TYPED_ARRAY_CONSTRUCTOR { ty: binding_ty.clone(), var: Expression::variability(exp.clone())?, purity: Expression::purity(exp.clone())?, exp: exp.clone(), iters: iters.clone() });
         }
         exp = Arc::new(Expression::NFExpression::CALL { call: array_call.clone() });
     }
-    binding = Binding::makeFlat(exp.clone(), Binding::variability(binding.clone())?, Binding::source(binding.clone()));
+    binding = Binding::makeFlat(exp.clone(), Binding::variability(binding.clone())?, Binding::source(binding.clone()), Binding::confidence(binding.clone()));
     Ok(binding)
 }
 
@@ -1783,7 +1780,6 @@ fn fillVectorizedBinding(mut binding: Arc<Binding::NFBinding>, mut varType: Arc<
     let mut bind_exp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut bind_ty: Arc<Type::NFType> = Arc::new(Type::ANY);
     let mut dim_diff: i32 = 0;
-    let mut dims: Arc<metamodelica::List<Arc<Dimension::NFDimension>>> = metamodelica::nil();
     let mut dim_expl: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
     let () = (::match_deref::match_deref! { match &(binding.clone()) {
         Deref @ Binding::TYPED_BINDING { bindingExp: bind_exp, .. } => {
@@ -1794,14 +1790,14 @@ fn fillVectorizedBinding(mut binding: Arc<Binding::NFBinding>, mut varType: Arc<
     } });
             dim_diff = Type::dimensionDiff(varType.clone(), bind_ty.clone());
             if dim_diff.clone() > 0 {
-                dim_expl = {
+                dim_expl = ({
         let mut __acc: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
         for mut d in (List::firstN(Type::arrayDims(varType.clone()), dim_diff.clone())?).into_iter().cloned() {
             let __x = Dimension::sizeExp(d.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
                 assign_variant_field!(binding => Binding::NFBinding::TYPED_BINDING;
                     bindingExp = Arc::new(Expression::NFExpression::CALL { call: Call::makeTypedCall(NFBuiltinFuncs::FILL_FUNC().clone(), cons(var_field!((*binding).bindingExp, Binding::NFBinding::TYPED_BINDING).clone(), dim_expl.clone()), var_field!((*binding).variability, Binding::NFBinding::TYPED_BINDING).clone(), Purity::PURE.clone(), varType.clone()) }),
                     bindingType = Expression::typeOf(var_field!((*binding).bindingExp, Binding::NFBinding::TYPED_BINDING).clone())
@@ -1939,7 +1935,6 @@ pub fn makeIterators(mut prefix: Arc<ComponentRef::NFComponentRef>, mut dimensio
     let mut iterators: Arc<metamodelica::List<Arc<InstNode::InstNode>>> = metamodelica::nil();
     let mut ranges: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
     let mut subscripts: Arc<metamodelica::List<Arc<Subscript::NFSubscript>>> = metamodelica::nil();
-    let mut iter_comp: Arc<Component::NFComponent> = Arc::new(Component::WILD);
     let mut prefix_node: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
     let mut iter: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
     let mut range: Arc<Expression::NFExpression> = Arc::new(Expression::END);
@@ -2059,18 +2054,12 @@ fn subscriptBindingOpt(mut subscripts: Arc<metamodelica::List<Arc<Subscript::NFS
 
 pub fn flattenBinding(mut binding: Arc<Binding::NFBinding>, mut prefix: Arc<Prefix::Prefix>, mut isTypeAttribute: bool) -> Result<Arc<Binding::NFBinding>> {
     let mut binding: Arc<Binding::NFBinding> = binding;
-    let mut subs: Arc<metamodelica::List<Arc<Subscript::NFSubscript>>> = metamodelica::nil();
-    let mut accum_subs: Arc<metamodelica::List<Arc<Subscript::NFSubscript>>> = metamodelica::nil();
-    let mut binding_level: i32 = 0;
-    let mut bind_exp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-    let mut pars: Arc<metamodelica::List<Arc<InstNode::InstNode>>> = metamodelica::nil();
-    let mut par: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
     let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
     binding = (::match_deref::match_deref! { match &(binding.clone()) {
         Deref @ Binding::UNBOUND => binding.clone(),
         Deref @ Binding::TYPED_BINDING { .. } => {
             if var_field!((*binding).isFlattened, Binding::NFBinding::TYPED_BINDING).clone() {
-                return Ok(binding);
+                return Ok(binding.clone());
             }
             info = Binding::getInfo(binding.clone());
             assign_variant_field!(binding => Binding::NFBinding::TYPED_BINDING;
@@ -2153,8 +2142,6 @@ pub fn replaceSplitIndices2(mut sub: Arc<Subscript::NFSubscript>, mut node: Arc<
 
 pub fn flattenCref(mut cref: Arc<ComponentRef::NFComponentRef>, mut prefix: Arc<Prefix::Prefix>, mut info: SourceInfo) -> Result<Arc<ComponentRef::NFComponentRef>> {
     let mut cref: Arc<ComponentRef::NFComponentRef> = cref;
-    let mut ty: Arc<Type::NFType> = Arc::new(Type::ANY);
-    let mut ty2: Arc<Type::NFType> = Arc::new(Type::ANY);
     cref = Prefix::apply(prefix.clone(), cref.clone())?;
     if ComponentRef::hasSplitSubscripts(cref.clone()) {
         cref = flattenCrefSplitSubscripts(cref.clone(), prefix.clone())?;
@@ -2331,14 +2318,14 @@ pub fn flattenEquation(mut eq: Arc<Equation::NFEquation>, mut prefix: Arc<Prefix
             flattenIfEquation(eq.clone(), prefix.clone(), equations.clone(), settings.clone())?
         },
         Deref @ Equation::WHEN { .. } => {
-            assign_variant_field!(eq => Equation::NFEquation::WHEN; branches = {
+            assign_variant_field!(eq => Equation::NFEquation::WHEN; branches = ({
         let mut __acc: Arc<metamodelica::List<Arc<Equation::Branch::Branch>>> = metamodelica::nil();
         for mut b in (var_field!((*eq).branches, Equation::NFEquation::WHEN).clone()).into_iter().cloned() {
             let __x = flattenEqBranch(b.clone(), prefix.clone(), info.clone(), settings.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             cons(eq.clone(), equations.clone())
         },
         Deref @ Equation::ASSERT { .. } => {
@@ -2576,8 +2563,6 @@ pub fn splitForLoop2(mut forBody: Arc<metamodelica::List<Arc<Equation::NFEquatio
     let mut nonConnects: Arc<metamodelica::List<Arc<Equation::NFEquation>>> = metamodelica::nil();
     let mut conns: Arc<metamodelica::List<Arc<Equation::NFEquation>>> = metamodelica::nil();
     let mut nconns: Arc<metamodelica::List<Arc<Equation::NFEquation>>> = metamodelica::nil();
-    let mut eql: Arc<metamodelica::List<Arc<Equation::NFEquation>>> = metamodelica::nil();
-    let mut cond: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     for mut eq in &*forBody.clone() {
         let mut eq = eq.clone();
         let () = (::match_deref::match_deref! { match &(eq.clone()) {
@@ -2683,14 +2668,14 @@ pub fn flattenAlgorithms(mut algorithms: Arc<metamodelica::List<Arc<Algorithm::N
 
 pub fn flattenStatements(mut stmts: Arc<metamodelica::List<Arc<Statement::NFStatement>>>, mut prefix: Arc<Prefix::Prefix>) -> Result<Arc<metamodelica::List<Arc<Statement::NFStatement>>>> {
     let mut stmts: Arc<metamodelica::List<Arc<Statement::NFStatement>>> = stmts;
-    stmts = {
+    stmts = ({
         let mut __acc: Arc<metamodelica::List<Arc<Statement::NFStatement>>> = metamodelica::nil();
         for mut s in (stmts.clone()).into_iter().cloned() {
             let __x = flattenStatement(s.clone(), prefix.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     Ok(stmts)
 }
 
@@ -2716,25 +2701,25 @@ pub fn flattenStatement(mut stmt: Arc<Statement::NFStatement>, mut prefix: Arc<P
             stmt.clone()
         },
         Deref @ Statement::IF { .. } => {
-            assign_variant_field!(stmt => Statement::NFStatement::IF; branches = {
+            assign_variant_field!(stmt => Statement::NFStatement::IF; branches = ({
         let mut __acc: Arc<metamodelica::List<(Arc<Expression::NFExpression>, Arc<metamodelica::List<Arc<Statement::NFStatement>>>)>> = metamodelica::nil();
         for mut b in (var_field!((*stmt).branches, Statement::NFStatement::IF).clone()).into_iter().cloned() {
             let __x = flattenStmtBranch(b.clone(), prefix.clone(), info.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             stmt.clone()
         },
         Deref @ Statement::WHEN { .. } => {
-            assign_variant_field!(stmt => Statement::NFStatement::WHEN; branches = {
+            assign_variant_field!(stmt => Statement::NFStatement::WHEN; branches = ({
         let mut __acc: Arc<metamodelica::List<(Arc<Expression::NFExpression>, Arc<metamodelica::List<Arc<Statement::NFStatement>>>)>> = metamodelica::nil();
         for mut b in (var_field!((*stmt).branches, Statement::NFStatement::WHEN).clone()).into_iter().cloned() {
             let __x = flattenStmtBranch(b.clone(), prefix.clone(), info.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             stmt.clone()
         },
         Deref @ Statement::ASSERT { .. } => {
@@ -2812,7 +2797,7 @@ pub fn isDeletedCref(mut cref: Arc<ComponentRef::NFComponentRef>, mut deletedVar
         if InstNode::isComponent(node.clone()) && Component::hasCondition(InstNode::component(node.clone())?) {
             if UnorderedSet::contains(cr.clone(), deletedVars.clone())? {
                 res = true;
-                return Ok(res);
+                return Ok(res.clone());
             }
         }
         (cr, _) = ComponentRef::stripSubscripts(ComponentRef::rest(cr.clone())?);
@@ -2844,7 +2829,7 @@ pub fn resolveConnections(mut flatModel: Arc<FlatModel::NFFlatModel>, mut delete
     (flatModel, conns) = Connections::collectConnections(flatModel.clone(), Arc::new({ let __pe_b1 = deletedVars.clone(); move |__pe_a0| isDeletedCref(__pe_a0, __pe_b1.clone()) }))?;
     ctable = CardinalityTable::fromConnections(conns.clone())?;
     (flatModel, conns) = ExpandableConnectors::elaborate(flatModel.clone(), conns.clone())?;
-    assign_field!(flatModel.variables = {
+    assign_field!(flatModel.variables = ({
         let mut __acc: Arc<metamodelica::List<Arc<Variable::NFVariable>>> = metamodelica::nil();
         for mut v in (flatModel.variables.clone()).into_iter().cloned() {
             if !(Variable::isPresent(v.clone())) { continue; }
@@ -2852,7 +2837,7 @@ pub fn resolveConnections(mut flatModel: Arc<FlatModel::NFFlatModel>, mut delete
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
     conns = Connections::collectFlows(flatModel.clone(), conns.clone())?;
     if System::getHasOverconstrainedConnectors() {
         (flatModel, broken) = NFOCConnectionGraph::handleOverconstrainedConnections(flatModel.clone(), conns.clone(), Arc::new({ let __pe_b1 = deletedVars.clone(); move |__pe_a0| isDeletedCref(__pe_a0, __pe_b1.clone()) }))?;
@@ -2864,14 +2849,14 @@ pub fn resolveConnections(mut flatModel: Arc<FlatModel::NFFlatModel>, mut delete
     (csets_array, _) = ConnectionSets::extractSets(csets.clone());
     (conn_eql, connectedLocalIOs, unhandled_stream_sets) = ConnectEquations::generateEquations(csets_array.clone(), vars.clone())?;
     if System::getHasOverconstrainedConnectors() {
-        ec_eql = List::flatten({
+        ec_eql = List::flatten(({
         let mut __acc: Arc<metamodelica::List<Arc<metamodelica::List<Arc<Equation::NFEquation>>>>> = metamodelica::nil();
         for mut e in (broken.clone()).into_iter().cloned() {
             let __x = e.brokenEquations.clone();
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
         assign_field!(flatModel.equations = listAppend(ec_eql.clone(), flatModel.equations.clone()));
     }
     assign_field!(flatModel.equations = listAppend(conn_eql.clone(), flatModel.equations.clone()));
@@ -2935,14 +2920,14 @@ pub fn generateTopLevelIOs(mut variables: Arc<UnorderedMap::UnorderedMap<Arc<Com
 pub fn evaluateConnectionOperators(mut flatModel: Arc<FlatModel::NFFlatModel>, mut sets: ConnectionSets::Sets, mut setsArray: metamodelica::Array<Arc<metamodelica::List<Arc<Connector::NFConnector>>>>, mut variables: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<Variable::NFVariable>>>, mut ctable: Arc<UnorderedMap::UnorderedMap<ArcStr, i32>>) -> Result<Arc<FlatModel::NFFlatModel>> {
     let mut flatModel: Arc<FlatModel::NFFlatModel> = flatModel;
     assign_field!(
-        flatModel.variables = {
+        flatModel.variables = ({
         let mut __acc: Arc<metamodelica::List<Arc<Variable::NFVariable>>> = metamodelica::nil();
         for mut c in (flatModel.variables.clone()).into_iter().cloned() {
             let __x = evaluateBindingConnOp(c.clone(), sets.clone(), setsArray.clone(), variables.clone(), ctable.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    },
+    }),
         flatModel.equations = evaluateEquationsConnOp(flatModel.equations.clone(), sets.clone(), setsArray.clone(), variables.clone(), ctable.clone())?,
         flatModel.initialEquations = evaluateEquationsConnOp(flatModel.initialEquations.clone(), sets.clone(), setsArray.clone(), variables.clone(), ctable.clone())?
     );
@@ -2970,14 +2955,14 @@ pub fn evaluateBindingConnOp(mut var: Arc<Variable::NFVariable>, mut sets: Conne
 
 pub fn evaluateEquationsConnOp(mut equations: Arc<metamodelica::List<Arc<Equation::NFEquation>>>, mut sets: ConnectionSets::Sets, mut setsArray: metamodelica::Array<Arc<metamodelica::List<Arc<Connector::NFConnector>>>>, mut variables: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<Variable::NFVariable>>>, mut ctable: Arc<UnorderedMap::UnorderedMap<ArcStr, i32>>) -> Result<Arc<metamodelica::List<Arc<Equation::NFEquation>>>> {
     let mut equations: Arc<metamodelica::List<Arc<Equation::NFEquation>>> = equations;
-    equations = {
+    equations = ({
         let mut __acc: Arc<metamodelica::List<Arc<Equation::NFEquation>>> = metamodelica::nil();
         for mut eq in (equations.clone()).into_iter().cloned() {
             let __x = evaluateEquationConnOp(eq.clone(), sets.clone(), setsArray.clone(), variables.clone(), ctable.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     Ok(equations)
 }
 

@@ -46,7 +46,6 @@ use arcstr::{ArcStr, literal, format};
 use crate::BackendDAE;
 use crate::BackendDump;
 use crate::BackendEquation;
-use crate::BackendVarTransform;
 use crate::BackendVariable;
 use openmodelica_ast::Absyn;
 use openmodelica_frontend::Algorithm;
@@ -67,28 +66,6 @@ use openmodelica_util_datatypes_basic::List;
 pub fn collectForLoops(mut varsIn: Arc<metamodelica::List<BackendDAE::Var>>, mut eqsIn: Arc<metamodelica::List<Arc<BackendDAE::Equation>>>) -> Result<(Arc<metamodelica::List<BackendDAE::Var>>, Arc<metamodelica::List<Arc<BackendDAE::Equation>>>)> {
     let mut varsOut: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
     let mut eqsOut: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
-    let mut cont: bool = false;
-    let mut perfectMatching: bool = false;
-    let mut idx: i32 = 0;
-    let mut numEqs: i32 = 0;
-    let mut numVars: i32 = 0;
-    let mut ass1: metamodelica::Array<i32>;
-    let mut ass2: metamodelica::Array<i32>;
-    let mut idxs: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    let mut eqSys: Arc<BackendDAE::EqSystem> = Arc::new(<BackendDAE::EqSystem as ::std::default::Default>::default());
-    let mut shared: Arc<BackendDAE::Shared> = Arc::new(<BackendDAE::Shared as ::std::default::Default>::default());
-    let mut repl1: BackendVarTransform::VariableReplacements = <BackendVarTransform::VariableReplacements as ::std::default::Default>::default();
-    let mut cref: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
-    let mut exp: Arc<DAE::Exp>;
-    let mut scalarCrefs: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
-    let mut scalarCrefs1: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
-    let mut scalarCrefs2: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
-    let mut allScalarCrefs: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
-    let mut stateCrefs: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
-    let mut scalarCrefExps: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
-    let mut loopEqs: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
-    let mut arrVars: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
-    let mut loopIds: Arc<metamodelica::List<Arc<Absyn::Exp>>> = metamodelica::nil();
     let mut arrayCrefs: Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>)>> = metamodelica::nil();
     let mut varLst: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
     let mut arrayVars: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
@@ -111,10 +88,10 @@ pub fn collectForLoops(mut varsIn: Arc<metamodelica::List<BackendDAE::Var>>, mut
 fn unexpandArrayVariables(mut varsIn: Arc<metamodelica::List<BackendDAE::Var>>, mut foldIn: Arc<metamodelica::List<BackendDAE::Var>>) -> Result<Arc<metamodelica::List<BackendDAE::Var>>> {
     let mut foldOut: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
     foldOut = 'mc: {
-        let __mc_input = (varsIn.clone(), foldIn.clone());
+        let __mc_input = varsIn.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ metamodelica::List::Nil, _) => {
+                Deref @ metamodelica::List::Nil => {
                     Ok(foldIn.clone())
                 }
                 _ => bail!("nomatch"),
@@ -122,7 +99,7 @@ fn unexpandArrayVariables(mut varsIn: Arc<metamodelica::List<BackendDAE::Var>>, 
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ metamodelica::List::Cons { head: var, tail: rest }, _) => {
+                Deref @ metamodelica::List::Cons { head: var, tail: rest } => {
                     let mut cref: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
                     let mut scalars: Arc<metamodelica::List</* ? */>> = metamodelica::nil();
                     let mut var = (*var).clone();
@@ -139,7 +116,7 @@ fn unexpandArrayVariables(mut varsIn: Arc<metamodelica::List<BackendDAE::Var>>, 
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ metamodelica::List::Cons { head: var, tail: rest }, _) => {
+                Deref @ metamodelica::List::Cons { head: var, tail: rest } => {
                     Ok(unexpandArrayVariables(rest.clone(), cons(var.clone(), foldIn.clone()))?)
                 }
                 _ => bail!("nomatch"),
@@ -161,10 +138,10 @@ fn varIsEqualCrefWithoutSubs(mut varIn: BackendDAE::Var, mut crefIn: Arc<DAE::Co
 fn buildAccumExpInEquations(mut mixEq: Arc<BackendDAE::Equation>, mut foldIn: Arc<metamodelica::List<Arc<BackendDAE::Equation>>>) -> Result<Arc<metamodelica::List<Arc<BackendDAE::Equation>>>> {
     let mut foldOut: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
     foldOut = 'mc: {
-        let __mc_input = (mixEq.clone(), foldIn.clone());
+        let __mc_input = mixEq.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ BackendDAE::Equation::EQUATION { attr, source, scalar: lhs, exp: rhs }, _) => {
+                Deref @ BackendDAE::Equation::EQUATION { attr, source, scalar: lhs, exp: rhs } => {
                     let mut allTerms: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
                     let mut minmaxTerms: Arc<metamodelica::List<(Arc<DAE::Exp>, i32, i32)>> = metamodelica::nil();
                     let mut lhs = (*lhs).clone();
@@ -209,7 +186,6 @@ fn buildAccumExpInEquations1(mut termIn: Arc<DAE::Exp>, mut minmaxTermsIn: Arc<m
     let mut max: i32 = 0;
     let mut cref: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
     let mut term: Arc<DAE::Exp>;
-    let mut terms: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
     match '__try0: {
         let __pa1 = ::match_deref::match_deref! { match &(unwrap_break_err!(Expression::extractCrefsFromExp(termIn.clone()), '__try0)) {
             Deref @ metamodelica::List::Cons { head: __pa1, tail: Deref @ metamodelica::List::Nil } => __pa1.clone(),
@@ -335,10 +311,10 @@ pub fn replaceSubscriptInCrefExp(mut expIn: Arc<DAE::Exp>, mut subsIn: Arc<metam
     let mut expOut: Arc<DAE::Exp>;
     let mut subsOut: Arc<metamodelica::List<Arc<DAE::Subscript>>> = metamodelica::nil();
     (expOut, subsOut) = 'mc: {
-        let __mc_input = (expIn.clone(), subsIn.clone());
+        let __mc_input = expIn.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ DAE::Exp::CREF { ty, componentRef: cref }, _) => {
+                Deref @ DAE::Exp::CREF { ty, componentRef: cref } => {
                     let mut cref = (*cref).clone();
                     cref = replaceFirstSubsInCref(cref.clone(), subsIn.clone())?;
                     Ok((Arc::new(DAE::Exp::CREF { componentRef: cref.clone(), ty: ty.clone() }), subsIn.clone()))
@@ -482,11 +458,11 @@ pub fn expEqualNoCrefSubs(mut inExp1: Arc<DAE::Exp>, mut inExp2: Arc<DAE::Exp>) 
     let mut outEqual: bool = false;
     if referenceEq(&inExp1.clone(),&inExp2.clone()) {
         outEqual = true;
-        return Ok(outEqual);
+        return Ok(outEqual.clone());
     }
     if metamodelica::valueConstructor((&*inExp1.clone()))? != metamodelica::valueConstructor((&*inExp2.clone()))? {
         outEqual = false;
-        return Ok(outEqual);
+        return Ok(outEqual.clone());
     }
     outEqual = (::match_deref::match_deref! { match &(inExp1.clone()) {
         Deref @ DAE::Exp::ICONST { .. } => {
@@ -710,28 +686,28 @@ pub fn expEqualNoCrefSubs(mut inExp1: Arc<DAE::Exp>, mut inExp2: Arc<DAE::Exp>) 
             let mut expl: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
             let mut expl2: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
             let mut subs: Arc<metamodelica::List<Arc<DAE::Subscript>>> = metamodelica::nil();
-            expl = {
+            expl = ({
         let mut __acc: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
         for mut sub in (var_field!((*inExp1).sub, DAE::Exp::ASUB).clone()).into_iter().cloned() {
             let __x = Expression::getSubscriptExp(sub.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
             let (__pa0, __pa1) = ::match_deref::match_deref! { match &(inExp2.clone()) {
                 Deref @ DAE::Exp::ASUB { sub: __pa0, exp: __pa1 } => (__pa0.clone(), __pa1.clone()),
                 _ => bail!("pattern mismatch"),
             } };
             subs = __pa0.clone();
             e = __pa1.clone();
-            expl2 = {
+            expl2 = ({
         let mut __acc: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
         for mut sub in (subs.clone()).into_iter().cloned() {
             let __x = Expression::getSubscriptExp(sub.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
             expEqualNoCrefSubs(var_field!((*inExp1).exp, DAE::Exp::ASUB).clone(), e.clone())? && expEqualNoCrefSubsList(expl.clone(), expl2.clone())?
         },
         Deref @ DAE::Exp::SIZE { .. } => {
@@ -854,7 +830,7 @@ fn expEqualNoCrefSubsList(mut inExpl1: Arc<metamodelica::List<Arc<DAE::Exp>>>, m
     let mut rest_expl2: Arc<metamodelica::List<Arc<DAE::Exp>>> = inExpl2.clone();
     if (inExpl1.clone().len() as i32) != (inExpl2.clone().len() as i32) {
         outEqual = false;
-        return Ok(outEqual);
+        return Ok(outEqual.clone());
     }
     for mut e1 in &*inExpl1.clone() {
         let mut e1 = e1.clone();
@@ -866,7 +842,7 @@ fn expEqualNoCrefSubsList(mut inExpl1: Arc<metamodelica::List<Arc<DAE::Exp>>>, m
         rest_expl2 = __pa1.clone();
         if !(expEqualNoCrefSubs(e1.clone(), e2.clone())?) {
             outEqual = false;
-            return Ok(outEqual);
+            return Ok(outEqual.clone());
         }
     }
     outEqual = true;
@@ -879,7 +855,7 @@ fn expEqualNoCrefSubsListList(mut inExpl1: Arc<metamodelica::List<Arc<metamodeli
     let mut rest_expl2: Arc<metamodelica::List<Arc<metamodelica::List<Arc<DAE::Exp>>>>> = inExpl2.clone();
     if (inExpl1.clone().len() as i32) != (inExpl2.clone().len() as i32) {
         outEqual = false;
-        return Ok(outEqual);
+        return Ok(outEqual.clone());
     }
     for mut expl1 in &*inExpl1.clone() {
         let mut expl1 = expl1.clone();
@@ -891,7 +867,7 @@ fn expEqualNoCrefSubsListList(mut inExpl1: Arc<metamodelica::List<Arc<metamodeli
         rest_expl2 = __pa1.clone();
         if !(expEqualNoCrefSubsList(expl1.clone(), expl2.clone())?) {
             outEqual = false;
-            return Ok(outEqual);
+            return Ok(outEqual.clone());
         }
     }
     outEqual = true;
@@ -903,10 +879,10 @@ fn expEqualNoCrefSubsListList(mut inExpl1: Arc<metamodelica::List<Arc<metamodeli
 fn buildBackendDAEForEquations(mut classEqs: Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, mut foldIn: Arc<metamodelica::List<Arc<BackendDAE::Equation>>>) -> Result<Arc<metamodelica::List<Arc<BackendDAE::Equation>>>> {
     let mut foldOut: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
     foldOut = 'mc: {
-        let __mc_input = (classEqs.clone(), foldIn.clone());
+        let __mc_input = classEqs.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ metamodelica::List::Nil, _) => {
+                Deref @ metamodelica::List::Nil => {
                     Ok(foldIn.clone())
                 }
                 _ => bail!("nomatch"),
@@ -914,7 +890,7 @@ fn buildBackendDAEForEquations(mut classEqs: Arc<metamodelica::List<Arc<BackendD
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ metamodelica::List::Cons { head: eq, tail: rest }, _) => {
+                Deref @ metamodelica::List::Cons { head: eq, tail: rest } => {
                     let mut lhs: Arc<DAE::Exp>;
                     let mut rhs: Arc<DAE::Exp>;
                     let mut iterator: Arc<DAE::Exp>;
@@ -934,8 +910,8 @@ fn buildBackendDAEForEquations(mut classEqs: Arc<metamodelica::List<Arc<BackendD
                     lhs = __pa3.clone();
                     let true = (ComponentReferenceBasics::crefEqualWithoutSubs(Expression::expCref(lhs.clone())?, Expression::expCref(rhs.clone())?)) else { bail!("pattern mismatch") };
                     (similarEqs, rest) = List::separate1OnTrue(classEqs.clone(), (std::sync::Arc::new(equationEqualNoCrefSubs) as std::sync::Arc<dyn ::std::ops::Fn(Arc<BackendDAE::Equation>, Arc<BackendDAE::Equation>) -> Result<bool> + 'static>), eq.clone());
-                    let _ = Expression::expCref(lhs.clone())?;
-                    let _ = Expression::expCref(rhs.clone())?;
+                    Expression::expCref(lhs.clone())?;
+                    Expression::expCref(rhs.clone())?;
                     iterator = Arc::new(DAE::Exp::CREF { componentRef: Arc::new(DAE::ComponentRef::CREF_IDENT { ident: (literal!("i")).clone(), identType: DAE::T_INTEGER_DEFAULT().clone(), subscriptLst: metamodelica::nil() }), ty: DAE::T_INTEGER_DEFAULT().clone() });
                     eq = Arc::new(BackendDAE::Equation::FOR_EQUATION { iter: iterator.clone(), start: Arc::new(DAE::Exp::ICONST { integer: 1 }), stop: Arc::new(DAE::Exp::ICONST { integer: (similarEqs.clone().len() as i32) }), body: Arc::new(BackendDAE::Equation::EQUATION { exp: lhs.clone(), scalar: rhs.clone(), source: source.clone(), attr: attr.clone() }), source: source.clone(), attr: attr.clone() });
                     foldEqs = buildBackendDAEForEquations(rest.clone(), cons(eq.clone(), foldIn.clone()))?;
@@ -946,7 +922,7 @@ fn buildBackendDAEForEquations(mut classEqs: Arc<metamodelica::List<Arc<BackendD
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ metamodelica::List::Cons { head: eq, tail: rest }, _) => {
+                Deref @ metamodelica::List::Cons { head: eq, tail: rest } => {
                     let mut min: i32 = 0;
                     let mut max: i32 = 0;
                     let mut numCrefs: i32 = 0;
@@ -1009,10 +985,10 @@ fn buildBackendDAEForEquations(mut classEqs: Arc<metamodelica::List<Arc<BackendD
 fn getCrefIdcsForEquation(mut eq: Arc<BackendDAE::Equation>, mut constCrefs: Arc<metamodelica::List<Arc<DAE::ComponentRef>>>, mut crefMinMaxIn: Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32, i32)>>) -> Result<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32, i32)>>> {
     let mut crefMinMaxOut: Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32, i32)>> = metamodelica::nil();
     crefMinMaxOut = 'mc: {
-        let __mc_input = (eq.clone(), constCrefs.clone(), crefMinMaxIn.clone());
+        let __mc_input = (eq.clone(), crefMinMaxIn.clone());
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ BackendDAE::Equation::EQUATION { exp: _, .. }, _, crefMinMax) => {
+                (Deref @ BackendDAE::Equation::EQUATION { exp: _, .. }, crefMinMax) => {
                     let mut pos: i32 = 0;
                     let mut max: i32 = 0;
                     let mut min: i32 = 0;
@@ -1207,10 +1183,10 @@ fn addToArrayCrefLst(mut tplLstIn: Arc<metamodelica::List<(Arc<DAE::ComponentRef
     let mut tplLstFoldOut: Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>)>> = metamodelica::nil();
     let mut varLstOut: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
     (tplLstFoldOut, varLstOut) = 'mc: {
-        let __mc_input = (tplLstIn.clone(), varIn.clone(), tplRef.clone(), tplLstFoldIn.clone(), varLstIn.clone());
+        let __mc_input = (tplLstIn.clone(), tplRef.clone());
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ metamodelica::List::Cons { head: (cref0, idx0, tailCrefs0), tail: rest }, _, (cref1, idx1, Deref @ metamodelica::List::Cons { head: crefTailRef, tail: Deref @ metamodelica::List::Nil }), _, _) => {
+                (Deref @ metamodelica::List::Cons { head: (cref0, idx0, tailCrefs0), tail: rest }, (cref1, idx1, Deref @ metamodelica::List::Cons { head: crefTailRef, tail: Deref @ metamodelica::List::Nil })) => {
                     let mut varLst: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
                     let mut tplLst: Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>)>> = metamodelica::nil();
                     let mut tailCrefs0 = (*tailCrefs0).clone();
@@ -1230,7 +1206,7 @@ fn addToArrayCrefLst(mut tplLstIn: Arc<metamodelica::List<(Arc<DAE::ComponentRef
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ metamodelica::List::Cons { head: (cref0, idx0, tailCrefs0), tail: rest }, _, (cref1, _, _), _, _) => {
+                (Deref @ metamodelica::List::Cons { head: (cref0, idx0, tailCrefs0), tail: rest }, (cref1, _, _)) => {
                     let mut varLst: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
                     let mut tplLst: Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>)>> = metamodelica::nil();
                     let false = (ComponentReferenceBasics::crefEqual(cref0.clone(), cref1.clone())?) else { bail!("pattern mismatch") };
@@ -1242,7 +1218,7 @@ fn addToArrayCrefLst(mut tplLstIn: Arc<metamodelica::List<(Arc<DAE::ComponentRef
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ metamodelica::List::Nil, _, (cref1, idx1, tailCrefs1), _, _) => {
+                (Deref @ metamodelica::List::Nil, (cref1, idx1, tailCrefs1)) => {
                     let mut tplLst: Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>)>> = metamodelica::nil();
                     tplLst = cons((cref1.clone(), idx1.clone(), tailCrefs1.clone()), tplLstFoldIn.clone());
                     Ok((tplLst.clone(), cons(varIn.clone(), varLstIn.clone())))
@@ -1283,8 +1259,8 @@ fn getArrayVars(mut varIn: BackendDAE::Var, mut tplIn: (Arc<metamodelica::List<B
 
 fn dispatchLoopEquations(mut eqIn: Arc<BackendDAE::Equation>, mut arrayCrefs: Arc<metamodelica::List<Arc<DAE::ComponentRef>>>, mut tplIn: (Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, Arc<metamodelica::List<Arc<BackendDAE::Equation>>>)) -> Result<(Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, Arc<metamodelica::List<Arc<BackendDAE::Equation>>>)> {
     let mut tplOut: (Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, Arc<metamodelica::List<Arc<BackendDAE::Equation>>>);
-    tplOut = (::match_deref::match_deref! { match &((eqIn.clone(), arrayCrefs.clone(), tplIn.clone())) {
-        (_, _, (classEqs, mixEqs, nonArrEqs)) => {
+    tplOut = (::match_deref::match_deref! { match &(tplIn.clone()) {
+        (classEqs, mixEqs, nonArrEqs) => {
             let mut crefs: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
             let mut arrCrefs: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
             let mut nonArrCrefs: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
@@ -1372,10 +1348,10 @@ pub fn reduceLoopExpressions(mut expIn: Arc<DAE::Exp>, mut maxSub: i32) -> Resul
     let mut expOut: Arc<DAE::Exp>;
     let mut notRemoved: bool = false;
     (expOut, notRemoved) = 'mc: {
-        let __mc_input = (expIn.clone(), maxSub.clone());
+        let __mc_input = expIn.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ DAE::Exp::CREF { componentRef: cref, .. }, _) => {
+                Deref @ DAE::Exp::CREF { componentRef: cref, .. } => {
                     let mut b: bool = false;
                     b = intLe(getIndexSubScript(listHead(ComponentReferenceBasics::crefSubs(cref.clone())?)?)?, maxSub.clone());
                     Ok((expIn.clone(), b.clone()))
@@ -1385,7 +1361,7 @@ pub fn reduceLoopExpressions(mut expIn: Arc<DAE::Exp>, mut maxSub: i32) -> Resul
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ DAE::Exp::BINARY { exp2, operator: op, exp1 }, _) => {
+                Deref @ DAE::Exp::BINARY { exp2, operator: op, exp1 } => {
                     let mut b1: bool = false;
                     let mut b2: bool = false;
                     let mut exp: Arc<DAE::Exp>;
@@ -1407,7 +1383,7 @@ pub fn reduceLoopExpressions(mut expIn: Arc<DAE::Exp>, mut maxSub: i32) -> Resul
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ DAE::Exp::UNARY { exp, .. }, _) => {
+                Deref @ DAE::Exp::UNARY { exp, .. } => {
                     let mut b: bool = false;
                     let mut exp = (*exp).clone();
                     (exp, b) = reduceLoopExpressions(exp.clone(), maxSub.clone())?;
@@ -1436,7 +1412,7 @@ pub fn insertSUMexp(mut expIn: Arc<DAE::Exp>, mut tplIn: (Arc<DAE::ComponentRef>
         let __mc_input = (expIn.clone(), tplIn.clone());
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ DAE::Exp::BINARY { exp2, operator: op, exp1 }, (_, _)) => {
+                (Deref @ DAE::Exp::BINARY { exp2, operator: op, exp1 }, _) => {
                     let mut exp2 = (*exp2).clone();
                     let mut exp1 = (*exp1).clone();
                     (exp1, _) = insertSUMexp(exp1.clone(), tplIn.clone())?;
@@ -1448,7 +1424,7 @@ pub fn insertSUMexp(mut expIn: Arc<DAE::Exp>, mut tplIn: (Arc<DAE::ComponentRef>
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ DAE::Exp::UNARY { exp: exp1, operator: op }, (_, _)) => {
+                (Deref @ DAE::Exp::UNARY { exp: exp1, operator: op }, _) => {
                     let mut exp1 = (*exp1).clone();
                     (exp1, _) = insertSUMexp(exp1.clone(), tplIn.clone())?;
                     Ok((Arc::new(DAE::Exp::UNARY { operator: op.clone(), exp: exp1.clone() }), tplIn.clone()))
@@ -1491,10 +1467,10 @@ fn getIndexSubScript(mut sub: Arc<DAE::Subscript>) -> Result<i32> {
 pub fn replaceFirstSubsInCref(mut crefIn: Arc<DAE::ComponentRef>, mut subs: Arc<metamodelica::List<Arc<DAE::Subscript>>>) -> Result<Arc<DAE::ComponentRef>> {
     let mut crefOut: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
     crefOut = 'mc: {
-        let __mc_input = (crefIn.clone(), subs.clone());
+        let __mc_input = crefIn.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ DAE::ComponentRef::CREF_QUAL { componentRef: cref, subscriptLst, identType, ident }, _) => {
+                Deref @ DAE::ComponentRef::CREF_QUAL { componentRef: cref, subscriptLst, identType, ident } => {
                     let mut cref = (*cref).clone();
                     let mut subscriptLst = (*subscriptLst).clone();
                     if List::hasOneElement(subscriptLst.clone()) {
@@ -1508,7 +1484,7 @@ pub fn replaceFirstSubsInCref(mut crefIn: Arc<DAE::ComponentRef>, mut subs: Arc<
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ DAE::ComponentRef::CREF_IDENT { subscriptLst, identType, ident }, _) => {
+                Deref @ DAE::ComponentRef::CREF_IDENT { subscriptLst, identType, ident } => {
                     let mut subscriptLst = (*subscriptLst).clone();
                     if List::hasOneElement(subscriptLst.clone()) {
                         subscriptLst = subs.clone();

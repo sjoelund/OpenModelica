@@ -76,14 +76,14 @@ use openmodelica_util_datatypes_basic::List;
 pub fn clockPartitioning(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result<Arc<BackendDAE::BackendDAE>> {
     let mut outDAE: Arc<BackendDAE::BackendDAE> = Arc::new(<BackendDAE::BackendDAE as ::std::default::Default>::default());
     outDAE = (::match_deref::match_deref! { match &(inDAE.clone()) {
-        Deref @ DAE { UNIQUEIO: metamodelica::List::Cons { head: syst, tail: Deref @ metamodelica::List::Nil }, derivativeNamePrefix: shared, .. } => {
+        Deref @ DAE { UNIQUEIO: Deref @ metamodelica::List::Cons { head: syst, tail: Deref @ metamodelica::List::Nil }, derivativeNamePrefix: shared, .. } => {
             clockPartitioning1(syst.clone(), shared.clone())?
         },
         _ => {
             let mut syst: Arc<BackendDAE::EqSystem> = Arc::new(<BackendDAE::EqSystem as ::std::default::Default>::default());
             let mut shared: Arc<BackendDAE::Shared> = Arc::new(<BackendDAE::Shared as ::std::default::Default>::default());
             let (__pa0, __pa1) = ::match_deref::match_deref! { match &(BackendDAEOptimize::collapseIndependentBlocks(inDAE.clone())?) {
-                Deref @ DAE { UNIQUEIO: metamodelica::List::Cons { head: __pa0, tail: Deref @ metamodelica::List::Nil }, derivativeNamePrefix: __pa1, .. } => (__pa0.clone(), __pa1.clone()),
+                Deref @ DAE { UNIQUEIO: Deref @ metamodelica::List::Cons { head: __pa0, tail: Deref @ metamodelica::List::Nil }, derivativeNamePrefix: __pa1, .. } => (__pa0.clone(), __pa1.clone()),
                 _ => bail!("pattern mismatch"),
             } };
             syst = __pa0.clone();
@@ -131,7 +131,7 @@ pub fn contPartitioning(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result<Arc<Ba
     shared = inDAE.shared.clone();
     if !(systs.clone().is_empty()) {
         let (__pa0, __pa1) = ::match_deref::match_deref! { match &(BackendDAEOptimize::collapseIndependentBlocks(BackendDAE::DAE(systs.clone(), shared.clone())?)?) {
-            Deref @ DAE { UNIQUEIO: metamodelica::List::Cons { head: __pa0, tail: Deref @ metamodelica::List::Nil }, derivativeNamePrefix: __pa1, .. } => (__pa0.clone(), __pa1.clone()),
+            Deref @ DAE { UNIQUEIO: Deref @ metamodelica::List::Cons { head: __pa0, tail: Deref @ metamodelica::List::Nil }, derivativeNamePrefix: __pa1, .. } => (__pa0.clone(), __pa1.clone()),
             _ => bail!("pattern mismatch"),
         } };
         syst = __pa0.clone();
@@ -208,7 +208,7 @@ pub fn getBoolClockWhenClauses(mut eq: Arc<BackendDAE::Equation>, mut eqLst: Arc
 
 fn hasBoolClockWhenClause(mut eqn: Arc<BackendDAE::Equation>) -> bool {
     let mut hasBool: bool = false;
-    let _ = (::match_deref::match_deref! { match &(eqn.clone()) {
+    let () = (::match_deref::match_deref! { match &(eqn.clone()) {
         Deref @ BackendDAE::Equation::WHEN_EQUATION { whenEquation: Deref @ BackendDAE::WhenEquation { whenStmtLst: Deref @ metamodelica::List::Cons { head: BackendDAE::WhenOperator::NORETCALL { exp: Deref @ DAE::Exp::CALL { path: Deref @ Absyn::Path::IDENT { name: Deref @ "$_clkfire" }, .. }, .. }, tail: Deref @ metamodelica::List::Nil }, .. }, size: 0, .. } => {
             hasBool = true;
             ()
@@ -222,7 +222,7 @@ fn hasBoolClockWhenClause(mut eqn: Arc<BackendDAE::Equation>) -> bool {
 fn treatClockedStates(mut inSysts: Arc<metamodelica::List<Arc<BackendDAE::EqSystem>>>, mut inShared: Arc<BackendDAE::Shared>) -> Result<(Arc<metamodelica::List<Arc<BackendDAE::EqSystem>>>, Arc<BackendDAE::Shared>)> {
     let mut outSysts: Arc<metamodelica::List<Arc<BackendDAE::EqSystem>>> = metamodelica::nil();
     let mut shared: Arc<BackendDAE::Shared> = inShared.clone();
-    outSysts = {
+    outSysts = ({
         let mut __acc: Arc<metamodelica::List<Arc<BackendDAE::EqSystem>>> = metamodelica::nil();
         for mut syst in (inSysts.clone()).into_iter().cloned() {
             let __x = ({
@@ -312,7 +312,7 @@ fn treatClockedStates(mut inSysts: Arc<metamodelica::List<Arc<BackendDAE::EqSyst
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     Ok((outSysts, shared))
 }
 
@@ -335,7 +335,7 @@ fn getDerVars(mut inExp: Arc<DAE::Exp>, mut inDerVars: (Arc<metamodelica::List<A
             let mut x = (*x).clone();
             der_x = Arc::new(DAE::Exp::CREF { componentRef: ComponentReference::crefPrefixDer(x.clone()), ty: ty.clone() });
             (derVars, optForIter) = inDerVars.clone();
-            let _ = (match optForIter.clone() {
+            let () = (match optForIter.clone() {
         Some(mut forIter) => {
             x = ComponentReference::crefStripIterSub(x.clone(), (forIter.clone()).clone());
             ()
@@ -450,14 +450,14 @@ fn markClockedStates(mut inSyst: Arc<BackendDAE::EqSystem>, mut inShared: Arc<Ba
         prevVars = __pa2.clone();
     }
     if !(Flags::isSet(Flags::NF_SCALARIZE.clone())?) {
-        prevVars = {
+        prevVars = ({
         let mut __acc: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
         for mut cr in (prevVars.clone()).into_iter().cloned() {
             let __x = ComponentReferenceBasics::crefStripLastSubs(cr.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     }
     for mut cr in &*prevVars.clone() {
         let mut cr = cr.clone();
@@ -500,7 +500,7 @@ fn collectPrevVars1(mut inExp: Arc<DAE::Exp>, mut inPrevVars: (Arc<metamodelica:
             let mut forIter: ArcStr = arcstr::literal!("");
             let mut cr = (*cr).clone();
             (inPrevCompRefs, inForIter) = inPrevVars.clone();
-            let _ = (match inForIter.clone() {
+            let () = (match inForIter.clone() {
         Some(mut forIter) => {
             cr = ComponentReference::crefStripIterSub(cr.clone(), (forIter.clone()).clone());
             ()
@@ -649,8 +649,6 @@ fn getSubPartitionAdjacency(mut numPartitions: i32, mut baseClockEq: i32, mut su
     let mut orderLst: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut subClk1: BackendDAE::SubClock = BackendDAE::SubClock::INFERED_SUBCLOCK;
     let mut subClk2: BackendDAE::SubClock = BackendDAE::SubClock::INFERED_SUBCLOCK;
-    let mut partIsAssigned: metamodelica::Array<bool>;
-    let mut adjParts: Arc<metamodelica::List<(i32, BackendDAE::SubClock)>> = metamodelica::nil();
     let mut partitionParents: metamodelica::Array<i32>;
     let mut partitionParentsVisited: metamodelica::Array<bool>;
     let mut partitionInterfacesClockVars: metamodelica::Array<bool>;
@@ -758,7 +756,6 @@ fn findSubClocks(mut numPartitions: i32, mut baseClockEq: i32, mut baseClk: Arc<
     let mut outSubClocks: metamodelica::Array<BackendDAE::SubClock>;
     let mut part1: i32 = 0;
     let mut part2: i32 = 0;
-    let mut ord: i32 = 0;
     let mut partLst: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut subClk1: BackendDAE::SubClock = BackendDAE::SubClock::INFERED_SUBCLOCK;
     let mut subClk2: BackendDAE::SubClock = BackendDAE::SubClock::INFERED_SUBCLOCK;
@@ -887,12 +884,8 @@ fn setSubClockFactor(mut subClk: BackendDAE::SubClock, mut factor: MMath::Ration
 fn getSubClockFactor(mut subClk: BackendDAE::SubClock) -> MMath::Rational {
     let mut factor: MMath::Rational = <MMath::Rational as ::std::default::Default>::default();
     factor = (match subClk.clone() {
-        BackendDAE::SubClock::SUBCLOCK { factor: mut factor, shift: _, solver: _ } => {
-            factor.clone()
-        },
-        _ => {
-            MMath::RAT1.clone()
-        },
+        BackendDAE::SubClock::SUBCLOCK { factor: mut factor, shift: _, solver: _ } => factor.clone(),
+        _ => MMath::RAT1.clone(),
     });
     factor
 }
@@ -900,12 +893,8 @@ fn getSubClockFactor(mut subClk: BackendDAE::SubClock) -> MMath::Rational {
 fn getSubClockShift(mut subClk: BackendDAE::SubClock) -> MMath::Rational {
     let mut shift: MMath::Rational = <MMath::Rational as ::std::default::Default>::default();
     shift = (match subClk.clone() {
-        BackendDAE::SubClock::SUBCLOCK { factor: _, shift: mut shift, solver: _ } => {
-            shift.clone()
-        },
-        _ => {
-            MMath::RAT0.clone()
-        },
+        BackendDAE::SubClock::SUBCLOCK { factor: _, shift: mut shift, solver: _ } => shift.clone(),
+        _ => MMath::RAT0.clone(),
     });
     shift
 }
@@ -913,12 +902,8 @@ fn getSubClockShift(mut subClk: BackendDAE::SubClock) -> MMath::Rational {
 fn getSubClockSolverOpt(mut subClk: BackendDAE::SubClock) -> Option<ArcStr> {
     let mut solver: Option<ArcStr> = None;
     solver = (match subClk.clone() {
-        BackendDAE::SubClock::SUBCLOCK { factor: _, shift: _, solver: mut solver } => {
-            solver.clone()
-        },
-        _ => {
-            None
-        },
+        BackendDAE::SubClock::SUBCLOCK { factor: _, shift: _, solver: mut solver } => solver.clone(),
+        _ => None,
     });
     solver
 }
@@ -1381,27 +1366,18 @@ fn subClockPartitioning(mut inEqSystem: Arc<BackendDAE::EqSystem>, mut inShared:
     let mut clockEqs: Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>;
     let mut vars: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
     let mut clockVars: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
-    let mut clockSyst: Arc<BackendDAE::EqSystem> = Arc::new(<BackendDAE::EqSystem as ::std::default::Default>::default());
-    let mut outSys: Arc<BackendDAE::EqSystem> = Arc::new(<BackendDAE::EqSystem as ::std::default::Default>::default());
     let mut m: metamodelica::Array<Arc<metamodelica::List<i32>>>;
     let mut mT: metamodelica::Array<Arc<metamodelica::List<i32>>>;
     let mut rm: metamodelica::Array<Arc<metamodelica::List<i32>>>;
     let mut rmT: metamodelica::Array<Arc<metamodelica::List<i32>>>;
-    let mut subClkFactor: MMath::Rational = <MMath::Rational as ::std::default::Default>::default();
     let mut partitionsCnt: i32 = 0;
-    let mut partitions: metamodelica::Array<i32>;
     let mut remEqPartMap: metamodelica::Array<i32>;
     let mut newClockEqs: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
-    let mut outSysts_noOrder: metamodelica::Array<Arc<BackendDAE::EqSystem>>;
     let mut newClockVars: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
     let mut contPartitions: metamodelica::Array<Option<bool>>;
-    let mut subclocksTree: metamodelica::Array<(BackendDAE::SubClock, i32)>;
-    let mut clockComps: Arc<metamodelica::List<Arc<BackendDAE::StrongComponent>>> = metamodelica::nil();
-    let mut comps: Arc<metamodelica::List<Arc<BackendDAE::StrongComponent>>> = metamodelica::nil();
     let mut subclksCnt: metamodelica::Array<i32>;
     let mut order: metamodelica::Array<i32>;
     let mut subclocks: metamodelica::Array<BackendDAE::SubClock>;
-    let mut subclocksOutArr: metamodelica::Array<BackendDAE::SubClock>;
     let mut clockedEqsMask: metamodelica::Array<bool>;
     let mut clockedVarsMask: metamodelica::Array<bool>;
     let mut usedVars: metamodelica::Array<bool>;
@@ -1416,8 +1392,6 @@ fn subClockPartitioning(mut inEqSystem: Arc<BackendDAE::EqSystem>, mut inShared:
     let mut eqPartMap: metamodelica::Array<i32>;
     let mut partAdjacency: metamodelica::Array<Arc<metamodelica::List<(i32, BackendDAE::SubClock)>>>;
     let mut sys: Arc<BackendDAE::EqSystem> = Arc::new(<BackendDAE::EqSystem as ::std::default::Default>::default());
-    let mut varAtts: Arc<metamodelica::List<(bool, ArcStr)>> = metamodelica::nil();
-    let mut eqAtts: Arc<metamodelica::List<(bool, ArcStr)>> = metamodelica::nil();
     funcs = BackendDAEUtil::getFunctions(inShared.clone())?;
     let (__pa0, __pa1, __pa2) = ::match_deref::match_deref! { match &(inEqSystem.clone()) {
         Deref @ BackendDAE::EqSystem { removedEqs: __pa0, orderedEqs: __pa1, orderedVars: __pa2, .. } => (__pa0.clone(), __pa1.clone(), __pa2.clone()),
@@ -1464,7 +1438,6 @@ fn subClockPartitioning(mut inEqSystem: Arc<BackendDAE::EqSystem>, mut inShared:
 fn orderSubPartitions(mut numParts: i32, mut subclocks: metamodelica::Array<BackendDAE::SubClock>, mut order: metamodelica::Array<i32>, mut eqPartMap: metamodelica::Array<i32>, mut varPartMap: metamodelica::Array<i32>, mut remEqPartMap: metamodelica::Array<i32>, mut eqs: Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, mut vars: BackendDAE::Variables, mut remEqs: Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, mut shared: Arc<BackendDAE::Shared>, mut partitionOffset: i32) -> Result<(Arc<metamodelica::List<Arc<BackendDAE::EqSystem>>>, Arc<metamodelica::List<BackendDAE::SubClock>>)> {
     let mut systs: Arc<metamodelica::List<Arc<BackendDAE::EqSystem>>> = metamodelica::nil();
     let mut subClksOut: Arc<metamodelica::List<BackendDAE::SubClock>> = metamodelica::nil();
-    let mut contMerge: bool = false;
     let mut considerRemovedEqs: bool = false;
     let mut part: i32 = 0;
     let mut mergedParts: Arc<metamodelica::List<i32>> = metamodelica::nil();
@@ -1547,8 +1520,7 @@ fn orderSubPartitions(mut numParts: i32, mut subclocks: metamodelica::Array<Back
             clk = subclocks.clone().borrow()[(partIdx.clone()-1) as usize].clone();
         }
         if !(eqLst.clone().is_empty()) || !(remEqLst.clone().is_empty()) {
-            let (__pa7, (_, _)) = createEqSystem(eqLst.clone().reverse(), varLst.clone().reverse(), remEqLst.clone(), (true, true))?;
-            sys = __pa7.clone();
+            (sys, _) = createEqSystem(eqLst.clone().reverse(), varLst.clone().reverse(), remEqLst.clone(), (true, true))?;
             assign_field!(sys.partitionKind = BackendDAE::BaseClockPartitionKind::CLOCKED_PARTITION { subPartIdx: partitionOffset.clone() + part.clone() });
             subClksOut = cons(clk.clone(), subClksOut.clone());
             systs = cons(sys.clone(), systs.clone());
@@ -1770,7 +1742,6 @@ fn createSubClockVarFactor(mut inPartitionIdx: i32, mut inClkCnt: i32, mut inPat
     let mut outNewEqs: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = inNewEqs.clone();
     let mut outNewVars: Arc<metamodelica::List<BackendDAE::Var>> = inNewVars.clone();
     let mut outClkCnt: i32 = inClkCnt.clone();
-    let mut e: Arc<DAE::Exp>;
     outExp = substGetPartition(listHead(inExpLst.clone())?)?;
     Ok((outExp, outNewEqs, outNewVars, outClkCnt))
 }
@@ -2055,7 +2026,6 @@ fn substClockExp(mut inExp: Arc<DAE::Exp>, mut inNewEqs: Arc<metamodelica::List<
     let mut outNewEqs: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
     let mut outNewVars: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
     let mut outCnt: i32 = 0;
-    let mut ty: Arc<DAE::Type> = Arc::new(DAE::Type::T_NORETCALL);
     if isKnownOrConstantExp(inExp.clone(), inShared.globalKnownVars.clone())? {
         outExp = inExp.clone();
         outNewEqs = inNewEqs.clone();
@@ -2635,7 +2605,7 @@ fn partitionIndependentBlocksWork(mut idx: i32, mut isRemovedIdx: bool, mut part
         }
     }
     if !(ochange.clone()) {
-        return Ok(ochange);
+        return Ok(ochange.clone());
     }
     while !(workListEq.clone().is_empty() && workListRm.clone().is_empty()) {
         if !(workListEq.clone().is_empty()) {

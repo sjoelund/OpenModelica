@@ -107,7 +107,6 @@ pub fn bucketToValuesSize(mut szBucket: i32) -> i32 {
 pub fn emptyHashTableWork<Key: Clone + 'static, Value: Clone + 'static>(mut szBucket: i32, mut fntpl: FuncsTuple<Key, Value>) -> HashTable<Key, Value> {
     let mut hashTable: HashTable<Key, Value>;
     let mut arr: metamodelica::Array<Arc<metamodelica::List<(Key, i32)>>>;
-    let mut lst: Arc<metamodelica::List<Option<(Key, Value)>>> = metamodelica::nil();
     let mut emptyarr: metamodelica::Array<Option<(Key, Value)>>;
     let mut szArr: i32 = 0;
     let mut szBucketFixed: i32 = intMax(szBucket.clone(), 1);
@@ -131,7 +130,6 @@ pub fn add<Key: Clone + 'static, Value: Clone + 'static>(mut entry: HashEntry<Ke
     let mut keyEqual: FuncEq<Key>;
     let mut key: Key;
     let mut key2: Key;
-    let mut val: Value;
     let mut indices: HashNode<Key> = metamodelica::nil();
     (key, _) = entry.clone();
     let (__pa0, __pa1, __pa2, ref __pa5 @ (ref __pa3, ref __pa4, _, _)) = hashTable.clone();
@@ -150,7 +148,7 @@ pub fn add<Key: Clone + 'static, Value: Clone + 'static>(mut entry: HashEntry<Ke
             (_, arr_idx) = i.clone();
             valueArraySet(varr.clone(), arr_idx.clone(), entry.clone())?;
             outHashTable = hashTable.clone();
-            return Ok(outHashTable);
+            return Ok(outHashTable.clone());
         }
     }
     (varr, new_pos) = valueArrayAdd(varr.clone(), entry.clone())?;
@@ -160,19 +158,19 @@ pub fn add<Key: Clone + 'static, Value: Clone + 'static>(mut entry: HashEntry<Ke
 }
 
 pub fn dumpHashTableStatistics<Key: Clone + 'static, Value: Clone + 'static>(mut hashTable: HashTable<Key, Value>) -> () {
-    let _ = (match hashTable.clone() {
+    let () = (match hashTable.clone() {
         (mut hvec, _, _, _) => {
             println!("{}", (literal!("index list lengths:\n")).clone());
-            println!("{}", stringDelimitList({
+            println!("{}", stringDelimitList(({
         let mut __acc: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
         for mut l in (hvec.clone()).borrow().iter() {
             let __x = intString((l.clone().len() as i32));
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, (literal!(",")).clone()));
+    }), (literal!(",")).clone()));
             println!("{}", (literal!("\n")).clone());
-            println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("non-zero: ")); __mm_s.push_str(&*ArcStr::from(::std::format!("{}", {
+            println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("non-zero: ")); __mm_s.push_str(&*ArcStr::from(::std::format!("{}", ({
         let mut __acc: i32 = 0;
         for mut l in (hvec.clone()).borrow().iter() {
             if !(!(l.clone().is_empty())) { continue; }
@@ -180,23 +178,23 @@ pub fn dumpHashTableStatistics<Key: Clone + 'static, Value: Clone + 'static>(mut
             __acc += __x;
         }
         __acc
-    }))); __mm_s.push_str(&*literal!("/")); __mm_s.push_str(&*ArcStr::from(::std::format!("{}", (hvec.clone().borrow().len() as i32)))); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
-            println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("max element: ")); __mm_s.push_str(&*ArcStr::from(::std::format!("{}", {
+    })))); __mm_s.push_str(&*literal!("/")); __mm_s.push_str(&*ArcStr::from(::std::format!("{}", (hvec.clone().borrow().len() as i32)))); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+            println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("max element: ")); __mm_s.push_str(&*ArcStr::from(::std::format!("{}", ({
         let mut __acc: Option<i32> = None;
         for mut l in (hvec.clone()).borrow().iter() {
             let __x = (l.clone().len() as i32);
             __acc = Some(match __acc { None => __x, Some(__cur) => if __x > __cur { __x } else { __cur } });
         }
         __acc.ok_or_else(|| anyhow::anyhow!("empty max reduction")).unwrap()
-    }))); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
-            println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("total entries: ")); __mm_s.push_str(&*ArcStr::from(::std::format!("{}", {
+    })))); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+            println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("total entries: ")); __mm_s.push_str(&*ArcStr::from(::std::format!("{}", ({
         let mut __acc: i32 = 0;
         for mut l in (hvec.clone()).borrow().iter() {
             let __x = (l.clone().len() as i32);
             __acc += __x;
         }
         __acc
-    }))); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+    })))); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
             ()
         },
     });
@@ -239,7 +237,7 @@ pub fn addUnique<Key: Clone + 'static, Value: Clone + 'static>(mut entry: HashEn
     hashFunc = __pa3.clone();
     fntpl = __pa4.clone();
     if '__try5: {
-        let _ = unwrap_break_err!(get(key.clone(), hashTable.clone()), '__try5);
+        unwrap_break_err!(get(key.clone(), hashTable.clone()), '__try5);
         Ok::<(), anyhow::Error>(())
     }.is_ok() { bail!("failure(): body succeeded") }
     indx = intMod(hashFunc(key.clone())?, bsize.clone()) + 1;
@@ -289,7 +287,7 @@ pub fn anyKeyInHashTable<Key: Clone + 'static, Value: Clone + 'static>(mut keys:
         let mut key = key.clone();
         if hasKey(key.clone(), ht.clone()) {
             res = true;
-            return res;
+            return res.clone();
         }
     }
     res = false;
@@ -339,7 +337,7 @@ fn hasKeyIndex2<Key: Clone + 'static>(mut key: Key, mut keyIndices: HashNode<Key
         let mut keyIndex = keyIndex.clone();
         (key2, index) = keyIndex.clone();
         if keyEqual(key.clone(), key2.clone()).unwrap() {
-            return index;
+            return index.clone();
         }
     }
     index = -1;
@@ -371,7 +369,6 @@ pub fn debugDump<Key: Clone + 'static, Value: Clone + 'static>(mut ht: HashTable
     let mut printKey: FuncKeyString<Key>;
     let mut printValue: FuncValString<Value>;
     let mut k: Key;
-    let mut v: Value;
     let mut n: i32 = 0;
     let mut size: i32 = 0;
     let mut i: i32 = 0;
@@ -398,7 +395,10 @@ pub fn debugDump<Key: Clone + 'static, Value: Clone + 'static>(mut ht: HashTable
     for mut entry in __range7 {
         i = i.clone() + 1;
         if isSome(entry.clone()) {
-            let Some(__pa8) = (entry.clone()) else { bail!("pattern mismatch") };
+            let __pa8 = ::match_deref::match_deref! { match &(entry.clone()) {
+                Some(__pa8) => __pa8.clone(),
+                _ => bail!("pattern mismatch"),
+            } };
             he = __pa8.clone();
             println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*intString(i.clone())); __mm_s.push_str(&*literal!(": ")); __mm_s.push_str(&*dumpTuple(he.clone(), printKey.clone(), printValue.clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
         }
@@ -496,15 +496,11 @@ pub fn valueArrayLength<Key: Clone + 'static, Value: Clone + 'static>(mut valueA
 fn valueArrayAdd<Key: Clone + 'static, Value: Clone + 'static>(mut valueArray: ValueArray<Key, Value>, mut entry: HashEntry<Key, Value>) -> Result<(ValueArray<Key, Value>, i32)> {
     let mut outValueArray: ValueArray<Key, Value>;
     let mut newpos: i32 = 0;
-    let mut n_1: i32 = 0;
     let mut n: i32 = 0;
     let mut size: i32 = 0;
     let mut expandsize: i32 = 0;
     let mut expandsize_1: i32 = 0;
-    let mut newsize: i32 = 0;
-    let mut arr_1: metamodelica::Array<Option<(Key, Value)>>;
     let mut arr: metamodelica::Array<Option<(Key, Value)>>;
-    let mut arr_2: metamodelica::Array<Option<(Key, Value)>>;
     let mut rsize: metamodelica::Real = metamodelica::OrderedFloat(0.0_f64);
     let mut rexpandsize: metamodelica::Real = metamodelica::OrderedFloat(0.0_f64);
     (n, size, arr) = valueArray.clone();
@@ -524,8 +520,8 @@ fn valueArrayAdd<Key: Clone + 'static, Value: Clone + 'static>(mut valueArray: V
 
 fn valueArraySet<Key: Clone + 'static, Value: Clone + 'static>(mut valueArray: ValueArray<Key, Value>, mut pos: i32, mut entry: HashEntry<Key, Value>) -> Result<ValueArray<Key, Value>> {
     let mut outValueArray: ValueArray<Key, Value>;
-    outValueArray = (match (valueArray.clone(), pos.clone(), entry.clone()) {
-        ((mut n, mut size, mut arr), _, _) => {
+    outValueArray = (match valueArray.clone() {
+        (mut n, mut size, mut arr) => {
             let true = (pos.clone() <= size.clone()) else { bail!("pattern mismatch") };
             arr = {let _arr = arr.clone(); _arr.borrow_mut()[(pos.clone()-1) as usize] = Some(entry.clone()); _arr};
             (n.clone(), size.clone(), arr.clone())
@@ -550,7 +546,10 @@ fn getValueArray<Key: Clone + 'static, Value: Clone + 'static>(mut valueArray: V
     let mut n: i32 = 0;
     (n, _, arr) = valueArray.clone();
     let true = (pos.clone() <= n.clone()) else { bail!("pattern mismatch") };
-    let Some((__pa0, __pa1)) = (arr.clone().borrow()[(pos.clone()-1) as usize].clone()) else { bail!("pattern mismatch") };
+    let (__pa0, __pa1) = ::match_deref::match_deref! { match &(arr.clone().borrow()[(pos.clone()-1) as usize].clone()) {
+        Some((__pa0, __pa1)) => (__pa0.clone(), __pa1.clone()),
+        _ => bail!("pattern mismatch"),
+    } };
     key = __pa0.clone();
     value = __pa1.clone();
     Ok((key, value))
@@ -573,7 +572,6 @@ pub fn copy<Key: Clone + 'static, Value: Clone + 'static>(mut inHashTable: HashT
     let mut outCopy: HashTable<Key, Value>;
     let mut hv: HashVector<Key>;
     let mut bs: i32 = 0;
-    let mut sz: i32 = 0;
     let mut vs: i32 = 0;
     let mut ve: i32 = 0;
     let mut ft: FuncsTuple<Key, Value>;
@@ -595,7 +593,6 @@ pub fn clear<Key: Clone + 'static, Value: Clone + 'static>(mut ht: HashTable<Key
     let mut ht: HashTable<Key, Value> = ht;
     let mut hv: HashVector<Key>;
     let mut bs: i32 = 0;
-    let mut sz: i32 = 0;
     let mut vs: i32 = 0;
     let mut ve: i32 = 0;
     let mut hash_idx: i32 = 0;
@@ -612,7 +609,7 @@ pub fn clear<Key: Clone + 'static, Value: Clone + 'static>(mut ht: HashTable<Key
     hashFunc = __pa5.clone();
     ft = __pa6.clone();
     for mut i in 1..=vs.clone() {
-        let _ = (match vae.clone().borrow()[(i.clone()-1) as usize].clone() {
+        let () = (match vae.clone().borrow()[(i.clone()-1) as usize].clone() {
         Some((mut key, _)) => {
             hash_idx = intMod(hashFunc(key.clone())?, bs.clone()) + 1;
             {let _arr = hv.clone(); _arr.borrow_mut()[(hash_idx.clone()-1) as usize] = metamodelica::nil(); _arr};
@@ -629,7 +626,6 @@ pub fn clear<Key: Clone + 'static, Value: Clone + 'static>(mut ht: HashTable<Key
 pub fn clearAssumeNoDelete<Key: Clone + 'static, Value: Clone + 'static>(mut ht: HashTable<Key, Value>) -> Result<()> {
     let mut hv: HashVector<Key>;
     let mut bs: i32 = 0;
-    let mut sz: i32 = 0;
     let mut vs: i32 = 0;
     let mut ve: i32 = 0;
     let mut hash_idx: i32 = 0;
@@ -648,7 +644,7 @@ pub fn clearAssumeNoDelete<Key: Clone + 'static, Value: Clone + 'static>(mut ht:
     hashFunc = __pa5.clone();
     ft = __pa6.clone();
     for mut i in 1..=ve.clone() {
-        let _ = (match vae.clone().borrow()[(i.clone()-1) as usize].clone() {
+        let () = (match vae.clone().borrow()[(i.clone()-1) as usize].clone() {
         Some((mut key, _)) => {
             if !(workaroundForBug.clone()) {
                 hash_idx = intMod(hashFunc(key.clone())?, bs.clone()) + 1;

@@ -349,7 +349,7 @@ pub fn nodeContext(mut node: Arc<InstNode::InstNode>, mut currentContext: Type) 
     parent = InstNode::explicitParent(node.clone());
     if !(InstNode::isRootClass(parent.clone())) {
         nodeContext = set(nodeContext.clone(), CLASS.clone());
-        return nodeContext;
+        return nodeContext.clone();
     }
     parent_res = InstNode::restriction(parent.clone());
     nodeContext = if (Restriction::isFunction(parent_res.clone()) || Restriction::isRecord(parent_res.clone())) {set(nodeContext.clone(), FUNCTION.clone())} else {set(nodeContext.clone(), CLASS.clone())};

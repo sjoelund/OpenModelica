@@ -166,14 +166,14 @@ pub fn makeCodeTypeNameStr(mut r#str: ArcStr) -> Arc<Values::Value> {
 
 pub fn makeCodeTypeNameArray(mut paths: Arc<metamodelica::List<Arc<Absyn::Path>>>) -> Result<Arc<Values::Value>> {
     let mut val: Arc<Values::Value> = Arc::new(Values::Value::META_FAIL);
-    val = makeArray({
+    val = makeArray(({
         let mut __acc: Arc<metamodelica::List<Arc<Values::Value>>> = metamodelica::nil();
         for mut p in (paths.clone()).into_iter().cloned() {
             let __x = makeCodeTypeName(p.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    })?;
+    }))?;
     Ok(val)
 }
 

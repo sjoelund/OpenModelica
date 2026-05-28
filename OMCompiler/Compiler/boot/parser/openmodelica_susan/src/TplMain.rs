@@ -58,7 +58,7 @@ pub static emptyTxt: std::sync::LazyLock<Tpl::Text> = std::sync::LazyLock::new(|
 pub static dsi: std::sync::LazyLock<SourceInfo> = std::sync::LazyLock::new(|| { TplAbsyn::dummySourceInfo.clone() });
 
 pub fn main(mut inFile: ArcStr) -> Result<()> {
-    let _ = (::match_deref::match_deref! { match &(inFile.clone()) {
+    let () = (::match_deref::match_deref! { match &(inFile.clone()) {
         Deref @ "SusanTest.tpl" => {
             tplMainTest((literal!("a")).clone())?;
             ()
@@ -78,7 +78,7 @@ pub fn main(mut inFile: ArcStr) -> Result<()> {
 }
 
 pub fn translateFile(mut inFile: ArcStr) -> Result<()> {
-    let _ = 'mc: {
+    let () = 'mc: {
         let __mc_input = inFile.clone();
         if let Ok(__v) = (|| -> Result<_> {
             let mut file = __mc_input.clone() else { bail!("nomatch") };
@@ -196,7 +196,7 @@ pub fn testTranslateTplFile(mut inFile: ArcStr, mut inPrintResult: bool, mut inP
 }
 
 pub fn tplMainTest(mut inFile: ArcStr) -> Result<()> {
-    let _ = 'mc: {
+    let () = 'mc: {
         let __mc_input = inFile.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
@@ -322,7 +322,7 @@ pub fn tplMainTest(mut inFile: ArcStr) -> Result<()> {
                     tequal = astDefs.clone() == list![TplAbsyn::ASTDef { importPackage: Arc::new(TplAbsyn::PathIdent::IDENT { ident: (literal!("builtin")).clone() }), isDefault: true, types: list![(literal!("stringListStringChar"), TplAbsyn::TypeInfo::TI_FUN_TYPE { inArgs: list![(literal!("inString"), Arc::new(crate::TplAbsyn::TypeSignature::STRING_TYPE))], outArgs: list![(literal!("outStringList"), Arc::new(TplAbsyn::TypeSignature::LIST_TYPE { ofType: Arc::new(crate::TplAbsyn::TypeSignature::STRING_TYPE) }))], tyVars: metamodelica::nil() })] }] && pid.clone() == Arc::new(TplAbsyn::PathIdent::IDENT { ident: (literal!("Susan")).clone() });
                     txt = emptyTxt.clone();
                     txt = TplCodegen::pathIdent(txt.clone(), pid.clone())?;
-                    let _ = Tpl::textString(txt.clone())?;
+                    Tpl::textString(txt.clone())?;
                     strOut = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*Tpl::booleanString(tequal.clone())); __mm_s.push_str(&*literal!("*")); __mm_s.push_str(&*stringCharListString(chars.clone())); ArcStr::from(__mm_s) }).clone();
                     notPassedCnt = testStringEquality((strOut.clone()).clone(), (literal!("true*:)")).clone(), true, true, (literal!("TplParser.templPackage - function stringListStringChar\n")).clone(), notPassedCnt.clone())?;
                     r#str = (literal!("\ninterface package Susan\npackage builtin\n  function stringListStringChar\n    input String inString;\n    output list<String> outStringList;\n  end stringListStringChar;\nend builtin;\n\n\nprotected package Tpl\n  uniontype StringToken\n    record ST_NEW_LINE \"Always outputs the new-line char.\"  end ST_NEW_LINE;\n\n    record ST_STRING \"A string without new-lines in it.\"\n      String value;\n    end ST_STRING;\n\n    record ST_LINE \"A (non-empty) string with new-line at the end.\"\n      String line;\n    end ST_LINE;\n\n    record ST_STRING_LIST \"Every string in the list can have a new-line at its end (but does not have to).\"\n      list<String> strList;\n      Boolean lastHasNewLine \"True when the last string in the list has new-line at the end.\";\n    end ST_STRING_LIST;\n  end StringToken;\nend Tpl;\n\n\npackage TplAbsyn\n  type Ident = String;\n  type TypedIdents = list<tuple<Ident, TypeSignature>>;\n  type StringToken = Tpl.StringToken;\n\n  uniontype PathIdent\n    record IDENT\n      Ident ident;\n    end IDENT;\n\n    record PATH_IDENT\n      Ident ident;\n      PathIdent path;\n    end PATH_IDENT;\n  end PathIdent;\n\n  uniontype TypeSignature\n    record LIST_TYPE\n      TypeSignature ofType;\n    end LIST_TYPE;\n\n    record ARRAY_TYPE  // one-dimensional arrays --> with only (safe) list behaviour\n      TypeSignature ofType;\n    end ARRAY_TYPE;\n\n    record OPTION_TYPE\n      TypeSignature ofType;\n    end OPTION_TYPE;\n\n    record TUPLE_TYPE\n      list<TypeSignature> ofTypes;\n    end TUPLE_TYPE;\n\n    record NAMED_TYPE \"key/path to a TypeInfo list from an AST definition\"\n      PathIdent name;\n    end NAMED_TYPE;\n\n    record STRING_TYPE  end STRING_TYPE;\n    record TEXT_TYPE    end TEXT_TYPE;\n    record STRING_TOKEN_TYPE \"Used only for internal string constants.\" end STRING_TOKEN_TYPE;\n\n    record INTEGER_TYPE end INTEGER_TYPE;\n    record REAL_TYPE    end REAL_TYPE;\n    record BOOLEAN_TYPE end BOOLEAN_TYPE;\n\n    record UNRESOLVED_TYPE \"Errorneous resolving type. Only used during elaboration phase.\"\n      String reason;\n    end UNRESOLVED_TYPE;\n  end TypeSignature;\n\n\n  uniontype MatchingExp\n    record BIND_AS_MATCH\n      Ident bindIdent;\n      MatchingExp matchingExp;\n    end BIND_AS_MATCH;\n\n    record BIND_MATCH\n      Ident bindIdent;\n    end BIND_MATCH;\n\n    record RECORD_MATCH\n      PathIdent tagName;\n      list<tuple<Ident, MatchingExp>> fieldMatchings;\n    end RECORD_MATCH;\n\n    record SOME_MATCH\n      MatchingExp value;\n    end SOME_MATCH;\n\n    record NONE_MATCH end NONE_MATCH;\n\n    record TUPLE_MATCH\n      list<MatchingExp> tupleArgs;\n    end TUPLE_MATCH;\n\n    record LIST_MATCH //non-empty list\n      list<MatchingExp> listElts;\n    end LIST_MATCH;\n\n    record LIST_CONS_MATCH\n      MatchingExp head;\n      MatchingExp rest;\n    end LIST_CONS_MATCH;\n\n    record STRING_MATCH\n      String value;\n    end STRING_MATCH;\n\n    record LITERAL_MATCH\n      String value;\n      TypeSignature litType; // only INTEGER_TYPE, REAL_TYPE or BOOLEAN_TYPE\n    end LITERAL_MATCH;\n\n    record REST_MATCH end REST_MATCH;\n  end MatchingExp;\n\n\n  // **** the (core) output AST\n\n  uniontype MMPackage\n    record MM_PACKAGE\n      PathIdent name;\n      list<MMDeclaration> mmDeclarations;\n    end MM_PACKAGE;\n  end MMPackage;\n\n  type MMMatchCase = tuple<list<MatchingExp>, TypedIdents, list<MMExp>>;\n\n  uniontype MMDeclaration\n    record MM_IMPORT\n      Boolean isPublic;\n      PathIdent packageName;\n    end MM_IMPORT;\n\n    record MM_STR_TOKEN_DECL\n      Boolean isPublic;\n      Ident name;\n      StringToken value;\n    end MM_STR_TOKEN_DECL;\n\n    record MM_LITERAL_DECL\n      Boolean isPublic;\n      Ident name;\n      String value;\n      TypeSignature litType;\n    end MM_LITERAL_DECL;\n\n\n    record MM_FUN\n      Boolean isPublic;\n      Ident name;\n      TypedIdents inArgs; //inTxt inclusive\n      TypedIdents outArgs; // outTxt + extra Texts\n      TypedIdents locals;\n      list<MMExp> statements;\n    end MM_FUN;\n  end MMDeclaration;\n\n  uniontype MMExp\n    record MM_ASSIGN\n      list<Ident> lhsArgs;\n      MMExp rhs;\n    end MM_ASSIGN;\n\n    record MM_FN_CALL\n      PathIdent fnName;\n      list<MMExp> args;\n    end MM_FN_CALL;\n\n    record MM_IDENT\n      PathIdent ident;\n    end MM_IDENT;\n\n    record MM_STR_TOKEN \"constructor of type StringToken\"\n      StringToken value;\n    end MM_STR_TOKEN;\n\n    record MM_STRING \"to pass a string constant as parameter of type String\"\n      String value;\n    end MM_STRING;\n\n    record MM_LITERAL \"to pass a literal constant as parameter of type Integer, Real or Boolean\"\n      String value;\n    end MM_LITERAL;\n\n    record MM_MATCH\n      list<MMMatchCase> matchCases;\n    end MM_MATCH;\n  end MMExp;\nend TplAbsyn;\nend Susan;:)")).clone();
@@ -330,7 +330,7 @@ pub fn tplMainTest(mut inFile: ArcStr) -> Result<()> {
                     (chars, _, pid, _) = TplParser::interfacePackage(chars.clone(), TplParser::makeStartLineInfo(chars.clone(), (literal!("in memory test")).clone())?, metamodelica::nil())?;
                     txt = emptyTxt.clone();
                     txt = TplCodegen::pathIdent(txt.clone(), pid.clone())?;
-                    let _ = Tpl::textString(txt.clone())?;
+                    Tpl::textString(txt.clone())?;
                     strOut = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("parsed*")); __mm_s.push_str(&*stringCharListString(chars.clone())); ArcStr::from(__mm_s) }).clone();
                     notPassedCnt = testStringEquality((strOut.clone()).clone(), (literal!("parsed*:)")).clone(), true, true, (literal!("TplParser.templPackage - all types for Susan's backend\n")).clone(), notPassedCnt.clone())?;
                     r#str = (literal!("\"Susan\"~:)")).clone();

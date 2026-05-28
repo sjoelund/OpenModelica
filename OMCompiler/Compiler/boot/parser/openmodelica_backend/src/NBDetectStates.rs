@@ -233,7 +233,7 @@ fn collectPreAndPrevious(mut exp: Arc<Expression::NFExpression>, mut acc_previou
             let mut new_exp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut old_exp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             (new_exp, old_exp) = preFromArgs(args.clone(), acc_previous.clone(), scalarized.clone(), (literal!("previous")).clone())?;
-            let _ = (::match_deref::match_deref! { match &(old_exp.clone()) {
+            let () = (::match_deref::match_deref! { match &(old_exp.clone()) {
         Deref @ Expression::CREF { .. } => {
             Pointer::update(acc_clocked_states.clone(), cons(BVariable::getVarPointer(var_field!((*old_exp).cref, Expression::NFExpression::CREF).clone(), metamodelica::sourceInfo!())?, Pointer::access(acc_clocked_states.clone())));
             ()
@@ -277,7 +277,6 @@ fn preFromArgs(mut args: Arc<metamodelica::List<Arc<Expression::NFExpression>>>,
     let mut state_cref: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
     let mut pre_cref: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
     let mut state_var: Pointer::Pointer<Arc<Variable::NFVariable>>;
-    let mut pre_var: Pointer::Pointer<Arc<Variable::NFVariable>>;
     let mut negated: bool = false;
     (state_var, old_exp, negated) = (::match_deref::match_deref! { match &(args.clone()) {
         Deref @ metamodelica::List::Cons { head: old_exp @ Deref @ Expression::CREF { cref: state_cref, .. }, tail: Deref @ metamodelica::List::Nil } => (BVariable::getVarPointer(state_cref.clone(), metamodelica::sourceInfo!())?, old_exp.clone(), false),
@@ -393,7 +392,10 @@ fn getPreVar(mut var_cref: Arc<ComponentRef::NFComponentRef>, mut var_ptr: Point
     let (mut pre, _): (Option<Pointer::Pointer<Arc<Variable::NFVariable>>>, ArcStr) = BVariable::getVarPre(var_ptr.clone());
     let mut pre_var: Pointer::Pointer<Arc<Variable::NFVariable>>;
     if Util::isSome(pre.clone()) {
-        let Some(__pa0) = (pre.clone()) else { bail!("pattern mismatch") };
+        let __pa0 = ::match_deref::match_deref! { match &(pre.clone()) {
+            Some(__pa0) => __pa0.clone(),
+            _ => bail!("pattern mismatch"),
+        } };
         pre_var = __pa0.clone();
         pre_cref = BVariable::getVarName(pre_var.clone());
         pre_cref = ComponentRef::copySubscripts(var_cref.clone(), pre_cref.clone())?;
@@ -417,7 +419,7 @@ pub fn findDiscreteStatesFromWhenBody(mut body: Arc<WhenEquationBody::WhenEquati
             let mut state_var: Pointer::Pointer<Arc<Variable::NFVariable>>;
             let mut pre_var: Pointer::Pointer<Arc<Variable::NFVariable>>;
             state_var = BVariable::getVarPointer(state_cref.clone(), metamodelica::sourceInfo!())?;
-            let _ = (match BVariable::getVarPre(state_var.clone()) {
+            let () = (match BVariable::getVarPre(state_var.clone()) {
         Some(mut pre_var) => {
             Pointer::update(acc_previous.clone(), cons(pre_var.clone(), Pointer::access(acc_previous.clone())));
             ()
@@ -440,7 +442,7 @@ pub fn stateOrder(mut eqn: Arc<Equation::Equation>, mut state_order: Arc<Unorder
     let mut eqn: Arc<Equation::Equation> = eqn;
     let mut lhs: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut rhs: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-    let _ = (::match_deref::match_deref! { match &(eqn.clone()) {
+    let () = (::match_deref::match_deref! { match &(eqn.clone()) {
         Deref @ BEquation::Equation::SCALAR_EQUATION { rhs: rhs @ Deref @ Expression::CREF { .. }, lhs: lhs @ Deref @ Expression::CREF { .. }, .. } => {
             updateStateOrder(var_field!((**lhs).cref, Expression::NFExpression::CREF).clone(), var_field!((**rhs).cref, Expression::NFExpression::CREF).clone(), state_order.clone())?;
             ()
@@ -464,9 +466,7 @@ pub fn stateOrder(mut eqn: Arc<Equation::Equation>, mut state_order: Arc<Unorder
 
 pub fn updateStateOrder(mut lhs: Arc<ComponentRef::NFComponentRef>, mut rhs: Arc<ComponentRef::NFComponentRef>, mut state_order: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>>>) -> Result<()> {
     let mut state: Pointer::Pointer<Arc<Variable::NFVariable>>;
-    let mut lhs_k: Arc<VariableKind::VariableKind> = Arc::new(VariableKind::ALGEBRAIC);
-    let mut rhs_k: Arc<VariableKind::VariableKind> = Arc::new(VariableKind::ALGEBRAIC);
-    let _ = (::match_deref::match_deref! { match &((BVariable::getVarKind(BVariable::getVarPointer(lhs.clone(), metamodelica::sourceInfo!())?), BVariable::getVarKind(BVariable::getVarPointer(rhs.clone(), metamodelica::sourceInfo!())?))) {
+    let () = (::match_deref::match_deref! { match &((BVariable::getVarKind(BVariable::getVarPointer(lhs.clone(), metamodelica::sourceInfo!())?), BVariable::getVarKind(BVariable::getVarPointer(rhs.clone(), metamodelica::sourceInfo!())?))) {
         (_, Deref @ VariableKind::STATE_DER { state, .. }) => {
             UnorderedMap::add(BVariable::getVarName(state.clone()), ComponentRef::stripSubscriptsAll(lhs.clone()), state_order.clone())?;
             ()

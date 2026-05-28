@@ -318,34 +318,22 @@ pub fn retrieveOuterConnections(mut inCache: FCore::Cache, mut inEnv: FCore::Gra
 fn removeInnerPrefixFromCref(mut inPrefix: DAE::Prefix, mut inCref: Arc<DAE::ComponentRef>) -> Result<Arc<DAE::ComponentRef>> {
     let mut outCref: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
     outCref = 'mc: {
-        let __mc_input = (inPrefix.clone(), inCref.clone());
+        let __mc_input = inPrefix.clone();
         if let Ok(__v) = (|| -> Result<_> {
-            ::match_deref::match_deref! { match &__mc_input {
-                (DAE::Prefix::NOPRE, _) => {
-                    Ok(inCref.clone())
-                }
-                _ => bail!("nomatch"),
-            }}
+            let DAE::Prefix::NOPRE = __mc_input.clone() else { bail!("nomatch") };
+            Ok(inCref.clone())
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
-            ::match_deref::match_deref! { match &__mc_input {
-                (_, _) => {
-                    let mut crefPrefix: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
-                    let mut crOuter: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
-                    crefPrefix = PrefixUtil::prefixToCref(inPrefix.clone())?;
-                    crOuter = ComponentReference::crefStripPrefix(inCref.clone(), crefPrefix.clone())?;
-                    Ok(crOuter.clone())
-                }
-                _ => bail!("nomatch"),
-            }}
+            let _ = __mc_input.clone() else { bail!("nomatch") };
+            let mut crefPrefix: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
+            let mut crOuter: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
+            crefPrefix = PrefixUtil::prefixToCref(inPrefix.clone())?;
+            crOuter = ComponentReference::crefStripPrefix(inCref.clone(), crefPrefix.clone())?;
+            Ok(crOuter.clone())
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
-            ::match_deref::match_deref! { match &__mc_input {
-                _ => {
-                    Ok(inCref.clone())
-                }
-                _ => bail!("nomatch"),
-            }}
+            let _ = __mc_input.clone() else { bail!("nomatch") };
+            Ok(inCref.clone())
         })() { break 'mc __v; }
         bail!("matchcontinue: no arm matched")
     };
@@ -358,10 +346,10 @@ fn retrieveOuterConnections2(mut inCache: FCore::Cache, mut inEnv: FCore::Graph,
     let mut outInnerOuterConnects: Arc<metamodelica::List<DAE::Connect::OuterConnect>> = metamodelica::nil();
     let mut outCGraph: ConnectionGraph::ConnectionGraph = <ConnectionGraph::ConnectionGraph as ::std::default::Default>::default();
     (outOuterConnects, outSets, outInnerOuterConnects, outCGraph) = 'mc: {
-        let __mc_input = (inCache.clone(), inEnv.clone(), inIH.clone(), inPrefix.clone(), inOuterConnects.clone(), inSets.clone(), inTopCall.clone(), inCGraph.clone());
+        let __mc_input = (inOuterConnects.clone(), inSets.clone(), inTopCall.clone(), inCGraph.clone());
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _, _, _, Deref @ metamodelica::List::Nil, _, _, _) => {
+                (Deref @ metamodelica::List::Nil, _, _, _) => {
                     Ok((inOuterConnects.clone(), inSets.clone(), metamodelica::nil(), inCGraph.clone()))
                 }
                 _ => bail!("nomatch"),
@@ -369,7 +357,7 @@ fn retrieveOuterConnections2(mut inCache: FCore::Cache, mut inEnv: FCore::Graph,
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _, _, _, Deref @ metamodelica::List::Cons { head: DAE::Connect::OuterConnect { scope, cr1, io1, f1, cr2, io2, f2, source: source @ Deref @ DAE::ElementSource { info, .. } }, tail: rest_oc }, sets, _, graph) => {
+                (Deref @ metamodelica::List::Cons { head: DAE::Connect::OuterConnect { scope, cr1, io1, f1, cr2, io2, f2, source: source @ Deref @ DAE::ElementSource { info, .. } }, tail: rest_oc }, sets, _, graph) => {
                     let mut ioc: Arc<metamodelica::List<DAE::Connect::OuterConnect>> = metamodelica::nil();
                     let mut inner1: bool = false;
                     let mut outer1: bool = false;
@@ -395,7 +383,7 @@ fn retrieveOuterConnections2(mut inCache: FCore::Cache, mut inEnv: FCore::Graph,
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _, _, _, Deref @ metamodelica::List::Cons { head: DAE::Connect::OuterConnect { scope: _, cr1, io1, f1, cr2, io2, f2, source: Deref @ DAE::ElementSource { info, .. } }, tail: rest_oc }, sets, true, graph) => {
+                (Deref @ metamodelica::List::Cons { head: DAE::Connect::OuterConnect { scope: _, cr1, io1, f1, cr2, io2, f2, source: Deref @ DAE::ElementSource { info, .. } }, tail: rest_oc }, sets, true, graph) => {
                     let mut ioc: Arc<metamodelica::List<DAE::Connect::OuterConnect>> = metamodelica::nil();
                     let mut inner1: bool = false;
                     let mut inner2: bool = false;
@@ -423,7 +411,7 @@ fn retrieveOuterConnections2(mut inCache: FCore::Cache, mut inEnv: FCore::Graph,
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _, _, _, Deref @ metamodelica::List::Cons { head: oc, tail: rest_oc }, sets, _, graph) => {
+                (Deref @ metamodelica::List::Cons { head: oc, tail: rest_oc }, sets, _, graph) => {
                     let mut ioc: Arc<metamodelica::List<DAE::Connect::OuterConnect>> = metamodelica::nil();
                     let mut rest_oc = (*rest_oc).clone();
                     let mut sets = (*sets).clone();
@@ -451,11 +439,11 @@ fn convertInnerOuterInnerToOuter(mut io: Absyn::InnerOuter) -> Absyn::InnerOuter
 fn addOuterConnectIfEmpty(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inIH: InstHierarchy, mut pre: DAE::Prefix, mut inSets: DAE::Connect::Sets, mut added: bool, mut cr1: Arc<DAE::ComponentRef>, mut iio1: Absyn::InnerOuter, mut f1: DAE::Connect::Face, mut cr2: Arc<DAE::ComponentRef>, mut iio2: Absyn::InnerOuter, mut f2: DAE::Connect::Face, mut info: SourceInfo, mut inCGraph: ConnectionGraph::ConnectionGraph) -> Result<(DAE::Connect::Sets, ConnectionGraph::ConnectionGraph)> {
     let mut outSets: DAE::Connect::Sets = <DAE::Connect::Sets as ::std::default::Default>::default();
     let mut outCGraph: ConnectionGraph::ConnectionGraph = <ConnectionGraph::ConnectionGraph as ::std::default::Default>::default();
-    (outSets, outCGraph) = (::match_deref::match_deref! { match &((inCache.clone(), inEnv.clone(), inIH.clone(), pre.clone(), inSets.clone(), added.clone(), cr1.clone(), iio1.clone(), f1.clone(), cr2.clone(), iio2.clone(), f2.clone(), info.clone(), inCGraph.clone())) {
-        (_, _, _, _, _, true, _, _, _, _, _, _, _, _) => {
+    (outSets, outCGraph) = (::match_deref::match_deref! { match &((inCache.clone(), inEnv.clone(), inIH.clone(), inSets.clone(), added.clone(), iio1.clone(), iio2.clone(), inCGraph.clone())) {
+        (_, _, _, _, true, _, _, _) => {
             (inSets.clone(), inCGraph.clone())
         },
-        (cache, env, ih, _, DAE::Connect::Sets { sets, setCount: sc, connections: cl, outerConnects: oc }, false, _, io1, _, _, io2, _, _, graph) => {
+        (cache, env, ih, DAE::Connect::Sets { sets, setCount: sc, connections: cl, outerConnects: oc }, false, io1, io2, graph) => {
             let mut vt1: SCode::Variability = SCode::Variability::CONST;
             let mut vt2: SCode::Variability = SCode::Variability::CONST;
             let mut t1: Arc<DAE::Type> = Arc::new(DAE::Type::T_NORETCALL);
@@ -524,18 +512,18 @@ fn lookupVarInnerOuterAttr(mut cache: FCore::Cache, mut env: FCore::Graph, mut i
     let mut isInner: bool = false;
     let mut isOuter: bool = false;
     (isInner, isOuter) = 'mc: {
-        let __mc_input = (cache.clone(), env.clone(), inIH.clone(), cr1.clone(), cr2.clone());
+        let __mc_input = cr2.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _, _, _, _) => {
+                _ => {
                     let mut io1: Absyn::InnerOuter = Absyn::InnerOuter::INNER;
                     let mut io2: Absyn::InnerOuter = Absyn::InnerOuter::INNER;
                     let mut isInner1: bool = false;
                     let mut isInner2: bool = false;
                     let mut isOuter1: bool = false;
                     let mut isOuter2: bool = false;
-                    let mut isOuter: bool = isOuter.clone();
                     let mut isInner: bool = isInner.clone();
+                    let mut isOuter: bool = isOuter.clone();
                     ErrorExt::setCheckpoint((literal!("lookupVarInnerOuterAttr")).clone());
                     let __pa0 = ::match_deref::match_deref! { match &(Lookup::lookupVar(cache.clone(), env.clone(), cr1.clone())?) {
                         (_, Deref @ DAE::Attributes { innerOuter: __pa0, .. }, _, _, _, _, _, _, _) => __pa0.clone(),
@@ -559,7 +547,7 @@ fn lookupVarInnerOuterAttr(mut cache: FCore::Cache, mut env: FCore::Graph, mut i
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _, _, _, _) => {
+                _ => {
                     let mut io: Absyn::InnerOuter = Absyn::InnerOuter::INNER;
                     let mut isInner: bool = isInner.clone();
                     let mut isOuter: bool = isOuter.clone();
@@ -577,10 +565,10 @@ fn lookupVarInnerOuterAttr(mut cache: FCore::Cache, mut env: FCore::Graph, mut i
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _, _, _, _) => {
+                _ => {
                     let mut io: Absyn::InnerOuter = Absyn::InnerOuter::INNER;
-                    let mut isInner: bool = isInner.clone();
                     let mut isOuter: bool = isOuter.clone();
+                    let mut isInner: bool = isInner.clone();
                     let __pa0 = ::match_deref::match_deref! { match &(Lookup::lookupVar(cache.clone(), env.clone(), cr2.clone())?) {
                         (_, Deref @ DAE::Attributes { innerOuter: __pa0, .. }, _, _, _, _, _, _, _) => __pa0.clone(),
                         _ => bail!("pattern mismatch"),
@@ -677,7 +665,7 @@ fn lookupInnerInIH(mut inTIH: TopInstance, mut inPrefix: DAE::Prefix, mut inComp
                     prefix = PrefixUtil::prefixStripLast(inPrefix.clone())?;
                     (_, cref) = PrefixUtil::prefixCref(FCore::emptyCache(), FGraph::empty(), emptyInstHierarchy().clone(), prefix.clone(), ComponentReferenceBasics::makeCrefIdent((name.clone()).clone(), DAE::T_UNKNOWN_DEFAULT().clone(), metamodelica::nil()))?;
                     if '__try0: {
-                        let _ = unwrap_break_err!(get(cref.clone(), ht.clone()), '__try0);
+                        unwrap_break_err!(get(cref.clone(), ht.clone()), '__try0);
                         Ok::<(), anyhow::Error>(())
                     }.is_ok() { bail!("failure(): body succeeded") }
                     instInner = lookupInnerInIH(inTIH.clone(), prefix.clone(), (name.clone()).clone())?;
@@ -702,10 +690,10 @@ fn lookupInnerInIH(mut inTIH: TopInstance, mut inPrefix: DAE::Prefix, mut inComp
 pub fn modificationOnOuter(mut cache: FCore::Cache, mut env: FCore::Graph, mut ih: InstHierarchy, mut prefix: DAE::Prefix, mut componentName: ArcStr, mut cr: Arc<DAE::ComponentRef>, mut inMod: Arc<DAE::Mod>, mut io: Absyn::InnerOuter, mut r#impl: bool, mut inInfo: SourceInfo) -> Result<bool> {
     let mut modd: bool = false;
     modd = 'mc: {
-        let __mc_input = (cache.clone(), env.clone(), ih.clone(), prefix.clone(), componentName.clone(), cr.clone(), inMod.clone(), io.clone(), r#impl.clone(), inInfo.clone());
+        let __mc_input = (inMod.clone(), io.clone());
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _, _, _, _, _, Deref @ DAE::Mod::MOD { .. }, Absyn::InnerOuter::OUTER, _, _) => {
+                (Deref @ DAE::Mod::MOD { .. }, Absyn::InnerOuter::OUTER) => {
                     let mut s1: ArcStr = arcstr::literal!("");
                     let mut s2: ArcStr = arcstr::literal!("");
                     let mut s: ArcStr = arcstr::literal!("");
@@ -756,9 +744,9 @@ pub fn switchInnerToOuterInGraph(mut inEnv: FCore::Graph, mut inCr: Arc<DAE::Com
 
 fn switchInnerToOuterInNode(mut inNode: FCore::Node, mut inCr: Arc<DAE::ComponentRef>) -> FCore::Node {
     let mut outNode: FCore::Node = inNode.clone();
-    let _ = (match outNode.clone() {
+    let () = (match outNode.clone() {
         FCore::Node { .. } => {
-            outNode.children = FNode::RefTree::map(outNode.children.clone(), { let __pe_b1 = inCr.clone(); move |__pe_a0, __pe_a2| switchInnerToOuterInChild(__pe_a0, __pe_b1.clone(), __pe_a2) }).unwrap();
+            outNode.children = FNode::RefTree::map(outNode.children.clone(), Arc::new({ let __pe_b1 = inCr.clone(); move |__pe_a0, __pe_a2| switchInnerToOuterInChild(__pe_a0, __pe_b1.clone(), __pe_a2) })).unwrap();
             ()
         },
         _ => (),
@@ -778,100 +766,88 @@ fn switchInnerToOuterInChild(mut name: ArcStr, mut cr: Arc<DAE::ComponentRef>, m
 fn switchInnerToOuterInChildrenValue(mut inNode: FCore::Node, mut inCr: Arc<DAE::ComponentRef>) -> Result<FCore::Node> {
     let mut outNode: FCore::Node = <FCore::Node as ::std::default::Default>::default();
     outNode = 'mc: {
-        let __mc_input = (inNode.clone(), inCr.clone());
+        let __mc_input = inNode.clone();
         if let Ok(__v) = (|| -> Result<_> {
-            ::match_deref::match_deref! { match &__mc_input {
-                (node, _) => {
-                    let mut r: metamodelica::Array<FCore::Node>;
-                    let mut name: ArcStr = arcstr::literal!("");
-                    let mut attributes: Arc<DAE::Attributes> = Arc::new(<DAE::Attributes as ::std::default::Default>::default());
-                    let mut visibility: SCode::Visibility = SCode::Visibility::PROTECTED;
-                    let mut ty: Arc<DAE::Type> = Arc::new(DAE::Type::T_NORETCALL);
-                    let mut binding: Arc<DAE::Binding> = Arc::new(DAE::Binding::UNBOUND);
-                    let mut bndsrc: bool = false;
-                    let mut ct: Arc<DAE::ConnectorType> = Arc::new(DAE::ConnectorType::FLOW);
-                    let mut parallelism: SCode::Parallelism = SCode::Parallelism::NON_PARALLEL;
-                    let mut variability: SCode::Variability = SCode::Variability::CONST;
-                    let mut direction: Absyn::Direction = Absyn::Direction::BIDIR;
-                    let mut cnstForRange: Option<DAE::Const> = None;
-                    r = FNode::childFromNode(node.clone(), (arcstr::literal!(FNode::itNodeName)).clone())?;
-                    let FCore::IT { i: __t6 } = (FNode::refData(r.clone())?) else { bail!("pattern mismatch") };
-                    let (__pa0, __pa1, __pa2, __pa3, __pa4, __pa5) = ::match_deref::match_deref! { match &(__t6.clone()) {
-                        Deref @ DAE::Var { name: __pa0, attributes: __pa1, ty: __pa2, binding: __pa3, bind_from_outside: __pa4, constOfForIteratorRange: __pa5 } => (__pa0.clone(), __pa1.clone(), __pa2.clone(), __pa3.clone(), __pa4.clone(), __pa5.clone()),
-                        _ => bail!("pattern mismatch"),
-                    } };
-                    name = __pa0.clone();
-                    attributes = __pa1.clone();
-                    ty = __pa2.clone();
-                    binding = __pa3.clone();
-                    bndsrc = __pa4.clone();
-                    cnstForRange = __pa5.clone();
-                    let (__pa7, __pa8, __pa9, __pa10, __pa11) = ::match_deref::match_deref! { match &(attributes.clone()) {
-                        Deref @ DAE::Attributes { connectorType: __pa7, parallelism: __pa8, variability: __pa9, direction: __pa10, innerOuter: Absyn::InnerOuter::INNER, visibility: __pa11 } => (__pa7.clone(), __pa8.clone(), __pa9.clone(), __pa10.clone(), __pa11.clone()),
-                        _ => bail!("pattern mismatch"),
-                    } };
-                    ct = __pa7.clone();
-                    parallelism = __pa8.clone();
-                    variability = __pa9.clone();
-                    direction = __pa10.clone();
-                    visibility = __pa11.clone();
-                    attributes = Arc::new(DAE::Attributes { connectorType: ct.clone(), parallelism: parallelism.clone(), variability: variability.clone(), direction: direction.clone(), innerOuter: openmodelica_ast::Absyn::InnerOuter::OUTER, visibility: visibility.clone() });
-                    r = FNode::updateRef(r.clone(), FNode::setData(FNode::fromRef(r.clone())?, FCore::Data::IT { i: Arc::new(DAE::Var { name: (name.clone()).clone(), attributes: attributes.clone(), ty: ty.clone(), binding: binding.clone(), bind_from_outside: bndsrc.clone(), constOfForIteratorRange: cnstForRange.clone() }) })?)?;
-                    Ok(node.clone())
-                }
-                _ => bail!("nomatch"),
-            }}
+            let mut node = __mc_input.clone() else { bail!("nomatch") };
+            let mut r: metamodelica::Array<FCore::Node>;
+            let mut name: ArcStr = arcstr::literal!("");
+            let mut attributes: Arc<DAE::Attributes> = Arc::new(<DAE::Attributes as ::std::default::Default>::default());
+            let mut visibility: SCode::Visibility = SCode::Visibility::PROTECTED;
+            let mut ty: Arc<DAE::Type> = Arc::new(DAE::Type::T_NORETCALL);
+            let mut binding: Arc<DAE::Binding> = Arc::new(DAE::Binding::UNBOUND);
+            let mut bndsrc: bool = false;
+            let mut ct: Arc<DAE::ConnectorType> = Arc::new(DAE::ConnectorType::FLOW);
+            let mut parallelism: SCode::Parallelism = SCode::Parallelism::NON_PARALLEL;
+            let mut variability: SCode::Variability = SCode::Variability::CONST;
+            let mut direction: Absyn::Direction = Absyn::Direction::BIDIR;
+            let mut cnstForRange: Option<DAE::Const> = None;
+            r = FNode::childFromNode(node.clone(), (arcstr::literal!(FNode::itNodeName)).clone())?;
+            let FCore::IT { i: __t6 } = (FNode::refData(r.clone())?) else { bail!("pattern mismatch") };
+            let (__pa0, __pa1, __pa2, __pa3, __pa4, __pa5) = ::match_deref::match_deref! { match &(__t6.clone()) {
+                Deref @ DAE::Var { name: __pa0, attributes: __pa1, ty: __pa2, binding: __pa3, bind_from_outside: __pa4, constOfForIteratorRange: __pa5 } => (__pa0.clone(), __pa1.clone(), __pa2.clone(), __pa3.clone(), __pa4.clone(), __pa5.clone()),
+                _ => bail!("pattern mismatch"),
+            } };
+            name = __pa0.clone();
+            attributes = __pa1.clone();
+            ty = __pa2.clone();
+            binding = __pa3.clone();
+            bndsrc = __pa4.clone();
+            cnstForRange = __pa5.clone();
+            let (__pa7, __pa8, __pa9, __pa10, __pa11) = ::match_deref::match_deref! { match &(attributes.clone()) {
+                Deref @ DAE::Attributes { connectorType: __pa7, parallelism: __pa8, variability: __pa9, direction: __pa10, innerOuter: Absyn::InnerOuter::INNER, visibility: __pa11 } => (__pa7.clone(), __pa8.clone(), __pa9.clone(), __pa10.clone(), __pa11.clone()),
+                _ => bail!("pattern mismatch"),
+            } };
+            ct = __pa7.clone();
+            parallelism = __pa8.clone();
+            variability = __pa9.clone();
+            direction = __pa10.clone();
+            visibility = __pa11.clone();
+            attributes = Arc::new(DAE::Attributes { connectorType: ct.clone(), parallelism: parallelism.clone(), variability: variability.clone(), direction: direction.clone(), innerOuter: openmodelica_ast::Absyn::InnerOuter::OUTER, visibility: visibility.clone() });
+            r = FNode::updateRef(r.clone(), FNode::setData(FNode::fromRef(r.clone())?, FCore::Data::IT { i: Arc::new(DAE::Var { name: (name.clone()).clone(), attributes: attributes.clone(), ty: ty.clone(), binding: binding.clone(), bind_from_outside: bndsrc.clone(), constOfForIteratorRange: cnstForRange.clone() }) })?)?;
+            Ok(node.clone())
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
-            ::match_deref::match_deref! { match &__mc_input {
-                (node, _) => {
-                    let mut r: metamodelica::Array<FCore::Node>;
-                    let mut name: ArcStr = arcstr::literal!("");
-                    let mut attributes: Arc<DAE::Attributes> = Arc::new(<DAE::Attributes as ::std::default::Default>::default());
-                    let mut visibility: SCode::Visibility = SCode::Visibility::PROTECTED;
-                    let mut ty: Arc<DAE::Type> = Arc::new(DAE::Type::T_NORETCALL);
-                    let mut binding: Arc<DAE::Binding> = Arc::new(DAE::Binding::UNBOUND);
-                    let mut bndsrc: bool = false;
-                    let mut ct: Arc<DAE::ConnectorType> = Arc::new(DAE::ConnectorType::FLOW);
-                    let mut parallelism: SCode::Parallelism = SCode::Parallelism::NON_PARALLEL;
-                    let mut variability: SCode::Variability = SCode::Variability::CONST;
-                    let mut direction: Absyn::Direction = Absyn::Direction::BIDIR;
-                    let mut cnstForRange: Option<DAE::Const> = None;
-                    r = FNode::childFromNode(node.clone(), (arcstr::literal!(FNode::itNodeName)).clone())?;
-                    let FCore::IT { i: __t6 } = (FNode::refData(r.clone())?) else { bail!("pattern mismatch") };
-                    let (__pa0, __pa1, __pa2, __pa3, __pa4, __pa5) = ::match_deref::match_deref! { match &(__t6.clone()) {
-                        Deref @ DAE::Var { name: __pa0, attributes: __pa1, ty: __pa2, binding: __pa3, bind_from_outside: __pa4, constOfForIteratorRange: __pa5 } => (__pa0.clone(), __pa1.clone(), __pa2.clone(), __pa3.clone(), __pa4.clone(), __pa5.clone()),
-                        _ => bail!("pattern mismatch"),
-                    } };
-                    name = __pa0.clone();
-                    attributes = __pa1.clone();
-                    ty = __pa2.clone();
-                    binding = __pa3.clone();
-                    bndsrc = __pa4.clone();
-                    cnstForRange = __pa5.clone();
-                    let (__pa7, __pa8, __pa9, __pa10, __pa11) = ::match_deref::match_deref! { match &(attributes.clone()) {
-                        Deref @ DAE::Attributes { connectorType: __pa7, parallelism: __pa8, variability: __pa9, direction: __pa10, innerOuter: Absyn::InnerOuter::INNER_OUTER, visibility: __pa11 } => (__pa7.clone(), __pa8.clone(), __pa9.clone(), __pa10.clone(), __pa11.clone()),
-                        _ => bail!("pattern mismatch"),
-                    } };
-                    ct = __pa7.clone();
-                    parallelism = __pa8.clone();
-                    variability = __pa9.clone();
-                    direction = __pa10.clone();
-                    visibility = __pa11.clone();
-                    attributes = Arc::new(DAE::Attributes { connectorType: ct.clone(), parallelism: parallelism.clone(), variability: variability.clone(), direction: direction.clone(), innerOuter: openmodelica_ast::Absyn::InnerOuter::OUTER, visibility: visibility.clone() });
-                    r = FNode::updateRef(r.clone(), FNode::setData(FNode::fromRef(r.clone())?, FCore::Data::IT { i: Arc::new(DAE::Var { name: (name.clone()).clone(), attributes: attributes.clone(), ty: ty.clone(), binding: binding.clone(), bind_from_outside: bndsrc.clone(), constOfForIteratorRange: cnstForRange.clone() }) })?)?;
-                    Ok(node.clone())
-                }
-                _ => bail!("nomatch"),
-            }}
+            let mut node = __mc_input.clone() else { bail!("nomatch") };
+            let mut r: metamodelica::Array<FCore::Node>;
+            let mut name: ArcStr = arcstr::literal!("");
+            let mut attributes: Arc<DAE::Attributes> = Arc::new(<DAE::Attributes as ::std::default::Default>::default());
+            let mut visibility: SCode::Visibility = SCode::Visibility::PROTECTED;
+            let mut ty: Arc<DAE::Type> = Arc::new(DAE::Type::T_NORETCALL);
+            let mut binding: Arc<DAE::Binding> = Arc::new(DAE::Binding::UNBOUND);
+            let mut bndsrc: bool = false;
+            let mut ct: Arc<DAE::ConnectorType> = Arc::new(DAE::ConnectorType::FLOW);
+            let mut parallelism: SCode::Parallelism = SCode::Parallelism::NON_PARALLEL;
+            let mut variability: SCode::Variability = SCode::Variability::CONST;
+            let mut direction: Absyn::Direction = Absyn::Direction::BIDIR;
+            let mut cnstForRange: Option<DAE::Const> = None;
+            r = FNode::childFromNode(node.clone(), (arcstr::literal!(FNode::itNodeName)).clone())?;
+            let FCore::IT { i: __t6 } = (FNode::refData(r.clone())?) else { bail!("pattern mismatch") };
+            let (__pa0, __pa1, __pa2, __pa3, __pa4, __pa5) = ::match_deref::match_deref! { match &(__t6.clone()) {
+                Deref @ DAE::Var { name: __pa0, attributes: __pa1, ty: __pa2, binding: __pa3, bind_from_outside: __pa4, constOfForIteratorRange: __pa5 } => (__pa0.clone(), __pa1.clone(), __pa2.clone(), __pa3.clone(), __pa4.clone(), __pa5.clone()),
+                _ => bail!("pattern mismatch"),
+            } };
+            name = __pa0.clone();
+            attributes = __pa1.clone();
+            ty = __pa2.clone();
+            binding = __pa3.clone();
+            bndsrc = __pa4.clone();
+            cnstForRange = __pa5.clone();
+            let (__pa7, __pa8, __pa9, __pa10, __pa11) = ::match_deref::match_deref! { match &(attributes.clone()) {
+                Deref @ DAE::Attributes { connectorType: __pa7, parallelism: __pa8, variability: __pa9, direction: __pa10, innerOuter: Absyn::InnerOuter::INNER_OUTER, visibility: __pa11 } => (__pa7.clone(), __pa8.clone(), __pa9.clone(), __pa10.clone(), __pa11.clone()),
+                _ => bail!("pattern mismatch"),
+            } };
+            ct = __pa7.clone();
+            parallelism = __pa8.clone();
+            variability = __pa9.clone();
+            direction = __pa10.clone();
+            visibility = __pa11.clone();
+            attributes = Arc::new(DAE::Attributes { connectorType: ct.clone(), parallelism: parallelism.clone(), variability: variability.clone(), direction: direction.clone(), innerOuter: openmodelica_ast::Absyn::InnerOuter::OUTER, visibility: visibility.clone() });
+            r = FNode::updateRef(r.clone(), FNode::setData(FNode::fromRef(r.clone())?, FCore::Data::IT { i: Arc::new(DAE::Var { name: (name.clone()).clone(), attributes: attributes.clone(), ty: ty.clone(), binding: binding.clone(), bind_from_outside: bndsrc.clone(), constOfForIteratorRange: cnstForRange.clone() }) })?)?;
+            Ok(node.clone())
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
-            ::match_deref::match_deref! { match &__mc_input {
-                (_, _) => {
-                    Ok(inNode.clone())
-                }
-                _ => bail!("nomatch"),
-            }}
+            let _ = __mc_input.clone() else { bail!("nomatch") };
+            Ok(inNode.clone())
         })() { break 'mc __v; }
         bail!("matchcontinue: no arm matched")
     };
@@ -891,10 +867,10 @@ fn emptyInstInner(mut innerPrefix: DAE::Prefix, mut name: ArcStr) -> InstInner {
 pub fn lookupInnerVar(mut inCache: Cache, mut inEnv: FCore::Graph, mut inIH: InstHierarchy, mut inPrefix: DAE::Prefix, mut inIdent: ArcStr, mut io: Absyn::InnerOuter) -> Result<InstInner> {
     let mut outInstInner: InstInner = <InstInner as ::std::default::Default>::default();
     outInstInner = 'mc: {
-        let __mc_input = (inCache.clone(), inEnv.clone(), inIH.clone(), inPrefix.clone(), inIdent.clone(), io.clone());
+        let __mc_input = (inIH.clone(), inPrefix.clone(), inIdent.clone());
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _, Deref @ metamodelica::List::Cons { head: tih, tail: _ }, pre, n, _) => {
+                (Deref @ metamodelica::List::Cons { head: tih, tail: _ }, pre, n) => {
                     let mut instInner: InstInner = <InstInner as ::std::default::Default>::default();
                     instInner = lookupInnerInIH(tih.clone(), pre.clone(), (n.clone()).clone())?;
                     Ok(instInner.clone())
@@ -904,7 +880,7 @@ pub fn lookupInnerVar(mut inCache: Cache, mut inEnv: FCore::Graph, mut inIH: Ins
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _, _, pre, n, _) => {
+                (_, pre, n) => {
                     let true = (Flags::isSet(Flags::FAILTRACE.clone())?) else { bail!("pattern mismatch") };
                     Debug::traceln(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("InnerOuter.lookupInnerVar failed on component: ")); __mm_s.push_str(&*PrefixUtil::printPrefixStr(pre.clone())?); __mm_s.push_str(&*literal!("/")); __mm_s.push_str(&*n.clone()); ArcStr::from(__mm_s) }).clone())?;
                     Ok(bail!("fail"))
@@ -921,8 +897,8 @@ pub fn lookupInnerVar(mut inCache: Cache, mut inEnv: FCore::Graph, mut inIH: Ins
 // and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
 pub fn updateInstHierarchy(mut inIH: InstHierarchy, mut inPrefix: DAE::Prefix, mut inInnerOuter: Absyn::InnerOuter, mut inInstInner: InstInner) -> Result<InstHierarchy> {
     let mut outIH: InstHierarchy = metamodelica::nil();
-    outIH = (::match_deref::match_deref! { match &((inIH.clone(), inPrefix.clone(), inInnerOuter.clone(), inInstInner.clone())) {
-        (Deref @ metamodelica::List::Nil, _, _, InstInner { .. }) => {
+    outIH = (::match_deref::match_deref! { match &((inIH.clone(), inInstInner.clone())) {
+        (Deref @ metamodelica::List::Nil, InstInner { .. }) => {
             let mut tih: TopInstance;
             let mut ih: InstHierarchy = metamodelica::nil();
             let mut ht: InstHierarchyHashTable = <InstHierarchyHashTable as ::std::default::Default>::default();
@@ -933,7 +909,7 @@ pub fn updateInstHierarchy(mut inIH: InstHierarchy, mut inPrefix: DAE::Prefix, m
             ih = updateInstHierarchy(list![tih.clone()], inPrefix.clone(), inInnerOuter.clone(), inInstInner.clone())?;
             ih.clone()
         },
-        (Deref @ metamodelica::List::Cons { head: TopInstance { path: pathOpt, ht, outerPrefixes, sm }, tail: restIH }, _, _, InstInner { name, .. }) => {
+        (Deref @ metamodelica::List::Cons { head: TopInstance { path: pathOpt, ht, outerPrefixes, sm }, tail: restIH }, InstInner { name, .. }) => {
             let mut cref: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
             let mut cref_: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
             let mut ht = (*ht).clone();
@@ -942,7 +918,7 @@ pub fn updateInstHierarchy(mut inIH: InstHierarchy, mut inPrefix: DAE::Prefix, m
             ht = add((cref.clone(), inInstInner.clone()), ht.clone())?;
             cons(TopInstance { path: pathOpt.clone(), ht: ht.clone(), outerPrefixes: outerPrefixes.clone(), sm: sm.clone() }, restIH.clone())
         },
-        (_, _, _, InstInner { .. }) => {
+        (_, InstInner { .. }) => {
             bail!("fail")
         },
         _ => bail!("match: no arm matched"),
@@ -984,10 +960,10 @@ pub fn updateSMHierarchy(mut smState: Arc<DAE::ComponentRef>, mut inIH: InstHier
 pub fn addClassIfInner(mut inClass: Arc<SCode::Element>, mut inPrefix: DAE::Prefix, mut inScope: FCore::Graph, mut inIH: InstHierarchy) -> Result<InstHierarchy> {
     let mut outIH: InstHierarchy = metamodelica::nil();
     outIH = 'mc: {
-        let __mc_input = (inClass.clone(), inPrefix.clone(), inScope.clone(), inIH.clone());
+        let __mc_input = inClass.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ SCode::Element::CLASS { prefixes: Deref @ SCode::Prefixes { innerOuter: io, .. }, name, .. }, _, _, _) => {
+                Deref @ SCode::Element::CLASS { prefixes: Deref @ SCode::Prefixes { innerOuter: io, .. }, name, .. } => {
                     let mut scopeName: ArcStr = arcstr::literal!("");
                     let mut outIH: Arc<metamodelica::List<TopInstance>> = outIH.clone();
                     let true = (AbsynUtil::isInner(io.clone())) else { bail!("pattern mismatch") };
@@ -1014,10 +990,10 @@ pub fn addClassIfInner(mut inClass: Arc<SCode::Element>, mut inPrefix: DAE::Pref
 pub fn addOuterPrefixToIH(mut inIH: InstHierarchy, mut inOuterComponentRef: Arc<DAE::ComponentRef>, mut inInnerComponentRef: Arc<DAE::ComponentRef>) -> Result<InstHierarchy> {
     let mut outIH: InstHierarchy = metamodelica::nil();
     outIH = 'mc: {
-        let __mc_input = (inIH.clone(), inOuterComponentRef.clone(), inInnerComponentRef.clone());
+        let __mc_input = inIH.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ metamodelica::List::Nil, _, _) => {
+                Deref @ metamodelica::List::Nil => {
                     let mut tih: TopInstance;
                     let mut ih: InstHierarchy = metamodelica::nil();
                     let mut ht: InstHierarchyHashTable = <InstHierarchyHashTable as ::std::default::Default>::default();
@@ -1033,7 +1009,7 @@ pub fn addOuterPrefixToIH(mut inIH: InstHierarchy, mut inOuterComponentRef: Arc<
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ metamodelica::List::Cons { head: TopInstance { path: pathOpt, ht, outerPrefixes, sm }, tail: restIH }, _, _) => {
+                Deref @ metamodelica::List::Cons { head: TopInstance { path: pathOpt, ht, outerPrefixes, sm }, tail: restIH } => {
                     let mut outerPrefixes = (*outerPrefixes).clone();
                     outerPrefixes = List::unionElt(OuterPrefix { outerComponentRef: ComponentReference::crefStripSubs(inOuterComponentRef.clone())?, innerComponentRef: inInnerComponentRef.clone() }, outerPrefixes.clone());
                     Ok(cons(TopInstance { path: pathOpt.clone(), ht: ht.clone(), outerPrefixes: outerPrefixes.clone(), sm: sm.clone() }, restIH.clone()))
@@ -1058,11 +1034,11 @@ pub fn addOuterPrefixToIH(mut inIH: InstHierarchy, mut inOuterComponentRef: Arc<
 
 pub fn prefixOuterCrefWithTheInnerPrefix(mut inIH: InstHierarchy, mut inOuterComponentRef: Arc<DAE::ComponentRef>, mut inPrefix: DAE::Prefix) -> Result<Arc<DAE::ComponentRef>> {
     let mut outInnerComponentRef: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
-    outInnerComponentRef = (::match_deref::match_deref! { match &((inIH.clone(), inOuterComponentRef.clone(), inPrefix.clone())) {
-        (Deref @ metamodelica::List::Nil, _, _) => {
+    outInnerComponentRef = (::match_deref::match_deref! { match &(inIH.clone()) {
+        Deref @ metamodelica::List::Nil => {
             bail!("fail")
         },
-        (Deref @ metamodelica::List::Cons { head: TopInstance { path: _, ht: _, outerPrefixes: outerPrefixes @ Deref @ metamodelica::List::Cons { head: _, tail: _ }, sm: _ }, tail: Deref @ metamodelica::List::Nil }, _, _) => {
+        Deref @ metamodelica::List::Cons { head: TopInstance { path: _, ht: _, outerPrefixes: outerPrefixes @ Deref @ metamodelica::List::Cons { head: _, tail: _ }, sm: _ }, tail: Deref @ metamodelica::List::Nil } => {
             let mut outerCrefPrefix: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
             let mut fullCref: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
             let mut innerCref: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
@@ -1111,7 +1087,6 @@ fn searchForInnerPrefix(mut fullCref: Arc<DAE::ComponentRef>, mut inOuterCref: A
     let mut outerCrefPrefix: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
     let mut innerCrefPrefix: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
     let mut cr: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
-    let mut id: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
     let mut b1: bool = false;
     let mut b2: bool = false;
     for mut op in &*outerPrefixes.clone() {
@@ -1126,7 +1101,7 @@ fn searchForInnerPrefix(mut fullCref: Arc<DAE::ComponentRef>, mut inOuterCref: A
         if b1.clone() || b2.clone() {
             let OuterPrefix { innerComponentRef: __pa1, .. } = (op.clone()) else { bail!("pattern mismatch") };
             innerCrefPrefix = __pa1.clone();
-            return Ok((outerCrefPrefix, innerCrefPrefix));
+            return Ok((outerCrefPrefix.clone(), innerCrefPrefix.clone()));
         }
     }
     bail!("fail");
@@ -1152,11 +1127,11 @@ fn printInnerDefStr(mut inInstInner: InstInner) -> Result<ArcStr> {
 
 pub fn getExistingInnerDeclarations(mut inIH: InstHierarchy, mut inEnv: FCore::Graph) -> Result<ArcStr> {
     let mut innerDeclarations: ArcStr = arcstr::literal!("");
-    innerDeclarations = ((::match_deref::match_deref! { match &((inIH.clone(), inEnv.clone())) {
-        (Deref @ metamodelica::List::Nil, _) => {
+    innerDeclarations = ((::match_deref::match_deref! { match &(inIH.clone()) {
+        Deref @ metamodelica::List::Nil => {
             { let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("There are no 'inner' components defined in the model in any of the parent scopes of 'outer' component's scope: ")); __mm_s.push_str(&*FGraph::printGraphPathStr(inEnv.clone())?); __mm_s.push_str(&*literal!(".")); ArcStr::from(__mm_s) }
         },
-        (Deref @ metamodelica::List::Cons { head: TopInstance { path: _, ht, outerPrefixes: _, sm: _ }, tail: _ }, _) => {
+        Deref @ metamodelica::List::Cons { head: TopInstance { path: _, ht, outerPrefixes: _, sm: _ }, tail: _ } => {
             let mut inners: Arc<metamodelica::List<InstInner>> = metamodelica::nil();
             let mut r#str: ArcStr = arcstr::literal!("");
             inners = getInnersFromInstHierarchyHashTable(ht.clone())?;
@@ -1270,7 +1245,6 @@ pub type VALUE_ARRAY = ValueArray;
 fn emptyInstHierarchyHashTable() -> InstHierarchyHashTable {
     let mut hashTable: InstHierarchyHashTable = <InstHierarchyHashTable as ::std::default::Default>::default();
     let mut arr: metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>;
-    let mut lst: Arc<metamodelica::List<Option<(Arc<DAE::ComponentRef>, InstInner)>>> = metamodelica::nil();
     let mut emptyarr: metamodelica::Array<Option<(Arc<DAE::ComponentRef>, InstInner)>>;
     arr = arrayCreate(1000, metamodelica::nil());
     emptyarr = arrayCreate(100, None);
@@ -1293,7 +1267,7 @@ fn add(mut entry: (Arc<DAE::ComponentRef>, InstInner), mut hashTable: InstHierar
                     let mut indexes: Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>> = metamodelica::nil();
                     let mut hashvec_1: metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>;
                     if '__try0: {
-                        let _ = unwrap_break_err!(get(key.clone(), hashTable.clone()), '__try0);
+                        unwrap_break_err!(get(key.clone(), hashTable.clone()), '__try0);
                         Ok::<(), anyhow::Error>(())
                     }.is_ok() { bail!("failure(): body succeeded") }
                     hval = hashFunc(key.clone())?;
@@ -1343,8 +1317,8 @@ pub fn get(mut key: Key, mut hashTable: InstHierarchyHashTable) -> Result<Value>
 fn get1(mut key: Key, mut hashTable: InstHierarchyHashTable) -> Result<(Value, i32)> {
     let mut value: Value = <InstInner as ::std::default::Default>::default();
     let mut indx: i32 = 0;
-    (value, indx) = (::match_deref::match_deref! { match &((key.clone(), hashTable.clone())) {
-        (_, InstHierarchyHashTable { hashTable: hashvec, valueArr: varr, bucketSize: bsize, numberOfEntries: _ }) => {
+    (value, indx) = (match hashTable.clone() {
+        InstHierarchyHashTable { hashTable: mut hashvec, valueArr: mut varr, bucketSize: mut bsize, numberOfEntries: _ } => {
             let mut hval: i32 = 0;
             let mut hashindx: i32 = 0;
             let mut indexes: Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>> = metamodelica::nil();
@@ -1359,17 +1333,17 @@ fn get1(mut key: Key, mut hashTable: InstHierarchyHashTable) -> Result<(Value, i
             (v.clone(), indx.clone())
         },
         _ => bail!("match: no arm matched"),
-    } });
+    });
     Ok((value, indx))
 }
 
 fn get2(mut key: Key, mut keyIndices: Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>) -> Result<i32> {
     let mut index: i32 = 0;
     index = 'mc: {
-        let __mc_input = (key.clone(), keyIndices.clone());
+        let __mc_input = keyIndices.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, Deref @ metamodelica::List::Cons { head: (key2, index), tail: _ }) => {
+                Deref @ metamodelica::List::Cons { head: (key2, index), tail: _ } => {
                     let true = (keyEqual(key.clone(), key2.clone())?) else { bail!("pattern mismatch") };
                     Ok(index.clone())
                 }
@@ -1378,7 +1352,7 @@ fn get2(mut key: Key, mut keyIndices: Arc<metamodelica::List<(Arc<DAE::Component
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, Deref @ metamodelica::List::Cons { head: _, tail: xs }) => {
+                Deref @ metamodelica::List::Cons { head: _, tail: xs } => {
                     let mut index: i32 = index.clone();
                     index = get2(key.clone(), xs.clone())?;
                     Ok(index.clone())
@@ -1492,53 +1466,41 @@ fn valueArrayLength(mut valueArray: ValueArray) -> Result<i32> {
 fn valueArrayAdd(mut valueArray: ValueArray, mut entry: (Arc<DAE::ComponentRef>, InstInner)) -> Result<ValueArray> {
     let mut outValueArray: ValueArray = <ValueArray as ::std::default::Default>::default();
     outValueArray = 'mc: {
-        let __mc_input = (valueArray.clone(), entry.clone());
+        let __mc_input = valueArray.clone();
         if let Ok(__v) = (|| -> Result<_> {
-            ::match_deref::match_deref! { match &__mc_input {
-                (ValueArray { valueArray: arr, numberOfElements: n }, _) => {
-                    if !((n.clone() < (arr.clone().borrow().len() as i32))) { bail!("guard") }
-                    let mut n_1: i32 = 0;
-                    let mut arr_1: metamodelica::Array<Option<(Arc<DAE::ComponentRef>, InstInner)>>;
-                    n_1 = n.clone() + 1;
-                    arr_1 = {let _arr = arr.clone(); _arr.borrow_mut()[(n.clone() + 1-1) as usize] = Some(entry.clone()); _arr};
-                    Ok(ValueArray { numberOfElements: n_1.clone(), valueArray: arr_1.clone() })
-                }
-                _ => bail!("nomatch"),
-            }}
+            let ValueArray { valueArray: mut arr, numberOfElements: mut n } = __mc_input.clone() else { bail!("nomatch") };
+            if !((n.clone() < (arr.clone().borrow().len() as i32))) { bail!("guard") }
+            let mut n_1: i32 = 0;
+            let mut arr_1: metamodelica::Array<Option<(Arc<DAE::ComponentRef>, InstInner)>>;
+            n_1 = n.clone() + 1;
+            arr_1 = {let _arr = arr.clone(); _arr.borrow_mut()[(n.clone() + 1-1) as usize] = Some(entry.clone()); _arr};
+            Ok(ValueArray { numberOfElements: n_1.clone(), valueArray: arr_1.clone() })
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
-            ::match_deref::match_deref! { match &__mc_input {
-                (ValueArray { valueArray: arr, numberOfElements: n }, _) => {
-                    if !((n.clone() < (arr.clone().borrow().len() as i32))) { bail!("guard") }
-                    let mut n_1: i32 = 0;
-                    let mut size: i32 = 0;
-                    let mut expandsize: i32 = 0;
-                    let mut expandsize_1: i32 = 0;
-                    let mut arr_1: metamodelica::Array<Option<(Arc<DAE::ComponentRef>, InstInner)>>;
-                    let mut arr_2: metamodelica::Array<Option<(Arc<DAE::ComponentRef>, InstInner)>>;
-                    let mut rsize: metamodelica::Real = metamodelica::OrderedFloat(0.0_f64);
-                    let mut rexpandsize: metamodelica::Real = metamodelica::OrderedFloat(0.0_f64);
-                    size = (arr.clone().borrow().len() as i32);
-                    rsize = intReal(size.clone());
-                    rexpandsize = rsize.clone() * metamodelica::OrderedFloat(0.4_f64);
-                    expandsize = ((rexpandsize.clone()).0 as i32);
-                    expandsize_1 = intMax(expandsize.clone(), 1);
-                    arr_1 = Array::expand(expandsize_1.clone(), arr.clone(), None)?;
-                    n_1 = n.clone() + 1;
-                    arr_2 = {let _arr = arr_1.clone(); _arr.borrow_mut()[(n.clone() + 1-1) as usize] = Some(entry.clone()); _arr};
-                    Ok(ValueArray { numberOfElements: n_1.clone(), valueArray: arr_2.clone() })
-                }
-                _ => bail!("nomatch"),
-            }}
+            let ValueArray { valueArray: mut arr, numberOfElements: mut n } = __mc_input.clone() else { bail!("nomatch") };
+            if !((n.clone() < (arr.clone().borrow().len() as i32))) { bail!("guard") }
+            let mut n_1: i32 = 0;
+            let mut size: i32 = 0;
+            let mut expandsize: i32 = 0;
+            let mut expandsize_1: i32 = 0;
+            let mut arr_1: metamodelica::Array<Option<(Arc<DAE::ComponentRef>, InstInner)>>;
+            let mut arr_2: metamodelica::Array<Option<(Arc<DAE::ComponentRef>, InstInner)>>;
+            let mut rsize: metamodelica::Real = metamodelica::OrderedFloat(0.0_f64);
+            let mut rexpandsize: metamodelica::Real = metamodelica::OrderedFloat(0.0_f64);
+            size = (arr.clone().borrow().len() as i32);
+            rsize = intReal(size.clone());
+            rexpandsize = rsize.clone() * metamodelica::OrderedFloat(0.4_f64);
+            expandsize = ((rexpandsize.clone()).0 as i32);
+            expandsize_1 = intMax(expandsize.clone(), 1);
+            arr_1 = Array::expand(expandsize_1.clone(), arr.clone(), None)?;
+            n_1 = n.clone() + 1;
+            arr_2 = {let _arr = arr_1.clone(); _arr.borrow_mut()[(n.clone() + 1-1) as usize] = Some(entry.clone()); _arr};
+            Ok(ValueArray { numberOfElements: n_1.clone(), valueArray: arr_2.clone() })
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
-            ::match_deref::match_deref! { match &__mc_input {
-                _ => {
-                    println!("{}", (literal!("-InstHierarchyHashTable.valueArrayAdd failed\n")).clone());
-                    Ok(bail!("fail"))
-                }
-                _ => bail!("nomatch"),
-            }}
+            let _ = __mc_input.clone() else { bail!("nomatch") };
+            println!("{}", (literal!("-InstHierarchyHashTable.valueArrayAdd failed\n")).clone());
+            Ok(bail!("fail"))
         })() { break 'mc __v; }
         bail!("matchcontinue: no arm matched")
     };
@@ -1548,25 +1510,17 @@ fn valueArrayAdd(mut valueArray: ValueArray, mut entry: (Arc<DAE::ComponentRef>,
 fn valueArraySetnth(mut valueArray: ValueArray, mut pos: i32, mut entry: (Arc<DAE::ComponentRef>, InstInner)) -> Result<ValueArray> {
     let mut outValueArray: ValueArray = <ValueArray as ::std::default::Default>::default();
     outValueArray = 'mc: {
-        let __mc_input = (valueArray.clone(), pos.clone(), entry.clone());
+        let __mc_input = valueArray.clone();
         if let Ok(__v) = (|| -> Result<_> {
-            ::match_deref::match_deref! { match &__mc_input {
-                (ValueArray { numberOfElements: _, valueArray: arr }, _, _) => {
-                    if !((pos.clone() < (arr.clone().borrow().len() as i32))) { bail!("guard") }
-                    {let _arr = arr.clone(); _arr.borrow_mut()[(pos.clone() + 1-1) as usize] = Some(entry.clone()); _arr};
-                    Ok(valueArray.clone())
-                }
-                _ => bail!("nomatch"),
-            }}
+            let ValueArray { numberOfElements: _, valueArray: mut arr } = __mc_input.clone() else { bail!("nomatch") };
+            if !((pos.clone() < (arr.clone().borrow().len() as i32))) { bail!("guard") }
+            {let _arr = arr.clone(); _arr.borrow_mut()[(pos.clone() + 1-1) as usize] = Some(entry.clone()); _arr};
+            Ok(valueArray.clone())
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
-            ::match_deref::match_deref! { match &__mc_input {
-                _ => {
-                    println!("{}", (literal!("-InstHierarchyHashTable.valueArraySetnth failed\n")).clone());
-                    Ok(bail!("fail"))
-                }
-                _ => bail!("nomatch"),
-            }}
+            let _ = __mc_input.clone() else { bail!("nomatch") };
+            println!("{}", (literal!("-InstHierarchyHashTable.valueArraySetnth failed\n")).clone());
+            Ok(bail!("fail"))
         })() { break 'mc __v; }
         bail!("matchcontinue: no arm matched")
     };
@@ -1576,9 +1530,9 @@ fn valueArraySetnth(mut valueArray: ValueArray, mut pos: i32, mut entry: (Arc<DA
 fn valueArrayClearnth(mut valueArray: ValueArray, mut pos: i32) -> Result<ValueArray> {
     let mut outValueArray: ValueArray = <ValueArray as ::std::default::Default>::default();
     outValueArray = 'mc: {
-        let __mc_input = (valueArray.clone(), pos.clone());
+        let __mc_input = valueArray.clone();
         if let Ok(__v) = (|| -> Result<_> {
-            let (ValueArray { numberOfElements: _, valueArray: mut arr }, _) = __mc_input.clone() else { bail!("nomatch") };
+            let ValueArray { numberOfElements: _, valueArray: mut arr } = __mc_input.clone() else { bail!("nomatch") };
             if !((pos.clone() < (arr.clone().borrow().len() as i32))) { bail!("guard") }
             {let _arr = arr.clone(); _arr.borrow_mut()[(pos.clone() + 1-1) as usize] = None; _arr};
             Ok(valueArray.clone())
@@ -1596,8 +1550,8 @@ fn valueArrayClearnth(mut valueArray: ValueArray, mut pos: i32) -> Result<ValueA
 fn valueArrayNth(mut valueArray: ValueArray, mut pos: i32) -> Result<(Key, Value)> {
     let mut key: Key = Arc::new(DAE::ComponentRef::WILD);
     let mut value: Value = <InstInner as ::std::default::Default>::default();
-    (key, value) = (match (valueArray.clone(), pos.clone()) {
-        (ValueArray { valueArray: mut arr, numberOfElements: mut n }, _) => {
+    (key, value) = (match valueArray.clone() {
+        ValueArray { valueArray: mut arr, numberOfElements: mut n } => {
             let mut k: Key = Arc::new(DAE::ComponentRef::WILD);
             let mut v: Value = <InstInner as ::std::default::Default>::default();
             let true = (pos.clone() < n.clone()) else { bail!("pattern mismatch") };

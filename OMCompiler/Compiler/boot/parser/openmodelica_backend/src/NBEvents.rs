@@ -224,7 +224,6 @@ pub mod EventInfo {
         let mut new_stmt: Arc<Statement::NFStatement>;
         let mut cond: Arc<Condition::Condition> = Arc::new(<Condition::Condition as ::std::default::Default>::default());
         let mut aux: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
-        let mut lhs_cref: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
         if Util::isSome(bucket.aux_stmts.clone()) {
             for mut tpl in &*Util::getOption(bucket.aux_stmts.clone())? {
                 let mut tpl = tpl.clone();
@@ -259,23 +258,23 @@ pub mod EventInfo {
         let mut cev_lst: Arc<metamodelica::List<(Arc<Condition::Condition>, Arc<CompositeEvent::CompositeEvent>)>> = metamodelica::nil();
         let mut sev_lst: Arc<metamodelica::List<(Arc<Condition::Condition>, Arc<StateEvent::StateEvent>)>> = metamodelica::nil();
         (tev_lst, cev_lst, sev_lst) = toLists(eventInfo.clone())?;
-        zeroCrossings = {
+        zeroCrossings = ({
         let mut __acc: Arc<metamodelica::List<OldBackendDAE::ZeroCrossing>> = metamodelica::nil();
         for mut sev_tpl in (sev_lst.clone()).into_iter().cloned() {
             let __x = StateEvent::convert(sev_tpl.clone(), equation_map.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
         relations = zeroCrossings.clone();
-        timeEvents = {
+        timeEvents = ({
         let mut __acc: Arc<metamodelica::List<OldBackendDAE::TimeEvent>> = metamodelica::nil();
         for mut tev in (tev_lst.clone()).into_iter().cloned() {
             let __x = TimeEvent::convert(tev.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
         Ok((zeroCrossings, relations, timeEvents))
     }
 
@@ -334,14 +333,14 @@ pub mod TimeEvent {
         if events_lst.clone().is_empty() {
             r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*r#str.clone()); __mm_s.push_str(&*literal!("\t<No Time Events>\n")); ArcStr::from(__mm_s) }).clone();
         } else {
-            r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*r#str.clone()); __mm_s.push_str(&*stringDelimitList({
+            r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*r#str.clone()); __mm_s.push_str(&*stringDelimitList(({
         let mut __acc: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
         for mut te in (events_lst.clone()).into_iter().cloned() {
             let __x = toString(te.clone(), true)?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, (literal!("\n")).clone())); ArcStr::from(__mm_s) }).clone();
+    }), (literal!("\n")).clone())); ArcStr::from(__mm_s) }).clone();
         }
         Ok(r#str)
     }
@@ -421,7 +420,7 @@ pub mod TimeEvent {
             let mut new_exp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut timeEvent: Arc<TimeEvent>;
             tmpEqn = Pointer::access(BEquation::Equation::makeAssignment(var_field!((*exp).exp1, Expression::NFExpression::RELATION).clone(), var_field!((*exp).exp2, Expression::NFExpression::RELATION).clone(), Pointer::create(0), (arcstr::literal!(BVariable::TEMPORARY_STR)).clone(), Arc::new(crate::NBEquation::Iterator::EMPTY), BEquation::default(EquationKind::UNKNOWN.clone(), false, None, None))?);
-            let _ = BEquation::Equation::map(tmpEqn.clone(), Arc::new({ let __pe_b1 = containsTime.clone(); move |__pe_a0| Ok(containsTimeTraverseExp(__pe_a0, __pe_b1.clone())) }), Some({ let __pe_b1 = containsTime.clone(); move |__pe_a0| Ok(containsTimeTraverseCref(__pe_a0, __pe_b1.clone())) }), (std::sync::Arc::new(Expression::map) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>>) -> Result<Arc<Expression::NFExpression>> + 'static>))?;
+            BEquation::Equation::map(tmpEqn.clone(), Arc::new({ let __pe_b1 = containsTime.clone(); move |__pe_a0| Ok(containsTimeTraverseExp(__pe_a0, __pe_b1.clone())) }), Some(Arc::new({ let __pe_b1 = containsTime.clone(); move |__pe_a0| Ok(containsTimeTraverseCref(__pe_a0, __pe_b1.clone())) })), (std::sync::Arc::new(Expression::map) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>>) -> Result<Arc<Expression::NFExpression>> + 'static>))?;
             if Pointer::access(containsTime.clone()) {
                 (tmpEqn, status, invert) = Solve::solveBody(tmpEqn.clone(), Builtin::TIME_CREF().clone(), funcMap.clone())?;
                 if status.clone() == Solve::Status::EXPLICIT.clone() && invert.clone() != Solve::RelationInversion::UNKNOWN.clone() {
@@ -598,14 +597,14 @@ pub mod StateEvent {
         if events_lst.clone().is_empty() {
             r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*r#str.clone()); __mm_s.push_str(&*literal!("\t<No State Events>\n")); ArcStr::from(__mm_s) }).clone();
         } else {
-            r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*r#str.clone()); __mm_s.push_str(&*stringDelimitList({
+            r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*r#str.clone()); __mm_s.push_str(&*stringDelimitList(({
         let mut __acc: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
         for mut te in (events_lst.clone()).into_iter().cloned() {
             let __x = toString(te.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }, (literal!("\n")).clone())); ArcStr::from(__mm_s) }).clone();
+    }), (literal!("\n")).clone())); ArcStr::from(__mm_s) }).clone();
         }
         r#str
     }
@@ -703,15 +702,15 @@ pub mod StateEvent {
         let mut eqn_names: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = metamodelica::nil();
         let mut eqn_indices: Arc<metamodelica::List<i32>> = metamodelica::nil();
         (cond, sev) = sev_tpl.clone();
-        iter = if (BEquation::Iterator::isEmpty(cond.iter.clone())) {None} else {Some({
+        iter = if (BEquation::Iterator::isEmpty(cond.iter.clone())) {None} else {Some(({
         let mut __acc: Arc<metamodelica::List<OldSimIterator>> = metamodelica::nil();
         for mut it in (SimIterator::fromIterator(cond.iter.clone())?).into_iter().cloned() {
             let __x = SimIterator::convert(it.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    })};
-        eqn_names = {
+    }))};
+        eqn_names = ({
         let mut __acc: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = metamodelica::nil();
         for mut eqn in (UnorderedSet::toList(sev.eqns.clone())).into_iter().cloned() {
             if !(!(BEquation::Equation::isDummy(Pointer::access(eqn.clone())))) { continue; }
@@ -719,8 +718,8 @@ pub mod StateEvent {
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
-        eqn_indices = {
+    });
+        eqn_indices = ({
         let mut __acc: Arc<metamodelica::List<i32>> = metamodelica::nil();
         for mut name in (eqn_names.clone()).into_iter().cloned() {
             if !(UnorderedMap::contains(name.clone(), equation_map.clone())) { continue; }
@@ -728,7 +727,7 @@ pub mod StateEvent {
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
         oldZc = OldBackendDAE::ZeroCrossing { iter: iter.clone(), occurEquLst: eqn_indices.clone(), relation_: Expression::toDAE(cond.exp.clone(), false)?, index: sev.index.clone() };
         Ok(oldZc)
     }
@@ -773,8 +772,6 @@ pub mod CompositeEvent {
         let mut exp: Arc<Expression::NFExpression> = exp;
         let mut bucket: Arc<Bucket> = bucket;
         let mut failed: bool = false;
-        let mut aux_var: Pointer::Pointer<Arc<Variable::NFVariable>>;
-        let mut aux_cref: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
         (exp, bucket, failed) = (::match_deref::match_deref! { match &(exp.clone()) {
         Deref @ Expression::LBINARY { operator: Deref @ Operator::OPERATOR { op: Operator::Op::AND, .. }, exp1: exp1 @ Deref @ Expression::CALL { call }, .. } if (BackendUtil::isOnlyTimeDependent(exp1.clone())?) => {
             let mut exp2: Arc<Expression::NFExpression> = Arc::new(Expression::END);
@@ -1008,14 +1005,14 @@ fn collectEvents(mut eqn_ptr: Pointer::Pointer<Arc<Equation::Equation>>, mut buc
             assign_field!(alg.statements = new_stmts.clone().reverse());
             assign_variant_field!(eqn => Equation::Equation::ALGORITHM;
                 alg = Algorithm::setInputsOutputs(alg.clone())?,
-                size = {
+                size = ({
         let mut __acc: i32 = 0;
         for mut out in (var_field!((*eqn).alg, Equation::Equation::ALGORITHM).outputs.clone()).into_iter().cloned() {
             let __x = ComponentRef::size(out.clone(), true, false);
             __acc += __x;
         }
         __acc
-    }
+    })
             );
             eqn.clone()
         },
@@ -1051,7 +1048,7 @@ fn collectEventsTraverse(mut exp: Arc<Expression::NFExpression>, mut bucket_ptr:
             Pointer::update(bucket_ptr.clone(), bucket.clone());
             exp.clone()
         },
-        Deref @ Expression::LBINARY { .. } => {
+        Deref @ Expression::LBINARY { .. } if (Expression::fold(exp.clone(), (std::sync::Arc::new(fnptr!(containsRelation, Arc<Expression::NFExpression>, bool)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, bool) -> Result<bool> + 'static>), false)?) => {
             let mut bucket: Arc<Bucket> = Arc::new(<Bucket as ::std::default::Default>::default());
             (exp, bucket) = collectEventsCondition(exp.clone(), Pointer::access(bucket_ptr.clone()), iter.clone(), eqn.clone(), funcMap.clone(), createEqn.clone())?;
             Pointer::update(bucket_ptr.clone(), bucket.clone());
@@ -1090,14 +1087,14 @@ fn collectEventsTraverse(mut exp: Arc<Expression::NFExpression>, mut bucket_ptr:
         Deref @ Expression::CALL { call: call @ Deref @ Call::TYPED_REDUCTION { .. } } => {
             let mut new_frames: Arc<metamodelica::List<(Arc<ComponentRef::NFComponentRef>, Arc<Expression::NFExpression>, Option<Arc<Iterator::Iterator>>)>> = metamodelica::nil();
             let mut call = (*call).clone();
-            new_frames = {
+            new_frames = ({
         let mut __acc: Arc<metamodelica::List<(Arc<ComponentRef::NFComponentRef>, Arc<Expression::NFExpression>, Option<_>)>> = metamodelica::nil();
         for mut tpl in (var_field!((*call).iters, Call::NFCall::TYPED_REDUCTION).clone()).into_iter().cloned() {
             let __x = (ComponentRef::fromNode(Util::tuple21(tpl.clone()), Arc::new(openmodelica_nf_frontend::NFType::INTEGER), metamodelica::nil(), ComponentRef::Origin::CREF.clone()), Util::tuple22(tpl.clone()), None);
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
             assign_variant_field!(call => Call::NFCall::TYPED_REDUCTION; exp = collectEventsTraverse(var_field!((*call).exp, Call::NFCall::TYPED_REDUCTION).clone(), bucket_ptr.clone(), BEquation::Iterator::addFrames(iter.clone(), new_frames.clone())?, eqn.clone(), funcMap.clone(), createEqn.clone())?);
             assign_variant_field!(exp => Expression::NFExpression::CALL; call = call.clone());
             exp.clone()
@@ -1145,5 +1142,13 @@ fn containsTimeTraverseCref(mut cref: Arc<ComponentRef::NFComponentRef>, mut b: 
         Pointer::update(b.clone(), true);
     }
     cref
+}
+
+fn containsRelation(mut exp: Arc<Expression::NFExpression>, mut b: bool) -> bool {
+    let mut b: bool = b;
+    if !(b.clone()) {
+        b = Expression::isRelation(exp.clone());
+    }
+    b
 }
 

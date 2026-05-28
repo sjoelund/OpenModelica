@@ -79,15 +79,15 @@ use openmodelica_util_datatypes_basic::List;
 // public imports
 // protected imports
 pub fn dump(mut dae: DAE::DAElist, mut functionTree: Arc<AvlTreePathFunction::Tree>) -> Result<()> {
-    let _ = (::match_deref::match_deref! { match &((dae.clone(), functionTree.clone())) {
-        (DAE::DAElist { elementLst: daelist }, _) => {
+    let () = (match dae.clone() {
+        DAE::DAElist { elementLst: ref daelist } => {
             List::map_0(sortFunctions(DAEUtil::getFunctionList(functionTree.clone(), false)?)?, (std::sync::Arc::new(dumpFunction) as std::sync::Arc<dyn ::std::ops::Fn(DAE::Function) -> Result<()> + 'static>));
             List::map_0(daelist.clone(), (std::sync::Arc::new(dumpExtObjectClass) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Element>) -> Result<()> + 'static>));
             List::map_0(daelist.clone(), (std::sync::Arc::new(dumpCompElement) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Element>) -> Result<()> + 'static>));
             ()
         },
         _ => bail!("match: no arm matched"),
-    } });
+    });
     Ok(())
 }
 
@@ -131,9 +131,9 @@ fn sortFunctions(mut funcs: Arc<metamodelica::List<DAE::Function>>) -> Result<Ar
 fn funcGreaterThan(mut func1: DAE::Function, mut func2: DAE::Function) -> Result<bool> {
     let mut res: bool = false;
     res = 'mc: {
-        let __mc_input = (func1.clone(), func2.clone());
+        let __mc_input = func2.clone();
         if let Ok(__v) = (|| -> Result<_> {
-            let (_, _) = __mc_input.clone() else { bail!("nomatch") };
+            let _ = __mc_input.clone() else { bail!("nomatch") };
             let mut res: bool = res.clone();
             res = stringCompare((functionNameStr(func1.clone())?).clone(), (functionNameStr(func2.clone())?).clone()) > 0;
             Ok(res.clone())
@@ -360,7 +360,7 @@ pub fn dumpOperatorSymbol(mut op: DAE::Operator) -> Result<ArcStr> {
 }
 
 fn dumpStartValue(mut inStartValue: Option<Arc<DAE::Exp>>) -> Result<()> {
-    let _ = 'mc: {
+    let () = 'mc: {
         let __mc_input = inStartValue.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
@@ -464,7 +464,7 @@ pub fn dumpExtArgStr(mut inExtArg: DAE::ExtArg) -> Result<ArcStr> {
 }
 
 fn dumpCompElement(mut inElement: Arc<DAE::Element>) -> Result<()> {
-    let _ = 'mc: {
+    let () = 'mc: {
         let __mc_input = inElement.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
@@ -525,7 +525,7 @@ fn dumpVars(mut lst: Arc<metamodelica::List<Arc<DAE::Element>>>, mut printTypeDi
 }
 
 fn dumpKind(mut inVarKind: DAE::VarKind) -> Result<()> {
-    let _ = (match inVarKind.clone() {
+    let () = (match inVarKind.clone() {
         DAE::VarKind::CONST => {
             Print::printBuf((literal!(" constant  ")).clone())?;
             ()
@@ -560,7 +560,7 @@ pub fn dumpKindStr(mut inVarKind: DAE::VarKind) -> Result<ArcStr> {
 }
 
 fn dumpDirection(mut inVarDirection: DAE::VarDirection) -> Result<()> {
-    let _ = (match inVarDirection.clone() {
+    let () = (match inVarDirection.clone() {
         DAE::VarDirection::INPUT => {
             Print::printBuf((literal!(" input  ")).clone())?;
             ()
@@ -579,7 +579,7 @@ fn dumpDirection(mut inVarDirection: DAE::VarDirection) -> Result<()> {
 }
 
 fn dumpParallelism(mut inVarParallelism: DAE::VarParallelism) -> Result<()> {
-    let _ = (match inVarParallelism.clone() {
+    let () = (match inVarParallelism.clone() {
         DAE::VarParallelism::NON_PARALLEL => {
             Print::printBuf((literal!("        ")).clone())?;
             ()
@@ -859,7 +859,7 @@ fn dumpCommentOption(mut comment: Option<Arc<SCode::Comment>>) -> Result<()> {
 }
 
 fn dumpEquation(mut inElement: Arc<DAE::Element>) -> Result<()> {
-    let _ = 'mc: {
+    let () = 'mc: {
         let __mc_input = inElement.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
@@ -986,7 +986,7 @@ fn dumpEquation(mut inElement: Arc<DAE::Element>) -> Result<()> {
 }
 
 fn dumpInitialEquation(mut inElement: Arc<DAE::Element>) -> Result<()> {
-    let _ = 'mc: {
+    let () = 'mc: {
         let __mc_input = inElement.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
@@ -1283,7 +1283,7 @@ pub fn dumpEquationStr(mut inElement: Arc<DAE::Element>) -> Result<ArcStr> {
 }
 
 pub fn dumpAlgorithm(mut inElement: Arc<DAE::Element>) -> Result<()> {
-    let _ = 'mc: {
+    let () = 'mc: {
         let __mc_input = inElement.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
@@ -1309,7 +1309,7 @@ pub fn dumpAlgorithm(mut inElement: Arc<DAE::Element>) -> Result<()> {
 }
 
 fn dumpInitialAlgorithm(mut inElement: Arc<DAE::Element>) -> Result<()> {
-    let _ = 'mc: {
+    let () = 'mc: {
         let __mc_input = inElement.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
@@ -1335,7 +1335,7 @@ fn dumpInitialAlgorithm(mut inElement: Arc<DAE::Element>) -> Result<()> {
 }
 
 fn dumpExtObjectClass(mut inElement: Arc<DAE::Element>) -> Result<()> {
-    let _ = 'mc: {
+    let () = 'mc: {
         let __mc_input = inElement.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
@@ -1382,7 +1382,7 @@ pub fn derivativeCondStr(mut dc: DAE::derivativeCond) -> Result<ArcStr> {
 }
 
 fn dumpFunction(mut inElement: DAE::Function) -> Result<()> {
-    let _ = 'mc: {
+    let () = 'mc: {
         let __mc_input = inElement.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
@@ -1611,7 +1611,7 @@ pub fn ppStatementStr(mut alg: Arc<DAE::Statement>) -> Result<ArcStr> {
 }
 
 fn ppStmt(mut inStatement: Arc<DAE::Statement>, mut inInteger: i32) -> Result<()> {
-    let _ = 'mc: {
+    let () = 'mc: {
         let __mc_input = (inStatement.clone(), inInteger.clone());
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
@@ -1738,7 +1738,7 @@ fn ppStmt(mut inStatement: Arc<DAE::Statement>, mut inInteger: i32) -> Result<()
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ DAE::Statement::STMT_NORETCALL { exp: e1, .. }, i) => {
                     indent(i.clone())?;
-                    let _ = (::match_deref::match_deref! { match &(e1.clone()) {
+                    let () = (::match_deref::match_deref! { match &(e1.clone()) {
         Deref @ DAE::Exp::CALL { attr: Deref @ DAE::CallAttributes { tailCall: DAE::TailCall::TAIL { .. }, .. }, .. } => {
                     Print::printBuf((literal!("return ")).clone())?;
                     ()
@@ -2208,7 +2208,7 @@ pub fn ppStmtStr(mut inStatement: Arc<DAE::Statement>, mut inInteger: i32) -> Re
 }
 
 fn ppStmtList(mut inAlgorithmStatementLst: Arc<metamodelica::List<Arc<DAE::Statement>>>, mut inInteger: i32) -> Result<()> {
-    let _ = (::match_deref::match_deref! { match &((inAlgorithmStatementLst.clone(), inInteger.clone())) {
+    let () = (::match_deref::match_deref! { match &((inAlgorithmStatementLst.clone(), inInteger.clone())) {
         (Deref @ metamodelica::List::Nil, _) => {
             ()
         },
@@ -2243,7 +2243,7 @@ pub fn ppStmtListStr(mut inAlgorithmStatementLst: Arc<metamodelica::List<Arc<DAE
 }
 
 fn ppElse(mut inElse: Arc<DAE::Else>, mut inInteger: i32) -> Result<()> {
-    let _ = (::match_deref::match_deref! { match &((inElse.clone(), inInteger.clone())) {
+    let () = (::match_deref::match_deref! { match &((inElse.clone(), inInteger.clone())) {
         (Deref @ DAE::Else::NOELSE, _) => {
             ()
         },
@@ -2319,7 +2319,7 @@ fn ppElseStr(mut inElse: Arc<DAE::Else>, mut inInteger: i32) -> Result<ArcStr> {
 }
 
 fn indent(mut inInteger: i32) -> Result<()> {
-    let _ = 'mc: {
+    let () = 'mc: {
         let __mc_input = inInteger.clone();
         if let Ok(__v) = (|| -> Result<_> {
             let 0 = __mc_input.clone() else { bail!("nomatch") };
@@ -2362,7 +2362,7 @@ fn indentStr(mut inInteger: i32) -> Result<ArcStr> {
 }
 
 pub fn dumpDebug(mut inDAElist: DAE::DAElist) -> Result<()> {
-    let _ = (match inDAElist.clone() {
+    let () = (match inDAElist.clone() {
         DAE::DAElist { elementLst: ref elist } => {
             Print::printBuf((literal!("DAE(")).clone())?;
             dumpDebugElist(elist.clone())?;
@@ -2375,7 +2375,7 @@ pub fn dumpDebug(mut inDAElist: DAE::DAElist) -> Result<()> {
 }
 
 fn dumpDebugElist(mut inElementLst: Arc<metamodelica::List<Arc<DAE::Element>>>) -> Result<()> {
-    let _ = (::match_deref::match_deref! { match &(inElementLst.clone()) {
+    let () = (::match_deref::match_deref! { match &(inElementLst.clone()) {
         Deref @ metamodelica::List::Nil => {
             ()
         },
@@ -2405,7 +2405,7 @@ pub fn dumpDebugDAE(mut dae: DAE::DAElist) -> Result<ArcStr> {
 }
 
 pub fn dumpDebugElement(mut inElement: Arc<DAE::Element>) -> Result<()> {
-    let _ = 'mc: {
+    let () = 'mc: {
         let __mc_input = inElement.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
@@ -3159,10 +3159,9 @@ pub fn dumpConstraintsStr(mut constrs: Arc<metamodelica::List<Arc<DAE::Element>>
 /* *********** IOStream based implementation ***************/
 pub fn dumpStream(mut dae: DAE::DAElist, mut functionTree: Arc<AvlTreePathFunction::Tree>, mut inStream: IOStream::IOStream) -> Result<IOStream::IOStream> {
     let mut outStream: IOStream::IOStream = <IOStream::IOStream as ::std::default::Default>::default();
-    outStream = (::match_deref::match_deref! { match &((dae.clone(), functionTree.clone(), inStream.clone())) {
-        (DAE::DAElist { elementLst: daelist }, _, r#str) => {
+    outStream = (match (dae.clone(), inStream.clone()) {
+        (DAE::DAElist { elementLst: ref daelist }, mut r#str) => {
             let mut funcs: Arc<metamodelica::List<DAE::Function>> = metamodelica::nil();
-            let mut r#str = (*r#str).clone();
             funcs = DAEUtil::getFunctionList(functionTree.clone(), false)?;
             funcs = sortFunctions(funcs.clone())?;
             r#str = List::fold(funcs.clone(), (std::sync::Arc::new(dumpFunctionStream) as std::sync::Arc<dyn ::std::ops::Fn(DAE::Function, IOStream::IOStream) -> Result<IOStream::IOStream> + 'static>), r#str.clone());
@@ -3171,7 +3170,7 @@ pub fn dumpStream(mut dae: DAE::DAElist, mut functionTree: Arc<AvlTreePathFuncti
             r#str.clone()
         },
         _ => bail!("match: no arm matched"),
-    } });
+    });
     Ok(outStream)
 }
 
@@ -3257,8 +3256,8 @@ fn dumpCompElementStream(mut inElement: Arc<DAE::Element>, mut inStream: IOStrea
 
 pub fn dumpElementsStream(mut l: Arc<metamodelica::List<Arc<DAE::Element>>>, mut inStream: IOStream::IOStream) -> Result<IOStream::IOStream> {
     let mut outStream: IOStream::IOStream = <IOStream::IOStream as ::std::default::Default>::default();
-    outStream = (::match_deref::match_deref! { match &((l.clone(), inStream.clone())) {
-        (_, r#str) => {
+    outStream = (match inStream.clone() {
+        mut r#str => {
             let mut v: Arc<metamodelica::List<Arc<DAE::Element>>> = metamodelica::nil();
             let mut ie: Arc<metamodelica::List<Arc<DAE::Element>>> = metamodelica::nil();
             let mut ia: Arc<metamodelica::List<Arc<DAE::Element>>> = metamodelica::nil();
@@ -3268,7 +3267,6 @@ pub fn dumpElementsStream(mut l: Arc<metamodelica::List<Arc<DAE::Element>>>, mut
             let mut sm: Arc<metamodelica::List<Arc<DAEDumpTypes::compWithSplitElements>>> = metamodelica::nil();
             let mut comments: Arc<metamodelica::List<Arc<SCode::Comment>>> = metamodelica::nil();
             let mut ann: Option<Arc<SCode::Annotation>> = None;
-            let mut r#str = (*r#str).clone();
             (v, ie, ia, e, a, _, co, _, sm, comments) = DAEUtil::splitElements(l.clone())?;
             r#str = dumpCompWithSplitElementsStream(sm.clone(), r#str.clone())?;
             r#str = dumpVarsStream(v.clone(), false, r#str.clone())?;
@@ -3280,7 +3278,7 @@ pub fn dumpElementsStream(mut l: Arc<metamodelica::List<Arc<DAE::Element>>>, mut
             r#str = dumpAlgorithmsStream(a.clone(), r#str.clone())?;
             r#str = IOStream::append(r#str.clone(), (if (co.clone().is_empty()) {literal!("")} else {literal!("constraint\n")}).clone())?;
             r#str = dumpConstraintStream(co.clone(), r#str.clone())?;
-            r#str = IOStream::append(r#str.clone(), stringAppendList({
+            r#str = IOStream::append(r#str.clone(), stringAppendList(({
         let mut __acc: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
         for mut cmt in (comments.clone()).into_iter().cloned() {
             let __x = (::match_deref::match_deref! { match &(cmt.clone()) {
@@ -3291,11 +3289,10 @@ pub fn dumpElementsStream(mut l: Arc<metamodelica::List<Arc<DAE::Element>>>, mut
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }))?;
+    })))?;
             r#str.clone()
         },
-        _ => unreachable!("match_deref! exhaustiveness placeholder"),
-    } });
+    });
     Ok(outStream)
 }
 
@@ -3538,7 +3535,7 @@ fn dumpEquationsStream(mut inElementLst: Arc<metamodelica::List<Arc<DAE::Element
         (Deref @ metamodelica::List::Cons { head: Deref @ DAE::Element::FOR_EQUATION { source: src, equations: xs1, range: e1, iter: s, .. }, tail: xs }, r#str) => {
             let mut s1: ArcStr = arcstr::literal!("");
             let mut r#str = (*r#str).clone();
-            let _ = getSourceInformationStr(src.clone())?;
+            getSourceInformationStr(src.clone())?;
             s1 = (ExpressionBasics::printExpStr(e1.clone())?).clone();
             r#str = IOStream::appendList(r#str.clone(), list![(literal!("  for ")).clone(), (s.clone()).clone(), (literal!(" in ")).clone(), (s1.clone()).clone(), (literal!(" loop\n")).clone()]);
             r#str = dumpEquationsStream(xs1.clone(), r#str.clone())?;
@@ -3580,7 +3577,7 @@ fn dumpEquationsStream(mut inElementLst: Arc<metamodelica::List<Arc<DAE::Element
         },
         (Deref @ metamodelica::List::Cons { head: Deref @ DAE::Element::WHEN_EQUATION { source: src, elsewhen_: Some(el), equations: xs1, condition: e }, tail: xs }, r#str) => {
             let mut r#str = (*r#str).clone();
-            let _ = getSourceInformationStr(src.clone())?;
+            getSourceInformationStr(src.clone())?;
             r#str = IOStream::append(r#str.clone(), (literal!("when ")).clone())?;
             r#str = IOStream::append(r#str.clone(), (ExpressionBasics::printExpStr(e.clone())?).clone())?;
             r#str = IOStream::append(r#str.clone(), (literal!(" then\n")).clone())?;
@@ -3735,7 +3732,7 @@ fn dumpInitialEquationsStream(mut inElementLst: Arc<metamodelica::List<Arc<DAE::
                 (Deref @ metamodelica::List::Cons { head: Deref @ DAE::Element::INITIAL_FOR_EQUATION { source: src, equations: xs1, range: e1, iter: s2, .. }, tail: xs }, r#str) => {
                     let mut s1: ArcStr = arcstr::literal!("");
                     let mut r#str = (*r#str).clone();
-                    let _ = getSourceInformationStr(src.clone())?;
+                    getSourceInformationStr(src.clone())?;
                     s1 = (ExpressionBasics::printExpStr(e1.clone())?).clone();
                     r#str = IOStream::appendList(r#str.clone(), list![(literal!("  for ")).clone(), (s2.clone()).clone(), (literal!(" in ")).clone(), (s1.clone()).clone(), (literal!(" loop\n")).clone()]);
                     r#str = dumpEquationsStream(xs1.clone(), r#str.clone())?;
@@ -3885,11 +3882,11 @@ pub fn dumpDAEElementsStr(mut d: DAE::DAElist) -> Result<ArcStr> {
 // and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
 pub fn dumpVarsStream(mut inElementLst: Arc<metamodelica::List<Arc<DAE::Element>>>, mut printTypeDimension: bool, mut inStream: IOStream::IOStream) -> Result<IOStream::IOStream> {
     let mut outStream: IOStream::IOStream = <IOStream::IOStream as ::std::default::Default>::default();
-    outStream = (::match_deref::match_deref! { match &((inElementLst.clone(), printTypeDimension.clone(), inStream.clone())) {
-        (Deref @ metamodelica::List::Nil, _, _) => {
+    outStream = (::match_deref::match_deref! { match &((inElementLst.clone(), inStream.clone())) {
+        (Deref @ metamodelica::List::Nil, _) => {
             inStream.clone()
         },
-        (Deref @ metamodelica::List::Cons { head: first, tail: rest }, _, r#str) => {
+        (Deref @ metamodelica::List::Cons { head: first, tail: rest }, r#str) => {
             let mut r#str = (*r#str).clone();
             r#str = dumpVarStream(first.clone(), printTypeDimension.clone(), r#str.clone())?;
             r#str = dumpVarsStream(rest.clone(), printTypeDimension.clone(), r#str.clone())?;
@@ -3969,10 +3966,10 @@ pub fn dumpVarBindingStr(mut inBinding: Option<Arc<DAE::Exp>>) -> Result<ArcStr>
 fn dumpVarStream(mut inElement: Arc<DAE::Element>, mut printTypeDimension: bool, mut inStream: IOStream::IOStream) -> Result<IOStream::IOStream> {
     let mut outStream: IOStream::IOStream = <IOStream::IOStream as ::std::default::Default>::default();
     outStream = 'mc: {
-        let __mc_input = (inElement.clone(), printTypeDimension.clone(), inStream.clone());
+        let __mc_input = (inElement.clone(), inStream.clone());
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ DAE::Element::VAR { comment: cmt, variableAttributesOption: attr, binding, dims, ty, protection: vis, parallelism: prl, direction: dir, kind, componentRef: id, .. }, _, r#str) => {
+                (Deref @ DAE::Element::VAR { comment: cmt, variableAttributesOption: attr, binding, dims, ty, protection: vis, parallelism: prl, direction: dir, kind, componentRef: id, .. }, r#str) => {
                     let mut final_str: ArcStr = arcstr::literal!("");
                     let mut kind_str: ArcStr = arcstr::literal!("");
                     let mut dir_str: ArcStr = arcstr::literal!("");
@@ -4074,7 +4071,6 @@ pub fn dumpInitialAlgorithmStream(mut inElement: Arc<DAE::Element>, mut inStream
 
 pub fn ppStatementStream(mut alg: Arc<DAE::Statement>, mut inStream: IOStream::IOStream) -> Result<IOStream::IOStream> {
     let mut outStream: IOStream::IOStream = <IOStream::IOStream as ::std::default::Default>::default();
-    let mut tmp: ArcStr = arcstr::literal!("");
     let mut hnd: i32 = 0;
     hnd = Print::saveAndClearBuf()?;
     ppStatement(alg.clone())?;

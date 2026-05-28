@@ -48,8 +48,8 @@ use openmodelica_frontend_dump::Dump;
 
 pub fn rewriteBlockCall(mut inPg: Absyn::Program, mut inDefs: Absyn::Program) -> Result<Absyn::Program> {
     let mut newOut: Absyn::Program = <Absyn::Program as ::std::default::Default>::default();
-    newOut = (match (inPg.clone(), inDefs.clone()) {
-        (_, _) => {
+    newOut = (match inDefs.clone() {
+        _ => {
             let mut pg2: Absyn::Program = <Absyn::Program as ::std::default::Default>::default();
             let mut res: ArcStr = arcstr::literal!("");
             pg2 = parseProgram(inPg.clone(), inDefs.clone())?;

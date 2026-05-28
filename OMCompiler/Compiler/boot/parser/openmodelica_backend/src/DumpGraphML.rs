@@ -64,8 +64,8 @@ use openmodelica_util_datatypes_basic::List;
 //
 // =============================================================================
 pub fn dumpSystem(mut inSystem: Arc<BackendDAE::EqSystem>, mut inShared: Arc<BackendDAE::Shared>, mut inids: Option<metamodelica::Array<i32>>, mut filename: ArcStr, mut numberMode: bool) -> Result<()> {
-    let _ = (::match_deref::match_deref! { match &((inSystem.clone(), inShared.clone(), inids.clone(), filename.clone(), numberMode.clone())) {
-        (Deref @ BackendDAE::EqSystem { matching: Deref @ BackendDAE::Matching::NO_MATCHING, .. }, _, None, _, _) => {
+    let () = (::match_deref::match_deref! { match &((inSystem.clone(), inids.clone())) {
+        (Deref @ BackendDAE::EqSystem { matching: Deref @ BackendDAE::Matching::NO_MATCHING, .. }, None) => {
             let mut vars: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
             let mut eqns: Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>;
             let mut m: metamodelica::Array<Arc<metamodelica::List<i32>>>;
@@ -94,7 +94,7 @@ pub fn dumpSystem(mut inSystem: Arc<BackendDAE::EqSystem>, mut inShared: Arc<Bac
             GraphML::dumpGraph(graphInfo.clone(), (filename.clone()).clone())?;
             ()
         },
-        (Deref @ BackendDAE::EqSystem { matching: Deref @ BackendDAE::Matching::NO_MATCHING, mT: Some(_), m: Some(m), .. }, _, None, _, _) => {
+        (Deref @ BackendDAE::EqSystem { matching: Deref @ BackendDAE::Matching::NO_MATCHING, mT: Some(_), m: Some(m), .. }, None) => {
             let mut vars: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
             let mut eqns: Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>;
             let mut graphInfo: GraphML::GraphInfo;
@@ -119,7 +119,7 @@ pub fn dumpSystem(mut inSystem: Arc<BackendDAE::EqSystem>, mut inShared: Arc<Bac
             GraphML::dumpGraph(graphInfo.clone(), (filename.clone()).clone())?;
             ()
         },
-        (Deref @ BackendDAE::EqSystem { matching: Deref @ BackendDAE::Matching::MATCHING { comps: Deref @ metamodelica::List::Nil, ass2: vec2, ass1: vec1 }, .. }, _, None, _, _) => {
+        (Deref @ BackendDAE::EqSystem { matching: Deref @ BackendDAE::Matching::MATCHING { comps: Deref @ metamodelica::List::Nil, ass2: vec2, ass1: vec1 }, .. }, None) => {
             let mut vars: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
             let mut eqns: Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>;
             let mut m: metamodelica::Array<Arc<metamodelica::List<i32>>>;
@@ -149,7 +149,7 @@ pub fn dumpSystem(mut inSystem: Arc<BackendDAE::EqSystem>, mut inShared: Arc<Bac
             GraphML::dumpGraph(graphInfo.clone(), (filename.clone()).clone())?;
             ()
         },
-        (Deref @ BackendDAE::EqSystem { matching: Deref @ BackendDAE::Matching::MATCHING { comps: Deref @ metamodelica::List::Nil, ass2: vec2, .. }, .. }, _, Some(vec3), _, _) => {
+        (Deref @ BackendDAE::EqSystem { matching: Deref @ BackendDAE::Matching::MATCHING { comps: Deref @ metamodelica::List::Nil, ass2: vec2, .. }, .. }, Some(vec3)) => {
             let mut vars: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
             let mut eqns: Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>;
             let mut m: metamodelica::Array<Arc<metamodelica::List<i32>>>;
@@ -177,7 +177,7 @@ pub fn dumpSystem(mut inSystem: Arc<BackendDAE::EqSystem>, mut inShared: Arc<Bac
             GraphML::dumpGraph(graphInfo.clone(), (filename.clone()).clone())?;
             ()
         },
-        (Deref @ BackendDAE::EqSystem { matching: Deref @ BackendDAE::Matching::MATCHING { comps, .. }, .. }, _, None, _, _) => {
+        (Deref @ BackendDAE::EqSystem { matching: Deref @ BackendDAE::Matching::MATCHING { comps, .. }, .. }, None) => {
             let mut vars: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
             let mut m: metamodelica::Array<Arc<metamodelica::List<i32>>>;
             let mut mt: metamodelica::Array<Arc<metamodelica::List<i32>>>;
@@ -187,7 +187,7 @@ pub fn dumpSystem(mut inSystem: Arc<BackendDAE::EqSystem>, mut inShared: Arc<Bac
             let mut mapIncRowEqn: metamodelica::Array<i32>;
             let mut funcs: Arc<AvlTreePathFunction::Tree> = Arc::new(AvlTreePathFunction::Tree::EMPTY);
             vars = BackendVariable::daeVars(inSystem.clone());
-            let _ = BackendEquation::getEqnsFromEqSystem(inSystem.clone());
+            BackendEquation::getEqnsFromEqSystem(inSystem.clone());
             funcs = BackendDAEUtil::getFunctions(inShared.clone())?;
             (_, m, mt) = BackendDAEUtil::getAdjacencyMatrix(inSystem.clone(), crate::BackendDAE::IndexType::NORMAL, Some(funcs.clone()), BackendDAEUtil::isInitializationDAE(inShared.clone()))?;
             graphInfo = GraphML::createGraphInfo();
@@ -342,9 +342,8 @@ fn addEqnGraph(mut inNode: i32, mut eqns: Arc<ExpandableArray::ExpandableArray<A
     let mut graph: i32 = 0;
     let mut label: GraphML::NodeLabel;
     let mut labelText: ArcStr = arcstr::literal!("");
-    outGraph = (::match_deref::match_deref! { match &((inNode.clone(), eqns.clone(), mapIncRowEqn.clone(), numberMode.clone(), inGraph.clone())) {
-        (_, _, _, false, (graphInfo, graph)) => {
-            let mut graphInfo = (*graphInfo).clone();
+    outGraph = (match (numberMode.clone(), inGraph.clone()) {
+        (false, (mut graphInfo, mut graph)) => {
             eqn = BackendEquation::get(eqns.clone(), mapIncRowEqn.borrow()[(inNode.clone()-1) as usize].clone());
             r#str = (BackendDump::equationString(eqn.clone())?).clone();
             r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*intString(inNode.clone())); __mm_s.push_str(&*literal!(": ")); __mm_s.push_str(&*BackendDump::equationString(eqn.clone())?); ArcStr::from(__mm_s) }).clone();
@@ -353,8 +352,7 @@ fn addEqnGraph(mut inNode: i32, mut eqns: Arc<ExpandableArray::ExpandableArray<A
             (graphInfo, _) = GraphML::addNode(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("n")); __mm_s.push_str(&*intString(inNode.clone())); ArcStr::from(__mm_s) }).clone(), (arcstr::literal!(GraphML::COLOR_GREEN)).clone(), GraphML::BORDERWIDTH_STANDARD.clone(), list![label.clone()], openmodelica_susan::GraphML::ShapeType::RECTANGLE, None, metamodelica::nil(), graph.clone(), graphInfo.clone())?;
             (graphInfo.clone(), graph.clone())
         },
-        (_, _, _, true, (graphInfo, graph)) => {
-            let mut graphInfo = (*graphInfo).clone();
+        (true, (mut graphInfo, mut graph)) => {
             eqn = BackendEquation::get(eqns.clone(), mapIncRowEqn.borrow()[(inNode.clone()-1) as usize].clone());
             r#str = (BackendDump::equationString(eqn.clone())?).clone();
             r#str = (Util::xmlEscape((r#str.clone()).clone())?).clone();
@@ -364,7 +362,7 @@ fn addEqnGraph(mut inNode: i32, mut eqns: Arc<ExpandableArray::ExpandableArray<A
             (graphInfo.clone(), graph.clone())
         },
         _ => bail!("match: no arm matched"),
-    } });
+    });
     Ok(outGraph)
 }
 
@@ -385,64 +383,50 @@ fn addEdgesGraph(mut e: i32, mut inTpl: (i32, metamodelica::Array<Arc<metamodeli
 fn addEqnGraphMatch(mut inNode: i32, mut eqns: Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, mut atpl: (metamodelica::Array<i32>, metamodelica::Array<i32>, metamodelica::Array<bool>), mut numberMode: bool, mut inGraph: (GraphML::GraphInfo, i32)) -> Result<(GraphML::GraphInfo, i32)> {
     let mut outGraph: (GraphML::GraphInfo, i32);
     outGraph = 'mc: {
-        let __mc_input = (inNode.clone(), eqns.clone(), atpl.clone(), numberMode.clone(), inGraph.clone());
+        let __mc_input = (atpl.clone(), numberMode.clone(), inGraph.clone());
         if let Ok(__v) = (|| -> Result<_> {
-            ::match_deref::match_deref! { match &__mc_input {
-                (_, _, (vec2, mapIncRowEqn, eqnsflag), false, (graphInfo, graph)) => {
-                    let mut eqn: Arc<BackendDAE::Equation> = Arc::new(BackendDAE::Equation::DUMMY_EQUATION);
-                    let mut r#str: ArcStr = arcstr::literal!("");
-                    let mut color: ArcStr = arcstr::literal!("");
-                    let mut e: i32 = 0;
-                    let mut label: GraphML::NodeLabel;
-                    let mut graphInfo = (*graphInfo).clone();
-                    e = mapIncRowEqn.borrow()[(inNode.clone()-1) as usize].clone();
-                    let false = (eqnsflag.borrow()[(e.clone()-1) as usize].clone()) else { bail!("pattern mismatch") };
-                    eqn = BackendEquation::get(eqns.clone(), mapIncRowEqn.borrow()[(inNode.clone()-1) as usize].clone());
-                    r#str = (BackendDump::equationString(eqn.clone())?).clone();
-                    r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*intString(e.clone())); __mm_s.push_str(&*literal!(": ")); __mm_s.push_str(&*r#str.clone()); ArcStr::from(__mm_s) }).clone();
-                    r#str = (Util::xmlEscape((r#str.clone()).clone())?).clone();
-                    color = (if (intGt(vec2.borrow()[(inNode.clone()-1) as usize].clone(), 0)) {arcstr::literal!(GraphML::COLOR_GREEN)} else {arcstr::literal!(GraphML::COLOR_PURPLE)}).clone();
-                    label = GraphML::NodeLabel::NODELABEL_INTERNAL { text: (r#str.clone()).clone(), backgroundColor: None, fontStyle: openmodelica_susan::GraphML::FontStyle::FONTPLAIN };
-                    (graphInfo, _) = GraphML::addNode(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("n")); __mm_s.push_str(&*intString(e.clone())); ArcStr::from(__mm_s) }).clone(), (color.clone()).clone(), GraphML::BORDERWIDTH_STANDARD.clone(), list![label.clone()], openmodelica_susan::GraphML::ShapeType::RECTANGLE, None, metamodelica::nil(), graph.clone(), graphInfo.clone())?;
-                    Ok((graphInfo.clone(), graph.clone()))
-                }
-                _ => bail!("nomatch"),
-            }}
+            let ((mut vec2, mut mapIncRowEqn, mut eqnsflag), false, (mut graphInfo, mut graph)) = __mc_input.clone() else { bail!("nomatch") };
+            let mut eqn: Arc<BackendDAE::Equation> = Arc::new(BackendDAE::Equation::DUMMY_EQUATION);
+            let mut r#str: ArcStr = arcstr::literal!("");
+            let mut color: ArcStr = arcstr::literal!("");
+            let mut e: i32 = 0;
+            let mut label: GraphML::NodeLabel;
+            e = mapIncRowEqn.borrow()[(inNode.clone()-1) as usize].clone();
+            let false = (eqnsflag.borrow()[(e.clone()-1) as usize].clone()) else { bail!("pattern mismatch") };
+            eqn = BackendEquation::get(eqns.clone(), mapIncRowEqn.borrow()[(inNode.clone()-1) as usize].clone());
+            r#str = (BackendDump::equationString(eqn.clone())?).clone();
+            r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*intString(e.clone())); __mm_s.push_str(&*literal!(": ")); __mm_s.push_str(&*r#str.clone()); ArcStr::from(__mm_s) }).clone();
+            r#str = (Util::xmlEscape((r#str.clone()).clone())?).clone();
+            color = (if (intGt(vec2.borrow()[(inNode.clone()-1) as usize].clone(), 0)) {arcstr::literal!(GraphML::COLOR_GREEN)} else {arcstr::literal!(GraphML::COLOR_PURPLE)}).clone();
+            label = GraphML::NodeLabel::NODELABEL_INTERNAL { text: (r#str.clone()).clone(), backgroundColor: None, fontStyle: openmodelica_susan::GraphML::FontStyle::FONTPLAIN };
+            (graphInfo, _) = GraphML::addNode(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("n")); __mm_s.push_str(&*intString(e.clone())); ArcStr::from(__mm_s) }).clone(), (color.clone()).clone(), GraphML::BORDERWIDTH_STANDARD.clone(), list![label.clone()], openmodelica_susan::GraphML::ShapeType::RECTANGLE, None, metamodelica::nil(), graph.clone(), graphInfo.clone())?;
+            Ok((graphInfo.clone(), graph.clone()))
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
-            ::match_deref::match_deref! { match &__mc_input {
-                (_, _, (vec2, mapIncRowEqn, eqnsflag), true, (graphInfo, graph)) => {
-                    let mut eqn: Arc<BackendDAE::Equation> = Arc::new(BackendDAE::Equation::DUMMY_EQUATION);
-                    let mut r#str: ArcStr = arcstr::literal!("");
-                    let mut color: ArcStr = arcstr::literal!("");
-                    let mut e: i32 = 0;
-                    let mut label: GraphML::NodeLabel;
-                    let mut labelText: ArcStr = arcstr::literal!("");
-                    let mut graphInfo = (*graphInfo).clone();
-                    e = mapIncRowEqn.borrow()[(inNode.clone()-1) as usize].clone();
-                    let false = (eqnsflag.borrow()[(e.clone()-1) as usize].clone()) else { bail!("pattern mismatch") };
-                    eqn = BackendEquation::get(eqns.clone(), mapIncRowEqn.borrow()[(inNode.clone()-1) as usize].clone());
-                    r#str = (BackendDump::equationString(eqn.clone())?).clone();
-                    r#str = (Util::xmlEscape((r#str.clone()).clone())?).clone();
-                    color = (if (intGt(vec2.borrow()[(inNode.clone()-1) as usize].clone(), 0)) {arcstr::literal!(GraphML::COLOR_GREEN)} else {arcstr::literal!(GraphML::COLOR_PURPLE)}).clone();
-                    labelText = (intString(e.clone())).clone();
-                    label = GraphML::NodeLabel::NODELABEL_INTERNAL { text: (labelText.clone()).clone(), backgroundColor: None, fontStyle: openmodelica_susan::GraphML::FontStyle::FONTPLAIN };
-                    (graphInfo, _) = GraphML::addNode(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("n")); __mm_s.push_str(&*intString(e.clone())); ArcStr::from(__mm_s) }).clone(), (color.clone()).clone(), GraphML::BORDERWIDTH_STANDARD.clone(), list![label.clone()], openmodelica_susan::GraphML::ShapeType::RECTANGLE, Some((r#str.clone()).clone()), metamodelica::nil(), graph.clone(), graphInfo.clone())?;
-                    Ok((graphInfo.clone(), graph.clone()))
-                }
-                _ => bail!("nomatch"),
-            }}
+            let ((mut vec2, mut mapIncRowEqn, mut eqnsflag), true, (mut graphInfo, mut graph)) = __mc_input.clone() else { bail!("nomatch") };
+            let mut eqn: Arc<BackendDAE::Equation> = Arc::new(BackendDAE::Equation::DUMMY_EQUATION);
+            let mut r#str: ArcStr = arcstr::literal!("");
+            let mut color: ArcStr = arcstr::literal!("");
+            let mut e: i32 = 0;
+            let mut label: GraphML::NodeLabel;
+            let mut labelText: ArcStr = arcstr::literal!("");
+            e = mapIncRowEqn.borrow()[(inNode.clone()-1) as usize].clone();
+            let false = (eqnsflag.borrow()[(e.clone()-1) as usize].clone()) else { bail!("pattern mismatch") };
+            eqn = BackendEquation::get(eqns.clone(), mapIncRowEqn.borrow()[(inNode.clone()-1) as usize].clone());
+            r#str = (BackendDump::equationString(eqn.clone())?).clone();
+            r#str = (Util::xmlEscape((r#str.clone()).clone())?).clone();
+            color = (if (intGt(vec2.borrow()[(inNode.clone()-1) as usize].clone(), 0)) {arcstr::literal!(GraphML::COLOR_GREEN)} else {arcstr::literal!(GraphML::COLOR_PURPLE)}).clone();
+            labelText = (intString(e.clone())).clone();
+            label = GraphML::NodeLabel::NODELABEL_INTERNAL { text: (labelText.clone()).clone(), backgroundColor: None, fontStyle: openmodelica_susan::GraphML::FontStyle::FONTPLAIN };
+            (graphInfo, _) = GraphML::addNode(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("n")); __mm_s.push_str(&*intString(e.clone())); ArcStr::from(__mm_s) }).clone(), (color.clone()).clone(), GraphML::BORDERWIDTH_STANDARD.clone(), list![label.clone()], openmodelica_susan::GraphML::ShapeType::RECTANGLE, Some((r#str.clone()).clone()), metamodelica::nil(), graph.clone(), graphInfo.clone())?;
+            Ok((graphInfo.clone(), graph.clone()))
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
-            ::match_deref::match_deref! { match &__mc_input {
-                (_, _, (_, mapIncRowEqn, eqnsflag), _, _) => {
-                    let mut e: i32 = 0;
-                    e = mapIncRowEqn.borrow()[(inNode.clone()-1) as usize].clone();
-                    let true = (eqnsflag.borrow()[(e.clone()-1) as usize].clone()) else { bail!("pattern mismatch") };
-                    Ok(inGraph.clone())
-                }
-                _ => bail!("nomatch"),
-            }}
+            let ((_, mut mapIncRowEqn, mut eqnsflag), _, _) = __mc_input.clone() else { bail!("nomatch") };
+            let mut e: i32 = 0;
+            e = mapIncRowEqn.borrow()[(inNode.clone()-1) as usize].clone();
+            let true = (eqnsflag.borrow()[(e.clone()-1) as usize].clone()) else { bail!("pattern mismatch") };
+            Ok(inGraph.clone())
         })() { break 'mc __v; }
         bail!("matchcontinue: no arm matched")
     };
@@ -467,7 +451,6 @@ fn addDirectedEdgesGraph(mut e: i32, mut inTpl: (i32, metamodelica::Array<Arc<me
     let mut outTpl: (i32, metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<i32>, metamodelica::Array<i32>, GraphML::GraphInfo);
     let mut id: i32 = 0;
     let mut v: i32 = 0;
-    let mut n: i32 = 0;
     let mut graph: GraphML::GraphInfo;
     let mut m: metamodelica::Array<Arc<metamodelica::List<i32>>>;
     let mut vars: Arc<metamodelica::List<i32>> = metamodelica::nil();
@@ -507,7 +490,6 @@ fn addDirectedNumEdgesGraph(mut e: i32, mut inTpl: (i32, metamodelica::Array<Arc
     let mut vars: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut vec2: metamodelica::Array<i32>;
     let mut vec3: metamodelica::Array<i32>;
-    let mut mapIncRowEqn: metamodelica::Array<i32>;
     let mut text: ArcStr = arcstr::literal!("");
     (id, m, vec2, vec3, graph) = inTpl.clone();
     vars = List::select(m.borrow()[(e.clone()-1) as usize].clone(), (std::sync::Arc::new(fnptr!(Util::intPositive, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32) -> Result<bool> + 'static>));
@@ -522,7 +504,6 @@ fn addDirectedNumEdgeGraph(mut v: i32, mut e: i32, mut inTpl: (i32, i32, ArcStr,
     let mut outTpl: (i32, i32, ArcStr, GraphML::GraphInfo);
     let mut id: i32 = 0;
     let mut r: i32 = 0;
-    let mut n: i32 = 0;
     let mut graph: GraphML::GraphInfo;
     let mut arrow: (GraphML::ArrowType, GraphML::ArrowType);
     let mut text: ArcStr = arcstr::literal!("");
@@ -539,11 +520,11 @@ fn addDirectedNumEdgeGraph(mut v: i32, mut e: i32, mut inTpl: (i32, i32, ArcStr,
 // and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
 fn addCompsGraph(mut iComps: Arc<metamodelica::List<Arc<BackendDAE::StrongComponent>>>, mut vars: BackendDAE::Variables, mut varcomp: metamodelica::Array<i32>, mut iN: i32, mut iGraph: (GraphML::GraphInfo, i32)) -> Result<(GraphML::GraphInfo, i32)> {
     let mut oGraph: (GraphML::GraphInfo, i32);
-    oGraph = (::match_deref::match_deref! { match &((iComps.clone(), vars.clone(), varcomp.clone(), iN.clone(), iGraph.clone())) {
-        (Deref @ metamodelica::List::Nil, _, _, _, _) => {
+    oGraph = (::match_deref::match_deref! { match &((iComps.clone(), iGraph.clone())) {
+        (Deref @ metamodelica::List::Nil, _) => {
             iGraph.clone()
         },
-        (Deref @ metamodelica::List::Cons { head: comp, tail: rest }, _, _, _, (graphInfo, graph)) => {
+        (Deref @ metamodelica::List::Cons { head: comp, tail: rest }, (graphInfo, graph)) => {
             let mut vlst: Arc<metamodelica::List<i32>> = metamodelica::nil();
             let mut label: GraphML::NodeLabel;
             let mut varcomp1: metamodelica::Array<i32>;
@@ -567,22 +548,22 @@ fn addCompsGraph(mut iComps: Arc<metamodelica::List<Arc<BackendDAE::StrongCompon
 // and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
 fn addCompsEdgesGraph(mut iComps: Arc<metamodelica::List<Arc<BackendDAE::StrongComponent>>>, mut m: metamodelica::Array<Arc<metamodelica::List<i32>>>, mut varcomp: metamodelica::Array<i32>, mut iN: i32, mut id: i32, mut markarray: metamodelica::Array<i32>, mut mark: i32, mut iGraph: GraphML::GraphInfo) -> Result<GraphML::GraphInfo> {
     let mut oGraph: GraphML::GraphInfo;
-    oGraph = (::match_deref::match_deref! { match &((iComps.clone(), m.clone(), varcomp.clone(), iN.clone(), id.clone(), markarray.clone(), mark.clone(), iGraph.clone())) {
-        (Deref @ metamodelica::List::Nil, _, _, _, _, _, _, _) => {
+    oGraph = (::match_deref::match_deref! { match &(iComps.clone()) {
+        Deref @ metamodelica::List::Nil => {
             iGraph.clone()
         },
-        (Deref @ metamodelica::List::Cons { head: comp, tail: rest }, _, _, _, _, _, _, _) => {
+        Deref @ metamodelica::List::Cons { head: comp, tail: rest } => {
             let mut elst: Arc<metamodelica::List<i32>> = metamodelica::nil();
             let mut vlst: Arc<metamodelica::List<i32>> = metamodelica::nil();
             let mut n: i32 = 0;
             let mut graph: GraphML::GraphInfo;
             (elst, vlst) = BackendDAETransform::getEquationAndSolvedVarIndxes(comp.clone())?;
-            let _ = List::fold1r(vlst.clone(), Arc::new(arrayUpdate.clone()), mark.clone(), markarray.clone());
+            List::fold1r(vlst.clone(), Arc::new(arrayUpdate.clone()), mark.clone(), markarray.clone());
             vlst = getUsedVarsComp(elst.clone(), m.clone(), markarray.clone(), mark.clone());
             (n, graph) = addCompEdgesGraph(vlst.clone(), varcomp.clone(), markarray.clone(), mark.clone() + 1, iN.clone(), id.clone(), iGraph.clone())?;
             addCompsEdgesGraph(rest.clone(), m.clone(), varcomp.clone(), iN.clone() + 1, n.clone(), markarray.clone(), mark.clone() + 2, graph.clone())?
         },
-        _ => bail!("match: no arm matched"),
+        _ => unreachable!("match_deref! exhaustiveness placeholder"),
     } });
     Ok(oGraph)
 }
@@ -594,7 +575,7 @@ fn getUsedVarsComp(mut iEqns: Arc<metamodelica::List<i32>>, mut m: metamodelica:
         let mut eq = eq.clone();
         vlst = List::select1(m.borrow()[(eq.clone()-1) as usize].clone(), (std::sync::Arc::new(fnptr!(intGt, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>), 0);
         vlst = List::select1r(vlst.clone(), (std::sync::Arc::new(fnptr!(isUnMarked, (metamodelica::Array<i32>, i32), i32)) as std::sync::Arc<dyn ::std::ops::Fn((metamodelica::Array<i32>, i32), i32) -> Result<bool> + 'static>), (markarray.clone(), mark.clone()));
-        let _ = List::fold1r(vlst.clone(), Arc::new(arrayUpdate.clone()), mark.clone(), markarray.clone());
+        List::fold1r(vlst.clone(), Arc::new(arrayUpdate.clone()), mark.clone(), markarray.clone());
         oVars = listAppend(vlst.clone(), oVars.clone());
     }
     oVars
@@ -604,10 +585,10 @@ fn addCompEdgesGraph(mut iVars: Arc<metamodelica::List<i32>>, mut varcomp: metam
     let mut oN: i32 = 0;
     let mut oGraph: GraphML::GraphInfo;
     (oN, oGraph) = 'mc: {
-        let __mc_input = (iVars.clone(), varcomp.clone(), markarray.clone(), mark.clone(), iN.clone(), id.clone(), iGraph.clone());
+        let __mc_input = iVars.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ metamodelica::List::Nil, _, _, _, _, _, _) => {
+                Deref @ metamodelica::List::Nil => {
                     Ok((id.clone(), iGraph.clone()))
                 }
                 _ => bail!("nomatch"),
@@ -615,7 +596,7 @@ fn addCompEdgesGraph(mut iVars: Arc<metamodelica::List<i32>>, mut varcomp: metam
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ metamodelica::List::Cons { head: v, tail: rest }, _, _, _, _, _, _) => {
+                Deref @ metamodelica::List::Cons { head: v, tail: rest } => {
                     let mut n: i32 = 0;
                     let mut c: i32 = 0;
                     let mut graph: GraphML::GraphInfo;
@@ -631,7 +612,7 @@ fn addCompEdgesGraph(mut iVars: Arc<metamodelica::List<i32>>, mut varcomp: metam
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ metamodelica::List::Cons { head: _, tail: rest }, _, _, _, _, _, _) => {
+                Deref @ metamodelica::List::Cons { head: _, tail: rest } => {
                     let mut n: i32 = 0;
                     let mut graph: GraphML::GraphInfo;
                     (n, graph) = addCompEdgesGraph(rest.clone(), varcomp.clone(), markarray.clone(), mark.clone(), iN.clone(), id.clone(), iGraph.clone())?;

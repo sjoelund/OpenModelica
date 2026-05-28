@@ -143,13 +143,10 @@ pub const SMS_PRE: &'static str = "smOf";
 pub fn stateMachineToDataFlow(mut cache: FCore::Cache, mut env: FCore::Graph, mut inDAElist: DAE::DAElist) -> Result<DAE::DAElist> {
     let mut outDAElist: DAE::DAElist = <DAE::DAElist as ::std::default::Default>::default();
     let mut elementLst: Arc<metamodelica::List<Arc<DAE::Element>>> = metamodelica::nil();
-    let mut elementLst1: Arc<metamodelica::List<Arc<DAE::Element>>> = metamodelica::nil();
     let mut flatSmLst: Arc<metamodelica::List<Arc<DAE::Element>>> = metamodelica::nil();
     let mut otherLst: Arc<metamodelica::List<Arc<DAE::Element>>> = metamodelica::nil();
     let mut elementLst2: Arc<metamodelica::List<Arc<DAE::Element>>> = metamodelica::nil();
     let mut elementLst3: Arc<metamodelica::List<Arc<DAE::Element>>> = metamodelica::nil();
-    let mut t: Arc<metamodelica::List<Transition>> = metamodelica::nil();
-    let mut compElem: Arc<DAE::Element>;
     let mut nOfSubstitutions: i32 = 0;
     let mut ident: ArcStr = arcstr::literal!("");
     let mut dAElist: Arc<metamodelica::List<Arc<DAE::Element>>> = metamodelica::nil();
@@ -168,7 +165,7 @@ pub fn stateMachineToDataFlow(mut cache: FCore::Cache, mut env: FCore::Graph, mu
     comment = __pa4.clone();
     if !(List::any(dAElist.clone(), (std::sync::Arc::new(fnptr!(isFlatSm, Arc<DAE::Element>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Element>) -> Result<bool> + 'static>))) {
         outDAElist = inDAElist.clone();
-        return Ok(outDAElist);
+        return Ok(outDAElist.clone());
     }
     (flatSmLst, otherLst) = List::extractOnTrue(dAElist.clone(), (std::sync::Arc::new(fnptr!(isFlatSm, Arc<DAE::Element>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Element>) -> Result<bool> + 'static>));
     elementLst2 = List::fold2(flatSmLst.clone(), (std::sync::Arc::new(flatSmToDataFlow) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Element>, Option<Arc<DAE::ComponentRef>>, Option<FlatSmSemantics>, Arc<metamodelica::List<Arc<DAE::Element>>>) -> Result<Arc<metamodelica::List<Arc<DAE::Element>>>> + 'static>), None, None, metamodelica::nil());
@@ -221,7 +218,6 @@ fn flatSmToDataFlow(mut inFlatSm: Arc<DAE::Element>, mut inEnclosingStateCrefOpt
     let mut flatSmSemanticsBasics: FlatSmSemantics = <FlatSmSemantics as ::std::default::Default>::default();
     let mut flatSmSemanticsWithPropagation: FlatSmSemantics = <FlatSmSemantics as ::std::default::Default>::default();
     let mut flatSmSemantics: FlatSmSemantics = <FlatSmSemantics as ::std::default::Default>::default();
-    let mut transitions: Arc<metamodelica::List<Transition>> = metamodelica::nil();
     let mut vars: Arc<metamodelica::List<Arc<DAE::Element>>> = metamodelica::nil();
     let mut knowns: Arc<metamodelica::List<Arc<DAE::Element>>> = metamodelica::nil();
     let mut eqs: Arc<metamodelica::List<Arc<DAE::Element>>> = metamodelica::nil();
@@ -322,7 +318,6 @@ fn elabXInStateOps(mut inFlatSmSemantics: FlatSmSemantics, mut inEnclosingStateC
     let mut c2: Arc<DAE::Exp>;
     let mut c3: Arc<DAE::Exp>;
     let mut c4: Arc<DAE::Exp>;
-    let mut conditionNew: Arc<DAE::Exp>;
     let mut substTickExp: Arc<DAE::Exp>;
     let mut substTimeExp: Arc<DAE::Exp>;
     let mut stateRef: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
@@ -501,7 +496,7 @@ fn smCompToDataFlow(mut inSMComp: Arc<DAE::Element>, mut inEnclosingFlatSmSemant
     Ok(outElems)
 }
 
-fn addStateActivationAndReset(mut inEqn: Arc<DAE::Element>, mut inEnclosingSMComp: Arc<DAE::Element>, mut inEnclosingFlatSmSemantics: FlatSmSemantics, mut crToExpOpt: (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Option<Arc<DAE::Exp>>)>>), i32, (HashTableCrToExpOption::FuncHashCref, HashTableCrToExpOption::FuncCrefEqual, HashTableCrToExpOption::FuncCrefStr, HashTableCrToExpOption::FuncExpStr)), mut accEqnsVars: (Arc<metamodelica::List<Arc<DAE::Element>>>, Arc<metamodelica::List<Arc<DAE::Element>>>)) -> Result<(Arc<metamodelica::List<Arc<DAE::Element>>>, Arc<metamodelica::List<Arc<DAE::Element>>>)> {
+fn addStateActivationAndReset(mut inEqn: Arc<DAE::Element>, mut inEnclosingSMComp: Arc<DAE::Element>, mut inEnclosingFlatSmSemantics: FlatSmSemantics, mut crToExpOpt: (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Option<Arc<DAE::Exp>>)>>), i32, (Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<i32> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>) -> Result<bool> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>, Arc<dyn ::std::ops::Fn(Option<Arc<DAE::Exp>>) -> Result<ArcStr> + 'static>)), mut accEqnsVars: (Arc<metamodelica::List<Arc<DAE::Element>>>, Arc<metamodelica::List<Arc<DAE::Element>>>)) -> Result<(Arc<metamodelica::List<Arc<DAE::Element>>>, Arc<metamodelica::List<Arc<DAE::Element>>>)> {
     let mut outEqnsVars: (Arc<metamodelica::List<Arc<DAE::Element>>>, Arc<metamodelica::List<Arc<DAE::Element>>>);
     let mut equations1: Arc<metamodelica::List<Arc<DAE::Element>>> = metamodelica::nil();
     let mut vars1: Arc<metamodelica::List<Arc<DAE::Element>>> = metamodelica::nil();
@@ -527,17 +522,13 @@ fn addStateActivationAndReset(mut inEqn: Arc<DAE::Element>, mut inEnclosingSMCom
     Ok(outEqnsVars)
 }
 
-fn addStateActivationAndReset1(mut inEqn: Arc<DAE::Element>, mut inEnclosingSMComp: Arc<DAE::Element>, mut inEnclosingFlatSmSemantics: FlatSmSemantics, mut crToExpOpt: (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Option<Arc<DAE::Exp>>)>>), i32, (HashTableCrToExpOption::FuncHashCref, HashTableCrToExpOption::FuncCrefEqual, HashTableCrToExpOption::FuncCrefStr, HashTableCrToExpOption::FuncExpStr)), mut accEqnsVars: (Arc<metamodelica::List<Arc<DAE::Element>>>, Arc<metamodelica::List<Arc<DAE::Element>>>)) -> Result<(Arc<metamodelica::List<Arc<DAE::Element>>>, Arc<metamodelica::List<Arc<DAE::Element>>>)> {
+fn addStateActivationAndReset1(mut inEqn: Arc<DAE::Element>, mut inEnclosingSMComp: Arc<DAE::Element>, mut inEnclosingFlatSmSemantics: FlatSmSemantics, mut crToExpOpt: (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Option<Arc<DAE::Exp>>)>>), i32, (Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<i32> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>) -> Result<bool> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>, Arc<dyn ::std::ops::Fn(Option<Arc<DAE::Exp>>) -> Result<ArcStr> + 'static>)), mut accEqnsVars: (Arc<metamodelica::List<Arc<DAE::Element>>>, Arc<metamodelica::List<Arc<DAE::Element>>>)) -> Result<(Arc<metamodelica::List<Arc<DAE::Element>>>, Arc<metamodelica::List<Arc<DAE::Element>>>)> {
     let mut outEqnsVars: (Arc<metamodelica::List<Arc<DAE::Element>>>, Arc<metamodelica::List<Arc<DAE::Element>>>);
     let mut stateVarCrefs: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
     let mut crefLHS: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
     let mut enclosingStateRef: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
-    let mut substituteRef: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
-    let mut activeResetRef: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
-    let mut activeResetStatesRef: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
     let mut cref2: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
     let mut found: bool = false;
-    let mut is: bool = false;
     let mut tyLHS: Arc<DAE::Type> = Arc::new(DAE::Type::T_NORETCALL);
     let mut eqn: Arc<DAE::Element>;
     let mut eqn1: Arc<DAE::Element>;
@@ -652,13 +643,10 @@ fn isVarAtLHS(mut eqn: Arc<DAE::Element>, mut var: Arc<DAE::Element>) -> Result<
     let mut crefLHS: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
     let mut tyLHS: Arc<DAE::Type> = Arc::new(DAE::Type::T_NORETCALL);
     let mut exp: Arc<DAE::Exp>;
-    let mut scalar: Arc<DAE::Exp>;
-    let mut scalarNew: Arc<DAE::Exp>;
-    let mut source: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
     let mut equations: Arc<metamodelica::List<Arc<DAE::Element>>> = metamodelica::nil();
     let mut elsewhen_: Option<Arc<DAE::Element>> = None;
     res = (::match_deref::match_deref! { match &(eqn.clone()) {
-        Deref @ DAE::Element::EQUATION { exp, scalar, source } => {
+        Deref @ DAE::Element::EQUATION { exp, scalar: _, source: _ } => {
             cref = DAEUtil::varCref(var.clone())?;
             match '__try0: {
                 let (__pa1, __pa2) = ::match_deref::match_deref! { match &(exp.clone()) {
@@ -696,14 +684,11 @@ fn isVarAtLHS(mut eqn: Arc<DAE::Element>, mut var: Arc<DAE::Element>) -> Result<
 fn isPreviousAppliedToVar(mut eqn: Arc<DAE::Element>, mut var: Arc<DAE::Element>) -> Result<bool> {
     let mut found: bool = false;
     let mut cref: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
-    let mut exp: Arc<DAE::Exp>;
     let mut scalar: Arc<DAE::Exp>;
-    let mut scalarNew: Arc<DAE::Exp>;
-    let mut source: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
     let mut equations: Arc<metamodelica::List<Arc<DAE::Element>>> = metamodelica::nil();
     let mut elsewhen_: Option<Arc<DAE::Element>> = None;
     found = (::match_deref::match_deref! { match &(eqn.clone()) {
-        Deref @ DAE::Element::EQUATION { exp, scalar, source } => {
+        Deref @ DAE::Element::EQUATION { exp: _, scalar, source: _ } => {
             cref = DAEUtil::varCref(var.clone())?;
             let (_, (_, __pa0)) = Expression::traverseExpTopDown(scalar.clone(), (std::sync::Arc::new(traversingFindPreviousCref) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, (Arc<DAE::ComponentRef>, bool)) -> Result<(Arc<DAE::Exp>, bool, (Arc<DAE::ComponentRef>, bool))> + 'static>), (cref.clone(), false))?;
             found = __pa0.clone();
@@ -739,7 +724,7 @@ fn traversingFindPreviousCref(mut inExp: Arc<DAE::Exp>, mut inCrefHit: (Arc<DAE:
     Ok((outExp, cont, outCrefHit))
 }
 
-fn createResetEquationCT(mut inLHSCref: Arc<DAE::ComponentRef>, mut inLHSty: Arc<DAE::Type>, mut inStateCref: Arc<DAE::ComponentRef>, mut inEnclosingFlatSmSemantics: FlatSmSemantics, mut crToExpOpt: (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Option<Arc<DAE::Exp>>)>>), i32, (HashTableCrToExpOption::FuncHashCref, HashTableCrToExpOption::FuncCrefEqual, HashTableCrToExpOption::FuncCrefStr, HashTableCrToExpOption::FuncExpStr))) -> Result<Arc<DAE::Element>> {
+fn createResetEquationCT(mut inLHSCref: Arc<DAE::ComponentRef>, mut inLHSty: Arc<DAE::Type>, mut inStateCref: Arc<DAE::ComponentRef>, mut inEnclosingFlatSmSemantics: FlatSmSemantics, mut crToExpOpt: (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Option<Arc<DAE::Exp>>)>>), i32, (Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<i32> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>) -> Result<bool> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>, Arc<dyn ::std::ops::Fn(Option<Arc<DAE::Exp>>) -> Result<ArcStr> + 'static>))) -> Result<Arc<DAE::Element>> {
     let mut outEqn: Arc<DAE::Element>;
     let mut activeExp: Arc<DAE::Exp>;
     let mut activeResetExp: Arc<DAE::Exp>;
@@ -747,7 +732,6 @@ fn createResetEquationCT(mut inLHSCref: Arc<DAE::ComponentRef>, mut inLHSty: Arc
     let mut orExp: Arc<DAE::Exp>;
     let mut andExp: Arc<DAE::Exp>;
     let mut startValueExp: Arc<DAE::Exp>;
-    let mut preExp: Arc<DAE::Exp>;
     let mut reinitElem: Arc<DAE::Element>;
     let mut startValueOpt: Option<Arc<DAE::Exp>> = None;
     let mut initStateRef: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
@@ -756,7 +740,6 @@ fn createResetEquationCT(mut inLHSCref: Arc<DAE::ComponentRef>, mut inLHSty: Arc
     let mut nStates: i32 = 0;
     let mut enclosingFlatSMComps: metamodelica::Array<Arc<DAE::Element>>;
     let mut tArrayBool: Arc<DAE::Type> = Arc::new(DAE::Type::T_NORETCALL);
-    let mut callAttributes: Arc<DAE::CallAttributes> = Arc::new(<DAE::CallAttributes as ::std::default::Default>::default());
     let FlatSmSemantics { smComps: __pa0, .. } = (inEnclosingFlatSmSemantics.clone()) else { bail!("pattern mismatch") };
     enclosingFlatSMComps = __pa0.clone();
     let __pa1 = ::match_deref::match_deref! { match &(enclosingFlatSMComps.clone().borrow()[(1-1) as usize].clone()) {
@@ -824,7 +807,7 @@ fn isCrefInVar(mut inElement: Arc<DAE::Element>, mut inCref: Arc<DAE::ComponentR
     Ok(result)
 }
 
-fn createResetEquation(mut inLHSCref: Arc<DAE::ComponentRef>, mut inLHSty: Arc<DAE::Type>, mut inStateCref: Arc<DAE::ComponentRef>, mut inEnclosingFlatSmSemantics: FlatSmSemantics, mut crToExpOpt: (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Option<Arc<DAE::Exp>>)>>), i32, (HashTableCrToExpOption::FuncHashCref, HashTableCrToExpOption::FuncCrefEqual, HashTableCrToExpOption::FuncCrefStr, HashTableCrToExpOption::FuncExpStr))) -> Result<Arc<DAE::Element>> {
+fn createResetEquation(mut inLHSCref: Arc<DAE::ComponentRef>, mut inLHSty: Arc<DAE::Type>, mut inStateCref: Arc<DAE::ComponentRef>, mut inEnclosingFlatSmSemantics: FlatSmSemantics, mut crToExpOpt: (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Option<Arc<DAE::Exp>>)>>), i32, (Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<i32> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Arc<DAE::ComponentRef>) -> Result<bool> + 'static>, Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>) -> Result<ArcStr> + 'static>, Arc<dyn ::std::ops::Fn(Option<Arc<DAE::Exp>>) -> Result<ArcStr> + 'static>))) -> Result<Arc<DAE::Element>> {
     let mut outEqn: Arc<DAE::Element>;
     let mut activeExp: Arc<DAE::Exp>;
     let mut lhsExp: Arc<DAE::Exp>;
@@ -1069,9 +1052,6 @@ fn addPropagationEquations(mut inFlatSmSemantics: FlatSmSemantics, mut inEnclosi
     let mut rhs: Arc<DAE::Exp>;
     let mut andExp: Arc<DAE::Exp>;
     let mut eqExp: Arc<DAE::Exp>;
-    let mut activeResetStateRefExp: Arc<DAE::Exp>;
-    let mut activeStateRefExp: Arc<DAE::Exp>;
-    let mut activeResetRefExp: Arc<DAE::Exp>;
     let mut tArrayBool: Arc<DAE::Type> = Arc::new(DAE::Type::T_NORETCALL);
     let mut tArrayInteger: Arc<DAE::Type> = Arc::new(DAE::Type::T_NORETCALL);
     let mut ident: ArcStr = arcstr::literal!("");
@@ -1081,7 +1061,6 @@ fn addPropagationEquations(mut inFlatSmSemantics: FlatSmSemantics, mut inEnclosi
     let mut smvars: Arc<metamodelica::List<Arc<DAE::Element>>> = metamodelica::nil();
     let mut smknowns: Arc<metamodelica::List<Arc<DAE::Element>>> = metamodelica::nil();
     let mut smeqs: Arc<metamodelica::List<Arc<DAE::Element>>> = metamodelica::nil();
-    let mut enclosingStateOption: Option<Arc<DAE::ComponentRef>> = None;
     let mut pvars: Arc<metamodelica::List<Arc<DAE::Element>>> = metamodelica::nil();
     let mut peqs: Arc<metamodelica::List<Arc<DAE::Element>>> = metamodelica::nil();
     let mut enclosingStateCref: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
@@ -1286,7 +1265,6 @@ fn basicFlatSmSemantics(mut ident: ArcStr, mut q: Arc<metamodelica::List<Arc<DAE
     let mut knowns: Arc<metamodelica::List<Arc<DAE::Element>>> = metamodelica::nil();
     let mut i: i32 = 0;
     let mut preRef: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
-    let mut cref: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
     let mut nStatesRef: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
     let mut activeRef: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
     let mut resetRef: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
@@ -1298,7 +1276,6 @@ fn basicFlatSmSemantics(mut ident: ArcStr, mut q: Arc<metamodelica::List<Arc<DAE
     let mut nextStateRef: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
     let mut nextResetRef: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
     let mut stateMachineInFinalStateRef: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
-    let mut var: Arc<DAE::Element>;
     let mut nStatesVar: Arc<DAE::Element>;
     let mut activeVar: Arc<DAE::Element>;
     let mut resetVar: Arc<DAE::Element>;
@@ -1338,7 +1315,6 @@ fn basicFlatSmSemantics(mut ident: ArcStr, mut q: Arc<metamodelica::List<Arc<DAE
     let mut tPriorityVars: metamodelica::Array<Arc<DAE::Element>>;
     let mut from: i32 = 0;
     let mut to: i32 = 0;
-    let mut condition: Arc<DAE::Exp>;
     let mut immediate: bool = false;
     let mut reset: bool = false;
     let mut synchronize: bool = false;
@@ -1810,7 +1786,6 @@ pub fn dumpTransitionStr(mut transition: Transition) -> Result<ArcStr> {
 
 fn wrapHack(mut cache: FCore::Cache, mut inElementLst: Arc<metamodelica::List<Arc<DAE::Element>>>) -> Result<Arc<metamodelica::List<Arc<DAE::Element>>>> {
     let mut outElementLst: Arc<metamodelica::List<Arc<DAE::Element>>> = metamodelica::nil();
-    let mut nOfSubstitutions: i32 = 0;
     let mut eqnLst: Arc<metamodelica::List<Arc<DAE::Element>>> = metamodelica::nil();
     let mut otherLst: Arc<metamodelica::List<Arc<DAE::Element>>> = metamodelica::nil();
     let mut whenEq: Arc<DAE::Element>;

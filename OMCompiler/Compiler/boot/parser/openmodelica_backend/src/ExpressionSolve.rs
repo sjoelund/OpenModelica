@@ -77,13 +77,13 @@ use openmodelica_util_datatypes_basic::List;
 // =============================================================================
 pub fn solveSimpleEquations(mut dae: Arc<BackendDAE::BackendDAE>) -> Result<Arc<BackendDAE::BackendDAE>> {
     let mut dae: Arc<BackendDAE::BackendDAE> = dae;
-    assign_field!(dae.eqs = {
+    assign_field!(dae.eqs = ({
         let mut __acc: Arc<metamodelica::List<Arc<BackendDAE::EqSystem>>> = metamodelica::nil();
         for mut syst in (dae.eqs.clone()).into_iter().cloned() {
             let __x = (::match_deref::match_deref! { match &(syst.clone()) {
         Deref @ BackendDAE::EqSystem { matching: Deref @ BackendDAE::Matching::MATCHING { ass2, ass1, comps }, .. } => {
             let mut comps = (*comps).clone();
-            comps = {
+            comps = ({
         let mut __acc: Arc<metamodelica::List<Arc<BackendDAE::StrongComponent>>> = metamodelica::nil();
         for mut comp in (comps.clone()).into_iter().cloned() {
             let __x = (::match_deref::match_deref! { match &(comp.clone()) {
@@ -120,7 +120,7 @@ pub fn solveSimpleEquations(mut dae: Arc<BackendDAE::BackendDAE>) -> Result<Arc<
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
             assign_field!(syst.matching = Arc::new(BackendDAE::Matching::MATCHING { ass1: ass1.clone(), ass2: ass2.clone(), comps: comps.clone() }));
             syst.clone()
         },
@@ -132,7 +132,7 @@ pub fn solveSimpleEquations(mut dae: Arc<BackendDAE::BackendDAE>) -> Result<Arc<
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
     Ok(dae)
 }
 
@@ -364,29 +364,29 @@ fn solveSimple(mut inExp1: Arc<DAE::Exp>, mut inExp2: Arc<DAE::Exp>, mut inExp3:
     let mut eqnForNewVars: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
     let mut newVarsCrefs: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
     let mut odepth: i32 = idepth.clone();
-    (outExp, outAsserts) = (::match_deref::match_deref! { match &((inExp1.clone(), inExp2.clone(), inExp3.clone())) {
-        (Deref @ DAE::Exp::CREF { componentRef: cr1, .. }, _, Deref @ DAE::Exp::CREF { componentRef: cr, .. }) if (ComponentReferenceBasics::crefEqual(cr.clone(), cr1.clone())? && !(Expression::expHasCrefNoPreOrStart(inExp2.clone(), cr.clone())?)) => {
+    (outExp, outAsserts) = (::match_deref::match_deref! { match &((inExp1.clone(), inExp3.clone())) {
+        (Deref @ DAE::Exp::CREF { componentRef: cr1, .. }, Deref @ DAE::Exp::CREF { componentRef: cr, .. }) if (ComponentReferenceBasics::crefEqual(cr.clone(), cr1.clone())? && !(Expression::expHasCrefNoPreOrStart(inExp2.clone(), cr.clone())?)) => {
             (inExp2.clone(), metamodelica::nil())
         },
-        (Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: Deref @ DAE::Exp::CREF { componentRef: cr1, .. }, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "der" }, .. }, _, Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: Deref @ DAE::Exp::CREF { componentRef: cr, .. }, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "der" }, .. }) if (ComponentReferenceBasics::crefEqual(cr.clone(), cr1.clone())? && !(Expression::expHasDerCref(inExp2.clone(), cr.clone())?)) => {
+        (Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: Deref @ DAE::Exp::CREF { componentRef: cr1, .. }, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "der" }, .. }, Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: Deref @ DAE::Exp::CREF { componentRef: cr, .. }, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "der" }, .. }) if (ComponentReferenceBasics::crefEqual(cr.clone(), cr1.clone())? && !(Expression::expHasDerCref(inExp2.clone(), cr.clone())?)) => {
             (inExp2.clone(), metamodelica::nil())
         },
-        (Deref @ DAE::Exp::UNARY { exp: Deref @ DAE::Exp::CREF { componentRef: cr1, .. }, operator: DAE::Operator::UMINUS { .. } }, _, Deref @ DAE::Exp::CREF { componentRef: cr, .. }) if (ComponentReferenceBasics::crefEqual(cr1.clone(), cr.clone())? && !(Expression::expHasCrefNoPreOrStart(inExp2.clone(), cr.clone())?)) => {
+        (Deref @ DAE::Exp::UNARY { exp: Deref @ DAE::Exp::CREF { componentRef: cr1, .. }, operator: DAE::Operator::UMINUS { .. } }, Deref @ DAE::Exp::CREF { componentRef: cr, .. }) if (ComponentReferenceBasics::crefEqual(cr1.clone(), cr.clone())? && !(Expression::expHasCrefNoPreOrStart(inExp2.clone(), cr.clone())?)) => {
             (Expression::negate(inExp2.clone())?, metamodelica::nil())
         },
-        (Deref @ DAE::Exp::UNARY { exp: Deref @ DAE::Exp::CREF { componentRef: cr1, .. }, operator: DAE::Operator::UMINUS_ARR { .. } }, _, Deref @ DAE::Exp::CREF { componentRef: cr, .. }) if (ComponentReferenceBasics::crefEqual(cr1.clone(), cr.clone())? && !(Expression::expHasCrefNoPreOrStart(inExp2.clone(), cr.clone())?)) => {
+        (Deref @ DAE::Exp::UNARY { exp: Deref @ DAE::Exp::CREF { componentRef: cr1, .. }, operator: DAE::Operator::UMINUS_ARR { .. } }, Deref @ DAE::Exp::CREF { componentRef: cr, .. }) if (ComponentReferenceBasics::crefEqual(cr1.clone(), cr.clone())? && !(Expression::expHasCrefNoPreOrStart(inExp2.clone(), cr.clone())?)) => {
             (Expression::negate(inExp2.clone())?, metamodelica::nil())
         },
-        (Deref @ DAE::Exp::UNARY { exp: Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: Deref @ DAE::Exp::CREF { componentRef: cr1, .. }, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "der" }, .. }, operator: DAE::Operator::UMINUS { .. } }, _, Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: Deref @ DAE::Exp::CREF { componentRef: cr, .. }, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "der" }, .. }) if (ComponentReferenceBasics::crefEqual(cr1.clone(), cr.clone())? && !(Expression::expHasDerCref(inExp2.clone(), cr.clone())?)) => {
+        (Deref @ DAE::Exp::UNARY { exp: Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: Deref @ DAE::Exp::CREF { componentRef: cr1, .. }, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "der" }, .. }, operator: DAE::Operator::UMINUS { .. } }, Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: Deref @ DAE::Exp::CREF { componentRef: cr, .. }, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "der" }, .. }) if (ComponentReferenceBasics::crefEqual(cr1.clone(), cr.clone())? && !(Expression::expHasDerCref(inExp2.clone(), cr.clone())?)) => {
             (Expression::negate(inExp2.clone())?, metamodelica::nil())
         },
-        (Deref @ DAE::Exp::UNARY { exp: Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: Deref @ DAE::Exp::CREF { componentRef: cr1, .. }, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "der" }, .. }, operator: DAE::Operator::UMINUS_ARR { .. } }, _, Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: Deref @ DAE::Exp::CREF { componentRef: cr, .. }, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "der" }, .. }) if (ComponentReferenceBasics::crefEqual(cr1.clone(), cr.clone())? && !(Expression::expHasDerCref(inExp2.clone(), cr.clone())?)) => {
+        (Deref @ DAE::Exp::UNARY { exp: Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: Deref @ DAE::Exp::CREF { componentRef: cr1, .. }, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "der" }, .. }, operator: DAE::Operator::UMINUS_ARR { .. } }, Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: Deref @ DAE::Exp::CREF { componentRef: cr, .. }, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "der" }, .. }) if (ComponentReferenceBasics::crefEqual(cr1.clone(), cr.clone())? && !(Expression::expHasDerCref(inExp2.clone(), cr.clone())?)) => {
             (Expression::negate(inExp2.clone())?, metamodelica::nil())
         },
-        (Deref @ DAE::Exp::LUNARY { exp: Deref @ DAE::Exp::CREF { componentRef: cr1, .. }, operator: DAE::Operator::NOT { .. } }, _, Deref @ DAE::Exp::CREF { componentRef: cr, .. }) if (ComponentReferenceBasics::crefEqual(cr1.clone(), cr.clone())? && !(Expression::expHasCrefNoPreOrStart(inExp2.clone(), cr.clone())?)) => {
+        (Deref @ DAE::Exp::LUNARY { exp: Deref @ DAE::Exp::CREF { componentRef: cr1, .. }, operator: DAE::Operator::NOT { .. } }, Deref @ DAE::Exp::CREF { componentRef: cr, .. }) if (ComponentReferenceBasics::crefEqual(cr1.clone(), cr.clone())? && !(Expression::expHasCrefNoPreOrStart(inExp2.clone(), cr.clone())?)) => {
             (Expression::negate(inExp2.clone())?, metamodelica::nil())
         },
-        (Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: Deref @ DAE::Exp::CREF { componentRef: cr1, .. }, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "Integer" }, .. }, _, Deref @ DAE::Exp::CREF { ty: tp, componentRef: cr }) if (ComponentReferenceBasics::crefEqual(cr.clone(), cr1.clone())? && !(Expression::expHasCrefNoPreorDer(inExp2.clone(), cr.clone())?)) => {
+        (Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: Deref @ DAE::Exp::CREF { componentRef: cr1, .. }, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "Integer" }, .. }, Deref @ DAE::Exp::CREF { ty: tp, componentRef: cr }) if (ComponentReferenceBasics::crefEqual(cr.clone(), cr1.clone())? && !(Expression::expHasCrefNoPreorDer(inExp2.clone(), cr.clone())?)) => {
             let mut asserts: Arc<metamodelica::List<Arc<DAE::Statement>>> = metamodelica::nil();
             asserts = generateAssertType(tp.clone(), cr.clone(), inExp3.clone(), metamodelica::nil())?;
             (Arc::new(DAE::Exp::CAST { ty: tp.clone(), exp: inExp2.clone() }), asserts.clone())
@@ -401,8 +401,8 @@ fn solveSimple(mut inExp1: Arc<DAE::Exp>, mut inExp2: Arc<DAE::Exp>, mut inExp3:
 
 fn generateAssertType(mut tp: Arc<DAE::Type>, mut cr: Arc<DAE::ComponentRef>, mut iExp: Arc<DAE::Exp>, mut inAsserts: Arc<metamodelica::List<Arc<DAE::Statement>>>) -> Result<Arc<metamodelica::List<Arc<DAE::Statement>>>> {
     let mut outAsserts: Arc<metamodelica::List<Arc<DAE::Statement>>> = metamodelica::nil();
-    outAsserts = (::match_deref::match_deref! { match &((tp.clone(), cr.clone(), iExp.clone(), inAsserts.clone())) {
-        (Deref @ DAE::Type::T_ENUMERATION { names, path, .. }, _, _, _) => {
+    outAsserts = (::match_deref::match_deref! { match &(tp.clone()) {
+        Deref @ DAE::Type::T_ENUMERATION { names, path, .. } => {
             let mut p1: Arc<Absyn::Path>;
             let mut pn: Arc<Absyn::Path>;
             let mut n: i32 = 0;
@@ -421,7 +421,7 @@ fn generateAssertType(mut tp: Arc<DAE::Type>, mut cr: Arc<DAE::ComponentRef>, mu
             en = Arc::new(DAE::Exp::ENUM_LITERAL { name: p1.clone(), index: n.clone() });
             s1 = (AbsynUtil::pathString(p1.clone(), (literal!(".")).clone(), true, false)?).clone();
             sn = (AbsynUtil::pathString(pn.clone(), (literal!(".")).clone(), true, false)?).clone();
-            let _ = ExpressionBasics::printExpStr(iExp.clone())?;
+            ExpressionBasics::printExpStr(iExp.clone())?;
             crstr = (ComponentReferenceBasics::printComponentRefStr(cr.clone())?).clone();
             estr = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Expression for ")); __mm_s.push_str(&*crstr.clone()); __mm_s.push_str(&*literal!(" out of min(")); __mm_s.push_str(&*s1.clone()); __mm_s.push_str(&*literal!(")/max(")); __mm_s.push_str(&*sn.clone()); __mm_s.push_str(&*literal!(") = ")); ArcStr::from(__mm_s) }).clone();
             e = Arc::new(DAE::Exp::LBINARY { exp1: Arc::new(DAE::Exp::RELATION { exp1: iExp.clone(), operator: DAE::Operator::GREATEREQ { ty: DAE::T_INTEGER_DEFAULT().clone() }, exp2: e1.clone(), index: -1, optionExpisASUB: None }), operator: DAE::Operator::AND { ty: DAE::T_BOOL_DEFAULT().clone() }, exp2: Arc::new(DAE::Exp::RELATION { exp1: iExp.clone(), operator: DAE::Operator::LESSEQ { ty: DAE::T_INTEGER_DEFAULT().clone() }, exp2: en.clone(), index: -1, optionExpisASUB: None }) });
@@ -443,22 +443,11 @@ pub fn preprocessingSolve(mut x: Arc<DAE::Exp>, mut y: Arc<DAE::Exp>, mut inExp3
     let mut eqnForNewVars: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
     let mut newVarsCrefs: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
     let mut depth: i32 = idepth.clone();
-    let mut res: Arc<DAE::Exp>;
-    let mut lhs: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
-    let mut rhs: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
-    let mut lhsWithX: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
-    let mut rhsWithX: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
-    let mut lhsWithoutX: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
-    let mut rhsWithoutX: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
-    let mut eWithX: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
-    let mut factorWithX: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
-    let mut factorWithoutX: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
     let mut lhsX: Arc<DAE::Exp>;
     let mut rhsX: Arc<DAE::Exp>;
     let mut lhsY: Arc<DAE::Exp>;
     let mut rhsY: Arc<DAE::Exp>;
     let mut N: Arc<DAE::Exp>;
-    let mut cr: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
     let mut con: bool = false;
     let mut new_x: bool = false;
     let mut inlineFun: bool = true;
@@ -633,48 +622,48 @@ fn preprocessingSolve4(mut inExp1: Arc<DAE::Exp>, mut inExp2: Arc<DAE::Exp>, mut
     let mut oExp1: Arc<DAE::Exp>;
     let mut oExp2: Arc<DAE::Exp>;
     let mut newX: bool = false;
-    (oExp1, oExp2, newX) = (::match_deref::match_deref! { match &((inExp1.clone(), inExp2.clone(), inExp3.clone())) {
-        (Deref @ DAE::Exp::BINARY { exp1: Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: e1, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "exp" }, .. }, operator: DAE::Operator::SUB { ty: _ }, exp2: Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: e2, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "exp" }, .. } }, Deref @ DAE::Exp::RCONST { real: __rlit_4 }, _) if __rlit_4.eq(&metamodelica::OrderedFloat((0.0) as f64)) => {
+    (oExp1, oExp2, newX) = (::match_deref::match_deref! { match &((inExp1.clone(), inExp2.clone())) {
+        (Deref @ DAE::Exp::BINARY { exp1: Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: e1, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "exp" }, .. }, operator: DAE::Operator::SUB { ty: _ }, exp2: Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: e2, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "exp" }, .. } }, Deref @ DAE::Exp::RCONST { real: __rlit_4 }) if __rlit_4.eq(&metamodelica::OrderedFloat((0.0) as f64)) => {
             (e1.clone(), e2.clone(), true)
         },
-        (Deref @ DAE::Exp::BINARY { exp1: Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: e1, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "log" }, .. }, operator: DAE::Operator::SUB { ty: _ }, exp2: Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: e2, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "log" }, .. } }, Deref @ DAE::Exp::RCONST { real: __rlit_5 }, _) if __rlit_5.eq(&metamodelica::OrderedFloat((0.0) as f64)) => {
+        (Deref @ DAE::Exp::BINARY { exp1: Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: e1, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "log" }, .. }, operator: DAE::Operator::SUB { ty: _ }, exp2: Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: e2, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "log" }, .. } }, Deref @ DAE::Exp::RCONST { real: __rlit_5 }) if __rlit_5.eq(&metamodelica::OrderedFloat((0.0) as f64)) => {
             (e1.clone(), e2.clone(), true)
         },
-        (Deref @ DAE::Exp::BINARY { exp1: Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: e1, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "log10" }, .. }, operator: DAE::Operator::SUB { ty: _ }, exp2: Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: e2, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "log10" }, .. } }, Deref @ DAE::Exp::RCONST { real: __rlit_6 }, _) if __rlit_6.eq(&metamodelica::OrderedFloat((0.0) as f64)) => {
+        (Deref @ DAE::Exp::BINARY { exp1: Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: e1, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "log10" }, .. }, operator: DAE::Operator::SUB { ty: _ }, exp2: Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: e2, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "log10" }, .. } }, Deref @ DAE::Exp::RCONST { real: __rlit_6 }) if __rlit_6.eq(&metamodelica::OrderedFloat((0.0) as f64)) => {
             (e1.clone(), e2.clone(), true)
         },
-        (Deref @ DAE::Exp::BINARY { exp1: Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: e1, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "sinh" }, .. }, operator: DAE::Operator::SUB { ty: _ }, exp2: Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: e2, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "sinh" }, .. } }, Deref @ DAE::Exp::RCONST { real: __rlit_7 }, _) if __rlit_7.eq(&metamodelica::OrderedFloat((0.0) as f64)) => {
+        (Deref @ DAE::Exp::BINARY { exp1: Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: e1, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "sinh" }, .. }, operator: DAE::Operator::SUB { ty: _ }, exp2: Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: e2, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "sinh" }, .. } }, Deref @ DAE::Exp::RCONST { real: __rlit_7 }) if __rlit_7.eq(&metamodelica::OrderedFloat((0.0) as f64)) => {
             (e1.clone(), e2.clone(), true)
         },
-        (Deref @ DAE::Exp::BINARY { exp1: Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: e1, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "tanh" }, .. }, operator: DAE::Operator::SUB { ty: _ }, exp2: Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: e2, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "tanh" }, .. } }, Deref @ DAE::Exp::RCONST { real: __rlit_8 }, _) if __rlit_8.eq(&metamodelica::OrderedFloat((0.0) as f64)) => {
+        (Deref @ DAE::Exp::BINARY { exp1: Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: e1, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "tanh" }, .. }, operator: DAE::Operator::SUB { ty: _ }, exp2: Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: e2, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "tanh" }, .. } }, Deref @ DAE::Exp::RCONST { real: __rlit_8 }) if __rlit_8.eq(&metamodelica::OrderedFloat((0.0) as f64)) => {
             (e1.clone(), e2.clone(), true)
         },
-        (Deref @ DAE::Exp::BINARY { exp1: Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: e1, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "sqrt" }, .. }, operator: DAE::Operator::SUB { ty: _ }, exp2: Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: e2, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "sqrt" }, .. } }, Deref @ DAE::Exp::RCONST { real: __rlit_9 }, _) if __rlit_9.eq(&metamodelica::OrderedFloat((0.0) as f64)) => {
+        (Deref @ DAE::Exp::BINARY { exp1: Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: e1, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "sqrt" }, .. }, operator: DAE::Operator::SUB { ty: _ }, exp2: Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: e2, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "sqrt" }, .. } }, Deref @ DAE::Exp::RCONST { real: __rlit_9 }) if __rlit_9.eq(&metamodelica::OrderedFloat((0.0) as f64)) => {
             (e1.clone(), e2.clone(), true)
         },
-        (Deref @ DAE::Exp::BINARY { exp1: Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: e1, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "sinh" }, .. }, operator: DAE::Operator::SUB { ty: _ }, exp2: Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: e2, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "cosh" }, .. } }, Deref @ DAE::Exp::RCONST { real: __rlit_10 }, _) if __rlit_10.eq(&metamodelica::OrderedFloat((0.0) as f64)) && (ExpressionBasics::expEqual(e1.clone(), e2.clone())?) => {
+        (Deref @ DAE::Exp::BINARY { exp1: Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: e1, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "sinh" }, .. }, operator: DAE::Operator::SUB { ty: _ }, exp2: Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: e2, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "cosh" }, .. } }, Deref @ DAE::Exp::RCONST { real: __rlit_10 }) if __rlit_10.eq(&metamodelica::OrderedFloat((0.0) as f64)) && (ExpressionBasics::expEqual(e1.clone(), e2.clone())?) => {
             (e1.clone(), inExp2.clone(), true)
         },
-        (Deref @ DAE::Exp::BINARY { exp1: Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: e1, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "cosh" }, .. }, operator: DAE::Operator::SUB { ty: _ }, exp2: Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: e2, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "sinh" }, .. } }, Deref @ DAE::Exp::RCONST { real: __rlit_11 }, _) if __rlit_11.eq(&metamodelica::OrderedFloat((0.0) as f64)) && (ExpressionBasics::expEqual(e1.clone(), e2.clone())?) => {
+        (Deref @ DAE::Exp::BINARY { exp1: Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: e1, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "cosh" }, .. }, operator: DAE::Operator::SUB { ty: _ }, exp2: Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: e2, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "sinh" }, .. } }, Deref @ DAE::Exp::RCONST { real: __rlit_11 }) if __rlit_11.eq(&metamodelica::OrderedFloat((0.0) as f64)) && (ExpressionBasics::expEqual(e1.clone(), e2.clone())?) => {
             (e1.clone(), inExp2.clone(), true)
         },
-        (Deref @ DAE::Exp::BINARY { exp1: Deref @ DAE::Exp::BINARY { exp1: e3, operator: DAE::Operator::MUL { .. }, exp2: Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: e1, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "sinh" }, .. } }, operator: DAE::Operator::SUB { ty: tp }, exp2: Deref @ DAE::Exp::BINARY { exp1: e4, operator: DAE::Operator::MUL { .. }, exp2: Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: e2, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "cosh" }, .. } } }, Deref @ DAE::Exp::RCONST { real: __rlit_12 }, _) if __rlit_12.eq(&metamodelica::OrderedFloat((0.0) as f64)) && (ExpressionBasics::expEqual(e1.clone(), e2.clone())?) => {
+        (Deref @ DAE::Exp::BINARY { exp1: Deref @ DAE::Exp::BINARY { exp1: e3, operator: DAE::Operator::MUL { .. }, exp2: Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: e1, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "sinh" }, .. } }, operator: DAE::Operator::SUB { ty: tp }, exp2: Deref @ DAE::Exp::BINARY { exp1: e4, operator: DAE::Operator::MUL { .. }, exp2: Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: e2, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "cosh" }, .. } } }, Deref @ DAE::Exp::RCONST { real: __rlit_12 }) if __rlit_12.eq(&metamodelica::OrderedFloat((0.0) as f64)) && (ExpressionBasics::expEqual(e1.clone(), e2.clone())?) => {
             let mut e: Arc<DAE::Exp>;
             e = Expression::makePureBuiltinCall((literal!("tanh")).clone(), list![e1.clone()], tp.clone());
             (Expression::expMul(e3.clone(), e.clone())?, e4.clone(), true)
         },
-        (Deref @ DAE::Exp::BINARY { exp1: Deref @ DAE::Exp::BINARY { exp1: e4, operator: DAE::Operator::MUL { .. }, exp2: Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: e2, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "cosh" }, .. } }, operator: DAE::Operator::SUB { ty: tp }, exp2: Deref @ DAE::Exp::BINARY { exp1: e3, operator: DAE::Operator::MUL { .. }, exp2: Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: e1, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "sinh" }, .. } } }, Deref @ DAE::Exp::RCONST { real: __rlit_13 }, _) if __rlit_13.eq(&metamodelica::OrderedFloat((0.0) as f64)) && (ExpressionBasics::expEqual(e1.clone(), e2.clone())?) => {
+        (Deref @ DAE::Exp::BINARY { exp1: Deref @ DAE::Exp::BINARY { exp1: e4, operator: DAE::Operator::MUL { .. }, exp2: Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: e2, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "cosh" }, .. } }, operator: DAE::Operator::SUB { ty: tp }, exp2: Deref @ DAE::Exp::BINARY { exp1: e3, operator: DAE::Operator::MUL { .. }, exp2: Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: e1, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "sinh" }, .. } } }, Deref @ DAE::Exp::RCONST { real: __rlit_13 }) if __rlit_13.eq(&metamodelica::OrderedFloat((0.0) as f64)) && (ExpressionBasics::expEqual(e1.clone(), e2.clone())?) => {
             let mut e: Arc<DAE::Exp>;
             e = Expression::makePureBuiltinCall((literal!("tanh")).clone(), list![e1.clone()], tp.clone());
             (Expression::expMul(e3.clone(), e.clone())?, e4.clone(), true)
         },
-        (Deref @ DAE::Exp::BINARY { exp1: Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: e1, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "sqrt" }, .. }, operator: DAE::Operator::SUB { ty: _ }, exp2: e2 }, Deref @ DAE::Exp::RCONST { real: __rlit_14 }, _) if __rlit_14.eq(&metamodelica::OrderedFloat((0.0) as f64)) => {
+        (Deref @ DAE::Exp::BINARY { exp1: Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: e1, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "sqrt" }, .. }, operator: DAE::Operator::SUB { ty: _ }, exp2: e2 }, Deref @ DAE::Exp::RCONST { real: __rlit_14 }) if __rlit_14.eq(&metamodelica::OrderedFloat((0.0) as f64)) => {
             (e1.clone(), Expression::expPow(e2.clone(), Arc::new(DAE::Exp::RCONST { real: metamodelica::OrderedFloat(2.0_f64) }))?, true)
         },
-        (Deref @ DAE::Exp::BINARY { exp1: e2, operator: DAE::Operator::SUB { ty: _ }, exp2: Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: e1, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "sqrt" }, .. } }, Deref @ DAE::Exp::RCONST { real: __rlit_15 }, _) if __rlit_15.eq(&metamodelica::OrderedFloat((0.0) as f64)) => {
+        (Deref @ DAE::Exp::BINARY { exp1: e2, operator: DAE::Operator::SUB { ty: _ }, exp2: Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: e1, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "sqrt" }, .. } }, Deref @ DAE::Exp::RCONST { real: __rlit_15 }) if __rlit_15.eq(&metamodelica::OrderedFloat((0.0) as f64)) => {
             (e1.clone(), Expression::expPow(e2.clone(), Arc::new(DAE::Exp::RCONST { real: metamodelica::OrderedFloat(2.0_f64) }))?, true)
         },
-        (Deref @ DAE::Exp::BINARY { exp1: Deref @ DAE::Exp::BINARY { exp1: e1, operator: DAE::Operator::POW { .. }, exp2: e2 }, operator: DAE::Operator::SUB { ty: tp }, exp2: Deref @ DAE::Exp::BINARY { exp1: e3, operator: DAE::Operator::POW { .. }, exp2: e4 } }, Deref @ DAE::Exp::RCONST { real: __rlit_16 }, _) if __rlit_16.eq(&metamodelica::OrderedFloat((0.0) as f64)) && (ExpressionBasics::expEqual(e2.clone(), e4.clone())? && expHasCref(e1.clone(), inExp3.clone())? && expHasCref(e3.clone(), inExp3.clone())?) => {
+        (Deref @ DAE::Exp::BINARY { exp1: Deref @ DAE::Exp::BINARY { exp1: e1, operator: DAE::Operator::POW { .. }, exp2: e2 }, operator: DAE::Operator::SUB { ty: tp }, exp2: Deref @ DAE::Exp::BINARY { exp1: e3, operator: DAE::Operator::POW { .. }, exp2: e4 } }, Deref @ DAE::Exp::RCONST { real: __rlit_16 }) if __rlit_16.eq(&metamodelica::OrderedFloat((0.0) as f64)) && (ExpressionBasics::expEqual(e2.clone(), e4.clone())? && expHasCref(e1.clone(), inExp3.clone())? && expHasCref(e3.clone(), inExp3.clone())?) => {
             let mut e: Arc<DAE::Exp>;
             let mut e_1: Arc<DAE::Exp>;
             let mut e_2: Arc<DAE::Exp>;
@@ -693,10 +682,10 @@ fn preprocessingSolve4(mut inExp1: Arc<DAE::Exp>, mut inExp2: Arc<DAE::Exp>, mut
 fn expAddX(mut inExp1: Arc<DAE::Exp>, mut inExp2: Arc<DAE::Exp>, mut inExp3: Arc<DAE::Exp>) -> Result<Arc<DAE::Exp>> {
     let mut ores: Arc<DAE::Exp>;
     ores = 'mc: {
-        let __mc_input = (inExp1.clone(), inExp2.clone(), inExp3.clone());
+        let __mc_input = (inExp1.clone(), inExp2.clone());
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ DAE::Exp::IFEXP { expCond: e, expThen: e1, expElse: e2 }, _, _) => {
+                (Deref @ DAE::Exp::IFEXP { expCond: e, expThen: e1, expElse: e2 }, _) => {
                     if !((expHasCref(e1.clone(), inExp3.clone())? && expHasCref(e2.clone(), inExp3.clone())? && !(expHasCref(e.clone(), inExp3.clone())?))) { bail!("guard") }
                     let mut e3: Arc<DAE::Exp>;
                     let mut e4: Arc<DAE::Exp>;
@@ -711,7 +700,7 @@ fn expAddX(mut inExp1: Arc<DAE::Exp>, mut inExp2: Arc<DAE::Exp>, mut inExp3: Arc
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, Deref @ DAE::Exp::IFEXP { expCond: e, expThen: e1, expElse: e2 }, _) => {
+                (_, Deref @ DAE::Exp::IFEXP { expCond: e, expThen: e1, expElse: e2 }) => {
                     if !((expHasCref(e1.clone(), inExp3.clone())? && expHasCref(e2.clone(), inExp3.clone())? && !(expHasCref(e.clone(), inExp3.clone())?))) { bail!("guard") }
                     let mut e3: Arc<DAE::Exp>;
                     let mut e4: Arc<DAE::Exp>;
@@ -895,10 +884,10 @@ fn solveFunCalls(mut inExp1: Arc<DAE::Exp>, mut inExp3: Arc<DAE::Exp>, mut funct
     let mut x: Arc<DAE::Exp>;
     let mut con: bool = false;
     (x, con) = 'mc: {
-        let __mc_input = (functions.clone(), inExp1.clone());
+        let __mc_input = inExp1.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _) => {
+                _ => {
                     let mut funX: Arc<DAE::Exp>;
                     let mut b: bool = false;
                     (funX, _) = Expression::traverseExpTopDown(inExp1.clone(), (std::sync::Arc::new(inlineCallX) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, (Arc<DAE::Exp>, Option<Arc<AvlTreePathFunction::Tree>>)) -> Result<(Arc<DAE::Exp>, bool, (Arc<DAE::Exp>, Option<Arc<AvlTreePathFunction::Tree>>))> + 'static>), (inExp3.clone(), functions.clone()))?;
@@ -925,8 +914,8 @@ fn removeSimpleCalls(mut inExp1: Arc<DAE::Exp>, mut inExp2: Arc<DAE::Exp>, mut i
     let mut outLhs: Arc<DAE::Exp>;
     let mut outRhs: Arc<DAE::Exp>;
     let mut con: bool = false;
-    (outLhs, outRhs, con) = (::match_deref::match_deref! { match &((inExp1.clone(), inExp2.clone(), inExp3.clone())) {
-        (Deref @ DAE::Exp::CALL { .. }, _, _) => removeSimpleCalls2(inExp1.clone(), inExp2.clone(), inExp3.clone())?,
+    (outLhs, outRhs, con) = (::match_deref::match_deref! { match &(inExp1.clone()) {
+        Deref @ DAE::Exp::CALL { .. } => removeSimpleCalls2(inExp1.clone(), inExp2.clone(), inExp3.clone())?,
         _ => (inExp1.clone(), inExp2.clone(), false),
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
     } });
@@ -938,10 +927,10 @@ fn removeSimpleCalls2(mut inExp1: Arc<DAE::Exp>, mut inExp2: Arc<DAE::Exp>, mut 
     let mut outRhs: Arc<DAE::Exp>;
     let mut con: bool = false;
     (outLhs, outRhs, con) = 'mc: {
-        let __mc_input = (inExp1.clone(), inExp2.clone(), inExp3.clone());
+        let __mc_input = (inExp1.clone(), inExp2.clone());
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: e1, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "tanh" }, .. }, _, _) => {
+                (Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: e1, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "tanh" }, .. }, _) => {
                     let mut e2: Arc<DAE::Exp>;
                     let mut e3: Arc<DAE::Exp>;
                     let true = (expHasCref(e1.clone(), inExp3.clone())?) else { bail!("pattern mismatch") };
@@ -959,7 +948,7 @@ fn removeSimpleCalls2(mut inExp1: Arc<DAE::Exp>, mut inExp2: Arc<DAE::Exp>, mut 
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: e1, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "sinh" }, .. }, _, _) => {
+                (Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: e1, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "sinh" }, .. }, _) => {
                     let mut e2: Arc<DAE::Exp>;
                     let mut e3: Arc<DAE::Exp>;
                     let true = (expHasCref(e1.clone(), inExp3.clone())?) else { bail!("pattern mismatch") };
@@ -977,7 +966,7 @@ fn removeSimpleCalls2(mut inExp1: Arc<DAE::Exp>, mut inExp2: Arc<DAE::Exp>, mut 
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: e1, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "log10" }, .. }, _, _) => {
+                (Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: e1, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "log10" }, .. }, _) => {
                     let mut e2: Arc<DAE::Exp>;
                     let true = (expHasCref(e1.clone(), inExp3.clone())?) else { bail!("pattern mismatch") };
                     let false = (expHasCref(inExp2.clone(), inExp3.clone())?) else { bail!("pattern mismatch") };
@@ -989,7 +978,7 @@ fn removeSimpleCalls2(mut inExp1: Arc<DAE::Exp>, mut inExp2: Arc<DAE::Exp>, mut 
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: e1, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "log" }, .. }, _, _) => {
+                (Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: e1, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "log" }, .. }, _) => {
                     let mut e2: Arc<DAE::Exp>;
                     let true = (expHasCref(e1.clone(), inExp3.clone())?) else { bail!("pattern mismatch") };
                     let false = (expHasCref(inExp2.clone(), inExp3.clone())?) else { bail!("pattern mismatch") };
@@ -1001,7 +990,7 @@ fn removeSimpleCalls2(mut inExp1: Arc<DAE::Exp>, mut inExp2: Arc<DAE::Exp>, mut 
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: e1, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "exp" }, .. }, _, _) => {
+                (Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: e1, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "exp" }, .. }, _) => {
                     let mut e2: Arc<DAE::Exp>;
                     let true = (expHasCref(e1.clone(), inExp3.clone())?) else { bail!("pattern mismatch") };
                     let false = (expHasCref(inExp2.clone(), inExp3.clone())?) else { bail!("pattern mismatch") };
@@ -1013,7 +1002,7 @@ fn removeSimpleCalls2(mut inExp1: Arc<DAE::Exp>, mut inExp2: Arc<DAE::Exp>, mut 
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: e1, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "sqrt" }, .. }, _, _) => {
+                (Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: e1, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "sqrt" }, .. }, _) => {
                     let mut e2: Arc<DAE::Exp>;
                     let true = (expHasCref(e1.clone(), inExp3.clone())?) else { bail!("pattern mismatch") };
                     let false = (expHasCref(inExp2.clone(), inExp3.clone())?) else { bail!("pattern mismatch") };
@@ -1026,7 +1015,7 @@ fn removeSimpleCalls2(mut inExp1: Arc<DAE::Exp>, mut inExp2: Arc<DAE::Exp>, mut 
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: Deref @ DAE::Exp::RCONST { real: __rlit_17 }, tail: Deref @ metamodelica::List::Cons { head: e1, tail: Deref @ metamodelica::List::Cons { head: e2, tail: Deref @ metamodelica::List::Nil } } }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "semiLinear" }, .. }, Deref @ DAE::Exp::RCONST { real: __rlit_18 }, _) => {
+                (Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: Deref @ DAE::Exp::RCONST { real: __rlit_17 }, tail: Deref @ metamodelica::List::Cons { head: e1, tail: Deref @ metamodelica::List::Cons { head: e2, tail: Deref @ metamodelica::List::Nil } } }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "semiLinear" }, .. }, Deref @ DAE::Exp::RCONST { real: __rlit_18 }) => {
                     if !(__rlit_17.eq(&metamodelica::OrderedFloat((0.0) as f64)) && __rlit_18.eq(&metamodelica::OrderedFloat((0.0) as f64))) { bail!("guard") }
                     Ok((e1.clone(), e2.clone(), true))
                 }
@@ -1456,7 +1445,6 @@ fn solveQE(mut e1: Arc<DAE::Exp>, mut e2: Arc<DAE::Exp>, mut e3: Arc<DAE::Exp>, 
     let mut lhs: Arc<DAE::Exp>;
     let mut eqnForNewVars: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
     let mut newVarsCrefs: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
-    let mut e: Arc<DAE::Exp>;
     let mut e7: Arc<DAE::Exp>;
     let mut con: Arc<DAE::Exp>;
     let mut invExp: Arc<DAE::Exp>;
@@ -1473,9 +1461,7 @@ fn solveQE(mut e1: Arc<DAE::Exp>, mut e2: Arc<DAE::Exp>, mut e3: Arc<DAE::Exp>, 
     let mut ac: Arc<DAE::Exp>;
     let mut sExp1: Arc<DAE::Exp>;
     let mut sExp2: Arc<DAE::Exp>;
-    let mut cr: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
     let mut tp: Arc<DAE::Type> = Arc::new(DAE::Type::T_NORETCALL);
-    let mut eqn: Arc<BackendDAE::Equation> = Arc::new(BackendDAE::Equation::DUMMY_EQUATION);
     let mut b1: bool = false;
     let mut b3: bool = false;
     let false = (Expression::isZero(e1.clone()) && Expression::isZero(e2.clone())) else { bail!("pattern mismatch") };
@@ -1585,8 +1571,8 @@ fn solveLinearSystem(mut inExp1: Arc<DAE::Exp>, mut inExp2: Arc<DAE::Exp>, mut i
     let mut eqnForNewVars: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
     let mut newVarsCrefs: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
     let mut odepth: i32 = idepth.clone();
-    (outExp, outAsserts) = (::match_deref::match_deref! { match &((inExp1.clone(), inExp2.clone(), inExp3.clone())) {
-        (_, _, Deref @ DAE::Exp::CREF { componentRef: cr, .. }) => {
+    (outExp, outAsserts) = (::match_deref::match_deref! { match &(inExp3.clone()) {
+        Deref @ DAE::Exp::CREF { componentRef: cr, .. } => {
             let mut dere: Arc<DAE::Exp>;
             let mut e: Arc<DAE::Exp>;
             let mut z: Arc<DAE::Exp>;
@@ -1621,10 +1607,10 @@ fn solveLinearSystem(mut inExp1: Arc<DAE::Exp>, mut inExp2: Arc<DAE::Exp>, mut i
 fn hasOnlyFactors(mut e1: Arc<DAE::Exp>, mut e2: Arc<DAE::Exp>) -> Result<bool> {
     let mut res: bool = false;
     res = 'mc: {
-        let __mc_input = (e1.clone(), e2.clone());
+        let __mc_input = e2.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _) => {
+                _ => {
                     let true = (Expression::isZero(e1.clone())) else { bail!("pattern mismatch") };
                     ::match_deref::match_deref! { match &(Expression::factors(e2.clone())?) {
                         Deref @ metamodelica::List::Cons { head: _, tail: Deref @ metamodelica::List::Cons { head: _, tail: _ } } => (),
@@ -1641,7 +1627,7 @@ fn hasOnlyFactors(mut e1: Arc<DAE::Exp>, mut e2: Arc<DAE::Exp>) -> Result<bool> 
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, _) => {
+                _ => {
                     let true = (Expression::isZero(e2.clone())) else { bail!("pattern mismatch") };
                     ::match_deref::match_deref! { match &(Expression::factors(e1.clone())?) {
                         Deref @ metamodelica::List::Cons { head: _, tail: Deref @ metamodelica::List::Cons { head: _, tail: _ } } => (),
@@ -1671,11 +1657,11 @@ fn hasOnlyFactors(mut e1: Arc<DAE::Exp>, mut e2: Arc<DAE::Exp>) -> Result<bool> 
 
 fn expHasCref(mut inExp1: Arc<DAE::Exp>, mut inExp3: Arc<DAE::Exp>) -> Result<bool> {
     let mut res: bool = false;
-    res = (::match_deref::match_deref! { match &((inExp1.clone(), inExp3.clone())) {
-        (_, Deref @ DAE::Exp::CREF { componentRef: cr, .. }) => {
+    res = (::match_deref::match_deref! { match &(inExp3.clone()) {
+        Deref @ DAE::Exp::CREF { componentRef: cr, .. } => {
             Expression::expHasCrefNoPreOrStart(inExp1.clone(), cr.clone())?
         },
-        (_, Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: Deref @ DAE::Exp::CREF { componentRef: cr, .. }, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "der" }, .. }) => {
+        Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: Deref @ DAE::Exp::CREF { componentRef: cr, .. }, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "der" }, .. } => {
             Expression::expHasDerCref(inExp1.clone(), cr.clone())?
         },
         _ => {
@@ -1705,7 +1691,7 @@ fn makeProductLstSort(mut inExpLst: Arc<metamodelica::List<Arc<DAE::Exp>>>) -> R
     let mut op: DAE::Operator;
     if inExpLst.clone().is_empty() {
         outExp = Arc::new(DAE::Exp::RCONST { real: metamodelica::OrderedFloat(1.0_f64) });
-        return Ok(outExp);
+        return Ok(outExp.clone());
     }
     tp = Expression::r#typeof(listHead(inExpLst.clone())?)?;
     (expLstDiv, expLst) = List::splitOnTrue(inExpLst.clone(), (std::sync::Arc::new(fnptr!(Expression::isDivBinary, Arc<DAE::Exp>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<bool> + 'static>));

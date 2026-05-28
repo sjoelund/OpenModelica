@@ -117,14 +117,14 @@ pub fn longJmpGoto(mut oldFunction: MidCode::Function) -> Result<MidCode::Functi
         newBody = cons(newBlock.clone(), newBody.clone());
         nodes_tmp = List::setDifference(getSuccessors(oldBlock.clone())?, checkedNodes.clone())?;
         checkedNodes = listAppend(nodes_tmp.clone(), checkedNodes.clone());
-        tasks_tmp = {
+        tasks_tmp = ({
         let mut __acc: Arc<metamodelica::List<(Arc<metamodelica::List<i32>>, i32)>> = metamodelica::nil();
         for mut node_tmp in (nodes_tmp.clone()).into_iter().cloned() {
             let __x = (jumps.clone(), node_tmp.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
         tasks = listAppend(tasks_tmp.clone(), tasks.clone());
     }
     newBody = newBody.clone().reverse();
@@ -156,14 +156,14 @@ fn getSuccessors(mut block_: MidCode::Block) -> Result<Arc<metamodelica::List<i3
         MidCode::Terminator::BRANCH { condition: _, onTrue: mut l0, onFalse: mut l1 } => list![l0.clone(), l1.clone()],
         MidCode::Terminator::CALL { func: _, builtin: _, inputs: _, outputs: _, next: mut l0 } => list![l0.clone()],
         MidCode::Terminator::RETURN => metamodelica::nil(),
-        MidCode::Terminator::SWITCH { condition: _, cases: ref switchList } => {
+        MidCode::Terminator::SWITCH { condition: _, cases: ref switchList } => ({
         let mut __acc: Arc<metamodelica::List<i32>> = metamodelica::nil();
         for mut x in (switchList.clone()).into_iter().cloned() {
             let __x = tupleSnd(x.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    },
+    }),
         MidCode::Terminator::LONGJMP => metamodelica::nil(),
         MidCode::Terminator::PUSHJMP { old_buf: _, new_buf: _, next: mut l0 } => list![l0.clone()],
         MidCode::Terminator::POPJMP { old_buf: _, next: mut l0 } => list![l0.clone()],

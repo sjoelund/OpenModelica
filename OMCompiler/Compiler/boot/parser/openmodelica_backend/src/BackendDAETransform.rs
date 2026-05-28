@@ -119,7 +119,7 @@ pub fn eqnAssignmentNonScalar(mut mapEqnIncRow: metamodelica::Array<Arc<metamode
     let __range0 = 1..=(mapEqnIncRow.clone().borrow().len() as i32);
     for mut i in __range0 {
         elst = mapEqnIncRow.borrow()[(i.clone()-1) as usize].clone();
-        vlst = {
+        vlst = ({
         let mut __acc: Arc<metamodelica::List<i32>> = metamodelica::nil();
         for mut e in (elst.clone()).into_iter().cloned() {
             if !(ass2.clone().borrow()[(e.clone()-1) as usize].clone() > 0) { continue; }
@@ -127,7 +127,7 @@ pub fn eqnAssignmentNonScalar(mut mapEqnIncRow: metamodelica::Array<Arc<metamode
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
         acc = cons(vlst.clone(), acc.clone());
     }
     outAcc = List::listArrayReverse(acc.clone())?;
@@ -942,11 +942,11 @@ fn traverseBackendDAEExpsEqnLstLstWithSymbolicOperation<Type_a: Clone + 'static>
 
     let mut outEqns: Arc<metamodelica::List<Arc<metamodelica::List<Arc<BackendDAE::Equation>>>>> = metamodelica::nil();
     let mut outTypeA: Type_a;
-    (outEqns, outTypeA) = (::match_deref::match_deref! { match &((inEqns.clone(), func.clone(), inTypeA.clone(), iAcc.clone())) {
-        (Deref @ metamodelica::List::Nil, _, _, _) => {
+    (outEqns, outTypeA) = (::match_deref::match_deref! { match &(inEqns.clone()) {
+        Deref @ metamodelica::List::Nil => {
             (iAcc.clone().reverse(), inTypeA.clone())
         },
-        (Deref @ metamodelica::List::Cons { head: eqn, tail: rest }, _, _, _) => {
+        Deref @ metamodelica::List::Cons { head: eqn, tail: rest } => {
             let mut eqnslst: Arc<metamodelica::List<Arc<metamodelica::List<Arc<BackendDAE::Equation>>>>> = metamodelica::nil();
             let mut arg: Type_a;
             let mut eqn = (*eqn).clone();
@@ -954,7 +954,7 @@ fn traverseBackendDAEExpsEqnLstLstWithSymbolicOperation<Type_a: Clone + 'static>
             (eqnslst, arg) = traverseBackendDAEExpsEqnLstLstWithSymbolicOperation(rest.clone(), func.clone(), arg.clone(), cons(eqn.clone(), iAcc.clone()))?;
             (eqnslst.clone(), arg.clone())
         },
-        _ => bail!("match: no arm matched"),
+        _ => unreachable!("match_deref! exhaustiveness placeholder"),
     } });
     Ok((outEqns, outTypeA))
 }
@@ -1112,21 +1112,21 @@ fn collapseArrayCrefExpWork2(mut e: Arc<DAE::Exp>) -> Result<Arc<DAE::Exp>> {
         Deref @ DAE::Exp::ARRAY { ty: ty @ Deref @ DAE::Type::T_ARRAY { dims, .. }, .. } => (dims.clone(), ty.clone()),
         _ => bail!("match: no arm matched"),
     } });
-    let _ = (::match_deref::match_deref! { match &(Types::arrayElementType(ty.clone())) {
+    let () = (::match_deref::match_deref! { match &(Types::arrayElementType(ty.clone())) {
         Deref @ DAE::Type::T_COMPLEX { .. } => bail!("fail"),
         _ => (),
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
     } });
     ds = Expression::dimensionsSizes(dims.clone());
     ndim = (ds.clone().len() as i32);
-    len = {
+    len = ({
         let mut __acc: i32 = 1;
         for mut i in (ds.clone()).into_iter().cloned() {
             let __x = i.clone();
             __acc *= __x;
         }
         __acc
-    };
+    });
     let true = (len.clone() > 0) else { bail!("pattern mismatch") };
     let (__pa0, __pa1) = ::match_deref::match_deref! { match &(Expression::flattenArrayExpToList(e.clone())?) {
         Deref @ metamodelica::List::Cons { head: __pa0, tail: __pa1 } => (__pa0.clone(), __pa1.clone()),
@@ -1152,14 +1152,14 @@ fn collapseArrayCrefExpWork2(mut e: Arc<DAE::Exp>) -> Result<Arc<DAE::Exp>> {
     exp_count = (exps.clone().len() as i32) + 1;
     let true = (exp_count.clone() == len.clone()) else { bail!("pattern mismatch") };
     dims = TypesDump::getDimensions(ComponentReference::crefLastType(cr1.clone())?);
-    let true = (exp_count.clone() == {
+    let true = (exp_count.clone() == ({
         let mut __acc: i32 = 1;
         for mut i in (Expression::dimensionsSizes(dims.clone())).into_iter().cloned() {
             let __x = i.clone();
             __acc *= __x;
         }
         __acc
-    }) else { bail!("pattern mismatch") };
+    })) else { bail!("pattern mismatch") };
     for mut exp in &*exps.clone() {
         let mut exp = exp.clone();
         let __pa4 = ::match_deref::match_deref! { match &(exp.clone()) {

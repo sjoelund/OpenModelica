@@ -95,7 +95,6 @@ fn euclid(mut a: i32, mut b: i32) -> (i32, i32, i32, i32) {
 
 pub fn new(mut lo: i32, mut step: i32, mut hi: i32) -> Arc<SBInterval> {
     let mut int: Arc<SBInterval> = Arc::new(<SBInterval as ::std::default::Default>::default());
-    let mut r: i32 = 0;
     if lo.clone() >= 0 && step.clone() > 0 && hi.clone() >= 0 {
         if lo.clone() <= hi.clone() && hi.clone() < System::intMaxLit() {
             int = Arc::new(SBInterval { lo: lo.clone(), step: step.clone(), hi: hi.clone() - intMod(hi.clone() - lo.clone(), step.clone()) });

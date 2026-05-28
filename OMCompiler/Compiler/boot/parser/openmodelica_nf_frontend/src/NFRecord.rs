@@ -143,7 +143,6 @@ pub fn instDefaultConstructor(mut path: Arc<Absyn::Path>, mut node: Arc<InstNode
     let mut inputs: Arc<metamodelica::List<Arc<InstNode::InstNode>>> = metamodelica::nil();
     let mut locals: Arc<metamodelica::List<Arc<InstNode::InstNode>>> = metamodelica::nil();
     let mut all_params: Arc<metamodelica::List<Arc<InstNode::InstNode>>> = metamodelica::nil();
-    let mut sorted_locals: Arc<metamodelica::List<Arc<InstNode::InstNode>>> = metamodelica::nil();
     let mut attr: DAE::FunctionAttributes = <DAE::FunctionAttributes as ::std::default::Default>::default();
     let mut status: Pointer::Pointer<FunctionStatus>;
     let mut ctor_node: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
@@ -234,7 +233,7 @@ pub fn collectRecordParam(mut component: Arc<InstNode::InstNode>, mut inputs: Ar
     let mut comp_node: Arc<InstNode::InstNode> = InstNode::resolveInner(component.clone());
     if InstNode::isProtected(comp_node.clone()) {
         locals = cons(comp_node.clone(), locals.clone());
-        return Ok((inputs, locals));
+        return Ok((inputs.clone(), locals.clone()));
     }
     comp = InstNode::component(comp_node.clone())?;
     if Component::isFinal(comp.clone())? {

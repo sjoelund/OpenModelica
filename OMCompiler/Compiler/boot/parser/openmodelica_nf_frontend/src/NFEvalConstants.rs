@@ -94,14 +94,14 @@ pub fn evaluate(mut flatModel: Arc<FlatModel::NFFlatModel>, mut context: i32) ->
     let mut settings: EvalSettings = <EvalSettings as ::std::default::Default>::default();
     settings = EvalSettings { scalarize: Flags::isSet(Flags::NF_SCALARIZE.clone())? };
     assign_field!(
-        flatModel.variables = {
+        flatModel.variables = ({
         let mut __acc: Arc<metamodelica::List<Arc<Variable::NFVariable>>> = metamodelica::nil();
         for mut v in (flatModel.variables.clone()).into_iter().cloned() {
             let __x = evaluateVariable(v.clone(), context.clone(), settings.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    },
+    }),
         flatModel.equations = evaluateEquations(flatModel.equations.clone()),
         flatModel.initialEquations = evaluateEquations(flatModel.initialEquations.clone()),
         flatModel.algorithms = evaluateAlgorithms(flatModel.algorithms.clone()),
@@ -123,22 +123,22 @@ pub fn evaluateVariable(mut var: Arc<Variable::NFVariable>, mut context: i32, mu
         assign_field!(var.binding = binding.clone());
     }
     assign_field!(
-        var.typeAttributes = {
+        var.typeAttributes = ({
         let mut __acc: Arc<metamodelica::List<(ArcStr, Arc<Binding::NFBinding>)>> = metamodelica::nil();
         for mut a in (var.typeAttributes.clone()).into_iter().cloned() {
             let __x = evaluateTypeAttribute(a.clone(), var.name.clone(), context.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    },
-        var.children = {
+    }),
+        var.children = ({
         let mut __acc: Arc<metamodelica::List<Arc<Variable::NFVariable>>> = metamodelica::nil();
         for mut v in (var.children.clone()).into_iter().cloned() {
             let __x = evaluateVariable(v.clone(), context.clone(), settings.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    }
+    })
     );
     Ok(var)
 }
@@ -285,14 +285,14 @@ pub fn evaluateType(mut ty: Arc<Type::NFType>, mut info: SourceInfo) -> Result<A
     let mut ty: Arc<Type::NFType> = ty;
     ty = (::match_deref::match_deref! { match &(ty.clone()) {
         Deref @ Type::ARRAY { .. } => {
-            assign_variant_field!(ty => Type::NFType::ARRAY; dimensions = {
+            assign_variant_field!(ty => Type::NFType::ARRAY; dimensions = ({
         let mut __acc: Arc<metamodelica::List<Arc<Dimension::NFDimension>>> = metamodelica::nil();
         for mut d in (var_field!((*ty).dimensions, Type::NFType::ARRAY).clone()).into_iter().cloned() {
             let __x = evaluateDimension(d.clone(), info.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             ty.clone()
         },
         Deref @ Type::CONDITIONAL_ARRAY { .. } => Type::simplifyConditionalArray(ty.clone()),
@@ -327,7 +327,6 @@ pub fn evaluateIfExp(mut exp: Arc<Expression::NFExpression>, mut info: SourceInf
     let mut fb: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut c1: bool = false;
     let mut c2: bool = false;
-    let mut matched_branch: Type::Branch = Type::Branch::NONE;
     let (__pa0, __pa1, __pa2, __pa3) = ::match_deref::match_deref! { match &(exp.clone()) {
         Deref @ Expression::IF { ty: __pa0, condition: __pa1, trueBranch: __pa2, falseBranch: __pa3 } => (__pa0.clone(), __pa1.clone(), __pa2.clone(), __pa3.clone()),
         _ => bail!("pattern mismatch"),
@@ -354,14 +353,14 @@ pub fn evaluateIfExp(mut exp: Arc<Expression::NFExpression>, mut info: SourceInf
 }
 
 pub fn evaluateEquations(mut eql: Arc<metamodelica::List<Arc<Equation::NFEquation>>>) -> Arc<metamodelica::List<Arc<Equation::NFEquation>>> {
-    let mut outEql: Arc<metamodelica::List<Arc<Equation::NFEquation>>> = {
+    let mut outEql: Arc<metamodelica::List<Arc<Equation::NFEquation>>> = ({
         let mut __acc: Arc<metamodelica::List<Arc<Equation::NFEquation>>> = metamodelica::nil();
         for mut e in (eql.clone()).into_iter().cloned() {
             let __x = evaluateEquation(e.clone()).unwrap();
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     outEql
 }
 
@@ -386,25 +385,25 @@ pub fn evaluateEquation(mut eq: Arc<Equation::NFEquation>) -> Result<Arc<Equatio
             eq.clone()
         },
         Deref @ Equation::IF { .. } => {
-            assign_variant_field!(eq => Equation::NFEquation::IF; branches = {
+            assign_variant_field!(eq => Equation::NFEquation::IF; branches = ({
         let mut __acc: Arc<metamodelica::List<Arc<Branch::Branch>>> = metamodelica::nil();
         for mut b in (var_field!((*eq).branches, Equation::NFEquation::IF).clone()).into_iter().cloned() {
             let __x = evaluateEqBranch(b.clone(), info.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             eq.clone()
         },
         Deref @ Equation::WHEN { .. } => {
-            assign_variant_field!(eq => Equation::NFEquation::WHEN; branches = {
+            assign_variant_field!(eq => Equation::NFEquation::WHEN; branches = ({
         let mut __acc: Arc<metamodelica::List<Arc<Branch::Branch>>> = metamodelica::nil();
         for mut b in (var_field!((*eq).branches, Equation::NFEquation::WHEN).clone()).into_iter().cloned() {
             let __x = evaluateEqBranch(b.clone(), info.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             eq.clone()
         },
         Deref @ Equation::ASSERT { .. } => {
@@ -455,14 +454,14 @@ pub fn evaluateEqBranch(mut branch: Arc<Branch::Branch>, mut info: SourceInfo) -
 }
 
 pub fn evaluateAlgorithms(mut algs: Arc<metamodelica::List<Arc<Algorithm::NFAlgorithm>>>) -> Arc<metamodelica::List<Arc<Algorithm::NFAlgorithm>>> {
-    let mut outAlgs: Arc<metamodelica::List<Arc<Algorithm::NFAlgorithm>>> = {
+    let mut outAlgs: Arc<metamodelica::List<Arc<Algorithm::NFAlgorithm>>> = ({
         let mut __acc: Arc<metamodelica::List<Arc<Algorithm::NFAlgorithm>>> = metamodelica::nil();
         for mut a in (algs.clone()).into_iter().cloned() {
             let __x = evaluateAlgorithm(a.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     outAlgs
 }
 
@@ -473,14 +472,14 @@ pub fn evaluateAlgorithm(mut alg: Arc<Algorithm::NFAlgorithm>) -> Arc<Algorithm:
 }
 
 pub fn evaluateStatements(mut stmts: Arc<metamodelica::List<Arc<Statement::NFStatement>>>) -> Arc<metamodelica::List<Arc<Statement::NFStatement>>> {
-    let mut outStmts: Arc<metamodelica::List<Arc<Statement::NFStatement>>> = {
+    let mut outStmts: Arc<metamodelica::List<Arc<Statement::NFStatement>>> = ({
         let mut __acc: Arc<metamodelica::List<Arc<Statement::NFStatement>>> = metamodelica::nil();
         for mut s in (stmts.clone()).into_iter().cloned() {
             let __x = evaluateStatement(s.clone()).unwrap();
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
     outStmts
 }
 
@@ -505,25 +504,25 @@ pub fn evaluateStatement(mut stmt: Arc<Statement::NFStatement>) -> Result<Arc<St
             stmt.clone()
         },
         Deref @ Statement::IF { .. } => {
-            assign_variant_field!(stmt => Statement::NFStatement::IF; branches = {
+            assign_variant_field!(stmt => Statement::NFStatement::IF; branches = ({
         let mut __acc: Arc<metamodelica::List<(Arc<Expression::NFExpression>, Arc<metamodelica::List<Arc<Statement::NFStatement>>>)>> = metamodelica::nil();
         for mut b in (var_field!((*stmt).branches, Statement::NFStatement::IF).clone()).into_iter().cloned() {
             let __x = evaluateStmtBranch(b.clone(), info.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             stmt.clone()
         },
         Deref @ Statement::WHEN { .. } => {
-            assign_variant_field!(stmt => Statement::NFStatement::WHEN; branches = {
+            assign_variant_field!(stmt => Statement::NFStatement::WHEN; branches = ({
         let mut __acc: Arc<metamodelica::List<(Arc<Expression::NFExpression>, Arc<metamodelica::List<Arc<Statement::NFStatement>>>)>> = metamodelica::nil();
         for mut b in (var_field!((*stmt).branches, Statement::NFStatement::WHEN).clone()).into_iter().cloned() {
             let __x = evaluateStmtBranch(b.clone(), info.clone())?;
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    });
+    }));
             stmt.clone()
         },
         Deref @ Statement::ASSERT { .. } => {
@@ -575,9 +574,6 @@ pub fn evaluateStmtBranch(mut branch: (Arc<Expression::NFExpression>, Arc<metamo
 
 pub fn evaluateFunction(mut func: Arc<Function::Function>) -> Result<Arc<Function::Function>> {
     let mut func: Arc<Function::Function> = func;
-    let mut cls: Arc<Class::NFClass> = Arc::new(Class::NOT_INSTANTIATED);
-    let mut fn_body: Arc<Algorithm::NFAlgorithm> = Arc::new(<Algorithm::NFAlgorithm as ::std::default::Default>::default());
-    let mut sections: Arc<Sections::NFSections> = Arc::new(Sections::EMPTY);
     let mut is_con: bool = false;
     if !(Function::isEvaluated(func.clone())) {
         Function::markEvaluated(func.clone());

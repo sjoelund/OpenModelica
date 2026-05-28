@@ -442,7 +442,7 @@ pub fn setLanguageStandardFromMSL(mut inLibraryName: ArcStr, mut force: bool) ->
     if !(force.clone()) && current_std.clone() != LanguageStandard::latest.clone() {
         return Ok(());
     }
-    let _ = 'mc: {
+    let () = 'mc: {
         let __mc_input = inLibraryName.clone();
         if let Ok(__v) = (|| -> Result<_> {
             let _ = __mc_input.clone() else { bail!("nomatch") };

@@ -43,11 +43,7 @@ use metamodelica::*; // Built-in types and functions
 use const_str;
 use arcstr::{ArcStr, literal, format};
 
-use crate::CodegenCFunctions;
-use crate::CodegenMidToC;
-use crate::DAEToMid;
 use crate::HashTableCrefSimVar;
-use crate::MidCode;
 use crate::SimCodeFunctionUtil;
 use crate::SimCodeVar;
 use openmodelica_ast::Absyn;
@@ -63,7 +59,6 @@ use openmodelica_frontend_types::DAE;
 use openmodelica_frontend_types::SCode;
 use openmodelica_susan::Tpl;
 use openmodelica_util::BaseHashTable;
-use openmodelica_util::Config;
 use openmodelica_util::Error;
 use openmodelica_util::Global;
 use openmodelica_util_datatypes_basic::List;
@@ -590,133 +585,6 @@ pub fn listExpLength1() -> Arc<metamodelica::List<Arc<DAE::Exp>>> { __listExpLen
 
 thread_local! { static __boxedRecordOutVars_TLS: Arc<metamodelica::List<Arc<Variable::Variable>>> = cons(Arc::new(Variable::Variable::VARIABLE { name: Arc::new(DAE::ComponentRef::CREF_IDENT { ident: (literal!("")).clone(), identType: DAE::T_COMPLEX_DEFAULT_RECORD().clone(), subscriptLst: metamodelica::nil() }), ty: DAE::T_COMPLEX_DEFAULT_RECORD().clone(), value: None, instDims: metamodelica::nil(), parallelism: openmodelica_frontend_types::DAE::VarParallelism::NON_PARALLEL, kind: openmodelica_frontend_types::DAE::VarKind::VARIABLE, bind_from_outside: false }), metamodelica::nil()); }
 pub fn boxedRecordOutVars() -> Arc<metamodelica::List<Arc<Variable::Variable>>> { __boxedRecordOutVars_TLS.with(|__t| __t.clone()) }
-
-pub fn translateFunctions(mut program: Absyn::Program, mut name: ArcStr, mut optMainFunction: Option<DAE::Function>, mut idaeElements: Arc<metamodelica::List<DAE::Function>>, mut metarecordTypes: Arc<metamodelica::List<Arc<DAE::Type>>>, mut inIncludes: Arc<metamodelica::List<ArcStr>>) -> Result<()> {
-    crate::Globals::optionSimCode.with(|__root| *__root.borrow_mut() = None);
-    let _ = (::match_deref::match_deref! { match &((program.clone(), name.clone(), optMainFunction.clone(), idaeElements.clone(), metarecordTypes.clone(), inIncludes.clone())) {
-        (_, _, Some(daeMainFunction), daeElements, _, includes) => {
-            let mut mainFunction: Arc<Function::Function>;
-            let mut fns: Arc<metamodelica::List<Arc<Function::Function>>> = metamodelica::nil();
-            let mut libs: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
-            let mut libPaths: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
-            let mut includeDirs: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
-            let mut makefileParams: MakefileParams = <MakefileParams as ::std::default::Default>::default();
-            let mut fnCode: FunctionCode;
-            let mut extraRecordDecls: Arc<metamodelica::List<RecordDeclaration>> = metamodelica::nil();
-            let mut literals: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
-            let mut midCode: Tpl::Text;
-            let mut midfuncs: Arc<metamodelica::List<MidCode::Function>> = metamodelica::nil();
-            let mut daeElements = (*daeElements).clone();
-            let mut includes = (*includes).clone();
-            (daeElements, literals) = SimCodeFunctionUtil::findLiterals(cons(daeMainFunction.clone(), daeElements.clone()));
-            let (__pa0, __pa1, __pa2, __pa3, __pa4, __pa5, __pa6) = ::match_deref::match_deref! { match &(SimCodeFunctionUtil::elaborateFunctions(program.clone(), daeElements.clone(), metarecordTypes.clone(), literals.clone(), includes.clone())?) {
-                (Deref @ metamodelica::List::Cons { head: __pa0, tail: __pa1 }, __pa2, __pa3, __pa4, __pa5, __pa6) => (__pa0.clone(), __pa1.clone(), __pa2.clone(), __pa3.clone(), __pa4.clone(), __pa5.clone(), __pa6.clone()),
-                _ => bail!("pattern mismatch"),
-            } };
-            mainFunction = __pa0.clone();
-            fns = __pa1.clone();
-            extraRecordDecls = __pa2.clone();
-            includes = __pa3.clone();
-            includeDirs = __pa4.clone();
-            libs = __pa5.clone();
-            libPaths = __pa6.clone();
-            SimCodeFunctionUtil::checkValidMainFunction((name.clone()).clone(), mainFunction.clone())?;
-            makefileParams = SimCodeFunctionUtil::createMakefileParams(includeDirs.clone(), libs.clone(), libPaths.clone(), true, false)?;
-            fnCode = FunctionCode { name: (name.clone()).clone(), mainFunction: Some(mainFunction.clone()), functions: fns.clone(), literals: literals.clone(), externalFunctionIncludes: includes.clone(), makefileParams: makefileParams.clone(), extraRecordDecls: extraRecordDecls.clone() };
-            if Config::simCodeTarget()? == literal!("MidC") {
-                let _ = Tpl::tplString((std::sync::Arc::new(CodegenCFunctions::translateFunctionHeaderFiles) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, FunctionCode) -> Result<Tpl::Text> + 'static>), fnCode.clone())?;
-                midfuncs = DAEToMid::DAEFunctionsToMid(cons(mainFunction.clone(), fns.clone()))?;
-                midCode = Tpl::tplCallWithFailError((std::sync::Arc::new(CodegenMidToC::genProgram) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, MidCode::Program) -> Result<Tpl::Text> + 'static>), MidCode::Program { name: (name.clone()).clone(), functions: midfuncs.clone() }, Tpl::emptyTxt.clone())?;
-                let _ = Tpl::textFileConvertLines(midCode.clone(), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*name.clone()); __mm_s.push_str(&*literal!(".c")); ArcStr::from(__mm_s) }).clone())?;
-            } else {
-                let _ = Tpl::tplString((std::sync::Arc::new(CodegenCFunctions::translateFunctions) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, FunctionCode) -> Result<Tpl::Text> + 'static>), fnCode.clone())?;
-            }
-            ()
-        },
-        (_, _, None, daeElements, _, includes) => {
-            let mut fns: Arc<metamodelica::List<Arc<Function::Function>>> = metamodelica::nil();
-            let mut libs: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
-            let mut libPaths: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
-            let mut includeDirs: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
-            let mut makefileParams: MakefileParams = <MakefileParams as ::std::default::Default>::default();
-            let mut fnCode: FunctionCode;
-            let mut extraRecordDecls: Arc<metamodelica::List<RecordDeclaration>> = metamodelica::nil();
-            let mut literals: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
-            let mut midCode: Tpl::Text;
-            let mut midfuncs: Arc<metamodelica::List<MidCode::Function>> = metamodelica::nil();
-            let mut daeElements = (*daeElements).clone();
-            let mut includes = (*includes).clone();
-            (daeElements, literals) = SimCodeFunctionUtil::findLiterals(daeElements.clone());
-            (fns, extraRecordDecls, includes, includeDirs, libs, libPaths) = SimCodeFunctionUtil::elaborateFunctions(program.clone(), daeElements.clone(), metarecordTypes.clone(), literals.clone(), includes.clone())?;
-            makefileParams = SimCodeFunctionUtil::createMakefileParams(includeDirs.clone(), libs.clone(), libPaths.clone(), true, false)?;
-            fns = removeThreadDataFunction(fns.clone(), metamodelica::nil())?;
-            extraRecordDecls = removeThreadDataRecord(extraRecordDecls.clone(), metamodelica::nil())?;
-            fnCode = FunctionCode { name: (name.clone()).clone(), mainFunction: None, functions: fns.clone(), literals: literals.clone(), externalFunctionIncludes: includes.clone(), makefileParams: makefileParams.clone(), extraRecordDecls: extraRecordDecls.clone() };
-            if Config::simCodeTarget()? == literal!("MidC") {
-                let _ = Tpl::tplString((std::sync::Arc::new(CodegenCFunctions::translateFunctionHeaderFiles) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, FunctionCode) -> Result<Tpl::Text> + 'static>), fnCode.clone())?;
-                midfuncs = DAEToMid::DAEFunctionsToMid(fns.clone())?;
-                midCode = Tpl::tplCallWithFailError((std::sync::Arc::new(CodegenMidToC::genProgram) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, MidCode::Program) -> Result<Tpl::Text> + 'static>), MidCode::Program { name: (name.clone()).clone(), functions: midfuncs.clone() }, Tpl::emptyTxt.clone())?;
-                let _ = Tpl::textFileConvertLines(midCode.clone(), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*name.clone()); __mm_s.push_str(&*literal!(".c")); ArcStr::from(__mm_s) }).clone())?;
-            } else {
-                let _ = Tpl::tplString((std::sync::Arc::new(CodegenCFunctions::translateFunctions) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, FunctionCode) -> Result<Tpl::Text> + 'static>), fnCode.clone())?;
-            }
-            ()
-        },
-        _ => bail!("match: no arm matched"),
-    } });
-    Ok(())
-}
-
-// NOTE: #[tailcall::tailcall] disabled: function body contains a `match_deref!{…}` match,
-// and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
-fn removeThreadDataRecord(mut inRecs: Arc<metamodelica::List<RecordDeclaration>>, mut inAcc: Arc<metamodelica::List<RecordDeclaration>>) -> Result<Arc<metamodelica::List<RecordDeclaration>>> {
-    let mut outRecs: Arc<metamodelica::List<RecordDeclaration>> = metamodelica::nil();
-    outRecs = (::match_deref::match_deref! { match &((inRecs.clone(), inAcc.clone())) {
-        (Deref @ metamodelica::List::Nil, _) => {
-            inAcc.clone().reverse()
-        },
-        (Deref @ metamodelica::List::Cons { head: RecordDeclaration::RECORD_DECL_FULL { name: Deref @ "OpenModelica_threadData_ThreadData", .. }, tail: rest }, _) => {
-            let mut acc: Arc<metamodelica::List<RecordDeclaration>> = metamodelica::nil();
-            acc = removeThreadDataRecord(rest.clone(), inAcc.clone())?;
-            acc.clone()
-        },
-        (Deref @ metamodelica::List::Cons { head: RecordDeclaration::RECORD_DECL_DEF { path: Deref @ Absyn::Path::QUALIFIED { name: Deref @ "OpenModelica", path: Deref @ Absyn::Path::QUALIFIED { name: Deref @ "threadData", path: Deref @ Absyn::Path::IDENT { name: Deref @ "ThreadData" } } }, .. }, tail: rest }, _) => {
-            let mut acc: Arc<metamodelica::List<RecordDeclaration>> = metamodelica::nil();
-            acc = removeThreadDataRecord(rest.clone(), inAcc.clone())?;
-            acc.clone()
-        },
-        (Deref @ metamodelica::List::Cons { head: r, tail: rest }, _) => {
-            let mut acc: Arc<metamodelica::List<RecordDeclaration>> = metamodelica::nil();
-            acc = removeThreadDataRecord(rest.clone(), cons(r.clone(), inAcc.clone()))?;
-            acc.clone()
-        },
-        _ => bail!("match: no arm matched"),
-    } });
-    Ok(outRecs)
-}
-
-// NOTE: #[tailcall::tailcall] disabled: function body contains a `match_deref!{…}` match,
-// and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
-fn removeThreadDataFunction(mut inFuncs: Arc<metamodelica::List<Arc<Function::Function>>>, mut inAcc: Arc<metamodelica::List<Arc<Function::Function>>>) -> Result<Arc<metamodelica::List<Arc<Function::Function>>>> {
-    let mut outFuncs: Arc<metamodelica::List<Arc<Function::Function>>> = metamodelica::nil();
-    outFuncs = (::match_deref::match_deref! { match &((inFuncs.clone(), inAcc.clone())) {
-        (Deref @ metamodelica::List::Nil, _) => {
-            inAcc.clone().reverse()
-        },
-        (Deref @ metamodelica::List::Cons { head: Deref @ Function::RECORD_CONSTRUCTOR { name: Deref @ Absyn::Path::FULLYQUALIFIED { path: Deref @ Absyn::Path::QUALIFIED { name: Deref @ "OpenModelica", path: Deref @ Absyn::Path::QUALIFIED { name: Deref @ "threadData", path: Deref @ Absyn::Path::IDENT { name: Deref @ "ThreadData" } } } }, .. }, tail: rest }, _) => {
-            let mut acc: Arc<metamodelica::List<Arc<Function::Function>>> = metamodelica::nil();
-            acc = removeThreadDataFunction(rest.clone(), inAcc.clone())?;
-            acc.clone()
-        },
-        (Deref @ metamodelica::List::Cons { head: f, tail: rest }, _) => {
-            let mut acc: Arc<metamodelica::List<Arc<Function::Function>>> = metamodelica::nil();
-            acc = removeThreadDataFunction(rest.clone(), cons(f.clone(), inAcc.clone()))?;
-            acc.clone()
-        },
-        _ => bail!("match: no arm matched"),
-    } });
-    Ok(outFuncs)
-}
 
 pub fn getCalledFunctionsInFunction(mut path: Arc<Absyn::Path>, mut funcs: Arc<AvlTreePathFunction::Tree>) -> Result<Arc<metamodelica::List<Arc<Absyn::Path>>>> {
     let mut outPaths: Arc<metamodelica::List<Arc<Absyn::Path>>> = metamodelica::nil();

@@ -152,7 +152,6 @@ pub fn instUnqualified(mut imp: Arc<NFImport>, mut imps: Arc<metamodelica::List<
     let mut node: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
     let mut scope: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
     let mut tree: Arc<ClassTree::ClassTree> = Arc::new(ClassTree::EMPTY_TREE);
-    let mut elements: Arc<metamodelica::List<Arc<InstNode::InstNode>>> = metamodelica::nil();
     let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
     let (__pa0, __pa1, __pa2) = ::match_deref::match_deref! { match &(imp.clone()) {
         Deref @ UNRESOLVED_IMPORT { info: __pa0, scope: __pa1, imp: Absyn::Import::UNQUAL_IMPORT { path: __pa2 } } => (__pa0.clone(), __pa1.clone(), __pa2.clone()),

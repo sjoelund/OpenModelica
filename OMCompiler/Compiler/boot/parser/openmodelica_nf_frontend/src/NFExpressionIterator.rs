@@ -139,15 +139,9 @@ pub fn fromExpOpt(mut optExp: Option<Arc<Expression::NFExpression>>) -> Result<A
 pub fn fromBinding(mut binding: Arc<Binding::NFBinding>) -> Result<Arc<NFExpressionIterator>> {
     let mut iterator: Arc<NFExpressionIterator> = Arc::new(NFExpressionIterator::NONE_ITERATOR);
     iterator = (::match_deref::match_deref! { match &(binding.clone()) {
-        Deref @ Binding::TYPED_BINDING { eachType: Binding::EachType::EACH, .. } => {
-            Arc::new(NFExpressionIterator::EACH_ITERATOR { exp: var_field!((*binding).bindingExp, Binding::NFBinding::TYPED_BINDING).clone() })
-        },
-        Deref @ Binding::TYPED_BINDING { .. } => {
-            fromExp(var_field!((*binding).bindingExp, Binding::NFBinding::TYPED_BINDING).clone(), false, false)?
-        },
-        Deref @ Binding::FLAT_BINDING { .. } => {
-            Arc::new(NFExpressionIterator::EACH_ITERATOR { exp: var_field!((*binding).bindingExp, Binding::NFBinding::FLAT_BINDING).clone() })
-        },
+        Deref @ Binding::TYPED_BINDING { eachType: Binding::EachType::EACH, .. } => Arc::new(NFExpressionIterator::EACH_ITERATOR { exp: var_field!((*binding).bindingExp, Binding::NFBinding::TYPED_BINDING).clone() }),
+        Deref @ Binding::TYPED_BINDING { .. } => fromExp(var_field!((*binding).bindingExp, Binding::NFBinding::TYPED_BINDING).clone(), false, false)?,
+        Deref @ Binding::FLAT_BINDING { .. } => Arc::new(NFExpressionIterator::EACH_ITERATOR { exp: var_field!((*binding).bindingExp, Binding::NFBinding::FLAT_BINDING).clone() }),
         _ => bail!("match: no arm matched"),
     } });
     Ok(iterator)
@@ -249,7 +243,6 @@ pub fn toList(mut iterator: Arc<NFExpressionIterator>) -> Result<Arc<metamodelic
 pub fn isSubscriptedArrayCall(mut iterator: Arc<NFExpressionIterator>, mut trySimplify: bool) -> Result<bool> {
     fn is_sub_call(mut exp: Arc<Expression::NFExpression>, mut trySimplify: bool) -> Result<bool> {
         let mut res: bool = false;
-        let mut call: Arc<Expression::NFExpression> = Arc::new(Expression::END);
         res = (::match_deref::match_deref! { match &(exp.clone()) {
         Deref @ Expression::SUBSCRIPTED_EXP { exp: Deref @ Expression::CALL { .. }, .. } => !(trySimplify.clone()) || Expression::isCall(SimplifyExp::simplify(var_field!((*exp).exp, Expression::NFExpression::SUBSCRIPTED_EXP).clone(), false)?),
         _ => false,
@@ -269,7 +262,6 @@ pub fn isSubscriptedArrayCall(mut iterator: Arc<NFExpressionIterator>, mut trySi
 
 fn makeArrayIterator(mut exp: Arc<Expression::NFExpression>) -> Result<Arc<NFExpressionIterator>> {
     let mut iterator: Arc<NFExpressionIterator> = Arc::new(NFExpressionIterator::NONE_ITERATOR);
-    let mut arr: metamodelica::Array<Arc<Expression::NFExpression>>;
     let mut arrays: Arc<metamodelica::List<metamodelica::Array<Arc<Expression::NFExpression>>>> = metamodelica::nil();
     arrays = flattenArray(exp.clone(), metamodelica::nil())?;
     if arrays.clone().is_empty() {

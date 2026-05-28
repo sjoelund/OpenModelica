@@ -128,7 +128,7 @@ pub fn contains(mut vals: metamodelica::Array<i32>, mut set: Arc<SBSet>) -> bool
 pub fn addAtomicSet(mut aset: Arc<SBAtomicSet::SBAtomicSet>, mut set: Arc<SBSet>) -> Result<Arc<SBSet>> {
     let mut set: Arc<SBSet> = set;
     if SBAtomicSet::isEmpty(aset.clone()) {
-        return Ok(set);
+        return Ok(set.clone());
     }
     if UnorderedSet::isEmpty(set.asets.clone()) {
         UnorderedSet::add(aset.clone(), set.asets.clone())?;
@@ -151,7 +151,7 @@ pub fn intersection(mut set1: Arc<SBSet>, mut set2: Arc<SBSet>) -> Result<Arc<SB
     let mut res: Arc<UnorderedSet::UnorderedSet<Arc<SBAtomicSet::SBAtomicSet>>>;
     if UnorderedSet::isEmpty(set1.asets.clone()) || UnorderedSet::isEmpty(set2.asets.clone()) {
         outSet = newEmpty();
-        return Ok(outSet);
+        return Ok(outSet.clone());
     }
     res = UnorderedSet::new((std::sync::Arc::new(fnptr!(SBAtomicSet::hash, Arc<SBAtomicSet::SBAtomicSet>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SBAtomicSet::SBAtomicSet>) -> Result<i32> + 'static>), (std::sync::Arc::new(fnptr!(SBAtomicSet::isEqual, Arc<SBAtomicSet::SBAtomicSet>, Arc<SBAtomicSet::SBAtomicSet>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SBAtomicSet::SBAtomicSet>, Arc<SBAtomicSet::SBAtomicSet>) -> Result<bool> + 'static>), 13);
     let __range0 = UnorderedSet::toArray(set1.asets.clone()).borrow().iter().cloned().collect::<Vec<_>>();
@@ -265,14 +265,14 @@ pub fn minElem(mut set: Arc<SBSet>) -> Result<metamodelica::Array<i32>> {
     if isEmpty(set.clone()) {
         res = metamodelica::arrayFromVec(metamodelica::nil().into_iter().cloned().collect());
     } else {
-        min_elems = {
+        min_elems = ({
         let mut __acc: Arc<metamodelica::List<metamodelica::Array<i32>>> = metamodelica::nil();
         for mut e in (UnorderedSet::toArray(set.asets.clone())).borrow().iter() {
             let __x = SBAtomicSet::minElem(e.clone());
             __acc = cons(__x, __acc);
         }
         __acc.reverse()
-    };
+    });
         res = List::minElement(min_elems.clone(), (std::sync::Arc::new(fnptr!(lessFn, metamodelica::Array<i32>, metamodelica::Array<i32>)) as std::sync::Arc<dyn ::std::ops::Fn(metamodelica::Array<i32>, metamodelica::Array<i32>) -> Result<bool> + 'static>))?;
     }
     Ok(res)

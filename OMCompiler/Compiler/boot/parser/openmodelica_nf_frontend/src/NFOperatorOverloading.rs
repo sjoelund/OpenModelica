@@ -169,13 +169,13 @@ pub fn patchOperatorRecordConstructorBinding(mut r#fn: Arc<Function::Function>) 
     let mut output_comp: Arc<Component::NFComponent> = Arc::new(Component::WILD);
     let mut output_binding: Arc<Binding::NFBinding> = Arc::new(Binding::UNBOUND);
     if (r#fn.outputs.clone().len() as i32) != 1 {
-        return Ok(r#fn);
+        return Ok(r#fn.clone());
     }
     output_node = listHead(r#fn.outputs.clone())?;
     output_comp = InstNode::component(output_node.clone())?;
     output_binding = Component::getBinding(output_comp.clone());
     if !(Binding::isBound(output_binding.clone())) {
-        return Ok(r#fn);
+        return Ok(r#fn.clone());
     }
     output_binding = Binding::mapExp(output_binding.clone(), Arc::new({ let __pe_b1 = r#fn.clone(); move |__pe_a0| Ok(patchOperatorRecordConstructorBinding_traverser(__pe_a0, __pe_b1.clone())) }))?;
     output_comp = Component::setBinding(output_binding.clone(), output_comp.clone())?;

@@ -16364,6 +16364,14 @@ fn ty_default_init(ty: &Ty) -> Option<String> {
         Ty::Str => Some("arcstr::literal!(\"\")".to_owned()),
         Ty::Option(_) => Some("None".to_owned()),
         Ty::List(_) => Some("metamodelica::nil()".to_owned()),
+        // `metamodelica::Array<T> = Rc<RefCell<Vec<T>>>`. MetaModelica's
+        // implicit default for `output array<T>` / `protected array<T>`
+        // is an *empty* array — `Rc::<RefCell<Vec<T>>>::default()` does
+        // exactly that without requiring `T: Default`. Without this,
+        // functions like `Expression.addVec` that early-`return` before
+        // assigning the output trip E0381 even though the MM
+        // implicit-default contract makes the code well-defined.
+        Ty::Array(_) => Some("::std::default::Default::default()".to_owned()),
         _ => None,
     }
 }

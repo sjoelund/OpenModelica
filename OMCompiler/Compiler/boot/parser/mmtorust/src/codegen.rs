@@ -14003,7 +14003,35 @@ enum FlowResult {
 }
 
 fn is_fail_call(exp: &TypedExp) -> bool {
-    matches!(exp, TypedExp::Call { func, .. } if func == "fail")
+    matches!(exp, TypedExp::Call { func, .. } if func == "fail" || is_known_always_failing_fn(func))
+}
+
+/// Fully-qualified MetaModelica functions whose body always ends in `fail()`
+/// (or equivalent). The Rust port lowers their bodies to `… ; bail!(...)`,
+/// but their signature is still `-> Result<()>`, so `?` at a call site is
+/// treated by the borrow checker as potentially returning Ok — and any
+/// flow-sensitive analysis on the caller (uninit locals on the "fell through
+/// the `?`" path) goes off the rails.
+///
+/// Listing the function here makes the call-site emission append
+/// `unreachable!(...)` after the `?`, so the path is unambiguously diverging
+/// from rustc's perspective. The runtime cost is zero: the unreachable is
+/// behind an Err-returning `?`, so it's never actually executed.
+///
+/// Names are dot-separated FQNs as they appear in MetaModelica (e.g.
+/// `Error.addSourceMessageAndFail`). The call-site lowering resolves the
+/// bare-name to its qname before consulting this set, so an unqualified
+/// `addSourceMessageAndFail(...)` (after `import Error;`) also lands here.
+fn is_known_always_failing_fn(qname: &str) -> bool {
+    // Match both the FQN as written in MM source (`Error.addSourceMessageAndFail`)
+    // and the bare name (after `import Error.addSourceMessageAndFail;` or
+    // similar). `cref_to_dotted` preserves whatever form the source used; the
+    // hierarchy's resolve step doesn't run before this check, so accept both.
+    let bare = qname.rsplit('.').next().unwrap_or(qname);
+    matches!(bare,
+        "addSourceMessageAndFail"
+        | "terminateError"
+    )
 }
 
 fn merge_branch_flows(branches: &[FlowResult]) -> FlowResult {
@@ -14293,6 +14321,18 @@ fn emit_stmt<'a>(
         S::NoRetCall { call } => {
             let s = emit_exp(call, false, ctx, top_level);
             writeln!(out, "{indent}{s};").unwrap();
+            // The `?` propagates the Err that an always-failing helper
+            // (e.g. `Error.addSourceMessageAndFail`, whose Rust body ends
+            // with `bail!(...)`) returns — but the helper's signature is
+            // still `Result<()>`, so rustc considers the post-`?` path
+            // reachable and may flag downstream variables as
+            // possibly-uninitialised (E0381). Mark the path explicitly as
+            // divergent so the borrow checker stops following it. Behind
+            // the Err-returning `?` the unreachable is dead at runtime.
+            if let TypedExp::Call { func, .. } = call
+                && is_known_always_failing_fn(func) {
+                writeln!(out, "{indent}unreachable!(\"{func} always fails — caller-side flow-analysis hint\");").unwrap();
+            }
         }
         S::If { cond, then_, elseif, else_ } => {
             let c = emit_exp(cond, false, ctx, top_level);
